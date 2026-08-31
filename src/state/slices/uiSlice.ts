@@ -26,8 +26,14 @@ function syncIblFromTier(tier: RenderTier, overrides: Partial<QualitySettings> |
   setIblActive(resolveQuality(tier, overrides).ibl)
 }
 
-// Seed it at module load: the app always boots at 'performance' (ibl off), and
-// the shell builds its materials before any React effect runs.
+// Seed it at module load, because the shell builds its materials before any React
+// effect runs. NOTE the seeded tier is a LOWER BOUND, not the real boot tier: this
+// used to say "the app always boots at 'performance'", which TIER-ADAPTIVE made
+// false — `initialAutoTier` is `medium` and the ladder moves at runtime. Seeding
+// `performance` (ibl off) is still the safe direction, since a metal that boots
+// capped and is then un-capped by `SceneEnvironment`'s effect looks right either
+// way, whereas the reverse renders black. Correctness across later tier changes
+// does NOT rely on this seed — see IBL-CAP-LIVE in `materials/iblSignal.ts`.
 syncIblFromTier('performance', undefined)
 
 import { DEFAULT_TONE_MAPPING_SETTING, type ToneMappingSetting } from '../../scene/toneContext'
@@ -102,6 +108,9 @@ export interface UiSlice {
   sceneSaturation: number
   /** Fixture lights mode (all on / all off). */
   lightsMode: LightsMode
+  /** PHOTO-FILL: opt-in photographic light balance. Off by default — reducing
+   *  the fill is the DEFAULT-GLOOM trade (`.86`), which is the user's call. */
+  photographicLook: boolean
   /** Lighting mood preset (UX round-3 #3): one-tap brightness + colour-temperature
    *  adjustment layered on top of `lightsMode` (`lighting/moodPresets.ts`).
    *  `'none'` = Normal (no adjustment). Persisted with the design, like
@@ -191,6 +200,14 @@ export interface UiSlice {
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
   autoShadowsOff: boolean
+  /** TIER-ADAPTIVE learned ceiling: the highest tier the adaptive ladder may
+   *  reach on THIS device, recorded when a tier FAILS. `null` = nothing learned
+   *  yet. Persisted per-device by `qualityPrefs` so a device that already proved
+   *  it can't hold a tier never probes it again. */
+  autoMaxTier: RenderTier | null
+  /** True once a SETTLED tier has been restored from persisted prefs, so the
+   *  one-time capability boot pick must not overwrite it (TIER-ADAPTIVE). */
+  qualityAutoSettled: boolean
   /** Bumped whenever a DLC/catalog furniture material finishes building into
    *  the shared cache, so memoised furniture re-renders to pick it up. */
   materialEpoch: number
@@ -248,6 +265,8 @@ export interface UiSlice {
   cycleQuality: () => void
   /** Adaptive auto-adjust (does not set qualityUserSet). */
   autoSetQualityTier: (t: RenderTier) => void
+  /** Record the TIER-ADAPTIVE learned ceiling (does not set qualityUserSet). */
+  setAutoMaxTier: (t: RenderTier | null) => void
   /** Override a single quality setting (marks qualityUserSet). */
   setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void
   /** Drop all overrides so settings follow the tier preset again. */
@@ -263,6 +282,7 @@ export interface UiSlice {
   /** Set the scene saturation multiplier (clamped; COLOR-GRADE). */
   setSceneSaturation: (s: number) => void
   setLightsMode: (m: LightsMode) => void
+  setPhotographicLook: (v: boolean) => void
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void
   setAutoShadowsOff: (v: boolean) => void
@@ -303,6 +323,8 @@ export const UI_INITIAL: Pick<
   | 'wallRevealScope'
   | 'drawingLayers'
   | 'autoShadowsOff'
+  | 'autoMaxTier'
+  | 'qualityAutoSettled'
   | 'backdrop'
   | 'hdriId'
   | 'customBackdropUrl'
@@ -320,6 +342,7 @@ export const UI_INITIAL: Pick<
   | 'recentColors'
   | 'recentFinishes'
   | 'materialEpoch'
+  | 'photographicLook'
   | 'showcaseAccumulating'
   | 'roomEditor'
   | 'roomOrder'
@@ -341,15 +364,24 @@ export const UI_INITIAL: Pick<
   sceneWarmth: DEFAULT_SCENE_WARMTH,
   sceneSaturation: DEFAULT_SCENE_SATURATION,
   lightsMode: 'off',
+  photographicLook: false,
   lightMood: 'none' as LightMood,
   showCeilingFixtures: false,
   wallRevealStrength: DEFAULT_WALL_REVEAL_STRENGTH,
   wallRevealScope: 'exterior' as const,
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
+  autoMaxTier: null,
+  qualityAutoSettled: false,
   snapEnabled: false,
   gridSize: 0.5,
-  backdrop: 'city' as BackdropKind,
+  // WINDOW-SKY-DEFAULT (v0.31.5.92): `'sky'`, not `'city'`. The static `city`
+  // preset is authored at ONE time of day and paints warm lit tower windows at
+  // every hour, so with the curtains open (v0.31.5.88) the default flat showed a
+  // night skyline at 13:00 — measured identical to 0.1 rgb between 09:00 and
+  // 13:00. `'sky'` is the sun-driven analytic backdrop, so the view out of the
+  // window tracks the clock the interior is already graded by.
+  backdrop: 'sky' as BackdropKind,
   hdriId: null as string | null,
   customBackdropUrl: null,
   uiMode: 'simple' as UiMode,
@@ -465,6 +497,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setSceneWarmth: (w) => set({ sceneWarmth: clampSceneWarmth(w) }),
   setSceneSaturation: (sat) => set({ sceneSaturation: clampSceneSaturation(sat) }),
   setLightsMode: (m) => set({ lightsMode: m }),
+  setPhotographicLook: (v) => set({ photographicLook: v }),
   setLightMood: (m) => set({ lightMood: m }),
   setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),
   setWallRevealStrength: (v) => set({ wallRevealStrength: Math.min(1, Math.max(0, v)) }),
@@ -478,6 +511,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
+  setAutoMaxTier: (t) => set({ autoMaxTier: t }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),

@@ -1,4 +1,4 @@
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getSurfaceMaterial, getSurfaceMaterialForBox } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { MetalMaterial } from './MetalMaterial'
@@ -18,7 +18,17 @@ interface TVConsoleProps {
  */
 export function TVConsole({ props }: TVConsoleProps) {
   const width = readNum(props, 'width', 1.8)
-  const color = readStr(props, 'color', '#3a2f24')
+  // FURNITURE-WOOD-SCALE: was #3a2f24, nearly black. That was harmless while the
+  // def's finish was a `mat:` catalog material (which supplies its own albedo and
+  // ignores this prop), but the procedural `wood` painter MULTIPLIES it, so the
+  // colour had never actually been validated. Swept item-masked at walk/Medium/
+  // 09:00 against finish='wood': #3a2f24 / #6f553f / #8a6b48 / #a08464 / #b89a72
+  // gave mean 72.7 / 97.5 / 109.9 / 122.1 / 131.8 and chroma 0.521 / 0.497 /
+  // 0.489 / 0.415 / 0.396. #a08464 measured slightly lower chroma and looked
+  // near-identical; #8a6b48 was chosen because it is squarely in the target band
+  // AND matches the Dresser and Nightstand defaults, so the flat's wood furniture
+  // reads as one family.
+  const color = readStr(props, 'color', '#8a6b48')
   const finish = readStr(props, 'finish', 'wood')
   const sheen = readNum(props, 'sheen', 0)
   const base = readStr(props, 'base', 'block')
@@ -31,6 +41,15 @@ export function TVConsole({ props }: TVConsoleProps) {
   const faceW = (width - 0.06) / 2
 
   const wood = getSurfaceMaterial(finish, color, 1.6, sheen)
+  // GRAIN-SCALE: a door / drawer front is a fraction of the carcass, but a box
+  // face's UVs are 0→1 whatever its real size — so sharing the carcass material
+  // renders the same wood at a different (and per-face STRETCHED) grain on every
+  // front. Size these from world dimensions instead. Structural panels keep the
+  // shared carcass material on purpose: their faces are flush with each other by
+  // construction, and giving each its own variant would turn invisible coplanar
+  // seams into visible z-fighting (`structuralSoundness` pins this).
+  const frontWood = (dims: [number, number, number]) =>
+    getSurfaceMaterialForBox(finish, color, dims, sheen)
   const metal = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 }
   const faceZ = depth / 2 + 0.004
 
@@ -119,7 +138,7 @@ export function TVConsole({ props }: TVConsoleProps) {
                     <BeveledBox
                       castShadow
                       position={[cx, dy, faceZ]}
-                      material={wood}
+                      material={frontWood([sideW - 0.012, dh, 0.016])}
                       args={[sideW - 0.012, dh, 0.016]}
                     />
                     <mesh castShadow position={[cx, dy, faceZ + 0.016]}>
@@ -199,7 +218,7 @@ export function TVConsole({ props }: TVConsoleProps) {
                     <BeveledBox
                       castShadow
                       position={[cx, dy, faceZ]}
-                      material={wood}
+                      material={frontWood([faceW - 0.012, dh, 0.016])}
                       args={[faceW - 0.012, dh, 0.016]}
                     />
                     <mesh castShadow position={[cx, dy, faceZ + 0.016]}>

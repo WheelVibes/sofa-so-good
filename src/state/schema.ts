@@ -27,6 +27,7 @@ import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { allPlanRooms, GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { rehomeStrandedItems } from '../floorplan/rehomeItems'
+import { isAnchoredToNonFloor } from '../furniture/anchoredDefs'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
 import { clampCustomMetaEntries } from '../furniture/itemMetaLimits'
@@ -942,10 +943,7 @@ export function applySerialized(
   // room (with a small tolerance for wall-flush placement) are untouched.
   // Wall-mounted / no-clip pieces are anchored to something other than the
   // floor, so "outside every room" is normal for them — never move those.
-  const skipRehome = (defId: string) => {
-    const def = BUILTIN_CATALOG[defId]
-    return !!def?.mounted || !!def?.noClip
-  }
+  const skipRehome = isAnchoredToNonFloor
   const rehomeWindowBound = (
     it: SerializedState['items'][number],
   ): SerializedState['items'][number] | null => {

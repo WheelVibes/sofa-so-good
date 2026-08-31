@@ -5,6 +5,7 @@ import {
   getWoodMaterial,
 } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /** Dining chair: seat + back + four legs. Faces +Z (back at -Z). A 'wood'
@@ -65,23 +66,33 @@ export function DiningChair({ props }: { props: ParamProps }) {
         </>
       ) : (
         <>
-          <mesh castShadow receiveShadow position={[0, seatH - seatT / 2, 0]} material={seatMat}>
-            <boxGeometry args={[seatW, seatT, seatD]} />
-          </mesh>
+          <BeveledBox
+            args={[seatW, seatT, seatD]}
+            castShadow
+            receiveShadow
+            position={[0, seatH - seatT / 2, 0]}
+            material={seatMat}
+          />
           {/* Back rest */}
-          <mesh
+          <BeveledBox
+            args={[seatW, backH, legT]}
             castShadow
             position={[0, seatH + backH / 2, -seatD / 2 + legT / 2]}
             material={seatMat}
-          >
-            <boxGeometry args={[seatW, backH, legT]} />
-          </mesh>
+          />
         </>
       )}
       {legs.map((p, i) => (
-        <mesh key={i} castShadow position={p} material={legMat}>
-          <boxGeometry args={[legT, seatH - seatT, legT]} />
-        </mesh>
+        // A 3 mm eased edge, not the shared 7 mm default — on a 40 mm stick that
+        // would read as a dowel rather than a squared leg.
+        <BeveledBox
+          key={i}
+          args={[legT, seatH - seatT, legT]}
+          bevel={0.003}
+          castShadow
+          position={p}
+          material={legMat}
+        />
       ))}
     </group>
   )

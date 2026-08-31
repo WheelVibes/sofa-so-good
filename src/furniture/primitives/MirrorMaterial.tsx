@@ -2,6 +2,7 @@ import { MeshReflectorMaterial } from '@react-three/drei'
 import type { RenderTier } from '../../scene/quality'
 import { useStore } from '../../state/store'
 import { MetalMaterial } from './MetalMaterial'
+import { useMirrorRelevance } from './useMirrorRelevance'
 
 /**
  * Material for a mirror pane. On the High / Maximum render tiers it renders a
@@ -24,11 +25,16 @@ export function mirrorReflectorConfig(tier: RenderTier): { real: boolean; resolu
 
 export function MirrorMaterial({ tint = '#dfe8ee' }: { tint?: string }) {
   const tier = useStore((s) => s.qualityTier)
-  const { real, resolution } = mirrorReflectorConfig(tier)
+  const { real: tierAllowsReal, resolution } = mirrorReflectorConfig(tier)
+  // MIRROR-RELEVANCE: the tier only says the reflection is PERMITTED. Whether it
+  // is worth an entire extra scene pass right now depends on how big the pane is
+  // on screen and on the global reflection budget — see `mirrorRelevance.ts`.
+  const { real, attachRef } = useMirrorRelevance(tierAllowsReal)
 
   if (real) {
     return (
       <MeshReflectorMaterial
+        ref={attachRef}
         resolution={resolution}
         mirror={1}
         // Sharp, undistorted mirror (no glossy-floor blur).
@@ -42,8 +48,11 @@ export function MirrorMaterial({ tint = '#dfe8ee' }: { tint?: string }) {
     )
   }
   // Fallback: tier-cheap fake reflection (matches the pre-existing mirror look).
+  // Still ref'd, so the relevance gate can keep measuring this pane and upgrade
+  // it when the camera comes close enough.
   return (
     <MetalMaterial
+      ref={attachRef}
       color={tint}
       roughness={0.07}
       metalness={0.7}

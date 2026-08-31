@@ -27,11 +27,80 @@ let active = true
 
 const listeners = new Set<() => void>()
 
+/**
+ * The metalness a surface should actually render with, given what it ASKED for
+ * and whether there is an environment to reflect. Pure, so the rule lives in one
+ * place and is unit-testable.
+ */
+export function effectiveMetalness(requested: number, iblActive: boolean = active): number {
+  return iblActive ? requested : Math.min(requested, NO_IBL_METALNESS)
+}
+
+/** Minimal shape this module needs from a three material. */
+interface CappableMaterial {
+  metalness: number
+}
+
+/**
+ * Materials whose metalness must be re-derived when the IBL state changes
+ * (IBL-CAP-LIVE).
+ *
+ * The cap used to be applied ONCE, inside each material factory, at creation
+ * time — and nothing re-applied it afterwards. That was correct only while the
+ * render tier was static. It is not: TIER-ADAPTIVE walks the ladder at RUNTIME
+ * (boot at `medium`, promote to `high`, demote to `performance` on weak
+ * hardware), so a material built with IBL on outlives that state the moment the
+ * ladder demotes. Measured on the default flat: at `performance` the wardrobes'
+ * sliding-door frame panels sat at metalness **0.75** — fully uncapped, with no
+ * environment to reflect, which is exactly the black-slab defect
+ * `NO_IBL_METALNESS` exists to prevent — while the door pull, which reaches three
+ * through the SUBSCRIBING `MetalMaterial` component, was correctly at 0.25.
+ * Scene-wide at `performance`: 69 meshes across 15 material kinds above the cap.
+ *
+ * Held as WEAK references and pruned on every sweep, because these materials live
+ * in an LRU cache that disposes evicted entries — a strong Set here would pin
+ * every material ever built for the life of the page.
+ */
+const cappable = new Set<{ ref: WeakRef<CappableMaterial>; requested: number }>()
+
+/**
+ * Apply the cap now and keep the material in step with later IBL changes. Call
+ * from any factory that bakes a metalness value; pass what the caller ASKED for,
+ * not the capped result, or a later promotion cannot restore it.
+ */
+export function registerCappedMetal<T extends CappableMaterial>(material: T, requested: number): T {
+  material.metalness = effectiveMetalness(requested)
+  cappable.add({ ref: new WeakRef(material), requested })
+  return material
+}
+
+function reapplyCaps(): void {
+  for (const entry of cappable) {
+    const m = entry.ref.deref()
+    if (!m) {
+      cappable.delete(entry)
+      continue
+    }
+    m.metalness = effectiveMetalness(entry.requested)
+  }
+}
+
 /** Set by `SceneEnvironment` / the store whenever the tier's IBL state changes. */
 export function setIblActive(next: boolean): void {
   if (active === next) return
   active = next
+  reapplyCaps()
   for (const l of listeners) l()
+}
+
+/** Test seam: how many live capped materials are tracked. */
+export function cappedMetalCount(): number {
+  let n = 0
+  for (const entry of cappable) {
+    if (entry.ref.deref()) n++
+    else cappable.delete(entry)
+  }
+  return n
 }
 
 /** Subscribe to IBL-state changes (for `useSyncExternalStore`). */

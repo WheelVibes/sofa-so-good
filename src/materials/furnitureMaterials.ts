@@ -16,23 +16,27 @@ import {
   type Texture,
 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
+import { CURTAIN_TRANSLUCENCY, PHOTO_WEAVE, photographicWeave } from '../scene/look'
+import { photographicLookActive } from '../scene/photographicSignal'
 import type { RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
 import { anisotropyRotationForNormal, type Vec3 } from './brushAxis'
 import { getBuiltMaterial } from './cache'
+import { applyDrapeTranslucency } from './drapeTranslucency'
 import {
   applianceFinish as applianceFinishLogic,
   hash01,
   liftedSheenRgb,
   sheenRough,
 } from './furnitureMaterialLogic'
-import { isIblActive, NO_IBL_METALNESS } from './iblSignal'
+import { registerCappedMetal } from './iblSignal'
 import { LruCache } from './materialLru'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
 import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift } from './procedural/stoneSurface'
 import { buildUpholsteryHeight, DEFAULT_SEAM_PARAMS } from './procedural/upholsterySeams'
+import { makeWoodPore } from './procedural/woodPore'
 
 /** A furniture finish that points at a catalog/DLC material is encoded as
  *  `mat:<materialId>`. The material itself is built (from its procedural
@@ -94,6 +98,29 @@ function getFabricNormal(): Texture {
 }
 
 let woodMaps: { albedo: Texture; normal: Texture; rough: Texture } | null = null
+/**
+ * Sideways meander of the furniture wood's growth rings, in u-units (WOOD-BANDS).
+ *
+ * Wave 4A calmed this wood by cutting the rings 11 -> 7 and the waver 0.25 -> 0.12, and
+ * `FURNITURE_WOOD_COARSEN` halves the repeat so the grain does not squish into a busy
+ * watermark on a tall panel. Those two together left each ring VERY wide — and at 0.12 the
+ * waver still shifted a ring by ~0.84 of a half-cycle (0.12 x 7), nearly a whole band, while
+ * varying with `v`. A wide band that snakes almost a full band-width as it rises does not
+ * read as figure; it reads as a hard zigzag CHEVRON repeating identically across every
+ * panel — printed wallpaper, not timber. On the default main-bedroom wardrobe that was the
+ * most obviously synthetic surface left in the flat once WOOD-GLOSS fixed the shine, and it
+ * is the same "zebra moiré" SNV-BOARDS warns about, reached from the other direction.
+ *
+ * A sawn board's rings run essentially PARALLEL; the figure comes from ring spacing and
+ * latewood contrast, not from lateral wander. So the meander is cut rather than the ring
+ * count (raising the count would undo Wave 4A's fix for the busy watermark) and rather than
+ * the coarsen factor (FURNITURE-WOOD-SCALE, settled across all 21 defs).
+ *
+ * FLOORS ARE UNAFFECTED: this painter serves the furniture `wood` finish only — the floor
+ * uses the separate `woodFields` painter in `procedural/patterns/wood.ts`.
+ */
+export const FURNITURE_WOOD_WAVER = 0.04
+
 function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   if (woodMaps) return woodMaps
   // Layered noise: low-freq warp bends the growth rings into cathedral
@@ -102,8 +129,14 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   const warpN = makeFbm(7777, 4, 3)
   const figureN = makeFbm(0x51ed, 4, 8)
   // Pores: high frequency across the grain, very low along it → fine streaks
-  // that run lengthwise (the v axis) instead of an isotropic speckle.
-  const poreN = makeFbm(0x2c7a, 3, 48)
+  // that run lengthwise (the v axis) instead of an isotropic speckle. The field
+  // lives in the pure `woodPore.ts` because its frequency has to stay inside the
+  // 256² tile's Nyquist limit and that is easy to get catastrophically wrong:
+  // the original `makeFbm(0x2c7a, 3, 48)` sampled at `u * 18` put even its
+  // COARSEST octave at 3.4 cycles per texel, so it baked white noise instead of
+  // hairlines and every wood surface read as pebbly moulded plastic
+  // (WOOD-PORE-NYQUIST).
+  const poreN = makeWoodPore()
   const albedo = new Uint8ClampedArray(N * N * 4)
   const height = new Float32Array(N * N)
   const rough = new Uint8ClampedArray(N * N * 4)
@@ -137,7 +170,7 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
       // worst on dark tints (tv-console/crib). Fewer, calmer, straighter grain
       // lines (waver 0.25→0.12, 11→7 rings) and a shallower latewood darkening
       // (so a dark tint keeps its value range instead of crushing to near-black).
-      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * 0.12
+      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * FURNITURE_WOOD_WAVER
       const ring = (u + waver + phase) * Math.PI * 7
       // Latewood lines: sharp dark bands where the ring turns over. Raising
       // the sine to a power tightens the dark line so earlywood stays pale.
@@ -145,7 +178,7 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
       const late = s ** 4 // 0 earlywood … 1 dark latewood line
       // Long open pores streaking along the grain (sampled wide in u, narrow
       // in v so the noise smears into lengthwise hairlines, not dots).
-      const pore = clamp01((poreN(u * 18, v * 1.2) - 0.6) * 2.5)
+      const pore = poreN(u, v)
       const figure = (figureN(u * 1.2, v * 3) - 0.5) * 0.05
       // White-ish luminance so material.color tints it into real wood; the
       // latewood lines, pores, per-board tone + seam grooves darken it. The
@@ -588,9 +621,35 @@ export function getFabricMaterial(
   /** <1 makes the cloth translucent (sheer curtains/blinds). Folded into the
    *  cache key; default 1 keeps every existing caller byte-identical. */
   opacity = 1,
+  /**
+   * Weave relief (`normalScale`), FOLDED INTO THE CACHE KEY (FABRIC-WEAVE-KEY).
+   *
+   * It has to be a parameter rather than a post-hoc mutation, because this cache
+   * is shared across callers that want different relief: `getDraperyMaterial`
+   * used to call this and then re-set `normalScale` on the returned instance,
+   * with a comment claiming its `rough=0.98` key "never collides with cotton's
+   * 0.95 or any other caller". That is true for LINEN and false for COTTON — a
+   * cotton curtain and a woven-fabric sofa of the same colour and pattern both
+   * key `fab:<color>:0.95:<pattern>`, so the drapery call stomped the sofa's
+   * weave. It was invisible only because both wanted 0.65; raising the upholstery
+   * default made it an order-dependent bug, so the mutation is gone.
+   *
+   * Default 1.3 (was 0.65): measured on the default flat's sofa
+   * (`surface-detail.mjs DEF=sofa-3seat MASK=item`, walk/Medium/09:00), the weave
+   * normal is the only responsive lever for "the panels read like moulded foam" —
+   * microcontrast 1.346 / 2.115 / 2.879 / 3.829 at 0.65 / 1.3 / 2.0 / 3.0. At 1.3
+   * the weave reads across the whole sofa as woven textile; at 2.0 it becomes a
+   * regular grid that looks like mesh screen. SHEEN is NOT the lever: the entire
+   * space (`sheen` 0 -> 1 x `sheenRoughness` 0.6 -> 0.2) moved microcontrast only
+   * 1.24 -> 1.68, with `sheen = 0` sitting mid-range ABOVE the shipped 0.4/0.6 —
+   * a broad sheen lobe fills in the weave's own shading rather than revealing it.
+   */
+  weave = 1.3,
+  /** Forward scattering for backlit cloth; 0 for everything but drapery. */
+  translucent = 0,
 ): MeshStandardMaterial {
   const sheer = opacity < 1
-  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}${doubleSided ? ':2s' : ''}${sheer ? `:o${opacity.toFixed(2)}` : ''}`
+  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}${doubleSided ? ':2s' : ''}${sheer ? `:o${opacity.toFixed(2)}` : ''}:w${weave.toFixed(2)}${translucent > 0 ? `:t${translucent.toFixed(2)}` : ''}`
   const hit = cache.get(key)
   if (hit) return hit
   const patterned =
@@ -608,10 +667,13 @@ export function getFabricMaterial(
     ...(doubleSided ? { side: DoubleSide } : {}),
     ...(sheer ? { transparent: true, opacity, depthWrite: false } : {}),
   })
-  // Sharper weave relief so linen/cotton catch grazing light without noise.
-  m.normalScale.set(0.65, 0.65)
+  m.normalScale.set(weave, weave)
   const sheen = sheenLayer('fabric')
   if (sheen) applySheen(m, color, sheen)
+  // CURTAIN-TRANSLUCENCY: only drapery scatters light forward — upholstery sits
+  // against something and never reads backlit. Applied once per cached material,
+  // because `onBeforeCompile` hooks stack if re-applied.
+  if (translucent > 0) applyDrapeTranslucency(m, translucent)
   cache.set(key, m)
   return m
 }
@@ -844,7 +906,14 @@ export function getUpholsteryMaterial(
     return getLeatherMaterial(color, sheen > 0 ? sheenRough(0.42, sheen) : 0.42)
   if (kind === 'velvet') return getVelvetMaterial(color, sheen > 0 ? sheenRough(0.62, sheen) : 0.62)
   if (kind === 'boucle') return getBoucleMaterial(color, sheen > 0 ? sheenRough(0.9, sheen) : 0.9)
-  return getFabricMaterial(color, sheen > 0 ? sheenRough(0.95, sheen) : 0.95, pattern)
+  return getFabricMaterial(
+    color,
+    sheen > 0 ? sheenRough(0.95, sheen) : 0.95,
+    pattern,
+    false,
+    1,
+    photographicWeave(1.3, PHOTO_WEAVE.upholstery, isFeatureEnabled('photographicFill')),
+  )
 }
 
 /**
@@ -870,15 +939,27 @@ export function getDraperyMaterial(
   // `sheer` weave falls through to cotton; its translucency now comes from
   // `opacity`, set from the opacity level by the caller.)
   const linen = kind === 'linen'
-  const m = getFabricMaterial(color, linen ? 0.98 : 0.95, pattern, doubleSided, opacity)
-  // Linen's rough roughness alone is a near-imperceptible delta up close — give
-  // it a visibly looser, coarser weave relief than cotton's finer one (the same
-  // shared fabric normal map, just a stronger intensity) so the two weaves read
-  // distinctly rather than only differing by a hairline roughness value. Safe
-  // to mutate the cached instance: linen's `rough=0.98` key never collides with
-  // cotton's `0.95` or any other `getFabricMaterial` caller.
-  m.normalScale.set(linen ? 0.95 : 0.65, linen ? 0.95 : 0.65)
-  return m
+  // Drapery keeps the calmer weave relief it was tuned with — curtains already
+  // read as cloth from their folds and vertical gathers, and they occupy a large
+  // share of the frame, so the upholstery's stronger 1.3 would be loud here.
+  // Passed as a PARAMETER (folded into the cache key) rather than mutated onto the
+  // returned instance: cotton's key collides with the woven-fabric upholstery of
+  // the same colour/pattern, so the old post-hoc `normalScale.set` was stomping a
+  // shared cached material. See FABRIC-WEAVE-KEY in `getFabricMaterial`.
+  return getFabricMaterial(
+    color,
+    linen ? 0.98 : 0.95,
+    pattern,
+    doubleSided,
+    opacity,
+    photographicWeave(
+      linen ? 0.95 : 0.65,
+      linen ? PHOTO_WEAVE.draperyLinen : PHOTO_WEAVE.drapery,
+      photographicLookActive(),
+    ),
+    // CURTAIN-TRANSLUCENCY: drapery is the only fabric that reads backlit.
+    CURTAIN_TRANSLUCENCY,
+  )
 }
 
 /** Flat painted material — matte by default, or glossy (lacquered) when
@@ -1029,6 +1110,155 @@ function getFurnitureMatWithRepeat(
   return m
 }
 
+/** Physical grain period for furniture wood: one texture tile spans this many
+ *  metres of real panel. Chosen so the LARGEST carcass panels keep roughly the
+ *  scale they already have (wardrobe body 0.70, bookshelf 1.10, TV console 1.13
+ *  m/tile before this existed) while every smaller panel is pulled to match
+ *  instead of shrinking with its own size. */
+export const FURNITURE_GRAIN_METRES = 0.9
+
+/** The `(repeatU, repeatV)` a panel of world size `w × h` needs so its texture
+ *  lands at a fixed PHYSICAL period, rather than at one tile per face.
+ *
+ *  This is the whole point of the sized factory. A box face's UVs run 0→1 no
+ *  matter how big the face is, so a single isotropic `repeat` gives every panel
+ *  its own scale — measured on the default flat, one wardrobe material spanned
+ *  0.005 → 1.050 m/tile, a 210× spread — and stretches each face by its own
+ *  aspect ratio (a 0.437 × 1.99 m door: 0.218 across, 0.995 up, a 4.6:1 smear
+ *  that NO isotropic repeat can undo, because the ratio is preserved by
+ *  construction). Deriving u and v separately from world size fixes both.
+ *
+ *  Quantised to 0.05 so near-identical panels share one cached variant, and
+ *  clamped to [0.05, 24] so a degenerate 1 mm edge cannot ask for a 900× tile.
+ *  Non-finite / non-positive sizes fall back to 1. */
+export function sizedRepeat(
+  w: number,
+  h: number,
+  metresPerTile = FURNITURE_GRAIN_METRES,
+): [number, number] {
+  const mpt =
+    Number.isFinite(metresPerTile) && metresPerTile > 0 ? metresPerTile : FURNITURE_GRAIN_METRES
+  const one = (v: number): number => {
+    if (!Number.isFinite(v) || v <= 0) return 1
+    return Math.min(24, Math.max(0.05, Math.round((Math.abs(v) / mpt) * 20) / 20))
+  }
+  return [one(w), one(h)]
+}
+
+/** Should this panel's grain be turned a quarter so it runs along the panel's
+ *  LONG axis, as real timber and veneer do?
+ *
+ *  The procedural furniture wood lays its boards out **along v** — `getWoodMaps`
+ *  indexes planks across u, so plank seams are vertical lines and the grain runs
+ *  up the tile. That is right for a tall door and wrong for a wide-short panel
+ *  like a drawer front, which comes out cross-grained. Turning the texture a
+ *  quarter puts the grain back along the long axis.
+ *
+ *  Only the PROCEDURAL wood is turned. Catalog `mat:floor-wood-*` textures are
+ *  authored the other way round — `builtinCatalog.ts` sizes them by "plank length
+ *  = uvScaleX", i.e. boards along u — so turning those would introduce exactly
+ *  the fault this removes. Non-wood finishes have no grain to align. */
+export function grainQuarterTurn(kind: string, w: number, h: number): boolean {
+  if (parseFurnitureMaterialFinish(kind)) return false
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return false
+  return w > h
+}
+
+// AUD-002 — same bounded-LRU + owned-texture disposal as the other caches. Keyed
+// per (kind, colour, sheen, repeatU, repeatV); every cloned texture is `own`ed.
+const sizedCache = new LruCache<MeshStandardMaterial>({
+  max: 256,
+  dispose: disposeOwnedMaterial,
+})
+
+/** {@link getSurfaceMaterial}, but tiled to a fixed PHYSICAL grain period from
+ *  the panel's real world size instead of a hand-picked scalar `repeat`.
+ *
+ *  Use this for any furniture panel whose size varies (carcass sides, doors,
+ *  drawer fronts, shelves): it keeps one piece of furniture reading as ONE piece
+ *  of wood. Finishes with no texture maps (painted / gloss) are returned
+ *  unchanged — there is nothing to rescale. */
+export function getSurfaceMaterialSized(
+  kind: string,
+  color: string,
+  w: number,
+  h: number,
+  sheen = 0,
+  metresPerTile = FURNITURE_GRAIN_METRES,
+  quarterTurn = false,
+): MeshStandardMaterial {
+  const base = getSurfaceMaterial(kind, color, 1, sheen)
+  if (!base.map && !base.normalMap && !base.roughnessMap) return base
+  const [ru, rv] = sizedRepeat(w, h, metresPerTile)
+  // three composes the uv transform as scale-then-rotate about `center`, so a
+  // quarter turn makes texture-u sample the mesh's v axis and vice versa — the
+  // repeats have to swap with it or the physical period lands on the wrong axis.
+  const [su, sv] = quarterTurn ? [rv, ru] : [ru, rv]
+  const key = `sized:${kind}:${color}:${sheen.toFixed(2)}:${ru}x${rv}${quarterTurn ? ':q' : ''}`
+  const hit = sizedCache.get(key)
+  if (hit) return hit
+  const m = base.clone()
+  if (m.map) {
+    m.map = own(applyAnisotropy(m.map.clone()))
+    m.map.needsUpdate = true
+    m.map.repeat.set(su, sv)
+    if (quarterTurn) {
+      m.map.center.set(0.5, 0.5)
+      m.map.rotation = Math.PI / 2
+    }
+  }
+  if (m.normalMap) {
+    m.normalMap = own(applyAnisotropy(m.normalMap.clone()))
+    m.normalMap.needsUpdate = true
+    m.normalMap.repeat.set(su, sv)
+    if (quarterTurn) {
+      m.normalMap.center.set(0.5, 0.5)
+      m.normalMap.rotation = Math.PI / 2
+    }
+  }
+  if (m.roughnessMap) {
+    m.roughnessMap = own(applyAnisotropy(m.roughnessMap.clone()))
+    m.roughnessMap.needsUpdate = true
+    m.roughnessMap.repeat.set(su, sv)
+    if (quarterTurn) {
+      m.roughnessMap.center.set(0.5, 0.5)
+      m.roughnessMap.rotation = Math.PI / 2
+    }
+  }
+  sizedCache.set(key, m)
+  return m
+}
+
+/** {@link getSurfaceMaterialSized} for a BOX panel given its `[w, h, d]` args.
+ *
+ *  A box has three faces and one material, so the pair has to describe ONE of
+ *  them; this picks the face a viewer actually reads. Three maps `u → x` on
+ *  every face, and `v → y` on the four upright faces but `v → z` on the top and
+ *  bottom. Taking `v` from `max(h, d)` therefore lands correctly on the upright
+ *  face of a tall panel (h > d) AND on the top face of a horizontal one like a
+ *  shelf or a worktop (d > h) — in both cases the large, visible face. The
+ *  remaining thin edges are a few millimetres of end grain and are not what
+ *  gives the piece away. */
+export function getSurfaceMaterialForBox(
+  kind: string,
+  color: string,
+  dims: readonly [number, number, number],
+  sheen = 0,
+  metresPerTile = FURNITURE_GRAIN_METRES,
+): MeshStandardMaterial {
+  const [w, h, d] = dims
+  const tall = Math.max(h, d)
+  return getSurfaceMaterialSized(
+    kind,
+    color,
+    w,
+    tall,
+    sheen,
+    metresPerTile,
+    grainQuarterTurn(kind, w, tall),
+  )
+}
+
 /** Dispatch a hard-surface material by finish kind ('wood' | 'painted' |
  *  'gloss'), tinted to `color`. `sheen` (0..1) tunes matte → glossy across all
  *  three. Wood keeps its grain; painted/gloss are flat.
@@ -1069,7 +1299,11 @@ export function getSurfaceMaterial(
       if (Math.abs(r - 1) < 0.005) return built
       return getFurnitureMatWithRepeat(matId, built, r)
     }
-    return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
+    return getWoodMaterial(
+      color,
+      repeat,
+      sheen > 0 ? sheenRough(WOOD_BASE_ROUGHNESS, sheen) : WOOD_BASE_ROUGHNESS,
+    )
   }
   if (kind === 'painted')
     return getPaintedMaterial(color, false, sheen > 0 ? sheenRough(0.72, sheen) : undefined)
@@ -1088,12 +1322,44 @@ export function getSurfaceMaterial(
   // Brushed gold/brass hardware finish — a canonical warm brass tone (like the
   // primitives that hardcode a brass tint), brushed via the dedicated preset.
   if (kind === 'brass') return getMetalMaterial('#b8923f', 'brushed-brass', repeat)
-  return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
+  return getWoodMaterial(
+    color,
+    repeat,
+    sheen > 0 ? sheenRough(WOOD_BASE_ROUGHNESS, sheen) : WOOD_BASE_ROUGHNESS,
+  )
 }
+
+/**
+ * Base roughness for furniture wood (WOOD-GLOSS).
+ *
+ * This was **0.5**, which made timber GLOSSIER THAN PAINT in this very file (painted
+ * 0.72, concrete 0.85, marble 0.12) — backwards for an oiled/satin finish, and the
+ * specular lobe it produced was tight enough to turn the grain normal's low-frequency
+ * waviness into mirror ribbons. On the default flat's dining table, seen from a walk
+ * pose at 13:00, the top read as crumpled cling film over timber rather than wood: bright
+ * wavy highlight bands with wobbling edges, repeated on the chair backs, the sideboard
+ * and the TV console. That is the single most "rendered, not photographed" surface in the
+ * default walk view, and it is what the "looks like animation" report was pointing at.
+ *
+ * Swept live over the 90 wood-signature materials in the scene at 0.5 / 0.7 / 0.85
+ * (`scripts/dev-probes/walk-tour.mjs ROUGH=…`): 0.5 shows strong mirror ribbons, 0.7 still
+ * carries them, and **0.85 removes them** — the grain survives as grain and the surface
+ * reads as matte satin timber. 0.85 is the value that was measured, so it is the value
+ * shipped; do not interpolate to a prettier-looking number without re-running the sweep.
+ *
+ * Applied at every wood site so a caller cannot silently reintroduce the old value: the
+ * `getWoodMaterial` default AND the two `getSurfaceMaterial` wood branches, which used to
+ * pass a hardcoded 0.5 and would otherwise win over the default.
+ */
+export const WOOD_BASE_ROUGHNESS = 0.85
 
 /** Wood material whose grain is tinted by `color`. `repeat` tiles the grain
  *  (defaults suit a ~1 m piece). `rough` overrides roughness (shine control). */
-export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshStandardMaterial {
+export function getWoodMaterial(
+  color: string,
+  repeat = 1,
+  rough = WOOD_BASE_ROUGHNESS,
+): MeshStandardMaterial {
   const key = `wood:${color}:${repeat}:${rough.toFixed(2)}`
   const hit = cache.get(key)
   if (hit) return hit
@@ -1186,11 +1452,17 @@ export function getSolidMaterial(
   // appliance bodies reach three through here (`applianceBodyMaterial` →
   // `applianceFinish` presets), not through the brushed-metal factory, so the
   // cap has to live in both. Non-metallic solids are untouched.
-  const metal = isIblActive() ? metalness : Math.min(metalness, NO_IBL_METALNESS)
-  const key = `solid:${color}:${roughness.toFixed(2)}:${metal.toFixed(2)}`
+  //
+  // IBL-CAP-LIVE: the key is the REQUESTED metalness and the cap is applied (and
+  // re-applied on every later IBL change) by `registerCappedMetal`. Keying on the
+  // capped value instead — as this did — both split one request into two cache
+  // entries depending on boot order AND froze the cap at creation time, so a
+  // material built at the `medium` boot tier kept metalness 0.75 after the
+  // adaptive ladder demoted to `performance`.
+  const key = `solid:${color}:${roughness.toFixed(2)}:${metalness.toFixed(2)}`
   const hit = cache.get(key)
   if (hit) return hit
-  const m = new MeshStandardMaterial({ color, roughness, metalness: metal })
+  const m = registerCappedMetal(new MeshStandardMaterial({ color, roughness }), metalness)
   cache.set(key, m)
   return m
 }
@@ -1382,23 +1654,29 @@ export function getMetalMaterial(
   // axis, so the key + the material are unchanged from before.
   const rotation = anisotropyRotationForNormal(faceNormal)
   const rotKey = rotation === 0 ? '' : `:a${rotation.toFixed(4)}`
-  // The IBL state is part of the key: switching tiers must hand back a material
-  // built for that tier rather than a cached fully-metallic one.
-  const hasIbl = isIblActive()
-  const key = `metal:${finish}:${color}:${r}${rotKey}${hasIbl ? '' : ':noibl'}`
+  // IBL-CAP-LIVE: the key no longer carries the IBL state. It used to (`:noibl`),
+  // which handed a correctly-capped material to any NEW call after a tier change —
+  // but a mesh already mounted keeps the material it was given, so the cap only
+  // actually tracked the tier for consumers that re-render on it (i.e. the
+  // subscribing `MetalMaterial` component, not the primitives that call this
+  // factory directly). `registerCappedMetal` re-derives every registered
+  // material's metalness whenever `setIblActive` fires, which makes the cap
+  // correct for both paths and collapses the two cache entries back into one.
+  const key = `metal:${finish}:${color}:${r}${rotKey}`
   const hit = cache.get(key)
   if (hit) return hit
   const preset = metalFinishPreset(finish)
-  const metalness = hasIbl ? preset.metalness : Math.min(preset.metalness, NO_IBL_METALNESS)
   const pbr = isFeatureEnabled('pbrSurfaces')
   if (!pbr) {
     // Flat tier: legacy look — metalness/roughness only, no brush maps.
-    const m = new MeshStandardMaterial({
-      color,
-      roughness: preset.roughness,
-      metalness,
-      envMapIntensity: GLOSSY_ENV_INTENSITY,
-    })
+    const m = registerCappedMetal(
+      new MeshStandardMaterial({
+        color,
+        roughness: preset.roughness,
+        envMapIntensity: GLOSSY_ENV_INTENSITY,
+      }),
+      preset.metalness,
+    )
     cache.set(key, m)
     return m
   }
@@ -1408,14 +1686,16 @@ export function getMetalMaterial(
   normal.repeat.set(r, r)
   roughnessMap.repeat.set(r, r)
   normal.needsUpdate = roughnessMap.needsUpdate = true
-  const m = new MeshPhysicalMaterial({
-    color,
-    roughness: preset.roughness,
-    metalness,
-    normalMap: normal,
-    roughnessMap,
-    envMapIntensity: GLOSSY_ENV_INTENSITY,
-  })
+  const m = registerCappedMetal(
+    new MeshPhysicalMaterial({
+      color,
+      roughness: preset.roughness,
+      normalMap: normal,
+      roughnessMap,
+      envMapIntensity: GLOSSY_ENV_INTENSITY,
+    }),
+    preset.metalness,
+  )
   // Subtle brush relief — a satin grain, not a scratched groove.
   m.normalScale.set(0.2, 0.2)
   // Swept anisotropic highlight. `anisotropyRotation` is 0 (the legacy fixed U

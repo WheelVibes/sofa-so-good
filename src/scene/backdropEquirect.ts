@@ -22,7 +22,7 @@ export { EQUIRECT_H, EQUIRECT_W } from './backdropHorizon'
 /** Photo-backdrop presets (the `none` backdrop bakes nothing — plain sky). */
 export type PhotoBackdropKind = 'city' | 'dusk' | 'park' | 'hills'
 
-interface Preset {
+export interface Preset {
   /** Sky vertical gradient zenith → mid → horizon. */
   sky: [string, string, string]
   /** Ground (lower hemisphere) gradient horizon → nadir. */
@@ -42,13 +42,13 @@ interface Preset {
 
 export const BACKDROP_PRESETS: Record<PhotoBackdropKind, Preset> = {
   city: {
-    sky: ['#5d8fc4', '#9fc0db', '#dfe8ec'],
-    ground: ['#c4c6c0', '#9a9c96'],
+    sky: ['#6fb0e8', '#a6d0ef', '#dfeaf2'],
+    ground: ['#d2d4ce', '#a8aaa2'],
     horizon: 'buildings',
-    building: [74, 86, 104],
-    windowColor: 'rgba(255,221,160,0.55)',
-    litScale: 1,
-    haze: '#dfe8ec',
+    building: [182, 177, 166],
+    windowColor: 'rgba(52,66,84,0.5)',
+    litScale: 4.2,
+    haze: '#dfeaf2',
   },
   dusk: {
     sky: ['#3a3a6b', '#8a5a8f', '#f3a25c'],
@@ -75,6 +75,84 @@ export const BACKDROP_PRESETS: Record<PhotoBackdropKind, Preset> = {
   },
 }
 
+/**
+ * Shift a photo preset toward the hour it is being viewed at.
+ *
+ * WINDOW-SKY-DEFAULT (v0.31.5.92) kept `sky` as the default backdrop because the
+ * photo presets are authored at ONE time of day and do not track the clock. That
+ * is measurable: at 18:00 the `city` preset renders **cooler** than the interior
+ * in front of it (window-region R/B 0.973) while the analytic sky is warm with it
+ * (1.034) — the classic clashing-colour-temperature failure. This is the fix for
+ * the preset side of that.
+ *
+ * `skyColor` is the analytic sky colour for the hour (`altitudeCurve.ts`), 0..1
+ * rgb, which already models blue midday → warm horizon → deep blue night. Every
+ * authored colour is pulled toward that hue and dimmed as the day ends, and the
+ * lit-window density rises as it does.
+ *
+ * At `daylight === 1` the preset is returned **unchanged**, so nothing about the
+ * shipped midday look moves. Pure, so the whole curve is unit-testable.
+ */
+export interface BackdropHour {
+  /** 0 night … 1 full day. Drives DIMMING and lit-window density only. */
+  daylight: number
+  /** 0 sun high … 1 sun on the horizon. Drives the WARM SHIFT. A separate signal
+   *  on purpose: `daylightFromAltitude` is a night ramp that saturates at 1 for
+   *  every altitude above 0°, so at 18:00 — the hour the defect was measured at,
+   *  sun still 16° up — it reports "full day" and would leave the preset
+   *  untouched. Warmth has to follow how LOW the sun is, not whether it has set. */
+  lowSun: number
+  /** The hour's light colour (`lightingFromAltitude(...).sunColor`), 0..1 rgb. */
+  tint: readonly [number, number, number]
+}
+
+export function presetForDaylight(preset: Preset, hour: BackdropHour): Preset {
+  const num = (v: number, fallback: number) => (Number.isFinite(v) ? v : fallback)
+  const d = Math.max(0, Math.min(1, num(hour.daylight, 1)))
+  const low = Math.max(0, Math.min(1, num(hour.lowSun, 0)))
+  if (d >= 1 && low <= 0) return preset
+  const night = 1 - d
+  const hue = 0.8 * low
+  const dim = 1 - 0.72 * night
+  const sky = normaliseToPeak(hour.tint)
+  const shift = (hex: string): string => {
+    const c = parseHex(hex)
+    if (!c) return hex
+    const out: [number, number, number] = [0, 0, 0]
+    for (let i = 0; i < 3; i++) {
+      const tinted = c[i] * sky[i]
+      out[i] = Math.round(Math.max(0, Math.min(255, (c[i] + (tinted - c[i]) * hue) * dim)))
+    }
+    return `#${out.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+  }
+  return {
+    ...preset,
+    sky: [shift(preset.sky[0]), shift(preset.sky[1]), shift(preset.sky[2])],
+    ground: [shift(preset.ground[0]), shift(preset.ground[1])],
+    haze: shift(preset.haze),
+    // Lit windows belong to the night, not to noon: at full day the authored
+    // density stands, and it grows as the light goes.
+    litScale: preset.litScale === undefined ? undefined : preset.litScale * (1 + 1.6 * night),
+  }
+}
+
+/** Scale an 0..1 rgb triple so its largest channel is 1 — keeps a tint's HUE
+ *  without also applying its brightness (which `dim` handles separately). */
+function normaliseToPeak(c: readonly [number, number, number]): [number, number, number] {
+  const peak = Math.max(c[0], c[1], c[2])
+  if (!Number.isFinite(peak) || peak <= 0) return [1, 1, 1]
+  return [c[0] / peak, c[1] / peak, c[2] / peak]
+}
+
+/** `#rrggbb` → 0..255 triple; null on anything else (the presets are all hex,
+ *  but `windowColor` is `rgba(...)` and must not be mangled). */
+function parseHex(hex: string): [number, number, number] | null {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return null
+  const n = Number.parseInt(m[1], 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
 function rgb(c: [number, number, number], lighten = 0): string {
   const f = (v: number) => Math.round(Math.min(255, v + (255 - v) * lighten))
   return `rgb(${f(c[0])},${f(c[1])},${f(c[2])})`
@@ -84,8 +162,11 @@ function rgb(c: [number, number, number], lighten = 0): string {
  * Paint a preset's equirectangular backdrop into a fresh canvas. Guards a missing
  * 2D context (e.g. happy-dom in tests) by returning the un-painted canvas.
  */
-export function bakeBackdropEquirect(kind: PhotoBackdropKind): HTMLCanvasElement {
-  const preset = BACKDROP_PRESETS[kind]
+export function bakeBackdropEquirect(
+  kind: PhotoBackdropKind,
+  hour: BackdropHour = { daylight: 1, lowSun: 0, tint: [1, 1, 1] },
+): HTMLCanvasElement {
+  const preset = presetForDaylight(BACKDROP_PRESETS[kind], hour)
   const canvas = document.createElement('canvas')
   canvas.width = EQUIRECT_W
   canvas.height = EQUIRECT_H

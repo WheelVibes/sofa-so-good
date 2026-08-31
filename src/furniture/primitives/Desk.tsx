@@ -1,4 +1,4 @@
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getSurfaceMaterial, getSurfaceMaterialForBox } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { MetalMaterial } from './MetalMaterial'
@@ -32,6 +32,11 @@ export function Desk({ props }: DeskProps) {
   const legY = height - topThickness
 
   const wood = getSurfaceMaterial(finish, color, 1.5, sheen)
+  // GRAIN-SCALE: size the visible face's grain from world dimensions and run it
+  // along the panel's long axis, instead of one scalar `repeat` that gives every
+  // panel its own scale and cross-grains the wide ones (see materials/CLAUDE.md).
+  const panelFor = (dims: [number, number, number]) =>
+    getSurfaceMaterialForBox(finish, color, dims, sheen)
   // Mid-century hairpin legs route through the shared brushed-metal material
   // (matte black-steel grain).
   const metal = metalLeg('#2c2e30', 'black-steel')
@@ -50,7 +55,7 @@ export function Desk({ props }: DeskProps) {
         castShadow
         receiveShadow
         position={[0, height - topThickness / 2, 0]}
-        material={wood}
+        material={panelFor([width, topThickness, depth])}
         args={[width, topThickness, depth]}
       />
 

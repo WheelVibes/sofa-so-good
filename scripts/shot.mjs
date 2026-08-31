@@ -205,19 +205,36 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   })
 }
 
-// SHOT_GPU=1 routes WebGL to the real hardware GPU (ANGLE over the WSL D3D12
-// /dev/dxg passthrough) instead of the default SwiftShader software renderer —
-// needed to verify GPU-only effects (DoF bokeh, VSM/soft shadows, glass
-// transmission, bloom, SSAO/SSGI). Falls back cleanly if no GPU is present.
+// SHOT_GPU=1 routes WebGL to the real hardware GPU instead of the default
+// SwiftShader software renderer — needed to verify GPU-only effects (DoF bokeh,
+// VSM/soft shadows, glass transmission, bloom, SSAO/SSGI). Falls back cleanly if
+// no GPU is present.
+//
+// The ANGLE backend is PLATFORM-SPECIFIC and getting it wrong silently drops back
+// to software (the whole point of the flag is then lost):
+//   - darwin → `metal` (Apple silicon / Metal; `gl-egl` does not exist here and
+//     `Vulkan` is not a macOS Chromium feature — passing them made SHOT_GPU=1 a
+//     no-op on a Mac, confirmed via the `unmaskedRenderer` probe below).
+//   - linux/WSL → `gl-egl` over the D3D12 /dev/dxg passthrough.
+//   - win32 → `d3d11`.
 const useGpu = process.env.SHOT_GPU === '1'
+const angleBackend = process.env.SHOT_ANGLE
+  ? process.env.SHOT_ANGLE
+  : process.platform === 'darwin'
+    ? 'metal'
+    : process.platform === 'win32'
+      ? 'd3d11'
+      : 'gl-egl'
+const gpuFeatureArgs =
+  process.platform === 'darwin' ? [] : ['--enable-features=Vulkan,UseSkiaRenderer']
 const browser = await puppeteer.launch({
   headless: useGpu ? true : 'shell',
   args: [
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--use-gl=angle',
-    useGpu ? '--use-angle=gl-egl' : '--use-angle=swiftshader',
-    ...(useGpu ? ['--enable-gpu', '--enable-features=Vulkan,UseSkiaRenderer'] : []),
+    useGpu ? `--use-angle=${angleBackend}` : '--use-angle=swiftshader',
+    ...(useGpu ? ['--enable-gpu', ...gpuFeatureArgs] : []),
     '--enable-unsafe-swiftshader',
     '--ignore-gpu-blocklist',
     '--enable-webgl',

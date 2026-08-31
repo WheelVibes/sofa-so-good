@@ -16,9 +16,51 @@ const DRAW_SPEED = 3.2
 const FOLDS = 6
 /** Z-depth (m) of the fabric waves at the hem — the wave amplitude. */
 const FOLD_DEPTH = 0.05
-/** Plane subdivisions: enough across the width to render smooth folds. */
+/** Plane subdivisions: enough across the width to render smooth folds, and
+ *  enough DOWN the drop to render the fold drift (CURTAIN-DRIFT) — at the old
+ *  `SEG_Y = 5` a wandering fold renders as five straight facets. 48x12 quads is
+ *  still trivial next to any furniture piece. */
 const SEG_X = FOLDS * 8
-const SEG_Y = 5
+const SEG_Y = 12
+
+/**
+ * The +Z displacement of the fabric at local `(x, y)`, where `x` runs −0.5…0.5
+ * across the panel and `y` runs 0 (hem) … `panelHeight` (rod).
+ *
+ * CURTAIN-DRIFT. The original profile was a pure sine in `x` with no `y` term,
+ * which makes the panel a literal EXTRUSION: every horizontal cross-section
+ * identical, so it renders as flat parallel ribbons of constant width — the same
+ * "corrugated card" tell the furniture grain had. Real drapery is pinned at the
+ * rod and free at the hem, so its folds *wander* as they fall.
+ *
+ * Two terms add that, both smooth and deterministic (no RNG — the geometry is
+ * built once and shared by both panels):
+ *  - a **phase drift** that grows from 0 at the rod toward the hem, so the folds
+ *    lean and meander instead of dropping plumb;
+ *  - a small **per-fold amplitude variation**, so neighbouring folds are not
+ *    identical twins.
+ *
+ * Depth is deliberately NOT increased: `windowSnap`'s standoff is sized against
+ * the current amplitude, and a deeper wave would poke the fabric through the
+ * window sill.
+ */
+export function curtainFoldZ(
+  x: number,
+  y: number,
+  panelHeight: number,
+  folds = FOLDS,
+  depth = FOLD_DEPTH,
+): number {
+  const h = panelHeight > 0 ? panelHeight : 1
+  const t = Math.max(0, Math.min(1, y / h)) // 0 hem … 1 rod
+  // Gathered (shallower folds) at the rod, fuller toward the hem.
+  const taper = 0.5 + 0.5 * (1 - t)
+  // Pinned at the rod (drift → 0 at t = 1), free at the hem.
+  const drift = 1.8 * (1 - t) * Math.sin(t * Math.PI * 1.6 + 0.7)
+  const u = (x + 0.5) * folds * Math.PI * 2
+  const amp = 1 + 0.18 * Math.sin(u * 0.5 + 1.3)
+  return depth * amp * taper * Math.sin(u + drift)
+}
 
 /**
  * Build one wavy curtain panel: a vertical fabric sheet spanning local X
@@ -33,11 +75,7 @@ function buildWavyPanel(panelHeight: number): BufferGeometry {
   geo.translate(0, panelHeight / 2, 0) // anchor the hem at local y=0
   const pos = geo.attributes.position
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i)
-    const y = pos.getY(i)
-    // Gathered (shallower folds) at the rod, fuller toward the hem.
-    const taper = 0.5 + 0.5 * (1 - y / panelHeight)
-    pos.setZ(i, FOLD_DEPTH * Math.sin((x + 0.5) * FOLDS * Math.PI * 2) * taper)
+    pos.setZ(i, curtainFoldZ(pos.getX(i), pos.getY(i), panelHeight))
   }
   pos.needsUpdate = true
   geo.computeVertexNormals()

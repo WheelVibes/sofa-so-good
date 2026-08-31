@@ -2,6 +2,76 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
+- **Do NOT try to fix "moulded-looking" upholstery by jittering the CUSHIONS' positions** (tested and
+  reverted, v0.31.5.158). Offsetting each seat/back cushion by a few millimetres and a fraction of a
+  degree — deterministic, bounded, tested, so the row could never overlap or float — is invisible:
+  micro-sd over the sofa crop went **9.11 → 9.13** at ±5 mm and **9.11 → 9.09** at ±12 mm with a
+  downward sink, i.e. nothing, twice. Adjacent cushions are the same colour, so sliding the seam
+  between them by a few pixels changes no shading. The flatness is **surface curvature and creases**,
+  not part placement — see `docs/research/2026-08-31-photoreal-shadow-depth.md` (`.157`, `.158`).
+  **A tessellated cushion with a sag + crease field was then built and also reverted** (v0.31.5.159):
+  four iterations, ten passing tests, and micro/mean went **0.0470 → 0.0455 → 0.0452**, i.e. *down*
+  every time. Smooth curvature catches light more evenly than a flat face with a crisp edge, so it
+  LOWERS high-frequency contrast. The reference photographs' 0.157–0.174 comes from creases far finer
+  than a cushion-sized deformation. Closing it needs cloth simulation or an authored crease normal
+  map, not a tweak.
+
+- **Chamfer visible hard edges — `primitives/BeveledBox.tsx`, not a raw `<boxGeometry>`.** A razor
+  90° edge is one of the strongest CG tells: real edges have a small radius that catches a thin
+  specular highlight, and without one a slab reads as flat cardboard. `BeveledBox` is a drei
+  `RoundedBox` with an auto-clamped chamfer (7 mm default; `safeBevelRadius` keeps it under half the
+  thinnest side) and detail-scaled smoothness — a drop-in for `<mesh><boxGeometry/></mesh>`. Pass a
+  smaller `bevel=` on thin members (≈3 mm on a 40 mm chair leg; the 7 mm default there reads as a
+  dowel rather than a squared leg). Raw `boxGeometry` stays right for surfaces never seen edge-on
+  (drawer interiors, carcass backs, hidden structure) and for instanced meshes, which cannot carry
+  the chamfer.
+  **Coverage is incomplete** (audited 2026-08-31, v0.31.5.145): **326 `boxGeometry` uses across 108
+  files, and 48 primitives are still entirely sharp.** `DiningChair`, `FlatscreenTV`, `Monitor`,
+  `Toilet` and `BarStool`'s step style were converted first as the most visible in the default flat;
+  the rest is open work — take it by visibility, not alphabetically.
+
+- **The seed-point rescue must avoid DOOR KEEP-OUTS, or the piece gets deleted (SETTLE-ORIGIN,
+  v0.31.5.108).** `placeSeededMounts` pulls a piece off `seedRoom`'s room-centre placeholder,
+  but three later passes can remove it — `dropOverlaps`, `dropDoorBlockers`, `dropWallClippers`.
+  Measured across the 19 templates: overlap 102, **door 10**, wall 2, and the door casualties
+  were exactly the kinds this pass moves. Flushing a fixture to the only wall it fits against is
+  worthless when that wall sits behind a door swing. The slide loop therefore tests
+  `doorKeepOutRects(levelAsPlan(plan, level))` as well as the furniture claims.
+  · **Claims are level-wide and use `itemAabbBox`** — the same box the real broadphase uses, on
+  BOTH sides. Same-room-only claims let a piece near a room edge land on a neighbour's
+  furniture; mixing rotated and unrotated extents produced phantom clearance.
+  · **Mounts neither reserve floor space nor yield to it.** The overlap narrowphase is
+  height-aware (`itemsCollide` takes a `verticalSpan`), so a mirror above a basin is not a
+  clash — verified, after `.106` asserted the opposite and `.107` retracted it.
+  · **Never stack: a piece with no clear slot stays where it is.** Two earlier attempts traded
+  20 misplaced fixtures for 7 deleted ones (900 → 893). Losing furniture is worse than leaving
+  it misplaced, and the test that pins it is the item COUNT, not the stranded count.
+  · Selection is by **category** (`bathroom`/`storage`/`seating`), not arrange-role: `bench` and
+  `coffee-table` share role `lowTable`, `toilet` and `outdoor-table` share role `other`.
+  `tables` and `textiles` are excluded — a rug or coffee table belongs at the room centre.
+- **A kit-seeded WALL/CEILING MOUNT must be placed by `placeSeededMounts`, because the arranger
+  will not move it (MOUNTED-SEED, v0.31.5.103).** `seedRoom` gives every kit piece the ROOM
+  CENTRE as a placeholder, and `layout/autoArrange.ts:arrangeCore` treats role
+  `'mounted'`/`'ceiling'` as FIXED — deliberately, so a fixture a USER positioned (or locked) is
+  never shuffled. On the furnish-from-scratch path those two facts combine badly: the arranger
+  faithfully preserves a position nobody chose. Measured before the fix: **19 of 19 shipped
+  templates, 59 stranded fixtures** (`range-hood`, `bathroom-mirror`, `wall-mirror`, 2–6 each).
+  On `tpl-terrace-ground` the `range-hood` sat at the kitchen's exact centre, 1.0026 m from the
+  `stove`, hanging at `mountHeight` 1.5 m in open space — at the room-centroid walk pose that
+  put a metallic cone 0.06 m above the walker's eye and blacked out the top of the frame
+  (ceiling band 37 luma against the identically-sized dining room's 210; 223 after the fix).
+  · **The guard is the whole safety argument: a mount is repositioned ONLY while it still sits
+  at its room's exact centre (1e-6).** That is what makes it demonstrably an unplaced seed
+  rather than someone's choice. **Do not widen it, and do not weaken `isFixed`** — moving
+  user-placed mounts is exactly what that flag exists to prevent.
+  · A `range-hood` follows the `stove` (position + rotation), which is what the default flat's
+  hand-authored preset already does — there `stove` and `range-hood` share identical
+  coordinates. Everything else goes `flushToWall` on `nearestWallEdge` via `layout/faceWall.ts`;
+  don't hand-roll placement maths.
+  · The pass is level-scoped through `planLevels`, so an upper-storey mount can never be pulled
+  onto a ground-floor room. **The DEFAULT FLAT never exercises any of this** — `applyLayoutPreset`
+  takes the `buildPresetItems` branch there and never runs this arranger, which is precisely why
+  the bug survived: every visual round before `.95` was the default flat.
 - **CPU-heavy steps run in a pooled Worker, never the main thread.** Three instances today:
   `optimize/runOptimize.ts` (Draco/WebP re-encode — its own from-scratch pool, don't refactor it),
   `convert/runConvert.ts` (OBJ/FBX/STL/… → GLB via `convertModel`) and `glbEdit/csgWorkerPool.ts`
@@ -189,6 +259,34 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   unit. Gated by the `cabinetOpen` flag (simple tier — a furnish/view delight, not an analytical
   tool). The inspector control lives in `ui/inspector/ParametricBody.tsx`, shown only when the flag
   is on AND `supportsCabinetOpen(def)`.
+- **Real planar mirrors are gated on RELEVANCE, not just on tier (MIRROR-RELEVANCE).**
+  drei's `<MeshReflectorMaterial>` re-renders the ENTIRE scene from the mirror's plane inside its
+  own `useFrame`, unconditionally — no frustum test, no visibility test, no throttle. Attributed
+  with `scripts/dev-probes/render-attrib.mjs` on a Mac mini M4, ONE orbit frame at High: the
+  beauty pass was 2130 draw calls and the mirror's reflection was **1710 draw calls / 464K tris —
+  43% of the whole frame** for a bathroom pane a few dozen pixels tall. It is also
+  FIXED-resolution (512²/1024²), which is why the post tiers' cost barely tracked screen
+  resolution at all (7× the viewport pixels moved orbit FPS by ~9%; the frame was never
+  fill-bound). Gating it took an orbit frame at High from **4,002 draw calls to 2,283** and from
+  two full-scene passes to one. (Earlier revisions of this note quoted an fps gain; those numbers
+  came from a probe counting `requestAnimationFrame` ticks, which under `frameloop="demand"` is not
+  the render rate — see `scene/frameCost.ts`. Measure cost with `scripts/dev-probes/frame-time.mjs`.)
+  So `mirrorReflectorConfig(tier)` now only says a reflection is PERMITTED; `useMirrorRelevance`
+  decides whether it is WORTH it, and every `MeshReflectorMaterial` call site goes through it
+  (`MirrorMaterial` — used by `Mirror`/`WallMirror`/`FloorMirror`/`Wardrobe` — plus `GltfModel`'s
+  detected-GLB `ReflectorOverlay`). Rules, pure + unit-tested in `mirrorRelevance.ts`:
+  the pane must cover ≥ `MIRROR_REAL_ON_FRACTION` of viewport HEIGHT to engage and drops below
+  `MIRROR_REAL_OFF_FRACTION` to release (wide hysteresis band — every flip is a material swap,
+  i.e. a shader recompile), and at most `MIRROR_REAL_BUDGET` panes hold a reflection at once.
+  **Resolve hysteresis and the budget TOGETHER over the whole candidate set** (`rankRealMirrors`),
+  never per pane: a pane cannot see that a bigger mirror already claimed the budget, and the
+  first cut of this let two bathroom mirrors both render a full extra scene pass. The gate is
+  throttled on a camera-move threshold (like `lighting/chooseEmitters.ts`) and never flips while
+  a camera gesture is held (like `InteractiveDprController`). Verify BOTH directions with
+  `node scripts/dev-probes/mirror-gate.mjs` — a gate that never upgrades has silently deleted the
+  feature while looking like a pure perf win. NOTE when writing such a probe: drei's reflector
+  EXTENDS `MeshStandardMaterial`, so `material.type` cannot tell the two apart — discriminate on
+  its `uniforms.textureMatrix`.
 - **Categories**: 16 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected
@@ -427,3 +525,199 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   the room, sized `widthFrac`×host width and self-lifting via the def's `mountHeight` (the def is
   `mounted`+`noClip`). Artifact-safe: the host already occupies a clear wall span, so the art never
   overlaps a door/window. Deterministic seeded art tint; excluded from the surface-prop budget/cap.
+- **Furniture wears the FURNITURE wood painter, not the floor's (FURNITURE-WOOD-SCALE).** 21 defs
+  across `defs/{beds,decor,kids,storage,tables}.ts` defaulted their wood finish to
+  `mat:floor-wood-oak`, described in the C264 test as "the CC0 oak mat". It is not a CC0 photo
+  material: that id is `kind: 'procedural'`, pattern `wood`, **`uvScale: [1.9, 1.2]` metres** — the
+  FLOOR plank painter. On a 0.55 m coffee-table top that is a ~3x scale mismatch, and it rendered
+  as saturated orange-red decking. Measured over a raycast mask (`surface-detail.mjs`, which
+  selects by `DEF=<defId>` so no NDC guessing is involved) at walk/Medium/09:00, all arms in ONE
+  run: `mat:floor-wood-oak` chroma **0.669 with 96.9% of its pixels past 0.35 saturation** against
+  the whole frame's ~0.18 and the sofa's 0.220; the procedural `wood` painter **0.474 / 84.4%**
+  with by far the calmest microcontrast (1.50 vs 3.51). Two lighter catalog woods were measured and
+  rejected ON SIGHT despite better numbers — `mat:floor-wood-ash` (0.243) streaks like driftwood
+  and `mat:floor-wood-maple` (0.313) reads as animal-print blotch, its microcontrast of 8.66 being
+  noise rather than grain. **Higher microcontrast is not automatically better; look at it.**
+  **The swap is piece-dependent, and this is the part to remember:** a `mat:<id>` finish supplies
+  its own albedo and IGNORES the primitive's `color` prop, while the procedural `wood` painter
+  MULTIPLIES it. So switching wakes up a `color` default that may never have been validated.
+  `tv-console` is exactly that case — `TvConsole`'s `color` is #3a2f24, nearly black, and the swap
+  took its mean luminance 61.8 → 37.7 for a chroma gain of only 0.794 → 0.612. It deliberately
+  keeps `mat:floor-wood-oak` (see the comment at its def) until its colour is re-chosen. Before
+  changing a `mat:` finish default to a procedural one, check the primitive's `color` default:
+  everything else in the sweep sits between #6f553f and #cdb89c and is fine.
+  Secondary defect fixed along the way: `mat:floor-wood-oak` was NOT among the `finish` enum's own
+  `options`, so the default was unselectable and a user who changed the finish could never return
+  to it. `'wood'` is the first listed option.
+- **A def's `paramSchema` default is the EFFECTIVE default; a primitive's `readStr` fallback is
+  DEAD whenever the def declares the same key (PARAM-DEFAULT-AUTHORITY).** `defaultParamProps(def)`
+  materialises every schema default into the item's props at creation, so `readStr(props, 'color',
+  '#8a6b48')` inside the primitive never fires — the stored prop always wins. This is silent and
+  expensive: changing only `TVConsole.tsx`'s fallback produced a BYTE-IDENTICAL measurement, and so
+  did a second attempt whose regex missed the schema's one-line form
+  (`{ kind: 'color', key: 'color', label: 'Colour', default: '#3a2f24' },` — a pattern written for
+  the multi-line form does not match it). Change BOTH, and confirm with `git diff` that the edit
+  landed where you meant: a slice taken from `'<defId>': {` to the next `\n  '` over-runs the def,
+  because sibling keys are not all quoted. Byte-identical means "prove the mutation landed" before
+  it means anything about the render.
+- **`tv-console` is resolved — FURNITURE-WOOD-SCALE now covers all 21 defs (v0.31.5.13).** It was
+  the one piece held back, because a `mat:` finish supplies its own albedo and IGNORES the
+  primitive's `color` while the procedural `wood` painter MULTIPLIES it, so the switch had woken up
+  an unvalidated #3a2f24 (nearly black). Swept item-masked at walk/Medium/09:00 against
+  `finish='wood'` — mean 72.7 / 97.5 / 109.9 / 122.1 / 131.8 and chroma 0.521 / 0.497 / 0.489 /
+  0.415 / 0.396 for #3a2f24 / #6f553f / #8a6b48 / #a08464 / #b89a72. Shipped #8a6b48 (mean 109.9,
+  chroma 0.489): #a08464 measured lower chroma and looked near-identical, so the tiebreak was
+  coherence — #8a6b48 is exactly the dresser and nightstand default, so the flat's wood furniture
+  reads as one family. The shipped state re-measured to the swept arm exactly, which cross-validates
+  the live-sweep method against a real source change.
+  **Mask by ITEM, not by painter, for a per-item decision** (`surface-detail.mjs MASK=item`). The
+  first sweep used the default painter mask and covered 402 cells across 17 materials sharing the
+  wood tile, so the entire #3a2f24 -> #a08464 range moved mean only 80.2 -> 92.9 — most of the mask
+  was other furniture. Item-masked it is 106 cells and the range moves 72.7 -> 122.1.
+  **The other dark `color` defaults are NOT the same trap.** A grep of
+  `readStr(props, 'color'|'topColor'|'frameColor'|'legColor')` across `primitives/` flags 33 values
+  below luminance 70, but they are dark BY DESIGN on small parts (`legColor` on chairs/sofas/tables,
+  which goes straight to `getWoodMaterial` and was always live) or on legitimately dark objects
+  (appliances, speakers, a piano, picture frames). The trap only existed where a def's finish
+  default WAS `mat:<id>`, and all 21 of those were checked in v0.31.5.9.
+
+- **Emitter intensities are RELATIVE, not photometric — do not "correct" them against a real
+  fixture (LIGHT-UNITS-RELATIVE, v0.31.5.47).** `lightEmitters.ts` described its `intensity`
+  field as "candela; renderer uses physical units". That is wrong, and it is the kind of wrong
+  that causes damage: taken literally, the shipped ceiling light (9) sits against a real 9 W
+  LED bulb at ~800 lm / 4-pi = **~64 cd** and reads as 7x too dim, so the obvious "fix" is to
+  multiply the whole table — which would blow out every night interior.
+  Censused live with `scripts/dev-probes/light-units.mjs`:
+
+  | light            | day 13:00 | night 21:00 |
+  | ---------------- | --------- | ----------- |
+  | DirectionalLight (sun) | **0.999** | 0.013 |
+  | HemisphereLight  | 0.136     | 0.057       |
+  | AmbientLight     | 0.043     | 0.018       |
+  | PointLight (19 fixtures) | 2.6–9 | 2.6–9   |
+  | `toneMappingExposure`    | 1.38  | 0.897     |
+
+  A sun at **0.999** where a physical midday sun is ~100,000 lux settles it: the rig is
+  eyeball-calibrated against the tone curve. The fixtures being **9x the sun's number** makes
+  the point twice over (and three treats a DirectionalLight as irradiance and a PointLight as
+  intensity/d², so the two are not on one scale anyway).
+  · **What IS meaningful is ordering and the fixture-to-fill ratio, and both are sound.** Room
+    lighting (ceiling-light 9, ceiling-fan 8) > task (floor-lamp 7, table-lamp 4) > accent
+    (sconce 3.5, vanity 2.8, cove 2.6, aquarium 2.4). The day/night ramp drops the fill ~8x
+    while the fixtures hold constant, so lamps take over at night by construction — ~150:1
+    over the hemisphere fill at 21:00, which is why NIGHT-WALL-CAP measures lit-room wall caps
+    at roughly twice the vertical walls.
+  · **So the table is DEFENSIBLE and nothing was changed.** FIXTURE-NEARFIELD-REFUTED named
+    this table the only remaining lever for fixture brightness after ruling out the falloff
+    shape by arithmetic; this closes the follow-up — the lever exists, but nothing measured
+    says it is set wrong. The near-field hot spots BLOOM-NIGHT-NEARFIELD found are ordinary
+    1/d² behaviour, not an intensity error.
+
+- **First furniture audit of the run: the chroma ranking is topped by the wardrobe metal, and it is
+  CORRECT (FURNITURE-CHROMA, v0.31.5.77).** With the shell verified (`.56`–`.76`), `chroma-audit.mjs`
+  was re-run to pick the next target by measurement rather than hunch. Walk mode, medium, three
+  poses, run at 21:11 local (so the flat booted `lightsMode: 'on'` per `ensureDaylightFirstPaint`):
+
+  | pose | top chroma budget (coverage x saturation) |
+  | --- | --- |
+  | living | **2.6** `#7a5c3c` wood, sat 0.51, 5.2% cover, mapped |
+  | dining | **1.6** `#b9b0a0` sat 0.14, 11.6% cover |
+  | bedroom | **3.4** `#b8bcc0` sat 0.04, **82.3%** cover, metal 0.75, NO maps |
+
+  · **`#b8bcc0` is the sliding wardrobe's frame metal** — `class-id.mjs` finds 6 instances,
+    `Group{itemId}` (furniture), `0.49 x 2.04 x 0.03` in runs of three, matching
+    `defaults/mainBedroom.ts`'s `wardrobe-3door` (`width 1.4`, `doorStyle 'sliding'`).
+  · **The obvious hypothesis was already found and fixed — meta-rule (xvii-b), seventh round
+    running.** `primitives/Wardrobe.tsx` routes it through `getSolidMaterial` *"rather than spread
+    inline, so it inherits the no-IBL metalness cap: at 0.75 metalness with no environment to
+    reflect, these ~1 m² frame panels rendered as **black slabs** on the default Performance tier
+    (Chrome audit 2026-08)"*. Door faces additionally use a tier-aware `MirrorMaterial` (real
+    planar reflection on High/Maximum, a cheap fake-shiny fallback below).
+  · **The frame confirms the fix holds.** `/tmp/ssg-chroma/walk-bedroom-medium-h13.png` shows satin
+    metal with soft broad specular blooms and a correct vertical seam — not black slabs, not
+    plastic. Featureless at nose distance (metal 0.75, rough 0.35, no maps), but a metal wardrobe
+    door IS smooth; this is the same situation as the vinyl bifold in `.58`, where flat was right.
+  · **The 82.3% is a POSE ARTEFACT, not a coverage claim.** `chroma-audit`'s bedroom pose stands
+    in `bedroom2` essentially against the wardrobe, so its doors fill the frame. Quote it as "82%
+    of THAT pose", never as the wardrobe's share of the walk view — the pose-honest census
+    (`.71`/`.72`) is the authority for that. Same lesson as `.71`, one probe further on.
+  · **The shared furniture WOOD painter is healthy.** `surface-detail.mjs DEF=wardrobe-3door`
+    seeds the carcass (`#caa478`, 17 materials share the tile) and measures **microcontrast
+    0.959**, chroma 0.602, mean 91.9, sigma 19.00 — on par with the plaster's post-fix 0.961.
+    Note this is the SAME class `.58` labelled "a furniture wall-slat panel"; it is a shared wood
+    tile used by many pieces, so treat that earlier label as "one member of a shared painter"
+    rather than as an identification of the class.
+
+- **The flat's highest-SATURATION class was already solved, and the ORBIT ranking is not the walk
+  ranking (WOOD-ARM-STALE, v0.31.5.78).** `.77` left `#7a5c3c` (sat 0.51, budget 2.6 in the living
+  pose) as the next target. `class-id.mjs COLOURS=7a5c3c` finds **8 meshes, all under
+  `Group{itemId}`** — four dining chairs, each a `0.44 x 0.05 x 0.44` seat at y=0.43 plus a
+  `0.44 x 0.46 x 0.04` back at y=0.69, clustered at x≈10.65/11.35, z≈4.85–6.75. The neighbouring
+  `#9e7b53` (sat 0.47) is the dining/side **table top** (`primitives/DiningTable.tsx`,
+  `SideTable.tsx`), so both warm woods in the boot view are the same dining set.
+  · **Meta-rule (xvii-b) pays for the EIGHTH round running.** `materials/CLAUDE.md` already
+    measured this exact hex: TONE-CURVE-CHOICE (v0.31.5.6, shipped with the user's sign-off)
+    decomposed its 0.508 albedo saturation and moved the default view transform to AgX.
+    Re-running the same instrument today (`wood-detail.mjs`, walk/Medium/09:00) **confirms the fix
+    still ships**: baseline is byte-identical to the explicit-AgX arm (`meanAbsDiff 0.00`,
+    `pixels>8 = 0.00%`), while explicit filmic costs chroma **0.601 → 0.750** with **6.6x** the
+    clipping (0.0028 → 0.0185), reproducing the recorded "4–7x". Effect size holds too: today's
+    filmic/AgX ratio is 1.248 vs the originally published 1.229. Nothing to fix; do not re-audit.
+  · **Read the two numbers as DIFFERENT metrics.** The published 0.833/0.678 pair is wood-pixel
+    *saturation*; this table's column is *chroma*. They are not comparable term-for-term — compare
+    the ratio, not the absolute.
+  · **`chroma-audit MODE=orbit` reorders the ranking, and orbit is the BOOT view.** `.77` ran walk
+    only. In orbit/medium/09:00 `#7a5c3c` falls to **0.7%** cover (budget 0.4, sixth) from 5.2% in
+    the walk/living pose — so the flat's highest-saturation class is nearly absent from the first
+    frame a user sees. Rendered frame: mean chroma 0.158, 3.2% of pixels past 0.35 saturation,
+    consistent with the shipped AgX row. **Always state which pose a coverage figure came from**
+    (meta-rule lxxxi); walk-pose budgets do not rank the boot view.
+  · **The largest surface in the boot frame is the SKY, and it is correct by construction.** 38.5%
+    of orbit rays hit a white mapped `MeshBasicMaterial` — `scene/lighting/Sky.tsx:129`, drawn
+    `side={BackSide}`, `depthWrite={false}`, `fog={false}`. Unlit on purpose, sat 0.00, so it
+    carries zero chroma budget. Being top of a coverage table is not being a defect (meta-rule lii).
+
+- **The bedside lamps no longer have a notch bitten out of them (CURTAIN-NIGHTSTAND, v0.31.5.87 —
+  shipped on the user's decision).** `.61` diagnosed it correctly and left it: the render was never
+  wrong, the curtain plane simply passed through the shades (shade z 0.30-0.60, curtain panel
+  z 0.48-0.58, `side=2` so the shade's inside showed through the bite). Fixed as CONTENT in
+  `defaults/mainBedroom.ts`, not by touching the placement rules.
+  · **There was no z solution, and none at the old curtain width either — that is why `.61`'s three
+    candidates all failed.** The room's north interior wall is at z 0.20, so a 0.40-deep nightstand
+    against it always reaches z >= 0.60 and cannot clear a panel at 0.48-0.58; `.61` measured the
+    only z fix as 0.33 m out into the room, which reads wrong for a bedside table. In x, the 2.2 m
+    curtain spanned 0.6-2.8 while the west wall forces the left nightstand's centre to x >= 0.425
+    (max x >= 0.65) — so no placement existed at that width.
+  · **Both had to move.** Curtain `width 2.2 -> 1.9` (x 0.75-2.65, still overhanging the
+    `x=[0.8,2.6]` glass ~0.05 each side, so the window stays covered), and the nightstands, their
+    table lamps and the desk plant went outboard to **x 0.475 / 2.925** — symmetric about the window
+    centre, clear of the bed (x 0.95-2.45) and inside the room (x 0.20-3.28).
+  · **Pinned by `defaults/mainBedroom.test.ts`**, which asserts the x spans do not overlap, that the
+    curtain still covers the glass, that each nightstand fits the room, and that the lamps and plant
+    stay co-located with their nightstand. It **fails 4 of 9 on the old geometry** — verified by
+    restoring it — so it discriminates rather than merely passing.
+  · Verified visually: `walk-tour HOUR=13 LIGHTS=on`, `mainBedroom-y0` cropped on the lamp/curtain
+    junction shows a complete unbroken shade with bare wall between it and the curtain edge.
+
+- **The default flat now ships with its curtains OPEN (WINDOW-TIME-INVARIANT, v0.31.5.88 — shipped
+  on the user's decision).** `.44` measured that the app bakes a city backdrop the out-of-box user
+  never sees: facing any of the 5 window openings in walk mode, a ray grid found essentially no
+  exterior pixels, because every curtain shipped drawn. `drawAmount: 0` is now set on all four
+  curtain entries in `defaults/` (mainBedroom, bedroom2, bedroom3, livingDining).
+  · **The DEF default stays `drawAmount: 1`.** Staging the demo flat must not change what happens
+    when a user drops a new curtain on a window — that still arrives drawn. Both halves are pinned
+    by `defaults/curtainsOpen.test.ts`.
+  · **Opening cannot re-introduce the `.87` lamp intersection, and this was checked rather than
+    assumed.** `panelTransform` bunches each panel to the outer edge at `drawAmount 0`:
+    `bunchW = max(0.12, width * 0.07)`, so the 1.9 m bedroom curtain's panels occupy x 0.750-0.883
+    and 2.517-2.650 — inside the drawn span and still disjoint from the nightstands at x 0.25-0.70
+    and 2.70-3.15. In general an open panel is a SUBSET of the drawn span in x, so anything that
+    cleared when drawn also clears when open. (Fold depth does grow — `depthScale` 1.0 -> 1.8 — but
+    that is in z, and x-disjointness alone rules out intersection.)
+  · **⚠️ It also makes WINDOW-TIME-INVARIANT VISIBLE.** The backdrop is a static authored `city`
+    palette; `.44` measured it identical at 09:00 and 13:00 to within ~1 rgb unit. With the curtains
+    drawn nobody saw that. Open, a `HOUR=13` walk frame shows a dark sky with lit tower windows and
+    glowing street lamps — a night skyline at midday, next to a TV playing a bright daylight image.
+    The sun-driven alternative is the `sky` backdrop, still gated on `proceduralSky` (false in
+    Simple, the app default) by the user's own decision. **This is a live trade-off, not a solved
+    problem** — see `docs/open-graphics-decisions.md` item (b).

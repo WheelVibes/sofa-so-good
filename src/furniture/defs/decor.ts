@@ -730,7 +730,7 @@ export const DECOR_DEFS = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },

@@ -93,6 +93,40 @@ export function makeFbm(
   }
 }
 
+/**
+ * Highest spatial frequency a tile of `size` texels can represent, in cycles per
+ * texel. Above this a field does not carry fine detail — it ALIASES into
+ * deterministic white noise.
+ */
+export const NYQUIST_CYCLES_PER_TEXEL = 0.5
+
+/**
+ * Cycles per texel in the TOP (finest) octave of an {@link makeFbm} field — the
+ * octave that decides whether the field is resolvable at all.
+ *
+ * `makeFbm(seed, octaves, baseFreq)` multiplies its input by
+ * `baseFreq * 2 ** octave`, and callers scale the input again
+ * (`fbm(u * uvScale, …)`), so the finest octave lands at
+ * `baseFreq * 2 ** (octaves - 1) * uvScale` cycles across the tile.
+ *
+ * This is easy to get catastrophically wrong and the failure is silent: the field
+ * still looks like "noise" in code review, and `heightToNormalRGBA` turns
+ * per-texel noise into a per-texel random normal, which reads as pebbly moulded
+ * plastic under specular light. Two shipped fields were over the limit — the
+ * furniture wood pore at 13.5 cycles/texel (WOOD-PORE-NYQUIST) and the
+ * upholstery weave's fine field at 3.75 (FABRIC-FINE-NYQUIST). Check any new
+ * field against this before shipping it; `woodPore.test.ts` and
+ * `upholsterySeams.test.ts` are the models.
+ */
+export function topOctaveCyclesPerTexel(
+  baseFreq: number,
+  octaves: number,
+  uvScale: number,
+  size: number,
+): number {
+  return (baseFreq * 2 ** (octaves - 1) * uvScale) / size
+}
+
 /** Convert a height field (row-major, values 0..1) into an RGBA normal-map
  *  buffer via central differences. `strength` scales bump intensity. */
 export function heightToNormalRGBA(

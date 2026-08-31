@@ -1,8 +1,21 @@
 /**
- * Shared 0..1 "lights are on" factor (≈ scene darkness), written each frame by
- * FurnitureLights and read by light-fixture primitives so their emissive
- * shades glow at night and go dark in daylight. A plain module singleton (not
- * store state) keeps it out of React re-renders — it's polled in useFrame.
+ * Shared 0..1 **lamp switch** factor, read by light-fixture primitives so their
+ * emissive shades glow when the lights are on and go dark when they are off. A
+ * plain module singleton (not store state) keeps it out of React re-renders —
+ * it's polled in useFrame.
+ *
+ * **It is EXACTLY `lightsMode === 'on' ? 1 : 0`** (`FurnitureLights.tsx`), written
+ * on CHANGE in a `useEffect`, not every frame. Two earlier claims in this header
+ * were wrong and caused a real defect (v0.31.5.127): it is not "≈ scene darkness",
+ * and it does not track the clock at all.
+ *
+ * **Do not use it as a day/night factor.** Both window renderers did — feeding
+ * `1 - getFixtureGlow()` to `windowTransmission(daylight)`,
+ * `glassSkyCatchIntensity(daylight)` and the `GLASS_DAY`/`GLASS_NIGHT` lerp — and
+ * since `ensureDaylightFirstPaint` turns the lamps on at EVERY hour on a fresh
+ * seed, every new visitor met night-coloured glass at midday. Use
+ * `altitudeCurve.ts:daylightFromAltitude(sun.altitude)` for anything that means
+ * "is it daytime".
  */
 let glow = 0
 

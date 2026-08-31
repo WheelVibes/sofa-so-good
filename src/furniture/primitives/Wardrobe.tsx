@@ -1,4 +1,8 @@
-import { getSolidMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import {
+  getSolidMaterial,
+  getSurfaceMaterial,
+  getSurfaceMaterialForBox,
+} from '../../materials/furnitureMaterials'
 import { doorHingePivot, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
@@ -35,6 +39,15 @@ export function Wardrobe({ props }: WardrobeProps) {
   const doorPanelW = (width - doorGap * (doorCount + 1) - 0.02) / doorCount
 
   const wood = getSurfaceMaterial(finish, color, 2, sheen)
+  // GRAIN-SCALE: a door / drawer front is a fraction of the carcass, but a box
+  // face's UVs are 0→1 whatever its real size — so sharing the carcass material
+  // renders the same wood at a different (and per-face STRETCHED) grain on every
+  // front. Size these from world dimensions instead. Structural panels keep the
+  // shared carcass material on purpose: their faces are flush with each other by
+  // construction, and giving each its own variant would turn invisible coplanar
+  // seams into visible z-fighting (`structuralSoundness` pins this).
+  const frontWood = (dims: [number, number, number]) =>
+    getSurfaceMaterialForBox(finish, color, dims, sheen)
   // Routed through the shared solid-material factory rather than spread inline, so
   // it inherits the no-IBL metalness cap: at 0.75 metalness with no environment
   // to reflect, these ~1 m² frame panels rendered as black slabs on the default
@@ -46,7 +59,8 @@ export function Wardrobe({ props }: WardrobeProps) {
   // pane — MirrorMaterial is tier-aware (real planar reflection on High/Maximum,
   // a cheap fake-shiny material on Performance/Medium), so the flat fallback is
   // automatic on the default tier. `frontProps` picks the panel material.
-  const frontProps = mirrored ? {} : ({ material: wood } as const)
+  const frontPropsFor = (dims: [number, number, number]) =>
+    mirrored ? {} : ({ material: frontWood(dims) } as const)
   const mirrorPane = mirrored ? <MirrorMaterial tint="#dfe8ee" /> : null
 
   // Corner (L-plan) wardrobe: two 0.6 m-deep arms meeting at the back-left
@@ -75,7 +89,7 @@ export function Wardrobe({ props }: WardrobeProps) {
         position={position}
         rotation={rotation}
         args={args}
-        {...frontProps}
+        {...frontPropsFor(args)}
       >
         {mirrorPane}
       </BeveledBox>
@@ -203,7 +217,7 @@ export function Wardrobe({ props }: WardrobeProps) {
             <BeveledBox
               castShadow
               position={[cx, y, depth / 2 - 0.04]}
-              material={wood}
+              material={frontWood([bw - 0.05, 0.24, 0.02])}
               args={[bw - 0.05, 0.24, 0.02]}
             />
             <mesh position={[cx, y + 0.08, depth / 2 - 0.02]}>
@@ -300,7 +314,7 @@ export function Wardrobe({ props }: WardrobeProps) {
             castShadow
             position={[x, height / 2, z + 0.016]}
             args={[panelW - 0.05, panelH - 0.05, 0.01]}
-            {...frontProps}
+            {...frontPropsFor([panelW - 0.05, panelH - 0.05, 0.01])}
           >
             {mirrorPane}
           </BeveledBox>
@@ -340,7 +354,7 @@ export function Wardrobe({ props }: WardrobeProps) {
                 castShadow
                 position={[x, height / 2, depth / 2 - doorInset]}
                 args={[doorPanelW, doorPanelH, 0.015]}
-                {...frontProps}
+                {...frontPropsFor([doorPanelW, doorPanelH, 0.015])}
               >
                 {mirrorPane}
               </BeveledBox>

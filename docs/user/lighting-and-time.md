@@ -39,6 +39,29 @@ menu): flip it **on** to light every fixture (useful for a windowless room in
 daylight, or any night scene), or **off** to keep them all dark. It is
 independent of the time of day.
 
+## Photographic look
+
+Right under **Lights**, the Scene menu's **Photographic** switch trades a brighter,
+more evenly-lit room for one that reads more like a photograph. It is **off by
+default**; turn it on and:
+
+- the flat ambient fill comes down, so shadows deepen and surfaces show their
+  texture — fabric, in particular, stops looking moulded;
+- while you are **walking through** the flat in the middle of the day, the ceiling
+  lights and lamps step aside, the way they would in a real room at noon. They
+  fade back in as the sun gets low, and stay on all day in **rooms with no
+  window** — a corridor or an internal store still needs its light.
+
+The dollhouse view is unchanged: it keeps its warm, lit rooms, which is what makes
+a plan easy to read.
+
+It never touches the **Lights** switch itself. If you turn the lights on, they stay
+on as far as the app is concerned — Photographic only decides what a given view
+draws. Turn it off and everything returns exactly to the standard look.
+
+**Rooms will look darker.** That is the point, and it is the trade: a photograph of
+a living room has deep shadow in it, and the standard look deliberately does not.
+
 ## Lighting mood presets
 
 Right below Lights, the Scene menu's **Mood** row sets a scene-wide brightness +

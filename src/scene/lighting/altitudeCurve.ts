@@ -165,3 +165,27 @@ export function skyFromAltitude(altRad: number): SkyValues {
   const { upper, lower, t } = bracket(SKY_KEYS, altRad)
   return interpSky(lower.values, upper.values, t)
 }
+
+/**
+ * Daylight strength, 0 (night) … 1 (sun up), from the sun's altitude.
+ *
+ * The window glass tells a day/night story — clear and sky-lit by day, dark and
+ * reflective after dark (`GLASS_DAY`/`GLASS_NIGHT`, `windowTransmission`,
+ * `glassSkyCatchIntensity`, all of which take a `daylight` argument). Until
+ * v0.31.5.127 both window renderers fed that argument `1 - getFixtureGlow()`,
+ * and `getFixtureGlow` is **exactly the lamp switch** (`FurnitureLights.tsx`:
+ * `const level = lightsMode === 'on' ? 1 : 0`) with no time term at all. Since
+ * `ensureDaylightFirstPaint` turns the lamps on at EVERY hour on a fresh seed,
+ * every new visitor met night-coloured glass at midday — measured at 13:00, the
+ * panes sat at `#20272f` / opacity 0.73 / sky-catch 0.00 with the lamps on, and
+ * flipped to `#bcd4e6` / 0.28 / 0.40 with the same clock and the lamps off.
+ *
+ * The ramp is the one `skyGradient.ts:skyRadiance` already uses for its own
+ * night fade — full daylight above the horizon, fully dark by −8° (civil dusk),
+ * linear between — so the glass and the sky reach night together instead of
+ * disagreeing. Pure; `altRad` is radians, negative below the horizon.
+ */
+export function daylightFromAltitude(altRad: number): number {
+  const altDeg = (altRad * 180) / Math.PI
+  return Math.max(0, Math.min(1, (altDeg + 8) / 8))
+}

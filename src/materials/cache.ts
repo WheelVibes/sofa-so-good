@@ -251,7 +251,9 @@ export function buildMaterial(
   const roughOverride = typeof def.roughness === 'number' ? def.roughness : undefined
   if (def.kind === 'procedural' && def.pattern === 'plaster') {
     // Painted plaster: shared normal + flat tint (no per-material textures).
-    const normal = getPlasterNormal()
+    // Honour the composed finish's tile scale (PLASTER-SCALE); the default
+    // `PLASTER_UV_SCALE` returns the shared singleton unchanged.
+    const normal = getPlasterNormal(def.uvScale)
     m.color.set(def.swatch)
     m.roughness = 0.92
     m.normalMap = normal
@@ -259,7 +261,7 @@ export function buildMaterial(
     // MAT-003 — shared roller-nap roughness-drift map (Path B, present only under
     // `pbrSurfaces`; null → legacy flat matte). It's a multiplier over the 0.92
     // base scalar, so the wall stays clearly MATTE — just no longer dead-uniform.
-    const roughnessMap = getPlasterRoughness()
+    const roughnessMap = getPlasterRoughness(def.uvScale)
     if (roughnessMap) m.roughnessMap = roughnessMap
     if (roughOverride != null) m.roughness = roughOverride
     CACHE.set(cacheKey, m)

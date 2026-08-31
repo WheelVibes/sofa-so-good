@@ -79,7 +79,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
   },
   {
     id: 'floor-tile-white',
-    name: 'White tiles',
+    name: 'Mosaic tiles',
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
@@ -199,7 +199,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
   },
   {
     id: 'wall-leather-white',
-    name: 'White leather',
+    name: 'Greige leather',
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',

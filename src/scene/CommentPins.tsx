@@ -1,10 +1,10 @@
 import { Html } from '@react-three/drei'
 import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
 import { noExportUserData } from '../export/sceneGltf'
 import { useFeature } from '../features/useFeature'
 import { GROUND_LEVEL_ID, isMultiLevel, levelElevation } from '../floorplan/levels'
+import { planExtent } from '../floorplan/planExtent'
 import type { DesignComment } from '../state/slices/commentsSlice'
 import { useStore } from '../state/store'
 import { priorityRaycast } from './raycastPriority'
@@ -29,6 +29,10 @@ export function CommentPins() {
   // The 2D plan editor draws over the scene but drei <Html> sits above it —
   // hide pins while the editor covers the canvas (same as AnnotationsOverlay).
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  // PLAN-EXTENT: the click plane must cover the LOADED plan, not the default
+  // flat's box — `tpl-terrace-ground` is 14.0 m deep and the constant plane
+  // stopped at 13.375.
+  const [extW, extD] = planExtent(plan)
   const [openId, setOpenId] = useState<string | null>(null)
   if (!enabled || floorPlanEditing) return null
 
@@ -75,14 +79,14 @@ export function CommentPins() {
         // priority raycast makes it win the pick so one tap anywhere drops a pin.
         <mesh
           ref={priorityRaycast}
-          position={[APARTMENT_EXT_W / 2, placeElevation + LIFT, APARTMENT_EXT_D / 2]}
+          position={[extW / 2, placeElevation + LIFT, extD / 2]}
           rotation={[-Math.PI / 2, 0, 0]}
           onClick={(e) => {
             e.stopPropagation()
             void placeAt(e.point.x, e.point.z)
           }}
         >
-          <planeGeometry args={[APARTMENT_EXT_W + PAD * 2, APARTMENT_EXT_D + PAD * 2]} />
+          <planeGeometry args={[extW + PAD * 2, extD + PAD * 2]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       ) : null}

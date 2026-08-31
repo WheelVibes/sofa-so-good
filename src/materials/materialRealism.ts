@@ -121,6 +121,20 @@ export interface WindowGlassPhysical {
   /** Faint green edge tint real float glass shows (KHR_materials_volume). */
   attenuationColor: string
   attenuationDistance: number
+  /**
+   * **Currently inert, and deliberately kept anyway (v0.31.5.175).** Both panes
+   * apply it as `Math.max(glassPhysical.roughness, glassParams.roughness)` so a
+   * frosted/reeded glass KIND can only ever be rougher, never smoother, than the
+   * physical baseline. `glassConfig`'s clear-glass roughness is 0.1, which is
+   * above this 0.05, so this value never wins for any shipped kind.
+   *
+   * Swept anyway, because a round was spent assuming it mattered: driving the
+   * pane's ACTUAL roughness 0.1 → 0.02 → 0 moves the window's micro-contrast
+   * 19.96 → 20.18 → 20.18, i.e. **+1 %**. Transmission blur is not what makes a
+   * window read as a pale slab — see the `.174`/`.175` entries in
+   * `docs/research/2026-08-31-photoreal-shadow-depth.md`. Do not tune this
+   * expecting a visible change.
+   */
   roughness: number
   metalness: number
 }

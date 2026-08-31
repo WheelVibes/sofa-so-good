@@ -35,11 +35,15 @@ export function woodFields(base: [number, number, number], seed: number, S: numb
   })
   // Cathedral grain: low-freq along the board, tight bands across it.
   const grainAlong = makeFbm(seed + 7, 4, 3)
-  const fineGrain = makeFbm(seed + 99, 3, 28)
+  // WOOD-FIELD-NYQUIST: was baseFreq 28, which at its `u * 4` call site put the
+  // top octave at 448 cycles = 1.75 per texel on a 256 tile (0.88 at 512) — the
+  // Performance tier bakes EVERY pattern at 256 (`BASE_SIZE`), so that is the
+  // binding limit. Bounded to ~0.38 cycles/texel at 256, resolvable at both sizes.
+  const fineGrain = makeFbm(seed + 99, 3, 6)
   // High-frequency roughness break-up: real varnished timber never has a
   // perfectly uniform sheen — micro scuffs / pore tooth make the gloss vary
   // texel-to-texel (RZ4). Cheap fbm, only touches the roughness map.
-  const microRough = makeFbm(seed + 211, 3, 70)
+  const microRough = makeFbm(seed + 211, 3, 25)
   for (let y = 0; y < S; y++) {
     const pi = Math.floor(y / plankH)
     const yInPlank = (y % plankH) / plankH // 0..1
@@ -114,7 +118,7 @@ export function vinylFields(base: [number, number, number], seed: number, S: num
   const striaeAmp = makeFbm(seed + 5, 3, 9)
   const streakN = makeFbm(seed + 9, 3, 12)
   const cathedralN = makeFbm(seed + 15, 3, 2.5)
-  const micro = makeFbm(seed + 21, 3, 90)
+  const micro = makeFbm(seed + 21, 3, 12)
   const endW = Math.max(1, S * 0.002) // end-joint half width (px) — hairline
   for (let y = 0; y < S; y++) {
     const pi = Math.floor(y / plankH)
@@ -172,7 +176,7 @@ export function parquetFields(base: [number, number, number], seed: number, S: n
   const B = S / nb // block size (px)
   const pw = B / K // plank width (px)
   const grain = makeFbm(seed + 7, 4, 3)
-  const fine = makeFbm(seed + 99, 3, 28)
+  const fine = makeFbm(seed + 99, 3, 6)
   // Deterministic per-plank hash → tint variation without a stateful RNG stream.
   const hsh = plankHash
   for (let y = 0; y < S; y++) {
@@ -245,7 +249,7 @@ export function herringboneFields(base: [number, number, number], seed: number, 
   const n = 4 // plank length L = n·W
   const P = 2 * n // orientation period in W-units; across (16) is a multiple → seamless
   const grain = makeFbm(seed + 7, 4, 3)
-  const fine = makeFbm(seed + 99, 3, 28)
+  const fine = makeFbm(seed + 99, 3, 6)
   const hsh = plankHash
   const wrap = (v: number) => ((v % across) + across) % across
   for (let y = 0; y < S; y++) {

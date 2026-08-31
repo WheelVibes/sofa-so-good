@@ -2,22 +2,28 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3D } from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
+import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
+
 import { registerAnimatedSource } from '../animatedSources'
 import {
   grade,
   iblFillScale,
+  photographicFillScale,
+  photographicGroundBounce,
   shadowFilterForTier,
   shadowParamsForFilter,
   toneExposureBias,
   warmthTintRGB,
+  windowFillAttenuation,
 } from '../look'
+import { setPhotographicLook } from '../photographicSignal'
 import { isShadowRefreshActive } from '../shadowRefreshSignal'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
-import { shadowFrustumForPlan } from './shadowFrustum'
+import { shadowFrustumForPlan, shadowMapSizeForExtent } from './shadowFrustum'
 import { updateStatusBarTint } from './statusBarTint'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
@@ -74,11 +80,17 @@ function targetVals(sun: SunPosition, orientation: number, center: [number, numb
 export function Lighting() {
   const sunPos = useSunPosition()
   const orientation = useStore((s) => s.orientationDeg)
-  const shadowMapSize = useQuality().shadowMapSize
+  const tierShadowMax = useQuality().shadowMapSize
   // PHOTO-SOFTSHADOW: Medium+ tiers run VSM (real blurred penumbrae via
   // radius/blurSamples); the renderer-level filter switch lives in
   // ShadowFilterController — here we only feed the matching per-light params.
-  const shadowFilter = shadowFilterForTier(useStore((s) => s.qualityTier))
+  const qualityTier = useStore((s) => s.qualityTier)
+  // PHOTO-FILL: the flag ships the control; this is the user's setting.
+  const photoFlag = useFeature('photographicFill')
+  const photographicLook = useStore((s) => s.photographicLook) && photoFlag
+  // Publish for the material factories, which live outside React.
+  useEffect(() => setPhotographicLook(photographicLook), [photographicLook])
+  const shadowFilter = shadowFilterForTier(qualityTier)
   const shadowParams = shadowParamsForFilter(shadowFilter)
   // IBL is on for Medium+ tiers; when it is, the procedural environment provides
   // ambient bounce, so the analytical hemisphere+ambient fill is dialled down to
@@ -93,6 +105,11 @@ export function Lighting() {
   // apartment-centred box misses shadows on a large or origin-offset custom plan.
   const floorPlan = useStore((s) => s.floorPlan)
   const { center, halfExtent } = useMemo(() => shadowFrustumForPlan(floorPlan), [floorPlan])
+  // SHADOW-TEXEL: size the map for a constant world-space texel density over the
+  // plan-fitted frustum rather than taking the tier's number literally. The tier
+  // value is the CEILING. See `shadowMapSizeForExtent` for the walk-mode
+  // measurements behind the target density.
+  const shadowMapSize = shadowMapSizeForExtent(halfExtent, tierShadowMax)
   // A persistent target so the directional light always points at the plan
   // centre regardless of where the sun sits; re-aim it when the centre moves.
   const sunTarget = useMemo(() => new Object3D(), [])
@@ -196,10 +213,13 @@ export function Lighting() {
       // --- C275: window-glass tint + curtain attenuation ---
       // All tier levels: colour modulation is free (scalar mults only).
       // No per-frame allocation: reads from module-level signals written on store change.
-      const attenuation = isFeatureEnabled('curtainLightEffect') ? getWindowAttenuation() : 1.0
       const tint = isFeatureEnabled('windowGlassTint') ? getWindowGlassTint() : NEUTRAL_TINT
 
-      sunRef.current.intensity = cur.sun * attenuation
+      // KEY-FILL-BALANCE: the sun keeps its FULL graded intensity. Curtains dim
+      // the diffuse skylight coming through the window (the fill, below), not
+      // the sun itself — see `windowFillAttenuation` for why dimming the only
+      // shadow-casting light here flattened every tier.
+      sunRef.current.intensity = cur.sun
       sunRef.current.castShadow = shadowMapSize > 0
       sunRef.current.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2])
       // PERF-MAX-1: hold the shadow map frozen unless it actually needs to change.
@@ -245,7 +265,18 @@ export function Lighting() {
     // Reduce the analytical fill where IBL also lights the scene (scaled by the
     // day level, so night interiors keep their full fill). `cur.sun` is the eased
     // 0→1 day level (same signal that drives `SceneEnvironment` IBL intensity).
-    const fillScale = iblFillScale(iblActive, cur.sun)
+    // The curtain/blind attenuation rides the FILL — that is the light actually
+    // passing through the window glass (KEY-FILL-BALANCE). Read once here so the
+    // hemisphere, the ambient and (via the signal) the IBL probe all agree.
+    const fillAtten = isFeatureEnabled('curtainLightEffect')
+      ? windowFillAttenuation(getWindowAttenuation())
+      : 1
+    // PHOTO-FILL: an opt-in key:fill rebalance. The sun is untouched, so this
+    // only changes the RATIO — see `look.ts:photographicFillScale`.
+    const fillScale =
+      iblFillScale(iblActive, cur.sun) *
+      fillAtten *
+      photographicFillScale(photographicLook, qualityTier)
     if (hemiRef.current) {
       hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
       hemiRef.current.color.setRGB(
@@ -253,10 +284,13 @@ export function Lighting() {
         cur.skyColor[1] * wb[1],
         cur.skyColor[2] * wb[2],
       )
+      // PHOTO-GROUND-BOUNCE: the whole-floor bounce that lifts the photographic
+      // look's ceiling into the photographic band. See `look.ts`.
+      const gb = photographicGroundBounce(photographicLook)
       hemiRef.current.groundColor.setRGB(
-        cur.groundColor[0] * wb[0],
-        cur.groundColor[1] * wb[1],
-        cur.groundColor[2] * wb[2],
+        cur.groundColor[0] * wb[0] * gb,
+        cur.groundColor[1] * wb[1] * gb,
+        cur.groundColor[2] * wb[2] * gb,
       )
     }
     if (ambientRef.current) {

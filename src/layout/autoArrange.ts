@@ -306,7 +306,31 @@ function snapToWall(
   const def = ctx.catalog[item.defId]
   if (!def) return item
   const { w, d } = baseFootprint(item, def)
-  for (const edge of rotateEdges(edges, ctx.seed)) {
+  // WINDOW-SIGHTLINE: a piece taller than a window sill tries WINDOWLESS edges
+  // first. This only reorders preferences — every edge is still attempted, so
+  // unlike a deeper keep-out (.117) it can never leave a piece unplaced.
+  const ordered = rotateEdges(edges, ctx.seed)
+  // STORAGE only — a wardrobe or bookcase is what `designRules.windowSillTall`
+  // is written about. Applying this to every tall item pushed bathroom fixtures
+  // off their walls (caught by `autoArrange.test.ts`'s "fixtures along the
+  // walls" case, which a sightline-only metric never saw).
+  const tall =
+    roleOf(item.defId, ctx.catalog) === 'storage' &&
+    (ctx.windowKeepOut?.some((k) => def.defaultFootprint.h > k.sill) ?? false)
+  const windowed = (edge: Edge) => {
+    if (!tall || !ctx.windowKeepOut) return false
+    const band: Rect =
+      edge === 'N'
+        ? { x0: rect.x0, x1: rect.x1, z0: rect.z0 - 0.3, z1: rect.z0 + 0.3 }
+        : edge === 'S'
+          ? { x0: rect.x0, x1: rect.x1, z0: rect.z1 - 0.3, z1: rect.z1 + 0.3 }
+          : edge === 'W'
+            ? { x0: rect.x0 - 0.3, x1: rect.x0 + 0.3, z0: rect.z0, z1: rect.z1 }
+            : { x0: rect.x1 - 0.3, x1: rect.x1 + 0.3, z0: rect.z0, z1: rect.z1 }
+    return ctx.windowKeepOut.some((k) => rectsOverlap(band, k))
+  }
+  const byWindow = [...ordered.filter((e) => !windowed(e)), ...ordered.filter(windowed)]
+  for (const edge of byWindow) {
     const rot = inward(edge)
     // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
     const along = w / 2
@@ -438,6 +462,32 @@ function settle(
   if (tryPlace(item, item.position, item.rotation, world, ctx) !== item) return
   if (settleInRect(item, rect, world, ctx)) return
   if (extensionRect && settleInRect(item, extensionRect, world, ctx)) return
+}
+
+/**
+ * Place a dining table and return where it ACTUALLY ended up.
+ *
+ * DINING-PHANTOM (v0.31.5.111): `tryPlace` signals failure by returning the
+ * item UNCHANGED and leaving `world` untouched, so its return value is the
+ * table's pre-placement position whenever the ideal spot is blocked. Both
+ * dining routines then slotted the chairs around that phantom position — and
+ * `arrangeCore`'s safety settle moved the table somewhere else afterwards,
+ * leaving the chairs stranded around a spot the table never occupied. Settling
+ * the table HERE, before any chair is slotted, means the slots are always
+ * measured from its final transform.
+ */
+function placeDiningTable(
+  table: FurnitureItem,
+  pos: [number, number],
+  rot: number,
+  rect: Rect,
+  world: FurnitureItem[],
+  ctx: Ctx,
+): FurnitureItem {
+  const placed = tryPlace(table, pos, rot, world, ctx)
+  if (placed !== table) return placed
+  settle(table, rect, world, ctx)
+  return world.find((w) => w.id === table.id) ?? table
 }
 
 function tuckCorners(items: FurnitureItem[], rect: Rect, world: FurnitureItem[], ctx: Ctx) {
@@ -721,10 +771,20 @@ function arrangeLivingAnyEdge(
     const diningDepth = clamp((depthMin + depthMax) / 2, depthMin + 1, depthMax - 1)
     const fp0 = fpOf(dining)
     const tableRot = vertical ? (fp0.w > fp0.d ? Math.PI / 2 : 0) : fp0.w > fp0.d ? 0 : Math.PI / 2
-    const placed = tryPlace(dining, build(diningAlong, diningDepth), tableRot, world, ctx)
+    const placed = placeDiningTable(
+      dining,
+      build(diningAlong, diningDepth),
+      tableRot,
+      rect,
+      world,
+      ctx,
+    )
     const fp = fpOf(placed)
-    const c = Math.abs(Math.cos(tableRot))
-    const s = Math.abs(Math.sin(tableRot))
+    // Read the rotation BACK off the placed table: a settled fallback may have
+    // turned it, and the chair-side extents below must follow the real one.
+    const placedRot = placed.rotation
+    const c = Math.abs(Math.cos(placedRot))
+    const s = Math.abs(Math.sin(placedRot))
     const exAlong = vertical ? (s * fp.w + c * fp.d) / 2 : (c * fp.w + s * fp.d) / 2
     const exDepth = vertical ? (c * fp.w + s * fp.d) / 2 : (s * fp.w + c * fp.d) / 2
     const tAlong = alongOf(placed.position)
@@ -737,17 +797,53 @@ function arrangeLivingAnyEdge(
     const sideB = spread(chairs.length - nA, exAlong * 2 - 0.4)
     const faceToward = (sign: number): number =>
       vertical ? (sign > 0 ? Math.PI / 2 : -Math.PI / 2) : sign > 0 ? 0 : Math.PI
+    const slots: { pos: [number, number]; rot: number }[] = [
+      ...sideA.map((off) => ({
+        pos: build(tAlong + off, tDepth - (exDepth + 0.32)),
+        rot: faceToward(1),
+      })),
+      ...sideB.map((off) => ({
+        pos: build(tAlong + off, tDepth + (exDepth + 0.32)),
+        rot: faceToward(-1),
+      })),
+    ]
+    // The two ENDS are spare slots, not preferred ones. Without them a chair
+    // whose long-side slot is blocked fails `tryPlace` and falls through to
+    // `arrangeCore`'s room-wide safety settle, which grid-searches the WHOLE
+    // room and can park it metres from its own table (measured: 7.6 m in
+    // `tpl-hdb-5room`, 7.7 m in `tpl-hdb-3gen`).
+    const endRot = vertical ? 0 : Math.PI / 2
+    slots.push(
+      { pos: build(tAlong - (exAlong + 0.32), tDepth), rot: endRot },
+      { pos: build(tAlong + (exAlong + 0.32), tDepth), rot: endRot + Math.PI },
+    )
+    // A slot outside the room is not a slot. `tryPlace` only rejects walls,
+    // collisions and keep-outs — it has no notion of the room rectangle, so on a
+    // NARROW room (`cp-living` is 2.6 m wide, less than a 4-seat table plus
+    // chairs on both sides) a slot can be physically valid yet stand on the
+    // circulation floor beyond the room's open edge, on a different floor
+    // finish. Measured in v0.31.5.111 before this guard: two penthouse chairs
+    // 0.08 m and 0.52 m outside `cp-living`.
+    // Room rects sit ~0.1-0.2 m inside their wall centrelines, so a slot a few
+    // centimetres past an edge is still within the room's walls. Half that
+    // margin is the point past which a chair is demonstrably on another floor.
+    const TOL = 0.2
+    const insideRoom = (p: [number, number]) =>
+      p[0] >= rect.x0 - TOL &&
+      p[0] <= rect.x1 + TOL &&
+      p[1] >= rect.z0 - TOL &&
+      p[1] <= rect.z1 + TOL
+    const taken = new Set<number>()
     chairs.forEach((ch, i) => {
-      if (i < nA)
-        tryPlace(ch, build(tAlong + sideA[i], tDepth - (exDepth + 0.32)), faceToward(1), world, ctx)
-      else
-        tryPlace(
-          ch,
-          build(tAlong + sideB[i - nA], tDepth + (exDepth + 0.32)),
-          faceToward(-1),
-          world,
-          ctx,
-        )
+      // Preferred slot first, then any slot no other chair has claimed.
+      for (const k of [i, ...slots.map((_, n) => n).filter((n) => n !== i)]) {
+        const slot = slots[k]
+        if (!slot || taken.has(k) || !insideRoom(slot.pos)) continue
+        if (tryPlace(ch, slot.pos, slot.rot, world, ctx) !== ch) {
+          taken.add(k)
+          return
+        }
+      }
     })
   }
 
@@ -866,7 +962,7 @@ function arrangeLiving(
           ? rect.z0 + (rect.z1 - rect.z0) * 0.74
           : cz
     const dx = clamp(dining.position[0], rect.x0 + 1, rect.x1 - 1)
-    const placed = tryPlace(dining, [dx, dz], 0, world, ctx)
+    const placed = placeDiningTable(dining, [dx, dz], 0, rect, world, ctx)
     const def = catalog[placed.defId]
     const fp = def ? baseFootprint(placed, def) : { w: 1.4, d: 0.85 }
     const chairs = get(['diningChair'])

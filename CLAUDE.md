@@ -15,7 +15,9 @@ Zustand (sliced store), Vite, Vitest, Biome.
 > `src/floorplan/`, `src/apartment/`. Other reference
 > docs: `DESIGN.md` (design-system contract — tokens, motion, naming, do/don'ts),
 > `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
-> `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`.
+> `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`,
+> `docs/open-graphics-decisions.md` (five measured graphics items awaiting a product/content
+> call — do NOT decide these unilaterally).
 
 ## Hard rules (always)
 - **Keep docs current in the same change.** After adding/removing/reshaping a system,
@@ -148,7 +150,9 @@ Zustand (sliced store), Vite, Vitest, Biome.
   + door/window clearances preserved. Constants in `layout/designRules.ts` (`CLEARANCE`) drive
   `layout/autoArrange.ts`.
 - **Quality**: modular + extensible, no monolithic files, handle edge cases, viewport-responsive
-  (desktop **and** mobile/touch). Tier-gate GPU cost (Performance is the default = flat renderer).
+  (desktop **and** mobile/touch). Tier-gate GPU cost; the boot tier is capability-detected
+  (`quality.ts:tierForCapabilities` — Performance on software/mobile/weak hardware, Medium
+  otherwise; High/Maximum are never auto-selected, only opt-in).
 - **Licensing/credits**: bundled assets are procedural/CC0 where possible; bundled GLBs +
   Poly Haven/ambientCG/Kenney/Poly Pizza carry per-item license + attribution (CC-BY required),
   shown in the inspector + `CREDITS.json`.

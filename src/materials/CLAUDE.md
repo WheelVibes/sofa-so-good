@@ -2,6 +2,29 @@
 
 Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
 
+- **Size furniture panel materials from WORLD dimensions, not a hand-picked scalar
+  (`getSurfaceMaterialForBox`).** A box face's UVs run 0→1 whatever the face's real size, so one
+  isotropic `repeat` gives every panel its own grain scale *and* smears each face by its own aspect
+  ratio. Measured on the default flat before this existed: one `wardrobe-3door` material spanned
+  **0.005 → 1.050 m per tile (210×)**, and a 0.437 × 1.99 m door landed at 0.218 across / 0.995 up —
+  a **4.6:1 stretch no scalar can undo**. `getSurfaceMaterialForBox(kind, color, [w,h,d], sheen)`
+  derives `(repeatU, repeatV)` from world size at a fixed `FURNITURE_GRAIN_METRES` (0.9 m), taking
+  `v` from `max(h, d)` so it lands on the upright face of a tall panel and the top face of a shelf.
+  It also turns the grain a quarter (`grainQuarterTurn`) on a wide-short panel so the boards run
+  along the panel's LONG axis, as real timber does — the procedural wood lays boards along **v**
+  (`getWoodMaps` indexes planks across u), which is right for a tall door and cross-grained on a
+  drawer front. **Catalog `mat:floor-wood-*` textures are authored the other way (boards along u,
+  `builtinCatalog.ts` sizes them by "plank length = uvScaleX"), so they are never turned.**
+  Measure with `scripts/dev-probes/grain-scale.mjs`.
+  **Use it for FRONTS (doors, drawer/flap fronts), not for structural carcass panels.** Carcass
+  faces are flush with each other by construction; giving each its own variant turns invisible
+  coplanar seams into visible z-fighting, which `furniture/primitives/structuralSoundness.test.tsx`
+  catches. Rolled out so far: `Wardrobe`, `TVConsole`, `Bookshelf`, `ShoeCabinet`, `DiningTable`,
+  `CoffeeTable`, `Desk`, `Nightstand` — other primitives are open work. **The door leaf was tested and left alone** (v0.31.5.151): `door-ab.mjs`
+  `PAIRS` arms found no anisotropic setting beats its recorded `repeat` 2. Size a panel when it is
+  stretched ACROSS the grain (wide-short fronts, tabletops); a tall panel stretched ALONG the grain
+  hides it, so sizing only trades one density for another.
+
 - **New finish** = an entry in `builtinCatalog.ts` (`procedural` with a pattern, or
   `solid`); new pattern painters go in `procedural/patterns/<family>.ts` (paint one tiling tile:
   albedo+normal+roughness from seeded noise over the shared `procedural/fieldKit.ts` buffers),
@@ -208,15 +231,425 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   — default 1 reproduces the shipped +0.06 baseline exactly). Both persist per-device via
   `qualityPrefs` beside `exposure`, gated by the `colorGrade` flag (simple tier) in
   `GraphicsSettings`. Keep every new dial byte-identical-neutral at its default.
-- **SNV swatches are render-calibrated (TONE-CALIBRATION).** The five SNV finish swatches are
-  deliberately MORE saturated/warm than the boards they match: the midday lighting mix (cool sky
-  IBL + hemisphere fill) has a measured per-channel response of roughly (0.56, 0.61, 0.68) R/G/B
-  on floors — blue is boosted ~19% over red, which greys out warm albedos. Each swatch is solved
-  as `boardTone ÷ response` (peak-normalised), then verified by sampling the mean RGB of
-  real-GPU screenshots until the rendered proportions match the board photo's (they now match to
-  ±0.002). Recipe to recalibrate after any lighting/tonemap change: render the close-up scenario,
-  `sharp`-sample the surface region, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel,
-  iterate once. Never eyeball-revert a calibrated swatch toward its board hex.
+- **SNV swatches are render-calibrated (TONE-CALIBRATION) — but the recipe is NOT reproducible
+  in this repo, and the "response" is not single-valued.** The historical record: the five SNV
+  finish swatches are deliberately MORE saturated/warm than the boards they match, because the
+  midday lighting mix (cool sky IBL + hemisphere fill) was measured with a per-channel response of
+  roughly (0.56, 0.61, 0.68) R/G/B on floors — blue boosted ~19% over red, greying out warm
+  albedos. Each swatch was solved as `boardTone ÷ response` (peak-normalised) and verified against
+  the board photo to ±0.002. The stated recipe is: render the close-up scenario, `sharp`-sample
+  the surface, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel, iterate once. Never
+  eyeball-revert a calibrated swatch toward its board hex.
+  **Two findings that bound how much weight that ±0.002 can carry.** Both came out of trying to
+  execute the recipe for TONE-CURVE-CHOICE (`scripts/dev-probes/snv-response.mjs`, rebuilt to
+  cover all five surfaces from plan-derived orbit poses with world-normal masks and 837–3910
+  sampled cells each):
+  · **The board photos are not in the repo.** `assets/guidelines/` is gitignored
+    (`.gitignore:77`) and absent from every checkout, so the ground truth the recipe depends on
+    cannot be sampled here. Any recalibration attempted without it is not a calibration.
+  · **There is no single render response per surface.** The `livingDining` floor
+    (`floor-vinyl-oak`, #d6b38d) under filmic at 13:00/Medium measures a peak-normalised response
+    of **0.923 / 0.970 / 1.000 in ORBIT** — blue the STRONGEST channel — and
+    **0.998 / 1.000 / 0.921 in WALK** — blue the WEAKEST. Same surface, same operator, same hour;
+    orbit culls the ceiling so the slab takes cool sky IBL directly, walk does not. The response
+    also moves with pose within a single mode. So `boardTone ÷ response` has no well-defined
+    right-hand side, a swatch cannot hold to ±0.002 across the app's own two view modes, and the
+    recorded (0.56, 0.61, 0.68) is both stale AND measured under conditions the note does not
+    pin down. Before relying on this rule again, decide WHICH view/pose/hour defines the
+    calibration and record it with the numbers.
+- **The default view transform is AgX, not ACES Filmic (TONE-CURVE-CHOICE) — SHIPPED v0.31.5.6
+  with the user's sign-off.** Measured, not argued. three's `ACESFilmicToneMapping`
+  applies its curve PER CHANNEL, so on a warm mid-dark surface it crushes blue much harder than
+  red and saturation climbs. The default flat's furniture wood makes this concrete
+  (`scripts/dev-probes/wood-detail.mjs`, walk/Medium/09:00, wood pixels only via a raycast mask,
+  in-run noise floor 0.00): a #7a5c3c albedo whose own sRGB HSV saturation is **0.508** renders at
+  **0.833**, with 97.8% of its pixels past 0.35 saturation while the whole frame sits at 0.18. The
+  excess decomposes cleanly — lightening the albedo x1.8 gives 0.784 (so darkness is worth only
+  ~0.05, matching what a pure sRGB encode predicts at that luminance), zeroing the HueSaturation
+  baseline gives 0.764 (0.069 — now shipped, see POST-SAT-NEUTRAL in `scene/look.ts`), and
+  switching to AgX gives **0.678**. The remaining ~0.21 is the curve.
+  A whole-frame sweep (`scripts/dev-probes/tone-curve.mjs`, walk + orbit x 09/13/18/21:00) says the
+  same thing globally and adds the highlight story:
+
+  | operator | mean          | contrast (sigma) | clipped         | chroma        | >0.35 sat     |
+  | -------- | ------------- | ---------------- | --------------- | ------------- | ------------- |
+  | filmic   | 185.9         | 54.5             | 1.94%           | 0.180         | 11.1%         |
+  | **agx**  | 176.7         | 43.3             | **0.28%**       | **0.152**     | **4.0%**      |
+  | neutral  | 173.2         | 59.5             | 0.05%           | 0.307         | 27.4%         |
+
+  (walk/Medium/09:00; the ordering is identical at every other hour and in orbit.) AgX cuts blown
+  highlights **4–7x** at every hour and visibly recovers ceiling gradation and curtain weave that
+  filmic was clipping away. Khronos Neutral is clearly WRONG as a default despite its perfect
+  highlights — it pushes chroma to 0.307 in daylight and 0.518 at 21:00 in orbit (89% of pixels
+  past 0.35), i.e. hard toward the cartoon look. Read AgX's lower sigma with care: **clipping
+  inflates variance**, so some of filmic's "contrast" is the blown pixels themselves.
+  **Why it is not shipped yet.** TONE-CALIBRATION (below) solved five SNV swatches as
+  `boardTone / response` against the render, and `scripts/dev-probes/snv-response.mjs` measures
+  exactly how far that moves. On the living/dining floor (`floor-vinyl-oak`, swatch #d6b38d) at
+  13:00, peak-normalised per-channel response:
+
+  | operator | R / G / B response   | rendered RGB          |
+  | -------- | -------------------- | --------------------- |
+  | filmic   | 1.000 / 0.963 / 0.829 | 181.8 / 146.5 / 99.3  |
+  | agx      | 0.998 / 0.997 / 1.000 | 173.2 / 144.7 / 114.3 |
+
+  AgX's rendered channel proportions (1.000 / 0.838 / 0.661) reproduce the SWATCH's own
+  proportions (1.000 / 0.836 / 0.659) almost exactly — it is the faithful transform, and filmic's
+  distortion was being compensated LOCALLY in five finishes while going uncompensated everywhere
+  else. But the drift is **0.171 in blue, ~85x the ±0.002 the calibration holds to**, so switching
+  would push those five finishes visibly cooler than the boards they were matched to. Re-solving
+  them is part of the same change, not a follow-up.
+  **Status: shipped.** `DEFAULT_TONE_MAPPING` in `scene/look.ts` is `'agx'`; both tier paths
+  already honoured it (Performance reads `TONE_MAPPING_THREE` → `AgXToneMapping`, Medium and up go
+  through the `<ToneMapping>` effect via `TONE_MAPPING_POST`), and an explicit user pick still
+  wins. Verified after the switch: `tier-look.mjs` across four tiers x four hours, bloom lock-step
+  confirmed visually at 21:00/Maximum (fixtures still glow, RD-409 untouched — Bloom runs BEFORE
+  the tone mapper on scene-referred values, so its threshold semantics do not move), and the frame
+  cost is a shader-constant change with no cost. The known cost was accepted deliberately: the
+  five board-matched SNV finishes shift subtly paler/cooler, largest on the bathroom floor.
+  The recalibration route was attempted and is closed:
+  the board photos are absent from the repo, and the response the recipe solves against is not
+  single-valued (see TONE-CALIBRATION above). So the five swatches can be neither re-derived nor
+  verified. Measured drift across all five surfaces, filmic → AgX, at 13:00/Medium in orbit with
+  837–3910 sampled cells each (peak-normalised response, max channel):
+
+  | surface                        | swatch   | drift | visual effect                     |
+  | ------------------------------ | -------- | ----- | --------------------------------- |
+  | `livingDining` floor (vinyl)   | #d6b38d  | 0.083 | slightly paler, still pale timber |
+  | `kitchen` floor (stone tile)   | #cfb38e  | 0.085 | slightly paler                    |
+  | `bath1` floor (porcelainStone) | #a69e83  | 0.132 | less olive, more neutral greige   |
+  | `bath1` wall (porcelain)       | #eddfc4  | 0.054 | marginally cooler                 |
+  | `householdShelter` floor       | #cfb38e  | 0.051 | marginally paler                  |
+
+  Reviewed as cropped stills, none of the five BREAKS under AgX — each still reads as the finish it
+  is meant to be; the change is a subtle paling and de-warming, largest on the bathroom floor which
+  loses some of the sage undertone SNV-BOARDS calls for. The probe also prints a
+  **render-preserving multiplier** per surface (the per-channel scale that makes AgX reproduce
+  filmic's render exactly), which is the honest fallback if the switch is wanted without moving
+  those five — but applying it would re-bake filmic's distortion into the swatches and is not
+  obviously right. **Do not ship this switch autonomously**: it alters the default appearance of
+  the whole app and knowingly moves five finishes that were matched to physical exhibition boards
+  the user photographed — it needed the user's call, which it has. If the board photos come back
+  into reach, re-verify those five (and pin WHICH view/pose/hour defines the calibration first).
+  **A "flat-tier clipping defect" was reported here and it was NOT REAL — corrected v0.31.5.7.**
+  The claim was that at 13:00 `tier-look.mjs` showed 6.78% blown pixels on Performance and Medium
+  against 0.03% on High/Maximum, i.e. a flat-tier exposure defect the post tiers merely hid behind
+  their Vignette. It was a MEASUREMENT artefact: that probe reported the FULL CANVAS rect, which
+  is dominated by DOM chrome — the toolbar, the "Get started" card and the zoom rail are drawn
+  over the canvas AND are translucent, so their brightness tracks the canvas behind them and
+  differs per tier, which mimics a render regression precisely. A 4x4 grid of the full canvas put
+  the blown pixels in the top-centre cells (22% — toolbar), the bottom-left cell (54% — the card)
+  and the bottom-right rail, with every interior cell at **0.0%**. Re-measured over
+  `lib.mjs:centerBox`, the 3D render clips **0.02–0.05% at EVERY tier and EVERY hour** (09/13/18/
+  21:00 x four tiers), with the flat tiers marginally the cleanest. There is no flat-tier exposure
+  problem. `tier-look.mjs` now prints the DOM-free slab as its authoritative number and labels the
+  full-canvas figure "do NOT quote". The AgX clipping numbers above are unaffected — `tone-curve.mjs`
+  always measured a centre slab. Lesson: `centerBox` exists for this and its docstring says so;
+  a whole-canvas fraction is a UI measurement wearing a render costume.
+- **The Nyquist sweep is CLOSED: 5 fields fixed, 14 verdicts recorded (NYQUIST-CLOSED).** Working
+  the allowlist with NYQUIST-HARM applied first settled every remaining entry without a mechanical
+  sweep. Fixed and removed: all four `patterns/wood.ts` fields, `patterns/fabric.ts:fibre` (3.44),
+  `patterns/fabric.ts:warp` (1.09) and `tileSurface.ts:peel` (1.41). The other 14 are **recorded
+  verdicts, not pending work**, grouped in `nyquistAudit.test.ts` by why they are harmless:
+  thresholded sparse speckle that reads as real pinholes (`stone.ts:pores` 2.81 and
+  `stoneSurface.ts:fine` 1.72, both verified on a crop), roughness-ONLY whispers where there is no
+  normal map to corrupt (`tile.ts`/`stone.ts:microRough`, `plasterSurface.ts:fine` — MAT-003's
+  ±0.04 nap drift on every default wall), and albedo whispers at ≤ ±0.025 of the shade factor.
+  · **`patterns/fabric.ts:warp` was the subtle one worth catching.** It is a PHASE warp —
+    `sin(v * S * 0.85 + warp * 3)` — so per-texel noise displaced the weave line by up to 3 radians
+    (nearly half a cycle) at EVERY texel, scrambling grasscloth's horizontal weave into noise
+    instead of meandering it, and `line` carries half the height field. baseFreq 70 → 8. The crops
+    are unambiguous: a random speckled hatch before, coherent flowing fibre runs after.
+  · **And it is the case that proves the metric's blind spot.** That clear visual fix moved
+    microcontrast only 2.086 → 1.951 (−6.5%), with chroma, mean and sigma flat. **Microcontrast
+    measures AMPLITUDE, not COHERENCE** — a scrambled-phase field and a meandering one have similar
+    texel-to-texel magnitude. This is the mirror of the usual trap: here the numbers under-report a
+    real improvement. Always look.
+  · **`normalScale` is NOT a proportional proxy for a painter's `normalStrength`.** Carpet's live
+    sweep gave microcontrast 4.010 / 2.739 / 1.838 / 1.353 at `normalScale` 1 / 0.5 / 0.25 / 0.1,
+    but a real `normalStrength` 6 → 1.5 (a 4x cut) measured **1.349** — where `normalScale` 0.1 (a
+    10x cut) landed. `heightToNormalRGBA` normalises `(-dx, -dy, 1)`, so its response saturates.
+    Use a live sweep to pick a DIRECTION, then confirm with the real bake.
+  · **Carpet is improved but still not carpet, and that is where it stops.** Aliasing gone (static
+    → soft matte, microcontrast 9.084 → 1.349, −85% across both changes) but it reads as speckled
+    terrazzo, because the remaining cue is the ALBEDO speckle, not the normal. `floor-carpet-grey`
+    is a non-default, user-selectable finish and two rounds went into it — a prioritisation error
+    worth not repeating. Default surfaces first.
+- **Frequency alone does NOT determine whether aliasing hurts — amplitude and thresholding do
+  (NYQUIST-HARM).** Working down the NYQUIST-AUDIT allowlist worst-first immediately produced two
+  opposite verdicts from the top two entries, both confirmed on close-up crops of a table top
+  wearing the finish (`surface-detail.mjs DEF=coffee-table FINISHES=mat:<id>`):
+  · **`patterns/fabric.ts:fibre` (3.44 cycles/texel) was genuinely broken and is FIXED.** It is
+    UNTHRESHOLDED and drives three channels at full amplitude — albedo `0.82 + fib * 0.3`, the
+    ENTIRE height field, and roughness — so the aliasing rendered as harsh black-and-white static,
+    closer to TV snow than carpet pile. baseFreq 110 -> 12; close-up microcontrast **9.08 -> 4.01
+    (-56%)**, the highest reading measured anywhere in this work.
+  · **`patterns/stone.ts:pores` (2.81) is a deliberate KEEP.** It is THRESHOLDED (`p > 0.86`), so
+    only ~14% of texels fire and the aliasing appears as sparse dark specks — which is precisely
+    what concrete pinholes look like. The close-up reads as plausible mottled concrete, and
+    "fixing" it would trade correct-looking sparse specks for broad blobs. Its allowlist entry says
+    so, and the entry is a decision rather than debt.
+  **So read the CALL SITE before changing a frequency.** Unthresholded + high amplitude + feeding
+  the HEIGHT (which `heightToNormalRGBA` turns into a per-texel random normal) is the damaging
+  combination; thresholded sparse speckle in the albedo is usually fine or even desirable.
+  **And a lowered frequency does not automatically look right.** Carpet after the fix no longer
+  looks like static but reads as mottled grey STONE, because `normalStrength = 6` was tuned against
+  the old per-texel field and over a smooth low-frequency one it carves broad polished swirls. An
+  attempt to correct that by halving the albedo swing was REVERTED for moving nothing (microcontrast
+  4.010 -> 4.007, sigma 22.52 -> 22.40, crop indistinguishable) — the albedo was never the dominant
+  cue. Whoever picks this up next: the normal strength is the lever, and it needs its own
+  before/after.
+- **The flat's LARGEST surface was rendering as damp concrete, and one duplicated literal was
+  why the fix didn't land (PLASTER-STRETCH, v0.31.5.56).** The `.55` census put walls at **~45%
+  of the walk view**; cropped in, the `#f5f5f0` class showed broad soft grey clouds at ~20-40 cm
+  rather than paint. `dev-probes/wall-mottle.mjs` ran four one-variable arms at one pose:
+
+  | arm | mean | sigma | microcontrast |
+  | --- | --- | --- | --- |
+  | base (shipped) | 85.4 | 18.03 | 0.442 |
+  | AO off | 99.2 | **7.53** | 0.421 |
+  | normalMap off | 85.2 | 17.83 | **0.206** |
+  | roughnessMap off | 85.4 | 18.03 | 0.442 |
+
+  · **The numbers pointed at SSAO and the FRAMES overruled them.** AO-off collapsed sigma by 58%,
+    which read as "N8AO at aoRadius 0.7 / intensity 3.0 / half-res is blotching the wall" — a
+    tidy story. But the `normalMap off` FRAME shows a perfectly smooth painted wall **with AO
+    still on**. The mask spans 35.7% of the screen across many wall segments at different
+    brightnesses, so its sigma is dominated by segment-to-segment luminance, not by within-wall
+    blotching. **Microcontrast was the only honest metric of the three**, and it named the normal
+    map (0.442 -> 0.206, -53%). A follow-up AO sweep confirmed the dead end from the other side:
+    intensity 3.0 -> 2.0 -> 1.5 -> 1.0 moves sigma and corner grounding together (2.44 -> 2.25 ->
+    2.03 -> 1.67 ground/sigma), so the shipped AO tuning has the BEST ratio of every arm tested
+    and reducing it only buys less AO. Nothing was changed in `look.ts`.
+  · **Root cause: the orange-peel plaster tile was stretched over 2.5 m.** `uvScale: [2.5, 2.5]`
+    on every wall paint, against a real orange peel of ~1-3 mm. Stretched that far a fine grain
+    stops reading as texture and becomes cloud — the DOOR-GRAIN lesson (v0.31.5.50) on a surface
+    twenty times the size. Swept metres-per-tile on the drawn material: microcontrast 0.442
+    (2.5 m) -> 0.678 (1.2) -> **0.961 (0.6)** -> 1.072 (0.3) -> 0.913 (0.15).
+  · **Shipped 0.6, not the peak.** At a 256-square tile 0.6 m puts one texel at ~2.3 mm, the size
+    of a real orange-peel bump — a principled value rather than a tuned one. 0.3 measures higher
+    but 0.15 FALLS BACK, which is the NYQUIST-AUDIT rolloff; 0.6 sits a full octave clear of it.
+  · **`limewash` deliberately keeps 2.5**, and that is the control: limewash really is a broad
+    cloudy finish, so the same number is correct there for the reason it was wrong for plaster.
+  · **The first attempt at this fix changed nothing on screen, and the probe caught it.**
+    Retuning all eleven catalog entries left the drawn material at `repeat=0.40` — because
+    `procedural/generators.ts:buildPlasterMaps` carried its OWN hardcoded
+    `repeat.set(1 / 2.5, 1 / 2.5)` (twice), with a comment asserting the catalog value it was
+    silently outranking. Both now read `PLASTER_UV_SCALE`. **If a texture's tiling has a second
+    home, editing the catalog is a no-op** — read the repeat back off the DRAWN material, which
+    is what turned an identical-readings run (meta-rule xxv) into a found bug rather than a
+    shipped non-fix.
+
+- **The composer's "Scale" slider was a DEAD CONTROL on plaster, and the walk-tour is clean
+  (PLASTER-SCALE, v0.31.5.57).** Follow-up to PLASTER-STRETCH. Two questions, both answered
+  against the drawn material rather than the source:
+  · **The `.56` fix holds everywhere.** An 11-room / 44-frame `walk-tour.mjs` re-shoot at
+    13:00 / medium reads as painted plaster in every room, and — the one risk 0.6 carried — there
+    is **no aliasing** at grazing angles or on far walls, where anisotropy is doing its job.
+  · **`COMPOSE_TEXTURES` was a THIRD home for the number, and it was inert.** `cache.ts`'s plaster
+    branch never read `def.uvScale` at all: it returns the shared `getPlasterNormal()` /
+    `getPlasterRoughness()` singletons whose repeat is baked in. So the eleven catalog `uvScale`
+    values were decorative for plaster too — only `generators.ts` was ever load-bearing. Measured:
+    a composed plaster finish at ×1, ×2 and ×0.5 came back **repeat 1.667 in all three**, with a
+    DIFFERENT SWATCH COLOUR per arm proving `setWallFinish` had applied each time (meta-rule xxv —
+    three identical readings are a failed mutation until something else moves).
+  · **The slider is ungated in `MaterialComposer.tsx`** and "Plaster (paint)" is the FIRST entry in
+    its dropdown, so this was the most reachable dead control in the finish UI: it updates the id,
+    reads "1.75×", and changed nothing.
+  · **Fix: `getPlasterNormal(uvScale?)` / `getPlasterRoughness(uvScale?)` clone ONLY when a
+    non-default scale is asked for**, memoised per `(uuid, u, v)`. `Texture.clone()` shares the
+    underlying image, so a clone costs a texture object and its own upload, not another
+    256-square bake — the singleton's memory saving survives on the default path, which is
+    every wall in the shipped flat. `cache.ts` passes `def.uvScale` through.
+  · **`COMPOSE_TEXTURES` now IMPORTS `PLASTER_UV_SCALE`**, and that mattered: once the branch
+    honours `def.uvScale`, its stale 2.5 would have put the old stretch straight back on every
+    composed plaster finish. **A dead value stops being harmless the moment you make it live** —
+    when wiring up an ignored parameter, re-audit everything that was allowed to drift while
+    nobody was reading it.
+  · Verified at the shipped state: builtin 1.667 (unchanged), composed ×1 1.667, ×2 0.833,
+    ×0.5 3.333.
+
+- **No second dead control — the plaster branch was the only one (DEF-FIELD-SWEEP, v0.31.5.58).**
+  `.57` found the composer's tile-size slider inert on plaster because `cache.ts` never read
+  `def.uvScale` there. Meta-rule (l) says an ignored parameter can hide drift, so every other
+  branch was checked against the controls the composer actually offers (colour, Scale, Gloss,
+  sat/bright, and Repaint/Shade for textured bases):
+
+  | branch | `uvScale` | `roughness` | verdict |
+  | --- | --- | --- | --- |
+  | `procedural` (non-plaster) | honoured — `t.repeat.set(1 / def.uvScale[…])` on all three maps, and passed to the worker upgrade | honoured via `roughOverride` | clean |
+  | `textured` | honoured on both the recolored canvas and the shared loader maps | honoured | clean |
+  | `procedural` plaster | **was ignored**, fixed in `.57` | honoured | fixed |
+  | `solid` | has no `uvScale` field; `tintedMaterialDef` drops the token | — | **unreachable** |
+
+  · **The `solid` case is not a latent bug.** The Scale slider is ungated in
+    `MaterialComposer.tsx`, so a solid base would silently swallow it — but there are **zero**
+    `kind: 'solid'` entries in either `builtinCatalog` or `generatedCatalog`, so no user can
+    select one. Recorded rather than "fixed": a guard for an unreachable case is untestable code.
+  · sat/bright are baked into the swatch by `adjustColorTone` before the def is built, so they
+    cannot be dropped by a branch; Repaint/Shade is already gated on `baseMat?.kind === 'textured'`.
+
+- **The census is NOT merging surfaces — hypothesis refuted, and the `#ffffff` class is the wet-room
+  tile (CENSUS-KEYING, v0.31.5.59).** `cache.ts`'s general procedural branch does
+  `m.color.set('#ffffff')` with the tint baked into the albedo, so it was reasonable to suspect
+  that `surface-coverage.mjs` — which keys classes by base colour — had been collapsing every
+  non-plaster procedural finish into one `#ffffff` bucket, and that the priority table this whole
+  run steers by was over-reporting a class that is really several.
+  · **Tested with a new opt-in `KEYBY=map` mode** that adds the map SOURCE uuid to the class key.
+    Every `#ffffff` row came back on the SAME source (`t9`), and the total class count moved only
+    **322 -> 323**. If the artefact hypothesis were right the count would have jumped. **The
+    census is honest**; the default colour keying stays.
+  · Incidentally confirmed by the same run: all `#f5f5f0` rows share one source (the plaster
+    singleton, as designed), `#a9825c` and `#caa478` share the wood tile (door leaf and wall-slat
+    panel, both at `repeat 2` after `.50`), and `#cfc8bd` / `#e3dfd6` share the paint micro-normal
+    (`getVinylMaterial` / `getPaintedMaterial`, as `.58` established).
+  · **`#ffffff` is `wall-tile-white`** — "Glazed porcelain tile (white, 300x600)",
+    `DEFAULT_ROOM_WALL` for `bath1` / `bath2` / `kitchen`. Its ~13.4% is arithmetically right: the
+    tour stands in 3 of 11 rooms where it is the default, and those rooms are small enough that
+    the walls fill the frame.
+  · **It does NOT have a stretch of its own** — the specific thing this round was sent to check.
+    `uvScale: [1.2, 1.2]` against a 300x600 mm tile pattern puts **4 tiles across and 2 down per
+    repeat, i.e. exactly 300x600 mm each**. Correct by construction rather than by tuning, and the
+    opposite of the plaster bug. Bathroom tile is also territory three earlier rounds already
+    measured (`bath-tile-size.mjs` exists for it) — meta-rule (xvii-b).
+  · **Method note, because it cost four probe runs:** `wall-mottle.mjs` seeds from the largest
+    vertical class AT A POSE, which is the wrong tool for "go find class X" — standing in kitchen
+    seeded the painted cabinetry, bath1 seeded the shower glass, and mainBedroom seeded the
+    curtains. The census knows which room each class came from and throws it away. **If this
+    recurs, make `surface-coverage.mjs` print a sample room per class** rather than guessing rooms
+    one probe run at a time.
+
+- **Floors re-verified after the plaster and composer changes — CLEAN, and the earlier floor work
+  holds (FLOOR-RECHECK, v0.31.5.69).** `.56` retuned `PLASTER_UV_SCALE` and `.67` moved every tier
+  onto a composer; both could have disturbed floors, which this run had never looked at. They did
+  not.
+  · **Every named floor resolves at its full bake** — `floor-look.mjs` reports
+    `floor-vinyl-oak@512` in `mainBedroom` / `bedroom2` / `bedroom3` / `corridor` / `livingDining`,
+    `floor-tile-bath-green@512` in both baths and `floor-tile-beige-300@512` in the household
+    shelter. No 64² or 128² preview stranded on a floor anywhere.
+  · **The living/dining floor matches SNV-BOARDS as written**: pale grey-washed rift-oak print,
+    fine straight striations along the strip, hairline V-seams, matte — no cathedral banding, no
+    moiré, no exaggerated grout, and the plank scale reads physically plausible at a steep pitch.
+  · **Meta-rule (xvii-b) earned its place again.** The premise for the round was "floors are the
+    largest class never judged" — true of THIS RUN, false of the repo. SNV-BOARDS matched each
+    floor painter against photographs of the actual Serangoon North Vista sample boards,
+    JOINT-SCALE converts every joint band to real millimetres, and `snvBoards.test.ts` pins the
+    painter signatures. That is better ground truth than anything this loop could derive, so the
+    round was scoped as a REGRESSION CHECK rather than a re-audit. Do not retune floor colour or
+    joints without reading TONE-CALIBRATION and SNV-BOARDS first.
+
+- **HALF the procedural noise fields alias, and the limit that binds is 256 (NYQUIST-AUDIT).**
+  After two fields were found broken one at a time (WOOD-PORE-NYQUIST, FABRIC-FINE-NYQUIST), a full
+  sweep of every `makeFbm` call site against its tile size found **21 of 42 fields over the
+  0.5 cycles/texel limit** — worst offenders `patterns/fabric.ts:fibre` at **3.44**,
+  `patterns/stone.ts:pores` at 2.81, `stoneSurface.ts:fine` at 1.72, `tileSurface.ts:peel` at 1.41.
+  Thirteen of them alias even at 512.
+  **The binding size is 256, not 512.** `generators.ts:BASE_SIZE` is 256 on the Performance tier,
+  so every pattern bakes at 256 there regardless of its `PATTERN_SIZE_CAP` — a field tuned to be
+  safe only at 512 still ships noise to those users. Bound new fields at 256.
+  This is now an enforced test, not a note: `nyquistAudit.test.ts` parses the painter sources,
+  computes each field's top-octave frequency, and fails on any aliased field that is not on an
+  explicit `KNOWN_ALIASED` allowlist. **The allowlist may only shrink** — fixing an entry means
+  deleting its line, and the test also fails if an entry no longer exists or no longer aliases, so
+  it cannot rot into a meaningless exemption set. It caught a field the ad-hoc sweep had missed
+  (`patterns/tile.ts:grain`) on its first run. A comment asking people to remember was tried
+  implicitly and failed — the second occurrence was introduced long after the first.
+  `patterns/wood.ts` was fixed first because it paints the FLOORS: `fineGrain`/`fine` 28 -> 6,
+  `microRough` 70 -> 25, `micro` 90 -> 12, all now ~0.38 cycles/texel at 256. **Expect no visible
+  change** — those fields contribute +-0.03 to an albedo factor, +-0.04 to roughness and +-0.0175
+  respectively. An attempt to measure a floor before/after came back BYTE-IDENTICAL, but that
+  measurement is inconclusive rather than a null result: the raycast mask seeded from a
+  hand-picked NDC point resolved to "shell/unknown" with 30 materials sharing a map source, so it
+  probably was not a wood-painted surface at all. Use `snv-response.mjs`'s room+face-normal mask
+  for floors, not an eyeballed point.
+- **The upholstery weave had the same defect, with a much smaller payoff (FABRIC-FINE-NYQUIST).**
+  `procedural/upholsterySeams.ts:buildUpholsteryHeight` — the LIVE fabric path, since `pbrSurfaces`
+  defaults true — built its sub-weave fuzz from `makeFbm(seed, 4, 120)` sampled at `(u, v)`, i.e.
+  **3.75 cycles per texel** on the 256² tile, seven times Nyquist, contributing
+  `fine(u, v) * 0.2` of the height. (The `fine` field in `furnitureMaterials.ts:getFabricNormal`
+  that the same bug report named is the LEGACY branch, only reached with `pbrSurfaces` OFF — check
+  which branch is live before fixing.) The fields are now data (`FABRIC_FIELDS`) so a test can
+  bound them, and `fine` is `{ octaves: 4, baseFreq: 11 }` = 0.34 cycles/texel.
+  **The ceiling on this one is low, and it is worth understanding why:** the weave grid itself is
+  `sin(x * 2.4)` ≈ **0.38 cycles/texel**, already near the limit, so there is no room in a 256²
+  tile for a fuzz an order of magnitude finer — "fine fuzz below the weave" was never
+  representable. Measured on the sofa (`scripts/dev-probes/surface-detail.mjs`, walk/Medium/09:00,
+  749 masked cells, two runs over the identical view): microcontrast **1.681 → 1.617, only −3.8%**,
+  with chroma (0.187), mean (152.8) and sigma (32.2) identical to three decimals — against the wood
+  pore's −34%. Isolated, the channel itself improves a lot (its own texel-step/sigma ratio 0.732 →
+  0.105, where a degenerate white-noise reference is 1.133); it simply carries a fifth of the
+  amplitude at two-thirds the normal strength. Shipped as a correctness fix with no claimed visual
+  win — do not go looking for one in a still.
+- **Every procedural noise field must stay inside its tile's NYQUIST limit (WOOD-PORE-NYQUIST).**
+  `makeFbm(seed, octaves, baseFreq)` multiplies its input by `baseFreq * 2 ** octave`, and callers
+  scale the input again (`fbm(u * 18, …)`), so the finest octave lands at
+  `baseFreq * 2 ** (octaves - 1) * uvScale` cycles across the tile. A tile of N texels can only
+  represent 0.5 cycles per texel; past that the field does not carry fine detail, it aliases into
+  deterministic WHITE NOISE. The furniture wood tile's pore field was
+  `makeFbm(0x2c7a, 3, 48)` at `(u * 18, v * 1.2)` on a 256² tile —
+  **13.5 cycles per texel at the top octave, 3.4 even at the coarsest**, i.e. 27x over the limit
+  with no octave resolvable at all. Its own comment described "long open pores streaking along the
+  grain … lengthwise hairlines, not dots"; what it actually baked was per-texel noise, and
+  `heightToNormalRGBA(height, N, 3)` turned that into a per-texel random normal. Under specular
+  light that reads as a pebbly dimple field, which is why every wood furniture surface in the app
+  looked like moulded plastic or gingerbread rather than timber — see the before/after crops in
+  `scripts/dev-probes/wood-detail.mjs`'s output directory.
+  The field now lives in the pure `procedural/woodPore.ts`, which exports
+  `topOctaveCyclesPerTexel` + `NYQUIST_CYCLES_PER_TEXEL` and keeps the original **15:1 u:v streak
+  anisotropy by construction** (`vScale = uScale / PORE_ANISOTROPY`) so a density retune can't
+  silently destroy the streak character. `woodPore.test.ts` pins the limit, pins the anisotropy,
+  and — the assertion with teeth — checks the field is SMOOTHER texel-to-texel than its own
+  standard deviation, then shows the OLD parameters fail that same check.
+  Verified as a before/after on the identical view (walk/Medium/09:00, wood pixels only via a
+  raycast mask, in-run noise floor 0.00): pixel-to-pixel microcontrast **1.50 → 0.99 (−34%)** in
+  walk and **4.93 → 4.40 (−11%)** in orbit, with wood chroma (0.831 → 0.833), mean luminance
+  (57.8 → 57.9), grain contrast (24.26 → 24.29) and the clipped fraction (2.01% → 1.91%) all
+  unmoved — the signature of a correct de-alias: the artefact goes, the design stays.
+  Three notes for whoever works here next:
+  · **A cell-MEAN metric cannot see this class of bug.** The probe's first version block-averaged
+    each sampled cell and reported the baseline unchanged (chroma 0.831 → 0.833) while the dimples
+    had visibly vanished. Measure microcontrast alongside it, or measure nothing.
+  · **`repeat` is not the fix, and it is worse than it looks.** Sweeping the wood tile finer
+    (`repeat` x4 / x8) does move the image a lot (meanAbsDiff 7.14 / 8.25 over wood pixels), but
+    the tile bakes `PLANKS = 3` board seams AND `PI * 7` growth rings into one frequency — real
+    boards are ~120–180 mm wide and real rings ~2–10 mm, so no single `repeat` can serve both. At
+    x4 a 0.44 m chair back is sliced into four hard-seamed strips and reads as corrugated
+    cardboard. If small furniture parts ever need finer grain, they need a SEAMLESS variant of the
+    tile, not a bigger `repeat`.
+  · **`getFabricNormal`'s `fine` field has the same defect, unfixed:** `makeFbm(4242, 4, 120)` at
+    `(u, v)` on the same 256² tile is **3.75 cycles per texel**. It was left alone deliberately so
+    this change measured one thing; fix it on its own and measure it on its own.
+- **The DEFAULT flat's painted walls stay near-neutral (WARM-WALL-CAST).** `livingDining` used to
+  override its walls to `wall-paint-warm` (#e9d8c4, HSV saturation 0.16). That was the single
+  largest surface in the app — `scripts/dev-probes/chroma-audit.mjs` raycasts a 96x60 screen grid
+  and attributes each hit to its material, and the cream wall covered **21.8% of the living-room
+  walk view and 33.6% of the dining view**, ahead of the ceiling and the floor. It was also the
+  measured reason the picture was more colourful than anything in it: at 09:00/Medium every
+  high-coverage albedo sits at 0.00–0.22 saturation, yet the rendered frame carried **mean chroma
+  0.206 with 14.6% of pixels above 0.35 saturation**. An unbalanced colour cast on the surfaces a
+  viewer reads as neutral is the most reliable giveaway that an image was rendered rather than
+  photographed, and a cream wall under a warm morning illuminant is warm twice over. Dropping the
+  override (`scripts/dev-probes/warm-cast.mjs`, an A/B inside ONE run via the app's own
+  `setWallFinish`) took walk/Medium/09:00 to **chroma 0.180, 11.1% above 0.35**, with contrast
+  (sigma) 54.8 -> 54.5 and the clipped fraction flat at ~1.9% — no cost in either currency. Two
+  things this rule is NOT:
+  · **Not a claim about the lighting.** The same run forced the sun/hemisphere/ambient colours to
+    neutral white and moved chroma only 0.206 -> 0.203, so the cast lived in the FINISH. The
+    day/night warmth that carries time-of-day is correct and untouched — do not "white-balance"
+    the grade on the strength of this finding. (That diagnostic arm is also a cautionary tale: its
+    first version re-asserted the neutral colours on a `setInterval` and came back BYTE-IDENTICAL
+    to the baseline, because `Lighting` rewrites the light colours every frame from the altitude
+    curve and always won the race. It reads exactly like "the illuminant contributes nothing".
+    Neutralising inside a wrapped `renderer.render` is the only point guaranteed to land after
+    `Lighting`'s write and before the draw.)
+  · **Not a ban on warm paint.** `wall-paint-warm` stays in the catalog and in the style presets
+    (Warm Minimal, Japandi, Modern Luxe, …), where the user is choosing it deliberately. The rule
+    binds the DEFAULT only, and `builtinCatalog.test.ts` pins it: every painted-plaster entry in
+    `DEFAULT_WALL` + `DEFAULT_ROOM_WALL` must sit below 0.10 HSV saturation. Tiled wet-wall
+    finishes (glazed porcelain in the kitchen/baths) are a spec choice and are exempt.
+  Effect is view-dependent, so quote the mode: in ORBIT the same A/B moves chroma only
+  0.190 -> 0.184, because the dollhouse view is mostly floor and furniture seen from above with
+  the near walls faded by the reveal. Walk mode is where wall finishes are judged.
 - **Joint widths are real-world millimetres (JOINT-SCALE).** Convert a painter's joint band to
   mm before shipping it: `band_px / S × uvScale_m × 1000` (both sides of the boundary count).
   Real values: rectified porcelain ≈ 2–3 mm, classic ceramic grout ≈ 3–5 mm, wood/vinyl
@@ -326,6 +759,177 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   (explicit user-material deletion) uses the same ownership-aware disposal via `LruCache.delete`.
   When adding a new texture-producing branch to `buildMaterial`, tag its per-material textures
   with `own()` if and only if they are never shared with another cache entry.
+- **Furniture wood was GLOSSIER THAN PAINT, and that is what read as "animation" (WOOD-GLOSS).**
+  `getWoodMaterial` defaulted to `roughness 0.5` while this same file gives painted 0.72,
+  concrete 0.85 and marble 0.12 — so the app rendered oiled timber shinier than paint, which
+  is backwards. The consequence is not a subtle tint: the specular lobe at 0.5 is tight
+  enough to turn the grain normal's low-frequency waviness into **mirror ribbons**, and on
+  the default flat's dining table (walk pose, 13:00) the top read as crumpled cling film
+  over timber — repeated on the chair backs, the sideboard and the TV console. It is the
+  single most "rendered, not photographed" surface in the default walk view.
+  Swept live over the 90 wood-signature materials in the scene
+  (`scripts/dev-probes/walk-tour.mjs ROUGH=0.5,0.7,0.85`, one run, same pose): **0.5** shows
+  strong ribbons, **0.7** still carries them, **0.85** removes them — the grain survives as
+  grain and the surface reads as matte satin timber. `WOOD_BASE_ROUGHNESS = 0.85` ships the
+  value that was measured; do not interpolate to a prettier number without re-running that
+  sweep.
+  · **Applied at all THREE wood sites**, because the default alone is not enough: the two
+    `getSurfaceMaterial` wood branches passed a hardcoded `0.5` and would have won over it.
+    A caller can still ask for a shinier wood explicitly, and `rough` is in the cache key, so
+    a matte and a satin wood of the same colour cannot collide.
+  · **Scope, honestly stated:** this fixes the SHINE, not the grain SHAPE. The painter's
+    low-frequency cathedral banding is still soft and wavy under close inspection; it simply
+    no longer behaves like varnish. If wood is revisited, the next lever is the band
+    structure in `procedural/patterns/wood.ts`, not the roughness.
+  · **Not changed here, deliberately:** `Door.tsx` and `PlanDoorLeaf.tsx` pass an explicit
+    `0.45`, so a wooden door keeps the old glossier character. Doors are a surface this work
+    has not reviewed — change them on their own evidence rather than by side effect.
+  · Watch the argument positions: `getWoodMaterial(color, repeat, rough)`. Call sites like
+    `getWoodMaterial(legColor, 0.4)` are setting **repeat**, not roughness.
+- **CORRECTION to the WOOD-GLOSS entry above:** when that fix shipped (v0.31.5.31) the
+  commit message and this file described `walk-tour.mjs` as standing the camera "in the flat
+  with poses derived from the plan". It was not. The probe called `requestWalkTeleport` as
+  `store.requestWalkTeleport?.(…)`, but that is a MODULE function in
+  `scene/cameras/walkTeleport.ts`, not a store action — so the optional call was a silent
+  no-op and every frame in that round was the DEFAULT WALK SPAWN. **WOOD-GLOSS itself
+  stands**: its A/B varied roughness only, at one fixed pose, and the mirror ribbons visibly
+  went. Only the claim about the tool was wrong. The probe now teleports through the real
+  module function, asserts the camera reached the intended point, and captures four facings
+  per room.
+- **The furniture wood's rings snaked almost a full band-width and read as zebra moiré
+  (WOOD-BANDS, fixed).** WOOD-GLOSS fixed the shine; walking the flat afterwards exposed the
+  SHAPE problem on the DEFAULT main-bedroom wardrobe — hard **zigzag chevron bands, identical
+  and periodic across every panel**, printed wallpaper rather than timber. Same artefact
+  SNV-BOARDS warns about ("never the natural painter's wavy cathedral bands, which read as
+  zebra moiré"), reached from the other direction.
+  The arithmetic makes it obvious. `getWoodMaps` lays the rings as
+  `(u + waver + phase) * PI * 7`, so a waver of W displaces a ring by `W * 7` half-cycles —
+  and the shipped 0.12 gave **~0.84, nearly a whole band**, while varying with `v`. A wide
+  band that wanders almost its own width as it rises cannot read as figure. A sawn board's
+  rings run essentially PARALLEL; the figure comes from ring spacing and latewood contrast,
+  not lateral wander. `FURNITURE_WOOD_WAVER = 0.04` (0.28 half-cycles) is the shipped value.
+  · **Deliberately NOT the other two knobs.** Raising the ring count would undo Wave 4A's fix
+    for the busy watermark, and `FURNITURE_WOOD_COARSEN` is FURNITURE-WOOD-SCALE, settled
+    across all 21 defs. The meander was the one term that was purely harmful at this scale.
+  · **Floors are unaffected by construction** — this painter serves the furniture `wood`
+    finish only; the floor uses the separate `woodFields` painter in
+    `procedural/patterns/wood.ts`. Verified anyway in the same frames.
+  · Verified as a CROSS-RUN A/B at an identical deterministic pose (mainBedroom, yaw -pi/2),
+    which is the honest fallback here: the waver is baked into a canvas texture at module
+    init, so it cannot be swept live inside one run. Chevrons gone, bands parallel with gentle
+    undulation; the dining table, chair backs, sideboard and the wooden door all still read as
+    matte timber with no ribbons.
+  · **Scope, stated honestly:** this removes the moiré, it does not ADD crispness. The grain
+    is still soft with little fine line detail between rings. If wood is revisited again, the
+    remaining lever is the latewood contrast/power term or genuine fine grain lines — not the
+    meander, the ring count, the coarsen factor, the roughness or the pore field, all now
+    settled.
+- **A transient boot tier used to pin procedural texture resolution — RESOLVED in
+  v0.31.5.39 (PROCEDURAL-BAKE-STALE).** `generators.ts` documents "Performance drops to
+  256 squared ... while Medium+ keeps 512 squared", and `QualityController` applies it in a
+  tier-keyed effect — but only to NEW generations ("existing textures keep their size until
+  regenerated; cache keys carry the size"). Nothing re-resolved an already-MOUNTED material,
+  so whatever the size was during the first bake was what that surface kept. The adaptive
+  ladder makes this reachable in an ordinary boot: it passes through `performance` on the way
+  to the settled tier, and a console trace of every `buildMaterial` (attach `page.on('console')`
+  BEFORE `goto`) shows the app building **both** generations of every 512-capped def in one
+  boot — `floor-tile-beige@512` and then `floor-tile-beige@256` — with all worker upgrades
+  landing. **The bakes were always fine; the BINDING was stale.**
+  · **The defect was exactly four floor finishes, not "every 512-capped pattern".** This note
+    originally read `bake-size.mjs`'s "256² x80, no 512² at all" as the latter, which was
+    wrong twice over: most of those 80 are patterns whose `PATTERN_SIZE_CAP` **is** 256, and
+    the tiled walls in that count were a separate bug (WALL-FACE-CLONE-STALE, v0.31.5.38).
+    `scripts/dev-probes/stale-gen.mjs` names them instead of bucketing them — it labels every
+    bound texture by uuid against the material the cache builds for each def at BOTH
+    generations, then diffs Medium against Maximum. The residual was
+    `floor-vinyl-oak`, `floor-tile-beige`, `floor-tile-beige-300` and `floor-tile-bath-green`,
+    3 maps each = the 12.
+  · **The cause is EFFECT ORDER, and it is why a tier subscription cannot work.**
+    `QualityController` writes the size from a `useEffect` keyed on the tier, so React renders
+    first — a hook subscribed to `qualityTier` re-resolves while `BASE_SIZE` still holds the
+    OLD value — and the effect writes afterwards with nothing left to re-render. That is
+    precisely what v0.31.5.37 tried and reverted for moving nothing. Subscribing to the SIZE
+    inverts the order: `setProceduralBaseSize` notifies `proceduralBaseSizeSignal` on a real
+    change, so a subscriber cannot wake before the new value is readable, and
+    `useProceduralMaterial` re-runs `buildMaterial` (whose key already carries the size) to get
+    the right generation. `proceduralBaseSizeSignal.test.ts` pins the ordering property
+    directly: the size read INSIDE a listener is the new one.
+  · **Verified real-GPU, and quote the honest magnitude.** `stale-gen.mjs`'s Medium→Maximum
+    diff went from 8 lines (4 finishes leaving `@256`, 4 arriving at `@512`) to **empty**, and
+    `floor-look.mjs` — which pitches the eye down at the floor and reads the map off the
+    material three is actually DRAWING with — reports every room's floor `@256` → `@512` at
+    identical poses and ray counts (a cross-run A/B, since the size is fixed at mount). The
+    VISUAL delta is modest and pose-dependent, as `generators.ts`'s own "near-identical at
+    typical viewing distances" comment predicts: living/dining floor meanAbsDiff **1.09 /
+    3.42% of pixels** against this repo's ~0.27 / 0.12% documented noise floor, corridor 0.39
+    / 1.47%, and the small bath tiles BELOW noise at eye height. This shipped as a correctness
+    fix — the app promised 512 at Medium+ and delivered 256 — not as a dramatic image change.
+  This was meta-rule (x) — a tier-dependent value frozen at creation, extended from a scalar
+  to a texture — and the general lesson survives the fix: **any module-level value a component
+  reads during render, written from an effect elsewhere, needs a signal rather than a
+  subscription to whatever TRIGGERED the write.**
+- **BATH-TILE-OK stands, and the joint IS 2.34 mm (v0.31.5.38 closes this).** The history here
+  is worth keeping because two of the three readings were wrong. v0.31.5.34 computed JOINT-SCALE
+  at S=512 and called it fine; v0.31.5.35 "corrected" that to 4.69 mm on the belief that the tile
+  really bakes at 256; and the truth was worse than either — the bathroom walls were rendering
+  the **64-square quick preview**, a 1 px joint at S=64 being ~18.75 mm, which is why the grout
+  read as a soft smeared band rather than a line in a cropped frame. The cause was not the bake
+  size at all but a stale CLONE (WALL-FACE-CLONE-STALE, in `src/apartment/CLAUDE.md`). With the
+  faces re-synced the tile renders at its intended **512** and the joint is **2.34 mm**, inside
+  the 2-3 mm JOINT-SCALE allows for rectified porcelain.
+  **The painter was never at fault** — `porcelainFields`' options (`cols 2, rows 4, groutDiv 500,
+  rectified`) are right at its intended bake, so do NOT "fix" a joint by editing the painter
+  until you have confirmed the size the surface actually RECEIVES. The 600x300 mm tile size and
+  the hairline joint colour stand unchanged (both size-independent).
+  · **Method note, the reason this took three passes:** every reading that went wrong came from
+    querying the CACHE (`getBuiltMaterial(id)`, a whole-scene texture histogram) instead of the
+    material three is actually DRAWING with. The cache lookup returns an instance no mesh
+    necessarily uses, and a histogram cannot say which def a 256-square map belongs to. Raycast
+    the surface and read `hit.object.material` — `scripts/dev-probes/bath-tile-size.mjs` does
+    exactly that, labelling each hit by TEXTURE uuid (materials get cloned, textures do not).
+- **Drapery scatters light FORWARD, via a shader chunk (CURTAIN-TRANSLUCENCY, `.200`).**
+  `drapeTranslucency.ts` patches the drapery material through `onBeforeCompile` to add back-side
+  irradiance to `irradiance` just before `RE_IndirectDiffuse` consumes it: `saturate(dot(-N, L))`
+  per directional light, plus `getIBLIrradiance(-N)` under `USE_ENVMAP`. Strength is
+  `look.CURTAIN_TRANSLUCENCY` (4), folded into the fabric cache key, and passed ONLY by
+  `getDraperyMaterial` — upholstery sits against something and never reads backlit.
+  · **Why a shader chunk and not a constant.** A photographed curtain over daylight measures
+    **1.32–1.48** of the room's mean; the app measured **0.59**. `.199` built the two cheap
+    stand-ins and both failed the SAME way: the camera sees the front face while the light is
+    behind it, and a standard material's front face receives nothing at `N·L < 0`. An **emissive**
+    reaches the ratio and destroys the cloth — plain drapery is `map: null`, so ALL its detail is
+    `normalMap`, and emissive is added after shading with no normal information (absolute micro-sd
+    **4.10 → 2.62**). **`transmission`** buys 0.10 of ratio, costs a third of the weave anyway, and
+    adds a render pass — three's transmission is SPECULAR refraction; cloth is a diffuse
+    transmitter.
+  · **The wrap term does the opposite, which is the whole point.** Because it responds to the
+    normal, a fold whose back faces the window brightens and its neighbour does not: micro-sd goes
+    **4.10 → 12.62** (micro/mean 0.106, inside the photographs' 0.066–0.198) while the ratio reaches
+    **1.38**. More texture, not less.
+  · **COUPLED to `PHOTO_GROUND_BOUNCE` — retune both or neither (`.208`).** This ratio is measured
+    against the room, so lowering the bounce darkens the denominator and the curtain rises without
+    being touched: at bounce 3 the shipped t=6 read **1.53**, past the band, and was re-tuned to 4.
+  · **The env term has a hemisphere FALLBACK, and it is what makes the tier parity hold (`.220`).**
+    `performance` has no IBL, so `getIBLIrradiance` compiles out and the term collapses to the
+    directional light alone — measured **1.17** against the 1.32–1.48 band while the other tiers sat
+    at 1.35–1.48. `#elif ( NUM_HEMI_LIGHTS > 0 )` on `getHemisphereLightIrradiance` takes it to
+    **1.42**, and fires ONLY where `USE_ENVMAP` is absent, so medium/high/maximum are untouched. All
+    four tiers are now in band; night stays at 1.03, i.e. no glow.
+  · **`customProgramCacheKey` is REQUIRED** alongside `onBeforeCompile` — three caches programs by
+    material type + defines, so without it patched and unpatched fabric of the same type share one
+    program and whichever compiled first wins for both.
+  · **Measure `plane/ROOM`, never `plane/frame`.** The reference curtains cover 2–8 % of their
+    frames while the probe's fills ~35 %, so a brighter curtain inflates the very mean it is
+    divided by and the ratio saturates. `scripts/dev-probes/curtain-glow.mjs` prints both and
+    labels which to compare.
+  · **And bound the window mask by the opening's WIDTH, not just its plane depth (`.201`).** The
+    wall beside a window is in the same plane; counting it as curtain cost ~0.3 of ratio and
+    invented a parity gap — the bedrooms read ~0.25 low purely because their curtains are narrower
+    than their walls. Corrected, the app measures **1.40 / 1.32 / 1.20** across living-dining,
+    main-bedroom and bedroom-2, with no gap to chase.
+  · Night is untouched by construction (the lights are then in FRONT of the cloth): 22:00 measures
+    **0.92**. Free — `frame-time.mjs` medium p90 8.3 ms, unchanged.
+
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the
@@ -499,3 +1103,145 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `getSurfaceMaterial('brass')` with a canonical brass tint + exposed as a side-table top finish).
   Tests: `procedural/patterns/heritagePatterns.test.ts` (peranakan multi-colour/matte + limewash
   cloudier-than-plaster) and `catAMaterials.test.ts` (bouclé/sintered/brass, both `pbrSurfaces` modes).
+- **Woven upholstery reads as foam without weave RELIEF, and SHEEN is not the lever
+  (FABRIC-WEAVE-KEY).** The default flat's sofa is its largest furniture surface and read as moulded
+  matte plastic in close-up. Measured on it (`surface-detail.mjs DEF=sofa-3seat MASK=item`,
+  walk/Medium/09:00, every arm in ONE run with the first repeated and identical):
+  · **Sheen is nearly inert.** The whole space — `sheen` 0 / 0.4 / 1 crossed with `sheenRoughness`
+    0.6 / 0.4 / 0.3 / 0.2 — moved microcontrast only **1.24 → 1.68** and mean 130.5 → 138.9, with
+    chroma flat at 0.153. Worse, `sheen = 0` sits mid-range at 1.513, ABOVE the shipped 0.4/0.6's
+    1.346: a broad sheen lobe FILLS IN the weave's own shading instead of revealing it. Note also
+    that three's sheen is a Fresnel-weighted retroreflective lobe driven mostly by the environment,
+    so it is near-dead on `performance` (no IBL) and shows most at grazing angles.
+  · **The weave normal is the lever.** `normalScale` 0.65 / 1.3 / 2.0 / 3.0 gave microcontrast
+    **1.346 / 2.115 / 2.879 / 3.829**. Shipped **1.3**: the crop reads as woven textile across the
+    whole sofa, where 2.0 becomes a regular grid that looks like mesh screen. The shipped source
+    change re-measured to 2.106 against the live arm's 2.115.
+  **The relief is now a PARAMETER folded into the cache key, and that was a latent bug.**
+  `getDraperyMaterial` used to call `getFabricMaterial` and then re-set `normalScale` on the
+  returned instance, with a comment claiming its `rough=0.98` key "never collides with cotton's 0.95
+  or any other caller". True for linen, FALSE for cotton: a cotton curtain and a woven-fabric sofa
+  of the same colour and pattern both key `fab:<color>:0.95:<pattern>`, so drapery was stomping a
+  shared cached material. It was invisible only because both wanted 0.65 — raising the upholstery
+  default would have made the sofa's weave depend on whether a curtain was created first. Drapery
+  now passes its own `weave` (linen 0.95 / cotton 0.65) and gets its own cache entry. **Never mutate
+  a material returned from this cache; add the axis to the key.**
+- **The no-IBL metalness cap must be LIVE, not baked at creation (IBL-CAP-LIVE).** A fully metallic
+  PBR surface has no diffuse term, so with `scene.environment === null` it has nothing to reflect and
+  renders black — hence `NO_IBL_METALNESS` (0.25) and the caps in `getSolidMaterial` /
+  `getMetalMaterial`. Both read `isIblActive()` ONCE, inside the factory, and baked the result into
+  the material (and, in `getSolidMaterial`, into the cache KEY). That was sound only while the tier
+  was static, and TIER-ADAPTIVE made it dynamic: the app boots at `medium` (IBL on) and the ladder
+  demotes to `performance` on weak hardware at runtime, so a material built at boot outlives the
+  environment it was built for. `getMetalMaterial` had a half-fix — `:noibl` in the key — which
+  hands a correct material to any NEW call but leaves an already-mounted mesh holding the old one;
+  only `MetalMaterial.tsx` subscribes to `subscribeIbl` and re-renders, so just its consumers
+  tracked the tier.
+  Measured on the default flat with `scripts/dev-probes/metal-tier-stale.mjs`, which switches the
+  tier live and re-reads the SAME material instances: at `performance` the wardrobes' sliding-door
+  frame panels sat at metalness **0.75** — fully uncapped — while the door pull (through
+  `MetalMaterial`) was correctly at 0.25. Scene-wide at `performance`: **69 meshes across 15
+  material kinds above the cap**.
+  Fixed by `iblSignal.ts:registerCappedMetal`, which applies the cap now and re-derives every
+  registered material whenever `setIblActive` fires; the pure `effectiveMetalness(requested, ibl)`
+  holds the rule. Two details that matter: it remembers the **requested** value, not the capped one
+  (storing the capped value is what made the old behaviour one-way — once flattened to 0.25 there
+  was no route back to 0.75), and the registry holds **WeakRefs**, pruned on each sweep, because
+  these materials live in an LRU that disposes evictions and a strong Set would pin every material
+  ever built. Both cache keys now use the requested metalness, which also collapses the two
+  IBL-split entries into one. Verified: the frame slab goes 0.75 → 0.25 on demotion and back on
+  promotion.
+  **The remaining 57 need NO action — measured, don't sweep them.** Scene-wide meshes above the cap
+  at `performance` fell 69 → 57, and the leftovers do bypass these factories (inline
+  `<meshStandardMaterial metalness={…}>` in primitives, plus `cache.ts`'s scanned `metalnessMap`
+  binding). But a threshold violation is not a defect. Enumerated, every one sits in a narrow
+  **0.30–0.40** band — `#e6e7e4@0.35 x34` dominates, then a handful of dark trims at 0.30–0.40 —
+  where the diffuse term is still 60–70%, nowhere near the no-diffuse black the cap exists to
+  prevent (the fixed slab was **0.75**). Capping all 57 live and diffing the centre slab at
+  `performance`/13:00 moved the frame **0.04% of pixels, meanAbsDiff 0.02** — pure noise against the
+  0.2–0.8 floors these probes usually report. So the cap's purpose is satisfied; a 57-call-site sweep
+  would be churn. Still route any NEW metallic material through `registerCappedMetal`, because a
+  future preset could ask for 0.8.
+  · **`setManualHour(h)` is NOT a side-effect-free redraw nudge** — it switches `timeMode` to manual
+    and jumps the scene to `manualHour` (it even ticks the onboarding checklist's "Scrub the time of
+    day"). `metal-tier-stale.mjs` used it purely as an invalidate without pinning the clock first, so
+    its two captures straddled a live-clock night and a manual daylight hour: the diff read
+    **98.97% of pixels, meanAbsDiff 96.37** and looked like a colossal metalness effect. An
+    implausibly LARGE result needs proving exactly as much as a null one. Pin
+    `setTimeMode('manual')` + `setManualHour(h)` at the top of every probe.
+- **CLONE AUDIT — every persistent clone of a cached finish, checked (v0.31.5.40, CLEAN).**
+  Two consecutive defects (WALL-FACE-CLONE-STALE .38, PROCEDURAL-BAKE-STALE .39) came from a
+  material resolved or cloned before PERF-C's worker upgrade landed, so the remaining
+  `.clone()` sites were swept rather than assumed. **Nothing else is stale**, and the
+  strongest single piece of evidence is global: `PROCEDURAL_QUICK_PREVIEW_SIZE` is **64**, no
+  legitimate texture in this app is 64², and after .38/.39 the default flat's scene histogram
+  contains **no 64² texture at all**. Any stranded clone would appear there.
+  Site by site, with the reason each is exempt — check these before adding a new one:
+  · `apartment/Door.tsx` / `apartment/PlanDoorLeaf.tsx` — clone `getVinylMaterial` /
+    `getWoodMaterial` / `getMetalMaterial` / `getPaintedMaterial`, which bake their maps
+    SYNCHRONOUSLY in `furnitureMaterials.ts` and are never worker-swapped. Exempt by source,
+    not by timing.
+  · `apartment/walls/useWallReveal.ts` — persistent per-mesh clone, safe on timing only. See
+    CLONE-AUDIT in `src/apartment/CLAUDE.md`; do not restate it as "transient".
+  · `furniture/Furniture.tsx` — the drag ghost clones whatever the mesh currently holds and
+    restores on drop; genuinely transient, and by drag time the upgrade has landed.
+  · **`getFurnitureMatWithRepeat` is the highest-risk site left, and it is where to look
+    first if this ever recurs.** It clones the base material AND each texture, then caches
+    the result globally per `(id, repeat)` — so unlike a component clone it can never be
+    rebuilt by a re-render, and wood always routes through it ("always serve the softened
+    clone for wood, even at r≈1"). It is clean today only because furniture materials are
+    pre-built by `FurnitureMaterialLoader` and upgraded before any repeat variant is asked
+    for. Verified live: applying a `mat:` finish to six items with `updateItemProps` and
+    re-reading the DRAWN map size at t+120 ms / t+4 s / t+10 s gives **1024²** throughout
+    (`scripts/dev-probes/finish-apply.mjs`) — that finish is a photo/DLC material, so no
+    preview is involved at all.
+  The general rule this leaves: **a clone is only exempt if its SOURCE is never
+  asynchronously swapped.** "It gets restored later" and "it is only used briefly" are not
+  exemptions — the first says nothing about the clone's lifetime, and the second is a timing
+  argument that a slower machine can invalidate.
+
+- **Glass is CORRECT and the tier gate demonstrably fires — audited, nothing changed
+  (GLASS-TIER-VERIFIED, v0.31.5.52).** Glass is ~4% of the walk view and was the last
+  top-coverage class with no evidence behind it. `materialRealism.ts` documents transmission as
+  High/Maximum-only because it costs an extra render pass, but a comment is not evidence that a
+  gate fires (meta-rule xvii), so `class-id.mjs` censused the same meshes on both sides of it:
+
+  | surface | Medium (the default) | Maximum |
+  | --- | --- | --- |
+  | window panes (all 4 N windows) | `MeshStandardMaterial`, opacity 0.28, transparent, no transmission field at all | `MeshPhysicalMaterial`, **transmission 0.92**, ior 1.5, thickness 0.01, opacity 1 |
+  | bathroom windows | `MeshStandard`, roughness 0.6 (frosted), opacity 0.28 | — |
+  | shower screen (a furniture item — `Group{itemId}`) | `MeshPhysical`, transmission **0**, opacity 0.22 | transmission **0.81**, thickness 0.02, opacity 1 |
+
+  · **The gate is better than the doc claims.** It swaps the material TYPE, not just a field, so
+    Medium does not pay for the physical shader on windows at all — only the shower screen stays
+    `MeshPhysical` below the gate.
+  · **That residual is a known non-lever, so do NOT file it.** A shower screen sitting on
+    `MeshPhysical` with `transmission: 0` looks like waste (its `ior: 1.5` and `thickness: 0` do
+    nothing at that setting), but `src/scene/CLAUDE.md` already measured the general case:
+    downgrading Physical → Standard where no physical-only feature is used "applies to only 4 of
+    57 materials and saved nothing". Checked before proposing, per the same rule that stopped the
+    emitter table being multiplied.
+  · So the cheap-looking flat pane a Medium user sees is a DELIBERATE, documented cost decision
+    that works, not an oversight — which is what the round was sent to find out.
+
+
+## The first-load palette is PINNED — changing it changes what every new user sees
+
+`FINISHES_INITIAL` (`state/slices/finishesSlice.ts`) seeds the flat from `DEFAULT_FLOOR` /
+`DEFAULT_WALL` plus the per-room `DEFAULT_ROOM_FLOOR` / `DEFAULT_ROOM_WALL` overrides here. A
+brand-new visitor has no persisted state, so **that seed IS the apartment they meet** — verified
+end to end with `scripts/dev-probes/first-run.mjs SEQUENCE=1 FAKE_HOUR=13`, the only probe that
+suppresses nothing (carousel → 9 tour steps → location prompt → unobstructed; scene mean 181.5 →
+183.1, near-black 0.0% throughout).
+
+`builtinCatalog.test.ts` already guards that the default ids EXIST and that every painted default
+stays near-neutral (WARM-WALL-CAST). Neither pinned WHICH finish each room gets, so the shipped
+look could have drifted a room at a time without a single test failing.
+**`defaultFirstLoadPalette.test.ts` (v0.31.5.126) closes that**: it asserts the exact per-room floor
+and wall id for all 11 rooms, that no ceiling / accent / wall-texture is seeded (an absent ceiling
+key is the plain white ceiling, which is the shipped look), and that all 22 seeded ids are real
+catalog materials. It also asserts the room COUNT so it cannot pass by measuring nothing, and it was
+proved to discriminate by flipping `livingDining` to `floor-wood-oak` (1 of 5 failed) and restoring.
+
+**A diff on those constants is a product decision, not a refactor** — if the palette is
+deliberately re-chosen, update the test in the same commit and say why in `CHANGELOG.md`.

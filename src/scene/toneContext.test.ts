@@ -33,9 +33,11 @@ describe('context-aware tone mapping (RD-404)', () => {
     expect(AUTO_PHOTO_MODE).toBe('agx')
   })
 
-  it('auto → historical filmic default with no active context', () => {
+  it('auto → the app default (AgX) with no active context', () => {
     expect(resolveToneMapping('auto', NO_CONTEXT)).toBe(DEFAULT_TONE_MAPPING)
-    expect(resolveToneMapping('auto', NO_CONTEXT)).toBe('filmic')
+    // TONE-CURVE-CHOICE: was 'filmic'. ACES Filmic's per-channel curve invented
+    // saturation the albedo never had and clipped highlights 4-7x harder.
+    expect(resolveToneMapping('auto', NO_CONTEXT)).toBe('agx')
   })
 
   it('finish preview wins over photo mode (judging colour mid-preset)', () => {

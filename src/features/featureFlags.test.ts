@@ -341,19 +341,23 @@ describe('remoteFurniture flag (AI-INTEG-001a)', () => {
   })
 })
 
-describe('proceduralSky flag (RD-412)', () => {
-  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
-    // The sun-driven sky is an advanced atmosphere/realism option beyond the
-    // curated static backdrops → hidden in Simple, on in Pro.
-    expect(resolveFlags(false, {}, false, 'simple').proceduralSky).toBe(false)
-    expect(resolveFlags(false, {}, false, 'pro').proceduralSky).toBe(true)
-    expect(resolveFlags(true, {}, false, 'simple').proceduralSky).toBe(false)
-    expect(resolveFlags(true, {}, false, 'pro').proceduralSky).toBe(true)
+describe('proceduralSky flag (RD-412, re-tiered by WINDOW-SKY-DEFAULT)', () => {
+  it('is SIMPLE-tier: on in Simple AND Pro (both build kinds)', () => {
+    // Re-tiered in v0.31.5.92 because `backdrop` now defaults to `'sky'`: a
+    // pro-tier flag is forced off in Simple — the app default — so the DEFAULT
+    // window view would be unreachable for the default user, and the window
+    // rendered a flat grey slab. Not an analytical/professional tool either;
+    // it is the view out of the window, i.e. core realism.
+    for (const dev of [false, true]) {
+      for (const mode of ['simple', 'pro'] as const) {
+        expect(resolveFlags(dev, {}, false, mode).proceduralSky).toBe(true)
+      }
+    }
   })
   it('ships in prod (pure code, no devOnly gate)', () => {
     expect(FEATURE_FLAGS.proceduralSky.devOnly).toBeUndefined()
     expect(FEATURE_FLAGS.proceduralSky.default).toBe(true)
-    expect(FEATURE_FLAGS.proceduralSky.tier).toBe('pro')
+    expect(FEATURE_FLAGS.proceduralSky.tier).toBe('simple')
   })
 })
 

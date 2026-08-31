@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFeature } from '../features/useFeature'
+import { itemsOnLevel } from '../floorplan/levels'
 import { roomLabelPoint } from '../floorplan/roomCentroid'
 import { pointInRoom, wallLength } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
@@ -14,6 +15,7 @@ import {
   planContentBounds,
   roomPathD,
 } from './walk/minimapGeometry'
+import { minimapLevelView } from './walk/minimapLevel'
 import {
   minimapPointToWorld,
   resolveMinimapTeleport,
@@ -39,13 +41,34 @@ const PAD = 0.4
  */
 export function Minimap() {
   const cameraMode = useStore((s) => s.cameraMode)
-  const plan = useStore((s) => s.floorPlan)
-  const items = useStore((s) => s.items)
+  const fullPlan = useStore((s) => s.floorPlan)
+  const allItems = useStore((s) => s.items)
+  const viewLevelId = useStore((s) => s.viewLevelId)
+  // MINIMAP-LEVEL: draw the storey the walker is ON, not the ground floor. The
+  // same `walkLevel`/`levelAsPlan` pair `FirstPersonCamera` uses for its
+  // collision walls, so the map and the camera agree by construction. Every
+  // downstream read (shapes, walls, openings, the live label, the dots and the
+  // teleport target) goes through these two — a raw `s.floorPlan`/`s.items`
+  // read here is the bug.
+  const { plan, levelId } = useMemo(
+    () => minimapLevelView(fullPlan, viewLevelId),
+    [fullPlan, viewLevelId],
+  )
+  const items = useMemo(() => itemsOnLevel(allItems, levelId), [allItems, levelId])
   const catalog = useCatalog()
   const svgRef = useRef<SVGSVGElement>(null)
   const arrowRef = useRef<SVGGElement>(null)
   const labelRef = useRef<SVGTextElement>(null)
   const roomRefs = useRef<Record<string, SVGPathElement | null>>({})
+  // The rAF tick below must see the CURRENT storey's rooms without closing over
+  // a stale `plan` and without re-deriving the level 60x a second (that would
+  // allocate a level array + a spread plan per frame). A ref refreshed on every
+  // render gives the same freshness the old `useStore.getState()` read had, for
+  // zero per-frame cost.
+  const roomsRef = useRef(plan.rooms)
+  useEffect(() => {
+    roomsRef.current = plan.rooms
+  }, [plan])
   const [, force] = useState(0)
   // The widget's real pixel box — the viewBox tracks it (1 svg unit = 1 CSS px)
   // so the map FILLS the rectangle instead of being letterboxed inside a square
@@ -114,7 +137,7 @@ export function Minimap() {
         const deg = (Math.atan2(cameraForwardXZ.x, -cameraForwardXZ.z) * 180) / Math.PI
         g.setAttribute('transform', `translate(${toX(x)} ${toY(z)}) rotate(${deg})`)
       }
-      const here = useStore.getState().floorPlan.rooms.find((r) => pointInRoom(r, x, z))
+      const here = roomsRef.current.find((r) => pointInRoom(r, x, z))
       const roomId = here?.id ?? ''
       if (roomId !== lastRoom) {
         roomRefs.current[lastRoom]?.classList.remove('lit')

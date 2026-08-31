@@ -83,3 +83,53 @@ export function shadowFrustumForPlan(
     halfExtent: Math.min(maxHalf, Math.max(minHalf, half)),
   }
 }
+
+/**
+ * Target world-space size of one sun-shadow-map texel, in metres (SHADOW-TEXEL).
+ *
+ * What determines shadow quality is texel DENSITY over the shadow frustum, not
+ * the raw map resolution — and the frustum here is sized to the plan
+ * (`shadowFrustumForPlan`), which varies from the 9.5 m half-extent floor to the
+ * 40 m cap. A fixed per-tier resolution therefore means wildly different quality
+ * for the same setting: 4096 over the default flat is 4.6 mm/texel, while the
+ * same 4096 over a 40 m plan is 19.5 mm/texel.
+ *
+ * 20 mm is deliberately coarse, and that is measured rather than guessed. In WALK
+ * mode at 09:00 — standing next to furniture, the viewpoint where a contact
+ * shadow is actually judged — sweeping `shadowMapSize` 4096 → 2048 → 1024 → 512
+ * produced differences at or BELOW the run-to-run noise floor
+ * (`scripts/dev-probes/walk-shadow.mjs`: living-room meanAbsDiff 0.43 / 0.21 /
+ * 0.43 against a noise floor of 0.35), with no monotonic degradation — 512 was no
+ * worse than 2048. Two reasons it doesn't show: Medium+ run VSM with `radius: 6`
+ * / `blurSamples: 12` (`look.VSM_SHADOW`), a separable blur wide enough to
+ * discard the extra texels; and the virtual ceiling occluder means interiors are
+ * lit almost entirely by non-shadow-casting fill, so there is very little cast
+ * shadow indoors to resolve in the first place.
+ *
+ * 20 mm ≈ the density the Medium tier already shipped on the default flat, so
+ * this is not a quality reduction relative to what most users saw — it removes an
+ * over-spend at the top tiers and, more importantly, stops a large custom plan
+ * silently getting a quarter of the density at the same setting.
+ */
+export const SHADOW_TEXEL_TARGET_M = 0.02
+
+/** Never go below this, however small the plan. */
+export const SHADOW_MAP_MIN = 512
+
+/**
+ * Resolution for a sun shadow map covering `halfExtent` metres, to hit
+ * {@link SHADOW_TEXEL_TARGET_M}, rounded UP to a power of two and clamped into
+ * `[SHADOW_MAP_MIN, tierMax]`.
+ *
+ * `tierMax` is the tier's own ceiling (`QualitySettings.shadowMapSize`), so a
+ * tier can still cap the spend and `0` (shadows off) passes straight through.
+ * Pure + unit-tested.
+ */
+export function shadowMapSizeForExtent(halfExtent: number, tierMax: number): number {
+  // 0 means "no sun shadows on this tier" — not a ceiling to scale into.
+  if (!Number.isFinite(tierMax) || tierMax <= 0) return 0
+  if (!Number.isFinite(halfExtent) || halfExtent <= 0) return Math.min(SHADOW_MAP_MIN, tierMax)
+  const wanted = (2 * halfExtent) / SHADOW_TEXEL_TARGET_M
+  const pow2 = 2 ** Math.ceil(Math.log2(Math.max(1, wanted)))
+  return Math.max(Math.min(SHADOW_MAP_MIN, tierMax), Math.min(tierMax, pow2))
+}

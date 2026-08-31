@@ -195,3 +195,27 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   preserved (back-compatible, never rejects the whole import, SEC-001). When you add a new
   imported URL field, sanitize it here too (and at its render sink).
 - `editing.ts` `canEditScene` is the single gate for all scene editing — don't bypass it.
+
+- **The first-paint lights guard now fires at EVERY hour (DEFAULT-GLOOM, v0.31.5.86 — shipped on
+  the user's decision).** `storage/firstPaintDaylight.ts` used to bail out inside an 08:00–18:00
+  window, on the assumption that daylight alone reads well enough. It does not: `.54` measured the
+  fixtures at **2.3–2.5x** in the daytime walk view, and `.83` showed the mechanism is cheap and
+  benign — at 21:00 in the orbit/boot view they move mean luminance **16.9 -> 132.2 (~7.8x)** while
+  moving mean chroma only **0.248 -> 0.249**, i.e. legibility without the over-saturation the AgX
+  tone-operator choice exists to avoid.
+  · **`isDaylightHour`, `DAYLIGHT_START` and `DAYLIGHT_END` are DELETED**, not left dangling — a
+    grep confirmed the module and its own test were their only consumers.
+  · **The function keeps its name.** `ensureDaylightFirstPaint` is referenced by that name across
+    `CHANGELOG.md`, `TODO.md` and the path-scoped docs; renaming it would strand those references
+    and rewrite historical entries for no behavioural gain. Read "Daylight" as the original
+    motivation, not as when it fires. The doc comment says so.
+  · **Both preference guards are untouched** — `timeMode !== 'system'` and `lightsMode !== 'off'`
+    still short-circuit, so a user who has ever set either is never overridden, and the guard still
+    only runs on a fresh seed (`bootstrap.ts`, inside the `items.length === 0` branch).
+  · **Verified by A/B at a FAKED SYSTEM CLOCK, which is the only way to exercise this** (meta-rule
+    xcviii — a probe that sets `timeMode: 'manual'` cannot trigger a guard that requires
+    `'system'`). `lights-boot FAKE_HOUR=13`: **`off` on the old guard, `on` on the new**;
+    `FAKE_HOUR=21` stays `on`. Exactly one case changed.
+  · **No feature flag.** This widens an existing unflagged boot guard rather than adding a
+    user-facing surface, so it follows the surrounding pattern; there is no panel, command or menu
+    entry to gate. No tier cost either — the fixtures already render at every tier.

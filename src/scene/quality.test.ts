@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveAssetTier, QUALITY_PRESETS, RENDER_TIERS, renderToAssetTier } from './quality'
+import {
+  effectiveAssetTier,
+  QUALITY_PRESETS,
+  type QualitySettings,
+  RENDER_TIERS,
+  renderToAssetTier,
+  resolveQuality,
+} from './quality'
 
 describe('renderToAssetTier', () => {
   it('maps each render tier to the right asset-LOD tier', () => {
@@ -79,6 +86,76 @@ describe('quality presets', () => {
     expect(QUALITY_PRESETS.medium.dof).toBe(false)
     for (const t of RENDER_TIERS) {
       if (QUALITY_PRESETS[t].dof) expect(QUALITY_PRESETS[t].postprocessing).toBe(true)
+    }
+  })
+})
+
+describe('resolveQuality — undefined override values (QUALITY-OVERRIDE-UNDEF)', () => {
+  it('falls back to the preset instead of spreading undefined', () => {
+    // `Partial<QualitySettings>` makes this type-legal, and a naive spread
+    // overwrites the preset with `undefined`. That is not a revert, it is a
+    // silent DISABLE: `castShadow={shadowMapSize > 0}` becomes `undefined > 0`
+    // = false, and `postprocessing: undefined` is falsy so the composer (and
+    // with it all tone mapping) never mounts.
+    const preset = QUALITY_PRESETS.maximum
+    const r = resolveQuality('maximum', {
+      shadowMapSize: undefined,
+      postprocessing: undefined,
+    } as Partial<QualitySettings>)
+    expect(r.shadowMapSize).toBe(preset.shadowMapSize)
+    expect(r.postprocessing).toBe(preset.postprocessing)
+  })
+
+  it('still applies real override values', () => {
+    expect(resolveQuality('maximum', { shadowMapSize: 1024 }).shadowMapSize).toBe(1024)
+    expect(resolveQuality('maximum', { postprocessing: false }).postprocessing).toBe(false)
+  })
+
+  it('keeps falsy-but-defined overrides, which are meaningful', () => {
+    // 0 and false are legitimate values — only `undefined` is the sentinel.
+    expect(resolveQuality('maximum', { shadowMapSize: 0 }).shadowMapSize).toBe(0)
+    expect(resolveQuality('maximum', { ibl: false }).ibl).toBe(false)
+  })
+
+  it('ignores an all-undefined override map entirely', () => {
+    const r = resolveQuality('high', {
+      shadowMapSize: undefined,
+      ibl: undefined,
+      dof: undefined,
+    } as Partial<QualitySettings>)
+    expect(r).toEqual(QUALITY_PRESETS.high)
+  })
+})
+
+describe('the ao tier flag (TIER-AO)', () => {
+  it('gives medium ambient occlusion without the full post stack', () => {
+    // Medium is the tier the adaptive ladder auto-selects for most browsers, and
+    // AO is the only pass that shapes non-directional fill — which is what
+    // interiors here are lit by. Measured: 2.2ms for a meanAbsDiff of 12.94, the
+    // best value-per-millisecond of any feature in the stack.
+    expect(QUALITY_PRESETS.medium.ao).toBe(true)
+    expect(QUALITY_PRESETS.medium.postprocessing).toBe(false)
+  })
+
+  it('keeps the flat tier flat', () => {
+    // Performance's grounding cue is the cheap ContactShadow decal, not a composer.
+    expect(QUALITY_PRESETS.performance.ao).toBe(false)
+    expect(QUALITY_PRESETS.performance.postprocessing).toBe(false)
+  })
+
+  it('is implied by the full post stack', () => {
+    // The full stack always contains N8AO, so a tier with postprocessing must
+    // report ao too or callers would have to special-case it.
+    for (const tier of RENDER_TIERS) {
+      const p = QUALITY_PRESETS[tier]
+      if (p.postprocessing) expect(p.ao).toBe(true)
+    }
+  })
+
+  it('never has aoFullRes without ao', () => {
+    for (const tier of RENDER_TIERS) {
+      const p = QUALITY_PRESETS[tier]
+      if (p.aoFullRes) expect(p.ao).toBe(true)
     }
   })
 })

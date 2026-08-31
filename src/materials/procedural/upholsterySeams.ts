@@ -24,6 +24,7 @@
  * channel (e.g. for a flat-pack panel) without touching the weave.
  */
 import { clamp01, makeFbm } from './noise'
+import { plankHash } from './woodPlank'
 
 /** Tuning for the upholstery height field. All intensities are 0..1 multipliers
  *  over a sensible baked-in amplitude; `0` cleanly drops that channel. */
@@ -40,6 +41,38 @@ export interface SeamParams {
  *  tile edge, so a cushion reads as a single sewn panel with a piped border)
  *  plus a soft wrinkle. Kept gentle so cloth reads soft, never quilted. */
 export const DEFAULT_SEAM_PARAMS: SeamParams = { seam: 1, wrinkle: 1, panels: 1 }
+
+/**
+ * Per-thread variation (FABRIC-IRREGULAR, v0.31.5.173).
+ *
+ * The weave was `sin(x·2.4)·sin(y·2.4)` with a phase warp: threads meander, but
+ * every one is the same thickness and the same brightness. That is a **lattice**,
+ * and scaling its amplitude scales a lattice — measured, pushing the relief from
+ * 2.2 to 4.5 took surface micro-contrast from 0.0887 to 0.1370, right into the
+ * photographic range, while a 4× crop turned into a regular horizontal-dash
+ * waffle. The gap was never amplitude; it was regularity.
+ *
+ * Real cloth varies thread to thread in thickness and brightness and drops the
+ * occasional pick. `threadGain` is that variation: a deterministic per-thread
+ * multiplier averaging **1.0**, so it changes the weave's CHARACTER without
+ * changing its mean or its amplitude, plus a rare thin pick.
+ *
+ * It introduces no new frequency content — the variation is keyed to the thread
+ * index, so it lives at the weave's own ~0.38 cycles/texel and cannot alias
+ * (FABRIC-FINE-NYQUIST).
+ */
+export const THREAD_GAIN = { spread: 0.9, missChance: 0.07, missGain: 0.3 } as const
+
+export function threadGain(index: number, salt: number): number {
+  const h = plankHash(Math.round(index) * 2654435761 + Math.round(salt * 7919))
+  if (
+    plankHash(Math.round(index) * 40503 + Math.round(salt * 104729) + 17) < THREAD_GAIN.missChance
+  ) {
+    return THREAD_GAIN.missGain
+  }
+  // Mean 1.0 by construction: 1 - spread/2 + spread * E[h] = 1.
+  return 1 - THREAD_GAIN.spread / 2 + THREAD_GAIN.spread * h
+}
 
 /** Distance to the nearest panel-seam line along one axis, expressed in 0..1 of
  *  a panel cell (0 = on the seam, 0.5 = mid-panel). `panels` cells across [0,1). */
@@ -63,6 +96,40 @@ function seamDistance(t: number, panels: number): number {
  * `panels = 1` the seam sits only at the tile boundary (so adjacent tiles share
  * one seam) — i.e. effectively a single sewn panel.
  */
+/**
+ * The fbm fields the upholstery height is built from, as data so their spatial
+ * frequencies can be bounded by a test (FABRIC-FINE-NYQUIST).
+ *
+ * All four are sampled at `(u, v)` (or a small multiple), so
+ * `topOctaveCyclesPerTexel(baseFreq, octaves, uvScale, size)` gives what each
+ * one costs in cycles per texel — and a tile of `size` texels can only carry
+ * `NYQUIST_CYCLES_PER_TEXEL` (0.5) before a field stops being detail and becomes
+ * deterministic white noise.
+ *
+ * `fine` was `{ octaves: 4, baseFreq: 120 }` = **3.75 cycles/texel** at 256², so
+ * a fifth of the height amplitude (`fine(u, v) * 0.2`) was aliased noise, which
+ * `heightToNormalRGBA` then turned into a per-texel random normal — the same
+ * defect and the same visual signature (pebbly, plastic-looking) as
+ * WOOD-PORE-NYQUIST. It cannot simply be "finer than the weave" either: the weave
+ * itself already sits at `sin(x * 2.4)` ≈ 0.38 cycles/texel, close to the limit,
+ * so there is no room below it in a 256² tile. The fuzz is now comparable to the
+ * weave rather than pretending to be ten times finer.
+ */
+export const FABRIC_FIELDS = {
+  /** Thread phase warp — makes rows/cols meander like real thread. */
+  warp: { octaves: 3, baseFreq: 6, uvScale: 1 },
+  /** Occasional slub thickenings in the yarn. */
+  slub: { octaves: 3, baseFreq: 22, uvScale: 1.2 },
+  /** Sub-weave fuzz. Bounded by the weave's own frequency, not by wishful thinking. */
+  fine: { octaves: 4, baseFreq: 11, uvScale: 1 },
+  /** Broad gathered creases. Deliberately very low frequency. */
+  fold: { octaves: 3, baseFreq: 3, uvScale: 1 },
+} as const
+
+/** Cycles per texel of the WEAVE grid itself (`sin(x * 2.4)`), for the tests to
+ *  bound the fuzz against. `2.4 rad/texel / (2*PI)` cycles per texel. */
+export const FABRIC_WEAVE_CYCLES_PER_TEXEL = 2.4 / (2 * Math.PI)
+
 export function buildUpholsteryHeight(
   size: number,
   seed: number,
@@ -71,12 +138,12 @@ export function buildUpholsteryHeight(
   const { seam, wrinkle, panels } = params
   const p = Math.max(1, Math.round(panels))
   // Weave: low-freq phase warp + slub thickening, matching the legacy look.
-  const warp = makeFbm(seed ^ 0x6d2f, 3, 6)
-  const slub = makeFbm(seed ^ 0x1f88, 3, 22)
-  const fine = makeFbm(seed ^ 0x4242, 4, 120)
+  const warp = makeFbm(seed ^ 0x6d2f, FABRIC_FIELDS.warp.octaves, FABRIC_FIELDS.warp.baseFreq)
+  const slub = makeFbm(seed ^ 0x1f88, FABRIC_FIELDS.slub.octaves, FABRIC_FIELDS.slub.baseFreq)
+  const fine = makeFbm(seed ^ 0x4242, FABRIC_FIELDS.fine.octaves, FABRIC_FIELDS.fine.baseFreq)
   // Wrinkle: broad soft creases. Low frequency so they read as gathered cloth
   // folds, not noise.
-  const fold = makeFbm(seed ^ 0x3c7e, 3, 3)
+  const fold = makeFbm(seed ^ 0x3c7e, FABRIC_FIELDS.fold.octaves, FABRIC_FIELDS.fold.baseFreq)
   const out = new Float32Array(size * size)
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -88,13 +155,21 @@ export function buildUpholsteryHeight(
       // ~0.5 m cushion face. Phase-warped so rows/cols meander like real thread.
       const jx = (warp(u, v) - 0.5) * 1.6
       const jy = (warp(v + 3.1, u + 1.7) - 0.5) * 1.6
-      const warpThread = 0.5 + 0.5 * Math.sin(x * 2.4 + jx)
-      const weftThread = 0.5 + 0.5 * Math.sin(y * 2.4 + jy)
+      // Thread INDEX, not position: everything within one thread shares a gain,
+      // so the variation sits at the weave's own frequency (see `threadGain`).
+      const warpIdx = Math.floor((x * 2.4 + jx) / Math.PI)
+      const weftIdx = Math.floor((y * 2.4 + jy) / Math.PI)
+      const warpThread = (0.5 + 0.5 * Math.sin(x * 2.4 + jx)) * threadGain(warpIdx, seed)
+      const weftThread = (0.5 + 0.5 * Math.sin(y * 2.4 + jy)) * threadGain(weftIdx, seed + 1)
       const weave = warpThread * weftThread
       const sl = slub(u * 1.2, v * 1.2)
       const slubBump = sl > 0.78 ? (sl - 0.78) * 1.1 : 0
       // Lean a touch more on the fine fuzz than the regular grid so a light
-      // upholstery doesn't read as a loud waffle under raking light.
+      // upholstery doesn't read as a loud waffle under raking light. (FABRIC-FINE-
+      // NYQUIST: this term used to be `makeFbm(seed, 4, 120)`, whose top octave
+      // ran at 3.75 cycles per texel — ten times the weave's own 0.38 and seven
+      // times the Nyquist limit — so a fifth of the height field was aliased
+      // white noise rather than fuzz. See FABRIC_FIELDS.)
       let h = weave * 0.4 + slubBump * 0.22 + fine(u, v) * 0.2
       // --- soft wrinkle ---------------------------------------------------
       if (wrinkle > 0) {

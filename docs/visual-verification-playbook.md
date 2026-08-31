@@ -84,6 +84,180 @@ SHOT_GPU=1 node scripts/shot.mjs out.png 3000
 SHOT_GPU=1 node scripts/shot.mjs --scenario scripts/scenarios/foo.json
 ```
 
+**The ANGLE backend is platform-specific, and getting it wrong silently gives you
+SwiftShader anyway** — i.e. `SHOT_GPU=1` becomes a no-op and every GPU-only check
+you thought you ran was a software render. `shot.mjs` now picks it from
+`process.platform`: **darwin → `metal`**, win32 → `d3d11`, linux/WSL → `gl-egl`
+(the original D3D12-passthrough value, which does not exist on macOS; the
+`--enable-features=Vulkan` flag isn't a macOS Chromium feature either and is
+dropped there). Override with `SHOT_ANGLE=<backend>`. **Always confirm the
+renderer string** before trusting a GPU-only result — on this Mac it must read
+`ANGLE (Apple, ANGLE Metal Renderer: Apple M4, …)`:
+
+```js
+const gl = document.createElement('canvas').getContext('webgl2')
+const d = gl.getExtension('WEBGL_debug_renderer_info')
+gl.getParameter(d.UNMASKED_RENDERER_WEBGL)
+```
+
+## Measuring the render, not just eyeballing it (`scripts/dev-probes/`)
+
+Some rendering bugs are invisible in a single screenshot — an intermittent
+one-frame artifact, or a difference in exposure/contrast that reads as "hmm,
+looks a bit off". These probes turn those into numbers. All drive a real orbit
+gesture against a real GPU and need `npm run dev:web` running.
+
+| Probe | Answers |
+| --- | --- |
+| `blank-cause.mjs` | How many orbit frames composite BLANK, plus three's own render counters and any drawing-buffer resize around each one. `TIER=`, `HOUR=`, `REPS=`, `OVERRIDE=key=value` (a `qualityOverrides` entry, to isolate one tier axis), `URL=` (for `?ff=flag:off`). |
+| `tier-look.mjs` | Mean brightness, contrast (pixel σ) and **clipped-highlight fraction** per tier per hour — the exposure regression check. `HOURS=`, `TIERS=`. |
+| `shadow-contribution.mjs` | Whether the sun shadow map changes anything visible, by diffing the same frame with `shadowMapSize` on vs 0. |
+| `orbit-flash.mjs` | Broad multi-tier orbit sweep; writes any blank frame to disk. |
+| `chroma-audit.mjs` | Which surfaces make the frame look CARTOON, ranked by coverage x saturation. Raycasts a 96x60 screen grid and attributes each hit to its material, then reports coverage %, HSV saturation, roughness/metalness and which maps are bound — plus the rendered frame's own chroma. `MODE=walk\|orbit`, `TIER=`, `HOUR=`, `TOP=`. |
+| `warm-cast.mjs` | Whether a warm colour cast belongs to the ILLUMINANT or to the FINISH, as an A/B inside one run. Neutralises the light colours from inside a wrapped `renderer.render` (a `setInterval` loses the race against `Lighting`'s per-frame write and reports a byte-identical no-op) and repaints the living/dining wall via the app's own `setWallFinish`. |
+| `wall-detail.mjs` | What each wall CHANNEL is worth: `normalScale` x6, normal removed, a subtle albedo mottle added, against a repeated-baseline noise floor. Use before authoring texture art for a surface. |
+| `pick-surface.mjs` | "What IS that?" — resolves screen NDC points to a furniture `defId` plus the exact material values (albedo hex, saturation, roughness, metalness, bound maps, size, distance). Turns a visual review into something fixable. `POINTS=label:x,y;…`. |
+| `surface-detail.mjs` | Measures ONE surface class wherever it lands on screen: casts a ray through `POINT=x,y` (NDC), groups every material sharing that one's map source, masks the cells they occupy, and reports chroma / >0.35-sat / mean / sigma / **microcontrast** over those pixels only. The generalisation of `wood-detail.mjs`'s masking half — use it for any "does this surface look right" question, and note microcontrast is the only one of these that can see an aliased normal map. |
+| `wood-detail.mjs` | Per-channel sweep of the furniture wood, measured over WOOD PIXELS ONLY (raycast mask): tile `repeat`, albedo map, albedo contrast, base saturation, roughness, normal, tone operator, post saturation, lightness. Reports chroma, the >0.35-saturation fraction, mean, grain sigma and **microcontrast** — the last one because a cell-mean metric is blind to high-frequency speckle. |
+| `tone-curve.mjs` | Whole-frame sweep of the view transform (filmic / agx / neutral) and the post-saturation dial across the day in either view mode: mean, contrast, clipped fraction, chroma. Use this — never one material's numbers — to judge a change that applies to the whole image. `HOURS=`, `TONES=`, `SATS=`. |
+| `sky-tune.mjs` | Sweeps the orbit sky dome's LIVE shader uniforms (`rayleigh`, `turbidity`, `mieCoefficient`…) in one run and reports the ZENITH colour — the part that should be bluest. Finds the dome by looking for a material carrying a `rayleigh` uniform, so it needs no pose or defId. `SWEEP='rayleigh=1;rayleigh=3,turbidity=3'`. |
+| `snv-response.mjs` | TONE-CALIBRATION guard: the mean RENDERED RGB of a masked SNV floor under each tone operator, plus the peak-normalised per-channel response and how far it drifts. Run before any lighting or tone-mapping change, since the five SNV swatches were solved against that response. |
+| `bath-tile-size.mjs` | What resolution a WALL is actually drawn at: walks to each wet room, raycasts the walls and reads the map off `hit.object.material`, labelled by TEXTURE uuid against the cache's own builds. Use whenever a cache lookup and the picture disagree. |
+| `floor-look.mjs` | The same for FLOORS — pitches the eye down (`__walkLook.setPitch`) in each room, since a 1.6 m eye at yaw-only never hits one. |
+| `stale-gen.mjs` | WHICH textures change size across a tier change, named by def rather than bucketed by size — labels every bound texture against both `@512` and `@256` cache generations and diffs the two tiers. |
+| `plan-shadow-texel.mjs` | Per-plan shadow-map size and world texel for every `PLAN_TEMPLATES` entry, plus synthetic large plans. Module math only, no rendering — the cheap way to find out whether a regime is reachable in shipped content at all. |
+| `plan-swap-rehome.mjs` | How much furniture is left outside every room after a plan swap, using the app's own `itemFootprint`. Reports a BASELINE arm so the count has scale. |
+| `hq-tone.mjs` | The HQ path-traced still vs the viewport's view transform, as two arms in one run (shipped policy vs forced `filmic`). Prints resolved tone + exposure + achieved samples. |
+| `window-hours.mjs` | What the exterior looks like through a window across the clock — one plan-derived window pose, fixtures opened once, only the hour varying. |
+| `tile-breakup.mjs` | A pro-flag A/B done correctly: both arms in Pro, one flag varied via `?ff=`, applied BEFORE boot because the floor bakes it. Prints `uiMode` + the flag's resolved value. |
+| `reveal-step.mjs` | The wall-reveal opacity STEP across every shared corner, from the app's own `getWallOpacity` / `getWallOwnStrength` / `cornerNeighbors`, with `toward` per wall. |
+| `light-units.mjs` | Live census of every light (type, intensity, decay) at day and night plus `toneMappingExposure` — the units sanity check before comparing anything to a real fixture. |
+| `fade-clone.mjs` | Every mid-fade material at boot framing / mid-drag / after a drag, labelled by texture uuid — for "is this clone stale?". |
+| `surface-coverage.mjs` | **What the walk-mode user actually SEES, ranked** — 11 rooms x 4 yaws x 1600 rays, grouped into surface CLASSES by drawn material + colour + bbox, reported as a coverage %. This is the table meta-rule (viii) prioritises from; re-run it after anything that adds or removes geometry. It labels a class only by its shape, so pair it with `class-id.mjs` before naming one. |
+| `surface-coverage.mjs` `KEYBY=map` | The same census keyed by map SOURCE uuid instead of base colour. Use to test whether a class is one surface or several merged — the procedural branch bakes the tint into the albedo and leaves `m.color` white, so colour keying COULD collapse unrelated finishes. Measured: it does not (322 -> 323 classes). Opt-in so the default table stays comparable across rounds. |
+| `class-id.mjs` | **"What IS that class?"** — enumerates every mesh carrying a given colour and prints world position, size, ancestor chain and nearest plan opening. `Group{itemId}` in the chain means FURNITURE; apartment components never carry one. This is what proved the biggest "door-like" class was actually the curtains. `COLOURS=aabbcc,ddeeff`. |
+| `ceiling-id.mjs` | **What is actually drawn overhead, and what is in each room.** Teleports to every room's centroid (or `ROOMS=<ids>`) and raycasts STRAIGHT UP, reporting the hit's name/type/material colour/roughness/geometry params/world position/ancestor chain, then dumps that room's items with `defId`, position, `elevation` and `props`. Knobs: `PLAN`, `LEVEL`, `FURNISH=1`, `TIER`, `ROOMS`; **`FURNISH=1` with no `PLAN` re-furnishes the DEFAULT FLAT the same way, which is the one-variable control.** Written for MOUNTED-SEED, where a dark band that looked like a ceiling turned out to be a range hood 0.06 m from the lens. **Trap this probe taught, the hard way: filter items by `levelId`, not XZ alone** — `plan.rooms` is ground-only and upper storeys stack directly above, so an XZ-only filter reports upper bedrooms as ground-floor contents and manufactures a spectacular false finding. |
+| `curtain-atten.mjs` | **Is the sun attenuation derived from the LOADED plan?** Places one curtain per window using the app's OWN `snapToNearestWindow`/`windowFixtureProps`, then reads the live `getWindowAttenuation()` with them driven fully open and then fully shut, printing each arm's `props` and the delta. Knobs: `PLAN`, `FURNISH=1`, `TIER`. **Two traps this probe was born from:** the shipped templates carry NO window treatments (`applyLayoutPreset('move-in')` gave the maisonette 138 items and ZERO curtains), so it must place them itself or it measures nothing and reports a confident `NO EFFECT`; and it must DRIVE both arms (`draw:0/style:'open'` then `draw:1/style:'closed'`) rather than trust placement defaults — trusting them read 0.5600 for open AND closed. **Read the NUMBER, not the verdict:** before SUN-CURTAIN-PLAN the maisonette still reported "CURTAINS DIM THE SUN" at 0.7526, computed from default-flat windows; after, 0.5600 from its own. |
+| `door-aim-plan.mjs` | **Which doors the walker can actually OPEN.** Teleports to a stand-point in front of every door on the WALKED storey (derived from that level's own `openings`, not a guessed pose) and reads `nearbyDoorId`, printing OK/MISS per door plus `hit/total`. Knobs: `PLAN`, `LEVEL`, `FURNISH=1`, `TIER`. Written for WALK-AIM-PLAN (v0.31.5.99), which measured **0/5 -> 5/5** on the maisonette upper storey. NOTE the default flat reads **6/7**, identically before and after that fix: the derived stand-point for `door-bedroom2` aims nearer `door-bath2`. That is a POSE artefact of this probe, not an app defect — verified by running both arms — so treat 6/7 as this probe's default-flat baseline rather than a regression signal. |
+| `door-look.mjs` / `door-ab.mjs` | The door leaf: its resolved material values, and a four-arm one-variable-each sweep (`roughness`, `normalScale`, grain `repeat`) mutating the DRAWN material in-probe. |
+| `finish-apply.mjs` | Whether a wall/floor finish request reaches the drawn material, rather than only the store. |
+> ⚠️ **No walk frame captured before v0.31.5.127 is evidence about the view THROUGH A WINDOW, at
+> any tier.** Until then the glass took its day/night factor from the lamp switch rather than the
+> sun (item (k2)), and the app boots the lamps on at every hour — so every walk showed night glass
+> whatever the clock said. The severity varied by tier (pane p50 **49** on High, **132** on Medium),
+> which is what made it look like a `TIER=auto` problem in `.124`/`.125`; **that framing was wrong
+> and is corrected in item (k1)** — the tier only decided how badly the same wrong value showed.
+> Interior conclusions from those walks never depended on the exterior and still stand. Fixed in
+> `.127`; both tiers now read ~195 at 13:00.
+
+| `walk-tour.mjs` | **The contact sheet** — a walk of every room at several yaws, written as frames to look at. Not a metric: this is the meta-rule (v) instrument, and it is what surfaced DEFAULT-GLOOM after the measured defect queue was empty. Run it whenever you think there is nothing left to find. |
+| `tier-drift.mjs` | State-verification: prints resolved tier / IBL / exposure / hour+timeMode at intervals across a long run, to establish whether a surprising frame is the scene drifting or the scene genuinely looking like that. |
+| `default-gloom.mjs` | Per-room mean brightness under the shipped defaults vs one default changed at a time (`lightsMode`, then curtains on top). Each arm prints its OWN `lightsMode` and tier beside its number. |
+| `wall-mottle.mjs` | Why a wall surface looks wrong: four one-variable arms (baseline, AO off, normalMap off, roughnessMap off) over a raycast mask, reporting mean / sigma / **microcontrast** / corner-grounding, with a crop per arm. `SWEEP='intensity=1.5;aoRadius=0.35'` retunes the live `look.ts:AO` object; `REPEATS=1.2,0.6,0.3` sweeps metres-per-tile on the drawn texture. Prints the repeat read back off the DRAWN material, which is what caught a catalog edit that never reached the screen. |
+| `wall-mottle.mjs` `PICK=x,y YAW=n` | **"What IS that pixel?"** — teleports to `ROOM=` at a yaw, raycasts one NDC point, and reports the DRAWN material plus world position, size, ancestor chain and nearest opening. Use when a frame shows something suspicious and you have no COLOUR to feed `class-id.mjs`. It prints what it actually hit, which is how a mis-aimed NDC point announces itself instead of silently answering about the wrong object. |
+
+**`setManualHour(h)` is not a side-effect-free redraw nudge.** Probes use it to force a frame
+under `frameloop="demand"`, but it also switches `timeMode` to manual and jumps the scene to
+`manualHour` — so in a probe that never pinned the clock, the first capture is the LIVE local time
+and a later one is daylight. That produced a diff of **98.97% of pixels / meanAbsDiff 96.37** which
+looked like an enormous material effect and was a day/night flip (it also ticked the onboarding
+checklist's "Scrub the time of day", which is the tell in the screenshot). Corrected, the same
+measurement read 0.04% / 0.02. **Pin `setTimeMode('manual')` + `setManualHour(h)` before anything
+else**, and treat an implausibly LARGE result with the same suspicion as a byte-identical one.
+
+**Never quote an exposure or clipping number from the FULL CANVAS rect.** The toolbar, the
+"Get started" card and the zoom/compass rail are DOM panels drawn over the canvas, and they are
+translucent — their brightness tracks whatever the canvas puts behind them, so they differ per
+tier and mimic a render regression exactly. This produced a fully-written-up phantom defect
+("~7% of the midday frame is blown at the flat tiers", v0.31.5.6, corrected in v0.31.5.7): the
+full-canvas clipped fraction read 6.78% on Performance/Medium against 0.03% on High/Maximum,
+while the same frames measured over `lib.mjs:centerBox` clip **0.02–0.05% at every tier and
+hour**. A 4x4 grid localised the blown pixels to the toolbar (22%), the card (54%) and the rail,
+with every interior cell at 0.0%. Use `centerBox`, or a raycast mask; if you print the full-canvas
+figure at all, label it as chrome.
+
+**In WALK mode you cannot aim the camera — `FirstPersonCamera` owns the orientation.**
+A programmatic `camera.lookAt(...)` in walk mode is silently discarded: the controller rewrites
+the camera's rotation from its own yaw/pitch state every frame. Measured in
+`snv-response.mjs`, five different requested pitches (forward vectors from
+`0,-0.89,-0.45` to `0,-0.03,-1`) all came back as exactly `-0.07, 0, -1`. Only the POSITION
+survives. This is silent and it does not look like a failure — a probe that asks for a
+steep look at the floor gets a level view of whatever is at eye height, and its "floor"
+sample is a grazing sliver plus a lot of curtain. Two safe patterns:
+
+- **Measure from ORBIT.** `OrbitControls` derives its orientation from the camera position and
+  `controls.target`, both of which you can set (`window.__three.controls`); call
+  `controls.update()` afterwards. That is what `snv-response.mjs` does now, and it took the
+  living/dining floor's usable sample from 69 to 1563 of 4000 cells.
+- **Or don't depend on the pose at all** — identify the surface with a RAYCAST MASK
+  (`wood-detail.mjs`) so whatever the controller happens to be pointing at is classified
+  correctly. This is why the wood measurements were unaffected by the same bug.
+
+Either way, **assert the pose held**: read the camera's world direction back after setting it
+and compare with what you asked for. `snv-response.mjs` prints `POSE NOT HELD` with both
+vectors, which is how this was found at all.
+
+**Pin the port, and pass it via `SSG_URL`.** Every probe navigates through
+`lib.mjs:appUrl()` (`SSG_URL` → `URL` → `localhost:5173`) rather than a hardcoded
+host. Vite silently falls forward to 5174+ when 5173 is taken, so a stray dev
+server from ANOTHER checkout answering on 5173 will serve a different branch's
+code to every probe — the run still succeeds and the numbers look plausible, they
+are just measuring the wrong tree. This actually happened mid-session: an orphaned
+`sofa-so-good` dev server held 5173 while the work was in a worktree. Start the
+server on a dedicated port and say so explicitly:
+
+```bash
+npx vite --port 5199 --strictPort &          # from the worktree
+SSG_URL=http://localhost:5199/ node scripts/dev-probes/tier-fps.mjs
+```
+
+`--strictPort` is the load-bearing flag: it makes a port clash fail loudly
+instead of quietly relocating.
+
+**Run probes through `scripts/dev-probes/with-server.sh`.** It owns the dev
+server's whole lifetime inside one invocation, which removes three separate
+failure modes that all produce confident-looking wrong data:
+
+```bash
+scripts/dev-probes/with-server.sh frame-time.mjs DSF=2 SECONDS=10
+```
+
+- A backgrounded dev server does not reliably survive between shell invocations,
+  so a probe in a later call hits `ERR_CONNECTION_REFUSED` — or, worse, connects
+  to an orphaned server from the sibling checkout on 5173 and measures the wrong
+  branch.
+- It uses `vite.probe.config.ts`, which gives the probe server its own
+  `cacheDir`. Because this worktree symlinks `node_modules` to the sibling
+  checkout, the two share Vite's optimizer cache; when one re-optimizes the other
+  answers **`504 (Outdated Optimize Dep)`** for the lazy `EffectsImpl` chunk,
+  R3F's error boundary replaces the scene, and every screenshot silently captures
+  a "Something went wrong in the 3D scene" card. A card is perfectly stable, so
+  frame diffs then read **0.00 for every setting** — a whole shadow-resolution
+  sweep "proved" 512 was identical to 4096 that way. `lib.mjs:assertSceneAlive`
+  now throws on it; call it after every state change a probe makes.
+- It prints the load average and warns above 3.0. **Millisecond numbers are
+  meaningless on a busy machine** — the sibling checkout's `npm run dev` and test
+  runs are the usual cause, and they are the user's, so wait rather than kill.
+  Visual diffs are unaffected by load.
+
+Two rules learned the hard way here:
+
+- **Detect a blank frame by VARIANCE, not brightness.** A white flash is the page
+  background through a cleared buffer — an almost featureless region. A
+  brightness threshold also fires on a legitimately blown-out midday render,
+  which is how a washed-out (but perfectly valid) frame got reported as "30/30
+  blank frames". `lib.mjs:isBlank` keys on pixel σ.
+- **Measure the CENTRE of the viewport, not the canvas rect.** The canvas is
+  full-bleed and the toolbar / "Get started" card / zoom rail are drawn over it;
+  those opaque panels contribute most of the variance and mask a genuinely blank
+  canvas. `lib.mjs:centerBox` is the region to use.
+- **Pin the clock and the light mode.** The app defaults to `timeMode: 'system'`,
+  so an unpinned run renders whatever time it happens to be — a night capture has
+  full-strength bloom and lit fixtures and is not comparable to a daylight one.
+  Heavy GL instrumentation also perturbs timing enough to HIDE frame-level bugs:
+  wrapping every `gl.clear`/`drawElements` made the orbit flash disappear
+  entirely, so prefer three's own `gl.info.render` counters.
+
 Notes: GPU mode uses Chromium's `--headless=new` (not `shell`) so the compositor
 path is real; it is slower per frame than SwiftShader but renders truthfully.
 Always GPU-verify items the backlog tags `[real-GPU verify]` before striking them.
@@ -167,6 +341,428 @@ GPU-session gotchas (2026-07-11 sweep):
   to clear long-frame holds, and a store nudge (e.g. `setManualHour`) after each edge so
   demand-mode frames pump and the controller's rAF decision loop actually runs. Guard scenario:
   `scripts/scenarios/interactive-dpr-seamless.json` (assert every resize `sameTask: true`).
+
+## A coverage census measures ONE POSE — say which, and re-shoot before trusting it
+
+`surface-coverage.mjs` sweeps 11 rooms x 4 yaws at eye height with a slight downward tilt. That is
+a defensible default, and it is also the reason two of this run's conclusions were built on numbers
+that describe a pose rather than a product:
+
+- **floors** barely appear in it, which is why `floor-look.mjs` exists at all (`.69`);
+- **the ceiling** reads 1.45% — and **43.87% at `PITCH=0.75`**, a glance up at a fan. A 30x swing
+  (`.70`). "You barely see it" was quoted for ten rounds off the level number.
+
+Both probes now take `PITCH=` so the same rig answers "how much of this do I see when I actually
+look at it". **When you quote a coverage figure, quote the pose with it**, and before dismissing a
+surface as too small to matter, re-shoot at the pose a user would actually adopt to look at it.
+
+**Set the pitch AFTER the teleport settles, in its own `page.evaluate`.** `requestWalkTeleport`
+resets the look, so pitching in the same call is silently undone — and the tell was a census
+byte-identical to the level one (ceiling 1.46 vs 1.45, every other row unchanged). That is
+meta-rule (xxv) catching a probe bug rather than a product one: identical readings across a change
+are a failed mutation until something else moves.
+
+## Do not sum a TRUNCATED table — and never compare a per-class figure with an all-class total
+
+`surface-coverage.mjs` prints its top 26 classes. Twice in this run that truncation produced a
+wrong number that looked authoritative:
+
+- `.70` quoted the ceiling as **1.45% at eye level**. That was ONE printed class — the largest
+  single ceiling slab — not the ceiling. The real level total is **4.54%**.
+- The same round quoted **43.87%** looking up, from `awk`-summing the printed rows. The real total
+  is **45.81%**.
+
+The headline ("the level census under-reports the ceiling") survived; the ratio quoted for it
+(30x) did not — it is about 10x. **A per-class figure and an all-class total are different units.**
+If a probe prints a ranked head, it must also print the aggregate you intend to quote, or you will
+eventually sum the head and call it the whole.
+
+`surface-coverage.mjs` now prints a per-ORIENTATION total over every class, and dumps
+`classes.json` so multiple runs can be joined without re-shooting.
+
+**Corollary for any coverage claim:** state (a) the pose, (b) whether the number is one class or a
+sum, and (c) what the denominator is. The three-pose table in `src/apartment/CLAUDE.md` is written
+that way.
+
+## When a probe reports ZERO, suspect the probe first (the false-zero family)
+
+A zero is the easiest number to believe and the easiest to fake. Four of these cost real time
+in the 2026-08-29 graphics-realism run; in three of them the FRAME showed the opposite and was
+what caught it. Symptom-first:
+
+| Symptom | Cause | Check |
+| --- | --- | --- |
+| Census returns 0 while the frame plainly shows the thing | Read a field that does not exist. Items are `position: [x, z]` (**not** `it.x`/`it.z`), and there is **no `st.catalog`** — build it with `buildMergedCatalog({userFurniture, resolvedRemoteFurniture, packFurniture})`. A `if (!def) continue` guard then skips every item and the loop body never runs. | Read the TYPE/store shape first; validate the metric on a case where it MUST be non-zero (the default flat scores 2/7, not 0). |
+| HQ still comes back fully transparent, all four channels 0 | `createHqRenderSession` does **not** auto-start — `session.start()` kicks the rAF accumulation. Without it `samples` stays 0 and `toDataURL()` returns an empty canvas that mimics PT-BLANK-GUARD's driver failure, with no error raised. | Assert `session.samples` advanced before reading a pixel. |
+| Ray mask finds 0 "outside" pixels through a window | `Sky.tsx` mounts the dome as a REAL scene object, so no ray ever escapes — it always terminates on the dome. Window glass also reads as opaque to a naive `transparent && opacity < 0.9` test. | Treat a dome hit as "sees outside", or stop rewriting the classifier and measure the picture. |
+| Every window reports 0 exterior pixels | Not a bug: **the default flat ships with its curtains DRAWN.** | Check the app's own default before calling a featureless frame a broken pose. |
+
+**A blank/empty/zero result is a broken CALL before it is a broken system.** Print the arm's own
+state (`uiMode=pro tileBreakup=false`, `samples=24`, `tier=medium`) next to the number, so a run
+that measured nothing is visibly distinguishable from a run that measured zero.
+
+## `floor-look.mjs` stands at the ROOM CENTRE, which in a utility room is occupied
+
+The probe teleports to each room's shell centre and pitches the eye down. In a bedroom or living
+room that lands on open floor. In the **kitchen** the centre IS the counter run, so the downward
+rays hit the sink and worktop; in the **service yard** a ceiling drying rack fills the volume and
+the rays hit its rails. Both rooms therefore report **few or no floor hits** —
+`kitchen 128|OTHER x1`, `serviceYard 128|OTHER x12`, no named floor — which reads exactly like a
+missing or unbaked floor.
+
+**It is occlusion, and the FRAMES are what show it:** the beige stone tile is plainly visible at
+the bottom of both frames, correctly jointed. Another instance of "when a probe reports zero,
+suspect the probe" — and of the fix being to look rather than to add an arm.
+
+If a future round needs those two floors sampled properly, offset the pose toward the open part of
+the room, or raycast straight DOWN from the camera instead of through the screen grid.
+
+## Flag and bake ORDER decide whether an A/B measures anything
+
+- **Simple mode beats a dev override.** `resolveFlags` returns false on the
+  `tier === 'pro' && uiMode === 'simple'` branch *before* the override branch, so `?ff=<flag>:on`
+  is inert in Simple. Both arms of a pro-flag comparison must run in **Pro**, varying only that
+  flag.
+- **A flag a material BAKES must be set before boot.** Floors read `tileBreakup` through
+  `isFeatureEnabled` when they build; toggling it at runtime leaves the already-built floor
+  stale, so the A/B compares an object with itself. Set it in the URL / `evaluateOnNewDocument`
+  and confirm the resolved value in-page.
+- **Check the UNITS before comparing to the real world.** The lighting rig is RELATIVE, not
+  photometric — the sun is a `DirectionalLight` at **0.999** where a physical midday sun is
+  ~100,000 lux, and fixture point lights run at 2.6–9, nine times the sun's number. Comparing a
+  9 to a real 800 lm bulb's ~64 cd would have multiplied the whole emitter table and blown out
+  every night interior. `light-units.mjs` prints the census.
+
+## Editing probes without measuring the old file
+
+- **Never background a compound command whose first part is a Python edit.** If the edit throws,
+  the traceback goes to the task log unseen and the rest of the chain runs the UNCHANGED file —
+  you measure the old code believing the edit landed. Edit in the foreground, `grep` to confirm,
+  then launch.
+- **Biome reformats what you write, so a second edit anchored on your own earlier text silently
+  misses** (it collapses multi-line `console.log`s and re-wraps blocks). Re-grep the ACTUAL
+  current text before the next anchor, and after a multi-part edit grep for both the new
+  identifiers (present?) and the old ones (gone?) — a half-applied edit produced a
+  `ReferenceError` for a variable its other half was meant to declare.
+- **A Node-side variable is NOT visible inside `page.evaluate`.** The callback is serialised and
+  run in the browser, so a loop counter, a config const or anything else from the probe's own
+  scope is simply undefined there — `ReferenceError: i is not defined`, thrown from inside the
+  page and surfacing as a probe crash rather than as a scoping mistake. Pass it explicitly:
+  `page.evaluate((a) => …, { i, hour, tier })`. This one has bitten repeatedly (most recently
+  `tier-drift.mjs`) because the offending line reads like ordinary JavaScript.
+- **Slice copied probe boilerplate AFTER `page`/`browser` exist.** Cutting at the first
+  `const OUT`/`const HOUR` drops the browser setup and the probe dies with "page is not defined";
+  then grep the copy for a duplicate `const OUT` or a stray `fs.mkdirSync(OUT)` it dragged along.
+
+## An "empty frame" guard that counts non-background pixels does NOT catch a missing WALL
+
+`walk-tour.mjs` gained a guard that flags any frame whose non-background cell fraction falls below
+a threshold. It works — it caught a genuinely dark store room at 6.5% — and it is worth having.
+
+**But it scored a frame with no walls at 87% content and passed it**, because what replaced the
+walls was a bright city backdrop, which differs from the corner pixel just as much as a wall does.
+A content-fraction guard detects a BLANK frame; it cannot detect a WRONG one.
+
+The guard that would have caught this is a **cross-arm comparison**: the same pose at two tiers
+should produce similar frames, and `medium` 73% vs `performance` 87% is a 14-point swing on
+identical geometry. When a probe sweeps an axis, diff each frame against the baseline arm rather
+than judging each frame alone.
+
+**Also: do not use `gl.info.render.calls` to ask "was the geometry submitted".** With the post
+stack mounted, the last render before you read the counter is the final fullscreen pass, so it
+reads **1 call / 1 triangle** and looks catastrophic. Count the meshes the camera can actually see
+instead — visible, parents visible, bounding sphere inside the frustum — which is what
+`walk-tour.mjs` now reports (354 meshes / ~87.6k triangles for the default flat at eye level).
+
+## Isolate the SETTING, not the tier — and build a numeric discriminator first
+
+`.62` had a confirmed tier defect ("walls vanish at `performance`") and no mechanism. `.63` closed
+it to one line of code without reading much source at all, by doing two things in order.
+
+**1. Build a discriminator before running arms.** Eyeballing eight frames would have been slow and
+arguable. The mean luminance of a fixed centre band (64x40 downsample) of one pose separated the
+two states cleanly and with no judgement call: **~112 = walls present, ~151 = walls gone**. Get a
+number that distinguishes the two states you already have, THEN sweep.
+
+**2. Sweep the preset delta one entry at a time, from the GOOD tier.** Diff the two presets, then
+run the good tier plus exactly one of the bad tier's values (`wall-mottle.mjs OVERRIDE=key=value`,
+which prints the fully resolved settings object so the arm's own state is beside its number). Six
+settings differed; five were exonerated in two batches and one reproduced the defect exactly
+(150.7 against the tier's own 150.7 / 152.8).
+
+**3. Then falsify the obvious reading.** `ao=false` reproduced it, which reads as "AO causes it".
+Adding one more arm — `ao=false` **plus** `postprocessing=true` — put the walls back, proving AO is
+innocent and that the real trigger is `Effects.tsx`'s `if (!postprocessing && !ao) return null`,
+i.e. **no composer mounting at all**. The named setting was a proxy, not the cause. One extra arm
+turned a plausible wrong answer into the right one.
+
+Note also that a preset diff built from the literal source text can MISS keys — the resolved
+settings object printed by the probe surfaced `wallReveal`, which the text diff had not shown.
+Print the resolved object, do not infer it.
+
+## Before calling a headless finding a product defect, ask whether a real browser sees it
+
+`.62`–`.64` chased "interior walls vanish at `performance` tier" through eleven measured arms and
+narrowed it to one gate. Every app-level explanation was refuted in turn: six tier settings, AO
+itself, `polygonOffset`, missing geometry, culling, alpha, probe timing, and a dither/discard path
+that does not exist in the codebase.
+
+What survived is a difference in **where the scene rasterises**: with a composer it goes to an
+offscreen target, without one it goes to a multisampled DEFAULT framebuffer created with
+`antialias: true, preserveDrawingBuffer: true`. That is a plausible app bug — and also exactly the
+configuration where headless ANGLE-Metal driver artefacts live.
+
+**Two rounds asserted "this is what a phone user sees" without ever testing a real browser.** The
+capability ceiling does drop phones to `performance`, so the inference was reasonable, but it was
+still an inference stacked on a headless-only observation. Reproducibility is not the same as
+generality: eleven consistent arms in one environment say the effect is real IN THAT ENVIRONMENT.
+
+**Rule: when every application-level hypothesis has been refuted and only a
+framebuffer/driver-level difference remains, the next experiment is a DIFFERENT ENVIRONMENT, not a
+twelfth arm in the same one.** State the caveat in the write-up the moment the suspicion arises,
+and correct earlier claims explicitly rather than letting them stand.
+
+## The environment arms that settle "product defect or harness artefact"
+
+`.64` correctly refused to call a headless-only observation a product defect. `.65` settled it with
+two cheap arms added to the probe itself, both one variable from the baseline:
+
+- **`ANGLE=gl`** — swap the ANGLE backend (default `metal`). If a defect survives a different
+  graphics backend it is not a backend driver bug.
+- **`HEADFUL=1`** — launch a real browser window instead of headless. If it survives that, it is
+  not a headless artefact.
+
+Both reproduced the wall dissolve to within 0.2 of the headless number, which is what promoted it
+from "suspicious" to "real". Add these to any capture probe before escalating a finding.
+
+A third arm is worth knowing about: **`PUMP=n` forces n extra renders before capture.** Under
+`frameloop="demand"` with `preserveDrawingBuffer: true`, an un-repainted canvas keeps whatever it
+last held — at boot, the OUTSIDE orbit view of sky, city and ground, which is exactly what a
+"missing walls" frame looks like. `PUMP` distinguishes "never drawn" from "never repainted". Here
+twelve renders changed nothing, which killed the stale-buffer reading and left the real cause.
+
+## Test the feature a setting protects, through the app's own code path
+
+`preserveDrawingBuffer: true` carried a comment naming Export and Record as its reason. That
+comment was the only thing standing between a proven one-line fix and shipping it — and a comment
+is not evidence (meta-rule xvii), in either direction.
+
+The check that settled it drove **the app's own readback**, not a puppeteer screenshot:
+`document.querySelector('canvas').toDataURL('image/png')`, decoded and measured. With the flag on:
+1.4 MB, 100% non-black. With it off: 30 KB, 0.0% non-black — a fully blank PNG. The comment was
+right, and five call sites would have broken.
+
+Two things to copy:
+- **A puppeteer screenshot would NOT have caught this.** `page.screenshot()` uses the browser's own
+  compositor and works regardless of `preserveDrawingBuffer`. Only the in-page readback fails. When
+  a setting protects an in-app capture feature, exercise THAT API.
+- **Grep for every consumer before judging blast radius.** The comment named two features; the
+  codebase had five call sites doing the same `toDataURL` on the main canvas.
+
+## A mask built to exclude CHROME can exclude the SUBJECT — render it before quoting it
+
+`.75` measured "scene legibility" as the mean and near-black fraction over everything outside the
+modal card and the toolbar, and reported the after-dark first paint as 89% near-black. `.76`
+retracted it. Two compounding errors, both invisible in the number:
+
+- **The excluded card region WAS the subject.** In an unobstructed shot there is no card there —
+  the dollhouse is. The mask deleted the only part of the frame worth measuring.
+- **The included region was mostly void.** At night the area around the model is black because it
+  is 10 pm. A "near-black fraction" over that is a measure of the sky, not of legibility.
+
+The daytime control did not catch it: at 13:00 the background is bright, so the same broken mask
+returned a healthy-looking number, which made the night figure look like a real contrast.
+
+**Rules:** before quoting a masked statistic, (a) render the mask — or the masked pixels — and
+confirm it contains the thing being judged; (b) prefer a mask derived from the SUBJECT (a raycast
+mask, a bounding box of the model) over one defined by what you want to remove; and (c) when a
+statistic implies "you cannot see X", go and look at X in the frame before writing it up. Here
+`/tmp/fr-seq/22-4-unobstructed.png` shows a warmly lit, perfectly legible flat.
+
+## Every probe here suppresses the first-run path — so nobody had seen it
+
+`lib.mjs`-style probe heads seed `hdb_onboarded` in `evaluateOnNewDocument` and call
+`dismissLocationPrompt()` before `sceneReady`. That is correct for measuring the SCENE — overlays
+would cover it — but it means the first-run path is invisible to the entire probe suite. Seventy
+rounds of frames were all captured after onboarding was already dismissed.
+
+`first-run.mjs` is the deliberate opposite: it suppresses nothing, pins the WALL clock
+(`FAKE_HOUR=`, because the app boots `timeMode: 'system'`), and captures a timed sequence from
+first paint, printing the store's own first-run flags beside each shot. It found that the
+after-dark first paint is 89% near-black DURING onboarding — the exact failure
+`firstPaintDaylight.ts` was written to prevent — because the guard lights the interior while the
+boot camera is outside.
+
+**Two transferable points:**
+- **A guard is only as good as the VIEW it was validated in.** Interior-lights-on fixes the
+  interior; the first thing a user sees was the orbit exterior, and nobody had measured that.
+- **Mask the chrome, not the frame.** Quote the mean over the region outside the modal card and the
+  toolbar. A whole-canvas figure here is dominated by a large white card and says nothing about
+  whether the scene is legible.
+
+## Pin the page WALL CLOCK — the app boots in `timeMode: 'system'`
+
+Probes pin `setTimeMode('manual')` + `setManualHour(h)` and then reason as though time is
+controlled. It is not: that only pins the SCENE clock. The app boots in `timeMode: 'system'`, and
+anything keyed to the user's real time of day is invisible to a probe that never controls it —
+including which frames you get, if the state differs.
+
+That is how four rounds disagreed about whether `lightsMode` defaults to `off`: the runs that saw
+`off` happened to execute in the afternoon, and the ones that saw `on` in the evening. Nobody was
+wrong; nobody was controlling the variable.
+
+`lights-boot.mjs FAKE_HOUR=h` installs a `Date` stub via `evaluateOnNewDocument` so it is in place
+before any app code, then reads the store at `sceneReady`. **When a result refuses to reproduce
+across sessions, check the wall clock before blaming the probe** — and record the local time a run
+executed at, so a later disagreement can be reconciled instead of re-litigated.
+
+## "This looks like a removed feature that survived" — check the DATE and the SHAPE first
+
+`.73` found the app changing `lightsMode` by the wall clock, read `uiSlice.ts`'s note that the
+follow-the-sun `'auto'` mode was *removed 2026-07-24 because users found lights turning themselves
+on surprising*, and reported a regression. It was not one: the behaviour is
+`firstPaintDaylight.ts`, added in **2026-08** — AFTER the removal — and it is a different shape.
+
+- removed `'auto'`: **continuous** follow-the-sun, lights change as time passes.
+- shipped guard: **one-shot** at first paint, fresh seed only, both settings still untouched.
+
+Two cheap checks would have caught it before the write-up: **(a) when was the removal, and is the
+behaviour newer?** and **(b) does the observed behaviour have the same SHAPE as the removed one, or
+only the same trigger?** A shared trigger (the clock) is not a shared feature.
+
+Also worth copying: the instrumentation that localised it. Wrapping `setState` from
+`evaluateOnNewDocument` and logging every write that changes the key reported **zero** writes — which
+is itself the finding, because it proves the value is decided at INITIAL-STATE CONSTRUCTION, before
+`window.__store` exists, and sends you to the store's creation path instead of hunting setters.
+
+## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
+
+Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The
+converse is just as load-bearing: **accepting** a surprising finding needs evidence that the
+scene was in the state you think it was.
+
+DEFAULT-GLOOM (v0.31.5.54) came out of a `walk-tour.mjs` contact sheet in which almost every
+interior read dark grey at 13:00. The obvious explanation was the adaptive tier ladder demoting
+under the load of a long run — no IBL at `performance` would darken interiors in exactly that
+way, and it would have made the whole sheet an artefact of the harness. So that hypothesis was
+tested FIRST, with `tier-drift.mjs` printing the resolved tier / IBL / exposure / hour+timeMode
+at five points across 24 teleports. It came back `medium / IBL true / exposure 1.38 /
+13:00 manual`, unchanged throughout, and reproduced the same dark frame.
+
+The hypothesis lost, and that is what made the finding trustworthy — the dark sheet was now a
+measurement of the product rather than of the probe. Write the refutation down next to the
+result: a finding that survived a named, falsifiable attempt to explain it away is worth much
+more than one that was merely never challenged.
+
+## Separate compounding defaults ONE VARIABLE AT A TIME, with the shipped state as arm zero
+
+When several defaults could each be dimming (or flattening, or greying) the out-of-box picture,
+the instinct is to flip them all and report the difference. That number is unattributable and
+tends to over-credit whichever lever you were already suspicious of.
+
+`default-gloom.mjs` is the pattern: arm 0 is the **shipped defaults untouched** (meta-rule xxiv),
+arm 1 changes exactly one (`lightsMode: 'on'`), arm 2 adds exactly one more (curtains open), and
+**every arm prints its own `lightsMode` and tier beside its number** (meta-rule iv). The result
+was unambiguous — lights are worth 2.3–2.5x in all four rooms, and opening every curtain on top
+of that is worth between −0.4 and +4.6, i.e. nothing. Had the two been flipped together, the
+curtains would have inherited credit for the lights' effect, and the earlier
+WINDOW-TIME-INVARIANT note would have been promoted instead of demoted to MINOR.
+
+Note also what did NOT happen: nothing shipped. `lightsMode` defaulting to `'off'` at midday is
+a defensible product choice, and the daylight model demonstrably works (rooms brighten correctly
+when the switch flips). Measuring a lever precisely is a complete result; deciding to pull it is
+a product call, not a rendering one.
+
+## A MASK that spans many surfaces makes sigma lie — microcontrast is the honest metric
+
+PLASTER-STRETCH (v0.31.5.56) nearly shipped the wrong fix on a very tidy number. The wall mask
+covered 35.7% of the screen across dozens of wall segments at different brightnesses, so its
+**sigma measured segment-to-segment luminance**, not the within-surface blotching under
+investigation. Turning SSAO off collapsed that sigma by 58% and produced a complete, plausible
+story about N8AO's half-res noise.
+
+The `normalMap off` FRAME killed it: a perfectly smooth painted wall **with AO still on**. Of the
+three metrics only **microcontrast** — mean |neighbour difference| at full resolution — tracked
+the actual defect (0.442 -> 0.206 when the normal map went away, against 0.442 -> 0.421 when AO
+did). Sigma and mean are cell-mean statistics and are blind to exactly the high-frequency channel
+that "does this surface look right" usually turns on.
+
+- If the mask spans more than one lighting condition, **do not quote its sigma as surface
+  contrast.** Either report microcontrast, or narrow the mask to one segment.
+- The confirming sweep is worth the extra arm: reducing AO intensity 3.0 -> 1.0 moved the
+  blotch metric and the corner-grounding metric *together* (ratio 2.44 -> 1.67), i.e. the shipped
+  tuning was already optimal and there was no AO fix to find. A lever that trades one-for-one is
+  not a lever.
+
+## A texture's tiling can have a SECOND HOME, and editing the catalog is then a no-op
+
+The same round retuned `uvScale` on all eleven plaster wall paints and the drawn material came
+back **unchanged at `repeat=0.40`**. `procedural/generators.ts:buildPlasterMaps` carried its own
+hardcoded `repeat.set(1 / 2.5, 1 / 2.5)` — twice — under a comment asserting the very catalog
+value it was silently outranking.
+
+Two things saved this from shipping as a "fix" that moved no pixels:
+
+1. **Reading the tiling back off the DRAWN material**, not off the source. The probe printed
+   `normalMap 256x256 repeat=0.40` in both runs.
+2. **Meta-rule (xxv).** Three metrics identical to two decimals across a code change is not a
+   null result, it is a mutation that did not land — the same reflex that has fired four times
+   before on innocent cases fired here on a guilty one.
+
+Generalise: a shared/cached texture built once for a whole pattern is a plausible second home for
+any per-material parameter (`repeat`, `wrapS`, `anisotropy`, colour space). Grep for the literal,
+not just the field name.
+
+## A DEAD value stops being harmless the moment you make it live
+
+`COMPOSE_TEXTURES` carried `{ pattern: 'plaster', uvScale: [2.5, 2.5] }` for a long time under a
+comment claiming it mirrored the catalog. It was provably inert — the plaster branch in `cache.ts`
+ignored `def.uvScale` entirely — so nobody noticed when the catalog moved to 0.6 and it did not.
+
+The moment that ignored parameter was wired up (to fix the composer's dead tile-size slider), the
+stale copy would have put the old 2.5 m stretch straight back on every composed plaster finish.
+The fix and the regression were the same commit.
+
+**When you make a previously-ignored parameter load-bearing, re-audit every place that was free to
+drift while nobody was reading it.** Grep the field name AND the literal, and prefer importing one
+constant over restating a number in a second table — a comment asserting that two tables agree is
+not a mechanism that keeps them agreeing.
+
+## Phone probes must BOOT as the device, or they silently measure a desktop
+
+`scene/quality.ts` reads device capabilities **once at boot** (`readDeviceCapabilities` →
+`capabilityCeilingTier`, the veto that drops phones to the `performance` tier). Anything
+emulated *after* `page.goto` is therefore invisible to it, and the failure is silent: the
+probe reports a plausible tier and you conclude the app is mis-detecting phones when in
+fact it was never shown one. This cost a full round — `phone-view.mjs` booted at 1280x800
+and switched to phone viewports afterwards, which produced "every phone viewport settles
+on **medium**, so the documented phone veto never fires". Booted correctly the same app
+reports `matchMedia('(pointer: coarse)') = true`, `maxTouchPoints = 1` and a live tier of
+**`performance`** — the veto works exactly as documented.
+
+Three traps, all of which have to be handled together (`scripts/dev-probes/phone-view.mjs`
+is the working model):
+
+1. **`setViewport({ isMobile, hasTouch })` does NOT set `matchMedia('(pointer: coarse)')`.**
+   It sets device metrics and touch, and the pointer media feature stays `fine` — which is
+   the single signal `capabilityCeilingTier` leans on hardest.
+2. **Puppeteer's `page.emulateMediaFeatures` REJECTS `pointer`** outright with
+   `Error: Unsupported media feature: pointer` — its allowlist covers only
+   `prefers-color-scheme`, `prefers-reduced-motion`, `color-gamut` and `forced-colors`.
+   Use a raw CDP session instead:
+   `(await page.createCDPSession()).send('Emulation.setEmulatedMedia', { features: [{ name: 'pointer', value: 'coarse' }] })`.
+3. **A device-metrics override RESETS emulated media**, so the CDP call must come *after*
+   `setViewport` and *before* `goto`.
+
+Have the probe PRINT what the page sees (`matchMedia`, `maxTouchPoints`,
+`navigator.hardwareConcurrency`, `navigator.userAgentData?.mobile`) next to the resulting
+tier. That one line is what distinguishes "the app is wrong" from "the harness never
+delivered the signal", and the general rule is worth keeping: **before filing a defect
+against the app, confirm the harness actually delivered the input the code reads.**
+
+Note also that the phone tier is `performance` — flat shading, no AO, no IBL, no post — so
+a probe that accidentally boots as a desktop is not just reporting the wrong tier label, it
+is rendering a materially different image from the one most mobile users see.
 
 ## Scenario mode (recommended — use this for anything multi-step)
 
@@ -2625,3 +3221,105 @@ threshold, but the long continuous rail exceeded it (104 cm²) and
 balusters/rail to `width/2 - RAIL_T` (a ~2 cm gap from the tread edge) — also more
 realistic (a set-in guard). Re-shoot after ANY geometry tweak: the inset is 2 cm and
 invisible-looking but the harness is exact.
+
+**Gotcha — a probe that HARDCODES a value derived from a source constant goes stale
+SILENTLY, and keeps printing a plausible number.** `wood-detail.mjs`'s arm O called
+`setSceneSaturation(0.94)` with the comment *"`hueSatSaturation` = BASE_POST_SATURATION
+(0.06) + (sceneSaturation - 1), so 0.94 puts the HueSaturation pass at exactly 0"*. That
+was correct when it was written. POST-SAT-NEUTRAL then shipped `BASE_POST_SATURATION = 0`
+in `src/scene/look.ts`, so 0.94 resolved to `0 + (0.94 - 1) = -0.06`: the arm quietly
+stopped being *"post saturation off"* (by then a no-op) and became *"0.06 BELOW neutral"*.
+It never errored. It reported a 0.037 chroma drop that reads exactly like a live, shippable
+lever — when the honest reading is that the lever is already pulled.
+· **The app side was fine and TESTED** (`look.colorGrade.test.ts` pins
+  `BASE_POST_SATURATION` to 0). The drift lived entirely in the dev probe, which is outside
+  the test net — so "the constant is unit-tested" does NOT protect its consumers in `scripts/`.
+· **Symptom to watch for:** an arm whose label describes a state the app already ships should
+  read a `meanAbsDiff` of ~0. If a supposed no-op arm moves the picture, the arm is lying about
+  what it does — do not write up the delta until you have re-derived the arm from the constant.
+· **Fix pattern:** name the magic number after what it historically WAS
+  (`HISTORICAL_POST_SATURATION = 0.06`), comment it back to the live constant, and re-point the
+  arm at the question still open — here, what the shipped fix keeps buying (chroma 0.601 →
+  0.643 restoring the pre-fix baseline, i.e. the fix is worth 0.042 on wood pixels).
+· **A Node-scope constant is NOT visible inside `page.evaluate`.** Thread it through as an
+  argument (`page.evaluate((k, histPostSat) => …, key, HISTORICAL_POST_SATURATION)`) or the arm
+  dies with a `ReferenceError` in browser context. Same family as "when slicing a probe head,
+  keep the IMPORTS".
+
+**Gotcha — an NDC POINT is NOT portable between probes, and a bad seed used to
+produce a confident number for the SKY.** Each probe sets up its own orbit camera,
+so a point measured off `chroma-audit`'s orbit frame does not address the same
+geometry in `surface-detail` or `pick-surface`. Copying NDC across probes in `.79`
+put a `surface-detail` seed on the sky dome (`Sky.tsx`, unlit `BackSide`
+`MeshBasicMaterial`, **198.82 m** out). The probe reported the hit — it always did —
+then carried on, masked **58.4%** of the frame as "the painter", and printed
+`microcontrast=0.481` as if it were a surface reading. Reporting a suspicious seed is
+not the same as refusing it.
+· **`surface-detail.mjs` now REFUSES such a seed** (`SEED_MAX_DISTANCE`, default 60 m —
+  the flat is ~11 m across and the orbit camera sits ~17 m out): it exits 1 with
+  "seed hit the BACKDROP, not the flat … NDC is not portable between probes". The
+  `DEF=` path is untouched — the control arm `DEF=wardrobe-3door` still measures, and
+  agrees with `wood-detail`'s baseline on all five statistics (chroma 0.601, 97.8%
+  past 0.35, mean 92.2, sigma 17.79, microcontrast 0.86).
+· **Aim by RAYCAST, not by eye.** `.79` burned four attempts on hand-placed NDC and
+  hand-placed pixel boxes: picks meant for a wall top kept landing on the wall FACE,
+  and hand-boxed "microcontrast" put an unmapped slab (2.745) ABOVE a mapped face
+  (1.544) because the boxes straddled edges and railings. Prefer `DEF=`; when you must
+  use a POINT, confirm it with `pick-surface` **in the same probe's framing** first.
+· **Simultaneous contrast will lie to you about COLOUR.** The wall tops in the boot
+  frame read as cool slate against the warm cream faces. Measured, every one of them is
+  WARM (blue minus red is -18 to -32, the same sign and similar magnitude as the faces).
+  Sample the pixels before writing "it looks blue".
+
+**Gotcha — `MASK=painter` collapsed to a SINGLE material for anything UNMAPPED.**
+The painter mask groups by shared map SOURCE, which is right for clones that share a
+texture. With no map there is no source to share, so the grouping fell back to the
+seed material OBJECT alone. The wall body is **34 sibling slabs that share a look
+without sharing a texture**, so `.80` first measured **10 of 5760 cells (0.2%)** for a
+class the census puts at 19% of the boot pose — a microcontrast over 10 cells, quoted
+with no warning. Unmapped materials now group by EQUIVALENCE (same type, albedo,
+roughness, metalness, and equally unmapped): the same run then masks **515 cells
+(8.9%)** with all 34 materials. The mapped path is unchanged — control arm
+`DEF=wardrobe-3door` still reads 17 materials, 402 cells, microcontrast 0.862 exactly.
+· **`COLOUR=<hex>` seeds `surface-detail` with no coordinates at all.** The apartment
+  SHELL has no `defId`, and after `.79` an NDC POINT is known not to be portable
+  between probes — so neither existing path could reliably address it. `COLOUR=f1f0ec`
+  found 34 meshes, matching `class-id.mjs` exactly, which is how the seed was validated.
+· **The same MODE name is NOT the same camera.** `surface-detail MODE=orbit` frames the
+  flat smaller than `chroma-audit MODE=orbit`, so the identical class reads 8.9% in one
+  and 19.0% in the other. Quote the PROBE as well as the pose.
+· **A microcontrast over a class of narrow separated bands is EDGE-dominated.** The wall
+  body's 1.408 beats both mapped benchmarks (plaster 0.961, wood 0.862), but much of it
+  is slab boundaries against bright interior faces, not surface detail. Read it as an
+  upper bound; it refutes "this reads flat", it does not prove "this is richly textured".
+
+**Gotcha — a probe that sets `timeMode:'manual'` still inherits the REAL wall clock's
+daylight guard.** `ensureDaylightFirstPaint` runs at FIRST PAINT off the system clock,
+BEFORE a probe switches to manual time. So a run started after 18:00 local boots with
+`lightsMode:'on'` and every arm silently inherits it. In `.83`, launched at 22:25, all
+four hours of a boot sweep resolved to `lights=on` — including the "13:00" arm meant to
+represent an unlit daytime boot — and the intended lights-off control read byte-identical
+to its pair, a no-op (meta-rule lxxxiii). The same script run at 10:00 would have produced
+different numbers from identical arguments.
+· **`chroma-audit` now takes `LIGHTS=on|off` and prints `resolved <tier>/<lights>/<mode><hour>`.**
+  Pass it explicitly and READ the resolved field; never infer the lighting state from `HOUR=`.
+  `walk-tour` already had this option — when a probe lacks it, that is a gap, not a default.
+· **This is why "RECORD THE LOCAL TIME of every run" is in the setup rules.** It is not
+  bookkeeping: the wall clock silently changes what the app boots into.
+
+**Gotcha — `default-gloom.mjs`'s arms COLLAPSED when DEFAULT-GLOOM shipped (v0.31.5.86).**
+The probe exists to compare a `default` arm against a `lightson` arm. Now that the
+first-paint guard switches the lights on at every hour, the default IS lights-on: a
+run prints `lightsMode=on` for all three arms, so `default` vs `lightson` is a no-op
+and any delta between them is noise. Do NOT quote that comparison as a payoff figure.
+The daytime payoff on record is `.54`'s 2.3–2.5x, measured before the change.
+· **To exercise the guard at all you must fake the SYSTEM clock, not the manual hour**
+  (meta-rule xcviii). `ensureDaylightFirstPaint` requires `timeMode === 'system'`, so
+  any probe that calls `setTimeMode('manual')` — `chroma-audit`, `surface-detail`,
+  `walk-tour` — cannot trigger it. `lights-boot FAKE_HOUR=` and `first-run FAKE_HOUR=`
+  pin the page wall clock before load and are the only instruments that can.
+· **`lights-boot` prints `time=system/12` regardless of `FAKE_HOUR`** — that field is
+  `timeMode`/`manualHour`, and `manualHour` keeps its default while the mode is
+  `system`. Two arms at different faked hours therefore print identical header lines;
+  that is NOT a failed mutation, but it does mean the header cannot confirm the fake
+  landed. Confirm it by A/B against the other code path instead.

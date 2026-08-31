@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { UI_INITIAL } from '../slices/uiSlice'
 import { useStore } from '../store'
 import { loadEditorPrefs, watchEditorPrefs } from './editorPrefs'
 
@@ -57,7 +58,8 @@ describe('editorPrefs', () => {
   it('falls back to safe values for invalid/missing backdrop + uiMode', () => {
     localStorage.setItem(KEY, JSON.stringify({ backdrop: 'martian', uiMode: 'wizard' }))
     loadEditorPrefs()
-    expect(useStore.getState().backdrop).toBe('city')
+    // Falls back to the APP DEFAULT, not a hardcoded literal (WINDOW-SKY-DEFAULT).
+    expect(useStore.getState().backdrop).toBe(UI_INITIAL.backdrop)
     // Default interface is Simple; only an explicit 'pro' opts into the full UI.
     expect(useStore.getState().uiMode).toBe('simple')
   })

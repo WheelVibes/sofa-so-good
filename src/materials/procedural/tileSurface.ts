@@ -52,7 +52,12 @@ export const GROUT_ROUGHNESS = 0.92
 const PEEL_AMPLITUDE = 0.06
 /** Lattice frequency of the orange-peel fbm (integer, see `noise.ts`). Fine so it
  *  reads as a sheen micro-ripple, not a resolvable bumpy texture, at the cap. */
-const PEEL_FREQ = 90
+// NYQUIST-AUDIT: was 90 = 1.41 cycles/texel at 256 (the Performance tile size),
+// so the glaze "undulation" was per-texel noise on the HEIGHT rather than a
+// visible ripple. Unthresholded, unlike the pore fields, so there is no sparse-
+// speckle defence for it — but the amplitude is only 0.06, so this is a
+// correctness fix with no claimed visual win. 12 gives ~0.19 cycles/texel.
+const PEEL_FREQ = 12
 
 /**
  * Build the orange-peel sampler for a tile face. Returns a function giving a

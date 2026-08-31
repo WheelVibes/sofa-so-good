@@ -21,6 +21,7 @@ import {
   DEFAULT_SCENE_SATURATION,
   DEFAULT_SCENE_WARMTH,
 } from '../../scene/look'
+import { RENDER_TIERS, type RenderTier } from '../../scene/quality'
 import {
   DEFAULT_TONE_MAPPING_SETTING,
   TONE_MAPPING_SETTINGS,
@@ -40,6 +41,8 @@ export function loadQualityPrefs(): void {
       overrides?: Record<string, unknown>
       userSet?: boolean
       assetTier?: 'low' | 'medium' | 'high' | null
+      autoMaxTier?: 'performance' | 'medium' | 'high' | 'maximum' | null
+      autoSettled?: boolean
       toneMapping?: string
       exposure?: number
       sceneWarmth?: number
@@ -67,6 +70,17 @@ export function loadQualityPrefs(): void {
       qualityOverrides: (p.overrides as never) ?? {},
       // If they'd customised before, keep auto-adjust off so we honour it.
       qualityUserSet: !!p.userSet,
+      // TIER-ADAPTIVE: the learned ceiling (the tier that FAILED on this
+      // device). Only accept a value the current tier union knows.
+      autoMaxTier: RENDER_TIERS.includes(p.autoMaxTier as RenderTier)
+        ? (p.autoMaxTier as RenderTier)
+        : null,
+      // A restored tier is a SETTLED tier — the adaptive ladder already ran on
+      // this device. `QualityController` reads this to skip its one-time
+      // capability boot pick, which would otherwise stomp the settled value back
+      // to the conservative first-visit tier on every reload (so a device that
+      // had earned High would restart at Medium and re-probe, every visit).
+      qualityAutoSettled: true,
       // null = Auto (follow the render tier).
       assetTier: p.assetTier ?? null,
       toneMapping,
@@ -107,6 +121,7 @@ export function watchQualityPrefs(): void {
       overrides: s.qualityOverrides,
       userSet: s.qualityUserSet,
       assetTier: s.assetTier,
+      autoMaxTier: s.autoMaxTier,
       toneMapping: s.toneMapping,
       exposure: s.exposure,
       sceneWarmth: s.sceneWarmth,

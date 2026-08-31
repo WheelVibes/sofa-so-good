@@ -333,7 +333,7 @@ same change that reshapes a system.
   plain procedural sky with no surroundings (`isPhotoBackdropActive(kind, cameraMode, hasCustom)` gates it;
   `Sky.tsx` hides its dome when active). Presets `city/dusk/park/hills` bake procedurally
   (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); the `sky` preset is a
-  **sun-driven procedural sky** (RD-412, `proceduralSky` flag, pro tier) baked from the pure analytic Preetham
+  **sun-driven procedural sky** (RD-412, `proceduralSky` flag, simple tier — it is the DEFAULT `backdrop` since WINDOW-SKY-DEFAULT v0.31.5.92, and a pro flag is forced off in Simple) baked from the pure analytic Preetham
   core `lighting/skyGradient.ts` (`skyRadiance`/`paintSkyEquirect`) via `backdropEquirect.ts`
   `bakeSkyEquirect(sunDir, turbidity)`, re-baked (debounced + old texture disposed) when the sun crosses the
   pure `lighting/skyRebuild.ts` `shouldRebuildSky` threshold — **walk-mode `scene.background` only, never
@@ -963,15 +963,34 @@ same change that reshapes a system.
   table→bowl/magazines, bed→cushions, nightstand→plant/candle, desk→plant/books,
   sideboard/console→frames/sculpture). Skip via `withDecor=false`.
 - **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
-  Maximum. **Performance is the default for everyone** (flat: no shadows/IBL/post, DPR 1);
-  Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+HueSat+Vignette+SMAA); Maximum=+cinematic
+  Maximum. **The boot tier is capability-detected** (TIER-AUTODETECT, `tierForCapabilities`,
+  pure + unit-tested) is now only a best-effort **veto** — software rasteriser / phone-tablet /
+  no-WebGL2 / <4 cores → Performance, everything else → High meaning "no opinion". The tier is
+  actually chosen by MEASURING frames (`scene/adaptiveTier.ts` + `scene/frameCost.ts`,
+  TIER-ADAPTIVE): first visit boots `initialAutoTier` (conservative Medium), then the ladder steps
+  both ways on p90 render COST per displayed frame (never frame rate — under `frameloop="demand"`
+  rate measures demand, not capability, and vsync clamps it). Promotion is a probe; oscillation is
+  prevented by a persisted learned ceiling (`autoMaxTier` = the rung that failed). **Maximum is
+  never auto-selected.** Measured p90 cost at 2560x1600: performance 4.7ms / medium 6.0 / high 8.9
+  / maximum 11.7, budget 16.7ms (`scripts/dev-probes/frame-time.mjs`).
+  Performance is flat (no shadows/IBL/post, DPR 1);
+  Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+**ToneMapping**+HueSat+Vignette+SMAA);
+  Maximum=+cinematic
   (full-res AO + film grain + chromatic aberration, `EffectsImpl` props from `aoFullRes`/`cinematic`).
   `QualityController` only steps
-  **down** for 30fps, off once pinned. **Asset quality** = separate `AssetTier`
+  **down** for 30fps, off once pinned — so an over-optimistic detection self-corrects. It is
+  deaf for `FPS_GUARD_WARMUP_MS` (5s) after `sceneReady`: boot renders continuously at its least
+  representative, and it used to walk a freshly detected tier straight back down. **Asset quality** = separate `AssetTier`
   (low/medium/high=Original LOD), follows render (`null`=Auto) but pinnable + FPS-immune.
   **Tone-mapping look** (`look.ts` `ToneMappingMode` Filmic/AgX/Neutral → three constant via
   `toneMappingThree.ts`; `Lighting` sets `gl.toneMapping`+exposure per-frame): user-selectable
-  view transform, all tiers, persisted in qualityPrefs. **Context-aware default (RD-404,
+  view transform, all tiers, persisted in qualityPrefs. **On the post tiers the view transform
+  is a composer effect, not `gl.toneMapping`** (TONE-POST, `toneMappingPost.ts`): three applies
+  `renderer.toneMapping` only when rendering to the DEFAULT framebuffer, so under
+  `<EffectComposer>` High/Maximum previously ran with no view transform at all (31.8% of the
+  frame clipped to white vs 3.4% below). `EffectsImpl` mounts `<ToneMapping>` from the same
+  `resolveToneMapping` call, and pass order is scene-referred (AO/DoF/Bloom) → tone map →
+  display-referred (HueSat/CA/Vignette/grain/SMAA). **Context-aware default (RD-404,
   `toneContext.ts`):** the stored setting is `ToneMappingSetting` = the 3 operators + `'auto'`
   (the default); `resolveToneMapping(setting, ctx)` picks Neutral while the FinishPicker is open
   (`selectedRoomId != null` — accurate product colour), AgX for a photo context, else filmic — and

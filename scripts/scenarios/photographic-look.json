@@ -1,0 +1,107 @@
+{
+  "name": "photographic-look",
+  "description": "PHOTO-FILL: the Photographic switch ships in a production-shaped build (the flag defaults ON so the CONTROL exists), the LOOK is off until toggled, and toggling it never writes the user's Lights switch. Simple mode only \u2014 Simple is the default and the harder case (a `pro`-tier flag would be forced off there); presence in BOTH modes is pinned by the unit test in `src/scene/photographicFill.test.ts`.",
+  "url": "http://localhost:5199/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13); window.__store.getState().setTimeMode?.('manual')"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000,
+      "failMessage": "scene never became ready"
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "flag-ships-the-control",
+      "waitFor": {
+        "store": "state.featureFlags.photographicFill === true"
+      },
+      "timeout": 5000,
+      "failMessage": "the flag must default ON \u2014 it ships the control, not the look"
+    },
+    {
+      "name": "look-is-off-by-default",
+      "waitFor": {
+        "store": "state.photographicLook === false"
+      },
+      "timeout": 5000,
+      "failMessage": "the LOOK must be off by default (DEFAULT-GLOOM is the user's call)"
+    },
+    {
+      "name": "open-scene-menu",
+      "click": {
+        "text": "Scene"
+      }
+    },
+    {
+      "name": "switch-present-simple",
+      "waitFor": {
+        "css": "[aria-label=\"Photographic look\"]"
+      },
+      "timeout": 8000,
+      "failMessage": "Photographic switch missing in Simple mode"
+    },
+    {
+      "name": "shot-simple",
+      "screenshot": "photographic-scene-menu-simple"
+    },
+    {
+      "name": "toggle-on",
+      "click": {
+        "selector": "[aria-label=\"Photographic look\"]"
+      }
+    },
+    {
+      "name": "look-on",
+      "waitFor": {
+        "store": "state.photographicLook === true"
+      },
+      "timeout": 5000,
+      "failMessage": "clicking the switch did not turn the look on"
+    },
+    {
+      "name": "lights-untouched",
+      "waitFor": {
+        "store": "state.lightsMode === 'on'"
+      },
+      "timeout": 5000,
+      "failMessage": "Photographic must never write the user's Lights switch"
+    },
+    {
+      "name": "shot-on",
+      "screenshot": "photographic-on"
+    },
+    {
+      "name": "toggle-off",
+      "click": {
+        "selector": "[aria-label=\"Photographic look\"]"
+      }
+    },
+    {
+      "name": "look-off",
+      "waitFor": {
+        "store": "state.photographicLook === false"
+      },
+      "timeout": 5000
+    }
+  ]
+}

@@ -79,20 +79,33 @@ describe('furniture catalog/DLC material finishes', () => {
   // ── Default-finish resolution (C264) ────────────────────────────────────
 
   it('user override wins over the catalog default', () => {
-    // dining-table-4 defaults frameFinish/finish to mat:floor-wood-oak.
     // A user who explicitly chose 'painted' must keep painted — defaultParamProps
     // only reflects the schema default, and the store carries the merged props.
     const diningDef = BUILTIN_CATALOG['dining-table-4'] as ParametricDef
     const defaults = defaultParamProps(diningDef)
-    // Default should now be the CC0 oak mat:
-    expect(defaults.finish).toBe('mat:floor-wood-oak')
+    expect(defaults.finish).toBe('wood')
 
     // A user override stays untouched — the store merges on top of defaults.
     const userProps = { ...defaults, finish: 'painted' }
     expect(userProps.finish).toBe('painted')
   })
 
-  it('key furniture categories default to mat:floor-wood-oak', () => {
+  // FURNITURE-WOOD-SCALE — reverses C264, which set these defaults to
+  // `mat:floor-wood-oak` and described it as "the CC0 oak mat". It is not: that id
+  // is `kind: 'procedural'`, pattern `wood`, `uvScale: [1.9, 1.2]` METRES — the
+  // FLOOR plank painter. Applied to a 0.55 m coffee-table top it is a ~3x scale
+  // mismatch, and it rendered as saturated orange-red decking: measured over a
+  // raycast mask at walk/Medium/09:00, chroma **0.669 with 96.9% of its pixels
+  // past 0.35 saturation** (the whole frame sits at ~0.18 and the sofa at 0.220),
+  // versus **0.474 / 84.4%** for the furniture-scale `wood` painter, which also
+  // has by far the calmest microcontrast (1.50 vs 3.51). Two other candidates were
+  // measured and rejected on sight: `mat:floor-wood-ash` (0.243, but harsh
+  // driftwood streaking) and `mat:floor-wood-maple` (0.313, and an animal-print
+  // blotch — its microcontrast of 8.66 was noise, not grain).
+  // Secondary defect this also fixes: `mat:floor-wood-oak` was NOT among the
+  // `finish` enum's own `options`, so the default was unselectable and a user who
+  // changed the finish could never get back to it. `'wood'` is the first option.
+  it('key furniture categories default to the furniture-scale wood painter', () => {
     const keyItems = [
       'bed-single',
       'bed-double',
@@ -111,7 +124,7 @@ describe('furniture catalog/DLC material finishes', () => {
       const defaults = defaultParamProps(def)
       // Either frameFinish or finish should be the CC0 oak default.
       const finish = defaults.frameFinish ?? defaults.finish
-      expect(finish, `${id} should default to mat:floor-wood-oak`).toBe('mat:floor-wood-oak')
+      expect(finish, `${id} should default to mat:floor-wood-oak`).toBe('wood')
     }
   })
 

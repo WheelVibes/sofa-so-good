@@ -438,3 +438,120 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (no new field on `FurnitureItem`), and `scene/cameras/FirstPersonCamera.tsx` for the walk-mode
   ground-height follow. Plan-room feature only — the curated default flat has no `floorLevelMm`
   concept and is unaffected.
+
+- **Swapping to a SMALLER plan strands every ATTACHED piece outside the home
+  (PLAN-SWAP-STRANDED, v0.31.5.43 — measured, NOT fixed; the one-line fix makes it
+  worse).** Three user paths change the architecture, and only one keeps furniture:
+  · the **template picker** calls `replaceFloorPlan(tpl, { furniture: 'clear' })` behind a
+    danger confirm that names the item count and mentions undo — nothing can strand, so the
+    "beds in corridors after switching apartment type" worry is REFUTED for that path;
+  · the **SH3D import** calls the low-level `setFloorPlan` but `setItems` the imported
+    file's own furniture first, in one history step — it owns the furniture exactly as that
+    API's contract requires;
+  · **`replaceFloorPlan(plan, { furniture: 'rehome' })`** is the only path where furniture
+    crosses an architecture change (`resetFloorPlan`, and loading a SAVED apartment, where
+    keeping the user's pieces is the entire point).
+  Measured on the rehome path with `scripts/dev-probes/plan-swap-rehome.mjs` — furnished
+  default 4-room (87 items), reset between arms so each swap starts identical:
+
+  | target plan            | centre outside every room | footprint crosses out |
+  | ---------------------- | ------------------------- | --------------------- |
+  | *(baseline, 4-room)*   | 2                         | 7                     |
+  | `tpl-condo-penthouse`  | 4                         | 6                     |
+  | `tpl-hdb-2room`        | **32**                    | **46**                |
+  | `tpl-studio`           | **37**                    | **48**                |
+
+  A similar-sized plan is fine (penthouse ≈ baseline). **Those are item COUNTS, not percentages
+  — 37 of 87 items is ~43%** (an earlier revision of this paragraph read "~37% of the home",
+  conflating the count with a percent; corrected v0.31.5.90). Swapping to a much smaller one
+  leaves **dozens of pieces floating in the void** — the frame shows curtains, a ceiling
+  fan, a TV, a rug with its books and candle, wall art, a range hood and a cove light
+  hanging beside the shell, at coordinates like `wall-art@12.5,6.55` in a plan whose rooms
+  end at x = 5.8.
+  · **The cause is the skip predicate, and it is CORRECT as written.**
+    `floorPlanSlice` passes `skip: (defId) => def.mounted || def.noClip`, and
+    `rehomeStrandedItems` only relocates what is left — free-standing floor furniture.
+    Everything ATTACHED to something else keeps its old coordinates: `mounted` (25 defs:
+    wall art, sconces, cove light, range hood, ceiling fan, aircon…) is positioned against a
+    WALL, and `noClip` (25 defs) is overwhelmingly SURFACE DECOR resting on other furniture
+    (book stacks, vases, cushions, tea set, tabletop decor) plus window/door attachments
+    (curtains, roller blinds, pet gate). Only `rug` and `pet-cooling-mat` are genuine floor
+    pieces in that set.
+  · **So do NOT "fix" this by widening the skip.** Re-homing every `noClip` def would rip
+    the decor off tables and scatter it to room centres — cushions and tea sets sitting on
+    the floor mid-room is worse than the current failure, and it would regress the common
+    case (a same-size saved plan) to buy the rare one. Moving `mounted` pieces to a room
+    centre floats them in mid-air for the same reason.
+  · **What SHIPPED instead (v0.31.5.90, on the user's decision): the confirm now tells the truth
+    and names the number.** The two rehome paths — `confirmResetPlanToDefault` and
+    `confirmLoadSavedPlan` in `ui/planActions.ts` — already had danger confirms, so nothing needed
+    adding; what they SAID was wrong. Both promised "Your furniture is kept — anything left outside
+    a room is moved back inside", which is only true of free-standing floor pieces. `rehomeClause`
+    now counts the pieces that will actually be left outside via the pure
+    `countStrandedAfterRehome` and words it honestly ("N wall-mounted or surface items … stay where
+    they are and may end up outside the new plan"), computed against the plan ACTUALLY being loaded
+    so a same-sized apartment still reads reassuringly. The skip predicate is untouched.
+  · **The predicate itself is now shared, which this file's own no-drift claim had assumed.**
+    `rehomeItems.ts`'s header says the load path and `replaceFloorPlan` are shared "so the two
+    can't drift" — but each passed its OWN inline copy of `!!def?.mounted || !!def?.noClip`. Both
+    now import `furniture/anchoredDefs.ts:isAnchoredToNonFloor`, as does the count, so the number a
+    dialog quotes is derived from the same rule that decides what moves.
+  · **The real STRUCTURAL fix is still a product decision and is deliberately NOT taken
+    here:** an attached piece needs to move WITH its host (or be re-anchored to a wall in
+    the new plan, or dropped with consent), which means modelling the host relationship that
+    `rehomeStrandedItems` currently cannot see. Note the blast radius is bounded — the
+    picker clears, the importer replaces, and a saved apartment is usually about the size of
+    the one it replaces, which is the penthouse row above.
+
+## Starter templates: room rectangles are NOT walls (v0.31.5.109)
+
+A `PlanRoom` is a labelled rectangle for floor finish, area and furnishing. It builds **nothing**
+in 3D. The shell derives every wall from `plan.walls` and does **not** synthesise partitions from
+room rectangles — measured, not assumed: the boot plan's bathrooms render fully enclosed because
+`defaultPlan.ts` draws walls for them, while `tpl-hdb-jumbo`'s render as one open volume (two
+toilets and a basin visible from the bed) because it does not.
+
+Consequences when authoring or editing a template:
+
+- **Declaring a bathroom does not enclose it.** Nine of the twenty shipped templates declare a
+  `bath`/`powder` room that shares one wall-free volume with other rooms; `tpl-hdb-4room` has 9
+  walls total and its two baths have none of their own. These are ratcheted **by name** in
+  `templateEnclosure.test.ts`. **Never add an entry to that list to silence a failure** — a new
+  entry means a plan ships a bathroom nobody can close the door on. Fixing one is a required edit
+  to the list, which is the point.
+- **A room rectangle must not span a wall.** Rects conventionally overhang the wall centreline they
+  sit on by up to ~0.2 m, so the guard only flags a wall further than 0.35 m from BOTH parallel
+  edges. Two masters are currently bisected by a corridor wall (`jb-master`, `g3-master`) and their
+  rects overrun it into the corridor beyond.
+- **Unassigned floor is normal.** Every template has non-room circulation (jumbo 35.3 m2, the
+  penthouse 15.9 m2 as a connected corridor network, `tpl-loft/lf-up` 24.2 m2 which is probably an
+  intentional double-height void). Do NOT "fix" a gap without checking the render first.
+- Re-drawing a shipped layout to fix any of this is a **content decision** — see
+  `docs/open-graphics-decisions.md` item (f), not a unilateral edit.
+
+## `perimeter()` winds N/E forwards and S/W BACKWARDS (v0.31.5.113)
+
+`templates/shared.ts:perimeter(prefix, W, D)` emits the four external walls as
+`n: a→b`, `e: b→c`, `s: c→d`, `w: d→a` where `a=[T,T] b=[W-T,T] c=[W-T,D-T] d=[T,D-T]`. So **north
+runs +x, east runs +z, but south runs −x and west runs −z.**
+
+`window(id, wallId, offset, width)` measures `offset` from that wall's OWN start. A south- or
+west-wall offset written as if it were an absolute x/z coordinate therefore lands **mirrored**.
+Measured across all 20 templates: **55 windows change room if their offset is read from the other
+end** — and three of them are named for a master bedroom, land in the KITCHEN as authored, and land
+in the master when flipped (`h4-m-win`, `h5-m-win`, `ex-m-win`).
+
+The visible result: `tpl-hdb-4room`'s Master Bedroom has four blank walls and no window while its
+Kitchen has two — seen in frames, not inferred. **15 of 44 template bedrooms own no window**, 7 of
+them masters; ratcheted by name in `bedroomWindow.test.ts`. Fixing them means moving glass in
+shipped reference plans — `docs/open-graphics-decisions.md` item (h), not a unilateral edit.
+
+**The same trap hits DOORS.** Of the 19 templates' `*-main` doors, **8 open into a bedroom or a
+bathroom** — `tpl-hdb-4room`'s front door opens into its master bedroom, which you can see in a walk
+as two doors in that room, one of them on the south EXTERNAL wall. Ratcheted in
+`mainDoorRoom.test.ts`; item (i).
+
+**When adding ANY opening to a S or W wall, compute the offset from the wall's start**, or check it
+with a room probe. A convenient absolute coordinate is the trap. There are **41 openings on S/W
+walls** today (19 doors, 22 windows), so re-winding `perimeter()` on its own would move all of them
+at once — the winding fix and the offset corrections are one edit, not two.

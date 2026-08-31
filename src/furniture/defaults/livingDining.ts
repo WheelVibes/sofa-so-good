@@ -167,7 +167,13 @@ export const livingDining: LayoutEntry[] = [
     defId: 'curtains',
     position: [10.82, 1.42],
     rotation: 0,
-    props: { width: 2.7, height: 2.55, color: '#b9b0a0', standoff: CURTAIN_SILL_STANDOFF },
+    props: {
+      width: 2.7,
+      height: 2.55,
+      color: '#b9b0a0',
+      standoff: CURTAIN_SILL_STANDOFF,
+      drawAmount: 0,
+    },
   },
   // Cove LED along the east wall (false-ceiling lip over the lounge zone).
   {

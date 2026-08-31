@@ -98,11 +98,19 @@ export function hdb4Room(): FloorPlan {
       iwall('h4-m-n', [T, 6.5], [3.6, 6.5]),
     ],
     openings: [
-      door('h4-main', 'h4-s', 6.4),
+      // MAIN-DOOR-ROOM (v0.31.5.115): was 6.4, which put the front door at
+      // x=2.25 — inside the MASTER BEDROOM. `h4-s` runs east→west, so the offset
+      // is measured from x=9.1; 9.0 - 6.4 - 0.9 = 1.7 is the exact mirror and
+      // lands the door at x=6.95, in the Living / Dining room.
+      door('h4-main', 'h4-s', 1.7),
       door('h4-master', 'h4-m-n', 1.0),
       window('h4-kit-win', 'h4-n', 1.4, 1.6),
       window('h4-b2-win', 'h4-w', 4.0, 1.4),
-      window('h4-m-win', 'h4-w', 7.4, 1.6),
+      // BEDROOM-WINDOW (v0.31.5.115): was 7.4, which put the master's window at
+      // z=1.5 — in the KITCHEN, leaving the master with four blank walls.
+      // `h4-w` runs north→south from z=9.7; 9.6 - 7.4 - 1.6 = 0.6 mirrors it to
+      // z=8.3, inside the Master Bedroom.
+      window('h4-m-win', 'h4-w', 0.6, 1.6),
       window('h4-liv-win', 'h4-e', 5.0, 2.0),
     ],
     rooms: [
@@ -140,7 +148,12 @@ export function hdb5Room(): FloorPlan {
       door('h5-master', 'h5-m-n', 1.0),
       window('h5-kit-win', 'h5-n', 1.6, 1.8),
       window('h5-b2-win', 'h5-w', 4.4, 1.5),
-      window('h5-m-win', 'h5-w', 8.2, 1.6),
+      // BEDROOM-WINDOW (v0.31.5.116): was 8.2, which put the master's window at
+      // z=1.9 — in the KITCHEN. `h5-w` runs north→south from z=10.9 (len 10.8),
+      // and measuring the wall shows the master occupies offsets 0.4-3.9 while
+      // the kitchen occupies 7.8-10.8; 10.8 - 8.2 - 1.6 = 1.0 is the exact
+      // mirror and lands the glass at z=9.1, inside the Master Bedroom.
+      window('h5-m-win', 'h5-w', 1.0, 1.6),
       window('h5-liv-win', 'h5-e', 6.0, 2.2),
     ],
     rooms: [
@@ -184,12 +197,20 @@ export function hdbExecutive(): FloorPlan {
       iwall('ex-study-s', [7.0, 2.6], [W - T, 2.6]),
     ],
     openings: [
-      door('ex-main', 'ex-s', 8.4),
+      // MAIN-DOOR-ROOM (v0.31.5.118): was 8.4, which put the front door at
+      // offsets 8.4-9.3 — inside the MASTER BEDROOM (which lines 8.0-11.4 of
+      // this wall). `ex-s` runs east→west (len 11.4); 11.4 - 8.4 - 0.9 = 2.1 is
+      // the exact mirror and lands it in ex-living, which lines 0.1-4.3.
+      door('ex-main', 'ex-s', 2.1),
       door('ex-master', 'ex-m-n', 1.0),
       door('ex-b2', 'ex-b2-s', 1.0),
       window('ex-kit-win', 'ex-n', 1.2, 1.8),
       window('ex-b2-win', 'ex-w', 7.2, 1.6),
-      window('ex-m-win', 'ex-w', 9.8, 1.8),
+      // BEDROOM-WINDOW (v0.31.5.118): was 9.8, which put the master's window at
+      // offsets 9.8-11.6 — in the KITCHEN (9.2-12.0 of this wall). `ex-w` runs
+      // north→south (len 12.0); 12.0 - 9.8 - 1.8 = 0.4 mirrors it into
+      // ex-master, which lines 0.1-2.7.
+      window('ex-m-win', 'ex-w', 0.4, 1.8),
       window('ex-liv-win', 'ex-e', 5.0, 2.4),
       window('ex-study-win', 'ex-e', 1.0, 1.4),
     ],
@@ -287,7 +308,13 @@ export function hdbJumbo(): FloorPlan {
       iwall('jb-eb-mid', [11.4, 6.6], [11.4, D - T]),
     ],
     openings: [
-      door('jb-main', 'jb-s', 9.2),
+      // MAIN-DOOR-ROOM (v0.31.5.119): was 9.2, which put the front door at
+      // offsets 9.2-10.1 — inside the MASTER BEDROOM (which lines 8.6-12.2 of
+      // this wall). `jb-s` runs east→west (len 14.2); 14.2 - 9.2 - 0.9 = 4.1 is
+      // the exact mirror and lands it in jb-family, the Family Room (3.1-5.8),
+      // a living-category space. The Living / Dining never touches this wall —
+      // it fronts jb-n and jb-e — so the Family Room is the correct target.
+      door('jb-main', 'jb-s', 4.1),
       door('jb-master', 'jb-m-n', 1.0),
       door('jb-b2', 'jb-b2-s', 1.0),
       window('jb-kit-win', 'jb-n', 1.6, 1.8),

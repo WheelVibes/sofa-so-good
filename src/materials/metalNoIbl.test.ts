@@ -36,13 +36,28 @@ describe('metal materials without image-based lighting', () => {
     expect(`#${m.color.getHexString()}`).toBe('#d8dade')
   })
 
-  it('hands back a differently-built material per IBL state (cache is keyed on it)', () => {
+  // IBL-CAP-LIVE: this used to assert the cache was KEYED on the IBL state, so a
+  // switch handed back a second, differently-built material. That was only half a
+  // fix — a mesh already mounted keeps the material it was given, so the cap
+  // tracked the tier only for consumers that re-render on it. Measured on the
+  // default flat at `performance`, the wardrobe frame panels were still at
+  // metalness 0.75 while the (subscribing) door pull was correctly capped. The
+  // contract is now stronger: ONE cached material whose metalness is re-derived
+  // in place whenever the IBL state changes.
+  it('re-derives ONE cached material in place across IBL changes', () => {
     setIblActive(true)
     const withIbl = getMetalMaterial('#cfd2d6', 'stainless')
+    const full = withIbl.metalness
     setIblActive(false)
     const without = getMetalMaterial('#cfd2d6', 'stainless')
-    expect(without).not.toBe(withIbl)
-    expect(without.metalness).toBeLessThan(withIbl.metalness)
+    // Same instance — the key no longer splits on IBL state.
+    expect(without).toBe(withIbl)
+    // ...and the already-held reference was updated, which is the point.
+    expect(withIbl.metalness).toBeLessThan(full)
+    expect(withIbl.metalness).toBeLessThanOrEqual(0.25)
+    // Promoting back must LIFT the cap, or one demotion flattens metals forever.
+    setIblActive(true)
+    expect(withIbl.metalness).toBe(full)
   })
 
   it('never raises metalness above the preset', () => {

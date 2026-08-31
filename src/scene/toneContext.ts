@@ -6,10 +6,14 @@
  *  - **Finish / material preview** → Khronos PBR **Neutral**. Previewing a floor
  *    or wall swatch is a product-colour decision, so we want the truest albedo
  *    with minimal view-transform shift (no filmic contrast skewing the colour).
- *  - **Photo / render presets** → **AgX** (filmic). The "photo modes" want the
+ *  - **Photo / render presets** → **AgX**. The "photo modes" want the
  *    photographic look, not catalogue-accurate flatness.
- *  - **Otherwise** → the historical default (filmic), so the everyday scene is
- *    unchanged.
+ *  - **Otherwise** → `DEFAULT_TONE_MAPPING`, which is now **AgX** too
+ *    (TONE-CURVE-CHOICE): measured whole-frame, it cuts blown highlights
+ *    1.94% → 0.28% against ACES Filmic and stops the transform inventing
+ *    saturation the albedo never had. So `photoMode` no longer changes the
+ *    operator in practice — it is kept as an explicit signal because the two
+ *    defaults are independent decisions and either may move again.
  *
  * An *explicit* user pick always wins — context only drives the `'auto'`
  * default. Pure (no three.js, no React) so the rule is unit-testable; the
@@ -24,7 +28,8 @@ import { DEFAULT_TONE_MAPPING, type ToneMappingMode } from './look'
 export type ToneMappingSetting = ToneMappingMode | 'auto'
 
 /** The default user setting — `'auto'` so a fresh user gets the context-aware
- *  behaviour (Neutral while previewing finishes, filmic otherwise). */
+ *  behaviour (Neutral while previewing finishes, `DEFAULT_TONE_MAPPING` — AgX —
+ *  otherwise). */
 export const DEFAULT_TONE_MAPPING_SETTING: ToneMappingSetting = 'auto'
 
 /** All user-selectable settings, with `'auto'` first (the recommended default). */

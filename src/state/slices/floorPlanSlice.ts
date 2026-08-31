@@ -53,7 +53,7 @@ import {
   wallLength,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
-import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
+import { isAnchoredToNonFloor } from '../../furniture/anchoredDefs'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import { deriveElectricalPoints, derivePlumbingPoints } from '../../furniture/mepSuggest'
 import { buildLightingPlan } from '../../lighting2d/lightingPlan'
@@ -682,12 +682,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       ...(furniture === 'clear'
         ? { items: [], selectedItemId: null, selectedItemIds: [], hiddenItemIds: [] }
         : {
-            items: rehomeStrandedItems(plan, s.items, {
-              skip: (defId) => {
-                const def = BUILTIN_CATALOG[defId]
-                return !!def?.mounted || !!def?.noClip
-              },
-            }),
+            items: rehomeStrandedItems(plan, s.items, { skip: isAnchoredToNonFloor }),
           }),
     }))
   },

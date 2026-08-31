@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import type { FurnitureItem } from '../../furniture/types'
 import {
+  aspectChangedMaterially,
   clampOrbitDistance,
   FRAME_MIN_RADIUS,
   fitDistanceForFov,
   type ItemFrameExtent,
   ORBIT_MAX_DISTANCE,
   ORBIT_MIN_DISTANCE,
+  poseIsStillFramed,
   resolveSelectionExtents,
   selectionBounds,
 } from './frameSelection'
@@ -134,5 +136,60 @@ describe('resolveSelectionExtents', () => {
 
   it('returns [] for an empty selection without touching the catalog', () => {
     expect(resolveSelectionExtents([sofa, bed], [], BUILTIN_CATALOG)).toEqual([])
+  })
+})
+
+describe('ASPECT-REFRAME predicates', () => {
+  // The real regression: framed at 844x390 (aspect 2.16), rotated to 390x844
+  // (0.46). The flat spanned 191% of the viewport width, cut off both edges.
+  it('treats a phone rotation as material in both directions', () => {
+    expect(aspectChangedMaterially(844 / 390, 390 / 844)).toBe(true)
+    expect(aspectChangedMaterially(390 / 844, 844 / 390)).toBe(true)
+  })
+
+  it('ignores an ordinary window drag', () => {
+    // A few pixels either way must not re-frame — a drag fires continuously.
+    expect(aspectChangedMaterially(1280 / 800, 1278 / 800)).toBe(false)
+    expect(aspectChangedMaterially(1280 / 800, 1320 / 800)).toBe(false)
+  })
+
+  it('is symmetric and rejects degenerate input', () => {
+    expect(aspectChangedMaterially(2, 1)).toBe(aspectChangedMaterially(1, 2))
+    for (const [a, b] of [
+      [0, 1],
+      [1, 0],
+      [-1, 1],
+      [Number.NaN, 1],
+      [1, Number.POSITIVE_INFINITY],
+    ] as const) {
+      expect(aspectChangedMaterially(a, b)).toBe(false)
+    }
+  })
+
+  it('honours an explicit ratio threshold', () => {
+    expect(aspectChangedMaterially(1, 1.5, 1.4)).toBe(true)
+    expect(aspectChangedMaterially(1, 1.5, 1.6)).toBe(false)
+  })
+
+  it('recognises the untouched auto-framed pose', () => {
+    const pos = [10, 8, 10]
+    const target = [0, 1.35, 0]
+    expect(poseIsStillFramed(pos, target, pos, target)).toBe(true)
+    // Sub-tolerance float drift from controls.update() still counts as untouched.
+    expect(poseIsStillFramed([10.01, 8, 10], target, pos, target)).toBe(true)
+  })
+
+  // The safety property: a user who has zoomed or panned must never be yanked
+  // back by a resize — that would be worse than the clipping it fixes.
+  it('refuses to re-fit once the user has moved the camera', () => {
+    const pos = [10, 8, 10]
+    const target = [0, 1.35, 0]
+    expect(poseIsStillFramed([4, 3, 4], target, pos, target)).toBe(false)
+    expect(poseIsStillFramed(pos, [2, 1.35, 0], pos, target)).toBe(false)
+  })
+
+  it('rejects malformed pose triples rather than guessing', () => {
+    expect(poseIsStillFramed([1, 2], [0, 0, 0], [1, 2, 3], [0, 0, 0])).toBe(false)
+    expect(poseIsStillFramed([Number.NaN, 2, 3], [0, 0, 0], [1, 2, 3], [0, 0, 0])).toBe(false)
   })
 })

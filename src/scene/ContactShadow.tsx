@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { CanvasTexture } from 'three'
+import { noExportUserData } from '../export/sceneGltf'
 import { applyAnisotropy } from '../materials/anisotropy'
 
 let sharedTex: CanvasTexture | null = null
@@ -47,7 +48,15 @@ export function ContactShadow({
 }) {
   const tex = useMemo(() => shadowTexture(), [])
   return (
-    <mesh position={[0, y + 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+    // EXPORT-HELPERS: a FAKE grounding cue (RZ1), not modelled geometry — a
+    // transparent plane carrying a painted blob texture. Exported it becomes a grey
+    // disc on the floor under every piece of furniture in the user's model.
+    <mesh
+      position={[0, y + 0.006, 0]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      renderOrder={1}
+      userData={noExportUserData()}
+    >
       <planeGeometry args={[w * scale, d * scale]} />
       <meshBasicMaterial map={tex} transparent opacity={opacity} depthWrite={false} />
     </mesh>

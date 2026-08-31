@@ -5,6 +5,8699 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.247 — the wall-falloff deviation is framing-dependent, and is withdrawn
+
+Pursuing `.246`'s next step — render the traced still at the viewport aspect so both pictures share
+framing — fixed the capture (`toDataURL` on the tracer canvas; `.246`'s element screenshot let the modal
+footer bleed in) and turned up something more consequential than the GI test.
+
+**The raster falloff changed with the viewport.** Isolated with a new `VH` knob so aspect varies without
+running the tracer, run 800 → 720 → 800 for reproducibility:
+
+| viewport | near-window | far | far / near |
+| --- | --- | --- | --- |
+| 1280×800 (16:10) | 116.2 (1377) | 85.5 (346) | **0.74** |
+| 1280×720 (16:9) | 115.3 (1238) | 107.2 (528) | **0.93** |
+| 1280×800 again | 116.1 (1373) | 85.5 (346) | **0.74** |
+
+Same tier, hour, window, pose, pitch. **0.19 of swing from aspect alone** — more than twice the width of
+the 0.85–0.86 band — and at 16:9 the app reads **above** it, too flat rather than too steep. The app
+**brackets** the reference depending on framing. The far bucket gains 182 samples and its mean rises
+85.5 → 107.2: a wider field admits different wall pixels.
+
+**This is `.232`'s error again.** `.226` adopted the metric because it is "same material, same frame, so
+composition cancels". Two surfaces in one frame escape the frame-MEAN dependence `.201` hit; they do not
+escape depending on *which pixels are visible*. `.232` found this for ceiling / wall (0.68 → 0.96 on
+pitch), `.239` found tier dependence, and this is the third member of the family — on the metric the arc
+had left standing.
+
+**Withdrawn:** the wall-falloff deviation. The reference photograph's aspect was never recorded (`.227`
+filed the band as provisional, n=1) and the app spans 0.74–0.93 across two ordinary viewport shapes. The
+probe now prints it as a diagnostic with the swing inline.
+
+**Survives:** the mechanism arguments — the hemisphere ground term has no distance dependence (`.226`,
+re-confirmed by intervention in `.235`), `.189`–`.195` refuted the cheap stand-ins on their own
+measurements, `.231` ruled out the fill scale. None rested on this number.
+
+**But the GI diagnosis has lost its quantitative support.** Since `.226` the claim was "light does not
+carry far enough into the room, and only inter-reflection fixes it", evidenced by this metric. What remains
+is a mechanism story with no measured deficit attached — and `.236` had already shown the number is
+state-bound (0.74 / 0.88 / 1.20 across the day), which in hindsight was the first sign. `.246`'s traced
+instrument is still the right way to settle it, but now needs a **framing-matched** target, not just a
+matched pose.
+
+Nothing changed in `src/`.
+
+## v0.31.5.246 — a pose-matched path-traced still, and no trustworthy number from it yet
+
+**The instrument works.** `light-distribution.mjs` gained a `PT=1` branch — placed there rather than in a
+standalone probe so it inherits the ~180 lines of window match, standoff clamp and arrival-checked
+teleport, since `.245`'s standalone attempt rendered the orbit dollhouse for want of exactly that.
+**49 samples in ~100 s**, and the still is unmistakably the same walk pose as the raster frame. The branch
+is off by default and the raster path is unchanged (same run printed `far/near = 0.74`, identical to every
+prior capture).
+
+**No trustworthy measurement came out of it.** Three attempts, three contaminated crops, each caught by
+looking: a pillar/corner shadow and a curtain edge in the near/far wall bands; the fan's downrod and a
+firefly smear in the traced ceiling crop. The root problem is structural — the probe's falloff number
+comes from a **geometric world-normal mask plus distance-from-window split** over thousands of samples,
+and that mask cannot be applied to the tracer canvas (no depth or normal readback). Hand-cropped bands are
+not the same measurement, and a 49-sample image is dense with small features that make eyeball crops
+fragile.
+
+**One observation, offered as observation not measurement.** Column profiles across the right wall,
+window-side → camera-side: raster `127 122 124 131 132 133 134 135`, traced `132 132 132 132 133 134 134
+135`. Both essentially **flat** (the raster dip is the corner shadow). So the right wall is not where the
+falloff lives; the probe's 116 → 85 split draws on a much larger population. Useful for designing the next
+attempt, not a result about GI.
+
+**Next step:** render the still at the **viewport's 16:10 aspect** instead of 1920×1080. The probe's fixed
+*fractional* bands with HUD cutouts need no geometry, so at a matched aspect they transfer directly and
+both pictures get measured by identical code. The resolution is a modal dropdown — a probe change, not an
+app change.
+
+**Status: instrument built and verified, GI diagnosis still untested.** Nothing changed in `src/`.
+
+## v0.31.5.245 — the GI diagnosis is now testable: the path tracer runs headlessly
+
+Since `.226` this arc has attributed the wall-falloff gap (0.74 against a photographic 0.85–0.86) to
+absent inter-reflection, reached by **elimination** — `.189`–`.195` refuted the cheap stand-ins, `.226`
+and `.235` showed the hemisphere ground term has no distance dependence, `.231` ruled out the fill scale.
+Elimination is weaker than demonstration, and the diagnosis has been load-bearing for a dozen rounds.
+
+The app owns a path tracer for HQ stills (`scene/pathtrace/hqRenderSession.ts`), so the same pose can be
+rendered with real light transport and its falloff measured: ~0.85 confirms GI as the cause and quantifies
+the prize; 0.74 means a dozen rounds need revisiting.
+
+**Feasibility first.** `hqRenderSession.ts` carries a PT-BLANK-GUARD for drivers that compile a context
+but produce no pixels — the classic headless failure. New probe `scripts/dev-probes/pt-feasibility.mjs`,
+same ANGLE/Metal launch as the others, answers only the go/no-go. **GO:** the modal opens from the store,
+and the render accumulates **47 samples in 97 s (~0.5 samples/s at 1920×1080), real pixels, no abort**.
+256 samples would be ~9 min, but a band MEAN over thousands of pixels averages sampling noise out, so
+~40–60 samples suffice — a traced falloff number costs ~2 minutes.
+
+**The trap it walked into:** the frame is the **orbit dollhouse**, because the probe never enters walk
+mode or poses the camera — exactly `.218`'s failure, caught the same way, by looking at the frame rather
+than the log. So the next step is deliberately not a standalone probe: `light-distribution.mjs` already
+owns ~180 lines of window-finding, standoff clamping and arrival-checked teleport, and the traced capture
+belongs behind a `PT=1` branch there so both images are guaranteed to share a pose.
+
+**Status: feasibility established, experiment not yet run.** Probe committed with its result and the
+dollhouse caveat in the header. Nothing changed in `src/`.
+
+## v0.31.5.244 — the photographic look has no vignette on the tier most users get
+
+`EffectsImpl.tsx` mounts a `Vignette` pass — its header: *"subtle edge darkening so the frame reads
+'shot, not rendered'"* — gated `if (full)`, the full post stack only. `medium` runs the AO-only minimal
+composer, so the photographic look there gets the grain and not the lens. The same file argues the
+opposite for PHOTO-GRAIN, which is in **both** modes because *"`medium` … is the tier the adaptive ladder
+picks for most browsers"*.
+
+| corner / centre | top-left | bottom-left |
+| --- | --- | --- |
+| performance | 0.868 | 0.738 |
+| medium | 0.894 | 0.751 |
+| high | 0.693 | 0.575 |
+| maximum | 0.696 | 0.579 |
+
+A hard split at the composer boundary, worth ~0.20 of corner ratio.
+
+**Built, measured, reverted.** `VIGNETTE = { offset: 0.32, darkness: 0.55 }` hoisted into `look.ts`, mount
+changed to `full || photographicLook`. At `medium`: **0.726 / 0.605**, just short of `high`'s 0.693 /
+0.575 (residual = `high`'s heavier `AO.intensityPost`), and the frame reads more photographic. Reverted
+anyway, because it costs a validated metric: **wall falloff 0.74 → 0.66** against a **0.85–0.86**
+photographic reference (ceiling / wall 0.88 → 0.86). The far-wall band sits near the frame edge, so the
+darkening lands on it — and the reference photograph carries its own lens vignette, so 0.85–0.86 is
+already vignette-inclusive.
+
+A measured result outranks a stylistic argument, and there is no measured picture defect on the other side
+— only that it looks more photographic to me, the kind of claim `.183` and `.230` refused to act on
+unsupported. Filed as open decision **(m) PHOTO-VIGNETTE**; it changes shipped appearance, so it is not
+mine to take. For whoever decides: the photographic look is opt-in (defaults off), and every `medium` +
+photographic number in this arc was measured without the vignette, so adopting it re-bases them.
+
+Both files restored from backup; `git diff` on `src/` empty, `tsc` clean. Nothing changed in `src/`.
+
+## v0.31.5.243 — edge bevels: a real geometric difference with no visible signature at walk scale
+
+Professional renderers ship a **rounded-edge** shader (Corona `CoronaRoundEdges`, V-Ray `VRayEdgesTex`)
+because nothing real has a mathematically sharp edge — every manufactured edge carries a 1–3 mm radius
+that catches a highlight, and razor-sharp edges are a classic CG tell. This arc had never looked at it.
+
+**The geometric fact is real:** across `src/furniture`, **323 `<boxGeometry>` + 61 `new BoxGeometry` =
+384 sharp boxes against 9 `RoundedBoxGeometry`**. A bevel facility exists but lives in the **GLB editor**
+(`glbEdit/editSpec.ts`, `ShapePart.bevel`), i.e. for authored parts, not shipped primitives.
+
+**The predicted signature is absent.** Luminance profiles across a table top→side edge, 7 px wide:
+
+| | profile | pre-edge rise | transition width |
+| --- | --- | --- | --- |
+| photograph (dark wood table) | 109 113 **117** 116 … 104 57 40 | +7 % | ~2 px |
+| app (coffee table) | 70 70 … 68 74 **76** 71 59 51 | +8.5 % | ~4 px |
+
+The app shows a *slightly larger* relative edge brightening and a *softer* transition. No bevel
+deficiency is measurable.
+
+**Why — the scale argument.** The probe's certified floor resolves **589 px/m**, so a 2 mm edge radius is
+**~1.2 px** at floor distance in a 2560-wide capture, less further away. A bevel cannot produce a
+highlight band it has no pixels to occupy. So the conclusion is not "the app does bevels" — it does not —
+but that **rounded edges are a close-up technique**: they earn their cost where an edge fills tens of
+pixels, and at a walk camera at room distance their absence is not a photorealism gap. Presumably why the
+bevel support that exists lives in the GLB editor, which is the close-up case.
+
+**Evidence strength:** one edge in one photograph against one in one app frame, at different materials,
+scales and angles — weak alone. The 589 px/m scale argument carries the conclusion; the profiles are
+consistent with it rather than proof of it.
+
+Nothing changed in `src/`.
+
+## v0.31.5.242 — the AO trade, swept: no point satisfies both floor metrics
+
+`.241` established that the floor micro-contrast overshoot is mostly the AO pass, so a lever exists —
+but AO was tuned against a *different* floor metric. Swept at `medium`, measuring both bands and a third
+that turned up on the way:
+
+| AO radius / intensity | floor micro/mean<br>band 0.032–0.076 | under / open<br>band 0.579–0.725 | open-floor sd/mean<br>glossy band 0.156–0.218 |
+| --- | --- | --- | --- |
+| 1.0 / **4.5 (shipped)** | 0.1207 ✗ | **0.712 ✓** | 0.293 ✗ |
+| 1.0 / 3.0 | 0.0905 ✗ | 0.756 ✗ | 0.217 ✓ |
+| 1.0 / 2.0 | **0.0743 ✓** | 0.785 ✗ | 0.173 ✓ |
+| 1.0 / ~0 (`.241`) | 0.0602 ✓ | — | — |
+| **0.4 / 6.5** | 0.1117 ✗ | 0.749 ✗ | 0.243 ✗ |
+
+**No tested point satisfies both.** The bands pull in opposite directions precisely because AO is their
+shared cause: more AO deepens the contact shadow (helping under / open) while adding broad floor
+variation (hurting micro-contrast). Floor micro needs intensity ≤ ~2.0; under / open needs ≥ ~4.5, since
+3.0 already reads 0.756.
+
+**The short-radius escape fails.** Contact-only occlusion at 0.4 / 6.5 is worse on **all three**. `.223`
+found a metre-scale radius efficient; this is the other end of that curve, confirming the shipped choice
+from the opposite direction.
+
+**A third metric:** `underside-shadow.mjs` reports open-floor sd/mean against photographs at matte
+0.037–0.051 and glossy 0.156–0.218. The default floor is semi-gloss vinyl oak, so the glossy band
+applies — the app reads **0.293** at shipped AO, outside it.
+
+So at the shipped point **two of three floor metrics are out of band and one is in**. That is the right
+call and should be explicit: the shipped AO protects **under / open**, the one metric of the three with a
+*recorded visual defect* attached (`.183`, printed by the probe as "a term that lifts this above ~0.73").
+The two it sacrifices are statistical, and a measured picture defect outranks a statistic — the same
+ordering `.187` and `.230` used. **Nothing is retuned**; `look.ts` restored and verified.
+
+**What would actually fix it:** not an AO constant. The bands conflict only because one screen-space pass
+does two jobs — contact occlusion and surface-scale shading. Real inter-reflection separates them, which
+puts this alongside the wall falloff (`.226`, `.236`): reachable only by the feature repeatedly measured
+as too expensive.
+
+## v0.31.5.241 — the floor "micro-contrast" is mostly AO, and `.230`'s attribution was wrong
+
+`.240` left a floor-specific residual: `performance` drops 2.2× on floor micro-contrast against 1.4× on
+walls, with texture resolution already refuted.
+
+**Gloss × IBL, refuted.** If an absent environment map cost a semi-gloss floor more than matte plaster,
+a matte floor should barely move across tiers. Via the probe's `FLOOR=` knob:
+
+| floor | performance | medium | drop |
+| --- | --- | --- | --- |
+| `floor-carpet` (matte) | 0.1652 | 0.3066 | **1.86×** |
+| `floor-tile-marble` (glossy) | 0.0588 | 0.1368 | **2.33×** |
+| `floor-vinyl-oak` (default) | 0.0549 | 0.1207 | 2.20× |
+
+**AO, confirmed by intervention.** `EffectsImpl` gives `performance` the MINIMAL composer with **no AO**;
+`medium` runs AO-only at `AO.intensity` 4.5, `high`/`maximum` the full stack at `intensityPost` 7 — and
+the readings order monotonically with AO dose. Setting `AO.intensity` to 0.01 and re-running `medium`:
+
+| | floor micro/mean at reference scale |
+| --- | --- |
+| `performance` — no AO | 0.0549 |
+| **`medium` — AO forced to 0.01** | **0.0602** |
+| `medium` — AO 4.5 (shipped) | 0.1207 |
+| `high` / `maximum` — AO 7 | 0.164 / 0.165 |
+
+Medium-without-AO lands next to performance-without-AO. **The metric this arc calls "floor
+micro-contrast" is more than half ambient occlusion.**
+
+**What this corrects:** `.230` declined to act on the 1.6× overshoot because the floor painters are
+board-matched ground truth. That reasoning was sound but aimed at the wrong object — **the painters were
+never what the metric measured.** `.231`'s fruitless `PHOTO_FILL_SCALE` sweep and `.239`'s "blur"
+reading are both explained by this.
+
+**It also turns an unfixable deviation into a coupled trade.** A lever does exist — `AO.intensity` — but
+AO was tuned in `.222`/`.223` against the **shadowed / lit floor** ratio, shipped at 0.722 inside a
+0.579–0.725 photographic band. The shipped AO satisfies one validated floor metric while pushing another
+out. (Comparison direction is honest: real photographs contain real ambient occlusion, so app-with-AO vs
+photo is correct; the no-AO readings are diagnostic only.)
+
+**Next round:** sweep `AO.intensity` against *both* floor metrics together — the same "retune both
+together or neither" discipline the bounce/curtain pair needed (`.235`). Nothing is retuned here;
+`look.ts` restored from backup and verified.
+
+## v0.31.5.240 — the `performance` floor-grain result is NOT texture resolution
+
+`.239` found the floor micro-contrast overshoot inverts by tier (`performance` **0.0549**, inside the
+real-floor band, against medium 0.121 and high/maximum 0.164/0.165) and recorded an untested hypothesis:
+that `performance` is in band through *blur* rather than fidelity.
+
+The code says that should be true — `effectivePatternSize` clamps to `BASE_SIZE`, and
+`QualityController` sets `setProceduralBaseSize(tier === 'performance' ? 256 : 512)`, a quarter of the
+texels per map. **It is not the answer.** Forcing `setProceduralBaseSize(512)` unconditionally:
+
+| | micro/mean at reference scale |
+| --- | --- |
+| `performance`, 256² (shipped) | 0.0549 |
+| `performance`, forced 512² | **0.0520** |
+
+No change, and slightly the wrong direction. `QualityController.tsx` restored from backup and verified.
+
+**Two confounds excluded:** the certified floor region is identical at every tier (426×266 px, 589 px/m),
+so the comparison is like-for-like; and `medium` reproduces exactly (0.1207 today vs `.231`'s 0.1207).
+The `586×366 px, 873 px/m` region quoted in earlier rounds belongs to an older probe revision — worth
+knowing before comparing floor figures across the arc, though `.239`'s four numbers were all taken under
+today's probe.
+
+**A partial mechanism.** If the cause were shading rather than texturing, normal-mapped walls should drop
+at `performance` too. On the fixed `.233` wall patches, high-passed against a 3×3 box:
+
+| tier | wall L | wall R |
+| --- | --- | --- |
+| performance | 0.0037 | **0.0025** |
+| medium | 0.0040 | 0.0041 |
+| high | 0.0066 | 0.0042 |
+| maximum | 0.0066 | 0.0038 |
+
+They do drop, in the same direction — consistent with the tier having **no IBL** (documented in
+`drapeTranslucency.ts` and `furnitureMaterials.ts`): a normal map perturbs environment reflections
+strongly, and with only a hemisphere and a directional light it has far less to modulate. But the
+magnitudes disagree — walls fall ~**1.4×**, the floor ~**2.2×**. A shading-wide effect is part of the
+story, not all of it. Something floor-specific remains, **named as the next hypothesis, not claimed**.
+
+Nothing changed in `src/`.
+
+## v0.31.5.239 — every target in this arc was calibrated at ONE tier, and they do not hold across the others
+
+"Parity of the whole app" prompted a visual sweep of the photographic look at both extreme tiers —
+`walk-tour PHOTO=1` at `performance` and `maximum`, 44 frames each. **Both are artifact-free**: no black
+quads, no dropped walls, no missing geometry. The black-quad failure `.224`/`.225` saw for AO in the
+ORBIT camera does not appear in walk at either tier.
+
+But over the 44 shared poses, `performance` means **155.7** and `maximum` **138.6** — a **−17.1** shift,
+up to **−43.7** on one frame. Deliberate (tier-gated effects), but it raises a question this arc never
+asked: **every reference band here was calibrated at `medium`.** So the canonical probe was run at all
+four tiers, identical pose and hour:
+
+| | performance | medium | high | maximum | reference |
+| --- | --- | --- | --- | --- | --- |
+| ceiling / wall (hand-crop) | **1.080** | 0.930 | 0.948 | 0.934 | 0.91 – 1.03 |
+| wall falloff far/near | **0.56** | 0.74 | 0.71 | 0.70 | 0.85 – 0.86 |
+| floor micro/mean at ref scale | **0.0549** | 0.121 | 0.164 | 0.165 | 0.032 – 0.076 |
+
+1. **Ceiling / wall holds at medium/high/maximum** and **fails at `performance`** (1.08, above band). So
+   `.234`'s conclusion is a statement about three of four tiers.
+2. **Wall falloff is worst at `performance`** (0.56) and flat elsewhere (0.70–0.74) — the remaining GI
+   deviation is half again as large on the tier the capability veto hands most phones.
+3. **The floor-grain overshoot is tier-dependent and inverts.** `.230`'s "1.6× too grainy" was medium's;
+   `performance` reads **0.0549, inside** the real-floor band, while high/maximum sit at 0.164/0.165.
+   **Caveat:** in-band at `performance` may be *blur* rather than fidelity. Not established — a crop
+   taken to check it caught furniture and the HUD rather than the certified floor region, so it supports
+   nothing. Recorded as an untested hypothesis.
+
+**What changes:** no shipped constant. How conformance is stated — "the app's ceiling / wall is in band"
+or "the floor is 1.6× too grainy" is incomplete without a tier, and these rows disagree by more than the
+width of the bands they are compared to. `.230`, `.231`, `.234` and `.235` should be read as *medium*
+results. (`.220` did check the curtain ratio across all four tiers; the practice existed, it just was
+not applied to the rest of the set.)
+
+Nothing changed in `src/`.
+
+## v0.31.5.238 — `.212` closed: ceiling / wall cannot transport to a tiled room
+
+`.212` parked the bathrooms because its one reference had **grey** tile against a white ceiling while the
+app's is white. The screening method from `.233`–`.234` suggested unparking it by finding a photograph
+whose albedo relationship matches the app's.
+
+**It is not available.** Ten Commons bathrooms considered; two excluded on sight as SketchUp *renders*
+rather than photographs, and the eight fetched all failed — monochrome (1), patterned/checkerboard tile
+(2), coloured or muralled walls (3), no ceiling in frame (1), coffered spa ceiling (1).
+
+**But availability was never the obstacle.** Glazed tile is **glossy**, so its apparent brightness
+depends on camera/surface/light angle in a way matte paint does not; the wall term becomes
+view-dependent and two photographs of the same bathroom would disagree. `ceiling / wall`'s domain is
+**matte-on-matte** — `.208` drew this boundary for floor / wall, `.212` for tile-vs-paint, and the
+general statement is that it isolates lighting only when both surfaces are Lambertian and their albedos
+cancel. **`.212` is closed on principle**, not left waiting for a reference that cannot exist usefully.
+
+For the record, what the app does:
+
+| pose | ceiling samples | ceiling / wall |
+| --- | --- | --- |
+| bath1, canonical pitch −0.06 | **0** | — |
+| bath1, pitch +0.28 | 731 | **0.70** |
+| livingDining, pitch +0.28 | 2296 | 0.95 |
+| mainBedroom, pitch +0.28 | 1961 | 0.96 |
+
+So **every bathroom ceiling figure in this arc came from a pose that barely sees the ceiling** (bath1
+clamps the standoff to 1.6 m; at the canonical pitch the ceiling leaves frame) — a sharper version of
+`.232`. At a pose that does see it there is a real internal difference, which simply cannot be
+adjudicated against photographs.
+
+**Checked rather than assumed:** the frame's warm beige walls are not a mis-named finish. The first-load
+palette assigns `wall-tile-white`, `swatchHonesty.test.ts` pins "white" at swatch luma ≥ 190, and the
+window is `win-bath1-S` — south-facing — so at 13:00 that is direct sunlight on white tile.
+
+Nothing changed in `src/`.
+
+## v0.31.5.237 — correcting `.236`'s window crop; the north-window warmth is not a bug
+
+`.236` reported glazing figures from a rectangle covering the whole window, and never looked at the
+crop. That region is dominated by the window's **grilles** — interior-lit surfaces, so the "glazing"
+R−B was largely the interior's own light colour, compared against an interior-lit wall.
+
+Re-measured on **pane interiors only** (four thin rects between the bars, inspected):
+
+| | `.236` (whole window) | `.237` (pane only) | wall |
+| --- | --- | --- | --- |
+| 13:00 lum / R−B | 163.8 / −4.1 | **171.3 / −3.9** | 124.2 / +1.4 |
+| 19:00 lum / R−B | 160.0 / +22.1 | **170.4 / +21.0** | 199.4 / +21.3 |
+| 21:00 lum / R−B | 54.6 / +5.7 | **75.6 / +12.0** | 193.4 / +23.4 |
+| clipped, all hours | 0.0 % | **0.0 %** | — |
+
+Corrected ratios **1.38 / 0.85 / 0.39** (were 1.32 / 0.80 / 0.28); open item **(l)** updated.
+
+**The conclusions hold** — clipping is 0.0 % on pane-only pixels too, so the central finding (real panes
+clip 15–39 %, the app's never clips) never depended on the error, and the 19:00 result survives almost
+unchanged at pane **+21.0** vs wall **+21.3**.
+
+**Why a north window is warm at sunset — not a bug.** The default backdrop is not the preset path;
+`presetForDaylight` tints a painted preset by the sun colour with no azimuth term, but it only serves
+the photo backdrop kinds. The shipped `sky` kind goes through `bakeSkyEquirect` → `skyRadiance`, a Perez
+model with a real `gamma` term, and a walk camera looking out a window is nearly horizontal, so it
+samples the horizon band — warm right around the compass at a 2° sun, as outdoors.
+
+So `.236`'s dusk finding is **withdrawn as a separate item**: it is the same deficiency as (l) — the
+pane is dimmer than the wall while sharing its colour, so it reads as a lit surface rather than an
+opening.
+
+Nothing changed in `src/`.
+
+## v0.31.5.236 — the window measured across the day; the falloff deviation is state-bound
+
+A new axis: professional interior photography leans on **warm interior against cool exterior**, and its
+signature case is the dusk shot. The app ships warm bulbs (`#ffd9a0`) against cool daylight, so this
+round measured whether the separation exists, and how the glazing compares with photographs.
+
+| | glazing / wall | glazing R−B | clipped |
+| --- | --- | --- | --- |
+| photograph, daylit (`Home_Staging`) | 1.10 | +20.2 | **39.3 %** |
+| reference kitchen glazing (`.198` set) | — | — | **15.1 %** |
+| app 13:00 | 1.32 | −4.1 | **0.0 %** |
+| app 19:00 | 0.80 | +22.1 | **0.0 %** |
+| app 21:00 | 0.28 | +5.7 | 0.0 % |
+
+The mean ratio is not the problem — at noon the app beats the photograph. The **distribution** is: a
+real pane is a clipped white hole, the app's an evenly-lit grey field. Filed as open decision
+**(l) WINDOW-LUMINANCE**; it is a render + product call, not one to take unilaterally. **Night is
+already right** (0.28, warm interior against a neutral pane) and must not regress. **19:00 is the weak
+hour** — the pane is dimmer than the wall *and* tinted identically to it (R−B 22.1 vs 21.3).
+
+**Incidental, and it matters:** the same captures re-measured the wall falloff —
+
+| hour | far / near | vs photograph 0.85–0.86 |
+| --- | --- | --- |
+| 13:00 | **0.74** | too steep |
+| 19:00 | **0.88** | in band |
+| 21:00 | **1.20** | inverted, correctly — the light sources are interior |
+
+"The app's wall falloff is too steep" is therefore not a property of the app but of **the strong
+single-window daylight state**. That narrows the remaining GI deficit: it is not that the app cannot
+distribute light with distance, but that one bright window with no inter-reflection falls off faster
+than a real one.
+
+Nothing changed in `src/`.
+
+## v0.31.5.235 — `PHOTO_GROUND_BOUNCE` re-justified under the corrected metric
+
+`.234` retired the ceiling deficit and left an honest loose end: `PHOTO_GROUND_BOUNCE` existed to fix
+that deficit. A constant whose motivation has been withdrawn should be re-earned or removed, so this
+round tested it — 3 (shipped) against 1 (`photographicGroundBounce` returns 1 with the look off, so 1 IS
+"no bounce"), everything else untouched.
+
+| | bounce 3 (shipped) | bounce 1 (off) | reference |
+| --- | --- | --- | --- |
+| **ceiling / wall, hand-cropped** (`.233` method) | **0.930** | **0.776** | **0.91 – 1.03** (2 photos) |
+| ceiling / wall, geometric mask | 0.88 | 0.70 | diagnostic only |
+| wall falloff far/near | 0.74 | 0.73 | 0.85–0.86 |
+| curtain plane / room | 1.36 | 1.48 | 1.32–1.48 |
+
+**Re-justified, on better evidence than it originally had.** Without it the ceiling falls to 0.776, far
+outside the qualifying photographs' spread; with it, 0.930, near the middle. The visual check agrees —
+at bounce 1 the ceiling reads as a dead grey slab.
+
+This inverts the tidy story `.234` might have implied: the deficit `.188` measured was an artifact of
+method and pose, but the app WOULD have a real ceiling deficit without this term. It is not a correction
+for a measurement error — it is what keeps the ceiling in band, and the retired deficit was the residual
+*after* it.
+
+Two secondary confirmations: the **coupling** documented at `CURTAIN_TRANSLUCENCY` is real and
+quantified (bounce off darkens the room, so the curtain ratio rises 1.36 → **1.48**, the top edge of its
+band — retune both together or neither); and **wall falloff is untouched** (0.74 → 0.73), a third
+independent confirmation that the hemisphere ground term has no distance dependence (`.226`, `.231`).
+
+`src/scene/look.ts` restored from backup and verified. Nothing changed in `src/`.
+
+## v0.31.5.234 — the ceiling deficit is retired
+
+`.233` closed with one qualifying photograph and an open item: widen the set. Ten more screened
+(Wikimedia Commons category sweeps — Pexels 403s a plain fetch, and title search now surfaces a lot of
+AI stock under generic names). Most died on the same criteria: monochrome, timber/sod interiors, ceiling
+not in frame, white ceiling on coloured walls, exterior-through-window.
+
+Two reached measurement. **`3_Bedroom_2_Bath_home_in_Ada,_OK` was rejected at measurement** — its
+ceiling is *vaulted*, so it catches window light far more directly than a flat one, and its walls carry
+a strong shadow gradient with no representative patch (first crops gave a nonsense 1.70).
+**`Living_room_(13152023964)`** — flat white ceiling, white walls, daylit, low pose — **qualifies**, at
+ceiling 142.7 / wall 157.2 = **0.91** (after two re-crops; the first caught the junction, the second the
+window head, both caught by looking).
+
+| | ceiling / wall |
+| --- | --- |
+| `Home_Staging_Beispiel_Nachher` (`.233`) | 1.03 |
+| `Living_room_(13152023964)` (`.234`) | 0.91 |
+| **the app**, hand-cropped, canonical pose | **0.93** |
+
+The app sits **inside** the spread. Measured the way the photographs are measured, at a comparable pose,
+against references screened for the confounds, there is no ceiling deficit to explain.
+
+**`.188`'s ceiling deficit is retired.** It was three artifacts stacked: a reference band containing a
+timber ceiling, a probe method that swept in the wall junction the photo crops excluded, and a pose that
+reduced the ceiling to a grazing sliver. `.226` called it one of three faces of one absent feature; that
+list is now two — the flat window backdrop (`.209`) and the over-steep wall falloff (`.226`).
+
+**Follow-up:** `PHOTO_GROUND_BOUNCE` (shipped at 3) exists to lift the ceiling. Its own measurements
+stand, but its motivation was the retired deficit. Whether it still earns its keep needs its own round
+with its own before/after — it is **not** changed here.
+
+Nothing changed in `src/`; the probe's printed caveat carries the two-photograph spread.
+
+## v0.31.5.233 — ceiling / wall re-derived: most of the "deficit" was method, not render
+
+`.232` left the ceiling deficit unproven and asked for the band to be re-derived with each source
+photograph's pose recorded. That turned up two problems on the reference side and one on the app side.
+
+**The reference set does not survive inspection.** Of `.206`'s four photographs, two survive in `/tmp`:
+one has a **timber-boarded ceiling** against plaster walls (ceiling 169.1 / wall 200.6 = **0.84** — an
+albedo measurement, the confound that retired ceiling / floor), the other has **no ceiling in frame at
+all** (it is the floor reference). The 0.90–1.00 band cannot be reproduced from its own evidence.
+
+**Qualifying photographs are rare.** 9 daylit interiors screened against explicit criteria — same
+plaster paint on ceiling and wall, daylit, croppable ceiling, no flash/HDR, not AI stock. Eight failed.
+The one that qualified (`Home_Staging_Beispiel_Nachher`, a low grazing-ceiling pose like the probe's)
+reads **1.03**.
+
+**The app side was measured differently from the photographs.** The geometric mask takes every ceiling
+pixel including the wall junction; the photo was hand-cropped clear of it. Cropped the same way, the
+same canonical frame reads:
+
+| | ratio |
+| --- | --- |
+| geometric mask (junction included) | **0.88** |
+| hand-crop, junction excluded (119.6 / 128.5) | **0.93** |
+
+Half the apparent deficit was the two methods disagreeing.
+
+At matched pose and matched method: **app 0.93, photograph 1.03** — a deficit survives, in the direction
+absent inter-reflection predicts, but smaller than the `0.88 vs 0.90–1.00` framing implied, and resting
+on **n = 1**.
+
+`light-distribution.mjs` now prints ceiling / wall as a **diagnostic, not a target**, with both caveats
+inline. Still open: widening the qualifying set — the criteria are the bottleneck, not the measurement.
+
+## v0.31.5.232 — ceiling / wall is pose-dependent, so the ceiling deficit is unproven
+
+Every measurement in this arc has been in the default flat's living/dining; 19 templates ship. This
+round went looking for parity elsewhere and found a methodology bug instead.
+
+A `walk-tour` of `tpl-hdb-maisonette` (`PHOTO=1 FURNISH=1`, 28 frames) showed the photographic look
+holding on a second plan with no new artifacts. `light-distribution.mjs` has no `PLAN` knob, so
+measurement used the same plan's other rooms via `WINDOW=`.
+
+**mainBedroom at the canonical pitch −0.06:** far-wall samples **0** (too shallow to split), and
+**ceiling / wall = 0.68** against living/dining's 0.88 and the photographic band 0.90–1.00. Plausible —
+a small room's ceiling is lit proportionally more by the bounce the app lacks. But that ceiling is a
+grazing sliver of only **223 samples**, concentrated at the darkest part of any ceiling. So the room was
+re-shot pitched up:
+
+| pose | mainBedroom | livingDining |
+| --- | --- | --- |
+| pitch −0.06 (canonical) | **0.68** (223 samples) | **0.88** |
+| pitch +0.28 | **0.96** (1961) | **0.95** (2296) |
+
+Frames inspected: broad ceiling, HUD masked, no junction band dominating.
+
+The small-room hypothesis is refuted. The control refutes something larger: **ceiling / wall moves
+0.68 → 0.96 in one room, one hour, one lighting state, from pitch alone.** `.206` adopted it as
+composition-independent; it is not. The ceiling deficit of `.188` — since quoted as one of three faces
+of absent GI (`.226`) — rests on it at the canonical downward pitch; pitched up, both rooms sit INSIDE
+the photographic band.
+
+Not a claim the deficit is imaginary: pitched up, the wall band is upper-wall only, so neither number is
+privileged. What is established is narrower — **the ceiling deficit is unproven** until the app's pose
+and the reference photographs' are matched. Same error class `.207` corrected for `%<64`, on the metric
+adopted to replace it.
+
+**Open item:** re-derive the photographic band with each source photograph's approximate pitch recorded,
+then re-measure the app at the matching pitch.
+
+Nothing changed in `src/`.
+
+## v0.31.5.231 — `PHOTO_FILL_SCALE` is not the lever for the two remaining deviations
+
+Two measurements point the same way for the photographic look: floor grain **1.6×** a photograph's at
+matched scale (`.230`) and wall falloff **too steep** (0.74 vs 0.85, `.226`). Both are "too much
+contrast", and both would soften with a gentler fill reduction — which made `PHOTO_FILL_SCALE` the
+suspect, especially as `.163` calibrated it against `%<64`, since retired as pose-bound by `.207`.
+
+Swept at `medium`, 0.735 → 0.85:
+
+| | 0.735 (shipped) | 0.85 |
+| --- | --- | --- |
+| ceiling / wall | 0.88 | 0.89 |
+| wall falloff | **0.74** | **0.74** |
+| floor micro/mean (ref scale) | 0.121 | 0.116 |
+
+**Nothing moves** — the falloff is identical and the floor shifts 0.005 for a 16 % fill change.
+Refuted.
+
+**Why:** `.216`'s light census reads hemisphere 0.1, ambient 0.03, sun 1.0, fixtures 36 total. With the
+curtains OPEN — the state this pose measures — the analytical fill is a small share of the room's light,
+so scaling it barely registers. (It *is* dominant behind drawn curtains, where `.216` saw −53 %; a
+different state, not a contradiction.)
+
+So neither deviation is reachable from the fill knob: **floor grain** is set by board-matched painters
+(SNV-BOARDS), and **wall falloff** needs inter-reflection that `.189`–`.195` showed nothing cheap
+reproduces and `.226` showed the hemisphere cannot supply. Everything reachable with this codebase's
+levers is in band; the two things outside it are held there by a board-match and a missing feature.
+
+Nothing changed in `src/`.
+
+## v0.31.5.230 — the floor measured properly: a modest OVERSHOOT, and the board match outranks it
+
+`.229` left floor micro-contrast unmeasurable from a screen rectangle. Fixed by certifying the region
+geometrically: raycast the pitched-down pose, classify by world normal, find the largest square whose
+samples are ALL floor, measure inside it. The probe reports the square's world extent too.
+
+| | micro/mean |
+| --- | --- |
+| app, photographic look | 0.121 |
+| app, default look | **0.083** |
+| photo D parquet | 0.058 / 0.076 |
+| photo C pale wood | 0.032 |
+| kitchen ref tile | 0.076 |
+
+**Both looks sit ABOVE the reference band, not below** — default marginally (0.083 vs a 0.076 top),
+photographic clearly (0.121).
+
+**Resolution had to be matched first.** The certified square is 0.72 × 0.83 m at **589 px/m**; the
+reference crops are nearer 300 px/m, and a fixed 4 px high-pass reaches ~7 mm at the app's density
+against ~13 mm at the photographs'. Downsampling to reference scale moves the app 0.167 → **0.121**
+(photographic) and 0.118 → **0.083** (default): a third of the apparent excess was sampling. The probe
+prints both and labels which to compare.
+
+**Recorded, not acted on.** The direction matches intent — the photographic look raises surface
+micro-contrast, which is what `.162` built it for. But the floor painters are not free parameters:
+SNV-BOARDS matched them to photographs of the physical sample boards the user supplied, JOINT-SCALE
+puts every joint in real millimetres, and `snvBoards.test.ts` pins the signatures. Retuning a
+board-matched painter to hit 0.076 would trade verified physical fidelity for a statistic — the trade
+`.187` retracted for fabric.
+
+Bounded observation: **the app's floor grain reads about 1.1–1.6× a photograph's at matched scale**,
+largest under the photographic look, against a four-crop reference.
+
+Nothing changed in `src/`.
+
+## v0.31.5.229 — a floor-gloss reference, and two more contaminants in the floor band
+
+`.197` said floor gloss has no single photographic value, using raw sd — which is dominated by the
+lighting gradient. As **micro-contrast** (high-pass, gradient removed) real floors are much tighter:
+photo D parquet **0.058** / **0.076**, photo C pale wood **0.032**, kitchen tile **0.076** — i.e.
+**0.032–0.076** across gloss levels and materials, where `.197`'s raw-sd figures spanned 0.037–0.218.
+
+**The app reads 0.335 — and that is the band, not the floor.** One look at the pitched-down frame shows
+the floor band contains a **candle group on a tray** and the **"Turn off ceiling light" HUD pill**.
+
+The pill matters beyond this measurement: `hud()` excluded the toolbar, Measure button and minimap but
+**not** the walk-mode interaction pill or hint bar, both of which sit inside the floor band. Every floor
+ratio this probe has printed since `.179` was averaging some DOM chrome. Both rects are now excluded:
+
+| | before | after |
+| --- | --- | --- |
+| floor ratio (band) | 1.15 | **1.13** |
+| ceiling ratio | 0.96 | 0.95 |
+| floor micro/mean | 0.335 | **0.224** |
+
+**No prior conclusion moves** — 0.02 on a metric `.188` demoted anyway — but the fix is worth having.
+The residual 0.224 is the decor, which no screen rectangle can mask out. Use the **geometric** floor
+population (`.205`) instead; floor micro-contrast against the new reference will need that mask, since
+a high-pass needs a contiguous region and no rectangle in this pose is pure floor.
+
+Nothing changed in `src/`.
+
+## v0.31.5.228 — multi-room visual verification, and `walk-tour` learns the photographic look
+
+Four terms have shipped since the last whole-flat visual review (`PHOTO_GROUND_BOUNCE` 3,
+`CURTAIN_TRANSLUCENCY` 4, the AO retune + post-stack compensation, sensor grain). This is that pass: an
+11-room, 44-frame `walk-tour.mjs` at `medium`/13:00.
+
+**It passes** — every room reached, 83 % mean content, 354 visible meshes, no empty frames, no
+artefacts, no missing walls, consistent colour. Three poses face blank walls, a tour-pose limitation.
+
+**Capability gap closed:** every frame this tour has ever shot was the DEFAULT look, so the look this
+arc has tuned since `.162` had never been reviewed room by room. `walk-tour.mjs` now takes `PHOTO=1`.
+
+| room | default sat / luma | photographic sat / luma | Δsat |
+| --- | --- | --- | --- |
+| living/dining | 0.105 / 162 | 0.086 / 111 | −0.019 |
+| main bedroom | 0.162 / 188 | 0.095 / 104 | **−0.067** |
+| bedroom 2 | 0.125 / 180 | 0.067 / 126 | **−0.058** |
+| bath 1 | 0.196 / 188 | 0.184 / 119 | −0.012 |
+
+**The photographic look does not merely darken — it desaturates, and unevenly**, the bedrooms losing
+three to five times more than the living room or bathroom. The cause is by design: `fixturesLevel` fades
+fixtures in a first-person daylit view, and the bedrooms' warm content is largely their bedside lamps.
+The living room's warmth comes from floor and furniture; the bathroom's saturation is tile colour.
+
+So bedrooms reading cool under the photographic look is the daytime fixture fade working, not a
+white-balance defect — a real bedroom at 13:00 does not have its lamps on. Recorded because it is
+exactly the observation that would otherwise be chased as a colour problem.
+
+Nothing changed in `src/`.
+
+## v0.31.5.227 — the wall-falloff reference could NOT be widened, and that is the finding
+
+`.226` measured wall falloff at **0.85–0.86** from two pairs in ONE photograph and flagged that as the
+weakness. `.186` and `.187` are what happens when such a number hardens into a target, so this round
+tried to widen it first. Three candidates, three failures, each instructive:
+
+| candidate | reading | why it does not count |
+| --- | --- | --- |
+| photo C | — | crops caught a clock, cabinets, downlights (`.226`) |
+| ref 2029667 | **1.17** | crops clean, but the wall CHANGES ORIENTATION along its run, so "further along" is not "further from the light" |
+| ref 1643383 | **0.67** | right wall and light direction, but the far crop catches a soffit and a cabinet edge |
+
+2029667 is the instructive one: both crops are genuinely clean flat wall and the number is still
+meaningless. Falloff needs a wall of **constant orientation** to the window; where it turns, the
+measurement mixes distance with incidence angle and can run backwards — which is what 1.17 is.
+
+**So `.226`'s 0.85–0.86 stands on one photograph and is provisional, not a target.** The app's readings
+(photographic 0.74, default 0.85) keep their relative meaning — measured identically, the photographic
+look's falloff really is steeper — but "0.85 is what a real room does" is one image's evidence.
+
+The durable part is the criterion, now explicit: **an unobstructed wall of constant orientation,
+spanning near and far from a single window, with nothing mounted on it.** Three of four interior
+photographs failed it, and that rarity is why this axis has one data point.
+
+Nothing changed in `src/`.
+
+## v0.31.5.226 — wall falloff: the photographic look is too steep, the default look is right
+
+A new axis satisfying the `.207` rule by construction: **how much darker is the wall away from the
+window than the wall beside it?** Same paint, same frame, so composition and albedo both cancel.
+
+**Reference** — photo D, one flat peach wall running from window into the room, two independent pairs:
+188 → 162 (**0.86**) and 195 → 165 (**0.85**). A real far wall is only ~15 % darker, because bounce
+lights it. (Photo C's crops were contaminated — clock, cabinets, downlights — and discarded.)
+
+**The app**, wall samples split by distance along the window's inward normal:
+
+| | near-window | far | far/near |
+| --- | --- | --- | --- |
+| photographic look | 116.2 | 85.5 | **0.74** |
+| default look | 164.9 | 140.9 | **0.85** |
+| photo D | | | 0.85–0.86 |
+
+**The default look matches the photograph exactly; the photographic look is too steep.** First metric in
+this arc where the DEFAULT look is the accurate one.
+
+Same mechanism this arc has circled since `.188`: the photographic look makes its range by removing flat
+fill, and flat fill is the only thing holding the far wall up, because there is no inter-reflection to
+replace it. `PHOTO_GROUND_BOUNCE` cannot fix it — the hemisphere's ground term lights every wall equally
+at half weight with no distance dependence, which is exactly what real bounce does have.
+
+So the ceiling deficit (`.188`), the flat window (`.209`) and this are three faces of one absent
+feature. Recorded, not chased — `.189`–`.195` established nothing cheaper than real GI reproduces its
+spatial structure.
+
+**One reference:** photo D is the only image with a single flat wall spanning near and far, so
+0.85–0.86 rests on two pairs from one photograph.
+
+Nothing changed in `src/`.
+
+## v0.31.5.225 — CORRECTION: forcing AO on at `performance` renders black quads in orbit
+
+`.224` reported that AO at `performance` closes the contact gap and that "the frame is clean". **The
+second half is wrong** — the frame I checked was the WALK capture. The ORBIT capture from the same
+configuration shows **large solid black quads**, some floating in empty background *outside* the
+building, so they are a shading failure rather than a pose or content difference.
+
+**Specific to that configuration, not a shipped bug:** `medium` ships `ao: true` and renders the same
+orbit dollhouse completely clean. So it is not "orbit + AO is broken", it is "forcing `ao: true` on a
+tier whose pipeline does not otherwise mount it". `performance` has no IBL, no sun shadow map and the
+minimal composer; the likely triggers are the wall-reveal's transparent faded planes and the
+`CeilingOccluder` (`colorWrite: false`, `opacity: 0`), both of which orbit mounts and walk does not.
+
+`.224` declined to ship on a hardware argument; that stands, and now there is a harder one — the
+configuration does not render correctly in orbit at all. The measured benefit (0.827 → 0.709) is
+unchanged and still real in walk mode.
+
+**Also correcting `.224`'s probe note:** it said `feature-price.mjs`'s camera reset "did not hold". The
+ordering check reports baseline vs baseline-again at **0.00 % / 0.00** on both tiers, so the reset
+demonstrably does hold. The 61 % figure is the black quads plus possibly a pose shift in that one case
+— unresolved, and not evidence of a broken reset. The probe was accused of something it did not do.
+
+Nothing changed in `src/`.
+
+## v0.31.5.224 — AO at `performance`: measured, and NOT shipped
+
+`.223` showed the blob decal cannot bring `performance` into the contact band. The remaining lever is
+the one `src/scene/CLAUDE.md` retired — screen-space AO on that tier — and that note's own condition
+for re-opening is "look at WALK mode close-ups, not the phone dollhouse", which is the evidence this arc
+now has.
+
+| | `performance`, shadowed ÷ lit floor |
+| --- | --- |
+| shipped (no AO) | 0.827 |
+| **AO on** | **0.709** |
+| photographs | 0.579–0.725 |
+
+**AO closes it**, and costs **+0.60 ms** (p90 4.8 → 5.4 against a 16.67 ms budget). The frame, rendered
+through a probe with a verified pose, is clean — visible contact shading under the sofa and console.
+
+**Not shipped anyway.** That tier exists for hardware I cannot measure: `capabilityCeilingTier` sends
+software rasterisers, phones and <4-core devices there, and `src/scene/CLAUDE.md` says in terms that AO
+at `performance` "cannot be honestly verified on an M4". AO is fill-rate bound; +0.6 ms here says little
+about a low-end mobile GPU, and this is the tier whose purpose is to protect that population. Recorded
+with the numbers so the decision is informed rather than re-derived.
+
+**Two probe notes:** `feature-price.mjs`'s camera reset did not hold across these cases — its arms came
+back at completely different poses, so `pixels>8=61.03% / meanAbsDiff=47.33` is a pose difference, not
+an AO measurement (exactly the trap its own header documents). And the large black rectangles in that
+arm's frame are a capture artefact, not AO: the same configuration through `underside-shadow.mjs` is
+clean.
+
+`feature-price.mjs` gains an `ao ON` case. Nothing changed in `src/`.
+
+## v0.31.5.223 — the blob decal's ceiling, and a documentation correction
+
+`.222` left `performance` at **0.827**, outside the contact band, attributed to `ao: false`. That tier
+does carry the RZ1 `ContactShadow` blob decals, which exist to ground furniture where there is no
+screen-space AO — so can they carry it?
+
+**They contribute, and it is small:** decals off **0.874** → on **0.827**, i.e. **0.047**, against
+screen-space AO's **0.286** at `medium` (0.998 → 0.712). Six times less.
+
+**Their ceiling is short of the band.** Sweeping blob opacity at `performance`: 0.5 → 0.827,
+0.75 → 0.809, **1.0 → 0.789**, against photographs at 0.579–0.725. A fully opaque blob still lands
+0.064 outside, with returns flattening; widening `scale` would darken the open floor too and move the
+ratio the wrong way. Nothing changed — a painted radial gradient under a footprint is a grounding cue,
+not a substitute for occlusion, and this is its measured ceiling.
+
+**Correction to `src/scene/CLAUDE.md`:** it described the decals as "tier-gate off where real AO runs".
+**They are not gated** — `quality.contactShadows` is `true` on all four tiers, so medium/high/maximum
+render blobs *and* AO. Corrected in place. That also explains `.222`'s `medium` `AO=0` reading of
+**0.998**: at 0.047 the decals are below what that measurement resolves once AO is removed.
+
+Nothing changed in `src/`.
+
+## v0.31.5.222 — SHIPPED: the post stack costs 0.06 of contact shadow; AO now compensates
+
+`.221` suspected the full post stack without testing it. Tested, at `high`:
+
+| | shadowed ÷ lit floor |
+| --- | --- |
+| full post stack (shipped) | **0.786** |
+| `postprocessing: false` → AO-only composer | **0.726** |
+
+The extra passes cost **0.06**, which is the whole gap. `medium` runs the AO-only composer and sits at
+0.712 — the tiers were never differently *lit*, they were differently *post-processed*.
+
+`AO.intensityPost` (7) compensates, passed as `intensity={full ? AO.intensityPost : AO.intensity}` —
+keyed to the full stack rather than a tier name, so a tier that stops mounting it stops needing the
+compensation. Swept at high: 4.5 → 0.786, 6 → 0.742, 7 → in band, 7.5 → 0.702.
+
+| tier | before | after |
+| --- | --- | --- |
+| medium | 0.712 | 0.712 |
+| high | **0.786** | **0.716** |
+| maximum | **0.761** | **0.691** |
+
+Free — high p90 10.1 ms, maximum 10.6 ms, matching documented baselines.
+
+**Correction to `.221`'s table:** it listed `performance` at 0.721, in band. That was a **single-pose**
+measurement while every other tier used the pooled eight, so it was never comparable. Pooled,
+`performance` reads **0.827**. The single-pose figures differ for every tier (medium 0.746 single vs
+0.712 pooled) — the mistake was mixing the two. `performance` being out of band is expected: it has
+`ao: false`, no screen-space AO at all, and leans on the RZ1 `ContactShadow` decals.
+
+Honest table: **medium 0.712, high 0.716, maximum 0.691 in band; performance 0.827, out by design.**
+
+## v0.31.5.221 — tier-parity audit: three shipped terms clean, one is not
+
+`.220` closed the curtain's tier gap; the same check applied to everything else this arc shipped:
+
+| metric | performance | medium | high | maximum | photographs |
+| --- | --- | --- | --- | --- | --- |
+| curtain ÷ room | 1.42 | 1.35 | 1.47 | 1.44 | 1.32–1.48 |
+| ceiling ÷ wall | 0.91 | 0.95 | 0.96 | 0.95 | 0.90–1.00 |
+| untextured grain | 0.64 | 0.61 | — | 0.53 | 0.76 / 1.49 |
+| shadowed ÷ lit floor | 0.721 | 0.712 | **0.785** | **0.761** | 0.579–0.725 |
+
+Three hold across the ladder. The contact shadow does not — `high` and `maximum` are outside the band,
+and counter-intuitively the two highest tiers have the weakest contact shading.
+
+**Why, measured:**
+
+| | AO off | AO on | AO contributes |
+| --- | --- | --- | --- |
+| medium | 0.998 | 0.712 | **0.286** |
+| high | **0.912** | 0.786 | **0.126** |
+
+Its AO buys less than half as much — even though `aoFullRes` is false at `high`, so `<N8AO>` gets
+identical `quality` and `halfRes` props on both tiers — and its no-AO baseline is already lower, so
+something else does part of the work first. The obvious candidate is the full post stack that only
+`high`/`maximum` mount (Bloom, Vignette, DoF, CA, SMAA) where `medium` runs the AO-only composer: a
+pass that spreads light spreads it into shadows. **That is a hypothesis, not a measurement.**
+
+The gap is modest (0.06 past the ceiling) and affects the two tiers the adaptive ladder does NOT hand
+most users — `medium` (typical browsers) and `performance` (phone veto) are both in band. Recorded
+rather than fixed: the fix is a per-tier AO or bloom retune and the cause is not yet isolated.
+
+Nothing changed in `src/`.
+
+## v0.31.5.220 — SHIPPED: the hemisphere fallback, now that the probe can see it
+
+`.218` gave the first valid `performance` number: **1.17** against a 1.32–1.48 band while the other
+three tiers sat at 1.35–1.48. The cause is the one `.214` originally guessed — `performance` has no
+IBL, so `getIBLIrradiance(-N)` compiles out and the term collapses to the directional light alone.
+
+`.214` built exactly this fix and measured nothing, because that probe was rendering the orbit
+dollhouse. Re-applied against a working probe:
+
+| tier | before | after |
+| --- | --- | --- |
+| performance | **1.17** | **1.42** |
+| medium | 1.35 | 1.35 |
+| high | 1.48 | 1.47 |
+| maximum | 1.45 | 1.44 |
+| photographs | | 1.32–1.48 |
+
+**All four tiers now in band.** The `#elif ( NUM_HEMI_LIGHTS > 0 )` fires only where `USE_ENVMAP` is
+absent, so the env-map tiers are untouched (the 0.01 wobbles are run-to-run noise). Night unaffected at
+1.03 — no glow. Default look 1.07, expected: not the realism target, and its brighter room compresses
+the ratio. The frame confirms it — the drawn curtain at `performance` is now bright, backlit and shows
+its weave.
+
+**On the sequence:** this is the fix `.214` proposed. It took `.215`–`.219` — four retractions and a
+probe audit — to get an instrument honest enough to show that it works. The idea was right the first
+time; the measurement was not, and there was no way to tell which from inside the numbers.
+
+## v0.31.5.219 — probe audit: two more on software GL, and the shipped numbers survive
+
+`.218` traced four rounds of wrong findings to one probe launching Chrome with
+`--enable-unsafe-swiftshader`. Auditing the rest, two more carried it:
+`underside-shadow.mjs` (**load-bearing** — the under/open metric behind `.196`'s AO retune and `.213`)
+and `bounce-census.mjs` (a diagnostic). All six probes now request the same ANGLE/Metal backend.
+
+**The shipped numbers survive.** Re-measured on the correct backend:
+
+| | software GL (as shipped on) | ANGLE/Metal | photographs |
+| --- | --- | --- | --- |
+| photographic look | 0.720 | **0.712** | 0.579–0.725 |
+| default look | 0.820 | **0.814** | — |
+
+Both move by under 0.01 and neither crosses a band edge — `.196` and `.213` stand. The metric is
+insensitive to the GL backend, unlike the *camera*, which is what `.218` was really about.
+
+**And the frame check `.218` said should be routine:** at `performance`, `underside-shadow.mjs` renders
+a proper interior walk view, not a dollhouse, and reads **0.721** there against 0.712 at `medium` — so
+the contact metric is tier-stable as well as backend-stable.
+
+Nothing changed in `src/`.
+
+## v0.31.5.218 — the probe was launching software GL; the app was fine all along
+
+`.217` left one question: is the `performance` walk view genuinely broken, or was it the probe? **It was
+the probe**, and the cause is its launch configuration.
+
+`light-distribution.mjs` at `performance` renders a correct interior — window, curtains, sofa, console,
+fan. The two probes differ in how they start Chrome:
+
+| | `light-distribution.mjs` | `curtain-glow.mjs` (before) |
+| --- | --- | --- |
+| GL backend | `--use-angle=metal --enable-gpu` | **`--enable-unsafe-swiftshader`** (software) |
+| headless | `true` | `'new'` |
+| deviceScaleFactor | 2 | 1 |
+
+Matching it moved `performance` from **1.03 to 1.17** and the frame from the orbit dollhouse to a
+proper interior with the drawn curtain, its weave and the furniture. Two other candidates were tried
+first and are **not** the cause: waiting for `window.__walkLook` before teleporting, and nudging a
+render immediately before the screenshot.
+
+| tier | curtain ÷ room |
+| --- | --- |
+| performance | **1.17** |
+| medium | 1.35 |
+| high | 1.48 |
+| maximum | 1.45 |
+| photographs | 1.32–1.48 |
+
+`.214`'s original hypothesis was right in kind, wrong in magnitude: `performance` is below band by
+**0.18**, not 0.45 — consistent with having no IBL, so the chunk's `getIBLIrradiance(-N)` contributes
+nothing and only the directional term remains.
+
+**On the whole `.214`–`.218` sequence:** four rounds, three retractions, one probe bug.
+`curtain-glow.mjs` was written in `.198` with launch args copied from a different probe, and no frame
+from it had ever been inspected at any tier other than `medium`. A single glance at a `performance`
+frame on the day it was written would have saved four rounds. The probe now carries the matched config
+with a comment saying why.
+
+Nothing changed in `src/`.
+
+## v0.31.5.217 — RETRACTED: `.214`, `.215` and `.216` measured the orbit dollhouse
+
+Three rounds of `performance`-tier findings are withdrawn. The frame they came from is not an interior
+— it is the **orbit dollhouse**, the whole flat seen from outside against a pale background. I looked
+at it only after building two explanations on top of it.
+
+Every state check passed: `cameraMode` `firstPerson`, `camera.position.y` 1.60, room lookup
+`livingDining`, centre-ray hit 2.55 m, walk-mode HUD and minimap marker. And the render is the
+dollhouse, reproducibly. So on that tier `window.__three.camera` — what `DevCameraExpose` publishes and
+every probe reasons about — is **not the camera the renderer draws with**.
+
+Invalidated: **`.214`** ("the curtain term does not work on `performance`", 1.03) — measured on a
+dollhouse whose "room" is mostly background. **`.215`** ("the tier has no range", curtain/glazing/wall
+all 183–188) — that is the background. **`.216`** ("the photographic look is INERT on `performance`",
+−1 % vs medium's −53 %) — the look barely changes a picture of a building seen from outside.
+
+`medium`, `high` and `maximum` frames were inspected and ARE interiors, so those numbers stand,
+including every shipped constant.
+
+**Why the guards missed it:** `.203`'s arrival check (added to this probe this round) passes, because
+the exposed camera really is in the room. A centre-ray distance test passes too (2.55 m both tiers). An
+image-side flat-background test does not fire either — the dollhouse background is a soft gradient. No
+automatic guard yet; the probe now says so where one would go.
+
+**The lesson, paid for four times now** — `.181` (a floor band that was furniture), `.193` (numbers
+through an onboarding scrim), `.202` (three rooms measured from a corridor), and this: **a number is
+not evidence until the frame it came from has been seen.**
+
+Whether the `performance` walk view is genuinely broken in a real browser, as opposed to in this
+headless probe, is now an open question — and a more serious one than anything `.214`–`.216` claimed.
+
+## v0.31.5.216 — the photographic look is INERT on the `performance` tier
+
+`.215` found the window-facing view at `performance` flat and unresponsive to the curtains. Chasing the
+cause produced a bigger, simpler result. Room luminance behind drawn curtains, look on vs off:
+
+| tier | look on | look off | change |
+| --- | --- | --- | --- |
+| medium | 69.9 | 149.6 | **−53 %** |
+| performance | 183.0 | 181.1 | **−1 %** |
+
+**On the tier the capability veto hands most phones, turning the photographic look on changes the room
+by one percent.** Every realism change this arc shipped — fill rebalance, whole-floor bounce, curtain
+translucency, sensor grain, the `PHOTO_WEAVE` relief — is gated behind that look, so none of them reach
+those users meaningfully.
+
+**Three causes tested and eliminated.** Not the shader patch (`drape-check.mjs`: identical material,
+hook present, 9 compiled programs carrying the marker at `performance` vs 7 at `medium`). Not the
+curtain attenuation (`getWindowAttenuation` and `windowFillAttenuation` both read **0.413 on both
+tiers**). Not the sun (an unshadowed sun would collapse at night; it barely moves — 183.0 at 13:00 vs
+163.7 at 22:00, where medium swings 70.0 → 127.3 the other way as its lamps take over).
+
+`PHOTO_FILL_SCALE.performance` is 0.4, a *deeper* cut than medium's 0.735, so the look should change
+more there, not less. Whatever lights that interior is not the analytical fill `photographicFillScale`
+scales, and not the sun. That is the next thing to find.
+
+Reframes `.163`'s note that `performance` "cannot reach the `%<64` band" — recorded then as a dynamic-
+range limit, it is more specific and worse: the look barely engages at all.
+
+Nothing changed in `src/`.
+
+## v0.31.5.215 — `.214`'s diagnosis was wrong: the shader runs, the TIER has no range
+
+`.214` concluded "the patched shader is not running at all on the `performance` tier". **Retracted.**
+Asking the renderer instead of the image (`drape-check.mjs`, new):
+
+| | medium | performance |
+| --- | --- | --- |
+| drapery materials | 2 | 2 |
+| `customProgramCacheKey` | `drape-translucency-4.000` | same |
+| `onBeforeCompile` present | yes | yes |
+| compiled programs carrying the marker | 7 | **9** |
+| `scene.environment` | true | false |
+
+The patch compiles and runs on both. `.214` inferred absence from a null in the image — the inference
+this arc keeps getting burned by.
+
+**What is actually happening:** the tier has no range in a window-facing pose.
+
+| tier | curtains | window plane | room |
+| --- | --- | --- | --- |
+| performance | open | 188.3 | 183.1 |
+| performance | **drawn** | 188.6 | **183.1** |
+| medium | drawn | 96.5 | **69.9** (from 101.0 open) |
+
+At `performance`, drawing every curtain changes the room by **0.0** and the plane by 0.3 — curtain,
+glazing and wall all sit at 183–188, one flat near-saturated field, so any room-relative ratio collapses
+to ~1.0. That is the 1.03 `.214` reported, and it explains why the hemisphere diagnostic looked inert:
+adding irradiance to a surface already at 188 moves it barely.
+
+The same tier is unremarkable at the light-distribution pose (118.8 / 9.19 % vs medium 111.1 / 14.39 %),
+so the failure is pose-specific — facing the window is where it runs out of headroom.
+
+**This is `.163`'s limitation from a new angle:** `performance` has no IBL, no AO, and a fill that
+compensates for the missing environment light, so the photographic look — which is defined by removing
+fill to create range — has little to remove. The curtain term is not broken there; the look is thin.
+Worth stating plainly: **the tier the capability veto hands most phones does not deliver the
+photographic look.**
+
+Nothing changed in `src/`.
+
+## v0.31.5.214 — the curtain term does not work on `performance`, and the IBL fallback is not why
+
+Every number in this arc was measured at `medium`. Across tiers the shipped curtain translucency does
+not hold:
+
+| tier | curtain ÷ room |
+| --- | --- |
+| performance | **1.03** |
+| medium | 1.38 |
+| high | 1.49 |
+| maximum | 1.45 |
+| photographs | 1.32–1.48 |
+
+`performance` is the tier the capability veto hands most phones, so the fix ships to desktop and misses
+mobile.
+
+**The obvious cause was wrong.** `.200`'s chunk reads `getIBLIrradiance(-N)` under `#ifdef USE_ENVMAP`,
+and `performance` has no IBL — a hemisphere fallback looked like the fix. Added as `#elif`,
+`performance` stayed at **1.03**. Made unconditional as a diagnostic it moved **medium 1.38 → 1.55**,
+proving the term is live and the hemisphere contributes, while `performance` stayed at 1.03 exactly.
+**The patched shader is not running at all on that tier**, and the missing env map is not the reason.
+Reverted both — dead code that looks like a fix is worse than none.
+
+**Editing trap:** the GLSL lives inside a template literal and my comment contained backticks. They
+terminated the string; biome reformatted the fragments into expressions and `tsc` reported *"Type
+'Performance' has no call signatures"* — pointing at the global `Performance` object rather than the
+real problem. No backticks in injected GLSL; the file now says so at the injection site.
+
+Next step: establish whether the drapery material at `performance` is the patched instance at all. The
+material cache is keyed on colour/roughness/pattern/weave/translucency but **not on tier**, and
+`customProgramCacheKey` returns a tier-independent string.
+
+Nothing changed in `src/`.
+
+## v0.31.5.213 — the default look's weak contact shadow is intrinsic, not a defect
+
+The last surviving valid finding: photographic look under/open **0.720** (photographs 0.579–0.725),
+default look **0.820**, outside it. This is the one metric that never needed demoting — same material,
+same frame, no composition or albedo confound — so the gap is real. Can it be closed?
+
+| AO intensity | photographic | default | default's open floor |
+| --- | --- | --- | --- |
+| 4.5 (shipped) | **0.720** | 0.820 | 147.4 |
+| 6 | 0.678 | 0.791 | 137.4 |
+| 7.5 | 0.639 | 0.764 | 127.8 |
+| 10 | — | **0.727** | **113.5** |
+| 13 | — | 0.699 | 99.3 |
+
+The default look reaches the band at AO ≈ 10 — 2.2× the shipped value — and pays a **23 % drop in
+open-floor luminance**. AO does not add contact shadow in isolation; it removes ambient everywhere, so
+buying the ratio buys a darker room. **That converts the default look into the photographic one.**
+
+The two looks differ precisely in how much flat fill they carry, and this ratio is a direct consequence:
+more fill means shallower contact shading. Forcing the default into band means removing the fill that
+defines it — DEFAULT-GLOOM's trade (`.86`), which the user owns.
+
+**Withdrawn as a defect.** A look-gated AO is the principled form of the fix and is recorded as an
+option, but it would darken every corner of the out-of-box app for a metric only the photographic look
+is meant to satisfy. Reverted; `AO.intensity` stays at 4.5.
+
+**Where the arc stands** — every surviving metric is in band for the photographic look:
+
+| metric | app | photographs |
+| --- | --- | --- |
+| ceiling / wall | 0.89–0.98 | 0.90–1.00 |
+| shadowed ÷ lit floor | 0.720 | 0.579–0.725 |
+| curtain ÷ room | 1.38 | 1.32–1.48 |
+| untextured-surface grain | 0.62 | 0.76 / 1.49 |
+
+Remaining open items are ones this arc has established it cannot settle alone: the window backdrop
+(`.209`), the bathrooms (`.212`), and the default look's brightness trade (this round).
+
+## v0.31.5.212 — the bathroom ceiling gap is NOT demonstrable
+
+`.206` left the two bathrooms as the one unexplained outlier (ceiling/wall 0.81 and 0.69 against
+0.90–1.00 for living rooms), caveated because both references were living rooms. Fetched a matched one
+— a white bathroom with twin basins and a window — and the comparison cannot be made.
+
+| | ceiling | wall | ceiling/wall |
+| --- | --- | --- | --- |
+| bathroom reference | 169 | 159 | **1.06** |
+| photo C living room | 169 | 188 | 0.90 |
+| photo D living room | 188 | 188 | 1.00 |
+
+The reference bathroom's ceiling is BRIGHTER than its walls, opposite to both living rooms — because
+its walls are **grey** tile against a white ceiling, where the app's are `wall-tile-white`. Two albedo
+relationships, two ratios, identical lighting: the reference cannot adjudicate the app's number.
+
+**Same boundary `.208` drew for floor/wall.** Ceiling/wall isolates lighting only when both surfaces
+are painted and the albedos cancel; swap one for tile and it stops working. The metric's domain is
+narrower than it looked.
+
+At the shipped state the app reads bath 1 **0.65**, bath 2 **0.54**, living/dining 0.95 — so `.208`
+lowered the bathrooms further. But an internal difference is expected: glazed porcelain walls are
+brighter under the same light than matte paint, which depresses the ratio legitimately. Nothing
+distinguishes "the bathroom ceiling is under-lit" from "the bathroom walls are correctly glossy".
+
+**The outlier is withdrawn as a finding rather than resolved** — it was never demonstrated, and with
+this reference it still is not.
+
+Nothing changed in `src/`.
+
+## v0.31.5.211 — SHIPPED: sensor grain for the photographic look
+
+`.210` found the app's untextured surfaces about half as busy as a photographic ceiling. Building the
+fix exposed a measurement problem first.
+
+**The metric was being averaged away.** `underside-shadow.mjs` screenshots at CSS pixels while the app
+renders at DPR 1.5, so per-pixel grain is downsampled before measurement — the same frames read **0.46
+downsampled** and **0.10 native**. That is why the first sweep looked weak and the 3× crop showed
+nothing. Re-measured through `light-distribution.mjs` (`deviceScaleFactor: 2`):
+
+| | micro-sd |
+| --- | --- |
+| app, no grain | **0.10** |
+| app, grain 0.04 | 0.48 |
+| **app, grain 0.07 (shipped)** | **0.62** |
+| photo C ceiling | 0.76 |
+| photo D ceiling | 1.49 |
+
+The resolution match was checked, not assumed: downsampling the app crop to the photographs'
+pixels-per-metre moves it 0.10 → 0.13, so the comparison is sound.
+
+**Shipped** `<Noise premultiply opacity={PHOTO_GRAIN_OPACITY}>` at **0.07**, in BOTH composer modes,
+gated on the photographic look (grain is a property of a camera, not a room; the default look stays
+clean at 0.27). Mounted in the minimal composer too because `medium` — what the ladder picks for most
+browsers — runs AO-only, and a full-stack-only grain would miss them. Free: medium p90 8.2 ms against
+the documented 8.3.
+
+**Narrow by design.** Painted walls needed nothing (0.80–1.94 against 1.18–1.36) — the plaster
+micro-normal already supplies detail at that scale. Only surfaces with no map at all were short.
+
+## v0.31.5.210 — is the render "too clean"? Only where there is no texture
+
+Measured the high-frequency floor (micro-sd vs a 4 px blur) on surfaces that should be featureless.
+
+**Flat painted wall — no deficit.** photo C 1.36, photo D 1.18; app 0.80 and 1.94. The app brackets the
+photographs, because its walls carry the procedural plaster micro-normal. (Two other "wall" crops read
+11.48 and 30.55 and were discarded on inspection — a pendant light and a switch; a curtain and blinds.)
+
+**Untextured ceiling — a real, small deficit.** `Ceiling.tsx` paints flat `#fafafa` with no map:
+
+| | micro-sd |
+| --- | --- |
+| photo C ceiling | 0.70 |
+| photo D ceiling | 1.56 |
+| app, AO off | 0.29 |
+| **app, shipped** | **0.46** |
+
+Roughly half as busy as the quietest photographic ceiling — the "too clean" effect, confined to
+surfaces with no texture map.
+
+**A false alarm on the way, fully retracted.** The first pass reported 3.52 and read as "AO adds more
+noise than a photograph carries". Wrong twice: the first crop caught the **HUD toast** (`.185`'s trap in
+a probe frame), and the second, clear of the HUD, still spanned the **ceiling/wall junction**, so the
+high-pass was measuring AO's corner gradient — contrast-normalising showed a smooth monotonic
+darkening, which is what AO is for. Clear of both, AO contributes **0.17**. **A high-frequency statistic
+on a crop containing an edge measures the edge.**
+
+Also: `denoiseSamples`/`denoiseRadius` passed to `<N8AO>` are **inert** (byte-identical output), likely
+overridden by the `quality` preset; and `halfRes={false}` does not reduce the floor either (0.64 vs
+0.46). Don't reach for either expecting a noise change.
+
+The gap is real but narrow. The conventional fix is subtle film grain, and the stack already imports
+`Noise` — but it mounts only at the full-post tiers, while `medium` (what the ladder picks for most
+browsers) runs the AO-only minimal composer. A real candidate with a real cost question attached.
+
+Nothing changed in `src/`.
+
+## v0.31.5.209 — the window is a flat grey panel, and it never blows out
+
+New axis: the glazing. A fifth reference was fetched for it (a real-estate kitchen with an uncovered
+daylit patio door), eyeballed first per `.186`.
+
+**The obvious assumption was wrong.** "A window is the brightest thing in an interior" is false as
+stated — photo C's shaded garden view measures glazing/wall **0.82**, darker than its own walls, while
+the kitchen reads 1.08. The mean ratio is not the signal; the clipped fraction and the distribution are.
+
+| | p90 | p99 | max | clipped |
+| --- | --- | --- | --- | --- |
+| reference kitchen glazing | 252 | 255 | **255** | 15.1 % |
+| photo C glazing (shaded) | 210 | 242 | **255** | 0.1 % |
+| **app window plane, 13:00** | 181 | 183 | **183** | **0.0 %** |
+
+1. **The app never approaches white** — brightest window pixel at midday is 183; both photographs reach
+   255, including the shaded one. It clips 0.0 % at 09:00, 13:00 and 17:00 alike.
+2. **The app's window is nearly uniform** — p90 → max spans **two luminance units**, where photo C's
+   spans 210 → 255. A flat grey panel, not a view. `.198` saw this qualitatively; this puts a number
+   on it.
+
+**Two candidate causes, one not mine to change.** The `sky` backdrop paints a smooth analytic gradient
+with little tonal structure (a backdrop change, and `WINDOW-SKY-DEFAULT` treats that as a product
+decision). And AgX was chosen deliberately *because* it cuts blown highlights 4–7× versus filmic, on the
+user's explicit sign-off — a real photo of a daylit interior blows its window; the app's operator is
+tuned not to. That tension is real and not mine to resolve unilaterally.
+
+Finding 2 is unambiguous and independent of the operator: a two-unit spread across the top decile is a
+flat panel whatever the curve, which makes it a backdrop-content problem rather than a grading one.
+
+Nothing changed in `src/`.
+
+## v0.31.5.208 — SHIPPED: retuned on the metrics that survived, and all four now hold at once
+
+`.206` and `.207` demoted the two frame-normalised targets this arc had been steering by. That leaves a
+validated set — ratios between two things in the SAME frame, where composition cancels — and the app
+had never been tuned against it.
+
+**Which photographic ratios transfer:** ceiling/wall (photo C **0.90**, photo D **1.00**) does, because
+both surfaces are painted so albedo roughly cancels. floor/wall (0.98 vs 0.76) and ceiling/floor (0.91
+vs 1.32) do not — pale wood against dark parquet, albedo-confounded exactly as `.188` found.
+
+**`PHOTO_GROUND_BOUNCE` 6.5 → 3.** On the good metric it sweeps cleanly: ceiling/wall 0.78 at ×1,
+**0.95 at ×3**, 1.09 at ×6.5. Three puts all four habitable rooms in band (0.95 / 0.98 / 0.89 / 0.96)
+where 6.5 missed high in every one (1.05–1.13).
+
+**`CURTAIN_TRANSLUCENCY` 6 → 4, because the two terms are COUPLED.** The curtain ratio is measured
+against the room, so darkening the room lifted it to **1.53** untouched. Re-swept at the new bounce:
+t=4 → **1.38**. `under/open` is unchanged at 0.721 — the expected result, since `.194` established that
+`groundColor` cannot reach an up-facing floor.
+
+| metric | app | photographs |
+| --- | --- | --- |
+| ceiling / wall | **0.89–0.98** (four rooms) | 0.90–1.00 |
+| shadowed ÷ lit floor | **0.721** | 0.579–0.725 |
+| curtain ÷ room | **1.38** | 1.32–1.48 |
+| curtain at 22:00 | 1.05 (no glow) | — |
+
+First time the app satisfies the whole *validated* set at once. A smaller claim than this arc has made
+before, and a sounder one. Visual A/B near-identical (×3 marginally deeper in ceiling and upper walls,
+no regression). `%<64` at the calibration pose moves 10.21 % → 14.42 %, recorded as a two-build
+comparison at one pose — the only thing that number can honestly support (`.207`).
+
+## v0.31.5.207 — `%<64` is pose-bound, and it is what this whole arc was calibrated on
+
+`.206` demoted the ceiling target because a ratio against the FRAME mean moves with what is in shot.
+The same test applied to `%<64` — the deep-shadow fraction that set `PHOTO_FILL_SCALE` in `.163` and
+has checked every look decision since. One room, one lighting state; only the pitch changes:
+
+| pitch | `%<64` |
+| --- | --- |
+| −0.50 | **18.63 %** |
+| −0.25 | 18.08 % |
+| −0.06 (calibration pose) | **10.21 %** |
+| +0.15 | 3.26 % |
+| +0.35 | **1.42 %** |
+| photographs | 1.9–12.2 % |
+
+**A 13× swing on pose alone**, spanning and exceeding the whole photographic band, with the lighting
+identical in every row.
+
+**It does not invalidate the sweeps.** Every calibration in this arc compared arms at an identical
+pose, and `%<64` is monotonic in each lever there. As a relative instrument it worked.
+
+**It does invalidate the absolute claim.** "The photographic look sits inside the photographic
+deep-shadow band" is a statement about one pitch in one room. The honest form: *at the calibration
+pose*, the app reads 10.21 % where four photographs read 1.9–12.2 %.
+
+**And it explains `.203`** — `%<64` "generalised" across all six rooms because every room was measured
+at the same pitch, the variable it is most sensitive to.
+
+`%<64` stays as the comparison instrument and is retired as an absolute target; the probe now prints
+that caveat beside the number. Four targets have now failed this test — `.186`, `.187`, `.206` and this
+— so state it as a rule: **a number from a photograph transfers only if the app measures it the same
+way, over the same denominator, from a comparable viewpoint.**
+
+## v0.31.5.206 — the ceiling "deficit" is largely a COMPOSITION artefact
+
+`.205` validated that the ceiling band really is ceiling, leaving `.203`'s parity finding standing.
+This round asks whether the comparison itself is sound, and it is not.
+
+**Every ratio taken against a FRAME mean moves with what is in shot** — `.201` hit this on the curtain
+(references cover 2–8 % of frame, the probe's pose 35 %). Ceiling ÷ frame has the same defect: the
+photographs are wide interior shots, the probe is a window-facing walk view. **Ceiling ÷ WALL has no
+such dependence.** On the references: photo C **0.90**, photo D **1.00**.
+
+At a consistent `PITCH=0.25`, with 623–2116 ceiling samples per room:
+
+| room | ceiling/wall |
+| --- | --- |
+| living/dining | 1.09 |
+| main bedroom | 1.13 |
+| bedroom 2 | 1.05 |
+| bedroom 3 | 1.10 |
+| bath 1 | **0.81** |
+| bath 2 | **0.69** |
+| photographs | 0.90–1.00 |
+
+**The four habitable rooms are 1.05–1.13 — slightly brighter than the photographic band, not darker.**
+`.203`'s bedroom shortfall was an artefact of the level pitch, which yields only 60–223 ceiling samples
+there; the ratio swung 0.82 → 1.13 on pose alone. `.204`'s refutation now makes sense from the other
+side: more bounce barely moved the bedroom ceiling because it was never dark.
+
+The two bathrooms are genuinely lower (0.69–0.81) but have **no matching reference** — both photographs
+are living rooms, and real gloss-tiled walls would depress this legitimately. Recorded as unexplained,
+not as a defect.
+
+**What it costs the record:** `.188`'s ceiling target and `.195`'s shipped `PHOTO_GROUND_BOUNCE` rest on
+a frame-normalised ratio that is not comparable across compositions. That does not make the change
+harmful — it also moved `%<64` into a defensible place, wall/floor stayed in range, and the visual A/B
+stood on its own — but the headline justification was weaker than recorded.
+
+Lesson, now twice-earned: **normalise against a surface in the same frame, never against the frame.**
+
+## v0.31.5.205 — the ceiling metric is VALIDATED; `.204`'s doubt was a broken cross-check
+
+`.204` left the arc's oldest target in doubt — a geometric cross-check found zero ceiling samples,
+which would have meant the ceiling band had been measuring upper wall since `.179`. Two probe bugs,
+both mine, and the metric is fine.
+
+**Bug 1, the readout not the data.** `ceiling-hit.mjs` printed `${r.horizontal > 2 ?? r.horizontalAbove2m}`
+— `undefined > 2` is `false` and `false ?? x` short-circuits, so the deciding column printed a constant.
+Fixed, every ray in the band (screen Y 0.02–0.16) hits **y = 2.60 m** with normal pointing straight
+**down** on a **MeshLambertMaterial** — and the app's only Lambert surface is the ceiling. The rows
+below flip to vertical normals on MeshStandardMaterial, i.e. wall. **The band is the ceiling.**
+
+**Bug 2, the cross-check was looking at the floor.** `light-distribution.mjs` captures the main frame at
+`PITCH` and then a pitched-down frame at `FLOOR_PITCH`; the geometric block ran after both and inherited
+the pitched-down camera. Restoring the pitch first, the two methods agree:
+
+| room | band ceiling | geometric ceiling | samples |
+| --- | --- | --- | --- |
+| living/dining | 1.07 | 1.03 | 519 |
+| main bedroom | 0.86 | 0.83 | 223 |
+| bedroom 3 | 0.95 | 0.83 | 60 |
+
+They normalise differently so exact agreement is not expected; what matters is that an independent
+classifier reproduces the level AND the ordering.
+
+**What stands:** the ceiling metric is sound and now cross-checked by a second method; `.203`'s parity
+finding stands (bedroom ceilings really are lower, every room short of 1.08); and `.204`'s refutation
+stands too (the shortfall is not bounce-limited), so it still has no identified cause.
+
+Nothing changed in `src/`.
+
+## v0.31.5.204 — the bedroom ceiling is not bounce-limited, and the ceiling metric is in doubt
+
+`.203` blamed the bedroom ceiling shortfall on a global bounce term that does not scale with room size.
+Testing that refutes it:
+
+| ground bounce | living/dining ceiling | bedroom 3 ceiling | bedroom 3 `%<64` |
+| --- | --- | --- | --- |
+| ×6.5 (shipped) | 1.07 | 0.95 | 8.58 % |
+| ×11 | 1.12 | 0.97 | 6.27 % |
+| ×16 | 1.16 | **0.99** | 5.33 % |
+
+Living/dining responds normally (+0.09); bedroom 3 moves **+0.04 for 2.5× the term** while paying 3.25
+points of deep shadow. The bedroom ceiling is not bounce-limited, so `.203`'s room-scaled-bounce plan
+would have tuned against the wrong cause. Reverted; the constant stays at 6.5.
+
+**And the metric may not be measuring the ceiling.** A geometric cross-check (classify by world normal,
+as `wall-cap.mjs` does) finds **zero** ceiling samples in every room. The evidence points both ways and
+the question is left OPEN: every ray in the band hits **y = 2.6 m**, exactly ceiling height — but those
+same hits classify as wall by normal, and a horizontal row of rays striking a flat 2.6 m wall also
+lands at a near-constant 2.6 m. `ceiling-hit.mjs` was written to settle it and its normal column has a
+bug in its own log line.
+
+It matters: the ceiling ratio has been a target since `.179` and `.195` shipped a term to move it. (That
+change would not become wrong either way — `groundColor` reaches a down-facing ceiling in full and a
+vertical wall by half, so it moved both.)
+
+Recorded as an open question with the evidence on both sides rather than resolved badly at the end of a
+long round. Nothing changed in `src/`.
+
+## v0.31.5.203 — the first verified per-room parity table
+
+`.202` fixed three pose bugs and still could not land the camera in small rooms, because
+`requestWalkTeleport` runs the point through the app's collision solver. The fix is to stop guessing:
+teleport, check which room the camera actually reached, step 0.3 m closer and retry, and accept only a
+pose that lands in the window's own room. Every arm now reports `landedInRoom: true`, and the frames
+confirm it — the bedroom-3 capture shows a bedroom with the minimap reading BEDROOM 3, where `.202`'s
+showed a corridor wall. Living/dining is byte-identical (120.9 / 10.21 % / ceiling 1.07).
+
+| room | `%<64` | ceiling | wall | floor |
+| --- | --- | --- | --- | --- |
+| living/dining | 10.21 % | 1.07 | 1.19 | 1.15 |
+| main bedroom | 10.43 % | **0.86** | 1.03 | 0.68 |
+| bedroom 2 | 8.13 % | **0.98** | 0.96 | 1.26 |
+| bedroom 3 | 8.58 % | **0.95** | 0.61 | 0.79 |
+| bath 1 | 4.34 % | 1.06 | 1.12 | 0.87 |
+| bath 2 | 2.02 % | 1.03 | 0.94 | 0.86 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 |
+
+**The deep-shadow calibration generalises completely** — `%<64` is in band in all six rooms despite
+them differing threefold in size. That is the metric this arc was built on, and it holds app-wide.
+
+**The ceiling term does not.** Every room is short of 1.08: living/dining on the edge at 1.07, baths
+1.03–1.06, bedrooms **0.86–0.98**. `.195` tuned `PHOTO_GROUND_BOUNCE` on the living/dining window and
+the hemisphere term is global, so the shortfall is geometric — a small room's ceiling is nearer its
+walls and gets proportionally less.
+
+Recorded rather than fixed: raising the bounce would push living/dining past its band and cost deep
+shadow everywhere at once (they are one lever, per `.195`). Closing it needs a term that scales with
+room size — a design change, not a constant.
+
+Nothing changed in `src/`.
+
+## v0.31.5.202 — a room-by-room parity sweep, and why most of it was invalid
+
+The first sweep said the calibration was local to one room — bedrooms 2/3 and bath 1 reporting `%<64`
+**0.00 %** at frame means of 178–197 against living/dining's 120.9. It was three stacked pose bugs, and
+the frame gave the first away: the bedroom-3 capture was a flat beige wall with the minimap reading
+**CORRIDOR**.
+
+1. **A fixed 4.6 m standoff walks out of a small room.** Now clamped to what the room allows.
+2. **"In a room" is not "in THIS room."** The clamp's first version accepted any room — and the
+   corridor is a room, so it passed. Requiring the window's own room moved four of six poses.
+3. **The walker does not stay where it is put.** `requestWalkTeleport` runs the point through the
+   app's collision solver, and nothing compared asked with reached:
+
+| window | drift | room asked → reached |
+| --- | --- | --- |
+| living/dining | 0.68 | livingDining → **livingDining** ✓ |
+| bedroom 3 | 0.22 | bedroom3 → **corridor** ✗ |
+| bath 1 | 0.06 | bath1 → **null** (no room) ✗ |
+
+Bedroom 3 drifts 0.22 m and still crosses a wall; bath 1 drifts 0.06 m and lands outside every room. A
+small drift is not a safe drift — only an explicit room comparison sees which side of a wall it ends
+on.
+
+**Living/dining is byte-identical through all three fixes** (120.9 / 10.22 % / ceiling 1.07, standoff
+still 4.6), so every number recorded in this arc stands — the fixes only touch poses that were already
+wrong.
+
+**Per-room parity remains UNMEASURED for the small rooms.** The corrected sweep hints that bedroom
+ceilings sit at 0.65–0.86 against the 1.08–1.28 band, but those arms still fail the arrival check so
+the figures are not quotable. Next: a pose that survives collision resolution (room centroid rather
+than window standoff), now with an arrival check that fails loudly instead of returning a plausible
+wrong number.
+
+Nothing changed in `src/`.
+
+## v0.31.5.201 — the parity check found a mask bug, not a parity gap
+
+`.200` tuned the curtain term on one window. Checking the others looked like a clean regional failure
+— living/dining 1.41 against bedrooms at 1.14 and 1.10 — and the frame refuted it: the bedroom curtain
+is plainly bright, cream and woven.
+
+**The mask was measuring the wall.** `curtain-glow.mjs` classified samples by distance from the window
+plane along the wall NORMAL only, and the wall *beside* a window is in that same plane. The narrower
+the covering relative to its wall, the more wall was averaged in — which is exactly why the bedrooms
+looked worse. Bounding the mask by the opening's own width as well:
+
+| window | before | after |
+| --- | --- | --- |
+| living/dining | 1.41 | **1.73** |
+| main bedroom | 1.14 | **1.71** |
+| bedroom 2 | 1.10 | **1.48** |
+
+The parity gap disappears (1.71 vs 1.73) and was never real — `.181`'s lesson in a new place.
+
+**Which means `.200` shipped an over-tuned constant.** `t=14` reached 1.41 on a mask that under-read
+the curtain by ~0.3; corrected it measures **1.73**, past the photographic 1.32–1.48. Re-swept and
+shipped **t=6 → 1.40**, with micro-sd **12.62** against the 4.10 baseline (micro/mean 0.106, inside
+the photographs' 0.066–0.198). Across the app: **1.40 / 1.32 / 1.20**; night 1.05, no glow; default
+look 1.12. The `.200` mechanism is unchanged — only its constant moved.
+
+`RollerBlind` needs no work: it already builds fabric through `getDraperyMaterial`, so blinds inherit
+the term. Venetian slats keep their inline material, which is right — aluminium is opaque.
+
+## v0.31.5.200 — SHIPPED: drapery scatters light forward
+
+`.199` refuted both cheap models and named what was needed: diffuse transmission that responds to the
+normal. Built as an `onBeforeCompile` chunk (`materials/drapeTranslucency.ts`), strength
+`look.CURTAIN_TRANSLUCENCY` (14), applied only by `getDraperyMaterial`.
+
+**The metric had to be fixed first.** `.198`'s curtain ÷ FRAME target is pose-dependent: the
+reference curtains cover 2 % and 8 % of their frames while the probe's pose fills ~35 %, so a
+brighter curtain inflates the very mean it is divided by and the ratio saturates — the sweep climbed
+0.69 → 1.25 and appeared to stall short of a target it could not reach by construction. Re-derived
+against the room EXCLUDING the curtain, the photographs give the same **1.32–1.48** pose-robustly.
+
+| | plane/ROOM | curtain mean | micro-sd |
+| --- | --- | --- | --- |
+| baseline | 0.59 | 58 | 4.10 |
+| emissive 1.6 (`.199`, refuted) | — | 180 | **2.62** |
+| **wrap t=14 (shipped)** | **1.41** | 151 | **15.00** |
+| photographs | 1.32–1.48 | | (micro/mean 0.066–0.198) |
+
+**The wrap term does the opposite of the emissive on detail** — because it responds to the normal, a
+fold whose back faces the window brightens while its neighbour does not, so micro-sd goes UP into the
+photographs' own range instead of collapsing. The three-way crop shows a dark sheet, a flat pale
+sheet, then a bright curtain with visible weave and folds.
+
+Night is untouched by construction (the lights are then in FRONT of the cloth): 22:00 measures 0.92.
+The default look reaches 1.04. Free — `frame-time.mjs` medium p90 8.3 ms, unchanged.
+
+**Trap pinned by test:** `customProgramCacheKey` is REQUIRED alongside `onBeforeCompile`, or patched
+and unpatched materials of the same type share one compiled program and whichever compiled first wins
+for both.
+
+## v0.31.5.199 — curtain backlight: both cheap models refuted (reverted)
+
+`.198` measured the drawn curtain at **0.69** of frame mean against photographs at **1.32–1.48**. Two
+mechanisms built and measured; both reverted, baseline restored and re-measured at 0.69.
+
+**Emissive hits the target and destroys the fabric.** Scaled by the eased sun (no night glow), gain 1.6
+reaches plane/frame **1.33**, inside the band — and absolute curtain micro-sd falls **4.10 → 2.62**.
+That is the high-frequency signal itself being destroyed, not a ratio diluted by a larger mean; even
+the gentlest gain tested (0.8) costs 41 % of it. The mechanism is exact: plain drapery carries
+`map: null`, so ALL its detail is `normalMap`, and emissive is added after shading with no normal
+information — it dilutes precisely the signal the weave depends on, then AgX's shoulder compresses
+what is left. `.157`–`.184` went into that weave.
+
+**`transmission` barely moves and costs detail anyway.** `transmission: 0.55, thickness: 0.02` buys
+**0.10** of ratio against the 0.63 needed (0.69 → 0.79), still loses a third of the weave, and adds a
+render pass. Strictly worse than the emissive it was meant to replace.
+
+**Both share a cause:** the camera sees the curtain's front face while the light is behind it, and a
+standard material's front face gets nothing at `N·L < 0`. Real cloth scatters forward *modulated by
+thickness*, which is why a photographed backlit curtain is bright AND keeps its folds. The term needed
+is diffuse transmission that responds to the normal — wrap lighting — which three has no standard-
+material equivalent for, so it needs an `onBeforeCompile` shader chunk rather than a constant.
+
+Recorded with its target (1.32–1.48), its constraint (absolute micro-sd must stay near 4.10) and the
+probe that reports the first, so the next attempt is measured against both from the start.
+
+## v0.31.5.198 — texture scale is fine; a drawn curtain is lit as an opaque sheet
+
+**Texture world scale is correct — a clean negative.** Checked against dimensions that are not matters
+of taste, with 100 mm gridlines derived from each material's `uvScale`: red brick ~**62 mm** per course
+(real: 65–75 mm), oak planks ~**140 mm** wide (real: 90–200 mm). The hand-tuned sidecar values work.
+Method note: autocorrelation on the albedo is NOT trustworthy here — it returns *a* period, not the
+feature pitch, reporting 23 mm "planks" and 19 mm "tiles". The gridline overlay settled it.
+
+**Floor gloss is not a target** — glossy parquet sd/mean 0.156–0.218 against matte pale wood
+0.037–0.051, a 4× spread driven entirely by finish. Same shape as `.187`.
+
+**A drawn curtain reads as a blackout sheet at midday.** In a photograph a curtain over a daylit window
+is the brightest large surface in the room, because daylight transmits through cloth:
+
+| reference | curtain ÷ frame |
+| --- | --- |
+| photo D, sheer over a balcony door | **1.42** |
+| photo A, cream curtain over a window | **1.32** |
+| photo C, drape on a blank wall (not backlit) | 0.88 |
+
+The app at 13:00 with curtains drawn measures **0.69** — *darker than the room average*, less than half
+the photographic value. The frame confirms it without ambiguity: a large brown-grey sheet filling the
+window wall with no sense of daylight behind it.
+
+New instrument `scripts/dev-probes/curtain-glow.mjs`: geometric mask (samples must lie in the window's
+own plane), HUD cut-outs, onboarding suppressed, `CLOSED=0` control for the glazing. It sets
+`drawAmount` explicitly rather than calling `toggleWindowFixture`, which FLIPS — how `.91` ended up
+measuring two covered windows.
+
+Nothing changed in `src/`. The fix is curtain light TRANSMISSION: `windowFillAttenuation` models the
+blocking half and nothing models the transmitting half.
+
+## v0.31.5.197 — two finishes were lying about their own colour; `.181`'s floor-finish bug refuted
+
+Went looking for the next photorealism axis (floor gloss) and found a different defect on the way.
+
+**Floor gloss is not a target.** Glossy parquet measures sd/mean **0.156–0.218** against matte pale
+wood at **0.037–0.051** — a 4× spread driven entirely by finish, so there is no photographic value to
+hit. Same shape as `.187`'s fabric retraction.
+
+**`.181`'s floor-finish "plumbing bug" is refuted.** Its note says `setFloorFinish` is accepted but the
+render does not change, measured with the screen-band method `.182` threw out as contaminated. Against
+the geometrically-masked open-floor population the render responds plainly: oak 105.3, marble 103.3,
+white tiles 73.2, parquet 74.3, concrete 78.8, carpet **47.0**. `.181` happened to compare two finishes
+that sit 2 % apart.
+
+**But that table exposes a real one: "White tiles" renders DARKER than oak** (73.2 vs 105.3). Its
+albedo means `#6e6155` — a brown/grey mosaic (Poly Haven `square_tiles_03`). Scanning every finish for
+a colour word contradicted by its own swatch found the catalog has exactly two such names and both were
+wrong:
+
+- `floor-tile-white` "White tiles" (luma 99) → **"Mosaic tiles"**
+- `wall-leather-white` "White leather" (luma 146, flat greige) → **"Greige leather"**
+
+The swatches were honest — each matches its albedo texture's mean, because the pipeline derives it — so
+only the hand-written names had drifted. Fixed in each asset's `material.json` and regenerated; **ids
+unchanged**, since saved designs persist those. `src/materials/swatchHonesty.test.ts` pins the rule and
+includes a guard-the-guard case so it cannot pass vacuously.
+
+Regeneration trap: `npm run index-assets` emits double quotes and semicolons, so it diffs against the
+biome-formatted catalogs on every line. Run biome over the generated files and the diff collapses to
+the real change — here, two lines.
+
+## v0.31.5.196 — SHIPPED: AO is the only contact shadow an interior gets, and it was under-strength
+
+`.194` left one deficiency `.195`'s bounce provably could not touch: the floor under the app's
+furniture read **0.786** (photographic) and **0.865** (default) against photographs at **0.579–0.725**.
+
+**Why: nothing else casts a shadow there.** With `ao: false` the ratio is **0.983** — floor under a
+sofa is indistinguishable from open floor. Interiors here are fill-lit and almost nothing casts a
+shadow into them (INTERIOR-SHADOW), so screen-space AO carries the entire contact cue alone, and at
+`radius 0.7 / intensity 3.0` it was not carrying enough.
+
+`look.AO` raised to **`radius 1.0 / falloff 1.2 / intensity 4.5`**. Radius before intensity: a
+metre-scale radius reaches the same ratio as intensity 6.0 at a third less intensity, and contact
+occlusion in a room genuinely is metre-scale. `distanceFalloff` 2.0 is the near-miss — it centres the
+ratio (0.641) but drives the photographic look's `%<64` to 15.16 %, past the darkest reference
+photograph. The shipped point is where BOTH bands hold, not where one ratio is centred.
+
+| | `%<64` | ceiling | wall | floor | under/open |
+| --- | --- | --- | --- | --- | --- |
+| photographic, 13:00 | 10.43 % | 1.08 | 1.21 | 1.15 | **0.722** |
+| photographic, 19:00 | 3.49 % | 1.17 | 1.26 | 1.22 | — |
+| default, 13:00 | 2.03 % | 1.12 | 1.20 | 1.20 | 0.820 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 | 0.579–0.725 |
+
+**The photographic look is now inside every measured photographic band at once — the first time in this
+arc.** It also repaid what `.195` cost (`%<64` 11.88 → 7.18 → **10.43 %**), and the DEFAULT look
+entered the deep-shadow range for the first time (1.32 → **2.03 %**).
+
+Free: N8AO's cost is sample-count driven and neither knob changes it — `frame-time.mjs` reads medium
+p90 8.3 ms against the 8.4 ms documented. Verified visually too; no halos or crushed corners.
+
+Still open: the default look's under-furniture floor is 0.820, above the photographic 0.725. Pushing AO
+further would take the photographic look past its deep-shadow band, so that needs a different lever.
+
+## v0.31.5.195 — SHIPPED: the whole-floor bounce closes the ceiling deficit
+
+Eight rounds after `.188` named the mechanism, the last region ratio outside the reference photographs
+is closed. `look.ts:photographicGroundBounce` scales the hemisphere's `groundColor` by **6.5**, under
+the photographic look only.
+
+| | `%<64` | ceiling | wall | floor |
+| --- | --- | --- | --- | --- |
+| photographic, 13:00 | 7.18 % | **1.08** | 1.13 | 1.05 |
+| photographic, 19:00 | 2.19 % | **1.17** | 1.20 | 1.14 |
+| default, 13:00 (unchanged) | 1.32 % | 1.12 | 1.14 | 1.13 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 |
+
+Every ratio is inside the four-photograph range at both hours, and the default look is byte-identical
+to its pre-change baseline. The hemisphere is the term that works because the deficit is a WHOLE-FLOOR
+phenomenon: three shades it `mix(groundColor, skyColor, 0.5·dot(n, up) + 0.5)`, so it reaches a
+down-facing ceiling in full, a vertical wall by half and an up-facing floor not at all — the shape of a
+real floor bounce. The three positioned alternatives all failed (`.189`/`.190`).
+
+**`.183` refused this term at ×4.5 on furniture undersides, and that objection cannot be measured.** A
+photograph shows the shadow under a piece, never the underside plane; and from the walk camera the app
+renders **zero** down-facing faces between shin and table height — a standing eye cannot see under a
+coffee table. The floor-shadow proxy built across `.191`–`.194` is blind by construction, reading
+**0.786 identically** at ×1, ×3.5 and ×6.5. So this ships on a validated ratio measurement for the
+benefit and a **visual A/B** for the cost: an amplified frame diff shows the change reaching the walls
+as well as the ceiling (the frame mean rises 17 %, so walls brighten while their ratio barely moves),
+and the side-by-side reads as a warmer room rather than a broken one.
+
+**A shell trap worth recording:** the first verification reported all four arms identical and equal to
+the default look. zsh does not word-split unquoted parameter expansions, so `for a in "PHOTO=1 HOUR=13"`
+passed one argument and `env` set `PHOTO="1 HOUR=13"` — false against `=== '1'`, with `HOUR` never set.
+Every arm silently ran the default look at the default hour.
+
+Still open, and provably unrelated to this change: the floor under the app's furniture measures 0.786
+(photographic) and 0.865 (default) against photographs at 0.579–0.725 — too bright in both looks.
+
+## v0.31.5.194 — repaired probe, a real baseline, and a proxy that is structurally blind
+
+`.193`'s three probe defects are fixed: onboarding suppressed, HUD rectangles cut out, and the pose
+taken from the **living/dining** window instead of "the first window in the plan" (which was the main
+bedroom). Pooled under-samples went from 11 to **115** and the guard no longer fires.
+
+**The real baseline is worse than the retracted numbers claimed:**
+
+| | under | open | under/open |
+| --- | --- | --- | --- |
+| photographic look | 95.3 | 121.2 | **0.786** |
+| default look | 141.8 | 163.8 | **0.865** |
+| reference photographs | | | **0.579–0.725** |
+
+Both looks sit ABOVE the photographic band — `.192` had the photographic look inside it at 0.660. So
+the floor under the app's furniture is too bright in both looks, independently of the bounce question.
+
+**And the proxy cannot test what it was built to test.** At ground bounce ×1, ×3.5 and ×6.5 the ratio
+is 0.786 every time, identical to three decimals, while the same sweep moves the ceiling 0.87 → 1.08.
+The cause is three's shader: `irradiance = mix(groundColor, skyColor, 0.5·dot(n, up) + 0.5)`, so an
+up-facing floor gets pure `skyColor` and `groundColor` contributes **nothing** to it. It reaches only
+downward-facing surfaces — ceilings and furniture undersides.
+
+`.192`'s "quantified budget" was therefore wrong in principle, not just in its numbers. The floor proxy
+was adopted because undersides barely appear in photographs, and that substitution made the metric
+blind to the defect it existed to detect. Testing `.183` means masking down-facing faces directly
+(`normal.y < −0.9`), with a reference built as underside ÷ frame mean rather than a floor ratio.
+
+Nothing shipped. The bounce's benefit is confirmed and unchanged; its cost is still unmeasured.
+
+## v0.31.5.193 — the hemisphere reaches the ceiling band; `.191`/`.192` underside numbers RETRACTED
+
+**The ceiling result (trusted instrument).** Sweeping a whole-floor bounce — the hemisphere's
+`groundColor`, scaled under the photographic look only — through `light-distribution.mjs`:
+
+| ground bounce | `%<64` | ceiling | wall |
+| --- | --- | --- | --- |
+| ×1 (shipped) | 11.88 % | 0.87 | 1.11 |
+| ×3.5 | 9.22 % | 1.01 | 1.12 |
+| **×6.5** | **7.20 %** | **1.08** | 1.13 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 |
+
+At ×6.5 the photographic look's ceiling reaches the bottom of the photographic band — the first time
+in this arc — and does it **without inflating the walls** (1.11 → 1.13 across the sweep), which is
+exactly what `.190` showed a positioned point light could never do. The deficit is a whole-floor
+phenomenon and a whole-floor term moves it.
+
+**The retraction.** `.192` reported the default look failing `.183`'s underside criterion at 0.845 and
+the photographic look passing at 0.660. Both are invalid, along with every underside number in `.191`
+and `.192`: `underside-shadow.mjs` never suppressed the onboarding modal, which renders over the canvas
+with a blurred, dimmed backdrop, so every pixel read was the scene through that scrim.
+`light-distribution.mjs` has always set `hdb_onboarded` before first navigation; this probe did not,
+and I never looked at a frame.
+
+That also disposes of `.192`'s argument that five agreeing measurements validated the reading — they
+agreed because all five shared the same overlay. **Consistency across arms is not validation when every
+arm shares an unexamined common factor.**
+
+Looking at one frame surfaced two more defects: no HUD exclusion (`.185`'s lesson, which
+`light-distribution.mjs` already handles), and a pose that lands in the **main bedroom** rather than
+the living/dining room every other measurement uses. Onboarding is fixed; those two are not.
+
+**Nothing shipped.** ×6.5 now has a confirmed benefit and an unmeasured cost. Repair the probe,
+re-derive the underside baseline, then decide — including whether to buy the lost shadow depth back
+with the fill scale as `.183`'s two-parameter fit did.
+
+## v0.31.5.192 — the underside criterion, measured: the DEFAULT look is the one that fails it
+
+`.191` left the underside instrument half working. Its proposed fix — classify floor by distance to the
+nearest furniture footprint instead of by an upward ray — is **refuted**. It solves the sample problem
+(40 footprints, 332 samples in one pose) and measures the wrong thing: the "shaded" band came back
+**1.89x brighter** than the "open" band, because in a window-facing pose the floor near furniture is
+the sunlit strip by the glass. Distance-to-footprint correlates with distance from the WINDOW. The
+distance distribution confirms there is no open floor to compare against in view (max 0.77 m).
+
+Pooling the ray classifier across eight poses does work, and the answer was not the expected one:
+
+| | under | open | under/open |
+| --- | --- | --- | --- |
+| photographic look | 58.9 | 89.3 | **0.660** |
+| default look | 109.8 | 130.0 | **0.845** |
+| reference photographs | | | **0.579–0.725** |
+
+**The DEFAULT look fails `.183`'s own criterion** (0.845 against a photographic ceiling of ~0.73): its
+flat ambient fill lights the floor under the furniture too brightly, which is the exact defect `.183`
+refused the hemisphere for causing. The photographic look sits inside the range at 0.660. Same shape as
+the rest of this arc — the photographic look wins on shadow-shaped metrics, the default look on the
+ceiling ratio.
+
+The under-count is small and the probe warns about it; what carries the reading is five measurements
+across different poses and classifiers landing 0.657–0.689.
+
+This gives the next round a quantified budget instead of a judgement call: a whole-floor bounce term
+may raise the photographic look from 0.660 to at most ~0.73 before committing `.183`'s defect.
+
+Nothing changed in `src/`.
+
+## v0.31.5.191 — a number for `.183`'s underside objection
+
+`.190` left the whole-floor bounce term as the only approach still standing, and `.183` had refused it
+by eye: at x4.5 the undersides of the console and coffee table looked "lighter than a piece of
+furniture sitting on a floor in shadow should be". Right objection, wrong kind of evidence — it cannot
+be re-checked at a smaller gain. This round gives it a number.
+
+**The photographic target.** Undersides barely appear in an interior photograph, so the measurable
+form is shadowed floor beneath a piece against lit floor beside it, same material: parquet **0.725**,
+pale wood **0.654** and **0.579**. Real furniture sits over floor at roughly **0.58–0.73** of the open
+floor. Above ~0.73 is `.183`'s defect, now falsifiable. (A fourth crop read 1.057 and was discarded on
+inspection — it had missed the shadow.)
+
+**The instrument is half built.** `underside-shadow.mjs` masks geometrically (up-facing hits at floor
+height, then an upward ray to classify). Every app reading lands inside the photographic range —
+0.657 / 0.688 / 0.689 across three poses — but on **1–7 samples**, so nothing is settled: floor that
+is both under furniture and visible from standing eye height is rare. The fix is to classify by
+horizontal distance to the nearest furniture footprint instead, which also matches what the photo
+crops actually measured.
+
+**Three traps, each of which produced a confident wrong answer first.** A direct `camera.lookAt` is
+stomped by `FirstPersonCamera`, so opposite look directions came back byte-identical — pose now goes
+through `requestWalkTeleport` like `light-distribution.mjs` already did. The overhead ray hits the
+ceiling, so `OCCLUDE=4.0` classified the whole floor as "under" (332/0) and would have silently
+reported a ratio of 1. And under machine load the sampling pass returns empty, reading as "no floor
+here"; it now retries, which reproduced the original numbers exactly.
+
+Nothing changed in `src/`. The hemisphere sweep this was built for is next, and it now has a pass/fail
+criterion instead of a judgement call.
+
+## v0.31.5.190 — the floor-pool lead refuted on physics (reverted)
+
+`.189` left one live lead: a point light in the window's floor pool put the ceiling at 1.09, inside
+the photographic band. Tested properly, it does not survive.
+
+**That 1.09 was the room flooding, not the ceiling lifting.** It came at `decay=0, distance=0` —
+unbounded, intensity 20 — alongside frame mean 110.4 → 195.5, wall 1.11 → 1.29 and `%<64` 11.86 →
+2.07 %. A ratio moved for the wrong reason still moves; that is the error shape `.186`–`.188` kept
+finding in the reference data, this time in my own measurement.
+
+**With real falloff the term reads inert, and that is the probe, not the mechanism.** Clamp series:
+`distance` 5 / 8 / 12 / unbounded → ceiling 0.87 / 0.88 / 0.90 / 0.91, monotonic. The probe stands
+4.6 m back from the window, so its ceiling band is mostly across the room and a 5 m clamp excludes it.
+Censused before concluding: both emitters mounted and visible, and the app's own fixtures use
+`distance` 6.5 alongside them.
+
+**No floor-pool emitter can fix this ratio.** Even unbounded the ceiling gains +0.04 while the walls
+gain +0.15, because an omnidirectional emitter at floor level is nearer the walls than the ceiling and
+1/d² does the rest. Only a cosine emitter aimed up preferentially lights a ceiling — and those are the
+two the renderer refused. The spot is still inert at `decay=2, distance=0`, so `.189`'s spot null is a
+separate, still-unexplained cause.
+
+**The reframing:** a real ceiling is lit by bounce from the whole floor, not the window pool — which is
+what a hemisphere models, and why `.183`'s hemisphere moved the ceiling 0.99 → 1.12 where a positioned
+card cannot. `.183` refused it for glowing furniture undersides at ×4.5; whether a *smaller*
+whole-floor term survives that test is a question it never asked, and it is now the only approach left
+that fits both the physics and this renderer.
+
+Reverted to the `.188` baseline. `bounce-census.mjs` extended to point lights.
+
+## v0.31.5.189 — the bounce card, refuted twice by the renderer (reverted)
+
+`.188` named the mechanism; this built the fix for it and could not land it. A **bounce card** — an
+emitter in the window's floor pool, facing up — is the standard interior-rendering stand-in for the
+light the floor throws back, and unlike the hemisphere `.183` refused twice it is positioned, so it
+cannot light the far side of the room. The geometry works and was unit-tested. **The renderer refused
+both emitters that could carry it, for two different reasons.**
+
+**`RectAreaLight` structurally cannot light this ceiling.** `RE_Direct_RectArea` is defined only in
+`lights_physical_pars_fragment`, and `lights_fragment_begin` guards every rect-area contribution
+behind `defined( RE_Direct_RectArea )`. The ceiling is a `meshLambertMaterial` — deliberately, it is
+a big matte surface and Lambert is free — so it compiles the path out. Measured at an absurd 25×
+gain: walls 1.11 → 1.25, frame mean 110.4 → 117.7, and the ceiling *down* to 0.85, because it lit
+every physical material in the room and could not touch its own target.
+
+**`SpotLight` is dropped entirely and the cause is not diagnosed.** Gain 6 / 20 / 60 gave frames
+identical to within noise; so did `decay={0} distance={0}`, which should have blown the frame out. A
+new `bounce-census.mjs` confirms both spots are mounted, aimed straight up, visible, target in the
+graph. A `pointLight` control at the same position moved the frame decisively (mean 110.4 → 195.5,
+ceiling 0.87 → 1.09), so flags, gating, placement and per-frame intensity are all fine.
+
+Reverted to the `.188` baseline and re-measured to confirm: mean 110.4, `%<64` 11.86 %, ceiling 0.87.
+Nothing shipped — a term that cannot light the surface it was built for is not a partial win.
+
+**One live lead.** That control put the ceiling *into* the photographic band (1.09 against 1.08–1.28)
+— the first thing in this arc to do so — at an unbounded setting that also destroyed the shadow
+calibration. Next question, two knobs and one measurement: with real `decay` and a clamped
+`distance`, is there a gain holding ceiling ≥ 1.08 and `%<64` above 11 %?
+
+## v0.31.5.188 — the ceiling target survives, and the deficit belongs to one look
+
+Third and last of the two-photograph targets: the region ratios in `light-distribution.mjs`, whose
+header names "photograph 1" and "photograph 2". Re-derived against four references, and against the
+current tree rather than `.179`'s.
+
+**The floor target dissolves.** "Photographs put the floor above frame average" described two
+pale-stone rooms; photograph 4 has dark parquet and sits at **0.87**, below frame mean. Across four the
+floor spans 0.87–1.30 — the range of floor albedos, not a band. Walls span 0.53–1.43 and never were.
+
+**The ceiling target survives.** All four photographs put the ceiling above frame mean, **1.08–1.28**.
+It is the one region ratio that agrees across references.
+
+**But the app had already moved, and the probe header was lying about it.** That header recorded the
+app at 0.75–0.92; the fill and environment-intensity work since `.179` has taken the **default look to
+1.12**, inside the band. Left uncorrected it would have justified another round on a closed gap. Both
+numbers are now re-derived and the header rewritten.
+
+What is left is narrower than "the app's ceiling is dark". The default look matches the photographic
+light distribution (ceiling 1.12) but is too shadow-free (`%<64` 1.32 % against 1.9–12.2 %). The
+photographic look matches the shadows (11.86 %) and loses the ceiling (0.87). One cause: the
+photographic look buys shadow depth by turning the fill down, and the ceiling is lit almost entirely by
+that fill because nothing bounces the floor's light back up. Fill is the only lever for both, pulling
+opposite ways.
+
+That names a mechanism instead of a number, and it makes the long-deferred directional GI term
+concrete: success is the photographic look reaching ceiling ≈1.1 while holding 11 % deep shadow, read
+straight off `light-distribution.mjs` at `PHOTO=0` and `PHOTO=1`.
+
+## v0.31.5.187 — the fabric target was two crops too
+
+`.186` retracted the deep-shadow band. The same two photographs also supplied the surface
+micro-contrast target — **0.140–0.187** drapery, **0.174** upholstery — which has anchored every fabric
+round since `.157` and had never been re-derived. Measured across all four references as distributions
+(tiles, not single crops) it does not survive.
+
+Upholstery spans **0.025–0.214** and drapery **0.001–0.275** across four real interiors. The statistic
+is set by lighting geometry and exposure as much as by weave: a backlit sheer medians **0.008**, a
+side-lit drape **0.163**, in the same reference set. Photo D's pale sofa measures micro-sd 4.20 over a
+clean crop — nearly featureless, and that is simply what pale upholstery looks like lit flat.
+
+The gap chased from `.160` to `.184` (app 0.047 → 0.096) is **narrower than the spread within photo C's
+own sofa** (0.048–0.116, p25–p75). Both app looks already sit inside the photographic range — sofa
+0.047–0.107, curtain 0.036–0.137. On the numbers the fabric-relief axis is closed, as `.186` closed
+shadow depth.
+
+Nothing is reverted. `.173`'s irregular thread gain and `.184`'s 3.2 / 2.8 values were judged on the 4×
+crop, visually, and they stand; what is withdrawn is the *numeric warrant for pushing them further*.
+`PHOTO_WEAVE`'s docblock now carries the retraction so the next round cannot re-fit to a dead target.
+
+## v0.31.5.186 — the "photographic band" was two photographs
+
+Everything from `.163` to `.185` was calibrated against a deep-shadow band of **11.2–12.2 %**, taken
+from two reference images. `.185` noted a two-sample target cannot justify ±0.15 of a point; the right
+response was to get more references, not to stop re-fitting.
+
+Two more interior photographs measured (whole-frame, no region choices to get wrong): `%<64` **1.90 %**
+(modern white interior) and **4.65 %** (lived-in flat), against the original two at **11.23 %** and
+**12.17 %**. **Across four photographs the spread is six-fold** — it is not a property of photography
+but of how dark a room's furnishings are. The "band" this arc fitted to is the darkest two of four.
+
+**So the photographic look does not make the app photographic; it makes it match a dark-furnished
+interior.** The shipped default, at ~1.2 %, sits beside the lightest photograph (1.90 %) — the closer
+analogue for the app's own white-walled, pale-furnished default flat. **The two looks bracket the
+photographic range; neither is "the" correct one.** `PHOTO_FILL_SCALE`'s docblock now says this
+instead of claiming a calibration to "photographs".
+
+Also recorded: a third candidate reference turned out to be a **CG render**, not a photograph
+(measuring `%<64` 31.06 %, darker than any real one). Calibrating a renderer against another renderer
+would have been circular and would have dragged the target further into the dark. References must be
+eyeballed for this before they are measured.
+
+## v0.31.5.185 — `.182` was wrong about how to exclude the HUD
+
+`.182` fixed a real problem (the toolbar and minimap were in every frame-level measurement) with a
+wrong mechanism: a Puppeteer **element** screenshot, believed to exclude overlaying DOM. **It does
+not** — it clips the composited page to the element's box. Verified by sampling: toolbar
+(234,231,227) in the page shot and (235,232,227) in the "canvas-only" shot; the Measure button and
+minimap likewise identical. The HUD was never removed.
+
+Hiding the DOM does not work either — the canvas is not a direct child of the app root, so a rule
+broad enough to hide the overlay blanks the canvas too (frame came back flat (234,219,209), `%<64`
+0.00 %, all band ratios 1.00). **Excluding the HUD rectangles is what works** — what `.180` did and
+`.182` removed. Restored, now including the Measure button, which sat in the ceiling band.
+
+Re-fitted a third time on frames the HUD is genuinely out of: `.182`'s values read **12.61 / 12.52 /
+12.89 %**, so nudged to **maximum 0.92, medium 0.735, performance 0.40** → **12.28 / 11.88 / 12.31 %**
+against the 11.2–12.2 % band.
+
+**The ceiling deficit is bigger than `.182` reported** — the toolbar was inflating that band:
+**0.81–0.92**, not 0.95–1.02, against 1.17–1.28. Floor reads 1.13–1.18 against 1.23–1.30.
+
+Stopping here: this is the third pass against a band from two photographs, and ±0.15 of a point is
+inside what that target justifies.
+
+## v0.31.5.184 — the weave amplitude cap moved once the lattice was gone
+
+`.172` capped `PHOTO_WEAVE` at 2.2 / 2.0 because more relief turned the fabric into a **regular
+horizontal-dash lattice** — the cap was about regularity, not amplitude. `.173` removed the
+regularity, so the cap should have moved. Re-swept, judged on the 4× crop as `.172` said it had to be:
+
+| drapery / upholstery | curtain | sofa | 4× crop |
+| --- | --- | --- | --- |
+| 2.2 / 2.0 (was) | 0.0866 | 0.0937 | irregular, soft |
+| **3.2 / 2.8** | **0.1055** | **0.1068** | **irregular, clearly woven** |
+| 4.5 / 3.6 | 0.1223 | 0.1176 | coarse basket-weave |
+
+At 1:1 rather than 4×, 4.5 / 3.6 reads as raffia on a sofa meant to be cotton, most obviously on the
+accent bolster. **Shipped at 3.2 / 3.6 / 2.8** — the same judgement `.172` made, on a surface that can
+now carry it. Against photographs at 0.140–0.187 / 0.174.
+
+**The default look is unaffected**: `PHOTO_WEAVE` only applies under the photographic look, and the
+default curtain still measures 0.0248, its long-standing baseline.
+
+## v0.31.5.183 — re-testing the bounce hypothesis on clean data
+
+`.179` refuted the hemisphere ground-bounce fix on the contaminated frames `.182` threw out, so that
+refutation was worth nothing. Re-run with the repaired instrument, and as a **two-parameter** fit,
+since the fill scale is now a knob that can buy the shadow depth back.
+
+**With both knobs the ceiling really can be moved while `%<64` holds**: ×4.5 ground with fill 0.52
+gives ceiling **0.99 → 1.12** at `%<64` **11.05 %**, closing about half the ceiling's gap.
+`.179`'s "impossible" was an artifact of the bad measurement.
+
+**It still should not ship, for a better reason.** It *shuffles* the error — the floor moves the wrong
+way (1.07 → 1.03) because lifting every downward-facing surface raises the frame mean the ratios are
+taken against; summed error against the photographs only goes 0.34 → 0.25. And it **looks wrong**: at
+×4.5 the undersides of the TV console and coffee table are visibly lighter than furniture sitting on a
+floor in shadow should be. That is the mechanism showing through — a hemisphere lights every downward
+face equally, so "more bounce onto the ceiling" is inseparable from "more light under the sofa".
+
+Refused on evidence this time. The deficit still wants a directional, local bounce term.
+
+## v0.31.5.182 — the HUD was in every frame: retractions, a repaired instrument, a re-calibration
+
+Three measurement regions in this thread had turned out contaminated (`.175`, `.178`, `.181`).
+Checking the last one properly found the common cause: **every measurement in this arc was taken from
+a PAGE screenshot, which includes the bright toolbar and minimap.**
+
+**Retracted:** `.179`/`.180`'s headline that the app puts both horizontal surfaces below the frame
+average — the "floor" band was the TV console, coffee table, ottoman and sofa. Read from a
+pitched-down frame that really is floor, the default look is **ceiling 1.13, floor 1.11**, both above
+average like the photographs. **Also retracted:** `.181`'s floor-finish bug, which was measured
+against a band containing almost no floor. No evidence of a bug; I should not have reported one.
+
+**Instrument repaired:** `light-distribution.mjs` captures the **canvas element**, not the page, so no
+DOM overlay can enter a band; the floor is read from a second pitched-down capture normalised by its
+own mean.
+
+**Re-calibration, the real result.** The HUD lifted the frame mean and compressed `%<64`, so every
+tier was tuned too dark. On clean frames at the shipped values: maximum **12.91 %**, medium
+**13.39 %**, performance **8.41 %**. Swept and reset — maximum 0.80 → **0.89** (verified 11.79 %),
+medium 0.62 → **0.70** (11.51 %), performance 0.60 → **0.37** (11.94 %). All three now inside the
+photographic 11.2–12.2 % band.
+
+**Also retracted:** `.168`'s "performance cannot reach the band" — that came from contaminated
+readings making the tier look flat (3.25 → 4.71 % across a whole sweep). On clean frames it moves
+8.41 → 12.89 %.
+
+The remaining gap is smaller and better located than this arc had it: ceiling 0.95–1.02 and floor
+1.07–1.13 against 1.17–1.28 and 1.23–1.30 — still short, still consistent with no bounce term, but
+nothing like the 0.66–0.85 the contaminated bands reported.
+
+## v0.31.5.181 — half of `.179` was albedo, not light
+
+`.179`/`.180` reported the app putting **both** horizontal surfaces below the frame average where
+photographs put both above, and called it missing bounce. **The floor half does not survive.**
+
+Both reference rooms have polished light stone floors; the default flat has `floor-vinyl-oak`, and its
+floor band measures rgb **(156, 138, 118)** — warm mid-oak. Near-white wall against mid-oak floor gives
+a luminance ratio around 0.55 from **albedo alone**; the app measures 0.77 / 1.11 = **0.69**, i.e. the
+floor is *brighter* than its albedo predicts. Not under-lit — a darker material, compared against a
+lighter one. The `.176` mistake again.
+
+**The ceiling half stands and is now the whole claim**: ceilings are near-white in the app and in both
+photographs, so albedo is not a confound there, and **0.85 / 1.05 against 1.17–1.28** is a real
+difference in where the light goes.
+
+**An attempted control failed, and that failure is itself a finding.** Re-finishing the living/dining
+floor to `floor-tile-marble` / `floor-tile-white` via `setFloorFinish` updates the store (`state.floor`
+reports the new id) but **not the render** — the floor band stays rgb (156, 138, 118) for oak, marble
+and white alike. Something downstream of `setFloorFinish` does not pick it up on the curated default
+flat; a user changing their floor finish on the move-in demo may see nothing happen. `FLOOR` is kept in
+`light-distribution.mjs` with that warning so the repro is one command away.
+
+The probe's printed targets are corrected: **floor is not a target**, for the same reason wall is not.
+
+## v0.31.5.180 — an instrument for `.179`'s lesson
+
+`.179` ended with a rule: any future calibration of the photographic look must carry the ceiling/floor
+relative-luma pair alongside `%<64`, because matching the scalar alone put the right amount of
+darkness in the frame and spent it in the wrong places. A rule in a document is not an instrument, so
+this makes it one.
+
+New `scripts/dev-probes/light-distribution.mjs` takes the standard living-room walk pose and prints,
+in one run: frame mean, `%<64`, and ceiling / wall / floor as **region mean ÷ frame mean**, with the
+toolbar and minimap rectangles cut out so neither is counted as ceiling or floor. It prints the
+photographic targets underneath, including that **wall is not a target** (the reference photographs
+disagree 1.43 vs 0.53).
+
+Both looks, measured: default 183.3 / 1.13 % / ceiling 1.05 / floor **0.77**; photographic 106.5 /
+**10.84 %** / ceiling **0.85** / floor **0.77**, against photographs at 11.2–12.2 % / 1.17–1.28 /
+1.23–1.30. The floor is equally short under **both** looks — that is the missing bounce, not something
+the fill rebalance caused.
+
+Caveat recorded in the research doc: the probe's fixed fractional bands are not `.179`'s hand-placed
+crops, so its absolute ratios differ a little (default ceiling 1.05 here vs 0.92 there). Self-consistent
+for tracking a change; not interchangeable with the earlier numbers.
+
+## v0.31.5.179 — matching the amount of darkness is not the same as putting it in the right place
+
+**Measurement only; the fix was tried and reverted.** The photographic look was calibrated on one
+scalar (`%<64` inside 11.2–12.2 %). This asks where each image spends its light — region mean ÷ frame
+mean, so exposure cancels:
+
+| | ceiling | wall | floor |
+| --- | --- | --- | --- |
+| photo 1 | **1.28** | 1.43 | **1.23** |
+| photo 2 | **1.17** | 0.53 | **1.30** |
+| app default | 0.92 | 1.12 | 0.70 |
+| app photographic | **0.75** | 1.09 | **0.66** |
+
+**Both photographs put ceiling and floor above the frame average; the app puts both below**, and the
+photographic look widens it. Walls are not a usable target (the photographs disagree 1.43 vs 0.53),
+but ceiling and floor agree closely across both.
+
+Sharper than "daylight is spatially flat" (`.138`/`.140`): **in a real room the floor catches the
+window and bounces it onto the ceiling**, and the app has no term that does that. Tried the term that
+is meant to — a hemisphere's `groundColor`, the standard cheap stand-in for floor bounce — scaled
+under the photographic look: ×3.5 buys ceiling 0.75 → **0.86** and costs the calibration (`%<64` 9.92 %
+→ **7.10 %**, out of band), while the floor gets *relatively darker* because lifting every
+downward-facing surface raises the mean the ratio is against. Reverted.
+
+Structural reason: a hemisphere lights every downward face equally regardless of what is beneath it,
+where real bounce is directional and local. Reproducing it needs a real GI term, not a brighter
+constant.
+
+**Lesson for the calibration itself:** hitting the `%<64` band put the right *amount* of darkness in
+the frame but spent it in the wrong places. Any future calibration should carry the ceiling/floor
+relative-luma pair alongside the scalar.
+
+## v0.31.5.178 — warm the IBL probe, which is where the fill actually is
+
+`.177` found the app's lit surfaces neutral where photographed ones are warm, and the existing
+`sceneWarmth` dial reaching only a fifth of the predicted effect because it tints the **analytical**
+lights while the **IBL probe** carries the rest. This puts the tint on the probe.
+
+New pure `tintHex(hex, bias)` applies the same `warmthTintRGB` curve to the probe's `Lightformer`
+colours; `SceneEnvironment` wraps all eight. The identity case matters as much as the maths — at bias
+0 it returns **the input string itself**, so with the photographic look off React sees identical props
+and the probe's render target never re-bakes (`GPU-STARVE-2`). Six tests.
+
+Measured, window masked, maximum tier: shadows **1.124 → 1.180 (+5.0 %)**, midtones **1.005 → 1.039
+(+3.4 %)**, highlights 1.006 → 1.009. Twice `.177`'s effect on midtones and it reaches the shadows,
+which that path did not. Visually the wall and wood lose their blue-grey cast without going orange.
+
+**The default look is byte-identical**, verified against a same-pose same-tier baseline rendered from
+the reverted tree (mean 175.3 → 175.4; R/B unchanged to three decimals). A first attempt at that check
+compared against a *medium*-tier frame at a different pose and appeared to show a large regression —
+recorded because it is exactly the false alarm that would have sunk a good change.
+
+A ceiling also turned up: **highlights barely move (+0.3 %) under any of these levers**, because AgX
+desaturates highlights toward white by design. The photographs' 1.10–1.13 highlight warmth comes from
+a camera pipeline that keeps it; that is a property of the tone operator, and a larger decision than
+anything in this arc.
+
+## v0.31.5.177 — the room is cooler than a photograph, and the warmth dial cannot reach it
+
+**Measurement only; the change was built and reverted.** Post-production writing for archviz is
+consistent that the finishing grade — white balance first, then "warm the highlights" — is where a
+render becomes photographic. So: is the app's grade neutral where a photograph's is warm?
+
+Measured by tonal band, R/B, **with the window masked out** (`.176`'s lesson, so both sides describe
+lit room surfaces rather than the view): photographs' highlights **1.102–1.128** and midtones
+1.123–1.415; the app's photographic look **1.006 and 1.005** — neutral. The gap is largest under the
+photographic look, because that is where the warm fixtures step aside and leave a sky-graded fill.
+
+**The app already has the control, and it cannot reach.** `sceneWarmth` tints via
+`warmthTintRGB(b) = [1 + 0.14b, 1, 1 − 0.16b]`, so +9 % solves to b ≈ 0.29. Wired as a
+photographic-look offset and rendered, midtones moved **1.005 → 1.023 (+1.8 %)** and highlights
+**1.006 → 1.008 (+0.2 %)** — a fifth of the prediction, and none on highlights.
+
+The reason is structural, and the same shape as `.162`: `warmthTintRGB` tints only the **analytical**
+lights, which the photographic look scales to 0.62–0.8, while the **IBL probe** it does not touch
+carries the rest. Reverted rather than shipped (a +1.8 % change is not worth the code), with the
+finding recorded: a fix has to warm the probe itself — `SceneEnvironment`'s `Lightformer`s carry
+hardcoded cool tints (`#cfe0f2`, `#9fb0c4`) — and that path has a documented `GPU-STARVE-2` re-bake
+cost. Worth stating plainly: **the shipped `sceneWarmth` dial is much weaker than its range suggests
+whenever the IBL is doing the lighting.**
+
+## v0.31.5.176 — closing the window thread: the comparison was not like-for-like
+
+With `.175`'s corrected crop (one pane cell, no grille), the surviving question was that the glazing
+reads cool and desaturated. Measured: app pane cell **saturation 0.082**, rgb (179, 188, 195) — cool;
+photograph's windows **0.213–0.249**, rgb (207, 197, 173) — warm. Three times the saturation and the
+opposite hue.
+
+**But the panes are not showing the same thing.** The photograph's windows are filled with cream
+curtains and warm timber louvres; the app's are filled with clean blue midday sky, which *is* cool and
+desaturated. Chasing that hue would mean warming a midday sky toward sunset.
+
+**So the window thread closes as a content question, not a rendering one**, gated on a recorded
+product decision (`WINDOW-SKY-DEFAULT`). What the last four rounds established: the glass parameters
+are not the limiter (roughness 0.1 → 0 buys +1 %); the pane is not a flat slab (micro/mean 0.057
+inside a cell, the same range as the app's fabrics); half of every earlier window figure was the
+safety grille; and fine structure was never what was missing, so clouds could not have helped.
+
+Also fixed in passing: `windowGlassPhysical.roughness` now documents that it is **inert at its shipped
+value** — the `Math.max` against the glass kind means it can only matter above 0.1 — with the measured
+sweep recorded beside it, so the round spent assuming otherwise is not repeated.
+
+## v0.31.5.175 — two corrections to my own window measurements
+
+**Measurement only.** `.174` concluded "the glass parameters are irrelevant". Both halves needed
+correcting.
+
+**The `.174` sweep never took.** `Window.tsx` builds the pane with
+`roughness={Math.max(glassPhysical.roughness, glassParams.roughness)}`, and `glassParams.roughness`
+(0.1) always beats `windowGlassPhysical`'s 0.05 — so setting the config value to 0 changes nothing by
+construction. Swept properly, pane roughness 0.1 → 0.02 → 0 moves micro-sd **19.96 → 20.18 → 20.18**:
+the conclusion survives, but is now measured rather than assumed, and `windowGlassPhysical.roughness`
+is revealed as **dead config** (the `Math.max` means it can only matter above 0.1, which it never is).
+
+**About half of every window number in this arc is the safety grille.** The crop used since `.146`
+spans the whole glazing, which the SNV grille crosses with hard bars. On the same frame: whole glazing
+mean 176.4 / micro-sd **20.18**; **one pane cell between bars** mean 193.7 / micro-sd **11.06**. Every
+window figure in `.146`, `.154` and `.174` is a grille-plus-glass statistic.
+
+**That overturns the "pale flat panel" reading.** Inside one cell the glazing measures micro/mean
+**0.057** — the same range as the app's own fabrics, and not flat at all. What makes a window read as
+a slab here is its low **saturation** and smooth large-scale ramp, not missing detail — which is also
+why `.174`'s clouds, a fine-structure fix, could not have helped.
+
+## v0.31.5.174 — clouds: built, and invisible
+
+**Nothing shipped.** A visual audit of the photographic look against the reference photograph put the
+**window** back at the top: over the glazing it spans **158–181 luma**, a smooth ramp and nothing
+else, where a real window is the one place in an interior photograph with content in it. The simplest
+missing thing is that the analytic sky has no clouds — so one was built.
+
+A pure `skyClouds.ts`: a deck projected onto a horizontal plane (`p = dir.xz / dir.y`, which
+compresses puffs into bands toward the horizon and keeps them broad overhead), thresholded into
+separated puffs, faded in over the first ~3°, projected distance capped against aliasing. Ten unit
+tests. Applied above the horizon in both sky painters, never to `scene.environment`.
+
+**And it is invisible.** Window glazing: clear 172.3 / sd 35.56, clouds 172.5 / **35.61**, clouds at
+triple dome resolution 172.5 / 35.63, clouds with the pane emissive cut to a quarter 154.2 / **27.73**
+— *darker and less varied*, the opposite of what would happen if the emissive were masking transmitted
+structure. Three hypotheses, all refuted.
+
+**The wall is the transmission itself: the pane delivers no fine structure from behind it** —
+consistent with `.154`, where the `city` skyline showed only as faint broad masses. The remaining
+suspects are `windowGlassPhysical`'s `roughness 0.1` (which blurs transmission through the mip chain)
+and the pane's thickness/attenuation volume; that is a two-line sweep and the next thing to test.
+
+The cloud field was **reverted rather than shipped** — correct and cheap, but it changes nothing a
+user can see, and shipping invisible code fails the standard this arc has held. Its design is recorded
+in the research doc in enough detail to rebuild once transmission carries structure.
+
+## v0.31.5.173 — an irregular weave
+
+`.172` specified the fix: the fabric gap is **regularity, not amplitude**. `buildUpholsteryHeight`
+wove `sin(x·2.4)·sin(y·2.4)` with a phase warp — threads meander, but every one is the same thickness
+and brightness, so scaling the relief scaled a lattice.
+
+New pure `threadGain(index, salt)`: a deterministic per-thread multiplier keyed to the **thread
+index** (not the pixel), averaging **1.0** by construction, plus a rare thin pick (7 % at 0.3×). The
+weave keeps its mean and amplitude and changes only its character. It adds **no new frequency
+content** — keyed to the thread index, it lives at the weave's own ~0.38 cycles/texel and cannot alias
+(the discipline `FABRIC-FINE-NYQUIST` exists for). Five tests, including that the mean stays ~1,
+neighbouring threads differ, warp and weft are salt-separated, and the field stays bounded.
+
+**Judged by the 4× crop, as `.172` said it had to be:** the old weave is an even lattice of
+identical dashes in perfect rows; the new one varies dash to dash with the occasional thin thread, and
+reads as woven cloth with slubs. The regularity that read as mesh is broken up **without touching the
+amplitude that caused it**.
+
+Numbers followed although they were not the goal — photographic look curtain **0.0887 → 0.0958**, sofa
+**0.0921 → 0.0991**. And the shipped default look is unmoved (this is the shared fabric normal, so it
+had to be checked): frame mean **179.5 → 179.6**, `%<64` 0.86 % → 0.83 %, curtain 0.0245 → 0.0248,
+with the sofa gaining a little (0.0463 → 0.0524) at identical brightness.
+
+## v0.31.5.172 — the metric cannot tell cloth from mesh
+
+**Measurement only; nothing changed.** `.164` set `PHOTO_WEAVE` at 2.2 / 2.0 from a sweep that stopped
+there with the curve still climbing, so this pushed it: curtain micro/mean **0.0887 (2.2) → 0.1140
+(3.2) → 0.1370 (4.5)** against a photographic 0.140–0.187. By the number, 4.5 nearly closes the gap.
+
+**And it looks worse.** At a 4× crop the fabric is a regular horizontal-dash lattice — a repeating
+waffle, hardest at 4.5 and already faintly visible at the shipped 2.2. It is the same failure `.157`
+recorded when the shipped-fill sweep rejected upholstery 2.0 as "a regular grid that looks like mesh
+screen": the photographic balance moved that ceiling, it did not remove it.
+
+`PHOTO_WEAVE` stays at 2.2 / 2.0. The more useful result is the limit: **micro-contrast is necessary
+but not sufficient** — it measures how much high-frequency signal a surface carries, not whether that
+signal is organised like cloth or like wire mesh, and cannot tell them apart. Every number in
+`.157`–`.171` should be read with that caveat.
+
+It also specifies the next materials task: the gap is **regularity**, not amplitude.
+`buildUpholsteryHeight` weaves `sin(x·2.4)·sin(y·2.4)` with a phase warp — evenly spaced, evenly
+bright threads, so scaling it scales a lattice. Real cloth varies thread to thread in thickness and
+brightness and drops the occasional pick. The fix is an irregular height field at the same amplitude,
+and the test for it is the 4× crop, not the number.
+
+## v0.31.5.171 — document the Photographic switch, and prove it in the UI
+
+`.170` shipped a user-facing control and did not document it, which the root rule requires in the same
+change. Fixed: `docs/user/lighting-and-time.md` gains a **Photographic look** section next to Lights
+(what it changes, that walk mode at midday steps the fixtures aside while windowless rooms keep
+theirs, that the dollhouse is unchanged, that it never touches the Lights switch, and that rooms *will*
+look darker — that being the point), and `src/scene/CLAUDE.md` records the flag-ships-the-control
+split, the per-tier calibration, the relief pairing and the signal module.
+
+New scenario `scripts/scenarios/photographic-look.json`, run green (16 steps): the flag defaults ON so
+the control exists in a production-shaped build, `photographicLook` is **off** until toggled, the
+switch is present in the Scene menu, clicking it turns the look on, and **`lightsMode` is untouched by
+the toggle** — the property the whole `.166` separation exists to guarantee. Screenshot confirms
+`PHOTOGRAPHIC` renders directly under `LIGHTS`, off.
+
+Simple mode only, deliberately: Simple is the default *and* the harder case (a `pro`-tier flag would
+be forced off there), and presence in both modes is already pinned by the unit test. The Pro-mode
+click step was dropped rather than left flaky.
+
+## v0.31.5.170 — the photographic look is now reachable (it wasn't)
+
+`photographicFill` shipped as a flag with `default: false`, enabled in probes through the
+`hdb_feature_flags` override map. But `features/flags/resolve.ts` applies overrides **only when dev or
+admin** — so in a production build the flag was locked to `false` for every ordinary user, and
+`.162`–`.169` were unreachable in the app people actually run.
+
+The flag now ships the **control** (`default: true`); the **look** is a new store setting
+`ui.photographicLook`, **off by default**, so `DEFAULT-GLOOM` (`.86`) is untouched and the shipped
+frame does not move. The render path requires both. A `Photographic` switch sits beside `Lights` in
+the Scene menu and the mobile scene sheet, each guarded by `useFeature('photographicFill')`.
+
+The material factories are plain functions outside React and cannot read the store (`look.ts` is
+dependency-free; materials importing the UI store would close a cycle), so `Lighting` publishes the
+resolved state through `scene/photographicSignal.ts` — same shape as `lighting/fixtureGlow.ts`,
+defaulting to `false`, with the weave folded into the material cache key so a flip serves a different
+cached variant rather than mutating a shared one.
+
+Verified through the setting (medium, 13:00): OFF mean 179.5 / `%<64` **0.86 %** / curtain 0.0245 —
+matching the shipped baseline; ON mean 109.0 / **11.52 %** / curtain **0.0887** — reproducing `.168`'s
+calibration exactly.
+
+## v0.31.5.169 — the fixture rule fired an hour too long, and stepped
+
+Everything so far was measured at 13:00. Across the day on medium with the flag on: `%<64` **14.60 %
+at 08:00, 11.52 % at 13:00, 10.39 % at 17:00, 13.42 % at 18:00 and 29.57 % (mean 88.1) at 19:00** —
+sun 1.6° up, an hour from dark, with the lamps still held off. The gate used `daylightFromAltitude`,
+a **night ramp** that saturates at 1 for every altitude above 0°; it was the wrong question.
+
+Now gated on sun **strength** (`lightingFromAltitude(...).sun`), and **ramped rather than stepped** — a
+hard threshold popped the room as the time slider crossed it (mean 175 → 109 either side).
+`fixturesLevel` smoothsteps 0.86 → 0.95 and returns 0…1; windowless rooms keep full light through the
+ramp, the two composing in one pass. Six assertions including monotonicity in sun strength.
+
+Result at medium, flag on: 13:00 **11.53 %** (unchanged), 18:00 **2.10 %** (partial, no pop), 19:00
+**29.57 % → 2.11 %**. Midday is untouched, the evening keeps its lamps, and the transition is
+continuous — the photographic band is a midday-photograph target, so only the middle of the day
+should reach it.
+
+## v0.31.5.168 — the calibration only held on the tier nobody boots into
+
+Every walk measurement in `.162`–`.167` was taken at **maximum**, but the capability-detected boot
+tier is **medium** (High/Maximum are never auto-selected). Measured across all three at one pose with
+the single 0.8 scale: `%<64` **10.93 % on maximum, 6.84 % on medium, 3.25 % on performance** against a
+photographic 11.2–12.2 %. The band was reached only on the tier almost nobody is on — the lower tiers
+make less shadow of their own, so the same fill cut lands nowhere near it.
+
+`PHOTO_FILL_SCALE` is now **per tier**, swept rather than interpolated (medium 0.68 → 9.65 %, **0.62 →
+11.53 %**, 0.60 → 12.31 %), with an unknown tier falling back to `medium`. Four more tests.
+
+**Performance cannot reach the band at all** — 0.80 → 3.25 %, 0.60 → 3.82 %, 0.45 → 4.71 %, nearly
+flat — because that tier lacks the AO and shadow machinery that produces deep shadow, so cutting
+further only darkens the frame. Recorded as a finding rather than tuned around; it gets 0.60, still
+worth **+227 %** curtain micro-contrast.
+
+Final: maximum 0.80 → `%<64` **10.89 %**; **medium 0.62 → 11.52 %, inside the band**, curtain
+**0.0245 → 0.0887 (+262 %)**, sofa **0.0385 → 0.0921 (+139 %)**; performance 0.60 → 3.82 %. The tier a
+new user actually boots into is now the calibrated one.
+
+## v0.31.5.167 — the windowless rooms
+
+`.166` verified `photographicFill` at one walk pose and the boot view; parity means the rooms that
+pose cannot reach. `window-pane.mjs` gains a `ROOM` env that stands at a named room's centroid.
+
+**The rule failed there, as suspected.** With the flag on: Bath/WC mean **183.5 → 94.6**, Corridor
+**195.2 → 98.6 with 31 % of pixels below 64**, household shelter 196.7 → 103.7. A room with no window
+gets nearly all its light from those fixtures, and the user had already asked for lights on — the flag
+was overriding a real preference where daylight could not replace it.
+
+**Fixed by narrowing the rule with geometry.** New pure `lighting/daylitRooms.ts`: `daylitRoomIds(plan)`
+probes each window's midpoint to both sides and attributes it to whichever room contains the probe;
+`fixtureSurvivesDaylight` keeps any fixture in a room daylight cannot reach. Doors ignored, degenerate
+/ missing walls, empty plans and fixtures outside every room all covered. Eleven tests.
+
+**Corridor 98.6 → 189.4, `%<64` 31.06 % → 0.00 %** — fully recovered. **Bath/WC 94.6 → 115.9** and
+deliberately not more: `apartment/constants.ts` gives the HDB baths "ventilation windows (high-sill)",
+so they are daylit rooms by the rule, and a small high vent window at noon with the light off is a dim
+bathroom — which is what a photograph of one looks like.
+
+Cost to the walk view, stated plainly: `%<64` **11.68 % → 10.93 %**, just under the photographic
+11.2–12.2 % band, with curtain/sofa micro-contrast unchanged (0.0820 / 0.0946). Known residual:
+`setFixtureGlow` is still one global signal, so lamp *shades* stop glowing everywhere while
+windowless-room fixtures keep emitting; per-room glow is the follow-up.
+
+## v0.31.5.166 — separating the user's setting from what a view renders
+
+`.165` found the photographic balance is view-dependent — a win in first person, a loss in the
+dollhouse — and did not act, because the obvious fix would have had `ensureDaylightFirstPaint` fight
+the user's own lights toggle. This does it properly.
+
+`lightsMode` is now purely the **user's setting**: nothing in the render path writes it, and
+`ensureDaylightFirstPaint` is **unconditional again**, exactly as `DEFAULT-GLOOM` (`.86`) recorded —
+`.163`'s boot-time coupling is reverted. What a view *draws* is a separate pure decision,
+`scene/look.ts:fixturesRender(lightsOn, cameraMode, daylight, photographicFill)`, consumed by
+`FurnitureLights`. Fixtures are skipped **only** in first person, **only** in full daylight, **only**
+under the flag; nine assertions pin the rest (flag off ⇒ exactly `lightsMode === 'on'` in every view
+and hour; a user's off is never overridden; the dollhouse and night always keep them; a non-finite
+daylight keeps them rather than risking a black room).
+
+Verified both halves. Dollhouse model region: flag OFF luma 180.9 / R/B 1.047 / sat 0.053 → `.165`
+158.8 / 0.998 / 0.030 → **`.166` 179.7 / 1.051 / 0.056**, i.e. fully restored. Walk view: curtain
+**0.0822**, sofa **0.0958**, `%<64` **11.68 %** — unchanged from `.164` to four decimals. Boot state is
+`lightsMode: 'on'` again.
+
+The `.165` trade is gone; `photographicFill` now costs only what `.86` always said it would — a dimmer
+room when you are standing in it at midday.
+
+## v0.31.5.165 — the photographic balance is view-dependent, and the dollhouse pays for it
+
+**Measurement only.** `.163`/`.164` measured `photographicFill` at one first-person pose; before it
+could ever be a default it has to be checked across the app, starting with the frame a new user sees
+first — the orbit dollhouse. `boot-view.mjs` gains `FLAGS` + `FAKENOW` (localStorage overrides and a
+frozen page clock, both read once at boot).
+
+Wiring confirmed at midday: flag off → `lightsMode: 'on'`, flag on → `'off'`, no crash, and nothing
+goes black (near-black `<24` pixels 0.00 % → 0.02 %).
+
+**But the dollhouse gets measurably colder and flatter.** Over the model region: mean luma **180.9 →
+158.8**, mean rgb (185, 180, 176) → (159, 159, 159), **R/B 1.047 → 0.998** (dead neutral), mean
+saturation **0.053 → 0.030, −43 %**. The warm pools of light in the living room, kitchen and bedrooms
+are gone; the model reads as uniform cool grey.
+
+That is exactly what `firstPaintDaylight.ts` recorded — the fixtures buy legibility and "the more
+inviting first impression … warm pools of light, the TV glowing". That argument was written about the
+boot view and still holds there; `.163`/`.164` measured a different view with a different requirement.
+**So the balance is view-dependent: a large calibrated win in first person, a loss in the dollhouse.**
+
+Not acted on: skipping fixtures only in first person cannot be done inside `ensureDaylightFirstPaint`,
+which runs once at boot in orbit mode, and making it camera-dependent would toggle `lightsMode` on
+every camera change — fighting the user's own switch and overwriting a real preference, which the
+guard's first rule forbids. Doing it properly means separating "the user's lights setting" from "what
+this view renders". Recorded with the numbers so the trade is visible.
+
+## v0.31.5.164 — relief and light balance are one knob
+
+`.161` claimed the material levers failed because relief only becomes image contrast when something
+directional shades a bump's two sides; `.163` produced a lighting balance to test that against. This
+is the test.
+
+**The same edit — drapery weave 0.65 → 2.2 — buys +10 % under the shipped fill and +138 % under
+`photographicFill`** (curtain micro/mean 0.0346 → 0.0822). Fourteen times the effect from an identical
+change. Upholstery 1.3 → 2.0 behaves the same way (+17 %), where the shipped-fill sweep in `.157` had
+rejected 2.0 as "a regular grid that looks like mesh screen".
+
+The relief constants were never wrong — they were at their ceiling for the fill they were tuned under.
+So the flag now carries both halves: new `PHOTO_WEAVE` + pure `photographicWeave(base, photo, on)` in
+`look.ts`, wired through `getDraperyMaterial` and `getUpholsteryMaterial`. Values rather than a
+multiplier, since one scale cannot serve a 0.65 drapery baseline and a 1.3 upholstery one. Three more
+tests; the default path is untouched by construction.
+
+End to end at 13:00, flag off → on, against the reference photograph: curtain micro/mean **0.0356 →
+0.0822** (photo 0.140–0.187), sofa **0.0470 → 0.0958** (photo 0.174), fabric ÷ wall **2.6× → 5.9×**
+(photo ~20×), frame `%<64` **1.28 % → 11.61 %** against a photographic **11.2–12.2 %**. Deep shadow is
+now inside the band and textile micro-contrast has roughly doubled; the remaining fabric gap is ~2×.
+
+## v0.31.5.163 — the fixtures at midday were the lever
+
+`.162` measured `photographicFill` reaching only `%<64` 1.60 % against a photographic 11.2–12.2 %, and
+diagnosed the remainder as the **fixtures**: every lamp burning at 1 pm because
+`ensureDaylightFirstPaint()` switches them on at first paint at any hour. The same flag now skips
+**only the daytime half** of that guard.
+
+**The default is untouched** — the all-hours rule is `DEFAULT-GLOOM` (`.86`), shipped on the user's
+decision, and the night behaviour is the legibility case the guard exists for. New pure
+`shouldLightFirstPaint(daylight, photographicFill)` and `firstPaintDaylight(...)`, the latter matching
+`useSunPosition` exactly (effective local hour through `hoursToDate`) so guard and renderer cannot
+disagree; 11 tests. Verified end to end with the page clock frozen before load: 13:00 flag-off → lights
+`on`; **13:00 flag-on → `off`**; 21:00 flag-on → `on`.
+
+**Calibrated, not guessed.** With daytime fixtures off, the fill scale was swept against `.134`'s
+photographic deep-shadow band: fixtures-only (1.0) → `%<64` 7.78 %, **0.8 → 11.39 %**, 0.55 → 21.50 %
+(≈2× past). `PHOTO_FILL_SCALE` is now **0.8**, inside the band, with the sweep recorded beside it. Sofa
+micro-contrast **0.0470 → 0.0838, +78 %** — against ≤ +20 % for every material lever in `.157`–`.161`.
+
+It also reframes an earlier finding: with the flag on, the window is finally the brightest thing in
+frame. `.146`/`.154` asked why it read as a pale lightbox; the answer was never the glass — **the room
+was too bright for its own window**. The trade is what `.86` recorded (dimmer room, dark corners),
+which is why this ships **off**.
+
+## v0.31.5.162 — `photographicFill`: the flag exists now, and it shows where the fill really lives
+
+`.161` left the textile gap sitting downstream of a lighting decision. This ships the alternative
+**behind a flag, default OFF**, so the two looks are comparable without changing what anybody sees.
+
+New `FEATURE_FLAGS.photographicFill` (`tier: 'simple'`, `default: false`) and a pure
+`photographicFillScale(on) → 0.55 | 1` in `look.ts`, applied to the hemisphere, the flat ambient
+**and** `scene.environmentIntensity`. **The sun keeps its full graded intensity** (KEY-FILL-BALANCE),
+so this is a key:fill ratio change, not a dimmer. Five unit tests, including that it is off by default
+in *both* UI modes and — being a look preference, not a pro tool — `tier: 'simple'` so it stays
+reachable in the default mode.
+
+Measured at 13:00, maximum tier: curtain micro/mean **0.0356 → 0.0421 (+18 %)**, sofa 0.0470 → 0.0503,
+frame mean 168.9 → 165.7, deep-shadow **%<64 1.28 % → 1.60 %**. Scaling only the analytical
+hemisphere/ambient was nearly inert; adding the IBL probe roughly doubled the effect — **the probe is
+the larger half of the positionless fill by day**. But against the photographic 11.2–12.2 % from
+`.134`, a 45 % cut in both fill halves buys about a quarter of a stop.
+
+**Why it cannot reach further:** the remaining light is the fixtures, and
+`state/storage/firstPaintDaylight.ts:ensureDaylightFirstPaint()` switches the interior lights on at
+first paint **at any hour** for legibility — so the default frame at 13:00 has every lamp burning in
+full daylight, which no real interior does. `.161` measured that turning them off raises the sofa's
+micro-contrast **+62 %**. The honest ordering of remaining levers is now **fixtures at midday (≈+62 %)
+≫ positionless fill (+7–18 %) ≫ any material change (≤ +20 %, often negative)**.
+
+## v0.31.5.161 — six material levers, and the seventh is the lighting
+
+**Measurement only.** Two more levers on `.160`'s new target (the curtain), then the measurement that
+explains every failure since `.157`.
+
+**Fabric patterns**: re-propped every curtain through each shipped pattern — plain 0.0356,
+**herringbone 0.0399**, dots 0.0382, plaid 0.0380, against the photograph's 0.140–0.187. **+12 % at
+best**; the tone-on-tone patterns are whispers by design.
+
+**Drapery weave relief**: `getDraperyMaterial` passes `weave = 0.65`, half the upholstery's 1.3, on a
+taste judgement made before there was a photographic target. Swept 0.65 → 1.3 → 2.2 → 3.2: **0.0356 →
+0.0366 → 0.0392 → 0.0436.** A 5× increase in relief buys **+22 %**.
+
+**Then the explanation.** A bump only reads when something directional shades its two sides
+differently — so the suspect is the light, not the surface. Same pose, same materials, lamps on vs
+off: the **sofa** goes micro/mean **0.0470 → 0.0760, +62 %** (and +17 % in absolute micro-sd) with the
+lights *off*. Surfaces at the window go the other way (−13 %) — the same mechanism from the other
+side: they lose their only key, while the sofa gains directionality once the diffuse lamp wash is
+removed and the window dominates.
+
+Six material levers across `.157`–`.161` — weave `normalScale`, the wrinkle channel, part jitter, a
+tessellated sag/crease cushion, weave tiling density, fabric pattern, drapery relief — none moves
+micro-contrast more than ~20 %, several move it down. Changing which light dominates moves it 62 %.
+**The textiles are not under-detailed; their detail is washed out by a positionless fill** — the
+DEFAULT-GLOOM trade measured in `.86` and left as the user's call, and the same wall `.133`/`.138`/
+`.141` hit from the lighting side. That is the honest end of the materials route.
+
+## v0.31.5.160 — a better-controlled metric, and it moves the target
+
+**Measurement only.** Three rounds of failing to close the upholstery gap were reason to question the
+measurement, not just the fixes.
+
+**One more refutation first.** `getFabricNormal()` returns a shared 256² singleton with `repeat` left
+at (1, 1), so one weave tile stretches across a whole face — 0.6 m on a cushion, 2.0 × 1.4 m on a rug,
+1.0 × 2.75 m on a curtain panel: the same "one scale per object" defect `.147` found in wood. Swept
+it: micro/mean **0.0470 (1×) → 0.0388 (3×) → 0.0356 (6×)**. **Finer is worse**, monotonically — at
+walking distance a finer weave falls under the screen sampling rate and mipmaps average it away. That
+is the fourth consecutive lever that moves micro-contrast the wrong way.
+
+**Then a fairer metric: compare fabric with the WALL IN THE SAME IMAGE**, which removes exposure,
+subject and compression differences at a stroke. The photograph's own plain wall measures **0.0078** —
+a *lower* noise floor than the app's walls (0.0073–0.0156), so **the JPEG-noise caveat from `.157` is
+dead**. Within one image the photograph's fabric carries **~18× its wall's micro-contrast**; in the
+app the same ratio is **~2.3×**. The app's textiles are under-textured by roughly **8× relative to its
+own walls**, and that survives every difference between the two images.
+
+**The target moves too.** The curtain, not the sofa, is the bigger gap — app 0.0248 against the
+photograph's 0.140–0.187, about **6× flatter**, versus the sofa's 3.7×. Three rounds went into
+cushions while the larger, flatter textile sat in the same frame. `.156` fixed the curtain's fold
+*direction*; the missing contrast is in its fold *shadows*, and `.156` also records the constraint the
+fix must respect — depth is capped by the window-sill standoff.
+
+## v0.31.5.159 — the tessellated cushion: built, iterated four times, reverted
+
+`.157` said the upholstery gap is geometric; `.158` eliminated part-jitter as the cheap version. This
+built the real thing — a tessellated cushion with a sag and crease field — and it still does not close
+the gap.
+
+The technique is sound and worth recording: a `BoxGeometry` with real face subdivision mapped through
+the **exact rounded-box (box ⊕ sphere) Minkowski transform**, which rounds edges and corners while
+leaving face tessellation untouched — what drei's `RoundedBox` cannot do, since it subdivides corners
+rather than faces. Ten unit tests passed.
+
+Four iterations, each fixing a defect found by looking at the render: (1) cushions came out plastic
+because replacing `RoundedBox` discards its UV layout and a `BoxGeometry` face's UVs are 0→1 whatever
+its size — fixed by box-projecting at a fixed physical period; (2) back cushions grew a **scalloped
+top edge**, because sagging the top face of a back cushion is wrong physics — fixed with a `sagScale`;
+(3) clean and arguably nicer than shipped; (4) doubled the weave density.
+
+The measurement says no, consistently — micro/mean **0.0470 shipped → 0.0455 → 0.0452**, below shipped
+every time, against reference photographs at 0.157–0.174. **Adding smooth curvature LOWERS
+high-frequency contrast**: a curved surface catches light more evenly than a flat one with a crisp
+edge. The photograph's micro-contrast comes from creases far finer than any cushion-sized deformation
+this pipeline can carry — and `.157` already showed the normal-map route exhausted. Closing this needs
+cloth simulation or an authored crease normal map, not a tweak; recorded in `src/furniture/CLAUDE.md`
+and the research doc with the numbers to scope it.
+
+## v0.31.5.158 — cushion jitter tested and reverted (negative result)
+
+`.157` concluded the upholstery gap is geometric, not textural. The cheapest thing that sounds like
+that fix is to stop the cushions being a moulded row — nudge each so no two sit identically. Built,
+tested, **reverted**.
+
+A pure `cushionSettle(index)` gave each seat and back cushion a deterministic `dx`/`dy`/`dz`/`yaw`,
+bounded by unit tests (two neighbours' `dx` sum under the 0.03 m gap so a row can never overlap; `dy`
+downward only so a cushion can never float; tilt under a degree), with `structuralSoundness` green.
+
+It measured nothing. Micro-sd over the sofa crop: **9.11 shipped → 9.13 at ±5 mm → 9.09 at ±12 mm**
+with a downward sink — the second is *below* shipped, i.e. noise. The frames are visually
+near-identical.
+
+The reason is the useful part: 12 mm is ~5 px at this pose, so it is not resolution — **adjacent
+cushions are the same colour**, and sliding the boundary between two identically-shaded surfaces
+produces no new shading. A photograph's cushion detail comes from the surface *bending*. `.157`'s
+conclusion therefore survives its own cheapest counter-proposal and narrows: not "the parts are too
+regular" but **"the surfaces are too flat"**. Recorded in `src/furniture/CLAUDE.md` so it is not
+retried; the real fix needs per-cushion surface deformation with the tessellation to carry it, which
+drei's `RoundedBox` (which subdivides corners, not faces) cannot provide.
+
+## v0.31.5.157 — walls are fine, upholstery is not, and the material cannot fix it
+
+**Measurement only.** Compared the app's own frame with two reference photographs using **micro-sd**
+(the sd of pixel minus a 4-px blur — surface texture with the lighting gradient divided out).
+
+**Refuted: wall micro-texture is not a gap.** App 1.38 and 2.97 against photographs at 1.56, 6.03 and
+10.50 — the app sits inside the range, and its brighter wall is above the photograph's comparable
+plain wall. Nothing built.
+
+**Confirmed: upholstery is.** Normalised for mean, the app's sofa is ~2.8× flatter than a photographed
+one (0.034–0.062 against 0.157–0.174). The photograph is a JPEG, so its figure is an upper bound.
+
+**Both material levers are exhausted.** The weave normal is already measured and settled at 1.3 (2.0
+was rejected as "a regular grid that looks like mesh screen"). The wrinkle channel was the lever that
+sweep could not isolate — it scales only the crease band rather than the whole map — so it was swept
+alone, 1 → 2.5 → 4, with the same instrument: microcontrast **1.971 → 1.951 → 1.904**, i.e. the wrong
+way. Its fbm is `baseFreq 3`, deliberately broad, so it never registers as high-frequency detail and
+only dilutes the weave against the field's `clamp01`. Nothing shipped.
+
+The remaining gap is therefore **geometric**: a photographed cushion sags, creases along its seams and
+dents where it has been sat on, while the app's are smooth rounded boxes — the same class of defect as
+`.156`'s curtain extrusion, but a much larger piece of work. `glbEdit/plump.ts` and
+`glbEdit/wrinkleTexture.ts` exist as partial machinery.
+
+## v0.31.5.156 — the curtains were an extrusion
+
+`Curtain.tsx:buildWavyPanel` displaced its plane by `FOLD_DEPTH * sin((x + 0.5) * FOLDS * 2π) * taper`
+— a function of **x only**, so every horizontal cross-section was identical and the panel was a literal
+extrusion. It rendered as one: perfectly parallel ribbons of constant width, identical from rod to
+hem. Real drapery is pinned at the track and free at the bottom, so its folds lean and wander as they
+fall.
+
+The profile is now the exported pure `curtainFoldZ(x, y, panelHeight)` (CURTAIN-DRIFT), adding a
+**phase drift** that is zero at the rod and grows toward the hem, plus a small **per-fold amplitude
+variation** so neighbouring folds are not identical twins. `SEG_Y` goes 5 → 12 because a wandering
+fold across five segments is five straight facets.
+
+**Depth is deliberately unchanged** — `windowSnap`'s standoff is sized against the current amplitude
+and a deeper wave would push fabric through the window sill; a test pins the peak at ≤ 1.2 ×
+`FOLD_DEPTH`. Five tests, including that the rod cross-section is exactly the undrifted profile.
+
+Measured as mean |row − column-profile| over the curtain crop (**0 = a perfect vertical extrusion**):
+**9.37 shipped → 9.87 at drift 0.9 → 9.98 at drift 1.8**. Both strengths were rendered; 1.8 kept
+because the folds visibly lean and gather without wobble, while 0.9 was barely distinguishable from
+shipped. Honest scale: +6.5 % on the metric and modest to the eye — it removes a categorical defect
+rather than transforming the frame. The larger remaining tells are the hard seam lines between folds
+and the dead-straight silhouette and hem.
+
+## v0.31.5.155 — photo backdrops now track the clock
+
+Implements the preset side of `.154`'s finding that the static photo backdrops are authored at one
+time of day and fight the interior's own grade. New pure `presetForDaylight(preset, hour)` in
+`backdropEquirect.ts`, wired through `SceneBackdrop`.
+
+It takes **two separate signals**, and the separation is the design: `daylight` (0 night … 1 day)
+drives dimming and lit-window density, while `lowSun` (0 sun high … 1 on the horizon) drives the warm
+shift. The first attempt used `daylightFromAltitude` for both and moved nothing — that is a **night
+ramp** (`(altDeg + 8) / 8`, clamped) which reports 1.0 at every altitude above 0°, so at 18:00 (sun
+16.4° up) it returned the preset unchanged at exactly the hour the defect was measured at. Warmth now
+follows `1 − altDeg/30` and tints toward `lightingFromAltitude(...).sunColor`.
+
+Six unit tests, including that midday is the **identity** (the shipped look cannot move), that golden
+hour warms without dimming, and that a preset with no lit windows stays `undefined` rather than `NaN`.
+Both signals are quantised to 0.1 so scrubbing the time slider cannot re-bake the equirect per frame.
+
+Measured through the window at one pose: `city` at 13:00 is byte-identical as designed (R/B 0.974),
+and at 18:00 moves **0.973 → 0.980** toward the analytic sky's 1.034. **The direction is right and the
+effect is small** — about 12 % of the gap — because `sunColor` at 16° is only mildly warm and the
+backdrop reaches the frame faintly through a tinted pane. Stated plainly in the research doc: this
+does **not** on its own justify changing the default, and `WINDOW-SKY-DEFAULT` still stands; it
+removes the structural objection that the presets were frozen at one hour.
+
+## v0.31.5.154 — the window is not a lightbox because of the glass
+
+**Measurement only; new probe `scripts/dev-probes/window-pane.mjs`.** `.146` proposed reducing the
+pane's flat sky-catch emissive so the window would read as a view. Tested, and the proposal is
+**withdrawn**.
+
+A method note first: `PlanShell.tsx` and `Window.tsx` rewrite the pane's `emissiveIntensity` and
+`color` **every frame** from the daylight curve, so live material mutation cannot A/B this — the first
+sweep returned six byte-identical arms (mean 192.6) before that was spotted. The emissive arm was run
+by editing `glassSkyCatchIntensity` at source with a `cp` backup.
+
+**Removing the emissive makes the window worse:** variation rises (sd 13.4 → 21.6) but the mean falls
+**197 → 173**, making the pane *darker than the surrounding wall* — the opposite of a photograph,
+where the window is the blown-out brightest thing in frame.
+
+**Transmission works; the backdrop is empty.** `BACKDROP=city` at 13:00 puts visible tower blocks
+behind the glass; the shipped `sky` backdrop leaves the same pane featureless. The lightbox look comes
+from the default backdrop being a deliberately empty horizon haze, not from the glass.
+
+**The default is unchanged — `WINDOW-SKY-DEFAULT` (v0.31.5.92) survives with its symptom updated.**
+Its stated cause ("warm lit tower windows at every hour") no longer reproduces — `city.windowColor` is
+now dark daytime glass and 13:00 renders a daytime skyline — but the underlying defect does: at 18:00
+`city` is **cooler** than the interior behind it (window-region R/B 0.973) while the analytic `sky` is
+warm with it (1.034), the classic clashing-colour-temperature failure. At night it is moot: the pane
+lerps to `GLASS_NIGHT` at transmission 0.2 and the two differ by 2.2 luma.
+
+Next step recorded: make the photo presets **daylight-aware** (blend sky/haze/ground toward the
+analytic sky for the hour; scale `litScale` with 1 − daylight), which removes the one measured
+objection to a content-bearing default.
+
+## v0.31.5.153 — is the default flat staged? 97.7 % of it is axis-aligned
+
+**Measurement only; new probe `scripts/dev-probes/staging-audit.mjs`.** Render-studio writing names
+two finishing steps between a photograph and a CG frame — rooms must be *decorated* rather than merely
+furnished, and decor placement must be "slightly varied to avoid an overly centred or staged feel".
+This turns both into numbers for the booted default flat.
+
+**Refuted — "the bedrooms look sparse"** (my read of the `.152` dollhouse frame). They are ghosted by
+the wall-reveal veil, not empty. 87 items, of which **28 (32 %) are decor or textiles**; no room is
+bare (Living/Dining 26, Main Bedroom 15, Bedroom 3 13, Bedroom 2 10, Kitchen 7, bathrooms 5 and 4).
+
+**Confirmed — 85 of 87 items (97.7 %) sit at an exact multiple of 90°**: 56 at 0°, 12 at 270°, 9 at
+180°, 8 at 90°, only 2 off-axis. Nothing is a fraction of a degree askew, decor included. That is the
+"overly staged" signature.
+
+**Not acted on.** The reference advice is about decor, not beds and wardrobes — storage and seating
+really are pushed square to the wall, and a sofa 3° askew would read as an arranger bug. A jitter
+confined to the 28 decor/textile items has two specific hazards that make it a decision rather than an
+edit: mounted pieces (wall art, mirrors) must stay square, and the selection outline, rotate gizmo and
+clearance checks all read the stored rotation, so a render-time-only jitter would desynchronise the
+handles from the object.
+
+## v0.31.5.152 — the boot dollhouse view: two suspicions refuted, one real gap
+
+**Measurement only; new probe `scripts/dev-probes/boot-view.mjs`.** The arc had only ever measured the
+walk camera, but the app boots in orbit and that frame is the first impression. Measured boot state:
+`orbit`, tier `medium`, `timeMode system`, `backdrop sky`, `uiMode simple`, **87 items**, `fov 45`,
+camera `[20.84, 10.59, 19.16]`.
+
+**Refuted #1 — "the backdrop is black, the dome is broken".** It is night. `timeMode` is `system` and
+the probe ran at 02:14 local. The dome was inspected before concluding: sphere radius 200, BackSide,
+`hasMap` 256×128, visible, camera-tracking — present and correct.
+
+**Refuted #2 — "at midday the backdrop is flat grey".** It measures 184,184,185 → 175,173,175,
+saturation ≈0 — and that is `skySurround.ts`'s documented SKY-ANALYTIC-ORBIT design: no ground, the
+horizon colour continued and dimmed to the nadir, blue reserved for the zenith. The camera pitches
+≈20.5° down at 45° vertical fov, so the frame spans ≈ +2° to −43° — entirely horizon-to-nadir. The
+blue is behind the camera.
+
+**The real gap: the model floats** — no ground, no anchoring shadow, where a professional dollhouse
+render sits the model on a soft shadow. **Not acted on:** RD-410 already mounted and retired exactly
+that (a drei `AccumulativeShadows` plane whose 19 m catcher "rendered the building's silhouette as a
+large dark rectangle bigger than the footprint"). Recorded honestly in the research doc: RD-410's
+rationale argues about grounding *inside* the apartment and does not address the silhouette seen from
+outside, so a footprint-sized shadow catcher may still be wanted — but that is a product call with a
+known artifact, not a unilateral edit. Also recorded: the cutaway reads as a translucent veil over
+half the plan rather than a section cut.
+
+## v0.31.5.151 — the door leaf: the recorded decision survives (negative result)
+
+**Measurement only.** `.150` deferred the door leaf because its `repeat` 2 is a recorded measured
+decision; this re-runs `door-ab.mjs` at the anisotropic setting to test it properly.
+
+New `PAIRS` arm (`PAIRS="0.9x2.35,1.8x4.7"`) sets `repeat` u and v independently — what the original
+verdict could not do, since with a box face's UVs at 0→1 any single scalar leaves a 0.8 × 2.1 m leaf
+stretched 2.6:1. Four arms at one pose: shipped `repeat 2`, then sized at 0.9 / 0.6 / 0.45 m per tile.
+
+**No arm beats the shipped one.** On a clean crop of the leaf interior the vertical row profile is the
+same across all four (sd 10.4–11.0, max step 6.8–7.4, every arm's largest step at the same row — a
+lighting gradient, not a tile seam). Only horizontal rib density moves: 38 (shipped) / 25 / 32 / 38 —
+the knob the original sweep already settled. **`PlanDoorLeaf.tsx` is unchanged.**
+
+The explanation is worth keeping: the visible consequence of a UV stretch depends on the texture's own
+anisotropy. This wood's features run along v, so stretching v is nearly invisible while stretching u
+changes rib spacing and shows at once. A door leaf is stretched *along* the grain, where the texture
+hides it; a wide-short drawer front or a tabletop is stretched *across* it, where nothing does. That
+is why `.148`–`.150` moved the needle and this does not — **size a panel when it is stretched across
+the grain.**
+
+## v0.31.5.150 — sized grain on the tabletops, and the instrument corrected
+
+**Roll-out.** With `.148`/`.149`'s primitives fixed, `grain-scale.mjs` surfaced the offenders they had
+been hiding — `dining-table-4` 40×, `coffee-table` 36×, `bed` 32×, `desk` 30×, `nightstand` 23× — and
+the dining tabletop is the most prominent wood surface in the walk view. `getSurfaceMaterialForBox` is
+now on the dining tabletop, both coffee-table tops and the lower shelf, the desktop and the nightstand
+drawer fronts. Each lands on the 0.9 m target on both axes: dining tabletop **0.933 / 0.567 →
+0.903 / 0.895** (1.65:1 → 1.01:1), desktop **0.800 / 0.367 → 0.889 / 0.917** (2.18:1 → 1.03:1),
+coffee tabletop **0.688 / 0.344 → 0.917 / 0.917** (2.00:1 → 1.00:1). Visually the tabletop goes from
+narrow tightly-spaced plank seams running towards the viewer to broad boards with the grain along the
+table's length.
+
+**Instrument fix — it was misreporting the very materials the fix corrected.** A quarter-turned
+texture samples texture-u from the mesh's v axis, so its `repeat` pair is swapped relative to mesh
+axes, and `grain-scale.mjs` was dividing by the wrong one. It now undoes the swap before reporting,
+adds a `topV` column (a tabletop's visible face maps v → z and so was never in the front columns), and
+computes the spread over each mesh's dominant face rather than including the 2 cm edge that made every
+correctly-tiled panel look broken. All six fixed primitives now drop out of the top-10 offenders.
+
+**Deliberately not touched: the door leaf** (0.5 / 1.05 m per tile, a 2.1:1 stretch, ~13 % of the walk
+view). Its `repeat` 2 is a previously measured, recorded decision citing `dev-probes/door-ab.mjs`;
+overturning it needs that probe re-run at the new anisotropic setting, which is its own round.
+
+## v0.31.5.149 — grain direction: boards run along the panel's long axis
+
+The other half of `.147`/`.148`. A texture's grain axis is fixed in UV space, so a wide-short panel
+comes out **cross-grained** — real timber and veneer run the grain along the long axis, and a drawer
+front has horizontal grain.
+
+`getSurfaceMaterialForBox` now turns the grain a quarter on a wide-short panel via the new pure
+`grainQuarterTurn(kind, w, h)`. The axis was **verified, not assumed**: the procedural furniture wood
+lays boards along **v** (`getWoodMaps` indexes planks across u), while catalog `mat:floor-wood-*`
+textures are authored the other way (`builtinCatalog.ts` sizes them by "plank length = uvScaleX").
+A blanket rotation would therefore have *introduced* cross-grain on every DLC wood finish, so only
+procedural wood is turned — pinned by a unit test. three composes the uv transform as
+scale-then-rotate about `center`, so the repeat pair swaps with the rotation or the physical period
+lands on the wrong axis.
+
+Visually, three states at one pose: original tight vertical ribs → `.148` broader vertical bands →
+now grain running horizontally along the drawer front. The ribbed look is gone. Tall panels are
+untouched by construction, so wardrobe doors keep their (correct) vertical grain.
+`grain-scale.mjs` prints `rot=90` for turned materials so their u/v columns are not misread.
+
+## v0.31.5.148 — furniture grain sized from world dimensions
+
+Ships the fix `.147` measured. New in `materials/furnitureMaterials.ts`: `FURNITURE_GRAIN_METRES`
+(0.9 m of real panel per texture tile), the pure `sizedRepeat(w, h, mpt) → [repeatU, repeatV]`,
+`getSurfaceMaterialSized(...)` and `getSurfaceMaterialForBox(kind, color, [w,h,d], sheen)` — which
+takes `v` from `max(h, d)` because three maps `v → y` on the upright faces but `v → z` on the top and
+bottom, so one rule lands on the large visible face of both a tall door and a horizontal shelf. Six
+unit tests pin it.
+
+Applied to **fronts only** — doors, drawer fronts, flap fronts on `Wardrobe`, `TVConsole`,
+`Bookshelf` and `ShoeCabinet`. That restriction is load-bearing: sizing every panel made
+`structuralSoundness.test.tsx` fail on five cases with up to 18 z-fighting coplanar face pairs,
+because carcass backs/sides/tops are flush by construction and only stayed invisible while they
+shared one material.
+
+Measured with `grain-scale.mjs`: a wardrobe door goes from **0.218 / 0.995 m per tile to 0.873 /
+0.905** (a 4.6:1 face stretch → 1.04:1), a TV-console drawer front from **0.536 / 0.116 to 0.903 /
+0.925** (4.6:1 → 1.02:1). Visually the console's drawer fronts go from dense tight vertical ribs to
+broader bands matching the carcass top.
+
+Stated honestly in `docs/research/2026-08-31-photoreal-shadow-depth.md`: the gain is real but modest
+at walking distance, and the fronts still read as vertically striped — the remaining error is grain
+**direction**, not scale (a 0.86 × 0.19 m drawer front should have grain along its long axis; the
+texture's grain axis is fixed in UV space). That needs a per-panel texture rotation and is recorded
+as the next step rather than bundled in here.
+
+## v0.31.5.147 — the same wood is drawn at up to 210 different scales on one object
+
+**Measurement only; new probe `scripts/dev-probes/grain-scale.mjs`.** Looking at a walk frame instead
+of a histogram: the chest beside the dining table reads as corrugated cardboard, and the bedroom door
+as vertical corduroy. Neither reads as wood.
+
+A `BoxGeometry` face's UVs run 0→1 whatever the face's real size, and the furniture material
+factories take **one isotropic `repeat`** — so the scale a texture lands at is `faceSize / repeat`,
+different on every face and every panel sharing the cached material. The probe dumps each textured
+mesh's world dimensions and `map.repeat`, computes **metres-per-tile**, and groups by material.
+On the default flat: `wardrobe-3door` **0.005 … 1.050 m/tile — a 210× spread**, `bookshelf` 122×,
+`tv-console` 112×, `shoe-cabinet` 48×, door leaf 42×.
+
+Two distinct errors. **Between panels**: the TV console's carcass front is 1.125 m/tile and the drawer
+fronts 15 cm below it are 0.536 — the same wood at two scales; a per-panel scalar repeat fixes that.
+**Within one face**: a 0.437 × 1.99 m wardrobe door gets 0.218 across and 0.995 up, a **4.6:1 stretch
+equal to the face's aspect ratio** — and *no* isotropic repeat can fix it, because the ratio is
+preserved by construction. That needs an anisotropic, world-derived repeat.
+
+**Nothing was changed, deliberately.** A first patch on `Dresser.tsx` was written and reverted:
+`dresser` appears nowhere in the default flat's mesh dump, so it could not be verified against the
+frames that motivated it. The pieces that *are* in the flat are dominated by the within-face error.
+The proposed fix — a `getSurfaceMaterialSized(kind, color, metresPerTile, w, h)` factory generalising
+`getFurnitureMatWithRepeat` from a scalar to a pair — is recorded with its numbers in
+`docs/research/2026-08-31-photoreal-shadow-depth.md`. Note `furnitureMaterials.ts` already documents
+the *symptom* ("busy wavy cathedral / watermark grain — worst on wardrobe/bookshelf doors") and
+treats it with two hand-tuned constants; those calm the amplitude but cannot correct the scale,
+because the error is geometric.
+
+## v0.31.5.146 — golden hour: the colour of a low sun is modelled, the direction is not
+
+**Measurement only; new probe `scripts/dev-probes/sun-ingress.mjs`.**
+
+A correction to this arc's own framing first: everything from `.134` to `.145` was measured at
+**13:00**, which in Singapore is a sun altitude of **82.4°** — nearly straight down, and the worst
+hour of the day for daylight to enter a vertical window. Golden hour is 18:00–19:00 (**16.4° →
+1.6°**), where `altitudeCurve.ts` still grades the sun at **0.85 intensity with a warm
+[1, 0.92, 0.78] tint** on a `castShadow` directional light.
+
+The probe fixes the hour and pose and sweeps the plan **orientation** 0/90/180/270, so one arm points
+the living/dining window straight at the low sun and another points it away. Result: the interior
+changes by **mean |Δ| 0.13 luma, 0.02 % of pixels differing by more than 2, and the largest single
+difference is the UI compass rose.** The floor band is identical to three significant figures across
+all four (mean 76.0, sd 41.4, p50 77, p99 226); the pane's own mean spans ≤12 luma. **Turning the sun
+through a full circle at golden hour changes the room by a tenth of a luma level.** Confounds ruled
+out first: the glass does not `castShadow`, curtains/blinds were opened in every arm, and the plan
+carries zero `window-mesh-screen` fixtures.
+
+This corroborates `.138`/`.140` from the opposite end, at the hour most likely to contradict them, so
+**the lighting axis stays closed** — the remaining lever is the global-fill reduction, which is the
+user's DEFAULT-GLOOM call.
+
+Two positives and one new candidate, all recorded in
+`docs/research/2026-08-31-photoreal-shadow-depth.md`: warmth *is* modelled (floor R/B 1.221 → 1.420
+from 13:00 to 19:00); the pane *is* real glass on Maximum (`transmission 0.92`, `ior 1.5`); but the
+window **reads as a pale panel rather than a view** — it carries a flat `emissive #cfe4f5 at 0.4` over
+a `#bcd4e6` tint and peaks at **197 / 255** at golden hour, where a photographed window is the
+blown-out brightest thing in the frame. Proposed to the user rather than changed unilaterally.
+
+## v0.31.5.145 — chamfer the furniture edges that were still razor-sharp
+
+Architectural-viz writing is near-unanimous that **sharp 90° edges are one of the strongest CG
+tells**: a real edge has a small radius that catches a thin specular highlight, and without one a
+slab reads as flat cardboard. The app already has the fix — `primitives/BeveledBox.tsx`, a drei
+`RoundedBox` with an auto-clamped 7 mm chamfer — and `src/furniture/CLAUDE.md` already claimed a body
+mesh "is always" one. The audit disagreed: **341 raw `boxGeometry` uses across 113 files, and 53
+primitives entirely sharp.**
+
+Converted the five most visible in the default flat — `DiningChair` (seat slab, back panel and all
+four legs, in *both* styles), `FlatscreenTV` (foot plate, neck, bezel), `Monitor` (base, stem,
+bezel), `Toilet` (cistern, in-wall panel, flush plate) and `BarStool`'s step style (side panels +
+both treads) — leaving **326 boxes / 108 files / 48 sharp primitives**, now recorded in
+`src/furniture/CLAUDE.md` as open work to take by visibility. Thin members get smaller explicit
+chamfers (3 mm on the 40 mm chair legs and the monitor stem, 2 mm on the 10 mm flush plate); the 7 mm
+default on a 40 mm stick rounds it into a dowel.
+
+Visually verified at the same pose (lamps on, maximum tier, 13:00): 2.67 % of pixels changed by more
+than 2 levels, and at a 4× crop on a chair back the sharp version's top edge is a hard line that
+terminates against the wall while the chamfered one carries a continuous bright specular rim along
+the top and both verticals. Footprints, clearances and joins are unchanged — the chamfer is ≤7 mm and
+clamped to under half the thinnest side.
+
+## v0.31.5.144 — the HQ lens dropdown did nothing at the default aperture (HQ-LENS-NO-DOF)
+
+**Fix.** `hqRenderSession` read the chosen focal length **only inside** its `fStop > 0` branch (the
+tracer's `PhysicalCamera`). The HQ modal shows the "Lens focal length" dropdown independently of the
+aperture and ships with `FSTOP_DEFAULT = 0` ("DoF off"), so in the default configuration picking
+"24 mm · wide" or "85 mm · portrait" passed the focal length in and dropped it — the render came out
+at the live viewport FOV and the control was inert.
+
+The lens and the aperture are independent settings: a 24 mm still is a 24 mm still whether or not
+depth of field is on. New pure `hqRenderFov(focalLengthMm, liveFovDeg)` in `cameraLensSettings.ts`
+(lens wins when chosen, live framing otherwise, 50° on a nonsense live FOV, clamped like `mmToFov`)
+is now used by both paths, and with DoF off the session renders through a plain pinhole
+`PerspectiveCamera` clone at that FOV. The `PhysicalCamera` path is unchanged apart from sharing the
+value.
+
+Also recorded (`docs/research/2026-08-31-photoreal-shadow-depth.md`): `lensFocalMm` has no consumer
+in the live viewport at all — the orbit camera is hardcoded `fov: 45` and the walk camera runs off
+`walkFov` — so the lens describes the still, not the view you design in.
+
+**Verification is partial and stated as such.** Four unit tests pin the helper and discriminate
+(stubbing it back to the old behaviour fails 2 of 15). New `scripts/dev-probes/hq-lens.mjs` renders
+the same pose at 24 mm and 85 mm with DoF off and reports the mean absolute pixel difference, but
+**both arms time out in this sandbox — and so does the pre-existing `hq-still.mjs`**, i.e. the
+path-tracer megakernel does not run under headless ANGLE/metal here. The image check is written and
+pending a machine where the tracer compiles.
+
+## v0.31.5.143 — the camera is a real lever, and it needs no renderer change
+
+**Measurement only.** Every previous round in this arc attacked the renderer. This one questioned the
+**camera**, and it is the first finding here that points at a concrete improvement needing no engine
+work.
+
+Interior architectural photography uses **16–35 mm full-frame equivalent, typically 24 mm**, and keeps
+the camera **level** so verticals stay parallel. Measured against that, `WALK_FOV_DEFAULT = 70`
+vertical at aspect 1.6 is **≈17.1 mm / 96.5° horizontal** — the extreme wide edge of the band, well
+outside the 24 mm norm. `walkFov = 50` is **≈25.7 mm / 73.5°**, almost exactly on convention.
+`walk-tour` also aims at pitch −0.05, against the level-camera convention.
+
+**Same pose, level camera, only the FOV differing:** at 70° the side walls rake steeply to a central
+vanishing point and the dining table stretches and looms in the foreground — the wide-angle game look.
+At 50° object proportions are believable, edge stretching is largely gone, verticals read parallel,
+and the frame is much closer to the reference photographs. The difference is large and entirely
+perspective, not shading.
+
+**No code change is required** — `walkFov` is already a user control (50–100). Only the *default* is in
+question, **and that is a genuine trade, not a free win**: a wide FOV is the first-person navigation
+norm, and at 50° you see materially less of the room and walking feels more enclosed. This is a
+product decision for the user, with the frames as evidence, and it may be better resolved by
+decoupling — a photographic FOV for stills while walking keeps the wide default.
+
+## v0.31.5.142 — tiled surfaces are mostly already there; floor reflections are unaffordable, not missing
+
+**Measurement only.** `.134` named the reference photograph's strongest cue as polished tile mirroring
+the furniture, and deferred it because the living/dining floor is matte vinyl that correctly should
+not mirror. The tiled rooms had never been checked.
+
+**What the app already does:** `ceramic` gets `clearcoat: 1, clearcoatRoughness: 0.06` and it works —
+the maximum-tier bathroom frames show clear specular blooms from the ceiling fixtures, visible grout
+seams, and genuine tile-to-tile tonal variation. Three of the reference's four tile cues are present.
+
+**What is absent and why it is not a defect:** nothing reflects scene *geometry* in a floor. That is
+structural — `clearcoat` samples the environment map, so it returns sheen and highlights but never the
+room's contents. Scene reflections need SSR or planar reflection, and the repo already carries the
+measurement ruling the planar route out: `MeshReflectorMaterial` re-renders the whole scene per mirror
+at **1710 draw calls / 464K tris, 43% of a frame, for a pane a few dozen pixels tall** — which is why
+`useMirrorRelevance` exists. A floor is far larger. **A measured affordability limit, not an
+oversight.**
+
+**Pose limitation recorded:** the window-standoff rig cannot frame a bathroom floor — at r = 1.42 m a
+camera 0.7 m inside the window is nose-to-door. Tiled floor needs a different pose than tiled wall.
+
+**Where the arc lands.** The app already matches the reference on gloss and specular response, tile
+variation, contact grounding, midtones and highlights, and correct matte behaviour. Two things
+separate it, both now characterised rather than open: **deep shadow ~10x short** — attributed through
+`.135`/`.140`/`.138` to windows being modifiers of global lights rather than emitters, closable only by
+reducing the global fill, which is the user-signed-off DEFAULT-GLOOM trade — and **floor reflections**,
+measured unaffordable. Three lighting interventions have been built, measured and reverted (`.133`,
+`.138`, `.141`). **The measurable backlog on this axis is exhausted.**
+
+## v0.31.5.141 — redistribution prototype fails, and `.140`'s ratio was contaminated
+
+**No code ships.** `.138`'s window-`RectAreaLight` arm only added aperture light without removing any
+positionless fill. This round did both halves — same window lights plus `PROTO_FILL_SCALE = 0.45` on
+the hemisphere and ambient — to test whether *redistributing* rather than reducing could produce a
+gradient without touching the DEFAULT-GLOOM trade.
+
+It first read as a win, near/far **1.04 → 1.70**. **It is not.** Both the baseline and the prototype
+step sharply between 3.5 m and 4.5 m at the same place, and the frame shows why: **the living/dining's
+vinyl floor ends at ~4 m where the kitchen's beige tile begins.** Beyond that the sample is a
+different floor in a different room, so the 1.70 is near-vinyl against a far room the window lights
+never reach — a room-to-room brightness difference, not a falloff.
+
+**On the one consistent surface (0.5–3.5 m) both curves RISE**: baseline 117 → 132, prototype
+146 → 183. No near-window falloff was produced. The prototype also raised the mean floor luma
+**117.4 → 131.0 (+12%)**, so it was not mean-preserving. It failed both of its own acceptance
+conditions and was reverted.
+
+**Precision correction to `.140`:** that round's "near/far 1.04" was measured across 0.5–6.5 m, which
+crosses the same room boundary and so compared two different floors. On one surface (0.5–3.5 m) the
+baseline is **117 → 132, near/far 0.89** — it *rises* with distance. **The conclusion is unchanged and
+slightly strengthened: the app's daylight does not fall off from the window.** Only the quoted ratio
+was contaminated.
+
+**New standing instrument rule:** a floor is not one surface for as far as the camera can see. A
+distance-based sample must be capped at the **material/room boundary** (~3.75 m for this pose), not at
+the far wall — that is now two distinct confounds in the same measurement family, surface
+*orientation* and surface *identity*.
+
+## v0.31.5.140 — the flat daylight is re-established on a sound instrument
+
+**Measurement only.** `.136` claimed the app's daylight has no falloff; `.138` withdrew it because the
+band metric measured screen regions, not distance on one surface. This round built the missing
+instrument and the claim now stands without that confound.
+
+`daylight-falloff.mjs UNFURNISHED=1` clears all furniture so the floor is unobstructed and logs the
+camera's real geometry (`fovV 70.00°, eyeY 1.600 m`, pitch −0.55), which converts a screen row to a
+ground distance. Rows are binned into **real half-metre bands**, sampled only in the central 800 px so
+side walls never enter, and capped at 6.5 m so the far wall never does.
+
+**Bare floor, daylight only, luma vs true distance:** 117 at 0.5 m, 130, 122, 118, 119, 121, 132, 110,
+111, 112, 112, 112, **112 at 6.5 m — near/far 1.04**, a 4% change across six metres. The frame agrees
+at a glance: uniformly lit from the camera to the far door, no gradient on floor or side walls.
+
+**Not a second window** — the living/dining has exactly one opening, `win-livingDining-N`. And it
+follows from the architecture already on record: `windowLightModifiers.ts` uses a global tint and
+averages every window's factor, so interior light arrives from ambient + hemisphere + IBL, all
+positionless, and a positionless light cannot make a distance gradient. At 13:00 in Singapore the sun
+is at ~82°, so essentially no direct sun enters a vertical window either.
+
+**An instrument fault found in the same run:** the `c-lamps-on` arm returned byte-identical numbers to
+`a-daylight` — because `setItems([])` deletes the *fixtures* too, leaving no lamps to switch on. The
+unfurnished arm and the lamp arm are mutually exclusive by construction; lamp comparisons must be made
+in a furnished room.
+
+This re-establishes the description without licensing a fix. `.138` already refuted window
+`RectAreaLight`s, and the failure now reads clearly: adding a positional light on top of a dominant
+positionless fill cannot create a gradient, because the fill still floods the room. A real gradient
+needs the global terms reduced in favour of aperture-driven light — which is the DEFAULT-GLOOM trade
+(`.86`), measured and user-signed-off, and not mine to take unilaterally.
+
+## v0.31.5.139 — correction: the app DOES have a contact term, and it works
+
+**Measurement only.** `.137` concluded "the app has broad ambient occlusion but **no contact term**".
+The second half is **wrong** and is corrected here.
+
+`src/scene/ContactShadow.tsx` has existed all along — an under-furniture blob plus a fainter surface
+decal under small decor — ~51 planes in the default flat, with `contactShadows: true` on **all four
+tiers**. `.137` could not see it because that round differenced AO on against AO off: the blobs were
+present in *both* arms, cancelled exactly, and were invisible to the measurement. A knock-out only
+reveals the thing being knocked out.
+
+Isolating them (`e-contact-off`, identical to `c-lamps-on` except the blobs, same floor-visible pose):
+
+| cue | mean abs delta | max | %>5 | peak band |
+| --- | --- | --- | --- | --- |
+| AO | 5.85 | 121 | 26.2% | b3–b4 (mid-frame corners) |
+| **contact blobs** | **0.90** | **121** | **0.86%** | **b2 (furniture bases)** |
+
+The difference map shows a bright ellipse under the dining table and another under the floor-lamp
+base. **They work** — locally as strong as AO but covering a thirtieth of the frame, peaking exactly
+where furniture meets floor.
+
+**What is genuinely missing** is only the tight dark line at an individual leg: blobs are emitted at
+the whole item footprint, and AO's 0.7 m radius is tuned for corners. **The case for adding one is
+weak** — it costs a second full-screen AO pass (N8AO already halves resolution below High), the
+grounding cue is already present and measurable, and the delta is a thin line visible mainly at close
+range on a polished floor, which the app's matte vinyl living-room floor correctly lacks.
+**Recommend not pursuing it.** Also noted: RD-403's corner-AO strips were built and later **retired**
+for reading as hard black outlines from a plan camera, with a do-not-reintroduce in `scene/CLAUDE.md`.
+
+That leaves the arc honest: contact grounding is not the gap. What stands is `.134` — whole-frame deep
+shadow ~10x short of photographs — with `.135` attributing the lift to fixtures that must not simply
+be dimmed. The real lever remains making daylight carry the room, blocked on a floor-only measurement
+instrument.
+
+## v0.31.5.138 — window area-lights prototyped and refuted, and `.136`'s headline withdrawn
+
+**No code ships.** A prototype was built, measured, refuted and reverted, and it exposed a flaw in the
+instrument that forces a correction to the previous round.
+
+**Research correction:** V-Ray/Corona **light portals do not add light or create falloff** — they are
+a sampling optimisation that steers a path tracer toward apertures to cut GI noise, and modern V-Ray
+says to skip them when the Adaptive Dome Light is on. In a rasteriser there is no transport to
+importance-sample, so the technique does not transfer. The name makes it sound like the fix for a
+missing window gradient; it is not.
+
+**Root cause, in the codebase's own words:** `windowLightModifiers.ts` uses a **global tint** and
+"averages each window's factor across all windows". Windows are modifiers of global lights, not
+emitters with a position, and there is no `RectAreaLight` in `src/`.
+
+**The prototype:** one `RectAreaLight` per window, in the aperture, sized to the glass, aimed inward.
+It brightened the room (b0 108 → 132, b7 124 → 174) and made the near/far ratio **worse**, 0.87 →
+0.76. Reverted from backup.
+
+**⚠️ The correction that matters.** The failure exposed that the horizontal-band metric measures
+**screen regions, not distance-from-window on a consistent surface**. The high bands are the far
+*wall*, which faces the window head-on and brightens under any inward-aimed light — as it does in a
+real photograph. **So `.136`'s headline that "the app's daylight has NO falloff" is not supported by
+its own metric and is withdrawn as stated.**
+
+**What survives:** the two *differential* results, because they compare arms at the same band and so
+cancel the orientation confound — the IBL probe's share of daylight (24% at b0 → ~0% by b4) and the
+lamps' contribution (+42% near the glass → **+53%** deepest). `.135`'s conclusion rests on those and
+on the whole-frame histogram against real photographs, not on band shape, and stands.
+
+Measuring falloff properly needs a floor-only sample at known distances — an unfurnished arm or a
+depth/normal mask — the same instrument gap recorded when a fixed crop returned furniture instead of
+floor. Until then no claim about the *shape* of the daylight distribution should be made.
+
+## v0.31.5.137 — AO grounds corners, not furniture: the app has no contact term
+
+**Measurement only, no render change.** `.136` observed that table and chair legs meet the floor with
+no darkening. That is a claim about the AO pass, so it was tested. `daylight-falloff.mjs` gained a
+`d-ao-off` arm identical to `c-lamps-on` except for AO, at the floor-visible pose; both printed
+distinct resolved states.
+
+**AO is not inert** — mean |Δ| between the arms is **5.85**, max **121**, with **10.8%** of pixels
+shifting more than 15. *Where* it acts is the finding: the difference map is blazing along
+wall/ceiling junctions, wall corners and object silhouettes, and only faintly around the legs. By
+band, b0 nearest the floor: **5.5 / 7.5 / 7.5 / 8.6 / 8.6 / 7.8 / 6.2 / 4.1** — the effect peaks
+mid-frame where the corners are and is **weakest at the floor**.
+
+**This is the AO doing exactly what it was tuned for.** `look.ts` sets `aoRadius: 0.7` under a comment
+saying it is "deeper than the old defaults so corners and recesses ground like the reference
+renders". 0.7 m is right for a room corner and an order of magnitude too wide for a leg-to-floor
+contact — a 3 cm leg occludes almost none of a 0.7 m hemisphere, so the pass correctly returns almost
+nothing there. The app has **broad ambient occlusion but no contact term**, and that missing tight
+dark contact is what reads as furniture floating.
+
+**The candidate fix is not free:** a *second, tight* occlusion term alongside the existing one — not a
+smaller `AO.aoRadius`, which would trade away corner grounding that is working as designed. That
+means a second full-screen AO pass, and N8AO already runs half-res below High. Its cost must be
+benchmarked on the weak-device tier before it is proposed, and if it can only ship on High/Maximum
+that should be said plainly.
+
+## v0.31.5.136 — the app's daylight has no falloff at all, and that is the defect
+
+**Measurement only, no render change.** `.135` concluded the lamps compensate for daylight that
+cannot carry a room. `daylight-falloff.mjs` (new) measures the transport directly: it stands 0.9 m
+inside the living/dining window facing in, pitched −0.55 so the floor recedes and a horizontal band
+maps to distance from the glass. Curtains open, three arms reset between, maximum tier, 13:00.
+
+| arm | b0 (near) | b3 | b7 (deep) | near/far |
+| --- | --- | --- | --- | --- |
+| `a-daylight` (lamps off) | 108 | 104 | 124 | **0.87** |
+| `b-daylight-noibl` | 82 | 93 | 124 | 0.66 |
+| `c-lamps-on` (shipped) | 153 | 150 | 189 | 0.81 |
+
+**There is no falloff** — the far end of the room is *brighter* than the window end. The prediction
+was a steep curve meaning "bounce is missing"; the real answer is the opposite and more useful: the
+app's daylight behaves like **uniform ambient fill rather than light entering through an aperture**.
+That explains both symptoms at once — no bright near-window zone to carry midtones, and no deep zone
+to be dark.
+
+Two decompositions from the same run: the **IBL probe lights only the window end** (24% of daylight
+at band 0, ~0% from band 4 inward), and the **lamps compensate exactly where daylight fails** (+42%
+near the glass rising to +53% deepest) — direct evidence for `.135` rather than an inference.
+
+**The `.134` instrument gap is closed**: this is the first pose in the arc that shows floor. Two cues
+are now plainly visible and were previously unmeasurable — the dining table and chair legs meet the
+floor with **no contact darkening at all**, and the floor carries no sheen or gradient. A failed
+measurement is recorded too: a fixed crop meant to quantify the floor returned sd 53 / range 208,
+which is furniture, not floor — isolating floor in a furnished room needs an unfurnished arm or a
+depth/normal mask, not a hand-placed box.
+
+This does **not** license turning the lamps down; that trade was settled in `.86` and re-measured in
+`.135`. The cheapest independent win visible here is **contact shadows** — local, no changes to the
+light rig, and the most legible remaining cue.
+
+## v0.31.5.135 — the flat shadows are attributed: lamps, compensating for daylight that cannot carry a room
+
+**Measurement only, no render change.** `.134` found the app has ~an order of magnitude less deep
+shadow than real interior photographs. `shadow-attrib.mjs` (new) holds one session at one pose and
+knocks out each candidate in turn, resetting to baseline between arms; every arm printed a distinct
+resolved state, so none was a failed mutation.
+
+| arm | p05 | p50 | p95 | %<64 |
+| --- | --- | --- | --- | --- |
+| `a-baseline` | 101 | 180 | 220 | **1.7** |
+| `b-lamps-off` | 49 | 112 | 191 | **7.8** |
+| `c-ibl-off` | 100 | 179 | 220 | **1.7** |
+| `d-tone-linear` | 95 | 173 | 215 | **2.1** |
+| `e-lamps-and-ibl-off` | 39 | 116 | 190 | **9.2** |
+| *photographs* | 42–44 | 155–189 | 205–215 | *11.2–12.2* |
+
+**The fixtures dominate** — off, `%<64` goes 1.7 → 7.8, a 4.6x increase in deep shadow. AgX adds a
+little (1.7 → 2.1). IBL is invisible while the lamps are on (arm `c` = baseline) but real once they
+are off (arm `e` 9.2 vs arm `b` 7.8) — and that gap is what proves arm `c`'s mutation actually
+reached the renderer, worth knowing because `setQualityOverride` does not call `syncIblFromTier` the
+way `setQualityTier` does.
+
+**But the answer is not "turn the lamps off".** Lamps-off buys photographic shadows and pays p50
+180 → 112 and p95 220 → 191 — the room goes dim and grey, which is exactly the DEFAULT-GLOOM failure
+(`.86`) the lights-on default was measured and signed off to prevent. The photographs have deep
+shadows **and** bright midtones simultaneously, carried by daylight rather than lamps; our lamps-off
+arm sits ~30–40% dimmer than either real room.
+
+**So the root cause is that the app's daylight cannot carry a room on its own.** The lamps are a
+compensation for weak window-light transport, and the flat picture is the bill. The lever is to make
+midday daylight hold the midtones — after which the shadows return for free and the fixtures become
+what they are in a real 1 pm photograph: mostly off. Next step is to measure illuminance falloff from
+the window plane and find whether the shortfall is sun/sky intensity, glass transmission, or the
+missing bounce off the room's own surfaces. Written up in
+`docs/research/2026-08-31-photoreal-shadow-depth.md`.
+
+## v0.31.5.134 — measured against real photographs: the app has no deep shadow
+
+**Research + measurement, no code change.** The brief asked for reference imagery to be analysed
+rather than reasoned about, so two freely-licensed interior photographs were pulled from Wikimedia
+Commons (Unsplash 401s scripted fetches) and compared against the app at its **maximum** tier.
+
+| source | p01 | p05 | p50 | p95 | %<40 | %<64 |
+| --- | --- | --- | --- | --- | --- | --- |
+| app, maximum tier | 55 | 104 | 179 | 220 | **0.5** | **1.4** |
+| photo — polished-tile living room | 24 | 44 | 189 | 215 | 3.6 | 12.2 |
+| photo — living room, Accra | 16 | 42 | 155 | 205 | 4.4 | 11.2 |
+
+**Midtones and highlights already match** — the app's p50 (179) sits between the photographs' and
+its p95 (220) is in their range. **The shadows do not.** Both photographs put 11–12% of pixels below
+64; the app puts 1.4%. Its fifth percentile (104) is brighter than the darkest fifth of either
+photograph. The app is not failing at exposure or highlight roll-off — it is failing to be dark
+anywhere, which is one of the most legible "this is CG" cues and the inverse of the failure mode the
+GI literature warns about.
+
+**Which lift causes it is NOT yet attributed** and nothing was changed. There are at least four
+candidates — lamps forced on at every hour (DEFAULT-GLOOM `.86`), the analytical ambient+hemisphere
+fill sized so "nothing crushes to black", the IBL probe, and AgX's black lift — and several were
+chosen on recorded evidence, one on the user's own sign-off. The next round is a four-arm knock-out
+at a fixed pose reporting %<64 for each. Darkening the picture by undoing a legibility fix would be
+a regression, not a realism win.
+
+**An instrument gap found on the way:** `walk-tour` cannot judge floors — the camera stands at room
+centre at 1.6 m with a −0.05 pitch, so most frames show almost no floor (the maximum-tier kitchen
+frame is nose-to-cabinet). The most striking difference in the reference photo is the polished floor
+mirroring the furniture, and that comparison could not be made fairly: the app's living-room floor is
+matte vinyl, which correctly should not mirror, and the pose shows no floor regardless. Written up in
+`docs/research/2026-08-31-photoreal-shadow-depth.md`.
+
+## v0.31.5.133 — per-room bounce built, measured at two hours, refuted, reverted
+
+**A negative result, and the useful part is the attribution.** No source change ships; the
+`.132` gap note now carries both measurements.
+
+`.132` established that the app's bounce is room-blind — every enclosed room's ceiling lands in a
+~2° hue band whatever its floor, with the olive-floored baths coming out warmest. The lever tried
+here was a pure `roomBounceGround(ground, floorSwatch, strength)` multiplying the day curve's
+`groundColor` by the floor albedo normalised to mean 1 (channel ratio only, level preserved), wired
+walk-mode-only and level-gated into the hemisphere's ground colour. Nine unit tests passed.
+
+**In the frame it does essentially nothing, at either hour.** Day (`/tmp/tw28` vs the `/tmp/tw20`
+baseline, identical arm — 44 frames, 354 meshes, 87486 tris): dHue ≈ 0.0, dR−B +0.0…+0.6, mean
+|dLuma| 0.02; oak-vs-bath separation −4.92 → −4.55, still negative. Night was run as the
+falsification arm because `iblFillScale` returns 1 there instead of 0.5, so the analytical fill
+should have dominated — **it did not**: max |dR−B| **0.12**, *smaller* than in daylight, separation
+−6.70 → −6.63.
+
+**Attributed:** the analytical hemisphere is a minor contributor at both extremes for different
+reasons — halved by `iblFillScale` in daylight where the IBL probe lights the ceiling, and full-scale
+but tiny at night where `cur.ambient` is dialled down and fixture point lights carry the room.
+Rotating the hue of ~0.136 intensity against a sun of ~0.999 cannot move a ceiling. The function's
+physics was right; the light it was attached to is too small to matter.
+
+**Where the real lever is:** the IBL probe (`SceneEnvironment.tsx`'s Lightformers, including the
+hardcoded `#6b5b48` ground bounce) — and it is not free, because the probe is a baked environment, so
+per-room tinting means re-baking on every room change. That is a performance decision to measure, not
+a constant to edit. Any approach that tints a single global analytical light is dead on arrival.
+
+The pure module and its tests were deleted rather than left unused — an exported module with no
+consumer is dead code. Both measurements are preserved in
+`docs/research/2026-08-30-photoreal-round2-gap.md`.
+
+## v0.31.5.132 — photorealism round 2 opened: the bounce light does not know what the room is made of
+
+**Research + source inventory, no code change.** The 2026-06 photoreal dossier's twelve levers
+(RD-401…RD-412) have all shipped or been closed, so this round looked for what that list did not
+contain.
+
+**Already present, verified in source:** N8AO, DepthOfField, Bloom, AgX ToneMapping, HueSaturation,
+ChromaticAberration, Vignette and film grain in `EffectsImpl.tsx`; sun + hemisphere + ambient with
+an IBL probe and curtain-aware fill in the lighting rig. The camera-realism and grading half is
+largely done.
+
+**What current practice ranks first is indirect bounce (GI)** — above modelling and materials — with
+the named failure mode being that without it a room reads as lit by spotlights in a void. Ray
+tracing is out of reach in a WebGL client; irradiance/light probes are the tractable approximation.
+
+**The specific gap here:** the app's bounce is global and room-blind. `SceneEnvironment.tsx` ships a
+hardcoded `#6b5b48` "warm ground bounce" Lightformer, and the hemisphere ground colour comes from
+sun altitude via `altitudeCurve.ts`. Neither reads the room's own surfaces, so a bedroom with
+pale-oak vinyl and a bathroom with grey-green porcelain get the **same** bounce tint — the opposite
+of what indirect light does, and the most legible GI cue is exactly that colour bleed.
+
+Tractable because the app already knows each room's floor and wall material ids and their swatches.
+A per-room bounce tint is a *light colour*, not a render pass — no per-pixel cost, so unlike SSGI it
+cannot regress the weak tier. **Not built yet:** the next round measures whether rooms with
+deliberately different floors really are receiving the same bounce, and drops the lever if they are
+not. Written up in `docs/research/2026-08-30-photoreal-round2-gap.md`.
+
+## v0.31.5.131 — `tpl-loft` room categories measured: no effect, nothing changed
+
+**Docs only, and deliberately no code change.** The last cheap candidate on the list was
+"`tpl-loft` rooms carry no `category` field — measure whether that changes furnishing".
+
+**The premise was half wrong.** The loft's UPPER rooms already carry explicit categories
+(`lfu-sleep` → `bedroom`, `lfu-landing` → `foyer`, `lfu-ward` → `other`) because they use the
+`room()` helper; only the four GROUND rooms are raw literals without one.
+
+**And it has no effect.** Dumping `roomCategory()` across the plan: `lf-open` "Open Living" →
+`living`, `lf-sleep` "Lounge / Study" → `study`, `lf-stair` "Stairs" → `other`, `lf-bath`
+"Bathroom" → `bath`. All four already infer the right value from their names, so adding an explicit
+category equal to the inferred one is a no-op by construction — `toRoomKind`/`toArrangeKind` get
+identical input either way. An explicit field could only change behaviour where inference is wrong,
+and none of these is. Recorded as a measured negative so it is not reopened.
+
+**This exhausts the measured backlog.** Every remaining item in `docs/open-graphics-decisions.md`
+— (f) unenclosed bathrooms, (g) upper-storey walk, (h) windowless bedrooms, (i) main doors, (j)
+blocked windows — is a content or product decision with its data already recorded, not a bug
+awaiting a fix.
+
+## v0.31.5.130 — template audit coverage COMPLETE: the last six walked, all clean
+
+**Docs only.** The six templates that had never been walked were audited at an explicit
+`TIER=medium`, resolved `medium/on/manual13`, contact sheet plus ceiling-band luma read frame by
+frame. **No new defect in any of them.**
+
+| plan | frames / rooms | ceiling band | known ratchet entries |
+| --- | --- | --- | --- |
+| `tpl-hdb-2room` | 20 / 5 | 190.7–226.6 | (i) `h2-main -> h2-bath` |
+| `tpl-1bed` | 20 / 5 | 175.5–231.8 | (j) `ob-liv-win: potted-plant` |
+| `tpl-condo-1bed` | 20 / 5 | 140.3–216.9 | none |
+| `tpl-condo-1study` | 24 / 6 | 154.7–227.2 | none |
+| `tpl-condo-2bed` | 36 / 9 | 140.1–227.5 | none |
+| `tpl-condo-studio` | 16 / 4 | 159.5–220.6 | (j) `su-bath-win: bathroom-sink` |
+
+Every band sits inside the range the clean plans already established (the two real defects this
+metric has caught read 37 and 28.2). Windows read as bright daylight throughout — the post-`.127`
+behaviour. Bathroom mirrors still render as flat grey panels (the known "mirrors do not reflect").
+
+**One known entry was confirmed in a frame for the first time.** `tpl-hdb-2room`'s (i) entry
+`h2-main -> h2-bath` has been ratcheted by name since `.114` without anyone looking at it:
+`h2-bath-y0` and `h2-bath-y2` each show a door, so the flat's front door really does open into the
+bathroom and the room has two. The ratchet was right; the item is unchanged and still a content
+decision, but it is now documented visually rather than only arithmetically.
+
+**Coverage is complete — all 19 registered templates walked, plus the boot plan**, counted against
+`src/floorplan/templates.ts`. **The visual-audit arc that began at `.95` is finished.** Every
+remaining open item ((f) through (j)) is a content or product decision whose data is already
+recorded; none is waiting on more frames.
+
+## v0.31.5.129 — boot plan re-audited CLEAN, `tpl-studio` walked, and the glass fix measured where it counts
+
+**Docs only — two clean audits and a before/after on the artefact every user boots into.**
+
+**The boot plan (`defaultPlan.ts`, 11 rooms) was last walked in `.102`.** Every arranger fix from
+`.108` on touched shared code, and its exterior had never been judged on a trustworthy frame.
+`walk-tour FURNISH=1 TIER=medium HOUR=13` (explicit tier on purpose — `auto` climbs to `high`, a
+different render), resolved `medium/on/manual13`: 44 frames, 354 meshes / 87486 tris. Ceiling band
+**139.0–232.4**, no outlier (the two real defects this metric has caught read 37 and 28.2). Read
+frame by frame — **no new defect**. Known items only: the bathroom mirrors render as flat grey
+panels. **Checked rather than reported:** four dark octagonal discs on the household-shelter wall,
+seen from both the corridor and the shelter, are the blast door's **bolt heads** — authored geometry,
+not holes.
+
+**The `.127` glass fix, measured on the boot flat.** Same probe, same room, same crop, same hour:
+`mainBedroom-y0` window pane **136 → 203** while the wall is **223 → 223**, byte-identical. The
+change is confined to the glass, which is what a correctly scoped fix looks like. Mean frame content
+also fell from ~97% (template walks) to **81%** — expected and corroborating, since more of each
+frame is now sky seen through glass and the content metric counts sky as background.
+
+**`tpl-studio` — CLEAN, and the first look at `.120`'s door fix.** 12 frames (3 rooms), 62 meshes /
+21896 tris, band **174.1–221.7**, no outlier. Open-plan living reads correctly with the kitchen's
+range hood and TV in the same volume, a bright daylight window, and a tight tiled bathroom.
+**It carries no ratchet entries at all** — its only mention anywhere is the comment recording that
+`.120` fixed `st-main` (1.0 → 3.9), a fix that had never been seen in a frame until now. (A handoff
+note claimed it had a known unenclosed-bath entry; counted against the tests, it does not.)
+
+**Coverage: 13 of 19 templates walked, 6 outstanding** — `tpl-hdb-2room`, `tpl-1bed`,
+`tpl-condo-1bed`, `tpl-condo-1study`, `tpl-condo-2bed`, `tpl-condo-studio`.
+
+## v0.31.5.128 — WINDOW-SKY-DARK closed: I mis-attributed it, and (k2) had already fixed it
+
+**Docs + probe only.** Item (k1) is closed, and the closure is a correction of my own analysis.
+
+**What `.125` claimed and why it was wrong.** It reported that after a plan swap without
+`setQualityTier`, the panes were `MeshPhysicalMaterial` (High/Max glass) **while the store reported
+`medium`**. That comparison was invalid: the probe's `resolved=` line is printed early, before the
+swap, while the material dump happens later. Logging the tier HISTORY shows the `auto` path runs
+**`performance` → `medium` → `high`** and ends at `high` — so at dump time the store said `high`,
+`transmissionTiers('high')` is true, and the transmissive pane was **correct**. There was never a
+store/material mismatch; I compared a snapshot from one moment against a material from another.
+
+**What actually caused the 49-vs-132 split.** Both arms were rendering the same defect — (k2), the
+glass reading the lamp switch instead of the sun — and the tiers merely express "it is night"
+differently: High used `transmission = windowTransmission(0) = 0.20` at opacity 1.00 (a near-opaque
+slab, pane 49); Medium used the cheap path at `opacity = 0.73` (pane 132). The tier was never the
+disease.
+
+**Resolved by `.127`.** Re-measured at 13:00 on `tpl-condo-4bed`/`c4-master`, furnished, lights on:
+`TIER=auto` (ending at High) gives `#bcd4e6` transmission 0.92, pane **196**; explicit `TIER=medium`
+gives `#bcd4e6` opacity 0.28, pane **193**. **The two tiers agree to 3 luma and both show daylight.**
+
+**Correcting the caveat this item placed on every past walk.** `.124`/`.125` warned that `.95`–`.123`
+walks used `TIER=auto` and so showed "wrong-branch glass", implying an explicit tier would have been
+safe. Wrong in the same way: the degraded exterior came from (k2), which affected **every tier**. The
+accurate statement, now in `docs/visual-verification-playbook.md`: **no walk frame captured before
+v0.31.5.127 is evidence about the view through a window, at any tier.** Interior conclusions in items
+(f)–(j) never depended on it and stand.
+
+The probe gained a `tierLog` (every `qualityTier`/`qualityUserSet` change from as early as
+`window.__store` exists) — the instrument that caught this.
+
+## v0.31.5.127 — DAYLIGHT-GLASS: the window glass now reads the sun, not the lamp switch
+
+**A real render fix, A/B'd in frames.** Item (k2), found while attributing (k1).
+
+**The bug.** `FurnitureLights.tsx` computes `const level = lightsMode === 'on' ? 1 : 0` and writes it
+to `setFixtureGlow`. Both window renderers — `apartment/Window.tsx` and `FadeWindow` in
+`apartment/PlanShell.tsx` — read it as `const d = getFixtureGlow()` under the comment
+`// 1 at night, 0 in daylight`, then fed `1 - d` to `windowTransmission(daylight)`,
+`glassSkyCatchIntensity(daylight)` and the `GLASS_DAY`/`GLASS_NIGHT` lerp. Those arguments mean
+daylight; what they got was the lamp switch. Since `ensureDaylightFirstPaint` turns the lamps on at
+every hour on a fresh seed, **every new visitor met night-coloured glass at midday.**
+
+**Both arms of the A/B were wrong, which is what named the defect.** Boot flat, 13:00, medium, one
+variable: lamps ON gave `#20272f` / opacity 0.73 / sky-catch 0.00, pane p50 139, wall 222 — a warm
+room behind night glass. Lamps OFF gave `#bcd4e6` / 0.28 / 0.40, pane 183, wall **130** — correct
+day glass in a cold grey room, which is exactly the gloom the lights-on default exists to prevent.
+**The defect was the coupling**, so the fix decouples rather than choosing.
+
+**The fix.** New pure `altitudeCurve.ts:daylightFromAltitude(altRad)` = `clamp((altDeg + 8) / 8, 0,
+1)` — the same ramp `skyGradient.ts:skyRadiance` already uses for its own night fade, so glass and
+sky reach night together. Both renderers hold the sun altitude in a ref (`useSunPosition` is
+memoised; `useFrame` must not call a hook) and use `d = 1 - daylightFromAltitude(...)`. The lamp
+switch now drives only the lamps.
+
+**After, lights ON in both rows:** 13:00 → `#bcd4e6` / 0.28 / 0.40, pane **139 → 206**, wall
+unchanged at **222** (daylight through the glass AND the warm interior); 21:00 → `#20272f` / 0.73 /
+0.00, pane **57**, wall 207 — the night look survives, still carrying the lamp reflections. It also
+fixes an unreported case: lamps off at night used to give DAY glass at midnight.
+
+Pinned by `scene/lighting/daylightFactor.test.ts` (4 tests). Full suite **9354 passed** — no test had
+pinned the old lamp-coupled behaviour. `fixtureGlow.ts`'s header was corrected in the same commit: it
+claimed "≈ scene darkness" and "written each frame", but it is exactly the lamp switch, written on
+change in a `useEffect`.
+
+## v0.31.5.126 — the current apartment look is now the PINNED first-load default
+
+**On the user's instruction: "however the apartment looks like right now with finishes, colour
+palette, etc, set it as the default and what a new user sees on first load".**
+
+**Measured first: it already was the default, so nothing was re-coloured.** The palette is pure code
+— `DEFAULT_FLOOR` (`floor-wood-oak`), `DEFAULT_WALL` (`wall-paint-white`) and the per-room
+`DEFAULT_ROOM_FLOOR` / `DEFAULT_ROOM_WALL` overrides in `materials/builtinCatalog.ts`, seeded as the
+finishes slice's initial state. A fresh visitor has no persisted state, so that seed is exactly what
+they get. Confirmed end to end with `scripts/dev-probes/first-run.mjs`, the only probe that
+suppresses nothing: `SEQUENCE=1 FAKE_HOUR=13` walks carousel → 9 tour steps → location prompt →
+unobstructed at scene mean **181.5 → 183.1**, near-black **0.0%** at every stage, `lights=on`,
+87 items, `onboarded=null`.
+
+**What was missing was the guarantee, and that is what shipped.** `builtinCatalog.test.ts` already
+checked that the default ids exist and that every painted default stays near-neutral
+(WARM-WALL-CAST), but nothing pinned WHICH finish each room gets — the shipped look could drift a
+room at a time with the suite still green. `materials/defaultFirstLoadPalette.test.ts` now asserts
+the exact per-room floor and wall id for all **11** rooms (vinyl-oak through the living/dining,
+bedrooms and corridor; beige porcelain in the kitchen, household shelter and service yard;
+grey-green tile in both baths; concrete on the AC ledge; glazed white wall tile in the two baths and
+the kitchen, painted plaster everywhere else), that no ceiling / accent / wall-texture is seeded,
+and that all **22** seeded ids are real catalog materials. It asserts the room count too, so it
+cannot pass by measuring nothing, and it was **proved to discriminate** — flipping `livingDining` to
+`floor-wood-oak` failed 1 of 5, and the constant was restored from a `cp` backup with
+`git diff --stat` clean.
+
+**Two things a new visitor sees that are NOT yet right, recorded rather than quietly fixed:** the
+onboarding modal sits over a heavily blurred scene whose backdrop shifts warm beige → grey between
+t=0 and t=2000 ms, and the window glass is at its NIGHT colour at 1 pm (item (k2) — `getFixtureGlow()`
+reads 1 because the app boots lights on in daylight). Both are separate decisions from the palette.
+
+## v0.31.5.125 — WINDOW-SKY-DARK: mechanism named — a Medium scene carrying High-tier glass
+
+**Docs + probe only — no app change.** `.124` isolated item (k)'s trigger; this round dumped the
+live materials and named the cause. **No fix is attempted: the fix is a correctness change to
+tier-branch selection and wants its own round with an A/B.**
+
+**The panes, deduped over every transparent material in the scene.** Same room
+(`tpl-condo-4bed`/`c4-master`), hour 13, furnished, lights on, one crop:
+
+| arm | the 5 plan window panes | pane p50 |
+| --- | --- | --- |
+| `TIER=auto` (setter never called) | `MeshPhysicalMaterial` `#20272f`, **opacity 1.00, transmission 0.20** | **49** |
+| `TIER=medium` (setter called) | `MeshStandardMaterial` `#20272f`, **opacity 0.73** | **132** |
+
+`transmissionTiers` is **High or Maximum only**, so on Medium `windowGlassPhysical` returns null and
+the pane is supposed to be the cheap transparent one. The `auto` arm is rendering a tier of glass
+its own store says it is not on. At `glow = 1` that variant is `transmission 0.20` at `opacity 1.0`
+— nearly opaque — while the correct Medium pane is `opacity = 0.28 + 1 × 0.45 = 0.73`. That is the
+entire 49-vs-132 gap, and it is why calling `setQualityTier` appeared to "fix" it. **It needs the
+plan swap too:** the boot flat under `auto` with no swap reads 139 / 135 / 92. Why the remount picks
+the transmissive branch at Medium is not yet established.
+
+**A second, separate defect found on the way:** at 13:00 the panes sit at `GLASS_NIGHT` (`#20272f`)
+rather than `GLASS_DAY` (`#bcd4e6`) in **both** arms, because `getFixtureGlow()` measures exactly 1
+at 1 pm. It is documented as "1 at night, 0 in daylight" but is really a lights-are-on factor, and
+the app boots lights on in daylight — so the glass tells the night story at midday. Independent of
+the tier bug; filed for its own round.
+
+**The sky bake stays exonerated** — `scene.background` is live in every arm and its image, sampled
+at the camera's own forward vector, returns **188.4** against the pure `skyRadiance` prediction of
+187.
+
+**Recorded negatives, now seven:** the swap does not lose the background (identical uuid);
+`setPitch(-0.05)` is innocent (132 → 131); tour order is innocent (132/132/132/132); tone mapping
+and the glass do not eat the background generally (the `city` preset's `#5d8fc4` lands at 135);
+`getFixtureGlow()` does not separate the arms (1 in both). **Two failed instruments are written
+down as well** so they are not repeated: selecting panes by `/glass|window|pane/i` on mesh names
+returned zero (the panes carry no such name — that zero was not evidence), and
+`await import('three')` inside `page.evaluate` throws `Failed to resolve module specifier 'three'`,
+so a Raycaster cannot be built that way. The dedup over transparent materials needs no library and
+is what finally separated the arms.
+
+## v0.31.5.124 — WINDOW-SKY-DARK: item (k) reproduced, bounded, and four hypotheses refuted
+
+**Docs + probes only — no app change.** `.123` filed item (k) off `walk-tour` frames with a broad
+claim. This round reproduced it in a second, purpose-built probe, isolated the trigger, and refuted
+four explanations. **No fix is attempted: the mechanism is not named yet.**
+
+**The trigger is whether `setQualityTier` was ever called, combined with a plan swap.**
+`walk-tour.mjs:128` skips the setter when `TIER=auto`. `tpl-condo-4bed`, hour 13, furnished, lights
+on, each room centre facing north, one crop for the pane and one for the wall, p50:
+
+| arm | pane | wall |
+| --- | --- | --- |
+| `walk-tour TIER=auto` | **49–50** | 187–202 |
+| `walk-tour TIER=medium` | **132** | 192–202 |
+| `sky-after-swap TIER=medium` | **132** | 189–199 |
+| `sky-after-swap TIER=auto` | **49–50** | 182–192 |
+
+Two independent probes agree, walls are unaffected in all four, and both paths report the resolved
+tier as the same string `medium`. The boot flat under `TIER=auto` with NO swap reads 139 / 135 / 92,
+so the collapse needs **`auto` AND `replaceFloorPlan` together** — which is why the boot-flat probes
+never showed it.
+
+**The sky bake is exonerated.** In every arm `scene.background` is live and its image, sampled at
+the camera's own forward vector `(0,0,−1)`, returns **188.4** — matching the pure `skyRadiance`
+prediction of 187. The renderer is handed a correct, identical texture in the bright and dark arms
+alike, so the loss is downstream and gated on tier state.
+
+**Refuted, and recorded so nobody re-runs them:** (1) the plan swap loses `scene.background` — no,
+byte-identical uuid, and a forced re-bake changed the uuid without changing the picture; (2)
+`walk-tour`'s `setPitch(-0.05)` — no, 132 → 131 as a single variable; (3) tour order — no,
+`c4-master, c4-bed2, c4-bed3, c4-master` gave 132/132/132/132 with the tier set; (4) tone mapping or
+the glass eating the background generally — no, on the boot flat the `city` preset's own source
+colour `#5d8fc4` (luma 134) lands at 135 on screen.
+
+**⚠️ Every walk captured in `.95`–`.123` used `TIER=auto`,** so those frames show a degraded exterior
+from the plan swap onward. No conclusion in items (f)–(j) depended on what was visible through the
+glass and they stand, but no past walk frame is evidence about the exterior. Recorded in
+`docs/visual-verification-playbook.md`.
+
+**Also this round:** `.123`'s scoping of item (k) ("2–5x darker, template plans") is superseded and
+said so explicitly. New probe `scripts/dev-probes/sky-after-swap.mjs` (comma-separated `ROOM` list
+visited in order, `PLAN=` empty skips the swap, `TIER=auto` skips the setter, prints the background
+texture byte beside the screen byte for the same direction). `window-hours.mjs`'s module header was
+**stale** — it asserted `proceduralSky` is `tier: 'pro'` and forced off in Simple, which stopped
+being true at v0.31.5.92; corrected in place with the measurement that disproves it.
+
+## v0.31.5.123 — TEMPLATE-WALK-7/8 + WINDOW-SKY-DARK: two clean audits, one new render bug, and a coverage claim corrected
+
+**Docs only — no source change.** Two more templates walked, both clean; a real render defect found
+and filed as item (k); and a false coverage claim from the previous round corrected in place.
+
+**⚠️ CORRECTION — `.122` OVER-CLAIMED AUDIT COVERAGE.** Its new "Template audit coverage" section
+said *"12 of 19 shipped templates have now been walked frame by frame, only `tpl-condo-1study`
+outstanding"*. **Both numbers were wrong.** I wrote that line from my own handoff note instead of
+counting against `src/floorplan/templates.ts`. The truth at `.122` was **10 walked, 9 unwalked**,
+and `tpl-condo-1study` was one of nine outstanding plans. `tpl-studio` in particular was listed as
+walked because `.120` moved its front door — moving an offset is not a walk. The section now counts
+against the registry and lists all 7 plans that remain.
+
+**`tpl-condo-4bed` — CLEAN.** 44 frames, 11 rooms, resolved `medium/on/manual13`, 259 meshes /
+126598 tris, mean 97% content. Ceiling-band luma **132.3–194.1**, no outlier (real defects this
+metric has caught read 37 and 28.2). Known ratchet entries only: `c4-bed4` windowless (h) and three
+unenclosed bathrooms (f).
+
+**`tpl-hdb-3gen` — CLEAN.** 44 frames, 11 rooms, mean 97% content, band **137.9–215.6**, no outlier.
+Known entry only: `g3-main -> g3-master` (i).
+
+**NEW — item (k) WINDOW-SKY-DARK: the view out of a window renders 2–5x darker than the sky the app
+baked for it.** Every `tpl-condo-4bed` bedroom shows a near-black rectangle above the desk. **It is
+the window, not a television** — a `furnishPlanItems` dump of the three bedrooms contains no TV and
+no mirror, and `c4-bed4`, the one bedroom on the (h) windowless list, correctly shows blank wall.
+One identical crop across three hours:
+
+| north window | 08:00 | 13:00 | 20:00 |
+| --- | --- | --- | --- |
+| `c4-b2win` | 30.7 | 117.0 | 14.9 |
+| `c4-b3win` | 32.2 | 39.2 | 15.7 |
+| `c4-mwin` | 32.7 | 39.7 | 15.6 |
+| interior wall beside them | — | 145–180 | — |
+
+**The sky model is exonerated, and that is the load-bearing measurement.** Calling the pure
+`skyGradient.ts:skyRadiance` at the same hours for the view straight out of a north window returns
+byte **187** at 13:00 (zenith 255) and 127 at 08:00 — against 39 and 32 on screen. The night row
+agrees (model 0–26, frame ~15), which is why the defect hides after dark. So the loss is downstream
+of the bake, in the `scene.background` tone-mapping path or the window glass; **that attribution has
+not been made yet and no cause is claimed.** A second anomaly rides on top: at 13:00 `c4-b2win`
+reads 117 while two windows on the SAME wall read 39, and only at that hour.
+
+**Item (b) is not regressed — checked first.** The pane tracks the clock, `proceduralSky` is
+`default: true, tier: 'simple'`, and `backdrop` defaults to `'sky'`, so `SkyBackdrop` is live and
+baking correctly.
+
+**Second correction: `.122`'s two clean audits contained these same dark panes.** I read them as
+televisions on a 320x200 contact sheet and never opened one at full resolution. Those audits were
+clean of the layout defects they were looking for, but "no unrecorded visual defect remains" was an
+over-claim.
+
+**Coverage now: 12 of 19 walked; 7 remain** (`tpl-hdb-2room`, `tpl-studio`, `tpl-1bed`,
+`tpl-condo-1bed`, `tpl-condo-1study`, `tpl-condo-2bed`, `tpl-condo-studio`).
+
+## v0.31.5.122 — TEMPLATE-WALK-5/6: `tpl-condo-3bed` and `tpl-hdb-3room` both audit CLEAN
+
+**A documented double audit, no source change.** With every open item now a content or product
+decision, this round went back to looking at plans nobody had ever walked. Twelve of the nineteen
+templates have now been audited; only `tpl-condo-1study` remains.
+
+**`tpl-condo-3bed` — CLEAN.** 36 frames, 9 rooms, resolved `medium/on/manual13`, 222 meshes /
+103048 tris, **mean 96% content**. Ceiling-band luma spans **152.9** (`c3-living-y3`, a dark TV in a
+normally lit room) to **223.4** (`c3-mbath-y2`) — **no outlier**. For scale, the two real defects
+this metric has caught read **37** (`ct-kit`, `.103`) and **28.2** (`lfu-ward-y3`, `.110`). Read
+frame by frame across two contact sheets: furnished living room, kitchen with range hood, hob and
+fridge, both bathrooms with shower screens and fixtures, balcony overlooking the living space. No
+empty frames, no z-fighting, no light leaks, no furniture intersections.
+
+**`tpl-hdb-3room` — CLEAN.** 32 frames, 8 rooms, 183 meshes / 73414 tris, **mean 97% content**.
+Ceiling band **142.2** (`h3-living-y2`) to **224.5** (`h3-shelter-y0`) — again no outlier. Furnished
+living/dining with TV and sofa, kitchen with hood/hob/fridge, fitted bathrooms, bedrooms with beds
+and wardrobes.
+
+**Checked against the allow-lists before reporting anything.** `tpl-hdb-3room` already carries two
+ratchet entries — `h3-bed2` on the (h) windowless-bedroom list and `h3-b2-win: refrigerator` on the
+(j) sightline list — so a fridge near that window is a **known entry, not a discovery**. Nothing new
+was found in either plan.
+
+**One thing verified rather than reported:** `c3-bed2` and `c3-bed3` furnish near-identically. Both
+are 3.7 m wide, so a deterministic arranger producing the same layout is expected, and their luma
+differs (171.1 vs 176.3), so they are not identical renders either.
+
+## v0.31.5.121 — WINDOW-SIGHTLINE: tall storage now prefers a windowless wall (12 → 10)
+
+**A partial fix, a disproved recommendation, and a correction to my own earlier claim.**
+
+**SHIPPED — `snapToWall` tries WINDOWLESS edges first for `storage`-role items taller than a window
+sill.** It previously walked a fixed edge order with no window awareness at all. Because this only
+reorders preferences and still attempts every edge, **nothing can go unplaced** — the failure mode
+that forced `.117`'s revert. Measured: blocked windows **12 → 11**, total items **1444 → 1444**,
+wardrobes **40 → 40**. Cleared: `tpl-hdb-5room/h5-b2-win`. Frames (`/tmp/tw15` vs `/tmp/tw11`) show
+that wardrobe has **moved to a different wall** — the yaw it used to fill now shows a door.
+
+**The `storage` scope was forced by a regression only the FULL SUITE caught.** My first version
+applied the reordering to every item taller than a sill. That cleared one more window
+(`tpl-condo-studio/su-bath-win`) and my sightline metric was happy — but it pushed **bathroom
+fixtures off their walls**, because a basin is 0.98 m against a 0.95 m sill.
+`autoArrange.test.ts`'s "lines bathroom fixtures along the walls (not parked mid-room)" case failed
+at 0.80 m against a 0.70 m bound. Sanitaryware is not what `windowSillTall` is written about, so the
+scope is now the `storage` role — one fewer window cleared, and correct.
+
+**CORRECTION — `.117` said the blocker was "the piece's 1.8 m width". That was wrong.** Measured
+across every template: **every wardrobe is `width: 1.5`**. `wardrobe-3door` is parametric
+(`defaultFootprint.w` 1.5, min 1.0, max 2.4), and there is no separate narrow-wardrobe def — the
+same def is resized via `props.width`.
+
+**DISPROVED — my own filed "try a narrower wardrobe" recommendation.** `width: 1.2` gives 12 → 10,
+the same as the shipped fix, but resizes **every** wardrobe in every template. **`width: 1.0` goes
+back to 12**, because two more wardrobes then fit (40 → 42) and block other windows (+5 items).
+Narrowing is not the lever, and shipping it would have been a content change for nothing.
+
+**NOT A CURE, and the limit is structural.** The 10 that remain — including **both masters that
+motivated this item**, `h4-m-win` and `h5-m-win` — have no windowless wall with room. Three arranger
+levers have now been measured (deeper keep-out, narrower piece, wall preference); the residue is
+rooms too small for a queen bed, a wardrobe and a window at once. Item (j) is reclassified from
+"arranger strategy" to **content**.
+
+**A probe bug caught before it reached a claim.** A wardrobe dump attributed UPPER-storey pieces to
+GROUND-floor rooms because it took the first matching room across `planLevels` without checking
+`levelId` — the same level-blind mistake `.103` cost me. It produced phantom "wardrobe in a
+kitchen/porch/yard" rows that were not reported.
+
+## v0.31.5.120 — studio + loft front doors fixed; the offset-fixable phase is CLOSED
+
+**One scan answered the whole remaining backlog, and it mostly says no.** After four templates went
+through the per-case recipe, I measured all 17 remaining (h)/(i) entries at once instead of one per
+round.
+
+**FIXED — two front doors, at zero cost.** Global item count **1444 → 1444**, stray chairs 17 → 17,
+wardrobes 40 → 40; only `mainDoorRoom` moved (5 → 3).
+- **`st-main` 1.0 → 3.9.** `st-s` (len 5.8) is lined ONLY by `st-bath` 0.2-1.7 and `st-kit` 1.9-5.7,
+  so the kitchen end is the sole non-bath option on that wall.
+- **`lf-main` 1.2 → 5.8**, into the Lounge / Study (`lf-s` = `lf-bath` 0.1-1.8, `lf-stair` 2.0-3.1,
+  `lf-sleep` 3.4-7.9). Confirmed in frames: the lounge now has the entrance, and the bathroom shows
+  only its own internal door.
+
+**NOT FIXED — `tpl-hdb-2room`, and this one was measured rather than assumed.** Three candidate
+offsets against a 49-item baseline: the exact mirror **3.7 drops the dining table** (and the decor on
+it), which undoes precisely what `.111` fixed for this template; **4.8 loses 7 items**; **2.5 keeps
+the table but still loses 2**. The flat is 5.8 m wide, and a door into its living room consumes wall
+the furniture needs. Reverted — a front door opening into the bathroom is wrong, but not worth a
+missing dining table.
+
+**THE (h) OFFSET PHASE IS CLOSED — none of the 12 windowless bedrooms can be fixed by an offset.**
+`h4-bed3`, `h5-bed3` and `ex-bed3` **front no external wall at all**. `h3-bed2`, `g3-master`,
+`jb-master` and `cp-master` front a wall with **no window authored on it**. `ex-bed2b`, `g3-gen`,
+`jb-bed3` and `c4-bed4` front walls whose windows never fall within the room's own frontage. And
+**`g3-bed3` is a trap that looked like the one clean win**: `g3-b3-win` is named for bedroom 3, lands
+in bedroom 2, and its mirror does land in bedroom 3 — but **bedroom 2 fronts only that wall and that
+window is its only one**, so the move would simply strand bedroom 2. Net zero.
+
+**Every remaining (h) and (i) entry now needs a new opening or a re-planned façade — content
+decisions, not offset corrections.** Items (h) and (i) stay open with that recorded; the ratchets
+keep them named so nothing new can join them.
+
+## v0.31.5.119 — tpl-hdb-jumbo: front door out of the master; 3Gen proven unfixable by offset
+
+**The wall scan split this round three ways, and two of the three would have been wrong fixes.**
+
+**FIXED — `jb-main` 9.2 → 4.1** (`14.2 - 9.2 - 0.9`), out of `jb-master` (which lines 8.6-12.2 of
+that wall). **The destination is not the obvious one:** `jb-s` is lined by `jb-bed5` 0.2-2.8,
+**`jb-family` 3.1-5.8**, `jb-master` 8.6-12.2, `jb-mbath` 12.4-14.2 — **the Living / Dining never
+touches this wall**, fronting `jb-n` and `jb-e` instead. So the mirror lands in the **Family Room**,
+a living-category space, which is the correct target here. Naming "the living room" without checking
+what the wall offers would have been a guess.
+
+**NOT FIXABLE — `tpl-hdb-3gen`, both halves.** `g3-s` is lined only by `g3-gen` 0.2-4.1,
+`g3-master` 4.4-8.7, `g3-cbath` 8.8-10.4: **no living-category room touches it**, and the mirror
+(1.9) lands in `g3-gen`, another bedroom. And `g3-master` fronts only `g3-s`, so `g3-m-win` — which
+is authored on `g3-w` — can never reach it; its mirror (0.0) lands in the **Common Bath**.
+
+**NOT FIXABLE — `tpl-hdb-jumbo`'s master window.** Same shape: `jb-master` fronts only `jb-s`, while
+`jb-m-win` sits on `jb-w`; its mirror (1.0) lands in the **bathrooms**. Both masters need a window
+on the south façade — a content decision, recorded under (h).
+
+**Measured against a baseline captured BEFORE the edit: items 1444 → 1444, stray chairs 17 → 17,
+wardrobes 40 → 40, and every per-template count identical** (jumbo stays 120). **Identical readings
+were checked rather than assumed**: the edit is present in the file and **exactly one ratchet moved
+— `mainDoorRoom` 6 → 5**. That is the correct signature for sliding a door along a wall where both
+rooms had space; `bedroomWindow`, `diningChairTuck`, `templateEnclosure`, `placeSeededMounts` and
+`windowSightline` are all unchanged.
+
+**Frames** (`/tmp/tw13`): `jb-family` now has a door where it had none, and `jb-master` shows a
+single door — `.114` frame-proved it previously had two, the second being this front door on the
+south external wall. **No per-room luma A/B was run and none is claimed**: no window moved and no
+furniture changed, so there is nothing for it to measure.
+
+**The offset-fixable phase is nearly exhausted.** Of the 5 misplaced front doors left, `h5-main` and
+`g3-main` are now proven to need façade decisions; expect most of the remaining (h) entries to be
+the same.
+
+## v0.31.5.118 — tpl-hdb-exec: front door out of the master, window back into it
+
+**Third plan fixed, and the first since the 4-room where BOTH halves were possible.** Scanning the
+walls first is what settled that — `ex-s` IS lined by `ex-living` at offsets 0.1-4.3, unlike the
+5-room, whose living room never touches its door wall at all.
+
+- **`ex-main` 8.4 → 2.1** (`11.4 - 8.4 - 0.9`). Out of `ex-master` (which lines 8.0-11.4 of that
+  wall) and into the living room. **Confirmed in frames: the master now shows ONE door where it
+  showed two.**
+- **`ex-m-win` 9.8 → 0.4** (`12.0 - 9.8 - 1.8`). Out of the KITCHEN (9.2-12.0) and into `ex-master`
+  (0.1-2.7).
+- **`ex-b2-win` left alone** — it already lands in `ex-bed2`.
+
+**Measured against a baseline captured BEFORE the edit:** items **1442 → 1444**, stray dining chairs
+**17 → 17**, **wardrobes 39 → 40 — one GAINED**, and **only `tpl-hdb-exec` moves** (91 → 93). The +2
+were dumped per-def before any constant was touched: a **`range-hood`** (third template with this
+mechanism — the stray kitchen window had been blocking the extractor's wall) and a
+**`wardrobe-3door`**, the exec master's, which had been dropped and now places. **Nothing lost
+anywhere.**
+
+**Daylight measured on THIS template** via a captured pre-fix arm (never carried across — the 4-room
+kitchen went −7.7 and the 5-room's +3.7). Per-room mean luma over four yaws: master **186.4 → 195.2
+(+8.8)**; kitchen **+5.1**; **bedroom 2, bedroom 3 and the study flat to 0.1**, a clean control. The
+living room went **−2.6**, which is unexplained and reported as measured: the front door now sits in
+its south wall, but I did not verify that is the cause.
+
+**Five ratchets moved and every one was explained from a dump first:** windowless bedrooms 13 → 12
+(owning 31 → 32); misplaced main doors 7 → 6; exec item count 93 and total 1444;
+`placeSeededMounts` centred 21 → 24 (`ex-living` rug + coffee-table, `ex-master` rug — all in that
+test's own CENTRE_IS_RIGHT set, with **stranded unchanged at 3**, the same three pieces `.108`
+named).
+
+**`windowSightline` went 11 → 12, and that is a trade, not a regression — stated as one.** The new
+entry is `tpl-hdb-exec/ex-m-win: wardrobe-3door`: this fix gave the master a window it never had AND
+restored the wardrobe that had been dropped, so the room went from **no glass at all** to glass
+partly blocked by its own wardrobe. Third instance of item (j)'s pattern, and worth expecting on
+each remaining (h) fix — **closing (h) tends to open (j)**.
+
+## v0.31.5.117 — WINDOW-SIGHTLINE: the obvious fix was built, measured, and reverted
+
+**A negative result, shipped as one.** I implemented the fix this round was for, measured it, found
+it did harm, and backed it out. The measurement and the ratchet are what land.
+
+**The defect, quantified.** `.115` and `.116` each gave a master bedroom its window back, and in
+both the glass is **not visible from the room centre in any yaw** — a 2.1 m 3-door wardrobe stands
+~0.8 m in front of it. Across the 19 templates, **11 of 78 windows** have a floor piece taller than
+the sill in front of the glass (footprint overlapping the pane laterally by ≥0.3 m, nearest face
+within 1.2 m). **Nine are `wardrobe-3door`.** The two worst cover **1.17 m of 1.6 m** and **1.37 m
+of 1.6 m** — 73% and 86%. Every offender sits 0.65–1.05 m from the pane.
+
+**The guard exists and is the wrong shape, not broken.** `windowSillTall`'s own doc says a wardrobe
+"shouldn't be pushed against a windowed wall", and `tryPlace` does reject one inside
+`windowFrontRects` — but that rect is **0.65 m deep, a walking band**. The wardrobe clears it by
+centimetres and stands a metre away, still covering the window. That the offenders cluster at
+0.65–0.85 m is the signature.
+
+**Attempt 1 — a deeper prism for tall items** (`0.65 + CLEARANCE.storageFront` = 1.4 m, derived from
+existing constants, not tuned to a number). Blocked windows **11 → 3**. But item count **1442 →
+1439** and **wardrobes 39 → 34**: five bedrooms lost their wardrobe entirely, because a small HDB
+master has nowhere else to put one. **A bedroom with no wardrobe is worse than a partly blocked
+window** — the `.106` lesson, caught by re-counting rather than by the success metric.
+
+**Attempt 2 — the deep prism as a preference, with a last-resort relaxation in `settle`** once every
+constrained position had failed. Furniture kept (1445 items, nothing lost) and 7 of the 11 fixed —
+**but the two worst offenders came straight back**, because for those masters the relaxed position
+is the only position. It also still lost one wardrobe (39 → 38) and added a stray dining chair
+(17 → 18).
+
+**Both attempts reverted; `git status` clean against HEAD.** More clearance cannot solve this: the
+room is too small for a 1.8 m wide, 2.1 m tall wardrobe plus a queen bed plus a window. The real
+options are an arranger strategy (a narrower wardrobe in a tight room, or picking the wall SEGMENT
+beside the glass rather than in front of it) or a content change — both design calls, recorded as
+item **(j)**.
+
+**Shipped instead:** `src/layout/windowSightline.test.ts` ratchets the 11 by name so no new template
+or arranger change can add another, and asserts that **67 of the 78 windows are clear** so the list
+cannot pass by measuring nothing. Both tests carry an explicit 30 s timeout — they furnish all 19
+templates.
+
+## v0.31.5.116 — tpl-hdb-5room: master window out of the kitchen (and why its front door is NOT fixable)
+
+**One fix, not two — and the half I could not do is the more useful finding.**
+
+**Fixed:** `window('h5-m-win', 'h5-w', 8.2 → 1.0, 1.6)`. `h5-w` runs north→south from z=10.9
+(len 10.8), so `10.8 - 8.2 - 1.6 = 1.0` is the exact mirror; the master's glass moves from **z=1.9,
+in the KITCHEN**, to z=9.1 in the master.
+
+**NOT fixed, for a measured reason.** I scanned every offset along all four perimeter walls and
+printed which room each lands in. `h5-s` — the front door's wall — is lined ONLY by **balcony
+(0.2-4.0), master bath (4.4-6.2) and master (6.4-10.2)**. **The Living / Dining never touches that
+wall**, so NO offset can put the entrance into it; the exact mirror (2.1) lands on the **balcony**,
+exactly as `.114` predicted. The living room touches only the north wall (6.3-10.2) and the east
+wall (0.1-8.6). Fixing `h5-main` therefore means **moving the entrance to a different façade** — a
+design decision, not a typo — so it stays open under item (i). **`tpl-hdb-4room` was a different
+problem wearing the same label**: its living room DID touch the door's wall, which is why `.115`
+fixed it with one number. A per-opening mirror calculation would have "fixed" this one onto a
+balcony; scanning the whole wall is what caught it.
+
+**Measured, against a baseline captured BEFORE the edit:** items **1441 → 1442**, stray dining
+chairs **17 → 17**, **only `tpl-hdb-5room` moves** (82 → 83); every other template byte-identical.
+Ratchets: windowless bedrooms **14 → 13** (owning 30 → 31); `mainDoorRoom`, `templateEnclosure` and
+`placeSeededMounts` all **unchanged**, as they must be when only a window moved.
+
+**The +1 was dumped per-def before touching any constant: another `range-hood`.** Identical
+mechanism to `.115` — the stray master window on the kitchen's west wall had been causing the
+extractor over the stove to be dropped. Two templates now, so this side effect generalises.
+Confirmed in frames: the hood renders over the hob.
+
+**Daylight measured on THIS template, not carried over from the 4-room.** A pre-fix arm was captured
+specifically for the A/B (the fix was reverted, frames taken, then restored). Per-room mean luma
+across four yaws: master **177.3 → 190.8 (+13.5)**; living, bedroom 2 and bedroom 3 flat to within
+0.1 — a clean control. **The kitchen went UP 3.7 (154.0 → 157.7), the OPPOSITE of the 4-room's
+−7.7.** It lost a window and got brighter; the newly restored steel hood plausibly returns more
+light than the glass did, but that is unverified and is reported as measured rather than explained.
+
+**Two things this template still gets wrong, stated rather than glossed:** its front door still
+opens into the master bedroom (above), and — as in `.115` — the arranger parks the 3-door wardrobe
+in front of the master's new window, so the glass is not directly visible from the room centre in
+any yaw. **That has now happened on both fixed templates, so it is systemic, not a one-off**, and is
+recorded for a dedicated round.
+
+## v0.31.5.115 — tpl-hdb-4room: front door out of the master, window back into it
+
+**The first plan fixed** in the (h)/(i) arc, after three rounds of measuring. Two exact-mirror
+offset corrections in `templates/hdb.ts`, each commented with the old value and the arithmetic:
+
+- **`h4-main` 6.4 → 1.7** (`9.0 - 6.4 - 0.9`). `h4-s` runs east→west from x=9.1, so the front door
+  moves from **x=2.25, inside the MASTER BEDROOM**, to x=6.95 in the Living / Dining. Verified in
+  frames: the master now shows ONE door where it previously showed two, the second on the south
+  external wall.
+- **`h4-m-win` 7.4 → 0.6** (`9.6 - 7.4 - 1.6`). `h4-w` runs north→south from z=9.7, so the master's
+  window moves from **z=1.5, in the KITCHEN**, to z=8.3 in the master.
+- **`h4-b2-win` was deliberately left alone** — it lands in `h4-bed2` under either reading, so there
+  was no measured reason to move it.
+
+**Measured against a baseline captured BEFORE the edit** (which is the only way "nothing else moved"
+is provable): total items **1440 → 1441**, stray dining chairs **17 → 17**, and **only
+`tpl-hdb-4room` changes** (76 → 77). Every other template is byte-identical. Ratchets: windowless
+bedrooms **15 → 14** (owning 29 → 30), misplaced main doors **8 → 7**, enclosure list unchanged.
+
+**Light moved to the room that owns it.** Mean frame luma across four yaws: master **184.2 → 198.1**
+(+14.0), kitchen **169.0 → 161.4** (−7.7), living +1.1, bedroom 2 unchanged. The kitchen is dimmer
+because it lost a window that was never its own.
+
+**The +1 item was DUMPED per-def before any constant was touched, and it is the best part: a
+`range-hood`.** The kitchen had the master's stray window on its west wall, and the extractor over
+the stove was being dropped because of it. Moving the window out gave the hood its wall back — a
+stove that had no extractor, fixed as a side effect. Confirmed in frames: the hood renders correctly
+over the hob.
+
+**Stated honestly — one thing is NOT ideal.** The master's window is now present and the room is
+measurably brighter, but the arranger has put the 3-door wardrobe roughly 0.8 m in front of it, so
+**the glass is not directly visible from the room centre in any of the four yaws**. The daylight
+gets in; the view does not. That is an arrangement question (the arranger has no preference for
+keeping tall storage off a window wall), not a plan-data one — recorded for a later round rather
+than papered over.
+
+**(h) and (i) both stay OPEN**: 14 windowless bedrooms (6 masters) and 7 misplaced front doors
+remain. `tpl-hdb-5room` and `tpl-hdb-exec` are next; both have BOTH defects. **A blanket flip is
+still wrong** — read from the other end `h5-main` would open onto a balcony, so each target room
+must be computed and checked.
+
+## v0.31.5.114 — MAIN-DOOR-ROOM: 8 template front doors open into a bedroom or a bathroom
+
+The code half of `.113`'s winding trap, investigated — and it turned out the doors are worse than
+the windows.
+
+**Seen in frames.** `tpl-hdb-4room`'s Master Bedroom has **two doors**: the internal one on its
+north wall, and a second on the **south EXTERNAL wall**. That second one is `h4-main` — the flat's
+front door. It opens into the master bedroom.
+
+**The size: 8 of 19 main doors open into a bedroom or a bathroom** — 5 into a master
+(`h4-main`, `h5-main`, `ex-main`, `g3-main`, `jb-main`), 3 into a bathroom (`h2-main`, `st-main`,
+`lf-main`). All 8 sit on an `-s` or `-w` wall. Same cause as (h): `perimeter()` winds N/E forwards
+and **S/W backwards** while offsets are measured from the wall's own start. Read from the other end,
+**12 of 19 main doors open into the living room** — plainly the intent. Proven to be a one-number
+fix (`h4-main` 6.4 → 1.9 drops it off the list), then reverted via a `cp` backup with
+`git diff --stat` verified empty.
+
+**Why the code fix was NOT taken, having measured it.** The obvious move — re-wind `perimeter()` so
+all four walls run consistently — would silently relocate **all 41 openings on S/W walls** (19
+doors, 22 windows) in one go, and door positions feed `dropDoorBlockers`, so furniture counts and
+both existing ratchets would shift with them. Worse, **a blanket flip is not correct**: read from
+the other end `h5-main` opens onto a **balcony**, `em-main` into a study, `lf-main` into a sleeping
+area. Twelve land in a living room; the rest need a per-plan decision. The winding fix and the
+offset corrections are one audited edit per template, not a global switch — recorded as item **(i)**
+and ratcheted by name in `src/floorplan/mainDoorRoom.test.ts`.
+
+**Both new tests assert a positive count too** (19 main doors found, 17 resolving to a room), so the
+ratchet cannot pass by measuring nothing — the same guard `.113` added after noticing a name-only
+list proves nothing on its own.
+
+**(h) and (i) share one cause and should be fixed together**, worst first: `tpl-hdb-4room`,
+`tpl-hdb-5room` and `tpl-hdb-exec` each have BOTH a front door in the master AND a master with no
+window.
+
+## v0.31.5.113 — BEDROOM-WINDOW: 15 template bedrooms have no window, 7 of them masters
+
+Started as WINDOW-TREATMENTS-ON-TEMPLATES and found something underneath it.
+
+**Seen in frames, not inferred.** `tpl-hdb-4room`'s Master Bedroom shows **four blank walls and no
+window** across all four yaws, while its Kitchen has **two** (`/tmp/tw7`, 36 frames, resolved
+`medium/on/manual13`).
+
+**The size, stated honestly: 15 of 44 template bedrooms own no window on any of their own walls**,
+including **seven master bedrooms** — `h3-bed2`, `h4-bed3`, `h4-master`, `h5-bed3`, `h5-master`,
+`ex-bed3`, `ex-bed2b`, `ex-master`, `g3-gen`, `g3-bed3`, `g3-master`, `jb-bed3`, `jb-master`,
+`c4-bed4`, `cp-master`. The ownership probe is **not vacuous** — the other 29 bedrooms do own one,
+and that count is asserted so the ratchet cannot pass by measuring nothing.
+
+**Mechanism.** `perimeter()` winds N and E forwards but **S and W backwards** (the west wall runs
+`[T, D-T] → [T, T]`, decreasing z), while `window()`'s offset is measured from the wall's own start.
+An offset written as if it were an absolute coordinate lands mirrored. Across all templates **55
+windows would change room if read from the other end**, and the tell is which: `h4-m-win`,
+`h5-m-win` and `ex-m-win` — all named for the master — **all land in the KITCHEN as authored and in
+the MASTER when flipped.** Three templates, same wall, same symptom.
+
+**Proven to be a one-number fix, then reverted:** changing `h4-m-win`'s offset from 7.4 to 0.7 drops
+`tpl-hdb-4room/h4-master` off the windowless list. Both new tests fail against that lever and pass
+without it. Restored via a `cp` backup with `git diff --stat` verified empty — **not `git stash`,
+after `.112`'s incident.**
+
+**Not fixed, because it is someone's floor plan.** Moving glass in shipped Singapore reference
+plans is a content decision — recorded as item **(h)** in `docs/open-graphics-decisions.md` and
+ratcheted by name in `src/floorplan/bedroomWindow.test.ts`, so no new template can add another.
+
+**The original question, answered: templates get ZERO window treatments** (measured across all 19)
+because no `KITS` entry in `furnishPlan.ts` is a curtain or blind — the default flat's curtains are
+hand-authored in `furniture/defaults/mainBedroom.ts`, not produced by the furnish pipeline. The
+machinery to close that gap already exists and is shared with the 3D commit path
+(`placement/windowSnap.ts`; `roleOf` already treats `windowBound` as `'mounted'`). **But seeding a
+curtain per bedroom would be actively wrong while (h) stands** — `snapToNearestWindow` picks the
+nearest window on the whole LEVEL, so each of the 15 windowless bedrooms would have its curtain
+snapped onto another room's glass. And the `curtains` def defaults to `drawAmount: 1` (CLOSED),
+which would contradict the curtains-open decision shipped in `.88`/`.92`. **Fix (h) first.** That is
+the round's most useful conclusion: a reason NOT to build the obvious thing yet.
+
+## v0.31.5.112 — ORPHAN-ITEMS: mostly not a defect, but it caught a regression I shipped in `.111`
+
+**The headline is the regression, not the orphans.** Pushing an orphan metric further found that my
+own `.111` fix had put a dining chair on the wrong floor.
+
+**`.111` regressed `tpl-condo-penthouse`, seen in frames.** A/B of `/tmp/tw3` (pre) against
+`/tmp/tw8` (post) shows `.111` moved the `dining-table-4` from z 6.02 to z 3.92 and tucked its
+chairs — but `cp-living` is only **2.6 m wide** (x 3.8–6.4), narrower than a 4-seat table with
+chairs on both sides, so two chairs landed past its west edge, one **0.52 m out on the pale
+circulation floor**, visibly on a different finish from the wood-floored living room. True
+before/after via `git checkout HEAD~1`: **floor orphans 1 → 4**, all three additions mine.
+
+**Cause:** `tryPlace` rejects walls, collisions and keep-outs but **has no notion of the room
+rectangle**, and `cp-living`'s west edge has no wall to stop anything. Fixed with a room-bounds
+guard on the chair slots. **`TOL = 0.2` was chosen from the geometry, not tuned to a test** — room
+rects sit ~0.1–0.2 m inside their wall centrelines, so a few centimetres past an edge is still
+within the room's walls. Both settings measured before choosing: `0.05` → 18 stray / 1 floor
+orphan; `0.2` → 17 stray / 3 floor orphans. Shipped 0.2 because tucking is unharmed (17, same as
+`.111`) and the one visually wrong chair is gone. Verified in a third walk (`/tmp/tw9`):
+`dining-chair@3.20,3.92` is replaced by `dining-chair@4.22,2.72`, inside the room, and the chair
+has left the pale floor in the frame.
+
+**Floor orphans are 3, not 0, and the metric is coarser than its name.** What remains: a chair
+0.08 m and a `candle-cluster` 0.07 m past `cp-living`'s edge — inside the wall inset, not on
+another floor; and `tpl-hdb-jumbo`'s `nightstand@2.07,12.63`, 0.07 m outside `jb-mbath`, whose real
+problem is the ROOM not the distance — **a symptom of item (f)**, since jumbo's master and both
+baths share one undivided enclosure. Not a new bug.
+
+**The orphan sweep itself: NO DEFECT.** Of 8 own-level orphans, 4 are decor props (`noClip`) 0.03–
+0.07 m past a boundary — a bowl or cushion overhanging its host. Room rects do not tile a plan
+(every template has unassigned circulation, `.109`), so a boundary crossing is invisible in 3D
+unless it looks wrong. **Note the instrument changed between rounds**: `.111` tested membership on
+ANY level, this round on the item's OWN level. The counts are not comparable; own-level is the
+right question.
+
+**Items 1437 (pre-`.111`) → 1439 (`.111`) → 1440 (`.112`).** Every step ADDED pieces; nothing was
+deleted. `diningChairTuck.test.ts` updated: `tpl-1bed` 46 → 47, because the guard keeps one more
+chair alive by refusing it an out-of-room slot where it had been placed and then dropped.
+
+**Process failure worth recording: I popped the user's git stash.** `git stash push <file>` on a
+file with no local modifications creates NO stash entry, so the following `git stash pop` popped a
+pre-existing unrelated stash and left `package-lock.json` in conflict. Repaired with
+`git checkout HEAD -- package-lock.json`; the stash is intact. It also produced a failed mutation —
+the first before/after was byte-identical because no revert had happened. **Revert-the-lever now
+uses `cp` backup or `git checkout HEAD~1 -- <file>`, never `git stash` on a committed file.**
+
+## v0.31.5.111 — DINING-PHANTOM: chairs were arranged around a table position that never existed
+
+**Stray dining chairs (>1.2 m from their table) across all 19 templates: 50 → 17.** Not zero, and
+this is a fix rather than a cure — 6 of 8 HDB templates are now perfectly tucked, the condo
+templates still show 2–3 each, and `tpl-hdb-5room` keeps one at 7.60 m.
+
+**Root cause, attributed to a stage before theorising.** A dump across seed → arrange → mounts →
+overlaps → doors → walls showed chairs **0.00 m from the table at seed** and the entire scatter
+appearing at `arrangeAllRoomsForPlan`, with every later stage a pass-through. Inside it:
+**`tryPlace` signals failure by returning the item UNCHANGED and leaving `world` untouched**, and
+both dining routines used that return value as "where the table is". When the ideal spot was
+blocked, the chairs were slotted around the table's PRE-placement position and `arrangeCore`'s
+safety settle then moved the table elsewhere. On `tpl-hdb-4room` the chairs landed at exactly
+±0.5/±0.75 around the SEED spot (7.40, 6.00) while the table finished at (6.52, 3.72) — the
+arithmetic matches the phantom exactly. `tpl-hdb-jumbo` and `tpl-terrace-ground` were the control:
+both tuck at exactly 0.90 m, because their tables place first time.
+
+**The fix.** `placeDiningTable` settles the table immediately when `tryPlace` fails and reads its
+final transform back out of `world`, so slots always measure from the real position; it also reads
+the ROTATION back off the placed table, since a settled fallback may have turned it. Separately,
+`arrangeLivingAnyEdge` now offers the two table ENDS as spare slots and lets a chair claim any
+free slot — without that, a chair whose long-side slot is blocked fell through to the room-wide
+safety settle, which grid-searches the whole room (7.6 m in `tpl-hdb-5room`, 7.7 m in
+`tpl-hdb-3gen`). Part 1 took 50 → 23; part 2 took 23 → 17.
+
+**Nothing was lost — checked, because `.106` shipped a "stranded → 0" win while deleting 7 items.**
+Total furnished pieces **1437 → 1439**. The +2 are the `tpl-hdb-2room` and `tpl-1bed` dining
+tables, which previously **failed to place at all** — the 2-room shipped FOUR dining chairs and no
+table. Those two templates each trade one chair for the table that now occupies its footprint
+(2room 4→3, 1bed 6→5).
+
+**A FAILED MUTATION was caught mid-round (rule xxv).** The end-slot fallback went into
+`arrangeLiving` first and every measurement came back **byte-for-byte identical** — every template
+goes through `arrangeLivingAnyEdge`, so block 1 is the DEFAULT flat's curated path and the edit was
+dead code I had no way to measure. Reverted, then applied to the branch that actually runs.
+
+**Blast radius grepped, not assumed:** the only other two callers that read `tryPlace`'s result
+(`snapToWall` and the sofa's stepped-inward search) both guard with `if (placed !== item)`. The two
+dining blocks were the only unguarded ones.
+
+**Verified.** Tests prove they discriminate: `git stash` the arranger and **7 of 9 fail**; restore
+and all 9 pass. Jumbo and terrace pass in BOTH arms, as the control requires. The slow count test
+carries an explicit `{ timeout: 30_000 }`. Frames: `tpl-hdb-4room`'s living/dining (36 frames,
+17:45, resolved `medium/on/manual13`, 210 meshes / 97799 tris) shows the table with its chairs
+tucked on both sides — the fix is visible, not merely numeric.
+
+**Checked against the last change (rule ci).** `.108`'s CONTROL test — "pieces that BELONG at the
+room centre are untouched" — moved 17 → 18. Dumped every centred piece rather than editing the
+number: the addition is `tpl-1bed/ob-dining: dining-table-4`, a dining table at the centre of a
+room named "Dining", which is precisely the placement that control calls correct, and which
+existed only because this fix makes that table place at all. The full suite caught it; the
+targeted runs had not.
+
+**New `src/layout/CLAUDE.md`** records the `tryPlace`-returns-its-input trap and the fact that the
+two dining paths are not both exercised by template measurements.
+
+## v0.31.5.110 — LEVEL-ISOLATION-IN-WALK: walking an upper storey unmounts the one below
+
+**Measured and diagnosed, deliberately NOT fixed** — the change is a renderer design + cost call,
+recorded as item **(g)** in `docs/open-graphics-decisions.md`. This round ships as a documented
+audit (`.94`, `.95`, `.104` did the same).
+
+**`tpl-loft` GROUND walked CLEAN** — `/tmp/tw6`, 16 frames 17:24, 4 rooms, 126 meshes / 49191 tris,
+96% content, resolved `medium/on/manual13`. Furnished living, TV, sofa, bookshelf, bath door,
+plants; walls, floors, doors and cornices all correct. (The first ground run died on a puppeteer
+`ProtocolError: Promise was collected` and was simply re-run — a flake, not a finding. Recorded
+because an unexplained crash in a log is worth naming.)
+
+**`tpl-loft` UPPER shows a real defect.** `/tmp/tw6u`, 12 frames, 3 rooms. Ceiling-band luma puts
+**`lfu-ward-y3` at 28.2** against 129–185 for the rest of the storey — the outlier class that caught
+`ct-kit`. Cropped: from the mezzanine, **over the guard-rail parapet there is no floor, no far wall
+and no storey below, just a pale sky gradient**, and two **black holes** open in the floor beside
+the wardrobe.
+
+**Mechanism, read from source only AFTER the pixels showed the symptom.**
+`visibleLevels(plan, viewLevelId)` returns only the matching level unless `viewLevelId === 'all'`,
+and `PlanShell.tsx:575` renders exactly those (hidden storeys unmount so picking cannot hit them).
+**Control arm, one variable changed:** the same four loft ground rooms render **126 meshes /
+49191 tris** at the default `'all'` and **103 / 41406** with a single storey selected. The missing
+23 meshes are the mezzanine. Not a failed mutation.
+
+**The default is FINE and this is stated rather than glossed.** `viewLevelId` defaults to `'all'`
+(`cameraSlice.ts:130`), so out of the box every storey renders. The precise defect is narrower:
+`walkLevel(plan, 'all')` walks the GROUND floor, so **the only way to walk an upper storey is to
+select it — which is exactly what hides the storey beneath.** You cannot walk the loft mezzanine
+without the floor below vanishing.
+
+**Blast radius measured, not guessed.** Only three templates are multi-storey, and severity tracks
+how much ground floor has no storey above: **`tpl-loft` 25.7 m2 of 41.9 (62%)** — a genuine
+double-height volume — versus `tpl-hdb-maisonette` 7.9 m2 and `tpl-terrace-ground` 10.2 m2 (13%
+each, small stairwell voids). That is why `.95` and `.104` walked two upper storeys and saw nothing.
+
+**Why no fix and no test.** Un-hiding the storey below is not sufficient — it draws its own ceiling,
+so the sky hole would become the top of a ceiling slab seen from above; the ceiling-occluder path
+has to cull the ceiling of an overlooked storey, picking semantics need a decision, and the cost
+needs a Performance-tier benchmark (`.97` shipped a 65% regression by skipping exactly that). And
+`visibleLevels`' semantics are ALREADY covered by `floorplan/levels.test.ts:163-165` — a new test
+here would either duplicate that or assert the bug.
+
+**Also recorded:** the loft's 24.2 m2 of unassigned `lf-up` floor, flagged by `.109`'s coverage
+sweep, is the intended double-height void — `condo.ts` builds its north edge with
+`parapet('lfu-rail', ...)` and comments "Open mezzanine edge gets a guard-rail parapet, not a full
+wall". An anomalous measurement can be the design. The non-reflecting mirror was re-confirmed a
+third time (`lfu-landing-y1`).
+
+## v0.31.5.109 — TEMPLATE-ROOM-ENCLOSURE: 9 starter plans ship bathrooms no wall encloses
+
+**Measured and guarded, deliberately NOT fixed.** The fix is re-drawing shipped Singapore starter
+layouts, which is a content decision — recorded as item **(f)** in
+`docs/open-graphics-decisions.md`.
+
+**What you would see.** Walk into `tpl-hdb-jumbo`'s Master Bedroom and look west: **two toilets and
+a washbasin stand in the same open volume as the bed**, no wall, no door. Turn 90 degrees and the
+corridor wall slices through the middle of the room as a grey slab. The tour's own room-centre
+spawn lands at x=4.11 with that wall at x=4.0 — 0.11 m away, effectively inside it. Frames
+`/tmp/tw4`, 48 at 17:06, resolved `medium/on/manual13`.
+
+**The size, stated honestly.** Flood-filling free space with every wall solid (openings ignored — a
+door still separates two rooms) puts a `bath`/`powder` room in the same component as other declared
+rooms in **9 of 20 templates**: `tpl-hdb-3room` (two groups), `tpl-hdb-4room`, `tpl-hdb-5room` (all
+10 rooms in ONE component), `tpl-hdb-exec`, `tpl-hdb-3gen`, `tpl-hdb-jumbo`,
+`tpl-hdb-maisonette/em-up`, `tpl-condo-4bed`. Confirmed by hand on `tpl-hdb-4room`: 9 walls total,
+and `h4-cbath`/`h4-mbath` have none of their own — `h4-m-n` stops at x=3.6, just short of them.
+Separately, a corridor wall runs through a master bedroom's interior in two templates:
+`jb-wb-corr` 3.20 m through `jb-master` (1.80 m from the nearest parallel edge), `g3-b-corr`
+2.20 m through `g3-master` (1.50 m).
+
+**This is NOT the app's default flat — an earlier statement of mine that said so was wrong.** The
+boot plan is `defaultPlan.ts`, a separate 11-room plan with its own `corridor` room. Re-walked at
+17:10 (`/tmp/tw5`): its bathrooms are correctly enclosed — tiled walls all round, a working door
+prompt, a shower screen. That run also settles the mechanism: the shell builds walls from
+`plan.walls` and does NOT synthesise partitions from room rectangles, so the sweep measures the
+model the renderer actually uses. `tpl-hdb-4room` is a template in the picker, not the boot plan.
+
+**Guard.** `src/floorplan/templateEnclosure.test.ts` ratchets both defects **by name**, so a new
+template cannot add another and fixing one shows up as a required edit to the list. Proven to
+discriminate: adding one partition wall to jumbo changes the reported group from
+`jb-cbath + jb-master + jb-mbath` to `jb-cbath + jb-mbath`; the lever was reverted and
+`git diff --stat` verified clean.
+
+**Two instrument bugs found and fixed mid-round, before either reached a claim.**
+- **`sharp.stats()` reports the INPUT image and ignores `.extract()`** — the first ceiling-band luma
+  table was really the whole-frame mean. The tell was both columns matching on all 48 rows. Fixed by
+  going through `.raw().toBuffer()`. **`.103`'s `ct-kit` 37-vs-210 reading probably came from the
+  same broken pattern; that frame WAS dark so the finding stands, but the number was never a
+  ceiling band and should not be restated as one without re-measuring.**
+- **The wall sweep first claimed 15 defects across 9 templates, including `tpl-terrace-ground`,
+  which `.103`/`.104` passed as clean.** That contradiction exposed it: the inset room rect was
+  built as `{...r, x: r.x + INSET, z: r.z + INSET}`, but `pointInRoom` reads `r.origin`, so the
+  inset silently did nothing and every boundary wall flagged. Measuring perpendicular distance to
+  both parallel edges instead took **15 → 2**.
+
+**Also this round — `tpl-condo-penthouse` walked CLEAN** (48 frames 16:58, 12 rooms, 301 meshes /
+110338 tris, 97% content). Ceiling-band luma 132.9–224.3, no outlier. Four suspicions raised from
+reading the plan source all dissolved on inspection. **`cp-foyer`'s `.108`-stranded bench sits at
+the exact room centre but is out of shot in all four yaws — that trade-off is visually defensible.**
+
+## v0.31.5.108 — SETTLE-ORIGIN: wall-hugging fixtures rescued off the seed point, without losing any
+
+**Third attempt; the first two were reverted in `.106` for deleting furniture.** The accept
+criteria were therefore BOTH directions at once — stranded pieces must fall AND the item count
+must not. This lands **901 items** (baseline 900), **stranded 20 → 3**, mounts stranded 0, and
+the **17** legitimately-centred rugs/coffee-tables/patio-tables untouched.
+
+**What actually blocked it, measured rather than guessed.** The furnish pipeline has THREE
+removal stages, and I had been attributing the losses to the wrong one — `.107` retracted a
+claim about `computeItemOverlaps` that testing disproved. Instrumenting the three stages
+separately gave the answer in one run:
+
+    overlap 102   door 10   wall 2
+
+and the door casualties were exactly the kinds this pass moves — 3 `bathroom-sink`, 2
+`nightstand`, 1 `bench`. **The rescue was flushing pieces to the only wall they fit against
+when that wall sits inside a door keep-out**, and `dropDoorBlockers` then deleted them. (That
+is the same geometry `.106` measured for `tpl-1bed/ob-bath`'s toilet: the one edge where
+`canPlace` succeeded was the one with `keepOut=2`.) Adding
+`doorKeepOutRects(levelAsPlan(plan, level))` to the slide loop is what closed it, and removing
+it again fails the no-loss test.
+
+**The pass now.** Widened from role `'mounted'` to `WALL_HUGGING_CATEGORIES =
+{bathroom, storage, seating}` through `wantsWall()` — **category, not arrange-role**, because
+`bench` and `coffee-table` are both role `lowTable` while `toilet` and `outdoor-table` are both
+role `other`; `tables` and `textiles` are excluded deliberately, since a rug or a low table
+belongs in the middle of the room. Claims are **level-wide** (a piece flushed near a room edge
+can otherwise land on a neighbouring room's furniture) and both sides are boxed with
+**`itemAabbBox`**, the same box the real broadphase uses, so the two cannot disagree. Mounts
+neither reserve floor space nor yield to it — the overlap narrowphase is height-aware
+(`.107`), so a mirror above a basin is not a clash. **A piece with no clear slot is left
+exactly where it is, never stacked.**
+
+**Measured effect.** `tpl-terrace-ground/ctu-landing`'s `bench` moved from [5.45, 6.95] — the
+room's exact centre, in a 1.5 m corridor — to [4.90, 7.55]; `tpl-hdb-4room/h4-cbath`'s toilet
+from [4.50, 7.25] to [4.50, 7.57]; `tpl-1bed/ob-bath`'s toilet from [4.40, 4.25] to
+[4.97, 4.25]. None was deleted. The upper-storey tour reports 199 visible meshes against 197
+before, consistent with fewer pieces being dropped.
+
+**THREE ARE STILL STRANDED and that is not rounded away:** `tpl-hdb-2room/h2-shelter/cube-shelf`,
+`tpl-hdb-3gen/g3-cbath/bathroom-sink`, `tpl-condo-penthouse/cp-foyer/bench` — rooms with no wall
+slot clear of both furniture and a door swing. Leaving a fixture misplaced beats destroying it.
+
+**The landing frames look the SAME as before**, and that is worth stating rather than glossing:
+the `shoe-cabinet` visible mid-corridor sits at [5.45, 4.84], on the centre LINE but not at the
+exact centre POINT, so this pass never touches it — it was placed there by the arranger. The
+frame check therefore confirms no regression rather than demonstrating the fix; the fix is
+visible in the data above and in rooms the tour does not pose in.
+
+**Tests:** 3 added (10 in `placeSeededMounts.test.ts`) — loses NO furniture (`total >= 900`,
+the assertion that caught both reverted attempts and would have caught them before they
+shipped), stranded `<= 3`, and a control that exactly 17 centre-correct pieces stay put.
+
+## v0.31.5.107 — RETRACTION: `.106`'s stated cause was WRONG; `computeItemOverlaps` is already height-aware
+
+**`.106` shipped a false causal claim and this entry withdraws it.** That entry said:
+
+> The real blocker is upstream: `computeItemOverlaps` filters only on `noClip` and not on
+> `mounted`, so a wall mirror sharing XZ with a floor fixture reads as an overlap and
+> `dropOverlaps` deletes one.
+
+**That is not true.** The filter line is real, but the conclusion drawn from it is not, because
+the NARROWPHASE is height-aware: `computeItemOverlaps` calls
+`itemsCollide(a, aDef, verticalSpan(a, aDef), b, defs[b.defId])`, and its own comment says as
+much ("the exact (height-aware) collision test"). I read the broadphase filter, inferred the
+consequence, and did not test it. Measured directly, every mount-over-floor pair placed at an
+identical XZ reports **zero** overlaps:
+
+    bathroom-mirror + toilet        -> 0
+    bathroom-mirror + bathroom-sink -> 0
+    range-hood      + stove         -> 0
+    wall-mirror     + bench         -> 0
+
+So there is nothing to exempt, no upstream blocker, and the round that `.106` proposed as
+"MOUNTED-OVERLAP" does not exist. A mount hanging above a floor piece is already handled
+correctly.
+
+**THE ACTUAL CAUSE of the 900 → 893 deletions.** Instrumenting `dropOverlaps` while the
+reverted widening was applied shows the casualties are ordinary **floor-to-floor** collisions
+that the rescue itself created — e.g. `shoe-cabinet@[1.90, 5.74] X bench@[1.90, 5.60] ->
+drop bench`: the pass flushed the bench onto a cabinet the arranger had already placed. Of the
+106 drops observed across the 19 templates, the overwhelming majority are pre-existing and
+legitimate and happen with or without the widening (bed vs wardrobe, sofa vs coffee table,
+toilet vs shower, and a `range-hood` against a 1.78 m `refrigerator`, which is a genuine
+vertical clash the height-aware test is right to flag).
+
+**What this means for the 20 stranded fixtures.** The item is NOT blocked on a core collision
+change, as `.106` claimed. It needs the rescue to avoid the pieces already in the room —
+which is what the "seed claims with already-placed pieces" variant attempted, reaching 895 of
+900. That variant's remaining loss is most likely its own claim geometry: it boxed existing
+items with their UNROTATED half-extents while boxing the rescued item with the rotated pair,
+and it considered only same-room items. That is a tractable bug in the attempt, not a wall.
+
+**No `src/` change in this entry.** `computeItemOverlaps` is correct as written and was not
+touched; the point of the round was to test the hypothesis before acting on it, and the
+hypothesis failed. Reading a filter and inferring its consequence is not a measurement — the
+same mistake, in a different costume, as carrying `h4-cbath`'s keep-out reading over to
+`ob-bath` in `.105`.
+
+## v0.31.5.106 — MOUNTED-SEED flush fix; and the SETTLE-ORIGIN widening tried, measured, and REVERTED
+
+**Two outcomes, one shipped and one deliberately abandoned.** `.105` left an open question;
+instrumenting rather than guessing answered it, and the answer made the obvious fix untenable.
+
+**THE CAUSE, found by instrumenting `snapToWall`** (a temporary `globalThis` collector; the
+file is restored). For the `tpl-1bed/ob-bath` toilet, per edge: **N** `keepOut=2 canPlace=true`
+— the only wall it fits against, and it is inside a door keep-out; **E/S/W** `keepOut=0
+canPlace=false` — the basin had taken one wall and the rest collide. **The room is genuinely
+over-constrained; placement legitimately fails.** So the defect is the failure path, not the
+arranger.
+
+**CORRECTION TO `.105`.** That entry framed the open question as "a room demonstrably large
+enough with ZERO door/window keep-out". The zero was measured on `h4-cbath` and I carried it to
+`ob-bath` without re-measuring — on `ob-bath` the door keep-out IS the blocker on the one
+viable wall. Carrying a measurement from one room to another is the same class of error as the
+level-blind filter retracted in `.103`.
+
+**SHIPPED — a bug in `.103`'s own maths.** `placeSeededMounts` called `flushToWall` with the
+UNROTATED half-extents while `rotationForEdge` turns the piece 90 degrees for a W/E wall, so
+the world extents swap. A 0.6 x 0.06 m `wall-mirror` was therefore offset by its 0.3 m
+half-WIDTH and floated **0.27 m proud of the wall**: measured at x=5.05 against a room edge at
+x=4.70, now **4.73**. Item count across the 19 templates is unchanged at 900, and a test pins
+the mirror within 0.1 m of its wall (it reads 0.35 m with the swap reverted).
+
+**ATTEMPTED AND REVERTED — widening the rescue to all wall-hugging categories.** The plan was
+to rescue the 20 stranded pieces `.105` counted (4 `toilet`, 2 `bathroom-sink`, 7 `nightstand`,
+6 `bench`, 1 `cube-shelf`) by pulling any `bathroom`/`storage`/`seating` piece off the seed
+point. It reached **20 stranded → 0** and left the 17 legitimately-centred rugs and low tables
+alone — and it **deleted furniture**: total items across the templates fell **900 → 893**. The
+"stranded = 0" metric reported success the whole time; only counting the ITEMS caught it. Four
+further attempts each moved the numbers without landing cleanly:
+
+| variant | items (900 = baseline) | wall-hugging stranded | mounts stranded |
+|---|---|---|---|
+| naive widening | 893 | 0 | 0 |
+| + reserve slots among rescued pieces | 905 | 0 | **18** |
+| + exempt mounts from reserving | 893 | 0 | 0 |
+| + mounts claim but never yield | 893 | 0 | 0 |
+| + seed claims with already-placed pieces | 895 | 5 | 0 |
+
+**The real blocker is upstream and out of scope for this round.**
+`collision/placement.ts:computeItemOverlaps` filters only on `noClip` and **not** on `mounted`,
+so a wall mirror sharing XZ with a floor fixture counts as an overlap and `dropOverlaps`
+deletes one of them — even though a mirror above a basin is the normal arrangement, and
+`tryPlace` already exempts mounted items from its own keep-out checks. Every variant above is a
+workaround for that. Exempting `mounted` in the overlap test is probably correct, but it feeds
+the Checks overlay and placement validation, so it needs its own round with those as controls.
+
+**Nothing was shipped from the widening.** Four rounds of tuning that each shift the numbers
+without a clean result is the signal to stop: it was tuning, not fixing. The 20 stranded
+fixtures remain, unchanged from `.105`, and are still the open item.
+
+## v0.31.5.105 — SETTLE-ORIGIN investigation: 20 fixtures stranded mid-room, cause NOT yet fully established
+
+**Recorded rather than fixed, deliberately.** `.104` noted that the terrace's upper landing
+leaves a `shoe-cabinet` and a `bench` on the room's centre line. This round quantified that and
+went after the cause. The finding is solid and the scope is a number; the mechanism is only
+partly explained, and shipping a change built on a partial explanation is how a fix becomes the
+next round's bug. This entry exists so the next attempt starts from the evidence instead of
+repeating it.
+
+**THE FINDING.** After `furnishPlanItems`, items still sitting at their room's EXACT centre
+(the `seedRoom` placeholder), excluding `'ceiling'` and `'mounted'` roles: **37 across 17 of 19
+templates.** But that raw count measures more than its name says — a **rug** (5) or a
+**coffee-table** (4) at the room centre is CORRECT, and an `outdoor-table` (8) on a balcony
+plausibly is too. Narrowing to pieces that unambiguously belong against a wall gives the real
+number: **20 items across 13 templates** —
+
+    4 toilet · 2 bathroom-sink · 7 nightstand · 6 bench · 1 cube-shelf
+
+e.g. `tpl-hdb-4room/h4-cbath` (1.6x1.3 m) has a lone `toilet` at the room centre;
+`tpl-hdb-exec/ex-bed2` (3x3 m) has a `nightstand` mid-floor; `tpl-terrace-ground/ctu-landing`
+(1.5x4.9 m) has a `bench` at the exact centre of a corridor.
+
+**This is a DIFFERENT mechanism from `.103`** — none of these are `'mounted'` roles, so
+`placeSeededMounts` correctly leaves them alone. `arrangeCore`'s safety-net `settle` tries "the
+original position first" and keeps it while collision-free, and for a seeded item the original
+IS the room centre.
+
+**CAUSES RULED OUT, each by measurement — the negatives are the useful part here.**
+- *Door swings blocking the wall slots.* Measured on `h4-cbath`: **zero** door keep-out rects
+  overlap the room, 0% of its area.
+- *Window-front keep-outs.* Same room, also **zero**.
+- *The room resolving to the wrong kind, so the bathroom strategy never ran.* Categories
+  resolve correctly (`h4-cbath` category `bath` → `toArrangeKind` → `'bath'`), and
+  `roomKindFromItems` gives an explicit category priority over name and contents, so
+  `arrangeFixtures` DID run.
+- *The fixture's role being excluded from the bathroom pass.* `arrangeFixtures` requests
+  `['storage', 'other', 'shoe', 'lowTable']`, and bathroom pieces are category `bathroom` →
+  role `'other'`, so the toilet WAS offered to it.
+
+So `snapToWall(it, rect, [nearest, 'N', 'S', 'W', 'E'], world, ctx)` was called and failed on
+all four edges for a single fixture in an otherwise empty 2.08 m2 room.
+
+**PARTIAL EXPLANATION, explicitly labelled partial.** `CLEARANCE.storageFront` is **0.75 m**,
+so a toilet 0.66 m deep needs 1.41 m of room depth to satisfy it. That matches the failures in
+the shallowest rooms — `h4-cbath` is 1.3 m deep and `jb-mbath` 1.2 m — and matches the
+SUCCESS in `tpl-terrace-ground/ct-powder` (1.5 x 1.8 m), where the same `toilet` defId snapped
+to a wall correctly. **It does not explain `tpl-1bed/ob-bath` at 1.8 x 1.9 m**, which is large
+enough on both axes and still stranded its toilet. So at least one more factor is involved and
+the next round must find it before changing anything.
+
+**THE OPEN QUESTION for the next round, stated precisely:** why does `snapToWall` reject all
+four edges for a lone fixture in a room that is demonstrably large enough — `ob-bath`,
+1.8 x 1.9 m, with no door or window keep-out in play?
+
+**The likely shape of the eventual fix, NOT yet justified:** when a wall-hugging fixture cannot
+satisfy its clearance anywhere, placing it flush to the least-bad wall is strictly better than
+leaving it mid-room — mid-room is worse for BOTH clearance and realism. That would be `.103`'s
+mechanism applied to the failure path rather than the seed path. It must not touch rugs, coffee
+tables or dining tables, for which the room centre is right, and it will affect the default
+flat's "Tidy" action (which does run this arranger, unlike `applyLayoutPreset`), so it needs
+the default flat as an explicit control.
+
+## v0.31.5.104 — TEMPLATE-WALK-2 audit: the terrace's upper storey is CLEAN
+
+**Closes the round opened in `.103`.** `tpl-terrace-ground` is only the second of the
+nineteen shipped templates ever visually reviewed (`.95` did the maisonette; everything from
+`.20` to `.94` was the default 4-room flat). Its ground floor produced the MOUNTED-SEED defect
+fixed in `.103`; this entry records the upper storey, which is clean. Docs only — no `src/`
+change.
+
+**Arm:** `walk-tour.mjs PLAN=tpl-terrace-ground LEVEL=ct-up FURNISH=1 TIER=auto`, resolved
+**medium/on/manual13**, camera eye y=4.9 (level elevation 3.3 + 1.6 eye height, so the storey
+offset is right). 7 rooms / 28 frames, mean **97% content**, **199 visible meshes / 75,484
+triangles**, zero empty frames. For scale: this template's own ground floor is 7 rooms / 28
+frames / 261 meshes / 94,851 tris, and `.95`'s maisonette upper storey was 8 rooms / 32 frames
+/ 213 meshes / 93,677 tris.
+
+**Ceiling-band luma (rows 150–300, centre 60% width) is uniform across all 28 frames — 113 to
+175, no outliers.** That is the check that caught the ground floor: there, `ct-kit` read
+37/41/83/33 against its twin dining room's 210. Nothing here comes close to that. The upper
+band sits below the ground floor's 149–229, which is expected rather than suspicious — this
+storey has a 2.6 m ceiling under a gable roof, against 3.0 m and a slab below.
+
+**Every frame was reviewed** (contact sheet, then full-resolution crops of anything odd).
+Bedrooms carry bed + wall art + TV on a console, the bathrooms their fittings, the landing its
+stair void and doors; walls, cornices, door heads, floors and the storey offset all read
+correctly at a ceiling height no earlier round had tested.
+
+**`.103` verified on this storey too:** the landing's `wall-mirror` now sits at x=5.05, i.e.
+0.35 m off the west wall of a room spanning x 4.7–6.2 — on the wall, where before the fix it
+would have been stranded at the room's exact centre.
+
+**Two things checked and NOT found — recording the negatives, because dismissing needs
+evidence as much as accepting does.** The landing frame shows a chest standing in front of what
+looks like a blocked doorway; measured, the nearest door (`ctu-b2-door` at x=4.50, z=5.95) is
+**1.4 m** from the `shoe-cabinet` at [5.45, 4.84], so nothing is blocked and the door in view
+is simply further down the corridor. The large disc filling one side of that frame is the round
+`wall-mirror` seen at close range, not a modelling artefact.
+
+**Recorded for a later round, with exact data.** In the 1.5 m-wide landing (x 4.7–6.2) the
+`shoe-cabinet` [5.45, 4.84] and `bench` [5.45, 6.95] sit on the room's CENTRE LINE rather than
+against a wall — the bench is at the room's exact centre, i.e. still on its seed point. This is
+a different mechanism from `.103`: those are not `'mounted'` roles, so `placeSeededMounts`
+correctly leaves them alone; instead `arrangeCore`'s safety-net `settle` tries "the original
+position first" and keeps it whenever it is collision-free, which for a seeded item means the
+room centre. Wall-hugging kinds (storage, benches) arguably should not accept a mid-room
+original in a circulation space, but that is a change to `settle`'s preference order and wants
+its own round rather than being bolted onto this one.
+
+**Also still open, unchanged:** mirrors do not reflect (the `wall-mirror` renders as a flat
+grey-green slab — `ct-stair-y3` measured 92 after `.103`, up from 26); `PlanRoom` has no
+`external` field; `applyLayoutPreset('move-in')` places no window treatments on a template
+while the default flat gets curtains in every bedroom; template door prompts read a generic
+"Open door".
+
+## v0.31.5.103 — MOUNTED-SEED: wall/ceiling fixtures get placed instead of left on the seed point
+
+**Found by walking the second template ever reviewed.** `.95` had established that only
+`tpl-hdb-maisonette` of the nineteen shipped templates had been looked at; this round walked
+`tpl-terrace-ground` (6.4 x 14.0 m, ground ceiling **3.0 m** rather than HDB's 2.6 m, upper
+storey `ct-up` at 3.3 m).
+
+**A first pass over the 28 frames showed the kitchen's ceiling band near-black.** Measured per
+frame (top band, rows 150–300, centre 60% width):
+
+    ct-dining 210/209/217/213   ct-living 200/201/198/161   ct-porch 206/162/191/199
+    ct-powder 202/189/221/217   ct-yard   229/189/199/156   ct-stair 149/214/155/26
+    ct-kit     37/41/83/33
+
+`ct-kit` and `ct-dining` are declared with **identical geometry** (2.9 x 2.5 at z=9.5, adjacent,
+differing only in origin x, floor material and room kind), so 37 against 210 is a real signal
+rather than a lighting difference.
+
+**Four hypotheses died on the way to the cause, each to one measurement, and the answer was
+none of them.** (1) "A multi-storey plan's ground storey renders a dark ceiling" — killed by the
+table above: dining, living and yard share that storey and read 200+. (2) "The kitchen's ceiling
+or a bulkhead is dark" — killed by raycasting straight up from each room centroid: living,
+stair, dining, porch and yard all hit a `PlaneGeometry` ceiling at y=3, `#fafafa`,
+MeshStandardMaterial, BackSide. The ceiling is white everywhere. (3) "It is a pendant lamp" —
+killed by dumping the room's items. (4) A reported catastrophe — see the retraction below.
+**What the kitchen ray actually hit, 0.06 m above the walker's eye, was the RANGE HOOD**
+(`#c4c8cc`, metalness 0.9, cone, `mountHeight: 1.5`) hanging in open space at `[4.75, 10.75]`
+— the kitchen's exact centre — while the `stove` sat correctly placed at `[5.38, 11.53]`, a
+metre away.
+
+**RETRACTION — I reported a major defect that was my own probe's bug.** I stated that
+`applyLayoutPreset('move-in')` put three `bed-queen` in the terrace's ground living room,
+sanitaryware in the car porch and kitchen, and a sofa in the service yard. That was wrong. The
+probe filtered items by XZ and ignored `levelId`, while `plan.rooms` is ground-only and this
+template's upper storey stacks directly above the ground floor — so upper bedrooms and
+bathrooms were reported as ground-floor contents. Level-filtered, the ground floor is entirely
+sensible: living room with sofa/rug/coffee table/TV/armchair, dining table with four chairs,
+powder room correct, stair hall with shoe cabinet and bench, car porch empty. **The more
+alarming the reading, the more likely it is the instrument.**
+
+**The root cause, which the code documents against itself.** `arrangeCore`
+(`layout/autoArrange.ts`) treats role `'mounted'`/`'ceiling'` as FIXED and keeps it at its
+current transform — "wall/ceiling mounts … AND any user-LOCKED item, which must stay exactly
+where the user left it". That is right for a fixture a USER positioned. But
+`furnishPlan.ts:seedRoom` seeds **every** kit piece at the ROOM CENTRE, so on the
+furnish-from-scratch path a mount's "current transform" is a placeholder nobody chose, and the
+arranger faithfully preserves it. **The seeder and the arranger disagree about what a mounted
+item's initial position means.** The default flat never exposed it because `applyLayoutPreset`
+takes the hand-authored `buildPresetItems` branch there — where `stove` and `range-hood` share
+identical coordinates.
+
+**Scope, measured rather than assumed: 19 of 19 shipped templates, 59 stranded fixtures**
+(2–6 each — `range-hood`, `bathroom-mirror`, `wall-mirror`):
+`2room 2 · 3room 3 · 4room 3 · 5room 3 · exec 3 · 3gen 4 · jumbo 3 · maisonette 6 · studio 2 ·
+1bed 2 · loft 2 · condo-1bed 2 · condo-1study 2 · condo-2bed 3 · condo-3bed 3 · condo-4bed 4 ·
+condo-studio 2 · penthouse 4 · terrace 6`.
+
+**The fix.** New `placeSeededMounts(plan, items, defs)` runs inside `furnishPlanItems` between
+`arrangeAllRoomsForPlan` and `dropOverlaps`. A `range-hood` takes the `stove`'s position and
+rotation (what the default flat's authored layout already does); any other stranded mount goes
+`flushToWall` on its `nearestWallEdge` with `rotationForEdge` — reusing `layout/faceWall.ts`
+rather than reinventing placement maths. **The guard is deliberately narrow: a mount is moved
+only while it still sits at its room's EXACT centre (1e-6)**, i.e. demonstrably an unplaced
+seed, so `isFixed`'s protection of user-placed and locked fixtures is untouched — weakening
+that would have traded this bug for a worse one. Level-scoped via `planLevels`, so an
+upper-storey mount can never be dragged onto a ground room.
+
+**Verification.** Hood-to-stove distance **1.0026 m → < 0.01 m**. Same tour arm afterwards
+(`medium/on/manual13`, 7 rooms / 28 frames, 261 meshes / 94,851 tris against 262 / 94,839
+before — the scene is the same, only placement changed): the kitchen ceiling band went
+**37/41/83/33 → 223/208/209/227**, matching its twin dining room's ~210, and the cropped frame
+shows the dark slab gone. 6 new tests, proven discriminating by removing the pipeline call: the
+two pipeline tests fail on the old code while the four testing the helper's contract correctly
+hold either way. They cover hood-over-stove, no stranded mount on ANY of the 19 templates, a
+user-placed mount not being moved, array identity when nothing is stranded, a hood with no
+stove still leaving mid-room, and a multi-storey control that mounts stay on their own storey.
+
+**Recorded, not fixed.** `ct-stair-y3` rose from 26 to 92 but stays darker than its neighbours:
+that frame is the `wall-mirror`, now correctly flush to its wall, seen head-on at close range.
+It renders as a dark grey-green slab because mirrors have no reflection in this renderer.
+Whether that is worth a planar reflection is a graphics-cost decision, not a defect to fix
+here.
+
+## v0.31.5.102 — PLAN-EXTENT: the comment/tape click planes cover the loaded plan
+
+**Closing round of the default-flat constant audit.** The remaining fourteen importers of
+`src/apartment/constants.ts` were checked one by one. **Most are clean, and that is the main
+result** — the collision layer in particular has exactly the discipline the walk-interaction
+and lighting layers lacked.
+
+**CLEAN (verified, no change made):**
+- The whole collision family. `buildCollisionWalls` / `buildRoomCollisionWalls` are only ever
+  reached on the default-plan branch, with `planCollisionWalls` / `buildPlanRoomCollisionWalls`
+  as the plan path — checked at every call site: `ClearancePanel`, `DesignScorePanel`,
+  `FinishPicker` (both), `TapeMeasure`, `report.ts`, `walkway.ts`, `FirstPersonCamera`. The
+  `placementWalls(state) ?? buildCollisionWalls(...)` fallback used by drag, both gizmos and
+  `collision/placement.ts` is correct by construction: `placementWalls` returns `undefined`
+  **only** for the default plan.
+- `autoArrange.ts` is the default-flat arranger by design (keyed on the `RoomId` union and the
+  fixed rect/keepout tables); its two real call sites route custom plans to `arrangePlanRoom`.
+- `PanoramaController`, `roomEditorShell`, `suggestViews`, `OrbitCamera` — all gated on
+  `isDefaultPlan`.
+- `MeasurementOverlay`, `state/rooms.ts`, `state/schema.ts` — optional `ROOMS[id]?.x` lookups
+  with real fallbacks, or a deliberate union of constant ids with the plan's own.
+
+**THE ONE DEFECT, and it is small — stated plainly rather than inflated.** `CommentPins` and
+`TapeMeasure` each raycast against a transparent floor plane sized
+`APARTMENT_EXT_* + 2 * PAD` (PAD = 4 m) and centred on the default flat, with no plan check:
+x in [-4, 16.725], z in [-4, 13.375]. Measured against all nineteen templates,
+**`tpl-terrace-ground` is 14.0 m deep**, so its last **0.625 m** could receive neither a
+comment pin nor a tape-measure pick; `tpl-hdb-jumbo` (13.2 m) had **0.175 m** of margin left —
+one template edit from the same bug. Every other template fits.
+
+**The fix was already written.** `OrbitCamera` held the correct one-liner privately as
+`planExtents`. It now lives in `floorplan/planExtent.ts` and all three consumers share it, so
+the copies cannot drift apart again. A test pins the default flat as an exact no-op
+(`toEqual` the constants), a second **pins the defect itself** — the constant-sized plane fails
+to cover `tpl-terrace-ground` — so a future change to the templates or to PAD that
+reintroduces it fails here rather than in the field, and a third asserts the plan-derived plane
+covers every shipped template.
+
+**Cost:** `planExtent` runs once per render of two components that only mount while comment or
+tape mode is active, and `planBounds` is O(walls). Not a loop, so no benchmark — stated rather
+than assumed, per the `.97` lesson.
+
+**Recorded, NOT fixed — it needs a product call, not a guess.** `PlanRoom` has no `external`
+field; only the default flat's `ROOMS` table marks a room external. So
+`ROOMS[room.id]?.external` — used by `reportData.ts`, `catalog/LayersPanel.tsx` and
+`finishesSlice.ts` — is always `undefined` for a template, and a template's service yard or
+balcony is therefore treated as internal in floor-area reports, the layers list and finish
+application, while the default flat's is excluded. Whether a yard counts toward reported area
+is a product decision (and a schema addition), so it is logged here rather than decided
+unilaterally.
+
+## v0.31.5.101 — SUN-CURTAIN-PLAN: curtains dim the sun through the plan's OWN windows
+
+**The default-flat constant audit's fourth hit, and the first on the lighting path.** After
+`.95`, `.99` and `.100` all turned out to be general code reaching into
+`src/apartment/constants.ts` — which describes only the default 4-room flat — the remaining
+importers were audited. `CurtainLightController` passed that file's `WALLS` into
+`computeWindowModifiers` regardless of which plan was loaded, so on the other eighteen
+templates the sun attenuation was computed against **a different building**.
+
+**This failed by producing a plausible number, not an obvious null — which is why it
+survived.** `curtainWindowOverlap` matches a curtain to a window POSITIONALLY (within 0.5 m
+of the wall, angularly aligned, spans overlapping), and every plan sits near the origin, so a
+template curtain silently attenuated whichever DEFAULT-FLAT window it happened to land near.
+Measured end-to-end on `tpl-hdb-maisonette` with four curtains placed on its own windows via
+the app's own `snapToNearestWindow` / `windowFixtureProps`:
+
+    before:  open 1.0000 -> closed 0.7526   (delta 0.2474)
+    after:   open 1.0000 -> closed 0.5600   (delta 0.4400)
+
+**Both arms report "curtains dim the sun".** A binary check would have passed either way; the
+evidence is the number and which windows produced it. A pure measurement makes the same point
+in isolation: a drawn blackout curtain on `em-kit-win` scored 0.878 against a window the plan
+does not contain.
+
+**The fix.** New `lighting/planAttenuationWalls.ts` maps the walked level's walls + openings
+into the minimal shape the maths reads; `windowLightModifiers.ts` now takes a structural
+`AttenuationWall` (`{id, start, end, cutouts}`) instead of `WallSpec`, so the constants and
+the plan adapter are both valid inputs and nothing else had to change;
+`CurtainLightController` derives from `state.floorPlan` / `state.viewLevelId` and subscribes
+to both — without that a plan swap would leave the factor stuck on the previous apartment.
+Scoped to the viewed storey for the same reason the aim ray is: curtains drawn upstairs
+should not be averaged against open windows below.
+
+**Control:** a test pins the default flat as **bit-for-bit identical** (`toBe`) through the
+plan and through `WALLS`, guarded by an `< 1` assertion so a mechanism that quietly stopped
+firing could not pass it as `1 === 1`.
+
+**Cost, measured before committing** (the `.97` lesson): 0.0145 ms -> 0.0123 ms per recompute
+with 87 items — no added cost, and it runs on items/plan/level change, not per frame.
+
+**Three instrument bugs were found and fixed on the way to that measurement**, each of which
+produced a confident, wrong-looking-right answer:
+1. The pure measurement first read 1.0000 on BOTH plans, because the test curtain was built
+   with `atan2(dx, dz)` while `wallAngle` is `atan2(dz, dx)`. The control did not fire, so the
+   experiment was meaningless — a control that does not fire invalidates the arm it anchors.
+2. The new `curtain-atten.mjs` probe's first run reported `NO EFFECT` with **`curtains=0`**:
+   the shipped templates carry no window treatments at all (`applyLayoutPreset('move-in')`
+   gave the maisonette 138 items and zero curtains), so it had measured nothing. It now places
+   one curtain per window itself, using the app's own snap pair.
+3. Its second run read **0.5600 for both arms** — a failed mutation, because the "open" arm
+   trusted the placement defaults instead of driving the state. It now sets
+   `{draw: 0, style: 'open'}` and `{draw: 1, style: 'closed', material: 'blackout'}`
+   explicitly and dumps each arm's `props`, so a stuck arm is visible in the log.
+
+**Separate observation, recorded not acted on:** `applyLayoutPreset('move-in')` places no
+window treatments on a template, while the default flat ships curtains. That may well be
+intended; it needs its own round rather than a guess here.
+
+## v0.31.5.100 — WALK-AIM-PROMPT: the door prompt actually appears (a correction to .99)
+
+**`.99` over-claimed and this entry corrects it.** That commit is titled "the walker can
+open the doors of the plan it is in", and it measured `nearbyDoorId` going **0/5 -> 5/5** on
+the maisonette upper storey. The measurement was true and the aim fix was real — but it
+measured the store field, not the screen. `ui/DoorPrompt.tsx` still did
+
+    const spec = DOORS.find((d) => d.id === nearbyDoorId)
+    if (!spec) return null
+
+with `DOORS` being the DEFAULT flat's hardcoded constants. So for `emu-bed2-door` the
+component returned null and **no prompt rendered at all**: the walker stood at a
+now-correctly-detected door with no affordance on screen, on 18 of the 19 templates. The
+number passed while the picture still failed, and the fix I shipped revealed the next layer
+of the same bug.
+
+**Fixed by validating against the storey being WALKED** — `walkLevel(floorPlan,
+viewLevelId).openings` — the same source the aim ray uses. The stale-id guard the constants
+check was really providing survives (an id left over from a previous plan still renders
+nothing), but every door of the current plan now prompts. Verified in a FRAME this time, not
+a store read: at `emu-bed2-door` on the maisonette upper storey the HUD shows the
+**"E — Open door"** pill.
+
+**Label fallback is now explicit and pure** (`doorPromptLabel`): the default flat's
+hand-written copy first, then the opening's custom `name`, then a generic `'door'`. The test
+that pins that order **caught a real bug in it** — `name?.trim() ?? 'door'` does not fall
+through for a whitespace-only name, because `''` is not nullish, so it would have rendered
+"Open " with an empty noun.
+
+**Known limitation, recorded rather than half-fixed.** On a template the prompt reads the
+generic "Open door", because template openings carry no `name` (verified: all eight
+maisonette doors are unnamed). Naming the door by the room beyond it needs the player
+position and a `pointInRoom` test on the far side, and was deliberately left as a follow-up
+rather than guessed at here.
+
+**The probe now captures a frame per door** (`door-aim-plan.mjs`, `OUT=`), added precisely
+because this round proved that `nearbyDoorId` being right does not mean the user sees
+anything.
+
+**Control:** the default flat is unchanged — its prompt still reads "Open bedroom 2" for
+`door-bedroom2`, pinned by a test.
+
+## v0.31.5.99 — WALK-AIM-PLAN: the walker can open the doors of the plan it is actually in
+
+**Two defects, one root cause: walk-mode interaction targets were not derived from the
+loaded plan or the walked storey.** Found by auditing the other walk-mode surfaces after
+`.96` fixed the same class of bug in the minimap — a shipped fix revealing a hidden problem.
+
+**A. Door aim was hardwired to the default flat.** `FirstPersonCamera` held a MODULE-LEVEL
+`const DOOR_SEGMENTS`, built once at import from `apartment/constants.ts`'s `DOORS`/`WALLS`
+— the default 4-room flat. A module constant cannot see a plan swap, so it never did.
+Measured: the maisonette's eight door ids (`em-main`, `em-wc`, `em-study`,
+`emu-bed2-door`, ...) and the constants' eight (`door-main`, `door-mainBedroom`, ...)
+overlap by **ZERO**. So on **18 of the 19 shipped templates and every user-drawn plan**, the
+walker was offered prompts for phantom doorways positioned by a different apartment's
+geometry, `toggleDoor` wrote `doors[...]` under ids the plan never uses, and not one real
+door could be opened. Same failure shape as `.95`'s `walk-tour` ROOMS bug, and it had been
+shipping just as silently.
+
+**B. Item aim ignored the storey.** `windowFixtureAimSegments` / `screenAimSegments` /
+`lightAimSegments` were all built from the full `items` array, while
+`buildWalkBlockers(items, getDef, walkerLevelId)` two lines above was correctly scoped —
+its comment even reads "an upstairs bed doesn't block downstairs". That asymmetry matters
+because an **`AimSegment` is purely 2D** (`sx`/`sz` + `segDx`/`segDz`) and
+`nearestAimedSegment(ox, oz, dir.x, dir.z, ...)` never looks at Y. Height therefore cannot
+separate two storeys that sit directly on top of each other: on a maisonette the walker
+could aim through the floor and toggle a lamp, a TV or a curtain on the storey below.
+
+**Measured, `door-aim-plan.mjs` (new probe) on `tpl-hdb-maisonette`, `LEVEL=em-up`,
+`FURNISH=1`, `TIER=medium`** — it teleports to a stand-point in front of every door on the
+walked storey, derived from that level's own openings, and reads `nearbyDoorId`. Both arms
+reported the identical resolved state
+(`{"plan":"tpl-hdb-maisonette","viewLevelId":"em-up","cameraMode":"firstPerson","tier":"medium","uiMode":"simple","items":138}`),
+so only the code differed:
+
+    before:  0/5 doors interactable   (every one nearbyDoorId=null)
+    after:   5/5
+
+**The default flat is unchanged, and that was verified rather than argued.** It is the one
+plan the constants were right about, and its plan openings reuse the same eight ids — so a
+unit test pins `doorAimSegments(buildDefaultPlan())` as **bit-for-bit identical** to the old
+constants maths. The end-to-end control arm reads **6/7** there, with `door-bedroom2`
+resolving to `door-bath2`. That looked like a regression, so it was measured on both arms:
+the unfixed code reads **6/7 with exactly the same mismatch**. It is an artefact of the
+probe's derived stand-point, which for that door aims nearer `door-bath2`, and it is now
+recorded in the playbook as this probe's default-flat baseline. (Seven poses from eight
+doors is also expected — `door-main` is the entrance and has no valid in-room stand-point.)
+
+**One geometry for doorways, shared rather than duplicated.** `openingSegments` /
+`OpeningSeg` moved from `ui/walk/minimapGeometry.ts` to `floorplan/openingSegments.ts` and
+are re-exported from the old site; `minimapGeometry`'s 16 tests pass untouched, which is
+what makes that a pure move. The minimap's doorway gaps and the doors the walker can open
+are now the same computation, so they cannot drift apart.
+
+**Cost, stated rather than assumed.** The new work sits in effects keyed on
+`[floorPlan, viewLevelId]` and `[items, walkerLevelId]` — plan swaps and storey changes, not
+frames. The per-frame aim path is unchanged and now iterates **fewer** segments, since it
+no longer considers the other storey's items. `.97` regressed the sky bake 65% on exactly
+the assumption being refused here.
+
+## v0.31.5.98 — SKY-HORIZON perf: the haze sample is hoisted per column (a correction to .97)
+
+**`.97` shipped a 65% slowdown in the sky bake and I did not measure it before
+committing.** Rule: never add unmeasured cost to the weak-device tier. The haze blend
+called `skyRadiance` recursively for every below-horizon pixel, so a 1024x512 bake went
+**87.2ms -> 144.0ms** (mean of 5, warm) — main-thread time, re-run on every sun move past
+the `shouldRebuildSky` threshold, on the phone tier too (`proceduralSky` is simple-tier, on
+in both modes). Caught by benchmarking `.97` after the fact rather than before; recorded
+here rather than amended away.
+
+**The sample depends only on AZIMUTH, and one equirect column is one azimuth.**
+`paintSkyEquirect` now computes it `w` times instead of once per lower-hemisphere pixel
+(1,024 instead of 262,144), taken from the middle row where the direction is horizontal —
+the top row is near the pole, where azimuth degrades. `skyRadiance` takes an optional
+`hazeSample` so a bulk painter can hoist it; called without one it still self-samples, so
+every other caller is unaffected.
+
+**87.2 baseline -> 144.0 (.97) -> 90.4ms.** The added cost is now +3.2ms (+3.7%) rather than
++56.8ms (+65%). A test pins the painter's bytes as **identical** to per-pixel `skyRadiance`
+across a whole small equirect, including below the horizon (with a guard asserting the grid
+actually dips below the horizon, so the check cannot pass vacuously) — that is what makes
+this a hoist rather than an approximation.
+
+**`paintSkySurround` has the same per-pixel shape and was left alone, deliberately.** It
+measures 160.6ms at 1024x512 — worse — but `lighting/Sky.tsx` bakes it at **256x128**, 1/16
+the pixels, so it costs ~10ms in reality. Checked rather than assumed; no change made.
+
+## v0.31.5.97 — SKY-HORIZON: the window's ground fades out of the haze instead of butting the sky
+
+**The second of the two observations left open after `.95`** — that the `sky` backdrop's
+below-horizon half reads very dark in a window view. Confirmed before changing anything,
+in both instruments, and the confirmation reframed the defect: the problem is not
+darkness, it is a **seam**.
+
+**Pure measurement** (`skyRadiance`, 64 deg sun altitude, turbidity 5.0, looking due east,
+sRGB-byte luma against elevation):
+
+    5:178  2:176  0.5:175  |  -0.5:113  -2:112  -5:109  -10:105  -20:97  -45:75  -90:48
+
+A **hard step of 62 luma across ONE degree** at the horizon, and then almost nothing: the
+whole lower hemisphere moved 8 luma over the next ten degrees. **Frame** (`window-hours
+BACKDROP=sky TIER=medium`, pose `win-mainBedroom-N` aimed by raycast from the plan's own
+opening, resolved `backdrop:sky / firstPerson / medium / simple / proceduralSky:true /
+photoBackdropActive:true`): a crisp horizon line with a flat, featureless dark slab under it
+filling the bottom ~45% of the glass — it reads as a fog bank, not as ground.
+
+**The rendered step is far softer than the texture step.** AgX compresses it: through clean
+glass the row luma *bends* at the horizon (`780:150 800:140 820:130`) rather than jumping 62.
+Worth recording because the texture number alone would have overstated the defect — the crop
+is what justified acting, and the crop is also what showed the flat slab, which the profile
+alone reads as an innocuous gentle decline.
+
+**The missing term was aerial perspective.** At the horizon the ground is seen through
+kilometres of atmosphere, so it *is* the sky's colour there, and only resolves into ground as
+the view tilts down. The `v.y < 0` branch now blends the near-horizon sky sample into the old
+ground tint with `smoothstep(-v.y / GROUND_HAZE_SPAN)`, `GROUND_HAZE_SPAN = 0.3` (~17.5 deg —
+the depression range a window actually shows at standing eye height). **The seam is gone by
+construction, not merely reduced**: at `v.y → 0` the blend weight is 0, so both sides agree in
+the limit, and a test asserts exactly that rather than asserting a small number.
+
+    after:  5:178  2:176  0.5:175  |  -0.5:175  -2:173  -5:165  -10:138  -15:107  -20:97  -90:48
+
+Step **62 → 0**; above-horizon **bit-identical**; nadir identical (48); monotonic throughout.
+In the render, column x=1380..1520 went `780:150 800:140 820:130` → `780:150 800:152 820:153`,
+with every row above y=780 unchanged and the deep ground converging (`1120: 76 → 78`).
+
+**Deliberately NOT a `groundAlbedo` change.** Raising the albedo lifts the slab without
+removing the seam — it edits the obvious data instead of supplying the missing physics.
+Equally, the ground is NOT deleted the way the orbit surround deletes it: that is right for a
+dollhouse and wrong for a window, and a test pins that the tint still resolves past the haze
+span.
+
+**A real de-duplication, not a drive-by refactor.** `skySurround.ts` carried its own inline
+copy of the near-horizon sampling maths, with three hard-won traps in its comments: the Perez
+`1/cos(zenith)` singularity right at the horizon (two samples 0.001 apart came out a factor of
+1.5 apart), the horizontal part needing renormalisation or the effective elevation drifts with
+tilt and the surround reads brighter halfway down than just below the horizon, and the nadir
+having no azimuth at all (a `|| 1` fallback collapses the sample to the ZENITH). Every one of
+those applies identically to this haze blend, so `HORIZON_EPS`, `smoothstep` and
+`horizonSampleDir` moved into `skyGradient.ts` and the surround now imports them. **Its 21
+existing tests pass untouched** — that is what makes this a refactor rather than a change.
+
+**An earlier claim is narrowed, not retracted.** `skySurround.ts`'s header states the ground
+tint is "right for the walk-mode WINDOW view it was written for". Having ground there is
+right, and is why the window keeps a ground the dollhouse does not — but the bare, un-hazed
+form was not, and the header now says so.
+
+**Scope.** The below-horizon branch's only consumer is `paintSkyEquirect` →
+`bakeSkyEquirect` → the walk-mode `sky` background. `surroundRadiance` calls `skyRadiance`
+only for `v.y >= 0` and for its `+HORIZON_EPS` sample, so the orbit dollhouse is untouched.
+No flag: this is a defect in an existing backdrop. 6 new tests, proven discriminating — the
+seam and limit-continuity tests fail on the bare tint; the other four (above-horizon control
+pinned to the pre-fix values, monotonicity to the nadir, ground still resolving past the span,
+and no light leak at night) hold both ways by design.
+
+## v0.31.5.96 — MINIMAP-LEVEL: the walk minimap follows the walker upstairs
+
+**Closes the unverified observation recorded in `.95`** (line 40 of that entry): on the
+maisonette upper storey the minimap still drew the GROUND plan and labelled the room
+"LIVING / DINING". Confirmed twice before touching anything — at source, and in a frame.
+The frame (`tpl-hdb-maisonette`, `LEVEL=em-up`, `FURNISH=1`, `TIER=auto` → resolved
+`medium/on/manual13`, pose `emu-master`, camera eye y=4.5) shows the walker standing in the
+upper Master Bedroom while the map draws the ground shell, highlights a ground room, labels
+it "LIVING / DINING" — the name of ground room `em-living` — and plots the ground floor's
+furniture.
+
+**One root cause, four defects.** `Minimap.tsx` read `state.floorPlan` / `state.items` raw
+and never consulted `viewLevelId`, so on any multi-storey plan it drew storey zero:
+1. the room shapes, walls and openings were the ground storey's;
+2. the live room label was a SECOND, independent raw read — the rAF tick called
+   `useStore.getState().floorPlan.rooms.find(...)`. That read is what printed the wrong name;
+3. the furniture dots mapped over every item with no `levelId` filter, so ground-floor
+   furniture was plotted upstairs;
+4. `resolveMinimapTeleport` was handed the same ground plan, so a tap upstairs targeted a
+   downstairs room.
+
+**The fix was already half-built.** `floorplan/levels.ts` has exported `walkLevel`,
+`levelAsPlan` and `itemsOnLevel` all along, and `FirstPersonCamera.tsx` already picks its
+collision walls with exactly `levelAsPlan(floorPlan, walkLevel(floorPlan, viewLevelId))`.
+The new pure `ui/walk/minimapLevel.ts:minimapLevelView` reuses that same pair rather than
+re-deriving the storey, so the map and the camera now agree **by construction**: whatever
+storey the walker can collide with is the storey the map draws. `walkLevel` maps the 'all'
+selection to the ground floor, matching where the camera stands the walker. All four call
+sites now go through it; the rAF reads a `roomsRef` refreshed on render instead of
+re-deriving a level (and allocating a plan) 60x a second.
+
+**An earlier claim needs narrowing, not retracting.** The `defaultPlan.ts` polygon entry
+below states the "hover highlight, room editor, area/perimeter, 2D plan, minimap and walk
+teleport now all agree with the 3D floor". That was true, and remains true, for room
+SHAPE — it never covered which storey, and the minimap disagreed on storey from the day
+`upperLevels` shipped.
+
+**A test that looked like proof and proved nothing.** The first version of the teleport
+assertion asked "is the resolved target inside an upper room?" — and it PASSED against the
+unfixed code. The two storeys share an XZ footprint, so a ground-room target frequently
+lands inside an upper room by coincidence. It was replaced with a self-validating form:
+resolve the SAME pointer against both storeys, require they DISAGREE, then require the
+component chose the upper one. The map centre does not discriminate, so the test clicks a
+pointer that does (upper 4.86,0.92 vs ground 4.65,0.92).
+
+**Verification.** 10 new tests against the REAL `hdbMaisonette()` template, not a synthetic
+fixture — 6 pure (`ui/walk/minimapLevel.test.ts`) + 4 component
+(`ui/Minimap.test.tsx`, the storey pair run in BOTH Simple and Pro). Proven discriminating
+by reverting each lever and re-running: 3 of 6 pure tests and 3 component tests fail on the
+old behaviour; the remaining 3 pin behaviour that must NOT change ('all' → ground, a stale
+level id → ground rather than a blank map, and a single-storey plan returning the SAME plan
+reference so `useMemo` identity is preserved). The two storeys differ in size (7 rooms / 13
+walls vs 8 / 11), which is what makes counting the drawn shapes a valid discriminator.
+AFTER frame, same arm, same 32 frames / 213 meshes / 94,289 triangles: the map draws the
+8-room upper shell, highlights the room under the arrow, reads MASTER BEDROOM, and plots
+only upper-storey dots.
+
+**No new feature flag** — this is a defect in existing walk-mode UI, not a new surface.
+`minimapTeleport` stays `tier: 'simple'`, default on, and is exercised in both modes.
+
+## v0.31.5.95 — TEMPLATE-WALK: a shipped template renders on both storeys; the probe could not show it
+
+**A clean audit plus an instrument fix.** Nothing changed in `src/`. Every visual
+judgement in `.20`–`.94` was the default 4-room flat; 19 `PLAN_TEMPLATES` ship and none
+had ever been walked.
+
+**The instrument was the blocker, and it failed SILENTLY.** `walk-tour.mjs` derived poses
+from `Object.keys(ROOMS)` — the default flat's hardcoded constant table — so touring any
+other template would have produced ZERO poses and an empty tour, reading as "nothing to
+see" rather than "this probe cannot do that". Poses now come from the loaded plan
+(`isDefaultPlan(plan)` preserves the `ROOMS` order for the default flat). New knobs:
+`PLAN=<template id>`, `LEVEL=<upper level id>`, `FURNISH=1`. **Regression verified**: the
+default tour still reports 11 rooms, 354 meshes / 87,486 tris.
+
+**`tpl-hdb-maisonette` is the first multi-storey plan ever rendered in a review.** Its
+`upperLevels[0]` (`em-up`) sits at elevation 2.9 m, and `FirstPersonCamera` already
+stands the walker at `level.elevation + eyeHeight` — the storey was reachable all along,
+just never looked at. Ground 7 rooms / 28 frames, upper 8 rooms / 32 frames, zero empty
+frames; walls, cornices, doors, floors and the storey offset all correct.
+
+**`applyLayoutPreset` IS multi-storey aware — I predicted it was not and was wrong.**
+Measured on the same upper storey: 63 visible meshes / 15,698 tris when only re-homed, vs
+**213 / 93,677** after `furniture: 'clear'` + `applyLayoutPreset('move-in')`.
+
+**You cannot judge a template through the SWAP path.** `replaceFloorPlan(tpl,
+{ furniture: 'rehome' })` pulls the OLD flat's 87 items into the new shell: the maisonette
+living room came back with sofas overlapping and a coffee table intersecting a sofa, while
+every upper room stayed bare. That is `rehomeStrandedItems` doing what PLAN-SWAP-STRANDED
+(`.90`) documents — it pulls items inside a room, it does not space them — so it is
+expected, and `.90`'s confirm already warns the user. Use `FURNISH=1` to review a
+template's design; use the rehome path only to review the swap.
+
+**Unverified observation, recorded not claimed:** on the upper storey the minimap still
+drew the ground plan and labelled the room "LIVING / DINING". Seen in both upper arms,
+not investigated — a lead to confirm.
+
+npm test 991 files / 9282 tests green; tsc + biome clean.
+
+## v0.31.5.94 — PHONE-WALK-CLEAN: the phone tier's walk view is clean; the PROBE was not
+
+**A clean audit, and an instrument fix.** Nothing changed in `src/`. PERF-TIER-LOOKS-FINE
+ends with an explicit open lead — *"If the 'not real' complaint is ever re-opened, look at
+WALK mode close-ups, not the phone dollhouse"* — because every phone-tier judgement to
+date was the ORBIT dollhouse. This is that follow-up.
+
+**The instrument had to be fixed before the question could even be asked.**
+`walk-tour.mjs` called `setQualityTier(TIER)` unconditionally with `TIER` defaulting to
+`'medium'`, so a phone-profile run booted to the capability veto's `performance` and was
+then FORCED back to `medium` — it would have reported a desktop tier under a phone
+viewport without saying so. `TIER=auto` now leaves the detected tier alone. **No earlier
+finding is invalidated**: `.82` and `.85` both passed `TIER=performance` explicitly.
+
+**Measured**, 44 frames per arm, 11 rooms x 4 yaws, 13:00, both arms resolving
+`performance/on/manual13`, the only difference being the phone profile
+(`BOOT_PHONE=1 COARSE=1`, 1170x2532 @ DPR 3) vs desktop 1280x800 @ DPR 2:
+
+| arm     | mean luma | sigma | clipped | dark  |
+| ------- | --------- | ----- | ------- | ----- |
+| phone   | 194.9     | 20.59 | 0.113%  | 0.07% |
+| desktop | 196.1     | 19.68 | 0.033%  | 0.04% |
+
+1.2 luminance apart; clipping and crush both negligible. Sigma carries the DPR caveat
+this repo already records — lower DPR inflates per-pixel variance, so the phone's 20.59
+is not evidence of more contrast.
+
+**The frames carry the verdict.** `kitchen-y1`: subway tile with grout lines and specular
+hits, dark stone worktop, cabinet handles, frosted service-yard door. `livingDining-y0`:
+fan diffuser lit, aircon, curtain pleats, TV content, coffee-table decor. Legible and
+materially differentiated — the opposite of "cartoon". Zero empty frames.
+
+**One over-claim made and retracted mid-round.** The first phone frame read to me as a
+blown-out white void across the top fifth; measured, it is 0.10% clipped on average and
+0.7% at worst. A bright ceiling, not a clipped one.
+
+Mesh counts differ only because the narrow portrait frustum sees less: phone 246 meshes /
+57,895 tris vs desktop 354 / 87,096. No content is dropped.
+
+npm test 991 files / 9282 tests green; tsc + biome clean.
+
+## v0.31.5.93 — CITY-DAYLIGHT: the "Daytime HDB skyline" is now actually daytime
+
+Follow-up to v0.31.5.92, which moved the DEFAULT backdrop to the sun-driven sky and
+noted the trade-off that `city` keeps the skyline. `city` is still one click away in
+the picker and its entry reads "Daytime HDB skyline" — but it painted a NIGHT scene.
+
+**The mechanism:** `buildingWindows` returns only the LIT windows, and the equirect is
+baked once, so `windowColor` burns into the facade at every hour. `city` shipped
+`rgba(255,221,160,0.55)` — warm interior glow — over dark slate `[74,86,104]` blocks.
+
+**Measured** at `win-mainBedroom-N`, 13:00, curtains open (left third of the upper glass
+band, away from the centre lamp reflection):
+
+| arm                | mean rgb                  | r−b   |
+| ------------------ | ------------------------- | ----- |
+| city BEFORE        | (92.7, 96.0, 98.4)        | −5.7  |
+| city AFTER         | (132.6, 129.3, 123.0)     | +9.6  |
+| sky backdrop (control) | (135.8, 140.4, 142.4) | −6.6  |
+
++40 brightness and a hue polarity flip — cold and dark to warm and sunlit. The `sky`
+control is comparably bright but COOL, which is right for open sky against concrete.
+
+**The fix is a polarity rule, not a repaint.** By day a window is a hole into an unlit
+interior, so it is DARKER than the sunlit facade; by night the interior is the only
+light source, so it is BRIGHTER. `city` now satisfies the first (`building
+[182,177,166]`, `windowColor rgba(52,66,84,0.5)`, denser `litScale` so the grid reads as
+glazing) and `dusk` still satisfies the second. `backdropDaylight.test.ts` pins both,
+and **fails 2 of 5 on the old palette** — verified by restoring it. Pinning the polarity
+rather than literal hexes lets the presets be re-tuned without letting the day/night
+inversion return silently.
+
+**Two metrics were built and discarded before one discriminated.** A "warm lit-window
+pixel" count read 9.9% for `city` and 9.5% for the `sky` backdrop, which has no towers
+at all — it was counting lamp reflections in the glass; narrowed to the left third it
+read 13.9 / 14.3 / 13.3% across the three arms because the cream grille bars dominate.
+Mean brightness plus hue polarity is what actually separates them.
+
+**Two iterations, both inspected in a frame.** v1 (neutral grey concrete) fixed the
+polarity but read as flat overcast — towers and sky at the same grey. v2 warmed the
+concrete and deepened the zenith, which separates sunlit facade from blue sky.
+
+npm test 991 files / 9282 tests green; tsc + biome clean.
+
+## v0.31.5.92 — WINDOW-SKY-DEFAULT: the view out of the window now follows the clock
+
+**Open decision (b), approved by the user and shipped — closing the last of the five items.**
+v0.31.5.88 opened the default flat's curtains and thereby made a long-standing defect VISIBLE: the
+default `city` backdrop is a static palette authored at one time of day, painting warm lit tower
+windows at every hour, so a 13:00 walk frame showed a night skyline at midday. Measured at the
+`win-mainBedroom-N` pose, same crop: 09:00 rgb(97.5, 100.4, 102.5) against 13:00 rgb(97.4, 100.3,
+102.4) — **identical to 0.1**.
+
+**`backdrop` now defaults to `'sky'`**, the sun-driven analytic backdrop, so the exterior tracks
+the clock the interior is already graded by:
+
+| hour | before (`city`) | after (`sky`) |
+| ---- | --------------- | ------------- |
+| 09   | rgb(97.5, 100.4, 102.5) | rgb(121.4, 121.3, 118.8) |
+| 13   | rgb(97.4, 100.3, 102.4) | rgb(137.2, 143.1, 146.0) |
+| 21   | rgb(77.6, 78.8, 78.8)   | rgb(55.1, 50.8, 41.3)    |
+
+09:00 -> 13:00 goes from 0.1 to **16-25 units with a hue flip** (warm morning -> cool midday), and
+night is darker and warmer instead of flat grey.
+
+**Two coupled halves — either alone is a regression, and that was measured before building.**
+`proceduralSky` was `tier: 'pro'` and Simple (the app default) forces pro flags off, so
+`backdrop: 'sky'` in Simple selected a backdrop nothing could paint: the window rendered a **flat
+dead grey slab**, worse than what it replaced. The flag is now `tier: 'simple'` — the same rule
+`src/scene/CLAUDE.md` already records, that anything changing the DEFAULT look must not sit behind
+a pro-tier flag, and a window view is core realism rather than an analytical tool.
+
+**Root-caused so the dead-slab state is unreachable at any flag setting.**
+`isPhotoBackdropActive` does double duty: it tells `SceneBackdrop` to paint AND tells
+`lighting/Sky.tsx`'s surround dome to stand down. It returned `true` for `sky` unconditionally,
+claiming the background slot for a painter that never ran while suppressing the dome that would
+have covered for it. It now takes a `skyAvailable` argument (defaulted `true`, so no other caller
+changes) which both call sites feed from the live feature.
+
+**`.91`'s "the presets are not the lever" finding is RETRACTED — it was a broken probe.**
+`window-hours.mjs` opened curtains with `toggleWindowFixture`, which FLIPS; since v0.31.5.88 ships
+them open, the probe was CLOSING them, so both arms compared two covered windows. It now sets the
+open value explicitly and prints its full resolved state. With that fixed, mutating
+`BACKDROP_PRESETS.city` moves the frame decisively (sky-patch blue 102.5 -> 169.0). A content fix
+that changes a default can silently invalidate an instrument written against the old one.
+
+**Tests discriminate — each half verified by reverting it:** the default-backdrop assertion fails
+on `'city'`, the tier assertions fail on `'pro'` (4 tests), and the predicate guard's own test
+fails when the `sky` branch is removed. Trade-off accepted: the `sky` backdrop has no skyline, so
+the default view loses the HDB towers; `city`/`dusk` stay one click away in the picker.
+
+## v0.31.5.90 — PLAN-SWAP-STRANDED: the plan-swap confirm now tells the truth
+
+**Open decision (c), approved by the user and shipped — with one correction to the recommendation.**
+The recommendation was "add a confirm naming the count". Both rehome paths
+(`confirmResetPlanToDefault`, `confirmLoadSavedPlan`) **already had danger confirms**, so nothing
+needed adding. The defect was what they SAID: both promised *"Your furniture is kept — anything left
+outside a room is moved back inside"*, which is true only of free-standing floor pieces. On a swap to
+`tpl-studio` that sentence is followed by 37 of 87 items sitting outside the new shell.
+
+**`rehomeClause` now names the number.** New pure `countStrandedAfterRehome` in
+`floorplan/rehomeItems.ts` counts the pieces the pass will LEAVE outside — the skipped
+(wall-mounted / no-clip) ones outside every room; anything the pass can move is not stranded, so
+warning about it would be wrong. It shares the strandedness test with `rehomeOne` via a new
+`outsideEveryRoom` helper, so the quoted number cannot drift from the behaviour it describes. The
+count runs against the plan ACTUALLY being loaded, so a same-sized apartment still reads
+reassuringly, and the copy degrades to the old reassuring sentence when the count is zero.
+
+**The skip predicate is untouched, as recommended** — widening it would rip decor off tables and
+float wall art mid-air. But it WAS duplicated: `state/schema.ts` and `floorPlanSlice` each carried
+their own inline `!!def?.mounted || !!def?.noClip`, in the very two call sites `rehomeItems.ts`'s
+header says are shared "so the two can't drift". Both now import the one
+`furniture/anchoredDefs.ts:isAnchoredToNonFloor`, and so does the count.
+
+**No feature flag**, deliberately: this rewords the copy of an existing destructive confirm rather
+than adding a panel, tool, export or mode, so there is no new user-facing surface to gate.
+
+**The test discriminates.** `floorplan/countStranded.test.ts` (6 assertions) includes the crux — a
+free-standing item outside a room must NOT be counted — plus a test that the count equals what
+`rehomeStrandedItems` actually leaves outside. Replacing the implementation with the naive "count
+everything outside" version **fails 3 of 6**, verified by installing it and re-running.
+
+**Correction to this repo's own docs (meta-rule lxiv).** `floorplan/CLAUDE.md` glossed the probe's
+figures as "~37% of the home floating in the void". They are item COUNTS, not percentages: 37 of 87
+is ~43%. Corrected in place.
+
+## v0.31.5.89 — wall-reveal (d) closed as NO DEFECT; `.53`/`.84`'s premise retracted
+
+No code changed. Item (d) was approved for implementation, but re-confirming its numbers before
+touching the curve (meta-rule lxxiii) falsified the premise the approval rested on, so it went back
+to the user, who closed it as designed.
+
+**The retracted claim (meta-rule lxiv).** `.53` and my `.84` write-up both said the parameter
+"promises a 0.05 head-on floor and the shipped default pose never gets near it, so the intent and
+the behaviour disagree". **False.** With `REVEAL_ONSET = 0.25`, head-on (`toward` = 1) yields
+opacity **0.0500** — the floor is delivered exactly where it is promised. The dollhouse boot pose
+looks down a 45° diagonal, so `toward` = 0.707 → strength **0.6616** → opacity **0.3715**, matching
+the recorded 0.371 / own-strength 0.662. An intermediate angle giving an intermediate opacity is the
+ANGLE-GRADED curve working.
+
+**`.53` also re-applied reasoning to the class it was written to exempt.** `WALL-REVEAL-ANGLE-GRADED`
+states the "washed mid-band" risk belongs to FAR walls — structurally excluded, `facingToward` ≤ 0 →
+strength 0 → opaque — while NEAR walls "SHOULD fade gradually and are EXPECTED to rest anywhere along
+the curve".
+
+**And the obvious lever cannot do it.** `smoothstep(onset, 1, 0.707)` gives opacity 0.3715 / 0.2864 /
+0.2468 at onset 0.25 / 0.10 / 0.00 — even onset 0 lands nowhere near 0.05. Reaching the floor at 45°
+requires narrowing the domain (≈ `smoothstep(0.25, 0.707)`): precisely the "fast-ramp bias"
+`wallRevealMath.ts` forbids, flattening all grading above 45° and effectively reversing the
+BINARY-TARGET → ANGLE-GRADED decision. Verified visually first — the boot frame shows kitchen
+cabinets, microwave and counter reading clearly through the near façade, a legible dollhouse cutaway.
+
+## v0.31.5.88 — the default flat ships with its curtains open (and that exposes a trade-off)
+
+**Open decision (b), option 1, approved by the user and shipped.** `.44` measured that the app bakes
+a city backdrop the out-of-box user never sees: facing any of the 5 window openings in walk mode, a
+ray grid found essentially no exterior pixels, because every curtain shipped drawn. `drawAmount: 0`
+is now set on all four curtain entries in `defaults/`. The DEF default stays `drawAmount: 1`, so a
+curtain the user places themselves still arrives drawn — both halves pinned by
+`defaults/curtainsOpen.test.ts`.
+
+**Checked, not assumed: opening cannot re-introduce `.87`'s lamp intersection.** `panelTransform`
+bunches each panel to the outer edge at `drawAmount 0` (`bunchW = max(0.12, width * 0.07)`), so the
+1.9 m bedroom curtain's panels occupy x 0.750-0.883 and 2.517-2.650 — inside the drawn span, still
+disjoint from the nightstands at x 0.25-0.70 and 2.70-3.15. In general an open panel is a subset of
+the drawn span in x, so anything clear when drawn is clear when open. Confirmed in the frame: both
+lamp shades render intact with the curtains gathered at the sides.
+
+**⚠️ But it makes WINDOW-TIME-INVARIANT visible, and that is a real trade-off.** With the curtains
+drawn, nobody could see that the backdrop never changes. Open, a `HOUR=13` walk frame shows a dark
+sky with lit tower windows and glowing street lamps — a night skyline at midday, next to a TV
+playing a bright daylight image. The backdrop is a static authored `city` palette and
+`proceduralSky` stays pro-gated (false in Simple) by the same decision, so nothing makes it follow
+the sun for a default user. The window view is a clear improvement over no view at all, which is
+what was approved — but item (b) is marked PARTLY shipped rather than done, and the remaining
+options are re-stated in `docs/open-graphics-decisions.md`, including a new cheap one: re-author the
+static palette to read as daytime, which leaves the Simple/Pro flag contract untouched.
+
+## v0.31.5.87 — CURTAIN-NIGHTSTAND: the bedside lamps no longer have a notch bitten out
+
+**Open decision (e), approved by the user and shipped as CONTENT.** `.61` diagnosed this correctly
+and left it alone: the render was never wrong, the curtain plane simply passed through the lamp
+shades (shade z 0.30-0.60, curtain panel z 0.48-0.58, `side=2` so the shade's inside showed through
+the bite). The fix is in `defaults/mainBedroom.ts`; the placement rules are untouched.
+
+**Why `.61`'s three candidates all failed — the arithmetic.** The room's north interior wall is at
+z 0.20, so a 0.40-deep nightstand against it always reaches **z >= 0.60** and cannot clear a panel
+at 0.48-0.58; there is no z solution, which is why `.61` measured the only one as 0.33 m out into
+the room. And in x, the 2.2 m curtain spanned 0.6-2.8 while the west wall forces the left
+nightstand's centre to x >= 0.425 (max x >= 0.65) — so at that width no placement existed either.
+
+**Both had to move.** Curtain `width 2.2 -> 1.9` (x 0.75-2.65, still overhanging the `x=[0.8,2.6]`
+glass ~0.05 each side, so the window stays covered) and the nightstands, their table lamps and the
+desk plant went outboard to **x 0.475 / 2.925** — symmetric about the window centre, clear of the
+bed (x 0.95-2.45) and inside the room (x 0.20-3.28).
+
+**Pinned by a new `defaults/mainBedroom.test.ts`** (9 assertions: x spans disjoint, glass still
+covered, nightstands inside the room, lamps and plant co-located with their nightstand). It **fails
+4 of 9 on the old geometry** — verified by restoring it and re-running — so it discriminates rather
+than merely passing. Verified visually with `walk-tour HOUR=13 LIGHTS=on`: `mainBedroom-y0` cropped
+on the lamp/curtain junction shows a complete unbroken shade with bare wall between it and the
+curtain edge.
+
+## v0.31.5.86 — DEFAULT-GLOOM: the first-paint lights guard now applies in daylight too
+
+**Open decision (a), approved by the user and shipped.** `ensureDaylightFirstPaint` used to bail out
+inside an 08:00–18:00 window, on the assumption daylight alone reads well enough. It does not: `.54`
+measured the fixtures at **2.3–2.5x** in the daytime walk view, and `.83` showed the mechanism is
+cheap and benign — at 21:00 in the orbit/boot view they move mean luminance **16.9 -> 132.2 (~7.8x)**
+while moving mean chroma only **0.248 -> 0.249**.
+
+`isDaylightHour`, `DAYLIGHT_START` and `DAYLIGHT_END` are deleted rather than left dangling — the
+module and its own test were their only consumers. The function keeps its name: it is referenced as
+`ensureDaylightFirstPaint` across the CHANGELOG, `TODO.md` and the path-scoped docs, and renaming it
+would strand those references for no behavioural gain; the doc comment now says to read "Daylight"
+as the original motivation rather than as when it fires. Both preference guards
+(`timeMode !== 'system'`, `lightsMode !== 'off'`) are untouched, and it still only runs on a fresh
+seed, so a user who has ever expressed a preference is never overridden. No feature flag — this
+widens an existing unflagged boot guard rather than adding a surface — and no tier cost, since the
+fixtures already render at every tier.
+
+**Verified by A/B at a FAKED SYSTEM CLOCK**, the only way to exercise a guard that requires
+`timeMode: 'system'` (meta-rule xcviii): `lights-boot FAKE_HOUR=13` reads `lightsMode=off` on the old
+guard and **`on`** on the new one, while `FAKE_HOUR=21` stays `on`. Exactly one case changed. The old
+guard was restored temporarily for that control arm and put back, confirmed with `git diff --stat`.
+
+**Side effect worth recording: `default-gloom.mjs`'s arms have COLLAPSED.** Its `default` arm now
+reports `lightsMode=on` like its `lightson` arm, so that comparison is a no-op and must not be quoted
+as a payoff figure. Noted in the playbook along with the `lights-boot` header caveat (it prints
+`time=system/12` regardless of `FAKE_HOUR`, because that field is `timeMode`/`manualHour`).
+
+Suite 9256 -> 9254 tests: the `isDaylightHour` block and the now-impossible "leaves a daytime first
+paint alone" case are gone, replaced by the inverted assertion.
+
+## v0.31.5.85 — the performance-tier "EMPTY flat" contradiction does not reproduce; closed
+
+No app code changed. With the audit finished and the five decisions handed over, the one item still
+recorded as unresolved was `.61`'s contradiction: `walk-tour.mjs TIER=performance` returned 44
+frames of an empty flat while `wall-mottle.mjs` at the same tier found geometry fully mounted.
+
+**It does not reproduce.** `walk-tour.mjs TIER=performance LIGHTS=on` (22:45 local, resolved
+`performance/on/manual13`): **44 frames, mean 75% content, 354 visible meshes in frustum, 87,228
+triangles, zero empties**, all 11 rooms `ok, 4 yaws`. A cropped frame shows walls, ceiling, curtain
+weave and rail, TV and a fan blade. `.82` independently got real frames from
+`chroma-audit TIER=performance`. The likely original cause was probe timing — a stale
+`frameloop="demand"` composite captured before the scene drew — rather than a culling difference,
+which is what two instruments disagreeing over a fully-mounted scene graph implies.
+
+**The guard that would catch a recurrence already existed** — `walk-tour.mjs` carries the
+empty-frame guard (`EMPTY_PCT`, default 12, every cell compared against the backdrop corner) plus
+`assertSceneAlive` per pose. That was `TODO.md`'s recorded next step, already done; meta-rule
+(xvii-b), thirteenth round. Checked before building, so nothing was rebuilt.
+
+## v0.31.5.84 — the five open graphics decisions, written up for a one-line answer
+
+No app code changed. Every measurable axis is clean (`.77`–`.81` per-class ranking, `.82` tier
+parity, `.83` time-of-day), so the remaining work is a decision rather than a measurement. New
+`docs/open-graphics-decisions.md`, linked from the root `CLAUDE.md` docs list, presents all five
+items with: what a user would SEE in plain language, the measured evidence with probe and pose
+named, the exact change and its blast radius, what genuinely needs a human, and a recommendation.
+Nothing has been applied and nothing was decided unilaterally.
+
+**Item (a)'s blocker is cleared.** `.72` flagged "DEFAULT-GLOOM's premise may be stale" and said
+not to act until settled. Re-reading the record: `.74` had already settled it with a wall-clock
+table and a falsifying arm (13:00 vs 22:00 boot, only **2 of 133 store scalars** differ —
+`lastSavedAt` and `lightsMode`), and `.83` independently rediscovered the mechanism: the guard
+fires at first paint against the REAL wall clock before a probe switches to manual time. `.72`'s
+anomaly was that inheritance, not a changed default. Meta-rule (xvii-b), twelfth round — the answer
+to the blocker was already in the repo.
+
+**Correction to a figure this loop had been repeating (meta-rule lxiv).** PLAN-SWAP-STRANDED was
+being summarised as "strands ~37% of items". The probe table reports item COUNTS, not percentages:
+37 of 87 items for `tpl-studio` is ~43%. `floorplan/CLAUDE.md` glosses the same number as "~37% of
+the home", conflating count with percent. The counts are the measured values and are quoted as such.
+
+## v0.31.5.83 — the boot view holds across the day; at 21:00 the lamps carry brightness, not chroma
+
+One dev-probe improvement (`chroma-audit` gains `LIGHTS=` and a resolved-state print) and a clean
+audit of the last unswept measurable axis. Every orbit/boot number in `.56`–`.82` was `HOUR=9`,
+yet the flat boots `timeMode:'system'`, so a real user arrives at whatever hour it is.
+
+**Hypothesis: the boot view degrades away from 09:00. FALSIFIED.** Orbit/medium: 09:00 chroma
+0.158 / 3.2% past 0.35; 13:00 unlit 0.107 / 4.1%; 18:00 0.182 / 4.2%; 21:00 lit 0.249 / 15.9%.
+The evening rise is the LOW SUN, not the lamps — turning fixtures off at 21:00 moves chroma
+0.249 -> 0.248 and the tail only 15.9% -> 14.1%. For scale, the REJECTED Khronos Neutral operator
+measures 0.518 chroma and 89% past 0.35 at the same hour, so AgX is ~3.5x better on both, and the
+cropped frame reads as a warm lit room rather than a cartoon.
+
+**The fixtures are load-bearing for BRIGHTNESS, not colour.** Differential over identical pixel
+regions in the two 21:00 frames: mean luminance **132.2 lights-on vs 16.9 lights-off**, ~7.8x. So
+`ensureDaylightFirstPaint` is what stands between an evening visitor and a near-black boot. Chroma
+was simply the wrong lens for that question — the two metrics disagree completely, and only the
+luminance one answers it.
+
+**The probe fix caught its own bug immediately.** `chroma-audit` sets `timeMode:'manual'`, so
+`ensureDaylightFirstPaint` cannot fire inside it — but it fires at FIRST PAINT against the REAL
+wall clock, before that switch. Run at 22:25 local, all four original arms silently resolved to
+`lights=on`, including the "13:00" arm meant to represent an unlit daytime boot, and the intended
+lights-off control read byte-identical to its pair — a no-op. The new `resolved <tier>/<lights>/
+<mode><hour>` line is what exposed it. Pass `LIGHTS=` explicitly; never infer lighting from `HOUR=`.
+
+## v0.31.5.82 — the boot view holds up on the performance tier
+
+No app code changed. A clean audit on a new axis: every finding in `.56`–`.81` was measured at
+`tier=medium`, while `quality.ts:tierForCapabilities` boots `performance` on software rasterisers,
+coarse pointers, no-WebGL2 and <4 cores. `.67` had already found one performance-only wall defect,
+so this was the least-swept dimension left.
+
+**Hypothesis: the flat tier's boot view differs materially from medium. FALSIFIED.**
+`chroma-audit MODE=orbit TIER=performance` h9 gives mean chroma **0.142** and 2.1% of pixels past
+0.35 saturation, against medium's 0.158 / 3.2%, with the class ranking unchanged down to 0.7%.
+Chroma tracks rather than diverges — the live confirmation that `.67`'s always-mounted composer
+keeps AgX on the flat tier, so `postprocessing: false` no longer means "no tone map".
+
+**The no-IBL metalness cap is visible in the census**: `#d8dade` reads `metal 0.90` on medium and
+`metal 0.25` on performance — the documented guard (`Wardrobe.tsx`, `.77`) doing its job under
+`ibl: false`, not a tier discrepancy.
+
+**Grounding is shallower by design, not broken.** With `shadowMapSize: 0` and `ao: false` the cheap
+`ContactShadow` blob is the only contact cue. A differential A/B over identical pixel regions in the
+two orbit frames — so framing error cancels — reporting `(mean - p1)/mean`: round side table 46.7%
+performance vs 66.6% medium, sofa 42.4% vs 54.8%. Shallower by 12–20 points, but a strong contact
+gradient is plainly present; the furniture does not float. **Caveat recorded with the number**: the
+regions include the furniture bodies, so this conflates the blob with each piece's own shading and,
+on medium, with AO — it answers "does it float", it does not measure the decal in isolation.
+
+`tier-look` at h13 was a re-run; the four-tier tone agreement was already on record (meta-rule
+xvii-b, eleventh round).
+
+## v0.31.5.81 — baseboard/crown and kitchen cabinetry are both correct
+
+No app code changed. A clean audit of the last two unjudged classes in the boot-view ranking,
+made cheap by `.80`'s coordinate-free `COLOUR=` seed. Both were named from source before a probe
+finished — meta-rule (xvii-b), tenth round running.
+
+**`#eeece6` is the baseboard AND the crown molding — one class, two roles.** `class-id.mjs` finds
+230 instances in matched pairs per wall segment: `y=0.04` at height 0.09 (baseboard, at the floor)
+and `y=2.56` at height 0.07 (crown, at the 2.6 m ceiling), no `Group{itemId}` — shell overlay.
+The 0.07 m matches the crown height this CHANGELOG records for `FadeCrown`. Measured over 230
+materials, 102/5760 cells (1.8%, against a 1.9% census share): microcontrast **2.068**, sigma
+23.06, chroma 0.116, **0.0%** past 0.35 saturation. `roughness 0.55` is right for painted trim.
+Read 2.068 as an extreme upper bound (meta-rule xcii) — 230 strips 0.07–0.09 m tall are almost all
+edge at cell scale. This class is also the sharpest validation of `.80`'s mask fix: 230 sibling
+unmapped materials now group by equivalence where the painter would previously have collapsed to one.
+
+**`#e3dfd6` is kitchen cabinetry, on a painter `.58` already judged.** `KitchenCounter.tsx` /
+`WallCabinet.tsx`. 123/5760 cells (2.1%, census 2.7%): microcontrast **1.024**, sigma 27.02, chroma
+0.175, **0.0%** past 0.35 saturation — above both benchmarks (plaster 0.961, wood 0.862). The mask
+spans 34 materials across TWO colours: `#e3dfd6` and `#cfc8bd` share the paint micro-normal via
+`getVinylMaterial`/`getPaintedMaterial`, as `.58` and `materials/CLAUDE.md` already record, so this
+measures the shared painter rather than the cabinets alone (meta-rule lxxxii).
+
+Neither class shows any chroma concern: both sit at 0.0% of pixels past 0.35 saturation.
+
+## v0.31.5.80 — the wall body does not read flat; two probe fixes to prove it
+
+No app code changed. Two dev-probe fixes, and the boot-view question `.79` left open is closed.
+
+**Why it could not be measured before.** The apartment shell carries no `defId`, so
+`surface-detail`'s reliable path was unavailable, and after `.79` an NDC POINT is known not to be
+portable between probes. Two fixes:
+- **`COLOUR=<hex>` seeds with no coordinates at all.** `COLOUR=f1f0ec` finds 34 meshes, matching
+  `class-id.mjs` exactly — which is how the new seed was validated.
+- **`MASK=painter` no longer collapses to a single material when there is no map.** It groups by
+  shared map SOURCE, correct for texture-sharing clones; with no map it fell back to the seed
+  material object alone. The wall body is 34 sibling slabs sharing a look without sharing a
+  texture, so the first run masked **10 of 5760 cells (0.2%)** for a class the census puts at 19%
+  of the boot pose, and quoted a microcontrast over those 10 cells. Unmapped materials now group
+  by equivalence (same type, albedo, roughness, metalness, equally unmapped): **515 cells (8.9%)**,
+  all 34 materials. The mapped path is provably unchanged — control arm `DEF=wardrobe-3door` still
+  reads 17 materials, 402 cells, chroma 0.601, mean 92.2, sigma 17.79, microcontrast 0.862.
+
+**The verdict.** Wall body: microcontrast **1.408**, sigma 23.48, mean 167.7, chroma 0.075, 0.0%
+past 0.35 saturation — ABOVE both mapped benchmarks (plaster 0.961, wood 0.862). "Unmapped
+therefore flat" has no support. Read the figure as an upper bound: the class is 34 narrow bands,
+so much of its cell-scale variation is slab edges against bright interior faces rather than
+surface detail. Accepted as correct — the crop shows the outside of the flat, largely in shade,
+plus section-cut wall tops, which every reference app renders as a plain fill.
+
+**Note.** 8.9% here vs 19.0% in `.79` is not a contradiction: `surface-detail MODE=orbit` frames
+the flat smaller than `chroma-audit MODE=orbit`. The same MODE name is not the same camera.
+
+## v0.31.5.79 — surface-detail printed a confident microcontrast for the SKY; refuse that seed
+
+No app code changed. One dev-probe guard, one naming result, and one question left explicitly open.
+
+**The probe fix.** An NDC POINT is not portable between probes — each sets up its own orbit
+camera. A point copied from `chroma-audit`'s orbit frame put a `surface-detail` seed on the sky
+dome (`Sky.tsx`, unlit `BackSide` `MeshBasicMaterial`, **198.82 m** out). The probe reported the
+hit, as it always did, then carried on, masked **58.4%** of the frame as "the painter", and
+printed `microcontrast=0.481` as though it were a surface reading. Reporting a suspicious seed is
+not refusing it. `surface-detail.mjs` now exits 1 on a backdrop seed (`SEED_MAX_DISTANCE`,
+default 60 m; the flat is ~11 m across, the orbit camera ~17 m out). The `DEF=` path is untouched:
+the control arm `DEF=wardrobe-3door` still measures and agrees with `wood-detail`'s baseline on
+all five statistics (chroma 0.601, 97.8% past 0.35, mean 92.2, sigma 17.79, microcontrast 0.86).
+
+**What `#f1f0ec` actually is in the boot view.** It is the wall body (`WALL_STRUCTURE_COLOR`),
+already judged at its walk-census figures and for its night caps — meta-rule (xvii-b), ninth round
+running. New: at **19.0%** of the orbit/boot census it is second only to the sky, ~10x any walk
+pose. That share is not the wall tops but the large **exterior** faces of the perimeter slabs
+(raycast picks resolve `[3.39, 2.6, 0.1]` and `[2.15, 2.6, 0.3]`), which a dollhouse camera looks
+straight at. 34 instances, no `Group{itemId}`, and genuinely unmapped (`map=. nrm=. rghMap=.`).
+
+**Left open, deliberately.** The masked microcontrast that would settle whether it reads flat was
+the measurement that hit the sky, so it was discarded rather than reported. The flatness question
+for the wall body in the boot view is OPEN, not clean; any fix must be weighed against 34 slabs of
+cost on the Performance tier.
+
+## v0.31.5.78 — fix a stale wood-detail arm that was measuring the opposite of its label
+
+No app code changed. One dev-probe fix, plus a clean audit of the flat's highest-saturation class.
+
+`.77` left `#7a5c3c` (sat 0.51, the highest in the flat) as the next target.
+`class-id.mjs COLOURS=7a5c3c` names it: 8 meshes, all under `Group{itemId}` — the four
+dining chairs (seat + back). Meta-rule (xvii-b) pays for the eighth round running — the repo
+had already measured this exact hex in TONE-CURVE-CHOICE (v0.31.5.6), which moved the default
+view transform to AgX. Re-running `wood-detail.mjs` confirms the fix still ships: baseline is
+byte-identical to the explicit-AgX arm (`meanAbsDiff 0.00`), while explicit filmic costs chroma
+0.601 → 0.750 with 6.6x the clipping, reproducing the recorded "4–7x".
+
+**The probe fix.** Arm O called `setSceneSaturation(0.94)`, derived from
+`BASE_POST_SATURATION = 0.06`. POST-SAT-NEUTRAL later shipped that constant as `0`, so 0.94
+resolved to `-0.06`: the arm silently stopped being "post saturation off" (by then a no-op)
+and became "0.06 below neutral", reporting a 0.037 chroma drop that reads like a live,
+shippable lever when the lever is in fact already pulled. The app side was never wrong —
+`look.colorGrade.test.ts` pins the constant to 0 — the drift lived in the probe, outside the
+test net. Arm O is re-pointed at the question still open: restoring the historical `+0.06`
+now measures what the shipped fix keeps buying, **chroma 0.601 → 0.643** and 97.8% → 99.0% of
+wood pixels past 0.35 saturation. Baseline and the noise arm held at 0.601 with a 0.00 noise
+floor, so only the arm moved.
+
+**Also measured.** `chroma-audit MODE=orbit` (the boot view, never run in `.77`) reorders the
+ranking: `#7a5c3c` falls to 0.7% cover there, versus 5.2% in the walk/living pose — quote the
+pose with any coverage figure. The largest surface in the boot frame, 38.5% of rays, is the
+sky dome (`scene/lighting/Sky.tsx`, unlit `MeshBasicMaterial`, sat 0.00) — correct by
+construction and zero chroma budget.
+
+## v0.31.5.77 — first furniture audit: the wardrobe metal tops the chroma ranking and is correct
+
+No app code changed. A clean audit, plus one correction to how a coverage figure should be quoted.
+
+With the shell verified end to end, `chroma-audit.mjs` picked the next target by measurement.
+Walk mode, medium, three poses, run 21:11 local (so the flat booted `lightsMode: 'on'`):
+living is topped by wood `#7a5c3c` (budget 2.6), dining by `#b9b0a0` (1.6), and bedroom by
+**`#b8bcc0` at budget 3.4 — 82.3% coverage, metal 0.75, no maps**.
+
+**`#b8bcc0` is the sliding wardrobe's frame metal** — 6 instances, `Group{itemId}`, 0.49 × 2.04 in
+runs of three, matching `defaults/mainBedroom.ts`'s `wardrobe-3door`.
+
+**The obvious hypothesis was already found and fixed — meta-rule (xvii-b), seventh round running.**
+`primitives/Wardrobe.tsx` routes the material through `getSolidMaterial` *"so it inherits the
+no-IBL metalness cap: at 0.75 metalness with no environment to reflect, these ~1 m² frame panels
+rendered as black slabs on the default Performance tier (Chrome audit 2026-08)"*. The frame
+confirms it holds: satin metal with soft specular blooms and a correct seam, not black slabs and
+not plastic. Featureless at nose distance, but a metal wardrobe door is smooth — the same
+situation as `.58`'s vinyl bifold.
+
+**The 82.3% is a POSE ARTEFACT.** `chroma-audit`'s bedroom pose stands essentially against the
+wardrobe in `bedroom2`, so its doors fill the frame. It must be quoted as "82% of that pose", never
+as the wardrobe's share of the walk view — the pose-honest census (`.71`/`.72`) is the authority
+there. Same lesson as `.71`, one probe further on.
+
+**The shared furniture wood painter is healthy:** `surface-detail.mjs DEF=wardrobe-3door` measures
+**microcontrast 0.959** (chroma 0.602, mean 91.9, sigma 19.00) over the 17 materials sharing that
+tile — on par with the plaster's post-fix 0.961. Note this is the same class `.58` called "a
+furniture wall-slat panel"; it is a shared wood tile used by many pieces, so that earlier label is
+one member of a shared painter rather than an identification of the class.
+
+## v0.31.5.76 — RETRACTION: `.75`'s first-paint defect was an instrument artefact
+
+No app code changed. The previous round's finding does not survive its own follow-up.
+
+**`.75` was wrong.** It claimed the after-dark first paint is "89% near-black" and that
+`ensureDaylightFirstPaint` "does not achieve" its documented goal. Both claims are withdrawn. The
+guard works, and there is no defect here.
+
+**The metric measured the void and masked out the subject.** `.75` took the mean and near-black
+fraction over everything OUTSIDE the modal card and toolbar. At 22:00 that region is dominated by
+the empty night background around the dollhouse — correctly black at 10 pm — and the card exclusion
+removes the CENTRE of the frame, which in an unobstructed shot is exactly where the flat is.
+
+Re-measured over the dollhouse region with no card exclusion: 13:00 reads 127.2 mid-tour and 142.3
+unobstructed (0.0% near-black); 22:00 reads **91.9** and **84.4**, and even that residual near-black
+is mostly background caught inside a rectangular sample of a non-rectangular model.
+
+**The frame settles it.** The unobstructed 22:00 shot shows a warmly lit, fully legible dollhouse —
+kitchen, living room with the TV and floor lamp glowing, bedrooms, the whole plan readable —
+against a black night sky. That is exactly what `firstPaintDaylight.ts` was written to produce.
+
+**What survives from `.75` and is worth keeping:** the first-run path had genuinely never been
+swept; `first-run.mjs` (suppresses nothing, pins the wall clock, drives the whole journey through
+the store) is a new instrument; and the sequence sweep established that **`cameraMode` stays
+`orbit` through all 9 tour steps** — the tour is UI-anchored tooltips, not camera moves, so it does
+not introduce unjudged poses and the `.56`–`.70` verdicts are unaffected.
+
+## v0.31.5.75 — the daylight first-paint guard is measured against the wrong view
+
+No app code changed; the fix is a design call and is filed with options.
+
+**The one condition nobody had swept: what a genuinely NEW user meets.** Every probe in this repo
+suppresses the first-run path — they seed `hdb_onboarded` and call `dismissLocationPrompt()` before
+`sceneReady` — so every frame judged in `.20`–`.74` was captured after the onboarding carousel, the
+9-step tour and the location prompt were already gone. New `first-run.mjs` suppresses nothing.
+
+**`firstPaintDaylight.ts` exists to prevent exactly one thing** — *"a brand-new visitor opening the
+app after dark is shown a pitch-black flat … through onboarding"* — and it does not achieve it.
+Measuring the screen outside the modal card and toolbar:
+
+| wall clock | t=0 (splash) | onboarding carousel up |
+| --- | --- | --- |
+| 13:00 | mean 181.1, 0.0% near-black | mean **143.4**, **0.0%** near-black |
+| 22:00 | mean 185.8, 0.0% near-black | mean **23.9**, **89.0%** near-black |
+
+At 22:00 the guard correctly sets `lightsMode: 'on'` (verified in the same run) and **89% of the
+visible screen is still near-black**.
+
+**Why: the boot camera is ORBIT, outside the building.** `Scene.tsx` boots at `[12, 8, 12]`; orbit
+culls the ceiling so you see down into the flat, but you are 17 m away looking at an exterior, where
+interior fixture lights barely register. The guard was validated on the INTERIOR, and there it
+works — `.60`'s 22:00 walk-tour with lights on is warm and legible. Two different views; only one
+had ever been shot.
+
+**The falsifying arm is built in:** the 13:00 run uses the same modal, the same blurred scrim and
+the same code path and reads 0.0% near-black, so the darkness is the scene rather than the scrim.
+
+Three options are written up in `TODO.md` (lift the night exterior for first paint only; boot the
+camera closer for a fresh seed; or accept it and narrow the guard's stated goal). This is a
+separate axis from open item (a) — the daylight first paint is not dark.
+
+## v0.31.5.74 — the clock-dependent lights are a deliberate feature; `.73`'s "regression" is retracted
+
+No app code changed. The mechanism is named, and the previous round's framing was wrong.
+
+**RETRACTION.** `.73` called the clock-dependent `lightsMode` "a regression of a shipped product
+decision — the app is still doing the thing that was removed for being surprising". That is wrong.
+The mechanism is `state/storage/firstPaintDaylight.ts`'s `ensureDaylightFirstPaint()`: deliberate,
+documented, unit-tested, and added AFTER the `'auto'` removal rather than surviving it. Outside
+08:00–18:00, on a FRESH SEED and only while `timeMode` and `lightsMode` are both untouched
+defaults, it switches the interior lights on.
+
+Its header gives the reason: `timeMode` defaults to `'system'`, so a new visitor opening after dark
+was shown a **pitch-black flat** — 87 seeded items, all invisible, through onboarding, the 9-step
+tour and the location prompt (Chrome audit 2026-08, boot at 20:00). Overriding the clock was tried
+first and rejected for silently disagreeing with the Scene panel.
+
+**The two behaviours are different**, which is what `.73` conflated: the removed `'auto'` mode was
+CONTINUOUS follow-the-sun (lights changing as time passes — the surprising part); this is a
+ONE-SHOT first-paint guard.
+
+**Every observation now fits, including the one that looked like noise:** `DAYLIGHT_END` is 18, so
+`.68` at 17:40 local was still inside daylight and read `off`. `.54` 10:04 off, `.62` 14:20 off,
+`.68` 17:40 off, `.72` 20:00 on, `.73`/`.74` 20:30+ on.
+
+**The falsifying arm passed.** Booting at 13:00 vs 22:00 and diffing the whole store: only **2 of
+133 scalars** differ — `lastSavedAt` (the faked clock) and `lightsMode`. Same 87 items, no
+onboarding/callout/seed flag differs. The clock is not selecting a different startup path.
+
+**Open item (a) is now a much sharper question.** Outside 08:00–18:00 the app already does what
+`.54` proposed, and `firstPaintDaylight.ts` records the measured opinion that a night render with
+lights on "is not just legible, it is the more inviting first impression of the two". So the
+decision is precisely: **should the first-paint guard also apply during daylight hours?** One line,
+an existing precedent, an existing test file, and `.54`'s 2.3–2.5× as the daytime payoff. Still the
+user's call — but no longer "change a default", rather "extend a guard that already exists".
+
+`lights-boot.mjs` gained `WATCH=1` (wraps `setState` from `evaluateOnNewDocument`, logs every write
+that changes `lightsMode`, and dumps a 133-key scalar snapshot for whole-store diffing). It showed
+**zero** post-creation writes, which is what proved the value is decided at initial-state
+construction rather than by a later setter.
+
+## v0.31.5.73 — `lightsMode` follows the real clock, and that mode was removed a month ago
+
+No app code changed. The `.72` flag is settled, and it turned into something bigger than a
+correction.
+
+**`lightsMode` at boot depends on the user's real local time of day.** New `lights-boot.mjs` pins
+the page wall clock before load and reads the store at `sceneReady` with nothing else called:
+**13:00 → `off`, 22:00 → `on`**. Not a race (polled 500 ms × 20 s: constant), not a probe setup
+step (printed after each of goto → sceneReady → time → tier → camera → callout → teleport:
+unchanged), not tier-dependent (all three tiers identical).
+
+**It reconciles every earlier observation**, which is what makes it trustworthy: `.54` ran ~10:04
+and saw `off`; `.62` ~14:20 and `.68` ~17:40 saw `off`; `.72` ~20:00 and this round ~20:30 saw `on`.
+
+**So `.54` was right but CONDITIONAL.** Its premise holds for a daytime visitor and the 2.3–2.5×
+measurement stands for that case; in the evening the app already boots lit. "The out-of-box
+walk-through reads at ~40% of its lit brightness" applies to DAYTIME first-runs only. Open item (a)
+is narrowed, not withdrawn.
+
+**The bigger finding: this behaviour was deliberately removed.** `uiSlice.ts` states it plainly —
+*"The old 'auto' follow-the-sun mode was removed 2026-07-24 — users found lights turning themselves
+on surprising"* — `LightsMode` is now binary `'on' | 'off'` and the slice initialises `'off'`. The
+app is still doing the thing that was removed for being surprising.
+
+**The mechanism is NOT located and is not guessed at.** `normalizeLightsMode` runs only on the load
+and camera-view paths; nothing in `src/` writes `lightsMode` at boot; no time-of-day threshold near
+the lighting layer. Written up in `TODO.md` with the instrumentation that would name the writer
+(wrap `setLightsMode` and subscribe to store changes from `evaluateOnNewDocument`, then boot at
+22:00), plus the falsifying arm worth running first — pinning the clock could in principle move a
+first-run gate rather than the lights.
+
+## v0.31.5.72 — the pose-honest per-class ranking promotes nothing unjudged; a flag on DEFAULT-GLOOM
+
+No app code changed.
+
+**The first genuinely pose-honest PER-CLASS priority list.** The three `classes.json` dumps joined
+at 20/60/20 down/level/up, each pose's own share shown so the weighting can be argued with. The
+top 20 is dominated by classes already fixed or judged — plaster faces, wall tile, metal doors,
+curtains, wooden leaf, shower glass, bifold. **The only large promotion is the ceiling** (≈23rd on
+the level table → 10th weighted), and `.70` already judged it clean.
+
+**The one top-20 class never individually examined turns out to have been examined under another
+name.** `#f1f0ec` resolves via `class-id.mjs` to 34 full-height slabs (W × 2.6 × 0.2–0.3, rough
+0.95, no maps) around the perimeter — the structural **wall BODY**, as distinct from the mapped
+wall FACE. It is the only class whose coverage rises at BOTH off-level poses (2.45 down / 1.97
+level / 2.57 up), because tilting exposes its top and bottom edges. NIGHT-WALL-CAP already names it
+explicitly and measured its bimodal night caps with `wall-cap.mjs`. Meta-rule (xvii-b) has now paid
+five rounds running.
+
+**So the pose bias cost nothing at class level** — the level-only table mis-ranked the ceiling and
+floors, but every other class was already prioritised and judged correctly. That retires the
+concern `.71` opened.
+
+**`HOUR=8` swept — clean.** The last untested condition: low morning sun from the opposite side to
+`.59`'s 19:00 pass. Plaster reads correctly, fixtures glow appropriately, no shimmer.
+
+**⚠️ A flag, not a finding: DEFAULT-GLOOM's premise may be stale.** Two clean runs this round
+(08:00 and 13:00, medium, no `LIGHTS` env) both resolved `lightsMode: on`, where `.62` and `.68`
+resolved `off`. `.54` reported "defaults to `'off'`" as the basis of the biggest open lever offered
+to the user. It is not hour-dependent, and `uiSlice` still initialises `off`. Written up in
+`TODO.md` with the isolation step. **Do not act on open item (a) until this is settled.**
+
+## v0.31.5.71 — the priority table was a single-pose artefact, and `.70`'s numbers were wrong
+
+No app code changed. The coverage instrument now reports a total per ORIENTATION over every class,
+which exposed two problems at once.
+
+**Correction to `.70`.** It reported the ceiling as "1.45% level → 43.87% up, a 30× swing". Both
+figures were wrong the same way: 1.45% was ONE printed class (the largest ceiling slab) and 43.87%
+was a hand-sum of the truncated top-26 rows. The honest comparison is **4.54% → 45.81%, about 10×**.
+The conclusion stands — the level census badly under-reports the ceiling and "you barely see it"
+was never true — but comparing a per-class figure with an all-class total is precisely the error
+this loop exists to catch.
+
+**The three-pose census**, same rooms/yaws/rays, pitch the only variable:
+
+| pose | vertical | ceiling | floor | (no hit) |
+| --- | --- | --- | --- | --- |
+| down (−0.75) | 69.93% | 0.00% | **26.36%** | 3.71% |
+| level (0) | **88.61%** | 4.54% | 1.34% | 5.52% |
+| up (+0.75) | 47.16% | **45.81%** | 0.00% | 7.03% |
+
+**Pose-weighted 20/60/20** (a stated judgement, not a measurement): vertical **76.6%**, ceiling
+**11.9%**, floor **6.1%**. So the ceiling is the second-largest surface in the flat and floors are
+third — not the footnotes the level-only table made them. Every "prioritise by measured coverage"
+call from `.49` to `.70` used the level figure; treat those rankings as valid for vertical surfaces
+and silent about the other two.
+
+**Nothing else jumped.** No skirting, cornice, worktop or wall-unit underside behaves like the
+ceiling did; the down pose just moves area from walls to floor and the up pose from walls to
+ceiling. The two surfaces the level census hid are the two already judged clean (`.69` floors,
+`.70` ceiling), so this retires the concern rather than opening work.
+
+`surface-coverage.mjs` also dumps `classes.json` per run, so the three poses can be joined into a
+weighted per-class ranking later without re-shooting each (~4 min apiece).
+
+## v0.31.5.70 — the ceiling is 30× bigger than the census said; the verdict holds, the reason did not
+
+No app code changed. One long-standing claim retired and replaced with a measured one, plus a probe
+bug found by its own null result.
+
+**`.49` waved the ceiling through as "fine because you barely see it at 1.6 m eye height."** That
+reason is false. `surface-coverage.mjs` sweeps at eye level with a slight DOWNWARD tilt, so it
+under-counts the ceiling exactly as it under-counted floors. Same 11 rooms × 4 yaws × 1600 rays,
+one variable changed:
+
+| pose | ceiling | all vertical |
+| --- | --- | --- |
+| level (the shipped census) | **1.45%** | ~75% |
+| up (`PITCH=0.75`) | **43.87%** | 28.88% |
+
+Looking up, the ceiling is the single largest thing in view — larger than every wall combined.
+
+**The verdict survives for a different reason.** Cropped in at `livingDining` and at `bath1` (the
+smallest room, ceiling nearest), the mapless `meshLambertMaterial` reads as smooth matte painted
+plaster with a natural falloff, and next to the tiled bath walls it is correctly the smoothest
+surface in the room. A real ceiling IS smooth — skim-coated, seen at 2.6 m and at grazing angles
+where wall-scale orange peel would not register. So Lambert is a good model, not a shortcut that
+happens to be hidden. "You barely see it" would have justified ignoring a stain, a bad cornice or a
+fixture artefact on a number off by 30×; "a ceiling is smooth" is falsifiable and points at the
+right pose to check.
+
+**A probe bug, caught by meta-rule (xxv).** The first `PITCH` run returned a census byte-identical
+to the level one (ceiling 1.46 vs 1.45, every other row unchanged) — a failed mutation, not a null
+result. `requestWalkTeleport` resets the look, so pitching inside the same `page.evaluate` is
+silently undone. Fixed: pitch after the teleport settles, in its own call.
+
+`surface-coverage.mjs` and `floor-look.mjs` both take `PITCH=` now, so the same rigs answer "how
+much of this do I see when I actually look at it".
+
+## v0.31.5.69 — floors re-verified after the plaster and composer changes; clean
+
+No code changed. A regression check, deliberately scoped that way.
+
+**Floors hold up.** `.56` retuned `PLASTER_UV_SCALE` and `.67` moved every tier onto a composer;
+neither disturbed the floors, which this run had never looked at. Every named floor resolves at its
+full bake — `floor-vinyl-oak@512` in the four dry rooms and the corridor,
+`floor-tile-bath-green@512` in both baths, `floor-tile-beige-300@512` in the household shelter —
+with no 64² or 128² preview stranded anywhere. The living/dining floor matches SNV-BOARDS as
+written: pale grey-washed rift-oak print, fine straight striations, hairline V-seams, matte, no
+moiré and no exaggerated grout.
+
+**The round's premise was half wrong, and checking first is what caught it.** "Floors are the
+largest class never judged" was true of this run and false of the repo: SNV-BOARDS matched each
+floor painter against photographs of the actual sample boards, JOINT-SCALE converts joint bands to
+real millimetres, and `snvBoards.test.ts` pins the painter signatures. That is better ground truth
+than this loop can derive, so the work was scoped as a regression check rather than a re-audit —
+meta-rule (xvii-b).
+
+**Two rooms reported no floor, and it is occlusion.** `floor-look.mjs` stands at each room's shell
+centre: in the kitchen that IS the counter run, and the service yard is filled by a ceiling drying
+rack, so the downward rays hit worktops and rails. The frames show the tile plainly, correctly
+jointed. Recorded in the playbook's false-zero section with the fix for a future round (offset the
+pose, or raycast straight down from the camera).
+
+Next by coverage: the ceiling — 1.45%, a `MeshLambertMaterial` with no maps — is now the largest
+class this run has never examined.
+
+## v0.31.5.68 — `maximum` reviewed at last, and the tier ladder is tonally consistent
+
+No code changed. Three verifications, all clean.
+
+**`maximum` had never been looked at.** Every visual judgement in this run was made at `medium` or
+`performance`, yet `maximum` is the only tier with `aoFullRes`, the full post stack, DoF and the
+highest `envResolution`/`shadowMapSize`. An 11-room / 44-frame tour at 13:00 shows **no bloom veil,
+no crushed blacks, no milky curve and no DoF on the wrong plane** — AO grounds corners more deeply
+than `medium`, plaster reads correctly, 117,676 triangles against medium's 87,228, zero empty
+frames.
+
+**All four tiers agree on tone.** `tier-look.mjs` at 13:00: slab mean 180.87 / 178.22 / 178.48 /
+179.36 for performance / medium / high / maximum, contrast 22.07–23.07, clipped 0.04–0.07%. A
+spread of 2.7 luminance across the whole ladder.
+
+**That doubles as the `.67` risk check.** Mounting a composer at `performance` moved the view
+transform from `gl.toneMapping` to the `ToneMapping` pass; an imperfect transfer would show as
+that tier sitting apart in the table above, and it does not. The dark case agrees:
+`walk-tour TIER=performance HOUR=22 LIGHTS=on` is clean — walls present, fixtures reading as
+fixtures, no crushed blacks — and tone in the dark is where a botched transfer would surface first.
+
+**The `.67` fix is stable across runs:** re-measured hours later, `performance` 113.7 and `medium`
+112.6 (the defect read ~151).
+
+**Next target, chosen by measurement rather than hunch:** the census sweeps at eye height with a
+slight downward pitch, so FLOORS barely register in it despite being underfoot in every frame.
+`floor-look.mjs` exists precisely because a 1.6 m eye at yaw-only never hits one. That is the
+largest surface class this run has never judged.
+
+## v0.31.5.67 — a composer mounts at every tier; `performance` gets its walls back
+
+**The fix.** `Effects.tsx` used to `return null` when a tier wanted neither the full post stack nor
+AO. Only `performance` has both false, so it alone rasterised straight into the canvas' DEFAULT
+framebuffer — created with `preserveDrawingBuffer: true` for the in-app PNG/video capture — and in
+that combination **interior wall faces were not drawn at all**. A composer now always mounts;
+`EffectsImpl` gained an `ao` prop so `N8AO` stays off at the tier that exists to avoid it.
+
+**Verified at the shipped state.** Discriminator (centre-band mean luminance, `mainBedroom` yaw 2;
+~112 walls present / ~151 gone): `performance` **150.7 → 113.8**, `medium` unchanged at **112.6**.
+The `walk-tour.mjs TIER=performance` frames now match `medium`. Capture still works: 1.45 MB,
+100% non-black.
+
+**Priced before shipping.** `frame-time.mjs` at `performance`, load ~2.0 on both runs: **before
+p50 4.1 ms / p90 4.4 ms / 59.9 fps; after p50 4.1 / p90 4.4 / 59.9.** Identical — a genuine null,
+not a failed mutation, since the same build moved the wall metric by 37 points.
+
+**The minimal composer is deliberately not empty:** under a composer three does not apply
+`gl.toneMapping`, so it must still carry `ToneMapping` + `HueSaturation` or the tier would render
+raw linear HDR.
+
+`composerPlan()` is a pure, unit-tested invariant: a composer mounts for every tier; `full`/`ao`
+decide only which passes it carries, never whether it exists.
+
+Closes a chain that began at `.62`. Along the way eleven arms refuted every other explanation —
+all six tier settings, AO itself, `polygonOffset`, MSAA, a stale buffer, missing geometry, culling,
+alpha, probe timing, and a dither/discard path that does not exist — and `.65`/`.66` established
+that the obvious one-line fix (`preserveDrawingBuffer: false`) would have blanked five capture
+features.
+
+## v0.31.5.66 — the wall fix's blocker is resolved: flipping `preserveDrawingBuffer` is not an option
+
+No app code changed. `.65` left the fix blocked on one unknown — whether Export/Record survive
+without `preserveDrawingBuffer`. Measured, and they do not.
+
+**Five features read the main canvas** with `document.querySelector('canvas').toDataURL()`:
+`openReport`, `openMoodboard`, `openShareCard`, `slotThumbs` and `NavCluster`. None forces a render
+first. Exercised through the app's own readback path at `performance`:
+
+| `preserveDrawingBuffer` | `toDataURL` size | mean lum | non-black | verdict |
+| --- | --- | --- | --- | --- |
+| `true` (shipped) | 1,434,094 B | 99.3 | 100.0% | real image |
+| `false` | 30,786 B | 0.0 | 0.0% | **BLANK — capture broken** |
+
+So the one-line fix trades one defect for five, and the flag's comment is accurate. **Option 1 is
+dead**, which is a real result: it removes the tempting wrong answer.
+
+**Option 2 (mount a composer when `!postprocessing && !ao`) is the leading candidate but is not
+ship-ready.** `EffectsImpl` has no no-effect mode — it always mounts `N8AO` — so `Effects.tsx`
+cannot currently return a bare composer, and an AO-only composer would push AO cost onto the tier
+that exists for weak devices. Doing it properly needs an `EffectsImpl` no-effect mode plus a frame
+cost measured with `feature-price.mjs` / `frame-time.mjs` before shipping. A tried-and-reverted
+experiment confirmed the shape of that work rather than guessing at it.
+
+`wall-mottle.mjs` gained `CAPTURE=1`, which drives the app's real `toDataURL` path and reports
+whether the result is a real image or blank. `Scene.tsx` and `Effects.tsx` were both edited
+temporarily and restored; `git diff` on each is empty.
+
+## v0.31.5.65 — root cause: `preserveDrawingBuffer` + no composer drops interior walls
+
+No app code changed — the fix is a real trade-off against Export/Record and needs a decision, not a
+unilateral edit. But the defect is now understood.
+
+**It is a product defect, not a harness artefact.** `.64` flagged that every observation came from
+headless ANGLE-Metal. Two new environments settle it: headless ANGLE-**gl** (150.5) and a
+**headful real Chrome window** (150.7) both reproduce it identically. The `.62`/`.63` phone
+inference is back on reasonable ground, though still an inference.
+
+**Root cause.** `Scene.tsx` creates the canvas with `preserveDrawingBuffer: true`. Every tier but
+`performance` mounts an `EffectComposer`, which renders the scene into its own offscreen target, so
+the default framebuffer's flags never matter. `performance` alone rasterises straight into the
+preserved default framebuffer — and in that combination interior wall faces are not drawn.
+Measured: `performance` + `preserveDrawingBuffer: false` → **113.8, walls present**, against the
+tier's own 150.7 / 152.8.
+
+**Refuted this round:** MSAA (`antialias: false` → still gone), and the stale-buffer reading
+(`PUMP=12` forced renders → still gone, so the walls genuinely fail to draw rather than the canvas
+holding an old frame). Together with `.63`/`.64` that clears all six tier settings, AO,
+`polygonOffset`, missing geometry, culling, alpha, probe timing and any dither/discard path.
+
+**Why no fix shipped.** `preserveDrawingBuffer: true` is deliberate — it keeps the buffer readable
+for the in-app Export (PNG) and Record (MP4/WebM) features. Turning it off is a one-line proven
+fix that risks breaking two user-facing features this round could not test. Three options with
+their costs are written up in `TODO.md`; the recommendation is to make Export/Record render
+synchronously before reading pixels (removing the need for the flag), with "always mount a
+composer" as a safe interim.
+
+`wall-mottle.mjs` gained `ANGLE=`, `HEADFUL=1` and `PUMP=n` — the environment and repaint arms.
+
+## v0.31.5.64 — composer presence is decisive at the real tier, and an earlier claim is corrected
+
+No app code changed. Two more hypotheses refuted, the isolation tightened to the shipped tier, and
+a correction to `.62`/`.63`.
+
+**Confirmed at `performance` itself:** forcing `postprocessing=true` with every other performance
+setting intact (`shadowMapSize 0`, `ibl false`, `ao false`, `dprMax 1`, `geometryDetail 0.7`,
+`envResolution 64`) restores the walls — 112.5 against the tier's own 150.7 / 152.8. So the trigger
+is `Effects.tsx:27`'s `if (!postprocessing && !ao) return null`, and it holds at the state that
+actually ships, not just as a `medium`-plus-override proxy.
+
+**`polygonOffset` is exonerated.** Wall faces are the only surfaces that set it
+(`useWallFaceMaterial`) and the only ones that vanish, which made it the obvious mechanism.
+Stripped from 285 materials at `performance`: walls still gone, 152.8.
+
+**Correction: the claim that "this is what a phone user sees" is UNSUPPORTED.** It has only ever
+been observed in headless puppeteer + ANGLE-Metal, and no real browser has been tested. The
+capability ceiling does drop phones to `performance`, so the inference was reasonable, but it was
+an inference stacked on a headless-only observation and two rounds stated it as fact.
+
+With every application-level explanation refuted, the one structural difference left is where the
+scene rasterises: a composer renders to its own offscreen target, while the direct path uses the
+multisampled DEFAULT framebuffer created with `antialias: true, preserveDrawingBuffer: true` — a
+plausible app bug, and also exactly where headless driver artefacts live. The next experiment is
+therefore a different ENVIRONMENT, not a twelfth arm in the same one. Recorded in the playbook.
+
+`wall-mottle.mjs` gained `CLEARPOLY=1` (strip `polygonOffset` scene-wide and re-measure).
+
+## v0.31.5.63 — the wall dissolve is isolated to one line, and AO is innocent
+
+No app code changed; the mechanism inside the no-composer path is still unknown and a guessed fix
+would be worse than none. But the defect is now narrowed from "a tier" to a single gate.
+
+Built a numeric discriminator first — mean luminance of a fixed centre band at one pose, where
+**~112 = walls present and ~151 = walls gone** — then swept the six settings that differ between
+`medium` and `performance`, one at a time, from the good tier. Five were exonerated
+(`geometryDetail`, `ibl`, `shadowMapSize`, `dprMax`, `envResolution`, all 112.4–113.2) and
+`ao=false` reproduced the defect exactly at 150.7, against the tier's own 150.7 / 152.8.
+
+**Then the obvious reading was falsified.** `ao=false` **plus** `postprocessing=true` puts the
+walls back at 112.6 — so AO is innocent. The real trigger is `src/scene/Effects.tsx:27`,
+`if (!postprocessing && !ao) return null`: of the four tiers only `performance` has both false, so
+it is the only one that renders with **no `EffectComposer` at all**, and that path drops interior
+wall faces. The named setting was a proxy; one extra arm turned a plausible wrong answer into the
+right one.
+
+Still unknown: why the direct-render path drops them. The walls are in the scene, in the frustum,
+`visible`, opaque, with maps bound, and the frustum census is identical at 354 meshes. Recorded
+with the next step — instrument the no-composer path, or mount a composer with an empty pass list
+to test whether mere presence is what fixes it.
+
+`wall-mottle.mjs` gained `OVERRIDE=key=value[,...]`, which prints the fully resolved settings
+object. That mattered: a preset diff built from source text missed `wallReveal`, which the resolved
+object showed.
+
+## v0.31.5.62 — interior walls dissolve at `performance` tier (confirmed defect)
+
+No app code changed; the fix needs the shader path located first. `walk-tour.mjs` gained a
+per-frame frustum census and an empty-frame guard.
+
+**`.61`'s contradiction is resolved, and all three of its candidates were wrong.** Re-run as a
+clean one-variable A/B — same probe, same poses, same hour, tier the only difference:
+
+| | `medium` | `performance` |
+| --- | --- | --- |
+| `mainBedroom-y2` | full room | **walls gone**, city backdrop straight through |
+| visible meshes in frustum | 354 | 354 |
+| triangles | 87,618 | 87,228 |
+
+A raycast through the frame centre at `performance` hits the wall with `opacity=1,
+transparent=false, visible=true, colorWrite=true` and its plaster maps bound. So it is not missing
+geometry, not culling, not alpha, and not probe timing. **The `PICK` frame shows the wall
+PARTIALLY rasterised** — one pillar surviving, ragged stair-stepped top edge — which is the
+signature of a per-fragment `discard`, i.e. a dithered/screen-door fade dissolving the walls in
+walk mode at this tier only. `performance` is the tier the capability ceiling drops phones to.
+Filed as the top open item with the next step: isolate the responsible setting with
+`blank-cause.mjs OVERRIDE=` one axis at a time instead of switching the whole tier.
+
+**Instrument work, and an honest limit on it.** `walk-tour.mjs` now reports visible-meshes-in-
+frustum and triangles per frame, and flags frames below a content threshold. The guard caught a
+genuinely dark store room — **but it scored the wall-less frame at 87% and passed it**, because a
+bright city backdrop differs from the background just as much as a wall does. A content-fraction
+guard catches a BLANK frame, not a WRONG one; the cross-arm diff is what catches this. Recorded in
+the playbook, along with why `gl.info.render.calls` is useless here (with post mounted it reads
+1 call, being the final fullscreen pass).
+
+## v0.31.5.61 — the lamp/curtain defect is diagnosed, and `performance` frames contradict the scene
+
+No app code changed. One diagnosis completed, one contradiction found and deliberately not
+explained away.
+
+**The bedside-lamp notch is geometry, not a render bug.** Hypothesis A (transparency sorting) is
+REFUTED on the drawn materials: the lamp shade and the curtain are both `transparent=false,
+opacity=1, depthWrite=true, depthTest=true, renderOrder=0`. Nothing in the flat sorts wrongly
+against the curtains. Hypothesis B is CONFIRMED with coordinates — the shade spans world z
+0.30–0.60 and the curtain panel 0.48–0.58, so the curtain plane passes straight through it and the
+"notch" is an ordinary intersection, correctly rendered (`side=2` is why the shade's inside shows).
+`defaults/mainBedroom.ts` puts both nightstands under a 2.2 m curtain spanning x 0.6–2.8.
+
+`CURTAIN_SILL_STANDOFF` is NOT the lever: its 0.2 is derived in `placement/windowSnap.ts` to clear
+the sill ledge with 0.02 of margin, and the previous 0.16 read as the curtain embedded in the wall.
+Three candidate fixes were measured and none is clean — `length: 'sill'` lands the hem at 0.85
+against a shade top of 0.92, moving the nightstands needs them 0.33 m off the wall, and narrowing
+the curtain to the glass still overlaps. **Filed as a content decision** alongside the other four,
+because curtain length and bedside-table placement are interior-design choices.
+
+**`performance` tier: the frames and the scene graph disagree.** `walk-tour.mjs TIER=performance`
+returned 44 frames showing an EMPTY flat — no walls, no furniture, just ground and backdrop — while
+`wall-mottle.mjs` at the same tier found the geometry fully mounted (61-material class at 34.4%
+coverage, all 3 lamps / 9 meshes). Both printed their resolved state. That contradiction is not
+resolved: it could be probe timing, a stale `frameloop="demand"` composite, or a real culling
+difference. Recorded in `TODO.md` with the next step — add a non-background-pixel assertion to
+`walk-tour` so an empty shot fails loudly rather than being written to disk looking plausible.
+
+**Not done:** `maximum` tier was never reached.
+
+## v0.31.5.60 — night with the lights on is clean, and it turned up a lamp/curtain defect
+
+No app code changed. New `LIGHTS=` env on `walk-tour.mjs`, one condition swept, one defect found
+and deliberately left un-diagnosed.
+
+**Night with the lights on is clean.** Everything this run had judged was daylight, and 22:00 with
+`lightsMode: 'on'` is the condition the emitter table (LIGHT-UNITS-RELATIVE) and `fixtureGlow.ts`
+were actually tuned for. All 11 rooms: fixtures read as fixtures — the fan light shows a lit
+diffuser, a restrained bloom halo and real ceiling spill, so the bloom threshold both clears the
+fixture and avoids a milky veil. **The plaster's new 0.6 m tile survives a close point source**,
+which is a harsher normal-map test than `.59`'s 19:00 sun: a lamp a metre away rakes the wall far
+more steeply than any sun angle. No shimmer, no moire. (Lights-OFF at 22:00 is a near-black frame
+and not the interesting case — that is DEFAULT-GLOOM, and it is why `LIGHTS=` has to be set
+explicitly. The run prints its own resolved `tier/lightsMode/timeMode` beside the frames.)
+
+**One real defect, and it is not a lighting defect.** Both bedside lamp shades in `mainBedroom`
+render with a clean V-shaped notch bitten out of the top edge, with curtain visible through the
+bite — a torn paper cutout rather than a shade. It reproduces at 13:00, so night only made it
+obvious. Measured: the pixel inside the notch is the curtain at world z 0.55, and the camera looks
+-Z from z 2.51, so a lamp on that nightstand should be NEARER and should occlude it.
+
+**The mechanism is left open on purpose.** Either the curtain is being transparent-sorted past a
+nearer surface (a render bug with a blast radius well beyond this lamp) or the shade genuinely has
+a gap in its mesh. Discriminating needs the shade's own world z, and two `PICK=` attempts both hit
+the curtain instead — eyeballed NDC missing its target, which is the trap `.59` already recorded.
+Written up in `TODO.md` with both hypotheses and the note not to eyeball a third time.
+
+**Not done this round:** the non-`medium` tier sweep. Every frame this run has judged is still
+`medium`.
+
+## v0.31.5.59 — the census is honest, the second-largest surface is correct, and 19:00 is clean
+
+No app code changed. One hypothesis refuted, one class identified, one new condition swept.
+
+**The census is not merging surfaces.** Since `cache.ts`'s procedural branch bakes the tint into
+the albedo and leaves `m.color` white, `surface-coverage.mjs` — which keys by base colour — was
+suspected of collapsing every non-plaster procedural finish into one `#ffffff` bucket, which would
+have meant the priority table this whole run steers by was over-reporting a class that is really
+several. A new opt-in `KEYBY=map` mode adds the map SOURCE uuid to the key: every `#ffffff` row
+came back on the same source, and the class count moved only **322 -> 323**. The artefact
+hypothesis predicted a jump. Default keying stays.
+
+**`#ffffff` (~13.4%, the second-largest thing in the flat) is `wall-tile-white`** — glazed
+porcelain 300x600, the `DEFAULT_ROOM_WALL` for both baths and the kitchen. It does not have a
+stretch of its own, which is what this round was sent to check: `uvScale: [1.2, 1.2]` puts exactly
+4 tiles across and 2 down per repeat, i.e. 300x600 mm each. Correct by construction — the opposite
+of the plaster bug.
+
+**19:00 is clean.** Everything judged in this run was at 13:00, which is the condition least likely
+to reveal a normal-map or gloss problem. An 11-room / 44-frame re-shoot under a low sun shows no
+shimmer and no moire — the specific risk `.56`'s 0.6 m tile carried, with the Nyquist rolloff
+measured one octave away. The curtains read markedly better at 19:00 than at noon, which is worth
+knowing before anyone retunes them off a midday frame.
+
+## v0.31.5.58 — the flat grey door is correct, and there is no second dead control
+
+No code changed. Three audits, all closing rather than opening work.
+
+**The census is stable.** `surface-coverage.mjs` after two rounds of material work on the flat's
+largest surface: identical ranking to the second decimal, 322 classes over 70,400 rays. Coverage
+is geometry, so that is the expected result — and now that the loop has changed appearance twice
+without changing the table, a future shift would clearly signal an unintended geometry change.
+
+**The flat grey slab is the bifold bath leaf, and its flatness is the finish.** With the wall
+mottle gone it started reading as a featureless slab, and it measures `roughness 0.35` — glossier
+than the 0.45 that DOOR-GLOSS condemned on the wooden leaves. But `getVinylMaterial` is a
+deliberate, documented finish ("the standard SG toilet/utility bifold-door finish… no wood grain")
+that `constants.ts` requests explicitly, and DOOR-GLOSS was about WOOD at a gloss that exaggerated
+a stretched grain. A real PVC bifold door is a flat pale slab. The falsifiable half passed: if
+`pbrSurfaces` were off this path returns a map-less `MeshStandardMaterial` — genuinely dead flat
+and a real bug — and the drawn material is a `MeshPhysicalMaterial` with the shared paint
+micro-normal bound at `normalScale 0.2`.
+
+**No second dead control.** The `procedural` and `textured` branches both honour `uvScale` and
+`roughness`; plaster was the only one that did not. The `solid` branch would swallow the Scale
+token, but there are zero `kind: 'solid'` entries in either catalog, so it is unreachable — a
+guard there would be untestable code.
+
+Also corrected: `#caa478` (1.69%) is a furniture wall-slat panel (`Group{itemId}` in its chain),
+not the door frame an earlier note guessed from its 0.4 x 2.0 proportions.
+
+New `wall-mottle.mjs` `PICK=x,y YAW=n` mode: name the thing under a suspicious PIXEL when you do
+not have a colour to feed `class-id.mjs`.
+
+## v0.31.5.57 — the composer's tile-size slider did nothing on plaster
+
+Follow-up to PLASTER-STRETCH, and the walk-tour re-shoot that had to come with it.
+
+**The `.56` fix holds everywhere.** 11 rooms / 44 frames at 13:00 / medium: painted plaster in
+every room, and no aliasing at grazing angles or on far walls — the one risk the 0.6 m tile
+carried, since 0.15 m had demonstrated the rolloff exists.
+
+**`COMPOSE_TEXTURES` was a third home for the plaster tile size, and it was inert.** `cache.ts`'s
+plaster branch never read `def.uvScale` at all — it returns the shared normal/roughness singletons
+with the repeat baked in. So the eleven catalog values were decorative for plaster too; only
+`generators.ts` was ever load-bearing. The consequence was a **dead control**: a composed plaster
+finish at ×1, ×2 and ×0.5 drew identical tiling, with a different swatch colour per arm proving
+the finish had applied each time. The slider is ungated in `MaterialComposer.tsx` and "Plaster
+(paint)" is the first entry in its dropdown.
+
+`getPlasterNormal(uvScale?)` / `getPlasterRoughness(uvScale?)` now clone only when a non-default
+scale is requested, memoised per scale. `Texture.clone()` shares the image, so the singleton's
+memory saving survives on the default path — every wall in the shipped flat. Verified on the drawn
+material: builtin 1.667 (unchanged), composed ×1 1.667, ×2 0.833, ×0.5 3.333.
+
+**`COMPOSE_TEXTURES` now imports `PLASTER_UV_SCALE` rather than restating it**, and that mattered:
+once the branch honours `def.uvScale`, the stale 2.5 would have put the old stretch straight back
+on every composed plaster finish. A dead value stops being harmless the moment you make it live.
+
+## v0.31.5.56 — the flat's largest surface stopped looking like damp concrete
+
+Walls are **~45% of the walk view** (the `.55` census), and cropped in, the biggest class rendered
+as broad soft grey clouds at 20-40 cm rather than as paint.
+
+**Root cause: the orange-peel plaster normal was stretched over 2.5 m.** Real orange peel is a
+1-3 mm texture; tiled at `uvScale: [2.5, 2.5]` a fine grain stops reading as texture at all and
+becomes cloud. This is the DOOR-GRAIN lesson (v0.31.5.50) on a surface twenty times the size.
+Shipped `PLASTER_UV_SCALE = [0.6, 0.6]`: at a 256-square tile that puts one texel at ~2.3 mm, the
+size of a real orange-peel bump. Measured on the drawn wall, masked microcontrast **0.442 -> 0.961
+(+117%)** with mean (85.4 -> 85.3) and sigma (18.03 -> 17.89) unmoved — the change is purely the
+high-frequency channel, which is exactly the claim. `limewash` deliberately keeps 2.5, and is the
+control: it really is a broad cloudy finish.
+
+**The numbers pointed at SSAO and the frames overruled them.** Turning AO off collapsed the mask's
+sigma by 58%, which looked conclusive. But the `normalMap off` frame shows a perfectly smooth
+painted wall *with AO still on*: the mask spans 35.7% of the screen across wall segments at
+different brightnesses, so its sigma measures segment-to-segment luminance, not blotching.
+Microcontrast was the only honest metric and it named the normal map. A confirming AO sweep found
+intensity 3.0 has the best corner-grounding-per-unit-blotch ratio of every value tested, so
+nothing changed in `look.ts`.
+
+**The first attempt shipped no pixels, and the probe caught it.** Retuning all eleven catalog
+entries left the drawn material at `repeat=0.40`, because `procedural/generators.ts` carried its
+own hardcoded `repeat.set(1 / 2.5, 1 / 2.5)` — twice, under a comment asserting the catalog value
+it was silently outranking. Both now read the shared constant. Reading the repeat back off the
+DRAWN material is what turned an identical-readings run into a found bug rather than a shipped
+non-fix.
+
+New `dev-probes/wall-mottle.mjs` (four one-variable arms, plus `SWEEP=` for AO tuning and
+`REPEATS=` for metres-per-tile) and `plasterUvScale.test.ts` pinning the plaster/limewash split.
+
+## v0.31.5.55 — harness round: the coverage table re-verified, and this run's lessons written down
+
+No code changed. With the defect queue empty and the four open items being product calls, this
+round hardened the instruments the loop steers by.
+
+**The `surface-coverage.mjs` census is unchanged after the door work.** Every prompt in this run
+orders its priorities from that table, so a stale one misdirects future rounds. Re-run against
+`.49`/`.50`: identical to the second decimal — curtains 3.50%, metal utility doors 3.39%, wooden
+leaf 2.79%, bifold bath leaves 1.93%, ceiling 1.45%, 322 classes over 70,400 rays. That is the
+expected result, because coverage is geometry and those rounds changed only roughness and grain
+tiling; a shift would have meant an unintended geometry change. Stated plainly for the first
+time: **walls are ~45% of the walk view** (`#f5f5f0` ~31.5% with no albedo map, `#ffffff` ~13.4%
+with one) against ~10% for every door class combined — recorded as an observation, not a defect.
+
+**Seven probes from this run were missing from the playbook index** — including
+`surface-coverage.mjs` and `walk-tour.mjs`, the two the recent rounds lean on hardest. An
+unindexed probe is a probe the next round rebuilds from scratch. All are now described.
+
+**Three lessons folded in:** a Node-side variable is not visible inside `page.evaluate` (pass it
+in an argument object — this bit again in `tier-drift.mjs`); a surprising frame earns a
+state-verification probe BEFORE a diagnosis (the dark contact sheet was worth trusting precisely
+because the tier-demotion hypothesis was tested first and lost); and compounding defaults must be
+separated one variable at a time with the shipped state as arm zero, each arm printing its own
+state (had lights and curtains been flipped together, the curtains would have inherited credit
+for a 2.3–2.5x effect that is entirely the lights').
+
+**Nothing was pruned from `scripts/dev-probes/`, and that is the finding.** A pairwise similarity
+scan over all 63 probes tops out at 56%, which is shared browser-setup boilerplate; the closest
+suspected pair (`bath-tile-size.mjs` vs `floor-look.mjs`/`class-id.mjs`) answers a genuinely
+different question — what resolution a wall is DRAWN at, labelled by texture uuid against the
+cache's own builds. Deleting a probe to satisfy a hygiene checklist would have cost capability
+(meta-rule ii).
+
+## v0.31.5.54 — discovery pass: the out-of-box flat renders at ~40% of its lit brightness
+
+With no measured open default-look defects left, this round went back to LOOKING: a 24-frame
+walk-tour contact sheet at 13:00 / medium, reviewed as a user would. Almost every interior came
+back dark grey.
+
+**It is not a probe artefact and not the tier.** The new `tier-drift.mjs` holds one pose through
+24 teleports and reports medium / IBL true / exposure 1.38 / 13:00 manual, stable throughout,
+reproducing the same dark frame — so the sheet is honest. (The adaptive-ladder-demotion
+hypothesis was tested first and refuted.)
+
+Three separately-defensible defaults compound — lights off, curtains drawn, interior doors
+closed — so the new `default-gloom.mjs` separated them at four room-centre poses, one variable
+at a time:
+
+| room | default | lightsMode on | + curtains opened |
+| --- | --- | --- | --- |
+| bath1 | 78.8 | **192.9** | 196.4 |
+| kitchen | 83.3 | **188.8** | 193.4 |
+| livingDining | 76.0 | **175.1** | 175.5 |
+| mainBedroom | 74.8 | **190.2** | 189.8 |
+
+**The switch is the lever; the curtains are not.** Lights on is worth 2.3–2.5x in every room;
+opening every curtain on top adds between −0.4 and +4.6, i.e. nothing.
+
+NIGHT-LIGHT-BUDGET already records that `lightsMode` defaults to off and that a zero point-light
+census "reads as a broken light system and is simply the switch being off" — but frames it as a
+trap for someone auditing lights, not as the dominant driver of how the flat looks on a first
+walk-through. It is both.
+
+**Nothing changed.** Lights-off at 13:00 is physically reasonable and the daylight model works —
+rooms brighten correctly when the switch flips. Whether a first-run user should walk into a lit
+home is a product decision, not a rendering defect.
+
+
+## v0.31.5.53 — wall-reveal: the corner step is WON'T-FIX; the real issue is the default pose
+
+The wall-reveal entry was the last measured open default-look item. Investigating the proposed
+fix — easing a faded wall toward its opaque neighbour near a shared corner — closes that framing
+and surfaces a better-posed question underneath it. No code changed.
+
+**WON'T-FIX, for two independent reasons:**
+
+- **The architecture cannot express it.** Opacity is a single scalar per material —
+  `useWallReveal.ts` and `WallSegment.tsx` both assign `material.opacity = cur` for the whole
+  mesh — so a gradient across a wall's width needs split geometry (reintroducing the multi-layer
+  compositing WALL-FADE-OVERLAY-CULL exists to remove) or an `onBeforeCompile` alpha patch that
+  must then survive the fade clone, the overlay cull, WALL-FADE-DEPTHWRITE and the composer.
+  Disproportionate to a boundary artefact.
+- **The gradient would act where the design forbids it.** What steps is a faded wall against a
+  STRUCTURALLY OPAQUE far wall — the two faded walls at a corner already match exactly (10 of 44
+  corners step by precisely 0.629; every faded wall reads 0.371). Easing across that boundary
+  means fading the far wall, which is the washed-pane failure the far-wall rule prevents. So the
+  step is the CUTAWAY BOUNDARY: a dollhouse view with an open top has to end somewhere.
+
+**What the measurement actually exposes** is more interesting and is now the open entry:
+`WALL-REVEAL-STRENGTH` defaults to 0.95, described as a head-on opacity floor of `1 - fade` =
+**0.05** — a near wall head-on should be barely an outline. But `revealStrength` is
+`smoothstep(0.25, 1, toward)`, and the dollhouse boot pose looks down a 45-degree diagonal
+(camera forward XZ `[-0.64, -0.64]`), so **every** visible facade sits at `toward` = 0.707 →
+opacity **0.371** and never approaches that floor unless the user orbits a wall head-on. 0.371 is
+precisely the "washed mid-band" the retired binary target was introduced to prevent — fixed
+structurally for FAR walls, reappearing on NEAR walls as a consequence of the default camera
+angle. Cropped frames show the kitchen and dining furniture reading through a milky sheet.
+
+That is a design-parameter choice between two defensible looks, not a defect, so it is left for a
+product decision with the numbers attached rather than tuned here.
+
+
+## v0.31.5.52 — glass audited: the transmission tier gate fires, nothing changed
+
+Glass is ~4% of the walk view and was the last top-coverage class with no evidence behind it.
+`materialRealism.ts` documents transmission as High/Maximum-only (it costs an extra render pass),
+but a comment is not evidence that a gate fires, so `class-id.mjs` — extended with
+transmission / ior / thickness / opacity fields and an optional tier arm — censused the same
+meshes on both sides:
+
+| surface | Medium (default) | Maximum |
+| --- | --- | --- |
+| window panes (4 N windows) | `MeshStandardMaterial`, opacity 0.28, no transmission field | `MeshPhysicalMaterial`, transmission **0.92**, ior 1.5, thickness 0.01 |
+| bathroom windows | `MeshStandard`, roughness 0.6 (frosted), opacity 0.28 | — |
+| shower screen (furniture item) | `MeshPhysical`, transmission **0**, opacity 0.22 | transmission **0.81**, thickness 0.02, opacity 1 |
+
+The gate works, and is better than its own doc claims: it swaps the material TYPE rather than
+zeroing a field, so Medium never pays for the physical shader on windows.
+
+**No code changed.** The one apparent residual — the shower screen staying `MeshPhysical` below
+the gate with `transmission: 0`, where its `ior`/`thickness` do nothing — is a known non-lever:
+`src/scene/CLAUDE.md` already measured that downgrading Physical → Standard where no
+physical-only feature is used "applies to only 4 of 57 materials and saved nothing". Checked
+before proposing.
+
+So the flat-looking pane a default user sees is a deliberate, documented cost decision that
+works, not an oversight.
+
+
+## v0.31.5.51 — the coverage census's unnamed classes identified; the biggest was not a door
+
+`surface-coverage.mjs` ranks what a walk-mode user sees but labels each class only by material +
+colour + bbox, so two top classes had gone into the loop's notes as "door-like" on the strength
+of their shape. The new `dev-probes/class-id.mjs` enumerates every mesh of a given colour with
+its world position, size, ancestor chain and nearest plan opening — evidence from the app rather
+than inference from proportions:
+
+- **`#c8bca8`, 3.50% — CURTAINS**, not a door. Its ancestor chain carries `Group{itemId}`, which
+  apartment components never have, so it is a furniture item; it is taller than a door leaf
+  (2.55 m) because it hangs from a rail, and it repeats along every window wall.
+- **`#9aa0a6`, 3.39%** — the metal blast / utility doors at `door-householdShelter` (0.14 m
+  thick) and `door-serviceYard`, correctly metallic.
+- **`#cfc8bd`** — bifold bathroom leaves, two per opening (0.4 m each across a 0.8 m door).
+
+**Both hold up; no code changed.** The curtain reads as matte fabric with soft pleats and a
+visible fine weave; the metal doors carry sensible metalness.
+
+The method note that matters: a 1.0 x 2.55 x 0.1 box standing in a wall looks exactly like a tall
+door panel, which is how it got mislabelled in the first place. `Group{itemId}` in the ancestor
+chain is the cheap discriminator between furniture and apartment geometry — check it before
+naming a class, because a wrong label sends the next round at the wrong file.
+
+Noted but not filed: door handles are visibly octagonal at close range, too small a fraction of
+any frame to justify work on the current evidence.
+
+
+## v0.31.5.50 — door grain: the right lever was TILING, and v0.31.5.49 had its sign backwards
+
+v0.31.5.49 fixed the door leaf's gloss and left a residual: "the grain normal still ripples at
+door scale", proposing a lower `normalScale`. **Both of that round's supporting arms were
+measured at the OLD 0.45 gloss, and both conclusions inverted once the gloss was fixed.**
+
+Re-swept at the shipped 0.85:
+
+- **`normalScale` is not the lever.** 0 / 0.1 / 0.2 / 0.3 / 0.45 are all but indistinguishable,
+  and at `normalScale 0` the soft vertical banding is STILL present — so at this gloss the bands
+  are the ALBEDO grain, which `normalScale` cannot touch. The `.49` `normal0` arm only looked
+  decisive because 0.45 specular exaggerates relief. Nothing shipped for it (meta-rule ii).
+- **Grain TILING is the lever, and `.49` called its sign wrong.** That round reported `repeat 2`
+  as "worse" — true at 0.45 gloss, where it read as denser corrugation. At 0.85 it is clearly
+  better: repeat 1 stretches the grain over a 0.8 x 2.1 m panel into broad soft bands, repeat 2
+  reads as timber, repeat 3 goes busy and striped.
+
+**Shipped** `getWoodMaterial(leafColor, 2)` on `Door.tsx` and `PlanDoorLeaf.tsx` — also the grain
+density WOOD-BANDS (v0.31.5.33) settled for furniture, so it is principled rather than tuned.
+Verified on a real GPU: the drawn leaf reports `roughness: 0.85, repeat: [2, 2]`. Doors are ~13%
+of the walk view (`surface-coverage.mjs`), the largest surface class this run had left unexamined.
+
+The lesson, now in `src/apartment/CLAUDE.md`: **an A/B arm is only valid at the state you will
+ship.** Two conclusions survived into a written residual because both were measured against a
+gloss the same round then changed.
+
+
+## v0.31.5.49 — door leaves rendered as wet plastic; the "survey complete" claim was wrong
+
+**The claim was untested.** "The DEFAULT-SURFACE SURVEY IS COMPLETE" had been carried for ten
+rounds without verification. The new `dev-probes/surface-coverage.mjs` censuses what actually
+renders (11 rooms x 4 yaws x 1600 rays, grouped by drawn material): door leaves plus frames are
+**~13% of the walk view** — more than the bathroom tile three rounds went into — and nothing had
+ever photographed one. (The ceiling, the other suspect, is 1.45% and fine.)
+
+**Fixed** — the bedroom door leaf rendered as a wavy, wet-looking corrugated panel rather than a
+flush laminate door. `Door.tsx` and `PlanDoorLeaf.tsx` built it with
+`getWoodMaterial(leafColor, 1, 0.45)`, an explicit roughness against the `WOOD_BASE_ROUGHNESS`
+of 0.85 that WOOD-GLOSS (v0.31.5.31) settled. Both now use the default.
+
+Four arms at one pose, one variable each (`dev-probes/door-ab.mjs`): `normalScale 0` removed the
+ripples entirely, proving they are the wood-grain normal stretched over a 0.8 x 2.1 m panel;
+`repeat 2` made them WORSE (finer, denser corrugations), so tiling is not the lever; **roughness
+0.85 was clearly best** — a matte timber panel with subtle grain. After the change the drawn leaf
+reports `roughness: 0.85` and the frame byte-matches the winning arm (mean 156.4 / sigma 27.65,
+against 156.1 / 29.63 before).
+
+This overturns a deliberate earlier choice — `woodGloss.test.ts` carried "doors deliberately pass
+their own value" — which is why it needed frames rather than an argument. That comment is
+corrected; the test still pins the API contract that a caller *can* ask for shinier wood.
+
+**Residual, stated plainly:** the grain normal still ripples at door scale, much less at 0.85. A
+flush door has almost no relief, so a lower `normalScale` for leaves is the honest follow-up — not
+measured here (the `normalScale 0` arm ran at the old 0.45), so it needs its own A/B first.
+
+
+## v0.31.5.48 — fold the graphics-realism run's probe traps into the playbook (docs)
+
+Ten rounds of auditing accumulated harness knowledge that lived only in commit messages, so
+the next session would have paid for it again. `docs/visual-verification-playbook.md` is the
+documented home for exactly this. Added, symptom-first and deduplicated against what the
+playbook already said:
+
+- **"When a probe reports ZERO, suspect the probe first"** — the false-zero family as a
+  symptom→cause→check table. A census reading a field that does not exist (items are
+  `position: [x, z]`, there is no `st.catalog`) returns 0 while the frame shows the opposite;
+  `createHqRenderSession` without `session.start()` yields an all-zero transparent canvas that
+  mimics PT-BLANK-GUARD's driver failure with no error; a ray mask finds no "outside" pixels
+  because the sky dome is a real scene object so no ray escapes, and glass reads as opaque to a
+  naive transparency test; and every window reporting zero is simply the flat shipping with its
+  curtains drawn. The standing rule: print the arm's own state next to the number, so a run that
+  measured NOTHING is distinguishable from one that measured zero.
+- **"Flag and bake ORDER decide whether an A/B measures anything"** — Simple mode beats a dev
+  override (`?ff=` is inert in Simple, so both arms must run in Pro); a flag a material bakes
+  must be set before boot or the comparison is an object against itself; and check the UNITS
+  before comparing to the real world (the rig is relative — sun at 0.999 vs a physical
+  ~100,000 lux).
+- **"Editing probes without measuring the old file"** — never background a compound command
+  whose first part is a Python edit (a thrown edit's traceback goes to the task log unseen while
+  the chain runs the unchanged file); biome reformats, so a second anchor on your own earlier
+  text silently misses; slice copied probe heads after `page`/`browser` exist.
+
+Also indexed the 11 durable probes this run produced (`bath-tile-size`, `floor-look`,
+`stale-gen`, `plan-shadow-texel`, `plan-swap-rehome`, `hq-tone`, `window-hours`, `tile-breakup`,
+`reveal-step`, `light-units`, `fade-clone`) in the existing probe table.
+
+
+## v0.31.5.47 — emitter intensities are RELATIVE, not candela (comment fix + probe)
+
+FIXTURE-NEARFIELD-REFUTED closed the falloff-shape question by arithmetic and named the
+emitter table in `furniture/lightEmitters.ts` the only remaining lever for fixture
+brightness. This examines it — and the first thing to check turned out to be the units.
+
+The field was documented as "candela; renderer uses physical units". It is not. Censused live
+with the new `dev-probes/light-units.mjs`: the sun is a `DirectionalLight` at **0.999** where
+a physical midday sun is ~100,000 lux, and the 19 fixture point lights run at **2.6–9** — nine
+times the sun's number. The rig is eyeball-calibrated against the tone curve (exposure 1.38 by
+day, 0.897 at night), not photometric.
+
+That comment was an active hazard rather than a harmless inaccuracy: taken literally, the
+ceiling light (9) sits against a real 9 W LED bulb at ~800 lm / 4-pi = ~64 cd and reads as 7x
+too dim, so the "obvious" correction is to multiply the whole table — which would blow out
+every night interior. The comment is now explicit about the units, quotes the census, and says
+what to compare instead.
+
+**No value changed — the table is defensible.** What is meaningful is the ordering and the
+fixture-to-fill ratio, and both are sound: room lighting (ceiling-light 9, ceiling-fan 8) >
+task (floor-lamp 7, table-lamp 4) > accent (sconce 3.5, vanity 2.8, cove 2.6, aquarium 2.4);
+and the day/night ramp drops the fill ~8x (hemisphere 0.136 → 0.057, ambient 0.043 → 0.018,
+sun 0.999 → 0.013) while the fixtures hold constant, so lamps take over at night by
+construction — ~150:1 over the hemisphere fill at 21:00. The near-field hot spots
+BLOOM-NIGHT-NEARFIELD found remain ordinary 1/d² behaviour, not an intensity error.
+
+Documented as LIGHT-UNITS-RELATIVE in `src/furniture/CLAUDE.md`.
+
+
+## v0.31.5.46 — the wall-reveal "opacity bands" re-diagnosed and quantified (docs + probe)
+
+TODO.md / TASKS.md were reviewed against nine rounds of audits to find entries that later
+measurements had overtaken. The backlog is in good shape — TODO.md holds open items only, the
+real-GPU frontier entries are correctly blocked on a WebGPU adapter, and the rest of the
+rendering entries are content/authoring matters. **One entry was materially wrong**, and it is
+the oldest open rendering item.
+
+It read: "adjacent walls settle at DIFFERENT fade opacities because their orientations differ,
+so a joint shows a hard step", and nominated `cornerSpreadStrength` as the lever. Measured with
+the new `dev-probes/reveal-step.mjs` — which uses the app's own registry (`getWallOpacity` /
+`getWallOwnStrength`) and adjacency (`cornerNeighbors`) at the default boot framing — 37 walls,
+44 shared corners, **10 corners with a step > 0.25, every one of them exactly 0.629**:
+
+- Settled opacity is **bimodal, not varied**: every wall is either 1.0 (own-strength 0) or
+  0.371 (own-strength 0.662), nothing between. Differently-facing walls all land on the same
+  value.
+- That is correct behaviour. `facingToward` dots the wall's outward normal with the CAMERA
+  FORWARD, and the default dollhouse view looks down a 45-degree diagonal (measured forward XZ
+  `[-0.64, -0.64]`). On a rectilinear plan both visible facade directions sit at the same 45
+  degrees, so every camera-facing wall gets `toward` = 0.707 → `smoothstep(0.25, 1, 0.707)` =
+  0.662 → opacity 0.371, while walls facing away are held opaque by the deliberate far-wall rule.
+- **So `cornerSpreadStrength` is the wrong lever.** The two faded walls at a corner already match
+  exactly — there is nothing to blend. What steps is faded-against-far, and far walls are opaque
+  on purpose (the retired binary target existed to stop them resting as washed half-translucent
+  panes). Softening that boundary reintroduces what that rule prevents.
+
+The entry stays OPEN — the band is real and visible in the default view — but now carries a
+number a fix must move, and points away from a lever that could not have worked. Scope is stated
+honestly: one pose, the default boot framing; an off-diagonal azimuth or a non-rectilinear plan
+would spread the `toward` values and has not been measured.
+
+
+## v0.31.5.45 — the Simple/Pro split audited in full; it is correct (docs + probe)
+
+Two earlier rounds tripped over the same thing from different directions — SKY-ANALYTIC-ORBIT
+measured byte-identical because `proceduralSky` is pro-only, and WINDOW-TIME-INVARIANT found
+the sun-driven exterior unreachable for default users for the same reason. So the whole split
+was enumerated: **205 flags, 108 `pro` / 97 `simple`.** No re-tiering was done; a new
+`src/features/CLAUDE.md` records the result.
+
+The overwhelming majority of `pro` entries gate genuinely analytical/professional surfaces
+exactly as the root rule intends (drawings, checks, quotes, CAD export, AI, versions, MEP and
+trade sheets, the asset designer). The audit looked for the narrow class that gates **passive
+rendering quality** — what a default user never sees and could not ask for:
+
+- Inert by default anyway, so the tier costs nothing: `hdriEnvironment` (needs a user-picked
+  HDRI; `hdriId` defaults null), `iesLights` (needs a fixture with an IES profile),
+  `pomFloors` (additionally tier-gated to High/Maximum).
+- Correctly pro because they are instruments, not the default look: `cameraDof`,
+  `twoPointPerspective`, `parallelProjection`.
+- **`tileBreakup` is the one true passive-look flag — and it is immaterial.** It gates the
+  floor-tile repetition break-up, and the default flat has tiled floors in the kitchen, both
+  baths and the shelter, so on paper it is realism denied to default users. Measured with the
+  new `dev-probes/tile-breakup.mjs` (both arms in Pro, one flag varied, applied pre-boot
+  because the floor bakes it, eye pitched at the floor in each tiled room): kitchen 0.11
+  meanAbsDiff / 0.01% of pixels, bath1 0.36 / 0.69%, bath2 0.22 / 0.38%, shelter 0.27 / 0.01%
+  — at or below the ~0.27 / 0.12% noise floor except a marginal bath1. Cropping shows why: the
+  procedural `stoneTile` painter already varies each tile. Re-tiering it would hand Simple
+  users a change they cannot see.
+- `proceduralSky` remains the only pro flag denying default users a visible capability, and
+  that is already recorded as WINDOW-TIME-INVARIANT — a content decision.
+
+Also recorded, because it silently defeats any attempt to A/B a pro flag: **Simple mode beats
+a dev override.** `resolveFlags` returns false on the `tier === 'pro' && uiMode === 'simple'`
+branch *before* reaching the override branch, so `?ff=<flag>:on` is ineffective in Simple —
+both arms of such a comparison must run in Pro.
+
+
+## v0.31.5.44 — the default exterior never follows the clock (measured, content decision)
+
+`REFERENCES.md` is a feature/UX parity list and this harness cannot measure a competitor's
+renderer, so no competitor number is invented here. Instead the parity question was turned
+inward onto a default surface no round had examined: **what the user sees through a window.**
+
+Two findings, both from frames rather than statistics:
+
+- **You cannot see out at all by default — the flat ships with its curtains drawn.** Facing
+  any of the 5 window openings in walk mode finds essentially no exterior pixels; the pose is
+  right, the glass is simply covered, and the UI offers "E — Open curtains". The backdrop the
+  app bakes is invisible in the out-of-box state.
+- **With the curtains open the view is good, but it is the same at every hour.** New
+  `dev-probes/window-hours.mjs` holds one plan-derived window pose, opens the fixtures once,
+  then sweeps the clock with nothing else changed. Same crop at 9 / 13 / 21: mean rgb
+  198.8/187.2/171.8, 198.2/186.4/170.5, 181.6/166.9/146.7 — 09:00 and 13:00 identical within
+  ~1 unit, and 21:00 darker only because global exposure dims the whole frame. Warm lit tower
+  windows are painted at midday exactly as at night.
+
+That is by construction: `backdrop` defaults to `'city'`, a static authored palette, while the
+sun-driven `sky` backdrop (RD-412) is gated on `proceduralSky` — which the app's own
+`featureFlags.test.ts` pins as false in `simple` and true in `pro`. Simple is the default, so
+a default user can never get a time-following exterior. It is the same gate that made
+SKY-ANALYTIC-ORBIT's first attempt measure byte-identical.
+
+**No code changed.** Which backdrop ships by default, whether curtains start drawn, and
+whether the sun-driven sky should be simple-tier are content/product decisions, not rendering
+defects. Documented as WINDOW-TIME-INVARIANT in `src/scene/CLAUDE.md`.
+
+Probe note: a ray-based "through the glass" mask was written and abandoned — it reported 0
+exterior rays even with the curtains open, because `Sky.tsx` mounts the dome as a real scene
+object (no ray ever escapes) and the window glass reads as opaque to a naive transparency
+test. The frame was the more honest instrument; the misleading probe was deleted rather than
+shipped.
+
+
+## v0.31.5.43 — swapping to a smaller plan strands attached furniture (measured, not fixed)
+
+The worry was that changing apartment type leaves the old flat's furniture standing in the
+new architecture. For the **template picker that is refuted**: it calls
+`replaceFloorPlan(tpl, { furniture: 'clear' })` behind a danger confirm naming the item
+count, and the SH3D importer replaces items with the imported file's own furniture in one
+history step. Only `replaceFloorPlan(plan, { furniture: 'rehome' })` keeps furniture across
+an architecture change — used by "reset to default" and by loading a saved apartment.
+
+Measured there with the new `dev-probes/plan-swap-rehome.mjs` (furnished 4-room, 87 items,
+reset between arms), counting items whose centre is outside every room of the new plan:
+baseline 2, `tpl-condo-penthouse` 4, **`tpl-hdb-2room` 32, `tpl-studio` 37**. A similar-sized
+plan is fine; a much smaller one leaves ~37% of the home floating in the void — the frame
+shows curtains, a ceiling fan, a TV, a rug with its books, wall art and a range hood hanging
+beside the shell.
+
+**No code changed, deliberately.** The cause is `skip: (defId) => def.mounted || def.noClip`,
+and that predicate is correct: `rehomeStrandedItems` only relocates free-standing floor
+furniture, and everything attached to something else keeps its coordinates. `noClip` is
+overwhelmingly surface decor resting on other furniture (book stacks, vases, cushions, tea
+sets) plus window/door attachments; only `rug` and `pet-cooling-mat` are genuine floor
+pieces. Widening the skip would rip decor off tables and scatter it to room centres — worse
+than the current failure, and it would regress the common same-size case to buy the rare one.
+The real fix needs an attached piece to move WITH its host or re-anchor to a wall in the new
+plan, which means modelling a host relationship the re-homer cannot currently see — a product
+decision, not a one-liner. Documented in `src/floorplan/CLAUDE.md` as PLAN-SWAP-STRANDED.
+
+Probe note: the first version of this census reported 0 stranded items while the rendered
+frame plainly showed furniture in the void. It read `it.x`/`it.z` (items store
+`position: [x, z]`) and `st.catalog` (the store has no such field, so `if (!def) continue`
+skipped every item). A zero that means "measured nothing" — the frame caught it.
+
+
+## v0.31.5.42 — SHADOW-TEXEL's scaling regime is unreachable in shipped content (docs + probe)
+
+SHADOW-TEXEL targets a constant ~20 mm world-space shadow texel over the plan-fitted
+frustum instead of a literal per-tier `shadowMapSize`, and every number justifying it was
+measured on the default 4-room flat. The open question was what happens on a LARGE plan,
+which the note says scales up to its tier ceiling. Answer: **no shipped plan gets there.**
+
+`dev-probes/plan-shadow-texel.mjs` runs all 19 `PLAN_TEMPLATES` through the app's own
+`shadowFrustumForPlan` + `shadowMapSizeForExtent` (module math, no rendering). Every one
+resolves to **1024 at every tier, 18.6–18.8 mm/texel**, inside the target. 1024 is left only
+above halfExtent 10.24 m — a plan spanning ~15.5 m — and the largest shipped plan
+(`tpl-hdb-jumbo`) is 14.2 × 13.0 m, with 18 of 19 clamped UP to the `MIN_HALF` 9.5 floor.
+So the 2048/4096 ceilings are dead weight for shipped content, which is why SHADOW-TEXEL's
+measured saving was so large in the first place.
+
+No code changed — a fix that moves no metric does not ship.
+
+Two things recorded that were not obvious:
+
+- **18 identical readings looked like a bug and were not.** Every plan reporting the same
+  9.50 half-extent is the classic signature of a variable never reaching the system, so the
+  raw bounds were dumped before concluding: they are correct and plan-specific (each span
+  matches that plan's declared extent minus wall thickness). The plans really are that small.
+
+- **The tier ceiling silently defeats the texel target on a large CUSTOM plan.** Only a
+  user-drawn plan reaches the scaling regime. At `maximum` the target holds everywhere
+  (10.3–19.5 mm) up to the 40 m `MAX_HALF` cap. At `medium`, whose 1024 ceiling cannot scale,
+  a 90 m custom plan gets **78 mm/texel — 3.9× the target**. That is the documented meaning
+  of `tierMax` and the right trade (letting Medium allocate 4096 would blow the frame budget
+  on the hardware the cap exists for), but Medium is what the adaptive ladder auto-selects
+  for most browsers, so it is worth knowing before anyone quotes "~20 mm everywhere".
+
+
+## v0.31.5.41 — HQ-TONE-MATCH verified by a rendered A/B (docs + probe, no behaviour change)
+
+v0.31.5.36 stopped the HQ path-traced still hardcoding ACES Filmic + exposure 1 and routed
+it through the same `TONE_MAPPING_THREE` registry and live `gl.toneMappingExposure` the
+viewport uses — but it shipped verified by unit tests and by reading ONLY, never by a
+rendered before/after, and the docs said so. That gap is now closed.
+
+`scripts/dev-probes/hq-tone.mjs` stands at one fixed walk pose and renders the still twice
+in ONE run, changing exactly one variable: once as the modal now requests it, once with
+`toneMapping: 'filmic'` forced (the pre-fix behaviour). At 24 samples, 320², identical pose,
+identical live exposure 1.38:
+
+| arm                      | resolved tone | clipped | mean  | sigma |
+| ------------------------ | ------------- | ------- | ----- | ----- |
+| hq-auto (shipped policy) | **agx**       | 0.18%   | 174.5 | 38.0  |
+| hq-filmic (pre-fix)      | filmic        | 0.66%   | 191.9 | 49.9  |
+
+Filmic blows 3.7× the highlights at the same exposure; the shipped path resolves to AgX, and
+the live graded 1.38 reaches the session instead of the old hardcoded 1. The arms DIFFERING
+is the load-bearing part — identical readings would have meant the option never reached the
+renderer. Cropped frames agree: filmic blows the ceiling and fan and washes the frame, AgX
+holds the fan's blade detail and the floor's warmth.
+
+Two things worth recording that were expected to go the other way:
+
+- **The pathtracer does compile and render under ANGLE/metal headless.** PT-BLANK-GUARD exists
+  because the megakernel fails GLSL validation on some drivers, so this verification was written
+  up as possibly structurally impossible. It is not — it renders fine here.
+- **`createHqRenderSession` does NOT auto-start**, and omitting `session.start()` mimics the
+  driver failure exactly: samples stay at 0 and `toDataURL()` returns a fully transparent canvas
+  (all four channels 0) with no error reported. My first run hit this and looked like a blank-GPU
+  result. A blank frame is a broken CALL before it is a broken GPU — check `session.samples`
+  advanced before trusting anything read off that canvas.
+
+
+## v0.31.5.40 — clone audit: no further stale materials (docs + probes, no behaviour change)
+
+Two consecutive defects (v0.31.5.38 wall faces, v0.31.5.39 floors) came from a material
+resolved or cloned before PERF-C's worker texture upgrade landed, so every remaining
+persistent `.clone()` of a cached finish was swept rather than assumed safe. **Nothing
+else is stale.** No code changed — a fix that moves no metric does not ship.
+
+The strongest evidence is global: `PROCEDURAL_QUICK_PREVIEW_SIZE` is 64, no legitimate
+texture in the app is 64², and after .38/.39 the default flat contains **no 64² texture at
+all**. Any stranded clone would show up there.
+
+Two things are now recorded that were previously wrong or unstated:
+
+- **`useWallReveal`'s fade clones are PERSISTENT, not transient.** The clone is created on
+  the first fade and cached in a WeakMap for the mesh's lifetime (deliberately — so a React
+  re-render cannot strand a wall on its opaque original mid-fade). It is safe on TIMING, not
+  lifetime: measured across 123 mid-fade materials at boot framing, mid-drag and after the
+  drag, the only procedural finish map is `wall-tile-white@512` and there is no 64² anywhere.
+  Recording the right reason matters, because "transient" invites a future regression.
+- **`getFurnitureMatWithRepeat` is the highest-risk remaining site.** It clones the base
+  material and each texture and caches the result globally per `(id, repeat)`, so unlike a
+  component clone no re-render can ever rebuild it, and wood always routes through it. Clean
+  today only because furniture materials are pre-built and upgraded before any repeat variant
+  is requested.
+
+New probes: `fade-clone.mjs` (censuses mid-fade materials, labelled by texture uuid) and
+`finish-apply.mjs` (applies a `mat:` finish at runtime and re-reads the DRAWN map size at
+t+120 ms / t+4 s / t+10 s — 1024² throughout).
+
+
+## v0.31.5.39 — floors were pinned to the 256² generation by a transient boot tier (PROCEDURAL-BAKE-STALE)
+
+**Fixed** — the four floor finishes in the default flat (`floor-vinyl-oak`,
+`floor-tile-beige`, `floor-tile-beige-300`, `floor-tile-bath-green`) rendered from the
+**256²** texture generation at the settled Medium default, where the app's own rule says
+Medium+ gets 512². The adaptive ladder passes through `performance` on its way to the
+settled tier, which sets the procedural base size to 256; the floors resolved their
+material during that window and nothing ever re-resolved them.
+
+The cause is effect ORDER. `QualityController` writes the base size from a `useEffect`
+keyed on the tier, so React renders first — a hook subscribed to `qualityTier` re-resolves
+while the size still holds the old value — and the effect writes afterwards with nothing
+left to re-render. (That is exactly what v0.31.5.37 attempted and reverted for moving
+nothing.) `setProceduralBaseSize` now notifies a `proceduralBaseSizeSignal` on a real
+change, and `useProceduralMaterial` subscribes to it, so a consumer cannot wake before the
+new size is readable. Cache keys already carried the size, so re-running `buildMaterial`
+returns the right generation — the missing piece was ever running it again.
+
+Verified on a real GPU. `dev-probes/stale-gen.mjs` (labels every bound texture by uuid
+against both cache generations, then diffs Medium against Maximum) went from 8 diff lines
+to **none**; `dev-probes/floor-look.mjs` pitches the eye down at the floor and reads the
+map off the material three is actually drawing with, reporting every room's floor
+**256² → 512²** at identical poses and ray counts across a cross-run A/B.
+
+The visual delta is modest and pose-dependent, as the generator's own "near-identical at
+typical viewing distances" note predicts: living/dining floor meanAbsDiff **1.09 / 3.42%
+of pixels** against a ~0.27 / 0.12% documented noise floor, corridor 0.39 / 1.47%, small
+bath tiles below noise at eye height. This ships as a correctness fix — the app promised
+512 at Medium+ and delivered 256 — not as a dramatic image change.
+
+This closes PROCEDURAL-BAKE-STALE. Its original headline ("every 512-capped pattern
+renders at quarter resolution") was wrong: most of the 256² textures in that histogram are
+patterns whose cap IS 256, the tiled walls in it were the separate WALL-FACE-CLONE-STALE
+bug fixed in v0.31.5.38, and the real residual was these four floors.
+
+
+## v0.31.5.38 — wall faces rendered the 64² texture preview forever (WALL-FACE-CLONE-STALE)
+
+**Fixed** — every interior wall face in the app rendered its finish at **64x64**, one eighth
+linear resolution, permanently. Both `WallSegment` and `PlanWallFace` clone the shared cached
+finish material for the face plane (so it can fade independently and carry its own
+`polygonOffset`), in a `useMemo` keyed on the source material. But procedural textures arrive in
+two stages — PERF-C bakes a 64² quick preview synchronously, then a worker hot-swaps the real
+512² maps onto the cached material ~80 ms later — and `clone()` copies texture slots by
+reference while the source's identity never changes across that swap. The memo never re-ran, so
+the clones kept pointing at the preview textures, which the swap had already disposed.
+
+Both sites now share `apartment/walls/useWallFaceMaterial.ts`, which re-syncs the clone's maps
+from `proceduralSwapSignal` (plus an `invalidate()`, since the Canvas is `frameloop="demand"`).
+The copy rule is the pure, unit-tested `materials/materialMapSync.ts`.
+
+Verified on a real GPU by raycasting the walls in walk mode and reading the map off the material
+three is actually drawing with (`scripts/dev-probes/bath-tile-size.mjs`): both bathrooms and the
+kitchen went from **64² on every ray** to **512²**, resolving to the real `wall-tile-white@512`
+texture; cropped frames show the tile grout going from a soft smeared band to a hairline joint.
+This also closes the bathroom-tile joint question — at its intended 512 bake the joint is
+**2.34 mm**, inside the 2-3 mm spec for rectified porcelain, so neither the painter nor the
+`bake-size` reading needed changing.
+
+Also corrected the PROCEDURAL-BAKE-STALE note, whose headline claim ("every 512-capped pattern
+renders at quarter resolution") was wrong: of the boot texture histogram, only three entries were
+genuinely broken — this material's three maps. A smaller, separate stale-generation issue affecting
+12 textures remains open and is documented in `src/materials/CLAUDE.md`.
+
+
+## v0.31.5.37 — the glTF export was shipping 61 invisible helper meshes
+
+EXPORT-HELPERS. Second finding from the output-path audit that produced HQ-TONE-MATCH.
+
+`export/sceneGltf.ts:buildExportRoot` prunes by `noExport` TAG, helper TYPE and Camera —
+never by appearance. That is not something to work around: `colorWrite: false` is a WebGL
+renderer state with no glTF equivalent, so an invisible mesh has no way to tell an importer
+it was never meant to be seen. Two render-only populations were therefore shipping into
+every export as real geometry:
+
+  CeilingOccluder  10 planes — the virtual ceiling that lets orbit light interiors through
+                   windows. Exported, an importer gets solid caps over every room; and since
+                   the occluder is present in WALK mode too, they are coincident with the
+                   REAL ceiling and would z-fight.
+  ContactShadow    51 planes — the RZ1 fake grounding cue, a transparent plane with a
+                   painted blob texture under every piece of furniture, exporting as a grey
+                   disc on the floor of the user's model.
+
+Both now carry `noExportUserData()` on their root, matching Sky, MeasurementOverlay,
+CommentPins, WalkMeasureOverlay and AnnotationsOverlay.
+
+Verified with `scripts/dev-probes/export-helpers.mjs`, which runs the app's OWN
+buildExportRoot over the live scene so the check cannot drift from the exporter: scene 10
+occluders + 51 contact planes, export 0 and 0, total meshes 1122 -> 1060. The non-zero
+SCENE counts matter as much as the zeros — they prove the probe can see the populations at
+all. `exportHelpers.test.ts` pins that appearance alone does not prune and that a tag on a
+parent group takes the whole subtree.
+
+Also from this audit, recorded rather than filed: `captureCanvas` grabs the live canvas so
+it inherits the viewport by construction; `PanoramaController` explicitly calls
+`setRenderTarget(null)` before `gl.render`, so the tone transform DOES apply (it does bypass
+the composer, so a panorama at High/Maximum carries no bloom or AO — inherent to a
+six-face cube capture); `SceneBackdrop` renders no meshes.
+
+HQ-TONE-MATCH verification gap, still OPEN and stated plainly: a headless attempt to render
+the path-traced still (scripts/dev-probes/hq-still.mjs, 320x200, filmic vs agx) TIMED OUT
+waiting for samples under both operators. That is not the uniform black/white signature
+PT-BLANK-GUARD documents, so it is not evidence of a megakernel compile failure either — it
+simply did not accumulate headlessly. .36 therefore remains verified by unit tests and code
+reading only, not by a rendered before/after.
+
+## v0.31.5.36 — the HQ render was exporting a different image than you were looking at
+
+HQ-TONE-MATCH. Found by auditing the HQ-render / scene-export paths, which this work had
+never verified.
+
+`pathtrace/hqRenderSession.ts` hardcoded `renderer.toneMapping = ACESFilmicToneMapping` and
+left `toneMappingExposure` at 1. Both are wrong, on the one feature whose entire purpose is
+a faithful high-quality image of what the user is looking at.
+
+It contradicted the app's own policy twice. `toneContext.ts` sets AUTO_PHOTO_MODE = 'agx' —
+and an HQ render is exactly a photo context — while DEFAULT_TONE_MAPPING has been AgX since
+TONE-CURVE-CHOICE. Worse, an EXPLICIT user pick was ignored outright: someone who chose
+Neutral still got filmic in their export.
+
+The gap is not subtle. tone-curve.mjs at walk/Medium/09:00 measured filmic against AgX at
+mean 185.9 vs 176.7, sigma 54.5 vs 43.3, clipped **1.94% vs 0.28%**, chroma 0.180 vs 0.152
+— the "photo" carried roughly seven times the blown highlights of the viewport it was
+meant to reproduce.
+
+Exposure was wrong too: `Lighting` grades toneMappingExposure across the day/night curve
+(0.78 night floor to 1.20 full day) on top of the user's own exposure setting, so a still
+pinned at 1 renders night too bright and midday slightly dark. That value is written
+per-frame with no pure function to recompute it from, so `HqRenderSource` now carries the
+live `gl` and the modal passes `gl.toneMappingExposure` through.
+
+The session takes `toneMapping` / `exposure` options and maps through the SAME
+TONE_MAPPING_THREE registry `Lighting` uses, so the still and the viewport cannot drift
+apart; the modal resolves via the same pure `resolveToneMapping`. If a caller omits it the
+default is AUTO_PHOTO_MODE, never filmic. `hqToneMatch.test.ts` pins the policy, including
+the explicit-pick case the hardcode broke worst.
+
+## v0.31.5.35 — a transient boot tier permanently pins texture resolution
+
+PROCEDURAL-BAKE-STALE (open), and a CORRECTION to v0.31.5.34.
+
+Chasing why a fresh `material-audit.mjs` at medium found no 512-square textures at all,
+the new `scripts/dev-probes/bake-size.mjs` prints the live setting and the actual GPU
+texture histogram side by side:
+
+  as booted (medium)     getProceduralBaseSize()=512   256² x80, NO 512² at all
+  after setTier medium   getProceduralBaseSize()=512   unchanged
+  after setTier maximum  getProceduralBaseSize()=512   512² x12 appear
+
+The setting and the reality disagree at the settled default tier. `QualityController`
+applies the size in a tier-keyed effect but only to NEW generations — nothing re-resolves
+an already-MOUNTED material, so whatever tier was live during the first bake is what the
+GPU keeps, and only a tier CHANGE forces a re-bake. A Medium user therefore keeps
+quarter-resolution maps for exactly the patterns whose PATTERN_SIZE_CAP is 512 (tile,
+porcelain, subway, stoneTile, parquet, brick) — the high-frequency ones that cap exists
+for. This is meta-rule (x), a tier-dependent value frozen at creation, extended from a
+scalar to a texture.
+
+CORRECTION to BATH-TILE-OK. That verdict computed JOINT-SCALE at S=512 and reported a
+2.34 mm joint, comfortably inside the 2-3 mm rectified-porcelain spec. But the tile really
+bakes at 256, where 1px / 256 x 1200 mm = **4.69 mm** — nearly double the allowance. So the
+joint IS out of spec today. The painter is still correct: porcelainFields' own options
+(cols 2, rows 4, groutDiv 500, rectified) are right, and at the intended 512 bake the joint
+is 2.34 mm. The defect is the bake size it receives, so fixing PROCEDURAL-BAKE-STALE fixes
+the joint too — do NOT edit the painter. The 600x300 mm tile size and the light hairline
+joint colour from that entry stand (both size-independent).
+
+The fix needs its own mechanism and is deliberately not rushed here: cache keys already
+carry the size, so a change yields new keys, but a mounted surface never re-requests.
+`proceduralSwapSignal` is not reusable for it — only RenderPump subscribes, to request a
+frame after a worker hot-swap. The tier-change loading overlay is the natural place to
+force a re-resolve.
+
+Also recorded: `aoMap` is still bound on 0 of 1122 materials, and is being CLOSED rather
+than built. Binding it needs a second UV set on the shell's low-poly boxes plus an AO
+channel baked per procedural painter, and it would only help `performance` — the one tier
+without SSAO (TIER-AO runs from Medium up), which PERF-TIER-LOOKS-FINE measured as visually
+fine and which already ships ContactShadow blob decals.
+
+## v0.31.5.34 — the bathroom tile is correct; the default-surface survey is complete
+
+BATH-TILE-OK. No render change — a null result reached by arithmetic, and it closes the
+last DEFAULT surface that had never been properly judged.
+
+The 44-frame walk survey left an impression of bathroom tile that was "glossy with large
+soft highlight blobs". Both halves were wrong.
+
+The numbers match the spec exactly. `porcelainFields` passes its own options — cols 2,
+rows 4, groutDiv 500, rectified true — so at the 512 bake with `wall-tile-white`'s
+uvScale [1.2, 1.2] the joint is 1px / 512 x 1200 mm = **2.34 mm**, precisely the 2-3 mm
+JOINT-SCALE requires of rectified porcelain, and the tile is 1.2/2 x 1.2/4 =
+**600 x 300 mm**, matching its "300x600" name. Joints are LIGHT (0.9-1.0 x grout RGB, not
+the `tile` painter's 0.62-dark grout), the height step is a shallow 0.95 -> 0.72, and
+normalStrength 3 keeps it near-flat. A close crop confirms it: light hairline joints,
+gentle glaze, no chunky bevel.
+
+And the "highlight blobs" were the MIRROR — a specular reflection of the ceiling light,
+which is what a mirror should do.
+
+Recorded with it, because it nearly produced a false defect: computing JOINT-SCALE from the
+PAINTER'S DEFAULTS (groutDiv 150, cols 4, rows 8) yields a 7 mm joint and a 300x150 mm tile
+— a 3x-too-wide joint and a tile contradicting its own name, two convincing-looking bugs
+that do not exist. Always read the options the WRAPPER passes, not the signature defaults.
+
+Default-surface survey status: floors, walls, sofa, curtains, dining table, chair backs,
+sideboard, TV console, wardrobe, doors, kitchen worktop, cabinet fronts, extractor hood,
+fridge steel, beds and bathroom tile have now all been reviewed in walk mode. Two real
+defects were found and fixed (WOOD-GLOSS .31, WOOD-BANDS .33); everything else reads
+plausibly.
+
+## v0.31.5.33 — furniture wood stops reading as zebra moiré
+
+WOOD-BANDS. The second half of the wood problem: v0.31.5.31 fixed the SHINE, this fixes
+the grain SHAPE.
+
+Walking the flat after WOOD-GLOSS made it plain on the DEFAULT main-bedroom wardrobe:
+hard zigzag chevron bands, identical and periodic across every panel — printed wallpaper
+rather than timber. It is the same artefact SNV-BOARDS already warns about ("never the
+natural painter's wavy cathedral bands, which read as zebra moiré"), reached from the
+other direction.
+
+The arithmetic is the diagnosis. `furnitureMaterials.ts:getWoodMaps` lays the rings as
+`(u + waver + phase) * PI * 7`, so a waver of W displaces a ring by `W * 7` half-cycles —
+and the shipped 0.12 gave **~0.84, nearly a whole band**, while varying with `v`. A wide
+band that wanders almost its own width as it rises cannot read as figure. A sawn board's
+rings run essentially parallel; figure comes from ring spacing and latewood contrast, not
+lateral wander. `FURNITURE_WOOD_WAVER = 0.04` (0.28 half-cycles).
+
+The two tempting knobs were deliberately left alone: raising the ring count would undo
+Wave 4A's fix for the busy watermark, and `FURNITURE_WOOD_COARSEN` is FURNITURE-WOOD-SCALE,
+settled across all 21 defs. The meander was the one term purely harmful at this scale.
+
+Floors are unaffected by construction — this painter serves the furniture `wood` finish
+only, while floors use the separate `woodFields` painter — and that was checked in the
+frames regardless. Verified as a CROSS-RUN A/B at an identical deterministic pose, which is
+the honest fallback: the waver is baked into a canvas texture at module init and cannot be
+swept live within one run. Chevrons gone, bands parallel with gentle undulation; dining
+table, chair backs, sideboard and the wooden door all still matte with no ribbons.
+
+Scope stated honestly: this removes the moiré, it does not ADD crispness — the grain is
+still soft with little fine line detail between rings. The remaining lever, if wood is
+revisited, is the latewood contrast term or genuine fine grain lines; the meander, ring
+count, coarsen factor, roughness and pore field are all now settled.
+
+## v0.31.5.32 — walk-tour probe lands, a correction, and the next wood defect named
+
+Ships the tool that found WOOD-GLOSS, corrects an overstatement in the v0.31.5.31 entry,
+and records the defect that fix did NOT address.
+
+**Correction.** v0.31.5.31 described `walk-tour.mjs` as standing the camera "in the flat
+with poses DERIVED from the plan". It did not. The probe called `requestWalkTeleport` as
+`store.requestWalkTeleport?.(…)`, but that is a MODULE function in
+`scene/cameras/walkTeleport.ts`, not a store action — the optional call was a silent no-op
+and every frame in that round was the DEFAULT WALK SPAWN (`bath1.png` was the living room,
+minimap label included). WOOD-GLOSS itself STANDS: its A/B varied roughness only, at one
+fixed pose, and the mirror ribbons visibly went. Only the claim about the tool was wrong.
+
+**The probe, now honest.** `scripts/dev-probes/walk-tour.mjs` resolves all 11 rooms through
+the app's own `roomEditorShell.ts:getRoomEditorShell`, teleports via the real module
+function, stands AT each room centre, ASSERTS the camera reached the intended point, and
+captures four facings per room. Three traps fixed along the way, each worth remembering:
+differing file hashes are not proof the view changed (the ceiling fan animates, so 11
+identical views hashed 11 ways); backing off `radius * 0.8` pushed edge rooms through the
+exterior wall (the kitchen came back featureless grey with the minimap arrow outside the
+plan); and a HIGH-detail frame can be as useless as a blank one — a fixed yaw at a galley
+kitchen's centre put a wall cabinet 0.6 m from the lens, sailing past a sigma guard while
+showing nothing judgeable.
+
+**WOOD-BANDS (open).** With the shine fixed, the shape problem is unmistakable on the
+default main-bedroom wardrobe: hard zigzag chevron bands, identical and periodic across
+every panel — printed wallpaper rather than timber, with no fine grain between waves. This
+is the artefact SNV-BOARDS already warns about ("never the natural painter's wavy cathedral
+bands, which read as zebra moiré"), reached by a different route: `FURNITURE_WOOD_COARSEN`
+scales the floor-tuned grain up for furniture, and on a tall wardrobe door that magnifies
+one cathedral wave until it spans the panel. The lever is the band frequency/amplitude in
+`procedural/patterns/wood.ts` or the coarsen factor — not roughness (settled) and not the
+pore field (settled).
+
+Survey result for the rooms reviewed for the first time: kitchen worktop, cabinet fronts,
+extractor hood, fridge steel, beds and curtains all read plausibly; bathroom tile is
+glossy with large soft highlight blobs but defensible for glazed porcelain.
+
+## v0.31.5.31 — furniture wood stops looking like cling film
+
+WOOD-GLOSS. A material fix aimed squarely at the original "looks like animation, not
+real" report, found by finally reviewing WALK mode rather than the orbit dollhouse.
+
+v0.31.5.30 closed the dollhouse (every tier reads fine there) and noted that a dollhouse
+view is mostly wall faces and floors at DISTANCE, so no surface fills the frame. Standing
+the walk camera in the default flat's living/dining room made the gap obvious: the floor,
+walls, sofa and curtains all read well, while the **dining table, chair backs, sideboard
+and TV console showed bright wavy specular ribbons** — crumpled cling film over timber.
+
+Root cause, visible in the material table itself: `getWoodMaterial` defaulted to
+`roughness 0.5` while painted is 0.72, concrete 0.85 and marble 0.12. The app rendered
+oiled timber SHINIER THAN PAINT, and that tight specular lobe mirrored the grain normal's
+low-frequency waviness.
+
+Swept live over the 90 wood-signature materials in one run at the same pose
+(`scripts/dev-probes/walk-tour.mjs ROUGH=0.5,0.7,0.85`): 0.5 shows strong ribbons, 0.7
+still carries them, 0.85 removes them. `WOOD_BASE_ROUGHNESS = 0.85` ships the value that
+was measured, applied at all THREE wood sites — the `getWoodMaterial` default plus the two
+`getSurfaceMaterial` wood branches that hardcoded 0.5 and would otherwise have won over it.
+
+Verified by re-capturing the SAME walk pose: the ribbons are gone, the grain survives as
+grain, and the floor (a different painter path via `cache.ts`) is unchanged.
+`src/materials/woodGloss.test.ts` pins the value, asserts wood is never glossier than
+paint again, and confirms an explicit caller override and the roughness cache key still
+work.
+
+Scope stated honestly: this fixes the SHINE, not the grain SHAPE — the painter's
+low-frequency cathedral banding is still soft under close inspection, it simply no longer
+behaves like varnish. Doors (`Door.tsx`, `PlanDoorLeaf.tsx`) pass an explicit 0.45 and are
+deliberately left alone; they are a surface this work has not reviewed, and they should
+change on their own evidence rather than by side effect.
+
+New probe `scripts/dev-probes/walk-tour.mjs` stands the walk camera in the flat with poses
+DERIVED from the plan (yaw via the app's own `requestWalkTeleport`, pitch via the dev
+`window.__walkLook` lever, since walk mode discards `lookAt`). It currently resolves only
+one room — extending it to the bedrooms, kitchen and bathrooms is the obvious follow-up.
+
+## v0.31.5.30 — the tier most mobile users get is fine; AO-at-performance retired on evidence
+
+PERF-TIER-LOOKS-FINE. No render change; a new probe and a null result that closes a
+long-standing suspicion.
+
+The phone veto puts real phones on `performance` — no AO, no IBL, no post stack, DPR 1 —
+and until v0.31.5.29 made the harness able to boot a phone profile, no frame of that tier
+had ever been reviewed in this work. TIER-AO's claim that AO is "the difference between a
+room that has corners and one that reads as flat shading" made it the prime suspect for
+the original "looks like animation, not real" report.
+
+`scripts/dev-probes/phone-tier-look.mjs` (new) holds the viewport FIXED at 390x844 and
+varies ONLY the tier, at 13:00 and 21:00, reporting interior stats over a centre slab
+(never the full canvas) alongside the live systems:
+
+  13h  performance ibl=false  mean 179.1  sigma 27.1  dark 0%
+  13h  medium      ibl=true   mean 179.3  sigma 21.7  dark 0%
+  13h  maximum     ibl=true   mean 180.3  sigma 22.0  dark 0.1%
+  21h  performance            mean  87.5  sigma 85.7  dark 47.9%
+  21h  medium                 mean  83.3  sigma 80.7  dark 46.5%
+  21h  maximum                mean  84.8  sigma 82.2  dark 46.2%
+
+`performance` is not flatter — its slab contrast is HIGHER at 13:00, and the three tiers
+are within noise at night. Sigma alone cannot settle it (DPR differs 1 / 1.5 / 2 and lower
+resolution inflates per-pixel variance), so the verdict rests on the cropped frames:
+`performance` is crisp, warm and legible, fully competitive with `medium` and if anything
+less hazy than `maximum` at phone size. The visible tier deltas are the documented post
+effects — at 21:00 `maximum` has bloom glow on lit surfaces and smoothly-shaded fan blades
+where `performance` has harder edges and no glow, exactly as RD-409 specifies.
+
+So AO at `performance` is retired as a target on evidence, not merely on the earlier
+"cannot be honestly verified on an M4" caution. The flat tier already ships ContactShadow
+blob decals for grounding, and the dollhouse orbit view — mostly wall faces and floors at
+distance — is not where screen-space AO earns the 25.81% TIER-AO measured in a close
+interior view at Medium. If "not real" is re-opened, the place to look is WALK mode
+close-ups, not the phone dollhouse.
+
+## v0.31.5.29 — the phone quality veto works; my probe was booting as a desktop
+
+A correction of my own earlier claim, not an app defect. No src change beyond the version.
+
+While verifying ASPECT-REFRAME (.28) I reported that the adaptive ladder settled on
+**medium** at every phone viewport, despite `quality.ts:capabilityCeilingTier` being
+documented to veto phones to `performance` — and flagged that every mobile user might be
+running a tier above their budget. That was wrong, and the cause was the harness.
+
+`scene/quality.ts` reads device capabilities ONCE at boot, and
+`scripts/dev-probes/phone-view.mjs` booted at 1280x800 and only switched to phone
+viewports afterwards, so the detector was shown a desktop every time. Booting as the
+device under test — metrics, touch, and the coarse-pointer media feature, all before
+`goto` — the same build reports `matchMedia('(pointer: coarse)') = true`,
+`maxTouchPoints = 1` and a live tier of **`performance`**. The veto fires exactly as
+documented.
+
+Three traps had to be handled together, now written up in
+`docs/visual-verification-playbook.md`: `setViewport({isMobile, hasTouch})` does not set
+the `pointer` media feature; puppeteer's `emulateMediaFeatures` rejects `pointer` outright
+("Unsupported media feature"), so it needs a raw CDP `Emulation.setEmulatedMedia`; and a
+device-metrics override resets emulated media, so that call must come after `setViewport`
+and before `goto`. The probe now also prints the capability signals the page actually sees
+next to the resulting tier — the line that distinguishes "the app is wrong" from "the
+harness never delivered the signal".
+
+Bonus: this re-verified ASPECT-REFRAME at the REAL phone tier (`performance`, dprMax 1).
+The numbers are identical to the medium-tier run — desktop 55.2/55.9, phone-390
+91.5/26.2, phone-320 91.2/31.8, and the landscape->portrait rotation still reports
+91.5% w "(fits)" — confirming the .28 framing fix is tier-independent geometry.
+
+## v0.31.5.28 — rotating a phone no longer clips the flat
+
+ASPECT-REFRAME. The first render-visible fix since v0.31.5.20.
+
+`OrbitCamera` framed the dollhouse once on attach and read the viewport size
+point-in-time rather than as a dependency, so nothing re-fitted when the viewport
+changed. Portrait -> landscape was harmless (the flat just got smaller); landscape ->
+portrait CLIPPED it, because the landscape fit solves the vertical FOV at ~2.6r while
+portrait needs ~5.3r for the narrower horizontal FOV. Measured with the new
+`scripts/dev-probes/phone-view.mjs` — frame at 844x390, rotate to 390x844, camera
+untouched — the plan spanned **191.1% of the viewport width**, with whole rooms cut off
+both edges in the captured frame. Rotating a phone is the everyday way to hit it.
+
+The framing body is now a `frameNow(force)` callback shared by the attach effect and a
+new `size`-keyed effect, with `framedRef` remembering the aspect solved for and the pose
+produced. Two pure, unit-tested predicates in `cameras/frameSelection.ts` gate the re-fit,
+and both guards matter: `aspectChangedMaterially` keys on a RATIO (1.2) rather than a
+pixel delta, so a continuous window drag never re-frames while a rotation (a 4.7x change)
+always does; and `poseIsStillFramed` requires the camera to be exactly where auto-framing
+left it (5 cm), so a deliberate zoom or pan is never yanked away — being pulled out of
+your own zoom on rotate would be worse than the clipping.
+
+Verified on a real GPU: rotated portrait **191.1% -> 91.5% w x 26.2% h**, identical to a
+fresh load at 390x844, with the whole flat visible and margins both sides. 320x568 also
+improved (75.1% -> 91.2% w — it had been holding the stale 390 framing), 390x844 is
+unchanged, and the desktop 1280x800 control is unchanged at 55.2% w x 55.9% h.
+
+Two adjacent theories were measured and REJECTED rather than shipped: the bounding-sphere
+fit is not wasteful (at 390x844 the flat already fills 91.5% of the width; the ~26% height
+is inherent to a wide, shallow plan on a 0.46-aspect screen, and zooming in would crop the
+plan), and the phone pixel budget is fine (DPR correctly clamped 3 -> 1.5 by medium's
+`dprMax`, a 0.74 Mpx buffer against the 2.3 Mpx desktop frame).
+
+## v0.31.5.27 — the profiler measures throughput, not frame budget: question closed
+
+PROFILER-THROUGHPUT-NOT-BUDGET. No code change; a new probe and a settled answer.
+
+v0.31.5.26 left two candidate causes for the profiler's unstable frame number: a noisy
+measurement primitive, or destabilisation from applying/restoring overrides.
+`scripts/dev-probes/profiler-noise.mjs` (new) settles it by repeating the engine's own
+`measureRenderMs` verbatim N times with NO override applied and nothing else touched —
+no store write, no remount, nothing varying between iterations.
+
+  quick (15 samples): 30.40 - 46.53 ms  (1.53x spread)
+  full  (60 samples): 34.36 - 47.02 ms  (1.37x spread)
+
+So the noise is in the PRIMITIVE, the sweep steps and the settle predicate are innocent,
+and more samples does not fix it.
+
+The larger finding is what those numbers mean. `measureRenderMs` drives `advance(...,
+true)` back-to-back with a `ctx.finish()` per batch — no vsync pacing, no CPU/GPU
+overlap, no idle recovery — so it measures how long a render takes with the GPU
+saturated, NOT whether a frame fits a 60 Hz budget. The two differ by ~4x here: 30-47 ms
+against 10.6-11.4 ms of paced submit cost in the same session. **Maximum MEETS the 60 fps
+budget**, and the 34.54 ms quoted in the fixture-light commit is a throughput number, not
+a frame time.
+
+The primitive's ~±8 ms noise also swamps the per-effect costs it is meant to resolve
+(`night-lights.mjs` measures the entire 19-fixture set at 0.1 ms on performance and 1.6 ms
+on maximum), which is why five of eight effects have come out with NEGATIVE cost in real
+runs. The sweep can rank only very large effects; a row under ~10 ms is noise.
+
+Documented in `src/dev/profiler/CLAUDE.md`, including the two fixes built and reverted
+before the cause was known (a pre-sweep warm-up, and a paired per-step baseline) so
+neither is re-attempted, and the honest route if per-effect cost is ever genuinely needed:
+measure the app in its PACED state and toggle the effect between two long runs.
+
+## v0.31.5.26 — the profiler's frame number is unstable; Maximum does meet 60 fps
+
+No render change, and no profiler change either — two fixes were built, measured and
+reverted. What lands is a corrected claim and a probe.
+
+`scripts/dev-probes/profiler-frame.mjs` (new) runs the repo's own dev profiler
+headlessly: it flips `uiMode` to 'pro' so the devOnly `profiler` flag resolves, calls
+`window.__profiler.runCostBreakdown`, and measures plain submit-time cost before and
+after the sweep in the same session.
+
+**PROFILER-UNSTABLE-BASELINE.** On the default flat at Maximum/21:00, the profiler's
+baseline frame for the SAME scene at the SAME settings measured 34.92 / 42.59 / 12.73 /
+~26 / 33.56 ms across five runs — a 3.6x swing. The report contradicts itself as a
+result: with a low baseline several independent effects each appear to save ~70% of the
+frame; with a high one, five of eight effects come out with NEGATIVE cost. Plain
+submit-time cost over the same sessions is flat (10.6-11.4 ms before a sweep,
+11.0-11.3 ms after), so the instability is in the measurement, not the machine.
+
+**Maximum MEETS the 60 fps budget**, and the 34.54 ms figure quoted in the fixture-light
+commit should not be relied on — it is one draw from that distribution. The ~11 ms
+submit figure is corroborated by `night-lights.mjs` (11.7 ms p50) and by every sweep row
+that lands low.
+
+Two fixes were attempted and REVERTED under meta-rule (xiv), both recorded so they are
+not re-attempted: (1) warming the pipeline before the first measurement — a run WITHOUT
+it read 12.73 ms and a run WITH it read 33.56 ms, so the apparent cold/warm effect was
+variance at n=1 and my earlier claim that warming fixed it was wrong; (2) a paired
+per-step baseline — structurally right for a drifting benchmark, but it doubled runtime
+and left three deltas negative, because the variance is finer-grained than a pair can
+cancel.
+
+The prime suspect is the settle predicate (`settleUntilStable` only asks whether render
+time stopped CHANGING; quick mode accepts a single 6-frame window within 5%, while
+applying an override recompiles materials and reallocates render targets). The decisive
+test is recorded and not yet run: measure the baseline N times with no override at all.
+
+## v0.31.5.25 — the near-field fix is refuted by arithmetic; fixture cost measured
+
+No render change. One new probe, one probe improved, three recorded findings — one of
+which is a negative result about my own method.
+
+**FIXTURE-NEARFIELD-REFUTED.** The queued fix was a finite bulb radius / near-field
+clamp for the fixture hot spots (8.22 in scene-referred HDR at 0.51 m). It cannot work.
+three ALREADY clamps: `getDistanceAttenuation` is `1.0 / max(pow(d, decay), 0.01)`, and
+at decay 2 that 0.01 is a 0.1 m bulb radius. For a sphere clamp to change anything at
+0.51 m it would need r² >= 0.26 — a bulb 51 cm in radius. A realistic lampshade
+(r ~= 0.15 m) is byte-identical. The hot spots are not in the near field at all; they
+are at 0.74-1.15 m, which is simply where a lamp sits relative to a wall. Not built, per
+meta-rule (ii).
+
+**FIXTURE-COST.** `night-lights.mjs` now runs a lights-OFF control arm per tier, so the
+delta is the fixtures and nothing else. On the default flat at 21:00 with all 19
+emitters live (the nearest-N cap is gone), fixture cost is 0.1 ms at performance, 0.3 at
+medium, 1.8 at high, 1.6 at maximum — every tier inside the 16.67 ms budget. Removing
+the cap cost the flat tiers nothing measurable.
+
+**COST-SIGNAL-VSYNC — a failed method, recorded so it is not retried.** `frameCost.ts`
+measures CPU submit time and assumes it tracks GPU work; staging's profiler reports
+Maximum at 9.10 ms of a 34.54 ms frame where this suite measures ~11.7 ms total, so the
+assumption looked testable. `cost-signal.mjs` measured submit against completion
+(`raw.finish()` at frame end) over the same frames. The result refutes the METHOD:
+performance, the CHEAPEST tier, reports the HIGHEST completion time (16.5 ms, ratio
+3.51), pinned at the 16.67 ms refresh interval. `finish()` is blocking on the
+presentation queue, not measuring GPU work — the same vsync trap this repo already
+documents for frame RATE. The discrepancy with the dev profiler stays OPEN and should be
+settled with `src/dev/profiler`, which drives a synchronous advance outside the
+rAF/present loop.
+
+## v0.31.5.24 — merge staging: the fixture-light cap is gone, and three notes retired with it
+
+Merges `origin/staging` (6 commits: flat geometry + wall reveal, arbitrary room
+shapes, guarded plan replacement, the dev profiler rework, and the fixture-light
+change). Seven files conflicted; the substantive one is the lighting.
+
+**Staging deleted `chooseEmitters.ts` and the tier's `maxFixtureLights`** — the
+nearest-N fixture budget — because capping to the 2 nearest emitters on Performance
+made lamps switch on and off around you as you moved: invisible as a budget, very
+visible as flicker. `lightsMode` is now one switch for the whole home. The deletion is
+accepted in full, and three notes of mine that documented the removed system have been
+reconciled rather than left to contradict it:
+
+  · LIGHT-BUDGET-REPICK / LIGHT-SET-INVALIDATE — RETIRED. Both fixed a per-frame
+    nearest-N re-pick that no longer exists; the set is now a `useMemo` over store
+    values with no camera input, so every change to it is already a store change
+    `RenderPump` sees. The transferable rule is kept: a scene change held in React
+    state rather than the store requests no frame in demand mode.
+  · LIGHT-COUNT-STABLE's slot padding — RETIRED. It existed only because the set was
+    re-ranked on camera movement. The compile fact behind it is permanent and kept: a
+    +-1 light count recompiles every lit material (204-214 ms, +29 programs).
+  · NIGHT-LIGHT-BUDGET (v0.31.5.21) — the per-tier cap table is deleted rather than
+    left to rot. What survives is still true and still useful: `lightsMode` defaults to
+    OFF, so a zero point-light census is correct and not a bug, and the default flat
+    carries 19 emitting items.
+
+`quality.ts` keeps this branch's `ao` (TIER-AO) alongside staging's
+`mergeCoincidentLights`; `maxFixtureLights` is dropped from all four tiers.
+`scripts/dev-probes/night-lights.mjs` read `maxFixtureLights` and would have thrown —
+it now reports live count, merge state and cost instead of a budget.
+
+Verified after the merge: 9218 tests, tsc + biome clean; all 19 emitters live at every
+tier (Performance was previously capped to 6); the room-editor lock-step still holds
+(render calls 13 = 13 at Medium); and the orbit frame renders correctly with the
+v0.31.5.20 sky surround intact.
+
+## v0.31.5.23 — the room-editor lock-step verified at runtime for the first time
+
+EDITOR-LOCKSTEP. No behaviour change; one new probe and a recorded verdict.
+
+`src/scene/CLAUDE.md` requires `RoomEditorScene.tsx` to stay in lock-step with
+`Scene.tsx`'s render systems so a finish looks the same in the editor as in orbit at
+the user's tier. That had never been checked against a running app — every fix in this
+graphics work landed in the main scene, and the editor was assumed to inherit the
+shared modules.
+
+`scripts/dev-probes/editor-lockstep.mjs` censuses both canvases in ONE session (they
+are mutually exclusive in `App.tsx`, so it enters and exits the editor) by each
+system's runtime signature rather than by component name. Every capability matches, at
+medium/13:00 and maximum/21:00 alike: ibl, shadow type (VSM), sun shadow map 1024, dpr
+(1.5 / 2), cameraFar 400, maxAnisotropy 16, live point lights, and — the load-bearing
+one — render() calls per animation frame, 13 = 13 at Medium's AO-only composer and
+45 = 45 at Maximum's full stack. That last one proves the tier-gated post stack mounts
+identically, which no source-level check can establish. cameraFar 400 confirms
+v0.31.5.20's shared `SCENE_CAMERA_FAR` reached the editor.
+
+The only difference is the Sky dome, and it is deliberate: `RoomEditorScene` documents
+ROOM-EDITOR-BACKDROP and paints a flat `#e6eaef` background instead, because a faded
+exterior wall in an isolated room reveals the background directly, so a bright sky bled
+through the fade and the shower glass's transmission sampled it and lit up cyan. The
+dotted translucent plane around the room is `GridOverlay`, an authoring affordance.
+
+Two probe traps recorded, because both produced a confident wrong answer first: a
+source-level grep for mounted components is not evidence (`<Sky` matched inside a JSX
+comment explaining why the Sky is deliberately NOT mounted), and `renderCalls` came back
+0 for the editor and read as "no post stack" when both canvases are `frameloop="demand"`
+and an idle one simply renders nothing — the probe now drags the camera while sampling.
+
+## v0.31.5.22 — bloom DOES clear the threshold on non-emissive surfaces at night
+
+BLOOM-NIGHT-NEARFIELD. No behaviour change; one new probe and a corrected invariant.
+
+The Maximum night frame carries soft white haloes along the wall top caps that Medium
+(AO-only composer, no Bloom) does not. RD-409 states the Bloom threshold sits "above
+broad lit surfaces", which would rule that out. Measured, the claim is true of the case
+it was validated against and false in general.
+
+`scripts/dev-probes/bloom-threshold.mjs` reads the domain the threshold actually tests:
+the scene rendered into a FLOAT render target, which three leaves untone-mapped because
+it only applies `renderer.toneMapping` when the target is null (TONE-POST), so the
+buffer holds the same scene-referred linear HDR that Bloom — which runs before the tone
+mapper — sees. Pixels are bucketed by a geometric mask, and reported as p50/p90/p99 plus
+a fraction over threshold, never a mean.
+
+  13:00, lamps OFF: cap p99 0.424, max 0.424, 0% over 1.35; wall max 0.469, 0% over
+  21:00, lamps ON:  cap p99 2.03,  max 2.06,  5.32% over;   wall max 8.22,  2.3% over
+
+The daytime row confirms RD-409's original finding and validates the probe — sunlit
+surfaces sit at 0.42-0.47. With the fixtures on, ordinary non-emissive painted surfaces
+clear the threshold too, which is the halo.
+
+It is not a misplaced light and not a threshold error. All 280 over-threshold pixels lie
+0.74-1.15 m from a live fixture (p50 0.98 m); the hottest, 8.22, is 0.51 m from an
+intensity-9 lamp, and nothing is embedded in geometry. It is inverse-square falloff:
+three's `pointLight` is a delta light with no bulb radius, so irradiance goes as 1/d²
+without bound. A real lamp half a metre from a wall blooms in a photograph too, so the
+behaviour is defensible and NOTHING WAS CHANGED. The threshold specifically must not be
+moved — it is pinned in lock-step with `fixtureGlow`, and it would not touch the 1/d²
+near-field that produces the hot pixels anyway. If revisited, the lever is the light
+model (finite bulb radius / near-field clamp), not the post stack.
+
+Probe trap recorded with it: the first daytime control ran with the lamps ON and came
+back nearly identical to night (cap 5.32% over in both), which reads as an insensitive
+probe. It was not — the lamps were lit in both arms. The control that tests RD-409's
+claim is 13:00 with the lamps OFF.
+
+## v0.31.5.21 — two night hypotheses tested, both refuted; the light budget verified
+
+No behaviour change. Two probes and three recorded verdicts, so none of this gets
+re-litigated.
+
+**NIGHT-LIGHT-BUDGET.** A census reading zero point lights at 21:00 looked like a
+broken fixture budget. It is not: `lightsMode` defaults to `'off'` and
+`FurnitureLights` returns null on an empty set, so not even LIGHT-COUNT-STABLE's
+zero-intensity padding slots exist, and zero is the correct reading. The new
+`scripts/dev-probes/night-lights.mjs` measures the state that actually engages
+PERF-002 — orbit, 21:00, lights on — and the budget holds exactly to spec across all
+four tiers on the default flat (19 emitting items, so the cap really binds):
+performance 6/6 lit, medium 18/18, high 19 lit + 1 pad = 20 slots, maximum the same.
+Cost with every light live stays inside budget: 6.8 / 9.0 / 12.9 / 12.3 ms p50.
+
+**NIGHT-WALL-CAP.** The wall top caps read as a hard inked lattice at night. Measured
+with a geometric mask (world normal up, hit above 2.0 m, which excludes floors and
+worktops), they are on average nearly TWICE as bright as the vertical walls at 21:00
+(115.8 vs 58.6), not darker. The caps are bimodal — p10 42.2, p90 176.7 — and the dark
+ones are exactly the caps over rooms whose lamps are off, on the same material as the
+bright ones. ~0.15% of frame pixels. Not a defect.
+
+Two methodological notes recorded with it, both of which nearly produced a wrong
+answer: a MEAN cannot see a bimodal population (the first run's cap-vs-wall means read
+as a clean refutation while the caps were in fact split 42/177), and an eyeballed NDC
+point cannot be carried between probes that use different poses.
+
+## v0.31.5.20 — the sky surround was more than half clipped by the camera far plane
+
+SKY-DOME-FAR. The surround dome shipped in v0.31.5.19 was world-anchored at
+`DOME_RADIUS = 400` under a comment asserting that sat "well inside the camera far
+plane". Both Canvases set `far: 400` as their own unrelated literal in a different
+file, so the radius EQUALLED it. Seen from inside a `BackSide` sphere the centre of
+frame shows the sphere's FAR wall, at `radius + the camera's distance from origin`:
+measured 430.2 m at the boot pose, with **436 of 825 dome vertices outside the
+frustum**. The middle of the orbit background was cut away and the page colour showed
+through, bounded by the 32x24 sphere's own facets — a faceted polygon of page sitting
+in a field of sky. It survived the round that introduced it because every probe
+measured interior slabs and the surround's COLOUR, never its COVERAGE; it was found by
+looking at a frame from an unrelated discovery sweep.
+
+Fixed as a contract rather than a number. `scene/lighting/skyDome.ts` now owns both
+values — `SCENE_CAMERA_FAR` (imported by `Scene.tsx` and `RoomEditorScene.tsx` instead
+of a literal) and `SKY_DOME_RADIUS` — plus the pure `domeRadiusIsSafe`, and
+`skyDome.test.ts` asserts the shipped pair passes and the pair that shipped the bug
+fails. `Sky.tsx` additionally copies `camera.position` onto the dome each frame: a sky
+has no parallax, so tracking is the physically correct model, and it makes a fixed
+radius provable instead of plausible — the dome is then exactly its radius away in
+every direction, at every orbit distance, on every plan.
+
+Verified on a real GPU with the new `scripts/dev-probes/dome-clip.mjs`: dome distances
+369.8-430.2 m with 436 clipped vertices became **200.0-200.0 m with 0 clipped**. The
+background renders full-bleed and uniform at 13:00/Medium and 21:00/Maximum; night
+still reads as night with no horizon banding, and the interior is untouched (the dome
+writes neither `scene.background` nor `scene.environment`).
+
+## v0.31.5.19 — orbit gets an analytic sky with no ground
+
+SKY-BLOWN resolved. The drei `<Sky>` dome is gone, replaced by a purpose-built
+surround baked from the in-repo analytic Preetham model.
+
+- **What shipped.** `lighting/skySurround.ts` (pure, no three, 10 unit tests) paints
+  an equirect that is `skyRadiance` above the horizon and a DIMMED CONTINUATION of
+  the horizon below it — never the brown ground tint that made the first attempt
+  worse. `lighting/Sky.tsx` maps it onto a `BackSide` sphere at 256x128, re-baked
+  debounced through the same `shouldRebuildSky` predicate the walk backdrop uses,
+  disposing the previous texture.
+
+- **The interior is BYTE-IDENTICAL.** An interior-only region at orbit/Medium/13:00
+  reads mean 191.43, sigma 36.43, clipped 1.124%, chroma 0.162 both before and
+  after — which is exactly the safety property claimed: the surround writes neither
+  `scene.background` nor `scene.environment`, so interior lighting, the key:fill
+  ratio and the bloom lock-step cannot move. Frame cost unchanged (4.5/4.8, 8.4/9.0,
+  10.4/10.9, 11.4/12.0 ms p50/p90). Walk mode unaffected.
+
+- **Night is the biggest win** — a deep dark surround with the lit flat glowing
+  against it, where the old dome gave a flat grey. Daylight is a soft graded
+  backdrop instead of a blown flat white.
+
+- **It is not blue, and should not be.** The orbit camera is pitched ~25 degrees
+  DOWN, so every visible background direction is at or below the horizon, where a
+  real sky IS pale. An earlier round sampled the top of the frame and called it the
+  "zenith"; it was the horizon.
+
+- **Two bugs the unit tests caught**, both general to spherical sampling: passing
+  `[v.x, EPS, v.z]` as a "horizon" direction does NOT give constant elevation,
+  because `v` is a unit vector whose horizontal length shrinks as it tilts — the
+  elevation drifts into Perez's steep near-horizon region and the surround came out
+  non-monotonic. And at the exact nadir the azimuth is undefined, where a `|| 1`
+  divisor fallback collapses the sample to the ZENITH, making the underside the
+  BRIGHTEST part of the surround (0.552 against 0.370).
+
+- **Deliberately not behind the `proceduralSky` flag.** That flag is `tier: 'pro'`
+  and Simple mode — the app default — forces pro flags off, so gating on it would
+  leave the white dome in place for exactly the users who see the default look.
+
+## v0.31.5.18 — the sky emits white light; five hypotheses closed
+
+Second and final parameter-level round on SKY-BLOWN. The remaining two hypotheses
+are now rejected too, so the next attempt should start from a design change rather
+than re-testing any of these.
+
+- **Radiance is not the lever.** Scaling `toneMappingExposure` live is monotonic
+  but far too weak: a **4x** cut lifts zenith saturation only 0.017 → **0.041**,
+  luma still 193. If the sky were a saturated blue merely rolled off by the
+  operator, dimming would reveal it. It doesn't — the shader's per-channel ratio
+  is ≈1:1:1 before any transform. The dome emits genuinely white light.
+
+- **Not a near-sun aureole.** Preetham is legitimately white near the sun and
+  Singapore at 13:00 has the sun overhead, so this was a real possibility. Measured
+  across altitudes, zenith saturation is 0.027 / 0.024 / 0.017 / 0.014 / 0.007 at
+  08:00 / 10:00 / 13:00 / 16:00 / 18:00 — never above 0.03. There is no hour at
+  which this sky is blue.
+
+- **Re-ran the `rayleigh` sweep with uniforms re-asserted inside `renderer.render`**,
+  because `<Sky>` is a React component and drei re-applies its props on every
+  re-render — and the `setManualHour` nudge used to force a frame IS a store
+  change. The corrected sweep reproduced the naive one exactly (1 → 10 gives
+  0.017 → 0.004 → 0.004 → 0.000, brightening to a flat 238/238/238), so that race
+  did not bite here. Worth keeping the pattern: it is the one that invalidated
+  `warm-cast.mjs`'s first illuminant arm.
+
+- **Four hypotheses now closed: tone curve, scattering parameters, global exposure,
+  sun angle.** What remains is that the app's exposure (1.38) is tuned for interiors
+  and this dome's absolute output is in a different range — a DESIGN change (give the
+  sky its own exposure, or replace the drei dome with the in-repo analytic
+  `lighting/skyGradient.ts` painted at controlled values, as the walk-mode `sky`
+  backdrop already does). Two rounds went into parameter tweaks; that is enough.
+
+- **Attempted the design fix and REVERTED it.** With the go-ahead to ship a design
+  change, the analytic in-repo sky was wired in as the orbit `scene.background`.
+  `lighting/skyGradient.ts` is the right colour source — sampled headlessly it gives
+  zenith saturation 0.54–0.68, a pale horizon (0.09–0.23) and a warm low-sun horizon
+  (0.63), all in a controlled LDR range. But `paintSkyEquirect` fills the **lower
+  hemisphere with a ground tint**, and the orbit camera looks DOWNWARD, so the
+  visible background is mostly below the horizon: the dollhouse rendered on a dull
+  brown-grey (zenith 175/165/152, warm r>g>b), worse than the white it replaced.
+  An equirect built for a walk-mode WINDOW view is the wrong shape for a top-down
+  orbit. Reverted; the constraint is recorded so the next attempt starts from a
+  sky-only surround rather than reusing the walk backdrop.
+
+- **Two gating traps found on the way.** The first attempt gated the orbit surround
+  on the `proceduralSky` flag and measured byte-identical, because that flag is
+  `tier: 'pro'` and **Simple mode — the app default — forces pro flags off**.
+  Anything that changes the DEFAULT look must not sit behind a pro-tier flag. Also
+  confirmed that `Sky.tsx`'s dome, not the page behind the alpha canvas, is what
+  fills the orbit background: hiding it moves the sampled pixels from
+  231.9/235.0/236.0 to the page's warm 234/219/209.
+
+- **New probe `sky-tune.mjs`** — sweeps the sky dome's live shader uniforms, or
+  `toneMappingExposure`, and reports the zenith colour. Finds the dome by looking
+  for a material carrying a `rayleigh` uniform, so it needs no pose or defId.
+
+## v0.31.5.17 — the orbit sky is real, and blown out to white
+
+Investigation round, no app-code change. The queued target was "the orbit surround
+is a flat gradient, give it a real sky". That premise was wrong, and the real
+defect underneath it is now localised.
+
+- **The surround is already a real sun-driven sky.** `lighting/Sky.tsx` mounts
+  drei's `<Sky>` — a Preetham atmospheric shader fed by `skyFromAltitude` — and it
+  responds to the clock (background luma 81 at 06:00 and 21:00 against ~232 at
+  13:00). Not a gradient, not the page background.
+
+- **But its colour is gone.** At 13:00 the ZENITH measures rgb 229/232/233, HSV
+  saturation **0.017**, and is indistinguishable from the horizon (0.017 vs 0.021)
+  where Preetham should show a strong blue gradient.
+
+- **Not the tone curve.** Washed out under all three operators — filmic **0.008**,
+  AgX 0.017, Neutral 0.073. AgX is the best of them, so TONE-CURVE-CHOICE is not
+  implicated.
+
+- **Not the scattering parameters either, which is the counter-intuitive bit.**
+  Sweeping the live uniforms with a new `sky-tune.mjs`, raising `rayleigh` — the
+  BLUE scattering term — from the shipped 1 through 2 / 3 / 4 made it monotonically
+  WORSE: saturation 0.017 → 0.008 → 0.004 → 0.004. More scattering means more total
+  radiance, so the dome climbs further onto the operator's shoulder. Every arm sat
+  at luma 234–237, pinned near the top of the range. `turbidity` 3 changed nothing.
+
+- **So the lever is the dome's absolute RADIANCE, not its colour** — it needs an
+  intensity scale that lands it where a view transform still preserves hue. Not
+  attempted this round rather than half-tuned into the tree.
+
+  **The fact that makes that change cheap and safe:** the dome is purely visual.
+  `Sky.tsx` renders geometry and writes neither `scene.background` nor
+  `scene.environment` (the IBL is the separate Lightformer probe in
+  `SceneEnvironment.tsx`), so dimming it cannot disturb interior lighting, the
+  key:fill ratio, or the bloom lock-step. Only background pixels move.
+
+## v0.31.5.16 — the remaining 57 uncapped metals need no fix (measured)
+
+No app-code change this round. The value is a follow-up retired on evidence and a
+committed probe with a real methodology bug fixed.
+
+- **v0.31.5.15 left "57 meshes still above the 0.25 cap at `performance`" as
+  follow-up. Enumerated and measured, they need no action.** The probe now lists
+  the offenders rather than counting them: every one sits in a narrow **0.30–0.40**
+  band — `#e6e7e4@0.35 x34` dominates, then a handful of dark trims — where the
+  diffuse term is still 60–70%, nowhere near the no-diffuse black the cap exists to
+  prevent. The defect that WAS real measured 0.75. Capping all 57 live and diffing
+  the centre slab at `performance`/13:00 moved the frame **0.04% of pixels,
+  meanAbsDiff 0.02** — pure noise against the 0.2–0.8 floors these probes usually
+  report. A 57-call-site sweep would have been churn dressed as rigour. New
+  metallic materials should still route through `registerCappedMetal`, because a
+  future preset could ask for 0.8.
+
+- **`setManualHour(h)` is not a side-effect-free redraw nudge, and it invalidated
+  the first version of that measurement.** Probes use it to force a frame under
+  `frameloop="demand"`, but it also switches `timeMode` to manual and jumps the
+  scene to `manualHour`. `metal-tier-stale.mjs` used it purely as an invalidate and
+  never pinned the clock, so its two captures straddled the live local time (night,
+  at the hour it ran) and manual daylight. The diff read **98.97% of pixels /
+  meanAbsDiff 96.37** and looked like a colossal metalness effect. The tell was in
+  the screenshots: the onboarding checklist's "Scrub the time of day" is unticked
+  in the first and ticked in the second. Pinned the clock; the same measurement
+  then read 0.04% / 0.02.
+
+  **An implausibly LARGE result deserves the same suspicion as a byte-identical
+  one.** Every other probe here pins `setTimeMode('manual')` + `setManualHour(h)`
+  at the top; this one, added last round, did not. Written up in the playbook.
+
+- **Also confirmed from the fresh re-baseline:** the chroma work is done (living
+  room 0.165 mean chroma / 3.5% of pixels above 0.35 saturation; bedroom
+  0.182 / 0.0%), so saturation should not be re-litigated without new data.
+
+## v0.31.5.15 — the no-IBL metalness cap was frozen at boot
+
+Re-baselined first, as planned, and the old ranking is indeed obsolete: at
+walk/Medium/13:00 the living room now measures **mean chroma 0.165 with 3.5% of
+pixels above 0.35 saturation** (0.206 / 14.6% when this work started) and the
+bedroom **0.182 / 0.0%**. Chroma is done. The standout anomaly in the fresh data
+was a single material with metalness 0.75 and no maps — one I had dismissed in an
+earlier round as a probe artefact. It wasn't.
+
+- **`IBL-CAP-LIVE`.** A fully metallic surface has no diffuse term, so with
+  `scene.environment === null` it renders black — hence `NO_IBL_METALNESS` (0.25)
+  and the caps in `getSolidMaterial` / `getMetalMaterial`. Both read
+  `isIblActive()` once, inside the factory, and baked it into the material (and
+  into `getSolidMaterial`'s cache KEY). Sound only while the tier is static, and
+  TIER-ADAPTIVE made it dynamic: the app boots at `medium` (IBL on) and the ladder
+  demotes to `performance` on weak hardware at runtime, so materials outlive the
+  environment they were built for. `getMetalMaterial`'s `:noibl` key was a
+  half-fix — it hands a correct material to any NEW call, but a mounted mesh keeps
+  the one it was given, and only `MetalMaterial.tsx` subscribes to `subscribeIbl`.
+
+  Measured with a new `metal-tier-stale.mjs`, which switches the tier live and
+  re-reads the SAME instances: at `performance` the wardrobes' sliding-door frame
+  panels sat at metalness **0.75**, fully uncapped, while the door pull (through
+  the subscribing component) was correctly at 0.25. Scene-wide at `performance`:
+  **69 meshes across 15 material kinds above the cap** — the black-slab defect the
+  cap exists to prevent, live on the tier that serves weak hardware.
+
+  Fixed by `registerCappedMetal`, which applies the cap now and re-derives every
+  registered material when `setIblActive` fires; the pure
+  `effectiveMetalness(requested, ibl)` holds the rule. It remembers the
+  **requested** value, not the capped one — storing the capped value is what made
+  the old behaviour one-way, with no route back from 0.25 to 0.75 — and the
+  registry holds **WeakRefs** pruned on each sweep, since these materials live in
+  an LRU that disposes evictions and a strong Set would pin every material ever
+  built. Both keys now use the requested metalness, collapsing the IBL-split
+  entries into one. Verified end to end: the frame slab goes 0.75 → 0.25 on
+  demotion and back on promotion.
+
+- **Partial, and measured as such.** Scene-wide meshes above the cap at
+  `performance` fell **69 → 57**. The remaining 57 bypass these two factories —
+  inline `<meshStandardMaterial metalness={…}>` in primitives, plus `cache.ts`'s
+  scanned `metalnessMap` binding. Named as follow-up rather than left implied.
+
+- **Corrected a comment that had gone false.** `uiSlice.ts`'s module-load seed
+  said "the app always boots at 'performance'"; TIER-ADAPTIVE made that untrue
+  (`initialAutoTier` is `medium`). Seeding `performance` is still the safe
+  direction — booting capped then un-capping looks right, the reverse renders
+  black — but correctness across later tier changes no longer depends on the seed.
+
+- **An existing test pinned the old behaviour and was rewritten, not deleted.**
+  `metalNoIbl.test.ts` asserted the cache was keyed on the IBL state so a switch
+  handed back a second material. The contract is now stronger: one cached material
+  whose metalness is re-derived in place, both directions.
+
+## v0.31.5.14 — the sofa needed weave relief, not sheen
+
+The default flat's largest furniture surface read as moulded matte plastic. The
+obvious suspect was its sheen layer. It wasn't.
+
+- **Sheen is nearly inert here.** Measured on the sofa
+  (`surface-detail.mjs DEF=sofa-3seat MASK=item`, walk/Medium/09:00, all arms in
+  ONE run, first arm repeated and identical), the entire space — `sheen` 0 / 0.4 /
+  1 crossed with `sheenRoughness` 0.6 / 0.4 / 0.3 / 0.2 — moved microcontrast only
+  **1.24 → 1.68** and mean 130.5 → 138.9, chroma flat at 0.153. And `sheen = 0`
+  sits mid-range at 1.513, **above** the shipped 0.4/0.6's 1.346: a broad sheen
+  lobe fills in the weave's own shading rather than revealing it.
+
+- **The weave normal is the lever.** `normalScale` 0.65 / 1.3 / 2.0 / 3.0 gave
+  microcontrast **1.346 / 2.115 / 2.879 / 3.829**. Shipped **1.3** — the crop
+  reads as woven textile across the whole sofa, where 2.0 becomes a regular grid
+  that looks like mesh screen. The shipped source change re-measured to 2.106
+  against the live arm's 2.115, cross-validating the sweep. Frame cost unchanged
+  on an idle machine (4.5/4.8, 8.3/8.9, 10.3/10.9, 11.3/11.8 ms).
+
+- **FABRIC-WEAVE-KEY — a latent shared-cache bug found on the way, and it would
+  have broken this change.** `getDraperyMaterial` called `getFabricMaterial` and
+  then re-set `normalScale` on the returned instance, with a comment claiming its
+  `rough=0.98` key "never collides with cotton's 0.95 or any other caller". True
+  for linen, false for cotton: a cotton curtain and a woven-fabric sofa of the same
+  colour and pattern both key `fab:<color>:0.95:<pattern>`, so drapery was stomping
+  a shared cached material. Invisible only because both wanted 0.65 — raising the
+  upholstery default would have made the sofa's weave depend on whether a curtain
+  happened to be created first. The relief is now a `weave` parameter folded into
+  the cache key; drapery passes its own (linen 0.95 / cotton 0.65) and keeps its
+  calmer look. Curtains measure 1.755 microcontrast, unchanged by construction.
+
+## v0.31.5.13 — the last def off the floor painter, and a silent-default trap
+
+`tv-console` was the one piece FURNITURE-WOOD-SCALE (v0.31.5.9) held back, because
+a `mat:` finish supplies its own albedo and IGNORES the primitive's `color` while
+the procedural `wood` painter MULTIPLIES it — so the switch had woken up an
+unvalidated #3a2f24, nearly black.
+
+- **Swept its colour, item-masked, in one run** at walk/Medium/09:00 against
+  `finish='wood'`:
+
+  | colour   | chroma | >0.35 sat | mean  |
+  | -------- | ------ | --------- | ----- |
+  | #3a2f24  | 0.521  | 61.3%     | 72.7  |
+  | #6f553f  | 0.497  | 71.7%     | 97.5  |
+  | **#8a6b48** | 0.489 | 74.5%  | **109.9** |
+  | #a08464  | 0.415  | 62.3%     | 122.1 |
+  | #b89a72  | 0.396  | 52.8%     | 131.8 |
+
+  Shipped #8a6b48. #a08464 measured lower chroma and looked near-identical on the
+  crop, so the tiebreak was coherence: #8a6b48 is exactly the dresser and
+  nightstand default, so the flat's wood furniture now reads as one family. The
+  shipped state re-measured to the swept arm exactly (0.489 / 109.9 / 37.68 /
+  1.759), which cross-validates the live-sweep method against a real source change.
+  Reviewed on a crop: was a glossy near-black lacquered unit, now a mid-warm
+  timber console matching the tables.
+
+- **`MASK=item` added to `surface-detail.mjs`, because the first sweep was
+  meaningless.** Under the default painter mask it covered 402 cells across 17
+  materials sharing the wood tile, so the whole #3a2f24 → #a08464 range moved mean
+  only 80.2 → 92.9 — most of the mask was other furniture. Item-masked it is 106
+  cells and the range moves 72.7 → 122.1. Painter mask for "how does this painter
+  look"; item mask for a per-item prop decision.
+
+- **PARAM-DEFAULT-AUTHORITY — the trap that cost two byte-identical runs.** A def's
+  `paramSchema` default is the EFFECTIVE default: `defaultParamProps` materialises
+  it into the item's props, so a primitive's `readStr(props, 'color', …)` fallback
+  never fires when the def declares the same key. Editing only `TVConsole.tsx`
+  changed nothing. The second attempt also failed, because a pattern written for
+  the multi-line schema form does not match the one-line form
+  (`{ kind: 'color', key: 'color', label: 'Colour', default: '#3a2f24' },`), and a
+  slice taken from `'<defId>': {` to the next `\n  '` over-runs the def since
+  sibling keys are not all quoted — the diff showed four colour params and two
+  finish defaults inside what I thought was one def. `git diff` was what finally
+  settled it. Byte-identical means "prove the mutation landed" first.
+
+- **The other dark colour defaults are not the same trap.** 33 values across
+  `primitives/` sit below luminance 70, but they are dark by design on small parts
+  (`legColor`, which goes straight to `getWoodMaterial` and was always live) or on
+  legitimately dark objects (appliances, speakers, a piano, picture frames). The
+  trap only existed where a def's finish default WAS `mat:<id>`, and all 21 of
+  those were checked in v0.31.5.9.
+
+## v0.31.5.12 — the Nyquist sweep is closed: 5 fixed, 14 verdicts
+
+Finished the allowlist by applying NYQUIST-HARM first, which settled every
+remaining entry without a mechanical sweep.
+
+- **`patterns/fabric.ts:warp` (1.09) was the subtle catch.** It is a PHASE warp —
+  `sin(v * S * 0.85 + warp * 3)` — so per-texel noise displaced the weave line by
+  up to 3 radians (nearly half a cycle) at EVERY texel, scrambling grasscloth's
+  horizontal weave into noise rather than meandering it, and `line` carries half
+  the height field. baseFreq 70 → 8. The crops are unambiguous: a random speckled
+  hatch before, coherent flowing fibre runs after.
+
+  **This is the case that proves the metric's blind spot.** That clear visual fix
+  moved microcontrast only **2.086 → 1.951 (−6.5%)** with chroma, mean and sigma
+  flat. Microcontrast measures AMPLITUDE, not COHERENCE — a scrambled-phase field
+  and a meandering one have similar texel-to-texel magnitude. The mirror of the
+  usual trap: the numbers under-reported a real improvement.
+
+- **`tileSurface.ts:peel` (1.41) fixed as a correctness change** — unthresholded
+  and on the HEIGHT, so no sparse-speckle defence, but amplitude is only 0.06.
+  `PEEL_FREQ` 90 → 12. No visual win claimed.
+
+- **14 entries are now recorded VERDICTS, not debt**, grouped by why they are
+  harmless: thresholded sparse speckle that reads as real pinholes
+  (`stone.ts:pores` 2.81, `stoneSurface.ts:fine` 1.72 — both verified on crops),
+  roughness-ONLY whispers with no normal map to corrupt (`tile.ts`/`stone.ts:
+  microRough`, and `plasterSurface.ts:fine`, MAT-003's ±0.04 nap drift on every
+  default wall), and albedo whispers at ≤ ±0.025 of the shade factor. The test
+  still fails if any of them stops existing or stops aliasing.
+
+- **Carpet: finished as far as it goes, and it is not far enough.**
+  `normalStrength` 6 → 1.5 removed the polished swirls (microcontrast 4.010 →
+  1.349; 9.084 → 1.349, −85%, across both rounds' changes). It now reads as soft
+  matte speckled terrazzo rather than carpet, because the remaining cue is the
+  ALBEDO speckle. Stopping here: `floor-carpet-grey` is a non-default,
+  user-selectable finish and two rounds went into it — a prioritisation error
+  worth naming. Default surfaces first.
+
+- **`normalScale` is not a proportional proxy for `normalStrength`.** The live
+  sweep gave 4.010 / 2.739 / 1.838 / 1.353 at 1 / 0.5 / 0.25 / 0.1, but a real
+  `normalStrength` 6 → 1.5 (a 4x cut) measured 1.349 — where `normalScale` 0.1 (a
+  10x cut) landed, because `heightToNormalRGBA` renormalises and saturates. The
+  probe's docstring said "near-equivalent"; that claim is corrected in place. Use
+  a sweep for DIRECTION, then measure the real bake.
+
+## v0.31.5.11 — aliasing hurts only when it is loud and unthresholded
+
+Started working down the 18-entry Nyquist allowlist worst-first. The top two
+entries gave opposite verdicts, which is the useful result.
+
+- **`patterns/fabric.ts:fibre` (3.44 cycles/texel, the worst in the repo) was
+  genuinely broken — FIXED.** It is UNTHRESHOLDED and drives three channels at
+  full amplitude: albedo `0.82 + fib * 0.3`, the ENTIRE height field, and
+  roughness. On a close-up it rendered as harsh black-and-white static, closer to
+  TV snow than to carpet pile. baseFreq 110 → 12 (~0.38 cycles/texel at 256):
+  microcontrast **9.084 → 4.010, −56%** — the highest reading measured anywhere in
+  this work — with chroma flat (0.155) and mean 104.4 → 118.0.
+
+- **`patterns/stone.ts:pores` (2.81) is a deliberate KEEP, not pending work.** It
+  is THRESHOLDED (`p > 0.86`), so only ~14% of texels fire and the aliasing shows
+  as sparse dark specks — exactly what concrete pinholes look like. The close-up
+  reads as plausible mottled concrete; "fixing" it would trade correct-looking
+  specks for broad blobs. Its allowlist entry now records that as a decision.
+
+  **The general rule this establishes (NYQUIST-HARM): frequency alone does not
+  determine harm.** Unthresholded + high amplitude + feeding the HEIGHT (which
+  `heightToNormalRGBA` turns into a per-texel random normal) is the damaging
+  combination. Read the call site before changing a frequency — a mechanical sweep
+  of the remaining 17 would have made some surfaces worse.
+
+- **Honest limit on the carpet fix: it no longer looks like static, but it does
+  not yet look like carpet** — it reads as mottled grey stone. The remaining cue is
+  `normalStrength = 6`, tuned against the old per-texel field; over a smooth
+  low-frequency one it carves broad polished swirls. Recorded at the call site as
+  the next step.
+
+- **A tuning attempt was reverted for doing nothing.** Halving the albedo swing
+  (`0.82 + fib * 0.3` → `0.90 + fib * 0.14`, mean-preserving) moved microcontrast
+  4.010 → 4.007 and sigma 22.52 → 22.40, and the crop was indistinguishable. The
+  albedo was never the dominant cue, so the change was removed rather than shipped
+  with a confident comment.
+
+## v0.31.5.10 — half the procedural noise fields are aliased
+
+Two Nyquist-broken fields had been found one at a time. This round swept all of
+them, and the answer is that it is not two fields, it is a class.
+
+- **21 of 42 fbm fields across the procedural painters alias at 256.** Worst:
+  `patterns/fabric.ts:fibre` at **3.44 cycles/texel** against a 0.5 limit,
+  `patterns/stone.ts:pores` 2.81, `stoneSurface.ts:fine` 1.72,
+  `tileSurface.ts:peel` 1.41. Thirteen alias even at 512.
+
+- **The binding tile size is 256, not 512** — `generators.ts:BASE_SIZE` is 256 on
+  the Performance tier, so every pattern bakes at 256 there whatever its
+  `PATTERN_SIZE_CAP`. A field tuned safe only at 512 still ships noise to those
+  users. This is why the sweep found so much: the earlier fixes had been reasoned
+  against 256 by luck rather than by rule.
+
+- **Enforced, not noted: `nyquistAudit.test.ts`.** It parses the painter sources,
+  computes every field's top-octave frequency and fails on any aliased field not
+  on an explicit `KNOWN_ALIASED` allowlist. The allowlist may only SHRINK — the
+  test also fails if an entry no longer exists or no longer aliases, so it cannot
+  rot into an exemption set, and a separate assertion guards against the parser
+  silently matching nothing. It earned its keep immediately by catching a field
+  the ad-hoc sweep had missed (`patterns/tile.ts:grain`). The remaining 18 are now
+  tracked debt with their measured frequencies in comments.
+
+- **`patterns/wood.ts` fixed first, because it paints the FLOORS**:
+  `fineGrain`/`fine` 28 → 6, `microRough` 70 → 25, `micro` 90 → 12 — all now
+  ~0.38 cycles/texel at 256. **No visible change claimed.** Those fields
+  contribute ±0.03 to an albedo factor, ±0.04 to roughness and ±0.0175
+  respectively, so a whisper is the expected outcome.
+
+  Being explicit about a measurement that did not work: a floor before/after came
+  back byte-identical (chroma 0.207, mean 197.5, microcontrast 1.202 both sides).
+  That is **inconclusive, not a null result** — the mask was seeded from a
+  hand-picked NDC point that resolved to "shell/unknown" with 30 materials sharing
+  a map source, so it probably was not a wood-painted surface. The lesson is the
+  one already written down: don't eyeball NDC. `snv-response.mjs`'s room +
+  face-normal mask is the right tool for floors.
+
+- **Deferred:** `tv-console`'s colour (the one def still on the floor painter) was
+  this round's nominal top target and did not get done — the audit was the larger
+  finding and took the round.
+
+## v0.31.5.9 — furniture was wearing the floor's wood
+
+The two tables were the loudest remaining objects in both views, and the cause was
+not their colour swatch.
+
+- **`FURNITURE-WOOD-SCALE`.** 21 defs across `defs/{beds,decor,kids,storage,tables}.ts`
+  defaulted their wood finish to `mat:floor-wood-oak`, which the C264 test called
+  "the CC0 oak mat". It is not a CC0 photo material: that id is
+  `kind: 'procedural'`, pattern `wood`, **`uvScale: [1.9, 1.2]` metres** — the FLOOR
+  plank painter. On a 0.55 m coffee-table top that is a ~3x scale mismatch, and it
+  rendered as saturated orange-red decking. Measured over a raycast mask
+  (`surface-detail.mjs`, now selecting by `DEF=<defId>`), all arms in ONE run at
+  walk/Medium/09:00:
+
+  | finish                 | chroma | >0.35 sat | mean  | microcontrast |
+  | ---------------------- | ------ | --------- | ----- | ------------- |
+  | `mat:floor-wood-oak`   | 0.669  | 96.9%     | 84.3  | 3.51          |
+  | **`wood`** (shipped)   | 0.474  | 84.4%     | 92.7  | **1.50**      |
+  | `mat:floor-wood-ash`   | 0.243  | 0.0%      | 136.7 | 5.64          |
+  | `mat:floor-wood-maple` | 0.313  | 28.1%     | 120.8 | 8.66          |
+
+  The whole frame sits at ~0.18 chroma and the sofa at 0.220, so 0.669 was far out
+  of family. Ash and maple have the best numbers and were **rejected on sight**:
+  ash streaks like driftwood, maple reads as animal-print blotch — its 8.66
+  microcontrast is noise, not grain. Higher microcontrast is not automatically
+  better.
+
+- **The swap is piece-dependent, which the measurement caught.** A `mat:<id>`
+  finish supplies its own albedo and IGNORES the primitive's `color` prop; the
+  procedural `wood` painter MULTIPLIES it. So switching wakes up a `color` default
+  that may never have been validated. `tv-console` is exactly that: `TvConsole`'s
+  `color` is #3a2f24, nearly black, and the swap took its mean luminance
+  **61.8 → 37.7** for a chroma gain of only 0.794 → 0.612. Less lurid, but nearly
+  black is not an improvement, so that one def deliberately keeps
+  `mat:floor-wood-oak` until its colour is re-chosen. Every other piece in the
+  sweep sits between #6f553f and #cdb89c.
+
+- **Secondary defect fixed.** `mat:floor-wood-oak` was NOT among the `finish`
+  enum's own `options`, so the default was unselectable — a user who changed the
+  finish could never get back to it. `'wood'` is the first listed option.
+
+- **Probe improvements.** `surface-detail.mjs` gained `DEF=<defId>` selection
+  (finds the item's largest mesh via `userData.itemId` — no more eyeballed NDC,
+  which had previously hit a candle cluster while aiming at a table), a
+  `FINISHES=a,b,c` one-run A/B through the app's own `updateItemProps`, and
+  `PROP=` because beds carry their wood on `frameFinish` — writing the wrong key
+  made every arm byte-identical, which reads as "no effect" rather than "the
+  mutation never landed". It now throws if no items matched.
+
+## v0.31.5.8 — the upholstery weave was aliased too, for much less gain
+
+The second of the two Nyquist-broken noise fields, fixed and honestly priced.
+
+- **`FABRIC-FINE-NYQUIST`.** `upholsterySeams.ts:buildUpholsteryHeight` — the LIVE
+  fabric path, since `pbrSurfaces` defaults true — built its sub-weave fuzz from
+  `makeFbm(seed, 4, 120)` at `(u, v)`: **3.75 cycles per texel** on a 256² tile,
+  seven times Nyquist, contributing a fifth of the height amplitude. Worth noting
+  for anyone chasing the same report: the `fine` field in
+  `furnitureMaterials.ts:getFabricNormal` is the LEGACY branch and is dead with
+  the flag on — check which branch is live first.
+
+- **The gain is small and the reason is structural.** The weave grid is
+  `sin(x * 2.4)` ≈ 0.38 cycles/texel, already near the limit, so a fuzz an order
+  of magnitude finer was never representable in a 256² tile. Measured on the sofa
+  (`surface-detail.mjs`, walk/Medium/09:00, 749 masked cells, two runs over the
+  identical view): microcontrast **1.681 → 1.617, −3.8%**, with chroma (0.187),
+  mean (152.8) and sigma (32.2) identical to three decimals — against the wood
+  pore's −34%. Isolated, the channel improves a lot (texel-step/sigma 0.732 →
+  0.105, versus 1.133 for a degenerate white-noise reference); it just carries a
+  fifth of the amplitude at two-thirds the normal strength. **Shipped as a
+  correctness fix with no claimed visual win** — there is nothing to see in a
+  still, and this entry is not going to pretend otherwise.
+
+- **The Nyquist rule is now general and enforced.**
+  `NYQUIST_CYCLES_PER_TEXEL` + `topOctaveCyclesPerTexel` moved from `woodPore.ts`
+  into `noise.ts`, where `makeFbm` lives (re-exported so wood-side imports are
+  unchanged). Both fields are now data — `WOOD_PORE` and `FABRIC_FIELDS` — with
+  tests that bound every field AND assert the OLD parameters fail, so neither can
+  be silently reintroduced. A test that only pins the new value has no teeth.
+
+- **New probe: `surface-detail.mjs`**, the generalisation of `wood-detail.mjs`'s
+  masking half. Ray through an NDC point → group materials sharing that map source
+  → mask their screen cells → report chroma / >0.35-sat / mean / sigma /
+  microcontrast over those pixels only. Works in walk mode despite the camera
+  being un-aimable, because the mask does not depend on the pose.
+
+## v0.31.5.7 — the "7% blown at the flat tiers" was the toolbar
+
+Round 14's top target was a defect that does not exist. Retracting it, and fixing
+the probe that manufactured it.
+
+- **Retraction.** v0.31.5.6 reported that at 13:00 the Performance and Medium
+  tiers blow 6.78% of the frame against 0.03% on High/Maximum, and proposed the
+  full post stack's Vignette as the mechanism hiding it. Both the number and the
+  story were wrong. `tier-look.mjs` — the repo's designated exposure-regression
+  check — reported the **full canvas rect**, and that is dominated by DOM chrome:
+  the toolbar, the "Get started" card and the zoom/compass rail are drawn over the
+  canvas AND are translucent, so their brightness tracks whatever the canvas puts
+  behind them and differs per tier. That mimics a render regression exactly.
+
+- **Where the pixels actually were.** A 4x4 grid over the full canvas put them in
+  the top-centre cells (22.1% and 21.6% — the toolbar), the bottom-left cell
+  (54.4% — the "Get started" card) and the bottom-right rail (6.7%), with every
+  interior cell at **0.0%**. Re-measured over `lib.mjs:centerBox` on the identical
+  saved frames, and then live across 09:00 / 13:00 / 18:00 / 21:00 x four tiers,
+  the 3D render clips **0.02–0.05% everywhere**, with the flat tiers marginally
+  the cleanest. There is no flat-tier exposure problem.
+
+- **Probe fixed.** `tier-look.mjs` now computes both and prints the DOM-free
+  centre slab as its authoritative number, labelling the full-canvas figure
+  "DOM chrome — do NOT quote". `lib.mjs:centerBox` already existed for precisely
+  this and its own docstring says so; this probe simply was not using it, which
+  means every exposure figure it has ever produced included UI panels.
+
+- **What this does NOT affect.** The AgX switch stands: `tone-curve.mjs` always
+  measured a centre slab, so filmic → AgX cutting clipping 1.94% → 0.28% is a
+  measurement of the render and is unchanged. Re-verified post-switch on the slab:
+  clipping 0.02–0.05% at every tier and hour, mean 193–203 in daylight and 103–118
+  at 21:00, contrast 35–50.
+
+## v0.31.5.6 — AgX is the default view transform
+
+Shipped with the user's sign-off, on the evidence gathered in v0.31.5.4 and
+v0.31.5.5. `DEFAULT_TONE_MAPPING` moves from ACES Filmic to AgX.
+
+- **Why.** three's `ACESFilmicToneMapping` applies its curve PER CHANNEL, so on a
+  warm mid-dark surface it crushes blue far harder than red and invents
+  saturation the albedo never had — a #7a5c3c wood whose own sRGB HSV saturation
+  is 0.508 rendered at 0.833, of which ~0.21 was the curve. Measured whole-frame
+  at Medium across walk + orbit at 09:00 / 13:00 / 18:00 / 21:00, filmic → AgX:
+  blown-to-white pixels **1.94% → 0.28%** (a 4–7x cut at every hour in both view
+  modes), mean chroma 0.180 → 0.152, pixels past 0.35 saturation 11.1% → 4.0%,
+  mean brightness 185.9 → 176.7. AgX's lower pixel sigma (54.5 → 43.3) is partly
+  an artefact — clipping inflates variance, so some of filmic's "contrast" was
+  the blown pixels themselves. Khronos Neutral was measured and rejected: perfect
+  highlights, but chroma 0.307 in daylight and 0.518 at 21:00 in orbit (89% of
+  pixels past 0.35), i.e. hard toward the cartoon look this work is removing.
+
+- **Verified after the switch.** `tier-look.mjs` across four tiers x four hours;
+  bloom lock-step (RD-409) confirmed visually at 21:00/Maximum — fixtures still
+  glow, and it cannot regress because Bloom runs BEFORE the tone mapper on
+  scene-referred values. Both tier paths already honoured the setting
+  (Performance mounts no composer and reads `TONE_MAPPING_THREE` →
+  `AgXToneMapping`; Medium and up go through the `<ToneMapping>` effect via
+  `TONE_MAPPING_POST`). No frame cost — it is a shader constant.
+
+- **Accepted cost.** The five board-matched SNV finishes shift by 0.05–0.13 of
+  peak-normalised response: a subtle paling and de-warming, largest on the
+  bathroom floor, which loses some of the sage undertone SNV-BOARDS calls for.
+  They could not be re-verified — the board photos are gitignored and absent, and
+  the calibration's "response" is not single-valued across view modes (both
+  recorded in TONE-CALIBRATION). Reviewed as crops, none of the five breaks.
+
+- **A "pre-existing flat-tier defect" was reported here and it was NOT REAL** —
+  see v0.31.5.7, which corrects it. The 6.78% figure came from the full canvas
+  rect, which is dominated by translucent DOM chrome, not by the render.
+
+## v0.31.5.5 — the calibration that blocks the tone switch cannot be reproduced
+
+Round 13 went to switch the default view transform to AgX and re-solve the five
+render-calibrated SNV swatches, as v0.31.5.4 said was needed. The switch is NOT
+shipped, for two reasons found by trying: the ground truth is not in the repo,
+and the quantity the calibration is defined against turns out not to be
+single-valued. Both are now recorded, along with a probe bug that had been
+quietly degrading walk-mode measurements.
+
+- **`assets/guidelines/` is gitignored (`.gitignore:77`) and absent from every
+  checkout.** TONE-CALIBRATION and SNV-BOARDS both name the exhibition sample-board
+  photos as ground truth; they were user-supplied images, not repo assets. A
+  recalibration without them is not a calibration, so that route is closed here.
+
+- **There is no single render response per surface, so `boardTone ÷ response` has
+  no well-defined right-hand side.** The `livingDining` floor (`floor-vinyl-oak`,
+  #d6b38d) under filmic at 13:00/Medium measures a peak-normalised response of
+  **0.923 / 0.970 / 1.000 in orbit** — blue the STRONGEST channel — and
+  **0.998 / 1.000 / 0.921 in walk** — blue the WEAKEST. Same surface, same
+  operator, same hour; orbit culls the ceiling so the slab takes cool sky IBL
+  directly and walk does not. It moves with pose within a mode too. A swatch
+  therefore cannot hold to ±0.002 across the app's own two view modes, and the
+  recorded (0.56, 0.61, 0.68) is stale as well as under-specified.
+
+- **Measured the full filmic → AgX drift anyway, on all five surfaces.** From
+  plan-derived orbit poses with world-normal masks and 837–3910 sampled cells
+  each: `livingDining` floor 0.083, `kitchen` floor 0.085, `bath1` floor 0.132,
+  `bath1` wall 0.054, `householdShelter` floor 0.051. Reviewed as cropped stills,
+  none BREAKS — each still reads as the finish it should be, the change being a
+  subtle paling and de-warming, largest on the bathroom floor which loses some of
+  the sage undertone SNV-BOARDS calls for. The probe also prints a
+  render-preserving multiplier per surface (the scale that makes AgX reproduce
+  filmic's render exactly) as an honest fallback, though applying it would re-bake
+  filmic's distortion into the swatches.
+
+  **Verdict: AgX is held, not abandoned.** Its whole-frame case is strong and
+  unchanged (clipping 1.94% → 0.28% at every hour in both view modes, wood chroma
+  0.833 → 0.678, visible recovery of ceiling gradation and curtain weave). But it
+  changes the default appearance of the entire app and knowingly moves five
+  finishes matched to physical boards, so it is the user's call, not an
+  autonomous one.
+
+- **Walk-mode probes cannot aim the camera, and this was silently corrupting
+  samples.** `FirstPersonCamera` rewrites the camera's rotation from its own
+  yaw/pitch every frame, so a programmatic `lookAt` is discarded. Five different
+  requested pitches (forward vectors `0,-0.89,-0.45` through `0,-0.03,-1`) all
+  came back as exactly `-0.07, 0, -1`; only the position survives. It does not
+  look like a failure — asking for a steep look at the floor yields a level view
+  of whatever is at eye height, which is how a "floor" sample came out as 69 of
+  4000 cells with most rays hitting the ceiling at y=2.60. `snv-response.mjs` now
+  measures from ORBIT (where `controls.target` + position genuinely determine the
+  pose, taking that sample 69 → 1563 cells) and asserts the pose held, printing
+  `POSE NOT HELD` with both vectors. Written up in the playbook.
+
+  No earlier conclusion is invalidated by this: the wood work identified surfaces
+  by raycast mask (pose-independent by construction) and WARM-WALL-CAST /
+  POST-SAT-NEUTRAL were A/Bs within one run at one reproducible pose. The claim
+  it does dent is the precision of v0.31.5.4's single SNV response figure, which
+  that entry had already flagged as suspect.
+
+## v0.31.5.4 — the tone curve is inventing most of the saturation
+
+Round 12 asked why a wood albedo with an sRGB HSV saturation of 0.508 renders at
+0.833, and was told to look for a root cause before repainting swatches across
+five primitives. There is one, it is the view transform, and this round ships the
+small part of it and documents why the large part is blocked.
+
+- **Zeroed the post-processing saturation baseline (POST-SAT-NEUTRAL).**
+  `BASE_POST_SATURATION` was +0.06 — "a touch of saturation so finishes read
+  rich, not muddy" — which assumed the view transform delivered the albedo
+  faithfully. Measured over the default flat's wood (walk/Medium/09:00, wood
+  pixels only via a raycast mask, in-run noise floor 0.00), the excess
+  saturation decomposes as ~0.05 from the surface being dark, **0.069 from this
+  constant**, and ~0.21 from three's `ACESFilmicToneMapping` applying its curve
+  per channel. Adding a deliberate boost on top of a transform that already
+  over-saturates is doubling down.
+
+  Whole-frame, across walk + orbit at 09:00 / 13:00 / 21:00, removing it is
+  small and uniformly positive: mean chroma −0.010 to −0.018 (walk 09:00
+  0.180 → 0.170; orbit 21:00 0.328 → 0.310), pixels above 0.35 saturation −2.4
+  to −3.5 points, with mean brightness (±0.2), contrast (±0.11) and the clipped
+  fraction all unmoved. Reviewed at a crop: the sofa and cushions keep their
+  colour, nothing reads muddy. The user's saturation dial is unaffected in
+  spirit — 1 is now neutral and still moves either way across its full range.
+
+- **The large lever is measured, argued and NOT shipped (TONE-CURVE-CHOICE).**
+  Switching the default operator from filmic to AgX takes the wood from 0.833 to
+  0.678 chroma, and whole-frame at walk/Medium/09:00 takes clipped highlights
+  from **1.94% to 0.28%** — a 4–7x cut at every hour, visibly recovering ceiling
+  gradation and curtain weave that filmic was clipping away. Khronos Neutral is
+  clearly wrong as a default despite perfect highlights (chroma 0.307 in
+  daylight, 0.518 at 21:00 in orbit, 89% of pixels past 0.35 saturation).
+
+  It is blocked on one thing. `snv-response.mjs` (new) measures the SNV floor's
+  per-channel render response, and AgX's rendered proportions
+  (1.000 / 0.838 / 0.661) reproduce the swatch's own (1.000 / 0.836 / 0.659)
+  almost exactly — AgX is the faithful transform, and filmic's distortion was
+  being compensated locally in five calibrated finishes while going
+  uncompensated everywhere else. But the response drift is **0.171 in blue,
+  ~85x the ±0.002 the TONE-CALIBRATION recipe holds to**, so switching would push
+  those five finishes visibly cooler than the exhibition boards they were matched
+  to. Re-solving them belongs in the same change.
+
+  And that re-solve has to start by fixing a contradiction: TONE-CALIBRATION
+  records the response as roughly (0.56, 0.61, 0.68) R/G/B, "blue boosted ~19%
+  over red". Measured now on the same floor it is **(0.849, 0.818, 0.704)** —
+  blue is the WEAKEST channel. Opposite direction, so those figures are stale
+  (TONE-POST, KEY-FILL-BALANCE and WARM-WALL-CAST have all changed the lighting
+  mix since) and the swatches cannot be re-derived from the recorded formula.
+
+- **New probes.** `tone-curve.mjs` (whole-frame view-transform + saturation sweep
+  across the day in both view modes) and `snv-response.mjs` (the calibration
+  guard — run it before any lighting or tone change). Its floor mask is by
+  world-space face NORMAL, not geometry extents: an extent-based classifier
+  borrowed from `material-audit.mjs` matched zero cells, because that one only
+  works on axis-aligned boxes and these floors are rotated planes.
+
+## v0.31.5.3 — the wood grain was aliased into white noise
+
+Round 11 went after the furniture wood, which round 10's visual review had left
+as the loudest remaining cartoon cue in both walk and orbit. The brief's leading
+guess was tile density. The actual defect was a sampling error, and it had been
+baking noise into every wood surface in the app.
+
+- **The wood pore field was sampled 27x past its tile's Nyquist limit
+  (WOOD-PORE-NYQUIST).** `makeFbm(seed, octaves, baseFreq)` multiplies its input
+  by `baseFreq * 2 ** octave`, and the caller scaled it again, so the furniture
+  wood tile's pore field — `makeFbm(0x2c7a, 3, 48)` at `(u * 18, v * 1.2)` on a
+  256² tile — ran at **13.5 cycles per texel at the top octave and 3.4 at the
+  coarsest**, against a limit of 0.5. Not one octave was resolvable. Its own
+  comment promised "long open pores streaking along the grain … lengthwise
+  hairlines, not dots"; what it baked was deterministic white noise, and
+  `heightToNormalRGBA(height, N, 3)` turned that into a per-texel random normal.
+  Under specular light that is a pebbly dimple field — which is exactly why the
+  dining chairs rendered as pimply gingerbread blocks and the tables as moulded
+  toffee, while the FLOOR wood (a separate painter, correctly sampled) looked
+  fine all along.
+
+  The field moved to a pure `procedural/woodPore.ts` that exports
+  `topOctaveCyclesPerTexel` + `NYQUIST_CYCLES_PER_TEXEL` and preserves the
+  original 15:1 u:v streak anisotropy by construction, so retuning density
+  cannot silently flatten the streaks. Measured as a before/after on the
+  identical view (walk/Medium/09:00, over WOOD PIXELS ONLY via a raycast mask,
+  in-run noise floor 0.00):
+
+  | metric                   | walk          | orbit         |
+  | ------------------------ | ------------- | ------------- |
+  | microcontrast (speckle)  | 1.50 → **0.99** | 4.93 → **4.40** |
+  | wood chroma              | 0.831 → 0.833 | 0.721 → 0.725 |
+  | wood mean luminance      | 57.8 → 57.9   | 62.7 → 62.4   |
+  | wood grain contrast (σ)  | 24.26 → 24.29 | 46.80 → 46.60 |
+  | frame clipped            | 2.01% → 1.91% | 1.17% → 1.17% |
+
+  A 34% / 11% drop in pixel-to-pixel speckle with every other number unmoved is
+  the signature of a correct de-alias: the artefact goes, the design stays. Frame
+  cost is unchanged — same tile, same size, same map count, one cheaper fbm.
+
+- **Three things this round measured and did NOT ship.** Tile density moves the
+  image more than anything (`repeat` x4 / x8 → meanAbsDiff 7.14 / 8.25 over wood
+  pixels) but is the wrong lever: the tile bakes `PLANKS = 3` board seams and
+  `PI * 7` growth rings into one frequency, and real boards are ~120–180 mm wide
+  against ~2–10 mm rings, so no single `repeat` serves both — at x4 a 0.44 m
+  chair back becomes four hard-seamed strips and reads as corrugated cardboard.
+  Roughness is nearly inert (0.5 → 0.65 / 0.80 moves 0.54 / 1.31), so the
+  lacquer sheen is not roughness-driven. Desaturating the base colour is the one
+  remaining large lever (wood chroma 0.833 → 0.674, meanAbsDiff 8.16) and is left
+  for its own change, since it touches several primitives' prop defaults.
+
+- **`wood-detail.mjs`, and a metric lesson worth keeping.** The probe's first
+  version used the standard centre slab and reported EVERY case at the noise
+  floor — because the chair backs sit at ~90% of the frame height, outside the
+  slab. Its second version measured the right pixels but block-averaged them, so
+  it reported the baseline unchanged (chroma 0.831 → 0.833) while the dimples had
+  visibly vanished from the frame. It now masks wood by raycast AND reports
+  microcontrast next to the cell means. A metric that cannot see what you changed
+  is worse than no metric.
+
+## v0.31.5.2 — the picture was more colourful than anything in it
+
+Round 10 went looking for the "graphics look like animation" complaint in the
+default flat's surfaces, with content changes now in scope. The brief predicted
+flat, untextured walls. Measurement said otherwise, twice, and the thing it did
+find was one line of default data.
+
+- **Dropped the living/dining room's `wall-paint-warm` override (WARM-WALL-CAST).**
+  The default flat painted its largest room's walls a cream (#e9d8c4, HSV
+  saturation 0.16). A new probe (`chroma-audit.mjs`, which raycasts a 96x60 screen
+  grid and attributes every hit to the material it landed on) showed that wall was
+  the single biggest surface in the app: **21.8% of the living-room walk view and
+  33.6% of the dining view**, ahead of the ceiling and the floor. It was also the
+  reason the rendered image carried more chroma than any material in it — at
+  09:00/Medium every high-coverage albedo sits between 0.00 and 0.22 saturation,
+  yet the frame measured **mean chroma 0.206 with 14.6% of pixels above 0.35**. A
+  warm cast across the surfaces a viewer reads as neutral is the most reliable
+  giveaway that an image was rendered rather than photographed, and a cream wall
+  under a warm morning sun is warm twice over. The room now takes the plain
+  off-white plaster default, which is also what HDB actually hands a flat over
+  with; `wall-paint-warm` stays in the catalog and in the style presets, where a
+  user picks it deliberately.
+
+  Measured as an A/B inside ONE run (`warm-cast.mjs`, via the app's own
+  `setWallFinish` so the whole finish pipeline runs), cream -> off-white:
+
+  | view              | chroma        | pixels >0.35 sat | contrast (sigma) | clipped         |
+  | ----------------- | ------------- | ---------------- | ---------------- | --------------- |
+  | walk/medium/09:00 | 0.206 → 0.180 | 14.6% → 11.1%    | 54.77 → 54.52    | 1.90% → 2.02%   |
+  | walk/medium/13:00 | 0.219 → 0.191 | 17.7% → 13.6%    | 55.82 → 55.53    | 1.90% → 1.99%   |
+  | walk/medium/18:00 | 0.224 → 0.195 | 17.7% → 13.8%    | 55.83 → 55.80    | 1.64% → 1.79%   |
+  | walk/maximum/09:00| 0.206 → 0.182 | 15.4% → 11.9%    | 54.32 → 54.06    | 2.10% → 2.00%   |
+  | orbit/medium/09:00| 0.190 → 0.184 | 13.5% → 13.5%    | 46.81 → 47.03    | 1.17% → 1.17%   |
+  | orbit/maximum/13:00| 0.209 → 0.201| 17.5% → 16.6%    | 48.27 → 48.32    | 1.19% → 1.19%   |
+
+  Contrast is unchanged everywhere and clipping stays flat, so the win costs
+  nothing in either currency. Frame cost is unchanged by construction: both
+  finishes are the same `plaster` procedural pattern sharing the same singleton
+  256² normal + roughness maps, and only `material.color` differs — no new
+  texture, draw call or shader program. Effect is view-dependent and the mode
+  matters: orbit moves a third as much, because the dollhouse view is mostly
+  floor and furniture seen from above with the near walls faded by the reveal.
+
+- **Two predictions falsified, both recorded so they aren't re-tried.** A new
+  `wall-detail.mjs` swept the wall materials one CHANNEL at a time. The
+  hypothesis — that the plaster normal must be invisible indoors, because
+  interiors are fill-lit and `AmbientLight` is perfectly direction-independent —
+  was wrong: against a 0.80 meanAbsDiff noise floor, `normalScale` x6 moved the
+  image **6.21** (20.4% of pixels) and removing the normal map moved it **1.86**,
+  while the albedo mottle the brief called for moved 2.31 with only **0.64%** of
+  pixels past the threshold, i.e. a broad 1% darkening rather than detail. x6 is
+  also plainly gaudy on inspection (popcorn-ceiling stucco), so the shipped
+  strength is about right and the walls needed no new texture art at all.
+  Separately, `warm-cast.mjs` forced the sun, hemisphere and ambient colours to
+  neutral white and moved chroma only 0.206 → 0.203 — so the cast was NOT in the
+  lighting, and the day/night warmth that carries time-of-day is left alone.
+
+- **New probes.** `chroma-audit.mjs` (coverage x saturation ranking),
+  `warm-cast.mjs` (illuminant vs finish), `wall-detail.mjs` (per-channel sweep)
+  and `pick-surface.mjs`, which resolves a screen point to a furniture `defId`
+  plus its exact material values — that is how "the two saturated orange blocks
+  in the foreground" became "dining-chair backrests at 1.75 m", and it is a much
+  better way to turn a visual review into a fix than guessing from a still.
+
+## v0.31.5.1 — the flat tier was rendering three times its light budget
+
+Round 9 chased the last outliers — ~151 ms at Performance and ~142 ms at High,
+against p50s of 4.5 ms and 11.0 ms. Diffing the program cache keys (the technique
+that cracked v0.31.5.0) named them in one run, and the answer was a correctness bug
+wearing a performance costume.
+
+- **`FurnitureLights` never re-picked on a TIER change.** Its gate watched items,
+  camera mode, light mood and camera movement — but not `maxLights`, the tier's
+  `maxFixtureLights`. Switching to Performance therefore left **18 point lights
+  live** (medium's 6x3 orbit budget) instead of Performance's 6, and they only
+  dropped when the camera next moved — recompiling every lit material in one
+  **150 ms** frame, because three bakes the light count into each material's
+  program cache key. So the flat tier was quietly rendering **three times its own
+  light budget**, and the stall was the delayed correction.
+- **A light-set change also requested no frame.** The live set lives in React
+  state, so `RenderPump`'s store subscription never saw it; under
+  `frameloop="demand"` a newly-mounted light drew nothing until something unrelated
+  invalidated. That deferred the shader compile to the user's first gesture even
+  when the count was right.
+
+Both fixed — `maxLights` is in the change check, and `invalidate()` fires whenever
+the set changes, so the count settles during the tier-change loading overlay that
+is already up for this kind of work.
+
+| tier        | worst frame before | after       | programs/gesture |
+| ----------- | ------------------ | ----------- | ---------------- |
+| performance | 150.6 ms           | **11.7 ms** | 25 → 1           |
+| high        | 142 ms             | **22.4 ms** | 25 → 1           |
+| maximum     | 213 ms             | **17.7 ms** | 29 → 1           |
+
+Zero spikes over 25 ms at any tier; p50/p90 unchanged. The visual side-effect is a
+correction rather than a regression: Performance's contrast rose **27.2 → 36.8** and
+its mean fell 237.4 → 233.4 once it stopped over-lighting by 3x. Medium and Maximum
+render byte-identically.
+
+## v0.31.5.0 — the 210ms first-interaction stall was a light count changing
+
+Round 8 closed the last measured defect: at Maximum, one frame inside the first
+~44 cost **204–214 ms and compiled +29 shader programs**, while steady state
+either side of it sat at ~11 ms. A p90 cannot see a single frame in 1480, but a
+user feels a fifth of a second on their very first drag.
+
+Three hypotheses were tested and two died, which is why this took a round of
+measurement rather than a guess:
+
+- **Wall-reveal material clones — dead.** A material census across the gesture
+  read **+0 materials but +29 programs**. Nothing is being created; existing
+  materials are recompiling.
+- **`material.transparent` flipping — partly true, not the cause.** It IS in
+  three's program cache key (via the derived `opaque` parameter), and the reveal
+  flips it on every fading surface. Pre-warming the opposite variant at boot
+  compiled 15 extra programs there — but moved the spike not at all.
+- **The light COUNT — this was it.** Diffing the program cache keys before and
+  after the gesture showed all 29 new programs differing in exactly ONE field:
+  `18 -> 19`. three bakes the number of point/spot lights into every lit
+  material's cache key, and `FurnitureLights` re-picks the live emitter set
+  whenever the camera moves past a threshold — so a ±1 change, entirely routine
+  while orbiting, recompiles every lit material in the scene.
+
+**The fix (LIGHT-COUNT-STABLE)** is `chooseEmitters.ts:lightSlotCount`: render a
+quantised number of light slots (step 4) and pad the spares with zero-intensity
+point lights, which three counts regardless of intensity. A ±1 wobble no longer
+crosses a program boundary.
+
+Measured after:
+
+| metric                              | before      | after       |
+| ----------------------------------- | ----------- | ----------- |
+| programs compiled during a gesture  | 29          | **1**       |
+| worst frame, Maximum                | 213 ms      | **32 ms** (13.5 ms in a later run) |
+| p50 / p90, Maximum                  | 11.4 / 11.9 | 11.4 / 11.9 |
+| rendered image                      | —           | byte-identical |
+
+Padding deliberately stops at a step of 4 rather than the full tier budget (up to
+36 slots in orbit at Maximum): full padding would make the count perfectly stable
+but force the shader to evaluate every slot per fragment for the whole session,
+trading a one-off compile for a permanent per-frame cost. Medium's p50 rose
+8.4 → 8.9 ms, which is the price of at most three unused lights.
+
+`ShaderWarmup` is reinstated in its corrected form — flipping every scene material
+to `transparent: true`, compiling, and restoring within a single task so no frame
+renders in the flipped state. It is a smaller win than the light-count fix but a
+real one; the version reverted in v0.31.4.1 differed by warming the variant
+already being rendered, i.e. the one already compiled.
+
+## v0.31.4.1 — two questions answered, one fix reverted for not working
+
+Round 7 was an investigation round: no user-visible change ships, but two open
+questions are now settled with measurements, and an attempted fix was reverted
+because it demonstrably did not work.
+
+- **Surface materials are not broken.** With lighting and AO now sound, flat cream
+  walls were the obvious next suspect. A new
+  `scripts/dev-probes/material-audit.mjs` walks the live scene and reports which
+  PBR maps are actually bound, classified geometrically (r3f meshes carry no
+  `name`, so a name-based classifier reports every surface as "other" — the first
+  attempt did exactly that and told us nothing). At Medium: walls 114 meshes with
+  25 albedo / 59 normal / 51 roughness; large floors 4 with 1 / 3 / 1;
+  furniture+other 962 with 169 / 312 / 215. `aoMap` is bound on **zero** materials
+  at any tier. Zero failed non-font requests, anisotropy up to 16, 138 textures at
+  1024². So most walls are flat near-white solids by AUTHORING, not by a load
+  failure — and a solid albedo with a subtle normal/roughness is a defensible
+  model for painted plaster. Changing the default flat's finishes is a content
+  decision, not a bug fix.
+- **Maximum's frame outliers are shader compiles, and the mirror gate is
+  innocent.** `scripts/dev-probes/frame-spikes.mjs` correlates each frame's cost
+  against `gl.info.programs.length` and against whether a real planar reflection
+  is granted. Over ~1480 frames of continuous orbit at Maximum: **p50 10.9 / p90
+  11.4 / p99 12.0 ms**, a very tight distribution well inside the 16.67 ms budget,
+  with only **3 outliers, all inside the first 44 frames** — the worst being
+  **206–214 ms on one frame that compiled +25 shader programs**. The tiers are not
+  slow; the FIRST interaction after boot or a tier change stalls for a fifth of a
+  second, which a p90 cannot see. **0 of ~1480 frames had a mirror reflection
+  granted**, so the MIRROR-RELEVANCE gate is behaving as designed and the ~2 ms
+  run-to-run swing blamed on it in v0.31.3.0 was something else.
+- **A `ShaderWarmup` fix was written, measured, and reverted.** Calling
+  `gl.compileAsync(scene, camera)` plus driving `advance()` frames during the
+  loading overlay did not move the spike in any variant — immediate rAFs, or spread
+  over 1.5 s to cover the lazy `EffectsImpl` import. It can't: `compileAsync` walks
+  only the SCENE's materials, so the composer's own fullscreen passes are
+  untouched, and the leading suspect isn't a pass anyway. An earlier run appeared
+  to cut spikes 3 → 1, but the next run showed 3 again — it was noise. Shipping
+  code that doesn't do what its docstring claims is worse than shipping nothing,
+  so it's out, with the reasoning recorded in `src/scene/CLAUDE.md`.
+- **Next hypothesis, recorded rather than guessed at:** the wall reveal must clone
+  a material per mesh on first fade (the walls share one finish material, so
+  fading in place would fade them all), and ~25 fresh materials on the first frame
+  of a camera gesture is ~25 fresh programs. If so the fix is to clone at mount, so
+  the compile lands behind the boot overlay. To be verified by counting distinct
+  `material.uuid`s across a gesture before touching anything.
+
+## v0.31.4.0 — ambient occlusion for the tier most browsers actually get
+
+Round 6. Two tasks were queued: push the key:fill ratio, and get ambient
+occlusion below the post tiers. The first turned out to be already done — and the
+claim that it wasn't was my own error.
+
+- **Correction: the key:fill ratio is fine.** v0.31.3.1 said the sun was "~0.99
+  against ~1.1 of fill", concluding interiors were flat because a shadow only
+  removed half a surface's light. That quoted the PRE-KEY-FILL-BALANCE fill
+  numbers next to a POST-fix sun — the same class of error this branch has been
+  catching in probes, this time in reasoning. Measured live with a new
+  `scripts/dev-probes/light-balance.mjs`: sun 0.985–1.000 against fill
+  0.455–0.457, i.e. **2.17–2.19:1 in daylight**, a healthy photographic ratio that
+  KEY-FILL-BALANCE already achieved. Pushing it further would only risk
+  reintroducing the blown highlights fixed in v0.31.0.0, so it was left alone.
+  The real reason interiors stay flat is simpler: indoors the sun reaches almost
+  nothing (real ceiling in walk, occluder in orbit, walls everywhere), so the
+  ratio has nothing to act on and interiors are effectively fill-ONLY.
+- **Ambient occlusion now runs below the post tiers (TIER-AO).**
+  `QualitySettings.ao` is separate from `postprocessing`, and `medium` gets
+  `ao: true, postprocessing: false` — a minimal composer with N8AO + the tone
+  mapper + HueSaturation and nothing else. This is the tier the adaptive ladder
+  auto-selects for most browsers, and AO is the only pass that shapes fill-only
+  lighting, so it is the difference between a room that has corners and one that
+  reads as flat shading.
+- **Measured, and it is the best value in the stack by a wide margin.** At Medium,
+  idle machine, 09:00: **2.2 ms for pixels>8 = 25.81% / meanAbsDiff 12.94**
+  against a ~0 noise floor. For comparison the full post stack is 5.7 ms for 7.35,
+  the IBL probe 2.2 ms for 3.16, and sun shadows 2.9 ms for 0.61. Medium lands at
+  8.4 ms p90 — half the 16.67 ms budget — still holding 59.9 drawn frames/s, and
+  its clipped-highlight fraction is unchanged (AO darkens corners, not highlights).
+- **Visually verified in both views.** In orbit, wall/floor junctions and room
+  corners now darken. In walk mode the coffee table, TV console and sofa have real
+  contact darkening where they meet the floor, instead of floating on fake blob
+  decals — which was the specific complaint that started this whole line of work.
+- **Two traps found while building it**, both now pinned by
+  `postStackGuard.test.ts`: the tone mapper is MANDATORY in AO-only mode (mounting
+  any composer disables three's own view transform, so omitting it would blow
+  Medium's highlights exactly as High/Maximum used to); and antialiasing has to be
+  REPLACED rather than dropped, because a composer renders to its own off-screen
+  target so the Canvas' `antialias: true` MSAA stops applying — SMAA belongs to the
+  full stack, so the AO-only path sets `multisampling={4}` instead. Without that,
+  adding AO would have visibly worsened Medium's edges: a regression shipped as a
+  feature.
+
+## v0.31.3.1 — what actually flattens interiors (it wasn't the occluder), and the texel saving confirmed
+
+Round 5 went after the biggest remaining item from the original report: interiors
+cast no shadows, so furniture looks like it is floating. The investigation killed
+two plausible theories — including one this changelog had been leaning on — and
+landed the answer somewhere else.
+
+- **New diagnostic: `scripts/dev-probes/interior-shadow.mjs`.** An isolating
+  ladder that toggles the virtual ceiling occluder's `castShadow` live (its meshes
+  are identifiable at runtime — theirs is the only material with
+  `colorWrite: false` AND `opacity: 0`) and can force the frozen shadow map to
+  rebuild, so "no sun indoors", "broken casters/receivers" and "stale shadow map"
+  can be told apart instead of argued about. At Maximum, 09:00, orbit, against a
+  0.18 meanAbsDiff noise floor: sun shadows with light reaching the interior are
+  worth **8.31% of pixels / 3.17**, the occluder blocks **3.94% / 2.51**, and a
+  forced-fresh map differs from the frozen one by **0.02% / 0.18**.
+- **PERF-MAX-1's frozen shadow map is correct — theory disproved.** Forcing
+  `shadow.autoUpdate = true` changes the image by nothing (0.02% / 0.18). The
+  suspicion that the map gets captured before furniture finishes streaming and is
+  then never refreshed is wrong, and is now recorded as such so it doesn't get
+  re-litigated.
+- **The CeilingOccluder is not the villain either.** It blocks a real but modest
+  amount, and switching it off does NOT produce furniture-on-floor shadows — the
+  two frames are near-identical by eye. It is also self-limiting by geometry: it
+  only blocks rays arriving steeply from above, so it matters near solar zenith
+  and very little at low sun.
+- **The residual flatness is the KEY:FILL ratio.** *(Corrected in v0.31.4.0 — this
+  was wrong. The figures quoted the pre-KEY-FILL-BALANCE fill next to a post-fix
+  sun; measured live the ratio is a healthy 2.17–2.19:1. The real answer is that
+  the sun reaches almost nothing indoors, so interiors are fill-ONLY and only
+  ambient occlusion shapes them.)*
+- **Also learned: this ladder is useless in walk mode.** The REAL ceiling exists
+  there (only orbit culls it), so disabling the virtual occluder changes nothing
+  and every comparison sits at the noise floor. The first walk-mode run looked
+  like a null result for that reason alone.
+- **The SHADOW-TEXEL saving deferred from v0.31.3.0 is now verified** on an idle
+  machine (the previous window was contaminated by the sibling checkout's dev
+  server and test run at load 4.5–7.5). p50/p90 frame cost: **Maximum 11.1/11.7 →
+  9.0/10.1 ms**, with its worst frame **21.9 → 16.8 ms** — back inside the 16.67 ms
+  budget rather than over it. High 8.1/8.9 → 8.1/8.7 (it only stepped 2048 →
+  1024). Performance and Medium unchanged, as expected. All four tiers now hold
+  ~59.8 drawn frames/s.
+
+## v0.31.3.0 — shadow maps sized by texel density, and a probe harness that can't lie
+
+Round 4. The prerequisite was to check the shadow-map resize in WALK mode rather
+than orbit, because resolution buys sharpness exactly where a close-up contact
+shadow is judged. Doing that first turned up a dev-environment trap that had been
+silently faking a result.
+
+- **`504 (Outdated Optimize Dep)` was producing fake measurements.** This worktree
+  symlinks `node_modules` to the sibling checkout, so both dev servers share
+  Vite's optimizer cache; when one re-optimizes, the other fails to serve the
+  lazily-imported `EffectsImpl` chunk, R3F's error boundary replaces the scene
+  with a "Something went wrong" card, and every screenshot captures the card. A
+  card is perfectly stable — so the first walk-mode shadow sweep reported
+  **0.00 difference between 512 and 4096** and looked like a clean result. Fixed
+  three ways: `vite.probe.config.ts` gives the probe server its own `cacheDir`,
+  `lib.mjs:assertSceneAlive` throws when the error boundary is up, and
+  `scripts/dev-probes/with-server.sh` owns the server's lifetime inside one
+  invocation (which also stops a probe silently connecting to an orphaned server
+  from the other checkout and measuring the wrong branch).
+- **Sun-shadow map resolution now tracks texel density (SHADOW-TEXEL).**
+  `quality.shadowMapSize` becomes a CEILING; the size actually used comes from
+  `shadowMapSizeForExtent(halfExtent, tierMax)`, targeting a constant ~20 mm
+  world-space texel over the plan-fitted frustum. The old fixed-per-tier number
+  meant the same setting gave very different quality by plan size — 4096 is
+  4.6 mm/texel over the default flat but 19.5 mm/texel over a 40 m custom plan.
+  Now the default flat resolves to 1024 at every tier, and a large plan scales up
+  to its ceiling where the density genuinely needs it.
+- **Measured in walk mode, standing next to furniture at 09:00** — the viewpoint
+  the change could plausibly hurt. Sweeping 4096/2048/1024/512 gave living-room
+  meanAbsDiff **0.43 / 0.21 / 0.43 against a 0.35 noise floor**, with no monotonic
+  degradation: 512 was no worse than 2048. Two reasons it doesn't show — Medium+
+  run VSM with `radius: 6`/`blurSamples: 12`, a blur wide enough to discard the
+  extra texels, and the virtual ceiling occluder leaves interiors lit almost
+  entirely by non-shadow-casting fill, so there is barely any cast shadow indoors
+  to resolve. Orbit stills before/after confirm it: `maximum` meanAbsDiff 0.331 /
+  0.10% of pixels, inside the established noise floor.
+- **The millisecond saving is NOT verified.** The machine was busy with the
+  sibling checkout's dev server and a test run (load average 4.5–7.5) for the
+  whole measurement window, and frame-cost numbers are meaningless under load.
+  The change is shipped on the strength of the visual evidence and the unit-tested
+  density logic; re-measure the saving with `with-server.sh frame-time.mjs` on an
+  idle machine before quoting a number.
+
+## v0.31.2.1 — a silent-disable footgun, and four ways the measurements were lying
+
+Round 3 set out to price each tier feature in milliseconds so the interior-shadow
+gap could be attacked with real numbers. It found the numbers themselves were
+untrustworthy — including one I had already reported — so this round fixes the
+instrument and the footgun behind it.
+
+- **`setQualityOverride(key, undefined)` silently DISABLES rather than reverts
+  (QUALITY-OVERRIDE-UNDEF).** `Partial<QualitySettings>` makes it type-legal, and
+  `resolveQuality` spread it straight over the preset, so `shadowMapSize:
+  undefined` made `castShadow={undefined > 0}` false (no sun shadows) and
+  `postprocessing: undefined` was falsy (no composer, hence no tone mapping). It
+  looks like a revert and behaves like a disable. `resolveQuality` now drops
+  undefined override VALUES and falls back to the preset, with tests; the correct
+  way to clear remains `resetQualityOverrides()`. No shipping UI path passed
+  undefined, so this was latent for users — but it had already corrupted a
+  measurement.
+- **Correction: the "4096² shadow map changes only 0.47% of pixels" figure was
+  wrong.** That probe cleared its override by writing `undefined`, so its
+  "shadows on" arm ran shadowless too — both arms were identical and the 0.47%
+  was noise. Re-measured soundly, the *conclusion* survives: at Maximum, 09:00,
+  DPR 2, removing sun shadows saves 2.9 ms and moves the image by a
+  mean-absolute-difference of 0.61 against a measured noise floor of 0.27 — the
+  worst value-per-millisecond feature in the stack, and 09:00 is its best case.
+  For comparison the post stack moves 7.35 and the IBL probe 3.16.
+- **Three more measurement errors found and fixed** in
+  `scripts/dev-probes/feature-price.mjs`, all of which had produced
+  confident-looking nonsense: stills were diffed across DIFFERENT camera poses
+  (reporting 48–70% "pixels changed" for every feature); `interactiveDegrade`
+  halves DPR only at the post tiers, so flipping `postprocessing` compared two
+  resolutions and measured "turning post off costs +7.6 ms"; and the first
+  measured case absorbed shader compilation, so the baseline read 16.8 ms first
+  and 12.0 ms warm and made every later case look ~3 ms cheaper. The probe now
+  resets the camera between captures, pins the degrade off, discards a warm-up
+  pass and repeats the baseline at the end as an explicit noise floor.
+- **Report two visual metrics, not one.** `pixels>8` misses a soft effect that
+  shifts a large area by a few levels (a broad 5/255 shadow darkening reads as
+  ~0%), while `meanAbsDiff` is dominated by large flat regions and misses small
+  sharp changes. Judging a feature on either alone is how "buys nothing" gets
+  claimed about something subtle.
+
+Deferred to the next round with a hard prerequisite: `shadowMapSize` 1024 and
+2048 both measured visually indistinguishable from 4096 at 13:00 (0.07% pixels)
+while ~3 ms cheaper, so a resize looks free — but every number here is orbit-only,
+and map resolution buys sharpness exactly where a close-up walk-mode contact
+shadow is judged. Verify in walk mode before changing it.
+
+## v0.31.2.0 — the tier is measured, not guessed (and the old measurement was wrong)
+
+Round 2 of the continuous graphics loop, prompted by a good question: this ships
+on Cloudflare Pages and runs in a browser, so should the quality default really
+be based on detecting hardware? It shouldn't, and chasing that turned up a bigger
+problem — the app had been measuring the wrong thing all along.
+
+- **Hardware detection is demoted to a veto (TIER-ADAPTIVE).**
+  `WEBGL_debug_renderer_info` is deprecated in Firefox and slated for removal,
+  disabled by `privacy.resistFingerprinting`, blockable, farbled by Brave, and
+  deliberately generic on Safari (every Apple device reports "Apple GPU", so an
+  M-series desktop is indistinguishable from a phone). It is also the wrong KIND
+  of signal: the thing actually capping the post tiers last round was a mirror's
+  extra scene pass — a content cost no renderer string predicts — and 7x the
+  viewport pixels moved the frame budget by only ~9%, so a resolution heuristic
+  would have been confidently wrong too. `capabilityCeilingTier` now only vetoes
+  the classes that must never climb (software rasteriser, phone/tablet,
+  pre-WebGL2, <4 cores); for everything else it returns "no opinion".
+- **Frame RATE was never the right signal, and the existing guard was misreading
+  it.** Under `frameloop="demand"` rate measures how often the pump chose to
+  draw, not how fast the device can draw. Measured during a real orbit: **59.7
+  requestAnimationFrame ticks/s against 30.5 actual renders/s, while each frame
+  cost 5.7 ms.** The old 30fps floor reads that as failing and demotes a scene
+  using a third of its budget — and the first cut of this round's ladder did
+  exactly that, walking Medium down to Performance on hardware with two tiers of
+  headroom. Rate is equally useless for promotion because vsync clamps it:
+  Performance and Medium both report exactly 60, so there is no headroom to read.
+- **The ladder now reads per-displayed-frame COST** (`scene/frameCost.ts`), which
+  wraps `renderer.render` and sums every call inside one animation frame. Summing
+  is load-bearing: the post stack issues ~18 *sibling* render calls per frame, so
+  timing them individually reports the parts and inflates the apparent rate to
+  ~1000/s. True p90 cost at 2560x1600, against a 16.7 ms budget:
+
+  | tier        | p50     | p90     | max     | drawn frames/s |
+  | ----------- | ------- | ------- | ------- | -------------- |
+  | performance |  4.5 ms |  4.7 ms | 11.4 ms | 59.9           |
+  | medium      |  5.7 ms |  6.0 ms | 14.1 ms | 59.9           |
+  | high        |  8.1 ms |  8.9 ms | 15.5 ms | 59.7           |
+  | maximum     | 11.1 ms | 11.7 ms | 21.9 ms | 59.5           |
+
+  All four tiers hold the display rate here — which is why nothing should have
+  been demoting in the first place.
+- **Promotion is a probe with a learned ceiling.** Cost says what the current
+  tier uses, not what the next would cost, so the ladder steps up on evidence and
+  steps back if it doesn't hold; oscillation is prevented by `autoMaxTier` (the
+  rung that FAILED, persisted per device, never retried) rather than by a wider
+  threshold. A subtle trap found while building it: `autoMaxTier` must not be set
+  on the way UP, or every success caps the ladder at the rung just reached and
+  Performance can reach Medium but never High. Maximum is never auto-selected.
+  Verified end-to-end with a new `scripts/dev-probes/tier-ladder.mjs`:
+  unthrottled, it boots Medium and promotes to High at ~11 s then holds; under
+  `CPU=6` throttling it demotes to Performance at ~8 s, learns the ceiling and
+  holds; both survive a reload, which now boots straight to the settled tier.
+- **Correction to the previous two entries.** Their fps figures (`high 41.9 →
+  57.9`, `maximum 32.4 → 57.6`, `medium 60`) came from a probe counting
+  `requestAnimationFrame` ticks, which as above is not the render rate — they
+  were a ceiling proxy and overstate the frame rate. The draw-call and
+  scene-pass measurements in those entries were taken directly and stand
+  (4,002 → 2,283 draw calls; two full-scene passes → one), as do the
+  clipped-highlight and contrast numbers. Frame-cost claims should come from
+  `scripts/dev-probes/frame-time.mjs` from now on.
+
+## v0.31.1.0 — one bathroom mirror was 43% of every frame
+
+Round 1 of the continuous graphics loop. Chasing why the post tiers were stuck
+around 40 fps turned up something that had nothing to do with resolution: at High
+and Maximum three was calling `renderer.render()` **18 times per animation frame**
+with 5,742 draw calls, against 1 render and 1,137 draw calls on
+Performance/Medium. Attributing each of those calls
+(`scripts/dev-probes/render-attrib.mjs`) found two full-scene passes, not one:
+
+```
+ 1  target=512x512   drawcalls=1710  tris=464280   <- a mirror's reflection
+ 2  target=1280x800  drawcalls=2130  tris=604836   <- the actual beauty pass
+ …  16 fullscreen-quad passes (post stack)         drawcalls=1 each
+```
+
+drei's `<MeshReflectorMaterial>` re-renders the entire scene from the mirror's
+plane in its own `useFrame` — unconditionally, with no frustum, visibility or
+throttle check. So a bathroom mirror a few dozen pixels tall in the dollhouse
+view was **43% of the frame's draw calls**. It is also fixed-resolution
+(512²/1024²), which explains a result that had been puzzling: 7x the viewport
+pixels changed orbit FPS by only ~9%, because these frames were never fill-bound.
+
+- **Mirrors now earn their reflection (MIRROR-RELEVANCE).** The tier still says
+  whether a real planar reflection is *permitted*; a new pure, unit-tested
+  relevance rule decides whether it is *worth it*. A pane must cover a minimum
+  fraction of viewport height to engage, with a wide hysteresis band to release
+  (every flip is a material swap, i.e. a shader recompile), and at most one pane
+  holds a reflection at a time. Hysteresis and that budget are resolved together
+  over the whole candidate set — the first cut decided per-pane, and two bathroom
+  mirrors promptly both rendered a full extra scene pass, since neither could see
+  that the other had already claimed the budget. The gate is throttled on a
+  camera-move threshold (like the fixture-light budget) and never flips
+  mid-gesture (like the interactive DPR degrade).
+- **Measured on a Mac mini M4 at 2560x1600**, sustained orbit:
+
+  | tier    | before    | after     |
+  | ------- | --------- | --------- |
+  | high    | 41.9 fps  | 57.9 fps  |
+  | maximum | 32.4 fps  | 57.6 fps  |
+
+  Draw calls per frame 4,002 → 2,283; full-scene passes 2 → 1. The orbit view is
+  visually unchanged (mean absolute pixel difference 0.87 at High, 0.36 at
+  Maximum), and walking up to a mirror still gets a true reflection — verified in
+  both directions with a new `scripts/dev-probes/mirror-gate.mjs`, which was
+  worth writing: a gate that never upgrades would have silently deleted the
+  mirror feature while looking like a pure win. (It also has to discriminate on
+  `uniforms.textureMatrix`, because drei's reflector extends
+  `MeshStandardMaterial` and so reports the same `material.type` as the fallback.)
+
+## v0.31.0.0 — the graphics look real: a view transform on the post tiers, no more orbit white-flash, a key light that casts
+
+User feedback: "the graphics don't look real, they look like animation style",
+plus white flashes when orbiting on the higher tiers and lighting there that was
+"too overly aggressive". All three turned out to be separate, measurable bugs
+rather than a matter of taste. Diagnosed on a Mac mini M4 (10-core GPU, Metal 4,
+16 GB unified) by driving real orbit gestures against a real GPU — the probes
+that found each one are checked in under `scripts/dev-probes/`.
+
+- **The post-processing tiers had no tone mapping at all (TONE-POST).** three
+  applies `renderer.toneMapping` **only when rendering to the default
+  framebuffer**. Under `<EffectComposer>` the scene renders into an off-screen
+  HalfFloat target and `postprocessing`'s `EffectMaterial` opts out of tone
+  mapping too — so High/Maximum sent raw linear HDR to the display with nothing
+  but an sRGB encode, and `Lighting`'s per-frame `gl.toneMapping` /
+  `gl.toneMappingExposure` writes (the whole `grade()` + user-exposure +
+  `toneExposureBias` model, and the Graphics panel's Look and Exposure dials)
+  were dead code on exactly the tiers meant to look best. At 13:00, the fraction
+  of the canvas clipped to pure white was **3.4% on Performance/Medium vs 31.8%
+  on High/Maximum** — that is the "too aggressive" lighting, and the reason the
+  top tiers read as a milky white haze rather than a room. `EffectsImpl` now
+  mounts a `<ToneMapping>` effect driven by the *same* `resolveToneMapping` call
+  `Lighting` uses, so the look no longer jumps across the tier boundary; exposure
+  needed no new plumbing, because the effect's shader includes three's own
+  `<tonemapping_pars_fragment>` and its operators read the `toneMappingExposure`
+  uniform the renderer already uploads. Clipping is now **~1%** — below the flat
+  tier, which is correct: that is the filmic shoulder doing its job. Pass order
+  is now explicitly scene-referred (AO / DoF / Bloom) → tone map → display-referred
+  (HueSaturation / CA / Vignette / grain / SMAA), pinned by a guard test.
+- **The orbit white flash was `<Bloom mipmapBlur>` (BLOOM-MIP-FLASH).** Its
+  `MipmapBlurPass` rebinds a chain of ~15 differently-sized half-float render
+  targets every frame; on ANGLE/Metal that intermittently leaves the combined
+  `EffectPass` shader sampling an unready blur texture, and because the composer's
+  final blit runs regardless, the garbage reaches the default framebuffer and the
+  whole canvas blanks. With `alpha: true` (r3f's default, which the orbit view
+  relies on to show the page background around the model) that reads as a
+  full-screen white flash. Blank frames per 78 captured during a real orbit drag
+  at Maximum: **4/78 before (7/78 at night), 0/78 after** — and 0/78 at High, at
+  night, and at dawn. Performance/Medium never flashed (they mount no composer),
+  which is why the report was tier-specific. Bloom also now only *mounts* when the
+  day ramp leaves it something to do: in daylight its intensity is already 0, but
+  an intensity-zeroed Bloom is not inert — its blur texture is still sampled by
+  the combined shader, so it could still blank a frame while contributing nothing.
+  Ruled out before landing on Bloom, and recorded in `src/scene/CLAUDE.md` so they
+  aren't re-litigated: WebGL context loss (never fired), drawing-buffer resizes and
+  the interactive DPR degrade (no resize anywhere near a blank frame — and turning
+  `interactiveDegrade` OFF made flashes *more* frequent), `EffectPass` rebuilds
+  (`EffectsImpl` re-renders 0 times during an orbit), every other pass
+  individually, mip `levels` 5/6/7, and `alpha: false` (which only changed the
+  flash colour to black).
+- **Curtains were dimming the sun instead of the skylight (KEY-FILL-BALANCE).**
+  `curtainLightEffect` multiplied the sun `DirectionalLight`'s intensity by the
+  scene-wide *average* curtain transmission. That light is the sun — so one drawn
+  bedroom curtain darkened the building's exterior — and it is the **only
+  shadow-casting light in the scene**; hemisphere, ambient and the IBL probe are
+  all non-directional fill that casts nothing. On the default furnished 4-room
+  flat at 09:00 that left sun 0.41 against ~1.10 of fill, a key:fill ratio of
+  **0.37:1**, at which a cast shadow can only remove a small fraction of a
+  surface's light. Turning the 4096² shadow map off at Maximum changed **0.47%**
+  of pixels at 13:00 and 17:00, and the 09:00 difference was pure edge aliasing —
+  the single most expensive thing the higher tiers buy was rendering nothing
+  visible, and interiors looked flat with furniture apparently floating at *every*
+  tier. The attenuation now rides the fill (hemisphere + ambient + the probe's
+  `environmentIntensity`), which is the light curtains actually block. Same
+  magnitude, correct light: contrast (pixel σ) up **~21% at Performance and ~10%
+  at Maximum** for a ~2-point mean-brightness cost.
+- **The boot tier is capability-detected again (TIER-AUTODETECT).** This reverses
+  the "always boot Performance for everyone" product rule. It guaranteed a fluid
+  first load, but it also meant every user's first impression was the deliberately
+  flat renderer — no shadows, no IBL, no ambient occlusion, no graded post — which
+  is precisely the "looks like animation" feedback, on machines that were idling.
+  `tierForCapabilities` (pure + unit-tested) reads the unmasked renderer string,
+  core count, pointer coarseness and WebGL2 support: software rasterisers, phones
+  and tablets, pre-WebGL2 and sub-4-core devices stay on **Performance**;
+  everything else boots at **Medium** — sun shadows + the IBL probe, so materials
+  finally get real reflections and soft bounce out of the box. The ceiling is
+  measured, not cautious. Sustained-orbit FPS on the M4 at Retina DPR (2560x1600
+  drawing buffer), tier pinned: Performance 60, Medium 60, **High 39.9 (83 ms
+  worst frame)**, Maximum 34. High clears the 30 fps floor on average, but one bad
+  1.5 s sample window is enough for the adaptive guard to step down — and an
+  auto-selected High demonstrably walked itself to Medium and then Performance
+  inside a single sustained orbit. A default that visibly downgrades itself is
+  worse than a slightly conservative one, so **High and Maximum stay an explicit
+  opt-in**, now described in the Graphics panel as the realistic/cinematic looks
+  rather than as "needs a dedicated GPU".
+- **The adaptive FPS guard was measuring boot.** It samples only while the pump
+  renders continuously — which is exactly what the loader, asset streaming, shader
+  compilation and the first shadow/IBL bakes do, at the least representative
+  moment there is. That never mattered while everyone booted at Performance (no
+  tier to step down from); the moment the boot tier became capability-detected, the
+  guard walked it straight back down during warm-up and detection looked broken.
+  It is now deaf for 5 s after `sceneReady` (`shouldSampleFps`, pure + tested).
+- **Harness:** `SHOT_GPU=1` was a silent no-op on macOS — it passed ANGLE's
+  WSL/D3D12 `gl-egl` backend, which does not exist there, so every "real GPU"
+  check fell back to SwiftShader. The backend is now chosen from
+  `process.platform` (darwin → `metal`, win32 → `d3d11`, else `gl-egl`), with a
+  `SHOT_ANGLE` override. New `scripts/dev-probes/` measure the render instead of
+  eyeballing it: blank-frame rate with three's render counters, per-tier
+  exposure/contrast/clipping, and shadow-map contribution.
 ## v0.30.9.0 — chased the wall-reveal bands to ground: the cause is per-wall fade depth, not compositing
 
 No behaviour change ships here. The corner bands were investigated end-to-end on

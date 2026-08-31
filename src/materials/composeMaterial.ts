@@ -12,6 +12,7 @@
  * three / React / store imports).
  */
 
+import { PLASTER_UV_SCALE } from './builtinCatalog'
 import type {
   MaterialCategory,
   MaterialDef,
@@ -177,7 +178,8 @@ function scaledUv(uv: [number, number], scale: number): [number, number] {
 }
 
 /** A texture family the composer offers, with a sensible physical tile size
- *  (metres-per-tile) mirroring the curated builtin `uvScale` values. */
+ *  (metres-per-tile). Where a pattern has a canonical value in the catalog,
+ *  IMPORT it rather than restating the number here. */
 export interface ComposeTexture {
   pattern: ProceduralPattern
   label: string
@@ -186,7 +188,11 @@ export interface ComposeTexture {
 
 /** The curated texture palette, ordered for the composer dropdown. */
 export const COMPOSE_TEXTURES: ComposeTexture[] = [
-  { pattern: 'plaster', label: 'Plaster (paint)', uvScale: [2.5, 2.5] },
+  // Shares the catalog's plaster tiling rather than restating it — the two
+  // silently disagreed once already (PLASTER-STRETCH), and now that the plaster
+  // branch honours `def.uvScale` a stale copy here would put the old 2.5 m
+  // stretch back on every composed plaster finish.
+  { pattern: 'plaster', label: 'Plaster (paint)', uvScale: PLASTER_UV_SCALE },
   { pattern: 'wood', label: 'Wood planks', uvScale: [1.9, 1.2] },
   { pattern: 'vinyl', label: 'Vinyl strips', uvScale: [1.2, 1.08] },
   { pattern: 'parquet', label: 'Parquet', uvScale: [0.5, 0.5] },

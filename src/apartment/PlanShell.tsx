@@ -61,7 +61,8 @@ import {
 } from '../materials/materialRealism'
 import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
-import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
+import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
+import { useSunPosition } from '../scene/lighting/useSunPosition'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
@@ -1157,6 +1158,10 @@ function FadeWindow({
   const isClearGlass = !win.glass || win.glass === 'clear'
   const isGlassBlock = win.glass === 'glass-block'
   const glassParams = useMemo(() => windowGlassKindParams(win.glass), [win.glass])
+  // Held in a ref so `useFrame` calls no hook; `useSunPosition` is memoised.
+  const sunAltRef = useRef(0)
+  sunAltRef.current = useSunPosition().altitude
+
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -1164,7 +1169,10 @@ function FadeWindow({
     // Daylight-driven glass look (parity with the fixed apartment's Window): a
     // clear sky-lit pane by day → dark reflective at night, via an emissive
     // sky-catch (cheap, all tiers) + a day/night colour + opacity blend.
-    const d = getFixtureGlow() // 1 at night, 0 in daylight
+    // DAYLIGHT-GLASS: 1 at night, 0 in daylight — from the SUN, not the lamps
+    // (`getFixtureGlow()` is exactly `lightsMode === 'on'`). See
+    // `daylightFromAltitude`.
+    const d = 1 - daylightFromAltitude(sunAltRef.current)
     if (isClearGlass) {
       mat.color.lerpColors(dayColor, GLASS_NIGHT, d)
     } else {

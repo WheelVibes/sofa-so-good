@@ -500,6 +500,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  photographicFill: {
+    label: 'Photographic light balance',
+    description:
+      'Offer a Photographic look toggle — deepens shadows by reducing the flat ambient fill, so surfaces show their texture',
+    // The FLAG ships the control; the LOOK is `ui.photographicLook`, off by
+    // default. Overrides are ignored in a production build (`resolve.ts`), so a
+    // flag defaulting false would have made this unreachable for every real user.
+    default: true,
+    tier: 'simple',
+  },
   pbrSurfaces: {
     label: 'Realistic surfaces',
     description: 'Higher-fidelity procedural furniture textures (wood/painted/fabric)',
@@ -1299,14 +1309,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // Sun-driven procedural sky backdrop (RD-412, steps 1–5). An analytic Preetham
   // sky baked into the walk-mode `scene.background` equirect that tracks the sun
   // across the day (blue noon, warm low sun, dark night). Pure code, no external
-  // assets → prod-safe (default on). An advanced realism/atmosphere option beyond
-  // the curated static photo backdrops → pro tier (hidden in Simple mode). The
-  // IBL/lighting integration is deliberately out of scope here.
+  // assets → prod-safe (default on).
+  // **Simple tier since WINDOW-SKY-DEFAULT (v0.31.5.92)**, and the tier change is
+  // load-bearing rather than cosmetic: `backdrop` now DEFAULTS to `'sky'`, and a
+  // pro-tier flag is forced off in Simple — which is the app default — so leaving
+  // it pro would mean the default window view is a feature the default user can
+  // never receive. That is the exact trap `src/scene/CLAUDE.md` records twice
+  // (SKY-ANALYTIC-ORBIT's first attempt measured byte-identical for this reason):
+  // anything that changes the DEFAULT look must not sit behind a pro-tier flag.
+  // It is also not an analytical/professional tool — it is the view out of the
+  // window, i.e. core realism, the same argument that keeps the orbit surround
+  // dome ungated.
   proceduralSky: {
     label: 'Procedural sky',
     description: 'Sun-driven analytic sky as the walk-mode window view (tracks the time of day)',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Import a Sweet Home 3D `.sh3d` plan (PARITY-SH3D). Pure client-side parse
   // (unzip + XML → our plan model), no sidecar / licensing → prod-safe (default

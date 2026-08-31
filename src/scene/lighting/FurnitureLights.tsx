@@ -3,9 +3,13 @@ import { Object3D } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
+import { fixturesLevel } from '../look'
 import { useQuality } from '../useQuality'
+import { lightingFromAltitude } from './altitudeCurve'
+import { daylitRoomIds, fixtureSurvivesDaylight } from './daylitRooms'
 import { setFixtureGlow } from './fixtureGlow'
 import { aggregateFixtureLights, type FixtureLight, fixtureLightsFor } from './fixtureLights'
+import { useSunPosition } from './useSunPosition'
 
 /**
  * Drives real point lights from light-emitting furniture (lamps, pendants).
@@ -35,8 +39,27 @@ export function FurnitureLights() {
   const lightMoodRaw = useStore((s) => s.lightMood)
   const lightMood = moodEnabled ? lightMoodRaw : 'none'
 
-  // Binary all-on / all-off (the sun-following 'auto' mode was removed).
-  const level = lightsMode === 'on' ? 1 : 0
+  // Binary all-on / all-off (the sun-following 'auto' mode was removed), then
+  // PHOTO-FILL-VIEW: `lightsMode` stays the USER's setting and is never written
+  // here; `fixturesRender` decides whether THIS VIEW draws them. Off by default —
+  // with `photographicFill` off it is exactly `lightsMode === 'on'`.
+  const cameraMode = useStore((s) => s.cameraMode)
+  // Sun STRENGTH, not the night ramp — see `fixturesRender`.
+  const sunStrength = lightingFromAltitude(useSunPosition().altitude).sun
+  const photoFlag = useFeature('photographicFill')
+  const photoSetting = useStore((s) => s.photographicLook)
+  const photoFill = photoFlag && photoSetting
+  const level = fixturesLevel(lightsMode === 'on', cameraMode, sunStrength, photoFill)
+  // PHOTO-FILL-WINDOWLESS: the rule above is view-wide, but a room with no window
+  // gets nearly all its light from these fixtures — measured, the bathroom fell to
+  // mean 94.6 and the corridor put 31 % of its pixels below 64. So when the rule
+  // fires, fixtures in rooms daylight cannot reach are kept.
+  const plan = useStore((s) => s.floorPlan)
+  const keepWindowless = lightsMode === 'on' && level < 1
+  const daylit = useMemo(
+    () => (keepWindowless ? daylitRoomIds(plan) : null),
+    [keepWindowless, plan],
+  )
 
   // Shared "lights are on" factor the fixture primitives poll to glow their
   // emissive shades. It only changes with the switch, so it is written on
@@ -54,23 +77,36 @@ export function FurnitureLights() {
   // Nothing depends on the camera, so the set is a plain memo: it changes only
   // when the design, the mood, the IES flag or the tier does.
   const active = useMemo(() => {
-    if (level <= 0) return []
-    const lights = fixtureLightsFor(items, { lightMood, iesEnabled })
+    if (level <= 0 && !daylit) return []
+    let lights = fixtureLightsFor(items, { lightMood, iesEnabled })
+    if (daylit) {
+      // A windowless room keeps FULL fixture light; everywhere else fades with
+      // the sun. Encoded on the light so the two can coexist in one pass.
+      lights = lights
+        .map((l) => {
+          const keep = fixtureSurvivesDaylight(plan, daylit, l.position[0], l.position[2])
+          const k = keep ? 1 : level
+          return k > 0 ? { ...l, moodMultiplier: l.moodMultiplier * k } : null
+        })
+        .filter((l): l is (typeof lights)[number] => l !== null)
+    } else if (level < 1) {
+      lights = lights.map((l) => ({ ...l, moodMultiplier: l.moodMultiplier * level }))
+    }
     return mergeLights ? aggregateFixtureLights(lights) : lights
-  }, [level, items, lightMood, iesEnabled, mergeLights])
+  }, [level, daylit, plan, items, lightMood, iesEnabled, mergeLights])
 
   if (active.length === 0) return null
   return (
     <>
       {active.map((l) =>
         l.spot ? (
-          <IesSpotLight key={l.id} light={l} level={level} />
+          <IesSpotLight key={l.id} light={l} level={1} />
         ) : (
           <pointLight
             key={l.id}
             position={l.position}
             color={l.color}
-            intensity={l.baseIntensity * level * l.moodMultiplier}
+            intensity={l.baseIntensity * l.moodMultiplier}
             distance={l.distance}
             decay={2}
           />

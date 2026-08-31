@@ -1,7 +1,7 @@
 {
   "name": "sofa-so-good",
   "private": true,
-  "version": "0.30.8",
+  "version": "0.31.5",
   "type": "module",
   "main": "electron/main.mjs",
   "engines": {
@@ -64,6 +64,7 @@
     "idb-keyval": "^6.2.4",
     "ktx-parse": "^1.1.0",
     "ktx2-encoder": "^0.5.3",
+    "postprocessing": "^6.39.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "suncalc": "^1.9.0",

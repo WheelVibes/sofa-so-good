@@ -19,15 +19,44 @@ const EffectsImpl = lazyWithRetry(() => import('./EffectsImpl'))
  * non-zero aperture (`dofFStop`). Focus is the shared metres value
  * (`dofFocusDistance`); a lower f-stop → a larger bokeh + tighter focus range.
  */
+/**
+ * WALL-NO-COMPOSER invariant (v0.31.5.67), as a pure decision so it can be
+ * tested without rendering: **a composer mounts for EVERY tier.** Returning
+ * `null` here is what broke `performance` — see the comment in {@link Effects}.
+ * `full` and `ao` only decide WHICH passes it carries, never whether it exists.
+ */
+export function composerPlan(q: { postprocessing: boolean; ao: boolean }): {
+  mount: true
+  full: boolean
+  ao: boolean
+} {
+  return { mount: true, full: q.postprocessing, ao: q.ao }
+}
+
 export function Effects() {
-  const { postprocessing, aoFullRes, cinematic, dof } = useQuality()
+  const { postprocessing, ao, aoFullRes, cinematic, dof } = useQuality()
   const dofFStop = useStore((s) => s.dofFStop)
   const dofFocusDistance = useStore((s) => s.dofFocusDistance)
-  if (!postprocessing) return null
+  //
+  // WALL-NO-COMPOSER (v0.31.5.67): this used to `return null` when neither the
+  // full stack nor AO was wanted, which made `performance` the only tier that
+  // rasterised straight into the canvas' DEFAULT framebuffer. That framebuffer
+  // is created with `preserveDrawingBuffer: true` (`Scene.tsx`, for the in-app
+  // PNG/video capture), and in that combination interior WALL FACES are not
+  // drawn at all — measured across headless-metal, headless-gl and a real
+  // browser window. Mounting even a minimal composer moves the scene into an
+  // offscreen target and the walls come back.
+  //
+  // The minimal composer is not empty: under a composer three does NOT apply
+  // `gl.toneMapping` (see `toneMappingPost.ts`), so it must still carry the view
+  // transform or the tier would render raw linear HDR. `ao={false}` keeps N8AO
+  // off, which is the whole point of this tier.
   const dofEnabled = dof && isFeatureEnabled('cameraDof') && dofFStop > 0
   return (
     <Suspense fallback={null}>
       <EffectsImpl
+        ao={ao}
+        full={postprocessing}
         aoFullRes={aoFullRes}
         cinematic={cinematic}
         dof={dofEnabled}

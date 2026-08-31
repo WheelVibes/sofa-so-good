@@ -124,9 +124,11 @@ export async function runBootstrap(): Promise<void> {
       const s = useStore.getState()
       if (s.items.length === 0) {
         s.resetToDefault()
-        // A fresh flat seeded after dark is invisible under `timeMode: 'system'`,
-        // so pin the very first paint to daylight. No-op in the daytime and for
-        // any hydrated design (this branch only runs on a fresh seed).
+        // Switch the interior lights on for the very first paint, at any hour —
+        // after dark a fresh flat is otherwise invisible under
+        // `timeMode: 'system'`, and in daylight the fixtures still measure
+        // 2.3-2.5x better (DEFAULT-GLOOM). No-op for any hydrated design (this
+        // branch only runs on a fresh seed) or once the user has a preference.
         ensureDaylightFirstPaint()
       }
       useStore.getState().clearHistory()

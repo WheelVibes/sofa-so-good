@@ -25,7 +25,8 @@ import {
   windowGlassPhysical,
   windowTransmission,
 } from '../materials/materialRealism'
-import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
+import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
+import { useSunPosition } from '../scene/lighting/useSunPosition'
 import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
@@ -117,13 +118,22 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   // Fade the whole window (frame, grille, sill + glass) WITH its host wall during
   // the orbit dollhouse reveal — otherwise an opaque frame/grille floats in a
   // translucent wall. Glass also tints by daylight (clear by day → dark at night).
+  // Read once per render and held in a ref: `useFrame` must not call a hook, and
+  // `useSunPosition` is memoised per (minute, location) so this is not a cost.
+  const sunAltRef = useRef(0)
+  sunAltRef.current = useSunPosition().altitude
+
   useFrame(() => {
     const g = groupRef.current
     if (!g) return
     const wallOp = getWallOpacity(spec.wallId)
     g.visible = wallOp > 0.02
     if (!g.visible) return
-    const d = getFixtureGlow() // 1 at night, 0 in daylight
+    // DAYLIGHT-GLASS: 1 at night, 0 in daylight — from the SUN, not the lamps.
+    // This used to read `getFixtureGlow()`, which is exactly `lightsMode === 'on'`,
+    // so the glass went to its night look at midday for every new visitor (the
+    // lamps are on by default at every hour). See `daylightFromAltitude`.
+    const d = 1 - daylightFromAltitude(sunAltRef.current)
     const glass = glassRef.current
     // Cheap tiers tell the day/night story with opacity (more opaque at night);
     // transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade

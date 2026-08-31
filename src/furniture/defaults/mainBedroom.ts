@@ -28,31 +28,37 @@ export const mainBedroom: LayoutEntry[] = [
     props: { width: 1.4, doorStyle: 'sliding' },
   },
   // Matching nightstands flanking the bed head against the north wall.
+  // Pulled OUTBOARD to x 0.475 / 2.925 so they clear the curtain's x span
+  // (CURTAIN-NIGHTSTAND, v0.31.5.87). The curtain hangs at z 0.48-0.58 and the
+  // north interior wall is at z 0.20, so a 0.40-deep nightstand against that wall
+  // always reaches z >= 0.60 — there is NO z placement that avoids the panel, which
+  // is why `.61` found the only z fix was 0.33 m out into the room. The clearance
+  // is therefore taken in x instead, paired with the narrower curtain below.
   {
     id: 'default-main-nightstand-l',
     defId: 'nightstand',
-    position: [0.67, 0.45],
+    position: [0.475, 0.45],
     rotation: 0,
     props: {},
   },
   {
     id: 'default-main-nightstand',
     defId: 'nightstand',
-    position: [2.73, 0.45],
+    position: [2.925, 0.45],
     rotation: 0,
     props: {},
   },
   {
     id: 'default-main-tablelamp-l',
     defId: 'table-lamp',
-    position: [0.67, 0.45],
+    position: [0.475, 0.45],
     rotation: 0,
     props: { surfaceHeight: 0.52 },
   },
   {
     id: 'default-main-tablelamp',
     defId: 'table-lamp',
-    position: [2.73, 0.45],
+    position: [2.925, 0.45],
     rotation: 0,
     props: { surfaceHeight: 0.52 },
   },
@@ -74,11 +80,20 @@ export const mainBedroom: LayoutEntry[] = [
   },
   {
     // North window — glass x=[0.8,2.6], sill 0.95 (the room's only window).
+    // Width 1.9 (x 0.75-2.65), not 2.2: at 2.2 the panel spanned x 0.6-2.8 and
+    // overhung both nightstands, cutting a notch out of the lamp shades. 1.9 still
+    // covers the glass with ~0.05 of overhang each side (CURTAIN-NIGHTSTAND).
     id: 'default-main-curtain',
     defId: 'curtains',
     position: [1.7, 0.28],
     rotation: 0,
-    props: { width: 2.2, height: 2.55, color: '#c8bca8', standoff: CURTAIN_SILL_STANDOFF },
+    props: {
+      width: 1.9,
+      height: 2.55,
+      color: '#c8bca8',
+      standoff: CURTAIN_SILL_STANDOFF,
+      drawAmount: 0,
+    },
   },
   // Reading sconces flanking the bed on the north wall.
   {
@@ -100,7 +115,7 @@ export const mainBedroom: LayoutEntry[] = [
   {
     id: 'default-main-decor-plant',
     defId: 'desk-plant',
-    position: [2.73, 0.45],
+    position: [2.925, 0.45],
     rotation: 0,
     props: { surfaceHeight: 0.52, type: 'succulent', potColor: '#c49a72', leafColor: '#4a8a54' },
   },

@@ -4,25 +4,235 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Interior walls dropped at `performance` — ✅ FIXED (WALL-NO-COMPOSER, v0.31.5.67)
+
+**Resolved 2026-08-29.** `Effects.tsx` no longer returns `null`: a composer mounts at every tier,
+with `ao={false}` keeping `N8AO` off at `performance`. Discriminator `mainBedroom` yaw 2:
+**150.7 -> 113.8** at `performance`, `medium` unchanged at 112.6. Capture still returns a real
+image (1.45 MB / 100% non-black). Priced at `performance`: p50 4.1 ms / p90 4.4 ms / 59.9 fps
+before AND after. Full write-up in `src/scene/CLAUDE.md`; `composerPlan()` pins the invariant.
+
+## RETRACTED: `.75` FIRST-PAINT-ORBIT was an instrument artefact (v0.31.5.76)
+
+**`.75` claimed the after-dark first paint is "89% near-black" and that
+`ensureDaylightFirstPaint` "does not achieve" its stated goal. Both claims are WRONG. The guard
+works. There is no defect here, and this is no longer an open item.**
+
+**What the metric actually measured.** `.75` took the mean and near-black fraction over everything
+OUTSIDE the modal card and toolbar. At 22:00 that region is dominated by the empty night background
+around the dollhouse — correctly black at 10 pm. Worse, the card exclusion (x 20–43, y 9–30 of a
+64x40 grid) removes the CENTRE of the frame, which in an unobstructed shot is exactly where the
+flat is. So the figure measured the void and masked out the subject.
+
+**Re-measured over the dollhouse region, no card exclusion:**
+
+| wall clock | mid-tour | unobstructed |
+| --- | --- | --- |
+| 13:00 | mean 127.2, 0.0% near-black | mean 142.3, 0.0% near-black |
+| 22:00 | mean **91.9**, 39.2% | mean **84.4**, 39.0% |
+
+and the remaining near-black fraction is still mostly the background inside a rectangular sample of
+a non-rectangular model.
+
+**The frame settles it** (meta-rule v). `/tmp/fr-seq/22-4-unobstructed.png` shows a warmly lit,
+fully legible dollhouse at 22:00 — kitchen, living room with the TV and floor lamp glowing,
+bedrooms, the whole plan readable — against a black night background. That is precisely the
+outcome `firstPaintDaylight.ts` was written to produce, and it produces it.
+
+**What `.75` got right, and should be kept:** the first-run path had never been swept, `first-run.mjs`
+is a genuinely new instrument, and the sequence sweep established two useful facts —
+**`cameraMode` stays `orbit` through all 9 tour steps** (the tour never moves the camera, so the
+`.56`–`.70` verdicts are not undermined by it), and the tour steps are UI-anchored tooltips rather
+than camera moves.
+
+**Lesson recorded in the playbook:** a region mask built to exclude chrome can exclude the SUBJECT.
+Before quoting a masked statistic, render the mask and confirm it contains the thing being judged.
+
+## `lightsMode` at boot — EXPLAINED, and it is a deliberate feature (v0.31.5.74)
+
+**RETRACTION of `.73`'s framing.** `.73` called this "a regression of a shipped product decision —
+the app is still doing the thing that was removed for being surprising". **That is wrong.** The
+mechanism is `src/state/storage/firstPaintDaylight.ts` — `ensureDaylightFirstPaint()` — which is
+deliberate, documented, unit-tested, and was added AFTER the `'auto'` removal, not in spite of it.
+
+```
+DAYLIGHT_START = 8, DAYLIGHT_END = 18
+ensureDaylightFirstPaint(now = new Date()):
+  if timeMode !== 'system'   -> no-op   (never overrides a real preference)
+  if lightsMode !== 'off'    -> no-op
+  if isDaylightHour(now)     -> no-op
+  else setLightsMode('on')
+```
+
+Its own header explains the reasoning: `timeMode` defaults to `'system'`, so a brand-new visitor
+opening the app after dark was shown a **pitch-black flat** — the move-in demo seeds 87 items and
+every one is invisible, through onboarding, the whole 9-step tour and the location prompt (Chrome
+audit 2026-08, boot at 20:00). It also records that overriding the CLOCK was tried first and
+rejected, because it silently disagreed with the time shown in the Scene panel.
+
+**The two are different behaviours.** The removed `'auto'` mode was CONTINUOUS follow-the-sun —
+lights turning themselves on and off as time passed, which users found surprising. This is a
+ONE-SHOT first-paint guard, fresh seed only, both settings still untouched. `.73` conflated them.
+
+**Every observation now fits exactly**, including the one that looked like noise: `DAYLIGHT_END` is
+18, so `.68` at 17:40 local was still inside daylight and read `off`.
+
+| round | local time | daylight window? | `lightsMode` |
+| --- | --- | --- | --- |
+| `.54` | 10:04 | yes | `off` |
+| `.62` | 14:20 | yes | `off` |
+| `.68` | 17:40 | yes (just) | `off` |
+| `.72` | 20:00 | no | `on` |
+| `.73`/`.74` | 20:30+ | no | `on` |
+
+**The falsifying arm passed** (meta-rule lxii): booting at 13:00 vs 22:00 and diffing the WHOLE
+store, only **2 of 133 scalars** differ — `lastSavedAt` (the faked clock) and `lightsMode`. Same 87
+items, no onboarding/callout/seed flag differs. So the clock is not selecting a different startup
+path; the lights are the effect, not a symptom.
+
+**What this means for open item (a) DEFAULT-GLOOM — it is now a much sharper question.** Outside
+08:00–18:00 the app ALREADY does what `.54` proposed, and `firstPaintDaylight.ts` records the
+measured opinion that a night render with lights on "is not just legible, it is the more inviting
+first impression of the two". So the open decision is precisely: **should the first-paint guard
+also apply during daylight hours?** That is a one-line change (`isDaylightHour` → always) with an
+existing precedent, an existing test file, and `.54`'s 2.3–2.5x measurement as the daytime payoff.
+Still the user's call — but it is no longer "change a default", it is "extend a guard that already
+exists".
+
+**RESOLVED — the user chose to extend it, SHIPPED in v0.31.5.86.** `ensureDaylightFirstPaint` now
+fires at every hour; the `isDaylightHour` gate and the `DAYLIGHT_START`/`DAYLIGHT_END` constants are
+gone (they had no other consumer). Verified by A/B at a faked SYSTEM clock: `lights-boot
+FAKE_HOUR=13` reads `lightsMode=off` on the old guard and `on` on the new one, while `FAKE_HOUR=21`
+stays `on` — so the daytime case flipped and the night case is untouched. Both preference guards
+(`timeMode !== 'system'`, `lightsMode !== 'off'`) are unchanged, so a user who has ever expressed a
+preference is still never overridden.
+
+## Curtain cuts through the bedside lamps — RESOLVED as content (v0.31.5.61 -> v0.31.5.87)
+
+**FIXED in v0.31.5.87, on the user's decision.** Taken in **x**, because the arithmetic says there
+is no z solution: the curtain panel hangs at z 0.48-0.58 and the room's north interior wall is at
+z 0.20, so a 0.40-deep nightstand against that wall always reaches z >= 0.60. Nor was there an x
+solution at the old curtain width — 2.2 m spanned x 0.6-2.8, while the west wall forces the left
+nightstand's centre to x >= 0.425 (max x >= 0.65). So BOTH had to move: the curtain narrowed
+2.2 -> 1.9 (x 0.75-2.65, still overhanging the 0.8-2.6 glass on both sides) and the nightstands,
+lamps and desk plant went outboard to x 0.475 / 2.925. Pinned by `defaults/mainBedroom.test.ts`,
+which fails 4 of its 9 assertions on the old geometry. The original diagnosis is kept below.
+
+### Original diagnosis (v0.31.5.61)
+
+**Mechanism settled. The remaining question is a design choice, not a rendering one, so it is
+listed with the other open product items rather than fixed unilaterally.**
+
+Both `mainBedroom` bedside lamp shades render with a clean V-notch bitten out of the top edge,
+curtain visible through the bite, at 13:00 and at 22:00 alike.
+
+**Hypothesis A (transparency sort) is REFUTED.** Measured on the drawn materials, both the lamp
+shade and the curtain are `transparent=false, opacity=1, depthWrite=true, depthTest=true,
+renderOrder=0`. No transparency sorting is involved anywhere. This is not a render bug, and there
+is nothing else in the flat sorting wrongly against the curtains.
+
+**Hypothesis B (geometry) is CONFIRMED, with coordinates.** They simply interpenetrate:
+
+| | world z span |
+| --- | --- |
+| lamp shade (`#f0e4c4`, 0.30 x 0.16 x 0.30, `side=2`) | **0.30 – 0.60** |
+| curtain panel (`#c8bca8`, 0.10 deep) | **0.48 – 0.58** |
+
+The curtain plane passes straight through the shade; the "notch" is an ordinary intersection,
+correctly rendered. `side=2` (DoubleSide) is why the shade's inside is visible through the cut.
+`defaults/mainBedroom.ts` puts the nightstands at `[0.67, 0.45]` / `[2.73, 0.45]` and the 2.2 m
+curtain at `[1.7, 0.28]`, spanning x 0.6–2.8 — so both nightstands sit **under** the curtain.
+
+**`CURTAIN_SILL_STANDOFF` is NOT the lever (meta-rule xvii-b).** Its 0.2 is derived in
+`placement/windowSnap.ts`: the sill ledge projects ~0.14 past the centre-line and the fullest folds
+dig 0.09 back, so `standoff >= 0.14 + 0.09 - 0.05`; 0.20 leaves 0.02 of margin, and the previous
+0.16 read as the curtain embedded in the wall. Reducing it re-introduces a fixed bug.
+
+**Three candidate fixes, all measured, none clean:**
+1. **`length: 'sill'`** (a mode the `Curtain` primitive already supports). Hem lands at
+   `sillY - 0.1 = 0.85` against a shade whose top is at **0.92** — reduces the overlap to 0.07 m
+   but does NOT eliminate it, and restyles the room's only window.
+2. **Move the nightstands out.** For a 0.30 m shade to clear a curtain ending at z 0.58 the
+   nightstand centre needs z >= ~0.73, i.e. a 0.4 m nightstand standing 0.33 m off the wall. Looks
+   wrong.
+3. **Narrow the curtain to the glass** (x 0.8–2.6 instead of 0.6–2.8). The left nightstand spans
+   x ~0.42–0.92, so it still overlaps. `CURTAIN_OVERHANG` is also deliberate (covers the window).
+
+**Recommendation if the user wants it fixed:** (1) plus dropping the lamp a little, or accept that
+a bedside table under a floor-length curtain is what the layout asks for. Note `bedroom2` has the
+same arrangement 0.15 m further out and is only marginally better — this is not a `mainBedroom`
+outlier.
+
+## Wall mottle — the flat's largest surface — ✅ FIXED (PLASTER-STRETCH, v0.31.5.56)
+
+**Resolved 2026-08-29.** The mottle was the orange-peel plaster normal stretched over 2.5 m;
+`PLASTER_UV_SCALE` is now 0.6 and `generators.ts` no longer carries a second hardcoded copy of
+the number. Microcontrast 0.442 -> 0.961 at the shipped state. Full write-up in
+`src/materials/CLAUDE.md`. The candidate list below is kept because two of its three guesses were
+WRONG and the reasoning is worth not repeating:
+
+
+**Not yet diagnosed; recorded so the next round starts from evidence rather than from a hunch.**
+The `.55` coverage re-run established that walls are **~45% of the walk view**, and the biggest
+single class (`#f5f5f0`, ~31.5%, `normalMap + roughnessMap`, **no albedo `map`**) does not read
+as painted plaster in the frames. Cropped in on `livingDining` from
+`/tmp/surface-coverage/livingDining.png`, it shows broad soft grey blotches at roughly a
+20–40 cm scale — closer to damp-stained concrete or stucco than to interior paint, which should
+be near-flat with only a fine orange-peel grain.
+
+This is the highest-coverage surface in the flat, so by meta-rule (viii) it outranks anything
+else currently open. Candidate mechanisms, all falsifiable and none yet tested:
+
+- the wall normal map's world-scale `repeat` is too low, so its noise octaves land at
+  decimetre scale instead of millimetre;
+- the drawn map is a stale low-res bake (PERF-C's 64² preview never swapped for this class) —
+  `stale-gen.mjs` / `bath-tile-size.mjs` label textures by uuid against the cache's own builds
+  and would settle it;
+- the mottle is authored into the ROUGHNESS map and only reads as albedo variation under the
+  current lighting.
+
+Measure before changing anything: `surface-detail.mjs` with a `POINT` on the wall reports
+microcontrast, which is the only metric here that can see a high-frequency vs low-frequency
+difference. Note that `wall-detail.mjs` already swept what each wall CHANNEL is worth
+(normalScale x6, normal removed, albedo mottle added) — check its recorded result before
+proposing a channel change (meta-rule xvii-b).
+
 ## Wall reveal (v0.30.9.0, 2026-08-28)
-- [ ] **Adjacent walls settle at DIFFERENT fade opacities, so a joint shows a hard step.**
-  This is the "different opacity bands at joints/corners" report, and it is NOT a compositing
-  bug — the earlier double-composite theory was measured and disproved. Each wall's fade depth
-  comes from its OWN facing angle (`wallRevealMath.ts:revealStrength`), so two walls meeting at
-  a corner have different orientations, settle at different opacities, and step where they meet.
-  Each band is uniform across a whole wall's width, which is why they read as wide vertical
-  strips rather than hairlines.
-  Evidence that ruled out the alternative: single-layer transparency via stencil was implemented
-  end-to-end (attachment on the Canvas, `clearPass.stencil` on the composer's `RenderPass`,
-  distance-keyed `renderOrder` so the NEAR wall wins) and pixel-diffed on a real GPU — it changed
-  **94 pixels** of a 1400x900 frame. Real, but a hairline, not the bands. The machinery was
-  removed as not worth its complexity; the isolated proof that the mechanism itself works (two
-  50% quads: 128/191 without a stencil, 128/128 with) is in the v0.30.9.0 changelog entry.
-  The lever to look at is `cornerSpreadStrength` — it already exists to pull a wall's neighbour
-  along when one fades, but it is CAPPED at the leader's own strength and gated by a smooth
-  ramp, so a step survives. Softening the discontinuity means either raising/removing that cap
-  at shared corners specifically, or blending each wall's strength toward its corner
-  neighbours' before the opacity is applied.
+- [ ] **The default orbit pose parks every near wall at a MILKY 0.371 — the curve's head-on
+  floor is unreachable from the boot camera.** (Re-framed again in v0.31.5.53; the "hard step at
+  joints" framing is now closed as WON'T-FIX, see below. What remains is a design-parameter
+  question, not a bug, and it needs a product decision rather than a patch.)
+  **Measured** (`scripts/dev-probes/reveal-step.mjs`, default boot framing): `WALL-REVEAL-STRENGTH`
+  defaults to 0.95, which the docs describe as a head-on opacity FLOOR of `1 - fade` = **0.05** —
+  a near wall head-on is meant to be barely an outline. But `revealStrength` is
+  `smoothstep(0.25, 1, toward)` and `toward` only reaches 1 when a wall faces the camera dead-on.
+  The dollhouse boot pose looks down a 45-degree diagonal (camera forward XZ `[-0.64, -0.64]`), so
+  **every** visible facade sits at `toward` = 0.707 → strength 0.662 → opacity **0.371**, and
+  none of them ever approaches the floor unless the user orbits to put a wall head-on.
+  0.371 is exactly the "washed mid-band" that the retired binary target was introduced to prevent
+  — it was fixed for FAR walls (structurally, via the orientation check) and reappears on NEAR
+  walls as a consequence of the default camera angle. Cropped frames show it plainly: the kitchen
+  and dining furniture read through a milky sheet.
+  · **Whoever picks this up is choosing between two defensible looks**, so measure, do not tune:
+    a deeper default fade makes the cutaway cleaner but pushes near walls toward invisible, and
+    the current value is what `wallRevealStrength` exposes to the user anyway. Judge on frames at
+    the BOOT pose, not head-on.
+  · **CLOSED as WON'T-FIX: "ease the faded wall toward its opaque neighbour near the shared
+    corner."** Two independent reasons, both measured/read rather than argued.
+    (a) **The architecture cannot express it.** Opacity is a single scalar per material —
+    `useWallReveal.ts` and `WallSegment.tsx` both assign `material.opacity = cur` for the whole
+    mesh — so a gradient across a wall's width needs either split geometry (which reintroduces
+    the multi-layer compositing WALL-FADE-OVERLAY-CULL exists to remove) or an `onBeforeCompile`
+    alpha patch that would then have to survive the fade CLONE (meta-rule xli), the overlay cull,
+    WALL-FADE-DEPTHWRITE and the composer. That is disproportionate to a boundary artefact.
+    (b) **The gradient would have to act where the design forbids it.** What steps is a faded wall
+    against a STRUCTURALLY OPAQUE far wall (the two faded walls at a corner already match exactly
+    — 10 of 44 corners step by precisely 0.629, and every faded wall reads 0.371). Easing across
+    that boundary means fading the far wall near the corner, which is the washed-pane failure the
+    far-wall rule exists to prevent. `cornerSpreadStrength`, which the original entry nominated,
+    cannot help for the same reason.
+    So the step is the CUTAWAY BOUNDARY, not a compositing fault — a dollhouse view with an open
+    top has to end somewhere.
 
 ## Showroom finishes (v0.26.0.0, 2026-08-19)
 - [ ] **Showroom picks for furniture `mat:` finishes.** A resolved showroom finish already works
@@ -944,3 +1154,16 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
   in `CHANGELOG.md`).
+
+## Main-bedroom sconces float over the window glass (v0.31.5.232)
+
+`light-distribution.mjs WINDOW=mainBedroom` puts the camera on the bed axis, and the frame shows the
+bed's headboard against the **window** wall with two wall sconces mounted **on the glass**. Real rooms
+never do this, so it reads as a render bug even though the render is correct — it is a placement result.
+
+`docs/interior-design-guidelines.md` already says storage/appliances/beds go flush to walls and TVs to
+windowless walls; the same windowless-wall preference plainly ought to apply to a **headboard**, and
+wall-mounted lighting should refuse a wall opening outright. Fix belongs in
+`layout/designRules.ts` + `layout/autoArrange.ts`, not in the look.
+
+Not touched in `.232`, which was a measurement round.

@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { getScreenContent } from './screenContent'
 import { readNum, readStr } from './shared'
 
@@ -20,20 +21,28 @@ export function Monitor({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Base */}
-      <mesh castShadow receiveShadow position={[0, deskH + 0.008, 0.02]}>
-        <boxGeometry args={[0.22, 0.016, 0.16]} />
+      <BeveledBox
+        args={[0.22, 0.016, 0.16]}
+        bevel={0.003}
+        castShadow
+        receiveShadow
+        position={[0, deskH + 0.008, 0.02]}
+      >
         <meshStandardMaterial color="#26282d" roughness={0.5} metalness={0.4} />
-      </mesh>
+      </BeveledBox>
       {/* Stem */}
-      <mesh castShadow position={[0, deskH + 0.06, -0.02]}>
-        <boxGeometry args={[0.04, 0.12, 0.03]} />
+      <BeveledBox
+        args={[0.04, 0.12, 0.03]}
+        bevel={0.003}
+        castShadow
+        position={[0, deskH + 0.06, -0.02]}
+      >
         <meshStandardMaterial color="#26282d" roughness={0.5} metalness={0.4} />
-      </mesh>
+      </BeveledBox>
       {/* Bezel */}
-      <mesh castShadow position={[0, panelY, 0]}>
-        <boxGeometry args={[w, h, 0.03]} />
+      <BeveledBox args={[w, h, 0.03]} bevel={0.003} castShadow position={[0, panelY, 0]}>
         <meshStandardMaterial color="#15171b" roughness={0.5} metalness={0.3} />
-      </mesh>
+      </BeveledBox>
       {/* Screen — dark when off, lit wallpaper that self-illuminates when on.
           Flush in the bezel by design (coplanar overlay) → depthWrite off so it
           draws in front without z-fighting the bezel at grazing angles. */}

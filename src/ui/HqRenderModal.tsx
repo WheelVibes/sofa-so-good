@@ -10,6 +10,7 @@ import { isHqBlankRenderError } from '../scene/pathtrace/hqBlankProbe'
 import { hqEnvironmentUrl } from '../scene/pathtrace/hqEnvironment'
 import type { HqRenderSession } from '../scene/pathtrace/hqRenderSession'
 import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
+import { resolveToneMapping } from '../scene/toneContext'
 import { useStore } from '../state/store'
 import { Button } from './controls/Button'
 import { Select } from './controls/Select'
@@ -64,6 +65,10 @@ export function HqRenderModal() {
   // flag + selection as the real-time IBL; null keeps the gradient fallback.
   const hdriOn = useFeature('hdriEnvironment')
   const hdriId = useStore((s) => s.hdriId)
+  // HQ-TONE-MATCH: the still must use the operator the user is actually looking
+  // through. An explicit pick wins; 'auto' resolves to the app's photo-mode
+  // policy (AgX) via the same pure function `Lighting` uses.
+  const toneSetting = useStore((s) => s.toneMapping)
 
   // Lens + DoF live in the store (shared with the raster pass + persisted).
   const lensFocalMm = useStore((s) => s.lensFocalMm)
@@ -151,6 +156,11 @@ export function HqRenderModal() {
         height: res.h,
         maxSamples,
         fStop: dofFStop || undefined,
+        toneMapping: resolveToneMapping(toneSetting, { photoMode: true, finishPreview: false }),
+        // The LIVE graded exposure — `Lighting` rewrites it every frame from the
+        // day/night curve plus the user's setting, so a still fixed at 1 would
+        // render night too bright and midday slightly dark.
+        exposure: src.gl.toneMappingExposure,
         aiDenoise,
         hdriUrl: hqEnvironmentUrl(hdriOn, hdriId) ?? undefined,
         // Lens + manual focus only when the pro lens controls are enabled.
@@ -198,6 +208,7 @@ export function HqRenderModal() {
     dofFocusDistance,
     teardown,
     finalize,
+    toneSetting,
   ])
 
   const download = () => {

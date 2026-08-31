@@ -50,6 +50,9 @@ function useActivePresetId(): string {
 export function SceneMenu() {
   const orientationDeg = useStore((s) => s.orientationDeg)
   const lightsMode = useStore((s) => s.lightsMode)
+  const fPhotoFill = useFeature('photographicFill')
+  const photographicLook = useStore((s) => s.photographicLook)
+  const setPhotographicLook = useStore((s) => s.setPhotographicLook)
   const setLightsMode = useStore((s) => s.setLightsMode)
   const backdrop = useStore((s) => s.backdrop)
   const setBackdrop = useStore((s) => s.setBackdrop)
@@ -97,6 +100,28 @@ export function SceneMenu() {
             className={`switch${lightsMode === 'on' ? ' on' : ''}`}
           />
         </div>
+
+        {/* ---- Photographic look (PHOTO-FILL): deepens shadows by cutting the
+            flat ambient fill and, at midday in walk mode, the fixtures that a
+            real room would not have burning. Off by default — see DEFAULT-GLOOM. */}
+        {fPhotoFill && (
+          <div className="scene-row-head" onClick={(e) => e.stopPropagation()}>
+            <span>Photographic</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={photographicLook}
+              aria-label="Photographic look"
+              title={
+                photographicLook
+                  ? 'Photographic light balance on — deeper shadows'
+                  : 'Photographic light balance off'
+              }
+              onClick={() => setPhotographicLook(!photographicLook)}
+              className={`switch${photographicLook ? ' on' : ''}`}
+            />
+          </div>
+        )}
 
         {/* ---- Lighting mood presets (UX round-3 #3): one-tap brightness +
             colour-temperature adjustment layered on top of Lights above ---- */}

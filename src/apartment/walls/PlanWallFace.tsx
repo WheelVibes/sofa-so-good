@@ -20,7 +20,7 @@
  * the shared cached finish material rather than mutating it.
  */
 
-import { Suspense, useEffect, useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import type { Material, Mesh, MeshStandardMaterial } from 'three'
 import type { WallBox } from '../../floorplan/planGeometry'
 import { resolvePlanRoomWall } from '../../floorplan/roomFinishes'
@@ -43,6 +43,7 @@ import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { useStore } from '../../state/store'
+import { useWallFaceMaterial } from './useWallFaceMaterial'
 import { useWallTexTransform } from './wallTexTransform'
 
 /** Lift the face off the box so it wins the depth test (matches `WallSegment`). */
@@ -85,16 +86,8 @@ function FaceMesh({ box, side, roomId, material }: FaceProps & { material: MeshS
   )
   // Geometry passed via `geometry=` isn't R3F-owned — dispose it ourselves.
   useDisposeGeometry(geometry)
-  // Clone so the reveal fade can animate THIS face's opacity without touching
-  // the shared cached finish material every other surface renders with.
-  const faded = useMemo(() => {
-    const m = material.clone()
-    m.polygonOffset = true
-    m.polygonOffsetFactor = -1
-    m.polygonOffsetUnits = -1
-    return m
-  }, [material])
-  useEffect(() => () => faded.dispose(), [faded])
+  // Per-face clone + depth bias + PERF-C swap tracking, shared with WallSegment.
+  const faded = useWallFaceMaterial(material)
   return (
     <mesh
       position={[side * (box.thickness / 2 + FACE_OFFSET), 0, 0]}

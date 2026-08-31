@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { metalLeg, readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -38,22 +39,31 @@ export function BarStool({ props }: { props: ParamProps }) {
     return (
       <group>
         {[-px, px].map((x) => (
-          <mesh key={x} castShadow receiveShadow position={[x, topH / 2, 0]} material={seatMat}>
-            <boxGeometry args={[panelT, topH, d]} />
-          </mesh>
+          <BeveledBox
+            key={x}
+            args={[panelT, topH, d]}
+            bevel={0.003}
+            castShadow
+            receiveShadow
+            position={[x, topH / 2, 0]}
+            material={seatMat}
+          />
         ))}
-        {/* Top tread */}
-        <mesh castShadow receiveShadow position={[0, topH - treadT / 2, 0]} material={seatMat}>
-          <boxGeometry args={[w, treadT, d]} />
-        </mesh>
+        {/* Top tread — the surface a foot lands on, so it gets the full chamfer */}
+        <BeveledBox
+          args={[w, treadT, d]}
+          castShadow
+          receiveShadow
+          position={[0, topH - treadT / 2, 0]}
+          material={seatMat}
+        />
         {/* Lower step tread (front) */}
-        <mesh
+        <BeveledBox
+          args={[w, treadT, d * 0.55]}
           castShadow
           position={[0, stepH - treadT / 2, d / 2 - (d * 0.55) / 2]}
           material={seatMat}
-        >
-          <boxGeometry args={[w, treadT, d * 0.55]} />
-        </mesh>
+        />
       </group>
     )
   }
