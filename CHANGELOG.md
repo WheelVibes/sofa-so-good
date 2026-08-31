@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.239 — every target in this arc was calibrated at ONE tier, and they do not hold across the others
+
+"Parity of the whole app" prompted a visual sweep of the photographic look at both extreme tiers —
+`walk-tour PHOTO=1` at `performance` and `maximum`, 44 frames each. **Both are artifact-free**: no black
+quads, no dropped walls, no missing geometry. The black-quad failure `.224`/`.225` saw for AO in the
+ORBIT camera does not appear in walk at either tier.
+
+But over the 44 shared poses, `performance` means **155.7** and `maximum` **138.6** — a **−17.1** shift,
+up to **−43.7** on one frame. Deliberate (tier-gated effects), but it raises a question this arc never
+asked: **every reference band here was calibrated at `medium`.** So the canonical probe was run at all
+four tiers, identical pose and hour:
+
+| | performance | medium | high | maximum | reference |
+| --- | --- | --- | --- | --- | --- |
+| ceiling / wall (hand-crop) | **1.080** | 0.930 | 0.948 | 0.934 | 0.91 – 1.03 |
+| wall falloff far/near | **0.56** | 0.74 | 0.71 | 0.70 | 0.85 – 0.86 |
+| floor micro/mean at ref scale | **0.0549** | 0.121 | 0.164 | 0.165 | 0.032 – 0.076 |
+
+1. **Ceiling / wall holds at medium/high/maximum** and **fails at `performance`** (1.08, above band). So
+   `.234`'s conclusion is a statement about three of four tiers.
+2. **Wall falloff is worst at `performance`** (0.56) and flat elsewhere (0.70–0.74) — the remaining GI
+   deviation is half again as large on the tier the capability veto hands most phones.
+3. **The floor-grain overshoot is tier-dependent and inverts.** `.230`'s "1.6× too grainy" was medium's;
+   `performance` reads **0.0549, inside** the real-floor band, while high/maximum sit at 0.164/0.165.
+   **Caveat:** in-band at `performance` may be *blur* rather than fidelity. Not established — a crop
+   taken to check it caught furniture and the HUD rather than the certified floor region, so it supports
+   nothing. Recorded as an untested hypothesis.
+
+**What changes:** no shipped constant. How conformance is stated — "the app's ceiling / wall is in band"
+or "the floor is 1.6× too grainy" is incomplete without a tier, and these rows disagree by more than the
+width of the bands they are compared to. `.230`, `.231`, `.234` and `.235` should be read as *medium*
+results. (`.220` did check the curtain ratio across all four tiers; the practice existed, it just was
+not applied to the rest of the set.)
+
+Nothing changed in `src/`.
+
 ## v0.31.5.238 — `.212` closed: ceiling / wall cannot transport to a tiled room
 
 `.212` parked the bathrooms because its one reference had **grey** tile against a white ceiling while the

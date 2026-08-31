@@ -5006,3 +5006,62 @@ window is `win-bath1-S` — **south-facing** — so at 13:00 the beige is direct
 tile, not a mis-named finish.
 
 Nothing changed in `src/`.
+
+---
+
+## `.239` — every target in this arc was calibrated at ONE tier, and they do not hold across the others
+
+"Parity of the whole app" prompted a visual sweep of the photographic look at both extreme tiers —
+`walk-tour PHOTO=1` at `performance` (44 frames, 13:38) and `maximum` (44 frames, 13:40). **Both are
+artifact-free**: no black quads, no dropped walls, no missing geometry, and the look reads consistently
+in every room. In particular the black-quad failure `.224`/`.225` saw for AO in the ORBIT camera does
+not appear in walk at either tier.
+
+But the two tours are not the same picture. Over the 44 shared poses:
+
+> `performance` mean luminance **155.7**, `maximum` **138.6** — a **−17.1** shift, and up to **−43.7**
+> on a single frame (`kitchen-y3`).
+
+That is a deliberate consequence of tier-gated effects, not a bug. It does, however, raise a question
+this arc never asked: **every reference band here was calibrated at `medium`.** So the canonical probe
+was run at all four tiers, identical pose, identical hour.
+
+| | performance | medium | high | maximum | reference |
+| --- | --- | --- | --- | --- | --- |
+| ceiling ÷ wall (hand-crop) | **1.080** | 0.930 | 0.948 | 0.934 | 0.91 – 1.03 |
+| wall falloff far/near | **0.56** | 0.74 | 0.71 | 0.70 | 0.85 – 0.86 |
+| floor micro/mean at ref scale | **0.0549** | 0.121 | 0.164 | 0.165 | 0.032 – 0.076 |
+
+**Three findings, none of which the arc could have seen from `medium` alone.**
+
+1. **Ceiling ÷ wall holds at medium/high/maximum** (0.930–0.948, all inside 0.91–1.03) and **fails at
+   `performance`** (1.08, above the band). The `.234` conclusion — the app sits inside the qualifying
+   photographs' spread — is a statement about three of four tiers.
+
+2. **Wall falloff is worst at `performance`** (0.56 against a 0.85–0.86 reference) and roughly flat
+   across the other three (0.70–0.74). The remaining GI deviation is therefore not one number; it is
+   half again as large on the tier the capability veto hands most phones.
+
+3. **The floor-grain overshoot is tier-dependent, and it inverts.** `.230` concluded the floor reads
+   **1.6×** a photograph's micro-contrast and declined to retune a board-matched painter. That figure
+   was medium's. At `performance` the floor is **0.0549 — inside** the real-floor band 0.032–0.076,
+   while `high` and `maximum` sit at 0.164/0.165, more than double medium's deviation.
+
+   **Caveat, and it matters:** being in band at `performance` may be *blur* rather than fidelity — lower
+   texture resolution and coarser mips would suppress micro-contrast for reasons that have nothing to do
+   with matching a real floor. I did not establish which; a crop I took to check this caught furniture
+   and the HUD rather than the certified floor region, so it supports nothing and is not offered as
+   evidence. **Untested hypothesis, recorded as such.**
+
+### What this changes
+
+No shipped constant changes on the strength of this. What changes is how conformance is stated: a claim
+like "the app's ceiling ÷ wall is in band" or "the floor is 1.6× too grainy" is incomplete without a
+tier, and the three rows above disagree with each other by more than the width of the reference bands
+they are being compared to. Earlier rounds that quote a single number — `.230`, `.231`, `.234`, `.235`
+— should be read as *medium* results.
+
+`.220` did check the curtain ratio across all four tiers (1.35–1.48, all in band), so the practice
+existed; it just was not applied to the rest of the set.
+
+Nothing changed in `src/`.
