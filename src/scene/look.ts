@@ -739,3 +739,40 @@ export function photographicGroundBounce(on: boolean): number {
  * **12.62** against the 4.10 baseline.
  */
 export const CURTAIN_TRANSLUCENCY = 4
+
+/**
+ * PHOTO-GRAIN — the sensor grain a photograph always carries and a render does not.
+ *
+ * `.210` measured the high-frequency floor (micro-sd against a 4 px blur) on the
+ * one surface with no texture map at all — the flat `#fafafa` ceiling:
+ *
+ *   photo C ceiling   0.70
+ *   photo D ceiling   1.56
+ *   app, shipped      0.46
+ *
+ * The app is about half as busy as the quietest photographic ceiling. Note the
+ * deficit is NARROW: the app's painted walls measure 0.80–1.94 against the
+ * photographs' 1.18–1.36, because the procedural plaster micro-normal already
+ * supplies grain-scale detail there. Only surfaces carrying no map are short.
+ *
+ * Tied to the photographic look rather than applied always, because grain is a
+ * property of a CAMERA, not of a room — the default look is the clean one by
+ * design, and this arc has kept every photographic-realism trade behind that
+ * switch since `.162`.
+ *
+ * **Measured at NATIVE render resolution, which matters.** A probe screenshot
+ * taken at CSS pixels while the app renders at DPR 1.5+ averages per-pixel grain
+ * away: the same frames read 0.46 downsampled and **0.10** native. Resolution
+ * matching was checked rather than assumed — downsampling the app crop to the
+ * photographs' pixels-per-metre moves it only 0.10 → 0.13, so the comparison
+ * below is sound.
+ *
+ *   app, no grain     0.10      app, 0.04   0.48
+ *   app, 0.07         0.62      photographs 0.76 / 1.49
+ *
+ * 0.07 lands just under the quietest photographic ceiling — deliberately the
+ * conservative end. On a 2x crop it reads as an even sensor grain rather than as
+ * an effect, and `frame-time.mjs` shows medium p90 8.2 ms against the documented
+ * 8.3, i.e. free.
+ */
+export const PHOTO_GRAIN_OPACITY = 0.07

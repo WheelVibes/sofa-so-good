@@ -13,11 +13,19 @@ import {
 import { KernelSize } from 'postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { useStore } from '../state/store'
 import { rasterDofParams } from './cameras/cameraLensSettings'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
-import { AO, BLOOM, bloomActiveForDay, bloomIntensityForDay, hueSatSaturation } from './look'
+import {
+  AO,
+  BLOOM,
+  bloomActiveForDay,
+  bloomIntensityForDay,
+  hueSatSaturation,
+  PHOTO_GRAIN_OPACITY,
+} from './look'
 import { resolveToneMapping, toneContextFromState } from './toneContext'
 import { TONE_MAPPING_POST } from './toneMappingPost'
 
@@ -123,6 +131,11 @@ export default function EffectsImpl({
   // which makes it tear down and rebuild every `EffectPass`.
   const toneSetting = useStore((s) => s.toneMapping)
   const finishPreview = useStore((s) => s.selectedRoomId != null || s.selectedWall != null)
+  // PHOTO-GRAIN: sensor grain for the photographic look, in BOTH composer modes —
+  // `medium` runs the AO-only minimal composer and is the tier the adaptive ladder
+  // picks for most browsers, so a full-stack-only grain would miss them. See `look.ts`.
+  const photographicLook =
+    useStore((s) => s.photographicLook) && isFeatureEnabled('photographicFill')
   const toneMode = resolveToneMapping(
     toneSetting,
     toneContextFromState({
@@ -213,6 +226,8 @@ export default function EffectsImpl({
   }
   if (full) effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)
   if (full && cinematic) effects.push(<Noise key="noise" premultiply opacity={0.035} />)
+  else if (photographicLook)
+    effects.push(<Noise key="photo-grain" premultiply opacity={PHOTO_GRAIN_OPACITY} />)
   // SMAA belongs to the full stack. In AO-only mode the composer instead keeps
   // real MSAA (below), which is both cheaper here and better on edges.
   if (full) effects.push(<SMAA key="smaa" />)

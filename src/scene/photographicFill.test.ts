@@ -5,6 +5,7 @@ import {
   AO,
   fixturesLevel,
   PHOTO_FILL_SCALE,
+  PHOTO_GRAIN_OPACITY,
   PHOTO_GROUND_BOUNCE,
   PHOTO_WEAVE,
   photographicFillScale,
@@ -186,5 +187,19 @@ describe('AO — the only contact shadow an interior gets', () => {
     // 2.0 centres the under/open ratio (0.641) but drives the photographic
     // look's %<64 to 15.16 %, past the darkest reference photograph (12.2 %).
     expect(AO.distanceFalloff).toBeCloseTo(1.2, 6)
+  })
+})
+
+describe('PHOTO_GRAIN_OPACITY — sensor grain for the photographic look', () => {
+  it('is subtle enough to read as a sensor rather than an effect', () => {
+    // `.211`: 0.07 puts the untextured ceiling at micro-sd 0.62 against
+    // photographic ceilings at 0.76 and 1.49 — just under the quietest, which is
+    // the conservative end on purpose.
+    expect(PHOTO_GRAIN_OPACITY).toBeGreaterThan(0)
+    expect(PHOTO_GRAIN_OPACITY).toBeLessThan(0.1)
+  })
+
+  it('stays at the value the ceiling measurement justifies', () => {
+    expect(PHOTO_GRAIN_OPACITY).toBeCloseTo(0.07, 6)
   })
 })

@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.211 — SHIPPED: sensor grain for the photographic look
+
+`.210` found the app's untextured surfaces about half as busy as a photographic ceiling. Building the
+fix exposed a measurement problem first.
+
+**The metric was being averaged away.** `underside-shadow.mjs` screenshots at CSS pixels while the app
+renders at DPR 1.5, so per-pixel grain is downsampled before measurement — the same frames read **0.46
+downsampled** and **0.10 native**. That is why the first sweep looked weak and the 3× crop showed
+nothing. Re-measured through `light-distribution.mjs` (`deviceScaleFactor: 2`):
+
+| | micro-sd |
+| --- | --- |
+| app, no grain | **0.10** |
+| app, grain 0.04 | 0.48 |
+| **app, grain 0.07 (shipped)** | **0.62** |
+| photo C ceiling | 0.76 |
+| photo D ceiling | 1.49 |
+
+The resolution match was checked, not assumed: downsampling the app crop to the photographs'
+pixels-per-metre moves it 0.10 → 0.13, so the comparison is sound.
+
+**Shipped** `<Noise premultiply opacity={PHOTO_GRAIN_OPACITY}>` at **0.07**, in BOTH composer modes,
+gated on the photographic look (grain is a property of a camera, not a room; the default look stays
+clean at 0.27). Mounted in the minimal composer too because `medium` — what the ladder picks for most
+browsers — runs AO-only, and a full-stack-only grain would miss them. Free: medium p90 8.2 ms against
+the documented 8.3.
+
+**Narrow by design.** Painted walls needed nothing (0.80–1.94 against 1.18–1.36) — the plaster
+micro-normal already supplies detail at that scale. Only surfaces with no map at all were short.
+
 ## v0.31.5.210 — is the render "too clean"? Only where there is no texture
 
 Measured the high-frequency floor (micro-sd vs a 4 px blur) on surfaces that should be featureless.

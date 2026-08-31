@@ -16,6 +16,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the UI store. Full measurement trail: `docs/research/2026-08-31-photoreal-shadow-depth.md`
   (`.162`–`.170`).
 
+- **The photographic look carries SENSOR GRAIN (PHOTO-GRAIN, `.211`).** `<Noise premultiply>` at
+  `look.PHOTO_GRAIN_OPACITY` (0.07), mounted in BOTH composer modes — `medium` runs the AO-only
+  minimal composer and is what the adaptive ladder picks for most browsers, so a full-stack-only
+  grain would miss them. Gated on the photographic look, because grain is a property of a CAMERA
+  rather than of a room; the default look stays clean (measured 0.27 against 0.62).
+  · **Why it exists:** the app's *untextured* surfaces are far cleaner than a photograph. On the flat
+    `#fafafa` ceiling (`ceiling/Ceiling.tsx`, no map at all) the high-frequency floor measures **0.10**
+    against photographic ceilings at **0.76** and **1.49**. Painted WALLS need nothing — they read
+    0.80–1.94 against 1.18–1.36, because the procedural plaster micro-normal already supplies
+    grain-scale detail. The deficit is confined to surfaces carrying no map.
+  · **Measure it at NATIVE render resolution.** A probe screenshot at CSS pixels while the app renders
+    at DPR 1.5+ averages the grain away — the same frames read 0.46 downsampled and 0.10 native.
+    `light-distribution.mjs` captures at `deviceScaleFactor: 2`; `underside-shadow.mjs` and
+    `curtain-glow.mjs` do not.
+  · Free — `frame-time.mjs` medium p90 8.2 ms against the 8.3 documented above.
+
 - **The photographic look also carries a WHOLE-FLOOR bounce (PHOTO-GROUND-BOUNCE, `.195`).**
   `look.ts:photographicGroundBounce` scales the hemisphere's `groundColor` by **3** (was 6.5; re-tuned
   in `.208` against ceiling ÷ WALL after `.206` showed ceiling ÷ FRAME is composition-dependent), and only

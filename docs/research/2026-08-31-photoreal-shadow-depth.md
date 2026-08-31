@@ -3657,3 +3657,51 @@ conventional fix is a subtle film grain, and the post stack already imports `Noi
 only at the full-post tiers, while `medium` (the tier the adaptive ladder picks for most browsers) runs
 the AO-only minimal composer. So this is a real candidate with a real cost question attached, and that
 is where it stands. Nothing changed in `src/`.
+
+---
+
+## `.211` — SHIPPED: sensor grain, and a metric that had to be measured at the right resolution
+
+`.210` found the app's untextured surfaces about half as busy as a photographic ceiling and left film
+grain as the candidate. Building it exposed a measurement problem first.
+
+### The metric was being averaged away
+
+`underside-shadow.mjs` screenshots at CSS pixels while the app renders at DPR 1.5, so per-pixel grain
+is downsampled before it is measured. The same frames read **0.46 downsampled** and **0.10 native**.
+That is why the first sweep looked so weak — grain 0.02/0.04/0.07 moved the downsampled number only
+0.46 → 0.53 → 0.59 → 0.67, and the 3× crop showed nothing at all.
+
+Re-measured through `light-distribution.mjs`, which captures at `deviceScaleFactor: 2`:
+
+| | micro-sd |
+| --- | --- |
+| app, no grain | **0.10** |
+| app, grain 0.04 | 0.48 |
+| **app, grain 0.07 (shipped)** | **0.62** |
+| photo C ceiling | 0.76 |
+| photo D ceiling | 1.49 |
+
+**And the resolution match was checked rather than assumed** — the app frame is 2560 px, the
+photographs 1600 px, so micro-sd could have been comparing sampling rather than surfaces.
+Downsampling the app crop to the photographs' pixels-per-metre moves it 0.10 → 0.13 and 0.48 → 0.46,
+i.e. barely. The comparison stands.
+
+### What shipped
+
+`<Noise premultiply opacity={PHOTO_GRAIN_OPACITY}>` at **0.07**, in both composer modes, gated on the
+photographic look. That lands the untextured ceiling at 0.62 — just under the quietest photographic
+ceiling, deliberately the conservative end. On a 2× crop it reads as an even sensor grain rather than
+as an effect. The default look is unchanged and measures 0.27.
+
+Mounted in the minimal composer as well as the full one, because `medium` — what the adaptive ladder
+picks for most browsers — runs AO-only, and a full-stack-only grain would have shipped a realism fix
+that most users never see. Free: `frame-time.mjs` medium p90 **8.2 ms** against the documented 8.3.
+
+### Scope, stated honestly
+
+This closes a **narrow** gap. Painted walls needed nothing (0.80–1.94 against 1.18–1.36) because the
+plaster micro-normal already supplies detail at that scale; only surfaces with no map at all were
+short. It is a small, real improvement, not a transformation — and the reason it is worth having is
+that a perfectly smooth large surface is one of the few remaining cues that reads as rendered rather
+than photographed.
