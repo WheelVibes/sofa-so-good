@@ -2928,3 +2928,67 @@ so it cannot pass vacuously if the rules ever stop matching anything.
 One regeneration trap: `npm run index-assets` emits double quotes and semicolons, so its output diffs
 against the biome-formatted committed catalogs on **every line**. Run biome over the two generated
 files afterwards and the diff collapses to the real change — here, two lines.
+
+---
+
+## `.198` — texture scale is fine; a drawn curtain is lit as an opaque sheet
+
+Two axes checked, one clean, one badly broken.
+
+### Texture world scale is correct — a clean negative
+
+Textures at the wrong real-world size are a classic realism failure, so the generated (photo-scanned)
+finishes were checked against dimensions that are not matters of taste. Overlaying 100 mm gridlines
+derived from each material's `uvScale` (which is metres per texture repeat, the convention the
+procedural catalog documents):
+
+- **Red brick** — ~24 courses over 1.5 m ≈ **62 mm** per course. A real brick course is 65–75 mm.
+- **Oak planks** — ~140 mm plank width. Real oak floorboards are 90–200 mm.
+
+Both correct, so the hand-tuned `uvScale` values in the pipeline sidecars are doing their job. Recorded
+as a negative so the axis is not re-opened.
+
+One method note: autocorrelation on the albedo was tried first and is **not** trustworthy here — it
+returns *a* period, not the feature pitch, and reported 23 mm "planks" for parquet and 19 mm "tiles"
+for stone. The gridline overlay read directly off the image is what settled it.
+
+### Floor gloss is not a target either
+
+| floor | sd/mean |
+| --- | --- |
+| photo D parquet (glossy) | 0.156 / 0.218 |
+| photo C pale wood (matte) | 0.037 / 0.051 |
+
+A 4× spread driven entirely by finish — the same shape as `.187`'s fabric retraction. There is no
+photographic value to hit, only the question of whether the app responds to its finish, which `.197`
+answered yes.
+
+### A drawn curtain reads as a blackout sheet at midday
+
+In a photograph a curtain hanging over a daylit window is the **brightest large surface in the room**,
+because daylight transmits through cloth. Measured on the references, curtain ÷ frame mean:
+
+| reference | ratio |
+| --- | --- |
+| photo D, sheer over a balcony door | **1.42** (lower half alone 1.48) |
+| photo A, cream curtain over a window | **1.32** |
+| photo C, drape on a blank wall (not backlit) | 0.88 |
+
+The app, at 13:00 with the curtains drawn, measures **0.69** — the curtain is *darker than the room
+average*, less than half the photographic value. With the curtains open the same window plane reads
+1.01, i.e. the glazing is barely brighter than the room either (though that figure includes the frame,
+mullions and safety grille, which `.175` showed contaminate a window crop, so treat it as indicative).
+
+The frame confirms the number without ambiguity: a large brown-grey sheet filling the window wall with
+no sense of daylight behind it. At midday, with the sun outside, the app renders what looks like a
+blackout curtain in a dim room.
+
+`scripts/dev-probes/curtain-glow.mjs` is the new instrument — geometric mask (samples must lie in the
+window's own plane, within 0.5 m of it and above sill height), HUD cut-outs, onboarding suppressed, and
+a `CLOSED=0` control that measures the glazing instead. It sets `drawAmount` explicitly rather than
+calling `toggleWindowFixture`, which FLIPS and is how `.91` ended up measuring two covered windows.
+
+**Nothing changed in `src/` this round.** The fix is curtain light transmission — the fabric has to
+carry daylight through it rather than only blocking it (the existing `windowFillAttenuation` models the
+blocking half and nothing models the transmitting half). That is the next round's work, and it now has
+a target of 1.32–1.48 and a probe that reports it.

@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.198 — texture scale is fine; a drawn curtain is lit as an opaque sheet
+
+**Texture world scale is correct — a clean negative.** Checked against dimensions that are not matters
+of taste, with 100 mm gridlines derived from each material's `uvScale`: red brick ~**62 mm** per course
+(real: 65–75 mm), oak planks ~**140 mm** wide (real: 90–200 mm). The hand-tuned sidecar values work.
+Method note: autocorrelation on the albedo is NOT trustworthy here — it returns *a* period, not the
+feature pitch, reporting 23 mm "planks" and 19 mm "tiles". The gridline overlay settled it.
+
+**Floor gloss is not a target** — glossy parquet sd/mean 0.156–0.218 against matte pale wood
+0.037–0.051, a 4× spread driven entirely by finish. Same shape as `.187`.
+
+**A drawn curtain reads as a blackout sheet at midday.** In a photograph a curtain over a daylit window
+is the brightest large surface in the room, because daylight transmits through cloth:
+
+| reference | curtain ÷ frame |
+| --- | --- |
+| photo D, sheer over a balcony door | **1.42** |
+| photo A, cream curtain over a window | **1.32** |
+| photo C, drape on a blank wall (not backlit) | 0.88 |
+
+The app at 13:00 with curtains drawn measures **0.69** — *darker than the room average*, less than half
+the photographic value. The frame confirms it without ambiguity: a large brown-grey sheet filling the
+window wall with no sense of daylight behind it.
+
+New instrument `scripts/dev-probes/curtain-glow.mjs`: geometric mask (samples must lie in the window's
+own plane), HUD cut-outs, onboarding suppressed, `CLOSED=0` control for the glazing. It sets
+`drawAmount` explicitly rather than calling `toggleWindowFixture`, which FLIPS — how `.91` ended up
+measuring two covered windows.
+
+Nothing changed in `src/`. The fix is curtain light TRANSMISSION: `windowFillAttenuation` models the
+blocking half and nothing models the transmitting half.
+
 ## v0.31.5.197 — two finishes were lying about their own colour; `.181`'s floor-finish bug refuted
 
 Went looking for the next photorealism axis (floor gloss) and found a different defect on the way.
