@@ -912,6 +912,45 @@ recorded, and the fix space (brighter backdrop / a bloom-carrying emissive pane 
 exposure for the backdrop) spans a render change, a product look change, and a per-tier cost. Root
 `CLAUDE.md` says these are not to be decided unilaterally.
 
+## (m) PHOTO-VIGNETTE — ⏳ OPEN, needs a look call (built and measured v0.31.5.244)
+
+`EffectsImpl.tsx` mounts `Vignette` — its own header calls it *"subtle edge darkening so the frame reads
+'shot, not rendered'"* — **only on the full post stack** (`high`/`maximum`). `medium` runs the AO-only
+minimal composer, so the photographic look there gets the film grain but not the lens falloff.
+
+That asymmetry has an explicit precedent pointing the other way. PHOTO-GRAIN was deliberately extended to
+both composer modes, and the comment says why: *"`medium` … is the tier the adaptive ladder picks for most
+browsers, so a full-stack-only grain would miss them."* The identical argument applies to the vignette.
+
+**It was built and measured, then reverted.** `VIGNETTE = { offset: 0.32, darkness: 0.55 }` hoisted to
+`look.ts` (so both call sites cannot drift), and the mount changed to `full || photographicLook`:
+
+| corner ÷ centre | top-left | bottom-left |
+| --- | --- | --- |
+| `medium`, shipped (no vignette) | 0.894 | 0.751 |
+| **`medium` + vignette** | **0.726** | **0.605** |
+| `high`, full stack (ships it today) | 0.693 | 0.575 |
+
+Vignetted `medium` lands just short of `high`, and the residual is `high`'s heavier `AO.intensityPost` —
+i.e. the pass behaves exactly as the tier that already ships it. Visually the frame reads more
+photographic.
+
+**Why it was reverted rather than shipped.** It costs a *validated* metric:
+
+> **wall falloff far/near 0.74 → 0.66**, against a photographic reference of **0.85–0.86**.
+
+The far-wall band sits near the frame edge in the canonical pose, so the lens darkening lands directly on
+it. Ceiling ÷ wall also moves 0.88 → 0.86. This is a stylistic gain paid for with a measured regression on
+a metric whose reference is a photograph — and that photograph carries whatever vignette its own lens had,
+so 0.85–0.86 is already the vignette-inclusive target.
+
+**The call needed:** is a lens cue worth 0.08 of wall falloff on the tier most users boot into? It is a
+look decision, not a measurement one, and it changes the shipped appearance of the photographic look —
+so it is filed here rather than taken unilaterally. Two secondary facts for whoever decides: the
+photographic look is **opt-in** (`ui.photographicLook` defaults off), so blast radius is limited to users
+who chose it; and **every `medium` + photographic figure in this arc was measured without the vignette**,
+so adopting it re-bases those numbers.
+
 ## Summary
 
 | # | Item | Kind | Recommendation |
@@ -927,6 +966,7 @@ exposure for the backdrop) spans a render change, a product look change, and a p
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |
 | k1 | WINDOW-SKY-DARK | render bug | ❌ **CLOSED v0.31.5.128** — mis-attributed. The `auto` tier ends at `high`, so the transmissive pane was correct; the dark pane was (k2) rendered by two tiers. Both tiers now read ~195 |
+| m | PHOTO-VIGNETTE | look call | ⏳ **OPEN v0.31.5.244** — built, measured and reverted. Extending the lens vignette to the photographic look on the AO-only composer matches the PHOTO-GRAIN precedent and the tier that already ships it, but costs wall falloff 0.74 → 0.66 against a 0.85–0.86 photographic reference |
 | l | WINDOW-LUMINANCE | render + product look | ⏳ **OPEN v0.31.5.236**, figures corrected in `.237` — photographs clip 15–39 % of their glazing; the app clips **0.0 %** at every hour, so the pane reads as a panel not an opening. Night (21:00) is already correct and must not regress |
 | k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
 

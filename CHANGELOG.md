@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.244 — the photographic look has no vignette on the tier most users get
+
+`EffectsImpl.tsx` mounts a `Vignette` pass — its header: *"subtle edge darkening so the frame reads
+'shot, not rendered'"* — gated `if (full)`, the full post stack only. `medium` runs the AO-only minimal
+composer, so the photographic look there gets the grain and not the lens. The same file argues the
+opposite for PHOTO-GRAIN, which is in **both** modes because *"`medium` … is the tier the adaptive ladder
+picks for most browsers"*.
+
+| corner / centre | top-left | bottom-left |
+| --- | --- | --- |
+| performance | 0.868 | 0.738 |
+| medium | 0.894 | 0.751 |
+| high | 0.693 | 0.575 |
+| maximum | 0.696 | 0.579 |
+
+A hard split at the composer boundary, worth ~0.20 of corner ratio.
+
+**Built, measured, reverted.** `VIGNETTE = { offset: 0.32, darkness: 0.55 }` hoisted into `look.ts`, mount
+changed to `full || photographicLook`. At `medium`: **0.726 / 0.605**, just short of `high`'s 0.693 /
+0.575 (residual = `high`'s heavier `AO.intensityPost`), and the frame reads more photographic. Reverted
+anyway, because it costs a validated metric: **wall falloff 0.74 → 0.66** against a **0.85–0.86**
+photographic reference (ceiling / wall 0.88 → 0.86). The far-wall band sits near the frame edge, so the
+darkening lands on it — and the reference photograph carries its own lens vignette, so 0.85–0.86 is
+already vignette-inclusive.
+
+A measured result outranks a stylistic argument, and there is no measured picture defect on the other side
+— only that it looks more photographic to me, the kind of claim `.183` and `.230` refused to act on
+unsupported. Filed as open decision **(m) PHOTO-VIGNETTE**; it changes shipped appearance, so it is not
+mine to take. For whoever decides: the photographic look is opt-in (defaults off), and every `medium` +
+photographic number in this arc was measured without the vignette, so adopting it re-bases them.
+
+Both files restored from backup; `git diff` on `src/` empty, `tsc` clean. Nothing changed in `src/`.
+
 ## v0.31.5.243 — edge bevels: a real geometric difference with no visible signature at walk scale
 
 Professional renderers ship a **rounded-edge** shader (Corona `CoronaRoundEdges`, V-Ray `VRayEdgesTex`)

@@ -5282,3 +5282,56 @@ different materials, scales and angles. That is weak on its own; it is the **589
 that carries the conclusion, and the profiles are consistent with it rather than proof of it.
 
 Nothing changed in `src/`.
+
+---
+
+## `.244` — the photographic look has no vignette on the tier most users get
+
+Continuing the professional-technique checklist. `EffectsImpl.tsx` mounts a `Vignette` pass and its own
+header explains why — *"subtle edge darkening so the frame reads 'shot, not rendered'"* — but it is
+gated `if (full)`, i.e. the full post stack only. `medium` runs the AO-only minimal composer, so the
+photographic look there gets the grain and not the lens.
+
+The file argues the opposite case for the pass three lines below. PHOTO-GRAIN is deliberately in **both**
+composer modes: *"`medium` … is the tier the adaptive ladder picks for most browsers, so a full-stack-only
+grain would miss them."*
+
+Measured across the `.239` captures (identical pose, so content cancels):
+
+| corner ÷ centre | top-left | bottom-left |
+| --- | --- | --- |
+| performance | 0.868 | 0.738 |
+| medium | 0.894 | 0.751 |
+| high | 0.693 | 0.575 |
+| maximum | 0.696 | 0.579 |
+
+A hard split at the composer boundary, worth ~0.20 of corner ratio.
+
+### Built, measured, reverted
+
+`VIGNETTE = { offset: 0.32, darkness: 0.55 }` hoisted into `look.ts` so the two call sites cannot drift,
+and the mount changed to `full || photographicLook`. Result at `medium`: **0.726 / 0.605**, just short of
+`high`'s 0.693 / 0.575 — the residual being `high`'s heavier `AO.intensityPost`. So the pass behaves
+exactly as it does on the tier that already ships it, and the frame reads more photographic.
+
+**It was reverted anyway**, because it costs a validated metric:
+
+> **wall falloff far/near 0.74 → 0.66**, against a photographic reference of **0.85–0.86**.
+> (ceiling ÷ wall also 0.88 → 0.86.)
+
+The far-wall band sits near the frame edge in the canonical pose, so the darkening lands squarely on it.
+And the reference photograph carries whatever vignette its own lens had — 0.85–0.86 is already a
+vignette-inclusive number, so this is a stylistic gain paid for with a real regression against it.
+
+By this arc's own ordering, a *measured* result outranks a stylistic argument, and there is no measured
+picture defect on the other side of the trade — only that the app looks more photographic to me, which is
+exactly the kind of claim `.183` and `.230` refused to act on unsupported. Filed as open decision
+**(m) PHOTO-VIGNETTE** with the numbers; it is a look call and changes shipped appearance, so it is not
+mine to take.
+
+Two facts for whoever decides: the photographic look is **opt-in** (`ui.photographicLook` defaults off),
+and **every `medium` + photographic number in this arc was measured without the vignette**, so adopting it
+re-bases them.
+
+`src/scene/EffectsImpl.tsx` and `src/scene/look.ts` restored from `/tmp/eff243.bak.tsx` and
+`/tmp/look243.bak.ts`; `git diff` on `src/` empty, `tsc` clean. Nothing changed in `src/`.
