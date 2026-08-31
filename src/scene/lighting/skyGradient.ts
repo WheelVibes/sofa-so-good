@@ -167,7 +167,7 @@ export function horizonSampleDir(v: Vec3): Vec3 {
  * ~17.5 degrees, which covers the depression range a window actually shows from a
  * standing eye height.
  */
-export const GROUND_HAZE_SPAN = 0.3
+const GROUND_HAZE_SPAN = 0.3
 
 /**
  * Analytic Preetham sky radiance for a `view` direction (need not be normalised),

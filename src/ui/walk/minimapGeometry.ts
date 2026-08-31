@@ -84,7 +84,7 @@ export function planContentBounds(plan: FloorPlan): PlanContentBounds {
  *  the walk-mode DOOR AIM needs the same spans (WALK-AIM-PLAN). One copy, so the
  *  minimap and the thing you can actually walk up to and open can never disagree
  *  about where a doorway is. */
-export { type OpeningSeg, openingSegments } from '../../floorplan/openingSegments'
+export { openingSegments } from '../../floorplan/openingSegments'
 
 export interface MinimapView {
   /** World metres → svg units. */

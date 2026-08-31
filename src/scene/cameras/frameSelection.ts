@@ -102,7 +102,7 @@ export function fitDistanceForFov(radius: number, vFovRad: number, aspect: numbe
  * material change qualifies — a phone rotation (0.46 -> 2.16, a 4.7x change) always does,
  * a few pixels of window drag never does.
  */
-export const REFIT_ASPECT_RATIO = 1.2
+const REFIT_ASPECT_RATIO = 1.2
 
 /** Did the aspect change enough to be worth re-fitting? Symmetric in the two
  *  arguments, so widening and narrowing are treated alike. */
@@ -123,7 +123,7 @@ export function aspectChangedMaterially(
  * the camera — otherwise a rotation would yank away a deliberate zoom or pan, which
  * is worse than the clipping it fixes.
  */
-export const REFIT_POSE_EPS_M = 0.05
+const REFIT_POSE_EPS_M = 0.05
 
 /** Is the live pose still (within {@link REFIT_POSE_EPS_M}) the one auto-framing set?
  *  Compares position and target as flat [x,y,z] triples so this stays three.js-free. */

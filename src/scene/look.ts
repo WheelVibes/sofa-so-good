@@ -401,7 +401,7 @@ export function photographicWeave(base: number, photo: number, on: boolean): num
 /** Sun strength at which the fixtures start dimming, and where they reach zero.
  *  A ramp rather than a step: a hard cut-off pops the whole room's brightness as
  *  the time slider crosses it (measured either side: mean 175 → 109). */
-export const PHOTO_FIXTURE_SUN_FADE = { start: 0.86, full: 0.95 } as const
+const PHOTO_FIXTURE_SUN_FADE = { start: 0.86, full: 0.95 } as const
 
 /** 0 … 1 — how strongly the fixtures render in this view. */
 export function fixturesLevel(

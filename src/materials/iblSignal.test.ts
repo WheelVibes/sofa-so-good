@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  cappedMetalCount,
   effectiveMetalness,
   NO_IBL_METALNESS,
   registerCappedMetal,
@@ -73,5 +74,23 @@ describe('registerCappedMetal', () => {
     expect(m.metalness).toBe(0.04)
     setIblActive(true)
     expect(m.metalness).toBe(0.04)
+  })
+})
+
+// `cappedMetalCount` is the registry's own test seam. It existed from v0.31.5.15
+// with nothing using it, which the dead-code scan flagged; the tests above all
+// assert a MATERIAL's metalness, so none of them pinned that the registry
+// actually tracks what it claims to. Asserted as a DELTA, not an absolute:
+// `cappable` is module state shared across this whole file and is never reset,
+// so an absolute count would depend on test order.
+describe('cappedMetalCount', () => {
+  it('tracks each registered material', () => {
+    const before = cappedMetalCount()
+    const a = registerCappedMetal({ metalness: 0 }, 0.9)
+    const b = registerCappedMetal({ metalness: 0 }, 0.5)
+    expect(cappedMetalCount()).toBe(before + 2)
+    // Keep the refs live to the end of the test: the registry holds WeakRefs, so
+    // a collected material is pruned and the count would be free to drop.
+    expect([a.metalness, b.metalness].every((v) => typeof v === 'number')).toBe(true)
   })
 })

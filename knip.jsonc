@@ -13,6 +13,13 @@
     // part of the TS build graph; not npm-managed, so leave them out of knip's analysis.
     "python/**"
   ],
+  // Dev-probes reach into the app with `await import('/src/...')` from INSIDE
+  // `page.evaluate` — a Vite dev-server URL resolved by the browser at runtime,
+  // not a Node import resolved from disk. Knip parses the specifier statically
+  // and cannot follow it, so every one reads as unresolved. The probes are
+  // dev-only instruments (`scripts/dev-probes/`, run against `npm run dev`);
+  // a broken specifier there fails the probe loudly on its next run.
+  "ignoreUnresolved": ["^/src/"],
   "ignoreDependencies": [
     // Playwright is the driver for the screenshot/scenario harness (scripts/shot.mjs),
     // launched via node, so knip's import graph never sees it — keep it declared, don't uninstall.
