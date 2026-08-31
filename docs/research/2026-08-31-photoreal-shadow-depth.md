@@ -4950,3 +4950,59 @@ reads as a lit surface rather than an opening" — which is the *same* deficienc
 one. `.236`'s framing of it as a separate finding is withdrawn.
 
 Nothing changed in `src/`.
+
+---
+
+## `.238` — `.212` closed: ceiling ÷ wall cannot transport to a tiled room
+
+`.212` parked the bathrooms because its one reference had **grey** tile against a white ceiling while the
+app's is white — two albedo relationships, so the reference could not adjudicate. The screening method
+built in `.233`–`.234` suggested a way to unpark it: find a bathroom photograph whose albedo relationship
+matches the app's.
+
+**It is not available.** Ten Commons bathrooms considered; two excluded on sight as SketchUp *renders*
+rather than photographs (`Bad_-_Design_von_Architektin…`, `3D_bathroom`), and the eight fetched all
+failed: monochrome (1), patterned or checkerboard tile (2), coloured or muralled walls (3), no ceiling
+in frame (1), coffered spa ceiling (1). Zero qualified.
+
+### But availability was never the real obstacle
+
+Even a perfectly matched white-tile-on-white-ceiling photograph would not fix this. Glazed tile is
+**glossy**: its apparent brightness depends on the angle between the camera, the surface and the light,
+in a way matte paint does not. So the wall term in ceiling ÷ wall becomes view-dependent, and two
+photographs of the same bathroom from two positions would disagree with each other.
+
+`ceiling ÷ wall`'s domain is **matte-on-matte**. `.208` drew this boundary for floor ÷ wall and `.212`
+drew it for tile-vs-paint; the general statement is that the metric isolates lighting only when both
+surfaces are Lambertian and their albedos cancel. **`.212` is therefore closed on principle rather than
+left waiting for a reference** — the reference cannot exist in a useful form.
+
+### What the app actually does here, for the record
+
+| pose | ceiling samples | ceiling ÷ wall |
+| --- | --- | --- |
+| bath1, canonical pitch −0.06 | **0** | — |
+| bath1, pitch +0.28 | 731 | **0.70** |
+| livingDining, pitch +0.28 (`.232`) | 2296 | 0.95 |
+| mainBedroom, pitch +0.28 (`.232`) | 1961 | 0.96 |
+
+Two things follow. First, **any bathroom ceiling figure in this arc came from a pose that barely sees
+the ceiling** — bath1 clamps the standoff to 1.6 m and at the canonical pitch the ceiling leaves the
+frame entirely, which is a sharper version of `.232`'s warning. Second, at a pose that does see it there
+IS a real internal difference (0.70 against 0.95/0.96); it simply cannot be adjudicated against
+photographs.
+
+A plausible mechanism, offered as hypothesis and **not** tested here: a downlight throws light
+downward, and the app's ceiling is lit mostly by the hemisphere's ground term, so a small room with a
+small window puts little on its ceiling. That is defensible physics, which is exactly why it needs a
+reference to refute — and cannot have one.
+
+### One thing checked rather than assumed
+
+The frame shows warm **beige** walls, which looked like it contradicted `.212`'s premise that the app's
+bathroom is white tile. It does not: the first-load palette assigns `wall-tile-white`, and
+`swatchHonesty.test.ts` pins any finish named "white" at swatch luma ≥ 190 with the suite green. The
+window is `win-bath1-S` — **south-facing** — so at 13:00 the beige is direct warm sunlight on white
+tile, not a mis-named finish.
+
+Nothing changed in `src/`.

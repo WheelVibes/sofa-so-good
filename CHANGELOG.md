@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.238 — `.212` closed: ceiling / wall cannot transport to a tiled room
+
+`.212` parked the bathrooms because its one reference had **grey** tile against a white ceiling while the
+app's is white. The screening method from `.233`–`.234` suggested unparking it by finding a photograph
+whose albedo relationship matches the app's.
+
+**It is not available.** Ten Commons bathrooms considered; two excluded on sight as SketchUp *renders*
+rather than photographs, and the eight fetched all failed — monochrome (1), patterned/checkerboard tile
+(2), coloured or muralled walls (3), no ceiling in frame (1), coffered spa ceiling (1).
+
+**But availability was never the obstacle.** Glazed tile is **glossy**, so its apparent brightness
+depends on camera/surface/light angle in a way matte paint does not; the wall term becomes
+view-dependent and two photographs of the same bathroom would disagree. `ceiling / wall`'s domain is
+**matte-on-matte** — `.208` drew this boundary for floor / wall, `.212` for tile-vs-paint, and the
+general statement is that it isolates lighting only when both surfaces are Lambertian and their albedos
+cancel. **`.212` is closed on principle**, not left waiting for a reference that cannot exist usefully.
+
+For the record, what the app does:
+
+| pose | ceiling samples | ceiling / wall |
+| --- | --- | --- |
+| bath1, canonical pitch −0.06 | **0** | — |
+| bath1, pitch +0.28 | 731 | **0.70** |
+| livingDining, pitch +0.28 | 2296 | 0.95 |
+| mainBedroom, pitch +0.28 | 1961 | 0.96 |
+
+So **every bathroom ceiling figure in this arc came from a pose that barely sees the ceiling** (bath1
+clamps the standoff to 1.6 m; at the canonical pitch the ceiling leaves frame) — a sharper version of
+`.232`. At a pose that does see it there is a real internal difference, which simply cannot be
+adjudicated against photographs.
+
+**Checked rather than assumed:** the frame's warm beige walls are not a mis-named finish. The first-load
+palette assigns `wall-tile-white`, `swatchHonesty.test.ts` pins "white" at swatch luma ≥ 190, and the
+window is `win-bath1-S` — south-facing — so at 13:00 that is direct sunlight on white tile.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.237 — correcting `.236`'s window crop; the north-window warmth is not a bug
 
 `.236` reported glazing figures from a rectangle covering the whole window, and never looked at the
