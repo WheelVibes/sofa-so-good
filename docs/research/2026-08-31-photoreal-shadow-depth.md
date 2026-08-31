@@ -2992,3 +2992,68 @@ calling `toggleWindowFixture`, which FLIPS and is how `.91` ended up measuring t
 carry daylight through it rather than only blocking it (the existing `windowFillAttenuation` models the
 blocking half and nothing models the transmitting half). That is the next round's work, and it now has
 a target of 1.32–1.48 and a probe that reports it.
+
+---
+
+## `.199` — curtain backlight: both cheap models refuted, and the reason is the same one
+
+`.198` measured the app's drawn curtain at **0.69** of frame mean against photographs at **1.32–1.48**.
+Two mechanisms were built and measured this round. Both are reverted; the baseline is restored and
+re-measured at 0.69.
+
+### Attempt 1 — emissive: hits the target and destroys the fabric
+
+An emissive term proportional to the fabric's own colour, scaled by the eased sun so it cannot glow at
+night, published to the material through a module signal (the `photographicSignal` pattern). It works
+on the headline number and fails on everything else:
+
+| backlight gain | plane/frame | curtain mean | micro-sd | micro/mean |
+| --- | --- | --- | --- | --- |
+| 0 (shipped) | 0.69 | 58 | **4.10** | **0.0705** |
+| 0.8 | 1.23 | 152 | 2.43 | 0.0159 |
+| 1.1 | 1.28 | 165 | 2.59 | 0.0157 |
+| 1.6 | **1.33** ✓ | 180 | 2.62 | 0.0146 |
+| photographs | 1.32–1.48 | | | 0.066–0.198 |
+
+At 1.6 the ratio lands in the photographic band — and the weave is gone. **Absolute** micro-sd falls
+4.10 → 2.62, so this is not the ratio being diluted by a larger mean; the high-frequency signal itself
+is destroyed. The side-by-side is unambiguous: folds and weave in the before frame, a flat pale sheet
+in the after. Even the gentlest gain tested (0.8) costs 41 % of the absolute detail.
+
+**The mechanism is exact.** This fabric carries no albedo texture — plain drapery is
+`map: null` — so *all* of its detail comes from `normalMap: getFabricNormal()`. Emissive is added
+after shading and carries no normal information, so it dilutes precisely the signal the weave depends
+on, and it pushes the surface onto AgX's shoulder where what remains is compressed further. Ten rounds
+(`.157`–`.184`) went into that weave; trading it for a brightness number is a bad deal.
+
+### Attempt 2 — `transmission`: barely moves, and costs detail anyway
+
+The physically-right model, tried second: `transmission: 0.55, thickness: 0.02` on the drapery
+`MeshPhysicalMaterial`.
+
+| | plane/frame | curtain mean | micro-sd |
+| --- | --- | --- | --- |
+| baseline | 0.69 | 58 | 4.10 |
+| transmission 0.55 | **0.79** | 71 | 2.86 |
+| emissive 1.6 | 1.33 | 180 | 2.62 |
+
+It buys **0.10** of ratio against the 0.63 needed, and still loses a third of the weave — while adding
+a transmission render pass on every tier that mounts it. Strictly worse value than the emissive it was
+meant to replace.
+
+### What a correct fix needs
+
+Both failures share a cause: the camera sees the curtain's FRONT face while the light is BEHIND it, and
+a standard material's front face gets nothing from a light at `N·L < 0`. Real cloth scatters light
+forward, and — this is the part that matters — it scatters it *modulated by thickness*, which is why a
+backlit curtain in a photograph is bright **and** keeps its folds: a doubled fold transmits less and
+reads darker.
+
+So the term needed is diffuse transmission that responds to the surface normal, i.e. wrap lighting.
+three has no such term for standard materials (`transmission` is specular refraction), so this needs a
+shader chunk via `onBeforeCompile` — a real piece of work rather than a constant. Recorded with its
+target (1.32–1.48), its constraint (**absolute micro-sd must stay near 4.10**), and the probe that
+reports the first (`curtain-glow.mjs`) so the next attempt is measured against both from the start.
+
+**Nothing shipped.** A curtain that hits the brightness target by erasing its own weave is not a step
+toward photorealism.

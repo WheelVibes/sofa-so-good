@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.199 — curtain backlight: both cheap models refuted (reverted)
+
+`.198` measured the drawn curtain at **0.69** of frame mean against photographs at **1.32–1.48**. Two
+mechanisms built and measured; both reverted, baseline restored and re-measured at 0.69.
+
+**Emissive hits the target and destroys the fabric.** Scaled by the eased sun (no night glow), gain 1.6
+reaches plane/frame **1.33**, inside the band — and absolute curtain micro-sd falls **4.10 → 2.62**.
+That is the high-frequency signal itself being destroyed, not a ratio diluted by a larger mean; even
+the gentlest gain tested (0.8) costs 41 % of it. The mechanism is exact: plain drapery carries
+`map: null`, so ALL its detail is `normalMap`, and emissive is added after shading with no normal
+information — it dilutes precisely the signal the weave depends on, then AgX's shoulder compresses
+what is left. `.157`–`.184` went into that weave.
+
+**`transmission` barely moves and costs detail anyway.** `transmission: 0.55, thickness: 0.02` buys
+**0.10** of ratio against the 0.63 needed (0.69 → 0.79), still loses a third of the weave, and adds a
+render pass. Strictly worse than the emissive it was meant to replace.
+
+**Both share a cause:** the camera sees the curtain's front face while the light is behind it, and a
+standard material's front face gets nothing at `N·L < 0`. Real cloth scatters forward *modulated by
+thickness*, which is why a photographed backlit curtain is bright AND keeps its folds. The term needed
+is diffuse transmission that responds to the normal — wrap lighting — which three has no standard-
+material equivalent for, so it needs an `onBeforeCompile` shader chunk rather than a constant.
+
+Recorded with its target (1.32–1.48), its constraint (absolute micro-sd must stay near 4.10) and the
+probe that reports the first, so the next attempt is measured against both from the start.
+
 ## v0.31.5.198 — texture scale is fine; a drawn curtain is lit as an opaque sheet
 
 **Texture world scale is correct — a clean negative.** Checked against dimensions that are not matters
