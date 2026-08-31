@@ -871,6 +871,42 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
+## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured v0.31.5.236)
+
+`.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
+because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
+actually is, so the call can be made on numbers.
+
+**Photographs blow their windows out. The app never clips at all.**
+
+| | glazing ÷ wall | glazing pixels clipped |
+| --- | --- | --- |
+| `Home_Staging_Beispiel_Nachher` (daylit) | 1.10 | **39.3 %** |
+| reference kitchen glazing (`curtain-glow.mjs`) | — | **15.1 %** |
+| shaded garden view (`curtain-glow.mjs`) | — | 0.1 % |
+| **app, 13:00** | **1.32** | **0.0 %** |
+| **app, 19:00** | **0.80** | **0.0 %** |
+| **app, 21:00** | **0.28** | 0.0 % |
+
+The mean ratio is not the tell — the app's 1.32 at noon is *higher* than the photograph's 1.10. The
+tell is the **distribution**: a real daylit pane is a clipped white hole with detail only at its
+edges, while the app's is an evenly-lit grey field. That is why the app's window reads as a panel
+rather than an opening, and it is measurable in one number that needs no crop matching.
+
+**The 21:00 case is already right** (glazing 0.28 of wall, interior warm at R−B 23.4 against a
+neutral pane) — whatever ships must not regress it.
+
+**A second, narrower finding at 19:00.** The pane is *dimmer* than the wall (0.80) **and tinted
+identically to it** — glazing R−B **22.1**, wall R−B **21.3**. At the hour when interior photography
+most depends on warm-interior-against-cool-exterior separation, the app has none. Some of this is
+honest physics (at golden hour the sky and the room are lit by the same warm sun), but a sky that is
+both dimmer than the wall and the same colour as it cannot read as sky.
+
+**Why this is not being decided here:** raising pane luminance is exactly the AgX tension `.209`
+recorded, and the fix space (brighter backdrop / a bloom-carrying emissive pane / a separate
+exposure for the backdrop) spans a render change, a product look change, and a per-tier cost. Root
+`CLAUDE.md` says these are not to be decided unilaterally.
+
 ## Summary
 
 | # | Item | Kind | Recommendation |
@@ -886,6 +922,7 @@ remains in any shipped plan.**
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |
 | k1 | WINDOW-SKY-DARK | render bug | ❌ **CLOSED v0.31.5.128** — mis-attributed. The `auto` tier ends at `high`, so the transmissive pane was correct; the dark pane was (k2) rendered by two tiers. Both tiers now read ~195 |
+| l | WINDOW-LUMINANCE | render + product look | ⏳ **OPEN v0.31.5.236** — photographs clip 15–39 % of their glazing; the app clips **0.0 %** at every hour, so the pane reads as a panel not an opening. Night (21:00) is already correct and must not regress |
 | k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect

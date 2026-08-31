@@ -4849,3 +4849,58 @@ Two secondary confirmations:
 
 `src/scene/look.ts` was restored from `/tmp/look234.bak.ts` and verified: `PHOTO_GROUND_BOUNCE = 3`,
 `git diff` on `src/` empty. Nothing changed in `src/`.
+
+---
+
+## `.236` — the window, measured across the day; and the falloff deviation is state-bound
+
+A new axis: professional interior photography leans hard on **warm interior against cool exterior**,
+and its signature case is the dusk shot. The app ships warm bulbs (`#ffd9a0` default) against cool
+daylight, so the separation should exist — this round measured whether it does, and how the glazing
+itself compares with photographs.
+
+### The glazing never clips
+
+| | glazing ÷ wall | glazing R−B | clipped |
+| --- | --- | --- | --- |
+| photograph, daylit (`Home_Staging`) | 1.10 | +20.2 | **39.3 %** |
+| reference kitchen glazing (`.198` set) | — | — | **15.1 %** |
+| app 13:00 | 1.32 | −4.1 | **0.0 %** |
+| app 19:00 | 0.80 | +22.1 | **0.0 %** |
+| app 21:00 | 0.28 | +5.7 | 0.0 % |
+
+The *mean* ratio is not the problem — at noon the app's 1.32 beats the photograph's 1.10. The
+**distribution** is: a real pane is a clipped white hole, the app's is an evenly-lit grey field. Filed
+as open decision **(l) WINDOW-LUMINANCE** with the numbers; it is a render + product call and root
+`CLAUDE.md` forbids deciding it unilaterally.
+
+**Night is already right** — 21:00 puts the pane at 0.28 of the wall with the interior warm (R−B 23.4)
+against a near-neutral pane. Any fix must not regress it.
+
+**19:00 is the weak hour**: the pane is dimmer than the wall *and* tinted identically to it (R−B 22.1
+vs 21.3) — zero separation at the hour the technique depends on. Partly honest physics (golden hour
+lights sky and room from the same warm sun), but a sky both dimmer than the wall and the same colour
+cannot read as sky.
+
+### Incidental, and it matters: the wall falloff deviation is state-bound
+
+The same three captures re-measured the wall falloff, which `.226`/`.231`/`.235` have treated as one of
+the two remaining deviations:
+
+| hour | far / near | vs photograph 0.85–0.86 |
+| --- | --- | --- |
+| 13:00 | **0.74** | too steep |
+| 19:00 | **0.88** | in band (just above) |
+| 21:00 | **1.20** | inverted — the far wall is BRIGHTER |
+
+So "the app's wall falloff is too steep" is not a property of the app; it is a property of **the
+strong single-window daylight state**. With the room lit by fixtures spread through it, the falloff is
+right, and at night it inverts exactly as it should (light sources are interior, so the near-window
+wall is the dark one).
+
+That narrows the remaining GI deficit considerably. It is not that the app cannot distribute light with
+distance — it is that a single bright window with no inter-reflection falls off faster than a real one.
+The 0.85–0.86 reference is itself a single daylit photograph (`.227`), so the comparison was always
+state-matched; what is new is knowing the deviation does not generalise.
+
+Nothing changed in `src/`.

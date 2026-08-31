@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.236 — the window measured across the day; the falloff deviation is state-bound
+
+A new axis: professional interior photography leans on **warm interior against cool exterior**, and its
+signature case is the dusk shot. The app ships warm bulbs (`#ffd9a0`) against cool daylight, so this
+round measured whether the separation exists, and how the glazing compares with photographs.
+
+| | glazing / wall | glazing R−B | clipped |
+| --- | --- | --- | --- |
+| photograph, daylit (`Home_Staging`) | 1.10 | +20.2 | **39.3 %** |
+| reference kitchen glazing (`.198` set) | — | — | **15.1 %** |
+| app 13:00 | 1.32 | −4.1 | **0.0 %** |
+| app 19:00 | 0.80 | +22.1 | **0.0 %** |
+| app 21:00 | 0.28 | +5.7 | 0.0 % |
+
+The mean ratio is not the problem — at noon the app beats the photograph. The **distribution** is: a
+real pane is a clipped white hole, the app's an evenly-lit grey field. Filed as open decision
+**(l) WINDOW-LUMINANCE**; it is a render + product call, not one to take unilaterally. **Night is
+already right** (0.28, warm interior against a neutral pane) and must not regress. **19:00 is the weak
+hour** — the pane is dimmer than the wall *and* tinted identically to it (R−B 22.1 vs 21.3).
+
+**Incidental, and it matters:** the same captures re-measured the wall falloff —
+
+| hour | far / near | vs photograph 0.85–0.86 |
+| --- | --- | --- |
+| 13:00 | **0.74** | too steep |
+| 19:00 | **0.88** | in band |
+| 21:00 | **1.20** | inverted, correctly — the light sources are interior |
+
+"The app's wall falloff is too steep" is therefore not a property of the app but of **the strong
+single-window daylight state**. That narrows the remaining GI deficit: it is not that the app cannot
+distribute light with distance, but that one bright window with no inter-reflection falls off faster
+than a real one.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.235 — `PHOTO_GROUND_BOUNCE` re-justified under the corrected metric
 
 `.234` retired the ceiling deficit and left an honest loose end: `PHOTO_GROUND_BOUNCE` existed to fix
