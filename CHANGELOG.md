@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.207 — `%<64` is pose-bound, and it is what this whole arc was calibrated on
+
+`.206` demoted the ceiling target because a ratio against the FRAME mean moves with what is in shot.
+The same test applied to `%<64` — the deep-shadow fraction that set `PHOTO_FILL_SCALE` in `.163` and
+has checked every look decision since. One room, one lighting state; only the pitch changes:
+
+| pitch | `%<64` |
+| --- | --- |
+| −0.50 | **18.63 %** |
+| −0.25 | 18.08 % |
+| −0.06 (calibration pose) | **10.21 %** |
+| +0.15 | 3.26 % |
+| +0.35 | **1.42 %** |
+| photographs | 1.9–12.2 % |
+
+**A 13× swing on pose alone**, spanning and exceeding the whole photographic band, with the lighting
+identical in every row.
+
+**It does not invalidate the sweeps.** Every calibration in this arc compared arms at an identical
+pose, and `%<64` is monotonic in each lever there. As a relative instrument it worked.
+
+**It does invalidate the absolute claim.** "The photographic look sits inside the photographic
+deep-shadow band" is a statement about one pitch in one room. The honest form: *at the calibration
+pose*, the app reads 10.21 % where four photographs read 1.9–12.2 %.
+
+**And it explains `.203`** — `%<64` "generalised" across all six rooms because every room was measured
+at the same pitch, the variable it is most sensitive to.
+
+`%<64` stays as the comparison instrument and is retired as an absolute target; the probe now prints
+that caveat beside the number. Four targets have now failed this test — `.186`, `.187`, `.206` and this
+— so state it as a rule: **a number from a photograph transfers only if the app measures it the same
+way, over the same denominator, from a comparable viewpoint.**
+
 ## v0.31.5.206 — the ceiling "deficit" is largely a COMPOSITION artefact
 
 `.205` validated that the ceiling band really is ceiling, leaving `.203`'s parity finding standing.

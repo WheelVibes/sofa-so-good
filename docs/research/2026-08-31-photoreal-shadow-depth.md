@@ -3436,3 +3436,55 @@ right than the frame ratio implied.
 
 The lesson is now twice-earned and belongs in every future target: **normalise against a surface in the
 same frame, never against the frame itself.**
+
+---
+
+## `.207` — `%<64` is pose-bound, and it is the metric this whole arc was calibrated on
+
+`.206` established that a ratio taken against the FRAME mean moves with what is in shot, and demoted
+the ceiling target for it. The same test has to be applied to `%<64`, the deep-shadow fraction that has
+been the primary calibration number since `.163` — it set `PHOTO_FILL_SCALE`, and every look decision
+since has been checked against it.
+
+One room, one lighting state, one time of day. Only the camera pitch changes:
+
+| pitch | frame mean | `%<64` |
+| --- | --- | --- |
+| −0.50 (down at the floor) | 99.7 | **18.63 %** |
+| −0.25 | 112.7 | 18.08 % |
+| −0.06 (the calibration pose) | 120.9 | **10.21 %** |
+| +0.15 | 134.3 | 3.26 % |
+| +0.35 (up at the ceiling) | 141.9 | **1.42 %** |
+| photographs | | 1.9–12.2 % |
+
+**A 13× swing on pose alone, spanning and exceeding the entire photographic band.** Tilt down and the
+app is darker than the darkest reference; tilt up and it is brighter than the lightest. The lighting is
+identical in every row.
+
+### What this does and does not invalidate
+
+**It does not invalidate the sweeps.** Every calibration in this arc — `PHOTO_FILL_SCALE`,
+`PHOTO_GROUND_BOUNCE`, the AO retune, the curtain term — compared arms at an *identical* pose, and
+`%<64` is monotonic in each of those levers at a fixed pose. As a relative instrument it worked, and
+the changes those sweeps produced stand on their own measurements.
+
+**It does invalidate the absolute claim.** "The photographic look sits inside the photographic
+deep-shadow band" is a statement about one pitch in one room, not about the app. `.186` widened that
+band from two photographs to four and treated the result as a property of photographs; it is at least
+as much a property of how each photograph was framed. The honest form of the claim is: *at the
+calibration pose*, the app reads 10.21 % where four photographs of interiors read 1.9–12.2 %.
+
+**And it explains a puzzle.** `.203` found `%<64` in band in all six rooms and called it the metric
+that generalises. It generalises because every room was measured at the same pitch — which is exactly
+the variable it is most sensitive to, held constant.
+
+### Consequence
+
+`%<64` stays as the arc's comparison instrument, because at a fixed pose it responds cleanly to every
+lever that matters. It is retired as an absolute photographic target. The probe now says so in its own
+output, next to the number, so the distinction cannot quietly be lost again.
+
+Three targets have now failed the same test — the shadow band (`.186`), the fabric micro-contrast
+(`.187`), and the ceiling ratio (`.206`) — and this is the fourth. The pattern is consistent enough to
+state as a rule: **a number derived from a photograph transfers only if the app measures it the same
+way, over the same denominator, from a comparable viewpoint.** Almost none of the obvious ones do.
