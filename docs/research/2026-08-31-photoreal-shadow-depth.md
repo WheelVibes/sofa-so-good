@@ -3705,3 +3705,43 @@ plaster micro-normal already supplies detail at that scale; only surfaces with n
 short. It is a small, real improvement, not a transformation — and the reason it is worth having is
 that a perfectly smooth large surface is one of the few remaining cues that reads as rendered rather
 than photographed.
+
+---
+
+## `.212` — the bathroom ceiling gap is NOT demonstrable: the metric does not extend there
+
+`.206` left the two bathrooms as the one unexplained outlier (ceiling/wall 0.81 and 0.69, against
+0.90–1.00 for living rooms) with the caveat that both references were living rooms. This round fetched
+a matched one — a white bathroom with twin basins and a window — and the answer is that the comparison
+cannot be made.
+
+| | ceiling | wall | ceiling/wall |
+| --- | --- | --- | --- |
+| bathroom reference | 169 | 159 | **1.06** |
+| photo C living room | 169 | 188 | 0.90 |
+| photo D living room | 188 | 188 | 1.00 |
+
+The bathroom reference's ceiling is **brighter** than its walls, opposite to both living rooms — and
+the reason is albedo, not light: its walls are **grey** tile against a white ceiling. The app's
+bathroom walls are `wall-tile-white` (glazed porcelain, bright) against the same white ceiling. Two
+different albedo relationships produce two different ratios under identical lighting, so the reference
+cannot adjudicate the app's number.
+
+**This is the same boundary `.208` drew for floor/wall.** Ceiling/wall works for living rooms *because
+both surfaces are painted* and the albedos roughly cancel. Change one surface to tile and the ratio
+stops isolating lighting. The metric's domain is narrower than it looked.
+
+### What can honestly be said
+
+At the shipped `.208` state the app measures bath 1 **0.65**, bath 2 **0.54**, living/dining 0.95 — so
+the `.208` retune lowered the bathrooms further (from 0.81 / 0.69). But an internal difference between
+a bathroom and a living room is *expected*: glazed porcelain walls are brighter under the same light
+than matte paint, which depresses ceiling/wall legitimately. Nothing here distinguishes "the bathroom
+ceiling is under-lit" from "the bathroom walls are correctly glossy".
+
+**So the bathroom outlier is withdrawn as a finding rather than resolved.** It was never demonstrated,
+and with this reference it still is not. Settling it would need either a bathroom reference whose wall
+albedo matches the app's white tile, or a metric that divides out albedo — and every attempt at the
+latter in this arc (`.188`, `.208`) has run into the same wall.
+
+Nothing changed in `src/`.

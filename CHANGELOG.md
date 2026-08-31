@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.212 — the bathroom ceiling gap is NOT demonstrable
+
+`.206` left the two bathrooms as the one unexplained outlier (ceiling/wall 0.81 and 0.69 against
+0.90–1.00 for living rooms), caveated because both references were living rooms. Fetched a matched one
+— a white bathroom with twin basins and a window — and the comparison cannot be made.
+
+| | ceiling | wall | ceiling/wall |
+| --- | --- | --- | --- |
+| bathroom reference | 169 | 159 | **1.06** |
+| photo C living room | 169 | 188 | 0.90 |
+| photo D living room | 188 | 188 | 1.00 |
+
+The reference bathroom's ceiling is BRIGHTER than its walls, opposite to both living rooms — because
+its walls are **grey** tile against a white ceiling, where the app's are `wall-tile-white`. Two albedo
+relationships, two ratios, identical lighting: the reference cannot adjudicate the app's number.
+
+**Same boundary `.208` drew for floor/wall.** Ceiling/wall isolates lighting only when both surfaces
+are painted and the albedos cancel; swap one for tile and it stops working. The metric's domain is
+narrower than it looked.
+
+At the shipped state the app reads bath 1 **0.65**, bath 2 **0.54**, living/dining 0.95 — so `.208`
+lowered the bathrooms further. But an internal difference is expected: glazed porcelain walls are
+brighter under the same light than matte paint, which depresses the ratio legitimately. Nothing
+distinguishes "the bathroom ceiling is under-lit" from "the bathroom walls are correctly glossy".
+
+**The outlier is withdrawn as a finding rather than resolved** — it was never demonstrated, and with
+this reference it still is not.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.211 — SHIPPED: sensor grain for the photographic look
 
 `.210` found the app's untextured surfaces about half as busy as a photographic ceiling. Building the
