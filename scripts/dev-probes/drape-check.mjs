@@ -74,9 +74,29 @@ const report = await page.evaluate(async () => {
       }
     }
   })
+  // What is actually lighting the room, per tier.
+  const lights = { hemisphere: [], ambient: [], directional: [], point: 0, pointTotal: 0 }
+  scene.traverse((o) => {
+    if (o.isHemisphereLight)
+      lights.hemisphere.push({
+        intensity: +o.intensity.toFixed(3),
+        sky: `#${o.color.getHexString()}`,
+        ground: `#${o.groundColor.getHexString()}`,
+      })
+    else if (o.isAmbientLight) lights.ambient.push({ intensity: +o.intensity.toFixed(3) })
+    else if (o.isDirectionalLight)
+      lights.directional.push({ intensity: +o.intensity.toFixed(3), castShadow: o.castShadow })
+    else if (o.isPointLight && o.intensity > 0) {
+      lights.point++
+      lights.pointTotal += o.intensity
+    }
+  })
+  lights.pointTotal = +lights.pointTotal.toFixed(2)
   const programs = (gl.info?.programs ?? []).map((p) => p.cacheKey ?? '')
   return {
     tier: window.__store.getState().qualityTier,
+    exposure: +gl.toneMappingExposure.toFixed(3),
+    lights,
     windowAttenuation: +wls.getWindowAttenuation().toFixed(3),
     fillAttenuation: +look.windowFillAttenuation(wls.getWindowAttenuation()).toFixed(3),
     sceneEnvironment: !!scene.environment,

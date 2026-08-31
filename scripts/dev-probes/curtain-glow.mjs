@@ -28,6 +28,9 @@ const PHOTO = process.env.PHOTO === '1'
 const WINDOW = process.env.WINDOW || 'livingDining'
 const STANDOFF = Number(process.env.STANDOFF || 3.0)
 const CLOSED = process.env.CLOSED !== '0'
+/** Force a sun shadow map on a tier that ships without one, to test whether the
+ *  photographic look's inertness there is caused by nothing being shadowed. */
+const SHADOW = process.env.SHADOW
 const GRID = Number(process.env.GRID || 90)
 /** How far in front of / behind the window plane still counts as "in it". */
 const SLAB_M = Number(process.env.SLAB || 0.5)
@@ -64,13 +67,15 @@ await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 
 const setup = await page.evaluate(
-  ({ h, t, photo, closed, win, standoff }) => {
+  ({ h, t, photo, closed, win, standoff, shadow }) => {
     const s = window.__store.getState()
     s.setQualityTier(t)
     s.setTimeMode?.('manual')
     s.setManualHour?.(h)
     s.setCameraMode?.('firstPerson')
     s.setPhotographicLook?.(photo)
+    s.resetQualityOverrides?.()
+    if (shadow) s.setQualityOverride?.('shadowMapSize', Number(shadow))
     // `drawAmount` 1 is DRAWN. The default flat ships them open (`.88`), and
     // `toggleWindowFixture` FLIPS, which is how `.91` measured two covered
     // windows and concluded the presets were inert — set the value explicitly.
@@ -125,7 +130,15 @@ const setup = await page.evaluate(
       },
     }
   },
-  { h: HOUR, t: TIER, photo: PHOTO, closed: CLOSED, win: WINDOW, standoff: STANDOFF },
+  {
+    h: HOUR,
+    t: TIER,
+    photo: PHOTO,
+    closed: CLOSED,
+    win: WINDOW,
+    standoff: STANDOFF,
+    shadow: SHADOW,
+  },
 )
 if (!setup.pose) throw new Error('no window opening in the loaded plan')
 
@@ -136,6 +149,60 @@ await page.evaluate(async (q) => {
 }, setup.pose)
 await new Promise((r) => setTimeout(r, 3000))
 await assertSceneAlive(page, 'curtain-glow')
+
+/**
+ * VERIFY THE CAMERA IS IN THE ROOM. `light-distribution.mjs` gained this in
+ * v0.31.5.203 and this probe did not — which cost three rounds: every
+ * `performance` reading in `.214`-`.216` was taken from the ORBIT dollhouse,
+ * because the walk teleport had not taken and the "room" being measured was
+ * mostly the flat grey background. It reads as a plausible number (183, flat,
+ * unresponsive to curtains, time and the look) rather than as a failure.
+ */
+const arrival = await page.evaluate((roomIdWanted) => {
+  const { camera } = window.__three
+  const s = window.__store.getState()
+  const at =
+    (s.floorPlan?.rooms ?? []).find(
+      (r) =>
+        camera.position.x >= r.origin[0] &&
+        camera.position.x <= r.origin[0] + r.width &&
+        camera.position.z >= r.origin[1] &&
+        camera.position.z <= r.origin[1] + r.depth,
+    )?.id ?? null
+  return {
+    cameraMode: s.cameraMode,
+    eyeY: +camera.position.y.toFixed(2),
+    roomReached: at,
+    inRoom: at !== null,
+    wanted: roomIdWanted,
+  }
+}, null)
+/**
+ * ...AND VERIFY WHAT IS RENDERED, not just what the store says. At `performance`
+ * the frame comes back as the ORBIT DOLLHOUSE while `cameraMode` is
+ * `firstPerson`, `camera.position.y` is 1.6 and the room lookup says
+ * `livingDining` — every state check passes and the picture is of the whole flat
+ * seen from outside (`.217`). A ray cast down the view axis settles it: standing
+ * in a room you are metres from a wall, in orbit you are tens of metres from the
+ * model.
+ */
+const viewDistance = await page.evaluate(() => {
+  const { scene, camera } = window.__three
+  const rc = new window.__three.raycaster.constructor()
+  rc.setFromCamera({ x: 0, y: 0 }, camera)
+  const h = rc
+    .intersectObjects(scene.children, true)
+    .find((k) => k.object.visible && k.object.material?.colorWrite !== false)
+  return h ? +h.distance.toFixed(2) : null
+})
+// NOTE: a raycast from `window.__three.camera` CANNOT detect this. That camera
+// is in the room and its centre ray hits at 2.55 m on both tiers — the renderer
+// simply draws a different one. The guard has to come from the IMAGE, below.
+if (!arrival.inRoom || arrival.eyeY > 3)
+  throw new Error(
+    `curtain-glow: camera is not inside a room (${JSON.stringify(arrival)}). ` +
+      'A walk pose that silently stays in orbit produces plausible, meaningless numbers.',
+  )
 
 let hits = []
 for (let attempt = 1; attempt <= 4; attempt++) {
@@ -184,6 +251,12 @@ const meta = await img.metadata()
 const raw = await img.raw().toBuffer()
 const ch = raw.length / (meta.width * meta.height)
 
+// NO WORKING AUTOMATIC GUARD YET for the `.217` failure below. A flat-background
+// test was tried and does NOT fire: the dollhouse background is a soft gradient,
+// so only ~a few per cent of pixels sit within +/-2 luma of the edge value. Until
+// something better exists, LOOK AT THE FRAME before trusting a `performance`
+// number from this probe.
+
 const inPlane = []
 const all = []
 /** Everything that is NOT the window plane — the room the curtain is judged
@@ -216,6 +289,8 @@ console.log(
   'curtain-glow ',
   JSON.stringify({
     tier: TIER,
+    arrival,
+    viewDistance,
     hour: HOUR,
     photographicLook: PHOTO,
     curtainsDrawn: CLOSED,

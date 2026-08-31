@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.217 — RETRACTED: `.214`, `.215` and `.216` measured the orbit dollhouse
+
+Three rounds of `performance`-tier findings are withdrawn. The frame they came from is not an interior
+— it is the **orbit dollhouse**, the whole flat seen from outside against a pale background. I looked
+at it only after building two explanations on top of it.
+
+Every state check passed: `cameraMode` `firstPerson`, `camera.position.y` 1.60, room lookup
+`livingDining`, centre-ray hit 2.55 m, walk-mode HUD and minimap marker. And the render is the
+dollhouse, reproducibly. So on that tier `window.__three.camera` — what `DevCameraExpose` publishes and
+every probe reasons about — is **not the camera the renderer draws with**.
+
+Invalidated: **`.214`** ("the curtain term does not work on `performance`", 1.03) — measured on a
+dollhouse whose "room" is mostly background. **`.215`** ("the tier has no range", curtain/glazing/wall
+all 183–188) — that is the background. **`.216`** ("the photographic look is INERT on `performance`",
+−1 % vs medium's −53 %) — the look barely changes a picture of a building seen from outside.
+
+`medium`, `high` and `maximum` frames were inspected and ARE interiors, so those numbers stand,
+including every shipped constant.
+
+**Why the guards missed it:** `.203`'s arrival check (added to this probe this round) passes, because
+the exposed camera really is in the room. A centre-ray distance test passes too (2.55 m both tiers). An
+image-side flat-background test does not fire either — the dollhouse background is a soft gradient. No
+automatic guard yet; the probe now says so where one would go.
+
+**The lesson, paid for four times now** — `.181` (a floor band that was furniture), `.193` (numbers
+through an onboarding scrim), `.202` (three rooms measured from a corridor), and this: **a number is
+not evidence until the frame it came from has been seen.**
+
+Whether the `performance` walk view is genuinely broken in a real browser, as opposed to in this
+headless probe, is now an open question — and a more serious one than anything `.214`–`.216` claimed.
+
 ## v0.31.5.216 — the photographic look is INERT on the `performance` tier
 
 `.215` found the window-facing view at `performance` flat and unresponsive to the curtains. Chasing the

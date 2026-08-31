@@ -3955,3 +3955,65 @@ as a limitation of the tier's dynamic range. It is more specific and worse: the 
 all.
 
 Nothing changed in `src/`.
+
+---
+
+## `.217` — RETRACTED: `.214`, `.215` and `.216` measured the orbit dollhouse
+
+Three rounds of `performance`-tier findings are withdrawn. The frame those measurements came from is
+not an interior at all — it is the **orbit dollhouse**, the whole flat seen from outside against a
+pale background.
+
+I looked at it only after building two explanations on top of it.
+
+### What the state said, and what was drawn
+
+Every check passed:
+
+| check | value |
+| --- | --- |
+| `cameraMode` | `firstPerson` |
+| `camera.position.y` | 1.60 |
+| room containing the camera | `livingDining` |
+| centre-ray hit distance | 2.55 m |
+| HUD | walk-mode hint bar, minimap marker in LIVING/DINING |
+
+And the rendered frame is the dollhouse, reproducibly, across separately captured runs. So on that
+tier `window.__three.camera` — what `DevCameraExpose` publishes and every probe reasons about — is
+**not the camera the renderer draws with**. The exposed camera really is standing in the living room;
+the picture is of the building from thirty metres away.
+
+### What that invalidates
+
+- **`.214`** "the curtain term does not work on the `performance` tier" (1.03 vs 1.38–1.49) — the 1.03
+  was measured on a dollhouse whose "room" is mostly background.
+- **`.215`** "the tier has no range in a window-facing pose" (curtain/glazing/wall all 183–188) — that
+  is the background, not a saturated interior.
+- **`.216`** "the photographic look is INERT on the `performance` tier" (−1 % vs medium's −53 %) — the
+  look barely changes a dollhouse of a flat seen from outside, which says nothing about walking
+  through it.
+
+`medium`, `high` and `maximum` frames were inspected and **are** interiors, so every number on those
+tiers stands, including the shipped constants.
+
+### Why the guards did not catch it
+
+`.203` added an arrival check to `light-distribution.mjs` and this probe never got one; I added it this
+round and **it passes** — because it interrogates the exposed camera, which is genuinely in the room.
+A centre-ray distance test passes for the same reason (2.55 m on both tiers). An image-side
+flat-background test was then tried and **does not fire either**: the dollhouse background is a soft
+gradient, so only a few per cent of pixels sit within ±2 luma of the edge value.
+
+So there is no automatic guard yet, and the probe now says so in a comment at the point where one
+would go: **look at the frame before trusting a `performance` number from it.**
+
+### The lesson, which this arc has now paid for four times
+
+`.181` (a floor band that was furniture), `.193` (numbers taken through an onboarding scrim), `.202`
+(three rooms measured from a corridor) and now this. Every one was a plausible number from a frame
+nobody had looked at, and in every case a single glance settled in seconds what measurement could not.
+**A number is not evidence until the frame it came from has been seen.**
+
+Nothing changed in `src/`. Whether the `performance` walk view is genuinely broken in a real browser —
+as opposed to in this headless probe — is now an open question worth its own investigation, and a more
+serious one than anything `.214`–`.216` claimed.
