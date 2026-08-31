@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.206 — the ceiling "deficit" is largely a COMPOSITION artefact
+
+`.205` validated that the ceiling band really is ceiling, leaving `.203`'s parity finding standing.
+This round asks whether the comparison itself is sound, and it is not.
+
+**Every ratio taken against a FRAME mean moves with what is in shot** — `.201` hit this on the curtain
+(references cover 2–8 % of frame, the probe's pose 35 %). Ceiling ÷ frame has the same defect: the
+photographs are wide interior shots, the probe is a window-facing walk view. **Ceiling ÷ WALL has no
+such dependence.** On the references: photo C **0.90**, photo D **1.00**.
+
+At a consistent `PITCH=0.25`, with 623–2116 ceiling samples per room:
+
+| room | ceiling/wall |
+| --- | --- |
+| living/dining | 1.09 |
+| main bedroom | 1.13 |
+| bedroom 2 | 1.05 |
+| bedroom 3 | 1.10 |
+| bath 1 | **0.81** |
+| bath 2 | **0.69** |
+| photographs | 0.90–1.00 |
+
+**The four habitable rooms are 1.05–1.13 — slightly brighter than the photographic band, not darker.**
+`.203`'s bedroom shortfall was an artefact of the level pitch, which yields only 60–223 ceiling samples
+there; the ratio swung 0.82 → 1.13 on pose alone. `.204`'s refutation now makes sense from the other
+side: more bounce barely moved the bedroom ceiling because it was never dark.
+
+The two bathrooms are genuinely lower (0.69–0.81) but have **no matching reference** — both photographs
+are living rooms, and real gloss-tiled walls would depress this legitimately. Recorded as unexplained,
+not as a defect.
+
+**What it costs the record:** `.188`'s ceiling target and `.195`'s shipped `PHOTO_GROUND_BOUNCE` rest on
+a frame-normalised ratio that is not comparable across compositions. That does not make the change
+harmful — it also moved `%<64` into a defensible place, wall/floor stayed in range, and the visual A/B
+stood on its own — but the headline justification was weaker than recorded.
+
+Lesson, now twice-earned: **normalise against a surface in the same frame, never against the frame.**
+
 ## v0.31.5.205 — the ceiling metric is VALIDATED; `.204`'s doubt was a broken cross-check
 
 `.204` left the arc's oldest target in doubt — a geometric cross-check found zero ceiling samples,

@@ -3374,3 +3374,65 @@ and the bedrooms below living/dining.
 
 The geometric mask stays in the probe as a permanent cross-check, with the pitch restore and a
 low-sample warning. Nothing changed in `src/`.
+
+---
+
+## `.206` — the ceiling "deficit" is largely a COMPOSITION artefact
+
+`.205` validated that the ceiling band really is ceiling, leaving `.203`'s parity finding standing:
+every room short of the photographic 1.08–1.28, bedrooms worst at 0.86–0.98. This round asks whether
+that comparison is sound, and it is not.
+
+### Every ratio taken against a FRAME mean moves with what is in shot
+
+`.201` already hit this on the curtain: the reference curtains cover 2–8 % of their frames while the
+probe's pose fills ~35 %, so the same physical brightness gives a different ratio. Ceiling ÷ frame has
+exactly the same defect — the reference photographs are wide interior shots, the probe is a
+window-facing walk view, and the two put very different amounts of bright floor and glazing in frame.
+
+**Ceiling ÷ WALL has no such dependence**, because both surfaces are in the same frame. Measured on
+the references with the crops `.188` verified by grid overlay:
+
+| reference | ceiling | wall | **ceiling/wall** |
+| --- | --- | --- | --- |
+| photo C (modern white) | 169 | 188 | **0.90** |
+| photo D (lived-in flat) | 188 | 188 | **1.00** |
+
+### And the app is not short — it is marginally over
+
+At a consistent `PITCH=0.25` (needed for the small rooms to see any ceiling at all), with 623–2116
+ceiling samples per room:
+
+| room | ceiling/wall |
+| --- | --- |
+| living/dining | 1.09 |
+| main bedroom | 1.13 |
+| bedroom 2 | 1.05 |
+| bedroom 3 | 1.10 |
+| bath 1 | **0.81** |
+| bath 2 | **0.69** |
+| photographs | 0.90–1.00 |
+
+**The four habitable rooms sit at 1.05–1.13 — slightly BRIGHTER than the photographic band, not
+darker.** The bedroom shortfall recorded in `.203` and re-confirmed in `.205` was an artefact of the
+level pitch: at `PITCH=-0.06` those rooms yield only 60–223 ceiling samples, a small and biased slice
+of ceiling and wall, and the ratio swung from 0.82 to 1.13 purely on pose. `.204`'s refutation now
+makes sense from the other side too — raising the bounce barely moved the bedroom ceiling because it
+was never dark.
+
+The two BATHROOMS are genuinely different at 0.69–0.81, but there is **no matching reference**: both
+photographs are living rooms, and a real tiled bathroom has bright gloss walls that would depress this
+ratio legitimately. Recorded as unexplained rather than as a defect.
+
+### What this costs the record
+
+`.188`'s ceiling target and everything built on it — including `.195`'s shipped
+`PHOTO_GROUND_BOUNCE` — rest on a frame-normalised ratio that is not comparable between the
+photographs' compositions and the probe's. **That does not make the shipped change harmful**: it also
+moved `%<64` into a defensible place, the wall and floor ratios stayed in range, and the visual A/B was
+judged on its own terms. But the headline justification ("the ceiling reaches the photographic band")
+was weaker than recorded, and the composition-independent measurement says the ceilings were closer to
+right than the frame ratio implied.
+
+The lesson is now twice-earned and belongs in every future target: **normalise against a surface in the
+same frame, never against the frame itself.**

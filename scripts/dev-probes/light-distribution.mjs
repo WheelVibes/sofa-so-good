@@ -440,6 +440,14 @@ const geo = await page.evaluate(
   console.log(
     `  ceiling ${(mean(buckets.ceiling) / base).toFixed(2)}   wall ${(mean(buckets.wall) / base).toFixed(2)}   floor ${(mean(buckets.floor) / base).toFixed(2)}   (normalised by their own combined mean ${base.toFixed(1)})`,
   )
+  // CEILING / WALL is the composition-independent one, and it is the number to
+  // compare (v0.31.5.206). Every ratio taken against a FRAME mean moves with what
+  // happens to be in shot — the same trap `.201` hit on the curtain, where the
+  // reference curtains covered 2-8 % of their frames and the probe's filled 35 %.
+  // Two surfaces in the SAME frame have no such dependence.
+  console.log(
+    `  ceiling/wall = ${(mean(buckets.ceiling) / mean(buckets.wall)).toFixed(2)}   (photographs 0.90 and 1.00 — see .206)`,
+  )
   if (buckets.ceiling.length < 20)
     console.log('  WARNING: few ceiling samples — the pose may not see enough ceiling.')
 }
