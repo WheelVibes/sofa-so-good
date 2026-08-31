@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.224 — AO at `performance`: measured, and NOT shipped
+
+`.223` showed the blob decal cannot bring `performance` into the contact band. The remaining lever is
+the one `src/scene/CLAUDE.md` retired — screen-space AO on that tier — and that note's own condition
+for re-opening is "look at WALK mode close-ups, not the phone dollhouse", which is the evidence this arc
+now has.
+
+| | `performance`, shadowed ÷ lit floor |
+| --- | --- |
+| shipped (no AO) | 0.827 |
+| **AO on** | **0.709** |
+| photographs | 0.579–0.725 |
+
+**AO closes it**, and costs **+0.60 ms** (p90 4.8 → 5.4 against a 16.67 ms budget). The frame, rendered
+through a probe with a verified pose, is clean — visible contact shading under the sofa and console.
+
+**Not shipped anyway.** That tier exists for hardware I cannot measure: `capabilityCeilingTier` sends
+software rasterisers, phones and <4-core devices there, and `src/scene/CLAUDE.md` says in terms that AO
+at `performance` "cannot be honestly verified on an M4". AO is fill-rate bound; +0.6 ms here says little
+about a low-end mobile GPU, and this is the tier whose purpose is to protect that population. Recorded
+with the numbers so the decision is informed rather than re-derived.
+
+**Two probe notes:** `feature-price.mjs`'s camera reset did not hold across these cases — its arms came
+back at completely different poses, so `pixels>8=61.03% / meanAbsDiff=47.33` is a pose difference, not
+an AO measurement (exactly the trap its own header documents). And the large black rectangles in that
+arm's frame are a capture artefact, not AO: the same configuration through `underside-shadow.mjs` is
+clean.
+
+`feature-price.mjs` gains an `ao ON` case. Nothing changed in `src/`.
+
 ## v0.31.5.223 — the blob decal's ceiling, and a documentation correction
 
 `.222` left `performance` at **0.827**, outside the contact band, attributed to `ao: false`. That tier

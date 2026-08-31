@@ -38,6 +38,11 @@ const ALL_CASES = [
   { label: 'ibl off', ov: { ibl: false } },
   { label: 'contactShadows off', ov: { contactShadows: false } },
   { label: 'ao off (TIER-AO)', ov: { ao: false } },
+  // Price AO where a tier does NOT ship it — `performance` has `ao: false`, and
+  // `.224` measured that turning it on takes the shadowed/lit floor ratio from
+  // 0.827 (outside the photographic 0.579-0.725) to 0.709 (inside). The question
+  // that decides it is what it costs on the tier that exists for weak hardware.
+  { label: 'ao ON (price it where a tier lacks it)', ov: { ao: true } },
 ]
 
 /**

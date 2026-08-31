@@ -4283,3 +4283,51 @@ darkening — even though the decals were active. At 0.047 they are simply below
 resolves once AO is removed.
 
 Nothing changed in `src/`.
+
+---
+
+## `.224` — AO at `performance`: measured, and NOT shipped
+
+`.223` showed the blob decal cannot bring `performance` into the contact band (0.789 even at full
+opacity, against 0.579–0.725). The remaining lever is the one `src/scene/CLAUDE.md` retired:
+screen-space AO on that tier. That note's own condition for re-opening is *"look at WALK mode close-ups,
+not the phone dollhouse"* — which is exactly the evidence this arc now has.
+
+### The measurement
+
+| | `performance`, shadowed ÷ lit floor |
+| --- | --- |
+| shipped (no AO) | 0.827 |
+| **AO on** | **0.709** (single-pose 0.654) |
+| photographs | 0.579–0.725 |
+
+**AO closes it.** Frame cost, `feature-price.mjs` at `performance`/DSF 2: p90 **4.8 → 5.4 ms**,
+**+0.60 ms** against a 16.67 ms budget — the tier would still use under a third of it. The frame,
+rendered through a probe whose pose is verified, is clean: a proper interior with visible contact
+shading under the sofa and the console.
+
+### Why it is not shipped anyway
+
+**The tier exists for hardware I cannot measure.** `capabilityCeilingTier` sends software rasterisers,
+phones, no-WebGL2 and <4-core devices here, and `src/scene/CLAUDE.md` says in terms that AO at
+`performance` "cannot be honestly verified on an M4". AO is fill-rate bound; +0.6 ms on this machine
+says very little about a low-end mobile GPU, and this is the tier whose whole purpose is to protect
+that population. Changing its contract on the strength of a desktop measurement is exactly the call
+that should not be made unilaterally.
+
+Recorded with the numbers so the decision is informed rather than re-derived: **it costs 0.6 ms here
+and it closes the gap.**
+
+### Two probe notes
+
+- **`feature-price.mjs`'s camera reset did not hold across these cases.** Its two arms came back at
+  completely different poses — an orbit dollhouse against an interior close-up — so its
+  `pixels>8=61.03% / meanAbsDiff=47.33` is a pose difference, not an AO measurement. That is precisely
+  the trap its own header documents ("diffing stills taken from wherever the previous case's orbit
+  ended reported 48–70% pixels changed for every feature"), recurring. The p90 timings are over 500
+  frames each and are less affected, but should be read as indicative.
+- **The large black rectangles in that arm's frame are a capture artefact, not AO.** The same
+  configuration rendered through `underside-shadow.mjs` is clean.
+
+`feature-price.mjs` gains an `ao ON` case, so pricing AO where a tier lacks it no longer needs an
+ad-hoc edit. Nothing changed in `src/`.
