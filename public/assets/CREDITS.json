@@ -123,7 +123,7 @@
     },
     {
       "id": "floor-tile-white",
-      "name": "White tiles",
+      "name": "Mosaic tiles",
       "attribution": "Poly Haven",
       "sourceUrl": "https://polyhaven.com/a/square_tiles_03",
       "license": "CC0"
@@ -179,7 +179,7 @@
     },
     {
       "id": "wall-leather-white",
-      "name": "White leather",
+      "name": "Greige leather",
       "attribution": "Poly Haven",
       "sourceUrl": "https://polyhaven.com/a/leather_white",
       "license": "CC0"

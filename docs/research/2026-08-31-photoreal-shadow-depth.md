@@ -2859,3 +2859,72 @@ The sweep numbers survive, and the reason is worth stating rather than assumed: 
 measurements against the corrected file reproduces them exactly — under/open **0.722**, and
 119.6 / 10.44 % / ceiling 1.08. **A sweep driven by a regex over source needs the regex anchored to
 its block**, and the suite is the backstop that makes a stray match visible.
+
+---
+
+## `.197` — floor gloss has no target either, and two finishes were lying about their own colour
+
+With the photographic look inside every band, this round went looking for the next axis and found a
+different kind of defect on the way.
+
+### Floor gloss is a property of the finish, not a target
+
+A glossy floor mirroring the window is one of the strongest cues in a professional interior render, so
+it looked like an axis. Measured on the references it is not one:
+
+| floor | mean | sd/mean |
+| --- | --- | --- |
+| photo D parquet (glossy) | 143 | **0.156** |
+| photo D parquet (2) | 150 | **0.218** |
+| photo C pale wood (matte) | 185 | **0.037** |
+| photo C pale wood (2) | 180 | **0.051** |
+
+A 4× spread, driven entirely by finish. Same shape as `.187`'s retraction of the fabric target: there
+is no single photographic value to hit, so the honest question is whether the app's floor *responds* to
+its finish, not whether it matches a number. (The app's own open-floor sd/mean reads 0.288, but that
+population spans the room and so includes the lighting gradient the small photo crops do not — the two
+are not comparable, and the number is only useful for comparing app states to each other.)
+
+### `.181`'s floor-finish "plumbing bug" is REFUTED
+
+`light-distribution.mjs` still carries a note that `setFloorFinish` is accepted but the render does not
+change — "the floor band stays rgb 156,138,118 for oak and marble alike". That was measured with the
+screen-band method `.182` later threw out as contaminated. Re-measured against the geometrically-masked
+open-floor population, the render responds plainly:
+
+| floor finish | open-floor mean |
+| --- | --- |
+| default (vinyl oak) | 105.3 |
+| marble | 103.3 |
+| **white tiles** | **73.2** |
+| parquet | 74.3 |
+| concrete | 78.8 |
+| carpet | 47.0 |
+
+The plumbing works. `.181` compared oak against marble, which happen to sit 2 % apart, and read that
+coincidence through a contaminated band as a dead lever.
+
+### But "White tiles" is darker than oak, and that is a real defect
+
+Look at the table again: the finish named **White tiles** renders at **73.2** against oak vinyl's
+**105.3** — the "white" floor is the *darker* of the two. Its albedo texture means `#6e6155` and the
+frame shows a fine brown/grey mosaic. Poly Haven's source asset is `square_tiles_03`; nothing about it
+is white.
+
+Scanning every finish for a colour word contradicted by its own swatch found the catalog has exactly
+**two** such names, and **both were wrong**:
+
+- `floor-tile-white` "White tiles" — swatch `#6e6156`, luma 99 → renamed **"Mosaic tiles"**
+- `wall-leather-white` "White leather" — swatch `#969380`, luma 146, a flat greige → renamed
+  **"Greige leather"**
+
+**The swatches were honest and the names were not.** Every swatch matches its albedo texture's mean to
+within rounding, because the asset pipeline derives it — so the drift is entirely in the hand-written
+name. The names live in each asset's `material.json` and flow through
+`scripts/asset-pipeline/index-assets.ts`; **ids are unchanged**, since those are what saved designs
+persist. `src/materials/swatchHonesty.test.ts` now pins the rule, and includes a guard-the-guard case
+so it cannot pass vacuously if the rules ever stop matching anything.
+
+One regeneration trap: `npm run index-assets` emits double quotes and semicolons, so its output diffs
+against the biome-formatted committed catalogs on **every line**. Run biome over the two generated
+files afterwards and the diff collapses to the real change — here, two lines.

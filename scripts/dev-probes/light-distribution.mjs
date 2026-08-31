@@ -52,12 +52,12 @@ const STANDOFF = Number(process.env.STANDOFF || 4.6)
 const PITCH = Number(process.env.PITCH || -0.06)
 const WALKFOV = process.env.WALKFOV ? Number(process.env.WALKFOV) : 50
 const PHOTO = process.env.PHOTO === '1'
-// FLOOR re-finishes the living/dining floor. NOTE (v0.31.5.181): the store
-// accepts it — `state.floor` reports the new id — but the render does not change
-// (the floor band stays rgb 156,138,118 for oak and marble alike), so something
-// downstream of `setFloorFinish` is not picking it up on the CURATED default flat.
-// Left in place because the plumbing bug is worth having a repro for, but do not
-// trust it as a way to vary the floor until that is chased down.
+// FLOOR re-finishes the living/dining floor. The `.181` note that claimed this
+// was inert is RETRACTED (v0.31.5.197): it was measured with the screen band
+// `.182` threw out as contaminated, and it compared oak against marble, which
+// genuinely sit 2 % apart. Against a geometrically-masked floor population the
+// render responds plainly — oak 105.3, marble 103.3, white tiles 73.2, parquet
+// 74.3, concrete 78.8, carpet 47.0 (`underside-shadow.mjs FLOOR=<id>`).
 const FLOOR = process.env.FLOOR || ''
 const WALL = process.env.WALL || ''
 // Pitch for the FLOOR capture: steep enough that the near floor fills the bottom

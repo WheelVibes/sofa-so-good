@@ -60,6 +60,10 @@ const WINDOW = process.env.WINDOW || 'livingDining'
 /** `AO=0` turns screen-space AO off, to price its contribution to the shadow
  *  under furniture. Cleared with `resetQualityOverrides` — writing `undefined`
  *  per key does NOT clear it, it reads as "off" (QUALITY-OVERRIDE-UNDEF). */
+/** Re-finish the living/dining floor, to test whether the render responds.
+ *  `.181` reported that it does not on the curated default flat, but measured it
+ *  with the screen-band method `.182` retracted as contaminated. */
+const FLOOR = process.env.FLOOR || ''
 const AO = process.env.AO
 const OUT = process.env.OUT || '/tmp/underside-shadow'
 
@@ -104,17 +108,18 @@ await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 
 await page.evaluate(
-  ({ h, t, photo, ao }) => {
+  ({ h, t, photo, ao, floor }) => {
     const s = window.__store.getState()
     s.setQualityTier(t)
     s.resetQualityOverrides?.()
     if (ao !== undefined) s.setQualityOverride?.('ao', ao === '1')
+    if (floor) s.setFloorFinish?.('livingDining', floor)
     s.setTimeMode?.('manual')
     s.setManualHour?.(h)
     s.setCameraMode?.('firstPerson')
     s.setPhotographicLook?.(photo)
   },
-  { h: HOUR, t: TIER, photo: PHOTO, ao: AO },
+  { h: HOUR, t: TIER, photo: PHOTO, ao: AO, floor: FLOOR },
 )
 await new Promise((r) => setTimeout(r, 1500))
 
@@ -290,6 +295,20 @@ console.log('')
 console.log(`POOLED  under ${under.length} / open ${open.length} / down-faces ${faces.length}`)
 console.log(
   `  under = ${mu.toFixed(1)}   open = ${mo.toFixed(1)}   under/open = ${(mu / mo).toFixed(3)}`,
+)
+console.log(`  open-floor MEAN = ${mo.toFixed(1)}`)
+// Floor VARIATION over the geometrically-masked open-floor samples: a gloss
+// proxy. A glossy floor mirrors the window and the room and varies a lot; a matte
+// one is nearly uniform. Reference photographs (`.197`): glossy parquet
+// 0.156-0.218, matte pale wood 0.037-0.051 — there is no single target, it is a
+// property of the FINISH, so this is for comparing finishes and looks.
+const sd = (a) => {
+  if (a.length < 2) return Number.NaN
+  const m = mean(a)
+  return Math.sqrt(a.reduce((s2, v) => s2 + (v - m) ** 2, 0) / a.length)
+}
+console.log(
+  `  open-floor variation sd/mean = ${(sd(open) / mo).toFixed(3)}   (photographs: matte 0.037-0.051, glossy 0.156-0.218)`,
 )
 const mf = mean(faces)
 console.log(

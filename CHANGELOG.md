@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.197 — two finishes were lying about their own colour; `.181`'s floor-finish bug refuted
+
+Went looking for the next photorealism axis (floor gloss) and found a different defect on the way.
+
+**Floor gloss is not a target.** Glossy parquet measures sd/mean **0.156–0.218** against matte pale
+wood at **0.037–0.051** — a 4× spread driven entirely by finish, so there is no photographic value to
+hit. Same shape as `.187`'s fabric retraction.
+
+**`.181`'s floor-finish "plumbing bug" is refuted.** Its note says `setFloorFinish` is accepted but the
+render does not change, measured with the screen-band method `.182` threw out as contaminated. Against
+the geometrically-masked open-floor population the render responds plainly: oak 105.3, marble 103.3,
+white tiles 73.2, parquet 74.3, concrete 78.8, carpet **47.0**. `.181` happened to compare two finishes
+that sit 2 % apart.
+
+**But that table exposes a real one: "White tiles" renders DARKER than oak** (73.2 vs 105.3). Its
+albedo means `#6e6155` — a brown/grey mosaic (Poly Haven `square_tiles_03`). Scanning every finish for
+a colour word contradicted by its own swatch found the catalog has exactly two such names and both were
+wrong:
+
+- `floor-tile-white` "White tiles" (luma 99) → **"Mosaic tiles"**
+- `wall-leather-white` "White leather" (luma 146, flat greige) → **"Greige leather"**
+
+The swatches were honest — each matches its albedo texture's mean, because the pipeline derives it — so
+only the hand-written names had drifted. Fixed in each asset's `material.json` and regenerated; **ids
+unchanged**, since saved designs persist those. `src/materials/swatchHonesty.test.ts` pins the rule and
+includes a guard-the-guard case so it cannot pass vacuously.
+
+Regeneration trap: `npm run index-assets` emits double quotes and semicolons, so it diffs against the
+biome-formatted catalogs on every line. Run biome over the generated files and the diff collapses to
+the real change — here, two lines.
+
 ## v0.31.5.196 — SHIPPED: AO is the only contact shadow an interior gets, and it was under-strength
 
 `.194` left one deficiency `.195`'s bounce provably could not touch: the floor under the app's
