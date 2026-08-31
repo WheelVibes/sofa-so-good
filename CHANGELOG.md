@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.240 — the `performance` floor-grain result is NOT texture resolution
+
+`.239` found the floor micro-contrast overshoot inverts by tier (`performance` **0.0549**, inside the
+real-floor band, against medium 0.121 and high/maximum 0.164/0.165) and recorded an untested hypothesis:
+that `performance` is in band through *blur* rather than fidelity.
+
+The code says that should be true — `effectivePatternSize` clamps to `BASE_SIZE`, and
+`QualityController` sets `setProceduralBaseSize(tier === 'performance' ? 256 : 512)`, a quarter of the
+texels per map. **It is not the answer.** Forcing `setProceduralBaseSize(512)` unconditionally:
+
+| | micro/mean at reference scale |
+| --- | --- |
+| `performance`, 256² (shipped) | 0.0549 |
+| `performance`, forced 512² | **0.0520** |
+
+No change, and slightly the wrong direction. `QualityController.tsx` restored from backup and verified.
+
+**Two confounds excluded:** the certified floor region is identical at every tier (426×266 px, 589 px/m),
+so the comparison is like-for-like; and `medium` reproduces exactly (0.1207 today vs `.231`'s 0.1207).
+The `586×366 px, 873 px/m` region quoted in earlier rounds belongs to an older probe revision — worth
+knowing before comparing floor figures across the arc, though `.239`'s four numbers were all taken under
+today's probe.
+
+**A partial mechanism.** If the cause were shading rather than texturing, normal-mapped walls should drop
+at `performance` too. On the fixed `.233` wall patches, high-passed against a 3×3 box:
+
+| tier | wall L | wall R |
+| --- | --- | --- |
+| performance | 0.0037 | **0.0025** |
+| medium | 0.0040 | 0.0041 |
+| high | 0.0066 | 0.0042 |
+| maximum | 0.0066 | 0.0038 |
+
+They do drop, in the same direction — consistent with the tier having **no IBL** (documented in
+`drapeTranslucency.ts` and `furnitureMaterials.ts`): a normal map perturbs environment reflections
+strongly, and with only a hemisphere and a directional light it has far less to modulate. But the
+magnitudes disagree — walls fall ~**1.4×**, the floor ~**2.2×**. A shading-wide effect is part of the
+story, not all of it. Something floor-specific remains, **named as the next hypothesis, not claimed**.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.239 — every target in this arc was calibrated at ONE tier, and they do not hold across the others
 
 "Parity of the whole app" prompted a visual sweep of the photographic look at both extreme tiers —

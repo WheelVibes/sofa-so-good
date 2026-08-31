@@ -5065,3 +5065,59 @@ they are being compared to. Earlier rounds that quote a single number — `.230`
 existed; it just was not applied to the rest of the set.
 
 Nothing changed in `src/`.
+
+---
+
+## `.240` — the `performance` floor-grain result is NOT texture resolution
+
+`.239` found the floor micro-contrast overshoot inverts by tier — `performance` **0.0549**, inside the
+real-floor band, against medium 0.121 and high/maximum 0.164/0.165 — and recorded an untested
+hypothesis: that `performance` is in band through *blur* rather than fidelity.
+
+The code says that should be true. `effectivePatternSize` clamps to `BASE_SIZE`, and
+`QualityController` sets `setProceduralBaseSize(tier === 'performance' ? 256 : 512)` — a quarter of the
+texels per map. That is a textbook blur mechanism, and it would have been easy to write up as the
+answer.
+
+**It is not the answer.** Forcing `setProceduralBaseSize(512)` unconditionally and re-running
+`performance`:
+
+| | micro/mean at reference scale |
+| --- | --- |
+| `performance`, 256² (shipped) | 0.0549 |
+| `performance`, forced 512² | **0.0520** |
+
+No change — and slightly the *wrong* direction. Texture resolution does not explain it.
+`QualityController.tsx` was restored from `/tmp/qc239.bak.tsx` and verified.
+
+### Two confounds excluded while I was there
+
+- **The certified floor region is identical at every tier** — 426×266 px, 0.72×0.83 m, 589 px/m at
+  `performance`, `medium`, `high` and `maximum`. The cross-tier comparison is like-for-like.
+- **`medium` reproduces exactly**: 0.1207 today against `.231`'s 0.1207. (The `586×366 px, 873 px/m`
+  region quoted in earlier rounds belongs to an older probe revision — worth knowing before comparing
+  any floor figure across the arc, but it does not affect `.239`, whose four numbers were all taken
+  under today's probe.)
+
+### A partial mechanism, and what it cannot explain
+
+If the cause were shading rather than texturing, normal-mapped **walls** should drop at `performance`
+too. Measured on the fixed `.233` wall patches, high-passed against a 3×3 box:
+
+| tier | wall L | wall R |
+| --- | --- | --- |
+| performance | 0.0037 | **0.0025** |
+| medium | 0.0040 | 0.0041 |
+| high | 0.0066 | 0.0042 |
+| maximum | 0.0066 | 0.0038 |
+
+The walls **do** drop at `performance`, in the same direction — consistent with the tier having **no
+IBL** (documented in `drapeTranslucency.ts` and `furnitureMaterials.ts`): a normal map perturbs
+environment reflections strongly, and with only a hemisphere and a directional light it has much less
+to modulate.
+
+But the magnitudes do not match. The walls fall by roughly **1.4×**, the floor by **2.2×**. A
+shading-wide effect is present and is part of the story; it cannot be the whole of it. Something
+floor-specific remains — **named as the next hypothesis, not claimed as a finding.**
+
+Nothing changed in `src/`.
