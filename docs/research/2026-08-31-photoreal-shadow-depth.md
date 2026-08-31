@@ -4146,3 +4146,50 @@ This is the fix `.214` proposed. It took `.215`, `.216`, `.217`, `.218` and `.21
 instrument honest enough to show that it works — four retractions and a probe audit for a six-line
 shader change. The idea was right the first time; the measurement was not, and there was no way to
 tell which from inside the numbers.
+
+---
+
+## `.221` — tier-parity audit of everything shipped: three terms clean, one is not
+
+`.220` closed the curtain's tier gap. The same check applied to every other term this arc shipped:
+
+| metric | performance | medium | high | maximum | photographs |
+| --- | --- | --- | --- | --- | --- |
+| curtain ÷ room | 1.42 | 1.35 | 1.47 | 1.44 | 1.32–1.48 |
+| ceiling ÷ wall | 0.91 | 0.95 | 0.96 | 0.95 | 0.90–1.00 |
+| untextured grain | 0.64 | 0.61 | — | 0.53 | 0.76 / 1.49 |
+| shadowed ÷ lit floor | 0.721 | 0.712 | **0.785** | **0.761** | 0.579–0.725 |
+
+Three hold across the ladder. The contact shadow does not: `high` and `maximum` sit **outside the
+band**, and — counter-intuitively — the two *highest* tiers have the *weakest* contact shading.
+
+### Why, measured
+
+| | AO off | AO on | AO contributes |
+| --- | --- | --- | --- |
+| medium | 0.998 | 0.712 | **0.286** |
+| high | **0.912** | 0.786 | **0.126** |
+
+Two separate effects, both against the higher tier:
+
+- **Its AO buys less than half as much** (0.126 against 0.286), even though `aoFullRes` is false at
+  `high`, so `<N8AO>` receives *identical* `quality` and `halfRes` props on both tiers. The AO pass is
+  configured the same and lands differently.
+- **Its no-AO baseline is already lower** (0.912 against 0.998), so something else is doing part of the
+  work before AO runs.
+
+The obvious candidate is the full post stack, which only `high` and `maximum` mount — Bloom, Vignette,
+DoF, ChromaticAberration, SMAA — where `medium` runs the AO-only minimal composer. A pass that spreads
+light spreads it into shadows, which is exactly the shape of "contact shading gets washed out". That is
+a hypothesis, not a measurement: it has not been isolated, and `.181`/`.214` are recent enough reminders
+of what an untested plausible mechanism is worth.
+
+### Standing
+
+The gap is modest (0.785 against a 0.725 ceiling — 0.06) and it affects the two tiers the adaptive
+ladder does **not** hand most users: `medium` is what it settles on for typical browsers and
+`performance` is the phone veto, and both are in band. Recorded rather than fixed, because the fix is a
+per-tier AO or bloom retune and the cause is not yet isolated — the next step is to price the post
+stack's individual passes against this metric the way `feature-price.mjs` does for frame cost.
+
+Nothing changed in `src/`.

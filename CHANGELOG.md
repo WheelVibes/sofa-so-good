@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.221 — tier-parity audit: three shipped terms clean, one is not
+
+`.220` closed the curtain's tier gap; the same check applied to everything else this arc shipped:
+
+| metric | performance | medium | high | maximum | photographs |
+| --- | --- | --- | --- | --- | --- |
+| curtain ÷ room | 1.42 | 1.35 | 1.47 | 1.44 | 1.32–1.48 |
+| ceiling ÷ wall | 0.91 | 0.95 | 0.96 | 0.95 | 0.90–1.00 |
+| untextured grain | 0.64 | 0.61 | — | 0.53 | 0.76 / 1.49 |
+| shadowed ÷ lit floor | 0.721 | 0.712 | **0.785** | **0.761** | 0.579–0.725 |
+
+Three hold across the ladder. The contact shadow does not — `high` and `maximum` are outside the band,
+and counter-intuitively the two highest tiers have the weakest contact shading.
+
+**Why, measured:**
+
+| | AO off | AO on | AO contributes |
+| --- | --- | --- | --- |
+| medium | 0.998 | 0.712 | **0.286** |
+| high | **0.912** | 0.786 | **0.126** |
+
+Its AO buys less than half as much — even though `aoFullRes` is false at `high`, so `<N8AO>` gets
+identical `quality` and `halfRes` props on both tiers — and its no-AO baseline is already lower, so
+something else does part of the work first. The obvious candidate is the full post stack that only
+`high`/`maximum` mount (Bloom, Vignette, DoF, CA, SMAA) where `medium` runs the AO-only composer: a
+pass that spreads light spreads it into shadows. **That is a hypothesis, not a measurement.**
+
+The gap is modest (0.06 past the ceiling) and affects the two tiers the adaptive ladder does NOT hand
+most users — `medium` (typical browsers) and `performance` (phone veto) are both in band. Recorded
+rather than fixed: the fix is a per-tier AO or bloom retune and the cause is not yet isolated.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.220 — SHIPPED: the hemisphere fallback, now that the probe can see it
 
 `.218` gave the first valid `performance` number: **1.17** against a 1.32–1.48 band while the other
