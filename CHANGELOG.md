@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.223 — the blob decal's ceiling, and a documentation correction
+
+`.222` left `performance` at **0.827**, outside the contact band, attributed to `ao: false`. That tier
+does carry the RZ1 `ContactShadow` blob decals, which exist to ground furniture where there is no
+screen-space AO — so can they carry it?
+
+**They contribute, and it is small:** decals off **0.874** → on **0.827**, i.e. **0.047**, against
+screen-space AO's **0.286** at `medium` (0.998 → 0.712). Six times less.
+
+**Their ceiling is short of the band.** Sweeping blob opacity at `performance`: 0.5 → 0.827,
+0.75 → 0.809, **1.0 → 0.789**, against photographs at 0.579–0.725. A fully opaque blob still lands
+0.064 outside, with returns flattening; widening `scale` would darken the open floor too and move the
+ratio the wrong way. Nothing changed — a painted radial gradient under a footprint is a grounding cue,
+not a substitute for occlusion, and this is its measured ceiling.
+
+**Correction to `src/scene/CLAUDE.md`:** it described the decals as "tier-gate off where real AO runs".
+**They are not gated** — `quality.contactShadows` is `true` on all four tiers, so medium/high/maximum
+render blobs *and* AO. Corrected in place. That also explains `.222`'s `medium` `AO=0` reading of
+**0.998**: at 0.047 the decals are below what that measurement resolves once AO is removed.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.222 — SHIPPED: the post stack costs 0.06 of contact shadow; AO now compensates
 
 `.221` suspected the full post stack without testing it. Tested, at `high`:

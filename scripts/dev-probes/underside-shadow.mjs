@@ -69,6 +69,9 @@ const FLOOR = process.env.FLOOR || ''
  *  and suspected the extra passes; this is how that is tested rather than
  *  asserted. */
 const POST = process.env.POST
+/** `CONTACT=0` disables the RZ1 blob decals -- the app's ONLY grounding cue on
+ *  `performance`, which has no screen-space AO. */
+const CONTACT = process.env.CONTACT
 const AO = process.env.AO
 const OUT = process.env.OUT || '/tmp/underside-shadow'
 
@@ -119,19 +122,20 @@ await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 
 await page.evaluate(
-  ({ h, t, photo, ao, post, floor }) => {
+  ({ h, t, photo, ao, post, contact, floor }) => {
     const s = window.__store.getState()
     s.setQualityTier(t)
     s.resetQualityOverrides?.()
     if (ao !== undefined) s.setQualityOverride?.('ao', ao === '1')
     if (post !== undefined) s.setQualityOverride?.('postprocessing', post === '1')
+    if (contact !== undefined) s.setQualityOverride?.('contactShadows', contact === '1')
     if (floor) s.setFloorFinish?.('livingDining', floor)
     s.setTimeMode?.('manual')
     s.setManualHour?.(h)
     s.setCameraMode?.('firstPerson')
     s.setPhotographicLook?.(photo)
   },
-  { h: HOUR, t: TIER, photo: PHOTO, ao: AO, post: POST, floor: FLOOR },
+  { h: HOUR, t: TIER, photo: PHOTO, ao: AO, post: POST, contact: CONTACT, floor: FLOOR },
 )
 await new Promise((r) => setTimeout(r, 1500))
 

@@ -4237,3 +4237,49 @@ fix.
 
 So the honest tier table for this metric is now: **medium 0.712, high 0.716, maximum 0.691 — all in
 band; performance 0.827, out of band by design.**
+
+---
+
+## `.223` — the blob decal's ceiling, and a documentation correction
+
+`.222` left `performance` at **0.827**, outside the contact band, and attributed it to that tier having
+`ao: false`. It does have the RZ1 `ContactShadow` blob decals, which exist precisely to ground furniture
+where there is no screen-space AO — so the question is whether they can carry it.
+
+### They contribute, and it is small
+
+| `performance` | shadowed ÷ lit floor |
+| --- | --- |
+| decals off | 0.874 |
+| decals on (shipped) | **0.827** |
+| screen-space AO at `medium`, for scale | 0.998 → **0.712** |
+
+The decals are worth **0.047**; AO is worth **0.286**, six times as much.
+
+### And their ceiling is well short of the band
+
+Sweeping the blob's opacity at `performance`:
+
+| opacity | ratio |
+| --- | --- |
+| 0.5 (shipped) | 0.827 |
+| 0.75 | 0.809 |
+| **1.0** | **0.789** |
+| photographs | 0.579–0.725 |
+
+A **fully opaque** blob still lands 0.064 outside the band, and the returns are flattening. Widening
+`scale` would darken the open floor too, which moves the ratio the wrong way. So the decal cannot bring
+this tier into band, and nothing was changed — a painted radial gradient under a footprint is a
+grounding cue, not a substitute for occlusion. This is its measured ceiling.
+
+### A correction to `src/scene/CLAUDE.md`
+
+That file described the decals as "tier-gate off where real AO runs". **They are not gated:**
+`quality.contactShadows` is `true` on all four tiers, so `medium`, `high` and `maximum` render the
+blobs *and* AO. Corrected in place, with the measurements above.
+
+That also explains a number from `.222`: `medium` with `AO=0` read **0.998** — essentially no contact
+darkening — even though the decals were active. At 0.047 they are simply below what that measurement
+resolves once AO is removed.
+
+Nothing changed in `src/`.

@@ -904,7 +904,14 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   qualified by the pure `furniture/surfaceDecal.ts` and rendered from `furniture/Furniture.tsx`).
   One shared `CanvasTexture`, a single transparent plane each, `depthWrite:false` +
   `polygonOffset` + small `+Y`. When adding a new baked-AO cue, follow this pattern (shared
-  texture, tier-gate off where real AO runs) — never per-instance textures. The wall/floor
+  texture) — never per-instance textures. **NOTE (`.223`): the decals are NOT tier-gated off where
+  real AO runs — `quality.contactShadows` is `true` on all four tiers, so every tier renders both.
+  An earlier version of this line said otherwise.** Measured contribution to the shadowed/lit floor
+  ratio at `performance` (the tier with `ao: false`, where they are the ONLY grounding cue):
+  **0.874 without → 0.827 with**, i.e. **0.047**, against screen-space AO's **0.286** at `medium`.
+  Raising the blob's `opacity` cannot close that: 0.5 → 0.827, 0.75 → 0.809, **1.0 → 0.789**, still
+  outside the photographic band of 0.579–0.725. A painted radial gradient under a footprint is a
+  grounding cue, not a substitute for occlusion, and this is its measured ceiling. The wall/floor
   **corner-AO strip is retired** (RD-403, removed v0.23.1.11): from a top-down/plan camera the
   0.32 m gradient read as a hard black outline hugging every wall base, and it only ever ran on
   the tiers with no SSAO — don't reintroduce a baked wall-base darkening decal.
