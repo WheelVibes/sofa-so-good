@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.245 — the GI diagnosis is now testable: the path tracer runs headlessly
+
+Since `.226` this arc has attributed the wall-falloff gap (0.74 against a photographic 0.85–0.86) to
+absent inter-reflection, reached by **elimination** — `.189`–`.195` refuted the cheap stand-ins, `.226`
+and `.235` showed the hemisphere ground term has no distance dependence, `.231` ruled out the fill scale.
+Elimination is weaker than demonstration, and the diagnosis has been load-bearing for a dozen rounds.
+
+The app owns a path tracer for HQ stills (`scene/pathtrace/hqRenderSession.ts`), so the same pose can be
+rendered with real light transport and its falloff measured: ~0.85 confirms GI as the cause and quantifies
+the prize; 0.74 means a dozen rounds need revisiting.
+
+**Feasibility first.** `hqRenderSession.ts` carries a PT-BLANK-GUARD for drivers that compile a context
+but produce no pixels — the classic headless failure. New probe `scripts/dev-probes/pt-feasibility.mjs`,
+same ANGLE/Metal launch as the others, answers only the go/no-go. **GO:** the modal opens from the store,
+and the render accumulates **47 samples in 97 s (~0.5 samples/s at 1920×1080), real pixels, no abort**.
+256 samples would be ~9 min, but a band MEAN over thousands of pixels averages sampling noise out, so
+~40–60 samples suffice — a traced falloff number costs ~2 minutes.
+
+**The trap it walked into:** the frame is the **orbit dollhouse**, because the probe never enters walk
+mode or poses the camera — exactly `.218`'s failure, caught the same way, by looking at the frame rather
+than the log. So the next step is deliberately not a standalone probe: `light-distribution.mjs` already
+owns ~180 lines of window-finding, standoff clamping and arrival-checked teleport, and the traced capture
+belongs behind a `PT=1` branch there so both images are guaranteed to share a pose.
+
+**Status: feasibility established, experiment not yet run.** Probe committed with its result and the
+dollhouse caveat in the header. Nothing changed in `src/`.
+
 ## v0.31.5.244 — the photographic look has no vignette on the tier most users get
 
 `EffectsImpl.tsx` mounts a `Vignette` pass — its header: *"subtle edge darkening so the frame reads

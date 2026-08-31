@@ -5335,3 +5335,49 @@ re-bases them.
 
 `src/scene/EffectsImpl.tsx` and `src/scene/look.ts` restored from `/tmp/eff243.bak.tsx` and
 `/tmp/look243.bak.ts`; `git diff` on `src/` empty, `tsc` clean. Nothing changed in `src/`.
+
+---
+
+## `.245` — the GI diagnosis is now testable: the app's own path tracer runs headlessly
+
+Since `.226` this arc has attributed the wall-falloff gap — 0.74 against a photographic 0.85–0.86 — to
+absent inter-reflection, and reached that by **elimination**: `.189`–`.195` refuted the cheap stand-ins,
+`.226` and `.235` showed the hemisphere ground term has no distance dependence, `.231` showed the fill
+scale is not the lever. Elimination is weaker than demonstration, and the diagnosis has been load-bearing
+for a dozen rounds.
+
+It can be demonstrated. The app already owns a path tracer for HQ stills (`scene/pathtrace/
+hqRenderSession.ts`, three-gpu-pathtracer), so the *same pose* can be rendered with real light transport
+and its falloff measured. If the traced image reads ~0.85, GI is confirmed as the cause and the prize is
+quantified. If it reads 0.74 too, the diagnosis is wrong and a dozen rounds need revisiting.
+
+### First: is it even possible headlessly?
+
+`hqRenderSession.ts` carries a **PT-BLANK-GUARD** — an abort for drivers that compile a context but
+produce no pixels — which is precisely what a headless GPU tends to do. So this round built
+`scripts/dev-probes/pt-feasibility.mjs` to answer only the go/no-go, on the same ANGLE/Metal launch the
+other probes use.
+
+**GO.** The modal opens from the store (`setHqRenderOpen(true)`), exposes `Full HD · 1920×1080`,
+`256 samples`, `DoF off`, `Start render`; the render builds and accumulates:
+
+> **47 samples in 97 s — ~0.5 samples/s at 1920×1080, real pixels, no blank-guard abort.**
+
+256 samples would be ~9 minutes, but the experiment needs only a **band mean over thousands of pixels**,
+where sampling noise averages out. ~40–60 samples is ample. So a traced falloff number costs ~2 minutes.
+
+### The trap this probe walked straight into
+
+The frame it produced is the **orbit dollhouse**, not a room interior — because the probe never enters
+walk mode or poses the camera. That is exactly the failure `.218` found in three other probes, and it was
+caught here the same way: by looking at the frame rather than trusting the log.
+
+So the next step is deliberately *not* a standalone probe. `light-distribution.mjs` already owns ~180
+lines of window-finding, standoff clamping and arrival-checked teleport; the traced capture belongs behind
+a `PT=1` branch there, reusing all of it, so the raster and traced images are guaranteed to share a pose.
+Duplicating that pose logic into a second probe is how it goes stale.
+
+**Status: feasibility established, experiment not yet run.** The probe is committed as the instrument it
+is, with the result and the dollhouse caveat in its header.
+
+Nothing changed in `src/`.
