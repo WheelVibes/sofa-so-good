@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.218 — the probe was launching software GL; the app was fine all along
+
+`.217` left one question: is the `performance` walk view genuinely broken, or was it the probe? **It was
+the probe**, and the cause is its launch configuration.
+
+`light-distribution.mjs` at `performance` renders a correct interior — window, curtains, sofa, console,
+fan. The two probes differ in how they start Chrome:
+
+| | `light-distribution.mjs` | `curtain-glow.mjs` (before) |
+| --- | --- | --- |
+| GL backend | `--use-angle=metal --enable-gpu` | **`--enable-unsafe-swiftshader`** (software) |
+| headless | `true` | `'new'` |
+| deviceScaleFactor | 2 | 1 |
+
+Matching it moved `performance` from **1.03 to 1.17** and the frame from the orbit dollhouse to a
+proper interior with the drawn curtain, its weave and the furniture. Two other candidates were tried
+first and are **not** the cause: waiting for `window.__walkLook` before teleporting, and nudging a
+render immediately before the screenshot.
+
+| tier | curtain ÷ room |
+| --- | --- |
+| performance | **1.17** |
+| medium | 1.35 |
+| high | 1.48 |
+| maximum | 1.45 |
+| photographs | 1.32–1.48 |
+
+`.214`'s original hypothesis was right in kind, wrong in magnitude: `performance` is below band by
+**0.18**, not 0.45 — consistent with having no IBL, so the chunk's `getIBLIrradiance(-N)` contributes
+nothing and only the directional term remains.
+
+**On the whole `.214`–`.218` sequence:** four rounds, three retractions, one probe bug.
+`curtain-glow.mjs` was written in `.198` with launch args copied from a different probe, and no frame
+from it had ever been inspected at any tier other than `medium`. A single glance at a `performance`
+frame on the day it was written would have saved four rounds. The probe now carries the matched config
+with a comment saying why.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.217 — RETRACTED: `.214`, `.215` and `.216` measured the orbit dollhouse
 
 Three rounds of `performance`-tier findings are withdrawn. The frame they came from is not an interior

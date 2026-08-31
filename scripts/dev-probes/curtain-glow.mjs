@@ -49,12 +49,18 @@ const inHud = (x, y) => HUD.some((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y
 
 fs.mkdirSync(OUT, { recursive: true })
 
+// Launch config MATCHED to `light-distribution.mjs`. The previous args forced
+// SOFTWARE GL (`--enable-unsafe-swiftshader`), under which this probe rendered the
+// ORBIT DOLLHOUSE at `performance` while every state check said walk mode — the
+// frames behind the retracted `.214`-`.216` findings. `light-distribution.mjs`,
+// on ANGLE/Metal, renders a correct interior on the same tier.
 const browser = await puppeteer.launch({
-  headless: 'new',
-  args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--window-size=1280,800'],
-  defaultViewport: { width: 1280, height: 800 },
+  headless: true,
+  protocolTimeout: 900_000,
+  args: ['--no-sandbox', '--use-gl=angle', '--use-angle=metal', '--enable-gpu', '--enable-webgl'],
 })
 const page = await browser.newPage()
+await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
 // Onboarding renders over the canvas with a blurred, dimmed backdrop (`.193`).
 await page.evaluateOnNewDocument(() => {
   try {
@@ -142,6 +148,12 @@ const setup = await page.evaluate(
 )
 if (!setup.pose) throw new Error('no window opening in the loaded plan')
 
+// WAIT FOR THE WALK CAMERA BEFORE TELEPORTING. Without this the teleport can fire
+// before `FirstPersonCamera` has mounted, the request is dropped, and the view
+// stays in ORBIT -- which is what produced the dollhouse frames behind the
+// retracted `.214`-`.216` findings. `light-distribution.mjs` has always waited;
+// this probe did not, and the difference only showed at `performance`.
+await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await page.evaluate(async (q) => {
   const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
   requestWalkTeleport(q.px, q.pz, q.yaw)
@@ -243,6 +255,14 @@ for (let attempt = 1; attempt <= 4; attempt++) {
   await new Promise((r) => setTimeout(r, 1500))
 }
 
+// NUDGE A FRESH RENDER IMMEDIATELY BEFORE CAPTURING. The canvas is
+// `frameloop="demand"` with `preserveDrawingBuffer`, so a screenshot returns the
+// LAST FRAME DRAWN — which, if nothing requested one after the walk camera took
+// over, is still the orbit dollhouse. That is what produced the frames behind the
+// retracted `.214`-`.216` findings. `light-distribution.mjs` has always set the
+// pitch immediately before each capture, which is why it never showed the bug.
+await page.evaluate(() => window.__walkLook?.setPitch(0))
+await new Promise((r) => setTimeout(r, 900))
 const shot = await page.screenshot({ type: 'png' })
 fs.writeFileSync(`${OUT}/frame.png`, shot)
 const sharp = (await import('sharp')).default
