@@ -3803,3 +3803,53 @@ Every metric that survived scrutiny is now in band for the photographic look:
 The open items that remain are ones this arc has established it cannot settle on its own: the window's
 flat backdrop (`.209`, a product decision plus a tone-curve tension the user signed off), the
 bathrooms (`.212`, no albedo-matched reference), and the default look's brightness trade (this round).
+
+---
+
+## `.214` — the curtain term does not work on the `performance` tier, and the IBL fallback is NOT why
+
+Every number in this arc was measured at `medium`. Checking the shipped curtain translucency across
+tiers finds one that does not hold:
+
+| tier | curtain ÷ room |
+| --- | --- |
+| performance | **1.03** |
+| medium | 1.38 |
+| high | 1.49 |
+| maximum | 1.45 |
+| photographs | 1.32–1.48 |
+
+Three of four are in band; `performance` is far below — and that is the tier the capability veto hands
+most phones (`quality.ts:capabilityCeilingTier`), so the fix ships to desktop and misses mobile.
+
+### The obvious cause was wrong
+
+`.200`'s chunk reads `getIBLIrradiance(-N)` under `#ifdef USE_ENVMAP`, and `performance` has
+`quality.ibl` false — so the term should collapse to the directional light alone, which is small for a
+north-facing window. A hemisphere fallback looked like the fix: the hemisphere is the app's ambient
+model at every tier.
+
+**It changes nothing there.** Added as `#elif ( NUM_HEMI_LIGHTS > 0 )`, `performance` stayed at
+**1.03**. Made unconditional as a diagnostic, it moved **medium 1.38 → 1.55** — so the term is live and
+the hemisphere contributes — while `performance` stayed at **1.03 exactly**. The patched shader is
+therefore not running at all on that tier, and the missing env map is not the reason.
+
+Reverted both. The fallback fixes nothing and dead code that looks like a fix is worse than none.
+
+### An editing trap worth recording
+
+The GLSL lives inside a **template literal**, and the comment I added contained backticks around
+`performance` and `.214`. They terminated the string; biome then reformatted the fragments into
+expressions, and `tsc` reported *"Type 'Performance' has no call signatures"* — a message that points
+at the global `Performance` object rather than at the real problem. **No backticks in the injected
+GLSL**; the file now says so at the injection site.
+
+### Where this leaves it
+
+A real parity gap, cause undiagnosed, in a term shipped three rounds ago. The next step is to establish
+whether the drapery material at `performance` is the patched instance at all — the material cache is
+keyed on colour/roughness/pattern/weave/translucency but **not on tier**, and `customProgramCacheKey`
+returns a tier-independent string, so a program compiled under one tier's defines is a candidate
+explanation worth testing directly rather than reasoning about.
+
+Nothing changed in `src/`.

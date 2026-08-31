@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.214 — the curtain term does not work on `performance`, and the IBL fallback is not why
+
+Every number in this arc was measured at `medium`. Across tiers the shipped curtain translucency does
+not hold:
+
+| tier | curtain ÷ room |
+| --- | --- |
+| performance | **1.03** |
+| medium | 1.38 |
+| high | 1.49 |
+| maximum | 1.45 |
+| photographs | 1.32–1.48 |
+
+`performance` is the tier the capability veto hands most phones, so the fix ships to desktop and misses
+mobile.
+
+**The obvious cause was wrong.** `.200`'s chunk reads `getIBLIrradiance(-N)` under `#ifdef USE_ENVMAP`,
+and `performance` has no IBL — a hemisphere fallback looked like the fix. Added as `#elif`,
+`performance` stayed at **1.03**. Made unconditional as a diagnostic it moved **medium 1.38 → 1.55**,
+proving the term is live and the hemisphere contributes, while `performance` stayed at 1.03 exactly.
+**The patched shader is not running at all on that tier**, and the missing env map is not the reason.
+Reverted both — dead code that looks like a fix is worse than none.
+
+**Editing trap:** the GLSL lives inside a template literal and my comment contained backticks. They
+terminated the string; biome reformatted the fragments into expressions and `tsc` reported *"Type
+'Performance' has no call signatures"* — pointing at the global `Performance` object rather than the
+real problem. No backticks in injected GLSL; the file now says so at the injection site.
+
+Next step: establish whether the drapery material at `performance` is the patched instance at all. The
+material cache is keyed on colour/roughness/pattern/weave/translucency but **not on tier**, and
+`customProgramCacheKey` returns a tier-independent string.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.213 — the default look's weak contact shadow is intrinsic, not a defect
 
 The last surviving valid finding: photographic look under/open **0.720** (photographs 0.579–0.725),
