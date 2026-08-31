@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.219 — probe audit: two more on software GL, and the shipped numbers survive
+
+`.218` traced four rounds of wrong findings to one probe launching Chrome with
+`--enable-unsafe-swiftshader`. Auditing the rest, two more carried it:
+`underside-shadow.mjs` (**load-bearing** — the under/open metric behind `.196`'s AO retune and `.213`)
+and `bounce-census.mjs` (a diagnostic). All six probes now request the same ANGLE/Metal backend.
+
+**The shipped numbers survive.** Re-measured on the correct backend:
+
+| | software GL (as shipped on) | ANGLE/Metal | photographs |
+| --- | --- | --- | --- |
+| photographic look | 0.720 | **0.712** | 0.579–0.725 |
+| default look | 0.820 | **0.814** | — |
+
+Both move by under 0.01 and neither crosses a band edge — `.196` and `.213` stand. The metric is
+insensitive to the GL backend, unlike the *camera*, which is what `.218` was really about.
+
+**And the frame check `.218` said should be routine:** at `performance`, `underside-shadow.mjs` renders
+a proper interior walk view, not a dollhouse, and reads **0.721** there against 0.712 at `medium` — so
+the contact metric is tier-stable as well as backend-stable.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.218 — the probe was launching software GL; the app was fine all along
 
 `.217` left one question: is the `performance` walk view genuinely broken, or was it the probe? **It was

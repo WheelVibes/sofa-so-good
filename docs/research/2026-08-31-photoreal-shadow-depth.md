@@ -4067,3 +4067,47 @@ The probe now carries the matched launch config with a comment explaining why, s
 copied from it inherits the right one.
 
 Nothing changed in `src/`.
+
+---
+
+## `.219` — probe audit: two more on software GL, and the shipped numbers survive
+
+`.218` traced four rounds of wrong findings to one probe launching Chrome with
+`--enable-unsafe-swiftshader`. That is a copy-paste defect, so the obvious question is which other
+probes carry it. Two did:
+
+| probe | GL backend before | load-bearing? |
+| --- | --- | --- |
+| `underside-shadow.mjs` | **software** | **yes** — the under/open metric behind `.196`'s AO retune and `.213` |
+| `bounce-census.mjs` | software | no, a diagnostic |
+| `curtain-glow.mjs` | software → fixed in `.218` | yes |
+| `drape-check.mjs`, `ceiling-hit.mjs`, `light-distribution.mjs` | ANGLE/Metal | — |
+
+All six now request the same backend.
+
+### The shipped numbers survive
+
+`underside-shadow.mjs` produced the contact-shadow figures this arc shipped `.196`'s AO values on, so
+re-measuring them on the correct backend was the point of the round:
+
+| | software GL (as shipped on) | ANGLE/Metal | photographs |
+| --- | --- | --- | --- |
+| photographic look | 0.720 | **0.712** | 0.579–0.725 |
+| default look | 0.820 | **0.814** | — |
+
+Both move by less than 0.01 and neither crosses a band edge. **`.196`'s AO retune and `.213`'s
+conclusion stand**, and the metric is evidently insensitive to the GL backend — unlike the *camera*,
+which is what `.218` was really about.
+
+### And the frame check that `.218` said should be routine
+
+Run at `performance`, the tier that exposed the problem, `underside-shadow.mjs` renders a **proper
+interior walk view** — window, curtains, sofa, console, floor lamp — not a dollhouse. Its under/open
+there is **0.721** against 0.712 at `medium`, so the contact metric is tier-stable as well as
+backend-stable.
+
+That is the whole audit: one load-bearing probe was on the wrong backend, its numbers were unaffected,
+and its frames are correct at the tier that matters. The cheap check that `.218` cost four rounds to
+learn now has a result for every probe in the set rather than for one.
+
+Nothing changed in `src/`.

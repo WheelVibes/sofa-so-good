@@ -86,12 +86,18 @@ const inHud = (x, y) => HUD.some((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y
 
 fs.mkdirSync(OUT, { recursive: true })
 
+// Launch config MATCHED to `light-distribution.mjs`. The previous args forced
+// SOFTWARE GL (`--enable-unsafe-swiftshader`), which in `curtain-glow.mjs` made
+// the `performance` tier render the ORBIT DOLLHOUSE while every state check said
+// walk mode -- four rounds of wrong findings (.214-.218). Do not copy a launch
+// block from a probe without checking which backend it asks for.
 const browser = await puppeteer.launch({
-  headless: 'new',
-  args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--window-size=1280,800'],
-  defaultViewport: { width: 1280, height: 800 },
+  headless: true,
+  protocolTimeout: 900_000,
+  args: ['--no-sandbox', '--use-gl=angle', '--use-angle=metal', '--enable-gpu', '--enable-webgl'],
 })
 const page = await browser.newPage()
+await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
 // SUPPRESS ONBOARDING BEFORE THE FIRST NAVIGATION. Without this the welcome
 // modal renders over the canvas with a BLURRED, DIMMED backdrop, and every pixel
 // read from the screenshot is the scene seen through that scrim rather than the

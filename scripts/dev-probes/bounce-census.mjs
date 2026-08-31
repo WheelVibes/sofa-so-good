@@ -13,12 +13,15 @@ const HOUR = Number(process.env.HOUR || 13)
 const TIER = process.env.TIER || 'medium'
 const PHOTO = process.env.PHOTO !== '0'
 
+// Launch config matched to `light-distribution.mjs` -- see `.219`. The previous
+// args forced SOFTWARE GL, which cost four rounds in `curtain-glow.mjs`.
 const browser = await puppeteer.launch({
-  headless: 'new',
-  args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--window-size=1280,800'],
-  defaultViewport: { width: 1280, height: 800 },
+  headless: true,
+  protocolTimeout: 900_000,
+  args: ['--no-sandbox', '--use-gl=angle', '--use-angle=metal', '--enable-gpu', '--enable-webgl'],
 })
 const page = await browser.newPage()
+await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
 await page.goto(appUrl(), { waitUntil: 'networkidle2', timeout: 90000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
