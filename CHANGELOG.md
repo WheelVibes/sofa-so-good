@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.237 — correcting `.236`'s window crop; the north-window warmth is not a bug
+
+`.236` reported glazing figures from a rectangle covering the whole window, and never looked at the
+crop. That region is dominated by the window's **grilles** — interior-lit surfaces, so the "glazing"
+R−B was largely the interior's own light colour, compared against an interior-lit wall.
+
+Re-measured on **pane interiors only** (four thin rects between the bars, inspected):
+
+| | `.236` (whole window) | `.237` (pane only) | wall |
+| --- | --- | --- | --- |
+| 13:00 lum / R−B | 163.8 / −4.1 | **171.3 / −3.9** | 124.2 / +1.4 |
+| 19:00 lum / R−B | 160.0 / +22.1 | **170.4 / +21.0** | 199.4 / +21.3 |
+| 21:00 lum / R−B | 54.6 / +5.7 | **75.6 / +12.0** | 193.4 / +23.4 |
+| clipped, all hours | 0.0 % | **0.0 %** | — |
+
+Corrected ratios **1.38 / 0.85 / 0.39** (were 1.32 / 0.80 / 0.28); open item **(l)** updated.
+
+**The conclusions hold** — clipping is 0.0 % on pane-only pixels too, so the central finding (real panes
+clip 15–39 %, the app's never clips) never depended on the error, and the 19:00 result survives almost
+unchanged at pane **+21.0** vs wall **+21.3**.
+
+**Why a north window is warm at sunset — not a bug.** The default backdrop is not the preset path;
+`presetForDaylight` tints a painted preset by the sun colour with no azimuth term, but it only serves
+the photo backdrop kinds. The shipped `sky` kind goes through `bakeSkyEquirect` → `skyRadiance`, a Perez
+model with a real `gamma` term, and a walk camera looking out a window is nearly horizontal, so it
+samples the horizon band — warm right around the compass at a 2° sun, as outdoors.
+
+So `.236`'s dusk finding is **withdrawn as a separate item**: it is the same deficiency as (l) — the
+pane is dimmer than the wall while sharing its colour, so it reads as a lit surface rather than an
+opening.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.236 — the window measured across the day; the falloff deviation is state-bound
 
 A new axis: professional interior photography leans on **warm interior against cool exterior**, and its

@@ -4904,3 +4904,49 @@ The 0.85–0.86 reference is itself a single daylit photograph (`.227`), so the 
 state-matched; what is new is knowing the deviation does not generalise.
 
 Nothing changed in `src/`.
+
+---
+
+## `.237` — correcting `.236`'s window crop, and why a north window is warm at dusk
+
+`.236` reported glazing figures from a rectangle covering the whole window. It never looked at that
+crop. Looking at it now: the region is dominated by the window's **grilles**, and grilles are
+interior-lit surfaces — so the "glazing" R−B was substantially the *interior's* light colour by
+construction, compared against an interior-lit wall.
+
+Re-measured on **pane interiors only**, four thin rects sampled between the bars (inspected, and they
+still carry a sliver of bar at one edge — noted, not hidden):
+
+| | `.236` (whole window) | `.237` (pane only) | wall |
+| --- | --- | --- | --- |
+| 13:00 lum / R−B | 163.8 / −4.1 | **171.3 / −3.9** | 124.2 / +1.4 |
+| 19:00 lum / R−B | 160.0 / +22.1 | **170.4 / +21.0** | 199.4 / +21.3 |
+| 21:00 lum / R−B | 54.6 / +5.7 | **75.6 / +12.0** | 193.4 / +23.4 |
+| clipped, all hours | 0.0 % | **0.0 %** | — |
+
+Corrected ratios: **1.38 / 0.85 / 0.39** (were 1.32 / 0.80 / 0.28). Open item **(l)** is updated.
+
+**The conclusions hold.** Clipping is 0.0 % on pane-only pixels too, so the central finding — real panes
+clip 15–39 %, the app's never clips — never depended on the bad crop. And the 19:00 warm/cool result
+survives almost unchanged: the pane itself reads **+21.0** against a wall at **+21.3**. The grilles were
+not what made it warm.
+
+### So why is a NORTH-facing window warm at sunset?
+
+Worth chasing, because it looked like a bug. It is not one:
+
+- The default backdrop is **not** the preset path. `presetForDaylight` tints a whole painted preset by
+  the sun's colour with no azimuth term — that *would* be the bug — but it only serves the photo
+  backdrop kinds. The shipped `sky` kind goes through `bakeSkyEquirect` → `skyRadiance`, a **Perez**
+  model with a real `gamma` term (angle between view and sun), so the anti-solar sky is genuinely
+  cooler than the solar side.
+- A walk camera looking out of a window is nearly **horizontal**, so it samples the horizon band, not
+  the zenith. At a 2° sun the horizon is warm right around the compass, not only toward the sun — which
+  is also true outdoors.
+
+So the app is defensible here, and the honest statement of the dusk gap is narrower than `.236` put it:
+not "the sky is tinted wrong", but "the pane is dimmer than the wall while sharing its colour, so it
+reads as a lit surface rather than an opening" — which is the *same* deficiency as (l), not a second
+one. `.236`'s framing of it as a separate finding is withdrawn.
+
+Nothing changed in `src/`.
