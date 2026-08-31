@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.225 — CORRECTION: forcing AO on at `performance` renders black quads in orbit
+
+`.224` reported that AO at `performance` closes the contact gap and that "the frame is clean". **The
+second half is wrong** — the frame I checked was the WALK capture. The ORBIT capture from the same
+configuration shows **large solid black quads**, some floating in empty background *outside* the
+building, so they are a shading failure rather than a pose or content difference.
+
+**Specific to that configuration, not a shipped bug:** `medium` ships `ao: true` and renders the same
+orbit dollhouse completely clean. So it is not "orbit + AO is broken", it is "forcing `ao: true` on a
+tier whose pipeline does not otherwise mount it". `performance` has no IBL, no sun shadow map and the
+minimal composer; the likely triggers are the wall-reveal's transparent faded planes and the
+`CeilingOccluder` (`colorWrite: false`, `opacity: 0`), both of which orbit mounts and walk does not.
+
+`.224` declined to ship on a hardware argument; that stands, and now there is a harder one — the
+configuration does not render correctly in orbit at all. The measured benefit (0.827 → 0.709) is
+unchanged and still real in walk mode.
+
+**Also correcting `.224`'s probe note:** it said `feature-price.mjs`'s camera reset "did not hold". The
+ordering check reports baseline vs baseline-again at **0.00 % / 0.00** on both tiers, so the reset
+demonstrably does hold. The 61 % figure is the black quads plus possibly a pose shift in that one case
+— unresolved, and not evidence of a broken reset. The probe was accused of something it did not do.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.224 — AO at `performance`: measured, and NOT shipped
 
 `.223` showed the blob decal cannot bring `performance` into the contact band. The remaining lever is

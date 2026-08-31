@@ -4331,3 +4331,42 @@ and it closes the gap.**
 
 `feature-price.mjs` gains an `ao ON` case, so pricing AO where a tier lacks it no longer needs an
 ad-hoc edit. Nothing changed in `src/`.
+
+---
+
+## `.225` — CORRECTION: forcing AO on at `performance` renders black quads in orbit
+
+`.224` reported that AO at `performance` closes the contact-shadow gap and that "the frame is clean".
+**The second half of that is wrong, and I should have caught it there.** The frame I checked was
+`underside-shadow.mjs`'s WALK capture. The ORBIT capture from the same configuration is badly broken.
+
+Looking at the full `feature-price.mjs` frame rather than the crop: **large solid black quads**, some
+inside the flat and several floating in empty background *outside* the building. Geometry cannot be
+outside the building, so they are a shading failure, not a pose or content difference.
+
+### It is specific to that configuration, not a shipped bug
+
+`medium` ships `ao: true` and renders the same orbit dollhouse **completely clean** — no quads. So this
+is not "orbit + AO is broken"; it is "forcing `ao: true` on a tier whose pipeline does not otherwise
+mount it". `performance` has no IBL, no sun shadow map and the minimal composer, and N8AO evidently
+needs something that combination does not supply — the likely candidates are the wall-reveal's
+transparent faded planes and the `CeilingOccluder` (`colorWrite: false`, `opacity: 0`), both of which
+orbit mounts and walk does not, and both of which a depth-based AO pass has to handle.
+
+### What this does to `.224`'s conclusion
+
+`.224` declined to ship AO at `performance` on a hardware argument — that the tier serves devices an M4
+cannot stand in for. That argument stands, and now there is a second, harder one: **the configuration
+does not render correctly in orbit at all.** Whatever the performance budget turns out to be on real
+phone hardware, this would have to be diagnosed first. The measured benefit (0.827 → 0.709, into band)
+is unchanged and still real in walk mode.
+
+### And a correction to `.224`'s probe note
+
+`.224` said `feature-price.mjs`'s camera reset "did not hold". Its ordering check reports baseline
+against baseline-again at **0.00 % pixels / 0.00 meanAbsDiff** on both `performance` and `medium`, so
+the reset demonstrably does hold between those two captures. The 61 % figure is the black quads plus,
+possibly, a pose shift in that one case — unresolved, and not evidence of a broken reset. The probe was
+accused of something it did not do.
+
+Nothing changed in `src/`.
