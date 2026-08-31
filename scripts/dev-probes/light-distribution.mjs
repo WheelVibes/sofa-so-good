@@ -155,19 +155,73 @@ const pose = await page.evaluate(
     }
     const px = cx + nx * standoff
     const pz = cz + nz * standoff
-    return { id: op.id, px, pz, standoff, yaw: Math.atan2(-(cx - px), -(cz - pz)) }
+    return {
+      id: op.id,
+      px,
+      pz,
+      standoff,
+      yaw: Math.atan2(-(cx - px), -(cz - pz)),
+      cx,
+      cz,
+      nx,
+      nz,
+      roomId: ownRoom?.id ?? null,
+    }
   },
   { win: WINDOW, standoff: STANDOFF },
 )
 if (!pose) throw new Error(`no window opening matching /${WINDOW}/i`)
-await page.evaluate(
-  async (q) => {
-    const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
-    requestWalkTeleport(q.px, q.pz, q.yaw)
-    window.__walkLook?.setPitch(q.pitch)
-  },
-  { ...pose, pitch: PITCH },
-)
+/**
+ * Teleport, then CHECK, then step closer and retry.
+ *
+ * `requestWalkTeleport` runs the point through the app's own collision solver
+ * (WALK-SPAWN-CLEAR), which pushes the walker out of furniture and walls — so the
+ * pose reached is not the pose asked for, and v0.31.5.202 measured two bedrooms
+ * and both baths from the CORRIDOR without noticing. Retrying at successively
+ * shorter standoffs finds a spot that survives the solver AND lands in the right
+ * room; a room that has no such spot fails loudly at the end rather than
+ * returning a plausible number from somewhere else.
+ */
+async function teleportInto(q, standoff) {
+  await page.evaluate(
+    async (o) => {
+      const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
+      requestWalkTeleport(o.px, o.pz, o.yaw)
+      window.__walkLook?.setPitch(o.pitch)
+    },
+    {
+      px: q.cx + q.nx * standoff,
+      pz: q.cz + q.nz * standoff,
+      yaw: Math.atan2(-(q.cx - (q.cx + q.nx * standoff)), -(q.cz - (q.cz + q.nz * standoff))),
+      pitch: PITCH,
+    },
+  )
+  await new Promise((r) => setTimeout(r, 1800))
+  return page.evaluate((roomId) => {
+    const { camera } = window.__three
+    const plan = window.__store.getState().floorPlan
+    const at =
+      (plan?.rooms ?? []).find(
+        (r) =>
+          camera.position.x >= r.origin[0] &&
+          camera.position.x <= r.origin[0] + r.width &&
+          camera.position.z >= r.origin[1] &&
+          camera.position.z <= r.origin[1] + r.depth,
+      )?.id ?? null
+    return { ok: at === roomId, at }
+  }, q.roomId)
+}
+
+let usedStandoff = pose.standoff
+let arrivedOk = false
+for (let s2 = pose.standoff; s2 >= 0.7; s2 -= 0.3) {
+  const r = await teleportInto(pose, s2)
+  usedStandoff = s2
+  if (r.ok) {
+    arrivedOk = true
+    break
+  }
+}
 await new Promise((r) => setTimeout(r, 2500))
 
 // VERIFY THE CAMERA ARRIVED. `requestWalkTeleport` runs the walker through the
@@ -190,13 +244,20 @@ const arrival = await page.evaluate(
       )?.id ?? null
     return {
       asked: [+q.px.toFixed(2), +q.pz.toFixed(2)],
+      standoffUsed: +q.so.toFixed(2),
+      landedInRoom: q.ok,
       reached: [+camera.position.x.toFixed(2), +camera.position.z.toFixed(2)],
       drift: +Math.hypot(camera.position.x - q.px, camera.position.z - q.pz).toFixed(2),
       roomAsked: roomAt(q.px, q.pz),
       roomReached: roomAt(camera.position.x, camera.position.z),
     }
   },
-  { px: pose.px, pz: pose.pz },
+  {
+    px: pose.cx + pose.nx * usedStandoff,
+    pz: pose.cz + pose.nz * usedStandoff,
+    so: usedStandoff,
+    ok: arrivedOk,
+  },
 )
 
 const state = await page.evaluate(() => {

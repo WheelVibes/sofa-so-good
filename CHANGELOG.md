@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.203 — the first verified per-room parity table
+
+`.202` fixed three pose bugs and still could not land the camera in small rooms, because
+`requestWalkTeleport` runs the point through the app's collision solver. The fix is to stop guessing:
+teleport, check which room the camera actually reached, step 0.3 m closer and retry, and accept only a
+pose that lands in the window's own room. Every arm now reports `landedInRoom: true`, and the frames
+confirm it — the bedroom-3 capture shows a bedroom with the minimap reading BEDROOM 3, where `.202`'s
+showed a corridor wall. Living/dining is byte-identical (120.9 / 10.21 % / ceiling 1.07).
+
+| room | `%<64` | ceiling | wall | floor |
+| --- | --- | --- | --- | --- |
+| living/dining | 10.21 % | 1.07 | 1.19 | 1.15 |
+| main bedroom | 10.43 % | **0.86** | 1.03 | 0.68 |
+| bedroom 2 | 8.13 % | **0.98** | 0.96 | 1.26 |
+| bedroom 3 | 8.58 % | **0.95** | 0.61 | 0.79 |
+| bath 1 | 4.34 % | 1.06 | 1.12 | 0.87 |
+| bath 2 | 2.02 % | 1.03 | 0.94 | 0.86 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 |
+
+**The deep-shadow calibration generalises completely** — `%<64` is in band in all six rooms despite
+them differing threefold in size. That is the metric this arc was built on, and it holds app-wide.
+
+**The ceiling term does not.** Every room is short of 1.08: living/dining on the edge at 1.07, baths
+1.03–1.06, bedrooms **0.86–0.98**. `.195` tuned `PHOTO_GROUND_BOUNCE` on the living/dining window and
+the hemisphere term is global, so the shortfall is geometric — a small room's ceiling is nearer its
+walls and gets proportionally less.
+
+Recorded rather than fixed: raising the bounce would push living/dining past its band and cost deep
+shadow everywhere at once (they are one lever, per `.195`). Closing it needs a term that scales with
+room size — a design change, not a constant.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.202 — a room-by-room parity sweep, and why most of it was invalid
 
 The first sweep said the calibration was local to one room — bedrooms 2/3 and bath 1 reporting `%<64`

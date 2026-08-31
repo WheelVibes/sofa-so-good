@@ -3222,3 +3222,53 @@ rather than a window standoff — which is the next round's work, now with an ar
 will fail loudly instead of returning a plausible wrong number.
 
 Nothing changed in `src/`.
+
+---
+
+## `.203` — the first verified per-room parity table
+
+`.202` fixed three pose bugs and still could not land the camera in the small rooms, because
+`requestWalkTeleport` runs the point through the app's collision solver. The fix is to stop guessing:
+teleport, **check which room the camera actually reached**, step 0.3 m closer and retry, and only
+accept a pose that lands in the window's own room. Every arm below reports `landedInRoom: true` with
+`roomReached` matching, and the frames confirm it — the bedroom-3 capture now shows a bedroom with the
+minimap reading BEDROOM 3, where `.202`'s showed a corridor wall.
+
+Living/dining is byte-identical through the change (120.9 / 10.21 % / ceiling 1.07, standoff still
+4.6), so nothing recorded earlier moves.
+
+| room | standoff | `%<64` | ceiling | wall | floor |
+| --- | --- | --- | --- | --- | --- |
+| living/dining | 4.6 | 10.21 % | 1.07 | 1.19 | 1.15 |
+| main bedroom | 3.6 | 10.43 % | **0.86** | 1.03 | **0.68** |
+| bedroom 2 | 3.0 | 8.13 % | **0.98** | 0.96 | 1.26 |
+| bedroom 3 | 3.3 | 8.58 % | **0.95** | 0.61 | **0.79** |
+| bath 1 | 1.6 | 4.34 % | 1.06 | 1.12 | 0.87 |
+| bath 2 | 1.6 | 2.02 % | 1.03 | 0.94 | 0.86 |
+| photographs | | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 |
+
+### Two findings, opposite in sign
+
+**The deep-shadow calibration generalises completely.** `%<64` is inside the photographic band in
+**all six rooms**, 2.02 % to 10.43 %, despite the rooms differing by a factor of three in size and the
+baths having small high windows. That is the metric this whole arc was built on, and it holds
+app-wide rather than only where it was tuned.
+
+**The ceiling term does not.** Every room is short of the 1.08 band: living/dining sits on its edge at
+1.07, the baths at 1.03–1.06, and the bedrooms at **0.86–0.98**. `.195` tuned
+`PHOTO_GROUND_BOUNCE` against the living/dining window alone, and the hemisphere's ground term is
+global, so the shortfall is geometric — a small room's ceiling is nearer its walls and gets
+proportionally less of the term than a large room's does.
+
+Floor also dips below band in the two rooms whose beds fill the pitched-down frame (main bedroom 0.68,
+bedroom 3 0.79), which is furniture in the floor band rather than a floor result — the `.181` trap,
+and the reason that column is quoted but not acted on.
+
+### Why this is recorded rather than fixed
+
+Raising `PHOTO_GROUND_BOUNCE` to lift the bedrooms would push living/dining past the band it was
+tuned to and cost deep shadow in every room at once — the two are one lever, as `.195` measured.
+Closing this needs a term that scales with room size, which is a design change rather than a constant.
+Recorded with a probe that now refuses to measure the wrong room.
+
+Nothing changed in `src/`.
