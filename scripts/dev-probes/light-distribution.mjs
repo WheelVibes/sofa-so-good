@@ -385,7 +385,7 @@ console.log(
 await page.evaluate((p) => window.__walkLook?.setPitch(p), PITCH)
 await new Promise((r) => setTimeout(r, 900))
 const geo = await page.evaluate(
-  ({ g, hud }) => {
+  ({ g, win, hud }) => {
     const { scene, camera } = window.__three
     const rc = new window.__three.raycaster.constructor()
     const n = new camera.position.constructor()
@@ -409,13 +409,19 @@ const geo = await page.evaluate(
         if (Math.abs(n.y) > 0.9 && h.point.y > 2.0) kind = 'ceiling'
         else if (Math.abs(n.y) > 0.9 && h.point.y < 0.15) kind = 'floor'
         else if (Math.abs(n.y) < 0.3) kind = 'wall'
-        if (kind) out.push({ x, y, kind })
+        // Distance from the WINDOW plane, so wall samples can be split by how far
+        // into the room they sit. A real room's far wall is only modestly darker
+        // than its near one, because bounce fills it (photo D: 0.85-0.86).
+        // Along the window's INWARD NORMAL: how far into the room the sample is.
+        const dWin = Math.abs((h.point.x - win.cx) * win.nx + (h.point.z - win.cz) * win.nz)
+        if (kind) out.push({ x, y, kind, dWin: +dWin.toFixed(2) })
       }
     }
     return out
   },
   {
     g: 70,
+    win: { cx: pose.cx, cz: pose.cz, nx: pose.nx, nz: pose.nz },
     hud: [
       { x0: 0.24, x1: 0.76, y0: 0, y1: 0.1 },
       { x0: 0.9, x1: 1, y0: 0, y1: 0.06 },
@@ -448,6 +454,27 @@ const geo = await page.evaluate(
   console.log(
     `  ceiling/wall = ${(mean(buckets.ceiling) / mean(buckets.wall)).toFixed(2)}   (photographs 0.90 and 1.00 — see .206)`,
   )
+  // WALL FALLOFF with distance from the window -- same material, same frame, so
+  // composition cancels (.226). Photo D reads 0.85-0.86.
+  {
+    const nearW = []
+    const farW = []
+    for (const h of geo) {
+      if (h.kind !== 'wall') continue
+      const gx = Math.min(W - 1, Math.floor(h.x * W))
+      const gy = Math.min(H - 1, Math.floor(h.y * H))
+      const v = data[gy * W + gx]
+      // Bands sized to what this pose can SEE: it stands 4.6 m back looking AT
+      // the window, so every visible wall lies between 0 and ~4.6 m of it.
+      if (h.dWin <= 1.5) nearW.push(v)
+      else if (h.dWin >= 3) farW.push(v)
+    }
+    const mn = mean(nearW)
+    const mf2 = mean(farW)
+    console.log(
+      `  wall falloff: near-window ${mn.toFixed(1)} (${nearW.length}), far ${mf2.toFixed(1)} (${farW.length}), far/near = ${(mf2 / mn).toFixed(2)}   (photograph 0.85-0.86)`,
+    )
+  }
   if (buckets.ceiling.length < 20)
     console.log('  WARNING: few ceiling samples — the pose may not see enough ceiling.')
 }

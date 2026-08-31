@@ -4370,3 +4370,56 @@ possibly, a pose shift in that one case — unresolved, and not evidence of a br
 accused of something it did not do.
 
 Nothing changed in `src/`.
+
+---
+
+## `.226` — wall falloff: the photographic look is too steep, and the default look is right
+
+A new axis, chosen because it satisfies the `.207` rule by construction: **how much darker is the wall
+away from the window than the wall beside it?** Same paint, same frame, so composition and albedo both
+cancel.
+
+### The reference
+
+Photo D has one flat peach wall running from the window deep into the room, measured at two independent
+pairs:
+
+| | near-window | far | far/near |
+| --- | --- | --- | --- |
+| photo D | 188 | 162 | **0.86** |
+| photo D (2) | 195 | 165 | **0.85** |
+
+A real room's far wall is only ~15 % darker than its near one. That is less falloff than intuition
+suggests, and the reason is bounce: in a real room the far wall is lit by light that has already hit
+the floor, the ceiling and the near walls. (Photo C's crops were contaminated — a clock, cabinets and
+ceiling downlights — and were discarded on inspection.)
+
+### The app, measured the same way
+
+Wall samples from the geometric mask, split by distance along the window's inward normal:
+
+| | near-window | far | far/near |
+| --- | --- | --- | --- |
+| photographic look | 116.2 | 85.5 | **0.74** |
+| default look | 164.9 | 140.9 | **0.85** |
+| photo D | | | 0.85–0.86 |
+
+**The default look matches the photograph exactly. The photographic look is too steep** — its far wall
+falls to 0.74 where a real one holds 0.85.
+
+That is the first metric in this arc where the *default* look is the accurate one and the photographic
+look is not, and the mechanism is the same missing term this arc has circled since `.188`: the
+photographic look creates its range by removing flat fill, and flat fill is the only thing holding the
+far wall up, because the app has no inter-reflection to replace it. `PHOTO_GROUND_BOUNCE` cannot fix it
+— the hemisphere's ground term lights every wall equally at half weight, with no distance dependence,
+which is precisely what a real bounce does have.
+
+So the ceiling deficit (`.188`), the flat window (`.209`) and now the over-steep wall falloff are three
+faces of one absent feature. Recorded rather than chased: `.189`–`.195` established that nothing
+cheaper than real GI reproduces its spatial structure, and this measurement is more evidence for that
+conclusion rather than a new lever.
+
+**One reference.** Photo D is the only image in the set with a single flat wall spanning near and far,
+so 0.85–0.86 rests on two pairs from one photograph. Worth widening before anyone tunes against it.
+
+Nothing changed in `src/`.

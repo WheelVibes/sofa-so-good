@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.226 — wall falloff: the photographic look is too steep, the default look is right
+
+A new axis satisfying the `.207` rule by construction: **how much darker is the wall away from the
+window than the wall beside it?** Same paint, same frame, so composition and albedo both cancel.
+
+**Reference** — photo D, one flat peach wall running from window into the room, two independent pairs:
+188 → 162 (**0.86**) and 195 → 165 (**0.85**). A real far wall is only ~15 % darker, because bounce
+lights it. (Photo C's crops were contaminated — clock, cabinets, downlights — and discarded.)
+
+**The app**, wall samples split by distance along the window's inward normal:
+
+| | near-window | far | far/near |
+| --- | --- | --- | --- |
+| photographic look | 116.2 | 85.5 | **0.74** |
+| default look | 164.9 | 140.9 | **0.85** |
+| photo D | | | 0.85–0.86 |
+
+**The default look matches the photograph exactly; the photographic look is too steep.** First metric in
+this arc where the DEFAULT look is the accurate one.
+
+Same mechanism this arc has circled since `.188`: the photographic look makes its range by removing flat
+fill, and flat fill is the only thing holding the far wall up, because there is no inter-reflection to
+replace it. `PHOTO_GROUND_BOUNCE` cannot fix it — the hemisphere's ground term lights every wall equally
+at half weight with no distance dependence, which is exactly what real bounce does have.
+
+So the ceiling deficit (`.188`), the flat window (`.209`) and this are three faces of one absent
+feature. Recorded, not chased — `.189`–`.195` established nothing cheaper than real GI reproduces its
+spatial structure.
+
+**One reference:** photo D is the only image with a single flat wall spanning near and far, so
+0.85–0.86 rests on two pairs from one photograph.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.225 — CORRECTION: forcing AO on at `performance` renders black quads in orbit
 
 `.224` reported that AO at `performance` closes the contact gap and that "the frame is clean". **The
