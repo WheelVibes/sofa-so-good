@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.243 — edge bevels: a real geometric difference with no visible signature at walk scale
+
+Professional renderers ship a **rounded-edge** shader (Corona `CoronaRoundEdges`, V-Ray `VRayEdgesTex`)
+because nothing real has a mathematically sharp edge — every manufactured edge carries a 1–3 mm radius
+that catches a highlight, and razor-sharp edges are a classic CG tell. This arc had never looked at it.
+
+**The geometric fact is real:** across `src/furniture`, **323 `<boxGeometry>` + 61 `new BoxGeometry` =
+384 sharp boxes against 9 `RoundedBoxGeometry`**. A bevel facility exists but lives in the **GLB editor**
+(`glbEdit/editSpec.ts`, `ShapePart.bevel`), i.e. for authored parts, not shipped primitives.
+
+**The predicted signature is absent.** Luminance profiles across a table top→side edge, 7 px wide:
+
+| | profile | pre-edge rise | transition width |
+| --- | --- | --- | --- |
+| photograph (dark wood table) | 109 113 **117** 116 … 104 57 40 | +7 % | ~2 px |
+| app (coffee table) | 70 70 … 68 74 **76** 71 59 51 | +8.5 % | ~4 px |
+
+The app shows a *slightly larger* relative edge brightening and a *softer* transition. No bevel
+deficiency is measurable.
+
+**Why — the scale argument.** The probe's certified floor resolves **589 px/m**, so a 2 mm edge radius is
+**~1.2 px** at floor distance in a 2560-wide capture, less further away. A bevel cannot produce a
+highlight band it has no pixels to occupy. So the conclusion is not "the app does bevels" — it does not —
+but that **rounded edges are a close-up technique**: they earn their cost where an edge fills tens of
+pixels, and at a walk camera at room distance their absence is not a photorealism gap. Presumably why the
+bevel support that exists lives in the GLB editor, which is the close-up case.
+
+**Evidence strength:** one edge in one photograph against one in one app frame, at different materials,
+scales and angles — weak alone. The 589 px/m scale argument carries the conclusion; the profiles are
+consistent with it rather than proof of it.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.242 — the AO trade, swept: no point satisfies both floor metrics
 
 `.241` established that the floor micro-contrast overshoot is mostly the AO pass, so a lever exists —

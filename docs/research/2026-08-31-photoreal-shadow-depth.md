@@ -5236,3 +5236,49 @@ Not an AO constant. The two bands are only in conflict because one screen-space 
 contact occlusion and surface-scale shading. Real inter-reflection separates them, which puts this in the
 same place as the wall falloff (`.226`, `.236`): reachable only by the feature this codebase has
 repeatedly measured as too expensive, and not by a constant.
+
+---
+
+## `.243` — edge bevels: a real geometric difference with no visible signature at walk scale
+
+Professional interior renderers ship a **rounded-edge** shader (Corona's `CoronaRoundEdges`, V-Ray's
+`VRayEdgesTex`) on the reasoning that nothing in a real room has a mathematically sharp edge: every
+manufactured edge carries a 1–3 mm radius, and that radius catches a highlight the eye reads as
+"physical". Razor-sharp edges are a classic CG tell. This arc had never looked at it.
+
+**The geometric fact is real.** Across `src/furniture`:
+
+> **323 `<boxGeometry>` + 61 `new BoxGeometry` = 384 sharp boxes, against 9 `RoundedBoxGeometry`.**
+
+A bevel facility does exist, but in the **GLB editor** (`glbEdit/editSpec.ts` — `ShapePart.bevel`, box →
+`RoundedBoxGeometry`), i.e. for authored parts, not for the shipped primitives.
+
+**The predicted visual signature is absent.** Luminance profiles across a table's top→side edge, seven
+pixels wide, photograph against app:
+
+| | profile across the edge | pre-edge rise | transition width |
+| --- | --- | --- | --- |
+| photograph (dark wood table) | 109 113 **117** 116 … 104 57 40 40 | +7 % | ~2 px |
+| app (coffee table) | 70 70 … 68 74 **76** 71 59 51 46 | +8.5 % | ~4 px |
+
+The app shows a *slightly larger* relative edge brightening than the photograph, and a *softer*
+transition. There is no measurable bevel deficiency here.
+
+### Why, and the scale argument that generalises it
+
+The probe's certified floor region resolves **589 px/m**. A 2 mm edge radius is therefore **~1.2 px** at
+floor distance in a 2560-wide capture — and less on anything further away. A bevel cannot produce a
+highlight band it does not have the pixels to occupy.
+
+So the honest conclusion is not "the app already does bevels" — it does not — but:
+
+> **Rounded edges are a close-up technique.** They earn their cost in product and configurator renders,
+> where an edge fills tens of pixels. At this app's walk camera, at room distances, the feature is
+> sub-pixel and its absence is not a photorealism gap. That is presumably why the bevel support that
+> exists lives in the GLB editor, which is exactly the close-up case.
+
+**Evidence strength, stated plainly:** one edge in one photograph against one edge in one app frame, at
+different materials, scales and angles. That is weak on its own; it is the **589 px/m scale argument**
+that carries the conclusion, and the profiles are consistent with it rather than proof of it.
+
+Nothing changed in `src/`.
