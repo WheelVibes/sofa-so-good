@@ -47,7 +47,10 @@ await page.evaluate(
 )
 await new Promise((r) => setTimeout(r, 5000))
 
-const report = await page.evaluate(() => {
+const report = await page.evaluate(async () => {
+  // The curtain attenuation the FILL actually receives (KEY-FILL-BALANCE).
+  const wls = await import('/src/scene/lighting/windowLightSignal.ts')
+  const look = await import('/src/scene/look.ts')
   const { scene, gl } = window.__three
   const drape = []
   const seen = new Set()
@@ -74,6 +77,8 @@ const report = await page.evaluate(() => {
   const programs = (gl.info?.programs ?? []).map((p) => p.cacheKey ?? '')
   return {
     tier: window.__store.getState().qualityTier,
+    windowAttenuation: +wls.getWindowAttenuation().toFixed(3),
+    fillAttenuation: +look.windowFillAttenuation(wls.getWindowAttenuation()).toFixed(3),
     sceneEnvironment: !!scene.environment,
     drapeMaterials: drape.length,
     sample: drape[0] ?? null,

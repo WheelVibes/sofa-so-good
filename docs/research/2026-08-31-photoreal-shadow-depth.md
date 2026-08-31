@@ -3909,3 +3909,49 @@ question about what `performance` should render, not a curtain fix — and it is
 that **the tier the capability veto hands most phones does not deliver the photographic look**.
 
 Nothing changed in `src/`. `drape-check.mjs` added.
+
+---
+
+## `.216` — the photographic look is INERT on the `performance` tier
+
+`.215` found the window-facing view at `performance` to be a flat near-saturated field that ignores the
+curtains. Chasing the cause produced a much bigger and much simpler result.
+
+Room luminance behind drawn curtains, photographic look on versus off:
+
+| tier | look on | look off | change |
+| --- | --- | --- | --- |
+| medium | 69.9 | 149.6 | **−53 %** |
+| performance | 183.0 | 181.1 | **−1 %** |
+
+**On the tier the capability veto hands most phones, turning the photographic look on changes the room
+by one percent.** Every realism change this arc has shipped — the fill rebalance, the whole-floor
+bounce, the curtain translucency, the sensor grain, and the relief work `PHOTO_WEAVE` carries — is
+gated behind that look. None of them reach those users in any meaningful degree.
+
+### What it is not
+
+Three plausible causes were tested and eliminated:
+
+- **Not the shader patch.** `drape-check.mjs` shows the drapery material identical on both tiers, the
+  `onBeforeCompile` hook present, and **9** compiled programs carrying its marker at `performance`
+  against 7 at `medium` (`.215`).
+- **Not the curtain attenuation.** `getWindowAttenuation()` and `windowFillAttenuation()` both read
+  **0.413 on both tiers** — identical. The fill really is being attenuated there.
+- **Not the sun.** If an unshadowed sun were flooding the room (`performance` has `shadowMapSize: 0`),
+  night would collapse it. It barely moves: **183.0 at 13:00 against 163.7 at 22:00**, where `medium`
+  swings 70.0 → 127.3 in the opposite direction as its lamps take over.
+
+### What that leaves
+
+`PHOTO_FILL_SCALE.performance` is **0.4** — a deeper cut than `medium`'s 0.735 — so the look should
+change *more* there, not less. It changes almost nothing, and the room is largely decoupled from time
+of day as well. Whatever is lighting the interior at `performance` is not the analytical fill that
+`photographicFillScale` scales, and it is not the sun. That is the next thing to find, and it now has
+a sharp question attached rather than a vague one.
+
+This also reframes `.163`'s note that `performance` "cannot reach the `%<64` band". That was recorded
+as a limitation of the tier's dynamic range. It is more specific and worse: the look barely engages at
+all.
+
+Nothing changed in `src/`.

@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.216 — the photographic look is INERT on the `performance` tier
+
+`.215` found the window-facing view at `performance` flat and unresponsive to the curtains. Chasing the
+cause produced a bigger, simpler result. Room luminance behind drawn curtains, look on vs off:
+
+| tier | look on | look off | change |
+| --- | --- | --- | --- |
+| medium | 69.9 | 149.6 | **−53 %** |
+| performance | 183.0 | 181.1 | **−1 %** |
+
+**On the tier the capability veto hands most phones, turning the photographic look on changes the room
+by one percent.** Every realism change this arc shipped — fill rebalance, whole-floor bounce, curtain
+translucency, sensor grain, the `PHOTO_WEAVE` relief — is gated behind that look, so none of them reach
+those users meaningfully.
+
+**Three causes tested and eliminated.** Not the shader patch (`drape-check.mjs`: identical material,
+hook present, 9 compiled programs carrying the marker at `performance` vs 7 at `medium`). Not the
+curtain attenuation (`getWindowAttenuation` and `windowFillAttenuation` both read **0.413 on both
+tiers**). Not the sun (an unshadowed sun would collapse at night; it barely moves — 183.0 at 13:00 vs
+163.7 at 22:00, where medium swings 70.0 → 127.3 the other way as its lamps take over).
+
+`PHOTO_FILL_SCALE.performance` is 0.4, a *deeper* cut than medium's 0.735, so the look should change
+more there, not less. Whatever lights that interior is not the analytical fill `photographicFillScale`
+scales, and not the sun. That is the next thing to find.
+
+Reframes `.163`'s note that `performance` "cannot reach the `%<64` band" — recorded then as a dynamic-
+range limit, it is more specific and worse: the look barely engages at all.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.215 — `.214`'s diagnosis was wrong: the shader runs, the TIER has no range
 
 `.214` concluded "the patched shader is not running at all on the `performance` tier". **Retracted.**
