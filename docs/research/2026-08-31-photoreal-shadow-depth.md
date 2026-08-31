@@ -4423,3 +4423,37 @@ conclusion rather than a new lever.
 so 0.85–0.86 rests on two pairs from one photograph. Worth widening before anyone tunes against it.
 
 Nothing changed in `src/`.
+
+---
+
+## `.227` — the wall-falloff reference could NOT be widened, and that is the finding
+
+`.226` measured wall falloff at **0.85–0.86** from two pairs in a single photograph, and flagged that as
+the weakness. `.186` and `.187` are what happens when a one- or two-image number hardens into a target,
+so this round tried to widen it before anything is tuned against it. Three candidates, three failures —
+each for a different, instructive reason.
+
+| candidate | reading | why it does not count |
+| --- | --- | --- |
+| photo C (existing) | — | crops caught a clock, cabinets and ceiling downlights (`.226`) |
+| ref 2029667 | **1.17** | crops clean on inspection, but the wall CHANGES ORIENTATION relative to the window along its run, so "further along" is not "further from the light" |
+| ref 1643383 | **0.67** | correct wall and lighting direction, but the far crop catches a ceiling soffit and a cabinet edge |
+
+The 2029667 case is the interesting one: both crops are genuinely clean flat wall, and the number is
+still meaningless. Falloff needs a wall of **constant orientation** to the window; where the wall turns,
+the measurement mixes distance with incidence angle and can even run backwards, which is exactly what
+1.17 is.
+
+### What this leaves
+
+**`.226`'s 0.85–0.86 stands on one photograph and should be treated as provisional, not as a target.**
+The app's readings against it — photographic look 0.74, default look 0.85 — keep their relative meaning
+(the photographic look's falloff really is steeper than the default's, measured identically), but
+"0.85 is what a real room does" is one image's worth of evidence.
+
+The criterion for a usable reference is now explicit, which is the durable part: **an unobstructed wall
+of constant orientation, spanning near and far from a single window, with nothing mounted on it.**
+Three of four interior photographs failed it. That rarity is itself worth knowing — it is why this axis
+has one data point and not five.
+
+Nothing changed in `src/`.

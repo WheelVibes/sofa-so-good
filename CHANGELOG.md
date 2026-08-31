@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.227 — the wall-falloff reference could NOT be widened, and that is the finding
+
+`.226` measured wall falloff at **0.85–0.86** from two pairs in ONE photograph and flagged that as the
+weakness. `.186` and `.187` are what happens when such a number hardens into a target, so this round
+tried to widen it first. Three candidates, three failures, each instructive:
+
+| candidate | reading | why it does not count |
+| --- | --- | --- |
+| photo C | — | crops caught a clock, cabinets, downlights (`.226`) |
+| ref 2029667 | **1.17** | crops clean, but the wall CHANGES ORIENTATION along its run, so "further along" is not "further from the light" |
+| ref 1643383 | **0.67** | right wall and light direction, but the far crop catches a soffit and a cabinet edge |
+
+2029667 is the instructive one: both crops are genuinely clean flat wall and the number is still
+meaningless. Falloff needs a wall of **constant orientation** to the window; where it turns, the
+measurement mixes distance with incidence angle and can run backwards — which is what 1.17 is.
+
+**So `.226`'s 0.85–0.86 stands on one photograph and is provisional, not a target.** The app's readings
+(photographic 0.74, default 0.85) keep their relative meaning — measured identically, the photographic
+look's falloff really is steeper — but "0.85 is what a real room does" is one image's evidence.
+
+The durable part is the criterion, now explicit: **an unobstructed wall of constant orientation,
+spanning near and far from a single window, with nothing mounted on it.** Three of four interior
+photographs failed it, and that rarity is why this axis has one data point.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.226 — wall falloff: the photographic look is too steep, the default look is right
 
 A new axis satisfying the `.207` rule by construction: **how much darker is the wall away from the
