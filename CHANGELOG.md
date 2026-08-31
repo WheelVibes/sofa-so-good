@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.209 — the window is a flat grey panel, and it never blows out
+
+New axis: the glazing. A fifth reference was fetched for it (a real-estate kitchen with an uncovered
+daylit patio door), eyeballed first per `.186`.
+
+**The obvious assumption was wrong.** "A window is the brightest thing in an interior" is false as
+stated — photo C's shaded garden view measures glazing/wall **0.82**, darker than its own walls, while
+the kitchen reads 1.08. The mean ratio is not the signal; the clipped fraction and the distribution are.
+
+| | p90 | p99 | max | clipped |
+| --- | --- | --- | --- | --- |
+| reference kitchen glazing | 252 | 255 | **255** | 15.1 % |
+| photo C glazing (shaded) | 210 | 242 | **255** | 0.1 % |
+| **app window plane, 13:00** | 181 | 183 | **183** | **0.0 %** |
+
+1. **The app never approaches white** — brightest window pixel at midday is 183; both photographs reach
+   255, including the shaded one. It clips 0.0 % at 09:00, 13:00 and 17:00 alike.
+2. **The app's window is nearly uniform** — p90 → max spans **two luminance units**, where photo C's
+   spans 210 → 255. A flat grey panel, not a view. `.198` saw this qualitatively; this puts a number
+   on it.
+
+**Two candidate causes, one not mine to change.** The `sky` backdrop paints a smooth analytic gradient
+with little tonal structure (a backdrop change, and `WINDOW-SKY-DEFAULT` treats that as a product
+decision). And AgX was chosen deliberately *because* it cuts blown highlights 4–7× versus filmic, on the
+user's explicit sign-off — a real photo of a daylit interior blows its window; the app's operator is
+tuned not to. That tension is real and not mine to resolve unilaterally.
+
+Finding 2 is unambiguous and independent of the operator: a two-unit spread across the top decile is a
+flat panel whatever the curve, which makes it a backdrop-content problem rather than a grading one.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.208 — SHIPPED: retuned on the metrics that survived, and all four now hold at once
 
 `.206` and `.207` demoted the two frame-normalised targets this arc had been steering by. That leaves a

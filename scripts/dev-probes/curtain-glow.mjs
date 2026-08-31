@@ -203,6 +203,11 @@ for (const h of hits) {
   else room.push(l)
 }
 const mean = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : Number.NaN)
+/** Fraction of a set at/near pure white. A real daylit window PARTLY BLOWS OUT —
+ *  the reference kitchen clips 15.1 % of its glazing — while a shaded garden view
+ *  clips 0.1 % and is actually DARKER than the walls (photo C, glazing/wall 0.82).
+ *  So the mean ratio is not the signal for glazing; the clipped fraction is. */
+const clipped = (a) => (a.length ? a.filter((v) => v > 250).length / a.length : Number.NaN)
 const mw = mean(inPlane)
 const mf = mean(all)
 const mr = mean(room)
@@ -226,6 +231,13 @@ console.log(
 )
 console.log(
   `  room (excl. plane) = ${mr.toFixed(1)}   plane/ROOM = ${(mw / mr).toFixed(2)}   <- the pose-robust one`,
+)
+const q = (a, pp) => {
+  const t = [...a].sort((x, y) => x - y)
+  return t.length ? t[Math.floor(pp * (t.length - 1))] : Number.NaN
+}
+console.log(
+  `  window-plane clipped = ${(clipped(inPlane) * 100).toFixed(1)} %   p90=${q(inPlane, 0.9).toFixed(0)} p99=${q(inPlane, 0.99).toFixed(0)} max=${q(inPlane, 1).toFixed(0)}   (reference kitchen glazing 15.1 %, shaded garden view 0.1 %)`,
 )
 console.log('')
 console.log('reference photographs, curtain over daylight:')

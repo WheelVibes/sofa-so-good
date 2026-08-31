@@ -3537,3 +3537,57 @@ The visual A/B is near-identical — ×3 is marginally deeper in the ceiling and
 regression. `%<64` at the calibration pose moves 10.21 % → 14.42 %, which is a real change but no
 longer a target (`.207`); it is recorded as a comparison between two builds at one pose, which is the
 only thing that number can honestly support.
+
+---
+
+## `.209` — the window is a flat grey panel, and it never blows out
+
+With the metric foundation rebuilt, a new axis: the glazing itself. A fifth reference was fetched for
+it (a real-estate kitchen with an uncovered daylit patio door), eyeballed first per `.186` — real
+appliances, natural clutter, no CG tells.
+
+### The obvious assumption was wrong
+
+"A window is the brightest thing in an interior" is false as stated. Measured glazing against wall in
+the same frame:
+
+| reference | glazing | wall | glazing/wall | clipped |
+| --- | --- | --- | --- | --- |
+| kitchen (new) | 227 | 211 | 1.08 | **15.1 %** |
+| photo C living room | 155 | 188 | **0.82** | 0.1 % |
+
+Photo C's window is **darker** than its walls — a shaded garden view in a bright white room. So the
+mean ratio is not the signal. The **clipped fraction** and the **distribution** are.
+
+### The app's window is flat, and dim
+
+| | p90 | p99 | max | clipped |
+| --- | --- | --- | --- | --- |
+| reference kitchen glazing | 252 | 255 | **255** | 15.1 % |
+| photo C glazing (shaded) | 210 | 242 | **255** | 0.1 % |
+| **app window plane, 13:00** | 181 | 183 | **183** | **0.0 %** |
+
+Two findings, and the second is the stronger one:
+
+1. **The app never approaches white.** Its brightest window pixel at midday is **183**; both
+   photographs reach **255** — including the shaded one that is darker than its own walls on average.
+   The app clips 0.0 % at 09:00, 13:00 and 17:00 alike.
+2. **The app's window is nearly uniform.** p90 → max spans **two luminance units** (181 → 183), where
+   photo C's spans 210 → 255. That is a flat grey panel, not a view. It is the same thing `.198`
+   observed qualitatively about the `sky` backdrop having no content, now with a number on it.
+
+### Two candidate causes, one of which is not mine to change
+
+- **The exterior's dynamic range.** The `sky` backdrop paints a smooth analytic gradient, so there is
+  little tonal structure to survive into the frame. Broadening that is a backdrop change and sits in
+  the area `WINDOW-SKY-DEFAULT` already treats as a product decision.
+- **The view transform.** AgX was chosen deliberately *because* it cuts blown highlights 4–7× versus
+  filmic (`TONE-CURVE-CHOICE`, clipped 0.28 % vs 1.94 %), and it shipped on the user's explicit
+  sign-off. A real photograph of a daylit interior blows its window; the app's operator is tuned not
+  to. **That tension is real and it is not mine to resolve unilaterally** — the note says so in terms.
+
+Recorded, not fixed. What is unambiguous and independent of the tone curve is finding 2: a two-unit
+spread across the top decile is a flat panel regardless of operator, and that is a content problem in
+the backdrop rather than a grading one.
+
+Nothing changed in `src/`.
