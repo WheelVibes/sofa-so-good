@@ -91,11 +91,18 @@ await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 // Pin the clock BEFORE anything else — `setManualHour` also flips `timeMode`, so
 // using it as a bare redraw nudge later would straddle day and night.
-await page.evaluate((h) => {
-  const s = window.__store.getState()
-  s.setTimeMode('manual')
-  s.setManualHour(h)
-}, HOUR)
+await page.evaluate(
+  ({ h, photo }) => {
+    const s = window.__store.getState()
+    s.setTimeMode('manual')
+    s.setManualHour(h)
+    // PHOTO=1 turns on the photographic look. Everything this tour has ever shot
+    // was the DEFAULT look, so the look the realism work since `.162` actually
+    // tunes had never been reviewed room-by-room (`.228`).
+    if (photo) s.setPhotographicLook?.(true)
+  },
+  { h: HOUR, photo: process.env.PHOTO === '1' },
+)
 await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})

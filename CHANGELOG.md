@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.228 — multi-room visual verification, and `walk-tour` learns the photographic look
+
+Four terms have shipped since the last whole-flat visual review (`PHOTO_GROUND_BOUNCE` 3,
+`CURTAIN_TRANSLUCENCY` 4, the AO retune + post-stack compensation, sensor grain). This is that pass: an
+11-room, 44-frame `walk-tour.mjs` at `medium`/13:00.
+
+**It passes** — every room reached, 83 % mean content, 354 visible meshes, no empty frames, no
+artefacts, no missing walls, consistent colour. Three poses face blank walls, a tour-pose limitation.
+
+**Capability gap closed:** every frame this tour has ever shot was the DEFAULT look, so the look this
+arc has tuned since `.162` had never been reviewed room by room. `walk-tour.mjs` now takes `PHOTO=1`.
+
+| room | default sat / luma | photographic sat / luma | Δsat |
+| --- | --- | --- | --- |
+| living/dining | 0.105 / 162 | 0.086 / 111 | −0.019 |
+| main bedroom | 0.162 / 188 | 0.095 / 104 | **−0.067** |
+| bedroom 2 | 0.125 / 180 | 0.067 / 126 | **−0.058** |
+| bath 1 | 0.196 / 188 | 0.184 / 119 | −0.012 |
+
+**The photographic look does not merely darken — it desaturates, and unevenly**, the bedrooms losing
+three to five times more than the living room or bathroom. The cause is by design: `fixturesLevel` fades
+fixtures in a first-person daylit view, and the bedrooms' warm content is largely their bedside lamps.
+The living room's warmth comes from floor and furniture; the bathroom's saturation is tile colour.
+
+So bedrooms reading cool under the photographic look is the daytime fixture fade working, not a
+white-balance defect — a real bedroom at 13:00 does not have its lamps on. Recorded because it is
+exactly the observation that would otherwise be chased as a colour problem.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.227 — the wall-falloff reference could NOT be widened, and that is the finding
 
 `.226` measured wall falloff at **0.85–0.86** from two pairs in ONE photograph and flagged that as the

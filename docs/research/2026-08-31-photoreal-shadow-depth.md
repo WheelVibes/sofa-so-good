@@ -4457,3 +4457,48 @@ Three of four interior photographs failed it. That rarity is itself worth knowin
 has one data point and not five.
 
 Nothing changed in `src/`.
+
+---
+
+## `.228` — multi-room visual verification of everything shipped, and `walk-tour` learns the photographic look
+
+Four terms have shipped since the last whole-flat visual review (`PHOTO_GROUND_BOUNCE` 3,
+`CURTAIN_TRANSLUCENCY` 4, the AO retune plus its post-stack compensation, and the sensor grain). The
+repo's own rule is visual verification after any app change, so this is that pass: an 11-room, 44-frame
+`walk-tour.mjs` at `medium`/13:00.
+
+**It passes.** 44 frames, every room reached, 83 % mean content, 354 visible meshes, no empty frames.
+Reviewing six rooms: no artefacts, no missing walls, no black quads, consistent colour. Three of the
+poses (kitchen, bath 1, corridor) face blank walls, which is a tour-pose limitation rather than a render
+one.
+
+### And a capability gap worth closing
+
+Every frame this tour has ever shot was the **default** look — the tour had no way to enable the
+photographic one, so the look this arc has tuned since `.162` had never been reviewed room by room.
+`walk-tour.mjs` now takes `PHOTO=1`.
+
+Running both and comparing:
+
+| room | default sat / luma | photographic sat / luma | Δsat |
+| --- | --- | --- | --- |
+| living/dining | 0.105 / 162 | 0.086 / 111 | −0.019 |
+| main bedroom | 0.162 / 188 | 0.095 / 104 | **−0.067** |
+| bedroom 2 | 0.125 / 180 | 0.067 / 126 | **−0.058** |
+| bath 1 | 0.196 / 188 | 0.184 / 119 | −0.012 |
+
+**The photographic look does not merely darken — it desaturates, and unevenly.** The two bedrooms lose
+three to five times more saturation than the living room or the bathroom.
+
+That pattern has a cause, and it is by design: `fixturesLevel` fades the fixtures in a first-person
+daylit view under the photographic look, and the bedrooms' warm content is largely their bedside lamps.
+Remove them and what remains is cool daylight. The living room's warmth survives because it comes from
+floor and furniture rather than lamps; the bathroom's saturation is tile colour, which no lighting change
+touches.
+
+So the bedrooms reading cool under the photographic look is the daytime fixture fade working, not a
+colour-balance defect — a real bedroom at 13:00 does not have its bedside lamps on. Recorded because
+"the photographic look makes bedrooms look cold" is exactly the kind of observation that would otherwise
+get chased as a white-balance problem.
+
+Nothing changed in `src/`.
