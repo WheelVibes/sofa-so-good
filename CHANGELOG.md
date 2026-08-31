@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.220 — SHIPPED: the hemisphere fallback, now that the probe can see it
+
+`.218` gave the first valid `performance` number: **1.17** against a 1.32–1.48 band while the other
+three tiers sat at 1.35–1.48. The cause is the one `.214` originally guessed — `performance` has no
+IBL, so `getIBLIrradiance(-N)` compiles out and the term collapses to the directional light alone.
+
+`.214` built exactly this fix and measured nothing, because that probe was rendering the orbit
+dollhouse. Re-applied against a working probe:
+
+| tier | before | after |
+| --- | --- | --- |
+| performance | **1.17** | **1.42** |
+| medium | 1.35 | 1.35 |
+| high | 1.48 | 1.47 |
+| maximum | 1.45 | 1.44 |
+| photographs | | 1.32–1.48 |
+
+**All four tiers now in band.** The `#elif ( NUM_HEMI_LIGHTS > 0 )` fires only where `USE_ENVMAP` is
+absent, so the env-map tiers are untouched (the 0.01 wobbles are run-to-run noise). Night unaffected at
+1.03 — no glow. Default look 1.07, expected: not the realism target, and its brighter room compresses
+the ratio. The frame confirms it — the drawn curtain at `performance` is now bright, backlit and shows
+its weave.
+
+**On the sequence:** this is the fix `.214` proposed. It took `.215`–`.219` — four retractions and a
+probe audit — to get an instrument honest enough to show that it works. The idea was right the first
+time; the measurement was not, and there was no way to tell which from inside the numbers.
+
 ## v0.31.5.219 — probe audit: two more on software GL, and the shipped numbers survive
 
 `.218` traced four rounds of wrong findings to one probe launching Chrome with

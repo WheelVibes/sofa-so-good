@@ -4111,3 +4111,38 @@ and its frames are correct at the tier that matters. The cheap check that `.218`
 learn now has a result for every probe in the set rather than for one.
 
 Nothing changed in `src/`.
+
+---
+
+## `.220` — SHIPPED: the hemisphere fallback, now that the probe can see it
+
+`.218` restored `curtain-glow.mjs` and gave the first valid `performance` number: **1.17** against a
+1.32–1.48 band, while the other three tiers sat at 1.35–1.48. The cause was the one `.214` originally
+guessed — `performance` has no IBL, so the chunk's `getIBLIrradiance(-N)` compiles out and the term
+collapses to the directional light alone, which is small for a north-facing window.
+
+`.214` built exactly this fix and measured nothing, because that probe was rendering the orbit
+dollhouse. Re-applied against a working probe:
+
+| tier | before | after |
+| --- | --- | --- |
+| performance | **1.17** | **1.42** |
+| medium | 1.35 | 1.35 |
+| high | 1.48 | 1.47 |
+| maximum | 1.45 | 1.44 |
+| photographs | | 1.32–1.48 |
+
+**All four tiers are now in band.** The `#elif ( NUM_HEMI_LIGHTS > 0 )` fires only where `USE_ENVMAP`
+is absent, so the tiers that have an env map are untouched — the 0.01 wobbles are run-to-run noise.
+Night is unaffected at **1.03** (no glow), and the default look reads 1.07, which is expected: it is
+not the realism target and its brighter room compresses the ratio.
+
+The frame confirms it: at `performance` the drawn curtain is now bright, backlit and shows its weave,
+matching the other tiers rather than reading as a dark sheet.
+
+### Worth noting about the sequence
+
+This is the fix `.214` proposed. It took `.215`, `.216`, `.217`, `.218` and `.219` to get an
+instrument honest enough to show that it works — four retractions and a probe audit for a six-line
+shader change. The idea was right the first time; the measurement was not, and there was no way to
+tell which from inside the numbers.

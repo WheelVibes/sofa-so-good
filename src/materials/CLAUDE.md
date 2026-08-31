@@ -909,6 +909,12 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   · **COUPLED to `PHOTO_GROUND_BOUNCE` — retune both or neither (`.208`).** This ratio is measured
     against the room, so lowering the bounce darkens the denominator and the curtain rises without
     being touched: at bounce 3 the shipped t=6 read **1.53**, past the band, and was re-tuned to 4.
+  · **The env term has a hemisphere FALLBACK, and it is what makes the tier parity hold (`.220`).**
+    `performance` has no IBL, so `getIBLIrradiance` compiles out and the term collapses to the
+    directional light alone — measured **1.17** against the 1.32–1.48 band while the other tiers sat
+    at 1.35–1.48. `#elif ( NUM_HEMI_LIGHTS > 0 )` on `getHemisphereLightIrradiance` takes it to
+    **1.42**, and fires ONLY where `USE_ENVMAP` is absent, so medium/high/maximum are untouched. All
+    four tiers are now in band; night stays at 1.03, i.e. no glow.
   · **`customProgramCacheKey` is REQUIRED** alongside `onBeforeCompile` — three caches programs by
     material type + defines, so without it patched and unpatched fabric of the same type share one
     program and whichever compiled first wins for both.

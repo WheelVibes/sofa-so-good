@@ -31,7 +31,11 @@ import type { Material } from 'three'
  *   through the cloth.
  * - **environment**: `getIBLIrradiance(-N)`, which is what actually carries a
  *   north-facing window, where the sun never strikes the glass directly and the
- *   sky is the whole of the backlight.
+ *   sky is the whole of the backlight. Where there is no env map — the
+ *   `performance` tier, i.e. what the capability veto hands most phones — it
+ *   falls back to the hemisphere light, which exists at every tier. Without that
+ *   fallback the term measured **1.17** there against a 1.32–1.48 band while the
+ *   other three tiers sat at 1.35–1.48; with it, **1.42** (`.220`).
  *
  * `customProgramCacheKey` is REQUIRED alongside `onBeforeCompile`: three caches
  * programs by material type + defines, so without it a patched and an unpatched
@@ -100,6 +104,15 @@ export function backsideChunk(): string {
 		#endif
 		#ifdef USE_ENVMAP
 			backIrradiance += getIBLIrradiance( backNormal );
+		#elif ( NUM_HEMI_LIGHTS > 0 )
+			// The performance tier has no IBL, so without this the term collapses to
+			// the directional light alone -- measured 1.17 against a 1.32-1.48 band
+			// while the other three tiers sat at 1.35-1.48 (.220). The hemisphere is
+			// the app's ambient model at EVERY tier. (An earlier attempt at this in
+			// .214 measured nothing because that probe was rendering the orbit
+			// dollhouse; see .218.)
+			// NOTE: no backticks in this GLSL -- it lives inside a template literal.
+			backIrradiance += getHemisphereLightIrradiance( hemisphereLights[ 0 ], backNormal );
 		#endif
 		irradiance += backIrradiance * ${UNIFORM};
 	}
