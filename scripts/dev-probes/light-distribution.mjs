@@ -495,13 +495,32 @@ const geo = await page.evaluate(
   console.log(
     `  ceiling ${(mean(buckets.ceiling) / base).toFixed(2)}   wall ${(mean(buckets.wall) / base).toFixed(2)}   floor ${(mean(buckets.floor) / base).toFixed(2)}   (normalised by their own combined mean ${base.toFixed(1)})`,
   )
-  // CEILING / WALL is the composition-independent one, and it is the number to
-  // compare (v0.31.5.206). Every ratio taken against a FRAME mean moves with what
-  // happens to be in shot — the same trap `.201` hit on the curtain, where the
-  // reference curtains covered 2-8 % of their frames and the probe's filled 35 %.
-  // Two surfaces in the SAME frame have no such dependence.
+  // CEILING / WALL was adopted in `.206` as the composition-independent metric:
+  // every ratio taken against a FRAME mean moves with whatever happens to be in
+  // shot -- the trap `.201` hit on the curtain, where the reference curtains
+  // covered 2-8 % of their frames and the probe's filled 35 %. Two surfaces in the
+  // SAME frame do escape THAT. They do not escape the two below, so this number is
+  // printed as a diagnostic and is NOT a target:
+  //
+  //   `.232` POSE. It moves 0.68 -> 0.96 in one room, one hour, one lighting
+  //   state, from camera pitch alone. Pitched down the ceiling is a grazing sliver
+  //   dominated by the wall junction; pitched up it is broad and evenly lit.
+  //
+  //   `.233` METHOD. This geometric mask takes EVERY ceiling pixel including that
+  //   junction; the reference photographs were hand-cropped clear of it. Cropped
+  //   the same way, the same frame at the same pose reads 0.93, not 0.88 -- most
+  //   of the apparent deficit was the two methods disagreeing, not the render.
+  //
+  // And the reference side is thin: of 9 photographs screened in `.233`, exactly
+  // ONE met "ceiling and wall the same plaster paint, daylit, ceiling croppable,
+  // no obvious flash/HDR" -- it reads 1.03. One of `.206`'s own surviving sources
+  // has a TIMBER ceiling (0.84), i.e. it measures albedo, not light.
   console.log(
-    `  ceiling/wall = ${(mean(buckets.ceiling) / mean(buckets.wall)).toFixed(2)}   (photographs 0.90 and 1.00 — see .206)`,
+    [
+      `  ceiling/wall = ${(mean(buckets.ceiling) / mean(buckets.wall)).toFixed(2)}   DIAGNOSTIC, not a target -- pose- and method-bound, see .232/.233`,
+      '    hand-cropped clear of the junction this scene reads 0.93; the one',
+      '    qualifying photograph reads 1.03 (n=1).',
+    ].join('\n'),
   )
   // WALL FALLOFF with distance from the window -- same material, same frame, so
   // composition cancels (.226). Photo D reads 0.85-0.86.

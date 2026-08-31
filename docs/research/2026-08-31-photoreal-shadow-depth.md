@@ -4700,3 +4700,65 @@ Nothing changed in `src/`.
 
 The `mainBedroom` frame shows the bed's headboard against the **window** wall with two wall sconces
 floating over the glass. That is a placement result, not a look one — filed in `TODO.md`.
+
+---
+
+## `.233` — the ceiling ÷ wall band re-derived: most of the "deficit" was method, not render
+
+`.232` left the ceiling deficit unproven and asked for one thing: re-derive the photographic band with
+each source photograph's pose recorded. Doing that turned up two problems with the reference side and
+one with the app side.
+
+### The reference set does not survive inspection
+
+Of `.206`'s four photographs, two survive in `/tmp`:
+
+- **`ref-A_standard_living_room_i`** — its ceiling is **timber boarding** against plaster walls.
+  Measured: ceiling 169.1, wall 200.6, **ratio 0.84**. That is an albedo measurement, not a light one —
+  the exact confound this arc used to retire ceiling ÷ floor.
+- **`ref-7_5_Wohnzimmer__Poliert_`** — a floor-focused shot with **no ceiling in frame at all**. It
+  cannot have contributed a ceiling ÷ wall value; it is the floor reference.
+
+So the 0.90–1.00 band cannot be reproduced from what remains of its own evidence.
+
+### Qualifying photographs are rare
+
+Screened 9 daylit interiors from Wikimedia Commons (7 fetched this round) against explicit criteria,
+which future rounds should reuse:
+
+1. ceiling and wall the **same plaster paint** — no timber, coffered, or contrast-coloured ceiling;
+2. daylit, no dominant artificial ceiling wash;
+3. enough clean ceiling to crop away from the junction;
+4. not obviously **flash-lit or HDR-merged** — real-estate processing flattens exactly this ratio;
+5. a real photograph, not AI stock (Commons now carries a lot of the latter under generic titles).
+
+Rejected: timber/vaulted ceilings (2), white ceiling on coloured or cream walls (2), sepia/historical
+(1), ceiling not croppable (2), heavy real-estate HDR (1). **One qualified** — `Home_Staging_Beispiel_
+Nachher`, a low grazing-ceiling pose comparable to the probe's canonical one:
+
+> ceiling 181.0, wall 176.5, **ratio 1.03**.
+
+### The app side: method, not render
+
+The probe's geometric mask takes **every** ceiling pixel, including the wall junction — the darkest part
+of any ceiling. The photograph was hand-cropped clear of it. Cropping the app's canonical frame the same
+way (two rod-free ceiling bands, two wall patches, all four inspected):
+
+| | ceiling | wall | ratio |
+| --- | --- | --- | --- |
+| geometric mask (junction included) | — | — | **0.88** |
+| hand-crop, junction excluded | 119.6 | 128.5 | **0.93** |
+
+Same frame, same pose, same lighting. **Half the apparent deficit was the two methods disagreeing.**
+
+### Where this leaves it
+
+At matched pose and matched method: **app 0.93, photograph 1.03.** A deficit survives, and it is in the
+direction absent inter-reflection predicts — but it is 0.10, not the 0.02–0.12 against a band that the
+`0.88 vs 0.90–1.00` framing implied, and it rests on **n = 1**.
+
+`light-distribution.mjs` now prints the number as a **diagnostic, not a target**, with both caveats
+inline, so no future round quotes 0.88 against a band again.
+
+**Still open:** widen the qualifying set. The criteria above are the bottleneck, not the measurement —
+8 of 9 candidates failed them.

@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.233 — ceiling / wall re-derived: most of the "deficit" was method, not render
+
+`.232` left the ceiling deficit unproven and asked for the band to be re-derived with each source
+photograph's pose recorded. That turned up two problems on the reference side and one on the app side.
+
+**The reference set does not survive inspection.** Of `.206`'s four photographs, two survive in `/tmp`:
+one has a **timber-boarded ceiling** against plaster walls (ceiling 169.1 / wall 200.6 = **0.84** — an
+albedo measurement, the confound that retired ceiling / floor), the other has **no ceiling in frame at
+all** (it is the floor reference). The 0.90–1.00 band cannot be reproduced from its own evidence.
+
+**Qualifying photographs are rare.** 9 daylit interiors screened against explicit criteria — same
+plaster paint on ceiling and wall, daylit, croppable ceiling, no flash/HDR, not AI stock. Eight failed.
+The one that qualified (`Home_Staging_Beispiel_Nachher`, a low grazing-ceiling pose like the probe's)
+reads **1.03**.
+
+**The app side was measured differently from the photographs.** The geometric mask takes every ceiling
+pixel including the wall junction; the photo was hand-cropped clear of it. Cropped the same way, the
+same canonical frame reads:
+
+| | ratio |
+| --- | --- |
+| geometric mask (junction included) | **0.88** |
+| hand-crop, junction excluded (119.6 / 128.5) | **0.93** |
+
+Half the apparent deficit was the two methods disagreeing.
+
+At matched pose and matched method: **app 0.93, photograph 1.03** — a deficit survives, in the direction
+absent inter-reflection predicts, but smaller than the `0.88 vs 0.90–1.00` framing implied, and resting
+on **n = 1**.
+
+`light-distribution.mjs` now prints ceiling / wall as a **diagnostic, not a target**, with both caveats
+inline. Still open: widening the qualifying set — the criteria are the bottleneck, not the measurement.
+
 ## v0.31.5.232 — ceiling / wall is pose-dependent, so the ceiling deficit is unproven
 
 Every measurement in this arc has been in the default flat's living/dining; 19 templates ship. This
