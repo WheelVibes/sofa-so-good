@@ -57,6 +57,10 @@ const DIRS = (process.env.DIRS || 'in,out').split(',')
  *  BEDROOM for two rounds because this defaulted to "the first window in the
  *  plan"; every other measurement in this arc uses the living/dining room. */
 const WINDOW = process.env.WINDOW || 'livingDining'
+/** `AO=0` turns screen-space AO off, to price its contribution to the shadow
+ *  under furniture. Cleared with `resetQualityOverrides` — writing `undefined`
+ *  per key does NOT clear it, it reads as "off" (QUALITY-OVERRIDE-UNDEF). */
+const AO = process.env.AO
 const OUT = process.env.OUT || '/tmp/underside-shadow'
 
 /**
@@ -100,15 +104,17 @@ await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 
 await page.evaluate(
-  ({ h, t, photo }) => {
+  ({ h, t, photo, ao }) => {
     const s = window.__store.getState()
     s.setQualityTier(t)
+    s.resetQualityOverrides?.()
+    if (ao !== undefined) s.setQualityOverride?.('ao', ao === '1')
     s.setTimeMode?.('manual')
     s.setManualHour?.(h)
     s.setCameraMode?.('firstPerson')
     s.setPhotographicLook?.(photo)
   },
-  { h: HOUR, t: TIER, photo: PHOTO },
+  { h: HOUR, t: TIER, photo: PHOTO, ao: AO },
 )
 await new Promise((r) => setTimeout(r, 1500))
 

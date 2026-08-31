@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS, resolveFlags } from '../features/featureFlags'
 import { useStore } from '../state/store'
 import {
+  AO,
   fixturesLevel,
   PHOTO_FILL_SCALE,
   PHOTO_GROUND_BOUNCE,
@@ -161,5 +162,25 @@ describe('photographicGroundBounce — the whole-floor bounce (PHOTO-GROUND-BOUN
     // bottom of the four-photograph band. Below it the ceiling falls short
     // (x3.5 -> 1.01); above it `%<64` keeps falling for no further target gain.
     expect(PHOTO_GROUND_BOUNCE).toBeCloseTo(6.5, 6)
+  })
+})
+
+describe('AO — the only contact shadow an interior gets', () => {
+  it('keeps a metre-scale radius, which is what a contact shadow spans', () => {
+    // `.196`: radius 1.0 reaches the same under/open ratio as intensity 6.0 at a
+    // third less intensity, and over-occludes less.
+    expect(AO.aoRadius).toBeCloseTo(1.0, 6)
+  })
+
+  it('holds the intensity the shadow measurement justifies', () => {
+    // Below this the floor under furniture stays too bright (0.786 at 3.0
+    // against photographs at 0.579-0.725); above it nothing further is bought.
+    expect(AO.intensity).toBeCloseTo(4.5, 6)
+  })
+
+  it('keeps the falloff that leaves BOTH bands satisfied', () => {
+    // 2.0 centres the under/open ratio (0.641) but drives the photographic
+    // look's %<64 to 15.16 %, past the darkest reference photograph (12.2 %).
+    expect(AO.distanceFalloff).toBeCloseTo(1.2, 6)
   })
 })

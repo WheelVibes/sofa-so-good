@@ -563,12 +563,53 @@ export function shadowParamsForFilter(filter: ShadowFilter): {
   return filter === 'vsm' ? VSM_SHADOW : { ...SOFT_SHADOW, blurSamples: 8 } // blurSamples = three default; inert under PCF
 }
 
-/** Screen-space AO tuning (N8AO) — deeper than the old defaults so corners
- *  and recesses ground like the reference renders. */
+/**
+ * Screen-space AO tuning (N8AO) — deeper than the old defaults so corners and
+ * recesses ground like the reference renders.
+ *
+ * **Raised in v0.31.5.196, and AO turns out to be the ONLY thing making a
+ * contact shadow indoors.** `.194` measured the floor under the app's furniture
+ * at **0.786** (photographic look) and **0.865** (default) against reference
+ * photographs at **0.579–0.725** — too bright in both. Pricing AO against that
+ * metric explains why: with `ao: false` the ratio is **0.983**, i.e. floor under
+ * a sofa is indistinguishable from open floor. Interiors here are fill-lit and
+ * almost nothing casts a shadow into them (INTERIOR-SHADOW), so screen-space AO
+ * is carrying the entire contact cue on its own.
+ *
+ * Swept against that target and re-checked against every band in
+ * `light-distribution.mjs`:
+ *
+ *   radius / falloff / intensity   under/open   `%<64` (photo look)
+ *   0.7 / 1.2 / 3.0  (was)         0.786        7.18 %
+ *   0.7 / 1.2 / 6.0                0.721        —
+ *   1.0 / 1.2 / 4.5  (shipped)     **0.722**    **10.43 %**
+ *   1.0 / 2.0 / 4.5                0.641        15.16 %  ← too dark
+ *   photographs                    0.579–0.725  1.9–12.2 %
+ *
+ * Radius rather than intensity alone: a metre-scale radius reaches the same
+ * ratio as intensity 6.0 at a third less intensity, and contact occlusion in a
+ * room genuinely is a metre-scale effect. `distanceFalloff` 2.0 reaches mid-band
+ * (0.641) but pushes the photographic look's deep-shadow fraction to 15.16 %,
+ * past the darkest of the four reference photographs — so the shipped point is
+ * the one where BOTH bands hold, not the one that centres this ratio.
+ *
+ * It also repaid the shadow depth `PHOTO_GROUND_BOUNCE` cost: the photographic
+ * look's `%<64` went 11.88 → 7.18 % with the bounce and back to **10.43 %** with
+ * this, and the DEFAULT look entered the photographic range for the first time
+ * (1.32 → **2.03 %**; the four photographs start at 1.9 %).
+ *
+ * **Free.** N8AO's cost is sample-count driven, and neither radius nor intensity
+ * changes it — `frame-time.mjs` reads medium p90 **8.3 ms** against the 8.4 ms
+ * already documented in `src/scene/CLAUDE.md`.
+ *
+ * Known remaining gap: the DEFAULT look's under-furniture floor is still
+ * **0.820**, above the photographic 0.725. Measure with
+ * `scripts/dev-probes/underside-shadow.mjs`.
+ */
 export const AO = {
-  aoRadius: 0.7,
+  aoRadius: 1.0,
   distanceFalloff: 1.2,
-  intensity: 3.0,
+  intensity: 4.5,
 } as const
 
 /**

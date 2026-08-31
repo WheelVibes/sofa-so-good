@@ -2788,3 +2788,74 @@ is order-independent; the loop was the bug. The repo already records a sibling o
 The floor under the app's furniture measures **0.786** (photographic) and **0.865** (default) against
 photographs at **0.579–0.725** — too bright in both looks. That is a real deficiency, independent of
 this change, and `groundColor` provably cannot cause or cure it.
+
+---
+
+## `.196` — SHIPPED: AO is the only contact shadow an interior gets, and it was under-strength
+
+`.194` left one measured deficiency that `.195`'s bounce provably could not touch: the floor under the
+app's furniture reads **0.786** (photographic) and **0.865** (default) against reference photographs at
+**0.579–0.725**. This closes it for the photographic look.
+
+### Why it was bright: nothing else casts a shadow there
+
+Pricing AO against the metric answers it immediately. With `ao: false` the ratio is **0.983** — floor
+under a sofa is indistinguishable from open floor. This file already records that interiors are
+effectively fill-only (INTERIOR-SHADOW: the sun reaches almost nothing indoors, and the fill is
+non-directional), so screen-space AO is carrying the entire contact cue by itself, and at
+`radius 0.7 / intensity 3.0` it was not carrying enough.
+
+### The sweep, against both bands
+
+| radius / falloff / intensity | under/open | `%<64` (photo look) |
+| --- | --- | --- |
+| 0.7 / 1.2 / 3.0 (was) | 0.786 | 7.18 % |
+| 0.7 / 1.2 / 6.0 | 0.721 | — |
+| **1.0 / 1.2 / 4.5 (shipped)** | **0.722** | **10.43 %** |
+| 1.0 / 2.0 / 4.5 | 0.641 | 15.16 % ← too dark |
+| photographs | 0.579–0.725 | 1.9–12.2 % |
+
+Radius was preferred to intensity: a metre-scale radius reaches the same ratio as intensity 6.0 at a
+third less intensity, and contact occlusion in a room genuinely is a metre-scale effect.
+`distanceFalloff` 2.0 is the interesting near-miss — it centres the ratio at 0.641, but drives the
+photographic look's deep-shadow fraction to 15.16 %, past the darkest of the four photographs. **The
+shipped point is where both bands hold, not where the target ratio is centred.** Optimising one metric
+until another leaves its range is the mistake this arc has spent ten rounds learning to avoid.
+
+### Final state, every band checked
+
+| | `%<64` | ceiling | wall | floor | under/open |
+| --- | --- | --- | --- | --- | --- |
+| photographic, 13:00 | 10.43 % | 1.08 | 1.21 | 1.15 | **0.722** |
+| photographic, 19:00 | 3.49 % | 1.17 | 1.26 | 1.22 | — |
+| default, 13:00 | 2.03 % | 1.12 | 1.20 | 1.20 | 0.820 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 | 0.579–0.725 |
+
+**The photographic look is now inside every measured photographic band at once** — the first time in
+this arc. It also repaid what `.195` cost: `%<64` went 11.88 → 7.18 % with the ground bounce and back
+to 10.43 % with this. And the **default** look entered the deep-shadow range for the first time
+(1.32 → 2.03 %, against photographs starting at 1.9 %), having previously sat below the lightest one.
+
+**Free.** N8AO's cost is sample-count driven and neither knob changes it: `frame-time.mjs` reads medium
+p90 **8.3 ms** against the 8.4 ms already documented. Verified visually as well as numerically — the
+A/B crop reads deeper and moodier with no halos or over-darkened corners.
+
+### Still open
+
+The default look's under-furniture floor is **0.820**, improved but still above the photographic 0.725.
+Pushing AO further to reach it would take the photographic look past its deep-shadow band, so closing
+that gap needs a different lever — most likely the default look's flat ambient fill itself, which is
+what lights that floor.
+
+### An edit trap the test suite caught
+
+The sweep was driven with `sed -i '' "s/^  intensity: .*,$/  intensity: $i,/"`, which matches
+`look.ts`'s **`BLOOM.intensity` as well as `AO.intensity`** — both are a two-space-indented
+`intensity:` line. So every sweep run also set Bloom to 4.5–6.0 against its shipped 0.45, and
+`look.test.ts`'s `expect(BLOOM.intensity).toBeLessThan(1)` is what caught it, not any measurement.
+
+The sweep numbers survive, and the reason is worth stating rather than assumed: every run was at
+`TIER=medium`, whose composer is AO-only (TIER-AO) and mounts no Bloom at all. Re-running the two key
+measurements against the corrected file reproduces them exactly — under/open **0.722**, and
+119.6 / 10.44 % / ceiling 1.08. **A sweep driven by a regex over source needs the regex anchored to
+its block**, and the suite is the backstop that makes a stray match visible.

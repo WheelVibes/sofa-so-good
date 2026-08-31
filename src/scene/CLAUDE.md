@@ -43,9 +43,27 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     eye cannot see under a coffee table. The floor-shadow proxy built for it is structurally blind
     here (`groundColor` contributes nothing to an up-facing floor): it reads 0.786 identically at
     ×1, ×3.5 and ×6.5. So this shipped on a visual A/B, not a metric.
-  · Separately and still open: the app's floor under furniture measures **0.786** (photographic)
-    and **0.865** (default) against photographs at **0.579–0.725** — too bright in BOTH looks.
-    `scripts/dev-probes/underside-shadow.mjs`.
+  · The floor under furniture was too bright in both looks (**0.786** / **0.865** against
+    photographs at **0.579–0.725**); `.196` closed it for the photographic look by raising AO —
+    see the AO bullet below.
+
+- **Screen-space AO is the ONLY contact shadow an interior gets, and it was under-strength
+  (`.196`).** With `ao: false` the floor under a sofa measures **0.983** of open floor — i.e. no
+  contact cue at all — because interiors here are fill-lit and almost nothing casts a shadow into
+  them (INTERIOR-SHADOW). `look.AO` therefore carries the whole effect, and was raised from
+  `radius 0.7 / intensity 3.0` to **`radius 1.0 / falloff 1.2 / intensity 4.5`**: under/open
+  **0.786 → 0.722** (photographs 0.579–0.725) for the photographic look, **0.865 → 0.820** for the
+  default look, which is improved but still short.
+  · **Radius before intensity.** A metre-scale radius reaches the same ratio as intensity 6.0 at a
+    third less intensity, and contact occlusion in a room genuinely is a metre-scale effect.
+  · **`distanceFalloff` 2.0 is the trap.** It centres the ratio (0.641) but drives the photographic
+    look's `%<64` to **15.16 %**, past the darkest of the four reference photographs. The shipped
+    point is where BOTH bands hold, not where this one ratio is centred.
+  · It also repaid what `PHOTO_GROUND_BOUNCE` cost: the photographic look's `%<64` went 11.88 →
+    7.18 % with the bounce and back to **10.43 %** with this, and the DEFAULT look entered the
+    photographic range for the first time (1.32 → **2.03 %**, photographs start at 1.9 %).
+  · **Free** — N8AO's cost is sample-count driven and neither knob changes it; `frame-time.mjs`
+    reads medium p90 8.3 ms against the 8.4 ms documented above.
 
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`

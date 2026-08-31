@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.196 — SHIPPED: AO is the only contact shadow an interior gets, and it was under-strength
+
+`.194` left one deficiency `.195`'s bounce provably could not touch: the floor under the app's
+furniture read **0.786** (photographic) and **0.865** (default) against photographs at **0.579–0.725**.
+
+**Why: nothing else casts a shadow there.** With `ao: false` the ratio is **0.983** — floor under a
+sofa is indistinguishable from open floor. Interiors here are fill-lit and almost nothing casts a
+shadow into them (INTERIOR-SHADOW), so screen-space AO carries the entire contact cue alone, and at
+`radius 0.7 / intensity 3.0` it was not carrying enough.
+
+`look.AO` raised to **`radius 1.0 / falloff 1.2 / intensity 4.5`**. Radius before intensity: a
+metre-scale radius reaches the same ratio as intensity 6.0 at a third less intensity, and contact
+occlusion in a room genuinely is metre-scale. `distanceFalloff` 2.0 is the near-miss — it centres the
+ratio (0.641) but drives the photographic look's `%<64` to 15.16 %, past the darkest reference
+photograph. The shipped point is where BOTH bands hold, not where one ratio is centred.
+
+| | `%<64` | ceiling | wall | floor | under/open |
+| --- | --- | --- | --- | --- | --- |
+| photographic, 13:00 | 10.43 % | 1.08 | 1.21 | 1.15 | **0.722** |
+| photographic, 19:00 | 3.49 % | 1.17 | 1.26 | 1.22 | — |
+| default, 13:00 | 2.03 % | 1.12 | 1.20 | 1.20 | 0.820 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 | 0.579–0.725 |
+
+**The photographic look is now inside every measured photographic band at once — the first time in this
+arc.** It also repaid what `.195` cost (`%<64` 11.88 → 7.18 → **10.43 %**), and the DEFAULT look
+entered the deep-shadow range for the first time (1.32 → **2.03 %**).
+
+Free: N8AO's cost is sample-count driven and neither knob changes it — `frame-time.mjs` reads medium
+p90 8.3 ms against the 8.4 ms documented. Verified visually too; no halos or crushed corners.
+
+Still open: the default look's under-furniture floor is 0.820, above the photographic 0.725. Pushing AO
+further would take the photographic look past its deep-shadow band, so that needs a different lever.
+
 ## v0.31.5.195 — SHIPPED: the whole-floor bounce closes the ceiling deficit
 
 Eight rounds after `.188` named the mechanism, the last region ratio outside the reference photographs
