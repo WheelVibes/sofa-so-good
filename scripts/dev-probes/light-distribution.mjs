@@ -364,6 +364,78 @@ console.log(`frame mean = ${frame.toFixed(1)}    %<64 = ${((dark / n) * 100).toF
 console.log(
   `ceiling ${rel.ceiling.toFixed(2)}   wall ${rel.wall.toFixed(2)}   floor ${rel.floor.toFixed(2)} (pitched-down frame, its own mean ${downMean.toFixed(1)})`,
 )
+/**
+ * GEOMETRIC cross-check of the three band ratios.
+ *
+ * The bands above are fixed screen rectangles, and this probe's own header calls
+ * that "crude but honest: the caller picks a pose where the top band really is
+ * ceiling". In a SMALL room that assumption is the thing under test — v0.31.5.204
+ * found bedroom ceilings apparently stuck at 0.95-0.99 while living/dining
+ * responded normally to the same lever, which is either a real lighting gap or a
+ * band full of wall. So classify by WORLD NORMAL instead (the `wall-cap.mjs` /
+ * `underside-shadow.mjs` approach) and print both; where they disagree, the band
+ * is the one to distrust.
+ */
+const geo = await page.evaluate(
+  ({ g, hud }) => {
+    const { scene, camera } = window.__three
+    const rc = new window.__three.raycaster.constructor()
+    const n = new camera.position.constructor()
+    const solid = (o) => o.visible && o.material?.colorWrite !== false && o.material?.opacity !== 0
+    const out = []
+    for (let j = 0; j < g; j++) {
+      for (let i = 0; i < g; i++) {
+        const x = (i + 0.5) / g
+        const y = (j + 0.5) / g
+        if (hud.some((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1)) continue
+        rc.setFromCamera({ x: x * 2 - 1, y: 1 - y * 2 }, camera)
+        const h = rc.intersectObjects(scene.children, true).find((k) => solid(k.object))
+        if (!h?.face) continue
+        n.copy(h.face.normal).transformDirection(h.object.matrixWorld)
+        // Ceiling: faces DOWN and is overhead. Floor: faces UP and is underfoot.
+        // Wall: near-vertical surface. Everything else (furniture tops, sills)
+        // is deliberately unclassified rather than forced into a bucket.
+        let kind = null
+        // Accept EITHER normal sign at ceiling height: a single-sided ceiling
+        // plane authored facing up still reports +Y from a ray hitting its back.
+        if (Math.abs(n.y) > 0.9 && h.point.y > 2.0) kind = 'ceiling'
+        else if (Math.abs(n.y) > 0.9 && h.point.y < 0.15) kind = 'floor'
+        else if (Math.abs(n.y) < 0.3) kind = 'wall'
+        if (kind) out.push({ x, y, kind })
+      }
+    }
+    return out
+  },
+  {
+    g: 70,
+    hud: [
+      { x0: 0.24, x1: 0.76, y0: 0, y1: 0.1 },
+      { x0: 0.9, x1: 1, y0: 0, y1: 0.06 },
+      { x0: 0.76, x1: 1, y0: 0.76, y1: 1 },
+    ],
+  },
+)
+{
+  const buckets = { ceiling: [], wall: [], floor: [] }
+  for (const h of geo) {
+    const gx = Math.min(W - 1, Math.floor(h.x * W))
+    const gy = Math.min(H - 1, Math.floor(h.y * H))
+    buckets[h.kind].push(data[gy * W + gx])
+  }
+  const mean = (a) => (a.length ? a.reduce((s2, v) => s2 + v, 0) / a.length : Number.NaN)
+  const all = [...buckets.ceiling, ...buckets.wall, ...buckets.floor]
+  const base = mean(all)
+  console.log('')
+  console.log(
+    `geometric mask (world normal), ${buckets.ceiling.length} ceiling / ${buckets.wall.length} wall / ${buckets.floor.length} floor samples:`,
+  )
+  console.log(
+    `  ceiling ${(mean(buckets.ceiling) / base).toFixed(2)}   wall ${(mean(buckets.wall) / base).toFixed(2)}   floor ${(mean(buckets.floor) / base).toFixed(2)}   (normalised by their own combined mean ${base.toFixed(1)})`,
+  )
+  if (buckets.ceiling.length < 20)
+    console.log('  WARNING: few ceiling samples — the pose may not see enough ceiling.')
+}
+
 console.log('')
 console.log('targets, from the reference photographs:')
 console.log('  %<64      1.9–12.2 %  (four photographs; the two looks bracket it)')

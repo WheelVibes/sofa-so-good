@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.204 — the bedroom ceiling is not bounce-limited, and the ceiling metric is in doubt
+
+`.203` blamed the bedroom ceiling shortfall on a global bounce term that does not scale with room size.
+Testing that refutes it:
+
+| ground bounce | living/dining ceiling | bedroom 3 ceiling | bedroom 3 `%<64` |
+| --- | --- | --- | --- |
+| ×6.5 (shipped) | 1.07 | 0.95 | 8.58 % |
+| ×11 | 1.12 | 0.97 | 6.27 % |
+| ×16 | 1.16 | **0.99** | 5.33 % |
+
+Living/dining responds normally (+0.09); bedroom 3 moves **+0.04 for 2.5× the term** while paying 3.25
+points of deep shadow. The bedroom ceiling is not bounce-limited, so `.203`'s room-scaled-bounce plan
+would have tuned against the wrong cause. Reverted; the constant stays at 6.5.
+
+**And the metric may not be measuring the ceiling.** A geometric cross-check (classify by world normal,
+as `wall-cap.mjs` does) finds **zero** ceiling samples in every room. The evidence points both ways and
+the question is left OPEN: every ray in the band hits **y = 2.6 m**, exactly ceiling height — but those
+same hits classify as wall by normal, and a horizontal row of rays striking a flat 2.6 m wall also
+lands at a near-constant 2.6 m. `ceiling-hit.mjs` was written to settle it and its normal column has a
+bug in its own log line.
+
+It matters: the ceiling ratio has been a target since `.179` and `.195` shipped a term to move it. (That
+change would not become wrong either way — `groundColor` reaches a down-facing ceiling in full and a
+vertical wall by half, so it moved both.)
+
+Recorded as an open question with the evidence on both sides rather than resolved badly at the end of a
+long round. Nothing changed in `src/`.
+
 ## v0.31.5.203 — the first verified per-room parity table
 
 `.202` fixed three pose bugs and still could not land the camera in small rooms, because

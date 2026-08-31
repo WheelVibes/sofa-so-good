@@ -3272,3 +3272,49 @@ Closing this needs a term that scales with room size, which is a design change r
 Recorded with a probe that now refuses to measure the wrong room.
 
 Nothing changed in `src/`.
+
+---
+
+## `.204` — the bedroom ceiling is not bounce-limited, and the ceiling METRIC is now in doubt
+
+`.203` recorded bedroom ceilings at 0.86–0.98 against living/dining's 1.07 and attributed it to the
+global ground-bounce term not scaling with room size. Testing that directly refutes it.
+
+### Raising the bounce does not lift the bedrooms
+
+| ground bounce | living/dining ceiling | bedroom 3 ceiling | bedroom 3 `%<64` |
+| --- | --- | --- | --- |
+| ×6.5 (shipped) | 1.07 | 0.95 | 8.58 % |
+| ×11 | 1.12 | 0.97 | 6.27 % |
+| ×16 | 1.16 | **0.99** | 5.33 % |
+
+Living/dining responds normally (+0.09 across the sweep); bedroom 3 moves **+0.04 for 2.5× the term**,
+while paying 3.25 points of deep shadow for it. Whatever caps the bedroom ceiling, it is not the amount
+of bounce — so the `.203` plan (a room-size-scaled bounce) would have been tuning against the wrong
+cause. Reverted; `PHOTO_GROUND_BOUNCE` stays at 6.5.
+
+### And the metric itself may not be measuring the ceiling
+
+A geometric cross-check was added to `light-distribution.mjs` — classify each ray by WORLD NORMAL the
+way `wall-cap.mjs` and `underside-shadow.mjs` do, rather than by screen band. It finds **zero**
+ceiling samples in every room (living/dining, bedroom 3, main bedroom), classifying essentially
+everything as wall or floor, with either normal sign accepted at ceiling height.
+
+That is not yet a verdict, because the two available pieces of evidence point opposite ways, and a new
+probe (`ceiling-hit.mjs`) was written to settle it:
+
+- **For "the band is ceiling":** every ray in the band (screen Y 0.02–0.16) hits a surface at
+  **y = 2.6 m**, exactly ceiling height, in all seven sampled rows.
+- **For "the band is upper WALL":** those same hits are classified as wall by the normal test, i.e.
+  their normals are near-vertical — and a horizontal row of rays striking a flat far wall does land at
+  a near-constant height, which 2.6 m would be, since the walls are 2.6 m tall.
+
+`ceiling-hit.mjs` reports heights correctly but its normal column is not printing (a bad expression in
+its own log line), so the question is **open**. It matters a great deal: the ceiling ratio has been a
+target since `.179`, and `.195` shipped `PHOTO_GROUND_BOUNCE` to move it. If the band is upper wall,
+that number needs re-deriving — though note the shipped change would not thereby become wrong, since
+the hemisphere's `groundColor` reaches a down-facing ceiling in full and a vertical wall by half, so it
+moved both.
+
+Recorded as an open question with the evidence on both sides rather than resolved badly at the end of
+a long round. Nothing changed in `src/`.
