@@ -166,6 +166,12 @@ const ch = raw.length / (meta.width * meta.height)
 
 const inPlane = []
 const all = []
+/** Everything that is NOT the window plane — the room the curtain is judged
+ *  against. `plane/frame` is POSE-DEPENDENT: the reference curtains cover only
+ *  2-8 % of their frames while this probe's fills ~35 %, so a brighter curtain
+ *  inflates the very mean it is divided by and the ratio saturates. Comparing
+ *  against the room instead removes that (`.200`). */
+const room = []
 for (const h of hits) {
   if (inHud(h.x, h.y)) continue
   const px = Math.min(meta.width - 1, Math.floor(h.x * meta.width))
@@ -174,10 +180,12 @@ for (const h of hits) {
   const l = 0.2126 * raw[o] + 0.7152 * raw[o + 1] + 0.0722 * raw[o + 2]
   all.push(l)
   if (h.inPlane) inPlane.push(l)
+  else room.push(l)
 }
 const mean = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : Number.NaN)
 const mw = mean(inPlane)
 const mf = mean(all)
+const mr = mean(room)
 
 console.log(
   'curtain-glow ',
@@ -196,8 +204,13 @@ console.log(`window-plane samples ${inPlane.length} of ${all.length}`)
 console.log(
   `  window plane = ${mw.toFixed(1)}   frame = ${mf.toFixed(1)}   plane/frame = ${(mw / mf).toFixed(2)}`,
 )
+console.log(
+  `  room (excl. plane) = ${mr.toFixed(1)}   plane/ROOM = ${(mw / mr).toFixed(2)}   <- the pose-robust one`,
+)
 console.log('')
-console.log('reference photographs (.198), curtain over daylight: 1.32, 1.42, 1.48')
+console.log('reference photographs, curtain over daylight:')
+console.log('  plane/ROOM  1.32 (photo A) .. 1.48 (photo D)   <- compare THIS')
+console.log('  plane/frame 1.32 .. 1.42 — only comparable at their 2-8 % coverage')
 console.log('  a drawn curtain at or below 1.0 is being lit as an opaque sheet.')
 if (setup.curtains === 0) console.log('  WARNING: no curtain items found — nothing was drawn.')
 if (inPlane.length < 30) console.log('  WARNING: too few window-plane samples; check the pose.')

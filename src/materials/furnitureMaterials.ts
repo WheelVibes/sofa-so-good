@@ -16,12 +16,13 @@ import {
   type Texture,
 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
-import { PHOTO_WEAVE, photographicWeave } from '../scene/look'
+import { CURTAIN_TRANSLUCENCY, PHOTO_WEAVE, photographicWeave } from '../scene/look'
 import { photographicLookActive } from '../scene/photographicSignal'
 import type { RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
 import { anisotropyRotationForNormal, type Vec3 } from './brushAxis'
 import { getBuiltMaterial } from './cache'
+import { applyDrapeTranslucency } from './drapeTranslucency'
 import {
   applianceFinish as applianceFinishLogic,
   hash01,
@@ -644,9 +645,11 @@ export function getFabricMaterial(
    * a broad sheen lobe fills in the weave's own shading rather than revealing it.
    */
   weave = 1.3,
+  /** Forward scattering for backlit cloth; 0 for everything but drapery. */
+  translucent = 0,
 ): MeshStandardMaterial {
   const sheer = opacity < 1
-  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}${doubleSided ? ':2s' : ''}${sheer ? `:o${opacity.toFixed(2)}` : ''}:w${weave.toFixed(2)}`
+  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}${doubleSided ? ':2s' : ''}${sheer ? `:o${opacity.toFixed(2)}` : ''}:w${weave.toFixed(2)}${translucent > 0 ? `:t${translucent.toFixed(2)}` : ''}`
   const hit = cache.get(key)
   if (hit) return hit
   const patterned =
@@ -667,6 +670,10 @@ export function getFabricMaterial(
   m.normalScale.set(weave, weave)
   const sheen = sheenLayer('fabric')
   if (sheen) applySheen(m, color, sheen)
+  // CURTAIN-TRANSLUCENCY: only drapery scatters light forward — upholstery sits
+  // against something and never reads backlit. Applied once per cached material,
+  // because `onBeforeCompile` hooks stack if re-applied.
+  if (translucent > 0) applyDrapeTranslucency(m, translucent)
   cache.set(key, m)
   return m
 }
@@ -950,6 +957,8 @@ export function getDraperyMaterial(
       linen ? PHOTO_WEAVE.draperyLinen : PHOTO_WEAVE.drapery,
       photographicLookActive(),
     ),
+    // CURTAIN-TRANSLUCENCY: drapery is the only fabric that reads backlit.
+    CURTAIN_TRANSLUCENCY,
   )
 }
 

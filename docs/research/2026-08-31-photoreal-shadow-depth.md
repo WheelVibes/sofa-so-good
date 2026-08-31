@@ -3057,3 +3057,57 @@ reports the first (`curtain-glow.mjs`) so the next attempt is measured against b
 
 **Nothing shipped.** A curtain that hits the brightness target by erasing its own weave is not a step
 toward photorealism.
+
+---
+
+## `.200` — SHIPPED: drapery scatters light forward, and the metric had to be fixed first
+
+`.199` refuted both cheap models for the backlit curtain and named what was needed: diffuse
+transmission that responds to the surface normal. This builds it as an `onBeforeCompile` chunk.
+
+### The metric was pose-dependent, and that had to be fixed before anything could be tuned
+
+`.198`'s target — curtain ÷ **frame** mean, 1.32–1.48 — is not comparable across poses. The
+reference curtains cover **2 %** (photo A) and **8 %** (photo D) of their frames; this probe's pose
+fills **~35 %**. A brighter curtain therefore inflates the very mean it is divided by, and the ratio
+saturates: the wrap term ran 0.69 → 0.78 → 0.85 → 0.98 → 1.09 → 1.17 → 1.25 and was still climbing
+at gain 16, appearing to stall short of a target it could not reach by construction.
+
+Re-derived against the room EXCLUDING the curtain, the photographs give the same numbers —
+**1.32 (photo A) to 1.48 (photo D)** — but now pose-robustly, and the app's room mean stays nearly
+constant across the sweep (79.7 → 87.6) so the ratio scales properly. `curtain-glow.mjs` prints both
+and labels which to compare.
+
+### The term
+
+Back-side irradiance added to `irradiance` immediately before `RE_IndirectDiffuse` consumes it, so it
+is modulated by the material's own diffuse colour and takes the same path as every other diffuse
+term: `saturate(dot(-N, L))` per directional light, plus `getIBLIrradiance(-N)` under `USE_ENVMAP` —
+the latter is what actually carries a **north-facing** window, where the sun never strikes the glass
+and the sky is the whole of the backlight.
+
+| | plane/ROOM | curtain mean | micro-sd | micro/mean |
+| --- | --- | --- | --- | --- |
+| baseline | 0.59 | 58 | 4.10 | 0.0705 |
+| emissive 1.6 (`.199`, refuted) | — | 180 | **2.62** | 0.0146 |
+| **wrap t=14 (shipped)** | **1.41** | 151 | **15.00** | 0.0992 |
+| photographs | 1.32–1.48 | | | 0.066–0.198 |
+
+**The wrap term does the opposite of the emissive on detail.** Because it responds to the normal, a
+fold whose back faces the window brightens while its neighbour does not — micro-sd goes **up** 4.10 →
+15.00, into the photographs' own range, where the emissive drove it down to 2.62. The three-way crop
+is unambiguous: a dark sheet, then a flat pale sheet, then a bright curtain with visible weave and
+folds.
+
+Night is untouched by construction — at 22:00 the lights are in FRONT of the cloth, and the term
+measures **0.92**. The default look reaches 1.04, improved from 0.59 but below the band, because its
+brighter room raises the denominator. Free: `frame-time.mjs` medium p90 **8.3 ms**, unchanged.
+
+### The trap that would have shipped a broken program
+
+`customProgramCacheKey` is required alongside `onBeforeCompile`. Three caches compiled programs by
+material type + defines, so a patched and an unpatched `MeshPhysicalMaterial` collide and whichever
+compiled first wins for BOTH — which would have applied the curtain's wrap term to upholstery, or
+silently dropped it, depending on load order. `drapeTranslucency.test.ts` pins it, along with the
+injection order and the fact that the chunk references the shading normal at all — the property whose
+absence is exactly why `.199`'s emissive failed.

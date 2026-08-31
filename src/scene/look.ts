@@ -697,3 +697,19 @@ export const PHOTO_GROUND_BOUNCE = 6.5
 export function photographicGroundBounce(on: boolean): number {
   return on ? PHOTO_GROUND_BOUNCE : 1
 }
+
+/**
+ * CURTAIN-TRANSLUCENCY — how much daylight drapery scatters forward.
+ *
+ * `.198` measured a drawn curtain at **0.69** of frame mean against photographs
+ * at **1.32–1.48**; `.199` refuted both cheap stand-ins (an emissive reaches the
+ * ratio but destroys the weave, absolute micro-sd 4.10 → 2.62; `transmission`
+ * buys 0.10 of ratio and costs a third of the weave anyway). The shipped model is
+ * a normal-responsive wrap term — see `materials/drapeTranslucency.ts` for why
+ * that is the only shape that can be bright and still show folds.
+ *
+ * The value is swept against BOTH numbers: the ratio must reach 1.32–1.48 and the
+ * absolute micro-sd must stay near its 4.10 baseline. Measure with
+ * `scripts/dev-probes/curtain-glow.mjs`.
+ */
+export const CURTAIN_TRANSLUCENCY = 14

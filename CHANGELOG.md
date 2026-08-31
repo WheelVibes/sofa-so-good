@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.200 — SHIPPED: drapery scatters light forward
+
+`.199` refuted both cheap models and named what was needed: diffuse transmission that responds to the
+normal. Built as an `onBeforeCompile` chunk (`materials/drapeTranslucency.ts`), strength
+`look.CURTAIN_TRANSLUCENCY` (14), applied only by `getDraperyMaterial`.
+
+**The metric had to be fixed first.** `.198`'s curtain ÷ FRAME target is pose-dependent: the
+reference curtains cover 2 % and 8 % of their frames while the probe's pose fills ~35 %, so a
+brighter curtain inflates the very mean it is divided by and the ratio saturates — the sweep climbed
+0.69 → 1.25 and appeared to stall short of a target it could not reach by construction. Re-derived
+against the room EXCLUDING the curtain, the photographs give the same **1.32–1.48** pose-robustly.
+
+| | plane/ROOM | curtain mean | micro-sd |
+| --- | --- | --- | --- |
+| baseline | 0.59 | 58 | 4.10 |
+| emissive 1.6 (`.199`, refuted) | — | 180 | **2.62** |
+| **wrap t=14 (shipped)** | **1.41** | 151 | **15.00** |
+| photographs | 1.32–1.48 | | (micro/mean 0.066–0.198) |
+
+**The wrap term does the opposite of the emissive on detail** — because it responds to the normal, a
+fold whose back faces the window brightens while its neighbour does not, so micro-sd goes UP into the
+photographs' own range instead of collapsing. The three-way crop shows a dark sheet, a flat pale
+sheet, then a bright curtain with visible weave and folds.
+
+Night is untouched by construction (the lights are then in FRONT of the cloth): 22:00 measures 0.92.
+The default look reaches 1.04. Free — `frame-time.mjs` medium p90 8.3 ms, unchanged.
+
+**Trap pinned by test:** `customProgramCacheKey` is REQUIRED alongside `onBeforeCompile`, or patched
+and unpatched materials of the same type share one compiled program and whichever compiled first wins
+for both.
+
 ## v0.31.5.199 — curtain backlight: both cheap models refuted (reverted)
 
 `.198` measured the drawn curtain at **0.69** of frame mean against photographs at **1.32–1.48**. Two

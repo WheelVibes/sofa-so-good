@@ -887,6 +887,35 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     necessarily uses, and a histogram cannot say which def a 256-square map belongs to. Raycast
     the surface and read `hit.object.material` — `scripts/dev-probes/bath-tile-size.mjs` does
     exactly that, labelling each hit by TEXTURE uuid (materials get cloned, textures do not).
+- **Drapery scatters light FORWARD, via a shader chunk (CURTAIN-TRANSLUCENCY, `.200`).**
+  `drapeTranslucency.ts` patches the drapery material through `onBeforeCompile` to add back-side
+  irradiance to `irradiance` just before `RE_IndirectDiffuse` consumes it: `saturate(dot(-N, L))`
+  per directional light, plus `getIBLIrradiance(-N)` under `USE_ENVMAP`. Strength is
+  `look.CURTAIN_TRANSLUCENCY` (14), folded into the fabric cache key, and passed ONLY by
+  `getDraperyMaterial` — upholstery sits against something and never reads backlit.
+  · **Why a shader chunk and not a constant.** A photographed curtain over daylight measures
+    **1.32–1.48** of the room's mean; the app measured **0.59**. `.199` built the two cheap
+    stand-ins and both failed the SAME way: the camera sees the front face while the light is
+    behind it, and a standard material's front face receives nothing at `N·L < 0`. An **emissive**
+    reaches the ratio and destroys the cloth — plain drapery is `map: null`, so ALL its detail is
+    `normalMap`, and emissive is added after shading with no normal information (absolute micro-sd
+    **4.10 → 2.62**). **`transmission`** buys 0.10 of ratio, costs a third of the weave anyway, and
+    adds a render pass — three's transmission is SPECULAR refraction; cloth is a diffuse
+    transmitter.
+  · **The wrap term does the opposite, which is the whole point.** Because it responds to the
+    normal, a fold whose back faces the window brightens and its neighbour does not: micro-sd goes
+    **4.10 → 15.00** (micro/mean 0.099, inside the photographs' 0.066–0.198) while the ratio reaches
+    **1.41**. More texture, not less.
+  · **`customProgramCacheKey` is REQUIRED** alongside `onBeforeCompile` — three caches programs by
+    material type + defines, so without it patched and unpatched fabric of the same type share one
+    program and whichever compiled first wins for both.
+  · **Measure `plane/ROOM`, never `plane/frame`.** The reference curtains cover 2–8 % of their
+    frames while the probe's fills ~35 %, so a brighter curtain inflates the very mean it is
+    divided by and the ratio saturates. `scripts/dev-probes/curtain-glow.mjs` prints both and
+    labels which to compare.
+  · Night is untouched by construction (the lights are then in FRONT of the cloth): 22:00 measures
+    **0.92**. Free — `frame-time.mjs` medium p90 8.3 ms, unchanged.
+
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the
