@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.202 — a room-by-room parity sweep, and why most of it was invalid
+
+The first sweep said the calibration was local to one room — bedrooms 2/3 and bath 1 reporting `%<64`
+**0.00 %** at frame means of 178–197 against living/dining's 120.9. It was three stacked pose bugs, and
+the frame gave the first away: the bedroom-3 capture was a flat beige wall with the minimap reading
+**CORRIDOR**.
+
+1. **A fixed 4.6 m standoff walks out of a small room.** Now clamped to what the room allows.
+2. **"In a room" is not "in THIS room."** The clamp's first version accepted any room — and the
+   corridor is a room, so it passed. Requiring the window's own room moved four of six poses.
+3. **The walker does not stay where it is put.** `requestWalkTeleport` runs the point through the
+   app's collision solver, and nothing compared asked with reached:
+
+| window | drift | room asked → reached |
+| --- | --- | --- |
+| living/dining | 0.68 | livingDining → **livingDining** ✓ |
+| bedroom 3 | 0.22 | bedroom3 → **corridor** ✗ |
+| bath 1 | 0.06 | bath1 → **null** (no room) ✗ |
+
+Bedroom 3 drifts 0.22 m and still crosses a wall; bath 1 drifts 0.06 m and lands outside every room. A
+small drift is not a safe drift — only an explicit room comparison sees which side of a wall it ends
+on.
+
+**Living/dining is byte-identical through all three fixes** (120.9 / 10.22 % / ceiling 1.07, standoff
+still 4.6), so every number recorded in this arc stands — the fixes only touch poses that were already
+wrong.
+
+**Per-room parity remains UNMEASURED for the small rooms.** The corrected sweep hints that bedroom
+ceilings sit at 0.65–0.86 against the 1.08–1.28 band, but those arms still fail the arrival check so
+the figures are not quotable. Next: a pose that survives collision resolution (room centroid rather
+than window standoff), now with an arrival check that fails loudly instead of returning a plausible
+wrong number.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.201 — the parity check found a mask bug, not a parity gap
 
 `.200` tuned the curtain term on one window. Checking the others looked like a clean regional failure

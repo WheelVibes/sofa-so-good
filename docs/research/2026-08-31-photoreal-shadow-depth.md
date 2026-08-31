@@ -3167,3 +3167,58 @@ from `.200` is unchanged and stands; only its constant moved.
 `RollerBlind` needs no work — it already builds its fabric through `getDraperyMaterial`, so blinds
 and zebra blinds inherit the term. Venetian slats keep their own inline material, which is right:
 aluminium slats are opaque.
+
+---
+
+## `.202` — a room-by-room parity sweep, and why most of it was invalid
+
+With the photographic look inside every band in the living/dining room, the obvious question is whether
+that holds across the flat. The first sweep said no, dramatically — bedroom 2 and 3 and bath 1 all
+reported `%<64` **0.00 %** with frame means of 178–197, i.e. no deep shadow anywhere and far brighter
+than living/dining's 120.9. That reads as "the calibration is local to one room".
+
+**It was three pose bugs stacked, and the frame gave the first one away.** The bedroom-3 capture was a
+flat beige wall filling the frame, with the minimap reading **CORRIDOR**.
+
+### Bug 1 — a fixed standoff walks out of a small room
+
+`light-distribution.mjs` steps back a fixed 4.6 m from the window. The living/dining room is deep
+enough; a bedroom is not, so the camera ended up in the corridor with its nose against a wall. The
+standoff now steps back only as far as the room allows.
+
+### Bug 2 — "in a room" is not "in THIS room"
+
+The clamp's first version tested whether the point was inside *any* room, and the corridor is a room,
+so it passed. Only the living/dining and main-bedroom arms changed. Requiring the window's **own**
+room moved four of six poses and changed every number in the sweep.
+
+### Bug 3 — the walker does not stay where it is put
+
+`requestWalkTeleport` runs the point through the app's own collision solver (WALK-SPAWN-CLEAR), which
+pushes the walker out of furniture and walls. Nothing compared the pose asked for with the pose
+reached, so the probe measured whatever room it ended up in. It now reports both:
+
+| window | asked | reached | drift | room asked → reached |
+| --- | --- | --- | --- | --- |
+| living/dining | 10.82, 5.80 | 10.87, 6.47 | 0.68 | livingDining → **livingDining** ✓ |
+| bedroom 3 | 7.70, 3.70 | 7.70, 3.92 | 0.22 | bedroom3 → **corridor** ✗ |
+| bath 1 | 2.75, 4.93 | 2.81, 4.91 | 0.06 | bath1 → **null** (no room) ✗ |
+
+Bedroom 3 drifts only **0.22 m** and still crosses a room boundary; bath 1 drifts 0.06 m and lands
+outside every room. A small drift is not a safe drift — what matters is which side of a wall it ends
+on, and only an explicit room comparison can see that.
+
+### What this leaves
+
+**Living/dining is byte-identical** through all three fixes (120.9 / 10.22 % / ceiling 1.07 /
+wall 1.19 / floor 1.15, standoff still 4.6), so every number recorded in this arc stands — the fixes
+only touch poses that were already wrong.
+
+**Per-room parity is still UNMEASURED for the small rooms**, and that is the honest state. The
+corrected sweep suggests bedroom ceilings sit well below the band (0.65–0.86 against 1.08–1.28) while
+living/dining is at 1.07, but those arms still fail the arrival check, so the figures are not
+quotable. Fixing that means choosing a pose that survives collision resolution — a room centroid
+rather than a window standoff — which is the next round's work, now with an arrival assertion that
+will fail loudly instead of returning a plausible wrong number.
+
+Nothing changed in `src/`.

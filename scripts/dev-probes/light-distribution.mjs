@@ -122,21 +122,40 @@ const pose = await page.evaluate(
     const cz = z0 + uz * t
     let nx = -uz
     let nz = ux
-    const inRoom = (px, pz) =>
-      (plan.rooms ?? []).some(
+    const roomAt = (px, pz) =>
+      (plan.rooms ?? []).find(
         (r) =>
           px >= r.origin[0] &&
           px <= r.origin[0] + r.width &&
           pz >= r.origin[1] &&
           pz <= r.origin[1] + r.depth,
-      )
-    if (!inRoom(cx + nx * 1.2, cz + nz * 1.2)) {
+      ) ?? null
+    if (!roomAt(cx + nx * 1.2, cz + nz * 1.2)) {
       nx = -nx
       nz = -nz
     }
-    const px = cx + nx * q.standoff
-    const pz = cz + nz * q.standoff
-    return { id: op.id, px, pz, yaw: Math.atan2(-(cx - px), -(cz - pz)) }
+    // The window's OWN room. Testing "is this point in ANY room" is not enough:
+    // the corridor is a room too, so a standoff that walks out of a bedroom and
+    // into the corridor passes that test (v0.31.5.202 — the bedroom3 arm stood in
+    // the corridor facing a blank wall and reported `%<64` 0.00 / mean 197).
+    const ownRoom = roomAt(cx + nx * 1.2, cz + nz * 1.2)
+    const inRoom = (px, pz) => ownRoom !== null && roomAt(px, pz)?.id === ownRoom.id
+    // CLAMP THE STANDOFF TO THE ROOM (v0.31.5.202). A fixed standoff walks the
+    // camera straight out of a small room: at 4.6 m the bedroom3 arm stood in the
+    // CORRIDOR with its nose against a blank wall, and reported `%<64` 0.00 with a
+    // frame mean of 197 — which reads as "this room is washed out" rather than
+    // "this pose is not in the room". Step back only as far as the room allows.
+    let standoff = q.standoff
+    for (let s2 = q.standoff; s2 >= 0.8; s2 -= 0.1) {
+      if (inRoom(cx + nx * s2, cz + nz * s2)) {
+        standoff = s2
+        break
+      }
+      standoff = 0.8
+    }
+    const px = cx + nx * standoff
+    const pz = cz + nz * standoff
+    return { id: op.id, px, pz, standoff, yaw: Math.atan2(-(cx - px), -(cz - pz)) }
   },
   { win: WINDOW, standoff: STANDOFF },
 )
@@ -150,6 +169,35 @@ await page.evaluate(
   { ...pose, pitch: PITCH },
 )
 await new Promise((r) => setTimeout(r, 2500))
+
+// VERIFY THE CAMERA ARRIVED. `requestWalkTeleport` runs the walker through the
+// app's own collision solver (WALK-SPAWN-CLEAR), which pushes it out of furniture
+// and walls — so a requested point inside a bed lands somewhere else entirely,
+// sometimes in another room. v0.31.5.202 measured two bedrooms and both baths
+// from the CORRIDOR without noticing, because nothing compared the pose asked for
+// with the pose reached.
+const arrival = await page.evaluate(
+  (q) => {
+    const { camera } = window.__three
+    const plan = window.__store.getState().floorPlan
+    const roomAt = (px, pz) =>
+      (plan?.rooms ?? []).find(
+        (r) =>
+          px >= r.origin[0] &&
+          px <= r.origin[0] + r.width &&
+          pz >= r.origin[1] &&
+          pz <= r.origin[1] + r.depth,
+      )?.id ?? null
+    return {
+      asked: [+q.px.toFixed(2), +q.pz.toFixed(2)],
+      reached: [+camera.position.x.toFixed(2), +camera.position.z.toFixed(2)],
+      drift: +Math.hypot(camera.position.x - q.px, camera.position.z - q.pz).toFixed(2),
+      roomAsked: roomAt(q.px, q.pz),
+      roomReached: roomAt(camera.position.x, camera.position.z),
+    }
+  },
+  { px: pose.px, pz: pose.pz },
+)
 
 const state = await page.evaluate(() => {
   const s = window.__store.getState()
@@ -182,7 +230,7 @@ const shotDown = await shotFor(FLOOR_PITCH)
 fs.writeFileSync(`${OUT}/frame.png`, shot)
 fs.writeFileSync(`${OUT}/frame-down.png`, shotDown)
 console.log(
-  `light-distribution  ${JSON.stringify({ ...state, window: pose.id, standoff: STANDOFF, pitch: PITCH })}`,
+  `light-distribution  ${JSON.stringify({ ...state, arrival, window: pose.id, standoff: +pose.standoff.toFixed(2), standoffAsked: STANDOFF, pitch: PITCH })}`,
 )
 console.log(`frame -> ${OUT}/frame.png`)
 // --- analysis -------------------------------------------------------------
