@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.230 — the floor measured properly: a modest OVERSHOOT, and the board match outranks it
+
+`.229` left floor micro-contrast unmeasurable from a screen rectangle. Fixed by certifying the region
+geometrically: raycast the pitched-down pose, classify by world normal, find the largest square whose
+samples are ALL floor, measure inside it. The probe reports the square's world extent too.
+
+| | micro/mean |
+| --- | --- |
+| app, photographic look | 0.121 |
+| app, default look | **0.083** |
+| photo D parquet | 0.058 / 0.076 |
+| photo C pale wood | 0.032 |
+| kitchen ref tile | 0.076 |
+
+**Both looks sit ABOVE the reference band, not below** — default marginally (0.083 vs a 0.076 top),
+photographic clearly (0.121).
+
+**Resolution had to be matched first.** The certified square is 0.72 × 0.83 m at **589 px/m**; the
+reference crops are nearer 300 px/m, and a fixed 4 px high-pass reaches ~7 mm at the app's density
+against ~13 mm at the photographs'. Downsampling to reference scale moves the app 0.167 → **0.121**
+(photographic) and 0.118 → **0.083** (default): a third of the apparent excess was sampling. The probe
+prints both and labels which to compare.
+
+**Recorded, not acted on.** The direction matches intent — the photographic look raises surface
+micro-contrast, which is what `.162` built it for. But the floor painters are not free parameters:
+SNV-BOARDS matched them to photographs of the physical sample boards the user supplied, JOINT-SCALE
+puts every joint in real millimetres, and `snvBoards.test.ts` pins the signatures. Retuning a
+board-matched painter to hit 0.076 would trade verified physical fidelity for a statistic — the trade
+`.187` retracted for fabric.
+
+Bounded observation: **the app's floor grain reads about 1.1–1.6× a photograph's at matched scale**,
+largest under the photographic look, against a four-crop reference.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.229 — a floor-gloss reference, and two more contaminants in the floor band
 
 `.197` said floor gloss has no single photographic value, using raw sd — which is dominated by the

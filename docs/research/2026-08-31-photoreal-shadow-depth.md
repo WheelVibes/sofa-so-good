@@ -4552,3 +4552,49 @@ reference will need the geometric mask, not a rectangle — a contiguous region 
 high-pass, and no rectangle in this pose is pure floor.
 
 Nothing changed in `src/`.
+
+---
+
+## `.230` — the floor measured properly: a modest OVERSHOOT, and the board match outranks it
+
+`.229` left floor micro-contrast unmeasurable from a screen rectangle, because no rectangle in the
+pitched-down pose is pure floor. Fixed by certifying the region geometrically: raycast the pose,
+classify every sample by world normal, then find the largest square whose samples are **all** floor and
+measure inside that. The probe reports the square's world extent so its sampling density is visible.
+
+| | micro/mean |
+| --- | --- |
+| app, photographic look | 0.121 |
+| app, default look | **0.083** |
+| photo D parquet | 0.058 / 0.076 |
+| photo C pale wood | 0.032 |
+| kitchen ref tile | 0.076 |
+
+**Both looks sit above the reference band, not below it.** The default look is marginally over
+(0.083 against a 0.076 top) and the photographic look is clearly over at 0.121.
+
+### Resolution had to be matched first, and it mattered
+
+The certified square is 0.72 × 0.83 m at **589 px/m**; the reference crops are nearer **300 px/m**. A
+fixed 4 px high-pass reaches ~7 mm of floor at the app's density and ~13 mm at the photographs', so an
+unmatched comparison measures the sampling. Downsampling to reference scale moves the app from 0.167 to
+**0.121** (photographic) and 0.118 to **0.083** (default) — a third of the apparent excess was
+resolution. The probe now prints both and labels which to compare.
+
+### Why this is recorded and not acted on
+
+The direction is consistent with intent: the photographic look raises surface micro-contrast, which is
+what `.162` built it to do ("relief only becomes image contrast when something DIRECTIONAL shades its
+two sides"). The floor simply carries more of that than a photograph does.
+
+But the floor painters are not free parameters. SNV-BOARDS matched them against photographs of the
+**physical Serangoon North Vista sample boards** the user supplied, JOINT-SCALE converts every joint
+band to real millimetres, and `snvBoards.test.ts` pins the painter signatures. That is stronger ground
+truth than a four-crop micro-contrast band from stock photographs of other people's floors. Retuning a
+board-matched painter to hit 0.076 would trade verified physical fidelity for a statistic — the same
+trade `.187` retracted for fabric.
+
+Recorded as a bounded observation: **the app's floor grain reads about 1.1–1.6× a photograph's at
+matched scale**, largest under the photographic look, and the reference is four crops.
+
+Nothing changed in `src/`.

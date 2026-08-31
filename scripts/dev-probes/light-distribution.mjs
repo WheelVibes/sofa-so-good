@@ -528,6 +528,130 @@ const geo = await page.evaluate(
     console.log('  WARNING: few ceiling samples — the pose may not see enough ceiling.')
 }
 
+/**
+ * FLOOR MICRO-CONTRAST over a region the geometry certifies as pure floor.
+ *
+ * `.229` measured this over the fixed floor BAND and got 0.224 against real
+ * floors at 0.032-0.076 -- because that band contains a candle tray (and, until
+ * `.229`, a HUD pill). A high-pass needs a CONTIGUOUS region, so point samples
+ * cannot be used directly; instead, raycast the pitched-down pose, then search
+ * for the largest candidate rectangle whose samples are ALL floor and measure
+ * inside that.
+ */
+await page.evaluate((v) => window.__walkLook?.setPitch(v), FLOOR_PITCH)
+await new Promise((r) => setTimeout(r, 900))
+const floorRect = await page.evaluate(() => {
+  const { scene, camera } = window.__three
+  const rc = new window.__three.raycaster.constructor()
+  const n = new camera.position.constructor()
+  const solid = (o) => o.visible && o.material?.colorWrite !== false && o.material?.opacity !== 0
+  const G = 48
+  const grid = []
+  for (let j = 0; j < G; j++) {
+    grid[j] = []
+    for (let i = 0; i < G; i++) {
+      const x = (i + 0.5) / G
+      const y = (j + 0.5) / G
+      rc.setFromCamera({ x: x * 2 - 1, y: 1 - y * 2 }, camera)
+      const h = rc.intersectObjects(scene.children, true).find((k) => solid(k.object))
+      let ok = false
+      if (h?.face) {
+        n.copy(h.face.normal).transformDirection(h.object.matrixWorld)
+        ok = Math.abs(n.y) > 0.9 && h.point.y < 0.15
+      }
+      grid[j][i] = ok
+    }
+  }
+  // Largest all-floor square, by simple expansion from each cell.
+  let best = null
+  for (let j = 0; j < G; j++)
+    for (let i = 0; i < G; i++) {
+      if (!grid[j][i]) continue
+      let k = 0
+      outer: while (j + k < G && i + k < G) {
+        for (let a = 0; a <= k; a++) if (!grid[j + k][i + a] || !grid[j + a][i + k]) break outer
+        k++
+      }
+      if (k > 0 && (!best || k > best.k)) best = { i, j, k }
+    }
+  if (!best) return null
+  // World extent of the chosen square, so its pixels-per-metre can be compared
+  // with the reference crops -- micro-contrast is resolution dependent, and a
+  // near-camera floor patch is magnified far beyond a photograph's.
+  const corner = (i, j) => {
+    const x = (i + 0.5) / G
+    const y = (j + 0.5) / G
+    rc.setFromCamera({ x: x * 2 - 1, y: 1 - y * 2 }, camera)
+    const h = rc.intersectObjects(scene.children, true).find((k) => solid(k.object))
+    return h ? [h.point.x, h.point.z] : null
+  }
+  const a = corner(best.i, best.j)
+  const b = corner(best.i + best.k - 1, best.j)
+  const c = corner(best.i, best.j + best.k - 1)
+  const wideM = a && b ? Math.hypot(b[0] - a[0], b[1] - a[1]) : null
+  const deepM = a && c ? Math.hypot(c[0] - a[0], c[1] - a[1]) : null
+  return {
+    x0: best.i / G,
+    y0: best.j / G,
+    x1: (best.i + best.k) / G,
+    y1: (best.j + best.k) / G,
+    wideM,
+    deepM,
+  }
+})
+if (floorRect) {
+  const shotFloor = await canvas.screenshot({ type: 'png' })
+  const fg = await grey(shotFloor)
+  const fx0 = Math.floor(floorRect.x0 * fg.info.width)
+  const fy0 = Math.floor(floorRect.y0 * fg.info.height)
+  const fw = Math.max(8, Math.floor((floorRect.x1 - floorRect.x0) * fg.info.width))
+  const fh = Math.max(8, Math.floor((floorRect.y1 - floorRect.y0) * fg.info.height))
+  const sub = Buffer.alloc(fw * fh)
+  for (let y = 0; y < fh; y++)
+    for (let x = 0; x < fw; x++) sub[y * fw + x] = fg.data[(fy0 + y) * fg.info.width + (fx0 + x)]
+  const bl = await sharp(sub, { raw: { width: fw, height: fh, channels: 1 } })
+    .blur(4)
+    .raw()
+    .toBuffer()
+  let m2 = 0
+  for (let i = 0; i < sub.length; i++) m2 += sub[i]
+  m2 /= sub.length
+  let hp2 = 0
+  for (let i = 0; i < sub.length; i++) hp2 += (sub[i] - bl[i]) ** 2
+  const sd2 = Math.sqrt(hp2 / sub.length)
+  const pxPerM = fw / (floorRect.wideM || 1)
+  // ...and again at the REFERENCE crops' density (~300 px/m). micro-contrast is
+  // resolution dependent -- a fixed 4 px high-pass reaches ~7 mm of floor at 589
+  // px/m and ~13 mm at 300 -- so an unmatched comparison measures the sampling.
+  const REF_PX_PER_M = 300
+  const scale = Math.min(1, REF_PX_PER_M / pxPerM)
+  const sw = Math.max(8, Math.round(fw * scale))
+  const sh = Math.max(8, Math.round(fh * scale))
+  const small = await sharp(sub, { raw: { width: fw, height: fh, channels: 1 } })
+    .resize(sw, sh)
+    .raw()
+    .toBuffer()
+  const smallBlur = await sharp(small, { raw: { width: sw, height: sh, channels: 1 } })
+    .blur(4)
+    .raw()
+    .toBuffer()
+  let m3 = 0
+  for (let i = 0; i < small.length; i++) m3 += small[i]
+  m3 /= small.length
+  let hp3 = 0
+  for (let i = 0; i < small.length; i++) hp3 += (small[i] - smallBlur[i]) ** 2
+  const sd3 = Math.sqrt(hp3 / small.length)
+  console.log(
+    `floor micro-contrast (CERTIFIED pure floor ${fw}x${fh}px = ${floorRect.wideM?.toFixed(2)}x${floorRect.deepM?.toFixed(2)} m, ${pxPerM.toFixed(0)} px/m)`,
+  )
+  console.log(`  at native density   micro/mean ${(sd2 / m2).toFixed(4)}`)
+  console.log(
+    `  at ~${REF_PX_PER_M} px/m (reference scale)  micro/mean ${(sd3 / m3).toFixed(4)}   <- compare THIS to real floors 0.032-0.076`,
+  )
+} else {
+  console.log('floor micro-contrast: no all-floor rectangle found at this pose')
+}
+
 console.log('')
 console.log('targets, from the reference photographs:')
 console.log('  %<64      1.9–12.2 %  (four photographs; the two looks bracket it)')
