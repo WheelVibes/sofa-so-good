@@ -4762,3 +4762,53 @@ inline, so no future round quotes 0.88 against a band again.
 
 **Still open:** widen the qualifying set. The criteria above are the bottleneck, not the measurement —
 8 of 9 candidates failed them.
+
+---
+
+## `.234` — the ceiling deficit is retired
+
+`.233` closed with one qualifying photograph and an open item: widen the set. This round screened ten
+more (Wikimedia Commons category sweeps; Pexels returns 403 to a plain fetch, and title searches now
+surface a lot of AI stock under generic descriptive names, so category listings were the usable route).
+
+Screening was strict, and most candidates died on the same criteria as before: monochrome (1), timber or
+sod interiors (2), ceiling not in frame (3), white ceiling against coloured walls (1), exterior-through-
+window (1). Two got as far as measurement:
+
+- **`3_Bedroom_2_Bath_home_in_Ada,_OK`** — **rejected at measurement.** Its ceiling is *vaulted*, so the
+  ceiling plane catches window light far more directly than a flat one, and its walls carry a strong
+  shadow gradient with no representative patch. First crops gave a nonsense 1.70. A sloped ceiling is
+  not the geometry the metric is about.
+- **`Living_room_(13152023964)`** — a Flickr upload, flat white ceiling, white walls, daylit from a
+  side window, low pose. **Qualifies.** After two re-crops (the first wall crop caught the ceiling
+  junction, the second the window head — both caught by looking at the crop):
+
+  > ceiling 142.7, wall 157.2, **ratio 0.91**.
+
+### The result
+
+| | ceiling ÷ wall |
+| --- | --- |
+| `Home_Staging_Beispiel_Nachher` (`.233`) | 1.03 |
+| `Living_room_(13152023964)` (`.234`) | 0.91 |
+| **the app**, hand-cropped, canonical pose | **0.93** |
+
+The app sits **inside** the spread of the qualifying references. Measured the same way the photographs
+are measured, at a comparable pose, against photographs screened for the confounds, there is no ceiling
+deficit to explain.
+
+**`.188`'s ceiling deficit is retired as a claim.** It was, in the end, three artifacts stacked: a
+reference band that included a timber ceiling, a probe method that swept in the wall junction the photo
+crops excluded, and a pose that reduced the ceiling to a grazing sliver. `.226` called it one of three
+faces of one absent feature; that list is now two — the flat window backdrop (`.209`) and the
+over-steep wall falloff (`.226`), both still open, both still real.
+
+### Follow-up this creates
+
+`PHOTO_GROUND_BOUNCE` (shipped at 3) exists to lift the ceiling — three's hemisphere term gives the
+ceiling the full `groundColor`. Its own measurements stand on their own, but the *motivation* for it was
+the deficit now retired. Whether it is still earning its keep is a question for its own round, with its
+own before/after; it is **not** being changed on the strength of this one.
+
+Nothing changed in `src/`. `light-distribution.mjs`'s printed caveat now carries the two-photograph
+spread and the retirement.

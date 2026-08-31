@@ -511,15 +511,20 @@ const geo = await page.evaluate(
   //   the same way, the same frame at the same pose reads 0.93, not 0.88 -- most
   //   of the apparent deficit was the two methods disagreeing, not the render.
   //
-  // And the reference side is thin: of 9 photographs screened in `.233`, exactly
-  // ONE met "ceiling and wall the same plaster paint, daylit, ceiling croppable,
-  // no obvious flash/HDR" -- it reads 1.03. One of `.206`'s own surviving sources
-  // has a TIMBER ceiling (0.84), i.e. it measures albedo, not light.
+  // And the reference side is thin. Of 19 photographs screened across `.233` and
+  // `.234`, TWO met "ceiling and wall the same plaster paint, daylit, ceiling and
+  // wall both croppable clear of junctions, no obvious flash/HDR, not AI stock":
+  // they read 1.03 and 0.91. One of `.206`'s own surviving sources has a TIMBER
+  // ceiling (0.84), i.e. it measures albedo, not light.
+  //
+  // `.234`: hand-cropped, this scene reads 0.93 -- INSIDE that 0.91-1.03 spread.
+  // The ceiling deficit of `.188` does not survive method- and pose-matched
+  // re-measurement, and is retired as a claim.
   console.log(
     [
       `  ceiling/wall = ${(mean(buckets.ceiling) / mean(buckets.wall)).toFixed(2)}   DIAGNOSTIC, not a target -- pose- and method-bound, see .232/.233`,
-      '    hand-cropped clear of the junction this scene reads 0.93; the one',
-      '    qualifying photograph reads 1.03 (n=1).',
+      '    hand-cropped clear of the junction this scene reads 0.93, INSIDE the',
+      '    0.91-1.03 spread of the two qualifying photographs (.234).',
     ].join('\n'),
   )
   // WALL FALLOFF with distance from the window -- same material, same frame, so

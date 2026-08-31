@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.234 — the ceiling deficit is retired
+
+`.233` closed with one qualifying photograph and an open item: widen the set. Ten more screened
+(Wikimedia Commons category sweeps — Pexels 403s a plain fetch, and title search now surfaces a lot of
+AI stock under generic names). Most died on the same criteria: monochrome, timber/sod interiors, ceiling
+not in frame, white ceiling on coloured walls, exterior-through-window.
+
+Two reached measurement. **`3_Bedroom_2_Bath_home_in_Ada,_OK` was rejected at measurement** — its
+ceiling is *vaulted*, so it catches window light far more directly than a flat one, and its walls carry
+a strong shadow gradient with no representative patch (first crops gave a nonsense 1.70).
+**`Living_room_(13152023964)`** — flat white ceiling, white walls, daylit, low pose — **qualifies**, at
+ceiling 142.7 / wall 157.2 = **0.91** (after two re-crops; the first caught the junction, the second the
+window head, both caught by looking).
+
+| | ceiling / wall |
+| --- | --- |
+| `Home_Staging_Beispiel_Nachher` (`.233`) | 1.03 |
+| `Living_room_(13152023964)` (`.234`) | 0.91 |
+| **the app**, hand-cropped, canonical pose | **0.93** |
+
+The app sits **inside** the spread. Measured the way the photographs are measured, at a comparable pose,
+against references screened for the confounds, there is no ceiling deficit to explain.
+
+**`.188`'s ceiling deficit is retired.** It was three artifacts stacked: a reference band containing a
+timber ceiling, a probe method that swept in the wall junction the photo crops excluded, and a pose that
+reduced the ceiling to a grazing sliver. `.226` called it one of three faces of one absent feature; that
+list is now two — the flat window backdrop (`.209`) and the over-steep wall falloff (`.226`).
+
+**Follow-up:** `PHOTO_GROUND_BOUNCE` (shipped at 3) exists to lift the ceiling. Its own measurements
+stand, but its motivation was the retired deficit. Whether it still earns its keep needs its own round
+with its own before/after — it is **not** changed here.
+
+Nothing changed in `src/`; the probe's printed caveat carries the two-photograph spread.
+
 ## v0.31.5.233 — ceiling / wall re-derived: most of the "deficit" was method, not render
 
 `.232` left the ceiling deficit unproven and asked for the band to be re-derived with each source
