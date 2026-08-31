@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.247 — the wall-falloff deviation is framing-dependent, and is withdrawn
+
+Pursuing `.246`'s next step — render the traced still at the viewport aspect so both pictures share
+framing — fixed the capture (`toDataURL` on the tracer canvas; `.246`'s element screenshot let the modal
+footer bleed in) and turned up something more consequential than the GI test.
+
+**The raster falloff changed with the viewport.** Isolated with a new `VH` knob so aspect varies without
+running the tracer, run 800 → 720 → 800 for reproducibility:
+
+| viewport | near-window | far | far / near |
+| --- | --- | --- | --- |
+| 1280×800 (16:10) | 116.2 (1377) | 85.5 (346) | **0.74** |
+| 1280×720 (16:9) | 115.3 (1238) | 107.2 (528) | **0.93** |
+| 1280×800 again | 116.1 (1373) | 85.5 (346) | **0.74** |
+
+Same tier, hour, window, pose, pitch. **0.19 of swing from aspect alone** — more than twice the width of
+the 0.85–0.86 band — and at 16:9 the app reads **above** it, too flat rather than too steep. The app
+**brackets** the reference depending on framing. The far bucket gains 182 samples and its mean rises
+85.5 → 107.2: a wider field admits different wall pixels.
+
+**This is `.232`'s error again.** `.226` adopted the metric because it is "same material, same frame, so
+composition cancels". Two surfaces in one frame escape the frame-MEAN dependence `.201` hit; they do not
+escape depending on *which pixels are visible*. `.232` found this for ceiling / wall (0.68 → 0.96 on
+pitch), `.239` found tier dependence, and this is the third member of the family — on the metric the arc
+had left standing.
+
+**Withdrawn:** the wall-falloff deviation. The reference photograph's aspect was never recorded (`.227`
+filed the band as provisional, n=1) and the app spans 0.74–0.93 across two ordinary viewport shapes. The
+probe now prints it as a diagnostic with the swing inline.
+
+**Survives:** the mechanism arguments — the hemisphere ground term has no distance dependence (`.226`,
+re-confirmed by intervention in `.235`), `.189`–`.195` refuted the cheap stand-ins on their own
+measurements, `.231` ruled out the fill scale. None rested on this number.
+
+**But the GI diagnosis has lost its quantitative support.** Since `.226` the claim was "light does not
+carry far enough into the room, and only inter-reflection fixes it", evidenced by this metric. What remains
+is a mechanism story with no measured deficit attached — and `.236` had already shown the number is
+state-bound (0.74 / 0.88 / 1.20 across the day), which in hindsight was the first sign. `.246`'s traced
+instrument is still the right way to settle it, but now needs a **framing-matched** target, not just a
+matched pose.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.246 — a pose-matched path-traced still, and no trustworthy number from it yet
 
 **The instrument works.** `light-distribution.mjs` gained a `PT=1` branch — placed there rather than in a

@@ -73,7 +73,16 @@ const browser = await puppeteer.launch({
 })
 const page = await browser.newPage()
 await page.emulateTimezone('Asia/Singapore')
-await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
+// PT=1 renders a 1920x1080 still, so the walk camera must be 16:9 too or the two
+// pictures are differently framed and no shared band can be compared (`.247`).
+// VH overrides it independently so the aspect can be varied WITHOUT running the
+// tracer -- `.247` needed that to prove the falloff shift was the aspect and not
+// the PT branch.
+await page.setViewport({
+  width: 1280,
+  height: Number(process.env.VH || (process.env.PT === '1' ? 720 : 800)),
+  deviceScaleFactor: 2,
+})
 await page.evaluateOnNewDocument(() => {
   try {
     localStorage.setItem('hdb_onboarded', '1')
@@ -333,19 +342,29 @@ if (process.env.PT === '1') {
     if (got >= want) break
     await new Promise((r) => setTimeout(r, 4000))
   }
-  // Screenshot the tracer's own canvas element, not the page: the modal chrome,
-  // the blurred scrim behind it and the resolution pills are all DOM, and every
-  // contaminated crop in this arc came from including DOM in a measured region.
-  const ptCanvas = await page.evaluateHandle(() => {
+  // Read the tracer canvas's OWN PIXELS via toDataURL rather than screenshotting
+  // the element. `.246` screenshotted it and the modal footer bled into the
+  // bottom of the capture, because an element screenshot grabs the page region
+  // at that element's box and the canvas box runs under the chrome. toDataURL
+  // cannot include DOM at all, and it returns full render resolution instead of
+  // the CSS-scaled preview.
+  const png = await page.evaluate(() => {
     const list = [...document.querySelectorAll('canvas')]
-    // The tracer canvas is the one INSIDE the open dialog.
-    const dlg = document.querySelector('[role="dialog"], .modal, dialog')
-    return (dlg && list.find((c) => dlg.contains(c))) || list[list.length - 1]
+    // The tracer's canvas is the largest one that is not the live scene canvas
+    // (which is first in document order and sized to the viewport).
+    const scene = list[0]
+    const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
+    const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
+    if (!c) return null
+    try {
+      return { url: c.toDataURL('image/png'), w: c.width, h: c.height }
+    } catch {
+      return null
+    }
   })
-  const el = ptCanvas.asElement()
-  if (!el) throw new Error('PT: no tracer canvas')
-  fs.writeFileSync(`${OUT}/pathtraced.png`, await el.screenshot({ type: 'png' }))
-  console.log(`pathtraced (${got} samples) -> ${OUT}/pathtraced.png`)
+  if (!png) throw new Error('PT: could not read a tracer canvas')
+  fs.writeFileSync(`${OUT}/pathtraced.png`, Buffer.from(png.url.split(',')[1], 'base64'))
+  console.log(`pathtraced (${got} samples, ${png.w}x${png.h}) -> ${OUT}/pathtraced.png`)
 }
 // --- analysis -------------------------------------------------------------
 // Fixed fractional bands, with the two HUD rectangles cut out so the toolbar and
@@ -580,8 +599,23 @@ const geo = await page.evaluate(
       '    0.91-1.03 spread of the two qualifying photographs (.234).',
     ].join('\n'),
   )
-  // WALL FALLOFF with distance from the window -- same material, same frame, so
-  // composition cancels (.226). Photo D reads 0.85-0.86.
+  // WALL FALLOFF with distance from the window. `.226` adopted this on the
+  // reasoning that it is the same material in the same frame, so composition
+  // cancels. **`.247` FALSIFIED THAT.** Two surfaces in one frame escape the
+  // frame-MEAN dependence that `.201` hit, but this metric also depends on WHICH
+  // wall pixels are visible, and that is set by framing. A pure viewport-aspect
+  // change, nothing else touched:
+  //
+  //     1280x800 (16:10)  near 116.2 (1377)  far  85.5 (346)  -> 0.74
+  //     1280x720 (16:9)   near 115.3 (1238)  far 107.2 (528)  -> 0.93
+  //     1280x800 again    near 116.1 (1373)  far  85.5 (346)  -> 0.74
+  //
+  // 0.19 of swing -- more than twice the width of the 0.85-0.86 band it is
+  // compared against, and the app BRACKETS the reference rather than missing it.
+  // The far bucket gains 182 much brighter samples at the wider aspect. So this
+  // is a DIAGNOSTIC, not a target, until a framing-matched reference exists: the
+  // one reference photograph's own aspect was never recorded (`.227`).
+  // Photo D reads 0.85-0.86 at an unknown aspect.
   {
     const nearW = []
     const farW = []
@@ -598,7 +632,7 @@ const geo = await page.evaluate(
     const mn = mean(nearW)
     const mf2 = mean(farW)
     console.log(
-      `  wall falloff: near-window ${mn.toFixed(1)} (${nearW.length}), far ${mf2.toFixed(1)} (${farW.length}), far/near = ${(mf2 / mn).toFixed(2)}   (photograph 0.85-0.86)`,
+      `  wall falloff: near-window ${mn.toFixed(1)} (${nearW.length}), far ${mf2.toFixed(1)} (${farW.length}), far/near = ${(mf2 / mn).toFixed(2)}   (photo 0.85-0.86 at UNKNOWN aspect; this metric swings 0.74-0.93 on viewport aspect alone -- see .247)`,
     )
   }
   if (buckets.ceiling.length < 20)

@@ -5427,3 +5427,64 @@ resolution is a modal dropdown, so this is a probe change, not an app change.
 **Status: instrument built and verified, GI diagnosis still untested.** It remains what it has been since
 `.226` — a conclusion by elimination, now with a working way to test it that has not yet produced a
 number I would stand behind.
+
+---
+
+## `.247` — the wall-falloff deviation is framing-dependent, and is withdrawn
+
+The plan was `.246`'s next step: render the path-traced still at the viewport's aspect so both pictures
+could be measured by identical code. Fixing the capture (`toDataURL` on the tracer canvas instead of an
+element screenshot — `.246`'s screenshot let the modal footer bleed in, because an element screenshot
+grabs the page region at that element's box) and switching the viewport to 16:9 worked. It also produced
+something far more consequential than the GI test.
+
+**The raster falloff changed with the viewport.** Isolated with a new `VH` knob so the aspect varies
+without running the tracer at all, and run 800 → 720 → 800 to check reproducibility:
+
+| viewport | near-window | far | far ÷ near |
+| --- | --- | --- | --- |
+| 1280×800 (16:10) | 116.2 (1377 samples) | 85.5 (346) | **0.74** |
+| 1280×720 (16:9) | 115.3 (1238) | 107.2 (528) | **0.93** |
+| 1280×800 again | 116.1 (1373) | 85.5 (346) | **0.74** |
+
+Nothing else was touched — same tier, hour, window, pose, pitch. **0.19 of swing from aspect alone**,
+which is more than *twice* the width of the 0.85–0.86 band it is compared against. And the direction
+matters: at 16:9 the app reads **above** the band — too flat, not too steep. The app **brackets** the
+reference depending on framing.
+
+The mechanism is visible in the sample counts: the far bucket gains **182 samples** and its mean rises
+**85.5 → 107.2**. A wider horizontal field admits different wall pixels, and the "far from window"
+population is the one that changes most.
+
+### This is `.232`'s error again, in the metric that replaced the others
+
+`.226` adopted wall falloff on the reasoning that it is *"same material, same frame, so composition
+cancels"*. Two surfaces in one frame do escape the frame-**mean** dependence `.201` hit on the curtain.
+They do **not** escape depending on *which pixels are visible* — and that is framing. `.232` found exactly
+this for ceiling ÷ wall (0.68 → 0.96 on pitch alone); `.239` found tier dependence; this is the third
+member of the same family, and it lands on the metric the arc had left standing.
+
+### What is withdrawn, and what survives
+
+**Withdrawn:** the wall-falloff *deviation*. "The app's wall falloff is too steep at 0.74 against
+0.85–0.86" is not established — the reference photograph's own aspect was never recorded (`.227` filed the
+band as provisional from n=1), and the app spans 0.74–0.93 across two ordinary viewport shapes. The probe
+now prints it as a diagnostic with the swing inline.
+
+**Survives, untouched:** the *mechanism* arguments. Three's hemisphere ground term has no distance
+dependence (`.226`, re-confirmed by intervention in `.235`); `.189`–`.195` refuted the cheap stand-ins on
+their own measurements; `.231` showed the fill scale is not a lever. None of those rested on the falloff
+number.
+
+**But the GI diagnosis has lost its quantitative support.** Since `.226` the claim has been "the app's
+light does not carry far enough into the room, and only inter-reflection fixes it". The evidence was this
+metric. With the metric withdrawn, what remains is a mechanism story with no measured deficit attached —
+and `.236` had already shown the number is state-bound (0.74 at 13:00, 0.88 at 19:00, 1.20 at 21:00),
+which in hindsight was the first sign.
+
+The path-traced instrument from `.246` still works and is still the right way to settle it; it now needs a
+**framing-matched** target to be measured against, not just a matched pose. Two open questions the arc must
+answer before it can claim a GI deficit again: what aspect the reference photograph was shot at, and
+whether a framing-matched comparison shows any deficit at all.
+
+Nothing changed in `src/`.
