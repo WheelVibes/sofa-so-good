@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.208 — SHIPPED: retuned on the metrics that survived, and all four now hold at once
+
+`.206` and `.207` demoted the two frame-normalised targets this arc had been steering by. That leaves a
+validated set — ratios between two things in the SAME frame, where composition cancels — and the app
+had never been tuned against it.
+
+**Which photographic ratios transfer:** ceiling/wall (photo C **0.90**, photo D **1.00**) does, because
+both surfaces are painted so albedo roughly cancels. floor/wall (0.98 vs 0.76) and ceiling/floor (0.91
+vs 1.32) do not — pale wood against dark parquet, albedo-confounded exactly as `.188` found.
+
+**`PHOTO_GROUND_BOUNCE` 6.5 → 3.** On the good metric it sweeps cleanly: ceiling/wall 0.78 at ×1,
+**0.95 at ×3**, 1.09 at ×6.5. Three puts all four habitable rooms in band (0.95 / 0.98 / 0.89 / 0.96)
+where 6.5 missed high in every one (1.05–1.13).
+
+**`CURTAIN_TRANSLUCENCY` 6 → 4, because the two terms are COUPLED.** The curtain ratio is measured
+against the room, so darkening the room lifted it to **1.53** untouched. Re-swept at the new bounce:
+t=4 → **1.38**. `under/open` is unchanged at 0.721 — the expected result, since `.194` established that
+`groundColor` cannot reach an up-facing floor.
+
+| metric | app | photographs |
+| --- | --- | --- |
+| ceiling / wall | **0.89–0.98** (four rooms) | 0.90–1.00 |
+| shadowed ÷ lit floor | **0.721** | 0.579–0.725 |
+| curtain ÷ room | **1.38** | 1.32–1.48 |
+| curtain at 22:00 | 1.05 (no glow) | — |
+
+First time the app satisfies the whole *validated* set at once. A smaller claim than this arc has made
+before, and a sounder one. Visual A/B near-identical (×3 marginally deeper in ceiling and upper walls,
+no regression). `%<64` at the calibration pose moves 10.21 % → 14.42 %, recorded as a two-build
+comparison at one pose — the only thing that number can honestly support (`.207`).
+
 ## v0.31.5.207 — `%<64` is pose-bound, and it is what this whole arc was calibrated on
 
 `.206` demoted the ceiling target because a ratio against the FRAME mean moves with what is in shot.

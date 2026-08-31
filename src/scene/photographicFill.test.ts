@@ -158,10 +158,14 @@ describe('photographicGroundBounce — the whole-floor bounce (PHOTO-GROUND-BOUN
   })
 
   it('stays at the gain the ceiling measurement justifies', () => {
-    // `.195`: x6.5 is where the photographic look's ceiling reaches 1.08, the
-    // bottom of the four-photograph band. Below it the ceiling falls short
-    // (x3.5 -> 1.01); above it `%<64` keeps falling for no further target gain.
-    expect(PHOTO_GROUND_BOUNCE).toBeCloseTo(6.5, 6)
+    // Re-tuned 6.5 -> 3 in `.208`. `.195` picked 6.5 against ceiling ÷ FRAME
+    // mean, which `.206` showed is composition-dependent and not comparable
+    // between the photographs' wide interior shots and the probe's walk view.
+    // Against ceiling ÷ WALL — two surfaces in the same frame, so no such
+    // dependence — the photographs read 0.90 and 1.00, and the app reads 0.78 at
+    // x1, **0.95 at x3**, and 1.09 at x6.5. Three lands all four habitable rooms
+    // in band (0.89-0.98); 6.5 missed high in all four.
+    expect(PHOTO_GROUND_BOUNCE).toBeCloseTo(3, 6)
   })
 })
 

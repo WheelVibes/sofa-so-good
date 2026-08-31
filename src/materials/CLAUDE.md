@@ -891,7 +891,7 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `drapeTranslucency.ts` patches the drapery material through `onBeforeCompile` to add back-side
   irradiance to `irradiance` just before `RE_IndirectDiffuse` consumes it: `saturate(dot(-N, L))`
   per directional light, plus `getIBLIrradiance(-N)` under `USE_ENVMAP`. Strength is
-  `look.CURTAIN_TRANSLUCENCY` (6), folded into the fabric cache key, and passed ONLY by
+  `look.CURTAIN_TRANSLUCENCY` (4), folded into the fabric cache key, and passed ONLY by
   `getDraperyMaterial` — upholstery sits against something and never reads backlit.
   · **Why a shader chunk and not a constant.** A photographed curtain over daylight measures
     **1.32–1.48** of the room's mean; the app measured **0.59**. `.199` built the two cheap
@@ -905,7 +905,10 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   · **The wrap term does the opposite, which is the whole point.** Because it responds to the
     normal, a fold whose back faces the window brightens and its neighbour does not: micro-sd goes
     **4.10 → 12.62** (micro/mean 0.106, inside the photographs' 0.066–0.198) while the ratio reaches
-    **1.40**. More texture, not less.
+    **1.38**. More texture, not less.
+  · **COUPLED to `PHOTO_GROUND_BOUNCE` — retune both or neither (`.208`).** This ratio is measured
+    against the room, so lowering the bounce darkens the denominator and the curtain rises without
+    being touched: at bounce 3 the shipped t=6 read **1.53**, past the band, and was re-tuned to 4.
   · **`customProgramCacheKey` is REQUIRED** alongside `onBeforeCompile` — three caches programs by
     material type + defines, so without it patched and unpatched fabric of the same type share one
     program and whichever compiled first wins for both.

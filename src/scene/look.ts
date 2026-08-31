@@ -663,7 +663,17 @@ export const BLOOM = {
  * down-facing ceiling in full, a vertical wall by half, and an up-facing floor
  * not at all, which is the shape of a real floor bounce.
  *
- * **6.5 is where the ceiling reaches the band**, measured with
+ * **RE-TUNED 6.5 -> 3 in `.208`.** Everything below was measured against ceiling
+ * ÷ FRAME mean, and `.206` showed that ratio moves with what is in shot — the
+ * photographs are wide interior shots, the probe is a window-facing walk view, so
+ * the two were never comparable. Against ceiling ÷ WALL (both surfaces in the
+ * same frame, so composition cancels) the photographs read **0.90 and 1.00**, and
+ * the app reads 0.78 at x1, **0.95 at x3**, 1.09 at x6.5. Three puts all four
+ * habitable rooms in band (living/dining 0.95, main bedroom 0.98, bedroom 2 0.89,
+ * bedroom 3 0.96) where 6.5 missed high in every one. The frame-relative numbers
+ * that follow are kept as the record of how the term was originally justified.
+ *
+ * **6.5 was where the ceiling reached the (frame-relative) band**, measured with
  * `light-distribution.mjs` at 13:00/medium:
  *
  *   ground bounce   %<64      ceiling   wall
@@ -692,7 +702,7 @@ export const BLOOM = {
  * since `groundColor` contributes nothing to an up-facing floor: it reads 0.786
  * identically at ×1, ×3.5 and ×6.5.
  */
-export const PHOTO_GROUND_BOUNCE = 6.5
+export const PHOTO_GROUND_BOUNCE = 3
 
 export function photographicGroundBounce(on: boolean): number {
   return on ? PHOTO_GROUND_BOUNCE : 1
@@ -707,6 +717,11 @@ export function photographicGroundBounce(on: boolean): number {
  * buys 0.10 of ratio and costs a third of the weave anyway). The shipped model is
  * a normal-responsive wrap term — see `materials/drapeTranslucency.ts` for why
  * that is the only shape that can be bright and still show folds.
+ *
+ * **Re-tuned 6 -> 4 in `.208`**, because the two terms are COUPLED: lowering
+ * `PHOTO_GROUND_BOUNCE` darkens the room, and this ratio is measured against the
+ * room, so the curtain rose to 1.53 without being touched. At bounce 3 the sweep
+ * reads t=4 -> **1.38**, t=5 -> 1.47. Retune both together or neither.
  *
  * The value is swept against BOTH numbers: the ratio must reach 1.32–1.48 and the
  * absolute micro-sd must stay near its 4.10 baseline. Measure with
@@ -723,4 +738,4 @@ export function photographicGroundBounce(on: boolean): number {
  * living-dining, main-bedroom and bedroom-2 windows, and micro-sd stays at
  * **12.62** against the 4.10 baseline.
  */
-export const CURTAIN_TRANSLUCENCY = 6
+export const CURTAIN_TRANSLUCENCY = 4

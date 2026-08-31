@@ -17,7 +17,8 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   (`.162`–`.170`).
 
 - **The photographic look also carries a WHOLE-FLOOR bounce (PHOTO-GROUND-BOUNCE, `.195`).**
-  `look.ts:photographicGroundBounce` scales the hemisphere's `groundColor` by **6.5**, and only
+  `look.ts:photographicGroundBounce` scales the hemisphere's `groundColor` by **3** (was 6.5; re-tuned
+  in `.208` against ceiling ÷ WALL after `.206` showed ceiling ÷ FRAME is composition-dependent), and only
   under this look — the default look already measures inside the photographic ceiling band and
   would be pushed out of it. It exists because turning the flat fill down is what buys the shadow
   depth, and the ceiling was lit almost entirely BY that fill: against four reference photographs

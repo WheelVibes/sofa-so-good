@@ -3488,3 +3488,52 @@ Three targets have now failed the same test — the shadow band (`.186`), the fa
 (`.187`), and the ceiling ratio (`.206`) — and this is the fourth. The pattern is consistent enough to
 state as a rule: **a number derived from a photograph transfers only if the app measures it the same
 way, over the same denominator, from a comparable viewpoint.** Almost none of the obvious ones do.
+
+---
+
+## `.208` — SHIPPED: retuned on the metrics that survived, and all four now hold at once
+
+`.206` and `.207` demoted the two frame-normalised targets this arc had been steering by. That leaves a
+validated set — ratios between two things in the SAME frame, where composition cancels — and the app
+had never been tuned against it.
+
+### Which photographic ratios actually transfer
+
+| ratio | photo C | photo D | usable? |
+| --- | --- | --- | --- |
+| ceiling / wall | 0.90 | 1.00 | **yes** — both painted, so albedo roughly cancels and it isolates lighting |
+| floor / wall | 0.98 | 0.76 | no — pale wood against dark parquet; albedo-confounded, as `.188` found |
+| ceiling / floor | 0.91 | 1.32 | no — same reason |
+
+So the transferable set is **ceiling/wall (0.90–1.00)**, plus the two same-material ratios already in
+use: shadowed ÷ lit floor (**0.579–0.725**) and curtain ÷ room (**1.32–1.48**).
+
+### Retuning against them
+
+`PHOTO_GROUND_BOUNCE` sweeps cleanly on the good metric — ceiling/wall 0.78 at ×1, **0.95 at ×3**, 1.09
+at ×6.5 — so the shipped 6.5 was over. **3** puts all four habitable rooms in band: living/dining 0.95,
+main bedroom 0.98, bedroom 2 0.89, bedroom 3 0.96, where 6.5 missed high in every one (1.05–1.13).
+
+**And the two terms turned out to be coupled.** The curtain ratio is measured against the room, so
+darkening the room lifted it to **1.53** without the curtain being touched. `CURTAIN_TRANSLUCENCY`
+re-swept at the new bounce: t=4 → **1.38**, t=5 → 1.47. Shipped 4. `under/open` is unchanged at 0.721,
+which is the expected result rather than a lucky one — `.194` established that `groundColor` cannot
+reach an up-facing floor.
+
+### Final state, every validated metric in band together
+
+| metric | app | photographs |
+| --- | --- | --- |
+| ceiling / wall | **0.89–0.98** (four rooms) | 0.90–1.00 |
+| shadowed ÷ lit floor | **0.721** | 0.579–0.725 |
+| curtain ÷ room | **1.38** | 1.32–1.48 |
+| curtain at 22:00 | 1.05 (no glow) | — |
+
+That is the first time the app has satisfied the whole *validated* metric set simultaneously. It is a
+smaller claim than the ones this arc has made before, and a sounder one: three ratios, each measured
+the same way in the app and in the photographs, each independent of how the shot is framed.
+
+The visual A/B is near-identical — ×3 is marginally deeper in the ceiling and upper walls, no
+regression. `%<64` at the calibration pose moves 10.21 % → 14.42 %, which is a real change but no
+longer a target (`.207`); it is recorded as a comparison between two builds at one pose, which is the
+only thing that number can honestly support.
