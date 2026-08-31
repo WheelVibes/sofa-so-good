@@ -136,7 +136,7 @@ console.log('')
 console.log('screenY hits maxHitY heights')
 for (const r of report.rows)
   console.log(
-    `  ${r.screenY.toFixed(2)}   ${String(r.hits).padStart(3)}   ${String(r.maxHitY).padStart(5)}   ${JSON.stringify(r.byHeight).padEnd(22)} ${r.horizontal > 2 ?? r.horizontalAbove2m}`,
+    `  ${r.screenY.toFixed(2)}  ${String(r.hits).padStart(3)}  ${String(r.maxHitY).padStart(5)}  ${JSON.stringify(r.byHeight).padEnd(24)} horiz>2m=${String(r.horizontalAbove2m).padStart(3)}  n.y=${JSON.stringify(r.sampleNy).padEnd(24)} ${r.material ?? ''}`,
   )
 console.log('')
 console.log("`light-distribution.mjs`'s ceiling band is screenY 0.02-0.16.")

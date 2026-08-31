@@ -376,6 +376,14 @@ console.log(
  * `underside-shadow.mjs` approach) and print both; where they disagree, the band
  * is the one to distrust.
  */
+// RESTORE THE MAIN PITCH FIRST. The floor capture above leaves the camera pitched
+// down at `FLOOR_PITCH`, and this block used to raycast in that state — which is
+// why v0.31.5.204 found ZERO ceiling samples and briefly put the whole ceiling
+// metric in doubt. The band was right all along; the cross-check was looking at
+// the floor. (`ceiling-hit.mjs` settled it: in the band every ray hits y = 2.6 m
+// with n.y = -1 on the ceiling's MeshLambertMaterial.)
+await page.evaluate((p) => window.__walkLook?.setPitch(p), PITCH)
+await new Promise((r) => setTimeout(r, 900))
 const geo = await page.evaluate(
   ({ g, hud }) => {
     const { scene, camera } = window.__three

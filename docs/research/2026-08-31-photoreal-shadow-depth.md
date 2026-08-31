@@ -3318,3 +3318,59 @@ moved both.
 
 Recorded as an open question with the evidence on both sides rather than resolved badly at the end of
 a long round. Nothing changed in `src/`.
+
+---
+
+## `.205` — the ceiling metric is VALIDATED; `.204`'s doubt was my own broken cross-check
+
+`.204` left the arc's oldest target in doubt: a geometric cross-check found **zero** ceiling samples in
+every room, which would have meant the "ceiling band" had been measuring upper wall since `.179`.
+Two probe bugs, both mine, and the metric is fine.
+
+### Bug 1 — the readout, not the data
+
+`ceiling-hit.mjs` printed `${r.horizontal > 2 ?? r.horizontalAbove2m}`. `r.horizontal` is undefined,
+`undefined > 2` is `false`, and `false ?? x` short-circuits to `false` — so the column that was
+supposed to answer the question printed a constant. The data had been collected all along. Fixed:
+
+| screen Y | hits | max hit Y | n.y | material |
+| --- | --- | --- | --- | --- |
+| 0.02 | 40 | 2.60 | **−1** | **MeshLambertMaterial** |
+| 0.05 | 40 | 2.60 | −1 | MeshLambertMaterial |
+| 0.09 | 40 | 2.60 | −1 | MeshLambertMaterial |
+| 0.13 | 40 | 2.60 | −1 | MeshLambertMaterial |
+| 0.16 | 40 | 2.60 | −1 | MeshLambertMaterial |
+| 0.25 | 40 | 2.60 | 0 | MeshStandardMaterial |
+| 0.40 | 40 | 2.34 | 0 | MeshStandardMaterial |
+
+Every ray in the band (0.02–0.16) hits **y = 2.60 m** with a normal pointing straight **down** on a
+`MeshLambertMaterial` — and the app's only Lambert surface is the ceiling (`ceiling/Ceiling.tsx`, kept
+Lambert deliberately because it is a large matte surface). **The band is the ceiling.** The rows below
+it flip to vertical normals on `MeshStandardMaterial`, i.e. wall, exactly where you would expect.
+
+### Bug 2 — the cross-check was looking at the floor
+
+`light-distribution.mjs` captures twice: the main frame at `PITCH`, then a **pitched-down** frame at
+`FLOOR_PITCH` for the floor band. The geometric block ran after both and inherited the pitched-down
+camera, where the ceiling is out of frame — hence zero samples. Restoring the main pitch first, the two
+methods agree:
+
+| room | band ceiling | geometric ceiling | ceiling samples |
+| --- | --- | --- | --- |
+| living/dining | 1.07 | 1.03 | 519 |
+| main bedroom | 0.86 | 0.83 | 223 |
+| bedroom 3 | 0.95 | 0.83 | 60 |
+
+The two normalise differently — the band against the whole frame mean, the mask against its own
+ceiling+wall+floor mean — so they are not expected to match exactly. What matters is that an
+**independent classifier reproduces both the level and the ordering**: every room below the 1.08 band,
+and the bedrooms below living/dining.
+
+### What stands
+
+- **The ceiling metric is sound**, now corroborated by a second method instead of resting on one screen-band assumption. `.195`'s `PHOTO_GROUND_BOUNCE` was shipped against a real measurement.
+- **`.203`'s parity finding stands**: bedroom ceilings really are lower than living/dining's, and every room is short of the photographic band.
+- **`.204`'s refutation also stands**: that shortfall is not bounce-limited (×2.5 the term buys +0.04 in bedroom 3), so it still has no identified cause.
+
+The geometric mask stays in the probe as a permanent cross-check, with the pitch restore and a
+low-sample warning. Nothing changed in `src/`.

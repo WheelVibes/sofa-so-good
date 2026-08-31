@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.205 — the ceiling metric is VALIDATED; `.204`'s doubt was a broken cross-check
+
+`.204` left the arc's oldest target in doubt — a geometric cross-check found zero ceiling samples,
+which would have meant the ceiling band had been measuring upper wall since `.179`. Two probe bugs,
+both mine, and the metric is fine.
+
+**Bug 1, the readout not the data.** `ceiling-hit.mjs` printed `${r.horizontal > 2 ?? r.horizontalAbove2m}`
+— `undefined > 2` is `false` and `false ?? x` short-circuits, so the deciding column printed a constant.
+Fixed, every ray in the band (screen Y 0.02–0.16) hits **y = 2.60 m** with normal pointing straight
+**down** on a **MeshLambertMaterial** — and the app's only Lambert surface is the ceiling. The rows
+below flip to vertical normals on MeshStandardMaterial, i.e. wall. **The band is the ceiling.**
+
+**Bug 2, the cross-check was looking at the floor.** `light-distribution.mjs` captures the main frame at
+`PITCH` and then a pitched-down frame at `FLOOR_PITCH`; the geometric block ran after both and inherited
+the pitched-down camera. Restoring the pitch first, the two methods agree:
+
+| room | band ceiling | geometric ceiling | samples |
+| --- | --- | --- | --- |
+| living/dining | 1.07 | 1.03 | 519 |
+| main bedroom | 0.86 | 0.83 | 223 |
+| bedroom 3 | 0.95 | 0.83 | 60 |
+
+They normalise differently so exact agreement is not expected; what matters is that an independent
+classifier reproduces the level AND the ordering.
+
+**What stands:** the ceiling metric is sound and now cross-checked by a second method; `.203`'s parity
+finding stands (bedroom ceilings really are lower, every room short of 1.08); and `.204`'s refutation
+stands too (the shortfall is not bounce-limited), so it still has no identified cause.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.204 — the bedroom ceiling is not bounce-limited, and the ceiling metric is in doubt
 
 `.203` blamed the bedroom ceiling shortfall on a global bounce term that does not scale with room size.
