@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.232 — ceiling / wall is pose-dependent, so the ceiling deficit is unproven
+
+Every measurement in this arc has been in the default flat's living/dining; 19 templates ship. This
+round went looking for parity elsewhere and found a methodology bug instead.
+
+A `walk-tour` of `tpl-hdb-maisonette` (`PHOTO=1 FURNISH=1`, 28 frames) showed the photographic look
+holding on a second plan with no new artifacts. `light-distribution.mjs` has no `PLAN` knob, so
+measurement used the same plan's other rooms via `WINDOW=`.
+
+**mainBedroom at the canonical pitch −0.06:** far-wall samples **0** (too shallow to split), and
+**ceiling / wall = 0.68** against living/dining's 0.88 and the photographic band 0.90–1.00. Plausible —
+a small room's ceiling is lit proportionally more by the bounce the app lacks. But that ceiling is a
+grazing sliver of only **223 samples**, concentrated at the darkest part of any ceiling. So the room was
+re-shot pitched up:
+
+| pose | mainBedroom | livingDining |
+| --- | --- | --- |
+| pitch −0.06 (canonical) | **0.68** (223 samples) | **0.88** |
+| pitch +0.28 | **0.96** (1961) | **0.95** (2296) |
+
+Frames inspected: broad ceiling, HUD masked, no junction band dominating.
+
+The small-room hypothesis is refuted. The control refutes something larger: **ceiling / wall moves
+0.68 → 0.96 in one room, one hour, one lighting state, from pitch alone.** `.206` adopted it as
+composition-independent; it is not. The ceiling deficit of `.188` — since quoted as one of three faces
+of absent GI (`.226`) — rests on it at the canonical downward pitch; pitched up, both rooms sit INSIDE
+the photographic band.
+
+Not a claim the deficit is imaginary: pitched up, the wall band is upper-wall only, so neither number is
+privileged. What is established is narrower — **the ceiling deficit is unproven** until the app's pose
+and the reference photographs' are matched. Same error class `.207` corrected for `%<64`, on the metric
+adopted to replace it.
+
+**Open item:** re-derive the photographic band with each source photograph's approximate pitch recorded,
+then re-measure the app at the matching pitch.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.231 — `PHOTO_FILL_SCALE` is not the lever for the two remaining deviations
 
 Two measurements point the same way for the photographic look: floor grain **1.6×** a photograph's at

@@ -1154,3 +1154,16 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
   in `CHANGELOG.md`).
+
+## Main-bedroom sconces float over the window glass (v0.31.5.232)
+
+`light-distribution.mjs WINDOW=mainBedroom` puts the camera on the bed axis, and the frame shows the
+bed's headboard against the **window** wall with two wall sconces mounted **on the glass**. Real rooms
+never do this, so it reads as a render bug even though the render is correct — it is a placement result.
+
+`docs/interior-design-guidelines.md` already says storage/appliances/beds go flush to walls and TVs to
+windowless walls; the same windowless-wall preference plainly ought to apply to a **headboard**, and
+wall-mounted lighting should refuse a wall opening outright. Fix belongs in
+`layout/designRules.ts` + `layout/autoArrange.ts`, not in the look.
+
+Not touched in `.232`, which was a measurement round.

@@ -4642,3 +4642,61 @@ with the levers this codebase has is in band, and the two things outside it are 
 board-match and a missing feature respectively — neither of which a constant can fix.
 
 Nothing changed in `src/`.
+
+---
+
+## `.232` — ceiling ÷ wall is pose-dependent, so the ceiling deficit is unproven
+
+Every measurement in this arc has been taken in the default flat's living/dining. 19 plan templates
+ship, so this round went looking for parity elsewhere — and found a methodology bug instead.
+
+A `walk-tour` of `tpl-hdb-maisonette` (`PHOTO=1 FURNISH=1`, 28 frames, 12:53) showed the photographic
+look holding on a second plan with no new artifacts. Measuring it was the problem:
+`light-distribution.mjs` has no `PLAN` knob, so the substitute was the same plan's OTHER rooms via
+`WINDOW=`, on the theory that a shallower room would show a different wall falloff.
+
+**mainBedroom, canonical pitch −0.06:** far-wall samples **0** (the room is too shallow for the split),
+and **ceiling / wall = 0.68** against the living/dining's 0.88 and the photographic band 0.90–1.00.
+
+A ceiling deficit that deepens in a small room is physically plausible — a small room's ceiling is lit
+proportionally more by bounce, and bounce is what's missing. But the ceiling in that frame is a grazing
+sliver at the top of the image, only **223 samples**, concentrated in the darkest part of any ceiling:
+the wall junction. So before believing it, the same room was re-shot pitched up.
+
+| pose | mainBedroom | livingDining |
+| --- | --- | --- |
+| pitch −0.06 (canonical) | **0.68** (223 ceiling samples) | **0.88** |
+| pitch +0.28 | **0.96** (1961 samples) | **0.95** (2296 samples) |
+
+Both frames were inspected: broad, evenly-lit ceiling and upper wall, HUD masked, no junction band
+dominating. The crops are clean.
+
+### What this means
+
+The small-room hypothesis is **refuted** — pitched up, the bedroom matches the living room to within
+0.01. But the control refutes something larger: **ceiling ÷ wall moves 0.68 → 0.96 in one room, at one
+hour, under one lighting state, from camera pitch alone.** `.206` adopted it as composition-independent;
+it is not.
+
+That matters because the ceiling deficit of `.188` — quoted since as one of the three faces of absent GI
+(`.226`) — rests on this metric measured at the canonical downward pitch. At a pitch that samples the
+ceiling broadly, both rooms sit **inside** the 0.90–1.00 photographic band.
+
+This is not a claim that the deficit is imaginary. The two poses do not sample the same *wall*
+population either: pitched up, the wall band is upper-wall only. Neither number is privileged. What is
+established is narrower and sufficient:
+
+> The app's ceiling ÷ wall cannot be quoted against photographs unless the app's pose and the
+> photograph's are matched. Until that match is made, **the ceiling deficit is unproven** — the same
+> error class `.207` corrected for `%<64`, on a metric adopted as its replacement.
+
+**Open item (needs the reference set, not a code change):** re-derive the photographic band with the
+approximate pitch of each source photograph recorded, then re-measure the app at the matching pitch.
+Only then does a deficit — or its absence — mean anything.
+
+Nothing changed in `src/`.
+
+### Aside, logged not fixed
+
+The `mainBedroom` frame shows the bed's headboard against the **window** wall with two wall sconces
+floating over the glass. That is a placement result, not a look one — filed in `TODO.md`.
