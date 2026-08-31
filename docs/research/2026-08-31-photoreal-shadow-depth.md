@@ -5183,3 +5183,56 @@ bounce/curtain pair needed (`.235`). Nothing is retuned here.
 
 `src/scene/look.ts` restored from `/tmp/look240.bak.ts` and verified (`intensity: 4.5`, empty `src/`
 diff). Nothing changed in `src/`.
+
+---
+
+## `.242` — the AO trade, swept: no point satisfies both floor metrics
+
+`.241` established that the floor micro-contrast overshoot is mostly the AO pass, and that a lever
+therefore exists — but that AO was tuned against a *different* floor metric. This round swept it, at
+`medium`, measuring both bands (and a third that turned up on the way).
+
+| AO radius / intensity | floor micro/mean<br>band 0.032–0.076 | under ÷ open<br>band 0.579–0.725 | open-floor sd/mean<br>glossy band 0.156–0.218 |
+| --- | --- | --- | --- |
+| 1.0 / **4.5 (shipped)** | 0.1207 ✗ | **0.712 ✓** | 0.293 ✗ |
+| 1.0 / 3.0 | 0.0905 ✗ | 0.756 ✗ | 0.217 ✓ |
+| 1.0 / 2.0 | **0.0743 ✓** | 0.785 ✗ | 0.173 ✓ |
+| 1.0 / ~0 (`.241`) | 0.0602 ✓ | — | — |
+| **0.4 / 6.5** | 0.1117 ✗ | 0.749 ✗ | 0.243 ✗ |
+
+**No tested point satisfies both.** The two bands pull in opposite directions precisely *because* AO is
+their shared cause: more AO deepens the contact shadow (helping under ÷ open) and simultaneously adds
+broad floor variation (hurting micro-contrast). Getting floor micro into band needs intensity ≤ ~2.0;
+holding under ÷ open needs ≥ ~4.5, since 3.0 already reads 0.756.
+
+**The short-radius escape fails.** The idea was contact-only occlusion: a tight radius should darken
+where surfaces meet without spraying variation across open floor. At 0.4 / 6.5 it is worse on **all
+three** — 0.749 on the shadow ratio and 0.243 on floor variation. `.223` had already found a metre-scale
+radius efficient; this is the other end of that curve, and it confirms the shipped choice from the
+opposite direction.
+
+### A third metric, and what the shipped point actually buys
+
+`underside-shadow.mjs` also reports **open-floor sd/mean** against photographs at matte 0.037–0.051 and
+glossy 0.156–0.218. The app's default floor is semi-gloss vinyl oak, so the glossy band applies — and at
+shipped AO the app reads **0.293**, outside it; at 3.0 it would be 0.217, just inside.
+
+So at the shipped point **two of three floor metrics are out of band and one is in**. That is not an
+oversight, and it is the right call, but it should be stated explicitly rather than left implicit:
+
+> The shipped AO protects **under ÷ open**, the one metric of the three with a *recorded visual defect*
+> attached — `.183`'s underside defect, which `underside-shadow.mjs` prints as "a term that lifts this
+> above ~0.73". The two it sacrifices are statistical. A measured picture defect outranks a statistic.
+
+That is the same ordering `.187` used when it retracted a fabric retune, and `.230` when it refused to
+trade a board-match for a number. **Nothing is retuned.**
+
+`src/scene/look.ts` restored from `/tmp/look241.bak.ts` and verified (`aoRadius: 1.0`, `intensity: 4.5`,
+empty `src/` diff).
+
+### What would actually fix it
+
+Not an AO constant. The two bands are only in conflict because one screen-space pass is doing two jobs —
+contact occlusion and surface-scale shading. Real inter-reflection separates them, which puts this in the
+same place as the wall falloff (`.226`, `.236`): reachable only by the feature this codebase has
+repeatedly measured as too expensive, and not by a constant.

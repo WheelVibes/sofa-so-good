@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.242 — the AO trade, swept: no point satisfies both floor metrics
+
+`.241` established that the floor micro-contrast overshoot is mostly the AO pass, so a lever exists —
+but AO was tuned against a *different* floor metric. Swept at `medium`, measuring both bands and a third
+that turned up on the way:
+
+| AO radius / intensity | floor micro/mean<br>band 0.032–0.076 | under / open<br>band 0.579–0.725 | open-floor sd/mean<br>glossy band 0.156–0.218 |
+| --- | --- | --- | --- |
+| 1.0 / **4.5 (shipped)** | 0.1207 ✗ | **0.712 ✓** | 0.293 ✗ |
+| 1.0 / 3.0 | 0.0905 ✗ | 0.756 ✗ | 0.217 ✓ |
+| 1.0 / 2.0 | **0.0743 ✓** | 0.785 ✗ | 0.173 ✓ |
+| 1.0 / ~0 (`.241`) | 0.0602 ✓ | — | — |
+| **0.4 / 6.5** | 0.1117 ✗ | 0.749 ✗ | 0.243 ✗ |
+
+**No tested point satisfies both.** The bands pull in opposite directions precisely because AO is their
+shared cause: more AO deepens the contact shadow (helping under / open) while adding broad floor
+variation (hurting micro-contrast). Floor micro needs intensity ≤ ~2.0; under / open needs ≥ ~4.5, since
+3.0 already reads 0.756.
+
+**The short-radius escape fails.** Contact-only occlusion at 0.4 / 6.5 is worse on **all three**. `.223`
+found a metre-scale radius efficient; this is the other end of that curve, confirming the shipped choice
+from the opposite direction.
+
+**A third metric:** `underside-shadow.mjs` reports open-floor sd/mean against photographs at matte
+0.037–0.051 and glossy 0.156–0.218. The default floor is semi-gloss vinyl oak, so the glossy band
+applies — the app reads **0.293** at shipped AO, outside it.
+
+So at the shipped point **two of three floor metrics are out of band and one is in**. That is the right
+call and should be explicit: the shipped AO protects **under / open**, the one metric of the three with a
+*recorded visual defect* attached (`.183`, printed by the probe as "a term that lifts this above ~0.73").
+The two it sacrifices are statistical, and a measured picture defect outranks a statistic — the same
+ordering `.187` and `.230` used. **Nothing is retuned**; `look.ts` restored and verified.
+
+**What would actually fix it:** not an AO constant. The bands conflict only because one screen-space pass
+does two jobs — contact occlusion and surface-scale shading. Real inter-reflection separates them, which
+puts this alongside the wall falloff (`.226`, `.236`): reachable only by the feature repeatedly measured
+as too expensive.
+
 ## v0.31.5.241 — the floor "micro-contrast" is mostly AO, and `.230`'s attribution was wrong
 
 `.240` left a floor-specific residual: `performance` drops 2.2× on floor micro-contrast against 1.4× on
