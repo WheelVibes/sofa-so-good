@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.215 — `.214`'s diagnosis was wrong: the shader runs, the TIER has no range
+
+`.214` concluded "the patched shader is not running at all on the `performance` tier". **Retracted.**
+Asking the renderer instead of the image (`drape-check.mjs`, new):
+
+| | medium | performance |
+| --- | --- | --- |
+| drapery materials | 2 | 2 |
+| `customProgramCacheKey` | `drape-translucency-4.000` | same |
+| `onBeforeCompile` present | yes | yes |
+| compiled programs carrying the marker | 7 | **9** |
+| `scene.environment` | true | false |
+
+The patch compiles and runs on both. `.214` inferred absence from a null in the image — the inference
+this arc keeps getting burned by.
+
+**What is actually happening:** the tier has no range in a window-facing pose.
+
+| tier | curtains | window plane | room |
+| --- | --- | --- | --- |
+| performance | open | 188.3 | 183.1 |
+| performance | **drawn** | 188.6 | **183.1** |
+| medium | drawn | 96.5 | **69.9** (from 101.0 open) |
+
+At `performance`, drawing every curtain changes the room by **0.0** and the plane by 0.3 — curtain,
+glazing and wall all sit at 183–188, one flat near-saturated field, so any room-relative ratio collapses
+to ~1.0. That is the 1.03 `.214` reported, and it explains why the hemisphere diagnostic looked inert:
+adding irradiance to a surface already at 188 moves it barely.
+
+The same tier is unremarkable at the light-distribution pose (118.8 / 9.19 % vs medium 111.1 / 14.39 %),
+so the failure is pose-specific — facing the window is where it runs out of headroom.
+
+**This is `.163`'s limitation from a new angle:** `performance` has no IBL, no AO, and a fill that
+compensates for the missing environment light, so the photographic look — which is defined by removing
+fill to create range — has little to remove. The curtain term is not broken there; the look is thin.
+Worth stating plainly: **the tier the capability veto hands most phones does not deliver the
+photographic look.**
+
+Nothing changed in `src/`.
+
 ## v0.31.5.214 — the curtain term does not work on `performance`, and the IBL fallback is not why
 
 Every number in this arc was measured at `medium`. Across tiers the shipped curtain translucency does

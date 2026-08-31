@@ -3853,3 +3853,59 @@ returns a tier-independent string, so a program compiled under one tier's define
 explanation worth testing directly rather than reasoning about.
 
 Nothing changed in `src/`.
+
+---
+
+## `.215` — `.214`'s diagnosis was wrong: the shader runs, the TIER has no range
+
+`.214` concluded "the patched shader is not running at all on the `performance` tier". That is
+**retracted**. Asking the renderer instead of the image (`drape-check.mjs`, new) settles it:
+
+| | medium | performance |
+| --- | --- | --- |
+| drapery materials in scene | 2 | 2 |
+| material type | MeshPhysicalMaterial | MeshPhysicalMaterial |
+| `customProgramCacheKey` | `drape-translucency-4.000` | `drape-translucency-4.000` |
+| `onBeforeCompile` present | yes | yes |
+| compiled programs carrying the marker | 7 | **9** |
+| `scene.environment` | true | false |
+
+The patch compiles and runs on both. `.214` inferred absence from a null in the image, which is exactly
+the inference this arc has been burned by repeatedly — and the diagnostic that *looked* decisive there
+(an unconditional hemisphere term moving medium but not performance) has a simpler explanation, below.
+
+### What is actually happening
+
+The tier's problem is that it has no RANGE in a window-facing pose. Measured at the curtain probe's
+pose, 3 m from the glass:
+
+| tier | curtains | window plane | room |
+| --- | --- | --- | --- |
+| performance | open | 188.3 | 183.1 |
+| performance | **drawn** | 188.6 | **183.1** |
+| medium | open | — | 101.0 |
+| medium | **drawn** | 96.5 | **69.9** |
+
+**At `performance`, drawing every curtain in the room changes the room by 0.0 and the window plane by
+0.3.** Curtain, glazing and the surrounding wall all sit at 183–188 — one flat, near-saturated field.
+Any ratio taken against the room therefore collapses to ~1.0, which is precisely the 1.03 `.214`
+reported. Adding irradiance to a surface already at 188 moves it barely, which is why the hemisphere
+diagnostic looked inert there.
+
+Note the same tier is unremarkable at the *light-distribution* pose (frame mean 118.8, `%<64` 9.19 %
+against medium's 111.1 / 14.39 %). The failure is pose-specific: facing the window is where the tier
+runs out of headroom.
+
+### What this is really an instance of
+
+`.163` already recorded that `performance` "cannot reach the `%<64` band at all" — it has no IBL, no
+AO, and a fill scale that compensates for the missing environment light. This is the same limitation
+seen from a different angle: the photographic look, which is defined by *removing* fill to create
+range, has little range to work with on the tier that has no indirect lighting to remove.
+
+So the curtain term is not broken on `performance`; the photographic look is thin there, and every
+term measured against the room inherits that. Fixing it means giving that tier range — a tier-design
+question about what `performance` should render, not a curtain fix — and it is worth stating plainly
+that **the tier the capability veto hands most phones does not deliver the photographic look**.
+
+Nothing changed in `src/`. `drape-check.mjs` added.
