@@ -5121,3 +5121,65 @@ shading-wide effect is present and is part of the story; it cannot be the whole 
 floor-specific remains — **named as the next hypothesis, not claimed as a finding.**
 
 Nothing changed in `src/`.
+
+---
+
+## `.241` — the floor "micro-contrast" is mostly AO, and `.230`'s attribution was wrong
+
+`.240` left a floor-specific residual: `performance` drops 2.2× on floor micro-contrast against 1.4× on
+walls, and texture resolution was already refuted.
+
+**First hypothesis, refuted.** If the driver were gloss × IBL — the floor being semi-gloss so an absent
+environment map costs it more than matte plaster — then a matte floor should barely move across tiers.
+Using the probe's `FLOOR=` knob:
+
+| floor | performance | medium | drop |
+| --- | --- | --- | --- |
+| `floor-carpet` (matte) | 0.1652 | 0.3066 | **1.86×** |
+| `floor-tile-marble` (glossy) | 0.0588 | 0.1368 | **2.33×** |
+| `floor-vinyl-oak` (shipped default) | 0.0549 | 0.1207 | 2.20× |
+
+Carpet drops nearly as much as marble. Gloss is not the discriminator.
+
+**Second hypothesis, confirmed by intervention.** `EffectsImpl` gives `performance` the MINIMAL composer
+— *"the view transform and nothing else"* — with **no AO**, while `medium` runs AO-only at
+`AO.intensity` 4.5 and `high`/`maximum` run the full stack at `AO.intensityPost` 7. The four readings
+order monotonically with AO dose, which is a dose-response curve. Testing it directly by setting
+`AO.intensity` to 0.01 and re-running `medium`:
+
+| | floor micro/mean at reference scale |
+| --- | --- |
+| `performance` — no AO | 0.0549 |
+| **`medium` — AO forced to 0.01** | **0.0602** |
+| `medium` — AO 4.5 (shipped) | 0.1207 |
+| `high` / `maximum` — AO 7 | 0.164 / 0.165 |
+
+Medium-without-AO lands next to performance-without-AO. **The metric this arc has called "floor
+micro-contrast" is more than half ambient occlusion.**
+
+### What this corrects
+
+`.230` concluded the floor reads **1.6×** a photograph's micro-contrast, and declined to act because the
+floor painters are board-matched ground truth (SNV-BOARDS) — *"retuning a board-matched painter to hit
+0.076 would trade verified physical fidelity for a statistic"*. That reasoning was sound but aimed at
+the wrong object: **the painters were never what the metric was measuring.** `.231` then swept
+`PHOTO_FILL_SCALE` looking for the lever and found none, and `.239` read the tier inversion as possibly
+"blur" — both are explained by this.
+
+### And it turns the deviation from unfixable into a coupled trade
+
+`.230` recorded that no lever was available. One is: **`AO.intensity`.** But it is not free, and it must
+not be moved on this result alone — AO was tuned in `.222`/`.223` against the **shadowed ÷ lit floor**
+ratio, where the shipped point reads 0.722 inside a 0.579–0.725 photographic band. So the shipped AO
+satisfies one validated floor metric while pushing another out.
+
+Note the comparison direction is the honest one: real photographs contain real ambient occlusion, so
+app-**with**-AO against photo is the correct comparison, and 0.121–0.165 against 0.032–0.076 is a
+genuine overshoot. The no-AO readings are diagnostic only.
+
+**Next round, not this one:** sweep `AO.intensity` against *both* floor metrics together and find
+whether a point exists that holds both bands — the same "retune both together or neither" discipline the
+bounce/curtain pair needed (`.235`). Nothing is retuned here.
+
+`src/scene/look.ts` restored from `/tmp/look240.bak.ts` and verified (`intensity: 4.5`, empty `src/`
+diff). Nothing changed in `src/`.

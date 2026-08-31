@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.241 — the floor "micro-contrast" is mostly AO, and `.230`'s attribution was wrong
+
+`.240` left a floor-specific residual: `performance` drops 2.2× on floor micro-contrast against 1.4× on
+walls, with texture resolution already refuted.
+
+**Gloss × IBL, refuted.** If an absent environment map cost a semi-gloss floor more than matte plaster,
+a matte floor should barely move across tiers. Via the probe's `FLOOR=` knob:
+
+| floor | performance | medium | drop |
+| --- | --- | --- | --- |
+| `floor-carpet` (matte) | 0.1652 | 0.3066 | **1.86×** |
+| `floor-tile-marble` (glossy) | 0.0588 | 0.1368 | **2.33×** |
+| `floor-vinyl-oak` (default) | 0.0549 | 0.1207 | 2.20× |
+
+**AO, confirmed by intervention.** `EffectsImpl` gives `performance` the MINIMAL composer with **no AO**;
+`medium` runs AO-only at `AO.intensity` 4.5, `high`/`maximum` the full stack at `intensityPost` 7 — and
+the readings order monotonically with AO dose. Setting `AO.intensity` to 0.01 and re-running `medium`:
+
+| | floor micro/mean at reference scale |
+| --- | --- |
+| `performance` — no AO | 0.0549 |
+| **`medium` — AO forced to 0.01** | **0.0602** |
+| `medium` — AO 4.5 (shipped) | 0.1207 |
+| `high` / `maximum` — AO 7 | 0.164 / 0.165 |
+
+Medium-without-AO lands next to performance-without-AO. **The metric this arc calls "floor
+micro-contrast" is more than half ambient occlusion.**
+
+**What this corrects:** `.230` declined to act on the 1.6× overshoot because the floor painters are
+board-matched ground truth. That reasoning was sound but aimed at the wrong object — **the painters were
+never what the metric measured.** `.231`'s fruitless `PHOTO_FILL_SCALE` sweep and `.239`'s "blur"
+reading are both explained by this.
+
+**It also turns an unfixable deviation into a coupled trade.** A lever does exist — `AO.intensity` — but
+AO was tuned in `.222`/`.223` against the **shadowed / lit floor** ratio, shipped at 0.722 inside a
+0.579–0.725 photographic band. The shipped AO satisfies one validated floor metric while pushing another
+out. (Comparison direction is honest: real photographs contain real ambient occlusion, so app-with-AO vs
+photo is correct; the no-AO readings are diagnostic only.)
+
+**Next round:** sweep `AO.intensity` against *both* floor metrics together — the same "retune both
+together or neither" discipline the bounce/curtain pair needed (`.235`). Nothing is retuned here;
+`look.ts` restored from backup and verified.
+
 ## v0.31.5.240 — the `performance` floor-grain result is NOT texture resolution
 
 `.239` found the floor micro-contrast overshoot inverts by tier (`performance` **0.0549**, inside the
