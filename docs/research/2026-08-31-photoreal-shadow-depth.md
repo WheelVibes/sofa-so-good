@@ -5381,3 +5381,49 @@ Duplicating that pose logic into a second probe is how it goes stale.
 is, with the result and the dollhouse caveat in its header.
 
 Nothing changed in `src/`.
+
+---
+
+## `.246` — a pose-matched path-traced still, and no trustworthy number from it yet
+
+`.245` established the tracer runs headlessly. This round built the instrument and ran it.
+
+**The instrument works.** `light-distribution.mjs` gained a `PT=1` branch, placed there rather than in a
+standalone probe so it inherits the ~180 lines of window match, standoff clamp and arrival-checked
+teleport — the pose must be identical in both images, and `.245`'s standalone attempt rendered the orbit
+dollhouse for exactly that reason. Result: **49 samples in ~100 s**, and the still is unmistakably the
+same walk pose as the raster frame — TV left, window centre, sofa right, fan overhead. The branch is
+off by default and the raster path is unchanged (same run printed `far/near = 0.74`, identical to every
+prior capture).
+
+**No trustworthy measurement came out of it.** Three attempts, three contaminated crops, each caught by
+looking:
+
+| attempt | contamination |
+| --- | --- |
+| near/far wall bands | a pillar/corner shadow in the raster crop; a curtain edge in the traced crop |
+| right-wall column profile | clean, but see below — wrong wall |
+| ceiling ÷ wall hand-crop | the fan's downrod and a firefly smear in the traced ceiling crop |
+
+The root problem is structural, not carelessness: the probe's falloff number comes from a **geometric
+world-normal mask plus distance-from-window split** over thousands of samples, and that mask cannot be
+applied to the tracer's canvas — there is no depth or normal readback for it. Hand-cropped bands are not
+the same measurement, and a 49-sample image is dense with small features that make eyeball crops fragile.
+
+**One observation worth keeping, offered as observation not measurement.** Column profiles across the
+right wall, window-side → camera-side:
+
+> raster 127 122 124 131 132 133 134 135 · traced 132 132 132 132 133 134 134 135
+
+Both are essentially **flat** — the raster's dip at columns 2–3 is the corner shadow visible in the crop.
+So the right wall is simply not where the falloff lives; the probe's 116 → 85 split draws on a much
+larger wall population. That is useful for designing the next attempt rather than a result about GI.
+
+**Next step, concrete:** render the still at the **viewport's 16:10 aspect** instead of 1920×1080. The
+probe's original fixed *fractional* bands with HUD cutouts need no geometry at all, so at a matched aspect
+they transfer to the traced image directly and both pictures get measured by identical code. The
+resolution is a modal dropdown, so this is a probe change, not an app change.
+
+**Status: instrument built and verified, GI diagnosis still untested.** It remains what it has been since
+`.226` — a conclusion by elimination, now with a working way to test it that has not yet produced a
+number I would stand behind.

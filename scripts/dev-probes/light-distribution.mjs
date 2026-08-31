@@ -294,6 +294,59 @@ console.log(
   `light-distribution  ${JSON.stringify({ ...state, arrival, window: pose.id, standoff: +pose.standoff.toFixed(2), standoffAsked: STANDOFF, pitch: PITCH })}`,
 )
 console.log(`frame -> ${OUT}/frame.png`)
+
+// PT=1 — additionally capture a PATH-TRACED still of THIS pose (`.246`).
+//
+// The point is to test, rather than infer, the diagnosis this arc has carried
+// since `.226`: that the wall-falloff gap is absent inter-reflection. The HQ
+// still uses real light transport, so if its falloff lands near the photographic
+// 0.85-0.86 while the raster pose reads 0.74, GI is confirmed as the cause.
+//
+// It lives HERE rather than in a standalone probe because the pose above --
+// window match, standoff clamp, arrival-checked teleport, pitch -- is ~180 lines
+// that must be identical in both images. `.245`'s feasibility probe skipped it
+// and rendered the orbit dollhouse, which is `.218`'s trap all over again.
+if (process.env.PT === '1') {
+  const want = Number(process.env.PTSAMPLES || 48)
+  await page.evaluate((v) => window.__walkLook?.setPitch(v), PITCH)
+  await new Promise((r) => setTimeout(r, 600))
+  await page.evaluate(() => window.__store.getState().setHqRenderOpen?.(true))
+  await new Promise((r) => setTimeout(r, 2500))
+  const started = await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find(
+      (x) => (x.textContent || '').trim() === 'Start render',
+    )
+    if (!b) return false
+    b.click()
+    return true
+  })
+  if (!started) throw new Error('PT: no Start render button')
+  const t0 = Date.now()
+  let got = 0
+  while (Date.now() - t0 < 600_000) {
+    const m = await page.evaluate(() => {
+      const t = document.body.innerText || ''
+      const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+      return r ? Number(r[1]) : null
+    })
+    if (m != null) got = m
+    if (got >= want) break
+    await new Promise((r) => setTimeout(r, 4000))
+  }
+  // Screenshot the tracer's own canvas element, not the page: the modal chrome,
+  // the blurred scrim behind it and the resolution pills are all DOM, and every
+  // contaminated crop in this arc came from including DOM in a measured region.
+  const ptCanvas = await page.evaluateHandle(() => {
+    const list = [...document.querySelectorAll('canvas')]
+    // The tracer canvas is the one INSIDE the open dialog.
+    const dlg = document.querySelector('[role="dialog"], .modal, dialog')
+    return (dlg && list.find((c) => dlg.contains(c))) || list[list.length - 1]
+  })
+  const el = ptCanvas.asElement()
+  if (!el) throw new Error('PT: no tracer canvas')
+  fs.writeFileSync(`${OUT}/pathtraced.png`, await el.screenshot({ type: 'png' }))
+  console.log(`pathtraced (${got} samples) -> ${OUT}/pathtraced.png`)
+}
 // --- analysis -------------------------------------------------------------
 // Fixed fractional bands, with the two HUD rectangles cut out so the toolbar and
 // the minimap never count as "ceiling" or "floor".

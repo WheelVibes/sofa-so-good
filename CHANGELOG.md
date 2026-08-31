@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.246 — a pose-matched path-traced still, and no trustworthy number from it yet
+
+**The instrument works.** `light-distribution.mjs` gained a `PT=1` branch — placed there rather than in a
+standalone probe so it inherits the ~180 lines of window match, standoff clamp and arrival-checked
+teleport, since `.245`'s standalone attempt rendered the orbit dollhouse for want of exactly that.
+**49 samples in ~100 s**, and the still is unmistakably the same walk pose as the raster frame. The branch
+is off by default and the raster path is unchanged (same run printed `far/near = 0.74`, identical to every
+prior capture).
+
+**No trustworthy measurement came out of it.** Three attempts, three contaminated crops, each caught by
+looking: a pillar/corner shadow and a curtain edge in the near/far wall bands; the fan's downrod and a
+firefly smear in the traced ceiling crop. The root problem is structural — the probe's falloff number
+comes from a **geometric world-normal mask plus distance-from-window split** over thousands of samples,
+and that mask cannot be applied to the tracer canvas (no depth or normal readback). Hand-cropped bands are
+not the same measurement, and a 49-sample image is dense with small features that make eyeball crops
+fragile.
+
+**One observation, offered as observation not measurement.** Column profiles across the right wall,
+window-side → camera-side: raster `127 122 124 131 132 133 134 135`, traced `132 132 132 132 133 134 134
+135`. Both essentially **flat** (the raster dip is the corner shadow). So the right wall is not where the
+falloff lives; the probe's 116 → 85 split draws on a much larger population. Useful for designing the next
+attempt, not a result about GI.
+
+**Next step:** render the still at the **viewport's 16:10 aspect** instead of 1920×1080. The probe's fixed
+*fractional* bands with HUD cutouts need no geometry, so at a matched aspect they transfer directly and
+both pictures get measured by identical code. The resolution is a modal dropdown — a probe change, not an
+app change.
+
+**Status: instrument built and verified, GI diagnosis still untested.** Nothing changed in `src/`.
+
 ## v0.31.5.245 — the GI diagnosis is now testable: the path tracer runs headlessly
 
 Since `.226` this arc has attributed the wall-falloff gap (0.74 against a photographic 0.85–0.86) to
