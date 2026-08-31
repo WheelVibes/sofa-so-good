@@ -203,3 +203,18 @@ describe('PHOTO_GRAIN_OPACITY — sensor grain for the photographic look', () =>
     expect(PHOTO_GRAIN_OPACITY).toBeCloseTo(0.07, 6)
   })
 })
+
+describe('AO.intensityPost — compensation for the full post stack', () => {
+  it('is stronger than the AO-only value', () => {
+    // `.222`: the full stack costs 0.06 of contact-shadow ratio (high reads 0.786
+    // with it, 0.726 with the AO-only composer), and AO buys less than half as
+    // much there (0.126 vs medium's 0.286) on identical `<N8AO>` props.
+    expect(AO.intensityPost).toBeGreaterThan(AO.intensity)
+  })
+
+  it('stays at the value that lands high and maximum in band', () => {
+    // Swept at high: 4.5 -> 0.786, 6 -> 0.742, 7 -> in band, 7.5 -> 0.702.
+    // Shipped 7 gives high 0.716 and maximum 0.691 against 0.579-0.725.
+    expect(AO.intensityPost).toBeCloseTo(7, 6)
+  })
+})

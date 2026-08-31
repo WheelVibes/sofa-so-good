@@ -79,8 +79,20 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   · It also repaid what `PHOTO_GROUND_BOUNCE` cost: the photographic look's `%<64` went 11.88 →
     7.18 % with the bounce and back to **10.43 %** with this, and the DEFAULT look entered the
     photographic range for the first time (1.32 → **2.03 %**, photographs start at 1.9 %).
-  · **Free** — N8AO's cost is sample-count driven and neither knob changes it; `frame-time.mjs`
-    reads medium p90 8.3 ms against the 8.4 ms documented above.
+  · **The FULL post stack needs a stronger AO, and `look.AO.intensityPost` (7) supplies it (`.222`).**
+    Isolated by toggling `postprocessing` at `high`: with the full stack the shadowed/lit floor ratio
+    reads **0.786**, with the AO-only minimal composer **0.726** — those passes cost **0.06** of
+    contact shadow. AO also buys less than half as much there (0.126 against `medium`'s 0.286) on
+    IDENTICAL `<N8AO>` `quality`/`halfRes` props. `EffectsImpl` passes
+    `intensity={full ? AO.intensityPost : AO.intensity}`, keyed to the CAUSE rather than to a tier
+    name. Result: high **0.786 → 0.716**, maximum **0.761 → 0.691**, medium unchanged at 0.712, all
+    against photographs at 0.579–0.725.
+  · **`performance` is out of band at 0.827 and that is by design** — it has `ao: false`, so it has no
+    screen-space AO at all and leans on the RZ1 `ContactShadow` blob decals. Note the earlier 0.721
+    figure for that tier was measured with a SINGLE pose while every other tier used the pooled
+    eight; single-pose readings are not comparable (medium reads 0.746 single against 0.712 pooled).
+  · **Free** — N8AO's cost is sample-count driven and none of these knobs change it; `frame-time.mjs`
+    reads medium p90 8.3 ms, high 10.1 ms and maximum 10.6 ms, all matching the documented baselines.
 
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`

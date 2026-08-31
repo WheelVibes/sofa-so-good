@@ -4193,3 +4193,47 @@ per-tier AO or bloom retune and the cause is not yet isolated — the next step 
 stack's individual passes against this metric the way `feature-price.mjs` does for frame cost.
 
 Nothing changed in `src/`.
+
+---
+
+## `.222` — SHIPPED: the post stack costs 0.06 of contact shadow, and AO now compensates for it
+
+`.221` found `high` and `maximum` outside the contact-shadow band and *suspected* the full post stack
+without testing it. Tested:
+
+| `high` | shadowed ÷ lit floor |
+| --- | --- |
+| full post stack (shipped) | **0.786** |
+| `postprocessing: false` → AO-only composer | **0.726** |
+
+The extra passes cost **0.06**, and that is the whole gap. `medium` runs the AO-only composer and sits
+at 0.712, so the tiers were never differently *lit* — they were differently *post-processed*.
+
+`AO.intensityPost` (7) compensates, passed as
+`intensity={full ? AO.intensityPost : AO.intensity}` — keyed to the full stack rather than to a tier
+name, so a tier that stops mounting it stops needing the compensation. Swept at `high`: 4.5 → 0.786,
+6 → 0.742, 7 → in band, 7.5 → 0.702.
+
+| tier | before | after | band |
+| --- | --- | --- | --- |
+| medium | 0.712 | 0.712 | 0.579–0.725 |
+| high | **0.786** | **0.716** | ✓ |
+| maximum | **0.761** | **0.691** | ✓ |
+
+Free: `frame-time.mjs` reads high p90 10.1 ms and maximum 10.6 ms, both matching the documented
+baselines — AO's cost is sample-count driven and intensity does not change it.
+
+### A correction to `.221`'s table
+
+That table listed `performance` at **0.721**, in band. It was measured with a **single pose** while
+every other tier used the pooled eight, so it was never comparable. Pooled, `performance` reads
+**0.827** — and the single-pose figures differ for every tier (medium reads 0.746 single against 0.712
+pooled), so the mistake was mixing the two, not the tier.
+
+`performance` being out of band is expected rather than a defect: it has `ao: false`, so it carries no
+screen-space AO at all and leans on the RZ1 `ContactShadow` blob decals for grounding. Like the default
+look's brightness (`.213`), that is a tier-design consequence, not something the photographic look can
+fix.
+
+So the honest tier table for this metric is now: **medium 0.712, high 0.716, maximum 0.691 — all in
+band; performance 0.827, out of band by design.**

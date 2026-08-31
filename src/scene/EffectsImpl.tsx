@@ -151,7 +151,7 @@ export default function EffectsImpl({
         key="ao"
         aoRadius={AO.aoRadius}
         distanceFalloff={AO.distanceFalloff}
-        intensity={AO.intensity}
+        intensity={full ? AO.intensityPost : AO.intensity}
         quality={aoFullRes ? 'high' : 'medium'}
         halfRes={!aoFullRes}
       />,

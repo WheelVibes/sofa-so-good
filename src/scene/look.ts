@@ -610,6 +610,21 @@ export const AO = {
   aoRadius: 1.0,
   distanceFalloff: 1.2,
   intensity: 4.5,
+  /**
+   * Intensity for the FULL post stack (`high`/`maximum`). Higher than the
+   * AO-only value because those tiers' extra passes wash contact shading out.
+   *
+   * Isolated in `.222` by toggling `postprocessing` at `high`: with the full
+   * stack the shadowed/lit floor ratio reads **0.786**, with the AO-only minimal
+   * composer **0.726** — the same passes cost **0.06** of contact shadow. AO
+   * also buys less there (0.126 against `medium`'s 0.286) despite `<N8AO>`
+   * receiving identical `quality`/`halfRes` props on both tiers.
+   *
+   * Swept at `high`: 4.5 -> 0.786, 6 -> 0.742, **7 -> in band**, 7.5 -> 0.702.
+   * Keyed to `full` rather than to a tier name, so it tracks the CAUSE — a tier
+   * that stops mounting the full stack stops needing the compensation.
+   */
+  intensityPost: 7,
 } as const
 
 /**

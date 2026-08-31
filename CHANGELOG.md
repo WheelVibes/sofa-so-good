@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.222 — SHIPPED: the post stack costs 0.06 of contact shadow; AO now compensates
+
+`.221` suspected the full post stack without testing it. Tested, at `high`:
+
+| | shadowed ÷ lit floor |
+| --- | --- |
+| full post stack (shipped) | **0.786** |
+| `postprocessing: false` → AO-only composer | **0.726** |
+
+The extra passes cost **0.06**, which is the whole gap. `medium` runs the AO-only composer and sits at
+0.712 — the tiers were never differently *lit*, they were differently *post-processed*.
+
+`AO.intensityPost` (7) compensates, passed as `intensity={full ? AO.intensityPost : AO.intensity}` —
+keyed to the full stack rather than a tier name, so a tier that stops mounting it stops needing the
+compensation. Swept at high: 4.5 → 0.786, 6 → 0.742, 7 → in band, 7.5 → 0.702.
+
+| tier | before | after |
+| --- | --- | --- |
+| medium | 0.712 | 0.712 |
+| high | **0.786** | **0.716** |
+| maximum | **0.761** | **0.691** |
+
+Free — high p90 10.1 ms, maximum 10.6 ms, matching documented baselines.
+
+**Correction to `.221`'s table:** it listed `performance` at 0.721, in band. That was a **single-pose**
+measurement while every other tier used the pooled eight, so it was never comparable. Pooled,
+`performance` reads **0.827**. The single-pose figures differ for every tier (medium 0.746 single vs
+0.712 pooled) — the mistake was mixing the two. `performance` being out of band is expected: it has
+`ao: false`, no screen-space AO at all, and leans on the RZ1 `ContactShadow` decals.
+
+Honest table: **medium 0.712, high 0.716, maximum 0.691 in band; performance 0.827, out by design.**
+
 ## v0.31.5.221 — tier-parity audit: three shipped terms clean, one is not
 
 `.220` closed the curtain's tier gap; the same check applied to everything else this arc shipped:
