@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.201 — the parity check found a mask bug, not a parity gap
+
+`.200` tuned the curtain term on one window. Checking the others looked like a clean regional failure
+— living/dining 1.41 against bedrooms at 1.14 and 1.10 — and the frame refuted it: the bedroom curtain
+is plainly bright, cream and woven.
+
+**The mask was measuring the wall.** `curtain-glow.mjs` classified samples by distance from the window
+plane along the wall NORMAL only, and the wall *beside* a window is in that same plane. The narrower
+the covering relative to its wall, the more wall was averaged in — which is exactly why the bedrooms
+looked worse. Bounding the mask by the opening's own width as well:
+
+| window | before | after |
+| --- | --- | --- |
+| living/dining | 1.41 | **1.73** |
+| main bedroom | 1.14 | **1.71** |
+| bedroom 2 | 1.10 | **1.48** |
+
+The parity gap disappears (1.71 vs 1.73) and was never real — `.181`'s lesson in a new place.
+
+**Which means `.200` shipped an over-tuned constant.** `t=14` reached 1.41 on a mask that under-read
+the curtain by ~0.3; corrected it measures **1.73**, past the photographic 1.32–1.48. Re-swept and
+shipped **t=6 → 1.40**, with micro-sd **12.62** against the 4.10 baseline (micro/mean 0.106, inside
+the photographs' 0.066–0.198). Across the app: **1.40 / 1.32 / 1.20**; night 1.05, no glow; default
+look 1.12. The `.200` mechanism is unchanged — only its constant moved.
+
+`RollerBlind` needs no work: it already builds fabric through `getDraperyMaterial`, so blinds inherit
+the term. Venetian slats keep their inline material, which is right — aluminium is opaque.
+
 ## v0.31.5.200 — SHIPPED: drapery scatters light forward
 
 `.199` refuted both cheap models and named what was needed: diffuse transmission that responds to the

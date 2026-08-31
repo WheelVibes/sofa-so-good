@@ -891,7 +891,7 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `drapeTranslucency.ts` patches the drapery material through `onBeforeCompile` to add back-side
   irradiance to `irradiance` just before `RE_IndirectDiffuse` consumes it: `saturate(dot(-N, L))`
   per directional light, plus `getIBLIrradiance(-N)` under `USE_ENVMAP`. Strength is
-  `look.CURTAIN_TRANSLUCENCY` (14), folded into the fabric cache key, and passed ONLY by
+  `look.CURTAIN_TRANSLUCENCY` (6), folded into the fabric cache key, and passed ONLY by
   `getDraperyMaterial` — upholstery sits against something and never reads backlit.
   · **Why a shader chunk and not a constant.** A photographed curtain over daylight measures
     **1.32–1.48** of the room's mean; the app measured **0.59**. `.199` built the two cheap
@@ -904,8 +904,8 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     transmitter.
   · **The wrap term does the opposite, which is the whole point.** Because it responds to the
     normal, a fold whose back faces the window brightens and its neighbour does not: micro-sd goes
-    **4.10 → 15.00** (micro/mean 0.099, inside the photographs' 0.066–0.198) while the ratio reaches
-    **1.41**. More texture, not less.
+    **4.10 → 12.62** (micro/mean 0.106, inside the photographs' 0.066–0.198) while the ratio reaches
+    **1.40**. More texture, not less.
   · **`customProgramCacheKey` is REQUIRED** alongside `onBeforeCompile` — three caches programs by
     material type + defines, so without it patched and unpatched fabric of the same type share one
     program and whichever compiled first wins for both.
@@ -913,6 +913,11 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     frames while the probe's fills ~35 %, so a brighter curtain inflates the very mean it is
     divided by and the ratio saturates. `scripts/dev-probes/curtain-glow.mjs` prints both and
     labels which to compare.
+  · **And bound the window mask by the opening's WIDTH, not just its plane depth (`.201`).** The
+    wall beside a window is in the same plane; counting it as curtain cost ~0.3 of ratio and
+    invented a parity gap — the bedrooms read ~0.25 low purely because their curtains are narrower
+    than their walls. Corrected, the app measures **1.40 / 1.32 / 1.20** across living-dining,
+    main-bedroom and bedroom-2, with no gap to chase.
   · Night is untouched by construction (the lights are then in FRONT of the cloth): 22:00 measures
     **0.92**. Free — `frame-time.mjs` medium p90 8.3 ms, unchanged.
 

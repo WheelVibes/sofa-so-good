@@ -3111,3 +3111,59 @@ compiled first wins for BOTH — which would have applied the curtain's wrap ter
 silently dropped it, depending on load order. `drapeTranslucency.test.ts` pins it, along with the
 injection order and the fact that the chunk references the shading normal at all — the property whose
 absence is exactly why `.199`'s emissive failed.
+
+---
+
+## `.201` — the parity check found a mask bug, not a parity gap
+
+`.200` tuned the curtain term on the living/dining window alone. Checking the other windows is what
+this round was for, and the first pass looked like a clear regional failure:
+
+| window | 09:00 | 13:00 | 17:00 |
+| --- | --- | --- | --- |
+| living/dining | 1.31 | 1.41 | 1.35 |
+| main bedroom | 1.00 | **1.14** | 1.08 |
+| bedroom 2 | 0.99 | **1.10** | 1.10 |
+
+A tidy story — the term works where it was tuned and not elsewhere. The frame refuted it: the bedroom
+curtain is plainly bright, cream and woven, exactly like the living/dining one.
+
+### The mask was measuring the wall
+
+`curtain-glow.mjs` classified a sample as "window plane" by its distance from the window's plane along
+the wall NORMAL only. The wall *beside* a window is in that same plane, so it counted as curtain — and
+the narrower the covering relative to its wall, the more wall got averaged in. That is why the
+bedrooms looked worse: their curtains cover less of their walls, not less of their windows.
+
+Bounding the mask by the opening's own width (±15 %) as well as its depth:
+
+| window | before (depth only) | after (depth + width) |
+| --- | --- | --- |
+| living/dining | 1.41 | **1.73** |
+| main bedroom | 1.14 | **1.71** |
+| bedroom 2 | 1.10 | **1.48** |
+
+**The parity gap disappears** — 1.71 against 1.73 — and it was never real. This is `.181`'s lesson
+again in a new place: a mask defined by one coordinate admits everything that shares it.
+
+### Which means `.200` shipped an over-tuned value
+
+`t=14` was chosen to reach 1.41 on a mask that under-read the curtain by ~0.3. On the corrected mask
+it measures **1.73**, well past the photographic 1.32–1.48. Re-swept: **t=6 → 1.40**, t=9 → 1.56,
+t=14 → 1.73. Shipped **6**.
+
+| | plane/ROOM | curtain mean | micro-sd | micro/mean |
+| --- | --- | --- | --- | --- |
+| baseline (t=0) | 0.59 | 58 | 4.10 | 0.0705 |
+| emissive 1.6 (`.199`, refuted) | — | 180 | 2.62 | 0.0146 |
+| t=14 (`.200`, over-tuned) | 1.73 | 151 | 15.00 | 0.0992 |
+| **t=6 (shipped)** | **1.40** | 120 | **12.62** | 0.1055 |
+| photographs | 1.32–1.48 | | | 0.066–0.198 |
+
+Across the app at t=6 the photographic look measures **1.40 / 1.32 / 1.20** (living-dining, main
+bedroom, bedroom 2), night sits at 1.05 with no glow, and the default look at 1.12. The mechanism
+from `.200` is unchanged and stands; only its constant moved.
+
+`RollerBlind` needs no work — it already builds its fabric through `getDraperyMaterial`, so blinds
+and zebra blinds inherit the term. Venetian slats keep their own inline material, which is right:
+aluminium slats are opaque.

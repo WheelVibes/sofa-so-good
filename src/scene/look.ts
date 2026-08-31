@@ -711,5 +711,16 @@ export function photographicGroundBounce(on: boolean): number {
  * The value is swept against BOTH numbers: the ratio must reach 1.32–1.48 and the
  * absolute micro-sd must stay near its 4.10 baseline. Measure with
  * `scripts/dev-probes/curtain-glow.mjs`.
+ *
+ * **Re-tuned 14 → 6 in `.201`, on a corrected mask.** `.200` measured the window
+ * plane by DEPTH alone, which also caught the wall BESIDE the window — same
+ * plane, not curtain — and that dragged the mean down by roughly 0.3 of ratio.
+ * Bounding the mask to the opening's own width moved the shipped `t=14` reading
+ * from 1.41 to **1.73**, well past the band, and simultaneously erased an
+ * apparent parity gap: the bedrooms had read ~0.25 low purely because their
+ * curtains are narrower than their walls, so more wall fell inside the mask.
+ * At 6 the photographic look measures **1.40 / 1.32 / 1.20** across the
+ * living-dining, main-bedroom and bedroom-2 windows, and micro-sd stays at
+ * **12.62** against the 4.10 baseline.
  */
-export const CURTAIN_TRANSLUCENCY = 14
+export const CURTAIN_TRANSLUCENCY = 6

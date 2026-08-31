@@ -112,7 +112,17 @@ const setup = await page.evaluate(
     const pz = cz + nz * standoff
     return {
       curtains: n,
-      pose: { px, pz, yaw: Math.atan2(-(cx - px), -(cz - pz)), cx, cz, ux, uz, id: op.id },
+      pose: {
+        px,
+        pz,
+        yaw: Math.atan2(-(cx - px), -(cz - pz)),
+        cx,
+        cz,
+        ux,
+        uz,
+        id: op.id,
+        halfWidth: op.width / 2,
+      },
     }
   },
   { h: HOUR, t: TIER, photo: PHOTO, closed: CLOSED, win: WINDOW, standoff: STANDOFF },
@@ -143,9 +153,19 @@ for (let attempt = 1; attempt <= 4; attempt++) {
           rc.setFromCamera({ x: x * 2 - 1, y: 1 - y * 2 }, camera)
           const h = rc.intersectObjects(scene.children, true).find((k) => solid(k.object))
           if (!h) continue
-          // Distance from the window's own plane, measured along its normal.
+          // Distance from the window's own plane, along its normal...
           const d = Math.abs((h.point.x - pose.cx) * -pose.uz + (h.point.z - pose.cz) * pose.ux)
-          out.push({ x, y, inPlane: d <= slab && h.point.y > 0.5 })
+          // ...AND along the wall, because the wall BESIDE a window sits in the
+          // same plane. Depth alone counted that wall as curtain and dragged the
+          // mean down wherever the covering is narrower than the wall — measured
+          // (`.201`), it cost the bedrooms ~0.25 of ratio against living/dining,
+          // which reads as a parity gap that is not there.
+          const along = Math.abs((h.point.x - pose.cx) * pose.ux + (h.point.z - pose.cz) * pose.uz)
+          out.push({
+            x,
+            y,
+            inPlane: d <= slab && along <= pose.halfWidth * 1.15 && h.point.y > 0.5,
+          })
         }
       }
       return out
