@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.231 — `PHOTO_FILL_SCALE` is not the lever for the two remaining deviations
+
+Two measurements point the same way for the photographic look: floor grain **1.6×** a photograph's at
+matched scale (`.230`) and wall falloff **too steep** (0.74 vs 0.85, `.226`). Both are "too much
+contrast", and both would soften with a gentler fill reduction — which made `PHOTO_FILL_SCALE` the
+suspect, especially as `.163` calibrated it against `%<64`, since retired as pose-bound by `.207`.
+
+Swept at `medium`, 0.735 → 0.85:
+
+| | 0.735 (shipped) | 0.85 |
+| --- | --- | --- |
+| ceiling / wall | 0.88 | 0.89 |
+| wall falloff | **0.74** | **0.74** |
+| floor micro/mean (ref scale) | 0.121 | 0.116 |
+
+**Nothing moves** — the falloff is identical and the floor shifts 0.005 for a 16 % fill change.
+Refuted.
+
+**Why:** `.216`'s light census reads hemisphere 0.1, ambient 0.03, sun 1.0, fixtures 36 total. With the
+curtains OPEN — the state this pose measures — the analytical fill is a small share of the room's light,
+so scaling it barely registers. (It *is* dominant behind drawn curtains, where `.216` saw −53 %; a
+different state, not a contradiction.)
+
+So neither deviation is reachable from the fill knob: **floor grain** is set by board-matched painters
+(SNV-BOARDS), and **wall falloff** needs inter-reflection that `.189`–`.195` showed nothing cheap
+reproduces and `.226` showed the hemisphere cannot supply. Everything reachable with this codebase's
+levers is in band; the two things outside it are held there by a board-match and a missing feature.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.230 — the floor measured properly: a modest OVERSHOOT, and the board match outranks it
 
 `.229` left floor micro-contrast unmeasurable from a screen rectangle. Fixed by certifying the region

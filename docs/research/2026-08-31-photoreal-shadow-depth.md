@@ -4598,3 +4598,47 @@ Recorded as a bounded observation: **the app's floor grain reads about 1.1–1.6
 matched scale**, largest under the photographic look, and the reference is four crops.
 
 Nothing changed in `src/`.
+
+---
+
+## `.231` — `PHOTO_FILL_SCALE` is not the lever for the two remaining deviations
+
+Two measurements point the same way for the photographic look: its floor grain reads **1.6×** a
+photograph's at matched scale (`.230`) and its wall falloff is **too steep** (0.74 against 0.85,
+`.226`). Both are "too much contrast", and both would soften if the fill reduction were gentler — which
+made `PHOTO_FILL_SCALE` the obvious suspect, especially since `.163` calibrated it against `%<64`, a
+target `.207` has since retired as pose-bound.
+
+Swept at `medium`, 0.735 → 0.85:
+
+| | 0.735 (shipped) | 0.85 |
+| --- | --- | --- |
+| ceiling / wall | 0.88 | 0.89 |
+| wall falloff | **0.74** | **0.74** |
+| floor micro/mean (ref scale) | 0.121 | 0.116 |
+
+**Nothing moves.** The falloff is identical to two decimals and the floor shifts by 0.005 for a 16 %
+change in the fill. Hypothesis refuted.
+
+### Why, and what it implies
+
+`.216` censused the live lights: hemisphere **0.1**, ambient **0.03**, sun **1.0**, fixtures **36**
+total. With the curtains open — which is the state this pose measures — the analytical fill that
+`photographicFillScale` scales is a small share of what lights the room, so scaling it by 1.16× barely
+registers. (The fill *is* dominant behind drawn curtains, which is where `.216` saw a −53 % swing; that
+is a different state, not a contradiction.)
+
+So neither remaining deviation is reachable from the fill knob:
+
+- **Floor grain** is set by the floor painters' normal strength, and those are board-matched ground
+  truth (SNV-BOARDS, `snvBoards.test.ts`). `.230` already declined to trade that for a four-crop
+  statistic.
+- **Wall falloff** needs inter-reflection, which `.189`–`.195` established nothing cheaper than real GI
+  reproduces, and `.226` showed `PHOTO_GROUND_BOUNCE` cannot supply because the hemisphere's ground term
+  has no distance dependence.
+
+That is a reasonably complete answer for where the photographic look now stands: everything reachable
+with the levers this codebase has is in band, and the two things outside it are held there by a
+board-match and a missing feature respectively — neither of which a constant can fix.
+
+Nothing changed in `src/`.
