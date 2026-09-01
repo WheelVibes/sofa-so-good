@@ -133,6 +133,58 @@ if (process.env.LIGHTS === 'off') {
   })
   console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidate items`)
 }
+// CEIL_STD=1 swaps the LIVE ceiling's MeshLambertMaterial for an equivalent
+// MeshStandardMaterial (roughness 0.9, metalness 0) -- the same stand-in
+// v0.31.5.253 gives the tracer, but applied to the RASTER instead.
+//
+// This is the control the ceiling comparison needs. `.253` fixed the tracer's
+// mirror ceiling by substituting inside the tracer snapshot only, which leaves
+// the comparison CROSS-MATERIAL: raster Lambert against traced Standard. Lambert
+// is pure diffuse; Standard at 0.9 still carries a weak specular lobe and an
+// environment response. So before any residual ceiling gap can be called light
+// transport, the Lambert-to-Standard delta has to be measured on the raster side
+// where nothing else changes.
+if (process.env.CEIL_STD === '1') {
+  const swapped = await page.evaluate(() => {
+    const { scene } = window.__three
+    // No `three` import available in page scope -- lift the constructor off an
+    // existing Standard material in the scene.
+    let Std = null
+    scene.traverse((o) => {
+      if (Std || !o.isMesh) return
+      const m = Array.isArray(o.material) ? o.material[0] : o.material
+      if (m?.isMeshStandardMaterial && !m.isMeshPhysicalMaterial) Std = m.constructor
+    })
+    if (!Std) return { error: 'no MeshStandardMaterial in scene to borrow' }
+    const cache = new Map()
+    let n = 0
+    scene.traverse((o) => {
+      if (!o.isMesh) return
+      const mats = Array.isArray(o.material) ? o.material : [o.material]
+      const next = mats.map((m) => {
+        if (!m?.isMeshLambertMaterial) return m
+        if (cache.has(m)) return cache.get(m)
+        const sub = new Std({
+          color: m.color?.clone?.(),
+          map: m.map ?? null,
+          side: m.side,
+          transparent: !!m.transparent,
+          opacity: m.opacity ?? 1,
+          roughness: 0.9,
+          metalness: 0,
+        })
+        cache.set(m, sub)
+        return sub
+      })
+      if (next.some((m, i) => m !== mats[i])) {
+        o.material = Array.isArray(o.material) ? next : next[0]
+        n++
+      }
+    })
+    return { meshes: n, materials: cache.size }
+  })
+  console.log(`CEIL_STD=1  live Lambert->Standard: ${JSON.stringify(swapped)}`)
+}
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')

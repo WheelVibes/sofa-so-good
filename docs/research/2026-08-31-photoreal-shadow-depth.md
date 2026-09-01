@@ -6001,3 +6001,139 @@ Not fixed here: it is a `src` change to shipped appearance, and it deserves its 
 before/after HQ still.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.253` — fixing the tracer's mirror ceiling repairs the instrument, and the ceiling deficit returns
+
+`.252` filed the HQ still's mirror ceiling as item (n) with two candidate fixes and did not take either.
+This round builds the recommended one. The point worth stating up front: the fix is not only a product fix.
+The mirror was the reason the cross-surface instrument had to be abandoned, so removing it is what makes
+the second half of this section possible.
+
+Runs 04:41–04:53 local (2026-09-02). `medium`, photographic look, 13:00, `livingDining`, standoff 4.6,
+pitch −0.06, 16:9, `LIGHTS=off`, 15×15 = 225 world samples per 0.24 m patch, camera identity verified.
+
+### Fix 1
+
+`pbrStandInFor` in `hqRenderSession.ts` substitutes a matte `MeshStandardMaterial` for every
+`MeshLambertMaterial` and `MeshPhongMaterial` **inside the tracer snapshot**, copying colour, maps, side,
+transparency, emissive and vertex-colour state, setting `metalness: 0`, and setting roughness to 0.9 for
+Lambert or mapping Phong's `shininess` monotonically back onto roughness so a deliberately shiny Phong
+stays shinier than a matte one. Substitutes are cached one per source material and disposed on every
+session exit path, since the live scene holds no reference to them.
+
+Scoped to the snapshot on purpose. The live scene keeps its Lambert materials, so the rasterised viewport
+cannot move, and every raster figure this arc has published keeps its meaning.
+
+`MeshBasicMaterial` is deliberately **not** substituted. It is unlit by intent — window panes, screens, the
+sky sphere — so giving it a PBR response would change what it is rather than correct how it is read. Whether
+the tracer reads Basic correctly is a separate, unmeasured question.
+
+**Verification.**
+
+| | before (`.252`) | after (`.253`) |
+| --- | --- | --- |
+| traced ceiling, 3 anchors | 150.3 | **140.7** |
+| traced ceiling reproducibility | 8 % drift across 48/101/251 (`.251`) | 140.2 @151, 140.7 @251 — **0.4 %** |
+| raster anchors | 129.0 / 131.2 / 131.9 | 128.9 / 131.1 / 131.8 |
+| the reflection | window rectangle, AC unit, curtain rail, ghost fan blade all legible | **none** |
+
+Looked at, both times. The improved reproducibility is a bonus worth noting: a mirror surface converges
+slowly and throws fireflies, so the artefact was itself a large part of the variance `.251` measured.
+
+### Fix 2, answered by measurement rather than by argument
+
+`.252` warned that converting the 14 ceiling meshes scene-wide would change viewport appearance and re-base
+every published ceiling figure. `CEIL_STD=1` tests that directly, swapping the **live raster** ceiling to
+Standard(0.9) with nothing else touched:
+
+| raster ceiling (3 anchors) | frame mean | `%<64` |
+| --- | --- | --- |
+| `MeshLambertMaterial` (shipped) | 108.2 | 13.58 % |
+| **113.0** | | |
+| `MeshStandardMaterial` 0.9 | 108.2 | 13.58 % |
+| **112.9** | | |
+
+**0.09 % on the ceiling, nothing at all on the frame.** The re-basing worry was unfounded. Fix 2 is
+therefore a **performance** question — Lambert is the cheaper shader and the ceiling is a full-room surface
+at the `performance` tier — and it buys nothing visible now that fix 1 has repaired the path that was
+broken. Recorded as: don't, absent a separate reason to unify materials.
+
+### The instrument, repaired — and `.188` returns
+
+`.252` had to abandon cross-surface raster-vs-traced ratios because they measured material-interpretation
+mismatch. With Lambert substituted, the ceiling joins plaster on the valid list, and the comparison that
+`.252` could not trust can now be run.
+
+| pair | raster | traced | raster ÷ traced |
+| --- | --- | --- | --- |
+| wall A / wall B — **control** | 1.278 | 1.237 (251) · 1.245 (151) | **1.033 · 1.027** |
+| **wall B / ceiling** | 1.115 · 1.109 | 0.938 (251) · 0.934 (151) | **1.189 · 1.186** |
+
+Per-anchor, 251 samples: wall B raster 128.9 / 131.1 / 131.8 against traced 132.3 / 133.0 / 133.2 (≤ 2.6 %);
+ceiling raster 100.7 / 114.5 / 121.1 against traced 142.8 / 137.0 / 142.4.
+
+**The raster's ceiling is ~16 % too dark relative to its wall** (1 ÷ 1.187 = 0.842); the traced ceiling is
+~25 % brighter in absolute terms.
+
+`.234` retired `.188`'s ceiling deficit for a good reason: measured the way the photographs were measured,
+the app's 0.93 sat inside their 0.91–1.03. `.251` then showed why that comparison could not have settled it
+either way — ceiling brightness and wall falloff are properties of the window-to-wall geometry before they
+are properties of the renderer, and photo D's geometry was never recorded. Against a physically-based
+reference **in the same room**, the deficit is there.
+
+Five controls, because a claim that reverses a retirement needs them:
+
+1. **Same scene** — one camera, one set of world anchors, two renderers. None of the five confounds this
+   arc has catalogued (`.232` pose, `.233` method, `.239` tier, `.247`/`.249` framing, `.251` scene) is
+   available.
+2. **A same-material control passes inside the same frame** — wall plaster, `MeshStandardMaterial` 0.92,
+   agrees to ≤ 2.6 % per anchor and ~3 % on the wall A / wall B pair. So the traced picture is not
+   uniformly offset; if it were, the walls would be offset too. This is the control that makes the ceiling
+   number mean something.
+3. **The material control passes** — the ceiling pair is raster-Lambert against traced-Standard, which
+   looks cross-material, but the live-raster swap above moves the raster ceiling by 0.09 %.
+4. **The artefact is removed** — `.252`'s +27 % contained a specular window reflection. +18.9 % survives
+   its removal.
+5. **Reproduced** at 151 and 251 samples, spread 0.003.
+
+### This is the symptom `.226`'s mechanism actually produces
+
+The ceiling receives almost no direct window light: the window sits below it and daylight enters going in
+and down. So the ceiling is lit almost entirely by inter-reflection off the floor and walls — and
+`.226`/`.235` established that the rasteriser's hemisphere ground term lights every surface equally at half
+weight with **no distance dependence**, with `.189`–`.195` refuting the cheap stand-ins.
+
+That mechanism has been correct since `.226`. What was wrong was the symptom attached to it: wall falloff
+with distance, which `.251` refuted (real transport also produces a flat wall, because the aperture is 71 %
+of the end wall). **The ceiling is the symptom absent inter-reflection actually produces**, and it is the
+one `.188` guessed at first, three months and sixty rounds ago, without an instrument that could confirm it.
+
+`PHOTO_GROUND_BOUNCE` (shipped at 3) exists precisely to lift the ceiling. `.234` retired its motivation
+and explicitly parked the question of whether it still earns its keep. The motivation is back, and this
+time with a target: **+16 % of ceiling relative to wall, measured against a physically-based reference in
+the same scene.**
+
+Filed as open item **(o) CEILING-BOUNCE**. Closing it means changing the fill/bounce model, which moves
+shipped appearance on every tier and re-bases the `%<64` and region-ratio figures this arc is calibrated on
+— so whether to close it is a call. Pricing it is a measurement, and it is the obvious next round: sweep
+`PHOTO_GROUND_BOUNCE` and the hemisphere ground term against the new target and report what closes the
+16 % and what it costs elsewhere.
+
+### Still unexplained
+
+The rug (`MeshPhysicalMaterial`, roughness 0.95) reads raster 218.0 against traced 105–116 — a factor ~2 in
+the *other* direction, unaffected by this fix, n = 1. Roughness cannot explain it; sheen or clearcoat
+interpretation is the suspect. Explicitly not claimed as anything.
+
+The tracer's per-material validity list now stands at:
+
+| material | valid as a reference? |
+| --- | --- |
+| `MeshStandardMaterial` | ✅ agrees ≤ 2.6 % |
+| `MeshLambertMaterial` / `MeshPhongMaterial` | ✅ via the `.253` substitute |
+| `MeshPhysicalMaterial` | ❌ factor ~2, unexplained |
+| `MeshBasicMaterial` | untested (unlit by intent, not substituted) |
+
+`src/` changed: `hqRenderSession.ts`, tracer snapshot only, plus three unit tests.
