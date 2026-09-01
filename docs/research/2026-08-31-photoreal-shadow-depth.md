@@ -7457,3 +7457,101 @@ nothing is wrong with the metric or the crop, and the number is simply insensiti
 was calibrating against a case where the answer was already known by eye.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.267` — chroma separation: the app is not deficient, and the reference set can never settle the hours that matter
+
+`.266` established that the luminance metrics are exhausted for the window question. This round changes axis
+to one the arc has never worked: **colour**.
+
+There is an unfinished thread to pick up. `.237` measured the app's 19:00 pane at R−B 21.0 against a wall at
+21.3 and concluded *"at the hour when interior photography most depends on warm-interior-against-cool-exterior
+separation, the app has none."* Nothing followed it up for thirty rounds.
+
+Runs 07:46–07:50 local (2026-09-02).
+
+### The metric
+
+**Chroma separation = (wall R−B) − (glazing R−B)**, both taken within the same image.
+
+Absolute R−B is meaningless across images — it is set by white balance. The *difference between two surfaces
+in one frame* is not: both share that frame's white balance, so the separation survives. That makes this the
+first metric in the arc that is white-balance invariant by construction, which is a genuine advantage over
+every luminance metric built since `.226`.
+
+Implemented as a colour buffer alongside the existing luminance one, with per-anchor RGB and a
+glazing-versus-wall separation printed every run (glazing by world-verified signature, wall by plaster
+signature, n ≈ 1725).
+
+### The app across the day
+
+Canonical pose, `medium`, photographic look:
+
+| hour | glazing RGB | glazing R−B | wall R−B | **separation** | reading |
+| --- | --- | --- | --- | --- | --- |
+| 09:00 | 147/145/145 | 1.5 | 5.9 | **4.4** | slight cool window |
+| 13:00 | 160/162/165 | −5.0 | 4.4 | **9.4** | cool window, warm wall |
+| 17:00 | 183/172/165 | 18.0 | 6.1 | **−11.8** | **inverted** — window warmer |
+| 19:00 | 149/140/128 | 21.3 | 26.4 | **5.1** | both warm — `.237`'s case |
+| 21:00 | 23/23/21 | 1.8 | 28.8 | **27.0** | neutral pane, warm interior |
+
+This is a real day-curve, not a flat absence. The 17:00 **inversion** is worth noting: under a low warm sun
+the window is warmer than the room, which is physically right and is arguably the correct photographic look
+for that hour. `.237` saw only the 19:00 point and generalised from it.
+
+### The reference, measured identically
+
+`p233-Home_Staging_Beisp` — the `.233` qualifier — three hand-cropped pane interiors and a clean interior
+wall, all visually verified:
+
+| region | content | R−B | separation vs wall |
+| --- | --- | --- | --- |
+| wall | pale interior plaster | 9.0 | — |
+| pane, left | open sky, roof, bare branches | 7.5 | **+1.5** |
+| pane, middle | a sunlit neighbouring wall | 13.6 | **−4.6** |
+| pane, right | a shaded porch, wooden door | 13.0 | **−4.0** |
+
+**|separation| ≤ 4.6, and the sign varies from pane to pane.** That is the expected physics: in a daylit
+interior, inside and outside are lit by the *same* daylight, so there is little to separate.
+
+A second wall candidate was **rejected by looking** — it had a dark wooden ladder rail running through it,
+which would have shifted R−B by pigment rather than by light.
+
+### The result
+
+**The app is not deficient on this axis.** At daylight hours it shows **4.4–9.4** against the photograph's
+**≤ 4.6** — the same order, if anything slightly more separation than the reference. `.237`'s *"the app has
+none"* is not supported as a defect anywhere a reference exists, and at 21:00 the app shows a strong **27.0**,
+consistent with `.236` recording 21:00 as already correct.
+
+### The structural finding, which is worth more than the negative
+
+`.233`'s screening criteria **require daylit photographs** — that is criterion one, and it exists for good
+reasons (`.233`/`.234` rejected flash, HDR and AI stock on it).
+
+But chroma separation only becomes large at **golden hour and dusk**, when interior lamps burn against a blue
+sky. So:
+
+> **The arc's reference set is, by construction, incapable of adjudicating the hours where this axis
+> matters** — including the 19:00 case `.237` flagged. Every screened photograph is daylit; every one of them
+> will show ≈ 0 separation, forever.
+
+This is not a gap that more screening effort closes. It needs a **deliberately different screen**: dusk
+interiors, lamps on, sky still visible in frame — with its own confounds, since real-estate dusk shots are
+frequently long exposures, mixed colour temperature, and heavily graded. That is a distinct piece of work,
+and it is now specified rather than assumed.
+
+It also generalises: a reference set screened for one axis can be structurally blind on another. The `.233`
+criteria were designed for *luminance* comparisons of plaster, and they serve that well. Reusing them on a
+new axis without re-deriving them is the same error as reusing a metric on a new population — `.249`, `.260`,
+`.266`.
+
+### Caveat
+
+R−B conflates **paint** with **illumination**. The app's wall is `#f5f5f0`, whose own R−B is 5 — so the
+13:00 wall reading of 4.4 is essentially all paint, and the app's daylight wall carries no warm illumination
+tint beyond its pigment. The photograph's paint is unknown and cannot be decomposed. Within-image separation
+is still the perceptually relevant quantity; it simply is not a pure measure of light.
+
+Nothing changed in `src/` beyond the version bump.

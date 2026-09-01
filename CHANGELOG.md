@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.267 — chroma separation: the app is not deficient, and the reference set can never settle the hours that matter
+
+`.266` established the luminance metrics are exhausted for the window. So this round changes axis to one the
+arc has never worked: **colour**. `.237` measured the app's 19:00 pane at R−B 21.0 against a wall at 21.3 and
+concluded *"at the hour when interior photography most depends on warm-interior-against-cool-exterior
+separation, the app has none"* — and nothing followed it up for thirty rounds.
+
+**New metric: chroma separation = (wall R−B) − (glazing R−B)**, taken within one image. It is white-balance
+invariant in the way that matters — both surfaces share the frame's white balance, so their *difference* is
+meaningful even though absolute R−B is not.
+
+**The app across the day**, 13:00-style canonical pose, `medium`, photographic look, glazing selected by
+world-verified signature and wall by plaster signature (n ≈ 1725):
+
+| hour | glazing R−B | wall R−B | **separation** | reading |
+| --- | --- | --- | --- | --- |
+| 09:00 | 1.5 | 5.9 | **4.4** | slight cool window |
+| 13:00 | −5.0 | 4.4 | **9.4** | cool window, warm wall |
+| 17:00 | 18.0 | 6.1 | **−11.8** | **inverted** — window *warmer* |
+| 19:00 | 21.3 | 26.4 | **5.1** | both warm — `.237`'s case, confirmed |
+| 21:00 | 1.8 | 28.8 | **27.0** | neutral pane, warm lamp-lit interior |
+
+So the app's chroma behaviour is a real day-curve, not a flat absence: strong at 21:00, moderate at 13:00,
+**inverted at 17:00** — which is physically sensible under a low warm sun and is arguably the correct
+photographic look for that hour.
+
+**And the reference, measured the same way.** `p233-Home_Staging_Beisp`, the `.233` qualifier, hand-cropped
+and visually verified — three panes and a clean interior wall (R−B 9.0):
+
+| pane | what is behind it | R−B | separation vs wall |
+| --- | --- | --- | --- |
+| left | open sky, roof, branches | 7.5 | **+1.5** |
+| middle | a sunlit neighbouring wall | 13.6 | **−4.6** |
+| right | a shaded porch | 13.0 | **−4.0** |
+
+**|separation| ≤ 4.6, and the sign varies pane to pane.** A daylit interior has *almost no* warm/cool
+separation, because inside and outside are lit by the same daylight.
+
+**So the app is not deficient.** At daylight hours it shows **4.4–9.4** against the photograph's **≤ 4.6** —
+the same order, if anything slightly more. `.237`'s "the app has none" is not supported as a *defect*
+anywhere a reference exists, and at 21:00 the app has a strong 27.0, consistent with `.236` recording 21:00
+as already right.
+
+**The structural finding, which is worth more than the negative.** `.233`'s screening criteria *require*
+daylit photographs — that is criterion one. But chroma separation only becomes large at **golden hour and
+dusk**, when interior lamps burn against a blue sky. **So the arc's reference set is, by construction,
+incapable of adjudicating the hours where this axis matters at all** — including the 19:00 case `.237`
+flagged. Every screened photograph is daylit, so every one of them will show ≈ 0 separation, forever.
+
+Settling 19:00 would need a deliberately *different* screen: dusk interiors, lamps on, sky still visible —
+which is a distinct criterion set, with its own confounds (long exposures, mixed colour temperature, heavy
+grading in real-estate dusk shots). That is a real piece of work and it is now specified.
+
+**Caveats, stated.** R−B conflates **paint** with **illumination**: the app's wall is `#f5f5f0`, whose own
+R−B is 5, so its 13:00 wall reading of 4.4 is essentially all paint and the app's daylight wall carries no
+warm illumination tint beyond it. The photograph's paint is unknown, so the two cannot be decomposed. And
+one crop was rejected by looking — a second wall candidate had a **dark wooden ladder rail** through it,
+which would have shifted R−B by pigment.
+
+Probe only: per-anchor RGB, and glazing/wall chroma separation printed every run. `npm test` 9437 passed,
+`tsc` clean, `biome` clean. Nothing changed in `src/` beyond the version bump. Runs 07:46–07:50 local.
+
 ## v0.31.5.266 — the legibility metric cannot be built: the metric is fine, the signal is 5 %
 
 `.265` found that no number could see the difference between an illegible window and a legible one, and left

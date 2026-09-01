@@ -901,6 +901,37 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 **The 21:00 case is already right** (glazing 0.39 of wall, interior warm at R−B 23.4 against a
 neutral pane) — whatever ships must not regress it.
 
+> **v0.31.5.267 — the chroma half of this item is answered, and the reference set cannot settle the rest.**
+>
+> New metric: **chroma separation = (wall R−B) − (glazing R−B)**, within one image, so it is white-balance
+> invariant. The app across the day, canonical pose, `medium`, photographic look:
+>
+> | hour | glazing R−B | wall R−B | **separation** |
+> | --- | --- | --- | --- |
+> | 09:00 | 1.5 | 5.9 | 4.4 |
+> | 13:00 | −5.0 | 4.4 | 9.4 |
+> | 17:00 | 18.0 | 6.1 | **−11.8** (window *warmer*) |
+> | 19:00 | 21.3 | 26.4 | 5.1 |
+> | 21:00 | 1.8 | 28.8 | **27.0** |
+>
+> The reference, measured identically — `p233-Home_Staging_Beisp`, three hand-cropped panes against a clean
+> wall (R−B 9.0): **+1.5, −4.6, −4.0.** A daylit interior has almost **no** warm/cool separation, because
+> inside and outside share the same light, and the sign varies pane to pane.
+>
+> **So the app is not deficient.** Daylight hours give 4.4–9.4 against the photograph's ≤ 4.6 — same order,
+> if anything more. The "no separation" concern below is **not supported as a defect** wherever a reference
+> exists, and 21:00 shows a strong 27.0.
+>
+> **But the reference set can never settle 19:00.** `.233`'s screening *requires* daylit photographs, while
+> chroma separation only becomes large at golden hour and dusk. Every screened photograph will show ≈ 0
+> separation, forever. Settling it needs a deliberately different screen — dusk interiors, lamps on, sky
+> visible — with its own confounds (long exposures, mixed colour temperature, heavy grading in real-estate
+> dusk shots).
+>
+> *Caveat:* R−B conflates paint with illumination. The app's wall is `#f5f5f0`, own R−B 5, so its 13:00
+> reading of 4.4 is essentially all paint — the daylight wall carries no warm illumination tint beyond its
+> pigment. The photograph's paint is unknown.
+
 **A second, narrower finding at 19:00.** The pane is *dimmer* than the wall (0.80) **and tinted
 identically to it** — pane R−B **21.0**, wall R−B **21.3** (`.237`, pane-only). At the hour when interior photography
 most depends on warm-interior-against-cool-exterior separation, the app has none. Some of this is

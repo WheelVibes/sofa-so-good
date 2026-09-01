@@ -976,6 +976,12 @@ if (process.env.PT === '1') {
 const grey = async (buf) =>
   sharp(buf).removeAlpha().greyscale().raw().toBuffer({ resolveWithObject: true })
 const { data, info } = await grey(shot)
+// COLOUR buffer alongside the luminance one (`.267`). `.237` measured the app's
+// 19:00 pane at R-B 21.0 against a wall at R-B 21.3 -- no warm/cool separation at
+// the hour interior photography most depends on it -- and nothing followed it up.
+// Chroma is a different axis from everything `.249`-`.266` measured, and hue is far
+// less exposure- and framing-dependent than luminance.
+const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
 const down = await grey(shotDown)
 const W = info.width
 const H = info.height
@@ -1306,6 +1312,44 @@ const geo = await page.evaluate(
           console.log(
             `      structure: sd ${sd.toFixed(1)}  p05 ${q(0.05)}  p50 ${q(0.5)}  p95 ${q(0.95)}  spread(p95-p05) ${q(0.95) - q(0.05)}  mid-tone(60..240) ${((100 * mid) / vs.length).toFixed(1)} %`,
           )
+          // CHROMA of the glazing population, and its separation from the walls.
+          // A daylit photograph reads warm-interior against cool-exterior (or the
+          // reverse at golden hour); `.237` found the app has none at 19:00.
+          let gr = 0
+          let gg = 0
+          let gb = 0
+          let gn = 0
+          for (const h of geo) {
+            if (h.name !== sig) continue
+            const gx = Math.min(W - 1, Math.floor(h.x * W))
+            const gy = Math.min(H - 1, Math.floor(h.y * H))
+            const o = (gy * W + gx) * 3
+            gr += rgb[o]
+            gg += rgb[o + 1]
+            gb += rgb[o + 2]
+            gn++
+          }
+          let wr = 0
+          let wg2 = 0
+          let wb = 0
+          let wn = 0
+          for (const h of geo) {
+            if (h.name !== 'PlaneGeometry#f5f5f0') continue
+            const gx = Math.min(W - 1, Math.floor(h.x * W))
+            const gy = Math.min(H - 1, Math.floor(h.y * H))
+            const o = (gy * W + gx) * 3
+            wr += rgb[o]
+            wg2 += rgb[o + 1]
+            wb += rgb[o + 2]
+            wn++
+          }
+          if (gn && wn) {
+            const grb = gr / gn - gb / gn
+            const wrb = wr / wn - wb / wn
+            console.log(
+              `      chroma: glazing RGB ${(gr / gn).toFixed(0)}/${(gg / gn).toFixed(0)}/${(gb / gn).toFixed(0)} R-B ${grb.toFixed(1)}  |  wall(n=${wn}) RGB ${(wr / wn).toFixed(0)}/${(wg2 / wn).toFixed(0)}/${(wb / wn).toFixed(0)} R-B ${wrb.toFixed(1)}  |  SEPARATION ${(wrb - grb).toFixed(1)}`,
+            )
+          }
         } else {
           console.log(`    GLAZING (${sig}): no samples at this pose`)
         }
@@ -1680,8 +1724,24 @@ if (process.env.ANCHORS === '1') {
       tm = ts / a.pts.length
       tracedReadings[a.side].push({ d: a.d, m: tm })
     }
+    let sr = 0
+    let sg = 0
+    let sb = 0
+    for (const [sx, sy] of a.pts) {
+      const gx = Math.min(W - 1, Math.floor(sx * W))
+      const gy = Math.min(H - 1, Math.floor(sy * H))
+      const o = (gy * W + gx) * 3
+      sr += rgb[o]
+      sg += rgb[o + 1]
+      sb += rgb[o + 2]
+    }
+    const n3 = a.pts.length
+    const cr = sr / n3
+    const cg = sg / n3
+    const cb = sb / n3
+    a.chroma = { r: cr, g: cg, b: cb, rb: cr - cb }
     console.log(
-      `  d=${a.d.toFixed(1)} side ${a.side}  L=${m.toFixed(1)}${tm == null ? '' : `  traced L=${tm.toFixed(1)}`}   ${a.sig}  span ${a.span} m  |n.perp| ${a.dotPerp}`,
+      `  d=${a.d.toFixed(1)} side ${a.side}  L=${m.toFixed(1)}${tm == null ? '' : `  traced L=${tm.toFixed(1)}`}  RGB ${cr.toFixed(0)}/${cg.toFixed(0)}/${cb.toFixed(0)} R-B ${(cr - cb).toFixed(1)}   ${a.sig}  span ${a.span} m  |n.perp| ${a.dotPerp}`,
     )
   }
   for (const side of SIDES) {
