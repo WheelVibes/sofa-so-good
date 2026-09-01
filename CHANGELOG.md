@@ -5,6 +5,77 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.260 — the clipping band cannot be widened by automation, and it is the wrong shape of target anyway
+
+`.259` priced item (l) at ≈×30 of exterior radiance, but the recommendation sits on a **15–39 % clipping
+band from n = 2** — and ×24 gives 4.1 % while ×32 gives 39.7 %, so the band's width *is* the uncertainty in
+the answer. This round set out to widen it (thread 2), and clipping looked like the tractable case: a
+within-surface, distribution-based statistic needs none of `.227`/`.250`/`.251`'s constant-orientation,
+crop-distance or aperture screening.
+
+It did not widen. What it produced instead is a reason the band was never a target in the first place.
+
+**Automation does not work here.** 40 real images were inventoried on disk and screened on a contact sheet;
+a pane-finder then located the largest bright cluster in the upper frame and measured its interior. Looked
+at, its "panes" were:
+
+| candidate | what the crop actually contained |
+| --- | --- |
+| `r1`, `r10` | **curtains** |
+| `win-photos-1571460` | a **chandelier and ceiling** |
+| `win-photos-1080721` | the **whole kitchen interior** |
+| `r6` | a genuine pane — trees and a trunk, well exposed, not blown |
+| control `Home_Staging` | the **brightest core** of one pane — **86.1 %** against `.236`'s 39.3 % |
+
+The control is the instructive one: same photograph, same threshold, **86 % against 39 %**, purely from
+choosing a different population.
+
+**Hand-picking is error-prone too, and looking is what saves it.** Three of my first six hand-drawn boxes
+were mostly wall and ceiling — the y coordinates read off a grid overlay were ~0.08 too high. Corrected only
+because every crop was inspected. `.233` said the criteria were the bottleneck rather than the measurement;
+this is that bottleneck, and it is why the set is still n = 2.
+
+**The finding: clipping is population-dependent *within a single photograph*.** `Home_Staging` has three
+windows. Measured pane by pane, hand-cropped and visually verified:
+
+| pane | what is behind it | mean | **> 250** | > 240 |
+| --- | --- | --- | --- | --- |
+| left | open sky, a neighbouring roof, bare branches | 229.1 | **58.9 %** | 63.1 % |
+| middle | a sunlit neighbouring wall | 193.3 | **32.6 %** | 36.0 % |
+| right | a **shaded** balcony with a wooden door | 146.3 | **9.0 %** | 11.5 % |
+
+**A 6.5× spread inside one image**, because each pane faces something different. (Each crop still carries a
+frame sliver, which drags the figures slightly *down*; the spread is the robust part.) `.236`'s aggregate
+39.3 % is a **mixture**, not a property of glazing.
+
+**Which changes what `.259` means.** The app at ×32 reads **39.7 % across all 413 glazing samples** — it
+matches the aggregate. But the app has **one backdrop texture**, so every pane blows *together*: a smooth
+sky gradient, uniformly clipped. A photograph reaching ~39 % gets there by mixing a blown pane with an
+unblown one. **So a single global multiplier produces the right statistic and the wrong picture.**
+
+That is the same class of error this arc has hit repeatedly — `.226`'s frame-mean, `.249`'s furniture in the
+wall bucket, `.253`'s hollow control: a number that is right for the wrong reason. Here it would have been
+matched deliberately.
+
+**So the honest state of item (l):** the reference band is **not** the limiting uncertainty; the *population
+definition* is. "Photographs clip 15–39 %" is not a target without "over what population" attached, and
+once attached, the app cannot reach the photographic **structure** by scaling one backdrop, only the
+photographic **average**. Recorded on (l), and `.259`'s ≈×30 stands as the aggregate-matching figure with
+that caveat now explicit.
+
+**What would actually widen the set:** hand-cropped pane interiors, one pane at a time, provenance recorded,
+which is exactly the labour `.233` identified and exactly what automation was supposed to avoid. The
+inventory is done and the screening sheet exists, so a future round can grind through it — but it should
+measure **per pane and record what each pane faces**, not one number per photograph.
+
+*Provenance note, stated because it bears on any future use: the `b*`/`q*`/`r*` files on disk have no
+recorded source in the arc's notes, so they cannot be certified against `.233`'s "not AI stock" criterion.
+Only the `p233-*`, `ref-*` and `win-photos-*` files trace to the recorded Wikimedia sweeps. None of the
+numbers published here come from the uncertified set.*
+
+`npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in `src/` beyond the version bump; the
+probe is unchanged this round. Runs 06:54–07:00 local.
+
 ## v0.31.5.259 — item (l) priced: ×30 of exterior radiance reaches the photographic band, and costs nothing in shadow depth
 
 `.258` reframed (l) as a scene dynamic-range deficit and promised the pricing round. Here it is — and it

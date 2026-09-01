@@ -871,7 +871,7 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured v0.31.5.236; diagnosed v0.31.5.258; PRICED v0.31.5.259)
+## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; target qualified .260)
 
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
@@ -989,6 +989,37 @@ keep AgX, supply the range.**
 doubles.** It stays far from clipping and far below the wall, but this item recorded 21:00 as correct, so it
 is a genuine change. That the app *already* switches pane material by hour suggests the fix need not be one
 global scalar — a per-hour or per-material curve would leave 21:00 alone.
+
+### v0.31.5.260 — the 15–39 % band is an AGGREGATE, and the app can only match the average
+
+The clipping band rests on n = 2 and `.259`'s answer is sensitive to it (×24 → 4.1 %, ×32 → 39.7 %), so
+widening it was the obvious next step. It could not be widened by automation — a bright-region pane-finder
+returned curtains, a chandelier and a whole kitchen interior as "panes", and on the control it selected the
+brightest *core* and read **86.1 %** where `.236` recorded **39.3 %** for the same photograph.
+
+That discrepancy is the finding. Measured pane by pane on `Home_Staging`, hand-cropped and visually checked:
+
+| pane | what is behind it | mean | **> 250** |
+| --- | --- | --- | --- |
+| left | open sky, neighbouring roof, bare branches | 229.1 | **58.9 %** |
+| middle | a sunlit neighbouring wall | 193.3 | **32.6 %** |
+| right | a **shaded** balcony with a wooden door | 146.3 | **9.0 %** |
+
+**A 6.5× spread within one photograph**, because each pane faces something different. The 39.3 % is a
+*mixture*, not a property of glazing.
+
+**Consequence for the fix.** The app has **one backdrop texture**, so at ×32 all 413 glazing samples read
+39.7 % — every pane blows together, a smooth gradient uniformly clipped. A photograph reaching ~39 % does so
+by mixing a blown pane with an unblown one. **A single global multiplier therefore buys the right statistic
+and the wrong picture.**
+
+So the limiting uncertainty in this item is **not** the size of the reference set — it is the *population
+definition*. "Photographs clip 15–39 %" is not a target without "over what population", and once attached,
+scaling one backdrop reaches the photographic **average** but not its **structure**.
+
+`.259`'s ≈×30 stands as the aggregate-matching figure, with that caveat explicit. Anyone taking this
+decision should know they are buying a uniformly-blown window, which is more photographic than today's grey
+panel and still not what a photograph does.
 
 **Why this is still not being decided here:** the fix space is unchanged in kind — brighter backdrop, a
 bloom-carrying emissive pane, or a separate exposure for the backdrop — but it now has a **target**: roughly

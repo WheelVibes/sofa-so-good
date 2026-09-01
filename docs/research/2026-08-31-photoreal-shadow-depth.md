@@ -6848,3 +6848,96 @@ window, against a night pane that doubles.** The fix space is unchanged in kind 
 and the per-hour material switch offers a route that avoids the one measured regression.
 
 Nothing changed in `src/`.
+
+---
+
+## `.260` — the clipping band cannot be widened by automation, and it is the wrong shape of target
+
+`.259` priced item (l) at ≈×30 of exterior radiance against a **15–39 % clipping band resting on n = 2**.
+That band's width *is* the uncertainty in the answer: ×24 gives 4.1 % clipped, ×32 gives 39.7 %. So widening
+the reference set (thread 2) was the obvious next round, and clipping looked like the tractable case —
+a within-surface, distribution-based statistic needs none of the constant-orientation (`.227`), crop-distance
+(`.250`) or aperture-fraction (`.251`) screening that made the ratio work intractable.
+
+It did not widen. What came out instead is a reason the band was never a well-formed target.
+
+Runs 06:54–07:00 local (2026-09-02).
+
+### Automation does not work here
+
+40 real images were inventoried on disk (44 candidate files, 4 of them HTML/text from failed fetches) and
+screened on a contact sheet. A pane-finder then located the largest bright cluster in the upper three
+quarters of each frame, inset it 18 % to clear frames and mullions, and measured the interior.
+
+Every crop was looked at. They were:
+
+| candidate | what the crop actually contained |
+| --- | --- |
+| `r1`, `r10` | **curtains** |
+| `win-photos-1571460` | a **chandelier and ceiling** |
+| `win-photos-1080721` | the **whole kitchen interior** |
+| `q5`, `r2` | genuine glazing, but with a mullion or frame through it |
+| `r6` | a genuine pane — trees and a trunk, well exposed, not blown at all |
+| control `p233-Home_Staging` | the **brightest core** of one pane: **86.1 %** against `.236`'s **39.3 %** |
+
+Hand-picking is not automatically better: three of my first six hand-drawn boxes were mostly wall and
+ceiling, because y coordinates read off a grid overlay were about 0.08 too high. They were corrected only
+because every crop was inspected. `.233` concluded that the criteria, not the measurement, are the
+bottleneck. This is that bottleneck.
+
+### The finding: clipping is population-dependent *inside one photograph*
+
+The control's 86 % against 39 % is not an error to be fixed — it is the result. `Home_Staging` contains
+three windows. Hand-cropped pane interiors, each visually verified:
+
+| pane | what is behind it | mean | **> 250** | > 240 |
+| --- | --- | --- | --- | --- |
+| left | open sky, a neighbouring roof, bare branches | 229.1 | **58.9 %** | 63.1 % |
+| middle | a sunlit neighbouring wall | 193.3 | **32.6 %** | 36.0 % |
+| right | a **shaded** balcony with a wooden door and a lamp | 146.3 | **9.0 %** | 11.5 % |
+
+**A 6.5× spread within a single image.** Each crop still carries a frame sliver, which pulls the figures
+slightly down; the *spread* is the robust part and it is what matters.
+
+The reason is physical and obvious once seen: a real window is several panes onto **different things**. One
+faces open sky and blows out completely; one faces a sunlit wall and partly blows; one faces a shaded porch
+and does not blow at all. `.236`'s aggregate 39.3 % is a **mixture of those three**, not a property of
+glazing.
+
+### What that does to `.259`
+
+The app at ×32 reads **39.7 % across all 413 glazing samples** — it matches the aggregate almost exactly.
+But the app has **one backdrop texture**, a smooth sky gradient, so every pane blows *together*. A
+photograph that reaches ~39 % gets there by mixing a blown pane with an unblown one.
+
+**A single global multiplier therefore buys the right statistic and the wrong picture.**
+
+This is the same species of error the arc has hit repeatedly — `.226`'s "composition cancels", `.249`'s
+furniture in the wall bucket, `.253`'s hollow control: a number that is right for the wrong reason. The
+difference is that here it would have been matched *deliberately*, by aiming at an aggregate that no single
+backdrop can produce honestly.
+
+### Where item (l) actually stands
+
+The limiting uncertainty is **not** the size of the reference set. It is the **population definition**.
+*"Photographs clip 15–39 %"* is not a target without *"over what population"* attached — and once attached,
+scaling one backdrop reaches the photographic **average** but not its **structure**.
+
+`.259`'s ≈×30 stands as the aggregate-matching figure with that caveat now explicit. Whoever takes the
+decision is buying a **uniformly blown** window: markedly more photographic than today's flat grey panel,
+and still not what a photograph does.
+
+### What would actually widen the set
+
+Hand-cropped pane interiors, one pane at a time, **recording what each pane faces**, with provenance. That
+is precisely the labour `.233` identified and precisely what automation was meant to avoid. The inventory
+and the screening sheet now exist, so a future round can grind through it — but the unit of measurement has
+to be **the pane, not the photograph**, or the aggregate hides the structure again.
+
+*Provenance note, because it bears on any future use of this inventory: the `b*`, `q*` and `r*` files have
+no recorded source in the arc's notes, so they cannot be certified against `.233`'s "not AI stock"
+criterion. Only `p233-*`, `ref-*` and `win-photos-*` trace to the recorded Wikimedia sweeps. **No number
+published in this round comes from the uncertified set** — the three pane measurements are all from
+`p233-Home_Staging_Beisp`, the `.233` qualifier.*
+
+Nothing changed in `src/`; the probe is unchanged this round.
