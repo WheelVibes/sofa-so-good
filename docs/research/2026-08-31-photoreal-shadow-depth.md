@@ -7129,3 +7129,92 @@ argument lists by word-splitting** — use an explicit function with positional 
 final, correct comparison does.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.263` — mechanism resolved: the backdrop is cached and low-pass
+
+`.262` ended on a contradiction it could not resolve. `backgroundIntensity` moves the glazing
+161.4 → 237.1 → 245.2, yet blacking the **entire** backdrop canvas — verified black by read-back at capture
+time — changed nothing anywhere. Its parting hypothesis was a cached conversion. That is what it is.
+
+Runs 07:20–07:26 local (2026-09-02).
+
+### The mechanism
+
+three converts an equirect `scene.background` into a **CubeUV/PMREM** and caches the conversion **keyed on
+the texture object**. `texture.needsUpdate` does not invalidate that cache. So:
+
+- mutating the canvas bound to `scene.background.image` is **inert** — the renderer keeps sampling the
+  conversion built from the original content;
+- `scene.backgroundIntensity` still scales that cached conversion, so the scalar works;
+- handing the scene a **new `CanvasTexture`** cannot hit the stale entry, so fresh content appears.
+
+`BGBLOCK=3` does the last of those: it copies the current sky canvas, paints the facade into the copy, and
+assigns a new `CanvasTexture` (same mapping, same colour space) to `scene.background`. It does not dispose
+the old texture, which `SceneBackdrop` owns and restores.
+
+### The controlled comparison
+
+Identical painting code, identical rows, ×32, the only difference being **mutate versus fresh**:
+
+| | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- |
+| mode 1 — mutate the bound canvas (`.262`) | 39.5 % | 16.4 | **19** | **9.4 %** |
+| **mode 3 — fresh texture object** | 8.7 % | 23.9 | **78** | **75.3 %** |
+
+One variable, a 4× change in spread. That is as clean as this arc gets.
+
+Also confirmed in passing: `scene.environment !== scene.background` — they are different textures, so the
+effect is genuinely via the background slot and not via the IBL.
+
+### Consequence 1 — `.259` is restored
+
+The window **does** show the background, and `backgroundIntensity` scales what the window shows. `.262`'s
+caveat — *"a lever with a measured effect and an unknown mechanism"* — is **withdrawn**. `.259`'s ≈×30
+pricing and its costs (+8 % frame mean, zero `%<64`, night pane 23 → 43) stand with their interpretation
+intact.
+
+This is worth dwelling on as a method point. `.262` was right to raise the caveat and right not to publish a
+false negative — but the caveat existed because an intervention had failed, not because the app was strange.
+Distinguishing "my instrument failed" from "the app is wrong" took one more round, and the cost of *not*
+distinguishing them would have been a permanently mistrusted result.
+
+### Consequence 2 — `.261`'s content hypothesis is confirmed in direction
+
+| backdrop | clipped | spread | mid-tone |
+| --- | --- | --- | --- |
+| app, sky only, ×32 | 39.7 % | 20 | 9.4 % |
+| **app, facade, ×32** | 8.7 % | **78** | **75.3 %** |
+| app, facade, ×48 | 19.1 % | 66 | 70.0 % |
+| photograph, one pane | 54.6–60.3 % | 90–95 | 36–44 % |
+
+Content raises glazing spread from 20 to 78 — roughly 4× — where `.261`'s luminance sweep (×1 → ×64) never
+moved spread above 55 and drove it *down* to 20 at the clipping point. So the structural deficit is indeed a
+content deficit, as `.261` argued.
+
+### Consequence 3 — but the path is low-pass, and that is the real finding
+
+**Looked at**, the facade arrives as a **soft blurred band**. The 8 px vertical bands painted into it — the
+facade structure, the roofline highlight, the shadowed base — are all gone. What reaches the window is a
+low-frequency luminance step, and the pane reads as **frosted glass rather than a view**.
+
+Independent confirmation from the numbers: moving the facade's top edge across **0.485 / 0.520 / 0.535** of
+the equirect changed clipped/spread/mid-tone by **≤ 0.1 %**. The pre-filter smears the edge so far that its
+position barely matters.
+
+The equirect → CubeUV conversion is *pre-filtered by construction* — that is what a PMREM is for — so the
+background path **cannot carry high-frequency detail at all**.
+
+### What that means for item (l)
+
+The structural route needs more than a better backdrop image. It needs a **path that can carry detail**:
+real geometry outside the window, or a background that bypasses the PMREM conversion. Painting a nicer sky
+texture cannot get there, however much content is in it, because the content is filtered away before it
+reaches the frame.
+
+That is a larger change than "paint a block into the sky", and it is worth knowing *before* anyone attempts
+the cheap version — which would have produced exactly the frosted-glass result seen here and been hard to
+diagnose after the fact.
+
+Nothing changed in `src/` beyond the version bump.

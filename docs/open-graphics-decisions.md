@@ -1045,7 +1045,7 @@ This also corrects `.260`, which attributed the mixture to panes facing differen
 splits **within-pane sd 42.3** against **between-pane sd 20.9** — the dominant term is variation *inside* a
 pane. Each pane contains a scene with its own range; that matters more than the differences between panes.
 
-### ⚠️ v0.31.5.262 — the ×30 lever's MECHANISM is not established
+### ~~⚠️ v0.31.5.262 — the ×30 lever's MECHANISM is not established~~ → RESOLVED in v0.31.5.263
 
 `backgroundIntensity` demonstrably moves the glazing (161.4 → 237.1 → 245.2 at ×1/×16/×32, reproduced).
 But painting the backdrop canvas has **no effect at all** — filling it *entirely black*, verified black by
@@ -1065,6 +1065,23 @@ the derived result.
 
 **Consequence for the structural route:** `.261`'s claim that backdrop *content* would supply the range is
 **untested, not refuted** — `.262` could not deliver content to the renderer at all.
+
+> **✅ RESOLVED in v0.31.5.263.** three converts an equirect `scene.background` into a CubeUV/PMREM and
+> **caches it keyed on the texture object**; `needsUpdate` does not invalidate that cache. Mutating the bound
+> canvas is therefore inert, while `backgroundIntensity` still scales the cached conversion. Handing the
+> scene a **new `CanvasTexture`** makes the content appear.
+>
+> **The `.262` caveat is withdrawn.** The window does show the background, the ×30 lever scales what the
+> window shows, and `.259`'s pricing stands with its interpretation intact.
+>
+> **`.261`'s content hypothesis is confirmed in direction** — a facade raises glazing spread **20 → 78** and
+> mid-tone **9.4 % → 75.3 %** at ×32, roughly 4× what no luminance multiplier could buy at any value.
+>
+> **But the backdrop path is LOW-PASS.** Looked at, the facade arrives as a soft blurred band — its 8 px
+> vertical detail is gone and the pane reads as **frosted glass, not a view**. Moving the facade's top edge
+> across 0.485/0.520/0.535 changed the numbers by ≤ 0.1 %, confirming the smear. So the structural route
+> needs **a path that can carry detail** — real geometry outside the window, or a background that bypasses
+> the PMREM conversion — not merely a better backdrop image.
 
 ### The two routes, now separated
 

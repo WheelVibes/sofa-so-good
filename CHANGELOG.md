@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.263 — mechanism resolved: the backdrop is cached and low-pass, `.259` is restored, `.261` is confirmed-but-qualified
+
+`.262` ended with a contradiction it could not resolve: `backgroundIntensity` moves the glazing
+161 → 237 → 245, yet blacking the *entire* backdrop canvas — verified black at capture — changes nothing at
+all. The hypothesis it left was a cached conversion. That is exactly what it is.
+
+**three converts an equirect `scene.background` into a CubeUV/PMREM and caches it keyed on the texture
+object. `needsUpdate` does not invalidate that cache.** So mutating the bound canvas is inert, while
+`backgroundIntensity` still scales the cached conversion. Handing the scene a **new `CanvasTexture`**
+cannot hit the stale entry — and the content appears.
+
+**The controlled comparison** — identical painting code, identical rows, ×32, the only difference being
+mutate-the-canvas versus fresh-texture:
+
+| | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- |
+| mutate bound canvas (`.262`) | 39.5 % | 16.4 | **19** | **9.4 %** |
+| **fresh texture object** | 8.7 % | 23.9 | **78** | **75.3 %** |
+
+**Three consequences, in order of importance.**
+
+**1. `.259`'s lever is legitimate again.** The window *does* show the background; `backgroundIntensity`
+scales what the window shows. `.262`'s caveat — "a lever with a measured effect and an unknown mechanism" —
+is **withdrawn**. The ≈×30 pricing and its costs stand with their interpretation intact.
+
+**2. `.261`'s content hypothesis is confirmed in direction.** Adding a near object to the backdrop raises
+glazing spread **20 → 78** and mid-tone **9.4 % → 75.3 %** — roughly 4× the structural richness, which no
+luminance multiplier could buy at any value (`.261` swept ×1 → ×64 and never moved spread above 55).
+
+| backdrop | clipped | spread | mid-tone |
+| --- | --- | --- | --- |
+| app, sky only, ×32 | 39.7 % | 20 | 9.4 % |
+| app, **facade**, ×32 | 8.7 % | 78 | 75.3 % |
+| app, **facade**, ×48 | 19.1 % | 66 | 70.0 % |
+| photograph, one pane | 54.6–60.3 % | 90–95 | 36–44 % |
+
+**3. But it is qualified, and this is the round's real finding.** *Looked at*, the facade arrives as a **soft
+blurred band**: the 8 px vertical bands painted into it are gone entirely, and the window reads as **frosted
+glass rather than a view**. The equirect → CubeUV conversion is pre-filtered by construction, so **the
+backdrop path cannot carry high-frequency detail at all.**
+
+That is a deeper limit than `.261` supposed. It is not merely that the backdrop has no content — it is that
+this path can only ever deliver a *low-frequency luminance step*. The numbers move the right way; the
+picture does not become a view.
+
+**So the structural route for item (l) needs more than a better backdrop image.** It needs a path that can
+carry detail — real geometry outside the window, or a background that bypasses the PMREM conversion. That is
+a larger change than "paint a block into the sky", and it is worth knowing before anyone attempts the cheap
+version.
+
+Also recorded: moving the facade's top edge across 0.485 / 0.520 / 0.535 of the equirect changed the numbers
+by ≤ 0.1 % — the pre-filter smears the edge so far that its position barely matters, which is independent
+confirmation of the low-pass diagnosis.
+
+Probe only: `BGBLOCK=3` (fresh-texture path) and `BG_TOP`/`BG_BOT`; modes 1 and 2 kept and documented as
+proven-inert, with the cache mechanism recorded beside them. `npm test` 9437 passed, `tsc` clean, `biome`
+clean. Nothing changed in `src/` beyond the version bump. Runs 07:20–07:26 local.
+
 ## v0.31.5.262 — the experiment failed, provably; and `.259`'s lever has an unknown mechanism
 
 `.261` proved one half of its claim and asserted the other. Proved: **no luminance multiplier reaches the

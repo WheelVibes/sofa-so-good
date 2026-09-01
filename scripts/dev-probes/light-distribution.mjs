@@ -524,7 +524,7 @@ const applyFillOff =
 //
 // `scene.backgroundIntensity` is therefore the one scalar that means "how bright
 // is the outside", and three provides it for exactly this purpose.
-// BGBLOCK — a PROVEN-INERT intervention, kept as a diagnostic (`.262`).
+// BGBLOCK — backdrop content. Modes 1/2 are PROVEN INERT; mode 3 works (`.263`).
 //
 // ** IT HAS NO EFFECT ON THE RENDER. ** Painting the backdrop canvas -- even
 // filling it entirely black, verified black by read-back at capture time --
@@ -537,10 +537,25 @@ const applyFillOff =
 // Kept because knowing an intervention is inert is worth more than deleting it:
 // anyone reaching for "just paint the backdrop" will otherwise repeat this.
 //
-// Original intent, still untested: `.261` proved no luminance multiplier reaches
-// the photographic STRUCTURE (a real pane is 55-60 % blown AND 36-44 % mid-tone at
-// once) and asserted that backdrop CONTENT would supply the range. That assertion
-// remains unproven -- this round could not deliver content to the renderer at all.
+// ** MECHANISM, RESOLVED IN `.263`. ** three converts an equirect
+// `scene.background` into a CubeUV/PMREM and caches it keyed on the TEXTURE
+// OBJECT; `needsUpdate` does not invalidate that cache. So mutating the bound
+// canvas (modes 1/2) is inert, while `backgroundIntensity` still scales the cached
+// conversion -- which is why the glazing responded to the scalar but not to the
+// content. BGBLOCK=3 hands the scene a NEW CanvasTexture instead, which cannot hit
+// the stale entry, and the content appears.
+//
+// Controlled comparison at x32, same painting code and same rows, the only
+// difference being mutate-vs-fresh:
+//
+//     mode 1 (mutate bound canvas)  clipped 39.5 %  spread 19  mid-tone  9.4 %
+//     mode 3 (fresh texture)        clipped  8.7 %  spread 78  mid-tone 75.3 %
+//
+// So `.261`'s content hypothesis is CONFIRMED in direction -- content restores
+// nearly 4x the spread a luminance multiplier could not buy. But it arrives
+// LOW-PASS FILTERED: the facade's 8 px vertical bands are gone and what reaches the
+// window is a soft luminance step, so the pane reads as frosted glass rather than a
+// view. The PMREM path cannot carry high-frequency backdrop detail.
 //
 // `.261` proved that no luminance multiplier reaches the photographic STRUCTURE --
 // a real pane is 55-60 % blown AND 36-44 % mid-tone at once, while the app goes
@@ -557,13 +572,22 @@ const applyFillOff =
 // facade at ~5 % of sky luminance reads mid-tone after a x32 boost while the sky
 // saturates -- and ~1/20 of sky luminance is what a sunlit concrete facade
 // actually is.
-const BGBLOCK = process.env.BGBLOCK === '1' || process.env.BGBLOCK === '2'
+const BGBLOCK = ['1', '2', '3'].includes(process.env.BGBLOCK || '')
 const applyBgBlock = !BGBLOCK
   ? null
   : async () => {
-      await page.evaluate((m) => {
-        window.__bgBlockMode = m
-      }, process.env.BGBLOCK)
+      await page.evaluate(
+        ({ m, top, bot }) => {
+          window.__bgBlockMode = m
+          if (top) window.__bgTop = top
+          if (bot) window.__bgBot = bot
+        },
+        {
+          m: process.env.BGBLOCK,
+          top: process.env.BG_TOP ? Number(process.env.BG_TOP) : null,
+          bot: process.env.BG_BOT ? Number(process.env.BG_BOT) : null,
+        },
+      )
       const res = await page.evaluate(() => {
         const tex = window.__three.scene.background
         const cv = tex?.image
@@ -587,6 +611,52 @@ const applyBgBlock = !BGBLOCK
         ctx.fillRect(0, top, W, 3)
         ctx.fillStyle = 'rgb(40,39,38)'
         ctx.fillRect(0, bot - 6, W, 6)
+        if (window.__bgBlockMode === '3') {
+          // BGBLOCK=3 — the mechanism test (`.263`). Instead of mutating the bound
+          // canvas, build a NEW canvas with the facade painted and hand the scene a
+          // NEW CanvasTexture. three converts an equirect background into a CubeUV
+          // (PMREM) and caches it keyed on the TEXTURE OBJECT, and that cache is not
+          // invalidated by `needsUpdate` -- which would make `.262`'s canvas
+          // mutation inert while `backgroundIntensity` still scaled the cached
+          // result. A fresh texture object cannot hit the stale entry.
+          const sc = window.__three.scene
+          const oldTex = sc.background
+          const src = oldTex.image
+          const cv2 = document.createElement('canvas')
+          cv2.width = src.width
+          cv2.height = src.height
+          const c2 = cv2.getContext('2d')
+          c2.drawImage(src, 0, 0)
+          const W2 = cv2.width
+          const H2 = cv2.height
+          const t2 = Math.round(H2 * (window.__bgTop ?? 0.485))
+          const b2 = Math.round(H2 * (window.__bgBot ?? 0.66))
+          for (let x = 0; x < W2; x += 8) {
+            const v = x % 16 === 0 ? 58 : 72
+            c2.fillStyle = `rgb(${v},${v - 2},${v - 4})`
+            c2.fillRect(x, t2, 8, b2 - t2)
+          }
+          c2.fillStyle = 'rgb(96,94,90)'
+          c2.fillRect(0, t2, W2, 3)
+          c2.fillStyle = 'rgb(40,39,38)'
+          c2.fillRect(0, b2 - 6, W2, 6)
+          const Tex = oldTex.constructor
+          const fresh = new Tex(cv2)
+          fresh.mapping = oldTex.mapping
+          fresh.colorSpace = oldTex.colorSpace
+          fresh.needsUpdate = true
+          // Do NOT dispose oldTex -- SceneBackdrop owns it and restores it on unmount.
+          sc.background = fresh
+          const px3 = c2.getImageData(Math.round(W2 * 0.5), t2 + 10, 1, 1).data
+          return {
+            mode: 3,
+            newTexture: true,
+            sameAsEnvironment: sc.environment === oldTex,
+            painted: [px3[0], px3[1], px3[2]],
+            top: t2,
+            bot: b2,
+          }
+        }
         if (window.__bgBlockMode === '2') {
           // Unambiguous control: black out the WHOLE backdrop. If the window does
           // not change, its appearance does not come from `scene.background`.
