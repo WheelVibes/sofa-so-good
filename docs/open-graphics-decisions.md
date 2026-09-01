@@ -871,7 +871,7 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured v0.31.5.236; diagnosis sharpened v0.31.5.258)
+## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured v0.31.5.236; diagnosed v0.31.5.258; PRICED v0.31.5.259)
 
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
@@ -936,6 +936,59 @@ independently hand-sampled pane-only **1.38** — two methods 21 rounds apart ag
 Confound direction, stated because it matters: wall albedo enters (the app's wall is near-white `#f5f5f0`,
 so its luminance sits high) and a large aperture brightens the wall further (71 % of the end wall, `.251`).
 **Both make the app look better than it is, so the deficit is understated.**
+
+### v0.31.5.259 — priced: ≈×30 of exterior radiance, and it costs nothing in shadow depth
+
+**The lever is `scene.backgroundIntensity`.** In walk mode the sky *dome* is not in the scene
+(`isPhotoBackdropActive` stands it down); the exterior is `scene.background`, a `CanvasTexture`. Glazing
+measured as a **world-verified signature population** (n = 413 pane-interior samples) rather than a
+rectangle, so grilles cannot dominate it as they did in `.236`.
+
+13:00, `medium`, photographic look, canonical pose, AgX:
+
+| `backgroundIntensity` | glazing mean | **clipped (> 250)** | frame mean | `%<64` |
+| --- | --- | --- | --- | --- |
+| **1 (shipped)** | 161.4 | **0.0 %** | 113.0 | 11.85 % |
+| 4 | 206.6 | 0.0 % | 117.9 | 11.85 % |
+| 16 | 237.2 | 0.0 % | 121.3 | 11.85 % |
+| 24 | 242.3 | 4.1 % | 121.8 | 11.85 % |
+| **32** | 245.3 | **39.7 %** | 122.2 | 11.86 % |
+| 64 | 250.2 | 86.2 % | 122.7 | 11.85 % |
+| *photographs* | | ***15–39 %*** | | |
+
+**≈×28–32 reaches the photographic band. `%<64` does not move at all** (11.85 % throughout) and the frame
+mean rises only **+8 %** — because the background is not a light and does not illuminate the room. Contrast
+`.254`'s ground bounce, which cost 14 % of brightness for 13 % of ratio.
+
+**Looked at:** at ×32 the window is a blown white opening with the grille bars **silhouetted** against it —
+what a daylit interior photograph looks like, and what this item describes. The interior is visibly
+unchanged. Honest caveat: a blown pane shows no view, which is photographically correct and a look question.
+
+**Both `.209` and `.258` are right, at different operating points.** Tested at ×32:
+
+| view transform | clipped | frame mean | `%<64` |
+| --- | --- | --- | --- |
+| **AgX (shipped)** | 39.7 % | 122.2 | 11.86 % |
+| filmic | 86.4 % | 109.9 | 24.72 % |
+| neutral | 90.6 % | 95.1 | 32.80 % |
+
+AgX's long shoulder resists clipping (so `.209`'s tension is real once range exists) **while protecting the
+interior** — the other curves clip readily but cost 13–21 points of `%<64`. `.258`'s "the curve is not the
+constraint" holds only at the shipped level, in the curve's near-linear region. **Practical consequence:
+keep AgX, supply the range.**
+
+**Cost at the hours this item recorded as already correct.** The app switches pane material by hour — day
+`BoxGeometry#bcd4e6`, night `BoxGeometry#20272f` at opacity 0.73:
+
+| | glazing ×1 | glazing ×32 | frame mean | `%<64` |
+| --- | --- | --- | --- | --- |
+| 19:00 (day pane) | 141.0, 0.0 % clipped | 228.2, **0.0 %** clipped | 156.0 → 165.3 | 3.68 → 3.69 % |
+| 21:00 (night pane) | 23.0 | **43.0**, 0.0 % clipped | 133.9 → 136.0 | 15.65 → 14.09 % |
+
+19:00 stays unclipped, arguably right for golden hour. **21:00 is the real cost — the night pane roughly
+doubles.** It stays far from clipping and far below the wall, but this item recorded 21:00 as correct, so it
+is a genuine change. That the app *already* switches pane material by hour suggests the fix need not be one
+global scalar — a per-hour or per-material curve would leave 21:00 alone.
 
 **Why this is still not being decided here:** the fix space is unchanged in kind — brighter backdrop, a
 bloom-carrying emissive pane, or a separate exposure for the backdrop — but it now has a **target**: roughly

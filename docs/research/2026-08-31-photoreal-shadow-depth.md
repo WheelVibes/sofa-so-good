@@ -6710,3 +6710,141 @@ A next round could price it exactly as `.254` priced the bounce term — sweep b
 what reaches a photographic clipping fraction and what it costs at 19:00 and 21:00.
 
 Nothing changed in `src/`.
+
+---
+
+## `.259` — pricing item (l): ≈×30 of exterior radiance, free in shadow depth
+
+`.258` reframed (l) from a tone-mapping fight into a scene dynamic-range deficit and named the follow-up:
+price it the way `.254` priced the bounce term. This round does that, and in the process corrects `.258`'s
+own phrasing about the curve.
+
+Runs 06:34–06:50 local (2026-09-02).
+
+### Finding the lever took two wrong turns
+
+**Wrong turn 1 — the sky dome.** `lighting/Sky.tsx` bakes a sky onto a `BackSide` sphere with a
+`meshBasicMaterial`, so the dome's `color` is the obvious knob. The probe threw: *no sky dome found*. Checked
+across modes rather than assumed:
+
+| state | dome present? |
+| --- | --- |
+| walk, +4.5 s | no |
+| walk, +16.5 s | no |
+| **orbit, +8 s** | **yes** — radius 200, mapped `MeshBasicMaterial`, `BackSide` |
+| walk again | no |
+
+`Sky.tsx` computes `backdropActive = isPhotoBackdropActive(kind, cameraMode, hasCustom, proceduralSky)` and
+returns `null` when it is set — and in walk mode it is. So the dome genuinely is not in the scene in the mode
+this entire arc measures in.
+
+**Wrong turn 2 — "the window has no exterior".** A raycast straight ahead through the glazing returns
+**exactly one hit** (`BoxGeometry`, `MeshStandardMaterial#bcd4e6`, opacity 0.28, emissive `#cfe4f5` × 0.4)
+and nothing beyond it. Read literally that says the window is a self-lit panel with nothing behind it, which
+would have been a dramatic finding and is **wrong**. In walk mode the exterior is `scene.background` — a
+`CanvasTexture` — which is not geometry and therefore cannot be raycast at all.
+
+Checking the mechanism instead of publishing the raycast is what caught it. The right lever is the scalar
+three provides for exactly this purpose: **`scene.backgroundIntensity`** (confirmed 1 at the shipped
+setting, `background` a `CanvasTexture`, `backdrop = 'sky'`).
+
+### A better glazing metric
+
+`.236` measured clipping over a window **rectangle**; `.237` had to correct it because grilles dominate that
+rectangle. This selects the population by **world-verified geometry+colour signature** from the existing
+raycast grid, so it is pane interiors by construction — **n = 413** samples — and it reproduces this item's
+headline exactly: **0.0 % clipped** at the shipped setting.
+
+### The sweep
+
+13:00, `medium`, photographic look, canonical pose, AgX, `backgroundIntensity` intercepted with a getter
+(`.254`'s lesson) and read back after capture:
+
+| ×  | glazing mean | **> 250** | > 240 | frame mean | `%<64` |
+| --- | --- | --- | --- | --- | --- |
+| **1 (shipped)** | 161.4 | **0.0 %** | 0.0 % | 113.0 | 11.85 % |
+| 2 | 184.4 | 0.0 % | 0.0 % | 115.5 | 11.85 % |
+| 4 | 206.6 | 0.0 % | 0.0 % | 117.9 | 11.85 % |
+| 8 | 224.5 | 0.0 % | 0.0 % | 119.9 | 11.85 % |
+| 16 | 237.2 | 0.0 % | 58.4 % | 121.3 | 11.85 % |
+| 24 | 242.3 | 4.1 % | 82.6 % | 121.8 | 11.85 % |
+| **32** | 245.3 | **39.7 %** | 90.3 % | 122.2 | 11.86 % |
+| 64 | 250.2 | 86.2 % | 95.6 % | 122.7 | 11.85 % |
+| *photographs (`.236`)* | | ***15–39 %*** | | | |
+
+**≈×28–32 lands inside the photographic band.** Two features of the table matter as much as that number:
+
+- **`%<64` is 11.85 % at every single point.** The lever costs *nothing* in shadow depth, because the
+  background is not a light — it does not illuminate the room. `.254`'s ground bounce, by contrast, bought
+  13 % of ceiling ratio for 14 % of overall brightness. This is the first lever this arc has priced that is
+  close to free.
+- **The response saturates**: each doubling adds less (161 → 184 → 207 → 225 → 237), which is the curve's
+  shoulder and the subject of the correction below.
+
+### Looked at
+
+At ×32 the window is a blown white opening with the **grille bars silhouetted** against it. That is what a
+daylit interior photograph looks like, and what this item describes as the target — *"a clipped white hole
+with detail only at its edges"*. The interior is visibly unchanged: walls, floor and furniture match the
+shipped frame, and no bloom artefact appears.
+
+The honest caveat: a blown pane shows **no view**. That is photographically correct and simultaneously a
+product question, since some users may want to see out.
+
+### Correcting `.258` on the tone curve
+
+`.258` concluded *"the tone curve is not what flattens it — it removes only 8–12 % of the ratio"*. That
+holds at the **shipped operating point**, which sits in the curve's near-linear region. It does not hold once
+the range is supplied: from ×16 to ×64 the input quadruples while the glazing mean moves 237 → 250.
+
+Tested directly at ×32:
+
+| view transform | glazing > 250 | frame mean | `%<64` |
+| --- | --- | --- | --- |
+| **AgX (shipped)** | 39.7 % | 122.2 | 11.86 % |
+| filmic | 86.4 % | 109.9 | 24.72 % |
+| neutral | 90.6 % | 95.1 | 32.80 % |
+
+**AgX's long shoulder is what resists clipping — and it is protecting the interior while doing so.** The
+other two curves clip the window readily and cost **13–21 points of `%<64`** and 12–27 of frame mean.
+
+So `.209` (*"pushing the pane brighter fights the AgX view transform"*) and `.258` (*"the scene is short of
+range"*) are **both correct, at different operating points**, and neither lever alone is the story. The
+practical consequence is convenient: **keep AgX, supply the range** — the curve's interior protection is
+worth more than the ~30× it costs at the window, since the 30× is nearly free.
+
+### Cost at the hours `.236` recorded as already correct
+
+The app **switches pane material by hour** — day `BoxGeometry#bcd4e6`, night `BoxGeometry#20272f` at opacity
+0.73. The first 21:00 run found *no glazing samples at all* under the day signature, which is how this came
+to light.
+
+| | glazing ×1 | glazing ×32 | frame mean | `%<64` |
+| --- | --- | --- | --- | --- |
+| 19:00 (day pane) | 141.0, 0.0 % clipped | 228.2, **0.0 %** clipped | 156.0 → 165.3 | 3.68 → 3.69 % |
+| 21:00 (night pane) | 23.0 | **43.0**, 0.0 % clipped | 133.9 → 136.0 | 15.65 → 14.09 % |
+
+19:00 remains unclipped, which is arguably right for golden hour. **21:00 is the real cost: the night pane
+roughly doubles.** It stays far from clipping and far below the wall, but `.236` recorded 21:00 as already
+correct, so this is a genuine change to it — and it is exactly the regression that item's own note warned
+against.
+
+That the app already switches pane material by hour is the useful part: **the fix need not be a single
+global scalar.** A per-hour or per-material exterior scale would reach the photographic band at midday and
+leave 21:00 untouched.
+
+### A method note, because it is a repeat
+
+Two sweep rows were initially invalid: zsh does not word-split an unquoted variable, so `set -- $cfg` left
+`BGMUL="16 neutral"`, `Number()` gave `NaN`, and the background rendered as nothing. It was caught only
+because the numbers were impossible — glazing mean 103 where ×16 had given 237. **This is the same mistake
+as `.249`**, which is why the re-run used an explicit argument list instead. Worth stating twice: in this
+shell, build argument lists explicitly, never by word-splitting.
+
+### Where item (l) now stands
+
+Priced, not decided: **≈×30 of exterior radiance, +8 % frame mean, zero `%<64` cost, a visibly photographic
+window, against a night pane that doubles.** The fix space is unchanged in kind but the numbers now exist,
+and the per-hour material switch offers a route that avoids the one measured regression.
+
+Nothing changed in `src/`.

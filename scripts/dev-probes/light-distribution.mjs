@@ -60,6 +60,7 @@ const PHOTO = process.env.PHOTO === '1'
 // 74.3, concrete 78.8, carpet 47.0 (`underside-shadow.mjs FLOOR=<id>`).
 const FLOOR = process.env.FLOOR || ''
 const WALL = process.env.WALL || ''
+const TONE = process.env.TONE || ''
 // Pitch for the FLOOR capture: steep enough that the near floor fills the bottom
 // of the frame instead of the furniture standing on it.
 const FLOOR_PITCH = Number(process.env.FLOOR_PITCH || -0.55)
@@ -99,7 +100,7 @@ await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 await page.evaluate(
-  ({ h, t, fov, photo, floor, wall }) => {
+  ({ h, t, fov, photo, floor, wall, tone }) => {
     const s = window.__store.getState()
     s.setTimeMode('manual')
     s.setManualHour(h)
@@ -108,10 +109,13 @@ await page.evaluate(
     s.dismissCallout?.('walk-mode')
     s.setWalkFov?.(fov)
     if (photo) s.setPhotographicLook?.(true)
+    // TONE lets the view transform be swapped, so "is the curve the binding
+    // constraint?" can be tested rather than argued (`.259`).
+    if (tone) s.setToneMapping?.(tone)
     if (floor) s.setFloorFinish?.('livingDining', floor)
     if (wall) s.setWallFinish?.('livingDining', wall)
   },
-  { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO, floor: FLOOR, wall: WALL },
+  { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO, floor: FLOOR, wall: WALL, tone: TONE },
 )
 // LIGHTS=off switches every placed light OFF, so a DAYLIGHT-ONLY frame can be
 // measured. The canonical pose stands under a lit ceiling fixture -- the walk HUD
@@ -446,6 +450,7 @@ const shotFor = async (pitch) => {
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyLinear === 'function') await applyLinear()
+  if (typeof applyBgMul === 'function') await applyBgMul()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
@@ -505,6 +510,53 @@ const applyFillOff =
 // properties are intercepted with getters, not assigned (`.254`'s lesson).
 // NoToneMapping still applies the sRGB output transfer, so readings are decoded
 // back to linear before any ratio is taken.
+// BGMUL=<n> scales the EXTERIOR's radiance, to price item (l) (`.259`).
+//
+// Finding the right lever took two wrong turns worth recording. `lighting/Sky.tsx`
+// renders a baked sky on a BackSide dome, so the dome's colour looked like the
+// knob -- but in WALK MODE the dome is not in the scene at all
+// (`isPhotoBackdropActive(kind, cameraMode, ...)` makes it stand down), and a
+// raycast straight through the glazing returns exactly one hit and nothing
+// beyond. That reads as "the window has no exterior", which is wrong: in walk
+// mode the exterior is `scene.background`, a CanvasTexture, which is not geometry
+// and so cannot be raycast.
+//
+// `scene.backgroundIntensity` is therefore the one scalar that means "how bright
+// is the outside", and three provides it for exactly this purpose.
+const BGMUL = process.env.BGMUL ? Number(process.env.BGMUL) : null
+const readBg = () =>
+  page.evaluate(() => {
+    const sc = window.__three.scene
+    return {
+      intensity: sc.backgroundIntensity,
+      type: sc.background?.isColor ? 'Color' : sc.background ? 'Texture' : null,
+    }
+  })
+const applyBgMul =
+  BGMUL == null
+    ? null
+    : async () => {
+        const res = await page.evaluate(
+          ({ k }) => {
+            const sc = window.__three.scene
+            if (!sc.background) return { error: 'scene.background is null' }
+            if (!sc.__bgPatched) {
+              // Intercepted rather than assigned: anything that repaints the
+              // backdrop per frame would otherwise silently revert it (`.254`).
+              Object.defineProperty(sc, 'backgroundIntensity', {
+                get: () => k,
+                set: () => {},
+                configurable: true,
+              })
+              sc.__bgPatched = k
+            }
+            return { intensity: sc.backgroundIntensity }
+          },
+          { k: BGMUL },
+        )
+        if (res.error) throw new Error(`BGMUL: ${res.error}`)
+        await new Promise((r) => setTimeout(r, 800))
+      }
 const LINEAR = process.env.LINEAR === '1'
 const LIN_EXPO = Number(process.env.LIN_EXPO || 0.05)
 const applyLinear = !LINEAR
@@ -535,6 +587,7 @@ const applyLinear = !LINEAR
       await new Promise((r) => setTimeout(r, 900))
     }
 const shot = await shotFor(PITCH)
+if (BGMUL != null) console.log(`BGMUL=${BGMUL} held at capture: ${JSON.stringify(await readBg())}`)
 if (LINEAR)
   console.log(
     `LINEAR=1 held at capture: ${JSON.stringify(
@@ -934,6 +987,32 @@ const geo = await page.evaluate(
       }
       console.log(`    near bucket population: ${tally((d) => d <= 1.5)}`)
       console.log(`    far  bucket population: ${tally((d) => d >= 3)}`)
+      // GLAZING POPULATION -- the metric item (l) is actually about. `.236` measured
+      // clipping over a window RECTANGLE, which `.237` had to correct because the
+      // grilles dominate it. This selects by world-verified SIGNATURE instead, so
+      // the population is pane interiors by construction, and reports the fraction
+      // of it that CLIPS -- photographs run 15-39 %, the app 0.0 % (`.258` showed
+      // why: the scene carries 2.2-3.3x the wall where physics carries 20-200x).
+      {
+        const sig = process.env.GLAZE_SIG || 'BoxGeometry#bcd4e6'
+        const vs = []
+        for (const h of geo) {
+          if (h.name !== sig) continue
+          const gx = Math.min(W - 1, Math.floor(h.x * W))
+          const gy = Math.min(H - 1, Math.floor(h.y * H))
+          vs.push(data[gy * W + gx])
+        }
+        if (vs.length) {
+          const m = vs.reduce((a, b) => a + b, 0) / vs.length
+          const clipped = vs.filter((v) => v > 250).length
+          const hot = vs.filter((v) => v > 240).length
+          console.log(
+            `    GLAZING (${sig}): n=${vs.length}  mean ${m.toFixed(1)}  >250 ${((100 * clipped) / vs.length).toFixed(1)} %  >240 ${((100 * hot) / vs.length).toFixed(1)} %   (photographs clip 15-39 %)`,
+          )
+        } else {
+          console.log(`    GLAZING (${sig}): no samples at this pose`)
+        }
+      }
       console.log(`    ALL 'wall' samples:      ${tally(() => true)}`)
       console.log(`    ALL 'ceiling' samples:   ${tally(() => true, 'ceiling')}`)
     }

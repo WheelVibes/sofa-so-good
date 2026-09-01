@@ -5,6 +5,92 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.259 — item (l) priced: ×30 of exterior radiance reaches the photographic band, and costs nothing in shadow depth
+
+`.258` reframed (l) as a scene dynamic-range deficit and promised the pricing round. Here it is — and it
+also corrects `.258`'s own phrasing about the tone curve.
+
+**Finding the lever took two wrong turns, both worth recording.** `lighting/Sky.tsx` bakes a sky onto a
+BackSide dome, so the dome's colour looked like the knob. But in **walk mode the dome is not in the scene at
+all** — `isPhotoBackdropActive(kind, cameraMode, …)` makes it stand down (it is present in orbit: radius 200,
+mapped `MeshBasicMaterial`, `BackSide`). A raycast straight through the glazing then returns **exactly one
+hit and nothing beyond**, which reads as "the window has no exterior". That reading is wrong: in walk mode
+the exterior is **`scene.background`, a `CanvasTexture`** — not geometry, so a raycast cannot see it. The
+right lever is the scalar three provides for precisely this, **`scene.backgroundIntensity`**.
+
+**A better glazing metric.** `.236` measured clipping over a window *rectangle*, which `.237` had to correct
+because the grilles dominate it. This selects the population by **world-verified signature** instead, so it
+is pane interiors by construction: **n = 413** samples, and it reproduces (l)'s headline exactly — 0.0 %
+clipped at the shipped setting.
+
+**The sweep** — 13:00, `medium`, photographic look, canonical pose, AgX:
+
+| `backgroundIntensity` | glazing mean | **> 250 (clipped)** | > 240 | frame mean | `%<64` |
+| --- | --- | --- | --- | --- | --- |
+| **1 (shipped)** | 161.4 | **0.0 %** | 0.0 % | 113.0 | 11.85 % |
+| 2 | 184.4 | 0.0 % | 0.0 % | 115.5 | 11.85 % |
+| 4 | 206.6 | 0.0 % | 0.0 % | 117.9 | 11.85 % |
+| 8 | 224.5 | 0.0 % | 0.0 % | 119.9 | 11.85 % |
+| 16 | 237.2 | 0.0 % | 58.4 % | 121.3 | 11.85 % |
+| 24 | 242.3 | 4.1 % | 82.6 % | 121.8 | 11.85 % |
+| **32** | 245.3 | **39.7 %** | 90.3 % | 122.2 | 11.86 % |
+| 64 | 250.2 | 86.2 % | 95.6 % | 122.7 | 11.85 % |
+| *photographs (`.236`)* | | ***15–39 %*** | | | |
+
+**≈×28–32 lands the app inside the photographic clipping band, and `%<64` does not move at all** — 11.85 %
+at every point in the sweep, against a frame mean rising only 113.0 → 122.2 (+8 %). Compare `.254`'s ground
+bounce, which cost 14 % of overall brightness for 13 % of ratio: this lever is nearly free, because the
+background is not a light and does not illuminate the room.
+
+**Looked at, and it reads right.** At ×32 the window is a blown white opening with the **grille bars
+silhouetted against it** — which is what a daylit interior photograph looks like, and what (l) itself
+describes ("a clipped white hole with detail only at its edges"). The interior is visibly unchanged: walls,
+floor and furniture match the shipped frame, and no bloom artefact appears. The one honest caveat is that a
+blown pane shows *no view* — correct photographically, and a look question.
+
+**And a correction to `.258`.** It concluded "the tone curve is not what flattens it — it removes only
+8–12 % of the ratio". That is true *at the shipped operating point*, which sits in the curve's near-linear
+region. It is not true once the range is supplied: from ×16 to ×64 the input quadruples while the glazing
+mean moves only 237 → 250. Tested directly, at ×32:
+
+| view transform | glazing > 250 | frame mean | `%<64` |
+| --- | --- | --- | --- |
+| **AgX (shipped)** | 39.7 % | 122.2 | 11.86 % |
+| filmic | 86.4 % | 109.9 | 24.72 % |
+| neutral | 90.6 % | 95.1 | 32.80 % |
+
+**AgX's long shoulder is what resists clipping — and it is protecting the interior while it does so:** the
+other two curves clip the window readily but cost 13–21 points of `%<64` and 12–27 of frame mean. So
+`.209` ("pushing the pane brighter fights the AgX view transform") and `.258` ("the scene is short of
+range") are **both right, at different operating points**, and neither lever alone is the story. The
+practical consequence is favourable: keep AgX, supply the range.
+
+**Cost at the hours `.236` recorded as already correct.** The app switches pane material by hour — day
+`BoxGeometry#bcd4e6`, **night `BoxGeometry#20272f` at opacity 0.73** — which is why the first 21:00 run found
+no glazing samples at all under the day signature.
+
+| | glazing ×1 | glazing ×32 | frame mean | `%<64` |
+| --- | --- | --- | --- | --- |
+| 19:00 (day pane) | 141.0, 0.0 % clipped | 228.2, **0.0 %** clipped | 156.0 → 165.3 | 3.68 → 3.69 % |
+| 21:00 (night pane) | 23.0 | **43.0**, 0.0 % clipped | 133.9 → 136.0 | 15.65 → 14.09 % |
+
+19:00 stays unclipped — arguably right for golden hour. **21:00 is the real cost: the night pane roughly
+doubles, 23.0 → 43.0.** It stays far from clipping and far below the wall, but `.236` recorded the 21:00
+case as already correct, so this is a genuine change to it. That the app already switches pane material by
+hour also suggests the fix need not be a single global scalar.
+
+**Item (l) is now priced but still not decided:** ≈×30 of exterior radiance, +8 % frame mean, **zero**
+`%<64` cost, a visibly photographic window, against a night pane that doubles. It changes shipped appearance
+at every hour, which is the user's call.
+
+*One method note: two sweep rows were initially invalid because zsh does not word-split an unquoted
+variable, so `BGMUL="16 neutral"` became `NaN` and the background rendered as nothing. Caught because the
+numbers were impossible (glazing 103 where ×16 had given 237) — the same mistake as `.249`, and the reason
+the re-run used an explicit argument list.*
+
+Probe only: `BGMUL`, `TONE`, `GLAZE_SIG`, and the glazing-population report. `npm test` 9437 passed, `tsc`
+clean, `biome` clean. Nothing changed in `src/`. Runs 06:34–06:50 local.
+
 ## v0.31.5.258 — the window is not a tone-mapping problem: the scene is ~1–2 orders of magnitude short of daylight
 
 Nine rounds have gone into the path tracer as an instrument, and it now needs an energy calibration and a
