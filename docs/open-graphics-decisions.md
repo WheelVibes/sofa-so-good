@@ -1567,8 +1567,14 @@ is real, not speculative.
 `UVMapping` is **not** a candidate fix: a flat screen background has no parallax and is not projectively
 correct through a window.
 
-**⚠️ This defect cannot be verified numerically with the current instruments.** Measured across that
-transformation:
+**⚠️ This defect cannot be verified numerically — established as STRUCTURAL in v0.31.5.266.** Twelve
+candidate metrics were calibrated against the ground-truth pair (illegible vs legible, same asset, same
+pose). Only a 16–64 px difference-of-Gaussians moved at all, by 20 %, which is less than this arc's metrics
+move from pose and framing alone. The diagnostic: `hp8` detects a 16 px blur on the **unobstructed source**
+at **13.3×**, and the identical change through the window at **1.05×** — because the rendered window's
+high-frequency energy (`hp8` ≈ 0.12) is about **twice the entire source image's** (≈ 0.063), so backdrop
+detail is a few percent of what any high-pass sees. **Assess a fix here by looking; no available number can
+confirm it.** Measured across that transformation:
 
 | metric | equirect (blobs) | UVMapping (legible city) |
 | --- | --- | --- |

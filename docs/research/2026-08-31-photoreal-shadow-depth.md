@@ -7364,3 +7364,96 @@ a **check** that caught a contaminated number. Here it was not a check: **it was
 worked at all.**
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.266` — the legibility metric cannot be built: the metric is fine, the signal is 5 %
+
+`.265` found that no number could distinguish an illegible window from a legible one and left the gap open.
+This round tried to close it, using the ground-truth pair `.265` established as a calibration target: the
+same backdrop asset at the same pose, once via the equirect path (blobs) and once via `UVMapping` (legible
+skyline). A metric that cannot separate those two is not a legibility metric.
+
+Runs 07:41–07:46 local (2026-09-02).
+
+### Twelve candidates against the known answer
+
+High-pass at radii 2/4/8/16/32; difference-of-Gaussians band-passes at (4,16), (8,32), (16,64), (8,64);
+vertical and horizontal gradient energy. All normalised by crop mean, on an identical glazing crop:
+
+| metric | equirect (blobs) | UVMapping (legible) | ratio |
+| --- | --- | --- | --- |
+| `hp2` | 0.0491 | 0.0494 | 1.01 |
+| `hp8` | 0.1217 | 0.1212 | 1.00 |
+| `hp16` | 0.1439 | 0.1408 | 0.98 |
+| `hp32` | 0.1560 | 0.1530 | 0.98 |
+| `dog4_16` | 0.0851 | 0.0803 | 0.94 |
+| `dog8_32` | 0.0713 | 0.0696 | 0.98 |
+| **`dog16_64`** | 0.0566 | 0.0682 | **1.20** |
+| `dog8_64` | 0.0852 | 0.0926 | 1.09 |
+| `gradV` | 0.0119 | 0.0110 | 0.92 |
+| `gradH` | 0.0155 | 0.0155 | 1.00 |
+
+One candidate moved meaningfully, by 20 %. A tighter crop centred on the building mass gave 1.03 for the
+same metric — so even that 20 % is not stable across framing.
+
+### The diagnostic that explains it
+
+The same metrics applied where the signal is **unobstructed** — the dumped source city texture against a
+16 px-blurred copy of itself:
+
+| metric | blurred | sharp | ratio |
+| --- | --- | --- | --- |
+| **`hp8`** | 0.0047 | 0.0631 | **13.3×** |
+| `hp16` | 0.0137 | 0.0742 | 5.4× |
+| `dog4_16` | 0.0126 | 0.0396 | 3.1× |
+| `gradV` | 0.0031 | 0.0061 | 1.9× |
+
+**The metric is not the problem. `hp8` detects a 16 px blur at 13.3× when it can see the signal.** Through
+the window it detects the identical change at 1.05×.
+
+### The arithmetic
+
+The rendered window's high-frequency energy is `hp8 ≈ 0.12`. The **entire source image's** is `≈ 0.063`.
+
+So the window's own geometry — grille bars, rails, mullions — carries roughly **twice the high-frequency
+energy of the whole backdrop**, and the backdrop's contribution is a few percent of anything a high-pass
+sees. A 13× change in 5 % of the signal is a 1.05× change in the total. There is no tuning of the metric
+that escapes that; the information is drowned before it is measured.
+
+### An attempt to drain the population, reported as failed
+
+`HIDEGRILLE=1` hid 34 `BoxGeometry#e6e7e4` meshes, on the theory that removing the bars would restore
+sensitivity. Looked at afterwards: **all ~20 vertical bars and the horizontal rails are still present** —
+what was hidden is the window frame and reveal. The metrics did not move (`hp8` 0.1210 → 0.1206).
+
+So the grille attribution is **neither confirmed nor refuted** by that knob — it identified the wrong meshes.
+Kept in the probe and documented as mis-targeted, on the `.262` precedent that a known-broken tool is worth
+more than a deleted one.
+
+### Conclusion
+
+**Item (r) must be verified by looking — permanently, not provisionally.** `.265` recorded that as a current
+limitation of the instruments; this round establishes it as structural at this pose. The one weak indicator,
+`dog16_64` at 1.18–1.20 on two of three crops, is too weak to gate a decision: this arc's metrics have moved
+more than 20 % from pose and framing alone (`.232` 0.68 → 0.96, `.247` 0.74 → 0.93, `.249` 0.60 → 0.98).
+
+### The general lesson
+
+*A metric's sensitivity must be validated on the population it will be applied to, not on the phenomenon in
+isolation.*
+
+`hp8` is a superb blur detector — 13.3× on a clean image — and useless on this window. That is the same
+error the arc has now made three times at different levels:
+
+| round | the error |
+| --- | --- |
+| `.249` | the wall-falloff buckets were furniture, not wall |
+| `.260` | the clipping fraction depended on which population it was taken over |
+| **`.266`** | a metric validated against the phenomenon, not against the mixture it is measured in |
+
+The first two were contaminated populations. This one is a *diluted* population, which is harder to notice:
+nothing is wrong with the metric or the crop, and the number is simply insensitive. The only way it surfaced
+was calibrating against a case where the answer was already known by eye.
+
+Nothing changed in `src/` beyond the version bump.

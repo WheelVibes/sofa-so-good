@@ -465,6 +465,7 @@ const shotFor = async (pitch) => {
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyLinear === 'function') await applyLinear()
+  if (typeof applyHideGrille === 'function') await applyHideGrille()
   if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
   if (typeof applyBgMul === 'function') await applyBgMul()
@@ -603,6 +604,43 @@ const applyFillOff =
 //
 // A fresh texture object is required either way: the CubeUV cache is keyed on the
 // texture, so mutating or re-flagging the bound one is inert (`.263`).
+// HIDEGRILLE=1 — MIS-TARGETED, kept documented so it is not misused (`.266`).
+//
+// Intent: hide the grille bars to test whether a legibility metric becomes usable
+// once they are out of the population. What it actually hides is 34
+// `BoxGeometry#e6e7e4` meshes -- the window FRAME and reveal. Verified by looking:
+// all ~20 vertical bars and the horizontal rails are still present afterwards, and
+// the metrics do not move (hp8 0.1210 -> 0.1206). So the grille attribution below
+// is neither confirmed nor refuted by this knob; it identifies the wrong meshes.
+//
+// `.265` found no metric could see the difference between an illegible and a
+// legible window. `.266` showed why: unobstructed, a 16 px blur moves `hp8` by
+// 13.3x, but through the window the same change moves it 1.05x -- because the
+// render's high-frequency energy (hp8 ~0.11) is roughly TWICE the entire source
+// image's (~0.063), and nearly all of it is grille.
+const HIDEGRILLE = process.env.HIDEGRILLE === '1'
+const applyHideGrille = !HIDEGRILLE
+  ? null
+  : async () => {
+      const n = await page.evaluate(() => {
+        let hidden = 0
+        const seen = {}
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh) return
+          const m = Array.isArray(o.material) ? o.material[0] : o.material
+          const hex = m?.color?.getHexString?.()
+          // The grille bars and window frame share the pale frame colour and are
+          // the only meshes of it inside the opening.
+          if (hex !== 'e6e7e4') return
+          seen[o.geometry?.type ?? '?'] = (seen[o.geometry?.type ?? '?'] ?? 0) + 1
+          o.visible = false
+          hidden++
+        })
+        return { hidden, seen }
+      })
+      console.log(`HIDEGRILLECHECK ${JSON.stringify(n)}`)
+      await new Promise((r) => setTimeout(r, 700))
+    }
 const BGSHARP = process.env.BGSHARP || ''
 const applyBgSharp = !BGSHARP
   ? null

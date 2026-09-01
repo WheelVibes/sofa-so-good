@@ -5,6 +5,65 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.266 — the legibility metric cannot be built: the metric is fine, the signal is 5 %
+
+`.265` found that no number could see the difference between an illegible window and a legible one, and left
+the gap open. This round tried to close it, using the ground-truth pair `.265` established — same asset,
+same pose, equirect (blobs) versus `UVMapping` (legible skyline) — as a calibration target. **A metric that
+cannot separate those two is not a legibility metric.**
+
+**Twelve candidates, calibrated against the known answer.** High-pass at radii 2/4/8/16/32,
+difference-of-Gaussians band-passes at (4,16), (8,32), (16,64), (8,64), and directional gradients:
+
+| metric | equirect | UVMapping | ratio |
+| --- | --- | --- | --- |
+| `hp8` | 0.1217 | 0.1212 | 1.00 |
+| `hp16` | 0.1439 | 0.1408 | 0.98 |
+| `dog4_16` | 0.0851 | 0.0803 | 0.94 |
+| **`dog16_64`** | 0.0566 | 0.0682 | **1.20** |
+| `gradV` | 0.0119 | 0.0110 | 0.92 |
+| `gradH` | 0.0155 | 0.0155 | 1.00 |
+
+Only **`dog16_64`** moved meaningfully, and only by 20 %.
+
+**Then the diagnostic that explains it.** Applied where the signal is unobstructed — the source city texture
+against a 16 px-blurred copy of itself:
+
+| metric | blurred source | sharp source | ratio |
+| --- | --- | --- | --- |
+| **`hp8`** | 0.0047 | 0.0631 | **13.3×** |
+| `hp16` | 0.0137 | 0.0742 | 5.4× |
+| `dog4_16` | 0.0126 | 0.0396 | 3.1× |
+
+**The metric is excellent. `hp8` detects a 16 px blur at 13.3×.** Through the window, the identical change
+moves it **1.05×**.
+
+**And the reason is quantitative.** The rendered window's high-frequency energy is `hp8 ≈ 0.12`; the *entire
+source image's* is `≈ 0.063`. **The window's own geometry carries roughly twice the high-frequency energy of
+the whole backdrop**, so the backdrop's detail is a few percent of what any high-pass sees. A 13× change in
+5 % of the signal is a 1.05× change in the total. That is the arithmetic.
+
+**An attempt to remove that geometry failed, and is reported as failed.** `HIDEGRILLE=1` hid 34
+`BoxGeometry#e6e7e4` meshes — which turn out to be the window **frame and reveal**, not the bars. Verified by
+looking: all ~20 vertical bars and the horizontal rails are still present, and the metrics do not move
+(`hp8` 0.1210 → 0.1206). So the grille attribution is **neither confirmed nor refuted** by that knob; it
+identifies the wrong meshes. Kept in the probe, documented as mis-targeted, on the `.262` precedent.
+
+**Conclusion: item (r) must be verified by looking — permanently, not provisionally.** `.265` recorded that
+as a current limitation; this round establishes it as a structural one for this pose. The single weak
+indicator available, `dog16_64` at 1.18–1.20 across three crops, is **too weak to gate a decision on**: this
+arc's metrics have moved more than 20 % from pose and framing alone (`.232` 0.68→0.96, `.247` 0.74→0.93,
+`.249` 0.60→0.98).
+
+**The general lesson, and it is the sharpest form yet of one this arc keeps relearning:** *a metric's
+sensitivity must be validated on the population it will be applied to, not on the phenomenon in isolation.*
+`hp8` is a superb blur detector and useless here. `.249` found the wall-falloff buckets were furniture;
+`.260` found the clipping fraction was population-dependent; this is the same error one level up — a metric
+validated against the *phenomenon* rather than against the *mixture it will be measured in*.
+
+Probe only: `HIDEGRILLE` (mis-targeted, documented). `npm test` 9437 passed, `tsc` clean, `biome` clean.
+Nothing changed in `src/` beyond the version bump. Runs 07:41–07:46 local.
+
 ## v0.31.5.265 — (r)'s blur is fully recoverable, and none of my numbers could see it
 
 `.264` filed item (r): a crisp 2048×1024 `city` preset reaches the window as faint blobs. This round asks
