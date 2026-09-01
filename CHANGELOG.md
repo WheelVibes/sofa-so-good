@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.252 — the path tracer is NOT a photograph-free reference, and the HQ still has a mirror ceiling
+
+`.251` closed the GI question but left the reference problem: photographs bring pose, method, scene and
+crop-distance confounds. The tempting escape is that **the app's own path tracer needs no photograph** —
+same scene, same pose, same anchors, one rasterised and one path-traced, so any difference is a rasteriser
+error with nothing left to explain it away. `.251` also showed that traced *levels* drift with sample count
+while *ratios* hold, so the instrument had to be a ratio **between surfaces**. Built, and refuted.
+
+**The anchors were generalised first** to ceiling (up) and floor (down) as well as the two side walls, with
+one in-plane basis derived from the hit normal so a single code path serves all three. That exposed a bug in
+`.250`'s own visibility test: it pulled each patch 2 cm off the surface and compared the camera ray's hit
+*distance*, but 2 cm of **perpendicular** offset becomes 0.08–0.12 m **along** a grazing ray, so the ceiling
+and floor — seen almost edge-on from eye height — read `occluded 225/225` on all 12 anchors. Replaced with
+object identity plus 3-D proximity, no offset. Previously published anchors move ≤0.5 %, so `.250`/`.251`
+stand; the fix also admits `d = 0.6` on wall B, which reads **108.0** against 129–132 further in — the
+window-reveal shadow, not falloff, and a reason to keep 1.2 m as "near".
+
+**The comparison, 251 samples, `medium`, photographic look, 13:00, 16:9, lights off, 15×15 world samples per
+0.24 m patch:**
+
+| surface | material | raster | traced | raster/traced |
+| --- | --- | --- | --- | --- |
+| wall B plaster, d = 1.2/2.4/3.0 | `MeshStandardMaterial` rough 0.92 | 129.0 / 131.2 / 131.9 | 131.7 / 131.5 / 131.8 | **≤ 2 %** |
+| ceiling, d = 0.6/1.2/1.8 | **`MeshLambertMaterial`** | 112.7 mean | 150.3 mean | **+33 %** |
+| rug | `MeshPhysicalMaterial` rough 0.95 | 218.0 | 115.9 | **−47 %** |
+
+Cross-surface, that reads as wall/ceiling off by **+27 %** and everything against the floor off by ~**−50 %** —
+which would have been `.188`'s ceiling deficit resurrected against a physical reference in the same room.
+
+**It is not. Looking killed it, as it has five times before.** The traced ceiling visibly **reflects the
+window, the AC unit, the curtain rail and the fan** — a specular reflection in plaster. The raster's ceiling
+over the identical crop is clean matte grey with a smooth gradient and no reflection at all.
+
+**The mechanism, and it is exact.** The ceiling is **`MeshLambertMaterial`** — 14 meshes — a legacy non-PBR
+material with **no `roughness` and no `metalness` field at all**. A PBR path tracer has to interpret that,
+and interprets absent roughness as **0**: a mirror. Meanwhile every surface where the two renderers agree to
+2 % is `MeshStandardMaterial` with an explicit roughness (plaster 0.92). The rug is `MeshPhysicalMaterial`
+0.95 and still diverges by a factor 1.9 the other way, which roughness alone does not explain — sheen or
+clearcoat interpretation, n = 1, unexplained, and its own round.
+
+**So the hypothesis is refuted:** the path tracer is a valid reference only for surfaces whose material it
+interprets the same way the rasteriser does. Cross-surface ratios mix materials by construction, so they
+measure **material-interpretation mismatch, not light transport**. Off the table until the mismatch is
+characterised per material type.
+
+**And this strengthens `.251`.** Its single measured surface — wall B plaster, `MeshStandardMaterial` 0.92 —
+is exactly the case where the two renderers demonstrably agree to ≤2 %. `.251`'s "real GI also gives a flat
+wall" therefore rests on the one surface class where the comparison is legitimate. That was luck at the
+time; it is now demonstrated.
+
+**A shipped defect, found incidentally.** The HQ path-traced still is a **user-facing feature**, and it
+renders the ceiling as a mirror reflecting the window. Any user producing an HQ still of this room gets it.
+Evidence: `/tmp/ld-252pt/pathtraced.png`. Filed as open item **(n) HQ-LAMBERT-CEILING** with the two
+candidate fixes and their blast radii — the HQ-scoped one (map Lambert to Standard when building the tracer
+scene) changes only the HQ path and leaves every raster measurement in this arc untouched, which is why it
+is the recommended one. Not fixed here: it is a `src` change to shipped appearance, and it deserves its own
+round with a before/after.
+
+Probe only: ceiling/floor anchors, the visibility-test fix, cross-surface raster-vs-traced ratios, the
+aperture line. `npm test` 9434 passed, `tsc` clean, `biome` clean. Nothing changed in `src/` beyond the
+version bump. Runs 04:23–04:35 local.
+
 ## v0.31.5.251 — real GI does NOT produce the photograph's wall falloff: the diagnosis is refuted
 
 `.250`'s anchors are **world points**, so the tracer canvas can be sampled at exactly the same ones — the

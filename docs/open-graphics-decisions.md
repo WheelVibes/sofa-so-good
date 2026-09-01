@@ -967,6 +967,49 @@ photographic look is **opt-in** (`ui.photographicLook` defaults off), so blast r
 who chose it; and **every `medium` + photographic figure in this arc was measured without the vignette**,
 so adopting it re-bases those numbers.
 
+## (n) HQ-LAMBERT-CEILING — ⏳ OPEN, a real defect needing a fix call (found v0.31.5.252)
+
+**The shipped HQ path-traced still renders the ceiling as a mirror.** It reflects the window, the AC
+unit, the curtain rail and the ceiling fan. The rasterised viewport over the identical crop is clean
+matte grey with a smooth gradient and no reflection at all.
+
+| surface | material | raster | traced (251 samples) | raster / traced |
+| --- | --- | --- | --- | --- |
+| wall plaster, d = 1.2/2.4/3.0 m | `MeshStandardMaterial` rough 0.92 | 129.0 / 131.2 / 131.9 | 131.7 / 131.5 / 131.8 | ≤ 2 % |
+| **ceiling**, d = 0.6/1.2/1.8 m | **`MeshLambertMaterial`** | 112.7 | 150.3 | **+33 %** |
+| rug | `MeshPhysicalMaterial` rough 0.95 | 218.0 | 115.9 | −47 % |
+
+**Cause, exactly.** The ceiling is `MeshLambertMaterial` — **14 meshes** — a legacy non-PBR material with
+**no `roughness` and no `metalness` field**. The HQ renderer is a PBR path tracer, so it has to interpret
+that, and interprets absent roughness as **0**: a mirror. Every surface where the two renderers agree to
+2 % is `MeshStandardMaterial` with an explicit roughness.
+
+`MeshPhysicalMaterial` at roughness 0.95 (the rug) still diverges by a factor 1.9 in the *other*
+direction, which roughness does not explain — sheen or clearcoat interpretation is the suspect. That is
+n = 1 and unresolved; it is not part of this item's fix.
+
+### Two candidate fixes, with their blast radii
+
+**1. HQ-scoped (recommended).** Substitute an equivalent `MeshStandardMaterial` (roughness ≈ 0.9,
+metalness 0) for every `MeshLambertMaterial` while building the tracer scene. **Changes only the HQ
+still.** The rasterised viewport is untouched, so every raster measurement in this arc — `%<64`, the
+region ratios, the anchored wall numbers — keeps its meaning and needs no re-basing. Low risk, and it
+fixes the defect where the defect is.
+
+**2. Scene-wide.** Convert the 14 ceiling meshes to `MeshStandardMaterial` in `src/`. Arguably the more
+correct material for plaster and it fixes both paths at once, but `MeshLambertMaterial` and
+`MeshStandardMaterial` shade differently in the raster too (Standard adds a specular lobe and an
+environment response at grazing angles), so it **changes shipped viewport appearance** and re-bases
+every ceiling figure this arc has published. It also has a cost: Lambert is the cheaper shader, and the
+ceiling is a full-room surface on the `performance` tier.
+
+### Why this is filed rather than fixed
+
+It is a `src` change to shipped appearance, and root `CLAUDE.md` reserves those. Fix 1 is narrow enough
+that it is close to a pure bug fix, and it is what I would do — but it still deserves its own round with
+a before/after HQ still, which is a measurement, not a judgement call. **The choice between 1 and 2 is
+the call needed.**
+
 ## Summary
 
 | # | Item | Kind | Recommendation |

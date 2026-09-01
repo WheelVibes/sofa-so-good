@@ -795,8 +795,9 @@ if (process.env.ANCHORS === '1') {
   const DS = (process.env.ANCHOR_DS || '0.6,1.2,1.8,2.4,3.0,3.6').split(',').map(Number)
   const HALF = Number(process.env.ANCHOR_HALF || 0.12)
   const GRID = Number(process.env.ANCHOR_GRID || 7)
+  const SIDES = (process.env.ANCHOR_SIDES || 'A,B,C,F').split(',')
   const anchors = await page.evaluate(
-    ({ win, ds, y, half, grid, hud }) => {
+    ({ win, ds, y, half, grid, hud, sides }) => {
       const { scene, camera } = window.__three
       const V = camera.position.constructor
       const rc = new window.__three.raycaster.constructor()
@@ -812,15 +813,24 @@ if (process.env.ANCHORS === '1') {
       }
       const n = new V(win.nx, 0, win.nz)
       const perp = new V(-win.nz, 0, win.nx)
-      const up = new V(0, 1, 0)
       const inHud = (sx, sy) =>
         hud.some((r) => sx >= r.x0 && sx <= r.x1 && sy >= r.y0 && sy <= r.y1)
       const out = []
+      // `.252`: the same machinery, aimed at the CEILING and FLOOR as well as the
+      // side walls. Sides A/B shoot sideways, C shoots up, F shoots down. All
+      // four are world-anchored, so all four can be sampled identically on the
+      // raster frame and on the traced still.
+      const probes = [
+        { side: 'A', dir: () => perp.clone(), axis: 'perp' },
+        { side: 'B', dir: () => perp.clone().multiplyScalar(-1), axis: 'perp' },
+        { side: 'C', dir: () => new V(0, 1, 0), axis: 'up' },
+        { side: 'F', dir: () => new V(0, -1, 0), axis: 'up' },
+      ].filter((q) => sides.includes(q.side))
       for (const d of ds) {
         const origin = new V(win.cx + win.nx * d, y, win.cz + win.nz * d)
-        for (const s of [1, -1]) {
-          const rec = { d, side: s > 0 ? 'A' : 'B' }
-          const dir = perp.clone().multiplyScalar(s)
+        for (const pr of probes) {
+          const rec = { d, side: pr.side }
+          const dir = pr.dir()
           const h = firstHit(origin, dir)
           if (!h) {
             rec.reject = 'no sideways hit'
@@ -835,10 +845,10 @@ if (process.env.ANCHORS === '1') {
           // normal. Testing against `n` instead is what the first `.250` attempt
           // did, and it rejected all 12 anchors with |n.nWin| = 0 -- the value a
           // correct side wall must have.
-          rec.dotPerp = +Math.abs(wn.dot(perp)).toFixed(3)
+          rec.dotPerp = +Math.abs(wn.dot(pr.axis === 'up' ? new V(0, 1, 0) : perp)).toFixed(3)
           rec.dotWin = +Math.abs(wn.dot(n)).toFixed(3)
-          if (Math.abs(wn.y) > 0.3) {
-            rec.reject = 'surface not vertical'
+          if (pr.axis === 'up' ? Math.abs(wn.y) < 0.9 : Math.abs(wn.y) > 0.3) {
+            rec.reject = pr.axis === 'up' ? 'surface not horizontal' : 'surface not vertical'
             out.push(rec)
             continue
           }
@@ -847,11 +857,28 @@ if (process.env.ANCHORS === '1') {
           // not "further from the light" and the number mixes distance with
           // incidence angle.
           if (rec.dotPerp < 0.9) {
-            rec.reject = 'wall turns along its run (not constant orientation)'
+            rec.reject = 'surface turns along its run (not constant orientation)'
             out.push(rec)
             continue
           }
-          const base = h.point.clone().add(dir.clone().multiplyScalar(-0.02))
+          // No offset off the surface. `.252`'s first attempt pulled the patch 2 cm
+          // off along the probe direction and then tested visibility by comparing
+          // the camera ray's hit DISTANCE against the distance to the anchor. That
+          // works for a wall faced nearly head-on and fails completely for the
+          // ceiling and floor, which are seen almost edge-on from eye height: 2 cm
+          // of PERPENDICULAR offset becomes 0.08-0.12 m ALONG a grazing ray, over
+          // the 6 cm tolerance, so all 12 ceiling anchors read "occluded 225/225".
+          // The camera ray never starts on the surface, so no offset is needed;
+          // visibility is now object identity plus 3-D proximity.
+          const base = h.point.clone()
+          // In-plane basis derived from the HIT NORMAL, so one code path serves a
+          // vertical wall, the ceiling and the floor. U is the window's inward
+          // normal projected into the surface (so `a` always means "further into
+          // the room"); V completes the frame.
+          const bu = n.clone().sub(wn.clone().multiplyScalar(n.dot(wn)))
+          if (bu.length() < 1e-6) bu.copy(perp)
+          bu.normalize()
+          const bv = new V().crossVectors(wn, bu).normalize()
           const pts = []
           let occluded = 0
           let offscreen = 0
@@ -863,12 +890,11 @@ if (process.env.ANCHORS === '1') {
               const b = half * (2 * (j / (grid - 1)) - 1)
               const p = base
                 .clone()
-                .add(n.clone().multiplyScalar(a))
-                .add(up.clone().multiplyScalar(b))
+                .add(bu.clone().multiplyScalar(a))
+                .add(bv.clone().multiplyScalar(b))
               const toCam = p.clone().sub(camera.position)
-              const len = toCam.length()
               const hh = firstHit(camera.position, toCam.clone().normalize())
-              if (!hh || Math.abs(hh.distance - len) > 0.06) {
+              if (!hh || hh.object !== h.object || hh.point.distanceTo(p) > 0.05) {
                 occluded++
                 continue
               }
@@ -907,6 +933,7 @@ if (process.env.ANCHORS === '1') {
       y: ANCHOR_Y,
       half: HALF,
       grid: GRID,
+      sides: SIDES,
       hud: [
         { x0: 0.24, x1: 0.76, y0: 0, y1: 0.1 },
         { x0: 0.9, x1: 1, y0: 0, y1: 0.06 },
@@ -953,9 +980,9 @@ if (process.env.ANCHORS === '1') {
   // So a side is measured only over anchors sharing ONE signature, and the
   // signature is printed for inspection.
   {
-    const bySide = { A: [], B: [] }
+    const bySide = { A: [], B: [], C: [], F: [] }
     for (const a of anchors) if (!a.reject && a.sig) bySide[a.side].push(a)
-    for (const side of ['A', 'B']) {
+    for (const side of SIDES) {
       const counts = new Map()
       for (const a of bySide[side]) counts.set(a.sig, (counts.get(a.sig) || 0) + 1)
       const [dominant] = [...counts.entries()].sort((x, y) => y[1] - x[1])[0] ?? []
@@ -1001,8 +1028,8 @@ if (process.env.ANCHORS === '1') {
           '  ** the tracer output aspect. Traced figures below are NOT comparable. **',
       )
   }
-  const readings = { A: [], B: [] }
-  const tracedReadings = { A: [], B: [] }
+  const readings = { A: [], B: [], C: [], F: [] }
+  const tracedReadings = { A: [], B: [], C: [], F: [] }
   const accepted = []
   for (const a of anchors) {
     if (a.reject) {
@@ -1039,7 +1066,7 @@ if (process.env.ANCHORS === '1') {
       `  d=${a.d.toFixed(1)} side ${a.side}  L=${m.toFixed(1)}${tm == null ? '' : `  traced L=${tm.toFixed(1)}`}   ${a.sig}  span ${a.span} m  |n.perp| ${a.dotPerp}`,
     )
   }
-  for (const side of ['A', 'B']) {
+  for (const side of SIDES) {
     const r = readings[side]
     if (r.length < 2) {
       console.log(`  side ${side}: ${r.length} usable anchor(s) — no profile`)
@@ -1059,6 +1086,61 @@ if (process.env.ANCHORS === '1') {
         `    TRACED side ${side}: L(${tn.d}) = ${tn.m.toFixed(1)}  ->  L(${tf.d}) = ${tf.m.toFixed(1)}   far/near = ${(tf.m / tn.m).toFixed(3)}`,
       )
       console.log(`    TRACED profile: ${t.map((x) => `${x.d}m ${x.m.toFixed(1)}`).join('  ')}`)
+    }
+  }
+  // CROSS-SURFACE RATIOS, RASTER vs TRACED (`.252`).
+  //
+  // `.251` established that the traced ABSOLUTE level is not reproducible across
+  // sample counts (141 / 132 / 143 at 48 / 101 / 251) while a ratio between two
+  // anchors is (spread 0.026), because whatever moves the level moves both. So
+  // the usable comparison is a ratio BETWEEN SURFACES, measured inside each
+  // picture and then compared across the two.
+  //
+  // This is the first instrument in the arc with no reference photograph in it.
+  // Both pictures are the same scene, same pose, same camera, same world anchors;
+  // one is rasterised and one is path-traced. A ratio that differs is a
+  // rasteriser error, with no pose, method, tier, framing (`.247`/`.249`) or scene
+  // (`.251`) confound available to explain it away. A ratio that agrees says the
+  // raster is already doing what real transport does, whatever a photograph of
+  // some other room says.
+  {
+    const label = { A: 'wall A', B: 'wall B', C: 'ceiling', F: 'floor' }
+    const mm = (rs) => (rs.length ? rs.reduce((a, b) => a + b.m, 0) / rs.length : null)
+    const rows = SIDES.map((k) => ({
+      k,
+      n: readings[k].length,
+      r: mm(readings[k]),
+      t: mm(tracedReadings[k]),
+    })).filter((x) => x.n > 0)
+    if (rows.length) {
+      console.log('\n  surface means over accepted anchors (raster | traced):')
+      for (const x of rows)
+        console.log(
+          `    ${label[x.k].padEnd(8)} n=${x.n}  raster ${x.r.toFixed(1)}` +
+            (x.t == null ? '' : `  traced ${x.t.toFixed(1)}`),
+        )
+    }
+    const haveTraced = rows.every((x) => x.t != null) && rows.length >= 2
+    if (haveTraced) {
+      console.log('  cross-surface ratios — RASTER vs TRACED at identical world anchors:')
+      for (let i = 0; i < rows.length; i++)
+        for (let j = 0; j < rows.length; j++) {
+          if (i === j) continue
+          const a = rows[i]
+          const b = rows[j]
+          if (a.k >= b.k) continue
+          const rr = a.r / b.r
+          const tr = a.t / b.t
+          console.log(
+            `    ${label[a.k]} / ${label[b.k]}:  raster ${rr.toFixed(3)}   traced ${tr.toFixed(3)}   ` +
+              `raster/traced = ${(rr / tr).toFixed(3)}  (${((100 * (rr / tr - 1)) | 0) >= 0 ? '+' : ''}${(100 * (rr / tr - 1)).toFixed(1)} %)`,
+          )
+        }
+      console.log(
+        '    A ratio that agrees means the rasteriser already matches real transport\n' +
+          '    on that pair. One that differs is a rasteriser error with no reference\n' +
+          '    photograph, and so no scene or framing confound, in it (.252).',
+      )
     }
   }
   if (process.env.OVERLAY === '1') {
