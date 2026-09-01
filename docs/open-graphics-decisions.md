@@ -912,7 +912,7 @@ recorded, and the fix space (brighter backdrop / a bloom-carrying emissive pane 
 exposure for the backdrop) spans a render change, a product look change, and a per-tier cost. Root
 `CLAUDE.md` says these are not to be decided unilaterally.
 
-## (m) PHOTO-VIGNETTE — ⏳ OPEN, needs a look call (built and measured v0.31.5.244)
+## (m) PHOTO-VIGNETTE — ⏳ OPEN, needs a look call (built and measured v0.31.5.244; its counter-metric retired in v0.31.5.249)
 
 `EffectsImpl.tsx` mounts `Vignette` — its own header calls it *"subtle edge darkening so the frame reads
 'shot, not rendered'"* — **only on the full post stack** (`high`/`maximum`). `medium` runs the AO-only
@@ -944,7 +944,23 @@ it. Ceiling ÷ wall also moves 0.88 → 0.86. This is a stylistic gain paid for 
 a metric whose reference is a photograph — and that photograph carries whatever vignette its own lens had,
 so 0.85–0.86 is already the vignette-inclusive target.
 
-**The call needed:** is a lens cue worth 0.08 of wall falloff on the tier most users boot into? It is a
+> **⚠️ That objection is gone as of `v0.31.5.249`.** The wall-falloff metric has been **retired
+> entirely** — not merely demoted. Its `'wall'` classifier is `|n.y| < 0.3`, i.e. any near-vertical
+> surface, so at the canonical pose the "far wall" bucket is **64 % dark timber armchair backs, 21 %
+> lampshade, 13 % lamp pole and 0 % plaster**, while the near bucket is 31 % window glazing. The number
+> also runs **0.60–0.98 on viewport aspect alone**. And photo D's 0.85–0.86 came from two hand crops of
+> real plaster, so the two sides were never the same measurement. **The 0.74 → 0.66 above is a change in
+> how much light lands on two armchairs, not a wall-falloff regression.**
+>
+> `ceiling ÷ wall` 0.88 → 0.86 also weakens: that `'wall'` population is 49 % plaster / 14 % glazing /
+> 6 % timber, so it is contaminated too, though less. `.244`'s **corner ÷ centre** figures in the table
+> above are unaffected — they are frame-geometry ratios and do not use the `'wall'` classifier.
+>
+> So this item no longer has a measured cost on one side. It is now a **pure look call**, which is what
+> `.244` argued it was in the first place. A clean re-test needs the plaster-only, world-anchored wall
+> metric described at the end of the `.249` section of the research doc.
+
+**The call needed:** is a lens cue worth having on the tier most users boot into? It is a
 look decision, not a measurement one, and it changes the shipped appearance of the photographic look —
 so it is filed here rather than taken unilaterally. Two secondary facts for whoever decides: the
 photographic look is **opt-in** (`ui.photographicLook` defaults off), so blast radius is limited to users

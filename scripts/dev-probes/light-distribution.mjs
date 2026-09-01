@@ -78,8 +78,13 @@ await page.emulateTimezone('Asia/Singapore')
 // VH overrides it independently so the aspect can be varied WITHOUT running the
 // tracer -- `.247` needed that to prove the falloff shift was the aspect and not
 // the PT branch.
+// VW varies the WIDTH at a fixed VH. `walkFov` is a VERTICAL fov, so height
+// controls how much world is seen vertically and width controls it horizontally.
+// Reaching one aspect two different ways (1280x853 vs 1200x800, both 1.50) is
+// therefore NOT the same picture, and separating the two axes is what says
+// whether the falloff metric responds to aspect or to horizontal field (`.249`).
 await page.setViewport({
-  width: 1280,
+  width: Number(process.env.VW || 1280),
   height: Number(process.env.VH || (process.env.PT === '1' ? 720 : 800)),
   deviceScaleFactor: 2,
 })
@@ -535,7 +540,17 @@ const geo = await page.evaluate(
         // than its near one, because bounce fills it (photo D: 0.85-0.86).
         // Along the window's INWARD NORMAL: how far into the room the sample is.
         const dWin = Math.abs((h.point.x - win.cx) * win.nx + (h.point.z - win.cz) * win.nz)
-        if (kind) out.push({ x, y, kind, dWin: +dWin.toFixed(2) })
+        // Carry the hit object's identity. `kind` is a NORMAL test only, so a
+        // sample can be plaster, a sideboard front, a TV or a window pane and
+        // the printed mean cannot tell them apart -- which is how the falloff
+        // metric measured furniture for 23 rounds (`.249`).
+        // Objects in this scene are overwhelmingly unnamed, so identify the hit
+        // by GEOMETRY TYPE + BASE COLOUR instead: plaster shell reads as a
+        // near-white plane/box, furniture as a tinted one.
+        const mat = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material
+        const hex = mat?.color?.getHexString?.() ?? '------'
+        const name = `${h.object.geometry?.type ?? '?'}#${hex}`
+        if (kind) out.push({ x, y, kind, dWin: +dWin.toFixed(2), name: name || '(unnamed)' })
       }
     }
     return out
@@ -599,23 +614,32 @@ const geo = await page.evaluate(
       '    0.91-1.03 spread of the two qualifying photographs (.234).',
     ].join('\n'),
   )
-  // WALL FALLOFF with distance from the window. `.226` adopted this on the
-  // reasoning that it is the same material in the same frame, so composition
-  // cancels. **`.247` FALSIFIED THAT.** Two surfaces in one frame escape the
-  // frame-MEAN dependence that `.201` hit, but this metric also depends on WHICH
-  // wall pixels are visible, and that is set by framing. A pure viewport-aspect
-  // change, nothing else touched:
+  // WALL FALLOFF -- **RETIRED in `.249`. This is not a wall measurement.**
   //
-  //     1280x800 (16:10)  near 116.2 (1377)  far  85.5 (346)  -> 0.74
-  //     1280x720 (16:9)   near 115.3 (1238)  far 107.2 (528)  -> 0.93
-  //     1280x800 again    near 116.1 (1373)  far  85.5 (346)  -> 0.74
+  // `.226` adopted it as "same material, same frame, so composition cancels".
+  // `.247` falsified the "composition cancels" half (0.19 of swing on viewport
+  // aspect alone). `.249` falsified the "same material" half, which is worse:
+  // `kind = 'wall'` is only `|n.y| < 0.3`, i.e. ANY near-vertical surface, so the
+  // buckets were never plaster. Tallied by geometry type + base colour at the
+  // canonical pose, `medium`, photographic look, 13:00, aspect 1.50:
   //
-  // 0.19 of swing -- more than twice the width of the 0.85-0.86 band it is
-  // compared against, and the app BRACKETS the reference rather than missing it.
-  // The far bucket gains 182 much brighter samples at the wider aspect. So this
-  // is a DIAGNOSTIC, not a target, until a framing-matched reference exists: the
-  // one reference photograph's own aspect was never recorded (`.227`).
-  // Photo D reads 0.85-0.86 at an unknown aspect.
+  //     near (dWin<=1.5)  plaster 34%, WINDOW GLAZING 31%, curtain 9%, ...
+  //     far  (dWin>=3)    dark timber armchairs 64%, LAMPSHADE 21%,
+  //                       lamp pole 13%, plaster **0%**
+  //
+  // At every aspect a real camera shoots (1.33-1.52; see `.249` for the screened
+  // set's own aspects) the far bucket contains NO WALL AT ALL. Plaster only
+  // enters it past ~1.8, which is why the number climbs 0.60 -> 0.98 across
+  // 1.20 -> 2.00, non-monotonically in between: aspect decides how much dark
+  // furniture and bright right wall the frame admits.
+  //
+  // The reference, photo D at 0.85-0.86, was TWO HAND CROPS of actual plaster.
+  // So the two sides were never the same measurement -- `.233`'s method-mismatch
+  // lesson, on the axis the arc had left standing.
+  //
+  // Kept printing ONLY as a regression tripwire between two builds at a byte-
+  // identical pose and viewport. It is not comparable to any photograph.
+  // Use OVERLAY=1 to see the buckets before believing anything here.
   {
     const nearW = []
     const farW = []
@@ -631,8 +655,65 @@ const geo = await page.evaluate(
     }
     const mn = mean(nearW)
     const mf2 = mean(farW)
+    // WHAT IS ACTUALLY IN EACH BUCKET. Printed unconditionally, because the
+    // number above is worthless without it (`.249`).
+    {
+      const tally = (pred, kind = 'wall') => {
+        const c = new Map()
+        for (const h of geo) {
+          if (h.kind !== kind || !pred(h.dWin)) continue
+          c.set(h.name, (c.get(h.name) || 0) + 1)
+        }
+        const tot = [...c.values()].reduce((a, b) => a + b, 0) || 1
+        return [...c.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([k, v]) => `${k} ${((100 * v) / tot).toFixed(0)}%`)
+          .join(', ')
+      }
+      console.log(`    near bucket population: ${tally((d) => d <= 1.5)}`)
+      console.log(`    far  bucket population: ${tally((d) => d >= 3)}`)
+      console.log(`    ALL 'wall' samples:      ${tally(() => true)}`)
+      console.log(`    ALL 'ceiling' samples:   ${tally(() => true, 'ceiling')}`)
+    }
+    // OVERLAY=1 paints every sample the falloff actually used onto the frame --
+    // green = near bucket, red = far bucket -- because `kind = 'wall'` is only
+    // `|n.y| < 0.3`, i.e. ANY near-vertical surface, and a printed mean cannot
+    // show whether that population is plaster or the sideboard front (`.249`).
+    if (process.env.OVERLAY === '1') {
+      const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
+      const dot = (gx, gy, r, g2, b) => {
+        for (let dy = -4; dy <= 4; dy++)
+          for (let dx = -4; dx <= 4; dx++) {
+            const px = gx + dx
+            const py = gy + dy
+            if (px < 0 || py < 0 || px >= W || py >= H) continue
+            const o = (py * W + px) * 3
+            rgb[o] = r
+            rgb[o + 1] = g2
+            rgb[o + 2] = b
+          }
+      }
+      for (const h of geo) {
+        if (h.kind !== 'wall') continue
+        const gx = Math.min(W - 1, Math.floor(h.x * W))
+        const gy = Math.min(H - 1, Math.floor(h.y * H))
+        if (h.dWin <= 1.5) dot(gx, gy, 0, 255, 0)
+        else if (h.dWin >= 3) dot(gx, gy, 255, 0, 0)
+      }
+      await sharp(rgb, { raw: { width: W, height: H, channels: 3 } })
+        .png()
+        .toFile(`${OUT}/falloff-samples.png`)
+      console.log(`  falloff sample overlay -> ${OUT}/falloff-samples.png`)
+    }
     console.log(
-      `  wall falloff: near-window ${mn.toFixed(1)} (${nearW.length}), far ${mf2.toFixed(1)} (${farW.length}), far/near = ${(mf2 / mn).toFixed(2)}   (photo 0.85-0.86 at UNKNOWN aspect; this metric swings 0.74-0.93 on viewport aspect alone -- see .247)`,
+      [
+        `  wall falloff: near-window ${mn.toFixed(1)} (${nearW.length}), far ${mf2.toFixed(1)} (${farW.length}), far/near = ${(mf2 / mn).toFixed(2)}`,
+        `    ** RETIRED as a photographic comparison (.249). NOT a wall measurement: at`,
+        `    camera aspects the far bucket is 98% furniture and 0% plaster, the near bucket`,
+        `    is 31% window glazing, and the number runs 0.60-0.98 on viewport aspect alone.`,
+        `    Compare only against another build at an IDENTICAL pose AND viewport. **`,
+      ].join('\n'),
     )
   }
   if (buckets.ceiling.length < 20)

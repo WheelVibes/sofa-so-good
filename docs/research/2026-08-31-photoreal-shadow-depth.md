@@ -5488,3 +5488,143 @@ answer before it can claim a GI deficit again: what aspect the reference photogr
 whether a framing-matched comparison shows any deficit at all.
 
 Nothing changed in `src/`.
+
+---
+
+## `.249` — the wall-falloff metric never measured a wall
+
+`.247` closed with two questions: what aspect the reference photograph was shot at, and whether a
+framing-matched comparison shows any deficit. The first has an answer. The second turns out to be the
+wrong question, because the app side was never measuring the surface it claimed to.
+
+Runs 03:33–03:46 local (2026-09-02), probe server on `:5199` (`vite.probe.config.ts`), all figures
+`medium` + photographic look + 13:00 + `livingDining` window + standoff 4.6 + pitch −0.06 + `walkFov` 50.
+
+### The reference set's aspect distribution
+
+Nine screened interior photographs survive on disk from the `.227`/`.233`/`.234` sweeps. Four further
+`.jpg` files from the same sweeps are HTML or plain text — Pexels/Wikimedia fetch failures that were never
+images — and are excluded here.
+
+| file | pixels | aspect | role |
+| --- | --- | --- | --- |
+| `p233-Home_Staging_Beisp` | 1280×853 | 1.501 | `.233` ceiling qualifier, 1.03 |
+| `ref-A_standard_living_room_i` | 1920×1279 | 1.501 | screened |
+| `p233-ocean` | 1920×1280 | 1.500 | screened |
+| `w-2029667` | 1600×1067 | 1.500 | `.227` falloff candidate, rejected (wall changes orientation) |
+| `ref-7_5_Wohnzimmer` | 1200×803 | 1.494 | screened |
+| `w-1643383` | 1600×1053 | 1.519 | `.227` falloff candidate, rejected (soffit in far crop) |
+| `p233-Living_room_Irelan` | 1387×966 | 1.436 | `.234` ceiling qualifier, 0.91 |
+| `p233-gibberd` | 1920×1440 | 1.333 | screened |
+| `w-1866149` | 1600×1200 | 1.333 | screened |
+
+**1.333–1.519, median 1.500, nothing above 1.52.** The mechanism is not a coincidence: 3:2 is the native
+aspect of 35 mm and APS-C sensors and 4:3 of Four Thirds / compacts / phones, so interior photography lands
+there by construction. **16:10 and 16:9 are display aspects. No camera shoots them** — and every app
+falloff figure from `.226` to `.247` was taken at 1.60 or 1.78.
+
+Caveat, stated because it matters: these are Wikimedia derivatives and may be crops of a differently-shaped
+original, and **photo D itself — the falloff reference — is no longer on disk**. This is the screened set's
+aspect distribution, not a measurement of photo D.
+
+### The aspect curve, and that aspect is the only variable
+
+`light-distribution.mjs` gained a **`VW`** knob (width at fixed height). `walkFov` is a *vertical* fov, so
+height sets vertical world coverage and width sets horizontal — which means an aspect can be reached two
+independent ways, and whether both give the same number is itself a test.
+
+Sweep at `VH=800`:
+
+| aspect | near-window (n) | far (n) | far / near |
+| --- | --- | --- | --- |
+| 1.200 | 116.9 (1142) | 70.6 (415) | 0.60 |
+| 1.334 | 117.2 (1268) | 78.5 (353) | 0.67 |
+| 1.430 | 114.8 (1378) | 71.8 (307) | 0.62 |
+| **1.500** | 116.5 (1451) | 71.4 (286) | **0.61** |
+| 1.600 | 116.2 (1378) | 85.6 (346) | 0.74 |
+| 1.778 | 115.6 (1238) | 107.3 (529) | 0.93 |
+| 2.000 | 117.1 (1082) | 114.4 (675) | 0.98 |
+
+**0.38 of swing** — twice `.247`'s 0.19 — and **non-monotonic** (1.334 sits above both its neighbours).
+1.600 → 0.74 (346) reproduces `.247`'s figure exactly, and 1.500 → 0.61 (286) reproduced on four separate
+runs.
+
+Two routes to one aspect, cross-checked:
+
+| route | aspect | far / near | far n |
+| --- | --- | --- | --- |
+| 1280×853 (`VH`) | 1.500 | 0.61 | 286 |
+| 1200×800 (`VW`) | 1.500 | 0.61 | 286 |
+| 1280×960 (`VH`) | 1.333 | 0.66 | 353 |
+| 1067×800 (`VW`) | 1.334 | 0.67 | 353 |
+
+Identical sample counts and identical ratios. So the metric is a clean function of **aspect**, not of pixel
+dimensions — the good news, and the thing that made the next step worth taking rather than guessing.
+
+### What is actually in the buckets
+
+Taken at face value the table says the app misses 0.85–0.86 at every camera aspect instead of bracketing
+it. `OVERLAY=1` — new, paints every sample the falloff used onto the frame, green near / red far — says
+why that reading is worthless. **The red dots are on the furniture.**
+
+Tallied by geometry type + base colour (also new, printed every run), at aspect 1.500:
+
+| bucket | population |
+| --- | --- |
+| near, `dWin ≤ 1.5` | `PlaneGeometry#f5f5f0` plaster 34 %, `BoxGeometry#bcd4e6` **window glazing 31 %**, `PlaneGeometry#b9b0a0` curtain 9 %, `#ffffff` 4 %, `#e6e7e4` 4 % |
+| far, `dWin ≥ 3` | `ExtrudeGeometry#7a5c3c` **dark timber armchair backs 64 %**, `CylinderGeometry#f3e6c8` lampshade 21 %, `CylinderGeometry#2b2b2b` lamp pole 13 %, `BoxGeometry#f1efea` 1 %, **plaster 0 %** |
+
+The classifier is `kind = 'wall'` iff `|n.y| < 0.3` — *any* near-vertical surface. A sideboard front, a TV,
+a sofa back, a lampshade and a window pane all qualify. So the metric is
+**(dark furniture near the camera) ÷ (the window glazing and the wall around it)**, and at every aspect a
+camera shoots there is **no wall in the far bucket at all**.
+
+At aspect 2.000 the far bucket becomes plaster 56 % / timber 24 % / lampshade 15 % / pole 5 %, because a
+wide frame admits a column of the bright right wall — far mean 71.4 → 114.5, hence 0.98. So the aspect
+dependence was never "which wall pixels are visible" (`.247`'s diagnosis); it is **how much furniture
+versus wall** the frame admits, and the non-monotonicity is those two populations trading places.
+
+### The method mismatch
+
+Photo D's 0.85–0.86 came from **two hand crops of actual plaster** — 188 → 162 and 195 → 165 (`.226`). The
+app's number is a screen-population mean dominated by armchairs. The two sides were never the same
+measurement. This is `.233`'s lesson exactly — there, the app's geometric mask swept in a wall junction the
+photo crop excluded, and half the apparent ceiling deficit was the two methods disagreeing — arriving on
+the one axis the arc had left standing after `.247`.
+
+### Retired
+
+**The wall-falloff metric itself**, not just its deviation. `.226` justified it as "same material, same
+frame, so composition cancels". `.247` killed *same frame*; this kills *same material*. It stays in the
+output only as a regression tripwire between two builds at a byte-identical pose **and** viewport, printed
+with the population tally and an explicit retirement so it cannot quietly become a target again.
+
+**Survives.** The mechanism arguments (`.189`–`.195`, `.226`, `.231`, `.235`) — `.247` already recorded
+that none rested on this number. `.226`'s *relative* finding that the photographic look sits lower than the
+default at identical framing also survives; it is simply not a statement about walls. And `.234`'s ceiling
+retirement survives, because it rests on a hand crop (0.93) and because the `'ceiling'` bucket is 92 %
+ceiling plaster — clean.
+
+**Newly suspect, for the next round.** The `'wall'` bucket that feeds the `ceiling/wall` diagnostic is
+`plaster 49 % / glazing 14 % / timber 6 % / …` — contaminated, though far less than the far bucket, and the
+0.92 it prints is therefore not a plaster reading either. The probe now prints that tally every run.
+Re-deriving `ceiling/wall` over a plaster-only population is the obvious next step.
+
+### What the GI question needs now
+
+`.247` said the diagnosis had lost its quantitative support. This says the support was never evidence.
+
+The falloff axis **cannot be repaired by matching framing**, because framing was the symptom. It needs a
+**plaster-only, world-anchored** population: rays cast at fixed world points along one wall of constant
+orientation to the window, at known distances from it, accepted only when every anchor is visible and every
+hit is plaster. That is framing-invariant by construction — the population is defined in the world, not on
+the screen — and it is the same measurement photo D got by hand, which is what would make the comparison
+legal for the first time. `.246`'s traced still then becomes a decisive instrument rather than a blocked
+one, because both pictures can be sampled at the same world anchors.
+
+The `.227` criterion is unchanged and now applies to the app as well as to the photographs: **an
+unobstructed wall of constant orientation, spanning near and far from a single window, with nothing mounted
+on it.** `.227` rejected reference 2029667 for failing it. The app's own metric has been failing it since
+`.226`.
+
+Nothing changed in `src/` beyond the version bump.
