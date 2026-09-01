@@ -61,6 +61,7 @@ const PHOTO = process.env.PHOTO === '1'
 const FLOOR = process.env.FLOOR || ''
 const WALL = process.env.WALL || ''
 const TONE = process.env.TONE || ''
+const BACKDROP = process.env.BACKDROP || ''
 // Pitch for the FLOOR capture: steep enough that the near floor fills the bottom
 // of the frame instead of the furniture standing on it.
 const FLOOR_PITCH = Number(process.env.FLOOR_PITCH || -0.55)
@@ -100,7 +101,7 @@ await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 await page.evaluate(
-  ({ h, t, fov, photo, floor, wall, tone }) => {
+  ({ h, t, fov, photo, floor, wall, tone, backdrop }) => {
     const s = window.__store.getState()
     s.setTimeMode('manual')
     s.setManualHour(h)
@@ -112,10 +113,24 @@ await page.evaluate(
     // TONE lets the view transform be swapped, so "is the curve the binding
     // constraint?" can be tested rather than argued (`.259`).
     if (tone) s.setToneMapping?.(tone)
+    // BACKDROP swaps the window's exterior for one of the shipped photo presets
+    // ('city' | 'dusk' | 'park' | 'hills'), which is the app's OWN content route
+    // for item (l) -- `.261` wanted a near object behind the glass and `city` is
+    // exactly that. `.263` predicts the equirect -> CubeUV pre-filter blurs it.
+    if (backdrop) s.setBackdrop?.(backdrop)
     if (floor) s.setFloorFinish?.('livingDining', floor)
     if (wall) s.setWallFinish?.('livingDining', wall)
   },
-  { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO, floor: FLOOR, wall: WALL, tone: TONE },
+  {
+    h: HOUR,
+    t: TIER,
+    fov: WALKFOV,
+    photo: PHOTO,
+    floor: FLOOR,
+    wall: WALL,
+    tone: TONE,
+    backdrop: BACKDROP,
+  },
 )
 // LIGHTS=off switches every placed light OFF, so a DAYLIGHT-ONLY frame can be
 // measured. The canonical pose stands under a lit ceiling fixture -- the walk HUD
@@ -739,6 +754,22 @@ const applyLinear = !LINEAR
       await new Promise((r) => setTimeout(r, 900))
     }
 const shot = await shotFor(PITCH)
+if (BACKDROP)
+  console.log(
+    `BACKDROPCHECK ${JSON.stringify(
+      await page.evaluate(() => {
+        const t = window.__three.scene.background
+        const s2 = window.__store.getState()
+        return {
+          asked: s2.backdrop,
+          ctor: t?.constructor?.name ?? null,
+          mapping: t?.mapping ?? null,
+          w: t?.image?.width ?? null,
+          h: t?.image?.height ?? null,
+        }
+      }),
+    )}`,
+  )
 if (BGMUL != null) console.log(`BGMUL=${BGMUL} held at capture: ${JSON.stringify(await readBg())}`)
 if (BGBLOCK)
   console.log(

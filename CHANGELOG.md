@@ -5,6 +5,62 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.264 — the app already ships the content route, and the backdrop path destroys it
+
+`.263` found the backdrop path is low-pass and concluded item (l)'s structural route needs "real geometry
+outside the window, or a background that bypasses the PMREM conversion". Before proposing new content, the
+obvious question: **the app already ships four exterior presets — `city`, `dusk`, `park`, `hills`. What do
+they actually deliver?**
+
+For an HDB flat, `city` is precisely the near-object content `.261` argued for. So this is not a hypothetical
+fix; it is a shipped, user-facing feature to be checked.
+
+**The source asset is excellent.** Dumped straight off `scene.background`: a **2048×1024** crisply drawn
+stylised skyline — blocks with clearly defined windows, sharp edges, good contrast against a blue sky.
+Entirely legible.
+
+**What reaches the window is faint blurred blobs.** Looked at: pale blue-grey smudges in the upper panes,
+just enough to tell that something building-shaped is out there, reading as patterned or frosted glass rather
+than a view.
+
+**Measured** — 13:00, `medium`, photographic look, canonical pose, glazing population n = 413:
+
+| backdrop | source | glazing mean | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- | --- |
+| `sky` (default) | 1024×512 procedural | 161.4 | 17.4 | 55 | 100 % |
+| **`city`** | **2048×1024 skyline** | 172.0 | 18.8 | **58** | 100 % |
+| `park` | 2048×1024 | 157.5 | 20.7 | 65 | 100 % |
+| *photograph, one pane* | | | *33.7–37.7* | ***90–95*** | *36–44 %* |
+
+**A crisp 2048×1024 city buys 3 points of spread — 55 → 58 — where the target needs 55 → 90.** `park` does
+slightly better at 65, presumably because its content is lower-frequency to begin with and so survives the
+filter. Nothing clips at any preset.
+
+So the loss is **entirely in the path, not the asset**: sharp input, mush output. This is `.263`'s
+equirect → CubeUV pre-filter, now demonstrated on shipped content rather than on a probe-painted facade.
+
+**Filed as item (r) BACKDROP-LOWPASS.** It is a defect in the *viewport*, not the HQ still — visible in
+ordinary use to any user who picks a backdrop and expects to see it.
+
+**And it changes the cost/benefit of (l)'s structural route substantially.** `.263` implied new content would
+be needed. It would not: **the content exists and is good.** What is needed is a path that preserves it —
+which would unlock all four presets at once, for every user, without authoring anything. That is a much
+better trade than either `.259`'s aggregate luminance route or a content-authoring project, and it is worth
+knowing before either is attempted.
+
+*Method note, fourth shell-induced false result in this arc — and the second caught by a missing diagnostic
+rather than by a suspicious number.* The first attempt at this round combined the probe edit and a helper
+function named `b` in one command. `b` is a shell alias, so zsh raised a **parse** error, which aborts the
+entire compound command **including the heredoc that applied the edit**. The probe therefore never learned
+about `BACKDROP`, and three runs dutifully produced three near-identical rows for `sky`/`city`/`park` — a
+completely plausible "the presets make no difference" result. What caught it was that the `BACKDROPCHECK`
+diagnostic line was absent from the output. The lesson generalises past zsh: **print what the intervention
+actually did, and treat its absence as a failure signal, not noise.** `.254`, `.262` and now this round were
+all saved by exactly that.
+
+Probe only: the `BACKDROP` knob and its `BACKDROPCHECK` read-back. `npm test` 9437 passed, `tsc` clean,
+`biome` clean. Nothing changed in `src/` beyond the version bump. Runs 07:27–07:32 local.
+
 ## v0.31.5.263 — mechanism resolved: the backdrop is cached and low-pass, `.259` is restored, `.261` is confirmed-but-qualified
 
 `.262` ended with a contradiction it could not resolve: `backgroundIntensity` moves the glazing

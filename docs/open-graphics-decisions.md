@@ -1514,6 +1514,62 @@ explicitly when it is not.
   **Hypothesis, not isolated.** *Excluding `transparent && depthWrite === false` was implemented in
   `.257` and skipped 61 planes cleanly; also reverted only because it shipped with the rest.*
 
+## (r) BACKDROP-LOWPASS — ⏳ OPEN, a real defect needing a render call (found v0.31.5.264)
+
+**The app ships four exterior backdrops — `city`, `dusk`, `park`, `hills` — and almost none of their
+content reaches the window.**
+
+The source assets are good. Dumped straight off `scene.background`, `city` is a **2048×1024** crisply drawn
+stylised skyline: blocks with clearly defined windows, sharp edges, good contrast against blue sky, entirely
+legible. What appears through the glazing is **faint blue-grey blurred blobs** — just enough to tell
+something building-shaped is out there, reading as patterned glass rather than a view.
+
+Measured on the world-verified glazing population (n = 413), 13:00, `medium`, photographic look, canonical
+pose:
+
+| backdrop | source | glazing mean | sd | **spread** | mid-tone |
+| --- | --- | --- | --- | --- | --- |
+| `sky` (default) | 1024×512 procedural | 161.4 | 17.4 | **55** | 100 % |
+| **`city`** | **2048×1024 skyline** | 172.0 | 18.8 | **58** | 100 % |
+| `park` | 2048×1024 | 157.5 | 20.7 | **65** | 100 % |
+| *photograph, one pane* | | | *33.7–37.7* | ***90–95*** | *36–44 %* |
+
+**A crisp 2048×1024 city buys 3 points of spread where the target needs 35.** Sharp input, mush output — so
+the loss is in the **path**, not the asset.
+
+### Cause
+
+`.263` established it: three converts an equirect `scene.background` into a **CubeUV/PMREM**, which is
+pre-filtered by construction, so the background path cannot carry high-frequency detail. `SceneBackdrop.tsx`
+configures every preset and every user upload as an **LDR equirectangular** background, so all of them go
+through that filter. `scene.backgroundBlurriness` is 0 — the blur is not deliberate.
+
+### Why this matters more than it looks
+
+1. **It is a viewport defect, not an HQ-still one.** Any user who picks a backdrop and expects to see it is
+   affected, in ordinary use.
+2. **It changes the cost/benefit of item (l)'s structural route completely.** `.263` implied new content
+   would be needed for a window that reads as an opening. It would not — **the content already exists and is
+   good.** What is needed is a path that preserves it, which would unlock all four presets at once, for every
+   user, without authoring anything.
+3. **The custom-upload path is affected identically**, since it uses the same `configureBackdropTexture`.
+
+### The fix space
+
+Not a tuning change, which is why it is filed rather than taken:
+
+- **Render the backdrop as geometry** — a large textured shell (or a screen-facing quad at distance) sampled
+  directly rather than via `scene.background`, bypassing the CubeUV conversion. Correct parallax, full
+  sharpness; costs a draw call and needs care with the sky dome and the HQ snapshot.
+- **Keep `scene.background` but supply a cube texture**, which is not PMREM-converted for background
+  rendering the way an equirect is. Preserves the current structure; needs the presets re-authored as cube
+  maps.
+- **Accept it and document it** — the presets become mood tinting rather than views, which is arguably what
+  they are today.
+
+**The call needed:** whether a legible exterior is wanted, and by which of those routes. It touches the
+render path and shipped appearance for every backdrop user.
+
 ## Summary
 
 | # | Item | Kind | Recommendation |

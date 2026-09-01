@@ -7218,3 +7218,78 @@ the cheap version — which would have produced exactly the frosted-glass result
 diagnose after the fact.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.264` — the app already ships the content route, and the path destroys it
+
+`.263` concluded that item (l)'s structural route needs "real geometry outside the window, or a background
+that bypasses the PMREM conversion". Before proposing that anyone author new content, there is an obvious
+prior question: **the app already ships four exterior presets — `city`, `dusk`, `park`, `hills`. What do they
+deliver?** For an HDB flat, `city` is exactly the near-object content `.261` argued for.
+
+Runs 07:27–07:32 local (2026-09-02).
+
+### The source asset is good
+
+Dumped straight off `scene.background` with `toDataURL`: `city` is a **2048×1024** crisply drawn stylised
+skyline — blocks with clearly defined windows, sharp edges, strong contrast against a blue sky, buildings
+straddling the horizon exactly where a window looks. Entirely legible.
+
+### What reaches the window is not
+
+Looked at: **faint blue-grey blurred blobs** in the upper panes. Enough to tell that something
+building-shaped is out there; not enough to read as a view. The pane looks like patterned or frosted glass.
+
+| backdrop | source | glazing mean | sd | **spread** | mid-tone |
+| --- | --- | --- | --- | --- | --- |
+| `sky` (default) | 1024×512 procedural | 161.4 | 17.4 | **55** | 100 % |
+| **`city`** | **2048×1024 skyline** | 172.0 | 18.8 | **58** | 100 % |
+| `park` | 2048×1024 | 157.5 | 20.7 | **65** | 100 % |
+| *photograph, one pane (`.261`)* | | | *33.7–37.7* | ***90–95*** | *36–44 %* |
+
+**A crisp 2048×1024 city buys three points of spread — 55 → 58 — where the target needs 55 → 90.** `park`
+manages 65, presumably because its content is lower-frequency to begin with and so survives the filter
+better. Nothing clips under any preset.
+
+Sharp input, mush output: the loss is **entirely in the path**. This is `.263`'s equirect → CubeUV pre-filter,
+now demonstrated on shipped content rather than on a probe-painted facade, which is a considerably stronger
+demonstration — the facade could always have been dismissed as an artefact of my painting.
+
+### Filed as (r) BACKDROP-LOWPASS
+
+A **viewport** defect, not an HQ-still one: every user who picks a backdrop and expects to see it is
+affected, in ordinary use. `SceneBackdrop.tsx` configures presets *and* user uploads through the same
+`configureBackdropTexture` as LDR equirectangulars, so the custom-photo path is affected identically.
+`scene.backgroundBlurriness` is 0 — the blur is not deliberate.
+
+### Why this matters more than it first looks
+
+It **inverts the cost/benefit of item (l)'s structural route.** `.263` implied new content would be needed to
+make the window read as an opening. It would not: the content exists, it is good, and it is being filtered
+away. Fixing the *path* would unlock four presets at once, for every user, with nothing authored — a far
+better trade than either `.259`'s aggregate luminance route or a content project.
+
+### Method note — fourth shell-induced false result, second caught by a missing diagnostic
+
+The first attempt at this round put the probe edit and a helper function named `b` in one command. `b` is a
+shell alias, so zsh raised a **parse** error — which aborts the *entire* compound command, including the
+heredoc that was supposed to apply the edit. The probe therefore never learned about the `BACKDROP`
+environment variable, and three runs produced three near-identical rows for `sky` / `city` / `park`: a
+perfectly plausible *"the presets make no difference"* result, which is very close to the finding this round
+actually reports and would have been reported for entirely the wrong reason.
+
+What caught it was not the numbers. It was that the **`BACKDROPCHECK` line was missing from the output.**
+
+That generalises well past zsh, and it is now the third time it has mattered:
+
+| round | what the diagnostic caught |
+| --- | --- |
+| `.254` | a light patch silently reverted every frame → a dead-flat sweep |
+| `.262` | a canvas mutation that never reached the renderer |
+| **`.264`** | an edit that never applied, so the knob did nothing |
+
+**Print what the intervention actually did, and treat the absence of that print as a failure signal rather
+than as noise.** Every one of those three would otherwise have shipped a confident false negative.
+
+Nothing changed in `src/` beyond the version bump.
