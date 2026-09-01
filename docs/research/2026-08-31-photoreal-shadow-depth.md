@@ -6373,3 +6373,115 @@ measurement, requiring no decision, is to render HQ stills at 13:00 and 21:00 an
 changes while the viewport changes a great deal.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.256` — (p) proven by the hour test, and two more snapshot infidelities
+
+`.255` withdrew item (o) on a code reading plus one `FILLOFF` intervention, and named the measurement that
+would make **(p)** undeniable while requiring no decision from anyone: render HQ stills at two hours and see
+what tracks between the renderers. It confirms (p), re-refutes `.253` by an independent route, hands the arc
+its first genuine control, and — once I looked at the frames — turns up two further ways the tracer snapshot
+is not the scene.
+
+Runs 05:27–05:38 local (2026-09-02). `PT=1`, 152 samples per still, `medium`, photographic look, standoff
+4.6, pitch −0.06, 16:9, world anchors at `ANCHOR_OFF −0.7`, lights **on** — the representative case, since
+point lights *are* copied into the snapshot.
+
+### The hour test
+
+| | 13:00 | 21:00 | change |
+| --- | --- | --- | --- |
+| raster ceiling (3 anchors) | 120.1 | 180.3 | **+50 %** |
+| traced ceiling | 140.8 | 152.7 | **+8 %** |
+| raster wall B (2 anchors) | 130.6 | 179.6 | +38 % |
+| traced wall B | 135.2 | 187.8 | +39 % |
+
+| raster ÷ traced | 13:00 | 21:00 | swing |
+| --- | --- | --- | --- |
+| **wall B** — lit by point lights, **copied** | 0.965 | 0.956 | **−1 %** |
+| **ceiling** — 69 % fill-lit (`.255`), **not copied** | 0.853 | 1.181 | **+38 %, sign inverts** |
+
+Read the two rows together and (p) is not arguable. The surface whose light the snapshot *keeps* tracks
+between the two renderers to within **1 %** across a day-to-night swing that moves it 38 %. The surface
+whose light the snapshot *drops* swings 38 % in the ratio and changes sign. And the traced ceiling barely
+registers the hour at all — **+8 %** against the raster's **+50 %** — because its light is a
+`GradientEquirectTexture` with hardcoded colours that has no idea what time it is.
+
+Visible as well as numeric: at 21:00 the traced ceiling carries a distinct cold blue cast from that fixed
+daytime sky (`topColor 0xbfd4e6`) while the rasterised ceiling over the same crop is warm cream.
+
+### It re-refutes `.253` from the opposite direction
+
+`.253` claimed the raster ceiling was ~12–19 % too dark relative to its wall, and read that as the
+inter-reflection deficit `.188` first guessed at. `.255` withdrew it from a code reading plus an
+intervention.
+
+**A genuine inter-reflection deficit cannot flip sign with the clock.** At 13:00 the traced ceiling is 17 %
+brighter than the raster's; at 21:00 the raster's is 18 % brighter. Whatever that number measures, it is not
+a property of the rasteriser's light transport. Two independent routes now agree, and they were reached
+without touching each other's evidence.
+
+### The arc's first real control
+
+`.255`'s new rule was stated as a caution: *an agreement is not a control unless you know both sides share a
+mechanism.* The wall row is that rule in its **positive** form. Wall B is lit substantially by the point
+lights, which the snapshot copies, so the two pipelines *do* share a mechanism there — and they agree to
+1 % across a large change. That is what licenses reading the ceiling's divergence as a real difference
+rather than as ambiguity, and it is the kind of control `.253` thought it had and did not.
+
+Worth keeping as a template: **the control and the measurement should differ in exactly one mechanism.**
+
+### Then I looked at the frames
+
+**Infidelity 2 — the HQ still's window is an opaque panel.** At native resolution, 21:00, same pose:
+
+| | raster (viewport) | traced (HQ still) |
+| --- | --- | --- |
+| grille | ~20 vertical bars + horizontal rails, pale cream | **absent — only the cross mullion** |
+| pane | near-black night sky | flat, *lighter* blue-grey |
+
+A census of every transparent material in the scene found the cause immediately: the glazing is
+`MeshPhysicalMaterial#bcd4e6` with **`opacity 0.22`** and **`transmission 0`**.
+
+`opacity` is a rasteriser alpha-blend concept — the raster composites the pane over whatever is behind it,
+so the grille bars and the night backdrop show through. A PBR path tracer has no alpha blend; it needs
+**`transmission`** to see through a surface. At `transmission: 0` the pane is an opaque diffuse surface, so
+it hides the grille and the sky and reads as a panel.
+
+Filed as **(q) HQ-GLAZING-OPAQUE**. Note the connection to item **(l) WINDOW-LUMINANCE**, whose subject is
+the window reading *"as a panel rather than an opening"* — in the HQ still it literally is one, and for a
+completely different reason than (l) is about.
+
+**Infidelity 3 — instanced geometry is dropped, and it matters less than I assumed.** `buildTracerScene`
+skips `isInstancedMesh` outright: **17 instanced meshes, 231 instances**. My first inference was that these
+*were* the missing grille bars. They are not. Hiding exactly the instanced meshes in the raster and diffing
+changed **765 of 480 000 pixels — 0.16 %**. A real omission with small consequence, and the guess was killed
+by a pixel diff before it reached a write-up. Cheap to fix (expand to per-instance clones); low priority.
+
+**Flagged, not claimed.** 61 `MeshBasicMaterial` planes are transparent via opacity, **ten of them at
+`opacity 0.00`** with `depthWrite: false` — fully invisible in the raster. Basic is copied to the snapshot
+untouched (`.253` deliberately did not substitute it, since Basic is unlit by intent), and opacity is not
+honoured, so ten invisible planes may be rendering as solid surfaces in the still. That is a plausible
+explanation for the faint curved streaks visible across the traced ceiling, but I have not isolated it. A
+hypothesis.
+
+*(Small correction to my own reading along the way: the white speckles across the traced night pane are
+path-tracer noise at 152 samples, not stars.)*
+
+### Where the tracer stands as an instrument
+
+Three independent infidelities, all in `buildTracerScene`, all fixable in the snapshot alone:
+
+| # | infidelity | measured consequence | item |
+| --- | --- | --- | --- |
+| 1 | `AmbientLight` + `HemisphereLight` not copied; fixed gradient sky | ceiling 69 % of its light; ratio swings 38 % and inverts across the day | **(p)** |
+| 2 | `opacity` transparency rendered opaque | window grille and night sky hidden; pane reads as a panel | **(q)** |
+| 3 | `isInstancedMesh` skipped | 231 instances; 0.16 % of pixels | (q), noted |
+
+`.252`'s per-material validity list stays void — these are all upstream of materials. The instrument is
+clearly worth repairing: the hour test shows it agrees to **1 %** wherever the snapshot is faithful, which
+is exactly the property a reference needs. But it is not usable for measurement until at least (p) and (q)
+are fixed, and `.188`'s ceiling deficit stays unproven until then.
+
+Nothing changed in `src/` beyond the version bump.

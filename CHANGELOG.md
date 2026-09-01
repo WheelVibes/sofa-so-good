@@ -5,6 +5,78 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.256 — (p) proven by the hour test, and two more snapshot infidelities
+
+`.255` withdrew item (o) on a code reading plus one intervention, and promised the measurement that would
+make **(p)** undeniable without needing any decision: render HQ stills at two hours and see what tracks.
+It does more than confirm (p) — it independently re-refutes `.253`, and looking at the frames turned up two
+further ways the snapshot is not the scene.
+
+**The hour test.** `PT=1`, 152 samples each, `medium`, photographic look, standoff 4.6, pitch −0.06, 16:9,
+lights **on** (the representative case — point lights *are* copied), world anchors at −0.7 m:
+
+| | 13:00 | 21:00 | change |
+| --- | --- | --- | --- |
+| raster ceiling | 120.1 | 180.3 | **+50 %** |
+| traced ceiling | 140.8 | 152.7 | **+8 %** |
+| raster wall B | 130.6 | 179.6 | +38 % |
+| traced wall B | 135.2 | 187.8 | +39 % |
+
+| raster ÷ traced | 13:00 | 21:00 | swing |
+| --- | --- | --- | --- |
+| **wall B** (lit by point lights — **copied**) | 0.965 | 0.956 | **−1 %** |
+| **ceiling** (69 % fill-lit — **not copied**) | 0.853 | 1.181 | **+38 %, and it inverts** |
+
+**This is (p), cleanly separated.** The surface lit by lights the snapshot copies tracks between the two
+renderers to within 1 % across a day-to-night swing. The surface lit by the fill the snapshot drops swings
+38 % and changes sign. The traced ceiling barely notices the hour (+8 %) because its light is a fixed
+gradient sky; the raster's rises 50 %.
+
+**And it re-refutes `.253` by an independent route.** A genuine inter-reflection deficit cannot flip sign
+with the clock. At 13:00 the traced ceiling is 17 % brighter; at 21:00 the raster's is 18 % brighter.
+`.255` withdrew that deficit from a code reading and a `FILLOFF` intervention; this confirms it from the
+opposite direction, without touching either.
+
+**It also gives the arc its first real control.** `.255`'s rule was a caution — *an agreement is not a
+control unless both sides share a mechanism.* The wall's −1 % tracking is that rule in its positive form:
+the two pipelines demonstrably agree where they share a mechanism, which is what makes the ceiling's
+divergence meaningful rather than ambiguous.
+
+**Then I looked at the frames, and found two more infidelities.**
+
+**1. The HQ still's window is an opaque panel.** At native resolution the raster's 21:00 window is a dense
+grille — ~20 vertical bars and horizontal rails, pale cream against a near-black night pane. The traced
+window has **only the cross mullion**: every grille bar is gone, and the pane is a flat, *lighter*
+blue-grey. Cause, found by census: the glazing is **`MeshPhysicalMaterial#bcd4e6` with `opacity 0.22` and
+`transmission 0`**. `opacity` is a rasteriser alpha-blend concept; a PBR path tracer needs `transmission`
+to see through a surface. So the tracer renders the pane **opaque** — hiding the grille bars and the night
+sky behind it. Filed as **(q) HQ-GLAZING-OPAQUE**. It bears directly on item **(l) WINDOW-LUMINANCE**,
+whose whole subject is the window reading "as a panel rather than an opening": in the HQ still it
+literally is one.
+
+**2. Instanced geometry is dropped — and it matters less than I assumed.** `buildTracerScene` skips
+`isInstancedMesh` outright: **17 instanced meshes carrying 231 instances**. I assumed these were the
+missing grille bars. They are not — hiding exactly the instanced meshes in the raster changed **765 of
+480 000 pixels, 0.16 %**. A real omission, small consequence, and the guess was wrong; the diff killed it
+before it reached a write-up.
+
+**Also flagged, not claimed:** 61 `MeshBasicMaterial` planes are transparent via opacity — **ten of them at
+`opacity 0.00`**, i.e. fully invisible in the raster — and Basic is copied to the snapshot untouched
+(`.253` deliberately did not substitute it). Since opacity is not honoured, ten invisible planes may be
+rendering as solid surfaces in the still. That is a plausible cause of the faint curved streaks visible
+across the traced ceiling, but I have not isolated it, so it is a hypothesis.
+
+*(One correction to my own reading: the white speckles across the traced night pane are path-tracer noise
+at 152 samples, not stars.)*
+
+**Where the tracer stands as an instrument.** Three independent infidelities now, all in `buildTracerScene`,
+all snapshot-only to fix: lighting **(p)**, transparency **(q)**, instancing. `.252`'s per-material validity
+list stays void. The instrument is worth repairing — the hour test shows it tracks to 1 % where the snapshot
+is faithful — but it is not usable until at least (p) and (q) are fixed.
+
+Probe only. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in `src/` beyond the version
+bump. Runs 05:27–05:38 local.
+
 ## v0.31.5.255 — CORRECTION: the tracer is lit by a different rig, so `.253`'s ceiling deficit is withdrawn
 
 This round set out to explain the rug's factor-2 raster-vs-traced discrepancy, expecting a `sheen` bug.

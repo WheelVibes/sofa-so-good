@@ -1157,7 +1157,7 @@ it is the one place where the absence of inter-reflection is now demonstrated to
 12 % on one surface, against a look this arc has spent ~70 rounds tuning, and the cheap lever has been
 priced and rejected.
 
-## (p) HQ-FILL-RIG — ⏳ OPEN, a real defect needing a fix call (found v0.31.5.255)
+## (p) HQ-FILL-RIG — ⏳ OPEN, a real defect needing a fix call (found v0.31.5.255, proven v0.31.5.256)
 
 **The shipped HQ path-traced still is not a higher-quality version of what the user sees. It is a
 different lighting setup.**
@@ -1186,6 +1186,25 @@ does not have. What it has instead is a fixed gradient that cannot respond to:
 - **the photographic look** — including `PHOTO_GROUND_BOUNCE`, whose entire job is to lift the ceiling;
 - **the user's own exposure control.**
 
+### Proven independently by the hour test (v0.31.5.256)
+
+`PT=1` at two hours, 152 samples each, lights **on** (point lights *are* copied), world anchors:
+
+| raster ÷ traced | 13:00 | 21:00 | swing |
+| --- | --- | --- | --- |
+| **wall B** — lit by point lights, **copied** | 0.965 | 0.956 | **−1 %** |
+| **ceiling** — 69 % fill-lit, **not copied** | 0.853 | 1.181 | **+38 %, inverts sign** |
+
+Absolute: raster ceiling +50 % from 13:00 to 21:00 while the traced ceiling moves **+8 %** — its light is a
+fixed gradient sky that does not know the hour. The wall moves +38 % / +39 %, in lockstep.
+
+Two things follow. The defect is **localised** exactly where predicted — the copied-light surface tracks to
+1 %, the dropped-fill surface diverges and reverses. And item (o)'s withdrawal is confirmed from the
+opposite direction: a real inter-reflection deficit cannot flip sign with the clock.
+
+Visible, too: at 21:00 the traced ceiling carries a cold blue cast from the fixed daytime sky
+(`topColor 0xbfd4e6`) while the raster's is warm.
+
 ### What a fix looks like
 
 Substituting the fill is not hard in principle — a `HemisphereLight` is analytically a gradient
@@ -1213,6 +1232,49 @@ useful instrument this arc has built, and would let `.188`'s ceiling deficit fin
 **Cheap next measurement, no decision required:** render HQ stills at 13:00 and 21:00 and show how little
 the fill changes while the viewport changes a great deal. That makes the defect undeniable without
 committing to a mapping.
+
+## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN, a real defect with a clear fix (found v0.31.5.256)
+
+**The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,
+21:00, same pose:
+
+| | raster (viewport) | traced (HQ still) |
+| --- | --- | --- |
+| grille | ~20 vertical bars + horizontal rails, pale cream | **absent — only the cross mullion** |
+| pane | near-black night sky | flat, lighter blue-grey |
+
+**Cause.** The glazing is `MeshPhysicalMaterial#bcd4e6` with **`opacity 0.22` and `transmission 0`**.
+`opacity` is a rasteriser alpha-blend concept — the raster composites it over what is behind, so the grille
+bars and the night backdrop show through. A PBR path tracer has no alpha blend; it needs **`transmission`**
+to see through a surface. With `transmission: 0` the pane is simply an opaque diffuse surface, so it hides
+everything behind it and reads as a panel.
+
+**This bears directly on item (l) WINDOW-LUMINANCE**, whose subject is the window reading *"as a panel
+rather than an opening"*. In the HQ still it literally is one.
+
+### The fix, and the judgement in it
+
+Snapshot-only, same family as (n): when cloning into the tracer scene, give an `opacity`-transparent
+material a `transmission`-based stand-in (roughly `transmission = 1 − opacity`, `opacity = 1`,
+`ior ≈ 1.5` for glass). The viewport cannot move, since the live materials are untouched.
+
+The judgement is that `opacity` and `transmission` are not the same thing physically — alpha blending is a
+compositing trick, transmission is refractive transport, and a mapping between them is an approximation
+chosen for looks. It also interacts with `depthWrite: false` on the 61 `MeshBasicMaterial` overlay planes
+(see below), so a blanket rule is riskier than it looks. **The call needed is whether to map opacity to
+transmission in the snapshot, and with what rule.**
+
+### Two related snapshot infidelities, same function
+
+- **Instanced geometry is dropped.** `buildTracerScene` skips `isInstancedMesh` outright — **17 meshes,
+  231 instances**. Measured consequence is small: hiding exactly those in the raster changes **0.16 %** of
+  pixels (765 of 480 000). Worth fixing (expanding to per-instance clones is trivial), low priority. *Noted
+  because I first assumed these were the missing grille bars; the pixel diff disproved it.*
+- **Ten fully invisible planes may be rendering as solid.** 61 `MeshBasicMaterial` planes are transparent
+  via opacity, **ten at `opacity 0.00`** with `depthWrite: false` — invisible in the raster. Basic is copied
+  untouched (`.253` deliberately did not substitute it) and opacity is not honoured, so they may be solid
+  surfaces in the still. A plausible cause of the faint curved streaks visible across the traced ceiling.
+  **Hypothesis, not isolated.**
 
 ## Summary
 
