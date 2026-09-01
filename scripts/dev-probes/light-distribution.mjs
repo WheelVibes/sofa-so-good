@@ -113,6 +113,26 @@ await page.evaluate(
   },
   { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO, floor: FLOOR, wall: WALL },
 )
+// LIGHTS=off switches every placed light OFF, so a DAYLIGHT-ONLY frame can be
+// measured. The canonical pose stands under a lit ceiling fixture -- the walk HUD
+// prints "Turn off ceiling light" in every frame this arc has captured -- and a
+// daylit reference photograph has no such source. Reported, not assumed: the
+// probe prints how many fixtures it flipped (`.250`).
+if (process.env.LIGHTS === 'off') {
+  const flipped = await page.evaluate(() => {
+    const s = window.__store.getState()
+    const before = window.__store.getState().items
+    const on = before.filter((it) => it.props?.lightOn !== 'no').map((it) => it.id)
+    let k = 0
+    for (const id of on) {
+      s.toggleLightPower(id)
+      const after = window.__store.getState().items.find((it) => it.id === id)
+      if (after?.props?.lightOn === 'no') k++
+    }
+    return { candidates: on.length, flipped: k }
+  })
+  console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidate items`)
+}
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
@@ -718,6 +738,255 @@ const geo = await page.evaluate(
   }
   if (buckets.ceiling.length < 20)
     console.log('  WARNING: few ceiling samples — the pose may not see enough ceiling.')
+}
+
+/**
+ * ANCHORED WALL FALLOFF — the framing-invariant replacement for the metric
+ * `.249` retired.
+ *
+ * `.226`-`.247` measured falloff as a ratio of two SCREEN-SELECTED populations.
+ * `.249` showed why that could never work: `kind = 'wall'` is a normal test, so
+ * the far bucket was 64 % armchair backs and 0 % plaster, and viewport aspect
+ * decided the furniture-to-wall mix (0.60-0.98 on aspect alone).
+ *
+ * This defines the population IN THE WORLD instead. Walk out along the window's
+ * inward normal; at each distance `d`, shoot sideways to find the side wall;
+ * accept the anchor only if that surface is VERTICAL, its normal is PARALLEL to
+ * the window normal (a wall of constant orientation — `.227`'s own criterion for
+ * a usable reference photograph, applied to the app for the first time), and a
+ * fixed 0.24 x 0.24 m patch of it is unoccluded, on-screen, clear of the HUD and
+ * all one material. Every rejection is printed.
+ *
+ * That is the same measurement photo D got by hand — a patch of plaster near the
+ * window against a patch of the same plaster further along — so for the first
+ * time the two sides are comparable. And because the patch is defined in metres
+ * on the wall rather than in pixels on the screen, the number cannot move with
+ * framing. `ASPECT_INVARIANCE=1` re-runs the whole probe across aspects to check
+ * that claim rather than asserting it.
+ */
+if (process.env.ANCHORS === '1') {
+  const ANCHOR_Y = Number(process.env.ANCHOR_Y || 1.5)
+  const DS = (process.env.ANCHOR_DS || '0.6,1.2,1.8,2.4,3.0,3.6').split(',').map(Number)
+  const HALF = Number(process.env.ANCHOR_HALF || 0.12)
+  const GRID = Number(process.env.ANCHOR_GRID || 7)
+  const anchors = await page.evaluate(
+    ({ win, ds, y, half, grid, hud }) => {
+      const { scene, camera } = window.__three
+      const V = camera.position.constructor
+      const rc = new window.__three.raycaster.constructor()
+      const solid = (o) =>
+        o.visible && o.material?.colorWrite !== false && o.material?.opacity !== 0
+      const sig = (o) => {
+        const m = Array.isArray(o.material) ? o.material[0] : o.material
+        return `${o.geometry?.type ?? '?'}#${m?.color?.getHexString?.() ?? '------'}`
+      }
+      const firstHit = (from, dir) => {
+        rc.set(from, dir)
+        return rc.intersectObjects(scene.children, true).find((k) => solid(k.object) && k.face)
+      }
+      const n = new V(win.nx, 0, win.nz)
+      const perp = new V(-win.nz, 0, win.nx)
+      const up = new V(0, 1, 0)
+      const inHud = (sx, sy) =>
+        hud.some((r) => sx >= r.x0 && sx <= r.x1 && sy >= r.y0 && sy <= r.y1)
+      const out = []
+      for (const d of ds) {
+        const origin = new V(win.cx + win.nx * d, y, win.cz + win.nz * d)
+        for (const s of [1, -1]) {
+          const rec = { d, side: s > 0 ? 'A' : 'B' }
+          const dir = perp.clone().multiplyScalar(s)
+          const h = firstHit(origin, dir)
+          if (!h) {
+            rec.reject = 'no sideways hit'
+            out.push(rec)
+            continue
+          }
+          rec.sig = sig(h.object)
+          rec.span = +h.distance.toFixed(2)
+          const wn = new V().copy(h.face.normal).transformDirection(h.object.matrixWorld)
+          // A SIDE wall runs away from the window, so its normal is parallel to
+          // the window wall's direction (`perp`) and PERPENDICULAR to the window
+          // normal. Testing against `n` instead is what the first `.250` attempt
+          // did, and it rejected all 12 anchors with |n.nWin| = 0 -- the value a
+          // correct side wall must have.
+          rec.dotPerp = +Math.abs(wn.dot(perp)).toFixed(3)
+          rec.dotWin = +Math.abs(wn.dot(n)).toFixed(3)
+          if (Math.abs(wn.y) > 0.3) {
+            rec.reject = 'surface not vertical'
+            out.push(rec)
+            continue
+          }
+          // A wall of CONSTANT ORIENTATION relative to the window (`.227`): its
+          // normal must be parallel to the window normal, or "further along" is
+          // not "further from the light" and the number mixes distance with
+          // incidence angle.
+          if (rec.dotPerp < 0.9) {
+            rec.reject = 'wall turns along its run (not constant orientation)'
+            out.push(rec)
+            continue
+          }
+          const base = h.point.clone().add(dir.clone().multiplyScalar(-0.02))
+          const pts = []
+          let occluded = 0
+          let offscreen = 0
+          let inhud = 0
+          let mixed = 0
+          for (let i = 0; i < grid; i++) {
+            for (let j = 0; j < grid; j++) {
+              const a = half * (2 * (i / (grid - 1)) - 1)
+              const b = half * (2 * (j / (grid - 1)) - 1)
+              const p = base
+                .clone()
+                .add(n.clone().multiplyScalar(a))
+                .add(up.clone().multiplyScalar(b))
+              const toCam = p.clone().sub(camera.position)
+              const len = toCam.length()
+              const hh = firstHit(camera.position, toCam.clone().normalize())
+              if (!hh || Math.abs(hh.distance - len) > 0.06) {
+                occluded++
+                continue
+              }
+              if (sig(hh.object) !== rec.sig) {
+                mixed++
+                continue
+              }
+              const sp = p.clone().project(camera)
+              const sx = (sp.x + 1) / 2
+              const sy = (1 - sp.y) / 2
+              if (sx < 0 || sx > 1 || sy < 0 || sy > 1) {
+                offscreen++
+                continue
+              }
+              if (inHud(sx, sy)) {
+                inhud++
+                continue
+              }
+              pts.push([sx, sy])
+            }
+          }
+          rec.occluded = occluded
+          rec.offscreen = offscreen
+          rec.inhud = inhud
+          rec.mixed = mixed
+          rec.pts = pts
+          if (pts.length < grid * grid) rec.reject = 'patch not wholly clean'
+          out.push(rec)
+        }
+      }
+      return out
+    },
+    {
+      win: { cx: pose.cx, cz: pose.cz, nx: pose.nx, nz: pose.nz },
+      ds: DS,
+      y: ANCHOR_Y,
+      half: HALF,
+      grid: GRID,
+      hud: [
+        { x0: 0.24, x1: 0.76, y0: 0, y1: 0.1 },
+        { x0: 0.9, x1: 1, y0: 0, y1: 0.06 },
+        { x0: 0.76, x1: 1, y0: 0.76, y1: 1 },
+      ],
+    },
+  )
+  console.log(
+    `\nANCHORED wall falloff  (y=${ANCHOR_Y} m, patch ${(2 * HALF).toFixed(2)}x${(2 * HALF).toFixed(2)} m, ${GRID}x${GRID} world samples)`,
+  )
+  // SAME PAINT ALONG THE RUN. `.233` screens reference photographs for "same
+  // plaster on both surfaces"; the same rule has to hold along one wall, and it
+  // does not come free. The first `.250` run accepted side A at d=1.8 with
+  // L=157.5 and signature `PlaneGeometry#ffffff` -- **the TV screen**, mounted on
+  // that wall, vertical, correctly oriented and uniform across the whole patch,
+  // so every per-patch test passed. Only looking at the overlay caught it.
+  // So a side is measured only over anchors sharing ONE signature, and the
+  // signature is printed for inspection.
+  {
+    const bySide = { A: [], B: [] }
+    for (const a of anchors) if (!a.reject && a.sig) bySide[a.side].push(a)
+    for (const side of ['A', 'B']) {
+      const counts = new Map()
+      for (const a of bySide[side]) counts.set(a.sig, (counts.get(a.sig) || 0) + 1)
+      const [dominant] = [...counts.entries()].sort((x, y) => y[1] - x[1])[0] ?? []
+      for (const a of bySide[side])
+        if (a.sig !== dominant)
+          a.reject = `different material along the run (${a.sig} vs ${dominant})`
+      if (bySide[side].length && counts.size > 1)
+        console.log(
+          `  side ${side}: ${counts.size} materials along the run -- ${[...counts.entries()].map(([k, v]) => `${k} x${v}`).join(', ')} -- measuring only ${dominant}`,
+        )
+    }
+  }
+  const readings = { A: [], B: [] }
+  const accepted = []
+  for (const a of anchors) {
+    if (a.reject) {
+      console.log(
+        `  d=${a.d.toFixed(1)} side ${a.side}  REJECTED: ${a.reject}   [${a.sig ?? '-'} span ${a.span ?? '-'} |n.perp| ${a.dotPerp ?? '-'}` +
+          (a.pts
+            ? `  clean ${a.pts.length}/${GRID * GRID}, occluded ${a.occluded}, offscreen ${a.offscreen}, hud ${a.inhud}, mixed ${a.mixed}`
+            : '') +
+          ']',
+      )
+      continue
+    }
+    accepted.push(a)
+    let sum = 0
+    for (const [sx, sy] of a.pts) {
+      const gx = Math.min(W - 1, Math.floor(sx * W))
+      const gy = Math.min(H - 1, Math.floor(sy * H))
+      sum += data[gy * W + gx]
+    }
+    const m = sum / a.pts.length
+    readings[a.side].push({ d: a.d, m })
+    console.log(
+      `  d=${a.d.toFixed(1)} side ${a.side}  L=${m.toFixed(1)}   ${a.sig}  span ${a.span} m  |n.perp| ${a.dotPerp}`,
+    )
+  }
+  for (const side of ['A', 'B']) {
+    const r = readings[side]
+    if (r.length < 2) {
+      console.log(`  side ${side}: ${r.length} usable anchor(s) — no profile`)
+      continue
+    }
+    const near = r[0]
+    const far = r[r.length - 1]
+    console.log(
+      `  side ${side}: L(${near.d}) = ${near.m.toFixed(1)}  ->  L(${far.d}) = ${far.m.toFixed(1)}   far/near = ${(far.m / near.m).toFixed(3)}   over ${(far.d - near.d).toFixed(1)} m, ${r.length} anchors`,
+    )
+    console.log(`    profile: ${r.map((x) => `${x.d}m ${x.m.toFixed(1)}`).join('  ')}`)
+  }
+  if (process.env.OVERLAY === '1') {
+    const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
+    const paint = (sx, sy, r, g2, b) => {
+      const gx = Math.min(W - 1, Math.floor(sx * W))
+      const gy = Math.min(H - 1, Math.floor(sy * H))
+      for (let dy = -3; dy <= 3; dy++)
+        for (let dx = -3; dx <= 3; dx++) {
+          const px = gx + dx
+          const py = gy + dy
+          if (px < 0 || py < 0 || px >= W || py >= H) continue
+          const o = (py * W + px) * 3
+          rgb[o] = r
+          rgb[o + 1] = g2
+          rgb[o + 2] = b
+        }
+    }
+    // Accepted anchors in cyan; every REJECTED anchor's surviving points in
+    // magenta, so a patch that was thrown out is visible rather than absent.
+    for (const a of anchors) {
+      if (!a.pts) continue
+      const acc = accepted.includes(a)
+      for (const [sx, sy] of a.pts) paint(sx, sy, acc ? 0 : 255, acc ? 255 : 0, 255)
+    }
+    await sharp(rgb, { raw: { width: W, height: H, channels: 3 } })
+      .png()
+      .toFile(`${OUT}/anchor-patches.png`)
+    console.log(`  anchor overlay (cyan accepted / magenta rejected) -> ${OUT}/anchor-patches.png`)
+  }
+  console.log(
+    '  This number is defined in WORLD metres, so it does not move with viewport aspect\n' +
+      '  (verified by sweep in .250). It is the same measurement photo D got by hand:\n' +
+      '  one patch of plaster near the window against the same plaster further along.',
+  )
 }
 
 /**

@@ -5628,3 +5628,134 @@ on it.** `.227` rejected reference 2029667 for failing it. The app's own metric 
 `.226`.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.250` — the anchored wall metric, and the sign of the GI deficit
+
+`.249` ended by specifying the replacement for the metric it retired: a plaster-only, world-anchored wall
+population. This round builds it, validates the invariance claim by measurement rather than argument, and
+gets a result that inverts the arc's diagnosis.
+
+Runs 03:53–04:00 local (2026-09-02), probe server on `:5199`. Unless stated: `medium`, photographic look,
+13:00, `livingDining` window, standoff 4.6, pitch −0.06, `walkFov` 50.
+
+### Construction
+
+`ANCHORS=1` in `light-distribution.mjs`, so it inherits the window match / standoff clamp / arrival-checked
+teleport (`.245` learned what a standalone probe costs). For each `d` in 0.6…3.6 m along the window's
+inward normal, at `y = 1.5 m`, shoot sideways to find the side wall. The anchor is accepted only if:
+
+1. the surface is **vertical** (`|n.y| ≤ 0.3`);
+2. its normal is **parallel to the window wall's run** — a wall of *constant orientation* relative to the
+   window. This is `.227`'s criterion for a usable reference photograph, applied to the app for the first
+   time. `.227` rejected reference 2029667 for failing it; `.249` showed the app's own metric had been
+   failing it since `.226`;
+3. a fixed **0.24 × 0.24 m** patch, sampled as **7×7 world points** on the wall plane, is *entirely*
+   unoccluded (camera raycast distance matches the anchor's own distance to within 6 cm), on-screen, clear
+   of the HUD rectangles, and one single geometry+colour signature.
+
+Every rejection prints its cause and its counts (`occluded / offscreen / hud / mixed`), so a thinned
+population is visible rather than silent.
+
+**The first attempt rejected all 12 anchors** with `|n·n_win| = 0` — because it tested the side wall's
+normal for *parallelism* to the window normal. A side wall runs *away* from the window, so its normal is
+perpendicular to the window normal and parallel to the window wall's direction; 0 is the value a correct
+side wall must have. Corrected and recorded in the code, because it is an easy inversion to repeat.
+
+### Two knobs the round needed
+
+**`LIGHTS=off`.** Every frame this arc has captured shows the walk HUD printing *"Turn off ceiling light"* —
+i.e. the canonical pose stands under a lit fixture, and a daylit reference photograph has none. 19 of 87
+items were on. Effect: frame mean 110.7 → 107.2, `%<64` 12.61 → 14.30 %, and on the measured wall
+L(2.4) 132.4 → 131.1. Small, real, and now controllable instead of unknown.
+
+**Anchor patches in `OVERLAY=1`** — cyan accepted, magenta rejected-but-surviving-points, so the patches
+can be inspected on the frame.
+
+### Framing invariance, measured
+
+Photographic look, lights on, across exactly the aspect range over which `.249`'s screen-population metric
+ran 0.61 → 0.98:
+
+| aspect | L(1.2 m) | L(2.4 m) | L(3.0 m) | far/near, matched 1.2→2.4 |
+| --- | --- | --- | --- | --- |
+| 1.200 | 128.4 | 132.1 | offscreen | 1.029 |
+| 1.500 | 128.6 | 132.4 | offscreen | 1.030 |
+| 1.600 | 128.9 | 132.3 | offscreen | 1.026 |
+| 1.778 | 128.7 | 132.2 | 134.8 | 1.027 |
+| 2.000 | 128.6 | 132.2 | 134.9 | 1.028 |
+
+Per-anchor luminance moves **0.4 %**; the matched ratio spans **1.026–1.030, spread 0.004**, against
+**0.38** for the retired metric on the same sweep — about 90× tighter. Widening the aspect *adds* anchors
+without moving the existing ones, which is the behaviour a world-defined population must have and the
+screen-defined one could not.
+
+### The result
+
+Side B is the right wall, `PlaneGeometry#f5f5f0` plaster at every accepted anchor, span 1.65–1.70 m from
+the room axis. Lights off, aspect 2.000:
+
+| | L(1.2) | L(2.4) | L(3.0) | far/near over 1.8 m |
+| --- | --- | --- | --- | --- |
+| photographic look | 128.7 | 131.1 | 131.9 | **1.025** |
+| default look | 132.0 | 134.6 | 135.3 | **1.025** |
+| photo D (hand-cropped plaster, `.226`) | 188 → 162, 195 → 165 | | | **0.85–0.86** |
+
+**A real wall falls about 15 % away from its window; the app's rises about 2.5 %.**
+
+So a deficit is real and it is a GI signature — but **its sign is the opposite of what the arc has claimed
+since `.226`**. The claim was that the app's light *does not carry far enough into the room*. The
+measurement says it carries **too evenly**. The mechanism `.226` named was correct — *"the hemisphere ground
+term lights every wall equally at half weight with no distance dependence"* — and the symptom was predicted
+backwards from it. A distance-independent ambient fill does not make the far wall too dark. It makes the
+whole wall too **flat**.
+
+Every intervening round that reasoned "the far wall is too dark, GI would lift it" was reasoning from the
+retired furniture metric. Nothing in `src/` was ever changed on that basis (`.226` was recorded, not
+chased; `.189`–`.195`, `.231` and `.235` were all refutations), so no shipped behaviour rests on the
+inverted sign — but the arc's stated diagnosis did, for 24 rounds.
+
+### Correcting `.249`
+
+`.249` recorded that `.226`'s *relative* finding survives — "measured identically, the photographic look's
+falloff really is steeper" (0.74 against the default's 0.85). It does not. Anchored, both looks read
+**1.025**. They differ in *level* — 128.7 against 132.0, the photographic look ~2.5 % darker on that wall —
+and not at all in slope. That difference was furniture as well.
+
+### Corroboration and a caught contaminant
+
+`.246` eyeballed column profiles across this same right wall: raster `127 122 124 131 132 133 134 135`,
+traced `132 132 132 132 133 134 134 135`. Flat, rising slightly, with the dip identified as a corner shadow.
+It filed the observation as unusable because a hand crop is not the probe's measurement. It was right, and
+it agrees with the anchored numbers to within a couple of counts — two independent methods on the same wall.
+
+The contaminant, caught the way this arc always catches them. The first accepted **side A** anchor read
+**L = 157.7** at signature `PlaneGeometry#ffffff`: **the TV screen**. Wall-mounted, vertical, correctly
+oriented, unoccluded, and perfectly uniform across the whole 0.24 m patch — every per-patch test passed.
+Only the overlay caught it. The probe now additionally requires **one signature along the run**, which is
+`.233`'s "same plaster paint on both surfaces" rule applied lengthwise, and prints the material it measured.
+Side A yields no profile at this pose; every published number is side B.
+
+### Limits
+
+One wall, one pose, one room, 2–3 anchors. `d = 0.6` is always occluded (the curtain and the window reveal),
+`d = 1.8` straddles a pillar edge (14/49 mixed — visible in the overlay), `d ≥ 3.6` leaves the frame.
+
+The material limit is on the reference side: **photo D's crop distances were never recorded.** So the
+comparison is sign- and shape-matched but **not distance-matched** — the app rises where the photograph
+falls, which no rescaling of distance can flip, but "15 % over how far" is unknown. Widening the reference
+set under the `.233` criteria is the binding constraint again, and a qualifying photograph now also needs
+its crop distances recorded, not just its aspect.
+
+### What is now unblocked
+
+`.246`'s path-traced still has a legal instrument for the first time. The anchors are **world points**, so
+the tracer canvas can be sampled at exactly the same ones — the readback problem that defeated `.246`
+(no depth or normal available on the tracer canvas) does not apply, because the anchor positions are known
+before either picture is rendered and their screen projections are computed from the shared camera.
+
+If the traced wall **falls** where the raster wall **rises**, GI is confirmed as the cause and the size of
+the prize is finally quantified. That is the experiment `.245` set out to run.
+
+Nothing changed in `src/` beyond the version bump.
