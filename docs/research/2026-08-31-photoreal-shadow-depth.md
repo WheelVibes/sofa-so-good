@@ -6137,3 +6137,121 @@ The tracer's per-material validity list now stands at:
 | `MeshBasicMaterial` | untested (unlit by intent, not substituted) |
 
 `src/` changed: `hqRenderSession.ts`, tracer snapshot only, plus three unit tests.
+
+---
+
+## `.254` — pricing the ceiling deficit, and two false negatives caught by a read-back
+
+`.253` measured a ceiling deficit against the app's own path tracer and filed item (o) with a promise: sweep
+the bounce term against the new target and report what closes it and what it costs. This is that round. The
+deficit survives at a revised size, and the lever turns out to be the wrong shape for it.
+
+Runs 04:59–05:15 local (2026-09-02). `medium`, photographic look, 13:00, `livingDining`, standoff 4.6,
+pitch −0.06, `LIGHTS=off`, 15×15 = 225 world samples per 0.24 m patch.
+
+### Two false negatives, and why assignment cannot work here
+
+`GBOUNCE=<n>` re-scales `PHOTO_GROUND_BOUNCE` on the live scene, so a sweep point costs 20 s instead of an
+edit-and-rebuild. `Lighting.tsx` applies the term as `hemi.groundColor *= photographicGroundBounce
+(photographicLook)`, so scaling the live `groundColor` by `target / shipped` should be exactly equivalent to
+shipping a different constant.
+
+Applied by assignment, the sweep read **dead flat**: ceiling 113.4 and frame mean 108.2 at *every* value from
+1 to 8. Twice — once with the patch applied before the pitch was set, once after, on the theory that
+`setPitch` was re-triggering the lighting effect.
+
+The post-capture read-back is what exposed it. It printed the **original** colour both times:
+
+```
+GBOUNCE=8  scale x2.6667  groundColor [1.25975,...] -> [3.35934,...]
+GBOUNCE held at capture:                                [1.25975,...]
+```
+
+`Lighting.tsx` recomputes `groundColor` from the eased day/night curve **every frame**, not on state change,
+so nothing written from outside survives to the next tick. Without that read-back this round would have
+published *"`PHOTO_GROUND_BOUNCE` does nothing"* — flatly contradicting `look.ts`'s own recorded ×1/×3.5/×6.5
+sweep, and a consequential false negative about a shipped term.
+
+The method that works is to **intercept, not assign**: wrap `setRGB` on that one `Color` instance so every
+per-frame write is scaled on its way in.
+
+```
+const orig = c.setRGB.bind(c)
+c.setRGB = (r, g, b, ...rest) => orig(r * k, g * k, b * k, ...rest)
+```
+
+After that the knob bites hard — frame mean 99.3 at ×1 against 123.4 at ×8. **Never patch a light by
+assignment in this app; and always read the patched value back after the capture, not before.**
+
+### A second hazard: the anchor set was not stable
+
+At `GBOUNCE=8` the `d = 1.2` ceiling anchor reported `BoxGeometry#6b4f34 span 0.76` — **a rotating fan
+blade** — and clean plaster at the next sweep point. `.253`'s same-material rule rejected it correctly, so no
+wrong number was produced, but an anchor set that changes between sweep points cannot be swept: the
+ceiling mean would be over three anchors at one point and two at the next.
+
+New `ANCHOR_OFF` shifts the ceiling/floor anchor line laterally off the room axis (the fan hangs on it).
+At **−0.7 m** all three ceiling anchors read `PlaneGeometry#fafafa` on every run; at **+0.7 m** d = 1.8 still
+catches a blade. Wall anchors are unaffected by construction — a sideways ray hits the same wall point
+wherever along `perp` it starts — and the numbers confirm it: wall B reads **128.9 / 131.2** at both offsets.
+
+This also revises `.253`. Its on-axis measurement had the unstable ceiling set *and* a wall mean that
+included the d = 0.6 reveal-shadow anchor (108.0), which lowered the wall mean and so flattered the ratio in
+the opposite direction. The fan-clear line is the trustworthy one.
+
+### The sweep
+
+Ceiling anchors 0.6 / 1.2 / 1.8 m, wall B 1.2 / 2.4 m, anchor line −0.7 m:
+
+| `PHOTO_GROUND_BOUNCE` | groundColor.r | ceiling mean | wall mean | **C ÷ W** | frame mean | `%<64` |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 (off) | 0.420 | 92.5 | 120.2 | 0.770 | 99.3 | 18.47 % |
+| 2 | 0.840 | 108.3 | 125.7 | 0.862 | 104.1 | 15.75 % |
+| **3 (shipped)** | 1.260 | **120.4** | **130.4** | **0.923** | **108.2** | **13.57 %** |
+| 4 | 1.680 | 129.9 | 134.7 | 0.964 | 111.8 | 12.21 % |
+| 5 | 2.100 | 137.9 | 138.6 | 0.995 | 115.1 | 11.30 % |
+| 6 | 2.519 | 144.3 | 142.2 | 1.015 | 118.0 | 10.63 % |
+| 8 | 3.359 | 155.6 | 148.8 | 1.046 | 123.4 | 9.75 % |
+| **traced target**, 252 samples | — | **139.7** | **132.65** | **1.053** | — | — |
+
+Monotonic and smooth in every column, which is what a working knob looks like.
+
+**Revised deficit: 12.3 %** (0.923 against 1.053), down from `.253`'s 16–19 %. Same sign, smaller magnitude.
+
+*Self-consistency check worth recording:* the sweep ran at viewport aspect 1.60 and the traced target at
+1.778 (`PT=1` pins 16:9 so the tracer and the walk camera share framing). Mixing them is only legitimate
+because the anchored metric is framing-invariant — and it shows: raster ceiling 110.6 / 124.9 / 125.6 at 1.60
+against 111.0 / 124.6 / 125.1 at 1.778, inside 0.5 %. `.250`'s invariance result earning its keep.
+
+The traced overlay was inspected: all three ceiling patches sit well clear of the fan on clean traced
+plaster, and `.253`'s mirror is still gone.
+
+### The verdict
+
+The target is reached at **`PHOTO_GROUND_BOUNCE` ≈ 8.5**, about 2.8× the shipped 3, and it costs:
+
+- **frame mean +15 %** (108.2 → ~125);
+- **`%<64` −4 points** (13.57 → ~9.5) — a real loss of the shadow depth calibrated across `.163`–`.168` and
+  re-checked against four photographs in `.186`;
+- **walls +14 %** (130.4 → 148.8 at ×8).
+
+The term *does* favour down-facing normals: from ×3 to ×8 the ceiling gains **+29 %** against the walls'
+**+14 %**. So there is real differential response, and it is why the ratio moves at all. But the efficiency
+is about **1:1** — 13 % of ceiling-to-wall ratio for 14 % of overall brightness. A hemisphere ground term
+lights everything with a downward normal component, which is most of a room.
+
+`look.ts` recorded exactly this in `.195`, before any target existed to check it against: *"The wall RATIO
+barely moves, but read that with care: the frame mean rises 17 % over the sweep, so the walls rise with it in
+absolute terms … That is what a bounce does; it is not a targeted ceiling repair."* It is now measured
+against a target, and the judgement holds.
+
+**So: the deficit is real, and the cheap lever is the wrong shape.** Recommending against retuning
+`PHOTO_GROUND_BOUNCE`, and recording the transfer function so the trade is explicit rather than
+rediscovered a third time.
+
+A targeted repair needs something that separates ceiling from wall, which a hemisphere cannot do by
+construction. The candidates are a **ceiling-specific fill term** or **real single-bounce GI** — both
+feature-sized, not tuning. Item (o) now carries the price and the recommendation; the remaining call is
+whether 12.3 % on one surface is worth a feature-sized change to a look tuned over ~70 rounds.
+
+Nothing changed in `src/` beyond the version bump.

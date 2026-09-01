@@ -386,14 +386,78 @@ const camState = () =>
 
 const canvas = await page.$('canvas')
 if (!canvas) throw new Error('no canvas to capture')
+
+// GBOUNCE=<n> re-scales PHOTO_GROUND_BOUNCE live, so the ceiling deficit measured
+// in `.253` can be PRICED without a rebuild per sweep point (`.254`).
+//
+// `Lighting.tsx` applies the term as `hemi.groundColor *= photographicGroundBounce
+// (photographicLook)` -- x3 under the photographic look, x1 otherwise -- so
+// scaling the live `groundColor` by `target / shipped` is equivalent to shipping a
+// different constant. `baseGround` is captured ONCE so repeated applications are
+// idempotent rather than compounding.
+const GBOUNCE = process.env.GBOUNCE ? Number(process.env.GBOUNCE) : null
+const readGround = () =>
+  page.evaluate(() => {
+    let hemi = null
+    window.__three.scene.traverse((o) => {
+      if (o.isHemisphereLight) hemi = o
+    })
+    return hemi ? hemi.groundColor.toArray().map((v) => +v.toFixed(5)) : null
+  })
+// ASSIGNING the colour does not work. `Lighting.tsx` recomputes `groundColor`
+// from the eased day/night curve EVERY FRAME, so any value written from outside is
+// gone by the next tick -- `.254` measured a dead-flat sweep across GBOUNCE 1..8
+// twice (once patched before the pitch, once after) before the post-capture
+// read-back made it obvious. So intercept instead: wrap `setRGB` on that one
+// Color instance, and every per-frame write gets scaled on its way in.
+const applyGBounce =
+  GBOUNCE == null
+    ? null
+    : async () => {
+        const res = await page.evaluate(
+          ({ k }) => {
+            let hemi = null
+            window.__three.scene.traverse((o) => {
+              if (o.isHemisphereLight) hemi = o
+            })
+            if (!hemi) return { error: 'no HemisphereLight in scene' }
+            const c = hemi.groundColor
+            if (!c.__gbPatched) {
+              const orig = c.setRGB.bind(c)
+              c.setRGB = (r, g, b, ...rest) => orig(r * k, g * k, b * k, ...rest)
+              c.__gbPatched = k
+            }
+            return { patched: c.__gbPatched }
+          },
+          { k: GBOUNCE / (PHOTO ? 3 : 1) },
+        )
+        if (res.error) throw new Error(`GBOUNCE: ${res.error}`)
+        await new Promise((r) => setTimeout(r, 700))
+      }
 const shotFor = async (pitch) => {
   await page.evaluate((v) => window.__walkLook?.setPitch(v), pitch)
   await new Promise((r) => setTimeout(r, 900))
+  // GBOUNCE must be (re-)applied HERE, after the pitch is set. `setPitch` lands
+  // in the store, which re-runs `Lighting.tsx`'s effect, which recomputes
+  // `hemi.groundColor` from `cur.groundColor * wb * gb` and so silently reverts
+  // any earlier patch. `.254`'s first sweep was applied before the pitch and read
+  // dead flat across GBOUNCE 1..8 -- a completely false negative that only the
+  // post-capture read-back caught. Never patch a light before a state change.
+  if (typeof applyGBounce === 'function') await applyGBounce()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
 // the bottom band is REAL FLOOR rather than the coffee table and the sofa.
+// GBOUNCE=<n> re-scales PHOTO_GROUND_BOUNCE live, so the ceiling deficit measured
+// in `.253` can be PRICED without a rebuild per point (`.254`).
+//
+// `Lighting.tsx` applies the term as `hemi.groundColor *= photographicGroundBounce
+// (photographicLook)`, i.e. x3 under the photographic look and x1 otherwise. So
+// scaling the live `groundColor` by `target / shipped` is exactly equivalent to
+// shipping a different constant. Read back after the capture as well, because the
+// lighting effect would silently overwrite the patch if anything re-triggered it.
 const shot = await shotFor(PITCH)
+if (GBOUNCE != null) console.log(`GBOUNCE held at capture: ${JSON.stringify(await readGround())}`)
 // Snapshot the camera HERE, while it still holds the pose `frame.png` was taken
 // at. Taken any later it records FLOOR_PITCH from the pitched-down capture below,
 // and the guard then reports drift on every run -- which is what the first `.251`
@@ -848,8 +912,9 @@ if (process.env.ANCHORS === '1') {
   const HALF = Number(process.env.ANCHOR_HALF || 0.12)
   const GRID = Number(process.env.ANCHOR_GRID || 7)
   const SIDES = (process.env.ANCHOR_SIDES || 'A,B,C,F').split(',')
+  const ANCHOR_OFF = Number(process.env.ANCHOR_OFF || 0)
   const anchors = await page.evaluate(
-    ({ win, ds, y, half, grid, hud, sides }) => {
+    ({ win, ds, y, half, grid, hud, sides, off }) => {
       const { scene, camera } = window.__three
       const V = camera.position.constructor
       const rc = new window.__three.raycaster.constructor()
@@ -879,7 +944,18 @@ if (process.env.ANCHORS === '1') {
         { side: 'F', dir: () => new V(0, -1, 0), axis: 'up' },
       ].filter((q) => sides.includes(q.side))
       for (const d of ds) {
-        const origin = new V(win.cx + win.nx * d, y, win.cz + win.nz * d)
+        // ANCHOR_OFF shifts the ceiling/floor anchor line sideways off the room
+        // axis. The ceiling fan hangs on that axis and ROTATES, so a ceiling
+        // anchor above it intermittently hits a blade: `.254` saw d=1.2 land on
+        // `BoxGeometry#6b4f34` at one sweep point and clean plaster at the next,
+        // which the same-material rule rejects correctly but which makes the
+        // accepted anchor set vary run to run. Wall anchors are unaffected -- a
+        // sideways ray hits the same wall point wherever along `perp` it starts.
+        const origin = new V(
+          win.cx + win.nx * d + perp.x * off,
+          y,
+          win.cz + win.nz * d + perp.z * off,
+        )
         for (const pr of probes) {
           const rec = { d, side: pr.side }
           const dir = pr.dir()
@@ -986,6 +1062,7 @@ if (process.env.ANCHORS === '1') {
       half: HALF,
       grid: GRID,
       sides: SIDES,
+      off: ANCHOR_OFF,
       hud: [
         { x0: 0.24, x1: 0.76, y0: 0, y1: 0.1 },
         { x0: 0.9, x1: 1, y0: 0, y1: 0.06 },
@@ -994,7 +1071,7 @@ if (process.env.ANCHORS === '1') {
     },
   )
   console.log(
-    `\nANCHORED wall falloff  (y=${ANCHOR_Y} m, patch ${(2 * HALF).toFixed(2)}x${(2 * HALF).toFixed(2)} m, ${GRID}x${GRID} world samples)`,
+    `\nANCHORED wall falloff  (y=${ANCHOR_Y} m, patch ${(2 * HALF).toFixed(2)}x${(2 * HALF).toFixed(2)} m, ${GRID}x${GRID} world samples, lateral offset ${ANCHOR_OFF} m)`,
   )
   // THE APERTURE, printed with the falloff. `.251`: how much a wall falls off away
   // from its window is a property of the WINDOW-TO-WALL GEOMETRY, not only of the

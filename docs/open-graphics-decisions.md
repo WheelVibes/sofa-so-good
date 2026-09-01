@@ -1039,7 +1039,7 @@ separate reason to unify materials appears.
 
 > **This item also un-retired a finding — see (o).**
 
-## (o) CEILING-BOUNCE — ⏳ OPEN, needs a render call (measured v0.31.5.253)
+## (o) CEILING-BOUNCE — ⏳ OPEN, needs a render call (measured v0.31.5.253, priced v0.31.5.254)
 
 **`.188`'s ceiling deficit is real after all.** It was retired in `.234` for the right reason at the
 time — the app's ceiling ÷ wall of 0.93 sat inside the 0.91–1.03 spread of two qualifying photographs.
@@ -1085,14 +1085,55 @@ actually produces.**
 question of whether it still earns its keep once its motivation was retired. Its motivation is back, with
 a target attached for the first time: **+16 % of ceiling relative to wall, measured, not inferred.**
 
-### Why this is not being decided here
+### Priced in v0.31.5.254 — and the lever is the wrong shape
 
-Raising the ceiling means changing the fill/bounce model, which alters shipped appearance on every tier
-and re-bases the `%<64` and region-ratio figures this arc is calibrated on. It also has a tier cost. The
-honest next step is a **sweep** of `PHOTO_GROUND_BOUNCE` (and the hemisphere ground term) against this
-new target, reporting what value closes the 16 % and what it costs elsewhere — a measurement round, which
-is mine to run. **The call needed is whether closing it is wanted at all**, given that it moves a look
-this arc has spent ~70 rounds tuning.
+**Revised deficit: 12.3 %.** `.253`'s 16–19 % was measured on the room axis, where the ceiling anchor set
+was unstable (a rotating fan blade intermittently occluded d = 1.2) and the wall mean included the
+reveal-shadow anchor at d = 0.6. Measured on a fan-clear anchor line (`ANCHOR_OFF −0.7`), where all three
+ceiling anchors read plaster on every run: **raster ceiling ÷ wall 0.923 against traced 1.053.**
+
+`PHOTO_GROUND_BOUNCE` swept live (`GBOUNCE`), same pose/tier/framing, lights off:
+
+| bounce | ceiling | wall | **ceiling ÷ wall** | frame mean | `%<64` |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 92.5 | 120.2 | 0.770 | 99.3 | 18.47 % |
+| 2 | 108.3 | 125.7 | 0.862 | 104.1 | 15.75 % |
+| **3 (shipped)** | **120.4** | **130.4** | **0.923** | **108.2** | **13.57 %** |
+| 4 | 129.9 | 134.7 | 0.964 | 111.8 | 12.21 % |
+| 5 | 137.9 | 138.6 | 0.995 | 115.1 | 11.30 % |
+| 6 | 144.3 | 142.2 | 1.015 | 118.0 | 10.63 % |
+| 8 | 155.6 | 148.8 | 1.046 | 123.4 | 9.75 % |
+| **traced target** | **139.7** | **132.65** | **1.053** | — | — |
+
+**The target is reached at bounce ≈ 8.5, about 2.8× the shipped 3, and it costs:**
+
+- frame mean **+15 %**,
+- `%<64` **−4 points** (13.57 → ~9.5) — a real loss of the shadow depth tuned across `.163`–`.168` and
+  re-checked in `.186`,
+- walls **+14 %**. This is not a ceiling repair.
+
+The term does favour down-facing normals — ×3 → ×8 gains the ceiling **+29 %** against the walls'
+**+14 %** — but the efficiency is roughly **1:1**: 13 % of ratio for 14 % of overall brightness.
+`look.ts` already said so in `.195`, before there was a target to check it against: *"That is what a
+bounce does; it is not a targeted ceiling repair."*
+
+### Recommendation
+
+**Not this lever.** A hemisphere ground term brightens every surface with a downward normal component,
+which is most of the room, while the traced reference says the **ceiling specifically** is 12 % short.
+Closing it this way trades one calibrated quantity for another, and the transfer function above makes the
+trade explicit so it does not get rediscovered.
+
+A targeted repair needs something that separates ceiling from wall, which a hemisphere cannot do by
+construction. The honest candidates are a **ceiling-specific fill term** or **real single-bounce GI**, and
+both are larger than a constant retune — a feature, not a tuning round.
+
+### The call needed
+
+Whether a 12.3 % ceiling deficit is worth a feature-sized change at all. It is measured, it is real, and
+it is the one place where the absence of inter-reflection is now demonstrated to show up — but it is
+12 % on one surface, against a look this arc has spent ~70 rounds tuning, and the cheap lever has been
+priced and rejected.
 
 ## Summary
 

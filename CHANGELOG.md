@@ -5,6 +5,82 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.254 — the ceiling deficit priced: the ground-bounce term cannot close it cleanly
+
+`.253` measured a real ceiling deficit against the app's own path tracer and filed item **(o)**, promising
+the sweep that would price it. Here it is. The deficit survives, at a revised size, and the lever the arc
+has for it turns out to be the wrong shape.
+
+**Two false negatives first, both caught by a guard added in this round.** `GBOUNCE=<n>` re-scales
+`PHOTO_GROUND_BOUNCE` live so each sweep point costs 20 s instead of a rebuild. Applied by *assignment* it
+read **dead flat across GBOUNCE 1→8** — ceiling 113.4 at every value, frame mean 108.2 at every value.
+Twice: once patched before the pitch was set, once after. `Lighting.tsx` recomputes `hemi.groundColor` from
+the eased day/night curve **every frame**, so any value written from outside is gone by the next tick. The
+post-capture read-back printed the original colour and made it obvious; without it this round would have
+published "`PHOTO_GROUND_BOUNCE` does nothing", flatly contradicting `look.ts`'s own recorded sweep. The
+working method is to **intercept** rather than assign — wrap `setRGB` on that one `Color` instance, so every
+per-frame write is scaled on its way in. Sixth time in this arc a verification step caught a wrong
+publication, and the first time the guard was one I had just written.
+
+**A second instrument hazard, also caught.** At `GBOUNCE=8` the `d=1.2` ceiling anchor landed on
+`BoxGeometry#6b4f34` — **a rotating fan blade** — and on clean plaster at the next sweep point. The
+same-material rule rejected it correctly, but an anchor set that varies run to run cannot be swept. New
+`ANCHOR_OFF` shifts the ceiling/floor anchor line off the room axis; at **−0.7 m** all three ceiling
+anchors read `PlaneGeometry#fafafa` on every run. Wall anchors are unaffected by construction, and the
+numbers confirm it: wall B reads 128.9 / 131.2 at both offsets.
+
+**The sweep** — `medium`, photographic look, 13:00, standoff 4.6, pitch −0.06, lights off, 15×15 world
+samples per 0.24 m patch, ceiling anchors at 0.6/1.2/1.8 m and wall B at 1.2/2.4 m, anchor line −0.7 m:
+
+| `PHOTO_GROUND_BOUNCE` | ceiling mean | wall mean | **ceiling ÷ wall** | frame mean | `%<64` |
+| --- | --- | --- | --- | --- | --- |
+| 1 (off) | 92.5 | 120.2 | 0.770 | 99.3 | 18.47 % |
+| 2 | 108.3 | 125.7 | 0.862 | 104.1 | 15.75 % |
+| **3 (shipped)** | **120.4** | **130.4** | **0.923** | **108.2** | **13.57 %** |
+| 4 | 129.9 | 134.7 | 0.964 | 111.8 | 12.21 % |
+| 5 | 137.9 | 138.6 | 0.995 | 115.1 | 11.30 % |
+| 6 | 144.3 | 142.2 | 1.015 | 118.0 | 10.63 % |
+| 8 | 155.6 | 148.8 | 1.046 | 123.4 | 9.75 % |
+| **traced target** (252 samples) | **139.7** | **132.65** | **1.053** | — | — |
+
+**Revised deficit: 12.3 %, not the 16–19 % `.253` published.** `.253` measured on the room axis, where the
+anchor set was unstable (fan) and its wall mean included the reveal-shadow anchor at d = 0.6. At the
+fan-clear line the deficit is `0.923` against `1.053`. Same sign, smaller magnitude; the fan-clear figure is
+the one to carry, and `.253`'s headline is corrected down.
+
+*Self-consistency check:* the sweep ran at aspect 1.60 and the traced target at 1.778 (`PT=1` pins 16:9).
+That is only legitimate because the metric is framing-invariant, and it shows: raster ceiling 110.6 / 124.9 /
+125.6 at 1.60 against 111.0 / 124.6 / 125.1 at 1.778, within 0.5 %. `.250`'s invariance result doing useful
+work.
+
+**The pricing, and the verdict.** The target is reached at **`PHOTO_GROUND_BOUNCE` ≈ 8.5**, about 2.8× the
+shipped 3. It costs:
+
+- **frame mean +15 %** (108.2 → ~125),
+- **`%<64` −4 points** (13.57 → ~9.5), i.e. a real loss of shadow depth,
+- **walls +14 %** (130.4 → 148.8 at ×8) — this is not a ceiling repair.
+
+The ratio does improve, because the hemisphere ground term genuinely favours down-facing normals: from ×3
+to ×8 the ceiling gains **+29 %** against the walls' **+14 %**. But the efficiency is roughly **1:1** —
+buying 13 % of ceiling-to-wall ratio costs 14 % of overall brightness. `look.ts` said exactly this in
+`.195`, before there was a target to check it against: *"That is what a bounce does; it is not a targeted
+ceiling repair."* Now it is measured against one.
+
+**So: the deficit is real and the lever is wrong.** A hemisphere ground term brightens every surface with
+any downward normal component, which is most of the room; the traced reference says the *ceiling
+specifically* is 12 % short. Closing it this way trades one calibrated quantity (`%<64`, tuned across
+`.163`–`.168` and re-checked in `.186`) for another. Recommending against it, and recording the transfer
+function above so the trade is explicit rather than rediscovered.
+
+Item **(o)** updated: the fix is priced, the recommendation is *not this lever*, and what a targeted repair
+would need is now stated — something that separates ceiling from wall, which a hemisphere cannot do by
+construction. The honest candidates are a ceiling-specific fill term or real single-bounce GI, and both are
+larger than a constant retune.
+
+Probe only: `GBOUNCE`, `ANCHOR_OFF`, the interception method and the read-back guard. `npm test` 9437
+passed, `tsc` clean, `biome` clean. Nothing changed in `src/` beyond the version bump. Runs 04:59–05:15
+local.
+
 ## v0.31.5.253 — the HQ mirror ceiling is fixed, and `.188`'s ceiling deficit is real after all
 
 `.252` found the shipped HQ path-traced still rendering the ceiling as a mirror, and filed it as item
