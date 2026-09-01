@@ -5,6 +5,78 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.255 — CORRECTION: the tracer is lit by a different rig, so `.253`'s ceiling deficit is withdrawn
+
+This round set out to explain the rug's factor-2 raster-vs-traced discrepancy, expecting a `sheen` bug.
+It found something that invalidates my own last two rounds instead.
+
+**`buildTracerScene` copies only `DirectionalLight`, `PointLight` and `SpotLight`.** It does not copy
+`AmbientLight` or `HemisphereLight`; for the environment it substitutes a hardcoded
+`GradientEquirectTexture` (top `0xbfd4e6`, bottom `0x5a5650`) whenever no user HDRI is active. At the pose
+every comparison in `.251`–`.254` used — 13:00, `medium`, photographic look — the live scene carries:
+
+| light | intensity | copied into the tracer? |
+| --- | --- | --- |
+| `AmbientLight` | 0.077 | **no** |
+| `HemisphereLight` | 0.243 | **no** |
+| `DirectionalLight` (sun) | 1.0 | yes |
+| `PointLight` × 4 | 9 | yes (and I zeroed them with `LIGHTS=off`) |
+
+**So how much light does the tracer not have?** New `FILLOFF=1` zeroes exactly those two lights in the
+raster (intercepting `intensity` with a getter, since `Lighting.tsx` rewrites it every frame — `.254`'s
+lesson applied to a number instead of a Colour):
+
+| | fill on (shipped) | fill zeroed | loss |
+| --- | --- | --- | --- |
+| ceiling mean (0.6/1.2/1.8 m) | 120.2 | 37.7 | **−69 %** |
+| wall B mean (1.2/2.4 m) | 130.4 | 86.4 | **−34 %** |
+| frame mean | 108.2 | 75.2 | −31 % |
+| `%<64` | 13.56 % | 38.44 % | — |
+
+**The raster ceiling is 69 % lit by lights the path tracer does not have**, and the traced ceiling is lit
+by a gradient sky the raster does not have. The two ceilings are lit by entirely different sources.
+
+**Withdrawn: `.253`'s ceiling deficit.** The +12.3 % was not a measurement of missing inter-reflection. It
+was the difference between "hemisphere fill scaled by `PHOTO_GROUND_BOUNCE`" and
+"`GradientEquirectTexture(0xbfd4e6 → 0x5a5650)`". `.254`'s **target** goes with it. `.254`'s transfer
+function survives — it is a pure raster measurement of what the bounce term does — but the destination it
+was aimed at was not a valid destination, so "the lever is the wrong shape" loses its evidence and is
+withdrawn too.
+
+**And the control that made me trust it was never a control.** `.253` leaned on wall B agreeing between the
+renderers to ≤ 2.6 %, arguing the traced picture could not be uniformly offset "or the walls would be
+offset too". But the wall is *also* 34 % fill-lit, so that agreement was a coincidence of level across two
+different rigs, and I read it as evidence of equivalence. The lesson, stated so it is not repeated:
+**an agreement is not a control unless you know both sides share a mechanism.** Five explicit controls in
+`.253`, and the load-bearing one was hollow.
+
+**What survives.** `.251`'s refutation of the GI attribution for *wall falloff* stands, because its weight
+is on the geometric argument — the window is 71 % of the end wall, so a broad source of any kind lights the
+first 3 m near-uniformly — and the traced still is real transport through that aperture whatever its sky.
+`.252`'s finding that the tracer is not a photograph-free reference is strengthened, not weakened: the
+mismatch is not only materials but lights. `.253`'s **HQ mirror-ceiling fix is untouched** — it was a
+material-interpretation bug, verified by looking, and it is still fixed. `.249`, `.250` and `.254`'s
+transfer function are pure raster measurements and unaffected.
+
+**A new shipped defect, and a bigger one than (n).** The HQ path-traced still is not a higher-quality
+version of what the user sees; **it is a different lighting setup.** It drops the two lights carrying 69 %
+of the ceiling and 34 % of the walls, and replaces the sky with a fixed gradient that cannot respond to the
+hour, the exposure grade, the photographic look, or `PHOTO_GROUND_BOUNCE`. Filed as **(p) HQ-FILL-RIG**.
+The obvious next round is the measurement that makes it undeniable: render HQ stills at 13:00 and 21:00 and
+show how little the fill changes when the viewport changes a great deal.
+
+**The rug, honestly.** Still unexplained, and `sheen` is no longer the leading suspect — the rug carries
+`sheen 0.4 / sheenRoughness 0.6` and the scene has 61 sheen, 37 anisotropy and 14 clearcoat materials, but
+a factor-2 discrepancy is comfortably inside what a wholly different fill rig can produce, so the material
+hypothesis is not needed to explain it and is not supported by anything yet.
+
+The tracer's validity list is accordingly reduced to: **nothing, at present.** Not per-material — the
+lighting mismatch is upstream of materials and applies to every surface. That is the honest state until
+(p) is fixed.
+
+Probe only: `FILLOFF`, the light census. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed
+in `src/` beyond the version bump. Runs 05:19–05:22 local.
+
 ## v0.31.5.254 — the ceiling deficit priced: the ground-bounce term cannot close it cleanly
 
 `.253` measured a real ceiling deficit against the app's own path tracer and filed item **(o)**, promising

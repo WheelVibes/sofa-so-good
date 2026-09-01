@@ -6255,3 +6255,121 @@ feature-sized, not tuning. Item (o) now carries the price and the recommendation
 whether 12.3 % on one surface is worth a feature-sized change to a look tuned over ~70 rounds.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.255` — CORRECTION: the tracer is lit by a different rig, and item (o) is withdrawn
+
+This round set out to explain the one thing `.252`/`.253` left dangling: the rug's factor-2 raster-vs-traced
+discrepancy, with `sheen` as the leading suspect. It found something upstream of materials that invalidates
+my own last two rounds.
+
+Runs 05:19–05:22 local (2026-09-02).
+
+### The finding
+
+`buildTracerScene` in `hqRenderSession.ts` snapshots the live scene and copies **only**
+`DirectionalLight`, `PointLight` and `SpotLight`. `AmbientLight` and `HemisphereLight` are not copied, and
+the environment becomes a hardcoded `GradientEquirectTexture` (top `0xbfd4e6`, bottom `0x5a5650`) whenever no
+user HDRI is active.
+
+The function's header explains, correctly, why the live PMREM probe environment cannot be ingested. What was
+never measured is what dropping the two fill lights costs. At the pose every comparison in `.251`–`.254`
+used — 13:00, `medium`, photographic look:
+
+| light | intensity | copied? |
+| --- | --- | --- |
+| `AmbientLight` | 0.077 | **no** |
+| `HemisphereLight` | 0.243 | **no** |
+| `DirectionalLight` (sun) | 1.0 | yes |
+| `PointLight` × 4 | 9 | yes — and `LIGHTS=off` zeroed them in every comparison |
+
+*(A first census read `DirectionalLight` 0 and 19 point lights on, which looked like "the app has no sun".
+It was taken at the default clock — 05:20, i.e. night. Re-run at the probe's actual state, the sun is 1.0.
+Worth recording: a light census is meaningless without the hour it was taken at.)*
+
+### Quantified
+
+New `FILLOFF=1` zeroes exactly those two lights in the raster. `intensity` is a plain number that
+`Lighting.tsx` rewrites every frame, so it has to be intercepted with a getter rather than assigned —
+`.254`'s lesson, applied to a number instead of a Colour.
+
+| | fill on (shipped) | fill zeroed | loss |
+| --- | --- | --- | --- |
+| ceiling mean, anchors 0.6 / 1.2 / 1.8 m | 120.2 | 37.7 | **−69 %** |
+| wall B mean, anchors 1.2 / 2.4 m | 130.4 | 86.4 | **−34 %** |
+| frame mean | 108.2 | 75.2 | −31 % |
+| `%<64` | 13.56 % | 38.44 % | — |
+| ceiling ÷ wall | 0.922 | 0.436 | — |
+
+**The raster ceiling is 69 % lit by lights the path tracer does not have.** The traced ceiling is lit by a
+gradient sky the raster does not have. They are not two renderings of one lighting setup; they are two
+lighting setups.
+
+### What is withdrawn
+
+**`.253`'s ceiling deficit (+12.3 %) and `.254`'s target (C ÷ W = 1.053).** The gap was the difference
+between `PHOTO_GROUND_BOUNCE`-scaled hemisphere fill and `GradientEquirectTexture(0xbfd4e6 → 0x5a5650)`, not
+a measurement of absent inter-reflection. `.254`'s conclusion that the bounce term is "the wrong shape" also
+goes, since it was defined relative to that target. `.188`'s ceiling deficit returns to **unproven** —
+neither established (as `.253` said) nor retired (as `.234` said).
+
+### The control that was not a control
+
+`.253` listed five controls, and leaned hardest on this one: wall B agrees between the two renderers to
+≤ 2.6 %, so *"the traced picture is not uniformly offset — if it were, the walls would be offset too."*
+
+The wall is **also 34 % fill-lit**. Its agreement was a coincidence of level between two different rigs, and
+I read it as evidence that the rigs were equivalent. It is the same species of error as `.226`'s "same
+material, same frame, so composition cancels" — a plausible-sounding cancellation argument that was never
+checked.
+
+> **An agreement is not a control unless you know both sides share a mechanism.**
+
+That belongs with the arc's other method rules. Five controls, and the load-bearing one was hollow, because
+I never asked *what* was producing the agreement.
+
+### What survives
+
+- **`.251`'s refutation of the GI attribution for wall falloff.** Its weight is on the geometric argument —
+  the window is 71 % of the end wall, so a broad source of any kind lights the first 3 m near-uniformly —
+  and the traced still is real light transport through that aperture whatever its sky. The traced number
+  is corroboration, not the load-bearing part.
+- **`.252`'s conclusion that the tracer is not a photograph-free reference** — strengthened. The mismatch is
+  not only materials but lights, and lights are upstream.
+- **`.253`'s HQ mirror-ceiling fix** — untouched. That was a material-interpretation bug, confirmed by
+  looking at the before/after crops, and it is still fixed and still shipped.
+- **`.249`, `.250`, and `.254`'s sweep table** — pure raster measurements, unaffected.
+
+### The tracer's validity list, honestly
+
+`.252` produced a per-material validity list and `.253` extended it. Both are now void: the lighting
+mismatch applies to every surface regardless of material, so the list is **nothing, at present**. Not
+"Standard ✅, Physical ❌" — nothing, until (p) is fixed.
+
+### The rug, honestly
+
+Still unexplained, and `sheen` is no longer the leading suspect. The rug carries `sheen 0.4`,
+`sheenRoughness 0.6`, `sheenColor bbb4a9` and a normal map, and the scene has 61 sheen, 37 anisotropy and 14
+clearcoat `MeshPhysicalMaterial` surfaces — so the hypothesis was reasonable. But a factor-2 discrepancy sits
+comfortably inside what a wholly different fill rig produces, so the material explanation is not needed and
+nothing yet supports it.
+
+### The new defect
+
+Filed as **(p) HQ-FILL-RIG**. The shipped HQ still is not a higher-quality version of what the user sees; it
+is a different lighting setup, missing two-thirds of the ceiling's light and a third of the walls', with a
+fixed sky that cannot respond to the hour, the exposure grade, the photographic look, or
+`PHOTO_GROUND_BOUNCE`.
+
+The candidate fix is narrow and in the same family as (n): build the tracer's `GradientEquirectTexture` from
+the live `HemisphereLight`'s own `color`/`groundColor`/`intensity` plus the `AmbientLight`, rather than from
+two literals — a snapshot-only change, so the viewport cannot move. The judgement is the mapping (an
+`AmbientLight` is not directionally a sky gradient), which is why it is filed rather than taken.
+
+**It also blocks measurement**, which is the larger cost: fixing (p) would restore the most useful
+instrument this arc has built and let `.188`'s ceiling deficit be settled either way. The cheap next
+measurement, requiring no decision, is to render HQ stills at 13:00 and 21:00 and show how little the fill
+changes while the viewport changes a great deal.
+
+Nothing changed in `src/` beyond the version bump.

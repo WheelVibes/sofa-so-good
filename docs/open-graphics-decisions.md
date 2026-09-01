@@ -1039,7 +1039,29 @@ separate reason to unify materials appears.
 
 > **This item also un-retired a finding — see (o).**
 
-## (o) CEILING-BOUNCE — ⏳ OPEN, needs a render call (measured v0.31.5.253, priced v0.31.5.254)
+## (o) CEILING-BOUNCE — ❌ WITHDRAWN v0.31.5.255: the reference was a different lighting rig
+
+> **❌ WITHDRAWN in v0.31.5.255. Do not act on the numbers below.**
+>
+> `buildTracerScene` copies only `DirectionalLight`/`PointLight`/`SpotLight`. It does **not** copy
+> `AmbientLight` or `HemisphereLight`, and substitutes a hardcoded `GradientEquirectTexture` for the
+> environment. At the pose used throughout, the live scene carries `AmbientLight` 0.077 and
+> `HemisphereLight` 0.243 — and zeroing exactly those two in the raster (`FILLOFF=1`) costs the **ceiling
+> 69 %** of its luminance (120.2 → 37.7) and the **wall 34 %** (130.4 → 86.4).
+>
+> So the raster ceiling and the traced ceiling are lit by entirely different sources, and the 12.3 % was
+> the difference between `PHOTO_GROUND_BOUNCE`-scaled hemisphere fill and
+> `GradientEquirectTexture(0xbfd4e6 → 0x5a5650)` — not a measurement of missing inter-reflection.
+>
+> The wall-agreement "control" was not a control: the wall is also 34 % fill-lit, so its ≤ 2.6 % agreement
+> across two different rigs was a coincidence of level. **An agreement is not a control unless both sides
+> share a mechanism.**
+>
+> What survives: `.254`'s sweep table, which is a pure raster measurement of what `PHOTO_GROUND_BOUNCE`
+> does. What does not: the 12.3 % deficit, the 1.053 target, and the "wrong-shaped lever" verdict that
+> depended on it. `.188`'s ceiling deficit returns to **unproven** — neither established nor retired.
+>
+> Re-testing it needs the reference rig fixed first — see **(p) HQ-FILL-RIG**.
 
 **`.188`'s ceiling deficit is real after all.** It was retired in `.234` for the right reason at the
 time — the app's ceiling ÷ wall of 0.93 sat inside the 0.91–1.03 spread of two qualifying photographs.
@@ -1134,6 +1156,63 @@ Whether a 12.3 % ceiling deficit is worth a feature-sized change at all. It is m
 it is the one place where the absence of inter-reflection is now demonstrated to show up — but it is
 12 % on one surface, against a look this arc has spent ~70 rounds tuning, and the cheap lever has been
 priced and rejected.
+
+## (p) HQ-FILL-RIG — ⏳ OPEN, a real defect needing a fix call (found v0.31.5.255)
+
+**The shipped HQ path-traced still is not a higher-quality version of what the user sees. It is a
+different lighting setup.**
+
+`buildTracerScene` (`src/scene/pathtrace/hqRenderSession.ts`) snapshots the live scene but copies only
+`DirectionalLight`, `PointLight` and `SpotLight`. `AmbientLight` and `HemisphereLight` are dropped, and
+the environment becomes a hardcoded `GradientEquirectTexture` (top `0xbfd4e6`, bottom `0x5a5650`) whenever
+no user HDRI is active. The existing header explains why the *PMREM probe* cannot be ingested — that part
+is sound — but the consequence for the two punctual-ish fill lights was never measured.
+
+**How much light this is.** At 13:00, `medium`, photographic look, the live scene carries `AmbientLight`
+0.077 and `HemisphereLight` 0.243. Zeroing exactly those two in the raster (`FILLOFF=1`, `light-distribution.mjs`):
+
+| | fill on (shipped) | fill zeroed | loss |
+| --- | --- | --- | --- |
+| ceiling, 3 world anchors | 120.2 | 37.7 | **−69 %** |
+| wall B, 2 world anchors | 130.4 | 86.4 | **−34 %** |
+| frame mean | 108.2 | 75.2 | −31 % |
+| `%<64` | 13.56 % | 38.44 % | — |
+
+So roughly **two-thirds of the ceiling's light and a third of the walls'** comes from lights the HQ still
+does not have. What it has instead is a fixed gradient that cannot respond to:
+
+- **the hour** — the same sky at 13:00 and 21:00;
+- **the exposure grade** — `Lighting` grades `toneMappingExposure` across the day/night curve;
+- **the photographic look** — including `PHOTO_GROUND_BOUNCE`, whose entire job is to lift the ceiling;
+- **the user's own exposure control.**
+
+### What a fix looks like
+
+Substituting the fill is not hard in principle — a `HemisphereLight` is analytically a gradient
+environment, which is exactly the form the tracer already accepts. The candidate is to **build the
+tracer's `GradientEquirectTexture` from the live `HemisphereLight`'s own `color`/`groundColor`/`intensity`
+plus the `AmbientLight`, instead of from two literals.** That makes the still track the hour, the grade and
+the photographic look for free, and it is a change to the snapshot only — the viewport cannot move,
+exactly as with (n).
+
+Whether the *sum* should be an environment or a mix of environment plus a constant term is the judgement:
+an `AmbientLight` is not directionally the same thing as a sky gradient, and getting it wrong trades one
+mismatch for another.
+
+### Why this is filed rather than fixed
+
+Same reason as (n) was: it changes shipped appearance of the HQ still, and here the correct mapping is a
+real modelling choice rather than a bug with one obvious repair. **The call needed is whether to make the
+HQ still track the viewport's fill, and by what mapping.**
+
+**It also blocks measurement.** Until this is fixed the path tracer is not a valid reference for *any*
+surface — the mismatch is upstream of materials, so it applies to all of them — which is what withdrew
+item (o) and reduced `.252`'s per-material validity list to nothing. Fixing (p) would restore the most
+useful instrument this arc has built, and would let `.188`'s ceiling deficit finally be settled either way.
+
+**Cheap next measurement, no decision required:** render HQ stills at 13:00 and 21:00 and show how little
+the fill changes while the viewport changes a great deal. That makes the defect undeniable without
+committing to a mapping.
 
 ## Summary
 

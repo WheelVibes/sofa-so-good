@@ -444,6 +444,7 @@ const shotFor = async (pitch) => {
   // dead flat across GBOUNCE 1..8 -- a completely false negative that only the
   // post-capture read-back caught. Never patch a light before a state change.
   if (typeof applyGBounce === 'function') await applyGBounce()
+  if (typeof applyFillOff === 'function') await applyFillOff()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
@@ -456,7 +457,51 @@ const shotFor = async (pitch) => {
 // scaling the live `groundColor` by `target / shipped` is exactly equivalent to
 // shipping a different constant. Read back after the capture as well, because the
 // lighting effect would silently overwrite the patch if anything re-triggered it.
+// FILLOFF=1 zeroes the AmbientLight and the HemisphereLight -- the two light
+// types `buildTracerScene` does NOT copy into the tracer snapshot (it takes only
+// Directional/Point/Spot and substitutes a hardcoded GradientEquirectTexture for
+// the environment). At 13:00/medium/photographic the live scene carries
+// AmbientLight 0.077 and HemisphereLight 0.243, so this measures exactly what the
+// path tracer is missing (`.255`).
+//
+// `intensity` is a plain number that `Lighting.tsx` rewrites every frame, so it
+// has to be intercepted with a getter rather than assigned -- `.254`'s lesson,
+// applied to a number instead of a Color.
+const applyFillOff =
+  process.env.FILLOFF !== '1'
+    ? null
+    : async () => {
+        const res = await page.evaluate(() => {
+          const hit = []
+          window.__three.scene.traverse((o) => {
+            if (!o.isAmbientLight && !o.isHemisphereLight) return
+            hit.push(`${o.type} was ${o.intensity}`)
+            if (o.__fillOff) return
+            Object.defineProperty(o, 'intensity', {
+              get: () => 0,
+              set: () => {},
+              configurable: true,
+            })
+            o.__fillOff = true
+          })
+          return hit
+        })
+        await new Promise((r) => setTimeout(r, 700))
+        return res
+      }
 const shot = await shotFor(PITCH)
+if (applyFillOff)
+  console.log(
+    `FILLOFF=1 zeroed: ${JSON.stringify(
+      await page.evaluate(() => {
+        const out = []
+        window.__three.scene.traverse((o) => {
+          if (o.isAmbientLight || o.isHemisphereLight) out.push(`${o.type}=${o.intensity}`)
+        })
+        return out
+      }),
+    )}`,
+  )
 if (GBOUNCE != null) console.log(`GBOUNCE held at capture: ${JSON.stringify(await readGround())}`)
 // Snapshot the camera HERE, while it still holds the pose `frame.png` was taken
 // at. Taken any later it records FLOOR_PITCH from the pitched-down capture below,
