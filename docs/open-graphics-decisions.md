@@ -1157,7 +1157,7 @@ it is the one place where the absence of inter-reflection is now demonstrated to
 12 % on one surface, against a look this arc has spent ~70 rounds tuning, and the cheap lever has been
 priced and rejected.
 
-## (p) HQ-FILL-RIG — ⏳ OPEN, a real defect needing a fix call (found v0.31.5.255, proven v0.31.5.256)
+## (p) HQ-FILL-RIG — ⏳ OPEN (found v0.31.5.255, proven v0.31.5.256, fix built + measured + reverted v0.31.5.257)
 
 **The shipped HQ path-traced still is not a higher-quality version of what the user sees. It is a
 different lighting setup.**
@@ -1218,6 +1218,33 @@ Whether the *sum* should be an environment or a mix of environment plus a consta
 an `AmbientLight` is not directionally the same thing as a sky gradient, and getting it wrong trades one
 mismatch for another.
 
+### Built, measured, reverted (v0.31.5.257)
+
+The mapping was implemented as `top = Σ hemi.color·intensity + amb.color·intensity`,
+`bottom = Σ hemi.groundColor·intensity + amb.color·intensity` — snapshot only.
+
+| raster ÷ traced | 13:00 | 21:00 | swing |
+| --- | --- | --- | --- |
+| ceiling — before | 0.853 | 1.181 | +38 % |
+| ceiling — **after** | 0.825 | 1.022 | **+24 %** |
+| wall — before | 0.965 | 0.956 | −1 % |
+| wall — **after** | 0.927 | 0.927 | **0 %** |
+
+The traced ceiling's response to the hour went **+8 % → +21 %** (raster +50 %), and the traced wall's went
++39 % → **+37 %, exactly matching the raster**. Visibly, the 21:00 traced ceiling turned from cold blue to
+warm cream.
+
+**So the mapping is right in shape and worth ~14 of the 38 points — but it does not restore the
+instrument.** 24 % of ceiling swing survives and the ratio still crosses unity between the two hours.
+
+**The residual is energetic, not structural.** A `GradientEquirectTexture` lights a surface by a
+cosine-weighted hemispherical integral; three's `HemisphereLight` uses a cheap `0.5 + 0.5·(n·up)` blend.
+Same shape, different energy — so the residual concentrates on the ceiling, the most orientation-sensitive
+surface in the room. **What (p) still needs is an energy calibration, not a different mapping.** That is a
+modelling task with a measurable target (ceiling swing → 0), and it is the honest next step.
+
+Reverted for now because it shipped alongside (q), which introduced a visible regression — see (q).
+
 ### Why this is filed rather than fixed
 
 Same reason as (n) was: it changes shipped appearance of the HQ still, and here the correct mapping is a
@@ -1233,7 +1260,7 @@ useful instrument this arc has built, and would let `.188`'s ceiling deficit fin
 the fill changes while the viewport changes a great deal. That makes the defect undeniable without
 committing to a mapping.
 
-## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN, a real defect with a clear fix (found v0.31.5.256)
+## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
 
 **The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,
 21:00, same pose:
@@ -1264,17 +1291,39 @@ chosen for looks. It also interacts with `depthWrite: false` on the 61 `MeshBasi
 (see below), so a blanket rule is riskier than it looks. **The call needed is whether to map opacity to
 transmission in the snapshot, and with what rule.**
 
+### Built, measured, reverted (v0.31.5.257) — and it cannot be fixed in isolation
+
+`transmission = 1 − opacity`, `ior 1.5`, applied in the snapshot to Standard/Physical materials with
+`opacity < 1` and `transmission 0`. **It works: the window grille is fully restored in the HQ still.**
+
+**But making the glass see-through also exposes whatever the tracer has behind it — and that is not the
+viewport's backdrop.** At 21:00 the still went from an opaque pale panel to a **pale daylight-blue sky**,
+where the viewport shows a near-black night pane. One visible defect traded for another.
+
+So the decision is larger than first filed: **restoring transmission requires settling what the tracer puts
+behind glass at the same time.** The sky sphere is `MeshBasicMaterial` and the snapshot also sets
+`root.background` to the derived gradient, so which of the two a refracted ray should see is the open
+question. Fixing (q) alone is not an option.
+
+*Implementation note for whoever takes it:* `MeshPhysicalMaterial.copy(source)` reads Physical-only object
+fields off the source (`clearcoatNormalScale` is a `Vector2`), so copying from a plain
+`MeshStandardMaterial` throws `Cannot read properties of undefined (reading 'x')` — and the scene has seven
+transparent Standard materials beside the glazing. Clone when the source is already Physical; construct
+explicitly when it is not.
+
 ### Two related snapshot infidelities, same function
 
 - **Instanced geometry is dropped.** `buildTracerScene` skips `isInstancedMesh` outright — **17 meshes,
-  231 instances**. Measured consequence is small: hiding exactly those in the raster changes **0.16 %** of
+  231 instances**. *Expanding to per-instance clones was implemented in `.257` and worked (231 expanded);
+  it reverted only because it shipped with the rest.* Measured consequence is small: hiding exactly those in the raster changes **0.16 %** of
   pixels (765 of 480 000). Worth fixing (expanding to per-instance clones is trivial), low priority. *Noted
   because I first assumed these were the missing grille bars; the pixel diff disproved it.*
 - **Ten fully invisible planes may be rendering as solid.** 61 `MeshBasicMaterial` planes are transparent
   via opacity, **ten at `opacity 0.00`** with `depthWrite: false` — invisible in the raster. Basic is copied
   untouched (`.253` deliberately did not substitute it) and opacity is not honoured, so they may be solid
   surfaces in the still. A plausible cause of the faint curved streaks visible across the traced ceiling.
-  **Hypothesis, not isolated.**
+  **Hypothesis, not isolated.** *Excluding `transparent && depthWrite === false` was implemented in
+  `.257` and skipped 61 planes cleanly; also reverted only because it shipped with the rest.*
 
 ## Summary
 

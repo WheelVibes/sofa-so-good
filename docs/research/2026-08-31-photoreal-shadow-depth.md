@@ -6485,3 +6485,110 @@ is exactly the property a reference needs. But it is not usable for measurement 
 are fixed, and `.188`'s ceiling deficit stays unproven until then.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.257` — the snapshot fixes, built and measured: a real improvement, reverted anyway
+
+`.255` filed (p) partly on the grounds that its mapping was "a real modelling choice". That deserved
+re-examining, and it does not survive: a `HemisphereLight` **is** a gradient environment — sky colour above,
+ground colour below — and an `AmbientLight` **is** a uniform one. That is precisely what a
+`GradientEquirectTexture` expresses. So the mapping is nearer a definition than an approximation, and
+`.256`'s hour test supplies a falsifiable success criterion: fix the rig and the ceiling should start
+tracking the way the wall already does.
+
+Built all four changes, measured against the `.256` baseline, looked at the frames, and reverted.
+
+Runs 05:45–06:18 local (2026-09-02).
+
+### What was built
+
+All inside `buildTracerScene`, so the live scene and the rasterised viewport are untouched by construction:
+
+1. **Fill derived from the live lights** — `top = Σ hemi.color·intensity + amb.color·intensity`,
+   `bottom = Σ hemi.groundColor·intensity + amb.color·intensity`, in place of the two literals.
+2. **`opacity` → `transmission`** for Standard/Physical at `opacity < 1, transmission 0`
+   (`transmission = 1 − opacity`, `ior 1.5`).
+3. **Compositing overlays excluded** — `transparent && depthWrite === false`, i.e. alpha-blended decoration
+   that depends on a draw order a path tracer does not have. **61 planes skipped.**
+4. **Instanced geometry expanded** to per-instance clones — **231 instances** that were being dropped.
+
+A dev-only line confirms all four fired: `HQ snapshot: 231 instances expanded, 61 compositing overlays
+skipped, fill from live lights`.
+
+### The hour test, before and after
+
+150 samples per still, `medium`, photographic look, 16:9, lights on, the same anchors as `.256`:
+
+| raster ÷ traced | 13:00 | 21:00 | swing |
+| --- | --- | --- | --- |
+| ceiling — **before** | 0.853 | 1.181 | +38 % |
+| ceiling — **after** | 0.825 | 1.022 | **+24 %** |
+| wall — before | 0.965 | 0.956 | −1 % |
+| wall — **after** | 0.927 | 0.927 | **0 %** |
+
+Hour response of the traced picture:
+
+| | before | after | raster |
+| --- | --- | --- | --- |
+| traced ceiling, 13:00 → 21:00 | +8 % | **+21 %** | +50 % |
+| traced wall, 13:00 → 21:00 | +39 % | **+37 %** | +37 % |
+
+The wall now matches the raster's hour response *exactly*, and its ratio is stable to the third decimal
+across a day-to-night swing. The ceiling improved substantially but not enough.
+
+### Two visible defects fixed
+
+- **The window grille is back** — all ~20 bars, where `.256` found only the cross mullion. The transmission
+  fix does exactly what it was meant to.
+- **The 21:00 ceiling is warm cream instead of cold blue.** The fill mapping does too: the still is no
+  longer lit by a hardcoded daytime sky.
+
+### One visible regression, which is why it is reverted
+
+With the glazing transmissive, the still now shows *through* it — to a **pale daylight-blue sky at 21:00**,
+where the viewport shows a near-black night pane. An opaque panel traded for a daylit one.
+
+**This is the round's most useful finding: (q) cannot be fixed in isolation.** Making the glass see-through
+is necessary and correct, and it immediately raises a second question that was hidden while the pane was
+opaque — *what should a refracted ray see?* The sky sphere is a `MeshBasicMaterial`, and the snapshot also
+assigns `root.background` to the derived gradient, so which of the two wins is unresolved. Recorded on item
+(q), because it changes what the decision is rather than just how to implement it.
+
+### And it does not restore the instrument
+
+24 % of ceiling swing survives, and the ratio still crosses unity between the two hours, so a ceiling
+measurement remains untrustworthy. The residual is **energetic, not structural**: a
+`GradientEquirectTexture` lights a surface by a cosine-weighted hemispherical integral, while three's
+`HemisphereLight` uses a cheap `0.5 + 0.5·(n·up)` blend. Same shape, different energy — so the residual
+concentrates on the ceiling, which faces straight down and is therefore the most orientation-sensitive
+surface in the room. What (p) needs next is an **energy calibration with a measurable target (ceiling swing
+→ 0)**, not a different mapping.
+
+### A bug in my own implementation, recorded because the symptom lied
+
+`MeshPhysicalMaterial.copy(source)` copies Physical-only *object* fields off the source —
+`clearcoatNormalScale` is a `Vector2` — so copying from a plain `MeshStandardMaterial` throws
+`Cannot read properties of undefined (reading 'x')`. The scene carries **seven** transparent Standard
+materials beside the Physical glazing, so this killed every HQ render.
+
+The symptom was a **ten-minute stall** ending in `PT: could not read a tracer canvas`, and my first reading
+was that transmission had made tracing too expensive. It had not: with the copy fixed, the render reached
+15/256 samples in ~20 s — the same rate as before any of this. **A stall is not evidence of cost.** The
+right move was to capture the page error, which took one small probe and named the line immediately.
+
+### Reverted, verified
+
+`src/scene/pathtrace/hqRenderSession.ts` restored from a `cp` backup taken at the start of the round;
+`git diff` on `src/` empty; `tsc` clean; full suite green.
+
+### Where this leaves the two items
+
+Both are better specified than when filed, and neither is a guess any more:
+
+- **(p)** — mapping correct in shape, worth ~14 of the 38 points, makes the wall track exactly. Needs an
+  energy calibration against a measurable target.
+- **(q)** — fix works and restores the grille, but must be taken together with the backdrop question, which
+  only became visible once the glass was transparent.
+
+Nothing changed in `src/` beyond the version bump.

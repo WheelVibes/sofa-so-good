@@ -5,6 +5,78 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.257 — the snapshot fixes were built and measured: a real improvement, reverted anyway
+
+`.255` said (p)'s mapping was "a real modelling choice". Re-examining that: a `HemisphereLight` **is** a
+gradient environment (sky colour above, ground colour below) and an `AmbientLight` **is** a uniform one —
+which is exactly what a `GradientEquirectTexture` expresses. So the mapping is closer to a definition than
+an approximation, and `.256`'s hour test gives a falsifiable success criterion. Built all three fixes,
+measured, looked, **reverted**.
+
+**What was built**, all inside `buildTracerScene`, viewport provably untouched:
+
+1. **Fill from the live lights** — `top = Σ hemi.color·intensity + amb.color·intensity`,
+   `bottom = Σ hemi.groundColor·intensity + amb.color·intensity`, replacing the two literals.
+2. **`opacity` → `transmission`** for Standard/Physical with `opacity < 1, transmission 0`
+   (`transmission = 1 − opacity`, `ior 1.5`).
+3. **Compositing overlays excluded** — transparent *and* `depthWrite: false`, which is alpha-blended
+   decoration a tracer has no draw order for. **61 skipped.**
+4. **Instanced geometry expanded** — **231 instances**, previously dropped.
+
+Confirmed by a dev-only log line: `HQ snapshot: 231 instances expanded, 61 compositing overlays skipped,
+fill from live lights`.
+
+**The hour test, before and after** (150 samples, `medium`, photographic, 16:9, lights on, same anchors as
+`.256`):
+
+| raster ÷ traced | 13:00 | 21:00 | swing |
+| --- | --- | --- | --- |
+| ceiling — **before** | 0.853 | 1.181 | +38 % |
+| ceiling — **after** | 0.825 | 1.022 | **+24 %** |
+| wall — before | 0.965 | 0.956 | −1 % |
+| wall — after | 0.927 | 0.927 | **0 %** |
+
+And the traced ceiling now actually notices the hour: **+8 % → +21 %** from 13:00 to 21:00 (the raster moves
++50 %). The traced wall's hour response went from +39 % to **+37 %, exactly matching the raster's +37 %.**
+
+**Visibly, two defects fixed.** The window **grille is back** — all ~20 bars, so the transmission fix does
+what it was meant to. And the 21:00 ceiling is **warm cream instead of cold blue**, so the fill mapping does
+too.
+
+**And one visible regression, which is why this is reverted.** With the glazing now transmissive, the still
+shows *through* it — to a **pale daylight-blue sky, at 21:00**, where the raster shows a near-black night
+pane. Making the glass see-through is necessary and correct; it also exposes whatever the tracer has behind
+the glass, and that is not the night backdrop the viewport uses.
+
+**That is the round's most useful finding: (q) cannot be fixed in isolation.** Restoring transmission
+without also settling what the tracer puts behind glass trades an opaque panel for a daylit one at night.
+Recorded on item (q), because it changes what the decision is.
+
+**And the fix does not restore the instrument.** 24 % of ceiling swing survives, and the ratio still crosses
+unity between the two hours, so a ceiling measurement still cannot be trusted. The reason is energetic, not
+structural: a `GradientEquirectTexture` lights a surface by a cosine-weighted hemispherical integral, while
+three's `HemisphereLight` uses a cheap `0.5 + 0.5·(n·up)` blend. Same *shape*, different *energy* — which is
+why the ceiling, facing straight down and so the most orientation-sensitive surface in the room, is where the
+residual concentrates. Energy-matching that is a real modelling task, not a mapping.
+
+**A bug in my own implementation, worth recording because the symptom was so misleading.**
+`MeshPhysicalMaterial.copy(source)` reads Physical-only *object* fields off the source —
+`clearcoatNormalScale` is a `Vector2` — so copying from a plain `MeshStandardMaterial` throws
+`Cannot read properties of undefined (reading 'x')`. The scene has **seven** transparent Standard materials
+beside the Physical glazing, so this killed every HQ render. The symptom was a **10-minute stall** ending in
+`PT: could not read a tracer canvas`, and my first reading was "transmission made tracing too slow". It had
+not: after the fix, 15/256 samples in ~20 s, the same rate as before. *A stall is not evidence of cost.*
+
+**Reverted, verified:** `src/` restored from a `cp` backup, `git diff` empty, `tsc` clean.
+
+**Where this leaves (p) and (q).** Both are better specified than before. (p)'s mapping is right in shape
+and needs an energy calibration; it is worth roughly 14 points of the 38 % ceiling swing and makes the wall
+track exactly. (q)'s fix works but is incomplete on its own and must be taken together with the backdrop.
+Neither is now a guess, and both remain the user's call — but the information to make it is measured.
+
+`npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in `src/` beyond the version bump. Runs
+05:45–06:18 local.
+
 ## v0.31.5.256 — (p) proven by the hour test, and two more snapshot infidelities
 
 `.255` withdrew item (o) on a code reading plus one intervention, and promised the measurement that would
