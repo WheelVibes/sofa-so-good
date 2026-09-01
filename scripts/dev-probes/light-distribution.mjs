@@ -450,6 +450,7 @@ const shotFor = async (pitch) => {
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyLinear === 'function') await applyLinear()
+  if (typeof applyBgBlock === 'function') await applyBgBlock()
   if (typeof applyBgMul === 'function') await applyBgMul()
   return canvas.screenshot({ type: 'png' })
 }
@@ -523,6 +524,87 @@ const applyFillOff =
 //
 // `scene.backgroundIntensity` is therefore the one scalar that means "how bright
 // is the outside", and three provides it for exactly this purpose.
+// BGBLOCK — a PROVEN-INERT intervention, kept as a diagnostic (`.262`).
+//
+// ** IT HAS NO EFFECT ON THE RENDER. ** Painting the backdrop canvas -- even
+// filling it entirely black, verified black by read-back at capture time --
+// changes nothing: frame mean 121.3 -> 121.3, `%<64` 11.85 -> 11.84, glazing
+// 237.1 -> 237.2. Meanwhile `backgroundIntensity` (BGMUL) moves the same glazing
+// 161 -> 237 -> 245. So the glazing depends on the background SLOT but not on the
+// background's CONTENT, and whatever the renderer samples is not the canvas bound
+// to `scene.background.image`.
+//
+// Kept because knowing an intervention is inert is worth more than deleting it:
+// anyone reaching for "just paint the backdrop" will otherwise repeat this.
+//
+// Original intent, still untested: `.261` proved no luminance multiplier reaches
+// the photographic STRUCTURE (a real pane is 55-60 % blown AND 36-44 % mid-tone at
+// once) and asserted that backdrop CONTENT would supply the range. That assertion
+// remains unproven -- this round could not deliver content to the renderer at all.
+//
+// `.261` proved that no luminance multiplier reaches the photographic STRUCTURE --
+// a real pane is 55-60 % blown AND 36-44 % mid-tone at once, while the app goes
+// from 100 % mid-tone to 9.4 % without ever being both. It then ASSERTED that
+// backdrop content would supply the range, and for an HDB flat the real view is
+// another block. That assertion was never tested. This tests it.
+//
+// The backdrop is a 1024x512 equirect CanvasTexture (mapping 303), so row h/2 is
+// the horizon and the window's view spans roughly elevation -8..+12 deg, i.e. rows
+// ~222-279. A block belongs at and just below that, leaving sky above it.
+//
+// Luminance matters as much as position. `backgroundIntensity` scales the WHOLE
+// texture, so a block painted at sky brightness would simply clip with the sky. A
+// facade at ~5 % of sky luminance reads mid-tone after a x32 boost while the sky
+// saturates -- and ~1/20 of sky luminance is what a sunlit concrete facade
+// actually is.
+const BGBLOCK = process.env.BGBLOCK === '1' || process.env.BGBLOCK === '2'
+const applyBgBlock = !BGBLOCK
+  ? null
+  : async () => {
+      await page.evaluate((m) => {
+        window.__bgBlockMode = m
+      }, process.env.BGBLOCK)
+      const res = await page.evaluate(() => {
+        const tex = window.__three.scene.background
+        const cv = tex?.image
+        if (!cv || typeof cv.getContext !== 'function')
+          return { error: 'background is not a canvas texture' }
+        if (cv.__blocked) return { already: true }
+        const ctx = cv.getContext('2d')
+        const W = cv.width
+        const H = cv.height
+        const top = Math.round(H * 0.485) // just above the horizon
+        const bot = Math.round(H * 0.66) // down to well below it
+        // Facade: vertical bands so the block has its own internal structure, the
+        // way a real block's windows and columns do.
+        for (let x = 0; x < W; x += 8) {
+          const v = x % 16 === 0 ? 58 : 72
+          ctx.fillStyle = `rgb(${v},${v - 2},${v - 4})`
+          ctx.fillRect(x, top, 8, bot - top)
+        }
+        // A roofline highlight, and a soft shadowed base.
+        ctx.fillStyle = 'rgb(96,94,90)'
+        ctx.fillRect(0, top, W, 3)
+        ctx.fillStyle = 'rgb(40,39,38)'
+        ctx.fillRect(0, bot - 6, W, 6)
+        if (window.__bgBlockMode === '2') {
+          // Unambiguous control: black out the WHOLE backdrop. If the window does
+          // not change, its appearance does not come from `scene.background`.
+          ctx.fillStyle = 'rgb(0,0,0)'
+          ctx.fillRect(0, 0, W, H)
+        }
+        cv.__blocked = true
+        tex.needsUpdate = true
+        // Read back a painted row so the intervention can be proven to have held at
+        // capture time rather than merely to have been issued (`.254`).
+        const probeRow = window.__bgBlockMode === '2' ? Math.round(H * 0.3) : top + 10
+        const px = ctx.getImageData(Math.round(W * 0.5), probeRow, 1, 1).data
+        return { W, H, top, bot, probeRow, painted: [px[0], px[1], px[2]] }
+      })
+      if (res.error) throw new Error(`BGBLOCK: ${res.error}`)
+      console.log(`BGBLOCK=1 painted a facade into the backdrop: ${JSON.stringify(res)}`)
+      await new Promise((r) => setTimeout(r, 900))
+    }
 const BGMUL = process.env.BGMUL ? Number(process.env.BGMUL) : null
 const readBg = () =>
   page.evaluate(() => {
@@ -588,6 +670,21 @@ const applyLinear = !LINEAR
     }
 const shot = await shotFor(PITCH)
 if (BGMUL != null) console.log(`BGMUL=${BGMUL} held at capture: ${JSON.stringify(await readBg())}`)
+if (BGBLOCK)
+  console.log(
+    `BGBLOCK held at capture: ${JSON.stringify(
+      await page.evaluate(() => {
+        const cv = window.__three.scene.background?.image
+        if (!cv?.getContext) return null
+        const ctx = cv.getContext('2d')
+        const at = (fy) =>
+          [
+            ...ctx.getImageData(Math.round(cv.width * 0.5), Math.round(cv.height * fy), 1, 1).data,
+          ].slice(0, 3)
+        return { row30: at(0.3), row50: at(0.5), row55: at(0.55) }
+      }),
+    )}`,
+  )
 if (LINEAR)
   console.log(
     `LINEAR=1 held at capture: ${JSON.stringify(

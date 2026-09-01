@@ -1045,6 +1045,27 @@ This also corrects `.260`, which attributed the mixture to panes facing differen
 splits **within-pane sd 42.3** against **between-pane sd 20.9** — the dominant term is variation *inside* a
 pane. Each pane contains a scene with its own range; that matters more than the differences between panes.
 
+### ⚠️ v0.31.5.262 — the ×30 lever's MECHANISM is not established
+
+`backgroundIntensity` demonstrably moves the glazing (161.4 → 237.1 → 245.2 at ×1/×16/×32, reproduced).
+But painting the backdrop canvas has **no effect at all** — filling it *entirely black*, verified black by
+read-back at capture time, leaves frame mean 121.3 → 121.3, `%<64` 11.85 → 11.84 and glazing 237.1 → 237.2.
+
+So the glazing depends on the background **slot** but not on the background's **content**, and the ×30
+lever is *not* "make the view brighter" — it scales something whose content is not the painted sky.
+
+This does **not** change `.259`'s measured costs (+8 % frame mean, zero `%<64`, night pane 23 → 43). It
+changes how much the *interpretation* should be trusted: this arc has retired four metrics for being
+right-looking and wrong-mechanism (`.249`, `.251`, `.253`, `.255`), and a lever with a measured effect and
+an unknown mechanism belongs in the same category until the mechanism is found.
+
+**Leading hypothesis (untested):** the glazing may be lit from a **PMREM derived once** from the sky rather
+than from the live canvas, which would make canvas mutation inert while a scalar on the slot still scaled
+the derived result.
+
+**Consequence for the structural route:** `.261`'s claim that backdrop *content* would supply the range is
+**untested, not refuted** — `.262` could not deliver content to the renderer at all.
+
 ### The two routes, now separated
 
 | route | what it costs | what it buys |

@@ -5,6 +5,67 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.262 — the experiment failed, provably; and `.259`'s lever has an unknown mechanism
+
+`.261` proved one half of its claim and asserted the other. Proved: **no luminance multiplier reaches the
+photographic structure** — a real pane is 55–60 % blown *and* 36–44 % mid-tone at once, while the app runs
+100 % → 9.4 % mid-tone without ever being both. Asserted, never tested: **backdrop content would supply the
+range**, and for an HDB flat the real view is another block. This round set out to test that, entirely
+probe-side so it reverts by construction.
+
+**The intervention was built.** `scene.background` is a 1024×512 equirect `CanvasTexture`
+(`EquirectangularReflectionMapping`), so row *h*/2 is the horizon and the window's view spans roughly
+elevation −12°…+6°. `BGBLOCK=1` paints a facade — vertical bands for structure, a roofline highlight, a
+shadowed base — at ~5 % of sky luminance, so that a ×32 boost clips the sky while the facade lands mid-tone.
+That ratio is about what a sunlit concrete facade actually is.
+
+**It did nothing.** ×32 with and without the facade: clipped 39.7 % vs 39.5 %, sd 16.4 vs 16.4, spread 20 vs
+19, mid-tone 9.7 % vs 9.4 %.
+
+**So I blacked out the entire backdrop as a control, and verified it black at capture time** — the same
+read-back discipline `.254` taught, and the reason this round has a result at all:
+
+| | frame mean | `%<64` | glazing mean | canvas at capture |
+| --- | --- | --- | --- | --- |
+| ×16, canvas normal | 121.3 | 11.85 % | 237.1 | — |
+| **×16, canvas ENTIRELY BLACK** | **121.3** | 11.84 % | **237.2** | rows 30/50/55 = `[0,0,0]` |
+| ×1, canvas entirely black | 113.0 | 11.84 % | 161.3 | rows 30/50/55 = `[0,0,0]` |
+
+**Blacking the whole backdrop changes nothing, anywhere.** Not the frame, not the shadows, not the glazing.
+And ×1-with-black-canvas reproduces the shipped ×1 numbers exactly (161.3 against 161.4).
+
+**So the experiment failed rather than returning a negative, and it can be proven to have failed.** The
+canvas bound to `scene.background.image` is black and the renderer is sampling something else. `.261`'s
+content hypothesis is therefore **untested — not refuted.** `BGBLOCK` is kept in the probe, documented as
+proven-inert, because knowing an intervention does not reach the renderer is worth more than deleting it.
+
+**And it surfaces a real caveat on `.259`.** `backgroundIntensity` demonstrably moves the glazing —
+161.4 → 237.1 → 245.2 across ×1/×16/×32, reproduced here — while the background's *content* moves it not at
+all. Those two facts together mean the ×30 lever is **not** "make the view brighter": it scales something
+whose content is not the painted sky. **The mechanism is not established**, so `.259`'s pricing should be
+read as an empirical lever of unknown mechanism, not as a physical fix. Recorded on item (l) — it does not
+change the measured costs (+8 % frame mean, zero `%<64`), but it does change how much one should trust the
+*interpretation* attached to them.
+
+That distinction matters here more than usual: this arc has now retired four metrics for being right-looking
+and wrong-mechanism (`.249`, `.251`, `.253`, `.255`). A lever with a measured effect and an unknown mechanism
+belongs in the same suspicious category until the mechanism is found.
+
+**Leading hypothesis for the next round**, stated as a hypothesis: `scene.environment` is also a texture, and
+if the renderer lights the glazing from a **PMREM derived once** from the sky rather than from the live
+canvas, then mutating the canvas would be inert while a scalar on the slot still scaled the derived result.
+Testing it means checking whether `scene.environment === scene.background`, and whether forcing a PMREM
+rebuild makes the facade appear.
+
+*Method note, third occurrence: `set -- ${cfg}` does not word-split in zsh, so one comparison ran three
+times with `BGMUL="1 0"` → `NaN` before I noticed the impossible numbers (glazing 103.2 where ×1 gives
+161.4). Same mistake as `.249` and `.259`. The rule that keeps being violated: **in this shell, never build
+argument lists by word-splitting** — use an explicit function with positional parameters, as the final
+comparison does.*
+
+Probe only: `BGBLOCK` (inert, documented) and its capture-time read-back. `npm test` 9437 passed, `tsc`
+clean, `biome` clean. Nothing changed in `src/` beyond the version bump. Runs 07:07–07:14 local.
+
 ## v0.31.5.261 — a real window is blown AND readable at once; the app can only be one or the other
 
 `.260` showed qualitatively that a photograph's glazing is a mixture while the app's is a uniform gradient,

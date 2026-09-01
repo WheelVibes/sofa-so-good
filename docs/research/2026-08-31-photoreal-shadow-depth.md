@@ -7034,3 +7034,98 @@ That is a bigger and different decision than `.259` priced, and it is a content 
 rather than taken.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.262` — the experiment failed, provably, and `.259`'s lever has an unknown mechanism
+
+`.261` proved one half of its claim and asserted the other:
+
+- **Proved:** no luminance multiplier reaches the photographic *structure*. A real pane is 55–60 % blown
+  **and** 36–44 % mid-tone simultaneously; the app runs 100 % → 9.4 % mid-tone across ×1 → ×32 without ever
+  being both.
+- **Asserted, never tested:** backdrop **content** would supply that range, and for an HDB flat the real
+  view out of most windows is another block.
+
+This round set out to test the assertion, entirely probe-side so that it reverts by construction.
+
+Runs 07:07–07:14 local (2026-09-02).
+
+### The intervention
+
+`scene.background` in walk mode is a **1024×512 equirect `CanvasTexture`** with
+`EquirectangularReflectionMapping` (mapping 303) and `srgb` colour space, whose `image` is a real `<canvas>`
+— so it can be drawn on directly. Row *h*/2 is the horizon, and with the camera pitched −0.06 rad the
+window's view spans roughly elevation −12°…+6°, i.e. rows ~239–290.
+
+`BGBLOCK=1` paints a neighbouring block into rows 0.485*h*…0.66*h*: vertical bands so the facade has its own
+internal structure the way a real block's columns and windows do, a roofline highlight, and a shadowed base.
+Painted at **~5 % of sky luminance**, so that a ×32 boost clips the sky while the facade lands mid-tone —
+and ~1/20 of sky luminance is roughly what a sunlit concrete facade is.
+
+### It did nothing
+
+| ×32 | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- |
+| no facade | 39.7 % | 16.4 | 20 | 9.7 % |
+| **with facade** | 39.5 % | 16.4 | 19 | 9.4 % |
+
+### The control that turned a puzzle into a result
+
+Rather than theorise, I blacked out the **entire** backdrop canvas and verified it was still black at
+capture time — the read-back discipline `.254` taught, and the only reason this round has a conclusion:
+
+| | frame mean | `%<64` | glazing mean | canvas at capture |
+| --- | --- | --- | --- | --- |
+| ×16, canvas normal | 121.3 | 11.85 % | 237.1 | — |
+| **×16, canvas ENTIRELY BLACK** | **121.3** | 11.84 % | **237.2** | rows 30/50/55 = `[0,0,0]` |
+| ×1, canvas entirely black | 113.0 | 11.84 % | 161.3 | rows 30/50/55 = `[0,0,0]` |
+
+**Blacking the whole backdrop changes nothing, anywhere** — not the frame mean, not the shadow fraction, not
+the glazing. And ×1-with-black-canvas reproduces the shipped ×1 glazing exactly (161.3 against 161.4).
+
+### So the experiment failed rather than returning a negative
+
+The canvas bound to `scene.background.image` is black and the renderer is sampling something else. That is a
+failed intervention, not evidence about content, and the distinction is the whole point: reporting this as
+*"content does not help"* would have been a false negative of exactly the kind `.254` produced and caught
+when a light patch was silently reverted every frame.
+
+**`.261`'s content hypothesis is untested, not refuted.** `BGBLOCK` stays in the probe, documented as
+**proven-inert**, because knowing that an intervention never reaches the renderer is worth more than deleting
+it — the next person to reach for "just paint the backdrop" will otherwise repeat this.
+
+### The caveat this puts on `.259`
+
+Two facts, both reproduced in this round:
+
+- `backgroundIntensity` moves the glazing: **161.4 → 237.1 → 245.2** at ×1/×16/×32.
+- The background's **content** moves the glazing by **0.1 counts**, even when replaced entirely by black.
+
+Together they mean the ×30 lever is **not** "make the view brighter". It scales something whose content is
+not the painted sky, and **the mechanism is not established.**
+
+This does not change `.259`'s measured costs — +8 % frame mean, zero `%<64`, night pane 23 → 43 all stand as
+measurements. It changes how much the *interpretation* attached to them should be trusted. This arc has now
+retired four metrics for being right-looking and wrong-mechanism (`.249` furniture in the wall bucket, `.251`
+scene-dependence, `.253` a hollow control, `.255` a different lighting rig). **A lever with a measured effect
+and an unknown mechanism belongs in the same suspicious category until the mechanism is found**, and item (l)
+is annotated accordingly.
+
+### Leading hypothesis for the next round
+
+Stated as a hypothesis, not a finding: `scene.environment` is also a texture, and if the renderer lights the
+glazing from a **PMREM derived once** from the sky rather than from the live canvas, then mutating the canvas
+would be inert while a scalar on the slot still scaled the derived result. The tests are cheap — check
+whether `scene.environment === scene.background`, and whether forcing a PMREM rebuild makes the facade
+appear.
+
+### Method note, third occurrence
+
+`set -- ${cfg}` does **not** word-split in zsh, so one comparison ran three times with `BGMUL="1 0"` → `NaN`
+before the impossible numbers gave it away (glazing 103.2 where ×1 gives 161.4). This is the same mistake as
+`.249` and `.259`. The rule that keeps being violated, stated once more: **in this shell, never build
+argument lists by word-splitting** — use an explicit function with positional parameters, which is what the
+final, correct comparison does.
+
+Nothing changed in `src/` beyond the version bump.
