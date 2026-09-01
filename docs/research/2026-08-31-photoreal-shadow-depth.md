@@ -6592,3 +6592,121 @@ Both are better specified than when filed, and neither is a guess any more:
   only became visible once the glass was transparent.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.258` — the window is a dynamic-range deficit, not a tone-mapping fight
+
+Nine rounds went into the path tracer as an instrument; it now needs an energy calibration (`.257`) and a
+backdrop decision, both blocked. This round deliberately leaves it alone, because the question below needs
+only the rasteriser, and goes back to the strongest photographic result the arc owns — item (l)'s
+**photographs blow their windows out (15–39 % of glazing pixels clipped, `.236`); the app clips 0.0 % at
+every hour.**
+
+Runs 06:25–06:29 local (2026-09-02).
+
+### How professional interior renders actually get a blown window
+
+Not with a post trick, and not by pushing a material. A daylit sky is roughly **2,000–15,000 cd/m²**; an
+interior wall in the same room is roughly **50–300 cd/m²**. So the *scene* carries **~20–200:1** across the
+glazing, and any exposure chosen to hold the interior at a mid-tone necessarily clips the window. The
+blow-out is a consequence of physical range, and the view transform merely reveals it.
+
+`.209` recorded the opposite reading — *"pushing the pane brighter fights the AgX view transform"* — and item
+(l) has carried that framing ever since. It is testable: bypass the curve and look at what range the scene
+has.
+
+### The instrument
+
+Two additions, both raster-only:
+
+- **`LINEAR=1`** intercepts `gl.toneMapping` → `NoToneMapping` and `gl.toneMappingExposure`, with getters
+  rather than assignment, because `Lighting.tsx` grades exposure every frame (`.254`'s lesson). Verified to
+  bite: frame mean collapses 113.0 → 98.9 at exposure 1.0 and 9.4 at exposure 0.05, and the patched values
+  are read back after the capture.
+- **A glazing anchor** (side `W`) shooting back along the window normal, so the patch lands on the pane. It
+  needed a **6 cm** patch and `ANCHOR_MINFRAC`: the window carries ~20 grille bars at ~12 cm pitch, so no
+  patch large enough to measure fits wholly between them. Every point in the accepted population is already
+  verified same-object, same-signature and unoccluded, so a partial patch is a *clean* population rather than
+  a compromised one — which is exactly what `.237` did by hand when it sampled "pane interiors only, between
+  the bars". The signature is confirmed as `BoxGeometry#bcd4e6` on every accepted anchor.
+
+An 8-bit gotcha worth recording: at `LIN_EXPO=0.05` the wall read **v = 5**, where one code value is a 20 %
+linear step. Quantisation, not signal. Re-run at exposure 1.0 the wall reads 98–116 and the glazing 168–170,
+both well resolved and neither clipped.
+
+### The measurement
+
+13:00, photographic look, canonical pose, wall plaster anchors at 1.2 and 2.4 m:
+
+| tier | wall (8-bit) | glazing (8-bit) | wall linear | glazing linear | **glazing : wall** |
+| --- | --- | --- | --- | --- | --- |
+| `medium` | 115.7 | 167.6 | 0.1736 | 0.3895 | **2.24 : 1** |
+| `performance` | 98.2 | 169.9 | 0.1227 | 0.4015 | **3.27 : 1** |
+| *physical daylight* | | | | | *~20–200 : 1* |
+
+**The app's window carries 2.2–3.3× the wall where physics carries 20–200×.**
+
+And the second half, which is the part that reframes the item:
+
+| tier | linear ratio | ratio under the shipped curve | what the curve removes |
+| --- | --- | --- | --- |
+| `medium` | 2.24 : 1 | 2.06 : 1 | 8 % |
+| `performance` | 3.27 : 1 | 2.88 : 1 | 12 % |
+
+**The tone curve is doing almost nothing to the window.** It is not compressing a large range down to a
+grey panel; there is no large range to compress. `.209`'s objection — that a brighter pane would be eaten by
+AgX — is measurably not the binding constraint at these levels.
+
+The 0.0 % clipping then needs no tone-mapping explanation at all: a pane at 2.2× the wall cannot clip while
+the wall sits mid-grey, whatever curve is applied.
+
+### Checks
+
+**Robust to its one assumption.** The reading is sRGB-encoded (three's default output colour space) and is
+decoded before ratioing. If the output were linear instead, the ratio would be **1.45:1** — *smaller*. The
+conclusion does not depend on the decode, only its magnitude does.
+
+**Cross-checked against a method 21 rounds older.** The tone-mapped 8-bit ratio at these anchors is
+**1.389**. `.237` measured pane-only glazing ÷ wall at 13:00 as **1.38**, by hand-sampling between the bars
+after `.236`'s whole-window rectangle was found to be dominated by grilles. Two entirely different methods
+agreeing to 0.01 — which is the strongest validation the new glazing anchor could get.
+
+**Looked at.** The linear frame is a coherent render, no artefacts, no error card — and the window in it is
+still a **mid-grey panel, not a blown hole**. The defect survives removal of the curve, visibly, which is
+the whole claim.
+
+### Confounds, and which way they lean
+
+This is a between-surface ratio, the family `.232`/`.233`/`.239`/`.247`/`.249`/`.251` spent ten rounds
+demolishing, so it has to be justified rather than assumed:
+
+| confound | status |
+| --- | --- |
+| framing | escaped — world anchors, invariant to viewport aspect (`.250`) |
+| tier | stated: 2.24 (`medium`), 3.27 (`performance`) |
+| pose | fixed world points, not screen bands |
+| method | one method both sides, and cross-checked against `.237`'s independent one |
+| **albedo** | **enters.** The wall is `#f5f5f0`, near-white, so its luminance sits at the *high* end of the plaster range |
+| **scene** | **enters.** A 71 %-of-wall aperture (`.251`) brightens the wall further |
+
+The last two both **raise the wall and so shrink the ratio**, which means they make the app look *better*
+than it is. **The deficit is understated, not overstated** — the direction an honest claim should err in.
+
+### What this changes
+
+Item (l) is reframed, not decided. It has been filed as a product call about pane luminance versus the AgX
+transform. The measurement says it is a **scene dynamic-range deficit with a quantified target**: the
+backdrop needs roughly **10–100× more luminance relative to the interior**, and that is a
+physical-correctness question before it is a look one.
+
+The fix space is unchanged in kind — brighter backdrop, a bloom-carrying emissive pane, or a separate
+exposure for the backdrop — but it now has a number attached, and the objection that AgX would eat it is
+measurably not what stands in the way.
+
+Still not decided here: it changes shipped appearance at every hour, and the **21:00 case `.236` recorded as
+already correct must not regress** (glazing 0.39 of wall, interior warm at R−B 23.4 against a neutral pane).
+A next round could price it exactly as `.254` priced the bounce term — sweep backdrop luminance and report
+what reaches a photographic clipping fraction and what it costs at 19:00 and 21:00.
+
+Nothing changed in `src/`.

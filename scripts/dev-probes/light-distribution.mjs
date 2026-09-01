@@ -445,6 +445,7 @@ const shotFor = async (pitch) => {
   // post-capture read-back caught. Never patch a light before a state change.
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
+  if (typeof applyLinear === 'function') await applyLinear()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
@@ -489,7 +490,60 @@ const applyFillOff =
         await new Promise((r) => setTimeout(r, 700))
         return res
       }
+// LINEAR=1 bypasses the tone curve so the SCENE's own luminance range can be read
+// rather than the graded picture's (`.258`).
+//
+// This is the measurement item (l) needs. Photographs blow their windows out
+// (15-39 % of glazing pixels clipped, `.236`) and the app clips 0.0 % at every
+// hour. `.209` read that as a tone-mapping fight -- "pushing the pane brighter
+// fights the AgX view transform". But a real daylit sky is ~10^4 cd/m2 against an
+// interior wall at ~10^2, so a photograph's window is blown by a factor of ~100 in
+// the SCENE, and any exposure that holds the interior clips it. Whether the app has
+// that range at all is answerable only with the curve out of the way.
+//
+// `gl.toneMappingExposure` is rewritten every frame by `Lighting.tsx`, so both
+// properties are intercepted with getters, not assigned (`.254`'s lesson).
+// NoToneMapping still applies the sRGB output transfer, so readings are decoded
+// back to linear before any ratio is taken.
+const LINEAR = process.env.LINEAR === '1'
+const LIN_EXPO = Number(process.env.LIN_EXPO || 0.05)
+const applyLinear = !LINEAR
+  ? null
+  : async () => {
+      const res = await page.evaluate(
+        ({ expo }) => {
+          const gl = window.__three.gl
+          if (!gl) return { error: 'no renderer on window.__three' }
+          if (!gl.__linPatched) {
+            Object.defineProperty(gl, 'toneMapping', {
+              get: () => 0, // THREE.NoToneMapping
+              set: () => {},
+              configurable: true,
+            })
+            Object.defineProperty(gl, 'toneMappingExposure', {
+              get: () => expo,
+              set: () => {},
+              configurable: true,
+            })
+            gl.__linPatched = true
+          }
+          return { toneMapping: gl.toneMapping, exposure: gl.toneMappingExposure }
+        },
+        { expo: LIN_EXPO },
+      )
+      if (res.error) throw new Error(`LINEAR: ${res.error}`)
+      await new Promise((r) => setTimeout(r, 900))
+    }
 const shot = await shotFor(PITCH)
+if (LINEAR)
+  console.log(
+    `LINEAR=1 held at capture: ${JSON.stringify(
+      await page.evaluate(() => ({
+        toneMapping: window.__three.gl?.toneMapping,
+        exposure: window.__three.gl?.toneMappingExposure,
+      })),
+    )}  (readings below are sRGB-encoded; decode before ratioing)`,
+  )
 if (applyFillOff)
   console.log(
     `FILLOFF=1 zeroed: ${JSON.stringify(
@@ -958,8 +1012,9 @@ if (process.env.ANCHORS === '1') {
   const GRID = Number(process.env.ANCHOR_GRID || 7)
   const SIDES = (process.env.ANCHOR_SIDES || 'A,B,C,F').split(',')
   const ANCHOR_OFF = Number(process.env.ANCHOR_OFF || 0)
+  const ANCHOR_MINFRAC = Number(process.env.ANCHOR_MINFRAC || 1)
   const anchors = await page.evaluate(
-    ({ win, ds, y, half, grid, hud, sides, off }) => {
+    ({ win, ds, y, half, grid, hud, sides, off, minFrac }) => {
       const { scene, camera } = window.__three
       const V = camera.position.constructor
       const rc = new window.__three.raycaster.constructor()
@@ -987,6 +1042,10 @@ if (process.env.ANCHORS === '1') {
         { side: 'B', dir: () => perp.clone().multiplyScalar(-1), axis: 'perp' },
         { side: 'C', dir: () => new V(0, 1, 0), axis: 'up' },
         { side: 'F', dir: () => new V(0, -1, 0), axis: 'up' },
+        // W shoots back TOWARD the window, so the anchor lands on the glazing --
+        // the surface item (l) is about. Its normal is parallel to the window
+        // normal, which is the `n` axis rather than `perp` or `up` (`.258`).
+        { side: 'W', dir: () => n.clone().multiplyScalar(-1), axis: 'n' },
       ].filter((q) => sides.includes(q.side))
       for (const d of ds) {
         // ANCHOR_OFF shifts the ceiling/floor anchor line sideways off the room
@@ -1018,7 +1077,8 @@ if (process.env.ANCHORS === '1') {
           // normal. Testing against `n` instead is what the first `.250` attempt
           // did, and it rejected all 12 anchors with |n.nWin| = 0 -- the value a
           // correct side wall must have.
-          rec.dotPerp = +Math.abs(wn.dot(pr.axis === 'up' ? new V(0, 1, 0) : perp)).toFixed(3)
+          const axisVec = pr.axis === 'up' ? new V(0, 1, 0) : pr.axis === 'n' ? n : perp
+          rec.dotPerp = +Math.abs(wn.dot(axisVec)).toFixed(3)
           rec.dotWin = +Math.abs(wn.dot(n)).toFixed(3)
           if (pr.axis === 'up' ? Math.abs(wn.y) < 0.9 : Math.abs(wn.y) > 0.3) {
             rec.reject = pr.axis === 'up' ? 'surface not horizontal' : 'surface not vertical'
@@ -1094,7 +1154,14 @@ if (process.env.ANCHORS === '1') {
           rec.inhud = inhud
           rec.mixed = mixed
           rec.pts = pts
-          if (pts.length < grid * grid) rec.reject = 'patch not wholly clean'
+          // Every point in `pts` is already verified same-object, same-signature and
+          // unoccluded, so a PARTIAL patch is still a clean population -- the gate
+          // is conservatism, not correctness. It has to be relaxable for the
+          // glazing, which is crossed by ~20 grille bars at ~12 cm pitch: no patch
+          // big enough to measure fits between them, and sampling "pane interiors
+          // between the bars" is exactly what `.237` did by hand (`.258`).
+          if (pts.length < Math.ceil(grid * grid * minFrac))
+            rec.reject = `patch only ${pts.length}/${grid * grid} clean (min ${Math.round(100 * minFrac)}%)`
           out.push(rec)
         }
       }
@@ -1108,6 +1175,7 @@ if (process.env.ANCHORS === '1') {
       grid: GRID,
       sides: SIDES,
       off: ANCHOR_OFF,
+      minFrac: ANCHOR_MINFRAC,
       hud: [
         { x0: 0.24, x1: 0.76, y0: 0, y1: 0.1 },
         { x0: 0.9, x1: 1, y0: 0, y1: 0.06 },
@@ -1154,7 +1222,7 @@ if (process.env.ANCHORS === '1') {
   // So a side is measured only over anchors sharing ONE signature, and the
   // signature is printed for inspection.
   {
-    const bySide = { A: [], B: [], C: [], F: [] }
+    const bySide = { A: [], B: [], C: [], F: [], W: [] }
     for (const a of anchors) if (!a.reject && a.sig) bySide[a.side].push(a)
     for (const side of SIDES) {
       const counts = new Map()
@@ -1202,8 +1270,8 @@ if (process.env.ANCHORS === '1') {
           '  ** the tracer output aspect. Traced figures below are NOT comparable. **',
       )
   }
-  const readings = { A: [], B: [], C: [], F: [] }
-  const tracedReadings = { A: [], B: [], C: [], F: [] }
+  const readings = { A: [], B: [], C: [], F: [], W: [] }
+  const tracedReadings = { A: [], B: [], C: [], F: [], W: [] }
   const accepted = []
   for (const a of anchors) {
     if (a.reject) {
@@ -1278,7 +1346,7 @@ if (process.env.ANCHORS === '1') {
   // raster is already doing what real transport does, whatever a photograph of
   // some other room says.
   {
-    const label = { A: 'wall A', B: 'wall B', C: 'ceiling', F: 'floor' }
+    const label = { A: 'wall A', B: 'wall B', C: 'ceiling', F: 'floor', W: 'glazing' }
     const mm = (rs) => (rs.length ? rs.reduce((a, b) => a + b.m, 0) / rs.length : null)
     const rows = SIDES.map((k) => ({
       k,

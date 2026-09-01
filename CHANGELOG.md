@@ -5,6 +5,73 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.258 — the window is not a tone-mapping problem: the scene is ~1–2 orders of magnitude short of daylight
+
+Nine rounds have gone into the path tracer as an instrument, and it now needs an energy calibration and a
+backdrop decision. This round leaves it alone — the question below needs only the raster — and returns to
+the strongest photographic finding the arc has: item **(l)**'s *photographs blow their windows out (15–39 %
+of glazing pixels clipped); the app clips 0.0 % at every hour.*
+
+**How professional interior renders get a blown window.** Not from a post trick. A daylit sky is roughly
+**2,000–15,000 cd/m²** and an interior wall in the same room roughly **50–300 cd/m²** — so the scene itself
+carries **~20–200:1** at the glazing, and *any* exposure that holds the interior clips the window. The
+blow-out is a consequence of physical range, not of the view transform. `.209` recorded the opposite
+framing — *"pushing the pane brighter fights the AgX view transform"* — and item (l) has carried it since.
+That is testable.
+
+**Measured with the curve out of the way.** New `LINEAR=1` intercepts `gl.toneMapping` → `NoToneMapping` and
+`gl.toneMappingExposure` (getters, not assignment — `.254`'s lesson, since `Lighting.tsx` rewrites exposure
+every frame), and a new **glazing anchor** samples a 6 cm world patch between the grille bars, verified to
+land on `BoxGeometry#bcd4e6`. 13:00, photographic look, canonical pose, wall anchors at 1.2/2.4 m:
+
+| tier | wall (8-bit) | glazing (8-bit) | wall linear | glazing linear | **glazing : wall** |
+| --- | --- | --- | --- | --- | --- |
+| `medium` | 115.7 | 167.6 | 0.1736 | 0.3895 | **2.24 : 1** |
+| `performance` | 98.2 | 169.9 | 0.1227 | 0.4015 | **3.27 : 1** |
+| *physical daylight* | | | | | *~20–200 : 1* |
+
+**The app's window carries 2.2–3.3× the wall where physics carries 20–200×** — short by roughly one order of
+magnitude at best and two at worst.
+
+**And the tone curve is not what is flattening it.** The same anchors *with* the shipped curve, linearised,
+read **2.06:1** and **2.88:1** — the curve removes only 8–12 % of the ratio. It is not compressing a large
+range; **there is no large range to compress.** So `.209`'s framing is not the operative constraint, and the
+0.0 % clipping needs no tone-mapping explanation: at 2.2× the wall, a pane cannot clip while the wall sits
+mid-grey.
+
+**Robust to the one assumption it makes.** The reading is sRGB-encoded, so it is decoded before ratioing. If
+the output were linear instead, the ratio would be **1.45:1** — smaller still. The conclusion does not hinge
+on the decode.
+
+**Cross-checked against a method 21 rounds older.** The tone-mapped 8-bit ratio at these anchors is
+**1.389**; `.237` measured pane-only glazing ÷ wall at 13:00 as **1.38** by hand-sampling between the bars.
+Two entirely different methods, agreeing to 0.01. That validates the new glazing anchor.
+
+**Looked at, per the rule.** The linear frame is a coherent render — and the window in it is still a
+**mid-grey panel, not a blown hole.** The defect is visible with the curve removed, which is the whole point.
+
+**The confounds, and which way they lean.** This is a between-surface ratio, the family this arc has spent
+ten rounds demolishing, so: framing is escaped (world anchors, invariant per `.250`); tier is stated; pose is
+fixed-world. **Wall albedo does enter** — the app's wall is `#f5f5f0`, near-white, so its luminance sits at
+the *high* end of the plaster range and the ratio is flattered. Likewise a larger window brightens the wall
+and shrinks the ratio, and this room's aperture is 71 % of the end wall (`.251`). **Both confounds make the
+app look better than it is, so the deficit is understated, not overstated.** That is the direction a claim
+should err in.
+
+**Item (l) reframed, not decided.** It is filed as needing a *product* call about pane luminance versus AgX.
+The measurement says it is a **scene dynamic-range deficit with a quantified target** — the backdrop needs
+roughly 10–100× more luminance relative to the interior, which is a physical-correctness question before it
+is a look one. The fix space is unchanged in kind (brighter backdrop / emissive pane / separate backdrop
+exposure) but now has a number attached, and the `.209` objection that AgX would eat it is measurably not
+the binding constraint. **Still not decided here** — it changes shipped appearance at every hour, and the
+21:00 case that `.236` recorded as already correct must not regress.
+
+Probe only: `LINEAR`, `LIN_EXPO`, the glazing anchor (side `W`), and `ANCHOR_MINFRAC` — the last because no
+patch large enough to measure fits between grille bars at ~12 cm pitch, and every included point is already
+verified same-object and unoccluded, so a partial patch is a clean population rather than a compromised one
+(the same thing `.237` did by hand). `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in
+`src/`. Runs 06:25–06:29 local.
+
 ## v0.31.5.257 — the snapshot fixes were built and measured: a real improvement, reverted anyway
 
 `.255` said (p)'s mapping was "a real modelling choice". Re-examining that: a `HemisphereLight` **is** a

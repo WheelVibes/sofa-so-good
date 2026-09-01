@@ -871,7 +871,7 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured v0.31.5.236)
+## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured v0.31.5.236; diagnosis sharpened v0.31.5.258)
 
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
@@ -907,10 +907,42 @@ most depends on warm-interior-against-cool-exterior separation, the app has none
 honest physics (at golden hour the sky and the room are lit by the same warm sun), but a sky that is
 both dimmer than the wall and the same colour as it cannot read as sky.
 
-**Why this is not being decided here:** raising pane luminance is exactly the AgX tension `.209`
-recorded, and the fix space (brighter backdrop / a bloom-carrying emissive pane / a separate
-exposure for the backdrop) spans a render change, a product look change, and a per-tier cost. Root
-`CLAUDE.md` says these are not to be decided unilaterally.
+### v0.31.5.258 — this is a scene dynamic-range deficit, not a tone-mapping fight
+
+`.209` framed the blocker as *"pushing the pane brighter fights the AgX view transform"*, and this item
+inherited that. Measured with the curve bypassed (`LINEAR=1`: `gl.toneMapping` → `NoToneMapping`, exposure
+intercepted), sampling a 6 cm world patch **between the grille bars** on the glazing against wall plaster
+anchors at 1.2/2.4 m, 13:00, photographic look, canonical pose:
+
+| tier | wall linear | glazing linear | **glazing : wall (linear)** | same anchors, shipped curve |
+| --- | --- | --- | --- | --- |
+| `medium` | 0.1736 | 0.3895 | **2.24 : 1** | 2.06 : 1 |
+| `performance` | 0.1227 | 0.4015 | **3.27 : 1** | 2.88 : 1 |
+| *physical daylight* — sky 2,000–15,000 cd/m² vs interior wall 50–300 cd/m² | | | ***~20–200 : 1*** | |
+
+**Two conclusions.**
+
+1. **The app's window carries 2.2–3.3× the wall where physics carries 20–200×** — short by roughly one
+   order of magnitude at best, two at worst. That alone explains 0.0 % clipping: a pane at 2.2× the wall
+   cannot clip while the wall sits mid-grey.
+2. **The tone curve is not what flattens it.** With the shipped curve the same anchors read 2.06:1 and
+   2.88:1 — the curve removes only **8–12 %** of the ratio. It is not compressing a large range; there is
+   no large range to compress. **The `.209` objection is measurably not the binding constraint.**
+
+Robustness: the reading is sRGB-decoded before ratioing; were the output linear the ratio would be
+**1.45:1**, smaller still. Cross-check: the tone-mapped 8-bit ratio here is **1.389** against `.237`'s
+independently hand-sampled pane-only **1.38** — two methods 21 rounds apart agreeing to 0.01.
+
+Confound direction, stated because it matters: wall albedo enters (the app's wall is near-white `#f5f5f0`,
+so its luminance sits high) and a large aperture brightens the wall further (71 % of the end wall, `.251`).
+**Both make the app look better than it is, so the deficit is understated.**
+
+**Why this is still not being decided here:** the fix space is unchanged in kind — brighter backdrop, a
+bloom-carrying emissive pane, or a separate exposure for the backdrop — but it now has a **target**: roughly
+10–100× more backdrop luminance relative to the interior. That changes shipped appearance at every hour, and
+the **21:00 case `.236` recorded as already correct must not regress** (glazing 0.39 of wall, interior warm
+at R−B 23.4 against a neutral pane). Root `CLAUDE.md` reserves calls like this. What has changed is that the
+call is now a physical-correctness question with a number, not a look-versus-AgX trade.
 
 ## (m) PHOTO-VIGNETTE — ⏳ OPEN, needs a look call (built and measured v0.31.5.244; its counter-metric retired in v0.31.5.249)
 
