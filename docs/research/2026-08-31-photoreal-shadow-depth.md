@@ -5759,3 +5759,134 @@ If the traced wall **falls** where the raster wall **rises**, GI is confirmed as
 the prize is finally quantified. That is the experiment `.245` set out to run.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.251` — the GI attribution is refuted by the app's own path tracer
+
+`.250` built a world-anchored wall metric and noted what it unblocked: because the anchors are world points
+chosen before either picture is rendered, the tracer canvas can be sampled at exactly the same ones. The
+depth/normal readback problem that defeated `.246` does not arise. This is `.245`'s experiment, finally
+runnable, and it comes back negative.
+
+Runs 04:05–04:18 local (2026-09-02). `medium`, photographic look, 13:00, `livingDining`, standoff 4.6,
+pitch −0.06, `walkFov` 50, walk viewport 16:9, tracer 1920×1080, `LIGHTS=off` (19 of 87 fixtures on).
+
+### Three guards, because a shared projection is easy to get silently wrong
+
+**Camera identity, checked numerically.** `PT=1` opens a modal and runs a tracer between the raster capture
+and the anchor projection. If anything in that sequence nudged the camera, the anchors would be computed
+for one pose and applied to a frame taken at another — and *looking would not catch it*, because the patches
+would still land on plaster. So position, quaternion, fov and aspect are snapshotted at the raster capture
+and compared.
+
+The first run reported **drift**: `q.x` −0.272 against −0.030. That was my own guard, not the app —
+the snapshot was being taken after the pitched-down floor capture, so it recorded `FLOOR_PITCH` (−0.55 rad)
+rather than the frame's own −0.06. Moved to immediately after the raster shot; it now prints `YES` on every
+run, and the reason is in the code, because a guard that cries wolf gets ignored and then a real drift walks
+through it.
+
+**Aspect match.** `camera.project` uses the camera aspect, so a shared projection is only valid if the two
+pictures share a framing — the reason `PT=1` pins the walk viewport to 16:9 (`.247`). The probe prints both
+aspects and refuses the comparison if they differ by more than 0.005.
+
+**Looked at it.** The anchor patches are painted onto the traced still as well as the raster frame. They
+land on the same plaster, in the same places, at the same sizes.
+
+### The result
+
+Side B, the right wall, `PlaneGeometry#f5f5f0` at every accepted anchor, 15×15 = 225 world samples per
+0.24 × 0.24 m patch:
+
+| | L(1.2) | L(2.4) | L(3.0) | far/near over 1.8 m |
+| --- | --- | --- | --- | --- |
+| raster | 128.4 | 131.2 | 131.7 | **1.026** |
+| traced, 48 samples | 141.3 | 141.7 | 139.9 | **0.990** |
+| traced, 101 samples | 132.1 | 133.3 | 132.6 | **1.004** |
+| traced, 251 samples | 142.6 | 144.7 | 144.9 | **1.016** |
+| photo D, hand-cropped plaster (`.226`) | | | | **0.85–0.86** |
+
+**Real inter-reflection moves the ratio by about 0.02. The distance to the photograph is 0.17.** The traced
+wall is flat, and visibly so — in the 251-sample still the right wall reads uniform from the window side to
+the camera side.
+
+So the wall-falloff gap is **not** absent inter-reflection. That attribution has been carried since `.226`,
+reached by elimination (`.189`–`.195` refuted the cheap stand-ins, `.226`/`.235` showed the hemisphere ground
+term has no distance dependence, `.231` ruled out the fill scale). `.245` said plainly that elimination is
+weaker than demonstration and that the diagnosis had been load-bearing for a dozen rounds. Demonstration has
+now been attempted, with the app's own renderer, and it refutes the attribution.
+
+### Why the app's wall is flat, and why that is not a defect
+
+The probe now prints the aperture alongside the falloff, because that turns out to be the governing fact:
+
+> **the window is 2.45 m wide in a 3.45 m wall — 71 % of the end wall — in a 3.4 × 5.67 m room.**
+
+The light source is essentially the entire end of the room. A 2.45 m aperture subtends a solid angle that
+barely shrinks over the first 3 m of a 3.4 m-wide room, so a nearly flat wall is the **correct** answer for
+this geometry — and the path tracer, computing real transport with no fill and no hemisphere shortcut,
+independently arrives at it.
+
+### The fourth confound, and the deepest
+
+| round | the metric depends on | |
+| --- | --- | --- |
+| `.232` | **pose** | ceiling/wall 0.68 → 0.96 on pitch |
+| `.233` | **method** | geometric mask 0.88 vs hand crop 0.93 |
+| `.239` | **tier** | |
+| `.247`/`.249` | **framing** | 0.60 → 0.98 on viewport aspect |
+| **`.251`** | **scene** | 71 % aperture ⇒ flat is correct |
+
+How much a wall falls off away from its window is a property of the **window-to-wall geometry** before it is
+a property of the renderer. Photo D's room geometry was never recorded, and neither were its crop distances
+(`.250`). So `0.74 vs 0.85` compared **two rooms as though they were two renderers**. No amount of pose,
+method, tier or framing matching could have fixed that, which is why four rounds of matching kept finding
+new artefacts instead of converging.
+
+### `.245`'s convergence claim is falsified
+
+`.245` reasoned that "a band MEAN over thousands of pixels averages sampling noise out, so ~40–60 samples
+suffice — a traced falloff number costs ~2 minutes". A mean averages **noise**, not **bias**. The traced
+absolute level on the same plaster patch reads **141.3 (48) → 132.1 (101) → 142.6 (251)** — an 8 % spread,
+and not monotone, so it is not simple convergence either.
+
+The **ratio** is much steadier — 0.990 / 1.004 / 1.016, spread 0.026 — because whatever moves the level
+moves both anchors together. So:
+
+- the traced instrument is usable for **ratios, quoted at ±0.02**;
+- it is **not** usable for absolute levels without a convergence sweep;
+- every traced figure must carry its sample count.
+
+That also means `.246`'s single 49-sample capture, and this round's own 48-sample first pass, were never
+safe to quote at face value. The ratio survives; the level does not.
+
+### What survives, what dies
+
+**Survives.** `.189`–`.195`, refuting the cheap GI stand-ins on their own measurements — independent of all
+of this. `.226`/`.235`'s mechanical fact, that the hemisphere ground term has no distance dependence — still
+true, simply no longer attached to a measured defect. Item **(l) WINDOW-LUMINANCE** — it rests on clipping
+fraction and distribution shape, not on falloff, and is untouched.
+
+**Dies.** The claim that the app has a wall-falloff deficit, and the claim that GI is what would fix it.
+Both withdrawn. Nothing in `src/` was ever changed on either — `.226` was recorded rather than chased — so no
+shipped behaviour is affected. But the arc's stated diagnosis was wrong in **population** (`.249`: the buckets
+were furniture), in **sign** (`.250`: the app is too flat, not too steep) and in **mechanism** (`.251`: real GI
+does not produce the photograph's falloff), and it took a world-anchored instrument plus the app's own path
+tracer to establish that.
+
+### Where the axis stands
+
+The wall-falloff comparison may not be measurable across rooms at all. A qualifying reference photograph
+would now need, cumulatively:
+
+1. `.233`'s screen — same plaster on both surfaces, daylit, croppable clear of junctions, no flash/HDR, not
+   AI stock;
+2. `.227`'s wall — unobstructed, constant orientation, spanning near and far from a single window, nothing
+   mounted on it;
+3. `.250` — its **crop distances** recorded;
+4. `.251` — its **window-to-wall aperture fraction** recorded.
+
+Three of four photographs failed criterion 2 alone (`.227`). Adding 3 and 4 makes the screen demanding
+enough that saying so is more useful than producing another n=1.
+
+Nothing changed in `src/` beyond the version bump.

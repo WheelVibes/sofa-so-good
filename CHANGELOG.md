@@ -5,6 +5,84 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.251 — real GI does NOT produce the photograph's wall falloff: the diagnosis is refuted
+
+`.250`'s anchors are **world points**, so the tracer canvas can be sampled at exactly the same ones — the
+readback problem that defeated `.246` (no depth or normal on that canvas) does not apply, because the
+positions are chosen before either picture exists. This is the experiment `.245` set out to run, and it
+comes back negative.
+
+**Method.** `PT=1 ANCHORS=1`. One pose, one camera, one set of world anchors, two pictures. Verified rather
+than assumed:
+
+- **Camera identity, numerically.** A new snapshot of position/quaternion/fov/aspect at the raster capture
+  is compared against the camera used for the anchor projection. *The first run reported drift* — because
+  the snapshot was being taken after the pitched-down floor capture, so it recorded `FLOOR_PITCH`
+  (q.x −0.272 against −0.030). My guard, my bug; fixed, and now prints `YES` on every run. A guard that
+  cries wolf gets ignored, so it is recorded in the code.
+- **Aspect match.** Tracer 1920×1080, walk viewport pinned to 16:9 by `PT=1` (`.247`'s reason for the knob);
+  the probe refuses to compare if the two aspects differ by more than 0.005.
+- **Looked at.** The anchor patches painted onto the traced still land on the same plaster, in the same
+  places, as on the raster frame.
+
+**Result — real light transport gives a flat wall too.** Side B (right wall, `PlaneGeometry#f5f5f0`
+throughout), `medium`, photographic look, 13:00, standoff 4.6, pitch −0.06, 16:9, lights off (19 of 87
+fixtures), 15×15 = 225 world samples per 0.24 m patch:
+
+| | L(1.2) | L(2.4) | L(3.0) | far/near |
+| --- | --- | --- | --- | --- |
+| raster | 128.4 | 131.2 | 131.7 | **1.026** |
+| traced, 48 samples | 141.3 | 141.7 | 139.9 | **0.990** |
+| traced, 101 samples | 132.1 | 133.3 | 132.6 | **1.004** |
+| traced, 251 samples | 142.6 | 144.7 | 144.9 | **1.016** |
+| photo D, hand-cropped plaster | | | | **0.85–0.86** |
+
+**Full path-traced inter-reflection moves the ratio by about 0.02. The gap to the photograph is 0.17.**
+The traced wall is flat — visibly so; the traced still's right wall reads uniform from window-side to
+camera-side. So the wall-falloff gap is **not** absent inter-reflection. That attribution has been
+load-bearing since `.226` and is now refuted on the axis it chose, by the app's own renderer.
+
+**Why the app's wall is flat — and it is not a defect.** The probe now prints the aperture with the
+falloff: **the window is 2.45 m wide in a 3.45 m wall — 71 % of the end wall — in a 3.4 × 5.67 m room.**
+The light source is essentially the whole end of the room. An aperture that large subtends a solid angle
+that barely shrinks over the first 3 m, so a nearly flat wall is the *correct* answer for this geometry —
+and the path tracer, computing real transport, independently agrees.
+
+**Which makes this the fourth and deepest confound in one family.** `.232` found the metric pose-dependent,
+`.233` method-dependent, `.239` tier-dependent, `.247`/`.249` framing-dependent. This one is
+**scene-dependent**: how much a wall falls off away from its window is a property of the window-to-wall
+geometry before it is a property of the renderer. Photo D's room geometry was never recorded — nor its crop
+distances (`.250`). So `0.74 vs 0.85` was comparing **two rooms as though they were two renderers**, and no
+amount of pose, method, tier or framing matching could have fixed that.
+
+**`.245`'s convergence claim is falsified too.** It reasoned that "a band MEAN over thousands of pixels
+averages sampling noise out, so ~40–60 samples suffice". A mean averages *noise*, not *bias*: the traced
+absolute level on the same plaster reads **141.3 → 132.1 → 142.6** across 48 / 101 / 251 samples — an 8 %
+spread, and non-monotonic. The *ratio* is far steadier (0.990 / 1.004 / 1.016, spread 0.026) because the
+level cancels. So the traced instrument is usable for **ratios, at ±0.02**, and **not** for absolute levels
+without a convergence check. Every future traced number needs its sample count quoted.
+
+**What survives.** `.189`–`.195` refuted the cheap GI stand-ins on their own measurements — independent of
+this, still standing. `.226`/`.235`'s mechanical fact — the hemisphere ground term has no distance
+dependence — is still true; it is simply no longer attached to any measured defect. Item **(l)
+WINDOW-LUMINANCE** is untouched: it rests on clipping and distribution, not on falloff.
+
+**What dies.** The claim that the app has a wall-falloff deficit, and the claim that GI is what would fix
+it. Both are withdrawn. Nothing in `src/` was ever changed on either (`.226` was recorded, not chased), so
+no shipped behaviour is affected — but the arc's stated diagnosis was wrong in *mechanism* (`.251`), in
+*sign* (`.250`) and in *population* (`.249`), and it took a world-anchored instrument plus the app's own path
+tracer to see it.
+
+**Where the axis stands.** The wall-falloff comparison may not be measurable across rooms at all. A
+qualifying reference photograph would now need: `.233`'s screen (same plaster, daylit, croppable, no
+flash/HDR, not AI stock), `.227`'s constant-orientation wall, **plus** its crop distances (`.250`) **and**
+its window-to-wall aperture fraction (`.251`). That is a demanding screen, and saying so is more useful
+than another n=1.
+
+Probe only: traced sampling at the anchors, the camera-identity guard, aspect-mismatch refusal, the traced
+overlay, and the aperture line. `npm test` 9434 passed, `tsc` clean, `biome` clean. Nothing changed in
+`src/` beyond the version bump. Runs 04:05–04:18 local.
+
 ## v0.31.5.250 — the anchored wall metric works, and the GI deficit has the opposite sign
 
 `.249` retired the wall-falloff metric and specified its replacement: a **plaster-only, world-anchored**

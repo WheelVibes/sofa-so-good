@@ -311,6 +311,27 @@ const state = await page.evaluate(() => {
  * the canvas alone removes every DOM overlay at a stroke, so no HUD rectangles
  * have to be guessed at.
  */
+/**
+ * The live camera's exact state, so the ANCHORS block can prove it is projecting
+ * with the same camera the raster frame was captured with.
+ *
+ * PT=1 opens a modal and runs a tracer between the raster capture and the anchor
+ * projection. If anything in that sequence nudged the camera, the anchor screen
+ * positions would be computed for one pose and applied to a frame taken at
+ * another -- silently, and looking at the overlay would not catch it because the
+ * patches would still land on plaster. So it is checked numerically (`.251`).
+ */
+const camState = () =>
+  page.evaluate(() => {
+    const c = window.__three.camera
+    return {
+      p: [c.position.x, c.position.y, c.position.z].map((v) => +v.toFixed(4)),
+      q: [c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w].map((v) => +v.toFixed(5)),
+      fov: +c.fov.toFixed(4),
+      aspect: +c.aspect.toFixed(5),
+    }
+  })
+
 const canvas = await page.$('canvas')
 if (!canvas) throw new Error('no canvas to capture')
 const shotFor = async (pitch) => {
@@ -321,6 +342,11 @@ const shotFor = async (pitch) => {
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
 // the bottom band is REAL FLOOR rather than the coffee table and the sofa.
 const shot = await shotFor(PITCH)
+// Snapshot the camera HERE, while it still holds the pose `frame.png` was taken
+// at. Taken any later it records FLOOR_PITCH from the pitched-down capture below,
+// and the guard then reports drift on every run -- which is what the first `.251`
+// run did (q.x -0.272 vs -0.030, i.e. -0.55 rad against -0.06).
+const camAtRaster = await camState()
 const shotDown = await shotFor(FLOOR_PITCH)
 fs.writeFileSync(`${OUT}/frame.png`, shot)
 fs.writeFileSync(`${OUT}/frame-down.png`, shotDown)
@@ -891,6 +917,33 @@ if (process.env.ANCHORS === '1') {
   console.log(
     `\nANCHORED wall falloff  (y=${ANCHOR_Y} m, patch ${(2 * HALF).toFixed(2)}x${(2 * HALF).toFixed(2)} m, ${GRID}x${GRID} world samples)`,
   )
+  // THE APERTURE, printed with the falloff. `.251`: how much a wall falls off away
+  // from its window is a property of the WINDOW-TO-WALL GEOMETRY, not only of the
+  // renderer. A window that fills most of the end wall lights the first few metres
+  // almost uniformly, whatever the light transport. So the geometry has to travel
+  // with the number, or two rooms get compared as if they were two renderers.
+  const aperture = await page.evaluate((winId) => {
+    const plan = window.__store.getState().floorPlan
+    const op = (plan.openings ?? []).find((o) => o.id === winId)
+    const w = (plan.walls ?? []).find((x) => x.id === op?.wallId)
+    if (!op || !w) return null
+    const wallLen = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1])
+    const room = (plan.rooms ?? []).find((r) => r.id === 'livingDining')
+    return {
+      width: +op.width.toFixed(2),
+      height: op.height != null ? +op.height.toFixed(2) : null,
+      sill: op.sill != null ? +op.sill.toFixed(2) : null,
+      wallLen: +wallLen.toFixed(2),
+      room: room ? { w: +room.width.toFixed(2), d: +room.depth.toFixed(2) } : null,
+    }
+  }, pose.id)
+  if (aperture)
+    console.log(
+      `  aperture: window ${aperture.width} m wide` +
+        (aperture.height ? ` x ${aperture.height} m tall (sill ${aperture.sill})` : '') +
+        ` in a ${aperture.wallLen} m wall = ${((100 * aperture.width) / aperture.wallLen).toFixed(0)} % of it` +
+        (aperture.room ? `; room ${aperture.room.w} x ${aperture.room.d} m` : ''),
+    )
   // SAME PAINT ALONG THE RUN. `.233` screens reference photographs for "same
   // plaster on both surfaces"; the same rule has to hold along one wall, and it
   // does not come free. The first `.250` run accepted side A at d=1.8 with
@@ -915,7 +968,41 @@ if (process.env.ANCHORS === '1') {
         )
     }
   }
+  // THE TRACED PICTURE, SAMPLED AT THE SAME WORLD POINTS (`.251`).
+  //
+  // `.246` could not measure the tracer canvas because the probe's population was
+  // defined by a world-normal mask plus a screen split, and the tracer canvas
+  // offers no depth or normal readback. Anchors remove that problem entirely: the
+  // patch is a set of WORLD points chosen before either picture exists, so its
+  // projection is computed once from the shared camera and applied to both
+  // images. The only requirement is that the two pictures share an ASPECT, since
+  // `camera.project` uses it -- which is why PT=1 pins the walk viewport to 16:9
+  // (`.247`).
+  let traced = null
+  if (fs.existsSync(`${OUT}/pathtraced.png`)) {
+    const g = await sharp(`${OUT}/pathtraced.png`)
+      .removeAlpha()
+      .greyscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    traced = { data: g.data, W: g.info.width, H: g.info.height }
+    const camNow = await camState()
+    const same = JSON.stringify(camNow) === JSON.stringify(camAtRaster)
+    console.log(
+      `  traced still ${traced.W}x${traced.H} (aspect ${(traced.W / traced.H).toFixed(3)}), raster ${W}x${H} (aspect ${(W / H).toFixed(3)})`,
+    )
+    console.log(
+      `  camera identical between raster capture and anchor projection: ${same ? 'YES' : `NO -- ${JSON.stringify(camAtRaster)} vs ${JSON.stringify(camNow)}`}`,
+    )
+    if (Math.abs(traced.W / traced.H - W / H) > 0.005)
+      console.log(
+        '  ** ASPECT MISMATCH: the two pictures are differently framed, so a shared\n' +
+          '  ** projection is invalid. Re-run with VH set so the walk viewport matches\n' +
+          '  ** the tracer output aspect. Traced figures below are NOT comparable. **',
+      )
+  }
   const readings = { A: [], B: [] }
+  const tracedReadings = { A: [], B: [] }
   const accepted = []
   for (const a of anchors) {
     if (a.reject) {
@@ -937,8 +1024,19 @@ if (process.env.ANCHORS === '1') {
     }
     const m = sum / a.pts.length
     readings[a.side].push({ d: a.d, m })
+    let tm = null
+    if (traced) {
+      let ts = 0
+      for (const [sx, sy] of a.pts) {
+        const gx = Math.min(traced.W - 1, Math.floor(sx * traced.W))
+        const gy = Math.min(traced.H - 1, Math.floor(sy * traced.H))
+        ts += traced.data[gy * traced.W + gx]
+      }
+      tm = ts / a.pts.length
+      tracedReadings[a.side].push({ d: a.d, m: tm })
+    }
     console.log(
-      `  d=${a.d.toFixed(1)} side ${a.side}  L=${m.toFixed(1)}   ${a.sig}  span ${a.span} m  |n.perp| ${a.dotPerp}`,
+      `  d=${a.d.toFixed(1)} side ${a.side}  L=${m.toFixed(1)}${tm == null ? '' : `  traced L=${tm.toFixed(1)}`}   ${a.sig}  span ${a.span} m  |n.perp| ${a.dotPerp}`,
     )
   }
   for (const side of ['A', 'B']) {
@@ -953,6 +1051,15 @@ if (process.env.ANCHORS === '1') {
       `  side ${side}: L(${near.d}) = ${near.m.toFixed(1)}  ->  L(${far.d}) = ${far.m.toFixed(1)}   far/near = ${(far.m / near.m).toFixed(3)}   over ${(far.d - near.d).toFixed(1)} m, ${r.length} anchors`,
     )
     console.log(`    profile: ${r.map((x) => `${x.d}m ${x.m.toFixed(1)}`).join('  ')}`)
+    const t = tracedReadings[side]
+    if (t.length === r.length && t.length >= 2) {
+      const tn = t[0]
+      const tf = t[t.length - 1]
+      console.log(
+        `    TRACED side ${side}: L(${tn.d}) = ${tn.m.toFixed(1)}  ->  L(${tf.d}) = ${tf.m.toFixed(1)}   far/near = ${(tf.m / tn.m).toFixed(3)}`,
+      )
+      console.log(`    TRACED profile: ${t.map((x) => `${x.d}m ${x.m.toFixed(1)}`).join('  ')}`)
+    }
   }
   if (process.env.OVERLAY === '1') {
     const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
@@ -981,6 +1088,32 @@ if (process.env.ANCHORS === '1') {
       .png()
       .toFile(`${OUT}/anchor-patches.png`)
     console.log(`  anchor overlay (cyan accepted / magenta rejected) -> ${OUT}/anchor-patches.png`)
+    if (traced) {
+      const trgb = await sharp(`${OUT}/pathtraced.png`).removeAlpha().raw().toBuffer()
+      const tpaint = (sx, sy, r, g2, b) => {
+        const gx = Math.min(traced.W - 1, Math.floor(sx * traced.W))
+        const gy = Math.min(traced.H - 1, Math.floor(sy * traced.H))
+        for (let dy = -3; dy <= 3; dy++)
+          for (let dx = -3; dx <= 3; dx++) {
+            const px = gx + dx
+            const py = gy + dy
+            if (px < 0 || py < 0 || px >= traced.W || py >= traced.H) continue
+            const o = (py * traced.W + px) * 3
+            trgb[o] = r
+            trgb[o + 1] = g2
+            trgb[o + 2] = b
+          }
+      }
+      for (const a of anchors) {
+        if (!a.pts) continue
+        const acc = accepted.includes(a)
+        for (const [sx, sy] of a.pts) tpaint(sx, sy, acc ? 0 : 255, acc ? 255 : 0, 255)
+      }
+      await sharp(trgb, { raw: { width: traced.W, height: traced.H, channels: 3 } })
+        .png()
+        .toFile(`${OUT}/traced-patches.png`)
+      console.log(`  traced anchor overlay -> ${OUT}/traced-patches.png`)
+    }
   }
   console.log(
     '  This number is defined in WORLD metres, so it does not move with viewport aspect\n' +
