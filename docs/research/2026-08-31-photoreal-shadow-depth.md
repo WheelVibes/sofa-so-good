@@ -6941,3 +6941,96 @@ published in this round comes from the uncertified set** — the three pane meas
 `p233-Home_Staging_Beisp`, the `.233` qualifier.*
 
 Nothing changed in `src/`; the probe is unchanged this round.
+
+---
+
+## `.261` — a real window is blown and readable at once; the app can only be one or the other
+
+`.260` established qualitatively that a photograph's glazing is a mixture while the app's is a uniform
+gradient, and left item (l) resting on that. This round measures it on both sides with matched statistics,
+and in doing so corrects `.260`'s own account of *why*.
+
+Runs 07:01–07:06 local (2026-09-02).
+
+### New statistics
+
+The probe's glazing population (n = 413 world-verified pane samples, selected by geometry+colour signature
+so grilles cannot dominate it) now also reports `sd`, percentiles, the `p95 − p05` spread, and the
+**mid-tone fraction** — `60 < v ≤ 240`, i.e. the part of the glazing you can actually see through.
+
+13:00, `medium`, photographic look, canonical pose:
+
+| `backgroundIntensity` | clipped | sd | p05 | p50 | p95 | spread | mid-tone |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **1 (shipped)** | 0.0 % | 17.4 | 127 | 166 | 182 | 55 | **100.0 %** |
+| 8 | 0.0 % | 17.4 | 193 | 230 | 238 | 45 | 100.0 % |
+| **32** | 39.7 % | 16.5 | 233 | 250 | 253 | **20** | **9.4 %** |
+
+The app's window **collapses** as it clips: the whole population migrates into 233–253.
+
+### The photograph, measured the same way
+
+A single **frame-free** pane of `p233-Home_Staging_Beisp` — the `.233` qualifier — containing a tiled roof
+edge, a soffit, blown sky and a bare branch. Verified by looking, and measured at three progressively
+tighter insets to show it is not a boundary artefact:
+
+| inset | n | mean | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- | --- | --- |
+| loose | 31 302 | 231.7 | 60.3 % | 33.7 | 90 | 36.0 % |
+| mid | 21 620 | 228.5 | 57.0 % | 35.4 | 92 | 39.8 % |
+| tight | 13 860 | 224.4 | 54.6 % | **37.7** | **95** | **43.7 %** |
+
+Stable, and drifting the *right* way — tightening removes blown sky, so sd and mid-tone rise slightly.
+
+### The comparison
+
+| | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- |
+| photograph, **one** pane | 54.6–60.3 % | **33.7–37.7** | 90–95 | **36–44 %** |
+| app, **whole** window @ ×32 | 39.7 % | 16.5 | 20 | 9.4 % |
+
+**At comparable clipping, one real pane carries about twice the internal variation of the app's entire
+window and four times the spread.** The comparison is *generous* to the app: its 413 samples pool every pane
+in the frame, which should give it more variation than a single pane, not less — and it still loses by 2×.
+
+**The structural fact:** a real pane is **55–60 % blown and 36–44 % mid-tone at the same time.** The sky is
+gone; the roof beneath it is still readable. The app is either all mid-tone and unclipped (×1) or nearly all
+blown (×32). It has no operating point that is both, because a smooth gradient scaled by any factor stays a
+smooth gradient.
+
+### Correcting `.260`
+
+`.260` attributed the photographic mixture to panes **facing different things** — open sky, a sunlit wall, a
+shaded porch, clipping 59 / 33 / 9 %. That is real, but decomposing the pooled variance shows it is the
+smaller half:
+
+| component | sd |
+| --- | --- |
+| **within**-pane | **42.3** |
+| between-pane | 20.9 |
+
+The dominant term is variation **inside** a single pane. What makes a real window structurally rich is that
+each pane **contains a scene with its own dynamic range**, not merely that panes differ from one another.
+`.260`'s emphasis was the wrong way round.
+
+### What this means for item (l)
+
+It separates two routes that had been conflated:
+
+| route | cost | what it buys |
+| --- | --- | --- |
+| **aggregate match** — ≈×30 exterior radiance (`.259`) | +8 % frame mean, **zero** `%<64`, night pane 23 → 43 (`.259`) | the right clipping *statistic*, and a **uniformly blown** window |
+| **structural match** — backdrop **content** with its own range | unpriced; a content change, not a lighting one | blown sky over a readable near object — what a photograph does |
+
+**No luminance multiplier can reach the structural target**, and the ×1 → ×32 table is the proof: mid-tone
+goes 100 % → 9.4 % without ever passing through the photograph's 36–44 % *while also* clipping. The backdrop
+today is `paintSkySurround`, a procedural sky gradient containing nothing but sky.
+
+For an HDB flat the diagnosis is a fortunate one. The real view from most windows **is another block** —
+near, mid-luminance, structured — which is exactly the content that would supply the range for free, and
+would make the window read as an opening rather than a panel without touching the lighting at all.
+
+That is a bigger and different decision than `.259` priced, and it is a content decision, so it is filed
+rather than taken.
+
+Nothing changed in `src/` beyond the version bump.

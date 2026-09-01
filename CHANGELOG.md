@@ -5,6 +5,72 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.261 — a real window is blown AND readable at once; the app can only be one or the other
+
+`.260` showed qualitatively that a photograph's glazing is a mixture while the app's is a uniform gradient,
+and left item (l) resting on that claim. This round turns it into numbers on both sides — and corrects
+`.260`'s own emphasis while doing so.
+
+**New structure statistics** on the probe's glazing population (n = 413 world-verified pane samples): `sd`,
+percentiles, `p95 − p05` spread, and the **mid-tone fraction** (60 < v ≤ 240, i.e. glazing you can actually
+see through). 13:00, `medium`, photographic look, canonical pose:
+
+| app `backgroundIntensity` | clipped | sd | spread p95−p05 | mid-tone |
+| --- | --- | --- | --- | --- |
+| **1 (shipped)** | 0.0 % | 17.4 | 55 | **100.0 %** |
+| 8 | 0.0 % | 17.4 | 45 | 100.0 % |
+| **32** (`.259`'s aggregate match) | 39.7 % | 16.5 | **20** | **9.4 %** |
+
+**The app's window collapses as it clips.** Spread falls 55 → 20; everything piles up between 233 and 253.
+
+**The photograph, measured the same way.** A single **frame-free** pane of `p233-Home_Staging_Beisp` — tiled
+roof edge, soffit, blown sky, a bare branch, verified by looking, and stable across three insets:
+
+| | clipped | sd | spread p95−p05 | mid-tone |
+| --- | --- | --- | --- | --- |
+| photograph, **one** pane (3 insets) | 54.6–60.3 % | **33.7–37.7** | **90–95** | **36–44 %** |
+| app, **whole** window @ ×32 | 39.7 % | 16.5 | 20 | 9.4 % |
+
+**At comparable clipping, one real pane carries roughly twice the internal variation of the app's entire
+window (sd ~35 vs 16.5) and four times the spread (~92 vs 20).** The comparison is generous to the app —
+its 413 samples pool *every* pane, which should give it more variation, not less, and it still loses.
+
+**The structural fact, stated plainly: a real pane is 55–60 % blown *and* 36–44 % mid-tone at the same
+time.** The sky is gone but the roof below it is still readable. The app can be all mid-tone (×1: 100 %
+mid-tone, 0 % clipped) or nearly all blown (×32: 9.4 % mid-tone, 39.7 % clipped) — **never both**, because
+its backdrop is a smooth sky gradient with nothing in it.
+
+**And this corrects `.260`.** That round attributed the mixture to panes *facing different things*. Decomposing
+the pooled variance says otherwise:
+
+| | sd |
+| --- | --- |
+| **within**-pane | **42.3** |
+| between-pane | 20.9 |
+
+The dominant term is variation **inside** a single pane, not between panes. `.260`'s observation was real —
+the three panes do clip 60 / 38 / 12 % — but it is the smaller half of the effect. What matters more is
+that each pane **contains a scene with its own dynamic range**.
+
+**Consequence for item (l), and it is a real narrowing.** No luminance multiplier can produce
+simultaneous blow-out and readability, because scaling a gradient scales everything together — which is
+exactly what the ×1 → ×32 table shows. The structural target requires the **backdrop to have content**: near
+objects at interior-ish luminance (a neighbouring block, a roof, a balcony rail) against bright sky. The
+app's backdrop is `paintSkySurround`, a procedural sky gradient, which by construction has none.
+
+For an HDB flat that is a fortunate diagnosis: the real view from most windows *is* another block, which is
+precisely the content that would supply the range for free. But it is a **content** change, not a lighting
+one, and so a bigger and different decision than `.259` priced. Recorded on (l) with both routes now
+separated:
+
+- **aggregate match** — ≈×30 exterior radiance, priced in `.259`, cheap (+8 % frame mean, zero `%<64`), and
+  buys a uniformly blown window;
+- **structural match** — backdrop content with its own range, unpriced, and the only route to what a
+  photograph actually does.
+
+Probe only: the glazing structure line. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed
+in `src/` beyond the version bump. Runs 07:01–07:06 local.
+
 ## v0.31.5.260 — the clipping band cannot be widened by automation, and it is the wrong shape of target anyway
 
 `.259` priced item (l) at ≈×30 of exterior radiance, but the recommendation sits on a **15–39 % clipping

@@ -1006,8 +1006,20 @@ const geo = await page.evaluate(
           const m = vs.reduce((a, b) => a + b, 0) / vs.length
           const clipped = vs.filter((v) => v > 250).length
           const hot = vs.filter((v) => v > 240).length
+          // STRUCTURE, not just the average (`.261`). `.260` found a real window's
+          // panes face different things -- open sky, a sunlit wall, a shaded porch
+          // -- and clip 59 / 33 / 9 % inside ONE photograph. The app has a single
+          // backdrop texture, so its panes blow together. An aggregate clipping
+          // fraction cannot tell those apart; a spread can.
+          const sd = Math.sqrt(vs.reduce((a, v) => a + (v - m) * (v - m), 0) / vs.length)
+          const sorted = [...vs].sort((a, b) => a - b)
+          const q = (f) => sorted[Math.min(sorted.length - 1, Math.floor(f * sorted.length))]
+          const mid = vs.filter((v) => v > 60 && v <= 240).length
           console.log(
             `    GLAZING (${sig}): n=${vs.length}  mean ${m.toFixed(1)}  >250 ${((100 * clipped) / vs.length).toFixed(1)} %  >240 ${((100 * hot) / vs.length).toFixed(1)} %   (photographs clip 15-39 %)`,
+          )
+          console.log(
+            `      structure: sd ${sd.toFixed(1)}  p05 ${q(0.05)}  p50 ${q(0.5)}  p95 ${q(0.95)}  spread(p95-p05) ${q(0.95) - q(0.05)}  mid-tone(60..240) ${((100 * mid) / vs.length).toFixed(1)} %`,
           )
         } else {
           console.log(`    GLAZING (${sig}): no samples at this pose`)

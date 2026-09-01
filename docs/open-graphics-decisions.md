@@ -871,7 +871,7 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; target qualified .260)
+## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
 
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
@@ -1020,6 +1020,41 @@ scaling one backdrop reaches the photographic **average** but not its **structur
 `.259`'s ≈×30 stands as the aggregate-matching figure, with that caveat explicit. Anyone taking this
 decision should know they are buying a uniformly-blown window, which is more photographic than today's grey
 panel and still not what a photograph does.
+
+### v0.31.5.261 — a real window is blown AND readable at once. There are two routes, not one.
+
+Measured with matched statistics on both sides — the app's 413 world-verified glazing samples, and a
+**frame-free** pane of `p233-Home_Staging_Beisp` (tiled roof, soffit, blown sky, a bare branch), stable
+across three insets:
+
+| | clipped | sd | spread p95−p05 | **mid-tone (60–240)** |
+| --- | --- | --- | --- | --- |
+| app @ ×1 (shipped) | 0.0 % | 17.4 | 55 | **100.0 %** |
+| app @ ×32 (`.259`'s match) | 39.7 % | 16.5 | **20** | **9.4 %** |
+| **photograph, one pane** | 54.6–60.3 % | **33.7–37.7** | **90–95** | **36–44 %** |
+
+**A real pane is 55–60 % blown *and* 36–44 % mid-tone simultaneously** — the sky is gone, the roof beneath it
+is still readable. At comparable clipping the app's *entire window* carries half the internal variation of
+that one pane (sd 16.5 vs ~35) and a quarter of the spread. The comparison is generous to the app: pooling
+all its panes should give it *more* variation, not less.
+
+**The app can be one mode or the other, never both**, because its backdrop is a smooth gradient — scaling it
+scales everything together, which is exactly what ×1 → ×32 shows (mid-tone 100 % → 9.4 %).
+
+This also corrects `.260`, which attributed the mixture to panes facing different things. The variance
+splits **within-pane sd 42.3** against **between-pane sd 20.9** — the dominant term is variation *inside* a
+pane. Each pane contains a scene with its own range; that matters more than the differences between panes.
+
+### The two routes, now separated
+
+| route | what it costs | what it buys |
+| --- | --- | --- |
+| **aggregate match** — ≈×30 exterior radiance (`.259`) | +8 % frame mean, **zero** `%<64`, night pane 23 → 43 | the right clipping *statistic*; a **uniformly blown** window |
+| **structural match** — backdrop **content** with its own range | unpriced; a content change, not a lighting one | what a photograph actually does: blown sky over a readable near object |
+
+The backdrop today is `paintSkySurround`, a procedural sky gradient with nothing in it, so **no luminance
+multiplier can reach the structural target.** For an HDB flat the diagnosis is fortunate: the real view from
+most windows *is* another block, which is exactly the near-object content that would supply the range.
 
 **Why this is still not being decided here:** the fix space is unchanged in kind — brighter backdrop, a
 bloom-carrying emissive pane, or a separate exposure for the backdrop — but it now has a **target**: roughly
