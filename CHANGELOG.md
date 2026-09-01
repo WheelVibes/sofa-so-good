@@ -5,6 +5,60 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.265 — (r)'s blur is fully recoverable, and none of my numbers could see it
+
+`.264` filed item (r): a crisp 2048×1024 `city` preset reaches the window as faint blobs. This round asks
+the one question that decides whether (r) is worth fixing — **is the detail recoverable at all?** — by
+bypassing the conversion `.263` identified.
+
+**`BGSHARP=uv`** rehosts the same backdrop canvas in a fresh texture with `UVMapping` instead of
+`EquirectangularReflectionMapping`. three renders that as a flat screen background with **no CubeUV step**.
+(A fresh texture object is required, per `.263`'s cache finding.)
+
+**The result, by eye, is unambiguous.** The window shows a **legible city skyline** — individual buildings,
+visible window grids, a clear roofline, blue sky above. Against `.264`'s faint blue-grey blobs on the same
+asset, at the same pose, in the same frame. **So (r)'s blur is entirely the pre-filter, and it is 100 %
+recoverable.** The content is good and it is reaching the GPU; only the conversion destroys it.
+
+**`UVMapping` is the proof, not the fix.** A flat screen background has no parallax and is not projectively
+correct through a window — it is pasted, not seen. What it establishes is that the fix space for (r) is
+real, which is what a render call on that item needs to know.
+
+**And now the part that matters more.** Every numeric metric I have failed to detect the transformation:
+
+| metric | equirect (blobs) | UVMapping (legible city) | verdict |
+| --- | --- | --- | --- |
+| glazing spread p95−p05 | 56 | **50** | **worse** |
+| glazing sd | 18.6 | **15.9** | **worse** |
+| mid-tone fraction | 100 % | 100 % | unchanged |
+| glazing micro-contrast (tight crop) | 0.0820 | 0.0817 | unchanged |
+| glazing micro-contrast (wide crop) | 0.0897 | 0.0909 | unchanged |
+
+**Three independent numbers, one of them (`spread`) introduced in `.261` specifically to capture
+"structure", and all of them are blind to the single most visible improvement this arc has produced.**
+
+The reasons are instructive and different:
+
+- **Spread and sd measure dynamic range, not detail.** A blurred blob field with a wide soft gradient has
+  *more* luminance range than a sharp skyline of similar tone. `.261` called this statistic "structure",
+  which over-claims — it is the *dynamic-range* axis, and legibility is a separate one. `.261`'s comparison
+  against the photograph remains valid on the axis it actually measures.
+- **Micro-contrast is swamped by the grille.** The window carries ~20 bars at ~12 cm pitch, high-contrast
+  geometry present identically in both frames, and it dominates the high-frequency band a 4 px high-pass
+  sees. Any crop large enough to measure contains bars.
+
+**So item (r)'s severity cannot currently be tracked numerically**, and that is recorded on the item — so
+that nobody "verifies" a fix with a number that cannot see it. This is the arc's first method rule
+(*always look at the crop*) demonstrated rather than asserted: here, looking was not a check on the number,
+**it was the only instrument that worked.**
+
+That also puts a boundary on this arc's method generally. Fifteen rounds of numeric work have been genuinely
+productive on *luminance* questions — clipping, falloff, ratios, dynamic range. They are structurally unable
+to answer *legibility* questions, and a photorealism programme needs both.
+
+Probe only: the `BGSHARP` knob and its read-back. `npm test` 9437 passed, `tsc` clean, `biome` clean.
+Nothing changed in `src/` beyond the version bump. Runs 07:35–07:38 local.
+
 ## v0.31.5.264 — the app already ships the content route, and the backdrop path destroys it
 
 `.263` found the backdrop path is low-pass and concluded item (l)'s structural route needs "real geometry

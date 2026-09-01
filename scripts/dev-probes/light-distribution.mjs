@@ -465,6 +465,7 @@ const shotFor = async (pitch) => {
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyLinear === 'function') await applyLinear()
+  if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
   if (typeof applyBgMul === 'function') await applyBgMul()
   return canvas.screenshot({ type: 'png' })
@@ -587,6 +588,54 @@ const applyFillOff =
 // facade at ~5 % of sky luminance reads mid-tone after a x32 boost while the sky
 // saturates -- and ~1/20 of sky luminance is what a sunlit concrete facade
 // actually is.
+// BGSHARP tests whether item (r)'s blur is RECOVERABLE, and by which route
+// (`.265`).
+//
+// `.263`/`.264`: an equirect `scene.background` is converted to a CubeUV/PMREM,
+// which is pre-filtered by construction, so a crisp 2048x1024 city preset reaches
+// the window as faint blobs (spread 55 -> 58 where the target is 90).
+//
+//   BGSHARP=uv  -- rehost the same canvas in a fresh texture with UVMapping. three
+//                  renders that as a flat screen background with NO CubeUV step, so
+//                  if sharpness returns the pre-filter is the whole cause. The
+//                  projection is wrong for a window (no parallax), so this is a
+//                  MECHANISM PROOF, not a candidate fix.
+//
+// A fresh texture object is required either way: the CubeUV cache is keyed on the
+// texture, so mutating or re-flagging the bound one is inert (`.263`).
+const BGSHARP = process.env.BGSHARP || ''
+const applyBgSharp = !BGSHARP
+  ? null
+  : async () => {
+      const res = await page.evaluate(
+        ({ mode }) => {
+          const sc = window.__three.scene
+          const oldTex = sc.background
+          const src = oldTex?.image
+          if (!src) return { error: 'no background image' }
+          const cv = document.createElement('canvas')
+          cv.width = src.width
+          cv.height = src.height
+          cv.getContext('2d').drawImage(src, 0, 0)
+          const Tex = oldTex.constructor
+          const fresh = new Tex(cv)
+          fresh.colorSpace = oldTex.colorSpace
+          fresh.mapping = mode === 'uv' ? 300 : oldTex.mapping
+          fresh.needsUpdate = true
+          sc.background = fresh
+          return {
+            w: cv.width,
+            h: cv.height,
+            mappingWas: oldTex.mapping,
+            mappingNow: fresh.mapping,
+          }
+        },
+        { mode: BGSHARP },
+      )
+      if (res.error) throw new Error(`BGSHARP: ${res.error}`)
+      console.log(`BGSHARPCHECK ${JSON.stringify(res)}`)
+      await new Promise((r) => setTimeout(r, 900))
+    }
 const BGBLOCK = ['1', '2', '3'].includes(process.env.BGBLOCK || '')
 const applyBgBlock = !BGBLOCK
   ? null

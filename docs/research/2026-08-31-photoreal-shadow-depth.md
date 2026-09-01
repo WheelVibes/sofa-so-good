@@ -7293,3 +7293,74 @@ That generalises well past zsh, and it is now the third time it has mattered:
 than as noise.** Every one of those three would otherwise have shipped a confident false negative.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.265` — (r)'s blur is fully recoverable, and none of my numbers could see it
+
+`.264` filed item (r): a crisp 2048×1024 `city` preset arrives at the window as faint blobs. The question
+that decides whether (r) is worth a render call is simply **whether the detail is recoverable at all.**
+
+Runs 07:35–07:38 local (2026-09-02).
+
+### The test
+
+`BGSHARP=uv` rehosts the same backdrop canvas in a **fresh** texture (required — the CubeUV cache is keyed
+on the texture object, `.263`) with `UVMapping` instead of `EquirectangularReflectionMapping`. three renders
+that as a flat screen background with **no CubeUV conversion**.
+
+### The result, by eye
+
+The window shows a **legible city skyline**: individual buildings, visible window grids, a clear roofline,
+blue sky above — against `.264`'s faint blue-grey blobs, on the same asset, at the same pose, in the same
+frame.
+
+**So (r)'s blur is entirely the pre-filter, and the content is 100 % recoverable.** It reaches the GPU
+intact; only the conversion destroys it. That upgrades (r) from "a defect with a speculative fix" to "a
+defect with a demonstrated fix space".
+
+`UVMapping` itself is **not** a candidate fix — a flat screen background has no parallax and is not
+projectively correct through a window; it is pasted, not seen. It is a mechanism proof.
+
+### And then the part that matters more
+
+Every numeric metric available failed to detect the most visible improvement this arc has produced:
+
+| metric | equirect (blobs) | UVMapping (legible city) | verdict |
+| --- | --- | --- | --- |
+| glazing spread p95−p05 | 56 | **50** | **worse** |
+| glazing sd | 18.6 | **15.9** | **worse** |
+| mid-tone fraction | 100 % | 100 % | unchanged |
+| micro-contrast, tight crop | 0.0820 | 0.0817 | unchanged |
+| micro-contrast, wide crop | 0.0897 | 0.0909 | unchanged |
+
+Three independent statistics — one of them introduced in `.261` **specifically to capture "structure"** —
+and all of them blind.
+
+The two failure modes are different and both worth keeping:
+
+- **Spread and sd measure dynamic range, not detail.** A blurred blob field with a wide soft gradient has
+  *more* luminance range than a sharp skyline of similar tone, so the metric moves the wrong way. `.261`
+  named this statistic "structure", which over-claims: it is the **dynamic-range** axis. `.261`'s comparison
+  against the photograph (spread 20 vs 90–95) stands on that axis; it simply does not speak to legibility.
+- **Micro-contrast is swamped by the grille.** The window carries ~20 bars at ~12 cm pitch — high-contrast
+  geometry, identical in both frames — and it dominates the band a 4 px high-pass sees. Any crop large
+  enough to measure contains bars, so the backdrop's contribution is a rounding error on top of them.
+
+### What that means
+
+**Item (r)'s severity cannot currently be tracked numerically**, and that is now recorded on the item, so
+that nobody "verifies" a fix with a number that cannot see it.
+
+More broadly it bounds this arc's method. Fifteen rounds of numeric work have been productive on
+**luminance** questions — clipping fractions, falloff, surface ratios, dynamic range — and every metric
+built here is a luminance metric. They are structurally unable to answer **legibility** questions: whether
+you can tell what you are looking at. A photorealism programme needs both, and only one of them has an
+instrument.
+
+This is also the arc's first method rule — *always look at the crop, never trust the number alone* —
+demonstrated rather than asserted. In `.233`, `.236`, `.243`, `.246`, `.252`, `.260` and `.264`, looking was
+a **check** that caught a contaminated number. Here it was not a check: **it was the only instrument that
+worked at all.**
+
+Nothing changed in `src/` beyond the version bump.

@@ -1514,7 +1514,7 @@ explicitly when it is not.
   **Hypothesis, not isolated.** *Excluding `transparent && depthWrite === false` was implemented in
   `.257` and skipped 61 planes cleanly; also reverted only because it shipped with the rest.*
 
-## (r) BACKDROP-LOWPASS — ⏳ OPEN, a real defect needing a render call (found v0.31.5.264)
+## (r) BACKDROP-LOWPASS — ⏳ OPEN, a real defect needing a render call (found .264; proven RECOVERABLE .265)
 
 **The app ships four exterior backdrops — `city`, `dusk`, `park`, `hills` — and almost none of their
 content reaches the window.**
@@ -1553,6 +1553,33 @@ through that filter. `scene.backgroundBlurriness` is 0 — the blur is not delib
    good.** What is needed is a path that preserves it, which would unlock all four presets at once, for every
    user, without authoring anything.
 3. **The custom-upload path is affected identically**, since it uses the same `configureBackdropTexture`.
+
+### v0.31.5.265 — the blur is 100 % recoverable, and it cannot be tracked by number
+
+Rehosting the same backdrop canvas in a fresh texture with **`UVMapping`** instead of
+`EquirectangularReflectionMapping` removes the CubeUV step. The window then shows a **legible city
+skyline** — individual buildings, visible window grids, a clear roofline — against the faint blobs of the
+shipped path, same asset, same pose, same frame.
+
+**So the loss is entirely the pre-filter and the content survives to the GPU intact.** The fix space below
+is real, not speculative.
+
+`UVMapping` is **not** a candidate fix: a flat screen background has no parallax and is not projectively
+correct through a window.
+
+**⚠️ This defect cannot be verified numerically with the current instruments.** Measured across that
+transformation:
+
+| metric | equirect (blobs) | UVMapping (legible city) |
+| --- | --- | --- |
+| glazing spread p95−p05 | 56 | **50** (worse) |
+| glazing sd | 18.6 | **15.9** (worse) |
+| mid-tone fraction | 100 % | 100 % |
+| glazing micro-contrast | 0.0820 | 0.0817 |
+
+Spread and sd measure **dynamic range, not detail**; micro-contrast is **swamped by the ~20 grille bars**,
+which are identical in both frames and dominate the high-frequency band. **Any fix here must be assessed by
+looking** — a number that cannot see the defect cannot confirm the repair.
 
 ### The fix space
 
