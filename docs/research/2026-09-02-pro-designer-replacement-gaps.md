@@ -242,7 +242,7 @@ revision that touched it.
   trunking, ceiling drops, joinery, and lighting are clash-checked in 3D against
   each other and against beams.
 
-### G7 — No written specification, only schedules
+### ✅ SHIPPED v0.31.5.258 — G7 — No written specification, only schedules
 **Status: CONFIRMED in source.** The two documents that might have carried a
 spec do not: `floorplan/permitNotes.ts` is housing-type-conditional *regulatory
 approval* text (HDB permit vs MCST vs BCA-direct), and `export/quoteTemplate.ts`
@@ -416,6 +416,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
+| G7 | v0.31.5.258 | Derived clauses (product/substrate/preparation/workmanship/tolerance/exclusions) per trade in scope, with `tradesNotCovered` named and NO asserted standard codes. |
 | G5 | v0.31.5.257 | **Research corrected**: no specified tile module existed (only a texture period + painter grid counts). Added `MaterialDef.moduleMm` as a product dimension, then `tileCoursing.ts` (centred field, sliver avoidance, cut widths) + a setting-out table on the finishes sheet. |
 | G4 (part) | v0.31.5.256 | Work-plane sampling (opt-in, per room kind) + Emin/Eavg uniformity on every grid. IES-into-lux, the calibration constant, reflectance-derived UF and sheet surfacing remain open. |
 | G2 | v0.31.5.255 | Skew/curved walls set out by datum-relative endpoint co-ordinates + angle (+ radius for arcs), disclosed on the plan and tabled on the sheet. |
@@ -427,7 +428,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 Still open: **G4 remainder** (IES into the lux maths; the
 calibration constant; reflectance-derived utilisation factor; sheet surfacing),
-**G7** (written specification), **G3** and **G8** (both large).
+**G3** and **G8** (both large).
 
 ## Ranked roadmap
 

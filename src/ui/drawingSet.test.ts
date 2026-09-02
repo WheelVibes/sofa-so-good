@@ -8,6 +8,7 @@ import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
 import { defaultSpec } from '../furniture/parametric/spec'
 import { defaultParamProps } from '../furniture/types'
+import { useStore } from '../state/store'
 import { buildDrawingSetHtml } from './drawingSet'
 
 describe('buildDrawingSetHtml', () => {
@@ -161,6 +162,46 @@ describe('buildDrawingSetHtml', () => {
       },
     )
     expect(html).not.toContain('Tile setting-out &amp; coursing')
+  })
+
+  it('emits a Specification sheet with tolerances and exclusions in Pro (G7)', () => {
+    // `specification` is a pro-tier flag and the store resolves flags at the
+    // app's default SIMPLE mode, so this test must opt in explicitly.
+    useStore.getState().setUiMode('pro')
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      {
+        floor: { kitchen: 'floor-tile-beige' },
+        walls: {},
+      },
+    )
+    expect(html).toContain('>Specification<')
+    expect(html).toContain('Tolerance')
+    expect(html).toContain('Excludes')
+    // The scope note is what keeps it honest — an indicative spec citing no codes.
+    expect(html).toContain('cite no standard code numbers')
+  })
+
+  it('omits the Specification sheet in Simple mode (G7)', () => {
+    useStore.getState().setUiMode('simple')
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      { floor: { kitchen: 'floor-tile-beige' }, walls: {} },
+    )
+    expect(html).not.toContain('>Specification<')
+    useStore.getState().setUiMode('pro')
   })
 
   it('states the dimension unit once in every title block (G10)', () => {

@@ -1580,6 +1580,17 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **The written specification is derived, and asserts no standard codes.**
+  `export/specification.ts:buildSpecification` (`specification` flag, pro) emits a clause per trade
+  IN SCOPE — product · substrate · preparation · workmanship · tolerance · exclusions, with a
+  stable quotable id (`TIL-01`) — driven by what the design actually contains (tile coursing, wet
+  zones, joinery items, MEP point counts, finish names), so a clause never describes work that
+  isn't there and `tradesNotCovered` names what the document omits. **It deliberately cites no
+  standard code numbers**: tolerances are conventional and measurable in plain language, every
+  clause leaves `standardRef` for the user, and `SPEC_SCOPE_NOTE` says so on the sheet — a
+  fabricated citation reads as authoritative, which is worse than none (guarded by a test that
+  rejects `SS|BS|EN|ISO|ASTM`-shaped text). Rendered as the drawing set's "Specification" sheet
+  (`ui/drawingSet.ts:specificationSheetBody`), assembled from the same sources the schedules read.
 - **Tile setting-out reads a SPECIFIED module, never a texture scale.**
   `MaterialDef.moduleMm?: [w, h]` (mm) is a product dimension, populated only on finishes whose
   format is actually specified. It is deliberately NOT derived from `uvScale`: the rendered tile size

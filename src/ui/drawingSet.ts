@@ -21,6 +21,7 @@ import {
   drawingSetRevisionRows,
 } from '../export/drawingSetTemplate'
 import { customMetaColumns } from '../export/ffeCsv'
+import { buildSpecification } from '../export/specification'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
@@ -299,6 +300,74 @@ function tileCoursingTable(
         ? `${omittedRooms} room${omittedRooms === 1 ? '' : 's'} omitted — finish has no specified module.`
         : ''
     }</div>`
+  )
+}
+
+/**
+ * Specification sheet (G7) — clauses derived from the design's actual finishes,
+ * wet areas, joinery and MEP points. Assembles the input from the same sources
+ * the schedules read so the two can never describe different work.
+ */
+function specificationSheetBody(
+  plan: FloorPlan,
+  items: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+  finishes: RoomFinishMaps | undefined,
+  units: UnitSystem,
+): string {
+  const floorNames = new Set<string>()
+  const wallNames = new Set<string>()
+  const ceilNames = new Set<string>()
+  const nameOf = (id: string) => BUILTIN_MATERIALS[id]?.name ?? id
+  const floorByRoom: Record<string, string> = {}
+  if (finishes) {
+    for (const room of allPlanRooms(plan)) {
+      const f = resolvePlanRoomFloor(finishes, room)
+      floorByRoom[room.id] = f
+      floorNames.add(nameOf(f))
+      const w = finishes.walls[room.id]
+      if (w) wallNames.add(nameOf(w))
+      const c = finishes.ceiling?.[room.id]
+      if (c) ceilNames.add(nameOf(c))
+    }
+  }
+  const coursing = finishes ? planTileCoursing(plan, floorByRoom, BUILTIN_MATERIALS).rows : []
+  const wetRoomNames = isFeatureEnabled('waterproofing')
+    ? buildWaterproofingZones(plan, items).map((z) => z.roomName)
+    : []
+  const carpentryNames = collectCarpentrySheets(items, catalog).map((e) => e.name)
+  const spec = buildSpecification({
+    finishNames: {
+      floor: [...floorNames],
+      wall: [...wallNames],
+      ceiling: [...ceilNames],
+    },
+    coursing,
+    wetRoomNames,
+    carpentryNames,
+    mep: {
+      electrical: (plan.electricalPoints ?? []).length,
+      plumbing: (plan.plumbingPoints ?? []).length,
+    },
+  })
+  if (spec.clauses.length === 0) return ''
+  const rows = spec.clauses
+    .map(
+      (c) =>
+        `<tr><td>${esc(c.id)}</td><td><b>${esc(c.title)}</b><div class="note">${esc(c.product)}</div></td>` +
+        `<td>${esc(c.substrate)}</td><td>${esc(c.preparation)}</td><td>${esc(c.workmanship)}</td>` +
+        `<td>${esc(c.tolerance)}</td><td>${esc(c.exclusions)}</td><td>${esc(c.standardRef) || '—'}</td></tr>`,
+    )
+    .join('')
+  const uncovered =
+    spec.tradesNotCovered.length > 0
+      ? `<div class="note">Not covered by this specification: ${esc(spec.tradesNotCovered.join(', '))} — no such work appears in the design.</div>`
+      : ''
+  return (
+    `<h3>Specification</h3>` +
+    `<table class="sched"><tr class="h"><td>Clause</td><td>Element</td><td>Substrate</td><td>Preparation</td><td>Workmanship</td><td>Tolerance</td><td>Excludes</td><td>Standard</td></tr>${rows}</table>` +
+    `<div class="note">${esc(spec.scopeNote)}</div>${uncovered}` +
+    `<div class="note">Dimensions referenced in this specification are as drawn — ${esc(drawingUnitsNote(units).toLowerCase())}.</div>`
   )
 }
 
@@ -920,6 +989,22 @@ export function buildDrawingSheets(
           topDown: true,
         })
       }
+    }
+  }
+
+  // Specification (G7) — the written half of the handover: to what standard, on
+  // what substrate, within what tolerance, and what is excluded. Derived from
+  // the design's own finishes / wet areas / joinery / MEP points so it can never
+  // describe different work from the schedules. Rides the `specification` flag.
+  if (isFeatureEnabled('specification')) {
+    const specBody = specificationSheetBody(plan, items, catalog, finishes, units)
+    if (specBody) {
+      sheets.push({
+        name: 'Specification',
+        body: specBody,
+        calloutGroup: 'finishes',
+        scaleLabel: NTS,
+      })
     }
   }
 

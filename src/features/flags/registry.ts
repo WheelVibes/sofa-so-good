@@ -48,6 +48,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  specification: {
+    label: 'Specification',
+    description: 'Written workmanship/tolerance spec sheet in the drawing set',
+    default: true,
+    tier: 'pro',
+  },
   coordinationChecks: {
     label: 'Coordination checks',
     description: 'Cross-discipline clashes (MEP vs furniture vs ceiling)',

@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.258 — the handover gets its written half
+
+The schedules said WHICH product goes WHERE. Nothing said to what standard, on what substrate,
+within what tolerance, or what was excluded — so a contractor could install exactly the specified
+tile, badly, and remain fully compliant with the handover package. The two documents that might
+have carried this did not: `floorplan/permitNotes.ts` is regulatory approval text and
+`export/quoteTemplate.ts` is commercial branding/tax.
+
+New pure `export/specification.ts` (`specification` flag, pro tier) builds clauses with a stable
+quotable id (`TIL-01`, `WPF-02`), each carrying product · substrate · preparation · workmanship ·
+**tolerance** · **exclusions**. Covers tiling, waterproofing (including a separate
+test-before-covering clause, since a ponding test after tiling is worthless), painting, joinery,
+electrical accessory positions and plumbing points.
+
+Two deliberate constraints on the content:
+
+1. **Clauses are derived, never boilerplate.** A clause is emitted only for work the design
+   actually contains — no tiling clause for an untiled home, no waterproofing clause without a wet
+   area — and `tradesNotCovered` names the rest explicitly, so a reader can see what the document
+   does NOT cover instead of assuming it is exhaustive. A spec listing out-of-scope trades trains
+   the reader to skim it.
+2. **No standard code numbers are asserted.** Workmanship is stated in plain language with
+   conventional, measurable tolerances (3 mm under a 2 m straightedge; 1 mm lippage; plates plumb
+   within 1 mm). Naming a specific standard or edition that turned out to be wrong or superseded
+   would be worse than naming none, because a fabricated citation reads as authoritative. Every
+   clause leaves `standardRef` blank for the user, and a test asserts no clause text matches an
+   `SS|BS|EN|ISO|ASTM`-shaped reference.
+
+Scope limits are stated rather than implied: the electrical clause explicitly excludes circuit
+design, protective-device and cable sizing, and testing/certification as requiring a licensed
+electrical worker — the same honesty `analysis/socketAdvisory.ts` already models about itself.
+
+Surfaced as a "Specification" sheet in the drawing set, assembled from the same finishes / wet
+zones / joinery / MEP sources the schedules read so the two can never describe different work.
+
++13 specification tests, +2 drawing-set tests (present in Pro, absent in Simple). Worth recording
+how the sheet's absence was diagnosed: it was pro-gated correctly, but the store resolves flags at
+the app's default SIMPLE mode, so `isFeatureEnabled` returned false and the sheet silently never
+built. The gating was right and the TEST was wrong — found by asserting the flag value at the call
+site rather than reasoning about it, after a standalone probe had reported the opposite. Full suite
+green (9541).
+
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G7).
+
 ## v0.31.5.257 — tiles get a specified module, and a setting-out table
 
 **A correction to my own research first.** The G5 gap claimed the app "already computes true tile
