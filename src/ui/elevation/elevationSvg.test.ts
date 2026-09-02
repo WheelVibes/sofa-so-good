@@ -205,3 +205,96 @@ describe('elevationCaption', () => {
     expect(elevationCaption(bare, 2, 'metric')).toBe('Wall 3 · 3.00 m × 2.40 m')
   })
 })
+
+describe('elevationSvg — wall-tile course grid overlay', () => {
+  const face: WallElevation = {
+    wallId: 'w',
+    length: 2.5,
+    height: 2.6,
+    openings: [],
+    items: [],
+  }
+  /** 300x600 on a 2.5 x 2.6 m face: 7 full across + 200 mm end cuts,
+   *  4 full courses + a 200 mm bottom cut (the default-SG-ceiling case). */
+  const coursing = {
+    wallId: 'w',
+    wallName: 'Bath wall 01',
+    roomId: 'r',
+    roomName: 'Bath',
+    materialId: 'm',
+    materialName: 'Tile',
+    moduleMm: [300, 600] as [number, number],
+    faceMm: [2500, 2600] as [number, number],
+    fullTilesAcross: 7,
+    endCutMm: 200,
+    setOutFromStartMm: 200,
+    fullCourses: 4,
+    bottomCutMm: 200,
+    bottomSliver: true,
+    openings: 0,
+    tileCount: 45,
+  }
+
+  const svg = (extra = {}) => elevationSvg(face, { palette, ...extra } as never)
+
+  it('draws nothing extra without coursing', () => {
+    expect(svg()).not.toContain('tile-courses')
+  })
+
+  /** The grid group only. The wall panel and floor line also carry `x1="0"`,
+   *  so an unscoped regex reads the FLOOR LINE as the first course joint —
+   *  which is what the first version of these tests did. */
+  const grid = (extra = {}) => /<g class="tile-courses">(.*?)<\/g>/s.exec(svg(extra))?.[1] ?? ''
+
+  it('strikes vertical joints from the END-CUT offset, not from x = 0', () => {
+    const g = grid({ tileCoursing: coursing })
+    expect(g).not.toBe('')
+    // First joint at the 200 mm end cut, then every 300 mm.
+    const xs = [...g.matchAll(/<line x1="([\d.]+)" y1="0"/g)].map((m) => Number(m[1]))
+    expect(xs[0]).toBeCloseTo(0.2, 6)
+    expect(xs[1]).toBeCloseTo(0.5, 6)
+    // 0.2 → 2.3 inclusive at 0.3 steps = 8 joints.
+    expect(xs).toHaveLength(8)
+  })
+
+  it('strikes courses from the TOP down, so the cut lands at the bottom', () => {
+    const g = grid({ tileCoursing: coursing })
+    const ys = [...g.matchAll(/<line x1="0" y1="([\d.]+)"/g)].map((m) => Number(m[1]))
+    // SVG y grows downward with the ceiling at 0, so the first course joint is
+    // one module BELOW the top, not one above the floor. Four full courses at
+    // 0.6/1.2/1.8/2.4, then the 200 mm cut runs 2.4 → 2.6.
+    expect(ys).toHaveLength(4)
+    expect(ys[0]).toBeCloseTo(0.6, 6)
+    expect(ys.at(-1)).toBeCloseTo(2.4, 6)
+  })
+
+  it('tints the two end cuts and the bottom cut course', () => {
+    const g = grid({ tileCoursing: coursing })
+    const bands = [
+      ...g.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g),
+    ].map((m) => m.slice(1, 5).map(Number))
+    expect(bands).toHaveLength(3)
+    expect(bands[0]).toEqual([0, 0, 0.2, 2.6]) // left end cut
+    expect(bands[1]).toEqual([2.3, 0, 0.2, 2.6]) // right end cut
+    expect(bands[2]).toEqual([0, 2.4, 2.5, 0.2]) // bottom cut course
+  })
+
+  it('omits a band that has zero width, rather than emitting a degenerate rect', () => {
+    const exact = { ...coursing, endCutMm: 0, bottomCutMm: 0, bottomSliver: false }
+    const out = svg({ tileCoursing: exact })
+    expect(out).toContain('tile-courses')
+    expect(out).not.toContain('fill-opacity="0.12"')
+  })
+
+  it('draws the grid UNDER the furniture, so a piece against the wall still reads', () => {
+    const withItem: WallElevation = {
+      ...face,
+      items: [{ id: 'i', label: 'Vanity', x0: 0.5, x1: 1.5, height: 0.9, depth: 0.1 }],
+    }
+    const out = elevationSvg(withItem, {
+      palette,
+      tileCoursing: coursing,
+    } as never)
+    expect(out.indexOf('tile-courses')).toBeLessThan(out.indexOf('Vanity'))
+  })
+})

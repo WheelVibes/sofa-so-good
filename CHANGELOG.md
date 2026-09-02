@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.291 - the wall course grid, drawn on the elevations
+
+Completes `.290` the way `.288` completed the floor coursing: the numbers existed in a table, and a
+tiler works from a drawing. `elevationSvg` takes an optional `tileCoursing` and strikes the course
+grid onto the wall panel — vertical joints from the computed END-CUT offset (not from x = 0), course
+joints from the CEILING down, and the three cut bands tinted (both end cuts and the single bottom
+course).
+
+**No new sheet.** The elevations sheet already draws every wall face at a locked scale with its
+openings and furniture; the grid belongs on it. Drawn UNDER the furniture silhouettes so a vanity
+or bed standing against the wall still reads on top.
+
+Keyed `levelId:wallId`, because wall ids are level-local geometry while an elevation carries its
+own storey. A wall bordering two rooms yields a face per room and the FIRST wins here — one
+elevation draws one wall, and the alternative is two conflicting grids on the same rectangle. The
+full per-face detail stays on the setting-out table.
+
+`ElevationPalette.tile` is optional and falls back to `stroke`, so no existing caller changes.
+
+**Verified in the frame:** sheet A-2 (Wall 1, 5.59 × 2.60 m) shows the joints and courses with both
+end-cut bands and the bottom course tinted, furniture on top, dimensions still legible. The
+scenario deliberately tiles EVERY room — including bedrooms — to exercise the path; that is the
+fixture being blunt, not a suggestion to tile a bedroom.
+
+**Two test-authoring notes, both mine.**
+
+1. The first version of these assertions matched `<line x1="0" …>` across the whole SVG, which also
+   matches the **floor line** — so it read the floor line as the first course joint and reported
+   `2.6` where `0.6` was expected. Fixed by scoping every assertion to the `tile-courses` group.
+   Same class as `.281`'s "matched the toolbar, not the layers panel": if the pattern also occurs
+   outside the thing you changed, the assertion is measuring the wrong element. Scoping to the
+   owning container is the general fix, and this is the third time it has come up — so the grid
+   group exists partly to BE that scope.
+2. My first repair silently did not apply: Biome had reformatted the appended block, so the text I
+   searched for no longer existed. The tell was that the failure output was byte-identical to the
+   previous run, including a stale unused-variable error. **An edit that changes nothing produces
+   an unchanged failure — read the error, not just its presence.** Diagnosed by dumping the actual
+   emitted markup to a file instead of guessing at the regex, which showed the output had been
+   correct all along (8 joints at 0.200…2.300, 4 courses at 0.600…2.400, three bands) and only the
+   3-decimal formatting and the scope were wrong.
+
++6 tests.
+
 ## v0.31.5.290 - wall tile setting-out, and the default SG bathroom fails it
 
 Closes Finding A from `.289`: two wall tiles declared a 300x600 module and nothing consumed it.

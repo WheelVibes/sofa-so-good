@@ -39,6 +39,7 @@ import { buildFinishSchedule } from '../floorplan/finishSchedule'
 import { buildJunctionDetails } from '../floorplan/junctionDetails'
 import {
   allPlanRooms,
+  GROUND_LEVEL_ID,
   isMultiLevel,
   itemsOnLevel,
   levelAsPlan,
@@ -61,7 +62,7 @@ import { planTileCoursing } from '../floorplan/tileCoursing'
 import { tileLayoutSvg } from '../floorplan/tileLayoutSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
-import { planWallTileCoursing } from '../floorplan/wallTileCoursing'
+import { planWallTileCoursing, type WallTileCoursing } from '../floorplan/wallTileCoursing'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { iesShapeFactor } from '../lighting/ies/iesShape'
@@ -783,6 +784,29 @@ export function buildDrawingSheets(
   let minorWallsOmitted = 0
   if (layerOn(layers, 'elevations')) {
     const allElevations = projectAllElevations(plan, items, catalog)
+    // Wall-tile course grid per face (v0.31.5.291). Keyed by `levelId:wallId`
+    // because wall ids are level-local geometry while an elevation carries its
+    // own storey. A wall bordering two rooms yields a face per room; the FIRST
+    // wins here, since one elevation draws one wall and the alternative is
+    // drawing two conflicting grids on the same rectangle. The full per-face
+    // detail stays on the setting-out table.
+    const coursingByFace = new Map<string, WallTileCoursing>()
+    if (finishes) {
+      for (const level of levels) {
+        const levelPlan = levelAsPlan(plan, level)
+        const wallByRoom: Record<string, string> = {}
+        for (const room of levelPlan.rooms ?? []) {
+          const wf = resolvePlanRoomWall(finishes, room)
+          if (wf) wallByRoom[room.id] = wf
+        }
+        for (const row of planWallTileCoursing(levelPlan, wallByRoom, BUILTIN_MATERIALS).rows) {
+          const key = `${level.id}:${row.wallId}`
+          if (!coursingByFace.has(key)) coursingByFace.set(key, row)
+        }
+      }
+    }
+    const coursingFor = (e: (typeof allElevations)[number]) =>
+      coursingByFace.get(`${e.levelId ?? GROUND_LEVEL_ID}:${e.wallId}`)
     const withContent = allElevations
       .map((e, i) => ({ e, i }))
       .filter(
@@ -800,7 +824,12 @@ export function buildDrawingSheets(
       const scale = planScale(e.length, e.height, template.paperSize, template.orientation)
       sheets.push({
         name: elevationCaption(e, i, units),
-        body: `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units, printMmPerM: scale.mmPerM })}</div>`,
+        body: `<div class="draw">${elevationSvg(e, {
+          palette: ELEV_PRINT,
+          units,
+          printMmPerM: scale.mmPerM,
+          ...(coursingFor(e) ? { tileCoursing: coursingFor(e)! } : {}),
+        })}</div>`,
         calloutGroup: 'elevations',
         scaleLabel: scale.label,
       })

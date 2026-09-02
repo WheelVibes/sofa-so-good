@@ -282,9 +282,9 @@ exact commit so it can — do not leave it to be discovered.
 - **Corner coursing consistency.** Faces are set out independently, so courses do not generally
   align around a corner. Enforcing it means solving all four faces of a wet room together with a
   shared origin and choosing which face's balance to sacrifice — a design decision.
-- **A drawn wall-tile elevation** would do for walls what `.288`'s tiling layout plan did for
-  floors. The elevations sheet already draws each wall face; overlaying the course grid on it is
-  the natural home, not a new sheet.
+- ~~**A drawn wall-tile elevation**~~ DONE v0.31.5.291 — the course grid is overlaid on the
+  existing elevation sheets (no new sheet), joints struck from the end-cut offset and from the
+  ceiling down, cut bands tinted, drawn under the furniture.
 
 ### Original scoping note (kept — it was right that this was not a small job)
 

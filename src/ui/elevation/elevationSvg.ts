@@ -10,6 +10,7 @@ import {
   staggerMountHeightColumns,
 } from '../../elevation/dimensionLayout'
 import type { WallElevation } from '../../elevation/projectElevation'
+import type { WallTileCoursing } from '../../floorplan/wallTileCoursing'
 import { formatDrawingLength, formatLength, type UnitSystem } from '../../utils/measurement'
 
 export interface ElevationPalette {
@@ -23,6 +24,9 @@ export interface ElevationPalette {
   item: string
   /** Label text. */
   text: string
+  /** Tile joint lines + cut-band tint (wall-tile setting-out overlay). Falls
+   *  back to `stroke` so existing callers need no change. */
+  tile?: string
 }
 
 /** Average glyph advance as a fraction of font size, for fitting a label INSIDE a
@@ -72,6 +76,18 @@ export interface ElevationSvgOptions {
   /** Draw dimension lines (overall width/height, opening sill heights, and
    *  mounted-item AFFL heights — H3). Default true. */
   dimensions?: boolean
+  /**
+   * Wall-tile setting-out for THIS face (`floorplan/wallTileCoursing.ts`). When
+   * given, the course grid is drawn on the wall panel: joints struck from the
+   * computed end-cut offset and from the CEILING down, with the perimeter cut
+   * bands tinted.
+   *
+   * This is to the wall elevations what v0.31.5.288's tiling layout plan is to
+   * the floor — the numbers already existed in a table, and a tiler works from
+   * a drawing. Drawn UNDER the furniture silhouettes, so a piece standing
+   * against the wall still reads on top.
+   */
+  tileCoursing?: WallTileCoursing
   /** When set (mm printed per metre of real-world extent, from
    *  `floorplan/drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>`
    *  with explicit `width`/`height` in mm — print-true (TODO G2) — instead of
@@ -93,6 +109,7 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     units = 'metric',
     dimensions = true,
     printMmPerM,
+    tileCoursing,
   } = opts
   const { length: L, height: H } = el
   if (L <= 0 || H <= 0) {
@@ -110,6 +127,42 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
   parts.push(
     `<line x1="0" y1="${f(H)}" x2="${f(L)}" y2="${f(H)}" stroke="${p.stroke}" stroke-width="${f(sw * 2)}"/>`,
   )
+
+  // Wall-tile course grid, drawn on the panel BEFORE the furniture so a piece
+  // standing against the wall reads on top of it.
+  if (tileCoursing) {
+    const tileInk = p.tile ?? p.stroke
+    const [modW, modH] = tileCoursing.moduleMm
+    const stepX = modW / 1000
+    const stepY = modH / 1000
+    const endCut = tileCoursing.endCutMm / 1000
+    const bottomCut = tileCoursing.bottomCutMm / 1000
+    const jw = Math.max(0.004, sw * 0.35)
+    const g: string[] = []
+    // Cut bands: the two end cuts, plus the single cut course at the bottom.
+    const band = (bx: number, by: number, bw: number, bh: number) =>
+      bw > 1e-4 && bh > 1e-4
+        ? `<rect x="${f(bx)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" fill="${tileInk}" fill-opacity="0.12"/>`
+        : ''
+    if (endCut > 0) {
+      g.push(band(0, 0, endCut, H))
+      g.push(band(L - endCut, 0, endCut, H))
+    }
+    if (bottomCut > 0) g.push(band(0, H - bottomCut, L, bottomCut))
+    // Vertical joints, struck from the end-cut offset.
+    for (let x = endCut; x <= L + 1e-6; x += stepX) {
+      g.push(
+        `<line x1="${f(x)}" y1="0" x2="${f(x)}" y2="${f(H)}" stroke="${tileInk}" stroke-width="${f(jw)}" stroke-opacity="0.55"/>`,
+      )
+    }
+    // Course joints, struck from the TOP down (full course at the ceiling).
+    for (let yy = stepY; yy <= H + 1e-6; yy += stepY) {
+      g.push(
+        `<line x1="0" y1="${f(yy)}" x2="${f(L)}" y2="${f(yy)}" stroke="${tileInk}" stroke-width="${f(jw)}" stroke-opacity="0.55"/>`,
+      )
+    }
+    parts.push(`<g class="tile-courses">${g.join('')}</g>`)
+  }
 
   // Furniture silhouettes (already sorted farthest-first).
   for (const it of el.items) {
