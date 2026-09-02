@@ -11279,3 +11279,68 @@ caveat is not discharging it — and the interval between the two is where a wit
 caveat would overturn the headline, test it before writing the headline.**
 
 No `src/` change, no probe change.
+
+---
+
+## Round .320 — thread 1's photographic half is closed quantitatively: the recoverable pose bracket (21°) is wider than the metric's entire range (17°)
+
+Thread 1's instruction is *"find out what aspect the reference photograph was shot at, or build a metric that is
+framing-invariant"*. `.288` recovered the aspect; `.319` showed the metric that needed it is pose-fragile. This
+round asks whether **pitch** is recoverable, and settles the thread with arithmetic.
+
+### What is known
+
+`At_La_Palma`: iPhone 12 Mini, 4032×3024 (4:3), ≈26 mm equivalent → **vertical FOV 49.6°**. Aspect and focal
+length settled; **pitch** is the one unknown pose-matching needs.
+
+### The classical method fails, visibly
+
+A wall's ceiling and floor junctions are parallel in 3-D and converge at the horizon. Read off a calibrated
+height grid on the right wall (ceiling 0.132 → 0.157 across x = 620 → 1290; floor 0.565 → 0.605 across
+x = 900 → 1290), they intersect at **x ≈ −5500 px**, horizon at **y = −0.095** — *above the frame top*.
+
+**Geometrically impossible**: a horizon above the frame means nothing above eye level is visible, yet the ceiling
+plainly is. The method is **ill-conditioned** because the dominant wall is near-frontal — slopes of ~4×10⁻⁵ per
+pixel, so one pixel of reading error moves the VP by thousands.
+
+### The rigorous bound, which decides the question
+
+The horizon must lie **between** the wall's ceiling junction and floor junction — no exceptions. y ∈ [0.16, 0.57]:
+
+| horizon at | implied pitch |
+| --- | --- |
+| y = 0.16 | **17.4° down** |
+| y = 0.30 (≈ picture-frame height) | 10.5° down |
+| y = 0.57 | **3.7° up** |
+
+**21.1° bracket.** `.319` measured the ceiling-falloff metric traversing its entire observed range
+(0.847 → 1.059) over **17.2°** of pitch. **The bracket is wider than the metric's full dynamic range**, so
+pose-matching a found photograph to the required precision is **infeasible**, not merely unmeasured.
+
+### Thread 1 answered on both branches
+
+- *"Find out what aspect…"* — **done** (`.288`) and **insufficient**: aspect and focal length come from EXIF,
+  pitch does not resolve better than ±10°, and pitch dominates.
+- *"Or build a framing-invariant metric"* — **exists** (`ANCHORS=1`, world-anchored, 0.3 % across two pitches,
+  `.285`) but works **only on the app's own renders**: a photograph has no world coordinates.
+
+So photographic comparison is limited to **pose-robust** quantities, of which the arc found exactly one —
+interior chroma — and that one cannot be anchored because chroma follows the exterior's colour (`.317`). **A
+closed loop, and the reason seven rounds of metric-hunting kept failing: the requirement is self-contradictory
+for found photographs.**
+
+### What remains valid
+
+Pose-matched same-frame comparison of the app against **itself** — the raster as reference (`.314`) — is
+untouched, because both arms share the pose by construction. Every surviving quantitative result of the last ten
+rounds is of that form: (p) costs 6.1 counts of ceiling chroma and 0.862 → 0.974 of falloff against the raster;
+(u) costs 19 % on the luminance ratio and 20–28 counts of chroma. **Those stand.** What does not stand is any
+claim that a *photograph* adjudicates them.
+
+### Method note
+
+The vanishing-point calculation was wrong and it took one step to know, because it produced a horizon that
+contradicted a plainly visible feature. **Check a geometric estimate against something the picture obviously
+shows** — the crop-looking discipline, applied to arithmetic.
+
+No `src/` change, no probe change.

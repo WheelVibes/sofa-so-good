@@ -5,6 +5,72 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.320 — thread 1's photographic half is closed, quantitatively: the recoverable pose bracket (21°) is WIDER than the metric's entire dynamic range (17°)
+
+Thread 1's standing instruction is *"find out what aspect the reference photograph was shot at, or build a
+metric that is framing-invariant"*. `.288` recovered the aspect and lens from EXIF; `.319` then showed the
+metric that needed it is pose-fragile. This round asks whether the missing quantity — **pitch** — is recoverable
+from the photograph, and the answer settles the thread with arithmetic rather than resignation.
+
+**What is already known about the reference camera.** `At_La_Palma`: iPhone 12 Mini, 4032×3024 (4:3), main
+camera ≈26 mm equivalent → **vertical FOV 49.6°**. Aspect and focal length are settled. **Pitch is the one
+unknown that pose-matching needs.**
+
+**The classical method fails here, and fails visibly.** A wall's ceiling junction and floor junction are
+parallel in 3-D, so they converge at the horizon. Reading both off a calibrated height grid on the right wall
+(ceiling junction 0.132 → 0.157 across x = 620 → 1290; floor junction 0.565 → 0.605 across x = 900 → 1290) and
+intersecting them puts the vanishing point at **x ≈ −5500 px** and the horizon at **normalized y = −0.095** —
+*above the top of the frame*.
+
+**That is geometrically impossible**, and the impossibility is what caught it: a horizon above the frame means
+nothing above eye level is in view, yet the ceiling plainly is. **The method is ill-conditioned on this
+photograph** because the dominant wall is nearly frontal — its junction slopes are ~4×10⁻⁵ per pixel, so a
+one-pixel reading error moves the vanishing point by thousands of pixels.
+
+**What is rigorous is a bound, and it is enough to decide the question.** The horizon must lie **between** the
+wall's ceiling junction and its floor junction — the ceiling is above eye level and the floor below it, without
+exception. That gives y ∈ [0.16, 0.57], and with a 49.6° vertical FOV:
+
+| horizon at | implied pitch |
+| --- | --- |
+| y = 0.16 | **17.4° down** |
+| y = 0.30 (≈ picture-frame height) | 10.5° down |
+| y = 0.57 | **3.7° up** |
+
+**A 21.1° bracket.** And `.319` measured the ceiling-falloff metric traversing its **entire observed range**
+(0.847 → 1.059) between pitch 0.15 and 0.45 rad — **17.2°**.
+
+**So the recoverable pose bracket is wider than the metric's full dynamic range.** Pose-matching a found
+photograph to the precision a pose-fragile metric requires is **infeasible**, not merely unmeasured. No amount
+of care with crops or patches closes a 21° bracket against a 17° sensitivity.
+
+**Thread 1's instruction is now answered on both of its branches.**
+
+- *"Find out what aspect the reference photograph was shot at"* — **done** (`.288`), and **insufficient**: aspect
+  and focal length are recoverable from EXIF, pitch is not recoverable to better than ±10°, and pitch is what
+  dominates.
+- *"Or build a metric that is framing-invariant"* — **exists**, the world-anchored `ANCHORS=1` sampler (`.285`:
+  the same world point reads within 0.3 % across two pitches) — but it works **only on the app's own renders**,
+  because a photograph has no world coordinates to anchor to.
+
+**So the arc's photographic comparison is limited to pose-ROBUST quantities**, of which it has found exactly
+one — interior chroma (0.9 counts on pitch, `.316`) — and that one cannot be anchored to photographs at all,
+because chroma follows the exterior's colour (`.317`, three attempts). **That is a closed loop, and it explains
+why seven rounds of metric-hunting kept failing: the requirement is self-contradictory for found photographs.**
+
+**What remains valid, stated so the closure is not read as nihilism.** Pose-matched same-frame comparison of the
+app against **itself** — the raster as the reference for the tracer (`.314`) — is unaffected by any of this,
+because both arms share the pose by construction. Every surviving quantitative result in the last ten rounds is
+of that form: (p) costs 6.1 counts of ceiling chroma and shows 0.862 → 0.974 of falloff loss against the raster;
+(u) costs 19 % on the luminance ratio and 20–28 counts of chroma. **Those stand.** What does not stand is any
+claim that a *photograph* adjudicates them.
+
+**Method note.** The vanishing-point calculation was wrong and I knew within one step, because it produced a
+horizon that contradicted a visible feature of the image. **A geometric estimate should be checked against
+something the picture obviously shows** — the same discipline as looking at the crop, applied to arithmetic.
+
+**Unchanged:** no `src/` change, no probe change. One grid overlay and one photograph already on disk.
+
 ## v0.31.5.319 — `.318`'s metric is pose-dependent after all: 0.85 → 1.06 over a 0.30 pitch range. The photographic claim is withdrawn; the raster-vs-traced claim stands
 
 `.318` called same-surface ceiling falloff "the metric the arc has been looking for" and named pose-dependence

@@ -154,6 +154,28 @@ them match.
 Fifteen mechanisms have been proposed and refuted in this arc. This was the first refuted with its predictions
 intact.
 
+## Why photographic anchoring is a closed loop here (`.320`)
+
+The requirement is self-contradictory for **found** photographs, and it can be shown with arithmetic:
+
+- **Pose-fragile metrics need a matched pose.** A reference photograph's aspect and focal length come from EXIF
+  (`.288`: `At_La_Palma` is an iPhone 12 Mini, 4:3, ≈26 mm ⇒ vertical FOV 49.6°), but **pitch does not**. The
+  vanishing-point method is ill-conditioned when the dominant wall is near-frontal — on `At_La_Palma` it puts
+  the horizon *above the frame*, which is impossible since the ceiling is visible.
+- **The rigorous bound is too loose.** The horizon must lie between a wall's ceiling and floor junctions
+  (y ∈ [0.16, 0.57]), which brackets the pitch to **17.4° down … 3.7° up — 21.1°**. The ceiling-falloff metric
+  traverses its **whole** range (0.847 → 1.059) over **17.2°** of pitch (`.319`). **The bracket is wider than
+  the metric's dynamic range.**
+- **The framing-invariant alternative cannot reach a photograph.** `ANCHORS=1` is world-anchored (`.285`, 0.3 %
+  across two pitches) and therefore works only on the app's own renders — a photograph has no world coordinates.
+- **The one pose-robust quantity cannot be anchored.** Interior chroma is stable to 0.9 counts on pitch
+  (`.316`) but follows the *exterior's* colour, which differs between any two real rooms (`.317`, three
+  attempts).
+
+**So: use photographs for qualitative screening and for pose-robust bounds only. For anything quantitative, compare
+the app against itself at a matched pose** — the raster as reference (`.314`). Every surviving quantitative
+result in `.310`–`.320` is of that form.
+
 ## Every LUMINANCE spatial metric here is pose-dependent; chroma is pose-robust but unanchorable
 
 The arc's measurement predicament, after seven rounds of trying both families:
