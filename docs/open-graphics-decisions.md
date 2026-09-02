@@ -2968,6 +2968,26 @@ been attributed to the glass or to the background tone-mapping path.
 > ~10 % across 8 of 10 columns, from two unrelated world setups — so the reference's structure
 > *is* visibility.
 >
+> **✅ STRENGTH DECIDED, v0.31.7.10 — γ ≈ 0.7.** `--gamma-sweep` on `(app ÷ physics) ×
+> visibility^γ` (γ = 0 is the untouched baseline, so any γ above it is a regression):
+>
+> | γ | 0.0 | 0.5 | **0.7** | 0.9 | 1.0 |
+> | --- | --- | --- | --- | --- | --- |
+> | `livingDining` columns | 4.76 | 2.39 | **1.88** | 1.49 | 1.37 |
+> | `livingDining` rows | 1.91 | 1.42 | **1.27** | 1.19 | 1.22 |
+> | `bedroom3` columns | 1.74 | 1.79 | **1.81** | 2.00 | 2.10 |
+> | `bedroom3` rows | 1.32 | 1.34 | **1.34** | 1.35 | 1.35 |
+>
+> The trade is asymmetric: the deep room improves steeply, the small room degrades shallowly
+> until γ ≈ 0.8. **γ = 0.7 removes 68 % of the deep room's spatial error for a ≤4 % regression
+> in the room that was already right.** A two-room fit, so a justified starting value rather
+> than a settled constant — and each extra room now costs ~60 s, so widen it before trusting it.
+>
+> **Ship path:** bake the *starter plans* (a fixed, finite set, and the move-in default is one
+> of them) offline with Blender into the `aoMap` slot; user-edited plans fall back to γ = 0,
+> i.e. today's render. That dissolves the invalidation question rather than answering it, since
+> a starter plan's shell never changes.
+>
 > **But `bedroom3` gets worse at full strength.** The direction is right and the magnitude is
 > not: it lifts the app's too-dark columns past parity. So the shippable form needs a strength
 > below 1, a per-room normalisation, or a blend weighted by the structure a room already has.

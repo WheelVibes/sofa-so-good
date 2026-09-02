@@ -29,6 +29,69 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.10 — the modulation strength is decidable: γ ≈ 0.7 buys 68 % of the deep room's error for a ≤4 % regression, and the ship path is the STARTER PLANS
+
+`v0.31.7.9` confirmed aperture visibility explains 80 % of `livingDining`'s spatial error at
+full strength, while making `bedroom3` 34 % worse — and left "what strength?" as a design
+question. It isn't one. It is a one-parameter sweep, and this round runs it.
+
+`spatial-profile.mjs --gamma-sweep` reports the residual spread of `(app ÷ physics) ×
+visibility^γ` for γ = 0…1. γ = 0 is the untouched baseline by construction, which is the
+control the sweep needs: any γ whose residual exceeds the γ = 0 value is a **regression**, not
+a weaker fix.
+
+| γ | 0.0 | 0.3 | 0.5 | **0.7** | 0.8 | 0.9 | 1.0 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `livingDining` columns | 4.76 | 3.03 | 2.39 | **1.88** | 1.67 | 1.49 | **1.37** |
+| `livingDining` rows | 1.91 | 1.60 | 1.42 | **1.27** | 1.22 | **1.19** | 1.22 |
+| `bedroom3` columns | **1.74** | 1.77 | 1.79 | **1.81** | 1.90 | 2.00 | 2.10 |
+| `bedroom3` rows | **1.32** | 1.33 | 1.34 | **1.34** | 1.35 | 1.35 | 1.35 |
+
+**The trade is strongly asymmetric, which is what makes a choice possible.** `livingDining`
+improves monotonically and steeply; `bedroom3` degrades monotonically and *shallowly* — the
+whole regression from γ = 0 to γ = 0.7 is **1.74 → 1.81 on columns and 1.32 → 1.34 on rows**,
+while the deep room goes 4.76 → 1.88. Only past γ ≈ 0.8 does the small room start paying
+materially (1.90, then 2.00, then 2.10).
+
+**So γ ≈ 0.7 is the defensible ship point: 68 % of the deep room's spatial error removed for a
+≤4 % regression in the room that was already right.** Choosing γ = 1 would buy 12 more points
+in the deep room and cost 21 % in the small one — a bad trade on a floor that must not regress
+any view.
+
+*Stated honestly: this is a two-room, one-parameter fit, so γ = 0.7 is a starting value with a
+measured justification, not a converged constant. The `render_from_manifest.py` +
+`render_visibility.py` pair now makes each additional room cost ~60 s, so widening the fit is
+cheap — and it should be widened before the value is treated as settled.*
+
+**The ship path, and why Blender is the right tool for it but not the runtime.** The quantity
+is **full-GI** visibility (`v0.31.7.9`: albedo 1.0 matches physics, albedo 0.05 explodes to
+59.7× — first-bounce AO is the wrong thing), and three.js has no GI, so this cannot be computed
+live. It has to be precomputed. That splits cleanly:
+
+1. **The shipped starter plans get baked maps.** The library of accurate starter plans — and
+   the move-in default is one of them, a furnished 4-room HDB — is a *fixed, finite* set of
+   geometry. Blender bakes their visibility offline into the `aoMap` slot; the app ships the
+   maps. Zero runtime cost, and it covers the case most users see first.
+2. **User-edited plans fall back to γ = 0**, i.e. exactly today's render, until a map exists.
+   No correctness cliff, no editing latency, and no regression risk for custom geometry.
+3. **Invalidation is then trivial**, because a starter plan's shell does not change: the map is
+   an asset keyed to the plan, not a cache to be kept coherent with live edits. That was the
+   open pipeline question in `v0.31.7.7`, and staging it this way dissolves it rather than
+   answering it.
+
+**FPS, restated as a commitment rather than a hope:** an `aoMap` is a texture fetch inside a
+shader that already runs — no extra pass, no extra draw call, and nothing per-frame that scales
+with room count. The ≥30 fps floor is unaffected by construction, and the ~16.5 ms of
+medium-tier headroom at `medium` stays available. The change reaches walk, orbit and the room
+editor together, since all three share the rig (`v0.31.6.8`).
+
+**Still not shipped, and the reason is now narrow rather than open.** Nothing renderer-side can
+land before the baked maps exist, and generating + wiring them (a bake script over the starter
+plan set, a UV channel on the shells, the asset plumbing, and per-room verification against
+these same probes) is a feature, not a patch. What this round removes is the last *unknown*:
+the term is confirmed, its strength is measured, the quantity to bake is specified, and the
+regression risk is bounded and quantified.
+
 ## v0.31.7.9 — aperture visibility CONFIRMED: it explains 80 % of the deep room's spatial error — and a naive multiply would regress the small one
 
 `v0.31.7.8` concluded the missing term is aperture visibility and the slot is an `aoMap`. Both

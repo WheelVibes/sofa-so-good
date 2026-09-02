@@ -28,9 +28,16 @@
  * the candidate explains**. This turns "the missing term is X" from a diagnosis into a
  * falsifiable prediction with a number attached.
  *
+ * `--gamma-sweep` sweeps the candidate's STRENGTH — residual of `(app ÷ ref) × candidate^γ`
+ * for γ = 0…1 — because a candidate can be the right cause at the wrong magnitude. `v0.31.7.9`
+ * found exactly that: aperture visibility explains 80 % of a deep room's error at γ = 1 while
+ * making a small room 34 % worse. The sweep turns "what strength?" from a matter of taste into
+ * a number, and reports the γ that minimises the residual **and** whether any γ > 0 helps every
+ * room given — which is the question a shippable fix actually has to answer.
+ *
  * Usage:
  *   node scripts/dev-probes/spatial-profile.mjs <app.png> <ref.png> [--crop=x,y,w,h] [--bins=N]
- *                                               [--explain=<candidate.png>]
+ *                                               [--explain=<candidate.png>] [--gamma-sweep]
  */
 import process from 'node:process'
 import sharp from 'sharp'
@@ -130,5 +137,24 @@ for (const [axis, label] of [
       `   residual spread ${pspread.toFixed(2)}x  ` +
         `=> the candidate explains ${(100 * explained).toFixed(0)} % of the spatial error`,
     )
+    if (args.includes('--gamma-sweep')) {
+      // Spread of (A/B) x cand^g. g=0 is the untouched baseline by construction, which is
+      // the control the sweep needs: any g whose residual exceeds the g=0 value is a
+      // regression, not a weaker fix.
+      const rows = []
+      for (let g = 0; g <= 1.0001; g += 0.1) {
+        const r = ratio.map((v, i) => v * pc[i] ** g)
+        const sp = Math.max(...r) / Math.min(...r)
+        rows.push({ g, sp, gain: 1 - Math.log(sp) / Math.log(spread) })
+      }
+      const best = rows.reduce((a, b) => (b.sp < a.sp ? b : a))
+      console.log('   gamma sweep -- residual spread of (A/B) x cand^g:')
+      console.log(`     g     ${rows.map((r) => r.g.toFixed(1).padStart(7)).join('')}`)
+      console.log(`     spread${rows.map((r) => r.sp.toFixed(2).padStart(7)).join('')}`)
+      console.log(
+        `     best g=${best.g.toFixed(1)} -> spread ${best.sp.toFixed(2)}x ` +
+          `(${(100 * best.gain).toFixed(0)} % of the error), baseline g=0 -> ${rows[0].sp.toFixed(2)}x`,
+      )
+    }
   }
 }
