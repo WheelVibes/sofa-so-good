@@ -5,6 +5,61 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.279 — the response saturates, so `.278`'s numbers were optimistic: 2.4–5.6×, not 1.9–3.7×
+
+`.278` computed how far the albedo model's scalar is from the one that would actually hit the traced target,
+and flagged the assumption it rested on: *"the interpolation assumes the response is linear in the scalar…
+not verified between them."* That assumption is load-bearing, so this round tests it — and better than a
+linearity check, it tests `.278`'s **prediction**.
+
+**The response is not linear. It saturates.** bedroom2, navy walls, ΔL against the white-walled baseline:
+
+| scalar | 0.05 | 0.134 | 0.262 | 0.40 | 0.494 | 0.75 | 1.0 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Δ L, d = 0.6 | −59.2 % | −49.4 % | −37.8 % | −27.9 % | −22.1 % | −9.6 % | −0.2 % |
+| Δ L, d = 1.2 | −54.6 % | −45.3 % | −35.0 % | −25.6 % | −20.4 % | −8.5 % | +0.1 % |
+
+`dL/ds` falls from about **138 to 45** across the range — strongly convex. Same mechanism `.259` documented
+at the window: the tone curve compresses the bright end, so each increment of fill buys less.
+
+**`.278`'s prediction, tested and wrong.** It predicted s ≈ 0.262 would reach −43.1 %. **Measured at 0.262:
+−37.8 %.**
+
+**Corrected required scalars, read off the measured curve:**
+
+| | target | **required (measured)** | `.278` said | model | **off by** |
+| --- | --- | --- | --- | --- | --- |
+| bedroom2 d = 0.6 | −43.1 % | **0.204** | 0.262 | 0.494 | **2.4×** |
+| bedroom2 d = 1.2 | −50.3 % | **0.089** | 0.134 | 0.494 | **5.6×** |
+| livingDining d = 0.6 | −20.5 % | **0.543** | 0.551 | 0.563 | 1.04× |
+| livingDining d = 1.2 | −22.3 % | **0.488** | 0.515 | 0.563 | 1.15× |
+| livingDining d = 1.8 | −17.5 % | **0.572** | — | 0.563 | 0.98× |
+
+**So `.278`'s conclusions stand with corrected magnitudes, and both move the same way.** The model is
+well-calibrated in livingDining — now **measured** at within 2–15 %, against `.278`'s interpolated 2–9 % — and
+under-scales in bedroom2 by **2.4–5.6×**, worse than the 1.9–3.7× reported.
+
+**And saturation explains why the bedroom needs such a small scalar.** Because each increment of fill buys
+less near s = 1, matching a *large* target requires a **disproportionately small** scalar: −50 % needs s ≈
+0.09, not the ≈0.25 a linear reading suggests. The model's error is therefore worst precisely where the
+target is largest — compounding `.277`'s finding rather than softening it.
+
+**Looked at.** The s = 0.134 frame renders as a plausibly dark bedroom — dimmer ceiling and walls, window
+correctly unaffected since the backdrop is not part of the fill. Not degenerate.
+
+**A note on flagged assumptions.** `.278` flagged this one explicitly and it changed the numbers by up to
+50 %. That is now four in a row: `.271`'s census (texture-blind, `.273`), `.272`'s cool finish (wrong-signed
+hue, `.276`), `.277`'s single room (deficit doubles, `.277`), and `.278`'s linearity (this round). **In this
+arc, a flagged-but-untested assumption has never once turned out not to matter.** Worth treating the flag as a
+queue rather than a disclaimer.
+
+Item **(s)** updated with the corrected figures. The recommendation is unchanged in kind — the lever is
+sufficient, the estimator is geometry-blind, and a per-room baked scalar is the usable path — but the analytic
+model is further from usable than `.278` implied.
+
+Probe only; no probe change this round. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in
+`src/` beyond the version bump. Runs 09:59–10:06 local.
+
 ## v0.31.5.278 — the lever is big enough; the estimator is 2–4× wrong in a bedroom
 
 `.277` found the scalar fill recovers ~46 % in a bedroom against 78–90 % in the living/dining room, and said

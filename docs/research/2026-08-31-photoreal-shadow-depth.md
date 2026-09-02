@@ -8571,3 +8571,93 @@ one finish in the second. And the enclosure areas assume a 2.0 m window height, 
 readout does not report.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.279` — the response saturates, so `.278`'s numbers were optimistic
+
+`.278` computed how far the albedo model's scalar sits from the one that would actually hit the traced target,
+and flagged the assumption it rested on: *"the interpolation assumes the response is linear in the scalar
+between s = 0 and the tested s… measured at two points per anchor, not verified between them."*
+
+That assumption is load-bearing for the round's headline numbers, so this round tests it — and rather than a
+bare linearity check, it tests `.278`'s **prediction**.
+
+Runs 09:59–10:06 local (2026-09-02).
+
+### The response saturates
+
+bedroom2, navy walls, ΔL against the white-walled baseline, seven scalars:
+
+| scalar | 0.05 | 0.134 | 0.262 | 0.40 | 0.494 | 0.75 | 1.0 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Δ L, d = 0.6 | −59.2 % | −49.4 % | −37.8 % | −27.9 % | −22.1 % | −9.6 % | −0.2 % |
+| Δ L, d = 1.2 | −54.6 % | −45.3 % | −35.0 % | −25.6 % | −20.4 % | −8.5 % | +0.1 % |
+
+`dL/ds` falls from about **138 to 45** across the range — strongly convex. The mechanism is the one `.259`
+documented at the window: **the tone curve compresses the bright end**, so each increment of fill buys less
+output. The s = 1.0 row also serves as a control: ΔL −0.2 % / +0.1 %, i.e. navy walls with an unmodified fill
+change the ceiling by nothing, reproducing `.277`.
+
+### `.278`'s prediction, tested
+
+`.278` predicted s ≈ 0.262 would reach −43.1 %. **Measured at 0.262: −37.8 %.** The prediction was off, in the
+direction convexity implies.
+
+### Corrected required scalars
+
+Read off the measured curve rather than interpolated between two points:
+
+| | target | **required (measured)** | `.278` said | model | **off by** |
+| --- | --- | --- | --- | --- | --- |
+| bedroom2 d = 0.6 | −43.1 % | **0.204** | 0.262 | 0.494 | **2.4×** |
+| bedroom2 d = 1.2 | −50.3 % | **0.089** | 0.134 | 0.494 | **5.6×** |
+| livingDining d = 0.6 | −20.5 % | **0.543** | 0.551 | 0.563 | 1.04× |
+| livingDining d = 1.2 | −22.3 % | **0.488** | 0.515 | 0.563 | 1.15× |
+| livingDining d = 1.8 | −17.5 % | **0.572** | — | 0.563 | 0.98× |
+
+### So `.278`'s conclusions stand, with corrected magnitudes
+
+Both move the same way:
+
+- **livingDining: well-calibrated.** Now *measured* at within **2–15 %** (mean ≈ 7 %), against `.278`'s
+  interpolated 2–9 %. The conclusion holds and is now on firmer ground.
+- **bedroom2: under-scales by 2.4–5.6×**, worse than the 1.9–3.7× reported.
+
+### Why saturation makes it worse where it hurts
+
+Because each increment of fill buys less output near s = 1, matching a **large** target requires a
+**disproportionately small** scalar. −50 % needs s ≈ 0.09, where a linear reading suggests ≈0.25.
+
+So the model's error is largest exactly where the target is largest. That compounds `.277`'s finding — the
+deficit doubles in a bedroom *and* the estimator's error more than doubles there too — rather than softening
+it.
+
+### Looked at
+
+The s = 0.134 frame renders as a plausibly dark bedroom: dimmer ceiling and walls, and the window correctly
+unaffected because the backdrop is not part of the fill. Not degenerate, not broken.
+
+### A note on flagged assumptions
+
+`.278` flagged this assumption explicitly, and testing it changed the numbers by up to 50 %. That makes four
+consecutive rounds where a flagged-but-untested assumption turned out to matter:
+
+| flagged in | assumption | resolved in | outcome |
+| --- | --- | --- | --- |
+| `.271` | the albedo census is adequate | `.273` | texture-blind |
+| `.272` | warm-finish validation generalises | `.276` | hue sign wrong on cool/green |
+| `.277` | one room is representative | `.277` | deficit doubles in a bedroom |
+| `.278` | the response is linear in s | **`.279`** | convex; numbers optimistic by ~50 % |
+
+**In this arc, a flagged-but-untested assumption has not once turned out to be harmless.** That is worth
+treating as a rule: the flag is a queue, not a disclaimer, and the next round should generally be the one that
+retires the most load-bearing flag rather than the one that opens new ground.
+
+### Where item (s) stands
+
+Unchanged in kind: the lever is sufficient (`.278`), the estimator is geometry-blind (`.278`), and a per-room
+scalar baked from an offline traced calibration is the usable path. But the analytic model is **further** from
+usable than `.278` implied — 2.4–5.6× off in the room type that dominates the plan.
+
+Nothing changed in `src/` beyond the version bump.

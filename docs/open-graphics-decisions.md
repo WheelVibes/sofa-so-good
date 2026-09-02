@@ -1805,12 +1805,19 @@ The fill's share of the ceiling's light is nearly the same in both rooms (living
 61.4–66.9 %), so that does not explain the halved recovery. Inverting the question — using the fill-off run as
 a second measured point and interpolating in the scalar — gives what the scalar *should* have been:
 
-| room | fill-off Δ L | model scalar | **required scalar** | |
-| --- | --- | --- | --- | --- |
-| livingDining d = 0.6 | −69.7 % | 0.563 | **0.551** | 2 % off |
-| livingDining d = 1.2 | −67.8 % | 0.563 | **0.515** | 9 % off |
-| bedroom2 d = 0.6 | −66.9 % | 0.494 | **0.262** | **1.9× under** |
-| bedroom2 d = 1.2 | −61.4 % | 0.494 | **0.134** | **3.7× under** |
+| room | model scalar | **required scalar** (measured, `.279`) | **off by** |
+| --- | --- | --- | --- |
+| livingDining d = 0.6 | 0.563 | **0.543** | 1.04× |
+| livingDining d = 1.2 | 0.563 | **0.488** | 1.15× |
+| livingDining d = 1.8 | 0.563 | **0.572** | 0.98× |
+| bedroom2 d = 0.6 | 0.494 | **0.204** | **2.4× under** |
+| bedroom2 d = 1.2 | 0.494 | **0.089** | **5.6× under** |
+
+*(v0.31.5.279 replaced `.278`'s linear interpolation with a measured 7-point curve. The response **saturates**
+— `dL/ds` falls from ~138 to ~45 across s = 0.05 → 1.0, the same tone-curve compression `.259` found at the
+window — so `.278`'s estimates were optimistic: it predicted s ≈ 0.262 would give −43.1 %, and the measured
+value at 0.262 is **−37.8 %**. Because the response saturates, matching a large target needs a
+disproportionately small scalar, so the model's error is worst exactly where the target is largest.)*
 
 **1. The lever is sufficient.** Zeroing the fill gives −61 to −70 %, exceeding every target measured. Scaling
 the ambient + hemisphere is an adequate mechanism in both rooms.
