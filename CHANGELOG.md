@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.283 - wall elevations for every storey
+
+**Correcting .282's changelog first: I said `allWallElevations` was a dead export with no call
+sites. That was wrong** — I grepped the name in the doc comment instead of the actual export,
+`projectAllElevations`, which is used by the Elevations panel, the report AND the drawing set. So
+the same gap as sections was live, not dead: **an upper storey's walls had no elevation drawing
+anywhere.** A grep for a remembered name is not a grep for the symbol.
+
+A wall elevation is self-contained (heights are relative to its own floor), so unlike a section it
+needs no stacking — it needs enumeration plus two things resolved PER STOREY:
+
+- **`levelAsPlan`**, so each wall is measured against its OWN level's `ceilingHeight` and sees only
+  its own level's openings. The shipped Open Loft's upper storey is 2.2 m against a 3.0 m ground
+  floor, and its walls were being drawn 3.0 m tall.
+- **`itemsOnLevel`**, because items were passed through UNFILTERED. Both storeys of a maisonette
+  commonly share wall lines, so an upstairs piece within `ELEVATION_NEAR_WALL` (0.6 m) of a ground
+  wall's line was drawn standing against that ground wall — furniture appearing on a drawing of a
+  wall it is not near, one floor down.
+
+`WallElevation` gains `levelId`/`levelName`. `elevationCaption` tags any NON-ground storey
+("Wall 7 — Loft"); deliberately not ground, because the caption cannot see whether the plan is
+multi-storey and stamping "Ground floor" on every caption of a single-storey home is noise on the
+common case. An untagged caption means ground.
+
+`ElevationPanel`'s wall-name map is also per storey now — names are allocated room→wall WITHIN a
+level, so an upstairs wall was unnamed and fell back to "Wall N" (and no ground room could have
+claimed it anyway).
+
+**Verified in the frame:** the report's elevation grid shows Wall 7–11 — Loft at 2.20 m alongside
+the ground walls at 3.00 m, with the loft's windows drawn and the queen bed against its walls.
+Wall 7 — Loft reads 8.00 m × 1.00 m, which is correct: that is `lfu-rail`, the open railing with
+`topHeight: 1`.
+
+7 new tests, all 7 confirmed failing with the fix stashed.
+
 ## v0.31.5.282 - sections now show every storey, and two drawing-accuracy fixes
 
 This one is a GAP, not just a migration bug. **A section is the drawing where storeys matter** —

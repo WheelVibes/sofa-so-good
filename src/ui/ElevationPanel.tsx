@@ -115,11 +115,16 @@ export function ElevationPanel() {
    */
   const wallNames = useMemo(() => {
     const out = new Map<string, string>()
-    const walls = Array.isArray(plan.walls) ? plan.walls : []
-    for (const room of Array.isArray(plan.rooms) ? plan.rooms : []) {
-      for (const a of assignRoomWallNames(walls, room)) if (!out.has(a.id)) out.set(a.id, a.name)
+    // PER STOREY (F13): names are allocated room→wall within a level, so an
+    // upstairs wall was unnamed (it fell back to "Wall N"), and a ground room
+    // could not have claimed it anyway.
+    for (const level of planLevels(plan)) {
+      const walls = Array.isArray(level.walls) ? level.walls : []
+      for (const room of Array.isArray(level.rooms) ? level.rooms : []) {
+        for (const a of assignRoomWallNames(walls, room)) if (!out.has(a.id)) out.set(a.id, a.name)
+      }
+      for (const w of walls) if (w.name) out.set(w.id, w.name)
     }
-    for (const w of walls) if (w.name) out.set(w.id, w.name)
     return out
   }, [plan])
   const lighting = useMemo(

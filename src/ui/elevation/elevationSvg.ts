@@ -321,5 +321,10 @@ export function elevationCaption(
   if (winN) bits.push(`${winN} window${winN > 1 ? 's' : ''}`)
   if (doorN) bits.push(`${doorN} door${doorN > 1 ? 's' : ''}`)
   if (el.items.length) bits.push(`${el.items.length} item${el.items.length > 1 ? 's' : ''}`)
-  return `${name ?? `Wall ${index + 1}`} · ${bits.join(' · ')}`
+  // Tag the storey for any NON-ground level (F13). Only non-ground: this
+  // function cannot see whether the plan is multi-storey, and stamping
+  // "Ground floor" on every caption of a single-storey home would be noise on
+  // the overwhelmingly common case. So an untagged caption means ground.
+  const storey = el.levelId && el.levelId !== 'ground' && el.levelName ? ` — ${el.levelName}` : ''
+  return `${name ?? `Wall ${index + 1}`}${storey} · ${bits.join(' · ')}`
 }

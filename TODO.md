@@ -255,18 +255,19 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 exact commit so it can — do not leave it to be discovered.
 
 **Remaining F13 follow-ups (v0.31.5.282).**
-- `elevation/projectElevation.ts:allWallElevations` reads `plan.walls` (ground only). It has NO
-  call sites outside its own module — dead export, not a live bug. Fix it when something uses it,
-  or delete it.
+- ~~`elevation/projectElevation.ts` ground-only~~ FIXED in v0.31.5.283. The "dead export"
+  claim in .282 was wrong — I grepped the doc-comment name (`allWallElevations`) rather than the
+  real export (`projectAllElevations`), which three consumers use. Lesson: grep the SYMBOL, not
+  the name you remember reading.
 - Audited and found already level-correct, do not re-check: `daylight`, `airconSizing`,
   `openingSchedule`, `demolitionPlan`, `electricalPlan`, `plumbingPlan`, `settingOut`,
   `autoArrange`, `furnishPlan`, `Minimap` (via `minimapLevelView`), `rcp` (fanned out by
   `drawingSet`), `dxf` (ground-only BY DESIGN, documented in its header).
 - Still unaudited: `ui/MeasurementOverlay`, `ui/DesignScorePanel` (its suggestions list is
   ground-only while `designScore` itself uses `allPlanRooms` — the panel and the score disagree),
-  `ui/ElevationPanel` (walls/rooms ground-only at L118-119 while its lighting figure fans out),
   `scene/cameras/suggestViews`, `ui/catalog/usePlacementController` (window/door snapping uses
-  ground walls), `apartment/*` render layer, `state/schema.ts`.
+  ground walls, so a curtain cannot snap to an upstairs window), `apartment/*` render layer,
+  `state/schema.ts`. (`ui/ElevationPanel` done in .283.)
 
 **Confirmed target shape (dev-09 asked, 2026-09-03).** The field IS `plan.levels: PlanLevel[]`
 and the ground floor IS `levels[0]` — it does not stay separate. `levelAsPlan` keeps returning a
