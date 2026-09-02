@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.286 — the HDRI-fallback lead is refuted, and the reason escalates item (p): every HQ render is gradient-lit by default
+
+`.285` closed with one lead for item (u) and an instruction to kill or confirm it directly. It is dead, and
+killing it turned up something worse than the thing it was supposed to explain.
+
+**The lead, refuted — by reading the default, not by more runs.** `resolveTracerEnvironment` falls back to the
+hardcoded cold `GradientEquirectTexture` when `hdriUrl` is absent. For that to select between states A and B it
+would have to *vary*. It does not:
+
+- `store.hdriId` defaults to **null** — `src/state/slices/uiSlice.ts:385`, and
+  `src/state/slices/hdri.test.ts` asserts it.
+- `hqEnvironmentUrl(on, null)` → `hdriById(null)?.url ?? null` → **null**.
+- so `hdriUrl` reaches `createHqRenderSession` as `undefined` on **every** default run,
+- so `resolveTracerEnvironment` returns null and `buildTracerScene` takes the gradient branch
+  (`hqRenderSession.ts:352`) **every time**.
+
+Forcing `hdriEnvironment=false` (new `PTHDRI=off`, flag asserted and read back; run 13:47 +08) duly gave state
+A at frameL 155.7 / frameRB −10.1 — but that is consistent with the branch being *constant*, not with it
+choosing the state. **A constant cannot be the variable.** Item (u)'s cause is still unidentified and this round
+offers no replacement hypothesis.
+
+**The ON arm is void, and only looking caught it.** `PTHDRI=on` with a real preset (`studio_small_09`, run
+13:52 +08) returned frameL 182.8 / frameRB +14.7 and a clean-looking still. The numbers were plausible and the
+image looked like a nice render. It is **the wrong room**: setting `hdriId` in the store reset
+`scene.environment` to null *and* moved the camera, so the capture is livingDining at eye level, not bedroom3
+pitched up. Method rule 1 has now earned its keep for the fifth time in this arc — the anchors, the frame
+state and the sample count all read normally on a frame of a different room.
+
+**`.285`'s discriminator was too weak, and this exposed it.** It classified on `frameRB < -4` alone, which
+silently assumed exactly two states, so it labelled that 182.8 / +14.7 frame **"B (expected)"**. A
+discriminator that cannot say *"neither of the ones I know"* is how a studio-HDRI frame of the wrong room gets
+compared against gradient-lit bedroom numbers. Now three-way against both terms, with an explicit
+`UNKNOWN -- matches neither known state; do NOT compare against either`.
+
+**What the refutation turned up — item (p) escalated.** The chain above is not a probe curiosity. It means
+**every HQ render a user produces, unless they hand-pick an HDRI, is lit by a hardcoded cold gradient** (top
+`0xbfd4e6`, bottom `0x5a5650`) rather than by the room they built. Item (p) HQ-FILL-RIG recorded that the
+tracer drops `AmbientLight`/`HemisphereLight` and substitutes a gradient; what `.286` establishes is that this
+is **the default and only path**, not a fallback for an edge case. The HQ still is the app's photoreal
+showcase, and by default it is not lit by the user's scene. That reframes (p) from a fidelity gap into the
+central defect of the HQ path, and it is a strong candidate for the first actual fix this arc ships.
+
+**Method note.** The lead was killed by reading a default value and three lines of call chain — no render
+required. `.285` had already spent four probe runs before writing the lead down. **Check whether a candidate
+cause is even a variable before building an A/B for it.** Half of `.280`–`.285`'s cost was A/Bs against things
+that turned out to be constant.
+
+**Next.** Two things, and (p) now outranks (u): confirm by direct observation that the shipped HQ path is
+gradient-lit (log the environment `buildTracerScene` actually installs, rather than inferring it from the call
+chain), and only then return to (u) with a fresh, cheap discriminator-first approach.
+
+**Unchanged:** no `src/` change. Probe + docs only.
+
 ## v0.31.5.285 — item (t) refuted: the AI denoise is radiometrically neutral. The real fault is that the tracer returns one of two discrete outputs from identical inputs
 
 `.283` filed item (t) claiming the AI denoise pass darkens by ~30 % and flips hue. This round ran the A/B it

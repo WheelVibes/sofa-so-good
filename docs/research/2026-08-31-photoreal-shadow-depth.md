@@ -9181,3 +9181,59 @@ Kill or confirm the HDRI-fallback lead: log whether `hdriUrl` resolved and which
 correlate against `PT FRAME STATE` across several runs. A direct test, not another inference.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .286 — the HDRI-fallback lead is refuted; the reason escalates item (p)
+
+`.285` left one lead for item (u) with an instruction to kill or confirm it directly.
+
+### Refuted by reading the default
+
+For the cold `GradientEquirectTexture` fallback to select between states A and B it would have to vary:
+
+- `store.hdriId` defaults to **null** (`src/state/slices/uiSlice.ts:385`; `hdri.test.ts` asserts it)
+- `hqEnvironmentUrl(on, null)` → `hdriById(null)?.url ?? null` → null
+- `hdriUrl` therefore reaches `createHqRenderSession` as `undefined` on every default run
+- `resolveTracerEnvironment` returns null, `buildTracerScene` takes the gradient branch
+  (`hqRenderSession.ts:352`) every time
+
+Forcing `hdriEnvironment=false` (`PTHDRI=off`, flag asserted and read back, run 13:47 +08) gave state A,
+frameL 155.7 / frameRB −10.1 — consistent with the branch being constant, not with it choosing the state. **A
+constant cannot be the variable.** (u)'s cause remains unidentified; no replacement hypothesis is offered.
+
+### The ON arm is void, caught only by looking
+
+`PTHDRI=on` with `studio_small_09` (run 13:52 +08) returned frameL 182.8 / frameRB +14.7 and a clean-looking
+still. Wrong room: setting `hdriId` reset `scene.environment` to null and moved the camera, so the capture is
+livingDining at eye level rather than bedroom3 pitched up. Anchors, frame state and sample count all read
+normally on a frame of a different room. Fifth time in this arc that looking caught a plausible number.
+
+### The discriminator was too weak
+
+`.285` classified on `frameRB < -4` alone — an implicit assumption that there are exactly two states — so it
+labelled the 182.8 / +14.7 frame "B (expected)". Now three-way against both terms with an explicit
+`UNKNOWN -- matches neither known state; do NOT compare against either`. A discriminator that cannot report
+"neither" is how a studio-HDRI frame of the wrong room gets compared against gradient-lit bedroom numbers.
+
+### Item (p), escalated
+
+The chain above is not a probe curiosity: **every HQ render a user produces, unless they hand-pick an HDRI, is
+lit by a hardcoded cold gradient** (top `0xbfd4e6`, bottom `0x5a5650`) rather than by the room they built.
+Item (p) recorded that the tracer drops `AmbientLight`/`HemisphereLight` and substitutes a gradient; this round
+establishes that this is the **default and only** path. The HQ still is the app's photoreal showcase and by
+default it is not lit by the user's scene — which reframes (p) from a fidelity gap into the central defect of
+the HQ path, and makes it the strongest candidate for the first fix this arc actually ships.
+
+### Method note
+
+The lead died to a default value and three lines of call chain; no render was required. `.285` had already
+spent four probe runs before writing it down. **Check whether a candidate cause is even a variable before
+building an A/B for it.** Roughly half of `.280`–`.285`'s cost went on A/Bs against constants.
+
+### Next
+
+(p) now outranks (u): confirm by direct observation which environment `buildTracerScene` installs on the
+shipped path, rather than inferring it from the call chain; then return to (u) discriminator-first.
+
+Nothing changed in `src/` beyond the version bump.

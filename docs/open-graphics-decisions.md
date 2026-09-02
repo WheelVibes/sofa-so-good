@@ -1480,6 +1480,17 @@ useful instrument this arc has built, and would let `.188`'s ceiling deficit fin
 the fill changes while the viewport changes a great deal. That makes the defect undeniable without
 committing to a mapping.
 
+**⚠️ ESCALATED v0.31.5.286 — this is the DEFAULT path, not an edge case.** `.286` established that
+`store.hdriId` defaults to **null** (`src/state/slices/uiSlice.ts:385`, asserted by
+`src/state/slices/hdri.test.ts`). `hqEnvironmentUrl(on, null)` returns `hdriById(null)?.url ?? null` = null,
+so `hdriUrl` reaches `createHqRenderSession` as `undefined`, so `resolveTracerEnvironment` returns null, so
+`buildTracerScene` takes the `GradientEquirectTexture` branch (`hqRenderSession.ts:352`). **Every HQ render a
+user produces — unless they go and pick an HDRI by hand — is lit by a hardcoded cold gradient (top
+`0xbfd4e6`, bottom `0x5a5650`) instead of the scene's own lighting.** This was filed as "the tracer drops
+Ambient/Hemisphere and substitutes a gradient"; it is worse than that, because it is what happens by default
+on every single render. The HQ still is the app's photoreal showcase and it is not lit by the room the user
+built.
+
 ## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
 
 **The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,
@@ -1919,12 +1930,12 @@ uniformly cold to neutral. Localised lighting changes do not look like that.
 - **Exposure** — two back-to-back runs, identical settings, both reporting `gl.toneMappingExposure = 1.38` and
   `toneMapping = 6` at modal-open *and* at Start render, landed in opposite states (13:27 → A, 13:31 → B).
 
-**Untested hypothesis, recorded so the next round can kill it properly.** `createHqRenderSession` takes an
-`hdriUrl` and falls back to the hardcoded `GradientEquirectTexture` (top `0xbfd4e6`) when it is absent — that
-fallback is both **brighter and colder**, which is exactly state A's signature, and an asset-load race would
-produce precisely this run-to-run coin flip while remaining invisible to exposure and denoise. **This is a
-hypothesis. It has not been tested.** Five consecutive rounds (`.280`–`.284`) published mechanisms that a later
-round refuted, so it is written down as a lead, not a finding.
+**The HDRI-fallback lead is REFUTED (v0.31.5.286).** `.285` suspected the cold `GradientEquirectTexture`
+fallback. It cannot be the state variable, because it is not a variable: `store.hdriId` defaults to null
+(`uiSlice.ts:385`), so `hdriUrl` is `undefined` on **every** default run and the gradient branch is taken every
+time. Forcing `hdriEnvironment=false` duly produced state A, but that is consistent with the branch being
+constant, not with it selecting the state. The cause of (u) remains **unidentified**, and no replacement
+hypothesis is offered.
 
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.

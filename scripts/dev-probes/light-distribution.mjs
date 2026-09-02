@@ -1205,6 +1205,43 @@ if (process.env.PT === '1') {
     )
     return e
   }
+  // PTHDRI=off|on -- force the tracer's environment branch (`.286`). `.285`
+  // left one untested lead for item (u): `resolveTracerEnvironment` falls back to
+  // a hardcoded cold `GradientEquirectTexture` when `hdriUrl` is absent, and that
+  // fallback is brighter AND colder, which is state A's exact signature. The
+  // modal builds `hdriUrl` from `useFeature('hdriEnvironment')` plus
+  // `store.hdriId`, so forcing the flag forces the branch. If the lead is right,
+  // off must give state A every time and on must give state B every time.
+  if (process.env.PTHDRI) {
+    const wantH = process.env.PTHDRI !== 'off'
+    // `hdriId` defaults to null, and `hqEnvironmentUrl(on, null)` returns null --
+    // so flipping the flag alone leaves `hdriUrl` undefined and the gradient
+    // branch taken either way. The ON arm has to name a real preset, or it is not
+    // an A/B at all. PTHDRIID overrides the preset (default `studio_small_09`).
+    const wantId = process.env.PTHDRIID || 'studio_small_09'
+    await page.evaluate(
+      ({ v, id }) => {
+        window.__store.setState((st) => ({
+          featureFlags: { ...st.featureFlags, hdriEnvironment: v },
+          hdriId: v ? id : null,
+        }))
+      },
+      { v: wantH, id: wantId },
+    )
+    const seen = await page.evaluate(() => ({
+      on: window.__store.getState().featureFlags.hdriEnvironment,
+      id: window.__store.getState().hdriId,
+      liveEnv: (() => {
+        const e = window.__three?.scene?.environment
+        if (!e) return 'null'
+        return `${e.isRenderTargetTexture ? 'renderTarget' : 'plain'} mapping=${e.mapping}`
+      })(),
+    }))
+    console.log(
+      `  PTHDRI: asked hdriEnvironment=${wantH}, store reports ${seen.on}, hdriId=${seen.id}, live scene.environment=${seen.liveEnv}`,
+    )
+    if (seen.on !== wantH) throw new Error(`PTHDRI: flag did not take (${seen.on})`)
+  }
   if (process.env.PTEXPO === '1') await expoAt('before modal open')
   await page.evaluate(() => window.__store.getState().setHqRenderOpen?.(true))
   await new Promise((r) => setTimeout(r, 2500))
@@ -2184,7 +2221,20 @@ if (process.env.ANCHORS === '1') {
       }
       const fL = fl / fn
       const fRB = frb / fn
-      const state = fRB < -4 ? 'A (ANOMALOUS -- cold + ~1.4x bright)' : 'B (expected)'
+      // `.285` classified on `fRB < -4` alone, which silently assumed there are
+      // exactly two states. `.286` forced an HDRI on and got frameL=182.8
+      // frameRB=+14.7 -- a third state that the old rule labelled "B (expected)".
+      // Classify against both terms and say UNKNOWN rather than guess: a
+      // discriminator that cannot report "not one of the ones I know" is how
+      // `.285` would have gone on to compare a studio-HDRI frame against
+      // gradient-lit numbers.
+      const inA = fRB < -4 && fL > 145 && fL < 170
+      const inB = fRB > 0 && fRB < 10 && fL > 105 && fL < 130
+      const state = inA
+        ? 'A (ANOMALOUS -- cold + ~1.4x bright)'
+        : inB
+          ? 'B (expected)'
+          : 'UNKNOWN -- matches neither known state; do NOT compare against either'
       console.log(`  PT FRAME STATE: ${state}  frameL=${fL.toFixed(1)} frameRB=${fRB.toFixed(1)}`)
     }
     traced = { data: g.data, rgb: grgb, W: g.info.width, H: g.info.height }
