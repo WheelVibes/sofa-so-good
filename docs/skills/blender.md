@@ -152,6 +152,18 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — a reference is a LIGHT SET, not just a pose.** `BLENDREF`'s manifest carried
+  only directional/hemisphere/ambient, so `render_from_manifest.py` makes a **daylight-only**
+  reference — while the app raster still had 4 `PointLight`s burning, one of them a floor lamp
+  against the wall under measurement. That inflated a published error from 2.99× to 3.95×.
+  Match the light sets (`LIGHTS=off` on the app side) and check the manifest's `placed` field
+  before believing any comparison. The tell that caught it: an "all indirect off" arm put that
+  wall at **8.3× its own frame median**, which no daylight geometry can explain.
+- **2026-09-03 — do NOT give the reference's lamps a wattage.** Tempting, and it would break
+  the reference. three's intensities are artistic, so a fitted lamp power makes the physical
+  reference agree with the artistic choice under test — the same failure the physical-sky
+  decision avoids. Daylight-only on both sides, or real photometric lumen data; never a
+  constant chosen to match.
 - **2026-09-03 — one room is not a validation, and a second one costs 37 seconds.** Every
   conclusion drawn against `bedroom3` at 13:00 was an n = 1 claim. Adding `livingDining`
   confirmed the highlight deficit (34 % and 45 % short) and **broke** the finding that the

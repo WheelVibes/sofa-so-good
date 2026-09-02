@@ -29,6 +29,92 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.8 — the reference had no lamps: (w)'s wall error is 3.0×, not 4×. Corrects v0.31.7.7, and the instrument now says so out loud
+
+Setting out to decide *how* to implement (w)'s fix, I found a confound in the round that
+priced it — one round after publishing it.
+
+**What went wrong.** The `BLENDREF` manifest recorded only `directional`, `hemisphere` and
+`ambient`. It never recorded point or spot lights, and `render_from_manifest.py` therefore
+produces a **daylight-only** reference. But the raster it was compared against still had the
+room's placed lights burning: **4 `PointLight`s in `livingDining`, and the floor lamp stands
+against the very wall under measurement.** So `v0.31.7.7` compared a lamp-lit app frame to an
+unlit reference and attributed the difference to missing skylight transport.
+
+**How it surfaced — an arm whose result was too strange to be true.** Decomposing the fill
+with a new `ENVSCALE` knob (below), the "everything indirect off" arm put the near-left wall
+at **8.3× its own frame median** — i.e. with all indirect light removed, that wall became the
+brightest thing in the picture. No daylight geometry explains that: the sun sits at 83.5°,
+nearly overhead, and cannot flood a vertical wall beside the camera. Something local was
+lighting it, and the lamp was standing right there.
+
+**The corrected numbers, daylight-only on BOTH sides:**
+
+| | reported `v0.31.7.7` | **corrected** | inflation |
+| --- | --- | --- | --- |
+| near-left wall, app ÷ physics | 3.95× | **2.99×** | +32 % |
+| `livingDining` column spread | 6.36× | **4.76×** | +34 % |
+
+**Every conclusion survives, and the room contrast survives most clearly.** Re-measured with
+matched light sets in both rooms:
+
+| | `bedroom3` app | `bedroom3` physics | `livingDining` app | `livingDining` physics |
+| --- | --- | --- | --- | --- |
+| column spread (app ÷ physics) | **1.74×** | — | **4.76×** | — |
+| p25 / median | 0.722 | 0.808 | 0.786 | **0.520** |
+| p95 / median | 1.364 | **1.838** | 1.277 | **2.176** |
+| p99 / median | 1.485 | **2.199** | 1.468 | **2.967** |
+| mid-tone 60..240 | 88.0 % | 90.5 % | 90.8 % | **59.2 %** |
+
+- **The highlight deficit still generalises**: p99/median 32 % short in `bedroom3`, 51 % short
+  in `livingDining`.
+- **The shadow agreement is still room-dependent**: `bedroom3` matches (mid-tone 88.0 % vs
+  90.5 %, p25 slightly *deeper* than physics), `livingDining` does not (90.8 % vs 59.2 %,
+  p25 51 % too light).
+- **The spatial gradient is still the signature**: 4.76× against 1.74×, a 2.7× difference
+  between a deep room and a small one. A ~3× error on a whole wall is smaller than 4× and
+  still the largest single defect this arc has found.
+
+**The instrument is fixed so this cannot recur quietly.** The manifest now carries
+`placed: {on, off, kinds}`, and the run prints either a loud warning naming the count and
+kinds, or an explicit *"no placed lights on — light sets match the daylight-only reference"*.
+Both branches were verified rather than assumed: the default `livingDining` run reports
+`4 PointLight`s and warns; with `LIGHTS=off` it reports the match.
+
+**Placed lights are deliberately NOT converted to Blender.** It would be easy to give them a
+wattage and light the reference, and it would be wrong: three's intensities are artistic
+(`v0.31.6.6` — the app's sun sits at ~1.0, neither watts nor a plausible 100 000 lx), so
+choosing a lamp wattage would make the physical reference agree with an artistic choice under
+test. That is the exact failure the physical-sky decision was taken to avoid. Daylight-only on
+both sides keeps the reference independent. Lighting the reference from *stated photometric*
+lamp data is a legitimate future option, but it is a different measurement and needs real
+lumen figures, not a fitted constant.
+
+**And the implementation question got its answer.** New `ENVSCALE=<f>` scales the IBL probe
+alone (`scene.environmentIntensity` plus per-material `envMapIntensity`, 1060 materials), the
+counterpart to `FILLSCALE`. Comparing shape against physics — all four arms lamps-on, so
+internally consistent with each other and with the 6.36× baseline:
+
+| arm | column spread |
+| --- | --- |
+| default (IBL + analytical fill) | **6.36×** |
+| `ENVSCALE=0` — analytical fill only | 6.97× |
+| `FILLSCALE=0` — IBL only | 10.06× |
+| both zero | 277.73× |
+
+**Removing either indirect term makes the spatial shape worse, so neither is the culprit —
+both are visibility-blind.** That rules out the cheap implementation: a per-material
+`envMapIntensity` cannot carry the fix, because the analytical `HemisphereLight` +
+`AmbientLight` are per-*light* and no per-material number reaches them. The fix has to
+modulate **indirect irradiance per fragment**, which in three means an **`aoMap`** — the one
+slot multiplied into `irradiance` and not into direct light. So it is a bake with a UV channel
+and an asset pipeline, exactly as `v0.31.7.7` guessed, but now for a measured reason rather
+than a plausible one.
+
+**FPS: still nothing spent.** An `aoMap` is a texture fetch in a shader that already runs,
+with no extra pass, so the ≥30 fps floor and the ~16.5 ms of medium-tier headroom remain
+intact for the implementation.
+
 ## v0.31.7.7 — (w) is a ~4× error on a whole wall, it is APERTURE VISIBILITY, and AO cannot reach it
 
 `v0.31.7.6` found the app far flatter than physics in a deep room and matching in a small one,

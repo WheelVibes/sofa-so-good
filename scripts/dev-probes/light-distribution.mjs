@@ -578,6 +578,7 @@ const shotFor = async (pitch) => {
   if (typeof applyFillScale === 'function') await applyFillScale()
   if (typeof applyAmbScale === 'function') await applyAmbScale()
   if (typeof applyHemiScale === 'function') await applyHemiScale()
+  if (typeof applyEnvScale === 'function') await applyEnvScale()
   if (typeof applyLinear === 'function') await applyLinear()
   if (typeof applyFillTint === 'function') await applyFillTint()
   if (typeof applyRecolor === 'function') await applyRecolor()
@@ -762,6 +763,87 @@ const applyFillScale =
           return out
         })
         console.log(`FILLSCALECHECK f=${FILLSCALE} ${JSON.stringify(after)}`)
+      }
+// ENVSCALE=<f> scales the IBL PROBE's contribution alone (`v0.31.7.8`).
+//
+// `v0.31.7.7` measured (w) as a ~4x error on a wall that can barely see the window,
+// and named the missing quantity: APERTURE VISIBILITY. That result says nothing
+// about which of the app's two indirect terms is delivering the excess, and the
+// answer decides the implementation:
+//
+//   - if the IBL probe dominates, a per-material `envMapIntensity` carries the fix.
+//     That is a number on a material -- no new texture, no extra UV channel, no
+//     per-frame work at all.
+//   - if the ANALYTICAL fill (Hemisphere + Ambient) dominates, no per-material
+//     scalar can help, because those are per-LIGHT. The fix then has to be an
+//     `aoMap`, which is the only slot three multiplies into indirect irradiance
+//     per fragment -- a bake, a UV channel, and an asset pipeline.
+//
+// So this is FILLSCALE's counterpart: FILLSCALE=0 leaves IBL + sun, ENVSCALE=0
+// leaves analytical fill + sun, and the two together isolate each term's share.
+//
+// **Counts must not be added or subtracted between these arms.** AgX is not a
+// linear encoding, so a tone-mapped count is not energy and an additive
+// decomposition of the arms is illegitimate (the arc's standing rule). What IS
+// legitimate is comparing each arm's own NORMALISED spatial profile against
+// physics' -- which is the comparison this is for.
+//
+// `scene.environmentIntensity` is three's own scalar for exactly this and is
+// intercepted rather than assigned, since anything that recomputes the environment
+// per frame would otherwise silently revert it (`.254`). Per-material
+// `envMapIntensity` is scaled too, because a material that sets its own value
+// overrides the scene-level one.
+const ENVSCALE = process.env.ENVSCALE
+const applyEnvScale =
+  ENVSCALE === undefined || ENVSCALE === ''
+    ? null
+    : async () => {
+        const f = Number(ENVSCALE)
+        if (!Number.isFinite(f)) throw new Error(`ENVSCALE: expected a number, got ${ENVSCALE}`)
+        const res = await page.evaluate((k) => {
+          const sc = window.__three.scene
+          if (!sc.__envPatched) {
+            sc.__envRaw = sc.environmentIntensity ?? 1
+            Object.defineProperty(sc, 'environmentIntensity', {
+              get() {
+                return this.__envRaw * this.__envFactor
+              },
+              set(v) {
+                this.__envRaw = v
+              },
+              configurable: true,
+            })
+            sc.__envPatched = true
+          }
+          sc.__envFactor = k
+          let mats = 0
+          sc.traverse((o) => {
+            const m = o.material
+            if (!m) return
+            for (const mm of Array.isArray(m) ? m : [m]) {
+              if (typeof mm.envMapIntensity !== 'number') continue
+              if (mm.__envRaw === undefined) mm.__envRaw = mm.envMapIntensity
+              mm.envMapIntensity = mm.__envRaw * k
+              mats++
+            }
+          })
+          return { sceneEff: sc.environmentIntensity, sceneRaw: sc.__envRaw, mats }
+        }, f)
+        await new Promise((r) => setTimeout(r, 900))
+        // Read back AFTER the settle: a patch that gets reverted looks exactly like
+        // one that had no effect (`.254`).
+        const after = await page.evaluate(() => {
+          const sc = window.__three.scene
+          let sample = null
+          sc.traverse((o) => {
+            const m = o.material
+            if (sample || !m || Array.isArray(m)) return
+            if (typeof m.envMapIntensity === 'number' && m.__envRaw !== undefined)
+              sample = { raw: m.__envRaw, eff: m.envMapIntensity }
+          })
+          return { sceneEff: sc.environmentIntensity, sample }
+        })
+        console.log(`ENVSCALECHECK f=${f} ${JSON.stringify({ ...res, after })}`)
       }
 // LINEAR=1 bypasses the tone curve so the SCENE's own luminance range can be read
 // rather than the graded picture's (`.258`).
@@ -1833,8 +1915,33 @@ if (process.env.BLENDREF) {
   fs.mkdirSync(dir, { recursive: true })
   const rig = await page.evaluate(() => {
     const sc = window.__three.scene
-    const out = { directional: [], hemisphere: null, ambient: null, background: null }
+    // `placed` exists because its ABSENCE published a wrong number (`v0.31.7.8`).
+    // The manifest carried only directional/hemisphere/ambient, so a reference
+    // rendered from it is DAYLIGHT-ONLY -- while the raster it is compared against
+    // still had the room's floor lamp and ceiling light burning. In livingDining that
+    // lamp stands against the very wall under measurement and inflated a reported
+    // error from 2.8x to 3.9x.
+    //
+    // Placed lights are NOT converted and sent to Blender on purpose. three's
+    // intensities are artistic (`v0.31.6.6`), so inventing a wattage for them would
+    // make the physical reference agree with the artistic choice under test -- the
+    // exact failure the physical-sky decision was taken to avoid. The right
+    // comparison is daylight-only on BOTH sides, so this records what was burning
+    // and the run warns when anything was, instead of silently mismatching.
+    const out = {
+      directional: [],
+      hemisphere: null,
+      ambient: null,
+      background: null,
+      placed: { on: 0, off: 0, kinds: {} },
+    }
     sc.traverse((o) => {
+      if (o.isPointLight || o.isSpotLight || o.isRectAreaLight) {
+        const lit = o.visible && o.intensity > 0
+        out.placed[lit ? 'on' : 'off'] += 1
+        if (lit) out.placed.kinds[o.type] = (out.placed.kinds[o.type] ?? 0) + 1
+        return
+      }
       if (o.isDirectionalLight) {
         const p = o.getWorldPosition(o.position.clone())
         const t = o.target
@@ -1914,6 +2021,20 @@ if (process.env.BLENDREF) {
   console.log(
     `  BLENDREF -> ${dir}/manifest.json${glbPath ? ` + scene.glb (${(fs.statSync(glbPath).size / 1e6).toFixed(2)} MB)` : ''}`,
   )
+  // Loud, because quiet was expensive. A daylight-only reference compared against a
+  // lamp-lit raster is not a wrong measurement of the app -- it is a measurement of a
+  // different scene, and it reads as an app defect (`v0.31.7.8`).
+  if (rig.placed?.on) {
+    console.log(
+      `  ** BLENDREF WARNING: ${rig.placed.on} placed light(s) are ON ` +
+        `(${JSON.stringify(rig.placed.kinds)}). The reference this manifest produces is ` +
+        `DAYLIGHT-ONLY -- placed lights are deliberately not converted, since three's ` +
+        `intensities are artistic and inventing a wattage would make the physical reference ` +
+        `agree with the thing under test. Re-run with LIGHTS=off for a matched comparison.`,
+    )
+  } else {
+    console.log(`  BLENDREF: no placed lights on -- light sets match the daylight-only reference`)
+  }
 }
 const shotDown = await shotFor(FLOOR_PITCH)
 fs.writeFileSync(`${OUT}/frame.png`, shot)

@@ -2918,8 +2918,10 @@ been attributed to the glass or to the background tone-mapping path.
 
 ## (w) RASTER-INTERREFLECTION — 🐞 REAL, in the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
 
-> **⚠️ RE-PRICED BY AN ORDER OF MAGNITUDE, v0.31.7.7 — this is a ~4× error on a whole wall, and
-> it is APERTURE VISIBILITY.** Everything below prices (w) as surface *ratios* in one small room
+> **⚠️ RE-PRICED, v0.31.7.7, CORRECTED v0.31.7.8 — a ~3× error on a whole wall, and it is
+> APERTURE VISIBILITY.** *(The figures below are `v0.31.7.7`'s, taken against a reference that
+> had no lamps while the raster did; the corrected, light-set-matched numbers are wall
+> **2.99×** and spread **4.76×** against `bedroom3`'s 1.74×. The diagnosis is unchanged.)* Everything below prices (w) as surface *ratios* in one small room
 > (`bedroom3`): ~21–25 % on the ceiling, ~14 % on the floor. Measured against a Cycles reference
 > in a normal living room it is far larger. Column profile, mean luminance ÷ own median:
 >
@@ -2941,6 +2943,11 @@ been attributed to the glass or to the background tone-mapping path.
 > 3. **The right quantity is aperture visibility** — what fraction of the window each point
 >    sees. The app's `HemisphereLight` + `AmbientLight` give every surface the same skylight
 >    whether or not it can see the sky.
+> 4. **And it must be an `aoMap`, not a per-material scalar** (`v0.31.7.8`). Scaling the IBL
+>    probe alone (`ENVSCALE`) or the analytical fill alone (`FILLSCALE`) each makes the spatial
+>    shape *worse* (spread 6.97× and 10.06× against 6.36×), so both terms are equally
+>    visibility-blind. A per-material `envMapIntensity` cannot reach the analytical lights,
+>    which are per-*light*; only an `aoMap` modulates indirect irradiance per fragment.
 >
 > **Which makes the fix a bake, at zero per-frame cost.** Aperture visibility is static per room
 > geometry, so Blender can bake it (`bake_material.py`, Part B) and the fill can be modulated by
