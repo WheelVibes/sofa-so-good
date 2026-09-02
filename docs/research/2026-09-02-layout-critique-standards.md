@@ -25,20 +25,36 @@ published spacing standards)" instead of "the cheaper of the two".
 | Conversation, ideal | 1.8–2.4 m | "6–8 feet between facing seats." |
 | Conversation, breakdown | > 3.05 m | "Beyond 10 feet (305 cm), conversation becomes difficult — voices must be raised, and the intimacy of connection is lost." |
 | Coffee-table reach | 0.36–0.46 m | "Your coffee table should be about 14 to 18 inches away from your sofa… close enough to easily reach for a drink or book, but far enough to allow comfortable legroom." |
-| Main walkway (context) | 0.91 m | "Maintain a minimum of 36 inches (91 cm) for walkways within the living room." Not yet a check — `designScore`'s circulation category already covers gaps; noted so the number is on record. |
-| Sofa proportion | ≤ 60% of the room's shorter span | Derived, not quoted — see the caveat below. |
+| Main walkway (context) | 0.91 m generic / **0.70–0.80 m SG** | Generic: "maintain a minimum of 36 inches (91 cm) for walkways". **But SG sources differ**: "the non-negotiable is keeping your main walkway at least 70-80 cm clear". Not implemented as a check — and good thing, since the two standards disagree by ~20 cm and the SG figure is the applicable one for this app. Recorded so a future check uses the right number. |
+| Sofa-to-coffee-table, SG | 0.30–0.45 m | SG sources give "30-45 cm between the sofa and the coffee table" vs the generic 0.36–0.46 m. Close enough that the current band passes either way, but noted. |
+| Sofa width | 1.75–2.20 m | "Three-seaters are typically 175cm to 220cm wide"; for a 4-room HDB, "a 3-seater straight sofa between 190 and 210 cm wide fits comfortably". |
 
-## Caveats, stated rather than buried
+## The sofa check was derived, then replaced with a cited figure (v0.31.5.269)
 
-**The sofa-proportion bar is the weakest number here.** The sources give a
-medium living room as 4.3 × 4.8 m to 4.6 × 5.5 m and treat an over-scaled sofa as
-the classic small-room error, but none states a ratio. The 60% figure is my
-derivation from those dimensions, not a citation. Measured consequence: on the
-default HDB flat a 2.60 m sofa across a 3.40 m span is 76%, so this check warns
-on essentially every scheme and discriminates poorly. That is arguably *correct*
-— SG flats genuinely carry large sofas in small rooms — but it means the number
-is describing the housing stock rather than the design. A future pass should
-either source an SG-specific ratio or drop the check.
+The first version used a **derived** bar — sofa width ≤ 60% of the room's shorter
+span — because the generic sources give room dimensions but no ratio. It warned
+on essentially every SG scheme (a 2.60 m sofa across a 3.40 m span is 76%), so it
+described the housing stock rather than the design, and I flagged it as the
+weakest number in the set.
+
+Searching SG-specific sources resolved it properly: **they express sofa fit as an
+absolute width band, not a ratio** — "three-seaters are typically 175cm to 220cm
+wide", and "between 190 and 210 cm" for a 4-room HDB living room. Replaced the
+ratio with the 1.75–2.20 m band.
+
+That also produced a sharper result: the app's default 2.60 m sofa is genuinely
+ABOVE the typical SG 3-seater, so the warning now identifies a real over-scaled
+piece rather than restating that HDB rooms are small. The check is also now
+room-independent, which a test pins — the same sofa in a 3 m room and a 6 m room
+must read the same, because the standard is a width, not a proportion.
+
+**Wider lesson for this file.** The generic and SG standards genuinely DISAGREE:
+walkway minimum is 91 cm generically but 70–80 cm in SG guidance. Any future
+check should prefer the SG figure for this app and record both, as the table now
+does. Reaching for a derived ratio when a cited absolute exists was the actual
+mistake.
+
+## Other caveats, stated rather than buried
 
 **The measurements are geometric, not aesthetic.** Nothing here says a scheme is
 prettier. A layout can score full marks and be dull.
@@ -72,3 +88,9 @@ noticing that both schemes reported the identical suspicious value.
 - [Furniture Spacing Guidelines: Room-by-Room Clearance Rules — RoomSketch3D](https://www.roomsketch3d.com/learn/traffic-flow-spacing/furniture-spacing-guidelines)
 - [Living Room Interior Design: Key Dimensions and Layouts — Blocks NorCam](https://blocksnorcam.com/home/blog/living-rooms)
 - [Key Interior Design Measurements & Dimensions — Marsha Sefcik](https://marshasefcik.com/blog/key-interior-design-measurements-amp-dimensions-you-should-know)
+
+### Singapore-specific (preferred for this app where the two disagree)
+- [Choosing the Right Sofa Dimensions for a Singapore Home — Megafurniture](https://megafurniture.sg/blogs/articles/choosing-the-right-sofa-dimensions-for-a-singapore-home)
+- [Sofa Sizes Explained: Dimensions for HDB and Condo Living Rooms — Maxi Home](https://www.maxihome.com.sg/blogs/news/sofa-sizes-explained-dimensions-hdb-condo-living-rooms)
+- [Sofa Size Guide: Will It Fit Your HDB Living Room? — LOFT HOME](https://lofthome.com/blogs/articles/sofa-size-guide-will-it-fit-your-hdb-living-room-expert-advice)
+- [How to Furnish a 3-Room HDB Living Room — Megafurniture](https://megafurniture.sg/blogs/articles/how-to-furnish-a-3-room-hdb-living-room-a-complete-plan-with-sizes)

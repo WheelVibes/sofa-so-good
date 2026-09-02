@@ -204,10 +204,11 @@ proposing a channel change (meta-rule xvii-b).
   layouts.** Fixed by adding `analysis/layoutCritique.ts` as a SEPARATE measurement (TV distance,
   conversation range, coffee-table reach, sofa proportion — thresholds cited in
   `docs/research/2026-09-02-layout-critique-standards.md`), used as the tie-break above price. The
-  three that tied at 83 now separate 89/85/79. **Still open:** the sofa-proportion threshold (60% of
-  the room's shorter span) is derived, not cited, and warns on essentially every SG scheme, so it
-  describes the housing stock rather than the design. Source an SG-specific ratio or drop that one
-  check. Original note follows.
+  three that tied at 83 now separate 89/85/79. **Sofa caveat CLOSED v0.31.5.269**: SG sources
+  express sofa fit as an absolute width band (175-220 cm typical 3-seater, 190-210 cm for a 4-room
+  HDB), not a ratio — so the derived 60%-of-span bar was replaced with the cited band, and it now
+  flags the app's 2.60 m default sofa as genuinely over-scaled rather than restating that HDB rooms
+  are small. Original note follows.
 - **[superseded, kept for the reasoning] `designScore` cannot rank genuinely different layouts.** With the authored layouts wired in
   (v0.31.5.266), three substantively different arrangements (80/81/83 items, different furniture)
   score IDENTICALLY at 83 on every category, so the comparison falls through to the price tie-break.
@@ -253,6 +254,11 @@ proposing a channel change (meta-rule xvii-b).
   surface an arbitrary preset, so a user is never shown a theme whose palette is invented.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
+- **[layout critique] Add a walkway-width check using the SG figure, not the generic one.** The two
+  standards disagree: 91 cm generic vs "at least 70-80 cm" in SG guidance
+  (`docs/research/2026-09-02-layout-critique-standards.md` records both). `designScore`'s circulation
+  category covers gaps between items but not the width of the MAIN route through a room. If added,
+  use the SG figure for this app.
 - **[G8] Add a Peranakan encaustic floor tile material.** The audit found the one real fidelity gap
   in an otherwise-accurate theme: geometric encaustic floor tiles are "among the most recognisable
   elements" of Peranakan interiors, and the preset approximates them with a patterned RUG over dark

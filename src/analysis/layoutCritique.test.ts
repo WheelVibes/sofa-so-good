@@ -125,25 +125,35 @@ describe('buildLayoutCritique — coffee table and proportion', () => {
     expect(find(c, 'coffee-table').verdict).toBe('skipped')
   })
 
-  it('warns an over-scaled sofa against the room span', () => {
-    const wide: Record<string, FurnitureDef> = { ...defs, big: def('big', 4.5, 0.9) }
-    const c = buildLayoutCritique(
-      {
-        ...plan(),
-        rooms: [{ id: 'r1', name: 'Living', origin: [0, 0], width: 6, depth: 5 }],
-      } as never,
-      [item('s', 'big', 3, 3)],
-      { ...wide, big: def('big', 4.5, 0.9) },
-    )
-    // 4.5 m across a 5 m shorter span = 90%, over the 60% bar.
-    const f = c.findings.find((x) => x.id === 'sofa-proportion')
-    expect(f?.verdict === 'warn' || f?.verdict === 'skipped').toBe(true)
+  it('warns a sofa above the cited SG 3-seater band, and says why', () => {
+    const wide = { ...defs, 'sofa-big': def('sofa-big', 2.6, 0.9) }
+    const c = buildLayoutCritique(plan(), [item('s', 'sofa-big', 3, 3)], wide)
+    const f = find(c, 'sofa-proportion')
+    expect(f.verdict).toBe('warn')
+    expect(f.detail).toContain('2.60 m wide')
+    expect(f.detail).toMatch(/eat the room/)
   })
 
-  it('passes a proportionate sofa', () => {
+  it('passes a sofa inside the SG band', () => {
+    // 2.10 m — squarely inside the 1.75-2.20 m typical range.
     const c = buildLayoutCritique(plan(), [item('s', 'sofa-3seat', 3, 3)], defs)
-    // 2.1 m across a 5 m span = 42%.
     expect(find(c, 'sofa-proportion').verdict).toBe('pass')
+  })
+
+  it('judges sofa size on ABSOLUTE width, not a ratio to the room', () => {
+    // The same sofa in a tiny room and a large one must read the same: the SG
+    // sources give a width band, not a proportion, and a ratio warned on
+    // essentially every SG scheme.
+    const small = buildLayoutCritique(
+      {
+        ...plan(),
+        rooms: [{ id: 'r1', name: 'Living', origin: [0, 0], width: 3, depth: 3 }],
+      } as never,
+      [item('s', 'sofa-3seat', 1.5, 1.5)],
+      defs,
+    )
+    const large = buildLayoutCritique(plan(), [item('s', 'sofa-3seat', 3, 3)], defs)
+    expect(find(small, 'sofa-proportion').verdict).toBe(find(large, 'sofa-proportion').verdict)
   })
 })
 

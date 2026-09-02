@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.269 - the sofa check gets a cited figure instead of my derived one
+
+Closing the caveat I shipped one version ago. The layout critique's sofa check used a DERIVED bar —
+width <= 60% of the room's shorter span — because the generic sources give room dimensions but no
+ratio. I flagged it as the weakest number in the set: it warned on essentially every SG scheme (a
+2.60 m sofa across a 3.40 m span is 76%), so it described the housing stock rather than the design.
+
+Singapore sources resolve it properly, and the resolution is that **the ratio was the wrong SHAPE of
+answer**. They express sofa fit as an absolute width band: "three-seaters are typically 175cm to
+220cm wide", narrowing to "between 190 and 210 cm" for a 4-room HDB living room. Replaced the ratio
+with the cited 1.75-2.20 m band.
+
+Two better outcomes. The check now identifies something real — the app's default 2.60 m sofa is
+genuinely ABOVE the typical SG 3-seater, so the warning names an over-scaled piece instead of
+restating that HDB rooms are small. And it is room-independent, which a test pins: the same sofa in
+a 3 m room and a 6 m room must read identically, because the standard is a width, not a proportion.
+
+**A divergence worth recording for future checks.** The generic and SG standards genuinely disagree:
+main-walkway minimum is 91 cm generically but "at least 70-80 cm" in SG guidance — a ~20 cm gap. I
+had listed 91 cm in the standards table as context for a check I had not implemented; good thing,
+because implementing it from the generic figure would have been wrong for this app. The table now
+records both, marks the SG figure as the applicable one, and `TODO.md` carries the note for whoever
+adds a walkway check. Same for sofa-to-coffee-table: SG says 30-45 cm against the generic 36-46 cm
+(close enough that the current band passes either way, but noted).
+
+The general lesson, written into the doc: reaching for a derived ratio when a cited absolute exists
+was the actual mistake, not the specific number.
+
++3 tests replacing the ratio ones, including the room-independence pin. Full suite green.
+
 ## v0.31.5.268 - a ruler that can actually tell two layouts apart
 
 G8's comparison had a hole I put there: three genuinely different authored arrangements score

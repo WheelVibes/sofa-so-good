@@ -18,9 +18,11 @@
  *    past 3.05 m (10 ft) "conversation becomes difficult — voices must be
  *    raised, and the intimacy of connection is lost".
  *  - **Coffee-table reach** 0.36–0.46 m (14–18 in) from the sofa front.
- *  - **Seating-to-room proportion** — a sofa should not span most of its room's
- *    width; the guides put a medium living room at 4.3–5.5 m and treat an
- *    over-scaled sofa as the classic small-room error.
+ *  - **Sofa width** 1.75–2.20 m — the typical SG 3-seater band, an ABSOLUTE
+ *    figure from Singapore sources rather than a ratio against room span. The
+ *    first draft used a derived 60%-of-span ratio, which warned on essentially
+ *    every SG scheme and therefore described the housing stock rather than the
+ *    design; the cited band identifies an over-scaled sofa directly.
  *
  * **Deliberately a SEPARATE score, not a re-weighting of `designScore`.**
  * Re-tuning a shipped, user-visible score is a product decision (see
@@ -54,8 +56,16 @@ export const CRITIQUE = {
   /** Sofa front to coffee-table edge. */
   tableMin: 0.36,
   tableMax: 0.46,
-  /** A sofa wider than this fraction of its room's shorter span is over-scaled. */
-  sofaSpanFraction: 0.6,
+  /**
+   * Typical 3-seater sofa width in Singapore homes (m). SG sources give an
+   * ABSOLUTE band rather than a ratio — "three-seaters are typically 175 cm to
+   * 220 cm wide", narrowing to "between 190 and 210 cm" for a 4-room HDB living
+   * room. An absolute band is the honest check: a ratio against room span
+   * warned on essentially every SG scheme and so described the housing stock
+   * rather than the design (recorded in the standards doc).
+   */
+  sofaWidthMin: 1.75,
+  sofaWidthMax: 2.2,
 } as const
 
 export type CritiqueId = 'tv-distance' | 'conversation' | 'coffee-table' | 'sofa-proportion'
@@ -266,30 +276,30 @@ export function buildLayoutCritique(
     }
   }
 
-  // 4 — Sofa proportion against its room's SHORTER span.
+  // 4 — Sofa width against the typical SG band.
   const sofas = resolved.filter((r) => /^sofa/.test(r.it.defId))
   if (sofas.length === 0) {
     findings.push({
       id: 'sofa-proportion',
-      label: 'Sofa proportion',
+      label: 'Sofa size',
       verdict: 'skipped',
       detail: 'No sofa placed.',
     })
   } else {
     for (const s of sofas) {
       const room = roomOf(rooms, s.it)
-      if (!room) continue
-      const span = Math.min(room.width, room.depth)
-      if (!(span > 0)) continue
       const w = itemWidth(s.it, s.def)
-      const frac = w / span
-      const verdict = frac <= CRITIQUE.sofaSpanFraction ? 'pass' : 'warn'
+      if (!(w > 0)) continue
+      const verdict = w >= CRITIQUE.sofaWidthMin && w <= CRITIQUE.sofaWidthMax ? 'pass' : 'warn'
       findings.push({
         id: 'sofa-proportion',
-        label: 'Sofa proportion',
+        label: 'Sofa size',
         verdict,
-        detail: `${w.toFixed(2)} m sofa across a ${span.toFixed(2)} m room span (${Math.round(frac * 100)}%; over ${Math.round(CRITIQUE.sofaSpanFraction * 100)}% reads over-scaled).`,
-        roomName: room.name,
+        detail:
+          w > CRITIQUE.sofaWidthMax
+            ? `${w.toFixed(2)} m wide — above the ${CRITIQUE.sofaWidthMin}–${CRITIQUE.sofaWidthMax} m typical for a Singapore 3-seater, so it will eat the room.`
+            : `${w.toFixed(2)} m wide (typical SG 3-seater band ${CRITIQUE.sofaWidthMin}–${CRITIQUE.sofaWidthMax} m).`,
+        roomName: room?.name,
       })
     }
   }
