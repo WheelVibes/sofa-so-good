@@ -1536,3 +1536,47 @@ describe('tiling layout plan sheet (tileLayoutSheet)', () => {
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Tiling layout plan')
   })
 })
+
+describe('wall tile setting-out table', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('appears when a room carries a modular WALL finish', () => {
+    // `wall-tile-white` is 300x600 — one of the two wall tiles that already
+    // declared a module and that nothing consumed before this.
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      { floor: { bath1: 'floor-tile-white' }, walls: { bath1: 'wall-tile-white' } },
+    )
+    expect(html).toContain('Wall tile setting-out')
+    // The two rules that distinguish this from the floor table must be stated
+    // ON the sheet, since a tiler reads the sheet and not the source.
+    expect(html).toContain('at least half a tile')
+    expect(html).toContain('from the CEILING down')
+    // And the honest limitation, rather than implying corner alignment.
+    expect(html).toContain('not generally align around a corner')
+  })
+
+  it('is absent when every room is painted (no modular wall finish)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      { floor: { bath1: 'floor-tile-white' }, walls: { bath1: 'wall-paint-white' } },
+    )
+    expect(html).not.toContain('Wall tile setting-out')
+  })
+})

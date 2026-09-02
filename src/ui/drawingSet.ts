@@ -52,7 +52,7 @@ import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
 import { buildReflectedCeilingPlan } from '../floorplan/rcp'
 import { rcpSvg } from '../floorplan/rcpSvg'
 import type { RoomFinishMaps } from '../floorplan/roomFinishes'
-import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
+import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import { settingOutDimensions } from '../floorplan/settingOut'
@@ -61,6 +61,7 @@ import { planTileCoursing } from '../floorplan/tileCoursing'
 import { tileLayoutSvg } from '../floorplan/tileLayoutSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
+import { planWallTileCoursing } from '../floorplan/wallTileCoursing'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { iesShapeFactor } from '../lighting/ies/iesShape'
@@ -305,6 +306,60 @@ function tileCoursingTable(
         ? `${omittedRooms} room${omittedRooms === 1 ? '' : 's'} omitted — finish has no specified module.`
         : ''
     }</div>`
+  )
+}
+
+/**
+ * WALL tile setting-out table — the sibling of the floor coursing table above,
+ * and NOT the same rules (see `wallTileCoursing.ts`): a wall run is centred with
+ * end cuts of at least HALF a tile, and the courses run from the ceiling DOWN so
+ * the cut lands at the bottom where it is least visible.
+ */
+function wallCoursingTable(
+  levelPlan: FloorPlan,
+  finishes: RoomFinishMaps | undefined,
+  units: UnitSystem,
+): string {
+  if (!finishes) return ''
+  const wallByRoom: Record<string, string> = {}
+  for (const room of levelPlan.rooms ?? []) {
+    const w = resolvePlanRoomWall(finishes, room)
+    if (w) wallByRoom[room.id] = w
+  }
+  const { rows, omittedFaces } = planWallTileCoursing(levelPlan, wallByRoom, BUILTIN_MATERIALS)
+  if (rows.length === 0) return ''
+  const mm = (v: number) => esc(formatDrawingLength(v / 1000, units))
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><td>${esc(r.wallName)}</td><td>${esc(r.materialName)}</td>` +
+        `<td class="n">${r.moduleMm[0]}×${r.moduleMm[1]}</td>` +
+        `<td class="n">${mm(r.faceMm[0])} × ${mm(r.faceMm[1])}</td>` +
+        `<td class="n">${r.fullTilesAcross}</td>` +
+        `<td class="n">${mm(r.endCutMm)}</td>` +
+        `<td class="n">${r.fullCourses}</td>` +
+        `<td class="n">${mm(r.bottomCutMm)}</td>` +
+        `<td class="n">${r.tileCount}</td>` +
+        `<td>${r.bottomSliver ? '⚠ bottom course under half a tile' : r.openings > 0 ? `${r.openings} opening${r.openings === 1 ? '' : 's'} — cut around` : '—'}</td></tr>`,
+    )
+    .join('')
+  return (
+    `<h3>Wall tile setting-out</h3>` +
+    `<table class="sched"><tr class="h"><td>Wall</td><td>Finish</td><td class="n">Module</td>` +
+    `<td class="n">Face (run × height)</td><td class="n">Full tiles across</td>` +
+    `<td class="n">End cut (each end)</td><td class="n">Full courses</td>` +
+    `<td class="n">Bottom cut</td><td class="n">Tiles</td><td>Note</td></tr>${body}</table>` +
+    `<div class="note">` +
+    `Each run is set out CENTRED, with the field shifted half a module where needed so both end cuts are at least half a tile. ` +
+    `Courses run from the CEILING down, so the cut course lands at the bottom. ` +
+    `A bottom cut under half a course is a design decision (drop the tiled height, change module, or accept) — it is flagged, not adjusted. ` +
+    `Openings are cut around the set-out field; verify on site. ` +
+    `Faces are set out independently, so courses will not generally align around a corner. ` +
+    `Tile counts EXCLUDE wastage. ` +
+    (omittedFaces > 0
+      ? `${omittedFaces} face${omittedFaces === 1 ? '' : 's'} omitted — finish has no specified module.`
+      : '') +
+    `</div>`
   )
 }
 
@@ -1056,7 +1111,10 @@ export function buildDrawingSheets(
         // Coursing rides with the finishes it refers to — a setting-out table
         // pointing at "the floor tile" with no finishes schedule beside it
         // would be a dangling reference (the same rule the tile marks follow).
-        body: body + tileCoursingTable(plan, finishes, units),
+        body:
+          body +
+          tileCoursingTable(plan, finishes, units) +
+          wallCoursingTable(plan, finishes, units),
         calloutGroup: 'finishes',
         scaleLabel: NTS,
       })

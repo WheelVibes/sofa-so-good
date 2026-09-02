@@ -5,6 +5,55 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.290 - wall tile setting-out, and the default SG bathroom fails it
+
+Closes Finding A from `.289`: two wall tiles declared a 300x600 module and nothing consumed it.
+New `floorplan/wallTileCoursing.ts` + a **Wall tile setting-out** table on the finishes sheet.
+
+**Deliberately not the floor model re-run on walls.** The conventions differ, and the difference is
+load-bearing. Sourced in `docs/research/2026-09-03-wall-tile-setting-out.md`:
+
+- **Horizontal: centred, with end cuts of at least HALF a tile** — versus a QUARTER for floors. A
+  floor cut sits under furniture; a wall cut sits in your eyeline. Trade practice is explicit:
+  "edge tiles are always at least half the width of a whole tile".
+- **Vertical: full course at the TOP, cut course at the BOTTOM**, set out from the ceiling down —
+  "you always look at the top, rarely the bottom", and setting out from the lowest point leaves
+  small cuts against the ceiling where they are most obvious.
+
+The half-tile bar has an arithmetic consequence worth stating, because it makes the rule read as
+though it always fires: with a centred field `cut = leftover / 2` and `leftover < module`, so the
+naive cut is ALWAYS under half a tile. Shifting the field half a module gives
+`(leftover + module) / 2`, which always lands in `(module/2, module)`. So a correct wall run always
+ends on a cut between a half tile and a full one — and the "sliver" case that is near-unreachable
+for floors (`.288`) **cannot arise horizontally on a wall at all**. A swept test pins that from
+300 mm to 6 m of run.
+
+**The finding that matters: the DEFAULT configuration fails the vertical rule.** The app's default
+ceiling is 2.6 m — the common SG figure — and the catalog's wall tiles are 300 x 600. That gives 4
+full courses (2400 mm) and a **200 mm bottom cut**, under half a course and unacceptable by the
+practice above. This is not a contrived fixture; it is what a Singapore bathroom in this app does
+out of the box, and it is exactly the decision a designer should be making before the tiler starts
+rather than discovering afterwards. A test pins that specific case as the motivating one.
+
+Vertical is FLAGGED, never adjusted, and the asymmetry is deliberate: horizontal has a free
+adjustment available (shift half a module), vertical does not — the tiled height is set by the
+ceiling, so there is nothing to borrow. The fix is a decision (drop the tiled height, change
+module, accept), so the sheet states it as one.
+
+**Two limitations stated ON the sheet, not just in the source**, because a tiler reads the sheet:
+openings are cut around the set-out field rather than designed around (a genuinely opening-aware
+field is a larger model, and faking it would put a confident wrong setting-out on a drawing), and
+faces are set out independently, so **courses will not generally align around a corner** — real
+trade practice wants them to, and enforcing it means solving all four faces of a wet room together
+and choosing which face's balance to sacrifice.
+
+Face names come from the SHARED `assignRoomWallNames` allocator, so a face agrees with the wall
+elevation sheet for the same wall instead of inventing a second numbering. A wall bordering two
+rooms yields a face per room, since each side is a separate job with its own finish.
+
+22 new tests. One of them caught my own error while writing them: my "healthy bottom cut" example
+used 2.6 m, which is itself a sliver — which is how the default-configuration finding surfaced.
+
 ## v0.31.5.289 - hunting the .288 failure mode: features complete except for their data
 
 No new feature. `.288` found the tile setting-out table had been rendering **empty since it

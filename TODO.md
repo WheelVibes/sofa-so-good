@@ -275,7 +275,18 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 (added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
 exact commit so it can — do not leave it to be discovered.
 
-## Wall-tile setting-out (G5 sibling) — NOT a small job, do not treat it as one
+## Wall-tile setting-out — ✅ SHIPPED v0.31.5.290 (table). Two follow-ups remain:
+- **Opening-aware field.** Openings are currently cut around a field set out over the full face.
+  A genuinely opening-aware setting-out (where a balanced centre may sit elsewhere, and the
+  courses above a door differ from those beside it) is a larger model.
+- **Corner coursing consistency.** Faces are set out independently, so courses do not generally
+  align around a corner. Enforcing it means solving all four faces of a wet room together with a
+  shared origin and choosing which face's balance to sacrifice — a design decision.
+- **A drawn wall-tile elevation** would do for walls what `.288`'s tiling layout plan did for
+  floors. The elevations sheet already draws each wall face; overlaying the course grid on it is
+  the natural home, not a new sheet.
+
+### Original scoping note (kept — it was right that this was not a small job)
 
 `tileCoursing.ts` sets out FLOORS only. Two wall tiles declare a 300x600 module and **nothing
 consumes it** (measured: wall `moduleMm` coverage 2/57). Wall tiling is where a bad cut is most
