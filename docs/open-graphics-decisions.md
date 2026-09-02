@@ -2030,6 +2030,35 @@ confined to white-finish frames at a shared pose.
 sample count and withdrew `.277`–`.279`; `.284` blamed the AI-denoise swap. The saved frame shows the white arm
 was simply a **class-A frame**. `.280`'s withdrawal stands; its reason and `.284`'s replacement reason do not.
 
+**🚨 ESCALATED v0.31.5.298 — class A is PHYSICALLY IMPOSSIBLE, so this is not nondeterminism; it is half of
+all HQ stills being wrong.** In a room lit only through a window, no interior surface can be brighter than the
+aperture. Measured on saved frames:
+
+| frame | class | glazing | ceiling | verdict |
+| --- | --- | --- | --- | --- |
+| `u1` | B | 166.9 | 115.2 | interior 51 counts below the aperture ✔ |
+| `tm-1` | M | 169.5 | 127.4 | below ✔ |
+| `u2` | **A** | 170.9 | **181.5** | **ceiling out-radiates the window by 10.6** ✘ |
+
+Patch maxima agree (184 vs 173) and all patches are clean (sd 0.7–1.3). Confirmed by looking at the two crops
+side by side. AgX compresses the bright end, so the radiance violation is **understated** by these displayed
+values.
+
+**Consequences.** Class **B is the correct render**; class A is a bug — which answers the "which class is
+correct" question `.296` had listed as unknown. **~50 % of HQ renders (12 of 24 at one pose) are physically
+invalid**, so a user pressing "Start render" has about even odds of a still whose ceiling emits more light than
+its window. And **class-A figures must be discarded, not merely labelled** — `.295`'s "record the class" is too
+weak; a class-A number measures an impossible render.
+
+**Constraint on the cause, offered as a lead only.** Whatever (u) is, it adds energy to interior surfaces the
+aperture cannot account for. `root.environment` lights every surface in three's IBL regardless of whether it
+can see the sky, and the tracer's environment is the hardcoded cold gradient (item (p)) — which would also
+explain why class A is *cold* as well as bright. **Untested. Not a mechanism.** Eleven candidates eliminated;
+every mechanism proposed in `.280`–`.294` was refuted by a later round.
+
+**This puts (u) level with (p) in priority:** both make the app's photoreal showcase wrong by default — (p)
+always, (u) half the time.
+
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.
 

@@ -44,6 +44,32 @@ chroma and ~43 in frame mean** — far larger than most effects the arc was tryi
 environment branch (twice — once as a constant, once by direct observation), tone mapping, denoise/blank-render
 failure, a per-capture tile race, camera pose, per-tile assignment.
 
+## Validity check: does any interior surface out-radiate the APERTURE?
+
+The cheapest, most physical sanity check available for an HQ still, and the one that finally settled which of
+(u)'s classes is correct (`.298`). **In a room lit only through a window, no interior surface can be brighter
+than the aperture lighting it.** Sample a patch inside the glazing pane and patches on the ceiling and walls,
+and compare means:
+
+| frame | class | glazing | ceiling | verdict |
+| --- | --- | --- | --- | --- |
+| class B | correct | 166.9 | 115.2 | interior 51 counts below the aperture ✔ |
+| class A | **bug** | 170.9 | **181.5** | ceiling out-radiates the window ✘ |
+
+Patches used on the bedroom3 pitched-up pose (`WINDOW=bedroom3 PITCH=0.30`), as normalized `x,y,w,h`:
+`glazing 0.46,0.60,0.08,0.10` (inside the left pane, clear of the mullion), `ceiling 0.30,0.10,0.10,0.10`,
+`wall-L 0.12,0.55,0.08,0.10`, `wall-R 0.84,0.42,0.07,0.08`. Check the patch sd — 0.7–1.3 on clean plaster and
+glazing; anything much higher means the patch caught an edge or an object.
+
+**Deliberately not a probe knob.** The patch coordinates are pose-specific, and `.293` shipped a pose-specific
+classifier that misclassified a frame already known to be good. Pass the coordinates explicitly so the caller
+declares the region, which is the actual lesson of that failure.
+
+Two caveats. AgX compresses the bright end, so a violation measured in displayed counts **understates** the
+radiance gap. And the app's glazing is a mid-tone panel that clips 0.0 % (item (l)), far darker than real
+daylight — so this compares interior surfaces against *the app's own aperture*, which is the right internal
+comparison but is not a comparison against a real sky.
+
 ## Reading the tracer canvas: you may get either of two different images
 
 `HqRenderModal.tsx` shows `session.canvas` (the tracer's WebGL canvas) while rendering, and on completion

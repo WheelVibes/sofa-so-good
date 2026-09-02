@@ -5,6 +5,60 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.298 — class A is physically impossible: its ceiling out-radiates the window. So (u) is not nondeterminism, it is *half of all HQ stills being wrong*
+
+`.296` listed *"which of (u)'s classes is the correct render"* as genuinely unknown, and noted that `.293`'s
+attempt to answer it rested on the mis-paired comparison `.294` overturned. There is a way to answer it that
+needs no knowledge of (u)'s cause: **a physical constraint.** In a room lit only through a window, no interior
+surface can be brighter than the aperture lighting it. Measured on the frames already on disk — no probe runs.
+
+| frame | class | glazing | ceiling | wall-L | wall-R | verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| `u1` | **B** | 166.9 | 115.2 | 116.1 | 106.2 | interior 51–61 counts **below** the aperture ✔ |
+| `tm-1` | **M** | 169.5 | 127.4 | 138.2 | 153.4 | below ✔ |
+| `u2` | **A** | 170.9 | **181.5** | 157.7 | 157.2 | **ceiling out-radiates the window by 10.6** ✘ |
+
+**Class A is unphysical.** Patch maxima say the same thing (ceiling 184 against glazing 173), and the patches
+are clean — sd 0.7–1.3 on all three glazing/ceiling samples.
+
+**Looked at, per the first method rule, because this is a headline claim.** The two patches side by side: in
+class B the pane is plainly brighter than a warm-grey ceiling; in class A the ceiling reads as light as the
+pane, very slightly lighter. Both crops match their numbers.
+
+**The violation is understated, not overstated.** AgX compresses the bright end, so two displayed values 10.6
+counts apart near 175 correspond to a considerably larger radiance gap than 10.6/255 implies. Correcting for
+the curve would widen the violation, not close it.
+
+**So `.296`'s unknown is answered: class B is the correct render and class A is a bug.** And that changes what
+(u) *is*. It has been described since `.285` as nondeterminism — an annoyance for measurement. It is worse than
+that:
+
+- **~50 % of HQ renders are physically invalid.** Class A is 12 of 24 runs at one pose. A user pressing "Start
+  render" has about even odds of a still whose ceiling emits more light than the window it is lit by.
+- **Class-A traced figures should be discarded, not merely labelled.** `.295` concluded that traced numbers need
+  their class recorded. Stronger now: a class-A number is not a measurement of a dimmer render, it is a
+  measurement of an impossible one. Every class-A figure in the arc is void, including `.277`–`.279`'s bedroom2
+  white arm (which `.295` had already voided, now for a second and better reason).
+- **(u) outranks the remaining measurement work** and is arguably level with (p): both make the app's photoreal
+  showcase wrong by default, (p) always and (u) half the time.
+
+**A constraint on the cause, and deliberately nothing more.** Whatever (u) is, it adds energy to interior
+surfaces that the aperture cannot account for. The natural suspicion is an environment contribution reaching
+surfaces without occlusion — `root.environment` lights every surface in three's IBL regardless of whether it
+can see the sky, and the tracer's environment is the hardcoded cold gradient (item (p), confirmed `.287`), which
+would also explain why class A is *cold* as well as bright. **That is untested and is not being published as a
+mechanism.** Eleven candidates have now been eliminated and every mechanism proposed in `.280`–`.294` was
+refuted by a later round; this one gets written down as a lead, in the same words as the last one.
+
+**A reusable validity check, documented rather than shipped.** "Does any interior surface out-radiate the
+aperture?" is cheap, physical, and independent of (u)'s cause — a better sanity check than any chroma
+statistic this arc has built. It is **not** being added as a probe knob, because the patches are pose-specific
+and `.293` shipped a pose-specific classifier that misclassified a known-good frame. It goes into
+`docs/hq-tracer-probe-notes.md` as a technique with the coordinates stated, so the caller declares the region —
+which is `.293`'s actual lesson.
+
+**Unchanged:** no `src/` change, no probe change. Docs only; the measurement scripts were temporary and removed.
+
 ## v0.31.5.297 — the arc's harness lessons written where they are reusable, not buried in a 66-entry changelog
 
 The root `CLAUDE.md` requires reading `docs/visual-verification-playbook.md` before harness work and **adding

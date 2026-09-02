@@ -10013,3 +10013,53 @@ Similarly `.281`'s "livingDining converged at 150" was withdrawn by `.282` on a 
 9. Metrics are pose-, method-, tier-, framing- **and (u)-class-**dependent. Quote none without stating all.
 
 Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .298 — class A is physically impossible: its ceiling out-radiates the window
+
+`.296` listed "which of (u)'s classes is the correct render" as unknown, `.293`'s attempt having rested on the
+mis-paired comparison `.294` overturned. A physical constraint answers it without knowing (u)'s cause: **in a
+room lit only through a window, no interior surface can be brighter than the aperture.** Measured on frames
+already on disk; no probe runs.
+
+| frame | class | glazing | ceiling | wall-L | wall-R | verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| `u1` | B | 166.9 | 115.2 | 116.1 | 106.2 | interior 51–61 counts below the aperture ✔ |
+| `tm-1` | M | 169.5 | 127.4 | 138.2 | 153.4 | below ✔ |
+| `u2` | **A** | 170.9 | **181.5** | 157.7 | 157.2 | **ceiling out-radiates the window by 10.6** ✘ |
+
+Maxima agree (ceiling 184 vs glazing 173); all glazing/ceiling patches clean at sd 0.7–1.3. Looked at, since
+this is a headline claim: side by side, class B's pane is plainly brighter than a warm-grey ceiling, while class
+A's ceiling reads as light as the pane or slightly lighter. Both crops match their numbers.
+
+AgX compresses the bright end, so 10.6 displayed counts near 175 correspond to a larger radiance gap — the
+violation is **understated**.
+
+### Consequences
+
+- **Class B is the correct render; class A is a bug.** `.296`'s unknown is answered.
+- **(u) is not nondeterminism, it is half of all HQ stills being wrong.** Class A is 12 of 24 runs at one pose,
+  so a user pressing "Start render" has about even odds of a still whose ceiling emits more light than its
+  window.
+- **Class-A figures must be discarded, not merely labelled.** `.295`'s "record the class" is too weak: a class-A
+  number measures an impossible render, not a dimmer one. Every class-A figure in the arc is void.
+- **(u) now ranks level with (p)** — both make the photoreal showcase wrong by default, (p) always and (u) half
+  the time.
+
+### A constraint on the cause, and nothing more
+
+Whatever (u) is, it adds energy to interior surfaces the aperture cannot account for. `root.environment` lights
+every surface in three's IBL regardless of whether it can see the sky, and the tracer's environment is the
+hardcoded cold gradient (item (p), confirmed `.287`) — which would also explain class A being *cold* as well as
+bright. **Untested; not published as a mechanism.** Eleven candidates eliminated, and every mechanism proposed
+in `.280`–`.294` was refuted by a later round.
+
+### Reusable, and documented rather than shipped
+
+"Does any interior surface out-radiate the aperture?" is cheap, physical and independent of (u)'s cause — a
+better sanity check than any chroma statistic this arc built. It is **not** a probe knob: the patches are
+pose-specific and `.293` shipped a pose-specific classifier that misclassified a known-good frame. It is in
+`docs/hq-tracer-probe-notes.md` with the coordinates stated, so the caller declares the region.
+
+Nothing changed in `src/` or in the probe. Docs only.
