@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.285 - the migration's blast radius, re-measured: 1368 -> 135
+
+Docs + measurement only, no product code. The number is the reason to record it.
+
+When the F13 migration was planned (v0.31.5.275) I measured what deleting `plan.rooms` /
+`plan.walls` / `plan.openings` would cost: **1368 `tsc` errors across 212 files** (149 non-test,
+1219 test). That figure was the argument for the staged approach — migrate consumers first, with
+no schema change and a green suite at every commit, and leave the field deletion last.
+
+Re-measured now, by commenting the three fields out of `FloorPlan` and running `tsc`:
+
+| | at .275 | now (.285) |
+|---|---|---|
+| total errors | 1368 | **135** |
+| files | 212 | **49** |
+| non-test errors | 149 | **38** |
+
+**A 90% reduction, and the remainder is the right shape.** Every non-test error left is in a module
+that legitimately OWNS plan geometry rather than merely reading it:
+
+| file | errors |
+|---|---|
+| `floorplan/rescalePlan.ts` | 9 |
+| `floorplan/mirrorPlanRegion.ts` | 7 |
+| `floorplan/gridSnap.ts` | 7 |
+| `floorplan/levels.ts` | 6 |
+| `state/slices/floorPlanSlice.ts` | 2 |
+| `floorplan/templates/{condo,hdb}.ts` | 3 |
+| `floorplan/settingOut.ts` | 2 |
+| `state/schema.ts`, `ui/floorplan/ScalePlanModal.tsx` | 1 each |
+
+The three whole-plan transforms (rescale / mirror / grid-snap) plus `levels.ts` itself account for
+29 of the 38. Those are exactly the places that SHOULD name the geometry directly — they are the
+resolution layer and the transforms that rewrite every storey. The 97 test errors are concentrated
+in fixtures (26 in `floorPlanSlice.test.ts` alone) and are mechanical.
+
+**This is the metric the plan named, so recording the actual value matters more than the estimate.**
+The staged migration was justified on the claim that fixing consumers first would shrink the final
+step; that claim is now measured rather than asserted. It also means the final stage is a tractable
+single change rather than the 212-file rewrite it started as.
+
+`state/schema.ts` is deliberately still untouched: it is the serialisation boundary the final stage
+rewrites, so migrating it earlier would mean doing that work twice.
+
 ## v0.31.5.284 - measurements, placement snapping, suggested views, score suggestions
 
 Clears the last of the unaudited list from `TODO.md`.

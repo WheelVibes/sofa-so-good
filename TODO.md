@@ -237,6 +237,13 @@ multi-tick and MUST be staged — a big bang would leave the repo uncompilable a
 4. Remove the legacy trio; add the schema migration and bump the save version. `tsc` is the
    worklist — the error count is the progress metric.
 
+**Blast radius, re-measured at v0.31.5.285: 1368 -> 135 errors (212 -> 49 files; 149 -> 38
+non-test).** The remaining non-test errors are concentrated in the modules that legitimately own
+plan geometry — `rescalePlan` (9), `mirrorPlanRegion` (7), `gridSnap` (7), `levels.ts` (6) — which
+together are 29 of 38. The 97 test errors are fixtures, 26 of them in `floorPlanSlice.test.ts`.
+The final stage is now a tractable single change. Re-measure with: comment the three fields out of
+`FloorPlan` in `types.ts`, run `tsc`, restore.
+
 **Revised staging (v0.31.5.276).** Stages 1-3 need NO schema change: `planLevels` already derives the
 level list from the legacy fields, so consumers can move onto
 `allPlanRooms`/`allPlanWalls`/`allPlanOpenings`/`levelAsPlan` with the suite green at every commit,
