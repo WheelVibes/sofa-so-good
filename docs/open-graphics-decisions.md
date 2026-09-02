@@ -1877,47 +1877,62 @@ finishes bleed **cool**, and only warm terracotta has been measured. One finish,
 hour. A real implementation also needs the albedo census at runtime with a recompute on finish change —
 cheap (a traverse), not free.
 
-## (t) HQ-DENOISE-SHIFT — ❌ ORIGINAL CLAIM WITHDRAWN v0.31.5.283; re-filed as a different defect
+## (t) HQ-DENOISE-SHIFT — ❌ REFUTED v0.31.5.285. The AI denoise is radiometrically neutral
 
-**`.282` filed this as "the HQ canvas shows a frozen placeholder for the whole render". That is wrong.**
-`.283` screenshotted the modal during a render: at 6 samples it shows a heavily grainy path trace, at 256 a
-clean converged one, with the button flipping to "Re-render". **The user sees a perfectly normal, correctly
-progressing render.** There is no placeholder and no display defect. The `.282` claim rested on canvas pixel
-reads alone and should not have been filed as a product defect without checking the compositor.
+`.283` re-filed this claiming the AI denoise pass shifts level ~30 % and flips R−B. A proper one-variable A/B
+refutes it. New `PTAI=off|on` forces the `hqAiDenoise` flag before the modal mounts, asserts the store took the
+value, and reads it back after the capture (`.254`'s lesson). Same room, pose, anchors, hour, tier
+(bedroom3, white, medium, photographic look, hour 13, pitch +0.30, 256 samples; runs 13:11 and 13:19 +08):
 
-**What the two images actually are.** Not placeholder vs trace — **raw trace vs AI-denoised output**:
-
-- `session.canvas` — the tracer's WebGL canvas, shown while rendering.
-- `denoisedCanvas` — a plain 2D canvas that `finalize()` swaps into the host on completion, but only when
-  `aiDenoise` is armed and `applyAiDenoise()` returns non-null (`HqRenderModal.tsx:130`).
-
-`hqRenderSession.ts:622` — `toDataURL: () => denoisedCanvas ? denoisedCanvas.toDataURL() : canvas.toDataURL()`
-— so **the PNG the user saves is the denoised one when the pass succeeds and the raw trace when it does not.**
-
-**The re-filed defect: the AI denoise pass is not radiometrically neutral.** Same render, same anchors, before
-and after the swap (bedroom3, white, medium tier, photographic look, hour 13, pitch +0.30):
-
-| | raw trace | after AI denoise |
+| | stage reported | traced L, d = 0.6 / 1.2 |
 | --- | --- | --- |
-| anchor traced L, d = 0.6 / 1.2 | 172.1 / 175.3 | 120.3 / 117.6 |
-| patch L | 179.7 | 115.9 |
-| patch R−B | **−14.2** (cold) | **+8.1** (warm) |
+| `hqAiDenoise` **off** | `raw-trace` | 119.3 / 117.6 |
+| `hqAiDenoise` **on** | `ai-denoised` | 118.0 / 115.7 |
 
-A denoiser removes noise; it must not darken the image by ~30 % and flip its hue by 22 counts. A shift of that
-character is what feeding tone-mapped sRGB into a model trained on linear HDR (or writing its output back
-without the inverse transform) would produce — **that is a hypothesis, not a finding**, and it has not been
-tested. What *is* established is the magnitude, and that two users on the same scene get materially different
-saved PNGs depending on whether the pass happened to succeed.
+**1.1–1.6 %.** The denoise pass is radiometrically neutral, and the ~30 % gap `.283` attributed to it was two
+runs that happened to be in different states of the nondeterminism now filed as (u). This also verifies the
+`.284` stage label in both directions.
 
-**Which one is correct is not yet known** and is the reason this needs a call rather than a fix. The raw trace
-is cold because the tracer's environment is the hardcoded cold `GradientEquirectTexture` (item (p)); the
-denoised frame is warm and closer to the raster's interior. So the denoise pass may be masking (p) rather than
-introducing an error of its own.
+## (u) HQ-TRACE-NONDETERMINISM — 🐞 REAL, found v0.31.5.285; cause NOT yet identified
 
-**Open sub-question, honestly unresolved.** Pixel reads of the tracer canvas — `drawImage` *and*
-`gl.readPixels`, which agree with each other exactly — return the same values for the whole render, while the
-composited display visibly goes from grainy to clean over that same render. Both observations are solid and
-repeated; `.283` has no mechanism for the contradiction and is not guessing at one.
+**The HQ tracer produces one of two discrete outputs from identical inputs.** Same room, pose, hour, tier,
+sample count, exposure and denoise setting; the run lands in one state or the other, and they are ~45 % apart
+at the anchors.
+
+| | frameL | frameRB | anchors d = 0.6 / 1.2 |
+| --- | --- | --- | --- |
+| **state A** | 156.1–156.5 | **−9.7 to −9.8** (cold) | 172.1 / 175.3 |
+| **state B** | 112.3–114.7 | **+3.9 to +4.6** (neutral) | ~118–120 / ~116–118 |
+
+Two tight clusters, no intermediates in 12 runs, and `frameRB` flips sign — so a whole-frame mean is a free and
+unambiguous discriminator, now printed as `PT FRAME STATE` on every run.
+
+**It is a global exposure/environment difference, not a transport one.** A 6×4 grid over the two frames shows
+**every one of 24 cells** darker in state B by a near-constant factor (~0.62–0.70) with R−B moving from
+uniformly cold to neutral. Localised lighting changes do not look like that.
+
+**What has been ruled out.**
+
+- **Sample count** — `.284`: wall means move +5.6 % over 6 → 256 samples and <0.5 % over 120 → 256. The state
+  gap is ~45 %.
+- **The AI denoise stage** — item (t) above: 1.1–1.6 %, and both states occur with the same stage label.
+- **Exposure** — two back-to-back runs, identical settings, both reporting `gl.toneMappingExposure = 1.38` and
+  `toneMapping = 6` at modal-open *and* at Start render, landed in opposite states (13:27 → A, 13:31 → B).
+
+**Untested hypothesis, recorded so the next round can kill it properly.** `createHqRenderSession` takes an
+`hdriUrl` and falls back to the hardcoded `GradientEquirectTexture` (top `0xbfd4e6`) when it is absent — that
+fallback is both **brighter and colder**, which is exactly state A's signature, and an asset-load race would
+produce precisely this run-to-run coin flip while remaining invisible to exposure and denoise. **This is a
+hypothesis. It has not been tested.** Five consecutive rounds (`.280`–`.284`) published mechanisms that a later
+round refuted, so it is written down as a lead, not a finding.
+
+**Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
+opposite colour temperature. Whichever state is correct, the other is a shipped bug.
+
+**Consequence for this arc, stated plainly.** No round before `.285` recorded which state it was measuring, and
+the two are ~45 % apart. `.284` restored `.269`–`.276` as valid raw-trace measurements; that restoration must
+now be **qualified** — they are valid only if they were taken in state B, which was never recorded and is
+roughly a coin flip. Every traced figure in the arc needs re-measurement with the discriminator on.
 
 ## Summary
 
@@ -1936,7 +1951,8 @@ repeated; `.283` has no mechanism for the contradiction and is not guessing at o
 | k1 | WINDOW-SKY-DARK | render bug | ❌ **CLOSED v0.31.5.128** — mis-attributed. The `auto` tier ends at `high`, so the transmissive pane was correct; the dark pane was (k2) rendered by two tiers. Both tiers now read ~195 |
 | m | PHOTO-VIGNETTE | look call | ⏳ **OPEN v0.31.5.244** — built, measured and reverted. Extending the lens vignette to the photographic look on the AO-only composer matches the PHOTO-GRAIN precedent and the tier that already ships it, but costs wall falloff 0.74 → 0.66 against a 0.85–0.86 photographic reference |
 | l | WINDOW-LUMINANCE | render + product look | ⏳ **OPEN v0.31.5.236**, figures corrected in `.237` — photographs clip 15–39 % of their glazing; the app clips **0.0 %** at every hour, so the pane reads as a panel not an opening. Night (21:00) is already correct and must not regress |
-| t | HQ-DENOISE-SHIFT | render bug + look call | ❌ **`.282` CLAIM WITHDRAWN v0.31.5.283** (screenshots prove the render displays normally) — **re-filed**: the AI denoise pass shifts level ~30 % and flips R−B −14.2 → +8.1, and `toDataURL` prefers it, so the saved PNG differs from the watched render and differs between runs depending on whether the pass succeeded |
+| t | HQ-DENOISE-SHIFT | render bug | ❌ **REFUTED v0.31.5.285** — one-variable A/B with the flag asserted and read back: denoise off 119.3/117.6 vs on 118.0/115.7, i.e. **1.1–1.6 %**. The pass is radiometrically neutral; `.283`'s ~30 % gap was two runs in different states of (u) |
+| u | HQ-TRACE-NONDETERMINISM | render bug | 🐞 **REAL v0.31.5.285, cause UNIDENTIFIED** — identical inputs give one of two discrete outputs ~45 % apart at the anchors, opposite colour temperature. Sample count, denoise stage and exposure all ruled out. Discriminator shipped in the probe; every traced figure in the arc needs re-measurement |
 | k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect

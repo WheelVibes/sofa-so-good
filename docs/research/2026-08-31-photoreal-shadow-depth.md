@@ -9104,3 +9104,80 @@ Item (t): same pose with `hqAiDenoise` forced off and on, both against the raste
 stage is the measurement target.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .285 — item (t) refuted; the real fault is that the tracer returns one of two discrete outputs
+
+`.283` filed (t) claiming the AI denoise darkens by ~30 % and flips hue. This round ran the A/B `.283` should
+have run.
+
+### Item (t), refuted
+
+New `PTAI=off|on` forces the `hqAiDenoise` flag before the modal mounts, asserts the store took it, and reads
+it back after the capture (`.254`'s lesson: interventions can silently revert). bedroom3, white, medium tier,
+photographic look, hour 13, `PITCH=0.30`, 256 samples, anchors y=1.5 side C d=0.6/1.2 (runs 13:11, 13:19 +08):
+
+| | stage | traced L, d = 0.6 / 1.2 |
+| --- | --- | --- |
+| denoise off | `raw-trace` | 119.3 / 117.6 |
+| denoise on | `ai-denoised` | 118.0 / 115.7 |
+
+1.1–1.6 %. Radiometrically neutral. `.283`'s ~30 % was two runs in different states of the fault below. Also
+verifies `.284`'s stage label in both directions — previously confirmed only on the denoised side.
+
+### The actual fault
+
+Identical room, pose, hour, tier, sample count, exposure and denoise setting; the run lands in one of two
+states:
+
+| | frameL | frameRB | anchors d = 0.6 / 1.2 |
+| --- | --- | --- | --- |
+| state A | 156.1–156.5 | −9.7 to −9.8 (cold) | 172.1 / 175.3 |
+| state B | 112.3–114.7 | +3.9 to +4.6 (neutral) | ~118–120 / ~116–118 |
+
+~45 % apart at the anchors, opposite colour temperature, two tight clusters, no intermediates across 12 runs.
+
+A 6×4 grid over one frame from each state: all 24 cells darker in B by a near-constant ~0.62–0.70, R−B cold →
+neutral everywhere. A global exposure/environment difference; transport does not fail uniformly frame-wide.
+
+### Ruled out by measurement
+
+- Sample count — `.284`: +5.6 % over 6 → 256 samples, <0.5 % over 120 → 256.
+- AI denoise stage — (t) above: 1.1–1.6 %, and both states occur under the same stage label.
+- Exposure — two back-to-back runs, identical settings, both `gl.toneMappingExposure = 1.38`, `toneMapping = 6`
+  at modal-open and at Start render, opposite states (13:27 → A, 13:31 → B).
+
+### One lead, untested
+
+`createHqRenderSession` takes `hdriUrl` and falls back to the hardcoded `GradientEquirectTexture` (top
+`0xbfd4e6`) when absent. That fallback is brighter *and* colder — state A's signature — and a load race would
+give this coin flip while staying invisible to exposure and denoise. **A lead, not a finding.** `.280`–`.284`
+each published a mechanism a later round refuted; no sixth is being added.
+
+### Shipped instrument
+
+`PT FRAME STATE` prints on every run from the whole-frame mean of the already-loaded PNG. `frameRB` flips sign
+between states so classification is unambiguous. Verified on a fresh run (13:40 +08): state A, frameL 156.2,
+frameRB −9.8, anchors 172.1 / 175.3.
+
+### Cost to the arc
+
+No round before this recorded which state it measured, and the states are ~45 % apart. `.284` restored
+`.269`–`.276`; that restoration is now **qualified** — valid only if taken in state B, never recorded, roughly
+a coin flip per run. Filed as item (u). It is a shipped defect too: two users rendering the same scene get
+images 45 % apart and of opposite colour temperature.
+
+### Method note
+
+Four of the five candidate causes were killed by measurements that already existed. The expensive part was
+never the measuring — it was the five rounds of theorising before anyone built a discriminator. **Build the
+discriminator first.** A one-line whole-frame mean, available since `.246`, would have separated these states
+immediately and made `.280`–`.284` unnecessary.
+
+### Next
+
+Kill or confirm the HDRI-fallback lead: log whether `hdriUrl` resolved and which environment the session used,
+correlate against `PT FRAME STATE` across several runs. A direct test, not another inference.
+
+Nothing changed in `src/` beyond the version bump.

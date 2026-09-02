@@ -5,6 +5,78 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.285 — item (t) refuted: the AI denoise is radiometrically neutral. The real fault is that the tracer returns one of two discrete outputs from identical inputs
+
+`.283` filed item (t) claiming the AI denoise pass darkens by ~30 % and flips hue. This round ran the A/B it
+should have run, and (t) is dead. What replaces it is worse and much more consequential.
+
+**Item (t), refuted properly.** New `PTAI=off|on` forces the `hqAiDenoise` flag before the modal mounts,
+asserts the store accepted it, and reads it back after the capture — `.254`'s lesson that an intervention can
+silently revert. Same room, pose, anchors, hour, tier (bedroom3, white, medium, photographic look, hour 13,
+pitch +0.30, 256 samples; runs 13:11 and 13:19 +08):
+
+| | stage reported | traced L, d = 0.6 / 1.2 |
+| --- | --- | --- |
+| `hqAiDenoise` **off** | `raw-trace` | 119.3 / 117.6 |
+| `hqAiDenoise` **on** | `ai-denoised` | 118.0 / 115.7 |
+
+**1.1–1.6 %.** The pass is radiometrically neutral. `.283`'s ~30 % was two runs in different states of the
+fault below. As a by-product this verifies `.284`'s stage label in **both** directions — it had only been
+confirmed on the denoised side.
+
+**The real fault: the tracer is nondeterministic between two discrete outputs.** Identical room, pose, hour,
+tier, sample count, exposure and denoise setting — the run lands in one state or the other:
+
+| | frameL | frameRB | anchors d = 0.6 / 1.2 |
+| --- | --- | --- | --- |
+| **state A** | 156.1–156.5 | **−9.7 to −9.8** (cold) | 172.1 / 175.3 |
+| **state B** | 112.3–114.7 | **+3.9 to +4.6** (neutral) | ~118–120 / ~116–118 |
+
+**~45 % apart at the anchors, opposite colour temperature, two tight clusters and no intermediates in 12
+runs.** This is what the arc has been tripping over since `.280` — every round that saw two different traced
+numbers invented a reason (sample count, room size, aperture, pose, a frozen placeholder, unsound reads, the
+denoiser) and every one of those reasons has now been measured and refuted.
+
+**It is global, not local.** A 6×4 grid over one frame from each state: **all 24 cells** darker in B by a
+near-constant factor (~0.62–0.70), with R−B moving from uniformly cold to neutral everywhere. That is an
+exposure or environment difference. Light transport does not fail uniformly across a whole frame.
+
+**Ruled out, each by measurement.**
+
+- **Sample count** — `.284`: wall means move +5.6 % across 6 → 256 samples, <0.5 % across 120 → 256.
+- **AI denoise stage** — item (t) above: 1.1–1.6 %, and *both* states occur under the same stage label.
+- **Exposure** — two back-to-back runs, identical settings, both reporting `gl.toneMappingExposure = 1.38` and
+  `toneMapping = 6` at modal-open **and** at Start render, landed in opposite states (13:27 → A, 13:31 → B).
+
+**One lead, explicitly untested.** `createHqRenderSession` takes an `hdriUrl` and falls back to the hardcoded
+`GradientEquirectTexture` (top `0xbfd4e6`) when it is absent. That fallback is both brighter and colder —
+exactly state A's signature — and an asset-load race would produce this coin flip while staying invisible to
+exposure and to the denoise stage. **Written down as a lead, not a finding.** `.280` through `.284` each
+published a mechanism a later round refuted; this round is not adding a sixth.
+
+**Shipped: a free state discriminator.** `PT FRAME STATE` now prints on every run from the whole-frame mean of
+the already-loaded PNG. `frameRB` flips sign between the states, so classification is unambiguous. Verified on
+a fresh run (13:40 +08): flagged state A at frameL 156.2 / frameRB −9.8 alongside anchors 172.1 / 175.3.
+
+**What this costs the arc, stated plainly.** No round before this one recorded which state it was measuring,
+and the states are ~45 % apart. `.284` restored `.269`–`.276` as valid raw-trace measurements; **that
+restoration is now qualified** — they are valid only if taken in state B, which was never recorded and is
+roughly a coin flip per run. Filed as item **(u) HQ-TRACE-NONDETERMINISM**. It is also a shipped defect, not
+just a probe one: two users rendering the same scene get images 45 % apart in level and of opposite colour
+temperature, so whichever state is correct, the other is a bug.
+
+**Method note.** Four of this round's five candidate causes were killed by measurements that already existed in
+`.284` and in this round's own A/B — the expensive part was never the measuring, it was the five rounds spent
+theorising before building a discriminator. **Build the discriminator first.** A one-line whole-frame mean,
+available since `.246`, would have separated these two states on day one and saved rounds `.280`–`.284`
+entirely.
+
+**Next.** Kill or confirm the HDRI-fallback lead: log whether `hdriUrl` resolved and which environment the
+session actually used, then correlate against `PT FRAME STATE` over several runs. That is a direct test, not
+another inference.
+
+**Unchanged:** no `src/` change. Probe + docs only.
+
 ## v0.31.5.284 — resolved: the tracer converges normally. `.280`–`.283` all chased one variable, and it was never the sample count
 
 Four rounds published four mechanisms for the same observation and all four were wrong. This round measures

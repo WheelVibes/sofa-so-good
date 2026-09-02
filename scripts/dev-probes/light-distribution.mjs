@@ -1163,6 +1163,49 @@ if (process.env.PT === '1') {
   }
   await page.evaluate((v) => window.__walkLook?.setPitch(v), PITCH)
   await new Promise((r) => setTimeout(r, 600))
+  // PTAI=off|on -- force the `hqAiDenoise` feature flag before the modal mounts
+  // (`.285`), so item (t)'s two arms can be rendered at one pose. `useFeature`
+  // reads `s.featureFlags[flag]` straight off the store, so setting it there is
+  // enough; it is not recomputed per frame the way `Lighting` rewrites
+  // `hemi.groundColor` (`.254`). Read back AFTER the capture regardless -- `.254`
+  // published two dead-flat sweeps because an intervention silently reverted and
+  // only a post-hoc read-back caught it.
+  if (process.env.PTAI) {
+    const wantAi = process.env.PTAI !== 'off'
+    await page.evaluate((v) => {
+      const st = window.__store
+      st.setState((s) => ({ featureFlags: { ...s.featureFlags, hqAiDenoise: v } }))
+    }, wantAi)
+    const seen = await page.evaluate(() => window.__store.getState().featureFlags.hqAiDenoise)
+    console.log(`  PTAI: asked hqAiDenoise=${wantAi}, store reports ${seen}`)
+    if (seen !== wantAi) throw new Error(`PTAI: flag did not take (${seen})`)
+  }
+  // `.285`: the two interleaved traced states differ by a near-constant
+  // whole-frame factor (~0.67 across all 24 cells of a 6x4 grid) plus a cold->
+  // neutral R-B shift -- the signature of a different EXPOSURE, not different
+  // lighting. `hqRenderSession` is constructed with
+  // `exposure: src.gl.toneMappingExposure`, and `Lighting` rewrites that every
+  // frame from the day/night curve, so if the modal reads it before the hour has
+  // been graded the still renders at a stale exposure. Log it at open and at
+  // capture to find out, instead of assuming.
+  const expoAt = async (label) => {
+    const e = await page.evaluate(() => {
+      // `window.__three` is what the rest of this probe uses to reach three
+      // objects; `getHqRenderSource` is a module export and not on window.
+      const gl = window.__three?.gl ?? null
+      const s = window.__store.getState()
+      return {
+        gl: gl ? gl.toneMappingExposure : null,
+        tm: gl ? gl.toneMapping : null,
+        hour: s.hour ?? null,
+      }
+    })
+    console.log(
+      `  PTEXPO ${label}: gl.toneMappingExposure=${e.gl} toneMapping=${e.tm} hour=${e.hour}`,
+    )
+    return e
+  }
+  if (process.env.PTEXPO === '1') await expoAt('before modal open')
   await page.evaluate(() => window.__store.getState().setHqRenderOpen?.(true))
   await new Promise((r) => setTimeout(r, 2500))
   const started = await page.evaluate(() => {
@@ -1174,6 +1217,7 @@ if (process.env.PT === '1') {
     return true
   })
   if (!started) throw new Error('PT: no Start render button')
+  if (process.env.PTEXPO === '1') await expoAt('at Start render')
   const t0 = Date.now()
   let got = 0
   while (Date.now() - t0 < 600_000) {
@@ -1409,6 +1453,10 @@ if (process.env.PT === '1') {
   })
   if (!png) throw new Error('PT: could not read a tracer canvas')
   fs.writeFileSync(`${OUT}/pathtraced.png`, Buffer.from(png.url.split(',')[1], 'base64'))
+  if (process.env.PTAI) {
+    const after = await page.evaluate(() => window.__store.getState().featureFlags.hqAiDenoise)
+    console.log(`  PTAI read-back after capture: hqAiDenoise=${after}`)
+  }
   console.log(`  PT STAGE: ${png.stage} -- traced figures below are ${png.stage} values`)
   console.log(`pathtraced (${got} samples, ${png.w}x${png.h}) -> ${OUT}/pathtraced.png`)
 }
@@ -2117,6 +2165,28 @@ if (process.env.ANCHORS === '1') {
       .raw()
       .toBuffer({ resolveWithObject: true })
     const grgb = await sharp(`${OUT}/pathtraced.png`).removeAlpha().raw().toBuffer()
+    // STATE DISCRIMINATOR (`.285`). The traced instrument is nondeterministic
+    // between two discrete states -- runs with identical settings, identical
+    // exposure and identical denoise stage land in one or the other, ~45% apart
+    // at the anchors. They separate cleanly on the whole-frame mean:
+    //   state A (anomalous): frameL 156.1-156.5, frameRB -9.7 to -9.8
+    //   state B (expected):  frameL 112.3-114.7, frameRB +3.9 to +4.6
+    // frameRB even flips sign, so this is unambiguous and free (the PNG is
+    // already loaded). No traced figure in this arc means anything without it --
+    // no earlier round recorded which state it was measuring.
+    {
+      let fl = 0
+      let frb = 0
+      const fn = grgb.length / 3
+      for (let i = 0; i < grgb.length; i += 3) {
+        fl += 0.2126 * grgb[i] + 0.7152 * grgb[i + 1] + 0.0722 * grgb[i + 2]
+        frb += grgb[i] - grgb[i + 2]
+      }
+      const fL = fl / fn
+      const fRB = frb / fn
+      const state = fRB < -4 ? 'A (ANOMALOUS -- cold + ~1.4x bright)' : 'B (expected)'
+      console.log(`  PT FRAME STATE: ${state}  frameL=${fL.toFixed(1)} frameRB=${fRB.toFixed(1)}`)
+    }
     traced = { data: g.data, rgb: grgb, W: g.info.width, H: g.info.height }
     const camNow = await camState()
     const same = JSON.stringify(camNow) === JSON.stringify(camAtRaster)
