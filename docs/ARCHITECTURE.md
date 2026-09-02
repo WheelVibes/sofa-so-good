@@ -2653,3 +2653,26 @@ same change that reshapes a system.
   `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call
   `evictGltfAsset(url)` to clear + dispose those (base + all tier-variant urls) so GPU
   memory is reclaimed instead of leaking toward WebGL context loss.
+
+
+## Blender/Cycles rendering (optional local layer)
+
+An **optional** photoreal layer requiring a local Blender install. The three.js real-time
+tiers and the `three-gpu-pathtracer` HQ still remain the default for everyone without it —
+nothing here is on the app's critical path, and the app must never block or crash when
+Blender is absent.
+
+- **`python/scripts/blender/sofa_scene.py`** — the single shared module every bpy entry
+  point goes through: scene reset, GLB import, Cycles setup, HDRI world, sun, camera,
+  render, bounds. Encodes the installed build's verified socket names and engine quirks so
+  callers never hardcode a 3.x `bpy` name.
+- **`python/scripts/blender/inspect_asset.py`** — turntable QA for one GLB, framed from the
+  asset's own bounds.
+- **`docs/blender-skill.md`** — **read first.** Verified `bpy` facts for the installed build
+  (Blender 5.2.1 LTS), the gotchas that cost time if assumed, invocation examples from this
+  repo, and a living lessons log each session appends to.
+
+Interchange is the existing `.sofa.json` + GLB export (`src/export/sceneGltf.ts`) — no new
+format. Note the Poly Haven HDRIs are **CDN-hosted, not bundled**
+(`src/scene/lighting/hdriCatalog.ts`), so any Blender path wanting them must fetch and cache
+locally rather than globbing the repo.

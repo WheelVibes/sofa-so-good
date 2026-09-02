@@ -18,6 +18,9 @@ Zustand (sliced store), Vite, Vitest, Biome.
 > `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`,
 > `docs/open-graphics-decisions.md` (five measured graphics items awaiting a product/content
 > call — do NOT decide these unilaterally).
+> **Blender/Cycles work → read [`docs/blender-skill.md`](docs/blender-skill.md) FIRST.** It
+> records the installed build's verified `bpy` facts (Blender 5.2.1 LTS) plus a living
+> lessons log; **append what you learn in the same session**, don't defer it.
 
 ## Hard rules (always)
 - **Keep docs current in the same change.** After adding/removing/reshaping a system,

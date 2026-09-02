@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.1 — Blender/Cycles groundwork: verified bpy facts for the installed build, shared scene module, turntable QA
+
+First step of the Blender integration (Parts B and C). No app code touched — this is
+offline tooling plus documentation.
+
+**The installed build was probed, not assumed.** Blender **5.2.1 LTS** (build 2026-08-25).
+5.x is a major version and most published bpy examples are 3.x/4.x, so three facts were
+measured before any code was written:
+
+| | |
+| --- | --- |
+| Cycles | **assignable but absent from the engine enum.** `bl_rna` lists only `BLENDER_EEVEE`, yet `scene.render.engine = 'CYCLES'` renders (verified 64×48 PNG, 4121 bytes). Never gate on the enum. |
+| view transform | `enum_items` reads only `NONE`; the actual default is **AgX** — which matches the app's own AgX tone mapping, so leaving it alone is the closest match to the real-time view. |
+| Principled BSDF | 4.x+/5.x socket names. **No `Specular`, no scalar `Subsurface`** — it is `Specular IOR Level`, `Transmission Weight`, `Coat Weight`, plus 5.x's `Thin Wall` / `Thin Film IOR`. |
+
+**Added:**
+
+- **`python/scripts/blender/sofa_scene.py`** — the one shared module every bpy entry point
+  goes through (scene reset, GLB import, Cycles setup, HDRI world, sun, camera, render,
+  bounds), so Part A's service and the Part B scripts cannot fork logic.
+- **`python/scripts/blender/inspect_asset.py`** — turntable QA for a GLB, framed from the
+  asset's own bounds so it needs no per-asset tuning. Verified end to end on
+  `public/assets/furniture/tea-set-low.glb`: `radius=0.459`, renders correct and inspected
+  by eye, not just by exit code.
+- **`docs/blender-skill.md`** — the living skill doc, linked from `CLAUDE.md` and
+  `docs/ARCHITECTURE.md`.
+
+**Two constraint corrections, both found by checking rather than assuming:**
+
+- **The skill cannot live in `.claude/skills/`.** `.gitignore:48` ignores `.claude/`, so a
+  skill there would be local-only and never committed — defeating the purpose. No tracked
+  skills convention exists (`CLAUDE.md` referenced none; `.claude/` held only
+  `settings.local.json`; `docs/superpowers/` is plans/specs). Hence `docs/` plus a
+  `CLAUDE.md` link, which is loaded every turn.
+- **The Poly Haven HDRIs are not bundled.** The goal said to reuse bundled HDRIs; they are
+  in fact served from the Poly Haven CDN at runtime (`hdriCatalog.ts`) with no `.hdr` in the
+  repo. A Blender path must fetch and cache locally.
+
+Still to come: `render_still.py`, `bake_material.py`, `apply_bevels.py`, and Part A's
+dual-reachable render service (Electron direct + localhost-only HTTP sidecar).
+
 ## v0.31.6.0 — PR to staging: the graphics-realism measurement arc, rounds .249-.349
 
 Patch bump for the PR into `staging`, per the repo's versioning rule — 103 commits, almost entirely
