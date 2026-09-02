@@ -70,6 +70,26 @@ radiance gap. And the app's glazing is a mid-tone panel that clips 0.0 % (item (
 daylight — so this compares interior surfaces against *the app's own aperture*, which is the right internal
 comparison but is not a comparison against a real sky.
 
+## Confirm the renderer string — this probe never did, for sixty rounds
+
+`light-distribution.mjs` launches with `--use-gl=angle --use-angle=metal --enable-gpu`, and the playbook's
+real-GPU section warns in bold that getting the backend wrong *"silently gives you SwiftShader anyway — i.e.
+every GPU-only check you thought you ran was a software render"*. The probe had never asserted it. It does now,
+at boot, with a loud warning if the string looks like software:
+
+```
+WEBGL RENDERER: ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)
+```
+
+That is the expected string on this Mac, so the arc's path-traced work was real-GPU throughout — **established
+in `.308`, assumed for the sixty rounds before it.** Never trust a GPU-only figure from a run that did not print
+this line.
+
+**Related debt worth naming:** the playbook also says *"Before calling a headless finding a product defect, ask
+whether a real browser sees it"*. Item (u) was escalated to a product defect across `.298`–`.307` without that
+check. Headless ANGLE/Metal is close to a real Chrome on macOS (same backend, same GPU), which makes it likely
+real — but likely is not confirmed.
+
 ## One PT run per shell call
 
 A PT run is ~3–5 minutes including boot. Batching two in one shell call exceeded a 10-minute command timeout in

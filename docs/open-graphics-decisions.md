@@ -2189,14 +2189,32 @@ with `session.start()` accumulating before the BVH exists) is **impossible here*
 unless `_buildAsync` is set, and that is set only by `setSceneAsync`, which the app never calls. Reading forty
 lines of library source killed the most plausible mechanism in this investigation before it cost a run.
 
-**Next lead, specific and untested:** `PathTracingSceneGenerator.generate()` calls
-`updateMaterialIndexAttribute(geometry, materials, materials)` **conditionally**, on `needsMaterialIndexUpdate`
-computed from `result.changeType` and a material-UUID comparison. A conditional material-index update is exactly
-the shape of fault that intermittently leaves triangles pointing at the wrong material, and "shaded as the
-environment" is what that could look like. The rivals disagree observably — a material-index fault predicts the
-ceiling is shaded as some *specific other scene material* (value need not match the environment), a skip
-predicts exactly the environment; class A's ceiling reads 181.5 against the glazing's 168.8. Next step: read the
-ceiling triangles' material index and compare against the ceiling material's slot.
+**❌ THE MATERIAL-INDEX LEAD IS REFUTED v0.31.5.308, statically.** The condition is effectively **always true**,
+so `updateMaterialIndexAttribute` always runs: on the first call `_materialUuids === null` short-circuits it,
+and `WebGLPathTracer`'s constructor itself calls `setScene(new Scene(), new PerspectiveCamera())`, so the app's
+real `setScene` is the *second* call, where `changeType` is a rebuild and forces it true again.
+
+**Latent upstream bug found while reading** (`PathTracingSceneGenerator.js:180`): `this._materialUuids.length
+!== length` references a bare `length` that is **not in scope** — the intended `materials.length` is declared
+three lines below, scoped to the `for` statement. In a browser it resolves to `window.length` (frame count, 0).
+Benign here (it forces the update *on*), but a real defect worth reporting to `three-gpu-pathtracer`.
+
+**Recorded so it is not re-derived:** mesh collection uses `traverseVisible` (`three-mesh-bvh`'s
+`StaticGeometryGenerator`), a second visibility filter consistent with the app's; and `.304` already kills the
+"async substitution order" idea, since with `CEILSTD=1` there is no substitution at all and the fault persists.
+
+**So everything CPU-side is identical across classes** — snapshot at hand-off (`.306`), merged geometry and BVH
+(`.307`), material index (`.308`). The remaining variability must be downstream, in the GPU-side upload or
+shader path, which is consistent with intermittency and all-or-nothing behaviour.
+
+**⚠️ THE SEVERITY CLAIM IS PROVISIONAL.** The playbook has a section titled *"Before calling a headless finding
+a product defect, ask whether a real browser sees it"*, and (u) was called a product defect across
+`.298`–`.307` **without that check**. `.308` did confirm the renderer string for the first time —
+`ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`, exactly what the playbook requires, so the measurements are
+real-GPU and not SwiftShader — which makes the defect considerably more likely to be real, since a real Chrome
+on macOS runs the same ANGLE/Metal backend on the same GPU. But headless flags, compositor state and driver
+timing remain unexcluded. **"Half of all HQ stills are wrong" holds for headless ANGLE/Metal; a real browser
+must confirm it before the claim stands for users.**
 
 **Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
 as a surface in every run.

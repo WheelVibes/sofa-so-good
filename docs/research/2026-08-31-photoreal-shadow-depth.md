@@ -10567,3 +10567,59 @@ Eighteen mechanisms refuted (adding the async race), one of my own claims correc
 unaffected.
 
 Instrumentation reverted, `src/` verified clean.
+
+---
+
+## Round .308 — the material-index lead dies to reading; a latent library bug; and the renderer string confirmed at last
+
+`.307` showed that reading the library source is free and kills mechanisms before they cost runs. This round is
+mostly reading.
+
+### Material-index lead refuted, statically
+
+`.307` named the **conditional** `updateMaterialIndexAttribute` in `PathTracingSceneGenerator.generate()`. It
+cannot be the fault: the condition is effectively **always true**. On the first call
+`this._materialUuids === null` short-circuits it, and `WebGLPathTracer`'s constructor itself calls
+`setScene(new Scene(), new PerspectiveCamera())` — so the app's real `setScene` is the *second* call, where
+`changeType` is a rebuild (empty → 1104 meshes) and forces it true again. Nineteenth mechanism refuted.
+
+### A latent library bug
+
+`PathTracingSceneGenerator.js:180` compares `this._materialUuids.length !== length`, where **`length` is not in
+scope** — the intended `materials.length` is declared three lines below, scoped to the `for` statement. In a
+browser module a bare `length` resolves to `window.length` (frame count, 0), so the test is
+`_materialUuids.length !== 0`, true whenever a material exists. Benign here (forces the update *on*), but a real
+defect worth reporting upstream.
+
+### Recorded so it is not re-derived
+
+- Mesh collection uses `traverseVisible` (`three-mesh-bvh`'s `StaticGeometryGenerator`) — a second visibility
+  filter, consistent with the app's own chain; `.306`/`.307` confirm nothing is dropped.
+- `.304` already kills "async substitution order": the substituted materials are created in promise-resolution
+  order, which was an attractive candidate, but with `CEILSTD=1` there is no substitution and the fault persists.
+
+**Everything CPU-side is now identical across classes** — snapshot (`.306`), merged geometry and BVH (`.307`),
+material index (`.308`). The remaining variability must be downstream, in the GPU-side upload or shader path.
+
+### The renderer string, confirmed for the first time
+
+The playbook's real-GPU section warns that a wrong ANGLE backend *"silently gives you SwiftShader anyway"* and
+says to **always confirm the renderer string**. This probe launches with `--use-angle=metal` and had never
+checked. It now does, permanently:
+
+```
+WEBGL RENDERER: ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)
+```
+
+Exactly the expected string on this Mac. **The arc's path-traced measurements were real-GPU throughout** — now
+established rather than assumed.
+
+### A debt named rather than left implicit
+
+The playbook also says *"Before calling a headless finding a product defect, ask whether a real browser sees
+it."* (u) was called a product defect across `.298`–`.307` without that check. The renderer string makes it
+considerably more likely to be real — a real Chrome on macOS runs the same ANGLE/Metal backend on the same GPU —
+but headless flags, compositor state and driver timing remain unexcluded. **(u)'s product-defect framing is
+provisional until a real browser sees it**, and that is the next round.
+
+No `src/` change. The probe gains a permanent renderer-string assertion.

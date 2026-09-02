@@ -5,6 +5,77 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.308 — the material-index lead dies to forty lines of reading, a latent library bug turns up, and I finally confirmed the renderer string the playbook has been telling me to check for sixty rounds
+
+`.307`'s lesson was that reading the library source is free and killed a mechanism before it cost a run. This
+round is mostly reading, and it kills another one.
+
+**The material-index lead is refuted, statically.** `.307` named
+`PathTracingSceneGenerator.generate()`'s **conditional** `updateMaterialIndexAttribute` as the shape of fault
+that would intermittently leave triangles pointing at the wrong material. It cannot be: the condition is
+effectively **always true**.
+
+- On the first call `this._materialUuids === null` short-circuits it true — and `WebGLPathTracer`'s constructor
+  itself calls `setScene(new Scene(), new PerspectiveCamera())`, so the app's real `setScene` is the *second*
+  call, where `result.changeType` is a rebuild (empty scene → 1104 meshes) and again forces it true.
+- So `updateMaterialIndexAttribute` runs on every path the app takes. Nineteenth mechanism refuted.
+
+**A latent library bug, found while reading it.** `PathTracingSceneGenerator.js:180`:
+
+```js
+let needsMaterialIndexUpdate = result.changeType !== NO_CHANGE || this._materialUuids === null
+  || this._materialUuids.length !== length;
+```
+
+**`length` is not in scope.** The intended `materials.length` is declared three lines below, scoped to the
+`for` statement (`for (let i = 0, length = materials.length; …)`). In a browser module a bare `length` resolves
+to the global — `window.length`, the frame count, **0** — so the comparison is `this._materialUuids.length !== 0`,
+true whenever any material exists. **Benign here**, because it forces the update *on* rather than off, but it is
+a real defect and worth reporting upstream to `three-gpu-pathtracer`.
+
+**Two more things reading settled, recorded so no future round re-derives them.**
+
+- **Mesh collection uses `traverseVisible`** (`three-mesh-bvh`'s `StaticGeometryGenerator`), so the library
+  filters visibility a second time, consistently with the app's own chain — and `.306`/`.307` confirm nothing is
+  dropped by it.
+- **`.304` already kills the "async substitution order" idea** before it could be spent. The substituted
+  materials are created in promise-resolution order, so a varying material array order was an attractive
+  candidate — but with `CEILSTD=1` there is **no substitution at all** and the fault persists at the same rate.
+
+**So everything CPU-side is now identical across classes**: the snapshot at hand-off (`.306`), the merged
+geometry and BVH (`.307`), the material index (this round). The remaining variability has to be downstream of
+all of it — in the GPU-side upload or shader path — which is at least consistent with intermittency and with
+all-or-nothing per run.
+
+**And now the part I should have done sixty rounds ago.** The playbook's real-GPU section says, in bold, that
+getting the ANGLE backend wrong *"silently gives you SwiftShader anyway — i.e. every GPU-only check you thought
+you ran was a software render"*, and instructs: **always confirm the renderer string before trusting a GPU-only
+result.** This probe launches with `--use-angle=metal` and **had never checked**. Now it does, permanently, with
+a loud warning if it ever reads software:
+
+```
+WEBGL RENDERER: ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)
+```
+
+**That is exactly the string the playbook says it must be on this Mac.** So the arc's path-traced measurements
+were on the real GPU throughout and the silent-fallback trap did not bite — a relief, and the first time it has
+been established rather than assumed.
+
+**An outstanding debt I am naming rather than leaving implicit.** The playbook also has a section titled *"Before
+calling a headless finding a product defect, ask whether a real browser sees it"* — and I have called (u) a
+product defect across `.298`–`.307` ("half of all HQ stills are wrong", escalated level with (p)) **without that
+check**. The renderer string makes it considerably more likely to be real, since a real Chrome on macOS also
+runs ANGLE/Metal on the same GPU. But headless flags, compositor state and driver timing remain unexcluded.
+**(u)'s product-defect framing is provisional until a real browser sees it**, and that check — via the repo's
+Claude-in-Chrome route — is the next round.
+
+**Status.** Nineteen mechanisms refuted; everything the app and the library's CPU-side assembly produce is
+identical across classes; one latent upstream bug filed for reporting; the renderer string confirmed for the
+first time; and (u)'s severity claim correctly downgraded to provisional pending the check the repo's own rules
+require.
+
+**Unchanged:** no `src/` change. The probe gains a permanent renderer-string assertion.
+
 ## v0.31.5.307 — `.305`'s discriminator answered: the ceiling IS in the merged geometry and the BVH IS built. And `.305`'s refutation of mis-shading was wrong
 
 `.306` could not answer `.305`'s question for want of an access path into the tracer's internals. Reading the

@@ -118,6 +118,27 @@ page.on('console', (m) => {
   }
 })
 page.on('pageerror', (e) => console.log(`  PAGE ERROR ${e.message}`))
+// Confirm the WebGL renderer string (`.308`). The playbook's real-GPU section is
+// explicit: getting the ANGLE backend wrong "silently gives you SwiftShader
+// anyway -- i.e. SHOT_GPU=1 becomes a no-op and every GPU-only check you thought
+// you ran was a software render", and it says to ALWAYS confirm the string before
+// trusting a GPU-only result. This probe launches with --use-angle=metal but had
+// never checked, through sixty rounds of path-traced measurement.
+{
+  const r = await page.evaluate(() => {
+    try {
+      const gl = document.createElement('canvas').getContext('webgl2')
+      if (!gl) return 'no webgl2'
+      const d = gl.getExtension('WEBGL_debug_renderer_info')
+      return d ? String(gl.getParameter(d.UNMASKED_RENDERER_WEBGL)) : 'no debug_renderer_info'
+    } catch (e) {
+      return `error: ${e.message}`
+    }
+  })
+  console.log(`  WEBGL RENDERER: ${r}`)
+  if (/swiftshader|software/i.test(r))
+    console.log('  ** SOFTWARE RENDERER -- GPU-only results from this run are NOT trustworthy **')
+}
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
