@@ -586,6 +586,7 @@ const shotFor = async (pitch) => {
   if (typeof applyHideGrille === 'function') await applyHideGrille()
   if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
+  if (typeof applyBgHorizon === 'function') await applyBgHorizon()
   if (typeof applyBgMul === 'function') await applyBgMul()
   if (typeof applyFloorDye === 'function') await applyFloorDye()
   if (typeof applyDyeExcept === 'function') await applyDyeExcept()
@@ -1494,6 +1495,79 @@ const applyBgBlock = !BGBLOCK
       console.log(`BGBLOCK=1 painted a facade into the backdrop: ${JSON.stringify(res)}`)
       await new Promise((r) => setTimeout(r, 900))
     }
+// BGHORIZON=<h>:<lvl> — a BRIGHT NARROW HORIZON BAND in the backdrop (`v0.31.7.4`).
+//
+// `v0.31.6.10` swept BGMUL and found no multiplier can match both highlight
+// percentiles at once: x4 nails p95 (1.584 against physics' 1.624) but leaves p99
+// 20 % short, while x32 overshoots p95 by 19 % and is STILL 9 % short on p99. Then
+// looking at the pane crops said why. The Cycles pane shows a bright narrow band at
+// the horizon under blue sky; the app's pane is a uniform slab at every multiplier.
+// A uniform slab cannot produce a tail -- raising it moves p95 and p99 together, by
+// construction.
+//
+// So this paints the missing structure and asks whether the two percentiles then
+// separate. `h` is the band's height as a fraction of the equirect (default 0.03,
+// i.e. a couple of degrees of elevation) and `lvl` its peak level 0..255 (default
+// 255). The band is drawn with a soft falloff, because a hard-edged rectangle would
+// ring through the PMREM and read as a defect rather than a horizon.
+//
+// It rides BGBLOCK=3's mechanism, and must: three converts an equirect
+// `scene.background` into a CubeUV/PMREM cached on the TEXTURE OBJECT, and
+// `needsUpdate` does not invalidate it, so mutating the bound canvas is inert
+// (`.263`, proven twice). A fresh CanvasTexture cannot hit the stale entry.
+//
+// Read back after capture from the LIVE texture rather than the canvas we painted:
+// a fresh texture that failed to reach the scene looks exactly like one whose
+// content had no effect (`.254`).
+const BGHORIZON = process.env.BGHORIZON || ''
+const applyBgHorizon = !BGHORIZON
+  ? null
+  : async () => {
+      const [hRaw, lvlRaw] = BGHORIZON.split(':')
+      const h = hRaw === undefined || hRaw === '' ? 0.03 : Number(hRaw)
+      const lvl = lvlRaw === undefined || lvlRaw === '' ? 255 : Number(lvlRaw)
+      if (!Number.isFinite(h) || !Number.isFinite(lvl))
+        throw new Error(`BGHORIZON: expected <h>:<lvl> numbers, got ${BGHORIZON}`)
+      const res = await page.evaluate(
+        ({ hh, ll }) => {
+          const sc = window.__three.scene
+          const oldTex = sc.background
+          const src = oldTex?.image
+          if (!src || typeof src.getContext !== 'function')
+            return { error: 'background is not a canvas texture' }
+          const cv = document.createElement('canvas')
+          cv.width = src.width
+          cv.height = src.height
+          const ctx = cv.getContext('2d')
+          ctx.drawImage(src, 0, 0)
+          const W = cv.width
+          const H = cv.height
+          const half = Math.max(1, Math.round((hh * H) / 2))
+          const mid = Math.round(H * 0.5)
+          // Soft falloff from the horizon row outwards, so the band has no hard edge.
+          for (let dy = -half; dy <= half; dy++) {
+            const t = 1 - Math.abs(dy) / (half + 1)
+            const v = Math.round(ll * t * t)
+            ctx.fillStyle = `rgba(${v},${v},${Math.round(v * 0.98)},${t.toFixed(3)})`
+            ctx.fillRect(0, mid + dy, W, 1)
+          }
+          const Tex = oldTex.constructor
+          const fresh = new Tex(cv)
+          fresh.mapping = oldTex.mapping
+          fresh.colorSpace = oldTex.colorSpace
+          fresh.needsUpdate = true
+          // Do NOT dispose oldTex -- SceneBackdrop owns it and restores it on unmount.
+          sc.background = fresh
+          const at = (fy) =>
+            [...ctx.getImageData(Math.round(W * 0.5), Math.round(H * fy), 1, 1).data].slice(0, 3)
+          return { half, mid, row48: at(0.48), row50: at(0.5), row52: at(0.52) }
+        },
+        { hh: h, ll: lvl },
+      )
+      if (res.error) throw new Error(`BGHORIZON: ${res.error}`)
+      await new Promise((r) => setTimeout(r, 900))
+      console.log(`BGHORIZON=${BGHORIZON} painted: ${JSON.stringify(res)}`)
+    }
 const BGMUL = process.env.BGMUL ? Number(process.env.BGMUL) : null
 const readBg = () =>
   page.evaluate(() => {
@@ -1677,6 +1751,21 @@ if (BACKDROP)
           w: t?.image?.width ?? null,
           h: t?.image?.height ?? null,
         }
+      }),
+    )}`,
+  )
+if (BGHORIZON)
+  console.log(
+    `BGHORIZON held at capture: ${JSON.stringify(
+      await page.evaluate(() => {
+        const cv = window.__three.scene.background?.image
+        if (!cv?.getContext) return null
+        const ctx = cv.getContext('2d')
+        const at = (fy) =>
+          [
+            ...ctx.getImageData(Math.round(cv.width * 0.5), Math.round(cv.height * fy), 1, 1).data,
+          ].slice(0, 3)
+        return { row40: at(0.4), row50: at(0.5), row60: at(0.6) }
       }),
     )}`,
   )

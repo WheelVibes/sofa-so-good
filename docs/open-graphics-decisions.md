@@ -936,6 +936,25 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > **FPS is not a constraint on any of this.** `backgroundIntensity` and `toneMappingExposure` are
 > per-frame scalars, and a horizon band is a one-time backdrop paint. Zero per-frame cost.
 
+> **v0.31.7.4 — the structural half is now settled, and it rules out the lever.** `BGHORIZON`
+> paints a bright narrow band at the equirect horizon on a fresh `CanvasTexture` (the only route
+> that reaches the render, `.263`). The band **arrives** — read back live at `[255,255,250]`
+> against sky `[183,205,227]`, and plainly visible in the pane — but it arrives about **ten
+> times wider and correspondingly dimmer**, so it adds mid-level brightness over most of the
+> pane instead of a tail. Every percentile lands within 1.5 % of the no-band run at the same
+> multiplier (p95 1.562 vs 1.584; p99 1.748 vs 1.759 at `×4`).
+>
+> **So `scene.background` cannot produce a highlight tail at any luminance or band width.** The
+> PMREM pre-filter is the mechanism, not a parameter. `×4` stays the best available compromise
+> on this lever (p95 within 4 % of physics, p99 20 % short).
+>
+> **The decision this item now needs is therefore bigger than a number:** whether the window
+> gets **real geometry behind it** — a textured/emissive quad sampled directly, bypassing the
+> environment path — which is what the tail requires. One quad per window, no per-frame work, so
+> the fps floor is unaffected; but it is a visual-design call about what the view *is* (sky
+> gradient? a neighbouring block? a photograph?), which is exactly the call that has been open
+> since `.209`.
+
 **The 21:00 case is already right** (glazing 0.39 of wall, interior warm at R−B 23.4 against a
 neutral pane) — whatever ships must not regress it.
 

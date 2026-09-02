@@ -29,6 +29,57 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.4 — the horizon band survives but arrives ~10× too wide, so `scene.background` structurally cannot produce a highlight tail
+
+`v0.31.6.10` found no `BGMUL` value matches both highlight percentiles, and named the cause
+from the pane crops: physics has a bright narrow band at the horizon, the app has a uniform
+slab, and a uniform slab moves p95 and p99 together by construction. This tests the fix.
+
+New knob `BGHORIZON=<h>:<lvl>` paints a soft-falloff bright band of fractional height `h` at
+the equirect horizon and hands the scene a **fresh** `CanvasTexture` — mandatory, since three
+caches the CubeUV/PMREM conversion on the texture object and `needsUpdate` does not invalidate
+it, so mutating the bound canvas is inert (`.263`, now proven three times).
+
+| config | median | p95 / median | p99 / median | clipped |
+| --- | --- | --- | --- | --- |
+| shipping (`×1`) | 126.4 | 1.320 | 1.436 | 0.0 % |
+| `BGMUL=4` | 126.8 | 1.584 | 1.759 | 0.0 % |
+| `BGMUL=4` + band 3 % | 126.8 | 1.562 | 1.748 | 0.0 % |
+| `BGMUL=4` + band 6 % | 126.8 | 1.544 | 1.735 | 0.0 % |
+| `BGMUL=8` | 126.9 | 1.741 | 1.870 | 0.0 % |
+| `BGMUL=8` + band 3 % | 126.9 | 1.724 | 1.863 | 0.0 % |
+| **Cycles (physics)** | **111.1** | **1.624** | **2.194** | 0.0 % |
+
+**A negative, and not the boring kind.** The band moves nothing — every figure is within
+1.5 % of the no-band run at the same multiplier, and if anything slightly *lower*. But it did
+not fail to arrive: post-capture read-back from the **live** texture shows the band bound
+(`row50 = [255,255,250]` against sky `[183,205,227]` and ground `[101,98,95]`), and **looking
+at the pane shows it plainly** — a distinct bright horizontal band that the no-band frame does
+not have, wider at 6 % than at 3 %.
+
+**So the band survives in POSITION and is destroyed in SHARPNESS.** A 3 %-of-equirect band —
+about two degrees of elevation — reaches the render as a soft gradient spanning most of the
+pane, roughly **ten times wider and correspondingly dimmer**. Spread that thin it adds
+mid-level brightness over a wide area, which is precisely what does *not* make a tail. Beside
+it, the Cycles pane's horizon is a crisp boundary: bright sky above, darker sea below, a hard
+edge between.
+
+**The conclusion is architectural, and it closes a route rather than tuning it.** A highlight
+tail needs a narrow bright feature, and the equirect `scene.background` path cannot deliver
+one at any luminance or width — the PMREM pre-filter is not a parameter, it is the mechanism.
+`.265`/`.266` reached the neighbouring conclusion for *legibility*; this extends it to
+*tonality*, which is the property that actually reads as photographic. Item (l) can therefore
+be closed against `backgroundIntensity` as its lever: `×4` remains the best available
+compromise (p95 within 4 % of physics) but the tail is out of reach by that route.
+
+**What would work, and what it costs.** The pane needs content that bypasses the PMREM — real
+geometry behind the window (a textured or emissive quad, drawn as a normal mesh whose texture
+is sampled directly) rather than an environment lookup. That is **one quad per window with no
+per-frame work**, so it does not threaten the ≥30 fps floor, and it would reach walk, orbit and
+the room editor together since all three share the rig (`v0.31.6.8`). It is a bigger change
+than a scalar, and it is a look call as well as a technical one, so it is written up under
+item (l) rather than built.
+
 ## v0.31.7.3 — merge staging (0.31.7.2); the duplicate-version guard fires for the first time and works
 
 Merges `origin/staging` at `0.31.7.2` (PR #111, 77 commits) into the Blender/graphics-realism
