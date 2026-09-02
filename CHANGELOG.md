@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.306 — bisection complete on the app's side: the snapshot handed to `tracer.setScene` is identical in both classes, so the ceiling is lost inside the tracer library
+
+`.305` narrowed (u) to "the ceiling is in `root` and absent from the trace — dropped downstream of `root`". This
+round bisects that gap, and the answer clears every part of it the app controls.
+
+**The bisection.** `.302`'s census ran *inside* `buildTracerScene`; the snapshot then travels some distance
+before `tracer.setScene(snapshot, renderCamera)`. Temporary instrumentation (added, observed, **reverted**,
+`src/` verified clean) censuses it again **at the hand-off**, counting the dark planes the recolour created:
+
+| run | frame L | class | at `setScene` |
+| --- | --- | --- | --- |
+| `b1` (17:06 +08) | 29.9 | **B** — correct render | `meshes=1104 darkPlanes=113 visible=true` |
+| `b3x` (17:16 +08) | 104.4 | **A** — ceiling absent from trace | `meshes=1104 darkPlanes=113 visible=true` |
+
+**Identical.** All 113 dark planes — 99 walls plus the **14 ceilings** — are present in the snapshot handed to
+the tracer in **both** classes, with `visible=true` on the root. So in a class-A run the ceiling is still there
+at the last point the app touches it.
+
+**Everything the app controls is now cleared.** Three rounds have bisected the pipeline end to end:
+
+| stage | verdict | round |
+| --- | --- | --- |
+| `buildTracerScene` populates the snapshot | ceiling present, right geometry/colour/material/roughness | `.302` |
+| the Lambert→Standard substitution | removing it entirely changes nothing | `.304` |
+| snapshot → `tracer.setScene` hand-off | identical in both classes, 113 dark planes | **`.306`** |
+| inside `setScene` / BVH build / traversal | **← the fault is here** | — |
+
+**That changes the character of the item.** (u) is not a defect in the app's scene construction; it is in
+`three-gpu-pathtracer`'s ingestion of a scene the app hands over correctly and identically every time. So the
+app's options are a **workaround** — force or verify the BVH build, await completion, rebuild on failure — rather
+than a fix to its own logic. **That is worth knowing before anyone budgets the work**, and it is a materially
+different decision from the one (u) looked like at `.285`.
+
+**An honest limitation: `.305`'s predicted discriminator is NOT yet answered.** `.305` said to compare the
+tracer's geometry/BVH population between classes — counts differing by exactly the ceiling planes would mean
+"missing from the BVH", identical counts would mean "in the BVH but not intersected". The BVH was **not readable
+at any path tried** (`tracer._bvh`, `tracer.bvh`, `tracer.material.uniforms.bvh.value` all returned `n/a`), and
+enumerating the tracer's own keys gives only:
+
+```
+tracerKeys=[rasterizeScene, rasterizeSceneCallback, _previousScene, scene]
+```
+
+So this round answered the **upstream** half of the question — the input is identical — and left the downstream
+half open for want of an access path into this library version's internals. Saying which half was answered
+matters: `.301` and `.303` both over-reached by treating a partial answer as a whole one.
+
+**One incidental note worth recording:** the tracer exposes **`_previousScene`**, i.e. `setScene` keeps state
+across calls. Each session builds a fresh tracer, so it should be empty on first use — but a cache in the
+component now known to contain the fault is worth looking at first when the access path is found. **A lead, not
+a finding.**
+
+**Operational note.** Batching two PT runs in one shell call exceeded the 10-minute command timeout and killed
+the second mid-render, losing it. PT runs are ~3–5 minutes each including boot; **one run per call**, as the
+constraints already say for the probe itself.
+
+**Status.** Seventeen mechanisms refuted, the app's entire contribution cleared by bisection, and (u) localised
+to a named third-party component. `.305`'s exact statement and its fix-verification criterion are unchanged and
+still the acceptance test: the traced ceiling must never equal the hidden-ceiling value.
+
+**Unchanged:** instrumentation reverted, `src/` verified clean. Probe unchanged.
+
 ## v0.31.5.305 — class A is quantitatively IDENTICAL to the ceiling not being in the scene: same numbers, same standard deviations, and stable
 
 `.304` left one test with disagreeing predictions: hide the ceiling, since `buildTracerScene` honours the

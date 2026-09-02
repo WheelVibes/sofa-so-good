@@ -2129,9 +2129,39 @@ pipeline means **the BVH**. First time this investigation has pointed at a compo
 the hidden-ceiling value. **One-frame detector:** the class-A signature is now known exactly, so a single run
 can be classified without a second run.
 
-**Next test, rivals disagreeing.** Instrument the tracer's geometry/BVH population per run and correlate with
-class. **Ceiling missing from the BVH ⇒** the count differs between classes by exactly the ceiling planes.
-**In the BVH but not intersected ⇒** identical counts, and the fault is in traversal or the geometry's own data.
+**🔬 BISECTED v0.31.5.306 — the app's entire contribution is cleared; the fault is inside the tracer library.**
+Temporary instrumentation censused the snapshot **at the `tracer.setScene` hand-off**:
+
+| run | frame L | class | at `setScene` |
+| --- | --- | --- | --- |
+| `b1` | 29.9 | B — correct | `meshes=1104 darkPlanes=113 visible=true` |
+| `b3x` | 104.4 | A — ceiling absent from trace | `meshes=1104 darkPlanes=113 visible=true` |
+
+**Identical** — all 113 dark planes, including the **14 ceilings**, present in both classes at the last point
+the app touches the scene.
+
+| stage | verdict | round |
+| --- | --- | --- |
+| `buildTracerScene` populates the snapshot | ceiling present, right geometry/colour/material/roughness | `.302` |
+| the Lambert→Standard substitution | removing it entirely changes nothing | `.304` |
+| snapshot → `tracer.setScene` hand-off | identical in both classes | **`.306`** |
+| inside `setScene` / BVH build / traversal | **← the fault is here** | — |
+
+**This changes the item's character.** (u) is not a defect in the app's scene construction but in
+`three-gpu-pathtracer`'s ingestion of a scene the app hands over correctly and identically every time. The
+app's options are a **workaround** — force or verify the BVH build, await completion, rebuild on failure —
+rather than a fix to its own logic. **Worth knowing before budgeting the work**, and a materially different
+decision from what (u) looked like at `.285`.
+
+**Honest limitation: `.305`'s discriminator is still unanswered.** The BVH was not readable at any path tried
+(`tracer._bvh`, `tracer.bvh`, `tracer.material.uniforms.bvh.value` → all `n/a`); enumerating the tracer's keys
+gives only `[rasterizeScene, rasterizeSceneCallback, _previousScene, scene]`. So the **upstream** half is
+answered (input identical) and the downstream half — missing from the BVH versus present-but-not-intersected —
+needs an access path into this library version's internals.
+
+**Incidental lead, not a finding:** the tracer exposes **`_previousScene`**, so `setScene` keeps state across
+calls. Each session builds a fresh tracer so it should be empty on first use, but a cache inside the component
+now known to hold the fault is the first thing to inspect once the access path is found.
 
 **Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
 as a surface in every run.

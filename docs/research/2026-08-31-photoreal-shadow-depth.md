@@ -10451,3 +10451,59 @@ fault is traversal or the geometry's own data.
 
 No `src/` change. The probe gains `HIDECEIL=1`, which produced the equivalence and generates a reference
 class-A frame on demand.
+
+---
+
+## Round .306 — bisection complete on the app's side: the snapshot at `setScene` is identical in both classes
+
+`.305` narrowed (u) to "the ceiling is in `root` and absent from the trace — dropped downstream of `root`". This
+round bisects that gap.
+
+### The measurement
+
+`.302`'s census ran *inside* `buildTracerScene`; the snapshot then travels before
+`tracer.setScene(snapshot, renderCamera)`. Temporary instrumentation (added, observed, reverted, `src/` verified
+clean) censuses it again **at the hand-off**:
+
+| run | frame L | class | at `setScene` |
+| --- | --- | --- | --- |
+| `b1` (17:06 +08) | 29.9 | B — correct render | `meshes=1104 darkPlanes=113 visible=true` |
+| `b3x` (17:16 +08) | 104.4 | A — ceiling absent from trace | `meshes=1104 darkPlanes=113 visible=true` |
+
+Identical: all 113 dark planes — 99 walls plus the 14 ceilings — present in both classes.
+
+### The app is cleared, end to end
+
+| stage | verdict | round |
+| --- | --- | --- |
+| `buildTracerScene` populates the snapshot | ceiling present, correct in every respect | .302 |
+| Lambert→Standard substitution | removing it changes nothing | .304 |
+| snapshot → `setScene` hand-off | identical in both classes | **.306** |
+| inside `setScene` / BVH / traversal | **← the fault is here** | — |
+
+**(u) is not a defect in the app's scene construction.** It is in `three-gpu-pathtracer`'s ingestion of a scene
+handed over correctly and identically every time — so the app's options are a **workaround** (force or verify
+the BVH build, await completion, rebuild on failure), not a fix to its own logic. That is a materially different
+decision from what (u) looked like at `.285`, and worth knowing before budgeting the work.
+
+### Honest limitation
+
+`.305`'s predicted discriminator is **not** answered. The BVH was unreadable at every path tried (`tracer._bvh`,
+`tracer.bvh`, `tracer.material.uniforms.bvh.value` → `n/a`); the tracer's own keys are only
+`[rasterizeScene, rasterizeSceneCallback, _previousScene, scene]`. The **upstream** half is settled (input
+identical); missing-from-BVH versus present-but-not-intersected still needs an access path into this library
+version. Saying which half was answered matters — `.301` and `.303` both over-reached by treating a partial
+answer as a whole one.
+
+### Incidental lead
+
+The tracer exposes **`_previousScene`**: `setScene` keeps state across calls. Each session builds a fresh tracer
+so it should be empty on first use, but a cache inside the component now known to hold the fault is the first
+thing to inspect once the access path is found. **A lead.**
+
+### Operational
+
+Batching two PT runs in one shell call exceeded the 10-minute command timeout and killed the second mid-render.
+One run per call. Added to `docs/hq-tracer-probe-notes.md`.
+
+Instrumentation reverted, `src/` verified clean.

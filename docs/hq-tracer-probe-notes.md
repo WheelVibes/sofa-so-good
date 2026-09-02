@@ -70,6 +70,12 @@ radiance gap. And the app's glazing is a mid-tone panel that clips 0.0 % (item (
 daylight — so this compares interior surfaces against *the app's own aperture*, which is the right internal
 comparison but is not a comparison against a real sky.
 
+## One PT run per shell call
+
+A PT run is ~3–5 minutes including boot. Batching two in one shell call exceeded a 10-minute command timeout in
+`.306` and killed the second mid-render, losing the run entirely. The constraints already say one probe at a
+time on `:5199`; the same applies to the *call* that drives them. Poll or sequence across separate calls.
+
 ## Matching predictions of a SYMPTOM does not validate a MECHANISM
 
 `.301` proposed that the traced ceiling renders at the environment's level because the ceiling was **absent or
