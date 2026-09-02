@@ -1,0 +1,45 @@
+{
+  "name": "multistorey-section-f13",
+  "description": "v0.31.5.282 visual verification: the report's Section A-A on the two-storey Open Loft must show BOTH storeys stacked (it cut the ground floor only), with the upper storey's walls, rooms and furniture at its own elevation.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "load-loft-plan",
+      "eval": "(function(){ window.__loadErr=null; import('/src/floorplan/templates.ts').then(m => { const plan = m.PLAN_TEMPLATES.find(p => p.id === 'tpl-loft'); if (!plan) throw new Error('tpl-loft missing'); window.__store.getState().replaceFloorPlan(plan, { furniture: 'rehome' }); }).catch(e => { window.__loadErr = String(e); }); })()"
+    },
+    { "name": "plan-loaded", "waitFor": { "store": "window.__loadErr ? (() => { throw new Error(window.__loadErr) })() : (state.floorPlan.upperLevels||[]).length === 1" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 1200 },
+
+    {
+      "name": "put-furniture-on-the-loft",
+      "eval": "(() => { const s=window.__store.getState(); const its=s.items; const picks=its.slice(0,6).map(i=>i.id); const set=new Set(picks); s.setItems(its.map(it => set.has(it.id) ? { ...it, levelId:'lf-up', position:[1.0+picks.indexOf(it.id)*0.7, 4.6] } : it)); })()"
+    },
+    { "name": "settle-loft-items", "wait": 900 },
+
+    { "name": "patch-window-open", "eval": "window.__capturedHtml=null; window.open=function(){ return { document:{ write:function(html){ window.__capturedHtml=html }, close:function(){} }, close:function(){}, focus:function(){}, print:function(){} }; };" },
+    { "name": "open-report", "eval": "(function(){ window.__reportErr=null; import('/src/ui/openReport.ts').then(m => m.openDesignReport()).catch(e => { window.__reportErr=String(e) }); })()" },
+    { "name": "wait-report-html", "waitFor": { "store": "window.__reportErr ? (() => { throw new Error(window.__reportErr) })() : (typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0)" }, "timeout": 30000 },
+    { "name": "set-tall-viewport", "viewport": { "width": 1300, "height": 1400 } },
+    { "name": "inject-report", "eval": "(function(){ document.open(); document.write(window.__capturedHtml); document.close(); })()" },
+    { "name": "settle-injected", "wait": 900 },
+    {
+      "name": "assert-upper-storey-elevations-present",
+      "eval": "(function(){ const caps=[...document.querySelectorAll('.elev-fig figcaption')].map(e=>(e.textContent||'').trim()); if(!caps.length) throw new Error('no wall-elevation figures in the report'); const upper=caps.filter(c=>/\u2014 Loft/.test(c)); if(!upper.length) throw new Error('no UPPER-storey wall elevation — projectAllElevations enumerated plan.walls (ground only). Captions: '+caps.join(' | ')); window.__elevCaps=caps.join(' | '); const fig=[...document.querySelectorAll('.elev-fig')].find(f=>/\u2014 Loft/.test(f.textContent||'')); fig.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-elev-scroll", "wait": 600 },
+    { "name": "shot-upper-storey-elevations", "screenshot": "report-upper-storey-elevations" },
+    {
+      "name": "assert-section-shows-two-storeys",
+      "eval": "(function(){ const wrap=[...document.querySelectorAll('.elev-section')].find(e=>/Section A/.test(e.textContent||'')); if(!wrap) throw new Error('Section A-A block not in the report'); const svg=wrap.querySelector('svg'); if(!svg) throw new Error('Section block has no svg'); const cols=[...svg.querySelectorAll('g.walls rect')]; if(cols.length<3) throw new Error('only '+cols.length+' cut wall columns — a stacked section needs both storeys walls'); const tops=[...new Set(cols.map(r=>Math.round(parseFloat(r.getAttribute('y')))))].sort((a,b)=>a-b); if(tops.length<2) throw new Error('every wall column starts at the same y — the section is still one storey (tops: '+tops.join(',')+')'); const floors=[...new Set([...svg.querySelectorAll('g.floor line')].map(l=>Math.round(parseFloat(l.getAttribute('y1')))))]; if(floors.length<2) throw new Error('only one floor line — the upper storey floor is missing (y: '+floors.join(',')+')'); window.__sectionTops=tops.join(','); window.__sectionFloors=floors.join(','); svg.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-scroll", "wait": 600 },
+    { "name": "shot-stacked-section", "screenshot": "report-section-two-storeys" }
+  ]
+}

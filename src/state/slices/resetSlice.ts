@@ -1,8 +1,9 @@
 import { planAirconPlacements } from '../../analysis/airconPlacement'
 import { buildAirconSystemPlan } from '../../analysis/airconSystem'
+import { mapPlanRooms } from '../../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { toArrangeKind } from '../../floorplan/roomCategory'
-import type { FloorPlan } from '../../floorplan/types'
+import type { FloorPlan, IntakeStateId } from '../../floorplan/types'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import { defaultLayout } from '../../furniture/defaultLayout'
@@ -126,6 +127,18 @@ function hydrateLayout() {
   })
 }
 
+/**
+ * Stamp the buyer's starting state onto the plan.
+ *
+ * Persisted because it is a FACT downstream quantities cannot otherwise
+ * recover — `analysis/paintQuantities.ts` needs it to know whether the walls are
+ * bare skim coat (a BTO) or previously painted (a resale), which is a >2x
+ * difference in litres. The wizard used to ask and discard.
+ */
+function withIntake(plan: FloorPlan, id: IntakeStateId): FloorPlan {
+  return { ...plan, intakeState: id }
+}
+
 export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) => ({
   resetToEmpty: () => {
     get().pushHistory()
@@ -157,7 +170,9 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     const plan = get().floorPlan
     if (!isDefaultPlan(plan)) {
       const wallHex = BUILTIN_MATERIALS[preset.wall]?.swatch ?? plan.wallColor
-      const rooms = plan.rooms.map((r) => {
+      // EVERY storey (F13) via `mapPlanRooms` — a ground-only rewrite left
+      // every upstairs bedroom on its old floor while the downstairs changed.
+      const repainted = mapPlanRooms(plan, (r) => {
         // RM1: an explicit, user-set category wins; else the legacy name
         // classifier — living/bedroom rooms get the preset's dry floor.
         const kind = r.category ? toArrangeKind(r.category) : roomKindFromName(r.name)
@@ -165,7 +180,7 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
       })
       set({
         items: furnishPlanItems(plan, preset, BUILTIN_CATALOG, get().doors),
-        floorPlan: { ...plan, rooms, wallColor: wallHex },
+        floorPlan: { ...repainted, wallColor: wallHex },
         selectedItemId: null,
         selectedItemIds: [],
         hiddenItemIds: [],
@@ -197,12 +212,12 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
       // finish on each room whose category OCS re-finishes. Items + plan in one
       // `set` = one undo step (the snapshot includes `floorPlan`).
       const floorByRoom = buildOcsFloorFinishesForPlan(plan)
-      const rooms = plan.rooms.map((r) =>
+      const refinished = mapPlanRooms(plan, (r) =>
         floorByRoom[r.id] ? { ...r, floor: floorByRoom[r.id] } : r,
       )
       set({
         items: furnishOcsItems(plan, [...OCS_BATH_KIT], BUILTIN_CATALOG, get().doors),
-        floorPlan: { ...plan, rooms },
+        floorPlan: withIntake(refinished, 'bto-ocs'),
         selectedItemId: null,
         selectedItemIds: [],
         hiddenItemIds: [],
@@ -233,8 +248,10 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     if (!isDefaultPlan(plan)) {
       // Custom plan / template: write screed onto each dry room's own floor;
       // wet/kitchen rooms keep their existing floor. No furniture / carpentry.
-      const rooms = plan.rooms.map((r) => (screed[r.id] ? { ...r, floor: screed[r.id] } : r))
-      const nextPlan = { ...seededPlan, rooms }
+      const nextPlan = withIntake(
+        mapPlanRooms(seededPlan, (r) => (screed[r.id] ? { ...r, floor: screed[r.id] } : r)),
+        'bto-bare',
+      )
       set({
         items: [],
         floorPlan: nextPlan,
@@ -265,8 +282,10 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     // untouched; only restore any removed leaves and capture the baseline.
     get().pushHistory()
     const plan = get().floorPlan
+    const next = withIntake(plan, 'resale-asis')
     set({
-      baselinePlan: plan,
+      floorPlan: next,
+      baselinePlan: next,
       doors: withLeavesRestored(get().doors as DoorRec),
     })
   },
@@ -278,8 +297,14 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     // Keep only wet-area + kitchen FITTINGS; strip furniture + wardrobes + carpentry.
     const items = get().items.filter((it) => isStripoutKeep(it.defId))
     if (!isDefaultPlan(plan)) {
-      const rooms = plan.rooms.map((r) => (screed[r.id] ? { ...r, floor: screed[r.id] } : r))
-      const nextPlan = { ...plan, rooms }
+      // EVERY storey (F13) via `mapPlanRooms`. MISSED in v0.31.5.281, which
+      // fixed the other three intake paths and said so — this fourth one kept
+      // screeding the ground floor only, leaving a maisonette's upstairs on its
+      // old finish. Found while reading this function for an unrelated reason.
+      const nextPlan = withIntake(
+        mapPlanRooms(plan, (r) => (screed[r.id] ? { ...r, floor: screed[r.id] } : r)),
+        'resale-stripout',
+      )
       set({
         items,
         floorPlan: nextPlan,
@@ -292,10 +317,12 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
       return
     }
     const cur = get().finishes
+    const stamped = withIntake(plan, 'resale-stripout')
     set({
       items,
       finishes: { ...cur, floor: { ...cur.floor, ...screed } },
-      baselinePlan: plan,
+      floorPlan: stamped,
+      baselinePlan: stamped,
       doors,
       selectedItemId: null,
       selectedItemIds: [],

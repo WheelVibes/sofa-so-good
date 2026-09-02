@@ -1,0 +1,82 @@
+{
+  "name": "floor-buildup-report",
+  "description": "v0.31.6.2 \u2014 floor build-up + HDB thickness limits in the report. Captures the printable report via the window.open intercept, asserts the section exists, that the WET-ROOM FALL warning leads (Bath/WC 1 sits 8 mm above Main Bedroom on the shipped flat \u2014 bedded porcelain against vinyl), and that the doorway-step note is present, then renders the HTML into the page to screenshot the real table.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": {
+        "store": "state.bootPhase === 'ready' && state.sceneReady === true"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "settle-post-boot",
+      "wait": 800
+    },
+    {
+      "name": "switch-to-pro",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "mode-settle",
+      "wait": 600
+    },
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    {
+      "name": "open-report",
+      "eval": "import('/src/ui/openReport.ts').then(m => m.openDesignReport())"
+    },
+    {
+      "name": "wait-report-captured",
+      "waitFor": {
+        "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0"
+      },
+      "timeout": 20000,
+      "failMessage": "openDesignReport() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-buildup-section",
+      "eval": "(function(){ const html = window.__capturedHtml; const i = html.indexOf('<h2>Floor build-up &amp; levels</h2>'); if (i < 0) throw new Error('report has no Floor build-up section in Pro'); const next = html.indexOf('<h2>', i + 4); const sec = html.slice(i, next < 0 ? html.length : next); if (!/Wet room floor falls OUT toward a dry room/.test(sec)) throw new Error('no wet-room fall warning: ' + sec.slice(0,400)); if (!/sits 8 mm above Main Bedroom/.test(sec)) throw new Error('wet-room fall does not name the measured 8 mm step'); if (sec.indexOf('falls OUT') > sec.indexOf('<td>Room</td>')) throw new Error('warning sits BELOW the reference table \u2014 the one error in the section is buried'); if (!/Doorway steps needing a threshold detail/.test(sec)) throw new Error('no doorway-step note'); if (/\\+NaN|undefined mm/.test(sec)) throw new Error('unresolved value rendered: ' + sec.slice(0,300)); })()"
+    },
+    {
+      "name": "render-report-for-shot",
+      "eval": "document.open(); document.write(window.__capturedHtml); document.close();"
+    },
+    {
+      "name": "settle-render",
+      "wait": 1200
+    },
+    {
+      "name": "scroll-to-buildup",
+      "eval": "(function(){ const h = [...document.querySelectorAll('h2')].find(x => x.textContent.trim() === 'Floor build-up & levels'); if (!h) throw new Error('rendered report has no Floor build-up heading'); h.scrollIntoView({ block: 'start' }); })()"
+    },
+    {
+      "name": "settle-scroll",
+      "wait": 500
+    },
+    {
+      "name": "shot-buildup",
+      "screenshot": "01-floor-buildup-in-report"
+    }
+  ]
+}

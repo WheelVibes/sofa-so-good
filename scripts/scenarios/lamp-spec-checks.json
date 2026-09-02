@@ -1,0 +1,33 @@
+{
+  "name": "lamp-spec-checks",
+  "description": "v0.31.5.298 visual verification: the Lamp specification group in the Checks panel. The default flat already has ceiling lights in its bathrooms, so the IP44 and colour-temperature advisories fire out of the box. Pro mode.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "probe-bathroom-fixtures",
+      "eval": "(function(){ const s=window.__store.getState(); const baths=s.floorPlan.rooms.filter(r=>/bath|wc/i.test(r.name)); const lights=s.items.filter(i=>/light|lamp|sconce|vanity/i.test(i.defId)); window.__probe=JSON.stringify({baths:baths.map(b=>b.name), lightDefs:[...new Set(lights.map(l=>l.defId))]}); })()"
+    },
+    { "name": "open-checks", "eval": "window.__store.getState().setClearancePanelOpen(true)" },
+    { "name": "panel-open", "waitFor": { "css": ".clr-list" }, "timeout": 15000 },
+    { "name": "settle-panel", "wait": 800 },
+    {
+      "name": "assert-lamp-spec-group",
+      "eval": "(function(){ const heads=[...document.querySelectorAll('.sec-h')].map(e=>(e.textContent||'').trim()); if(!heads.includes('Lamp specification')) throw new Error('no Lamp specification group — the default flat may have no fixture in a wet room. Section heads: '+heads.join(' | ')); const badges=[...document.querySelectorAll('.badge')].map(e=>(e.textContent||'').trim()); if(!badges.includes('IP rating')) throw new Error('no IP rating finding. Badges: '+badges.join(' | ')); const h=[...document.querySelectorAll('.sec-h')].find(e=>/Lamp specification/.test(e.textContent||'')); h.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-scroll", "wait": 500 },
+    { "name": "shot-lamp-spec", "screenshot": "checks-lamp-specification" },
+    {
+      "name": "assert-lighting-layers-group",
+      "eval": "(function(){ const heads=[...document.querySelectorAll('.sec-h')].map(e=>(e.textContent||'').trim()); if(!heads.includes('Lighting layers')) throw new Error('no Lighting layers group. Heads: '+heads.join(' | ')); const h=[...document.querySelectorAll('.sec-h')].find(e=>/Lighting layers/.test(e.textContent||'')); const txt=h.parentElement.textContent||''; if(!/Missing/.test(txt)) throw new Error('group present but names no missing layer'); h.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-layers", "wait": 500 },
+    { "name": "shot-lighting-layers", "screenshot": "checks-lighting-layers" }
+  ]
+}

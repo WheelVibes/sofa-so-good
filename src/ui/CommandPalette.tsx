@@ -47,11 +47,14 @@ import { Icon, type IconName } from './toolbar/icons'
 /** ⌘K command id → the feature flag that gates it (so a disabled feature can't
  *  be launched from the palette either). Unmapped commands are always shown. */
 const COMMAND_FLAGS: Record<string, FeatureFlag> = {
+  'scheme-options': 'schemeOptions',
   measure: 'measure',
   'smart-start': 'smartStart',
   share: 'shareExport',
   report: 'report',
   'reno-ics': 'report',
+  'mark-tendered': 'variationRegister',
+  'clear-tendered': 'variationRegister',
   floorplan: 'floorPlanEditor',
   'plan-new': 'planReset',
   'plan-reset': 'planReset',
@@ -360,6 +363,13 @@ export function CommandPalette() {
         run: () => s().setStyleTransferOpen(true),
       },
       {
+        id: 'scheme-options',
+        group: 'Tools & panels',
+        label: 'Compare design schemes — generate alternatives',
+        icon: 'Presets',
+        run: () => s().setSchemeOptionsOpen(true),
+      },
+      {
         id: 'style-quiz',
         group: 'Tools & panels',
         label: 'Style quiz — find your interior style',
@@ -466,6 +476,32 @@ export function CommandPalette() {
         label: 'Design report (printable)',
         icon: 'Report',
         run: () => openDesignReport(),
+      },
+      {
+        id: 'mark-tendered',
+        group: 'Tools & panels',
+        label: 'Mark design as tendered (start a variation register)',
+        icon: 'Check',
+        run: () => {
+          const s = useStore.getState()
+          s.captureTenderedSnapshot()
+          s.notify.start({
+            title: 'Marked as tendered',
+            kind: 'success',
+            message:
+              'Changes from here appear as a variation register in the renovation-budget export.',
+          })
+        },
+      },
+      {
+        id: 'clear-tendered',
+        group: 'Tools & panels',
+        label: 'Clear the tendered snapshot',
+        icon: 'Trash',
+        run: () => {
+          useStore.getState().clearTenderedSnapshot()
+          useStore.getState().notify.start({ title: 'Tendered snapshot cleared', kind: 'info' })
+        },
       },
       {
         id: 'reno-ics',

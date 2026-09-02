@@ -1444,6 +1444,24 @@ same change that reshapes a system.
   `FirstPersonCamera` follows the walker's current room offset continuously on top of the
   storey elevation. Plan-room feature only — the curated default flat (`RoomShell`) has no
   `floorLevelMm` concept and is unchanged.
+  **Derived floor build-up + the HDB thickness limits (`floorBuildUp` flag, pro):**
+  `floorLevelMm` above is HAND-ENTERED; this DERIVES the same quantity from the specified
+  finish. `MaterialDef.buildUp?: { finishMm, beddingMm }` (specified, never inferred — same
+  discipline as `moduleMm`/`paint`) is applied inside `builtinCatalog.ts`'s `floor()` helper by
+  pattern family (`BUILD_UP_BY_PATTERN` + `TILE_PATTERNS`/`WOOD_PATTERNS`), so all 37 floor
+  finishes carry it by construction; `carpet`/`terrazzo` are deliberately absent (no citable
+  figure) and exercise the omission path on shipped data. `analysis/floorBuildUp.ts` (pure)
+  returns per-room build-up + a **relative** derived FFL (datum = the thinnest room, because a
+  threshold is dimensioned from the step and the model has no slab level), doorway steps
+  (per-storey via `roomsAcrossOpening` — F13: a whole-home read pairs an upstairs door with the
+  room beneath it), the two HDB limits (`HDB_MAX_BUILD_UP_MM` 50 mm finish+screed vs
+  `HDB_MAX_OVERLAY_MM` 13 mm tiles+adhesive, selected by `FloorPlan.intakeState`), rooms whose
+  hand-entered FFL contradicts their finishes, and `wetRoomsFallingOutward` — a wet room whose
+  derived floor sits ABOVE the dry room across the doorway. That last one is what the
+  derivation exists for and `floorLevels.ts`'s kerb advisory cannot produce it (that fires on
+  SAME-level, the benign end); it fires on the shipped default flat. Surfaced in the report
+  above the layout critique, errors first. Thresholds/sources:
+  `docs/research/2026-09-03-floor-build-up.md`.
   **Carpentry/joinery elevations + sections (TODO G8, `carpentrySheets` flag, pro):**
   the single most-cited DIY-handover gap — a dimensioned front elevation + one
   representative section per distinct PLACED parametric piece (bookshelf/wardrobe/
@@ -1584,6 +1602,173 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Site measurements: the model is verified, not just drawn.** `plan.siteMeasurements` (additive,
+  optional, schema round-tripped; the type lives in `floorplan/types.ts` to avoid an import cycle)
+  records what a tape actually read, in mm. `floorplan/siteMeasurements.ts:
+  buildMeasurementReconciliation` compares each against the model and reports a signed deviation
+  (positive = the real thing is bigger than drawn) against a length-banded tolerance
+  (`defaultToleranceMm`: 6/9/12 mm — the widens-with-length convention, citing NO standard clause,
+  same rule as `export/specification.ts`; overridable per measurement). A measurement whose target
+  was deleted is reported `unresolved` and still printed — never dropped, since discarding a
+  dimension someone physically measured is the worst failure this could have. Recorded via
+  `floorPlanSlice.setSiteMeasurement` / `clearSiteMeasurement` (undoable, forks the default plan,
+  one measurement per (kind, targetId) — re-measuring REPLACES) and entered through
+  `SiteMeasuredField` in the wall / room / opening inspectors, which shows the deviation INLINE so a
+  discrepancy is caught while the user is still holding the tape. Printed as the drawing set's
+  "As-built reconciliation" sheet (`siteMeasurements` flag, pro), which states plainly whether the
+  drawings can be built from as-is.
+- **Alternative schemes: the preset is the STYLE lever, the arranger seed is the LAYOUT lever.**
+  `analysis/schemeOptions.ts:buildSchemeOptions({plan, defs, presets, seeds?, doors?, budget?})`
+  generates one scored + priced candidate per preset, ranks them (overall, then cheaper wins a tie,
+  then preset id for determinism), and derives per-category trade-off lines plus a recommendation.
+  **Both levers are required and this was measured, not assumed**: no shipped `LayoutPreset` defines
+  `kits`, so preset-swapping alone places identical furniture in identical positions — a restyle, not
+  an alternative scheme. Layout variation comes from `arrangeCore`'s LAYOUT-REROLL `seed`, now
+  threaded through `arrangeAllRoomsForPlan` and `furnishPlanItems` as a trailing `seed = 0`
+  (additive; 0 is byte-identical to before). `schemeOptions` defaults each scheme's seed to its
+  index, so callers get varied layouts without opting in; pass all-zero `seeds` to compare pure
+  styling. Trade-offs skip gaps under `TRADEOFF_MIN_GAP` (5) so noise is not printed as a decision,
+  and no prose adjectives are invented. A preset that furnishes nothing lands in `emptyPresetIds`
+  rather than being ranked. Data core only — the review-and-pick UI is in `TODO.md`.
+- **Construction details are scoped to what the model can state exactly.**
+  `floorplan/junctionDetails.ts:buildJunctionDetails(plan)` (`constructionDetails` flag, pro) emits
+  one detail per DISTINCT condition — dropped ceiling (`ceilingClearance.ts` drop + finished
+  clearance), wet-area upturn (`waterproofing.ts` 300/1800 mm), floor threshold (`floorLevels.ts`
+  step), window sill/head (`PlanOpening.sill`/`head` + resolved wall thickness) — each with a
+  quotable id (`D-WS-01`), location, exact dimensions and notes. It deliberately emits NO skirting /
+  cornice / kerb / worktop / architrave detail: the model stores trim HEIGHTS but no profile and no
+  specified projection (the render's ~12 mm is a rendering constant), so drawing one would invent a
+  dimension a contractor would build to — pinned by a test. Rendered as the "Construction details"
+  sheet (`ui/drawingSet.ts:detailSheetBody`) as dimension tables, not drawn sections, for the same
+  reason; the sheet prints what it excludes. **`DETAIL_SCALE_RATIOS = [2, 5, 10]` is a SEPARATE
+  ladder from `STANDARD_SCALE_RATIOS`** — merging them makes `pickDrawingScale` (first ratio that
+  FITS the paper) print a small room's floor plan at 1:5. A detail requests its scale; a plan fits
+  to paper. See `TODO.md` for the profile-data prerequisite that unblocks drawn sections.
+- **The written specification is derived, and asserts no standard codes.**
+  `export/specification.ts:buildSpecification` (`specification` flag, pro) emits a clause per trade
+  IN SCOPE — product · substrate · preparation · workmanship · tolerance · exclusions, with a
+  stable quotable id (`TIL-01`) — driven by what the design actually contains (tile coursing, wet
+  zones, joinery items, MEP point counts, finish names), so a clause never describes work that
+  isn't there and `tradesNotCovered` names what the document omits. **It deliberately cites no
+  standard code numbers**: tolerances are conventional and measurable in plain language, every
+  clause leaves `standardRef` for the user, and `SPEC_SCOPE_NOTE` says so on the sheet — a
+  fabricated citation reads as authoritative, which is worse than none (guarded by a test that
+  rejects `SS|BS|EN|ISO|ASTM`-shaped text). Rendered as the drawing set's "Specification" sheet
+  (`ui/drawingSet.ts:specificationSheetBody`), assembled from the same sources the schedules read.
+- **Tile setting-out reads a SPECIFIED module, never a texture scale.**
+  `MaterialDef.moduleMm?: [w, h]` (mm) is a product dimension, populated only on finishes whose
+  format is actually specified. It is deliberately NOT derived from `uvScale`: the rendered tile size
+  is `uvScale ÷ the painter's internal grid count` (`patterns/tile.ts` 2×2 per texture period,
+  `brick` 5×6), and those counts are texture-authoring constants that may be retuned for visual
+  reasons — inferring a construction dimension from them would let a visual tweak change a
+  contractor's setting-out. `floorplan/tileCoursing.ts` (`roomTileCoursing`/`planTileCoursing`) reads
+  `moduleMm` only, treats absence as UNKNOWN (returns null, and the caller reports how many rooms it
+  omitted), centres the field so both perimeter cuts are equal and as wide as possible, and borrows a
+  whole tile back rather than leaving a cut under `SLIVER_LIMIT_FRACTION` (a quarter module) — the
+  re-set a tiler would do. Rendered as the "Tile setting-out & coursing" table on the Finishes
+  schedule sheet (`ui/drawingSet.ts:tileCoursingTable`), which is where it belongs: coursing with no
+  finishes schedule beside it would be a dangling reference.
+- **Illuminance has a work plane and a uniformity score.** `lighting2d/luxGrid.ts`
+  `pointIlluminance(light, px, pz, planeHeight)` measures on a plane at `planeHeight` (default 0 =
+  floor); `roomLux.ts:WORK_PLANE_HEIGHT_M` gives the per-room-kind plane a lux target actually
+  applies to (~0.85 m kitchen worktop, ~0.75 m desk), beside the `RECOMMENDED_LUX` band. Requested
+  per-room via `LuxGridOptions.workPlane` — **opt-in on purpose**: these grids primarily feed the 3D
+  FLOOR heatmap (`scene/LuxOverlay.tsx`), and painting worktop illuminance onto a floor would
+  misrepresent it, so analysis opts in and the visual stays on the floor (an explicit `planeHeight`
+  overrides both). `RoomLuxGrid` also carries `minLux`/`meanLux`/`uniformity` (U0 = Emin/Eavg over
+  IN-ROOM cells only — masked cells are outside the room, not dark spots), with
+  `roomLux.ts:MIN_UNIFORMITY` holding the EN 12464-style floors (0.6 task / 0.4 general): an average
+  that meets its band can still be hotspots and dark corners. `roomLuxKind(room)` is the ONE
+  room-kind resolution shared by the room average and the grid.
+  **Uniformity reaches the deliverables** via `buildRoomUniformity(plan, lights, iesShape?)`, which
+  assesses the DESIGN condition (fixtures full, no daylight, per-room work plane — what a lighting
+  spec is written for) and returns U0 vs the kind's `MIN_UNIFORMITY`, keyed by room id. Passed as
+  `roomLuxTableHtml`'s optional 4th arg to add a "U0 / min" column — omitted keeps the previous
+  5-column table. Consumed by the drawing set's lighting sheet and the report's lighting section. A
+  fully dark room PASSES (no meaningful uniformity; the average status already flags it `low`). **The spatial grid is directional since v0.31.5.260**: `PlanLight.iesProfile` (from
+  `item.props.iesProfile`) plus an INJECTED `LuxGridOptions.iesShape` resolver
+  (`lighting/ies/iesShape.ts` bridging the stateful `iesStore` to the pure grid) scales the peak
+  candela by `relativeIntensityAt` — the profile's distribution normalised to its OWN peak, SHAPE
+  only, so the registry calibration still owns magnitude and no absolute photometry is asserted.
+  Unknown profile ⇒ factor 1 (isotropic, never dark). **It moves peaks/minima/uniformity but NOT
+  `meanLux`**: the indirect term tops the direct field up to the lumen-method average (Φ × UF / A),
+  which is distribution-agnostic by construction — measured, and documented in the module. The room
+  AVERAGE therefore remains isotropic and anchored by `SCENE_INTENSITY_CALIBRATION` — see `TODO.md`,
+  and **do not calibrate it against the HQ render** (not a photometrically
+  anchored reference; see `docs/research/2026-09-02-pro-designer-replacement-gaps.md`).
+- **Setting-out covers non-orthogonal walls, by co-ordinates.**
+  `floorplan/settingOut.ts`'s running rows dimension axis-aligned wall FACES, so a diagonal or arc
+  wall cannot join them. `SettingOutSet.skew` reports those walls instead as
+  `SettingOutSkewWall` — both endpoints as X/Z offsets from the SAME datum, the angle normalised to
+  [0, 180) (so a wall and its reverse read alike), and `radiusM` for an arc (from chord + stored
+  bulge). Deliberately CENTRELINE, not face: a sloping face has no single offset. Sorted by wall id
+  for a deterministic table. `autoDimensionSvg.ts` prints the disclosure line under the
+  SETTING-OUT DATUM label and `ui/drawingSet.ts:skewSettingOutTable` renders the co-ordinate table
+  on the dimensioned-plan sheet (integer mm via `formatDrawingLength`). Both appear only when such
+  walls exist — an orthogonal plan's sheet is unchanged. **Never let a wall fall out of the
+  setting-out silently**: that was the bug (the modeler ships arc + any-shape rooms while the
+  deliverable dimensioned neither, and said nothing).
+- **Sections: both conventional cuts, and they are locatable on the plan.**
+  `floorplan/section.ts:conventionalSectionCuts(plan)` returns the CROSS cut (`axis: 'z'`, mark A)
+  and the LONGITUDINAL cut (`axis: 'x'`, mark B), each positioned by scoring candidate positions
+  (room label points + the plan midpoint) on how much the cut actually crosses — so a cut cannot
+  land down an empty corridor; ties break toward the lower coordinate for determinism. Empty for a
+  wall-less plan. `ui/drawingSet.ts` resolves them UP FRONT (the floor-plan sheet is built before
+  the section sheets), emits one `Section X–X` sheet per surviving cut, and passes the survivors to
+  `reportPlanSvg`'s `sectionMarks` param — which draws the chain-dashed cut line plus a
+  view-direction arrow and mark letter at BOTH ends. Ground storey only (the cuts are taken through
+  it). Only cuts whose sheet rendered are marked, so a mark never points at a skipped sheet.
+  User-placed cuts are deferred (`TODO.md`); `buildSection` already accepts any axis+position.
+- **The drawing set's revision table is an append-only audit trail.**
+  `export/drawingSetTemplate.ts` holds `revisions?: DrawingSetRevision[]` (prior issues, oldest
+  first) ALONGSIDE `revision`/`revisionNote`, which remain the CURRENT issue — additive, so an
+  absent history reproduces the original single-row table. Pure clock-free helpers (the module is
+  serialisable and never reads a clock; dates are injected): `drawingSetRevisionRows(t, date)`
+  builds every row to print and drops a history entry duplicating the current letter;
+  `nextRevisionLetter` does the A→B…Z→AA odometer carry; `issueRevision(t, date)` files the current
+  row and advances. Filed rows are intentionally not editable from the UI — a rewritable revision
+  table is not an audit trail. Rendered on the cover by `ui/drawingSet.ts`; edited in the File
+  menu's drawing-set Disclosure; persisted through `state/schema.ts`. Per-sheet revision letters
+  and revision clouds are deferred (`TODO.md`) — both need data nothing can currently populate.
+- **Cross-discipline coordination checks** (`coordinationChecks` flag, pro) —
+  `analysis/coordinationClashes.ts` `buildCoordinationClashes(plan, items, catalog, electrical,
+  plumbing)` is the ONE check that compares disciplines against **each other** rather than each
+  against itself: (a) an MEP point inside a furniture footprint AND within that item's vertical
+  extent (floor-anchored, so 0 → `itemHeight`) = a fitting that would be built in and unreachable;
+  (b) an item taller than its room's finished ceiling clearance (`buildCeilingClearance`) = it will
+  not fit under the drop. Reuses `itemFootprintParts` (shape-aware, not the coarse OBB), the one
+  `elevation/projectElevation.ts:itemHeight` resolver, and `pointInRoom` — the only new geometry is
+  a local point-in-OBB test (`collision/obb.ts` has box-vs-box and box-vs-segment, no point
+  containment). Reads the PERSISTED `plan.electricalPoints`/`plumbingPoints`, so an unwired design
+  reports nothing rather than guessing. Reports `checked: { mepPoints, items }` so "no clashes" is
+  distinguishable from "nothing to check". Surfaced as the report's "Coordination" section.
+  **Indicative, not a clash engine**: 2D footprints + one height per item, so blind to internal
+  voids and 3D duct routes (scope note rendered with the section; follow-ups in `TODO.md`).
+- **Drawing dimensions are integer millimetres, not decimal metres.**
+  `utils/measurement.ts` has TWO length formatters and the distinction is deliberate:
+  `formatLength` is the friendly on-screen readout ("2.60 m" / nearest-inch imperial) used by the
+  inspector, HUDs, tape measure and panels; **`formatDrawingLength`** is the drawing convention —
+  metric as suffix-free integer mm (`2745`), imperial to the nearest 1/8" in lowest terms
+  (`16′ 4 7/8″`) — used by the dimension LINES (`floorplan/autoDimension.ts` labels,
+  `autoDimensionSvg.ts` setting-out running dimensions, `ui/elevation/elevationSvg.ts`). mm are the
+  trade's working unit (joinery/setting-out are specified to 1 mm), and `formatLength`'s 2-dp metre
+  output quantised every dimension to 10 mm — which silently undid the compounding-error fix
+  `settingOut.ts` exists for. `drawingUnitsNote(units)` prints the "ALL DIMENSIONS IN MILLIMETRES"
+  title-block line that licenses the suffix-free labels (threaded via
+  `RenderDrawingDocumentOpts.units`, so trade packs carry it too). **The DXF export deliberately
+  keeps metres** — it declares `$INSUNITS = 6` and writes metre coordinates, so `dxfDimension`
+  formats from the raw `Dimension.value` with `formatLength` to stay consistent with its own
+  header; see `TODO.md` for the mm + `$INSUNITS = 4` follow-up.
+- **Top-down furniture footprints for every plan renderer** come from the pure
+  `ui/planFootprints.ts` `planFootprints(items, catalog)` — the ONE resolver shared by
+  `drawingSet.ts`'s floor-plan sheet, `report.ts`'s plan diagram and `openPlanSvg.ts`'s export
+  (formerly three identical inline copies). It resolves via `collision/placement.ts`
+  `itemFootprintParts` (the shape-aware convex decomposition collision/clearance already use),
+  NOT the single enclosing `itemFootprint` OBB, and emits one polygon per part — so a round/oval
+  table or L-shaped sectional draws as its real shape instead of a rectangle claiming bbox corners
+  it never occupies, and the plan agrees with the accessibility check about free circulation. A def
+  with no `footprintParts` is unchanged (`itemFootprintParts` returns `[itemFootprint(...)]`).
+  Malformed defs (missing from the catalog / no `defaultFootprint`) are skipped, never thrown on.
 - **Sweet Home 3D import** (`importSh3d` flag, pro; PARITY-SH3D): pure parser core
   `floorplan/import/sh3d.ts` `parseSh3d(bytes)` unzips a `.sh3d` (fflate `unzipSync`), reads
   `Home.xml` (DOMParser), and maps it into our plan model — cm→m (÷100), origin-anchored bbox,
@@ -1760,6 +1945,17 @@ same change that reshapes a system.
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
   emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
   a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
+- **Layout critique** (`analysis/layoutCritique.ts` pure → `buildLayoutCritique(plan,items,catalog)`:
+  cited comfort bands — TV viewing distance, conversation distance, coffee-table reach, SG sofa
+  proportion, and rug size against the sofa / dining table / bed it anchors, with a bedside
+  RUNNER recognised as its own published layout and judged on length rather than overhang).
+  Each finding carries the measured figure + the band so a user can judge the call; `skipped`
+  where the design lacks the pieces. Consumed by `schemeOptions` (compare modal) **and**, since
+  v0.31.5.314, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed
+  by `schemeOptions` ALONE, so it critiqued generated alternatives and never the home the user
+  drew. `FurnitureItem.rotation` is RADIANS here (`itemFootprint` feeds it to `Math.cos`);
+  `roughlyAligned` compares against a quarter turn, not `% 90`. Thresholds/sources:
+  `docs/research/2026-09-02-layout-critique-standards.md`.
 - **Design suggestions** (`analysis/suggestions.ts` pure → `buildSuggestions({rooms})`: a data-driven
   rule set over each room's inferred kind + the furniture categories present, yielding per-room
   "what to add / improve" tips). Powers the in-app suggestions panel and the report's **Design

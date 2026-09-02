@@ -1,0 +1,49 @@
+{
+  "name": "tiling-layout-plan-g5",
+  "description": "v0.31.5.288 visual verification: the new Tiling layout plan sheet. Sets 600x600 porcelain on several rooms of the default flat, opens the drawing set, and captures the sheet — the tile grid struck from the computed origin, the perimeter cut bands tinted, the origin cross, and the per-room module/cut note.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "tile-several-rooms",
+      "eval": "(function(){ const s=window.__store.getState(); const ids=Object.keys(s.finishes.floor||{}); if(!ids.length) throw new Error('no floor finishes in the store'); window.__tiled=[]; for (const id of ids) { s.setFloorFinish(id, 'floor-tile-white'); s.setWallFinish ? s.setWallFinish(id, 'wall-tile-white') : s.setWallColor?.(id, 'wall-tile-white'); window.__tiled.push(id); } })()"
+    },
+    { "name": "settle-finishes", "wait": 900 },
+
+    { "name": "patch-window-open", "eval": "window.__capturedHtml=null; window.open=function(){ return { document:{ write:function(html){ window.__capturedHtml=html }, close:function(){} }, close:function(){}, focus:function(){}, print:function(){} }; };" },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-file", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('.pop-panel button')].find(b=>/Drawing set/.test(b.textContent||'')); if(!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    { "name": "wait-html", "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" }, "timeout": 30000 },
+    {
+      "name": "assert-sheet-content",
+      "eval": "(function(){ const h=window.__capturedHtml; if(!/Tiling layout plan/.test(h)) throw new Error('no Tiling layout plan sheet in the set'); if(!/class=\"origin\"/.test(h)) throw new Error('sheet has no setting-out origin marker'); if(!/class=\"grid\"/.test(h)) throw new Error('sheet has no tile grid — the module data did not reach it'); if(!/600×600/.test(h)) throw new Error('no module note on the sheet'); })()"
+    },
+    { "name": "set-tall-viewport", "viewport": { "width": 1300, "height": 1500 } },
+    { "name": "inject", "eval": "(function(){ document.open(); document.write(window.__capturedHtml); document.close(); })()" },
+    { "name": "settle-injected", "wait": 900 },
+    {
+      "name": "scroll-to-tiling-sheet",
+      "eval": "(function(){ const tb=[...document.querySelectorAll('.title-block')].find(e=>/Tiling layout plan/.test(e.textContent||'')); if(!tb) throw new Error('no Tiling layout plan title block'); const sheet=tb.parentElement; const svg=sheet?.querySelector('svg'); if(!svg) throw new Error('the tiling sheet has no svg'); svg.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-scroll", "wait": 600 },
+    { "name": "shot-tiling-layout", "screenshot": "tiling-layout-plan" },
+    {
+      "name": "assert-elevation-course-grid",
+      "eval": "(function(){ const tb=[...document.querySelectorAll('.title-block')].find(e=>/^Wall /.test((e.querySelector('.tb-name')?.textContent||'').trim())); if(!tb) throw new Error('no wall-elevation sheet found'); const withGrid=[...document.querySelectorAll('.title-block')].map(t=>t.parentElement).find(sh=>sh && /tile-courses/.test(sh.innerHTML)); if(!withGrid) throw new Error('no elevation sheet carries a tile-courses overlay — the wall coursing did not reach elevationSvg'); const svg=withGrid.querySelector('svg'); svg.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-elev", "wait": 600 },
+    { "name": "shot-elevation-course-grid", "screenshot": "elevation-course-grid" }
+
+  ]
+}

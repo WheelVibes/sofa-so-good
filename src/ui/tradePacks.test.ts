@@ -133,10 +133,17 @@ describe('tradePacks — composition (all systems present)', () => {
     expect(pack.includedSheets.some((s) => s.name === 'Door & window schedule')).toBe(true)
   })
 
-  it('painter bundles a walls-only finish schedule + a paint-area basis', () => {
+  it('painter bundles a walls-only finish schedule + paint LITRES', () => {
     const pack = buildTradePack('painter', fullInput)
     expect(pack.includedSheets).toEqual([expect.objectContaining({ name: 'Finishes schedule' })])
-    expect(pack.html).toContain('Paint-area quantity basis')
+    // v0.31.5.292: this used to print an area and tell the painter to "add
+    // ceilings + a coverage/coats factor per the paint spec" — the arithmetic
+    // the app has every input for. Now it prints litres and what to buy.
+    expect(pack.html).toContain('Paint quantities')
+    expect(pack.html).toMatch(/\d+(\.\d+)? L/)
+    expect(pack.html).toContain('EXCLUDE wastage')
+    expect(pack.html).toContain('product data sheet')
+    expect(pack.html).not.toContain('Paint-area quantity basis')
     // Walls only — no floor column in the finish schedule.
     expect(pack.html).not.toContain('>Floor<')
     expect(pack.html).toContain('>Wall (net of openings)<')
@@ -201,5 +208,52 @@ describe('tradePacks — honest exclusions when data is missing', () => {
   it('painter falls back gracefully with no finishes', () => {
     const pack = buildTradePack('painter', bare)
     expect(pack.exclusions.some((e) => /wall finish schedule/i.test(e))).toBe(true)
+  })
+})
+
+describe('curtains pack carries a SPECIFICATION, not just footprints', () => {
+  it('prints per-window drops and fabric widths', () => {
+    const pack = buildTradePack('curtains', fullInput)
+    // v0.31.5.303: the placed list gives each fixture's rendered footprint,
+    // which its own caveat admitted is not an order dimension. A maker needs
+    // the drop and the fabric width.
+    expect(pack.html).toContain('Curtain specification')
+    expect(pack.html).toContain('Floor drop')
+    expect(pack.html).toMatch(/Fabric @2x \/ 2\.5x/)
+    // The assumption and the omission both travel with it.
+    expect(pack.html).toMatch(/confirm the actual track height/i)
+    expect(pack.html).toMatch(/installer/i)
+  })
+
+  it('resolves every window to a real room — not "Unassigned"', () => {
+    // `roomsAcrossOpening`'s 4th argument is the PROBE DISTANCE perpendicular
+    // to the wall; every other caller passes a 0.2 m constant. Passing
+    // `PlanOpening.offset` — an ALONG-WALL position, spelled the same and also
+    // a `number` — probes a metre or more into the room. Measured on the
+    // default flat with the argument swapped and the swap VERIFIED to have
+    // landed:
+    //
+    //   0.2 m constant → Main Bedroom, Bedroom 2, Bedroom 3, Living / Dining,
+    //                    AC Ledge, Bath/WC 2
+    //   `o.offset`     → Main Bedroom, Unassigned, Unassigned, Living / Dining,
+    //                    AC Ledge, Corridor
+    //
+    // Nothing but a rendered document distinguishes the two arguments: the
+    // compiler cannot, and neither can a reviewer reading the call.
+    const pack = buildTradePack('curtains', fullInput)
+    const at = pack.html.indexOf('Curtain specification')
+    const table = pack.html.slice(at, pack.html.indexOf('</table>', at))
+    const rooms = [...table.matchAll(/<tr><td>([^<]*)<\/td>/g)].map((m) => m[1])
+    expect(rooms.length).toBeGreaterThan(0)
+    expect(rooms).not.toContain('Unassigned')
+    // And the rooms agree with the door/window schedule's own attribution.
+    expect(rooms).toContain('Main Bedroom')
+    expect(rooms).toContain('Bedroom 2')
+    expect(rooms).toContain('Bedroom 3')
+  })
+
+  it('no longer claims the footprint is a measurement basis', () => {
+    const pack = buildTradePack('curtains', fullInput)
+    expect(pack.html).toContain('not an order dimension')
   })
 })

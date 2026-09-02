@@ -1,0 +1,71 @@
+{
+  "name": "plan-footprint-shape",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "tall-viewport",
+      "viewport": {
+        "width": 1000,
+        "height": 1200
+      }
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    {
+      "name": "pro-mode",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "reresolve-flags",
+      "eval": "window.__store.getState().reresolveFeatureFlags()"
+    },
+    {
+      "name": "render-plan-svg",
+      "eval": "(async () => { const s = window.__store.getState(); const { buildMergedCatalog } = await import('/src/furniture/catalog.ts'); const { planFootprints } = await import('/src/ui/planFootprints.ts'); const { reportPlanSvg } = await import('/src/ui/reportPlanSvg.ts'); const catalog = buildMergedCatalog(s); const round = s.items.filter(i => { const d = catalog[i.defId]; return d && d.footprintParts }); const fps = planFootprints(s.items, catalog); const host = document.createElement('div'); host.id = 'fp-probe'; host.setAttribute('style','position:fixed;inset:0;z-index:99999;background:#fff;overflow:auto;padding:12px'); host.innerHTML = '<div style=\"font:600 14px system-ui;margin-bottom:8px\">planFootprints: ' + fps.length + ' polygons for ' + s.items.length + ' items \u00b7 ' + round.length + ' decomposed defs placed \u00b7 corner counts ' + JSON.stringify(fps.slice(0,6).map(f => f.corners.length)) + '</div>' + reportPlanSvg(s.floorPlan, s.annotations, s.units, fps); document.body.appendChild(host); return { polygons: fps.length, items: s.items.length, decomposed: round.length }; })()"
+    },
+    {
+      "name": "probe-mounted",
+      "waitFor": {
+        "css": "#fp-probe svg"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-plan",
+      "screenshot": "plan-footprint-shape"
+    },
+    {
+      "name": "make-a-table-round",
+      "eval": "(async () => { const s = window.__store.getState(); const { buildMergedCatalog } = await import('/src/furniture/catalog.ts'); const catalog = buildMergedCatalog(s); const t = s.items.find(i => { const d = catalog[i.defId]; return d && typeof d.footprintParts === 'function' && (d.propSchema||[]).some(p => p.key === 'shape') }); if (!t) return 'no shapeable table found'; s.updateItemProps(t.id, { ...(t.props||{}), shape: 'round' }); return { id: t.id, defId: t.defId }; })()"
+    },
+    {
+      "name": "re-render-round",
+      "eval": "(async () => { const s = window.__store.getState(); const { buildMergedCatalog } = await import('/src/furniture/catalog.ts'); const { planFootprints } = await import('/src/ui/planFootprints.ts'); const { reportPlanSvg } = await import('/src/ui/reportPlanSvg.ts'); const { itemFootprintParts, itemFootprint } = await import('/src/collision/placement.ts'); const catalog = buildMergedCatalog(s); const round = s.items.filter(i => i.props && i.props.shape === 'round'); const perItem = round.map(i => itemFootprintParts(i, catalog[i.defId]).length); const fps = planFootprints(s.items, catalog); const old = document.getElementById('fp-probe'); if (old) old.remove(); const host = document.createElement('div'); host.id='fp-probe2'; host.setAttribute('style','position:fixed;inset:0;z-index:99999;background:#fff;overflow:auto;padding:12px'); host.innerHTML = '<div style=\"font:600 14px system-ui;margin-bottom:8px\">ROUND: ' + fps.length + ' polygons for ' + s.items.length + ' items \u00b7 parts-per-round-item ' + JSON.stringify(perItem) + '</div>' + reportPlanSvg(s.floorPlan, s.annotations, s.units, fps); document.body.appendChild(host); return { polygons: fps.length, perItem }; })()"
+    },
+    {
+      "name": "probe2-mounted",
+      "waitFor": {
+        "css": "#fp-probe2 svg"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-round",
+      "screenshot": "plan-footprint-round"
+    }
+  ]
+}

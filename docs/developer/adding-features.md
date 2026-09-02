@@ -47,3 +47,25 @@ Furniture/material via API/CORS → a Poly-Pizza-style client reusing
 After any change that adds/removes/reshapes a system, update `CLAUDE.md` **and**
 `README.md` in the same change, and the relevant user-guide page under
 `docs/user/`. Keep `TODO.md` current when deferring work.
+
+## Scripted source edits: use `scripts/apply-edit.mjs`
+
+A scripted `str.replace` that matches nothing returns the original string without complaint. Every
+downstream step still succeeds, and the result looks explicable — which is why this has gone wrong
+four times in this repo (see the script's header for the four, with version numbers).
+
+`scripts/apply-edit.mjs` refuses to write unless every edit matches its expected occurrence count,
+and verifies all of them before writing any, so a mismatch leaves the file untouched rather than
+half-applied:
+
+```sh
+echo '{"file":"src/x.ts","edits":[{"old":"a","new":"b","count":1}]}' | node scripts/apply-edit.mjs
+```
+
+Two things it will not do, both deliberate: it will not write when the result equals the input, and
+it will not apply a partial batch. `--dry` reports without writing.
+
+**Why a tool and not a rule.** The rule ("assert the edit landed") was written down after the first
+occurrence and ignored three more times. A prohibition lives in whoever remembers it; a tool that
+exits non-zero does not need remembering. The same reasoning is why the render/specification
+override registers in `lightEmitters.ts` are separated by a test rather than by a comment.

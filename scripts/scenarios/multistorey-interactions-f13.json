@@ -1,0 +1,37 @@
+{
+  "name": "multistorey-interactions-f13",
+  "description": "v0.31.5.281 visual verification: in the UPSTAIRS room editor of the Open Loft, the room-area caption pill must render (it was ground-only). (The ContextMenu room-heading fix in the same commit is NOT covered here — the menu does not open in the room editor; it is covered by code reading only.)",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "load-loft-plan",
+      "eval": "(function(){ window.__loadErr=null; import('/src/floorplan/templates.ts').then(m => { const plan = m.PLAN_TEMPLATES.find(p => p.id === 'tpl-loft'); if (!plan) throw new Error('tpl-loft missing'); window.__store.getState().replaceFloorPlan(plan, { furniture: 'rehome' }); }).catch(e => { window.__loadErr = String(e); }); })()"
+    },
+    { "name": "plan-loaded", "waitFor": { "store": "window.__loadErr ? (() => { throw new Error(window.__loadErr) })() : (state.floorPlan.upperLevels||[]).length === 1" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 1200 },
+
+    {
+      "name": "put-furniture-on-the-loft",
+      "eval": "(() => { const s=window.__store.getState(); const its=s.items; const picks=its.slice(0,4).map(i=>i.id); const set=new Set(picks); s.setItems(its.map(it => set.has(it.id) ? { ...it, levelId:'lf-up', position:[1.0+picks.indexOf(it.id)*0.6, 4.2] } : it)); })()"
+    },
+    { "name": "measurements-on", "eval": "(() => { const s=window.__store.getState(); if (!s.showMeasurements) s.toggleMeasurements ? s.toggleMeasurements() : s.setShowMeasurements?.(true); })()" },
+    { "name": "enter-upstairs-room", "eval": "window.__store.getState().enterRoomEditor('lfu-sleep')" },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'lfu-sleep'" }, "timeout": 20000 },
+    { "name": "settle-room-editor", "wait": 1800 },
+
+    {
+      "name": "assert-area-caption-rendered",
+      "eval": "(function(){ const el=document.querySelector('.room-editor-caption'); if(!el) throw new Error('the room-area caption did not render for an UPSTAIRS room — RoomEditorCaption looked the room up in plan.rooms (ground only)'); const txt=(el.textContent||'').trim(); if(!/Area:/.test(txt)) throw new Error('caption present but has no area: '+txt); if(/\\b0(\\.0+)?\\s*m/.test(txt)) throw new Error('caption shows a zero area: '+txt); window.__captionText=txt; })()"
+    },
+    { "name": "shot-upstairs-area-caption", "screenshot": "upstairs-room-area-caption" },
+
+    { "name": "shot-room-editor-upstairs", "screenshot": "room-editor-upstairs" }
+  ]
+}

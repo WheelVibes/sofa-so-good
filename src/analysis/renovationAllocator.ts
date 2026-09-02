@@ -30,8 +30,15 @@
  */
 
 import { diffWalls } from '../floorplan/demolitionPlan'
+import { allPlanOpenings, allPlanRooms } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
-import { type FloorPlan, type PlanRoom, planRoomArea, planRoomPerimeter } from '../floorplan/types'
+import {
+  type FloorPlan,
+  type PlanRoom,
+  planRoomArea,
+  planRoomPerimeter,
+  wallLength,
+} from '../floorplan/types'
 import { buildWaterproofingZones, totalMembraneAreaM2 } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildAirconSystemPlan } from './airconSystem'
@@ -40,7 +47,7 @@ import type { PriceRules, TradeRates } from './renovationCost'
 import { floorRateKind } from './renovationCost'
 
 /** A single trade line in the allocation. */
-interface RenoTradeLine {
+export interface RenoTradeLine {
   /** Stable trade id (e.g. `hacking`, `tiling`). */
   id: string
   /** Friendly trade label. */
@@ -137,7 +144,9 @@ function itemHeight(item: FurnitureItem, def: FurnitureDef): number {
 
 /** Total glazed area of a doorless plan's openings (m²) — width × (head − sill). */
 function totalOpeningArea(plan: FloorPlan): number {
-  const openings = Array.isArray(plan.openings) ? plan.openings : []
+  // EVERY storey (F13) — ground-only reads understated the BUDGET on a
+  // two-storey home: upstairs rooms and openings were simply not allocated.
+  const openings = allPlanOpenings(plan)
   let sum = 0
   for (const o of openings) {
     const w = Number.isFinite(o.width) ? o.width : 0
@@ -154,7 +163,7 @@ function totalOpeningArea(plan: FloorPlan): number {
 export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAllocation {
   const { plan, items, catalog, floorFinishes, wallFinishes, rules } = input
   const trades: TradeRates = rules.trades
-  const rooms: PlanRoom[] = Array.isArray(plan.rooms) ? plan.rooms : []
+  const rooms: PlanRoom[] = allPlanRooms(plan)
   const height =
     Number.isFinite(plan.ceilingHeight) && plan.ceilingHeight > 0 ? plan.ceilingHeight : 2.8
 
@@ -234,8 +243,18 @@ export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAlloca
       ).totalLengthM
     : 0
 
-  // --- Hacking (baseline diff) ----------------------------------------------
-  const hackedLm = input.baselinePlan ? diffWalls(input.baselinePlan, plan).hackedLengthM : 0
+  // --- Hacking + NEW partitions (baseline diff) -----------------------------
+  // `addedLengthM` used to be computed here, printed on the report and the
+  // demolition sheet, and never priced — so adding partitions was free in the
+  // budget while the added length sat next to a total that ignored it. Priced
+  // by wall FACE AREA so a half-height wall (`topHeight`) costs less than a
+  // full-height one, which a per-linear-metre rate could not express.
+  const wallDiff = input.baselinePlan ? diffWalls(input.baselinePlan, plan) : null
+  const hackedLm = wallDiff?.hackedLengthM ?? 0
+  const addedPartitionM2 = (wallDiff?.added ?? []).reduce((sum, w) => {
+    const h = w.topHeight ?? plan.ceilingHeight
+    return sum + wallLength(w) * (h > 0 ? h : 0)
+  }, 0)
 
   // --- Assemble trade lines -------------------------------------------------
   const lines: RenoTradeLine[] = []
@@ -265,6 +284,15 @@ export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAlloca
     hackedLm,
     'lin.m',
     hackedLm * trades.hackingPerM,
+    'Protection & hacking',
+  )
+
+  push(
+    'partitions',
+    'New partition walls',
+    addedPartitionM2,
+    'm²',
+    addedPartitionM2 * trades.partitionPerM2,
     'Protection & hacking',
   )
 

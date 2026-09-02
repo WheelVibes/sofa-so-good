@@ -10,6 +10,15 @@
 export type MaterialId = string
 export type MaterialCategory = 'floor' | 'wall'
 
+/** A paint product's specified coverage. Rates are per COAT. */
+export interface PaintCoverage {
+  /** Spreading rate (m² per litre per coat) on a smooth, primed or
+   *  previously-painted surface. */
+  spreadingRateM2PerL: number
+  /** Standard number of topcoats for full opacity. */
+  coats: number
+}
+
 interface MaterialDefBase {
   id: MaterialId
   name: string
@@ -27,6 +36,75 @@ interface MaterialDefBase {
    *  of `cache.ts:buildMaterial` (procedural bases already re-bake with the
    *  swatch, so it's a no-op there). */
   recolorAlbedo?: boolean
+  /**
+   * SPECIFIED physical module of a modular finish (tile / slab / plank), in
+   * millimetres as `[width, height]` — e.g. `[600, 600]` for 600×600 porcelain.
+   *
+   * This is a **product dimension**, deliberately independent of `uvScale`.
+   * The rendered tile size is `uvScale ÷ the painter's internal grid count`
+   * (`patterns/tile.ts` bakes 2×2 tiles per texture period, `brick` 5×6) — but
+   * those counts are TEXTURE-AUTHORING constants that exist to make a map look
+   * right and may be retuned for purely visual reasons. Deriving a contractor's
+   * setting-out from them would let a visual tweak silently change a
+   * construction drawing, so a coursing drawing must read THIS field and never
+   * infer from `uvScale`.
+   *
+   * Absent for non-modular finishes (plaster, paint, poured, carpet) and for
+   * modular finishes whose module has not been specified — a consumer must
+   * treat absence as "unknown", never as a default size.
+   *
+   * **This figure is EXACT, and that is why it differs from `buildUp` below.**
+   * A module is a product dimension a supplier prints on the box, so there is
+   * no range to round and a "safe direction" would be meaningless. `buildUp`
+   * takes the THICKER end of a published range, because it feeds a regulatory
+   * limit where understating clears a floor that fails on site. The two fields
+   * look like siblings and want opposite treatment — do not reconcile them.
+   */
+  moduleMm?: [number, number]
+  /**
+   * SPECIFIED paint coverage for a coating finish, consumed by
+   * `analysis/paintQuantities.ts` to turn a surface area into LITRES.
+   *
+   * Its PRESENCE is what marks a finish as paint — the same design as
+   * `moduleMm` marking a finish as modular. Deliberately not inferred from
+   * `pattern === 'plaster'`: that is a rendering constant, and deriving a
+   * procurement quantity from it is the mistake `floorplan/tileCoursing.ts`'s
+   * header warns about for tile sizes. A finish without this yields no paint
+   * row, and the caller reports how many were omitted.
+   */
+  paint?: PaintCoverage
+  /**
+   * SPECIFIED floor build-up in millimetres, consumed by
+   * `analysis/floorBuildUp.ts` to check the HDB thickness limits and to DERIVE
+   * the finished-floor level of each room.
+   *
+   * Same discipline as `moduleMm` and `paint`: its presence is what marks a
+   * finish as a floor build-up, and it is never inferred. A finish without it
+   * yields no row and the caller reports how many rooms it could not assess.
+   *
+   * Split into the finish and its bedding because the two HDB limits are
+   * written against different sums — 50 mm covers finish **plus screed**,
+   * while the 13 mm overlay limit covers new tiles **plus adhesive** only.
+   *
+   * **Direction of error matters here in a way it does not for `moduleMm`.**
+   * These figures feed a REGULATORY LIMIT, so where a source gives a range the
+   * value takes the THICKER end: understating a build-up clears a floor that
+   * fails on site, and an inspection is a worse place to find out than a
+   * warning panel. **Deliberately the opposite of `moduleMm` above**, which is
+   * an exact product dimension with no range to round — see the note there.
+   * Sources in `docs/research/2026-09-03-floor-build-up.md`.
+   */
+  buildUp?: FloorBuildUp
+}
+
+/** A floor finish's specified build-up above what it is laid on (mm). */
+export interface FloorBuildUp {
+  /** The finish's own thickness — tile body, plank, screed topping. */
+  finishMm: number
+  /** Bedding it needs: adhesive bed, levelling screed, underlay. */
+  beddingMm: number
+  /** Why these figures, when a source gave a range. */
+  note?: string
 }
 
 export interface SolidMaterialDef extends MaterialDefBase {

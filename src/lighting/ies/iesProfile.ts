@@ -94,3 +94,55 @@ export function iesMetrics(profile: IesProfile): IesMetrics {
     fieldAngle: Math.max(0, fieldHalf * 2),
   }
 }
+
+/**
+ * Relative luminous intensity at a vertical angle, normalised to the profile's
+ * own peak — so the result is a pure DISTRIBUTION SHAPE in `[0, 1]`, with 1 at
+ * the peak direction.
+ *
+ * **Why shape, not absolute candela.** The 2D lux model
+ * (`lighting2d/roomLux.ts`) derives magnitude from the emitter registry's
+ * stylised intensity via `SCENE_INTENSITY_CALIBRATION`. Feeding a profile's
+ * ABSOLUTE candela in would bypass that calibration and silently rescale every
+ * lux figure in the app, and doing it correctly would need absolute-vs-relative
+ * photometry and `candelaMultiplier` handling this module does not currently
+ * assert. Using only the shape is the honest improvement: it makes a 24°
+ * narrow-beam downlight and a bare bulb of the same peak intensity compute
+ * DIFFERENTLY — which they previously did not — without claiming an absolute
+ * photometric magnitude the model cannot back up.
+ *
+ * Angles outside the sampled range clamp to the nearest sampled value (an IES
+ * file that stops at 90° says nothing about what is above it). A degenerate
+ * profile returns 1, i.e. falls back to the previous isotropic behaviour rather
+ * than zeroing a fixture out.
+ */
+export function relativeIntensityAt(profile: IesProfile, angleDeg: number): number {
+  const { angles, values } = principalSlice(profile)
+  if (angles.length === 0 || values.length === 0) return 1
+  let peak = Number.NEGATIVE_INFINITY
+  for (const v of values) if (v > peak) peak = v
+  if (!(peak > 0)) return 1
+
+  const a = Math.abs(angleDeg)
+  const first = angles[0] ?? 0
+  const last = angles[angles.length - 1] ?? 0
+  if (a <= first) return clamp01((values[0] ?? peak) / peak)
+  if (a >= last) return clamp01((values[values.length - 1] ?? 0) / peak)
+
+  for (let i = 0; i < angles.length - 1; i++) {
+    const a0 = angles[i] ?? 0
+    const a1 = angles[i + 1] ?? 0
+    if (a >= a0 && a <= a1) {
+      const span = a1 - a0
+      const t = span === 0 ? 0 : (a - a0) / span
+      const v0 = values[i] ?? 0
+      const v1 = values[i + 1] ?? 0
+      return clamp01((v0 + (v1 - v0) * t) / peak)
+    }
+  }
+  return 1
+}
+
+function clamp01(v: number): number {
+  return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1
+}

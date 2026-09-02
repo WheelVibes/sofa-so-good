@@ -1,0 +1,26 @@
+{
+  "name": "lamp-spec-override",
+  "description": "v0.31.5.299 visual verification: the per-item lamp SPECIFICATION controls (colour temp + IP rating) in the item inspector, separate from the render Colour/Brightness overrides above them.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "select-a-bathroom-ceiling-light",
+      "eval": "(function(){ const s=window.__store.getState(); const baths=s.floorPlan.rooms.filter(r=>/bath|wc/i.test(r.name)); const inBath=(it)=>baths.some(b=>it.position[0]>=b.origin[0]&&it.position[0]<=b.origin[0]+b.width&&it.position[1]>=b.origin[1]&&it.position[1]<=b.origin[1]+b.depth); const lamp=s.items.find(i=>i.defId==='ceiling-light'&&inBath(i)) || s.items.find(i=>i.defId==='ceiling-light'); if(!lamp) throw new Error('no ceiling light in the default layout'); s.selectItem(lamp.id); window.__lampId=lamp.id; })()"
+    },
+    { "name": "inspector-open", "waitFor": { "store": "state.selectedItemId != null" }, "timeout": 10000 },
+    { "name": "settle-inspector", "wait": 1000 },
+    {
+      "name": "assert-spec-controls",
+      "eval": "(function(){ const cct=document.querySelector('[aria-label=\"Specified colour temperature\"]'); const ip=document.querySelector('[aria-label=\"Specified IP rating\"]'); if(!cct) throw new Error('no colour-temperature control in the inspector'); if(!ip) throw new Error('no IP-rating control in the inspector'); const heads=[...document.querySelectorAll('.label')].map(e=>(e.textContent||'').trim()); if(!heads.includes('Specification')) throw new Error('no Specification heading — the render and spec registers must read as separate groups. Labels: '+heads.slice(0,20).join(' | ')); ip.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-scroll", "wait": 500 },
+    { "name": "shot-lamp-spec-controls", "screenshot": "inspector-lamp-specification" }
+  ]
+}

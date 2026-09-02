@@ -69,7 +69,13 @@
  * quantity).
  */
 
-import { allPlanRooms } from '../floorplan/levels'
+import {
+  allPlanRooms,
+  GROUND_LEVEL_ID,
+  isMultiLevel,
+  levelAsPlan,
+  planLevels,
+} from '../floorplan/levels'
 import { planWallThickness } from '../floorplan/planGeometry'
 import { planRoomRects, planRoomShell } from '../floorplan/planRoomShell'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
@@ -504,9 +510,17 @@ function roomIdAt(plan: FloorPlan, pos: [number, number], candidateRoomId: strin
 
 /** Room id at a point with NO prior candidate: point-in-room, else the room
  *  whose footprint centre is nearest. Used to attribute placed scene items
- *  (`FurnitureItem` has no roomId field). */
-function roomIdNearest(plan: FloorPlan, pos: [number, number]): string {
-  const rooms = allPlanRooms(plan)
+ *  (`FurnitureItem` has no roomId field).
+ *
+ *  `levelId` scopes the search to the item's OWN storey. Without it a loft FCU
+ *  resolves to whichever room happens to sit at the same XZ downstairs — and
+ *  because the router then looks for that FCU on the ground storey, the run
+ *  goes unresolved and the whole system silently falls back to an advisory. */
+function roomIdNearest(plan: FloorPlan, pos: [number, number], levelId?: string): string {
+  const rooms =
+    levelId === undefined
+      ? allPlanRooms(plan)
+      : (planLevels(plan).find((l) => l.id === levelId)?.rooms ?? allPlanRooms(plan))
   for (const r of rooms) {
     if (pointInRoom(r, pos[0], pos[1])) return r.id
   }
@@ -548,6 +562,52 @@ function manhattanDogleg(a: [number, number], b: [number, number]): [number, num
  * showing the existing one-line advisory for that system instead.
  */
 export function buildAirconTrunkingPlan(
+  plan: FloorPlan,
+  systemPlan: AirconSystemPlan,
+  input: AirconTrunkingInput,
+): AirconTrunkingPlan {
+  // MULTI-STOREY (F13): route each storey SEPARATELY, then merge.
+  //
+  // This router previously took `allPlanRooms` (every storey's rooms) while
+  // blocking routes with `plan.walls` (the GROUND floor's walls only), which
+  // superimposes a maisonette's storeys into one XZ plane: a ground bedroom and
+  // the loft bedroom directly above it register as adjacent (`gapLinks` /
+  // `overlapLinks` see touching or overlapping footprints), no upper-storey
+  // wall blocks anything, and the drop height came from the GROUND ceiling.
+  // The quoted `airconTrunkingLengthM` is a contractor-facing quantity, so a
+  // route through a floor slab is a wrong number, not just a wrong picture.
+  //
+  // Per-storey routing is also the honest model: a real cross-storey riser is
+  // a vertical element this plan model has no concept of, so a system whose
+  // condenser and FCU are on different levels stays `resolved: false` and the
+  // caller keeps its one-line advisory — the same convention an unroutable
+  // same-storey run already uses. Mirrors the fan-out in `buildDaylightReport`
+  // and `buildAirconSizing`.
+  if (isMultiLevel(plan)) {
+    // A run is identified by (system, served room); prefer whichever storey
+    // resolved it, so an unresolved duplicate from another storey cannot mask
+    // a real route.
+    const merged = new Map<string, AirconTrunkingRun>()
+    for (const level of planLevels(plan)) {
+      for (const run of singleLevelTrunkingPlan(levelAsPlan(plan, level), systemPlan, input).runs) {
+        const key = `${run.systemIndex}:${run.roomId}`
+        const prev = merged.get(key)
+        if (!prev || (!prev.resolved && run.resolved)) merged.set(key, run)
+      }
+    }
+    const runs = [...merged.values()]
+    return {
+      runs,
+      totalLengthM: runs.reduce((sum, r) => sum + (r.resolved ? r.lengthM : 0), 0),
+    }
+  }
+  return singleLevelTrunkingPlan(plan, systemPlan, input)
+}
+
+/** The router for ONE storey. `plan` must be a single-level plan (the plan
+ *  itself, or a `levelAsPlan` result) — every geometry read below is
+ *  single-level by design. */
+function singleLevelTrunkingPlan(
   plan: FloorPlan,
   systemPlan: AirconSystemPlan,
   input: AirconTrunkingInput,
@@ -595,7 +655,29 @@ export function buildAirconTrunkingPlan(
     const condenser = input.condensers[system.index - 1] ?? input.condensers[0]
     for (const fcu of system.fcus) {
       const fcuPoint = input.fcus.find((f) => f.roomId === fcu.roomId)
-      if (!condenser || !fcuPoint) {
+      // The served room must exist on THIS storey (F13). Without this guard
+      // `roomIdAt`'s point-in-room override defeats the per-storey fan-out: an
+      // upstairs FCU's XZ lands inside whatever ground room sits beneath it, so
+      // the ground pass would confidently route ledge → living and call it the
+      // loft bedroom's run. Storeys share one XZ space, so proximity is never
+      // evidence of which floor something is on.
+      const servedOnThisLevel = rooms.some((r) => r.id === fcu.roomId)
+      if (!condenser || !fcuPoint || !servedOnThisLevel) {
+        runs.push({
+          systemIndex: system.index,
+          roomId: fcu.roomId,
+          roomName: fcu.roomName,
+          resolved: false,
+          waypoints: [],
+          lengthM: 0,
+          roomsTraversed: [],
+        })
+        continue
+      }
+      // Same guard for the condenser end: a cross-storey pair is unroutable
+      // (no riser in this model), so it stays unresolved rather than being
+      // re-attributed to a same-XZ room on the served storey.
+      if (!rooms.some((r) => r.id === condenser.roomId)) {
         runs.push({
           systemIndex: system.index,
           roomId: fcu.roomId,
@@ -669,7 +751,7 @@ export function buildAirconTrunkingPlan(
 export function resolveAirconTrunkingInput(
   plan: FloorPlan,
   systemPlan: AirconSystemPlan,
-  placedItems: { defId: string; roomId?: string; position: [number, number] }[],
+  placedItems: { defId: string; roomId?: string; position: [number, number]; levelId?: string }[],
 ): AirconTrunkingInput {
   const placedFcus = placedItems.filter((it) => it.defId === 'aircon-unit')
   const placedCondensers = placedItems.filter((it) => it.defId === 'aircon-condenser')
@@ -687,8 +769,13 @@ export function resolveAirconTrunkingInput(
     // room's footprint after wall-offset math). Dropping roomId-less items
     // here (the first cut) made every run silently unresolved the moment
     // "Plan aircon" actually applied its items — probe-caught 2026-07-24.
-    const locate = (it: { roomId?: string; position: [number, number] }): AirconTrunkingPoint => ({
-      roomId: it.roomId ?? roomIdNearest(plan, it.position),
+    const locate = (it: {
+      roomId?: string
+      position: [number, number]
+      levelId?: string
+    }): AirconTrunkingPoint => ({
+      // Scoped to the item's own storey (F13) — an untagged item is ground.
+      roomId: it.roomId ?? roomIdNearest(plan, it.position, it.levelId ?? GROUND_LEVEL_ID),
       position: it.position,
     })
     return {

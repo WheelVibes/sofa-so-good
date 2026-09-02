@@ -10,7 +10,8 @@ import {
   staggerMountHeightColumns,
 } from '../../elevation/dimensionLayout'
 import type { WallElevation } from '../../elevation/projectElevation'
-import { formatLength, type UnitSystem } from '../../utils/measurement'
+import type { WallTileCoursing } from '../../floorplan/wallTileCoursing'
+import { formatDrawingLength, formatLength, type UnitSystem } from '../../utils/measurement'
 
 export interface ElevationPalette {
   /** Wall fill. */
@@ -23,6 +24,9 @@ export interface ElevationPalette {
   item: string
   /** Label text. */
   text: string
+  /** Tile joint lines + cut-band tint (wall-tile setting-out overlay). Falls
+   *  back to `stroke` so existing callers need no change. */
+  tile?: string
 }
 
 /** Average glyph advance as a fraction of font size, for fitting a label INSIDE a
@@ -72,6 +76,18 @@ export interface ElevationSvgOptions {
   /** Draw dimension lines (overall width/height, opening sill heights, and
    *  mounted-item AFFL heights — H3). Default true. */
   dimensions?: boolean
+  /**
+   * Wall-tile setting-out for THIS face (`floorplan/wallTileCoursing.ts`). When
+   * given, the course grid is drawn on the wall panel: joints struck from the
+   * computed end-cut offset and from the CEILING down, with the perimeter cut
+   * bands tinted.
+   *
+   * This is to the wall elevations what v0.31.5.288's tiling layout plan is to
+   * the floor — the numbers already existed in a table, and a tiler works from
+   * a drawing. Drawn UNDER the furniture silhouettes, so a piece standing
+   * against the wall still reads on top.
+   */
+  tileCoursing?: WallTileCoursing
   /** When set (mm printed per metre of real-world extent, from
    *  `floorplan/drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>`
    *  with explicit `width`/`height` in mm — print-true (TODO G2) — instead of
@@ -93,6 +109,7 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     units = 'metric',
     dimensions = true,
     printMmPerM,
+    tileCoursing,
   } = opts
   const { length: L, height: H } = el
   if (L <= 0 || H <= 0) {
@@ -110,6 +127,42 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
   parts.push(
     `<line x1="0" y1="${f(H)}" x2="${f(L)}" y2="${f(H)}" stroke="${p.stroke}" stroke-width="${f(sw * 2)}"/>`,
   )
+
+  // Wall-tile course grid, drawn on the panel BEFORE the furniture so a piece
+  // standing against the wall reads on top of it.
+  if (tileCoursing) {
+    const tileInk = p.tile ?? p.stroke
+    const [modW, modH] = tileCoursing.moduleMm
+    const stepX = modW / 1000
+    const stepY = modH / 1000
+    const endCut = tileCoursing.endCutMm / 1000
+    const bottomCut = tileCoursing.bottomCutMm / 1000
+    const jw = Math.max(0.004, sw * 0.35)
+    const g: string[] = []
+    // Cut bands: the two end cuts, plus the single cut course at the bottom.
+    const band = (bx: number, by: number, bw: number, bh: number) =>
+      bw > 1e-4 && bh > 1e-4
+        ? `<rect x="${f(bx)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" fill="${tileInk}" fill-opacity="0.12"/>`
+        : ''
+    if (endCut > 0) {
+      g.push(band(0, 0, endCut, H))
+      g.push(band(L - endCut, 0, endCut, H))
+    }
+    if (bottomCut > 0) g.push(band(0, H - bottomCut, L, bottomCut))
+    // Vertical joints, struck from the end-cut offset.
+    for (let x = endCut; x <= L + 1e-6; x += stepX) {
+      g.push(
+        `<line x1="${f(x)}" y1="0" x2="${f(x)}" y2="${f(H)}" stroke="${tileInk}" stroke-width="${f(jw)}" stroke-opacity="0.55"/>`,
+      )
+    }
+    // Course joints, struck from the TOP down (full course at the ceiling).
+    for (let yy = stepY; yy <= H + 1e-6; yy += stepY) {
+      g.push(
+        `<line x1="0" y1="${f(yy)}" x2="${f(L)}" y2="${f(yy)}" stroke="${tileInk}" stroke-width="${f(jw)}" stroke-opacity="0.55"/>`,
+      )
+    }
+    parts.push(`<g class="tile-courses">${g.join('')}</g>`)
+  }
 
   // Furniture silhouettes (already sorted farthest-first).
   for (const it of el.items) {
@@ -249,24 +302,24 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     const rows = staggerDimensionRows(
       dimItems.map((it) => ({
         center: (it.x0 + it.x1) / 2,
-        width: approxTextWidth(formatLength(it.x1 - it.x0, units), dfs),
+        width: approxTextWidth(formatDrawingLength(it.x1 - it.x0, units), dfs),
       })),
     )
     const maxRow = rows.reduce((m, r) => Math.max(m, r), 0)
     extraDimPad = maxRow * (dfs + 0.12)
     dimItems.forEach((it, i) => {
       const yRow = H + 0.22 + rows[i] * (dfs + 0.12)
-      dimLine(it.x0, yRow, it.x1, yRow, formatLength(it.x1 - it.x0, units), false)
+      dimLine(it.x0, yRow, it.x1, yRow, formatDrawingLength(it.x1 - it.x0, units), false)
     })
     // Overall width clears however many label rows stacked above it.
     const yOverall = Math.max(H + 0.6, H + 0.22 + (maxRow + 1) * (dfs + 0.12) + 0.16)
-    dimLine(0, yOverall, L, yOverall, formatLength(L, units), false)
-    dimLine(-0.55, 0, -0.55, H, formatLength(H, units), true)
+    dimLine(0, yOverall, L, yOverall, formatDrawingLength(L, units), false)
+    dimLine(-0.55, 0, -0.55, H, formatDrawingLength(H, units), true)
     // Opening sill heights (skip floor-level doors).
     for (const o of el.openings) {
       if (o.sill <= 0.01) continue
       const x = Math.max(0.04, o.x0 - 0.18)
-      dimLine(x, y(o.sill), x, y(0), formatLength(o.sill, units), true)
+      dimLine(x, y(o.sill), x, y(0), formatDrawingLength(o.sill, units), true)
     }
     // Mount heights for wall/ceiling-mounted items (H3) — a plain silhouette
     // can't convey "how high", so every mounted item (TV, sconce, art, cove
@@ -321,5 +374,10 @@ export function elevationCaption(
   if (winN) bits.push(`${winN} window${winN > 1 ? 's' : ''}`)
   if (doorN) bits.push(`${doorN} door${doorN > 1 ? 's' : ''}`)
   if (el.items.length) bits.push(`${el.items.length} item${el.items.length > 1 ? 's' : ''}`)
-  return `${name ?? `Wall ${index + 1}`} · ${bits.join(' · ')}`
+  // Tag the storey for any NON-ground level (F13). Only non-ground: this
+  // function cannot see whether the plan is multi-storey, and stamping
+  // "Ground floor" on every caption of a single-storey home would be noise on
+  // the overwhelmingly common case. So an untagged caption means ground.
+  const storey = el.levelId && el.levelId !== 'ground' && el.levelName ? ` — ${el.levelName}` : ''
+  return `${name ?? `Wall ${index + 1}`}${storey} · ${bits.join(' · ')}`
 }

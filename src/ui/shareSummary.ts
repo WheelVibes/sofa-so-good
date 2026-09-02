@@ -5,8 +5,9 @@
  * formatting is unit-testable, and reuses `reportData.lineEach` so the cost
  * matches the report/budget exactly.
  */
+
+import { allPlanRooms, planTotalAreaAllLevels } from '../floorplan/levels'
 import type { FloorPlan } from '../floorplan/types'
-import { planTotalArea } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { formatArea, type UnitSystem } from '../utils/measurement'
 import { lineEach } from './reportData'
@@ -22,13 +23,14 @@ export function buildShareSummary(
     const def = catalog[it.defId]
     if (def) cost += lineEach(it, def)
   }
-  const rooms = plan.rooms.length
+  // Whole home (F13) — ground-only undercounted a maisonette's rooms.
+  const rooms = allPlanRooms(plan).length
   const n = items.length
   return [
     plan.name,
     ' — ',
     `${rooms} ${rooms === 1 ? 'room' : 'rooms'}`,
-    ` · ${formatArea(planTotalArea(plan), units)}`,
+    ` · ${formatArea(planTotalAreaAllLevels(plan), units)}`,
     ` · ${n} ${n === 1 ? 'item' : 'items'}`,
     ` · ~$${Math.round(cost).toLocaleString('en-SG')}`,
   ].join('')

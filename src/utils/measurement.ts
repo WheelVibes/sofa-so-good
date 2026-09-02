@@ -25,6 +25,62 @@ export function formatLength(metres: number, units: UnitSystem = 'metric'): stri
   return `${metres.toFixed(2)} m`
 }
 
+/**
+ * Format a length (metres) as a DRAWING dimension — the number a contractor
+ * measures and builds from, which follows a different convention from the
+ * friendly on-screen readout {@link formatLength} produces.
+ *
+ * Metric -> **integer millimetres, no unit suffix** (`2745`). This is the
+ * near-universal convention on metric architectural/interior drawings: mm are
+ * the trade's working unit (joinery and setting-out are specified to 1 mm), the
+ * suffix is stated once in the title block instead of on every label, and
+ * suffix-free integers are shorter -- which matters on a crowded running-
+ * dimension row. `formatLength`'s `"2.75 m"` both loses 5 mm to rounding and
+ * reads as a decimal no tape can resolve.
+ *
+ * Imperial -> feet + inches to the nearest **1/8 inch** (`8′ 6 1/2″`), matching
+ * `formatLength`'s existing prime-glyph style. `formatLength` rounds imperial to
+ * the nearest whole inch, a 25.4 mm quantisation far too coarse for a
+ * construction reference.
+ *
+ * Callers: dimension lines, setting-out running dimensions and elevation
+ * dimensions. Screen UI (inspector, tape measure, HUDs) deliberately keeps
+ * `formatLength` -- "2.60 m" is the better reading there.
+ */
+export function formatDrawingLength(metres: number, units: UnitSystem = 'metric'): string {
+  if (!Number.isFinite(metres)) return units === 'imperial' ? '0″' : '0'
+  if (units === 'imperial') {
+    const sign = metres < 0 ? '-' : ''
+    // Work in eighths of an inch so the fraction is exact, then carry up.
+    const eighths = Math.round(Math.abs(metres) / M_PER_FT / (1 / 12) / (1 / 8))
+    let feet = Math.floor(eighths / 96)
+    const remEighths = eighths - feet * 96
+    let inches = Math.floor(remEighths / 8)
+    const frac = remEighths - inches * 8
+    if (inches === 12) {
+      feet += 1
+      inches = 0
+    }
+    // Reduce eighths to lowest terms (2/8 -> 1/4, 4/8 -> 1/2, 6/8 -> 3/4).
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
+    const g = frac === 0 ? 1 : gcd(frac, 8)
+    const fracText = frac === 0 ? '' : ` ${frac / g}/${8 / g}`
+    if (feet === 0) return `${sign}${inches}${fracText}″`
+    return `${sign}${feet}′ ${inches}${fracText}″`
+  }
+  return String(Math.round(metres * 1000))
+}
+
+/**
+ * The title-block note that states a drawing's dimension unit once, so the
+ * individual labels can stay suffix-free (see {@link formatDrawingLength}).
+ */
+export function drawingUnitsNote(units: UnitSystem = 'metric'): string {
+  return units === 'imperial'
+    ? 'ALL DIMENSIONS IN FEET AND INCHES'
+    : 'ALL DIMENSIONS IN MILLIMETRES'
+}
+
 /** Format an area (square metres) in the chosen unit system.
  *  Metric → "12.2 m²" (1 dp). Imperial → "131 ft²" (whole sq ft). */
 export function formatArea(squareMetres: number, units: UnitSystem = 'metric'): string {

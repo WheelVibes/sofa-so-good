@@ -1,0 +1,61 @@
+{
+  "name": "multistorey-panels-f13",
+  "description": "v0.31.5.280 visual verification: on the two-storey Open Loft with furniture on the upper level, the Budget panel's 'Spend by room' must credit the loft room, and the Layers panel must group the upstairs rooms. Pro mode.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "load-loft-plan",
+      "eval": "(function(){ window.__loadErr=null; import('/src/floorplan/templates.ts').then(m => { const plan = m.PLAN_TEMPLATES.find(p => p.id === 'tpl-loft'); if (!plan) throw new Error('tpl-loft not in PLAN_TEMPLATES'); window.__store.getState().replaceFloorPlan(plan, { furniture: 'rehome' }); }).catch(e => { window.__loadErr = String(e); }); })()"
+    },
+    { "name": "plan-loaded", "waitFor": { "store": "window.__loadErr ? (() => { throw new Error(window.__loadErr) })() : (state.floorPlan.upperLevels||[]).length === 1" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 1200 },
+
+    {
+      "name": "put-furniture-on-the-loft",
+      "eval": "(() => { const s=window.__store.getState(); const its=s.items; const picks=its.slice(0,4).map(i=>i.id); const set=new Set(picks); s.setItems(its.map(it => set.has(it.id) ? { ...it, levelId:'lf-up', position:[1.0+picks.indexOf(it.id)*0.6, 4.2] } : it)); })()"
+    },
+    { "name": "settle-loft-items", "wait": 900 },
+
+    { "name": "open-budget", "eval": "window.__store.getState().toggleBudget()" },
+    { "name": "budget-visible", "waitFor": { "text": "Spend by room" }, "timeout": 15000 },
+    { "name": "settle-budget", "wait": 700 },
+    {
+      "name": "assert-loft-in-spend-by-room",
+      "eval": "(function(){ const lbl=[...document.querySelectorAll('.label')].find(e=>/Spend by room/.test(e.textContent||'')); if(!lbl) throw new Error('Spend by room block not found'); const block=lbl.parentElement; const txt=block?.textContent||''; if(!/Sleeping Loft/.test(txt)) throw new Error('Spend by room omits the loft room — upstairs items were bucketed as Outside rooms. Got: '+txt.slice(0,300)); lbl.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-scroll-budget", "wait": 500 },
+    { "name": "shot-budget-spend-by-room", "screenshot": "budget-spend-by-room-loft" },
+    { "name": "close-budget", "eval": "window.__store.getState().toggleBudget()" },
+    { "name": "settle-close", "wait": 400 },
+
+    {
+      "name": "enter-the-UPSTAIRS-room-editor",
+      "eval": "(() => { const s=window.__store.getState(); s.enterRoomEditor('lfu-sleep'); })()",
+      "note": "The catalog/Layers drawer only mounts on an editing surface. Entering an UPSTAIRS room also exercises .277's editableRooms fix."
+    },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'lfu-sleep'" }, "timeout": 20000 },
+    { "name": "settle-room-editor", "wait": 1800 },
+    { "name": "open-layers", "eval": "(() => { const s=window.__store.getState(); s.setCatalogOpen(true); s.setLeftMode('layers'); })()" },
+    { "name": "layers-visible", "waitFor": { "text": "Sleeping Loft" }, "timeout": 15000, "failMessage": "the Layers panel never listed the upstairs room — it grouped by plan.rooms (ground only)" },
+    { "name": "settle-layers", "wait": 700 },
+    {
+      "name": "collapse-all-groups",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('.lyr-showall,button')].find(b=>/Collapse all/i.test(b.textContent||'')); if(!btn) throw new Error('Collapse all button not found'); btn.click(); })()",
+      "note": "Otherwise the ground room's 32 rows push every upstairs group off-screen and the shot shows nothing that was asserted."
+    },
+    { "name": "settle-collapse", "wait": 600 },
+    {
+      "name": "assert-loft-group-has-items",
+      "eval": "(function(){ const body=document.querySelector('.lyr-body'); if(!body) throw new Error('.lyr-body not rendered'); const groups=[...body.querySelectorAll('.lyr-group')]; const names=groups.map(g=>(g.querySelector('.lyr-ghead-row')?.textContent||'').trim()); const idx=names.findIndex(n=>/Sleeping Loft/i.test(n)); if(idx<0) throw new Error('the Layers tree has no Sleeping Loft group — grouped by plan.rooms (ground only). Groups: '+names.join(' | ')); const other=names.findIndex(n=>/Stair Landing|Dressing/i.test(n)); groups[idx].scrollIntoView({block:'center'}); window.__layerGroups=names.join(' | '); window.__otherUpper=other; })()"
+    },
+    { "name": "settle-scroll-layers", "wait": 500 },
+    { "name": "shot-layers-upper-rooms", "screenshot": "layers-panel-upper-rooms" }
+  ]
+}

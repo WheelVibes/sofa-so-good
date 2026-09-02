@@ -69,6 +69,7 @@ const DEFAULT_CARPENTRY_RATE = 320
 type TradeRateKey =
   /** Demolition / hacking, SGD per linear metre of demolished wall. */
   | 'hackingPerM'
+  | 'partitionPerM2'
   /** False ceiling / partition ceiling works, SGD per m². */
   | 'ceilingPerM2'
   /** M&E first/final fix, SGD per electrical or plumbing point. */
@@ -95,6 +96,33 @@ export type TradeRates = Record<TradeRateKey, number>
 /** Factory-default per-trade rates. */
 const DEFAULT_TRADE_RATES: TradeRates = {
   hackingPerM: 55,
+  /**
+   * NEW partition walls, SGD per m² of wall FACE.
+   *
+   * Added walls were computed (`WallDiff.addedLengthM`), printed on the report
+   * and the demolition sheet, and **never priced** — so a design that added
+   * partitions was under-budgeted while displaying the added length beside a
+   * total that ignored it. Building costs more than demolishing, so the
+   * omission ran the wrong way.
+   *
+   * 100 is the middle of the published single-layer drywall band ($80-130/m²
+   * installed in 2026, "inclusive of metal stud frame, boards, taping,
+   * plastering, and one coat of paint"). Drywall is the default because it is
+   * the cheaper, commoner and permit-free option: "non-structural partitions —
+   * lightweight gypsum, glass, or timber ... generally do not require an HDB
+   * renovation permit". A brick or concrete partition runs $100-200/m² and a
+   * double-layer acoustic one $130-200/m², both of which a user can dial in on
+   * the rate card.
+   *
+   * Priced per m² rather than per linear metre precisely so a HALF-HEIGHT wall
+   * (`PlanWall.topHeight`) costs less than a full-height one — which per-metre
+   * pricing could not express.
+   *
+   * Sources: rkec.sg "Drywall & Partition Wall Installation in Singapore
+   * (2026)"; fortified.com.sg "Partition Wall Cost 2026"; fixitpapa.sg "HDB
+   * Partition Wall Rules Singapore".
+   */
+  partitionPerM2: 100,
   ceilingPerM2: 32,
   mePerPoint: 120,
   airconPerUnit: 1800,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { LIGHT_EMITTERS } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem, FurnitureType } from '../furniture/types'
 import { buildLightingPlan } from './lightingPlan'
@@ -66,7 +67,19 @@ describe('buildLightingPlan', () => {
       defs,
     )
     expect(plan.schedule).toEqual([
-      { type: 'ceiling-light', label: 'Ceiling light', count: 2, height: 2.05, intensity: 9 },
+      // `lumens` is DERIVED from `intensity` via the lux model's calibration
+      // (9 cd x 12 x 4pi ~= 1357 lm), so it is asserted as the rounded value
+      // rather than a second authored figure — one source of truth.
+      {
+        type: 'ceiling-light',
+        label: 'Ceiling light',
+        count: 2,
+        height: 2.05,
+        intensity: 9,
+        lumens: Math.round(9 * 12 * 4 * Math.PI),
+        cct: 3000,
+        ip: 20,
+      },
       expect.objectContaining({ type: 'floor-lamp', count: 1 }),
     ])
   })
@@ -78,6 +91,9 @@ describe('buildLightingPlan', () => {
       color: '#fff',
       intensity: 5,
       distance: 2,
+      cct: 3000,
+      ip: 20,
+      layer: 'ambient',
       enabled: (p) => p.lights === 'yes',
     }
     try {
@@ -94,5 +110,38 @@ describe('buildLightingPlan', () => {
   it('falls back to the def id for the label when no def is supplied', () => {
     const plan = buildLightingPlan([item('ceiling-light', 0, 0)], {})
     expect(plan.lights[0]!.label).toBe('ceiling-light')
+  })
+})
+
+describe('schedule grouping honours the per-item lamp spec', () => {
+  it('splits two identical fixtures specified differently into separate rows', () => {
+    // A supplier cannot quote one line for a 3000K IP20 pendant and a 4000K
+    // IP44 one, so the group key folds in the specified CCT and IP — the same
+    // rule the door/window schedule applies with style + material.
+    const at = (id: string, props: Record<string, unknown>) =>
+      ({
+        id,
+        defId: 'ceiling-light',
+        position: [1, 1],
+        rotation: 0,
+        props,
+      }) as never
+    const plan = buildLightingPlan(
+      [at('a', {}), at('b', { lampCct: 4000, lampIp: 44 })],
+      BUILTIN_CATALOG,
+    )
+    const rows = plan.schedule.filter((r) => r.type === 'ceiling-light')
+    expect(rows).toHaveLength(2)
+    expect(rows.map((r) => `${r.cct}/${r.ip}`).sort()).toEqual(['3000/20', '4000/44'])
+    expect(rows.every((r) => r.count === 1)).toBe(true)
+  })
+
+  it('still groups identical specs together', () => {
+    const at = (id: string) =>
+      ({ id, defId: 'ceiling-light', position: [1, 1], rotation: 0, props: {} }) as never
+    const plan = buildLightingPlan([at('a'), at('b')], BUILTIN_CATALOG)
+    const rows = plan.schedule.filter((r) => r.type === 'ceiling-light')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.count).toBe(2)
   })
 })

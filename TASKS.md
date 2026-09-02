@@ -91,3 +91,21 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.
+
+## Construction details are TABULATED, not drawn (found v0.31.7.2)
+
+`detailSheetBody` (`ui/drawingSet.ts`) emits a dimension TABLE per junction — label/value rows
+plus notes — and no geometry, so the sheet is correctly labelled `NTS`. That is honest but it is
+not what a contractor means by a construction detail; a junction is read, not looked up.
+
+Found because `DETAIL_SCALE_RATIOS = [2, 5, 10]` sat unused in `floorplan/drawingScale.ts` since
+G3, anticipating drawn details that were never built. The constant is deleted (knip flagged it),
+but the reasoning it carried is preserved on `STANDARD_SCALE_RATIOS`: detail ratios must NOT be
+merged into that ladder, because `pickDrawingScale` takes the first ratio that FITS and 1:5 at
+the head would print a small room's whole plan at 1:5.
+
+To do this properly needs the thing the sheet's own footer already admits is missing: the model
+stores trim heights but **no profiles or specified projections**, so skirting, cornice,
+shower-kerb, worktop-edge and architrave details cannot be drawn without inventing dimensions.
+So the real prerequisite is a profile library (or per-item profile fields), not a renderer. When
+that lands, `DETAIL_SCALE_RATIOS` earns its place back as a second, request-not-fit ladder.

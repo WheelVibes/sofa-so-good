@@ -1,0 +1,59 @@
+{
+  "name": "multistorey-cost-coverage-f13",
+  "description": "v0.31.5.277 visual verification: on the two-storey Open Loft plan, the design report's finishes + per-room tables must include the UPPER storey's rooms (they were ground-only), and the toolbar room switcher must list them. Pro mode.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "load-loft-plan",
+      "eval": "(function(){ window.__loadErr=null; import('/src/floorplan/templates.ts').then(m => { const plan = m.PLAN_TEMPLATES.find(p => p.id === 'tpl-loft'); if (!plan) throw new Error('tpl-loft not in PLAN_TEMPLATES'); window.__store.getState().replaceFloorPlan(plan, { furniture: 'rehome' }); }).catch(e => { window.__loadErr = String(e); }); })()"
+    },
+    { "name": "plan-loaded", "waitFor": { "store": "window.__loadErr ? (() => { throw new Error(window.__loadErr) })() : (state.floorPlan.upperLevels||[]).length === 1" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 1200 },
+
+    {
+      "name": "assert-upper-rooms-in-switcher-source",
+      "eval": "(function(){ window.__switcherIds=null; window.__switcherErr=null; import('/src/state/rooms.ts').then(({ editableRooms }) => { const ids = editableRooms(window.__store.getState().floorPlan).map(r=>r.id); for (const need of ['lfu-sleep','lfu-landing','lfu-ward']) { if (!ids.includes(need)) throw new Error('room switcher omits upper room '+need+' — got '+ids.join(',')); } window.__switcherIds = ids.join(','); }).catch(e => { window.__switcherErr = String(e); }); })()"
+    },
+
+    {
+      "name": "put-furniture-on-the-loft",
+      "eval": "(() => { const s=window.__store.getState(); const its=s.items; if(!its.length) throw new Error('no items to move'); const picks=its.slice(0,4).map(i=>i.id); const set=new Set(picks); s.setItems(its.map(it => set.has(it.id) ? { ...it, levelId:'lf-up', position:[1.0+picks.indexOf(it.id)*0.6, 4.2] } : it)); window.__loftItemIds=picks.join(','); })()"
+    },
+    { "name": "settle-loft-items", "wait": 900 },
+
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml=null; window.open=function(){ return { document:{ write:function(html){ window.__capturedHtml=html }, close:function(){} }, close:function(){}, focus:function(){}, print:function(){} }; };"
+    },
+    {
+      "name": "open-report",
+      "eval": "(function(){ window.__reportErr=null; import('/src/ui/openReport.ts').then(m => m.openDesignReport()).catch(e => { window.__reportErr = String(e); }); })()"
+    },
+    {
+      "name": "wait-report-html",
+      "waitFor": { "store": "window.__reportErr ? (() => { throw new Error(window.__reportErr) })() : (typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0)" },
+      "timeout": 30000,
+      "failMessage": "openDesignReport() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-upper-rooms-in-report",
+      "eval": "(function(){ const h=window.__capturedHtml; for (const need of ['Sleeping Loft','Dressing']) { if(!h.includes(need)) throw new Error('report HTML omits upper room: '+need); } if(!/Sleeping Loft<\\/?[a-z]*>? · 4 items/.test(h) && !/Sleeping Loft · 4 items/.test(h)) throw new Error('the per-room FURNITURE breakdown does not credit the loft with its 4 items — an upstairs piece was filed Unassigned. (The lighting/electrical room tables were already level-aware, so a bare name match passes for the wrong reason.)'); })()"
+    },
+    { "name": "set-tall-viewport", "viewport": { "width": 1300, "height": 1900 } },
+    { "name": "inject-report", "eval": "(function(){ document.open(); document.write(window.__capturedHtml); document.close(); })()" },
+    { "name": "settle-injected", "wait": 900 },
+    {
+      "name": "scroll-to-upper-room",
+      "eval": "(function(){ const el=[...document.querySelectorAll('td')].find(e=>/Sleeping Loft · 4 items/.test(e.textContent||'')); if(!el) throw new Error('per-room furniture row for the loft not rendered'); el.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-scroll", "wait": 600 },
+    { "name": "shot-report-upper-rooms", "screenshot": "report-upper-storey-rooms" }
+  ]
+}

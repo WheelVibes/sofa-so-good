@@ -15,6 +15,7 @@
  */
 
 import { wallFaceKey } from '../../apartment/walls/wallTexTransform'
+import { allPlanRooms } from '../../floorplan/levels'
 import { useStore } from '../../state/store'
 import { Segmented } from '../controls/Segmented'
 import { Num } from '../floorplan/editor/inspector/shared'
@@ -52,12 +53,14 @@ export function DirectionRow({
 }) {
   const faceKey = wallId ? wallFaceKey(wallId, roomId) : null
   const face = useStore((s) => (faceKey ? s.finishes.wallTex?.[faceKey] : undefined))
+  // EVERY storey (F13) — an upstairs room's texture angle/scale read as unset,
+  // so its direction control always showed the default.
   const roomAngle = useStore((s) => {
-    const room = s.floorPlan.rooms.find((r) => r.id === roomId)
+    const room = allPlanRooms(s.floorPlan).find((r) => r.id === roomId)
     return surface === 'floor' ? room?.floorTexAngle : room?.wallTexAngle
   })
   const roomScale = useStore((s) => {
-    const room = s.floorPlan.rooms.find((r) => r.id === roomId)
+    const room = allPlanRooms(s.floorPlan).find((r) => r.id === roomId)
     return surface === 'floor' ? room?.floorTexScale : room?.wallTexScale
   })
   const setSurfaceTexture = useStore((s) => s.setSurfaceTexture)

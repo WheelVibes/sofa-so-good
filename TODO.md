@@ -197,6 +197,505 @@ difference. Note that `wall-detail.mjs` already swept what each wall CHANNEL is 
 (normalScale x6, normal removed, albedo mottle added) — check its recorded result before
 proposing a channel change (meta-rule xvii-b).
 
+
+## F13 schema migration — make the plan level-agnostic (user-authorised 2026-09-03)
+
+> User: "I don't have any users, so we can migrate the schema fully." Removes the back-compat
+> constraint that forced the ground-only design in the first place
+> (`docs/research/multi-level-design.md`: "additive, no schema-version bump").
+>
+> **Why**: the ground-only invariant produced EIGHT silent bugs in one arc — three in new modules
+> (v0.31.5.274) and five pre-existing (v0.31.5.275). Every one only misbehaved on a
+> landed/maisonette plan, with no error. Two attempts at a lint guard failed (above).
+
+**Target shape.** Split "the whole home" from "one storey's geometry" so the compiler forbids the
+confusion:
+
+```ts
+interface LevelGeometry { rooms: PlanRoom[]; walls: PlanWall[]; openings: PlanOpening[] }
+interface PlanLevel extends LevelGeometry { id; name; elevation; ceilingHeight? }
+interface FloorPlan  { /* metadata only */ levels: PlanLevel[] }   // levels[0] = ground
+type SingleLevelPlan = Omit<FloorPlan, 'levels'> & LevelGeometry   // what levelAsPlan returns
+```
+
+Single-level helpers then take `SingleLevelPlan` and their BODIES are unchanged (they still read
+`.rooms`); whole-home consumers take `FloorPlan` and must go through `planLevels`/`allPlanRooms`.
+Passing a `FloorPlan` where one storey is expected becomes a compile error.
+
+**Measured blast radius (experiment run 2026-09-03, then reverted): removing the three fields from
+`FloorPlan` yields 1368 `tsc` errors across 212 files** (149 non-test + 98 test). So this is
+multi-tick and MUST be staged — a big bang would leave the repo uncompilable across tick boundaries.
+
+**Staging, each stage its own green commit:**
+1. `levels` becomes canonical; the legacy trio stays as a mirror of `levels[0]`, kept in sync at
+   every plan constructor, plus a drift guard asserting reference equality. `planLevels` reads
+   `levels`. Suite green throughout.
+2. Migrate consumers in dependency order — `analysis` → `export` → `floorplan` → `state` → `ui` —
+   annotating single-level helpers as `SingleLevelPlan` as they are touched.
+3. Migrate test fixtures (98 files). A `makePlan({rooms, walls, openings})` helper keeps this
+   mechanical.
+4. Remove the legacy trio; add the schema migration and bump the save version. `tsc` is the
+   worklist — the error count is the progress metric.
+
+**Blast radius, measured properly at v0.31.5.286: 1279 errors across 205 files (503 non-test).**
+The v0.31.5.285 claim of "135 errors, down 90%" was WRONG — the script removed the fields from
+`PlanUpperLevel` instead of `FloorPlan`. There is no material reduction, and there was never going
+to be: the deletion's cost is dominated by **legitimate single-level consumers** that correctly
+take one storey and merely declare `plan: FloorPlan`. Those were never bugs, so the consumer
+migration never touched them. The final stage is a mechanical sweep of their signatures to
+`SingleLevelPlan`, largely orthogonal to the ~35 bugs already fixed.
+
+**To re-measure (and do it this way):** split `types.ts` at `export interface FloorPlan {`, remove
+the three fields only AFTER that point, `grep` to confirm the surviving `walls: PlanWall[]` line is
+the `PlanLevelData` one, THEN run `tsc`. Printing and reading the edited lines is the step whose
+absence produced the false number.
+
+**The final stage is therefore a deliberate multi-session job, not a tick's work.** Shape
+(unchanged, and confirmed to dev-09): `FloorPlan.levels: PlanLevelData[]` with ground at
+`levels[0]`; `levelAsPlan` returns `SingleLevelPlan = Omit<FloorPlan,'levels'> & {walls, openings,
+rooms, levelId, levelElevation}`. Order that keeps it tractable: (1) land `SingleLevelPlan` as an
+alias of `FloorPlan` and migrate single-level consumer SIGNATURES to it with no behaviour change
+and a green suite — this is the ~200-file bulk, splittable across many commits; (2) only then make
+`SingleLevelPlan` a real distinct type and delete the fields, which by then is small.
+
+**Revised staging (v0.31.5.276).** Stages 1-3 need NO schema change: `planLevels` already derives the
+level list from the legacy fields, so consumers can move onto
+`allPlanRooms`/`allPlanWalls`/`allPlanOpenings`/`levelAsPlan` with the suite green at every commit,
+and only the final stage deletes the fields and bumps the version. The originally-recorded "add a
+stored `levels` field and keep it in sync with the legacy trio" is WITHDRAWN — duplicate storage
+with a sync obligation is a drift bug waiting to happen, and it buys nothing the derived read path
+does not already give.
+
+**The final stage MUST also migrate `scripts/dev-probes/` (dev-09, verified 2026-09-03).** Sixteen
+probe scripts index `plan.openings`/`plan.walls`/`plan.rooms` directly off the live store —
+including `light-distribution.mjs`, the primary instrument of the graphics-realism arc. Reading the
+live store does NOT protect them: the field NAMES are the exposure. Worse, their `?? []` fallbacks
+mean that with the fields gone every lookup silently finds nothing and the probe fails at "no window
+matched", which reads as a scene bug rather than a schema change. `allPlanWalls`/`allPlanOpenings`
+(added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
+exact commit so it can — do not leave it to be discovered.
+
+## Wall-tile setting-out — ✅ SHIPPED v0.31.5.290 (table). Two follow-ups remain:
+- **Opening-aware field.** Openings are currently cut around a field set out over the full face.
+  A genuinely opening-aware setting-out (where a balanced centre may sit elsewhere, and the
+  courses above a door differ from those beside it) is a larger model.
+- **Corner coursing consistency.** Faces are set out independently, so courses do not generally
+  align around a corner. Enforcing it means solving all four faces of a wet room together with a
+  shared origin and choosing which face's balance to sacrifice — a design decision.
+- ~~**A drawn wall-tile elevation**~~ DONE v0.31.5.291 — the course grid is overlaid on the
+  existing elevation sheets (no new sheet), joints struck from the end-cut offset and from the
+  ceiling down, cut bands tinted, drawn under the furniture.
+
+### Original scoping note (kept — it was right that this was not a small job)
+
+`tileCoursing.ts` sets out FLOORS only. Two wall tiles declare a 300x600 module and **nothing
+consumes it** (measured: wall `moduleMm` coverage 2/57). Wall tiling is where a bad cut is most
+visible — it lands at eye level, not underfoot — so this is worth doing, but it is not "run
+`planTileCoursing` on walls":
+
+- a wall run is set out from a DATUM COURSE (typically full tiles at the top with the cut at the
+  floor, or aligned to a sanitary fitting), not centred like a floor;
+- the run is interrupted by openings, so the field is not a simple rectangle;
+- the four walls of a wet room must course CONSISTENTLY around corners, which is a cross-wall
+  constraint the floor model has no equivalent of.
+
+It needs its own model. See `docs/research/2026-09-03-authored-data-coverage.md` Finding A.
+
+## `PlanWall.structure` unauthored on all 19 templates — a CONTENT + SAFETY decision, not a bug
+
+Measured **0/225**. Three pro features (hackability overlay, demolition-sheet structural
+classification, 3D wall-types overlay) are inert on 19 of 20 shipped plans.
+
+**Do not "fix" this by seeding values.** `structure` is user-declared and never verified; the
+templates are plausible reference layouts, not surveyed drawings; and a confident wrong
+classification — especially a confident *permitted* — is the one direction of error this feature
+must never make. Three options are written up with their trade-offs in
+`docs/research/2026-09-03-authored-data-coverage.md` Finding B, including why seeding external
+walls alone is the WORST outcome unless the overlay legend changes with it.
+`src/authoredDataCoverage.test.ts` pins the 0/225 fact so it cannot drift either way unnoticed.
+
+## Paint quantities — ✅ SHIPPED v0.31.5.292; substrate now DERIVED (v0.31.5.293).
+
+The follow-up below is done: `FloorPlan.intakeState` is persisted and
+`paintQuantities.ts:substrateForIntake` maps it to the substrate. Original note kept for the
+reasoning:
+
+**Persist the intake state so the substrate is derived, not assumed.** `paintQuantities.ts` takes
+`substrate: 'primed' | 'bare'` and defaults to `'primed'`, stating the assumption on the sheet. But
+the app ALREADY KNOWS: Smart Start asks whether the flat is `bto-bare` / `bto-ocs` /
+`resale-asis` / `resale-stripout` (`furniture/intakeStates.ts`), and a BTO handover IS bare plaster.
+That answer is applied once and thrown away — nothing persists it. Adding
+`FloorPlan.intakeState?: IntakeStateId` (additive, no version bump per `src/floorplan/CLAUDE.md`)
+would let the paint quantity pick its own substrate, turning a stated assumption into a derived
+fact. Caveat already documented in `intakeStates.ts`: the curated default flat is not serialised, so
+it would be session-only there — which is fine for a live-computed schedule and only matters across
+a reload.
+
+## Lighting lamp spec — ✅ SHIPPED v0.31.5.297, surfaced v0.31.5.298 (`lampSpecChecks`).
+
+Remaining, and both are CONTENT decisions for the owner rather than fixes:
+- **The default flat has an IP20 ceiling light in Bath/WC 1**, so the app's own move-in default
+  fails its own IP44 advisory. Options: ship a wet-rated fixture variant and use it in the wet
+  rooms; or leave it, on the grounds that a check which fires on a real design is doing its job.
+  Do NOT silence it by editing the advisory.
+- ~~**A per-item CCT/IP override**~~ DONE v0.31.5.299 (`props.lampCct`/`props.lampIp`,
+  `resolveLampSpec`, inspector "Specification" group). Note the deliberate separation from the
+  RENDER overrides `lightColor`/`lightIntensity` on the same item — do not wire one to the other,
+  and see the test that pins it.
+- ~~A report section for the advisory~~ DONE v0.31.5.300 — it prints in the report's Lighting plan
+  section. A COMPLIANCE finding that lives only in the app never reaches the contractor.
+- **Open (yours):** should the DRAWING SET carry it too? It is the document a contractor is most
+  likely to be handed, but the set is already 42 sheets — a judgement about sheet economy, not
+  correctness.
+
+### Original scoping note — NOTE its lumens claim was WRONG, see .297
+
+`lighting2d/lightingPlan.ts`'s schedule rows carry `type/label/count/height/intensity`, where
+`intensity` is a three.js unit. Missing, and measured **0/6 emitters** in
+`furniture/lightEmitters.ts`:
+- **lumens** (or W) to specify the lamp;
+- **colour temperature (K)** — in SG, 3000 K living vs 4000 K kitchen is a spec, not a preference;
+- **IP rating** — a bathroom fixture must be IP44+, which is COMPLIANCE, not just procurement.
+
+Scope: extend `EmitterSpec` with the three fields (authored per emitter, six of them), add the
+columns to the schedule, and add a wet-area IP check to the compliance/checks surface — a fixture
+below IP44 in a `bath`/`powder`/`serviceYard` room is an advisory with a real basis.
+
+**Do NOT derive CCT from `EmitterSpec.color`.** That hex is a render tint; converting it back to
+Kelvin is deriving a specification from a rendering constant, the mistake `tileCoursing.ts`'s
+header warns about. Author the figures from sources, as `.288` (tile modules) and `.292` (paint
+coverage) did.
+
+## Variation register — ✅ SHIPPED v0.31.5.307. Two follow-ups:
+
+- ~~**Persist `tenderedSnapshot`**~~ DONE v0.31.5.308 — schema + `serialize` + `applySerialized`
+  + `PERSISTENT_WATCH_KEYS` + the lock-step guard case, all in one commit. Absent hydrates to
+  `null`, matching the slice's initial value.
+- ~~**A printed register sheet**~~ DONE v0.31.5.309 — a "Variation register" sheet in the drawing
+  set, naming the revision it varies from. Absent when nothing changed, because an empty variation
+  sheet reads as "no changes since tender", a stronger claim than "nothing was compared".
+- **CLOSED, deliberately NOT done (v0.31.5.310):** the seventeen-positional-argument signature on
+  `buildDrawingSetHtml`. Do not "fix" this without reading the measurement:
+  - `tsc` already catches a wrong argument COUNT (it caught the .309 near-miss immediately).
+  - The only thing types cannot catch is a silent swap of two same-typed arguments — the three
+    boolean sheet flags plus the two added in .309. **Swapping two of them in the signature fails
+    four tests immediately** (measured, with the swap verified to have landed): every one of the
+    five is individually pinned by an on/off test pair — `showSettingOut` at
+    `drawingSet.test.ts:349`, `showCarpentry` at `:1087`/`:1128`, `showRcp` at `:1281`/`:1302`,
+    and the two new ones by the `.309` sheet tests.
+  - 102 call sites, of which only **22** reach the boolean tail. Smaller than it looks, and still
+    the wrong trade: 22 hand-mapped edits through mostly-`undefined` placeholders, to prevent a
+    fault tests already catch — where a slip in that very edit IS the silent swap being guarded
+    against.
+
+  **General rule:** a long positional signature is a smell, not a defect. Check whether each risky
+  argument is already pinned before paying to restructure, and prefer a guard you can demonstrate
+  in one experiment to a refactor you must get right in twenty-two places.
+
+### Original scoping note (v0.31.5.306), kept — the three-part shape was the right call
+
+A professional administering a renovation accounts for the delta between what was PRICED and what
+is being built. In SG this is where disputes land: the contractor quoted from one drawing revision
+and the finishes changed afterwards. **Nothing in the app tracks this.**
+
+Most parts exist: `baselinePlan` (captured plan), drawing-set `revisions[]` + current letter, the
+full cost model (`buildRenovationAllocation`, finish-area schedules, `itemPrice`), and `diffWalls`.
+
+**The missing piece is a PRICED snapshot.** `baselinePlan` is a `FloorPlan` only — no finishes, no
+items — so there is nothing to diff a cost against. Needs:
+1. `tenderedSnapshot?: { plan, finishes, items, at, revision }` in state + `schema.ts` (additive).
+2. A pure `buildVariationRegister(before, after)` diffing two `RenoAllocation`s per trade line, plus
+   an FF&E delta, producing added / removed / changed lines with cost impact.
+3. A surface: a report section and/or a drawing-set sheet, plus a "capture as tendered" action.
+
+Do all three together — a core with no surface is the `.297` mistake, and this one is only useful
+once a user can capture the snapshot.
+
+## Audited-correct, do NOT "fix" these (v0.31.5.294, walls/openings added .295)
+
+Sites that read `plan.rooms` and are RIGHT to:
+- `ui/report.ts:181`, `ui/drawingSet.ts:1407` — the else branch of `multi ? levels… : plan.rooms`.
+  On a single-storey plan `plan.rooms` IS the whole home.
+- `floorplan/doorSwing.ts` room probes — its only caller passes a `levelAsPlan` result.
+- `floorplan/rescalePlan.ts`, `gridSnap.ts`, `mirrorPlanRegion.ts` — whole-plan transforms that
+  handle `upperLevels` separately and deliberately.
+- `floorplan/autoDimensionSvg.ts:360` — a per-level sheet builder.
+- The `opening.wallId → wall` pairs in `ui/reportPlanSvg.ts`, `layout/autoArrange.ts`,
+  `lighting2d/luxGrid.ts`, `floorplan/planGeometry.ts`, `apartment/floor/planThresholdRects.ts` —
+  internally consistent (a ground opening resolves to a ground wall) and every caller passes a
+  per-level plan.
+- `floorplan/rescalePlan.ts:87`'s `onGround` — named for what it is, part of the whole-plan
+  transform.
+
+**Items-side audit: CLEAN (v0.31.5.296).** Cross-item scans and whole-home `items` consumers were
+swept and all are correct — `broadphase.ts` callers gate (`itemsCollide` / `walkway`'s own loop),
+`floorLoading` is per-item so level-agnostic is right, `deliveryAccess`/`schemeOptions` are per-def,
+and `cloneRoom`/`mirrorRoom`/`swapRooms` gate at the caller. Do not re-run this leg.
+
+**RESOLVED v0.31.5.304 (was logged unresolved in .303).** The curtain-spec room resolution WAS the
+probe argument; the apparent contradiction came from an arm-swap that never landed (biome had
+reformatted the call across seven lines, so `str.replace` matched nothing). Measured with the swap
+verified, the arms differ exactly as the frames did.
+
+**Rule from it — an arm-swap is itself an intervention, and the one most likely to fail silently.**
+A `str.replace` that matches nothing returns the original string and every downstream step still
+succeeds. So: (a) assert the swap changed something, and (b) have the probe PRINT the state
+actually in play beside its result. Both are cheap; the assertion is what caught this.
+
+**USE `scripts/apply-edit.mjs` FOR SCRIPTED EDITS (v0.31.5.313).** It refuses to write
+unless every edit matches the expected occurrence count, so the failure below cannot recur silently:
+
+    echo '{"file":"src/x.ts","edits":[{"old":"a","new":"b"}]}' | node scripts/apply-edit.mjs
+
+Original rule, kept for the history — **ALWAYS assert a scripted edit changed something (four
+instances before the tool existed).** Every
+`str.replace` in a helper script must be followed by an assertion, and every arm-swap must print the
+state in play. Silent no-ops have now cost: the `.304` retraction (an arm-swap that never landed),
+`.291` (a repair that matched nothing after biome reformatted), `.302`'s first sweep, and `.312`'s
+rename. The pattern is always the same — the edit reports success, the result looks explicable, and
+the conclusion is wrong. `tsc` catches some of these; nothing catches the ones inside a measurement.
+
+**Sweep-pattern rule II (v0.31.5.302) — the one that actually bit.** `.294`/`.295` grepped
+`plan.rooms.find(` and `floorPlan.rooms.find(`. **Every site in `.302` reads a LOCAL variable**
+(`const rooms = allPlanRooms(plan)` … `rooms.find(...)`), so the pattern matched none of them and
+the sweep reported the layer clean. Five real bugs. A pattern anchored on the RECEIVER
+(`plan.rooms`) cannot see an aliased collection; anchor on the OPERATION instead —
+`rooms.find((r) => pointInRoom` and friends — or better, don't rely on a grep at all.
+
+dev-09's formulation is the durable version: **a regex over source is a SAMPLE, not an enumeration,
+and its coverage is invisible in the result.** Two sweeps reported "clean" and neither could have
+found these.
+
+**Sweep-pattern rule (v0.31.5.296).** When grepping for "does this module know about levels",
+the pattern MUST include `allPlanRooms|allPlanWalls|allPlanOpenings|upperLevels|levelById|
+levelOfRoom` alongside the obvious `levelId|planLevels|levelAsPlan`. Omitting them reported 14
+modules as level-unaware when only 6 were, i.e. an 8/14 false-positive rate — a sweep that
+manufactures work rather than finding it.
+
+**Fixture rule from .295, worth keeping:** for a LEVEL-GATING bug, place the storeys' geometry
+APART — a fixture where both storeys' doors sit at the same offset makes the buggy and correct paths
+agree, and four of six tests passed with the fix stashed. For the REVERSE bug (above/below
+mis-attribution, e.g. `roomAtItem`) overlap is the right fixture. Which is stronger depends on which
+direction the bug runs; decide before writing the fixture, and verify by stashing the fix.
+
+**Remaining F13 follow-ups (v0.31.5.282).**
+- ~~`elevation/projectElevation.ts` ground-only~~ FIXED in v0.31.5.283. The "dead export"
+  claim in .282 was wrong — I grepped the doc-comment name (`allWallElevations`) rather than the
+  real export (`projectAllElevations`), which three consumers use. Lesson: grep the SYMBOL, not
+  the name you remember reading.
+- Audited and found already level-correct, do not re-check: `daylight`, `airconSizing`,
+  `openingSchedule`, `demolitionPlan`, `electricalPlan`, `plumbingPlan`, `settingOut`,
+  `autoArrange`, `furnishPlan`, `Minimap` (via `minimapLevelView`), `rcp` (fanned out by
+  `drawingSet`), `dxf` (ground-only BY DESIGN, documented in its header).
+- Still unaudited: **`state/schema.ts`** and the **`apartment/*` render layer**. The render layer
+  is lower risk than it looks — most of its `plan.*` reads sit INSIDE `PlanShell`'s per-level
+  groups (each mounted at `level.elevation` with a `levelAsPlan` result), which is why none have
+  surfaced. `schema.ts` is deliberately last: it is the serialisation boundary the FINAL migration
+  stage rewrites, so touching it before then would mean doing that work twice.
+  (`MeasurementOverlay`, `DesignScorePanel`, `suggestViews`, `usePlacementController` done in
+  .284; `ElevationPanel` in .283.)
+
+**A pattern worth naming, from .284.** Two consumers of the same overlay needed OPPOSITE answers
+about elevation: the whole-plan overview must lift an upstairs room's markers by
+`level.elevation` (it sits outside `PlanShell`'s per-level groups), while the per-room editor must
+NOT (it draws the single room at ground level and applies no elevation). So "does this consumer
+need the storey lift?" is a question about the RENDER TREE the consumer is mounted in, not about
+the data — and it can only be answered by reading the mount site. Assuming one answer for both
+would have floated the room-editor markers above the floor.
+
+**Confirmed target shape (dev-09 asked, 2026-09-03).** The field IS `plan.levels: PlanLevel[]`
+and the ground floor IS `levels[0]` — it does not stay separate. `levelAsPlan` keeps returning a
+`SingleLevelPlan = Omit<FloorPlan, 'levels'> & LevelGeometry`.
+
+**A consumer migrated AHEAD of the schema must be shape-tolerant, and the obvious form is not.**
+`[plan, ...(plan.upperLevels ?? [])].flatMap((l) => l.walls ?? [])` reads the ground level as
+`plan` ITSELF, so post-migration `[plan, ...]` contributes nothing and the consumer silently
+returns the upper storeys alone — empty for a single-storey plan. Use
+`const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]`, which takes the legacy branch
+today and the new one after. This only applies OUTSIDE `src/` (the probes); inside `src/`, import
+the `levels.ts` accessors and let them absorb the change in one place.
+
+**Why a lint guard is not an alternative (the load-bearing justification, recorded here because it
+gets lost once the diff is merged).** Grep cannot distinguish "whole plan" from "one storey" because
+the difference lives at the CALL SITE, not in the text. `planTotalArea` is the proof: the plan
+editor calls it per storey (correct) while three other sites passed the whole plan (wrong) — same
+function, opposite verdicts, identical text. It is a TYPE question, and only the type split can
+answer it. Two guard attempts were abandoned on this basis (see the entry above).
+
+## Open — drawing accuracy (2026-09-02, pro-designer goal)
+> Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
+> (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G8 — ADDRESSED v0.31.5.268, one caveat open] `designScore` cannot rank genuinely different
+  layouts.** Fixed by adding `analysis/layoutCritique.ts` as a SEPARATE measurement (TV distance,
+  conversation range, coffee-table reach, sofa proportion — thresholds cited in
+  `docs/research/2026-09-02-layout-critique-standards.md`), used as the tie-break above price. The
+  three that tied at 83 now separate 89/85/79. **Sofa caveat CLOSED v0.31.5.269**: SG sources
+  express sofa fit as an absolute width band (175-220 cm typical 3-seater, 190-210 cm for a 4-room
+  HDB), not a ratio — so the derived 60%-of-span bar was replaced with the cited band, and it now
+  flags the app's 2.60 m default sofa as genuinely over-scaled rather than restating that HDB rooms
+  are small. Original note follows.
+- **[superseded, kept for the reasoning] `designScore` cannot rank genuinely different layouts.** With the authored layouts wired in
+  (v0.31.5.266), three substantively different arrangements (80/81/83 items, different furniture)
+  score IDENTICALLY at 83 on every category, so the comparison falls through to the price tie-break.
+  The categories are too coarse to express "this arrangement is better than that one". Adding the
+  layout-critique dimensions G8 originally proposed — circulation route quality, sightlines to a
+  focal point, conversation-grouping geometry, furniture-to-room proportion — is what would make the
+  ranking mean something. Note this is a DIFFERENT problem from the circulation-saturation entry
+  below: that one is a broken ruler, this one is a ruler that does not measure the thing.
+- **[DIAGNOSED, not decided] The circulation score saturates at 0 for every auto-furnished layout,
+  so 20% of the design score carries no signal.** Measured 2026-09-02 on the default 4-room plan:
+  - hand-authored `defaultLayout()`: circulation **58** (0 impassable, 21 tight, 52 gaps) — the
+    metric works;
+  - every `furnishPlanItems` result, at layout seeds 0/1/2 and across presets: circulation **0**.
+  **Scope narrowed v0.31.5.266**: the default flat now uses the authored layouts, which do NOT
+  produce these pinches (circulation 58 there). This still applies to the CUSTOM-plan path, which
+  goes through `furnishPlanItems` + the arranger.
+  Cause is arithmetic, not a bug in the finder. `penalty = impassable x 20 + min(42, advisory x 3)`,
+  so with the advisory term already at its 42 cap, just **3** impassable pinches reach 102 and clamp
+  to zero. And the three found are all MARGINAL — `bed-single<->bed-single 0.44 m`,
+  `wardrobe-3door<->armchair 0.47 m`, `desk<->sofa-3seat 0.44 m` — i.e. just under the 0.5 m bar,
+  not catastrophically blocked routes. So the category cannot distinguish "tight in three spots"
+  from "impassable throughout", and in the G8 scheme comparison every candidate scores 0, making
+  circulation useless for ranking.
+  Two separable calls, NEITHER taken here because both re-calibrate a shipped, user-visible score
+  (`DesignScorePanel`) and that is a product decision, not a fix:
+  (a) give the penalty headroom so marginal pinches cannot saturate (e.g. scale `severe` by how far
+      under the bar the gap is, or cap the combined penalty below 100);
+  (b) separately, improve the ARRANGER so auto-furnishing stops producing 0.44-0.47 m pinches
+      between large pieces in the first place — that is the underlying quality issue, and fixing it
+      would raise every scheme's score honestly rather than by re-tuning the ruler.
+  Note (b) is the real problem and (a) only stops the score lying about it. Do not do (a) alone.
+- **[G8 — DONE, one open content call] Theme grounding audit complete: 17/17.** Full record with
+  citations in `docs/research/2026-09-02-scheme-theme-grounding.md`. Ten style themes audited (nine
+  accurate; Modern Luxe corrected), seven `layout`-group presets are researched by construction.
+  **The one thing left is a content decision, not a fix:** Coastal puts sky-blue on every dry WALL
+  and Tropical Biophilic puts sage on every dry wall, whereas the references treat both as an ACCENT
+  or a single feature wall — and the coastal sources specifically warn that a blue-and-white
+  commitment "may feel cold or too nautical" and tips into cliché. Neither is wrong; both are a
+  bolder reading than documented practice. Options: leave as-is; soften the wall to warm white/sand
+  and move the colour to a feature wall via `PlanWall.color` (both themes already support accent
+  walls); or ship both readings as separate presets. Do NOT repaint a shipped theme unilaterally —
+  same rule as re-drawing a shipped plan. Do this BEFORE raising `SCHEME_COUNT` past 3 or letting a brief
+  surface an arbitrary preset, so a user is never shown a theme whose palette is invented.
+  **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
+  and colours wrong is more than an aesthetic miss.
+- **[site measurements — recording UI COMPLETE v0.31.5.272]** `SiteMeasuredField` is on the wall,
+  room and opening inspectors with inline deviation feedback, verified on desktop and at a true
+  390px phone viewport. **Optional follow-up, not a gap:** wire the plan editor's existing measure
+  tool so a tap-and-type records directly rather than going via the inspector — faster on site, but
+  the inspector path is complete and usable as-is.
+- **[F13] Three `planTotalArea` call sites pass the WHOLE plan and understate a two-storey home.**
+  `planTotalArea` is a legitimate single-level helper — `FloorPlanEditor` calls it per storey, which
+  is the correct deliberate use, and it lives in `types.ts` so it cannot import `levels.ts` without a
+  cycle. But `ui/shareSummary.ts`, `ui/shareCard.ts` and `ui/floorplan/ScalePlanModal.tsx` pass the
+  whole plan, so a maisonette's stated area is ground-floor only. Fix at the call sites by summing
+  `planTotalArea(levelAsPlan(plan, l))` across `planLevels(plan)`, as `analysis/renoTimeline.ts` now
+  does. The share ones are cosmetic; the scale modal shows an area the user may act on.
+- **[F13] A grep guard for ground-only reads does NOT work AT ANY SCOPE — do not re-propose it.**
+  Attempted twice. First over `src/floorplan`: flags ~20 legitimate single-level helpers whose callers
+  pass `levelAsPlan`, because the correct/incorrect distinction lives at the CALL SITE.
+  (`planTotalArea` is the proof — the plan editor calls it per storey, correctly, while three other
+  sites pass the whole plan, wrongly. Same function, opposite verdicts.) Then narrowed to
+  `src/analysis`, which I had argued was uniformly whole-home: it is NOT. That layer also contains
+  functions taking a pre-flattened or single-level plan in a parameter named `plan`
+  (`hdbCompliance`'s rule functions since v0.31.5.275, `daylight`'s per-level recursion), plus
+  comments that mention the property names. Measured 46 hits, and every one inspected was a false
+  positive.
+  **The lesson: "is this identifier a whole plan or one storey?" is a TYPE question, and grep can
+  never answer it.** Which is the argument for the schema migration below — a type split makes the
+  bug unrepresentable, where no amount of text matching can even detect it.
+- **[delivery access] Corridor turn + per-project route override UI.** v0.31.5.273 checks the three
+  rectangular apertures (lift door, cabin, main door) against published SG typicals. Not done:
+  (a) the CORRIDOR TURN from lift lobby to front door — the sources say measure it before ordering
+  anything over 1.5 m, but a turn is not a rectangular aperture and modelling it needs lobby geometry
+  the app does not have; (b) a UI to enter the user's ACTUAL measured route, which the sources are
+  emphatic matters ("even a difference of 5 to 10 centimeters"). The core already takes a `route`
+  argument, so (b) is a form plus a persisted field — and it should reuse the `SiteMeasuredField`
+  pattern from v0.31.5.271/.272 rather than inventing a second measurement surface.
+- **[layout critique] Add a walkway-width check using the SG figure, not the generic one.** The two
+  standards disagree: 91 cm generic vs "at least 70-80 cm" in SG guidance
+  (`docs/research/2026-09-02-layout-critique-standards.md` records both). `designScore`'s circulation
+  category covers gaps between items but not the width of the MAIN route through a room. If added,
+  use the SG figure for this app.
+- **[G8] Add a Peranakan encaustic floor tile material.** The audit found the one real fidelity gap
+  in an otherwise-accurate theme: geometric encaustic floor tiles are "among the most recognisable
+  elements" of Peranakan interiors, and the preset approximates them with a patterned RUG over dark
+  wood because no such material exists in the catalog. Adding one (with a specified `moduleMm`, per
+  v0.31.5.257) would be the highest-fidelity single improvement to any theme.
+- **[G8] Give a few themes real `kits`, informed by the grounding audit.** No preset defines `kits`,
+  so themes differ in finish/styling but place identical furniture (v0.31.5.262). The audit says
+  what belongs: rattan/bamboo + handmade ceramics for Japandi, wool/linen textiles for Scandi Calm,
+  leather + reclaimed timber for Warm Industrial. Cheaper and higher-value than any generator change.
+- **[G8 next] Scheme comparison needs a UI surface.** v0.31.5.262 ships the data core
+  (`analysis/schemeOptions.ts`): generate N schemes, scored/priced, with derived trade-offs. Still
+  needed: a review-and-pick surface (each scheme's plan thumbnail, score breakdown, price and the
+  trade-off lines, with "use this one" applying its items + the preset's finishes), a brief/budget
+  input wired through `furniture/briefParser.ts:parseBrief`/`parseBriefBudget` (both already exist
+  and already return a preset id + a budget), and a feature flag. Also worth doing: presets define NO
+  `kits`, so scheme variety leans entirely on the layout seed — giving a few presets real kit
+  differences (a WFH desk, an entertainer's bar) would widen the spread more cheaply than any
+  algorithm change.
+- **[G3 remainder] Profile-dependent details need a trim/profile data model.** v0.31.5.259 details
+  the four junctions the model can state exactly (ceiling drop, waterproofing upturn, floor
+  threshold, window sill/head). Still missing, and ALL blocked on the same prerequisite: skirting and
+  cornice sections (heights exist as `PlanWall.baseboard.height`/`crown.height`, but there is no
+  profile and no specified projection — the 3D render's ~12 mm is a rendering constant), shower kerb
+  geometry (only `buildKerbAdvisories`, no height), worktop edge/nosing, and door jamb/architrave.
+  The fix is the same shape as G5's `MaterialDef.moduleMm`: a SPECIFIED profile + projection on the
+  trim/joinery data, then the section can be drawn from it. Do NOT derive a projection from the
+  render constants. Once profiles exist, the details should be DRAWN sections at 1:5/1:10
+  (`DETAIL_SCALE_RATIOS` is already in place) rather than dimension tables.
+- **[G4 remainder] The calibration constant and the utilisation factor.** v0.31.5.256 shipped the
+  work plane + uniformity; v0.31.5.260 shipped the IES distribution SHAPE into the spatial grid.
+  Still open: (a) the room AVERAGE stays isotropic because it is the lumen method (Φ × UF / A), which
+  is distribution-agnostic by construction — making it directional means replacing it with a full
+  point-by-point integration, a real decision rather than a fix. Also still shape-only: absolute
+  photometry (`lumensPerLamp`/`candelaMultiplier`) is deliberately not asserted. (b) `SCENE_INTENSITY_CALIBRATION = 12` anchors lux output
+  to the renderer's stylised night-scene intensities; retiring it needs a real lumen/CCT/beam package
+  per fixture. (c) `UTILISATION_FACTOR` is a single global 0.45 though the app knows each room's
+  finish reflectances (`roomFinishes.ts`). (d) DONE v0.31.5.261 — `buildRoomUniformity` + a U0 column on both surfaces.
+  NOTE: do NOT calibrate any of this against the HQ render — see the research doc's cross-cutting
+  section; the render is not a photometrically anchored reference.
+- **[G1 follow-up] Section cuts are automatic, not user-placed.** v0.31.5.254 emits both
+  conventional cuts (A cross, B longitudinal) at scored-informative positions with proper plan
+  marks. What is still missing is letting a user take a cut WHERE THEY WANT — through a specific
+  wet area, a dropped ceiling, a stair, a tall joinery run. Needs a plan entity (position, axis,
+  view direction, mark letter) plus an editor affordance to drag the cut line, and then
+  `conventionalSectionCuts` becomes the default seed rather than the only source. The projector
+  (`buildSection`) already accepts any axis+position, so this is entity + UI work only.
+- **[G6 follow-up] Revisions are set-wide, not per-sheet; no revision clouds.** v0.31.5.253 ships the
+  revision HISTORY, but every sheet still carries the same global `Rev X` in its title block, whereas
+  in practice sheets revise independently. Doing it properly needs each revision to record WHICH
+  sheets it touched (`sheets?: string[]` on `DrawingSetRevision`) — deliberately NOT added yet
+  because nothing can populate it: it would need a per-sheet issue UI, and an unpopulated field is
+  worse than an absent one. Same reason revision clouds/deltas (marking WHAT changed on a sheet) are
+  deferred: they need a diff between two issues of the plan, which means storing a plan snapshot per
+  revision. Revisit together, and only with a real issue-management surface.
+- **[G9 follow-up] Aircon trunking vs joinery is not clash-checked.** v0.31.5.252 covers MEP-behind-
+  furniture and item-under-ceiling-drop. The third failure mode from the research — an
+  `analysis/airconTrunking.ts` route crossing a carpentry run — needs the trunking polyline treated
+  as a swept 3D volume against joinery bodies, which is more than the current 2D-footprint-plus-one-
+  height model can express. Also unhandled: an item's internal voids (an open-backed shelving unit
+  reports its socket as obstructed) — would need a per-def "backless/open" hint.
+- **[G10 follow-up] The DXF still writes metre geometry + metre dimension text.** v0.31.5.251 moved
+  the printed sheets to integer mm but left the DXF alone on purpose: it declares `$INSUNITS = 6`
+  (metres) and writes metre coordinates, so mm annotation beside a 4-unit line would contradict its
+  own header. The real fix is to write the whole DXF in mm with `$INSUNITS = 4` (the usual metric
+  CAD convention) — every coordinate, not just the labels — then dimension text can use
+  `formatDrawingLength` like the sheets. Touches all of `export/dxf.ts`'s geometry, so it wants its
+  own change + a careful re-read of the layer/scale tests.
+- **[G10 follow-up] Interior dimension rows have no label-collision stagger.** `autoDimensionSvg.ts`
+  staggers the SETTING-OUT row (`staggerLabelRows`) but the per-room interior dimension labels can
+  still overlap where two rooms are narrow and adjacent (visible as "1950 1850" / "1000 900" on the
+  default 4-room plan). Pre-existing, and *improved* by the mm change (integer labels are shorter
+  than "1.95 m"), but not solved. Reuse `staggerLabelRows` for those rows.
+- **[G11 follow-up] A decomposed footprint's drawn edge is faceted, not a true arc.** v0.31.5.250
+  draws a round/oval item as one filled silhouette (no false internal edges), but the outline is
+  still the `ellipseFootprintParts` OBB staircase. Reads fine at 1:50-1:100; a large-format detail
+  would want a real ellipse/arc path. NOT a rendering-only change: emitting an arc needs a
+  convexity/shape hint on the def, since a convex hull would wrongly fill an L-shaped sofa's
+  notch. Revisit with G3 (detail scales), where it actually starts to matter.
+
 ## Wall reveal (v0.30.9.0, 2026-08-28)
 - [ ] **The default orbit pose parks every near wall at a MILKY 0.371 — the curve's head-on
   floor is unreachable from the boot camera.** (Re-framed again in v0.31.5.53; the "hard step at

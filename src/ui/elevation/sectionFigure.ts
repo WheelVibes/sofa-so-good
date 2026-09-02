@@ -26,6 +26,9 @@ export function sectionSilhouettes(
       label: item.label ?? def.name,
       corners: obbCorners(itemFootprint(item, def)),
       height: itemHeight(item, def),
+      // Carry the storey through (F13) so a stacked section can place the piece
+      // on its OWN floor; `buildSection` filters by it per level.
+      ...(item.levelId ? { levelId: item.levelId } : {}),
     })
   }
   return out

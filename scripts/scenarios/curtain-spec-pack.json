@@ -1,0 +1,30 @@
+{
+  "name": "curtain-spec-pack",
+  "description": "v0.31.5.303 visual verification: the Curtain specification table in the curtains trade pack. Seven columns on a pack sheet is a real overflow risk, so the point is legibility, not just presence.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    { "name": "patch-window-open", "eval": "window.__capturedHtml=null; window.open=function(){ return { document:{ write:function(html){ window.__capturedHtml=html }, close:function(){} }, close:function(){}, focus:function(){}, print:function(){} }; };" },
+    { "name": "open-curtains-pack", "eval": "(function(){ window.__packErr=null; import('/src/ui/openTradePack.ts').then(m => m.openTradePack('curtains')).catch(e => { window.__packErr=String(e) }); })()" },
+    { "name": "wait-html", "waitFor": { "store": "window.__packErr ? (() => { throw new Error(window.__packErr) })() : (typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0)" }, "timeout": 30000 },
+    {
+      "name": "assert-spec-table",
+      "eval": "(function(){ const h=window.__capturedHtml; if(!/Curtain specification/.test(h)) throw new Error('no Curtain specification table in the pack'); if(!/Floor drop/.test(h)) throw new Error('no floor-drop column'); })()"
+    },
+    { "name": "set-viewport", "viewport": { "width": 1300, "height": 1200 } },
+    { "name": "inject", "eval": "(function(){ document.open(); document.write(window.__capturedHtml); document.close(); })()" },
+    { "name": "settle-injected", "wait": 900 },
+    {
+      "name": "assert-no-column-overflow",
+      "eval": "(function(){ const th=[...document.querySelectorAll('td')].find(e=>/Curtain specification/.test(e.textContent||'')) || [...document.querySelectorAll('h3')].find(e=>/Curtain specification/.test(e.textContent||'')); if(!th) throw new Error('spec heading not rendered'); const tbl=th.parentElement?.querySelector('table.sched') || th.nextElementSibling; const t = tbl && tbl.tagName === 'TABLE' ? tbl : th.parentElement.querySelectorAll('table.sched')[1]; if(!t) throw new Error('spec table not found in the DOM'); if (t.scrollWidth > t.clientWidth + 2) throw new Error('the specification table overflows its container: scrollWidth '+t.scrollWidth+' vs clientWidth '+t.clientWidth); th.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-scroll", "wait": 500 },
+    { "name": "shot-curtain-spec", "screenshot": "curtains-pack-specification" }
+  ]
+}

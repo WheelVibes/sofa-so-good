@@ -8,7 +8,8 @@
  * attribution); this assembles it into the schedule shape. Pure (no DOM/React)
  * → unit-testable; the report renders it (FFE2) and it can feed a CSV.
  */
-import { type FloorPlan, pointInRoom } from '../floorplan/types'
+import { allPlanRooms, roomAtItem } from '../floorplan/levels'
+import type { FloorPlan } from '../floorplan/types'
 import { itemPrice } from './../furniture/furniturePrices'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
@@ -119,7 +120,9 @@ export function buildFfeSchedule(
     const def = defs[it.defId]
     if (!def) continue
     const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
-    const room = plan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    // The item's OWN storey (F13) — `plan.rooms` is ground-only, so an
+    // upstairs piece was filed as Unassigned in every FF&E schedule.
+    const room = roomAtItem(plan, it)
     const roomId = room?.id ?? ''
     if (room) roomName.set(roomId, room.name)
     const url = it.meta?.url?.trim() ?? ''
@@ -184,7 +187,7 @@ export function buildFfeSchedule(
   }
 
   // Plan room order, then unassigned; within a room by value desc then name.
-  const order = new Map(plan.rooms.map((r, i) => [r.id, i]))
+  const order = new Map(allPlanRooms(plan).map((r, i) => [r.id, i]))
   const out: FfeRow[] = []
   const roomIds = [...byRoom.keys()].sort((a, b) => {
     if (a === '') return 1

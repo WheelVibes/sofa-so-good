@@ -82,6 +82,8 @@ Zustand (sliced store), Vite, Vitest, Biome.
 - **No hardcoded colour.** Use the CSS token class vocabulary (`.panel`/`.btn`/`.toolbar`/…),
   never Tailwind colour utilities or literals; every surface works in light + dark + 5 themes.
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).
+  **Before opening a PR also run `npm run deadcode`** (knip) — it is NOT in the pre-commit hook,
+  every rule in `knip.jsonc` is `error`, and an unused export or type fails CI.
   Vitest defaults to the **node** environment — a test that touches the DOM must start with
   `// @vitest-environment happy-dom` (details in ARCHITECTURE.md).
   While **iterating**, run targeted tests only (`npm test -- <paths near your change>`) — go
@@ -109,7 +111,10 @@ Zustand (sliced store), Vite, Vitest, Biome.
   depending on how big / how many features it carries (small fix → patch; sizeable or multi-feature
   → minor); reset the lower parts on a higher bump (a minor bump zeroes patch+build). **Never bump
   `major`** until explicitly told to. Keep `src/version.ts` and `package.json` in sync. **Every PR
-  title must state the version it ships**, e.g. `… (v0.2.0.0)`.
+  title must state the version it ships**, e.g. `… (v0.2.0.0)`. `CHANGELOG.md` headings must be
+  **unique** — `src/changelogVersions.test.ts` fails on a duplicate unless it is acknowledged in
+  its allowlist with a reason (two parallel worktrees once numbered 67 builds identically; the
+  check fails on MERGE, which is the only moment either side can see the collision).
 - **Research against references.** When designing a new feature or judging what good UI/UX
   should look like, consult **[REFERENCES.md](REFERENCES.md)** (competitor/reference apps —
   Coohom, Planner 5D, IKEA Kreativ, Sweet Home 3D, …) and aim to match or surpass them. Any

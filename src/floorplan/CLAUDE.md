@@ -8,10 +8,45 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   resolve a room's storey with `levelOfRoom`, an item's with `levelOfItem`
   (`item.levelId`, absent = ground). Run any single-level geometry helper on one
   storey via `levelAsPlan(plan, level)` — never hand-roll level math.
+- **An item's room is `levels.ts` `roomAtItem(plan, item)`, never a `rooms.find(pointInRoom)`.**
+  That idiom is wrong TWICE in a multi-storey home: it cannot see an upstairs room, and once it
+  can (via `allPlanRooms`) it matches the room directly ABOVE OR BELOW the item, because storeys
+  share one XZ space. Room ids are plan-unique, so the mis-attribution is silent — a bed upstairs
+  gets costed into the living room beneath it. Five whole-plan consumers had hand-rolled it (FF&E
+  schedule, shopping list, `reportData`'s two per-room breakdowns).
+- **The items in a room are `levels.ts` `itemsInRoom(plan, items, roomId)`** — the inverse of
+  `roomAtItem` and wrong the same way when hand-rolled: `items.filter((it) => pointInRoom(room, x,
+  z))` sweeps up furniture from every storey overlapping the room's XZ, so a ground-floor "Clear
+  room" would delete the loft's furniture too.
+- **A whole-home room REWRITE is `levels.ts` `mapPlanRooms(plan, fn)`.**
+  `{ ...plan, rooms: plan.rooms.map(fn) }` is ground-only, so a finish preset / OCS re-finish /
+  screed pass repainted the downstairs and silently left every upstairs room on its old floor.
+  Three `resetSlice` intake paths did exactly that.
+- **Whole-home enumeration is `allPlanRooms`/`allPlanWalls`/`allPlanOpenings`; whole-home area is
+  `planTotalAreaAllLevels`.** `planTotalArea` stays SINGLE-level (the plan editor calls it per
+  storey) — the asymmetry is deliberate, so a caller who wants everything has to say so.
+  **But when a per-room calculation depends on the room's LEVEL (ceiling height, elevation),
+  iterate `planLevels` + `levelAsPlan` instead** — a flat room list has lost the storey the
+  fallback needs. `wallAreaByFinish` is the worked example.
+- **`FloorPlan.intakeState` is a persisted FACT, and `types.ts` hosts its type.** The Smart Start
+  answer (`bto-bare`/`bto-ocs`/`resale-asis`/`resale-stripout`) is stamped onto the plan by the four
+  `resetSlice` intake actions and round-trips through `schema.ts` (additive + optional, no version
+  bump). It exists because downstream quantities cannot recover it: a BTO hands over as bare skim
+  coat and needs a sealer coat plus ~half the coverage of a painted resale (`analysis/
+  paintQuantities.ts:substrateForIntake`). `IntakeStateId` was MOVED here from
+  `furniture/intakeStates.ts` (which re-exports it type-only) because that module imports from this
+  one and **this file is deliberately import-free** — the same move `ElectricalKind`/`PlumbingKind`
+  made. Keep it that way: an import here creates a cycle for every plan consumer.
 - **Cross-item spatial scans must be level-gated**: two items only interact when
   `(a.levelId ?? 'ground') === (b.levelId ?? 'ground')` (see `itemsCollide`,
   `findNarrowGaps`, `findWallClipsByLevel`, `isItemInRoom`). Same for item↔wall
   tests — resolve the item's own storey's walls (`placementWalls(state, levelId)`).
+- **A per-storey fan-out is defeated by any nearest/point-in-room fallback unless you guard
+  storey MEMBERSHIP first.** `buildAirconTrunkingPlan`'s fan-out looked correct and was not: the
+  ground pass received an upstairs FCU, `roomIdAt`'s point-in-room override silently reassigned it
+  to whatever ground room sat beneath it, and the pass then routed that as the loft bedroom's run.
+  Check `rooms.some((r) => r.id === target)` on the level before routing/attributing anything.
+  Proximity in XZ is never evidence of which floor something is on.
 - **Room ids are plan-unique across ALL storeys** — room-keyed consumers
   (finishes, score, reports) stay level-agnostic because of this invariant;
   preserve it when generating templates/levels.

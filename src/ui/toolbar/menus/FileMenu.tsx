@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { DrawingSetTemplate } from '../../../export/drawingSetTemplate'
+import {
+  type DrawingSetTemplate,
+  issueRevision,
+  nextRevisionLetter,
+} from '../../../export/drawingSetTemplate'
 import { useFeature } from '../../../features/useFeature'
 import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
 import { runUpdateCheck } from '../../../pwa/swUpdate'
@@ -11,6 +15,7 @@ import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { resolveToolLabel, toolAction } from '../../actions/toolActions'
+import { Button } from '../../controls/Button'
 import { Disclosure } from '../../controls/Disclosure'
 import { Select, type SelectOption } from '../../controls/Select'
 import { downloadBoqXlsx } from '../../downloadBoqXlsx'
@@ -601,8 +606,14 @@ function TradePacksPicker() {
 }
 
 /** Fields shown in `DrawingSetInfoEditor`, each mapped to a `DrawingSetTemplate` key. */
+/** Only the free-text keys — paper/orientation are `Select`s above, and
+ *  `revisions` is a structured array, not a text field. */
+type DrawingSetTextField = {
+  [K in keyof DrawingSetTemplate]-?: DrawingSetTemplate[K] extends string ? K : never
+}[keyof DrawingSetTemplate]
+
 const DRAWING_SET_FIELDS: {
-  key: keyof DrawingSetTemplate
+  key: DrawingSetTextField
   label: string
   placeholder?: string
 }[] = [
@@ -684,6 +695,44 @@ function DrawingSetInfoEditor() {
               />
             </label>
           ))}
+          {/* Revision history (G6). Filing an issue is append-only — the set's
+              revision table is an audit trail, so a filed row is not editable
+              from here; the CURRENT row's fields above stay editable until it
+              is issued. */}
+          {(template.revisions?.length ?? 0) > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+              <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Issued revisions
+              </span>
+              {template.revisions?.map((r) => (
+                <div
+                  key={`${r.letter}-${r.date}`}
+                  className="tabular-nums"
+                  style={{ fontSize: 'var(--t-xs)', color: 'var(--text-2)' }}
+                >
+                  {`Rev ${r.letter} · ${r.date} · ${r.note}`}
+                </div>
+              ))}
+            </div>
+          )}
+          <Button
+            variant="soft"
+            size="sm"
+            onClick={() =>
+              setDrawingSetTemplate(
+                issueRevision(
+                  template,
+                  new Date().toLocaleDateString('en-SG', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  }),
+                ),
+              )
+            }
+          >
+            {`Issue Rev ${template.revision.trim() || 'A'} — file it and start ${nextRevisionLetter(template.revision)}`}
+          </Button>
         </div>
       </Disclosure>
     </div>

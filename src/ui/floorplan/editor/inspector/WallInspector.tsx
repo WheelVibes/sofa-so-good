@@ -13,7 +13,7 @@ import { useStore } from '../../../../state/store'
 import { ColorPicker } from '../../../controls/ColorPicker'
 import { Select } from '../../../controls/Select'
 import { Icon } from '../../../toolbar/icons'
-import { ActBtn, NameField, Num } from './shared'
+import { ActBtn, NameField, Num, SiteMeasuredField } from './shared'
 
 /** Structure select options (TODO G7). Order: most → least structural. Exported
  *  for the bulk-classify action on the multi-wall selection panel (`PlanInspector`). */
@@ -33,6 +33,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
   const plan = useStore((s) => s.floorPlan)
   const wallThicknessOn = useFeature('wallThickness')
   const slopingWallsOn = useFeature('slopingWalls')
+  const siteMeasurementsOn = useFeature('siteMeasurements')
   const wallBaseboardOn = useFeature('wallBaseboard')
   const crownMoldingOn = useFeature('crownMolding')
   const elementColorsOn = useFeature('elementColors')
@@ -197,6 +198,9 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
         min={0.01}
         onChange={(v) => a.updateWall(w.id, { end: endForLength(w, v) }, levelId)}
       />
+      {siteMeasurementsOn ? (
+        <SiteMeasuredField kind="wall" targetId={w.id} modelMm={Math.round(wallLength(w) * 1000)} />
+      ) : null}
       <Num
         label="Angle (°)"
         value={Math.round(wallAngleDeg(w) * 10) / 10}

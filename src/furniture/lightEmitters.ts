@@ -41,7 +41,65 @@ export interface EmitterSpec {
   /** Optional per-item gate: emit only when the item's params switch its
    *  light on (e.g. the vanity's Hollywood bulbs). Defaults to always-on. */
   enabled?: (props: ParamProps) => boolean
+  /**
+   * SPECIFIED correlated colour temperature (K) — a PRODUCT property for the
+   * lighting schedule, on a completely separate register from `intensity`.
+   *
+   * Deliberately NOT derived from `color`. That hex is a render tint chosen to
+   * look right in a night interior; converting it back to Kelvin would be
+   * deriving a specification from a rendering constant, the same mistake
+   * `floorplan/tileCoursing.ts`'s header warns about for tile sizes. The
+   * warning immediately above — that `intensity` must not be "corrected"
+   * against real fixtures — is the same separation seen from the other side.
+   *
+   * 3000 K (warm white) throughout, the Singapore residential default and what
+   * the sources give for living rooms and bedrooms. A task space wants ~4000 K
+   * neutral, which `analysis/lampSpecAdvisory.ts` raises as an advisory rather
+   * than silently re-specifying the fixture.
+   */
+  cct: number
+  /**
+   * Which of the three lighting LAYERS this fixture provides.
+   *
+   * Professional practice lights a room in three layers — ambient (the room's
+   * overall brightness, typically ceiling-mounted), task (directed, for reading
+   * or a worktop) and accent (highlighting art, shelving, architecture). "Every
+   * well-lit room relies on three foundational layers", and the IALD's starting
+   * point for a living room is roughly 50% ambient / 30% task / 20% accent.
+   *
+   * **Authored by FUNCTION, deliberately not copied from the intensity tiers**
+   * in this file's own header. That grouping — "room lighting … above task …
+   * above accent" — orders fixtures by RENDER candela for the night scene, and
+   * its own comment says what is meaningful about it is the ordering and the
+   * fixture-to-fill ratio. Reading it as a design classification would be
+   * deriving one from a rendering register, the mistake `tileCoursing.ts`
+   * warns about for tile sizes. The visible consequence: those tiers put
+   * `vanity` under accent, whereas a mirror light IS task lighting — grooming
+   * is a task — and it is classified that way here.
+   */
+  layer: LightLayer
+  /**
+   * SPECIFIED IP rating as its two-digit integer (20, 44, 65 …).
+   *
+   * Not derivable from anything the app models, and the one field here that is
+   * a COMPLIANCE matter rather than procurement: bathroom Zones 1 and 2 (above
+   * the bath/shower to 2.25 m, and 0.6 m around it) require **IP44 minimum**.
+   * Every shipped emitter is a standard indoor fixture at IP20, which is why
+   * `lampSpecAdvisory.ts` flags one placed in a wet room.
+   */
+  ip: number
 }
+
+/** The three layers professional practice lights a room in. */
+export type LightLayer = 'ambient' | 'task' | 'accent'
+
+/** Warm white — the SG residential default (see `EmitterSpec.cct`). */
+const WARM_WHITE_K = 3000
+/** Standard indoor ingress protection; wet rooms need IP44+ (see `EmitterSpec.ip`). */
+const IP_INDOOR = 20
+/** Daylight — the standard freshwater aquarium lamp, and the one shipped
+ *  emitter whose render tint is deliberately cool rather than warm. */
+const AQUARIUM_K = 6500
 
 export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
   'table-lamp': {
@@ -49,6 +107,9 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     color: '#ffe6b8',
     intensity: 4,
     distance: 3.2,
+    cct: WARM_WHITE_K,
+    layer: 'task',
+    ip: IP_INDOOR,
   },
   'floor-lamp': {
     // An arc lamp's bulb hangs ~2 m up at the end of the arch, reaching out
@@ -58,6 +119,9 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     color: '#ffdfae',
     intensity: 7,
     distance: 5.5,
+    cct: WARM_WHITE_K,
+    layer: 'task',
+    ip: IP_INDOOR,
   },
   'ceiling-light': {
     height: (p) => {
@@ -68,18 +132,27 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     color: '#fff0d4',
     intensity: 9,
     distance: 6.5,
+    cct: WARM_WHITE_K,
+    layer: 'ambient',
+    ip: IP_INDOOR,
   },
   'ceiling-fan': {
     height: (p) => (typeof p.mountHeight === 'number' ? p.mountHeight : 2.5) - 0.35,
     color: '#fff1d6',
     intensity: 8,
     distance: 6,
+    cct: WARM_WHITE_K,
+    layer: 'ambient',
+    ip: IP_INDOOR,
   },
   'wall-sconce': {
     height: (p) => (typeof p.mountHeight === 'number' ? p.mountHeight : 1.7),
     color: '#ffe2b0',
     intensity: 3.5,
     distance: 3,
+    cct: WARM_WHITE_K,
+    layer: 'accent',
+    ip: IP_INDOOR,
   },
   'cove-light': {
     // Just above the lip, washing the ceiling with soft indirect warm light.
@@ -87,6 +160,9 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     color: '#ffd9a0',
     intensity: 2.6,
     distance: 3.2,
+    cct: WARM_WHITE_K,
+    layer: 'accent',
+    ip: IP_INDOOR,
   },
   vanity: {
     // Hollywood bulb ring around the rectangular mirror — a warm wash centred
@@ -98,6 +174,9 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     color: '#ffeec8',
     intensity: 2.8,
     distance: 2.6,
+    cct: WARM_WHITE_K,
+    layer: 'task',
+    ip: IP_INDOOR,
   },
   aquarium: {
     // The tank's own light glows from within the water — a cool aqua accent that
@@ -106,6 +185,14 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     color: '#bfe8f2',
     intensity: 2.4,
     distance: 2.6,
+    // NOT warm white: this fixture's own comment above calls it a cool aqua
+    // accent, and 6500 K (daylight) is the standard freshwater aquarium lamp.
+    // A blanket 3000 K was authored here by a bulk edit and caught on review —
+    // the sort of plausible-but-contradicted value the `moduleMm` / paint-
+    // coverage rules exist to prevent.
+    cct: AQUARIUM_K,
+    layer: 'accent',
+    ip: IP_INDOOR,
   },
 }
 
@@ -124,6 +211,15 @@ export const OVERRIDE_EMITTER: EmitterSpec = {
   color: '#ffe2b0',
   intensity: 5,
   distance: 4,
+  // A user light-source override on an arbitrary item: treated as accent, the
+  // least load-bearing layer, so declaring a lamp cannot silently satisfy a
+  // room's ambient requirement.
+  layer: 'accent',
+  // A user-declared light source on an arbitrary item: there is no product to
+  // specify, so it carries the generic warm indoor spec. The schedule labels it
+  // as a user override, so nobody quotes it as a fixture.
+  cct: WARM_WHITE_K,
+  ip: IP_INDOOR,
 }
 
 /**
@@ -157,6 +253,33 @@ export function isItemEmitter(defId: FurnitureType, props: ParamProps): boolean 
  *  {@link isItemEmitter}); otherwise a registered fixture (gate-passing) wins,
  *  else a user override (`lightOn === 'yes'`) falls back to
  *  `OVERRIDE_EMITTER`. */
+/**
+ * The SPECIFIED lamp for one placed fixture: the item's own override where set,
+ * else the registry default.
+ *
+ * `props.lampCct` / `props.lampIp` are a **specification** register, kept
+ * strictly apart from `props.lightColor` / `props.lightIntensity`, which are
+ * RENDER overrides on the same item. Tinting a lamp warmer in the 3D view must
+ * not silently re-specify the product a contractor is asked to buy, and raising
+ * a fixture's brightness for a night render must not change its lumen package
+ * on the schedule. That is the same separation the `EmitterSpec.cct` docs
+ * describe — visible here as two override pairs that deliberately do not talk
+ * to each other.
+ *
+ * Falls back to the generic warm indoor spec for an item with no registered
+ * emitter (a user light-source override), so a schedule row always has a spec
+ * to quote rather than a blank.
+ */
+export function resolveLampSpec(
+  defId: FurnitureType,
+  props: ParamProps,
+): { cct: number; ip: number } {
+  const spec = LIGHT_EMITTERS[defId] ?? OVERRIDE_EMITTER
+  const cct = typeof props.lampCct === 'number' ? props.lampCct : spec.cct
+  const ip = typeof props.lampIp === 'number' ? props.lampIp : spec.ip
+  return { cct, ip }
+}
+
 export function resolveEmitterSpec(defId: FurnitureType, props: ParamProps): EmitterSpec | null {
   if (props.lightOn === 'no') return null
   const spec = LIGHT_EMITTERS[defId]

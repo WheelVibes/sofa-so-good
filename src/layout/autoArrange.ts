@@ -1597,6 +1597,12 @@ export function arrangeAllRoomsForPlan(
   allItems: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
+  /** Layout-variant seed (LAYOUT-REROLL), forwarded to every room. `0` — the
+   *  default — reproduces the previous output exactly; a non-zero seed rotates
+   *  each piece's edge-candidate list, so the same furniture lands against
+   *  different walls. This is what lets a caller generate genuinely different
+   *  LAYOUTS of one plan rather than restyled copies of one layout. */
+  seed = 0,
 ): FurnitureItem[] {
   let items = allItems
   // Iterate EVERY storey (F13): `plan.rooms`/`walls`/`openings` are ground-only,
@@ -1621,7 +1627,7 @@ export function arrangeAllRoomsForPlan(
         windows,
         walls,
         level.id,
-        0,
+        seed,
         windowKeepOut,
         doorPoints,
         level.rooms,

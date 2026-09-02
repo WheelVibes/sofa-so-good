@@ -53,6 +53,9 @@ export const TimeCompareModal = lazyWithRetry(() =>
 export const StyleTransferModal = lazyWithRetry(() =>
   import('../StyleTransferModal').then((m) => ({ default: m.StyleTransferModal })),
 )
+export const SchemeCompareModal = lazyWithRetry(() =>
+  import('../SchemeCompareModal').then((m) => ({ default: m.SchemeCompareModal })),
+)
 export const StyleQuizModal = lazyWithRetry(() =>
   import('../StyleQuizModal').then((m) => ({ default: m.StyleQuizModal })),
 )

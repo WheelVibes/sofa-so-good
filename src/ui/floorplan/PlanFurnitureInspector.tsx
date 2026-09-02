@@ -1,5 +1,6 @@
 import { canPlace } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
+import { roomAtItem } from '../../floorplan/levels'
 import { useCatalog } from '../../furniture/catalog'
 import { resolveFootprintDims } from '../../furniture/footprintDims'
 import type { FurnitureDef, FurnitureItem, ParamField } from '../../furniture/types'
@@ -219,13 +220,11 @@ export function PlanFurnitureInspector({
         title="Close the plan editor and edit this piece in the 3D per-room editor"
         onClick={() => {
           const st = useStore.getState()
-          const room = st.floorPlan.rooms.find(
-            (r) =>
-              item.position[0] >= r.origin[0] &&
-              item.position[0] <= r.origin[0] + r.width &&
-              item.position[1] >= r.origin[1] &&
-              item.position[1] <= r.origin[1] + r.depth,
-          )
+          // `roomAtItem` (F13): the item's OWN storey, and the shared
+          // containment test. This hand-rolled rect check also ignored a
+          // polygon room's real outline, so "edit in 3D" on an upstairs piece
+          // either opened the room beneath it or nothing at all.
+          const room = roomAtItem(st.floorPlan, item)
           st.setFloorPlanEditing(false)
           if (room) st.enterRoomEditor(room.id)
         }}

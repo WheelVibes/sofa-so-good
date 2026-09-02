@@ -1,0 +1,20 @@
+{
+  "name": "scheme-compare",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1100, "height": 1000 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-modal", "store": { "action": "setSchemeOptionsOpen", "args": [true] } },
+    { "name": "modal-shown", "waitFor": { "css": ".modal-overlay" }, "timeout": 15000 },
+    { "name": "shot-empty", "screenshot": "scheme-initial" },
+    { "name": "type-brief", "eval": "(() => { const i = document.querySelector('.modal-overlay input.input'); i.value = 'warm scandi for a young family, budget $8000'; i.dispatchEvent(new Event('input', { bubbles: true })); })()" },
+    { "name": "generate", "eval": "(() => { const b = [...document.querySelectorAll('.modal-overlay button')].find(x => /Generate/.test(x.textContent||'')); b.click(); })()" },
+    { "name": "generated", "waitFor": { "css": ".modal-overlay .panel" }, "timeout": 30000 },
+    { "name": "shot-schemes", "screenshot": "scheme-compared" },
+    { "name": "dark", "eval": "(() => { document.documentElement.setAttribute('data-theme','dark'); document.documentElement.classList.add('dark'); })()" },
+    { "name": "shot-dark", "screenshot": "scheme-dark" }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "name": "site-measure",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "viewport",
+      "viewport": {
+        "width": 1200,
+        "height": 900
+      }
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    {
+      "name": "pro",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "reresolve",
+      "eval": "window.__store.getState().reresolveFeatureFlags()"
+    },
+    {
+      "name": "record-out-of-tol",
+      "eval": "(() => { const s = window.__store.getState(); const w = s.floorPlan.walls[0]; const drawn = Math.round(Math.hypot(w.end[0]-w.start[0], w.end[1]-w.start[1]) * 1000); s.setSiteMeasurement('wall', w.id, drawn + 35); return { id: w.id, drawn }; })()"
+    },
+    {
+      "name": "open-plan-editor",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    {
+      "name": "editor-ready",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "select-wall",
+      "eval": "(() => { const s = window.__store.getState(); s.setPlanSelection({ type: 'wall', id: s.floorPlan.walls[0].id }); })()"
+    },
+    {
+      "name": "settle",
+      "wait": 4000
+    },
+    {
+      "name": "shot",
+      "screenshot": "site-measure-inspector"
+    }
+  ]
+}

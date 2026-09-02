@@ -1,14 +1,12 @@
-import { obbCorners } from '../collision/obb'
-import { itemFootprint } from '../collision/placement'
 import { buildMergedCatalog } from '../furniture/catalog'
-import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { useStore } from '../state/store'
+import { planFootprints } from './planFootprints'
 
 /** Build a vector SVG of the active floor plan (furnished, with pinned
  *  dimension annotations) and trigger a browser download — the vector sibling of
  *  the DXF export (Sweet Home 3D parity). Reuses the shared `reportPlanSvg`
- *  renderer (never re-implements it); furniture footprints mirror the report's
- *  top-down OBB corners so the SVG reads as a furnished layout. The renderers are
+ *  renderer (never re-implements it); furniture footprints come from the shared
+ *  `planFootprints` resolver so the SVG reads as a furnished layout. The renderers are
  *  dynamic-imported so they stay out of the boot bundle; a programmatic download
  *  needs no user-activation window, so the await-first order is safe. */
 export async function downloadPlanSvg(): Promise<void> {
@@ -18,15 +16,9 @@ export async function downloadPlanSvg(): Promise<void> {
     import('./planSvgExport'),
   ])
   const catalog = buildMergedCatalog(s)
-  // Top-down footprints (OBB corners + category tint), guarding malformed defs —
-  // the same shape the report plan diagram draws.
-  const footprints = s.items
-    .map((it) => {
-      const def = catalog[it.defId]
-      if (!def?.defaultFootprint) return null
-      return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
-    })
-    .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
+  // Top-down footprints — the same shared, shape-aware resolver the report plan
+  // diagram and the drawing set read from.
+  const footprints = planFootprints(s.items, catalog)
   const inner = reportPlanSvg(s.floorPlan, s.annotations, s.units, footprints)
   const doc = buildPlanSvgDocument(inner)
   if (!doc) {

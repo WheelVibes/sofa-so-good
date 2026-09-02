@@ -25,6 +25,12 @@
  * `openTradePack.ts`), so the whole composition is unit-testable.
  */
 import { buildAirconSystemPlan } from '../analysis/airconSystem'
+import {
+  buildCurtainSchedule,
+  type CurtainScheduleInput,
+  FULLNESS,
+} from '../analysis/curtainSchedule'
+import { buildPaintQuantities, substrateForIntake } from '../analysis/paintQuantities'
 import { buildSocketAdvisory, DB_LOAD_NOTE } from '../analysis/socketAdvisory'
 import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
 import type { ElectricalPoint } from '../floorplan/electricalPlan'
@@ -34,8 +40,9 @@ import {
   buildKerbAdvisories,
   buildRoomFflTags,
 } from '../floorplan/floorLevels'
-import { allPlanRooms } from '../floorplan/levels'
+import { allPlanRooms, levelAsPlan, planLevels, roomAtItem } from '../floorplan/levels'
 import { ELECTRICAL_MOUNT_DEFAULTS_MM } from '../floorplan/mepPoints'
+import { roomsAcrossOpening } from '../floorplan/openingProbe'
 import type { PlumbingPoint } from '../floorplan/plumbingPlan'
 import { buildSwitchCircuits } from '../floorplan/switchCircuits'
 import { type FloorPlan, pointInRoom } from '../floorplan/types'
@@ -249,6 +256,11 @@ const MOUNT_HEIGHT_ROWS: { label: string; kind: keyof typeof ELECTRICAL_MOUNT_DE
 ]
 
 /** Built-in / joinery FF&E categories (for the carpenter pack's cover summary). */
+/** Probe distance perpendicular to a wall when resolving which room a window
+ *  serves (m). 0.2 m is the value every other opening-probe caller uses
+ *  (`daylight`, `doorwayBleed`, `luxGrid`, `openingSchedule`). */
+const CURTAIN_PROBE_OFFSET = 0.2
+
 const BUILT_IN_CATEGORIES = new Set(['kitchen', 'storage'])
 
 /** Window-treatment def ids (placed window-bound fixtures the curtain vendor
@@ -262,6 +274,9 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
   const { plan, items } = input
   const rooms = allPlanRooms(plan)
   const roomNameAt = (x: number, z: number): string | undefined =>
+    // NOTE: callers pass an ITEM's position, so this must be level-gated by
+    // the caller via `roomAtItem`. Kept as a coordinate helper only for
+    // level-less lookups; see the curtains pack below for the gated form.
     rooms.find((r) => pointInRoom(r, x, z))?.name
 
   if (id === 'tiler') {
@@ -411,7 +426,10 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
       if (!TREATMENT_DEF_IDS.has(it.defId)) continue
       const def = input.catalog[it.defId]
       if (!def) continue
-      const room = rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+      // The item's OWN storey (F13). `rooms` here is `allPlanRooms`, so a bare
+      // `pointInRoom` credited an upstairs curtain to whatever room sat beneath
+      // it — putting it on the wrong room's page of a curtain maker's quote.
+      const room = roomAtItem(plan, it)
       const roomName = room?.name ?? 'Unassigned'
       const variant = typeof it.props['blindType'] === 'string' ? ` (${it.props['blindType']})` : ''
       const name = `${def.name}${variant}`
@@ -445,10 +463,69 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
       )
       return ''
     }
+    // The SPECIFICATION a maker quotes from (v0.31.5.303), alongside the placed
+    // list. The table above gives each fixture's rendered footprint — which the
+    // caveat below it admits is not an order dimension. Drops and fabric widths
+    // are derived from the real opening geometry per storey, so they move with
+    // the design instead of being measured twice.
+    const curtainInputs: CurtainScheduleInput[] = []
+    for (const level of planLevels(plan)) {
+      const levelPlan = levelAsPlan(plan, level)
+      const ceiling = levelPlan.ceilingHeight ?? plan.ceilingHeight
+      for (const o of levelPlan.openings ?? []) {
+        if (o.kind !== 'window') continue
+        const wall = (levelPlan.walls ?? []).find((w) => w.id === o.wallId)
+        if (!wall) continue
+        // `roomsAcrossOpening`'s 4th argument is the PROBE DISTANCE
+        // perpendicular to the wall, not the opening's along-wall position.
+        // Passing `o.offset` (which IS an along-wall position, and is spelled
+        // the same) probed a metre or more into the room and resolved two of
+        // six windows to "Unassigned" and one to the wrong room — visible in
+        // the pack, invisible to the compiler, since both are `number`.
+        // `clampCenter` matches every other window caller (daylight,
+        // floorLevels): it keeps the probe centre inside the opening's span.
+        const across = roomsAcrossOpening(
+          levelPlan.rooms ?? [],
+          wall,
+          o,
+          CURTAIN_PROBE_OFFSET,
+          true,
+        )
+        const room = across?.plus ?? across?.minus ?? null
+        curtainInputs.push({
+          opening: o,
+          roomName: room?.name ?? 'Unassigned',
+          // A room's own ceiling height wins — a dropped wet-room ceiling
+          // shortens the floor drop.
+          ceilingHeightM: room?.ceilingHeight ?? ceiling,
+        })
+      }
+    }
+    const spec = buildCurtainSchedule(curtainInputs)
+    const specHtml =
+      spec.rows.length > 0
+        ? `<h3 class="fin-h3">Curtain specification</h3>${schedTable(
+            [
+              'Room',
+              'Opening W',
+              'Track height',
+              'Sill drop',
+              'Below-sill',
+              'Floor drop',
+              `Fabric @${FULLNESS.standard}x / ${FULLNESS.full}x`,
+            ],
+            spec.rows.map((r) => {
+              const drop = (style: string) => r.drops.find((d) => d.style === style)?.dropM
+              const d = (v: number | undefined) => (v == null ? '—' : esc(formatLength(v, units)))
+              return `<tr><td>${esc(r.roomName)}</td><td class="n">${esc(formatLength(r.openingWidthM, units))}</td><td class="n">${esc(formatLength(r.trackHeightM, units))}</td><td class="n">${d(drop('sill'))}</td><td class="n">${d(drop('below-sill'))}</td><td class="n">${d(drop('floor'))}</td><td class="n">${esc(formatLength(r.fabricWidthM.standard, units))} / ${esc(formatLength(r.fabricWidthM.full, units))}</td></tr>`
+            }),
+          )}<div class="fin-caveat">${esc(spec.note)}</div>`
+        : ''
+
     return `<h3 class="fin-h3">Window treatments (placed)</h3>${schedTable(
       ['Room', 'Treatment', 'Qty', 'Size (approx.)'],
       rowsHtml,
-    )}<div class="fin-caveat">Sizes are the placed fixture footprint — measure the finished opening on site before ordering.</div>`
+    )}<div class="fin-caveat">Sizes are the placed fixture footprint — not an order dimension. The specification below is what a maker quotes from.</div>${specHtml}`
   }
 
   if (id === 'carpenter') {
@@ -496,10 +573,40 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
     if (!input.finishes) return ''
     const nameOf = (mid: string) => BUILTIN_MATERIALS[mid]?.name ?? mid
     const schedule: FinishSchedule = buildFinishSchedule(plan, input.finishes, nameOf)
-    const wallArea = schedule.totals
-      .filter((t) => t.kind === 'wall' || t.kind === 'accent')
-      .reduce((s, t) => s + t.area, 0)
-    return `<div class="fin-caveat">Paint-area quantity basis: ≈${sqm(wallArea, units)} of wall surface (net of door/window openings, from the wall finish totals below). Add ceilings + a coverage/coats factor per the paint spec.</div>`
+    // LITRES, not just an area. This block used to print the wall area and then
+    // say "add ceilings + a coverage/coats factor per the paint spec" — i.e. it
+    // handed the painter the arithmetic the app has every input for. Areas come
+    // from the finish schedule (net of openings), so the litres and the areas on
+    // the same pack can never disagree.
+    const byName: Record<string, (typeof BUILTIN_MATERIALS)[string] | undefined> = {}
+    for (const m of Object.values(BUILTIN_MATERIALS)) byName[m.name] = m
+    // Substrate DERIVED from the recorded intake where the plan has one
+    // (v0.31.5.293) — a BTO's bare skim coat needs a sealer coat and about half
+    // the coverage of a painted resale, a >2x difference in litres. Falls back
+    // to the stated 'primed' assumption when no intake was recorded.
+    const substrate = substrateForIntake(plan.intakeState) ?? 'primed'
+    const paint = buildPaintQuantities(schedule.totals, byName, substrate)
+    if (paint.rows.length === 0) return ''
+    const rows = paint.rows
+      .map(
+        (r) =>
+          `<tr><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td class="n">${sqm(r.areaM2, units)}</td>` +
+          `<td class="n">${r.coats}</td><td class="n">${r.spreadingRateM2PerL}</td>` +
+          `<td class="n">${r.totalL} L</td>` +
+          `<td>${r.tins.map((t) => `${t.count} × ${t.size} L`).join(' + ') || '—'}</td></tr>`,
+      )
+      .join('')
+    return (
+      `<h3>Paint quantities</h3>` +
+      `<table class="sched"><tr class="h"><td>Code</td><td>Finish</td><td class="n">Area</td>` +
+      `<td class="n">Coats</td><td class="n">m²/L</td><td class="n">Paint</td><td>Buy</td></tr>` +
+      `${rows}<tr class="h"><td colspan="5">Total</td><td class="n">${paint.totalL} L</td><td></td></tr></table>` +
+      `<div class="fin-caveat">${esc(paint.note)}` +
+      (paint.omittedFinishes > 0
+        ? ` ${paint.omittedFinishes} non-paint wall/ceiling finish${paint.omittedFinishes === 1 ? '' : 'es'} carry no litres.`
+        : '') +
+      `</div>`
+    )
   }
 
   return ''
@@ -618,6 +725,7 @@ export function buildTradePack(id: TradePackId, input: TradePackInput): TradePac
   const html = renderDrawingDocument([coverSheet, ...selected], {
     plan: input.plan,
     template,
+    units,
     docTitle: `${projectName} — ${def.recipient} pack`,
     totalSheets: masterTotal,
   })

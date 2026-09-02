@@ -17,6 +17,7 @@ import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { countStrandedAfterRehome } from '../floorplan/rehomeItems'
 import type { FloorPlan } from '../floorplan/types'
 import { isAnchoredToNonFloor } from '../furniture/anchoredDefs'
+import type { FurnitureItem } from '../furniture/types'
 import { useStore } from '../state/store'
 
 /** How many placed items the action is about to remove, phrased for a sentence. */
@@ -165,4 +166,46 @@ export async function confirmRestoreDemoFurniture(): Promise<boolean> {
   })
   if (ok) useStore.getState().resetToDefault()
   return ok
+}
+
+/**
+ * Apply a generated scheme (G8): its furniture AND its preset's whole-home
+ * finishes, in one confirmed step.
+ *
+ * Confirms because it REPLACES every placed item — the destructive-action
+ * policy for a bulk furniture change (confirm + undo, like `clearRoom`). The
+ * message names what is being replaced and by how much so the choice is
+ * informed rather than a leap.
+ */
+export async function confirmApplyScheme(scheme: {
+  name: string
+  itemCount: number
+  totalPrice: number
+  floorFinishId: string
+  wallFinishId: string
+  items: FurnitureItem[]
+}): Promise<boolean> {
+  const s = useStore.getState()
+  const existing = s.items.length
+  const ok = await s.confirmAction({
+    title: `Use the ${scheme.name} scheme`,
+    message:
+      `${existing > 0 ? `Replace all ${existing} placed item${existing === 1 ? '' : 's'} with` : 'Place'} ` +
+      `this scheme's ${scheme.itemCount} item${scheme.itemCount === 1 ? '' : 's'} ` +
+      `($${scheme.totalPrice.toLocaleString()}) and apply its floor and wall finishes to every room? ${UNDO_HINT}`,
+    confirmLabel: 'Use this scheme',
+    danger: existing > 0,
+  })
+  if (!ok) return false
+  const live = useStore.getState()
+  // Finishes first: `applyHomeStyle` pushes the history entry, and `setItems`
+  // coalesces into it, so the whole scheme is ONE undo step.
+  live.applyHomeStyle(scheme.floorFinishId, scheme.wallFinishId)
+  live.setItems(scheme.items)
+  live.notify.start({
+    title: `${scheme.name} applied`,
+    message: `${scheme.itemCount} items and its finishes are in place.`,
+    kind: 'success',
+  })
+  return true
 }

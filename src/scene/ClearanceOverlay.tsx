@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { noExportUserData } from '../export/sceneGltf'
+import { levelAsPlan, planLevels } from '../floorplan/levels'
 import { useCatalogGetter } from '../furniture/catalog'
 import { blockedDoorItems, doorSwingRects, frontClearanceRect } from '../layout/clearance'
 import { useStore } from '../state/store'
@@ -18,7 +19,19 @@ export function ClearanceOverlay() {
   // (on / items / plan); it must not re-render on catalog churn (bulk import).
   const { ref: catalogRef } = useCatalogGetter()
 
-  const rects = useMemo(() => doorSwingRects(plan), [plan])
+  // PER STOREY (F13), each lifted to its own floor. `doorSwingRects` reads
+  // `plan.openings`, so with the whole plan this drew the GROUND doors only —
+  // an upstairs door's swing zone was missing entirely, and the clearance
+  // overlay is one of the surfaces a user turns on precisely to check a tight
+  // upstairs landing. This overlay is mounted outside `PlanShell`'s per-level
+  // groups, so it lifts its own geometry (same as `MeasurementOverlay`).
+  const rects = useMemo(
+    () =>
+      planLevels(plan).flatMap((level) =>
+        doorSwingRects(levelAsPlan(plan, level)).map((r) => ({ r, y: level.elevation })),
+      ),
+    [plan],
+  )
   // biome-ignore lint/correctness/useExhaustiveDependencies: catalogRef is a stable ref read lazily; the overlay recomputes on items/on changes (when clearance can change).
   const frontRects = useMemo(
     () =>
@@ -39,10 +52,10 @@ export function ClearanceOverlay() {
   return (
     <group userData={noExportUserData()}>
       {/* Door swing zones */}
-      {rects.map((r, i) => (
+      {rects.map(({ r, y }, i) => (
         <mesh
           key={i}
-          position={[(r.x0 + r.x1) / 2, 0.014, (r.z0 + r.z1) / 2]}
+          position={[(r.x0 + r.x1) / 2, y + 0.014, (r.z0 + r.z1) / 2]}
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <planeGeometry args={[r.x1 - r.x0, r.z1 - r.z0]} />

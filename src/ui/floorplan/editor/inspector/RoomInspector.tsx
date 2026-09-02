@@ -6,7 +6,7 @@ import { useStore } from '../../../../state/store'
 import { formatArea, formatLength } from '../../../../utils/measurement'
 import { Select } from '../../../controls/Select'
 import { Icon } from '../../../toolbar/icons'
-import { ActBtn, CeilingControls, DeleteBtn, Num } from './shared'
+import { ActBtn, CeilingControls, DeleteBtn, Num, SiteMeasuredField } from './shared'
 
 /** Inspector body for a selected room. Reads edits/state from the store exactly
  *  as the inline dispatcher code did. */
@@ -15,6 +15,7 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
   const ceilingDesignOn = useFeature('ceilingDesign')
+  const siteMeasurementsOn = useFeature('siteMeasurements')
   // Texture transforms go through the FINISH writer, not `updateRoom`: they
   // change no geometry, so they must not fork the curated flat.
   const setSurfaceTexture = useStore((st) => st.setSurfaceTexture)
@@ -109,6 +110,20 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
         min={0.1}
         onChange={(v) => a.updateRoom(r.id, { depth: Math.max(0.1, v) })}
       />
+      {siteMeasurementsOn ? (
+        <>
+          <SiteMeasuredField
+            kind="room-width"
+            targetId={r.id}
+            modelMm={Math.round(r.width * 1000)}
+          />
+          <SiteMeasuredField
+            kind="room-depth"
+            targetId={r.id}
+            modelMm={Math.round(r.depth * 1000)}
+          />
+        </>
+      ) : null}
       {/* Surface finishes (floor / wall / ceiling) are intentionally NOT
           offered in the floor plan editor — material choices belong to the
           per-room editor only, so the plan stays a structural/layout view.

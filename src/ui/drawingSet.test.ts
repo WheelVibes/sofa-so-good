@@ -8,6 +8,7 @@ import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
 import { defaultSpec } from '../furniture/parametric/spec'
 import { defaultParamProps } from '../furniture/types'
+import { useStore } from '../state/store'
 import { buildDrawingSetHtml } from './drawingSet'
 
 describe('buildDrawingSetHtml', () => {
@@ -30,6 +31,230 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('Floor plan')
     expect(html).toContain('FF&amp;E schedule')
     expect(html).toContain('A4 landscape')
+  })
+
+  it('prints the full revision history on the cover, not just the current letter (G6)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        ...DEFAULT_DRAWING_SET_TEMPLATE,
+        revisions: [
+          { letter: 'A', date: '1 June 2026', note: 'Initial issue' },
+          { letter: 'B', date: '3 July 2026', note: 'Issued for tender' },
+        ],
+        revision: 'C',
+        revisionNote: 'Kitchen revised',
+      },
+    )
+    // All three issues appear, with their own dates and descriptions — the
+    // audit trail the revision table exists to carry.
+    expect(html).toContain('Issued for tender')
+    expect(html).toContain('1 June 2026')
+    expect(html).toContain('3 July 2026')
+    expect(html).toContain('Kitchen revised')
+    // The title block still shows only the CURRENT letter.
+    expect(html).toContain('Rev C')
+  })
+
+  it('still prints a single revision row for a default template (G6 regression)', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('Initial issue')
+    expect(html).toContain('Rev A')
+  })
+
+  it('emits BOTH conventional sections and marks them on the plan (G1)', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    // Two numbered section sheets, not one.
+    expect(html).toContain('Section A–A')
+    expect(html).toContain('Section B–B')
+    // And the floor plan carries locatable cut marks — before this, a sheet
+    // named "Section A–A" asserted a cut the reader could not find.
+    expect(html).toContain('stroke-dasharray="0.6 0.22 0.14 0.22"')
+  })
+
+  it('discloses skew walls and prints a co-ordinate table for them (G2)', () => {
+    // A diagonal partition carries no running dimension. Before this, the
+    // setting-out plan looked complete while silently omitting it.
+    const skewPlan = {
+      ...plan,
+      walls: [...plan.walls, { id: 'diag1', start: [1, 1], end: [3, 3], thickness: 'internal' }],
+    } as typeof plan
+    const html = buildDrawingSetHtml(
+      skewPlan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      true,
+    )
+    expect(html).toContain('Co-ordinate setting-out')
+    expect(html).toContain('no running dim — set out by co-ordinates')
+    expect(html).toContain('45.0°')
+  })
+
+  it('omits the co-ordinate table entirely for an orthogonal plan (G2)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      true,
+    )
+    expect(html).not.toContain('Co-ordinate setting-out')
+  })
+
+  it('prints a tile setting-out table for a specified module (G5)', () => {
+    // The kitchen's finish is 600×600 porcelain with a SPECIFIED moduleMm.
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      {
+        floor: { kitchen: 'floor-tile-beige' },
+        walls: {},
+      },
+    )
+    expect(html).toContain('Tile setting-out')
+    expect(html).toContain('600×600')
+    expect(html).toContain('Tile counts EXCLUDE wastage')
+  })
+
+  it('omits the coursing table when no finish has a specified module (G5)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      {
+        floor: { kitchen: 'floor-vinyl-oak' },
+        walls: {},
+      },
+    )
+    expect(html).not.toContain('Tile setting-out &amp; coursing')
+  })
+
+  it('emits a Specification sheet with tolerances and exclusions in Pro (G7)', () => {
+    // `specification` is a pro-tier flag and the store resolves flags at the
+    // app's default SIMPLE mode, so this test must opt in explicitly.
+    useStore.getState().setUiMode('pro')
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      {
+        floor: { kitchen: 'floor-tile-beige' },
+        walls: {},
+      },
+    )
+    expect(html).toContain('>Specification<')
+    expect(html).toContain('Tolerance')
+    expect(html).toContain('Excludes')
+    // The scope note is what keeps it honest — an indicative spec citing no codes.
+    expect(html).toContain('cite no standard code numbers')
+  })
+
+  it('omits the Specification sheet in Simple mode (G7)', () => {
+    useStore.getState().setUiMode('simple')
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      { floor: { kitchen: 'floor-tile-beige' }, walls: {} },
+    )
+    expect(html).not.toContain('>Specification<')
+    useStore.getState().setUiMode('pro')
+  })
+
+  it('emits a Construction details sheet in Pro, and names what it excludes (G3)', () => {
+    useStore.getState().setUiMode('pro')
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('Construction details')
+    // The default flat has bathrooms + windows, so it has real details.
+    expect(html).toMatch(/D-(WP|WS)-01/)
+    // And it says what it does NOT detail, rather than implying completeness.
+    expect(html).toContain('no profiles or specified projections')
+  })
+
+  it('omits the Construction details sheet in Simple mode (G3)', () => {
+    useStore.getState().setUiMode('simple')
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).not.toContain('>Construction details<')
+    useStore.getState().setUiMode('pro')
+  })
+
+  it('emits an As-built reconciliation sheet and flags what exceeds tolerance', () => {
+    useStore.getState().setUiMode('pro')
+    const wall = plan.walls[0]!
+    const measured = {
+      ...plan,
+      siteMeasurements: [
+        { id: 'sm1', kind: 'wall' as const, targetId: wall.id, measuredMm: 999999 },
+      ],
+    }
+    const html = buildDrawingSetHtml(measured as typeof plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('As-built reconciliation')
+    expect(html).toContain('EXCEEDS')
+    // The scope note keeps it honest about the tolerance's provenance.
+    expect(html).toContain('cites no standard clause')
+  })
+
+  it('omits the reconciliation sheet when nothing was measured', () => {
+    useStore.getState().setUiMode('pro')
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).not.toContain('As-built reconciliation')
+  })
+
+  it('states the dimension unit once in every title block (G10)', () => {
+    // Dimension labels are suffix-free integer mm, so the sheet must say so —
+    // the standard convention, and the thing that makes "2745" unambiguous.
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('ALL DIMENSIONS IN MILLIMETRES')
+    expect(html).not.toContain('ALL DIMENSIONS IN FEET AND INCHES')
+  })
+
+  it('switches the title-block unit note for an imperial set (G10)', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'imperial')
+    expect(html).toContain('ALL DIMENSIONS IN FEET AND INCHES')
+    expect(html).not.toContain('ALL DIMENSIONS IN MILLIMETRES')
   })
 
   it('includes a lighting-plan sheet when the design has fixtures', () => {
@@ -890,7 +1115,13 @@ describe('buildDrawingSetHtml — carpentry sheets (TODO G8)', () => {
     expect(on).toMatch(/Sliding track \+ rollers.*2 door panels/)
     expect(on).toContain('confirm exact board/laminate code with fabricator')
     expect(on).toContain('class="section-cut"')
-    expect(on.match(/>A<\/text>/g)?.length).toBe(2)
+    // Two "A" bubbles on the carpentry front elevation. Scoped from
+    // 'FRONT ELEVATION' (which only the carpentry sheet carries — 'Carpentry —'
+    // also appears in the cover's sheet index): since v0.31.5.254 the PLAN
+    // sheets carry section cut marks lettered A too, so a document-wide count
+    // would conflate the two.
+    const carpentrySheet = on.slice(on.indexOf('FRONT ELEVATION'))
+    expect(carpentrySheet.match(/>A<\/text>/g)?.length).toBe(2)
 
     // Flag off (default false) → no sheet at all.
     const off = buildDrawingSetHtml(plan, [wardrobeItem], catalog)
@@ -1253,5 +1484,99 @@ describe('buildDrawingSetHtml — elevation sheet grouping (TODO H6)', () => {
     const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
     expect(html).toContain('Elevation sheets (TODO H6)')
     expect(html).toContain('1.2 m')
+  })
+})
+
+describe('tiling layout plan sheet (tileLayoutSheet)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+  // A modular finish is required for any coursing to exist at all — a material
+  // with no `moduleMm` yields no rows, by design (never an invented tile size).
+  const finishes = {
+    floor: { livingDining: 'floor-tile-white' },
+    walls: { livingDining: 'wall-paint-white' },
+  }
+  const build = () =>
+    buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      finishes,
+    )
+
+  it('draws the grid, the setting-out origin and the covered-room count', () => {
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = build()
+    expect(html).toContain('Tiling layout plan')
+    expect(html).toContain('class="origin"')
+    // The honest-coverage footer: a partial sheet must not read as complete.
+    expect(html).toMatch(/\d+ rooms? · \d+ with a specified module/)
+    expect(html).toContain('Field set out CENTRED on each room')
+  })
+
+  it('is hidden in Simple mode (pro-tier flag)', () => {
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    expect(build()).not.toContain('Tiling layout plan')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+
+  it('omits the sheet when no finishes are supplied at all', () => {
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Tiling layout plan')
+  })
+})
+
+describe('wall tile setting-out table', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('appears when a room carries a modular WALL finish', () => {
+    // `wall-tile-white` is 300x600 — one of the two wall tiles that already
+    // declared a module and that nothing consumed before this.
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      { floor: { bath1: 'floor-tile-white' }, walls: { bath1: 'wall-tile-white' } },
+    )
+    expect(html).toContain('Wall tile setting-out')
+    // The two rules that distinguish this from the floor table must be stated
+    // ON the sheet, since a tiler reads the sheet and not the source.
+    expect(html).toContain('at least half a tile')
+    expect(html).toContain('from the CEILING down')
+    // And the honest limitation, rather than implying corner alignment.
+    expect(html).toContain('not generally align around a corner')
+  })
+
+  it('is absent when every room is painted (no modular wall finish)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      { floor: { bath1: 'floor-tile-white' }, walls: { bath1: 'wall-paint-white' } },
+    )
+    expect(html).not.toContain('Wall tile setting-out')
   })
 })

@@ -156,3 +156,64 @@ plain CSS/React (no Tailwind, no framer-motion). Steal the *mechanics*, port to 
   feedback, goal-gradient) and the authority on productivity-tool motion taste (150–300ms
   ease-out enters, faster ease-in exits, transform/opacity only).
   [lawsofux](https://lawsofux.com) · [animations.dev](https://animations.dev)
+
+## Interior-style grounding references (2026-09-02, G8 theme audit)
+
+Used to verify that the app's theme presets encode what these styles actually
+look like, rather than invented palettes. **All 17 presets audited.** Full audit
++ per-theme verdicts:
+`docs/research/2026-09-02-scheme-theme-grounding.md`. Consult these before adding
+or editing a `LayoutPreset`'s finishes or description.
+
+- **Japandi palette + materials** — warm-white/ivory/beige base, warm oak, black
+  used SPARINGLY for contrast, rattan/bamboo and handmade ceramics for texture.
+  [shopjapandi](https://www.shopjapandi.com/blogs/design/japandi-color-palette) ·
+  [Trove](https://troveobjectgallery.com/pages/complete-guide-to-japandi-home-decor) ·
+  [homeoration](https://homeoration.com/japandi-color-palette/)
+- **Scandinavian woods + textiles** — light woods named specifically (white oak,
+  ash, birch, pine) in matte/low-sheen, white walls over pale floors, linen /
+  wool / cotton.
+  [Floor & Decor](https://www.flooranddecor.com/scandinavian-inspired-wood) ·
+  [Trove](https://troveobjectgallery.com/blogs/curators-journal/scandinavian-home-decor-guide) ·
+  [decosurfaces](https://www.decosurfaces.com/en/blog/article/138-7_ideas-for-scandinavian-floor.html)
+- **Industrial without the cold-warehouse problem** — the key source for WHY warm
+  industrial uses greige/warm-taupe walls rather than concrete grey, plus
+  dark-stained oak / reclaimed timber / walnut and honeyed-tan leather as the
+  warm counterpoints.
+  [ArchitectureCourses](https://www.architecturecourses.org/home-and-garden/industrial-interior-design) ·
+  [awedeco palette](https://awedeco.com/industrial-color-palette/) ·
+  [domkapa](https://domkapa.com/en/blog/inspiration/industrial-interior-design-101-essential-tips-to-embrace-this-raw-aesthetic/)
+- **Coastal, and its cliché failure mode** — sky-blue-to-navy IS the coastal
+  palette, but the sources warn a bright-white-and-navy commitment "may feel cold
+  or too nautical" in a real home and recommend warm whites / sand tones as the
+  wall foundation with blue as an accent. Read before adjusting Coastal.
+  [Nazmiyal](https://nazmiyalantiquerugs.com/blog/what-is-coastal-interior-design-and-home-decor-style/) ·
+  [Wayfair guide](https://www.wayfair.com/sca/ideas-and-advice/styles/the-ultimate-guide-to-coastal-style-T1501) ·
+  [Floof](https://floofliving.com/blogs/pillow-talk/what-is-coastal-interior-design)
+- **Muji / warm minimalism** — warm white, cream, OATMEAL, sand, mushroom, taupe;
+  low-profile furniture; and the core tenet that depth comes from TEXTURE rather
+  than contrast.
+  [KLAAS](https://klaas.com.my/muji-style-interior-design-a-complete-guide-to-minimalist-japanese-living/) ·
+  [Livingetc](https://www.livingetc.com/ideas/muji-style-living-room) ·
+  [Nippon Paint SG](https://nipponpaint.com.sg/resources/painting-articles/muji-style-home/)
+- **Tropical / biophilic for SG's climate** — teak/oak/walnut woods with
+  terracotta and sage; note the sources recommend ONE feature wall in sage or
+  terracotta rather than the whole home.
+  [Goodrich tropical](https://www.goodrichglobal.com/singapore/article/tropical-interior-design-singapore/) ·
+  [Goodrich biophilic](https://www.goodrichglobal.com/singapore/article/biophilic-design-singapore-interiors/) ·
+  [Born in Colour 2026 palette](https://www.bornincolour.com/blogs/news/earth-tones-and-warm-wood-the-2026-interior-colour-palette-taking-over-singapore-homes)
+- **Peranakan** — jewel tones (emerald/cobalt/coral) ALWAYS against white or
+  cream; carved teak/rosewood; and encaustic floor tiles as the single most
+  recognisable element.
+  [Goodrich](https://www.goodrichglobal.com/singapore/article/peranakan-inspired-interior-design/) ·
+  [Garland Magazine on Peranakan tiles](https://garlandmag.com/article/peranakan-tiles/)
+- **Quiet luxury** — matte/semi-matte finishes and UNLACQUERED brass; the source
+  of the v0.31.5.265 Modern Luxe correction.
+  [zeysey](https://www.zeysey.com/en/quiet-luxury-colors/blog/detail/2025-interior-color-trends-quiet-luxury-earthy-tones-soft-minimal-palettes) ·
+  [Suave Vera](https://suavevera.com/quiet-luxury-color-palettes/)
+- **Singapore HDB / condo defaults** — confirms white walls + light/warm oak as
+  the perennial SG default and the "limit yourself to one or two accent tones
+  like deep navy" discipline the `moveIn` preset encodes.
+  [Space Factor](https://www.spacefactor.com.sg/top-hdb-living-room-design-ideas-in-singapore/) ·
+  [RS Carpentry](https://rscarpentry.com.sg/interior-design-trends/scandinavian-interior-design-singapore-hdb-condo-guide/) ·
+  [Swiss Interior](https://www.swissinterior.com.sg/blog/7-best-modern-interior-design-hdb-styles-in-singapore)

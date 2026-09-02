@@ -84,6 +84,8 @@ export interface FeaturesSlice {
   styleTransferOpen: boolean
   /** Style-quiz modal visibility. */
   styleQuizOpen: boolean
+  /** Scheme-comparison modal (G8) open state. */
+  schemeOptionsOpen: boolean
   /** Keyboard-shortcuts help overlay visibility. */
   shortcutsHelpOpen: boolean
   /** An immersive-VR session is active/requested (mounts the XR provider). */
@@ -184,6 +186,7 @@ export interface FeaturesSlice {
   setTimeCompareOpen: (open: boolean) => void
   setStyleTransferOpen: (open: boolean) => void
   setStyleQuizOpen: (open: boolean) => void
+  setSchemeOptionsOpen: (open: boolean) => void
   setShortcutsHelpOpen: (open: boolean) => void
   setVrActive: (active: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
@@ -244,6 +247,7 @@ export const FEATURES_INITIAL = {
   timeCompareOpen: false,
   styleTransferOpen: false,
   styleQuizOpen: false,
+  schemeOptionsOpen: false,
   shortcutsHelpOpen: false,
   vrActive: false,
   clearancePanelOpen: false,
@@ -312,6 +316,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setTimeCompareOpen: (timeCompareOpen) => set({ timeCompareOpen }),
   setStyleTransferOpen: (styleTransferOpen) => set({ styleTransferOpen }),
   setStyleQuizOpen: (styleQuizOpen) => set({ styleQuizOpen }),
+  setSchemeOptionsOpen: (schemeOptionsOpen) => set({ schemeOptionsOpen }),
   setShortcutsHelpOpen: (shortcutsHelpOpen) => set({ shortcutsHelpOpen }),
   setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),

@@ -41,6 +41,7 @@ export function ToolsSection({
 
   const fStyleTransfer = useFeature('styleTransfer')
   const fStyleQuiz = useFeature('styleQuiz')
+  const fSchemeOptions = useFeature('schemeOptions')
   const fSun = useFeature('sunStudy')
 
   // The Analyse + Review tool rows render from the shared registry (parity with
@@ -98,6 +99,13 @@ export function ToolsSection({
           icon="Palette"
           label="Style quiz"
           onClick={act(() => s.getState().setStyleQuizOpen(true))}
+        />
+      ) : null}
+      {fSchemeOptions ? (
+        <Item
+          icon="Presets"
+          label="Compare schemes"
+          onClick={act(() => s.getState().setSchemeOptionsOpen(true))}
         />
       ) : null}
       {fStyleTransfer ? (

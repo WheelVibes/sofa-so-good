@@ -31,6 +31,7 @@
  * A typical 90 m² HDB reno lands around 6–10 weeks with these numbers.
  */
 
+import { allPlanRooms, levelAsPlan, planLevels } from '../floorplan/levels'
 import { type FloorPlan, planTotalArea } from '../floorplan/types'
 
 /** Baseline floor area (m²) the per-phase `baseDays` are calibrated for. */
@@ -179,8 +180,14 @@ function inputFromFloorPlan(
   opts?: { hasCarpentry?: boolean; hasHacking?: boolean },
 ): RenoTimelineInput {
   return {
-    totalAreaSqm: planTotalArea(plan),
-    rooms: plan.rooms.length,
+    // Whole home (F13): `planTotalArea` is a legitimate SINGLE-LEVEL helper
+    // (the editor calls it per storey), so summing it across levels is the
+    // whole-home read a programme needs — a ground-only area under-scaled the
+    // whole schedule for a maisonette.
+    totalAreaSqm: planLevels(plan).reduce((sum, l) => sum + planTotalArea(levelAsPlan(plan, l)), 0),
+    // Whole home (F13): a ground-only count shortened the programme for a
+    // maisonette or terrace.
+    rooms: allPlanRooms(plan).length,
     hasCarpentry: opts?.hasCarpentry,
     hasHacking: opts?.hasHacking,
   }
