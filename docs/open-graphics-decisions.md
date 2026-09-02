@@ -1612,10 +1612,20 @@ from the window** — (p)'s cost stated against real photographs, which `.313`/`
 *Precision:* patch sds 0.5–1.1 except the raster's far patch at 9.6 (nearby cornice gradient); with ~12,500 px
 the SE is ≈0.09 counts, so the ratio is good to ~0.001.
 
-*Untested and required before the band is a target:* **pose-dependence** (a luminance ratio — the family `.232`
-showed 0.68 → 0.96 swings on pitch; only chroma is known pose-robust) and **room-dependence** (one app room, three
-reference rooms). The **raster-vs-traced separation is pose-matched and solid**; the comparison to the band is
-not.
+**❌ THE BAND COMPARISON IS WITHDRAWN v0.31.5.319 — the metric is pose-dependent.** Across three pitched-up
+bedroom3 poses the raster reads **0.847 / 0.862 / 1.059** at pitch **0.15 / 0.30 / 0.45** — a **0.21 swing
+crossing 1.0**, wider than the photographic band itself, and the pose with the *cleanest* far patch (sd 1.3 vs
+21.5 and 9.6) gives the most extreme value. So *"the HQ still's ceiling is too flat against real photographs"*
+is **not supported**.
+
+Two further problems found: `.318`'s `near` patch was **never physically placed** (re-placing it at the
+window-wall junction shifts the 0.30 figure **0.862 → 0.912**, a third of the band's width), and the `far` patch
+**straddles the cornice gradient at shallow pitch** — the poses where the metric looked best are where its far
+patch was worst.
+
+**What survives:** the **raster-vs-traced separation at a matched pose (0.862 vs 0.974)** — pose-matched by
+construction. The working tracer does show less ceiling falloff than the app's own raster; photographs do not
+adjudicate it.
 
 **✅ CONFIRMED BY DIRECT OBSERVATION v0.31.5.287.** Temporary instrumentation in `buildTracerScene` (added,
 observed, reverted; `src/` verified clean) logged the branch actually taken on the default shipped path:

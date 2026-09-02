@@ -5,6 +5,70 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.319 — `.318`'s metric is pose-dependent after all: 0.85 → 1.06 over a 0.30 pitch range. The photographic claim is withdrawn; the raster-vs-traced claim stands
+
+`.318` called same-surface ceiling falloff "the metric the arc has been looking for" and named pose-dependence
+as its one untested caveat. The caveat was the right one. **The metric fails it.**
+
+**The test.** Three *pitched-up* bedroom3 poses — 0.15, 0.30, 0.45 — chosen so every pose has a large visible
+ceiling, sidestepping the no-ceiling problem that defeated `.315`/`.316` at eye level. Raster only, 42 seconds
+for both new runs. Each patch verified as ceiling by marking and looking.
+
+| pose | far / near (`.318`'s placement) | far / near (near moved to the window-wall junction) | far patch sd |
+| --- | --- | --- | --- |
+| `PITCH=0.15` | 0.847 | 0.887 | **21.5** |
+| `PITCH=0.30` | **0.862** (`.318`'s figure) | 0.912 | 9.6 |
+| `PITCH=0.45` | **1.059** | **1.059** | **1.3** |
+
+**A 0.21 swing across a 0.30 pitch range, crossing 1.0** — at `0.45` the far ceiling is *brighter* than the near
+ceiling, a sign flip. And the pose with the **cleanest** far patch (sd 1.3, against 21.5 and 9.6) is the one
+giving the most extreme value, so this is not noise in the outlier.
+
+**So `.318`'s photographic claim is withdrawn.** The app's 0.974 cannot be compared against a 0.765–0.895 band
+derived from photographs at unknown, different poses, because the quantity moves by more than the band's own
+width when only the camera moves. *"The HQ still's ceiling is too flat against real photographs"* is not
+supported.
+
+**What survives, and it is not nothing.** `.318`'s **raster-versus-traced** comparison — 0.862 against 0.974 at
+the *same* pose, same room, same frame pair — is pose-matched by construction and stands. So the working tracer
+does show less ceiling falloff than the app's own raster at a matched pose; what cannot be said is that
+photographs adjudicate it.
+
+**Two things this round found that `.318` had wrong beyond the headline.**
+
+1. **`.318`'s own `near` patch was not adjacent to the window.** Marking each pose revealed the placement rule
+   was never physical: at `0.15` the first candidate landed on the **window head**, at `0.45` **mid-ceiling**, and
+   `.318`'s `0.30` patch sat mid-ceiling too rather than at the window-wall junction. Re-placing it consistently
+   moves the `0.30` figure from **0.862 to 0.912** — a 0.05 shift from placement alone, which is a third of the
+   photographic band's width.
+2. **The far patch cannot be placed cleanly at low pitch.** sd **21.5** at `0.15` and **9.6** at `0.30` against
+   **1.3** at `0.45`: at shallow pitch the far patch straddles the cornice shading gradient. So the poses where
+   the metric looked best are the poses where its far patch was worst.
+
+**The structural picture, which is the durable output.** Every **luminance**-based spatial metric this arc has
+built has proved pose-dependent:
+
+| metric | pose behaviour | round |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | 0.68 → 0.96 on pitch | `.232` |
+| wall falloff | 0.74 → 0.93 on viewport aspect; metric retired | `.247`, `.249` |
+| same-surface ceiling far ÷ near | **0.85 → 1.06 on pitch** | **`.319`** |
+| interior chroma | **0.9 counts on pitch — robust** | `.316` |
+
+**Luminance carries the photographic anchor and is pose-fragile; chroma is pose-robust and cannot be anchored
+(`.317`).** That is the arc's measurement predicament stated completely, and after seven rounds of trying both
+families it looks structural rather than a matter of finding the right variant.
+
+**What is left that is actually solid.** Pose-matched, same-frame comparisons of the app against itself — the
+raster as reference for the tracer. That is what `.314` proposed and it is the only construction that has
+survived every pose and placement challenge, because both arms share the pose by construction.
+
+**Method note.** `.318` named its own killing caveat and published anyway, one round before the test. Naming a
+caveat is not the same as discharging it — and the interval between the two is exactly where a withdrawal gets
+manufactured. **If a caveat would overturn the headline, test it before writing the headline.**
+
+**Unchanged:** no `src/` change, no probe change. Two raster-only runs (19:14 +08) and four markings.
+
 ## v0.31.5.318 — the metric the arc has been looking for: same-surface ceiling luminance falloff. The raster is inside the photographic band; the HQ still is too FLAT
 
 `.317` killed the chroma gradient because its sign follows the colour of whatever is outside the window. But

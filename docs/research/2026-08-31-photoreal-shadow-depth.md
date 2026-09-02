@@ -11214,3 +11214,68 @@ measures two quantities and reports one has left evidence on the floor** — the
 single round's own output.
 
 No `src/` change, no probe change.
+
+---
+
+## Round .319 — `.318`'s metric is pose-dependent: 0.85 → 1.06 over a 0.30 pitch range. Photographic claim withdrawn; raster-vs-traced stands
+
+`.318` called same-surface ceiling falloff "the metric the arc has been looking for" and named pose-dependence as
+its one untested caveat. The caveat was the right one, and the metric fails it.
+
+### The test
+
+Three *pitched-up* bedroom3 poses (0.15, 0.30, 0.45), chosen so each has a large visible ceiling — sidestepping
+the eye-level no-ceiling problem that defeated `.315`/`.316`. Raster only, 42 s for both new runs. Every patch
+verified as ceiling by marking.
+
+| pose | far ÷ near (`.318` placement) | far ÷ near (near at the window-wall junction) | far patch sd |
+| --- | --- | --- | --- |
+| `PITCH=0.15` | 0.847 | 0.887 | **21.5** |
+| `PITCH=0.30` | **0.862** (`.318`) | 0.912 | 9.6 |
+| `PITCH=0.45` | **1.059** | **1.059** | **1.3** |
+
+**0.21 swing across a 0.30 pitch range, crossing 1.0** — at 0.45 the far ceiling is *brighter* than the near
+one. And the pose with the cleanest far patch gives the most extreme value, so it is not noise in the outlier.
+
+### Withdrawn
+
+The app's 0.974 cannot be compared against a 0.765–0.895 band derived at unknown, different poses, because the
+quantity moves by more than the band's width when only the camera moves. **"The HQ still's ceiling is too flat
+against real photographs" is not supported.**
+
+### What survives
+
+`.318`'s **raster-versus-traced** comparison — 0.862 against 0.974, same pose, same room, same frame pair — is
+pose-matched by construction and stands. The working tracer does show less ceiling falloff than the app's own
+raster; photographs do not adjudicate it.
+
+### Two further errors in `.318` found by marking
+
+1. **The `near` patch was never physically placed.** At 0.15 the first candidate hit the **window head**, at 0.45
+   **mid-ceiling**, and `.318`'s 0.30 patch was mid-ceiling too. Re-placing consistently moves 0.30 from
+   **0.862 to 0.912** — a 0.05 shift from placement alone, a third of the band's width.
+2. **The far patch cannot be placed cleanly at shallow pitch** — sd 21.5 at 0.15 and 9.6 at 0.30 against 1.3 at
+   0.45, because it straddles the cornice shading gradient. The poses where the metric looked best are where its
+   far patch was worst.
+
+### The structural picture
+
+| metric | pose behaviour | round |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | 0.68 → 0.96 on pitch | .232 |
+| wall falloff | 0.74 → 0.93 on aspect; retired | .247, .249 |
+| same-surface ceiling far ÷ near | **0.85 → 1.06 on pitch** | .319 |
+| interior chroma | **0.9 counts on pitch — robust** | .316 |
+
+**Luminance carries the photographic anchor and is pose-fragile; chroma is pose-robust and cannot be anchored
+(`.317`).** After seven rounds on both families this looks structural, not a matter of finding the right
+variant. What survives is pose-matched same-frame comparison of the app against itself — the raster as reference
+(`.314`), the only construction that has survived every pose and placement challenge.
+
+### Method note
+
+`.318` named its own killing caveat and published the headline anyway, one round before testing it. **Naming a
+caveat is not discharging it — and the interval between the two is where a withdrawal gets manufactured. If a
+caveat would overturn the headline, test it before writing the headline.**
+
+No `src/` change, no probe change.

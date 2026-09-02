@@ -154,7 +154,27 @@ them match.
 Fifteen mechanisms have been proposed and refuted in this arc. This was the first refuted with its predictions
 intact.
 
-## The best metric found so far: same-surface CEILING LUMINANCE FALLOFF (far ÷ near)
+## Every LUMINANCE spatial metric here is pose-dependent; chroma is pose-robust but unanchorable
+
+The arc's measurement predicament, after seven rounds of trying both families:
+
+| metric | pose behaviour | round |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | 0.68 → 0.96 on pitch | `.232` |
+| wall falloff | 0.74 → 0.93 on viewport aspect; retired | `.247`, `.249` |
+| same-surface ceiling far ÷ near | **0.85 → 1.06 on pitch** | `.319` |
+| interior chroma | **0.9 counts on pitch — robust** | `.316` |
+
+**Luminance carries the photographic anchor and is pose-fragile. Chroma is pose-robust and cannot be anchored**
+(`.317`: three attempts, all defeated by the exterior's colour). This looks structural rather than a matter of
+finding the right variant.
+
+**What survives:** pose-matched, same-frame comparisons of the app against **itself** — the raster as the
+reference for the tracer (`.314`). Both arms share the pose by construction, which is why it has survived every
+pose and placement challenge. Prefer it, and treat any photograph-referenced band as un-validated until its
+pose-dependence is measured.
+
+## A metric that looked anchorable and was not: same-surface CEILING FALLOFF (far ÷ near)
 
 Two patches on the **same ceiling**, one near the aperture and one far from it; report `far ÷ near` luminance.
 
@@ -170,10 +190,15 @@ Two patches on the **same ceiling**, one near the aperture and one far from it; 
 against the app's own raster (0.862) — it lights the far ceiling almost as brightly as the near ceiling. Class A
 is flat to within 1 % (1.009).
 
-**Untested, and required before treating the band as a target:** *pose-dependence* (this is a luminance ratio,
-the family `.232` showed swings 0.68 → 0.96 on pitch; only chroma is known pose-robust, `.316`) and
-*room-dependence* (one room for the app, three different rooms for the references). Testing pose is hard for the
-reason `.315`/`.316` hit — at eye level there is often too little ceiling to place two separated patches.
+**❌ POSE-DEPENDENT — the band comparison is withdrawn (`.319`).** Across three pitched-up bedroom3 poses the
+raster reads **0.847 / 0.862 / 1.059** at pitch 0.15 / 0.30 / 0.45 — a 0.21 swing crossing 1.0, wider than the
+photographic band itself. Two further problems surfaced: the `near` patch placement was never physical (moving
+it to the window-wall junction shifts the 0.30 figure 0.862 → 0.912, a third of the band's width), and the
+`far` patch straddles the cornice gradient at shallow pitch (sd 21.5 at 0.15, 9.6 at 0.30, 1.3 at 0.45 — the
+poses where the metric looked best are where its far patch was worst).
+
+**What survives:** the **raster-vs-traced** figure at a single matched pose (0.862 vs 0.974) — pose-matched by
+construction. Use it as an internal comparison, not as a photographic verdict.
 
 Contrast the chroma version, which fails (below): the exterior's *colour* scrambles chroma but does not scramble
 how much *less* light reaches the far end of a ceiling.
