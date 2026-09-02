@@ -5,6 +5,85 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.289 — a negative round on the photograph hunt: 0 of 7 qualify, one seam is dead, and the thing that stopped the round now has a validated 20× fix
+
+`.288` closed by naming two ways to continue: widen further, or spend the new framing figure. The second is
+blocked behind item (u), so this round widened. It found nothing, which is the result — plus the reason it found
+nothing turned out to be fixable.
+
+**Seam 2 — hospitality categories: 0 of 6.** Eight categories (hotels/apartments in Spain, Portugal, France,
+Italy, Denmark, plus `Hotel rooms`), 164 names kept, 33 files past size/mime, six downloaded and screened on a
+contact sheet:
+
+| candidate | verdict |
+| --- | --- |
+| `Albergue de peregrinos, A Laxe 04` and `06` | reject — bare concrete ceiling and walls, fluorescents on |
+| `Ponferrada - Hotel Temple 6` | reject — artificial downlights on, dark timber |
+| `Santo Domingo … Hospital de Peregrinos` | reject — stone gothic vaulting, artificial |
+| `Santo Domingo …` (dining room) | reject — brick + spotlit mural |
+| `Executive Suite (Spa Building)` | reject — ceiling a thin uncroppable strip, hard direct-sun patches on the floor |
+
+**Hospitality is a dead seam and should not be swept again.** Commons' hotel categories are overwhelmingly
+lobbies, corridors, restaurants and historic stone halls — artificially lit, and rarely plaster on both
+surfaces. `.288`'s living-room-type categories returned 1 in 9; this returned 0 in 6. **Category choice
+dominates yield far more than volume does.**
+
+**Seam 3 — domestic categories: 1 of 1 screened, and it rejects.** Six domestic categories, 216 names, 46
+landscape JPEGs ≥1600 px. Only one file was retrieved (see below): `Bedroom_twin_beds` — **reject, no ceiling
+in frame at all** (`.234`'s reject class), and a fully clipped window.
+
+**`.288`'s metadata screen rejected zero in both seams — an honest negative on it as a *general* filter.** The
+agency/marketing signal that killed `Alternate Art & Design` does not recur in these categories (traveller
+uploads, not marketing), and the `Software` field is **empty on all 33** hospitality candidates, so the
+HDR-software screen is inert on Commons. `.288`'s metadata win was real but is a special case, not a routine
+filter.
+
+**What actually stopped the round.** `upload.wikimedia.org` starts returning **HTTP 429** after roughly seven
+full-resolution downloads in a session. Seven of nine domestic candidates failed that way, and a retry with 7 s
+spacing failed too. This is a hard operational ceiling on the method as practised, and it is the real reason
+seam 3 is one file deep rather than nine.
+
+**The fix, found and validated.** The thumbnail route works after all: `.288` tried `iiurlwidth`, got a non-JSON
+response and moved on to full-res URLs. **The parameter was never the problem — the API *call* was**, because
+titles containing `&` and `°` were breaking the query string. Tested on a clean title it returns a `thumburl`
+immediately:
+
+```
+1200px thumbnail:  351,898 bytes
+4032px original: 6,900,000 bytes      → 20x smaller
+```
+
+And, more importantly, **the metric is scale-invariant.** The same normalized crops on `At La Palma`:
+
+| source | ceiling | wall | ceiling ÷ wall |
+| --- | --- | --- | --- |
+| 1280×960 thumbnail | 172.4 | 155.8 | **1.106** |
+| 4032×3024 original | 172.3 | 155.8 | **1.106** |
+
+Identical to three decimals, L agreeing to 0.1 and R−B to 0.2. So future rounds can screen **and measure** from
+thumbnails and will not hit the rate limit at all.
+
+**Scope caveat, stated so it is not over-applied.** This validates **patch means** — a low-frequency statistic.
+It does **not** licence thumbnails for micro-contrast or micro-sd work, which is resolution-dependent by
+construction (the floor micro-contrast figures in this doc are already normalised to ~300 px/m for exactly that
+reason). Means from thumbnails: yes. Texture from thumbnails: no.
+
+**Thread 2 now has a price, which it never had.** Qualifying rate across the three screening rounds — `.234`
+1/10, `.288` 1/9, `.289` 0/7 — is **2 of 26, ≈ 8 %**. Reaching n=5 therefore needs roughly **40 more screened
+candidates**. At full resolution that is ~5 sessions against the 429 ceiling; via thumbnails it is one or two.
+The set stays at **n=3** this round: 1.03, 0.91, 1.106, app 0.93.
+
+**Method note.** Two of this round's three findings are corrections to `.288`, one round old: its metadata
+criterion does not generalise, and its abandonment of the thumbnail route was a misdiagnosis of its own failed
+API call. **When a method step fails once, check whether the step or the plumbing failed before discarding the
+step** — `.288` discarded a 20× saving on the strength of one malformed URL, and this round paid for that in
+429s.
+
+**Next.** Re-run the domestic seam through the thumbnail route: 46 landscape candidates already identified and
+screened for provenance, at ~350 KB each, which is the whole batch for less than one full-res file.
+
+**Unchanged:** no `src/` change, no probe change. Docs only; measurement scripts were temporary and removed.
+
 ## v0.31.5.288 — the qualifying photograph set widens to n=3, and the new one carries the EXIF that thread 1 has been blocked on
 
 With (p) awaiting a decision and (u)'s cause unidentified, the unblocked thread is the second one on the

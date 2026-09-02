@@ -9394,3 +9394,80 @@ six used here are largely untouched), or spend the framing figure and re-run the
 against `At La Palma`. The second is worth more but depends on traced numbers, so it is blocked behind (u).
 
 Nothing changed in `src/`. Docs only — the measurement scripts were temporary and removed.
+
+---
+
+## Round .289 — a negative round on the photograph hunt: 0 of 7, one dead seam, and a validated 20× fix for what stopped it
+
+`.288` offered two continuations: widen further, or spend the framing figure. The second is blocked behind
+item (u), so this widened. It found nothing — and the reason turned out to be fixable.
+
+### Seam 2 — hospitality categories: 0 of 6
+
+Eight categories (hotels/apartments in Spain, Portugal, France, Italy, Denmark, plus `Hotel rooms`) → 164 names
+→ 33 past size/mime → six screened.
+
+| candidate | verdict |
+| --- | --- |
+| `Albergue de peregrinos, A Laxe 04`, `06` | reject — bare concrete, fluorescents on |
+| `Ponferrada - Hotel Temple 6` | reject — artificial downlights, dark timber |
+| `Santo Domingo … Hospital de Peregrinos` | reject — stone gothic vaulting, artificial |
+| `Santo Domingo …` dining room | reject — brick + spotlit mural |
+| `Executive Suite (Spa Building)` | reject — ceiling a thin uncroppable strip; hard sun patches |
+
+**Hospitality is a dead seam — do not sweep it again.** Commons hotel categories are lobbies, corridors,
+restaurants and stone halls: artificially lit, rarely plaster on both surfaces. `.288`'s living-room categories
+gave 1/9; this gave 0/6. Category choice dominates yield much more than volume.
+
+### Seam 3 — domestic categories: one file retrieved, and it rejects
+
+Six domestic categories → 216 names → 46 landscape JPEGs ≥1600 px. Only one download succeeded:
+`Bedroom_twin_beds` — reject, **no ceiling in frame** (`.234`'s class), plus a fully clipped window.
+
+### `.288`'s metadata screen rejected zero — negative on it as a general filter
+
+The agency/marketing signal that killed `Alternate Art & Design` does not recur here (traveller uploads), and
+`Software` is **empty on all 33** hospitality candidates, so the HDR-software screen is inert on Commons.
+`.288`'s metadata win was real but is a special case, not a routine filter.
+
+### What stopped the round, and the fix
+
+`upload.wikimedia.org` returns **HTTP 429** after roughly seven full-resolution downloads per session; seven of
+nine domestic candidates failed that way, and a 7 s-spaced retry failed too.
+
+The thumbnail route works after all. `.288` tried `iiurlwidth`, got non-JSON, and fell back to full-res URLs —
+**the parameter was never the problem; the API call was**, because titles containing `&` and `°` broke the query
+string. On a clean title it returns `thumburl` directly: **351,898 bytes vs 6.9 MB, 20× smaller.**
+
+And the metric is scale-invariant. Same normalized crops on `At La Palma`:
+
+| source | ceiling | wall | ceiling ÷ wall |
+| --- | --- | --- | --- |
+| 1280×960 thumbnail | 172.4 | 155.8 | 1.106 |
+| 4032×3024 original | 172.3 | 155.8 | 1.106 |
+
+Identical to three decimals. Future rounds can screen **and measure** from thumbnails and never reach the limit.
+
+**Scope caveat:** this validates **patch means**, a low-frequency statistic. It does *not* licence thumbnails
+for micro-contrast/micro-sd work, which is resolution-dependent by construction (the floor micro-contrast
+figures here are already normalised to ~300 px/m for that reason). Means: yes. Texture: no.
+
+### Thread 2, priced
+
+Qualifying rate across `.234` (1/10), `.288` (1/9), `.289` (0/7) = **2 of 26 ≈ 8 %**. n=5 needs ~40 more
+screened candidates — ~5 sessions at full resolution against the 429 ceiling, one or two via thumbnails. The set
+remains **n=3**: 1.03, 0.91, 1.106, app 0.93.
+
+### Method note
+
+Two of three findings here are corrections to `.288`, one round old: its metadata criterion does not
+generalise, and its abandonment of the thumbnail route was a misdiagnosis of its own malformed API call.
+**When a method step fails once, check whether the step or the plumbing failed before discarding the step.**
+`.288` discarded a 20× saving on one bad URL and this round paid for it in 429s.
+
+### Next
+
+Re-run the domestic seam via thumbnails: 46 landscape candidates are already identified and provenance-screened,
+at ~350 KB each — the whole batch for less than one full-res file.
+
+Nothing changed in `src/` or in the probe. Docs only.
