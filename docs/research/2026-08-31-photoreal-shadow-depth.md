@@ -8762,3 +8762,82 @@ rooms after all. But that is now resting on livingDining targets whose convergen
 their own settings — so the honest next step is to re-verify those, not to celebrate.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .281 — the 150-sample failure is a property of the room, not the aperture or the pose
+
+`.280` closed by naming its own residual risk: every livingDining target in `.269`–`.276` is a 150-sample
+still too, and their convergence had never been checked at their own settings. That is this round's first
+job; the second is to find out what actually predicts the failure.
+
+### livingDining is converged
+
+Same room, pose, anchors, finish as `.270`; only sample count differs (run 10:55 +08, medium tier,
+photographic look, hour 13, 1920×1080, `PITCH=-0.06`, anchors at y=1.5, off −0.7, side C, d = 0.6/1.2/1.8):
+
+| | d = 0.6 | d = 1.2 | d = 1.8 |
+| --- | --- | --- | --- |
+| 150 samples (`.270`) | 158.9 | 161.4 | 160.5 |
+| 250 samples | 159.1 | 161.7 | 160.4 |
+
+0.06–0.19 %. `.269`–`.276` stand.
+
+### Two predictors tested, two refuted
+
+**Aperture.** livingDining 71 % converges, bedroom2 27 % does not — so a window-size story fits n = 2.
+bedroom3 is 66 %, nearly livingDining's, and it fails just as hard (runs 10:58, 11:05 +08, `PITCH=0.30`,
+white, side C, d = 0.6/1.2): 172.1/175.3 at 150 against 120.3/117.7 at 250, i.e. **30–33 % high**, matching
+bedroom2's 31–35 %. Refuted.
+
+**Pose.** Both failing rooms had been shot at `PITCH=+0.30` and the converging one at `−0.06`, so room and
+pose were fully confounded — worth spending two runs to separate rather than publishing a confounded claim.
+livingDining at the bedroom's pitch (runs 11:06, 11:11 +08): 158.5/161.4 at 150 against 159.0/161.5 at 250 —
+**0.06–0.32 %**, converged. Refuted.
+
+A useful by-product: livingDining reads the same traced L at both pitches (158.5/161.4 vs 158.9/161.4). A
+world-anchored metric should be framing-invariant by construction, and here it demonstrably is.
+
+### What survives
+
+| room | floor area | aperture | converged at 150? |
+| --- | --- | --- | --- |
+| livingDining | ≈ 24.2 m² | 71 % | yes, at both pitches |
+| bedroom3 | 10.1 m² | 66 % | no (−30 to −33 %) |
+| bedroom2 | 9.7 m² | 27 % | no (−31 to −35 %) |
+
+The two failures are the two small rooms. Physically plausible — a small bright room has a short mean free
+path, so light bounces more times before escaping and each sample carries more interreflection variance. But
+n = 3, and "small bedroom" differs from "large living room" in many ways besides area. **Candidate, not
+result.**
+
+### Looking changed the diagnosis
+
+The bedroom3 150- and 250-sample stills were compared directly (first method rule). The 150-sample frame has
+**no plaster grain anywhere**, a flattened cornice, a cold blue-grey cast and a milky haze. The 250-sample
+frame has plaster texture on wall and ceiling, a cornice with a modelled bright top edge, and a warm neutral
+cast. Monte Carlo variance is grainy and unbiased; this is smooth and systematically shifted in level *and*
+hue. "Unconverged" is the wrong word for it.
+
+`.280` attributed this to `hqAiDenoise.ts`. That is wrong, or at most partial. The AI pass is opt-in
+(`aiDenoise`); what is on by default and is what the probe reads through `toDataURL` is the lib's
+edge-preserving **`DenoiseMaterial` blit** (`src/scene/pathtrace/hqRenderSession.ts:408`), at **fixed**
+strength — `sigma = 2.5`, `threshold = 0.1`, `kSigma = 1.0`, independent of sample count.
+
+Fixed strength does not mean fixed effect: at high input noise the local variance swamps the filter's edge
+criterion, so it smooths indiscriminately and takes the plaster grain with it. That is a reasonable account
+of the **texture loss**. It is not an account of the **30 % level shift** — a symmetric blur preserves the
+mean over a broad flat region like a wall.
+
+So the low-sample frame differs from the converged one in two separable ways, and only one has a candidate
+mechanism. The level shift is unexplained, and saying so is the point: `.280` closed the question with a
+guess that is now known not to hold.
+
+### Next
+
+1. Sweep sample count on bedroom3 (50/100/150/200/250) and look at the **shape** of the level decay. A smooth
+   asymptote means convergence; a step means a code path switching.
+2. Only if it looks convergence-like, test room size directly — measure the kitchen and the master bedroom,
+   rather than piling more n onto the extremes already measured.
+
+Nothing changed in `src/` beyond the version bump.

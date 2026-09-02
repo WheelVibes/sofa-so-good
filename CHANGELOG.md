@@ -5,6 +5,92 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.281 — the 150-sample failure is a property of the ROOM, not the aperture or the pose; livingDining re-verified
+
+`.280` ended by naming its own residual risk: every livingDining target in `.269`–`.276` is also a 150-sample
+still, and *"the livingDining numbers carry the same class of risk and have not been re-verified at their own
+settings."* This round does that, and then asks what actually predicts the failure.
+
+**1. livingDining IS converged at 150 samples.** Same room, pose, anchors and white finish as `.270`; only
+the sample count differs. `WINDOW=livingDining PITCH=-0.06 ANCHOR_Y=1.5 ANCHOR_OFF=-0.7 ANCHOR_SIDES=C
+ANCHOR_DS=0.6,1.2,1.8`, medium tier, photographic look, hour 13, 1920×1080 (run 10:55 +08):
+
+| livingDining, white, pitch −0.06 | traced L, d = 0.6 | d = 1.2 | d = 1.8 |
+| --- | --- | --- | --- |
+| 150 samples (`.270`) | 158.9 | 161.4 | 160.5 |
+| **250 samples** | **159.1** | **161.7** | **160.4** |
+
+Agreement **0.06–0.19 %**. The `.269`–`.276` livingDining targets stand as published.
+
+**2. Aperture does not predict it.** The obvious hypothesis was that a bigger window converges faster —
+livingDining's is 71 % of its wall and converges; bedroom2's is 27 % and does not. bedroom3 sits between at
+**66 %**, so it should behave like livingDining. It does not. `WINDOW=bedroom3 PITCH=0.30 ANCHOR_Y=1.5
+ANCHOR_SIDES=C ANCHOR_DS=0.6,1.2`, white walls (runs 10:58 and 11:05 +08):
+
+| bedroom3, white, pitch +0.30 | traced L, d = 0.6 | d = 1.2 |
+| --- | --- | --- |
+| 150 samples | 172.1 | 175.3 |
+| 250 samples | 120.3 | 117.7 |
+
+High by **30–33 %** — the same magnitude as bedroom2's 31–35 %, at nearly livingDining's aperture.
+**Hypothesis refuted.**
+
+**3. Pose does not predict it either.** Both failing rooms were shot at `PITCH=+0.30` and the converging one
+at `−0.06`, so room and pose were confounded. Running livingDining at the *bedroom's* pitch separates them
+(runs 11:06 and 11:11 +08):
+
+| livingDining, white, pitch **+0.30** | traced L, d = 0.6 | d = 1.2 |
+| --- | --- | --- |
+| 150 samples | 158.5 | 161.4 |
+| **250 samples** | **159.0** | **161.5** |
+
+Converged to **0.06–0.32 %** at the pitch that fails in both bedrooms. So the split is **by room**, not by
+camera. (Note also that livingDining reads the same L at both pitches — 158.5/161.4 against 158.9/161.4 —
+which is what a world-anchored metric should do and is a free check that the anchors are framing-invariant.)
+
+**4. What is left.** The two failing rooms are the two *small* ones; the converging one is the large one:
+
+| room | floor area | aperture | converged at 150? |
+| --- | --- | --- | --- |
+| livingDining | ≈ 24.2 m² (3.4 × 5.675 + two strips) | 71 % | **yes**, both pitches |
+| bedroom3 | 10.1 m² (2.88 × 3.52) | 66 % | no (−30 to −33 %) |
+| bedroom2 | 9.7 m² (2.76 × 3.52) | 27 % | no (−31 to −35 %) |
+
+Room size / mean free path is the surviving candidate — a small bright room bounces light more times before
+it escapes, so each sample carries more interreflection and the estimate is noisier at a given count. **This
+is a candidate, not a result: n = 3, and size is still confounded with everything else that differs between
+a bedroom and a living room.**
+
+**5. Looked at the frames, and the word "unconverged" is wrong.** Per the arc's first method rule, the
+bedroom3 150- and 250-sample stills were compared directly. The difference is **not noise-shaped**. The
+150-sample frame has no plaster grain at all on either wall or ceiling, a flattened cornice, a cold blue-grey
+cast and a milky haze; the 250-sample frame shows plaster texture, a modelled cornice with a bright top edge,
+and a warm neutral cast. Monte Carlo variance is grainy and *unbiased*; this is smooth and systematically
+shifted in both level and hue.
+
+`.280` guessed at `hqAiDenoise.ts`. That is not the stage: the AI pass is opt-in (`aiDenoise`), while the
+**edge-preserving `DenoiseMaterial` blit is on by default** (`hqRenderSession.ts:408`) and is what the probe
+reads through `toDataURL`. It is **fixed-strength** — `sigma = 2.5`, `threshold = 0.1`, `kSigma = 1.0`,
+constant regardless of sample count. A fixed edge-preserving filter is still input-dependent (at high noise
+the local variance swamps the edge criterion, so it smooths indiscriminately and takes the plaster grain with
+it), so it plausibly explains the **texture loss**. It cannot explain the **30 % level shift** — a
+symmetric blur preserves the mean over a broad flat region.
+
+So there are two effects, not one, and only the first has a candidate mechanism. **The level shift is
+unexplained.** Naming it honestly matters because `.280` attributed the whole thing to denoise and that
+attribution is now known to be at best partial.
+
+**Method note.** This is the second round running where the number and the picture said different things and
+the picture was more informative — `.280` caught the level error from the number, but only looking showed
+that the low-sample frame is a *different image*, not a rougher one.
+
+**Next.** Two things, in order: (a) sweep sample count on bedroom3 (50/100/150/200/250) and look at the shape
+of the level decay — a smooth asymptote is convergence, a step is a code path; (b) if it is convergence-like,
+test the room-size hypothesis directly by measuring the kitchen (a third small room) and the master bedroom,
+rather than adding more n at the extremes.
+
+**Unchanged:** no `src/` change this round. Probe-only + docs.
+
 ## v0.31.5.280 — CORRECTION: the bedroom traced target was unconverged; `.277`–`.279`'s bedroom findings are withdrawn
 
 `.279` closed with a rule — *retire the most load-bearing flag next* — and named two. The larger was that
