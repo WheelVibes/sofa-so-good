@@ -237,12 +237,26 @@ multi-tick and MUST be staged — a big bang would leave the repo uncompilable a
 4. Remove the legacy trio; add the schema migration and bump the save version. `tsc` is the
    worklist — the error count is the progress metric.
 
-**Blast radius, re-measured at v0.31.5.285: 1368 -> 135 errors (212 -> 49 files; 149 -> 38
-non-test).** The remaining non-test errors are concentrated in the modules that legitimately own
-plan geometry — `rescalePlan` (9), `mirrorPlanRegion` (7), `gridSnap` (7), `levels.ts` (6) — which
-together are 29 of 38. The 97 test errors are fixtures, 26 of them in `floorPlanSlice.test.ts`.
-The final stage is now a tractable single change. Re-measure with: comment the three fields out of
-`FloorPlan` in `types.ts`, run `tsc`, restore.
+**Blast radius, measured properly at v0.31.5.286: 1279 errors across 205 files (503 non-test).**
+The v0.31.5.285 claim of "135 errors, down 90%" was WRONG — the script removed the fields from
+`PlanUpperLevel` instead of `FloorPlan`. There is no material reduction, and there was never going
+to be: the deletion's cost is dominated by **legitimate single-level consumers** that correctly
+take one storey and merely declare `plan: FloorPlan`. Those were never bugs, so the consumer
+migration never touched them. The final stage is a mechanical sweep of their signatures to
+`SingleLevelPlan`, largely orthogonal to the ~35 bugs already fixed.
+
+**To re-measure (and do it this way):** split `types.ts` at `export interface FloorPlan {`, remove
+the three fields only AFTER that point, `grep` to confirm the surviving `walls: PlanWall[]` line is
+the `PlanLevelData` one, THEN run `tsc`. Printing and reading the edited lines is the step whose
+absence produced the false number.
+
+**The final stage is therefore a deliberate multi-session job, not a tick's work.** Shape
+(unchanged, and confirmed to dev-09): `FloorPlan.levels: PlanLevelData[]` with ground at
+`levels[0]`; `levelAsPlan` returns `SingleLevelPlan = Omit<FloorPlan,'levels'> & {walls, openings,
+rooms, levelId, levelElevation}`. Order that keeps it tractable: (1) land `SingleLevelPlan` as an
+alias of `FloorPlan` and migrate single-level consumer SIGNATURES to it with no behaviour change
+and a green suite — this is the ~200-file bulk, splittable across many commits; (2) only then make
+`SingleLevelPlan` a real distinct type and delete the fields, which by then is small.
 
 **Revised staging (v0.31.5.276).** Stages 1-3 need NO schema change: `planLevels` already derives the
 level list from the legacy fields, so consumers can move onto

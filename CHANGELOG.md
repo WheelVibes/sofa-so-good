@@ -5,7 +5,62 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## v0.31.5.285 - the migration's blast radius, re-measured: 1368 -> 135
+## v0.31.5.286 - RETRACTION: the .285 measurement was wrong (135 -> 1279)
+
+**`.285` published a false number and I need to correct it plainly.** It claimed deleting
+`plan.rooms`/`walls`/`openings` now costs **135 errors across 49 files**, down 90% from 1368. That
+is wrong. The script commented out the FIRST match of each field name in `types.ts` — and the first
+match is inside **`PlanUpperLevel`**, not `FloorPlan`. So it measured removing the fields from the
+upper-level type, which has a fraction of the consumers. I then wrote it into the changelog, into
+`TODO.md`, and told dev-09.
+
+Re-measured against `FloorPlan` specifically (splitting the file at
+`export interface FloorPlan {` and removing the fields only after that point, with the removal
+verified by grep before running `tsc`):
+
+| | .285 claimed | ACTUAL |
+|---|---|---|
+| total errors | 135 | **1279** |
+| files | 49 | **205** |
+| non-test errors | 38 | **503** |
+
+**The conclusion changes, not just the number.** The staged migration was justified partly on the
+claim that fixing consumers first would shrink the final field deletion. **It did not, and could
+not have.** Those are near-orthogonal jobs:
+
+- The migration replaced ground-only reads that were **wrong** — ~35 real defects, each verified by
+  a failing-first test and most by a frame. That value is banked and unaffected by this correction.
+- The deletion's cost is dominated by **legitimate single-level consumers**: functions that
+  correctly take one storey, are correctly handed a `levelAsPlan` result, and simply declare
+  `plan: FloorPlan` and read `.walls`. Those were never bugs, so the migration never touched them.
+  Removing the field forces every one of their signatures to `SingleLevelPlan` — a mechanical
+  type-signature sweep across ~200 files, and the real content of the final stage.
+
+So the final stage is roughly the size it always was. The staging was still right, but for a
+different reason than I claimed: it let ~35 user-visible bugs ship green and incrementally instead
+of riding on one enormous breaking commit. That is a good reason. "It shrinks the last step" was
+not a real one.
+
+**What went wrong methodologically, since this is the second measurement error in this arc.** The
+earlier one (v0.31.5.90, IES) was measuring an invariant. This one is different and worse: the
+script did not measure what its output claimed to describe, and *nothing checked the intervention
+landed*. I have written the rule for this twice — "verify the intervention landed separately from
+measuring its effect" — and did not apply it, because a plausible-looking number felt like
+evidence. A 90% drop should itself have been the trigger to re-check: it was too good for a change
+that had deliberately avoided touching the type. **Concretely: when a script edits source to
+measure something, print the edited lines and read them.** The re-measurement above does exactly
+that, which is how the error surfaced.
+
+The partial `levels[]` restructure started this session is discarded, not committed. `.285`'s
+tables in `CHANGELOG.md` and `TODO.md` are corrected in place rather than deleted — a retracted
+number that leaves no trace invites the same mistake again.
+
+## v0.31.5.285 - the migration's blast radius, re-measured: 1368 -> 135 [RETRACTED, see .286]
+
+> **RETRACTED.** Every figure below is wrong: the measuring script removed the fields from
+> `PlanUpperLevel`, not `FloorPlan`. The real cost is **1279 errors / 205 files / 503 non-test**,
+> i.e. no material reduction. Kept in place, struck through, because a deleted mistake teaches
+> nothing. See v0.31.5.286.
 
 Docs + measurement only, no product code. The number is the reason to record it.
 
