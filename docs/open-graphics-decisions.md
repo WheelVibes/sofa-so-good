@@ -2015,6 +2015,21 @@ is exactly the single 139.5 outlier `.285` saw and `.286` reclassified.
 that span has been refuted by a later round. The classes and their frequencies are the finding. No mechanism is
 proposed.
 
+**🔍 CONSEQUENCES AUDITED v0.31.5.295.** All ~48 saved traced frames were classified. The classifier is
+calibrated on **white-walled** frames, so deliberately recoloured arms cannot be class-assigned; claims are
+confined to white-finish frames at a shared pose.
+
+| past result | verdict |
+| --- | --- |
+| the three floor-finish A/Bs (`ld-floor-*`, `ld-fa-*`, `ld-fb-*`) | **clean** — bands differ 0.6–2.9 counts within each pair, against ~17 between classes. Both arms same class. |
+| `.281`'s livingDining "converged at 150" | **same-class artefact** — `ld-lp150`/`ld-lp250` are both class A (band L −8.4/−5.2, frameL 158.8/160.7) |
+| `.277`–`.279`'s bedroom2 white-vs-navy | **class-straddled, void** — `ld-b2t` is class A (band L −9.4, band R −11.4, frameL 160.0) |
+| the recoloured arms of `.269`, `.270`, `.276` | **not auditable by this method** — a deliberate finish change moves the bands the classifier reads. Status unknown. |
+
+**The bedroom2 anomaly is finally attributed, and both earlier explanations are superseded.** `.280` blamed
+sample count and withdrew `.277`–`.279`; `.284` blamed the AI-denoise swap. The saved frame shows the white arm
+was simply a **class-A frame**. `.280`'s withdrawal stands; its reason and `.284`'s replacement reason do not.
+
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.
 

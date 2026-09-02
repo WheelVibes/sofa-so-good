@@ -5,6 +5,72 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.295 — free audit of every saved traced frame: which past conclusions item (u) actually corrupted. `.280` and `.284` both mis-attributed the bedroom2 anomaly, and the real cause was (u) class straddling
+
+`.294`'s method note said to check the old outputs before running anything new. Doing that again answers the
+arc's largest outstanding risk — **did the published within-tracer A/Bs compare frames from different (u)
+classes?** — at zero cost, because all ~48 traced frames from `.249` onward are still on disk.
+
+**Method and its limit, stated first.** `.294`'s classifier (upper-band y = 0.19–0.46, left-third and
+right-third R−B, plus whole-frame mean) was calibrated on **white-walled bedroom3**. Frames whose finish was
+*deliberately* recoloured — the terracotta, navy and recolour arms — move their bands by design, so class
+assignment is **not** reliable for them. Every claim below is confined to **white-finish frames at a shared
+pose**, and the recoloured pairs are explicitly not audited.
+
+**1. The floor-finish A/Bs are clean.** Three pairs, each differing only in floor finish:
+
+| pair | band L | band R | frameL |
+| --- | --- | --- | --- |
+| `ld-floor-tile-white` / `-wood-ebony` | 3.5 / 2.9 | 0.9 / −0.1 | 135.8 / 133.7 |
+| `ld-fa-floor-tile-white` / `-wood-ebony` | 15.5 / 14.7 | −2.7 / −4.7 | 116.5 / 105.7 |
+| `ld-fb-floor-tile-white` / `-wood-ebony` | 19.4 / 22.3 | 2.3 / 6.0 | 118.9 / 99.3 |
+
+Within each pair the bands differ by **0.6–2.9 counts**, against the **~17 counts** that separates (u)'s classes
+in band L and **~43** in frame mean. **None of these pairs straddles a class**, so those floor A/Bs measured the
+floor, not (u). A positive result, and the first time any of the arc's traced A/Bs has been shown clean rather
+than merely assumed so.
+
+**2. `.281`'s livingDining convergence pair was two class-A frames.** `ld-lp150` and `ld-lp250` read band L
+−8.4 / −5.2 and frame mean 158.8 / 160.7 — both cold-banded and both ~159–161, the class-A signature, while
+every white livingDining frame at the same hour and the eye-level pose is warm-banded. So `.281`'s "converged at
+150 samples, 0.06–0.32 % agreement" was **two frames of the same (u) class agreeing with each other**, which is
+what `.282` suspected and could not demonstrate. It is now demonstrated, and for the right reason: not a frozen
+placeholder, not a denoise swap, but two draws from the same class.
+
+**3. The bedroom2 anomaly is finally attributed — and both previous explanations were wrong.** `.277`–`.279`
+reported a bedroom2 white arm reading 175.4 / 181.1, which looked 31–35 % high. `.280` withdrew those rounds and
+blamed **sample count**. `.284` re-attributed the whole family of discrepancies to **the AI-denoise swap**. The
+saved frame settles it:
+
+```
+ld-b2t (bedroom2, white)   band L = -9.4   band R = -11.4   frameL = 160.0
+```
+
+**That is the class-A signature** — cold across the upper band, frame mean ~160 — in a room and finish where the
+comparable livingDining frames are warm-banded and ~125–137. **`.277`–`.279`'s white arm was a class-A frame.**
+So the anomaly was neither sample count (`.280`) nor the denoise stage (`.284`) but (u) class assignment, and
+both prior attributions are superseded. `.280`'s *withdrawal* of those rounds stands — they were wrong — but
+its stated reason, and `.284`'s replacement reason, are both wrong.
+
+**What this means for the arc's traced results, precisely.** Not "all traced numbers are void", which is what
+`.282` claimed and `.284` partly walked back. The position is now specific:
+
+- **Clean:** the three floor-finish A/Bs (shown above, same class both arms).
+- **Same-class artefact:** `.281`'s convergence claim (two class-A frames).
+- **Class-straddled, therefore void:** `.277`–`.279`'s bedroom2 white-vs-navy comparison.
+- **Not auditable by this method:** the recoloured arms of `.269`, `.270` and `.276`, because a deliberate
+  finish change moves the same bands the classifier reads. Their status stays unknown, and the honest thing is
+  to say the audit cannot reach them rather than to guess.
+
+**Method note.** Three rounds have now attributed the bedroom2 discrepancy to three different causes — sample
+count, the denoise swap, (u) class — and only the third used the frame that was sitting on disk the whole time.
+`.280` and `.284` each reasoned from the *numbers* those runs printed; the *image* they saved carried the
+answer. **The arc's first method rule is "look at the frame" — it applies to old frames too, not only to the
+one currently being produced.**
+
+**Unchanged:** no `src/` change, no probe change. Docs only. (u)'s cause remains unidentified — ten candidates
+eliminated across `.284`–`.294`; this round identifies its *consequences*, not its cause.
+
 ## v0.31.5.294 — (u) measured at n=24 instead of n=3: three discrete classes, not two states and not a spatial gradient. `.293`'s central claim was built on the wrong pair of frames
 
 `.293` closed with one open question — is the cold-cast extent bimodal or continuous? — and answered the
