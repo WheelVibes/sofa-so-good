@@ -447,3 +447,138 @@ describe('buildAirconTrunkingPlan — L-shaped room bbox-overlap regression (202
     expect(livingRun!.roomsTraversed).not.toContain('bedroom3')
   })
 })
+
+/**
+ * MULTI-STOREY (F13). The router used to take `allPlanRooms` (every storey's
+ * rooms) while blocking routes with `plan.walls` (the ground floor's only),
+ * which flattens a maisonette's storeys into one XZ plane. A loft bedroom
+ * stacked directly above the living room registered as ADJACENT to it, so
+ * refrigerant was routed straight through the floor slab — and the length lands
+ * in `renovationAllocator`'s quoted `airconTrunkingLengthM`, so it is a wrong
+ * contractor-facing number, not just a wrong picture.
+ */
+describe('buildAirconTrunkingPlan — multi-storey (F13)', () => {
+  /** `twoRoomCorridorPlan` as the ground floor, plus a loft bedroom occupying
+   *  EXACTLY the living room's footprint one storey up. */
+  function maisonette(): FloorPlan {
+    const ground = twoRoomCorridorPlan()
+    return {
+      ...ground,
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Upper',
+          elevation: 3,
+          ceilingHeight: 2.4,
+          // Its own four walls — none of which the ground-only read could see.
+          walls: rectWalls('up', 0, 0, 5, 4),
+          openings: [],
+          rooms: [rectRoom('up-bed', 'Loft Bedroom', 0, 0, 5, 4, 'bedroom')],
+        },
+      ],
+    } as unknown as FloorPlan
+  }
+
+  /** One system, one FCU in the loft bedroom, condenser on the ground ledge. */
+  const stackedSystemPlan = {
+    systems: [
+      {
+        index: 1,
+        label: 'Single split',
+        fcus: [{ roomId: 'up-bed', roomName: 'Loft Bedroom', btu: 9000 }],
+      },
+    ],
+  } as unknown as ReturnType<typeof buildAirconSystemPlan>
+
+  const stackedInput = {
+    fcus: [{ roomId: 'up-bed', position: [2.5, 2] as [number, number] }],
+    condensers: [{ roomId: 'ledge', position: [2.5, -0.6] as [number, number] }],
+  }
+
+  it('does NOT route from a ground condenser to an upstairs FCU', () => {
+    // A cross-storey riser is a vertical element this plan model has no concept
+    // of, so the honest answer is an unresolved run + the caller's one-line
+    // advisory — the same convention an unroutable same-storey run uses.
+    // Ground-only walls with all-storey rooms produced a confident route.
+    const t = buildAirconTrunkingPlan(maisonette(), stackedSystemPlan, stackedInput)
+    const run = t.runs.find((r) => r.roomId === 'up-bed')!
+    expect(run.resolved).toBe(false)
+    expect(run.waypoints).toEqual([])
+    expect(t.totalLengthM).toBe(0)
+  })
+
+  it('leaves a single-storey plan byte-identical', () => {
+    // The fan-out must be a no-op for the overwhelmingly common case.
+    const p = twoRoomCorridorPlan()
+    const systemPlan = buildAirconSystemPlan(p)
+    const { items } = planAirconPlacements(p, systemPlan)
+    const input = resolveAirconTrunkingInput(p, systemPlan, items)
+    expect(buildAirconTrunkingPlan(p, systemPlan, input)).toEqual(
+      buildAirconTrunkingPlan(p, systemPlan, input),
+    )
+    const t = buildAirconTrunkingPlan(p, systemPlan, input)
+    expect(t.runs.every((r) => r.resolved)).toBe(true)
+    expect(t.totalLengthM).toBeGreaterThan(0)
+  })
+
+  it('drops from the SERVED storey ceiling, not the ground one', () => {
+    // A resolved upstairs run must sit at that level's own ceiling height.
+    // `ceilingHeight` was read off the whole plan, so an upper storey's
+    // trunking hung at the ground floor's height.
+    const upperOnlySystem = {
+      systems: [
+        {
+          index: 1,
+          label: 'Single split',
+          fcus: [{ roomId: 'up-bed', roomName: 'Loft Bedroom', btu: 9000 }],
+        },
+      ],
+    } as unknown as ReturnType<typeof buildAirconSystemPlan>
+    const upperOnlyInput = {
+      fcus: [{ roomId: 'up-bed', position: [1.5, 2] as [number, number] }],
+      // Condenser in the SAME upstairs room — a routable same-storey run.
+      condensers: [{ roomId: 'up-bed', position: [3.5, 2] as [number, number] }],
+    }
+    const t = buildAirconTrunkingPlan(maisonette(), upperOnlySystem, upperOnlyInput)
+    const run = t.runs.find((r) => r.roomId === 'up-bed')!
+    expect(run.resolved).toBe(true)
+    // Upper storey ceiling 2.4 − the 0.15 drop, NOT the ground's 2.8.
+    for (const [, y] of run.waypoints) expect(y).toBeCloseTo(2.4 - 0.15, 5)
+  })
+})
+
+describe('resolveAirconTrunkingInput — multi-storey (F13)', () => {
+  it('attributes a placed item to a room on ITS OWN storey', () => {
+    const ground = twoRoomCorridorPlan()
+    const p = {
+      ...ground,
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Upper',
+          elevation: 3,
+          walls: rectWalls('up', 0, 0, 5, 4),
+          openings: [],
+          rooms: [rectRoom('up-bed', 'Loft Bedroom', 0, 0, 5, 4, 'bedroom')],
+        },
+      ],
+    } as unknown as FloorPlan
+    const systemPlan = buildAirconSystemPlan(p)
+    // An FCU at the living room's XZ but tagged to the upper storey.
+    const input = resolveAirconTrunkingInput(p, systemPlan, [
+      { defId: 'aircon-unit', position: [2.5, 2], levelId: 'upper' },
+    ])
+    // Without the level gate this resolved to 'living' — and the per-storey
+    // router then looked for the FCU downstairs, silently unresolving the run.
+    expect(input.fcus[0]!.roomId).toBe('up-bed')
+  })
+
+  it('treats an untagged item as ground', () => {
+    const ground = twoRoomCorridorPlan()
+    const systemPlan = buildAirconSystemPlan(ground)
+    const input = resolveAirconTrunkingInput(ground, systemPlan, [
+      { defId: 'aircon-unit', position: [2.5, 2] },
+    ])
+    expect(input.fcus[0]!.roomId).toBe('living')
+  })
+})

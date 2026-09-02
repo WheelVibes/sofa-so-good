@@ -1640,7 +1640,11 @@ export function FloorPlanEditor() {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
       const nextOrigin: [number, number] = [snap(wx - moving.gx), snap(wz - moving.gz)]
-      const room = st.floorPlan.rooms.find((r) => r.id === moving.id)
+      // The ACTIVE storey, as every other room lookup in this file already
+      // does (`levelById(st.floorPlan, levelId).rooms`). Ground-only here meant
+      // dragging a POLYGON room on an upper level failed to find it, so its
+      // outline stayed put while its origin moved.
+      const room = levelById(st.floorPlan, levelId).rooms.find((r) => r.id === moving.id)
       // A free-form (polygon) room stores ABSOLUTE polygon points, so moving the
       // origin alone wouldn't shift its outline — translate the polygon by the
       // same delta so the whole room (rect or polygon) moves together.

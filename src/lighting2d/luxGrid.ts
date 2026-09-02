@@ -29,7 +29,14 @@
  * non-negative lux number (zero lights at night → uniform 0, never NaN).
  */
 
-import { itemsOnLevel, levelAsPlan, planLevels, visibleLevels } from '../floorplan/levels'
+import {
+  allPlanRooms,
+  GROUND_LEVEL_ID,
+  itemsOnLevel,
+  levelAsPlan,
+  planLevels,
+  visibleLevels,
+} from '../floorplan/levels'
 import { openingProbePoints } from '../floorplan/openingProbe'
 import {
   type FloorPlan,
@@ -45,7 +52,14 @@ import {
   interRoomDoorwaySources,
 } from './doorwayBleed'
 import type { PlanLight } from './lightingPlan'
-import { planLightLumens, SCENE_INTENSITY_CALIBRATION, UTILISATION_FACTOR } from './roomLux'
+import {
+  MIN_UNIFORMITY,
+  planLightLumens,
+  roomLuxKind,
+  SCENE_INTENSITY_CALIBRATION,
+  UTILISATION_FACTOR,
+  WORK_PLANE_HEIGHT_M,
+} from './roomLux'
 
 /** Default sample spacing (m). Fine enough to show lamp pools, coarse enough
  *  that a whole flat is a few thousand samples. */
@@ -104,7 +118,25 @@ export interface RoomLuxGrid {
   values: Float32Array
   /** Highest in-room lux on the grid (0 when fully dark/masked). */
   maxLux: number
+  /** Lowest in-room lux on the grid (0 when fully dark/masked). */
+  minLux: number
+  /** Mean in-room lux across unmasked cells (0 when none). */
+  meanLux: number
+  /**
+   * Uniformity U0 = Emin / Eavg over the in-room cells, 0–1. A professional
+   * lighting spec states this ALONGSIDE the average, because an average that
+   * meets its target can still be a room of hotspots under each downlight and
+   * dark corners — exactly what this grid reveals but never scored before.
+   * EN 12464-style guidance: >= 0.6 for a task area, >= 0.4 general. 0 when the
+   * room is fully dark or fully masked.
+   */
+  uniformity: number
+  /** Height of the plane these values were sampled on (m); 0 = floor. */
+  planeHeight: number
 }
+
+/** See {@link LuxGridOptions.iesShape}. */
+export type IesShapeResolver = (profileId: string, angleDeg: number) => number
 
 export interface LuxGridOptions {
   /** Fixture contribution 0–1 (night = 1, daylight = 0, or lights-mode override). */
@@ -113,6 +145,38 @@ export interface LuxGridOptions {
   daylightLevel: number
   /** Sample spacing (m); defaults to {@link LUX_GRID_CELL}. */
   cell?: number
+  /** Measurement-plane height (m) — see {@link pointIlluminance}. Default 0
+   *  (floor), which reproduces the previous behaviour exactly. Wins over
+   *  {@link workPlane} when both are given. */
+  planeHeight?: number
+  /**
+   * Resolve a fixture's IES distribution SHAPE at a vertical angle from nadir,
+   * **Note what this can and cannot move.** The indirect term below tops the
+   * direct field up to the lumen-method room average, so a directional
+   * distribution changes the grid's SHAPE (peaks, minima, uniformity) and
+   * leaves `meanLux` exactly unchanged — measured: a forced 20° cone on the
+   * default flat moved maxLux 1430.6 → 1499.8 and U0 0.819 → 0.851 with the
+   * mean identical at 1272.0. That is correct, not a bug: the room average is
+   * the lumen method (Φ × UF / A), which is distribution-agnostic by
+   * construction. Using IES for the AVERAGE too would mean abandoning the
+   * lumen method for a full point-by-point integration.
+   *
+   * returning a factor in `[0, 1]` relative to the profile's own peak. Injected
+   * rather than imported so this module stays pure — `lighting/ies/iesStore.ts`
+   * carries module state. Absent ⇒ every fixture computes isotropically, the
+   * previous behaviour exactly.
+   */
+  iesShape?: IesShapeResolver
+  /**
+   * Sample each room on its own per-kind WORK PLANE
+   * ({@link WORK_PLANE_HEIGHT_M}) instead of the floor — what a lux target
+   * actually applies to, and what an analysis/compliance read wants.
+   *
+   * Opt-in rather than default because the primary consumer of these grids is
+   * the 3D floor heatmap: painting a kitchen's worktop illuminance onto its
+   * floor would misrepresent the picture. Default false (floor).
+   */
+  workPlane?: boolean
   /** Door open/closed state (store `doors` map) for inter-room bleed (R-BLEED).
    *  Absent / a door absent → closed → no bleed. */
   doors?: DoorOpenMap
@@ -152,18 +216,38 @@ export function planWindowSources(plan: FloorPlan): WindowSource[] {
   return out
 }
 
-/** Direct illuminance (lx) at a floor point from one fixture: inverse-square
- *  with cosine incidence, using the calibrated registry candela. */
+/**
+ * Direct illuminance (lx) at a point on the measurement plane from one fixture:
+ * inverse-square with cosine incidence, using the calibrated registry candela.
+ *
+ * `planeHeight` is the height of the plane being measured (m). Standards specify
+ * illuminance at the WORK PLANE — ~0.75 m at a desk, ~0.85 m at a kitchen
+ * worktop — not at the floor, and that is where a 300–500 lx target actually
+ * applies. Default 0 (floor) preserves the previous behaviour for callers that
+ * do not opt in. A plane at or above the fixture clamps to a 0.05 m drop rather
+ * than dividing by zero.
+ */
 export function pointIlluminance(
-  light: Pick<PlanLight, 'x' | 'z' | 'height' | 'intensity'>,
+  light: Pick<PlanLight, 'x' | 'z' | 'height' | 'intensity' | 'iesProfile'>,
   px: number,
   pz: number,
+  planeHeight = 0,
+  iesShape?: IesShapeResolver,
 ): number {
-  const h = Math.max(0.05, light.height)
+  const h = Math.max(0.05, light.height - planeHeight)
   const dx = px - light.x
   const dz = pz - light.z
-  const d2 = h * h + dx * dx + dz * dz
-  const candela = light.intensity * SCENE_INTENSITY_CALIBRATION
+  const r2 = dx * dx + dz * dz
+  const d2 = h * h + r2
+  let candela = light.intensity * SCENE_INTENSITY_CALIBRATION
+  // Directional distribution (G4): scale the peak candela by the fixture's own
+  // IES shape at this point's vertical angle from nadir. Without a profile the
+  // factor is 1, i.e. the previous isotropic behaviour, byte-identical.
+  if (light.iesProfile && iesShape) {
+    const angleDeg = (Math.atan2(Math.sqrt(r2), h) * 180) / Math.PI
+    const factor = iesShape(light.iesProfile, angleDeg)
+    if (Number.isFinite(factor) && factor >= 0) candela *= factor
+  }
   return (candela * h) / d2 ** 1.5
 }
 
@@ -202,6 +286,7 @@ export function buildRoomLuxGrid(
   const d = maxZ - minZ
   if (!(w > 0) || !(d > 0)) return null
 
+  const planeHeight = Math.max(0, opts.planeHeight ?? 0)
   const base = Math.max(0.05, opts.cell ?? LUX_GRID_CELL)
   // Grow the cell (never the count) when a room out-sizes the texture cap.
   const cell = Math.max(base, w / LUX_GRID_MAX_DIM, d / LUX_GRID_MAX_DIM)
@@ -231,7 +316,8 @@ export function buildRoomLuxGrid(
         continue
       }
       let direct = 0
-      for (const l of roomLights) direct += pointIlluminance(l, px, pz) * fixtureLevel
+      for (const l of roomLights)
+        direct += pointIlluminance(l, px, pz, planeHeight, opts.iesShape) * fixtureLevel
       let lux = direct
       for (const win of roomWindows) lux += windowIlluminance(win, px, pz) * daylightLevel
       // Belt-and-braces: the texture path must never see NaN/Infinity.
@@ -289,11 +375,36 @@ export function buildRoomLuxGrid(
     }
   }
 
+  // Min / mean / uniformity over the IN-ROOM cells only — a masked cell is
+  // outside the room, not a dark spot, so folding it in would report a
+  // uniformity of ~0 for every non-rectangular room.
   let maxLux = 0
+  let minLux = Number.POSITIVE_INFINITY
+  let sum = 0
+  let count = 0
   for (let i = 0; i < values.length; i++) {
-    if (values[i] !== MASKED && values[i] > maxLux) maxLux = values[i]
+    const v = values[i]
+    if (v === MASKED) continue
+    if (v > maxLux) maxLux = v
+    if (v < minLux) minLux = v
+    sum += v
+    count += 1
   }
-  return { roomId: room.id, x0: minX, z0: minZ, cols, rows, cell, values, maxLux }
+  const meanLux = count > 0 ? sum / count : 0
+  return {
+    roomId: room.id,
+    x0: minX,
+    z0: minZ,
+    cols,
+    rows,
+    cell,
+    values,
+    maxLux,
+    minLux: count > 0 ? minLux : 0,
+    meanLux,
+    uniformity: meanLux > 0 ? (count > 0 ? minLux : 0) / meanLux : 0,
+    planeHeight,
+  }
 }
 
 export interface LevelLuxGrids {
@@ -348,11 +459,20 @@ export function buildLuxGrids(
 
     const grids: RoomLuxGrid[] = []
     for (const room of level.rooms) {
+      // Plane: `workPlane` opts each room onto ITS OWN work plane (a kitchen
+      // worktop is not a bathroom floor) for ANALYSIS. It is opt-in because
+      // the default consumer is the 3D FLOOR heatmap (`scene/LuxOverlay.tsx`)
+      // — painting worktop illuminance onto the floor would misrepresent it.
+      // An explicit `planeHeight` still wins over both.
       const grid = buildRoomLuxGrid(
         room,
         levelLights,
         windows,
-        opts,
+        {
+          ...opts,
+          planeHeight:
+            opts.planeHeight ?? (opts.workPlane ? WORK_PLANE_HEIGHT_M[roomLuxKind(room)] : 0),
+        },
         bleedByRoom.get(room.id) ?? [],
       )
       if (grid) grids.push(grid)
@@ -363,4 +483,56 @@ export function buildLuxGrids(
 
 function clamp01(v: number): number {
   return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0
+}
+
+/** One room's uniformity assessment, for the lighting sheet's table. */
+export interface RoomUniformity {
+  roomId: string
+  /** U0 = Emin/Eavg over the room's in-room cells. */
+  u0: number
+  /** Minimum acceptable U0 for the room's kind (`roomLux.ts:MIN_UNIFORMITY`). */
+  minU0: number
+  pass: boolean
+  /** Plane the grid was sampled on (m) — 0 = floor. */
+  planeHeight: number
+}
+
+/**
+ * Per-room uniformity for the DESIGN condition — fixtures at full, no daylight,
+ * every room on its own work plane. This is the condition a lighting spec is
+ * written for: "does the artificial installation meet its target?", not "how
+ * does the room look at 4pm".
+ *
+ * Keyed by room id so a caller can join it to `estimateRoomLux`'s rows without
+ * re-deriving anything.
+ */
+export function buildRoomUniformity(
+  plan: FloorPlan,
+  lights: PlanLight[],
+  iesShape?: IesShapeResolver,
+): Map<string, RoomUniformity> {
+  const out = new Map<string, RoomUniformity>()
+  const levels = buildLuxGrids(plan, lights, GROUND_LEVEL_ID, {
+    fixtureLevel: 1,
+    daylightLevel: 0,
+    workPlane: true,
+    ...(iesShape ? { iesShape } : {}),
+  })
+  for (const level of levels) {
+    for (const g of level.grids) {
+      const room = allPlanRooms(plan).find((r) => r.id === g.roomId)
+      if (!room) continue
+      const minU0 = MIN_UNIFORMITY[roomLuxKind(room)]
+      out.set(g.roomId, {
+        roomId: g.roomId,
+        u0: g.uniformity,
+        minU0,
+        // A fully dark room has no meaningful uniformity — do not fail it for
+        // that; the room-average `status` already reports it as `low`.
+        pass: g.meanLux <= 0 || g.uniformity >= minU0,
+        planeHeight: g.planeHeight,
+      })
+    }
+  }
+  return out
 }

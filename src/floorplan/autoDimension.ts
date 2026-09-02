@@ -9,7 +9,7 @@
  * renderer (`./autoDimensionSvg`) turns it into a palette-injected string.
  */
 
-import { formatLength, type UnitSystem } from '../utils/measurement'
+import { formatDrawingLength, formatLength, type UnitSystem } from '../utils/measurement'
 import {
   type FloorPlan,
   type PlanRoom,
@@ -129,7 +129,7 @@ export function buildDimensions(plan: FloorPlan, units: UnitSystem = 'metric'): 
       x2: w.end[0] + ox,
       y2: w.end[1] + oz,
       value: len,
-      label: formatLength(len, units),
+      label: formatDrawingLength(len, units),
       side,
     })
   }
@@ -158,7 +158,7 @@ function roomDimensions(r: PlanRoom, units: UnitSystem = 'metric'): Dimension[] 
       x2: ox + width,
       y2: oz,
       value: width,
-      label: formatLength(width, units),
+      label: formatDrawingLength(width, units),
       side: 'interior',
     })
   }
@@ -169,7 +169,7 @@ function roomDimensions(r: PlanRoom, units: UnitSystem = 'metric'): Dimension[] 
       x2: ox,
       y2: oz + depth,
       value: depth,
-      label: formatLength(depth, units),
+      label: formatDrawingLength(depth, units),
       side: 'interior',
     })
   }

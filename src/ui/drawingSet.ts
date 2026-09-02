@@ -14,11 +14,15 @@ import {
   openingRoomsLabel,
   openingStyleMaterialLabel,
 } from '../analysis/openingSchedule'
-import { obbCorners } from '../collision/obb'
-import { itemFootprint } from '../collision/placement'
+import type { VariationRegister } from '../analysis/variationRegister'
 import { projectAllElevations } from '../elevation/projectElevation'
-import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
+import {
+  DEFAULT_DRAWING_SET_TEMPLATE,
+  type DrawingSetTemplate,
+  drawingSetRevisionRows,
+} from '../export/drawingSetTemplate'
 import { customMetaColumns } from '../export/ffeCsv'
+import { buildSpecification } from '../export/specification'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
@@ -33,8 +37,10 @@ import {
 import { buildElectricalPlan, type ElectricalPoint } from '../floorplan/electricalPlan'
 import { electricalSvg } from '../floorplan/electricalPlanSvg'
 import { buildFinishSchedule } from '../floorplan/finishSchedule'
+import { buildJunctionDetails } from '../floorplan/junctionDetails'
 import {
   allPlanRooms,
+  GROUND_LEVEL_ID,
   isMultiLevel,
   itemsOnLevel,
   levelAsPlan,
@@ -42,23 +48,37 @@ import {
   planLevels,
 } from '../floorplan/levels'
 import { permitNotes } from '../floorplan/permitNotes'
+import { wallDisplayName } from '../floorplan/planElementName'
 import { buildPlumbingPlan, type PlumbingPoint } from '../floorplan/plumbingPlan'
 import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
 import { buildReflectedCeilingPlan } from '../floorplan/rcp'
 import { rcpSvg } from '../floorplan/rcpSvg'
 import type { RoomFinishMaps } from '../floorplan/roomFinishes'
-import { buildSection } from '../floorplan/section'
+import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
+import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
+import { settingOutDimensions } from '../floorplan/settingOut'
+import { buildMeasurementReconciliation } from '../floorplan/siteMeasurements'
+import { planTileCoursing } from '../floorplan/tileCoursing'
+import { tileLayoutSvg } from '../floorplan/tileLayoutSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
+import { planWallTileCoursing, type WallTileCoursing } from '../floorplan/wallTileCoursing'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
-import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { iesShapeFactor } from '../lighting/ies/iesShape'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
+import { buildRoomUniformity } from '../lighting2d/luxGrid'
 import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { CalloutSheet, DrawingCallout } from '../state/slices/drawingCalloutsSlice'
-import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
+import {
+  drawingUnitsNote,
+  formatArea,
+  formatDrawingLength,
+  formatLength,
+  type UnitSystem,
+} from '../utils/measurement'
 import { carpentrySvg } from './carpentrySheetSvg'
 import { collectCarpentrySheets } from './carpentrySheets'
 import { type DrawingLayerVisibility, drawingLayerOn as layerOn } from './drawingLayers'
@@ -70,6 +90,7 @@ import {
   lightingPlanSvg,
   roomLuxTableHtml,
 } from './lighting2d/lightingPlanSvg'
+import { planFootprints } from './planFootprints'
 import { sgd } from './report/reportShared'
 import { reportPlanSvg } from './reportPlanSvg'
 
@@ -199,6 +220,298 @@ function carpentryScale(
     label: `${s.label} @ ${paperSize.toUpperCase()} ${orientation.toUpperCase()}`,
     mmPerM: s.mmPerM,
   }
+}
+
+/**
+ * Co-ordinate setting-out table for the walls the running rows cannot express
+ * (G2). A diagonal or curved wall has no single axis-aligned face, so it is set
+ * out the way practice handles non-orthogonal geometry: each endpoint as an X
+ * and Z offset from the SAME datum the running rows use, plus the angle (and
+ * the radius for an arc). Empty string when there are none, so an orthogonal
+ * plan's sheet is unchanged.
+ */
+/** A wall's display name for the co-ordinate table, falling back to its id. */
+function wallName(levelPlan: FloorPlan, wallId: string): string {
+  const w = levelPlan.walls.find((x) => x.id === wallId)
+  return w ? wallDisplayName(w) : wallId
+}
+
+function skewSettingOutTable(
+  levelPlan: FloorPlan,
+  showSettingOut: boolean,
+  units: UnitSystem,
+): string {
+  if (!showSettingOut) return ''
+  const { skew } = settingOutDimensions(levelPlan)
+  if (skew.length === 0) return ''
+  const d = (v: number) => esc(formatDrawingLength(v, units))
+  const rows = skew
+    .map(
+      (w) =>
+        `<tr><td>${esc(wallName(levelPlan, w.wallId))}</td>` +
+        `<td class="n">${d(w.start[0])}</td><td class="n">${d(w.start[1])}</td>` +
+        `<td class="n">${d(w.end[0])}</td><td class="n">${d(w.end[1])}</td>` +
+        `<td class="n">${w.angleDeg.toFixed(1)}°</td>` +
+        `<td class="n">${w.radiusM === undefined ? '—' : d(w.radiusM)}</td></tr>`,
+    )
+    .join('')
+  return (
+    `<h3>Co-ordinate setting-out — skew &amp; curved walls</h3>` +
+    `<table class="sched"><tr class="h"><td>Wall</td><td class="n">Start X</td><td class="n">Start Z</td>` +
+    `<td class="n">End X</td><td class="n">End Z</td><td class="n">Angle</td><td class="n">Radius</td></tr>${rows}</table>` +
+    `<div class="note">Offsets are from the setting-out datum, on the wall CENTRELINE (a sloping face has no single
+    offset). These walls carry no running dimension — set them out from these co-ordinates.</div>`
+  )
+}
+
+/**
+ * Tile setting-out / coursing table (G5) — origin, full-tile field and the
+ * perimeter cut per room, so a tiler starts from a marked point instead of a
+ * corner they picked. Reads the SPECIFIED `moduleMm` only (never inferred from
+ * a texture scale), and states how many rooms it could not cover rather than
+ * implying the schedule is complete.
+ */
+function tileCoursingTable(
+  levelPlan: FloorPlan,
+  finishes: RoomFinishMaps | undefined,
+  units: UnitSystem,
+): string {
+  if (!finishes) return ''
+  const floorByRoom: Record<string, string> = {}
+  for (const room of levelPlan.rooms ?? []) {
+    floorByRoom[room.id] = resolvePlanRoomFloor(finishes, room)
+  }
+  const { rows, omittedRooms } = planTileCoursing(levelPlan, floorByRoom, BUILTIN_MATERIALS)
+  if (rows.length === 0) return ''
+  const mm = (v: number) => esc(formatDrawingLength(v / 1000, units))
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><td>${esc(r.roomName)}</td><td>${esc(r.materialName)}</td>` +
+        `<td class="n">${r.moduleMm[0]}×${r.moduleMm[1]}</td>` +
+        `<td class="n">${mm(r.originMm[0])} / ${mm(r.originMm[1])}</td>` +
+        `<td class="n">${r.fullTiles[0]}×${r.fullTiles[1]}</td>` +
+        `<td class="n">${mm(r.cutMm[0])} / ${mm(r.cutMm[1])}</td>` +
+        `<td class="n">${r.tileCount}</td>` +
+        `<td>${r.sliver ? '⚠ sliver' : '—'}</td></tr>`,
+    )
+    .join('')
+  return (
+    `<h3>Tile setting-out &amp; coursing</h3>` +
+    `<table class="sched"><tr class="h"><td>Room</td><td>Finish</td><td class="n">Module</td>` +
+    `<td class="n">Origin X / Z</td><td class="n">Full tiles</td><td class="n">Perimeter cut X / Z</td>` +
+    `<td class="n">Tiles</td><td>Note</td></tr>${body}</table>` +
+    `<div class="note">Field centred on each room, so both perimeter cuts are equal and as wide as
+    possible; origin is measured from the room's min corner. Tile counts EXCLUDE wastage.
+    ${
+      omittedRooms > 0
+        ? `${omittedRooms} room${omittedRooms === 1 ? '' : 's'} omitted — finish has no specified module.`
+        : ''
+    }</div>`
+  )
+}
+
+/**
+ * WALL tile setting-out table — the sibling of the floor coursing table above,
+ * and NOT the same rules (see `wallTileCoursing.ts`): a wall run is centred with
+ * end cuts of at least HALF a tile, and the courses run from the ceiling DOWN so
+ * the cut lands at the bottom where it is least visible.
+ */
+function wallCoursingTable(
+  levelPlan: FloorPlan,
+  finishes: RoomFinishMaps | undefined,
+  units: UnitSystem,
+): string {
+  if (!finishes) return ''
+  const wallByRoom: Record<string, string> = {}
+  for (const room of levelPlan.rooms ?? []) {
+    const w = resolvePlanRoomWall(finishes, room)
+    if (w) wallByRoom[room.id] = w
+  }
+  const { rows, omittedFaces } = planWallTileCoursing(levelPlan, wallByRoom, BUILTIN_MATERIALS)
+  if (rows.length === 0) return ''
+  const mm = (v: number) => esc(formatDrawingLength(v / 1000, units))
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><td>${esc(r.wallName)}</td><td>${esc(r.materialName)}</td>` +
+        `<td class="n">${r.moduleMm[0]}×${r.moduleMm[1]}</td>` +
+        `<td class="n">${mm(r.faceMm[0])} × ${mm(r.faceMm[1])}</td>` +
+        `<td class="n">${r.fullTilesAcross}</td>` +
+        `<td class="n">${mm(r.endCutMm)}</td>` +
+        `<td class="n">${r.fullCourses}</td>` +
+        `<td class="n">${mm(r.bottomCutMm)}</td>` +
+        `<td class="n">${r.tileCount}</td>` +
+        `<td>${r.bottomSliver ? '⚠ bottom course under half a tile' : r.openings > 0 ? `${r.openings} opening${r.openings === 1 ? '' : 's'} — cut around` : '—'}</td></tr>`,
+    )
+    .join('')
+  return (
+    `<h3>Wall tile setting-out</h3>` +
+    `<table class="sched"><tr class="h"><td>Wall</td><td>Finish</td><td class="n">Module</td>` +
+    `<td class="n">Face (run × height)</td><td class="n">Full tiles across</td>` +
+    `<td class="n">End cut (each end)</td><td class="n">Full courses</td>` +
+    `<td class="n">Bottom cut</td><td class="n">Tiles</td><td>Note</td></tr>${body}</table>` +
+    `<div class="note">` +
+    `Each run is set out CENTRED, with the field shifted half a module where needed so both end cuts are at least half a tile. ` +
+    `Courses run from the CEILING down, so the cut course lands at the bottom. ` +
+    `A bottom cut under half a course is a design decision (drop the tiled height, change module, or accept) — it is flagged, not adjusted. ` +
+    `Openings are cut around the set-out field; verify on site. ` +
+    `Faces are set out independently, so courses will not generally align around a corner. ` +
+    `Tile counts EXCLUDE wastage. ` +
+    (omittedFaces > 0
+      ? `${omittedFaces} face${omittedFaces === 1 ? '' : 's'} omitted — finish has no specified module.`
+      : '') +
+    `</div>`
+  )
+}
+
+/**
+ * Specification sheet (G7) — clauses derived from the design's actual finishes,
+ * wet areas, joinery and MEP points. Assembles the input from the same sources
+ * the schedules read so the two can never describe different work.
+ */
+function specificationSheetBody(
+  plan: FloorPlan,
+  items: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+  finishes: RoomFinishMaps | undefined,
+  units: UnitSystem,
+): string {
+  const floorNames = new Set<string>()
+  const wallNames = new Set<string>()
+  const ceilNames = new Set<string>()
+  const nameOf = (id: string) => BUILTIN_MATERIALS[id]?.name ?? id
+  const floorByRoom: Record<string, string> = {}
+  if (finishes) {
+    for (const room of allPlanRooms(plan)) {
+      const f = resolvePlanRoomFloor(finishes, room)
+      floorByRoom[room.id] = f
+      floorNames.add(nameOf(f))
+      const w = finishes.walls[room.id]
+      if (w) wallNames.add(nameOf(w))
+      const c = finishes.ceiling?.[room.id]
+      if (c) ceilNames.add(nameOf(c))
+    }
+  }
+  const coursing = finishes ? planTileCoursing(plan, floorByRoom, BUILTIN_MATERIALS).rows : []
+  const wetRoomNames = isFeatureEnabled('waterproofing')
+    ? buildWaterproofingZones(plan, items).map((z) => z.roomName)
+    : []
+  const carpentryNames = collectCarpentrySheets(items, catalog).map((e) => e.name)
+  const spec = buildSpecification({
+    finishNames: {
+      floor: [...floorNames],
+      wall: [...wallNames],
+      ceiling: [...ceilNames],
+    },
+    coursing,
+    wetRoomNames,
+    carpentryNames,
+    mep: {
+      electrical: (plan.electricalPoints ?? []).length,
+      plumbing: (plan.plumbingPoints ?? []).length,
+    },
+  })
+  if (spec.clauses.length === 0) return ''
+  const rows = spec.clauses
+    .map(
+      (c) =>
+        `<tr><td>${esc(c.id)}</td><td><b>${esc(c.title)}</b><div class="note">${esc(c.product)}</div></td>` +
+        `<td>${esc(c.substrate)}</td><td>${esc(c.preparation)}</td><td>${esc(c.workmanship)}</td>` +
+        `<td>${esc(c.tolerance)}</td><td>${esc(c.exclusions)}</td><td>${esc(c.standardRef) || '—'}</td></tr>`,
+    )
+    .join('')
+  const uncovered =
+    spec.tradesNotCovered.length > 0
+      ? `<div class="note">Not covered by this specification: ${esc(spec.tradesNotCovered.join(', '))} — no such work appears in the design.</div>`
+      : ''
+  return (
+    `<h3>Specification</h3>` +
+    `<table class="sched"><tr class="h"><td>Clause</td><td>Element</td><td>Substrate</td><td>Preparation</td><td>Workmanship</td><td>Tolerance</td><td>Excludes</td><td>Standard</td></tr>${rows}</table>` +
+    `<div class="note">${esc(spec.scopeNote)}</div>${uncovered}` +
+    `<div class="note">Dimensions referenced in this specification are as drawn — ${esc(drawingUnitsNote(units).toLowerCase())}.</div>`
+  )
+}
+
+/**
+ * Detail sheet (G3) — the junction details the model can state honestly, at a
+ * real DETAIL scale. Each detail prints its dimensions as a table rather than a
+ * drawn section: the dimensions are derived and exact, whereas a drawn section
+ * would need trim profiles and projections the model does not carry (see
+ * `floorplan/junctionDetails.ts`). Stating the numbers precisely beats drawing
+ * a section whose profile is invented.
+ */
+function detailSheetBody(plan: FloorPlan, units: UnitSystem): string {
+  const details = buildJunctionDetails(plan)
+  if (details.length === 0) return ''
+  const blocks = details
+    .map(
+      (d) =>
+        `<div class="room-cost"><h3>${esc(d.id)} · ${esc(d.title)}</h3>` +
+        `<div class="note">At: ${esc(d.location)}</div>` +
+        `<table class="sched"><tr class="h"><td>Dimension</td><td class="n">Value</td></tr>${d.dimensions
+          .map(
+            (dim) =>
+              `<tr><td>${esc(dim.label)}</td><td class="n">${esc(formatDrawingLength(dim.mm / 1000, units))}</td></tr>`,
+          )
+          .join('')}</table>` +
+        `<table class="sched">${d.notes
+          .map((n) => `<tr><td>${esc(n)}</td></tr>`)
+          .join('')}</table></div>`,
+    )
+    .join('')
+  return (
+    `<h3>Construction details</h3>${blocks}` +
+    `<div class="note">Dimensions are derived from the design and exact.
+    Skirting, cornice, shower-kerb, worktop-edge and architrave details are NOT included: the model
+    stores trim heights but no profiles or specified projections, so drawing them would mean
+    inventing dimensions. Detail those separately with your contractor.</div>`
+  )
+}
+
+/**
+ * As-built reconciliation sheet — what was measured on site against what the
+ * drawings show. Absent measurements yield no sheet, but the SET's cover-level
+ * honesty matters: a package with no reconciliation is unverified, and the
+ * sheet says so when it exists rather than implying agreement when it does not.
+ */
+function reconciliationSheetBody(plan: FloorPlan, units: UnitSystem): string {
+  const r = buildMeasurementReconciliation(plan, plan.siteMeasurements ?? [])
+  if (r.rows.length === 0) return ''
+  const mm = (v: number) => esc(formatDrawingLength(v / 1000, units))
+  const rows = r.rows
+    .map(
+      (row) =>
+        `<tr><td>${esc(row.targetLabel)}</td>` +
+        `<td class="n">${row.modelMm === null ? '—' : mm(row.modelMm)}</td>` +
+        `<td class="n">${mm(row.measuredMm)}</td>` +
+        `<td class="n">${
+          row.deviationMm === null ? '—' : `${row.deviationMm > 0 ? '+' : ''}${row.deviationMm}`
+        }</td>` +
+        `<td class="n">±${row.toleranceMm}</td>` +
+        `<td>${
+          row.verdict === 'within'
+            ? 'within'
+            : row.verdict === 'exceeds'
+              ? '⚠ EXCEEDS'
+              : '⚠ target deleted'
+        }</td>` +
+        `<td>${esc(row.note ?? '')}</td></tr>`,
+    )
+    .join('')
+  const verdict =
+    r.exceedsCount > 0
+      ? `<div class="warn">${r.exceedsCount} measurement${r.exceedsCount === 1 ? '' : 's'} exceed tolerance — worst ${r.worstDeviationMm} mm. Resolve against the model before building from these drawings.</div>`
+      : `<div class="ok">All ${r.rows.length} recorded measurement${r.rows.length === 1 ? '' : 's'} agree with the model within tolerance.</div>`
+  const unresolved =
+    r.unresolvedCount > 0
+      ? `<div class="note">${r.unresolvedCount} measurement${r.unresolvedCount === 1 ? '' : 's'} reference a wall, opening or room no longer in the plan — kept rather than discarded, since a measurement taken on site should never vanish silently.</div>`
+      : ''
+  return (
+    `<h3>As-built reconciliation</h3>${verdict}` +
+    `<table class="sched"><tr class="h"><td>Dimension</td><td class="n">Drawn</td><td class="n">Measured</td><td class="n">Deviation</td><td class="n">Tol.</td><td>Verdict</td><td>Note</td></tr>${rows}</table>` +
+    `${unresolved}<div class="note">${esc(r.scopeNote)}</div>`
+  )
 }
 
 /** Elevation sheet grouping thresholds (TODO H6 — a 4-room HDB flat produces
@@ -383,6 +696,14 @@ export function buildDrawingSheets(
   /** Append the reflected ceiling plan sheet(s) (`rcpSheet` flag, TODO H4).
    *  Default false — existing callers are unaffected. */
   showRcp = false,
+  /** The variation register (`analysis/variationRegister.ts`), assembled by the
+   *  caller from the tendered snapshot. Absent/unchanged ⇒ no sheet: a design
+   *  that has not been marked as tendered has nothing to vary FROM, and an
+   *  empty variation sheet in a handover set reads as "no changes", which is a
+   *  different and stronger claim. */
+  variation?: VariationRegister | null,
+  /** Snapshot metadata, so the sheet can name WHICH issue was priced. */
+  tendered?: { at: string; revision: string } | null,
 ): { cover: Sheet; sheets: Sheet[] } {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -399,15 +720,27 @@ export function buildDrawingSheets(
   const multi = isMultiLevel(plan)
   const cap = (base: string, level: PlanLevel) => (multi ? `${base} — ${level.name}` : base)
 
+  // Sections (G1) resolved UP FRONT: the floor-plan sheet below draws the cut
+  // marks, so the cuts must be known before it is built. Only cuts that
+  // actually produce a section are kept, so a mark never points at a sheet
+  // that was skipped for being empty.
+  // EVERY storey (F13) — `buildSection` stacks the levels and filters these
+  // per storey itself; passing only the ground floor's items drew an empty
+  // upper storey on a maisonette's section sheet.
+  const silhouettes = sectionSilhouettes(items, catalog)
+  const resolvedSections = layerOn(layers, 'section')
+    ? conventionalSectionCuts(plan)
+        .map(({ cut, mark }) => ({ cut, mark, section: buildSection(plan, cut, silhouettes) }))
+        .filter((r) => r.section.walls.length > 0)
+    : []
+  const sectionMarksDrawn = resolvedSections.map(({ cut, mark }) => ({
+    axis: cut.axis,
+    at: cut.at,
+    mark,
+  }))
+
   // A-1 · Floor plan (furnished footprints under the walls, like the report).
-  const footprintsOf = (list: FurnitureItem[]) =>
-    list
-      .map((it) => {
-        const def = catalog[it.defId]
-        if (!def?.defaultFootprint) return null
-        return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
-      })
-      .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
+  const footprintsOf = (list: FurnitureItem[]) => planFootprints(list, catalog)
   // Tile setting-out crosses (G3) only make sense alongside the finishes
   // they refer to — a note pointing at "the floor finish" with no finishes
   // sheet on the set would be a dangling reference.
@@ -435,6 +768,10 @@ export function buildDrawingSheets(
       showTileMarks,
       showOpeningMarks,
       openingMarkMap,
+      // Cut marks only on the GROUND storey: the cuts are taken through the
+      // ground-floor plan, so marking an upper storey would claim a cut
+      // position that sheet's section does not show.
+      level.id === levels[0]!.id ? sectionMarksDrawn : [],
     )
     sheets.push({
       name: cap('Floor plan', level),
@@ -456,6 +793,29 @@ export function buildDrawingSheets(
   let minorWallsOmitted = 0
   if (layerOn(layers, 'elevations')) {
     const allElevations = projectAllElevations(plan, items, catalog)
+    // Wall-tile course grid per face (v0.31.5.291). Keyed by `levelId:wallId`
+    // because wall ids are level-local geometry while an elevation carries its
+    // own storey. A wall bordering two rooms yields a face per room; the FIRST
+    // wins here, since one elevation draws one wall and the alternative is
+    // drawing two conflicting grids on the same rectangle. The full per-face
+    // detail stays on the setting-out table.
+    const coursingByFace = new Map<string, WallTileCoursing>()
+    if (finishes) {
+      for (const level of levels) {
+        const levelPlan = levelAsPlan(plan, level)
+        const wallByRoom: Record<string, string> = {}
+        for (const room of levelPlan.rooms ?? []) {
+          const wf = resolvePlanRoomWall(finishes, room)
+          if (wf) wallByRoom[room.id] = wf
+        }
+        for (const row of planWallTileCoursing(levelPlan, wallByRoom, BUILTIN_MATERIALS).rows) {
+          const key = `${level.id}:${row.wallId}`
+          if (!coursingByFace.has(key)) coursingByFace.set(key, row)
+        }
+      }
+    }
+    const coursingFor = (e: (typeof allElevations)[number]) =>
+      coursingByFace.get(`${e.levelId ?? GROUND_LEVEL_ID}:${e.wallId}`)
     const withContent = allElevations
       .map((e, i) => ({ e, i }))
       .filter(
@@ -473,7 +833,12 @@ export function buildDrawingSheets(
       const scale = planScale(e.length, e.height, template.paperSize, template.orientation)
       sheets.push({
         name: elevationCaption(e, i, units),
-        body: `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units, printMmPerM: scale.mmPerM })}</div>`,
+        body: `<div class="draw">${elevationSvg(e, {
+          palette: ELEV_PRINT,
+          units,
+          printMmPerM: scale.mmPerM,
+          ...(coursingFor(e) ? { tileCoursing: coursingFor(e)! } : {}),
+        })}</div>`,
         calloutGroup: 'elevations',
         scaleLabel: scale.label,
       })
@@ -514,7 +879,12 @@ export function buildDrawingSheets(
           `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td><td class="n">${esc(formatLength(r.height, units))}</td><td class="n">${r.intensity} cd</td></tr>`,
       )
       .join('')}</table>
-        ${roomLuxTableHtml(estimateRoomLux(plan, lighting.lights), units, { header: 'h', num: 'n', table: 'sched' })}`
+        ${roomLuxTableHtml(
+          estimateRoomLux(plan, lighting.lights),
+          units,
+          { header: 'h', num: 'n', table: 'sched' },
+          buildRoomUniformity(plan, lighting.lights, iesShapeFactor),
+        )}`
     const lit = levels.filter((l) => itemsOnLevel(lighting.lights, l.id).length > 0)
     lit.forEach((level, i) => {
       const levelPlan = levelAsPlan(plan, level)
@@ -608,7 +978,7 @@ export function buildDrawingSheets(
           settingOut: showSettingOut,
           waterproofingZones,
           floorLevels: showFloorLevels,
-        })}</div>${northIndicatorSvg(orientationDeg)}`,
+        })}</div>${skewSettingOutTable(levelPlan, showSettingOut, units)}${northIndicatorSvg(orientationDeg)}`,
         calloutGroup: 'dimensions',
         scaleLabel: scale.label,
         topDown: true,
@@ -616,14 +986,53 @@ export function buildDrawingSheets(
     }
   }
 
-  // Cross-section — a vertical cut through the middle of the plan (along Z),
-  // with ground-floor furniture in the cut's room band shown in elevation.
-  const section = buildSection(
-    plan,
-    { axis: 'z', at: plan.extent[1] / 2 },
-    sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog),
-  )
-  if (layerOn(layers, 'section') && section.walls.length > 0) {
+  // Tiling layout plan (G5 follow-up, `tileLayoutSheet` flag) — the coursing
+  // DRAWN in position rather than only tabulated on the finishes sheet. Fanned
+  // out per storey like every other plan-derived sheet, and gated to the
+  // Finishes-schedule layer being on for the same reason the G3 tile marks are:
+  // the sheet's per-room table is where the exact numbers live, so drawing the
+  // grid without it would reference a sheet that was skipped.
+  if (isFeatureEnabled('tileLayoutSheet') && finishes && layerOn(layers, 'finishes')) {
+    for (const level of levels) {
+      const levelPlan = levelAsPlan(plan, level)
+      const floorByRoom: Record<string, string> = {}
+      for (const room of levelPlan.rooms ?? []) {
+        floorByRoom[room.id] = resolvePlanRoomFloor(finishes, room)
+      }
+      const { rows, omittedRooms } = planTileCoursing(levelPlan, floorByRoom, BUILTIN_MATERIALS)
+      // No modular finish anywhere on this storey → no sheet, rather than a
+      // page of empty outlines.
+      if (rows.length === 0) continue
+      const [pw, pd] = planBounds(levelPlan)
+      const scale = planScale(pw, pd, template.paperSize, template.orientation)
+      sheets.push({
+        name: cap('Tiling layout plan', level),
+        body: `<div class="draw">${tileLayoutSvg(levelPlan, rows, {
+          palette: {
+            wall: '#374151',
+            ink: '#374151',
+            grid: '#94a3b8',
+            cut: '#60a5fa',
+            accent: '#b91c1c',
+          },
+          widthPx: 900,
+          printMmPerM: scale.mmPerM,
+          omittedRooms,
+        })}</div>${northIndicatorSvg(orientationDeg)}`,
+        calloutGroup: 'finishes',
+        scaleLabel: scale.label,
+        topDown: true,
+      })
+    }
+  }
+
+  // Sections (G1) — BOTH conventional cuts: a cross section (along Z, marked
+  // A) and a longitudinal one (along X, marked B), each positioned where it
+  // actually crosses the most rooms/walls rather than blindly mid-plan (which
+  // could land down an empty corridor). Ground-floor furniture in the cut's
+  // room band shows in elevation behind the cut. The cuts themselves are
+  // resolved further up, before the floor-plan sheet that marks them.
+  for (const { mark, section } of resolvedSections) {
     const scale = planScale(
       section.length,
       section.height,
@@ -631,7 +1040,7 @@ export function buildDrawingSheets(
       template.orientation,
     )
     sheets.push({
-      name: 'Section A–A',
+      name: `Section ${mark}–${mark}`,
       body: `<div class="draw">${sectionSvg(section, {
         palette: {
           wall: '#9ca3af',
@@ -737,7 +1146,13 @@ export function buildDrawingSheets(
     if (body) {
       sheets.push({
         name: 'Finishes schedule',
-        body,
+        // Coursing rides with the finishes it refers to — a setting-out table
+        // pointing at "the floor tile" with no finishes schedule beside it
+        // would be a dangling reference (the same rule the tile marks follow).
+        body:
+          body +
+          tileCoursingTable(plan, finishes, units) +
+          wallCoursingTable(plan, finishes, units),
         calloutGroup: 'finishes',
         scaleLabel: NTS,
       })
@@ -804,6 +1219,87 @@ export function buildDrawingSheets(
           topDown: true,
         })
       }
+    }
+  }
+
+  // Construction details (G3) — large-scale junction information, gated on the
+  // `constructionDetails` flag. Only details the model can derive are emitted.
+  if (isFeatureEnabled('constructionDetails')) {
+    const detailBody = detailSheetBody(plan, units)
+    if (detailBody) {
+      sheets.push({
+        name: 'Construction details',
+        body: detailBody,
+        calloutGroup: 'finishes',
+        scaleLabel: NTS,
+      })
+    }
+  }
+
+  // Variation register (v0.31.5.309) — what changed since the design was
+  // priced, and what it costs. A sheet rather than only the budget CSV because
+  // the drawing set is the document that gets handed over, and a variation is
+  // conventionally issued as a sheet with its own revision letter. Rides the
+  // `variationRegister` flag; no snapshot or no change ⇒ no sheet.
+  if (isFeatureEnabled('variationRegister') && variation && !variation.unchanged) {
+    const money = (v: number) =>
+      `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-SG', { maximumFractionDigits: 0 })}`
+    const rows = variation.lines
+      .map(
+        (l) =>
+          `<tr><td>${esc(l.label)}</td><td>${esc(l.kind)}</td>` +
+          `<td class="n">${l.quantityBefore} ${esc(l.unit)}</td>` +
+          `<td class="n">${l.quantityAfter} ${esc(l.unit)}</td>` +
+          `<td class="n">${money(l.subtotalBefore)}</td>` +
+          `<td class="n">${money(l.subtotalAfter)}</td>` +
+          `<td class="n">${money(l.deltaSgd)}</td></tr>`,
+      )
+      .join('')
+    sheets.push({
+      name: 'Variation register',
+      body:
+        `<div class="note">Against Rev ${esc(tendered?.revision ?? '?')}${
+          tendered?.at ? `, marked as tendered ${esc(tendered.at.slice(0, 10))}` : ''
+        }.</div>` +
+        `<table class="sched"><tr class="h"><td>Trade</td><td>Change</td>` +
+        `<td class="n">Qty tendered</td><td class="n">Qty now</td>` +
+        `<td class="n">Tendered</td><td class="n">Now</td><td class="n">Delta</td></tr>${rows}` +
+        `<tr class="h"><td colspan="6">Additions</td><td class="n">${money(variation.addedSgd)}</td></tr>` +
+        `<tr class="h"><td colspan="6">Omissions</td><td class="n">${money(variation.omittedSgd)}</td></tr>` +
+        `<tr class="h"><td colspan="6">NET VARIATION</td><td class="n">${money(variation.netSgd)}</td></tr>` +
+        `</table><div class="note">${esc(variation.note)}</div>`,
+      calloutGroup: 'finishes',
+      scaleLabel: NTS,
+    })
+  }
+
+  // As-built reconciliation — measured vs drawn. Rides the `siteMeasurements`
+  // flag; no recorded measurements ⇒ no sheet.
+  if (isFeatureEnabled('siteMeasurements')) {
+    const reconBody = reconciliationSheetBody(plan, units)
+    if (reconBody) {
+      sheets.push({
+        name: 'As-built reconciliation',
+        body: reconBody,
+        calloutGroup: 'dimensions',
+        scaleLabel: NTS,
+      })
+    }
+  }
+
+  // Specification (G7) — the written half of the handover: to what standard, on
+  // what substrate, within what tolerance, and what is excluded. Derived from
+  // the design's own finishes / wet areas / joinery / MEP points so it can never
+  // describe different work from the schedules. Rides the `specification` flag.
+  if (isFeatureEnabled('specification')) {
+    const specBody = specificationSheetBody(plan, items, catalog, finishes, units)
+    if (specBody) {
+      sheets.push({
+        name: 'Specification',
+        body: specBody,
+        calloutGroup: 'finishes',
+        scaleLabel: NTS,
+      })
     }
   }
 
@@ -961,7 +1457,6 @@ export function buildDrawingSheets(
   // Project/client identity (TODO G5) — user-editable via `drawingSetTemplate`,
   // falling back to the plan's own name so behaviour is unchanged until edited.
   const projectName = template.projectName.trim() || plan.name
-  const revision = template.revision.trim() || 'A'
 
   // Standard SG handover disclaimers (contractor-handover research, TODO G5) —
   // carried on the cover sheet only, once per set. The approval-path lines
@@ -1002,7 +1497,15 @@ export function buildDrawingSheets(
             ? `<div style="font-size:10px;color:#6b7280;margin-top:4px">— ${minorWallsOmitted} minor wall${minorWallsOmitted === 1 ? '' : 's'} omitted (no items or openings)</div>`
             : ''
         }</div>
-        <div><h3>Revisions</h3><table class="sched"><tr class="h"><td>Rev</td><td>Date</td><td>Description</td></tr><tr><td>${esc(revision)}</td><td>${esc(date)}</td><td>${esc(template.revisionNote.trim() || 'Initial issue')}</td></tr></table></div>
+        <div><h3>Revisions</h3><table class="sched"><tr class="h"><td>Rev</td><td>Date</td><td>Description</td></tr>${drawingSetRevisionRows(
+          template,
+          date,
+        )
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.letter)}</td><td>${esc(r.date)}</td><td>${esc(r.note)}</td></tr>`,
+          )
+          .join('')}</table></div>
       </div>
       <div class="notes">
         <h3>General notes</h3>
@@ -1025,6 +1528,10 @@ export interface RenderDrawingDocumentOpts {
    *  sheets passed — a per-trade pack overrides it with the MASTER set's total
    *  so its sheet numbering reads against the full set the contractor holds. */
   totalSheets?: number
+  /** Display unit system — decides the title block's "ALL DIMENSIONS IN …"
+   *  note, which states once the unit every suffix-free dimension label uses
+   *  (`utils/measurement.ts:formatDrawingLength`). Defaults to metric. */
+  units?: UnitSystem
 }
 
 /**
@@ -1043,6 +1550,7 @@ export function renderDrawingDocument(ordered: Sheet[], opts: RenderDrawingDocum
   })
   const projectName = template.projectName.trim() || plan.name
   const revision = template.revision.trim() || 'A'
+  const docUnits = opts.units ?? 'metric'
   const totalSheets = opts.totalSheets ?? ordered.length
   // Normalise callout array (empty when none provided).
   const activeCallouts = opts.callouts ?? []
@@ -1056,6 +1564,9 @@ export function renderDrawingDocument(ordered: Sheet[], opts: RenderDrawingDocum
       `Checked: ${template.checkedBy ? esc(template.checkedBy) : '________'}`,
       esc(date),
       `Scale ${esc(s.scaleLabel)}`,
+      // Dimensions are drawn suffix-free (integer mm / feet+inches to 1/8"),
+      // per `formatDrawingLength` — so the unit is stated ONCE, here.
+      esc(drawingUnitsNote(docUnits)),
       `${s.num} of ${totalSheets}`,
       `Rev ${esc(revision)}`,
     ]
@@ -1158,6 +1669,11 @@ export function buildDrawingSetHtml(
   showSettingOut = false,
   showCarpentry = false,
   showRcp = false,
+  /** Variation register + snapshot metadata, assembled by the caller from the
+   *  live store (see `openDrawingSet.ts`) — this builder is pure over its
+   *  arguments. */
+  variation?: VariationRegister | null,
+  tendered?: { at: string; revision: string } | null,
 ): string {
   const { cover, sheets } = buildDrawingSheets(
     plan,
@@ -1175,11 +1691,14 @@ export function buildDrawingSetHtml(
     showSettingOut,
     showCarpentry,
     showRcp,
+    variation,
+    tendered,
   )
   return renderDrawingDocument([cover, ...sheets], {
     plan,
     template,
     callouts,
+    units,
     docTitle: `${plan.name} — Drawing set`,
   })
 }

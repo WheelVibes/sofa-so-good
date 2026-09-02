@@ -4,6 +4,7 @@ import type { PlanLight } from './lightingPlan'
 import {
   buildLuxGrids,
   buildRoomLuxGrid,
+  buildRoomUniformity,
   DAYLIGHT_NEAR_WINDOW_LUX,
   LUX_GRID_MAX_DIM,
   MASKED,
@@ -352,5 +353,247 @@ describe('inter-room doorway bleed (R-BLEED)', () => {
       })[0]!.grids.find((g) => g.roomId === 'lv')!,
     )
     expect(open).toBeCloseTo(closed, 6)
+  })
+})
+
+describe('pointIlluminance — work plane (G4)', () => {
+  const l = { x: 0, z: 0, height: 2.6, intensity: 9 }
+
+  it('reports MORE light on a raised plane directly under the fixture', () => {
+    // Closer to the source → higher illuminance. Inverse-square, so this is
+    // the direction that proves the plane height actually reached the maths.
+    const floor = pointIlluminance(l, 0, 0, 0)
+    const worktop = pointIlluminance(l, 0, 0, 0.85)
+    expect(worktop).toBeGreaterThan(floor)
+    // And by the expected ratio: E = I·h/(h²)^1.5 = I/h² directly beneath.
+    expect(worktop / floor).toBeCloseTo((2.6 / (2.6 - 0.85)) ** 2, 3)
+  })
+
+  it('defaults to the floor plane, so existing callers are unchanged', () => {
+    expect(pointIlluminance(l, 0, 0)).toBe(pointIlluminance(l, 0, 0, 0))
+  })
+
+  it('does not divide by zero for a plane at or above the fixture', () => {
+    expect(Number.isFinite(pointIlluminance(l, 0, 0, 2.6))).toBe(true)
+    expect(Number.isFinite(pointIlluminance(l, 0, 0, 99))).toBe(true)
+  })
+})
+
+describe('RoomLuxGrid — uniformity (G4)', () => {
+  it('reports min, mean and U0 over IN-ROOM cells only', () => {
+    const plan = {
+      name: 'p',
+      extent: [4, 4],
+      ceilingHeight: 2.6,
+      walls: [],
+      openings: [],
+      rooms: [{ id: 'k', name: 'Kitchen', origin: [0, 0], width: 4, depth: 4 }],
+    } as never
+    const lights = [
+      {
+        id: 'l1',
+        type: 'x',
+        label: 'L',
+        x: 1,
+        z: 1,
+        height: 2.6,
+        intensity: 9,
+        distance: 4,
+        color: '#fff',
+      },
+    ] as never
+    const [level] = buildLuxGrids(plan, lights, 'ground', {
+      fixtureLevel: 1,
+      daylightLevel: 0,
+    })
+    const g = level!.grids[0]!
+    expect(g.meanLux).toBeGreaterThan(0)
+    expect(g.minLux).toBeGreaterThan(0)
+    expect(g.minLux).toBeLessThanOrEqual(g.meanLux)
+    expect(g.maxLux).toBeGreaterThanOrEqual(g.meanLux)
+    // U0 = Emin/Eavg, and a single off-centre downlight is NOT uniform.
+    expect(g.uniformity).toBeCloseTo(g.minLux / g.meanLux, 6)
+    expect(g.uniformity).toBeLessThan(1)
+  })
+
+  it('leaves the grid on the FLOOR by default, so the 3D overlay is unchanged', () => {
+    const g = buildLuxGrids(
+      {
+        name: 'p',
+        extent: [4, 4],
+        ceilingHeight: 2.6,
+        walls: [],
+        openings: [],
+        rooms: [{ id: 'r', name: 'Kitchen', origin: [0, 0], width: 4, depth: 4 }],
+      } as never,
+      [],
+      'ground',
+      { fixtureLevel: 1, daylightLevel: 0 },
+    )[0]!.grids[0]!
+    expect(g.planeHeight).toBe(0)
+  })
+
+  it('samples a kitchen on its worktop plane when workPlane is requested', () => {
+    // Proves the per-room work-plane resolution actually reached the grid: the
+    // same room named as a bath (floor plane) must read LOWER under the light.
+    const mk = (name: string) =>
+      buildLuxGrids(
+        {
+          name: 'p',
+          extent: [4, 4],
+          ceilingHeight: 2.6,
+          walls: [],
+          openings: [],
+          rooms: [{ id: 'r', name, origin: [0, 0], width: 4, depth: 4 }],
+        } as never,
+        [
+          {
+            id: 'l1',
+            type: 'x',
+            label: 'L',
+            x: 2,
+            z: 2,
+            height: 2.6,
+            intensity: 9,
+            distance: 4,
+            color: '#fff',
+          },
+        ] as never,
+        'ground',
+        { fixtureLevel: 1, daylightLevel: 0, workPlane: true },
+      )[0]!.grids[0]!
+    const kitchen = mk('Kitchen')
+    const bath = mk('Bath')
+    expect(kitchen.planeHeight).toBeCloseTo(0.85, 3)
+    expect(bath.planeHeight).toBe(0)
+    expect(kitchen.maxLux).toBeGreaterThan(bath.maxLux)
+  })
+
+  it('reports zeroes rather than NaN for a fully dark room', () => {
+    const [level] = buildLuxGrids(
+      {
+        name: 'p',
+        extent: [4, 4],
+        ceilingHeight: 2.6,
+        walls: [],
+        openings: [],
+        rooms: [{ id: 'r', name: 'Store', origin: [0, 0], width: 4, depth: 4 }],
+      } as never,
+      [],
+      'ground',
+      { fixtureLevel: 0, daylightLevel: 0 },
+    )
+    const g = level!.grids[0]!
+    expect(g.meanLux).toBe(0)
+    expect(g.uniformity).toBe(0)
+    expect(Number.isNaN(g.uniformity)).toBe(false)
+  })
+})
+
+describe('pointIlluminance — IES distribution shape (G4)', () => {
+  const bulb = { x: 0, z: 0, height: 2.6, intensity: 9 }
+  const spot = { ...bulb, iesProfile: 'narrow' }
+
+  /** A 20-degree half-angle cone: full intensity to 20 deg, nothing beyond. */
+  const cone: (id: string, angleDeg: number) => number = (_id, angleDeg) => (angleDeg <= 20 ? 1 : 0)
+
+  it('is byte-identical to isotropic when the fixture has NO profile', () => {
+    expect(pointIlluminance(bulb, 1, 0, 0, cone)).toBe(pointIlluminance(bulb, 1, 0, 0))
+  })
+
+  it('is byte-identical when a profile is set but no resolver is supplied', () => {
+    expect(pointIlluminance(spot, 1, 0, 0)).toBe(pointIlluminance(bulb, 1, 0, 0))
+  })
+
+  it('distinguishes a narrow beam from a bare bulb — the whole point of G4', () => {
+    // Directly beneath (0 deg) both are full intensity...
+    expect(pointIlluminance(spot, 0, 0, 0, cone)).toBeCloseTo(pointIlluminance(bulb, 0, 0, 0), 9)
+    // ...but 2 m off-axis from a 2.6 m ceiling is ~37.6 deg, outside the cone,
+    // so the spot contributes nothing while the bare bulb still does.
+    expect(pointIlluminance(spot, 2, 0, 0, cone)).toBe(0)
+    expect(pointIlluminance(bulb, 2, 0, 0)).toBeGreaterThan(0)
+  })
+
+  it('passes the true vertical angle from nadir to the resolver', () => {
+    const seen: number[] = []
+    pointIlluminance(spot, 2.6, 0, 0, (_id, a) => {
+      seen.push(a)
+      return 1
+    })
+    // A horizontal offset equal to the mounting height is exactly 45 deg.
+    expect(seen[0]).toBeCloseTo(45, 6)
+  })
+
+  it('measures the angle from the WORK PLANE, not the floor', () => {
+    const seen: number[] = []
+    pointIlluminance(spot, 1.75, 0, 0.85, (_id, a) => {
+      seen.push(a)
+      return 1
+    })
+    // Drop is 2.6 - 0.85 = 1.75 m, so a 1.75 m offset is again 45 deg.
+    expect(seen[0]).toBeCloseTo(45, 6)
+  })
+
+  it('ignores a non-finite or negative factor rather than producing NaN', () => {
+    expect(Number.isFinite(pointIlluminance(spot, 1, 0, 0, () => Number.NaN))).toBe(true)
+    expect(Number.isFinite(pointIlluminance(spot, 1, 0, 0, () => -1))).toBe(true)
+  })
+
+  it('scales linearly with the shape factor', () => {
+    const full = pointIlluminance(spot, 1, 0, 0, () => 1)
+    const half = pointIlluminance(spot, 1, 0, 0, () => 0.5)
+    expect(half).toBeCloseTo(full / 2, 9)
+  })
+})
+
+describe('buildRoomUniformity (G4)', () => {
+  const mkPlan = (name: string) =>
+    ({
+      name: 'p',
+      extent: [4, 4],
+      ceilingHeight: 2.6,
+      walls: [],
+      openings: [],
+      rooms: [{ id: 'r', name, origin: [0, 0], width: 4, depth: 4 }],
+    }) as never
+
+  const light = [
+    {
+      id: 'l1',
+      type: 'x',
+      label: 'L',
+      x: 1,
+      z: 1,
+      height: 2.6,
+      intensity: 9,
+      distance: 4,
+      color: '#fff',
+    },
+  ] as never
+
+  it("reports U0 against the room kind's minimum", () => {
+    const u = buildRoomUniformity(mkPlan('Kitchen'), light)
+    const r = u.get('r')!
+    expect(r).toBeDefined()
+    expect(r.minU0).toBeCloseTo(0.6, 6) // kitchen = task area
+    expect(r.u0).toBeGreaterThan(0)
+    expect(r.u0).toBeLessThanOrEqual(1)
+  })
+
+  it('uses the lower general minimum for a non-task room', () => {
+    expect(buildRoomUniformity(mkPlan('Living'), light).get('r')!.minU0).toBeCloseTo(0.4, 6)
+  })
+
+  it('samples the DESIGN condition — work plane, fixtures full, no daylight', () => {
+    // A kitchen's work plane is its worktop, which is what a lux target applies
+    // to; proving it here stops the assessment silently reverting to the floor.
+    expect(buildRoomUniformity(mkPlan('Kitchen'), light).get('r')!.planeHeight).toBeCloseTo(0.85, 6)
+  })
+
+  it('does not FAIL a fully dark room on uniformity', () => {
+    // A dark room has no meaningful uniformity; the room-average status already
+    // reports it as `low`, so failing it twice would be noise.
+    const u = buildRoomUniformity(mkPlan('Kitchen'), [] as never).get('r')!
+    expect(u.pass).toBe(true)
   })
 })

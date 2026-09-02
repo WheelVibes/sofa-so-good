@@ -22,6 +22,7 @@
  */
 import { APARTMENT_EXT_D, APARTMENT_EXT_W, ROOMS } from '../../apartment/constants'
 import { roomBounds } from '../../apartment/roomGeometry'
+import { allPlanRooms } from '../../floorplan/levels'
 import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { type FloorPlan, type PlanRoom, planBounds, roomPolygon } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
@@ -82,7 +83,8 @@ function roomRectsForPlan(plan: FloorPlan): RoomRect[] {
         }
       })
   }
-  return plan.rooms.map((r) => {
+  // EVERY storey (F13) — suggested views skipped every upstairs room.
+  return allPlanRooms(plan).map((r) => {
     const [minX, minZ, maxX, maxZ] = planRoomBounds(r)
     return { id: r.id, name: r.name, ox: minX, oz: minZ, width: maxX - minX, depth: maxZ - minZ }
   })

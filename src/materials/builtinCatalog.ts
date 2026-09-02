@@ -9,7 +9,13 @@
  */
 
 import type { RoomId } from '../apartment/types'
-import type { MaterialCategory, MaterialDef, MaterialId, ProceduralPattern } from './types'
+import type {
+  FloorBuildUp,
+  MaterialCategory,
+  MaterialDef,
+  MaterialId,
+  ProceduralPattern,
+} from './types'
 
 /**
  * Metres per tile for the ORANGE-PEEL PLASTER normal (PLASTER-STRETCH,
@@ -37,6 +43,105 @@ import type { MaterialCategory, MaterialDef, MaterialId, ProceduralPattern } fro
  */
 export const PLASTER_UV_SCALE: [number, number] = [0.6, 0.6]
 
+/**
+ * SPECIFIED floor modules (mm) — `moduleMm`, consumed by
+ * `floorplan/tileCoursing.ts` for the tile setting-out table and the tiling
+ * layout plan sheet.
+ *
+ * **Why these and only these.** Before v0.31.5.288 no FLOOR material carried a
+ * module at all — only three wall tiles did — so `planTileCoursing`, which reads
+ * FLOOR finishes, could never produce a single row. The setting-out table has
+ * been rendering empty since it shipped, and the layout sheet would have too:
+ * the feature was complete except for the data it needs.
+ *
+ * A module is a PRODUCT DIMENSION and is never inferred from `uvScale` (see
+ * `MaterialDef.moduleMm` and `tileCoursing.ts`'s header — the rendered tile size
+ * is `uvScale ÷ the painter's internal grid count`, a texture-authoring
+ * constant). So a module is set ONLY where a real, citeable SG format exists:
+ *
+ *  - **600 × 600 porcelain** — the dominant Singapore whole-home and HDB
+ *    bathroom format ("most homeowners now opt for porcelain in formats of
+ *    600 mm by 600 mm or larger"; "60x60 cm matte porcelain … the best balance
+ *    of durability, slip resistance and visual space in Singapore's humidity").
+ *  - **300 × 1200 vinyl plank** — the SG planked-vinyl format ("vinyl tiles come
+ *    in two sizes … 30x120 cm, the latter reserved entirely for planked
+ *    flooring").
+ *
+ * Deliberately left WITHOUT a module, because guessing one would put a fake
+ * dimension on a contractor's drawing:
+ *  - hexagon tiles — the coursing model is rectangular; a hex field is not a
+ *    rectangular module and would be silently wrong, not merely imprecise;
+ *  - marble, terrazzo — slab/in-situ, sizes vary per supplier or are poured;
+ *  - timber planks, parquet, herringbone, checker — pattern-dependent, and the
+ *    sources found gave no firm SG standard plank size;
+ *  - concrete, screed, carpet — not modular at all.
+ *
+ * A room whose finish has no module is REPORTED as omitted by
+ * `planTileCoursing`, never silently dropped, so the gaps stay visible.
+ *
+ * Sources: homeanddecor.com.sg "Big or Small Tiles"; thedesignfactory.studio
+ * "HDB Bathroom Tiles Singapore (2026)"; tsd.sg "Floor Tiles in Singapore";
+ * weiken.com "A Complete Guide To Floor Tiles In Singapore".
+ */
+const PORCELAIN_600: [number, number] = [600, 600]
+/** SG planked-vinyl format (300 x 1200 mm). */
+const VINYL_PLANK: [number, number] = [300, 1200]
+
+/**
+ * SPECIFIED floor build-up by pattern family (mm) — see `MaterialDef.buildUp`.
+ *
+ * Applied inside `floor()` so every finish in a covered family carries it BY
+ * CONSTRUCTION, the same design as `EMULSION_COVERAGE` inside `wall()`. A
+ * per-item list of 37 finishes drifts; a family map cannot.
+ *
+ * Where a source gives a range these take the THICKER end, because the figures
+ * feed the HDB 50 mm limit: understating a build-up clears a floor that fails
+ * on site. Reasoning and sources in
+ * `docs/research/2026-09-03-floor-build-up.md`.
+ *
+ * **Families deliberately absent** — `carpet` and `terrazzo`. I found no
+ * citable figure for either (SG terrazzo is usually the original poured or
+ * precast floor, not a 15 mm tile), and `analysis/floorBuildUp.ts` reports an
+ * unassessed room rather than assuming one. `concrete` maps to ZERO, which is
+ * a real answer and not a missing one: bare screed and bare concrete ARE the
+ * substrate the other build-ups sit on.
+ */
+const BUILD_UP_BY_PATTERN: Partial<Record<ProceduralPattern, FloorBuildUp>> = {
+  // 10 mm is "a common choice for floor applications"; 5 mm is the max bed
+  // depth quoted for a tile up to 600x600. The regulation's own arithmetic
+  // agrees at the thin end — 10 mm tile + 3 mm adhesive is exactly the 13 mm
+  // overlay limit — so 5 mm is the bedded-on-screed figure, not the overlay one.
+  tile: { finishMm: 10, beddingMm: 5, note: '10 mm tile body on a 5 mm adhesive bed' },
+  // Engineered timber runs 6-12 mm; 12 mm is the thicker end, plus a 3 mm
+  // acoustic underlay, which HDB effectively requires for a floating floor.
+  wood: { finishMm: 12, beddingMm: 3, note: '12 mm engineered board on 3 mm underlay' },
+  // Home LVT/LVP is "4 mm to 6 mm for the best balance"; 6 mm is the thicker
+  // end of that band, on a 1 mm underlay.
+  vinyl: { finishMm: 6, beddingMm: 1, note: '6 mm LVT on 1 mm underlay' },
+  // Bare substrate — a real zero, not an unknown.
+  concrete: { finishMm: 0, beddingMm: 0, note: 'bare substrate — nothing laid over it' },
+}
+/** Patterns that are tile products, so they share the tile build-up. */
+const TILE_PATTERNS: readonly ProceduralPattern[] = [
+  'tile',
+  'porcelain',
+  'stoneTile',
+  'porcelainStone',
+  'marble',
+  'hexagon',
+  'subway',
+  'checker',
+  'peranakan',
+]
+/** Patterns that are timber-board products. */
+const WOOD_PATTERNS: readonly ProceduralPattern[] = ['wood', 'parquet', 'herringbone']
+
+function buildUpForPattern(pattern: ProceduralPattern): FloorBuildUp | undefined {
+  if (TILE_PATTERNS.includes(pattern)) return BUILD_UP_BY_PATTERN.tile
+  if (WOOD_PATTERNS.includes(pattern)) return BUILD_UP_BY_PATTERN.wood
+  return BUILD_UP_BY_PATTERN[pattern]
+}
+
 function floor(
   id: string,
   name: string,
@@ -44,12 +149,52 @@ function floor(
   pattern: ProceduralPattern,
   uvScale: [number, number],
   sourceUrl?: string,
+  /** SPECIFIED module in mm for a modular finish — see `MaterialDef.moduleMm`.
+   *  A product dimension, NOT derived from `uvScale`. */
+  moduleMm?: [number, number],
 ): MaterialDef {
-  return { id, name, category: 'floor', kind: 'procedural', pattern, swatch, uvScale, sourceUrl }
+  return {
+    id,
+    name,
+    category: 'floor',
+    kind: 'procedural',
+    pattern,
+    swatch,
+    uvScale,
+    sourceUrl,
+    ...(moduleMm ? { moduleMm } : {}),
+    ...(buildUpForPattern(pattern) ? { buildUp: buildUpForPattern(pattern) } : {}),
+  }
 }
 
 /** Painted plaster wall in an arbitrary colour (shares the plaster normal,
  *  tinted by `swatch`) — used to widen the curated wall palette. */
+/**
+ * SPECIFIED coverage for the painted-plaster finishes below, consumed by
+ * `analysis/paintQuantities.ts`.
+ *
+ * **12 m²/L per coat, 2 coats.** Standard interior emulsion covers 12-14 m²/L
+ * per coat on a smooth, primed or previously-painted surface, and two topcoats
+ * is the standard assumption for full opacity. The LOWER end of the band is
+ * taken deliberately: a paint quantity that runs short mid-wall costs a second
+ * trip and a possible batch mismatch, while over-ordering slightly costs a part
+ * tin. (Note the direction is opposite to `deliveryAccess.ts`, which takes the
+ * TIGHTER aperture — in both cases the choice is the one whose error is
+ * cheaper, which is not the same as "always the smaller number".)
+ *
+ * Bare/new-plaster coverage and the sealer coat are properties of the SUBSTRATE
+ * rather than of the product, so they live in `paintQuantities.ts` instead of
+ * being repeated on all 19 paints here.
+ *
+ * Applied inside this helper rather than per entry, so every painted finish
+ * carries it by construction — the `.288` failure mode (a feature complete
+ * except for unauthored data) cannot recur for paints added later.
+ *
+ * Sources: sleeplesstradesman.com "Paint Coverage Calculator UK"; squote.app
+ * "Paint Coverage Calculator"; dulux.com.au paint calculator (2 coats).
+ */
+const EMULSION_COVERAGE = { spreadingRateM2PerL: 12, coats: 2 } as const
+
 function wall(id: string, name: string, swatch: string): MaterialDef {
   return {
     id,
@@ -59,6 +204,7 @@ function wall(id: string, name: string, swatch: string): MaterialDef {
     pattern: 'plaster',
     swatch,
     uvScale: PLASTER_UV_SCALE,
+    paint: EMULSION_COVERAGE,
   }
 }
 
@@ -82,10 +228,26 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-screed': floor('floor-screed', 'Cement screed (bare)', '#a7a29a', 'concrete', [3.2, 3.2]),
   'floor-wood-oak': floor('floor-wood-oak', 'Oak planks', '#b88f5d', 'wood', [1.9, 1.2]),
   'floor-wood-walnut': floor('floor-wood-walnut', 'Walnut planks', '#6b4428', 'wood', [1.9, 1.2]),
-  'floor-tile-white': floor('floor-tile-white', 'White tiles', '#e6e3dc', 'tile', [0.6, 0.6]),
+  'floor-tile-white': floor(
+    'floor-tile-white',
+    'White tiles',
+    '#e6e3dc',
+    'tile',
+    [0.6, 0.6],
+    undefined,
+    PORCELAIN_600,
+  ),
   'floor-tile-marble': floor('floor-tile-marble', 'Marble', '#dcd6c8', 'marble', [1.6, 1.6]),
   'floor-carpet-grey': floor('floor-carpet-grey', 'Grey carpet', '#7a7c7e', 'carpet', [1.5, 1.5]),
-  'floor-vinyl-light': floor('floor-vinyl-light', 'Light vinyl', '#c9b99c', 'vinyl', [1.4, 0.9]),
+  'floor-vinyl-light': floor(
+    'floor-vinyl-light',
+    'Light vinyl',
+    '#c9b99c',
+    'vinyl',
+    [1.4, 0.9],
+    undefined,
+    VINYL_PLANK,
+  ),
   'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
   // Honeycomb hex tile — a kitchen/bath staple (Coohom/Planner-5D parity).
   'floor-tile-hex': floor('floor-tile-hex', 'Hexagon tiles', '#e4e0d6', 'hexagon', [0.5, 0.5]),
@@ -97,18 +259,36 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     [0.5, 0.5],
   ),
   // Large-format porcelain — ubiquitous in modern HDB renovations.
-  'floor-tile-grey': floor('floor-tile-grey', 'Grey porcelain', '#b9b9b6', 'tile', [0.8, 0.8]),
+  'floor-tile-grey': floor(
+    'floor-tile-grey',
+    'Grey porcelain',
+    '#b9b9b6',
+    'tile',
+    [0.8, 0.8],
+    undefined,
+    PORCELAIN_600,
+  ),
   'floor-tile-charcoal': floor(
     'floor-tile-charcoal',
     'Charcoal porcelain',
     '#4c4e52',
     'tile',
     [0.8, 0.8],
+    undefined,
+    PORCELAIN_600,
   ),
   'floor-wood-teak': floor('floor-wood-teak', 'Teak planks', '#9a6b3f', 'wood', [1.9, 1.2]),
   'floor-wood-ash': floor('floor-wood-ash', 'Pale ash planks', '#cdb696', 'wood', [1.9, 1.2]),
   'floor-wood-ebony': floor('floor-wood-ebony', 'Ebony planks', '#43342a', 'wood', [1.9, 1.2]),
-  'floor-tile-sand': floor('floor-tile-sand', 'Sand porcelain', '#cdbfa6', 'tile', [0.8, 0.8]),
+  'floor-tile-sand': floor(
+    'floor-tile-sand',
+    'Sand porcelain',
+    '#cdbfa6',
+    'tile',
+    [0.8, 0.8],
+    undefined,
+    PORCELAIN_600,
+  ),
   'floor-wood-merbau': floor('floor-wood-merbau', 'Merbau', '#7a3f2a', 'wood', [1.9, 1.2]),
   'floor-wood-maple': floor('floor-wood-maple', 'Maple', '#d8c19a', 'wood', [1.9, 1.2]),
   // Basketweave parquet — one block ≈ 0.5 m, so it tiles at 0.5 m.
@@ -242,6 +422,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#cfb38e',
     'stoneTile',
     [1.2, 1.2],
+    undefined,
+    [600, 600],
   ),
   // Same SNV stone print at 300×300 — the household-shelter / service-yard
   // floor per the sample board ("Kitchen 600×600; Household Shelter/Service
@@ -252,6 +434,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#cfb38e',
     'stoneTile',
     [0.6, 0.6],
+    undefined,
+    [300, 300],
   ),
   // Mottled grey-green glazed porcelain, 300×600 — bathroom floor. SNV-BOARDS:
   // the `porcelainStone` painter (honed mottled stone print, running bond,
@@ -264,6 +448,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#a69e83',
     'porcelainStone',
     [1.2, 1.2],
+    undefined,
+    [300, 600],
   ),
 
   // ── Walls ───────────────────────────────────────────────────────────────
@@ -439,6 +625,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'porcelain',
     swatch: '#eddfc4',
     uvScale: [1.2, 1.2],
+    moduleMm: [300, 600],
   },
   'wall-tile-grey': {
     id: 'wall-tile-grey',
@@ -448,6 +635,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'porcelain',
     swatch: '#c9cac6',
     uvScale: [1.2, 1.2],
+    moduleMm: [300, 600],
   },
   // Fluted / reeded feature-wall panels (close-packed rounded ribs).
   'wall-fluted-oak': {

@@ -85,6 +85,7 @@ export function ToolsMenu() {
   const fSun = useFeature('sunStudy')
   const fStyleTransfer = useFeature('styleTransfer')
   const fStyleQuiz = useFeature('styleQuiz')
+  const fSchemeOptions = useFeature('schemeOptions')
   const fDrawingCallouts = useFeature('drawingCallouts')
 
   // Analyse + Review rows come from the shared registry so this menu, the mobile
@@ -154,6 +155,14 @@ export function ToolsMenu() {
           sub="Find your interior style in a few taps"
           newFlag="styleQuiz"
           onClick={() => useStore.getState().setStyleQuizOpen(true)}
+        />
+      )}
+      {fSchemeOptions && (
+        <MenuItem
+          icon="Presets"
+          label="Compare schemes…"
+          sub="Generate alternative designs and pick one"
+          onClick={() => useStore.getState().setSchemeOptionsOpen(true)}
         />
       )}
       {fStyleTransfer && (

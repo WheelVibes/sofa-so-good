@@ -22,7 +22,7 @@
  * Self-contained: imports only `./autoDimension`, `./settingOut` and `./types`.
  */
 
-import { formatLength, type UnitSystem } from '../utils/measurement'
+import { formatDrawingLength, type UnitSystem } from '../utils/measurement'
 import { buildDimensions, type Dimension } from './autoDimension'
 import { buildFloorTransitions, buildRoomFflTags } from './floorLevels'
 import { type SettingOutFace, settingOutDimensions } from './settingOut'
@@ -192,6 +192,17 @@ function settingOutMarkup(
       `<line x1="${n(dx)}" y1="${n(dy - DATUM_R)}" x2="${n(dx)}" y2="${n(dy + DATUM_R)}" stroke="${esc(color)}" stroke-width="1.5"/>` +
       `<path d="M ${n(dx)} ${n(dy + DATUM_R + 2)} L ${n(dx - 5)} ${n(dy + DATUM_R + 10)} L ${n(dx + 5)} ${n(dy + DATUM_R + 10)} Z" fill="${esc(color)}"/>` +
       `<text x="${n(dx)}" y="${n(dy + DATUM_R + 24)}" font-size="${FONT}" font-weight="700" text-anchor="middle" fill="${esc(color)}">SETTING-OUT DATUM</text>` +
+      // G2 disclosure: the running rows dimension axis-aligned wall FACES only,
+      // so a diagonal or curved wall carries NO running dimension — it is set
+      // out by co-ordinates instead. Say so on the drawing rather than letting
+      // a reader assume the running rows are complete; the same honest-
+      // disclosure convention the elevation sheets already use for omitted
+      // walls. A tag at each skew wall ties it to the co-ordinate table.
+      (set.skew.length > 0
+        ? `<text x="${n(dx)}" y="${n(dy + DATUM_R + 38)}" font-size="${FONT - 2}" text-anchor="middle" fill="${esc(color)}">${esc(
+            `${set.skew.length} skew/curved wall${set.skew.length === 1 ? '' : 's'}: no running dim — set out by co-ordinates`,
+          )}</text>`
+        : '') +
       `</g>`,
   )
 
@@ -226,7 +237,7 @@ function settingOutRow(
     parts.push(
       `<line x1="${n(Math.min(...xs))}" y1="${n(rowY)}" x2="${n(Math.max(...xs))}" y2="${n(rowY)}" stroke="${esc(color)}" stroke-width="1" stroke-dasharray="4 3"/>`,
     )
-    const labels = ['0', ...faces.map((f) => formatLength(f.distance, units))]
+    const labels = ['0', ...faces.map((f) => formatDrawingLength(f.distance, units))]
     const rows = staggerLabelRows(xs, labels)
     xs.forEach((cx, i) => {
       parts.push(vTickLabel(cx, rowY, labels[i]!, color, rows[i]!))
@@ -237,7 +248,7 @@ function settingOutRow(
     parts.push(
       `<line x1="${n(rowX)}" y1="${n(Math.min(...ys))}" x2="${n(rowX)}" y2="${n(Math.max(...ys))}" stroke="${esc(color)}" stroke-width="1" stroke-dasharray="4 3"/>`,
     )
-    const labels = ['0', ...faces.map((f) => formatLength(f.distance, units))]
+    const labels = ['0', ...faces.map((f) => formatDrawingLength(f.distance, units))]
     const rows = staggerLabelRows(ys, labels)
     ys.forEach((cy, i) => {
       parts.push(hTickLabel(rowX, cy, labels[i]!, color, rows[i]!))

@@ -5,19 +5,25 @@
  */
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
+import { buildCoordinationClashes } from '../analysis/coordinationClashes'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
+import { buildDeliveryAccess } from '../analysis/deliveryAccess'
 import { buildDesignScore } from '../analysis/designScore'
 import {
   buildDesignedElectricalSchedule,
   buildElectricalSchedule,
 } from '../analysis/electricalSchedule'
+import { buildFloorBuildUpReport } from '../analysis/floorBuildUp'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
+import { buildLampSpecAdvisory } from '../analysis/lampSpecAdvisory'
+import { buildLayoutCritique } from '../analysis/layoutCritique'
 import {
   buildOpeningSchedule,
   openingRoomsLabel,
   openingStyleMaterialLabel,
 } from '../analysis/openingSchedule'
+import { buildPaletteDiscipline } from '../analysis/paletteDiscipline'
 import { buildPetCompliance, PET_TYPE_LABEL, type PetType } from '../analysis/petCompliance'
 import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
@@ -27,8 +33,7 @@ import { buildSuggestions } from '../analysis/suggestions'
 import { buildThermalReport, thermalKindLabel } from '../analysis/thermalAnalysis'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
-import { obbCorners } from '../collision/obb'
-import { findItemOverlaps, itemFootprint } from '../collision/placement'
+import { findItemOverlaps } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { isFeatureEnabled } from '../features/featureFlags'
@@ -40,22 +45,27 @@ import { buildFinishSchedule } from '../floorplan/finishSchedule'
 import {
   allPlanRooms,
   isMultiLevel,
+  itemsInRoom,
   itemsOnLevel,
   levelAsPlan,
   planLevels,
+  roomAtItem,
 } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
-import { buildSection } from '../floorplan/section'
+import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
-import { planRoomArea, pointInRoom } from '../floorplan/types'
+import { planRoomArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
+import { LIGHT_EMITTERS, resolveLampSpec } from '../furniture/lightEmitters'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps } from '../layout/walkway'
+import { iesShapeFactor } from '../lighting/ies/iesShape'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
+import { buildRoomUniformity } from '../lighting2d/luxGrid'
 import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -65,6 +75,7 @@ import { elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
 import { finishScheduleHtml } from './finishScheduleHtml'
 import { lightingPlanSvg, roomLuxTableHtml } from './lighting2d/lightingPlanSvg'
+import { planFootprints } from './planFootprints'
 import {
   CAT_LABEL,
   ELEV_PRINT,
@@ -140,6 +151,30 @@ export function buildReportHtml(
     ? buildFinishSchedule(plan, finishes, (id) => BUILTIN_MATERIALS[id]?.name ?? id)
     : null
   const finishScheduleBody = finishSchedule ? finishScheduleHtml(finishSchedule, units) : ''
+  // Material-palette restraint (v0.31.5.312) — printed with the finish schedule
+  // on purpose: the reader is already looking at the list of finishes, so
+  // "these three cover 4% between them" lands where the codes are visible.
+  // An observation, not a score: it is deliberately NOT a `designScore`
+  // criterion, because adding one silently re-scores every existing design.
+  const paletteReport =
+    finishSchedule && isFeatureEnabled('paletteDiscipline')
+      ? buildPaletteDiscipline(finishSchedule.totals)
+      : null
+  const paletteBody = paletteReport?.hasFinding
+    ? `<div class="foot" style="margin-top:8px"><strong>Palette restraint.</strong> ${(
+        [paletteReport.floor, paletteReport.wall] as const
+      )
+        .filter((k) => k.overSweetSpot)
+        .map(
+          (k) =>
+            `${k.count} distinct ${k.kind} finishes${
+              k.overwhelming ? ' — enough to read as visual noise' : ''
+            }. Smallest ${k.consolidationCandidates.length} (${k.consolidationCandidates
+              .map((c) => esc(c.code))
+              .join(', ')}) cover ${k.candidateSharePct}% of the ${k.kind} area between them.`,
+        )
+        .join(' ')} ${esc(paletteReport.note)}</div>`
+    : ''
   // Per-finish floor + wall areas (GROSS — the safe over-order estimate) —
   // feeds the renovation cost estimate below (computed once). Distinct from
   // the finish schedule's NET-of-openings quantities above.
@@ -286,15 +321,8 @@ export function buildReportHtml(
 
   // Furniture footprints (top-down OBB corners) for the plan diagram, so the
   // report's floor plan shows a furnished layout — "where everything goes".
-  const footprintsOf = (list: FurnitureItem[]) =>
-    list
-      .map((it) => {
-        const def = catalog[it.defId]
-        // Guard defaultFootprint: a malformed def shouldn't crash the whole report.
-        if (!def?.defaultFootprint) return null
-        return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
-      })
-      .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
+  // Shape-aware parts, guarding malformed defs (see `planFootprints`).
+  const footprintsOf = (list: FurnitureItem[]) => planFootprints(list, catalog)
   // One captioned diagram per storey on multi-level plans (items filtered to
   // their storey; pinned annotations are ground-floor world coords).
   const planFigures = multi
@@ -446,11 +474,16 @@ export function buildReportHtml(
   // (mirroring DesignScorePanel), then run through the rule set. Rides the existing
   // `report` flag (additive section, no new analysis code). Skipped when the rules
   // produce nothing (e.g. a bare shell with no habitable rooms, or a fully-kitted home).
-  const suggestionRooms = plan.rooms.map((r) => {
+  // EVERY storey (F13), matched with `itemsInRoom` so a piece counts toward the
+  // room on its OWN floor. v0.31.5.284 fixed exactly this in `DesignScorePanel`
+  // — and this block says "mirroring DesignScorePanel", which it then stopped
+  // doing. Found by auditing my own .277-.284 claims after .293 turned up a
+  // path .281 had missed.
+  const suggestionRooms = allPlanRooms(plan).map((r) => {
     const cats = new Set<string>()
-    for (const it of items) {
+    for (const it of itemsInRoom(plan, items, r.id)) {
       const def = catalog[it.defId]
-      if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
+      if (def) cats.add(def.category)
     }
     return {
       id: r.id,
@@ -471,6 +504,95 @@ export function buildReportHtml(
     else sugByRoom.set(s.roomId, [s])
   }
   const sugColor = (sev: string) => (sev === 'tip' ? '#b45309' : '#6b7280')
+  // Layout critique for THIS design (v0.31.5.314). The module has shipped for a
+  // while and was consumed only by `schemeOptions`, so its cited thresholds
+  // assessed generated alternatives and never the user's own home. Fail/warn
+  // findings first — a list that opens with four passes buries the one problem.
+  const critique =
+    hasItems && isFeatureEnabled('layoutCritiqueReport')
+      ? buildLayoutCritique(plan, items, catalog)
+      : null
+  // Floor build-up + the HDB thickness limits (v0.31.6.2). The wet-room fall and
+  // the declared-vs-derived mismatch lead, because both are errors; the per-room
+  // table is reference. Gated on finishes being supplied at all — without them
+  // there is nothing to derive a level from.
+  const buildUp =
+    finishes && isFeatureEnabled('floorBuildUp')
+      ? buildFloorBuildUpReport(plan, floorOf ?? {}, BUILTIN_MATERIALS)
+      : null
+  const buildUpSection =
+    buildUp && buildUp.rows.length > 0
+      ? `<div class="room-cost prose"><h2>Floor build-up &amp; levels</h2>
+      <div class="foot" style="margin-bottom:6px">Derived from each room's specified floor finish — the finish's own thickness plus its bedding. Assessed against the HDB ${buildUp.limitMm} mm limit (${
+        buildUp.overlay
+          ? 'new tiles plus adhesive over one existing layer'
+          : 'floor finish plus screed'
+      }).${
+        buildUp.unassessedRooms.length > 0
+          ? ` ${buildUp.unassessedRooms.length} room${buildUp.unassessedRooms.length === 1 ? '' : 's'} not assessed (no specified build-up): ${esc(buildUp.unassessedRooms.join(', '))}.`
+          : ''
+      }</div>${
+        buildUp.wetRoomsFallingOutward.length > 0
+          ? `<div class="warn">Wet room floor falls OUT toward a dry room:</div><table>${buildUp.wetRoomsFallingOutward
+              .map(
+                (w) =>
+                  `<tr><td>${esc(w.wetRoomName)}</td><td>sits ${w.aboveByMm} mm above ${esc(w.dryRoomName)} — set it level or lower, or detail a kerb at the threshold</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        buildUp.overLimit.length > 0
+          ? `<div class="warn">Over the ${buildUp.limitMm} mm HDB limit — verify with HDB before ordering:</div><table>${buildUp.overLimit
+              .map(
+                (r) =>
+                  `<tr><td>${esc(r.roomName)}</td><td>${esc(r.materialName)} — ${r.totalMm} mm (${r.finishMm} + ${r.beddingMm})</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        buildUp.declaredMismatches.length > 0
+          ? `<div class="warn">Hand-entered FFL contradicts the specified finishes:</div><table>${buildUp.declaredMismatches
+              .map(
+                (m) =>
+                  `<tr><td>${esc(m.roomName)}</td><td>tagged FFL ${m.declaredMm > 0 ? '+' : ''}${m.declaredMm} mm, but its finish implies +${m.derivedMm} mm</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }
+      <table><tr class="cat"><td>Room</td><td>Floor finish</td><td class="num">Build-up</td><td class="num">FFL</td></tr>${buildUp.rows
+        .map(
+          (r) =>
+            `<tr><td>${esc(r.roomName)}</td><td>${esc(r.materialName)}</td><td class="num">${r.totalMm} mm</td><td class="num">+${r.derivedFflMm} mm</td></tr>`,
+        )
+        .join('')}</table>${
+        buildUp.steps.length > 0
+          ? `<div class="foot" style="margin-top:6px">Doorway steps needing a threshold detail: ${buildUp.steps
+              .map(
+                (s) =>
+                  `${esc(s.roomAName)}/${esc(s.roomBName)} ${s.stepMm} mm (${esc(s.higherRoomName)} higher)`,
+              )
+              .join(' · ')}</div>`
+          : ''
+      }<div class="foot" style="margin-top:4px">FFL is relative to the thinnest build-up in the home — a threshold is dimensioned from the step, not from the slab. Verify existing finish thicknesses on site.</div></div>`
+      : ''
+
+  const critiqueSection =
+    critique && critique.applied > 0
+      ? `<div class="room-cost prose prose-last"><h2>Layout critique</h2>
+      <div class="foot" style="margin-bottom:6px">Layout quality ${critique.score} over ${critique.applied} applicable check${critique.applied === 1 ? '' : 's'} — measured against published comfort bands, skipping checks the design has no pieces for.</div>
+      <table><tr class="cat"><td>Check</td><td>Room</td><td>Verdict</td><td>Measured</td></tr>${critique.findings
+        .filter((f) => f.verdict !== 'skipped')
+        .sort((a, b) => {
+          const rank = (v: string) => (v === 'fail' ? 0 : v === 'warn' ? 1 : 2)
+          return rank(a.verdict) - rank(b.verdict)
+        })
+        .map(
+          (f) =>
+            `<tr><td>${esc(f.label)}</td><td>${esc(f.roomName ?? '—')}</td><td>${esc(f.verdict)}</td><td>${esc(f.detail)}</td></tr>`,
+        )
+        .join('')}</table></div>`
+      : ''
+
   const suggestionsSection =
     suggestions.length === 0
       ? ''
@@ -498,6 +620,71 @@ export function buildReportHtml(
     const it = plan.openings?.find((o) => o.id === id)
     return it ? `Door (${formatLength(it.width, units)})` : id
   }
+  // Delivery access — can each piece physically reach the room? A designer
+  // checks this before anything is ordered; a sofa that fits the room and not
+  // the lift door is a real and common failure.
+  const access = isFeatureEnabled('deliveryAccess') ? buildDeliveryAccess(items, catalog) : null
+  const accessSection =
+    !access || access.checked === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Delivery access</h2>
+      <div class="${access.allClear ? 'ok' : 'warn'}">
+        ${
+          access.allClear
+            ? `All ${access.checked} distinct pieces can be carried in assembled on the assumed route.`
+            : `${access.findings.length} of ${access.checked} pieces cannot be carried in assembled.`
+        }
+      </div>
+      ${
+        access.findings.length === 0
+          ? ''
+          : `<table class="sched">${access.findings
+              .map((f) => `<tr><td>${esc(f.label)}</td><td>${esc(f.action)}</td></tr>`)
+              .join('')}</table>`
+      }
+      <div class="note">${esc(access.scopeNote)}</div>
+    </div>`
+
+  // Cross-discipline coordination (G9) — the one check that compares the
+  // disciplines against EACH OTHER (MEP points vs furniture bodies vs ceiling
+  // drops) rather than each against itself. Reads the user's PERSISTED MEP
+  // points, so an unwired design reports nothing instead of guessing.
+  const coordination = isFeatureEnabled('coordinationChecks')
+    ? buildCoordinationClashes(
+        plan,
+        items,
+        catalog,
+        plan.electricalPoints ?? [],
+        plan.plumbingPoints ?? [],
+      )
+    : null
+  const coordinationSection =
+    !coordination || (coordination.checked.mepPoints === 0 && coordination.checked.items === 0)
+      ? ''
+      : `<div class="room-cost">
+      <h2>Coordination</h2>
+      <div class="${coordination.allClear ? 'ok' : 'warn'}">
+        ${
+          coordination.allClear
+            ? `No clashes across ${coordination.checked.mepPoints} MEP point${coordination.checked.mepPoints === 1 ? '' : 's'} and ${coordination.checked.items} item${coordination.checked.items === 1 ? '' : 's'}.`
+            : `${coordination.clashes.length} clash${coordination.clashes.length === 1 ? '' : 'es'} to resolve before handover.`
+        }
+      </div>
+      ${
+        coordination.clashes.length === 0
+          ? ''
+          : `<table class="sched">${coordination.clashes
+              .map(
+                (c) =>
+                  `<tr><td>${esc(c.roomName ?? '—')}</td><td>${esc(c.title)}</td><td>${esc(c.detail)}</td></tr>`,
+              )
+              .join('')}</table>`
+      }
+      <div class="note">Indicative coordination aid — compares plan footprints and a single
+      height per item, so it does not know an item's internal voids or a duct's 3D route.</div>
+    </div>`
+
   const accessibilitySection =
     a11y.doors.length === 0 && a11y.rooms.length === 0
       ? ''
@@ -875,13 +1062,24 @@ export function buildReportHtml(
     : ''
 
   // Cross-section — a vertical cut through the middle of the plan (along Z),
-  // with ground-floor furniture in the cut's room band drawn in elevation. The
-  // companion to the wall elevations; degrades to the bare shell when empty.
-  const section = buildSection(
-    plan,
-    { axis: 'z', at: (Array.isArray(plan.extent) ? plan.extent[1] : 0) / 2 },
-    sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog),
-  )
+  // with the furniture in the cut's room band drawn in elevation. The companion
+  // to the wall elevations; degrades to the bare shell when empty.
+  // EVERY storey (F13): `buildSection` stacks the levels and filters the
+  // silhouettes per storey itself, so it gets the whole home's items — the old
+  // `itemsOnLevel(items, levels[0].id)` was the ground-only section's input.
+  //
+  // The cut position is CHOSEN, not hardcoded to the plan midpoint. The midpoint
+  // is not guaranteed to cross anything: on the shipped Open Loft template the
+  // upper storey occupies z 3.4-5.9 while the mid-extent cut lands at z = 3.0,
+  // so a stacked section drawn there still showed one storey. `conventionalSectionCuts`
+  // scores candidates by how much geometry they actually cross — and now that
+  // `buildSection` stacks, a cut through two storeys outscores one through one.
+  // Falls back to the midpoint when nothing scores (a plan with no walls).
+  const sectionSilhouetteInputs = sectionSilhouettes(items, catalog)
+  const chosenCut =
+    conventionalSectionCuts(plan).find((c) => c.cut.axis === 'z')?.cut ??
+    ({ axis: 'z', at: (Array.isArray(plan.extent) ? plan.extent[1] : 0) / 2 } as const)
+  const section = buildSection(plan, chosenCut, sectionSilhouetteInputs)
   const sectionSection = section.walls.length
     ? `<div class="elev-section"><h2>Section A–A</h2><div class="plan-wrap">${sectionSvg(section, {
         palette: SECTION_PRINT,
@@ -911,17 +1109,66 @@ export function buildReportHtml(
           )
           .join('')
       : `<div class="plan-wrap">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>`
+  // Lamp-specification advisories (v0.31.5.300). The Checks panel has carried
+  // these since .298, but a COMPLIANCE finding that lives only in the app never
+  // reaches the person it is for: a contractor reads this document, not a panel
+  // in someone else's browser. Each fixture's room is resolved on ITS OWN
+  // storey (`roomAtItem`), so an upstairs vanity light is checked against the
+  // upstairs bathroom.
+  const lampSpec = isFeatureEnabled('lampSpecChecks')
+    ? buildLampSpecAdvisory(
+        items.flatMap((it) => {
+          const emitter = LIGHT_EMITTERS[it.defId]
+          const room = roomAtItem(plan, it)
+          if (!emitter || !room) return []
+          const lamp = resolveLampSpec(it.defId, it.props ?? {})
+          return [
+            {
+              id: it.id,
+              label: it.label ?? catalog[it.defId]?.name ?? it.defId,
+              room,
+              cct: lamp.cct,
+              ip: lamp.ip,
+            },
+          ]
+        }),
+      )
+    : null
+  const lampSpecHtml =
+    lampSpec && lampSpec.findings.length > 0
+      ? `<table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td>Room</td><td>Check</td><td>Action</td></tr>${lampSpec.findings
+          .map(
+            (f) =>
+              `<tr><td>${esc(f.label)}</td><td>${esc(f.roomName)}</td><td>${
+                f.kind === 'ingress' ? 'IP rating' : 'Colour temp.'
+              }</td><td>${esc(f.action)}</td></tr>`,
+          )
+          .join(
+            '',
+          )}</table><div class="foot" style="margin-top:6px">${esc(lampSpec.scopeNote)}</div>`
+      : ''
   const lightingSection = lighting.lights.length
     ? `<div class="elev-section"><h2>Lighting plan</h2>
         ${lightingFigures}
-        <table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td class="num">Qty</td><td class="num">Height</td><td class="num">Intensity</td></tr>${lighting.schedule
+        <table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td class="num">Qty</td><td class="num">Height</td><td class="num">Output</td><td class="num">CCT</td><td class="num">IP</td></tr>${lighting.schedule
           .map(
+            // Lumens / CCT / IP — what a supplier needs to quote a fixture.
+            // `intensity` (scene candela) is deliberately no longer printed: it
+            // is a render unit on a register its own registry header warns must
+            // never be compared to a real luminaire, so putting it on a
+            // professional schedule invited exactly that comparison.
             (r) =>
-              `<tr><td>${esc(r.label)}</td><td class="num">×${r.count}</td><td class="num">${esc(formatLength(r.height, units))}</td><td class="num">${r.intensity} cd</td></tr>`,
+              `<tr><td>${esc(r.label)}</td><td class="num">×${r.count}</td><td class="num">${esc(formatLength(r.height, units))}</td><td class="num">${r.lumens} lm</td><td class="num">${r.cct}K</td><td class="num">IP${r.ip}</td></tr>`,
           )
           .join('')}</table>
-        ${roomLuxTableHtml(roomLux, units, { header: 'cat', num: 'num' })}
-        ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}</div>`
+        ${roomLuxTableHtml(
+          roomLux,
+          units,
+          { header: 'cat', num: 'num' },
+          buildRoomUniformity(plan, lighting.lights, iesShapeFactor),
+        )}
+        ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}
+        ${lampSpecHtml}</div>`
     : ''
 
   // Electrical points (PARITY-ELECTRICAL-SCHED, fixed H-D3) — prefer the
@@ -1073,6 +1320,7 @@ export function buildReportHtml(
       ? `<div class="fin-wrap">
       <h2>Finishes schedule</h2>
       ${finishScheduleBody}
+      ${paletteBody}
     </div>`
       : ''
   }
@@ -1082,8 +1330,12 @@ export function buildReportHtml(
   ${ffeSection}
   ${clearanceSection}
   ${designScoreSection}
+  ${buildUpSection}
+  ${critiqueSection}
   ${suggestionsSection}
   ${accessibilitySection}
+  ${coordinationSection}
+  ${accessSection}
   ${daylightSection}
   ${openingsSection}
   ${complianceSection}

@@ -101,3 +101,72 @@ describe('roomLuxTableHtml', () => {
     expect(roomLuxTableHtml([], 'metric', { header: 'cat', num: 'num' })).toBe('')
   })
 })
+
+describe('roomLuxTableHtml — uniformity column (G4)', () => {
+  const row = {
+    roomId: 'r1',
+    roomName: 'Kitchen',
+    area: 8,
+    lumens: 3000,
+    lux: 350,
+    borrowedLux: 0,
+    recommended: { min: 300, max: 600 },
+    status: 'ok' as const,
+    kind: 'kitchen' as const,
+  }
+
+  it('keeps the previous 5-column table when no uniformity is supplied', () => {
+    const html = roomLuxTableHtml([row], 'metric', { header: 'cat', num: 'num' })
+    expect(html).not.toContain('U0 / min')
+  })
+
+  it('adds a U0 column when uniformity IS supplied', () => {
+    const html = roomLuxTableHtml(
+      [row],
+      'metric',
+      { header: 'cat', num: 'num' },
+      new Map([['r1', { u0: 0.72, minU0: 0.6, pass: true }]]),
+    )
+    expect(html).toContain('U0 / min')
+    expect(html).toContain('0.72 / 0.60')
+  })
+
+  it('colours a failing uniformity differently from a passing one', () => {
+    const pass = roomLuxTableHtml(
+      [row],
+      'metric',
+      { header: 'cat', num: 'num' },
+      new Map([['r1', { u0: 0.72, minU0: 0.6, pass: true }]]),
+    )
+    const fail = roomLuxTableHtml(
+      [row],
+      'metric',
+      { header: 'cat', num: 'num' },
+      new Map([['r1', { u0: 0.31, minU0: 0.6, pass: false }]]),
+    )
+    expect(pass).not.toBe(fail)
+    expect(fail).toContain('0.31 / 0.60')
+  })
+
+  it('renders an em dash for a room with no grid, not a blank or a zero', () => {
+    const html = roomLuxTableHtml(
+      [row],
+      'metric',
+      { header: 'cat', num: 'num' },
+      new Map([['other', { u0: 0.5, minU0: 0.4, pass: true }]]),
+    )
+    expect(html).toContain('U0 / min')
+    expect(html).toContain('—')
+  })
+
+  it('an average can pass while its uniformity fails — the whole point', () => {
+    const html = roomLuxTableHtml(
+      [row],
+      'metric',
+      { header: 'cat', num: 'num' },
+      new Map([['r1', { u0: 0.2, minU0: 0.6, pass: false }]]),
+    )
+    // Status still reads ok (350 lx is inside 300–600) while U0 is reported bad.
+    expect(html).toContain('0.20 / 0.60')
+  })
+})

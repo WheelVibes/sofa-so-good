@@ -30,6 +30,7 @@
  */
 
 import type { RoomId } from '../apartment/types'
+import { allPlanRooms } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, RoomCategory } from '../floorplan/types'
 import type { MaterialId } from '../materials/types'
@@ -117,7 +118,8 @@ export function buildOcsFloorFinishesForDefault(): Partial<Record<RoomId, Materi
  */
 export function buildOcsFloorFinishesForPlan(plan: FloorPlan): Record<string, MaterialId> {
   const out: Record<string, MaterialId> = {}
-  const rooms = Array.isArray(plan?.rooms) ? plan.rooms : []
+  // EVERY storey (F13) — an upstairs room never received its OCS floor.
+  const rooms = plan ? allPlanRooms(plan) : []
   for (const room of rooms) {
     if (!room) continue
     const id = ocsFloorForCategory(roomCategory(room))

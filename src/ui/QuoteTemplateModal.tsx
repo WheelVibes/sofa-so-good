@@ -38,6 +38,7 @@ const WALL_RATE_LABELS: Record<WallRateKind, string> = {
 }
 /** Friendly labels + units for the whole-reno trade rates (BSJ-1). */
 const TRADE_RATE_META: Record<keyof TradeRates, { label: string; unit: string }> = {
+  partitionPerM2: { label: 'New partitions', unit: 'per m² of wall face' },
   hackingPerM: { label: 'Hacking / demolition', unit: '/lin.m' },
   ceilingPerM2: { label: 'False ceiling / partition', unit: '/m²' },
   mePerPoint: { label: 'M&E point', unit: '/point' },

@@ -36,6 +36,16 @@ export const REPORT_CSS = `
   .subtotal { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-top: 3px; }
   .note { background: #f9fafb; border-left: 3px solid #d1d5db; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; color: #374151; white-space: pre-wrap; }
   .room-cost { margin-top: 24px; max-width: 360px; }
+  /* The 360px above is sized for the narrow room-and-price tables this class
+     was written for. A section whose last column carries a sentence needs the page:
+     at 360px the layout critique's Measured column wrapped to six lines while
+     three-quarters of the sheet sat empty. Opt-in, so the cost tables keep the
+     column width that suits them. */
+  .room-cost.prose { max-width: 720px; }
+  /* Only for a table whose LAST column carries the sentence. Kept separate from
+     .prose because the floor build-up section is also 720px wide but ends in a
+     short number, and the min-width flung its two numeric columns apart. */
+  .room-cost.prose-last td:last-child { min-width: 320px; }
   .plan-wrap { margin-top: 16px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; background: #fff; }
   .palette { margin-top: 24px; }
   .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }

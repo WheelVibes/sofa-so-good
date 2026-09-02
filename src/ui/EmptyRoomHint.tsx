@@ -1,7 +1,7 @@
 import { placementWalls } from '../collision/placementWalls'
 import { useFeature } from '../features/useFeature'
+import { allPlanRooms, itemsInRoom } from '../floorplan/levels'
 import { roomCategory, toRoomKind } from '../floorplan/roomCategory'
-import { pointInRoom } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultItemProps } from '../furniture/placement/defaultItemProps'
 import { placeStarterItem } from '../layout/placeStarterItem'
@@ -29,7 +29,9 @@ import { Icon } from './toolbar/icons'
 export function EmptyRoomHint() {
   const active = useStore((s) => s.roomEditor.active)
   const roomId = useStore((s) => s.roomEditor.roomId)
-  const rooms = useStore((s) => s.floorPlan.rooms)
+  // Select the PLAN, not a derived room array: `allPlanRooms` returns a fresh
+  // reference on a multi-storey plan, which as a selector re-renders forever.
+  const plan = useStore((s) => s.floorPlan)
   const items = useStore((s) => s.items)
   const cameraMode = useStore((s) => s.cameraMode)
   const catalogOpen = useStore((s) => s.catalogOpen)
@@ -42,9 +44,11 @@ export function EmptyRoomHint() {
   const dismissCallout = useStore((s) => s.dismissCallout)
 
   if (!active || !roomId || cameraMode !== 'orbit' || catalogOpen || dismissed) return null
-  const room = rooms.find((r) => r.id === roomId)
+  // EVERY storey (F13) — the hint never fired for an upstairs room, and the
+  // emptiness test must only count furniture on the room's OWN floor.
+  const room = allPlanRooms(plan).find((r) => r.id === roomId)
   if (!room) return null
-  const empty = !items.some((it) => pointInRoom(room, it.position[0], it.position[1]))
+  const empty = itemsInRoom(plan, items, room.id).length === 0
   if (!empty) return null
 
   // Starter anchor chips for this room kind (built-in defs only). Empty when the
@@ -70,10 +74,7 @@ export function EmptyRoomHint() {
     const def = BUILTIN_CATALOG[defId]
     if (!shell || !def) return
     const props = defaultItemProps(def)
-    const roomPoly = s.floorPlan.rooms.find((r) => r.id === rid)
-    const existing = roomPoly
-      ? s.items.filter((it) => pointInRoom(roomPoly, it.position[0], it.position[1]))
-      : []
+    const existing = itemsInRoom(s.floorPlan, s.items, rid)
     const placement = placeStarterItem({
       rects: shell.shell.rects,
       def,

@@ -113,8 +113,12 @@ async function exportDirect(
  * Base64 rather than an ArrayBuffer because `page.evaluate` has to marshal the
  * result across the CDP boundary as JSON. Registered on `window` under the
  * `import.meta.env.DEV` guard below; inert in production builds.
+ *
+ * **Deliberately not exported.** The only consumer is `window.__exportSceneGlbBase64`
+ * (read by `scripts/dev-probes/light-distribution.mjs`), so an `export` here is an
+ * unused one — and knip treats that as an error, which is how `0.31.7.3` found it.
  */
-export async function exportSceneGlbBase64(): Promise<string | null> {
+async function exportSceneGlbBase64(): Promise<string | null> {
   const root = getSceneRoot()
   if (!root) return null
   const data = await exportDirect(buildExportRoot(root), 'glb')

@@ -9,8 +9,9 @@
  * "where are the lights, how high, how bright" deliverable (Chief Architect /
  * RoomSketcher reflected ceiling plans). Pure (no three, no React) → testable.
  */
-import { isItemEmitter, LIGHT_EMITTERS } from '../furniture/lightEmitters'
+import { isItemEmitter, LIGHT_EMITTERS, resolveLampSpec } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { planLightLumens } from './roomLux'
 
 export interface PlanLight {
   id: string
@@ -28,6 +29,13 @@ export interface PlanLight {
   levelId?: string
   /** Coverage / falloff radius (m). */
   distance: number
+  /**
+   * The fixture's IES profile id (`item.props.iesProfile`), when one is
+   * selected. Consumed by the lux model for the DISTRIBUTION SHAPE only —
+   * magnitude still comes from `intensity` × the registry calibration (see
+   * `lighting/ies/iesProfile.ts:relativeIntensityAt`).
+   */
+  iesProfile?: string
   color: string
 }
 
@@ -37,7 +45,28 @@ interface LightScheduleRow {
   count: number
   /** Representative emit height (m) for the type. */
   height: number
+  /** Scene candela — a RENDER unit. Kept for the existing 2D/3D consumers, but
+   *  a schedule a supplier reads should quote `lumens` instead: `intensity`
+   *  lives on a stylised register its own registry header warns must never be
+   *  compared to a real luminaire. */
   intensity: number
+  /**
+   * Total flux per fixture (lm), from the SAME `planLightLumens` the lux model
+   * uses (`intensity × SCENE_INTENSITY_CALIBRATION × 4π`).
+   *
+   * Derived, never authored: the calibration constant is documented as mapping
+   * the registry onto realistic packages — "table lamp 4 cd ≈ 600 lm, floor
+   * lamp 7 cd ≈ 1050 lm, ceiling pendant 9 cd ≈ 1350 lm" — and published room
+   * guidance puts a bedroom ceiling fixture at 1200-1800 lm, so those land in
+   * band. Authoring a second lumens field would create two sources of truth for
+   * one quantity and let the schedule drift from the lighting calculation.
+   */
+  lumens: number
+  /** Specified colour temperature (K) — a product property, not derived from
+   *  the render tint. */
+  cct: number
+  /** Specified ingress protection (e.g. 20, 44). */
+  ip: number
 }
 
 export interface LightingPlan {
@@ -86,18 +115,31 @@ export function buildLightingPlan(
       height,
       intensity: spec.intensity,
       ...(item.levelId ? { levelId: item.levelId } : {}),
+      ...(typeof item.props?.iesProfile === 'string' && item.props.iesProfile
+        ? { iesProfile: item.props.iesProfile }
+        : {}),
       distance: spec.distance,
       color: spec.color,
     })
-    const row = groups.get(item.defId)
+    // Grouped by (def, specified CCT, specified IP) rather than def alone, so
+    // two instances of the same fixture specified differently stay SEPARATE
+    // rows — a supplier cannot quote one line for a 3000K IP20 pendant and a
+    // 4000K IP44 one. Same rule the door/window schedule already applies by
+    // folding style + material into its mark key.
+    const lamp = resolveLampSpec(item.defId, item.props ?? {})
+    const groupKey = `${item.defId}|${lamp.cct}|${lamp.ip}`
+    const row = groups.get(groupKey)
     if (row) row.count += 1
     else
-      groups.set(item.defId, {
+      groups.set(groupKey, {
         type: item.defId,
         label: def?.name ?? item.defId,
         count: 1,
         height,
         intensity: spec.intensity,
+        lumens: Math.round(planLightLumens({ intensity: spec.intensity })),
+        cct: lamp.cct,
+        ip: lamp.ip,
       })
   }
 

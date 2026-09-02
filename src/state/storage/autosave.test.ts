@@ -90,6 +90,10 @@ describe('startAutosave error handling', () => {
       (s: ReturnType<typeof useStore.getState>) =>
         useStore.setState({ floorPlan: { ...s.floorPlan, name: 'Renamed plan' } }),
     ],
+    // v0.31.5.308: marking a design as tendered must autosave on its own, or
+    // the snapshot the variation register diffs against is lost on reload —
+    // which is the entire reason it is persisted rather than session-only.
+    ['tenderedSnapshot', (s: ReturnType<typeof useStore.getState>) => s.captureTenderedSnapshot()],
     // BUG-001: these four are written by serialize() but were NOT watched, so
     // editing only one of them used to leave autosave silent → lost on reload.
     [

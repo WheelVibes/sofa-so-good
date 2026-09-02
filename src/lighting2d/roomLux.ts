@@ -13,7 +13,7 @@
 
 import { type RoomKind, roomKindFromName } from '../analysis/suggestions'
 import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
-import { toRoomKind } from '../floorplan/roomCategory'
+import { type RoomCategory, toRoomKind } from '../floorplan/roomCategory'
 import { type FloorPlan, planRoomArea, pointInRoom } from '../floorplan/types'
 import { bleedMeanLux, type DoorOpenMap, interRoomDoorwaySources } from './doorwayBleed'
 import type { PlanLight } from './lightingPlan'
@@ -62,6 +62,52 @@ export const RECOMMENDED_LUX: Record<RoomKind, { min: number; max: number }> = {
   study: { min: 300, max: 500 },
   balcony: { min: 50, max: 150 },
   other: { min: 100, max: 300 },
+}
+
+/** The ONE room-kind resolution for the lux model: an explicit `category` wins,
+ *  else the legacy name classifier. Shared with `luxGrid.ts` so the room average
+ *  and the spatial grid can never disagree about a room's kind. */
+/**
+ * Work-plane height per room kind (m) — the plane a lux target actually applies
+ * to. Standards specify illuminance at the working surface, not the floor: a
+ * kitchen's 300–600 lx band is a WORKTOP figure (~0.85 m), a study's 300–500 lx
+ * a desk figure (~0.75 m). Circulation and wet areas are legitimately measured
+ * at floor level, so they stay 0.
+ *
+ * Used by `luxGrid.ts`'s spatial grid via `LuxGridOptions.planeHeight`. The
+ * room-average lumen method in this file is plane-agnostic by construction
+ * (flux ÷ area × utilisation), so it needs no equivalent.
+ */
+export function roomLuxKind(room: { name: string; category?: RoomCategory }): RoomKind {
+  return room.category ? toRoomKind(room.category) : roomKindFromName(room.name)
+}
+
+export const WORK_PLANE_HEIGHT_M: Record<RoomKind, number> = {
+  living: 0.45, // coffee/side-table height — the surfaces actually used
+  dining: 0.75,
+  bedroom: 0.6, // bedside/dressing surfaces
+  kitchen: 0.85, // worktop
+  bath: 0,
+  study: 0.75, // desk
+  balcony: 0,
+  other: 0,
+}
+
+/**
+ * Minimum acceptable uniformity U0 = Emin/Eavg per room kind. EN 12464-style
+ * guidance: a task area wants >= 0.6, general/amenity space >= 0.4. Stated
+ * ALONGSIDE the average because an average that meets its band can still be a
+ * room of pools under each downlight with dark corners between them.
+ */
+export const MIN_UNIFORMITY: Record<RoomKind, number> = {
+  living: 0.4,
+  dining: 0.4,
+  bedroom: 0.4,
+  kitchen: 0.6,
+  bath: 0.4,
+  study: 0.6,
+  balcony: 0.4,
+  other: 0.4,
 }
 
 export type LuxStatus = 'low' | 'ok' | 'high'
@@ -140,7 +186,7 @@ export function estimateRoomLux(
       if (!o) continue
       // RM1: an explicit, user-set category wins; a room without one keeps the
       // legacy name classifier so its lux band is byte-identical.
-      const kind = room.category ? toRoomKind(room.category) : roomKindFromName(room.name)
+      const kind = roomLuxKind(room)
       const recommended = RECOMMENDED_LUX[kind]
       const borrowedLux = borrowed.get(room.id) ?? 0
       const lux = o.lux + borrowedLux

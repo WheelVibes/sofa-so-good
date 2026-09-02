@@ -38,6 +38,7 @@ import {
   RenderCompareModal,
   RenoRulesPanel,
   RenovationBudgetPanel,
+  SchemeCompareModal,
   ShareModal,
   ShortcutsModal,
   SmartStartWizard,
@@ -123,6 +124,7 @@ export default function App() {
     timeCompareOpen: useStore((s) => s.timeCompareOpen),
     styleTransferOpen: useStore((s) => s.styleTransferOpen),
     styleQuizOpen: useStore((s) => s.styleQuizOpen),
+    schemeOptionsOpen: useStore((s) => s.schemeOptionsOpen),
     shortcutsHelpOpen: useStore((s) => s.shortcutsHelpOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
@@ -501,6 +503,11 @@ export default function App() {
         {lazyPanels.styleQuizOpen ? (
           <Suspense fallback={null}>
             <StyleQuizModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.schemeOptionsOpen ? (
+          <Suspense fallback={null}>
+            <SchemeCompareModal />
           </Suspense>
         ) : null}
         {lazyPanels.shortcutsHelpOpen ? (

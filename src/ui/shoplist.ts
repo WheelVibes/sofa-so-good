@@ -11,7 +11,8 @@
 // Licensing rule: product links are attached only when the caller allows them
 // (`includeRetailerLinks`) — the opener gates that behind the dev-only `ikeaLive`
 // flag, so brand-specific linking never ships in prod while the generic export does.
-import { type FloorPlan, pointInRoom } from '../floorplan/types'
+import { allPlanRooms, roomAtItem } from '../floorplan/levels'
+import type { FloorPlan } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureDef, FurnitureItem, IkeaGltfDef } from '../furniture/types'
 import { escapeHtml } from './moodboard'
@@ -87,7 +88,7 @@ export function buildShopList(
 ): ShopList {
   // retailer → line-key → line (+ a room-order rank per line for sorting).
   const buckets = new Map<string, Map<string, ShopLine & { roomRank: number }>>()
-  const roomRank = new Map(plan.rooms.map((r, i) => [r.id, i]))
+  const roomRank = new Map(allPlanRooms(plan).map((r, i) => [r.id, i]))
   let itemCount = 0
 
   for (const it of items) {
@@ -97,7 +98,8 @@ export function buildShopList(
     const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
     const isIkea = def.kind === 'gltf' && def.source === 'ikea'
     const retailer = isIkea ? 'IKEA' : GENERIC_RETAILER
-    const room = plan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    // The item's OWN storey (F13) — see `roomAtItem`.
+    const room = roomAtItem(plan, it)
     // A custom URL (ITEM-META) is part of the grouping key too — two placed
     // copies of the same def with different custom links must stay separate
     // lines rather than silently collapsing into one (losing one of the links).

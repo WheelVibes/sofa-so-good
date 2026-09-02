@@ -14,6 +14,7 @@
  * shape of `daylight.ts`.
  */
 
+import { allPlanOpenings, allPlanRooms, allPlanWalls } from '../floorplan/levels'
 import { assignRoomOpeningNames } from '../floorplan/roomWallNames'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { isExternalRoom } from './daylight'
@@ -72,9 +73,15 @@ function roomMinDim(r: PlanRoom): number {
  * rooms are the habitable (non-external) rooms with positive footprint.
  */
 export function buildAccessibilityReport(plan: FloorPlan): AccessibilityReport {
-  const openings = Array.isArray(plan.openings) ? plan.openings : []
-  const walls = Array.isArray(plan.walls) ? plan.walls : []
-  const allRooms = Array.isArray(plan.rooms) ? plan.rooms : []
+  // EVERY storey (F13). `plan.openings`/`plan.walls`/`plan.rooms` are
+  // GROUND-ONLY, so this previously checked only the ground floor while its own
+  // variable was named `allRooms` and its output claimed to cover the home — an
+  // upstairs bedroom or door was silently never assessed. Callers pass the whole
+  // plan (`report.ts`, `AccessibilityPanel`), never a `levelAsPlan` result, so
+  // the whole-home read is the correct one here.
+  const openings = allPlanOpenings(plan)
+  const walls = allPlanWalls(plan)
+  const allRooms = allPlanRooms(plan)
   // Reuse the same room→opening allocation the plan editor uses for auto-naming,
   // so a door reads the same here as it does when selected on the plan. The
   // seeded default plan carries no opening names (auto-naming only runs when a
@@ -95,7 +102,7 @@ export function buildAccessibilityReport(plan: FloorPlan): AccessibilityReport {
       name: o.name ?? derivedNames.get(o.id),
     }))
 
-  const rooms: RoomAccessRow[] = (Array.isArray(plan.rooms) ? plan.rooms : [])
+  const rooms: RoomAccessRow[] = allRooms
     .filter((r) => !isExternalRoom(r) && r.width > 0 && r.depth > 0)
     .map((r) => {
       const minDim = roomMinDim(r)

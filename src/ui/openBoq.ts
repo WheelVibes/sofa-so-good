@@ -1,5 +1,6 @@
 import { floorRateFor, wallRateFor } from '../analysis/renovationCost'
 import type { BoqInput } from '../export/boq'
+import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { type FloorPlan, planRoomArea } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
@@ -15,7 +16,7 @@ function floorMap(plan: FloorPlan): Record<string, string> {
   const s = useStore.getState()
   if (isDefaultPlan(plan)) return s.finishes.floor as Record<string, string>
   const m: Record<string, string> = {}
-  for (const r of plan.rooms) if (r.floor) m[r.id] = r.floor
+  for (const r of allPlanRooms(plan)) if (r.floor) m[r.id] = r.floor
   return m
 }
 
@@ -73,7 +74,7 @@ export async function assembleBoqInput(): Promise<BoqInput> {
   const rules = s.priceRules
   return {
     plan,
-    rooms: plan.rooms.map((r) => ({
+    rooms: allPlanRooms(plan).map((r) => ({
       id: r.id,
       name: r.name,
       floorArea: planRoomArea(r),

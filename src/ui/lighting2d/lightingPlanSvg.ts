@@ -128,14 +128,28 @@ export function roomLuxTableHtml(
   rows: RoomLuxEstimate[],
   units: UnitSystem,
   cls: { header: string; num: string; table?: string },
+  /** Per-room uniformity (`lighting2d/luxGrid.ts:buildRoomUniformity`), keyed by
+   *  room id. When supplied, a U0 column is added — a professional lighting spec
+   *  states uniformity ALONGSIDE the average, because an average that meets its
+   *  band can still be pools of light with dark corners between them. Omitted ⇒
+   *  the previous 5-column table, unchanged. */
+  uniformity?: Map<string, { u0: number; minU0: number; pass: boolean }>,
 ): string {
   if (rows.length === 0) return ''
+  const showU0 = !!uniformity && uniformity.size > 0
   const body = rows
     .map((r) => {
       const s = LUX_STATUS_PRINT[r.status]
-      return `<tr><td>${esc(r.roomName)}</td><td class="${cls.num}">${esc(formatArea(r.area, units))}</td><td class="${cls.num}">${Math.round(r.lux)} lx</td><td class="${cls.num}">${r.recommended.min}–${r.recommended.max} lx</td><td style="padding-left:14px;color:${s.color};font-weight:600">${s.label}</td></tr>`
+      const u = uniformity?.get(r.roomId)
+      const uCell = !showU0
+        ? ''
+        : u
+          ? `<td class="${cls.num}" style="color:${u.pass ? LUX_STATUS_PRINT.ok.color : LUX_STATUS_PRINT.low.color}">${u.u0.toFixed(2)} / ${u.minU0.toFixed(2)}</td>`
+          : `<td class="${cls.num}">—</td>`
+      return `<tr><td>${esc(r.roomName)}</td><td class="${cls.num}">${esc(formatArea(r.area, units))}</td><td class="${cls.num}">${Math.round(r.lux)} lx</td><td class="${cls.num}">${r.recommended.min}–${r.recommended.max} lx</td>${uCell}<td style="padding-left:14px;color:${s.color};font-weight:600">${s.label}</td></tr>`
     })
     .join('')
   const tableCls = cls.table ? ` class="${cls.table}"` : ''
-  return `<table${tableCls} style="margin-top:12px"><tr class="${cls.header}"><td>Room</td><td class="${cls.num}">Area</td><td class="${cls.num}">Est. avg</td><td class="${cls.num}">Recommended</td><td style="padding-left:14px">Status</td></tr>${body}</table>`
+  const uHead = showU0 ? `<td class="${cls.num}">U0 / min</td>` : ''
+  return `<table${tableCls} style="margin-top:12px"><tr class="${cls.header}"><td>Room</td><td class="${cls.num}">Area</td><td class="${cls.num}">Est. avg</td><td class="${cls.num}">Recommended</td>${uHead}<td style="padding-left:14px">Status</td></tr>${body}</table>`
 }

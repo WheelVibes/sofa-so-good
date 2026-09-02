@@ -1,6 +1,6 @@
 import { canPlace } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
-import { pointInRoom } from '../../floorplan/types'
+import { roomAtItem } from '../../floorplan/levels'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
@@ -92,7 +92,9 @@ export function faceItemIntoRoom(itemId: string, def: FurnitureDef, catalog: Cat
   const st = useStore.getState()
   const it = st.items.find((i) => i.id === itemId)
   if (!it) return
-  const room = st.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+  // The item's OWN storey (F13) — otherwise an upstairs piece was oriented
+  // against the walls of the room beneath it.
+  const room = roomAtItem(st.floorPlan, it)
   if (!room) return
   const rect = {
     minX: room.origin[0],
@@ -109,7 +111,7 @@ export function centreItemInRoom(itemId: string, def: FurnitureDef, catalog: Cat
   const st = useStore.getState()
   const it = st.items.find((i) => i.id === itemId)
   if (!it) return
-  const room = st.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+  const room = roomAtItem(st.floorPlan, it)
   if (!room) return
   tryMoveItem(
     itemId,

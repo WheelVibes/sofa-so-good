@@ -418,6 +418,10 @@ export const FloorPlanZ = z.object({
     .optional(),
   upperLevels: z.array(PlanUpperLevelZ).optional(),
   groundName: z.string().optional(),
+  // The buyer's starting state (Smart Start). Additive + optional; a save
+  // without it simply has no intake fact and downstream quantities fall back to
+  // their stated assumption.
+  intakeState: z.enum(['bto-bare', 'bto-ocs', 'resale-asis', 'resale-stripout']).optional(),
   notes: z
     .array(
       z.object({
@@ -498,6 +502,21 @@ export const FloorPlanZ = z.object({
   // Optional explicit setting-out datum (TODO G3). Optional + additive — no
   // schema-version bump; absent → the computed default corner.
   datum: z.object({ x: z.number(), z: z.number() }).optional(),
+  // Site measurements recorded against the model (`siteMeasurements.ts`).
+  // Optional + additive — no version bump; absent = the model is unverified,
+  // which the reconciliation sheet states rather than implying agreement.
+  siteMeasurements: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(['wall', 'opening', 'room-width', 'room-depth']),
+        targetId: z.string(),
+        measuredMm: z.number(),
+        toleranceMm: z.number().optional(),
+        note: z.string().optional(),
+      }),
+    )
+    .optional(),
   // Parametric roof (UX research round 3, `parametricRoof` pro flag). Optional
   // + additive — no schema-version bump; absent → no roof. The enums MUST stay
   // in parity with `RoofStyle`/`RoofMaterialKind`/`RoofDormerSide` in
@@ -553,6 +572,12 @@ const DrawingSetTemplateZ = z
     checkedBy: z.string().optional(),
     revision: z.string().optional(),
     revisionNote: z.string().optional(),
+    // Revision HISTORY (G6) — prior issues, oldest first; `revision`/
+    // `revisionNote` above stay the CURRENT issue. Absent → the previous
+    // single-row revision table, so older saves are unchanged.
+    revisions: z
+      .array(z.object({ letter: z.string(), date: z.string(), note: z.string() }))
+      .optional(),
     // User-customizable paper (additive follow-up to TODO G2) — absent →
     // 'a4'/'landscape' via `mergeDrawingSetTemplate` on load.
     paperSize: z.enum(['a4', 'a3', 'a2', 'a1']).optional(),
@@ -575,6 +600,23 @@ const RawSerializedStateZ = z.object({
   version: z.literal(2),
   apartmentId: z.literal('serangoon-north-vista-4r'),
   items: z.array(FurnitureItemZ),
+  // The design as marked AS TENDERED (v0.31.5.308) — what a contractor priced,
+  // diffed by `analysis/variationRegister.ts`. Persisted because the whole
+  // point is surviving the weeks between pricing and building; session-only
+  // (as it shipped in .307) undercut it. Additive + optional: a save without
+  // one simply has no register.
+  tenderedSnapshot: z
+    .object({
+      plan: FloorPlanZ,
+      items: z.array(FurnitureItemZ),
+      finishes: z.object({
+        floor: z.record(z.string(), z.string()),
+        walls: z.record(z.string(), z.string()),
+      }),
+      at: z.string(),
+      revision: z.string(),
+    })
+    .optional(),
   // Optional custom apartment shell (omitted for the default flat).
   floorPlan: FloorPlanZ.optional(),
   doors: z.record(z.string(), z.object({ open: z.boolean(), leaf: z.literal('none').optional() })),
@@ -758,6 +800,7 @@ export function serialize(state: RootState): SerializedState {
     version: 2,
     apartmentId: 'serangoon-north-vista-4r',
     items: state.items,
+    ...(state.tenderedSnapshot ? { tenderedSnapshot: state.tenderedSnapshot } : {}),
     // Persist a custom shell; the default flat is rebuilt from constants.
     ...(isDefaultPlan(state.floorPlan) ? {} : { floorPlan: state.floorPlan }),
     doors: state.doors,
@@ -1000,6 +1043,10 @@ export function applySerialized(
     hiddenItemIds: [],
     // Restore a saved custom shell, else fall back to the default flat.
     floorPlan: plan,
+    // A tendered snapshot round-trips as saved. `null` (not undefined) when
+    // absent, matching the slice's initial value so the register's
+    // "nothing marked yet" branch reads the same on a fresh boot and a restore.
+    tenderedSnapshot: state.tenderedSnapshot ?? null,
     doors: state.doors,
     finishes: {
       floor: floor as Record<RoomId, string>,

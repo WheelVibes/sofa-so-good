@@ -37,6 +37,7 @@ import {
   clampOpeningOffset,
   clampOpeningWidth,
   type FloorPlan,
+  type MeasuredTargetKind,
   type PlanDimension,
   type PlanElectricalPoint,
   type PlanGuide,
@@ -56,6 +57,7 @@ import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import { isAnchoredToNonFloor } from '../../furniture/anchoredDefs'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import { deriveElectricalPoints, derivePlumbingPoints } from '../../furniture/mepSuggest'
+import type { FurnitureItem } from '../../furniture/types'
 import { buildLightingPlan } from '../../lighting2d/lightingPlan'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
@@ -181,6 +183,26 @@ export interface FloorPlanSlice {
    *  the "as-built" baseline the demolition/hacking plan diffs against. Updated
    *  only on a plan load, never on a wall edit. Session-only (not persisted). */
   baselinePlan: FloorPlan
+  /**
+   * The design as it was when the user marked it AS TENDERED — the state a
+   * contractor priced. `analysis/variationRegister.ts` diffs the current
+   * design's cost allocation against this one, so a change made after pricing
+   * is visible and approximately sized instead of being argued about later.
+   *
+   * Holds plan + items + finishes because a cost allocation needs all three;
+   * `baselinePlan` (a plan only) cannot serve, which is why this is separate.
+   *
+   * **Session-only, like `baselinePlan`.** A tender snapshot really wants to
+   * survive the weeks between pricing and building, so persisting it is the
+   * logged next step — it needs `serialize()`, the autosave watch list and its
+   * lock-step guard changed together, which is deliberately not bundled with
+   * the feature landing.
+   */
+  tenderedSnapshot: TenderedSnapshot | null
+  /** Capture the current design as the tendered state. */
+  captureTenderedSnapshot: () => void
+  /** Discard the tendered snapshot (no variation register until re-captured). */
+  clearTenderedSnapshot: () => void
   /** Whether the 2D Floor Plan Editor overlay is open. */
   floorPlanEditing: boolean
   /** 2D-plan furniture label mode (off / name / name+price). Session-only. */
@@ -414,6 +436,23 @@ export interface FloorPlanSlice {
   /** Remove every ruler guide. */
   clearPlanGuides: () => void
 
+  /**
+   * Record (or replace) a SITE MEASUREMENT for one wall / opening / room span —
+   * what a tape actually read, in mm. Reconciled against the model by
+   * `floorplan/siteMeasurements.ts` and printed on the As-built reconciliation
+   * sheet. One measurement per (kind, targetId): re-measuring the same wall
+   * REPLACES the old value rather than accumulating a history, because the
+   * useful question is "what does it actually measure", not "what did we think
+   * last time". Undoable + forks the default plan, like every plan mutation. */
+  setSiteMeasurement: (
+    kind: MeasuredTargetKind,
+    targetId: string,
+    measuredMm: number,
+    note?: string,
+  ) => void
+  /** Drop a recorded measurement for a target (the field cleared). */
+  clearSiteMeasurement: (kind: MeasuredTargetKind, targetId: string) => void
+
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
   /** Duplicate a storey (walls/rooms/openings + its furniture + per-room/-wall
@@ -459,10 +498,23 @@ export interface FloorPlanSlice {
   snapFloorPlanToGrid: (gridM?: number, opts?: GridSnapOptions) => void
 }
 
+/** A priced-state snapshot: everything `buildRenovationAllocation` reads. */
+interface TenderedSnapshot {
+  plan: FloorPlan
+  items: FurnitureItem[]
+  finishes: { floor: Record<string, string>; walls: Record<string, string> }
+  /** ISO timestamp of capture, for the register's header. */
+  at: string
+  /** The drawing-set revision letter in force when captured, so the register
+   *  can say WHICH issue was priced — the whole point of the exercise. */
+  revision: string
+}
+
 export const FLOOR_PLAN_INITIAL: Pick<
   FloorPlanSlice,
   | 'floorPlan'
   | 'baselinePlan'
+  | 'tenderedSnapshot'
   | 'floorPlanEditing'
   | 'planLabels'
   | 'planSelection'
@@ -472,6 +524,7 @@ export const FLOOR_PLAN_INITIAL: Pick<
 > = {
   floorPlan: buildDefaultPlan(),
   baselinePlan: buildDefaultPlan(),
+  tenderedSnapshot: null,
   floorPlanEditing: false,
   planLabels: 'off',
   planSelection: null,
@@ -522,6 +575,25 @@ function starterShellPlan(name: string): FloorPlan {
 }
 
 export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (set, get) => ({
+  captureTenderedSnapshot: () => {
+    const s = get()
+    // Deep-cloned so later edits to the live design cannot mutate the thing it
+    // is being compared against — the failure that would make a register
+    // silently read "no change" forever.
+    set({
+      tenderedSnapshot: {
+        plan: clonePlan(s.floorPlan),
+        items: s.items.map((it) => ({ ...it, props: { ...it.props } })),
+        finishes: {
+          floor: { ...(s.finishes.floor as Record<string, string>) },
+          walls: { ...(s.finishes.walls as Record<string, string>) },
+        },
+        at: new Date().toISOString(),
+        revision: s.drawingSetTemplate.revision,
+      },
+    })
+  },
+  clearTenderedSnapshot: () => set({ tenderedSnapshot: null }),
   ...FLOOR_PLAN_INITIAL,
 
   setFloorPlan: (plan) =>
@@ -1462,6 +1534,42 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
 
   // Ruler guides are a plan-wide array (not level-tagged) — pure reference lines
   // the 2D editor snaps to (PARITY-PLAN-GUIDES). `addGuide` de-dupes per axis.
+  setSiteMeasurement: (kind, targetId, measuredMm, note) => {
+    if (!Number.isFinite(measuredMm) || measuredMm <= 0) return
+    get().pushHistory()
+    set((s) => {
+      const existing = s.floorPlan.siteMeasurements ?? []
+      const rest = existing.filter((m) => !(m.kind === kind && m.targetId === targetId))
+      return {
+        floorPlan: {
+          ...forkIfDefault(s.floorPlan),
+          siteMeasurements: [
+            ...rest,
+            {
+              id: `sm-${kind}-${targetId}`,
+              kind,
+              targetId,
+              measuredMm: Math.round(measuredMm),
+              ...(note?.trim() ? { note: note.trim() } : {}),
+            },
+          ],
+        },
+      }
+    })
+  },
+  clearSiteMeasurement: (kind, targetId) => {
+    get().pushHistory()
+    set((s) => {
+      const existing = s.floorPlan.siteMeasurements ?? []
+      const next = existing.filter((m) => !(m.kind === kind && m.targetId === targetId))
+      // Drop the key entirely when nothing is left, so an untouched plan stays
+      // byte-identical in the save file.
+      const { siteMeasurements: _drop, ...plan } = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: next.length > 0 ? { ...plan, siteMeasurements: next } : plan,
+      }
+    })
+  },
   addPlanGuide: (guide) => {
     get().pushHistory()
     set((s) => ({

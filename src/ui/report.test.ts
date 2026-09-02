@@ -235,7 +235,15 @@ describe('buildReportHtml', () => {
     expect(html).toContain('Lighting plan')
     expect(html).toContain('lighting plan,') // svg aria-label
     expect(html).toMatch(/×\d+/) // a fixture quantity in the schedule
-    expect(html).toContain('cd</td>') // intensity column (candela)
+    // v0.31.5.297: the schedule quotes what a supplier needs — lumens, colour
+    // temperature and ingress protection — not scene candela. `intensity` is a
+    // render unit whose own registry header warns it must never be compared to
+    // a real luminaire, so printing it on a professional schedule invited
+    // exactly that comparison.
+    expect(html).toMatch(/\d+ lm<\/td>/)
+    expect(html).toMatch(/\d+K<\/td>/)
+    expect(html).toMatch(/IP\d+<\/td>/)
+    expect(html).not.toContain('cd</td>')
   })
 
   it('escapes user-controlled strings (plan name + note) to prevent HTML injection', () => {
@@ -738,5 +746,292 @@ describe('buildReportHtml — electrical points, persisted design overrides the 
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Electrical points (indicative)')
     expect(html).not.toContain('Electrical points (as designed)')
+  })
+})
+
+describe('report suggestions cover every storey (F13)', () => {
+  /** The default flat plus one upstairs room the rule engine will fire on. */
+  const withUpstairsRoom = () => {
+    const base = buildDefaultPlan()
+    return {
+      ...base,
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Upper',
+          elevation: 3,
+          walls: [],
+          openings: [],
+          rooms: [
+            {
+              id: 'u-liv',
+              name: 'Upstairs Lounge',
+              category: 'living',
+              origin: [0, 0],
+              width: 5,
+              depth: 4,
+            },
+          ],
+        },
+      ],
+    } as unknown as ReturnType<typeof buildDefaultPlan>
+  }
+
+  it('counts an UPSTAIRS room in the suggestion tally', async () => {
+    // The discriminating measurement is the IDEAS COUNT, not the room name.
+    // Asserting `toContain('Upstairs Lounge')` passes with or without the fix,
+    // because several other sections name every room — measured directly in
+    // both arms rather than reasoned about, after three earlier versions of
+    // this test passed for the wrong reason. With the fix: 9 ideas. Without: 8.
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = buildReportHtml(withUpstairsRoom(), [], BUILTIN_CATALOG, null)
+    const tally = /(\d+) ideas? to add or improve/.exec(html)
+    expect(tally, 'no Design suggestions tally in the report').toBeTruthy()
+    expect(Number(tally![1])).toBe(9)
+  })
+
+  it('is one FEWER on the same plan with the storey removed', () => {
+    // Pins the delta rather than the absolute, so a change to the rule set that
+    // shifts the baseline does not silently make the test vacuous.
+    const two = buildReportHtml(withUpstairsRoom(), [], BUILTIN_CATALOG, null)
+    const oneStorey = buildReportHtml(
+      { ...withUpstairsRoom(), upperLevels: [] } as unknown as ReturnType<typeof buildDefaultPlan>,
+      [],
+      BUILTIN_CATALOG,
+      null,
+    )
+    const count = (h: string) => Number(/(\d+) ideas? to add or improve/.exec(h)![1])
+    expect(count(two)).toBe(count(oneStorey) + 1)
+  })
+})
+
+describe('report lamp-specification advisories (F13 + compliance)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('prints the wet-room IP finding, which the Checks panel alone cannot deliver', async () => {
+    // A COMPLIANCE finding that lives only in the app never reaches the person
+    // it is for — a contractor reads this document, not a panel in someone
+    // else's browser. The default flat has an IP20 ceiling light in a bathroom.
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('IP rating')
+    expect(html).toMatch(/need IP44 minimum/)
+    // The escape hatch travels with it — zones are not modelled.
+    expect(html).toMatch(/per ROOM, not per bathroom zone/i)
+  })
+
+  it('drops the finding once the fixture is specified wet-rated', async () => {
+    // Asserts the PAIR, so a change that made the advisory unreachable — rather
+    // than resolved — would fail here instead of looking like a pass.
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const specified = items.map((it) =>
+      it.defId === 'ceiling-light' ? { ...it, props: { ...it.props, lampIp: 44 } } : it,
+    )
+    const before = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    const after = buildReportHtml(plan, specified, BUILTIN_CATALOG, null)
+    expect(before).toMatch(/need IP44 minimum/)
+    expect(after).not.toMatch(/need IP44 minimum/)
+  })
+
+  it('is absent in Simple mode (pro-tier flag)', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toMatch(/need IP44 minimum/)
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+})
+
+describe('report palette-restraint note (F13-adjacent design review)', () => {
+  const manyFinishes = () => {
+    const base = buildDefaultPlan()
+    // Five distinct floor finishes across the home — past the published
+    // "overwhelms the eye" threshold.
+    return {
+      floor: {
+        livingDining: 'floor-tile-white',
+        kitchen: 'floor-tile-grey',
+        bath1: 'floor-terrazzo',
+        bath2: 'floor-tile-charcoal',
+        bed1: 'floor-wood-oak',
+      },
+      walls: { livingDining: 'wall-paint-white' },
+      plan: base,
+    }
+  }
+
+  it('prints the note, naming the smallest finishes as candidates', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const f = manyFinishes()
+    const html = buildReportHtml(f.plan, [], BUILTIN_CATALOG, null, undefined, {
+      floor: f.floor,
+      walls: f.walls,
+    } as never)
+    expect(html).toContain('Palette restraint')
+    expect(html).toMatch(/distinct floor finishes/)
+    // The actionable half: which codes, and how little area they cover.
+    expect(html).toMatch(/FL-0\d/)
+    expect(html).toMatch(/% of the floor area between them/)
+    // Framed as an observation with legitimate exceptions.
+    expect(html).toMatch(/observation, not a rule/i)
+  })
+
+  it('says nothing for a restrained palette', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = buildReportHtml(buildDefaultPlan(), [], BUILTIN_CATALOG, null, undefined, {
+      floor: { livingDining: 'floor-wood-oak', kitchen: 'floor-tile-white' },
+      walls: { livingDining: 'wall-paint-white' },
+    } as never)
+    expect(html).not.toContain('Palette restraint')
+  })
+
+  it('is absent in Simple mode (pro-tier flag)', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    const f = manyFinishes()
+    const html = buildReportHtml(f.plan, [], BUILTIN_CATALOG, null, undefined, {
+      floor: f.floor,
+      walls: f.walls,
+    } as never)
+    expect(html).not.toContain('Palette restraint')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+})
+
+describe('layout critique in the report (v0.31.5.314)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  /** Scoped to the critique table — the report names every room many times. */
+  const critiqueTable = (html: string) => {
+    const i = html.indexOf('<h2>Layout critique</h2>')
+    if (i < 0) return null
+    const end = html.indexOf('</table>', i)
+    return html.slice(i, end)
+  }
+
+  it('is PRESENT in Pro, with measured verdicts', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const table = critiqueTable(buildReportHtml(plan, items, BUILTIN_CATALOG, null))
+    expect(table, 'no Layout critique section in Pro').toBeTruthy()
+    // The furnished default flat has a sofa and a TV, so the viewing-distance
+    // and conversation checks are applicable — a section of nothing but
+    // "skipped" would be worse than no section.
+    expect(table!).toMatch(/Layout quality \d+ over [1-9]/)
+    expect(table!).toMatch(/pass|warn|fail/)
+  })
+
+  it('is HIDDEN in Simple', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    expect(critiqueTable(buildReportHtml(plan, items, BUILTIN_CATALOG, null))).toBeNull()
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+
+  it('omits the section entirely for an empty home rather than printing all-skipped', () => {
+    expect(critiqueTable(buildReportHtml(plan, [], BUILTIN_CATALOG, null))).toBeNull()
+  })
+
+  it('orders failures and warnings ABOVE passes', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const table = critiqueTable(buildReportHtml(plan, items, BUILTIN_CATALOG, null))!
+    const verdicts = [...table.matchAll(/<td>(pass|warn|fail)<\/td>/g)].map((m) => m[1])
+    expect(verdicts.length).toBeGreaterThan(1)
+    const rank = (v: string) => (v === 'fail' ? 0 : v === 'warn' ? 1 : 2)
+    // Monotonically non-decreasing: a list that opens with four passes buries
+    // the one problem, which is the whole point of showing the critique.
+    for (let i = 1; i < verdicts.length; i += 1) {
+      expect(rank(verdicts[i]!)).toBeGreaterThanOrEqual(rank(verdicts[i - 1]!))
+    }
+  })
+})
+
+describe('floor build-up in the report (v0.31.6.2)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+  /** Scoped to the section — the report names every room many times over. */
+  const section = (html: string) => {
+    const i = html.indexOf('<h2>Floor build-up &amp; levels</h2>')
+    if (i < 0) return null
+    // To the NEXT h2, so the window is the section and nothing after it. An
+    // earlier version used `lastIndexOf(marker, i)`, which searches BEFORE i
+    // and silently returned an empty string — a scoping helper that reported
+    // "section present but empty" for a section that was fully populated.
+    const next = html.indexOf('<h2>', i + 4)
+    return html.slice(i, next < 0 ? html.length : next)
+  }
+
+  it('is PRESENT in Pro and reports the derived levels', async () => {
+    const { useStore } = await import('../state/store')
+    const s = useStore.getState()
+    s.setUiMode('pro')
+    s.reresolveFeatureFlags()
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', s.finishes)
+    const sec = section(html)
+    expect(sec, 'no Floor build-up section in Pro').toBeTruthy()
+    // The shipped flat's bathrooms are bedded porcelain (15 mm) against vinyl
+    // bedrooms (7 mm) — so the section must show both build-ups and the step.
+    expect(sec!).toMatch(/15 mm/)
+    expect(sec!).toMatch(/7 mm/)
+    expect(sec!).toMatch(/Doorway steps needing a threshold detail/)
+  })
+
+  it('leads with the WET-ROOM FALL, the finding the derivation exists for', async () => {
+    const { useStore } = await import('../state/store')
+    const s = useStore.getState()
+    s.setUiMode('pro')
+    s.reresolveFeatureFlags()
+    const sec = section(buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', s.finishes))!
+    expect(sec).toMatch(/Wet room floor falls OUT toward a dry room/)
+    expect(sec).toMatch(/Bath\/WC 1[\s\S]*?sits 8 mm above Main Bedroom/)
+    // The warning must sit ABOVE the reference table, not below it.
+    expect(sec.indexOf('falls OUT')).toBeLessThan(sec.indexOf('<td>Room</td>'))
+  })
+
+  it('is HIDDEN in Simple', async () => {
+    const { useStore } = await import('../state/store')
+    const s = useStore.getState()
+    s.setUiMode('simple')
+    s.reresolveFeatureFlags()
+    expect(
+      section(buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', s.finishes)),
+    ).toBeNull()
+    s.setUiMode('pro')
+    s.reresolveFeatureFlags()
+  })
+
+  it('is omitted entirely when no finishes are supplied', () => {
+    // Without finishes there is nothing to derive a level from, and a section
+    // of blanks is worse than no section.
+    expect(section(buildReportHtml(plan, items, BUILTIN_CATALOG, null))).toBeNull()
   })
 })

@@ -4,7 +4,8 @@
  * assertions.
  */
 import { ROOMS } from '../apartment/constants'
-import { type FloorPlan, planRoomArea, planRoomPerimeter, pointInRoom } from '../floorplan/types'
+import { allPlanRooms, levelAsPlan, planLevels, roomAtItem } from '../floorplan/levels'
+import { type FloorPlan, planRoomArea, planRoomPerimeter } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
@@ -26,7 +27,9 @@ export function floorAreaByFinish(
 ): FinishArea[] {
   if (!floor) return []
   const byFinish = new Map<string, number>()
-  for (const room of plan.rooms) {
+  // EVERY storey (F13). Room ids are plan-unique, so the finish map and the
+  // external filter stay level-agnostic; only the enumeration was wrong.
+  for (const room of allPlanRooms(plan)) {
     if (ROOMS[room.id as keyof typeof ROOMS]?.external) continue
     const id = floor[room.id]
     if (!id) continue
@@ -48,12 +51,19 @@ export function wallAreaByFinish(
 ): FinishArea[] {
   if (!walls) return []
   const byFinish = new Map<string, number>()
-  for (const room of plan.rooms) {
-    if (ROOMS[room.id as keyof typeof ROOMS]?.external) continue
-    const id = walls[room.id]
-    if (!id) continue
-    const h = room.ceilingHeight ?? defaultHeight
-    byFinish.set(id, (byFinish.get(id) ?? 0) + planRoomPerimeter(room) * h)
+  // Iterated PER STOREY rather than over `allPlanRooms` (F13): the height
+  // fallback must be the room's own level's `ceilingHeight`, not the ground
+  // floor's, or an upstairs room with a different storey height is measured
+  // against the wrong one.
+  for (const level of planLevels(plan)) {
+    const levelHeight = levelAsPlan(plan, level).ceilingHeight ?? defaultHeight
+    for (const room of level.rooms) {
+      if (ROOMS[room.id as keyof typeof ROOMS]?.external) continue
+      const id = walls[room.id]
+      if (!id) continue
+      const h = room.ceilingHeight ?? levelHeight
+      byFinish.set(id, (byFinish.get(id) ?? 0) + planRoomPerimeter(room) * h)
+    }
   }
   return [...byFinish.entries()].map(([id, area]) => ({ id, area })).sort((a, b) => b.area - a.area)
 }
@@ -87,7 +97,7 @@ export function furnitureCostByRoom(
     const def = catalog[it.defId]
     if (!def) continue
     const each = lineEach(it, def)
-    const room = plan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    const room = roomAtItem(plan, it)
     if (room) {
       const e = byRoom.get(room.id) ?? { name: room.name, count: 0, total: 0 }
       e.count += 1
@@ -98,7 +108,9 @@ export function furnitureCostByRoom(
       unassigned.total += each
     }
   }
-  const rows = plan.rooms.filter((r) => byRoom.has(r.id)).map((r) => byRoom.get(r.id)!)
+  const rows = allPlanRooms(plan)
+    .filter((r) => byRoom.has(r.id))
+    .map((r) => byRoom.get(r.id)!)
   if (unassigned.count > 0) rows.push(unassigned)
   return rows
 }
@@ -143,7 +155,7 @@ export function furnitureItemsByRoom(
     const each = lineEach(it, def)
     const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
     const key = variant ? `${it.defId}::${variant}` : it.defId
-    const room = plan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    const room = roomAtItem(plan, it)
     const bucket = room
       ? (byRoom.get(room.id) ?? { name: room.name, lines: new Map() })
       : unassigned
@@ -164,7 +176,7 @@ export function furnitureItemsByRoom(
       lines,
     }
   }
-  const rows = plan.rooms
+  const rows = allPlanRooms(plan)
     .filter((r) => byRoom.has(r.id))
     .map((r) => build(byRoom.get(r.id)!, planRoomArea(r)))
   if (unassigned.lines.size > 0) rows.push(build(unassigned, 0))

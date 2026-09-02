@@ -520,6 +520,11 @@ export function furnishPlanItems(
   defs: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
   withDecor = true,
+  /** Layout-variant seed forwarded to the arranger (LAYOUT-REROLL). `0` — the
+   *  default — is byte-identical to before. A preset changes the FINISHES and
+   *  cosmetic style props; only this changes where things go. Both are needed
+   *  for two schemes to differ in substance (`analysis/schemeOptions.ts`). */
+  seed = 0,
 ): FurnitureItem[] {
   const seeded: FurnitureItem[] = []
   // Furnish EVERY storey (F13): `plan.rooms` is ground-only, so iterate all
@@ -541,7 +546,7 @@ export function furnishPlanItems(
     }
   }
   if (seeded.length === 0) return []
-  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
+  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, seed)
   const furniture = dropWallClippers(
     dropDoorBlockers(dropOverlaps(placeSeededMounts(plan, arranged, defs), defs), defs, plan),
     defs,

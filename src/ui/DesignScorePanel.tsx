@@ -9,8 +9,9 @@ import {
 import { buildSuggestions } from '../analysis/suggestions'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { useFeature } from '../features/useFeature'
+import { allPlanRooms, itemsInRoom } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
-import { planRoomArea, pointInRoom } from '../floorplan/types'
+import { planRoomArea } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
@@ -74,11 +75,16 @@ export function DesignScorePanel() {
   const suggestions = useMemo(() => {
     if (!open || !suggestEnabled || dragging) return []
     const merged = buildMergedCatalog(catalogInputs)
-    const rooms = plan.rooms.map((r) => {
+    // EVERY storey (F13). The score itself already used `allPlanRooms`, so the
+    // panel and the score it sits next to disagreed on what the home contains.
+    // Items are matched with `itemsInRoom`, which resolves on the room's own
+    // floor — a bare `pointInRoom` credited an upstairs wardrobe to the room
+    // beneath it, so a bedroom could be told to "add storage" it already had.
+    const rooms = allPlanRooms(plan).map((r) => {
       const cats = new Set<string>()
-      for (const it of items) {
+      for (const it of itemsInRoom(plan, items, r.id)) {
         const def = merged[it.defId]
-        if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
+        if (def) cats.add(def.category)
       }
       return {
         id: r.id,

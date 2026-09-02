@@ -23,8 +23,8 @@ function sampleSection(): Section {
       { pos: 4, thickness: 0.2, base: 0, top: 2.8, cut: true },
     ],
     openings: [{ pos: 4, width: 2, sill: 0.9, head: 2.1, kind: 'window' }],
-    rooms: [{ name: 'Living', start: 0, end: 4 }],
-    items: [{ id: 'sofa', label: 'Sofa', start: 1, end: 3, height: 0.8 }],
+    rooms: [{ name: 'Living', start: 0, end: 4, base: 0 }],
+    items: [{ id: 'sofa', label: 'Sofa', start: 1, end: 3, height: 0.8, base: 0 }],
     ceil: [{ start: 0, end: 4, y: 2.8 }],
   }
 }
@@ -91,8 +91,8 @@ describe('sectionSvg', () => {
     const twoChairs: Section = {
       ...sampleSection(),
       items: [
-        { id: 'chair-1', label: 'Dining chair', start: 1, end: 1.4, height: 0.9 },
-        { id: 'chair-2', label: 'Dining chair', start: 1.4, end: 1.8, height: 0.9 },
+        { id: 'chair-1', label: 'Dining chair', start: 1, end: 1.4, height: 0.9, base: 0 },
+        { id: 'chair-2', label: 'Dining chair', start: 1.4, end: 1.8, height: 0.9, base: 0 },
       ],
     }
     const svg = sectionSvg(twoChairs, { palette: PALETTE })

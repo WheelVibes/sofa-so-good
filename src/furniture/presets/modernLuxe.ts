@@ -11,7 +11,12 @@ export const modernLuxe: LayoutPreset = {
   id: 'modern-luxe',
   group: 'theme',
   name: 'Modern Luxe',
-  description: 'Ivory, taupe & chocolate — brass accents, lacquered finishes, quiet luxury.',
+  // "Satin", not "lacquered": the preset's own `sheen: 0.3` is semi-matte, and
+  // the quiet-luxury references are explicit that the look is matte/semi-matte
+  // with UNLACQUERED brass (a patina that cannot be faked). The old wording
+  // described high-gloss glam — the opposite style — and is user-facing in the
+  // scheme comparison. See `docs/research/2026-09-02-scheme-theme-grounding.md`.
+  description: 'Ivory, taupe & chocolate — brass accents, satin finishes, quiet luxury.',
   dryFloor: 'floor-wood-walnut',
   wall: 'wall-paint-warm',
   paletteId: 'modern-luxe',

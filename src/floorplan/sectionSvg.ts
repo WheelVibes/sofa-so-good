@@ -104,9 +104,12 @@ export function sectionSvg(section: Section, opts: SectionSvgOpts): string {
     )}" stroke="${esc(palette.floor)}" stroke-width="2" />`,
   )
   for (const r of section.rooms) {
+    // Each room's floor line sits at ITS OWN storey's level (F13) — `base` is 0
+    // for the ground floor, so a single-storey section is byte-identical.
+    const ry = y(r.base) + 3
     parts.push(
-      `<line x1="${n(x(r.start))}" y1="${n(floorPx + 3)}" x2="${n(x(r.end))}" y2="${n(
-        floorPx + 3,
+      `<line x1="${n(x(r.start))}" y1="${n(ry)}" x2="${n(x(r.end))}" y2="${n(
+        ry,
       )}" stroke="${esc(palette.floor)}" stroke-width="3" />`,
     )
   }
@@ -141,8 +144,10 @@ export function sectionSvg(section: Section, opts: SectionSvgOpts): string {
     for (const it of section.items) {
       const ix = x(it.start)
       const iw = Math.max((it.end - it.start) * scale, 1)
-      const ih = Math.min(it.height, section.height)
-      const iy = y(ih)
+      // Stands on ITS OWN storey's floor (F13): clamp the top, not the height,
+      // or an upstairs piece would be squashed instead of raised.
+      const ih = Math.max(Math.min(it.base + it.height, section.height) - it.base, 0)
+      const iy = y(it.base + ih)
       const ihPx = Math.max(ih * scale, 1)
       parts.push(
         `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ihPx)}" fill="${esc(
@@ -232,7 +237,7 @@ export function sectionSvg(section: Section, opts: SectionSvgOpts): string {
     if (!r.name) continue
     const cx = x((r.start + r.end) / 2)
     parts.push(
-      `<text x="${n(cx)}" y="${n(floorPx + FONT + 6)}" font-size="${FONT}" ` +
+      `<text x="${n(cx)}" y="${n(y(r.base) + FONT + 6)}" font-size="${FONT}" ` +
         `text-anchor="middle" fill="${esc(palette.ink)}">${esc(r.name)}</text>`,
     )
   }

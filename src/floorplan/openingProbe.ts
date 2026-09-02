@@ -16,7 +16,10 @@
  * owns the geometry. Two documented behavioural knobs let each caller reproduce
  * its exact prior result:
  *
- *   - **`offset`** — how far (m) to probe either side of the centre. All three
+ *   - **`probeOffsetM`** — how far (m) to probe either side of the centre,
+ *     PERPENDICULAR to the wall. Not to be confused with `PlanOpening.offset`,
+ *     the along-wall position; see the parameter doc below for what that
+ *     confusion cost. All three
  *     callers use 0.2 m today (enough to clear a wall's thickness, small enough
  *     to land inside a shallow room); it stays a parameter so each keeps its own
  *     constant.
@@ -72,7 +75,7 @@ export function openingCenter(op: PlanOpening, w: PlanWall, clampCenter = false)
   return [w.start[0] + tx * at, w.start[1] + tz * at]
 }
 
-/** Centre, unit normal, and the two probe points a short `offset` either side of an
+/** Centre, unit normal, and the two probe points a short distance either side of an
  *  opening's centre, perpendicular to its wall. `plus` sits on the `+normal` side,
  *  `minus` on the `-normal` side. Null if the wall is degenerate. */
 export interface OpeningProbe {
@@ -85,7 +88,21 @@ export interface OpeningProbe {
 export function openingProbePoints(
   wall: PlanWall,
   opening: PlanOpening,
-  offset: number,
+  /**
+   * How far to probe PERPENDICULAR to the wall, in metres (~0.2 m at every
+   * call site).
+   *
+   * Named `probeOffsetM`, not `offset`, deliberately. `PlanOpening.offset` is
+   * the opening's ALONG-WALL position — a different axis, a different meaning,
+   * and also a `number`. Passing one where the other belongs compiles cleanly
+   * and silently probes a metre or more into the room: it resolved two of six
+   * windows to "Unassigned" and one to the wrong room on a printed trade pack
+   * (v0.31.5.303/.304, where it cost two commits to diagnose). Nothing but a
+   * rendered document distinguished them, so the collision is removed at the
+   * source — an author reaching for `o.offset` now sees a parameter that is not
+   * called that.
+   */
+  probeOffsetM: number,
   clampCenter = false,
 ): OpeningProbe | null {
   const normal = wallNormal(wall)
@@ -94,12 +111,12 @@ export function openingProbePoints(
   return {
     center,
     normal,
-    plus: [center[0] + normal[0] * offset, center[1] + normal[1] * offset],
-    minus: [center[0] - normal[0] * offset, center[1] - normal[1] * offset],
+    plus: [center[0] + normal[0] * probeOffsetM, center[1] + normal[1] * probeOffsetM],
+    minus: [center[0] - normal[0] * probeOffsetM, center[1] - normal[1] * probeOffsetM],
   }
 }
 
-/** Rooms on each side of an opening, resolved by probing `offset` metres either
+/** Rooms on each side of an opening, resolved by probing `probeOffsetM` metres either
  *  side of its centre. `plus`/`minus` are the first matching room on the `±normal`
  *  side (null if none / outside). Null when the wall is degenerate. */
 export interface OpeningRooms {
@@ -117,10 +134,12 @@ export function roomsAcrossOpening(
   rooms: readonly PlanRoom[],
   wall: PlanWall,
   opening: PlanOpening,
-  offset: number,
+  /** Perpendicular probe distance in metres — NOT `PlanOpening.offset`, which
+   *  is an along-wall position. See `openingProbePoints`. */
+  probeOffsetM: number,
   clampCenter = false,
 ): OpeningRooms | null {
-  const probe = openingProbePoints(wall, opening, offset, clampCenter)
+  const probe = openingProbePoints(wall, opening, probeOffsetM, clampCenter)
   if (!probe) return null
   const plus = rooms.find((r) => pointInRoom(r, probe.plus[0], probe.plus[1])) ?? null
   const minus = rooms.find((r) => pointInRoom(r, probe.minus[0], probe.minus[1])) ?? null

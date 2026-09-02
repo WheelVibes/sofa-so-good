@@ -7,7 +7,15 @@
  */
 
 import type { FurnitureItem } from '../furniture/types'
-import type { FloorPlan, PlanOpening, PlanRoom, PlanUpperLevel, PlanWall } from './types'
+import {
+  type FloorPlan,
+  type PlanOpening,
+  type PlanRoom,
+  type PlanUpperLevel,
+  type PlanWall,
+  planTotalArea,
+  pointInRoom,
+} from './types'
 
 /** The ground floor's well-known level id (items/rooms with no explicit level). */
 export const GROUND_LEVEL_ID = 'ground'
@@ -246,4 +254,142 @@ export function restackLevelElevations(
     belowCeiling = l.ceilingHeight ?? groundCeilingHeight
     return { ...l, elevation }
   })
+}
+
+/**
+ * Total interior floor area across EVERY storey (m²).
+ *
+ * `types.ts:planTotalArea` is a legitimate SINGLE-LEVEL helper — the plan editor
+ * calls it per storey to show that storey's total, which is correct — and it
+ * lives in `types.ts`, which cannot import this module without a cycle. This is
+ * the whole-home counterpart, for callers that mean "the area of the home".
+ * Passing a whole plan to `planTotalArea` silently reports the ground floor only
+ * (F13); that was the bug at three call sites fixed in v0.31.5.276.
+ */
+export function planTotalAreaAllLevels(plan: FloorPlan): number {
+  return planLevels(plan).reduce((sum, level) => sum + planTotalArea(levelAsPlan(plan, level)), 0)
+}
+
+/**
+ * Every wall in the home, across all storeys.
+ *
+ * The companion to {@link allPlanRooms}. `plan.walls` is the GROUND FLOOR ONLY
+ * (F13), so a whole-home consumer needs this — and before it existed the
+ * `planLevels(plan).flatMap(l => l.walls)` idiom was hand-written in five
+ * modules, which is exactly how the ground-only reads spread in the first place.
+ */
+export function allPlanWalls(plan: FloorPlan): PlanWall[] {
+  return planLevels(plan).flatMap((l) => (Array.isArray(l.walls) ? l.walls : []))
+}
+
+/** Every opening in the home, across all storeys. See {@link allPlanWalls}. */
+export function allPlanOpenings(plan: FloorPlan): PlanOpening[] {
+  return planLevels(plan).flatMap((l) => (Array.isArray(l.openings) ? l.openings : []))
+}
+
+/**
+ * The room an item stands in, searched on the item's OWN storey only.
+ *
+ * The naive `plan.rooms.find((r) => pointInRoom(r, x, z))` is wrong twice over
+ * in a multi-storey home: it cannot see an upstairs room at all, and once it
+ * could (via `allPlanRooms`) it would match a room DIRECTLY ABOVE OR BELOW the
+ * item, because a plan's storeys share one XZ coordinate space. Room ids are
+ * plan-unique, so the mis-attribution is silent — a bed upstairs would be
+ * costed into the living room beneath it.
+ *
+ * Returns `null` for an item outside every room on its storey (the callers'
+ * "Unassigned" bucket).
+ */
+export function roomAtItem(
+  plan: FloorPlan,
+  item: Pick<FurnitureItem, 'levelId' | 'position'>,
+): PlanRoom | null {
+  const level = levelOfItem(plan, item)
+  const [x, z] = item.position
+  return level.rooms.find((r) => pointInRoom(r, x, z)) ?? null
+}
+
+/**
+ * The items standing in one room, searched on THAT ROOM's storey only.
+ *
+ * The inverse of {@link roomAtItem}, and wrong in the same way when
+ * hand-rolled: `items.filter((it) => pointInRoom(room, x, z))` sweeps up
+ * furniture from every storey that happens to overlap the room's XZ, so a
+ * ground-floor "Clear room" would delete the loft's furniture too.
+ *
+ * Returns `[]` for an unknown room id.
+ */
+export function itemsInRoom<T extends Pick<FurnitureItem, 'levelId' | 'position'>>(
+  plan: FloorPlan,
+  items: readonly T[],
+  roomId: string,
+): T[] {
+  const level = levelOfRoom(plan, roomId)
+  if (!level) return []
+  const room = level.rooms.find((r) => r.id === roomId)
+  if (!room) return []
+  return items.filter(
+    (it) =>
+      (it.levelId ?? GROUND_LEVEL_ID) === level.id &&
+      pointInRoom(room, it.position[0], it.position[1]),
+  )
+}
+
+/**
+ * A copy of the plan with `fn` applied to EVERY storey's rooms.
+ *
+ * The bare `{ ...plan, rooms: plan.rooms.map(fn) }` is ground-only, so a
+ * whole-home room rewrite (a finish preset, an OCS re-finish, a screed pass)
+ * silently left every upstairs room untouched. Levels with no rooms array are
+ * passed through unchanged rather than gaining an empty one.
+ */
+export function mapPlanRooms(plan: FloorPlan, fn: (room: PlanRoom) => PlanRoom): FloorPlan {
+  const next: FloorPlan = { ...plan, rooms: (plan.rooms ?? []).map(fn) }
+  if (!isMultiLevel(plan)) return next
+  return {
+    ...next,
+    upperLevels: plan.upperLevels?.map((l) =>
+      Array.isArray(l.rooms) ? { ...l, rooms: l.rooms.map(fn) } : l,
+    ),
+  }
+}
+
+/**
+ * The single-storey plan a NEW item should be placed against.
+ *
+ * `itemsSlice.addItem` derives an item's `levelId` from the open room editor, so
+ * anything that resolves geometry at placement time (opening snaps, wall
+ * clearance) has to resolve the SAME storey or the two disagree: a curtain
+ * dropped while editing an upstairs room is tagged upstairs, but a snap searched
+ * against `plan.walls` either finds no window at all or snaps it to a GROUND
+ * window's coordinates. Mirrors `collision/placementWalls.ts`'s level rule.
+ */
+export function placementLevelPlan(s: {
+  floorPlan: FloorPlan
+  roomEditor: { active: boolean; roomId: string | null }
+}): FloorPlan {
+  if (s.roomEditor.active && s.roomEditor.roomId) {
+    const level = levelOfRoom(s.floorPlan, s.roomEditor.roomId)
+    if (level && level.id !== GROUND_LEVEL_ID) return levelAsPlan(s.floorPlan, level)
+  }
+  return s.floorPlan
+}
+
+/**
+ * The room containing a level-tagged POINT, searched on that point's own storey.
+ *
+ * The counterpart of {@link roomAtItem} for records that carry `{x, z}` rather
+ * than a `position` tuple — MEP points, lights, comment pins. Same hazard: a
+ * plan's storeys share one XZ space, so a bare `pointInRoom` over
+ * `allPlanRooms` returns whichever room happens to sit at that coordinate on
+ * any floor.
+ */
+export function roomAtPoint(
+  plan: FloorPlan,
+  x: number,
+  z: number,
+  levelId?: string,
+): PlanRoom | null {
+  const level = levelById(plan, levelId)
+  return level.rooms.find((r) => pointInRoom(r, x, z)) ?? null
 }

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  drawingUnitsNote,
   formatArea,
   formatBytes,
   formatDims,
   formatDimsShort,
+  formatDrawingLength,
   formatLength,
   formatRoomSize,
 } from './measurement'
@@ -78,5 +80,60 @@ describe('formatDimsShort', () => {
   })
   it('coerces non-finite to 0', () => {
     expect(formatDimsShort([Number.NaN, 0.5])).toBe('0 × 50 cm')
+  })
+})
+
+describe('formatDrawingLength', () => {
+  it('renders metric as integer millimetres with no unit suffix', () => {
+    expect(formatDrawingLength(2.745)).toBe('2745')
+    expect(formatDrawingLength(5)).toBe('5000')
+    expect(formatDrawingLength(0.09)).toBe('90')
+  })
+
+  it('keeps the millimetre `formatLength` would have rounded away', () => {
+    // The whole point of G10: 2.745 m is a real joinery dimension and
+    // `formatLength` quantises it to the nearest 10 mm.
+    expect(formatLength(2.745, 'metric')).toBe('2.75 m')
+    expect(formatDrawingLength(2.745, 'metric')).toBe('2745')
+  })
+
+  it('rounds to the nearest whole millimetre', () => {
+    expect(formatDrawingLength(1.00049)).toBe('1000')
+    expect(formatDrawingLength(1.00051)).toBe('1001')
+  })
+
+  it('renders imperial to the nearest 1/8 inch in lowest terms', () => {
+    expect(formatDrawingLength(5, 'imperial')).toBe('16′ 4 7/8″')
+    expect(formatDrawingLength(4, 'imperial')).toBe('13′ 1 1/2″')
+  })
+
+  it('is finer than the nearest-inch imperial `formatLength` produces', () => {
+    expect(formatLength(5, 'imperial')).toBe('16′ 5″')
+    expect(formatDrawingLength(5, 'imperial')).toBe('16′ 4 7/8″')
+  })
+
+  it('omits the fraction when the value lands on a whole inch', () => {
+    expect(formatDrawingLength(0.0254, 'imperial')).toBe('1″')
+  })
+
+  it('shows a sub-foot imperial value as inches only', () => {
+    expect(formatDrawingLength(0.1, 'imperial')).toBe('3 7/8″')
+  })
+
+  it('handles zero and non-finite input without NaN', () => {
+    expect(formatDrawingLength(0)).toBe('0')
+    expect(formatDrawingLength(Number.NaN)).toBe('0')
+    expect(formatDrawingLength(Number.NaN, 'imperial')).toBe('0″')
+  })
+
+  it('keeps a negative sign', () => {
+    expect(formatDrawingLength(-1.5)).toBe('-1500')
+  })
+})
+
+describe('drawingUnitsNote', () => {
+  it('states the unit once, for the title block', () => {
+    expect(drawingUnitsNote('metric')).toBe('ALL DIMENSIONS IN MILLIMETRES')
+    expect(drawingUnitsNote('imperial')).toBe('ALL DIMENSIONS IN FEET AND INCHES')
   })
 })

@@ -48,6 +48,42 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  deliveryAccess: {
+    label: 'Delivery access',
+    description: 'Check furniture can reach the room via lift, corridor and doors',
+    default: true,
+    tier: 'pro',
+  },
+  siteMeasurements: {
+    label: 'Site measurements',
+    description: 'Reconcile tape-measured dimensions against the model',
+    default: true,
+    tier: 'pro',
+  },
+  schemeOptions: {
+    label: 'Scheme options',
+    description: 'Generate and compare alternative design schemes',
+    default: true,
+    tier: 'pro',
+  },
+  constructionDetails: {
+    label: 'Construction details',
+    description: 'Junction detail sheet (ceiling drops, upturns, thresholds, sills)',
+    default: true,
+    tier: 'pro',
+  },
+  specification: {
+    label: 'Specification',
+    description: 'Written workmanship/tolerance spec sheet in the drawing set',
+    default: true,
+    tier: 'pro',
+  },
+  coordinationChecks: {
+    label: 'Coordination checks',
+    description: 'Cross-discipline clashes (MEP vs furniture vs ceiling)',
+    default: true,
+    tier: 'pro',
+  },
   clearanceChecks: {
     label: 'Clearance checks',
     description: 'Door-swing / fit checks',
@@ -1834,6 +1870,96 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   settingOutDims: {
     label: 'Setting-out dimensions',
     description: 'Datum-referenced setting-out dimensions + tile start points on the drawing set',
+    default: true,
+    tier: 'pro',
+  },
+  // Floor build-up + HDB thickness limits (v0.31.6.2). `PlanRoom.floorLevelMm`
+  // drove the FFL tags, step markers, 3D risers and tiler pack and was entirely
+  // HAND-ENTERED, because `MaterialDef` carried no thickness — so the app could
+  // not tell you that 15 mm bedded porcelain against 7 mm LVT makes an 8 mm
+  // step at the door. Also checks the two HDB limits (50 mm finish+screed, 13 mm
+  // tile overlay) and flags a wet room whose derived floor falls OUT toward a
+  // dry one. Regulatory/analytical → pro tier.
+  floorBuildUp: {
+    label: 'Floor build-up & levels',
+    description:
+      "Derives each room's finished floor level from its finish, checks the HDB thickness limits, and flags doorway steps",
+    default: true,
+    tier: 'pro',
+  },
+  // Layout critique in the report (v0.31.5.314). `analysis/layoutCritique.ts`
+  // has shipped for a while with cited thresholds — TV viewing distance,
+  // conversation distance, coffee-table gap, sofa proportion, and now rug size
+  // — and was consumed by NOTHING except `schemeOptions`, so it was visible
+  // only when comparing generated alternatives. It never assessed the user's
+  // own design. Analytical → pro tier.
+  layoutCritiqueReport: {
+    label: 'Layout critique',
+    description: "Applies the layout critique's cited thresholds to your own design in the report",
+    default: true,
+    tier: 'pro',
+  },
+  // Material-palette restraint (v0.31.5.312): one whole-home observation when
+  // a design exceeds the rule-of-three flooring/wall palette, naming the
+  // smallest-area finishes as consolidation candidates. Printed with the
+  // finishes schedule in the report — NOT a `designScore` criterion, because
+  // adding one silently re-scores every existing design. Analytical → pro tier.
+  paletteDiscipline: {
+    label: 'Palette restraint note',
+    description: 'Flags a home carrying more than three distinct floor or wall finishes',
+    default: true,
+    tier: 'pro',
+  },
+  // Lighting-layer coverage (v0.31.5.311): does each habitable room have
+  // ambient + task + accent light? Average illuminance (`roomLux`) answers
+  // "is there enough light"; it cannot answer "is the light any good" — a
+  // living room hitting its recommended lux from one pendant passes on lux and
+  // is badly lit. The only prior prompt fired when a room had NO fixture at
+  // all. Analytical → pro tier. Pure code over the emitter registry's newly
+  // authored `layer`.
+  lightingLayers: {
+    label: 'Lighting layer checks',
+    description: 'Flags habitable rooms missing an ambient, task or accent lighting layer',
+    default: true,
+    tier: 'pro',
+  },
+  // Variation register (v0.31.5.307): a per-trade cost diff between the design
+  // marked AS TENDERED and the design as it stands. In SG renovation the delta
+  // between what was priced and what is built is where disputes land, and the
+  // app had the whole cost model with no way to compare two states of it.
+  // Analytical handover content → pro tier. Pure code over the existing
+  // allocator; needs a captured snapshot, so it is inert until the user marks
+  // one and says so rather than showing an empty table.
+  variationRegister: {
+    label: 'Variation register',
+    description: 'Per-trade cost differences since the design was marked as tendered',
+    default: true,
+    tier: 'pro',
+  },
+  // Lamp-specification checks (v0.31.5.297): a wet-room ingress-protection
+  // advisory (bathroom zones 1-2 need IP44; every shipped emitter is IP20) and
+  // a colour-temperature-vs-room-use advisory (3000 K warm in a task space).
+  // The first is a COMPLIANCE matter, not a style preference, which is why it
+  // belongs in the Checks panel rather than a report footnote. Pure code over
+  // the emitter registry's newly authored `cct`/`ip` — no asset dependency.
+  // Analytical → pro tier, like the other Checks groups.
+  lampSpecChecks: {
+    label: 'Lamp specification checks',
+    description: 'Wet-room IP rating + colour-temperature advisories for placed light fixtures',
+    default: true,
+    tier: 'pro',
+  },
+  // Tiling layout plan (G5 follow-up): the tile grid DRAWN in position per
+  // room, with the setting-out origin marked and the perimeter cuts tinted.
+  // `tileCoursing.ts` already computed all of it and the set printed it as a
+  // table — but transferring "origin 137/212 mm, 9x6 full tiles" from a column
+  // onto a slab is the step where tiling rework happens, and a drawing removes
+  // it. Analytical drawing-set content → pro tier, like the sheet flags around
+  // it. Pure code over existing data, no asset dependency → prod-safe.
+  tileLayoutSheet: {
+    label: 'Tiling layout plan',
+    description:
+      'Per-room tile grid, setting-out origin and perimeter cuts drawn on the drawing set',
     default: true,
     tier: 'pro',
   },

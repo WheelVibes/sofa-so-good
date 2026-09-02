@@ -14,6 +14,7 @@
  */
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
+import { itemsOnLevel, levelAsPlan, planLevels } from '../floorplan/levels'
 import type { FloorPlan, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -54,6 +55,11 @@ interface ElevationItem {
 
 export interface WallElevation {
   wallId: string
+  /** The storey this wall is on. Optional on the TYPE so a hand-built fixture
+   *  stays valid, but `projectAllElevations` always populates both. */
+  levelId?: string
+  /** That storey's display name, for a sheet/panel caption. */
+  levelName?: string
   /** Wall length (m) = the elevation's horizontal extent. */
   length: number
   /** Wall height (m) = the elevation's vertical extent (topHeight ?? ceiling). */
@@ -207,12 +213,37 @@ export function projectWallElevation(
   return result
 }
 
-/** Every wall's elevation for a plan (in `plan.walls` order). */
+/**
+ * Every wall's elevation across EVERY storey, ground first, in each level's own
+ * wall order.
+ *
+ * Was `plan.walls` — the ground floor only (F13) — so an upper storey's walls
+ * had no elevation drawing at all, in the panel, the report and the drawing set.
+ * A wall elevation is self-contained (heights are relative to its own floor), so
+ * unlike a section this needs no stacking; it needs enumeration, plus two things
+ * resolved PER STOREY:
+ *
+ *  - `levelAsPlan` so each wall is measured against its OWN level's
+ *    `ceilingHeight` and sees only its own level's openings. The upper storey of
+ *    the shipped Open Loft is 2.2 m against a 3.0 m ground floor.
+ *  - `itemsOnLevel` so only that storey's furniture is projected. Items were
+ *    passed through unfiltered, so an upstairs piece within
+ *    `ELEVATION_NEAR_WALL` of a ground wall's line was drawn standing against
+ *    that ground wall.
+ */
 export function projectAllElevations(
   plan: FloorPlan,
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
 ): WallElevation[] {
-  // Tolerate a partial/hand-built plan with no `walls` array.
-  return (plan.walls ?? []).map((w) => projectWallElevation(plan, w, items, defs))
+  return planLevels(plan).flatMap((level) => {
+    const levelPlan = levelAsPlan(plan, level)
+    const levelItems = itemsOnLevel(items, level.id)
+    // Tolerate a partial/hand-built level with no `walls` array.
+    return (levelPlan.walls ?? []).map((w) => ({
+      ...projectWallElevation(levelPlan, w, levelItems, defs),
+      levelId: level.id,
+      levelName: level.name,
+    }))
+  })
 }

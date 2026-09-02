@@ -1,3 +1,4 @@
+import { allPlanRooms } from '../floorplan/levels'
 import { planRoomArea } from '../floorplan/types'
 import { newGroupId } from '../state/slices/groupsSlice'
 import { useStore } from '../state/store'
@@ -17,7 +18,9 @@ function builtinPlusIkea(): Record<string, FurnitureDef> {
 /** Centre of the largest room in the active plan (the drop target). */
 function dropCentre(): [number, number] {
   const st = useStore.getState()
-  const rooms = st.floorPlan.rooms
+  // EVERY storey (F13) — on a maisonette the drop target ignored every
+  // upstairs room, so a large loft could never be the largest room.
+  const rooms = allPlanRooms(st.floorPlan)
   const big = rooms.reduce((a, b) => (planRoomArea(b) > planRoomArea(a) ? b : a), rooms[0])
   return big
     ? [big.origin[0] + big.width / 2, big.origin[1] + big.depth / 2]

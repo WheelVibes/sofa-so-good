@@ -1,4 +1,5 @@
 import { ROOMS } from '../apartment/constants'
+import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { useStore } from './store'
@@ -43,7 +44,7 @@ export function editableRooms(
     ? Object.values(ROOMS)
         .filter((r) => !r.external)
         .map((r) => ({ id: r.id as string, name: r.name }))
-    : plan.rooms.map((r) => ({ id: r.id, name: r.name }))
+    : allPlanRooms(plan).map((r) => ({ id: r.id, name: r.name }))
   return orderRooms(base, order)
 }
 
@@ -73,7 +74,7 @@ export function firstEditableRoomId(
 export function roomDisplayName(roomId: string, plan: FloorPlan): string {
   return (
     ROOMS[roomId as keyof typeof ROOMS]?.name ??
-    plan.rooms.find((r) => r.id === roomId)?.name ??
+    allPlanRooms(plan).find((r) => r.id === roomId)?.name ??
     roomId
   )
 }

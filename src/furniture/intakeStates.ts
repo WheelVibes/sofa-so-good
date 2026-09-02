@@ -49,12 +49,23 @@
 import { planLevels } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
 import { roomLabelPoint } from '../floorplan/roomCentroid'
-import type { FloorPlan, PlanOpening, PlanPlumbingPoint, RoomCategory } from '../floorplan/types'
+import type {
+  FloorPlan,
+  IntakeStateId,
+  PlanOpening,
+  PlanPlumbingPoint,
+  RoomCategory,
+} from '../floorplan/types'
 import type { MaterialId } from '../materials/types'
 
 /** The four buyer starting states offered in Smart Start (BSJ-4). `bto-ocs`
- *  routes to the existing `applyOcsStarter`; the other three are new here. */
-export type IntakeStateId = 'bto-bare' | 'bto-ocs' | 'resale-asis' | 'resale-stripout'
+ *  routes to the existing `applyOcsStarter`; the other three are new here.
+ *
+ *  MOVED to `floorplan/types.ts` (v0.31.5.293) so `FloorPlan.intakeState` can
+ *  reference it without an import cycle — this module imports from that one, and
+ *  that one is deliberately import-free. Re-exported type-only here so every
+ *  existing consumer is unchanged; same pattern as `ElectricalKind`. */
+export type { IntakeStateId } from '../floorplan/types'
 
 /** Cement screed — the bare, unfinished BTO handover floor. */
 export const SCREED: MaterialId = 'floor-screed'

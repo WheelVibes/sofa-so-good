@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { CeilingConfig, CeilingStyle } from '../../../../floorplan/types'
+import { defaultToleranceMm } from '../../../../floorplan/siteMeasurements'
+import type { CeilingConfig, CeilingStyle, MeasuredTargetKind } from '../../../../floorplan/types'
 import { useStore } from '../../../../state/store'
 import { ColorPicker } from '../../../controls/ColorPicker'
 
@@ -255,5 +256,78 @@ export function ActBtn({
       {icon}
       {label}
     </button>
+  )
+}
+
+/**
+ * Record what a tape actually read for one dimension, and show the deviation
+ * from the drawing immediately.
+ *
+ * The instant feedback is the point: a user measuring a flat wants to know THERE
+ * AND THEN whether the model is wrong, not when they later open the drawing set.
+ * An out-of-tolerance value reads as a warning inline, so the discrepancy is
+ * caught while they are still standing in the room with the tape.
+ *
+ * Empty input clears the measurement rather than storing 0 — an unmeasured
+ * dimension and a dimension measured as zero are different things.
+ */
+export function SiteMeasuredField({
+  kind,
+  targetId,
+  modelMm,
+}: {
+  kind: MeasuredTargetKind
+  targetId: string
+  modelMm: number
+}) {
+  const measurements = useStore((s) => s.floorPlan.siteMeasurements)
+  const setSiteMeasurement = useStore((s) => s.setSiteMeasurement)
+  const clearSiteMeasurement = useStore((s) => s.clearSiteMeasurement)
+  const existing = (measurements ?? []).find((m) => m.kind === kind && m.targetId === targetId)
+
+  const deviation = existing ? existing.measuredMm - modelMm : null
+  const tolerance = existing?.toleranceMm ?? defaultToleranceMm(modelMm)
+  const exceeds = deviation !== null && Math.abs(deviation) > tolerance
+
+  return (
+    <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+        <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+          Measured on site (mm)
+        </span>
+        <input
+          className="input tabular-nums"
+          type="number"
+          inputMode="numeric"
+          value={existing ? existing.measuredMm : ''}
+          placeholder={`${modelMm} as drawn`}
+          onChange={(e) => {
+            const raw = e.target.value.trim()
+            if (raw === '') {
+              if (existing) clearSiteMeasurement(kind, targetId)
+              return
+            }
+            const v = Number(raw)
+            if (Number.isFinite(v) && v > 0) setSiteMeasurement(kind, targetId, v)
+          }}
+        />
+      </label>
+      {deviation !== null && (
+        <div
+          className="tabular-nums"
+          style={{
+            fontSize: 'var(--t-2xs)',
+            color: exceeds ? 'var(--danger)' : 'var(--text-3)',
+            fontWeight: exceeds ? 700 : 500,
+          }}
+        >
+          {deviation === 0
+            ? `Matches the drawing (±${tolerance} mm allowed).`
+            : `${deviation > 0 ? '+' : ''}${deviation} mm vs drawn ${modelMm} mm — ${
+                exceeds ? `EXCEEDS the ±${tolerance} mm tolerance` : `within ±${tolerance} mm`
+              }.`}
+        </div>
+      )}
+    </div>
   )
 }
