@@ -5,12 +5,15 @@ import {
   type FloorLoadingReport,
   SLAB_LOAD_LIMIT,
 } from '../analysis/floorLoading'
+import { buildLampSpecAdvisory, type LampSpecAdvisory } from '../analysis/lampSpecAdvisory'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { findItemOverlaps, type OverlapPair } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { useFeature } from '../features/useFeature'
+import { roomAtItem } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildMergedCatalog } from '../furniture/catalog'
+import { LIGHT_EMITTERS } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps, type NarrowGap } from '../layout/walkway'
@@ -29,6 +32,7 @@ export function ClearancePanel() {
   const setOpen = useStore((s) => s.setClearancePanelOpen)
   const fGapFix = useFeature('gapSuggest')
   const fFloorLoad = useFeature('floorLoading')
+  const fLampSpec = useFeature('lampSpecChecks')
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
   const doors = useStore((s) => s.doors)
@@ -45,7 +49,7 @@ export function ClearancePanel() {
     })),
   )
 
-  const { blocked, overlaps, wallClips, narrowGaps, catalog, floorLoad } = useMemo(() => {
+  const { blocked, overlaps, wallClips, narrowGaps, catalog, floorLoad, lampSpec } = useMemo(() => {
     if (!open)
       return {
         blocked: [] as string[],
@@ -54,6 +58,7 @@ export function ClearancePanel() {
         narrowGaps: [] as NarrowGap[],
         catalog: {} as Record<FurnitureType, FurnitureDef>,
         floorLoad: null as FloorLoadingReport | null,
+        lampSpec: null as LampSpecAdvisory | null,
       }
     const merged = buildMergedCatalog(catalogInputs)
     // Whole-plan collision walls (not the room-editor subset) so the check has
@@ -68,8 +73,30 @@ export function ClearancePanel() {
       narrowGaps: findNarrowGaps(items, merged, plan),
       catalog: merged,
       floorLoad: fFloorLoad ? buildFloorLoadingReport(items, merged) : null,
+      // Each fixture's room resolved on ITS OWN storey (F13) via `roomAtItem`,
+      // so an upstairs vanity light is checked against the upstairs bathroom
+      // and not whatever room sits beneath it. A fixture outside every room is
+      // dropped by the builder rather than checked against a guess.
+      lampSpec: fLampSpec
+        ? buildLampSpecAdvisory(
+            items.flatMap((it) => {
+              const spec = LIGHT_EMITTERS[it.defId]
+              const room = roomAtItem(plan, it)
+              if (!spec || !room) return []
+              return [
+                {
+                  id: it.id,
+                  label: it.label ?? merged[it.defId]?.name ?? it.defId,
+                  room,
+                  cct: spec.cct,
+                  ip: spec.ip,
+                },
+              ]
+            }),
+          )
+        : null,
     }
-  }, [open, items, plan, doors, catalogInputs, fFloorLoad])
+  }, [open, items, plan, doors, catalogInputs, fFloorLoad, fLampSpec])
 
   if (!open) return null
 
@@ -263,6 +290,42 @@ export function ClearancePanel() {
             ))}
           </div>
         )}
+
+        {fLampSpec && lampSpec && lampSpec.findings.length > 0 ? (
+          <>
+            <hr className="hr" />
+            <div className="sec-h">Lamp specification</div>
+            <div
+              style={{
+                color: 'var(--text-3)',
+                fontSize: 'var(--t-2xs)',
+                marginBottom: 'var(--s-2)',
+              }}
+            >
+              {lampSpec.scopeNote}
+            </div>
+            <div className="clr-list">
+              {lampSpec.findings.map((f) => (
+                <button
+                  type="button"
+                  key={`${f.fixtureId}-${f.kind}`}
+                  className="clr-item warn"
+                  onClick={() => select(f.fixtureId)}
+                >
+                  <div className="ci-head">
+                    <span className="badge warn">
+                      {f.kind === 'ingress' ? 'IP rating' : 'Colour temp'}
+                    </span>
+                    <span className="ci-title">
+                      {f.label} · {f.roomName}
+                    </span>
+                  </div>
+                  <div className="ci-detail">{f.action}</div>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
 
         {floorLoad?.hasConcern ? (
           <>

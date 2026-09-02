@@ -1873,6 +1873,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Lamp-specification checks (v0.31.5.297): a wet-room ingress-protection
+  // advisory (bathroom zones 1-2 need IP44; every shipped emitter is IP20) and
+  // a colour-temperature-vs-room-use advisory (3000 K warm in a task space).
+  // The first is a COMPLIANCE matter, not a style preference, which is why it
+  // belongs in the Checks panel rather than a report footnote. Pure code over
+  // the emitter registry's newly authored `cct`/`ip` — no asset dependency.
+  // Analytical → pro tier, like the other Checks groups.
+  lampSpecChecks: {
+    label: 'Lamp specification checks',
+    description: 'Wet-room IP rating + colour-temperature advisories for placed light fixtures',
+    default: true,
+    tier: 'pro',
+  },
   // Tiling layout plan (G5 follow-up): the tile grid DRAWN in position per
   // room, with the setting-out origin marked and the perimeter cuts tinted.
   // `tileCoursing.ts` already computed all of it and the set printed it as a

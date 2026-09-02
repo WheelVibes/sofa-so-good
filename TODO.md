@@ -331,12 +331,17 @@ fact. Caveat already documented in `intakeStates.ts`: the curated default flat i
 it would be session-only there — which is fine for a live-computed schedule and only matters across
 a reload.
 
-## Lighting lamp spec — ✅ SHIPPED v0.31.5.297. Remaining: surface the advisory in the UI.
+## Lighting lamp spec — ✅ SHIPPED v0.31.5.297, surfaced v0.31.5.298 (`lampSpecChecks`).
 
-`analysis/lampSpecAdvisory.ts` exists and is tested but is NOT yet wired to a surface. It needs the
-placed fixtures with their rooms resolved on their own storey (`levels.ts:roomAtItem`), then a group
-in `ui/ClearancePanel.tsx` (the Checks panel) and/or a report section, behind its own flag. Both
-findings are actionable and one is a compliance matter, so this should not sit unsurfaced for long.
+Remaining, and both are CONTENT decisions for the owner rather than fixes:
+- **The default flat has an IP20 ceiling light in Bath/WC 1**, so the app's own move-in default
+  fails its own IP44 advisory. Options: ship a wet-rated fixture variant and use it in the wet
+  rooms; or leave it, on the grounds that a check which fires on a real design is doing its job.
+  Do NOT silence it by editing the advisory.
+- **A per-item CCT/IP override** would let a user specify the fixture they actually bought, instead
+  of the registry default. That is the real resolution for both findings, and it needs a props
+  field + inspector control, not a data tweak.
+- A report section for the advisory (it is Checks-panel only today).
 
 ### Original scoping note — NOTE its lumens claim was WRONG, see .297
 

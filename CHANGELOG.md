@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.298 - the lamp-spec advisory reaches a surface, and the default flat fails it
+
+`.297` built `analysis/lampSpecAdvisory.ts`, tested it, and left it wired to nothing — which I
+flagged at the time as something that should not sit long, since one of its two findings is a
+compliance matter. Now surfaced as a **Lamp specification** group in the Checks panel
+(`ui/ClearancePanel.tsx`), behind a new pro-tier `lampSpecChecks` flag.
+
+Each fixture's room is resolved on ITS OWN storey via `levels.ts:roomAtItem`, so an upstairs vanity
+light is checked against the upstairs bathroom rather than whatever sits beneath it. A fixture
+outside every room is dropped by the builder rather than checked against a guess.
+
+**The shipped move-in default trips its own check**, verified in a frame rather than asserted:
+
+- **IP RATING · Ceiling light · Bath/WC 1** — "specified IP20. A wet room's zones 1 and 2 need IP44
+  minimum — specify a wet-rated fixture, or confirm this one sits outside both zones."
+- **COLOUR TEMP · Ceiling light · Kitchen** — 3000 K warm white where a task space wants ~4000 K.
+- **COLOUR TEMP · Ceiling light · Bath/WC 1** — a bath fires both, being wet AND a task space.
+
+That is the second time this week the DEFAULT configuration has failed a newly-added professional
+check (v0.31.5.290: a 2.6 m ceiling with 300x600 wall tile leaves a 200 mm bottom cut, under the
+half-course bar). Both are worth stating plainly rather than quietly fixing the fixture data: the
+checks are only worth adding because real designs trip them, and the app's own default IS a real
+design. Changing the default flat's fixtures to silence its own advisory would be the wrong order of
+operations — it is a content decision, and the honest first step is that the app now says so.
+
+Tested in BOTH modes per the hard rule: the group renders in Pro, is absent in Simple (pro-tier
+flag), and is absent in Pro when the same fixture sits in a dry room.
+
+The long scope note sits above the findings deliberately. It is the false-positive escape hatch —
+zones are not modelled, so a fixture outside zones 1 and 2 can be flagged — and a check whose
+caveat is buried below its findings reads as a verdict.
+
++3 tests.
+
 ## v0.31.5.297 - a lamp spec on the lighting schedule, and .296's claim corrected
 
 **Correcting `.296` first. It said the lighting schedule was missing lumens, measured as 0/6
