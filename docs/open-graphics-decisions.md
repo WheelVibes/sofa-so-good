@@ -1799,6 +1799,37 @@ room, which retires it conclusively.
 room). Each Δ is internally pose-consistent so the recovery fractions compare, but absolute Δs across rooms
 are not pose-matched.
 
+### v0.31.5.278 — the LEVER is big enough; the ESTIMATOR is 2–4× wrong
+
+The fill's share of the ceiling's light is nearly the same in both rooms (livingDining 66.9–69.7 %, bedroom2
+61.4–66.9 %), so that does not explain the halved recovery. Inverting the question — using the fill-off run as
+a second measured point and interpolating in the scalar — gives what the scalar *should* have been:
+
+| room | fill-off Δ L | model scalar | **required scalar** | |
+| --- | --- | --- | --- | --- |
+| livingDining d = 0.6 | −69.7 % | 0.563 | **0.551** | 2 % off |
+| livingDining d = 1.2 | −67.8 % | 0.563 | **0.515** | 9 % off |
+| bedroom2 d = 0.6 | −66.9 % | 0.494 | **0.262** | **1.9× under** |
+| bedroom2 d = 1.2 | −61.4 % | 0.494 | **0.134** | **3.7× under** |
+
+**1. The lever is sufficient.** Zeroing the fill gives −61 to −70 %, exceeding every target measured. Scaling
+the ambient + hemisphere is an adequate mechanism in both rooms.
+
+**2. The estimator is geometry-blind.** The rooms' albedos differ by 1.6 %, so ρ/(1−ρ) returns nearly the same
+scalar (12 % apart) while the required scalars differ by **2–4×**. livingDining leaks light out of a 71 %
+aperture; bedroom2 retains it behind a 27 % one — and ρ/(1−ρ) cannot see that.
+
+**The obvious fix is ruled out:** an area-weighted aperture term is the same in both rooms — the window is
+5.7 % of livingDining's enclosing surface and 5.8 % of bedroom2's (assuming 2.0 m height). The missing
+geometry term is not aperture *area*.
+
+### Usable path
+
+Because the lever is sufficient, a **per-room scalar calibrated once against the path tracer, offline, and
+baked** would work. The tracer runs headlessly (`.245`) and the anchors already measure the target. That
+trades an analytic model for a lookup — less elegant, considerably more likely to be right, and it sidesteps
+the geometry term entirely.
+
 **Also resolved:** the "brightening direction" is largely moot. The model is a **ratio**, so white → navy and
 navy → white are the same experiment read either way, and `.272` tested it. The untested regime is ρ *above*
 the shipped 0.81, which needs an all-white room (many surfaces at once), not one finish swap.

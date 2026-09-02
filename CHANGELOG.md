@@ -5,6 +5,70 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.278 — the lever is big enough; the estimator is 2–4× wrong in a bedroom
+
+`.277` found the scalar fill recovers ~46 % in a bedroom against 78–90 % in the living/dining room, and said
+only that recovery is "room-dependent". This round asks why, and gets a sharper answer than expected.
+
+**The obvious hypothesis is refuted.** If the fill carried a smaller share of the bedroom ceiling's light, the
+same scalar would move it less. `FILLOFF=1` measures that share directly:
+
+| | fill share of ceiling light |
+| --- | --- |
+| livingDining, d = 0.6 / 1.2 / 1.8 | 69.7 / 67.8 / 66.9 % |
+| bedroom2, d = 0.6 / 1.2 | 66.9 / 61.4 % |
+
+**Nearly identical.** The fill's share does not explain a halving.
+
+**So invert the question: what scalar *would* match each target?** The fill-off run supplies a second measured
+point (s = 0), so the response can be interpolated in s rather than guessed:
+
+| room | fill-off Δ L | model scalar | **required scalar** | verdict |
+| --- | --- | --- | --- | --- |
+| livingDining d = 0.6 | −69.7 % | 0.563 | **0.551** | **2 % off** |
+| livingDining d = 1.2 | −67.8 % | 0.563 | **0.515** | **9 % off** |
+| bedroom2 d = 0.6 | −66.9 % | 0.494 | **0.262** | **under-scales 1.9×** |
+| bedroom2 d = 1.2 | −61.4 % | 0.494 | **0.134** | **under-scales 3.7×** |
+
+**Two findings follow, and the first is encouraging.**
+
+**1. The lever is big enough.** Zeroing the fill gives −61 to −70 %, which exceeds every target measured
+(−17 to −50 %). So the *mechanism* — scaling the ambient and hemisphere — is adequate in both rooms. The
+problem is not the lever's range.
+
+**2. The estimator is the problem, and it is geometry-blind.** ρ/(1−ρ) depends only on average albedo. The two
+rooms' albedos differ by **1.6 %** (0.8115 against 0.8249), so the form returns nearly the same scalar
+(0.563 against 0.494, 12 % apart) — while the *required* scalars differ by **2–4×** (≈0.53 against ≈0.20).
+
+**The missing variable is room geometry, not albedo.** livingDining leaks light out of a 71 %-of-wall aperture;
+bedroom2 retains it behind a 27 % one. Same albedo, very different retention — and ρ/(1−ρ) cannot see the
+difference.
+
+**And the obvious geometric correction is ruled out by arithmetic.** Treating the window as a perfect absorber
+weighted by area does not differentiate them — assuming a 2.0 m window height, the window is **5.7 %** of
+livingDining's enclosing surface (4.9 m² of 86 m²) and **5.8 %** of bedroom2's (3.0 m² of 52 m²). An
+area-weighted aperture term is the same in both rooms, so it cannot supply a 2–4× factor. Whatever the missing
+geometry term is, it is not aperture *area*.
+
+**What this means for item (s), and it is a usable path.** The model is **well-calibrated where it was
+developed** (2–9 % in livingDining) and wrong by 2–4× elsewhere, with a geometry-blind form and no obvious
+analytic fix. But since the lever is sufficient, a **per-room scalar calibrated once against the tracer,
+offline, and baked** would work — the tracer already runs headlessly (`.245`) and the anchors already measure
+the target. That trades an analytic model for a lookup, which is less elegant and considerably more likely to
+be right.
+
+**Looked at.** The fill-off frame renders as a dramatically darker bedroom — ceiling and walls dim, only the
+window and directly-lit surfaces retaining brightness — consistent with the −67 % measured drop. The
+intervention is sane.
+
+**Caveats.** The interpolation in s assumes the response is linear between s = 0 and the tested s; it is
+measured at two points per anchor, not verified as linear in between. Two rooms, one finish in the second.
+And the enclosure areas above assume a 2.0 m window height, which the plan does not record in the probe's
+readout.
+
+Probe only; no probe change this round. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in
+`src/` beyond the version bump. Runs 09:52–09:58 local.
+
 ## v0.31.5.277 — the deficit is twice as large in a bedroom, and the model recovers half as much
 
 Item (s) was validated at three finishes but **one room**, and every metric in this arc has turned out

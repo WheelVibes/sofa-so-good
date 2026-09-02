@@ -8477,3 +8477,97 @@ than 78–90 % in the single room with a 71 % aperture. The proposal is not dead
 still a real improvement in absolute terms — but it can no longer be presented as "recovers most of it".
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.278` — the lever is big enough; the estimator is 2–4× wrong in a bedroom
+
+`.277` found the scalar fill recovers ~46 % in a bedroom against 78–90 % in the living/dining room, and could
+say only that recovery is "room-dependent". This round asks why.
+
+Runs 09:52–09:58 local (2026-09-02).
+
+### The obvious hypothesis, refuted
+
+If the fill carried a smaller share of the bedroom ceiling's light, the same scalar would move it less.
+`FILLOFF=1` measures that share directly:
+
+| | fill share of ceiling light |
+| --- | --- |
+| livingDining, d = 0.6 / 1.2 / 1.8 | 69.7 / 67.8 / 66.9 % |
+| bedroom2, d = 0.6 / 1.2 | 66.9 / 61.4 % |
+
+**Nearly identical.** A 4-point difference in fill share cannot halve a recovery. Hypothesis dead.
+
+### Inverting the question
+
+The fill-off run supplies a **second measured point** (scalar = 0), so the response can be interpolated in the
+scalar rather than guessed. That gives what the scalar *should* have been to hit each traced target:
+
+| room | fill-off Δ L | model scalar | **required scalar** | verdict |
+| --- | --- | --- | --- | --- |
+| livingDining d = 0.6 | −69.7 % | 0.563 | **0.551** | **2 % off** |
+| livingDining d = 1.2 | −67.8 % | 0.563 | **0.515** | **9 % off** |
+| bedroom2 d = 0.6 | −66.9 % | 0.494 | **0.262** | **1.9× under** |
+| bedroom2 d = 1.2 | −61.4 % | 0.494 | **0.134** | **3.7× under** |
+
+### Finding 1 — the lever is big enough
+
+Zeroing the fill gives **−61 to −70 %**, which exceeds every target measured across this whole thread
+(−17 % to −50 %). So scaling the ambient and hemisphere is an **adequate mechanism** in both rooms. The
+problem is not that the fill is too small a handle.
+
+That is the encouraging half, and it was not obvious: `.277` speculated that "no scalar on a fixed hemisphere
+encodes 'this room bounces light more times'", which reads as a mechanism limit. It is not one — the range is
+there.
+
+### Finding 2 — the estimator is geometry-blind
+
+ρ/(1−ρ) depends only on average albedo. The two rooms' albedos differ by **1.6 %** (0.8115 against 0.8249), so
+the form returns nearly the same scalar — **0.563 against 0.494, 12 % apart** — while the *required* scalars
+differ by **2–4×** (≈0.53 against ≈0.20).
+
+**The missing variable is room geometry, not albedo.** livingDining leaks light out of a 71 %-of-wall aperture;
+bedroom2 retains it behind a 27 % one. Same albedo, very different retention, and the closed-box form cannot
+see the difference — it assumes no aperture at all.
+
+### And the obvious geometric correction is ruled out
+
+The natural fix is to treat the window as a perfect absorber and fold it into the average. It does not work,
+by arithmetic: assuming a 2.0 m window height,
+
+| room | enclosing surface | window | window share |
+| --- | --- | --- | --- |
+| livingDining | 85.7 m² | 4.9 m² | **5.7 %** |
+| bedroom2 | 52.1 m² | 3.0 m² | **5.8 %** |
+
+An area-weighted aperture term is **the same in both rooms**, so it cannot supply a 2–4× factor. Whatever the
+missing geometry term is, it is not aperture *area* — it is presumably something like the aperture's solid
+angle as seen from the interior, or the mean free path between bounces, neither of which is a one-line
+correction.
+
+### What this means for item (s)
+
+The model is **well-calibrated where it was developed** — 2–9 % in livingDining — and wrong by 2–4 × in a
+bedroom, with a geometry-blind form and no obvious analytic repair.
+
+But because the lever is sufficient, there is a usable path: **calibrate a per-room scalar once against the
+path tracer, offline, and bake it.** The tracer already runs headlessly (`.245`), the anchors already measure
+the target, and the calibration is a one-time cost per room archetype rather than a runtime one. That trades
+an analytic model for a lookup — less elegant, considerably more likely to be right, and it sidesteps the
+missing geometry term entirely rather than pretending to model it.
+
+### Looked at
+
+The fill-off frame renders as a dramatically darker bedroom — ceiling and walls dim, only the window and
+directly-lit surfaces retaining brightness — consistent with the −67 % measured drop. The intervention is
+sane.
+
+### Caveats
+
+The interpolation assumes the response is linear in the scalar between s = 0 and the tested s. It is measured
+at two points per anchor, not verified as linear between them; a mid-point check would firm it up. Two rooms,
+one finish in the second. And the enclosure areas assume a 2.0 m window height, which the probe's aperture
+readout does not report.
+
+Nothing changed in `src/` beyond the version bump.
