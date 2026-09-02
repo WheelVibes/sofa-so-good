@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.10 — the highlight lever is nearly pure, saturates at the encoding ceiling, and the missing piece is a HORIZON BAND
+
+Following `v0.31.6.9`'s corrected finding (shadows match physics, the brightest percentile is
+53 % short), this round localises and prices the highlight deficit. All figures: matched
+framing (both 16:9), common crop excluding the app's UI and the reference's unlit edge band,
+`bedroom3`, 13:00, medium, photographic look.
+
+**Where the highlights are.** Tiling the crop 6×4 and asking, per tile, what fraction of its
+pixels exceed that frame's *own* p99: **both frames put 100 % of their top percentile in the
+same two tiles**, with near-identical footprints (11–12 % of those tiles in each). Everything
+else is 0.0 %. The highlight is the window in both, so this is a level/shape question at a
+fixed location.
+
+**The sweep.** `BGMUL` (`scene.backgroundIntensity`, established in `.259`/`.263` as the only
+lever that reaches the pane — backdrop *content* is inert because three caches the PMREM on
+the texture object):
+
+| `BGMUL` | median | p95 / median | p99 / median | clipped |
+| --- | --- | --- | --- | --- |
+| ×1 (shipping) | 126.4 | 1.320 | 1.436 | 0.0 % |
+| ×2 | 126.7 | 1.412 | 1.608 | 0.0 % |
+| ×4 | 126.8 | **1.584** | 1.759 | 0.0 % |
+| ×8 | 126.9 | 1.741 | 1.870 | 0.0 % |
+| ×32 | 127.0 | 1.938 | **1.993** | 0.0 % |
+| **Cycles (physics)** | **111.1** | **1.624** | **2.194** | 0.0 % |
+
+**1. It is a nearly pure highlight lever — the useful kind.** The median moves **+0.5 % across
+a 32× range**. So it cannot disturb the shadows and mid-tones `v0.31.6.9` found already
+correct. Every previous lever in this arc moved everything at once; this one does not.
+
+**2. It saturates at the encoding ceiling, so the pane alone mathematically cannot get
+there.** 255 ÷ 127.0 = **2.008**, and ×32 measures **1.993** — within 0.7 % of the hard limit.
+Physics fits its 2.194 tail only because it is exposed lower (median 111.1, headroom 2.30).
+**Matching the highlight tail therefore requires ~13 % less overall exposure in addition to a
+brighter pane.** That is the arc's first result that constrains *exposure* rather than a light.
+
+**3. No single multiplier matches both percentiles — the highlight SHAPE is wrong.** ×4 nails
+p95 (1.584 vs 1.624) but leaves p99 20 % short; ×32 overshoots p95 by 19 % while still 9 %
+short on p99. Looking at the pane crops says why, and it is specific: **the Cycles pane shows
+a bright narrow horizon band under blue sky — structure — while the app's pane is a uniform
+slab at every multiplier.** At ×32 the app's slab starts washing out the grille bars without
+ever producing a tail.
+
+That is `.263`'s PMREM low-pass again, but for the first time with a *physical target*: the
+missing thing is a **horizon-band gradient**, not pane brightness. And it re-opens the route
+`.261` closed — `.261` judged luminance insufficient against **photographs**, which need
+55–60 % of the pane blown; the Cycles reference clips **0.0 %** on both sides, so the target is
+far more modest than the photographic one and the lever is merely *capped*, not hopeless.
+
+**FPS is not a constraint on any of this.** `backgroundIntensity` and `toneMappingExposure`
+are per-frame scalars; a horizon band is a one-time backdrop paint. Nothing here spends from
+the ~16.5 ms/frame of medium-tier headroom, and the lever reaches walk, orbit and the room
+editor together because all three share the rig (`v0.31.6.8`).
+
+**Escalated, not decided.** Item (l) is on the standing do-not-decide-unilaterally list, and
+this round makes it a **two-number** call — pane multiplier **and** overall exposure — so it
+stays escalated with the numbers attached (`docs/open-graphics-decisions.md`).
+
 ## v0.31.6.9 — the fill level was already right; the app's SHADOWS match physics and its HIGHLIGHTS are 53 % short. Corrects v0.31.6.8
 
 `v0.31.6.8` (previous entry, same session) reported "tonality is 43 % flatter than physics"

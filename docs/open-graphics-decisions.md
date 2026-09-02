@@ -898,6 +898,44 @@ tell is the **distribution**: a real daylit pane is a clipped white hole with de
 edges, while the app's is an evenly-lit grey field. That is why the app's window reads as a panel
 rather than an opening, and it is measurable in one number that needs no crop matching.
 
+> **v0.31.6.10 — the call is now TWO numbers, and one of them is not the pane.** Measured against the
+> Cycles reference at matched framing (both 16:9) on a crop that excludes the app's UI and the
+> reference's unlit edge band. Both frames put **100 % of their top percentile in the same two tiles**
+> — the window — so this is a level/shape question at a fixed location, not a placement one.
+>
+> | `BGMUL` (`scene.backgroundIntensity`) | median | p95 / median | p99 / median |
+> | --- | --- | --- | --- |
+> | ×1 (shipping) | 126.4 | 1.320 | 1.436 |
+> | ×2 | 126.7 | 1.412 | 1.608 |
+> | ×4 | 126.8 | **1.584** | 1.759 |
+> | ×8 | 126.9 | 1.741 | 1.870 |
+> | ×32 | 127.0 | 1.938 | **1.993** |
+> | **Cycles (physics)** | **111.1** | **1.624** | **2.194** |
+>
+> Three things follow.
+>
+> **It is a nearly pure highlight lever.** The median moves **+0.5 % across a 32× range**, so it cannot
+> disturb the shadows and mid-tones that `v0.31.6.9` found already match physics. That is the ideal
+> shape for a lever here.
+>
+> **It saturates at the encoding ceiling, so the pane alone cannot get there.** 255 ÷ 127.0 = **2.008**,
+> and ×32 measures 1.993 — within 0.7 % of the hard limit. Physics fits its 2.194 tail only because it is
+> exposed lower (median 111.1 → headroom 2.30). **So matching the highlight tail requires ~13 % less
+> overall exposure as well as a brighter pane.** Exposure is a look call in its own right, which is why
+> this item now needs two numbers rather than one.
+>
+> **No single multiplier matches both percentiles — the highlight SHAPE is wrong.** ×4 nails p95
+> (1.584 vs 1.624) but leaves p99 20 % short; ×32 overshoots p95 by 19 % while still 9 % short on p99.
+> Looking at the pane crops says why, and it is specific: **the Cycles pane has a bright narrow horizon
+> band under blue sky — structure — while the app's pane is a uniform slab at every multiplier.** This is
+> `.263`'s PMREM low-pass again, but for the first time with a physical target: what is missing is a
+> **horizon-band gradient**, not pane brightness. `.261` judged the luminance route insufficient against
+> *photographs* (which need 55–60 % blown); the Cycles target is far more modest (0.0 % clipped on both
+> sides), so the route is not hopeless — it is just capped where the structure should take over.
+>
+> **FPS is not a constraint on any of this.** `backgroundIntensity` and `toneMappingExposure` are
+> per-frame scalars, and a horizon band is a one-time backdrop paint. Zero per-frame cost.
+
 **The 21:00 case is already right** (glazing 0.39 of wall, interior warm at R−B 23.4 against a
 neutral pane) — whatever ships must not regress it.
 
