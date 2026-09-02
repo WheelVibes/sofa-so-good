@@ -371,8 +371,14 @@ coverage) did.
 - ~~**Persist `tenderedSnapshot`**~~ DONE v0.31.5.308 — schema + `serialize` + `applySerialized`
   + `PERSISTENT_WATCH_KEYS` + the lock-step guard case, all in one commit. Absent hydrates to
   `null`, matching the slice's initial value.
-- **A printed register sheet**, not just the CSV block. The drawing set is what gets handed over;
-  a variation is arguably a sheet with its own revision letter.
+- ~~**A printed register sheet**~~ DONE v0.31.5.309 — a "Variation register" sheet in the drawing
+  set, naming the revision it varies from. Absent when nothing changed, because an empty variation
+  sheet reads as "no changes since tender", a stronger claim than "nothing was compared".
+- **Still open (design):** `buildDrawingSetHtml` now takes SEVENTEEN positional arguments. Adding
+  the last two, I updated the inner builder and forgot the outer wrapper; only `tsc` caught it. An
+  options object would remove that whole class of error — but it is a wide refactor across the
+  builder, `openDrawingSet`, `tradePacks` and their tests, so it wants doing deliberately rather
+  than bundled with a feature.
 
 ### Original scoping note (v0.31.5.306), kept — the three-part shape was the right call
 

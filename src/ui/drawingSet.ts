@@ -14,6 +14,7 @@ import {
   openingRoomsLabel,
   openingStyleMaterialLabel,
 } from '../analysis/openingSchedule'
+import type { VariationRegister } from '../analysis/variationRegister'
 import { projectAllElevations } from '../elevation/projectElevation'
 import {
   DEFAULT_DRAWING_SET_TEMPLATE,
@@ -695,6 +696,14 @@ export function buildDrawingSheets(
   /** Append the reflected ceiling plan sheet(s) (`rcpSheet` flag, TODO H4).
    *  Default false — existing callers are unaffected. */
   showRcp = false,
+  /** The variation register (`analysis/variationRegister.ts`), assembled by the
+   *  caller from the tendered snapshot. Absent/unchanged ⇒ no sheet: a design
+   *  that has not been marked as tendered has nothing to vary FROM, and an
+   *  empty variation sheet in a handover set reads as "no changes", which is a
+   *  different and stronger claim. */
+  variation?: VariationRegister | null,
+  /** Snapshot metadata, so the sheet can name WHICH issue was priced. */
+  tendered?: { at: string; revision: string } | null,
 ): { cover: Sheet; sheets: Sheet[] } {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -1227,6 +1236,43 @@ export function buildDrawingSheets(
     }
   }
 
+  // Variation register (v0.31.5.309) — what changed since the design was
+  // priced, and what it costs. A sheet rather than only the budget CSV because
+  // the drawing set is the document that gets handed over, and a variation is
+  // conventionally issued as a sheet with its own revision letter. Rides the
+  // `variationRegister` flag; no snapshot or no change ⇒ no sheet.
+  if (isFeatureEnabled('variationRegister') && variation && !variation.unchanged) {
+    const money = (v: number) =>
+      `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-SG', { maximumFractionDigits: 0 })}`
+    const rows = variation.lines
+      .map(
+        (l) =>
+          `<tr><td>${esc(l.label)}</td><td>${esc(l.kind)}</td>` +
+          `<td class="n">${l.quantityBefore} ${esc(l.unit)}</td>` +
+          `<td class="n">${l.quantityAfter} ${esc(l.unit)}</td>` +
+          `<td class="n">${money(l.subtotalBefore)}</td>` +
+          `<td class="n">${money(l.subtotalAfter)}</td>` +
+          `<td class="n">${money(l.deltaSgd)}</td></tr>`,
+      )
+      .join('')
+    sheets.push({
+      name: 'Variation register',
+      body:
+        `<div class="note">Against Rev ${esc(tendered?.revision ?? '?')}${
+          tendered?.at ? `, marked as tendered ${esc(tendered.at.slice(0, 10))}` : ''
+        }.</div>` +
+        `<table class="sched"><tr class="h"><td>Trade</td><td>Change</td>` +
+        `<td class="n">Qty tendered</td><td class="n">Qty now</td>` +
+        `<td class="n">Tendered</td><td class="n">Now</td><td class="n">Delta</td></tr>${rows}` +
+        `<tr class="h"><td colspan="6">Additions</td><td class="n">${money(variation.addedSgd)}</td></tr>` +
+        `<tr class="h"><td colspan="6">Omissions</td><td class="n">${money(variation.omittedSgd)}</td></tr>` +
+        `<tr class="h"><td colspan="6">NET VARIATION</td><td class="n">${money(variation.netSgd)}</td></tr>` +
+        `</table><div class="note">${esc(variation.note)}</div>`,
+      calloutGroup: 'finishes',
+      scaleLabel: NTS,
+    })
+  }
+
   // As-built reconciliation — measured vs drawn. Rides the `siteMeasurements`
   // flag; no recorded measurements ⇒ no sheet.
   if (isFeatureEnabled('siteMeasurements')) {
@@ -1623,6 +1669,11 @@ export function buildDrawingSetHtml(
   showSettingOut = false,
   showCarpentry = false,
   showRcp = false,
+  /** Variation register + snapshot metadata, assembled by the caller from the
+   *  live store (see `openDrawingSet.ts`) — this builder is pure over its
+   *  arguments. */
+  variation?: VariationRegister | null,
+  tendered?: { at: string; revision: string } | null,
 ): string {
   const { cover, sheets } = buildDrawingSheets(
     plan,
@@ -1640,6 +1691,8 @@ export function buildDrawingSetHtml(
     showSettingOut,
     showCarpentry,
     showRcp,
+    variation,
+    tendered,
   )
   return renderDrawingDocument([cover, ...sheets], {
     plan,

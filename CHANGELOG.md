@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.309 - the variation register as a handover sheet
+
+Closes the variation-register thread. `.307` put the register in the budget CSV, which is the right
+place for the number a contractor prices against — but **the drawing set is the document that
+actually gets handed over**, and a variation is conventionally issued as a sheet with its own
+revision letter. It is now both.
+
+The sheet names the issue it varies from ("Against Rev A, marked as tendered 2026-09-03"), lists
+each trade with tendered/current quantities and subtotals and the delta, totals additions and
+omissions separately, and carries the not-a-quotation caveat onto the handover document rather than
+leaving it behind in the app.
+
+**No snapshot or no change ⇒ no sheet**, and the reasoning is worth stating: an empty variation
+sheet in a handover set reads as "no changes since tender", which is a **stronger claim** than
+"nothing was compared". The same distinction the tile and paint schedules make when they report
+omitted rooms rather than printing a short list — silence about a thing is not the same as a finding
+of none.
+
+Assembled by the CALLER (`openDrawingSet.ts`) rather than inside the builder, because
+`buildDrawingSetHtml` is pure over its arguments and the register needs the live store for the
+snapshot and the rate card. That kept the builder testable, which is how the sheet got its own
+tests.
+
+**The compiler caught a mistake I would not have.** I added the two parameters to the internal
+`buildDrawingSheets` and forgot the outer `buildDrawingSetHtml` wrapper, which threads fifteen
+arguments through. The extra two were silently dropped at the call site — TypeScript's "Expected
+3-15 arguments, but got 17" named it immediately, where the only runtime symptom was a missing
+sheet. A long positional signature is a real hazard, and it is worth noting the guard here was the
+type system rather than a test: the test failed too, but it could not have said why.
+
++2 tests, both confirmed failing with the builder change stashed.
+
 ## v0.31.5.308 - the tendered snapshot persists
 
 `.307` shipped the variation register with a session-only snapshot and said plainly that this

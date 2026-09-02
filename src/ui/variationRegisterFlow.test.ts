@@ -147,3 +147,67 @@ describe('the tendered snapshot survives a save/restore round trip', () => {
     })
   })
 })
+
+describe('the variation register as a drawing-set sheet', () => {
+  it('appends a sheet once something has changed since tender', async () => {
+    const { buildDrawingSetHtml } = await import('./drawingSet')
+    const { BUILTIN_CATALOG } = await import('../furniture/builtinCatalog')
+    useStore.getState().captureTenderedSnapshot()
+    changeAFinish()
+    const st = useStore.getState()
+    const html = buildDrawingSetHtml(
+      st.floorPlan,
+      st.items,
+      BUILTIN_CATALOG,
+      'metric',
+      st.baselinePlan,
+      undefined,
+      undefined,
+      st.finishes,
+      undefined,
+      undefined,
+      st.drawingSetTemplate,
+      0,
+      false,
+      false,
+      false,
+      assembleVariationRegister(st),
+      st.tenderedSnapshot,
+    )
+    expect(html).toContain('Variation register')
+    expect(html).toContain('NET VARIATION')
+    // Names the issue that was priced — the point of issuing it as a sheet.
+    expect(html).toMatch(/Against Rev [A-Z]/)
+    // And carries the not-a-quotation caveat onto the handover document.
+    expect(html).toMatch(/not a contractor/i)
+  })
+
+  it('omits the sheet when nothing has changed', async () => {
+    // An empty variation sheet in a handover set reads as "no changes", which
+    // is a stronger claim than "nothing was compared".
+    const { buildDrawingSetHtml } = await import('./drawingSet')
+    const { BUILTIN_CATALOG } = await import('../furniture/builtinCatalog')
+    useStore.getState().captureTenderedSnapshot()
+    const st = useStore.getState()
+    const html = buildDrawingSetHtml(
+      st.floorPlan,
+      st.items,
+      BUILTIN_CATALOG,
+      'metric',
+      st.baselinePlan,
+      undefined,
+      undefined,
+      st.finishes,
+      undefined,
+      undefined,
+      st.drawingSetTemplate,
+      0,
+      false,
+      false,
+      false,
+      assembleVariationRegister(st),
+      st.tenderedSnapshot,
+    )
+    expect(html).not.toContain('Variation register')
+  })
+})

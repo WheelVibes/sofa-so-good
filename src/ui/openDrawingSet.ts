@@ -5,6 +5,7 @@ import type { PlanElectricalPoint, PlanPlumbingPoint } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { deriveElectricalPoints, derivePlumbingPoints } from '../furniture/mepSuggest'
 import { useStore } from '../state/store'
+import { assembleVariationRegister } from './renovationBudget'
 
 /** Drop the persisted id (the sheet builder's `ElectricalPoint`/`PlumbingPoint`
  *  shape has no `id` field) but keep everything else, including the authored
@@ -78,6 +79,11 @@ export async function openDrawingSet(): Promise<void> {
       isFeatureEnabled('settingOutDims'),
       isFeatureEnabled('carpentrySheets'),
       isFeatureEnabled('rcpSheet'),
+      // Assembled here rather than inside the builder: `buildDrawingSetHtml` is
+      // a pure function over its arguments, and the register needs the live
+      // store (the tendered snapshot + the price rules).
+      isFeatureEnabled('variationRegister') ? assembleVariationRegister(s) : null,
+      s.tenderedSnapshot,
     )
   } catch {
     win.close()
