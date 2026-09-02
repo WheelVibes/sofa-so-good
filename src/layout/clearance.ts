@@ -5,6 +5,7 @@
  * default flat and user-authored plans alike).
  */
 import { doorSwingClearRect } from '../floorplan/doorSwing'
+import { itemsOnLevel, levelAsPlan, planLevels } from '../floorplan/levels'
 import type { FloorPlan } from '../floorplan/types'
 import { pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -264,14 +265,29 @@ export function blockedDoorItems(
   catalog: Record<string, FurnitureDef>,
   plan: FloorPlan,
 ): string[] {
-  const probes = doorProbePoints(plan)
-  if (probes.length === 0) return []
+  // PER STOREY (F13). Five callers pass the WHOLE plan and the WHOLE item list
+  // (`ui/report`, `ClearancePanel`, `ToolsMenu`, `analysis/designScore`,
+  // `scene/ClearanceOverlay`), and this used to probe `plan.openings` against
+  // every item — wrong in BOTH directions on a maisonette:
+  //
+  //  - an upstairs door blocked by a wardrobe was never checked at all, because
+  //    `plan.openings` is ground-only; and
+  //  - every upstairs item was tested against GROUND door swings, so a bed
+  //    sitting above a ground doorway was flagged as blocking a door on another
+  //    floor.
+  //
+  // The second is the worse of the two: a false positive on a design score and
+  // a red overlay on an innocent piece, with no way for the user to tell why.
   const flagged: string[] = []
-  for (const it of items) {
-    const def = catalog[it.defId]
-    if (!def || def.mounted || def.noClip) continue
-    const box = footprintAabb(it, def)
-    if (probes.some((p) => contains(box, p[0], p[1]))) flagged.push(it.id)
+  for (const level of planLevels(plan)) {
+    const probes = doorProbePoints(levelAsPlan(plan, level))
+    if (probes.length === 0) continue
+    for (const it of itemsOnLevel(items, level.id)) {
+      const def = catalog[it.defId]
+      if (!def || def.mounted || def.noClip) continue
+      const box = footprintAabb(it, def)
+      if (probes.some((p) => contains(box, p[0], p[1]))) flagged.push(it.id)
+    }
   }
   return flagged
 }

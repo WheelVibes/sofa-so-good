@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.295 - completing the audit: walls and openings, and a false positive on five surfaces
+
+`.294` swept `plan.rooms` and found five bugs. It did **not** sweep `plan.walls` or
+`plan.openings`, which carry the same class — so this finishes the job. Most hits are the
+`opening.wallId → wall` pair, which is internally consistent (a ground opening resolves to a ground
+wall) and correct wherever the caller passes a per-level plan; `reportPlanSvg`, `autoArrange`,
+`luxGrid` and `planGeometry` all do.
+
+**One real finding, and it is on five surfaces at once.** `blockedDoorItems(items, catalog, plan)`
+is called with the WHOLE plan and the WHOLE item list from `ui/report`, `ClearancePanel`,
+`ToolsMenu`, `analysis/designScore` and `scene/ClearanceOverlay`. It probed ground-only openings
+against every item, so on a maisonette it was wrong in BOTH directions:
+
+- an upstairs door blocked by a wardrobe was **never checked**, because `plan.openings` is
+  ground-only; and
+- every upstairs item was tested against GROUND door swings, so a bed sitting above a ground
+  doorway was **flagged as blocking a door on another floor**.
+
+The false positive is the worse half: a design-score penalty and a red overlay on an innocent
+piece, with nothing on screen to explain why. Now iterated per storey with `itemsOnLevel`.
+
+**Also: the 3D clearance overlay drew ground door swings only**, all at ground level, so an
+upstairs door had no swing zone at all — on a surface a user turns on precisely to check a tight
+upstairs landing. Fanned out per level and lifted by `level.elevation`, the same reason
+`MeasurementOverlay` lifts its own geometry (both are mounted outside `PlanShell`'s per-level
+groups).
+
+**And the fixture lesson, which is the fifth time in this arc.** My first `blockedDoorItems`
+fixture put both storeys' doors at the SAME offset, reasoning that this made a ground-only probe
+indistinguishable from a correct one. It did the exact opposite: ground probes then covered the
+upstairs item too, so **four of the six tests passed with the fix stashed** — only the
+false-positive case discriminated. Measured, not assumed. Distinct offsets (ground 2 m, upper 4 m)
+put an upstairs item out of reach of every ground probe, and 3 of 6 now fail without the fix; the
+other 3 are ground-only and single-storey cases that correctly pass either way.
+
+Worth naming the pattern, because "same position" felt like the STRONGER fixture when I wrote it:
+**a fixture that makes two code paths agree cannot distinguish them.** For a level-gating bug the
+fixture has to place the storeys' geometry APART, not together — the opposite of the intuition that
+overlapping geometry is the harder test. (Overlap IS the harder test for the reverse bug, an
+above/below mis-attribution, which is why `roomAtItem`'s tests stack rooms deliberately. Which
+fixture is stronger depends on which direction the bug runs.)
+
++6 tests.
+
 ## v0.31.5.294 - auditing my own .277-.284 claims, and five more findings
 
 `.293` turned up a path `.281` had missed *by accident*. That is a bad way to find things, so this

@@ -331,7 +331,7 @@ fact. Caveat already documented in `intakeStates.ts`: the curated default flat i
 it would be session-only there — which is fine for a live-computed schedule and only matters across
 a reload.
 
-## Audited-correct, do NOT "fix" these (v0.31.5.294)
+## Audited-correct, do NOT "fix" these (v0.31.5.294, walls/openings added .295)
 
 Sites that read `plan.rooms` and are RIGHT to:
 - `ui/report.ts:181`, `ui/drawingSet.ts:1407` — the else branch of `multi ? levels… : plan.rooms`.
@@ -340,6 +340,18 @@ Sites that read `plan.rooms` and are RIGHT to:
 - `floorplan/rescalePlan.ts`, `gridSnap.ts`, `mirrorPlanRegion.ts` — whole-plan transforms that
   handle `upperLevels` separately and deliberately.
 - `floorplan/autoDimensionSvg.ts:360` — a per-level sheet builder.
+- The `opening.wallId → wall` pairs in `ui/reportPlanSvg.ts`, `layout/autoArrange.ts`,
+  `lighting2d/luxGrid.ts`, `floorplan/planGeometry.ts`, `apartment/floor/planThresholdRects.ts` —
+  internally consistent (a ground opening resolves to a ground wall) and every caller passes a
+  per-level plan.
+- `floorplan/rescalePlan.ts:87`'s `onGround` — named for what it is, part of the whole-plan
+  transform.
+
+**Fixture rule from .295, worth keeping:** for a LEVEL-GATING bug, place the storeys' geometry
+APART — a fixture where both storeys' doors sit at the same offset makes the buggy and correct paths
+agree, and four of six tests passed with the fix stashed. For the REVERSE bug (above/below
+mis-attribution, e.g. `roomAtItem`) overlap is the right fixture. Which is stronger depends on which
+direction the bug runs; decide before writing the fixture, and verify by stashing the fix.
 
 **Remaining F13 follow-ups (v0.31.5.282).**
 - ~~`elevation/projectElevation.ts` ground-only~~ FIXED in v0.31.5.283. The "dead export"
