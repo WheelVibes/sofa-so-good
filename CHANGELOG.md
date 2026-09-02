@@ -5,6 +5,74 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.318 — the metric the arc has been looking for: same-surface ceiling luminance falloff. The raster is inside the photographic band; the HQ still is too FLAT
+
+`.317` killed the chroma gradient because its sign follows the colour of whatever is outside the window. But
+`.317` measured **luminance** on those same patches and never looked at it — and luminance falloff should not
+care about the exterior's *colour*. It doesn't.
+
+**The references agree in sign and land in a usable band** (patches from `.317`, marked and verified there):
+
+| reference | near-window ceiling L | far ceiling L | **far / near** |
+| --- | --- | --- | --- |
+| `Vogtsbauernhof` | 157.3 | 120.3 | **0.765** |
+| `At_La_Palma` | 177.2 | 149.6 | **0.844** |
+| `Home_Staging_Beispiel` | 195.7 | 175.2 | **0.895** |
+
+**All below 1, no sign flip, spread 0.13** — against chroma's 47-count spread across the same three photographs
+and the same patches. The exterior's colour scrambles chroma; it does not scramble how much *less* light reaches
+the far end of a ceiling.
+
+**And the app splits cleanly** (bedroom3 `PITCH=0.30`, white room, medium tier, photographic look, hour 13;
+patches marked and verified clear of the HUD toolbar):
+
+| render | near L | far L | **far / near** | vs band 0.765–0.895 |
+| --- | --- | --- | --- | --- |
+| **raster** — scene's own lights | 129.7 | 111.8 | **0.862** | **inside** |
+| **traced class B** — working tracer | 116.8 | 113.7 | **0.974** | **outside — too flat** |
+| traced class A — (u) biting | 179.0 | 180.7 | **1.009** | no falloff at all |
+
+**Three findings, and the first is the one the arc has been missing.**
+
+**1. This metric has every property the arc wanted and could not get.** It is **photographically anchorable**
+(consistent sign, n = 3, band 0.765–0.895), **sensitive to the lighting rig** (raster 0.862 against traced
+0.974 — a 0.11 separation, where ceiling ÷ wall gave 2.8 % for the same comparison in `.313`),
+**within-frame** so exposure cancels in the ratio, **same-surface** so albedo is controlled, and
+**aperture-referenced** by construction. That is thread 1's requirement, met.
+
+**2. A new, photographically-anchored defect: the HQ still's ceiling is too flat.** The working tracer reads
+**0.974** where every reference photograph and the app's own raster fall between 0.765 and 0.895. **The HQ still
+does not show enough falloff away from the window** — it lights the far ceiling almost as brightly as the near
+ceiling. This is item (p)'s cost stated against real photographs rather than against the raster, which is what
+`.313`/`.314` could not do.
+
+**3. Class A is flat to within 1 %** (1.009), the signature of uniform environment illumination with no aperture
+dependence at all — consistent with everything `.303`–`.312` established, now on an independent metric.
+
+**Precision, since the claim rests on a ratio.** Patch sds are 0.5–1.1 except the raster's far patch at **9.6**
+(a cornice shading gradient sits nearby). With ~12,500 px per patch the standard error on that mean is ≈ 0.09
+counts, so the ratio is precise to ~0.001 and the 0.11 raster-versus-traced separation is not close to noise.
+
+**Two caveats, both untested and both named rather than buried.**
+
+- **Pose-dependence is untested**, and this is a *luminance* ratio — the family `.232` showed swings 0.68 → 0.96
+  on pitch, and `.316` showed only *chroma* is pose-robust. The app is measured at one pitch and the references
+  at their own poses, so **"inside/outside the band" is not pose-matched**. Testing it is hard for the reason
+  `.315` and `.316` hit: the ceiling's visible extent changes drastically with pitch, and at eye level there is
+  often too little ceiling to place two separated patches at all.
+- **Room-dependence is untested** — one room for the app, three different rooms for the references.
+
+**So the honest status: a strong candidate metric with a real result attached, not yet a validated target.** The
+raster-versus-traced separation (0.862 vs 0.974) is pose-matched and solid; the comparison against the
+photographic band is not, and until the pose check runs, the band should be treated as `.234`'s ceiling ÷ wall
+band was before `.232` — suggestive and un-validated.
+
+**Method note.** `.317` collected these numbers and discarded them, because it was looking for a chroma result.
+**A round that measures two quantities and reports one has left evidence on the floor** — the same lesson
+`.294` and `.295` learned from `/tmp`, now inside a single round's own output.
+
+**Unchanged:** no `src/` change, no probe change. Measured entirely from frames and photographs already on disk.
+
 ## v0.31.5.317 — the same-surface chroma gradient fails photographic anchoring too, and that retires the whole chroma-anchoring line: chroma is set by what is OUTSIDE the window
 
 `.316` left the arc with an awkward split: the luminance ratio is photographically anchorable but insensitive

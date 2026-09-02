@@ -1593,6 +1593,30 @@ patch was valid at both poses — eye-level right wall 1.0 vs pitched-up left wa
 
 **So (p) has a metric, a reference and an acceptance test better founded than the ratio this arc was built on.**
 
+**📸 AND A PHOTOGRAPHICALLY-ANCHORED DEFECT v0.31.5.318 — the HQ still's ceiling is TOO FLAT.** Same-surface
+ceiling luminance falloff, `far ÷ near` from the aperture:
+
+| source | far ÷ near |
+| --- | --- |
+| `Vogtsbauernhof` | 0.765 |
+| `At_La_Palma` | 0.844 |
+| `Home_Staging_Beispiel` | 0.895 |
+| **app raster** | **0.862** — inside |
+| **app traced, class B** | **0.974** — **outside, too flat** |
+| app traced, class A | 1.009 — no falloff at all |
+
+References agree in **sign** (unlike chroma's 47-count sign-flipping spread on the same patches), and the metric
+separates the rigs by **0.11** where ceiling ÷ wall gave 2.8 %. **The HQ still does not show enough falloff away
+from the window** — (p)'s cost stated against real photographs, which `.313`/`.314` could not do.
+
+*Precision:* patch sds 0.5–1.1 except the raster's far patch at 9.6 (nearby cornice gradient); with ~12,500 px
+the SE is ≈0.09 counts, so the ratio is good to ~0.001.
+
+*Untested and required before the band is a target:* **pose-dependence** (a luminance ratio — the family `.232`
+showed 0.68 → 0.96 swings on pitch; only chroma is known pose-robust) and **room-dependence** (one app room, three
+reference rooms). The **raster-vs-traced separation is pose-matched and solid**; the comparison to the band is
+not.
+
 **✅ CONFIRMED BY DIRECT OBSERVATION v0.31.5.287.** Temporary instrumentation in `buildTracerScene` (added,
 observed, reverted; `src/` verified clean) logged the branch actually taken on the default shipped path:
 

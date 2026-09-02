@@ -154,6 +154,30 @@ them match.
 Fifteen mechanisms have been proposed and refuted in this arc. This was the first refuted with its predictions
 intact.
 
+## The best metric found so far: same-surface CEILING LUMINANCE FALLOFF (far ÷ near)
+
+Two patches on the **same ceiling**, one near the aperture and one far from it; report `far ÷ near` luminance.
+
+| property | why it holds |
+| --- | --- |
+| photographically anchorable | consistent sign across all three references: **0.765 / 0.844 / 0.895** (`.318`) |
+| sensitive to the lighting rig | raster **0.862** vs traced **0.974** — 0.11 separation, where ceiling ÷ wall gave 2.8 % (`.313`) |
+| exposure-invariant | within-frame ratio |
+| albedo-controlled | one surface, one paint |
+| aperture-referenced | by construction |
+
+**The result it produced:** the HQ still's ceiling is **too flat** (0.974) against every reference photograph and
+against the app's own raster (0.862) — it lights the far ceiling almost as brightly as the near ceiling. Class A
+is flat to within 1 % (1.009).
+
+**Untested, and required before treating the band as a target:** *pose-dependence* (this is a luminance ratio,
+the family `.232` showed swings 0.68 → 0.96 on pitch; only chroma is known pose-robust, `.316`) and
+*room-dependence* (one room for the app, three different rooms for the references). Testing pose is hard for the
+reason `.315`/`.316` hit — at eye level there is often too little ceiling to place two separated patches.
+
+Contrast the chroma version, which fails (below): the exterior's *colour* scrambles chroma but does not scramble
+how much *less* light reaches the far end of a ceiling.
+
 ## Chroma cannot be anchored to photographs — three attempts, one reason
 
 Chroma is the arc's best **internal** instrument and its worst **photographic** one. Three separate attempts to
