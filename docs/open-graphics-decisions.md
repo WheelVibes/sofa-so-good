@@ -2059,6 +2059,36 @@ every mechanism proposed in `.280`–`.294` was refuted by a later round.
 **This puts (u) level with (p) in priority:** both make the app's photoreal showcase wrong by default — (p)
 always, (u) half the time.
 
+**🎯 UNIFIED STATEMENT v0.31.5.303 — (u) and (v) are one fault:**
+
+> **In roughly half of HQ renders, the ceiling is not rendered as a surface — the ceiling region shows the
+> environment instead.**
+
+Established by a black-ceiling A/B with byte-identical rasters: class B traced ceiling **1.0** (raster 0.9),
+class A traced ceiling **181.5**. One wrongly-lit surface then floods the room — the *same black wall* reads
+**16.1 in class A against 1.2 in class B**, 13×.
+
+**This one statement accounts for every class-A symptom** recorded since `.285`: global brightness, the cold
+cast (the grey gradient's cold top colour), `.298`'s ceiling out-radiating the aperture, `.300`'s zero-variance
+saturated patch, `.301`'s albedo immunity. The "saturation", "occlusion" and "transport" descriptions
+`.299`–`.300` reached for are no longer needed.
+
+**Geometry is refuted as the cause:** the 99 wall planes are also `PlaneGeometry` and render correctly,
+collapsing 7–23× with albedo. The walls are the control.
+
+**Lead with a discriminating prediction (untested).** The ceiling's one distinguishing property in the census is
+that **it is the only substituted material** — 14 Lambert planes swapped to `MeshStandardMaterial` by `.253`'s
+`pbrStandInFor`, while the 99 walls are natively Standard and need no swap. The substitution is applied *after*
+`root.add(clone)`, inside a promise collected in `pending`.
+
+**The test:** a ceiling the user has **FINISHED** goes through `RoomCeiling.tsx` with a native
+`MeshStandardMaterial` and is never substituted (`Ceiling.tsx` says so in its own comment). If the fault is
+substitution-linked it should **never** appear on a finished ceiling; if it is about ceilings-as-such it should
+appear just as often.
+
+**Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
+as a surface in every run.
+
 **🎯 LOCALISED v0.31.5.299 — the environment is identical in both classes; class A delivers 2.2× more of it to
 interior surfaces.** Temporary instrumentation (added, observed, reverted, `src/` verified clean) set the
 tracer's `GradientEquirectTexture` to **pure uniform green**, so any surface the environment reaches carries an
@@ -2190,7 +2220,18 @@ Two further candidates eliminated by source inspection at zero cost:
 
 **So the fault is DOWNSTREAM of the snapshot.** The material handed over is right in colour, type, roughness,
 orientation and presence — whatever renders it at the environment's level does so after a correct hand-off, in
-the tracer's own material conversion or shading. That is where to look next.
+the tracer's own material conversion or shading.
+
+**🔗 FOLDED INTO (u) v0.31.5.303 — (v) is not independent; it is what (u)'s class A IS.** Two runs, room
+repainted dark, normal grey environment, **byte-identical rasters**:
+
+| | frame L | traced ceiling | traced sidewall-L | raster ceiling |
+| --- | --- | --- | --- | --- |
+| class A | 104.5 | **181.5** | 16.1 | 0.9 |
+| class B | 29.9 | **1.0** · sd 0.00 | 1.2 | 0.9 |
+
+**In class B the tracer renders the black ceiling correctly (1.0 vs raster 0.9); in class A it renders 181.5.**
+So the albedo immunity is a class-A symptom, not a separate defect. See (u) for the unified statement.
 
 **Consequence for past results.** Every traced *ceiling* figure — `.253`, `.254`, `.255` and the tracer-based
 ceiling ÷ wall work — measured a quantity that does not depend on the ceiling. `.255` withdrew `.253`'s ceiling
@@ -2220,7 +2261,7 @@ alone would produce (u)'s two classes.
 | l | WINDOW-LUMINANCE | render + product look | ⏳ **OPEN v0.31.5.236**, figures corrected in `.237` — photographs clip 15–39 % of their glazing; the app clips **0.0 %** at every hour, so the pane reads as a panel not an opening. Night (21:00) is already correct and must not regress |
 | t | HQ-DENOISE-SHIFT | render bug | ❌ **REFUTED v0.31.5.285** — one-variable A/B with the flag asserted and read back: denoise off 119.3/117.6 vs on 118.0/115.7, i.e. **1.1–1.6 %**. The pass is radiometrically neutral; `.283`'s ~30 % gap was two runs in different states of (u) |
 | u | HQ-TRACE-NONDETERMINISM | render bug | 🐞 **REAL v0.31.5.285, cause UNIDENTIFIED** — identical inputs give one of two discrete outputs ~45 % apart at the anchors, opposite colour temperature. Sample count, denoise stage and exposure all ruled out. Discriminator shipped in the probe; every traced figure in the arc needs re-measurement |
-| v | HQ-CEILING-ALBEDO-IGNORED | render bug | 🐞 **REAL DEFECT v0.31.5.301** — recolour the ceiling to `#141414` and the raster reads L=0.9 while the traced still reads L=192.1, the same as with a white ceiling. The traced ceiling renders at the environment's own level with sd=0.0, immune to its own albedo. May be the same fault as (u) |
+| v | HQ-CEILING-ALBEDO-IGNORED | render bug | 🔗 **FOLDED INTO (u) v0.31.5.303** — not independent. A black-ceiling A/B with byte-identical rasters gives traced ceiling **1.0** in class B (raster 0.9) and **181.5** in class A, so the albedo immunity is a class-A symptom. (u)'s unified statement: in ~half of HQ renders the ceiling is not rendered as a surface, it shows the environment |
 | k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect

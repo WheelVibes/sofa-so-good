@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.303 — (u) and (v) are ONE fault: in half of HQ renders the ceiling is not rendered as a surface, it shows the environment
+
+`.302` narrowed the defect to "downstream of the snapshot" and its own method note said to write down what the
+rival explanations predict before spending a round. Doing that produced a discriminator that was already half
+measured, and one pair of runs settles it.
+
+**The discriminator.** `.300` had measured the ceiling at 193 in the bright class but **127 with real spatial
+structure** in the dim class — so the ceiling *is* rendered as a surface in class B. If item (v) (the ceiling
+ignoring its albedo) were an **independent** defect, a black ceiling would read bright in **every** run. If (v)
+is a **symptom of (u)**, it would read bright only in class A. The rivals disagree, which is what makes it a
+test.
+
+**Two runs, room repainted `f5f5f0:141414;fafafa:141414`, normal grey environment, bedroom3 `PITCH=0.30`,
+medium tier, photographic look, hour 13, 256 samples** (16:31 and 16:34 +08):
+
+| | frame L | traced ceiling | traced sidewall-L | traced winwall-R | **raster ceiling** |
+| --- | --- | --- | --- | --- | --- |
+| `k1` bright | 104.5 | **181.5** | 16.1 | 2.7 | **0.9** |
+| `k2` dim | **29.9** | **1.0** · sd 0.00 | 1.2 | 0.0 | **0.9** |
+
+The two rasters are **byte-identical** (ceiling 0.9, sidewall 4.7, winwall 0.0 in both), so the scene is the
+same and only the tracer differs.
+
+**In class B the tracer renders the black ceiling correctly — 1.0 against the raster's 0.9.** In class A it
+renders 181.5. **So (v) is not an independent defect: it is what class A *is*.** Items (u) and (v) are one
+fault, and it now has a precise statement:
+
+> **In roughly half of HQ renders, the ceiling is not rendered as a surface — the ceiling region shows the
+> environment instead.**
+
+**That single statement accounts for everything class A has ever shown.** A ceiling glowing at the
+environment's level floods the room, which is why the *same black wall* reads **16.1 in class A and 1.2 in class
+B** — a 13× difference from one wrongly-lit surface. It gives class A its global brightness, its cold cast (the
+grey gradient's cold top colour), `.298`'s ceiling out-radiating the aperture, `.300`'s zero-variance
+saturated patch, and `.301`'s albedo immunity. Six symptoms, one cause, and no remaining need for the
+"saturation", "occlusion" or "transport" descriptions that `.299`–`.300` reached for.
+
+**Geometry type is refuted as the cause, from data already in hand.** The **99 wall planes are also
+`PlaneGeometry`** and they render correctly, collapsing 7–23× with albedo (`.301`). So it is not "the BVH misses
+plane geometry", and not plane orientation — the walls are the control.
+
+**What distinguishes the ceiling, and the next test.** Per `.302`'s rule, this is a lead with a prediction the
+rivals disagree about. The ceiling's one distinguishing property in the snapshot census is that **it is the only
+substituted material**: the 14 ceiling planes are `MeshLambertMaterial` swapped to `MeshStandardMaterial` by
+`.253`'s `pbrStandInFor`, while the 99 walls are natively `MeshStandardMaterial` and need no swap. The
+substitution is applied **after** `root.add(clone)`, inside a promise collected in `pending` — so anything that
+reads materials between `add` and the `await` would see the unsubstituted material.
+
+The discriminating prediction: **a ceiling the user has FINISHED goes through `RoomCeiling.tsx`, which uses a
+native `MeshStandardMaterial` and is never substituted.** If the fault is substitution-linked, a finished
+ceiling should **never** show it; if the fault is about ceilings-as-such, it should show it just as often.
+`src/apartment/ceiling/Ceiling.tsx` says so in its own comment — *"a ceiling the user has FINISHED goes through
+`RoomCeilingTile` and keeps its PBR material"*. **That is next round's test, and no mechanism is claimed until
+it runs.**
+
+**Status of the two items.** (v) is folded into (u) rather than closed — the observation stands, the
+independence does not. (u)'s statement is now specific enough to fix without knowing the last mechanistic step:
+the ceiling must render as a surface in every run.
+
+**Unchanged:** no `src/` change, no probe change (it keeps `.301`'s multi-pair `RECOLOR`, which made this
+measurable). Docs only.
+
 ## v0.31.5.302 — my own one-round-old lead is refuted: the ceiling IS in the tracer snapshot, correctly dark and correctly PBR. Six matched predictions validated the symptom, not the mechanism
 
 `.301` proposed that the traced ceiling renders at the environment's level because it is **absent or

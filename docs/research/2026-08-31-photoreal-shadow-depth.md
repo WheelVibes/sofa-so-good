@@ -10289,3 +10289,56 @@ symptom does not validate a mechanism; only a prediction the rivals disagree abo
 `docs/hq-tracer-probe-notes.md`.
 
 Instrumentation reverted, `src/` verified clean.
+
+---
+
+## Round .303 — (u) and (v) are one fault: in half of HQ renders the ceiling is not rendered as a surface
+
+`.302` narrowed the defect to "downstream of the snapshot", and its own method note said to write down what the
+rivals predict first. Doing that produced a discriminator that was already half measured.
+
+### The discriminator
+
+`.300` measured the ceiling at 193 in the bright class but **127 with real structure** in the dim class — so the
+ceiling *is* a surface in class B. If (v) were **independent**, a black ceiling would read bright in **every**
+run; if (v) is a **symptom of (u)**, only in class A. The rivals disagree, which is what makes it a test.
+
+Two runs, room repainted `f5f5f0:141414;fafafa:141414`, normal grey environment, bedroom3 `PITCH=0.30`, medium
+tier, photographic look, hour 13, 256 samples (16:31, 16:34 +08):
+
+| | frame L | traced ceiling | traced sidewall-L | traced winwall-R | raster ceiling |
+| --- | --- | --- | --- | --- | --- |
+| `k1` bright | 104.5 | **181.5** | 16.1 | 2.7 | **0.9** |
+| `k2` dim | 29.9 | **1.0** · sd 0.00 | 1.2 | 0.0 | **0.9** |
+
+The rasters are byte-identical, so only the tracer differs.
+
+### The unified statement
+
+**In class B the tracer renders the black ceiling correctly (1.0 vs raster 0.9); in class A it renders 181.5.**
+(v) is not independent — it is what class A is:
+
+> In roughly half of HQ renders, the ceiling is not rendered as a surface; the ceiling region shows the
+> environment instead.
+
+One wrongly-lit surface then floods the room: the *same black wall* reads **16.1 in class A vs 1.2 in class B**,
+13×. That single statement accounts for every class-A symptom since `.285` — global brightness, the cold cast,
+`.298`'s ceiling out-radiating the aperture, `.300`'s zero-variance patch, `.301`'s albedo immunity. The
+"saturation", "occlusion" and "transport" framings of `.299`–`.300` are no longer needed.
+
+### Geometry refuted, from data in hand
+
+The 99 wall planes are also `PlaneGeometry` and render correctly, collapsing 7–23× with albedo (`.301`). Not a
+BVH-misses-planes fault, not orientation — the walls are the control.
+
+### Lead, with a prediction the rivals disagree about
+
+The ceiling's one distinguishing property in the census: **it is the only substituted material** — 14 Lambert
+planes swapped to `MeshStandardMaterial` by `.253`'s `pbrStandInFor`, while the 99 walls are natively Standard.
+The swap is applied *after* `root.add(clone)`, inside a promise collected in `pending`.
+
+**Test:** a **finished** ceiling goes through `RoomCeiling.tsx` with a native `MeshStandardMaterial`, never
+substituted (`Ceiling.tsx` states this in its own comment). Substitution-linked ⇒ the fault never appears on a
+finished ceiling. Ceiling-as-such ⇒ it appears just as often. **No mechanism claimed until that runs.**
+
+Nothing changed in `src/` or in the probe.
