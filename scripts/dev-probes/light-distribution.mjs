@@ -465,6 +465,7 @@ const shotFor = async (pitch) => {
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyLinear === 'function') await applyLinear()
+  if (typeof applyRecolor === 'function') await applyRecolor()
   if (typeof applyHideGrille === 'function') await applyHideGrille()
   if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
@@ -618,6 +619,44 @@ const applyFillOff =
 // 13.3x, but through the window the same change moves it 1.05x -- because the
 // render's high-frequency energy (hp8 ~0.11) is roughly TWICE the entire source
 // image's (~0.063), and nearly all of it is grille.
+// RECOLOR=<fromHex>:<toHex> repaints every material of one colour, to test COLOUR
+// BLEED within the app (`.268`).
+//
+// A real wall beside saturated orange leather reads R-B 13.8 adjacent and 10.3 at
+// ~20 cm, at constant height in the same shadow band -- a ~3.5-count chroma
+// gradient, with luminance rising too, which is what an orange bounce does. The
+// app's plaster reads R-B 0.0 at every height, but the only thing near that wall is
+// a PALE BLUE sofa, so ~0 could mean "no bleed" or "no saturated source".
+//
+// Repainting a large adjacent surface saturated orange separates those two: with
+// inter-reflection the wall must warm; a grey hemisphere ambient cannot tint it at
+// all, whatever colour the floor is.
+const RECOLOR = process.env.RECOLOR || ''
+const applyRecolor = !RECOLOR
+  ? null
+  : async () => {
+      const [from, to] = RECOLOR.split(':')
+      const res = await page.evaluate(
+        ({ from: f, to: t }) => {
+          let n = 0
+          const kinds = {}
+          window.__three.scene.traverse((o) => {
+            if (!o.isMesh) return
+            const mats = Array.isArray(o.material) ? o.material : [o.material]
+            for (const m of mats) {
+              if (m?.color?.getHexString?.() !== f) continue
+              m.color.set(`#${t}`)
+              n++
+              kinds[o.geometry?.type ?? '?'] = (kinds[o.geometry?.type ?? '?'] ?? 0) + 1
+            }
+          })
+          return { repainted: n, kinds }
+        },
+        { from, to },
+      )
+      console.log(`RECOLORCHECK ${JSON.stringify(res)}`)
+      await new Promise((r) => setTimeout(r, 800))
+    }
 const HIDEGRILLE = process.env.HIDEGRILLE === '1'
 const applyHideGrille = !HIDEGRILLE
   ? null

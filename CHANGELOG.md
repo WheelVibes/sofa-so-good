@@ -5,6 +5,80 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.268 — colour bleed is exactly zero, and this is the GI test with no confound available
+
+Every GI test this arc has run has died on a confound. `.251` refuted the wall-falloff test because a 71 %
+aperture makes flat the *correct* answer. `.253` looked like a ceiling deficit and `.255` withdrew it because
+the path tracer runs a different lighting rig. So this round picks the one GI signature a grey hemisphere
+ambient **structurally cannot fake**: **colour bleed.** A hemisphere light is directionless and grey — it
+cannot tint a wall the colour of the thing next to it, at any intensity.
+
+**And it can be tested as a within-app A/B, which is why it has no confound available.** Same pose, same
+framing, same tier, same material, same lights; the only change is *the colour of a neighbouring surface*.
+Nothing about geometry, aperture, framing, albedo or tone curve can explain the result.
+
+**Step 1 — the app's wall is chromatically flat.** Plaster on wall B, 13:00, `medium`, photographic look,
+anchored at fixed world points:
+
+| y | d = 1.2 m | d = 2.4 m |
+| --- | --- | --- |
+| 1.0 m | RGB 117/117/117, R−B **−0.0** | R−B 0.6 |
+| 1.5 m | RGB 129/129/129, R−B **−0.0** | R−B 1.0 |
+| 2.0 m | RGB 125/125/125, R−B **−0.0** | R−B 1.5 |
+
+R−B spans **0.0 to 1.5 counts over 1.5 m of height**. (y = 0.5 was rejected — occluded by furniture.)
+
+**Step 2 — a real wall is not.** `w-1866149`: saturated orange leather sofa against plain plaster. Vertical
+comparisons proved illumination-confounded (L 239.4 vs 188.6 across heights, from a sun wedge), so the usable
+design is **constant height, same shadow band, varying distance from the sofa**:
+
+| distance from sofa | L | R−B |
+| --- | --- | --- |
+| adjacent | 214.1 | **13.8** |
+| ~8 cm | 186.9 | 13.1 |
+| ~15 cm | 177.3 | 9.6 |
+| ~23 cm | 168.4 | **10.3** |
+
+**~3.5 counts of chroma gradient over ~23 cm**, with luminance rising toward the sofa as well — which is
+exactly what an orange bounce does: it adds warm light, lifting both.
+
+**Step 3 — the decisive A/B.** Repainting the app's **ceiling** saturated orange (`fafafa` → `ff5a00`, 14
+meshes, 171 m², fully exposed and directly adjacent to the measured wall), then measuring the same wall
+anchors:
+
+| | wall at y = 2.0, d = 1.2 |
+| --- | --- |
+| ceiling as shipped | L 125.1, RGB 125/125/125, R−B **−0.0** |
+| **ceiling vivid orange** | L 125.2, RGB 125/125/125, R−B **−0.0** |
+
+**Verified by looking:** the ceiling is unmistakably, vividly orange across the whole top of the frame. The
+wall 30 cm beneath it is neutral to the last count.
+
+**So colour bleed in the app is exactly zero** — not small, zero to measurement precision. A vivid orange
+ceiling is one of the most visible GI effects there is; a real room would throw an obvious warm cast down the
+upper walls. The renderer transports none of it.
+
+**Why this result survives where the others did not.** It is a one-variable A/B inside a single build. There
+is no reference photograph in the load-bearing step, so no screening, framing, aperture or paint confound;
+no second renderer, so no rig mismatch (`.255`); no between-surface ratio, so no albedo term (`.249`); and
+chroma is white-balance invariant within a frame (`.267`). The photograph supplies only the *scale* of the
+effect to expect, and even if that 3.5-count figure were wrong by a factor of three, zero is still zero.
+
+**What it means for the arc.** The GI question has been open since `.226` and repeatedly mis-attributed:
+`.226` picked wall falloff (refuted `.251`), `.253` picked the ceiling (withdrawn `.255`). **This is the first
+GI measurement in the arc that holds.** It does not resurrect the falloff or ceiling claims — those were
+wrong on their own terms — but it establishes, positively and quantitatively, that inter-reflection is absent,
+and identifies the axis on which that absence is measurable and visible.
+
+**Caveats.** The photograph is a product-style shot with directional sun, so 3.5 counts is one measurement,
+not a screened band — the `.233` criteria were never designed for a bleed reference and a proper one would
+need its own screen (diffusely lit, saturated object against same-paint plaster, croppable at constant
+height). Zero bleed is also *expected* from the architecture — a hemisphere plus ambient is grey and
+directionless — so the contribution here is the quantification and the instrument, not the surprise.
+
+Probe only: `RECOLOR=<from>:<to>`, plus the per-anchor RGB added in `.267`. `npm test` 9437 passed, `tsc`
+clean, `biome` clean. Nothing changed in `src/` beyond the version bump. Runs 07:53–08:01 local.
+
 ## v0.31.5.267 — chroma separation: the app is not deficient, and the reference set can never settle the hours that matter
 
 `.266` established the luminance metrics are exhausted for the window. So this round changes axis to one the
