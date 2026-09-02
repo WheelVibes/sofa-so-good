@@ -1771,6 +1771,34 @@ reflectance colour rather than the colour of the light being removed.
 hue for free and in the right direction. Most of the hue effect remains unmodelled — but it is no longer
 modelled *wrongly*.
 
+### ⚠️ v0.31.5.277 — ROOM-DEPENDENT: the deficit doubles in a bedroom and the recovery halves
+
+Item (s) was validated in **one** room. Re-run in `bedroom2` (aperture **27 %** of its wall against
+livingDining's 71 %, ρ 0.8249/0.8100/0.7768 over 360 m²):
+
+| | livingDining | **bedroom2** |
+| --- | --- | --- |
+| Δ traced L (navy walls) | −20.5 / −22.3 % | **−43.1 / −50.3 %** |
+| Δ traced R−B | +3.0 / +5.4 | **+15.0 / +20.3** |
+| Δ raster | 0.0 | 0.0 |
+| **scalar model recovers** | **78–90 %** | **~46 %** |
+
+**The deficit is twice as large and the model recovers half as much.** A small room with high-albedo surfaces
+has ρ/(1−ρ) = 4.7 and is interreflection-dominated: its traced ceiling is *brighter* (175–181) than the living
+room's (158–161) despite a far smaller window. The raster's fill knows nothing about room size or albedo, so
+its bedroom ceiling (118) matches the living room's and the shortfall grows.
+
+**This materially weakens the proposal.** ~46 % recovery in the room type that dominates an HDB plan is a much
+less attractive trade than 78–90 % in the one room with a 71 % aperture — and `.268`–`.276` all measured the
+living/dining room, i.e. the best case.
+
+The **per-channel** variant is wrong-signed again here (−4.1 / −3.8 against +15.0 / +20.3), failing in a third
+room, which retires it conclusively.
+
+*Pose caveat:* bedroom2 needed pitch +0.30 (its ceiling is not in frame at the shipped pitch in a 3.5 m-deep
+room). Each Δ is internally pose-consistent so the recovery fractions compare, but absolute Δs across rooms
+are not pose-matched.
+
 **Also resolved:** the "brightening direction" is largely moot. The model is a **ratio**, so white → navy and
 navy → white are the same experiment read either way, and `.272` tested it. The untested regime is ρ *above*
 the shipped 0.81, which needs an all-white room (many surfaces at once), not one finish swap.

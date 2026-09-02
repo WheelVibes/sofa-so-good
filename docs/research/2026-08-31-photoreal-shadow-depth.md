@@ -8381,3 +8381,99 @@ corrections largely cancel in a ratio.
 Item **(s)** now recommends the scalar form and carries the three-finish table.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.277` — the deficit is twice as large in a bedroom, and the model recovers half as much
+
+Item (s) was validated at three finishes but **one room**, and every metric in this arc has turned out
+geometry-dependent (`.232` pose, `.239` tier, `.247` framing, `.251` scene). So this round generalised the
+probe to any room and re-ran the test in a bedroom.
+
+Runs 09:33–09:50 local (2026-09-02).
+
+### A silent failure, worth recording
+
+Generalising `livingDining` out of the probe took four edits. Three applied; the **albedo census kept its
+hardcode**, because biome had collapsed that expression onto a single line after `.271` and my multi-line
+search pattern matched nothing.
+
+`grep -c` reported five matches and I read that as confirmation. What actually caught it was the
+**behaviour**: bedroom2 reported livingDining's albedo, to four decimals, over an identical 467 m².
+
+**A count is not a behaviour check.** Same lesson as `.264` — verify what the intervention *did*, not that
+the edit *looks* applied — arriving this time through a find-and-replace rather than an env var. The
+generalisable form: when an edit is meant to change behaviour, assert on the behaviour.
+
+### Three rooms characterised
+
+| room | ρ (area-weighted) | surface | **aperture** |
+| --- | --- | --- | --- |
+| livingDining | 0.8115 / 0.8067 / 0.7876 | 467 m² | **71 %** |
+| **bedroom2** | 0.8249 / 0.8100 / 0.7768 | 360 m² | **27 %** |
+| bedroom3 | 0.8280 / 0.8199 / 0.7912 | 395 m² | 66 % |
+
+### The deficit doubles
+
+Navy walls, traced ceiling anchors:
+
+| | livingDining | **bedroom2** |
+| --- | --- | --- |
+| Δ traced L | −20.5 / −22.3 % | **−43.1 / −50.3 %** |
+| Δ traced R−B | +3.0 / +5.4 | **+15.0 / +20.3** |
+| Δ **raster** | 0.0 | **0.0** |
+
+### Mechanism
+
+bedroom2 has a 27 % aperture and is small with high-albedo surfaces, so ρ/(1−ρ) = **4.7** and interreflection
+dominates its lighting.
+
+The tell is in the absolute levels: the **traced** bedroom ceiling is *brighter* (175–181) than the living
+room's (158–161) **despite a far smaller window**. A small bright room concentrates bounce — light makes more
+trips before being absorbed.
+
+The **raster's** fill knows nothing about room size or albedo, so its bedroom ceiling (118) is about the same
+as the living room's. Real transport rewards the small bright room; the rasteriser does not. Hence the larger
+shortfall.
+
+### Which means the arc has been measuring its best room
+
+`.268`–`.276` all used the living/dining room, which has the **largest aperture in the plan** (71 %). Most
+rooms in an HDB flat are bedrooms with 27–66 % apertures. The deficit reported in those rounds is the
+optimistic end of the range.
+
+### And the model recovers half as much, exactly where it is needed most
+
+| room | scalar | luminance recovered | hue recovered | hue sign |
+| --- | --- | --- | --- | --- |
+| livingDining — terracotta / navy / forest | 0.650 / 0.563 / 0.574 | 78 / 90 / 89 % | 7 / 23 / 20 % | right |
+| **bedroom2 — navy** | **0.494** | **~46 %** | ~10 % | right |
+
+The recovery is **room-dependent and worst where the deficit is largest** — the opposite of what one wants
+from an approximation. Scaling the fill lights cannot express an effect driven by interreflection that the
+fill does not model: the fill is a fixed hemisphere, and no scalar on it encodes "this room bounces light
+more times".
+
+The **per-channel** variant is wrong-signed again (−4.1 / −3.8 against +15.0 / +20.3). Third room, and it
+retires conclusively.
+
+### Looked at
+
+The bedroom's navy walls render as deep navy, and the ceiling is **visibly identical** between the two arms.
+In reality navy walls in a small bedroom would darken and warm the ceiling dramatically — the tracer says
+−43 to −50 %.
+
+### Caveat on pose
+
+livingDining was measured at pitch −0.06; bedroom2 needed **pitch +0.30**, because in a 3.5 m-deep room the
+ceiling is not in frame at all at the shipped pitch (all anchors rejected 0/81, offscreen). Each Δ is
+internally pose-consistent, so the **recovery fractions** are comparable; the **absolute** Δs between rooms
+are not pose-matched and should not be read as a like-for-like ratio.
+
+### Where item (s) stands
+
+Materially weakened. ~46 % recovery in the room type that dominates the plan is a much less attractive trade
+than 78–90 % in the single room with a 71 % aperture. The proposal is not dead — 46 % of a *larger* deficit is
+still a real improvement in absolute terms — but it can no longer be presented as "recovers most of it".
+
+Nothing changed in `src/` beyond the version bump.

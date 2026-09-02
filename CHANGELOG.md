@@ -5,6 +5,73 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.277 — the deficit is twice as large in a bedroom, and the model recovers half as much
+
+Item (s) was validated at three finishes but **one room**, and every metric in this arc has turned out
+geometry-dependent. So this round generalised the probe to any room and re-ran the test in a bedroom.
+
+**A silent failure first, worth recording.** Generalising `livingDining` out of the probe required four
+edits. Three took; the **albedo census kept its hardcode**, because biome had collapsed that expression onto
+one line after `.271` and my multi-line pattern matched nothing. `grep -c` reported five matches and I read
+that as success. What caught it was the **behaviour**: bedroom2 reported livingDining's albedo, over an
+identical 467 m². **A count is not a behaviour check** — the same lesson as `.264`, arriving via a
+find-and-replace instead of an env var.
+
+**Three rooms now characterised:**
+
+| room | ρ (area-weighted) | surface | **aperture** |
+| --- | --- | --- | --- |
+| livingDining | 0.8115 / 0.8067 / 0.7876 | 467 m² | **71 %** |
+| **bedroom2** | 0.8249 / 0.8100 / 0.7768 | 360 m² | **27 %** |
+| bedroom3 | 0.8280 / 0.8199 / 0.7912 | 395 m² | 66 % |
+
+**The deficit is roughly twice as large in bedroom2.** Navy walls, traced ceiling:
+
+| | livingDining | **bedroom2** |
+| --- | --- | --- |
+| Δ traced L | −20.5 / −22.3 % | **−43.1 / −50.3 %** |
+| Δ traced R−B | +3.0 / +5.4 | **+15.0 / +20.3** |
+| Δ raster | 0.0 | **0.0** |
+
+**Mechanism.** bedroom2 has a 27 % aperture and is small with high-albedo surfaces, so ρ/(1−ρ) = 4.7 and
+interreflection dominates. The traced bedroom ceiling is *brighter* (175–181) than the living room's
+(158–161) **despite a far smaller window** — a small bright room concentrates bounce. The raster's fill knows
+nothing about room size or albedo, so its bedroom ceiling (118) is about the same as the living room's, and
+the shortfall is correspondingly larger.
+
+**Which means the arc has been measuring the deficit in its best room.** Most rooms in an HDB flat are
+bedrooms with small windows. `.268`–`.276` all used the living/dining room, which has the largest aperture in
+the plan.
+
+**And the model recovers half as much, exactly where it is needed most:**
+
+| room | scalar | luminance recovered | hue recovered | hue sign |
+| --- | --- | --- | --- | --- |
+| livingDining (terracotta / navy / forest) | 0.650 / 0.563 / 0.574 | 78 / 90 / 89 % | 7 / 23 / 20 % | right |
+| **bedroom2 (navy)** | **0.494** | **~46 %** | ~10 % | right |
+
+So the recovery is **room-dependent, and worst where the deficit is largest** — the opposite of what one
+would want from an approximation. Scaling the fill lights cannot express an effect that is driven by
+interreflection the fill does not model.
+
+The **per-channel** variant is wrong-signed again (−4.1 / −3.8 against a +15.0 / +20.3 target) — now failing
+in a third room, which retires it conclusively.
+
+**Looked at.** The bedroom's navy walls render as deep navy and the ceiling is **visibly identical** between
+the two arms. In reality navy walls in a small bedroom would darken and warm the ceiling dramatically.
+
+**Caveat on pose.** livingDining was measured at pitch −0.06; bedroom2 needed **pitch +0.30** because the
+ceiling is not in frame at all otherwise in a 3.5 m-deep room. Each Δ is internally pose-consistent, so the
+*recovery fractions* are comparable, but the absolute Δs between rooms are not pose-matched.
+
+Item **(s)** updated with the room dependence, which materially weakens the proposal: ~46 % recovery in the
+room type that dominates the plan is a much less attractive trade than 78–90 % in the one room with a 71 %
+aperture.
+
+Probe: `ROOM` knob scoping the finish setters, the albedo census, the exposure census and the aperture report.
+`npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in `src/` beyond the version bump. Runs
+09:33–09:50 local.
+
 ## v0.31.5.276 — the scalar fill wins on hue too: right-signed at all three finishes, where per-channel is not
 
 `.272` named `forest` (`#4a5e4a`) as the untested third finish — a green bleed, a third hue direction, and a

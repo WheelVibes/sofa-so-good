@@ -48,6 +48,11 @@ import { appUrl, assertSceneAlive } from './lib.mjs'
 const HOUR = Number(process.env.HOUR || 13)
 const TIER = process.env.TIER || 'medium'
 const WINDOW = process.env.WINDOW || 'livingDining'
+// ROOM scopes the finish setters, the albedo census and the exposure census
+// (`.277`). Everything downstream of `.271` hardcoded `livingDining`, which made
+// item (s) untestable outside one room -- and every metric in this arc has turned
+// out geometry-dependent, so one room is not a validation.
+const ROOM = process.env.ROOM || WINDOW
 const STANDOFF = Number(process.env.STANDOFF || 4.6)
 const PITCH = Number(process.env.PITCH || -0.06)
 const WALKFOV = process.env.WALKFOV ? Number(process.env.WALKFOV) : 50
@@ -100,8 +105,11 @@ await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
+await page.evaluate((r) => {
+  window.__probeRoom = r
+}, ROOM)
 await page.evaluate(
-  ({ h, t, fov, photo, floor, wall, tone, backdrop }) => {
+  ({ h, t, fov, photo, floor, wall, tone, backdrop, room }) => {
     const s = window.__store.getState()
     s.setTimeMode('manual')
     s.setManualHour(h)
@@ -118,8 +126,8 @@ await page.evaluate(
     // for item (l) -- `.261` wanted a near object behind the glass and `city` is
     // exactly that. `.263` predicts the equirect -> CubeUV pre-filter blurs it.
     if (backdrop) s.setBackdrop?.(backdrop)
-    if (floor) s.setFloorFinish?.('livingDining', floor)
-    if (wall) s.setWallFinish?.('livingDining', wall)
+    if (floor) s.setFloorFinish?.(room, floor)
+    if (wall) s.setWallFinish?.(room, wall)
   },
   {
     h: HOUR,
@@ -130,6 +138,7 @@ await page.evaluate(
     wall: WALL,
     tone: TONE,
     backdrop: BACKDROP,
+    room: ROOM,
   },
 )
 // LIGHTS=off switches every placed light OFF, so a DAYLIGHT-ONLY frame can be
@@ -943,8 +952,8 @@ if (process.env.FLOOREXPOSED === '1') {
       const m = Array.isArray(o.material) ? o.material[0] : o.material
       return `${o.geometry?.type ?? '?'}#${m?.color?.getHexString?.() ?? '------'}`
     }
-    const rm = window.__store.getState().floorPlan?.rooms?.find((r) => r.id === 'livingDining')
-    if (!rm) return { error: 'no livingDining room' }
+    const rm = window.__store.getState().floorPlan?.rooms?.find((r) => r.id === window.__probeRoom)
+    if (!rm) return { error: `no room ${window.__probeRoom}` }
     const N = 60
     const tally = {}
     let n = 0
@@ -996,9 +1005,12 @@ if (ALBEDO) {
       // Bounce is LOCAL: only the room's own surfaces matter. A whole-flat census
       // (2186 m2) barely moves when one room is repainted -- ratio 0.984/0.972/
       // 0.968 -- and predicts a 2.6 % darkening where real transport gives 16-20 %.
-      // Restrict to the living/dining rect from the plan (`.251`: 3.4 x 5.67 m).
+      // Restrict to the measured room's rect (`.277` -- was hardcoded to livingDining,
+      // which silently made every other room report livingDining's albedo).
       const wp = o.getWorldPosition(new V())
-      const rm = window.__store.getState().floorPlan?.rooms?.find((r) => r.id === 'livingDining')
+      const rm = window.__store
+        .getState()
+        .floorPlan?.rooms?.find((r) => r.id === window.__probeRoom)
       if (rm) {
         const pad = 0.4
         if (
@@ -1800,7 +1812,7 @@ if (process.env.ANCHORS === '1') {
     const w = (plan.walls ?? []).find((x) => x.id === op?.wallId)
     if (!op || !w) return null
     const wallLen = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1])
-    const room = (plan.rooms ?? []).find((r) => r.id === 'livingDining')
+    const room = (plan.rooms ?? []).find((r) => r.id === window.__probeRoom)
     return {
       width: +op.width.toFixed(2),
       height: op.height != null ? +op.height.toFixed(2) : null,
