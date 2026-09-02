@@ -7759,3 +7759,96 @@ or ceiling claims ever had, and it was reached by abandoning between-renderer co
 within-renderer difference.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.270` — the realistic bound: paint a feature wall and the rest of the room does not notice
+
+`.269` sized the colour-bleed deficit at ~18 counts using a **vivid orange ceiling**, and said plainly that a
+realistic bound needed its own A/B with a plausible recolour. There is a better way to do that than inventing
+a colour: use a finish **the app already ships and a user can pick from a menu**.
+
+Runs 08:16–08:24 local (2026-09-02).
+
+### Design
+
+`wall-paint-terracotta` (`#c08763`, procedural plaster) applied to the living/dining walls; everything else
+untouched. The **measured** surface is the **ceiling**, which remains white plaster in both arms — so nothing
+about the measured material changes, only what stands next to it.
+
+**Intervention verified before anything was read** (`.264`'s lesson): the wall's geometry+colour signature
+changes `PlaneGeometry#f5f5f0` → `PlaneGeometry#c08763`, and its rasterised colour goes RGB 108/108/108 →
+83/53/36. The finish took, strongly.
+
+### The ceiling's response
+
+13:00, `medium`, photographic look, fan-clear anchor line (`ANCHOR_OFF −0.7`), 150 traced samples per still:
+
+| ceiling anchor | raster R−B | traced R−B | Δ raster | **Δ traced** |
+| --- | --- | --- | --- | --- |
+| d = 0.6 m | 9.7 → 9.7 | −10.9 → −2.1 | **0.0** | **+8.8** |
+| d = 1.2 m | 10.0 → 10.0 | −10.8 → +2.7 | **0.0** | **+13.5** |
+| d = 1.8 m | 9.8 → 9.7 | −9.4 → +0.6 | **−0.1** | **+10.0** |
+
+| ceiling anchor | raster L | traced L | Δ raster | **Δ traced** |
+| --- | --- | --- | --- | --- |
+| d = 0.6 m | 110.5 → 110.7 | 158.9 → 128.7 | +0.2 % | **−19.0 %** |
+| d = 1.2 m | 124.2 → 124.4 | 161.4 → 129.1 | +0.2 % | **−20.0 %** |
+| d = 1.8 m | 125.0 → 125.0 | 160.5 → 135.1 | 0.0 % | **−15.8 %** |
+
+**The realistic bound is ~9–13 counts of hue** — about two-thirds of `.269`'s vivid-orange figure. More than
+one might guess: a terracotta *wall* is a very large adjacent surface, so modest saturation over a big area
+beats vivid saturation over a smaller one.
+
+### The energy half, which may matter more than the colour
+
+The traced ceiling does not only warm. It **darkens by 16–20 %**. The rasterised ceiling changes by **0.2 %**.
+
+In user terms: **paint a feature wall dark terracotta in this app, and the rest of the room does not notice.**
+In a real room a dark wall makes everything measurably darker and warmer — that is most of what choosing a
+dark paint *does*.
+
+This is the most concrete and most user-facing statement of the GI deficit the arc has produced. It is not a
+ratio at a canonical pose defended against a screened photograph; it is shipped content, selected from a
+menu, with a measurable and visible consequence that the renderer omits.
+
+### Looked at
+
+Side by side, the terracotta walls render correctly — deep warm brown on both side walls — and the ceiling is
+**visibly identical** in the two frames: same pale grey, no warming, no darkening. The numbers and the picture
+agree.
+
+### Why the comparison is sound
+
+Same one-variable A/B design as `.268` and `.269`: identical pose, framing, tier, hour, camera and anchors,
+with one finish as the only change.
+
+- The traced arm still runs the rig `.255` identified — but that rig is **identical in A and B**, so it
+  cancels in the difference.
+- Raster Δ and traced Δ are each computed **within their own renderer** before being compared, so no
+  between-renderer term enters.
+- Sample-count drift (`.251`) cancels the same way: both stills are 150 samples.
+
+### Caveats
+
+One finish, one room, one pose, one hour. Terracotta is warm and mid-saturation; the shipped `navy`
+(`#3b4a63`) and `forest` (`#4a5e4a`) finishes would bleed **cool** and are untested. The ceiling was chosen
+because it stays plaster in both arms — a floor-finish A/B is the natural companion and is equally cheap now
+that the design is established.
+
+### Where the GI thread stands
+
+| round | result |
+| --- | --- |
+| `.268` | bleed exists as a deficit and is **exactly zero** in the raster — one-variable raster A/B |
+| `.269` | **~18 counts** under an extreme source — one-variable tracer A/B, rig cancelled |
+| **`.270`** | **~9–13 counts of hue and 16–20 % of luminance** under a realistic, shipped, user-selectable source |
+
+All three avoid a reference photograph in the load-bearing step, which is what finally made the GI question
+tractable after `.251` and `.255` killed the photograph- and between-renderer-based attempts.
+
+This round required **no probe change at all** — it used `WALL`, `PT` and `ANCHORS` as they already stood,
+which is a fair sign the instrument built over `.250`–`.269` is now doing useful work without further
+scaffolding.
+
+Nothing changed in `src/` beyond the version bump.

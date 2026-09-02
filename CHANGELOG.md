@@ -5,6 +5,61 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.270 — the realistic bound: paint a feature wall and the rest of the room does not notice
+
+`.269` sized the bleed deficit at ~18 counts using a **vivid orange ceiling**, and said plainly that a
+realistic bound needed its own A/B with a plausible recolour. There is a better way to do that than inventing
+a colour: **use a finish the app already ships and a user can actually pick.**
+
+`wall-paint-terracotta` (`#c08763`) applied to the living/dining walls, everything else untouched. The
+measured surface is the **ceiling**, which stays white plaster throughout — so nothing about the ceiling's own
+material changes, only what is next to it.
+
+**Intervention verified first** (`.264`'s lesson): the wall's signature changes `PlaneGeometry#f5f5f0` →
+`PlaneGeometry#c08763`, and its rasterised colour goes RGB 108/108/108 → 83/53/36. The finish took.
+
+**The ceiling's response**, 13:00, `medium`, photographic look, fan-clear anchor line, 150 traced samples:
+
+| ceiling anchor | Δ raster R−B | **Δ traced R−B** | Δ raster L | **Δ traced L** |
+| --- | --- | --- | --- | --- |
+| d = 0.6 m | 0.0 | **+8.8** | +0.2 % | **−19.0 %** |
+| d = 1.2 m | 0.0 | **+13.5** | +0.2 % | **−20.0 %** |
+| d = 1.8 m | −0.1 | **+10.0** | 0.0 % | **−15.8 %** |
+
+**So the realistic bound is ~9–13 counts of hue** — about two-thirds of the vivid-orange figure, which is
+more than one might guess, because a terracotta *wall* is a very large adjacent surface even though its
+saturation is modest.
+
+**And there is a second finding here that is arguably more important than the colour one.** The traced
+ceiling does not only warm — it **darkens by 16–20 %**. The rasterised ceiling changes by **0.2 %**.
+
+Put in user terms: **paint a feature wall dark terracotta in this app, and the rest of the room does not
+notice.** In reality a dark wall makes the whole room measurably darker and warmer. That is the most concrete,
+most user-facing statement of the GI deficit this arc has produced — it is not about a ratio at a canonical
+pose, it is about shipped content a user selects from a menu.
+
+**Looked at.** Side by side, the terracotta walls render correctly and the ceiling is visibly identical in
+both frames: same pale grey, no warming, no darkening. The numbers and the picture agree.
+
+**Why this comparison is sound.** It is the same one-variable A/B design as `.268` and `.269`: same pose,
+framing, tier, hour, camera and anchors, with one finish as the only change. The traced side still runs the
+rig `.255` identified, but that rig is identical in A and B, so it cancels in the difference — and the raster
+Δ and traced Δ are each computed within their own renderer before being compared. Sample-count drift (`.251`)
+cancels the same way, both stills being 150 samples.
+
+**Caveats.** One finish, one room, one pose, one hour. Terracotta is a warm mid-saturation colour; a navy or
+forest finish (both shipped) would bleed cool and is untested. And the ceiling was chosen because it stays
+plaster — a floor-finish A/B would be the natural companion and is equally cheap now.
+
+**Where the GI thread stands.** `.268` established the deficit exists and is exactly zero in the raster;
+`.269` sized it under an extreme source; `.270` sizes it under a **realistic, shipped, user-selectable** one
+and adds the energy half. All three are one-variable A/B designs with no reference photograph in the
+load-bearing step.
+
+Probe only — this round used existing knobs (`WALL`, `PT`, `ANCHORS`) with no probe change at all. `npm test`
+9437 passed, `tsc` clean, `biome` clean. Nothing changed in `src/` beyond the version bump. Runs 08:16–08:24
+local.
+
 ## v0.31.5.269 — the bleed deficit sized at ~18 counts, by the app's own path tracer
 
 `.268` proved colour bleed is exactly zero but sized the effect against **saturated orange leather** — a
