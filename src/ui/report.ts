@@ -41,6 +41,7 @@ import { buildFinishSchedule } from '../floorplan/finishSchedule'
 import {
   allPlanRooms,
   isMultiLevel,
+  itemsInRoom,
   itemsOnLevel,
   levelAsPlan,
   planLevels,
@@ -49,7 +50,7 @@ import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
-import { planRoomArea, pointInRoom } from '../floorplan/types'
+import { planRoomArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -443,11 +444,16 @@ export function buildReportHtml(
   // (mirroring DesignScorePanel), then run through the rule set. Rides the existing
   // `report` flag (additive section, no new analysis code). Skipped when the rules
   // produce nothing (e.g. a bare shell with no habitable rooms, or a fully-kitted home).
-  const suggestionRooms = plan.rooms.map((r) => {
+  // EVERY storey (F13), matched with `itemsInRoom` so a piece counts toward the
+  // room on its OWN floor. v0.31.5.284 fixed exactly this in `DesignScorePanel`
+  // — and this block says "mirroring DesignScorePanel", which it then stopped
+  // doing. Found by auditing my own .277-.284 claims after .293 turned up a
+  // path .281 had missed.
+  const suggestionRooms = allPlanRooms(plan).map((r) => {
     const cats = new Set<string>()
-    for (const it of items) {
+    for (const it of itemsInRoom(plan, items, r.id)) {
       const def = catalog[it.defId]
-      if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
+      if (def) cats.add(def.category)
     }
     return {
       id: r.id,

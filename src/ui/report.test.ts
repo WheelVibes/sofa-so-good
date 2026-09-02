@@ -740,3 +740,61 @@ describe('buildReportHtml — electrical points, persisted design overrides the 
     expect(html).not.toContain('Electrical points (as designed)')
   })
 })
+
+describe('report suggestions cover every storey (F13)', () => {
+  /** The default flat plus one upstairs room the rule engine will fire on. */
+  const withUpstairsRoom = () => {
+    const base = buildDefaultPlan()
+    return {
+      ...base,
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Upper',
+          elevation: 3,
+          walls: [],
+          openings: [],
+          rooms: [
+            {
+              id: 'u-liv',
+              name: 'Upstairs Lounge',
+              category: 'living',
+              origin: [0, 0],
+              width: 5,
+              depth: 4,
+            },
+          ],
+        },
+      ],
+    } as unknown as ReturnType<typeof buildDefaultPlan>
+  }
+
+  it('counts an UPSTAIRS room in the suggestion tally', async () => {
+    // The discriminating measurement is the IDEAS COUNT, not the room name.
+    // Asserting `toContain('Upstairs Lounge')` passes with or without the fix,
+    // because several other sections name every room — measured directly in
+    // both arms rather than reasoned about, after three earlier versions of
+    // this test passed for the wrong reason. With the fix: 9 ideas. Without: 8.
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = buildReportHtml(withUpstairsRoom(), [], BUILTIN_CATALOG, null)
+    const tally = /(\d+) ideas? to add or improve/.exec(html)
+    expect(tally, 'no Design suggestions tally in the report').toBeTruthy()
+    expect(Number(tally![1])).toBe(9)
+  })
+
+  it('is one FEWER on the same plan with the storey removed', () => {
+    // Pins the delta rather than the absolute, so a change to the rule set that
+    // shifts the baseline does not silently make the test vacuous.
+    const two = buildReportHtml(withUpstairsRoom(), [], BUILTIN_CATALOG, null)
+    const oneStorey = buildReportHtml(
+      { ...withUpstairsRoom(), upperLevels: [] } as unknown as ReturnType<typeof buildDefaultPlan>,
+      [],
+      BUILTIN_CATALOG,
+      null,
+    )
+    const count = (h: string) => Number(/(\d+) ideas? to add or improve/.exec(h)![1])
+    expect(count(two)).toBe(count(oneStorey) + 1)
+  })
+})

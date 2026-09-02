@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.294 - auditing my own .277-.284 claims, and five more findings
+
+`.293` turned up a path `.281` had missed *by accident*. That is a bad way to find things, so this
+audits my own claims: a sweep for the three idioms this arc has been replacing, then classifying
+every remaining hit instead of assuming the earlier commits were complete.
+
+Two suspects turned out to be **correct** and are worth recording so they are not "fixed" later:
+`report.ts:181` and `drawingSet.ts:1407` both read `plan.rooms` in the ELSE branch of
+`multi ? levels… : plan.rooms`, where the plan is single-storey and `plan.rooms` IS the whole home.
+`doorSwing.ts`'s room probes are also fine — its only caller passes a `levelAsPlan` result.
+
+**Five real findings:**
+
+1. **`apartment/walls/wallTexTransform.ts` — the RENDER side of a `.281` fix.** `.281` taught the
+   texture-direction CONTROL (`ui/finish/DirectionRow.tsx`) to find an upstairs room and left this
+   half reading `plan.rooms`. So a user could set an upstairs room's texture angle, watch the
+   control accept it, and see nothing change in 3D. **Half-fixing was worse than not fixing:** a
+   control that visibly does nothing reads as a broken app, where a missing control reads as a
+   missing feature.
+2. **`report.ts` design suggestions** — ground-only, in a block whose own comment says "mirroring
+   DesignScorePanel", which `.284` fixed and this then stopped mirroring.
+3. **`PlanFurnitureInspector`** — "edit this piece in 3D" hand-rolled a point-in-RECT test over
+   ground-only rooms, so on an upstairs piece it opened the room beneath or nothing. Now
+   `roomAtItem`, which also fixes the separate bug that the hand-rolled rect ignored a polygon
+   room's real outline.
+4. **`CatalogDrawer`** — room-aware category defaulting lost an upstairs room's explicit
+   `category` and silently fell back to name inference.
+5. **`FloorPlanEditor`** — one room lookup used `st.floorPlan.rooms` while every other lookup in
+   that file already used `levelById(st.floorPlan, levelId).rooms`; dragging a POLYGON room on an
+   upper storey moved its origin without translating its outline.
+
+**And a test that passed for the wrong reason three times in a row — the useful part of this
+commit.** My first assertion for finding 2 was `expect(html).toContain('Bedroom 4')`. It passed
+with the fix AND without it, because several other report sections name every room. I scoped it to
+the section; still passed both ways, because my slice used `lastIndexOf('ci-detail')`, which reaches
+past the section. So I **measured both arms directly** instead of reasoning about the markup — and
+they were byte-identical, which is the "exact equality is evidence of a no-op" signal this arc
+already recorded.
+
+The identity was real: the rule engine emits nothing for an empty bedroom, so that input could not
+discriminate. Changing the fixture to a room the rules DO fire on gave **9 ideas with the fix, 8
+without** — the suggestion TALLY is the discriminating measurement, and the room name never was.
+The test now asserts the count, plus a second test pinning the DELTA (`n + 1` versus the same plan
+with the storey removed) so a later change to the rule set cannot make it vacuous.
+
+Generalising, because this is the fourth unscoped-assertion mistake in the arc: **when an assertion
+passes, check it also FAILS without the change, and if a scoped-string attempt keeps passing, stop
+refining the selector and measure both arms.** A string that appears in sections you did not touch
+can never discriminate, however tightly you scope it — the discriminator has to be something only
+the changed code produces, which here was a number, not a name.
+
++7 tests; the four that can discriminate are confirmed failing with their fixes stashed.
+
 ## v0.31.5.293 - the intake answer is now kept, plus a path .281 missed
 
 Two things, one of them an admission.

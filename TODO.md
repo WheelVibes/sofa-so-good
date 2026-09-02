@@ -331,6 +331,16 @@ fact. Caveat already documented in `intakeStates.ts`: the curated default flat i
 it would be session-only there — which is fine for a live-computed schedule and only matters across
 a reload.
 
+## Audited-correct, do NOT "fix" these (v0.31.5.294)
+
+Sites that read `plan.rooms` and are RIGHT to:
+- `ui/report.ts:181`, `ui/drawingSet.ts:1407` — the else branch of `multi ? levels… : plan.rooms`.
+  On a single-storey plan `plan.rooms` IS the whole home.
+- `floorplan/doorSwing.ts` room probes — its only caller passes a `levelAsPlan` result.
+- `floorplan/rescalePlan.ts`, `gridSnap.ts`, `mirrorPlanRegion.ts` — whole-plan transforms that
+  handle `upperLevels` separately and deliberately.
+- `floorplan/autoDimensionSvg.ts:360` — a per-level sheet builder.
+
 **Remaining F13 follow-ups (v0.31.5.282).**
 - ~~`elevation/projectElevation.ts` ground-only~~ FIXED in v0.31.5.283. The "dead export"
   claim in .282 was wrong — I grepped the doc-comment name (`allWallElevations`) rather than the

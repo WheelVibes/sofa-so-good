@@ -4,6 +4,7 @@ import { essentialDefIdsForPetTypes } from '../../analysis/petCompliance'
 import { hasBackend } from '../../features/api/client'
 import { isAdminUser } from '../../features/auth/types'
 import { useFeature } from '../../features/useFeature'
+import { allPlanRooms } from '../../floorplan/levels'
 import { roomCategory, toRoomKind } from '../../floorplan/roomCategory'
 import type { FurnitureDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES } from '../../furniture/types'
@@ -328,7 +329,10 @@ export function CatalogDrawer() {
     if (!key) return
     // Explicit `category` (RM1) wins over name inference — a renamed room
     // ("Ella's room") with a set category still lands on the right category.
-    const planRoom = floorPlan.rooms.find((r) => r.id === key)
+    // EVERY storey (F13) — `.277` made upstairs rooms enterable, so a
+    // ground-only lookup silently lost an upstairs room's explicit category and
+    // fell back to name inference.
+    const planRoom = allPlanRooms(floorPlan).find((r) => r.id === key)
     const kind = toRoomKind(
       roomCategory({ name: roomDisplayName(key, floorPlan), category: planRoom?.category }),
     )

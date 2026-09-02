@@ -28,6 +28,7 @@
  */
 
 import { useMemo } from 'react'
+import { allPlanRooms } from '../../floorplan/levels'
 import type { FloorPlan, PlanRoom } from '../../floorplan/types'
 import type { UvTransform } from '../../materials/worldUv'
 import { useStore } from '../../state/store'
@@ -48,7 +49,11 @@ export function wallTexTransform(
 /** Same for a room id against a plan — the shape the renderers have on hand. */
 export function wallTexTransformFor(plan: FloorPlan, roomId?: string): UvTransform | undefined {
   if (!roomId) return undefined
-  return wallTexTransform(plan.rooms.find((r) => r.id === roomId))
+  // EVERY storey (F13). This is the RENDER side of the control `.281` fixed in
+  // `ui/finish/DirectionRow.tsx` — with only that half done, a user could set an
+  // upstairs room's texture angle and see nothing change in 3D, which is worse
+  // than both halves being broken.
+  return wallTexTransform(allPlanRooms(plan).find((r) => r.id === roomId))
 }
 
 /**
@@ -63,12 +68,14 @@ function useSurfaceTexTransform(
   surface: 'floor' | 'wall',
   roomId?: string,
 ): UvTransform | undefined {
+  // Both selectors return a SCALAR, so resolving through `allPlanRooms` inside
+  // them is safe — no fresh array identity reaches the subscription.
   const scale = useStore((s) => {
-    const room = roomId ? s.floorPlan.rooms.find((r) => r.id === roomId) : undefined
+    const room = roomId ? allPlanRooms(s.floorPlan).find((r) => r.id === roomId) : undefined
     return surface === 'floor' ? room?.floorTexScale : room?.wallTexScale
   })
   const angle = useStore((s) => {
-    const room = roomId ? s.floorPlan.rooms.find((r) => r.id === roomId) : undefined
+    const room = roomId ? allPlanRooms(s.floorPlan).find((r) => r.id === roomId) : undefined
     return surface === 'floor' ? room?.floorTexAngle : room?.wallTexAngle
   })
   return useMemo(() => (!scale && !angle ? undefined : { scale, angle }), [scale, angle])
