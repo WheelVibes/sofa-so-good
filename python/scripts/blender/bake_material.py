@@ -67,13 +67,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="only bake meshes with at least this much surface area (m2), which "
                         "selects the room shell without depending on mesh names")
     p.add_argument("--limit", type=int, default=24, help="cap on objects baked, largest first")
-    p.add_argument("--albedo", type=float, default=0.5,
-                   help="white-diffuse albedo for a visibility bake. NOT 1.0: a closed white "
-                        "room at albedo 1 is a white furnace -- energy is conserved, interior "
-                        "radiance converges on the sky's, and the raw bake saturates at 1.0 "
-                        "with almost no dynamic range left to store. A realistic mid albedo "
-                        "keeps interreflection (which v0.31.7.9 showed is most of the "
-                        "quantity) while leaving the result inside 0..1.")
+    p.add_argument("--albedo", type=float, default=0.81,
+                   help="white-diffuse albedo for a visibility bake. 0.81 is MEASURED, not "
+                        "chosen: the probe's ALBEDO=1 knob reports the default flat's "
+                        "area-weighted mean surface albedo as r=0.812 g=0.807 b=0.788 over "
+                        "467 m2, because white plaster walls and ceilings dominate the area. "
+                        "That also explains why v0.31.7.9's albedo-1.0 render matched physics' "
+                        "spatial profile so well -- the real room genuinely is close to a white "
+                        "furnace. Re-measure per plan rather than reusing this number if the "
+                        "finishes differ.")
     p.add_argument("--uv", default="box", choices=("box", "existing"),
                    help="'box' builds a fresh non-tiling 3x2 atlas (REQUIRED for the app's "
                         "shell meshes, whose UVs are tiling coordinates outside 0..1); "
@@ -98,7 +100,40 @@ def mesh_area(obj: bpy.types.Object) -> float:
 BAKE_UV = "bake_uv"
 
 
-def make_box_uvs(obj: bpy.types.Object, margin: float = 0.04) -> str:
+def classify_faces(obj: bpy.types.Object, reach: float = 30.0) -> dict[int, bool]:
+    """Does anything block each face's normal direction? **Diagnostic only — read this.**
+
+    This started life as an "is the face interior?" test and is not one. It answers the
+    narrower question in its title: one ray, from the face along its own normal. A face can
+    hit something within `reach` and still see most of the sky — an outward face across a
+    balcony that clips a railing, say — and the bake proves it does: texels inside
+    ray-classified "interior" slots reach **1.0**, i.e. full sky exposure.
+    
+
+    So its output feeds the `int_*` diagnostic fields and nothing else. **Do not gate the bake
+    on it**, and do not use a per-mesh mean to validate a spatially varying map — see
+    `v0.31.7.12`: the bake is already per-face correct (an outdoor face baking to 1.0 is the
+    physically right answer, not pollution), and the instrument that actually validates the map
+    is `spatial-profile.mjs --explain`, which compares the term against the Cycles reference
+    where it is applied.
+    """
+    dg = bpy.context.evaluated_depsgraph_get()
+    mw = obj.matrix_world
+    rot = mw.to_3x3()
+    out: dict[int, bool] = {}
+    for poly in obj.data.polygons:
+        n = (rot @ poly.normal).normalized()
+        origin = (mw @ poly.center) + n * 0.01
+        hit = bpy.context.scene.ray_cast(dg, origin=origin, direction=n, distance=reach)[0]
+        out[poly.index] = bool(hit)
+    return out
+
+
+def make_box_uvs(
+    obj: bpy.types.Object,
+    interior: dict[int, bool] | None = None,
+    margin: float = 0.04,
+) -> set[tuple[int, int]]:
     """Build a SECOND, non-tiling UV set for the bake — a 3x2 box atlas.
 
     **The app's shell UVs cannot be baked into, and that is not a detail.** Measured on a real
@@ -122,6 +157,7 @@ def make_box_uvs(obj: bpy.types.Object, margin: float = 0.04) -> str:
     """
     mesh = obj.data
     uv = mesh.uv_layers.get(BAKE_UV) or mesh.uv_layers.new(name=BAKE_UV)
+    interior_slots: set[tuple[int, int]] = set()
     coords = [v.co for v in mesh.vertices]
     mn = Vector((min(c.x for c in coords), min(c.y for c in coords), min(c.z for c in coords)))
     mx = Vector((max(c.x for c in coords), max(c.y for c in coords), max(c.z for c in coords)))
@@ -131,6 +167,8 @@ def make_box_uvs(obj: bpy.types.Object, margin: float = 0.04) -> str:
         axis = max(range(3), key=lambda i: abs(n[i]))
         row = 0 if n[axis] >= 0 else 1
         col = axis
+        if interior is not None and interior.get(poly.index):
+            interior_slots.add((col, row))
         o1, o2 = (i for i in range(3) if i != axis)
         for li in poly.loop_indices:
             co = mesh.vertices[mesh.loops[li].vertex_index].co
@@ -140,10 +178,16 @@ def make_box_uvs(obj: bpy.types.Object, margin: float = 0.04) -> str:
             v = (row + margin + b * (1 - 2 * margin)) / 2.0
             uv.data[li].uv = (u, v)
     mesh.uv_layers.active = uv
-    return BAKE_UV
+    return interior_slots
 
 
-def bake_object(obj: bpy.types.Object, out_path: str, res: int, bake_type: str) -> dict:
+def bake_object(
+    obj: bpy.types.Object,
+    out_path: str,
+    res: int,
+    bake_type: str,
+    interior_slots: set[tuple[int, int]] | None = None,
+) -> dict:
     """Bake one object to its own image. Per-object rather than an atlas.
 
     An atlas would need a packed UV layout, which would break the requirement above that the
@@ -171,6 +215,21 @@ def bake_object(obj: bpy.types.Object, out_path: str, res: int, bake_type: str) 
         "max": round(max(reds), 4),
         "mean": round(sum(reds) / len(reds), 4),
     }
+    # Interior-only statistics. The whole-map figures above are dominated by outdoor-facing
+    # slots pinned at 1.0 and by empty ones, neither of which depends on albedo -- which is
+    # exactly why `v0.31.7.11`'s albedo sweep read as inert. These are the numbers to use.
+    if interior_slots:
+        vals = []
+        for iy in range(res):
+            for ix in range(res):
+                slot = (int(ix * 3 / res), int(iy * 2 / res))
+                if slot in interior_slots:
+                    vals.append(reds[iy * res + ix])
+        if vals:
+            stats["int_min"] = round(min(vals), 4)
+            stats["int_max"] = round(max(vals), 4)
+            stats["int_mean"] = round(sum(vals) / len(vals), 4)
+            stats["int_texels"] = len(vals)
     nt.nodes.remove(tex)
     bpy.data.images.remove(img)
     return stats
@@ -230,15 +289,28 @@ def main(argv: list[str] | None = None) -> int:
     for area, obj in selected:
         if not obj.data.materials:
             continue
-        uv_name = make_box_uvs(obj) if a.uv == "box" else obj.data.uv_layers.active.name
+        if a.uv == "box":
+            interior = classify_faces(obj)
+            interior_slots = make_box_uvs(obj, interior)
+            uv_name = BAKE_UV
+        else:
+            interior_slots = None
+            uv_name = obj.data.uv_layers.active.name
         out = os.path.join(out_dir, f"{obj.name}.png")
         try:
-            stats = bake_object(obj, out, a.res, bake_type)
+            stats = bake_object(obj, out, a.res, bake_type, interior_slots)
         except RuntimeError as exc:  # noqa: PERF203 — one bad mesh must not lose the batch
             baked.append({"object": obj.name, "area": round(area, 2), "error": str(exc)[:120]})
             continue
         baked.append(
-            {"object": obj.name, "area": round(area, 2), "out": out, "uv": uv_name, **stats}
+            {
+                "object": obj.name,
+                "area": round(area, 2),
+                "out": out,
+                "uv": uv_name,
+                "interior_slots": sorted(interior_slots) if interior_slots else [],
+                **stats,
+            }
         )
 
     result = {

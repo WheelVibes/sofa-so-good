@@ -29,6 +29,60 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.12 — blocker 3 answered by measurement (albedo 0.81), and blocker 2 dissolves: the per-mesh mean was the wrong instrument
+
+Two of `v0.31.7.11`'s three blockers resolve, and one of them resolves by being wrong.
+
+**Blocker 3 — the albedo is measured, not chosen: 0.81.** The probe's existing `ALBEDO=1` knob
+reports the default flat's **area-weighted mean surface albedo as r = 0.812, g = 0.807,
+b = 0.788, over 467 m²** — high, because white plaster walls and ceilings dominate the area.
+So `bake_material.py --albedo` now defaults to **0.81** with that provenance in its help text,
+and the number is re-measurable per plan rather than inherited.
+
+**That retro-explains `v0.31.7.9`.** The albedo-1.0 visibility render matched physics' spatial
+profile to ~10 % across eight of ten columns, which looked like luck given a white furnace is a
+degenerate case. It wasn't luck: **the real room is nearly a white furnace.** At 0.81 albedo the
+interreflection really does dominate, which is also why the albedo-0.05 arm matched nothing.
+
+**Blocker 2 — attempted twice, and the second attempt showed the premise was wrong.** The
+complaint was that outdoor-facing box faces baking to 1.0 pollute the statistics. So:
+
+1. Added `classify_faces()` — one ray per face along its own normal; hit ⇒ enclosed. Interior
+   texel statistics then *did* respond to albedo where they should (Mesh_162's interior mean
+   moved **7.4×** across a 10× albedo change, against 1–3 % for the whole-map mean), so the
+   diagnosis of contamination was right.
+2. But `int_max` inside ray-classified "interior" slots still reached **1.0** — full sky
+   exposure. The single-ray test is too crude by construction: a face can hit something within
+   reach and still see most of the sky.
+3. Tried the alpha channel as a coverage mask, since unwritten texels would explain the
+   `int_min 0.0`. **Measured: alpha covers 99.8–100 % of texels** — Blender's bake margin
+   dilation fills it, so alpha carries no coverage information here. Masked means came back
+   0.1997 against 0.1993 unmasked, i.e. identical.
+
+**So the honest resolution is that the statistic was the wrong instrument, not that it needed a
+third fix.** A per-mesh mean cannot validate a spatially varying map, and the bake is already
+per-face *correct*: an outdoor face baking to 1.0 is the physically right answer, not pollution
+— an exterior wall in orbit view genuinely should receive full sky. The instrument that actually
+validates this term already exists and is already trusted: `spatial-profile.mjs --explain`,
+which tests the map where it is applied and reported 80 % of the deep room's spatial error.
+
+`classify_faces()` is kept, re-documented for what it does answer ("is anything blocking this
+face's normal?") and explicitly marked diagnostic-only, with a note not to gate the bake on it.
+What survives of blocker 2 is only **texture-space efficiency** — 5 of 6 atlas slots hold faces
+the interior camera never sees — which at 64 px is a file-size question, not a correctness one.
+
+**Recorded as a process note, because it is the third instance this session.** `v0.31.6.8`
+interpolated `FILLSCALE` on a non-linear response; `v0.31.7.5` nearly priced a fill tint against
+a white-balance difference; this round fixed a contaminated summary statistic twice before
+noticing the summary itself was unfit. The pattern is the same each time — *a number was
+available, so it got used* — and the corrective is the same: ask what instrument validated the
+claim, not what number is at hand.
+
+**Remaining for the fix:** the runtime plumbing only — `uv1` generation on the shell meshes
+(the box atlas is deterministic from local geometry, so the app can regenerate it), `aoMap`
+wiring at γ ≈ 0.7, and the starter-plan asset path. **FPS unchanged; nothing shipped**, and all
+three views the goal names hold their measured 60 fps at `medium`.
+
 ## v0.31.7.11 — `bake_material.py` lands (Part B complete), and attempting the bake surfaced three concrete blockers
 
 `v0.31.7.10` said the remaining work was "a feature, not a patch" and left it there. This round

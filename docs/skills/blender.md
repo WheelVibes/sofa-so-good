@@ -173,6 +173,21 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — the bake albedo is MEASURABLE: use the plan's own area-weighted mean.** The
+  probe's `ALBEDO=1` knob reports the default flat at **r 0.812 / g 0.807 / b 0.788 over
+  467 m²** — white plaster dominates the area. `bake_material.py --albedo` defaults to 0.81 on
+  that basis. It also explains why an albedo-1.0 visibility render matches physics so well: the
+  real room is nearly a white furnace, so interreflection genuinely dominates.
+- **2026-09-03 — alpha is NOT a bake coverage mask.** Bake margin dilation fills it: measured
+  99.8–100 % of texels flagged covered, so masked and unmasked means were identical (0.1997 vs
+  0.1993). If you need coverage, pre-fill with a sentinel colour and test against that.
+- **2026-09-03 — don't validate a spatially varying bake with a per-mesh mean.** Two rounds went
+  into de-contaminating that statistic before the real answer surfaced: it is the wrong
+  instrument. An outdoor-facing face baking to 1.0 is *correct*, not pollution. Validate where
+  the map is applied — `spatial-profile.mjs --explain` against a Cycles reference.
+- **2026-09-03 — a single ray along the normal does not measure enclosure.** A face can hit
+  geometry within reach and still see most of the sky; ray-classified "interior" slots still
+  contained 1.0 texels. Treat it as "is anything blocking the normal?", nothing more.
 - **2026-09-03 — you cannot bake into the app's shell UVs.** They are *tiling* coordinates in
   metres (measured: u = −2.9…+2.9, v = −1.6…+1.0) for repeating plaster/tile, and a bake writes
   into 0…1. Baking into them returns **`min 0.0, max 0.0`**. Build a second, non-tiling channel
