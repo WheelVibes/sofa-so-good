@@ -77,6 +77,22 @@ three-point rig, not an HDRI — QA wants light that is identical between runs.
 Verified run: `tea-set-low.glb` → `radius=0.459`, 2 views at 320×240/16 samples in a few
 seconds; renders show the porcelain correctly lit on neutral grey.
 
+### `render_still.py` — photoreal still (also the module Part A calls)
+
+    blender --background --factory-startup \
+      --python python/scripts/blender/render_still.py -- \
+      --scene public/assets/furniture/pool-table-6ft.glb \
+      --out /tmp/still.png --hdri studio_small_09 --samples 24 --res 400x300
+
+`--hdri` takes a **catalog id**, a **path**, or **`procedural`** (generated gradient sky,
+no network). Prints a JSON result line including `hdri_route` — `path`/`cache`/`download`/
+`procedural` — so a silent fallback to the procedural sky is visible instead of passing for
+a real HDRI. `--no-network` forces the offline path. Camera defaults to a bounds-framed
+position when `--cam-pos` is omitted.
+
+Verified: pool-table-6ft (26 meshes, radius 0.965) at 400×300/24 samples in **0.64 s** on
+CPU; all three HDRI routes exercised, renders inspected by eye.
+
 ## Repo facts worth knowing before you start
 
 **The Poly Haven HDRIs are NOT bundled.** `src/scene/lighting/hdriCatalog.ts` serves them
@@ -97,6 +113,22 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-03 — a preview-resolution Cycles render is ~0.6 s, so Part A's ~800 ms debounce
+  is realistic.** 400×300 at 24 samples on a 26-mesh asset took **0.64 s** on CPU (adaptive
+  sampling on). Interior scenes will be heavier, but the order of magnitude says a
+  low-sample preview pass is viable without a GPU.
+- **2026-09-03 — a hand-rolled Radiance RGBE writer is enough for the offline sky.**
+  Blender reads uncompressed flat-scanline RGBE fine. This matters because Blender's
+  bundled Python has **no** imageio/OpenEXR, so any library-based writer would make the
+  "works offline in a fresh checkout" claim false. ~40 lines in `hdri.py`.
+- **2026-09-03 — cache HDRIs in `.cache/hdri/`.** `.gitignore:38` already covers `.cache/`
+  as the "Local price-server / sidecar cache", so the Blender cache needs no new ignore rule
+  and sits with the other optional sidecars' downloads.
+- **2026-09-03 — a catalog mirror needs a drift check that fails loudly.**
+  `hdri.CATALOG` duplicates `hdriCatalog.ts` (parsing TS from Python is fragile), so
+  `check_catalog_sync()` compares them — and its regex is deliberately narrow enough to
+  report "TS shape changed?" rather than matching zero entries and declaring everything in
+  sync. A false clean bill of health is the failure mode worth engineering against.
 - **2026-09-03 — this repo cannot host a tracked `.claude/skills/` skill.** `.gitignore:48`
   ignores `.claude/`, so anything placed there is local-only and never committed. Checked
   before writing: `CLAUDE.md` referenced no skills convention, `.claude/` held only

@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.2 — Blender HDRI resolution + `render_still.py`, with a local set so the layer works offline
+
+Part B's core script, plus the HDRI plumbing it needs. Authorised to invent a local set
+rather than depend on the CDN at render time.
+
+**`python/scripts/blender/hdri.py`** — resolves an HDRI request three ways and reports
+which route it took:
+
+| route | behaviour |
+| --- | --- |
+| `path` | an existing `.hdr`/`.exr`, used as-is, no network |
+| `cache` / `download` | a catalog id, cached into `.cache/hdri/` on first use (1.6 MB per 1k map) |
+| `procedural` | a **generated gradient sky** — no network at all |
+
+The procedural route is the point: the goal's hard constraint is that this layer never
+blocks or crashes without its dependencies, and **offline is as real a failure mode as
+"Blender missing"**. A render that silently produced a black world would be worse than one
+lit by an approximate sky, so the route is always reported and `--no-network` forces it.
+
+`.cache/hdri/` needs no new ignore rule — `.gitignore:38` already covers `.cache/` as the
+"Local price-server / sidecar cache", which is exactly what this is.
+
+**`python/scripts/blender/render_still.py`** — photoreal still of a scene GLB, and the
+module Part A's service will call rather than re-implementing (the "don't fork logic"
+constraint). Emits a JSON result line so a service can parse success, failure and the HDRI
+route. Camera frames from scene bounds when not given explicitly.
+
+**Verified, and inspected by eye rather than by exit code:**
+
+- procedural sky → renders, with a visible zenith/horizon/ground gradient and warmer bounce
+  from below, so it is producing real directional sky light and not a flat colour;
+- `studio_small_09` from cache → renders, materials and framing correct;
+- `venice_sunset --no-network` → degrades to procedural, no crash.
+
+**Three things measured that the next session would otherwise re-derive:**
+
+- **A preview-resolution render is ~0.6 s.** 400×300 at 24 samples on a 26-mesh asset took
+  **0.64 s** on CPU. So Part A's ~800 ms debounce is realistic even without a GPU.
+- **A hand-rolled Radiance RGBE writer suffices**, and is necessary: Blender's bundled
+  Python has no imageio/OpenEXR, so a library-based writer would make "works offline in a
+  fresh checkout" false.
+- **The catalog mirror can drift**, so `check_catalog_sync()` compares `hdri.CATALOG`
+  against `hdriCatalog.ts` — with a regex narrow enough to report "TS shape changed?"
+  rather than matching zero entries and falsely declaring everything in sync.
+
+Lessons appended to `docs/blender-skill.md` in the same session, per Part C.
+
 ## v0.31.6.1 — Blender/Cycles groundwork: verified bpy facts for the installed build, shared scene module, turntable QA
 
 First step of the Blender integration (Parts B and C). No app code touched — this is
