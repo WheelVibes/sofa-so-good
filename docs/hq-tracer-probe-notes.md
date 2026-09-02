@@ -1013,3 +1013,37 @@ distribution.
 | tax | 1.7 boots per class-B arm |
 
 Supersedes `.345`'s 0.722 (n = 18).
+
+## Class A is NOT one state — the binary classifier hides intermediate arms
+
+`.347`, two 20-arm censuses:
+
+| room | class-A arm luminance |
+| --- | --- |
+| bedroom3 | **175.6 × 11** — identical to the decimal, every arm |
+| livingDining | 169.4, 168.0, 167.7, 167.9, 168.0, **152.1**, 168.0, **161.8**, … |
+
+Class A is perfectly reproducible in bedroom3 and **varies in livingDining**, with ~14 % of its class-A arms
+well below the cluster. Those are intermediate arms; the R−B sign rule assigns them to A.
+
+This matches `.293`'s "one spatially varying cold cast whose extent varies" and the early ~8 % class-M
+observation — both of which later rounds stopped accounting for. **Partial coverage points at a per-triangle or
+per-tile decision rather than a whole-surface one.**
+
+So: every p(A) figure in this arc is a **binary projection**. Fine for pricing measurement cost; wrong for
+characterising the defect. A future census should classify on three states, or better on the *spatial extent* of
+the affected region rather than a single patch mean.
+
+## (u) rate: no room-dependence detected
+
+| room | | p(A) |
+| --- | --- | --- |
+| bedroom3 | 11A / 9B | 0.55 |
+| livingDining | 14A / 6B | 0.70 |
+
+Two-proportion z = +0.98, p ≈ 0.33 — **no evidence of room-dependence**, but 20 vs 20 only detects a large
+shift, so this bounds rather than disproves it. With `.346`'s timing null, that weakly favours a seeded random
+decision at session creation over allocation- or geometry-dependent behaviour.
+
+**Pooled: p(A) = 0.655, CI [0.53, 0.78], n = 58.** Both runs tests trend negative (z = −0.42, −1.33; Stouffer
+−1.24) — a slight clustering tendency, not significant, recorded so a future census accumulates against it.

@@ -3359,3 +3359,33 @@ being counted twice; the guard requires the sample counter to reset before an ar
 **So (u) stands as:** an independent draw per `createHqRenderSession` call at **p(A) ≈ 0.63**, deterministic
 once drawn, with no dependence on session timing, no clustering, and ~26 candidate causes eliminated. It affects
 the **majority** of HQ stills, so it is not a rare glitch.
+
+### ⚠️ (u) IS NOT BINARY — class A hides intermediate arms (v0.31.5.347)
+
+Two 20-arm censuses. The A/B rate shows **no room-dependence** (bedroom3 11A/9B, livingDining 14A/6B;
+two-proportion z = +0.98, p ≈ 0.33 — power-limited, so bounded rather than disproved). Pooled **p(A) = 0.655,
+CI [0.53, 0.78], n = 58**.
+
+**But class A is not a single state:**
+
+| room | class-A arm luminance |
+| --- | --- |
+| bedroom3 | 175.6 × 11 — identical to the decimal |
+| livingDining | 169.4, 168.0, 167.7, 167.9, 168.0, **152.1**, 168.0, **161.8**, … |
+
+~14 % of livingDining's class-A arms sit well below the cluster. Those are **intermediate** arms — partial
+coverage, not the whole ceiling — which the binary classifier assigns to A because their R−B is still negative.
+
+This restores `.293`'s reading ("one spatially varying cold cast whose extent varies") and the early ~8 %
+"class M" observation, both of which later rounds stopped accounting for. **Partial coverage implies a
+per-triangle or per-tile decision, not a whole-surface one** — a different shape of cause than anything tested
+so far.
+
+**Two consequences for the record.** Every p(A) in this arc is a **binary projection** of a richer phenomenon:
+right for pricing measurement cost, wrong for characterising the defect. And the severity statement needs
+softening — it is not "72 % of stills show the ceiling as environment" but "the majority show it wholly or
+partly", with the partial cases previously invisible.
+
+Current characterisation: an independent draw per `createHqRenderSession` call at p(A) ≈ 0.66, deterministic
+once drawn, **not** timing-dependent (`.346`), with no detected room-dependence, and **not strictly binary**.
+~26 candidate causes eliminated.

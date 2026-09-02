@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.347 — no room-dependence in (u)'s rate, but CLASS A IS NOT ONE STATE: the binary model hides intermediate arms
+
+Two 20-arm censuses, one boot each, using `.346`'s Stop-then-Re-render mechanism.
+
+| room | sequence | | p(A) | runs test |
+| --- | --- | --- | --- | --- |
+| bedroom3 | `BABBABAAAAABBBAAABBA` | 11A / 9B | 0.55 | 10 vs 10.9, z = −0.42 |
+| livingDining | `AAAAAAABBABBBAABAAAA` | 14A / 6B | 0.70 | 7 vs 9.4, z = −1.33 |
+
+**No evidence of room-dependence** — two-proportion z = +0.98, p ≈ 0.33. Power is limited (20 vs 20 detects a
+large shift, not a modest one), so this **bounds** scene-dependence rather than disproving it. Combined with
+`.346`'s refutation of timing-dependence, it weakly favours a **seeded random decision** at session creation
+over anything depending on allocation or geometry layout — which would relocate the search from "what state
+differs between sessions" to "what consumes randomness inside `createHqRenderSession`", a much smaller surface
+to read.
+
+**Pooled rate: p(A) = 0.655, 95 % CI [0.53, 0.78], n = 58** (first pairs + both censuses).
+
+**The more interesting result: class A is not a single state.**
+
+| room | class-A arm luminance |
+| --- | --- |
+| bedroom3 | **175.6 × 11** — identical to the decimal, every arm |
+| livingDining | 169.4, 168.0, 167.7, 167.9, 168.0, **152.1**, 168.0, **161.8**, … |
+
+In bedroom3 class A is perfectly reproducible; in livingDining it varies, with two arms (2 of 14, ~14 %) well
+below the ~168 cluster. Those are **intermediate** arms, and my binary classifier assigns them to A because
+their R−B is still negative.
+
+That matches `.293`'s reading of (u) as "one spatially varying cold cast whose extent varies" and the early
+~8 % "class M" observation — both of which later rounds had quietly stopped accounting for. So **the A/B model
+is an oversimplification, and it is worse in larger rooms.** Mechanistically, partial coverage points at a
+**per-triangle or per-tile** decision rather than a whole-surface one, which is a different shape of cause than
+anything the arc has been testing.
+
+**Consequence for my own figures:** every p(A) in this arc, including `.346`'s pooled estimate, is a **binary
+projection** of a richer phenomenon and lumps intermediate arms into A. The rate is still the right quantity
+for pricing measurement cost, but it is the wrong quantity for characterising the defect.
+
+**Weak hint, recorded as such:** both runs tests come out negative (fewer runs than expected — z = −0.42 and
+−1.33, Stouffer −1.24), i.e. a slight tendency to cluster. Neither is significant and I am not claiming it;
+noted only so a future census can accumulate against it rather than rediscover it.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.346 — the missing control was "Stop": 20 (u) arms per boot, the setup-race lead REFUTED, and a stale-read flaw caught before publication
 
 **The control I had concluded didn't exist was there all along.** `.339` decided there was no Re-render button
