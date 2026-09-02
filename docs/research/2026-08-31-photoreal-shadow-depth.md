@@ -9554,3 +9554,76 @@ Pace the API and finish the 46-candidate domestic list the sweep identified but 
 productive — domestic categories have supplied 2 of the set's 4 references.
 
 Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .291 — pacing works and the pool grows 6×, but 0 of ~19 qualify: the `Bedrooms` seam is exhausted
+
+`.290` named the bottleneck (the API, needing pacing) and the work (the domestic candidate list). The sweep
+worked; the screening did not.
+
+### Pacing
+
+2.2 s between API calls, `--data-urlencode` per field:
+
+| | .290 | .291 |
+| --- | --- | --- |
+| names after filter | 154 | 313 |
+| candidates past size/mime/provenance | 19 | 116 |
+| API batch failures | 9 of 15 | 8 of ~26 |
+| thumbnails downloaded | 19/19 | 26/26 |
+
+6× the pool, no image throttling. The API still refuses ~a third of batches, so 2.2 s is not enough for
+sustained use, but it no longer binds pool size. `.290`'s dedupe lesson is implemented: uploader + title stem,
+cap 2 per batch (116 → 103).
+
+### 0 of ~19
+
+22 screened; one already in the set (`Vogtsbauernhof`), two known `.289`/`.290` rejects. The only candidate to
+reach examination, `Bedroom_of_Canopy_Tower_in_Gamboa_Panama`, **rejects on looking**: what reads as ceiling
+along the frame top is mostly wall *above the window* (the yellow trim marks the head), and the real ceiling is
+crossed by a structural brace with a light fixture in it. No clean flat plaster patch — and ambiguity is a
+reject, not a crop to force.
+
+### The reject census is the output
+
+| cause | count |
+| --- | --- |
+| wall colour not uniform / wall ≠ ceiling paint | 5 |
+| artificial light on | 5 |
+| period / château / museum-display | 4 |
+| timber or OSB linings | 2 |
+| ceiling not in frame | 2 |
+| no planar ceiling (cave dwelling) | 1 |
+| not a photograph (watercolour) | 1 |
+| ceiling not confidently croppable | 1 |
+
+Two causes are 45 %, and both are structural to the category: bedroom photography usually excludes the ceiling,
+and bedrooms disproportionately have a coloured feature wall or lamps on. **The `Bedrooms` seam is exhausted for
+this metric.** Productive seams were living-room categories (`.288`) and one museum farmhouse (`.290`).
+
+### Thread 2, repriced
+
+Cumulative yield **3 of ~63 ≈ 4.8 %**, down from `.289`'s 8 % and `.290`'s 6.8 %. The rate falls as the seam is
+worked deeper — the easy qualifiers came first. n=6 would need ~60 more candidates. **Thread 2 has poor and
+worsening marginal returns.**
+
+### A measurable replacement for the judgement call
+
+`.233`'s "same plaster paint on both surfaces" is the only screen criterion that cannot be verified — `.288`
+and `.290` both had to record it as *judged*. `.290` supplies a proxy: **R−B agreement between the patches**,
+**1.1 counts** on its strong sample versus **13.6** on `.288`'s marginal one. A chroma-agreement threshold would
+replace judgement with a number, admit coloured-wall rooms where ceiling and wall match each other (the largest
+reject class), and reject same-white rooms lit by very different sources. **Proposed, not adopted** — it needs
+calibrating against the existing four references first, and doing that at n=4 is itself weak.
+
+Set unchanged at n=4: 0.910, 0.927, [app 0.930], 1.030, 1.106.
+
+### Next
+
+Not more bedroom sweeps. Either calibrate the chroma criterion against the existing four and re-screen the
+rejected coloured-wall rooms with it — mining the 103-candidate pool already fetched rather than fetching more —
+or leave thread 2 at n=4 and say so. With (p) confirmed and awaiting a decision and (u) unidentified, 4.8 % is
+no longer obviously the best use of a round.
+
+Nothing changed in `src/` or in the probe. Docs only.

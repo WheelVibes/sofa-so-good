@@ -5,6 +5,76 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.291 — API pacing works and the pool grows 6×, but 0 of ~19 qualify: the `Bedrooms` seam is exhausted, and the reject census suggests a measurable replacement for the one criterion that needs judgement
+
+`.290` named the remaining bottleneck (the API, needing pacing rather than smaller payloads) and the remaining
+work (the domestic candidate list). Both were done. The sweep worked; the screening did not.
+
+**Pacing works, partially.** 2.2 s between API calls, `--data-urlencode` per field:
+
+| | `.290` | `.291` |
+| --- | --- | --- |
+| names after filter | 154 | **313** |
+| candidates past size/mime/provenance | 19 | **116** |
+| API batch failures | 9 of 15 | 8 of ~26 |
+| thumbnails downloaded | 19/19 | **26/26** |
+
+A **6× larger candidate pool** and no image throttling at all. The API still refuses roughly a third of batches,
+so 2.2 s is not yet enough for sustained use, but it is no longer the binding constraint on pool size.
+
+**`.290`'s dedupe lesson, implemented.** Candidates are now keyed on uploader + title stem with a cap of two
+per batch (116 → 103), which is what stops a single villa shoot from being ten of eighteen files again.
+
+**And then: 0 of ~19 new candidates qualify.** 22 screened, of which one was already in the set
+(`Vogtsbauernhof`) and two were known `.289`/`.290` rejects. The one that reached examination —
+`Bedroom_of_Canopy_Tower_in_Gamboa_Panama` — **rejects on looking**: what reads as ceiling along the frame top
+is mostly *wall above the window* (the yellow trim marks the window head), and the actual ceiling area is
+crossed by a structural brace with a light fixture intruding. No clean flat plaster patch is identifiable, and
+ambiguity is a reject, not a crop to be forced.
+
+**The reject census is the useful output.** Across the 22:
+
+| cause | count |
+| --- | --- |
+| wall colour not uniform / wall ≠ ceiling paint (red, pink, tan, dark grey, feature wall) | 5 |
+| artificial light on (lamps, pendants, downlights, firelight) | 5 |
+| period / château / museum-display interiors | 4 |
+| timber or OSB wall and ceiling linings | 2 |
+| ceiling not in frame at all | 2 |
+| no planar ceiling (cave dwelling) | 1 |
+| not a photograph (watercolour) | 1 |
+| ceiling not confidently croppable | 1 |
+
+**Two causes account for 45 %**, and both are structural to the category rather than bad luck: bedroom
+photography usually excludes the ceiling, and bedrooms disproportionately have one coloured feature wall or
+lamps on for atmosphere. **The `Bedrooms` seam is exhausted for this metric and should not be swept again** —
+the productive seams have been living-room categories (`.288`, 1/9) and one museum farmhouse (`.290`).
+
+**Thread 2's price, revised upward.** Cumulative yield is now **3 of ~63, ≈ 4.8 %**, down from `.289`'s 8 %
+estimate and `.290`'s 6.8 %. The rate is *falling* as the same seam is worked deeper, which is what it looks
+like when the easily-found qualifiers came first. n=6 would need roughly 60 more screened candidates. **Thread 2
+has poor and worsening marginal returns**, and that is worth saying plainly rather than continuing to grind it
+by default.
+
+**The census suggests a real methodological upgrade, and it is measurable.** `.233`'s criterion *"same plaster
+paint on both surfaces"* is the only one in the screen that cannot be verified — `.288` and `.290` both had to
+record it as *judged*. But `.290` produced the makings of a measurable proxy: **R−B agreement between the two
+patches** was **1.1 counts** on its strong sample and **13.6** on `.288`'s marginal one. Adopting a chroma-
+agreement threshold would (a) replace a judgement call with a number, (b) admit rooms whose walls are coloured
+*provided ceiling and wall match each other*, which is the largest reject class above, and (c) correctly reject
+same-white rooms where the two surfaces are lit by very different sources. **Proposed, not adopted** — it needs
+calibrating against the four existing references before it can screen anything, and doing that on n=4 is itself
+weak.
+
+**The set is unchanged at n=4:** 0.910, 0.927, [app 0.930], 1.030, 1.106.
+
+**Next.** Not more bedroom sweeps. Either calibrate the chroma-agreement criterion against the existing four
+and re-screen the rejected coloured-wall rooms with it — which mines the 103-candidate pool already fetched
+rather than fetching more — or leave thread 2 at n=4 and say so. Given (p) is confirmed and awaiting a
+decision, and (u) is unidentified, thread 2's 4.8 % is no longer obviously the best use of a round.
+
+**Unchanged:** no `src/` change, no probe change. Docs only; scripts were temporary and removed.
+
 ## v0.31.5.290 — n=4, and the new reference lands on the app's own ratio to within 0.003. First round screened and measured end-to-end from thumbnails
 
 `.289` ended with a concrete instruction: re-run the domestic seam through the thumbnail route it had just
