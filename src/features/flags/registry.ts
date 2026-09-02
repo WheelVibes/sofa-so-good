@@ -1873,6 +1873,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Material-palette restraint (v0.31.5.312): one whole-home observation when
+  // a design exceeds the rule-of-three flooring/wall palette, naming the
+  // smallest-area finishes as consolidation candidates. Printed with the
+  // finishes schedule in the report — NOT a `designScore` criterion, because
+  // adding one silently re-scores every existing design. Analytical → pro tier.
+  paletteDiscipline: {
+    label: 'Palette restraint note',
+    description: 'Flags a home carrying more than three distinct floor or wall finishes',
+    default: true,
+    tier: 'pro',
+  },
   // Lighting-layer coverage (v0.31.5.311): does each habitable room have
   // ambient + task + accent light? Average illuminance (`roomLux`) answers
   // "is there enough light"; it cannot answer "is the light any good" — a

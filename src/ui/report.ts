@@ -21,6 +21,7 @@ import {
   openingRoomsLabel,
   openingStyleMaterialLabel,
 } from '../analysis/openingSchedule'
+import { buildPaletteDiscipline } from '../analysis/paletteDiscipline'
 import { buildPetCompliance, PET_TYPE_LABEL, type PetType } from '../analysis/petCompliance'
 import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
@@ -148,6 +149,30 @@ export function buildReportHtml(
     ? buildFinishSchedule(plan, finishes, (id) => BUILTIN_MATERIALS[id]?.name ?? id)
     : null
   const finishScheduleBody = finishSchedule ? finishScheduleHtml(finishSchedule, units) : ''
+  // Material-palette restraint (v0.31.5.312) — printed with the finish schedule
+  // on purpose: the reader is already looking at the list of finishes, so
+  // "these three cover 4% between them" lands where the codes are visible.
+  // An observation, not a score: it is deliberately NOT a `designScore`
+  // criterion, because adding one silently re-scores every existing design.
+  const paletteReport =
+    finishSchedule && isFeatureEnabled('paletteDiscipline')
+      ? buildPaletteDiscipline(finishSchedule.totals)
+      : null
+  const paletteBody = paletteReport?.hasFinding
+    ? `<div class="foot" style="margin-top:8px"><strong>Palette restraint.</strong> ${(
+        [paletteReport.floor, paletteReport.wall] as const
+      )
+        .filter((k) => k.overSweetSpot)
+        .map(
+          (k) =>
+            `${k.count} distinct ${k.kind} finishes${
+              k.overwhelming ? ' — enough to read as visual noise' : ''
+            }. Smallest ${k.consolidationCandidates.length} (${k.consolidationCandidates
+              .map((c) => esc(c.code))
+              .join(', ')}) cover ${k.candidateSharePct}% of the ${k.kind} area between them.`,
+        )
+        .join(' ')} ${esc(paletteReport.note)}</div>`
+    : ''
   // Per-finish floor + wall areas (GROSS — the safe over-order estimate) —
   // feeds the renovation cost estimate below (computed once). Distinct from
   // the finish schedule's NET-of-openings quantities above.
@@ -1204,6 +1229,7 @@ export function buildReportHtml(
       ? `<div class="fin-wrap">
       <h2>Finishes schedule</h2>
       ${finishScheduleBody}
+      ${paletteBody}
     </div>`
       : ''
   }

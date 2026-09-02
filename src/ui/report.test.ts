@@ -852,3 +852,65 @@ describe('report lamp-specification advisories (F13 + compliance)', () => {
     useStore.getState().reresolveFeatureFlags()
   })
 })
+
+describe('report palette-restraint note (F13-adjacent design review)', () => {
+  const manyFinishes = () => {
+    const base = buildDefaultPlan()
+    // Five distinct floor finishes across the home — past the published
+    // "overwhelms the eye" threshold.
+    return {
+      floor: {
+        livingDining: 'floor-tile-white',
+        kitchen: 'floor-tile-grey',
+        bath1: 'floor-terrazzo',
+        bath2: 'floor-tile-charcoal',
+        bed1: 'floor-wood-oak',
+      },
+      walls: { livingDining: 'wall-paint-white' },
+      plan: base,
+    }
+  }
+
+  it('prints the note, naming the smallest finishes as candidates', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const f = manyFinishes()
+    const html = buildReportHtml(f.plan, [], BUILTIN_CATALOG, null, undefined, {
+      floor: f.floor,
+      walls: f.walls,
+    } as never)
+    expect(html).toContain('Palette restraint')
+    expect(html).toMatch(/distinct floor finishes/)
+    // The actionable half: which codes, and how little area they cover.
+    expect(html).toMatch(/FL-0\d/)
+    expect(html).toMatch(/% of the floor area between them/)
+    // Framed as an observation with legitimate exceptions.
+    expect(html).toMatch(/observation, not a rule/i)
+  })
+
+  it('says nothing for a restrained palette', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = buildReportHtml(buildDefaultPlan(), [], BUILTIN_CATALOG, null, undefined, {
+      floor: { livingDining: 'floor-wood-oak', kitchen: 'floor-tile-white' },
+      walls: { livingDining: 'wall-paint-white' },
+    } as never)
+    expect(html).not.toContain('Palette restraint')
+  })
+
+  it('is absent in Simple mode (pro-tier flag)', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    const f = manyFinishes()
+    const html = buildReportHtml(f.plan, [], BUILTIN_CATALOG, null, undefined, {
+      floor: f.floor,
+      walls: f.walls,
+    } as never)
+    expect(html).not.toContain('Palette restraint')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+})

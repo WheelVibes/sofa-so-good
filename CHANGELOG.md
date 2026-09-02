@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.312 - material-palette restraint, as an observation rather than a score
+
+Continuing on design QUALITY. Limiting the number of distinct finishes is one of the clearest
+things an experienced designer does and an inexperienced one does not, and nothing in the app looked
+at it: `designScore`'s criteria are clearance, circulation, daylight, furnishing and lighting —
+every one about FIT, none about coherence.
+
+**Sourced:** "the rule of 3 in flooring ... no more than three different flooring materials
+throughout a home to maintain visual cohesion. Five materials overwhelm the eye and create visual
+noise, while three materials hit the sweet spot." So: >3 raises a note, ≥5 escalates the wording.
+
+**Three deliberate restraints on the check itself**, because a design-taste check is the easiest
+kind to make annoying:
+
+1. **One whole-home observation, not per room.** Palette discipline is a property of the home; a
+   per-room version would fire everywhere at once and read as noise — the failure mode this
+   codebase already names ("a check that reads as a verdict gets ignored after the second false
+   alarm").
+2. **NOT a `designScore` criterion.** Adding one silently re-scores every existing design, which is
+   a product decision, not a fix — the circulation-score recalibration is already logged as needing
+   the owner's call. This reports; it does not grade.
+3. **It names what to drop.** "You have six floor finishes" is a complaint; "the smallest three
+   (FL-04, FL-05, FL-06) cover 10% of the floor area between them" is an action. The smallest-area
+   finishes are usually the accidental ones. It consumes `FinishSchedule.totals`, so every code and
+   area it cites is the one printed on the schedule immediately above it — which is also why it
+   prints there rather than in the Checks panel.
+
+Accent walls count toward the WALL palette: an accent wall is another wall finish to the eye,
+whatever the schedule codes it as. Ceilings are excluded — a painted ceiling is not part of the
+question. Zero-area finishes do not count against the limit.
+
+The note states its own exceptions ("a deliberate contrast, a wet-room change of material, or a
+separate annexe can all justify more"), because a taste observation that presents itself as a rule
+is exactly what gets a panel switched off.
+
+16 new tests, both modes; the report test confirmed failing with the change stashed.
+
+**And a process slip worth logging.** My rename of a colliding local (`palette` already existed in
+`report.ts` as the style-board chips) used `str.replace` with no assertion and silently did nothing
+— `tsc` caught the redeclaration, but the failure mode was the same one that produced the `.304`
+retraction. Redone with an assertion on both the declaration and a count of the uses. That is now
+four times this session that an unasserted bulk edit has silently no-opped; the fix is mechanical
+and I keep not applying it by default.
+
 ## v0.31.5.311 - lighting LAYERS: the question average illuminance cannot answer
 
 A fresh pass on design QUALITY rather than deliverables — the "experienced designer" half of the

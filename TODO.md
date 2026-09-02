@@ -442,6 +442,13 @@ A `str.replace` that matches nothing returns the original string and every downs
 succeeds. So: (a) assert the swap changed something, and (b) have the probe PRINT the state
 actually in play beside its result. Both are cheap; the assertion is what caught this.
 
+**ALWAYS assert a scripted edit changed something (v0.31.5.312 — fourth instance).** Every
+`str.replace` in a helper script must be followed by an assertion, and every arm-swap must print the
+state in play. Silent no-ops have now cost: the `.304` retraction (an arm-swap that never landed),
+`.291` (a repair that matched nothing after biome reformatted), `.302`'s first sweep, and `.312`'s
+rename. The pattern is always the same — the edit reports success, the result looks explicable, and
+the conclusion is wrong. `tsc` catches some of these; nothing catches the ones inside a measurement.
+
 **Sweep-pattern rule II (v0.31.5.302) — the one that actually bit.** `.294`/`.295` grepped
 `plan.rooms.find(` and `floorPlan.rooms.find(`. **Every site in `.302` reads a LOCAL variable**
 (`const rooms = allPlanRooms(plan)` … `rooms.find(...)`), so the pattern matched none of them and

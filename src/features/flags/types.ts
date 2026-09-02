@@ -205,6 +205,7 @@ export type FeatureFlag =
   | 'settingOutDims'
   | 'lampSpecChecks'
   | 'lightingLayers'
+  | 'paletteDiscipline'
   | 'variationRegister'
   | 'tileLayoutSheet'
   | 'carpentrySheets'
