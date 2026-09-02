@@ -8661,3 +8661,104 @@ scalar baked from an offline traced calibration is the usable path. But the anal
 usable than `.278` implied — 2.4–5.6× off in the room type that dominates the plan.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.280` — CORRECTION: the bedroom traced target was unconverged; `.277`–`.279`'s bedroom findings are withdrawn
+
+`.279` closed with a rule — *retire the most load-bearing flag next* — and named two. The larger was that
+every traced target in `.268`–`.279` comes from a **150-sample** still, while `.251` had measured 8 % level
+drift with sample count and `.263` had only spot-checked it once.
+
+Runs 10:07–10:46 local (2026-09-02).
+
+### The bedroom's bright arm is not converged at 150 samples
+
+Same room, pose, anchors and finish; only the sample count differs:
+
+| white-walled bedroom2 | traced L, d = 0.6 | d = 1.2 |
+| --- | --- | --- |
+| **150 samples** | **175.4** | **181.1** |
+| 250 samples | 120.1 | 118.0 |
+| 256 samples | 118.6 | 117.3 |
+
+250 and 256 agree within **1.3 %**; 150 is high by **31–35 %**. (`PTSAMPLES=400` returned 256 — the HQ modal
+caps there, so 256 is the available ceiling.)
+
+The **navy** arm is stable across the same range: 99.8/90.0 at 150 against 98.7/90.7 at 250, within 1 %. Only
+the *bright* arm was bad — which is the diagnostic clue.
+
+### Looked at, and it is not Monte Carlo noise
+
+The 150-sample still is uniformly **washed out and flat**. The 250-sample still shows the cornice, tone across
+the ceiling, and detail in the curtains. That is a **systematic** difference in appearance, not variance
+around a mean.
+
+The app runs an AI denoise stage (`hqAiDenoise.ts`), and a bright, bounce-dominated room is precisely where a
+low-sample estimate plus aggressive denoise would read too bright and too smooth. Whatever the exact
+mechanism, the empirical fact is what matters: **150 samples is not enough in this room, and it fails in a
+direction that inflates the brighter arm.**
+
+### The corrected target
+
+| | 150 samples (as reported) | **converged** |
+| --- | --- | --- |
+| Δ traced L | −43.1 % / −50.3 % | **−16.8…−17.8 % / −22.7…−23.1 %** |
+| Δ traced R−B | +15.0 / +20.3 | **−5.6 / −6.3** |
+
+### What is withdrawn
+
+1. **`.277`'s "the deficit doubles in a bedroom."** Corrected Δ L is −17 to −23 %, essentially **identical**
+   to livingDining's −20.5 / −22.3 %.
+2. **`.277`'s "the arc has been measuring its best room."** No measured room-to-room difference remains.
+3. **`.278`'s "under-scales 1.9–3.7×" and `.279`'s "2.4–5.6×."** Against a −17 to −23 % target, the model's
+   own −22.1 / −20.4 % at s = 0.494 is **close** — the model appears **well-calibrated in the bedroom too**.
+4. **`.277`'s bedroom ceiling-warming (+15.0/+20.3).** Corrected to **−5.6/−6.3**: the bedroom ceiling goes
+   *cooler* under navy, not warmer.
+
+### What stands, and what is left without support
+
+**Stands.** `.268`'s zero-bleed result is a raster-only A/B with no tracer in it at all. `.279`'s seven-point
+response curve is raster-only. `.278`'s fill-fraction measurements are raster-only.
+
+**Left without measured support.** `.278`'s conclusion that ρ/(1−ρ) is *geometry-blind* was argued from the
+gap between two rooms' required scalars. With the bedroom target corrected, **there is no room-to-room gap
+left for a geometry term to explain.** The claim is not disproved — it may still be true in principle — but
+its evidence is gone.
+
+### Residual risk, stated plainly
+
+All the livingDining targets in `.269`–`.276` are also **150-sample**. Their convergence was spot-checked only
+in `.263`, at a *nearby but not identical* configuration — eye-level pose, `ANCHOR_OFF 0` — where it was 0.4 %
+across 151/251. That is reassuring and it is not the same test. **Those numbers carry the same class of risk
+and have not been re-verified at their own settings.**
+
+### New method rule
+
+**Sample-count adequacy must be verified per room and per pose, not once.**
+
+Convergence rate depends on how bounce-dominated the scene is. So the room where a GI measurement matters
+most — small, bright, high-albedo, small aperture — is exactly the room where the tracer converges slowest,
+and a spot-check in an easier room does not transfer. This is the same shape as `.266`'s lesson about metric
+sensitivity: **validate the instrument on the population you will use it on.**
+
+### And `.279`'s rule is vindicated harder than expected
+
+One flagged assumption, tested, withdrew the headline conclusions of **three consecutive rounds**. That is
+five in a row where a flagged-but-untested assumption turned out to matter:
+
+| flagged in | assumption | resolved in | outcome |
+| --- | --- | --- | --- |
+| `.271` | the albedo census is adequate | `.273` | texture-blind |
+| `.272` | warm-finish validation generalises | `.276` | hue sign wrong on cool/green |
+| `.277` | one room is representative | `.277` | (appeared true, now withdrawn) |
+| `.278` | the response is linear in s | `.279` | convex; numbers off ~50 % |
+| `.279` | 150 samples is enough | **`.280`** | **unconverged by 31–35 %; three rounds withdrawn** |
+
+### Where item (s) stands
+
+Better than it did. The bedroom evidence against it is withdrawn, and the model may be well-calibrated across
+rooms after all. But that is now resting on livingDining targets whose convergence has not been verified at
+their own settings — so the honest next step is to re-verify those, not to celebrate.
+
+Nothing changed in `src/` beyond the version bump.

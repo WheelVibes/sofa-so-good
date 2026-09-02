@@ -1771,7 +1771,26 @@ reflectance colour rather than the colour of the light being removed.
 hue for free and in the right direction. Most of the hue effect remains unmodelled — but it is no longer
 modelled *wrongly*.
 
-### ⚠️ v0.31.5.277 — ROOM-DEPENDENT: the deficit doubles in a bedroom and the recovery halves
+### ~~⚠️ v0.31.5.277 — ROOM-DEPENDENT~~ → ❌ WITHDRAWN v0.31.5.280 (unconverged traced target)
+
+> **❌ WITHDRAWN in v0.31.5.280.** The bedroom's white-walled traced still was **not converged at 150
+> samples**: traced L 175.4/181.1 at 150, against 120.1/118.0 at 250 and 118.6/117.3 at 256 — the two higher
+> counts agreeing within 1.3 %, and 150 high by **31–35 %**. Looked at, the 150-sample still is uniformly
+> washed out and flat while the 250-sample one shows cornice, ceiling tone and curtain detail: systematic,
+> not noise. The navy arm was stable throughout (within 1 %), so only the bright arm was bad.
+>
+> **Corrected bedroom target: Δ L −17 to −23 %, essentially identical to livingDining's −20.5/−22.3 %; Δ R−B
+> −5.6/−6.3 (cooler, not warmer).** So there is **no measured room-to-room difference**, the "deficit
+> doubles" claim is gone, and the model's own −22.1/−20.4 % at s = 0.494 is **close** to the corrected target
+> — it appears well-calibrated in the bedroom too.
+>
+> Everything below in this sub-section, and the `.278`/`.279` under-scale factors, are withdrawn.
+> **Residual risk:** the livingDining targets are also 150-sample and were spot-checked only in `.263` at a
+> nearby configuration (0.4 % across 151/251). They carry the same class of risk and have not been
+> re-verified at their own settings.
+>
+> **New rule: sample-count adequacy must be verified per room and per pose.** Convergence is slowest exactly
+> where bounce dominates, so a spot-check elsewhere does not transfer. The HQ modal caps at 256 samples.
 
 Item (s) was validated in **one** room. Re-run in `bedroom2` (aperture **27 %** of its wall against
 livingDining's 71 %, ρ 0.8249/0.8100/0.7768 over 360 m²):

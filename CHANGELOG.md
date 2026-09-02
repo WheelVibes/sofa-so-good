@@ -5,6 +5,73 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.280 — CORRECTION: the bedroom traced target was unconverged; `.277`–`.279`'s bedroom findings are withdrawn
+
+`.279` closed with a rule — *retire the most load-bearing flag next* — and named two. The larger was that
+every traced target in `.268`–`.279` comes from a **150-sample** still, while `.251` had measured 8 % level
+drift with sample count. This round tests it, and it overturns three rounds.
+
+**The bedroom's white-walled traced still is not converged at 150 samples.** Same room, pose, anchors and
+finish; only the sample count differs:
+
+| white-walled bedroom2 | traced L, d = 0.6 | d = 1.2 |
+| --- | --- | --- |
+| **150 samples** | **175.4** | **181.1** |
+| 250 samples | 120.1 | 118.0 |
+| 256 samples | 118.6 | 117.3 |
+
+250 and 256 agree within **1.3 %**; 150 is high by **31–35 %**. (The HQ modal caps at 256, so that is the
+available ceiling.) The **navy** arm, by contrast, is stable — 99.8/90.0 at 150 against 98.7/90.7 at 250,
+within 1 %.
+
+**Looked at, and it is not noise.** The 150-sample still is uniformly **washed out and flat**; the 250-sample
+one shows the cornice, ceiling tone and curtain detail. That is a systematic difference, not Monte Carlo
+variance — the app has an AI denoise stage (`hqAiDenoise.ts`), and a bright bounce-dominated room is exactly
+where a low-sample estimate plus denoise would read too bright.
+
+**The corrected bedroom target:**
+
+| | 150 samples (reported) | **converged** |
+| --- | --- | --- |
+| Δ traced L | −43.1 % / −50.3 % | **−16.8 to −17.8 % / −22.7 to −23.1 %** |
+| Δ traced R−B | +15.0 / +20.3 | **−5.6 / −6.3** |
+
+**What is withdrawn.**
+
+1. **`.277`'s "the deficit doubles in a bedroom".** The corrected bedroom Δ L is −17 to −23 %, essentially
+   **identical to livingDining's −20.5 / −22.3 %**.
+2. **`.277`'s "the arc has been measuring its best room".** There is no measured room-to-room difference.
+3. **`.278`'s "the estimator under-scales 1.9–3.7×" and `.279`'s "2.4–5.6×".** Against a −17 to −23 % target
+   the model's own −22.1 / −20.4 % at s = 0.494 is **close** — so the model now appears **well-calibrated in
+   the bedroom too**, not 2–6× wrong.
+4. **`.277`'s ceiling-warming in the bedroom (+15.0/+20.3).** Corrected to **−5.6/−6.3** — the bedroom ceiling
+   goes *cooler* under navy, not warmer.
+
+**What stands.** `.268`'s zero-bleed result is a raster-only A/B with no tracer in it. `.279`'s response curve
+is raster-only. `.278`'s two structural findings — the lever is sufficient, and ρ/(1−ρ) is geometry-blind —
+were argued from fill fractions and albedo arithmetic, but their *magnitudes* came from the bad target, so the
+geometry-blindness claim now has **no measured support**: with the bedroom target corrected, there is no
+room-to-room discrepancy left for a geometry term to explain.
+
+**Residual risk, stated plainly.** All the livingDining targets in `.269`–`.276` are also 150-sample. Their
+convergence was spot-checked only in `.263`, at a nearby but not identical configuration (eye-level pose,
+`ANCHOR_OFF 0`), where it was 0.4 % across 151/251. That is reassuring but not the same test. **The
+livingDining numbers carry the same class of risk and have not been re-verified at their own settings.**
+
+**New method rule: sample-count adequacy must be verified per room and per pose, not once.** Convergence
+depends on how bounce-dominated the scene is, so the room where a measurement matters most is the room where
+convergence is slowest — and a single spot-check elsewhere does not transfer.
+
+**And `.279`'s rule is vindicated harder than expected.** One flagged assumption, tested, withdrew the
+headline conclusions of three consecutive rounds. That is now five in a row where a flagged-but-untested
+assumption mattered.
+
+Item **(s)** updated: the bedroom evidence is withdrawn, and the model's standing *improves* — it may be
+well-calibrated across rooms after all, pending re-verified targets.
+
+Probe only; no probe change. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in `src/`
+beyond the version bump. Runs 10:07–10:46 local.
+
 ## v0.31.5.279 — the response saturates, so `.278`'s numbers were optimistic: 2.4–5.6×, not 1.9–3.7×
 
 `.278` computed how far the albedo model's scalar is from the one that would actually hit the traced target,
