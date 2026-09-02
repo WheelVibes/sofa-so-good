@@ -1807,6 +1807,35 @@ matched pose) remains the only one available — but **"only available reference
 and on a bounce-only surface the raster is structurally incapable of being right. **Anyone deciding (p) should
 not assume the traced sky-blind wall needs bringing down to the raster's value.**
 
+### ⚠️ (p)'s second fault is probably NOT a tracer fault — the raster has zero interreflection (v0.31.5.328)
+
+**The rasteriser has no interreflection at all.** With **1062 meshes dyed near-black** (every surface except the
+window wall's own plane), the raster's window-wall patches are **byte-identical to the decimal** — 70.0 and
+115.2 — while the dyed ceiling reads 0.0, proving the dye landed. Raster wall luminance is a pure function of
+the analytical lights and is wholly independent of scene albedo.
+
+**The traced window wall is bounce-dominated.** Class B, dye verified:
+
+| patch | undyed | all bounce surfaces dyed | change |
+| --- | --- | --- | --- |
+| **winwall-R** | 105.8 | 34.4 | **−67 %** |
+| winwall-L | 107.9 | 16.4 | **−85 %** |
+
+**winwall-R is coplanar with the aperture: no sky, no direct sun, so bounce is the only light that physically
+reaches it.** The tracer models that light; the rasteriser substitutes a non-directional fill for it. So the
++36-count gap is most likely the **raster's deficit**, and `.323`'s "the tracer's largest error is on the
+surface that should be darkest" is **retired**.
+
+**What this means for the decision.** The assumption baked into every round from `.323` on — that where the two
+renderers disagree the raster is the value to move toward — is unfounded on a bounce-only surface. **Do not
+"fix" the traced sky-blind wall by bringing it down to 70.0.** That would be tuning a renderer that has a
+mechanism to match one that does not.
+
+It does **not** follow that the trace is correct: its absolute level is unvalidated and nothing in this arc can
+photographically anchor it (`.320`). The honest position is that (p) has **one** confirmed fault — the
+plaster-wide deficit, fixable by converting the scene's own sky (`.326`) — and that the second apparent fault
+is a raster limitation showing up in a raster-referenced comparison.
+
 ## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
 
 **The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,

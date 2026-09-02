@@ -5,6 +5,70 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.328 — the rasteriser has ZERO interreflection, the traced window wall is bounce-dominated, and `.323`'s sign is backwards
+
+`.327` refuted floor bounce as the sky-blind wall's mechanism and reframed the question: on a surface where
+bounce is the only physical light source, is the raster even capable of being right? This round answers it, and
+the answer is no.
+
+**Method — partition the wall's light in one run.** `DYEEXCEPT=0a0a0a` dyes every mesh except those coplanar
+with the window wall (glazing spared, so incoming light is not attenuated). Whatever survives on winwall-R must
+be non-bounce: sun grazing, the point lights, light through the opening. 1062 dyed / 59 spared, all planes,
+verified by looking.
+
+**Result 1 — the rasteriser has exactly zero interreflection.**
+
+| patch | run A undyed | run I, 1062 meshes dyed near-black |
+| --- | --- | --- |
+| winwall-R | 70.0 | **70.0** |
+| winwall-L | 115.2 | **115.2** |
+| ceiling | 129.4 | **0.0** |
+
+The ceiling at 0.0 proves the dye landed. Both wall patches are **byte-identical to the decimal** with every
+other surface in the room blackened. Not "a weak bounce term" — **none**. Raster wall luminance is a pure
+function of the analytical lights, which know nothing about scene albedo. `.327` inferred this from a dyed
+floor; this proves it against every surface at once.
+
+**Result 2 — the traced window wall is bounce-dominated.** Class B, dye verified (run J1):
+
+| patch | undyed (A) | all bounce surfaces dyed (J1) | change |
+| --- | --- | --- | --- |
+| **winwall-R** | 105.8 | **34.4** | **−67 %** |
+| winwall-L | 107.9 | **16.4** | **−85 %** |
+
+Exactly what physics requires of a surface coplanar with the aperture. The residual is the direct component.
+
+**So `.323`'s "the tracer's largest error is on the surface that should be darkest" has the sign backwards.**
+On winwall-R the two renderers are not two qualities of one lighting model: the tracer has a mechanism and the
+rasteriser has none. The +36-count gap is most likely the **raster's deficit**, not the tracer's excess — its
+70.0 is a non-directional analytical fill standing in for bounce it cannot compute. **(p)'s second fault is
+probably not a tracer fault at all.**
+
+**An arithmetic I am refusing.** The raster's total (70.0) sits temptingly close to the trace's apparent bounce
+delta (71.4). Displayed counts under AgX are **not energy**, so decomposing a tone-mapped value into additive
+direct + bounce terms is illegitimate, and `34.4 + 71.4 = 105.8` is not valid addition in display space. The
+coincidence is noted and explicitly **not** interpreted; all that is claimed is that bounce dominates.
+
+**Best (u) discriminator found in this arc, and it falls out for free.** With all surfaces dyed near-black, the
+ceiling patch reads **0.0 in class B** against **178.2 in class A** — a 178-count separation, because the
+ceiling's own albedo is removed while the environment behind it is untouched. This is `.305`'s acceptance test
+at maximum sensitivity, it needs no `src/` change, and it beats `.325`'s dim-blue sign test (66 counts) and the
+converted-sky case (10.5 counts, `.326`).
+
+**Class A is deterministic across boots.** Run J2's 106.4 / 111.7 / 178.2 matches run I's 106.3–106.4 / 111.6 /
+178.2 to 0.1 counts, in separate page sessions. Consistent with `.305`.
+
+**Cost.** 3 of 4 traced arms landed in class A; two paired runs were needed for one class-B arm. (u) is now the
+arc's dominant tax on every HQ measurement.
+
+**Tooling.** `DYEEXCEPT=<hex>`, asserting both sides of the partition are non-empty. Its first cut was wrong in
+a way worth recording: it spared 543 meshes including books, a lamp and a plant, because **`getWorldDirection`
+is a surface normal only for a `PlaneGeometry`** — for a box or cylinder it is just the object's orientation.
+Also noted: check runs without `PT=1` render 16:10 (`VH` defaults to 800) while `PT=1` pins 16:9, so their
+frames are not comparable with trace frames (`.247`).
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.327 — the sky-blind wall is NOT floor bounce (refuted), and two silent no-ops nearly published the opposite
 
 `.326` isolated the sky-blind wall as (p)'s second, unexplained fault. The leading candidate was that its

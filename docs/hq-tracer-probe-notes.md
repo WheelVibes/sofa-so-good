@@ -592,3 +592,57 @@ with the hemisphere's `groundColor` being a global constant rather than anything
 material. Two consequences: the raster arm is a usable inert control for any floor-albedo intervention, and the
 raster cannot be treated as a reference for a **bounce-only** surface — one coplanar with the aperture, which
 sees no sky and takes no direct sun — because it has no mechanism to light it at all.
+
+## The best (u) discriminator: dye every surface near-black and read the ceiling
+
+`DYEEXCEPT=0a0a0a` (or `FLOORDYE` plus anything that blackens the ceiling) makes the two (u) classes separate
+by **178 counts**:
+
+| | ceiling patch |
+| --- | --- |
+| class B — ceiling rendered, dyed albedo | **0.0** |
+| class A — ceiling absent, environment shows | **178.2** |
+
+The intervention removes the ceiling's own albedo while leaving the environment behind it untouched, which is
+exactly what the two classes differ on. It is `.305`'s acceptance test at maximum sensitivity, it is
+**probe-only** (no `src/` change), and it beats every earlier discriminator: `.325`'s dim-blue R−B sign test
+separated by 66 counts and needed a temporary `src/` edit; under `.326`'s converted sky the classes sit only
+10.5 counts apart. **Prefer this one.**
+
+Budget for the tax: `.328` had 3 of 4 traced arms land in class A and needed two paired runs (four renders,
+~12 min) to get one class-B arm. Class A is deterministic across boots — `.328` reproduced 106.3–106.4 / 111.6 /
+178.2 in separate page sessions to 0.1 counts.
+
+## `getWorldDirection` is a surface normal only for a PlaneGeometry
+
+For a box, cylinder or sphere it returns the object's **orientation**. `.328`'s first partition spared 543
+meshes — books, a lamp, a plant — because their local +Z happened to point at the camera, while they carried on
+bouncing light into the measurement. Any normal-based mesh selection must gate on
+`o.geometry?.type === 'PlaneGeometry'` and dye everything else regardless of how it is turned.
+
+## A no-PT check run is not framed like a trace run
+
+`PT=1` pins the walk viewport to 16:9; without it `VH` defaults to 800 and the capture is 16:10. A cheap no-PT
+run is the right way to confirm an intervention landed — it takes ~20 s instead of ~4 min — but its
+**fractional patches are not comparable** with a trace run's (`.247`). Confirm the pose separately (`reached`
+and `standoff` in the probe's own JSON) rather than inferring it from how the frame looks; `.328` misread a
+darkened 16:10 frame as a pose shift when the pose was byte-identical.
+
+## The rasteriser has NO interreflection at all — so it cannot be a reference for a bounce-only surface
+
+`.328`: with **1062 meshes dyed near-black**, the raster's two window-wall patches were byte-identical to the
+decimal (70.0 and 115.2) while the dyed ceiling read 0.0, proving the dye landed. Raster wall luminance is a
+pure function of the analytical lights and is entirely independent of scene albedo.
+
+Consequence for method: a surface **coplanar with the aperture** sees no sky and takes no direct sun, so bounce
+is the only light that physically reaches it. The traced window wall is bounce-dominated (−67 % and −85 % when
+the room's bounce is removed). Where the two renderers disagree on such a surface, **do not assume the raster
+is the value to move toward** — it has no mechanism for the light in question. `.323`'s "the tracer's largest
+error is on the surface that should be darkest" is retired on this basis.
+
+## Do not decompose tone-mapped counts into additive terms
+
+`.328` was tempted: the raster's total on the sky-blind wall (70.0) is close to the trace's apparent bounce
+delta (105.8 − 34.4 = 71.4), which invites "the raster's fill approximates the bounce term but omits the direct
+one". Displayed counts under AgX are **not energy**, so `34.4 + 71.4 = 105.8` is not valid addition and the
+split is not a legitimate decomposition. Report the dominance, not the partition.

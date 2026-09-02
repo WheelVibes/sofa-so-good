@@ -531,6 +531,7 @@ const shotFor = async (pitch) => {
   if (typeof applyBgBlock === 'function') await applyBgBlock()
   if (typeof applyBgMul === 'function') await applyBgMul()
   if (typeof applyFloorDye === 'function') await applyFloorDye()
+  if (typeof applyDyeExcept === 'function') await applyDyeExcept()
   if (typeof applyEnvDump === 'function') await applyEnvDump()
   return canvas.screenshot({ type: 'png' })
 }
@@ -936,6 +937,83 @@ const applyEnvDump =
 // normal; `getWorldDirection` returns it) and tints via `color`, which multiplies
 // the map. It reports every mesh it touched, because `.327` lost two runs to
 // interventions that did not land.
+// DYEEXCEPT=<hex> -- dye EVERY mesh except those coplanar with the window wall,
+// which partitions the measured wall's light in a single run (`.328`).
+//
+// winwall-R is coplanar with the aperture: it sees no sky and takes no direct sun
+// (`.327`), so bounce should be its only physical source. Dyeing every surface that
+// can bounce onto it leaves only the non-bounce sources -- direct sun grazing, the
+// point lights, and whatever arrives through the opening. So:
+//   large drop  -> the traced wall is bounce-lit, i.e. physically sensible, and the
+//                  raster (which has NO bounce term for walls, `.327`) is the wrong
+//                  reference for it;
+//   small drop  -> something is lighting it directly, which is the bug.
+//
+// Selection is by world normal, projected to horizontal, against the camera's own
+// horizontal backward direction -- the camera faces the window wall, so -forward IS
+// that wall's inward normal to within the pose's yaw. Meshes within SPARECOS of it
+// are spared, which correctly also spares the coplanar winwall-L segment and the
+// glazing (dyeing the glazing would attenuate the light coming IN and confound the
+// partition).
+const DYEEXCEPT = process.env.DYEEXCEPT || ''
+const applyDyeExcept = !DYEEXCEPT
+  ? null
+  : async () => {
+      const res = await page.evaluate(
+        ({ hex, spareDeg }) => {
+          const sc = window.__three.scene
+          const cam = window.__three.camera
+          // Camera forward, flattened to horizontal and normalised.
+          const fwd = cam.position.clone()
+          cam.getWorldDirection(fwd)
+          fwd.y = 0
+          if (fwd.lengthSq() < 1e-6) return { error: 'camera is looking straight up or down' }
+          fwd.normalize()
+          const spareCos = Math.cos((spareDeg * Math.PI) / 180)
+          let dyed = 0
+          let spared = 0
+          const sparedKinds = {}
+          sc.traverse((o) => {
+            if (!o.isMesh) return
+            const n = o.position.clone()
+            o.getWorldDirection(n)
+            n.y = 0
+            // ONLY a PlaneGeometry's +Z is its surface normal. For a box, cylinder
+            // or sphere `getWorldDirection` is just the object's orientation, so
+            // sparing on it spares furniture that is still bouncing light -- the
+            // first cut of this knob spared 543 meshes including books, a lamp and
+            // a plant, which is not a partition at all. Everything non-planar is
+            // dyed regardless of how it happens to be turned.
+            const horiz = n.lengthSq() > 1e-6 && o.geometry?.type === 'PlaneGeometry'
+            if (horiz) {
+              n.normalize()
+              // -fwd is the window wall's inward normal; dot > spareCos = coplanar.
+              if (-(n.x * fwd.x + n.z * fwd.z) > spareCos) {
+                spared++
+                const k = `${o.geometry?.type ?? '?'}`
+                sparedKinds[k] = (sparedKinds[k] ?? 0) + 1
+                return
+              }
+            }
+            const mats = Array.isArray(o.material) ? o.material : [o.material]
+            for (const m of mats) {
+              if (!m?.color) continue
+              m.color.set(`#${hex}`)
+              dyed++
+            }
+          })
+          return { dyed, spared, sparedKinds }
+        },
+        { hex: DYEEXCEPT, spareDeg: Number(process.env.DYE_SPARE_DEG || 30) },
+      )
+      if (res.error) throw new Error(`DYEEXCEPT: ${res.error}`)
+      console.log(`DYEEXCEPTCHECK ${JSON.stringify(res)}`)
+      if (!res.dyed || !res.spared)
+        throw new Error(
+          `DYEEXCEPT: partition did NOT land (dyed=${res.dyed} spared=${res.spared}) -- both must be non-zero`,
+        )
+      await new Promise((r) => setTimeout(r, 900))
+    }
 const FLOORDYE = process.env.FLOORDYE || ''
 const applyFloorDye = !FLOORDYE
   ? null

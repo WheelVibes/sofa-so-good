@@ -11943,3 +11943,132 @@ world normal), tints via `color` so it multiplies the existing map, **prints eve
 loudly rather than return a plausible number.
 
 No `src/` change beyond the version bump.
+
+---
+
+## Round .328 — the rasteriser has zero interreflection, and `.323`'s sign is backwards
+
+`.327` refuted floor bounce and reframed the question: winwall-R is **coplanar with the aperture**, so it sees no
+sky and takes no direct sun, and bounce is the only physical source of light on it. Is the raster capable of
+being right about such a surface at all? This round answers no, and does it against every surface in the room
+at once.
+
+### Method — partition the wall's light in a single run
+
+The remaining bounce sources after `.327` (opposite wall, ceiling, curtains) all share `#f5f5f0` with winwall-R
+itself, so hex recolour cannot separate them: repainting them repaints the measured surface. So instead of
+chasing sources one at a time, remove **all** of them and see what survives.
+
+`DYEEXCEPT=<hex>` dyes every mesh except those coplanar with the window wall. Selection is by world normal
+projected to horizontal, against the camera's own horizontal backward direction — the camera faces the window
+wall, so `−forward` is that wall's inward normal to within the pose's yaw. The glazing is spared deliberately:
+dyeing it would attenuate the light coming *in* and confound the partition.
+
+**1062 dyed / 59 spared, all `PlaneGeometry`**, verified by looking at the frame — window wall pale on both
+sides of the opening, everything else near-black, glazing bright.
+
+Whatever light survives on winwall-R must then be non-bounce: sun grazing, the point lights, or light arriving
+through the opening.
+
+### Result 1 — the rasteriser has exactly zero interreflection
+
+| patch | run A, undyed | run I, 1062 meshes dyed near-black |
+| --- | --- | --- |
+| winwall-R | 70.0 | **70.0** |
+| winwall-L | 115.2 | **115.2** |
+| ceiling | 129.4 | **0.0** |
+
+The ceiling reading 0.0 proves the dye landed in the raster. And both window-wall patches are **byte-identical
+to the decimal** with the entire rest of the room blackened.
+
+So this is not "a weak bounce term" — it is **none**. Raster wall luminance is a pure function of the
+analytical lights, and those know nothing about scene albedo. `.327` inferred this from a dyed floor; here it is
+established against every surface in the room simultaneously.
+
+Note this is also the strongest possible form of the rule from `.327`: byte-identical output is the signature of
+an absent mechanism, and here it is the *finding* rather than a warning.
+
+### Result 2 — the traced window wall is bounce-dominated
+
+Class B, dye verified (run J1):
+
+| patch | undyed, class B | all bounce surfaces dyed, class B | change |
+| --- | --- | --- | --- |
+| **winwall-R** | 105.8 | **34.4** | **−67 %** |
+| winwall-L | 107.9 | **16.4** | **−85 %** |
+
+Exactly what physics requires of surfaces coplanar with the aperture: remove the room's bounce and they
+collapse. The residual is the direct component — larger on winwall-R (34.4) than winwall-L (16.4), consistent
+with winwall-R sitting nearer the sideboard lamp and taking more grazing sun.
+
+### So `.323`'s framing has the sign backwards
+
+`.323` published "the tracer's largest error is on the surface that should be darkest". On this surface the two
+renderers are **not two qualities of one lighting model**. The tracer has a mechanism for the only light that
+physically reaches winwall-R; the rasteriser has none, and substitutes a non-directional analytical fill.
+
+So the +36-count gap is most likely the **raster's deficit**, not the tracer's excess, and **(p)'s second fault
+is probably not a tracer fault at all.**
+
+This does not make the trace *correct* — its absolute level is unvalidated and nothing in this arc can
+photographically anchor it (`.320`). What it does is retire the assumption baked into every round from `.323`
+onwards: that where the two renderers disagree, the raster is the value to move toward. On a bounce-only
+surface that assumption is unfounded.
+
+### An arithmetic I am refusing
+
+The raster's total (70.0) sits temptingly close to the trace's apparent bounce delta (105.8 − 34.4 = 71.4). It
+would be easy to write "the raster's fill approximates the trace's bounce term but omits its direct component".
+
+**That is not a legitimate decomposition.** Displayed counts under AgX tone mapping are not energy — a rule
+this arc has held since it started quoting no linear "% of photons" figures — so a tone-mapped value cannot be
+split into additive direct + bounce terms, and `34.4 + 71.4 = 105.8` is not valid addition in display space.
+The coincidence is recorded and explicitly not interpreted. All that is claimed is that **bounce dominates.**
+
+### The best (u) discriminator in the arc, obtained for free
+
+With all surfaces dyed near-black, the ceiling patch reads:
+
+| | ceiling |
+| --- | --- |
+| class B (ceiling rendered, dyed albedo) | **0.0** |
+| class A (ceiling absent, environment shows) | **178.2** |
+
+A **178-count separation** — because the intervention removes the ceiling's own albedo while leaving the
+environment behind it untouched, which is precisely the difference the two classes turn on. This is `.305`'s
+acceptance test at maximum sensitivity.
+
+Compare the discriminators this arc has used: `.325`'s dim-blue R−B sign test (66 counts, and it needed a
+temporary `src/` change), and the converted-sky case (10.5 counts, `.326`). This one is probe-only, needs no
+`src/` edit, and separates by 178. **Use it for any future (u) work.**
+
+### Two notes on (u) itself
+
+**Class A is deterministic across boots.** Run J2 read 106.4 / 111.7 / 178.2; run I's two arms read
+106.3–106.4 / 111.6 / 178.2 — separate page sessions, agreeing to 0.1 counts. Consistent with `.305`'s finding
+that class A is quantitatively identical to the ceiling being absent, and stable.
+
+**The tax is now the dominant cost of HQ measurement.** 3 of 4 traced arms in this round landed in class A; two
+paired runs (four renders, ~12 minutes) were needed to obtain one class-B arm. Every (p) measurement is
+effectively priced at 2× because of it.
+
+Also visible in J1's frame: the hard-edged bright quadrilateral in the top-right ceiling persists even in a
+class-B arm, with the rest of the ceiling correctly black. That is `.293`'s spatially-varying reading of (u),
+and the measured patch is clear of it.
+
+### Tooling and two errors caught before they cost a measurement
+
+`DYEEXCEPT=<hex>` — dyes all but the window-wall plane, prints the partition, and **throws unless both sides
+are non-empty**.
+
+**Error 1: `getWorldDirection` is a surface normal only for a `PlaneGeometry`.** The first cut of the knob
+spared 543 meshes, including books, a lamp and a plant — objects whose local +Z happened to point at the camera
+while they went on bouncing light. For a box, cylinder or sphere that call returns the object's *orientation*,
+not a normal. Restricting the spare rule to planes gives the clean 1062/59 partition.
+
+**Error 2: a check run without `PT=1` is not framed like a trace run.** `PT=1` pins the walk viewport to 16:9;
+without it `VH` defaults to 800 and the capture is 16:10. So a cheap no-PT verification frame is fine for
+confirming an intervention landed, but its *fractional patches are not comparable* with those of a trace run
+(`.247`). Pose was separately confirmed identical across all runs here (`reached [7.33, 3.4]`, standoff 3.6).
+
+No `src/` change beyond the version bump.
