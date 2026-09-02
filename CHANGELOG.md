@@ -5,6 +5,74 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.327 — the sky-blind wall is NOT floor bounce (refuted), and two silent no-ops nearly published the opposite
+
+`.326` isolated the sky-blind wall as (p)'s second, unexplained fault. The leading candidate was that its
+excess is genuine path-traced floor bounce the raster cannot produce — which would invert (p)'s sign for that
+one surface. **Refuted.**
+
+**Two interventions silently did nothing before the test could even run.**
+
+| lever | what happened | how it was caught |
+| --- | --- | --- |
+| `FLOOR=floor-carpet-blue` | re-finishes the **living/dining** floor; I was posed in bedroom3 | raster arm **byte-identical** — 70.0 / 134.5 / 129.4, every figure |
+| `RECOLOR d6b38d:3f4a63` | matches `material.color`; a floor's catalog colour is a **painter input** for the generated texture, so the material is white with a `map` | `repainted: 0` |
+
+**And the first no-op produced a textbook false positive.** Run E's trace moved **+38.7 counts on winwall-R and
+16 counts bluer** — both signals nominated *in advance* as confirmation — on an intervention that never fired.
+It was item (u): run E was class A (ceiling 178.2 against `.325`'s 181.5), run A class B (115.0).
+
+Run G then repeated it with the dye **verified landed** (77 upward-facing meshes, geometrically found, visually
+confirmed) and reproduced run E to **0.1 counts** (144.4 vs 144.5). So the dye had no effect in class A, the
+apparent effect was the class, and **the failed run turned out to be the more useful of the two** — without it,
+run G's number would have read as a confirmed fix.
+
+**Durable rule, and it generalises past (u): exact equality is evidence of a NO-OP, not of stability.** A real
+intervention essentially never leaves a figure identical to the last decimal; noise forbids it. `70.0 / 7.4 /
+7.3` twice over is what condemned run E — not anything about whether 70.0 looked reasonable. Note also that
+"two independent signals" bought nothing: luminance and hue both moved, both as predicted, because (u) moves
+both. Independent-looking signals are not independent if one confound drives them.
+
+**The test done properly — paired, class B, dye verified (runs H1/H2, 21:29 local):**
+
+| patch | A: undyed, class B | H1 dyed | H2 dyed | Δ |
+| --- | --- | --- | --- | --- |
+| **winwall-R** | 105.8 | 99.8 | 99.5 | **−6.1** |
+| sidewall-L | 116.9 | 110.1 | 108.1 | −7.8 |
+| ceiling | 115.0 | 104.2 | 103.5 | −10.9 |
+
+R−B falls on all three (+7.4 → +1.4, +6.6 → −1.3, +7.8 → −2.4) — the dyed floor's hue propagating as a bounce
+source should.
+
+**Refuted.** The dye cuts floor reflectance by roughly 60 % and the sky-blind wall drops **6 counts out of a
+36-count excess** — about 6 % of its own value. Floor bounce cannot be the mechanism. Three checks say the
+measurement is sound rather than the intervention weak: the dye plainly works in class B, the hue follows it,
+and the **ceiling drops most** (−10.9), which is the physically sensible ordering since it faces the floor most
+directly. The effect is real, correctly signed, correctly ordered — and simply too small and too evenly spread
+to be winwall-specific. It reads as a small general reduction in room interreflection.
+
+**A positive structural finding from the control.** The raster's walls and ceiling are **floor-independent** —
+byte-identical with the floor dyed dark navy. The rasteriser carries no floor-bounce term at all for these
+surfaces, consistent with its hemisphere `groundColor` being a global constant rather than anything read off
+the actual floor.
+
+**Which forces a reframing that matters more than the refuted hypothesis.** winwall-R is coplanar with the
+aperture: it sees no sky and takes no direct sun, so **bounce is the only physical source of light on it**. The
+raster has no bounce mechanism. So the raster's 70.0 is produced entirely by a non-directional analytical fill
+that is not modelling the actual light path in any form — and `.323`'s framing, "the tracer's largest error is
+on the surface that should be darkest", **may have the sign backwards**. The 36 counts may be largely the
+*raster's* deficit.
+
+This does **not** resolve which renderer is closer to right; the raster remains the only pose-matched
+comparison available (`.320`), and "only available reference" is not "correct reference". It relocates the
+question, and that relocation is now the arc's top open thread.
+
+**Tooling.** `FLOORDYE=<hex>` added — finds the floor geometrically (`getWorldDirection().y > 0.9`), tints via
+`color` to multiply the map, prints every mesh it touched, and **throws if it touches none**. After two silent
+no-ops in one round, a failed intervention must fail loudly rather than return a plausible number.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.326 — the tracer already has a faithful sky and never looks at it; converting it fixes the plaster deficit and leaves the sky-blind wall untouched
 
 `.325` withdrew `.324` and left (p) described but unfixed, with "intensity tuning is not ruled out" as the

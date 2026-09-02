@@ -547,3 +547,48 @@ inside a window opening.
 Reports `scene.background` and `scene.environment` against the exact clauses of
 `isReusableEquirectEnvironment` — ctor, render-target flag, mapping, image kind, dimensions, `wouldPass`. Cheap
 (no PT run) and the fastest way to see what the tracer is being offered versus what it uses.
+
+## Exact equality is evidence of a NO-OP, not of stability
+
+`.327` lost two runs to interventions that silently did nothing, and the signature was the same both times: a
+figure reproduced **to the last decimal**. A real intervention essentially never does that — noise forbids it.
+The raster arm reading `70.0 / 7.4 / 7.3` twice over is what condemned the run, and it is a stronger signal
+than any plausibility check on the value itself.
+
+Corollary, and it applies well beyond this probe: when a change leaves a metric — or a test suite — *exactly*
+unchanged, that is cause for **suspicion rather than confidence**.
+
+## Verify the intervention landed, separately from measuring its effect
+
+Two levers that look like they dye the floor and do not:
+
+- **`FLOOR=<id>` re-finishes the LIVING/DINING floor only.** Passing it while posed in another room changes
+  nothing. `.327` did exactly this in bedroom3 after reading the knob's own comment saying so.
+- **`RECOLOR` matches `material.color` by hex, and a floor's catalog colour is a PAINTER INPUT** to the
+  generated texture, not the material colour. The material is white with a `map`, so `#d6b38d` matches nothing
+  and the knob reports `repainted: 0`.
+
+So assert the precondition and print it, *then* measure. `FLOORDYE` throws on zero hits for this reason. The
+guard that actually works is a **control arm that should be inert** — in `.327` the raster arm, which has no
+floor-bounce term and so must not move when the floor is dyed.
+
+## Independent-looking signals are not independent if one confound drives them
+
+`.327` designed its test around luminance **and** hue, on the reasoning that no confound moves both. (u) moves
+both — and moved both in the direction the hypothesis predicted, on an intervention that had not fired. Signal
+redundancy is not a substitute for a control, and it is not a substitute for classifying the arm.
+
+## Keep the failed arm
+
+`.327`'s dye-did-not-land run was what exposed the false positive: the corrected run reproduced it to **0.1
+counts**, proving the effect was (u)'s class and not the intervention. Had the failed run been discarded as a
+botched attempt, the corrected run's +38.6 would have read as a confirmed mechanism. A run whose intervention
+misfired is still a valid same-class sample — label it and keep it.
+
+## The rasteriser has no floor-bounce term for walls or ceiling
+
+`.327`: with the floor dyed dark navy, the raster's wall and ceiling patches are **byte-identical**. Consistent
+with the hemisphere's `groundColor` being a global constant rather than anything read off the actual floor
+material. Two consequences: the raster arm is a usable inert control for any floor-albedo intervention, and the
+raster cannot be treated as a reference for a **bounce-only** surface — one coplanar with the aperture, which
+sees no sky and takes no direct sun — because it has no mechanism to light it at all.

@@ -530,6 +530,7 @@ const shotFor = async (pitch) => {
   if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
   if (typeof applyBgMul === 'function') await applyBgMul()
+  if (typeof applyFloorDye === 'function') await applyFloorDye()
   if (typeof applyEnvDump === 'function') await applyEnvDump()
   return canvas.screenshot({ type: 'png' })
 }
@@ -920,6 +921,56 @@ const applyEnvDump =
         })
         console.log(`ENVDUMP ${JSON.stringify(res, null, 2)}`)
       }
+// FLOORDYE=<hex> -- tint every UPWARD-FACING mesh in the live scene, i.e. dye the
+// floor, so a suspect bounce source can be traced by both luminance AND hue.
+//
+// `.327` needed this because the two obvious levers both silently did nothing:
+//   FLOOR=<id>  re-finishes the LIVING/DINING floor only -- passing it while posed
+//               in bedroom3 changed nothing, and the raster arm proved it (every
+//               figure byte-identical). The knob's own comment says so.
+//   RECOLOR     matches material.color by hex, and a floor's catalog colour
+//               (#d6b38d) is a PAINTER INPUT for the generated texture, not the
+//               material colour -- the material is white with a `map`, so
+//               `repainted: 0`.
+// So this finds the floor GEOMETRICALLY (world +Z of a PlaneGeometry is its
+// normal; `getWorldDirection` returns it) and tints via `color`, which multiplies
+// the map. It reports every mesh it touched, because `.327` lost two runs to
+// interventions that did not land.
+const FLOORDYE = process.env.FLOORDYE || ''
+const applyFloorDye = !FLOORDYE
+  ? null
+  : async () => {
+      const res = await page.evaluate((hex) => {
+        const sc = window.__three.scene
+        const hits = []
+        let dyed = 0
+        sc.traverse((o) => {
+          if (!o.isMesh) return
+          // Reuse an existing Vector3 -- the page does not expose the three
+          // constructors (same constraint CEILSTD works around).
+          const v = o.position.clone()
+          o.getWorldDirection(v)
+          if (v.y < 0.9) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          for (const m of mats) {
+            if (!m?.color) continue
+            hits.push({
+              geom: o.geometry?.type ?? '?',
+              was: m.color.getHexString(),
+              map: Boolean(m.map),
+              name: (o.name || o.parent?.name || '').slice(0, 24),
+            })
+            m.color.set(`#${hex}`)
+            dyed++
+          }
+        })
+        return { dyed, hits: hits.slice(0, 12) }
+      }, FLOORDYE)
+      console.log(`FLOORDYECHECK ${JSON.stringify(res)}`)
+      if (res.dyed === 0)
+        throw new Error('FLOORDYE: no upward-facing mesh found -- intervention did NOT land')
+      await new Promise((r) => setTimeout(r, 900))
+    }
 const BGSHARP = process.env.BGSHARP || ''
 const applyBgSharp = !BGSHARP
   ? null

@@ -11813,3 +11813,133 @@ Also learned the hard way: a 256-sample PT run takes **~7½ minutes** (run A 20:
 to the default background-command limit that run B was **killed** mid-trace with `frame.png` written and no
 `pathtraced.png`. Launch PT runs with an explicit timeout. `.306` lost a batch to the 10-minute *foreground*
 limit; the background default is tighter, not looser.
+
+---
+
+## Round .327 — the sky-blind wall is not floor bounce, and two silent no-ops nearly published the opposite
+
+`.326` split (p) into two faults and left the second unexplained: the sky-blind wall reads **+35.8** against the
+raster and does not respond to replacing the environment. The leading candidate was that this excess is genuine
+**path-traced floor bounce** the rasteriser cannot produce — which, if true, inverts (p)'s sign for that one
+surface: the trace would be closer to right there and the raster wrong.
+
+**Refuted.** But the route to the refutation is the more useful half of the round.
+
+### Why floor bounce was the leading candidate
+
+Four things can light that wall, and three were already accounted for:
+
+- **the environment** — ruled out by `.326`, 0.3 counts under wholesale replacement;
+- **the sun** — arrives through the aperture travelling *away* from that wall, so grazing at best;
+- **the point lights** — copied into the snapshot, so they cannot create a raster/trace divergence.
+
+What remained was inter-surface bounce, and the rasteriser has none — only an analytical fill. The floor is the
+dominant bounce source for a vertical wall in a daylit room.
+
+### Two interventions that silently did nothing
+
+| lever | what actually happened | how it was caught |
+| --- | --- | --- |
+| `FLOOR=floor-carpet-blue` | re-finishes the **living/dining** floor only; the pose was bedroom3 | raster arm **byte-identical**: 70.0 / 134.5 / 129.4 |
+| `RECOLOR d6b38d:3f4a63` | matches `material.color`, but a floor's catalog colour (`#d6b38d`) is a **painter input** to the generated texture — the material is white with a `map` | `repainted: 0` |
+
+The first is documented in the knob's own comment, which I had read earlier in the same session and still
+passed a bedroom to.
+
+### The false positive, in full
+
+Run E — dye not landed — reported the traced sky-blind wall at **144.5**, up **+38.7** from run A's 105.8, with
+R−B swinging from +7.4 to **−8.8**. Both a large luminance rise *and* a strong blue shift: the two signals I had
+nominated **in advance** as confirmation of floor bounce. Patches correctly placed, crops clean, sds tight,
+internally consistent.
+
+It was **item (u)**. Run E's ceiling read 178.2 against `.325`'s class-A value of 181.5; run A's read 115.0
+against class B's 115.2.
+
+Run G then repeated the experiment with the dye **verified landed** — 77 upward-facing meshes, found
+geometrically, confirmed by looking at the frame — and reproduced run E to **0.1 counts**:
+
+| | winwall-R | sidewall-L | ceiling | class |
+| --- | --- | --- | --- | --- |
+| run E, dye did NOT land | 144.5 | 154.3 | 178.2 | A |
+| run G, dye VERIFIED landed | 144.4 | 154.6 | 178.2 | A |
+
+So the dye changed nothing in class A, the entire apparent effect was the class, and **run E — the failed run —
+was what exposed it.** Had I discarded it as a botched attempt and kept only run G, run G's +38.6 against run A
+would have read as a confirmed mechanism.
+
+### Two rules out of this
+
+**1. Exact equality is evidence of a NO-OP, not of stability.** A real intervention essentially never leaves a
+figure identical to the last decimal — noise forbids it. `70.0 / 7.4 / 7.3` reproduced exactly is what condemned
+run E, and it is a stronger signal than any plausibility check on the value itself. Corollary: when a change
+leaves a metric or a test suite *exactly* unchanged, that is cause for suspicion rather than confidence.
+
+**2. Independent-looking signals are not independent if one confound drives them.** Designing the test around
+luminance *and* hue felt like insurance and bought nothing: (u) moves both, in the directions I was hoping for.
+The protection that actually worked was a **control arm that should have been inert** — not looking at the crop
+(the crops were fine), and not signal redundancy.
+
+### The test, done properly
+
+Paired renders (`PT2=1`) so both arms share one boot, dye verified, both arms class B. Runs 21:29 local,
+bedroom3 `PITCH=0.30`, medium, photographic look, hour 13, 16:9, 256 samples, ai-denoised.
+
+| patch | A: undyed, class B | H1 dyed | H2 dyed | Δ | R−B |
+| --- | --- | --- | --- | --- | --- |
+| **winwall-R** | 105.8 | 99.8 | 99.5 | **−6.1** | +7.4 → +1.4 |
+| sidewall-L | 116.9 | 110.1 | 108.1 | −7.8 | +6.6 → −1.3 |
+| ceiling | 115.0 | 104.2 | 103.5 | −10.9 | +7.8 → −2.4 |
+
+The dye cuts floor reflectance by roughly 60 % (oak `#d6b38d` → navy `#3f4a63`, multiplying the map) and the
+sky-blind wall drops **6 counts out of a 36-count excess** — about 6 % of its own value. **Floor bounce is not
+the mechanism.**
+
+Three checks say this is a real null and not a weak intervention:
+
+1. the dye plainly works in class B — every surface drops;
+2. the **hue follows it** — R−B falls on all three surfaces, the dyed floor's colour propagating as a bounce
+   source should;
+3. the **ceiling drops most** (−10.9), the physically sensible ordering, since it faces the floor most directly.
+
+Real, correctly signed, correctly ordered — and too small and too evenly spread to be a winwall-specific
+mechanism. It reads as a small general reduction in room interreflection.
+
+### The control gave a positive finding of its own
+
+**The raster's walls and ceiling are floor-independent.** Byte-identical with the floor dyed dark navy. The
+rasteriser carries **no floor-bounce term at all** for these surfaces — consistent with its hemisphere
+`groundColor` being a global constant rather than anything read off the actual floor material.
+
+### The reframing this forces, which matters more than the refuted hypothesis
+
+winwall-R is **coplanar with the aperture**. It sees no sky and takes no direct sun. **Bounce is the only
+physical source of light on it.** And the raster has no bounce mechanism.
+
+So the raster's 70.0 is produced *entirely* by a non-directional analytical fill that is not modelling the
+actual light path in any form. `.323`'s framing — "the tracer's largest error is on the surface that should be
+darkest" — **may have the sign backwards.** The 36 counts may be largely the *raster's* deficit, on the one
+surface where the raster's model has no mechanism whatsoever.
+
+This does **not** resolve which renderer is closer to correct. `.320` established that the app against itself
+at a matched pose is the only valid construction available, and that remains true — but **"the only available
+reference" is not "the correct reference"**, and this round is the first time the distinction has had teeth. It
+relocates the question from "why is the trace too bright there" to "which renderer is wrong on a
+bounce-only surface", and that is now the arc's top open thread.
+
+### What is still untested
+
+The dye isolates the floor. The remaining bounce sources onto winwall-R — the opposite wall, the ceiling, the
+curtains — are untested. They cannot be dyed by material hex, because the plaster walls share `#f5f5f0` with
+winwall-R itself, so repainting them repaints the measured surface. The tractable route is the one this round
+proved out: **dye geometrically by normal direction**, selecting walls whose normal points away from the
+measured surface. That is the natural follow-up.
+
+### Tooling
+
+`FLOORDYE=<hex>` — finds the floor geometrically (`getWorldDirection().y > 0.9`, which is a PlaneGeometry's
+world normal), tints via `color` so it multiplies the existing map, **prints every mesh it touched**, and
+**throws when it touches none**. After two silent no-ops in a single round, a failed intervention has to fail
+loudly rather than return a plausible number.
+
+No `src/` change beyond the version bump.

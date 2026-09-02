@@ -1775,6 +1775,38 @@ for the user: (1) ship the environment conversion (a look change — the HQ stil
 plaster); (2) tighten `isReusableEquirectEnvironment` to require `image.data` (a pure correctness fix, no look
 change); (3) the sky-blind-wall excess needs its cause found before it can be fixed at all.
 
+### (p)'s second fault: floor bounce REFUTED, and the raster may be the wrong reference for it (v0.31.5.327)
+
+`.326` split (p) into a plaster-wide deficit and a **sky-blind-wall excess** (+35.8, unresponsive to replacing
+the environment). The leading candidate for the excess — genuine path-traced **floor bounce** the rasteriser
+cannot produce — is **refuted**.
+
+Paired renders, dye verified landed (77 upward-facing meshes, found geometrically), both arms class B:
+
+| patch | undyed | dyed H1 | dyed H2 | Δ |
+| --- | --- | --- | --- | --- |
+| **winwall-R** | 105.8 | 99.8 | 99.5 | **−6.1** |
+| sidewall-L | 116.9 | 110.1 | 108.1 | −7.8 |
+| ceiling | 115.0 | 104.2 | 103.5 | −10.9 |
+
+Cutting floor reflectance ~60 % moves the sky-blind wall **6 counts out of a 36-count excess**. Real null, not a
+weak intervention: the hue follows the dye on all three surfaces, and the **ceiling drops most**, the sensible
+ordering. Too small and too evenly spread to be winwall-specific.
+
+**The control gave a positive finding: the raster's walls and ceiling are floor-independent** — byte-identical
+with the floor dyed dark navy. The rasteriser has **no floor-bounce term** for these surfaces.
+
+**Which reframes the fault, and this is the part that bears on the decision.** winwall-R is **coplanar with the
+aperture**: no sky, no direct sun, so **bounce is its only physical light source** — and the raster has no
+bounce mechanism. Its 70.0 comes entirely from a non-directional analytical fill that is not modelling the
+light path at all. So `.323`'s "the tracer's largest error is on the surface that should be darkest" **may have
+the sign backwards**: the 36 counts may be largely the *raster's* deficit.
+
+This does not resolve which renderer is closer to correct. `.320`'s construction (the app against itself at a
+matched pose) remains the only one available — but **"only available reference" is not "correct reference"**,
+and on a bounce-only surface the raster is structurally incapable of being right. **Anyone deciding (p) should
+not assume the traced sky-blind wall needs bringing down to the raster's value.**
+
 ## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
 
 **The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,
