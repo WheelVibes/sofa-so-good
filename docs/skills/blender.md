@@ -114,6 +114,27 @@ Verified: reproduces an existing hand-assembled reference to within sampling noi
 identical, p99/median 2.357 vs 2.362, mean R−B −29.5 vs −29.6) — and a **new** room's
 reference costs ~37 s end to end (21 s export + 16 s render at 800×450/64 samples).
 
+### `bake_material.py` — bake Cycles lighting to per-object textures
+
+    blender --background --factory-startup \
+      --python python/scripts/blender/bake_material.py -- \
+      --dir /tmp/ld2 --pass visibility --min-area 3.0 --res 64 --samples 64
+
+`--pass visibility | ao | diffuse | combined`. Targets are chosen by **surface area**
+(`--min-area`, m²) rather than by name, because the room shell is the set of large flat meshes
+in any plan whatever the exporter called them — a whole flat has 82 meshes over 3 m² out of
+1274. `--limit` caps the batch, largest first. One image per object, not an atlas.
+
+`--uv box` (default) builds a fresh non-tiling 3×2 box atlas and is **required** for the app's
+shell meshes; `--uv existing` is only correct for assets that already have a unique 0…1 layout.
+`--albedo` defaults to 0.5 for visibility bakes. See the lessons below for why both defaults are
+what they are — each one is a measured failure, not a preference.
+
+Reuses `render_visibility.py`'s world setup exactly, so a baked map and a rendered reference are
+the same quantity and can be checked against each other.
+
+Verified: 4 shell meshes at 64 px / 32 samples in ~4 s, means 0.164–0.428 across walls.
+
 ## Repo facts worth knowing before you start
 
 **The Poly Haven HDRIs are NOT bundled.** `src/scene/lighting/hdriCatalog.ts` serves them
@@ -152,6 +173,22 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — you cannot bake into the app's shell UVs.** They are *tiling* coordinates in
+  metres (measured: u = −2.9…+2.9, v = −1.6…+1.0) for repeating plaster/tile, and a bake writes
+  into 0…1. Baking into them returns **`min 0.0, max 0.0`**. Build a second, non-tiling channel
+  — and derive it from local geometry + mesh bounds (`bake_material.py:make_box_uvs`) so the
+  runtime can regenerate identical UVs without shipping a UV table. `smart_project` packs better
+  and cannot offer that. three's `aoMap` samples `uv1`, so a second channel is required anyway.
+- **2026-09-03 — the shell meshes are BOXES.** 12 triangles = 6 quads per wall, so a 3×2 atlas
+  spends 5/6 of its texels on exterior or other-room faces. Exterior faces correctly bake to
+  **1.0** (they see the open sky), which contaminates any summary statistic over the whole map.
+  Select interior-facing faces before trusting a shell bake.
+- **2026-09-03 — albedo 1.0 is a WHITE FURNACE; don't bake with it.** Energy is conserved, so a
+  closed white room's interior radiance converges on the sky's and the raw bake saturates at 1.0
+  with no dynamic range to store. A realistic mid albedo (~0.5) keeps the interreflection that
+  is most of the quantity. But check what dominates your statistic first: a 4× albedo change
+  moved measured means by only 1–3 % because empty atlas slots and exterior faces — both
+  albedo-independent — were dominating them.
 - **2026-09-03 — whitening every material SEALS THE WINDOWS.** To render a visibility/AO
   reference you replace all materials with white diffuse — which turns glazing into an opaque
   white wall and makes the room a closed box. The render's maximum pixel value was **2 of 255**.

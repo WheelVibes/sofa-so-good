@@ -29,6 +29,78 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.11 — `bake_material.py` lands (Part B complete), and attempting the bake surfaced three concrete blockers
+
+`v0.31.7.10` said the remaining work was "a feature, not a patch" and left it there. This round
+attempts it. The offline tool is done; the attempt found three specific obstacles that no amount
+of further measurement would have revealed, which is the point of building.
+
+**`python/scripts/blender/bake_material.py` — the last of Part B's four scripts.** Plain file
+in, plain files out, no session state. Bakes `visibility` / `ao` / `diffuse` / `combined` per
+object, selects targets by **surface area** rather than by name (`--min-area`, default 3 m² —
+the room shell is the set of large flat meshes in any plan, whatever an exporter called them; a
+flat has 82 such meshes out of 1274), and reuses `render_visibility.py`'s exact world setup so a
+baked map and a rendered reference are the same quantity and can be checked against each other.
+
+### Blocker 1 — the app's shell UVs cannot be baked into, and this was invisible until measured
+
+The first run returned **`min 0.0, max 0.0`** on the two largest walls. Cause, measured on the
+real export: the shell meshes' UVs run **u = −2.9…+2.9, v = −1.6…+1.0**, because they are
+*tiling* coordinates in metres for repeating plaster and tile. A bake writes into 0…1, so most
+of the surface maps outside the image and whatever lands inside overlaps.
+
+So a lightmap needs **its own channel with a unique layout** — which is also exactly how three
+consumes it: `aoMap` samples `uv1`, not the albedo channel. `make_box_uvs()` builds a 3×2 box
+atlas whose every input is *local* geometry (dominant face normal → slot; the two remaining
+object-space coordinates, normalised by the mesh's own bounds → position within it), so **the
+runtime can regenerate byte-identical UVs from the same mesh without shipping a UV table.** A
+`smart_project` unwrap packs more tidily and could never offer that, which is the whole reason
+not to use it.
+
+With the atlas, the same bake returns real content: means **0.164–0.428** across walls, i.e. the
+room-scale variation the term is supposed to carry.
+
+### Blocker 2 — the shell meshes are BOXES, not planes
+
+Each wall is 12 triangles = 6 quads, so five of the six atlas slots hold faces that are either
+exterior-facing or interior to another room. The exterior faces **correctly** bake to 1.0 — they
+see the open sky — but that means a naive shell bake spends 5/6 of its texture on faces the
+camera never sees and mixes saturated 1.0s into the map. A shell bake has to select
+interior-facing faces per room, which is a real algorithm (a face's room membership), not a flag.
+
+### Blocker 3 — the albedo is a genuine constraint, and it cannot be settled before blocker 2
+
+`v0.31.7.9` matched physics' spatial profile with an albedo-1.0 visibility render. Baked raw,
+that saturates: a closed white room at albedo 1 is a **white furnace** — energy is conserved,
+interior radiance converges on the sky's, and there is no dynamic range left to store in 8 bits.
+The obvious fix is a realistic mid albedo, so `--albedo` now defaults to **0.5**. But measuring
+it says the question is not yet answerable:
+
+| albedo | Mesh_116 | Mesh_137 | Mesh_162 | Mesh_37 |
+| --- | --- | --- | --- | --- |
+| 1.00 | 0.428 | 0.325 | 0.197 | 0.411 |
+| 0.50 | 0.418 | 0.325 | 0.177 | 0.371 |
+| 0.25 | 0.414 | 0.325 | 0.172 | 0.356 |
+
+**A 4× albedo change moves the statistics by 1–3 %**, which is not credible for a quantity that
+is mostly interreflection. The reason is blocker 2: these means are dominated by the empty
+atlas slots and the exterior faces pinned at 1.0, both of which are albedo-independent. So the
+albedo must be chosen *after* face selection, not before — and the ordering matters, because
+choosing it now would fit a constant to an artefact. (Exactly the failure mode of `v0.31.6.8`'s
+`FILLSCALE` interpolation and `v0.31.7.5`'s near-miss on chroma.)
+
+### Where this leaves the fix
+
+The term is confirmed (80 % of a deep room's spatial error, `v0.31.7.9`), its strength is
+measured (γ ≈ 0.7, `v0.31.7.10`), the tool exists, and the UV layout is solved in a form the
+runtime can reproduce. What remains is **per-room interior-face selection**, then the albedo
+choice, then the runtime plumbing (`uv1` generation on the shells + `aoMap` wiring + the
+starter-plan asset path). None of it is speculative any more; all of it is specified.
+
+**FPS: unchanged, because nothing shipped.** Every run this round was offline Blender — a 4-mesh
+bake at 64 px/32 samples takes about 4 s. The three views the goal names still hold their
+measured 60 fps at `medium`.
+
 ## v0.31.7.10 — the modulation strength is decidable: γ ≈ 0.7 buys 68 % of the deep room's error for a ≤4 % regression, and the ship path is the STARTER PLANS
 
 `v0.31.7.9` confirmed aperture visibility explains 80 % of `livingDining`'s spatial error at
