@@ -5,6 +5,87 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.326 — the tracer already has a faithful sky and never looks at it; converting it fixes the plaster deficit and leaves the sky-blind wall untouched
+
+`.325` withdrew `.324` and left (p) described but unfixed, with "intensity tuning is not ruled out" as the
+only forward statement. This round asked a different question — not *how much* the hardcoded gradient is
+wrong, but *whether a faithful substitute exists at all* — and the answer turned out to be sitting in the
+scene the tracer already snapshots.
+
+**The live scene offers two environment slots. Measured in the running app (`ENVDUMP=1`, 20:13 local):**
+
+| slot | what it is | passes `isReusableEquirectEnvironment`? |
+| --- | --- | --- |
+| `scene.environment` | CubeTexture, `isRenderTargetTexture: true`, mapping 301 | **no** — correctly, and for the documented reason |
+| `scene.background` | **CanvasTexture 1024x512, mapping 303 (equirect), CPU-readable canvas** | **yes** |
+
+So the faithful, hour-aware environment — the same sky the raster shows through every window in the same
+frame — is present in the snapshotted scene and satisfies the app's own predicate. `resolveTracerEnvironment`
+never evaluates it, for two independent reasons: it returns at `if (!hdriUrl) return null` before inspecting
+anything (and `hdriId` is null by default), and even inside the HDRI branch it only ever tests
+`live.environment`, never `live.background`. **(p) is not "the tracer lacks an environment". It is "the tracer
+has one and does not look."**
+
+**But passing that predicate is NOT sufficient — a negative, with the cause identified.** Handing the
+background over directly produced **0 samples after 300 s and no tracer canvas** — no render at all, and no
+page error or GL warning to say so. The reason is in the library: `EquirectHdrInfoUniform` builds its
+importance-sampling CDFs from `const { width, height, data } = map.image`, and an `HTMLCanvasElement` has
+`width`/`height` but **no `data`**. `isReusableEquirectEnvironment` tests `t.image` for truthiness, which a
+canvas satisfies. **The predicate is too weak by exactly that gap** — latent today (only an `RGBELoader`
+DataTexture reaches it), but a canvas-backed equirect would pass the check and then silently kill HQ
+rendering.
+
+**So the fix is a conversion, not a handoff** — read the canvas to a `Float32Array` `DataTexture`, decoding
+sRGB to linear because the tracer integrates radiance while canvas pixels are display-encoded. That renders
+(256 samples, page log confirms `1024x512 DataTexture`), and the result splits cleanly in two:
+
+bedroom3 `PITCH=0.30`, medium tier, photographic look, hour 13, 16:9, 256 samples, ai-denoised; runs 20:15
+(A) and 20:54 (C) local.
+
+| patch | raster | A: hardcoded gradient | C: converted background | dA | dC |
+| --- | --- | --- | --- | --- | --- |
+| ceiling | 129.4 | 115.0 | 125.2 | -14.4 | **-4.2** |
+| sidewall-L | 134.5 | 116.9 | 121.7 | -17.5 | **-12.8** |
+| winwall-L | 115.2 | 107.9 | 110.9 | -7.3 | **-4.3** |
+| **winwall-R** | 70.0 | 105.8 | 106.0 | **+35.8** | **+36.1** |
+
+**The headline is the null result.** The sky-blind wall moves **0.3 counts** against a patch sd of 1.6 — the
+tracer's dominant light source was replaced wholesale and the largest error in the frame ignored it. That
+**independently confirms** what `.325` could only reach by withdrawal: the window wall's over-brightness is
+not attributable to the environment. `.325` argued it from an implied-negative-ambient on a baseline; this
+needs no baseline and no arithmetic. Two unrelated routes, same conclusion — and **(p) is therefore two
+faults, not one**: a plaster-wide deficit the environment explains, and a sky-blind-wall excess it does not.
+
+**The ceiling figure was the one at risk, and it survives a proper test.** (u) attacks precisely that surface,
+and `.325`'s class discriminator was calibrated *under the gradient environment this round replaces* — so run
+C could not be classified the way `.323` classified its arm. `.305`'s acceptance test is immune, being a
+within-condition comparison: `HIDECEIL=1` under the *same* converted environment reads ceiling **114.7**
+against run C's **125.2**, a 10.5-count separation at sd 1.4–1.6. Run C passes; the ceiling is rendering as a
+surface; **-4.2 stands**.
+
+**A new fact about (u) falls out.** Under the grey gradient its two classes sit **66 counts** apart (181.5 vs
+115.2); under the converted sky, **10.5** apart and in the *opposite* direction (class A now darker). A
+faithful sky radiates into the ceiling direction at nearly what a correctly-bounced ceiling reads. That cuts
+both ways: it would make (u) far less damaging to look at, and far harder to detect.
+
+**Not shipped.** This is a look change on the HQ path and belongs to the user, filed under (p) as a priced
+candidate rather than applied. `src/` was reverted and verified byte-identical to HEAD. What the conversion
+does *not* fix is chroma — the ceiling's R−B goes 11.9 (raster) → 7.8 (gradient) → **0.7** (converted sky),
+because the warm analytical fill is still dropped entirely. Even a perfect sky cannot restore it. That is
+(p)'s other half.
+
+**Two patches discarded on inspection, not on arithmetic.** `ceiling2` straddled the ceiling/wall junction
+(raster sd 16.3). `glazing` is not like-for-like in this pose at all: **the raster's window carries a full
+security grille and the traced window has none** — four bars cross the patch, which is what raster sd 24.3
+against traced 0.7 records. `.323`'s glazing row (-6.6) may carry the same contamination, so this round's
+-7.2 is not treated as confirming it.
+
+**Tooling.** `scripts/dev-probes/patch-read.mjs` extracted — every raster-vs-traced round since `.298`
+re-implemented this inline, and the recurring failure was never the arithmetic but patch *placement* (five
+rounds lost to it), so it writes a marked overlay on **every** run rather than on request. `ENVDUMP=1` added
+to the probe. Baseline arm A independently replicates `.323` (-13.6, -17.4, +42.7) from freshly placed
+patches, which is worth more than either round alone.
+
 ## v0.31.5.325 — a hue-discriminating environment confirms (u)'s mechanism by SIGN REVERSAL, and shows `.324`'s baseline was the wrong (u) class — so `.324`'s attribution is withdrawn
 
 `.324` closed with an honest gap: the ceiling row of the (p) attribution table could not be computed because

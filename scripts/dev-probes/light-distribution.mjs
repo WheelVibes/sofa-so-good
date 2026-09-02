@@ -530,6 +530,7 @@ const shotFor = async (pitch) => {
   if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
   if (typeof applyBgMul === 'function') await applyBgMul()
+  if (typeof applyEnvDump === 'function') await applyEnvDump()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
@@ -874,6 +875,51 @@ const applyHideGrille = !HIDEGRILLE
       console.log(`HIDEGRILLECHECK ${JSON.stringify(n)}`)
       await new Promise((r) => setTimeout(r, 700))
     }
+// ENVDUMP=1 -- inventory what the LIVE scene offers as an environment, and
+// whether the tracer could use it. `.326`: `resolveTracerEnvironment` returns
+// null the moment there is no HDRI url, so with the default `hdriId === null` it
+// never looks at the live scene at all -- straight to the hardcoded 2-colour
+// gradient (item (p)). But `scene.background` is a CANVAS-backed equirect (the
+// BGBLOCK/BGSHARP knobs already read `.image` as a canvas), i.e. CPU-readable,
+// hour-aware, and literally what the raster shows through every window. This
+// reports both slots against the exact clauses of `isReusableEquirectEnvironment`.
+const applyEnvDump =
+  process.env.ENVDUMP !== '1'
+    ? null
+    : async () => {
+        const res = await page.evaluate(() => {
+          const EQUIRECT_REFLECTION = 303
+          const describe = (t) => {
+            if (!t) return { present: false }
+            const img = t.image
+            const isCanvas = Boolean(img && typeof img.getContext === 'function')
+            return {
+              present: true,
+              ctor: t.constructor?.name ?? '?',
+              isTexture: Boolean(t.isTexture),
+              isRenderTargetTexture: Boolean(t.isRenderTargetTexture),
+              mapping: t.mapping,
+              equirect: t.mapping === EQUIRECT_REFLECTION,
+              colorSpace: t.colorSpace,
+              hasImage: Boolean(img),
+              imageKind: isCanvas ? 'canvas' : img ? (img.constructor?.name ?? '?') : null,
+              w: img?.width ?? null,
+              h: img?.height ?? null,
+              // The exact predicate `hqEnvironment.ts` applies.
+              wouldPass: Boolean(
+                t.isTexture && !t.isRenderTargetTexture && t.mapping === EQUIRECT_REFLECTION && img,
+              ),
+            }
+          }
+          const sc = window.__three.scene
+          return {
+            background: describe(sc.background),
+            environment: describe(sc.environment),
+            hdriId: window.__store?.getState?.().hdriId ?? 'unreadable',
+          }
+        })
+        console.log(`ENVDUMP ${JSON.stringify(res, null, 2)}`)
+      }
 const BGSHARP = process.env.BGSHARP || ''
 const applyBgSharp = !BGSHARP
   ? null

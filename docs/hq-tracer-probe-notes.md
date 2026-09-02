@@ -485,3 +485,65 @@ and *falling* as a seam is worked deeper.
 `ANCHORS=1` and its `ANCHOR_*` knobs give a **world-anchored, framing-invariant** metric: the same world point
 reads within 0.3 % across two different camera pitches. Prefer it over any screen-space band for anything
 compared across poses.
+
+## The tracer's environment must be a DataTexture with `image.data`
+
+`isReusableEquirectEnvironment` tests `t.image` for truthiness. That is not the condition the tracer needs.
+`EquirectHdrInfoUniform` builds its importance-sampling CDFs from `const { width, height, data } = map.image`,
+so the environment must carry a typed array. An `HTMLCanvasElement` has `width`/`height` and **no `data`** —
+it passes the predicate and then produces **0 samples, no tracer canvas, no page error and no GL warning**
+(`.326`). A silent total failure, so do not read "the modal produced nothing" as a probe bug.
+
+To feed the tracer a canvas-backed equirect, convert it: read the canvas to a `Float32Array` and build a
+`DataTexture` (RGBA / FloatType / EquirectangularReflectionMapping / Repeat / ClampToEdge / Linear, mirroring
+`ProceduralEquirectTexture`), decoding **sRGB → linear** on the way. The tracer integrates radiance; canvas
+pixels are display-encoded.
+
+## Re-derive the (u) discriminator under whatever environment is in force
+
+`.325`'s rule was that a baseline arm must be in the same (u) class as the arm it baselines. `.326` found the
+sharper version: **any intervention on the environment invalidates a (u) discriminator calibrated under the
+old one.** `.325`'s reference values (class A 181.5, class B 115.2) hold only under the hardcoded grey
+gradient. Under a converted sky the classes sit **10.5** counts apart instead of 66, and in the **opposite
+direction** — class A becomes the *darker* one, because a faithful sky radiates into the ceiling direction at
+nearly what a correctly-bounced ceiling reads.
+
+`.305`'s acceptance test is the instrument that survives, because it is a within-condition comparison: run
+`HIDECEIL=1` under the *same* conditions as the arm being judged, and require the traced ceiling to differ
+from the hidden-ceiling value. Never carry a class threshold across an environment change.
+
+## A 256-sample PT run takes ~7½ minutes — launch it with an explicit timeout
+
+Measured `.326`: 20:15:21 → 20:22:41 end to end. That is close enough to the default background-command limit
+that a run gets **killed mid-trace**, leaving `frame.png` written and no `pathtraced.png` — which looks like a
+tracer failure and is not one. Check the task's own start/end stamps before diagnosing anything.
+
+`.306` lost a batch to the 10-minute *foreground* limit, which is why runs are one-per-call; note the
+background default is **tighter** than that, not looser.
+
+## Read patches with `patch-read.mjs`, and look at the overlay it writes
+
+`scripts/dev-probes/patch-read.mjs <out-dir> <img[:label]> [img2[:label2]] -- name=x,y,w,h ...`
+
+Fractional rects, so one set applies to both a deviceScaleFactor-2 raster capture and the traced canvas at its
+own backing size. Prints mean L, mean R−B and sd per patch, plus the delta when two images are given.
+
+It writes a **marked overlay on every run**, not on request. Every raster-vs-traced round since `.298`
+re-implemented this reading inline and the recurring failure was never the arithmetic — it was patches landing
+somewhere other than intended (`.300` the wrong wall, `.315` the window wall and a framed picture, `.316` the
+HUD toolbar and a structural beam, `.319` a patch never physically placed, `.323` the HUD minimap). A patch set
+is verified for **one pose only** (`.247`, `.320`).
+
+## The traced window has no security grille; the raster's does
+
+`.326`, bedroom3: the raster's window carries a full grille and the traced window shows a single mullion. Any
+glazing patch is therefore **not like-for-like** — four bars cross it in the raster and none in the trace,
+which reads as raster sd 24.3 against traced 0.7. This is a snapshot-fidelity gap independent of lighting, and
+it means `.323`'s glazing row may carry the same contamination. Check the two frames before comparing anything
+inside a window opening.
+
+## `ENVDUMP=1`
+
+Reports `scene.background` and `scene.environment` against the exact clauses of
+`isReusableEquirectEnvironment` — ctor, render-target flag, mapping, image kind, dimensions, `wouldPass`. Cheap
+(no PT run) and the fastest way to see what the tracer is being offered versus what it uses.

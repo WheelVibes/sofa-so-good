@@ -1720,6 +1720,61 @@ Observed on two independent runs, one in each of item (u)'s two states. This is 
 default values. **The next step on (p) is a real `src/` fix — feed the tracer the scene's own lighting instead
 of the hardcoded gradient — which is a look-and-cost call and is not being made unilaterally.**
 
+### ⚠️ (p) IS TWO FAULTS, NOT ONE — and a faithful substitute already exists in the scene (v0.31.5.326)
+
+**The tracer is not missing a faithful environment. It has one and does not look at it.** Measured in the
+running app (`ENVDUMP=1`, default state, medium tier):
+
+| slot | ctor | render target? | mapping | image | passes `isReusableEquirectEnvironment` |
+| --- | --- | --- | --- | --- | --- |
+| `scene.environment` | CubeTexture | **yes** | 301 | Array | **no** — correctly, per the documented reason |
+| `scene.background` | **CanvasTexture** | no | **303 equirect** | **canvas 1024×512** | **yes** |
+
+`scene.background` is the hour-aware sky the raster shows through every window in the same frame.
+`resolveTracerEnvironment` never evaluates it: it returns at `if (!hdriUrl) return null` before inspecting the
+live scene (and `hdriId` is null by default), and even inside the HDRI branch it tests only
+`live.environment`.
+
+**Latent bug found on the way.** Passing that predicate is **not sufficient**. Handing the background over
+directly gives **0 samples, no tracer canvas, no error** — `EquirectHdrInfoUniform` builds its CDFs from
+`const { width, height, data } = map.image`, and an `HTMLCanvasElement` has no `data`.
+`isReusableEquirectEnvironment` only tests `t.image` for truthiness. Unreachable today (only an `RGBELoader`
+DataTexture gets there), but **a canvas-backed equirect would pass the check and silently kill HQ rendering** —
+worth fixing before anyone extends the HDRI path.
+
+**The candidate fix, priced.** Convert the canvas to a `Float32Array` `DataTexture`, sRGB→linear. bedroom3
+`PITCH=0.30`, medium, photographic look, hour 13, 16:9, 256 samples, ai-denoised:
+
+| patch | raster | hardcoded gradient | converted background | error removed |
+| --- | --- | --- | --- | --- |
+| ceiling | 129.4 | 115.0 (−14.4) | 125.2 (**−4.2**) | 71 % |
+| sidewall-L | 134.5 | 116.9 (−17.5) | 121.7 (**−12.8**) | 27 % |
+| winwall-L | 115.2 | 107.9 (−7.3) | 110.9 (**−4.3**) | 41 % |
+| **winwall-R** | 70.0 | 105.8 (+35.8) | 106.0 (**+36.1**) | **0 %** |
+
+**The sky-blind wall does not respond** — 0.3 counts against sd 1.6. Replacing the tracer's dominant light
+source wholesale leaves the frame's largest error untouched. This **independently confirms** `.325`'s
+withdrawal-driven conclusion by a route needing no baseline. So (p) splits:
+
+1. **a plaster-wide deficit** on sky-facing surfaces — largely explained by the environment, and largely fixed
+   by converting it;
+2. **a sky-blind-wall excess** — unexplained, unaffected by the environment, cause still unidentified.
+
+**What the conversion does NOT fix: chroma.** Ceiling R−B runs 11.9 (raster) → 7.8 (gradient) → **0.7**
+(converted sky) — *cooler*, not warmer. The app's warmth is a white-balance tint on the analytical hemisphere
+and ambient, and `buildTracerScene` drops both. **No environment can restore light that was never copied.**
+That is (p)'s other half and it is untouched.
+
+**Ceiling figure verified against (u).** `.325`'s class discriminator was calibrated under the gradient this
+replaces, so it does not apply. `.305`'s acceptance test does (within-condition): `HIDECEIL=1` under the *same*
+converted environment reads ceiling **114.7** vs run C's **125.2**, 10.5 counts at sd 1.4–1.6 → class B,
+rendering as a surface, **−4.2 stands**.
+
+**Still not decided unilaterally.** `src/` reverted and verified byte-identical to HEAD. Three separable calls
+for the user: (1) ship the environment conversion (a look change — the HQ still gets brighter and cooler on
+plaster); (2) tighten `isReusableEquirectEnvironment` to require `image.data` (a pure correctness fix, no look
+change); (3) the sky-blind-wall excess needs its cause found before it can be fixed at all.
+
 ## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
 
 **The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,
