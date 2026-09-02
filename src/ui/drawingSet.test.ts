@@ -80,6 +80,52 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('stroke-dasharray="0.6 0.22 0.14 0.22"')
   })
 
+  it('discloses skew walls and prints a co-ordinate table for them (G2)', () => {
+    // A diagonal partition carries no running dimension. Before this, the
+    // setting-out plan looked complete while silently omitting it.
+    const skewPlan = {
+      ...plan,
+      walls: [...plan.walls, { id: 'diag1', start: [1, 1], end: [3, 3], thickness: 'internal' }],
+    } as typeof plan
+    const html = buildDrawingSetHtml(
+      skewPlan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      true,
+    )
+    expect(html).toContain('Co-ordinate setting-out')
+    expect(html).toContain('no running dim — set out by co-ordinates')
+    expect(html).toContain('45.0°')
+  })
+
+  it('omits the co-ordinate table entirely for an orthogonal plan (G2)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      true,
+    )
+    expect(html).not.toContain('Co-ordinate setting-out')
+  })
+
   it('states the dimension unit once in every title block (G10)', () => {
     // Dimension labels are suffix-free integer mm, so the sheet must say so —
     // the standard convention, and the thing that makes "2745" unambiguous.

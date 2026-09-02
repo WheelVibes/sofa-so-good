@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.255 — the setting-out plan stops silently omitting walls
+
+`settingOut.ts` derives the datum-referenced running dimensions a contractor actually builds
+partitions from — and handled **axis-aligned walls only**: arc walls were skipped at line 41
+("no simple planar face"), diagonals at line 183 ("no single axis-aligned face"). Meanwhile the
+modeler ships both (`wallArc.ts`; commit `0bd45250` "Let a room be any shape"). So the geometry
+engine accepted shapes the primary contractor deliverable could not dimension — and said nothing
+about it. A contractor received a setting-out plan that LOOKED complete while some partitions
+carried no dimension at all.
+
+Fixed both halves rather than only disclosing:
+
+**Dimensioned properly.** `SettingOutSet` gains `skew: SettingOutSkewWall[]` — the walls the
+running rows cannot express, set out the way practice handles non-orthogonal geometry: by
+CO-ORDINATES. Each endpoint as an X and Z offset from the SAME datum the running rows use, plus the
+angle normalised to [0, 180) so a wall and its reverse read identically, plus the radius for an arc
+(derived from chord and stored bulge: R = (c/2)²/2h + h/2). Deliberately on the CENTRELINE, not the
+face — the running rows dimension a face because that is what a tape reaches first, but a sloping
+face has no single offset, and the centreline is what the model stores. Sorted by wall id so the
+rendered table is deterministic.
+
+**Disclosed.** The dimensioned plan prints "N skew/curved walls: no running dim — set out by
+co-ordinates" under the SETTING-OUT DATUM label, and the sheet carries a "Co-ordinate setting-out —
+skew & curved walls" table (wall · start X/Z · end X/Z · angle · radius) in integer mm via
+`formatDrawingLength`. Both appear only when such walls exist, so an orthogonal plan's sheet is
+byte-identical to before. This is the same honest-disclosure convention the elevation sheets
+already use for omitted walls (`drawingSet.ts` "N minor walls omitted") — it just had never been
+applied here.
+
++6 setting-out tests (datum-relative offsets, angle normalisation forward vs reversed, chord+bulge
+radius, deterministic sort, and that a diagonal is absent from BOTH running rows while present in
+`skew` — the distinction between "reported elsewhere" and "silently dropped"), +2 drawing-set tests.
+Full suite green (9502).
+
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G2).
+
 ## v0.31.5.254 — a sheet named "Section A–A" can finally be located
 
 `drawingSet.ts:621` called `buildSection` exactly ONCE, hardcoded to

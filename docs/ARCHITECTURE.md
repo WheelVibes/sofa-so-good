@@ -1580,6 +1580,18 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Setting-out covers non-orthogonal walls, by co-ordinates.**
+  `floorplan/settingOut.ts`'s running rows dimension axis-aligned wall FACES, so a diagonal or arc
+  wall cannot join them. `SettingOutSet.skew` reports those walls instead as
+  `SettingOutSkewWall` — both endpoints as X/Z offsets from the SAME datum, the angle normalised to
+  [0, 180) (so a wall and its reverse read alike), and `radiusM` for an arc (from chord + stored
+  bulge). Deliberately CENTRELINE, not face: a sloping face has no single offset. Sorted by wall id
+  for a deterministic table. `autoDimensionSvg.ts` prints the disclosure line under the
+  SETTING-OUT DATUM label and `ui/drawingSet.ts:skewSettingOutTable` renders the co-ordinate table
+  on the dimensioned-plan sheet (integer mm via `formatDrawingLength`). Both appear only when such
+  walls exist — an orthogonal plan's sheet is unchanged. **Never let a wall fall out of the
+  setting-out silently**: that was the bug (the modeler ships arc + any-shape rooms while the
+  deliverable dimensioned neither, and said nothing).
 - **Sections: both conventional cuts, and they are locatable on the plan.**
   `floorplan/section.ts:conventionalSectionCuts(plan)` returns the CROSS cut (`axis: 'z'`, mark A)
   and the LONGITUDINAL cut (`axis: 'x'`, mark B), each positioned by scoring candidate positions

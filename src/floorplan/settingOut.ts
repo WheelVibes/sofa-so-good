@@ -65,13 +65,43 @@ export interface SettingOutFace {
   wallId: string
 }
 
+/**
+ * A wall the running rows cannot express — diagonal or curved — set out the way
+ * practice actually handles non-orthogonal geometry: by CO-ORDINATES. Each
+ * endpoint is given as an X and Z offset from the same datum the running rows
+ * use, plus the wall's angle, so a contractor can set it out with a tape from
+ * two known dimensions rather than guessing off a scaled drawing.
+ *
+ * The running rows dimension a wall's FACE (what a tape reaches first); a skew
+ * wall is dimensioned on its CENTRELINE endpoints instead, because a sloping
+ * face has no single offset and the centreline is what the geometry model
+ * actually stores. `radiusM` is present only for an arc wall.
+ */
+export interface SettingOutSkewWall {
+  wallId: string
+  /** Start endpoint, as {x, z} offsets from the datum (metres). */
+  start: PlanVec2
+  /** End endpoint, as {x, z} offsets from the datum (metres). */
+  end: PlanVec2
+  /** Angle from the +X axis, degrees in [0, 180) — a wall and its reverse read
+   *  the same, which is what a setting-out note wants. */
+  angleDeg: number
+  /** Arc radius (metres) when the wall is curved; absent for a straight skew
+   *  wall. Derived from the chord and the stored arc bulge. */
+  radiusM?: number
+}
+
 /** Setting-out dimension set for one storey: the datum + its two running rows
  *  (X-axis faces from vertical walls, Z-axis faces from horizontal walls),
- *  each sorted ascending and deduped. */
+ *  each sorted ascending and deduped — plus any wall those rows cannot express,
+ *  set out by co-ordinates instead so nothing is silently left undimensioned. */
 export interface SettingOutSet {
   datum: PlanVec2
   x: SettingOutFace[]
   z: SettingOutFace[]
+  /** Diagonal / curved walls, set out by endpoint co-ordinates. Sorted by
+   *  wall id so the rendered table is deterministic. */
+  skew: SettingOutSkewWall[]
 }
 
 /** Walls for the given storey: `plan.walls` (ground, `levelId` absent) or the
@@ -154,9 +184,37 @@ export function settingOutDimensions(plan: FloorPlan, levelId?: string): Setting
   const datum = datumPoint(plan, levelId)
   const xFaces: SettingOutFace[] = []
   const zFaces: SettingOutFace[] = []
+  const skew: SettingOutSkewWall[] = []
+
+  /** Record a wall the running rows can't express, as datum-relative
+   *  endpoint co-ordinates + its angle (+ radius when curved). */
+  const pushSkew = (w: PlanWall, arc: number) => {
+    const [sx, sz] = w.start
+    const [ex, ez] = w.end
+    const chord = Math.hypot(ex - sx, ez - sz)
+    // Normalise the angle to [0, 180): a wall and its reverse are the same line.
+    let angleDeg = (Math.atan2(ez - sz, ex - sx) * 180) / Math.PI
+    if (angleDeg < 0) angleDeg += 180
+    if (angleDeg >= 180) angleDeg -= 180
+    // `arc` is the bulge (sagitta) in metres; R = (c/2)^2 / (2h) + h/2.
+    const h = Math.abs(arc)
+    const radiusM = h > EPS && chord > EPS ? (chord / 2) ** 2 / (2 * h) + h / 2 : undefined
+    skew.push({
+      wallId: w.id,
+      start: [sx - datum[0], sz - datum[1]],
+      end: [ex - datum[0], ez - datum[1]],
+      angleDeg: Math.round(angleDeg * 10) / 10,
+      ...(radiusM === undefined ? {} : { radiusM }),
+    })
+  }
 
   for (const w of walls) {
-    if (Math.abs(w.arc ?? 0) > EPS) continue // curved walls have no simple face
+    const arc = w.arc ?? 0
+    if (Math.abs(arc) > EPS) {
+      // A curved wall has no planar face — set it out by chord + radius.
+      pushSkew(w, arc)
+      continue
+    }
     const [sx, sz] = w.start
     const [ex, ez] = w.end
     const dx = ex - sx
@@ -179,11 +237,19 @@ export function settingOutDimensions(plan: FloorPlan, levelId?: string): Setting
         point: [faceX, (sz + ez) / 2],
         wallId: w.id,
       })
+    } else if (Math.abs(dx) > EPS && Math.abs(dz) > EPS) {
+      // A diagonal wall has no single axis-aligned face — co-ordinates instead.
+      pushSkew(w, 0)
     }
-    // A diagonal wall (neither) is skipped — no single axis-aligned face.
+    // A zero-length wall falls through: nothing to set out.
   }
 
-  return { datum, x: dedupeSort(xFaces), z: dedupeSort(zFaces) }
+  return {
+    datum,
+    x: dedupeSort(xFaces),
+    z: dedupeSort(zFaces),
+    skew: skew.sort((a, b) => a.wallId.localeCompare(b.wallId)),
+  }
 }
 
 /** One room's tile setting-out start point (v1: near the room centroid — the

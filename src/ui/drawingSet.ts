@@ -44,6 +44,7 @@ import {
   planLevels,
 } from '../floorplan/levels'
 import { permitNotes } from '../floorplan/permitNotes'
+import { wallDisplayName } from '../floorplan/planElementName'
 import { buildPlumbingPlan, type PlumbingPoint } from '../floorplan/plumbingPlan'
 import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
 import { buildReflectedCeilingPlan } from '../floorplan/rcp'
@@ -51,6 +52,7 @@ import { rcpSvg } from '../floorplan/rcpSvg'
 import type { RoomFinishMaps } from '../floorplan/roomFinishes'
 import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
+import { settingOutDimensions } from '../floorplan/settingOut'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
@@ -59,7 +61,13 @@ import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { CalloutSheet, DrawingCallout } from '../state/slices/drawingCalloutsSlice'
-import { drawingUnitsNote, formatArea, formatLength, type UnitSystem } from '../utils/measurement'
+import {
+  drawingUnitsNote,
+  formatArea,
+  formatDrawingLength,
+  formatLength,
+  type UnitSystem,
+} from '../utils/measurement'
 import { carpentrySvg } from './carpentrySheetSvg'
 import { collectCarpentrySheets } from './carpentrySheets'
 import { type DrawingLayerVisibility, drawingLayerOn as layerOn } from './drawingLayers'
@@ -201,6 +209,48 @@ function carpentryScale(
     label: `${s.label} @ ${paperSize.toUpperCase()} ${orientation.toUpperCase()}`,
     mmPerM: s.mmPerM,
   }
+}
+
+/**
+ * Co-ordinate setting-out table for the walls the running rows cannot express
+ * (G2). A diagonal or curved wall has no single axis-aligned face, so it is set
+ * out the way practice handles non-orthogonal geometry: each endpoint as an X
+ * and Z offset from the SAME datum the running rows use, plus the angle (and
+ * the radius for an arc). Empty string when there are none, so an orthogonal
+ * plan's sheet is unchanged.
+ */
+/** A wall's display name for the co-ordinate table, falling back to its id. */
+function wallName(levelPlan: FloorPlan, wallId: string): string {
+  const w = levelPlan.walls.find((x) => x.id === wallId)
+  return w ? wallDisplayName(w) : wallId
+}
+
+function skewSettingOutTable(
+  levelPlan: FloorPlan,
+  showSettingOut: boolean,
+  units: UnitSystem,
+): string {
+  if (!showSettingOut) return ''
+  const { skew } = settingOutDimensions(levelPlan)
+  if (skew.length === 0) return ''
+  const d = (v: number) => esc(formatDrawingLength(v, units))
+  const rows = skew
+    .map(
+      (w) =>
+        `<tr><td>${esc(wallName(levelPlan, w.wallId))}</td>` +
+        `<td class="n">${d(w.start[0])}</td><td class="n">${d(w.start[1])}</td>` +
+        `<td class="n">${d(w.end[0])}</td><td class="n">${d(w.end[1])}</td>` +
+        `<td class="n">${w.angleDeg.toFixed(1)}°</td>` +
+        `<td class="n">${w.radiusM === undefined ? '—' : d(w.radiusM)}</td></tr>`,
+    )
+    .join('')
+  return (
+    `<h3>Co-ordinate setting-out — skew &amp; curved walls</h3>` +
+    `<table class="sched"><tr class="h"><td>Wall</td><td class="n">Start X</td><td class="n">Start Z</td>` +
+    `<td class="n">End X</td><td class="n">End Z</td><td class="n">Angle</td><td class="n">Radius</td></tr>${rows}</table>` +
+    `<div class="note">Offsets are from the setting-out datum, on the wall CENTRELINE (a sloping face has no single
+    offset). These walls carry no running dimension — set them out from these co-ordinates.</div>`
+  )
 }
 
 /** Elevation sheet grouping thresholds (TODO H6 — a 4-room HDB flat produces
@@ -623,7 +673,7 @@ export function buildDrawingSheets(
           settingOut: showSettingOut,
           waterproofingZones,
           floorLevels: showFloorLevels,
-        })}</div>${northIndicatorSvg(orientationDeg)}`,
+        })}</div>${skewSettingOutTable(levelPlan, showSettingOut, units)}${northIndicatorSvg(orientationDeg)}`,
         calloutGroup: 'dimensions',
         scaleLabel: scale.label,
         topDown: true,

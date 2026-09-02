@@ -66,7 +66,7 @@ view, mark letter), draw the standard cut line + arrowed cut markers on the plan
 sheets, and emit one numbered sheet per cut (A–A, B–B, …). The core projector
 already supports this; the work is entity + UI + sheet iteration.
 
-### G2 — The setting-out plan silently omits diagonal and curved walls
+### ✅ SHIPPED v0.31.5.255 — G2 — The setting-out plan silently omits diagonal and curved walls
 **Status: CONFIRMED in source. Highest severity found so far — a correctness /
 credibility issue, not a missing feature.**
 
@@ -408,14 +408,14 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
+| G2 | v0.31.5.255 | Skew/curved walls set out by datum-relative endpoint co-ordinates + angle (+ radius for arcs), disclosed on the plan and tabled on the sheet. |
 | G1 | v0.31.5.254 | Both conventional cuts (A cross / B longitudinal) at scored-informative positions, with view-direction cut marks on the plan. User-placed cuts deferred. |
 | G6 | v0.31.5.253 | Append-only revision history + `issueRevision`. Per-sheet letters and revision clouds deferred (nothing can populate them yet). |
 | G9 | v0.31.5.252 | MEP-behind-furniture and item-under-ceiling-drop checks, surfaced in the report. Trunking-vs-joinery deferred. |
 | G10 | v0.31.5.251 | `formatDrawingLength` — integer mm on every dimension line, imperial to 1/8". DXF deliberately stays in metres. |
 | G11 | v0.31.5.250 | Shared `planFootprints` using the shape-aware resolver; decomposed items draw as one silhouette. |
 
-Still open: **G2** (setting-out omits diagonal/arc walls — the disclosure note is
-the next-cheapest correctness win), **G4** (feed IES into the lux model, add
+Still open: **G4** (feed IES into the lux model, add
 work-plane height + Emin/Eavg), **G5** (draw the tile coursing the renderer
 computes), **G7** (written specification), **G3** and **G8** (both large).
 

@@ -219,3 +219,74 @@ describe('tileSettingOutPoints', () => {
     expect(tileSettingOutPoints(plan).map((p) => p.roomId)).toEqual(['r1', 'r2'])
   })
 })
+
+describe('settingOutDimensions — skew & curved walls (G2)', () => {
+  it('is empty for a purely orthogonal plan (unchanged behaviour)', () => {
+    expect(settingOutDimensions(rectPlan()).skew).toEqual([])
+  })
+
+  it('sets out a diagonal wall by datum-relative endpoint co-ordinates + angle', () => {
+    const plan: FloorPlan = {
+      ...rectPlan(),
+      walls: [...rectPlan().walls, intWall('diag', [1, 1], [3, 3])],
+    }
+    const { datum, skew } = settingOutDimensions(plan)
+    expect(skew).toHaveLength(1)
+    const w = skew[0]!
+    expect(w.wallId).toBe('diag')
+    // Offsets are measured from the datum, not from the world origin.
+    expect(w.start[0]).toBeCloseTo(1 - datum[0])
+    expect(w.start[1]).toBeCloseTo(1 - datum[1])
+    expect(w.end[0]).toBeCloseTo(3 - datum[0])
+    expect(w.end[1]).toBeCloseTo(3 - datum[1])
+    expect(w.angleDeg).toBeCloseTo(45, 1)
+    expect(w.radiusM).toBeUndefined()
+  })
+
+  it('does NOT add a diagonal wall to either running row', () => {
+    // The rows dimension axis-aligned FACES; a sloping face has no single
+    // offset. The point of the skew list is that it is reported ELSEWHERE, not
+    // silently dropped.
+    const plan: FloorPlan = {
+      ...rectPlan(),
+      walls: [...rectPlan().walls, intWall('diag', [1, 1], [3, 3])],
+    }
+    const set = settingOutDimensions(plan)
+    expect(set.x.some((f) => f.wallId === 'diag')).toBe(false)
+    expect(set.z.some((f) => f.wallId === 'diag')).toBe(false)
+    expect(set.skew.some((w) => w.wallId === 'diag')).toBe(true)
+  })
+
+  it('normalises the angle so a wall and its reverse read the same', () => {
+    const fwd = settingOutDimensions({
+      ...rectPlan(),
+      walls: [intWall('d', [1, 1], [3, 3])],
+    }).skew[0]!
+    const rev = settingOutDimensions({
+      ...rectPlan(),
+      walls: [intWall('d', [3, 3], [1, 1])],
+    }).skew[0]!
+    expect(rev.angleDeg).toBeCloseTo(fwd.angleDeg, 1)
+    expect(fwd.angleDeg).toBeGreaterThanOrEqual(0)
+    expect(fwd.angleDeg).toBeLessThan(180)
+  })
+
+  it('reports a curved wall with a radius derived from chord + bulge', () => {
+    // Chord 4 m, bulge 1 m → R = (2^2)/(2*1) + 1/2 = 2.5 m.
+    const plan: FloorPlan = {
+      ...rectPlan(),
+      walls: [{ ...intWall('bow', [0, 0], [4, 0]), arc: 1 }],
+    }
+    const w = settingOutDimensions(plan).skew[0]!
+    expect(w.wallId).toBe('bow')
+    expect(w.radiusM).toBeCloseTo(2.5, 3)
+  })
+
+  it('sorts by wall id so the rendered table is deterministic', () => {
+    const plan: FloorPlan = {
+      ...rectPlan(),
+      walls: [intWall('zz', [1, 1], [2, 2]), intWall('aa', [2, 2], [3, 3])],
+    }
+    expect(settingOutDimensions(plan).skew.map((w) => w.wallId)).toEqual(['aa', 'zz'])
+  })
+})
