@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.261 — uniformity reaches the sheets
+
+Completes the G4 tail item that mattered most: `RoomLuxGrid.uniformity` has been computed since
+v0.31.5.256 but nothing printed it, so the deliverables still stated only an average — and an
+average that meets its band can be pools of light under each downlight with dark corners between.
+
+`luxGrid.ts:buildRoomUniformity(plan, lights, iesShape?)` assesses the **design condition** —
+fixtures at full, no daylight, every room on its own work plane — because that is the condition a
+lighting spec is written for ("does the artificial installation meet its target?", not "how does the
+room look at 4pm"). It returns U0 against the room kind's `MIN_UNIFORMITY` floor, keyed by room id so
+a caller joins it to `estimateRoomLux`'s rows without re-deriving anything. A fully dark room passes
+rather than failing: it has no meaningful uniformity, and the room-average status already reports it
+as `low` — failing it twice is noise.
+
+`roomLuxTableHtml` gains an optional uniformity map; supplied ⇒ a "U0 / min" column coloured by
+pass/fail, omitted ⇒ the previous 5-column table byte-identical. Wired into BOTH the drawing set's
+lighting sheet and the report's lighting section, each passing `iesShapeFactor` so the assessment
+uses the same directional distribution v0.31.5.260 gave the grid.
+
++9 tests. Two exist because 155 related tests passed unchanged after the wiring — the exact-equality
+signature that now prompts me to check rather than relax: one asserts the column APPEARS with a map
+and is absent without, another that a kitchen's assessment is taken at plane 0.85 (so it cannot
+silently revert to the floor). One test pins the point of the whole feature: a room whose average
+reads `ok` at 350 lx while its U0 of 0.20 fails a 0.60 floor. Full suite green (9576).
+
 ## v0.31.5.260 — a narrow-beam downlight stops computing like a bare bulb
 
 The last substantive piece of G4. `src/lighting/ies/` held real IES profiles used ONLY for

@@ -61,7 +61,9 @@ import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { iesShapeFactor } from '../lighting/ies/iesShape'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
+import { buildRoomUniformity } from '../lighting2d/luxGrid'
 import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { CalloutSheet, DrawingCallout } from '../state/slices/drawingCalloutsSlice'
@@ -734,7 +736,12 @@ export function buildDrawingSheets(
           `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td><td class="n">${esc(formatLength(r.height, units))}</td><td class="n">${r.intensity} cd</td></tr>`,
       )
       .join('')}</table>
-        ${roomLuxTableHtml(estimateRoomLux(plan, lighting.lights), units, { header: 'h', num: 'n', table: 'sched' })}`
+        ${roomLuxTableHtml(
+          estimateRoomLux(plan, lighting.lights),
+          units,
+          { header: 'h', num: 'n', table: 'sched' },
+          buildRoomUniformity(plan, lighting.lights, iesShapeFactor),
+        )}`
     const lit = levels.filter((l) => itemsOnLevel(lighting.lights, l.id).length > 0)
     lit.forEach((level, i) => {
       const levelPlan = levelAsPlan(plan, level)

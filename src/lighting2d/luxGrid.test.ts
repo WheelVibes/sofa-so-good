@@ -4,6 +4,7 @@ import type { PlanLight } from './lightingPlan'
 import {
   buildLuxGrids,
   buildRoomLuxGrid,
+  buildRoomUniformity,
   DAYLIGHT_NEAR_WINDOW_LUX,
   LUX_GRID_MAX_DIM,
   MASKED,
@@ -542,5 +543,57 @@ describe('pointIlluminance — IES distribution shape (G4)', () => {
     const full = pointIlluminance(spot, 1, 0, 0, () => 1)
     const half = pointIlluminance(spot, 1, 0, 0, () => 0.5)
     expect(half).toBeCloseTo(full / 2, 9)
+  })
+})
+
+describe('buildRoomUniformity (G4)', () => {
+  const mkPlan = (name: string) =>
+    ({
+      name: 'p',
+      extent: [4, 4],
+      ceilingHeight: 2.6,
+      walls: [],
+      openings: [],
+      rooms: [{ id: 'r', name, origin: [0, 0], width: 4, depth: 4 }],
+    }) as never
+
+  const light = [
+    {
+      id: 'l1',
+      type: 'x',
+      label: 'L',
+      x: 1,
+      z: 1,
+      height: 2.6,
+      intensity: 9,
+      distance: 4,
+      color: '#fff',
+    },
+  ] as never
+
+  it("reports U0 against the room kind's minimum", () => {
+    const u = buildRoomUniformity(mkPlan('Kitchen'), light)
+    const r = u.get('r')!
+    expect(r).toBeDefined()
+    expect(r.minU0).toBeCloseTo(0.6, 6) // kitchen = task area
+    expect(r.u0).toBeGreaterThan(0)
+    expect(r.u0).toBeLessThanOrEqual(1)
+  })
+
+  it('uses the lower general minimum for a non-task room', () => {
+    expect(buildRoomUniformity(mkPlan('Living'), light).get('r')!.minU0).toBeCloseTo(0.4, 6)
+  })
+
+  it('samples the DESIGN condition — work plane, fixtures full, no daylight', () => {
+    // A kitchen's work plane is its worktop, which is what a lux target applies
+    // to; proving it here stops the assessment silently reverting to the floor.
+    expect(buildRoomUniformity(mkPlan('Kitchen'), light).get('r')!.planeHeight).toBeCloseTo(0.85, 6)
+  })
+
+  it('does not FAIL a fully dark room on uniformity', () => {
+    // A dark room has no meaningful uniformity; the room-average status already
+    // reports it as `low`, so failing it twice would be noise.
+    const u = buildRoomUniformity(mkPlan('Kitchen'), [] as never).get('r')!
+    expect(u.pass).toBe(true)
   })
 })

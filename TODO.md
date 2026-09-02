@@ -218,8 +218,7 @@ proposing a channel change (meta-rule xvii-b).
   photometry (`lumensPerLamp`/`candelaMultiplier`) is deliberately not asserted. (b) `SCENE_INTENSITY_CALIBRATION = 12` anchors lux output
   to the renderer's stylised night-scene intensities; retiring it needs a real lumen/CCT/beam package
   per fixture. (c) `UTILISATION_FACTOR` is a single global 0.45 though the app knows each room's
-  finish reflectances (`roomFinishes.ts`). (d) Surface `uniformity` on the lighting sheet + report
-  (needs grids threaded into `roomLuxTableHtml`, which today takes only `RoomLuxEstimate[]`).
+  finish reflectances (`roomFinishes.ts`). (d) DONE v0.31.5.261 — `buildRoomUniformity` + a U0 column on both surfaces.
   NOTE: do NOT calibrate any of this against the HQ render — see the research doc's cross-cutting
   section; the render is not a photometrically anchored reference.
 - **[G1 follow-up] Section cuts are automatic, not user-placed.** v0.31.5.254 emits both

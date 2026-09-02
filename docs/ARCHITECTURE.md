@@ -1629,7 +1629,13 @@ same change that reshapes a system.
   IN-ROOM cells only — masked cells are outside the room, not dark spots), with
   `roomLux.ts:MIN_UNIFORMITY` holding the EN 12464-style floors (0.6 task / 0.4 general): an average
   that meets its band can still be hotspots and dark corners. `roomLuxKind(room)` is the ONE
-  room-kind resolution shared by the room average and the grid. **The spatial grid is directional since v0.31.5.260**: `PlanLight.iesProfile` (from
+  room-kind resolution shared by the room average and the grid.
+  **Uniformity reaches the deliverables** via `buildRoomUniformity(plan, lights, iesShape?)`, which
+  assesses the DESIGN condition (fixtures full, no daylight, per-room work plane — what a lighting
+  spec is written for) and returns U0 vs the kind's `MIN_UNIFORMITY`, keyed by room id. Passed as
+  `roomLuxTableHtml`'s optional 4th arg to add a "U0 / min" column — omitted keeps the previous
+  5-column table. Consumed by the drawing set's lighting sheet and the report's lighting section. A
+  fully dark room PASSES (no meaningful uniformity; the average status already flags it `low`). **The spatial grid is directional since v0.31.5.260**: `PlanLight.iesProfile` (from
   `item.props.iesProfile`) plus an INJECTED `LuxGridOptions.iesShape` resolver
   (`lighting/ies/iesShape.ts` bridging the stateful `iesStore` to the pure grid) scales the peak
   candela by `relativeIntensityAt` — the profile's distribution normalised to its OWN peak, SHAPE

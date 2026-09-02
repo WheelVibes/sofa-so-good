@@ -29,7 +29,14 @@
  * non-negative lux number (zero lights at night → uniform 0, never NaN).
  */
 
-import { itemsOnLevel, levelAsPlan, planLevels, visibleLevels } from '../floorplan/levels'
+import {
+  allPlanRooms,
+  GROUND_LEVEL_ID,
+  itemsOnLevel,
+  levelAsPlan,
+  planLevels,
+  visibleLevels,
+} from '../floorplan/levels'
 import { openingProbePoints } from '../floorplan/openingProbe'
 import {
   type FloorPlan,
@@ -46,6 +53,7 @@ import {
 } from './doorwayBleed'
 import type { PlanLight } from './lightingPlan'
 import {
+  MIN_UNIFORMITY,
   planLightLumens,
   roomLuxKind,
   SCENE_INTENSITY_CALIBRATION,
@@ -475,4 +483,56 @@ export function buildLuxGrids(
 
 function clamp01(v: number): number {
   return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0
+}
+
+/** One room's uniformity assessment, for the lighting sheet's table. */
+export interface RoomUniformity {
+  roomId: string
+  /** U0 = Emin/Eavg over the room's in-room cells. */
+  u0: number
+  /** Minimum acceptable U0 for the room's kind (`roomLux.ts:MIN_UNIFORMITY`). */
+  minU0: number
+  pass: boolean
+  /** Plane the grid was sampled on (m) — 0 = floor. */
+  planeHeight: number
+}
+
+/**
+ * Per-room uniformity for the DESIGN condition — fixtures at full, no daylight,
+ * every room on its own work plane. This is the condition a lighting spec is
+ * written for: "does the artificial installation meet its target?", not "how
+ * does the room look at 4pm".
+ *
+ * Keyed by room id so a caller can join it to `estimateRoomLux`'s rows without
+ * re-deriving anything.
+ */
+export function buildRoomUniformity(
+  plan: FloorPlan,
+  lights: PlanLight[],
+  iesShape?: IesShapeResolver,
+): Map<string, RoomUniformity> {
+  const out = new Map<string, RoomUniformity>()
+  const levels = buildLuxGrids(plan, lights, GROUND_LEVEL_ID, {
+    fixtureLevel: 1,
+    daylightLevel: 0,
+    workPlane: true,
+    ...(iesShape ? { iesShape } : {}),
+  })
+  for (const level of levels) {
+    for (const g of level.grids) {
+      const room = allPlanRooms(plan).find((r) => r.id === g.roomId)
+      if (!room) continue
+      const minU0 = MIN_UNIFORMITY[roomLuxKind(room)]
+      out.set(g.roomId, {
+        roomId: g.roomId,
+        u0: g.uniformity,
+        minU0,
+        // A fully dark room has no meaningful uniformity — do not fail it for
+        // that; the room-average `status` already reports it as `low`.
+        pass: g.meanLux <= 0 || g.uniformity >= minU0,
+        planeHeight: g.planeHeight,
+      })
+    }
+  }
+  return out
 }

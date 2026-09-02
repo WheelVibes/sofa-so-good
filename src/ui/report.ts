@@ -55,7 +55,9 @@ import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furnitur
 import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps } from '../layout/walkway'
+import { iesShapeFactor } from '../lighting/ies/iesShape'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
+import { buildRoomUniformity } from '../lighting2d/luxGrid'
 import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -953,7 +955,12 @@ export function buildReportHtml(
               `<tr><td>${esc(r.label)}</td><td class="num">×${r.count}</td><td class="num">${esc(formatLength(r.height, units))}</td><td class="num">${r.intensity} cd</td></tr>`,
           )
           .join('')}</table>
-        ${roomLuxTableHtml(roomLux, units, { header: 'cat', num: 'num' })}
+        ${roomLuxTableHtml(
+          roomLux,
+          units,
+          { header: 'cat', num: 'num' },
+          buildRoomUniformity(plan, lighting.lights, iesShapeFactor),
+        )}
         ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}</div>`
     : ''
 
