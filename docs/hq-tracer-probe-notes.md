@@ -646,3 +646,49 @@ error is on the surface that should be darkest" is retired on this basis.
 delta (105.8 − 34.4 = 71.4), which invites "the raster's fill approximates the bounce term but omits the direct
 one". Displayed counts under AgX are **not energy**, so `34.4 + 71.4 = 105.8` is not valid addition and the
 split is not a legitimate decomposition. Report the dominance, not the partition.
+
+## Probe plan reads are shape-tolerant — do not "simplify" them back
+
+`light-distribution.mjs` reads the floor plan through, at every site:
+
+```js
+const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+const allOpenings = (p) => levelsOf(p).flatMap((l) => l.openings ?? [])
+```
+
+This exists because a schema migration on another branch deletes `plan.rooms`/`walls`/`openings` and
+restructures to `plan.levels: PlanLevel[]` with the ground floor as `levels[0]`. These probes run in the
+**browser** via `page.evaluate`, so they cannot import `src/floorplan/levels.ts` — the flattening has to be
+inline.
+
+**The tempting shorter form is wrong**: `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` reads
+the ground floor as `plan` itself, so after the migration it contributes nothing and the probe silently returns
+the upper storeys alone — or `[]` on a single-storey plan. That surfaces as "no window matched", i.e. as a
+scene bug rather than a schema change. Same silent-plausible-result trap as a bare `?? []`.
+
+When the migration lands, the other 15 `scripts/dev-probes/*.mjs` need the same treatment. Related: per-room
+maths must use the room's **own storey's** ceiling height, not the ground floor's — this arc's photometry reads
+no ceiling height, so it is unaffected, but a future probe that does would be.
+
+## Authority is a one-renderer question; correctness is a two-renderer question
+
+`.333` and `.336` both used this, and it is the cheapest useful pattern in the arc.
+
+Before extending a calibration to a new condition, ask whether the **lever still has authority** there. That is
+measurable in the raster alone — ~20 s per run, no (u) tax — where the required *value* needs a class-matched
+tracer pair at ~30 minutes.
+
+Results so far for the hemisphere ground term on the ceiling:
+
+| condition | authority |
+| --- | --- |
+| 13:00, bedroom3 | −41 % |
+| 13:00, livingDining | −38 % |
+| 13:00, mainBedroom | −45 % |
+| 13:00, bedroom2 | −46 % |
+| **21:00, bedroom3** | **−2.4 %** |
+
+Room-stable to ±10 % relative; **hour-catastrophic**. So the lever generalises over rooms and not over hours,
+and that was established in minutes rather than hours. Use the **geometric mask** (`ceiling N.NN wall N.NN
+floor N.NN (normalised by their own combined mean M)`) to recover absolutes without hand-placing a patch per
+pose — multiply the normalised figure by the combined mean.

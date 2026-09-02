@@ -268,11 +268,22 @@ await assertSceneAlive(page, 'after setup')
 const pose = await page.evaluate(
   (q) => {
     const plan = window.__store.getState().floorPlan
-    const op = (plan.openings ?? []).find(
+    // .336 SHAPE-TOLERANT PLAN READS. dev-1a's schema migration deletes
+    // `plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes
+    // run in the BROWSER via page.evaluate, so they cannot import `src/floorplan/
+    // levels.ts` -- and the obvious inline flatMap
+    // `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` breaks at
+    // that final stage too, because it reads the ground floor as `plan` itself.
+    // Post-migration it would contribute nothing and silently return the upper
+    // storeys only (or [] for a single-storey plan) -- a plausible result rather
+    // than an error, exactly the `?? []` trap one level up.
+    const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+    const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
+    const op = allOf(plan, 'openings').find(
       (o) => o.kind === 'window' && new RegExp(q.win, 'i').test(o.id),
     )
     if (!op) return null
-    const w = (plan.walls ?? []).find((x) => x.id === op.wallId)
+    const w = allOf(plan, 'walls').find((x) => x.id === op.wallId)
     if (!w) return null
     const [x0, z0] = w.start
     const [x1, z1] = w.end
@@ -285,7 +296,7 @@ const pose = await page.evaluate(
     let nx = -uz
     let nz = ux
     const roomAt = (px, pz) =>
-      (plan.rooms ?? []).find(
+      allOf(plan, 'rooms').find(
         (r) =>
           px >= r.origin[0] &&
           px <= r.origin[0] + r.width &&
@@ -362,8 +373,19 @@ async function teleportInto(q, standoff) {
   return page.evaluate((roomId) => {
     const { camera } = window.__three
     const plan = window.__store.getState().floorPlan
+    // .336 SHAPE-TOLERANT PLAN READS. dev-1a's schema migration deletes
+    // `plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes
+    // run in the BROWSER via page.evaluate, so they cannot import `src/floorplan/
+    // levels.ts` -- and the obvious inline flatMap
+    // `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` breaks at
+    // that final stage too, because it reads the ground floor as `plan` itself.
+    // Post-migration it would contribute nothing and silently return the upper
+    // storeys only (or [] for a single-storey plan) -- a plausible result rather
+    // than an error, exactly the `?? []` trap one level up.
+    const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+    const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
     const at =
-      (plan?.rooms ?? []).find(
+      allOf(plan ?? {}, 'rooms').find(
         (r) =>
           camera.position.x >= r.origin[0] &&
           camera.position.x <= r.origin[0] + r.width &&
@@ -396,8 +418,19 @@ const arrival = await page.evaluate(
   (q) => {
     const { camera } = window.__three
     const plan = window.__store.getState().floorPlan
+    // .336 SHAPE-TOLERANT PLAN READS. dev-1a's schema migration deletes
+    // `plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes
+    // run in the BROWSER via page.evaluate, so they cannot import `src/floorplan/
+    // levels.ts` -- and the obvious inline flatMap
+    // `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` breaks at
+    // that final stage too, because it reads the ground floor as `plan` itself.
+    // Post-migration it would contribute nothing and silently return the upper
+    // storeys only (or [] for a single-storey plan) -- a plausible result rather
+    // than an error, exactly the `?? []` trap one level up.
+    const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+    const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
     const roomAt = (px, pz) =>
-      (plan?.rooms ?? []).find(
+      allOf(plan ?? {}, 'rooms').find(
         (r) =>
           px >= r.origin[0] &&
           px <= r.origin[0] + r.width &&
@@ -2620,11 +2653,22 @@ if (process.env.ANCHORS === '1') {
   // with the number, or two rooms get compared as if they were two renderers.
   const aperture = await page.evaluate((winId) => {
     const plan = window.__store.getState().floorPlan
-    const op = (plan.openings ?? []).find((o) => o.id === winId)
-    const w = (plan.walls ?? []).find((x) => x.id === op?.wallId)
+    // .336 SHAPE-TOLERANT PLAN READS. dev-1a's schema migration deletes
+    // `plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes
+    // run in the BROWSER via page.evaluate, so they cannot import `src/floorplan/
+    // levels.ts` -- and the obvious inline flatMap
+    // `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` breaks at
+    // that final stage too, because it reads the ground floor as `plan` itself.
+    // Post-migration it would contribute nothing and silently return the upper
+    // storeys only (or [] for a single-storey plan) -- a plausible result rather
+    // than an error, exactly the `?? []` trap one level up.
+    const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+    const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
+    const op = allOf(plan, 'openings').find((o) => o.id === winId)
+    const w = allOf(plan, 'walls').find((x) => x.id === op?.wallId)
     if (!op || !w) return null
     const wallLen = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1])
-    const room = (plan.rooms ?? []).find((r) => r.id === window.__probeRoom)
+    const room = allOf(plan, 'rooms').find((r) => r.id === window.__probeRoom)
     return {
       width: +op.width.toFixed(2),
       height: op.height != null ? +op.height.toFixed(2) : null,

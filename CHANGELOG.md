@@ -5,6 +5,66 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.336 — the ground-term lever is ROOM-stable (37-46 % across four rooms) though not hour-stable, and the probe is hardened against the schema migration
+
+Two pieces: a necessary condition for (w) tested cheaply, and tooling protected against an incoming schema
+change.
+
+**The lever generalises across rooms.** `.333` extended (w)'s calibration by testing the lever's *authority*
+rather than its correctness — a raster-only question, so ~20 s per run with no (u) tax. Same method here,
+across rooms, using the probe's **geometric mask** (ceiling selected by world normal) so no per-room patch
+placement is needed:
+
+| room | ceiling GB=3 | GB=0 | authority |
+| --- | --- | --- | --- |
+| bedroom3 | 106.5 | 62.3 | **−41.4 %** |
+| livingDining | 114.0 | 71.2 | **−37.5 %** |
+| mainBedroom | 104.8 | 57.9 | **−44.7 %** |
+| bedroom2 | 89.8 | 48.4 | **−46.1 %** |
+
+Range 37.5–46.1 %: **±10 % relative** around ~42 %. Contrast `.333`, where the same lever lost **15×** its
+authority from noon to night (−37 % → −2.4 %).
+
+**So the lever is room-stable but not hour-stable.** One global reflectance → ground-bounce curve is plausible
+for daytime across rooms, which is the necessary condition (w)'s daytime fix required. And the ±10 % room
+spread is **second-order against the 46 % error a linear interpolation would introduce** (`.332`) — so getting
+the curve shape right matters roughly five times more than per-room normalisation. That is a prioritisation
+statement the earlier rounds could not make.
+
+**Authority is not correctness.** This shows the lever has consistent *reach* per room, not that the required
+*value* is the same; each room's target still needs a class-matched tracer pair. Eight runs, ~4 minutes, versus
+~30 minutes per tracer target.
+
+Method note: bedroom3 reads −41.4 % here against `.331`'s −37 %, because that was a hand-placed patch with
+**Ink** walls and this is the geometric mask with **white** walls. Same ballpark by two instruments and two
+finishes; not the same measurement, and not treated as a replication.
+
+**Tooling: `light-distribution.mjs` hardened against dev-1a's schema migration.** Their migration deletes
+`plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes run in the **browser** via
+`page.evaluate`, so they cannot import `src/floorplan/levels.ts`, and the obvious inline flatMap
+(`[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])`) breaks at that final stage too — it reads
+the ground floor as `plan` itself, so post-migration it contributes nothing and every probe silently returns
+the upper storeys alone, or `[]` on a single-storey plan. A plausible result rather than an error: the `?? []`
+trap one level up. dev-1a has confirmed the wrong form and the tolerant one are both recorded on their side.
+
+Shape-tolerant form, injected at all six read sites:
+
+```js
+const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+```
+
+Verified **behaviour-preserving against a known result** rather than assumed: the probe still reports
+`reached [7.33, 3.4]` and `win-bedroom3-N`, identical to every prior run (`.332`'s rule). Their confirmed
+post-migration shape is `plan.levels: PlanLevel[]` with the ground floor as `levels[0]`; the other 15 probes
+will be migrated against the real shape when they send the SHA, since untested tolerance for a hypothetical
+schema is what this arc keeps getting burnt by.
+
+Also checked, on their warning that per-room maths must use the room's own storey height: **my photometry reads
+no ceiling height at all** — no `ceilingHeight`/`wallHeight` reference in the probe — so that bug class does
+not reach this arc.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.335 — the night defect is BIGGER and BROADER: 28 % on the ceiling, 26 % on the floor that has no daytime defect at all
 
 `.333` showed (w)'s lever has ~2.4 % authority at night; `.334` made an hour-appropriate reference possible.
