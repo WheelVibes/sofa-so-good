@@ -70,6 +70,26 @@ radiance gap. And the app's glazing is a mid-tone panel that clips 0.0 % (item (
 daylight — so this compares interior surfaces against *the app's own aperture*, which is the right internal
 comparison but is not a comparison against a real sky.
 
+## Mark the patch on the PICTURE before you trust the patch
+
+Three of this arc's costliest errors were mis-placed measurement patches: `.282` measured a region that was
+converged from sample 1 and concluded the canvas was frozen; `.291` mistook *wall above the window* for
+ceiling; `.293` averaged a gradient across furniture that swamped it. In `.300` a five-minute step — compositing
+labelled rectangles onto the frame and looking — overturned an assumption three rounds old **before** it
+reached a conclusion: the patch used since `.298` as a "zero-sky surface" was actually on the right **side**
+wall, not the window wall.
+
+```js
+const rects = P.map(([n, x, y, w, h, c]) =>
+  `<rect x="${x*W}" y="${y*H}" width="${w*W}" height="${h*H}" fill="none" stroke="${c}" stroke-width="6"/>` +
+  `<text x="${x*W+8}" y="${y*H-12}" fill="${c}" font-size="34">${n}</text>`).join('')
+await sharp(f).composite([{ input: Buffer.from(`<svg width="${W}" height="${H}">${rects}</svg>`) }]).toFile(out)
+```
+
+Cheap, free of probe runs, and it makes "which surface is this?" answerable instead of assumed. Do it the first
+time a patch set is used on a new pose, and again whenever a conclusion starts to depend on *which* surface a
+patch is on.
+
 ## When a suspect light source cannot be removed, DYE it
 
 Eleven candidate causes for (u) were eliminated by comparing the two classes on luminance, chroma and band

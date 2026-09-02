@@ -5,6 +5,65 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.300 — the occlusion/intensity dichotomy was wrong: environment light ignores sky visibility in BOTH classes, and the class difference is the interior saturating at the environment's own level
+
+`.299` named two families for (u) and one discriminating test: a surface that provably cannot see the aperture,
+under the forced green environment. The test ran. **It refutes the dichotomy rather than choosing between its
+halves**, which is a better outcome than either branch.
+
+**Patch placement verified before anything rested on it.** Patches were drawn onto the frame and looked at
+first — and that immediately corrected a standing assumption: the `wall-R` patch used since `.298`
+(`x = 0.84, y = 0.42`) sits on the **right side wall**, not the window wall, so earlier reasoning that treated
+it as a zero-sky surface was wrong. The new `winwall-L/R` patches do lie on the **window wall**, which is
+coplanar with the aperture and therefore sees **zero direct sky**. Three of this arc's costliest errors were
+mis-placed patches (`.282`, `.291`, `.293`); marking them cost one free render.
+
+**Result** (green environment, bedroom3 `PITCH=0.30`, white walls, medium tier, photographic look, hour 13,
+256 samples; frames from `.299`'s runs):
+
+| | glazing | ceiling | winwall-L / -R (zero sky) | **winwall ÷ ceiling** |
+| --- | --- | --- | --- | --- |
+| `g1` bright | 59.9 · L=193 · sd 0.1 | 79.0 · L=193 · **sd 0.0** | 76.0 / 78.9 | **0.980** |
+| `g3` bright | 59.4 · L=193 | 79.0 · L=193 · **sd 0.0** | 77.4 / 80.3 | **0.998** |
+| `g2` dim | 58.2 · L=190 | 36.5 · L=127 · sd 1.1 | 38.5 / 46.7 | **1.168** |
+
+**1. Environment light ignores sky visibility — in BOTH classes.** The window wall cannot see the sky at all,
+yet it is as green as the ceiling in every run: ratios **0.98, 1.00, 1.17**. So the insensitivity to visibility
+is **not** what distinguishes class A from class B. It is present in the good class too, which makes it a
+*separate* defect rather than (u)'s differentiator — and one that belongs with item (p), since (p) is where the
+tracer's environment handling lives.
+
+**2. The class difference is the interior SATURATING at the environment's own level.** In the bright class the
+ceiling reads **L = 193 with sd = 0.0** — every pixel in the patch identical — and the glazing, which shows
+`root.background` directly, also reads **193**. The interior surface renders at exactly the environment's own
+rendered level with **no spatial variation at all**. That is what a constant, direction-independent environment
+term produces; it is not what path-traced transport produces. In the dim class the same patch is **127 with
+sd 1.1** — real structure, well below the glazing's 190.
+
+**3. So `.299`'s "2.2× more environment light" is a LOWER BOUND.** A saturated patch cannot report how much
+energy is arriving beyond the point of saturation. The true ratio is larger than 2.16× and this method cannot
+say by how much.
+
+**Both halves of `.299`'s dichotomy were wrong, and the truth is layered.** It is not "occlusion *or*
+intensity": there is an **occlusion insensitivity present in both classes**, and on top of it a **magnitude
+difference that pushes the interior into saturation in half of runs**. Naming one and testing for it was the
+right move; the test's value was in showing the framing was too narrow. `.298`'s physical violation now has a
+clean account: the ceiling out-radiates the aperture because it is being lit to the environment's full level
+while the aperture's own view of that environment is attenuated by the glazing tint.
+
+**Still not claimed.** *Why* the magnitude differs run to run remains unidentified — thirteen candidates
+eliminated, and the discipline that has held since `.294` holds here: this round reports two measured
+signatures, not a cause. What it does add is a much sharper target for whoever fixes it: the interior should
+never render at the environment's own level with zero variance, and a zero-sky surface should never match a
+sky-facing one.
+
+**Method note.** The round's most useful five minutes were spent drawing rectangles on a frame and looking at
+them, which overturned an assumption three rounds old before it could contaminate a conclusion. **Mark the
+patch on the picture before you trust the patch.** Added to `docs/hq-tracer-probe-notes.md`.
+
+**Unchanged:** no `src/` change — `.299`'s green diagnostic was reverted and `src/` verified clean (`grep` for
+`0x00ff00` returns 0). Probe unchanged; measurement scripts temporary and removed.
+
 ## v0.31.5.299 — (u) localised to environment→interior transport: the environment is identical in both classes, but class A delivers 2.2× more of it to interior surfaces
 
 Eleven candidates had been eliminated and every proposed mechanism refuted. `.298` left one lead and said it

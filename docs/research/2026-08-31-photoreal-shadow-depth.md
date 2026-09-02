@@ -10122,3 +10122,52 @@ texture on `root.background` gives a built-in control in the same frame. Added t
 `docs/hq-tracer-probe-notes.md`.
 
 No `src/` change survives — the green environment was reverted and verified. Probe unchanged.
+
+---
+
+## Round .300 — the occlusion/intensity dichotomy was wrong: visibility is ignored in BOTH classes, and the class difference is saturation
+
+`.299` named two families and one discriminating test: a surface that provably cannot see the aperture, under
+the forced green environment. The test **refutes the dichotomy** rather than choosing a half.
+
+### Placement verified first
+
+Patches were composited onto the frame and looked at before anything rested on them — which corrected a
+standing assumption: the `wall-R` patch used since `.298` (`0.84, 0.42`) is on the right **side** wall, not the
+window wall. The new `winwall-L/R` patches do lie on the **window wall**, coplanar with the aperture, seeing
+zero direct sky. Three of the arc's costliest errors were mis-placed patches (`.282`, `.291`, `.293`); marking
+them cost one free render.
+
+### Result
+
+| | glazing | ceiling | winwall-L / -R (zero sky) | winwall ÷ ceiling |
+| --- | --- | --- | --- | --- |
+| `g1` bright | 59.9 · L=193 · sd 0.1 | 79.0 · L=193 · **sd 0.0** | 76.0 / 78.9 | 0.980 |
+| `g3` bright | 59.4 · L=193 | 79.0 · L=193 · **sd 0.0** | 77.4 / 80.3 | 0.998 |
+| `g2` dim | 58.2 · L=190 | 36.5 · L=127 · sd 1.1 | 38.5 / 46.7 | 1.168 |
+
+1. **Environment light ignores sky visibility in both classes** — a zero-sky wall is as green as the ceiling
+   every time (0.98 / 1.00 / 1.17). Present in the good class too, so **not** (u)'s differentiator; a separate
+   defect, belonging with item (p).
+2. **The class difference is the interior saturating at the environment's own level** — bright class ceiling
+   **L = 193, sd = 0.0** (every pixel identical), matching the glazing's 193. That is a constant
+   direction-independent environment term, not path-traced transport. Dim class: 127, sd 1.1.
+3. **`.299`'s 2.2× is a lower bound** — a saturated patch cannot report energy arriving past saturation.
+
+### What it explains, and what it does not
+
+`.298`'s physical violation now has a clean account: the ceiling out-radiates the aperture because it is lit to
+the environment's full level while the aperture's own view of that environment is attenuated by the glazing
+tint. **Why the magnitude differs run to run is still unidentified** — thirteen candidates eliminated, and the
+discipline holding since `.294` holds here: two measured signatures, no cause.
+
+The fix target is sharper though: the interior should never render at the environment's own level with zero
+variance, and a zero-sky surface should never match a sky-facing one.
+
+### Method note
+
+The most useful five minutes were spent drawing rectangles on a frame and looking at them, which overturned a
+three-round-old assumption before it could contaminate a conclusion. **Mark the patch on the picture before you
+trust the patch.** Added to `docs/hq-tracer-probe-notes.md`.
+
+No `src/` change — `.299`'s green diagnostic was reverted and verified absent. Probe unchanged.

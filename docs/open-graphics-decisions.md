@@ -2084,11 +2084,35 @@ full-environment reference in the same frame.
 class A is both brighter *and* colder (more of the cold gradient reaches the interior) and why `.298` found a
 ceiling out-radiating the aperture (possible only if lit by something the aperture does not mediate).
 
-**Two families remain, and this experiment does not separate them:** a **visibility/occlusion** difference (the
-environment reaching surfaces that cannot see it) versus an **intensity/importance-sampling** difference (same
-visibility, roughly double weight). The discriminating test is a surface that provably cannot see the
-aperture — a windowless room or the underside of a slab — under the green environment. **No mechanism is
-claimed until that runs.**
+**⚖️ THE DICHOTOMY WAS WRONG — v0.31.5.300.** The discriminating test ran on the **window wall**, which is
+coplanar with the aperture and sees zero direct sky (placement verified by marking the patches on the frame,
+which also corrected the `wall-R` patch used since `.298` — it is on the right *side* wall).
+
+| | glazing | ceiling | winwall (zero sky) | winwall ÷ ceiling |
+| --- | --- | --- | --- | --- |
+| bright | 59.9 · L=193 | 79.0 · L=193 · **sd 0.0** | 76.0 / 78.9 | **0.980** |
+| bright (replicate) | 59.4 · L=193 | 79.0 · L=193 · **sd 0.0** | 77.4 / 80.3 | **0.998** |
+| dim | 58.2 · L=190 | 36.5 · L=127 · sd 1.1 | 38.5 / 46.7 | **1.168** |
+
+**Two layered defects, not one of two alternatives:**
+
+1. **Environment light ignores sky visibility in BOTH classes.** A wall that cannot see the sky is as green as
+   the ceiling in every run (0.98 / 1.00 / 1.17). This is present in the *good* class too, so it is **not**
+   (u)'s differentiator — it is a separate defect, and it belongs with **(p)**, where the tracer's environment
+   handling lives.
+2. **The class difference is the interior saturating at the environment's own level.** In the bright class the
+   ceiling reads **L = 193 with sd = 0.0** — every pixel identical — and the glazing, showing
+   `root.background` directly, also reads 193. A constant direction-independent environment term produces that;
+   path-traced transport does not. The dim class reads 127 with sd 1.1.
+
+**Consequences.** `.299`'s "2.2×" is a **lower bound** — a saturated patch cannot report how much energy
+arrives past saturation. And `.298`'s physical violation is explained: the ceiling out-radiates the aperture
+because it is lit to the environment's full level while the aperture's own view of that environment is
+attenuated by the glazing tint.
+
+**Sharper target for a fix:** the interior should never render at the environment's own level with zero
+variance, and a zero-sky surface should never match a sky-facing one. **Why the magnitude differs run to run is
+still unidentified** — thirteen candidates eliminated; no mechanism claimed.
 
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.
