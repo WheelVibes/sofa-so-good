@@ -9310,3 +9310,87 @@ could.
 fix (feed the tracer the scene's own lighting), which is a look-and-cost call and not mine to make.
 
 Nothing changed in `src/` — the instrumentation was reverted and `src/` verified clean.
+
+---
+
+## Round .288 — the qualifying photograph set widens to n=3, and the new one carries the EXIF thread 1 was blocked on
+
+(p) awaits a decision and (u)'s cause is unidentified, so this round takes the second standing thread: widen
+the qualifying photograph set beyond n=2 on `.233`'s criteria. Nothing here touches the tracer, so none of it
+is exposed to item (u).
+
+### Screening
+
+Wikimedia Commons category sweeps (`.234` established category listings as the usable route). Six categories
+`.234` did not use → 223 files after a name filter → 53 after size/mime → nine plausible modern painted
+interiors at full resolution, screened on a contact sheet.
+
+| candidate | verdict |
+| --- | --- |
+| `2017-07-30 Haus am Kopf Sankt-Englmar 01` | reject — timber ceiling |
+| `Brier Living Room` | reject — timber ceiling with beams |
+| `Beach House Bridgehampton (12)` | reject — vaulted/trussed (`.234`'s explicit reject class) |
+| `Antesala` | reject — patterned wallpaper |
+| `Basic Malek Mansion` | reject — LED cove strip lighting the ceiling; reads as CG |
+| `Bungalow N°10 - Living room` | reject — ceiling a sliver, not croppable |
+| `A standard living room in Accra` | reject — thin ceiling strip with a pendant lamp in it; very even exposure with soft shadows (flash or HDR) |
+| `Alternate Art & Design` | reject **on provenance** — uploader is the estate agency itself, i.e. a marketing asset |
+| `At La Palma 2021 1854` | **qualifies** |
+
+**A criterion `.233` lacked: screen provenance, not just appearance.** `Alternate Art & Design` passes every
+visual test and is killed only by `extmetadata` (Alternate Immobilien GmbH, "own work"). Estate-agency
+marketing images are routinely HDR-composited or virtually staged.
+
+### The qualifier
+
+`.233`'s method — a hand-picked patch on each surface, mean of each, ratio, crops written out and looked at:
+
+```
+ceiling  1008x221px at (1814,181)  L=172.3  R-B=16.0
+wall      806x484px at (2923,644)  L=155.8  R-B= 2.4
+ceiling / wall = 1.106
+```
+
+Both crops clean plaster, no junction/fixture/frame. Provenance: **Mike Peel, iPhone 12 Mini, 2021-12-04,
+apartment at Rocamar, Spain.** Flat white ceiling across the frame top, large clean white wall right, daylit
+from a balcony with a natural falloff (wall darkens away from the window — no flash), ceiling fixture unlit.
+
+**Caveat, recorded not glossed:** ceiling R−B +16.0 against wall +2.4. Consistent with warm terrazzo bounce on
+the ceiling and cool skylight on the wall — a real transport effect, not a bad sample. But "same plaster paint
+on both surfaces" can only be *judged* from a photograph, not verified, and here it is judged.
+
+### The set
+
+| photograph | ceiling ÷ wall |
+| --- | --- |
+| `Home_Staging_Beispiel_Nachher` (.233) | 1.03 |
+| `Living_room_(13152023964)` (.234) | 0.91 |
+| `At_La_Palma_2021_1854` (.288) | 1.106 |
+| the app, hand-cropped, canonical pose | 0.93 |
+
+Band widens 0.91–1.03 → **0.91–1.11**. The app stays inside, so `.234`'s retirement of `.188`'s ceiling deficit
+**survives a third reference** — the outcome that would have overturned it (a tight band excluding the app) did
+not occur. The app sits in the band's lower third; that is a far weaker claim than a deficit and is not
+actionable at n=3.
+
+### Thread 1's blocker, answered
+
+The standing brief requires a framing-matched reference before the GI comparison means anything, and asks what
+aspect the reference was shot at. For this reference it is now known from metadata rather than inferred:
+**iPhone 12 Mini, 4032×3024 = 4:3 (1.333), main camera ≈26 mm equivalent.** The PT branch pins the walk
+viewport to 16:9 (1.778) so raster and tracer match each other; matching *this photograph* means **4:3 at
+≈26 mm**. A concrete checkable target where the thread had none.
+
+### Method note
+
+Two of eight rejections came from metadata rather than the image: the estate-agency provenance, and the EXIF
+that answered thread 1. `.233` and `.234` screened on appearance alone and never fetched `extmetadata` — one
+API parameter. **Read the metadata that ships with the evidence.**
+
+### Next
+
+Either widen further (44 unscreened files already passed size/mime, and modern-interior categories beyond the
+six used here are largely untouched), or spend the framing figure and re-run the GI comparison at 4:3 / ≈26 mm
+against `At La Palma`. The second is worth more but depends on traced numbers, so it is blocked behind (u).
+
+Nothing changed in `src/`. Docs only — the measurement scripts were temporary and removed.

@@ -5,6 +5,90 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.288 — the qualifying photograph set widens to n=3, and the new one carries the EXIF that thread 1 has been blocked on
+
+With (p) awaiting a decision and (u)'s cause unidentified, the unblocked thread is the second one on the
+standing list: widen the qualifying photograph set beyond n=2 using `.233`'s criteria. Nothing here touches the
+tracer, so none of it is exposed to item (u).
+
+**Screened nine, rejected eight, one qualifies.** Wikimedia Commons category sweeps again (`.234` established
+that category listings are the usable route — Pexels 403s a plain fetch and title search surfaces AI stock
+under generic names). Six categories `.234` had not used, 223 files after a name filter, 53 after a
+size/mime filter, nine plausible modern painted interiors pulled at full resolution and screened on a contact
+sheet:
+
+| candidate | verdict |
+| --- | --- |
+| `2017-07-30 Haus am Kopf Sankt-Englmar 01` | reject — timber ceiling |
+| `Brier Living Room` | reject — timber ceiling with beams |
+| `Beach House Bridgehampton (12)` | reject — vaulted/trussed ceiling (`.234`'s explicit reject class) |
+| `Antesala` | reject — patterned wallpaper, not plaster |
+| `Basic Malek Mansion` | reject — concealed LED cove strip lighting the ceiling; also reads as CG |
+| `Bungalow N°10 - Living room` | reject — ceiling only a sliver at frame top, not croppable |
+| `A standard living room in Accra` | reject — ceiling a thin strip with a pendant lamp in it, and very even exposure with soft shadows throughout (flash or HDR) |
+| `Alternate Art & Design` | reject — **on provenance**: the uploader is the estate agency itself (Alternate Immobilien GmbH, "own work"), i.e. a marketing asset, and those are routinely HDR-composited or virtually staged |
+| **`At La Palma 2021 1854`** | **QUALIFIES** |
+
+**A criterion `.233` did not have, and should: screen provenance, not just appearance.** `Alternate Art &
+Design` passes every visual test — flat white ceiling, white walls, daylit, cleanly croppable. The Commons
+`extmetadata` is what kills it: an estate agency's self-published marketing image. An appearance-only screen
+would have admitted it.
+
+**The qualifier, measured by `.233`'s method** (hand-picked patch on each surface, mean of each, ratio; crops
+written out and looked at):
+
+```
+ceiling  1008x221px at (1814,181)  L=172.3  R-B=16.0
+wall      806x484px at (2923,644)  L=155.8  R-B= 2.4
+ceiling / wall = 1.106
+```
+
+Both crops are clean plaster — no junction, no fixture, no picture frame. It passes the full screen: flat white
+ceiling across the frame top, a large clean white wall to the right, daylit from a balcony with a *natural*
+falloff (the wall darkens away from the window, so no flash), the ceiling fixture unlit, and real provenance —
+**Mike Peel, iPhone 12 Mini, 2021-12-04, an apartment at Rocamar, Spain.**
+
+**Caveat recorded rather than glossed.** The ceiling patch reads **R−B +16.0** against the wall's **+2.4** — a
+13.6-count chroma difference. That is consistent with warm terrazzo-floor bounce reaching the ceiling while
+cool skylight reaches the wall, which is a genuine transport effect and not a defect in the sample. But
+`.233`'s "same plaster paint on both surfaces" cannot be *verified* from a photograph, only judged, and this
+one is judged rather than verified.
+
+**The set, and what it does to the app's standing:**
+
+| photograph | ceiling ÷ wall |
+| --- | --- |
+| `Home_Staging_Beispiel_Nachher` (`.233`) | 1.03 |
+| `Living_room_(13152023964)` (`.234`) | 0.91 |
+| **`At_La_Palma_2021_1854` (`.288`)** | **1.106** |
+| **the app**, hand-cropped, canonical pose | **0.93** |
+
+The band widens from **0.91–1.03** to **0.91–1.11**. The app at 0.93 stays inside it, so `.234`'s retirement of
+the `.188` ceiling deficit **survives contact with a third reference** — the outcome that would have overturned
+it (a tight band the app sits outside) did not happen. Worth stating that the app sits in the band's lower
+third, which is a much weaker claim than a deficit and is not actionable on n=3.
+
+**The side result is the more valuable one: thread 1's blocker is answered.** The standing brief says the GI
+comparison *"needs a FRAMING-MATCHED reference before any comparison means anything — find out what aspect the
+reference photograph was shot at."* For this reference that is now known exactly, from Commons metadata rather
+than inference: **iPhone 12 Mini, 4032×3024, i.e. 4:3 (1.333), main camera ≈26 mm equivalent.** The PT branch
+currently pins the walk viewport to 16:9 (1.778) so the raster and tracer frames match each other — matching
+*this photograph* instead means 4:3 at ~26 mm. That is a concrete, checkable framing target where the thread
+previously had none.
+
+**Method note.** Two of the eight rejections came from metadata, not from the image: the estate-agency
+provenance, and the EXIF that answered thread 1. `.233` and `.234` screened on appearance alone and never
+fetched `extmetadata`, which is one API parameter. **Read the metadata that ships with the evidence** — it both
+rejected a candidate that looked perfect and supplied the framing figure two threads had been waiting on.
+
+**Next.** Either widen further (the same sweep has 44 unscreened files that passed size/mime, and modern-
+interior categories outside the six used here are largely untouched), or spend the framing figure: re-run the
+GI comparison at 4:3 / ≈26 mm against `At La Palma` specifically. The second is worth more, but it depends on
+traced numbers, so it is blocked behind item (u).
+
+**Unchanged:** no `src/` change. Docs only — no probe change either; the measurement scripts were temporary and
+removed.
+
 ## v0.31.5.287 — item (p) confirmed by direct observation; four more candidate causes for (u) eliminated the same way; and the probe had never listened to the page console
 
 `.286` inferred from a call chain that every HQ render is gradient-lit and said the next step was to observe it
