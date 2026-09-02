@@ -3194,6 +3194,39 @@ closed" `Page.captureScreenshot` error on the second screenshot (all prior asser
 steps still passed) — if this happens, re-run just the failing variant's capture
 +screenshot as its own short scenario rather than re-running the whole thing.
 
+### `await import(...)` inside an `eval` step is flaky — fire-and-forget instead (F13 cost coverage)
+
+An `eval` step whose body is `(async () => { const m = await import('/src/…'); … })()` fails
+intermittently with `Protocol error (Runtime.evaluate): Promise was collected`. It passed on the
+first run of `multistorey-cost-coverage-f13.json` and failed on the very next one with no code
+change, so treat it as a race, not a bug in your module path.
+
+The reliable shape kicks the import off, parks the result (or the error) on `window`, and lets a
+separate `waitFor` step observe it:
+
+```json
+{ "name": "load-plan",
+  "eval": "(function(){ window.__err=null; import('/src/floorplan/templates.ts').then(m => { … }).catch(e => { window.__err = String(e) }) })()" },
+{ "name": "plan-loaded",
+  "waitFor": { "store": "window.__err ? (() => { throw new Error(window.__err) })() : (state.floorPlan.upperLevels||[]).length === 1" } }
+```
+
+Note the `waitFor` **rethrows** the parked error rather than just timing out — otherwise a genuine
+import failure reports as a 30-second timeout with no cause, which is the least useful possible
+diagnostic.
+
+### A name-match assertion can pass against the WRONG table (same batch, and it did)
+
+Verifying the F13 cost fixes, the check was "does `Sleeping Loft` appear at least twice in the
+report?" It passed — against the **lighting** and **electrical** room tables, which were already
+multi-storey-correct. The per-room *furniture* breakdown, the thing actually being fixed, was
+never examined, and the screenshot landed on the lighting section.
+
+A room NAME is not evidence when several sections list every room. Assert on something only the
+target section emits — here the row's own format, `Sleeping Loft · 4 items · 9.9 m²` — and scroll
+to *that* element, not the first name match. Generally: if the string you are asserting on also
+appears in a section you did not change, the assertion is measuring the wrong thing.
+
 ### Worked example — parametric Staircase geometry (parametricStairs)
 
 Scenario `scripts/scenarios/staircase-r-verify.mjs` (an `.mjs` scenario so it can

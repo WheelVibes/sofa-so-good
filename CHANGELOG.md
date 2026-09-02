@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.278 - visual verification of the F13 cost fixes, and two harness lessons
+
+Verified `.277` on the shipped two-storey **Open Loft** template with four items moved onto the
+upper level. New scenario `scripts/scenarios/multistorey-cost-coverage-f13.json`.
+
+**What the frame shows.** The report's per-room furniture breakdown now reads
+**"Sleeping Loft · 4 items · 9.9 m² — $2,300"** (wardrobe, queen bed, 2 nightstands) instead of
+filing those four under Unassigned, and the Finishes schedule carries the loft's 9.9 m2 floor and
+27.4 m2 wall. The room/area table, the lighting room table and the electrical room table were
+ALREADY level-aware — worth stating, because that is what made the first assertion useless.
+
+**Two harness lessons, both recorded in the playbook.**
+
+1. **`await import(...)` in an `eval` step is a race.** The same step passed on one run and failed
+   on the next with `Protocol error (Runtime.evaluate): Promise was collected`, no code change in
+   between. Fire the import, park the result or error on `window`, and let a separate `waitFor`
+   observe it — with the `waitFor` RETHROWING the parked error, or a genuine import failure
+   reports as a bare 30-second timeout.
+2. **A name-match assertion passed against the wrong table.** "Does `Sleeping Loft` appear twice
+   in the report?" was satisfied by the lighting and electrical room tables, which this change did
+   not touch, while the per-room furniture breakdown went unexamined and the screenshot landed on
+   the lighting section. Fixed by asserting on the row format only that section emits
+   (`Sleeping Loft · 4 items · 9.9 m²`) and scrolling to that element. If the string you assert on
+   also appears somewhere you did not change, the assertion is measuring the wrong thing — the
+   same failure mode as the `hz` false positive and the invariant-measuring IES probe.
+
+**Also seen in the frame, pre-existing and NOT introduced here:** "Unassigned · 29 items", plus
+sanitary ware attributed to Lounge / Study and kitchen appliances to Bathroom. That is
+PLAN-SWAP-STRANDED — the scenario loads the loft via `replaceFloorPlan(..., 'rehome')` onto a
+smaller plan, and `src/floorplan/CLAUDE.md` already documents both the cause and why widening the
+skip predicate makes it worse. Called out so a later reader does not mistake it for fallout from
+the accessor migration.
+
 ## v0.31.5.277 - the cost layer was quoting the ground floor only
 
 Second migration batch, and the biggest bug class found so far: **every procurement and cost
