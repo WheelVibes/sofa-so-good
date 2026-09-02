@@ -89,12 +89,12 @@ describe('elevationSvg', () => {
   it('draws dimensions (overall width/height + window sill height) when enabled', () => {
     const svg = elevationSvg(el, { palette, units: 'metric', dimensions: true })
     // Overall width + height labels.
-    expect(svg).toContain('>4.00 m</text>')
-    expect(svg).toContain('>2.80 m</text>')
+    expect(svg).toContain('>4000</text>')
+    expect(svg).toContain('>2800</text>')
     // The window sill (0.9 m) is dimensioned.
-    expect(svg).toContain('>0.90 m</text>')
+    expect(svg).toContain('>900</text>')
     // The 1 m-wide item carries a per-item width dimension.
-    expect(svg).toContain('>1.00 m</text>')
+    expect(svg).toContain('>1000</text>')
     // Extra left/bottom padding is reserved for the dim lines.
     expect(svg).toContain('viewBox="-0.950 -0.350 5.300 4.100"')
   })

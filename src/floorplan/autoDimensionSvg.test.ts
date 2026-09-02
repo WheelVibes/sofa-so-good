@@ -47,8 +47,8 @@ describe('dimensionSvg', () => {
     const svg = dimensionSvg(plan, { palette })
     const textCount = (svg.match(/<text/g) ?? []).length
     expect(textCount).toBe(dims.overall.length + dims.rooms.length)
-    expect(svg).toContain('5.00 m')
-    expect(svg).toContain('4.00 m')
+    expect(svg).toContain('5000')
+    expect(svg).toContain('4000')
   })
 
   it('renders imperial labels when units=imperial', () => {
@@ -57,7 +57,7 @@ describe('dimensionSvg', () => {
     expect(svg).not.toContain('5.00 m')
     expect(svg).not.toContain('4.00 m')
     // Unicode primes (′ U+2032, ″ U+2033) are not escaped by the SVG esc helper
-    expect(svg).toContain('16′ 5″')
+    expect(svg).toContain('16′ 4 7/8″')
   })
 
   it('injects the palette colours and hardcodes none', () => {
@@ -104,7 +104,7 @@ describe('dimensionSvg — setting-out row (G3)', () => {
     expect(svg).toContain('SETTING-OUT DATUM')
     // The east external wall (x=5, thickness 0.2) faces the datum (x=0) at
     // 5 − 0.1 = 4.90 m, a running distance FROM the datum.
-    expect(svg).toContain('4.90 m')
+    expect(svg).toContain('4900')
   })
 
   it('uses the datum palette colour, falling back to ink when absent', () => {
@@ -130,8 +130,8 @@ describe('dimensionSvg — setting-out row (G3)', () => {
       ],
     }
     const svg = dimensionSvg(plan, { palette, settingOut: true })
-    expect(svg).toContain('2.89 m')
-    expect(svg).toContain('2.99 m')
+    expect(svg).toContain('2890')
+    expect(svg).toContain('2990')
     // Extract the <text> y-attributes for the two close labels — they must
     // differ (staggered onto two rows), never sharing the same baseline.
     const yFor = (label: string) => {
@@ -139,7 +139,7 @@ describe('dimensionSvg — setting-out row (G3)', () => {
       if (!m) throw new Error(`label not found: ${label}`)
       return m[1]
     }
-    expect(yFor('2\\.89 m')).not.toBe(yFor('2\\.99 m'))
+    expect(yFor('2890')).not.toBe(yFor('2990'))
   })
 
   it('staggers a 3-way cluster of close labels without any two sharing a row', () => {
@@ -161,9 +161,9 @@ describe('dimensionSvg — setting-out row (G3)', () => {
       if (!m) throw new Error(`label not found: ${label}`)
       return m[1]
     }
-    const y89 = yFor('2\\.89 m')
-    const y99 = yFor('2\\.99 m')
-    const y09 = yFor('3\\.09 m')
+    const y89 = yFor('2890')
+    const y99 = yFor('2990')
+    const y09 = yFor('3090')
     // The middle label (2.99, colliding with BOTH its neighbours) must land
     // on a different row from each of them; the two outer labels (0.2 m
     // apart, clear of each other) may safely share row 0.

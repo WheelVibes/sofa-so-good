@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.251 — drawings are dimensioned in millimetres, as drawings are
+
+Every dimension on every sheet was labelled `"2.75 m"` — two decimals of a metre, so **10 mm
+resolution**, in decimal metres. Three things wrong with that, and the first is the worst:
+
+1. **It defeated `settingOut.ts`'s entire purpose.** That module exists because "a contractor does
+   not build from cumulative wall-to-wall dimensions (each error compounds down the chain)", so it
+   computes every partition face as a running distance from a fixed datum — and then each distance
+   was printed rounded to the nearest 10 mm. Compounding error solved, +/-5 mm quantisation
+   reintroduced at the last step.
+2. **Wrong convention.** Metric architectural/interior drawings are dimensioned in integer
+   millimetres — `2745`, not `2.75 m`. The app's own dimensioned-plan legend already said
+   "FFL n = finished floor level vs datum (mm)", so one sheet mixed mm levels with metre plan dims.
+3. **Imperial was worse, silently** — `formatLength` rounds to the nearest whole inch, a 25.4 mm
+   quantisation on a construction reference.
+
+New `utils/measurement.ts:formatDrawingLength` — metric to integer mm with no suffix, imperial to
+the nearest 1/8" in lowest terms (`16' 4 7/8"`, keeping the existing prime-glyph style). Screen UI
+deliberately keeps `formatLength`: "2.60 m" is the better reading in an inspector or a tape-measure
+HUD, and separating drawing units from display units is the point rather than a compromise.
+
+Applied to the dimension LINES: `floorplan/autoDimension.ts` labels, `autoDimensionSvg.ts`
+setting-out running dimensions, `ui/elevation/elevationSvg.ts` overall/opening/sill dimensions.
+`drawingUnitsNote` prints "ALL DIMENSIONS IN MILLIMETRES" once in every title block, which is what
+licenses the suffix-free labels — and also relieves the crowding the repeated " m" caused (the
+`"4.854.95 m"` concatenation `autoDimensionSvg.ts` documents).
+
+**The DXF deliberately does NOT change.** It declares `$INSUNITS = 6` (metres) and writes metre
+coordinates throughout, so mm annotation text would contradict its own header — a CAD recipient
+dimensions natively off the geometry. `dxfDimension` now formats from the raw `Dimension.value`
+with `formatLength`, independent of how the sheets label the same span. Switching the whole DXF to
+mm + `$INSUNITS = 4` is the real fix and is recorded in `TODO.md`.
+
++13 unit tests, including one that pins the defect itself (`formatLength(2.745)` = `"2.75 m"` vs
+`formatDrawingLength(2.745)` = `"2745"`) and one per unit system for the title-block note. 21
+existing assertions updated from the old contract. Full suite green (9456).
+
+Verified visually at 1100x1000: the dimensioned + setting-out plan reads 5590 / 1220 / 2265 /
+3030 / 2885 / 3525 / 5675 — millimetre values that "3.53 m" / "5.68 m" would have destroyed.
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G10).
+
 ## v0.31.5.250 — a decomposed footprint draws as one silhouette, not five stroked boxes
 
 Visual verification of `.249` (`scripts/scenarios/plan-footprint-shape.json`, plus a forced-round

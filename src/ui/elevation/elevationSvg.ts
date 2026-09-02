@@ -10,7 +10,7 @@ import {
   staggerMountHeightColumns,
 } from '../../elevation/dimensionLayout'
 import type { WallElevation } from '../../elevation/projectElevation'
-import { formatLength, type UnitSystem } from '../../utils/measurement'
+import { formatDrawingLength, formatLength, type UnitSystem } from '../../utils/measurement'
 
 export interface ElevationPalette {
   /** Wall fill. */
@@ -249,24 +249,24 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     const rows = staggerDimensionRows(
       dimItems.map((it) => ({
         center: (it.x0 + it.x1) / 2,
-        width: approxTextWidth(formatLength(it.x1 - it.x0, units), dfs),
+        width: approxTextWidth(formatDrawingLength(it.x1 - it.x0, units), dfs),
       })),
     )
     const maxRow = rows.reduce((m, r) => Math.max(m, r), 0)
     extraDimPad = maxRow * (dfs + 0.12)
     dimItems.forEach((it, i) => {
       const yRow = H + 0.22 + rows[i] * (dfs + 0.12)
-      dimLine(it.x0, yRow, it.x1, yRow, formatLength(it.x1 - it.x0, units), false)
+      dimLine(it.x0, yRow, it.x1, yRow, formatDrawingLength(it.x1 - it.x0, units), false)
     })
     // Overall width clears however many label rows stacked above it.
     const yOverall = Math.max(H + 0.6, H + 0.22 + (maxRow + 1) * (dfs + 0.12) + 0.16)
-    dimLine(0, yOverall, L, yOverall, formatLength(L, units), false)
-    dimLine(-0.55, 0, -0.55, H, formatLength(H, units), true)
+    dimLine(0, yOverall, L, yOverall, formatDrawingLength(L, units), false)
+    dimLine(-0.55, 0, -0.55, H, formatDrawingLength(H, units), true)
     // Opening sill heights (skip floor-level doors).
     for (const o of el.openings) {
       if (o.sill <= 0.01) continue
       const x = Math.max(0.04, o.x0 - 0.18)
-      dimLine(x, y(o.sill), x, y(0), formatLength(o.sill, units), true)
+      dimLine(x, y(o.sill), x, y(0), formatDrawingLength(o.sill, units), true)
     }
     // Mount heights for wall/ceiling-mounted items (H3) — a plain silhouette
     // can't convey "how high", so every mounted item (TV, sconce, art, cove

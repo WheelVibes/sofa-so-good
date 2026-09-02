@@ -55,7 +55,7 @@ import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { CalloutSheet, DrawingCallout } from '../state/slices/drawingCalloutsSlice'
-import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
+import { drawingUnitsNote, formatArea, formatLength, type UnitSystem } from '../utils/measurement'
 import { carpentrySvg } from './carpentrySheetSvg'
 import { collectCarpentrySheets } from './carpentrySheets'
 import { type DrawingLayerVisibility, drawingLayerOn as layerOn } from './drawingLayers'
@@ -1016,6 +1016,10 @@ export interface RenderDrawingDocumentOpts {
    *  sheets passed — a per-trade pack overrides it with the MASTER set's total
    *  so its sheet numbering reads against the full set the contractor holds. */
   totalSheets?: number
+  /** Display unit system — decides the title block's "ALL DIMENSIONS IN …"
+   *  note, which states once the unit every suffix-free dimension label uses
+   *  (`utils/measurement.ts:formatDrawingLength`). Defaults to metric. */
+  units?: UnitSystem
 }
 
 /**
@@ -1034,6 +1038,7 @@ export function renderDrawingDocument(ordered: Sheet[], opts: RenderDrawingDocum
   })
   const projectName = template.projectName.trim() || plan.name
   const revision = template.revision.trim() || 'A'
+  const docUnits = opts.units ?? 'metric'
   const totalSheets = opts.totalSheets ?? ordered.length
   // Normalise callout array (empty when none provided).
   const activeCallouts = opts.callouts ?? []
@@ -1047,6 +1052,9 @@ export function renderDrawingDocument(ordered: Sheet[], opts: RenderDrawingDocum
       `Checked: ${template.checkedBy ? esc(template.checkedBy) : '________'}`,
       esc(date),
       `Scale ${esc(s.scaleLabel)}`,
+      // Dimensions are drawn suffix-free (integer mm / feet+inches to 1/8"),
+      // per `formatDrawingLength` — so the unit is stated ONCE, here.
+      esc(drawingUnitsNote(docUnits)),
       `${s.num} of ${totalSheets}`,
       `Rev ${esc(revision)}`,
     ]
@@ -1171,6 +1179,7 @@ export function buildDrawingSetHtml(
     plan,
     template,
     callouts,
+    units,
     docTitle: `${plan.name} — Drawing set`,
   })
 }

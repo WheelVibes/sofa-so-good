@@ -22,7 +22,7 @@
  * Self-contained: imports only `./autoDimension`, `./settingOut` and `./types`.
  */
 
-import { formatLength, type UnitSystem } from '../utils/measurement'
+import { formatDrawingLength, type UnitSystem } from '../utils/measurement'
 import { buildDimensions, type Dimension } from './autoDimension'
 import { buildFloorTransitions, buildRoomFflTags } from './floorLevels'
 import { type SettingOutFace, settingOutDimensions } from './settingOut'
@@ -226,7 +226,7 @@ function settingOutRow(
     parts.push(
       `<line x1="${n(Math.min(...xs))}" y1="${n(rowY)}" x2="${n(Math.max(...xs))}" y2="${n(rowY)}" stroke="${esc(color)}" stroke-width="1" stroke-dasharray="4 3"/>`,
     )
-    const labels = ['0', ...faces.map((f) => formatLength(f.distance, units))]
+    const labels = ['0', ...faces.map((f) => formatDrawingLength(f.distance, units))]
     const rows = staggerLabelRows(xs, labels)
     xs.forEach((cx, i) => {
       parts.push(vTickLabel(cx, rowY, labels[i]!, color, rows[i]!))
@@ -237,7 +237,7 @@ function settingOutRow(
     parts.push(
       `<line x1="${n(rowX)}" y1="${n(Math.min(...ys))}" x2="${n(rowX)}" y2="${n(Math.max(...ys))}" stroke="${esc(color)}" stroke-width="1" stroke-dasharray="4 3"/>`,
     )
-    const labels = ['0', ...faces.map((f) => formatLength(f.distance, units))]
+    const labels = ['0', ...faces.map((f) => formatDrawingLength(f.distance, units))]
     const rows = staggerLabelRows(ys, labels)
     ys.forEach((cy, i) => {
       parts.push(hTickLabel(rowX, cy, labels[i]!, color, rows[i]!))

@@ -115,6 +115,8 @@ describe('planToDxf', () => {
     expect(dxf).toMatch(/LINE\n8\nDIMENSIONS/)
     expect(dxf).toMatch(/TEXT\n8\nDIMENSIONS/)
     // The north wall (4 m) is an overall dimension → its formatted label.
+    // The DXF deliberately keeps METRES here (not the printed sheets' integer
+    // mm), matching its own $INSUNITS = 6 header and metre coordinates.
     expect(dxf).toContain('4.00 m')
   })
 

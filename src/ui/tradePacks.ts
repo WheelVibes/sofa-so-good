@@ -618,6 +618,7 @@ export function buildTradePack(id: TradePackId, input: TradePackInput): TradePac
   const html = renderDrawingDocument([coverSheet, ...selected], {
     plan: input.plan,
     template,
+    units,
     docTitle: `${projectName} — ${def.recipient} pack`,
     totalSheets: masterTotal,
   })

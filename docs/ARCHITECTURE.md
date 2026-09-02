@@ -1580,6 +1580,21 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Drawing dimensions are integer millimetres, not decimal metres.**
+  `utils/measurement.ts` has TWO length formatters and the distinction is deliberate:
+  `formatLength` is the friendly on-screen readout ("2.60 m" / nearest-inch imperial) used by the
+  inspector, HUDs, tape measure and panels; **`formatDrawingLength`** is the drawing convention —
+  metric as suffix-free integer mm (`2745`), imperial to the nearest 1/8" in lowest terms
+  (`16′ 4 7/8″`) — used by the dimension LINES (`floorplan/autoDimension.ts` labels,
+  `autoDimensionSvg.ts` setting-out running dimensions, `ui/elevation/elevationSvg.ts`). mm are the
+  trade's working unit (joinery/setting-out are specified to 1 mm), and `formatLength`'s 2-dp metre
+  output quantised every dimension to 10 mm — which silently undid the compounding-error fix
+  `settingOut.ts` exists for. `drawingUnitsNote(units)` prints the "ALL DIMENSIONS IN MILLIMETRES"
+  title-block line that licenses the suffix-free labels (threaded via
+  `RenderDrawingDocumentOpts.units`, so trade packs carry it too). **The DXF export deliberately
+  keeps metres** — it declares `$INSUNITS = 6` and writes metre coordinates, so `dxfDimension`
+  formats from the raw `Dimension.value` with `formatLength` to stay consistent with its own
+  header; see `TODO.md` for the mm + `$INSUNITS = 4` follow-up.
 - **Top-down furniture footprints for every plan renderer** come from the pure
   `ui/planFootprints.ts` `planFootprints(items, catalog)` — the ONE resolver shared by
   `drawingSet.ts`'s floor-plan sheet, `report.ts`'s plan diagram and `openPlanSvg.ts`'s export

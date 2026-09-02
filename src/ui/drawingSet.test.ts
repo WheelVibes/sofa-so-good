@@ -32,6 +32,20 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('A4 landscape')
   })
 
+  it('states the dimension unit once in every title block (G10)', () => {
+    // Dimension labels are suffix-free integer mm, so the sheet must say so —
+    // the standard convention, and the thing that makes "2745" unambiguous.
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('ALL DIMENSIONS IN MILLIMETRES')
+    expect(html).not.toContain('ALL DIMENSIONS IN FEET AND INCHES')
+  })
+
+  it('switches the title-block unit note for an imperial set (G10)', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'imperial')
+    expect(html).toContain('ALL DIMENSIONS IN FEET AND INCHES')
+    expect(html).not.toContain('ALL DIMENSIONS IN MILLIMETRES')
+  })
+
   it('includes a lighting-plan sheet when the design has fixtures', () => {
     const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
     expect(html).toContain('Lighting plan')

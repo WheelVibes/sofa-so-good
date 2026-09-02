@@ -200,6 +200,18 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G10 follow-up] The DXF still writes metre geometry + metre dimension text.** v0.31.5.251 moved
+  the printed sheets to integer mm but left the DXF alone on purpose: it declares `$INSUNITS = 6`
+  (metres) and writes metre coordinates, so mm annotation beside a 4-unit line would contradict its
+  own header. The real fix is to write the whole DXF in mm with `$INSUNITS = 4` (the usual metric
+  CAD convention) — every coordinate, not just the labels — then dimension text can use
+  `formatDrawingLength` like the sheets. Touches all of `export/dxf.ts`'s geometry, so it wants its
+  own change + a careful re-read of the layer/scale tests.
+- **[G10 follow-up] Interior dimension rows have no label-collision stagger.** `autoDimensionSvg.ts`
+  staggers the SETTING-OUT row (`staggerLabelRows`) but the per-room interior dimension labels can
+  still overlap where two rooms are narrow and adjacent (visible as "1950 1850" / "1000 900" on the
+  default 4-room plan). Pre-existing, and *improved* by the mm change (integer labels are shorter
+  than "1.95 m"), but not solved. Reuse `staggerLabelRows` for those rows.
 - **[G11 follow-up] A decomposed footprint's drawn edge is faceted, not a true arc.** v0.31.5.250
   draws a round/oval item as one filled silhouette (no false internal edges), but the outline is
   still the `ellipseFootprintParts` OBB staircase. Reads fine at 1:50-1:100; a large-format detail

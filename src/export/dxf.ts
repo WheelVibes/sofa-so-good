@@ -92,6 +92,7 @@ import {
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import type { UnitSystem } from '../utils/measurement'
+import { formatLength } from '../utils/measurement'
 
 /** DXF Y for a plan Z (flip so +Z south reads downward, not mirrored). */
 const dxfY = (z: number): number => -z
@@ -270,7 +271,7 @@ function extDir(side: Dimension['side']): PlanVec2 | null {
  * "dumb dimension" is guaranteed to parse and measure correctly everywhere,
  * which is what a contractor handoff needs most.
  */
-function dxfDimension(d: Dimension): string {
+function dxfDimension(d: Dimension, units: UnitSystem): string {
   let out = dxfLine('DIMENSIONS', d.x1, d.y1, d.x2, d.y2)
 
   const [px, pz] = dimPerp(d)
@@ -296,7 +297,12 @@ function dxfDimension(d: Dimension): string {
 
   const mx = (d.x1 + d.x2) / 2
   const mz = (d.y1 + d.y2) / 2
-  out += dxfText('DIMENSIONS', mx, mz, d.label, 0.15)
+  // Dimension TEXT keeps the DXF's own unit (metres — per $INSUNITS = 6 and the
+  // metre coordinates written throughout), NOT the printed sheets' integer-mm
+  // convention: a CAD recipient dimensions natively off the geometry, so "4000"
+  // beside a 4-unit line would contradict the file's own header. `d.value` is
+  // the raw span, so this is independent of how the sheets label it.
+  out += dxfText('DIMENSIONS', mx, mz, formatLength(d.value, units), 0.15)
   return out
 }
 
@@ -563,7 +569,7 @@ function entitiesSection(
   out += mepSection(plan, items, catalog)
 
   const dims = buildDimensions(plan, units)
-  for (const d of [...dims.overall, ...dims.rooms]) out += dxfDimension(d)
+  for (const d of [...dims.overall, ...dims.rooms]) out += dxfDimension(d, units)
 
   out += demolitionSection(plan, baseline)
 
