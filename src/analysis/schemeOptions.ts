@@ -64,6 +64,7 @@ import { itemPrice } from '../furniture/furniturePrices'
 import type { LayoutPreset } from '../furniture/presets/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildDesignScore, type DesignScore } from './designScore'
+import { buildLayoutCritique, type LayoutCritique } from './layoutCritique'
 
 /** One generated scheme, scored and priced. */
 export interface SchemeCandidate {
@@ -77,6 +78,13 @@ export interface SchemeCandidate {
   /** Total of every placed item's price (dollars). */
   totalPrice: number
   itemCount: number
+  /**
+   * Layout-quality critique (`layoutCritique.ts`) — the spatial-relationship
+   * dimension `designScore` does not measure. Kept SEPARATE from `score`
+   * rather than folded into it: re-weighting a shipped user-visible score is a
+   * product decision, adding a measurement beside it is not.
+   */
+  critique: LayoutCritique
   /** Present only when a budget was supplied. */
   budget?: { limit: number; overBy: number; pass: boolean }
 }
@@ -176,6 +184,7 @@ export function buildSchemeOptions(input: SchemeOptionsInput): SchemeComparison 
       description: preset.description,
       items,
       score: buildDesignScore(items, defs, plan, { doors }),
+      critique: buildLayoutCritique(plan, items, defs),
       totalPrice: price,
       itemCount: items.length,
       ...(typeof budget === 'number' && Number.isFinite(budget) && budget > 0
@@ -192,9 +201,15 @@ export function buildSchemeOptions(input: SchemeOptionsInput): SchemeComparison 
 
   // Best overall wins; a cheaper scheme wins a score tie, since at equal
   // quality the cheaper design is the better recommendation.
+  // Best overall wins. On a designScore TIE the layout critique breaks it —
+  // measured: three authored arrangements tie at 83 on designScore while the
+  // critique separates them 64-78, so without this the ranking fell through to
+  // price and never considered layout quality at all. Price remains the last
+  // resort, then preset id for determinism.
   candidates.sort(
     (a, b) =>
       b.score.overall - a.score.overall ||
+      b.critique.score - a.critique.score ||
       a.totalPrice - b.totalPrice ||
       a.presetId.localeCompare(b.presetId),
   )
@@ -234,6 +249,16 @@ function deriveTradeoffs(candidates: SchemeCandidate[], budget: number | null): 
     )
   }
 
+  // Layout critique, when the schemes genuinely differ on it.
+  const byCritique = [...candidates].sort((a, b) => b.critique.score - a.critique.score)
+  const cBest = byCritique[0]!
+  const cWorst = byCritique[byCritique.length - 1]!
+  if (cBest.critique.score - cWorst.critique.score >= TRADEOFF_MIN_GAP) {
+    out.push(
+      `Layout quality: ${cBest.name} leads at ${cBest.critique.score}, ${cWorst.name} trails at ${cWorst.critique.score} — measured against published spacing standards (TV distance, conversation range, table reach, sofa proportion).`,
+    )
+  }
+
   const byPrice = [...candidates].sort((a, b) => a.totalPrice - b.totalPrice)
   const cheapest = byPrice[0]!
   const dearest = byPrice[byPrice.length - 1]!
@@ -263,6 +288,10 @@ function deriveRecommendation(candidates: SchemeCandidate[]): string {
   if (candidates.length < 2) return ''
   const [top, second] = candidates as [SchemeCandidate, SchemeCandidate]
   if (top.score.overall === second.score.overall) {
+    // designScore cannot separate them, so say what actually decided it.
+    if (top.critique.score !== second.critique.score) {
+      return `${top.name} and ${second.name} both score ${top.score.overall}; ${top.name} is recommended on layout quality (${top.critique.score} vs ${second.critique.score} against published spacing standards).`
+    }
     return `${top.name} and ${second.name} score level at ${top.score.overall}; ${top.name} is recommended as the cheaper of the two at $${top.totalPrice.toLocaleString()}.`
   }
   // Name the category the leader wins by most — the honest reason it leads.

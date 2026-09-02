@@ -194,6 +194,9 @@ export function SchemeCompareModal() {
                         {cat.label} {cat.score}
                       </span>
                     ))}
+                    {c.critique.applied > 0 && (
+                      <span style={{ fontWeight: 700 }}>Layout quality {c.critique.score}</span>
+                    )}
                   </div>
 
                   <div
@@ -215,6 +218,29 @@ export function SchemeCompareModal() {
                       </span>
                     )}
                   </div>
+
+                  {c.critique.findings.filter((f) => f.verdict === 'fail' || f.verdict === 'warn')
+                    .length > 0 && (
+                    <ul
+                      style={{
+                        margin: 'var(--s-2) 0 0',
+                        paddingLeft: 'var(--s-4)',
+                        fontSize: 'var(--t-xs)',
+                        color: 'var(--text-3)',
+                        lineHeight: 'var(--lh-body)',
+                      }}
+                    >
+                      {c.critique.findings
+                        .filter((f) => f.verdict === 'fail' || f.verdict === 'warn')
+                        .slice(0, 3)
+                        .map((f) => (
+                          <li key={`${f.id}-${f.roomName ?? ''}-${f.detail}`}>
+                            {f.roomName ? `${f.roomName} — ` : ''}
+                            {f.label}: {f.detail}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
 
                   <div style={{ marginTop: 'var(--s-3)' }}>
                     <Button
@@ -259,9 +285,12 @@ export function SchemeCompareModal() {
             )}
 
             <div className="note" style={{ fontSize: 'var(--t-2xs)' }}>
-              Schemes differ in finish, styling and layout. The score weights clearance and
-              furnishing most heavily, so it favours a workable room over a bold one — the
-              per-category figures are shown so you can overrule the ranking.
+              Schemes differ in finish, styling and layout. The design score weights clearance and
+              furnishing most heavily, so it favours a workable room over a bold one. "Layout
+              quality" is a separate measurement against published spacing standards — TV viewing
+              distance, conversation range, coffee-table reach and sofa proportion — and it is what
+              breaks a tie on the design score. Both are geometry, not taste: the per-check figures
+              are shown so you can overrule either.
             </div>
           </>
         )}

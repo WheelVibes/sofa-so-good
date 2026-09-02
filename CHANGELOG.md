@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.268 - a ruler that can actually tell two layouts apart
+
+G8's comparison had a hole I put there: three genuinely different authored arrangements score
+IDENTICALLY at 83 on every `designScore` category, so the ranking fell through to its price
+tie-break and never considered layout quality. A ruler that cannot separate three layouts makes
+"argue the trade-offs" vacuous.
+
+New pure `analysis/layoutCritique.ts` measures the spatial relationships a designer actually checks,
+with every threshold taken from published standards rather than invented — recorded per-number in
+`docs/research/2026-09-02-layout-critique-standards.md`:
+
+- **TV viewing distance** 2.4-3.7 m ("8 to 12 feet from the television")
+- **Conversation range** 1.8-2.4 m ideal, and a FAIL past 3.05 m, where the sources say
+  "conversation becomes difficult - voices must be raised, and the intimacy of connection is lost"
+- **Coffee-table reach** 0.36-0.46 m ("14 to 18 inches away from your sofa")
+- **Sofa proportion** against the room's shorter span
+
+It separates the three that tied: **89 / 85 / 79**, and the recommendation now reads "recommended on
+layout quality (89 vs 85 against published spacing standards)" instead of "the cheaper of the two".
+
+**Deliberately a SEPARATE score, not a re-weighting of `designScore`.** Re-tuning a shipped,
+user-visible score is a product decision I declined earlier and still decline; adding a measurement
+beside it is not. The modal shows both, plus the failing/warning checks with their measured values
+and bands, so a user can overrule either.
+
+**A false positive this caught in its own first draft, worth recording.** My first clearance
+calculation used each item's `hz` (half-depth along its LOCAL z axis) — wrong for any rotated piece,
+since a sofa turned 90 degrees presents its width toward the table. It reported 0.87 m, nearly
+double the reachable band, and warned against the app's own researched layouts on BOTH schemes.
+Replaced with the standard OBB support radius along the line joining the centres
+(`hx*|d.ax| + hz*|d.az|`): the warning vanished and layout quality rose 78/70 -> 89/85. The tables
+were within reach all along. The wrong number was *plausible* — it read as a real finding about the
+layouts rather than a bug in my ruler — and the only thing that flagged it was both schemes
+reporting the identical suspicious value.
+
+Also stated rather than buried: the sofa-proportion bar (60% of the shorter span) is DERIVED, not
+cited — the sources give room dimensions but no ratio. It warns on essentially every SG scheme (a
+2.60 m sofa across a 3.40 m span is 76%), so it describes the housing stock more than the design. A
+future pass should source an SG-specific ratio or drop the check.
+
++16 tests. Skipped checks are excluded from the score, so a sparse room is not marked down for what
+it lacks and a 100 means "no evidence of a problem", not "perfect" — `applied` is returned so a
+caller can say which. Full suite green (9613). Verified visually.
+
 ## v0.31.5.267 - theme grounding audit complete, 17 of 17
 
 Closes the user's requirement that every G8 scheme be grounded in real research rather than invented

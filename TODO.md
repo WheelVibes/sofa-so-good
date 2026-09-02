@@ -200,7 +200,15 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
-- **[G8] `designScore` cannot rank genuinely different layouts.** With the authored layouts wired in
+- **[G8 — ADDRESSED v0.31.5.268, one caveat open] `designScore` cannot rank genuinely different
+  layouts.** Fixed by adding `analysis/layoutCritique.ts` as a SEPARATE measurement (TV distance,
+  conversation range, coffee-table reach, sofa proportion — thresholds cited in
+  `docs/research/2026-09-02-layout-critique-standards.md`), used as the tie-break above price. The
+  three that tied at 83 now separate 89/85/79. **Still open:** the sofa-proportion threshold (60% of
+  the room's shorter span) is derived, not cited, and warns on essentially every SG scheme, so it
+  describes the housing stock rather than the design. Source an SG-specific ratio or drop that one
+  check. Original note follows.
+- **[superseded, kept for the reasoning] `designScore` cannot rank genuinely different layouts.** With the authored layouts wired in
   (v0.31.5.266), three substantively different arrangements (80/81/83 items, different furniture)
   score IDENTICALLY at 83 on every category, so the comparison falls through to the price tie-break.
   The categories are too coarse to express "this arrangement is better than that one". Adding the
