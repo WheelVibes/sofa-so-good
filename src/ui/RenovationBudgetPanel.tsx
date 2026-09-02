@@ -1,8 +1,13 @@
 import { useMemo } from 'react'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
 import { EmptyState } from './EmptyState'
-import { assembleRenoAllocation, buildRenovationBudgetCsv } from './renovationBudget'
+import {
+  assembleRenoAllocation,
+  assembleVariationRegister,
+  buildRenovationBudgetCsv,
+} from './renovationBudget'
 import { Icon } from './toolbar/icons'
 
 /**
@@ -36,7 +41,11 @@ export function RenovationBudgetPanel() {
   const total = alloc.total || 1
 
   const exportCsv = () => {
-    const csv = buildRenovationBudgetCsv(alloc)
+    // The variation register rides on the SAME sheet as the price it varies
+    // (v0.31.5.307) — a contractor opens the budget CSV, not a separate export.
+    const st = useStore.getState()
+    const variation = isFeatureEnabled('variationRegister') ? assembleVariationRegister(st) : null
+    const csv = buildRenovationBudgetCsv(alloc, variation, st.tenderedSnapshot)
     const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: 'text/csv' }))
     const a = document.createElement('a')
     a.href = url

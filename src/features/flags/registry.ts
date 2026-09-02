@@ -1873,6 +1873,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Variation register (v0.31.5.307): a per-trade cost diff between the design
+  // marked AS TENDERED and the design as it stands. In SG renovation the delta
+  // between what was priced and what is built is where disputes land, and the
+  // app had the whole cost model with no way to compare two states of it.
+  // Analytical handover content → pro tier. Pure code over the existing
+  // allocator; needs a captured snapshot, so it is inert until the user marks
+  // one and says so rather than showing an empty table.
+  variationRegister: {
+    label: 'Variation register',
+    description: 'Per-trade cost differences since the design was marked as tendered',
+    default: true,
+    tier: 'pro',
+  },
   // Lamp-specification checks (v0.31.5.297): a wet-room ingress-protection
   // advisory (bathroom zones 1-2 need IP44; every shipped emitter is IP20) and
   // a colour-temperature-vs-room-use advisory (3000 K warm in a task space).

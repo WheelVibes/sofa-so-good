@@ -5,6 +5,56 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.307 - the variation register, built as a whole slice
+
+`.306` named this the largest remaining professional gap and deliberately did not start it, because
+the useful version needs snapshot state, a diff core AND a surface — and a core with no surface is
+the `.297` mistake. All three land together here.
+
+**What it is.** A per-trade cost diff between the design marked AS TENDERED and the design as it
+stands. In SG renovation the delta between what was priced and what is built is where disputes
+land: the contractor quoted from one drawing revision, the tiling changed afterwards, and nobody
+wrote down the difference. The app had the entire cost model and no way to compare two states of it.
+
+**It diffs ALLOCATIONS, not designs.** A design diff ("this wall moved") cannot be priced without
+re-running the cost model anyway, and two designs can differ in ways that cost nothing. Diffing the
+priced output means every register line has a number attached by construction and can never
+disagree with the budget it came from — the same reason `paintQuantities` consumes the finish
+schedule instead of re-deriving areas.
+
+**Omissions are reported as credits.** An omitted trade is money back and is exactly what goes
+unclaimed when a register only lists additions. Lines sort by ABSOLUTE delta, so the biggest money
+is first whichever direction it runs.
+
+- `tenderedSnapshot` holds plan + items + finishes, **deep-cloned** — sharing a reference would make
+  the register read "no change" forever, the worst possible failure for it, and a test pins it.
+- It records the **revision letter and date** captured, so the sheet says WHICH issue was priced
+  rather than merely that something changed.
+- Sub-dollar deltas are ignored: quantities are re-derived from each state, so floating-point
+  residue is expected, and a register reporting a 3-cent "variation" gets ignored wholesale.
+- The register rides on the **same CSV as the price it varies** — a contractor opens the budget
+  export, not a separate file nobody puts beside it.
+- Reachable via two ⌘K commands (mark / clear). Both allocations use the same rate card, so a delta
+  is a design change — and the note admits a line can still move if the rate card does, since the
+  snapshot does not capture rates.
+- Not a quotation, and it says so: "this register exists to make a change visible and approximately
+  sized, not to price it."
+
+**Session-only, stated plainly.** A tender snapshot really wants to survive the weeks between
+pricing and building. Persisting it means changing `serialize()`, the autosave watch list and its
+lock-step guard together, which is deliberately not bundled with the feature landing — `baselinePlan`
+is session-only for the same reason. Logged as the next step.
+
+**A test-isolation bug of my own, worth recording.** My first flow tests set a room's floor to marble
+unconditionally, and `beforeEach` reset the plan but NOT `finishes`. So by the CSV test the room was
+already marble and "changing" it was a no-op — that test passed or failed **depending on which ran
+first**, which is worse than simply failing. Fixed with a helper that flips between two materials of
+different rate kinds, so the change moves the cost wherever the previous test left it. State the
+suite does not reset is shared state, and a fixture that assumes a starting value it did not
+establish is order-dependent by construction.
+
+18 new tests.
+
 ## v0.31.5.306 - adding a wall was free in the budget
 
 A fresh pass over the PROCESS rather than the deliverables. Looking for variation/change-order

@@ -57,6 +57,7 @@ import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import { isAnchoredToNonFloor } from '../../furniture/anchoredDefs'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import { deriveElectricalPoints, derivePlumbingPoints } from '../../furniture/mepSuggest'
+import type { FurnitureItem } from '../../furniture/types'
 import { buildLightingPlan } from '../../lighting2d/lightingPlan'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
@@ -182,6 +183,26 @@ export interface FloorPlanSlice {
    *  the "as-built" baseline the demolition/hacking plan diffs against. Updated
    *  only on a plan load, never on a wall edit. Session-only (not persisted). */
   baselinePlan: FloorPlan
+  /**
+   * The design as it was when the user marked it AS TENDERED — the state a
+   * contractor priced. `analysis/variationRegister.ts` diffs the current
+   * design's cost allocation against this one, so a change made after pricing
+   * is visible and approximately sized instead of being argued about later.
+   *
+   * Holds plan + items + finishes because a cost allocation needs all three;
+   * `baselinePlan` (a plan only) cannot serve, which is why this is separate.
+   *
+   * **Session-only, like `baselinePlan`.** A tender snapshot really wants to
+   * survive the weeks between pricing and building, so persisting it is the
+   * logged next step — it needs `serialize()`, the autosave watch list and its
+   * lock-step guard changed together, which is deliberately not bundled with
+   * the feature landing.
+   */
+  tenderedSnapshot: TenderedSnapshot | null
+  /** Capture the current design as the tendered state. */
+  captureTenderedSnapshot: () => void
+  /** Discard the tendered snapshot (no variation register until re-captured). */
+  clearTenderedSnapshot: () => void
   /** Whether the 2D Floor Plan Editor overlay is open. */
   floorPlanEditing: boolean
   /** 2D-plan furniture label mode (off / name / name+price). Session-only. */
@@ -477,10 +498,23 @@ export interface FloorPlanSlice {
   snapFloorPlanToGrid: (gridM?: number, opts?: GridSnapOptions) => void
 }
 
+/** A priced-state snapshot: everything `buildRenovationAllocation` reads. */
+export interface TenderedSnapshot {
+  plan: FloorPlan
+  items: FurnitureItem[]
+  finishes: { floor: Record<string, string>; walls: Record<string, string> }
+  /** ISO timestamp of capture, for the register's header. */
+  at: string
+  /** The drawing-set revision letter in force when captured, so the register
+   *  can say WHICH issue was priced — the whole point of the exercise. */
+  revision: string
+}
+
 export const FLOOR_PLAN_INITIAL: Pick<
   FloorPlanSlice,
   | 'floorPlan'
   | 'baselinePlan'
+  | 'tenderedSnapshot'
   | 'floorPlanEditing'
   | 'planLabels'
   | 'planSelection'
@@ -490,6 +524,7 @@ export const FLOOR_PLAN_INITIAL: Pick<
 > = {
   floorPlan: buildDefaultPlan(),
   baselinePlan: buildDefaultPlan(),
+  tenderedSnapshot: null,
   floorPlanEditing: false,
   planLabels: 'off',
   planSelection: null,
@@ -540,6 +575,25 @@ function starterShellPlan(name: string): FloorPlan {
 }
 
 export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (set, get) => ({
+  captureTenderedSnapshot: () => {
+    const s = get()
+    // Deep-cloned so later edits to the live design cannot mutate the thing it
+    // is being compared against — the failure that would make a register
+    // silently read "no change" forever.
+    set({
+      tenderedSnapshot: {
+        plan: clonePlan(s.floorPlan),
+        items: s.items.map((it) => ({ ...it, props: { ...it.props } })),
+        finishes: {
+          floor: { ...(s.finishes.floor as Record<string, string>) },
+          walls: { ...(s.finishes.walls as Record<string, string>) },
+        },
+        at: new Date().toISOString(),
+        revision: s.drawingSetTemplate.revision,
+      },
+    })
+  },
+  clearTenderedSnapshot: () => set({ tenderedSnapshot: null }),
   ...FLOOR_PLAN_INITIAL,
 
   setFloorPlan: (plan) =>

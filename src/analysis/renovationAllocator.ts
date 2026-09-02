@@ -47,7 +47,7 @@ import type { PriceRules, TradeRates } from './renovationCost'
 import { floorRateKind } from './renovationCost'
 
 /** A single trade line in the allocation. */
-interface RenoTradeLine {
+export interface RenoTradeLine {
   /** Stable trade id (e.g. `hacking`, `tiling`). */
   id: string
   /** Friendly trade label. */

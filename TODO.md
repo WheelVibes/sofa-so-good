@@ -366,7 +366,16 @@ Kelvin is deriving a specification from a rendering constant, the mistake `tileC
 header warns about. Author the figures from sources, as `.288` (tile modules) and `.292` (paint
 coverage) did.
 
-## Variation / change-order register — NOT built, scoped v0.31.5.306
+## Variation register — ✅ SHIPPED v0.31.5.307. Two follow-ups:
+
+- **Persist `tenderedSnapshot`.** Session-only today, which undercuts the point: a tender snapshot
+  wants to survive the weeks between pricing and building. Needs `serialize()`, the autosave watch
+  list and its lock-step guard changed TOGETHER (the CLAUDE.md invariant is autosave ⊇ serialize),
+  which is why it was not bundled with the feature.
+- **A printed register sheet**, not just the CSV block. The drawing set is what gets handed over;
+  a variation is arguably a sheet with its own revision letter.
+
+### Original scoping note (v0.31.5.306), kept — the three-part shape was the right call
 
 A professional administering a renovation accounts for the delta between what was PRICED and what
 is being built. In SG this is where disputes land: the contractor quoted from one drawing revision
