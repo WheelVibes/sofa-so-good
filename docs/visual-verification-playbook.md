@@ -3194,6 +3194,17 @@ closed" `Page.captureScreenshot` error on the second screenshot (all prior asser
 steps still passed) — if this happens, re-run just the failing variant's capture
 +screenshot as its own short scenario rather than re-running the whole thing.
 
+### A scenario that cannot find a selector your unit tests prove exists — restart vite first
+
+Symptom: `waitFor` times out on a selector (`.clr-list`), the console shows **no** React error, and
+a happy-dom test rendering the same component finds the element fine.
+
+Cause: the dev server was started while the component was still being edited, and HMR left it in an
+inconsistent state. Restarting `npx vite` fixed it with zero code change (v0.31.5.311).
+
+So: when the unit tests and the scenario disagree about whether something renders, suspect the
+server before the component. Cheap to rule out, and it cost a debugging cycle to learn.
+
 ### `await import(...)` inside an `eval` step is flaky — fire-and-forget instead (F13 cost coverage)
 
 An `eval` step whose body is `(async () => { const m = await import('/src/…'); … })()` fails

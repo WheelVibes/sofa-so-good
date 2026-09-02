@@ -78,3 +78,43 @@ describe('ClearancePanel — lamp specification group', () => {
     expect(screen.queryByText('Lamp specification')).toBeNull()
   })
 })
+
+describe('ClearancePanel — lighting layers group', () => {
+  it('flags a bedroom lit only by a ceiling fixture, in Pro', () => {
+    // The case average illuminance cannot see. The default flat's bedrooms
+    // have a pendant and no task or accent light.
+    const plan = buildDefaultPlan()
+    const bed = plan.rooms.find((r) => /bedroom/i.test(r.name))!
+    useStore.setState({
+      floorPlan: plan,
+      items: [
+        {
+          id: 'ceil-1',
+          defId: 'ceiling-light',
+          position: [bed.origin[0] + bed.width / 2, bed.origin[1] + bed.depth / 2],
+          rotation: 0,
+          props: {},
+        },
+      ] as never,
+    })
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    render(<ClearancePanel />)
+    expect(screen.getByText('Lighting layers')).toBeTruthy()
+    expect(screen.getAllByText(new RegExp(bed.name)).length).toBeGreaterThan(0)
+    // Names what is missing, and the current mix as context.
+    expect(screen.getByText(/Missing task and accent/)).toBeTruthy()
+    expect(screen.getByText(/100% ambient/)).toBeTruthy()
+  })
+
+  it('is hidden in Simple mode (pro-tier flag)', () => {
+    const plan = buildDefaultPlan()
+    useStore.setState({ floorPlan: plan, items: [] as never })
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    render(<ClearancePanel />)
+    expect(screen.queryByText('Lighting layers')).toBeNull()
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+})

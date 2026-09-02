@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.311 - lighting LAYERS: the question average illuminance cannot answer
+
+A fresh pass on design QUALITY rather than deliverables — the "experienced designer" half of the
+goal rather than the drawing half.
+
+**The gap.** `roomLux` estimates each room's average illuminance against a recommended band, which
+answers *is there enough light*. It cannot answer *is the light any good*: a living room hitting
+150 lx from a single ceiling pendant passes on lux and is, by professional standards, badly lit.
+The app's only existing prompt was a suggestion rule firing on `!c.has('lighting')` — a room with
+**no fixture at all** — so one pendant satisfied it.
+
+Professional practice lights in three layers: ambient, task, accent. "Every well-lit room relies on
+three foundational layers", and the IALD's starting point for a living room is about 50% ambient /
+30% task / 20% accent, adjusted for use.
+
+**The classification already existed as PROSE and had to be re-authored as data.**
+`lightEmitters.ts`'s header groups fixtures "room lighting … above task … above accent" — but that
+ordering is by RENDER candela for the night scene, and its own comment says what matters about it is
+the ordering and the fixture-to-fill ratio. Reading it as a design classification would be deriving
+one from a rendering register, the mistake `tileCoursing.ts` warns about. So `EmitterSpec.layer` is
+authored by FUNCTION, and the divergence is visible: those render tiers put `vanity` under accent,
+whereas a mirror light IS task lighting — grooming is a task.
+
+**What it flags and what it deliberately does not.** Missing layers, per room, with each layer's
+lumen share as context. NOT deviation from 50/30/20: the sources call that a *starting* ratio
+adjusted per room, so scoring against it would be confident noise about a judgement the designer is
+entitled to make. **A missing layer is a fact; a 55/25/20 split is a preference.** Shares are
+weighted by flux, so a token uplighter does not read as an equal third.
+
+Scoped to living/dining/bedroom/study. A corridor or yard does not want an accent layer, and
+demanding one is how a check gets switched off — taking its useful findings with it.
+
+**The default flat fails it, and discriminates.** Verified in a frame: *Bedroom 3 — "Has ambient.
+Missing task and accent. Current mix 100% ambient / 0% task / 0% accent."*; *Bedroom 2 — missing
+accent only, at 69% / 31% / 0%.* Living / Dining and the master are NOT flagged, so this is not a
+blanket warning. That is the third default-configuration failure a new professional check has
+surfaced this week (after the 200 mm wall-tile bottom cut and the IP20 bathroom fixture) — which is
+the argument for adding them.
+
+16 new tests, both modes.
+
+**A harness note that cost a cycle.** The scenario failed to open the panel at all — no React error
+in the console — because I had started the dev server *mid-edit* and HMR left it inconsistent.
+Restarting vite fixed it with no code change. When a scenario cannot find a selector the unit tests
+prove is rendered, restart the dev server before debugging the component.
+
 ## v0.31.5.310 - a measured decision NOT to refactor the 17-argument builder
 
 `.309` logged `buildDrawingSetHtml`'s seventeen positional arguments as a design item, on the

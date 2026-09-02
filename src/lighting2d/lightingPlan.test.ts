@@ -93,6 +93,7 @@ describe('buildLightingPlan', () => {
       distance: 2,
       cct: 3000,
       ip: 20,
+      layer: 'ambient',
       enabled: (p) => p.lights === 'yes',
     }
     try {

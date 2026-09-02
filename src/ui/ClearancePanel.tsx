@@ -6,17 +6,19 @@ import {
   SLAB_LOAD_LIMIT,
 } from '../analysis/floorLoading'
 import { buildLampSpecAdvisory, type LampSpecAdvisory } from '../analysis/lampSpecAdvisory'
+import { buildLightingLayersReport, type LightingLayersReport } from '../analysis/lightingLayers'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { findItemOverlaps, type OverlapPair } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { useFeature } from '../features/useFeature'
-import { roomAtItem } from '../floorplan/levels'
+import { allPlanRooms, roomAtItem } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { LIGHT_EMITTERS, resolveLampSpec } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps, type NarrowGap } from '../layout/walkway'
+import { planLightLumens } from '../lighting2d/roomLux'
 import { useStore } from '../state/store'
 import { formatLength } from '../utils/measurement'
 import { AuxPanelHead } from './AuxPanelHead'
@@ -33,6 +35,7 @@ export function ClearancePanel() {
   const fGapFix = useFeature('gapSuggest')
   const fFloorLoad = useFeature('floorLoading')
   const fLampSpec = useFeature('lampSpecChecks')
+  const fLayers = useFeature('lightingLayers')
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
   const doors = useStore((s) => s.doors)
@@ -49,57 +52,81 @@ export function ClearancePanel() {
     })),
   )
 
-  const { blocked, overlaps, wallClips, narrowGaps, catalog, floorLoad, lampSpec } = useMemo(() => {
-    if (!open)
+  const { blocked, overlaps, wallClips, narrowGaps, catalog, floorLoad, lampSpec, layers } =
+    useMemo(() => {
+      if (!open)
+        return {
+          blocked: [] as string[],
+          overlaps: [] as OverlapPair[],
+          wallClips: [] as string[],
+          narrowGaps: [] as NarrowGap[],
+          catalog: {} as Record<FurnitureType, FurnitureDef>,
+          floorLoad: null as FloorLoadingReport | null,
+          lampSpec: null as LampSpecAdvisory | null,
+          layers: null as LightingLayersReport | null,
+        }
+      const merged = buildMergedCatalog(catalogInputs)
+      // Whole-plan collision walls (not the room-editor subset) so the check has
+      // the same scope as the panel — default flat builds the fixed walls.
+      const walls = isDefaultPlan(plan)
+        ? buildCollisionWalls(doors)
+        : planCollisionWalls(plan, doors)
       return {
-        blocked: [] as string[],
-        overlaps: [] as OverlapPair[],
-        wallClips: [] as string[],
-        narrowGaps: [] as NarrowGap[],
-        catalog: {} as Record<FurnitureType, FurnitureDef>,
-        floorLoad: null as FloorLoadingReport | null,
-        lampSpec: null as LampSpecAdvisory | null,
+        blocked: blockedDoorItems(items, merged, plan),
+        overlaps: findItemOverlaps(items, merged),
+        // Per-storey (F13/ML3): `walls` is the ground set; upper-level items test
+        // against their own storey's walls.
+        wallClips: findWallClipsByLevel(items, merged, plan, doors, walls),
+        narrowGaps: findNarrowGaps(items, merged, plan),
+        catalog: merged,
+        floorLoad: fFloorLoad ? buildFloorLoadingReport(items, merged) : null,
+        // Each fixture's room resolved on ITS OWN storey (F13) via `roomAtItem`,
+        // so an upstairs vanity light is checked against the upstairs bathroom
+        // and not whatever room sits beneath it. A fixture outside every room is
+        // dropped by the builder rather than checked against a guess.
+        lampSpec: fLampSpec
+          ? buildLampSpecAdvisory(
+              items.flatMap((it) => {
+                const spec = LIGHT_EMITTERS[it.defId]
+                const room = roomAtItem(plan, it)
+                if (!spec || !room) return []
+                // The item's own SPECIFICATION override where set, so a user who
+                // has selected an IP44 fixture stops being told to.
+                const lamp = resolveLampSpec(it.defId, it.props ?? {})
+                return [
+                  {
+                    id: it.id,
+                    label: it.label ?? merged[it.defId]?.name ?? it.defId,
+                    room,
+                    cct: lamp.cct,
+                    ip: lamp.ip,
+                  },
+                ]
+              }),
+            )
+          : null,
+        // Layer coverage per habitable room. Fixtures are attributed on their OWN
+        // storey (F13), and their flux comes from the same `planLightLumens` the
+        // lux model uses, so the share cannot disagree with the lighting figures.
+        layers: fLayers
+          ? buildLightingLayersReport(
+              allPlanRooms(plan),
+              items.flatMap((it) => {
+                const spec = LIGHT_EMITTERS[it.defId]
+                const room = roomAtItem(plan, it)
+                if (!spec || !room) return []
+                return [
+                  {
+                    roomId: room.id,
+                    layer: spec.layer,
+                    lumens: planLightLumens({ intensity: spec.intensity }),
+                  },
+                ]
+              }),
+            )
+          : null,
       }
-    const merged = buildMergedCatalog(catalogInputs)
-    // Whole-plan collision walls (not the room-editor subset) so the check has
-    // the same scope as the panel — default flat builds the fixed walls.
-    const walls = isDefaultPlan(plan) ? buildCollisionWalls(doors) : planCollisionWalls(plan, doors)
-    return {
-      blocked: blockedDoorItems(items, merged, plan),
-      overlaps: findItemOverlaps(items, merged),
-      // Per-storey (F13/ML3): `walls` is the ground set; upper-level items test
-      // against their own storey's walls.
-      wallClips: findWallClipsByLevel(items, merged, plan, doors, walls),
-      narrowGaps: findNarrowGaps(items, merged, plan),
-      catalog: merged,
-      floorLoad: fFloorLoad ? buildFloorLoadingReport(items, merged) : null,
-      // Each fixture's room resolved on ITS OWN storey (F13) via `roomAtItem`,
-      // so an upstairs vanity light is checked against the upstairs bathroom
-      // and not whatever room sits beneath it. A fixture outside every room is
-      // dropped by the builder rather than checked against a guess.
-      lampSpec: fLampSpec
-        ? buildLampSpecAdvisory(
-            items.flatMap((it) => {
-              const spec = LIGHT_EMITTERS[it.defId]
-              const room = roomAtItem(plan, it)
-              if (!spec || !room) return []
-              // The item's own SPECIFICATION override where set, so a user who
-              // has selected an IP44 fixture stops being told to.
-              const lamp = resolveLampSpec(it.defId, it.props ?? {})
-              return [
-                {
-                  id: it.id,
-                  label: it.label ?? merged[it.defId]?.name ?? it.defId,
-                  room,
-                  cct: lamp.cct,
-                  ip: lamp.ip,
-                },
-              ]
-            }),
-          )
-        : null,
-    }
-  }, [open, items, plan, doors, catalogInputs, fFloorLoad, fLampSpec])
+    }, [open, items, plan, doors, catalogInputs, fFloorLoad, fLampSpec, fLayers])
 
   if (!open) return null
 
@@ -293,6 +320,41 @@ export function ClearancePanel() {
             ))}
           </div>
         )}
+
+        {fLayers && layers && layers.rooms.some((r) => r.missing.length > 0) ? (
+          <>
+            <hr className="hr" />
+            <div className="sec-h">Lighting layers</div>
+            <div
+              style={{
+                color: 'var(--text-3)',
+                fontSize: 'var(--t-2xs)',
+                marginBottom: 'var(--s-2)',
+              }}
+            >
+              {layers.note}
+            </div>
+            <div className="clr-list">
+              {layers.rooms
+                .filter((r) => r.missing.length > 0)
+                .map((r) => (
+                  <div key={r.roomId} className="clr-item warn" style={{ display: 'block' }}>
+                    <div className="ci-head">
+                      <span className="badge warn">
+                        {r.present.length === 0 ? 'Unlit' : `${r.missing.length} missing`}
+                      </span>
+                      <span className="ci-title">{r.roomName}</span>
+                    </div>
+                    <div className="ci-detail">
+                      {r.present.length === 0
+                        ? 'No light fixtures in this room at all.'
+                        : `Has ${r.present.join(' + ')}. Missing ${r.missing.join(' and ')}. Current mix ${Math.round(r.share.ambient * 100)}% ambient / ${Math.round(r.share.task * 100)}% task / ${Math.round(r.share.accent * 100)}% accent.`}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </>
+        ) : null}
 
         {fLampSpec && lampSpec && lampSpec.findings.length > 0 ? (
           <>

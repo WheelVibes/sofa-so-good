@@ -59,6 +59,26 @@ export interface EmitterSpec {
    */
   cct: number
   /**
+   * Which of the three lighting LAYERS this fixture provides.
+   *
+   * Professional practice lights a room in three layers — ambient (the room's
+   * overall brightness, typically ceiling-mounted), task (directed, for reading
+   * or a worktop) and accent (highlighting art, shelving, architecture). "Every
+   * well-lit room relies on three foundational layers", and the IALD's starting
+   * point for a living room is roughly 50% ambient / 30% task / 20% accent.
+   *
+   * **Authored by FUNCTION, deliberately not copied from the intensity tiers**
+   * in this file's own header. That grouping — "room lighting … above task …
+   * above accent" — orders fixtures by RENDER candela for the night scene, and
+   * its own comment says what is meaningful about it is the ordering and the
+   * fixture-to-fill ratio. Reading it as a design classification would be
+   * deriving one from a rendering register, the mistake `tileCoursing.ts`
+   * warns about for tile sizes. The visible consequence: those tiers put
+   * `vanity` under accent, whereas a mirror light IS task lighting — grooming
+   * is a task — and it is classified that way here.
+   */
+  layer: LightLayer
+  /**
    * SPECIFIED IP rating as its two-digit integer (20, 44, 65 …).
    *
    * Not derivable from anything the app models, and the one field here that is
@@ -69,6 +89,9 @@ export interface EmitterSpec {
    */
   ip: number
 }
+
+/** The three layers professional practice lights a room in. */
+export type LightLayer = 'ambient' | 'task' | 'accent'
 
 /** Warm white — the SG residential default (see `EmitterSpec.cct`). */
 const WARM_WHITE_K = 3000
@@ -85,6 +108,7 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 4,
     distance: 3.2,
     cct: WARM_WHITE_K,
+    layer: 'task',
     ip: IP_INDOOR,
   },
   'floor-lamp': {
@@ -96,6 +120,7 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 7,
     distance: 5.5,
     cct: WARM_WHITE_K,
+    layer: 'task',
     ip: IP_INDOOR,
   },
   'ceiling-light': {
@@ -108,6 +133,7 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 9,
     distance: 6.5,
     cct: WARM_WHITE_K,
+    layer: 'ambient',
     ip: IP_INDOOR,
   },
   'ceiling-fan': {
@@ -116,6 +142,7 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 8,
     distance: 6,
     cct: WARM_WHITE_K,
+    layer: 'ambient',
     ip: IP_INDOOR,
   },
   'wall-sconce': {
@@ -124,6 +151,7 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 3.5,
     distance: 3,
     cct: WARM_WHITE_K,
+    layer: 'accent',
     ip: IP_INDOOR,
   },
   'cove-light': {
@@ -133,6 +161,7 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 2.6,
     distance: 3.2,
     cct: WARM_WHITE_K,
+    layer: 'accent',
     ip: IP_INDOOR,
   },
   vanity: {
@@ -146,6 +175,7 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 2.8,
     distance: 2.6,
     cct: WARM_WHITE_K,
+    layer: 'task',
     ip: IP_INDOOR,
   },
   aquarium: {
@@ -161,6 +191,7 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     // the sort of plausible-but-contradicted value the `moduleMm` / paint-
     // coverage rules exist to prevent.
     cct: AQUARIUM_K,
+    layer: 'accent',
     ip: IP_INDOOR,
   },
 }
@@ -180,6 +211,10 @@ export const OVERRIDE_EMITTER: EmitterSpec = {
   color: '#ffe2b0',
   intensity: 5,
   distance: 4,
+  // A user light-source override on an arbitrary item: treated as accent, the
+  // least load-bearing layer, so declaring a lamp cannot silently satisfy a
+  // room's ambient requirement.
+  layer: 'accent',
   // A user-declared light source on an arbitrary item: there is no product to
   // specify, so it carries the generic warm indoor spec. The schedule labels it
   // as a user override, so nobody quotes it as a fixture.

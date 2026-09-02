@@ -204,6 +204,7 @@ export type FeatureFlag =
   | 'switchCircuits'
   | 'settingOutDims'
   | 'lampSpecChecks'
+  | 'lightingLayers'
   | 'variationRegister'
   | 'tileLayoutSheet'
   | 'carpentrySheets'

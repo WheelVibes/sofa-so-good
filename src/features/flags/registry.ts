@@ -1873,6 +1873,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Lighting-layer coverage (v0.31.5.311): does each habitable room have
+  // ambient + task + accent light? Average illuminance (`roomLux`) answers
+  // "is there enough light"; it cannot answer "is the light any good" — a
+  // living room hitting its recommended lux from one pendant passes on lux and
+  // is badly lit. The only prior prompt fired when a room had NO fixture at
+  // all. Analytical → pro tier. Pure code over the emitter registry's newly
+  // authored `layer`.
+  lightingLayers: {
+    label: 'Lighting layer checks',
+    description: 'Flags habitable rooms missing an ambient, task or accent lighting layer',
+    default: true,
+    tier: 'pro',
+  },
   // Variation register (v0.31.5.307): a per-trade cost diff between the design
   // marked AS TENDERED and the design as it stands. In SG renovation the delta
   // between what was priced and what is built is where disputes land, and the
