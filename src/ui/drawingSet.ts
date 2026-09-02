@@ -50,9 +50,11 @@ import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
 import { buildReflectedCeilingPlan } from '../floorplan/rcp'
 import { rcpSvg } from '../floorplan/rcpSvg'
 import type { RoomFinishMaps } from '../floorplan/roomFinishes'
+import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import { settingOutDimensions } from '../floorplan/settingOut'
+import { planTileCoursing } from '../floorplan/tileCoursing'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
@@ -250,6 +252,53 @@ function skewSettingOutTable(
     `<td class="n">End X</td><td class="n">End Z</td><td class="n">Angle</td><td class="n">Radius</td></tr>${rows}</table>` +
     `<div class="note">Offsets are from the setting-out datum, on the wall CENTRELINE (a sloping face has no single
     offset). These walls carry no running dimension — set them out from these co-ordinates.</div>`
+  )
+}
+
+/**
+ * Tile setting-out / coursing table (G5) — origin, full-tile field and the
+ * perimeter cut per room, so a tiler starts from a marked point instead of a
+ * corner they picked. Reads the SPECIFIED `moduleMm` only (never inferred from
+ * a texture scale), and states how many rooms it could not cover rather than
+ * implying the schedule is complete.
+ */
+function tileCoursingTable(
+  levelPlan: FloorPlan,
+  finishes: RoomFinishMaps | undefined,
+  units: UnitSystem,
+): string {
+  if (!finishes) return ''
+  const floorByRoom: Record<string, string> = {}
+  for (const room of levelPlan.rooms ?? []) {
+    floorByRoom[room.id] = resolvePlanRoomFloor(finishes, room)
+  }
+  const { rows, omittedRooms } = planTileCoursing(levelPlan, floorByRoom, BUILTIN_MATERIALS)
+  if (rows.length === 0) return ''
+  const mm = (v: number) => esc(formatDrawingLength(v / 1000, units))
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><td>${esc(r.roomName)}</td><td>${esc(r.materialName)}</td>` +
+        `<td class="n">${r.moduleMm[0]}×${r.moduleMm[1]}</td>` +
+        `<td class="n">${mm(r.originMm[0])} / ${mm(r.originMm[1])}</td>` +
+        `<td class="n">${r.fullTiles[0]}×${r.fullTiles[1]}</td>` +
+        `<td class="n">${mm(r.cutMm[0])} / ${mm(r.cutMm[1])}</td>` +
+        `<td class="n">${r.tileCount}</td>` +
+        `<td>${r.sliver ? '⚠ sliver' : '—'}</td></tr>`,
+    )
+    .join('')
+  return (
+    `<h3>Tile setting-out &amp; coursing</h3>` +
+    `<table class="sched"><tr class="h"><td>Room</td><td>Finish</td><td class="n">Module</td>` +
+    `<td class="n">Origin X / Z</td><td class="n">Full tiles</td><td class="n">Perimeter cut X / Z</td>` +
+    `<td class="n">Tiles</td><td>Note</td></tr>${body}</table>` +
+    `<div class="note">Field centred on each room, so both perimeter cuts are equal and as wide as
+    possible; origin is measured from the room's min corner. Tile counts EXCLUDE wastage.
+    ${
+      omittedRooms > 0
+        ? `${omittedRooms} room${omittedRooms === 1 ? '' : 's'} omitted — finish has no specified module.`
+        : ''
+    }</div>`
   )
 }
 
@@ -801,7 +850,10 @@ export function buildDrawingSheets(
     if (body) {
       sheets.push({
         name: 'Finishes schedule',
-        body,
+        // Coursing rides with the finishes it refers to — a setting-out table
+        // pointing at "the floor tile" with no finishes schedule beside it
+        // would be a dangling reference (the same rule the tile marks follow).
+        body: body + tileCoursingTable(plan, finishes, units),
         calloutGroup: 'finishes',
         scaleLabel: NTS,
       })

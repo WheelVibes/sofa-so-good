@@ -175,7 +175,7 @@ actual finish reflectances — the app knows every surface finish
 (`floorplan/roomFinishes.ts`, `finishSchedule.ts`) but `roomLux.ts` uses a single
 global `UTILISATION_FACTOR = 0.45` for every room.
 
-### G5 — Tile setting-out exists as a render, never as a drawing
+### ✅ SHIPPED v0.31.5.257 (with a CORRECTION) — G5 — Tile setting-out exists as a render, never as a drawing
 **Status: CONFIRMED in source.** True tile scale and coursing anchor are
 implemented — but entirely in `src/materials/` (`procedural/tileSurface.ts`,
 `procedural/patterns/tile.ts`, `worldUv.ts`, `tileSize.ts`, `pomFloor.ts`), i.e.
@@ -189,8 +189,16 @@ feature-wall coursing on the elevations. Tile setting-out is one of the most
 common sources of expensive on-site rework, and it is precisely what a designer's
 tiling layout drawing prevents.
 
-Same shape as G4: **the data already exists in the renderer** (true tile size +
-anchor per surface), only the deliverable is missing — draw the coursing the
+**CORRECTION (2026-09-02, v0.31.5.257).** The claim above that "the data already
+exists in the renderer" was OVERSTATED. What existed was a texture PERIOD plus each
+painter's internal grid count (`patterns/tile.ts` = 2×2 per period, `brick` = 5×6);
+the module is derivable as `period ÷ count`, but those counts are texture-authoring
+constants that may be retuned for visual reasons, so a setting-out drawing derived
+from them would silently change when someone tuned a texture. `src/floorplan/CLAUDE.md`
+had already recorded this honestly ("no base tile mm size stored anywhere in the model,
+so none is invented"). The prerequisite was therefore a SPECIFIED module
+(`MaterialDef.moduleMm`), not a drawing — shipped together in v0.31.5.257. The pattern
+claim "the renderer already knows" holds for G4 and G11 but did NOT hold here — draw the coursing the
 renderer is already computing onto the plan and the wall elevations, with the
 origin dimensioned from the datum.
 
@@ -408,6 +416,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
+| G5 | v0.31.5.257 | **Research corrected**: no specified tile module existed (only a texture period + painter grid counts). Added `MaterialDef.moduleMm` as a product dimension, then `tileCoursing.ts` (centred field, sliver avoidance, cut widths) + a setting-out table on the finishes sheet. |
 | G4 (part) | v0.31.5.256 | Work-plane sampling (opt-in, per room kind) + Emin/Eavg uniformity on every grid. IES-into-lux, the calibration constant, reflectance-derived UF and sheet surfacing remain open. |
 | G2 | v0.31.5.255 | Skew/curved walls set out by datum-relative endpoint co-ordinates + angle (+ radius for arcs), disclosed on the plan and tabled on the sheet. |
 | G1 | v0.31.5.254 | Both conventional cuts (A cross / B longitudinal) at scored-informative positions, with view-direction cut marks on the plan. User-placed cuts deferred. |
@@ -418,8 +427,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 Still open: **G4 remainder** (IES into the lux maths; the
 calibration constant; reflectance-derived utilisation factor; sheet surfacing),
-**G5** (draw the tile coursing the renderer
-computes), **G7** (written specification), **G3** and **G8** (both large).
+**G7** (written specification), **G3** and **G8** (both large).
 
 ## Ranked roadmap
 

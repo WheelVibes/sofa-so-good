@@ -27,6 +27,24 @@ interface MaterialDefBase {
    *  of `cache.ts:buildMaterial` (procedural bases already re-bake with the
    *  swatch, so it's a no-op there). */
   recolorAlbedo?: boolean
+  /**
+   * SPECIFIED physical module of a modular finish (tile / slab / plank), in
+   * millimetres as `[width, height]` — e.g. `[600, 600]` for 600×600 porcelain.
+   *
+   * This is a **product dimension**, deliberately independent of `uvScale`.
+   * The rendered tile size is `uvScale ÷ the painter's internal grid count`
+   * (`patterns/tile.ts` bakes 2×2 tiles per texture period, `brick` 5×6) — but
+   * those counts are TEXTURE-AUTHORING constants that exist to make a map look
+   * right and may be retuned for purely visual reasons. Deriving a contractor's
+   * setting-out from them would let a visual tweak silently change a
+   * construction drawing, so a coursing drawing must read THIS field and never
+   * infer from `uvScale`.
+   *
+   * Absent for non-modular finishes (plaster, paint, poured, carpet) and for
+   * modular finishes whose module has not been specified — a consumer must
+   * treat absence as "unknown", never as a default size.
+   */
+  moduleMm?: [number, number]
 }
 
 export interface SolidMaterialDef extends MaterialDefBase {

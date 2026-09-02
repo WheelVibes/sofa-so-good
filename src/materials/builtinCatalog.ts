@@ -44,8 +44,21 @@ function floor(
   pattern: ProceduralPattern,
   uvScale: [number, number],
   sourceUrl?: string,
+  /** SPECIFIED module in mm for a modular finish — see `MaterialDef.moduleMm`.
+   *  A product dimension, NOT derived from `uvScale`. */
+  moduleMm?: [number, number],
 ): MaterialDef {
-  return { id, name, category: 'floor', kind: 'procedural', pattern, swatch, uvScale, sourceUrl }
+  return {
+    id,
+    name,
+    category: 'floor',
+    kind: 'procedural',
+    pattern,
+    swatch,
+    uvScale,
+    sourceUrl,
+    ...(moduleMm ? { moduleMm } : {}),
+  }
 }
 
 /** Painted plaster wall in an arbitrary colour (shares the plaster normal,
@@ -242,6 +255,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#cfb38e',
     'stoneTile',
     [1.2, 1.2],
+    undefined,
+    [600, 600],
   ),
   // Same SNV stone print at 300×300 — the household-shelter / service-yard
   // floor per the sample board ("Kitchen 600×600; Household Shelter/Service
@@ -252,6 +267,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#cfb38e',
     'stoneTile',
     [0.6, 0.6],
+    undefined,
+    [300, 300],
   ),
   // Mottled grey-green glazed porcelain, 300×600 — bathroom floor. SNV-BOARDS:
   // the `porcelainStone` painter (honed mottled stone print, running bond,
@@ -264,6 +281,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#a69e83',
     'porcelainStone',
     [1.2, 1.2],
+    undefined,
+    [300, 600],
   ),
 
   // ── Walls ───────────────────────────────────────────────────────────────
@@ -439,6 +458,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'porcelain',
     swatch: '#eddfc4',
     uvScale: [1.2, 1.2],
+    moduleMm: [300, 600],
   },
   'wall-tile-grey': {
     id: 'wall-tile-grey',
@@ -448,6 +468,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'porcelain',
     swatch: '#c9cac6',
     uvScale: [1.2, 1.2],
+    moduleMm: [300, 600],
   },
   // Fluted / reeded feature-wall panels (close-packed rounded ribs).
   'wall-fluted-oak': {

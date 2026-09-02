@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.257 — tiles get a specified module, and a setting-out table
+
+**A correction to my own research first.** The G5 gap claimed the app "already computes true tile
+coursing — only the deliverable is missing". That was overstated. What existed was a texture PERIOD
+(`materials/tileSize.ts` — how much floor one map covers) plus each painter's internal grid count
+(`patterns/tile.ts` bakes 2×2 tiles per period, `brick` 5×6). The physical module is derivable as
+`period ÷ count` — but those counts are TEXTURE-AUTHORING constants that exist to make a map look
+right and may be retuned for purely visual reasons. Deriving a contractor's setting-out from them
+would let a visual tweak silently change a construction drawing. `src/floorplan/CLAUDE.md` had in
+fact already recorded the honest position: "there is no base tile mm size stored anywhere in the
+model, so none is invented."
+
+So the prerequisite was a SPECIFIED module, not a drawing. `MaterialDef.moduleMm?: [number, number]`
+is a product dimension in millimetres, documented as deliberately independent of `uvScale`, with
+absence meaning "unknown" and never a default size. Populated only where the format is genuinely
+specified — the five catalog entries whose names state it (600×600 and 300×300 beige porcelain,
+300×600 bath floor, 300×600 white/grey wall tile). `floor-tile-white` at `[0.6, 0.6]` implies
+300 mm through the `tile` painter, but nothing SPECIFIES that, so it stays absent.
+
+New pure `floorplan/tileCoursing.ts` then computes what a tiling layout drawing carries:
+- **Origin + centred field.** Tiling is set out centred so the two opposite cuts are equal and as
+  wide as possible — the common residential convention, and the one that avoids a sliver on one side.
+- **Sliver avoidance.** When a naive centred split would leave a cut under a quarter module, it
+  borrows one whole tile back so both cuts become `(leftover + module) / 2` — the re-set a tiler
+  would actually do. A room with no whole tile to borrow reports `sliver: true` rather than hiding it.
+- **Cut widths, full-tile counts and a tile count** (part tiles included, wastage excluded — that
+  is a quantity surveyor's addition, not ours).
+
+Surfaced as a "Tile setting-out & coursing" table on the Finishes schedule sheet, which is where it
+belongs: coursing pointing at "the floor tile" with no finishes schedule beside it would be a
+dangling reference — the same rule the existing tile marks already follow. It states how many rooms
+it could not cover rather than implying completeness.
+
++15 coursing tests, +2 drawing-set tests. One test premise of mine was wrong and got corrected
+rather than the code: a 400 mm room with 600 mm tiles gives two 200 mm cuts, which is a perfectly
+good cut and NOT a sliver — a genuine unavoidable sliver needs a room narrower than half a module
+(100 mm room → 50 mm cuts, nothing to borrow). Full suite green (9526).
+
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G5, with the correction).
+
 ## v0.31.5.256 — illuminance gets a work plane and a uniformity score
 
 Two of G4's four photometric gaps. The lux model (`src/lighting2d/`) already answered "is this room

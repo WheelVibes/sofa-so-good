@@ -1580,6 +1580,19 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Tile setting-out reads a SPECIFIED module, never a texture scale.**
+  `MaterialDef.moduleMm?: [w, h]` (mm) is a product dimension, populated only on finishes whose
+  format is actually specified. It is deliberately NOT derived from `uvScale`: the rendered tile size
+  is `uvScale ÷ the painter's internal grid count` (`patterns/tile.ts` 2×2 per texture period,
+  `brick` 5×6), and those counts are texture-authoring constants that may be retuned for visual
+  reasons — inferring a construction dimension from them would let a visual tweak change a
+  contractor's setting-out. `floorplan/tileCoursing.ts` (`roomTileCoursing`/`planTileCoursing`) reads
+  `moduleMm` only, treats absence as UNKNOWN (returns null, and the caller reports how many rooms it
+  omitted), centres the field so both perimeter cuts are equal and as wide as possible, and borrows a
+  whole tile back rather than leaving a cut under `SLIVER_LIMIT_FRACTION` (a quarter module) — the
+  re-set a tiler would do. Rendered as the "Tile setting-out & coursing" table on the Finishes
+  schedule sheet (`ui/drawingSet.ts:tileCoursingTable`), which is where it belongs: coursing with no
+  finishes schedule beside it would be a dangling reference.
 - **Illuminance has a work plane and a uniformity score.** `lighting2d/luxGrid.ts`
   `pointIlluminance(light, px, pz, planeHeight)` measures on a plane at `planeHeight` (default 0 =
   floor); `roomLux.ts:WORK_PLANE_HEIGHT_M` gives the per-room-kind plane a lux target actually

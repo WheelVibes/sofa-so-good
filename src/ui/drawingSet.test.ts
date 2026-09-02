@@ -126,6 +126,43 @@ describe('buildDrawingSetHtml', () => {
     expect(html).not.toContain('Co-ordinate setting-out')
   })
 
+  it('prints a tile setting-out table for a specified module (G5)', () => {
+    // The kitchen's finish is 600×600 porcelain with a SPECIFIED moduleMm.
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      {
+        floor: { kitchen: 'floor-tile-beige' },
+        walls: {},
+      },
+    )
+    expect(html).toContain('Tile setting-out')
+    expect(html).toContain('600×600')
+    expect(html).toContain('Tile counts EXCLUDE wastage')
+  })
+
+  it('omits the coursing table when no finish has a specified module (G5)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      {
+        floor: { kitchen: 'floor-vinyl-oak' },
+        walls: {},
+      },
+    )
+    expect(html).not.toContain('Tile setting-out &amp; coursing')
+  })
+
   it('states the dimension unit once in every title block (G10)', () => {
     // Dimension labels are suffix-free integer mm, so the sheet must say so —
     // the standard convention, and the thing that makes "2745" unambiguous.
