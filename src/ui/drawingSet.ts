@@ -635,35 +635,32 @@ export function buildDrawingSheets(
   // A) and a longitudinal one (along X, marked B), each positioned where it
   // actually crosses the most rooms/walls rather than blindly mid-plan (which
   // could land down an empty corridor). Ground-floor furniture in the cut's
-  // room band shows in elevation behind the cut. `sectionMarksDrawn` feeds the
-  // plan sheets' cut marks, so a "Section A–A" sheet is always locatable —
-  // only marks whose sheet actually rendered are drawn.
-  {
-    for (const { mark, section } of resolvedSections) {
-      const scale = planScale(
-        section.length,
-        section.height,
-        template.paperSize,
-        template.orientation,
-      )
-      sheets.push({
-        name: `Section ${mark}–${mark}`,
-        body: `<div class="draw">${sectionSvg(section, {
-          palette: {
-            wall: '#9ca3af',
-            floor: '#374151',
-            ceil: '#9ca3af',
-            opening: '#93c5fd',
-            ink: '#4b5563',
-            item: '#d8c8b0',
-          },
-          widthPx: 900,
-          printMmPerM: scale.mmPerM,
-        })}</div>`,
-        calloutGroup: 'section',
-        scaleLabel: scale.label,
-      })
-    }
+  // room band shows in elevation behind the cut. The cuts themselves are
+  // resolved further up, before the floor-plan sheet that marks them.
+  for (const { mark, section } of resolvedSections) {
+    const scale = planScale(
+      section.length,
+      section.height,
+      template.paperSize,
+      template.orientation,
+    )
+    sheets.push({
+      name: `Section ${mark}–${mark}`,
+      body: `<div class="draw">${sectionSvg(section, {
+        palette: {
+          wall: '#9ca3af',
+          floor: '#374151',
+          ceil: '#9ca3af',
+          opening: '#93c5fd',
+          ink: '#4b5563',
+          item: '#d8c8b0',
+        },
+        widthPx: 900,
+        printMmPerM: scale.mmPerM,
+      })}</div>`,
+      calloutGroup: 'section',
+      scaleLabel: scale.label,
+    })
   }
 
   // Electrical / power & data plan — one diagram sheet per wired storey; the
