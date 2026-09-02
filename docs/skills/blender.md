@@ -173,6 +173,15 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — key baked assets by GEOMETRY IN PLACE, never by mesh name.** `Mesh_116` is an
+  exporter index; the live scene has never heard of it and it shifts on any upstream reorder, so
+  a name-keyed map simply never loads and the render looks untouched. `geometry_key()` hashes
+  **world-space** vertices (two identical walls in different rooms have completely different
+  visibility, so local geometry is not an identity), millimetre-rounded and sorted so neither
+  float noise nor vertex order can split one wall into two keys. Hand-rolled FNV-1a in both
+  languages, because the two toolchains share no hash guaranteed to agree — and test it against
+  the **published vectors**, not just against your own fixture: two implementations wrong the
+  same way agree with each other perfectly.
 - **2026-09-03 — the bake albedo is MEASURABLE: use the plan's own area-weighted mean.** The
   probe's `ALBEDO=1` knob reports the default flat at **r 0.812 / g 0.807 / b 0.788 over
   467 m²** — white plaster dominates the area. `bake_material.py --albedo` defaults to 0.81 on

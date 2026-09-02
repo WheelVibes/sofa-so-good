@@ -29,6 +29,56 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.14 — a baked map is now ADDRESSABLE: keyed by geometry-in-place, cross-tested against Blender
+
+The next item in `v0.31.7.13`'s sequence was `uv1` at build time. It is the wrong next item —
+`uv1` is dead weight until maps exist, and a sharper problem sits in front of it: **the runtime
+cannot find a baked map at all.**
+
+**The problem.** `bake_material.py` produced `Mesh_116.png`. `Mesh_116` is an *exporter index*
+assigned when the GLB is written; the live scene has never heard of it, and it shifts the moment
+anything upstream reorders. A pipeline keyed on those names cannot be looked up at runtime and
+would break silently on an unrelated change — the map would simply never load, and the render
+would look exactly like today's.
+
+**`src/scene/lightmapKey.ts` + `bake_material.py:geometry_key()` — key by geometry in place.**
+Maps are now written as `<key>.png` beside an `index.json`, so the app loads one small index
+rather than probing for forty textures by name.
+
+Three choices in the key, each with a reason that is not aesthetic:
+
+- **World space, not local.** Two identical wall boxes in different rooms have *entirely
+  different* aperture visibility — one may face a window while the other sits in an interior
+  corridor. That difference is the whole quantity being baked, so local geometry is not an
+  identity here.
+- **Sorted, millimetre-rounded, fixed-width, negative zero normalised.** Blender's Python and
+  the browser will not agree bit for bit on a transformed coordinate, and they need not: the
+  quantum is far finer than anything a room-scale visibility term could resolve and far coarser
+  than float noise.
+- **FNV-1a hand-rolled in both languages.** The two toolchains share no hash whose output is
+  guaranteed identical, and FNV-1a is four lines each with a fully specified result.
+
+**Tested against Blender, and against the outside world.** `lightmapKey.test.ts` (7 tests):
+reproduces every key Blender computed for four real shell meshes; four different walls get four
+different keys (a collision would load one wall's visibility into another — worse than no map,
+and invisible without the check); the key is independent of vertex order; identical geometry at
+different world positions gets *different* keys; and sub-millimetre jitter does **not** change
+the key. Crucially it also checks `fnv1a32` against the **published FNV-1a test vectors**
+(`'' → 811c9dc5`, `'abc' → 1a47e90b`) and not only against the fixture — two implementations
+wrong in the same way would agree with each other perfectly, and only an external vector catches
+that.
+
+**Still nothing wired into the renderer.** Two pure modules and their tests; no `aoMap`
+assigned, no geometry touched, no feature flag needed because there is no feature yet. **The
+render and the frame budget cannot be affected**, so all three views the goal names keep their
+measured 60 fps at `medium`.
+
+**Remaining:** bake the starter plans into `index.json` + maps, assign `uv1` on the shell at
+build time, wire `aoMap` at γ ≈ 0.7 behind a flag, and re-run `spatial-profile.mjs --explain`
+against the app to confirm the 80 % survives contact with the renderer.
+
+Suite: **10011 tests green** (up 7), `tsc`, biome and knip clean.
+
 ## v0.31.7.13 — the crux claim is now tested, not asserted: `uv1` generation ships with a Blender-generated fixture
 
 Item (w)'s whole design rests on one claim: **the app can regenerate Blender's lightmap UV

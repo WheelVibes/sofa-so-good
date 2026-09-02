@@ -99,6 +99,47 @@ def mesh_area(obj: bpy.types.Object) -> float:
 
 BAKE_UV = "bake_uv"
 
+QUANTUM_DECIMALS = 3
+
+
+def _canonical(value: float) -> str:
+    """Fixed-width, millimetre-rounded, with -0.000 normalised to 0.000."""
+    rounded = round(value, QUANTUM_DECIMALS)
+    if rounded == 0:
+        rounded = 0.0
+    return f"{rounded:.{QUANTUM_DECIMALS}f}"
+
+
+def fnv1a32(text: str) -> str:
+    """FNV-1a, 32-bit, as specified — the twin of `src/scene/lightmapKey.ts:fnv1a32`."""
+    h = 0x811C9DC5
+    for ch in text:
+        h ^= ord(ch)
+        h = (h * 0x01000193) & 0xFFFFFFFF
+    return f"{h:08x}"
+
+
+def geometry_key(obj: bpy.types.Object) -> str:
+    """Name a baked map by its GEOMETRY IN PLACE, so the runtime can find it.
+
+    The exporter's `Mesh_116` names are indices and would change on any upstream reorder, and
+    the live scene does not have them at all — so a map keyed by name is unlookupable. World
+    space rather than local, because two identical wall boxes in different rooms have entirely
+    different aperture visibility, which is the whole quantity being baked.
+
+    Canonical form is millimetre-rounded, fixed to three decimals, negative zero normalised,
+    and **sorted** so vertex order cannot matter. Every choice is there because a float or
+    ordering difference between Blender's Python and the browser would otherwise yield two keys
+    for one wall. `src/scene/lightmapKey.test.ts` holds the pair to a fixture from this code.
+    """
+    mw = obj.matrix_world
+    triples = []
+    for vert in obj.data.vertices:
+        co = mw @ vert.co
+        triples.append(",".join(_canonical(c) for c in co))
+    triples.sort()
+    return fnv1a32(";".join(triples))
+
 
 def classify_faces(obj: bpy.types.Object, reach: float = 30.0) -> dict[int, bool]:
     """Does anything block each face's normal direction? **Diagnostic only — read this.**
@@ -296,7 +337,10 @@ def main(argv: list[str] | None = None) -> int:
         else:
             interior_slots = None
             uv_name = obj.data.uv_layers.active.name
-        out = os.path.join(out_dir, f"{obj.name}.png")
+        # Named by KEY, not by object: `Mesh_116` is an exporter index the runtime has never
+        # heard of, and the map has to be findable from live geometry alone.
+        key = geometry_key(obj)
+        out = os.path.join(out_dir, f"{key}.png")
         try:
             stats = bake_object(obj, out, a.res, bake_type, interior_slots)
         except RuntimeError as exc:  # noqa: PERF203 — one bad mesh must not lose the batch
@@ -308,6 +352,7 @@ def main(argv: list[str] | None = None) -> int:
                 "area": round(area, 2),
                 "out": out,
                 "uv": uv_name,
+                "key": key,
                 "interior_slots": sorted(interior_slots) if interior_slots else [],
                 **stats,
             }
@@ -328,6 +373,25 @@ def main(argv: list[str] | None = None) -> int:
         "baked": len(baked),
         "objects": baked,
     }
+    # An index beside the maps, so the app loads one small file rather than probing for
+    # 40 textures by name. `object` and `area` are debugging aids only -- the key is the
+    # contract.
+    index = {
+        "version": 1,
+        "pass": a.pass_,
+        "albedo": a.albedo,
+        "uv": "box-atlas-3x2",
+        "uv_margin": 0.04,
+        "maps": [
+            {"key": o["key"], "file": os.path.basename(o["out"]), "object": o["object"],
+             "area": o["area"]}
+            for o in baked
+            if "out" in o
+        ],
+    }
+    with open(os.path.join(out_dir, "index.json"), "w") as fh:
+        json.dump(index, fh, indent=2)
+    result["index"] = os.path.join(out_dir, "index.json")
     print("BAKE_MATERIAL " + json.dumps(result))
     return 0
 
