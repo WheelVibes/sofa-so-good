@@ -73,8 +73,19 @@ const FLOOR_PITCH = Number(process.env.FLOOR_PITCH || -0.55)
 const OUT = process.env.OUT || '/tmp/light-distribution'
 fs.mkdirSync(OUT, { recursive: true })
 
+// HEADED=1 launches a real windowed Chromium instead of headless (`.309`).
+//
+// The playbook says "before calling a headless finding a product defect, ask
+// whether a real browser sees it", and item (u) was escalated to a product defect
+// across `.298`-`.307` without that check. The Claude-in-Chrome route needs a
+// connected Chrome, which a non-interactive session does not have; headed
+// Chromium is the available approximation and it exercises the real compositor,
+// window surface and swap chain rather than the headless offscreen path. It is
+// still not a user's own Chrome, so a headed result narrows the question without
+// closing it. `.308` already confirmed both modes run the same real GPU
+// (ANGLE Metal, Apple M4).
 const browser = await puppeteer.launch({
-  headless: true,
+  headless: process.env.HEADED !== '1',
   protocolTimeout: 900_000,
   args: ['--no-sandbox', '--use-gl=angle', '--use-angle=metal', '--enable-gpu', '--enable-webgl'],
 })

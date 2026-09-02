@@ -2216,6 +2216,28 @@ on macOS runs the same ANGLE/Metal backend on the same GPU. But headless flags, 
 timing remain unexcluded. **"Half of all HQ stills are wrong" holds for headless ANGLE/Metal; a real browser
 must confirm it before the claim stands for users.**
 
+**✅ DEBT PAID v0.31.5.309 — (u) is NOT a headless artefact.** New `HEADED=1` launches a real windowed Chromium
+(real compositor, window surface and swap chain) rather than the headless offscreen path:
+
+| | renderer | frame L | glazing | ceiling | sidewall-L |
+| --- | --- | --- | --- | --- | --- |
+| **headed** `hd1` | ANGLE Metal, Apple M4 | 104.4 | 168.9 | **181.5** sd 0.88 | 15.9 |
+| **headed** `hd2` | ANGLE Metal, Apple M4 | 104.2 | 169.0 | **181.5** sd 0.88 | 15.4 |
+| headless class A | ANGLE Metal, Apple M4 | 104.5 | 168.8 | **181.5** sd 0.88 | 16.1 |
+| headless class B | ANGLE Metal, Apple M4 | 29.9 | 164.9 | 1.0 sd 0.00 | 1.2 |
+
+**The fault reproduces headed, matching class A exactly — including the ceiling's sd of 0.88.**
+
+**Severity moves from provisional to SUPPORTED.** Excluded: SwiftShader (`.308`) and the headless rendering
+path (`.309`). Untested: a user's *own* Chrome — profile, extensions, default flags rather than puppeteer's
+`--no-sandbox --use-gl=angle --use-angle=metal --enable-gpu`. Those flags **force the backend real Chrome on
+macOS picks by default**, so they narrow rather than widen the gap. Honest position: **(u) reproduces on the
+real GPU with a real compositor, and the only untested difference from a user's browser is the launch
+configuration.**
+
+Observation, not a claim: both headed runs were class A where headless is ~50/50, but at n = 2 that is
+unremarkable (P ≈ 25 %). Across the dark-ceiling arm the classes stay roughly balanced.
+
 **Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
 as a surface in every run.
 

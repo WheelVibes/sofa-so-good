@@ -90,6 +90,22 @@ whether a real browser sees it"*. Item (u) was escalated to a product defect acr
 check. Headless ANGLE/Metal is close to a real Chrome on macOS (same backend, same GPU), which makes it likely
 real — but likely is not confirmed.
 
+## Re-run any headless finding against the real compositor (`HEADED=1`)
+
+The playbook's rule — *before calling a headless finding a product defect, ask whether a real browser sees it* —
+went unpaid for ten rounds while item (u) was escalated to a product defect. `HEADED=1` launches a real windowed
+Chromium instead of the headless offscreen path, which is the cheap approximation when Claude-in-Chrome is not
+connected (a non-interactive session has no Chrome to attach to).
+
+In `.309` the fault reproduced headed, matching the headless class-A signature **exactly** — ceiling 181.5 with
+sd 0.88 in both — so it is not a headless artefact. What `HEADED=1` does **not** exclude is a user's own Chrome
+(profile, extensions, default flags); it does exercise the real compositor, window surface and swap chain, and
+`.308`'s renderer assertion confirms both modes use the same GPU and ANGLE backend.
+
+**A severity claim carries its own verification debt.** Six rounds asserted "half of all HQ stills are wrong"
+without noting the debt and none prompted the check; `.308` wrote it down and `.309` paid it one round later.
+Write the debt into the entry.
+
 ## One PT run per shell call
 
 A PT run is ~3–5 minutes including boot. Batching two in one shell call exceeded a 10-minute command timeout in

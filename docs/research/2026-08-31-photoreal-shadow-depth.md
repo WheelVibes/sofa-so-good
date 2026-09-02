@@ -10623,3 +10623,57 @@ but headless flags, compositor state and driver timing remain unexcluded. **(u)'
 provisional until a real browser sees it**, and that is the next round.
 
 No `src/` change. The probe gains a permanent renderer-string assertion.
+
+---
+
+## Round .309 — (u) is not a headless artefact: it reproduces headed, same magnitude, same signature
+
+`.308` named a debt: the playbook says *"before calling a headless finding a product defect, ask whether a real
+browser sees it"*, and (u) had been escalated across `.298`–`.307` without that check. This round pays it as far
+as the session allows, and the answer strengthens the finding.
+
+### What was available
+
+Claude-in-Chrome needs a connected Chrome, which a non-interactive session lacks. The approximation is **headed
+Chromium** (`HEADED=1`), exercising the real compositor, window surface and swap chain instead of the headless
+offscreen path. `.308` had already established both modes run the same real GPU.
+
+### Result
+
+Room repainted dark, bedroom3 `PITCH=0.30`, medium tier, photographic look, hour 13, 256 samples (17:53, 17:57
++08):
+
+| | renderer | frame L | glazing | ceiling | sidewall-L |
+| --- | --- | --- | --- | --- | --- |
+| headed `hd1` | ANGLE Metal, Apple M4 | 104.4 | 168.9 | **181.5** sd 0.88 | 15.9 |
+| headed `hd2` | ANGLE Metal, Apple M4 | 104.2 | 169.0 | **181.5** sd 0.88 | 15.4 |
+| headless class A | ANGLE Metal, Apple M4 | 104.5 | 168.8 | **181.5** sd 0.88 | 16.1 |
+| headless class B | ANGLE Metal, Apple M4 | 29.9 | 164.9 | 1.0 sd 0.00 | 1.2 |
+
+**The fault reproduces headed, matching class A exactly — including the ceiling's sd of 0.88.** (u) is not an
+artefact of the headless rendering path.
+
+### Severity: provisional → supported
+
+Excluded: SwiftShader (`.308`), the headless path (`.309`). Untested: a user's *own* Chrome — profile,
+extensions, default flags rather than puppeteer's `--no-sandbox --use-gl=angle --use-angle=metal --enable-gpu`.
+Those flags force the backend real Chrome on macOS picks by default, so they narrow rather than widen the gap.
+**(u) reproduces on the real GPU with a real compositor; the only untested difference is the launch
+configuration.**
+
+Observation, not a claim: both headed runs were class A where headless is ~50/50 — at n = 2, P ≈ 25 %, so
+nothing is read into it. Across the dark-ceiling arm the classes remain roughly balanced.
+
+### What it settles
+
+The *reality* of the defect, not its cause. Nineteen mechanisms remain refuted and the CPU side is identical
+across classes (`.306`–`.308`), leaving the GPU-side upload or shader path. But it removes the one objection
+that would have made the whole investigation moot, before anyone spends engineering time on the item.
+
+### Method note
+
+**A severity claim carries its own verification debt, and naming the debt in the write-up is what makes it get
+paid.** Six earlier rounds asserted "half of all HQ stills are wrong" with no such note and none prompted the
+check; `.308` wrote it down and `.309` paid it one round later.
+
+No `src/` change. The probe gains `HEADED=1`.

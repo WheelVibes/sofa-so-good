@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.309 — (u) is not a headless artefact: it reproduces in a real windowed browser with the real compositor, at the same magnitude and the same signature
+
+`.308` named a debt: the playbook says *"before calling a headless finding a product defect, ask whether a real
+browser sees it"*, and item (u) had been escalated to a product defect across `.298`–`.307` without that check.
+This round discharges it as far as this session can, and the answer strengthens the finding rather than
+undermining it.
+
+**What was available, stated plainly.** The repo's Claude-in-Chrome route needs a connected Chrome, which a
+non-interactive session does not have. The available approximation is **headed Chromium** (new `HEADED=1` knob,
+`headless: process.env.HEADED !== '1'`), which exercises the **real compositor, window surface and swap chain**
+instead of the headless offscreen path. `.308` had already established both modes run the same real GPU.
+
+**Result** (room repainted `f5f5f0:141414;fafafa:141414`, bedroom3 `PITCH=0.30`, medium tier, photographic look,
+hour 13, 256 samples; runs 17:53 and 17:57 +08):
+
+| | renderer | frame L | glazing | ceiling | sidewall-L |
+| --- | --- | --- | --- | --- | --- |
+| **headed** `hd1` | ANGLE Metal, Apple M4 | 104.4 | 168.9 | **181.5** sd 0.88 | 15.9 |
+| **headed** `hd2` | ANGLE Metal, Apple M4 | 104.2 | 169.0 | **181.5** sd 0.88 | 15.4 |
+| headless class A (`k1`) | ANGLE Metal, Apple M4 | 104.5 | 168.8 | **181.5** sd 0.88 | 16.1 |
+| headless class B (`k2`) | ANGLE Metal, Apple M4 | 29.9 | 164.9 | 1.0 sd 0.00 | 1.2 |
+
+**The fault reproduces headed, matching class A exactly — including the ceiling's standard deviation of 0.88.**
+So (u) is **not** an artefact of the headless rendering path.
+
+**The severity claim moves from provisional to supported, with the residual gap named.** What is now excluded:
+SwiftShader (`.308`, renderer string confirmed), and the headless offscreen path (this round). What remains
+untested is a user's *own* Chrome — their profile, extensions, and default flags rather than puppeteer's
+`--no-sandbox --use-gl=angle --use-angle=metal --enable-gpu`. Worth noting that those flags **force the backend
+real Chrome on macOS selects by default**, so they narrow rather than widen the gap. **The honest position: (u)
+reproduces on the real GPU with a real compositor, and the only untested difference from a user's browser is the
+launch configuration.**
+
+**One observation, deliberately not a claim.** Both headed runs were class A, where headless runs about half
+class B. At n = 2 that is unremarkable (P ≈ 25 % on a fair coin) and I am not reading anything into it. Across
+the whole dark-ceiling arm the two classes remain roughly balanced: class A in `hd1`, `hd2`, `k1`, `s2`, `b3x`,
+`g307c`, `d1`, `c1`; class B in `k2`, `s1`, `b1`, `g307a`, `g307b`.
+
+**What this does and does not settle.** It settles the *reality* of the defect, not its cause — nineteen
+mechanisms remain refuted and the CPU side is identical across classes (`.306`–`.308`), leaving the GPU-side
+upload or shader path. But it removes the one objection that would have made the whole (u) investigation moot,
+and it does so before anyone spends engineering time on the item. **That was worth a round on its own, and it is
+the playbook's rule rather than my idea.**
+
+**Method note.** `.308` named this debt and `.309` paid it, one round apart. The rule generalises: **a
+severity claim carries its own verification debt, and naming the debt in the write-up is what makes it get
+paid.** Six earlier rounds asserted "half of all HQ stills are wrong" with no such note, and none of them
+prompted the check.
+
+**Unchanged:** no `src/` change. The probe gains `HEADED=1`, which is the cheap way to re-run any headless
+finding against the real compositor.
+
 ## v0.31.5.308 — the material-index lead dies to forty lines of reading, a latent library bug turns up, and I finally confirmed the renderer string the playbook has been telling me to check for sixty rounds
 
 `.307`'s lesson was that reading the library source is free and killed a mechanism before it cost a run. This
