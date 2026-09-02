@@ -29,6 +29,82 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.9 — aperture visibility CONFIRMED: it explains 80 % of the deep room's spatial error — and a naive multiply would regress the small one
+
+`v0.31.7.8` concluded the missing term is aperture visibility and the slot is an `aoMap`. Both
+were inferences. This round measures the term directly with Blender and tests the claim, and
+the answer is a strong yes with one caveat that changes the design.
+
+**`python/scripts/blender/render_visibility.py` renders the quantity itself.** Every material
+becomes a pure white Lambertian surface, the world is a **constant** white emitter (not a sky —
+a gradient would weight directions by radiance and reproduce the reference render instead of
+isolating visibility), and there is no sun. Under those conditions a diffuse surface's radiance
+is proportional to the fraction of the hemisphere from which it can see the world, so **the
+render *is* the visibility map**, up to one global constant.
+
+**It failed first, instructively.** The first run produced an image whose maximum pixel value
+was **2 of 255**. Cause: whitening *every* material turns the window glazing into an opaque
+white wall, **sealing the room into a box with no aperture**. So `open_apertures()` now deletes
+transmissive meshes *before* whitening — 9 glazing meshes in each room — and deleting is the
+right model, since geometric visibility is about the opening, while a pane's Fresnel and
+absorption belong to the app's glass shading.
+
+**First result — the reference's own spatial structure *is* visibility.** In `livingDining`,
+normalised column profiles:
+
+| | | | | | | | | | | |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| physics (sky-lit Cycles) | 0.337 | 0.487 | 0.662 | 1.113 | 1.086 | 1.449 | 1.444 | 1.150 | 1.247 | 1.256 |
+| **visibility (constant world)** | **0.327** | **0.456** | **0.601** | **1.031** | 1.180 | 1.494 | 1.514 | 1.189 | 1.073 | 0.990 |
+| app raster | 1.008 | 0.998 | 0.954 | 0.915 | 0.767 | 0.910 | 0.963 | 0.814 | 0.864 | 0.933 |
+
+The physical render and the pure-visibility render track each other to ~10 % across eight of
+ten columns, from two completely different world setups. The app is flat (0.77–1.01) — exactly
+the visibility-blind signature.
+
+**Second result — the falsifiable test passes.** `spatial-profile.mjs` gained
+`--explain=<img>`: multiply `app ÷ physics` by a candidate cause's own normalised profile, and
+if the candidate is what the app lacks, the product is flat. Its drop in spread is *how much*
+the candidate explains (log-ratio, since this is a multiplicative question).
+
+| `livingDining` | spread |
+| --- | --- |
+| `app ÷ physics` | **4.76×** |
+| `× visibility`, columns | **1.37× → explains 80 %** |
+| `× visibility`, rows | **1.22× → explains 69 %** |
+
+**Aperture visibility explains 80 % of the spatial error.** That is the arc's first quantified
+*prediction* of what a fix would buy, rather than a description of what is wrong.
+
+**Third result, and it changes the design — the control room says a naive multiply
+over-corrects.** `bedroom3`, where the app already nearly matched:
+
+| `bedroom3` | spread |
+| --- | --- |
+| `app ÷ physics` | 1.74× |
+| `× visibility` | **2.10× → explains −34 %** |
+
+Full-strength modulation makes the small room **worse**. The direction is still right — the
+term lifts the columns where the app is too dark — but it overshoots them past parity, and one
+column moves the wrong way outright. So the shippable form is *not* "multiply indirect
+irradiance by the baked map". It needs a strength that is not 1, or a per-room normalisation,
+or to be blended by how much existing structure the room already has (a small room's sun
+shadows, 1 m AO and IBL directionality apparently already carry most of it). **That is a
+tuning surface with a regression risk, on the exact three views the goal names**, which is why
+this stays a designed change rather than a patch.
+
+**Also worth keeping: full interreflection is the right proxy, not first-bounce AO.** At
+albedo 1.0 the visibility render matches physics; at albedo 0.05 — nearly pure first bounce —
+it explodes to **59.7** at the window column and bears no resemblance to the reference. So what
+must be baked is *full GI* visibility, which is what a Blender diffuse bake gives, and
+emphatically **not** a short-range AO map. That independently re-confirms why N8AO at
+`aoRadius: 1.0` m cannot substitute.
+
+**FPS: still nothing spent.** Everything this round ran offline in Blender (≈20 s per
+visibility render at 800×450/128 samples). The runtime cost of the eventual fix remains one
+texture fetch in a shader that already runs, so the ≥30 fps floor and the ~16.5 ms of
+medium-tier headroom are untouched.
+
 ## v0.31.7.8 — the reference had no lamps: (w)'s wall error is 3.0×, not 4×. Corrects v0.31.7.7, and the instrument now says so out loud
 
 Setting out to decide *how* to implement (w)'s fix, I found a confound in the round that

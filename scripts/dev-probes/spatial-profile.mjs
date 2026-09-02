@@ -21,8 +21,16 @@
  * Takes the same `--crop` as the other comparison probes, and needs it for the same reason:
  * the app's own UI chrome sits in specific columns and would read as a luminance feature.
  *
+ * `--explain=<img>` tests a CANDIDATE CAUSE. Give it a third image whose brightness is the
+ * quantity you think is missing — e.g. `render_visibility.py`'s aperture-visibility map — and
+ * it reports `(app ÷ ref) × candidate`. If the candidate is what the app lacks, that product
+ * is flat, and the drop in spread from `A/B` to the product is **how much of the spatial error
+ * the candidate explains**. This turns "the missing term is X" from a diagnosis into a
+ * falsifiable prediction with a number attached.
+ *
  * Usage:
  *   node scripts/dev-probes/spatial-profile.mjs <app.png> <ref.png> [--crop=x,y,w,h] [--bins=N]
+ *                                               [--explain=<candidate.png>]
  */
 import process from 'node:process'
 import sharp from 'sharp'
@@ -85,7 +93,10 @@ function profile(im, axis) {
   return out
 }
 
-const [A, B] = await Promise.all(files.map(load))
+const explainArg = args.find((a) => a.startsWith('--explain='))
+const [A, B, C] = await Promise.all(
+  [files[0], files[1], ...(explainArg ? [explainArg.slice(10)] : [])].map(load),
+)
 const f = (v) => v.toFixed(3).padStart(7)
 for (const [axis, label] of [
   ['col', 'COLUMNS (left -> right)'],
@@ -100,7 +111,24 @@ for (const [axis, label] of [
   console.log(`   A/B   ${ratio.map(f).join('')}`)
   const lo = Math.min(...ratio)
   const hi = Math.max(...ratio)
+  const spread = hi / lo
   console.log(
-    `   spread ${(hi / lo).toFixed(2)}x  (flat => a global gain error; sloped => a spatial term is missing)`,
+    `   spread ${spread.toFixed(2)}x  (flat => a global gain error; sloped => a spatial term is missing)`,
   )
+  if (C) {
+    const pc = profile(C, axis)
+    const prod = ratio.map((v, i) => v * pc[i])
+    console.log(`   cand  ${pc.map(f).join('')}`)
+    console.log(`   A/B x cand${prod.map(f).join('')}`)
+    const plo = Math.min(...prod)
+    const phi = Math.max(...prod)
+    const pspread = phi / plo
+    // Log-ratio, because "how much of the error is explained" is a multiplicative
+    // question: halving a 4x spread is not the same as halving a 1.1x one.
+    const explained = 1 - Math.log(pspread) / Math.log(spread)
+    console.log(
+      `   residual spread ${pspread.toFixed(2)}x  ` +
+        `=> the candidate explains ${(100 * explained).toFixed(0)} % of the spatial error`,
+    )
+  }
 }

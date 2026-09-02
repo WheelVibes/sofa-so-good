@@ -2949,6 +2949,37 @@ been attributed to the glass or to the background tone-mapping path.
 >    visibility-blind. A per-material `envMapIntensity` cannot reach the analytical lights,
 >    which are per-*light*; only an `aoMap` modulates indirect irradiance per fragment.
 >
+> **✅ CONFIRMED AND QUANTIFIED, v0.31.7.9 — visibility explains 80 % of the error, and a naive
+> multiply regresses small rooms.** `render_visibility.py` renders the term itself (white
+> Lambertian everything, **constant** white world, no sun, glazing deleted so the aperture is
+> open — without that deletion the room is a sealed box and the render maxes out at 2/255).
+> `spatial-profile.mjs --explain=` then tests it: multiply `app ÷ physics` by the candidate's
+> profile and a correct candidate flattens the product.
+>
+> | | spread |
+> | --- | --- |
+> | `livingDining`, `app ÷ physics` | 4.76× |
+> | `livingDining` × visibility, columns | **1.37× → explains 80 %** |
+> | `livingDining` × visibility, rows | 1.22× → explains 69 % |
+> | `bedroom3`, `app ÷ physics` | 1.74× |
+> | `bedroom3` × visibility | **2.10× → explains −34 %** |
+>
+> The sky-lit reference's own column profile tracks the constant-world visibility render to
+> ~10 % across 8 of 10 columns, from two unrelated world setups — so the reference's structure
+> *is* visibility.
+>
+> **But `bedroom3` gets worse at full strength.** The direction is right and the magnitude is
+> not: it lifts the app's too-dark columns past parity. So the shippable form needs a strength
+> below 1, a per-room normalisation, or a blend weighted by the structure a room already has.
+> **That is a tuning surface with regression risk on walk, orbit and the room editor at once**,
+> which is what makes this a designed feature rather than a patch — and what the product call
+> should cover.
+>
+> **And it must be a FULL-GI bake, not AO.** At albedo 1.0 the visibility render matches
+> physics; at albedo 0.05 (near first-bounce only) it explodes to 59.7 at the window column and
+> matches nothing. Short-range AO is the wrong quantity, independently re-confirming why N8AO at
+> 1 m cannot substitute.
+>
 > **Which makes the fix a bake, at zero per-frame cost.** Aperture visibility is static per room
 > geometry, so Blender can bake it (`bake_material.py`, Part B) and the fill can be modulated by
 > it; the room shell is low-poly enough that vertex colours may carry it. Nothing per frame, so

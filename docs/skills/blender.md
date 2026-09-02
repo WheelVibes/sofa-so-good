@@ -152,6 +152,17 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — whitening every material SEALS THE WINDOWS.** To render a visibility/AO
+  reference you replace all materials with white diffuse — which turns glazing into an opaque
+  white wall and makes the room a closed box. The render's maximum pixel value was **2 of 255**.
+  Delete transmissive meshes *before* whitening (`render_visibility.py:open_apertures`).
+- **2026-09-03 — a visibility reference needs a CONSTANT world, not a sky.** A sky gradient
+  weights directions by radiance, so the render measures `visibility x sky` — which is just the
+  ordinary reference render again. A constant white world isolates visibility alone.
+- **2026-09-03 — bake FULL GI visibility, not short-range AO.** At albedo 1.0 the visibility
+  render matches the sky-lit reference's spatial profile; at albedo 0.05 (near first-bounce) it
+  explodes to 59.7x at the window column and matches nothing. Interreflection is most of the
+  quantity, so an AO map with a small radius is the wrong thing to bake.
 - **2026-09-03 — a reference is a LIGHT SET, not just a pose.** `BLENDREF`'s manifest carried
   only directional/hemisphere/ambient, so `render_from_manifest.py` makes a **daylight-only**
   reference — while the app raster still had 4 `PointLight`s burning, one of them a floor lamp
