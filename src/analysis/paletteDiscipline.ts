@@ -40,7 +40,7 @@ export const PALETTE_SWEET_SPOT = 3
 /** At this many, the sources say the eye is overwhelmed — stronger wording. */
 export const PALETTE_NOISE_THRESHOLD = 5
 
-export interface PaletteKindReport {
+interface PaletteKindReport {
   kind: 'floor' | 'wall'
   /** Distinct finishes of this kind, largest area first. */
   finishes: { code: string; name: string; area: number; sharePct: number }[]
@@ -67,7 +67,7 @@ export interface PaletteDisciplineReport {
   note: string
 }
 
-export const PALETTE_NOTE =
+const PALETTE_NOTE =
   `Trade practice keeps a home to about ${PALETTE_SWEET_SPOT} distinct flooring materials for ` +
   `visual cohesion; at ${PALETTE_NOISE_THRESHOLD} the eye is overwhelmed. This is a design ` +
   'observation, not a rule — a deliberate contrast, a wet-room change of material, or a ' +

@@ -111,10 +111,10 @@ const SENTINEL_COVERAGE: Record<string, PaintCoverage> = {
 }
 
 /** Retail tin sizes (litres), largest first — SG paint is sold in these. */
-export const TIN_SIZES_L = [20, 5, 1] as const
+const TIN_SIZES_L = [20, 5, 1] as const
 
 /** One paint line: a material code, its area, and what to buy. */
-export interface PaintQuantityRow {
+interface PaintQuantityRow {
   /** The finish-schedule material code (`WL-01`, `CL-01`, `AW-01`). */
   code: string
   name: string

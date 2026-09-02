@@ -43,11 +43,7 @@ import type { FloorPlan } from './types'
 import { buildWaterproofingZones, GENERAL_UPTURN_MM, SHOWER_UPTURN_MM } from './waterproofing'
 
 /** Which junction a detail describes. */
-export type JunctionKind =
-  | 'ceiling-drop'
-  | 'waterproofing-upturn'
-  | 'floor-threshold'
-  | 'window-sill'
+type JunctionKind = 'ceiling-drop' | 'waterproofing-upturn' | 'floor-threshold' | 'window-sill'
 
 /**
  * One dimensioned junction detail. Geometry is described as a labelled

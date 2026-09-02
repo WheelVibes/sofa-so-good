@@ -76,7 +76,7 @@ const OVERLAY_INTAKE: ReadonlySet<IntakeStateId> = new Set<IntakeStateId>([
 /** Probe offset (m) either side of a door — matches `floorLevels.ts`. */
 const PROBE_OFFSET = 0.2
 
-export interface RoomBuildUp {
+interface RoomBuildUp {
   roomId: string
   roomName: string
   levelId: string
@@ -98,7 +98,7 @@ export interface RoomBuildUp {
   note?: string
 }
 
-export interface DoorwayStep {
+interface DoorwayStep {
   openingId: string
   /** The two rooms, in the order the probe found them. */
   roomAName: string

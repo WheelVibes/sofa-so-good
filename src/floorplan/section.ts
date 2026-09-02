@@ -36,7 +36,7 @@ import {
   wallLength,
 } from './types'
 
-export type SectionAxis = 'x' | 'z'
+type SectionAxis = 'x' | 'z'
 
 export interface SectionCut {
   /** Which world axis the cut line is fixed on. `'x'` → a vertical plane at

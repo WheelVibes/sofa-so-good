@@ -63,7 +63,7 @@ export interface LayerFixtureInput {
   lumens: number
 }
 
-export interface RoomLayerReport {
+interface RoomLayerReport {
   roomId: string
   roomName: string
   /** Layers with at least one fixture. */
@@ -83,7 +83,7 @@ export interface LightingLayersReport {
   note: string
 }
 
-export const LAYERS_NOTE =
+const LAYERS_NOTE =
   'Professional practice lights a room in three layers — ambient (overall), task (directed) and ' +
   `accent (art, shelving, architecture). The IALD's starting point for a living room is about ` +
   `${IALD_STARTING_MIX.ambient * 100}% ambient / ${IALD_STARTING_MIX.task * 100}% task / ` +

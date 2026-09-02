@@ -19,6 +19,32 @@ pruned from `main`; entries from C251 on (branch
 > staging. Noted here instead so the log is confusing-but-honest rather than silently
 > ambiguous. Flagged for the maintainer; renumbering is a call for them, not for either session.
 
+## v0.31.7.2 - 33 unused exports, and a CI comment that described a gate the config does not implement
+
+CI's knip job failed on PR #111 with 33 findings accumulated across 74 commits: 8 unused
+constants and 25 unused exported types. **Every one is mine**, and the fix is un-exporting, not
+re-gating — adjusting the rule to make my own failures pass would be the wrong move.
+
+The constants turned out not to be dead at all: `LAMP_SPEC_SCOPE_NOTE`, `LAYERS_NOTE`,
+`PALETTE_NOTE`, `VARIATION_NOTE` and friends are used *inside* their own modules and reach the
+UI through the report object, never imported by name. So they were never meant to be exported —
+un-exporting is what they always wanted.
+
+One WAS genuinely dead, and it exposed a real gap. `DETAIL_SCALE_RATIOS = [2, 5, 10]` sat unused
+in `drawingScale.ts` since G3, anticipating **drawn** junction details. `detailSheetBody` emits
+dimension TABLES and no geometry, so the sheet is correctly labelled NTS and there is nothing to
+scale. The constant is gone; the measured reasoning it carried is preserved on
+`STANDARD_SCALE_RATIOS`, where it protects `pickDrawingScale` — detail ratios must not be merged
+into that ladder, because it takes the first ratio that FITS and 1:5 at the head would print a
+small room's whole plan at 1:5. Logged in `TASKS.md` with the actual prerequisite: the model
+stores trim heights but no profiles, so drawn details need a profile library, not a renderer.
+
+**Why I didn't catch this locally:** the CI job's own comment said "only `files`/`unresolved`
+fail the build; everything else is `warn`". Every rule in `knip.jsonc` is `error`. The comment
+was stale, I read it, and it cost a red run. Corrected, and `npm run deadcode` is now named in
+CLAUDE.md as a pre-PR check — it is not in the pre-commit trio, which is exactly why an export
+backlog could accumulate over 74 commits without anything complaining.
+
 ## v0.31.7.1 - say WHY the two sibling fields round in opposite directions
 
 `MaterialDef.moduleMm` is an exact product dimension; `MaterialDef.buildUp` takes the thicker

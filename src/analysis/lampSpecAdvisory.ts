@@ -45,7 +45,7 @@ export const WET_ROOM_MIN_IP = 44
 /** Neutral white — what a task space wants. */
 export const TASK_CCT_K = 4000
 /** A fixture warmer than this in a task room raises the CCT advisory. */
-export const TASK_CCT_MIN_K = 3500
+const TASK_CCT_MIN_K = 3500
 
 /** Rooms where a luminaire needs wet-rated ingress protection. */
 const WET_CATEGORIES: ReadonlySet<RoomCategory> = new Set<RoomCategory>(['bath', 'powder'])
@@ -68,7 +68,7 @@ export interface LampSpecInput {
   ip: number
 }
 
-export interface LampSpecFinding {
+interface LampSpecFinding {
   fixtureId: string
   label: string
   roomName: string
@@ -86,7 +86,7 @@ export interface LampSpecAdvisory {
   scopeNote: string
 }
 
-export const LAMP_SPEC_SCOPE_NOTE =
+const LAMP_SPEC_SCOPE_NOTE =
   `Ingress protection is checked per ROOM, not per bathroom zone: a wet room's zones 1 and 2 ` +
   `require IP${WET_ROOM_MIN_IP} minimum, and this flags any fixture below that anywhere in the ` +
   `room. That is deliberately conservative — it may flag a fixture that sits outside the zones, ` +

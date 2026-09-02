@@ -9,24 +9,25 @@
  * No I/O, no store references — pure math, easy to unit test in isolation.
  */
 
-/** Standard architectural scale ratios used in SG interior-design practice
- *  (ascending by ratio number = descending by printed size). 1:20 is the
- *  most detailed/largest drawing; 1:200 the most zoomed-out. */
-export const STANDARD_SCALE_RATIOS = [20, 25, 50, 75, 100, 125, 150, 200] as const
-
 /**
- * CONSTRUCTION-DETAIL ratios (G3), deliberately a SEPARATE ladder from
- * {@link STANDARD_SCALE_RATIOS}.
+ * Standard architectural scale ratios used in SG interior-design practice
+ * (ascending by ratio number = descending by printed size). 1:20 is the
+ * most detailed/largest drawing; 1:200 the most zoomed-out.
  *
- * At 1:20 a 12 mm shadow gap prints 0.6 mm — neither readable nor buildable —
- * so a junction detail needs 1:10 or finer. They are not merged into the
- * standard ladder because `pickDrawingScale` walks it and takes the first ratio
- * that FITS the paper: adding 1:5 at the head would silently print a small
- * room's whole floor plan at 1:5 (measured — the existing "picks 1:20 for a
- * tiny extent" test fails that way). A detail REQUESTS its scale; a plan fits
- * to paper. Two different jobs, two ladders.
+ * **Do NOT add finer detail ratios (1:2, 1:5, 1:10) to this ladder.**
+ * `pickDrawingScale` walks it and takes the first ratio that FITS the paper, so
+ * 1:5 at the head would silently print a small room's whole floor plan at 1:5 —
+ * measured, and the existing "picks 1:20 for a tiny extent" test fails that
+ * way. A junction detail REQUESTS its scale; a plan FITS to paper. Two
+ * different jobs, and merging the ladders breaks the second one.
+ *
+ * A separate `DETAIL_SCALE_RATIOS = [2, 5, 10]` lived here until v0.31.7.2,
+ * anticipating DRAWN junction details. Removed as dead: `detailSheetBody` emits
+ * dimension TABLES, not geometry, so the sheet is correctly labelled NTS and
+ * there is nothing to scale. If drawn details ever land, that is when the
+ * second ladder earns its place back — see TODO.md.
  */
-export const DETAIL_SCALE_RATIOS = [2, 5, 10] as const
+export const STANDARD_SCALE_RATIOS = [20, 25, 50, 75, 100, 125, 150, 200] as const
 
 export interface PrintableAreaMm {
   /** Usable width in mm. */

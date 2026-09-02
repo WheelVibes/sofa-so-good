@@ -34,9 +34,9 @@ import {
   wallLength,
 } from './types'
 
-export type { MeasuredTargetKind, SiteMeasurement }
+export type { SiteMeasurement }
 
-export interface ReconciledMeasurement {
+interface ReconciledMeasurement {
   id: string
   kind: MeasuredTargetKind
   targetId: string

@@ -47,9 +47,12 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # knip flags orphaned files, unresolved imports, and (as non-blocking
-      # warnings) the unused-export/dependency backlog. Gated in knip.json:
-      # only `files`/`unresolved` fail the build; everything else is `warn`.
+      # knip flags orphaned files, unresolved imports, unused exports/types and
+      # unused dependencies. EVERY rule in knip.jsonc is `error`, so any of them
+      # fails the build — this comment claimed only `files`/`unresolved` did,
+      # which was stale and cost a red CI run to discover (v0.31.7.2). It is not
+      # in the pre-commit trio (`npm test`/tsc/biome), so run `npm run deadcode`
+      # before opening a PR that adds exports.
       # Fast (single pass, ~10s) so it runs as its own job, not in the test job.
       - name: Dead-code scan
         run: npm run deadcode

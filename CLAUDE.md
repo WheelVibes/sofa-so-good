@@ -82,6 +82,8 @@ Zustand (sliced store), Vite, Vitest, Biome.
 - **No hardcoded colour.** Use the CSS token class vocabulary (`.panel`/`.btn`/`.toolbar`/…),
   never Tailwind colour utilities or literals; every surface works in light + dark + 5 themes.
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).
+  **Before opening a PR also run `npm run deadcode`** (knip) — it is NOT in the pre-commit hook,
+  every rule in `knip.jsonc` is `error`, and an unused export or type fails CI.
   Vitest defaults to the **node** environment — a test that touches the DOM must start with
   `// @vitest-environment happy-dom` (details in ARCHITECTURE.md).
   While **iterating**, run targeted tests only (`npm test -- <paths near your change>`) — go

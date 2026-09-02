@@ -32,7 +32,7 @@ import type { FloorPlan, PlanRoom, PlanWall } from './types'
 import { planRoomArea, roomPolygon, wallLength } from './types'
 
 /** Palette injected by the caller (resolved theme tokens). */
-export interface TileLayoutPalette {
+interface TileLayoutPalette {
   /** Plan wall stroke. */
   wall: string
   /** Legend + note text. */

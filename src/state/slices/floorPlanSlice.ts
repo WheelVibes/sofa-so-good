@@ -499,7 +499,7 @@ export interface FloorPlanSlice {
 }
 
 /** A priced-state snapshot: everything `buildRenovationAllocation` reads. */
-export interface TenderedSnapshot {
+interface TenderedSnapshot {
   plan: FloorPlan
   items: FurnitureItem[]
   finishes: { floor: Record<string, string>; walls: Record<string, string> }

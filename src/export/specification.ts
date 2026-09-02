@@ -26,16 +26,10 @@
 import type { RoomTileCoursing } from '../floorplan/tileCoursing'
 
 /** The trade a clause is addressed to — mirrors the trade-pack recipients. */
-export type SpecTrade =
-  | 'tiler'
-  | 'painter'
-  | 'waterproofing'
-  | 'carpenter'
-  | 'electrician'
-  | 'plumber'
+type SpecTrade = 'tiler' | 'painter' | 'waterproofing' | 'carpenter' | 'electrician' | 'plumber'
 
 /** One specification clause. */
-export interface SpecClause {
+interface SpecClause {
   /** Stable clause id, e.g. `TIL-01` — quotable in a variation or a dispute. */
   id: string
   trade: SpecTrade

@@ -77,7 +77,7 @@ export interface SettingOutFace {
  * face has no single offset and the centreline is what the geometry model
  * actually stores. `radiusM` is present only for an arc wall.
  */
-export interface SettingOutSkewWall {
+interface SettingOutSkewWall {
   wallId: string
   /** Start endpoint, as {x, z} offsets from the datum (metres). */
   start: PlanVec2

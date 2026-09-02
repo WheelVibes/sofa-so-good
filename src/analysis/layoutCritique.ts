@@ -104,16 +104,11 @@ export const CRITIQUE = {
   sofaWidthMax: 2.2,
 } as const
 
-export type CritiqueId =
-  | 'tv-distance'
-  | 'conversation'
-  | 'coffee-table'
-  | 'sofa-proportion'
-  | 'rug-size'
+type CritiqueId = 'tv-distance' | 'conversation' | 'coffee-table' | 'sofa-proportion' | 'rug-size'
 
-export type CritiqueVerdict = 'pass' | 'warn' | 'fail' | 'skipped'
+type CritiqueVerdict = 'pass' | 'warn' | 'fail' | 'skipped'
 
-export interface CritiqueFinding {
+interface CritiqueFinding {
   id: CritiqueId
   label: string
   /** `pass` = within the published band · `warn` = outside it but usable ·

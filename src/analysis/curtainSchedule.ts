@@ -44,7 +44,7 @@ import type { PlanOpening } from '../floorplan/types'
 export const FLOOR_HEM_CLEARANCE_M = 0.015
 /** Sill-length curtains "end right at the window sill or roughly 1 centimetre
  *  above it". */
-export const SILL_HEM_CLEARANCE_M = 0.01
+const SILL_HEM_CLEARANCE_M = 0.01
 /** "Below sill drops 10 to 15 cm below the sill for a fuller look." */
 export const BELOW_SILL_DROP_M = 0.15
 
@@ -59,9 +59,9 @@ export const FULLNESS = { standard: 2, full: 2.5 } as const
  *  can sit much higher. */
 export const TRACK_ABOVE_HEAD_M = 0.1
 
-export type CurtainLengthStyle = 'sill' | 'below-sill' | 'floor'
+type CurtainLengthStyle = 'sill' | 'below-sill' | 'floor'
 
-export interface CurtainDrop {
+interface CurtainDrop {
   style: CurtainLengthStyle
   /** Finished drop, track to hem (m). */
   dropM: number

@@ -36,7 +36,7 @@ import { pointInRoom } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
 /** What kind of coordination problem was found. */
-export type ClashKind =
+type ClashKind =
   /** An MEP point falls inside a furniture footprint that is tall enough to
    *  cover it — installed, paid for, and unreachable. */
   | 'mep-behind-furniture'
@@ -45,7 +45,7 @@ export type ClashKind =
   | 'item-under-ceiling-drop'
 
 /** One reported coordination problem. */
-export interface CoordinationClash {
+interface CoordinationClash {
   kind: ClashKind
   /** `high` = the design cannot be built / the fitting is unusable as drawn;
    *  `medium` = buildable but wrong, or dependent on an assumption. */

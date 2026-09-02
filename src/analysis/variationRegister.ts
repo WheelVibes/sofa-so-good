@@ -32,9 +32,9 @@
 
 import type { RenoAllocation, RenoTradeLine } from './renovationAllocator'
 
-export type VariationKind = 'added' | 'omitted' | 'changed'
+type VariationKind = 'added' | 'omitted' | 'changed'
 
-export interface VariationLine {
+interface VariationLine {
   /** Trade id, stable across both allocations. */
   id: string
   label: string
@@ -71,7 +71,7 @@ export interface VariationRegister {
  *  noise from re-deriving areas, not a variation anyone should be told about. */
 export const VARIATION_EPSILON_SGD = 0.5
 
-export const VARIATION_NOTE =
+const VARIATION_NOTE =
   'Priced with the app’s indicative SG rate card, not a contractor’s schedule — this register ' +
   'exists to make a change visible and approximately sized, not to price it. Quantities are ' +
   're-derived from each state of the design, so a line can change because the design changed OR ' +

@@ -78,7 +78,7 @@ export const SG_DEFAULT_ROUTE: AccessConstraint[] = [
 export const ACCESS_SCOPE_NOTE =
   'Route dimensions default to published Singapore typicals. HDB lift and corridor sizes vary by block and a 5-10 cm difference decides whether a large piece fits, so measure your actual lift, corridor turn and doorways and adjust these before ordering. The check assumes a piece is carried on its smallest face and does not model tilting it diagonally, so it errs toward warning.'
 
-export interface AccessFinding {
+interface AccessFinding {
   itemId: string
   defId: string
   label: string
