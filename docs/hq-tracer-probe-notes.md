@@ -780,3 +780,46 @@ the surviving closed form was refutable, and `.339` refuted it.
 | night, hour 21 (lamp gradient) | ~2.3 counts |
 
 Quote the figure for the condition you are actually in, and measure it rather than carrying it across.
+
+## Any result inconsistent with the intervention's plausible magnitude — in either direction
+
+Sharper than the "too good to be true" form, and adopted from dev-1a, who proved it against their own bug: a
+regex rescaled **13** coordinate literals instead of 46, and a *too-low* count was exactly as diagnostic as a
+too-high one would have been.
+
+This arc's instances:
+
+| round | signal | plausible? |
+| --- | --- | --- |
+| `.327` | +38.7 counts in the predicted direction | the intervention had not fired |
+| `.339` | **twelve** consecutive failed retries | no such control existed |
+| `.340` | a silent bail returning a plausible arm | wrong (u) class, caught only by the R−B check |
+
+So the check is **"does the magnitude match what I actually did"**, not "is this suspiciously favourable". A
+count that is implausible in either direction is the cheapest available verification, and it is available
+before any analysis.
+
+## PTWANT's classifier rect is pose-dependent — the sign rule is not enough
+
+`PTCLASS_MODE=rb` classifies on the SIGN of R−B, which removes the need for a per-pose *threshold* (`.326`,
+`.330`). But it still reads the fixed 10 % poll patch at (0.45, 0.18), and that lands on clean ceiling only in
+some poses:
+
+| pose | poll-patch R−B, class A | proper ceiling patch |
+| --- | --- | --- |
+| bedroom3 `WALKFOV=72 PITCH=-0.02` | ~−12 | −13.8 |
+| **livingDining, same** | **−0.7** | **−11.0** |
+
+At livingDining the margin nearly vanishes, so the call becomes unreliable even though the rule is sound. **The
+discriminator's margin is pose-dependent even when its sign rule is not.** Verify the margin at any new pose —
+run once with `PT2=1` and read R−B on both the poll patch and the patch you intend to measure — before trusting
+`PTWANT` there.
+
+## `${var:+NAME=value}` is not an assignment prefix in zsh
+
+`.340` lost three runs to `exit=127`. zsh decides which words are assignments **before** expansion, so
+`${w:+WALL=$w} node script.mjs` makes the expanded text the *command name*. Pass the variable unconditionally
+instead — `WALL="$w"` — which this probe already treats as unset when empty.
+
+Note the compounding error: the first fix (an absolute script path) addressed a plausible cause that had not
+been verified. `127` means "command not found", which named the real problem immediately once read.

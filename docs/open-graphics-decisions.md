@@ -3175,3 +3175,22 @@ does not affect the table's use, since the table reproduces whatever the points 
 **Noise correction that matters for any future work here:** daytime class-B arm-to-arm reproducibility is
 **~0.1 counts** (two independent stone-grey arms: 96.7/96.7, 67.7/67.8). The 2.3-count figure quoted in `.337`
 and `.338` came from a **night** pair and is roughly 20× too pessimistic for daytime comparisons.
+
+### ⏳ STILL OPEN: is the required-GB table room-dependent? (attempted v0.31.5.340, unresolved)
+
+`.336` established the lever's **authority** is room-stable (−37 % to −46 % across four rooms, ±10 % relative).
+The required **values** have only ever been measured in bedroom3. That is the last real unknown in this item's
+daytime half, and `.340` failed to close it.
+
+**Why:** no class-matched tracer pair could be obtained at livingDining. Six arms produced white B/B and ink
+A/A/A/A, so neither a class-B nor a class-A pair exists. No comparison was made rather than a contaminated one
+published.
+
+**What is settled:** the *reference* side is room-stable — the raster's livingDining ceiling reads **128.2**
+against bedroom3's **126.9**, consistent with the raster's fill being finish- and room-independent. Only the
+tracer side is unmeasured.
+
+**Practical read for the decision:** the table in `.339` is measured at one room and one pose. If it is shipped
+as-is, the risk is that the *magnitude* differs per room while the *shape* holds — the lever's room-stable
+authority (±10 %) bounds how wrong that can be, and `.332` showed the curve's shape matters ~5× more than
+per-room normalisation. So shipping the single-room table is defensible; it is not verified.

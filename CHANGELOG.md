@@ -5,6 +5,69 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.340 — INCOMPLETE: room-dependence of (w)'s table is still unanswered; a silent wrong-class bug found and fixed; one testable lead on (u)
+
+An honest partial. The question — **are (w)'s required ground-bounce values room-dependent?** — is **not
+answered**. `.336` established the lever's *authority* is room-stable (±10 % across four rooms), but the
+required *values* have only ever been measured in bedroom3, and a second room is the last real unknown in that
+item's daytime half.
+
+**What blocked it: no class-matched pair could be obtained at livingDining.**
+
+| room | walls | arms observed | |
+| --- | --- | --- | --- |
+| bedroom3 | white | A A A B | 3A / 1B |
+| bedroom3 | ink | A A A B | 3A / 1B |
+| bedroom3 | stone-grey | A A A A A B | 5A / 1B |
+| **livingDining** | **white** | **B B** | **0A / 2B** |
+| **livingDining** | **ink** | **A A A A** | **4A / 0B** |
+
+White gave class B twice; ink gave class A four times running. Neither a class-B pair nor a class-A pair is
+available, so no comparison was made rather than a contaminated one published.
+
+**A testable lead on (u), explicitly NOT a finding.** bedroom3 shows **no** wall-dependence (white and ink both
+3A/1B), while livingDining split cleanly. At p(A) ≈ 0.75 that split is ~2 % by chance — suggestive, and n is 2
+and 4. **If (u)'s class rate depends on wall reflectance or on room, that is the first correlate the arc has
+found in ~25 eliminated candidates.** It is cheap to test properly and is recorded as a lead.
+
+**A dangerous bug in `.339`'s knob, found and fixed.** `PTWANT`'s retry waited for full convergence with a
+120 s cap, which a re-render overran — so the next iteration found no Re-render button (a render was still
+running), **bailed silently, and returned a class-A arm as the measurement.** Internally plausible: ceiling
+166.4, sd 2.1. Compared against the class-B white arm it would have manufactured a room-dependence result out
+of nothing.
+
+This is the **third instance of one pattern** — assuming a control exists. `.339`'s first cut assumed Re-render
+existed *during* a render and failed loudly (twelve logged attempts); this cut assumed it existed *after* a
+retry and **failed silently**, which is far worse. What caught it was checking the **R−B sign of every arm
+before comparing** (`.325`'s discriminator, `.327`'s lesson) — not the log.
+
+Rewritten to never assume: it **waits** for the button and checks `disabled`, classifies from ~9 samples
+(`.339`) instead of awaiting 256 on arms about to be discarded, and awaits convergence exactly once after the
+wanted class is in hand.
+
+**A limit of the instrument, found by using it in a new room.** `PTWANT`'s classifier reads the existing 10 %
+poll patch at (0.45, 0.18). That lands on clean ceiling at bedroom3 (R−B margin ±12) but not at livingDining,
+where it reported **rb = −0.7** for an arm whose proper ceiling patch reads **−11.0**. So the discriminator's
+*margin* is pose-dependent even when its *sign rule* is sound — the same class of error as carrying an absolute
+threshold across a pose (`.326`, `.330`), in a new guise. A configurable classification rect is the fix.
+
+**One thing the round did settle:** the raster's livingDining ceiling reads **128.2** against bedroom3's
+**126.9** — so the *reference* side of (w) is room-stable, as the code reading requires. Only the tracer side
+is unmeasured.
+
+**Shell lesson.** Three runs lost to `exit=127`: `${w:+WALL=$w}` is **not** an assignment prefix in zsh, which
+decides word-vs-assignment *before* expansion, so the expanded text becomes the command name. Worse, my first
+fix (an absolute script path) targeted a plausible cause I had not verified — the same "reached for the wrong
+thing" error, compounded by guessing twice instead of reading what 127 means. Fixed with an unconditional
+`WALL="$w"`, which the probe already treats as unset when empty.
+
+Patch placement also cost two attempts, both caught by sd rather than by eye: `ceiling` at 27.6 straddled the
+ceiling/wall junction diagonal, `floor` at 33.3 had swallowed a standing lamp's pole and base. livingDining
+additionally carries a **"Turn off ceiling light" toast** absent from the traced canvas — `.323`'s minimap trap
+in new costume.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.339 — a 6x cheaper (u) instrument, and it immediately refutes `.337`'s curve AND `.338`'s stopping decision
 
 Built a tool to cut (u)'s tax, validated it, and the first measurement it bought overturns two of my own

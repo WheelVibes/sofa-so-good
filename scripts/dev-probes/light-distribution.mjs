@@ -1757,75 +1757,110 @@ if (process.env.PT === '1') {
     }
     console.log(`  PT: settled at ${got} samples after ${((Date.now() - w0) / 1000).toFixed(0)}s`)
   }
-  // PTWANT=A|B -- RETRY UNTIL THE WANTED (u) CLASS APPEARS (`.339`).
+  // PTWANT=A|B -- RETRY UNTIL THE WANTED (u) CLASS APPEARS (`.339`, fixed `.340`).
   //
   // (u)'s class is decided per `createHqRenderSession` call and then followed
-  // deterministically (`.330`, `.334`). `.337` spent three paired runs (~18 min) to
-  // get one class-B arm, because every wrong arm cost a whole page boot.
+  // deterministically (`.330`, `.334`). Re-render creates a FRESH session, so a
+  // wrong-class arm can be replaced without a new page boot.
   //
-  // Two facts make retrying cheap. The trace converges in ~12 s -- nearly all of a
-  // run's wall clock is page boot and settling. And Re-render creates a FRESH session,
-  // i.e. a new draw (which is what PT2 exploits). So replacing a wrong-class arm costs
-  // ~20 s, not ~4 min.
+  // `.339`'s first cut tried to abandon DURING a render; there is no Re-render button
+  // then, so it logged twelve failed attempts. `.340`'s cut waited for full
+  // convergence after each retry with a 120 s cap, which the re-render overran -- so
+  // the next iteration found no button (a render was still running), bailed, and
+  // returned a wrong-class arm that read as a valid measurement. Both failures were
+  // "the control I reached for was not there".
   //
-  // The abandonment must happen AFTER convergence: there is NO Re-render button during
-  // a render, which is why the first cut of this knob could not abandon at all and
-  // logged twelve failed attempts before being rewritten.
-  //
-  // The threshold is POSE-DEPENDENT and must be supplied -- `.326` (a discriminator
-  // calibrated under one environment does not transfer) and `.330` (nor across a pose
-  // change). At bedroom3 WALKFOV=72 PITCH=-0.02 under the shipped gradient the 10 %
-  // patch reads ~163 in class A and ~74 in class B, so 150 separates them amply.
+  // This version fixes both by never assuming: it WAITS for the button to exist before
+  // clicking, and classifies from a few samples (the class is readable at ~9, `.339`)
+  // rather than waiting for 256 each time. Full convergence is awaited ONCE, after the
+  // wanted class is in hand.
   if (process.env.PTWANT) {
     const wantCls = process.env.PTWANT
-    const maxTries = Number(process.env.PTWANT_MAX || 10)
+    const maxTries = Number(process.env.PTWANT_MAX || 8)
     const thresh = Number(process.env.PTCLASS_THRESH || 150)
+    const mode = process.env.PTCLASS_MODE || 'l'
+    const samplesNow = () =>
+      page.evaluate(() => {
+        const t = document.body.innerText || ''
+        const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+        return r ? Number(r[1]) : null
+      })
+    const waitFor = async (fn, ms, every = 1500) => {
+      const t = Date.now()
+      while (Date.now() - t < ms) {
+        if (await fn()) return true
+        await new Promise((r) => setTimeout(r, every))
+      }
+      return false
+    }
+    let kept = null
     for (let attempt = 0; attempt <= maxTries; attempt++) {
+      // Classify as soon as a handful of samples have landed -- a patch MEAN over
+      // ~25k pixels converges far faster than the image (`.339`).
+      await waitFor(async () => ((await samplesNow()) ?? 0) >= 8, 90_000)
       const st = await page.evaluate(patchStatsFn)
       if (!st) {
         console.log('  PTWANT: could not read the tracer canvas -- keeping this arm')
         break
       }
-      const cls = st.L >= thresh ? 'A' : 'B'
+      // PTCLASS_MODE=rb classifies on the SIGN of R-B rather than an absolute L
+      // threshold. Under the shipped grey gradient class A carries the environment's
+      // cool cast (R-B ~ -11..-14 at every pose measured) and class B the room's warm
+      // bounce (+5..+12), so the sign separates them with NO per-pose threshold --
+      // which matters because an L threshold must be re-derived whenever the pose or
+      // environment changes (`.326`, `.330`). Same discriminator as `.325`. NOT valid
+      // under a converted or non-grey environment; there use mode `l` with a measured
+      // threshold.
+      const cls = mode === 'rb' ? (st.rb < 0 ? 'A' : 'B') : st.L >= thresh ? 'A' : 'B'
       if (cls === wantCls) {
-        console.log(
-          `  PTWANT: class ${cls} (patch L=${st.L.toFixed(1)}) after ${attempt} re-render(s) -- keeping`,
-        )
+        kept = { attempt, st }
         break
       }
       if (attempt === maxTries) {
-        console.log(`  PTWANT: still class ${cls} after ${maxTries} re-renders -- giving up`)
-        break
-      }
-      const again = await page.evaluate(() => {
-        const b = [...document.querySelectorAll('button')].find(
-          (x) => (x.textContent || '').trim() === 'Re-render',
+        console.log(
+          `  PTWANT: still class ${cls} after ${maxTries} retries -- giving up, THIS ARM IS CLASS ${cls}`,
         )
-        if (!b) return false
-        b.click()
-        return true
-      })
-      if (!again) {
-        console.log('  PTWANT: no Re-render button -- keeping this arm')
         break
       }
-      const r0 = Date.now()
-      let rgot = 0
-      while (Date.now() - r0 < 120_000) {
-        await new Promise((r) => setTimeout(r, 2500))
-        const m2 = await page.evaluate(() => {
-          const t = document.body.innerText || ''
-          const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
-          return r ? Number(r[1]) : null
-        })
-        if (m2 != null) {
-          if (m2 >= 256 && m2 === rgot) break
-          rgot = m2
-        }
+      // Wait for the Re-render button to EXIST before clicking it, rather than
+      // assuming a converged modal.
+      const clicked = await waitFor(
+        () =>
+          page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')].find(
+              (x) => (x.textContent || '').trim() === 'Re-render',
+            )
+            if (!b || b.disabled) return false
+            b.click()
+            return true
+          }),
+        90_000,
+      )
+      if (!clicked) {
+        console.log('  PTWANT: Re-render never became available -- keeping this arm')
+        break
       }
+      console.log(
+        `  PTWANT: arm ${attempt + 1} was class ${cls} (L=${st.L.toFixed(1)} rb=${st.rb.toFixed(1)}) -- re-rendering`,
+      )
+      await new Promise((r) => setTimeout(r, 3000))
+    }
+    if (kept) {
+      // Only now wait for full convergence, once.
+      let last = -1
+      await waitFor(
+        async () => {
+          const m = (await samplesNow()) ?? 0
+          const done = m >= want && m === last
+          last = m
+          return done
+        },
+        240_000,
+        2500,
+      )
       await new Promise((r) => setTimeout(r, 4000))
       console.log(
-        `  PTWANT: was class ${cls} (L=${st.L.toFixed(1)}) -- re-rendered, attempt ${attempt + 1}, ${rgot} samples`,
+        `  PTWANT: class ${wantCls} after ${kept.attempt} re-render(s) (L=${kept.st.L.toFixed(1)} rb=${kept.st.rb.toFixed(1)}) -- kept, converged`,
       )
     }
   }
