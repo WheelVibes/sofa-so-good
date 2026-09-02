@@ -2101,10 +2101,37 @@ correctly-rendering plaster planes are also `PlaneGeometry` (`.301`) — not bac
 presence in the snapshot (`.302`). What remains is **where it is**: the topmost surface, the only large
 down-facing one, the one thing between the camera and the environment when the camera pitches up.
 
-**Next test, rivals disagreeing.** Hide the ceiling entirely; `buildTracerScene` honours the visibility chain
-(`if (!p.visible) return`), so an invisible ceiling is genuinely absent rather than mis-shaded. **Sole cause ⇒**
-every run dark and *stable*, no bimodality. **Bimodality persists ⇒** the ceiling is a victim, not the cause,
-and (u) is about the environment's contribution merely showing up most visibly there.
+**🎯 EXACT STATEMENT v0.31.5.305 — class A is quantitatively IDENTICAL to the ceiling not being in the scene.**
+New knob `HIDECEIL=1` sets `visible = false` on the 14 ceiling planes, and `buildTracerScene` honours the
+visibility chain, so they are genuinely absent from the snapshot:
+
+| | frame L | glazing | ceiling | sidewall-L | winwall-R |
+| --- | --- | --- | --- | --- | --- |
+| ceiling **hidden** | 104.5 | 168.8 | **181.5** sd 0.88 | **16.1** sd 0.94 | **2.7** sd 0.66 |
+| ceiling hidden (replicate) | 104.4 | 168.9 | 181.5 sd 0.88 | 15.8 sd 0.92 | 2.7 sd 0.64 |
+| **class A**, ceiling present | 104.5 | 168.8 | **181.5** sd 0.88 | **16.1** sd 0.92 | **2.7** sd 0.67 |
+| class B, ceiling present | 29.9 | 164.9 | 1.0 sd 0.00 | 1.2 | 0.0 |
+
+Every figure matches, **including the standard deviations**, and the hidden case is **stable** where the present
+case is bimodal.
+
+> **In roughly half of HQ renders, the tracer renders as if the ceiling were not in the scene at all.**
+
+**This refutes the last rival — mis-shading.** A ceiling shaded as emissive or as background would put the
+right colour in the ceiling *region* but would still **occlude and still bounce**. The sidewall matches to 0.3
+counts and the window wall to 0.1, so in class A the ceiling **neither occludes nor bounces**.
+
+**Combined with `.302`** (the ceiling *is* in the snapshot — 14 planes, right geometry, colour, material,
+roughness), the ceiling is **in `root` and absent from the trace**: dropped downstream of `root`, which in this
+pipeline means **the BVH**. First time this investigation has pointed at a component rather than a behaviour.
+
+**Fix-verification criterion (cheap, and worth keeping):** after any fix, the traced ceiling must never equal
+the hidden-ceiling value. **One-frame detector:** the class-A signature is now known exactly, so a single run
+can be classified without a second run.
+
+**Next test, rivals disagreeing.** Instrument the tracer's geometry/BVH population per run and correlate with
+class. **Ceiling missing from the BVH ⇒** the count differs between classes by exactly the ceiling planes.
+**In the BVH but not intersected ⇒** identical counts, and the fault is in traversal or the geometry's own data.
 
 **Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
 as a surface in every run.

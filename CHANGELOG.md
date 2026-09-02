@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.305 — class A is quantitatively IDENTICAL to the ceiling not being in the scene: same numbers, same standard deviations, and stable
+
+`.304` left one test with disagreeing predictions: hide the ceiling, since `buildTracerScene` honours the
+visibility chain and an invisible ceiling is therefore genuinely **absent** from the snapshot rather than
+mis-shaded. The answer is sharper than either predicted outcome.
+
+**New probe knob `HIDECEIL=1`** sets `visible = false` on the ceiling planes — confirmed
+`HIDECEILCHECK {"hidden":14,"kinds":{"PlaneGeometry#141414":14}}`. Room repainted
+`f5f5f0:141414;fafafa:141414`, normal grey environment, bedroom3 `PITCH=0.30`, medium tier, photographic look,
+hour 13, 256 samples (runs 16:55 and 16:59 +08):
+
+| | frame L | glazing | ceiling | sidewall-L | winwall-R |
+| --- | --- | --- | --- | --- | --- |
+| ceiling **hidden** (`h1`) | 104.5 | 168.8 | **181.5** sd 0.88 | **16.1** sd 0.94 | **2.7** sd 0.66 |
+| ceiling **hidden** (`h2`) | 104.4 | 168.9 | **181.5** sd 0.88 | 15.8 sd 0.92 | **2.7** sd 0.64 |
+| class A, ceiling **present** (`k1`) | 104.5 | 168.8 | **181.5** sd 0.88 | **16.1** sd 0.92 | **2.7** sd 0.67 |
+| class B, ceiling present (`k2`) | 29.9 | 164.9 | 1.0 sd 0.00 | 1.2 sd 0.39 | 0.0 sd 0.00 |
+
+**Every figure matches class A, including the standard deviations.** Frame mean 104.5 against 104.5; ceiling
+181.5 sd 0.88 against 181.5 sd 0.88; sidewall 16.1 sd 0.94 against 16.1 sd 0.92. And **the hidden-ceiling case
+is stable** — both runs agree to 0.1 — where the present-ceiling case is bimodal.
+
+**So (u) class A has an exact statement:**
+
+> **In roughly half of HQ renders, the tracer renders as if the ceiling were not in the scene at all.**
+
+**That is stronger than `.303`'s wording and it rules out the remaining rival.** "The ceiling is shaded as
+emissive, or as background" would put the right colour in the ceiling *region* but would **not** reproduce the
+walls' bounce — a surface shaded as background still occludes and still returns light. The **sidewall matches to
+0.3 counts and the window wall to 0.1**, so in class A the ceiling **neither occludes nor bounces**. It is not
+mis-shaded; it is absent from the light transport.
+
+**And `.302` proved it is present in the snapshot** — 14 planes, right geometry, right colour, right material,
+right roughness, censused in `root`. So the ceiling is in `root` and absent from the trace: **it is being
+dropped downstream of `root`**, which in this pipeline means the BVH the tracer builds from it. That is a
+specific component, and the first time this investigation has pointed at one rather than at a behaviour.
+
+**Two by-products worth keeping.**
+
+- **A fix-verification criterion.** Any fix for (u) must make the class-A signature unreachable — after a fix,
+  the traced ceiling must never equal the hidden-ceiling value. That is a sharper acceptance test than "looks
+  right", and it is cheap.
+- **A one-frame detector.** Because the class-A signature is now known exactly, a single run can be classified
+  by comparing against it, with no need for a second run of the same configuration.
+
+**Next test, rivals disagreeing.** Instrument the tracer's own geometry/BVH population per run — the count and
+identity of what it builds from — and correlate with the class.
+
+- **Ceiling missing from the BVH ⇒** the count differs between class-A and class-B runs by exactly the ceiling
+  planes.
+- **Ceiling in the BVH but not intersected ⇒** the count is identical in both classes, and the fault is in
+  traversal or in the geometry's own data rather than in what was submitted.
+
+Those are directly distinguishable by one number, which is the standard `.302` set.
+
+**Status.** Sixteen mechanisms refuted; this round refutes a seventeenth (mis-shading) and, unusually, *narrows
+to a component* rather than only eliminating. (u) remains unfixed and unauthorised, but it is now specified
+tightly enough that the fix and its acceptance test can both be written down before the cause is known.
+
+**Unchanged:** no `src/` change. The probe gains `HIDECEIL=1`, which is what produced the equivalence and is
+the cheap way to generate a reference class-A frame on demand.
+
 ## v0.31.5.304 — the substitution hypothesis is refuted, and `.253`'s `pbrStandInFor` is cleared: removing the swap entirely changes nothing
 
 `.303` named the ceiling's one distinguishing property — that it is **the only substituted material** in the

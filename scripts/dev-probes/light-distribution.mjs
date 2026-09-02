@@ -493,6 +493,7 @@ const shotFor = async (pitch) => {
   if (typeof applyFillTint === 'function') await applyFillTint()
   if (typeof applyRecolor === 'function') await applyRecolor()
   if (typeof applyCeilStd === 'function') await applyCeilStd()
+  if (typeof applyHideCeil === 'function') await applyHideCeil()
   if (typeof applyHideGrille === 'function') await applyHideGrille()
   if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
@@ -781,6 +782,41 @@ const applyCeilStd = !CEILSTD
       })
       console.log(`CEILSTDCHECK ${JSON.stringify(res)}`)
       if (res.error) throw new Error(`CEILSTD: ${res.error}`)
+      await new Promise((r) => setTimeout(r, 800))
+    }
+// HIDECEIL=1 -- set `visible = false` on the ceiling planes (`.305`).
+//
+// `buildTracerScene` walks the visibility chain (`if (!p.visible) return`), so an
+// invisible ceiling is genuinely ABSENT from the tracer snapshot rather than
+// mis-shaded. `.303` characterised (u) class A as "the ceiling region shows the
+// environment"; this asks the sharper question -- is class A quantitatively
+// IDENTICAL to having no ceiling at all? Class A's dark-room signature is
+// ceiling 181.5, sidewall ~16, frameL ~104.5, so the comparison is exact.
+//
+// NOTE the raster loses its ceiling too, so raster figures from a HIDECEIL run
+// are of a different scene and must not be compared against normal ones.
+const HIDECEIL = process.env.HIDECEIL === '1'
+const applyHideCeil = !HIDECEIL
+  ? null
+  : async () => {
+      const res = await page.evaluate(() => {
+        let hidden = 0
+        const kinds = {}
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          // The ceiling planes are the Lambert ones (`Ceiling.tsx`); a finished
+          // ceiling would be Standard via `RoomCeiling.tsx` and is not hidden.
+          if (!mats.some((m) => m?.isMeshLambertMaterial)) return
+          o.visible = false
+          hidden++
+          kinds[`${o.geometry?.type ?? '?'}#${mats[0]?.color?.getHexString?.() ?? '?'}`] =
+            (kinds[`${o.geometry?.type ?? '?'}#${mats[0]?.color?.getHexString?.() ?? '?'}`] ?? 0) +
+            1
+        })
+        return { hidden, kinds }
+      })
+      console.log(`HIDECEILCHECK ${JSON.stringify(res)}`)
       await new Promise((r) => setTimeout(r, 800))
     }
 const HIDEGRILLE = process.env.HIDEGRILLE === '1'

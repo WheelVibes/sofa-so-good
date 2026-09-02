@@ -10401,3 +10401,53 @@ final mechanistic step.
 
 No `src/` change. The probe keeps `CEILSTD=1`, which documents a refuted hypothesis and is the cheap way to take
 `pbrStandInFor` out of any future experiment.
+
+---
+
+## Round .305 — class A is quantitatively identical to the ceiling not being in the scene
+
+`.304` left one test with disagreeing predictions: hide the ceiling, since `buildTracerScene` honours the
+visibility chain and an invisible ceiling is genuinely **absent** rather than mis-shaded. The answer is sharper
+than either predicted outcome.
+
+New knob `HIDECEIL=1` sets `visible = false` on the ceiling planes —
+`HIDECEILCHECK {"hidden":14,"kinds":{"PlaneGeometry#141414":14}}`. Room repainted dark, normal grey environment,
+bedroom3 `PITCH=0.30`, medium tier, photographic look, hour 13, 256 samples (16:55, 16:59 +08):
+
+| | frame L | glazing | ceiling | sidewall-L | winwall-R |
+| --- | --- | --- | --- | --- | --- |
+| ceiling hidden (`h1`) | 104.5 | 168.8 | **181.5** sd 0.88 | **16.1** sd 0.94 | **2.7** sd 0.66 |
+| ceiling hidden (`h2`) | 104.4 | 168.9 | 181.5 sd 0.88 | 15.8 sd 0.92 | 2.7 sd 0.64 |
+| class A, present (`k1`) | 104.5 | 168.8 | **181.5** sd 0.88 | **16.1** sd 0.92 | **2.7** sd 0.67 |
+| class B, present (`k2`) | 29.9 | 164.9 | 1.0 sd 0.00 | 1.2 sd 0.39 | 0.0 sd 0.00 |
+
+Every figure matches class A **including the standard deviations**, and the hidden case is **stable** (both runs
+to 0.1) where the present case is bimodal.
+
+### The exact statement
+
+> In roughly half of HQ renders, the tracer renders as if the ceiling were not in the scene at all.
+
+**This refutes the last rival, mis-shading.** A ceiling shaded as emissive or background would put the right
+colour in the ceiling *region* but would still occlude and still bounce. The sidewall matches to 0.3 counts and
+the window wall to 0.1 — in class A the ceiling **neither occludes nor bounces**. Not mis-shaded: absent from
+the light transport.
+
+Combined with `.302` (the ceiling *is* in the snapshot), the ceiling is **in `root` and absent from the
+trace** — dropped downstream of `root`, i.e. in the **BVH**. First time this investigation has pointed at a
+component rather than a behaviour.
+
+### By-products
+
+- **Fix-verification criterion:** after any fix, the traced ceiling must never equal the hidden-ceiling value.
+  Sharper and cheaper than "looks right".
+- **One-frame detector:** the class-A signature is known exactly, so a single run classifies without a repeat.
+
+### Next test
+
+Instrument the tracer's geometry/BVH population per run, correlated with class. **Missing from the BVH ⇒**
+counts differ by exactly the ceiling planes. **In the BVH but not intersected ⇒** identical counts, and the
+fault is traversal or the geometry's own data.
+
+No `src/` change. The probe gains `HIDECEIL=1`, which produced the equivalence and generates a reference
+class-A frame on demand.
