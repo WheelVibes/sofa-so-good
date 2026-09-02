@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.297 — the arc's harness lessons written where they are reusable, not buried in a 66-entry changelog
+
+The root `CLAUDE.md` requires reading `docs/visual-verification-playbook.md` before harness work and **adding
+new fixes back to it**. Across `.249`–`.296` I did not: roughly fifty rounds of hard-won harness gotchas went
+into `CHANGELOG.md` entries and nowhere else, which makes them effectively unreachable — a future agent would
+have to read sixty-six entries, several of which contradict each other, to learn not to repeat them. This round
+closes that gap. **No new measurement; the deliverable is the documentation the repo's own rules already asked
+for.**
+
+**New: `docs/hq-tracer-probe-notes.md` (191 lines).** Scoped rather than appended, because the playbook is
+already 3,325 lines and `CLAUDE.md` says to push detail into a dedicated file instead of growing one. Contents:
+
+- **The HQ still is nondeterministic between three discrete classes** — the frequencies, the signatures, what
+  it does to a measurement (a within-tracer A/B is void if its arms are different classes), and the instruction
+  not to delete the `UNKNOWN` bucket that catches the 8 % class.
+- **Reading the tracer canvas gets you either of two images** — `finalize()` swaps in a 2D `denoisedCanvas` and
+  `toDataURL` prefers it, so the same code returns the raw trace or the denoised output depending on timing.
+  Includes the stage-detection snippet **and** the wrong version of it: `getContext('webgl2')` returns null on a
+  WebGL1 canvas and therefore mislabels.
+- **A frame-wide statistic needs its region declared** — the three instances that cost the most, as a
+  symptom/cause/check table, plus the rule that a new classifier must be validated against a frame whose answer
+  is already known and reverted if it fails.
+- **Wire up the observation channels before the hypotheses** — the probe had no `page.on('console')` listener at
+  all; four candidate causes fell in one round once it did.
+- **Check whether a candidate cause is even a variable before A/B-ing it**, and the related trap that forcing a
+  store value to build an arm moved the camera and produced a plausible frame of the wrong room.
+- **Interception, not assignment** — `Lighting.tsx` rewrites its values every frame; always read back after the
+  capture.
+- **Check the outputs of old runs before generating new ones** — two rounds cost zero probe runs and each
+  overturned a published conclusion.
+- **Driver-script traps (zsh)** — word-splitting, an alias collision that silently aborted a heredoc,
+  `grep -c` agreeing while behaviour did not, and the working-directory reset after a timeout.
+- **Reference-photograph screening** — the ~5 % and falling yield, the 20× thumbnail route, the two *separate*
+  Wikimedia rate limits and the `--data-urlencode` requirement, dedupe-by-upload-batch, which seams are
+  exhausted, provenance as a prior rather than a verdict, the **CG-detection test** (absent contact shadows plus
+  absent cross-room falloff), the ~5 % crop-choice uncertainty, and the 6.3 % error one intruding object caused.
+- **A reference table for the thirteen `PT*` knobs** this arc added, plus the note that `ANCHORS=1` is the
+  framing-invariant metric and should be preferred over any screen-space band for cross-pose comparisons.
+
+**Indexed in the three places the repo's rules require**, so it is discoverable rather than merely present: a
+pointer section at the top of the playbook's gotcha list, an entry in `docs/ARCHITECTURE.md` beside the
+harness tooling, and a note in `src/scene/CLAUDE.md` next to the existing `.253` tracer entry — which is the
+file that loads when someone works in `src/scene/`, and therefore the one most likely to be read by whoever
+next touches the tracer.
+
+**Why this was worth a round.** The arc's most expensive failures were not graphics mistakes; they were
+measuring an unvalidated instrument, and the same four or five harness faults recurring. Two of them recurred
+*after* being diagnosed, because the diagnosis lived in a changelog entry rather than in the playbook the rules
+point at. Writing them down where they will be read is the difference between a lesson and an anecdote.
+
+**Unchanged:** no `src/` code change, no probe change. Docs only — one new file, three index updates.
+
 ## v0.31.5.296 — state of knowledge, `.230`–`.295`: what stands, what is withdrawn, what is unknown
 
 **Sixteen of the last twenty rounds corrected an earlier one.** Read front to back the record is now

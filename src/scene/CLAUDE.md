@@ -163,6 +163,10 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     · The 27 `sheen` + 9 `clearcoat` `MeshPhysicalMaterial` surfaces noted above are the prime
       suspects for the one remaining raster-vs-traced disagreement: the rug reads raster 218 against
       traced 105–116, a factor ~2 that roughness cannot explain (v0.31.5.253, n = 1, unresolved).
+      **Measuring anything path-traced: read `docs/hq-tracer-probe-notes.md` first.** The HQ
+      still is nondeterministic between three discrete classes ~45 % apart at an anchor (item
+      (u)), and `HqRenderModal` replaces the host canvas with the AI-denoised one on completion,
+      so the same read returns either stage depending on timing.
       Until that is understood, the path tracer is **not** a valid reference for
       `MeshPhysicalMaterial` surfaces.
   · **Baking into an irradiance volume was spiked and REJECTED — don't re-propose it.**

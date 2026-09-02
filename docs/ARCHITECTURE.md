@@ -51,6 +51,10 @@ same change that reshapes a system.
   wait/screenshot/store/viewport. Scenario schema in `scripts/lib/validate.mjs` (pure,
   unit-tested). Worked example: `scripts/scenarios/first-run.json`. Playbook:
   `docs/visual-verification-playbook.md`.
+- **HQ path-tracer measurement**: `docs/hq-tracer-probe-notes.md` — the HQ still is
+  nondeterministic between three discrete classes, the modal swaps canvases on completion,
+  and the `PT*` knobs of `scripts/dev-probes/light-distribution.mjs` are referenced there.
+  Read it before measuring anything path-traced.
 - `crop.mjs`/`perf.mjs`.
 - `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
