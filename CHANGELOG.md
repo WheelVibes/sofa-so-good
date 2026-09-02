@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.264 - the G8 themes are checked against what these styles really look like
+
+On the user's requirement that the alternative schemes be grounded in real research rather than
+invented palettes. Audited each theme the comparison actually surfaces against published
+interior-design references, including SG HDB/condo sources:
+`docs/research/2026-09-02-scheme-theme-grounding.md`.
+
+**Verdict: all four are accurate, and nothing needed correcting.** Two encode a detail only someone
+who knows the style would get right:
+
+- **Warm Industrial** — `wall-paint-greige` over `floor-tile-charcoal`. The industrial references'
+  central warning is that the style reads cold, and their prescribed fix is exactly this: replace
+  concrete-grey walls with greige or warm taupe, keep the charcoal and the dark timber. That is the
+  documented recipe, not a guess.
+- **Japandi** — "black ACCENTS" matches the references' explicit "black is used sparingly for
+  contrast", and its "low-contrast" framing matches their emphasis on depth through light, shadow
+  and texture rather than colour.
+- **Modern Contemporary** — white walls + warm oak + ONE deep navy accent is confirmed as the
+  everyday SG default, including the one-accent restraint the sources prescribe.
+- **Scandi Calm** — ash is a named-correct light wood (references list white oak, ash, birch,
+  pine), with white walls over pale floors and linen/wool/cotton textiles.
+
+Stated honestly in the audit: this verifies the themes against what published references say these
+styles use. I did not visually inspect photographs myself, and that limit is recorded rather than
+glossed.
+
+**Scope, also stated.** `LAYOUT_PRESETS` ships 17 themes; the comparison surfaces the first three
+plus any a brief names, so four is what a user sees today. The other thirteen are UNAUDITED — two
+spot-checks look sound, but likely is not verified. `TODO.md` now blocks raising `SCHEME_COUNT`
+past 3 on auditing them, flagging Peranakan Accent especially: it is the one culturally specific
+theme, so an invented palette there is worse than an aesthetic miss.
+
+Consequence recorded in the module header: scheme generation rests on a sound style vocabulary, so
+a weak comparison is NOT a theme problem — it is the missing `kits` from v0.31.5.262. The audit also
+says what those kits should hold (rattan/bamboo + ceramics for Japandi, wool/linen for Scandi,
+leather + reclaimed timber for Warm Industrial), which is now a `TODO.md` item.
+
+Sources added to `REFERENCES.md` per the repo rule, grouped with a note to consult them before
+editing any preset's finishes or description.
+
 ## v0.31.5.263 - the scheme comparison gets a surface
 
 G8's review-and-pick UI over v0.31.5.262's data core. `SchemeCompareModal` shows each scheme's

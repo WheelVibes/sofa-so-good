@@ -200,6 +200,19 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G8] Audit the remaining 13 theme presets against real-world references.** The four the
+  comparison surfaces today (Modern Contemporary, Scandi Calm, Japandi, Warm Industrial) are
+  verified accurate in `docs/research/2026-09-02-scheme-theme-grounding.md`. Unaudited: Coastal,
+  Warm Minimalist / Muji, Modern Luxe, Modern Mono, Peranakan Accent, Cozy Tropical, Boutique Suite,
+  Broken Plan, Entertainer, Family Nursery, Open Lounge, Social Lounge, WFH Studio. Two spot-checks
+  look sound but are not verified. Do this BEFORE raising `SCHEME_COUNT` past 3 or letting a brief
+  surface an arbitrary preset, so a user is never shown a theme whose palette is invented.
+  **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
+  and colours wrong is more than an aesthetic miss.
+- **[G8] Give a few themes real `kits`, informed by the grounding audit.** No preset defines `kits`,
+  so themes differ in finish/styling but place identical furniture (v0.31.5.262). The audit says
+  what belongs: rattan/bamboo + handmade ceramics for Japandi, wool/linen textiles for Scandi Calm,
+  leather + reclaimed timber for Warm Industrial. Cheaper and higher-value than any generator change.
 - **[G8 next] Scheme comparison needs a UI surface.** v0.31.5.262 ships the data core
   (`analysis/schemeOptions.ts`): generate N schemes, scored/priced, with derived trade-offs. Still
   needed: a review-and-pick surface (each scheme's plan thumbnail, score breakdown, price and the

@@ -26,6 +26,16 @@
  * is a factual difference a user can act on; prose adjectives about "warmth"
  * would be invented. Where the schemes genuinely tie, nothing is claimed.
  *
+ * **The theme vocabulary is grounded, and that was checked.** Each surfaced
+ * theme's encoded finishes were verified against published interior-design
+ * references (including SG HDB/condo sources) — see
+ * `docs/research/2026-09-02-scheme-theme-grounding.md`. Warm Industrial's greige
+ * wall against a charcoal floor, for instance, is the documented fix for
+ * industrial schemes reading cold, not a guess. So a weak comparison is NOT a
+ * theme problem; it is the missing `kits` noted below. Thirteen of the
+ * seventeen presets are still unaudited (`TODO.md`) — audit before widening the
+ * spread past three schemes.
+ *
  * **Honest limits.** Scheme identity comes from the preset vocabulary, so two
  * schemes differ as much as their presets do — this does not invent a novel
  * arrangement strategy per scheme. And because `designScore` weights clearance

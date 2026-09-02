@@ -156,3 +156,35 @@ plain CSS/React (no Tailwind, no framer-motion). Steal the *mechanics*, port to 
   feedback, goal-gradient) and the authority on productivity-tool motion taste (150–300ms
   ease-out enters, faster ease-in exits, transform/opacity only).
   [lawsofux](https://lawsofux.com) · [animations.dev](https://animations.dev)
+
+## Interior-style grounding references (2026-09-02, G8 theme audit)
+
+Used to verify that the app's theme presets encode what these styles actually
+look like, rather than invented palettes. Full audit + verdicts:
+`docs/research/2026-09-02-scheme-theme-grounding.md`. Consult these before adding
+or editing a `LayoutPreset`'s finishes or description.
+
+- **Japandi palette + materials** — warm-white/ivory/beige base, warm oak, black
+  used SPARINGLY for contrast, rattan/bamboo and handmade ceramics for texture.
+  [shopjapandi](https://www.shopjapandi.com/blogs/design/japandi-color-palette) ·
+  [Trove](https://troveobjectgallery.com/pages/complete-guide-to-japandi-home-decor) ·
+  [homeoration](https://homeoration.com/japandi-color-palette/)
+- **Scandinavian woods + textiles** — light woods named specifically (white oak,
+  ash, birch, pine) in matte/low-sheen, white walls over pale floors, linen /
+  wool / cotton.
+  [Floor & Decor](https://www.flooranddecor.com/scandinavian-inspired-wood) ·
+  [Trove](https://troveobjectgallery.com/blogs/curators-journal/scandinavian-home-decor-guide) ·
+  [decosurfaces](https://www.decosurfaces.com/en/blog/article/138-7_ideas-for-scandinavian-floor.html)
+- **Industrial without the cold-warehouse problem** — the key source for WHY warm
+  industrial uses greige/warm-taupe walls rather than concrete grey, plus
+  dark-stained oak / reclaimed timber / walnut and honeyed-tan leather as the
+  warm counterpoints.
+  [ArchitectureCourses](https://www.architecturecourses.org/home-and-garden/industrial-interior-design) ·
+  [awedeco palette](https://awedeco.com/industrial-color-palette/) ·
+  [domkapa](https://domkapa.com/en/blog/inspiration/industrial-interior-design-101-essential-tips-to-embrace-this-raw-aesthetic/)
+- **Singapore HDB / condo defaults** — confirms white walls + light/warm oak as
+  the perennial SG default and the "limit yourself to one or two accent tones
+  like deep navy" discipline the `moveIn` preset encodes.
+  [Space Factor](https://www.spacefactor.com.sg/top-hdb-living-room-design-ideas-in-singapore/) ·
+  [RS Carpentry](https://rscarpentry.com.sg/interior-design-trends/scandinavian-interior-design-singapore-hdb-condo-guide/) ·
+  [Swiss Interior](https://www.swissinterior.com.sg/blog/7-best-modern-interior-design-hdb-styles-in-singapore)
