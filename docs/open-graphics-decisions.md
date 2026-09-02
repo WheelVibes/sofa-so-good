@@ -3224,3 +3224,31 @@ arrives as wall bounce rather than direct**, which varies with room geometry *an
 This does not reopen the defect — (w)'s zero is confirmed at five finishes across a 28× reflectance range and
 at two rooms. It reopens the **magnitude**, and it is the strongest remaining argument for measuring a second
 room properly before implementing.
+
+### ⚠️ THE ROOM-DEPENDENCE IS GEOMETRIC, NOT FIXTURE-DRIVEN — v0.31.5.342
+
+`.341` proposed that livingDining's shallower response (−9.1 % vs bedroom3's −20.8 %) came from its
+ceiling-mounted fan fixture diluting the wall-bounce fraction. **Refuted:**
+
+| livingDining | white | Ink | response |
+| --- | --- | --- | --- |
+| lights on | 148.9 | 135.3 | −9.1 % |
+| **lights off** (19 of 87 items flipped) | 141.2 | 129.5 | **−8.3 %** |
+
+Removing every fixture changes nothing material. The cause is **geometric — the wall-to-ceiling area ratio**
+(the room-cavity ratio of lighting design): a small room's walls subtend a far larger solid angle from any
+ceiling point. bedroom3 small → −20.8 %; livingDining large → −8.3 %.
+
+**This makes the fix MORE tractable, and it changes what to build.** Fixture state is dynamic — a
+fixture-driven correction would have to change as the user flips lights. **Room geometry is static and already
+in the plan**, so the scaling factor is computable, not measured. Concretely, the shape from `.339` scaled by a
+per-room geometric factor derived from wall area ÷ ceiling area, rather than one global table (which would
+over-correct large rooms ~2.5×) or a per-room measurement campaign.
+
+**Next test, cheap and falsifiable:** `mainBedroom` is intermediate in size and should give an intermediate
+response. `.336` already has its lever authority (−44.7 %); only the tracer target is missing.
+
+Status of (w) overall: the **defect** is settled (zero response at five finishes over a 28× reflectance range,
+two rooms). The **lever** is settled (hemisphere `groundColor`; a uniform fill scale wrongly darkens the floor).
+The **shape** is measured at one room. The **depth** is room-dependent and now has a computable candidate
+mechanism. The **night half** needs a separate mechanism entirely (`.333`, `.335`).

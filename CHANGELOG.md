@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.342 — my fixture mechanism REFUTED; the room-dependence is geometric, which makes (w) more tractable, not less
+
+`.341` found (w)'s required response is room-dependent (bedroom3 −20.8 %, livingDining −9.1 %) and proposed a
+mechanism: direct light from livingDining's ceiling-mounted fan fixture diluting the wall-bounce fraction. That
+prediction was registered and is **wrong**.
+
+| livingDining | white | Ink | response |
+| --- | --- | --- | --- |
+| lights **on** | 148.9 | 135.3 | **−9.1 %** |
+| lights **off** (19 of 87 items flipped) | 141.2 | 129.5 | **−8.3 %** |
+
+Removing every fixture leaves the response essentially unchanged, and nowhere near bedroom3's −20.8 %. **The
+fixtures are not the cause.**
+
+**The likely cause is geometric — the wall-to-ceiling area ratio.** A small room's walls subtend a far larger
+solid angle from any ceiling point than a large room's do; this is the room-cavity ratio of lighting design.
+bedroom3 is small (−20.8 %), livingDining visibly much larger (−8.3 %), which is the right direction.
+
+**That is better news for (w) than the fixture theory would have been.** Fixture state is dynamic — it would
+have meant the correction changing as a user switches lights. Room geometry is **static and already known to the
+app**, so the scaling factor is computable from the plan rather than measured per room.
+
+**Falsifiable next test:** `mainBedroom` is intermediate in size and should give an intermediate response.
+`.336` already measured the lever's authority there (−44.7 %), so only the tracer target is missing.
+
+**A discriminator limitation, and the fourth variant of one error.** The R−B **sign** rule (`.325`) breaks under
+`LIGHTS=off`: an arm read L=129.5 with R−B **−1.6**, so the sign called it class A, but 129.5 sits 37 counts
+below the class-A cluster (166–168). It is class B with a marginal R−B. The rule has a **hidden premise** — that
+the room's own bounce is *warm* relative to the sky — which held in every prior condition only because the
+fixtures were on. With daylight alone the bounce is cool too, and the rule fails silently.
+
+Catalogued: `.326` a threshold does not transfer across environments; `.330` nor across poses; `.340` the
+classifier's *rect* is pose-dependent even when the rule is sound; `.342` the **rule itself** has a premise that
+can fail.
+
+What caught it was carrying **two** signals whose *causes differ* — chroma follows the light source's colour,
+luminance follows whether the ceiling is a surface — so their disagreement was diagnostic. `.327` established
+that two signals give no protection when one confound drives both; the distinction is whether the signals are
+independent in *mechanism*, not merely in name. **All lights-off classification in this arc must use luminance,
+not R−B.**
+
+**A free corroboration of (u).** Class-A ceilings read 167.9 / 167.6 / 166.1 with lights **off** against
+169.0 / 166.4 / 166.8 with lights **on** — insensitive to the room's own fixtures, exactly as "in class A the
+ceiling shows the environment" predicts. Obtained at no cost from arms discarded for the primary measurement.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.341 — `.340`'s (u) lead REFUTED by my own data, and (w)'s response is ROOM-DEPENDENT: −21 % vs −9 %
 
 Built a census instrument for (u), which refuted the lead it was built to test — and, incidentally, delivered

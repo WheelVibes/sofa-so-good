@@ -848,3 +848,36 @@ B/B), confirmed against the converged frames.
 One re-run of the same condition on a fresh boot is the cheapest possible test of any claimed correlate here,
 and it should precede any deeper investigation. The cost is one boot; the alternative is building a theory on a
 2 % coincidence.
+
+## The R−B sign rule has a hidden premise: warm fixtures. It FAILS under LIGHTS=off
+
+`.325`'s discriminator classifies on the sign of R−B, on the basis that class A carries the environment's cool
+cast while class B carries the room's warm bounce. The second half is a **premise, not a fact**: the room's
+bounce is warm only because tungsten fixtures are on.
+
+`.342`, `LIGHTS=off` at livingDining: an arm read **L=129.5, R−B −1.6**. The sign rule called it class A; it is
+class B, 37 counts below the class-A cluster (166–168). With daylight alone the room's bounce is cool too, so
+the sign carries no information.
+
+**Under `LIGHTS=off`, classify on luminance.** Class A sits at the environment's level and is insensitive to
+fixtures (measured 167.9 / 167.6 / 166.1 lights-off against 169.0 / 166.4 / 166.8 lights-on), so the class-A
+level from a lights-on run transfers; the class-B level does not.
+
+Fourth variant of one error, worth reading together:
+
+| round | what failed to transfer |
+| --- | --- |
+| `.326` | a threshold, across environments |
+| `.330` | a threshold, across poses |
+| `.340` | the classifier's **rect**, across poses (rule still sound) |
+| `.342` | the **rule's premise**, across a lighting change |
+
+## Two signals help only when their CAUSES differ
+
+`.327` concluded that two signals give no protection when a single confound drives both — luminance and hue both
+moved, both as predicted, on an intervention that had not fired.
+
+`.342` is the complement: luminance and R−B **disagreed**, and that disagreement was diagnostic, because their
+causes are independent — chroma follows the light source's colour, luminance follows whether the ceiling is a
+rendered surface. So the useful test is not "do I have two numbers" but **"can one fault move both?"** If yes,
+they are one signal wearing two hats.
