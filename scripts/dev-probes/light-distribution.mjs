@@ -1693,99 +1693,6 @@ if (process.env.PT === '1') {
       return r ? Number(r[1]) : null
     })
     if (m != null) got = m
-    // PTTRACE=1 -- sample the tracer canvas DURING the render (`.282`). `.281`
-    // found bedroom3's traced level identical at 50 and 150 samples and totally
-    // different at 250 (level, texture AND colour temperature), which no Monte
-    // Carlo accumulation can do. Whole extra runs answer that slowly and
-    // confound sample count with wall-clock; one render read repeatedly gives
-    // the trajectory against both at once. Reads a small patch via drawImage
-    // onto a 2D scratch canvas -- toDataURL of a 1920x1080 WebGL canvas every
-    // 4 s would itself perturb the timing.
-    if (process.env.PTLIST === '1' && got > 0 && got < 40) {
-      // `.283`: drawImage AND gl.readPixels both return the same frozen frame,
-      // while a page screenshot of the SAME modal shows a normal evolving trace.
-      // Two independent pixel reads cannot both be stale, so the canvas being
-      // read is simply not the canvas being displayed -- the "largest canvas
-      // that is not the scene" heuristic is picking the wrong one. Inventory it.
-      const inv = await page.evaluate(() =>
-        [...document.querySelectorAll('canvas')].map((c, i) => {
-          const r = c.getBoundingClientRect()
-          return {
-            i,
-            w: c.width,
-            h: c.height,
-            css: `${Math.round(r.width)}x${Math.round(r.height)}`,
-            vis: r.width > 0 && r.height > 0,
-            parent: c.parentElement?.className?.toString().slice(0, 40) || '',
-          }
-        }),
-      )
-      for (const c of inv) {
-        console.log(
-          `  PTLIST [${c.i}] backing=${c.w}x${c.h} css=${c.css} visible=${c.vis} parent="${c.parent}"`,
-        )
-      }
-    }
-    if (process.env.PTGL === '1') {
-      // `.283`: page screenshots prove the DISPLAYED render evolves and converges
-      // normally, while drawImage reads of the same canvas return a frozen early
-      // frame. So the freeze is a read artefact. The renderer is constructed with
-      // preserveDrawingBuffer:true, so gl.readPixels should see live pixels --
-      // this compares the two reads side by side on the same patch.
-      const cmp = await page.evaluate(() => {
-        const list = [...document.querySelectorAll('canvas')]
-        const c = list
-          .filter((x) => x !== list[0] && x.width > 16 && x.height > 16)
-          .sort((a, b) => b.width * b.height - a.width * a.height)[0]
-        if (!c) return null
-        const w = Math.round(c.width * 0.1)
-        const h = Math.round(c.height * 0.1)
-        const sx = Math.round(c.width * 0.45)
-        const sy = Math.round(c.height * 0.18)
-        const stats = (get) => {
-          let sl = 0
-          let sl2 = 0
-          let n = 0
-          for (let i = 0; i < w * h; i++) {
-            const [r, g, b] = get(i)
-            const l = 0.2126 * r + 0.7152 * g + 0.0722 * b
-            sl += l
-            sl2 += l * l
-            n++
-          }
-          const m = sl / n
-          return { L: m, sd: Math.sqrt(Math.max(0, sl2 / n - m * m)) }
-        }
-        const s2 = document.createElement('canvas')
-        s2.width = w
-        s2.height = h
-        const ctx = s2.getContext('2d', { willReadFrequently: true })
-        ctx.drawImage(c, sx, sy, w, h, 0, 0, w, h)
-        const d2 = ctx.getImageData(0, 0, w, h).data
-        const draw = stats((i) => [d2[i * 4], d2[i * 4 + 1], d2[i * 4 + 2]])
-        const gl = c.getContext('webgl2') || c.getContext('webgl')
-        if (!gl) return { draw, gl: null }
-        const px = new Uint8Array(w * h * 4)
-        // readPixels origin is bottom-left; flip the y of the patch.
-        gl.readPixels(sx, c.height - sy - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px)
-        const glr = stats((i) => [px[i * 4], px[i * 4 + 1], px[i * 4 + 2]])
-        return { draw, gl: glr }
-      })
-      if (cmp) {
-        const g = cmp.gl ? `L=${cmp.gl.L.toFixed(1)} sd=${cmp.gl.sd.toFixed(2)}` : 'n/a'
-        console.log(
-          `  PTGL samples=${got} drawImage L=${cmp.draw.L.toFixed(1)} sd=${cmp.draw.sd.toFixed(2)}  |  readPixels ${g}`,
-        )
-      }
-    }
-    if (process.env.PTSHOT === '1') {
-      // What the USER sees, as opposed to what a canvas read returns (`.283`).
-      // `.282` filed the frozen canvas as a product defect on the strength of
-      // drawImage reads alone; a page screenshot goes through the compositor
-      // instead, so if it evolves while the canvas read does not, the freeze is
-      // a read artefact and (t) is wrong.
-      await page.screenshot({ path: `${OUT}/prog-${String(got).padStart(3, '0')}.png` })
-    }
     if (process.env.PTTRACE === '1') {
       const st = await page.evaluate(patchStatsFn)
       if (st) {
@@ -1849,6 +1756,78 @@ if (process.env.PT === '1') {
       }
     }
     console.log(`  PT: settled at ${got} samples after ${((Date.now() - w0) / 1000).toFixed(0)}s`)
+  }
+  // PTWANT=A|B -- RETRY UNTIL THE WANTED (u) CLASS APPEARS (`.339`).
+  //
+  // (u)'s class is decided per `createHqRenderSession` call and then followed
+  // deterministically (`.330`, `.334`). `.337` spent three paired runs (~18 min) to
+  // get one class-B arm, because every wrong arm cost a whole page boot.
+  //
+  // Two facts make retrying cheap. The trace converges in ~12 s -- nearly all of a
+  // run's wall clock is page boot and settling. And Re-render creates a FRESH session,
+  // i.e. a new draw (which is what PT2 exploits). So replacing a wrong-class arm costs
+  // ~20 s, not ~4 min.
+  //
+  // The abandonment must happen AFTER convergence: there is NO Re-render button during
+  // a render, which is why the first cut of this knob could not abandon at all and
+  // logged twelve failed attempts before being rewritten.
+  //
+  // The threshold is POSE-DEPENDENT and must be supplied -- `.326` (a discriminator
+  // calibrated under one environment does not transfer) and `.330` (nor across a pose
+  // change). At bedroom3 WALKFOV=72 PITCH=-0.02 under the shipped gradient the 10 %
+  // patch reads ~163 in class A and ~74 in class B, so 150 separates them amply.
+  if (process.env.PTWANT) {
+    const wantCls = process.env.PTWANT
+    const maxTries = Number(process.env.PTWANT_MAX || 10)
+    const thresh = Number(process.env.PTCLASS_THRESH || 150)
+    for (let attempt = 0; attempt <= maxTries; attempt++) {
+      const st = await page.evaluate(patchStatsFn)
+      if (!st) {
+        console.log('  PTWANT: could not read the tracer canvas -- keeping this arm')
+        break
+      }
+      const cls = st.L >= thresh ? 'A' : 'B'
+      if (cls === wantCls) {
+        console.log(
+          `  PTWANT: class ${cls} (patch L=${st.L.toFixed(1)}) after ${attempt} re-render(s) -- keeping`,
+        )
+        break
+      }
+      if (attempt === maxTries) {
+        console.log(`  PTWANT: still class ${cls} after ${maxTries} re-renders -- giving up`)
+        break
+      }
+      const again = await page.evaluate(() => {
+        const b = [...document.querySelectorAll('button')].find(
+          (x) => (x.textContent || '').trim() === 'Re-render',
+        )
+        if (!b) return false
+        b.click()
+        return true
+      })
+      if (!again) {
+        console.log('  PTWANT: no Re-render button -- keeping this arm')
+        break
+      }
+      const r0 = Date.now()
+      let rgot = 0
+      while (Date.now() - r0 < 120_000) {
+        await new Promise((r) => setTimeout(r, 2500))
+        const m2 = await page.evaluate(() => {
+          const t = document.body.innerText || ''
+          const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+          return r ? Number(r[1]) : null
+        })
+        if (m2 != null) {
+          if (m2 >= 256 && m2 === rgot) break
+          rgot = m2
+        }
+      }
+      await new Promise((r) => setTimeout(r, 4000))
+      console.log(
+        `  PTWANT: was class ${cls} (L=${st.L.toFixed(1)}) -- re-rendered, attempt ${attempt + 1}, ${rgot} samples`,
+      )
+    }
   }
   // PTHOLD=<seconds> -- keep sampling AFTER the target count is reached (`.282`).
   // PTTRACE showed the displayed canvas frozen for a whole 256-sample render, so

@@ -741,3 +741,42 @@ differed by ≤0.24 GB — about 1.4σ per arm, needing ~3 class-B arms (~18 run
 closely enough that the choice is immaterial. So the curve is finished *to this instrument's power*. Stopping by
 calculation is better than stopping by exhaustion, and it is reportable: "further points cannot discriminate" is
 a result, not a gap.
+
+## `PTWANT=A|B` — get the (u) class you need in one run instead of six
+
+(u)'s class is decided per `createHqRenderSession` call and then followed deterministically (`.330`, `.334`).
+Two facts make retrying cheap, both found by trying rather than assuming:
+
+- **The trace converges in ~12 s.** Almost all of a run's ~4 minutes is page boot and settling, so replacing a
+  wrong-class arm costs ~20 s rather than a fresh run.
+- **There is NO Re-render button during a render.** It appears only after convergence — which is why `PT2` can
+  use it. The first cut of this knob tried to abandon mid-render and logged twelve consecutive failed attempts.
+  The retry must run **after** the settle.
+
+The class is readable at **9 samples**: on the existing 10 % poll patch (`patchStatsFn`), bedroom3
+`WALKFOV=72` `PITCH=-0.02` under the shipped gradient reads **~163 in class A** and **~74 in class B**, stable
+to ±0.3 counts from 8 through 59 samples. `PTCLASS_THRESH=150` separates them amply.
+
+**The threshold is pose- and environment-dependent and must be supplied** — `.326` (a discriminator calibrated
+under one environment does not transfer) and `.330` (nor across a pose change). Re-derive it whenever either
+changes: run once without `PTWANT` and read the patch L for each class.
+
+Validated against a known result: asked for class B at stone-grey, got it at 9 samples, converged arm read
+ceiling 96.7 / wall 67.8 against `.337`'s 96.7 / 67.7.
+
+## Daytime class-B reproducibility is ~0.1 counts, NOT 2.3
+
+`.337` and `.338` quoted a class-B arm-to-arm spread of **2.3 counts**, taken from NW3/NW4 — a **night** pair,
+where the lamp's gradient inflates spatial variance across the ceiling patch.
+
+Two independent **daytime** class-B arms of the same condition agree to **0.1 counts** (96.7/96.7 ceiling,
+67.7/67.8 wall). So for daytime comparisons the 2.3-count figure is roughly **20× too pessimistic**, and
+`.338`'s conclusion that "the curve is finished to the instrument's power" was unsound — with the correct noise,
+the surviving closed form was refutable, and `.339` refuted it.
+
+| condition | class-B arm-to-arm spread |
+| --- | --- |
+| daytime, hour 13 | **~0.1 counts** |
+| night, hour 21 (lamp gradient) | ~2.3 counts |
+
+Quote the figure for the condition you are actually in, and measure it rather than carrying it across.

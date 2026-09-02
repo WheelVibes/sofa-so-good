@@ -3146,3 +3146,32 @@ photographicGroundBounce = max(0.9, 3.3 * meanWallReflectance)   // daytime only
    authority, `.333`). Needs a lamp-bounce term — materially more work.
 4. **`meanWallReflectance` scope** — visible room or whole plan; and whether the non-photographic look (where
    the term ships at ×1) needs its own calibration.
+
+### ⚠️ USE A TABLE, NOT A FORMULA — v0.31.5.339 (supersedes the `.337`/`.338` closed form)
+
+A fifth finish refutes the closed form, and a corrected noise estimate invalidates `.338`'s stopping decision.
+
+**The measured curve** (class-matched class-B tracer targets, bedroom3 `WALKFOV=72` `PITCH=-0.02`, medium, hour
+13):
+
+| finish | rho_wall | required ground bounce |
+| --- | --- | --- |
+| white `#f5f5f0` | 0.910 | **3.00** (shipped) |
+| stone-grey `#a8a6a1` | 0.382 | **1.26** |
+| **clay `#b98a6e`** | **0.296** | **1.15** |
+| slate `#6a6f76` | 0.158 | **0.88** |
+| ink `#2b3340` | 0.0326 | **0.99** |
+
+`max(0.9, 3.3·rho)` misses clay by 0.17 GB (**2.8 counts**, 6–28σ at the corrected noise of ~0.1–0.5 counts) and
+is **refuted**. A 0.8-power law is closer at clay but collapses at ink (0.21 vs 0.99). **No two-parameter closed
+form fits within noise**, and the curve has a shallow **minimum at slate** that no monotone form reproduces.
+
+**So interpolate the table above linearly in rho.** Exact at every measured point, reproduces the minimum, and
+avoids a formula that is wrong by ~3 counts in the mid-range where most of the palette sits.
+
+Caveat: the slate/ink minimum rests on single arms 0.11 GB apart; a second arm at each would confirm it. It
+does not affect the table's use, since the table reproduces whatever the points say.
+
+**Noise correction that matters for any future work here:** daytime class-B arm-to-arm reproducibility is
+**~0.1 counts** (two independent stone-grey arms: 96.7/96.7, 67.7/67.8). The 2.3-count figure quoted in `.337`
+and `.338` came from a **night** pair and is roughly 20× too pessimistic for daytime comparisons.

@@ -5,6 +5,63 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.339 — a 6x cheaper (u) instrument, and it immediately refutes `.337`'s curve AND `.338`'s stopping decision
+
+Built a tool to cut (u)'s tax, validated it, and the first measurement it bought overturns two of my own
+conclusions.
+
+**The instrument: `PTWANT=A|B`.** (u)'s class is decided per `createHqRenderSession` call and then followed
+deterministically (`.330`, `.334`), and a patch **mean** over ~25k pixels converges far faster than the image
+does. So the class is readable at **9 samples** — measured 162.7 in class A and 73.7–75.2 in class B on the
+existing 10 % poll patch, stable to ±0.3 counts from 8 through 59 samples.
+
+**Two facts that made the design work, both found by trying:**
+
+- **The trace converges in 12 s.** Almost all of a run's ~4 minutes is page boot and settling. So replacing a
+  wrong arm should cost ~20 s, not a fresh run.
+- **There is no Re-render button *during* a render** — it appears only after convergence, which is why `PT2`
+  can use it. My first cut tried to abandon mid-render and logged twelve consecutive failed attempts. Rewritten
+  as a **post-convergence** retry loop.
+
+**Validated against a known result** (`.332`'s discipline): asked for class B at stone-grey, got it at 9
+samples, and the converged arm reads **ceiling 96.7 / wall 67.8** against `.337`'s **96.7 / 67.7**.
+
+**Correction 1 — `.338`'s noise figure was wrong, and so was its stopping decision.** I took a class-B
+arm-to-arm spread of **2.3 counts** from NW3/NW4 — a **night** pair, where the lamp gradient inflates spatial
+variance. Two independent **daytime** class-B arms of the same condition agree to **0.1 counts** (96.7/96.7,
+67.7/67.8). So `.338`'s "the curve is finished to the instrument's power" rested on a noise estimate roughly
+20× too large.
+
+**Correction 2 — with the right noise, `.337`'s form is refuted.** `.338` identified clay (rho 0.296) as the
+3.7σ discriminating point. Measured:
+
+| finish | rho | required GB | A: `max(0.9, 3.3·rho)` | C: 0.8-power law |
+| --- | --- | --- | --- | --- |
+| white | 0.910 | 3.00 | 3.00 | 3.00 |
+| stone-grey | 0.382 | 1.26 | 1.26 | 1.50 |
+| **clay** | **0.296** | **1.15** | **0.98** | **1.22** |
+| slate | 0.158 | 0.88 | 0.90 | 0.74 |
+| ink | 0.033 | 0.99 | 0.90 | 0.21 |
+| | | **SSE** | **0.0398** | 0.6950 |
+
+A misses clay by **0.17 GB = 2.8 counts**, which at ~0.1–0.5 counts of noise is 6–28σ. **A is refuted.** C is
+closest at clay but collapses at ink (0.21 against 0.99), so it is far worse overall.
+
+**No two-parameter closed form fits five points within noise.** And the data contain a feature no such form can
+reproduce: a shallow **minimum at slate** (0.88) with ink *higher* (0.99). Both are single arms and 0.11 GB
+apart (~1.8 counts), so the minimum needs a second arm each before being treated as real — but it is already
+enough to rule out monotone closed forms.
+
+**So the recommendation changes: use a five-point lookup table interpolated in rho**, not a formula. Exact at
+every measured point, reproduces the minimum, and five points is ample. `.337`'s form was published as
+provisional and explicitly not pre-registered; that hedge was correct, and it is now withdrawn as the
+recommended implementation.
+
+**(w)'s zero holds at a fifth finish:** clay gives raster ceiling **126.9** and floor **102.5**, identical to
+white, stone-grey, slate and ink.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.338 — (w)'s daytime fix is fully specified: validated end-to-end at a second finish, and the curve is finished to the instrument's power
 
 Two results, one of them obtained without spending a single trace.
