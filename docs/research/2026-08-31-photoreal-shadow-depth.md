@@ -9471,3 +9471,86 @@ Re-run the domestic seam via thumbnails: 46 landscape candidates are already ide
 at ~350 KB each — the whole batch for less than one full-res file.
 
 Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .290 — n=4, and the new reference lands on the app's own ratio to within 0.003
+
+`.289` said to re-run the domestic seam through the thumbnail route it had validated. This is the first round in
+the arc to screen *and* measure a reference entirely from a 1200 px thumbnail.
+
+### The fix holds; a second limit appears
+
+`.289` was stopped by `upload.wikimedia.org` 429ing after ~7 full-res downloads. Here: **19 of 19 thumbnails
+downloaded 200**, ~350 KB each, no throttling.
+
+But the **API** rate-limited independently — 9 of 15 `imageinfo` batches returned "too many requests", so the
+sweep produced 19 rows instead of ~46. Two separate ceilings; payload size fixes `upload.`, the API needs
+**request pacing**.
+
+### Screening: 18 files, 9 independent interiors, 1 qualifier
+
+A single upload batch (`2016_Grevillia_*`, one luxury villa) was **ten of the eighteen** files — all concealed
+LED cove lighting in dropped ceilings, copper/marble panels. **Dedupe by upload batch before treating a sweep's
+count as breadth.**
+
+| candidate | verdict |
+| --- | --- |
+| `2016_Grevillia_*` ×10 (one villa) | reject — LED cove lighting, not plaster |
+| `BB_chambredhote` | reject — firelight and lamps |
+| `201_B_Gruppe_hos_Wilse`, `9557_Aulestad` | reject — monochrome historical |
+| `9556_Aulestad` | reject — guitar close-up, no ceiling/wall |
+| `Arenal_3b` | reject — red walls vs white ceiling, lamp-lit |
+| `2023-07-30 Vogtsbauernhof Ortenauhaus 00` | **qualifies** |
+
+### Looking caught a contaminated crop again — worth 6.3 %
+
+| | L | sd | R−B |
+| --- | --- | --- | --- |
+| ceiling, 360×26 px | 149.2 | 4.57 | +8.1 |
+| wall, first crop | 150.8 | **19.18** | +9.4 |
+| wall, re-cropped clear | 161.0 | **5.79** | +7.0 |
+
+sd 19.18 is not plaster; the crop showed a dark jug/headboard corner intruding at bottom-right.
+**ceiling ÷ wall: 0.989 → 0.927.** Fifth time in this arc (`.233`, `.236`, `.243`, `.246`, `.234`) that a
+contaminated crop gave a plausible number, and the first time the error has been quantified against its clean
+counterpart.
+
+### The qualifier
+
+White lime plaster on walls and ceiling, daylit from a right-hand window with a natural falloff to the left (no
+flash), no artificial light on, Commons photograph dated 2023-07-30. **Chroma match is the tightest in the set:
+ceiling R−B +8.1 vs wall +7.0, a 1.1-count gap**, against `At La Palma`'s 13.6 — on the one criterion that can
+only be judged, not verified, this is the strongest sample so far.
+
+Caveats: the ceiling crop is a **thin strip** (26 px of 853, ~3 % of frame height) though clean; and the
+building is an **open-air museum farmhouse**, a period reconstruction rather than a contemporary dwelling. Real
+lime plaster and real daylight, so it meets the letter of `.233`, but it is a different building tradition and
+is not interchangeable with the other three.
+
+### The set, n=4
+
+| photograph | ceiling ÷ wall |
+| --- | --- |
+| `Living_room_(13152023964)` (.234) | 0.910 |
+| `Vogtsbauernhof_Ortenauhaus` (.290) | 0.927 |
+| **the app**, hand-cropped, canonical pose | **0.930** |
+| `Home_Staging_Beispiel_Nachher` (.233) | 1.030 |
+| `At_La_Palma_2021_1854` (.288) | 1.106 |
+
+The app is now **matched by a real photograph to within 0.003**. `.234` retired `.188`'s ceiling deficit because
+the app sat inside a two-photograph spread; at n=4 it is coincident with a reference measured the same way.
+`.288`'s observation that the app sits in the band's lower third is weaker still — a qualifying photograph sits
+there too.
+
+### Yield
+
+`.234` 1/10, `.288` 1/9, `.289` 0/7, `.290` 1/18 → **3 of 44 ≈ 6.8 %**, close to `.289`'s 8 % estimate. n=5
+needs ~15 more candidates; n=6, ~30.
+
+### Next
+
+Pace the API and finish the 46-candidate domestic list the sweep identified but could not fetch. The seam is
+productive — domestic categories have supplied 2 of the set's 4 references.
+
+Nothing changed in `src/` or in the probe. Docs only.

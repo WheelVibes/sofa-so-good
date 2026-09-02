@@ -5,6 +5,88 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.290 — n=4, and the new reference lands on the app's own ratio to within 0.003. First round screened and measured end-to-end from thumbnails
+
+`.289` ended with a concrete instruction: re-run the domestic seam through the thumbnail route it had just
+validated. Done, and it worked — the round is the first in this arc to screen *and* measure a reference
+entirely from a 1200 px thumbnail.
+
+**The thumbnail route holds up operationally.** `.289` was stopped by `upload.wikimedia.org` returning HTTP 429
+after ~7 full-resolution downloads. This round: **19 of 19 thumbnails downloaded 200**, no throttling, at
+~350 KB each. `.289`'s diagnosis was right and its fix works.
+
+**But a second, separate limit surfaced.** The **API** rate-limited independently — 9 of 15 `imageinfo`
+batches returned *"You are making too many requests to the API"*, so the sweep yielded 19 rows instead of the
+~46 it should have. Two distinct ceilings, and only one is solved: payload size fixes `upload.`, but the API
+limit needs **request pacing**, which is the next round's plumbing job.
+
+**Screened 18, one qualifies — and 10 of the 18 were the same property.** A single upload batch
+(`2016_Grevillia_*`, one luxury villa) accounted for **ten** of eighteen files, all with concealed LED cove
+lighting in dropped ceilings and copper/marble wall panels. That is a **sampling hazard worth naming: dedupe by
+upload batch before treating a sweep's count as breadth.** Eighteen files was really nine independent
+interiors.
+
+| candidate | verdict |
+| --- | --- |
+| `2016_Grevillia_*` ×10 (one villa) | reject — concealed LED cove lighting; not plaster on either surface |
+| `BB_chambredhote` | reject — firelight and lamps, dim |
+| `201_B_Gruppe_hos_Wilse`, `9557_Aulestad` | reject — monochrome historical |
+| `9556_Aulestad` | reject — close-up of a guitar on a bed, no ceiling or wall |
+| `Arenal_3b` | reject — red walls against white ceiling, lamp-lit |
+| **`2023-07-30 Vogtsbauernhof Ortenauhaus 00`** | **QUALIFIES** |
+
+**The contamination that looking caught — again, and it was worth 6.3 %.** The first wall crop measured
+**L=150.8 with sd 19.18**. An sd that high is not plaster, and the crop showed why: a dark brown object (the
+jug, or the headboard corner) intruding at bottom-right. Re-cropped clear of it:
+
+| | L | sd | R−B |
+| --- | --- | --- | --- |
+| ceiling, 360×26 px | 149.2 | 4.57 | +8.1 |
+| wall, first crop | 150.8 | **19.18** | +9.4 |
+| wall, re-cropped | 161.0 | **5.79** | +7.0 |
+
+**ceiling ÷ wall: 0.989 → 0.927.** A 6.3 % swing from one object in the corner of one patch. That is the fifth
+time in this arc — `.233`, `.236`, `.243`, `.246`, `.234` — that a contaminated crop produced a plausible number
+and only looking caught it, and the first time the size of the error has been quantified against its clean
+counterpart.
+
+**The qualifier, and it is a better "same paint" sample than `.288`'s.** White lime plaster on walls *and*
+ceiling, daylit from a right-hand window with a natural falloff to the left (so no flash), no artificial light
+on, real Commons photograph dated 2023-07-30. Its chroma match is much tighter than `At La Palma`'s: **ceiling
+R−B +8.1 against wall +7.0, a 1.1-count gap**, where `At La Palma` had 13.6. On the one criterion that can only
+be judged rather than verified, this is the strongest sample in the set.
+
+**Two caveats, recorded not buried.** The ceiling crop is a **thin strip** — 26 px of an 853 px-tall frame,
+~3 % of frame height — though clean (sd 4.57). And the building is an **open-air museum farmhouse**, a period
+reconstruction rather than a contemporary dwelling; the surfaces are real lime plaster and the light is real
+daylight, so it meets the letter of `.233`'s criteria, but it is a different building tradition from the other
+three and should not be treated as interchangeable with them.
+
+**The set, n=4:**
+
+| photograph | ceiling ÷ wall |
+| --- | --- |
+| `Living_room_(13152023964)` (`.234`) | 0.910 |
+| **`Vogtsbauernhof_Ortenauhaus`** (`.290`) | **0.927** |
+| **the app**, hand-cropped, canonical pose | **0.930** |
+| `Home_Staging_Beispiel_Nachher` (`.233`) | 1.030 |
+| `At_La_Palma_2021_1854` (`.288`) | 1.106 |
+
+**The app's 0.930 is now matched by a real photograph to within 0.003.** `.234` retired `.188`'s ceiling
+deficit on the grounds that the app sat inside a two-photograph spread; at n=4 the app is not merely inside the
+band but **coincident with a reference measured the same way**. `.288` noted the app sat in the band's lower
+third and that this was a weak claim — it is now weaker still, because the lower third is where a qualifying
+photograph also sits.
+
+**Yield, updated:** `.234` 1/10, `.288` 1/9, `.289` 0/7, `.290` 1/18 → **3 of 44, ≈ 6.8 %**, close to `.289`'s
+8 % estimate. n=5 needs ~15 more screened candidates; n=6, ~30.
+
+**Next.** Pace the API (the one remaining ceiling) and finish the 46-candidate domestic list the sweep
+identified but could not fetch. The seam is productive: domestic categories have now returned 2 of the set's 4
+references.
+
+**Unchanged:** no `src/` change, no probe change. Docs only; measurement scripts were temporary and removed.
+
 ## v0.31.5.289 — a negative round on the photograph hunt: 0 of 7 qualify, one seam is dead, and the thing that stopped the round now has a validated 20× fix
 
 `.288` closed by naming two ways to continue: widen further, or spend the new framing figure. The second is
