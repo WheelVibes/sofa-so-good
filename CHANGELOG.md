@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.322 — the unreplicated work is now backed up locally and the backup is restore-tested, without pushing anything
+
+`.321` found that rounds `.249`–`.321` exist **only in this worktree** — no PR, no remote copy — and noted that
+this is the one open item where waiting compounds. My instructions are explicit that I push only when asked, and
+that has not happened. But the risk is removable **without any outward-facing action**, so this round removes it.
+
+**What was done — all local, no network, nothing published.**
+
+1. **A local safety branch**, `arc-249-321-safety`, pinned at HEAD. Guards against an accidental checkout or
+   reset losing the tip inside the repo. Purely a ref; no history rewritten.
+2. **A `git bundle`** at `~/sofa-graphics-realism-arc-249-321.bundle` — **2.4 MB**, one file, outside the
+   worktree, containing every commit from the pushed base to HEAD. `git bundle verify` reports **okay**.
+
+**And it was restore-tested, because an untested backup is not a backup.** A scratch repository was initialised
+in `/tmp`, given the base ref from the local repo, and then fetched *from the bundle*:
+
+| check | result |
+| --- | --- |
+| restored HEAD | `a04bcd08` — round `.321` |
+| commits restored on top of base | **74** |
+| `src/version.ts` | `APP_VERSION = '0.31.5.321'` |
+| `docs/hq-tracer-probe-notes.md` | 458 lines |
+| `## v0.31.5.3xx` changelog entries | 33 |
+
+The scratch repository was then deleted. **The bundle reconstructs the work faithfully.**
+
+**One dependency, stated precisely.** This is a *thin* bundle: it requires base commit `4eccc532`
+(v0.31.5.248), which **is on origin** — it was merged to staging by PR #109. So **origin + bundle = full
+recovery**, and the bundle alone is not sufficient if GitHub were also unavailable. That is a deliberate
+trade: a self-contained bundle would carry the whole repository history for a 74-commit delta. Given the base is
+published, the thin bundle is the right size/safety point, and the dependency is a single well-known public
+commit.
+
+**What this does and does not change.** It removes the *accidental-loss* risk that `.321` flagged — a lost
+worktree no longer loses 74 rounds. It does **not** substitute for the branch-and-PR step, which remains
+outstanding and still needs your word: the repo's flow wants a new branch cut from current staging and a PR into
+staging titled with the version it ships, because `fix/graphics-realism-tiers` was merged and is spent.
+
+**Refresh procedure, so this does not silently go stale.** The bundle captures `.249`–`.321`; this round's own
+commit is not in it. Regenerating is one command and it is re-run immediately after this commit:
+
+```
+git bundle create ~/sofa-graphics-realism-arc-249-<n>.bundle 4eccc532..HEAD
+git bundle verify ~/sofa-graphics-realism-arc-249-<n>.bundle
+```
+
+**Method note.** `.321` identified a risk and stopped at identifying it, because the obvious remedy (push) was
+not mine to take. **When the obvious remedy is unauthorised, look for the unauthorised part and remove it** —
+here the risk was *loss*, not *lack of publication*, and loss is addressable locally. Flagging a risk every
+round without mitigating the part within reach is not caution, it is just narration.
+
+**Unchanged:** no `src/` change beyond the version bump. No push, no branch on any remote, no PR touched.
+
 ## v0.31.5.321 — branch-health audit: `src/` is clean after eight temporary instrumentations, and PR #109 has been MERGED since round .248 — so 73 rounds have no PR and no remote copy
 
 Thread 1 is closed (`.320`), thread 2 is at ~5 % marginal yield (`.291`), thread 3 is a look call. So this round

@@ -11402,3 +11402,63 @@ The brief's premise was wrong and no round had checked it — 73 rounds of repor
 `gh pr view`.
 
 No `src/` change beyond the version bump.
+
+---
+
+## Round .322 — the unreplicated work is backed up locally and restore-tested, without pushing
+
+`.321` found rounds `.249`–`.321` exist only in this worktree — no PR, no remote copy — and that this is the one
+open item where waiting compounds. Pushing is not mine to do unasked. The *loss* risk, however, is removable
+locally.
+
+### Done — all local, no network, nothing published
+
+1. **Local safety branch** `arc-249-321-safety` pinned at HEAD; guards against an accidental checkout/reset
+   losing the tip. A ref only; no history rewritten.
+2. **`git bundle`** at `~/sofa-graphics-realism-arc-249-321.bundle` — 2.4 MB, one file, outside the worktree,
+   every commit from the pushed base to HEAD. `git bundle verify` → **okay**.
+
+### Restore-tested
+
+A scratch repo in `/tmp`, given the base ref, then fetched *from the bundle*:
+
+| check | result |
+| --- | --- |
+| restored HEAD | `a04bcd08` (round `.321`) |
+| commits on top of base | **74** |
+| `src/version.ts` | `APP_VERSION = '0.31.5.321'` |
+| `docs/hq-tracer-probe-notes.md` | 458 lines |
+| `## v0.31.5.3xx` changelog entries | 33 |
+
+Scratch repo then deleted. The bundle reconstructs the work faithfully.
+
+### One dependency, stated precisely
+
+A *thin* bundle: it requires base `4eccc532` (v0.31.5.248), which **is on origin** — merged to staging by PR
+#109. So **origin + bundle = full recovery**; the bundle alone is insufficient if GitHub were also unavailable.
+Deliberate trade — a self-contained bundle would carry the whole repository history for a 74-commit delta, and
+the base is a single well-known published commit.
+
+### What it does and does not change
+
+Removes the accidental-loss risk. Does **not** substitute for branch-and-PR, which still needs authorisation:
+the repo's flow wants a new branch from current staging and a PR into staging titled with the version it ships,
+because `fix/graphics-realism-tiers` was merged and is spent.
+
+### Refresh
+
+The bundle captures `.249`–`.321`; regenerate after each commit:
+
+```
+git bundle create ~/sofa-graphics-realism-arc-249-<n>.bundle 4eccc532..HEAD
+git bundle verify ~/sofa-graphics-realism-arc-249-<n>.bundle
+```
+
+### Method note
+
+`.321` identified the risk and stopped there, because the obvious remedy was unauthorised. **When the obvious
+remedy is unauthorised, isolate the unauthorised part and remove the rest** — the risk was *loss*, not *lack of
+publication*, and loss is addressable locally. Flagging a risk every round without mitigating the part within
+reach is narration, not caution.
+
+No `src/` change beyond the version bump.
