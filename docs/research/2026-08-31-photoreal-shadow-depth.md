@@ -8042,3 +8042,81 @@ Item **(s)** is updated with both finishes and the narrowed proposal.
 This round required **no probe change** — `WALL`, `ALBEDO`, `FILLTINT` and `PT` as they already stood.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.273` — the floor A/B is void, and diagnosing it found the albedo census is texture-blind
+
+`.272` validated the luminance half of the albedo fill at two points, but both **lowered** room albedo
+(0.81 → 0.76 → 0.70). If the model only works in the darkening direction that is a real limit, so this round
+went after a **brightening** case, and a different surface class, using the shipped floor finishes
+`floor-tile-white` (`#e6e3dc`) and `floor-wood-ebony` (`#43342a`).
+
+Runs 08:45–08:55 local (2026-09-02).
+
+### The A/B is void
+
+The store took the finish — the probe's own state dump reads `"floor":"floor-tile-white"` and
+`"floor":"floor-wood-ebony"`. The renderer did not:
+
+| evidence | result |
+| --- | --- |
+| room albedo census | **identical to four decimals** in both arms |
+| traced ceiling L | 158.7 / 161.0 / 159.2 and 159.2 / 160.8 / 158.8, baseline 158.9 / 161.4 / 160.5 |
+| the two frames, looked at | visible floor **unchanged** |
+
+Three independent signals agreeing that nothing happened. The finish reached the *state* and not the
+*render* within the probe's timing — the `.264` lesson in a new guise: **verify the intervention reached the
+render, not just the store.** Nothing is learned about the brightening direction, and that question stays
+open.
+
+### But diagnosing it found something that bears on `.271` and `.272`
+
+The living/dining floor mesh is **`color: #ffffff, map: true`** — its albedo lives entirely in a texture, and
+its `material.color` is byte-identical under every floor finish.
+
+`.271`'s census reads `material.color`. So:
+
+> **The albedo census is blind to texture-borne albedo.** It counts the floor as pure white when it is
+> actually mid-brown oak.
+
+### Sized honestly
+
+The floor is **8.3 %** of the room's 467 m² of surface. Counting it white (1.0) instead of the catalogue's
+oak swatch `#b88f5d` inflates ρ by about 0.046:
+
+| | census ρ | corrected ρ |
+| --- | --- | --- |
+| white walls | 0.8115 / 0.8067 / 0.7876 | 0.7885 / 0.7704 / 0.7351 |
+| terracotta | 0.7632 / 0.7228 / 0.6941 | 0.7402 / 0.6865 / 0.6416 |
+| navy | 0.7027 / 0.7010 / 0.6941 | 0.6797 / 0.6647 / 0.6416 |
+
+Crucially it inflates **both arms**, so most of it cancels in the ratio the model actually uses. Terracotta's
+ρ/(1−ρ) ratio moves **0.7487 / 0.6248 / 0.6119 → 0.7642 / 0.6526 / 0.6451** — a few percent, not a factor.
+
+**So `.271`/`.272`'s luminance conclusion survives and their scalars are approximate.** A 77–90 % recovery
+does not become 20 % or 200 % under this correction. But those scalars were computed from a wrong baseline
+and should not be quoted as final numbers.
+
+This is worth stating carefully because the temptation runs both ways: it would be as wrong to declare the
+previous two rounds void as it would be to ignore the flaw. The correction is small and mostly cancelling,
+and saying so precisely is more useful than either.
+
+### The implementation note, which is the useful part
+
+A correct census should read the **finish catalogue's `swatch`** rather than `material.color`. Every finish
+has one — `floor-wood-oak` `#b88f5d`, `floor-tile-white` `#e6e3dc`, `floor-wood-ebony` `#43342a`,
+`wall-paint-terracotta` `#c08763` — and it is the authoritative description of what the finish looks like.
+
+That is both more accurate than reading colours off materials **and** cheaper than averaging texture maps,
+which is the obvious alternative and would cost a readback per surface.
+
+### What remains open
+
+The **brightening direction**. Both validated points lowered ρ, and ρ/(1−ρ) rises steeply as ρ → 1, so a
+lighter room is exactly where the model might over-predict badly. Testing it needs the floor finish to reach
+the renderer first, which is its own small problem to solve.
+
+Item **(s)** carries the census flaw, the corrected figures, and the `swatch` recommendation.
+
+Nothing changed in `src/` beyond the version bump.

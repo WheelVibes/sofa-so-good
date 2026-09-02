@@ -1691,6 +1691,36 @@ bluer"). Real transport is governed by what is **removed** ("the wall absorbs th
 the warm sun"). Those agree for terracotta and oppose for navy — so `.271`'s ~75 % was partly luck, and the
 model was never capturing hue, only agreeing with it by accident on the one case tested.
 
+### ⚠️ v0.31.5.273 — the albedo census is TEXTURE-BLIND, so the scalars above are approximate
+
+The living/dining floor mesh is `color: #ffffff, map: true` — **its albedo lives entirely in a texture**, and
+its `material.color` is identical under every floor finish. The census reads `material.color`, so it counts
+the floor as pure white when it is actually mid-brown oak.
+
+Sized honestly: the floor is **8.3 %** of the room's 467 m², so counting it white instead of the catalogue's
+oak swatch `#b88f5d` inflates ρ by ~0.046 — and because it inflates **both** arms, most of it cancels in the
+ratio:
+
+| | census ρ | corrected ρ |
+| --- | --- | --- |
+| white walls | 0.8115 / 0.8067 / 0.7876 | 0.7885 / 0.7704 / 0.7351 |
+| terracotta | 0.7632 / 0.7228 / 0.6941 | 0.7402 / 0.6865 / 0.6416 |
+| navy | 0.7027 / 0.7010 / 0.6941 | 0.6797 / 0.6647 / 0.6416 |
+
+Terracotta's ρ/(1−ρ) ratio moves **0.7487 / 0.6248 / 0.6119 → 0.7642 / 0.6526 / 0.6451** — a few percent,
+not a factor. **The 77–90 % luminance recovery survives; the scalars are approximate and must not be treated
+as final.**
+
+**Implementation note:** a correct census should read the **finish catalogue's `swatch`** — which exists for
+every material (`floor-wood-oak` `#b88f5d`, `floor-tile-white` `#e6e3dc`, `floor-wood-ebony` `#43342a`) —
+rather than `material.color`. More accurate than reading colours off materials, and cheaper than averaging
+texture maps.
+
+**Still untested: the brightening direction.** Both validated points *lowered* ρ. Since ρ/(1−ρ) rises steeply
+as ρ → 1, a lighter room may over-predict badly. A floor-finish A/B was attempted in `.273` and came back
+**void** — the store took the finish but the renderer did not, verified by identical frames and identical
+traced values.
+
 ### Revised proposal — luminance only
 
 Apply a **scalar** grey scale from ρ/(1−ρ): **0.650** for terracotta, **0.563** for navy. That recovers

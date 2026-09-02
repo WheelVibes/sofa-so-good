@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.273 — the floor A/B is void, and diagnosing it found the albedo census is texture-blind
+
+`.272` validated the luminance half of the albedo fill at two points, but both **lowered** room albedo
+(0.81 → 0.76 → 0.70). If the model only works in the darkening direction that is a real limit, so this round
+went after a **brightening** case — and a different surface class — using the shipped floor finishes
+`floor-tile-white` (`#e6e3dc`) and `floor-wood-ebony` (`#43342a`).
+
+**The A/B is void, and it is reported as void.** The store took the finish — the probe's own state dump reads
+`"floor":"floor-tile-white"` and `"floor":"floor-wood-ebony"` — but the **render did not**:
+
+- the room albedo census returned **identical values to four decimals** in both arms;
+- the traced ceiling barely moved (L 158.7 / 161.0 / 159.2 against 159.2 / 160.8 / 158.8, baseline
+  158.9 / 161.4 / 160.5);
+- and looking at the two frames side by side, the visible floor is **unchanged**.
+
+So the finish reached the store and not the renderer within the probe's timing — the `.264` lesson in a new
+guise: *verify the intervention reached the render, not just the state.* Nothing about the brightening
+direction is learned, and that question stays open.
+
+**But diagnosing it turned up something that bears on `.271` and `.272`.** The living/dining floor mesh is
+`color: #ffffff, map: true` — **its albedo lives entirely in a texture**, and its `material.color` is
+identical under every finish. `.271`'s census reads `material.color`, so:
+
+> **The albedo census is blind to texture-borne albedo.** It counts the floor as pure white when it is
+> actually mid-brown oak.
+
+**Sized honestly, the error is real but modest.** The floor is **8.3 %** of the room's 467 m² of surface.
+Counting it white (1.0) instead of the catalogue's oak swatch `#b88f5d` inflates ρ by ~0.046:
+
+| | census ρ | corrected ρ |
+| --- | --- | --- |
+| white walls | 0.8115 / 0.8067 / 0.7876 | 0.7885 / 0.7704 / 0.7351 |
+| terracotta | 0.7632 / 0.7228 / 0.6941 | 0.7402 / 0.6865 / 0.6416 |
+| navy | 0.7027 / 0.7010 / 0.6941 | 0.6797 / 0.6647 / 0.6416 |
+
+And because it inflates *both* arms, much of it cancels in the ratio. Terracotta's ρ/(1−ρ) ratio moves
+**0.7487 / 0.6248 / 0.6119 → 0.7642 / 0.6526 / 0.6451** — a few percent, not a factor.
+
+**So `.271`/`.272`'s luminance conclusion survives, and their scalars are approximate.** A 77–90 % recovery
+does not become 20 % or 200 % under this correction. But the scalars quoted there were computed from a wrong
+baseline and should not be treated as final numbers.
+
+**Concrete implementation note, which is the useful part.** A correct census should read the **finish
+catalogue's `swatch`**, which exists for every material (`floor-wood-oak` `#b88f5d`, `floor-tile-white`
+`#e6e3dc`, `floor-wood-ebony` `#43342a`, …) rather than `material.color`. That is both more accurate and
+cheaper than averaging texture maps, and it is already the authoritative description of what each finish
+looks like.
+
+**What remains open.** The brightening direction is still untested, and it is the one regime where the model
+could behave qualitatively differently — ρ/(1−ρ) rises steeply as ρ → 1, so a *lighter* room may over-predict
+badly. Testing it needs the floor finish to actually reach the renderer first, which is its own small
+problem.
+
+Item **(s)** updated with the census flaw, the corrected figures, and the `swatch` recommendation.
+
+Probe only; no probe change this round. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed
+in `src/` beyond the version bump. Runs 08:45–08:55 local.
+
 ## v0.31.5.272 — the albedo fill gets energy right and hue WRONG-SIGNED; ship half of it
 
 `.271` recovered ~75 % of the measured GI response with a calibration-free albedo-ratio fill, and named the
