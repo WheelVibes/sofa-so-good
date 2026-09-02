@@ -210,3 +210,49 @@ describe('tradePacks — honest exclusions when data is missing', () => {
     expect(pack.exclusions.some((e) => /wall finish schedule/i.test(e))).toBe(true)
   })
 })
+
+describe('curtains pack carries a SPECIFICATION, not just footprints', () => {
+  it('prints per-window drops and fabric widths', () => {
+    const pack = buildTradePack('curtains', fullInput)
+    // v0.31.5.303: the placed list gives each fixture's rendered footprint,
+    // which its own caveat admitted is not an order dimension. A maker needs
+    // the drop and the fabric width.
+    expect(pack.html).toContain('Curtain specification')
+    expect(pack.html).toContain('Floor drop')
+    expect(pack.html).toMatch(/Fabric @2x \/ 2\.5x/)
+    // The assumption and the omission both travel with it.
+    expect(pack.html).toMatch(/confirm the actual track height/i)
+    expect(pack.html).toMatch(/installer/i)
+  })
+
+  it('resolves every window to a real room — not "Unassigned"', () => {
+    // A REGRESSION PIN, not a proof of the fix. Honest account:
+    //
+    // The rendered pack changed for the better when the probe argument was
+    // corrected (two "Unassigned" rows and one wrong room became Bedroom 2,
+    // Bedroom 3 and Bath/WC 2), but running BOTH arms through this harness gave
+    // byte-identical room lists — so something in the live path contributes
+    // that this fixture does not reproduce, and I have not isolated it.
+    //
+    // The fix stands on its own terms regardless: `roomsAcrossOpening`'s 4th
+    // argument is the PROBE DISTANCE perpendicular to the wall, and every other
+    // caller passes a 0.2 m constant. Passing `PlanOpening.offset` — an
+    // along-wall position, spelled the same, also a `number` — was wrong
+    // whatever it happened to produce here.
+    const pack = buildTradePack('curtains', fullInput)
+    const at = pack.html.indexOf('Curtain specification')
+    const table = pack.html.slice(at, pack.html.indexOf('</table>', at))
+    const rooms = [...table.matchAll(/<tr><td>([^<]*)<\/td>/g)].map((m) => m[1])
+    expect(rooms.length).toBeGreaterThan(0)
+    expect(rooms).not.toContain('Unassigned')
+    // And the rooms agree with the door/window schedule's own attribution.
+    expect(rooms).toContain('Main Bedroom')
+    expect(rooms).toContain('Bedroom 2')
+    expect(rooms).toContain('Bedroom 3')
+  })
+
+  it('no longer claims the footprint is a measurement basis', () => {
+    const pack = buildTradePack('curtains', fullInput)
+    expect(pack.html).toContain('not an order dimension')
+  })
+})

@@ -387,6 +387,13 @@ swept and all are correct — `broadphase.ts` callers gate (`itemsCollide` / `wa
 `floorLoading` is per-item so level-agnostic is right, `deliveryAccess`/`schemeOptions` are per-def,
 and `cloneRoom`/`mirrorRoom`/`swapRooms` gate at the caller. Do not re-run this leg.
 
+**UNRESOLVED (v0.31.5.303): the curtain-spec room resolution.** The rendered pack showed two
+"Unassigned" rows and one wrong room before the probe-argument fix and correct rooms after, but
+running both arms through `tradePacks.test.ts` gives byte-identical output. Something in the live
+path (`openTradePack` → `buildTradePack`) differs from the test fixture in a way that affects
+`roomsAcrossOpening`, and it is not isolated. If it resurfaces, diff the two INPUTS — plan, items,
+finishes — rather than assuming the probe argument again.
+
 **Sweep-pattern rule II (v0.31.5.302) — the one that actually bit.** `.294`/`.295` grepped
 `plan.rooms.find(` and `floorPlan.rooms.find(`. **Every site in `.302` reads a LOCAL variable**
 (`const rooms = allPlanRooms(plan)` … `rooms.find(...)`), so the pattern matched none of them and

@@ -5,6 +5,54 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.303 - curtain specification, and an honest account of a fix I cannot prove
+
+The curtains trade pack listed each treatment's rendered width x height, under a caveat that
+admitted the problem: "measure the finished opening on site before ordering". Those are the ITEM's
+footprint dimensions, not what a maker quotes from. Same shape as the paint gap: dimensions handed
+over where the trade needs quantities.
+
+New `analysis/curtainSchedule.ts` computes, per window, from the real opening geometry:
+- the **drop** for all three published length styles — sill (1 cm above), below-sill (+15 cm) and
+  floor (15 mm hem clearance) — which is the number most often got wrong, and is commonly measured
+  from the sill when a floor-length curtain must be measured to the FLOOR;
+- **fabric width** at both published fullness ratios (2x standard, 2.5x fuller);
+- the assumed **track height**, capped at the ceiling so a high head cannot push a track through it,
+  and using each room's OWN ceiling height so a dropped wet-room ceiling shortens the drop.
+
+**What it deliberately does not compute.** A track runs wider than its opening for returns and
+centre overlap, but no source consulted gives that side extension in millimetres. So fabric widths
+are derived from the bare opening width and labelled MINIMUMS, with the extension called out as the
+installer's. The one nearby published figure — 150 mm single-track, 200 mm double — is a recess
+DEPTH, a different dimension; substituting it would have been easy, would have looked sourced, and
+would have put a fabricated number on a maker's order.
+
+## The part I need to be straight about
+
+Reading the first frame, two of six rows said "Unassigned" and one named the wrong room. I found
+that `roomsAcrossOpening`'s 4th argument is the PROBE DISTANCE perpendicular to the wall — every
+other caller passes a 0.2 m constant — while I had passed `PlanOpening.offset`, an ALONG-WALL
+position, spelled the same and also a `number`. I fixed it, re-shot, and the frame corrected:
+Bedroom 2, Bedroom 3 and Bath/WC 2 now resolve.
+
+**Then I ran both arms through the test harness and got byte-identical room lists.** So the
+argument was not, by itself, the cause of what the frame showed — something in the live path
+contributes that the fixture does not reproduce, and **I have not isolated it.**
+
+The fix stands on its own terms: passing an along-wall position where a perpendicular probe distance
+is expected is wrong whatever it happens to produce. But I am not claiming it as the explanation,
+and the test is labelled a **regression pin, not a proof** — it asserts the correct output and
+cannot detect this particular bug. Twice this session I have nearly published a fix whose effect I
+had inferred from one frame rather than measured in two arms; the only reason this is not a third is
+that I measured before writing the entry.
+
+Two things this does establish. The name collision is real and worth naming: `PlanOpening.offset`
+(along-wall) and the probe `offset` (perpendicular) are both `number`, so nothing but a rendered
+document distinguishes them — the compiler cannot, and neither could a reviewer reading the call.
+And the frame remains the only place either problem surfaced at all.
+
+15 new tests on the core (all discriminating), 3 on the pack (2 discriminating, 1 a labelled pin).
+
 ## v0.31.5.302 - five more mis-attributions, invisible to my own two sweeps
 
 dev-09 offered a formulation — **a regex over source is a SAMPLE, not an enumeration, and its

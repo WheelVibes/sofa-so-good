@@ -25,6 +25,11 @@
  * `openTradePack.ts`), so the whole composition is unit-testable.
  */
 import { buildAirconSystemPlan } from '../analysis/airconSystem'
+import {
+  buildCurtainSchedule,
+  type CurtainScheduleInput,
+  FULLNESS,
+} from '../analysis/curtainSchedule'
 import { buildPaintQuantities, substrateForIntake } from '../analysis/paintQuantities'
 import { buildSocketAdvisory, DB_LOAD_NOTE } from '../analysis/socketAdvisory'
 import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
@@ -35,8 +40,9 @@ import {
   buildKerbAdvisories,
   buildRoomFflTags,
 } from '../floorplan/floorLevels'
-import { allPlanRooms, roomAtItem } from '../floorplan/levels'
+import { allPlanRooms, levelAsPlan, planLevels, roomAtItem } from '../floorplan/levels'
 import { ELECTRICAL_MOUNT_DEFAULTS_MM } from '../floorplan/mepPoints'
+import { roomsAcrossOpening } from '../floorplan/openingProbe'
 import type { PlumbingPoint } from '../floorplan/plumbingPlan'
 import { buildSwitchCircuits } from '../floorplan/switchCircuits'
 import { type FloorPlan, pointInRoom } from '../floorplan/types'
@@ -250,6 +256,11 @@ const MOUNT_HEIGHT_ROWS: { label: string; kind: keyof typeof ELECTRICAL_MOUNT_DE
 ]
 
 /** Built-in / joinery FF&E categories (for the carpenter pack's cover summary). */
+/** Probe distance perpendicular to a wall when resolving which room a window
+ *  serves (m). 0.2 m is the value every other opening-probe caller uses
+ *  (`daylight`, `doorwayBleed`, `luxGrid`, `openingSchedule`). */
+const CURTAIN_PROBE_OFFSET = 0.2
+
 const BUILT_IN_CATEGORIES = new Set(['kitchen', 'storage'])
 
 /** Window-treatment def ids (placed window-bound fixtures the curtain vendor
@@ -452,10 +463,69 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
       )
       return ''
     }
+    // The SPECIFICATION a maker quotes from (v0.31.5.303), alongside the placed
+    // list. The table above gives each fixture's rendered footprint — which the
+    // caveat below it admits is not an order dimension. Drops and fabric widths
+    // are derived from the real opening geometry per storey, so they move with
+    // the design instead of being measured twice.
+    const curtainInputs: CurtainScheduleInput[] = []
+    for (const level of planLevels(plan)) {
+      const levelPlan = levelAsPlan(plan, level)
+      const ceiling = levelPlan.ceilingHeight ?? plan.ceilingHeight
+      for (const o of levelPlan.openings ?? []) {
+        if (o.kind !== 'window') continue
+        const wall = (levelPlan.walls ?? []).find((w) => w.id === o.wallId)
+        if (!wall) continue
+        // `roomsAcrossOpening`'s 4th argument is the PROBE DISTANCE
+        // perpendicular to the wall, not the opening's along-wall position.
+        // Passing `o.offset` (which IS an along-wall position, and is spelled
+        // the same) probed a metre or more into the room and resolved two of
+        // six windows to "Unassigned" and one to the wrong room — visible in
+        // the pack, invisible to the compiler, since both are `number`.
+        // `clampCenter` matches every other window caller (daylight,
+        // floorLevels): it keeps the probe centre inside the opening's span.
+        const across = roomsAcrossOpening(
+          levelPlan.rooms ?? [],
+          wall,
+          o,
+          CURTAIN_PROBE_OFFSET,
+          true,
+        )
+        const room = across?.plus ?? across?.minus ?? null
+        curtainInputs.push({
+          opening: o,
+          roomName: room?.name ?? 'Unassigned',
+          // A room's own ceiling height wins — a dropped wet-room ceiling
+          // shortens the floor drop.
+          ceilingHeightM: room?.ceilingHeight ?? ceiling,
+        })
+      }
+    }
+    const spec = buildCurtainSchedule(curtainInputs)
+    const specHtml =
+      spec.rows.length > 0
+        ? `<h3 class="fin-h3">Curtain specification</h3>${schedTable(
+            [
+              'Room',
+              'Opening W',
+              'Track height',
+              'Sill drop',
+              'Below-sill',
+              'Floor drop',
+              `Fabric @${FULLNESS.standard}x / ${FULLNESS.full}x`,
+            ],
+            spec.rows.map((r) => {
+              const drop = (style: string) => r.drops.find((d) => d.style === style)?.dropM
+              const d = (v: number | undefined) => (v == null ? '—' : esc(formatLength(v, units)))
+              return `<tr><td>${esc(r.roomName)}</td><td class="n">${esc(formatLength(r.openingWidthM, units))}</td><td class="n">${esc(formatLength(r.trackHeightM, units))}</td><td class="n">${d(drop('sill'))}</td><td class="n">${d(drop('below-sill'))}</td><td class="n">${d(drop('floor'))}</td><td class="n">${esc(formatLength(r.fabricWidthM.standard, units))} / ${esc(formatLength(r.fabricWidthM.full, units))}</td></tr>`
+            }),
+          )}<div class="fin-caveat">${esc(spec.note)}</div>`
+        : ''
+
     return `<h3 class="fin-h3">Window treatments (placed)</h3>${schedTable(
       ['Room', 'Treatment', 'Qty', 'Size (approx.)'],
       rowsHtml,
-    )}<div class="fin-caveat">Sizes are the placed fixture footprint — measure the finished opening on site before ordering.</div>`
+    )}<div class="fin-caveat">Sizes are the placed fixture footprint — not an order dimension. The specification below is what a maker quotes from.</div>${specHtml}`
   }
 
   if (id === 'carpenter') {
