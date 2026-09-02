@@ -149,6 +149,26 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     material outside the finish cache. If this is ever revisited, note that deriving a Lambert
     twin from a CACHED finish material goes stale: the finish system mutates those in place
     (procedural upgrade swap, tint/recolor).
+    · **That Lambert ceiling broke the HQ path tracer, and is now handled at the snapshot —
+      v0.31.5.253.** `MeshLambertMaterial` has no `roughness` field, and the tracer's converter
+      reads `undefined` as **0**, so the HQ still rendered the ceiling as a MIRROR (the window,
+      the AC unit, the curtain rail and the fan were all legible in it). `pbrStandInFor` in
+      `pathtrace/hqRenderSession.ts` now substitutes a matte `MeshStandardMaterial` inside the
+      tracer snapshot only — the live scene keeps its Lambert, so **the raster is untouched** and
+      no raster measurement is re-based. Any new legacy-lit material (`MeshLambertMaterial`,
+      `MeshPhongMaterial`) is covered automatically; `MeshBasicMaterial` is deliberately NOT
+      substituted, being unlit by intent. Converting the ceiling scene-wide was measured and is
+      **not** worth it: it moves the rasterised ceiling by 0.09 % and the frame mean not at all,
+      so it only costs the shader (open decision item (n)).
+    · The 27 `sheen` + 9 `clearcoat` `MeshPhysicalMaterial` surfaces noted above are the prime
+      suspects for the one remaining raster-vs-traced disagreement: the rug reads raster 218 against
+      traced 105–116, a factor ~2 that roughness cannot explain (v0.31.5.253, n = 1, unresolved).
+      **Measuring anything path-traced: read `docs/hq-tracer-probe-notes.md` first.** The HQ
+      still is nondeterministic between three discrete classes ~45 % apart at an anchor (item
+      (u)), and `HqRenderModal` replaces the host canvas with the AI-denoised one on completion,
+      so the same read returns either stage depending on timing.
+      Until that is understood, the path tracer is **not** a valid reference for
+      `MeshPhysicalMaterial` surfaces.
   · **Baking into an irradiance volume was spiked and REJECTED — don't re-propose it.**
     three 0.184 ships `LightProbeGrid` (`examples/jsm/lighting/`) and the core shader supports
     it (`USE_LIGHT_PROBES_GRID`, SH in a 3D texture atlas), and it LOOKS fine — a warm, plausibly
