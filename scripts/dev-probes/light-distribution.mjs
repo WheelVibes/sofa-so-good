@@ -575,6 +575,7 @@ const shotFor = async (pitch) => {
   if (typeof applyFloorDye === 'function') await applyFloorDye()
   if (typeof applyDyeExcept === 'function') await applyDyeExcept()
   if (typeof applyEnvDump === 'function') await applyEnvDump()
+  if (typeof applyRoomDims === 'function') await applyRoomDims()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
@@ -1167,6 +1168,47 @@ const applyFloorDye = !FLOORDYE
         throw new Error('FLOORDYE: no upward-facing mesh found -- intervention did NOT land')
       await new Promise((r) => setTimeout(r, 900))
     }
+// ROOMDIMS=1 -- report every room's footprint and its wall/ceiling area ratio.
+//
+// `.342` refuted the fixture explanation for (w)'s room-dependence and left a geometric
+// one: a small room's walls subtend a far larger solid angle from any ceiling point
+// (the room-cavity ratio of lighting design). bedroom3 (small) needs -20.8 %,
+// livingDining (large) -8.3 %. To TEST that rather than assert it, the ratio has to be
+// computed from the plan -- which is also exactly what a shipped fix would do, so this
+// doubles as a feasibility check on the fix.
+const applyRoomDims =
+  process.env.ROOMDIMS !== '1'
+    ? null
+    : async () => {
+        const res = await page.evaluate(() => {
+          const plan = window.__store.getState().floorPlan
+          const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+          const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
+          const h = plan.wallHeight ?? plan.ceilingHeight ?? null
+          return {
+            wallHeight: h,
+            windows: allOf(plan, 'openings')
+              .filter((o) => o.kind === 'window')
+              .map((o) => o.id),
+            rooms: allOf(plan, 'rooms').map((r) => ({
+              id: r.id,
+              w: r.width,
+              d: r.depth,
+            })),
+          }
+        })
+        const h = res.wallHeight
+        console.log(`ROOMDIMS wallHeight=${h}`)
+        console.log(`ROOMDIMS windows=${JSON.stringify(res.windows)}`)
+        for (const r of res.rooms) {
+          const ceil = r.w * r.d
+          const wall = h ? 2 * h * (r.w + r.d) : null
+          console.log(
+            `ROOMDIMS ${r.id}  ${r.w}x${r.d}  ceiling=${ceil.toFixed(2)}` +
+              (wall ? `  wall=${wall.toFixed(2)}  wall/ceiling=${(wall / ceil).toFixed(3)}` : ''),
+          )
+        }
+      }
 const BGSHARP = process.env.BGSHARP || ''
 const applyBgSharp = !BGSHARP
   ? null

@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.343 — scoping the geometric hypothesis: `mainBedroom` is NOT an intermediate point, the kitchen cannot be posed, and the only strong test is confounded
+
+`.342` proposed that (w)'s room-dependence is geometric (wall-to-ceiling area ratio) and named `mainBedroom` as
+the next test. This round computed the governing quantity instead of eyeballing room size, and **that
+suggestion was wrong.**
+
+**New instrument, `ROOMDIMS=1`** — reports every room's footprint and wall/ceiling ratio from the plan. This is
+also what a shipped fix would need, so it doubles as a feasibility check.
+
+`wallHeight = 2.6` throughout:
+
+| room | footprint | wall/ceiling | measured response |
+| --- | --- | --- | --- |
+| livingDining | 3.40 × 5.675 | **2.446** | **−8.3 %** |
+| mainBedroom | 3.03 × 3.525 | **3.191** | — |
+| bedroom3 | 2.885 × 3.525 | **3.278** | **−20.8 %** |
+| bedroom2 | 2.76 × 3.525 | 3.359 | — |
+| kitchen | 3.505 × 2.10 | 3.960 | — |
+| bath1 | 2.15 × 1.85 | 5.229 | — |
+| bath2 | 1.75 × 1.85 | 5.782 | — |
+| corridor | 5.60 × 1.00 | 6.129 | — |
+
+**`mainBedroom` is within 2.7 % of bedroom3 on the governing quantity** (3.191 vs 3.278). It looked intermediate
+in the frames because it *is* intermediate in area — but the ratio depends on `2H(1/W + 1/D)`, and mainBedroom
+differs from bedroom3 only in width. Proposing it was the `.338` error again: choosing a measurement point
+without computing its discriminating power.
+
+**The kitchen cannot be measured at all.** It has **no window opening**, and the probe's pose logic is
+window-based (`no window opening matching /kitchen/i`). Window openings in this plan are mainBedroom, bedroom2,
+bedroom3, livingDining, bath1, bath2 — so **kitchen, corridor, serviceYard and householdShelter are
+unreachable**, which is a standing constraint on where this arc can measure anything.
+
+**So the only large-separation third points are the bathrooms** — and they are confounded. Verified by looking:
+
+- **bath1's walls are tiled beige by default**, not painted plaster. `WALL=wall-paint-ink` *does* land (walls
+  visibly dark navy), but that makes a white-vs-ink comparison **tile → paint** rather than paint → paint. Both
+  arms would need an explicit paint finish.
+- The room contains a **large specular glass shower screen and a mirror**. Both contribute to ceiling
+  illumination in a way a wall/ceiling **area** ratio cannot represent, so bath1 tests the hypothesis against a
+  case the hypothesis was not built for.
+
+**What is ready for a later round.** bath1 at `PITCH=0.40` has a verified clean ceiling patch —
+`ceilA=0.30,0.10,0.20,0.12`, sd 3.3 (the neighbouring `ceilB` straddles the shower screen at sd 35.0). With
+both arms set to paint finishes, the registered prediction is: **linear-in-ratio → ≈ −50 %**, any strongly
+saturating relationship → materially less. That is a concrete handoff rather than a vague next step.
+
+**Honest status of the hypothesis:** untested. Two points (2.446 → −8.3 %, 3.278 → −20.8 %) fit a line by
+construction, and no third point is available that is both well-separated and unconfounded in this plan. Testing
+it properly needs either a different shipped plan (the app has HDB 2/3/5-room, condo, landed) or a controlled
+change of `wallHeight`, which would vary the ratio in a single room — neither built.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.342 — my fixture mechanism REFUTED; the room-dependence is geometric, which makes (w) more tractable, not less
 
 `.341` found (w)'s required response is room-dependent (bedroom3 −20.8 %, livingDining −9.1 %) and proposed a

@@ -881,3 +881,43 @@ moved, both as predicted, on an intervention that had not fired.
 causes are independent — chroma follows the light source's colour, luminance follows whether the ceiling is a
 rendered surface. So the useful test is not "do I have two numbers" but **"can one fault move both?"** If yes,
 they are one signal wearing two hats.
+
+## Where this arc can and cannot pose: the probe needs a WINDOW
+
+The pose is computed from a window opening (`no window opening matching /<room>/i` if absent). In the default
+4-room HDB the window openings are:
+
+    win-mainBedroom-N, win-bedroom2-N, win-bedroom3-N, win-livingDining-N, win-bath1-S, win-bath2-S
+
+So **kitchen, corridor, serviceYard, householdShelter and acLedge cannot be posed at all.** That is a standing
+constraint on any room-comparison measurement, and it removes the kitchen (wall/ceiling 3.960) which would
+otherwise be the natural mid-range test point.
+
+## Room geometry, and why `mainBedroom` is not an intermediate test point
+
+`ROOMDIMS=1` reports footprints and wall/ceiling ratios from the plan. `wallHeight = 2.6` throughout:
+
+| room | footprint | wall/ceiling |
+| --- | --- | --- |
+| livingDining | 3.40 × 5.675 | 2.446 |
+| mainBedroom | 3.03 × 3.525 | 3.191 |
+| bedroom3 | 2.885 × 3.525 | 3.278 |
+| bedroom2 | 2.76 × 3.525 | 3.359 |
+| kitchen (unposeable) | 3.505 × 2.10 | 3.960 |
+| bath1 | 2.15 × 1.85 | 5.229 |
+| bath2 | 1.75 × 1.85 | 5.782 |
+| corridor (unposeable) | 5.60 × 1.00 | 6.129 |
+
+The ratio is `2H(1/W + 1/D)`, so it is driven by the *reciprocals* of the dimensions — which is why
+`mainBedroom` looks intermediate by area yet sits within 2.7 % of bedroom3. **Rank test points by the governing
+quantity, not by how different the rooms look** (`.338`'s lesson, missed again in `.342` and caught here).
+
+## Bathrooms are confounded test beds
+
+- **Walls are tiled by default.** `WALL=<paint>` does land, but then a white-vs-dark comparison is
+  *tile → paint*. Set an explicit paint finish on **both** arms.
+- **A large specular glass shower screen and a mirror** contribute to ceiling illumination in a way a
+  wall/ceiling **area** ratio cannot represent.
+
+Usable pose if needed: bath1 `PITCH=0.40`, ceiling patch `0.30,0.10,0.20,0.12` (sd 3.3). The neighbouring rect
+`0.55,0.08,0.18,0.10` straddles the shower screen (sd 35.0).

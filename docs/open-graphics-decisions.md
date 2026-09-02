@@ -3252,3 +3252,36 @@ Status of (w) overall: the **defect** is settled (zero response at five finishes
 two rooms). The **lever** is settled (hemisphere `groundColor`; a uniform fill scale wrongly darkens the floor).
 The **shape** is measured at one room. The **depth** is room-dependent and now has a computable candidate
 mechanism. The **night half** needs a separate mechanism entirely (`.333`, `.335`).
+
+### ⏳ THE GEOMETRIC HYPOTHESIS IS UNTESTED — and hard to test in this plan (v0.31.5.343)
+
+`.342` refuted the fixture explanation and left a geometric one (wall-to-ceiling area ratio). It is **fitted to
+two points and not yet tested**:
+
+| room | wall/ceiling | measured response |
+| --- | --- | --- |
+| livingDining | 2.446 | −8.3 % |
+| bedroom3 | 3.278 | −20.8 % |
+
+Two points define a line by construction. A third is needed, and this plan does not readily supply one:
+
+- **`mainBedroom` is not intermediate** — 3.191, within 2.7 % of bedroom3. The ratio goes as `2H(1/W + 1/D)`,
+  so it depends on the *reciprocals* of the dimensions; mainBedroom differs from bedroom3 only in width.
+- **The kitchen (3.960) cannot be posed** — it has no window opening, and the probe's pose logic is
+  window-based. Same for corridor, serviceYard and householdShelter.
+- **The bathrooms (5.229, 5.782) are the only well-separated points, and they are confounded**: walls are
+  tiled by default (so a white baseline must be set explicitly to paint, else the comparison is tile → paint),
+  and both contain a large specular glass screen and a mirror — which contribute to ceiling illumination in a
+  way a wall/ceiling *area* ratio cannot represent.
+
+**What this means for the decision.** The room-dependence itself is **measured and real** (−20.8 % vs −8.3 %,
+2.3×, well clear of reproducibility). What is unproven is the *rule* for predicting it. So:
+
+- shipping `.339`'s table globally over-corrects large rooms by ~2.5× — that much is established;
+- scaling by wall/ceiling ratio is **plausible and computable from the plan** but rests on two points;
+- getting a third point needs either a **different shipped plan** (HDB 2/3/5-room, condo, landed all have
+  different proportions) or a controlled `wallHeight` change, which would move the ratio within a single room
+  and is the cleaner experiment. Neither is built.
+
+Ready for whoever picks it up: bath1 `PITCH=0.40`, ceiling patch `0.30,0.10,0.20,0.12` (sd 3.3), both arms on
+explicit paint finishes. Registered prediction: linear-in-ratio → ≈ −50 %; strong saturation → materially less.
