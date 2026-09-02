@@ -13,7 +13,7 @@ import { useFeature } from '../features/useFeature'
 import { roomAtItem } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildMergedCatalog } from '../furniture/catalog'
-import { LIGHT_EMITTERS } from '../furniture/lightEmitters'
+import { LIGHT_EMITTERS, resolveLampSpec } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps, type NarrowGap } from '../layout/walkway'
@@ -83,13 +83,16 @@ export function ClearancePanel() {
               const spec = LIGHT_EMITTERS[it.defId]
               const room = roomAtItem(plan, it)
               if (!spec || !room) return []
+              // The item's own SPECIFICATION override where set, so a user who
+              // has selected an IP44 fixture stops being told to.
+              const lamp = resolveLampSpec(it.defId, it.props ?? {})
               return [
                 {
                   id: it.id,
                   label: it.label ?? merged[it.defId]?.name ?? it.defId,
                   room,
-                  cct: spec.cct,
-                  ip: spec.ip,
+                  cct: lamp.cct,
+                  ip: lamp.ip,
                 },
               ]
             }),

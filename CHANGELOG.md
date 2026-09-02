@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.299 - per-item lamp specification, and two registers kept apart
+
+The real resolution for `.298`'s advisories: a user can now specify the fixture they actually
+bought, instead of being permanently told about the registry default. `props.lampCct` /
+`props.lampIp`, resolved by `resolveLampSpec`, honoured by the schedule and the advisory, and
+editable in the item inspector.
+
+**The design point worth stating: this is a SECOND override register, deliberately not connected
+to the first.** `ItemLightControls` already had per-item `lightColor` and `lightIntensity` — RENDER
+overrides. The new pair are SPECIFICATION. They must not talk to each other in either direction:
+
+- retinting a lamp warmer for a night render must not silently re-specify the product a contractor
+  is asked to buy;
+- raising a fixture's brightness to make a frame read must not change its lumen package on a
+  schedule someone quotes from.
+
+That is the same separation the emitter registry already enforces from the other side — its header
+warns `intensity` must never be "corrected" against a real luminaire. A test asserts
+`resolveLampSpec` ignores `lightColor`/`lightIntensity` entirely, because the natural thing for a
+future change to do is "helpfully" derive one from the other. The inspector renders them as two
+labelled groups, **Light** and **Specification**, verified in a frame.
+
+**The schedule now groups by (def, CCT, IP), not by def.** A supplier cannot quote one line for a
+3000 K IP20 pendant and a 4000 K IP44 one, so two identical fixtures specified differently are
+separate rows — the same rule the door/window schedule already applies by folding style and
+material into its mark key.
+
+Each field resolves independently (setting IP alone leaves CCT at the default), and an unregistered
+def falls back to the generic indoor spec so a schedule row always has something to quote rather
+than a blank cell.
+
+`analysis/lampSpecAdvisory.ts` reads the resolved values, so specifying an IP44 fixture clears the
+wet-room finding — pinned by a test that asserts the before/after pair rather than just the after,
+so a change that made the advisory unreachable would fail.
+
++10 tests. The IP options are 20 / 44 / 65 (indoor, wet-room minimum, jet-proof) and the CCT
+options 2700 / 3000 / 4000 / 6500 K — discrete choices rather than a free number, so the field
+cannot hold a value no product has.
+
 ## v0.31.5.298 - the lamp-spec advisory reaches a surface, and the default flat fails it
 
 `.297` built `analysis/lampSpecAdvisory.ts`, tested it, and left it wired to nothing — which I

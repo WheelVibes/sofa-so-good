@@ -9,7 +9,7 @@
  * "where are the lights, how high, how bright" deliverable (Chief Architect /
  * RoomSketcher reflected ceiling plans). Pure (no three, no React) → testable.
  */
-import { isItemEmitter, LIGHT_EMITTERS } from '../furniture/lightEmitters'
+import { isItemEmitter, LIGHT_EMITTERS, resolveLampSpec } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { planLightLumens } from './roomLux'
 
@@ -121,18 +121,25 @@ export function buildLightingPlan(
       distance: spec.distance,
       color: spec.color,
     })
-    const row = groups.get(item.defId)
+    // Grouped by (def, specified CCT, specified IP) rather than def alone, so
+    // two instances of the same fixture specified differently stay SEPARATE
+    // rows — a supplier cannot quote one line for a 3000K IP20 pendant and a
+    // 4000K IP44 one. Same rule the door/window schedule already applies by
+    // folding style + material into its mark key.
+    const lamp = resolveLampSpec(item.defId, item.props ?? {})
+    const groupKey = `${item.defId}|${lamp.cct}|${lamp.ip}`
+    const row = groups.get(groupKey)
     if (row) row.count += 1
     else
-      groups.set(item.defId, {
+      groups.set(groupKey, {
         type: item.defId,
         label: def?.name ?? item.defId,
         count: 1,
         height,
         intensity: spec.intensity,
         lumens: Math.round(planLightLumens({ intensity: spec.intensity })),
-        cct: spec.cct,
-        ip: spec.ip,
+        cct: lamp.cct,
+        ip: lamp.ip,
       })
   }
 

@@ -338,9 +338,10 @@ Remaining, and both are CONTENT decisions for the owner rather than fixes:
   fails its own IP44 advisory. Options: ship a wet-rated fixture variant and use it in the wet
   rooms; or leave it, on the grounds that a check which fires on a real design is doing its job.
   Do NOT silence it by editing the advisory.
-- **A per-item CCT/IP override** would let a user specify the fixture they actually bought, instead
-  of the registry default. That is the real resolution for both findings, and it needs a props
-  field + inspector control, not a data tweak.
+- ~~**A per-item CCT/IP override**~~ DONE v0.31.5.299 (`props.lampCct`/`props.lampIp`,
+  `resolveLampSpec`, inspector "Specification" group). Note the deliberate separation from the
+  RENDER overrides `lightColor`/`lightIntensity` on the same item — do not wire one to the other,
+  and see the test that pins it.
 - A report section for the advisory (it is Checks-panel only today).
 
 ### Original scoping note — NOTE its lumens claim was WRONG, see .297

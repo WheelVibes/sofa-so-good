@@ -218,6 +218,33 @@ export function isItemEmitter(defId: FurnitureType, props: ParamProps): boolean 
  *  {@link isItemEmitter}); otherwise a registered fixture (gate-passing) wins,
  *  else a user override (`lightOn === 'yes'`) falls back to
  *  `OVERRIDE_EMITTER`. */
+/**
+ * The SPECIFIED lamp for one placed fixture: the item's own override where set,
+ * else the registry default.
+ *
+ * `props.lampCct` / `props.lampIp` are a **specification** register, kept
+ * strictly apart from `props.lightColor` / `props.lightIntensity`, which are
+ * RENDER overrides on the same item. Tinting a lamp warmer in the 3D view must
+ * not silently re-specify the product a contractor is asked to buy, and raising
+ * a fixture's brightness for a night render must not change its lumen package
+ * on the schedule. That is the same separation the `EmitterSpec.cct` docs
+ * describe — visible here as two override pairs that deliberately do not talk
+ * to each other.
+ *
+ * Falls back to the generic warm indoor spec for an item with no registered
+ * emitter (a user light-source override), so a schedule row always has a spec
+ * to quote rather than a blank.
+ */
+export function resolveLampSpec(
+  defId: FurnitureType,
+  props: ParamProps,
+): { cct: number; ip: number } {
+  const spec = LIGHT_EMITTERS[defId] ?? OVERRIDE_EMITTER
+  const cct = typeof props.lampCct === 'number' ? props.lampCct : spec.cct
+  const ip = typeof props.lampIp === 'number' ? props.lampIp : spec.ip
+  return { cct, ip }
+}
+
 export function resolveEmitterSpec(defId: FurnitureType, props: ParamProps): EmitterSpec | null {
   if (props.lightOn === 'no') return null
   const spec = LIGHT_EMITTERS[defId]

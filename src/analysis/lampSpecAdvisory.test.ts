@@ -110,3 +110,51 @@ describe('buildLampSpecAdvisory — honesty', () => {
     expect(buildLampSpecAdvisory([named]).findings.some((f) => f.kind === 'ingress')).toBe(true)
   })
 })
+
+describe('resolveLampSpec — the per-item override', () => {
+  it('prefers the item props over the registry default', async () => {
+    const { resolveLampSpec } = await import('../furniture/lightEmitters')
+    // Registry default for a ceiling light is 3000K / IP20.
+    expect(resolveLampSpec('ceiling-light' as never, {})).toEqual({ cct: 3000, ip: 20 })
+    expect(resolveLampSpec('ceiling-light' as never, { lampCct: 4000, lampIp: 44 })).toEqual({
+      cct: 4000,
+      ip: 44,
+    })
+  })
+
+  it('takes each field independently — one override does not reset the other', () => {
+    return import('../furniture/lightEmitters').then(({ resolveLampSpec }) => {
+      expect(resolveLampSpec('ceiling-light' as never, { lampIp: 44 })).toEqual({
+        cct: 3000,
+        ip: 44,
+      })
+    })
+  })
+
+  it('does NOT read the render overrides — they are a separate register', async () => {
+    const { resolveLampSpec } = await import('../furniture/lightEmitters')
+    // `lightColor`/`lightIntensity` retint and rebrighten the 3D view. Letting
+    // them move the SPEC would mean a night-render tweak silently changed the
+    // product a contractor is asked to buy.
+    const spec = resolveLampSpec('ceiling-light' as never, {
+      lightColor: '#88ccff',
+      lightIntensity: 12,
+    })
+    expect(spec).toEqual({ cct: 3000, ip: 20 })
+  })
+
+  it('falls back to the generic indoor spec for an unregistered def', async () => {
+    const { resolveLampSpec } = await import('../furniture/lightEmitters')
+    // A user light-source override on an arbitrary item still needs a spec to
+    // quote, rather than a blank schedule cell.
+    expect(resolveLampSpec('side-table' as never, {})).toEqual({ cct: 3000, ip: 20 })
+  })
+
+  it('clears the wet-room advisory once an IP44 fixture is specified', () => {
+    const wet = room('Bath/WC 1', 'bath')
+    const before = buildLampSpecAdvisory([fixture({ room: wet, ip: 20 })])
+    const after = buildLampSpecAdvisory([fixture({ room: wet, ip: 44 })])
+    expect(before.findings.some((f) => f.kind === 'ingress')).toBe(true)
+    expect(after.findings.some((f) => f.kind === 'ingress')).toBe(false)
+  })
+})
