@@ -2918,6 +2918,38 @@ been attributed to the glass or to the background tone-mapping path.
 
 ## (w) RASTER-INTERREFLECTION — 🐞 REAL, in the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
 
+> **⚠️ RE-PRICED BY AN ORDER OF MAGNITUDE, v0.31.7.7 — this is a ~4× error on a whole wall, and
+> it is APERTURE VISIBILITY.** Everything below prices (w) as surface *ratios* in one small room
+> (`bedroom3`): ~21–25 % on the ceiling, ~14 % on the floor. Measured against a Cycles reference
+> in a normal living room it is far larger. Column profile, mean luminance ÷ own median:
+>
+> | `livingDining` left → right | | | | | | | | | | |
+> | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+> | app | **1.417** | 1.332 | 1.178 | 0.901 | 0.764 | 0.898 | 0.933 | 0.788 | 0.831 | 0.910 |
+> | physics | **0.359** | 0.496 | 0.665 | 1.114 | 1.085 | 1.446 | 1.445 | 1.150 | 1.247 | 1.255 |
+> | **ratio** | **3.95** | **2.69** | 1.77 | 0.81 | 0.70 | 0.62 | 0.65 | 0.69 | 0.67 | 0.73 |
+>
+> Spread **6.36×** and monotone (`bedroom3`: 1.65×). Confirmed by eye — the app's near-left wall
+> is bright cream where physics is nearly black, same geometry and camera.
+>
+> **Three consequences.**
+>
+> 1. **No scalar can fix it.** The error is a gradient, so a uniform fill multiplier trades one
+>    room against another — the measured reason `FILLSCALE` failed (`v0.31.6.9`), not a guess.
+> 2. **AO cannot reach it.** N8AO is already on from `medium` up, at `aoRadius: 1.0` m. A
+>    contact-scale kernel cannot produce a 4–6 m gradient.
+> 3. **The right quantity is aperture visibility** — what fraction of the window each point
+>    sees. The app's `HemisphereLight` + `AmbientLight` give every surface the same skylight
+>    whether or not it can see the sky.
+>
+> **Which makes the fix a bake, at zero per-frame cost.** Aperture visibility is static per room
+> geometry, so Blender can bake it (`bake_material.py`, Part B) and the fill can be modulated by
+> it; the room shell is low-poly enough that vertex colours may carry it. Nothing per frame, so
+> the ≥30 fps floor is unaffected and it reaches walk, orbit and the room editor at once. The
+> open call is the **pipeline** shape — when to bake, where to store it, how to invalidate it
+> when a wall moves — not whether the error is real.
+
+
 **Repainting a room's walls from white to near-black changes the rest of the room's render by exactly zero.**
 This is the real-time walk render — the render every user actually sees — not the HQ still. It is independent of
 (l), (m), (p), (q), (r), (s) and (u), all of which concern the path-traced still.

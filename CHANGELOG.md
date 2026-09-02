@@ -29,6 +29,63 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.7 — (w) is a ~4× error on a whole wall, it is APERTURE VISIBILITY, and AO cannot reach it
+
+`v0.31.7.6` found the app far flatter than physics in a deep room and matching in a small one,
+and inferred a distance-dependent missing term. This round measures its **shape**, and the
+answer is much bigger than (w)'s existing price.
+
+**First, the obvious candidate is already on.** N8AO is enabled at **medium** (`quality.ts`:
+`ao: true` from medium up), so every measurement in this arc was taken *with* screen-space AO
+running. Its radius is **`aoRadius: 1.0` m** — a contact-scale effect, by design and by the
+`.196` tuning that set it. A 1 m kernel cannot produce a 4–6 m room-scale gradient, so
+"turn on AO" is not the fix and never was.
+
+**The spatial signature.** New `scripts/dev-probes/spatial-profile.mjs` reports mean luminance
+per column and per row, each divided by its own frame's median (the same normalisation that
+makes an unmatched exposure comparable), then the ratio of the two profiles:
+
+| `livingDining`, columns left → right | | | | | | | | | | |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| app | **1.417** | 1.332 | 1.178 | 0.901 | 0.764 | 0.898 | 0.933 | 0.788 | 0.831 | 0.910 |
+| physics | **0.359** | 0.496 | 0.665 | 1.114 | 1.085 | 1.446 | 1.445 | 1.150 | 1.247 | 1.255 |
+| **app ÷ physics** | **3.95** | **2.69** | 1.77 | 0.81 | 0.70 | 0.62 | 0.65 | 0.69 | 0.67 | 0.73 |
+
+**Spread 6.36×, monotone.** For contrast, `bedroom3` spreads only **1.65×** on the same
+statistic, and its rows 1.29× against `livingDining`'s 2.00×. A flat ratio would mean a global
+gain error fixable with one scalar; this is a gradient, so no scalar can fix it — which is the
+measured reason `FILLSCALE` failed in `v0.31.6.9` rather than the guess.
+
+**Then look at it, because a 4× is worth confirming by eye.** The left-edge crop is
+unambiguous: **the app's near-left wall is a bright flat cream surface; physics' is nearly
+black.** Same geometry, same camera, same sun. The lamp shade is visible in both, so it is the
+wall that differs, not the framing.
+
+**What the term actually is.** That wall is several metres from the window, oblique to it, and
+largely faces away — it can barely *see* the aperture, so real skylight reaching it is tiny.
+The app's `HemisphereLight` + `AmbientLight` fill has no notion of visibility: **every surface
+receives the same skylight whether or not it can see the sky.** The physically-right quantity
+is therefore **aperture (sky) visibility** — what fraction of the window each point sees — and
+that is a *geometric* property of the room, not of the frame.
+
+**This re-prices (w) by an order of magnitude.** It was carried as ~21–25 % on the ceiling and
+~14 % on the floor, measured as surface ratios in one small room. On a large wall in a normal
+living room it is **~4×**, and it is the most visible single defect the arc has found: walls
+that should fall off with distance from the window simply do not. That is a strong candidate
+for what reads as "CGI" independently of any metric.
+
+**And the fix is exactly what Blender is for, at zero per-frame cost.** Aperture visibility is
+static per room geometry, so it can be **baked** — which is what the pending Part B script
+`bake_material.py` is for — and applied as a modulation of the fill. The room shell (walls,
+floor, ceiling) is low-poly, so vertex colours alone may carry it; nothing needs to be
+evaluated per frame, so the **≥30 fps floor is untouched** and the ~16.5 ms of medium-tier
+headroom stays unspent. It reaches walk, orbit and the room editor together, since all three
+share the rig (`v0.31.6.8`).
+
+Not built this round: baking is a real feature with an asset-pipeline shape (when to bake, where
+to store it, how to invalidate it when a wall moves), and the measurement above is what makes
+it worth designing rather than guessed at. Recorded under item (w).
+
 ## v0.31.7.6 — a second room, in one command: the highlight deficit generalises, the shadow agreement does NOT, and `p99/p01` is retired
 
 Every conclusion in this arc was drawn against **one pose in one room** (`bedroom3`, 13:00,
