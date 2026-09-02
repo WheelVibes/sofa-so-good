@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.252 — the disciplines are finally checked against each other
+
+Every discipline was checked only against ITSELF. `collision/` tests furniture against furniture
+and walls; `socketAdvisory.ts` counts outlets per room and says outright it has "no notion of
+circuits"; `ceilingClearance.ts` measures a ceiling treatment and is consumed by `rcp.ts` for
+DRAWING, not validation; the MEP points feed the schedules and the MEP sheets without ever being
+compared to anything. Nothing laid the drawings over one another — which is exactly what a
+designer does, and what catches the errors that are cheap on paper and expensive on site.
+
+New pure core `analysis/coordinationClashes.ts` (`coordinationChecks` flag, pro tier, default on)
+with two checks, both grounded in data the model already held:
+
+- **An MEP point buried behind furniture.** A point is obstructed when it falls inside an item's
+  footprint AND sits within that item's vertical extent (items are floor-anchored, so 0 → height).
+  A socket at 300 mm behind a 2100 mm wardrobe is flagged; the same socket raised to 1100 mm behind
+  a 400 mm sideboard is not. That height test is the whole point — a naive footprint-overlap check
+  would cry wolf on every console table.
+- **An item taller than the finished clearance under its room's ceiling treatment** — a wardrobe
+  that will not fit under a bulkhead, reported with both numbers and the drop.
+
+It reuses the accurate resolvers rather than re-deriving geometry: `itemFootprintParts` (the
+shape-aware decomposition from v0.31.5.249, so a round table doesn't claim bbox corners it never
+occupies), the ONE `itemHeight` resolver, `buildCeilingClearance`, and `pointInRoom`. The only new
+geometry is a 12-line point-in-OBB test — `collision/obb.ts` had box-vs-box and box-vs-segment but
+no point containment.
+
+Surfaced as a "Coordination" section in the design report, next to Accessibility. It states what it
+compared (`3 MEP points and 12 items`), so "no clashes" is distinguishable from "nothing to check",
+and carries an explicit scope note: an indicative aid comparing plan footprints plus a single
+height per item, blind to an item's internal voids (a socket behind open-backed shelving reads as
+obstructed) and to 3D duct routes. Same honesty `socketAdvisory.ts` already models.
+
++13 unit tests, including rotation containment (a point outside the unrotated box, inside once
+turned 90 degrees), one-report-per-point de-duplication, and the flag in BOTH Simple and Pro.
+Full suite green (9469).
+
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G9).
+
 ## v0.31.5.251 — drawings are dimensioned in millimetres, as drawings are
 
 Every dimension on every sheet was labelled `"2.75 m"` — two decimals of a metre, so **10 mm

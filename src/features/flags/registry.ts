@@ -48,6 +48,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  coordinationChecks: {
+    label: 'Coordination checks',
+    description: 'Cross-discipline clashes (MEP vs furniture vs ceiling)',
+    default: true,
+    tier: 'pro',
+  },
   clearanceChecks: {
     label: 'Clearance checks',
     description: 'Door-swing / fit checks',

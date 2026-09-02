@@ -5,6 +5,7 @@
  */
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
+import { buildCoordinationClashes } from '../analysis/coordinationClashes'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { buildDesignScore } from '../analysis/designScore'
 import {
@@ -491,6 +492,45 @@ export function buildReportHtml(
     const it = plan.openings?.find((o) => o.id === id)
     return it ? `Door (${formatLength(it.width, units)})` : id
   }
+  // Cross-discipline coordination (G9) — the one check that compares the
+  // disciplines against EACH OTHER (MEP points vs furniture bodies vs ceiling
+  // drops) rather than each against itself. Reads the user's PERSISTED MEP
+  // points, so an unwired design reports nothing instead of guessing.
+  const coordination = isFeatureEnabled('coordinationChecks')
+    ? buildCoordinationClashes(
+        plan,
+        items,
+        catalog,
+        plan.electricalPoints ?? [],
+        plan.plumbingPoints ?? [],
+      )
+    : null
+  const coordinationSection =
+    !coordination || (coordination.checked.mepPoints === 0 && coordination.checked.items === 0)
+      ? ''
+      : `<div class="room-cost">
+      <h2>Coordination</h2>
+      <div class="${coordination.allClear ? 'ok' : 'warn'}">
+        ${
+          coordination.allClear
+            ? `No clashes across ${coordination.checked.mepPoints} MEP point${coordination.checked.mepPoints === 1 ? '' : 's'} and ${coordination.checked.items} item${coordination.checked.items === 1 ? '' : 's'}.`
+            : `${coordination.clashes.length} clash${coordination.clashes.length === 1 ? '' : 'es'} to resolve before handover.`
+        }
+      </div>
+      ${
+        coordination.clashes.length === 0
+          ? ''
+          : `<table class="sched">${coordination.clashes
+              .map(
+                (c) =>
+                  `<tr><td>${esc(c.roomName ?? '—')}</td><td>${esc(c.title)}</td><td>${esc(c.detail)}</td></tr>`,
+              )
+              .join('')}</table>`
+      }
+      <div class="note">Indicative coordination aid — compares plan footprints and a single
+      height per item, so it does not know an item's internal voids or a duct's 3D route.</div>
+    </div>`
+
   const accessibilitySection =
     a11y.doors.length === 0 && a11y.rooms.length === 0
       ? ''
@@ -1077,6 +1117,7 @@ export function buildReportHtml(
   ${designScoreSection}
   ${suggestionsSection}
   ${accessibilitySection}
+  ${coordinationSection}
   ${daylightSection}
   ${openingsSection}
   ${complianceSection}

@@ -1580,6 +1580,20 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Cross-discipline coordination checks** (`coordinationChecks` flag, pro) —
+  `analysis/coordinationClashes.ts` `buildCoordinationClashes(plan, items, catalog, electrical,
+  plumbing)` is the ONE check that compares disciplines against **each other** rather than each
+  against itself: (a) an MEP point inside a furniture footprint AND within that item's vertical
+  extent (floor-anchored, so 0 → `itemHeight`) = a fitting that would be built in and unreachable;
+  (b) an item taller than its room's finished ceiling clearance (`buildCeilingClearance`) = it will
+  not fit under the drop. Reuses `itemFootprintParts` (shape-aware, not the coarse OBB), the one
+  `elevation/projectElevation.ts:itemHeight` resolver, and `pointInRoom` — the only new geometry is
+  a local point-in-OBB test (`collision/obb.ts` has box-vs-box and box-vs-segment, no point
+  containment). Reads the PERSISTED `plan.electricalPoints`/`plumbingPoints`, so an unwired design
+  reports nothing rather than guessing. Reports `checked: { mepPoints, items }` so "no clashes" is
+  distinguishable from "nothing to check". Surfaced as the report's "Coordination" section.
+  **Indicative, not a clash engine**: 2D footprints + one height per item, so blind to internal
+  voids and 3D duct routes (scope note rendered with the section; follow-ups in `TODO.md`).
 - **Drawing dimensions are integer millimetres, not decimal metres.**
   `utils/measurement.ts` has TWO length formatters and the distinction is deliberate:
   `formatLength` is the friendly on-screen readout ("2.60 m" / nearest-inch imperial) used by the

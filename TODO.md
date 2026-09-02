@@ -200,6 +200,12 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G9 follow-up] Aircon trunking vs joinery is not clash-checked.** v0.31.5.252 covers MEP-behind-
+  furniture and item-under-ceiling-drop. The third failure mode from the research — an
+  `analysis/airconTrunking.ts` route crossing a carpentry run — needs the trunking polyline treated
+  as a swept 3D volume against joinery bodies, which is more than the current 2D-footprint-plus-one-
+  height model can express. Also unhandled: an item's internal voids (an open-backed shelving unit
+  reports its socket as obstructed) — would need a per-def "backless/open" hint.
 - **[G10 follow-up] The DXF still writes metre geometry + metre dimension text.** v0.31.5.251 moved
   the printed sheets to integer mm but left the DXF alone on purpose: it declares `$INSUNITS = 6`
   (metres) and writes metre coordinates, so mm annotation beside a 4-unit line would contradict its

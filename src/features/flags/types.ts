@@ -12,6 +12,7 @@ export type FeatureFlag =
   | 'measure'
   | 'budget'
   | 'clearanceChecks'
+  | 'coordinationChecks'
   | 'versions'
   | 'history'
   | 'shareExport'
