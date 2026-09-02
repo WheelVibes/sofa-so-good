@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.254 — a sheet named "Section A–A" can finally be located
+
+`drawingSet.ts:621` called `buildSection` exactly ONCE, hardcoded to
+`{ axis: 'z', at: plan.extent[1] / 2 }`, and emitted a sheet literally named "Section A–A". Three
+consequences, and the third is a convention violation rather than a missing feature:
+
+1. **No longitudinal section.** `buildSection` has always accepted `axis: 'x'`; nothing ever asked
+   for it. One of the two conventional cuts was simply absent.
+2. **A blind mid-plan cut** could land down an empty corridor and produce a near-featureless
+   section (guarded only by `walls.length > 0`).
+3. **No cut marker on any plan sheet.** The set asserted a cut location it never drew, so a
+   contractor could not tell WHERE "A–A" was taken. The sheet name was a promise the drawings
+   did not keep.
+
+New pure `floorplan/section.ts:conventionalSectionCuts(plan)` returns BOTH conventional cuts — a
+cross section (`axis: 'z'`, marked A) and a longitudinal one (`axis: 'x'`, marked B) — and picks
+each position to be INFORMATIVE rather than mid-plan: candidates are the room label points plus the
+midpoint, scored by how much the cut actually crosses (rooms passed through + walls cut), ties
+breaking toward the lower coordinate so the result is deterministic. A plan with no walls yields an
+empty list instead of two empty sheets. On the default 4-room flat it picks z=1.963 (through all
+three bedrooms and the living room) and x=4.740, rather than the geometric centre.
+
+`reportPlanSvg` gains a `sectionMarks` param and draws the conventional mark: a chain-dashed cut
+line spanning the plan, with an arrow at BOTH ends pointing in the view direction (+z for a z-cut,
++x for an x-cut — the direction `buildSection` actually projects) and the mark letter beside each.
+The drawing set resolves the cuts UP FRONT (the floor-plan sheet is built before the section sheets)
+and passes only cuts whose sheet actually rendered, so a mark can never point at a skipped sheet.
+Marks are drawn on the GROUND storey only — the cuts are taken through it, so marking an upper
+storey would claim a position that sheet's section does not show.
+
+Caught by visual verification: the first pass placed each glyph OUTSIDE the line end, past the 0.4
+viewBox padding, so the start-end letter of each cut was clipped and only one of the two read.
+Every glyph is now placed inward from its end.
+
++5 section tests, +1 drawing-set test. One existing assertion re-scoped: the carpentry sheet's own
+"A" section bubbles were counted document-wide, which now also catches the plan's A marks — scoped
+to the slice from 'FRONT ELEVATION' ('Carpentry —' also appears in the cover's sheet index).
+Full suite green (9494).
+
+Still deferred (`TODO.md`): USER-placed cuts. That needs a plan entity plus a drag-a-cut-line editor
+surface, and the automatic pair is the right default either way.
+
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G1).
+
 ## v0.31.5.253 — the revision table becomes an audit trail
 
 `drawingSet.ts` rendered the Revisions table with a single hardcoded `<tr>` built from

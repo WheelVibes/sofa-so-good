@@ -18,6 +18,7 @@ const esc = (s: string) =>
 
 const ANN = '#0d9488' // teal — dimension callouts, distinct from the wall strokes
 const NOTE = '#b45309' // amber — free text callouts (matches the drawing-set storey notes)
+const CUT = '#1e293b' // near-black slate — section cut lines/marks read as structure, not annotation
 const TILE = '#7c3aed' // violet — tile setting-out marks, distinct from both of the above
 const MARK = '#be123c' // rose — opening D/W mark callouts (H1-F), distinct from all of the above
 
@@ -229,6 +230,70 @@ function scaleBarSvg(planWidthM: number, barY: number, units: UnitSystem): strin
  * z south); the viewBox lets it scale to any container width. Returns '' when
  * the plan has no extent.
  */
+/**
+ * Conventional section cut marks (G1): a heavy dashed cut line spanning the
+ * plan at the cut position, with a short arrow at each end pointing in the
+ * VIEW direction and the mark letter beside it. Without these a sheet titled
+ * "Section A–A" asserts a cut the reader cannot locate.
+ *
+ * View direction convention: a `z`-axis cut (a horizontal line across the
+ * plan) is viewed looking DOWN the page (+z), an `x`-axis cut looking RIGHT
+ * (+x) — matching the direction `buildSection` projects.
+ */
+function sectionMarksSvg(
+  marks: { axis: 'x' | 'z'; at: number; mark: string }[],
+  maxX: number,
+  maxZ: number,
+): string {
+  // Stays inside the 0.4 viewBox padding, and every glyph is placed INWARD
+  // from the line end so neither the arrow nor the letter can be clipped.
+  const OVER = 0.28
+  const ARROW = 0.4
+  const INSET = 0.34
+  return marks
+    .map((m) => {
+      const horizontal = m.axis === 'z'
+      const [ax, az, bx, bz] = horizontal
+        ? [-OVER, m.at, maxX + OVER, m.at]
+        : [m.at, -OVER, m.at, maxZ + OVER]
+      const line =
+        `<line x1="${ax.toFixed(3)}" y1="${az.toFixed(3)}" x2="${bx.toFixed(3)}" y2="${bz.toFixed(3)}"` +
+        ` stroke="${CUT}" stroke-width="0.06" stroke-dasharray="0.6 0.22 0.14 0.22"/>`
+      // Both ends carry an arrow + the mark letter, as the convention requires
+      // (a reader picks up whichever end is nearer). `inward` is +1 at the low
+      // end and -1 at the high end.
+      const ends: { x: number; z: number; inward: number }[] = [
+        { x: ax, z: az, inward: 1 },
+        { x: bx, z: bz, inward: -1 },
+      ]
+      const glyphs = ends
+        .map(({ x, z, inward }) => {
+          // Arrow points along the VIEW direction: +z for a z-axis cut
+          // (looking down the page), +x for an x-axis cut (looking right) —
+          // matching the direction `buildSection` projects.
+          const tipX = horizontal ? x + inward * INSET : x + ARROW
+          const tipZ = horizontal ? z + ARROW : z + inward * INSET
+          const stemX = horizontal ? tipX : x
+          const stemZ = horizontal ? z : tipZ
+          const head = horizontal
+            ? `${tipX - 0.12},${tipZ - 0.16} ${tipX + 0.12},${tipZ - 0.16} ${tipX},${tipZ}`
+            : `${tipX - 0.16},${tipZ - 0.12} ${tipX - 0.16},${tipZ + 0.12} ${tipX},${tipZ}`
+          // Letter sits on the far side of the line from the arrow, inset from
+          // the end so it never leaves the viewBox.
+          const lx = horizontal ? x + inward * INSET : x - INSET
+          const lz = horizontal ? z - INSET : z + inward * INSET
+          return (
+            `<line x1="${stemX.toFixed(3)}" y1="${stemZ.toFixed(3)}" x2="${tipX.toFixed(3)}" y2="${tipZ.toFixed(3)}" stroke="${CUT}" stroke-width="0.05"/>` +
+            `<polygon points="${head}" fill="${CUT}"/>` +
+            `<text x="${lx.toFixed(3)}" y="${lz.toFixed(3)}" font-size="0.42" font-weight="700" fill="${CUT}" text-anchor="middle" dominant-baseline="middle">${esc(m.mark)}</text>`
+          )
+        })
+        .join('')
+      return line + glyphs
+    })
+    .join('')
+}
+
 export function reportPlanSvg(
   plan: FloorPlan,
   annotations: MeasurementAnnotation[] = [],
@@ -258,6 +323,12 @@ export function reportPlanSvg(
    *  while the schedule types it `D2`). Omitted ⇒ derived from `plan` itself
    *  (correct for a single-storey plan). */
   openingMarks?: Map<string, string>,
+  /** Section cut marks to draw (G1) — the conventional cut line + arrowed
+   *  end marks that tell a contractor WHERE "Section A–A" was cut. Gated by
+   *  the caller to when the matching section sheet is ALSO on the set, so a
+   *  mark never points at a sheet that isn't there. Default none (existing
+   *  callers are unaffected). */
+  sectionMarks: { axis: 'x' | 'z'; at: number; mark: string }[] = [],
 ): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
@@ -346,8 +417,11 @@ export function reportPlanSvg(
       : ''
   const tileMarks = showTileMarks ? tileSettingOutSvg(plan) : ''
   const tileCaption = showTileMarks ? tileSettingOutCaption(barY + 0.55, tileMarksOmitted) : ''
+  // Cut marks ride ABOVE the walls (they are structure-weight, and must read
+  // over a wall they cross) but BELOW the labels.
+  const cutMarks = sectionMarks.length > 0 ? sectionMarksSvg(sectionMarks, w, d) : ''
   const openingMarksStr = showOpeningMarks
     ? openingMarksSvg(plan, openingMarks ?? assignOpeningMarks(plan))
     : ''
-  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${openingMarksStr}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
+  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${openingMarksStr}${cutMarks}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
 }

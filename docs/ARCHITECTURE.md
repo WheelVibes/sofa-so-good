@@ -1580,6 +1580,17 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Sections: both conventional cuts, and they are locatable on the plan.**
+  `floorplan/section.ts:conventionalSectionCuts(plan)` returns the CROSS cut (`axis: 'z'`, mark A)
+  and the LONGITUDINAL cut (`axis: 'x'`, mark B), each positioned by scoring candidate positions
+  (room label points + the plan midpoint) on how much the cut actually crosses — so a cut cannot
+  land down an empty corridor; ties break toward the lower coordinate for determinism. Empty for a
+  wall-less plan. `ui/drawingSet.ts` resolves them UP FRONT (the floor-plan sheet is built before
+  the section sheets), emits one `Section X–X` sheet per surviving cut, and passes the survivors to
+  `reportPlanSvg`'s `sectionMarks` param — which draws the chain-dashed cut line plus a
+  view-direction arrow and mark letter at BOTH ends. Ground storey only (the cuts are taken through
+  it). Only cuts whose sheet rendered are marked, so a mark never points at a skipped sheet.
+  User-placed cuts are deferred (`TODO.md`); `buildSection` already accepts any axis+position.
 - **The drawing set's revision table is an append-only audit trail.**
   `export/drawingSetTemplate.ts` holds `revisions?: DrawingSetRevision[]` (prior issues, oldest
   first) ALONGSIDE `revision`/`revisionNote`, which remain the CURRENT issue — additive, so an

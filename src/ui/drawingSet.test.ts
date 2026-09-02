@@ -70,6 +70,16 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('Rev A')
   })
 
+  it('emits BOTH conventional sections and marks them on the plan (G1)', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    // Two numbered section sheets, not one.
+    expect(html).toContain('Section A–A')
+    expect(html).toContain('Section B–B')
+    // And the floor plan carries locatable cut marks — before this, a sheet
+    // named "Section A–A" asserted a cut the reader could not find.
+    expect(html).toContain('stroke-dasharray="0.6 0.22 0.14 0.22"')
+  })
+
   it('states the dimension unit once in every title block (G10)', () => {
     // Dimension labels are suffix-free integer mm, so the sheet must say so —
     // the standard convention, and the thing that makes "2745" unambiguous.
@@ -942,7 +952,13 @@ describe('buildDrawingSetHtml — carpentry sheets (TODO G8)', () => {
     expect(on).toMatch(/Sliding track \+ rollers.*2 door panels/)
     expect(on).toContain('confirm exact board/laminate code with fabricator')
     expect(on).toContain('class="section-cut"')
-    expect(on.match(/>A<\/text>/g)?.length).toBe(2)
+    // Two "A" bubbles on the carpentry front elevation. Scoped from
+    // 'FRONT ELEVATION' (which only the carpentry sheet carries — 'Carpentry —'
+    // also appears in the cover's sheet index): since v0.31.5.254 the PLAN
+    // sheets carry section cut marks lettered A too, so a document-wide count
+    // would conflate the two.
+    const carpentrySheet = on.slice(on.indexOf('FRONT ELEVATION'))
+    expect(carpentrySheet.match(/>A<\/text>/g)?.length).toBe(2)
 
     // Flag off (default false) → no sheet at all.
     const off = buildDrawingSetHtml(plan, [wardrobeItem], catalog)

@@ -49,7 +49,7 @@ import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
 import { buildReflectedCeilingPlan } from '../floorplan/rcp'
 import { rcpSvg } from '../floorplan/rcpSvg'
 import type { RoomFinishMaps } from '../floorplan/roomFinishes'
-import { buildSection } from '../floorplan/section'
+import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
@@ -401,6 +401,22 @@ export function buildDrawingSheets(
   const multi = isMultiLevel(plan)
   const cap = (base: string, level: PlanLevel) => (multi ? `${base} — ${level.name}` : base)
 
+  // Sections (G1) resolved UP FRONT: the floor-plan sheet below draws the cut
+  // marks, so the cuts must be known before it is built. Only cuts that
+  // actually produce a section are kept, so a mark never points at a sheet
+  // that was skipped for being empty.
+  const silhouettes = sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog)
+  const resolvedSections = layerOn(layers, 'section')
+    ? conventionalSectionCuts(plan)
+        .map(({ cut, mark }) => ({ cut, mark, section: buildSection(plan, cut, silhouettes) }))
+        .filter((r) => r.section.walls.length > 0)
+    : []
+  const sectionMarksDrawn = resolvedSections.map(({ cut, mark }) => ({
+    axis: cut.axis,
+    at: cut.at,
+    mark,
+  }))
+
   // A-1 · Floor plan (furnished footprints under the walls, like the report).
   const footprintsOf = (list: FurnitureItem[]) => planFootprints(list, catalog)
   // Tile setting-out crosses (G3) only make sense alongside the finishes
@@ -430,6 +446,10 @@ export function buildDrawingSheets(
       showTileMarks,
       showOpeningMarks,
       openingMarkMap,
+      // Cut marks only on the GROUND storey: the cuts are taken through the
+      // ground-floor plan, so marking an upper storey would claim a cut
+      // position that sheet's section does not show.
+      level.id === levels[0]!.id ? sectionMarksDrawn : [],
     )
     sheets.push({
       name: cap('Floor plan', level),
@@ -611,37 +631,39 @@ export function buildDrawingSheets(
     }
   }
 
-  // Cross-section — a vertical cut through the middle of the plan (along Z),
-  // with ground-floor furniture in the cut's room band shown in elevation.
-  const section = buildSection(
-    plan,
-    { axis: 'z', at: plan.extent[1] / 2 },
-    sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog),
-  )
-  if (layerOn(layers, 'section') && section.walls.length > 0) {
-    const scale = planScale(
-      section.length,
-      section.height,
-      template.paperSize,
-      template.orientation,
-    )
-    sheets.push({
-      name: 'Section A–A',
-      body: `<div class="draw">${sectionSvg(section, {
-        palette: {
-          wall: '#9ca3af',
-          floor: '#374151',
-          ceil: '#9ca3af',
-          opening: '#93c5fd',
-          ink: '#4b5563',
-          item: '#d8c8b0',
-        },
-        widthPx: 900,
-        printMmPerM: scale.mmPerM,
-      })}</div>`,
-      calloutGroup: 'section',
-      scaleLabel: scale.label,
-    })
+  // Sections (G1) — BOTH conventional cuts: a cross section (along Z, marked
+  // A) and a longitudinal one (along X, marked B), each positioned where it
+  // actually crosses the most rooms/walls rather than blindly mid-plan (which
+  // could land down an empty corridor). Ground-floor furniture in the cut's
+  // room band shows in elevation behind the cut. `sectionMarksDrawn` feeds the
+  // plan sheets' cut marks, so a "Section A–A" sheet is always locatable —
+  // only marks whose sheet actually rendered are drawn.
+  {
+    for (const { mark, section } of resolvedSections) {
+      const scale = planScale(
+        section.length,
+        section.height,
+        template.paperSize,
+        template.orientation,
+      )
+      sheets.push({
+        name: `Section ${mark}–${mark}`,
+        body: `<div class="draw">${sectionSvg(section, {
+          palette: {
+            wall: '#9ca3af',
+            floor: '#374151',
+            ceil: '#9ca3af',
+            opening: '#93c5fd',
+            ink: '#4b5563',
+            item: '#d8c8b0',
+          },
+          widthPx: 900,
+          printMmPerM: scale.mmPerM,
+        })}</div>`,
+        calloutGroup: 'section',
+        scaleLabel: scale.label,
+      })
+    }
   }
 
   // Electrical / power & data plan — one diagram sheet per wired storey; the

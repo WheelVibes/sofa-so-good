@@ -23,17 +23,20 @@
  * Pure + self-contained: imports only `./types`. All lengths in metres.
  */
 
+import { allPlanRooms } from './levels'
+import { roomLabelPoint } from './roomCentroid'
 import {
   type FloorPlan,
   type PlanOpening,
   type PlanRoom,
   type PlanVec2,
   type PlanWall,
+  planBounds,
   roomPolygon,
   wallLength,
 } from './types'
 
-type SectionAxis = 'x' | 'z'
+export type SectionAxis = 'x' | 'z'
 
 export interface SectionCut {
   /** Which world axis the cut line is fixed on. `'x'` → a vertical plane at
@@ -488,4 +491,54 @@ function polygonCutSpans(poly: PlanVec2[], axis: SectionAxis, at: number): Array
     spans.push([xs[i]!, xs[i + 1]!])
   }
   return spans
+}
+
+/** A conventional section cut plus the letter its marks and sheet carry. */
+export interface MarkedSectionCut {
+  cut: SectionCut
+  /** Mark letter — the sheet reads "Section A–A", the plan marks read "A". */
+  mark: string
+}
+
+/**
+ * The two conventional cuts a drawing set carries — one CROSS section
+ * (`axis: 'z'`, looking along Z) marked A and one LONGITUDINAL section
+ * (`axis: 'x'`) marked B.
+ *
+ * Position is chosen to be INFORMATIVE rather than blindly mid-plan: each
+ * candidate is scored by how much the cut line actually crosses (rooms passed
+ * through + walls cut), so a cut cannot land down an empty corridor and produce
+ * a near-featureless section. Candidates are the room label points (a cut
+ * through room centres reads well) plus the plan midpoint as a floor. Ties
+ * break toward the LOWER coordinate, so the result is deterministic.
+ *
+ * Returns only cuts that actually cross something — a plan with no walls
+ * yields an empty list rather than two empty sheets.
+ */
+export function conventionalSectionCuts(plan: FloorPlan): MarkedSectionCut[] {
+  if (!plan?.walls?.length) return []
+  const [maxX, maxZ] = planBounds(plan)
+  const out: MarkedSectionCut[] = []
+
+  for (const [axis, mark, mid] of [
+    ['z', 'A', maxZ / 2],
+    ['x', 'B', maxX / 2],
+  ] as const) {
+    // Candidate positions: every room's label point on this axis, plus the
+    // plan midpoint. Deduped and sorted so scoring order is deterministic.
+    const fromRooms = allPlanRooms(plan).map((r) => roomLabelPoint(r)[axis === 'z' ? 1 : 0])
+    const candidates = [...new Set([...fromRooms, mid].map((v) => Math.round(v * 1000) / 1000))]
+      .filter((v) => Number.isFinite(v))
+      .sort((a, b) => a - b)
+
+    let best: { at: number; score: number } | null = null
+    for (const at of candidates) {
+      const s = buildSection(plan, { axis, at })
+      const score = s.rooms.length + s.walls.length
+      // Strict > keeps the FIRST (lowest) position on a tie.
+      if (score > 0 && (!best || score > best.score)) best = { at, score }
+    }
+    if (best) out.push({ cut: { axis, at: best.at }, mark })
+  }
+  return out
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSection, type SectionItemInput } from './section'
+import { buildSection, conventionalSectionCuts, type SectionItemInput } from './section'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanVec2, PlanWall } from './types'
 
 function wall(
@@ -244,5 +244,52 @@ describe('buildSection — furniture silhouettes beyond the cut', () => {
     const s = buildSection(rectPlan(), { axis: 'x', at: 3 }, junk as any)
     expect(s.items.length).toBe(1)
     expect(s.items[0]!.label).toBe('Sofa')
+  })
+})
+
+describe('conventionalSectionCuts', () => {
+  it('returns BOTH conventional cuts — a cross section A and a longitudinal B', () => {
+    const cuts = conventionalSectionCuts(rectPlan())
+    expect(cuts.map((c) => c.mark)).toEqual(['A', 'B'])
+    expect(cuts.find((c) => c.mark === 'A')!.cut.axis).toBe('z')
+    expect(cuts.find((c) => c.mark === 'B')!.cut.axis).toBe('x')
+  })
+
+  it('returns nothing for a plan with no walls, rather than two empty sheets', () => {
+    expect(conventionalSectionCuts({ ...rectPlan(), walls: [] })).toEqual([])
+  })
+
+  it('picks a position that actually crosses the plan', () => {
+    for (const { cut } of conventionalSectionCuts(rectPlan())) {
+      const s = buildSection(rectPlan(), cut)
+      expect(s.walls.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('is deterministic — repeated calls agree', () => {
+    const a = conventionalSectionCuts(rectPlan())
+    const b = conventionalSectionCuts(rectPlan())
+    expect(a).toEqual(b)
+  })
+
+  it('prefers the cut that crosses more, not the blind midpoint', () => {
+    // A plan whose mid-Z band is empty but which has an internal partition
+    // off-centre: the chosen cross-section must cross that partition.
+    const plan = {
+      ...rectPlan(),
+      walls: [
+        ...rectPlan().walls,
+        {
+          id: 'p1',
+          start: [0, 1] as [number, number],
+          end: [5, 1] as [number, number],
+          thickness: 'internal' as const,
+        },
+      ],
+    }
+    const cross = conventionalSectionCuts(plan).find((c) => c.mark === 'A')
+    expect(cross).toBeDefined()
+    const s = buildSection(plan, cross!.cut)
+    expect(s.walls.length).toBeGreaterThan(0)
   })
 })

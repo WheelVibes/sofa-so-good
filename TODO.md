@@ -200,6 +200,13 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G1 follow-up] Section cuts are automatic, not user-placed.** v0.31.5.254 emits both
+  conventional cuts (A cross, B longitudinal) at scored-informative positions with proper plan
+  marks. What is still missing is letting a user take a cut WHERE THEY WANT — through a specific
+  wet area, a dropped ceiling, a stair, a tall joinery run. Needs a plan entity (position, axis,
+  view direction, mark letter) plus an editor affordance to drag the cut line, and then
+  `conventionalSectionCuts` becomes the default seed rather than the only source. The projector
+  (`buildSection`) already accepts any axis+position, so this is entity + UI work only.
 - **[G6 follow-up] Revisions are set-wide, not per-sheet; no revision clouds.** v0.31.5.253 ships the
   revision HISTORY, but every sheet still carries the same global `Rev X` in its title block, whereas
   in practice sheets revise independently. Doing it properly needs each revision to record WHICH
