@@ -19,6 +19,50 @@ pruned from `main`; entries from C251 on (branch
 > staging. Noted here instead so the log is confusing-but-honest rather than silently
 > ambiguous. Flagged for the maintainer; renumbering is a call for them, not for either session.
 
+## v0.31.7.0 — PR to staging: drawing accuracy, trade quantities, and the F13 multi-storey audit
+
+73 commits. Everything here serves one goal: making the app a professional replacement for
+hiring an interior designer — to scale, measured, and usable by a contractor as a precise
+reference.
+
+**Drawings a trade can build from.** Tile setting-out for floors and walls (tabulated and
+drawn, centred-field origin, per-perimeter cuts); DXF in real millimetres with `$INSUNITS`;
+paint quantities in litres and tins with the substrate derived from the intake state; a lamp
+specification with a wet-room IP44 compliance check; curtain drops and fabric widths; priced
+added partitions; a variation register diffing a tendered snapshot against the current design,
+end to end (capture → diff → CSV + drawing sheet, persisted in autosave lock-step).
+
+**The F13 multi-storey audit.** `plan.rooms`/`walls`/`openings` are ground-floor only, and ~35
+real defects read them directly as if they were the whole home — a maisonette's upstairs was
+invisible to costs, accessibility, compliance, sections, elevations and the scheduler. Fixed
+behind a `levels.ts` helper vocabulary (`allPlanRooms`, `allPlanWalls`, `allPlanOpenings`,
+`planTotalAreaAllLevels`, `roomAtItem`, `itemsInRoom`, `mapPlanRooms`, `roomAtPoint`,
+`placementLevelPlan`) so the ground-only read is no longer the shortest path. A further 11
+defects came from auditing my own earlier claims and 5 more from sweeping on the operation
+rather than the receiver.
+
+**Two analyses that existed but were pointed the wrong way.** `layoutCritique` shipped with
+cited comfort bands and was consumed by NOTHING except `schemeOptions` — it critiqued generated
+alternatives and never the home the user drew. And `floorLevelMm` drove the FFL tags, step
+markers, 3D risers and tiler pack while being entirely hand-entered, because `MaterialDef`
+carried no thickness. Both now derive from what the user actually specified; the second finds a
+real defect in the app's own default flat (Bath/WC 1 sits 8 mm above Main Bedroom, so the fall
+runs out of the bathroom).
+
+**Two structural fixes replacing rules I had restated and ignored.** `scripts/apply-edit.mjs`
+makes a scripted edit assert it changed something — after four silent no-ops, three of them
+after writing the rule down. And `src/changelogVersions.test.ts`, from dev-09's design, is the
+artefact the version counter never had.
+
+Every threshold in here is sourced, in nine `docs/research/` notes. Where a source gives a range
+the direction of error is chosen and stated, and it is not always the same direction: build-ups
+feed a regulatory limit and take the thicker end, while a specified module is exact.
+
+**Known issue, escalated not fixed:** 67 duplicate build numbers in `0.31.5.249`–`.349`, from
+two sessions numbering from the same base in separate worktrees. Renumbering was measured (150
+references across 46 source files) and declined as cosmetic — see the note at the top of this
+file. `APP_VERSION` is unaffected.
+
 ## v0.31.6.3 - the missing artefact for the version counter
 
 `0.31.6.1` found 67 duplicate build numbers and noted them. This adds the mechanism whose

@@ -8,7 +8,12 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan } from '../floorplan/types'
 import type { MaterialDef } from '../materials/types'
-import { buildFloorBuildUpReport, HDB_MAX_BUILD_UP_MM, HDB_MAX_OVERLAY_MM } from './floorBuildUp'
+import {
+  buildFloorBuildUpReport,
+  HDB_MAX_BUILD_UP_MM,
+  HDB_MAX_OVERLAY_MM,
+  STEP_REPORTING_MIN_MM,
+} from './floorBuildUp'
 
 const mat = (id: string, finishMm: number, beddingMm: number): MaterialDef =>
   ({
@@ -242,5 +247,60 @@ describe('wet room falling outward', () => {
   it('stays silent when neither side is wet', () => {
     const r = run(twoRooms('bedroom', 'living'), { a: 'tile', b: 'lvt' })
     expect(r.wetRoomsFallingOutward).toHaveLength(0)
+  })
+})
+
+describe('the reporting threshold against the REAL catalogue', () => {
+  it('sits under the smallest step two shipped finishes can produce', async () => {
+    // `STEP_REPORTING_MIN_MM`'s docstring claims it was chosen to sit under the
+    // smallest step the catalogue can actually make, so a real finish change is
+    // never silently below the bar. That is a claim about the shipped
+    // catalogue, not about this module — so it is measured here rather than
+    // asserted in a comment. If someone adds a 9 mm LVT (making a 6 mm step
+    // against 15 mm tile) this still holds; if they add an 11 mm one (4 mm
+    // step) it fails, which is the moment to revisit the threshold.
+    const { BUILTIN_MATERIALS } = await import('../materials/builtinCatalog')
+    const totals = [
+      ...new Set(
+        Object.values(BUILTIN_MATERIALS)
+          .filter((m) => m.category === 'floor' && m.buildUp)
+          .map((m) => m.buildUp!.finishMm + m.buildUp!.beddingMm),
+      ),
+    ].sort((a, b) => a - b)
+    // Bare substrate (0), vinyl (7), tile and timber (15).
+    expect(totals).toEqual([0, 7, 15])
+    const gaps = totals
+      .flatMap((a, i) => totals.slice(i + 1).map((b) => b - a))
+      .filter((g) => g > 0)
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(STEP_REPORTING_MIN_MM)
+  })
+
+  it('leaves carpet and terrazzo unassessed rather than guessing', async () => {
+    // The deliberate omissions. Asserted on the real catalogue because the
+    // whole point is that they are absent from SHIPPED data, not from a fixture.
+    const { BUILTIN_MATERIALS } = await import('../materials/builtinCatalog')
+    const without = Object.values(BUILTIN_MATERIALS)
+      .filter((m) => m.category === 'floor' && !m.buildUp)
+      .map((m) => m.id)
+    expect(without.length).toBeGreaterThan(0)
+    expect(without.every((id) => /carpet|terrazzo/.test(id))).toBe(true)
+  })
+
+  it('gives every OTHER floor finish a build-up, by construction', async () => {
+    // The family map is applied inside `floor()`, so a new finish in a covered
+    // family cannot ship without one. This is the test that makes that claim
+    // real rather than aspirational.
+    const { BUILTIN_MATERIALS } = await import('../materials/builtinCatalog')
+    const floors = Object.values(BUILTIN_MATERIALS).filter((m) => m.category === 'floor')
+    const covered = floors.filter((m) => m.buildUp)
+    expect(covered.length).toBeGreaterThanOrEqual(floors.length - 8)
+    // And no build-up is nonsense.
+    for (const m of covered) {
+      expect(m.buildUp!.finishMm, m.id).toBeGreaterThanOrEqual(0)
+      expect(m.buildUp!.beddingMm, m.id).toBeGreaterThanOrEqual(0)
+      expect(m.buildUp!.finishMm + m.buildUp!.beddingMm, m.id).toBeLessThanOrEqual(
+        HDB_MAX_BUILD_UP_MM,
+      )
+    }
   })
 })

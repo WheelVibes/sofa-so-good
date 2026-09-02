@@ -41,7 +41,7 @@
  */
 
 import { roomFloorLevelMm } from '../floorplan/floorLevels'
-import { allPlanRooms, planLevels } from '../floorplan/levels'
+import { planLevels } from '../floorplan/levels'
 import { roomsAcrossOpening } from '../floorplan/openingProbe'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, IntakeStateId, PlanRoom, RoomCategory } from '../floorplan/types'
@@ -308,14 +308,4 @@ export function buildFloorBuildUpReport(
     declaredMismatches,
     wetRoomsFallingOutward,
   }
-}
-
-/** Total rooms this report could not assess, for a caller's honesty footer. */
-export function unassessedCount(report: FloorBuildUpReport): number {
-  return report.unassessedRooms.length
-}
-
-/** Every room on every storey, for a caller that wants the denominator. */
-export function totalRoomCount(plan: FloorPlan): number {
-  return allPlanRooms(plan).length
 }

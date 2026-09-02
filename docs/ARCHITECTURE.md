@@ -1444,6 +1444,24 @@ same change that reshapes a system.
   `FirstPersonCamera` follows the walker's current room offset continuously on top of the
   storey elevation. Plan-room feature only — the curated default flat (`RoomShell`) has no
   `floorLevelMm` concept and is unchanged.
+  **Derived floor build-up + the HDB thickness limits (`floorBuildUp` flag, pro):**
+  `floorLevelMm` above is HAND-ENTERED; this DERIVES the same quantity from the specified
+  finish. `MaterialDef.buildUp?: { finishMm, beddingMm }` (specified, never inferred — same
+  discipline as `moduleMm`/`paint`) is applied inside `builtinCatalog.ts`'s `floor()` helper by
+  pattern family (`BUILD_UP_BY_PATTERN` + `TILE_PATTERNS`/`WOOD_PATTERNS`), so all 37 floor
+  finishes carry it by construction; `carpet`/`terrazzo` are deliberately absent (no citable
+  figure) and exercise the omission path on shipped data. `analysis/floorBuildUp.ts` (pure)
+  returns per-room build-up + a **relative** derived FFL (datum = the thinnest room, because a
+  threshold is dimensioned from the step and the model has no slab level), doorway steps
+  (per-storey via `roomsAcrossOpening` — F13: a whole-home read pairs an upstairs door with the
+  room beneath it), the two HDB limits (`HDB_MAX_BUILD_UP_MM` 50 mm finish+screed vs
+  `HDB_MAX_OVERLAY_MM` 13 mm tiles+adhesive, selected by `FloorPlan.intakeState`), rooms whose
+  hand-entered FFL contradicts their finishes, and `wetRoomsFallingOutward` — a wet room whose
+  derived floor sits ABOVE the dry room across the doorway. That last one is what the
+  derivation exists for and `floorLevels.ts`'s kerb advisory cannot produce it (that fires on
+  SAME-level, the benign end); it fires on the shipped default flat. Surfaced in the report
+  above the layout critique, errors first. Thresholds/sources:
+  `docs/research/2026-09-03-floor-build-up.md`.
   **Carpentry/joinery elevations + sections (TODO G8, `carpentrySheets` flag, pro):**
   the single most-cited DIY-handover gap — a dimensioned front elevation + one
   representative section per distinct PLACED parametric piece (bookshelf/wardrobe/
@@ -1927,6 +1945,17 @@ same change that reshapes a system.
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
   emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
   a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
+- **Layout critique** (`analysis/layoutCritique.ts` pure → `buildLayoutCritique(plan,items,catalog)`:
+  cited comfort bands — TV viewing distance, conversation distance, coffee-table reach, SG sofa
+  proportion, and rug size against the sofa / dining table / bed it anchors, with a bedside
+  RUNNER recognised as its own published layout and judged on length rather than overhang).
+  Each finding carries the measured figure + the band so a user can judge the call; `skipped`
+  where the design lacks the pieces. Consumed by `schemeOptions` (compare modal) **and**, since
+  v0.31.5.314, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed
+  by `schemeOptions` ALONE, so it critiqued generated alternatives and never the home the user
+  drew. `FurnitureItem.rotation` is RADIANS here (`itemFootprint` feeds it to `Math.cos`);
+  `roughlyAligned` compares against a quarter turn, not `% 90`. Thresholds/sources:
+  `docs/research/2026-09-02-layout-critique-standards.md`.
 - **Design suggestions** (`analysis/suggestions.ts` pure → `buildSuggestions({rooms})`: a data-driven
   rule set over each room's inferred kind + the furniture categories present, yielding per-room
   "what to add / improve" tips). Powers the in-app suggestions panel and the report's **Design
