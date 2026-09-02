@@ -197,6 +197,16 @@ difference. Note that `wall-detail.mjs` already swept what each wall CHANNEL is 
 (normalScale x6, normal removed, albedo mottle added) — check its recorded result before
 proposing a channel change (meta-rule xvii-b).
 
+## Open — drawing accuracy (2026-09-02, pro-designer goal)
+> Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
+> (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G11 follow-up] A decomposed footprint's drawn edge is faceted, not a true arc.** v0.31.5.250
+  draws a round/oval item as one filled silhouette (no false internal edges), but the outline is
+  still the `ellipseFootprintParts` OBB staircase. Reads fine at 1:50-1:100; a large-format detail
+  would want a real ellipse/arc path. NOT a rendering-only change: emitting an arc needs a
+  convexity/shape hint on the def, since a convex hull would wrongly fill an L-shaped sofa's
+  notch. Revisit with G3 (detail scales), where it actually starts to matter.
+
 ## Wall reveal (v0.30.9.0, 2026-08-28)
 - [ ] **The default orbit pose parks every near wall at a MILKY 0.371 — the curve's head-on
   floor is unreachable from the boot camera.** (Re-framed again in v0.31.5.53; the "hard step at

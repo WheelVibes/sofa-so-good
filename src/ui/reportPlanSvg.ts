@@ -236,7 +236,7 @@ export function reportPlanSvg(
   /** Top-down furniture footprints (world-metre corner polygons + a category
    *  tint) drawn under the walls, so the report plan reads as a furnished
    *  layout — "where things go", colour-keyed by furniture type. */
-  footprints: { corners: [number, number][]; fill: string }[] = [],
+  footprints: { corners: [number, number][]; fill: string; outline?: boolean }[] = [],
   /** When set (mm printed per metre of real-world extent, from
    *  `floorplan/drawingScale.ts:pickDrawingScale`), sizes the returned
    *  `<svg>` with explicit `width`/`height` in mm instead of leaving it
@@ -274,8 +274,12 @@ export function reportPlanSvg(
     .filter((f) => f.corners.length >= 3)
     .map((f) => {
       const pts = f.corners.map(([x, z]) => `${x.toFixed(3)},${z.toFixed(3)}`).join(' ')
-      // Low-opacity category tint (print-friendly) + a thin slate edge.
-      return `<polygon points="${pts}" fill="${f.fill}" fill-opacity="0.45" stroke="#475569" stroke-width="0.025"/>`
+      // Low-opacity category tint (print-friendly) + a thin slate edge. A
+      // decomposed item's parts (`outline: false`) draw fill-only: they overlap,
+      // so stroking each one would print the internal band divisions of a
+      // round/oval or L-shaped footprint as though they were real edges.
+      const edge = f.outline === false ? '' : ' stroke="#475569" stroke-width="0.025"'
+      return `<polygon points="${pts}" fill="${f.fill}" fill-opacity="0.45"${edge}/>`
     })
     .join('')
 

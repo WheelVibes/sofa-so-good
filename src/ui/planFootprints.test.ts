@@ -62,6 +62,21 @@ describe('planFootprints', () => {
     expect(maxZ).toBeLessThan(0.5)
   })
 
+  it("marks a decomposed item's parts as outline:false so internal edges are not drawn", () => {
+    const parts = [
+      { dx: -0.5, dz: 0, w: 1, d: 1 },
+      { dx: 0.5, dz: 0, w: 1, d: 1 },
+    ]
+    const out = planFootprints([item('d')], { d: def({ footprintParts: parts } as never) })
+    expect(out).toHaveLength(2)
+    expect(out.every((f) => f.outline === false)).toBe(true)
+  })
+
+  it('keeps outline:true for a whole-item rectangle (unchanged hairline edge)', () => {
+    const out = planFootprints([item('d')], { d: def() })
+    expect(out[0]!.outline).toBe(true)
+  })
+
   it('tints every polygon of one item with its category colour', () => {
     const parts = [
       { dx: -0.5, dz: 0, w: 1, d: 1 },

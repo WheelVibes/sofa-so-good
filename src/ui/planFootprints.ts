@@ -24,6 +24,13 @@ import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 export interface PlanFootprint {
   corners: [number, number][]
   fill: string
+  /**
+   * False for one part of a MULTI-part (decomposed) item — the parts overlap,
+   * so a per-part edge would draw the internal band divisions of a round/oval
+   * or L-shaped footprint as if they were real edges. Absent/true keeps the
+   * single hairline outline a whole-item rectangle has always had.
+   */
+  outline?: boolean
 }
 
 /**
@@ -40,6 +47,10 @@ export function planFootprints(
     const def = catalog[it.defId]
     if (!def?.defaultFootprint) return []
     const fill = CATEGORY_COLORS[def.category]
-    return itemFootprintParts(it, def).map((part) => ({ corners: obbCorners(part), fill }))
+    const parts = itemFootprintParts(it, def)
+    // A single part IS the whole item, so it keeps its outline; a decomposition
+    // draws as one filled silhouette instead of N stroked boxes.
+    const outline = parts.length === 1
+    return parts.map((part) => ({ corners: obbCorners(part), fill, outline }))
   })
 }

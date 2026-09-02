@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.250 — a decomposed footprint draws as one silhouette, not five stroked boxes
+
+Visual verification of `.249` (`scripts/scenarios/plan-footprint-shape.json`, plus a forced-round
+dining table) caught what the unit tests could not: the parts were right, the ink was not.
+`reportPlanSvg` strokes every polygon it is handed, so a round table's 5 ellipse bands printed
+their internal divisions as if they were real edges — the plan now declined the corners correctly
+but read as a stack of overlapping boxes.
+
+`PlanFootprint` gains `outline?: boolean`. `planFootprints` sets it false for the parts of a
+MULTI-part item (they overlap, so per-part edges are false information) and true for a single
+part — which IS the whole item, so every rectangle keeps the exact hairline edge it always had.
+`reportPlanSvg` omits the stroke when `outline === false`. A round table now reads as one soft
+filled silhouette. +2 unit tests.
+
+Verified: 5 raw parts for a round `dining-table-4`, 91 polygons for 87 items (= 87 - 1 + 5), and
+the rendered plan reviewed at 1000x900.
+
+Deferred (recorded in `TODO.md`): the silhouette is still the OBB-union staircase, so its edge is
+faceted rather than a true arc. Fine at 1:50-1:100; a large-format detail would want a real
+ellipse path. Needs a convexity/shape hint on the def to know an arc is safe (a hull would wrongly
+fill an L-shaped sofa's notch), so it is not a rendering-only change.
+
 ## v0.31.5.249 — the plan sheets draw the footprint collision already knows
 
 A round dining table was drawn as a square. `ui/drawingSet.ts`, `ui/report.ts` and
