@@ -30,6 +30,7 @@
  */
 
 import { diffWalls } from '../floorplan/demolitionPlan'
+import { allPlanRooms, planLevels } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
 import { type FloorPlan, type PlanRoom, planRoomArea, planRoomPerimeter } from '../floorplan/types'
 import { buildWaterproofingZones, totalMembraneAreaM2 } from '../floorplan/waterproofing'
@@ -137,7 +138,9 @@ function itemHeight(item: FurnitureItem, def: FurnitureDef): number {
 
 /** Total glazed area of a doorless plan's openings (m²) — width × (head − sill). */
 function totalOpeningArea(plan: FloorPlan): number {
-  const openings = Array.isArray(plan.openings) ? plan.openings : []
+  // EVERY storey (F13) — ground-only reads understated the BUDGET on a
+  // two-storey home: upstairs rooms and openings were simply not allocated.
+  const openings = planLevels(plan).flatMap((l) => (Array.isArray(l.openings) ? l.openings : []))
   let sum = 0
   for (const o of openings) {
     const w = Number.isFinite(o.width) ? o.width : 0
@@ -154,7 +157,7 @@ function totalOpeningArea(plan: FloorPlan): number {
 export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAllocation {
   const { plan, items, catalog, floorFinishes, wallFinishes, rules } = input
   const trades: TradeRates = rules.trades
-  const rooms: PlanRoom[] = Array.isArray(plan.rooms) ? plan.rooms : []
+  const rooms: PlanRoom[] = allPlanRooms(plan)
   const height =
     Number.isFinite(plan.ceilingHeight) && plan.ceilingHeight > 0 ? plan.ceilingHeight : 2.8
 

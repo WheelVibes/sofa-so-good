@@ -15,6 +15,7 @@
  * and easy to extend. Every threshold lives in `COMPLIANCE_THRESHOLDS`.
  */
 
+import { allPlanRooms, planLevels } from '../floorplan/levels'
 import { type FloorPlan, type PlanRoom, planRoomArea, wallLength } from '../floorplan/types'
 
 /** Advisory severity. `permit` = likely needs HDB permit / professional sign-off. */
@@ -249,8 +250,21 @@ const RULES: ComplianceRule[] = [
 export function buildComplianceReport(plan: FloorPlan): ComplianceReport {
   const advisories: Advisory[] = []
   if (plan && isNonEmptyPlan(plan)) {
+    // Flatten EVERY storey once (F13) and run the rules against that.
+    // `plan.walls`/`rooms`/`openings` are ground-only, so an upper-storey wall
+    // or wet area was previously never assessed — and each rule reads geometry
+    // directly, so normalising here fixes all of them in one place rather than
+    // six. Callers pass the whole plan (`report.ts`), never a `levelAsPlan`
+    // result, so whole-home is the correct reading.
+    const levels = planLevels(plan)
+    const wholeHome: FloorPlan = {
+      ...plan,
+      walls: levels.flatMap((l) => (Array.isArray(l.walls) ? l.walls : [])),
+      openings: levels.flatMap((l) => (Array.isArray(l.openings) ? l.openings : [])),
+      rooms: allPlanRooms(plan),
+    }
     for (const rule of RULES) {
-      advisories.push(...rule.run(plan))
+      advisories.push(...rule.run(wholeHome))
     }
   }
   let permitCount = 0

@@ -21,6 +21,7 @@
  * of `accessibility.ts` / `daylight.ts`.
  */
 
+import { allPlanRooms } from '../floorplan/levels'
 import { toRoomKind } from '../floorplan/roomCategory'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -153,7 +154,9 @@ export function buildHandoverChecklist(
   keyCollectionDate?: string | null,
 ): HandoverChecklist {
   const groups: ChecklistGroup[] = []
-  const rooms = Array.isArray(plan?.rooms) ? plan.rooms : []
+  // EVERY storey (F13) — ground-only meant an upstairs bathroom got none of its
+  // per-room snag items, on a punch-list whose whole job is completeness.
+  const rooms = plan ? allPlanRooms(plan) : []
 
   // --- Per-room snag groups -------------------------------------------------
   for (const room of rooms) {

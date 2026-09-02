@@ -259,6 +259,19 @@ proposing a channel change (meta-rule xvii-b).
   390px phone viewport. **Optional follow-up, not a gap:** wire the plan editor's existing measure
   tool so a tap-and-type records directly rather than going via the inspector — faster on site, but
   the inspector path is complete and usable as-is.
+- **[F13] Three `planTotalArea` call sites pass the WHOLE plan and understate a two-storey home.**
+  `planTotalArea` is a legitimate single-level helper — `FloorPlanEditor` calls it per storey, which
+  is the correct deliberate use, and it lives in `types.ts` so it cannot import `levels.ts` without a
+  cycle. But `ui/shareSummary.ts`, `ui/shareCard.ts` and `ui/floorplan/ScalePlanModal.tsx` pass the
+  whole plan, so a maisonette's stated area is ground-floor only. Fix at the call sites by summing
+  `planTotalArea(levelAsPlan(plan, l))` across `planLevels(plan)`, as `analysis/renoTimeline.ts` now
+  does. The share ones are cosmetic; the scale modal shows an area the user may act on.
+- **[F13] A grep guard for ground-only reads does NOT work — do not re-propose it.** Attempted
+  v0.31.5.275. `src/floorplan` is full of legitimate single-level helpers whose callers pass
+  `levelAsPlan`, so a grep over that layer flags ~20 correct files; the correct/incorrect distinction
+  lives at the CALL SITE, which grep cannot see. A guard scoped to `src/analysis` alone WOULD be
+  precise (every module there is whole-home and called with the whole plan) — that narrow version is
+  still worth doing, and would have caught all five bugs fixed in .275.
 - **[delivery access] Corridor turn + per-project route override UI.** v0.31.5.273 checks the three
   rectangular apertures (lift door, cabin, main door) against published SG typicals. Not done:
   (a) the CORRIDOR TURN from lift lobby to front door — the sources say measure it before ordering

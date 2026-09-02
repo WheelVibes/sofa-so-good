@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.275 - five PRE-EXISTING multi-storey bugs in the analysis layer
+
+Set out to build the "lint-by-grep" guard `docs/research/multi-level-design.md` called for and never
+got. **The guard idea did not survive contact with the codebase, and looking for it found five real
+bugs instead** — none of them mine.
+
+**Why the guard does not work as proposed.** Many `src/floorplan` modules read `plan.rooms` entirely
+CORRECTLY, because the convention is that the caller resolves one storey via `levelAsPlan(plan,
+level)` and passes that in — `autoDimension`, `electricalPlan`, `plumbingPlan`, `rcpSvg` and about
+sixteen others are single-level helpers by design. A grep cannot tell a correct single-level helper
+from a broken whole-home consumer, because the difference is at the CALL SITE. A guard over that
+layer would have flagged ~20 correct files, which is precisely the false-alarm failure I designed
+against for the delivery-access check one commit earlier. `planTotalArea` is the clean illustration:
+`FloorPlanEditor` calls it per storey (correct, deliberate) while four other sites pass the whole
+plan (wrong). Same function, opposite verdicts.
+
+**What the search found instead.** `src/analysis` IS uniformly whole-home — every module there is
+called with the whole plan, never a `levelAsPlan` result (verified per module, not assumed). Five
+read ground-only geometry:
+
+- **`accessibility.ts`** read `plan.rooms` into a variable literally named `allRooms`. An upstairs
+  bedroom or door was never assessed, and this feeds the report AND the drawing set. A test now pins
+  that a 600 mm upstairs door FAILS rather than the home reporting 1/1 doors passing.
+- **`renovationAllocator.ts`** — upstairs rooms and openings were not allocated, so the renovation
+  BUDGET was understated for a two-storey home. The money-affecting one.
+- **`handoverChecklist.ts`** — an upstairs bathroom got none of its per-room snag items, on a
+  punch-list whose entire job is completeness.
+- **`hdbCompliance.ts`** — upper-storey walls and wet areas were never assessed. Fixed by flattening
+  once at `buildComplianceReport` rather than editing six rule functions.
+- **`renoTimeline.ts`** — room count AND floor area were both ground-only.
+
+**The timeline one nearly shipped as a false claim.** After fixing it, `totalDays` was 41 either
+way, so I checked instead of asserting: `phaseDays` only accrues time above `BASELINE_ROOMS` (6) and
+`BASELINE_SQM` (90), and my fixture sat below both. The fix is real but only observable for a home
+that crosses those baselines — which is exactly the maisonette case (above baseline as a whole home,
+below it on the ground floor alone). The test fixture now crosses them deliberately, with the
+measured 41-either-way recorded in a comment so nobody shrinks it again.
+
++6 regression tests, and **all six verified to fail without their fixes** — reverting all three
+edited modules fails all six, restoring passes all six.
+
+Still open, reported rather than swept up: three `planTotalArea` call sites pass the whole plan
+(`shareSummary`, `shareCard`, `ScalePlanModal`) and so understate a two-storey home's area. Logged
+in `TODO.md` — the share ones are cosmetic, the scale modal may matter.
+
+Full suite green (9671).
+
 ## v0.31.5.274 - three multi-storey bugs in my own new modules
 
 Self-audit of the modules added over this arc, against the rule `src/floorplan/CLAUDE.md` states
