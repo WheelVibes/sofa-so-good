@@ -1514,6 +1514,11 @@ falloff and visible plaster texture**, where the gradient's contribution is cool
 HQ stills warmer and darker, and closer to the rasteriser's look** — a larger look call than this item's filing
 suggested.
 
+**⚠️ AND ceiling ÷ wall CANNOT VALIDATE A FIX FOR THIS (v0.31.5.313).** At a matched pose the gradient-lit
+tracer agrees with the scene-lit raster on ceiling ÷ wall to **2.8 %** (0.992 vs 0.965) — even though the
+gradient supplies **66 %** of the frame's light. The arc's primary photographic metric is therefore a **weak
+discriminator of lighting-rig fidelity**, and any (p) fix will need a **look call on the image**, not a ratio.
+
 **✅ CONFIRMED BY DIRECT OBSERVATION v0.31.5.287.** Temporary instrumentation in `buildTracerScene` (added,
 observed, reverted; `src/` verified clean) logged the branch actually taken on the default shipped path:
 
@@ -2289,6 +2294,20 @@ context. This eliminates *page*-level state, not per-context state. "Per-render"
 
 **(u) is now bounded as:** decided per `createHqRenderSession` call, on the real GPU with a real compositor,
 with a clean GL state, from CPU-side inputs identical to the integer.
+
+**📐 (u) IS THE LARGER DEFECT ON THE ARC'S OWN METRIC (v0.31.5.313).** Raster vs traced ceiling ÷ wall at a
+matched pose (bedroom3 `PITCH=0.30`, white room):
+
+| run | raster | traced | departure |
+| --- | --- | --- | --- |
+| class **B** (tracer working) | 0.965 | **0.992** | **2.8 %** |
+| class **A** ((u) biting) | 0.965 | **1.151** | **19 %** |
+
+Rasters identical in both runs (128.8 / 133.5), re-confirming the nondeterminism is tracer-only. So on the one
+metric with photographic references, **(u) costs 19 % and (p) costs 2.8 %** — even though (p) is physically the
+larger defect. *Caveat:* the photographic band (0.91–1.11, n = 4) was derived at the canonical pose and `.232`
+showed the ratio swings 0.68 → 0.96 on pitch, so class A exceeding the band's upper edge is rough orientation,
+not a pose-matched claim. The raster-vs-traced comparison is pose-matched.
 
 **🎯 CHARACTERISATION CONFIRMED BY MANIPULATION v0.31.5.312.** `.303`–`.307` inferred "class A's ceiling shows
 the environment" from an equivalence with a *hidden* ceiling. Changing the environment now changes the class-A

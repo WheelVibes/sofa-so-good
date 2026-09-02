@@ -10850,3 +10850,54 @@ The frame shows the ceiling as an unmistakable black void with the cornice lit a
 warmly lit with real texture. Both readings match the numbers.
 
 Instrumentation reverted, `src/` verified clean. No probe change.
+
+---
+
+## Round .313 — the HQ still agrees with the raster to 2.8 % when the tracer works, 19 % off when (u) bites — so ceiling ÷ wall cannot see item (p)
+
+`.312` showed the HQ still is dominated by a light source the user never chose. That raises the question this
+arc exists to answer and has never asked head-on: **is the HQ still less photorealistic than the real-time
+raster?** The one metric with photographic references is ceiling ÷ wall, and the probe captures both renders
+from the same camera in one run — so the comparison is free and **pose-matched**.
+
+Patch placement verified by marking it on the raster and looking; the ceiling patch is clear of the HUD toolbar
+(toolbar ends y ≈ 66 of 788, patch starts y ≈ 79).
+
+| run | render | ceiling | wall | ceiling ÷ wall |
+| --- | --- | --- | --- | --- |
+| `u1` (class B — working) | raster | 128.8 sd 1.64 | 133.5 sd 3.20 | **0.965** |
+| `u1` | traced | 115.2 sd 1.25 | 116.1 sd 3.00 | **0.992** |
+| `u2` (class A — (u) biting) | raster | 128.8 sd 1.65 | 133.5 sd 3.19 | **0.965** |
+| `u2` | traced | 181.5 sd 0.88 | 157.7 sd 1.31 | **1.151** |
+
+1. **Working tracer agrees with the raster to 0.027 (2.8 %)** — reassuring, and unexpected given the two use
+   entirely different lighting rigs.
+2. **Class A departs by 0.186 (19 %)** — so (u), not (p), is what pushes the HQ still away from the real-time
+   render on this metric.
+3. **Rasters identical across runs** (128.8 / 133.5), re-confirming the nondeterminism is tracer-only.
+
+### The uncomfortable consequence
+
+`.312` measured that the hardcoded gradient supplies **66 %** of an HQ still's frame mean. Yet ceiling ÷ wall
+moves only **2.8 %** between the gradient-lit tracer and the scene-lit raster.
+
+**So ceiling ÷ wall is a weak discriminator of lighting-rig fidelity.** The arc has used it as its photographic
+anchor since `.188`, and spent dozens of rounds deriving, correcting and defending it — and it cannot detect a
+defect that replaces most of the light in the frame. That does not make it wrong as a *photographic*
+comparison; it bounds what it can conclude. **A metric that a two-thirds change in the dominant light source
+moves by 2.8 % must not be read as evidence that the lighting is right.**
+
+### Caveat on the band
+
+The photographic band is 0.91–1.11 (n = 4) at the **canonical pose**, and `.232` established the ratio swings
+0.68 → 0.96 on pitch. Here the raster reads 0.965, not the canonical 0.93 — consistent with that. So class A
+exceeding the band's upper edge is **rough orientation, not a pose-matched claim**. The raster-vs-traced
+comparison is pose-matched and is the part to rely on.
+
+### For the pending decisions
+
+(u) is the larger defect on the arc's own photographic metric (19 % vs 2.8 %) even though (p) is physically
+larger. And (p)'s invisibility to this metric means **a fix for (p) cannot be validated by ceiling ÷ wall** — it
+needs a look call on the image, which is what `.312` concluded from the frame.
+
+No `src/` change, no probe change. Measured entirely from frames already on disk.

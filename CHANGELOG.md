@@ -5,6 +5,57 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.313 — the HQ still agrees with the raster to 2.8 % when the tracer works, and 19 % off when (u) bites. Which means the arc's primary metric cannot see item (p) at all
+
+`.312` showed the HQ still is dominated by a light source the user never chose. That raises the question this arc
+exists to answer and has never asked head-on: **is the HQ still — the photoreal showcase — actually less
+photorealistic than the real-time raster?** The one metric with photographic references is ceiling ÷ wall, and
+the probe captures both renders from the same camera in the same run, so the comparison is free and
+**pose-matched**.
+
+**Measured** on existing frames, bedroom3 `PITCH=0.30`, white room, medium tier, photographic look, hour 13,
+256 samples. Patch placement verified by marking it on the raster and looking — the ceiling patch is confirmed
+**clear of the HUD toolbar** (toolbar ends at y ≈ 66 px of 788, patch starts at y ≈ 79):
+
+| run | render | ceiling | wall | **ceiling ÷ wall** |
+| --- | --- | --- | --- | --- |
+| `u1` (class **B** — tracer working) | raster | 128.8 sd 1.64 | 133.5 sd 3.20 | **0.965** |
+| `u1` | traced | 115.2 sd 1.25 | 116.1 sd 3.00 | **0.992** |
+| `u2` (class **A** — (u) biting) | raster | 128.8 sd 1.65 | 133.5 sd 3.19 | **0.965** |
+| `u2` | traced | 181.5 sd 0.88 | 157.7 sd 1.31 | **1.151** |
+
+**1. When the tracer works, it agrees with the raster to 0.027 — 2.8 %.** That is a genuinely reassuring
+result, and an unexpected one: the two renders agree closely *despite using entirely different lighting rigs*.
+
+**2. When (u) bites, the traced still departs by 0.186 — 19 %.** So (u), not (p), is what pushes the HQ still
+away from the real-time render on this metric.
+
+**3. The rasters are identical across the two runs** (128.8 / 133.5 in both), re-confirming that the
+nondeterminism is confined to the tracer.
+
+**4. And here is the uncomfortable consequence, which is the round's real output.** `.312` measured that the
+hardcoded gradient supplies the **majority** of an HQ still's interior light — 66 % of the frame mean. Yet
+ceiling ÷ wall moves by only **2.8 %** between the gradient-lit tracer and the scene-lit raster.
+
+**So ceiling ÷ wall is a weak discriminator of lighting-rig fidelity.** The arc has used it as its photographic
+anchor since `.188` and spent dozens of rounds deriving, correcting and defending it — and it cannot detect a
+defect that replaces most of the light in the frame. That does not make it wrong as a *photographic* comparison;
+it bounds what it can conclude. **A metric that a two-thirds change in the dominant light source moves by 2.8 %
+should not be read as evidence that the lighting is right.**
+
+**Caveat on the photographic band, stated because it is easy to misuse.** The band is 0.91–1.11 (n = 4) derived
+at the **canonical pose**, and `.232` established the ratio swings 0.68 → 0.96 on pitch alone. At this pose the
+raster reads **0.965**, not the canonical 0.93 — consistent with that pose dependence. So class A's 1.151 being
+above the band's upper edge is **rough orientation, not a pose-matched claim**. The raster-versus-traced
+comparison *is* pose-matched, and that is the part to rely on.
+
+**What this contributes to the two pending decisions.** (u) is now shown to be the larger of the two defects on
+the arc's own photographic metric — 19 % versus 2.8 % — even though (p) is the larger defect physically. And
+(p)'s invisibility to this metric means **any fix for (p) cannot be validated by ceiling ÷ wall**; it will need a
+look call on the image, which is what `.312` already concluded from the frame.
+
+**Unchanged:** no `src/` change, no probe change. Measured entirely from frames already on disk.
+
 ## v0.31.5.312 — item (p) priced: the hardcoded gradient supplies the MAJORITY of an HQ still's interior light, not a fill. And class A's ceiling follows the background to black
 
 `.311` concluded that further (u) diagnosis is worth less than a decision, so this round prices the item that is
