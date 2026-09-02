@@ -9026,3 +9026,81 @@ Settle (t): same pose with the denoise forced off and forced on, both compared a
 and decide which stage is the measurement target. The rest of the arc is blocked behind that.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .284 — resolved: the tracer converges normally; four rounds chased one variable and it was not sample count
+
+`.280`, `.281`, `.282` and `.283` each published a different mechanism for the same observation. All four were
+wrong. Measured properly, the answer is unremarkable.
+
+### A single patch is not an instrument
+
+`.282` declared the canvas frozen on the strength of one patch at normalized (0.45, 0.18) reading
+`L=179.7 sd=0.93` at every sample count. Five patches across the same render's screenshots (bedroom3, medium
+tier, photographic look, hour 13, 1920×1080, `PITCH=0.30`, run 12:20 +08) — L / sd:
+
+| samples | ceil-orig | wall-L | wall-R | window | corner-L |
+| --- | --- | --- | --- | --- | --- |
+| 6 | 180.0 / 0.77 | 150.2 / 7.65 | 151.9 / 8.92 | 171.1 / 8.13 | 166.5 / 18.07 |
+| 34 | 180.0 / 0.77 | 157.2 / 2.64 | 156.6 / 2.70 | 168.9 / 5.81 | 166.3 / 17.88 |
+| 70 | 180.0 / 0.77 | 157.3 / 1.58 | 154.0 / 1.81 | 168.3 / 5.91 | 166.4 / 17.97 |
+| 120 | 180.0 / 0.77 | 158.8 / 1.38 | 155.6 / 1.49 | 168.7 / 5.96 | 166.4 / 18.00 |
+| 191 | 180.0 / 0.77 | 158.1 / 1.34 | 155.4 / 1.43 | 168.5 / 6.01 | 166.4 / 17.98 |
+| 256 | 180.0 / 0.77 | 158.6 / 1.33 | 156.2 / 1.30 | 168.3 / 5.90 | 166.4 / 17.95 |
+
+The wall patches converge textbook-style: sd 7.65 → 1.33 (5.8× noise reduction), mean 150.2 → 158.6 (+5.6 %).
+`ceil-orig` is converged from sample 1; `corner-L` sits on a picture-frame edge so its sd 18 is structure and
+also constant. `.282` happened to pick one of the two patches in the frame that could not show convergence.
+
+### .283's "contradiction" was an impression, not a measurement
+
+`.283` reported reads constant while the display visibly denoised, and left it unexplained. Measured, the
+screenshot channel reads `L=179.7 sd=0.94 R-B=-14.2` at every sample count — matching the in-page reads to
+0.1. The channels never disagreed. My reading of the screenshots was right about the walls and wrong about the
+patch, because the patch was not on a wall.
+
+Consequently `.283`'s capture change is reverted: back to `toDataURL` at the full 1920×1080 backing store
+rather than the modal preview's ~1388×780. It traded resolution for a soundness problem that did not exist.
+
+### The single variable
+
+Whether `finalize()`'s AI-denoise swap had happened before the read. Nothing else:
+
+- wall means move +5.6 % across 6 → 256 samples, and under 0.5 % across 120 → 256
+- the raw-vs-denoised gap is ~30 % with an R−B sign flip
+
+Five times the whole convergence drift, so it is not a convergence artefact. **150 samples is adequate** and
+`.280`'s "not converged at 150" is refuted.
+
+### Restored
+
+`.269`–`.276` are valid **raw-trace** measurements at an adequate sample count; `.282` withdrew them on a
+premise that does not exist and `.283` left them in limbo. `.281` stands as well — its livingDining
+re-verification compared two raw-trace reads (0.06–0.19 %, consistent with the <0.5 % drift measured here), and
+its aperture and pose refutations were like-for-like raw-trace comparisons.
+
+Item (t) stands unchanged: the denoise shift is real, large, and unexplained by convergence.
+
+### Stage labelling
+
+Every traced figure now carries a `PT STAGE:` line reading `raw-trace` or `ai-denoised`. The first attempt
+tested for a WebGL context and mislabelled — `getContext('webgl2')` returns null on a canvas already holding a
+WebGL1 context, so it called a plainly raw frame (172.1/175.3) "ai-denoised". Caught because the label
+contradicted the values. It now tests `getContext('2d')` (null on any WebGL canvas, a context on the denoised
+2D one) and was verified reporting `ai-denoised` beside 120.1/117.1. The raw side gets confirmed next round
+when the denoise is forced off.
+
+### Method rule
+
+*A stability or convergence claim needs patches on surfaces with different convergence rates.* A single patch
+can sit in a dead region and report "nothing is changing" about a scene changing everywhere else. `.283`'s
+rule — check a second observation channel — was right but insufficient here: the second channel agreed with the
+first, because both were aimed at the same dead spot.
+
+### Next
+
+Item (t): same pose with `hqAiDenoise` forced off and on, both against the raster's warmth, and decide which
+stage is the measurement target.
+
+Nothing changed in `src/` beyond the version bump.

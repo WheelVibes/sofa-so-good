@@ -5,6 +5,79 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.284 — resolved: the tracer converges normally. `.280`–`.283` all chased one variable, and it was never the sample count
+
+Four rounds published four mechanisms for the same observation and all four were wrong. This round measures
+the thing properly and the answer is dull, which is the point.
+
+**A single patch is not an instrument.** `.282` concluded the canvas was frozen because one patch — normalized
+(0.45, 0.18) of the frame — read `L=179.7 sd=0.93` at every sample count. Measuring **five** patches across the
+same render's screenshots (`.283`'s `PTSHOT` output, bedroom3, medium tier, photographic look, hour 13, pitch
++0.30, run 12:20 +08):
+
+| samples | ceil-orig | wall-L | wall-R | window | corner-L |
+| --- | --- | --- | --- | --- | --- |
+| 6 | 180.0 / **0.77** | 150.2 / **7.65** | 151.9 / **8.92** | 171.1 / 8.13 | 166.5 / 18.07 |
+| 34 | 180.0 / 0.77 | 157.2 / 2.64 | 156.6 / 2.70 | 168.9 / 5.81 | 166.3 / 17.88 |
+| 70 | 180.0 / 0.77 | 157.3 / 1.58 | 154.0 / 1.81 | 168.3 / 5.91 | 166.4 / 17.97 |
+| 120 | 180.0 / 0.77 | 158.8 / 1.38 | 155.6 / 1.49 | 168.7 / 5.96 | 166.4 / 18.00 |
+| 191 | 180.0 / 0.77 | 158.1 / 1.34 | 155.4 / 1.43 | 168.5 / 6.01 | 166.4 / 17.98 |
+| 256 | 180.0 / 0.77 | 158.6 / **1.33** | 156.2 / **1.30** | 168.3 / 5.90 | 166.4 / 17.95 |
+
+(L / sd.) The wall patches show a **textbook convergence curve** — sd 7.65 → 1.33, a 5.8× noise reduction —
+with the mean drifting 150.2 → 158.6 (**+5.6 %**). **The tracer accumulates and converges exactly as it
+should.** `ceil-orig` is a genuinely dead region, converged from sample 1; `corner-L` sits on a picture-frame
+edge, so its sd 18 is structure, not noise, and is likewise constant. `.282` picked one of the two patches in
+the frame that could not have shown convergence.
+
+**`.283`'s "unresolved contradiction" was not one.** `.283` reported that pixel reads stayed constant while the
+display visibly denoised, called it unexplained and declined to theorise. Measured rather than eyeballed, the
+screenshot channel gives `L=179.7 sd=0.94 R-B=-14.2` at *every* sample count — agreeing with the in-page reads
+to 0.1. The two channels never disagreed. What disagreed was my *impression* of the screenshots, which was
+right about the walls and wrong about the patch, because the patch was not on a wall.
+
+**So `.283`'s probe change was also wrong** and is reverted: capture goes back to `toDataURL` at the full
+1920×1080 backing store instead of the modal preview's ~1388×780. `.283` traded resolution for a soundness
+problem that did not exist.
+
+**The one variable in all four rounds.** `.280` blamed sample count and `hqAiDenoise`. `.281` blamed room size,
+then refuted aperture and pose. `.282` blamed a frozen placeholder. `.283` blamed unsound canvas reads. The
+actual variable, every time, was **whether `finalize()`'s AI-denoise swap had happened before the read** — and
+nothing else. Sample count was never it:
+
+- Wall means move **+5.6 %** from 6 → 256 samples, and **under 0.5 %** from 120 → 256.
+- The raw-vs-denoised gap is **~30 %** with an R−B sign flip.
+
+The gap is **five times** the entire convergence drift, so it cannot be a convergence artefact. **150 samples
+is adequate**, and `.280`'s "not converged at 150" is refuted.
+
+**`.269`–`.276` are restored.** `.282` withdrew them citing a placeholder that does not exist; `.283` left them
+"unknown pending (t)". They are valid **raw-trace** measurements at an adequate sample count. `.281`'s
+livingDining re-verification also stands on its own terms — 0.06–0.19 % agreement between two raw-trace reads
+is real, and consistent with the <0.5 % drift measured here. `.281`'s aperture and pose refutations stand too:
+they compared raw trace to raw trace, which is a valid like-for-like.
+
+**Item (t) stands unchanged** — the denoise shift is real, large, and not explained by convergence. It remains
+the open question and still needs the look call.
+
+**Probe: every traced figure now states its stage.** New `PT STAGE:` line labels the capture `raw-trace` or
+`ai-denoised`. First attempt tested for a WebGL context and **mislabelled** — asking for `webgl2` on a canvas
+holding a WebGL1 context returns null, so it called a plainly-raw frame (172.1/175.3) "ai-denoised". Caught
+because the label disagreed with the values. Now tests `getContext('2d')`, which returns null on any WebGL
+canvas and a context on the denoised 2D one: verified reporting `ai-denoised` alongside 120.1/117.1. The
+raw-trace side of the label will be confirmed next round, when the denoise is forced off for (t)'s test.
+
+**Method rule.** *A stability or convergence claim needs patches on surfaces with different convergence rates.*
+A single patch can sit in a dead region and report "nothing is changing" about a scene that is changing
+everywhere else — which is precisely what happened, and what four rounds of increasingly baroque mechanisms
+were built on top of. `.283`'s rule (check a different observation channel) was right but insufficient: the
+second channel here agreed with the first, and both were pointed at the same dead spot.
+
+**Next.** Item (t): same pose with `hqAiDenoise` forced off and on, both compared against the raster's warmth,
+and decide which stage is the arc's measurement target.
+
+**Unchanged:** no `src/` change. Probe + docs only.
+
 ## v0.31.5.283 — CORRECTION to `.282`: there is no placeholder. The two images are the raw trace and the AI-denoised output, and the denoise pass is not radiometrically neutral
 
 `.282` concluded that the HQ modal shows a frozen placeholder for the whole render, filed that as product

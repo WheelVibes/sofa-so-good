@@ -1368,19 +1368,48 @@ if (process.env.PT === '1') {
   // at that element's box and the canvas box runs under the chrome. toDataURL
   // cannot include DOM at all, and it returns full render resolution instead of
   // the CSS-scaled preview.
-  const rect = await page.evaluate(() => {
+  // Read the canvas's own pixels at full backing-store resolution (`.284`).
+  // `.283` switched this to a clipped screenshot believing canvas reads were
+  // unsound; they are not. Measuring five patches across one render's
+  // screenshots showed the screenshot channel agreeing with the in-page reads to
+  // 0.1 at every sample count, and showed a normal convergence curve on the wall
+  // patches (sd 7.65 -> 1.33). The reads were always fine -- `.282` had simply
+  // pointed its single probe patch at a region that is converged from sample 1.
+  // toDataURL gives 1920x1080 instead of the modal preview's ~1388x780, so the
+  // screenshot cost resolution for nothing.
+  const png = await page.evaluate(() => {
     const list = [...document.querySelectorAll('canvas')]
-    const c = list
-      .filter((x) => x !== list[0] && x.width > 16 && x.height > 16)
-      .sort((a, b) => b.width * b.height - a.width * a.height)[0]
+    const scene = list[0]
+    const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
+    const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
     if (!c) return null
-    const r = c.getBoundingClientRect()
-    return { x: r.x, y: r.y, width: r.width, height: r.height }
+    // WHICH STAGE this is (`.284`). On completion `finalize()` replaces the host
+    // canvas with the AI-denoised output, which is a plain 2D canvas -- so a null
+    // WebGL context identifies the denoised frame, and a live one the raw trace.
+    // The two differ by ~30% in level and flip R-B (item (t)), so a traced figure
+    // is meaningless without saying which it came from. Every prior round quoted
+    // traced numbers without recording this, which is the whole reason `.280`
+    // through `.283` each mis-attributed the difference.
+    // Probe for a 2D context, not a WebGL one. Asking for 'webgl2' on a canvas
+    // that already holds a WebGL1 context returns null, so the WebGL test
+    // mislabels -- it reported 'ai-denoised' for a frame whose values were
+    // plainly the raw trace. getContext('2d') has no such ambiguity: it returns
+    // null on any WebGL canvas and a context on the denoised 2D one.
+    let stage = 'raw-trace'
+    try {
+      if (c.getContext('2d')) stage = 'ai-denoised'
+    } catch {
+      stage = 'raw-trace'
+    }
+    try {
+      return { url: c.toDataURL('image/png'), w: c.width, h: c.height, stage }
+    } catch {
+      return null
+    }
   })
-  if (!rect || rect.width < 16) throw new Error('PT: could not locate the tracer canvas')
-  await page.screenshot({ path: `${OUT}/pathtraced.png`, clip: rect })
-  const shotMeta = await sharp(`${OUT}/pathtraced.png`).metadata()
-  const png = { w: shotMeta.width, h: shotMeta.height }
+  if (!png) throw new Error('PT: could not read a tracer canvas')
+  fs.writeFileSync(`${OUT}/pathtraced.png`, Buffer.from(png.url.split(',')[1], 'base64'))
+  console.log(`  PT STAGE: ${png.stage} -- traced figures below are ${png.stage} values`)
   console.log(`pathtraced (${got} samples, ${png.w}x${png.h}) -> ${OUT}/pathtraced.png`)
 }
 // --- analysis -------------------------------------------------------------
