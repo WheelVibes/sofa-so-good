@@ -1634,6 +1634,60 @@ Not a tuning change, which is why it is filed rather than taken:
 **The call needed:** whether a legible exterior is wanted, and by which of those routes. It touches the
 render path and shipped appearance for every backdrop user.
 
+## (s) ALBEDO-FILL — ⏳ OPEN, a candidate fix with a measured recovery (built + measured v0.31.5.271)
+
+**The app has no colour bleed at all**, established across three rounds with one-variable A/B designs:
+
+| round | result |
+| --- | --- |
+| `.268` | repaint the ceiling vivid orange → the wall's hue moves **exactly 0.0**. Real transport would move it. |
+| `.269` | the same A/B **inside the path tracer** moves it **+17.7 / +19.0** counts of R−B |
+| `.270` | with the shipped, user-selectable `wall-paint-terracotta`, real transport warms the ceiling **+8.8 to +13.5** and **darkens it 16–20 %**; the rasteriser changes it by **0.0 counts and 0.2 %** |
+
+In user terms: **paint a feature wall dark in this app and the rest of the room does not notice.** In a real
+room a dark wall makes everything darker and warmer, which is most of what choosing a dark paint does.
+
+### The candidate fix
+
+Scale the **fill lights** (`AmbientLight` + `HemisphereLight`) per channel by the **room's area-weighted
+average albedo**, in the interreflection form **ρ/(1−ρ)**. Calibration-free — only the ratio between two
+rooms is ever applied.
+
+Scope is critical: a whole-flat census (2186 m²) barely moves when one room is repainted and predicts a
+2.6 % darkening against a measured 16–20 %. **Bounce is local**, so the census must be room-scoped (467 m²
+here).
+
+| fill model | per-channel scale | Δ L | Δ R−B | recovered |
+| --- | --- | --- | --- | --- |
+| single bounce (ρ) | 0.9405 / 0.8960 / 0.8813 | −3.8 % | +2.6 | ~20 % |
+| midpoint | 0.8446 / 0.7605 / 0.7466 | −8.4 % | +5.1 | ~45 % |
+| **interreflection ρ/(1−ρ)** | **0.7487 / 0.6250 / 0.6119** | **−14.1 %** | **+7.9** | **~75 %** |
+| *traced target* | | *−18.3 %* | *+10.8* | |
+
+**~75 % of the real response, from a per-channel scale on two lights that already exist.** No probes, no
+irradiance volume, no extra draw calls — which matters, because `src/scene/CLAUDE.md` records an irradiance
+volume as spiked and **rejected** at 6.19 ms for 420 probes.
+
+**Looked at:** the tinted room is warmer and slightly darker, and reads as coherently lit *by* its terracotta
+walls rather than unaware of them. Natural, not dingy. The window is correctly unaffected.
+
+### What it does not do
+
+It reproduces the **global** part only. It cannot produce *localised* bleed — a wall redder near a red sofa —
+and `.268`'s A/B would still read ~0 for a localised source. `.270`'s configuration is global, and repainting
+a wall is the common user action, but "colour bleed" in general is not fully covered.
+
+### The call needed
+
+Whether to ship a room-albedo-driven fill tint at all. It changes shipped appearance in **every room on every
+tier** — any room whose surfaces are not near-white gets warmer/cooler and darker — and it re-bases the
+`%<64` and region-ratio figures this arc is calibrated on, exactly as item (o) would have.
+
+Untested and worth knowing before deciding: the shipped **`navy`** (`#3b4a63`) and **`forest`** (`#4a5e4a`)
+finishes bleed **cool**, and only warm terracotta has been measured. One finish, one room, one pose, one
+hour. A real implementation also needs the albedo census at runtime with a recompute on finish change —
+cheap (a traverse), not free.
+
 ## Summary
 
 | # | Item | Kind | Recommendation |

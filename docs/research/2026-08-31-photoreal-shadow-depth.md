@@ -7852,3 +7852,104 @@ which is a fair sign the instrument built over `.250`–`.269` is now doing usef
 scaffolding.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.271` — a cheap albedo-tinted fill recovers ~75 % of the measured GI response
+
+`.270`'s numbers carried a hint worth chasing. The ceiling's response to a terracotta wall was nearly
+**uniform** across anchors — +8.8 / +13.5 / +10.0 counts of hue, −19.0 / −20.0 / −15.8 % of luminance. A
+uniform response is a **global** effect, and a global effect may have a cheap global approximation.
+
+Runs 08:28–08:33 local (2026-09-02).
+
+### The model
+
+Bounced light is direct light × albedo, so the fill should scale with the room's average albedo. Repainting
+a wall lowers and warms that average, which tints the fill warm **and** darkens it — precisely the two
+effects `.270` measured.
+
+It is **calibration-free**: only the *ratio* of average albedo between two rooms is applied, so there is no
+constant to fit and no opportunity to tune the answer toward the target.
+
+### Scope mattered more than the model
+
+A whole-flat census (2186 m²) barely moves when one room is repainted:
+
+| census scope | ratio (terracotta ÷ white) | predicted darkening |
+| --- | --- | --- |
+| whole flat, 2186 m² | 0.984 / 0.972 / 0.968 | −2.6 % |
+| **living/dining only, 467 m²** | **0.9405 / 0.8960 / 0.8813** | −9.5 % |
+
+Bounce is **local**. A global average over the whole plan dilutes the one room that changed, and predicts an
+effect an order of magnitude too small. The census has to be scoped to the room — which is the same
+population lesson as `.249`, `.260` and `.266`, arriving this time on the *input* side rather than the output.
+
+Room-scoped area-weighted albedo:
+
+| | r | g | b |
+| --- | --- | --- | --- |
+| white walls | 0.8115 | 0.8067 | 0.7876 |
+| terracotta | 0.7632 | 0.7228 | 0.6941 |
+
+### Three model strengths, bracketing the target
+
+Ceiling anchors, 13:00, `medium`, photographic look, fan-clear line; Δ measured against the shipped
+white-walled arm:
+
+| fill model | per-channel scale | Δ L | Δ R−B | recovered |
+| --- | --- | --- | --- | --- |
+| single bounce, ρ | 0.9405 / 0.8960 / 0.8813 | −3.8 % | +2.6 | ~20 % |
+| midpoint | 0.8446 / 0.7605 / 0.7466 | −8.4 % | +5.1 | ~45 % |
+| **interreflection, ρ/(1−ρ)** | **0.7487 / 0.6250 / 0.6119** | **−14.1 %** | **+7.9** | **~75 %** |
+| *traced target (`.270`)* | | *−18.3 %* | *+10.8* | |
+
+The bracketing is the point: single-bounce **under**-predicts, full interreflection lands close, and the
+truth sits just beyond it. That the physically-motivated form is the one that fits — rather than a fudge
+factor chosen to fit — is what makes this worth reporting.
+
+**~75 % of the real response** (77 % of the luminance change, 73 % of the hue change) from a **per-channel
+scale on two lights that already exist**, driven by a room-albedo traverse. No probes, no irradiance volume,
+no extra draw calls. That last point matters: `src/scene/CLAUDE.md` records an irradiance volume as spiked
+and **rejected** — a 420-probe volume cost 6.19 ms.
+
+### Looked at
+
+Side by side with the untinted terracotta room, the tinted version is warmer and slightly darker, and the
+room reads as coherently lit **by** its terracotta walls rather than unaware of them. Natural, not dingy. The
+window is correctly unaffected, since the backdrop is not part of the fill.
+
+### Why this is a different kind of result
+
+`.254` priced the ground-bounce lever against the ceiling deficit and found it the **wrong shape** — it bought
+13 % of ratio for 14 % of overall brightness, because a hemisphere brightens everything with a downward
+normal. Here the lever is the *right* shape, because the effect being chased is genuinely global: a room's
+average albedo changed, and every surface in it should respond.
+
+The difference is that `.254` was chasing a *localised* deficit with a *global* tool, and this round is
+chasing a global one. Matching the shape of the lever to the shape of the effect is the lesson, and it was
+only possible once `.268`–`.270` had established what the effect's shape actually is.
+
+### What it does not do
+
+It reproduces the **global** part only. It cannot produce *localised* bleed — a wall redder near a red sofa —
+and `.268`'s ceiling-recolour A/B would still read ~0 under it, because scaling a global fill cannot tint one
+wall differently from another.
+
+`.270`'s configuration is global, and repainting a wall is the common user action. But "colour bleed" in
+general is not fully covered by this, and the 25 % shortfall is presumably where the localised part lives.
+
+### Caveats
+
+One finish, one room, one pose, one hour. The shipped `navy` (`#3b4a63`) and `forest` (`#4a5e4a`) finishes
+bleed **cool** and are untested — a cool bleed is the more visually risky case, since the app's fill is
+already slightly cool (`.268`: the wall's `#f5f5f0` pigment reads R−B 0 in render).
+
+A real implementation needs the albedo census at runtime with a recompute when finishes change: cheap, being
+a traverse, but not free. And the traced target inherits `.251`'s sample-count and `.255`'s rig caveats —
+both cancel in the Δ, but neither is zero in absolute terms.
+
+**Not shipped.** Probe-side only, and it changes shipped appearance in every room on every tier, so it is
+filed as **(s) ALBEDO-FILL** with the recovery figures attached.
+
+Nothing changed in `src/` beyond the version bump.

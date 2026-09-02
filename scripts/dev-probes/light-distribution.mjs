@@ -465,6 +465,7 @@ const shotFor = async (pitch) => {
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyLinear === 'function') await applyLinear()
+  if (typeof applyFillTint === 'function') await applyFillTint()
   if (typeof applyRecolor === 'function') await applyRecolor()
   if (typeof applyHideGrille === 'function') await applyHideGrille()
   if (typeof applyBgSharp === 'function') await applyBgSharp()
@@ -631,6 +632,46 @@ const applyFillOff =
 // Repainting a large adjacent surface saturated orange separates those two: with
 // inter-reflection the wall must warm; a grey hemisphere ambient cannot tint it at
 // all, whatever colour the floor is.
+// ALBEDO=1 reports the room's AREA-WEIGHTED AVERAGE ALBEDO, and FILLTINT=r,g,b
+// scales the fill lights by a per-channel factor (`.271`).
+//
+// `.270` measured what real transport does when a wall is repainted terracotta:
+// the ceiling warms 9-13 counts of R-B AND darkens 16-20 %. Crucially the response
+// is nearly UNIFORM across anchors, which says the effect is largely GLOBAL rather
+// than localised -- and a global effect may have a cheap global approximation.
+//
+// The first-order model: bounced light is direct light times albedo, so the fill
+// should scale with the room's average albedo. Painting walls terracotta lowers
+// and warms that average, which tints the fill warm and darkens it -- exactly the
+// two effects measured. Calibration-free, because only the RATIO between two rooms
+// is applied.
+const ALBEDO = process.env.ALBEDO === '1'
+const FILLTINT = process.env.FILLTINT || ''
+const applyFillTint = !FILLTINT
+  ? null
+  : async () => {
+      const [kr, kg, kb] = FILLTINT.split(',').map(Number)
+      const res = await page.evaluate(
+        ({ k }) => {
+          const hit = []
+          window.__three.scene.traverse((o) => {
+            if (!o.isAmbientLight && !o.isHemisphereLight) return
+            for (const prop of ['color', 'groundColor']) {
+              const c = o[prop]
+              if (!c?.setRGB || c.__tinted) continue
+              const orig = c.setRGB.bind(c)
+              c.setRGB = (r, g, b, ...rest) => orig(r * k[0], g * k[1], b * k[2], ...rest)
+              c.__tinted = true
+              hit.push(`${o.type}.${prop}`)
+            }
+          })
+          return hit
+        },
+        { k: [kr, kg, kb] },
+      )
+      console.log(`FILLTINTCHECK ${JSON.stringify({ k: [kr, kg, kb], patched: res })}`)
+      await new Promise((r) => setTimeout(r, 700))
+    }
 const RECOLOR = process.env.RECOLOR || ''
 const applyRecolor = !RECOLOR
   ? null
@@ -879,6 +920,59 @@ const applyLinear = !LINEAR
       if (res.error) throw new Error(`LINEAR: ${res.error}`)
       await new Promise((r) => setTimeout(r, 900))
     }
+if (ALBEDO) {
+  const a = await page.evaluate(() => {
+    const V = window.__three.camera.position.constructor
+    let ar = 0
+    let ag = 0
+    let ab = 0
+    let tot = 0
+    window.__three.scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return
+      let p = o
+      while (p) {
+        if (!p.visible) return
+        p = p.parent
+      }
+      o.geometry.computeBoundingBox?.()
+      const bb = o.geometry.boundingBox
+      if (!bb) return
+      const sc = o.getWorldScale(new V())
+      const sx = (bb.max.x - bb.min.x) * Math.abs(sc.x)
+      const sy = (bb.max.y - bb.min.y) * Math.abs(sc.y)
+      const sz = (bb.max.z - bb.min.z) * Math.abs(sc.z)
+      const area = 2 * (sx * sy + sy * sz + sx * sz)
+      if (!Number.isFinite(area) || area <= 0 || area > 500) return // skip the sky shell
+      // Bounce is LOCAL: only the room's own surfaces matter. A whole-flat census
+      // (2186 m2) barely moves when one room is repainted -- ratio 0.984/0.972/
+      // 0.968 -- and predicts a 2.6 % darkening where real transport gives 16-20 %.
+      // Restrict to the living/dining rect from the plan (`.251`: 3.4 x 5.67 m).
+      const wp = o.getWorldPosition(new V())
+      const rm = window.__store.getState().floorPlan?.rooms?.find((r) => r.id === 'livingDining')
+      if (rm) {
+        const pad = 0.4
+        if (
+          wp.x < rm.origin[0] - pad ||
+          wp.x > rm.origin[0] + rm.width + pad ||
+          wp.z < rm.origin[1] - pad ||
+          wp.z > rm.origin[1] + rm.depth + pad
+        )
+          return
+      }
+      const m = Array.isArray(o.material) ? o.material[0] : o.material
+      if (!m?.color) return
+      ar += m.color.r * area
+      ag += m.color.g * area
+      ab += m.color.b * area
+      tot += area
+    })
+    return tot ? { r: ar / tot, g: ag / tot, b: ab / tot, area: tot } : null
+  })
+  if (a)
+    console.log(
+      `ALBEDO area-weighted mean: r=${a.r.toFixed(4)} g=${a.g.toFixed(4)} b=${a.b.toFixed(4)}  over ${a.area.toFixed(0)} m2`,
+    )
+}
 const shot = await shotFor(PITCH)
 if (BACKDROP)
   console.log(

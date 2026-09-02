@@ -5,6 +5,69 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.271 — a cheap albedo-tinted fill recovers ~75 % of the measured GI response
+
+`.270`'s numbers carried a hint: the ceiling's response to a terracotta wall was nearly **uniform** across
+anchors (+8.8 / +13.5 / +10.0 of hue, −19.0 / −20.0 / −15.8 % of luminance). A uniform response is a
+**global** effect, and a global effect may have a cheap global approximation. This round tests one.
+
+**The model, and it is calibration-free.** Bounced light is direct light × albedo, so the fill should scale
+with the room's average albedo. Repainting a wall lowers and warms that average, which tints the fill warm
+*and* darkens it — the two effects `.270` measured. Only the **ratio** between two rooms is ever applied, so
+there is no constant to fit.
+
+**Scope turned out to matter more than the model.** A whole-flat albedo census (2186 m²) barely moves when
+one room is repainted — ratio 0.984 / 0.972 / 0.968, predicting a 2.6 % darkening against a measured 16–20 %.
+Bounce is **local**, so the census must be too. Restricted to the living/dining rect (467 m²):
+
+| | r | g | b |
+| --- | --- | --- | --- |
+| white walls | 0.8115 | 0.8067 | 0.7876 |
+| terracotta | 0.7632 | 0.7228 | 0.6941 |
+| **ratio** | **0.9405** | **0.8960** | **0.8813** |
+
+**Three model strengths, bracketing the target.** Ceiling anchors, 13:00, `medium`, photographic look,
+fan-clear line — Δ against the shipped white-walled arm:
+
+| fill model | per-channel scale | Δ L | Δ R−B | recovered |
+| --- | --- | --- | --- | --- |
+| single bounce (ρ) | 0.9405 / 0.8960 / 0.8813 | −3.8 % | +2.6 | ~20 % |
+| midpoint | 0.8446 / 0.7605 / 0.7466 | −8.4 % | +5.1 | ~45 % |
+| **interreflection ρ/(1−ρ)** | **0.7487 / 0.6250 / 0.6119** | **−14.1 %** | **+7.9** | **~75 %** |
+| *traced target (`.270`)* | | *−18.3 %* | *+10.8* | |
+
+**The physically-motivated multi-bounce form recovers about three quarters of the real response** — 77 % of
+the luminance change and 73 % of the hue change — from a **per-channel scale on two lights that already
+exist**, driven by a room-albedo traverse. No probes, no irradiance volume, no extra draw calls. That matters
+because `src/scene/CLAUDE.md` records an irradiance volume as spiked and **rejected** at 6.19 ms for 420
+probes.
+
+**Looked at.** Side by side with the untinted terracotta room, the tinted version is warmer and slightly
+darker, and the room reads as coherently lit *by* its terracotta walls rather than unaware of them. It looks
+natural, not dingy. The window is correctly unaffected, since the backdrop is not part of the fill.
+
+**This is the first constructive result in this stretch of the arc** — the opposite of `.254`, where the
+ground-bounce lever was priced and found the wrong shape. Here a cheap lever is the *right* shape for the
+effect that was actually measured.
+
+**Caveats, and the first is a real limit.** This reproduces the **global** part only. It cannot produce
+*localised* bleed — a wall being redder near a red sofa — and `.268`'s A/B would still read ~0 for a
+localised source. It happens that `.270`'s configuration is global, and that repainting a wall is the common
+user action, but "colour bleed" in general is not fully covered.
+
+Also: one finish, one room, one pose, one hour. The shipped `navy` (`#3b4a63`) and `forest` (`#4a5e4a`)
+finishes would bleed **cool** and are untested. A real implementation would need the census at runtime and a
+recompute when finishes change — cheap (a traverse), but not free. And the traced target inherits `.251`'s
+sample-count and `.255`'s rig caveats, both of which cancel in the Δ but neither of which is zero in absolute
+terms.
+
+**Not shipped.** Probe-side only; it changes shipped appearance on every tier and every room, so it is filed
+as **(s) ALBEDO-FILL** with the recovery figures attached.
+
+Probe only: `ALBEDO=1` (room-scoped area-weighted albedo census) and `FILLTINT=r,g,b` (per-channel fill
+scale, applied by intercepting `setRGB` per `.254`). `npm test` 9437 passed, `tsc` clean, `biome` clean.
+Nothing changed in `src/` beyond the version bump. Runs 08:28–08:33 local.
+
 ## v0.31.5.270 — the realistic bound: paint a feature wall and the rest of the room does not notice
 
 `.269` sized the bleed deficit at ~18 counts using a **vivid orange ceiling**, and said plainly that a
