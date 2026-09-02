@@ -48,6 +48,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  schemeOptions: {
+    label: 'Scheme options',
+    description: 'Generate and compare alternative design schemes',
+    default: true,
+    tier: 'pro',
+  },
   constructionDetails: {
     label: 'Construction details',
     description: 'Junction detail sheet (ceiling drops, upturns, thresholds, sills)',

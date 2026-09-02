@@ -47,6 +47,7 @@ import { Icon, type IconName } from './toolbar/icons'
 /** ⌘K command id → the feature flag that gates it (so a disabled feature can't
  *  be launched from the palette either). Unmapped commands are always shown. */
 const COMMAND_FLAGS: Record<string, FeatureFlag> = {
+  'scheme-options': 'schemeOptions',
   measure: 'measure',
   'smart-start': 'smartStart',
   share: 'shareExport',
@@ -358,6 +359,13 @@ export function CommandPalette() {
         label: 'Style transfer — restyle every room',
         icon: 'Palette',
         run: () => s().setStyleTransferOpen(true),
+      },
+      {
+        id: 'scheme-options',
+        group: 'Tools & panels',
+        label: 'Compare design schemes — generate alternatives',
+        icon: 'Presets',
+        run: () => s().setSchemeOptionsOpen(true),
       },
       {
         id: 'style-quiz',

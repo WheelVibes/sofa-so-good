@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.263 - the scheme comparison gets a surface
+
+G8's review-and-pick UI over v0.31.5.262's data core. `SchemeCompareModal` shows each scheme's
+score breakdown, price, item count and budget verdict, the DERIVED trade-off lines, and applies the
+chosen one. The brief box reuses `briefParser` — it already extracts both a preset id and a budget
+from free text, so "warm scandi for a young family, budget $8000" biases the spread and sets the
+budget in one field rather than two.
+
+Applying goes through a new `planActions.ts:confirmApplyScheme`, which confirms because it REPLACES
+every placed item (the bulk-furniture destructive policy: confirm + undo) and names what is being
+replaced and by how much. Finishes are applied first so `applyHomeStyle`'s history push absorbs the
+`setItems` that follows — the whole scheme is ONE undo step.
+
+Wired on all three surfaces per the parity rule: desktop Tools menu, mobile ToolsSection, and Cmd-K
+(with a `COMMAND_FLAGS` gate). `schemeOptions` flag, pro tier.
+
+**Two bugs caught only by visual verification, both mine.** First, I mounted the modal INSIDE the
+`styleQuizOpen` lazy gate, so it rendered only while the style quiz was open — it now has its own
+`schemeOptionsOpen` gate in `lazyPanels`. Second, I gave each scheme card `className="panel"`;
+`.panel` is the modal's own top-level surface (`.modal-overlay > .panel`), so nesting it broke the
+layout — one card visible, overflowing the modal, text bleeding outside the panel. Switched to
+`.sec`, the existing hairline-separated in-modal section class that `FinishPicker` and
+`GraphicsSettings` already use. Neither failure was visible to tsc or to 9594 passing tests.
+
+The repo's own `inlinePxGuard` also caught a literal `paddingLeft: '1.1em'`, now a `--s-4` token.
+
++3 tests (flag is pro/default-on, off in Simple and on in Pro, modal open-state toggles). Verified
+visually at 1100x1000: three hairline-separated schemes ranked with the leader marked
+"· recommended", its 68 matching the recommendation line, scrolling correctly.
+
 ## v0.31.5.262 — alternative schemes, and the lever that actually makes them different
 
 G8's core, on the user's decision to take the full scope. `analysis/suggestions.ts` is a rule-based

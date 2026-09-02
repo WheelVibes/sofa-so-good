@@ -15,6 +15,7 @@ export type FeatureFlag =
   | 'coordinationChecks'
   | 'specification'
   | 'constructionDetails'
+  | 'schemeOptions'
   | 'versions'
   | 'history'
   | 'shareExport'
