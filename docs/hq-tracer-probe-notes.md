@@ -70,6 +70,23 @@ radiance gap. And the app's glazing is a mid-tone panel that clips 0.0 % (item (
 daylight — so this compares interior surfaces against *the app's own aperture*, which is the right internal
 comparison but is not a comparison against a real sky.
 
+## Matching predictions of a SYMPTOM does not validate a MECHANISM
+
+`.301` proposed that the traced ceiling renders at the environment's level because the ceiling was **absent or
+transparent in the tracer snapshot**, and listed **six independent matched predictions**: equality with the
+glazing, zero spatial variance, immunity to recolour, greenness above the glazing's, class A's cold cast, and a
+ceiling out-radiating the aperture. `.302` censused the snapshot and found the ceiling **present, correctly
+recoloured, and correctly substituted to PBR**. The lead was wrong while every prediction it made still held.
+
+The reason is that all six are consequences of *"the ceiling renders as the environment"* — which is true — and
+none of them distinguishes *why*. **A prediction only tests a mechanism if the rival explanations disagree
+about it.** Before spending a round on a mechanism, write down what the *other* candidates would predict for the
+same measurement; if they predict the same thing, the measurement is worthless as a test no matter how many of
+them match.
+
+Fifteen mechanisms have been proposed and refuted in this arc. This was the first refuted with its predictions
+intact.
+
 ## Mark the patch on the PICTURE before you trust the patch
 
 Three of this arc's costliest errors were mis-placed measurement patches: `.282` measured a region that was

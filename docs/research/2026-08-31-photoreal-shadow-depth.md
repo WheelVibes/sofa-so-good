@@ -10234,3 +10234,58 @@ Two rounds running have corrected their immediate predecessor by testing its wea
 
 Green diagnostic reverted, `src/` verified clean. The probe keeps multi-pair `RECOLOR`, which is what made this
 measurable.
+
+---
+
+## Round .302 — the one-round-old lead is refuted: the ceiling IS in the snapshot, correctly dark and correctly PBR
+
+`.301` proposed the traced ceiling renders at the environment's level because it is **absent or transparent in
+the tracer snapshot**, with six matched predictions. One run kills it.
+
+### Direct observation
+
+Temporary instrumentation in `buildTracerScene` (added, observed, reverted, `src/` verified clean) censuses
+`root` by geometry, material type, colour and roughness. Room repainted `f5f5f0:141414;fafafa:141414`:
+
+```
+[PROBE] snapshot meshes=1104 distinct=180
+[PROBE]   x99 PlaneGeometry#141414 MeshStandardMaterial r=0.92     <- walls
+[PROBE]   x14 PlaneGeometry#141414 MeshStandardMaterial r=0.9      <- CEILINGS
+```
+
+The fourteen ceiling planes are **present**, carry the **recoloured** `#141414`, and are **correctly
+substituted** from Lambert to `MeshStandardMaterial` at `SUBSTITUTE_ROUGHNESS = 0.9`. `.253`'s `pbrStandInFor`
+does exactly its job. Fifteenth mechanism proposed and refuted in this arc.
+
+### Two more eliminated free, from source
+
+- **Traceability gate:** `buildTracerScene` skips meshes failing `mats.every(isTraceableMaterial)`, and that gate
+  runs *before* `pbrStandInFor` — but `isTraceableMaterial` explicitly accepts `isMeshLambertMaterial`.
+- **Back-face culling:** `Ceiling.tsx` uses `rotation={[Math.PI/2,0,0]}`, mapping `PlaneGeometry`'s `+Z` normal
+  to `(0,−1,0)` — down into the room — so default `FrontSide` is correct from below, and `pbrStandInFor` copies
+  `side`. (`RoomCeiling.tsx` deliberately uses `BackSide` for the other ceiling implementation: a genuine
+  asymmetry between the two, but not the fault here, since `r=0.9` identifies the Lambert path.)
+
+### Item (v) reproduced, more starkly
+
+| | traced ceiling | traced glazing | raster ceiling |
+| --- | --- | --- | --- |
+| `d1` | 192.1 | 192.0 | 0.9 |
+| `c1` | **181.5** | 169.0 | 0.9 |
+
+A **black** ceiling out-radiating the window by 12.5 counts — worse than `.298`'s white-ceiling violation.
+
+### Where the fault is
+
+**Downstream of the snapshot.** The material handed to the tracer is right in colour, type, roughness,
+orientation and presence. Whatever renders it at the environment's level does so *after* a correct hand-off —
+in the tracer's own material conversion or shading. Much narrower than "somewhere in the HQ path".
+
+### Method note
+
+`.301`'s lead matched six independent observations and was still wrong, because all six are consequences of
+"the ceiling renders as the environment" (true) and none discriminates *why*. **Matching predictions of a
+symptom does not validate a mechanism; only a prediction the rivals disagree about does.** Added to
+`docs/hq-tracer-probe-notes.md`.
+
+Instrumentation reverted, `src/` verified clean.

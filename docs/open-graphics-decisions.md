@@ -2164,8 +2164,33 @@ cast under the normal grey gradient; `.298`'s ceiling out-radiating the aperture
 ceiling", which `.253` may have replaced with a hole. Six matched predictions, zero tests — and fourteen
 mechanisms in this arc have been refuted by a later round.
 
-**Verification, cheap and named:** instrument `buildTracerScene` to report whether the ceiling mesh is present
-in the snapshot and what material it carries, and correlate with the (u) class.
+**❌ THAT LEAD IS REFUTED v0.31.5.302.** The snapshot was censused directly (temporary instrumentation, added,
+observed, reverted, `src/` verified clean), with the room repainted `f5f5f0:141414;fafafa:141414`:
+
+```
+[PROBE] snapshot meshes=1104 distinct=180
+[PROBE]   x99 PlaneGeometry#141414 MeshStandardMaterial r=0.92     <- walls
+[PROBE]   x14 PlaneGeometry#141414 MeshStandardMaterial r=0.9      <- CEILINGS
+```
+
+**The ceiling planes are present, carry the recoloured `#141414`, and are correctly substituted from Lambert to
+`MeshStandardMaterial` at `SUBSTITUTE_ROUGHNESS = 0.9`.** `.253`'s `pbrStandInFor` works as designed.
+
+Two further candidates eliminated by source inspection at zero cost:
+
+- **the traceability gate** — `buildTracerScene` skips meshes failing `mats.every(isTraceableMaterial)` *before*
+  `pbrStandInFor` runs, but `isTraceableMaterial` explicitly accepts `isMeshLambertMaterial`;
+- **back-face culling** — `Ceiling.tsx` uses `rotation={[Math.PI/2,0,0]}`, mapping `PlaneGeometry`'s `+Z` normal
+  to `(0,−1,0)`, i.e. **down into the room**, so default `FrontSide` is correct from below and `pbrStandInFor`
+  copies `side` through. (`RoomCeiling.tsx` deliberately uses `BackSide` for the *other* ceiling implementation —
+  a real asymmetry between the two, but not the fault here; the census's `r=0.9` identifies the Lambert path.)
+
+**Reproduced more starkly.** Two dark-ceiling runs: traced ceiling **192.1** and **181.5** against raster
+**0.9** in both; in the second, a *black* ceiling out-radiates the window by **12.5 counts**.
+
+**So the fault is DOWNSTREAM of the snapshot.** The material handed over is right in colour, type, roughness,
+orientation and presence — whatever renders it at the environment's level does so after a correct hand-off, in
+the tracer's own material conversion or shading. That is where to look next.
 
 **Consequence for past results.** Every traced *ceiling* figure — `.253`, `.254`, `.255` and the tracer-based
 ceiling ÷ wall work — measured a quantity that does not depend on the ceiling. `.255` withdrew `.253`'s ceiling

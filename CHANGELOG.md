@@ -5,6 +5,67 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.302 — my own one-round-old lead is refuted: the ceiling IS in the tracer snapshot, correctly dark and correctly PBR. Six matched predictions validated the symptom, not the mechanism
+
+`.301` proposed that the traced ceiling renders at the environment's level because it is **absent or
+transparent in the tracer snapshot**, and listed **six matched predictions**. It is wrong, and the check that
+kills it took one run.
+
+**Direct observation of the snapshot.** Temporary instrumentation in `buildTracerScene` (added, observed,
+**reverted**, `src/` verified clean) censuses everything that lands in `root`, keyed by geometry, material type,
+colour and roughness. With the room repainted `f5f5f0:141414;fafafa:141414`:
+
+```
+[PROBE] snapshot meshes=1104 distinct=180
+[PROBE]   x99 PlaneGeometry#141414 MeshStandardMaterial r=0.92     <- the walls
+[PROBE]   x14 PlaneGeometry#141414 MeshStandardMaterial r=0.9      <- THE CEILINGS
+```
+
+**The fourteen ceiling planes are present, carry the recoloured `#141414`, and have been correctly substituted
+from `MeshLambertMaterial` to `MeshStandardMaterial` at `SUBSTITUTE_ROUGHNESS = 0.9`.** `.253`'s
+`pbrStandInFor` does exactly what it was built to do. The hole hypothesis is dead — the fifteenth mechanism
+this arc has proposed and refuted.
+
+**Two more candidates eliminated at zero cost, by reading the source:**
+
+- **The traceability gate is not dropping it.** `buildTracerScene` skips any mesh failing
+  `mats.every(isTraceableMaterial)`, and that gate runs *before* `pbrStandInFor` — a promising trap. But
+  `isTraceableMaterial` explicitly accepts `isMeshLambertMaterial`. Not it.
+- **Back-face culling is not the explanation.** `Ceiling.tsx` builds the Lambert planes with
+  `rotation={[Math.PI/2, 0, 0]}`, which maps `PlaneGeometry`'s `+Z` normal to `(0,−1,0)` — pointing **down into
+  the room** — so the default `FrontSide` is correct when viewed from below, and `pbrStandInFor` copies `side`
+  through. (Worth recording that `RoomCeiling.tsx` deliberately uses `side: BackSide` for the *other* ceiling
+  implementation, so the two disagree about orientation — a real asymmetry, but not the fault here, since the
+  census's `r=0.9` identifies these planes as the Lambert path.)
+
+**Item (v) stands as an observation, and is now starker.** Two independent dark-ceiling runs:
+
+| | traced ceiling | traced glazing | raster ceiling |
+| --- | --- | --- | --- |
+| `d1` | 192.1 | 192.0 | **0.9** |
+| `c1` | **181.5** | 169.0 | **0.9** |
+
+In `c1` a **black** ceiling out-radiates the window by **12.5 counts** — a more extreme version of `.298`'s
+physical violation than the white ceiling produced. The defect is real, reproducible, and independent of the
+ceiling's albedo.
+
+**So the fault is downstream of the snapshot.** The material handed to the tracer is demonstrably correct:
+right colour, right type, right roughness, right orientation, present in the scene. Whatever renders that
+surface at the environment's level does so *after* a correct hand-off — in the tracer's own material conversion
+or shading. That is a far narrower search space than "somewhere in the HQ path", and it is where the next round
+should look.
+
+**The method note is the important output.** `.301`'s lead matched six independent observations — equality with
+the glazing, zero variance, recolour immunity, greenness above the glazing's, class A's cold cast, `.298`'s
+violation — and was still wrong. Every one of those six is a consequence of *"the ceiling renders as the
+environment"*, which is **true**. None of them discriminated *why*. **Matching predictions of a symptom does not
+validate a mechanism; only a prediction that the rival explanations disagree about does.** This arc has now
+refuted fifteen mechanisms, and this is the first time one of them was refuted while every prediction it made
+still held.
+
+**Unchanged:** instrumentation reverted, `src/` verified clean. Probe unchanged this round (it keeps `.301`'s
+multi-pair `RECOLOR`).
+
 ## v0.31.5.301 — the tracer's ceiling ignores the ceiling's albedo entirely: recolour it black and the raster goes to L=0.9 while the traced still stays at 192
 
 This round set out to check `.300`'s own first finding, and found something much larger by accident — which is
