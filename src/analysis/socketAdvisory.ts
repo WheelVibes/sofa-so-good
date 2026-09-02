@@ -28,14 +28,9 @@
  * Pure + deterministic (same input → same output); no DOM/React/three. An empty
  * plan yields zero counts and no rows — never NaN.
  */
-import { allPlanRooms } from '../floorplan/levels'
+import { allPlanRooms, roomAtPoint } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
-import {
-  type FloorPlan,
-  type PlanElectricalPoint,
-  pointInRoom,
-  type RoomCategory,
-} from '../floorplan/types'
+import type { FloorPlan, PlanElectricalPoint, RoomCategory } from '../floorplan/types'
 
 /**
  * Recommended 13 A socket OUTLET count per room category — coarse SG-renovation
@@ -132,7 +127,8 @@ export function buildSocketAdvisory(plan: FloorPlan): SocketAdvisory {
   const outlets = new Map<string, number>()
   const data = new Map<string, number>()
   for (const p of points) {
-    const room = rooms.find((r) => pointInRoom(r, p.x, p.z))
+    // The point's OWN storey (F13) — MEP points are level-tagged.
+    const room = roomAtPoint(plan, p.x, p.z, p.levelId)
     if (!room) continue // outside every room → belongs to no room's count
     const add = OUTLETS_PER_KIND[p.kind]
     if (add) outlets.set(room.id, (outlets.get(room.id) ?? 0) + add)

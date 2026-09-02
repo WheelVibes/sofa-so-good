@@ -374,3 +374,22 @@ export function placementLevelPlan(s: {
   }
   return s.floorPlan
 }
+
+/**
+ * The room containing a level-tagged POINT, searched on that point's own storey.
+ *
+ * The counterpart of {@link roomAtItem} for records that carry `{x, z}` rather
+ * than a `position` tuple — MEP points, lights, comment pins. Same hazard: a
+ * plan's storeys share one XZ space, so a bare `pointInRoom` over
+ * `allPlanRooms` returns whichever room happens to sit at that coordinate on
+ * any floor.
+ */
+export function roomAtPoint(
+  plan: FloorPlan,
+  x: number,
+  z: number,
+  levelId?: string,
+): PlanRoom | null {
+  const level = levelById(plan, levelId)
+  return level.rooms.find((r) => pointInRoom(r, x, z)) ?? null
+}

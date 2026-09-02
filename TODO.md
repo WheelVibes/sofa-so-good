@@ -387,6 +387,17 @@ swept and all are correct — `broadphase.ts` callers gate (`itemsCollide` / `wa
 `floorLoading` is per-item so level-agnostic is right, `deliveryAccess`/`schemeOptions` are per-def,
 and `cloneRoom`/`mirrorRoom`/`swapRooms` gate at the caller. Do not re-run this leg.
 
+**Sweep-pattern rule II (v0.31.5.302) — the one that actually bit.** `.294`/`.295` grepped
+`plan.rooms.find(` and `floorPlan.rooms.find(`. **Every site in `.302` reads a LOCAL variable**
+(`const rooms = allPlanRooms(plan)` … `rooms.find(...)`), so the pattern matched none of them and
+the sweep reported the layer clean. Five real bugs. A pattern anchored on the RECEIVER
+(`plan.rooms`) cannot see an aliased collection; anchor on the OPERATION instead —
+`rooms.find((r) => pointInRoom` and friends — or better, don't rely on a grep at all.
+
+dev-09's formulation is the durable version: **a regex over source is a SAMPLE, not an enumeration,
+and its coverage is invisible in the result.** Two sweeps reported "clean" and neither could have
+found these.
+
 **Sweep-pattern rule (v0.31.5.296).** When grepping for "does this module know about levels",
 the pattern MUST include `allPlanRooms|allPlanWalls|allPlanOpenings|upperLevels|levelById|
 levelOfRoom` alongside the obvious `levelId|planLevels|levelAsPlan`. Omitting them reported 14

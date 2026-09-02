@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.302 - five more mis-attributions, invisible to my own two sweeps
+
+dev-09 offered a formulation — **a regex over source is a SAMPLE, not an enumeration, and its
+coverage is invisible in the result** — and it cost me five bugs within the hour of writing it down.
+
+`.294`/`.295` swept for `plan.rooms.find(` and `floorPlan.rooms.find(` and reported the layer
+clean. **Every site below reads a LOCAL variable** — `const rooms = allPlanRooms(plan)` followed by
+`rooms.find((r) => pointInRoom(...))` — so a pattern anchored on the RECEIVER matched none of them.
+Found only because I went looking at the curtains trade pack for an unrelated reason.
+
+All five combine every storey's rooms with a bare `pointInRoom`, which returns whichever room sits
+at that XZ on ANY floor:
+
+- **`ui/tradePacks.ts`** — the curtains pack credited an upstairs curtain to the room beneath it,
+  putting it on the wrong room's page of a curtain maker's quote.
+- **`analysis/electricalSchedule.ts`** — two sites, one on item positions and one on MEP points.
+- **`analysis/socketAdvisory.ts`** — electrical points.
+- **`analysis/coordinationClashes.ts`** (mine) — its helper's comment read "across every storey",
+  an assertion that looked deliberate and was simply wrong: a socket on the ground floor does not
+  clash with a room above it.
+- **`analysis/layoutCritique.ts`** (mine) — the worst of the five. `roomOf` mis-attributed items,
+  and the TV-vs-seating check therefore **paired a television on one floor with a sofa on another**
+  and reported a viewing distance measured between two storeys.
+
+New `levels.ts:roomAtPoint(plan, x, z, levelId)` — the counterpart of `roomAtItem` for records
+carrying `{x, z}` rather than a `position` tuple (MEP points, lights, pins). MEP points are already
+level-tagged, so the gate was free.
+
+**A test that could not have failed, again — and the fix generalises.** My first cross-storey
+critique test filtered findings by `/view|tv|seating/i` over `f.title` and `f.detail`. `title` does
+not exist on `CritiqueFinding` (it is `label`), and the detail copy says "seat", not "seating" — so
+it scored 0 in both arms and asserted `0 < 0`. The real discriminator is structural: when the
+seating filter matches nothing on the TV's storey the loop `continue`s and pushes **no
+`tv-distance` row at all**. Asserting on a row's PRESENCE beats asserting on its wording, because
+wording is copy and copy changes. All 5 tests confirmed failing with the fixes stashed.
+
+TODO.md now carries the concrete rule: anchor a sweep on the OPERATION (`rooms.find((r) =>
+pointInRoom`), never on the receiver (`plan.rooms`), because an aliased collection is invisible to
+the latter — and prefer not to rely on a grep at all.
+
 ## v0.31.5.301 - converting the remaining prohibitions into structure
 
 Guards + docs, prompted by dev-09 naming a distinction better than mine: **a prohibition lives in

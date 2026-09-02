@@ -22,10 +22,10 @@
  * `allPlanRooms` / `pointInRoom` / `roomKindFromName` and each item's catalog
  * category — the report (and a future CSV) render it.
  */
-import { allPlanRooms } from '../floorplan/levels'
+import { allPlanRooms, roomAtItem, roomAtPoint } from '../floorplan/levels'
 import { electricalMountDefaultMm } from '../floorplan/mepPoints'
 import { toRoomKind } from '../floorplan/roomCategory'
-import { type FloorPlan, type PlanElectricalPoint, pointInRoom } from '../floorplan/types'
+import type { FloorPlan, PlanElectricalPoint } from '../floorplan/types'
 import { isItemEmitter } from '../furniture/lightEmitters'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { type RoomKind, roomKindFromName } from './suggestions'
@@ -135,7 +135,8 @@ export function buildElectricalSchedule(
     const def = catalog[it.defId]
     if (!def) continue
     // Attribute to the first room (any storey) the item's centre lands in.
-    const room = rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    // The item's OWN storey (F13) — `rooms` is every storey's.
+    const room = roomAtItem(plan, it)
     const t = get(room?.id ?? UNASSIGNED)
     if (isLightingPoint(it)) t.lighting += 1
     t.power += socketsForCategory(def.category)
@@ -237,7 +238,8 @@ export function buildDesignedElectricalSchedule(
   const UNASSIGNED = ' unassigned'
 
   for (const p of points) {
-    const room = rooms.find((r) => pointInRoom(r, p.x, p.z))
+    // The point's OWN storey (F13) — MEP points are level-tagged.
+    const room = roomAtPoint(plan, p.x, p.z, p.levelId)
     const id = room?.id ?? UNASSIGNED
     tally.set(id, (tally.get(id) ?? 0) + 1)
     const h = Math.round(p.mountHeightMm ?? electricalMountDefaultMm(p.kind))

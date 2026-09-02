@@ -35,7 +35,7 @@ import {
   buildKerbAdvisories,
   buildRoomFflTags,
 } from '../floorplan/floorLevels'
-import { allPlanRooms } from '../floorplan/levels'
+import { allPlanRooms, roomAtItem } from '../floorplan/levels'
 import { ELECTRICAL_MOUNT_DEFAULTS_MM } from '../floorplan/mepPoints'
 import type { PlumbingPoint } from '../floorplan/plumbingPlan'
 import { buildSwitchCircuits } from '../floorplan/switchCircuits'
@@ -263,6 +263,9 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
   const { plan, items } = input
   const rooms = allPlanRooms(plan)
   const roomNameAt = (x: number, z: number): string | undefined =>
+    // NOTE: callers pass an ITEM's position, so this must be level-gated by
+    // the caller via `roomAtItem`. Kept as a coordinate helper only for
+    // level-less lookups; see the curtains pack below for the gated form.
     rooms.find((r) => pointInRoom(r, x, z))?.name
 
   if (id === 'tiler') {
@@ -412,7 +415,10 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
       if (!TREATMENT_DEF_IDS.has(it.defId)) continue
       const def = input.catalog[it.defId]
       if (!def) continue
-      const room = rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+      // The item's OWN storey (F13). `rooms` here is `allPlanRooms`, so a bare
+      // `pointInRoom` credited an upstairs curtain to whatever room sat beneath
+      // it — putting it on the wrong room's page of a curtain maker's quote.
+      const room = roomAtItem(plan, it)
       const roomName = room?.name ?? 'Unassigned'
       const variant = typeof it.props['blindType'] === 'string' ? ` (${it.props['blindType']})` : ''
       const name = `${def.name}${variant}`

@@ -39,8 +39,8 @@
  */
 
 import { itemFootprint } from '../collision/placement'
-import { allPlanRooms } from '../floorplan/levels'
-import { type FloorPlan, type PlanRoom, planRoomArea, pointInRoom } from '../floorplan/types'
+import { allPlanRooms, roomAtItem } from '../floorplan/levels'
+import { type FloorPlan, type PlanRoom, planRoomArea } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
 /** Published thresholds, all metres. See the module header for sources. */
@@ -104,9 +104,16 @@ function dist(a: [number, number], b: [number, number]): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1])
 }
 
-/** The habitable room containing an item, if any. */
-function roomOf(rooms: PlanRoom[], item: FurnitureItem): PlanRoom | undefined {
-  return rooms.find((r) => pointInRoom(r, item.position[0], item.position[1]))
+/**
+ * The habitable room containing an item, on the item's OWN storey.
+ *
+ * `rooms` is every storey's, so the bare `pointInRoom` this used matched a room
+ * directly above or below the piece — putting an upstairs sofa in the ground
+ * living room's critique, and (worse) letting the TV-vs-seating check pair a
+ * television on one floor with a sofa on another.
+ */
+function roomOf(plan: FloorPlan, item: FurnitureItem): PlanRoom | undefined {
+  return roomAtItem(plan, item) ?? undefined
 }
 
 /**
@@ -176,8 +183,8 @@ export function buildLayoutCritique(
     })
   } else {
     for (const tv of tvs) {
-      const room = roomOf(rooms, tv.it)
-      const inRoom = seating.filter((s) => (room ? roomOf(rooms, s.it)?.id === room.id : false))
+      const room = roomOf(plan, tv.it)
+      const inRoom = seating.filter((s) => (room ? roomOf(plan, s.it)?.id === room.id : false))
       if (inRoom.length === 0) continue
       const nearest = inRoom.reduce((best, s) =>
         dist(centre(s.it), centre(tv.it)) < dist(centre(best.it), centre(tv.it)) ? s : best,
@@ -198,7 +205,7 @@ export function buildLayoutCritique(
   //     that spread is what decides whether the group can hold one conversation.
   const byRoom = new Map<string, { it: FurnitureItem; def: FurnitureDef }[]>()
   for (const s of seating) {
-    const room = roomOf(rooms, s.it)
+    const room = roomOf(plan, s.it)
     if (!room) continue
     const list = byRoom.get(room.id) ?? []
     list.push(s)
@@ -250,8 +257,8 @@ export function buildLayoutCritique(
     })
   } else {
     for (const t of tables) {
-      const room = roomOf(rooms, t.it)
-      const inRoom = seating.filter((s) => (room ? roomOf(rooms, s.it)?.id === room.id : false))
+      const room = roomOf(plan, t.it)
+      const inRoom = seating.filter((s) => (room ? roomOf(plan, s.it)?.id === room.id : false))
       if (inRoom.length === 0) continue
       const nearest = inRoom.reduce((best, s) =>
         dist(centre(s.it), centre(t.it)) < dist(centre(best.it), centre(t.it)) ? s : best,
@@ -287,7 +294,7 @@ export function buildLayoutCritique(
     })
   } else {
     for (const s of sofas) {
-      const room = roomOf(rooms, s.it)
+      const room = roomOf(plan, s.it)
       const w = itemWidth(s.it, s.def)
       if (!(w > 0)) continue
       const verdict = w >= CRITIQUE.sofaWidthMin && w <= CRITIQUE.sofaWidthMax ? 'pass' : 'warn'

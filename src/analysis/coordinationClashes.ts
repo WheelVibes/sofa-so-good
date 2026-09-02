@@ -29,15 +29,10 @@ import type { OBB } from '../collision/obb'
 import { itemFootprintParts } from '../collision/placement'
 import { itemHeight } from '../elevation/projectElevation'
 import { buildCeilingClearance } from '../floorplan/ceilingClearance'
-import { allPlanRooms, itemsOnLevel, planLevels } from '../floorplan/levels'
+import { itemsOnLevel, planLevels, roomAtPoint } from '../floorplan/levels'
 import { ELECTRICAL_MOUNT_DEFAULTS_MM, PLUMBING_MOUNT_DEFAULTS_MM } from '../floorplan/mepPoints'
-import {
-  type FloorPlan,
-  type PlanElectricalPoint,
-  type PlanPlumbingPoint,
-  type PlanRoom,
-  pointInRoom,
-} from '../floorplan/types'
+import type { FloorPlan, PlanElectricalPoint, PlanPlumbingPoint } from '../floorplan/types'
+import { pointInRoom } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
 /** What kind of coordination problem was found. */
@@ -98,9 +93,16 @@ function mountMm(
   return defaults[p.kind] ?? 0
 }
 
-/** The room containing (x, z), across every storey. */
-function roomAt(rooms: PlanRoom[], x: number, z: number): PlanRoom | undefined {
-  return rooms.find((r) => pointInRoom(r, x, z))
+/**
+ * The room containing an MEP point, on the point's OWN storey.
+ *
+ * Was "across every storey", which read as deliberate and was wrong: a socket
+ * on the ground floor does not clash with a room above it, and with storeys
+ * sharing one XZ space the old form returned whichever room sat at that
+ * coordinate on any floor. MEP points are level-tagged, so the gate is free.
+ */
+function roomAt(plan: FloorPlan, p: { x: number; z: number; levelId?: string }) {
+  return roomAtPoint(plan, p.x, p.z, p.levelId) ?? undefined
 }
 
 function itemLabel(item: FurnitureItem, def: FurnitureDef): string {
@@ -122,7 +124,6 @@ export function buildCoordinationClashes(
   plumbing: PlanPlumbingPoint[] = [],
 ): CoordinationClashResult {
   const clashes: CoordinationClash[] = []
-  const rooms = allPlanRooms(plan)
 
   // Resolve each item ONCE: footprint parts + height + label.
   const resolved = items.flatMap((it) => {
@@ -158,7 +159,7 @@ export function buildCoordinationClashes(
     for (const r of resolved) {
       if (mm > r.heightMm) continue
       if (!r.parts.some((part) => pointInObb(part, p.x, p.z))) continue
-      const room = roomAt(rooms, p.x, p.z)
+      const room = roomAt(plan, p)
       clashes.push({
         kind: 'mep-behind-furniture',
         severity: 'high',
