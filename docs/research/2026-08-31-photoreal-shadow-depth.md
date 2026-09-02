@@ -8944,3 +8944,85 @@ Re-measure the `.269`–`.276` targets at the cap, budgeting for roughly 1 run i
 should rest on a traced number until that is done.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .283 — CORRECTION to .282: no placeholder; it is the raw trace vs the AI-denoised output
+
+`.282` concluded the HQ modal shows a frozen placeholder for a whole render, filed product defect (t) on that
+basis, and withdrew every traced figure in the arc. The core claim is wrong, and it was wrong for a specific
+and avoidable reason: it rested entirely on canvas pixel reads and never checked what was on screen.
+
+### The check that settles it
+
+`PTSHOT=1` screenshots the page each poll — the compositor, not a canvas read. One bedroom3 render
+(run 12:20 +08, medium tier, photographic look, hour 13, 1920×1080, `PITCH=0.30`):
+
+- 6 samples: heavily grainy path trace, noise across ceiling and walls.
+- 256 samples: clean and converged, button flipped to "Re-render".
+
+The render displays normally. No placeholder, no display defect. **(t) as filed is withdrawn.**
+
+### What the two images are
+
+`HqRenderModal.tsx:116-137` — `finalize()` runs on completion and, when `aiDenoise` is armed and
+`applyAiDenoise()` returns non-null, clears the host and appends a *different* canvas: a plain 2D
+`denoisedCanvas`. And `hqRenderSession.ts:622` returns `denoisedCanvas.toDataURL()` in preference to the
+tracer canvas.
+
+So the two states are the **raw path trace** and the **AI-denoised output**. Both real, both shipped.
+`.282`'s "1 run in 3 never flips" is just runs where the denoise pass produced nothing.
+
+### The defect, re-filed
+
+| bedroom3, white, pitch +0.30 | raw trace | after AI denoise |
+| --- | --- | --- |
+| anchor traced L, d = 0.6 / 1.2 | 172.1 / 175.3 | 120.3 / 117.6 |
+| patch L | 179.7 | 115.9 |
+| patch R−B | −14.2 (cold) | +8.1 (warm) |
+
+~30 % darker and a 22-count hue flip is not denoising. A linear/sRGB mismatch around a model trained on linear
+HDR would look like this — **hypothesis, untested, deliberately not published as a cause.** `.280`, `.281` and
+`.282` were each wrong in exactly that way. What is established: the magnitude, and that the saved PNG differs
+from the watched render and differs run to run depending on whether the pass succeeded.
+
+Which stage is *correct* is open. The raw trace is cold because the tracer environment is the hardcoded cold
+`GradientEquirectTexture` (item (p)); the denoised frame is warm and closer to the raster. The denoise may be
+masking (p) rather than causing an error.
+
+### What this does to .282's withdrawals
+
+`.282` withdrew `.269`–`.276` and all of `.281` citing a placeholder that does not exist, so those withdrawals
+do not stand as reasoned. The narrower truth: those rounds consistently measured the **raw trace**; `.282`'s
+"corrections" measured the **denoised output**. Two stages, each self-consistent. Status is **unknown pending
+(t)**, not withdrawn — and not restored either, since which stage is the right target is precisely what (t)
+now asks.
+
+### Left unresolved, on purpose
+
+`drawImage` and `gl.readPixels` on the tracer canvas agree with each other to the decimal and return constant
+values across a whole render, while the composited display of that same canvas visibly denoises from grainy to
+clean. `PTLIST=1` shows exactly two canvases, both 1920×1080 backing (live scene 1280×720 CSS, modal preview
+694×390 CSS), and the correct one is selected. Both observations are solid and repeated. **No mechanism is
+proposed.**
+
+### Probe changes
+
+PT capture waits for the sample counter to settle and takes a **clipped screenshot** of the modal canvas
+(~1388×780, aspect 1.779 vs the raster's 1.778) instead of `toDataURL` — lower resolution, but the path proven
+to match the display. `.282`'s flip guard and 256-clamp are removed as artefacts of the placeholder model.
+Diagnostics kept: `PTSHOT`, `PTGL`, `PTLIST`, `PTTRACE`, `PTHOLD`.
+
+### Method rule
+
+`.282` said an instrument must be able to fail loudly. Sharper, and what would have caught this three rounds
+earlier: **when an instrument disagrees with itself, check it against a completely different observation
+channel before theorising.** One page screenshot would have pre-empted the mechanisms published in `.280`,
+`.281` and `.282` — all three are refuted by it.
+
+### Next
+
+Settle (t): same pose with the denoise forced off and forced on, both compared against the raster's warmth,
+and decide which stage is the measurement target. The rest of the arc is blocked behind that.
+
+Nothing changed in `src/` beyond the version bump.

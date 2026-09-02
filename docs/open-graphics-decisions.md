@@ -1877,45 +1877,47 @@ finishes bleed **cool**, and only warm terracotta has been measured. One finish,
 hour. A real implementation also needs the albedo census at runtime with a recompute on finish change —
 cheap (a traverse), not free.
 
-## (t) HQ-CANVAS-PLACEHOLDER — 🐞 REAL DEFECT, found v0.31.5.282; needs a fix call
+## (t) HQ-DENOISE-SHIFT — ❌ ORIGINAL CLAIM WITHDRAWN v0.31.5.283; re-filed as a different defect
 
-**What happens.** The HQ render modal's canvas does **not** show the accumulating path trace. It shows a
-static image for the whole render, and the finished trace is blitted in only at completion — *sometimes*.
-In 1 of 3 runs at the 256-sample cap the canvas still held the placeholder 300 s after the counter stopped.
+**`.282` filed this as "the HQ canvas shows a frozen placeholder for the whole render". That is wrong.**
+`.283` screenshotted the modal during a render: at 6 samples it shows a heavily grainy path trace, at 256 a
+clean converged one, with the button flipping to "Re-render". **The user sees a perfectly normal, correctly
+progressing render.** There is no placeholder and no display defect. The `.282` claim rested on canvas pixel
+reads alone and should not have been filed as a product defect without checking the compositor.
 
-**How it was proven.** `PTTRACE=1` (added in `.282`) samples a fixed 10 % patch of the tracer canvas on
-every 4 s poll. Across one whole 256-sample bedroom3 render — 44 polls, 184 s, samples 4 → 256 — the patch
-read `L=179.7 sd=0.93 R-B=-14.2` **every single time, unchanged to two decimal places**. `PTHOLD=90` then
-kept polling past completion: the patch changed to `L=115.9 sd=1.14 R-B=+8.1` within 5 s and held there for
-90 s.
+**What the two images actually are.** Not placeholder vs trace — **raw trace vs AI-denoised output**:
 
-**The placeholder is not an under-converged trace.** It differs in kind, not degree:
+- `session.canvas` — the tracer's WebGL canvas, shown while rendering.
+- `denoisedCanvas` — a plain 2D canvas that `finalize()` swaps into the host on completion, but only when
+  `aiDenoise` is armed and `applyAiDenoise()` returns non-null (`HqRenderModal.tsx:130`).
 
-| | placeholder | finished trace |
+`hqRenderSession.ts:622` — `toDataURL: () => denoisedCanvas ? denoisedCanvas.toDataURL() : canvas.toDataURL()`
+— so **the PNG the user saves is the denoised one when the pass succeeds and the raw trace when it does not.**
+
+**The re-filed defect: the AI denoise pass is not radiometrically neutral.** Same render, same anchors, before
+and after the swap (bedroom3, white, medium tier, photographic look, hour 13, pitch +0.30):
+
+| | raw trace | after AI denoise |
 | --- | --- | --- |
-| patch L | 179.7 | 115.9–116.3 |
-| patch sd (texture) | 0.93 | 1.14–1.15 |
-| patch R−B (warmth) | **−14.2** (cold) | **+8.1** (warm) |
-| plaster grain | absent | present |
+| anchor traced L, d = 0.6 / 1.2 | 172.1 / 175.3 | 120.3 / 117.6 |
+| patch L | 179.7 | 115.9 |
+| patch R−B | **−14.2** (cold) | **+8.1** (warm) |
 
-Cold blue with no grain is the signature of the hardcoded `GradientEquirectTexture` (top `0xbfd4e6`) that
-`buildTracerScene` substitutes for the Ambient/Hemisphere lights it drops — see (p) HQ-FILL-RIG. So the
-placeholder is most consistent with an early pre-accumulation pass under the gradient environment only.
-**That identification is inferred, not proven** — what is proven is that it is a different image.
+A denoiser removes noise; it must not darken the image by ~30 % and flip its hue by 22 counts. A shift of that
+character is what feeding tone-mapped sRGB into a model trained on linear HDR (or writing its output back
+without the inverse transform) would produce — **that is a hypothesis, not a finding**, and it has not been
+tested. What *is* established is the magnitude, and that two users on the same scene get materially different
+saved PNGs depending on whether the pass happened to succeed.
 
-**Why it matters to a user, not just to the probe.** A user who starts an HQ render watches a sample counter
-climb over a cold, flat, textureless image that never improves, and on some runs that is still what they are
-looking at after the render has finished. The correct output exists; it just is not always shown.
+**Which one is correct is not yet known** and is the reason this needs a call rather than a fix. The raw trace
+is cold because the tracer's environment is the hardcoded cold `GradientEquirectTexture` (item (p)); the
+denoised frame is warm and closer to the raster's interior. So the denoise pass may be masking (p) rather than
+introducing an error of its own.
 
-**Cost of the measurement error it caused.** Every traced figure in this arc came from a read taken the
-instant `got >= PTSAMPLES` with `PTSAMPLES < 256`, i.e. mid-render, i.e. off the placeholder. `.282`
-withdraws that whole class. The probe now clamps the request to the cap, waits for the patch to move by a
-magnitude well above noise, and **throws rather than saving a placeholder**.
-
-**The call needed.** Whether to (i) blit the accumulating frame so the modal shows real progress, (ii) keep
-the placeholder but guarantee the final blit on completion, or (iii) show an explicit "rendering…" state
-instead of a misleading image. (i) is the honest one and is what every offline renderer does; it may cost
-frame time on the weak tier, which is why this is a call and not a unilateral fix.
+**Open sub-question, honestly unresolved.** Pixel reads of the tracer canvas — `drawImage` *and*
+`gl.readPixels`, which agree with each other exactly — return the same values for the whole render, while the
+composited display visibly goes from grainy to clean over that same render. Both observations are solid and
+repeated; `.283` has no mechanism for the contradiction and is not guessing at one.
 
 ## Summary
 
@@ -1934,7 +1936,7 @@ frame time on the weak tier, which is why this is a call and not a unilateral fi
 | k1 | WINDOW-SKY-DARK | render bug | ❌ **CLOSED v0.31.5.128** — mis-attributed. The `auto` tier ends at `high`, so the transmissive pane was correct; the dark pane was (k2) rendered by two tiers. Both tiers now read ~195 |
 | m | PHOTO-VIGNETTE | look call | ⏳ **OPEN v0.31.5.244** — built, measured and reverted. Extending the lens vignette to the photographic look on the AO-only composer matches the PHOTO-GRAIN precedent and the tier that already ships it, but costs wall falloff 0.74 → 0.66 against a 0.85–0.86 photographic reference |
 | l | WINDOW-LUMINANCE | render + product look | ⏳ **OPEN v0.31.5.236**, figures corrected in `.237` — photographs clip 15–39 % of their glazing; the app clips **0.0 %** at every hour, so the pane reads as a panel not an opening. Night (21:00) is already correct and must not regress |
-| t | HQ-CANVAS-PLACEHOLDER | render bug | 🐞 **REAL DEFECT v0.31.5.282** — the HQ canvas shows a static cold/textureless placeholder for the whole render and only *sometimes* blits the finished trace at completion (1 of 3 runs never did). Invalidated every traced figure in the arc; the probe now refuses to save a placeholder |
+| t | HQ-DENOISE-SHIFT | render bug + look call | ❌ **`.282` CLAIM WITHDRAWN v0.31.5.283** (screenshots prove the render displays normally) — **re-filed**: the AI denoise pass shifts level ~30 % and flips R−B −14.2 → +8.1, and `toDataURL` prefers it, so the saved PNG differs from the watched render and differs between runs depending on whether the pass succeeded |
 | k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect

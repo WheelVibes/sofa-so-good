@@ -1191,6 +1191,91 @@ if (process.env.PT === '1') {
     // the trajectory against both at once. Reads a small patch via drawImage
     // onto a 2D scratch canvas -- toDataURL of a 1920x1080 WebGL canvas every
     // 4 s would itself perturb the timing.
+    if (process.env.PTLIST === '1' && got > 0 && got < 40) {
+      // `.283`: drawImage AND gl.readPixels both return the same frozen frame,
+      // while a page screenshot of the SAME modal shows a normal evolving trace.
+      // Two independent pixel reads cannot both be stale, so the canvas being
+      // read is simply not the canvas being displayed -- the "largest canvas
+      // that is not the scene" heuristic is picking the wrong one. Inventory it.
+      const inv = await page.evaluate(() =>
+        [...document.querySelectorAll('canvas')].map((c, i) => {
+          const r = c.getBoundingClientRect()
+          return {
+            i,
+            w: c.width,
+            h: c.height,
+            css: `${Math.round(r.width)}x${Math.round(r.height)}`,
+            vis: r.width > 0 && r.height > 0,
+            parent: c.parentElement?.className?.toString().slice(0, 40) || '',
+          }
+        }),
+      )
+      for (const c of inv) {
+        console.log(
+          `  PTLIST [${c.i}] backing=${c.w}x${c.h} css=${c.css} visible=${c.vis} parent="${c.parent}"`,
+        )
+      }
+    }
+    if (process.env.PTGL === '1') {
+      // `.283`: page screenshots prove the DISPLAYED render evolves and converges
+      // normally, while drawImage reads of the same canvas return a frozen early
+      // frame. So the freeze is a read artefact. The renderer is constructed with
+      // preserveDrawingBuffer:true, so gl.readPixels should see live pixels --
+      // this compares the two reads side by side on the same patch.
+      const cmp = await page.evaluate(() => {
+        const list = [...document.querySelectorAll('canvas')]
+        const c = list
+          .filter((x) => x !== list[0] && x.width > 16 && x.height > 16)
+          .sort((a, b) => b.width * b.height - a.width * a.height)[0]
+        if (!c) return null
+        const w = Math.round(c.width * 0.1)
+        const h = Math.round(c.height * 0.1)
+        const sx = Math.round(c.width * 0.45)
+        const sy = Math.round(c.height * 0.18)
+        const stats = (get) => {
+          let sl = 0
+          let sl2 = 0
+          let n = 0
+          for (let i = 0; i < w * h; i++) {
+            const [r, g, b] = get(i)
+            const l = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            sl += l
+            sl2 += l * l
+            n++
+          }
+          const m = sl / n
+          return { L: m, sd: Math.sqrt(Math.max(0, sl2 / n - m * m)) }
+        }
+        const s2 = document.createElement('canvas')
+        s2.width = w
+        s2.height = h
+        const ctx = s2.getContext('2d', { willReadFrequently: true })
+        ctx.drawImage(c, sx, sy, w, h, 0, 0, w, h)
+        const d2 = ctx.getImageData(0, 0, w, h).data
+        const draw = stats((i) => [d2[i * 4], d2[i * 4 + 1], d2[i * 4 + 2]])
+        const gl = c.getContext('webgl2') || c.getContext('webgl')
+        if (!gl) return { draw, gl: null }
+        const px = new Uint8Array(w * h * 4)
+        // readPixels origin is bottom-left; flip the y of the patch.
+        gl.readPixels(sx, c.height - sy - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px)
+        const glr = stats((i) => [px[i * 4], px[i * 4 + 1], px[i * 4 + 2]])
+        return { draw, gl: glr }
+      })
+      if (cmp) {
+        const g = cmp.gl ? `L=${cmp.gl.L.toFixed(1)} sd=${cmp.gl.sd.toFixed(2)}` : 'n/a'
+        console.log(
+          `  PTGL samples=${got} drawImage L=${cmp.draw.L.toFixed(1)} sd=${cmp.draw.sd.toFixed(2)}  |  readPixels ${g}`,
+        )
+      }
+    }
+    if (process.env.PTSHOT === '1') {
+      // What the USER sees, as opposed to what a canvas read returns (`.283`).
+      // `.282` filed the frozen canvas as a product defect on the strength of
+      // drawImage reads alone; a page screenshot goes through the compositor
+      // instead, so if it evolves while the canvas read does not, the freeze is
+      // a read artefact and (t) is wrong.
+      await page.screenshot({ path: `${OUT}/prog-${String(got).padStart(3, '0')}.png` })
+    }
     if (process.env.PTTRACE === '1') {
       const st = await page.evaluate(patchStatsFn)
       if (st) {
@@ -1222,51 +1307,38 @@ if (process.env.PT === '1') {
   // which asserts on the image actually about to be saved rather than on a
   // counter that says nothing about what the canvas contains.
   if (process.env.PTNOWAIT !== '1') {
-    // Stability is NOT a completion signal -- the placeholder is perfectly
-    // stable too, so a "hold still for 3 polls" test can and did exit before the
-    // flip. What is diagnostic is that the patch CHANGES: the placeholder reads
-    // L~180 sd~0.93 R-B~-14 (smooth, cold, no texture) and the finished trace
-    // L~116 sd~1.15 R-B~+8 (textured, warm). So record the signature while the
-    // render is still running and wait for it to move.
-    const before = await page.evaluate(patchStatsFn)
-    const sigOf = (x) => (x ? `${x.L.toFixed(2)}/${x.sd.toFixed(2)}/${x.rb.toFixed(2)}` : '')
-    const sig0 = sigOf(before)
+    // Wait for the render to finish, then capture by SCREENSHOT (`.283`).
+    // Reading the canvas's pixels does not work: drawImage and gl.readPixels
+    // both return a frozen early frame, they agree exactly with each other, and
+    // they disagree with what the compositor shows for the same element (page
+    // screenshots of that modal evolve from noisy at 6 samples to converged at
+    // 256, exactly as they should). Two independent pixel reads cannot both be
+    // stale by accident, and the canvas inventory shows the right element is
+    // being picked -- so the read path is unsound and the compositor is the only
+    // instrument known to reflect reality. Costs resolution: the modal preview is
+    // ~694 CSS px wide, so the capture is ~1041x585 rather than 1920x1080. The
+    // anchor sampler works in normalized coords, so that is a precision cost,
+    // not a correctness one.
+    let stable = 0
+    let last = got
     const w0 = Date.now()
-    let flipped = false
-    let sig = sig0
-    while (Date.now() - w0 < 300_000) {
+    while (stable < 3 && Date.now() - w0 < 300_000) {
       await new Promise((r) => setTimeout(r, 4000))
       const m2 = await page.evaluate(() => {
         const t = document.body.innerText || ''
         const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
         return r ? Number(r[1]) : null
       })
-      if (m2 != null) got = m2
-      sig = sigOf(await page.evaluate(patchStatsFn))
-      // A magnitude threshold, not `!==`: a first attempt used exact inequality
-      // and tripped on 131.97 -> 132.14, i.e. on noise, then saved the
-      // placeholder anyway. The real flip moves L by ~60 and sd by ~0.2-12.
-      const now = await page.evaluate(patchStatsFn)
-      if (
-        now &&
-        before &&
-        (Math.abs(now.L - before.L) > 5 || Math.abs(now.sd - before.sd) > 0.15)
-      ) {
-        flipped = true
-        break
+      if (m2 != null) {
+        if (m2 === last) stable += 1
+        else {
+          stable = 0
+          last = m2
+          got = m2
+        }
       }
     }
-    // One extra settle poll so the read lands after the flip, not during it.
-    await new Promise((r) => setTimeout(r, 4000))
-    const t = ((Date.now() - w0) / 1000).toFixed(0)
-    console.log(`  PT: ${got} samples, patch ${sig0} -> ${sig} after ${t}s`)
-    if (!flipped) {
-      throw new Error(
-        `PT: the tracer canvas never changed from its mid-render placeholder in 300s ` +
-          `(patch ${sig0}). The saved image would NOT be the path trace -- see \`.282\`. ` +
-          `Refusing to publish a placeholder measurement.`,
-      )
-    }
+    console.log(`  PT: settled at ${got} samples after ${((Date.now() - w0) / 1000).toFixed(0)}s`)
   }
   // PTHOLD=<seconds> -- keep sampling AFTER the target count is reached (`.282`).
   // PTTRACE showed the displayed canvas frozen for a whole 256-sample render, so
@@ -1296,22 +1368,19 @@ if (process.env.PT === '1') {
   // at that element's box and the canvas box runs under the chrome. toDataURL
   // cannot include DOM at all, and it returns full render resolution instead of
   // the CSS-scaled preview.
-  const png = await page.evaluate(() => {
+  const rect = await page.evaluate(() => {
     const list = [...document.querySelectorAll('canvas')]
-    // The tracer's canvas is the largest one that is not the live scene canvas
-    // (which is first in document order and sized to the viewport).
-    const scene = list[0]
-    const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
-    const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
+    const c = list
+      .filter((x) => x !== list[0] && x.width > 16 && x.height > 16)
+      .sort((a, b) => b.width * b.height - a.width * a.height)[0]
     if (!c) return null
-    try {
-      return { url: c.toDataURL('image/png'), w: c.width, h: c.height }
-    } catch {
-      return null
-    }
+    const r = c.getBoundingClientRect()
+    return { x: r.x, y: r.y, width: r.width, height: r.height }
   })
-  if (!png) throw new Error('PT: could not read a tracer canvas')
-  fs.writeFileSync(`${OUT}/pathtraced.png`, Buffer.from(png.url.split(',')[1], 'base64'))
+  if (!rect || rect.width < 16) throw new Error('PT: could not locate the tracer canvas')
+  await page.screenshot({ path: `${OUT}/pathtraced.png`, clip: rect })
+  const shotMeta = await sharp(`${OUT}/pathtraced.png`).metadata()
+  const png = { w: shotMeta.width, h: shotMeta.height }
   console.log(`pathtraced (${got} samples, ${png.w}x${png.h}) -> ${OUT}/pathtraced.png`)
 }
 // --- analysis -------------------------------------------------------------
