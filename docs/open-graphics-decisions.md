@@ -2081,10 +2081,30 @@ that **it is the only substituted material** — 14 Lambert planes swapped to `M
 `pbrStandInFor`, while the 99 walls are natively Standard and need no swap. The substitution is applied *after*
 `root.add(clone)`, inside a promise collected in `pending`.
 
-**The test:** a ceiling the user has **FINISHED** goes through `RoomCeiling.tsx` with a native
-`MeshStandardMaterial` and is never substituted (`Ceiling.tsx` says so in its own comment). If the fault is
-substitution-linked it should **never** appear on a finished ceiling; if it is about ceilings-as-such it should
-appear just as often.
+**❌ THE SUBSTITUTION LEAD IS REFUTED v0.31.5.304.** New probe knob `CEILSTD=1` replaces every
+`MeshLambertMaterial` in the **live scene** with an equivalent native `MeshStandardMaterial` (confirmed:
+`CEILSTDCHECK {"swapped":14,...}`), so `pbrStandInFor` has nothing to substitute. Identical to the decimal:
+
+| | traced ceiling, class B | traced ceiling, class A | sidewall B / A |
+| --- | --- | --- | --- |
+| with substitution | 1.0 | 181.5 | 1.2 / 16.1 |
+| **without** substitution | **1.0** | **181.5** | 1.2 / 15.7 |
+
+Same magnitude, same bimodality, same frequency. Sixteenth mechanism refuted.
+
+**`.253`'s `pbrStandInFor` is cleared** — the arc's only shipped `src/` change, which `.301` had under suspicion
+because the ceiling is exactly the surface it touches. The fault survives its complete removal, and `.302`
+showed it does its job correctly. **It stays.**
+
+**What still distinguishes the ceiling from the walls:** not material type (`.304`), not geometry type — the 99
+correctly-rendering plaster planes are also `PlaneGeometry` (`.301`) — not back-face orientation (`.302`), not
+presence in the snapshot (`.302`). What remains is **where it is**: the topmost surface, the only large
+down-facing one, the one thing between the camera and the environment when the camera pitches up.
+
+**Next test, rivals disagreeing.** Hide the ceiling entirely; `buildTracerScene` honours the visibility chain
+(`if (!p.visible) return`), so an invisible ceiling is genuinely absent rather than mis-shaded. **Sole cause ⇒**
+every run dark and *stable*, no bimodality. **Bimodality persists ⇒** the ceiling is a victim, not the cause,
+and (u) is about the environment's contribution merely showing up most visibly there.
 
 **Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
 as a surface in every run.

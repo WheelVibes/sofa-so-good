@@ -10342,3 +10342,62 @@ substituted (`Ceiling.tsx` states this in its own comment). Substitution-linked 
 finished ceiling. Ceiling-as-such ⇒ it appears just as often. **No mechanism claimed until that runs.**
 
 Nothing changed in `src/` or in the probe.
+
+---
+
+## Round .304 — the substitution hypothesis is refuted; `.253`'s `pbrStandInFor` is cleared
+
+`.303` named the ceiling's one distinguishing property — being **the only substituted material** — and set a
+test with disagreeing rival outcomes.
+
+### The test, without touching `src/`
+
+New probe knob `CEILSTD=1` replaces every `MeshLambertMaterial` in the **live scene** with an equivalent native
+`MeshStandardMaterial` (same colour, roughness 1, metalness 0, same `side`), built by cloning an existing
+un-mapped Standard material since the page does not expose the three constructors. `pbrStandInFor` then has
+nothing to do — confirmed by `CEILSTDCHECK {"swapped":14,"kinds":{"PlaneGeometry#141414":14}}`.
+
+### Result: identical to the decimal
+
+Room repainted `f5f5f0:141414;fafafa:141414`, normal grey environment, bedroom3 `PITCH=0.30`, medium tier,
+photographic look, hour 13, 256 samples (16:43, 16:48 +08):
+
+| | ceiling, class B | ceiling, class A | sidewall B / A |
+| --- | --- | --- | --- |
+| with substitution (`k2`/`k1`) | 1.0 | 181.5 | 1.2 / 16.1 |
+| without substitution (`s1`/`s2`) | 1.0 | 181.5 | 1.2 / 15.7 |
+
+Same magnitude, same bimodality, one class-A and one class-B run in two attempts — exactly as before.
+**Refuted**; the sixteenth mechanism refuted in this arc.
+
+### Side effect worth recording: the arc's only shipped change is cleared
+
+`.253`'s `pbrStandInFor` is the one code change to come out of these rounds, and `.301` had it under suspicion
+since the ceiling is exactly the surface it touches. The fault survives its complete removal, and `.302` showed
+it does its job correctly in the snapshot census. **It stays.**
+
+### What still distinguishes the ceiling
+
+Not material type (this round); not geometry type — the 99 correctly-rendering plaster planes are also
+`PlaneGeometry` (`.301`); not back-face orientation (`.302`); not snapshot presence (`.302`). What remains is
+**where it is**: topmost surface, only large down-facing one, the thing between camera and environment on an
+upward pitch.
+
+### Next test
+
+Hide the ceiling entirely — `buildTracerScene` honours the visibility chain, so an invisible ceiling is
+genuinely absent rather than mis-shaded.
+
+- **Sole cause ⇒** every run dark and *stable*; no bimodality.
+- **Bimodality persists ⇒** the ceiling is a victim, not the cause, and (u) is about the environment's
+  contribution merely showing up most visibly there.
+
+### Status
+
+Sixteen mechanisms refuted; `.303`'s characterisation unchanged and unchallenged — *in roughly half of HQ
+renders the ceiling is not rendered as a surface; the ceiling region shows the environment.* Each elimination
+narrows the fix and none has touched the statement, which is why (u) stays fixable on its symptom without the
+final mechanistic step.
+
+No `src/` change. The probe keeps `CEILSTD=1`, which documents a refuted hypothesis and is the cheap way to take
+`pbrStandInFor` out of any future experiment.

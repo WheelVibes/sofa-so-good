@@ -492,6 +492,7 @@ const shotFor = async (pitch) => {
   if (typeof applyLinear === 'function') await applyLinear()
   if (typeof applyFillTint === 'function') await applyFillTint()
   if (typeof applyRecolor === 'function') await applyRecolor()
+  if (typeof applyCeilStd === 'function') await applyCeilStd()
   if (typeof applyHideGrille === 'function') await applyHideGrille()
   if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
@@ -727,6 +728,59 @@ const applyRecolor = !RECOLOR
         return { repainted: n, kinds }
       }, pairs)
       console.log(`RECOLORCHECK ${JSON.stringify(res)}`)
+      await new Promise((r) => setTimeout(r, 800))
+    }
+// CEILSTD=1 -- swap every MeshLambertMaterial in the LIVE scene for an equivalent
+// native MeshStandardMaterial before the tracer snapshot is taken (`.304`).
+//
+// `.303` established that (u) and (v) are one fault -- in ~half of HQ renders the
+// ceiling is not rendered as a surface -- and that the ceiling's only
+// distinguishing property is being the ONLY SUBSTITUTED material: 14 Lambert
+// planes swapped to Standard by `.253`'s `pbrStandInFor`, while the 99 walls are
+// natively Standard and render correctly. This knob removes the need for the
+// substitution without touching `src/`: if the fault is substitution-linked it
+// must never appear with CEILSTD=1; if it is about ceilings as such it appears
+// just as often. The rivals disagree, which is what makes it a test (`.302`).
+//
+// Builds the replacement by CLONING an existing MeshStandardMaterial from the
+// scene -- the page does not expose the three constructors.
+const CEILSTD = process.env.CEILSTD === '1'
+const applyCeilStd = !CEILSTD
+  ? null
+  : async () => {
+      const res = await page.evaluate(() => {
+        let donor = null
+        window.__three.scene.traverse((o) => {
+          if (donor || !o.isMesh) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          for (const m of mats) if (m?.isMeshStandardMaterial && !m.map) donor = m
+        })
+        if (!donor) return { error: 'no un-mapped MeshStandardMaterial donor in the scene' }
+        let swapped = 0
+        const kinds = {}
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          const next = mats.map((m) => {
+            if (!m?.isMeshLambertMaterial) return m
+            const sub = donor.clone()
+            sub.color.copy(m.color)
+            sub.roughness = 1
+            sub.metalness = 0
+            sub.side = m.side
+            sub.map = m.map ?? null
+            swapped++
+            kinds[`${o.geometry?.type ?? '?'}#${m.color.getHexString()}`] =
+              (kinds[`${o.geometry?.type ?? '?'}#${m.color.getHexString()}`] ?? 0) + 1
+            return sub
+          })
+          if (next.some((m, i) => m !== mats[i]))
+            o.material = Array.isArray(o.material) ? next : next[0]
+        })
+        return { swapped, kinds }
+      })
+      console.log(`CEILSTDCHECK ${JSON.stringify(res)}`)
+      if (res.error) throw new Error(`CEILSTD: ${res.error}`)
       await new Promise((r) => setTimeout(r, 800))
     }
 const HIDEGRILLE = process.env.HIDEGRILLE === '1'

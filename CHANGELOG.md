@@ -5,6 +5,61 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.304 — the substitution hypothesis is refuted, and `.253`'s `pbrStandInFor` is cleared: removing the swap entirely changes nothing
+
+`.303` named the ceiling's one distinguishing property — that it is **the only substituted material** in the
+tracer snapshot — and set a test whose rival outcomes disagree. The test ran. **The substitution is not
+involved.**
+
+**The test, without touching `src/`.** New probe knob `CEILSTD=1` replaces every `MeshLambertMaterial` in the
+**live scene** with an equivalent native `MeshStandardMaterial` (same colour, roughness 1, metalness 0, same
+`side`), built by cloning an existing un-mapped Standard material from the scene since the page does not expose
+the three constructors. With that applied, `pbrStandInFor` has nothing to substitute — confirmed by
+`CEILSTDCHECK {"swapped":14,"kinds":{"PlaneGeometry#141414":14}}`.
+
+**Result — identical, to the decimal** (room repainted `f5f5f0:141414;fafafa:141414`, normal grey environment,
+bedroom3 `PITCH=0.30`, medium tier, photographic look, hour 13, 256 samples; runs 16:43 and 16:48 +08):
+
+| | traced ceiling, class B | traced ceiling, class A | sidewall B / A |
+| --- | --- | --- | --- |
+| **with** substitution (`.303`'s `k2`/`k1`) | **1.0** | **181.5** | 1.2 / 16.1 |
+| **without** substitution (`s1`/`s2`) | **1.0** | **181.5** | 1.2 / 15.7 |
+
+Same magnitude, same bimodality, same frequency — one class-A and one class-B run in two attempts, exactly as
+before. **Refuted.** That is the sixteenth mechanism this arc has proposed and refuted.
+
+**A worthwhile side effect: the arc's only shipped `src/` change is cleared.** `.253`'s `pbrStandInFor` was the
+one code change to come out of these seventy-odd rounds, and `.301` had it under suspicion (the ceiling is
+exactly the surface it touches). It is not implicated in (u): the fault survives its complete removal, and
+`.302` had already shown it does its job correctly (right colour, right type, right roughness in the snapshot
+census). **It stays.**
+
+**So what is left that distinguishes the ceiling from the walls?** Not material type (this round), not geometry
+type — the 99 correctly-rendering plaster planes are also `PlaneGeometry` (`.301`) — not orientation via
+back-face culling (`.302`, `rotation=[π/2,0,0]` puts the normal down into the room), not presence in the
+snapshot (`.302`). What remains is **where it is**: the ceiling is the topmost surface, the only large
+down-facing one, and the one thing between the camera and the environment when the camera pitches up.
+
+**Next test, with predictions the rivals disagree about.** Hide the ceiling entirely — `buildTracerScene`
+honours the visibility chain (`if (!p.visible) return`), so an invisible ceiling is genuinely absent from the
+snapshot rather than mis-shaded.
+
+- If the ceiling is the **sole** cause, every run should then be dark and **stable** — no bimodality, because
+  the flooding surface is gone.
+- If the bimodality **persists** with no ceiling in the scene, the ceiling is a *victim* rather than the cause,
+  and (u) is something about the environment's contribution that merely shows up most visibly on the ceiling.
+
+Those are genuinely different outcomes, which is the standard `.302` set and `.303` met.
+
+**Where this leaves (u).** Sixteen mechanisms refuted, and the characterisation from `.303` unchanged and
+unchallenged: *in roughly half of HQ renders the ceiling is not rendered as a surface; the ceiling region shows
+the environment.* Every elimination narrows the fix, and none of them has yet touched the statement itself —
+which is why (u) remains fixable on its symptom (the ceiling must render as a surface in every run) without the
+final mechanistic step.
+
+**Unchanged:** no `src/` change. The probe keeps `CEILSTD=1`, which documents a refuted hypothesis and is the
+cheap way to take `pbrStandInFor` out of any future experiment.
+
 ## v0.31.5.303 — (u) and (v) are ONE fault: in half of HQ renders the ceiling is not rendered as a surface, it shows the environment
 
 `.302` narrowed the defect to "downstream of the snapshot" and its own method note said to write down what the
