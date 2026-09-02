@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.344 — the controlled height experiment is not performable from the probe; a false bug report avoided; and `.343`'s bathroom ratios were my own error
+
+`.343` named the cleaner test for (w)'s geometric hypothesis: vary **ceiling height inside one room**, which
+moves the wall/ceiling ratio while holding room, furniture, window and finishes fixed. This round attempted it.
+
+**The mechanism exists.** `PlanShell.tsx:911` renders per-room ceilings as `r.ceilingHeight ?? lp.ceilingHeight`,
+and the shipped flat authors per-room overrides — `bath1` and `bath2` carry **2.4 m** in
+`src/apartment/constants.ts` (dropped ceilings for plumbing).
+
+**But patching it from the store removes the ceiling rather than moving it.** New `ROOMH=<metres>` knob, store
+readback confirming `null → 4.2` and `null → 1.6`:
+
+| | ceiling patch | R−B |
+| --- | --- | --- |
+| baseline, no `ROOMH` | **126.9** | +11.5 |
+| `ROOMH=4.2` | **195.5** | **−27.0** |
+| `ROOMH=1.6` | **195.5** | **−27.0** |
+
+Identical to the decimal for both values, and 195.5 / −27.0 is the **sky**, not a ceiling. The frames confirm
+it: walls with open sky above, and the wall tops in the same place at 1.6 as at 4.2. So the *value* has no
+effect; setting the field at all drops the room's ceiling.
+
+**I am not filing that as an app defect, and the distinction matters.** The shipped per-room overrides render
+**correctly** — `.343`'s bath1 frame shows a proper ceiling at 2.4 m (patch 115.7, sd 3.3). So my store patch is
+incoherent with the app's data flow in a way I have not localised, *not* a user-facing bug. The plausible,
+false version of this round would have been a bug report titled "setting a room's ceiling height deletes its
+ceiling" — which would have been wrong, and would have cost someone a day.
+
+Related: there is **no setter for per-room `ceilingHeight` in `src/state/` and no UI control** for it; it is
+plan-authored data. So the field is written only by the registry and importers, and a direct store patch is not
+a supported operation.
+
+**So the controlled experiment needs an `src/` change** and is out of scope for a measurement round. The
+geometric hypothesis stays where `.343` left it: two points, fitted, untested.
+
+**And the round corrected my own instrument.** `.343`'s ratio table used the **global** height for every room
+and ignored per-room overrides, so the bathroom figures were ~8 % too high:
+
+| room | `.343` (wrong) | corrected |
+| --- | --- | --- |
+| bath1 | 5.229 | **4.827** (H = 2.4) |
+| bath2 | 5.782 | **5.337** (H = 2.4) |
+
+`ROOMDIMS` now reads `r.ceilingHeight ?? global` and flags which rooms use an override. All other rooms are
+unaffected (H = 2.6). The registered bath1 prediction from `.343` therefore shifts: linear-in-ratio gives
+**≈ −44 %**, not ≈ −50 %.
+
+Worth noting *why* the error slipped through: the instrument was written to compute a ratio, and the ratio
+looked reasonable for every room, so nothing about the output signalled that one input was wrong. It surfaced
+only because this round had to read `src/apartment/constants.ts` for a different reason.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.343 — scoping the geometric hypothesis: `mainBedroom` is NOT an intermediate point, the kitchen cannot be posed, and the only strong test is confounded
 
 `.342` proposed that (w)'s room-dependence is geometric (wall-to-ceiling area ratio) and named `mainBedroom` as

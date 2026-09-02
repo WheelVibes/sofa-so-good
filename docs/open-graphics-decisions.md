@@ -3269,7 +3269,7 @@ Two points define a line by construction. A third is needed, and this plan does 
   so it depends on the *reciprocals* of the dimensions; mainBedroom differs from bedroom3 only in width.
 - **The kitchen (3.960) cannot be posed** — it has no window opening, and the probe's pose logic is
   window-based. Same for corridor, serviceYard and householdShelter.
-- **The bathrooms (5.229, 5.782) are the only well-separated points, and they are confounded**: walls are
+- **The bathrooms (4.827, 5.337 — corrected in `.344`; `.343` used the global height and was ~8 % high) are the only well-separated points, and they are confounded**: walls are
   tiled by default (so a white baseline must be set explicitly to paint, else the comparison is tile → paint),
   and both contain a large specular glass screen and a mirror — which contribute to ceiling illumination in a
   way a wall/ceiling *area* ratio cannot represent.
@@ -3285,3 +3285,30 @@ Two points define a line by construction. A third is needed, and this plan does 
 
 Ready for whoever picks it up: bath1 `PITCH=0.40`, ceiling patch `0.30,0.10,0.20,0.12` (sd 3.3), both arms on
 explicit paint finishes. Registered prediction: linear-in-ratio → ≈ −50 %; strong saturation → materially less.
+
+### ⏳ THE CONTROLLED HEIGHT EXPERIMENT NEEDS AN `src/` CHANGE (v0.31.5.344)
+
+`.343` proposed varying ceiling height inside one room as the clean test of the geometric hypothesis. The
+mechanism exists — `PlanShell.tsx:911` honours `r.ceilingHeight ?? lp.ceilingHeight`, and bath1/bath2 ship 2.4 m
+overrides that render correctly — but **patching the field from the store removes the room's ceiling instead of
+moving it** (ceiling patch 195.5 / R−B −27.0, i.e. the sky, identically at 1.6 and 4.2, against a 126.9
+baseline).
+
+There is no setter in `src/state/` and no UI control for per-room `ceilingHeight`; it is plan-authored data. So
+this is **not** a user-facing defect — the shipped overrides work — and the experiment simply cannot be run from
+the probe.
+
+**Corrected ratios** (`.343` applied the global 2.6 to every room):
+
+| room | wall/ceiling | note |
+| --- | --- | --- |
+| livingDining | 2.446 | measured −8.3 % |
+| bedroom3 | 3.278 | measured −20.8 % |
+| bath1 | **4.827** | H = 2.4 per-room |
+| bath2 | **5.337** | H = 2.4 per-room |
+
+Registered bath1 prediction shifts to **≈ −44 %** (linear-in-ratio), from `.343`'s ≈ −50 %.
+
+**So the state of the geometric rule is unchanged: two points, fitted, untested.** The room-dependence itself
+remains measured and real (2.3×). For the decision, that means: shipping `.339`'s table globally over-corrects
+large rooms ~2.5×, and the *rule* for scaling it per room is plausible but unverified.

@@ -575,6 +575,7 @@ const shotFor = async (pitch) => {
   if (typeof applyFloorDye === 'function') await applyFloorDye()
   if (typeof applyDyeExcept === 'function') await applyDyeExcept()
   if (typeof applyEnvDump === 'function') await applyEnvDump()
+  if (typeof applyRoomH === 'function') await applyRoomH()
   if (typeof applyRoomDims === 'function') await applyRoomDims()
   return canvas.screenshot({ type: 'png' })
 }
@@ -1190,10 +1191,16 @@ const applyRoomDims =
             windows: allOf(plan, 'openings')
               .filter((o) => o.kind === 'window')
               .map((o) => o.id),
+            // Per-room ceilingHeight OVERRIDES the global one -- bath1 and bath2 carry
+            // 2.4 in `src/apartment/constants.ts` (dropped ceilings for plumbing), and
+            // `PlanShell` honours it (`r.ceilingHeight ?? lp.ceilingHeight`). `.343`
+            // used the global height for every room and so reported the bathroom
+            // ratios ~8 % too high.
             rooms: allOf(plan, 'rooms').map((r) => ({
               id: r.id,
               w: r.width,
               d: r.depth,
+              h: r.ceilingHeight ?? null,
             })),
           }
         })
@@ -1201,14 +1208,71 @@ const applyRoomDims =
         console.log(`ROOMDIMS wallHeight=${h}`)
         console.log(`ROOMDIMS windows=${JSON.stringify(res.windows)}`)
         for (const r of res.rooms) {
+          const rh = r.h ?? h
           const ceil = r.w * r.d
-          const wall = h ? 2 * h * (r.w + r.d) : null
+          const wall = rh ? 2 * rh * (r.w + r.d) : null
           console.log(
-            `ROOMDIMS ${r.id}  ${r.w}x${r.d}  ceiling=${ceil.toFixed(2)}` +
+            `ROOMDIMS ${r.id}  ${r.w}x${r.d}  H=${rh}${r.h ? ' (per-room)' : ''}` +
+              `  ceiling=${ceil.toFixed(2)}` +
               (wall ? `  wall=${wall.toFixed(2)}  wall/ceiling=${(wall / ceil).toFixed(3)}` : ''),
           )
         }
       }
+// ROOMH=<metres> -- set the POSED room's ceiling height, changing its wall/ceiling
+// area ratio while holding room, furniture, window and finishes fixed.
+//
+// `.343` established that the geometric hypothesis for (w)'s room-dependence cannot be
+// tested across rooms in this plan: mainBedroom is within 2.7 % of bedroom3 on the
+// ratio, the kitchen has no window so cannot be posed at all, and the bathrooms -- the
+// only well-separated points -- are confounded by tiled walls plus a specular screen
+// and mirror.
+//
+// Varying height inside ONE room is the cleaner experiment. The ratio is
+// 2H(1/W + 1/D), so for bedroom3 (2.885 x 3.525) H = 1.6 gives 2.017 (below
+// livingDining's 2.446) and H = 4.2 gives 5.295 (at bath1's 5.229) -- the whole range,
+// same furniture, same window, same finishes.
+//
+// `PlanShell.tsx:911` reads `r.ceilingHeight ?? lp.ceilingHeight`, so a per-room
+// override is honoured by the 3D shell. Reads back after the change, because an
+// intervention that silently fails to land looks exactly like one with no effect
+// (`.327`, `.340`).
+const applyRoomH = !process.env.ROOMH
+  ? null
+  : async () => {
+      const target = Number(process.env.ROOMH)
+      if (!Number.isFinite(target) || target <= 0) throw new Error('ROOMH: expected metres > 0')
+      const res = await page.evaluate(
+        ({ room, h }) => {
+          const st = window.__store
+          const plan = st.getState().floorPlan
+          const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+          const hit = levelsOf(plan)
+            .flatMap((l) => l.rooms ?? [])
+            .filter((r) => r.id === room)
+          if (!hit.length) return { error: `no room ${room}` }
+          st.setState((s) => {
+            const fp = s.floorPlan
+            const patch = (rooms) =>
+              (rooms ?? []).map((r) => (r.id === room ? { ...r, ceilingHeight: h } : r))
+            return {
+              floorPlan: fp.levels
+                ? { ...fp, levels: fp.levels.map((l) => ({ ...l, rooms: patch(l.rooms) })) }
+                : { ...fp, rooms: patch(fp.rooms) },
+            }
+          })
+          const after = levelsOf(st.getState().floorPlan)
+            .flatMap((l) => l.rooms ?? [])
+            .find((r) => r.id === room)
+          return { was: hit[0].ceilingHeight ?? null, now: after?.ceilingHeight ?? null }
+        },
+        { room: ROOM, h: target },
+      )
+      if (res.error) throw new Error(`ROOMH: ${res.error}`)
+      if (res.now !== target)
+        throw new Error(`ROOMH: did not land -- store reports ${res.now}, asked ${target}`)
+      console.log(`ROOMH ${ROOM}: ceilingHeight ${res.was} -> ${res.now}`)
+      await new Promise((r) => setTimeout(r, 1500))
+    }
 const BGSHARP = process.env.BGSHARP || ''
 const applyBgSharp = !BGSHARP
   ? null

@@ -921,3 +921,29 @@ quantity, not by how different the rooms look** (`.338`'s lesson, missed again i
 
 Usable pose if needed: bath1 `PITCH=0.40`, ceiling patch `0.30,0.10,0.20,0.12` (sd 3.3). The neighbouring rect
 `0.55,0.08,0.18,0.10` straddles the shower screen (sd 35.0).
+
+## Per-room ceilingHeight: read by the shell, but not patchable from the store
+
+`PlanShell.tsx:911` renders per-room ceilings as `r.ceilingHeight ?? lp.ceilingHeight`, and the shipped flat
+authors overrides — **bath1 and bath2 carry 2.4 m** in `src/apartment/constants.ts` (dropped ceilings for
+plumbing). Those render correctly.
+
+But patching `floorPlan.rooms[].ceilingHeight` directly from the store **removes the room's ceiling** rather
+than moving it, identically for 1.6 and 4.2 (ceiling patch 195.5 / R−B −27.0 — the sky — against a baseline of
+126.9). There is **no setter in `src/state/` and no UI control** for the field, so a direct store patch is not a
+supported operation and this is *not* evidence of a user-facing defect. Do not file it as one; the shipped
+overrides work.
+
+Consequence: **the controlled "vary ceiling height in one room" experiment needs an `src/` change** and cannot
+be done from the probe.
+
+## ROOMDIMS must honour per-room ceiling heights
+
+`.343` reported the ratio table using the **global** height for every room, making the bathroom figures ~8 % too
+high (bath1 5.229 → **4.827**; bath2 5.782 → **5.337**). Corrected in `.344`; the knob now prints `H=` per room
+and flags overrides.
+
+The error slipped through because **the output looked reasonable for every room** — a ratio is a plausible
+number whatever height you feed it, so nothing in the result signalled a wrong input. It surfaced only when
+`src/apartment/constants.ts` was read for an unrelated reason. When an instrument derives a quantity from a
+shared default, print the input alongside the output.
