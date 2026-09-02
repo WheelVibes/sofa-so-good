@@ -5,6 +5,66 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.289 - hunting the .288 failure mode: features complete except for their data
+
+No new feature. `.288` found the tile setting-out table had been rendering **empty since it
+shipped** — code finished, tests green, and no floor material carried a `moduleMm`, so it produced
+nothing and nothing failed, because "no rows" is a legitimate state. That is a failure mode worth
+hunting deliberately rather than tripping over, so this measures it across the shipped content.
+
+Counted by importing the real catalogs and templates, not by grep (a lesson from .286):
+
+| Data | Coverage |
+|---|---|
+| `moduleMm`, floor | 8/37 (22%) — fine after .288 |
+| `moduleMm`, **wall** | **2/57 (4%)** — and nothing consumes it |
+| `PlanWall.structure` on templates | **0/225 (0%)** |
+| `PlanRoom.category` on templates | 154/166 (93%) |
+| `PlanRoom.floor` on templates | 166/166 (100%) |
+| `FurnitureDef.verticalSpan` | 54/159 (34%) — expected, only hung pieces need it |
+
+`FurnitureDef.price` reads 0/159 and is NOT a gap — prices live in `furniturePrices.ts`, not on the
+def. Recorded so the next audit does not chase it.
+
+**Finding A: there is no wall-tile setting-out at all.** Two wall tiles declare a module and no
+consumer exists. Worth building — wall tiling is where a bad cut is most visible, at eye level
+rather than underfoot — but it is NOT "run `planTileCoursing` on walls": a wall run is set out from
+a datum course rather than centred, the field is interrupted by openings, and the four walls of a
+wet room must course consistently around corners, which is a cross-wall constraint the floor model
+has no equivalent of. Logged with that reasoning so it is not mistaken for a small job.
+
+**Finding B: `PlanWall.structure` is unauthored on every one of the 19 templates, and the fix is
+deliberately NOT to seed it.** Three pro features — the hackability overlay, the demolition sheet's
+structural classification, the 3D wall-types overlay — are inert on 19 of 20 shipped plans, because
+`structure` resolves to `'unknown'` everywhere.
+
+But `structure` is **user-declared and never verified**: the app cannot tell a load-bearing
+beam-and-column wall from a precast partition from geometry, and getting it wrong is a documented
+HDB hacking-plan failure mode. The curated default flat is seeded ONLY because its wall types were
+traced from the official plan image's legend. No such source exists for the templates — they are
+plausible reference layouts, not surveyed drawings. Seeding them would put unverified structural
+assertions on shipped plans and could hand a user a confident *permitted*, which is the one
+direction of error this feature must never make.
+
+The tempting partial — seed just the external walls, which are RC by construction — is written up
+as the WORST option unless the overlay legend changes with it: a partially classified plan makes
+`'unknown'` on an internal wall read as "checked, not structural" instead of "nobody has looked".
+Three options with trade-offs are in `docs/research/2026-09-03-authored-data-coverage.md`; the
+decision is the user's.
+
+**Shipped as guards, not just prose.** `src/authoredDataCoverage.test.ts` pins the facts in BOTH
+directions: the five floor finishes that must keep their module (losing one drops those rooms
+silently out of two sheets), the non-modular finishes that must NOT gain an invented one (hex is
+the sharpest — the coursing model is rectangular, so a hex "module" would be silently wrong rather
+than imprecise), and the 0/225 template-structure fact, whose failure message points at the
+research doc because a rise there is a content-and-safety decision rather than a fix.
+
+**The general check, now recorded:** when a `pro` feature reads an OPTIONAL field, count how many
+shipped entries carry it by importing the catalog. If the answer is zero the feature has not
+shipped, whatever the tests say — author the data in the same change or say plainly that it is
+inert. And prefer a visible "N omitted, no data" report over a silent empty result; that is why
+.288's gap was recoverable at all.
+
 ## v0.31.5.288 - the tiling layout plan, and the reason it was dead on arrival
 
 A fresh gap pass over the drawing set rather than more of the F13 thread. The set already covers

@@ -275,6 +275,34 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 (added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
 exact commit so it can — do not leave it to be discovered.
 
+## Wall-tile setting-out (G5 sibling) — NOT a small job, do not treat it as one
+
+`tileCoursing.ts` sets out FLOORS only. Two wall tiles declare a 300x600 module and **nothing
+consumes it** (measured: wall `moduleMm` coverage 2/57). Wall tiling is where a bad cut is most
+visible — it lands at eye level, not underfoot — so this is worth doing, but it is not "run
+`planTileCoursing` on walls":
+
+- a wall run is set out from a DATUM COURSE (typically full tiles at the top with the cut at the
+  floor, or aligned to a sanitary fitting), not centred like a floor;
+- the run is interrupted by openings, so the field is not a simple rectangle;
+- the four walls of a wet room must course CONSISTENTLY around corners, which is a cross-wall
+  constraint the floor model has no equivalent of.
+
+It needs its own model. See `docs/research/2026-09-03-authored-data-coverage.md` Finding A.
+
+## `PlanWall.structure` unauthored on all 19 templates — a CONTENT + SAFETY decision, not a bug
+
+Measured **0/225**. Three pro features (hackability overlay, demolition-sheet structural
+classification, 3D wall-types overlay) are inert on 19 of 20 shipped plans.
+
+**Do not "fix" this by seeding values.** `structure` is user-declared and never verified; the
+templates are plausible reference layouts, not surveyed drawings; and a confident wrong
+classification — especially a confident *permitted* — is the one direction of error this feature
+must never make. Three options are written up with their trade-offs in
+`docs/research/2026-09-03-authored-data-coverage.md` Finding B, including why seeding external
+walls alone is the WORST outcome unless the overlay legend changes with it.
+`src/authoredDataCoverage.test.ts` pins the 0/225 fact so it cannot drift either way unnoticed.
+
 **Remaining F13 follow-ups (v0.31.5.282).**
 - ~~`elevation/projectElevation.ts` ground-only~~ FIXED in v0.31.5.283. The "dead export"
   claim in .282 was wrong — I grepped the doc-comment name (`allWallElevations`) rather than the
