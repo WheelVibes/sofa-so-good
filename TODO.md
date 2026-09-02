@@ -342,7 +342,11 @@ Remaining, and both are CONTENT decisions for the owner rather than fixes:
   `resolveLampSpec`, inspector "Specification" group). Note the deliberate separation from the
   RENDER overrides `lightColor`/`lightIntensity` on the same item — do not wire one to the other,
   and see the test that pins it.
-- A report section for the advisory (it is Checks-panel only today).
+- ~~A report section for the advisory~~ DONE v0.31.5.300 — it prints in the report's Lighting plan
+  section. A COMPLIANCE finding that lives only in the app never reaches the contractor.
+- **Open (yours):** should the DRAWING SET carry it too? It is the document a contractor is most
+  likely to be handed, but the set is already 42 sheets — a judgement about sheet economy, not
+  correctness.
 
 ### Original scoping note — NOTE its lumens claim was WRONG, see .297
 

@@ -15,6 +15,7 @@ import {
 } from '../analysis/electricalSchedule'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
+import { buildLampSpecAdvisory } from '../analysis/lampSpecAdvisory'
 import {
   buildOpeningSchedule,
   openingRoomsLabel,
@@ -45,6 +46,7 @@ import {
   itemsOnLevel,
   levelAsPlan,
   planLevels,
+  roomAtItem,
 } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildSection, conventionalSectionCuts } from '../floorplan/section'
@@ -53,6 +55,7 @@ import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
+import { LIGHT_EMITTERS, resolveLampSpec } from '../furniture/lightEmitters'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
@@ -990,6 +993,44 @@ export function buildReportHtml(
           )
           .join('')
       : `<div class="plan-wrap">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>`
+  // Lamp-specification advisories (v0.31.5.300). The Checks panel has carried
+  // these since .298, but a COMPLIANCE finding that lives only in the app never
+  // reaches the person it is for: a contractor reads this document, not a panel
+  // in someone else's browser. Each fixture's room is resolved on ITS OWN
+  // storey (`roomAtItem`), so an upstairs vanity light is checked against the
+  // upstairs bathroom.
+  const lampSpec = isFeatureEnabled('lampSpecChecks')
+    ? buildLampSpecAdvisory(
+        items.flatMap((it) => {
+          const emitter = LIGHT_EMITTERS[it.defId]
+          const room = roomAtItem(plan, it)
+          if (!emitter || !room) return []
+          const lamp = resolveLampSpec(it.defId, it.props ?? {})
+          return [
+            {
+              id: it.id,
+              label: it.label ?? catalog[it.defId]?.name ?? it.defId,
+              room,
+              cct: lamp.cct,
+              ip: lamp.ip,
+            },
+          ]
+        }),
+      )
+    : null
+  const lampSpecHtml =
+    lampSpec && lampSpec.findings.length > 0
+      ? `<table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td>Room</td><td>Check</td><td>Action</td></tr>${lampSpec.findings
+          .map(
+            (f) =>
+              `<tr><td>${esc(f.label)}</td><td>${esc(f.roomName)}</td><td>${
+                f.kind === 'ingress' ? 'IP rating' : 'Colour temp.'
+              }</td><td>${esc(f.action)}</td></tr>`,
+          )
+          .join(
+            '',
+          )}</table><div class="foot" style="margin-top:6px">${esc(lampSpec.scopeNote)}</div>`
+      : ''
   const lightingSection = lighting.lights.length
     ? `<div class="elev-section"><h2>Lighting plan</h2>
         ${lightingFigures}
@@ -1010,7 +1051,8 @@ export function buildReportHtml(
           { header: 'cat', num: 'num' },
           buildRoomUniformity(plan, lighting.lights, iesShapeFactor),
         )}
-        ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}</div>`
+        ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}
+        ${lampSpecHtml}</div>`
     : ''
 
   // Electrical points (PARITY-ELECTRICAL-SCHED, fixed H-D3) — prefer the

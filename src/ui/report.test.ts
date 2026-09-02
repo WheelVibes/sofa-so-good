@@ -806,3 +806,49 @@ describe('report suggestions cover every storey (F13)', () => {
     expect(count(two)).toBe(count(oneStorey) + 1)
   })
 })
+
+describe('report lamp-specification advisories (F13 + compliance)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('prints the wet-room IP finding, which the Checks panel alone cannot deliver', async () => {
+    // A COMPLIANCE finding that lives only in the app never reaches the person
+    // it is for — a contractor reads this document, not a panel in someone
+    // else's browser. The default flat has an IP20 ceiling light in a bathroom.
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('IP rating')
+    expect(html).toMatch(/need IP44 minimum/)
+    // The escape hatch travels with it — zones are not modelled.
+    expect(html).toMatch(/per ROOM, not per bathroom zone/i)
+  })
+
+  it('drops the finding once the fixture is specified wet-rated', async () => {
+    // Asserts the PAIR, so a change that made the advisory unreachable — rather
+    // than resolved — would fail here instead of looking like a pass.
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const specified = items.map((it) =>
+      it.defId === 'ceiling-light' ? { ...it, props: { ...it.props, lampIp: 44 } } : it,
+    )
+    const before = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    const after = buildReportHtml(plan, specified, BUILTIN_CATALOG, null)
+    expect(before).toMatch(/need IP44 minimum/)
+    expect(after).not.toMatch(/need IP44 minimum/)
+  })
+
+  it('is absent in Simple mode (pro-tier flag)', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toMatch(/need IP44 minimum/)
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+})

@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.300 - the compliance finding reaches the printed handover
+
+Last of the lamp-spec thread that is mine rather than a content call. The advisories have been in
+the Checks panel since `.298`, which is the wrong and only place for them: **a compliance finding
+that lives in the app never reaches the person it is for.** A contractor reads the report and the
+drawing set; they do not have the app open. So the wet-room IP finding and the colour-temperature
+advisory now print inside the report's Lighting plan section, with the scope caveat travelling
+alongside them.
+
+Each fixture's room is resolved on ITS OWN storey via `roomAtItem`, so an upstairs vanity light is
+checked against the upstairs bathroom rather than whatever sits beneath it — the same resolution
+the panel uses, and it reads the per-item `lampCct`/`lampIp` override from `.299`, so a user who has
+specified a wet-rated fixture is not told about it twice in two places.
+
+Tested in both modes, and the middle test asserts the PAIR rather than the after-state: specifying
+`lampIp: 44` must make the finding disappear, AND it must be present without it. A one-sided
+assertion would pass equally if the advisory had become unreachable — which is the failure mode
+that produced three wrong-for-the-right-reason tests earlier in this arc, so it is now the default
+shape for anything that checks a finding was resolved.
+
++3 tests.
+
+**Remaining on this thread, and both are yours rather than mine:**
+- whether the default flat should ship wet-rated fixtures in its bathrooms, or keep failing its own
+  advisory on the grounds that a check firing on a real design is doing its job;
+- whether the drawing set (as distinct from the report) should carry the advisory too — it is the
+  document a contractor is most likely to be handed, but it is also already 42 sheets, so adding a
+  compliance note there is a judgement about sheet economy rather than correctness.
+
 ## v0.31.5.299 - per-item lamp specification, and two registers kept apart
 
 The real resolution for `.298`'s advisories: a user can now specify the fixture they actually
