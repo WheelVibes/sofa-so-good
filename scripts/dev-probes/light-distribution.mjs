@@ -521,6 +521,7 @@ const shotFor = async (pitch) => {
   // post-capture read-back caught. Never patch a light before a state change.
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
+  if (typeof applyFillScale === 'function') await applyFillScale()
   if (typeof applyLinear === 'function') await applyLinear()
   if (typeof applyFillTint === 'function') await applyFillTint()
   if (typeof applyRecolor === 'function') await applyRecolor()
@@ -576,6 +577,62 @@ const applyFillOff =
         })
         await new Promise((r) => setTimeout(r, 700))
         return res
+      }
+// FILLSCALE=<f> multiplies the AmbientLight and HemisphereLight intensities by f,
+// which is the lever item (w)'s proposed fix would actually pull: drive the
+// analytical fill from the room's mean surface reflectance instead of a constant.
+//
+// `.330` priced (w) at ~21 % too bright ON THE CEILING with dark walls. This asks
+// whether the lever has the AUTHORITY to deliver that: f=0 is the most the
+// hemisphere+ambient pair can possibly do, so if zeroing them moves the ceiling by
+// less than 21 % the fix cannot work on those two lights alone and must also scale
+// the IBL probe -- a materially bigger change.
+//
+// Same getter interception as FILLOFF and for the same reason (`.254`): Lighting.tsx
+// rewrites `intensity` every frame, so a plain assignment is overwritten. The
+// per-frame writes are routed into `__fillRaw` and the renderer reads raw x f, so
+// the scale survives every subsequent frame.
+const FILLSCALE = process.env.FILLSCALE
+const applyFillScale =
+  FILLSCALE === undefined || FILLSCALE === ''
+    ? null
+    : async () => {
+        const res = await page.evaluate((f) => {
+          const hit = []
+          window.__three.scene.traverse((o) => {
+            if (!o.isAmbientLight && !o.isHemisphereLight) return
+            if (!o.__fillScaled) {
+              o.__fillRaw = o.intensity
+              Object.defineProperty(o, 'intensity', {
+                get() {
+                  return this.__fillRaw * this.__fillFactor
+                },
+                set(v) {
+                  this.__fillRaw = v
+                },
+                configurable: true,
+              })
+              o.__fillScaled = true
+            }
+            o.__fillFactor = f
+            hit.push({ type: o.type, raw: o.__fillRaw, eff: o.intensity })
+          })
+          return hit
+        }, Number(FILLSCALE))
+        if (!res.length) throw new Error('FILLSCALE: no AmbientLight/HemisphereLight found')
+        await new Promise((r) => setTimeout(r, 900))
+        // Read back AFTER the settle -- `.254`: the lighting effect would silently
+        // overwrite a patch if anything re-triggered it, and a scale that has been
+        // reverted looks exactly like a scale that had no effect.
+        const after = await page.evaluate(() => {
+          const out = []
+          window.__three.scene.traverse((o) => {
+            if (!o.isAmbientLight && !o.isHemisphereLight) return
+            out.push({ type: o.type, raw: o.__fillRaw, eff: o.intensity })
+          })
+          return out
+        })
+        console.log(`FILLSCALECHECK f=${FILLSCALE} ${JSON.stringify(after)}`)
       }
 // LINEAR=1 bypasses the tone curve so the SCENE's own luminance range can be read
 // rather than the graded picture's (`.258`).

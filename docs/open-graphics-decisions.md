@@ -2843,7 +2843,7 @@ weak-device tier before it lands. (k) is the only open item that is a genuine RE
 than a content or policy call — it is the strongest candidate for the next round, once the loss has
 been attributed to the glass or to the background tone-mapping path.
 
-## (w) RASTER-INTERREFLECTION — 🐞 REAL, in the DEFAULT render path; PRICED at ~21 % ON THE CEILING (found v0.31.5.329, priced v0.31.5.330)
+## (w) RASTER-INTERREFLECTION — 🐞 REAL, in the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
 
 **Repainting a room's walls from white to near-black changes the rest of the room's render by exactly zero.**
 This is the real-time walk render — the render every user actually sees — not the HQ still. It is independent of
@@ -2922,3 +2922,36 @@ usability; visible room or whole plan), but the magnitude to aim for is now know
 
 Caveat, per this arc's standing rule: one pose, one hour, one room, one tier. The ceiling figure should be
 re-measured at a second pose before it is treated as a target.
+
+### ✅ LEVER AND CONSTANT VERIFIED v0.31.5.331 — one line, one constant
+
+**The lever is the hemisphere's `groundColor`, not the fill as a whole.** In three's `HemisphereLight`
+irradiance follows `normal·up`, so a ceiling (facing down) receives `groundColor` while a floor (facing up)
+receives `skyColor`. That matches (w)'s requirement, which is ceiling-only:
+
+| patch | uniform fill (hemi+ambient) at 0 | **ground term at 0** | tracer needs |
+| --- | --- | --- | --- |
+| ceiling | −59 % | **−37 %** | **−21 %** |
+| floor | −11 % ❌ | **−0.1 %** ✅ | **+0.2 %** |
+| pillow | −5 % | −0.7 % | −2.3 % |
+
+Scaling hemisphere+ambient together would hit the ceiling target but darken the **floor ~4 %**, which should
+not move. The ground term alone costs the floor a tenth of a percent.
+
+**The constant.** `PHOTO_GROUND_BOUNCE` is shipped at **3.0** under the photographic look. With walls at
+`wall-paint-ink`, sweeping it gives ceiling 126.9 (3.0) → 105.5 (1.29) → **100.7 (1.0)** → 79.7 (0), against a
+target of 100.2. **`3.0 → 1.0` lands within 0.5 counts**, with the floor pinned at 102.4–102.5 throughout.
+Collateral ≤2 % and partly beneficial — the Ink wall moves −84 % → −86 % against the tracer's −88 %.
+
+**Shape of the relationship, not yet established.** A **27×** wall-reflectance change (0.91 → 0.033) needs only
+a **3×** ground-bounce change, so the required scaling is strongly sub-linear — qualitatively expected, since
+interreflection depends on ρ/(1 − ρ·f) rather than ρ. But **two points define a line, not a functional form.**
+A third finish (`wall-paint-slate` ≈ 0.15) is needed before any curve is fitted, and each point costs a
+class-matched tracer target (~30 min at (u)'s 4× tax).
+
+**So the decision is now concrete.** Not "should the fill respond to finishes" but: **drive
+`photographicGroundBounce` from the room's area-weighted mean surface reflectance, calibrated so white ≈ 3.0
+and near-black ≈ 1.0.** Remaining product questions: the interpolation shape between those points (needs the
+third measurement); whether to clamp so dark schemes stay usable rather than correct; whether to track the
+visible room or the whole plan; and whether the same term should also apply outside the photographic look
+(shipped ×1 there, so the response would need its own calibration).

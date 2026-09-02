@@ -12284,3 +12284,111 @@ Four paired PT runs (eight renders, ~30 minutes) to obtain one class-matched cla
 landed in class A. (u)'s tax on (p)- and (w)-adjacent measurement is now roughly 4×.
 
 No `src/` change beyond the version bump.
+
+---
+
+## Round .331 — (w) gets a lever and a verified constant
+
+`.330` priced (w) at ~21 % too bright on the ceiling. A magnitude is not a fix. Two things were still unknown:
+whether the lever (w) proposes can *deliver* 21 %, and what it breaks elsewhere.
+
+Both are raster-only questions, so this round costs nothing in (u) tax — five runs at ~20 s each, against
+`.330`'s four paired traces at ~7 minutes.
+
+### The obvious lever has authority but the wrong shape
+
+`FILLSCALE=<f>`, added this round, multiplies the AmbientLight and HemisphereLight intensities together. `f=0`
+is the most that pair can possibly do:
+
+| patch | uniform fill, f=0 | tracer needs (`.330`) |
+| --- | --- | --- |
+| ceiling | **−59 %** | **−21 %** |
+| floor | −11 % | **+0.2 %** |
+| pillow | −5 % | −2.3 % |
+
+Authority is not the problem — −59 % against −21 % needed. The *profile* is. Scaled back to hit the ceiling
+target (f ≈ 0.64) it would darken the floor by roughly 4 %, and the floor should not move at all. A uniform
+fill scale cannot reproduce a spatially non-uniform requirement.
+
+### The hemisphere's ground term is the right lever
+
+In three's `HemisphereLight`, irradiance follows `normal·up`: a surface facing **up** receives `skyColor`, one
+facing **down** receives `groundColor`. A **ceiling faces down**. A floor faces up. So the ground term should
+move the ceiling and leave the floor alone — which is exactly the required signature.
+
+Zeroing the ground term alone (`GBOUNCE=0`):
+
+| patch | ground term at 0 | tracer needs |
+| --- | --- | --- |
+| ceiling | **−37 %** | **−21 %** |
+| floor | **−0.1 %** | **+0.2 %** |
+| pillow | −0.7 % | −2.3 % |
+
+Enough authority, and the collateral on the floor is a tenth of a percent.
+
+### The verified constant
+
+Sweeping `PHOTO_GROUND_BOUNCE` (shipped **3.0** under the photographic look), walls at `wall-paint-ink`,
+bedroom3 `WALKFOV=72` `PITCH=-0.02`, medium, hour 13, 16:9:
+
+| ground bounce | ceiling | floor | pillow | wall-L |
+| --- | --- | --- | --- | --- |
+| 3.0 (shipped) | 126.9 | 102.5 | 161.6 | 22.6 |
+| 1.29 | 105.5 | 102.5 | 160.9 | — |
+| **1.0** | **100.7** | **102.4** | 160.8 | 19.8 |
+| 0 | 79.7 | 102.4 | 160.4 | — |
+
+Target is **100.2** — the raster's white-wall ceiling of 126.9 less the tracer's 21 %. **`3.0 → 1.0` lands
+within 0.5 counts.**
+
+Collateral is ≤2 % and partly **beneficial**: the Ink wall moves from −84 % to −86 % against the tracer's
+−88 %, i.e. the same change nudges the wall the right way too. The residual is the pillow, left ~1.8 % too
+bright — small, and on a surface the tracer says should barely move anyway.
+
+Note the first prediction was off: linear interpolation in displayed counts said `1.29`, which gave 105.5
+rather than 100.2. Displayed counts are not linear in intensity under AgX, so the sweep had to be walked rather
+than solved. This is the same non-linearity that makes decomposing tone-mapped counts illegitimate (`.328`).
+
+### The landing proof is the sweep itself
+
+No read-back was needed. A **monotone ceiling response across four settings** — 126.9, 105.5, 100.7, 79.7 —
+with the floor pinned at 102.4–102.5 throughout, cannot be produced by a no-op. That is a stronger guarantee
+than `.327`'s rule demands, and worth noting as a pattern: **a monotone sweep is self-verifying in a way a
+single before/after pair is not.**
+
+### The required scaling is far weaker than proportional to reflectance
+
+White plaster ≈ **0.91**, Ink `#2b3340` ≈ **0.033** — a **27×** change in wall reflectance. The ground-bounce
+term needs only a **3×** change to compensate.
+
+Two points define a line, not a functional form, so **no exponent is claimed here.** Establishing the shape
+needs a third wall finish (`wall-paint-slate` ≈ 0.15 is the obvious mid-point), and each new point requires its
+own class-matched tracer target — roughly 30 minutes at (u)'s current 4× tax. That is the natural follow-up.
+
+The sub-linearity is at least qualitatively expected: room-cavity interreflection saturates, because the
+inter-reflected component depends on ρ/(1 − ρ·f) rather than on ρ, which compresses large reflectance ranges.
+But that is an explanation offered, not a fit demonstrated.
+
+### Why the ground term is the principled lever and not merely the convenient one
+
+It represents light arriving from below the horizon. In an interior, that *is* the room's own bounce — there is
+no exterior ground in view. `look.ts` already records, from `.183` and `.253`, that this is the term that
+governs ceiling brightness, and `.253` raised it to ×3 precisely to lift the ceiling into the photographic
+band.
+
+So "drive `groundColor` from the room's area-weighted mean surface reflectance" is the physically coherent form
+of (w)'s fix, and this round shows it is also the numerically correct one. The two agree, which is the best
+available evidence that the lever is the right abstraction rather than a fitted hack.
+
+### Status
+
+(w) is now a **one-line change with a measured constant** rather than a direction. It is still a look change to
+the default render of every scene, so it remains a product call and is **not shipped**. What is no longer
+unknown: which term to touch, how much authority it has, what constant reproduces the physically correct
+ceiling at this pose, and what the collateral costs (≤2 %, partly favourable).
+
+Tooling: `FILLSCALE=<f>` — same getter interception as `FILLOFF` (`.254`'s lesson, since `Lighting.tsx`
+rewrites `intensity` every frame), with a post-settle read-back that confirmed ambient 0.0772 → 0 and
+hemisphere 0.2426 → 0.
+
+No `src/` change beyond the version bump.

@@ -5,6 +5,71 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.331 — (w) has a lever and a verified constant: the hemisphere's GROUND term, 3.0 → 1.0
+
+`.330` priced (w) at ~21 % too bright on the ceiling. A magnitude is not yet a fix, so this round asked whether
+the proposed lever can deliver it and what it costs elsewhere. Raster-only, so no (u) tax — five runs at ~20 s
+each instead of four paired traces at ~7 min.
+
+**The obvious lever works but has the wrong shape.** `FILLSCALE=0` (added this round) zeroes hemisphere +
+ambient together — the most that pair can possibly do:
+
+| patch | uniform fill at f=0 | tracer needs (`.330`) |
+| --- | --- | --- |
+| ceiling | **−59 %** | **−21 %** |
+| floor | −11 % | **+0.2 %** |
+| pillow | −5 % | −2.3 % |
+
+Ample authority, wrong profile: scaled back to hit the ceiling target it would darken the **floor ~4 %**, which
+should not move at all.
+
+**The hemisphere's GROUND term is the right lever.** In three's `HemisphereLight` irradiance follows
+`normal·up`, so a **ceiling faces down and receives `groundColor`** while a floor faces up and receives
+`skyColor`. Zeroing the ground term alone:
+
+| patch | ground term at 0 | tracer needs |
+| --- | --- | --- |
+| ceiling | **−37 %** | **−21 %** |
+| floor | **−0.1 %** | **+0.2 %** |
+| pillow | −0.7 % | −2.3 % |
+
+That is the required spatial signature almost exactly — it moves the ceiling and leaves the floor alone.
+
+**The verified constant.** Sweeping `PHOTO_GROUND_BOUNCE` (shipped 3.0 under the photographic look) with walls
+at `wall-paint-ink`:
+
+| ground bounce | ceiling | floor | pillow | wall-L |
+| --- | --- | --- | --- | --- |
+| 3.0 (shipped) | 126.9 | 102.5 | 161.6 | 22.6 |
+| 1.29 | 105.5 | 102.5 | 160.9 | — |
+| **1.0** | **100.7** | **102.4** | 160.8 | 19.8 |
+| 0 | 79.7 | 102.4 | 160.4 | — |
+
+Target 100.2 (the raster's white-wall 126.9, less the tracer's 21 %). **`3.0 → 1.0` lands it within 0.5
+counts.** Collateral is ≤2 % and partly *beneficial*: the Ink wall goes from −84 % to −86 % against the
+tracer's −88 %. The residual is the pillow, still ~1.8 % too bright.
+
+The monotone ceiling response across four settings with the floor pinned at 102.4–102.5 is the landing proof —
+stronger than a readback, since a no-op cannot produce a monotone sweep.
+
+**The required scaling is far weaker than proportional to reflectance.** White plaster ≈ 0.91, Ink ≈ 0.033 —
+a **27×** reflectance change — needs only a **3×** ground-bounce change. Two points define a line, not a
+functional form, so no exponent is claimed; a third wall finish would be needed, and each new point costs a
+class-matched tracer target (~30 min at (u)'s current 4× tax).
+
+**Why the ground term is the principled choice, not just the numerically convenient one.** It literally
+represents light arriving from below, which in an interior *is* the room's own bounce. `look.ts` already
+records (from `.183`/`.253`) that this is the term governing ceiling brightness. So driving `groundColor` from
+the room's mean surface reflectance is the physically coherent form of (w)'s fix.
+
+**Still not shipped.** (w) is now a **one-line change with a measured constant** rather than a direction, but it
+remains a look change to the default render and so a product call. Filed under (w).
+
+Tooling: `FILLSCALE=<f>`, using the same getter interception as `FILLOFF` (`.254`) so `Lighting.tsx`'s
+per-frame rewrites cannot silently revert it, with a post-settle read-back.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.330 — (w) priced, and it CORRECTS `.329`: the defect is the ceiling (~21 %), not the room
 
 `.329` filed (w) on a structural finding plus two zeros. This round measured what the *correct* answers are, and
