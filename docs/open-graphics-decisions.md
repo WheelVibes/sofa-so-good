@@ -1540,6 +1540,32 @@ one frame pair, class-B traced arm (so this is (p)'s cost, not (u)'s):
 **Four checkable acceptance criteria for a (p) fix**, all pose-matched and photograph-free: raise plaster ~11–13 %,
 warm the ceiling ~4–6 counts R−B, **darken the window wall by ~40 counts**, and **restore its shading gradient**.
 
+**⚖️ AND (p) IS A REDISTRIBUTION, NOT A LEVEL ERROR — v0.31.5.324.** Subtracting `.312`'s gradient-zeroed frame
+gives the *correct* ambient contribution (raster − none) against the *actual* one (traced − none):
+
+| surface | correct ambient | actual | **actual ÷ correct** |
+| --- | --- | --- | --- |
+| sidewall-L — sees sky | 64.3 | 46.9 | **0.73×** (27 % short) |
+| glazing — sees sky | 62.3 | 55.7 | **0.89×** (11 % short) |
+| **winwall-R — sees NO sky** | **10.7** | **53.4** | **4.99×** (5× too much) |
+
+**6.8× spread between best- and worst-served surface.** The gradient supplies roughly the right *total* in
+roughly the *wrong places* — the signature of a visibility-blind environment.
+
+**This also explains why ceiling ÷ wall could never see (p)** (`.313`, 2.8 % for a 66 % light change): that
+metric compares two surfaces on the **same side** of the redistribution, both short by a similar factor, so the
+error cancels in their ratio. The window wall — the other side — was never in the metric.
+
+**🚫 INTENSITY TUNING CANNOT FIX IT.** Scaling the gradient by 1/4.99 to correct the window wall takes the side
+wall from 0.73× to **0.15×** of its correct ambient — from 27 % short to catastrophically dark. **A fix must be
+visibility-aware, not a coefficient.** That rules out the cheapest class of fix and should be known before the
+work is scoped.
+
+*Caveats:* displayed AgX counts, not energy, so the multipliers are directional and approximate (the
+5×-vs-0.73× **contrast** is far too large to be a tone-curve artefact; the exact figures are not). And the
+no-ambient frame was a class-A run, so the **ceiling row cannot be computed** and is omitted rather than
+estimated.
+
 **Note also:** `.314`'s "walls right, ceiling wrong" does not survive breadth — the *side* wall is right to 1
 count, the *window* wall is wrong by 71 %. "The walls" was not a category.
 

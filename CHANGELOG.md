@@ -5,6 +5,67 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.324 — (p) is a REDISTRIBUTION, not a level error: the gradient under-supplies sky-facing surfaces and over-supplies the zero-sky wall 5×. So it cannot be fixed by tuning intensity
+
+`.323` found the window wall 71 % too bright and its shading flattened 7×. `.312`'s **gradient-zeroed** frame
+makes that attributable for free: subtract the no-ambient value from each surface and you get the *correct*
+ambient contribution (raster − none) against the *actual* one (traced − none).
+
+| surface | raster | traced | no-ambient | correct ambient | actual ambient | **actual ÷ correct** |
+| --- | --- | --- | --- | --- | --- | --- |
+| sidewall-L — sees sky | 133.5 | 116.1 | 69.2 | 64.3 | 46.9 | **0.73×** (27 % short) |
+| glazing — sees sky | 173.3 | 166.7 | 111.0 | 62.3 | 55.7 | **0.89×** (11 % short) |
+| **winwall-R — sees NO sky** | **60.0** | **102.7** | **49.3** | **10.7** | **53.4** | **4.99×** (5× too much) |
+
+**A 6.8× spread between the best- and worst-served surface.**
+
+**1. So (p) is not a level error. It is a redistribution.** `.312` established that the hardcoded gradient
+supplies the *majority* of interior light; this says it supplies roughly the right **total** in roughly the
+**wrong places** — taking ~10–27 % from the surfaces that should receive most, and giving 5× too much to the one
+surface that should receive almost none. That is precisely what a uniform, visibility-blind environment does.
+
+**2. And it explains why the arc's primary metric could never see (p).** `.313` measured ceiling ÷ wall moving
+only **2.8 %** for a 66 % change in the dominant light and could not account for it. The reason is now plain:
+**ceiling ÷ wall compares two surfaces on the same side of the redistribution.** Both are sky-facing, both are
+short by a similar factor (0.73× and 0.89×), so the error largely cancels in their ratio. The surface on the
+*other* side of the redistribution — the window wall — was never in the metric. Three rounds of confusion about
+metric sensitivity resolve into one sentence.
+
+**3. The practical consequence, and it is the sharpest thing the (p) investigation has produced: intensity
+tuning cannot fix this.** Scaling the gradient down by 1/4.99 to correct the window wall would take the side
+wall from 0.73× to **0.15×** of its correct ambient — from 27 % short to catastrophically dark:
+
+```
+scale the gradient by 1/4.99 to fix winwall-R:
+  sidewall-L ambient 46.9 -> 9.4  against a correct 64.3  = 0.15x
+```
+
+**So (p) requires visibility-aware illumination, not a coefficient.** Any fix that keeps a single uniform
+environment term and re-tunes its strength will trade one surface against another. That rules out the cheapest
+class of fix and should be known before the work is scoped.
+
+**Two caveats, stated because the arithmetic invites over-reading.**
+
+- **These are displayed, AgX tone-mapped counts, not energy.** Subtracting tone-mapped values is not physically
+  exact, so the multipliers are indicative of **direction and rough magnitude**, not exact energy ratios — the
+  same limit `.312` observed and `.290` was corrected for. The 5×-versus-0.73× *contrast* is far too large to be
+  a tone-curve artefact; the precise figures are not.
+- **The no-ambient frame was a class-A run** (its ceiling reads 0.0 — a void), so (u) is present in it. With a
+  black environment the ceiling contributes essentially nothing in either class, so the wall values are
+  approximately "scene lights only" regardless; the confound affects magnitude modestly, not direction. **The
+  ceiling row cannot be computed at all** for this reason, and is omitted rather than estimated.
+
+**Status of (p) after this round.** Diagnosed (`.286`), confirmed by observation (`.287`), priced (`.312`),
+localised by surface (`.323`), and now **characterised as a redistribution with a known failure mode for the
+obvious fix**. Four pose-matched acceptance criteria exist (`.323`). Nothing more can be established without
+authorisation to change `src/`.
+
+**Method note.** This round produced its main result by subtracting two frames captured for other purposes,
+eleven and one rounds earlier. **Arms captured for one question often answer a different one** — the `.294`,
+`.295` and `.318` pattern, now three-for-three that a re-read of existing arms beat a new measurement.
+
+**Unchanged:** no `src/` change, no probe change. Arithmetic on frames already on disk.
+
 ## v0.31.5.323 — surface survey against the raster: the tracer's largest error is on the surface that should be DARKEST. The window wall is 71 % too bright and its shading is flattened 7×
 
 `.320` left exactly one valid construction — the app against itself at a matched pose — and `.314` had used it on

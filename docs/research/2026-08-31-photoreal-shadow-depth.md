@@ -11522,3 +11522,67 @@ two-surface sample could not have shown it. Survey breadth is not padding when t
 distribution.
 
 No `src/` change, no probe change.
+
+---
+
+## Round .324 — (p) is a redistribution, not a level error: 5× too much on the zero-sky wall, 10–27 % too little on sky-facing ones. Intensity tuning cannot fix it
+
+`.323` found the window wall 71 % too bright and its shading flattened 7×. `.312`'s gradient-zeroed frame makes
+that attributable for free: subtract the no-ambient value per surface to get the *correct* ambient contribution
+(raster − none) against the *actual* one (traced − none).
+
+| surface | raster | traced | no-ambient | correct | actual | actual ÷ correct |
+| --- | --- | --- | --- | --- | --- | --- |
+| sidewall-L — sees sky | 133.5 | 116.1 | 69.2 | 64.3 | 46.9 | **0.73×** |
+| glazing — sees sky | 173.3 | 166.7 | 111.0 | 62.3 | 55.7 | **0.89×** |
+| **winwall-R — sees NO sky** | 60.0 | 102.7 | 49.3 | 10.7 | 53.4 | **4.99×** |
+
+**6.8× spread** between best- and worst-served surface.
+
+### 1. A redistribution
+
+`.312` established the gradient supplies the *majority* of interior light. This says it supplies roughly the
+right **total** in roughly the **wrong places** — taking 10–27 % from the surfaces that should receive most,
+giving 5× too much to the one that should receive almost none. Precisely what a uniform, visibility-blind
+environment does.
+
+### 2. Which explains why ceiling ÷ wall could never see (p)
+
+`.313` measured that metric moving 2.8 % for a 66 % change in the dominant light and could not account for it.
+**Ceiling ÷ wall compares two surfaces on the same side of the redistribution** — both sky-facing, both short by
+a similar factor (0.73×, 0.89×) — so the error largely cancels in their ratio. The window wall, on the other
+side, was never in the metric. Three rounds of confusion about metric sensitivity resolve into one sentence.
+
+### 3. Intensity tuning cannot fix it
+
+```
+scale the gradient by 1/4.99 to fix winwall-R:
+  sidewall-L ambient 46.9 -> 9.4  against a correct 64.3  = 0.15x
+```
+
+From 27 % short to catastrophically dark. **A fix must be visibility-aware, not a coefficient** — which rules
+out the cheapest class of fix, and is worth knowing before the work is scoped.
+
+### Caveats
+
+- **Displayed AgX counts, not energy.** Subtracting tone-mapped values is not physically exact, so the
+  multipliers are directional and approximate — the limit `.312` noted and `.290` was corrected for. The
+  5×-versus-0.73× *contrast* is far too large to be a tone-curve artefact; the precise figures are not.
+- **The no-ambient frame was a class-A run** (ceiling reads 0.0, a void), so (u) is present. With a black
+  environment the ceiling contributes essentially nothing in either class, so wall values are approximately
+  "scene lights only" regardless — the confound affects magnitude modestly, not direction. **The ceiling row
+  cannot be computed** and is omitted rather than estimated.
+
+### Status of (p)
+
+Diagnosed (`.286`), confirmed by observation (`.287`), priced (`.312`), localised by surface (`.323`), and now
+characterised as a **redistribution with a known failure mode for the obvious fix**. Four pose-matched
+acceptance criteria exist (`.323`). Nothing further can be established without authorisation to change `src/`.
+
+### Method note
+
+This round's main result came from subtracting two frames captured for other purposes, eleven and one rounds
+earlier. **Arms captured for one question often answer a different one** — the `.294`/`.295`/`.318` pattern, now
+three-for-three that re-reading existing arms beat a new measurement.
+
+No `src/` change, no probe change.
