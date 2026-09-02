@@ -173,14 +173,31 @@ def add_sun_from_app(altitude_rad: float, azimuth_rad: float, energy: float = 3.
 
 def place_camera(location: tuple[float, float, float],
                  look_at: tuple[float, float, float] | None = None,
-                 fov_deg: float = 50.0) -> bpy.types.Object:
+                 fov_deg: float = 50.0,
+                 fov_axis: str = "vertical") -> bpy.types.Object:
     """Create the active camera at `location`, optionally aimed at `look_at`.
+
+    ⚠️ **`fov_axis` is not decoration.** three.js's `PerspectiveCamera.fov` is the
+    **VERTICAL** field of view, while Blender's `camera.angle` under the default
+    `sensor_fit = 'AUTO'` is the angle along the **larger** sensor dimension —
+    horizontal for any landscape render. Passing three's vertical FOV straight into
+    an AUTO camera therefore yields a *wider* frame than the app shows, and the
+    error grows with aspect ratio: at 16:9 a 50° vertical FOV is ~78° horizontal.
+    A matched-pose comparison would silently be comparing different framings, which
+    is precisely the confound `.247` spent a round on.
+
+    So the default is `vertical`, matching three, and it is enforced by setting
+    `sensor_fit` rather than by converting — the axis is stated in the data, not
+    remembered by the caller.
 
     Aiming uses a TRACK_TO constraint on an empty rather than trigonometry, so the
     result matches Blender's own look-at behaviour exactly (including roll) and
     there is no chance of a hand-rolled euler disagreeing with it.
     """
+    if fov_axis not in ("vertical", "horizontal"):
+        raise ValueError(f"fov_axis must be 'vertical' or 'horizontal', got {fov_axis!r}")
     data = bpy.data.cameras.new("camera")
+    data.sensor_fit = "VERTICAL" if fov_axis == "vertical" else "HORIZONTAL"
     data.lens_unit = "FOV"
     data.angle = math.radians(fov_deg)
     cam = bpy.data.objects.new("camera", data)

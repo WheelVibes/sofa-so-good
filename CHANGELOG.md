@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.4 — a headless GLB export seam, and a second framing trap caught by looking for it
+
+Groundwork for using Cycles as a **physically-motivated reference** for the app's
+real-time render. The graphics arc's central limitation (`.320`) was that no such reference
+existed: photographs could not be anchored, the raster has no interreflection term, and the
+HQ tracer's own environment is hardcoded and hour-blind. Cycles removes that limitation —
+but only if the comparison is genuinely matched.
+
+**`window.__exportSceneGlbBase64()`** (DEV-gated, `src/ui/openSceneExport.ts`) — returns the
+scene as GLB bytes instead of downloading them, so a headless probe can hand Blender the
+*exact* geometry the app exports. It reuses `buildExportRoot` + `exportDirect`, the app's own
+path, so it cannot diverge from what a user gets; reconstructing the scene renderer-side
+would risk exactly the divergence that would confound the comparison. Base64 because
+`page.evaluate` marshals results as JSON, and chunked because
+`String.fromCharCode(...spread)` throws on multi-MB inputs — the sizes this is for.
+
+**A second units/axis trap, found by deliberately looking for the same shape as the last
+one.** three.js's `PerspectiveCamera.fov` is **vertical**; Blender's `camera.angle` under
+the default `sensor_fit = 'AUTO'` measures the **larger** axis — horizontal for any
+landscape render. Passing one as the other yields a wider frame, and the error grows with
+aspect: **at 16:9, 50° vertical ≈ 78° horizontal.** A "matched-pose" comparison would then
+have been comparing different framings — precisely the confound `.247` spent a round on.
+
+Fixed structurally, as with the radians case: `place_camera(..., fov_axis=...)` sets
+`sensor_fit` and defaults to `vertical` (three's convention), so the axis is stated in the
+data rather than remembered by the caller. `render_still.py` gains `--fov-axis`.
+
+Worth noting the method: the radians bug was found *for* me by dev-1a reporting the same
+shape. This one I found by asking what else in the Blender bridge carries an implicit unit
+or axis — which is a cheaper way to find the second instance than waiting for it to bite.
+
 ## v0.31.6.3 — skills become a tracked convention under `docs/skills/`, and a radians/degrees trap removed before it shipped
 
 **`docs/skills/` is now the convention**, with a `README.md` stating it: what a skill is

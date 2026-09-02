@@ -99,6 +99,43 @@ async function exportDirect(
  * out, or its reply can't be understood, this transparently falls back to
  * the direct path — never a silent hang.
  */
+/**
+ * Dev-only harness seam: return the scene as GLB **bytes** (base64) instead of
+ * downloading it.
+ *
+ * Exists so a headless probe can hand an offline renderer (Blender/Cycles) the
+ * *exact* geometry the app exports, for a matched-pose photorealism reference.
+ * Reconstructing the scene renderer-side would risk divergence and confound the
+ * very comparison it is for, so this deliberately reuses `buildExportRoot` +
+ * `exportDirect` — the app's own path — and can therefore never disagree with what
+ * a user gets.
+ *
+ * Base64 rather than an ArrayBuffer because `page.evaluate` has to marshal the
+ * result across the CDP boundary as JSON. Registered on `window` under the
+ * `import.meta.env.DEV` guard below; inert in production builds.
+ */
+export async function exportSceneGlbBase64(): Promise<string | null> {
+  const root = getSceneRoot()
+  if (!root) return null
+  const data = await exportDirect(buildExportRoot(root), 'glb')
+  if (typeof data === 'string') return null
+  const bytes = new Uint8Array(data)
+  let binary = ''
+  // Chunked so a multi-MB export cannot blow the argument limit of
+  // `String.fromCharCode(...spread)`, which silently throws on large scenes —
+  // exactly the sizes this is for.
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  }
+  return btoa(binary)
+}
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  ;(window as unknown as { __exportSceneGlbBase64?: unknown }).__exportSceneGlbBase64 =
+    exportSceneGlbBase64
+}
+
 export async function exportScene3d(format: SceneExportFormat = 'glb'): Promise<void> {
   const { notify, floorPlan } = useStore.getState()
   const root = getSceneRoot()

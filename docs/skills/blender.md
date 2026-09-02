@@ -111,6 +111,16 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-03 — three.js FOV is VERTICAL; Blender's `camera.angle` defaults to the LARGER
+  axis.** `PerspectiveCamera.fov` is vertical, while Blender under `sensor_fit = 'AUTO'`
+  measures the angle along the larger sensor dimension — horizontal for any landscape
+  render. Passing three's vertical FOV into an AUTO camera gives a **wider** frame, and the
+  error grows with aspect: at 16:9, 50° vertical ≈ 78° horizontal. A matched-pose comparison
+  would then be comparing *different framings* — the confound `.247` of the graphics arc
+  spent a whole round on. Fixed structurally: `place_camera(..., fov_axis=...)` sets
+  `sensor_fit` and defaults to `vertical` (three's convention), so the axis lives in the
+  data rather than in the caller's memory. Second instance of the same lesson as the
+  radians/degrees trap, found by looking for it deliberately.
 - **2026-09-03 — the app's sun angles are RADIANS; the CLI flags are DEGREES.**
   `src/scene/lighting/sunPosition.ts` returns `SunCalc.getPosition` unchanged and feeds
   `altitude` straight to `Math.cos`. An early docstring here claimed a caller could forward

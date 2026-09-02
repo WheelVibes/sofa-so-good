@@ -43,7 +43,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--hdri-rotation", type=float, default=0.0, help="degrees")
     p.add_argument("--samples", type=int, default=64)
     p.add_argument("--res", default="1280x720", help="WxH")
-    p.add_argument("--fov", type=float, default=50.0, help="horizontal FOV degrees")
+    p.add_argument("--fov", type=float, default=50.0, help="FOV degrees (see --fov-axis)")
+    p.add_argument("--fov-axis", default="vertical", choices=("vertical", "horizontal"),
+                   help="which axis --fov measures; three.js PerspectiveCamera.fov is VERTICAL")
     p.add_argument("--cam-pos", default=None, help="x,y,z metres")
     p.add_argument("--cam-target", default=None, help="x,y,z metres")
     p.add_argument("--sun-elevation", type=float, default=None, help="degrees; omit for no sun")
@@ -88,7 +90,7 @@ def render(a: argparse.Namespace) -> dict:
         # Frame from bounds: back off along -Y and up, the app's default walk-ish angle.
         d = radius * 3.0
         pos = (centre[0], centre[1] - d, centre[2] + d * 0.35)
-    S.place_camera(pos, look_at=target, fov_deg=a.fov)
+    S.place_camera(pos, look_at=target, fov_deg=a.fov, fov_axis=a.fov_axis)
 
     S.render_png(a.out)
     return {
