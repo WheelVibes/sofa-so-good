@@ -964,6 +964,26 @@ const applyEnvDump =
               imageKind: isCanvas ? 'canvas' : img ? (img.constructor?.name ?? '?') : null,
               w: img?.width ?? null,
               h: img?.height ?? null,
+              // Mean LINEAR luminance of the canvas (`.334`) -- the environment's own
+              // energy, independent of tone mapping, of (u), and of the renderer. The
+              // hardcoded gradient's equivalent is a constant by inspection, so this
+              // is how (p)'s hour-blindness is measured at source.
+              meanLinear: (() => {
+                if (!isCanvas) return null
+                const cv = img
+                const d = cv.getContext('2d')?.getImageData(0, 0, cv.width, cv.height).data
+                if (!d) return null
+                const s2l = (c) => {
+                  const x = c / 255
+                  return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+                }
+                let sum = 0
+                const n = cv.width * cv.height
+                for (let i = 0; i < d.length; i += 4) {
+                  sum += 0.2126 * s2l(d[i]) + 0.7152 * s2l(d[i + 1]) + 0.0722 * s2l(d[i + 2])
+                }
+                return Number((sum / n).toFixed(6))
+              })(),
               // The exact predicate `hqEnvironment.ts` applies.
               wouldPass: Boolean(
                 t.isTexture && !t.isRenderTargetTexture && t.mapping === EQUIRECT_REFLECTION && img,

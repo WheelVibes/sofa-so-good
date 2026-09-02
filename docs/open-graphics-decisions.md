@@ -3009,3 +3009,39 @@ with the ratio inverting sign (0.853 → 1.181). **(w)'s night half cannot be sp
 Implication for sequencing: if (w) is to be fixed properly rather than at midday only, **(p) should be decided
 first** — and `.326` already established that a faithful hour-aware environment exists in the scene and priced
 the conversion.
+
+### ⚠️ (p) QUANTIFIED AT SOURCE — the gradient is ~31 % too dark at noon and ~77x TOO BRIGHT at night (v0.31.5.334)
+
+The environment's own energy, mean linear luminance, measured on the canvas independently of tone mapping, of
+(u), and of the renderer:
+
+| | mean linear |
+| --- | --- |
+| app's own sky (`scene.background`), 13:00 | **0.433** |
+| app's own sky, 21:00 | **0.0039** |
+| hardcoded gradient, **any hour** | **≈0.298** |
+
+The app's sky varies **111× across the day**; the gradient is constant (computed from
+`ProceduralEquirectTexture`'s own formula, `t = (dir.y·0.5+0.5)²` → mean t = 0.375).
+
+**So the gradient is ~31 % too dark at 13:00 and ~77× too bright at 21:00.** The midday figure independently
+corroborates `.326`, whose conversion *brightened* the traced plaster — exactly what a too-dark environment
+predicts.
+
+Render-side, using (u) as an instrument (in class A the ceiling patch reads the environment directly):
+
+| condition | class-A ceiling | R−B |
+| --- | --- | --- |
+| gradient, 13:00 | 175.2 | −13.8 |
+| gradient, 21:00 | 156.0 | −14.7 |
+| **converted background, 21:00** | **21.4** | **+3.2** |
+
+A 7.3× drop against an −11 % hour-drift control, with the R−B sign flipping — the ceiling stops showing a
+daylight sky at 9pm. (The −11 % drift under a provably constant environment is a separate small finding:
+something else tracks the day level, most likely tone-mapping exposure.)
+
+**Decision impact.** `.326`'s conversion is not merely a level correction at midday — it repairs the
+**structural** hour-blindness, which is what `.333` identified as blocking (w)'s night half. So the sequencing
+argument is now quantified: **deciding (p) unblocks (w) at night.** It does not by itself establish that the
+tracer's night render is correct, only that its environment is hour-appropriate, which is the precondition for
+using it as a reference at all.

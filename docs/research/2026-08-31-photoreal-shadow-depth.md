@@ -12584,3 +12584,94 @@ you have not measured.** Authority is usually a one-renderer question and theref
 two-renderer question and expensive.
 
 No `src/` change beyond the version bump.
+
+---
+
+## Round .334 — (p)'s gradient is 77× too bright at night, and (u) becomes an instrument
+
+`.333` established a sequencing conclusion: (p) should be decided before (w), because (w)'s night half is
+blocked on the tracer's hour-blind environment. `.326` priced a conversion of `scene.background` at 13:00, but
+never tested whether it repairs that **structural** defect rather than just the midday level.
+
+### Method — using (u) rather than fighting it
+
+**In class A the ceiling patch is a direct readout of the tracer's environment.** That is the whole content of
+(u): the ceiling stops being a surface and the region shows the environment.
+
+Class A has been landing 6 arms in 8, which is why `.330` cost four paired runs. Here that bias is an asset:
+the common case is the one I want. Two paired runs, ~12 minutes, against a class-matched 2×2 of
+environment × hour at ~60 minutes. And it is a *better* measurement, not merely a cheaper one — a class-B
+ceiling mixes the environment's contribution with room bounce, while a class-A ceiling is the environment and
+nothing else.
+
+Recording this as a general point: **a defect that is reproducible and understood can often be used as an
+instrument.** (u) has taxed this arc for fifty rounds; it is also the only probe that reads the tracer's
+environment directly, with no `src/` change.
+
+### The environment's own energy, measured at source
+
+`ENVDUMP` extended to compute the background canvas's mean **linear** luminance. This is independent of tone
+mapping, of (u), and of the renderer — it is the input, not the output.
+
+| | mean linear |
+| --- | --- |
+| app's own sky, 13:00 | **0.433008** |
+| app's own sky, 21:00 | **0.003900** |
+| hardcoded gradient, **any** hour | **≈0.298** |
+
+The app's own sky varies **111×** across the day.
+
+The gradient's value is computed rather than measured, from the library's own generation formula — verified in
+`ProceduralEquirectTexture.js`, which uses `t = (dir.y·0.5+0.5)^exponent` with `exponent = 2`, and an equirect
+whose rows are uniform in polar angle. So mean `t` = ∫₀¹ ((cos πv + 1)/2)² dv = **0.375**, and since luminance
+is linear in the channels, mean Y = Y_bottom + 0.375·(Y_top − Y_bottom) = 0.094 + 0.375·(0.639 − 0.094) ≈
+**0.298**.
+
+**So the hardcoded gradient is ~31 % too dark at 13:00 and ~77× too bright at 21:00.**
+
+### The midday figure corroborates `.326` by an independent route
+
+`.326` found that converting the background **brightened** the traced plaster — the ceiling deficit went
+−14.4 → −4.2. That is exactly what an environment 31 % too dark predicts, and `.326` reached it from surface
+measurements while this round reaches it from the environment's own energy. Two unrelated routes agreeing is
+worth more than either alone, and this arc has learned to distrust single routes (`.324`).
+
+### Render-side confirmation, and the control that made it interpretable
+
+| condition | class-A ceiling | R−B |
+| --- | --- | --- |
+| gradient, 13:00 | 175.2 | −13.8 |
+| gradient, 21:00 | 156.0 | −14.7 |
+| **converted, 21:00** | **21.4** | **+3.2** |
+
+A **7.3× drop**, and the R−B **sign flips** — the ceiling region stops showing a cool daylight sky at 9pm.
+
+**The −11 % hour drift under a constant environment is itself a finding.** The gradient cannot change with the
+hour; its two colours are hardcoded. Yet the class-A ceiling moved 175.2 → 156.0. So something else tracks the
+day level — most plausibly tone-mapping exposure, which the app does ease with the day curve.
+
+That control is what makes the 7.3× interpretable, and I registered the reading **before** measuring: a −20 %
+result would have proved nothing, and against an −11 % floor it would have been very easy to accept as
+confirmation after the fact. This is the `.327` failure mode — a plausible number in the predicted direction —
+guarded against by naming the null in advance.
+
+Also visible in the numbers: at 21:00 under the gradient, class A gives a **cool ceiling at 156.0 against
+lamp-lit walls at 186.9 (R−B +28.6)**. A night interior with a bright cool sky where the ceiling should be. That
+is (p)'s defect in a single frame.
+
+### Consequence for the docket
+
+`.326`'s conversion fixes (p)'s **structural** defect — hour-blindness — not merely its midday level. That
+removes the blocker `.333` identified on (w)'s night half.
+
+What it does **not** establish: that the tracer's night render is *correct*. Only that its environment is now
+hour-appropriate, which is the precondition for using it as a night reference at all. Validating the night
+render would be a separate round, and would need a class-matched class-B pair.
+
+### Cross-check
+
+Two independent implementations of the mean-radiance computation agree: the temporary `src/` log used an
+unweighted RGB mean and reported **0.00386**; `ENVDUMP` uses Rec.709 luminance weights and reports **0.0039**.
+Different code, different weighting, same answer to three significant figures.
+
+`src/` reverted from the temporary conversion and verified byte-identical to HEAD.
