@@ -185,3 +185,59 @@ describe('planTileCoursing — multi-storey (F13)', () => {
     expect(rows.map((r) => r.roomId).sort()).toEqual(['r1', 'u-bath'])
   })
 })
+
+/**
+ * Reachability of the `sliver` flag — a structural property of the centred
+ * field, established by sweeping the algorithm rather than reasoning about it.
+ *
+ * `axis` centres the field and BORROWS a whole tile back whenever the naive
+ * half-leftover would be under a quarter module. After borrowing,
+ * `cut = (leftover + mod) / 2` with `leftover < mod`, so the cut always lands in
+ * `(mod/2, mod)` — comfortably above the quarter-module bar. The one branch that
+ * skips borrowing is `full < 1`. So a sliver is only possible when the room is
+ * narrower than the tile, and in practice narrower than HALF a module.
+ *
+ * This matters because the module header presents the sliver flag as the
+ * safeguard against "the most common and most expensive category of on-site
+ * rework". It isn't: the centred-with-borrow field PREVENTS that outcome, and
+ * the flag is a backstop for degenerate sub-module strips. Worth pinning, so a
+ * later change to `axis` that reintroduces real slivers fails here loudly.
+ */
+describe('sliver reachability (structural)', () => {
+  const SLIVER_MODULES = [300, 600, 800, 1200]
+
+  it('never fires for a room at least half a module across', () => {
+    for (const mod of SLIVER_MODULES) {
+      for (let extentMm = Math.ceil(mod / 2); extentMm <= 6000; extentMm += 5) {
+        const r = {
+          id: 'r',
+          name: 'R',
+          origin: [0, 0],
+          width: extentMm / 1000,
+          depth: 3,
+        } as unknown as PlanRoom
+        const c = roomTileCoursing(r, {
+          id: 'm',
+          name: 'M',
+          moduleMm: [mod, mod],
+        } as never)
+        if (c?.sliver) {
+          throw new Error(`unexpected sliver: module ${mod}, extent ${extentMm} mm`)
+        }
+      }
+    }
+  })
+
+  it('DOES fire for a sub-half-module strip, and reports no full tiles there', () => {
+    const r = {
+      id: 'r',
+      name: 'Duct',
+      origin: [0, 0],
+      width: 0.25,
+      depth: 3,
+    } as unknown as PlanRoom
+    const c = roomTileCoursing(r, { id: 'm', name: 'M', moduleMm: [600, 600] } as never)!
+    expect(c.sliver).toBe(true)
+    expect(c.fullTiles[0]).toBe(0)
+  })
+})

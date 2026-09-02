@@ -58,6 +58,7 @@ import { sectionSvg } from '../floorplan/sectionSvg'
 import { settingOutDimensions } from '../floorplan/settingOut'
 import { buildMeasurementReconciliation } from '../floorplan/siteMeasurements'
 import { planTileCoursing } from '../floorplan/tileCoursing'
+import { tileLayoutSvg } from '../floorplan/tileLayoutSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
@@ -886,6 +887,46 @@ export function buildDrawingSheets(
           floorLevels: showFloorLevels,
         })}</div>${skewSettingOutTable(levelPlan, showSettingOut, units)}${northIndicatorSvg(orientationDeg)}`,
         calloutGroup: 'dimensions',
+        scaleLabel: scale.label,
+        topDown: true,
+      })
+    }
+  }
+
+  // Tiling layout plan (G5 follow-up, `tileLayoutSheet` flag) — the coursing
+  // DRAWN in position rather than only tabulated on the finishes sheet. Fanned
+  // out per storey like every other plan-derived sheet, and gated to the
+  // Finishes-schedule layer being on for the same reason the G3 tile marks are:
+  // the sheet's per-room table is where the exact numbers live, so drawing the
+  // grid without it would reference a sheet that was skipped.
+  if (isFeatureEnabled('tileLayoutSheet') && finishes && layerOn(layers, 'finishes')) {
+    for (const level of levels) {
+      const levelPlan = levelAsPlan(plan, level)
+      const floorByRoom: Record<string, string> = {}
+      for (const room of levelPlan.rooms ?? []) {
+        floorByRoom[room.id] = resolvePlanRoomFloor(finishes, room)
+      }
+      const { rows, omittedRooms } = planTileCoursing(levelPlan, floorByRoom, BUILTIN_MATERIALS)
+      // No modular finish anywhere on this storey → no sheet, rather than a
+      // page of empty outlines.
+      if (rows.length === 0) continue
+      const [pw, pd] = planBounds(levelPlan)
+      const scale = planScale(pw, pd, template.paperSize, template.orientation)
+      sheets.push({
+        name: cap('Tiling layout plan', level),
+        body: `<div class="draw">${tileLayoutSvg(levelPlan, rows, {
+          palette: {
+            wall: '#374151',
+            ink: '#374151',
+            grid: '#94a3b8',
+            cut: '#60a5fa',
+            accent: '#b91c1c',
+          },
+          widthPx: 900,
+          printMmPerM: scale.mmPerM,
+          omittedRooms,
+        })}</div>${northIndicatorSvg(orientationDeg)}`,
+        calloutGroup: 'finishes',
         scaleLabel: scale.label,
         topDown: true,
       })

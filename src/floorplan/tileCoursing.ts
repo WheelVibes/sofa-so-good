@@ -19,9 +19,19 @@
  * **Origin convention.** Tiling is set out CENTRED on the room, which is the
  * common residential convention and the one that avoids a sliver on one side:
  * the field is centred so the two opposite cuts are equal and as wide as
- * possible. `SLIVER_LIMIT_MM` flags a cut narrower than a quarter module, the
- * usual threshold at which a tiler is expected to re-set the origin or the
- * designer to accept a deliberate feature.
+ * possible, borrowing a whole tile back when that widens them.
+ *
+ * **The `sliver` flag is a backstop, not the safeguard — corrected v0.31.5.288.**
+ * An earlier version of this note implied it was the active check against "the
+ * most common and most expensive category of on-site rework". It cannot be:
+ * after borrowing, `cut = (leftover + mod) / 2` with `leftover < mod`, so the
+ * cut always lands in `(mod/2, mod)` — always above the quarter-module bar. The
+ * only branch that skips borrowing is `full < 1`. Swept over modules 300/600/
+ * 800/1200 mm and extents up to 6 m, `sliver` fires ONLY for a room narrower
+ * than HALF a module on that axis, where there are no full tiles at all (a duct
+ * strip, not a room). So the CENTRED FIELD is what prevents slivers; the flag
+ * catches the degenerate remainder. `tileCoursing.test.ts` pins that property,
+ * so a change to `axis` that reintroduces real slivers fails loudly.
  *
  * Pure (no store, no three, no DOM) → unit-testable directly.
  */

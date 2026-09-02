@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.288 - the tiling layout plan, and the reason it was dead on arrival
+
+A fresh gap pass over the drawing set rather than more of the F13 thread. The set already covers
+17 sheet kinds and has revision history, so the gap was not a missing sheet TYPE — it was a
+deliverable that existed as a table instead of a drawing, and underneath that, data that was never
+authored.
+
+**Finding 1: tile setting-out was a table, not a drawing.** `tileCoursing.ts` computes the origin,
+the full-tile field, the perimeter cut per axis and a sliver flag, and the finishes sheet prints
+them as columns. Transferring "origin 388/213 mm, 4×7 full tiles" from a column onto a slab is
+exactly the step where the most expensive category of tiling rework happens, and it is the step a
+drawing removes. New `floorplan/tileLayoutSvg.ts` + a **Tiling layout plan** sheet
+(`tileLayoutSheet`, pro): per room and to scale, the tile grid struck from the computed origin, the
+perimeter cut bands tinted, the setting-out origin crossed, and a per-room note giving module,
+field and cut widths. Fanned out per storey; gated to the Finishes layer, since that sheet is
+where the exact numbers live.
+
+**Finding 2, the bigger one: NO floor material had a specified module, so the feature could never
+produce a single row.** Only three materials in the whole catalog carried `moduleMm` and all three
+are WALL tiles — while `planTileCoursing` reads FLOOR finishes. **The setting-out table has been
+rendering empty since it shipped**, and the new sheet would have too: everything was built except
+the data. Verified by stashing the catalog change, at which point the sheet vanishes from the index
+entirely.
+
+Modules assigned only where a real citeable SG format exists, because a module is a PRODUCT
+dimension and must never be inferred from `uvScale`:
+- **600 × 600 porcelain** on the four porcelain floors — the dominant SG whole-home and HDB
+  bathroom format.
+- **300 × 1200 vinyl plank** on `floor-vinyl-light` — the SG planked-vinyl format.
+
+Deliberately left WITHOUT one, since a fabricated dimension on a contractor's drawing is worse
+than an acknowledged gap: hexagon tiles (the coursing model is rectangular — a hex field would be
+silently wrong, not merely imprecise), marble and terrazzo (slab or in-situ), timber/parquet/
+herringbone/checker (pattern-dependent, and the sources gave no firm SG plank standard), and
+concrete/screed/carpet (not modular). `planTileCoursing` reports those rooms as omitted, so the
+gaps stay visible.
+
+**Finding 3: the `sliver` flag can essentially never fire, and this file's own header oversold it.**
+The header presented it as the check against "the most common and most expensive category of
+on-site rework". It is not: `axis` centres the field and borrows a whole tile back whenever the
+naive half-leftover would be under a quarter module, so `cut = (leftover + mod) / 2` with
+`leftover < mod` always lands in `(mod/2, mod)` — above the bar by construction. Swept over modules
+300/600/800/1200 mm and extents to 6 m, `sliver` fires ONLY for a room narrower than HALF a module,
+where there are no full tiles at all (a duct strip, not a room). So the CENTRED FIELD prevents
+slivers and the flag catches the degenerate remainder. Header corrected; a test pins the property
+by sweep, so a change to `axis` that reintroduces real slivers fails loudly.
+
+This surfaced because a test I wrote refused to pass vacuously — it threw
+`fixture did not produce a sliver: cut 325/0` rather than asserting on a fixture that did not
+exercise the thing under test. That guard was worth more than the assertion it protected.
+
+**A legibility defect found by LOOKING at the first frame, not by a test.** Drawn inline
+unconditionally, the per-room notes overlapped illegibly — Bath/WC 1, Bath/WC 2 and Household
+Shelter ran into each other on a 4-room flat. A note wider than its room is now a bold **T-tag**
+with the full text in a key under the plan, and the sheet grows to fit the key rather than clipping
+it. Deliberately NOT `mepLabelLayout`, despite the "one declutter scheme" rule: that pass fans
+labels out with leader lines, which suits sparse point symbols and would give eleven rooms of
+leader spaghetti. Tag-plus-key is the drafting answer for per-room data that will not fit.
+
+16 new tests. Sources: homeanddecor.com.sg; thedesignfactory.studio; tsd.sg; weiken.com — cited in
+`materials/builtinCatalog.ts` beside the constants.
+
 ## v0.31.5.287 - DXF export in millimetres, and the metric flag it never emitted
 
 A to-scale interop defect, on the "precise references for contractors" goal rather than the F13

@@ -1873,6 +1873,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Tiling layout plan (G5 follow-up): the tile grid DRAWN in position per
+  // room, with the setting-out origin marked and the perimeter cuts tinted.
+  // `tileCoursing.ts` already computed all of it and the set printed it as a
+  // table — but transferring "origin 137/212 mm, 9x6 full tiles" from a column
+  // onto a slab is the step where tiling rework happens, and a drawing removes
+  // it. Analytical drawing-set content → pro tier, like the sheet flags around
+  // it. Pure code over existing data, no asset dependency → prod-safe.
+  tileLayoutSheet: {
+    label: 'Tiling layout plan',
+    description:
+      'Per-room tile grid, setting-out origin and perimeter cuts drawn on the drawing set',
+    default: true,
+    tier: 'pro',
+  },
   // Carpentry/joinery elevations + sections (TODO G8 — the single most-cited
   // DIY handover gap): a dimensioned front elevation + one section per
   // distinct placed parametric piece, at a finer locked scale. Analytical

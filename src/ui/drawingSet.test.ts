@@ -1486,3 +1486,53 @@ describe('buildDrawingSetHtml — elevation sheet grouping (TODO H6)', () => {
     expect(html).toContain('1.2 m')
   })
 })
+
+describe('tiling layout plan sheet (tileLayoutSheet)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+  // A modular finish is required for any coursing to exist at all — a material
+  // with no `moduleMm` yields no rows, by design (never an invented tile size).
+  const finishes = {
+    floor: { livingDining: 'floor-tile-white' },
+    walls: { livingDining: 'wall-paint-white' },
+  }
+  const build = () =>
+    buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      finishes,
+    )
+
+  it('draws the grid, the setting-out origin and the covered-room count', () => {
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = build()
+    expect(html).toContain('Tiling layout plan')
+    expect(html).toContain('class="origin"')
+    // The honest-coverage footer: a partial sheet must not read as complete.
+    expect(html).toMatch(/\d+ rooms? · \d+ with a specified module/)
+    expect(html).toContain('Field set out CENTRED on each room')
+  })
+
+  it('is hidden in Simple mode (pro-tier flag)', () => {
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    expect(build()).not.toContain('Tiling layout plan')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+
+  it('omits the sheet when no finishes are supplied at all', () => {
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Tiling layout plan')
+  })
+})

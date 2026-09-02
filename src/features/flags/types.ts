@@ -203,6 +203,7 @@ export type FeatureFlag =
   | 'mepEditor'
   | 'switchCircuits'
   | 'settingOutDims'
+  | 'tileLayoutSheet'
   | 'carpentrySheets'
   | 'rcpSheet'
   | 'tradePacks'
