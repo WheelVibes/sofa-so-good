@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.279 - aircon trunking routed through the floor slab
+
+Third migration batch. `airconTrunking.ts` was the first module found reading BOTH ways at once:
+rooms from every storey (`allPlanRooms`) but routes blocked only by the GROUND floor's walls
+(`plan.walls`). That superimposes a maisonette's storeys into one XZ plane, so a loft bedroom
+stacked directly above the living room registered as **adjacent** to it (`gapLinks`/`overlapLinks`
+see touching footprints), no upper-storey wall blocked anything, and the drop height came off the
+ground ceiling. Three whole-plan callers hit it — `DaylightPanel`, `scene/AirconTrunking` and
+`renovationAllocator`, whose `airconTrunkingLengthM` is a **quoted contractor quantity**. So this
+was a wrong number, not merely a wrong picture. (`rcp.ts` was already safe: `drawingSet` calls it
+per storey with `levelAsPlan` + `itemsOnLevel`.)
+
+Now routed **per storey and merged**, mirroring the fan-out in `buildDaylightReport` /
+`buildAirconSizing`. A run is keyed by (system, served room) and a resolved result wins over an
+unresolved duplicate. A system whose condenser and FCU are on different storeys stays
+`resolved: false` — a cross-storey riser is a vertical element this plan model has no concept of,
+so the honest output is the caller's existing one-line advisory, the same convention an unroutable
+same-storey run already uses. Inventing a route would have been the worse answer.
+
+**The fan-out alone was not enough, and this is the transferable lesson.** With it in place the
+bad route STILL resolved: the ground pass received the upstairs FCU, and `roomIdAt`'s
+point-in-room override reassigned it to the living room beneath it, so the pass confidently routed
+ledge → living and labelled it the loft bedroom's run. A nearest/point-in-room fallback defeats
+per-storey scoping unless storey MEMBERSHIP is checked first. Now recorded in
+`src/floorplan/CLAUDE.md`: proximity in XZ is never evidence of which floor something is on.
+
+`resolveAirconTrunkingInput` is level-gated too — its placed-item shape takes an optional
+`levelId` (`FurnitureItem` already carries one), because otherwise a loft FCU resolved to a ground
+room and the per-storey router then failed to find it, silently unresolving the run.
+
+3 of the 5 new tests confirmed failing with the fix stashed; the other two pin the
+single-storey no-op.
+
 ## v0.31.5.278 - visual verification of the F13 cost fixes, and two harness lessons
 
 Verified `.277` on the shipped two-storey **Open Loft** template with four items moved onto the

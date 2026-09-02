@@ -24,6 +24,12 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   `(a.levelId ?? 'ground') === (b.levelId ?? 'ground')` (see `itemsCollide`,
   `findNarrowGaps`, `findWallClipsByLevel`, `isItemInRoom`). Same for item↔wall
   tests — resolve the item's own storey's walls (`placementWalls(state, levelId)`).
+- **A per-storey fan-out is defeated by any nearest/point-in-room fallback unless you guard
+  storey MEMBERSHIP first.** `buildAirconTrunkingPlan`'s fan-out looked correct and was not: the
+  ground pass received an upstairs FCU, `roomIdAt`'s point-in-room override silently reassigned it
+  to whatever ground room sat beneath it, and the pass then routed that as the loft bedroom's run.
+  Check `rooms.some((r) => r.id === target)` on the level before routing/attributing anything.
+  Proximity in XZ is never evidence of which floor something is on.
 - **Room ids are plan-unique across ALL storeys** — room-keyed consumers
   (finishes, score, reports) stay level-agnostic because of this invariant;
   preserve it when generating templates/levels.
