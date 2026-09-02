@@ -32,6 +32,44 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('A4 landscape')
   })
 
+  it('prints the full revision history on the cover, not just the current letter (G6)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        ...DEFAULT_DRAWING_SET_TEMPLATE,
+        revisions: [
+          { letter: 'A', date: '1 June 2026', note: 'Initial issue' },
+          { letter: 'B', date: '3 July 2026', note: 'Issued for tender' },
+        ],
+        revision: 'C',
+        revisionNote: 'Kitchen revised',
+      },
+    )
+    // All three issues appear, with their own dates and descriptions — the
+    // audit trail the revision table exists to carry.
+    expect(html).toContain('Issued for tender')
+    expect(html).toContain('1 June 2026')
+    expect(html).toContain('3 July 2026')
+    expect(html).toContain('Kitchen revised')
+    // The title block still shows only the CURRENT letter.
+    expect(html).toContain('Rev C')
+  })
+
+  it('still prints a single revision row for a default template (G6 regression)', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('Initial issue')
+    expect(html).toContain('Rev A')
+  })
+
   it('states the dimension unit once in every title block (G10)', () => {
     // Dimension labels are suffix-free integer mm, so the sheet must say so —
     // the standard convention, and the thing that makes "2745" unambiguous.

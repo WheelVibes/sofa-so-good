@@ -15,7 +15,11 @@ import {
   openingStyleMaterialLabel,
 } from '../analysis/openingSchedule'
 import { projectAllElevations } from '../elevation/projectElevation'
-import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
+import {
+  DEFAULT_DRAWING_SET_TEMPLATE,
+  type DrawingSetTemplate,
+  drawingSetRevisionRows,
+} from '../export/drawingSetTemplate'
 import { customMetaColumns } from '../export/ffeCsv'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
@@ -952,7 +956,6 @@ export function buildDrawingSheets(
   // Project/client identity (TODO G5) — user-editable via `drawingSetTemplate`,
   // falling back to the plan's own name so behaviour is unchanged until edited.
   const projectName = template.projectName.trim() || plan.name
-  const revision = template.revision.trim() || 'A'
 
   // Standard SG handover disclaimers (contractor-handover research, TODO G5) —
   // carried on the cover sheet only, once per set. The approval-path lines
@@ -993,7 +996,15 @@ export function buildDrawingSheets(
             ? `<div style="font-size:10px;color:#6b7280;margin-top:4px">— ${minorWallsOmitted} minor wall${minorWallsOmitted === 1 ? '' : 's'} omitted (no items or openings)</div>`
             : ''
         }</div>
-        <div><h3>Revisions</h3><table class="sched"><tr class="h"><td>Rev</td><td>Date</td><td>Description</td></tr><tr><td>${esc(revision)}</td><td>${esc(date)}</td><td>${esc(template.revisionNote.trim() || 'Initial issue')}</td></tr></table></div>
+        <div><h3>Revisions</h3><table class="sched"><tr class="h"><td>Rev</td><td>Date</td><td>Description</td></tr>${drawingSetRevisionRows(
+          template,
+          date,
+        )
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.letter)}</td><td>${esc(r.date)}</td><td>${esc(r.note)}</td></tr>`,
+          )
+          .join('')}</table></div>
       </div>
       <div class="notes">
         <h3>General notes</h3>

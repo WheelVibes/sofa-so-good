@@ -200,6 +200,14 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G6 follow-up] Revisions are set-wide, not per-sheet; no revision clouds.** v0.31.5.253 ships the
+  revision HISTORY, but every sheet still carries the same global `Rev X` in its title block, whereas
+  in practice sheets revise independently. Doing it properly needs each revision to record WHICH
+  sheets it touched (`sheets?: string[]` on `DrawingSetRevision`) — deliberately NOT added yet
+  because nothing can populate it: it would need a per-sheet issue UI, and an unpopulated field is
+  worse than an absent one. Same reason revision clouds/deltas (marking WHAT changed on a sheet) are
+  deferred: they need a diff between two issues of the plan, which means storing a plan snapshot per
+  revision. Revisit together, and only with a real issue-management surface.
 - **[G9 follow-up] Aircon trunking vs joinery is not clash-checked.** v0.31.5.252 covers MEP-behind-
   furniture and item-under-ceiling-drop. The third failure mode from the research — an
   `analysis/airconTrunking.ts` route crossing a carpentry run — needs the trunking polyline treated

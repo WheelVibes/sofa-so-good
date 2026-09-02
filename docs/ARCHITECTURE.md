@@ -1580,6 +1580,17 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **The drawing set's revision table is an append-only audit trail.**
+  `export/drawingSetTemplate.ts` holds `revisions?: DrawingSetRevision[]` (prior issues, oldest
+  first) ALONGSIDE `revision`/`revisionNote`, which remain the CURRENT issue — additive, so an
+  absent history reproduces the original single-row table. Pure clock-free helpers (the module is
+  serialisable and never reads a clock; dates are injected): `drawingSetRevisionRows(t, date)`
+  builds every row to print and drops a history entry duplicating the current letter;
+  `nextRevisionLetter` does the A→B…Z→AA odometer carry; `issueRevision(t, date)` files the current
+  row and advances. Filed rows are intentionally not editable from the UI — a rewritable revision
+  table is not an audit trail. Rendered on the cover by `ui/drawingSet.ts`; edited in the File
+  menu's drawing-set Disclosure; persisted through `state/schema.ts`. Per-sheet revision letters
+  and revision clouds are deferred (`TODO.md`) — both need data nothing can currently populate.
 - **Cross-discipline coordination checks** (`coordinationChecks` flag, pro) —
   `analysis/coordinationClashes.ts` `buildCoordinationClashes(plan, items, catalog, electrical,
   plumbing)` is the ONE check that compares disciplines against **each other** rather than each

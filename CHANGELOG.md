@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.253 — the revision table becomes an audit trail
+
+`drawingSet.ts` rendered the Revisions table with a single hardcoded `<tr>` built from
+`template.revision` + `template.revisionNote`. So a set reissued at Rev C printed "C" and nothing
+else — no record that A and B ever existed. That is the one thing a revision table is FOR: proving
+which sheet a contractor holds is current, and what changed at each issue.
+
+`DrawingSetTemplate` gains `revisions?: DrawingSetRevision[]` — prior issues, oldest first.
+Deliberately **additive**: `revision`/`revisionNote` keep their exact previous meaning (THE CURRENT
+issue), and an absent/empty history reproduces the old single row byte-for-byte, so every existing
+save is unaffected. New pure helpers, all clock-free (the module is serialisable and never reads a
+clock — dates are injected):
+
+- `drawingSetRevisionRows(t, currentDate)` — every row to print, history then current. Drops a
+  history entry duplicating the current letter, since printing it twice would make the table
+  contradict itself about which issue is current.
+- `nextRevisionLetter(letter)` — A → B … Z → AA → AB (odometer carry); blank/garbage starts at A.
+- `issueRevision(t, issuedDate)` — files the current row into history, advances the letter, clears
+  the note. **Append-only**: a revision table a user can silently rewrite is not an audit trail, so
+  filed rows are not editable from the UI while the current (un-issued) row stays editable.
+
+Surfaced in the File menu's drawing-set editor: the filed issues list read-only, plus an "Issue Rev
+X — file it and start Y" button. Persisted via `state/schema.ts` (`isNonDefaultDrawingSetTemplate`
+now counts a non-empty history, so it survives a save/load round-trip).
+
+Also fixed while here: `DRAWING_SET_FIELDS` was typed `keyof DrawingSetTemplate` but only ever held
+free-text keys, so adding a non-string field broke the generic `<input value={template[f.key]}>`.
+Narrowed to a mapped type selecting the string-valued keys — the honest type for what that list is.
+
++17 unit tests (`export/drawingSetTemplate.test.ts`, a new file — the module had none) plus 2
+drawing-set tests: the cover prints all three issues with their own dates while the title block
+still shows only the current letter, and a default template still prints exactly one row.
+Full suite green (9488). Verified visually: cover REVISIONS reads A / 1 June / Initial issue ·
+B / 3 July / Issued for tender · C / 2 September / Kitchen layout revised.
+
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G6).
+
 ## v0.31.5.252 — the disciplines are finally checked against each other
 
 Every discipline was checked only against ITSELF. `collision/` tests furniture against furniture

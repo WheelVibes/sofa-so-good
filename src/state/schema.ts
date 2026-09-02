@@ -553,6 +553,12 @@ const DrawingSetTemplateZ = z
     checkedBy: z.string().optional(),
     revision: z.string().optional(),
     revisionNote: z.string().optional(),
+    // Revision HISTORY (G6) — prior issues, oldest first; `revision`/
+    // `revisionNote` above stay the CURRENT issue. Absent → the previous
+    // single-row revision table, so older saves are unchanged.
+    revisions: z
+      .array(z.object({ letter: z.string(), date: z.string(), note: z.string() }))
+      .optional(),
     // User-customizable paper (additive follow-up to TODO G2) — absent →
     // 'a4'/'landscape' via `mergeDrawingSetTemplate` on load.
     paperSize: z.enum(['a4', 'a3', 'a2', 'a1']).optional(),
