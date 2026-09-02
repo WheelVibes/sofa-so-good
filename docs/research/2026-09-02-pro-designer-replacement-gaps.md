@@ -262,7 +262,7 @@ header that it is "an INDICATIVE planning aid, not a certified electrical
 design… no notion of circuits, RCD/MCB sizing or cable runs." A spec module
 should carry the same explicit scope limits.
 
-### G8 — Suggestions are a decorator wizard, not a designer's judgment loop
+### ◕ CORE SHIPPED v0.31.5.262 — G8 — Suggestions are a decorator wizard, not a designer's judgment loop
 **Status: CONFIRMED in source.** `analysis/suggestions.ts` is self-described as
 "Magic design suggestions (feature F16) — rule-based, no ML", producing
 "contextual 'what to add' hints" from a room's name, area, and the furniture
@@ -416,6 +416,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
+| G8 (core) | v0.31.5.262 | `buildSchemeOptions` — N schemes scored/priced with derived per-category trade-offs. **Research correction**: preset-swapping alone does NOT vary layout (no preset defines `kits`); the arranger's unused LAYOUT-REROLL seed does, and is now threaded through. UI surface pending. |
 | G4 (rest) | v0.31.5.260 | IES distribution SHAPE into `pointIlluminance` (magnitude still registry-calibrated). Moves peaks/minima/U0; the lumen-method room AVERAGE is distribution-agnostic by construction and unchanged. |
 | G3 (part) | v0.31.5.259 | Audited what profile data exists; detailed the four junctions derivable exactly (ceiling drop, upturn, threshold, sill/head) + a separate `DETAIL_SCALE_RATIOS` ladder. Profile-dependent details deferred with a named prerequisite. |
 | G7 | v0.31.5.258 | Derived clauses (product/substrate/preparation/workmanship/tolerance/exclusions) per trade in scope, with `tradesNotCovered` named and NO asserted standard codes. |

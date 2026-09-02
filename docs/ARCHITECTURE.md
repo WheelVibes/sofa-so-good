@@ -1580,6 +1580,19 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Alternative schemes: the preset is the STYLE lever, the arranger seed is the LAYOUT lever.**
+  `analysis/schemeOptions.ts:buildSchemeOptions({plan, defs, presets, seeds?, doors?, budget?})`
+  generates one scored + priced candidate per preset, ranks them (overall, then cheaper wins a tie,
+  then preset id for determinism), and derives per-category trade-off lines plus a recommendation.
+  **Both levers are required and this was measured, not assumed**: no shipped `LayoutPreset` defines
+  `kits`, so preset-swapping alone places identical furniture in identical positions — a restyle, not
+  an alternative scheme. Layout variation comes from `arrangeCore`'s LAYOUT-REROLL `seed`, now
+  threaded through `arrangeAllRoomsForPlan` and `furnishPlanItems` as a trailing `seed = 0`
+  (additive; 0 is byte-identical to before). `schemeOptions` defaults each scheme's seed to its
+  index, so callers get varied layouts without opting in; pass all-zero `seeds` to compare pure
+  styling. Trade-offs skip gaps under `TRADEOFF_MIN_GAP` (5) so noise is not printed as a decision,
+  and no prose adjectives are invented. A preset that furnishes nothing lands in `emptyPresetIds`
+  rather than being ranked. Data core only — the review-and-pick UI is in `TODO.md`.
 - **Construction details are scoped to what the model can state exactly.**
   `floorplan/junctionDetails.ts:buildJunctionDetails(plan)` (`constructionDetails` flag, pro) emits
   one detail per DISTINCT condition — dropped ceiling (`ceilingClearance.ts` drop + finished

@@ -200,6 +200,15 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G8 next] Scheme comparison needs a UI surface.** v0.31.5.262 ships the data core
+  (`analysis/schemeOptions.ts`): generate N schemes, scored/priced, with derived trade-offs. Still
+  needed: a review-and-pick surface (each scheme's plan thumbnail, score breakdown, price and the
+  trade-off lines, with "use this one" applying its items + the preset's finishes), a brief/budget
+  input wired through `furniture/briefParser.ts:parseBrief`/`parseBriefBudget` (both already exist
+  and already return a preset id + a budget), and a feature flag. Also worth doing: presets define NO
+  `kits`, so scheme variety leans entirely on the layout seed — giving a few presets real kit
+  differences (a WFH desk, an entertainer's bar) would widen the spread more cheaply than any
+  algorithm change.
 - **[G3 remainder] Profile-dependent details need a trim/profile data model.** v0.31.5.259 details
   the four junctions the model can state exactly (ceiling drop, waterproofing upturn, floor
   threshold, window sill/head). Still missing, and ALL blocked on the same prerequisite: skirting and

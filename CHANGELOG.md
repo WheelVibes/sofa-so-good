@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.262 — alternative schemes, and the lever that actually makes them different
+
+G8's core, on the user's decision to take the full scope. `analysis/suggestions.ts` is a rule-based
+"what to add" wizard — you design, it names missing categories. What a designer sells is the
+opposite: take a brief and a budget, come back with two or three genuinely DIFFERENT schemes, argue
+the trade-offs, let the client choose.
+
+New pure `analysis/schemeOptions.ts:buildSchemeOptions` generates, scores and compares schemes,
+composing existing machinery (`furnishPlanItems` + `buildDesignScore` + `itemPrice`) rather than
+inventing a layout engine. Each candidate returns its items, its full per-category score, its total
+price and — when a budget is given — how far over it sits.
+
+**The premise I started with was wrong, and my own test caught it.** I assumed swapping
+`LayoutPreset`s produced different schemes. It does not: **no shipped preset defines `kits`**, so
+every preset seeds the identical base kit into the identical positions and differs only in finishes
+and per-def cosmetic props. A test comparing two presets' placed `defId` sets failed on the first
+run with the two sets byte-identical. Preset-swapping is a restyle, not an alternative scheme.
+
+The real lever was already in the arranger and unused: `arrangeCore`'s LAYOUT-REROLL `seed` rotates
+each piece's edge-candidate list, so the same furniture lands against different walls —
+`arrangeAllRoomsForPlan` hardcoded `0`. Threaded it through `arrangeAllRoomsForPlan` and
+`furnishPlanItems` as a trailing `seed = 0` (both additive; 0 reproduces previous output exactly),
+and `buildSchemeOptions` now varies BOTH: preset = how it reads, seed = where things go.
+
+Two tests pin that in opposite directions, which is what makes the claim checkable rather than
+asserted: one requires the candidates' item POSITIONS to differ and at least one shared piece to
+have actually moved (not merely been added or dropped — the weaker thing my first test would have
+accepted); the other pins all seeds to 0 as a CONTROL and requires every layout to be identical, so
+if layout variation ever arrives from somewhere other than the seed, that test fails.
+
+**Trade-offs are derived, not written.** For each score category the comparison names which scheme
+leads, which trails, and by how much, skipping any gap under `TRADEOFF_MIN_GAP` (5) — printing a
+1-point "difference" would dress noise up as a decision. Cost states the spread and the item counts.
+A budget states which schemes exceed it and by how much. Prose adjectives about "warmth" would be
+invented, so there are none.
+
+**Honest limits, in the module header.** Scheme identity still comes from the preset vocabulary plus
+a seed rotation — this does not invent a per-scheme arrangement STRATEGY. And because `designScore`
+weights clearance and furnishing most heavily, the ranking favours a workable room over a daring
+one; the full per-category table is returned precisely so a user can overrule it on grounds the
+score does not measure. A preset that furnishes nothing is reported in `emptyPresetIds`, not ranked
+as a zero-score scheme — an empty home is not a design option.
+
++15 tests. Full suite green (9591). UI surface still to come — this is the data core only.
+
 ## v0.31.5.261 — uniformity reaches the sheets
 
 Completes the G4 tail item that mattered most: `RoomLuxGrid.uniformity` has been computed since
