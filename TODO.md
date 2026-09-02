@@ -254,12 +254,11 @@ proposing a channel change (meta-rule xvii-b).
   surface an arbitrary preset, so a user is never shown a theme whose palette is invented.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
-- **[site measurements — recording UI DONE v0.31.5.271] Remaining: openings + mobile parity.** The
-  wall and room inspectors now carry `SiteMeasuredField` with inline deviation feedback. Still to do:
-  the OPENING inspector (door/window widths are commonly the thing that differs in a resale flat),
-  and a check that the field reads well in the mobile bottom-sheet inspector. Also worth considering:
-  wiring the plan editor's existing measure tool so a tap-and-type records directly, rather than
-  going via the inspector.
+- **[site measurements — recording UI COMPLETE v0.31.5.272]** `SiteMeasuredField` is on the wall,
+  room and opening inspectors with inline deviation feedback, verified on desktop and at a true
+  390px phone viewport. **Optional follow-up, not a gap:** wire the plan editor's existing measure
+  tool so a tap-and-type records directly rather than going via the inspector — faster on site, but
+  the inspector path is complete and usable as-is.
 - **[layout critique] Add a walkway-width check using the SG figure, not the generic one.** The two
   standards disagree: 91 cm generic vs "at least 70-80 cm" in SG guidance
   (`docs/research/2026-09-02-layout-critique-standards.md` records both). `designScore`'s circulation

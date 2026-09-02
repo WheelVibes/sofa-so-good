@@ -1580,6 +1580,21 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Site measurements: the model is verified, not just drawn.** `plan.siteMeasurements` (additive,
+  optional, schema round-tripped; the type lives in `floorplan/types.ts` to avoid an import cycle)
+  records what a tape actually read, in mm. `floorplan/siteMeasurements.ts:
+  buildMeasurementReconciliation` compares each against the model and reports a signed deviation
+  (positive = the real thing is bigger than drawn) against a length-banded tolerance
+  (`defaultToleranceMm`: 6/9/12 mm — the widens-with-length convention, citing NO standard clause,
+  same rule as `export/specification.ts`; overridable per measurement). A measurement whose target
+  was deleted is reported `unresolved` and still printed — never dropped, since discarding a
+  dimension someone physically measured is the worst failure this could have. Recorded via
+  `floorPlanSlice.setSiteMeasurement` / `clearSiteMeasurement` (undoable, forks the default plan,
+  one measurement per (kind, targetId) — re-measuring REPLACES) and entered through
+  `SiteMeasuredField` in the wall / room / opening inspectors, which shows the deviation INLINE so a
+  discrepancy is caught while the user is still holding the tape. Printed as the drawing set's
+  "As-built reconciliation" sheet (`siteMeasurements` flag, pro), which states plainly whether the
+  drawings can be built from as-is.
 - **Alternative schemes: the preset is the STYLE lever, the arranger seed is the LAYOUT lever.**
   `analysis/schemeOptions.ts:buildSchemeOptions({plan, defs, presets, seeds?, doors?, budget?})`
   generates one scored + priced candidate per preset, ranks them (overall, then cheaper wins a tie,

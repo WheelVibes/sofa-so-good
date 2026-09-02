@@ -8,7 +8,7 @@ import { useStore } from '../../../../state/store'
 import { ColorPicker } from '../../../controls/ColorPicker'
 import { Select } from '../../../controls/Select'
 import { Icon } from '../../../toolbar/icons'
-import { ActBtn, NameField, Num } from './shared'
+import { ActBtn, NameField, Num, SiteMeasuredField } from './shared'
 
 /** Inspector body for a selected opening (door / window). Reads edits/state from
  *  the store exactly as the inline dispatcher code did. */
@@ -24,6 +24,7 @@ export function OpeningInspector({
   const a = useStore.getState()
   const openingStylesOn = useFeature('openingStyles')
   const elementColorsOn = useFeature('elementColors')
+  const siteMeasurementsOn = useFeature('siteMeasurements')
   const wall = level.walls.find((x) => x.id === o.wallId)
   const maxOff = wall ? Math.max(0, wallLength(wall) - o.width) : o.offset
   return (
@@ -106,6 +107,9 @@ export function OpeningInspector({
         min={0.1}
         onChange={(v) => a.updateOpening(o.id, { width: Math.max(0.1, v) }, levelId)}
       />
+      {siteMeasurementsOn ? (
+        <SiteMeasuredField kind="opening" targetId={o.id} modelMm={Math.round(o.width * 1000)} />
+      ) : null}
       <Num
         label="Sill (m)"
         value={o.sill}

@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.272 - openings measured too, and mobile parity verified rather than assumed
+
+Completes the site-measurement recording surface. `SiteMeasuredField` is now on the OPENING
+inspector as well as walls and rooms — door and window widths are commonly the dimension that
+differs in a resale flat, so leaving them out would have been the wrong three-of-four.
+
+**Mobile parity checked at a true 390px viewport, not assumed.** The repo's playbook is explicit
+that true phone widths need the headless harness rather than a narrowed desktop window, so that is
+how this was verified. Three things came out of actually looking:
+
+- The mobile plan inspector renders only when something is SELECTED and starts MINIMIZED "to avoid
+  covering the plan" — existing intended behaviour, not a gap. My first two screenshots showed no
+  inspector at all, and the honest answer was that I had not switched the editor into Edit mode
+  (component-local state, defaulting to `view` on mobile) or expanded the sheet.
+- Once expanded and scrolled, the field and its deviation warning render correctly between Length
+  and Angle, identical in content to desktop. The probe ASSERTS the label exists before scrolling to
+  it, so a silently-absent field fails the scenario rather than producing a screenshot of the wrong
+  part of the sheet.
+- The field deliberately uses a COLUMN layout (caption label above a full-width input) where the
+  sibling `Num` controls are label-left / value-right. Kept, for two reasons: the deviation line
+  needs the full width to read as a sentence, and the caption-above pattern already exists in this
+  inspector for the "Sloping top" group. Noted here so it reads as a choice rather than drift.
+
+No new tests — this reuses the component and store actions already covered by v0.31.5.271's 10
+tests, and the parity question was a rendering one that only a screenshot could answer. Full suite
+green (9643).
+
 ## v0.31.5.271 - the measurement field, so the reconciliation sheet can actually be used
 
 v0.31.5.270 shipped the reconciliation core and its sheet, and I flagged the obvious hole: the field
