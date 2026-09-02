@@ -29,6 +29,91 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.6 — a second room, in one command: the highlight deficit generalises, the shadow agreement does NOT, and `p99/p01` is retired
+
+Every conclusion in this arc was drawn against **one pose in one room** (`bedroom3`, 13:00,
+north window). The arc's own rule is that these metrics are pose-, room- and
+framing-dependent, so "the rest of the render is already at physics" was an n = 1 claim. This
+round makes a second reference cheap, then uses it — and it costs one of the previous round's
+conclusions.
+
+**`python/scripts/blender/render_from_manifest.py` — reference generation in one command.**
+Every reference so far was hand-assembled from a `BLENDREF` manifest: camera position,
+look-at, vertical FOV, and the sun's travel vector, each a separate flag needing the right
+frame. That is four chances to mis-transcribe a pose, and a mis-transcribed pose is this arc's
+most expensive error class — `v0.31.6.4` and `v0.31.6.9` each lost a round to framing that
+looked fine and was not. The manifest is the authority, so the pose is now **read, never
+retyped**. Thin by construction: it resolves flags and calls `render_still.main(argv)`
+in-process, so scene construction keeps one implementation (the goal's "don't fork logic"
+constraint; `main()` gained an optional `argv` for exactly this).
+
+Validated before being trusted — it reproduces the existing hand-built reference to within
+sampling noise (p95/median identical, p99/median 2.357 vs 2.362, mean R−B −29.5 vs −29.6). A
+**new** room's reference then cost **37 s** end to end (21 s export + 16 s Cycles at
+800×450/64 samples).
+
+**It also hit the documented argparse trap again:** `--sun-dir=-0.5,…` must use the `=` form,
+because argparse reads a value starting with `-` as another option. Passing argv as a Python
+*list* does not avoid it — the rule is about the value's first character, not shell quoting.
+Recorded once for the CLI, and it still bit; now fixed structurally for every vector flag.
+
+**Retire `p99/p01`.** The tighter crop this room needed (its app frame carries a *"Turn off
+ceiling light"* toast at bottom-centre that the bedroom frame does not) exposed the statistic:
+
+| statistic, `bedroom3` | wide crop | tight crop | change |
+| --- | --- | --- | --- |
+| app `p99/median` | 1.436 | 1.442 | +0.4 % |
+| reference `p99/median` | 2.194 | 2.201 | +0.3 % |
+| reference `p01/median` | 0.088 | 0.029 | **−67 %** |
+| **reference `p99/p01`** | **24.9** | **76.7** | **+208 %** |
+
+Same image pair, same render, three-fold change. `p99/p01` is set by whatever smallest dark
+feature the crop happens to include, so it measures the crop. **`v0.31.6.9`'s headline — "app
+24.1 vs physics 24.9, the app is already there" — rested on that statistic and does not
+survive.** Its *highlight* conclusion does, because that came from `p99/median`, which moves
+0.3 %.
+
+**The two rooms, on one crop that clears every UI element in both:**
+
+| | `bedroom3` app | `bedroom3` physics | `livingDining` app | `livingDining` physics |
+| --- | --- | --- | --- | --- |
+| p05 / median | 0.352 | 0.371 | 0.403 | **0.286** |
+| p25 / median | 0.748 | 0.807 | 0.792 | **0.529** |
+| p95 / median | 1.329 | **1.833** | 1.539 | **2.177** |
+| p99 / median | 1.442 | **2.201** | 1.626 | **2.966** |
+| mid-tone 60..240 | 90.3 % | 90.5 % | 92.3 % | **59.2 %** |
+| WB-invariant chroma residual | — | 6.0 rms | — | 5.6 rms |
+
+**1. The highlight deficit generalises.** The app is **34 %** short at p99/median in
+`bedroom3` and **45 %** short in `livingDining`; p95 is 28 % and 29 % short. Two rooms, same
+direction, similar magnitude. Item (l)'s pane problem is not a quirk of one north-facing
+bedroom.
+
+**2. The shadow agreement does NOT generalise, and this narrows `v0.31.6.9`.** In `bedroom3`
+the app's shadows match physics (p25 0.748 vs 0.807, mid-tone 90.3 % vs 90.5 %). In
+`livingDining` they are **50 % too light** (p25 0.792 vs 0.529) and mid-tone occupancy is
+**92.3 % against 59.2 %** — the app is far flatter. Looking at the pair shows it directly:
+physics darkens the deep side walls and the near corners with distance, while the app's walls
+are uniformly lit.
+
+**So "the app's shadows already match physics" is true only in a small room.** The error scales
+with room depth, which is the signature of a missing *distance-dependent* indirect term — i.e.
+item **(w) RASTER-INTERREFLECTION**, whose floor half `v0.31.6.7` found unreachable by the
+existing levers. This is the first measurement showing (w) has a large effect on **whole-frame
+tonality**, not just on individual surface ratios, and it explains why `FILLSCALE` looked
+plausible: in a deep room the uniform fill genuinely *is* too strong — just not fixable by
+scaling something uniform, since `bedroom3` would then go too dark.
+
+**3. The chroma residual generalises in magnitude** (6.0 vs 5.6 counts rms, worst tile −12.5
+vs −11.2), and the window tiles are negative in both. But the window is the single worst tile
+only in `bedroom3`, so `v0.31.7.5`'s "both remaining errors are the pane" holds for that room
+and is **narrowed** to: the pane is *a* consistent chroma offender, not everywhere the worst.
+
+**FPS unaffected — nothing shipped.** All three surfaces the goal names keep their measured
+60 fps at medium. But the (w) result above is the first finding in this arc that will
+*genuinely* cost frame time to fix, so the ~16.5 ms/frame of medium-tier headroom is now the
+binding constraint on the next step rather than a comfortable margin.
+
 ## v0.31.7.5 — the 40-count chroma gap is white balance; the real residual is 7 counts and it is the WINDOW again
 
 `v0.31.6.9` left the app at mean R−B **+8.6** against the Cycles reference's **−31.6** — a

@@ -91,6 +91,29 @@ position when `--cam-pos` is omitted.
 Verified: pool-table-6ft (26 meshes, radius 0.965) at 400×300/24 samples in **0.64 s** on
 CPU; all three HDRI routes exercised, renders inspected by eye.
 
+### `render_from_manifest.py` — the matched-pose reference, in one command
+
+    blender --background --factory-startup \
+      --python python/scripts/blender/render_from_manifest.py -- \
+      --dir /tmp/bref --samples 64
+
+`light-distribution.mjs BLENDREF=<dir>` writes `manifest.json` + `scene.glb` + the app's own
+raster from one pose; this turns that directory into the physical reference for the *same*
+pose. Camera position, look-at, vertical FOV and the sun's travel vector are **read from the
+manifest, never retyped** — four flags, four chances to mis-transcribe a pose, and a
+mis-transcribed pose is the most expensive error class in this arc (two rounds lost to framing
+that looked fine and was not).
+
+Thin by construction: it resolves flags and calls `render_still.main(argv)` in-process, so
+scene construction has one implementation. Anything it cannot express is a missing
+`render_still.py` flag, not a reason to duplicate. It also runs the GLB through
+`glb_fix.strip_noop_dispersion()` first, since a `BLENDREF` export of the full apartment
+always carries the 4 glass materials that abort the importer.
+
+Verified: reproduces an existing hand-assembled reference to within sampling noise (p95/median
+identical, p99/median 2.357 vs 2.362, mean R−B −29.5 vs −29.6) — and a **new** room's
+reference costs ~37 s end to end (21 s export + 16 s render at 800×450/64 samples).
+
 ## Repo facts worth knowing before you start
 
 **The Poly Haven HDRIs are NOT bundled.** `src/scene/lighting/hdriCatalog.ts` serves them
@@ -123,6 +146,22 @@ the research docs.*
   supply radiance. Sanity check that worked: derived elevation **83.53°** for bedroom3 at
   13:00, which is correctly near-overhead for Singapore in early September — a free check on
   both the app's sun and the Y-up→Z-up conversion.
+- **2026-09-03 — `--flag=value`, not `--flag value`, for anything that can be negative.**
+  argparse treats a value whose first character is `-` as another option and fails with
+  *"expected one argument"*. `--sun-dir` and any camera coordinate can be negative. **Passing
+  argv as a Python list does not avoid this** — the rule is about the value's first character,
+  not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
+  being recorded once for the CLI.
+- **2026-09-03 — one room is not a validation, and a second one costs 37 seconds.** Every
+  conclusion drawn against `bedroom3` at 13:00 was an n = 1 claim. Adding `livingDining`
+  confirmed the highlight deficit (34 % and 45 % short) and **broke** the finding that the
+  app's shadows already match physics — true in the small bedroom, badly false in the deep
+  living room (mid-tone occupancy 92 % vs 59 %). Now that `render_from_manifest.py` exists
+  there is no excuse for a single-room conclusion.
+- **2026-09-03 — quote `p95/median` and `p99/median`; never quote `p99/p01`.** On the *same
+  image pair*, a modest crop change moved the reference's `p99/p01` from **24.9 to 76.7** (3×)
+  while `p99/median` moved 0.3 %. `p99/p01` is set by whatever smallest dark feature the crop
+  happens to include, so it measures the crop rather than the render.
 - **2026-09-03 — compare RATIOS, not absolute levels.** Cycles' exposure is not matched to
   the app's and need not be: a response ratio (surface under intervention A ÷ under B) is
   exposure- and tone-mapping-invariant, so it is the quantity that survives. This is what let

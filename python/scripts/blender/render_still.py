@@ -144,8 +144,12 @@ def render(a: argparse.Namespace) -> dict:
     }
 
 
-def main() -> int:
-    a = parse_args()
+def main(argv: list[str] | None = None) -> int:
+    # `argv` so another script can drive this in-process rather than shelling out to a
+    # second Blender (render_from_manifest.py) -- one implementation of scene
+    # construction, which is the goal's "don't fork logic" constraint. Default None
+    # keeps the CLI path reading Blender's own argv after the bare `--`.
+    a = parse_args(argv)
     try:
         result = render(a)
     except Exception as exc:  # noqa: BLE001 — the service needs a parseable failure
