@@ -9787,3 +9787,65 @@ regions with different content.** `.282` measured one dead patch; `.285` average
 across furniture. **A frame-wide statistic needs its region declared, or it measures nothing in particular.**
 
 Nothing changed in `src/`. The probe gains `PTPROFILE=1`.
+
+---
+
+## Round .294 — (u) at n=24 instead of n=3: three discrete classes, and `.293`'s claim came from the wrong pair
+
+`.293` asked whether the cold-cast extent is bimodal or continuous and answered the surrounding questions from
+three frames. Every bedroom3 traced frame from `.280` on is still on disk at the same room, pose and finish, so
+the distribution was free.
+
+### Measurement
+
+Upper wall/ceiling band (y = 0.19–0.46 — the region `.293` established the gradient lives in; the lower third
+is furniture), left third vs right third R−B, plus whole-frame mean. All frames 1920×1080,
+`WINDOW=bedroom3 PITCH=0.30`, white walls, medium tier, photographic look, hour 13.
+
+| class | n | band L R−B | band R R−B | falloff | frameL |
+| --- | --- | --- | --- | --- | --- |
+| A | 12 | −10.1 … −10.6 | −12.8 | 2.2 – 2.7 | 155.7 – 156.5 |
+| B | 10 | +6.0 … +7.1 | +2.6 … +3.0 | 3.3 – 4.1 | 112.3 – 114.9 |
+| M | 2 | +1.1 … +1.4 | −12.6 … −12.7 | 13.8 – 14.0 | 139.5 – 139.7 |
+
+Three classes, each tight to under one count across a dozen runs. **A 50 %, B 42 %, M 8 %.**
+
+### `.293`'s central claim is wrong
+
+It stated both states share the near-glazing asymptote (−13.8), hence (u) is "one spatially varying cold cast
+whose extent varies". That came from profiling **`tm-1` against `u2`** — classes **M and A**, both cold on the
+right. **No class-B frame was profiled.** Class B's right band is **+2.8**.
+
+So **A and B differ globally across the upper band** — cold throughout versus warm throughout — not in the
+extent of a gradient. Only the two M frames are spatial mixtures, and they are 8 % of runs. The error was
+structural: with three frames to hand, two were the same class.
+
+### Survives / withdrawn
+
+Survives: pose and the rasteriser ruled out (identical arrival and raster anchors across opposite states); the
+per-tile hypothesis dead (no step at tile edges); class M frames genuinely contain both behaviours spatially.
+Withdrawn: the shared-asymptote claim, and the description of (u) as primarily a varying-extent phenomenon. It
+is primarily a **global** upper-band difference with an occasional mixed class.
+
+### `.285` partly vindicated, `.286` validated
+
+`.285` reported two tight clusters with no intermediates and `.293` called that an artefact of averaging a
+field. At n=24 the clusters are real and tight — `.285` was right about discreteness. And **`.286`'s UNKNOWN
+bucket is exactly what catches class M**, at 8 % about one run in twelve: the single 139.5 outlier `.285` saw
+and `.286` reclassified. Two rounds of criticism were each half right; the version now in the probe is correct.
+
+### On the cause
+
+The tracer's environment is the hardcoded cold `GradientEquirectTexture` (item (p), confirmed in `.287`). Class
+A is cold throughout and ~43 counts brighter; class B warm throughout and darker. That reads as
+environment-dominated vs bounce-dominated — **not published as a mechanism.** Ten candidates eliminated across
+`.284`–`.294`, and every mechanism proposed in that span was refuted by a later round.
+
+### Method note
+
+`.282` measured one dead patch; `.293` compared two frames of the same class. Both published conclusions that
+more of the *already available* data refuted. This round's data cost nothing — it sat in `/tmp` throughout
+`.285`–`.293`, which spent ~twenty probe runs generating exactly the frames needed and then reasoned from three.
+**Before running a new measurement, check whether the answer is already in the outputs of the old ones.**
+
+Nothing changed in `src/` or in the probe — the discriminator in place classifies all three classes correctly.

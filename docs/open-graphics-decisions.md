@@ -1987,7 +1987,33 @@ anomalous including the known-healthy one (`u1` falloff −1.8), because warm fu
 a gradient that exists only in the upper wall/ceiling band. Reverted; the profile ships as an opt-in diagnostic
 (`PTPROFILE=1`) instead. `.285`'s global-mean rule stays, now documented as summarising a spatial field.
 
-**Cause still unidentified** — nine candidates eliminated across `.284`–`.293`. No mechanism is proposed.
+**📊 MEASURED AT n=24 v0.31.5.294 — three discrete classes, and `.293`'s description was built on the wrong
+pair of frames.** Every bedroom3 traced frame from `.280` on was still on disk at the same room, pose and
+finish. Upper-band (y = 0.19–0.46) left-third vs right-third R−B:
+
+| class | n | band L | band R | falloff | frameL |
+| --- | --- | --- | --- | --- | --- |
+| **A** | 12 | −10.1 … −10.6 | **−12.8** | 2.2 – 2.7 | 155.7 – 156.5 |
+| **B** | 10 | +6.0 … +7.1 | **+2.6 … +3.0** | 3.3 – 4.1 | 112.3 – 114.9 |
+| **M** | 2 | +1.1 … +1.4 | −12.6 … −12.7 | 13.8 – 14.0 | 139.5 – 139.7 |
+
+Frequencies **A 50 %, B 42 %, M 8 %**, each class tight to under one count across a dozen runs.
+
+`.293` claimed both states share a near-glazing asymptote and that (u) is therefore "one spatially varying cold
+cast whose extent varies". It profiled `tm-1` against `u2` — classes **M and A**, both cold on the right — and
+**never profiled a class-B frame**. Class B's right band is **+2.8**. So **A and B differ globally across the
+upper band** (cold throughout vs warm throughout), and only the two M frames are spatial mixtures.
+
+Withdrawn from `.293`: the shared-asymptote claim and the varying-extent description. Retained: pose and the
+rasteriser are ruled out; the per-tile hypothesis is dead; class M frames really do contain both behaviours
+spatially.
+
+**`.286`'s UNKNOWN bucket is validated** — it is what catches class M, at 8 % roughly one run in twelve, which
+is exactly the single 139.5 outlier `.285` saw and `.286` reclassified.
+
+**Cause still unidentified** — ten candidates eliminated across `.284`–`.294`, and every mechanism proposed in
+that span has been refuted by a later round. The classes and their frequencies are the finding. No mechanism is
+proposed.
 
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.

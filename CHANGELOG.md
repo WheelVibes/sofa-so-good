@@ -5,6 +5,67 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.294 — (u) measured at n=24 instead of n=3: three discrete classes, not two states and not a spatial gradient. `.293`'s central claim was built on the wrong pair of frames
+
+`.293` closed with one open question — is the cold-cast extent bimodal or continuous? — and answered the
+surrounding questions from three frames. Every bedroom3 traced frame from `.280` onward is still on disk at the
+same room, pose and finish, so the distribution was free. **n=24 overturns `.293`.**
+
+**The measurement.** Upper wall/ceiling band (y = 0.19–0.46, the region `.293` established the gradient lives
+in; the lower third is furniture and swamps it), left third versus right third R−B, plus the whole-frame mean.
+Every frame 1920×1080, `WINDOW=bedroom3 PITCH=0.30`, white walls, medium tier, photographic look, hour 13.
+
+| class | n | band L R−B | band R R−B | falloff | frameL |
+| --- | --- | --- | --- | --- | --- |
+| **A** | **12** | −10.1 … −10.6 | **−12.8** | 2.2 – 2.7 | 155.7 – 156.5 |
+| **B** | **10** | +6.0 … +7.1 | **+2.6 … +3.0** | 3.3 – 4.1 | 112.3 – 114.9 |
+| **M** | **2** | +1.1 … +1.4 | −12.6 … −12.7 | 13.8 – 14.0 | 139.5 – 139.7 |
+
+**Three classes, each extremely tight** — class A's falloff spans 0.5 counts across twelve independent runs,
+class B's 0.8 across ten. Frequencies: **A 50 %, B 42 %, M 8 %**.
+
+**`.293`'s central claim is wrong.** It stated that both states share the same near-glazing asymptote (−13.8)
+and therefore that (u) is "one spatially varying cold cast whose extent varies". That conclusion came from
+profiling **`tm-1` against `u2`** — which are classes **M and A**, and both happen to be cold on the right. **No
+class-B frame was ever profiled.** Class B's right-hand band is **+2.8, not −12.8.** So:
+
+- **A and B differ globally across the upper band**, cold throughout versus warm throughout — not in the extent
+  of a gradient.
+- **Only the two M frames are spatial mixtures** (neutral left, cold right), and they are 8 % of runs.
+
+`.293` generalised from a comparison that excluded one of the two things being compared. The error was
+structural, not arithmetic: with only three frames to hand, two of them were the same class.
+
+**What survives from `.293`, and what does not.** Survives: pose and the rasteriser are ruled out (identical
+arrival and identical raster anchors across opposite states); the per-tile hypothesis is dead (no step at the
+tile edges); class M frames genuinely do contain both behaviours spatially. Withdrawn: the shared-asymptote
+claim, and with it the description of (u) as *primarily* a varying-extent phenomenon. It is primarily a
+**global** upper-band difference with an occasional mixed class.
+
+**`.285`'s discriminator is partly vindicated, and `.286`'s fix to it is validated.** `.285` reported "two
+tight clusters with no intermediates in 12 runs" and `.293` called that an artefact of summarising a spatial
+field. At n=24 the clusters are real and tight — `.285` was right about discreteness. And the **UNKNOWN bucket
+`.286` added is exactly what catches class M**, which at 8 % would appear about once in twelve runs: precisely
+the single 139.5 outlier `.285` saw and `.286` reclassified. Two rounds of criticism of that discriminator were
+each half right, and the version now in the probe is correct.
+
+**What this says about (u).** The tracer's environment is the hardcoded cold `GradientEquirectTexture`
+(item (p), confirmed by direct observation in `.287`). Class A is cold throughout and ~43 counts brighter;
+class B is warm throughout and darker. That reads as environment-dominated versus bounce-dominated — **and it
+is not being published as a mechanism.** Ten candidates have now been eliminated across `.284`–`.294` and every
+proposed mechanism in that span has been refuted by a later round. The classes and their frequencies are the
+finding; the cause is still open.
+
+**Method note, and it is the same one three rounds running.** `.282` measured one dead patch. `.293` compared
+two frames of the same class. Both published a conclusion that more of the *already available* data refuted.
+The data for this round cost nothing — it was sitting in `/tmp` throughout `.285`–`.293`, which spent roughly
+twenty probe runs (~two hours) generating exactly the frames needed to settle the question, and then reasoned
+from three of them. **Before running a new measurement, check whether the answer is already in the outputs of
+the old ones.**
+
+**Unchanged:** no `src/` change, no probe change — the discriminator already in place classifies all three
+classes correctly.
+
 ## v0.31.5.293 — item (u) is not two states. It is one spatially varying cold cast whose extent varies, and `.285`'s "two clusters" were an artefact of my own discriminator
 
 Two of this round's own hypotheses were refuted, and the third finding overturns how (u) has been described
