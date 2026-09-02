@@ -3045,3 +3045,30 @@ something else tracks the day level, most likely tone-mapping exposure.)
 argument is now quantified: **deciding (p) unblocks (w) at night.** It does not by itself establish that the
 tracer's night render is correct, only that its environment is hour-appropriate, which is the precondition for
 using it as a reference at all.
+
+### ⚠️ THE NIGHT DEFECT IS BIGGER AND BROADER — 28 % ceiling, 26 % floor (v0.31.5.335)
+
+Priced against an hour-appropriate reference (converted `scene.background`, since the shipped gradient is 77×
+too bright at 21:00 and would understate the answer). Both conditions class B:
+
+| patch | white | Ink | tracer Δ | raster Δ | night error | daytime error |
+| --- | --- | --- | --- | --- | --- | --- |
+| **ceiling** | 177.3 | 127.8 | **−28 %** | **0.0** | **28 %** | 21 % |
+| **floor** | 138.3 | 103.0 | **−26 %** | **0.0** | **26 %** | **~0 %** |
+| wall-L (landing) | 205.0 | 53.7 | −74 % | −73 % | n/a | n/a |
+
+**The defect spreads at night.** At midday it is ceiling-only — the floor has no defect because it is dominated
+by direct skylight. At night nothing is direct, so every surface is bounce-lit and every surface is wrong.
+Broader in extent, not merely larger in degree.
+
+**Decision content.** With ~26–28 % error on every surface and a lever that has **2.4 % authority** at night
+(`.333`), the night case cannot be reached by retuning a constant. It needs a **new term** — lamp bounce scaled
+by fixture output × room reflectance. That is materially more work than the daytime one-liner. The trade is:
+
+- **daytime only** — one line, `photographicGroundBounce` driven by room reflectance, curve to be measured
+  (`.331`, `.332`); leaves a ~26 % error every evening, and the same code path in place would make it look
+  handled;
+- **both** — add a lamp-bounce term; covers the larger and broader half of the defect at real cost.
+
+Sequencing: **(p) → (w) daytime → (w) night.** (p) first because it is what makes the night case measurable at
+all, and it already has a priced fix (`.326`).

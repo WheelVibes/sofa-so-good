@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.335 — the night defect is BIGGER and BROADER: 28 % on the ceiling, 26 % on the floor that has no daytime defect at all
+
+`.333` showed (w)'s lever has ~2.4 % authority at night; `.334` made an hour-appropriate reference possible.
+This round prices the night defect against it, class-matched.
+
+**Method.** Converted `scene.background` as the tracer environment (`.326`/`.334`), since the hardcoded gradient
+is **77× too bright** at 21:00 and would flood the room with a fake daylight sky, diluting wall bounce and
+understating the answer. bedroom3 `WALKFOV=72` `PITCH=-0.02`, medium, hour 21, lights on, 16:9, 256 samples,
+both conditions **class B**.
+
+| patch | white | Ink | Δ | night error | daytime error (`.330`) |
+| --- | --- | --- | --- | --- | --- |
+| wall-L — landing check | 205.0 | 53.7 | −74 % | n/a | n/a |
+| **ceiling** | 177.3 | 127.8 | **−28 %** | **28 %** | 21 % |
+| **floor** | 138.3 | 103.0 | **−26 %** | **26 %** | **~0 %** |
+
+Raster at night: ceiling 121.6 → 121.6, floor 90.4 → 90.4 — both **exactly zero**.
+
+**The prediction was registered before the data and is confirmed, then sharpened.** I expected the night defect
+to exceed the daytime 21 % because a lamp-lit room under a near-black sky has essentially no direct component.
+It does (28 %) — but the larger finding is that it **spreads to the floor**, which has no daytime defect
+whatsoever. At midday the floor is dominated by direct skylight; at night nothing is. So the night defect is
+**broader in extent**, not merely larger in degree.
+
+**Class A's error direction is not consistent across conditions.** The class-A floor estimate was −20 % against
+class B's −26 % — an understatement, where at midday class A *overstated* (−5.2 % against +0.2 %). `.330`
+established that class-A figures cannot bound class-B ones; this shows they cannot even be relied on to err in a
+fixed direction. Compare class A only with class A.
+
+**Internal consistency check passed:** the class-A ceiling read **21.4 in both wall conditions** — the
+environment cannot depend on wall paint, and it does not.
+
+**What this settles for (w).** With ~26–28 % error on *every* surface at night and a lever that has 2.4 %
+authority there, the night case requires a **new mechanism** — a lamp-bounce term scaled by fixture output ×
+room reflectance — not a retuned constant. A 26 % error across a whole room is, in my judgement, well past the
+threshold where that is worth building; but it is materially bigger work than (w)'s daytime one-liner, and the
+trade is a product call.
+
+**Environmental note.** A task notification fired ~7 minutes early while the probe was still running (verified
+by pid, not inferred). Missing output is not a failed run — the third time in this arc that an environmental
+signal has masqueraded as a result (`.326` a killed run, `.332` a dead server). Check the process and the run's
+own timestamps before concluding anything.
+
+`src/` reverted from the temporary conversion and verified byte-identical to HEAD.
+
 ## v0.31.5.334 — (p)'s gradient is 77x TOO BRIGHT at night, and `.326`'s conversion fixes the structural defect, not just the midday level
 
 `.333` concluded (p) should be decided before (w), because (w)'s night half is blocked on the tracer's

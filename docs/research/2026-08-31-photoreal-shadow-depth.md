@@ -12675,3 +12675,92 @@ unweighted RGB mean and reported **0.00386**; `ENVDUMP` uses Rec.709 luminance w
 Different code, different weighting, same answer to three significant figures.
 
 `src/` reverted from the temporary conversion and verified byte-identical to HEAD.
+
+---
+
+## Round .335 — the night defect is bigger and broader: 28 % on the ceiling, 26 % on a floor with no daytime defect
+
+`.333` established that (w)'s lever has ~2.4 % authority at night while the defect persists, and that pricing it
+was blocked on (p). `.334` removed that blocker by showing `.326`'s conversion restores hour-awareness. This
+round prices it.
+
+### Method
+
+The reference must be the **converted** environment, not the shipped gradient: `.334` measured the gradient at
+**77× too bright** at 21:00, which would flood the room with a fake daylight sky, dilute wall bounce, and
+understate the very quantity being measured. So `.326`'s conversion was re-applied as temporary
+instrumentation.
+
+bedroom3 `WALKFOV=72` `PITCH=-0.02`, medium tier, photographic look, **hour 21**, lights on, 16:9, 256 samples.
+Both wall conditions in **class B**, patches unchanged from `.330`–`.334` so they transfer without placement
+risk.
+
+### The result
+
+| patch | white | Ink | Δ | night error | daytime error (`.330`) |
+| --- | --- | --- | --- | --- | --- |
+| wall-L — **landing check** | 205.0 | 53.7 | **−74 %** | n/a — own albedo | n/a |
+| **ceiling** | 177.3 | 127.8 | **−28 %** | **28 %** | 21 % |
+| **floor** | 138.3 | 103.0 | **−26 %** | **26 %** | **~0 %** |
+
+Raster at night, same intervention: ceiling **121.6 → 121.6**, floor **90.4 → 90.4**. Both exactly zero, with
+wall-L moving −73 % as its own landing check (`.333`).
+
+### The prediction was registered first, confirmed, and then sharpened
+
+Before the runs I recorded the expectation that the night defect should *exceed* the daytime 21 %, because a
+lamp-lit room under a near-black sky has essentially no direct component — so a ceiling's light is almost
+entirely bounce. That holds: 28 %.
+
+But the larger finding is the one I named as the reasoning rather than the prediction: the defect **spreads to
+the floor**. At midday the floor has **no defect at all** (tracer +0.2 %, raster 0.0 %) because it is dominated
+by direct skylight. At night nothing is direct, so every surface becomes bounce-lit and every surface is
+exposed. The night defect is **broader in extent**, not merely larger in degree — and that is what makes it
+matter, since `.330` had to correct `.329` precisely for over-generalising a ceiling-only defect to the room.
+
+### Class A's error direction is not even consistent
+
+| | class-A estimate | class-B truth | class A errs |
+| --- | --- | --- | --- |
+| floor, night | −20 % | **−26 %** | **under** |
+| floor, midday (`.330`) | −5.2 % | **+0.2 %** | **over** |
+
+`.330` established that class-A figures cannot *bound* class-B ones. This adds that they cannot be relied on to
+err in a **fixed direction** either, so no correction factor can rescue them. The rule stands unqualified:
+**compare class A only with class A.**
+
+### Internal consistency check
+
+The class-A ceiling read **21.4 in both wall conditions** — identical to the decimal. In class A the ceiling
+region *is* the environment, and the environment cannot depend on wall paint. It does not. A free check that the
+intervention is not leaking somewhere it should not.
+
+### What this settles for (w)
+
+Two facts now sit together:
+
+- the night error is **~26–28 % on every surface measured**, not a ceiling-only effect;
+- the identified lever has **2.4 % authority** at night (`.333`), because hemisphere and ambient are
+  daylight-derived and scaled to near-zero after the day ramp.
+
+So the night case cannot be reached by retuning a constant. It needs a **new term** — lamp bounce, scaled by
+fixture output × room reflectance — which is materially more work than (w)'s daytime one-liner. My reading is
+that a 26 % error across an entire room is well past the threshold where that is worth building, but the trade
+between "a one-line daytime fix" and "a new mechanism covering both" is a product call and is not being made
+here.
+
+Sequencing, updated: **(p) → (w) daytime → (w) night**, with (p) first because it is what makes the night case
+measurable at all, and it already has a priced fix.
+
+### Environmental note — the third instance
+
+A task notification fired **~7 minutes early**, while the probe was still running. `pathtraced.png` was absent
+and the naive reading was "the run failed". Checking `pgrep` showed the node process alive; the run completed
+normally minutes later and produced both arms — the two class-B arms this entire round depended on.
+
+Third instance in this arc of an environmental signal masquerading as a result: `.326` a run killed by the shell
+clock, `.332` a dead dev server, `.335` an early completion notification. The rule that catches all three is the
+same: **verify the process and the run's own timestamps before interpreting missing output.** A failed
+measurement and a measurement that has not finished look identical from the filesystem.
+
+`src/` reverted from the temporary conversion and verified byte-identical to HEAD.
