@@ -19,6 +19,46 @@ pruned from `main`; entries from C251 on (branch
 > staging. Noted here instead so the log is confusing-but-honest rather than silently
 > ambiguous. Flagged for the maintainer; renumbering is a call for them, not for either session.
 
+## v0.31.6.2 - the bathroom floor is 8 mm above the bedroom, and the app could not tell you
+
+`PlanRoom.floorLevelMm` drives the FFL tags, doorway step markers, the real 3D risers and the
+tiler pack — and it was **entirely hand-entered**. `MaterialDef` carried no thickness, so
+specifying bedded porcelain in the bathroom and vinyl plank in the bedroom told the app nothing
+at all: it could not report the step at the doorway between them. The user had to already know
+the answer they came to the plan for. A designer works the other way round — you specify
+finishes, and the levels fall out of the build-ups.
+
+`MaterialDef.buildUp` (finish + bedding, mm) follows the `moduleMm`/`paint` discipline —
+presence is what marks a finish, absence means unknown, never a default — and is applied inside
+the `floor()` helper by pattern family, so all 37 floor finishes carry it by construction.
+`carpet` and `terrazzo` are deliberately absent: no citable figure, so they exercise the
+omission path on real catalogue data. Where a source gave a range the value takes the **thicker**
+end, because these feed a regulatory limit and understating a build-up clears a floor that fails
+on site — the opposite convention to `moduleMm`, worth stating because the fields look like
+siblings.
+
+`analysis/floorBuildUp.ts` checks the **two HDB limits**, which are written against different
+sums: 50 mm for finish plus screed, 13 mm for new tiles plus adhesive over one existing layer.
+Which applies is decided by `FloorPlan.intakeState`, and that mapping is what makes the feature
+worth building — **the same finish passes or fails on intake alone.** 10 mm porcelain on a 5 mm
+bed is comfortable under 50 mm on bare screed and over the limit the moment it goes over an
+existing floor.
+
+**The finding the derivation exists for**, measured on the shipped default flat with no
+authoring at all: three real 8 mm doorway steps, and
+
+> **Bath/WC 1 sits 8 mm ABOVE Main Bedroom** — the fall is out of the bathroom.
+
+The existing kerb advisory in `floorLevels.ts` cannot produce this. It fires when a wet room is
+at the *same* level as its neighbour, which is already the benign end of the problem; a wet room
+8 mm high is the malignant end, and it is invisible until two build-ups are compared — bedded
+porcelain against LVT, the most ordinary HDB pairing there is. The comparison is **signed**, and
+a test asserts the mirror case (same rooms, finishes swapped) reports the step and *not* the
+fall, so a check reading the absolute value could not pass both arms.
+
+Behind `floorBuildUp` (pro), in the report above the layout critique, errors first. Sources in
+`docs/research/2026-09-03-floor-build-up.md`.
+
 ## v0.31.6.1 - merge staging (0.31.6.0), and 67 duplicate build numbers
 
 dev-09's graphics-realism arc merged as `0.31.6.0` (PR #110), which put this branch's 70

@@ -971,3 +971,67 @@ describe('layout critique in the report (v0.31.5.314)', () => {
     }
   })
 })
+
+describe('floor build-up in the report (v0.31.6.2)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+  /** Scoped to the section — the report names every room many times over. */
+  const section = (html: string) => {
+    const i = html.indexOf('<h2>Floor build-up &amp; levels</h2>')
+    if (i < 0) return null
+    // To the NEXT h2, so the window is the section and nothing after it. An
+    // earlier version used `lastIndexOf(marker, i)`, which searches BEFORE i
+    // and silently returned an empty string — a scoping helper that reported
+    // "section present but empty" for a section that was fully populated.
+    const next = html.indexOf('<h2>', i + 4)
+    return html.slice(i, next < 0 ? html.length : next)
+  }
+
+  it('is PRESENT in Pro and reports the derived levels', async () => {
+    const { useStore } = await import('../state/store')
+    const s = useStore.getState()
+    s.setUiMode('pro')
+    s.reresolveFeatureFlags()
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', s.finishes)
+    const sec = section(html)
+    expect(sec, 'no Floor build-up section in Pro').toBeTruthy()
+    // The shipped flat's bathrooms are bedded porcelain (15 mm) against vinyl
+    // bedrooms (7 mm) — so the section must show both build-ups and the step.
+    expect(sec!).toMatch(/15 mm/)
+    expect(sec!).toMatch(/7 mm/)
+    expect(sec!).toMatch(/Doorway steps needing a threshold detail/)
+  })
+
+  it('leads with the WET-ROOM FALL, the finding the derivation exists for', async () => {
+    const { useStore } = await import('../state/store')
+    const s = useStore.getState()
+    s.setUiMode('pro')
+    s.reresolveFeatureFlags()
+    const sec = section(buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', s.finishes))!
+    expect(sec).toMatch(/Wet room floor falls OUT toward a dry room/)
+    expect(sec).toMatch(/Bath\/WC 1[\s\S]*?sits 8 mm above Main Bedroom/)
+    // The warning must sit ABOVE the reference table, not below it.
+    expect(sec.indexOf('falls OUT')).toBeLessThan(sec.indexOf('<td>Room</td>'))
+  })
+
+  it('is HIDDEN in Simple', async () => {
+    const { useStore } = await import('../state/store')
+    const s = useStore.getState()
+    s.setUiMode('simple')
+    s.reresolveFeatureFlags()
+    expect(
+      section(buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', s.finishes)),
+    ).toBeNull()
+    s.setUiMode('pro')
+    s.reresolveFeatureFlags()
+  })
+
+  it('is omitted entirely when no finishes are supplied', () => {
+    // Without finishes there is nothing to derive a level from, and a section
+    // of blanks is worse than no section.
+    expect(section(buildReportHtml(plan, items, BUILTIN_CATALOG, null))).toBeNull()
+  })
+})

@@ -66,6 +66,36 @@ interface MaterialDefBase {
    * row, and the caller reports how many were omitted.
    */
   paint?: PaintCoverage
+  /**
+   * SPECIFIED floor build-up in millimetres, consumed by
+   * `analysis/floorBuildUp.ts` to check the HDB thickness limits and to DERIVE
+   * the finished-floor level of each room.
+   *
+   * Same discipline as `moduleMm` and `paint`: its presence is what marks a
+   * finish as a floor build-up, and it is never inferred. A finish without it
+   * yields no row and the caller reports how many rooms it could not assess.
+   *
+   * Split into the finish and its bedding because the two HDB limits are
+   * written against different sums — 50 mm covers finish **plus screed**,
+   * while the 13 mm overlay limit covers new tiles **plus adhesive** only.
+   *
+   * **Direction of error matters here in a way it does not for `moduleMm`.**
+   * These figures feed a REGULATORY LIMIT, so where a source gives a range the
+   * value takes the THICKER end: understating a build-up clears a floor that
+   * fails on site, and an inspection is a worse place to find out than a
+   * warning panel. Sources in `docs/research/2026-09-03-floor-build-up.md`.
+   */
+  buildUp?: FloorBuildUp
+}
+
+/** A floor finish's specified build-up above what it is laid on (mm). */
+export interface FloorBuildUp {
+  /** The finish's own thickness — tile body, plank, screed topping. */
+  finishMm: number
+  /** Bedding it needs: adhesive bed, levelling screed, underlay. */
+  beddingMm: number
+  /** Why these figures, when a source gave a range. */
+  note?: string
 }
 
 export interface SolidMaterialDef extends MaterialDefBase {

@@ -207,6 +207,7 @@ export type FeatureFlag =
   | 'lightingLayers'
   | 'paletteDiscipline'
   | 'layoutCritiqueReport'
+  | 'floorBuildUp'
   | 'variationRegister'
   | 'tileLayoutSheet'
   | 'carpentrySheets'

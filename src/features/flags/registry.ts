@@ -1873,6 +1873,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Floor build-up + HDB thickness limits (v0.31.6.2). `PlanRoom.floorLevelMm`
+  // drove the FFL tags, step markers, 3D risers and tiler pack and was entirely
+  // HAND-ENTERED, because `MaterialDef` carried no thickness — so the app could
+  // not tell you that 15 mm bedded porcelain against 7 mm LVT makes an 8 mm
+  // step at the door. Also checks the two HDB limits (50 mm finish+screed, 13 mm
+  // tile overlay) and flags a wet room whose derived floor falls OUT toward a
+  // dry one. Regulatory/analytical → pro tier.
+  floorBuildUp: {
+    label: 'Floor build-up & levels',
+    description:
+      "Derives each room's finished floor level from its finish, checks the HDB thickness limits, and flags doorway steps",
+    default: true,
+    tier: 'pro',
+  },
   // Layout critique in the report (v0.31.5.314). `analysis/layoutCritique.ts`
   // has shipped for a while with cited thresholds — TV viewing distance,
   // conversation distance, coffee-table gap, sofa proportion, and now rug size

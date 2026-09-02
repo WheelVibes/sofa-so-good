@@ -13,6 +13,7 @@ import {
   buildDesignedElectricalSchedule,
   buildElectricalSchedule,
 } from '../analysis/electricalSchedule'
+import { buildFloorBuildUpReport } from '../analysis/floorBuildUp'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildLampSpecAdvisory } from '../analysis/lampSpecAdvisory'
@@ -511,9 +512,73 @@ export function buildReportHtml(
     hasItems && isFeatureEnabled('layoutCritiqueReport')
       ? buildLayoutCritique(plan, items, catalog)
       : null
+  // Floor build-up + the HDB thickness limits (v0.31.6.2). The wet-room fall and
+  // the declared-vs-derived mismatch lead, because both are errors; the per-room
+  // table is reference. Gated on finishes being supplied at all — without them
+  // there is nothing to derive a level from.
+  const buildUp =
+    finishes && isFeatureEnabled('floorBuildUp')
+      ? buildFloorBuildUpReport(plan, floorOf ?? {}, BUILTIN_MATERIALS)
+      : null
+  const buildUpSection =
+    buildUp && buildUp.rows.length > 0
+      ? `<div class="room-cost prose"><h2>Floor build-up &amp; levels</h2>
+      <div class="foot" style="margin-bottom:6px">Derived from each room's specified floor finish — the finish's own thickness plus its bedding. Assessed against the HDB ${buildUp.limitMm} mm limit (${
+        buildUp.overlay
+          ? 'new tiles plus adhesive over one existing layer'
+          : 'floor finish plus screed'
+      }).${
+        buildUp.unassessedRooms.length > 0
+          ? ` ${buildUp.unassessedRooms.length} room${buildUp.unassessedRooms.length === 1 ? '' : 's'} not assessed (no specified build-up): ${esc(buildUp.unassessedRooms.join(', '))}.`
+          : ''
+      }</div>${
+        buildUp.wetRoomsFallingOutward.length > 0
+          ? `<div class="warn">Wet room floor falls OUT toward a dry room:</div><table>${buildUp.wetRoomsFallingOutward
+              .map(
+                (w) =>
+                  `<tr><td>${esc(w.wetRoomName)}</td><td>sits ${w.aboveByMm} mm above ${esc(w.dryRoomName)} — set it level or lower, or detail a kerb at the threshold</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        buildUp.overLimit.length > 0
+          ? `<div class="warn">Over the ${buildUp.limitMm} mm HDB limit — verify with HDB before ordering:</div><table>${buildUp.overLimit
+              .map(
+                (r) =>
+                  `<tr><td>${esc(r.roomName)}</td><td>${esc(r.materialName)} — ${r.totalMm} mm (${r.finishMm} + ${r.beddingMm})</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        buildUp.declaredMismatches.length > 0
+          ? `<div class="warn">Hand-entered FFL contradicts the specified finishes:</div><table>${buildUp.declaredMismatches
+              .map(
+                (m) =>
+                  `<tr><td>${esc(m.roomName)}</td><td>tagged FFL ${m.declaredMm > 0 ? '+' : ''}${m.declaredMm} mm, but its finish implies +${m.derivedMm} mm</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }
+      <table><tr class="cat"><td>Room</td><td>Floor finish</td><td class="num">Build-up</td><td class="num">FFL</td></tr>${buildUp.rows
+        .map(
+          (r) =>
+            `<tr><td>${esc(r.roomName)}</td><td>${esc(r.materialName)}</td><td class="num">${r.totalMm} mm</td><td class="num">+${r.derivedFflMm} mm</td></tr>`,
+        )
+        .join('')}</table>${
+        buildUp.steps.length > 0
+          ? `<div class="foot" style="margin-top:6px">Doorway steps needing a threshold detail: ${buildUp.steps
+              .map(
+                (s) =>
+                  `${esc(s.roomAName)}/${esc(s.roomBName)} ${s.stepMm} mm (${esc(s.higherRoomName)} higher)`,
+              )
+              .join(' · ')}</div>`
+          : ''
+      }<div class="foot" style="margin-top:4px">FFL is relative to the thinnest build-up in the home — a threshold is dimensioned from the step, not from the slab. Verify existing finish thicknesses on site.</div></div>`
+      : ''
+
   const critiqueSection =
     critique && critique.applied > 0
-      ? `<div class="room-cost prose"><h2>Layout critique</h2>
+      ? `<div class="room-cost prose prose-last"><h2>Layout critique</h2>
       <div class="foot" style="margin-bottom:6px">Layout quality ${critique.score} over ${critique.applied} applicable check${critique.applied === 1 ? '' : 's'} — measured against published comfort bands, skipping checks the design has no pieces for.</div>
       <table><tr class="cat"><td>Check</td><td>Room</td><td>Verdict</td><td>Measured</td></tr>${critique.findings
         .filter((f) => f.verdict !== 'skipped')
@@ -1265,6 +1330,7 @@ export function buildReportHtml(
   ${ffeSection}
   ${clearanceSection}
   ${designScoreSection}
+  ${buildUpSection}
   ${critiqueSection}
   ${suggestionsSection}
   ${accessibilitySection}

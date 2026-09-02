@@ -42,7 +42,10 @@ export const REPORT_CSS = `
      three-quarters of the sheet sat empty. Opt-in, so the cost tables keep the
      column width that suits them. */
   .room-cost.prose { max-width: 720px; }
-  .room-cost.prose td:last-child { min-width: 320px; }
+  /* Only for a table whose LAST column carries the sentence. Kept separate from
+     .prose because the floor build-up section is also 720px wide but ends in a
+     short number, and the min-width flung its two numeric columns apart. */
+  .room-cost.prose-last td:last-child { min-width: 320px; }
   .plan-wrap { margin-top: 16px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; background: #fff; }
   .palette { margin-top: 24px; }
   .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }

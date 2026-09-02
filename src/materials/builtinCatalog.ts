@@ -9,7 +9,13 @@
  */
 
 import type { RoomId } from '../apartment/types'
-import type { MaterialCategory, MaterialDef, MaterialId, ProceduralPattern } from './types'
+import type {
+  FloorBuildUp,
+  MaterialCategory,
+  MaterialDef,
+  MaterialId,
+  ProceduralPattern,
+} from './types'
 
 /**
  * Metres per tile for the ORANGE-PEEL PLASTER normal (PLASTER-STRETCH,
@@ -81,6 +87,61 @@ const PORCELAIN_600: [number, number] = [600, 600]
 /** SG planked-vinyl format (300 x 1200 mm). */
 const VINYL_PLANK: [number, number] = [300, 1200]
 
+/**
+ * SPECIFIED floor build-up by pattern family (mm) — see `MaterialDef.buildUp`.
+ *
+ * Applied inside `floor()` so every finish in a covered family carries it BY
+ * CONSTRUCTION, the same design as `EMULSION_COVERAGE` inside `wall()`. A
+ * per-item list of 37 finishes drifts; a family map cannot.
+ *
+ * Where a source gives a range these take the THICKER end, because the figures
+ * feed the HDB 50 mm limit: understating a build-up clears a floor that fails
+ * on site. Reasoning and sources in
+ * `docs/research/2026-09-03-floor-build-up.md`.
+ *
+ * **Families deliberately absent** — `carpet` and `terrazzo`. I found no
+ * citable figure for either (SG terrazzo is usually the original poured or
+ * precast floor, not a 15 mm tile), and `analysis/floorBuildUp.ts` reports an
+ * unassessed room rather than assuming one. `concrete` maps to ZERO, which is
+ * a real answer and not a missing one: bare screed and bare concrete ARE the
+ * substrate the other build-ups sit on.
+ */
+const BUILD_UP_BY_PATTERN: Partial<Record<ProceduralPattern, FloorBuildUp>> = {
+  // 10 mm is "a common choice for floor applications"; 5 mm is the max bed
+  // depth quoted for a tile up to 600x600. The regulation's own arithmetic
+  // agrees at the thin end — 10 mm tile + 3 mm adhesive is exactly the 13 mm
+  // overlay limit — so 5 mm is the bedded-on-screed figure, not the overlay one.
+  tile: { finishMm: 10, beddingMm: 5, note: '10 mm tile body on a 5 mm adhesive bed' },
+  // Engineered timber runs 6-12 mm; 12 mm is the thicker end, plus a 3 mm
+  // acoustic underlay, which HDB effectively requires for a floating floor.
+  wood: { finishMm: 12, beddingMm: 3, note: '12 mm engineered board on 3 mm underlay' },
+  // Home LVT/LVP is "4 mm to 6 mm for the best balance"; 6 mm is the thicker
+  // end of that band, on a 1 mm underlay.
+  vinyl: { finishMm: 6, beddingMm: 1, note: '6 mm LVT on 1 mm underlay' },
+  // Bare substrate — a real zero, not an unknown.
+  concrete: { finishMm: 0, beddingMm: 0, note: 'bare substrate — nothing laid over it' },
+}
+/** Patterns that are tile products, so they share the tile build-up. */
+const TILE_PATTERNS: readonly ProceduralPattern[] = [
+  'tile',
+  'porcelain',
+  'stoneTile',
+  'porcelainStone',
+  'marble',
+  'hexagon',
+  'subway',
+  'checker',
+  'peranakan',
+]
+/** Patterns that are timber-board products. */
+const WOOD_PATTERNS: readonly ProceduralPattern[] = ['wood', 'parquet', 'herringbone']
+
+function buildUpForPattern(pattern: ProceduralPattern): FloorBuildUp | undefined {
+  if (TILE_PATTERNS.includes(pattern)) return BUILD_UP_BY_PATTERN.tile
+  if (WOOD_PATTERNS.includes(pattern)) return BUILD_UP_BY_PATTERN.wood
+  return BUILD_UP_BY_PATTERN[pattern]
+}
+
 function floor(
   id: string,
   name: string,
@@ -102,6 +163,7 @@ function floor(
     uvScale,
     sourceUrl,
     ...(moduleMm ? { moduleMm } : {}),
+    ...(buildUpForPattern(pattern) ? { buildUp: buildUpForPattern(pattern) } : {}),
   }
 }
 
