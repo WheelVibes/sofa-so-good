@@ -366,6 +366,25 @@ Kelvin is deriving a specification from a rendering constant, the mistake `tileC
 header warns about. Author the figures from sources, as `.288` (tile modules) and `.292` (paint
 coverage) did.
 
+## Variation / change-order register — NOT built, scoped v0.31.5.306
+
+A professional administering a renovation accounts for the delta between what was PRICED and what
+is being built. In SG this is where disputes land: the contractor quoted from one drawing revision
+and the finishes changed afterwards. **Nothing in the app tracks this.**
+
+Most parts exist: `baselinePlan` (captured plan), drawing-set `revisions[]` + current letter, the
+full cost model (`buildRenovationAllocation`, finish-area schedules, `itemPrice`), and `diffWalls`.
+
+**The missing piece is a PRICED snapshot.** `baselinePlan` is a `FloorPlan` only — no finishes, no
+items — so there is nothing to diff a cost against. Needs:
+1. `tenderedSnapshot?: { plan, finishes, items, at, revision }` in state + `schema.ts` (additive).
+2. A pure `buildVariationRegister(before, after)` diffing two `RenoAllocation`s per trade line, plus
+   an FF&E delta, producing added / removed / changed lines with cost impact.
+3. A surface: a report section and/or a drawing-set sheet, plus a "capture as tendered" action.
+
+Do all three together — a core with no surface is the `.297` mistake, and this one is only useful
+once a user can capture the snapshot.
+
 ## Audited-correct, do NOT "fix" these (v0.31.5.294, walls/openings added .295)
 
 Sites that read `plan.rooms` and are RIGHT to:

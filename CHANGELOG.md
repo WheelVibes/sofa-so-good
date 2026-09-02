@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.306 - adding a wall was free in the budget
+
+A fresh pass over the PROCESS rather than the deliverables. Looking for variation/change-order
+tracking (which does not exist — logged below) turned up something simpler and worse in the
+existing cost model.
+
+**`WallDiff.addedLengthM` was computed, printed on the report, printed in the demolition sheet's
+own legend — and never priced.** `renovationAllocator` read `hackedLengthM` and nothing else, so a
+design that ADDED partitions was under-budgeted while displaying the added length directly beside a
+total that ignored it. And the omission ran the wrong way round: building a partition costs more per
+metre than hacking one out, which a test now pins as a property rather than a number.
+
+New `partitionPerM2` rate, priced as a **New partition walls** line:
+
+- **$100/m², the middle of the published 2026 single-layer drywall band** ($80-130/m² installed,
+  "inclusive of metal stud frame, boards, taping, plastering, and one coat of paint"). Drywall is
+  the default because it is the cheaper, commoner and permit-free option — "non-structural
+  partitions ... generally do not require an HDB renovation permit". Brick/concrete runs $100-200
+  and double-layer acoustic $130-200, both dial-able on the rate card.
+- **Per m² of wall FACE, not per linear metre**, specifically so a half-height wall
+  (`PlanWall.topHeight`) costs less than a full-height one — which per-metre pricing cannot express.
+  A test pins that a 1 m parapet costs less than the same run at full height.
+
+6 tests; 4 of the 6 confirmed failing with the fix stashed (the other two assert the no-baseline and
+no-change cases, which correctly pass either way).
+
+## Logged, not built: there is no variation / change-order register
+
+The bigger gap this pass was looking for. A professional administering a renovation has to account
+for the delta between what was PRICED and what is now being built — in SG this is exactly where
+disputes land, because the contractor quoted from one drawing revision and the finishes changed
+afterwards.
+
+The app has most of the parts: `baselinePlan` (a captured plan), drawing-set revision history
+(`revisions[]` + a current letter), a full cost model, and `diffWalls`. What it lacks is a **priced
+snapshot**: `baselinePlan` is a `FloorPlan` only — no finishes, no items — so there is nothing to
+diff a cost against. A register would need `{ plan, finishes, items, at, revision }` captured at
+tender, then a diff of two `RenoAllocation`s per trade line.
+
+Deliberately not started this pass, because the useful version needs the snapshot state, the diff
+core AND a surface, and a core with no surface is the `.297` mistake. Scoped in `TODO.md`.
+
 ## v0.31.5.305 - removing the name collision at its source
 
 Follow-through on `.303`/`.304`. Before changing anything I enumerated **every** caller of the two

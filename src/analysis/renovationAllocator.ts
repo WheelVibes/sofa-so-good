@@ -32,7 +32,13 @@
 import { diffWalls } from '../floorplan/demolitionPlan'
 import { allPlanOpenings, allPlanRooms } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
-import { type FloorPlan, type PlanRoom, planRoomArea, planRoomPerimeter } from '../floorplan/types'
+import {
+  type FloorPlan,
+  type PlanRoom,
+  planRoomArea,
+  planRoomPerimeter,
+  wallLength,
+} from '../floorplan/types'
 import { buildWaterproofingZones, totalMembraneAreaM2 } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildAirconSystemPlan } from './airconSystem'
@@ -237,8 +243,18 @@ export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAlloca
       ).totalLengthM
     : 0
 
-  // --- Hacking (baseline diff) ----------------------------------------------
-  const hackedLm = input.baselinePlan ? diffWalls(input.baselinePlan, plan).hackedLengthM : 0
+  // --- Hacking + NEW partitions (baseline diff) -----------------------------
+  // `addedLengthM` used to be computed here, printed on the report and the
+  // demolition sheet, and never priced — so adding partitions was free in the
+  // budget while the added length sat next to a total that ignored it. Priced
+  // by wall FACE AREA so a half-height wall (`topHeight`) costs less than a
+  // full-height one, which a per-linear-metre rate could not express.
+  const wallDiff = input.baselinePlan ? diffWalls(input.baselinePlan, plan) : null
+  const hackedLm = wallDiff?.hackedLengthM ?? 0
+  const addedPartitionM2 = (wallDiff?.added ?? []).reduce((sum, w) => {
+    const h = w.topHeight ?? plan.ceilingHeight
+    return sum + wallLength(w) * (h > 0 ? h : 0)
+  }, 0)
 
   // --- Assemble trade lines -------------------------------------------------
   const lines: RenoTradeLine[] = []
@@ -268,6 +284,15 @@ export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAlloca
     hackedLm,
     'lin.m',
     hackedLm * trades.hackingPerM,
+    'Protection & hacking',
+  )
+
+  push(
+    'partitions',
+    'New partition walls',
+    addedPartitionM2,
+    'm²',
+    addedPartitionM2 * trades.partitionPerM2,
     'Protection & hacking',
   )
 
