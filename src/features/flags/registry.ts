@@ -1873,6 +1873,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Layout critique in the report (v0.31.5.314). `analysis/layoutCritique.ts`
+  // has shipped for a while with cited thresholds — TV viewing distance,
+  // conversation distance, coffee-table gap, sofa proportion, and now rug size
+  // — and was consumed by NOTHING except `schemeOptions`, so it was visible
+  // only when comparing generated alternatives. It never assessed the user's
+  // own design. Analytical → pro tier.
+  layoutCritiqueReport: {
+    label: 'Layout critique',
+    description: "Applies the layout critique's cited thresholds to your own design in the report",
+    default: true,
+    tier: 'pro',
+  },
   // Material-palette restraint (v0.31.5.312): one whole-home observation when
   // a design exceeds the rule-of-three flooring/wall palette, naming the
   // smallest-area finishes as consolidation candidates. Printed with the

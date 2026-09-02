@@ -80,6 +80,69 @@ because the wrong number was *plausible* — it would have read as a real findin
 about the layouts rather than a bug in the ruler, and it was only caught by
 noticing that both schemes reported the identical suspicious value.
 
+## Rug sizing (added v0.31.5.314) — and four false alarms on the way
+
+The most-cited amateur error in interior design, and the app could place a rug
+via `autoArrange` without ever checking it: `suggestions.ts` only prompted when a
+rug was **absent**, which is presence rather than adequacy — the same shape as the
+old lighting prompt a single pendant satisfied.
+
+| Anchor | Threshold | Source wording |
+|---|---|---|
+| Sofa | 0.15 m each side | "extends 6-10 inches off each side of your sofa" — 6" is the minimum |
+| Dining table | 0.61 m all sides | "should extend at least 24 inches beyond the table on all sides" so a pulled-out chair stays on it |
+| Bed, under-bed | 0.46 m sides + foot | "aim for 18 to 24 inches of visible rug beyond the sides and foot" — the LOWER bound, so the check only speaks up below what every source treats as the floor |
+| Bed, runner | 0.75 x bed length | "ensure that the runner is at least three-quarters of your total bed length" |
+
+**The first version failed all four rugs in the shipped default flat, and every
+failure was a bug in the ruler.** Recorded because the pattern is what matters,
+not the arithmetic:
+
+1. **One threshold for two conventions.** 0.61 m was applied to beds and dining
+   tables alike, on the strength of both being quoted as 24". The bed figure is a
+   band whose floor is 18".
+2. **The head side was measured.** A bedroom rug is conventionally set under the
+   bed's *lower two-thirds* — it frames the sides and foot and deliberately stops
+   short of the head, so the nightstands stay level on bare floor. Measuring all
+   four sides fails every correct placement. Now excluded **by direction**,
+   derived from the bed's rotation — not by dropping whichever side measures
+   worst, which would excuse a genuinely short side and make the check
+   unfalsifiable.
+3. **A bedside runner is not a failed under-bed rug.** The sources name three
+   bedroom layouts — two-thirds, side runners, foot-of-bed — and all three
+   bedrooms in the default flat use runners. Judged on the wrong rule, correct
+   design reads as an error. A check that condemns the right answer for a small
+   room is worse than no check.
+4. **`/bed/` was unanchored**, so `rug-bedroom` matched the anchor pattern, every
+   bedroom rug became its own nearest anchor, and the overhang came out a serene
+   0.00 m. Anchoring it to `/^bed/` would have traded that for silently skipping
+   `toddler-bed` and `ikea-malm-bed-frame-high-90x200`, both real catalogue ids.
+   Fixed by matching the `beds` **category** — the property actually being asked
+   about. *A name regex is a guess about a taxonomy that already exists.*
+
+Two further bugs were unit errors, and both are worth their own line:
+
+- **`roughlyAligned` took `% 90` on a field measured in RADIANS**
+  (`itemFootprint` feeds `item.rotation` straight to `Math.cos`). Every plausible
+  yaw is under 8 when read as degrees, so the gate was vacuous: it certified
+  oblique pairs as square and measured their bounding boxes anyway. Two of my own
+  tests passed *because* of the same error on the fixture side — 30 read as
+  "oblique", 90 as "square", both correct verdicts from a wrong unit. **A test
+  that shares the product's unit error cannot detect it.**
+- **`headDir` had the x sign backwards.** The app maps local `(0,-1)` to
+  `(sin, -cos)`; I wrote `(-sin, -cos)`, which silently excludes the *foot*
+  instead of the head on a quarter-turned bed. Caught only by the rotated-bed
+  test — which is the entire reason a direction-derived exclusion is worth more
+  than dropping the worst side. When it failed I changed the formula **and** the
+  fixture in one edit, so the next result couldn't tell me which had been wrong;
+  the formula fix was right and the fixture revert was what was needed. **Change
+  the ruler or the thing measured, never both at once.**
+
+Layout quality on the default flat went 33 → 58 across these fixes. The two
+findings that survive are real: Bedroom 2's rug is neither a proper runner nor a
+proper under-bed rug, and the living-room rug is narrower than the sofa it sits
+under.
+
 ## Sources
 
 - [The ultimate guide to living room clearances, measurements, and spacing — Homes & Gardens](https://www.homesandgardens.com/interior-design/living-rooms/a-guide-to-living-room-clearances-measurements-and-spacing)
@@ -88,6 +151,15 @@ noticing that both schemes reported the identical suspicious value.
 - [Furniture Spacing Guidelines: Room-by-Room Clearance Rules — RoomSketch3D](https://www.roomsketch3d.com/learn/traffic-flow-spacing/furniture-spacing-guidelines)
 - [Living Room Interior Design: Key Dimensions and Layouts — Blocks NorCam](https://blocksnorcam.com/home/blog/living-rooms)
 - [Key Interior Design Measurements & Dimensions — Marsha Sefcik](https://marshasefcik.com/blog/key-interior-design-measurements-amp-dimensions-you-should-know)
+
+### Rug sizing
+- [Bedroom Rug Ideas: Sizes, Placement & Styling Guide — Ruggable](https://ruggable.com/blogs/bedroom-and-bedside-rug-ideas-for-cozy-comfort)
+- [A Guide to Bedroom Rug Rules: Placement, Size, & Style — Castlery](https://www.castlery.com/us/blog/guide-to-bedroom-rugs)
+- [Bedroom Rug Placement Guide: Sizes & Layouts — Atlanta Designer Rugs](https://www.atlantadesignerrugs.com/blogs/news-from-atlanta-designer-rugs/bedroom-rug-placement-guide)
+- [Runners Around the Bed: Your Bedroom Floor Styling Guide — Sisal Rugs Direct](https://www.sisalrugs.com/Runners-Around-Bed)
+- [Rug Runner Sizes: Hallway, Bedside & Stair Dimensions — Rug Sizing](https://www.rugsizing.com/runners)
+- [What Are the Rug Under Bed Rules? — Spoak](https://www.spoak.com/spoakenword/rug-under-bed-rules)
+- [Area Rug Placement and Rug Sizes Under Queen Bed — Bassett Furniture](https://www.bassettfurniture.com/blog/rug-size-under-queen-bed.html)
 
 ### Singapore-specific (preferred for this app where the two disagree)
 - [Choosing the Right Sofa Dimensions for a Singapore Home — Megafurniture](https://megafurniture.sg/blogs/articles/choosing-the-right-sofa-dimensions-for-a-singapore-home)

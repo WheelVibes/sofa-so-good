@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.314 - the critique was never applied to the user's own design
+
+`analysis/layoutCritique.ts` has shipped for a while with cited thresholds — TV viewing
+distance, conversation distance, coffee-table gap, sofa proportion — and was consumed by
+**nothing except `schemeOptions`**. It assessed generated alternatives in the compare modal and
+never once looked at the home the user actually drew. Now in the report behind
+`layoutCritiqueReport` (pro), failures and warnings sorted above passes, and omitted entirely
+for an empty home rather than printing a column of "skipped".
+
+Added a **rug-size** check while I was in there — the most-cited amateur error in interior
+design, and `suggestions.ts` only prompted when a rug was *absent*, which is presence rather
+than adequacy. Sofa 0.15 m each side, dining table 0.61 m all sides, bed 0.46 m sides and foot,
+bedside runner three-quarters of the bed length; every figure sourced in
+`docs/research/2026-09-02-layout-critique-standards.md`.
+
+**The first version failed all four rugs in the shipped default flat, and every failure was a
+bug in the ruler, not the layout.** One threshold serving two conventions; the bed's head side
+measured when the convention deliberately leaves it bare; a bedside runner judged by the
+under-bed rule; and `/bed/` left unanchored so `rug-bedroom` became its own anchor and reported
+a serene 0.00 m overhang. Two more were unit errors: `roughlyAligned` took `% 90` on a field
+measured in radians, making the gate vacuous — and two of my own tests passed *because* they
+shared the same error, 30 reading as "oblique" and 90 as "square". A test that shares the
+product's unit error cannot detect it. Beds are now identified by **category**, not by a name
+regex guessing at a taxonomy that already exists.
+
+Layout quality on the default flat: 33 → 58. The two findings that survive are real — Bedroom
+2's rug is neither a proper runner nor a proper under-bed rug, and the living-room rug is
+narrower than the sofa it sits under.
+
 ## v0.31.5.313 - a tool instead of a fifth reminder
 
 I have written "always assert a scripted edit changed something" four times in this session and

@@ -914,3 +914,60 @@ describe('report palette-restraint note (F13-adjacent design review)', () => {
     useStore.getState().reresolveFeatureFlags()
   })
 })
+
+describe('layout critique in the report (v0.31.5.314)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  /** Scoped to the critique table — the report names every room many times. */
+  const critiqueTable = (html: string) => {
+    const i = html.indexOf('<h2>Layout critique</h2>')
+    if (i < 0) return null
+    const end = html.indexOf('</table>', i)
+    return html.slice(i, end)
+  }
+
+  it('is PRESENT in Pro, with measured verdicts', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const table = critiqueTable(buildReportHtml(plan, items, BUILTIN_CATALOG, null))
+    expect(table, 'no Layout critique section in Pro').toBeTruthy()
+    // The furnished default flat has a sofa and a TV, so the viewing-distance
+    // and conversation checks are applicable — a section of nothing but
+    // "skipped" would be worse than no section.
+    expect(table!).toMatch(/Layout quality \d+ over [1-9]/)
+    expect(table!).toMatch(/pass|warn|fail/)
+  })
+
+  it('is HIDDEN in Simple', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    expect(critiqueTable(buildReportHtml(plan, items, BUILTIN_CATALOG, null))).toBeNull()
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+
+  it('omits the section entirely for an empty home rather than printing all-skipped', () => {
+    expect(critiqueTable(buildReportHtml(plan, [], BUILTIN_CATALOG, null))).toBeNull()
+  })
+
+  it('orders failures and warnings ABOVE passes', async () => {
+    const { useStore } = await import('../state/store')
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const table = critiqueTable(buildReportHtml(plan, items, BUILTIN_CATALOG, null))!
+    const verdicts = [...table.matchAll(/<td>(pass|warn|fail)<\/td>/g)].map((m) => m[1])
+    expect(verdicts.length).toBeGreaterThan(1)
+    const rank = (v: string) => (v === 'fail' ? 0 : v === 'warn' ? 1 : 2)
+    // Monotonically non-decreasing: a list that opens with four passes buries
+    // the one problem, which is the whole point of showing the critique.
+    for (let i = 1; i < verdicts.length; i += 1) {
+      expect(rank(verdicts[i]!)).toBeGreaterThanOrEqual(rank(verdicts[i - 1]!))
+    }
+  })
+})

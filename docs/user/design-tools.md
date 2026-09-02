@@ -347,7 +347,14 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   (itemized with quantities, prices, and each room's area), a **finish schedule**
   (below), a material palette, a **clearance & fit** check (furniture blocking a doorway,
   overlapping pieces, or anything embedded in a wall), the **design score** (the
-  same 0–100 grade + per-category breakdown as the panel), an **accessibility**
+  same 0–100 grade + per-category breakdown as the panel), a **layout critique**
+  *(Pro)* — your own rooms measured against published comfort bands: TV viewing
+  distance, conversation distance, coffee-table reach, sofa proportion for an HDB
+  living room, and rug size against the sofa, dining table or bed it sits under
+  (a **bedside runner** is recognised as its own layout and judged on length, not
+  overhang). Failures and warnings sort above passes, each row shows the measured
+  figure and the band so you can judge the call yourself, and checks your home
+  has no pieces for are left out rather than listed as blanks — an **accessibility**
   check (doorway clear widths + a 1.5 m wheelchair turning circle per room),
   **wall elevations** (a
   side-on drawing per wall with dimensions, for cabinet/fixture heights), a

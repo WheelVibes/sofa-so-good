@@ -16,6 +16,7 @@ import {
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildLampSpecAdvisory } from '../analysis/lampSpecAdvisory'
+import { buildLayoutCritique } from '../analysis/layoutCritique'
 import {
   buildOpeningSchedule,
   openingRoomsLabel,
@@ -502,6 +503,31 @@ export function buildReportHtml(
     else sugByRoom.set(s.roomId, [s])
   }
   const sugColor = (sev: string) => (sev === 'tip' ? '#b45309' : '#6b7280')
+  // Layout critique for THIS design (v0.31.5.314). The module has shipped for a
+  // while and was consumed only by `schemeOptions`, so its cited thresholds
+  // assessed generated alternatives and never the user's own home. Fail/warn
+  // findings first — a list that opens with four passes buries the one problem.
+  const critique =
+    hasItems && isFeatureEnabled('layoutCritiqueReport')
+      ? buildLayoutCritique(plan, items, catalog)
+      : null
+  const critiqueSection =
+    critique && critique.applied > 0
+      ? `<div class="room-cost prose"><h2>Layout critique</h2>
+      <div class="foot" style="margin-bottom:6px">Layout quality ${critique.score} over ${critique.applied} applicable check${critique.applied === 1 ? '' : 's'} — measured against published comfort bands, skipping checks the design has no pieces for.</div>
+      <table><tr class="cat"><td>Check</td><td>Room</td><td>Verdict</td><td>Measured</td></tr>${critique.findings
+        .filter((f) => f.verdict !== 'skipped')
+        .sort((a, b) => {
+          const rank = (v: string) => (v === 'fail' ? 0 : v === 'warn' ? 1 : 2)
+          return rank(a.verdict) - rank(b.verdict)
+        })
+        .map(
+          (f) =>
+            `<tr><td>${esc(f.label)}</td><td>${esc(f.roomName ?? '—')}</td><td>${esc(f.verdict)}</td><td>${esc(f.detail)}</td></tr>`,
+        )
+        .join('')}</table></div>`
+      : ''
+
   const suggestionsSection =
     suggestions.length === 0
       ? ''
@@ -1239,6 +1265,7 @@ export function buildReportHtml(
   ${ffeSection}
   ${clearanceSection}
   ${designScoreSection}
+  ${critiqueSection}
   ${suggestionsSection}
   ${accessibilitySection}
   ${coordinationSection}
