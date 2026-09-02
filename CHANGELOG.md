@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.274 - three multi-storey bugs in my own new modules
+
+Self-audit of the modules added over this arc, against the rule `src/floorplan/CLAUDE.md` states
+first and in bold: **`plan.rooms`/`plan.walls`/`plan.openings` are the GROUND floor only** — for the
+whole home use `levels.ts`. I read that file during this work and still got it wrong in three of the
+modules I shipped. All three failed the same way: silently, on a landed/maisonette plan, with no
+error.
+
+- **`siteMeasurements.ts`** read `plan.walls`/`plan.openings` to resolve a measurement's target, so
+  a tape reading of an UPPER-STOREY wall or window came back `unresolved` — the sheet told the user
+  their measurement referenced something "no longer in the plan" when it was right there. Worst of
+  the three, because it is exactly the failure mode that module's own header promises to avoid
+  ("silently discarding a dimension someone physically measured would be the worst possible failure
+  mode for this feature").
+- **`junctionDetails.ts`** read `plan.openings`, so an upstairs window produced no sill/head detail
+  at all — absent from the detail sheet with nothing to indicate it had been skipped.
+- **`tileCoursing.ts`** read `plan.rooms`, so an upstairs bathroom received no tile setting-out.
+
+Fixed by flattening across `planLevels(plan)` (walls/openings, matching each opening to ITS OWN
+level's walls) and by `allPlanRooms(plan)` for rooms.
+
++6 regression tests on two-storey plans, and — the part that makes them worth having — **I verified
+they actually catch the bug** rather than assuming: reverting the `siteMeasurements` fix makes its
+new test fail, restoring it passes. A regression test that would have passed before the fix is
+decoration.
+
+Also checked and found CLEAN in the same audit: `deliveryAccess.ts` and `specification.ts` are
+item-based and never touch plan geometry; `layoutCritique.ts` and `coordinationClashes.ts` already
+used `allPlanRooms`; `schemeOptions.ts` delegates to `furnishPlanItems`, which iterates levels
+itself. Recording the negative result so the next audit does not repeat it.
+
+The general lesson, since this is the second time an area-scoped `CLAUDE.md` rule caught me after I
+had read it: the ground-only invariant is easy to violate because `plan.walls` READS as "the plan's
+walls". Worth a grep for `plan.walls`/`plan.rooms`/`plan.openings` in any new floorplan consumer
+before review. Full suite green (9665).
+
 ## v0.31.5.273 - can the furniture actually get into the room?
 
 A fresh gap pass over the app after 29 commits found one fit question it had never asked.

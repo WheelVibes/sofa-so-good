@@ -159,3 +159,54 @@ describe('buildMeasurementReconciliation', () => {
     expect(r.exceedsCount).toBe(1)
   })
 })
+
+describe('buildMeasurementReconciliation — multi-storey (F13)', () => {
+  /** Ground floor plus one upper storey with its own wall, room and window. */
+  function twoStorey(): FloorPlan {
+    return {
+      ...plan(),
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Upper storey',
+          elevation: 3,
+          walls: [{ id: 'u-w', start: [0, 0], end: [3, 0], thickness: 'internal' }],
+          openings: [{ id: 'u-win', wallId: 'u-w', kind: 'window', offset: 1, width: 1.2 }],
+          rooms: [{ id: 'u-r', name: 'Bedroom', origin: [0, 0], width: 3, depth: 3 }],
+        },
+      ],
+    } as unknown as FloorPlan
+  }
+
+  it('resolves an UPPER-storey wall instead of calling it deleted', () => {
+    // `plan.walls` is ground-only, so reading it directly reported an upstairs
+    // wall as `unresolved` — i.e. silently told the user their measurement
+    // referenced something that no longer existed.
+    const r = buildMeasurementReconciliation(twoStorey(), [
+      m({ kind: 'wall', targetId: 'u-w', measuredMm: 3000 }),
+    ])
+    expect(r.rows[0]!.verdict).toBe('within')
+    expect(r.rows[0]!.modelMm).toBe(3000)
+    expect(r.unresolvedCount).toBe(0)
+  })
+
+  it('resolves an UPPER-storey opening', () => {
+    const r = buildMeasurementReconciliation(twoStorey(), [
+      m({ kind: 'opening', targetId: 'u-win', measuredMm: 1200 }),
+    ])
+    expect(r.rows[0]!.modelMm).toBe(1200)
+    expect(r.rows[0]!.verdict).toBe('within')
+  })
+
+  it('resolves an UPPER-storey room span', () => {
+    const r = buildMeasurementReconciliation(twoStorey(), [
+      m({ kind: 'room-width', targetId: 'u-r', measuredMm: 3000 }),
+    ])
+    expect(r.rows[0]!.modelMm).toBe(3000)
+  })
+
+  it('still reports a genuinely absent target as unresolved', () => {
+    const r = buildMeasurementReconciliation(twoStorey(), [m({ targetId: 'nope' })])
+    expect(r.rows[0]!.verdict).toBe('unresolved')
+  })
+})

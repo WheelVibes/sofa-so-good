@@ -158,3 +158,30 @@ describe('planTileCoursing', () => {
     expect(omittedRooms).toBe(2)
   })
 })
+
+describe('planTileCoursing — multi-storey (F13)', () => {
+  it('sets out an UPPER-storey room, not just ground-floor ones', () => {
+    // `plan.rooms` is ground-only, so an upstairs bathroom received no tile
+    // setting-out whatsoever.
+    const twoStorey = {
+      name: 'p',
+      rooms: [room()],
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Upper storey',
+          elevation: 3,
+          walls: [],
+          openings: [],
+          rooms: [{ id: 'u-bath', name: 'Bath', origin: [0, 0], width: 2.4, depth: 1.8 }],
+        },
+      ],
+    } as unknown as FloorPlan
+    const { rows } = planTileCoursing(
+      twoStorey,
+      { r1: 'floor-tile-beige', 'u-bath': 'floor-tile-beige' },
+      { 'floor-tile-beige': tile([600, 600]) },
+    )
+    expect(rows.map((r) => r.roomId).sort()).toEqual(['r1', 'u-bath'])
+  })
+})

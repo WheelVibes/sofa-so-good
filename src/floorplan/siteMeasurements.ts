@@ -25,7 +25,7 @@
  * Pure (no store, no three, no DOM) → unit-testable directly.
  */
 
-import { allPlanRooms } from './levels'
+import { allPlanRooms, planLevels } from './levels'
 import {
   type FloorPlan,
   type MeasuredTargetKind,
@@ -86,7 +86,12 @@ function resolveTarget(
   m: SiteMeasurement,
 ): { label: string; modelMm: number | null } {
   if (m.kind === 'wall') {
-    const wall = (plan.walls ?? []).find((w) => w.id === m.targetId)
+    // EVERY storey's walls, not `plan.walls` — that is ground-only (F13), so
+    // an upper-floor wall would have resolved as `unresolved` ("target
+    // deleted") even though it exists.
+    const wall = planLevels(plan)
+      .flatMap((l) => l.walls ?? [])
+      .find((w) => w.id === m.targetId)
     if (!wall) return { label: m.targetId, modelMm: null }
     return {
       label: wall.name?.trim() || `Wall ${m.targetId}`,
@@ -94,7 +99,9 @@ function resolveTarget(
     }
   }
   if (m.kind === 'opening') {
-    const o = (plan.openings ?? []).find((x) => x.id === m.targetId)
+    const o = planLevels(plan)
+      .flatMap((l) => l.openings ?? [])
+      .find((x) => x.id === m.targetId)
     if (!o) return { label: m.targetId, modelMm: null }
     return {
       label: o.name?.trim() || `${o.kind === 'door' ? 'Door' : 'Window'} ${m.targetId}`,

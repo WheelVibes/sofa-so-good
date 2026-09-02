@@ -163,3 +163,39 @@ describe('buildJunctionDetails', () => {
     expect(buildJunctionDetails(p)).toEqual(buildJunctionDetails(p))
   })
 })
+
+describe('buildJunctionDetails — multi-storey (F13)', () => {
+  it('details an UPPER-storey window, not just ground-floor ones', () => {
+    // `plan.openings` is ground-only, so an upstairs window produced no
+    // sill/head detail at all — silently absent from the detail sheet.
+    const twoStorey = {
+      ...plan(),
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Upper storey',
+          elevation: 3,
+          walls: [{ id: 'u-w', start: [0, 0], end: [4, 0], thickness: 'external' }],
+          openings: [
+            {
+              id: 'u-win',
+              wallId: 'u-w',
+              kind: 'window',
+              offset: 1,
+              width: 1.2,
+              sill: 1.1,
+              head: 2.2,
+            },
+          ],
+          rooms: [{ id: 'u-r', name: 'Bedroom', origin: [0, 0], width: 4, depth: 3 }],
+        },
+      ],
+    } as unknown as FloorPlan
+    const details = buildJunctionDetails(twoStorey)
+    const win = details.find((d) => d.kind === 'window-sill')
+    expect(win).toBeDefined()
+    expect(win!.location).toContain('u-win')
+    const byLabel = Object.fromEntries(win!.dimensions.map((d) => [d.label, d.mm]))
+    expect(byLabel['Sill height above FFL']).toBe(1100)
+  })
+})

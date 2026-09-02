@@ -27,6 +27,7 @@
  */
 
 import type { MaterialDef } from '../materials/types'
+import { allPlanRooms } from './levels'
 import { type FloorPlan, type PlanRoom, planRoomArea, roomPolygon } from './types'
 
 /** A perimeter cut narrower than this fraction of the module reads as a sliver. */
@@ -142,7 +143,9 @@ export function planTileCoursing(
 ): { rows: RoomTileCoursing[]; omittedRooms: number } {
   const rows: RoomTileCoursing[] = []
   let omittedRooms = 0
-  for (const room of plan.rooms ?? []) {
+  // EVERY storey's rooms (F13) — `plan.rooms` is ground-only, so an upstairs
+  // bathroom would have received no tile setting-out at all.
+  for (const room of allPlanRooms(plan)) {
     if (planRoomArea(room) <= 0) continue
     const matId = floorFinishes[room.id]
     const row = roomTileCoursing(room, matId ? materials[matId] : undefined)

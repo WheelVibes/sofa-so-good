@@ -37,6 +37,7 @@
 
 import { buildCeilingClearance } from './ceilingClearance'
 import { buildFloorTransitions } from './floorLevels'
+import { planLevels } from './levels'
 import { planWallThickness } from './planGeometry'
 import type { FloorPlan } from './types'
 import { buildWaterproofingZones, GENERAL_UPTURN_MM, SHOWER_UPTURN_MM } from './waterproofing'
@@ -173,17 +174,22 @@ export function buildJunctionDetails(plan: FloorPlan): JunctionDetail[] {
   // 4 — Window sill / head, one detail per distinct (sill, head, wall
   //     thickness) combination.
   const windowKey = new Map<string, { sill: number; head: number; thick: number; ids: string[] }>()
-  for (const o of plan.openings ?? []) {
-    if (o.kind !== 'window') continue
-    const wall = plan.walls.find((w) => w.id === o.wallId)
-    if (!wall) continue
-    const thick = Math.round(planWallThickness(wall, plan) * 1000)
-    const sill = Math.round((o.sill ?? 0) * 1000)
-    const head = Math.round((o.head ?? 0) * 1000)
-    const key = `${sill}/${head}/${thick}`
-    const entry = windowKey.get(key) ?? { sill, head, thick, ids: [] }
-    entry.ids.push(o.name?.trim() || o.id)
-    windowKey.set(key, entry)
+  // Iterate EVERY storey (F13): `plan.openings`/`plan.walls` are ground-only,
+  // so an upstairs window would have been silently omitted from the detail
+  // sheet. Each opening is matched against ITS OWN level's walls.
+  for (const level of planLevels(plan)) {
+    for (const o of level.openings ?? []) {
+      if (o.kind !== 'window') continue
+      const wall = (level.walls ?? []).find((w) => w.id === o.wallId)
+      if (!wall) continue
+      const thick = Math.round(planWallThickness(wall, plan) * 1000)
+      const sill = Math.round((o.sill ?? 0) * 1000)
+      const head = Math.round((o.head ?? 0) * 1000)
+      const key = `${sill}/${head}/${thick}`
+      const entry = windowKey.get(key) ?? { sill, head, thick, ids: [] }
+      entry.ids.push(o.name?.trim() || o.id)
+      windowKey.set(key, entry)
+    }
   }
   for (const entry of [...windowKey.values()].sort((a, b) => a.sill - b.sill)) {
     out.push({
