@@ -48,6 +48,11 @@ import { appUrl, assertSceneAlive } from './lib.mjs'
 const HOUR = Number(process.env.HOUR || 13)
 const TIER = process.env.TIER || 'medium'
 const WINDOW = process.env.WINDOW || 'livingDining'
+// ROOM scopes the finish setters, the albedo census and the exposure census
+// (`.277`). Everything downstream of `.271` hardcoded `livingDining`, which made
+// item (s) untestable outside one room -- and every metric in this arc has turned
+// out geometry-dependent, so one room is not a validation.
+const ROOM = process.env.ROOM || WINDOW
 const STANDOFF = Number(process.env.STANDOFF || 4.6)
 const PITCH = Number(process.env.PITCH || -0.06)
 const WALKFOV = process.env.WALKFOV ? Number(process.env.WALKFOV) : 50
@@ -60,14 +65,27 @@ const PHOTO = process.env.PHOTO === '1'
 // 74.3, concrete 78.8, carpet 47.0 (`underside-shadow.mjs FLOOR=<id>`).
 const FLOOR = process.env.FLOOR || ''
 const WALL = process.env.WALL || ''
+const TONE = process.env.TONE || ''
+const BACKDROP = process.env.BACKDROP || ''
 // Pitch for the FLOOR capture: steep enough that the near floor fills the bottom
 // of the frame instead of the furniture standing on it.
 const FLOOR_PITCH = Number(process.env.FLOOR_PITCH || -0.55)
 const OUT = process.env.OUT || '/tmp/light-distribution'
 fs.mkdirSync(OUT, { recursive: true })
 
+// HEADED=1 launches a real windowed Chromium instead of headless (`.309`).
+//
+// The playbook says "before calling a headless finding a product defect, ask
+// whether a real browser sees it", and item (u) was escalated to a product defect
+// across `.298`-`.307` without that check. The Claude-in-Chrome route needs a
+// connected Chrome, which a non-interactive session does not have; headed
+// Chromium is the available approximation and it exercises the real compositor,
+// window surface and swap chain rather than the headless offscreen path. It is
+// still not a user's own Chrome, so a headed result narrows the question without
+// closing it. `.308` already confirmed both modes run the same real GPU
+// (ANGLE Metal, Apple M4).
 const browser = await puppeteer.launch({
-  headless: true,
+  headless: process.env.HEADED !== '1',
   protocolTimeout: 900_000,
   args: ['--no-sandbox', '--use-gl=angle', '--use-angle=metal', '--enable-gpu', '--enable-webgl'],
 })
@@ -78,11 +96,37 @@ await page.emulateTimezone('Asia/Singapore')
 // VH overrides it independently so the aspect can be varied WITHOUT running the
 // tracer -- `.247` needed that to prove the falloff shift was the aspect and not
 // the PT branch.
+// VW varies the WIDTH at a fixed VH. `walkFov` is a VERTICAL fov, so height
+// controls how much world is seen vertically and width controls it horizontally.
+// Reaching one aspect two different ways (1280x853 vs 1200x800, both 1.50) is
+// therefore NOT the same picture, and separating the two axes is what says
+// whether the falloff metric responds to aspect or to horizontal field (`.249`).
 await page.setViewport({
-  width: 1280,
+  width: Number(process.env.VW || 1280),
   height: Number(process.env.VH || (process.env.PT === '1' ? 720 : 800)),
   deviceScaleFactor: 2,
 })
+if (process.env.PTCLASS_RECT) {
+  const r = process.env.PTCLASS_RECT.split(',').map(Number)
+  if (r.length !== 4 || r.some((v) => !Number.isFinite(v)))
+    throw new Error('PTCLASS_RECT: expected four finite fractional numbers x,y,w,h')
+  await page.evaluateOnNewDocument((v) => {
+    window.__ptClassRect = v
+  }, r)
+}
+if (process.env.PTGRID) {
+  const m = /^(\d+)x(\d+)$/.exec(process.env.PTGRID)
+  if (!m) throw new Error('PTGRID: expected <cols>x<rows>')
+  const rect = (process.env.PTGRID_RECT || '0.1,0.05,0.8,0.35').split(',').map(Number)
+  if (rect.length !== 4 || rect.some((v) => !Number.isFinite(v)))
+    throw new Error('PTGRID_RECT: expected four finite fractional numbers')
+  await page.evaluateOnNewDocument(
+    (v) => {
+      window.__ptGrid = v
+    },
+    { cols: Number(m[1]), rows: Number(m[2]), rect },
+  )
+}
 await page.evaluateOnNewDocument(() => {
   try {
     localStorage.setItem('hdb_onboarded', '1')
@@ -90,11 +134,51 @@ await page.evaluateOnNewDocument(() => {
 })
 await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
+// Forward the page's own console for lines we deliberately tag (`.287`). The
+// probe had no console listener at all, so any diagnostic the app logged -- and
+// any warning it emitted -- was invisible to every round in this arc.
+page.on('console', (m) => {
+  const t = m.text()
+  const type = m.type()
+  // Tagged diagnostics always, plus EVERY warning and error. `hqRenderSession`
+  // logs `HQ AI denoise failed`, `HQ render failed` and a blank-render guard
+  // behind `import.meta.env.DEV` -- all of which this arc has been blind to for
+  // forty rounds because the probe never listened. Skip the Vite/HMR chatter.
+  const noise = /\[vite]|HMR|Download the React DevTools|WebGL context/i
+  if (/^\[PROBE]/.test(t) || ((type === 'warning' || type === 'error') && !noise.test(t))) {
+    console.log(`  PAGE ${type}: ${t}`)
+  }
+})
+page.on('pageerror', (e) => console.log(`  PAGE ERROR ${e.message}`))
+// Confirm the WebGL renderer string (`.308`). The playbook's real-GPU section is
+// explicit: getting the ANGLE backend wrong "silently gives you SwiftShader
+// anyway -- i.e. SHOT_GPU=1 becomes a no-op and every GPU-only check you thought
+// you ran was a software render", and it says to ALWAYS confirm the string before
+// trusting a GPU-only result. This probe launches with --use-angle=metal but had
+// never checked, through sixty rounds of path-traced measurement.
+{
+  const r = await page.evaluate(() => {
+    try {
+      const gl = document.createElement('canvas').getContext('webgl2')
+      if (!gl) return 'no webgl2'
+      const d = gl.getExtension('WEBGL_debug_renderer_info')
+      return d ? String(gl.getParameter(d.UNMASKED_RENDERER_WEBGL)) : 'no debug_renderer_info'
+    } catch (e) {
+      return `error: ${e.message}`
+    }
+  })
+  console.log(`  WEBGL RENDERER: ${r}`)
+  if (/swiftshader|software/i.test(r))
+    console.log('  ** SOFTWARE RENDERER -- GPU-only results from this run are NOT trustworthy **')
+}
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
+await page.evaluate((r) => {
+  window.__probeRoom = r
+}, ROOM)
 await page.evaluate(
-  ({ h, t, fov, photo, floor, wall }) => {
+  ({ h, t, fov, photo, floor, wall, tone, backdrop, room }) => {
     const s = window.__store.getState()
     s.setTimeMode('manual')
     s.setManualHour(h)
@@ -103,11 +187,101 @@ await page.evaluate(
     s.dismissCallout?.('walk-mode')
     s.setWalkFov?.(fov)
     if (photo) s.setPhotographicLook?.(true)
-    if (floor) s.setFloorFinish?.('livingDining', floor)
-    if (wall) s.setWallFinish?.('livingDining', wall)
+    // TONE lets the view transform be swapped, so "is the curve the binding
+    // constraint?" can be tested rather than argued (`.259`).
+    if (tone) s.setToneMapping?.(tone)
+    // BACKDROP swaps the window's exterior for one of the shipped photo presets
+    // ('city' | 'dusk' | 'park' | 'hills'), which is the app's OWN content route
+    // for item (l) -- `.261` wanted a near object behind the glass and `city` is
+    // exactly that. `.263` predicts the equirect -> CubeUV pre-filter blurs it.
+    if (backdrop) s.setBackdrop?.(backdrop)
+    if (floor) s.setFloorFinish?.(room, floor)
+    if (wall) s.setWallFinish?.(room, wall)
   },
-  { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO, floor: FLOOR, wall: WALL },
+  {
+    h: HOUR,
+    t: TIER,
+    fov: WALKFOV,
+    photo: PHOTO,
+    floor: FLOOR,
+    wall: WALL,
+    tone: TONE,
+    backdrop: BACKDROP,
+    room: ROOM,
+  },
 )
+// LIGHTS=off switches every placed light OFF, so a DAYLIGHT-ONLY frame can be
+// measured. The canonical pose stands under a lit ceiling fixture -- the walk HUD
+// prints "Turn off ceiling light" in every frame this arc has captured -- and a
+// daylit reference photograph has no such source. Reported, not assumed: the
+// probe prints how many fixtures it flipped (`.250`).
+if (process.env.LIGHTS === 'off') {
+  const flipped = await page.evaluate(() => {
+    const s = window.__store.getState()
+    const before = window.__store.getState().items
+    const on = before.filter((it) => it.props?.lightOn !== 'no').map((it) => it.id)
+    let k = 0
+    for (const id of on) {
+      s.toggleLightPower(id)
+      const after = window.__store.getState().items.find((it) => it.id === id)
+      if (after?.props?.lightOn === 'no') k++
+    }
+    return { candidates: on.length, flipped: k }
+  })
+  console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidate items`)
+}
+// CEIL_STD=1 swaps the LIVE ceiling's MeshLambertMaterial for an equivalent
+// MeshStandardMaterial (roughness 0.9, metalness 0) -- the same stand-in
+// v0.31.5.253 gives the tracer, but applied to the RASTER instead.
+//
+// This is the control the ceiling comparison needs. `.253` fixed the tracer's
+// mirror ceiling by substituting inside the tracer snapshot only, which leaves
+// the comparison CROSS-MATERIAL: raster Lambert against traced Standard. Lambert
+// is pure diffuse; Standard at 0.9 still carries a weak specular lobe and an
+// environment response. So before any residual ceiling gap can be called light
+// transport, the Lambert-to-Standard delta has to be measured on the raster side
+// where nothing else changes.
+if (process.env.CEIL_STD === '1') {
+  const swapped = await page.evaluate(() => {
+    const { scene } = window.__three
+    // No `three` import available in page scope -- lift the constructor off an
+    // existing Standard material in the scene.
+    let Std = null
+    scene.traverse((o) => {
+      if (Std || !o.isMesh) return
+      const m = Array.isArray(o.material) ? o.material[0] : o.material
+      if (m?.isMeshStandardMaterial && !m.isMeshPhysicalMaterial) Std = m.constructor
+    })
+    if (!Std) return { error: 'no MeshStandardMaterial in scene to borrow' }
+    const cache = new Map()
+    let n = 0
+    scene.traverse((o) => {
+      if (!o.isMesh) return
+      const mats = Array.isArray(o.material) ? o.material : [o.material]
+      const next = mats.map((m) => {
+        if (!m?.isMeshLambertMaterial) return m
+        if (cache.has(m)) return cache.get(m)
+        const sub = new Std({
+          color: m.color?.clone?.(),
+          map: m.map ?? null,
+          side: m.side,
+          transparent: !!m.transparent,
+          opacity: m.opacity ?? 1,
+          roughness: 0.9,
+          metalness: 0,
+        })
+        cache.set(m, sub)
+        return sub
+      })
+      if (next.some((m, i) => m !== mats[i])) {
+        o.material = Array.isArray(o.material) ? next : next[0]
+        n++
+      }
+    })
+    return { meshes: n, materials: cache.size }
+  })
+  console.log(`CEIL_STD=1  live Lambert->Standard: ${JSON.stringify(swapped)}`)
+}
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
@@ -115,11 +289,22 @@ await assertSceneAlive(page, 'after setup')
 const pose = await page.evaluate(
   (q) => {
     const plan = window.__store.getState().floorPlan
-    const op = (plan.openings ?? []).find(
+    // .336 SHAPE-TOLERANT PLAN READS. dev-1a's schema migration deletes
+    // `plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes
+    // run in the BROWSER via page.evaluate, so they cannot import `src/floorplan/
+    // levels.ts` -- and the obvious inline flatMap
+    // `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` breaks at
+    // that final stage too, because it reads the ground floor as `plan` itself.
+    // Post-migration it would contribute nothing and silently return the upper
+    // storeys only (or [] for a single-storey plan) -- a plausible result rather
+    // than an error, exactly the `?? []` trap one level up.
+    const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+    const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
+    const op = allOf(plan, 'openings').find(
       (o) => o.kind === 'window' && new RegExp(q.win, 'i').test(o.id),
     )
     if (!op) return null
-    const w = (plan.walls ?? []).find((x) => x.id === op.wallId)
+    const w = allOf(plan, 'walls').find((x) => x.id === op.wallId)
     if (!w) return null
     const [x0, z0] = w.start
     const [x1, z1] = w.end
@@ -132,7 +317,7 @@ const pose = await page.evaluate(
     let nx = -uz
     let nz = ux
     const roomAt = (px, pz) =>
-      (plan.rooms ?? []).find(
+      allOf(plan, 'rooms').find(
         (r) =>
           px >= r.origin[0] &&
           px <= r.origin[0] + r.width &&
@@ -209,8 +394,19 @@ async function teleportInto(q, standoff) {
   return page.evaluate((roomId) => {
     const { camera } = window.__three
     const plan = window.__store.getState().floorPlan
+    // .336 SHAPE-TOLERANT PLAN READS. dev-1a's schema migration deletes
+    // `plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes
+    // run in the BROWSER via page.evaluate, so they cannot import `src/floorplan/
+    // levels.ts` -- and the obvious inline flatMap
+    // `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` breaks at
+    // that final stage too, because it reads the ground floor as `plan` itself.
+    // Post-migration it would contribute nothing and silently return the upper
+    // storeys only (or [] for a single-storey plan) -- a plausible result rather
+    // than an error, exactly the `?? []` trap one level up.
+    const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+    const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
     const at =
-      (plan?.rooms ?? []).find(
+      allOf(plan ?? {}, 'rooms').find(
         (r) =>
           camera.position.x >= r.origin[0] &&
           camera.position.x <= r.origin[0] + r.width &&
@@ -243,8 +439,19 @@ const arrival = await page.evaluate(
   (q) => {
     const { camera } = window.__three
     const plan = window.__store.getState().floorPlan
+    // .336 SHAPE-TOLERANT PLAN READS. dev-1a's schema migration deletes
+    // `plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes
+    // run in the BROWSER via page.evaluate, so they cannot import `src/floorplan/
+    // levels.ts` -- and the obvious inline flatMap
+    // `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` breaks at
+    // that final stage too, because it reads the ground floor as `plan` itself.
+    // Post-migration it would contribute nothing and silently return the upper
+    // storeys only (or [] for a single-storey plan) -- a plausible result rather
+    // than an error, exactly the `?? []` trap one level up.
+    const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+    const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
     const roomAt = (px, pz) =>
-      (plan?.rooms ?? []).find(
+      allOf(plan ?? {}, 'rooms').find(
         (r) =>
           px >= r.origin[0] &&
           px <= r.origin[0] + r.width &&
@@ -286,16 +493,1164 @@ const state = await page.evaluate(() => {
  * the canvas alone removes every DOM overlay at a stroke, so no HUD rectangles
  * have to be guessed at.
  */
+/**
+ * The live camera's exact state, so the ANCHORS block can prove it is projecting
+ * with the same camera the raster frame was captured with.
+ *
+ * PT=1 opens a modal and runs a tracer between the raster capture and the anchor
+ * projection. If anything in that sequence nudged the camera, the anchor screen
+ * positions would be computed for one pose and applied to a frame taken at
+ * another -- silently, and looking at the overlay would not catch it because the
+ * patches would still land on plaster. So it is checked numerically (`.251`).
+ */
+const camState = () =>
+  page.evaluate(() => {
+    const c = window.__three.camera
+    return {
+      p: [c.position.x, c.position.y, c.position.z].map((v) => +v.toFixed(4)),
+      q: [c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w].map((v) => +v.toFixed(5)),
+      fov: +c.fov.toFixed(4),
+      aspect: +c.aspect.toFixed(5),
+    }
+  })
+
 const canvas = await page.$('canvas')
 if (!canvas) throw new Error('no canvas to capture')
+
+// GBOUNCE=<n> re-scales PHOTO_GROUND_BOUNCE live, so the ceiling deficit measured
+// in `.253` can be PRICED without a rebuild per sweep point (`.254`).
+//
+// `Lighting.tsx` applies the term as `hemi.groundColor *= photographicGroundBounce
+// (photographicLook)` -- x3 under the photographic look, x1 otherwise -- so
+// scaling the live `groundColor` by `target / shipped` is equivalent to shipping a
+// different constant. `baseGround` is captured ONCE so repeated applications are
+// idempotent rather than compounding.
+const GBOUNCE = process.env.GBOUNCE ? Number(process.env.GBOUNCE) : null
+const readGround = () =>
+  page.evaluate(() => {
+    let hemi = null
+    window.__three.scene.traverse((o) => {
+      if (o.isHemisphereLight) hemi = o
+    })
+    return hemi ? hemi.groundColor.toArray().map((v) => +v.toFixed(5)) : null
+  })
+// ASSIGNING the colour does not work. `Lighting.tsx` recomputes `groundColor`
+// from the eased day/night curve EVERY FRAME, so any value written from outside is
+// gone by the next tick -- `.254` measured a dead-flat sweep across GBOUNCE 1..8
+// twice (once patched before the pitch, once after) before the post-capture
+// read-back made it obvious. So intercept instead: wrap `setRGB` on that one
+// Color instance, and every per-frame write gets scaled on its way in.
+const applyGBounce =
+  GBOUNCE == null
+    ? null
+    : async () => {
+        const res = await page.evaluate(
+          ({ k }) => {
+            let hemi = null
+            window.__three.scene.traverse((o) => {
+              if (o.isHemisphereLight) hemi = o
+            })
+            if (!hemi) return { error: 'no HemisphereLight in scene' }
+            const c = hemi.groundColor
+            if (!c.__gbPatched) {
+              const orig = c.setRGB.bind(c)
+              c.setRGB = (r, g, b, ...rest) => orig(r * k, g * k, b * k, ...rest)
+              c.__gbPatched = k
+            }
+            return { patched: c.__gbPatched }
+          },
+          { k: GBOUNCE / (PHOTO ? 3 : 1) },
+        )
+        if (res.error) throw new Error(`GBOUNCE: ${res.error}`)
+        await new Promise((r) => setTimeout(r, 700))
+      }
 const shotFor = async (pitch) => {
   await page.evaluate((v) => window.__walkLook?.setPitch(v), pitch)
   await new Promise((r) => setTimeout(r, 900))
+  // GBOUNCE must be (re-)applied HERE, after the pitch is set. `setPitch` lands
+  // in the store, which re-runs `Lighting.tsx`'s effect, which recomputes
+  // `hemi.groundColor` from `cur.groundColor * wb * gb` and so silently reverts
+  // any earlier patch. `.254`'s first sweep was applied before the pitch and read
+  // dead flat across GBOUNCE 1..8 -- a completely false negative that only the
+  // post-capture read-back caught. Never patch a light before a state change.
+  if (typeof applyGBounce === 'function') await applyGBounce()
+  if (typeof applyFillOff === 'function') await applyFillOff()
+  if (typeof applyFillScale === 'function') await applyFillScale()
+  if (typeof applyLinear === 'function') await applyLinear()
+  if (typeof applyFillTint === 'function') await applyFillTint()
+  if (typeof applyRecolor === 'function') await applyRecolor()
+  if (typeof applyCeilStd === 'function') await applyCeilStd()
+  if (typeof applyHideCeil === 'function') await applyHideCeil()
+  if (typeof applyHideGrille === 'function') await applyHideGrille()
+  if (typeof applyBgSharp === 'function') await applyBgSharp()
+  if (typeof applyBgBlock === 'function') await applyBgBlock()
+  if (typeof applyBgMul === 'function') await applyBgMul()
+  if (typeof applyFloorDye === 'function') await applyFloorDye()
+  if (typeof applyDyeExcept === 'function') await applyDyeExcept()
+  if (typeof applyEnvDump === 'function') await applyEnvDump()
+  if (typeof applyRoomH === 'function') await applyRoomH()
+  if (typeof applyRoomDims === 'function') await applyRoomDims()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
 // the bottom band is REAL FLOOR rather than the coffee table and the sofa.
+// GBOUNCE=<n> re-scales PHOTO_GROUND_BOUNCE live, so the ceiling deficit measured
+// in `.253` can be PRICED without a rebuild per point (`.254`).
+//
+// `Lighting.tsx` applies the term as `hemi.groundColor *= photographicGroundBounce
+// (photographicLook)`, i.e. x3 under the photographic look and x1 otherwise. So
+// scaling the live `groundColor` by `target / shipped` is exactly equivalent to
+// shipping a different constant. Read back after the capture as well, because the
+// lighting effect would silently overwrite the patch if anything re-triggered it.
+// FILLOFF=1 zeroes the AmbientLight and the HemisphereLight -- the two light
+// types `buildTracerScene` does NOT copy into the tracer snapshot (it takes only
+// Directional/Point/Spot and substitutes a hardcoded GradientEquirectTexture for
+// the environment). At 13:00/medium/photographic the live scene carries
+// AmbientLight 0.077 and HemisphereLight 0.243, so this measures exactly what the
+// path tracer is missing (`.255`).
+//
+// `intensity` is a plain number that `Lighting.tsx` rewrites every frame, so it
+// has to be intercepted with a getter rather than assigned -- `.254`'s lesson,
+// applied to a number instead of a Color.
+const applyFillOff =
+  process.env.FILLOFF !== '1'
+    ? null
+    : async () => {
+        const res = await page.evaluate(() => {
+          const hit = []
+          window.__three.scene.traverse((o) => {
+            if (!o.isAmbientLight && !o.isHemisphereLight) return
+            hit.push(`${o.type} was ${o.intensity}`)
+            if (o.__fillOff) return
+            Object.defineProperty(o, 'intensity', {
+              get: () => 0,
+              set: () => {},
+              configurable: true,
+            })
+            o.__fillOff = true
+          })
+          return hit
+        })
+        await new Promise((r) => setTimeout(r, 700))
+        return res
+      }
+// FILLSCALE=<f> multiplies the AmbientLight and HemisphereLight intensities by f,
+// which is the lever item (w)'s proposed fix would actually pull: drive the
+// analytical fill from the room's mean surface reflectance instead of a constant.
+//
+// `.330` priced (w) at ~21 % too bright ON THE CEILING with dark walls. This asks
+// whether the lever has the AUTHORITY to deliver that: f=0 is the most the
+// hemisphere+ambient pair can possibly do, so if zeroing them moves the ceiling by
+// less than 21 % the fix cannot work on those two lights alone and must also scale
+// the IBL probe -- a materially bigger change.
+//
+// Same getter interception as FILLOFF and for the same reason (`.254`): Lighting.tsx
+// rewrites `intensity` every frame, so a plain assignment is overwritten. The
+// per-frame writes are routed into `__fillRaw` and the renderer reads raw x f, so
+// the scale survives every subsequent frame.
+const FILLSCALE = process.env.FILLSCALE
+const applyFillScale =
+  FILLSCALE === undefined || FILLSCALE === ''
+    ? null
+    : async () => {
+        const res = await page.evaluate((f) => {
+          const hit = []
+          window.__three.scene.traverse((o) => {
+            if (!o.isAmbientLight && !o.isHemisphereLight) return
+            if (!o.__fillScaled) {
+              o.__fillRaw = o.intensity
+              Object.defineProperty(o, 'intensity', {
+                get() {
+                  return this.__fillRaw * this.__fillFactor
+                },
+                set(v) {
+                  this.__fillRaw = v
+                },
+                configurable: true,
+              })
+              o.__fillScaled = true
+            }
+            o.__fillFactor = f
+            hit.push({ type: o.type, raw: o.__fillRaw, eff: o.intensity })
+          })
+          return hit
+        }, Number(FILLSCALE))
+        if (!res.length) throw new Error('FILLSCALE: no AmbientLight/HemisphereLight found')
+        await new Promise((r) => setTimeout(r, 900))
+        // Read back AFTER the settle -- `.254`: the lighting effect would silently
+        // overwrite a patch if anything re-triggered it, and a scale that has been
+        // reverted looks exactly like a scale that had no effect.
+        const after = await page.evaluate(() => {
+          const out = []
+          window.__three.scene.traverse((o) => {
+            if (!o.isAmbientLight && !o.isHemisphereLight) return
+            out.push({ type: o.type, raw: o.__fillRaw, eff: o.intensity })
+          })
+          return out
+        })
+        console.log(`FILLSCALECHECK f=${FILLSCALE} ${JSON.stringify(after)}`)
+      }
+// LINEAR=1 bypasses the tone curve so the SCENE's own luminance range can be read
+// rather than the graded picture's (`.258`).
+//
+// This is the measurement item (l) needs. Photographs blow their windows out
+// (15-39 % of glazing pixels clipped, `.236`) and the app clips 0.0 % at every
+// hour. `.209` read that as a tone-mapping fight -- "pushing the pane brighter
+// fights the AgX view transform". But a real daylit sky is ~10^4 cd/m2 against an
+// interior wall at ~10^2, so a photograph's window is blown by a factor of ~100 in
+// the SCENE, and any exposure that holds the interior clips it. Whether the app has
+// that range at all is answerable only with the curve out of the way.
+//
+// `gl.toneMappingExposure` is rewritten every frame by `Lighting.tsx`, so both
+// properties are intercepted with getters, not assigned (`.254`'s lesson).
+// NoToneMapping still applies the sRGB output transfer, so readings are decoded
+// back to linear before any ratio is taken.
+// BGMUL=<n> scales the EXTERIOR's radiance, to price item (l) (`.259`).
+//
+// Finding the right lever took two wrong turns worth recording. `lighting/Sky.tsx`
+// renders a baked sky on a BackSide dome, so the dome's colour looked like the
+// knob -- but in WALK MODE the dome is not in the scene at all
+// (`isPhotoBackdropActive(kind, cameraMode, ...)` makes it stand down), and a
+// raycast straight through the glazing returns exactly one hit and nothing
+// beyond. That reads as "the window has no exterior", which is wrong: in walk
+// mode the exterior is `scene.background`, a CanvasTexture, which is not geometry
+// and so cannot be raycast.
+//
+// `scene.backgroundIntensity` is therefore the one scalar that means "how bright
+// is the outside", and three provides it for exactly this purpose.
+// BGBLOCK — backdrop content. Modes 1/2 are PROVEN INERT; mode 3 works (`.263`).
+//
+// ** IT HAS NO EFFECT ON THE RENDER. ** Painting the backdrop canvas -- even
+// filling it entirely black, verified black by read-back at capture time --
+// changes nothing: frame mean 121.3 -> 121.3, `%<64` 11.85 -> 11.84, glazing
+// 237.1 -> 237.2. Meanwhile `backgroundIntensity` (BGMUL) moves the same glazing
+// 161 -> 237 -> 245. So the glazing depends on the background SLOT but not on the
+// background's CONTENT, and whatever the renderer samples is not the canvas bound
+// to `scene.background.image`.
+//
+// Kept because knowing an intervention is inert is worth more than deleting it:
+// anyone reaching for "just paint the backdrop" will otherwise repeat this.
+//
+// ** MECHANISM, RESOLVED IN `.263`. ** three converts an equirect
+// `scene.background` into a CubeUV/PMREM and caches it keyed on the TEXTURE
+// OBJECT; `needsUpdate` does not invalidate that cache. So mutating the bound
+// canvas (modes 1/2) is inert, while `backgroundIntensity` still scales the cached
+// conversion -- which is why the glazing responded to the scalar but not to the
+// content. BGBLOCK=3 hands the scene a NEW CanvasTexture instead, which cannot hit
+// the stale entry, and the content appears.
+//
+// Controlled comparison at x32, same painting code and same rows, the only
+// difference being mutate-vs-fresh:
+//
+//     mode 1 (mutate bound canvas)  clipped 39.5 %  spread 19  mid-tone  9.4 %
+//     mode 3 (fresh texture)        clipped  8.7 %  spread 78  mid-tone 75.3 %
+//
+// So `.261`'s content hypothesis is CONFIRMED in direction -- content restores
+// nearly 4x the spread a luminance multiplier could not buy. But it arrives
+// LOW-PASS FILTERED: the facade's 8 px vertical bands are gone and what reaches the
+// window is a soft luminance step, so the pane reads as frosted glass rather than a
+// view. The PMREM path cannot carry high-frequency backdrop detail.
+//
+// `.261` proved that no luminance multiplier reaches the photographic STRUCTURE --
+// a real pane is 55-60 % blown AND 36-44 % mid-tone at once, while the app goes
+// from 100 % mid-tone to 9.4 % without ever being both. It then ASSERTED that
+// backdrop content would supply the range, and for an HDB flat the real view is
+// another block. That assertion was never tested. This tests it.
+//
+// The backdrop is a 1024x512 equirect CanvasTexture (mapping 303), so row h/2 is
+// the horizon and the window's view spans roughly elevation -8..+12 deg, i.e. rows
+// ~222-279. A block belongs at and just below that, leaving sky above it.
+//
+// Luminance matters as much as position. `backgroundIntensity` scales the WHOLE
+// texture, so a block painted at sky brightness would simply clip with the sky. A
+// facade at ~5 % of sky luminance reads mid-tone after a x32 boost while the sky
+// saturates -- and ~1/20 of sky luminance is what a sunlit concrete facade
+// actually is.
+// BGSHARP tests whether item (r)'s blur is RECOVERABLE, and by which route
+// (`.265`).
+//
+// `.263`/`.264`: an equirect `scene.background` is converted to a CubeUV/PMREM,
+// which is pre-filtered by construction, so a crisp 2048x1024 city preset reaches
+// the window as faint blobs (spread 55 -> 58 where the target is 90).
+//
+//   BGSHARP=uv  -- rehost the same canvas in a fresh texture with UVMapping. three
+//                  renders that as a flat screen background with NO CubeUV step, so
+//                  if sharpness returns the pre-filter is the whole cause. The
+//                  projection is wrong for a window (no parallax), so this is a
+//                  MECHANISM PROOF, not a candidate fix.
+//
+// A fresh texture object is required either way: the CubeUV cache is keyed on the
+// texture, so mutating or re-flagging the bound one is inert (`.263`).
+// HIDEGRILLE=1 — MIS-TARGETED, kept documented so it is not misused (`.266`).
+//
+// Intent: hide the grille bars to test whether a legibility metric becomes usable
+// once they are out of the population. What it actually hides is 34
+// `BoxGeometry#e6e7e4` meshes -- the window FRAME and reveal. Verified by looking:
+// all ~20 vertical bars and the horizontal rails are still present afterwards, and
+// the metrics do not move (hp8 0.1210 -> 0.1206). So the grille attribution below
+// is neither confirmed nor refuted by this knob; it identifies the wrong meshes.
+//
+// `.265` found no metric could see the difference between an illegible and a
+// legible window. `.266` showed why: unobstructed, a 16 px blur moves `hp8` by
+// 13.3x, but through the window the same change moves it 1.05x -- because the
+// render's high-frequency energy (hp8 ~0.11) is roughly TWICE the entire source
+// image's (~0.063), and nearly all of it is grille.
+// RECOLOR=<fromHex>:<toHex> repaints every material of one colour, to test COLOUR
+// BLEED within the app (`.268`).
+//
+// A real wall beside saturated orange leather reads R-B 13.8 adjacent and 10.3 at
+// ~20 cm, at constant height in the same shadow band -- a ~3.5-count chroma
+// gradient, with luminance rising too, which is what an orange bounce does. The
+// app's plaster reads R-B 0.0 at every height, but the only thing near that wall is
+// a PALE BLUE sofa, so ~0 could mean "no bleed" or "no saturated source".
+//
+// Repainting a large adjacent surface saturated orange separates those two: with
+// inter-reflection the wall must warm; a grey hemisphere ambient cannot tint it at
+// all, whatever colour the floor is.
+// ALBEDO=1 reports the room's AREA-WEIGHTED AVERAGE ALBEDO, and FILLTINT=r,g,b
+// scales the fill lights by a per-channel factor (`.271`).
+//
+// `.270` measured what real transport does when a wall is repainted terracotta:
+// the ceiling warms 9-13 counts of R-B AND darkens 16-20 %. Crucially the response
+// is nearly UNIFORM across anchors, which says the effect is largely GLOBAL rather
+// than localised -- and a global effect may have a cheap global approximation.
+//
+// The first-order model: bounced light is direct light times albedo, so the fill
+// should scale with the room's average albedo. Painting walls terracotta lowers
+// and warms that average, which tints the fill warm and darkens it -- exactly the
+// two effects measured. Calibration-free, because only the RATIO between two rooms
+// is applied.
+const ALBEDO = process.env.ALBEDO === '1'
+const FILLTINT = process.env.FILLTINT || ''
+const applyFillTint = !FILLTINT
+  ? null
+  : async () => {
+      const [kr, kg, kb] = FILLTINT.split(',').map(Number)
+      const res = await page.evaluate(
+        ({ k }) => {
+          const hit = []
+          window.__three.scene.traverse((o) => {
+            if (!o.isAmbientLight && !o.isHemisphereLight) return
+            for (const prop of ['color', 'groundColor']) {
+              const c = o[prop]
+              if (!c?.setRGB || c.__tinted) continue
+              const orig = c.setRGB.bind(c)
+              c.setRGB = (r, g, b, ...rest) => orig(r * k[0], g * k[1], b * k[2], ...rest)
+              c.__tinted = true
+              hit.push(`${o.type}.${prop}`)
+            }
+          })
+          return hit
+        },
+        { k: [kr, kg, kb] },
+      )
+      console.log(`FILLTINTCHECK ${JSON.stringify({ k: [kr, kg, kb], patched: res })}`)
+      await new Promise((r) => setTimeout(r, 700))
+    }
+const RECOLOR = process.env.RECOLOR || ''
+const applyRecolor = !RECOLOR
+  ? null
+  : async () => {
+      // Accepts SEVERAL pairs separated by ';' (`.301`) -- suppressing a room's
+      // interreflection needs the walls AND the ceiling repainted, and they carry
+      // different base colours (plaster f5f5f0, ceiling fafafa). One pair at a
+      // time left the ceiling bouncing and made the arm useless.
+      const pairs = RECOLOR.split(';')
+        .filter(Boolean)
+        .map((p2) => p2.split(':'))
+      const res = await page.evaluate((ps) => {
+        let n = 0
+        const kinds = {}
+        const map = new Map(ps.map(([f, t]) => [f, t]))
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          for (const m of mats) {
+            const hex = m?.color?.getHexString?.()
+            if (!hex || !map.has(hex)) continue
+            m.color.set(`#${map.get(hex)}`)
+            n++
+            kinds[`${hex}->${map.get(hex)} ${o.geometry?.type ?? '?'}`] =
+              (kinds[`${hex}->${map.get(hex)} ${o.geometry?.type ?? '?'}`] ?? 0) + 1
+          }
+        })
+        return { repainted: n, kinds }
+      }, pairs)
+      console.log(`RECOLORCHECK ${JSON.stringify(res)}`)
+      await new Promise((r) => setTimeout(r, 800))
+    }
+// CEILSTD=1 -- swap every MeshLambertMaterial in the LIVE scene for an equivalent
+// native MeshStandardMaterial before the tracer snapshot is taken (`.304`).
+//
+// `.303` established that (u) and (v) are one fault -- in ~half of HQ renders the
+// ceiling is not rendered as a surface -- and that the ceiling's only
+// distinguishing property is being the ONLY SUBSTITUTED material: 14 Lambert
+// planes swapped to Standard by `.253`'s `pbrStandInFor`, while the 99 walls are
+// natively Standard and render correctly. This knob removes the need for the
+// substitution without touching `src/`: if the fault is substitution-linked it
+// must never appear with CEILSTD=1; if it is about ceilings as such it appears
+// just as often. The rivals disagree, which is what makes it a test (`.302`).
+//
+// Builds the replacement by CLONING an existing MeshStandardMaterial from the
+// scene -- the page does not expose the three constructors.
+const CEILSTD = process.env.CEILSTD === '1'
+const applyCeilStd = !CEILSTD
+  ? null
+  : async () => {
+      const res = await page.evaluate(() => {
+        let donor = null
+        window.__three.scene.traverse((o) => {
+          if (donor || !o.isMesh) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          for (const m of mats) if (m?.isMeshStandardMaterial && !m.map) donor = m
+        })
+        if (!donor) return { error: 'no un-mapped MeshStandardMaterial donor in the scene' }
+        let swapped = 0
+        const kinds = {}
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          const next = mats.map((m) => {
+            if (!m?.isMeshLambertMaterial) return m
+            const sub = donor.clone()
+            sub.color.copy(m.color)
+            sub.roughness = 1
+            sub.metalness = 0
+            sub.side = m.side
+            sub.map = m.map ?? null
+            swapped++
+            kinds[`${o.geometry?.type ?? '?'}#${m.color.getHexString()}`] =
+              (kinds[`${o.geometry?.type ?? '?'}#${m.color.getHexString()}`] ?? 0) + 1
+            return sub
+          })
+          if (next.some((m, i) => m !== mats[i]))
+            o.material = Array.isArray(o.material) ? next : next[0]
+        })
+        return { swapped, kinds }
+      })
+      console.log(`CEILSTDCHECK ${JSON.stringify(res)}`)
+      if (res.error) throw new Error(`CEILSTD: ${res.error}`)
+      await new Promise((r) => setTimeout(r, 800))
+    }
+// HIDECEIL=1 -- set `visible = false` on the ceiling planes (`.305`).
+//
+// `buildTracerScene` walks the visibility chain (`if (!p.visible) return`), so an
+// invisible ceiling is genuinely ABSENT from the tracer snapshot rather than
+// mis-shaded. `.303` characterised (u) class A as "the ceiling region shows the
+// environment"; this asks the sharper question -- is class A quantitatively
+// IDENTICAL to having no ceiling at all? Class A's dark-room signature is
+// ceiling 181.5, sidewall ~16, frameL ~104.5, so the comparison is exact.
+//
+// NOTE the raster loses its ceiling too, so raster figures from a HIDECEIL run
+// are of a different scene and must not be compared against normal ones.
+const HIDECEIL = process.env.HIDECEIL === '1'
+const applyHideCeil = !HIDECEIL
+  ? null
+  : async () => {
+      const res = await page.evaluate(() => {
+        let hidden = 0
+        const kinds = {}
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          // The ceiling planes are the Lambert ones (`Ceiling.tsx`); a finished
+          // ceiling would be Standard via `RoomCeiling.tsx` and is not hidden.
+          if (!mats.some((m) => m?.isMeshLambertMaterial)) return
+          o.visible = false
+          hidden++
+          kinds[`${o.geometry?.type ?? '?'}#${mats[0]?.color?.getHexString?.() ?? '?'}`] =
+            (kinds[`${o.geometry?.type ?? '?'}#${mats[0]?.color?.getHexString?.() ?? '?'}`] ?? 0) +
+            1
+        })
+        return { hidden, kinds }
+      })
+      console.log(`HIDECEILCHECK ${JSON.stringify(res)}`)
+      await new Promise((r) => setTimeout(r, 800))
+    }
+const HIDEGRILLE = process.env.HIDEGRILLE === '1'
+const applyHideGrille = !HIDEGRILLE
+  ? null
+  : async () => {
+      const n = await page.evaluate(() => {
+        let hidden = 0
+        const seen = {}
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh) return
+          const m = Array.isArray(o.material) ? o.material[0] : o.material
+          const hex = m?.color?.getHexString?.()
+          // The grille bars and window frame share the pale frame colour and are
+          // the only meshes of it inside the opening.
+          if (hex !== 'e6e7e4') return
+          seen[o.geometry?.type ?? '?'] = (seen[o.geometry?.type ?? '?'] ?? 0) + 1
+          o.visible = false
+          hidden++
+        })
+        return { hidden, seen }
+      })
+      console.log(`HIDEGRILLECHECK ${JSON.stringify(n)}`)
+      await new Promise((r) => setTimeout(r, 700))
+    }
+// ENVDUMP=1 -- inventory what the LIVE scene offers as an environment, and
+// whether the tracer could use it. `.326`: `resolveTracerEnvironment` returns
+// null the moment there is no HDRI url, so with the default `hdriId === null` it
+// never looks at the live scene at all -- straight to the hardcoded 2-colour
+// gradient (item (p)). But `scene.background` is a CANVAS-backed equirect (the
+// BGBLOCK/BGSHARP knobs already read `.image` as a canvas), i.e. CPU-readable,
+// hour-aware, and literally what the raster shows through every window. This
+// reports both slots against the exact clauses of `isReusableEquirectEnvironment`.
+const applyEnvDump =
+  process.env.ENVDUMP !== '1'
+    ? null
+    : async () => {
+        const res = await page.evaluate(() => {
+          const EQUIRECT_REFLECTION = 303
+          const describe = (t) => {
+            if (!t) return { present: false }
+            const img = t.image
+            const isCanvas = Boolean(img && typeof img.getContext === 'function')
+            return {
+              present: true,
+              ctor: t.constructor?.name ?? '?',
+              isTexture: Boolean(t.isTexture),
+              isRenderTargetTexture: Boolean(t.isRenderTargetTexture),
+              mapping: t.mapping,
+              equirect: t.mapping === EQUIRECT_REFLECTION,
+              colorSpace: t.colorSpace,
+              hasImage: Boolean(img),
+              imageKind: isCanvas ? 'canvas' : img ? (img.constructor?.name ?? '?') : null,
+              w: img?.width ?? null,
+              h: img?.height ?? null,
+              // Mean LINEAR luminance of the canvas (`.334`) -- the environment's own
+              // energy, independent of tone mapping, of (u), and of the renderer. The
+              // hardcoded gradient's equivalent is a constant by inspection, so this
+              // is how (p)'s hour-blindness is measured at source.
+              meanLinear: (() => {
+                if (!isCanvas) return null
+                const cv = img
+                const d = cv.getContext('2d')?.getImageData(0, 0, cv.width, cv.height).data
+                if (!d) return null
+                const s2l = (c) => {
+                  const x = c / 255
+                  return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+                }
+                let sum = 0
+                const n = cv.width * cv.height
+                for (let i = 0; i < d.length; i += 4) {
+                  sum += 0.2126 * s2l(d[i]) + 0.7152 * s2l(d[i + 1]) + 0.0722 * s2l(d[i + 2])
+                }
+                return Number((sum / n).toFixed(6))
+              })(),
+              // The exact predicate `hqEnvironment.ts` applies.
+              wouldPass: Boolean(
+                t.isTexture && !t.isRenderTargetTexture && t.mapping === EQUIRECT_REFLECTION && img,
+              ),
+            }
+          }
+          const sc = window.__three.scene
+          return {
+            background: describe(sc.background),
+            environment: describe(sc.environment),
+            hdriId: window.__store?.getState?.().hdriId ?? 'unreadable',
+          }
+        })
+        console.log(`ENVDUMP ${JSON.stringify(res, null, 2)}`)
+      }
+// FLOORDYE=<hex> -- tint every UPWARD-FACING mesh in the live scene, i.e. dye the
+// floor, so a suspect bounce source can be traced by both luminance AND hue.
+//
+// `.327` needed this because the two obvious levers both silently did nothing:
+//   FLOOR=<id>  re-finishes the LIVING/DINING floor only -- passing it while posed
+//               in bedroom3 changed nothing, and the raster arm proved it (every
+//               figure byte-identical). The knob's own comment says so.
+//   RECOLOR     matches material.color by hex, and a floor's catalog colour
+//               (#d6b38d) is a PAINTER INPUT for the generated texture, not the
+//               material colour -- the material is white with a `map`, so
+//               `repainted: 0`.
+// So this finds the floor GEOMETRICALLY (world +Z of a PlaneGeometry is its
+// normal; `getWorldDirection` returns it) and tints via `color`, which multiplies
+// the map. It reports every mesh it touched, because `.327` lost two runs to
+// interventions that did not land.
+// DYEEXCEPT=<hex> -- dye EVERY mesh except those coplanar with the window wall,
+// which partitions the measured wall's light in a single run (`.328`).
+//
+// winwall-R is coplanar with the aperture: it sees no sky and takes no direct sun
+// (`.327`), so bounce should be its only physical source. Dyeing every surface that
+// can bounce onto it leaves only the non-bounce sources -- direct sun grazing, the
+// point lights, and whatever arrives through the opening. So:
+//   large drop  -> the traced wall is bounce-lit, i.e. physically sensible, and the
+//                  raster (which has NO bounce term for walls, `.327`) is the wrong
+//                  reference for it;
+//   small drop  -> something is lighting it directly, which is the bug.
+//
+// Selection is by world normal, projected to horizontal, against the camera's own
+// horizontal backward direction -- the camera faces the window wall, so -forward IS
+// that wall's inward normal to within the pose's yaw. Meshes within SPARECOS of it
+// are spared, which correctly also spares the coplanar winwall-L segment and the
+// glazing (dyeing the glazing would attenuate the light coming IN and confound the
+// partition).
+const DYEEXCEPT = process.env.DYEEXCEPT || ''
+const applyDyeExcept = !DYEEXCEPT
+  ? null
+  : async () => {
+      const res = await page.evaluate(
+        ({ hex, spareDeg }) => {
+          const sc = window.__three.scene
+          const cam = window.__three.camera
+          // Camera forward, flattened to horizontal and normalised.
+          const fwd = cam.position.clone()
+          cam.getWorldDirection(fwd)
+          fwd.y = 0
+          if (fwd.lengthSq() < 1e-6) return { error: 'camera is looking straight up or down' }
+          fwd.normalize()
+          const spareCos = Math.cos((spareDeg * Math.PI) / 180)
+          let dyed = 0
+          let spared = 0
+          const sparedKinds = {}
+          sc.traverse((o) => {
+            if (!o.isMesh) return
+            const n = o.position.clone()
+            o.getWorldDirection(n)
+            n.y = 0
+            // ONLY a PlaneGeometry's +Z is its surface normal. For a box, cylinder
+            // or sphere `getWorldDirection` is just the object's orientation, so
+            // sparing on it spares furniture that is still bouncing light -- the
+            // first cut of this knob spared 543 meshes including books, a lamp and
+            // a plant, which is not a partition at all. Everything non-planar is
+            // dyed regardless of how it happens to be turned.
+            const horiz = n.lengthSq() > 1e-6 && o.geometry?.type === 'PlaneGeometry'
+            if (horiz) {
+              n.normalize()
+              // -fwd is the window wall's inward normal; dot > spareCos = coplanar.
+              if (-(n.x * fwd.x + n.z * fwd.z) > spareCos) {
+                spared++
+                const k = `${o.geometry?.type ?? '?'}`
+                sparedKinds[k] = (sparedKinds[k] ?? 0) + 1
+                return
+              }
+            }
+            const mats = Array.isArray(o.material) ? o.material : [o.material]
+            for (const m of mats) {
+              if (!m?.color) continue
+              m.color.set(`#${hex}`)
+              dyed++
+            }
+          })
+          return { dyed, spared, sparedKinds }
+        },
+        { hex: DYEEXCEPT, spareDeg: Number(process.env.DYE_SPARE_DEG || 30) },
+      )
+      if (res.error) throw new Error(`DYEEXCEPT: ${res.error}`)
+      console.log(`DYEEXCEPTCHECK ${JSON.stringify(res)}`)
+      if (!res.dyed || !res.spared)
+        throw new Error(
+          `DYEEXCEPT: partition did NOT land (dyed=${res.dyed} spared=${res.spared}) -- both must be non-zero`,
+        )
+      await new Promise((r) => setTimeout(r, 900))
+    }
+const FLOORDYE = process.env.FLOORDYE || ''
+const applyFloorDye = !FLOORDYE
+  ? null
+  : async () => {
+      const res = await page.evaluate((hex) => {
+        const sc = window.__three.scene
+        const hits = []
+        let dyed = 0
+        sc.traverse((o) => {
+          if (!o.isMesh) return
+          // Reuse an existing Vector3 -- the page does not expose the three
+          // constructors (same constraint CEILSTD works around).
+          const v = o.position.clone()
+          o.getWorldDirection(v)
+          if (v.y < 0.9) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          for (const m of mats) {
+            if (!m?.color) continue
+            hits.push({
+              geom: o.geometry?.type ?? '?',
+              was: m.color.getHexString(),
+              map: Boolean(m.map),
+              name: (o.name || o.parent?.name || '').slice(0, 24),
+            })
+            m.color.set(`#${hex}`)
+            dyed++
+          }
+        })
+        return { dyed, hits: hits.slice(0, 12) }
+      }, FLOORDYE)
+      console.log(`FLOORDYECHECK ${JSON.stringify(res)}`)
+      if (res.dyed === 0)
+        throw new Error('FLOORDYE: no upward-facing mesh found -- intervention did NOT land')
+      await new Promise((r) => setTimeout(r, 900))
+    }
+// ROOMDIMS=1 -- report every room's footprint and its wall/ceiling area ratio.
+//
+// `.342` refuted the fixture explanation for (w)'s room-dependence and left a geometric
+// one: a small room's walls subtend a far larger solid angle from any ceiling point
+// (the room-cavity ratio of lighting design). bedroom3 (small) needs -20.8 %,
+// livingDining (large) -8.3 %. To TEST that rather than assert it, the ratio has to be
+// computed from the plan -- which is also exactly what a shipped fix would do, so this
+// doubles as a feasibility check on the fix.
+const applyRoomDims =
+  process.env.ROOMDIMS !== '1'
+    ? null
+    : async () => {
+        const res = await page.evaluate(() => {
+          const plan = window.__store.getState().floorPlan
+          const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+          const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
+          const h = plan.wallHeight ?? plan.ceilingHeight ?? null
+          return {
+            wallHeight: h,
+            windows: allOf(plan, 'openings')
+              .filter((o) => o.kind === 'window')
+              .map((o) => o.id),
+            // Per-room ceilingHeight OVERRIDES the global one -- bath1 and bath2 carry
+            // 2.4 in `src/apartment/constants.ts` (dropped ceilings for plumbing), and
+            // `PlanShell` honours it (`r.ceilingHeight ?? lp.ceilingHeight`). `.343`
+            // used the global height for every room and so reported the bathroom
+            // ratios ~8 % too high.
+            rooms: allOf(plan, 'rooms').map((r) => ({
+              id: r.id,
+              w: r.width,
+              d: r.depth,
+              h: r.ceilingHeight ?? null,
+            })),
+          }
+        })
+        const h = res.wallHeight
+        console.log(`ROOMDIMS wallHeight=${h}`)
+        console.log(`ROOMDIMS windows=${JSON.stringify(res.windows)}`)
+        for (const r of res.rooms) {
+          const rh = r.h ?? h
+          const ceil = r.w * r.d
+          const wall = rh ? 2 * rh * (r.w + r.d) : null
+          console.log(
+            `ROOMDIMS ${r.id}  ${r.w}x${r.d}  H=${rh}${r.h ? ' (per-room)' : ''}` +
+              `  ceiling=${ceil.toFixed(2)}` +
+              (wall ? `  wall=${wall.toFixed(2)}  wall/ceiling=${(wall / ceil).toFixed(3)}` : ''),
+          )
+        }
+      }
+// ROOMH=<metres> -- set the POSED room's ceiling height, changing its wall/ceiling
+// area ratio while holding room, furniture, window and finishes fixed.
+//
+// `.343` established that the geometric hypothesis for (w)'s room-dependence cannot be
+// tested across rooms in this plan: mainBedroom is within 2.7 % of bedroom3 on the
+// ratio, the kitchen has no window so cannot be posed at all, and the bathrooms -- the
+// only well-separated points -- are confounded by tiled walls plus a specular screen
+// and mirror.
+//
+// Varying height inside ONE room is the cleaner experiment. The ratio is
+// 2H(1/W + 1/D), so for bedroom3 (2.885 x 3.525) H = 1.6 gives 2.017 (below
+// livingDining's 2.446) and H = 4.2 gives 5.295 (at bath1's 5.229) -- the whole range,
+// same furniture, same window, same finishes.
+//
+// `PlanShell.tsx:911` reads `r.ceilingHeight ?? lp.ceilingHeight`, so a per-room
+// override is honoured by the 3D shell. Reads back after the change, because an
+// intervention that silently fails to land looks exactly like one with no effect
+// (`.327`, `.340`).
+const applyRoomH = !process.env.ROOMH
+  ? null
+  : async () => {
+      const target = Number(process.env.ROOMH)
+      if (!Number.isFinite(target) || target <= 0) throw new Error('ROOMH: expected metres > 0')
+      const res = await page.evaluate(
+        ({ room, h }) => {
+          const st = window.__store
+          const plan = st.getState().floorPlan
+          const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+          const hit = levelsOf(plan)
+            .flatMap((l) => l.rooms ?? [])
+            .filter((r) => r.id === room)
+          if (!hit.length) return { error: `no room ${room}` }
+          st.setState((s) => {
+            const fp = s.floorPlan
+            const patch = (rooms) =>
+              (rooms ?? []).map((r) => (r.id === room ? { ...r, ceilingHeight: h } : r))
+            return {
+              floorPlan: fp.levels
+                ? { ...fp, levels: fp.levels.map((l) => ({ ...l, rooms: patch(l.rooms) })) }
+                : { ...fp, rooms: patch(fp.rooms) },
+            }
+          })
+          const after = levelsOf(st.getState().floorPlan)
+            .flatMap((l) => l.rooms ?? [])
+            .find((r) => r.id === room)
+          return { was: hit[0].ceilingHeight ?? null, now: after?.ceilingHeight ?? null }
+        },
+        { room: ROOM, h: target },
+      )
+      if (res.error) throw new Error(`ROOMH: ${res.error}`)
+      if (res.now !== target)
+        throw new Error(`ROOMH: did not land -- store reports ${res.now}, asked ${target}`)
+      console.log(`ROOMH ${ROOM}: ceilingHeight ${res.was} -> ${res.now}`)
+      await new Promise((r) => setTimeout(r, 1500))
+    }
+const BGSHARP = process.env.BGSHARP || ''
+const applyBgSharp = !BGSHARP
+  ? null
+  : async () => {
+      const res = await page.evaluate(
+        ({ mode }) => {
+          const sc = window.__three.scene
+          const oldTex = sc.background
+          const src = oldTex?.image
+          if (!src) return { error: 'no background image' }
+          const cv = document.createElement('canvas')
+          cv.width = src.width
+          cv.height = src.height
+          cv.getContext('2d').drawImage(src, 0, 0)
+          const Tex = oldTex.constructor
+          const fresh = new Tex(cv)
+          fresh.colorSpace = oldTex.colorSpace
+          fresh.mapping = mode === 'uv' ? 300 : oldTex.mapping
+          fresh.needsUpdate = true
+          sc.background = fresh
+          return {
+            w: cv.width,
+            h: cv.height,
+            mappingWas: oldTex.mapping,
+            mappingNow: fresh.mapping,
+          }
+        },
+        { mode: BGSHARP },
+      )
+      if (res.error) throw new Error(`BGSHARP: ${res.error}`)
+      console.log(`BGSHARPCHECK ${JSON.stringify(res)}`)
+      await new Promise((r) => setTimeout(r, 900))
+    }
+const BGBLOCK = ['1', '2', '3'].includes(process.env.BGBLOCK || '')
+const applyBgBlock = !BGBLOCK
+  ? null
+  : async () => {
+      await page.evaluate(
+        ({ m, top, bot }) => {
+          window.__bgBlockMode = m
+          if (top) window.__bgTop = top
+          if (bot) window.__bgBot = bot
+        },
+        {
+          m: process.env.BGBLOCK,
+          top: process.env.BG_TOP ? Number(process.env.BG_TOP) : null,
+          bot: process.env.BG_BOT ? Number(process.env.BG_BOT) : null,
+        },
+      )
+      const res = await page.evaluate(() => {
+        const tex = window.__three.scene.background
+        const cv = tex?.image
+        if (!cv || typeof cv.getContext !== 'function')
+          return { error: 'background is not a canvas texture' }
+        if (cv.__blocked) return { already: true }
+        const ctx = cv.getContext('2d')
+        const W = cv.width
+        const H = cv.height
+        const top = Math.round(H * 0.485) // just above the horizon
+        const bot = Math.round(H * 0.66) // down to well below it
+        // Facade: vertical bands so the block has its own internal structure, the
+        // way a real block's windows and columns do.
+        for (let x = 0; x < W; x += 8) {
+          const v = x % 16 === 0 ? 58 : 72
+          ctx.fillStyle = `rgb(${v},${v - 2},${v - 4})`
+          ctx.fillRect(x, top, 8, bot - top)
+        }
+        // A roofline highlight, and a soft shadowed base.
+        ctx.fillStyle = 'rgb(96,94,90)'
+        ctx.fillRect(0, top, W, 3)
+        ctx.fillStyle = 'rgb(40,39,38)'
+        ctx.fillRect(0, bot - 6, W, 6)
+        if (window.__bgBlockMode === '3') {
+          // BGBLOCK=3 — the mechanism test (`.263`). Instead of mutating the bound
+          // canvas, build a NEW canvas with the facade painted and hand the scene a
+          // NEW CanvasTexture. three converts an equirect background into a CubeUV
+          // (PMREM) and caches it keyed on the TEXTURE OBJECT, and that cache is not
+          // invalidated by `needsUpdate` -- which would make `.262`'s canvas
+          // mutation inert while `backgroundIntensity` still scaled the cached
+          // result. A fresh texture object cannot hit the stale entry.
+          const sc = window.__three.scene
+          const oldTex = sc.background
+          const src = oldTex.image
+          const cv2 = document.createElement('canvas')
+          cv2.width = src.width
+          cv2.height = src.height
+          const c2 = cv2.getContext('2d')
+          c2.drawImage(src, 0, 0)
+          const W2 = cv2.width
+          const H2 = cv2.height
+          const t2 = Math.round(H2 * (window.__bgTop ?? 0.485))
+          const b2 = Math.round(H2 * (window.__bgBot ?? 0.66))
+          for (let x = 0; x < W2; x += 8) {
+            const v = x % 16 === 0 ? 58 : 72
+            c2.fillStyle = `rgb(${v},${v - 2},${v - 4})`
+            c2.fillRect(x, t2, 8, b2 - t2)
+          }
+          c2.fillStyle = 'rgb(96,94,90)'
+          c2.fillRect(0, t2, W2, 3)
+          c2.fillStyle = 'rgb(40,39,38)'
+          c2.fillRect(0, b2 - 6, W2, 6)
+          const Tex = oldTex.constructor
+          const fresh = new Tex(cv2)
+          fresh.mapping = oldTex.mapping
+          fresh.colorSpace = oldTex.colorSpace
+          fresh.needsUpdate = true
+          // Do NOT dispose oldTex -- SceneBackdrop owns it and restores it on unmount.
+          sc.background = fresh
+          const px3 = c2.getImageData(Math.round(W2 * 0.5), t2 + 10, 1, 1).data
+          return {
+            mode: 3,
+            newTexture: true,
+            sameAsEnvironment: sc.environment === oldTex,
+            painted: [px3[0], px3[1], px3[2]],
+            top: t2,
+            bot: b2,
+          }
+        }
+        if (window.__bgBlockMode === '2') {
+          // Unambiguous control: black out the WHOLE backdrop. If the window does
+          // not change, its appearance does not come from `scene.background`.
+          ctx.fillStyle = 'rgb(0,0,0)'
+          ctx.fillRect(0, 0, W, H)
+        }
+        cv.__blocked = true
+        tex.needsUpdate = true
+        // Read back a painted row so the intervention can be proven to have held at
+        // capture time rather than merely to have been issued (`.254`).
+        const probeRow = window.__bgBlockMode === '2' ? Math.round(H * 0.3) : top + 10
+        const px = ctx.getImageData(Math.round(W * 0.5), probeRow, 1, 1).data
+        return { W, H, top, bot, probeRow, painted: [px[0], px[1], px[2]] }
+      })
+      if (res.error) throw new Error(`BGBLOCK: ${res.error}`)
+      console.log(`BGBLOCK=1 painted a facade into the backdrop: ${JSON.stringify(res)}`)
+      await new Promise((r) => setTimeout(r, 900))
+    }
+const BGMUL = process.env.BGMUL ? Number(process.env.BGMUL) : null
+const readBg = () =>
+  page.evaluate(() => {
+    const sc = window.__three.scene
+    return {
+      intensity: sc.backgroundIntensity,
+      type: sc.background?.isColor ? 'Color' : sc.background ? 'Texture' : null,
+    }
+  })
+const applyBgMul =
+  BGMUL == null
+    ? null
+    : async () => {
+        const res = await page.evaluate(
+          ({ k }) => {
+            const sc = window.__three.scene
+            if (!sc.background) return { error: 'scene.background is null' }
+            if (!sc.__bgPatched) {
+              // Intercepted rather than assigned: anything that repaints the
+              // backdrop per frame would otherwise silently revert it (`.254`).
+              Object.defineProperty(sc, 'backgroundIntensity', {
+                get: () => k,
+                set: () => {},
+                configurable: true,
+              })
+              sc.__bgPatched = k
+            }
+            return { intensity: sc.backgroundIntensity }
+          },
+          { k: BGMUL },
+        )
+        if (res.error) throw new Error(`BGMUL: ${res.error}`)
+        await new Promise((r) => setTimeout(r, 800))
+      }
+const LINEAR = process.env.LINEAR === '1'
+const LIN_EXPO = Number(process.env.LIN_EXPO || 0.05)
+const applyLinear = !LINEAR
+  ? null
+  : async () => {
+      const res = await page.evaluate(
+        ({ expo }) => {
+          const gl = window.__three.gl
+          if (!gl) return { error: 'no renderer on window.__three' }
+          if (!gl.__linPatched) {
+            Object.defineProperty(gl, 'toneMapping', {
+              get: () => 0, // THREE.NoToneMapping
+              set: () => {},
+              configurable: true,
+            })
+            Object.defineProperty(gl, 'toneMappingExposure', {
+              get: () => expo,
+              set: () => {},
+              configurable: true,
+            })
+            gl.__linPatched = true
+          }
+          return { toneMapping: gl.toneMapping, exposure: gl.toneMappingExposure }
+        },
+        { expo: LIN_EXPO },
+      )
+      if (res.error) throw new Error(`LINEAR: ${res.error}`)
+      await new Promise((r) => setTimeout(r, 900))
+    }
+// FLOOREXPOSED=1 measures what fraction of the room's FLOOR PLANE is actually
+// exposed, by casting rays straight down on a world grid and tallying the first
+// hit (`.274`).
+//
+// `.273` reported the floor-finish A/B as void because the store took the finish
+// but "the render did not". That was WRONG -- read from the eye-level frame, where
+// the living/dining floor is almost entirely occluded. The pitched-down frame the
+// probe also captures shows the finish plainly (pale tiles vs dark planks). The
+// traced null is real, and its cause is occlusion: a rug and furniture cover most
+// of the floor, so a floor finish changes very little of the room's reflecting
+// surface. Which means an albedo census must weight by EXPOSED area, not total
+// area -- a second flaw distinct from `.273`'s texture-blindness, pushing the same
+// way.
+if (process.env.FLOOREXPOSED === '1') {
+  const res = await page.evaluate(() => {
+    const { scene } = window.__three
+    const rc = new window.__three.raycaster.constructor()
+    const V = window.__three.camera.position.constructor
+    const solid = (o) => o.visible && o.material?.colorWrite !== false && o.material?.opacity !== 0
+    const sig = (o) => {
+      const m = Array.isArray(o.material) ? o.material[0] : o.material
+      return `${o.geometry?.type ?? '?'}#${m?.color?.getHexString?.() ?? '------'}`
+    }
+    const rm = window.__store.getState().floorPlan?.rooms?.find((r) => r.id === window.__probeRoom)
+    if (!rm) return { error: `no room ${window.__probeRoom}` }
+    const N = 60
+    const tally = {}
+    let n = 0
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const x = rm.origin[0] + ((i + 0.5) / N) * rm.width
+        const z = rm.origin[1] + ((j + 0.5) / N) * rm.depth
+        rc.set(new V(x, 2.55, z), new V(0, -1, 0))
+        const h = rc.intersectObjects(scene.children, true).find((k) => solid(k.object) && k.face)
+        const key = h ? sig(h.object) : '(nothing)'
+        tally[key] = (tally[key] || 0) + 1
+        n++
+      }
+    }
+    return {
+      n,
+      top: Object.entries(tally)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([k, v]) => `${k} ${((100 * v) / n).toFixed(1)}%`),
+    }
+  })
+  if (res.error) throw new Error(`FLOOREXPOSED: ${res.error}`)
+  console.log(`FLOOREXPOSED (${res.n} downward rays over the room rect): ${res.top.join(' | ')}`)
+}
+if (ALBEDO) {
+  const a = await page.evaluate(() => {
+    const V = window.__three.camera.position.constructor
+    let ar = 0
+    let ag = 0
+    let ab = 0
+    let tot = 0
+    window.__three.scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return
+      let p = o
+      while (p) {
+        if (!p.visible) return
+        p = p.parent
+      }
+      o.geometry.computeBoundingBox?.()
+      const bb = o.geometry.boundingBox
+      if (!bb) return
+      const sc = o.getWorldScale(new V())
+      const sx = (bb.max.x - bb.min.x) * Math.abs(sc.x)
+      const sy = (bb.max.y - bb.min.y) * Math.abs(sc.y)
+      const sz = (bb.max.z - bb.min.z) * Math.abs(sc.z)
+      const area = 2 * (sx * sy + sy * sz + sx * sz)
+      if (!Number.isFinite(area) || area <= 0 || area > 500) return // skip the sky shell
+      // Bounce is LOCAL: only the room's own surfaces matter. A whole-flat census
+      // (2186 m2) barely moves when one room is repainted -- ratio 0.984/0.972/
+      // 0.968 -- and predicts a 2.6 % darkening where real transport gives 16-20 %.
+      // Restrict to the measured room's rect (`.277` -- was hardcoded to livingDining,
+      // which silently made every other room report livingDining's albedo).
+      const wp = o.getWorldPosition(new V())
+      const rm = window.__store
+        .getState()
+        .floorPlan?.rooms?.find((r) => r.id === window.__probeRoom)
+      if (rm) {
+        const pad = 0.4
+        if (
+          wp.x < rm.origin[0] - pad ||
+          wp.x > rm.origin[0] + rm.width + pad ||
+          wp.z < rm.origin[1] - pad ||
+          wp.z > rm.origin[1] + rm.depth + pad
+        )
+          return
+      }
+      const m = Array.isArray(o.material) ? o.material[0] : o.material
+      if (!m?.color) return
+      ar += m.color.r * area
+      ag += m.color.g * area
+      ab += m.color.b * area
+      tot += area
+    })
+    return tot ? { r: ar / tot, g: ag / tot, b: ab / tot, area: tot } : null
+  })
+  if (a)
+    console.log(
+      `ALBEDO area-weighted mean: r=${a.r.toFixed(4)} g=${a.g.toFixed(4)} b=${a.b.toFixed(4)}  over ${a.area.toFixed(0)} m2`,
+    )
+}
 const shot = await shotFor(PITCH)
+if (BACKDROP)
+  console.log(
+    `BACKDROPCHECK ${JSON.stringify(
+      await page.evaluate(() => {
+        const t = window.__three.scene.background
+        const s2 = window.__store.getState()
+        return {
+          asked: s2.backdrop,
+          ctor: t?.constructor?.name ?? null,
+          mapping: t?.mapping ?? null,
+          w: t?.image?.width ?? null,
+          h: t?.image?.height ?? null,
+        }
+      }),
+    )}`,
+  )
+if (BGMUL != null) console.log(`BGMUL=${BGMUL} held at capture: ${JSON.stringify(await readBg())}`)
+if (BGBLOCK)
+  console.log(
+    `BGBLOCK held at capture: ${JSON.stringify(
+      await page.evaluate(() => {
+        const cv = window.__three.scene.background?.image
+        if (!cv?.getContext) return null
+        const ctx = cv.getContext('2d')
+        const at = (fy) =>
+          [
+            ...ctx.getImageData(Math.round(cv.width * 0.5), Math.round(cv.height * fy), 1, 1).data,
+          ].slice(0, 3)
+        return { row30: at(0.3), row50: at(0.5), row55: at(0.55) }
+      }),
+    )}`,
+  )
+if (LINEAR)
+  console.log(
+    `LINEAR=1 held at capture: ${JSON.stringify(
+      await page.evaluate(() => ({
+        toneMapping: window.__three.gl?.toneMapping,
+        exposure: window.__three.gl?.toneMappingExposure,
+      })),
+    )}  (readings below are sRGB-encoded; decode before ratioing)`,
+  )
+if (applyFillOff)
+  console.log(
+    `FILLOFF=1 zeroed: ${JSON.stringify(
+      await page.evaluate(() => {
+        const out = []
+        window.__three.scene.traverse((o) => {
+          if (o.isAmbientLight || o.isHemisphereLight) out.push(`${o.type}=${o.intensity}`)
+        })
+        return out
+      }),
+    )}`,
+  )
+if (GBOUNCE != null) console.log(`GBOUNCE held at capture: ${JSON.stringify(await readGround())}`)
+// Snapshot the camera HERE, while it still holds the pose `frame.png` was taken
+// at. Taken any later it records FLOOR_PITCH from the pitched-down capture below,
+// and the guard then reports drift on every run -- which is what the first `.251`
+// run did (q.x -0.272 vs -0.030, i.e. -0.55 rad against -0.06).
+const camAtRaster = await camState()
 const shotDown = await shotFor(FLOOR_PITCH)
 fs.writeFileSync(`${OUT}/frame.png`, shot)
 fs.writeFileSync(`${OUT}/frame-down.png`, shotDown)
@@ -316,9 +1671,205 @@ console.log(`frame -> ${OUT}/frame.png`)
 // that must be identical in both images. `.245`'s feasibility probe skipped it
 // and rendered the orbit dollhouse, which is `.218`'s trap all over again.
 if (process.env.PT === '1') {
-  const want = Number(process.env.PTSAMPLES || 48)
+  // The modal always runs to its own 256-sample cap, so a smaller PTSAMPLES
+  // cannot make a shorter render -- it only makes the probe read EARLIER, while
+  // the canvas still holds the pre-completion placeholder (`.282`). Every run
+  // that asked for the cap produced a real trace (bedroom3 119.4/116.9 and
+  // 120.3/117.6; livingDining 137.3/137.3/143.1); every run that asked for less
+  // produced the placeholder. So the request is clamped to the cap. PTSAMPLES is
+  // kept only to raise it should the cap ever change.
+  const want = Math.max(256, Number(process.env.PTSAMPLES || 256))
+  // Mean / sd / R-B of a fixed 10% patch of the tracer canvas, read in-page via
+  // drawImage onto a 2D scratch canvas (`.282`). Cheap enough to call on every
+  // poll, unlike toDataURL of a 1920x1080 WebGL canvas.
+  const patchStatsFn = () => {
+    const list = [...document.querySelectorAll('canvas')]
+    const scene = list[0]
+    const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
+    const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
+    if (!c) return null
+    // PTCLASS_RECT=x,y,w,h (fractional) -- `.340` found the historic fixed rect
+    // (0.45, 0.18, 10 %, 10 %) lands on clean ceiling at bedroom3 but NOT at
+    // livingDining, where it reported R-B -0.7 for an arm whose proper ceiling patch
+    // reads -11.0. The discriminator's MARGIN is pose-dependent even when its sign
+    // rule is sound, so the rect has to follow the pose.
+    const RECT = window.__ptClassRect || [0.45, 0.18, 0.1, 0.1]
+    const w = Math.round(c.width * RECT[2])
+    const h = Math.round(c.height * RECT[3])
+    const s2 = document.createElement('canvas')
+    s2.width = w
+    s2.height = h
+    const ctx = s2.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return null
+    ctx.drawImage(
+      c,
+      Math.round(c.width * RECT[0]),
+      Math.round(c.height * RECT[1]),
+      w,
+      h,
+      0,
+      0,
+      w,
+      h,
+    )
+    const d = ctx.getImageData(0, 0, w, h).data
+    let sl = 0
+    let sl2 = 0
+    let srb = 0
+    const n = d.length / 4
+    for (let i = 0; i < d.length; i += 4) {
+      const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]
+      sl += l
+      sl2 += l * l
+      srb += d[i] - d[i + 2]
+    }
+    const mean = sl / n
+    return {
+      L: mean,
+      sd: Math.sqrt(Math.max(0, sl2 / n - mean * mean)),
+      rb: srb / n,
+      cw: c.width,
+      ch: c.height,
+      n: cands.length,
+    }
+  }
+  // PTGRID=<cols>x<rows> with PTGRID_RECT=x,y,w,h -- classify a GRID of cells over the
+  // ceiling instead of one patch mean (`.348`).
+  //
+  // `.347` found class A is not one state: bedroom3's class-A arms read 175.6 to the
+  // decimal every time, while livingDining's varied with ~14 % well below the cluster.
+  // Those are PARTIAL arms, and a single patch mean cannot see their structure. That
+  // restores `.293`'s "spatially varying cold cast whose extent varies" and the early
+  // ~8 % class-M observation.
+  //
+  // Whole-surface, per-tile and per-triangle causes predict DIFFERENT spatial patterns:
+  // uniform, axis-aligned blocks, or irregular patches. A grid distinguishes them, and
+  // a patch mean cannot -- so every rate figure in this arc has been a binary
+  // projection of something with structure.
+  const gridStatsFn = () => {
+    const list = [...document.querySelectorAll('canvas')]
+    const scene = list[0]
+    const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
+    const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
+    if (!c) return null
+    const g = window.__ptGrid || { cols: 8, rows: 4, rect: [0.1, 0.05, 0.8, 0.35] }
+    const [rx, ry, rw, rh] = g.rect
+    const W = Math.max(1, Math.round((c.width * rw) / g.cols))
+    const H = Math.max(1, Math.round((c.height * rh) / g.rows))
+    const s2 = document.createElement('canvas')
+    s2.width = W
+    s2.height = H
+    const ctx = s2.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return null
+    const cells = []
+    for (let j = 0; j < g.rows; j++) {
+      for (let i = 0; i < g.cols; i++) {
+        ctx.drawImage(
+          c,
+          Math.round(c.width * (rx + (i * rw) / g.cols)),
+          Math.round(c.height * (ry + (j * rh) / g.rows)),
+          W,
+          H,
+          0,
+          0,
+          W,
+          H,
+        )
+        const d = ctx.getImageData(0, 0, W, H).data
+        let sl = 0
+        let srb = 0
+        const n = d.length / 4
+        for (let k = 0; k < d.length; k += 4) {
+          sl += 0.2126 * d[k] + 0.7152 * d[k + 1] + 0.0722 * d[k + 2]
+          srb += d[k] - d[k + 2]
+        }
+        cells.push({ L: Number((sl / n).toFixed(1)), rb: Number((srb / n).toFixed(1)) })
+      }
+    }
+    return { cols: g.cols, rows: g.rows, cells }
+  }
   await page.evaluate((v) => window.__walkLook?.setPitch(v), PITCH)
   await new Promise((r) => setTimeout(r, 600))
+  // PTAI=off|on -- force the `hqAiDenoise` feature flag before the modal mounts
+  // (`.285`), so item (t)'s two arms can be rendered at one pose. `useFeature`
+  // reads `s.featureFlags[flag]` straight off the store, so setting it there is
+  // enough; it is not recomputed per frame the way `Lighting` rewrites
+  // `hemi.groundColor` (`.254`). Read back AFTER the capture regardless -- `.254`
+  // published two dead-flat sweeps because an intervention silently reverted and
+  // only a post-hoc read-back caught it.
+  if (process.env.PTAI) {
+    const wantAi = process.env.PTAI !== 'off'
+    await page.evaluate((v) => {
+      const st = window.__store
+      st.setState((s) => ({ featureFlags: { ...s.featureFlags, hqAiDenoise: v } }))
+    }, wantAi)
+    const seen = await page.evaluate(() => window.__store.getState().featureFlags.hqAiDenoise)
+    console.log(`  PTAI: asked hqAiDenoise=${wantAi}, store reports ${seen}`)
+    if (seen !== wantAi) throw new Error(`PTAI: flag did not take (${seen})`)
+  }
+  // `.285`: the two interleaved traced states differ by a near-constant
+  // whole-frame factor (~0.67 across all 24 cells of a 6x4 grid) plus a cold->
+  // neutral R-B shift -- the signature of a different EXPOSURE, not different
+  // lighting. `hqRenderSession` is constructed with
+  // `exposure: src.gl.toneMappingExposure`, and `Lighting` rewrites that every
+  // frame from the day/night curve, so if the modal reads it before the hour has
+  // been graded the still renders at a stale exposure. Log it at open and at
+  // capture to find out, instead of assuming.
+  const expoAt = async (label) => {
+    const e = await page.evaluate(() => {
+      // `window.__three` is what the rest of this probe uses to reach three
+      // objects; `getHqRenderSource` is a module export and not on window.
+      const gl = window.__three?.gl ?? null
+      const s = window.__store.getState()
+      return {
+        gl: gl ? gl.toneMappingExposure : null,
+        tm: gl ? gl.toneMapping : null,
+        hour: s.hour ?? null,
+      }
+    })
+    console.log(
+      `  PTEXPO ${label}: gl.toneMappingExposure=${e.gl} toneMapping=${e.tm} hour=${e.hour}`,
+    )
+    return e
+  }
+  // PTHDRI=off|on -- force the tracer's environment branch (`.286`). `.285`
+  // left one untested lead for item (u): `resolveTracerEnvironment` falls back to
+  // a hardcoded cold `GradientEquirectTexture` when `hdriUrl` is absent, and that
+  // fallback is brighter AND colder, which is state A's exact signature. The
+  // modal builds `hdriUrl` from `useFeature('hdriEnvironment')` plus
+  // `store.hdriId`, so forcing the flag forces the branch. If the lead is right,
+  // off must give state A every time and on must give state B every time.
+  if (process.env.PTHDRI) {
+    const wantH = process.env.PTHDRI !== 'off'
+    // `hdriId` defaults to null, and `hqEnvironmentUrl(on, null)` returns null --
+    // so flipping the flag alone leaves `hdriUrl` undefined and the gradient
+    // branch taken either way. The ON arm has to name a real preset, or it is not
+    // an A/B at all. PTHDRIID overrides the preset (default `studio_small_09`).
+    const wantId = process.env.PTHDRIID || 'studio_small_09'
+    await page.evaluate(
+      ({ v, id }) => {
+        window.__store.setState((st) => ({
+          featureFlags: { ...st.featureFlags, hdriEnvironment: v },
+          hdriId: v ? id : null,
+        }))
+      },
+      { v: wantH, id: wantId },
+    )
+    const seen = await page.evaluate(() => ({
+      on: window.__store.getState().featureFlags.hdriEnvironment,
+      id: window.__store.getState().hdriId,
+      liveEnv: (() => {
+        const e = window.__three?.scene?.environment
+        if (!e) return 'null'
+        return `${e.isRenderTargetTexture ? 'renderTarget' : 'plain'} mapping=${e.mapping}`
+      })(),
+    }))
+    console.log(
+      `  PTHDRI: asked hdriEnvironment=${wantH}, store reports ${seen.on}, hdriId=${seen.id}, live scene.environment=${seen.liveEnv}`,
+    )
+    if (seen.on !== wantH) throw new Error(`PTHDRI: flag did not take (${seen.on})`)
+  }
+  if (process.env.PTEXPO === '1') await expoAt('before modal open')
   await page.evaluate(() => window.__store.getState().setHqRenderOpen?.(true))
   await new Promise((r) => setTimeout(r, 2500))
   const started = await page.evaluate(() => {
@@ -330,6 +1881,7 @@ if (process.env.PT === '1') {
     return true
   })
   if (!started) throw new Error('PT: no Start render button')
+  if (process.env.PTEXPO === '1') await expoAt('at Start render')
   const t0 = Date.now()
   let got = 0
   while (Date.now() - t0 < 600_000) {
@@ -339,8 +1891,324 @@ if (process.env.PT === '1') {
       return r ? Number(r[1]) : null
     })
     if (m != null) got = m
+    if (process.env.PTTRACE === '1') {
+      const st = await page.evaluate(patchStatsFn)
+      if (st) {
+        console.log(
+          `  PTTRACE t=${((Date.now() - t0) / 1000).toFixed(0)}s samples=${got} ` +
+            `L=${st.L.toFixed(1)} sd=${st.sd.toFixed(2)} R-B=${st.rb.toFixed(1)} ${st.cw}x${st.ch}`,
+        )
+      }
+    }
     if (got >= want) break
     await new Promise((r) => setTimeout(r, 4000))
+  }
+  // Wait for the render to COMPLETE before reading (`.282`). The HQ modal does
+  // NOT blit the accumulating frame to its canvas -- PTTRACE sampled a fixed
+  // patch 44 times across a whole 256-sample render and got L=179.7 sd=0.93
+  // R-B=-14.2 every single time, then the image changed the instant the render
+  // finished. So a read taken at `got >= want` returns a static placeholder,
+  // not the path trace, and every PT number in `.246`-`.281` that came from an
+  // incomplete render measured that placeholder. `want` cannot stop the render
+  // early either (the modal always runs to its own 256 cap), so there is no
+  // such thing as a valid low-sample read through this UI: always finish.
+  //
+  // Waiting on the SAMPLE COUNTER alone is not enough -- a first attempt did
+  // exactly that, watched the counter stop at 256, waited a further 90 s, and
+  // still saved the placeholder. The read has to touch the canvas: the run that
+  // first produced a real trace polled the canvas every 5 s, and the finished
+  // image was there 5 s after completion. So the settle loop below samples a
+  // patch every poll and requires BOTH the counter and the patch to hold still,
+  // which asserts on the image actually about to be saved rather than on a
+  // counter that says nothing about what the canvas contains.
+  if (process.env.PTNOWAIT !== '1') {
+    // Wait for the render to finish, then capture by SCREENSHOT (`.283`).
+    // Reading the canvas's pixels does not work: drawImage and gl.readPixels
+    // both return a frozen early frame, they agree exactly with each other, and
+    // they disagree with what the compositor shows for the same element (page
+    // screenshots of that modal evolve from noisy at 6 samples to converged at
+    // 256, exactly as they should). Two independent pixel reads cannot both be
+    // stale by accident, and the canvas inventory shows the right element is
+    // being picked -- so the read path is unsound and the compositor is the only
+    // instrument known to reflect reality. Costs resolution: the modal preview is
+    // ~694 CSS px wide, so the capture is ~1041x585 rather than 1920x1080. The
+    // anchor sampler works in normalized coords, so that is a precision cost,
+    // not a correctness one.
+    let stable = 0
+    let last = got
+    const w0 = Date.now()
+    while (stable < 3 && Date.now() - w0 < 300_000) {
+      await new Promise((r) => setTimeout(r, 4000))
+      const m2 = await page.evaluate(() => {
+        const t = document.body.innerText || ''
+        const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+        return r ? Number(r[1]) : null
+      })
+      if (m2 != null) {
+        if (m2 === last) stable += 1
+        else {
+          stable = 0
+          last = m2
+          got = m2
+        }
+      }
+    }
+    console.log(`  PT: settled at ${got} samples after ${((Date.now() - w0) / 1000).toFixed(0)}s`)
+  }
+  // PTWANT=A|B -- RETRY UNTIL THE WANTED (u) CLASS APPEARS (`.339`, fixed `.340`).
+  //
+  // (u)'s class is decided per `createHqRenderSession` call and then followed
+  // deterministically (`.330`, `.334`). Re-render creates a FRESH session, so a
+  // wrong-class arm can be replaced without a new page boot.
+  //
+  // `.339`'s first cut tried to abandon DURING a render; there is no Re-render button
+  // then, so it logged twelve failed attempts. `.340`'s cut waited for full
+  // convergence after each retry with a 120 s cap, which the re-render overran -- so
+  // the next iteration found no button (a render was still running), bailed, and
+  // returned a wrong-class arm that read as a valid measurement. Both failures were
+  // "the control I reached for was not there".
+  //
+  // This version fixes both by never assuming: it WAITS for the button to exist before
+  // clicking, and classifies from a few samples (the class is readable at ~9, `.339`)
+  // rather than waiting for 256 each time. Full convergence is awaited ONCE, after the
+  // wanted class is in hand.
+  if (process.env.PTWANT) {
+    const wantCls = process.env.PTWANT
+    const maxTries = Number(process.env.PTWANT_MAX || 8)
+    const thresh = Number(process.env.PTCLASS_THRESH || 150)
+    const mode = process.env.PTCLASS_MODE || 'l'
+    const samplesNow = () =>
+      page.evaluate(() => {
+        const t = document.body.innerText || ''
+        const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+        return r ? Number(r[1]) : null
+      })
+    const waitFor = async (fn, ms, every = 1500) => {
+      const t = Date.now()
+      while (Date.now() - t < ms) {
+        if (await fn()) return true
+        await new Promise((r) => setTimeout(r, every))
+      }
+      return false
+    }
+    let kept = null
+    for (let attempt = 0; attempt <= maxTries; attempt++) {
+      // Classify as soon as a handful of samples have landed -- a patch MEAN over
+      // ~25k pixels converges far faster than the image (`.339`).
+      await waitFor(async () => ((await samplesNow()) ?? 0) >= 8, 90_000)
+      const st = await page.evaluate(patchStatsFn)
+      if (!st) {
+        console.log('  PTWANT: could not read the tracer canvas -- keeping this arm')
+        break
+      }
+      // PTCLASS_MODE=rb classifies on the SIGN of R-B rather than an absolute L
+      // threshold. Under the shipped grey gradient class A carries the environment's
+      // cool cast (R-B ~ -11..-14 at every pose measured) and class B the room's warm
+      // bounce (+5..+12), so the sign separates them with NO per-pose threshold --
+      // which matters because an L threshold must be re-derived whenever the pose or
+      // environment changes (`.326`, `.330`). Same discriminator as `.325`. NOT valid
+      // under a converted or non-grey environment; there use mode `l` with a measured
+      // threshold.
+      const cls = mode === 'rb' ? (st.rb < 0 ? 'A' : 'B') : st.L >= thresh ? 'A' : 'B'
+      if (cls === wantCls) {
+        kept = { attempt, st }
+        break
+      }
+      if (attempt === maxTries) {
+        console.log(
+          `  PTWANT: still class ${cls} after ${maxTries} retries -- giving up, THIS ARM IS CLASS ${cls}`,
+        )
+        break
+      }
+      // Wait for the Re-render button to EXIST before clicking it, rather than
+      // assuming a converged modal.
+      const clicked = await waitFor(
+        () =>
+          page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')].find(
+              (x) => (x.textContent || '').trim() === 'Re-render',
+            )
+            if (!b || b.disabled) return false
+            b.click()
+            return true
+          }),
+        90_000,
+      )
+      if (!clicked) {
+        console.log('  PTWANT: Re-render never became available -- keeping this arm')
+        break
+      }
+      console.log(
+        `  PTWANT: arm ${attempt + 1} was class ${cls} (L=${st.L.toFixed(1)} rb=${st.rb.toFixed(1)}) -- re-rendering`,
+      )
+      await new Promise((r) => setTimeout(r, 3000))
+    }
+    if (kept) {
+      // Only now wait for full convergence, once.
+      let last = -1
+      await waitFor(
+        async () => {
+          const m = (await samplesNow()) ?? 0
+          const done = m >= want && m === last
+          last = m
+          return done
+        },
+        240_000,
+        2500,
+      )
+      await new Promise((r) => setTimeout(r, 4000))
+      console.log(
+        `  PTWANT: class ${wantCls} after ${kept.attempt} re-render(s) (L=${kept.st.L.toFixed(1)} rb=${kept.st.rb.toFixed(1)}) -- kept, converged`,
+      )
+    }
+  }
+  // PTCENSUS=<n> -- sample n+1 (u) arms IN ONE BOOT and report the class sequence.
+  //
+  // `.340` turned up the arc's first candidate correlate for (u) in ~25 eliminated
+  // candidates: bedroom3 showed no wall-dependence (white and ink both 3A/1B) while
+  // livingDining split cleanly (white 2/2 B, ink 4/4 A). At p(A) ~ 0.75 that is ~2 % by
+  // chance with n of 2 and 4 -- suggestive, untestable at one arm per ~7-minute boot.
+  //
+  // But Re-render creates a FRESH session, i.e. a fresh draw (`.310` produced both
+  // classes back-to-back in one page session; PT2 relies on it), and the class is
+  // readable at ~9 samples (`.339`). So an arm costs ~25 s inside a boot instead of a
+  // whole run, and (u)'s RATE becomes measurable rather than inferred.
+  //
+  // Waits for the button and checks `disabled` rather than assuming it is there --
+  // `.340`'s silent bail returned a wrong-class arm as a measurement precisely because
+  // it assumed.
+  if (process.env.PTCENSUS) {
+    const n = Number(process.env.PTCENSUS)
+    const mode = process.env.PTCLASS_MODE || 'l'
+    const thresh = Number(process.env.PTCLASS_THRESH || 150)
+    const seq = []
+    const samplesNow = () =>
+      page.evaluate(() => {
+        const t = document.body.innerText || ''
+        const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+        return r ? Number(r[1]) : null
+      })
+    const waitFor = async (fn, ms, every = 1200) => {
+      const t = Date.now()
+      while (Date.now() - t < ms) {
+        if (await fn()) return true
+        await new Promise((r) => setTimeout(r, every))
+      }
+      return false
+    }
+    for (let i = 0; i <= n; i++) {
+      if (!(await waitFor(async () => ((await samplesNow()) ?? 0) >= 9, 90_000))) {
+        console.log(`  PTCENSUS: arm ${i} never reached 9 samples -- stopping`)
+        break
+      }
+      const st = await page.evaluate(patchStatsFn)
+      if (!st) {
+        console.log(`  PTCENSUS: arm ${i} unreadable -- stopping`)
+        break
+      }
+      const cls = mode === 'rb' ? (st.rb < 0 ? 'A' : 'B') : st.L >= thresh ? 'A' : 'B'
+      seq.push({ i, cls, L: Number(st.L.toFixed(1)), rb: Number(st.rb.toFixed(1)) })
+      if (process.env.PTGRID) {
+        const gs = await page.evaluate(gridStatsFn)
+        if (gs) {
+          // One char per cell: A = environment-hued (R-B < 0), B = room bounce.
+          const rows = []
+          for (let j = 0; j < gs.rows; j++)
+            rows.push(
+              gs.cells
+                .slice(j * gs.cols, (j + 1) * gs.cols)
+                .map((c2) => (c2.rb < 0 ? 'A' : 'B'))
+                .join(''),
+            )
+          const flat = rows.join('')
+          const nA = [...flat].filter((ch) => ch === 'A').length
+          console.log(`  PTGRID arm ${i} (${cls}): ${rows.join('|')}  ${nA}/${flat.length} cells A`)
+        }
+      }
+      if (i === n) break
+      // `.346`: STOP FIRST. A re-render is far slower than the first render (~12 s vs
+      // >120 s), and while one is running the modal offers "Stop", not "Re-render" --
+      // which is why `.341`'s census capped at 2 arms and why `.339`/`.340` kept
+      // concluding the button was missing. The inventory settled it: mid-render the
+      // controls are Close / Stop / Save PNG, with Re-render absent.
+      //
+      // The class is readable at 9 samples (`.339`), so convergence is unnecessary:
+      // stop as soon as the arm is classifiable and Re-render returns. ~20 s per arm
+      // instead of a whole boot, which is what makes measuring (u)'s RATE -- and
+      // testing whether it shifts with setup timing -- affordable at all.
+      const clickByLabel = (label) =>
+        page.evaluate((l) => {
+          const b = [...document.querySelectorAll('button')].find(
+            (x) => (x.textContent || '').trim() === l,
+          )
+          if (!b || b.disabled) return false
+          b.click()
+          return true
+        }, label)
+      await clickByLabel('Stop')
+      await new Promise((r) => setTimeout(r, 1200))
+      const clicked = await waitFor(() => clickByLabel('Re-render'), 60_000)
+      // VERIFY A NEW RENDER ACTUALLY STARTED (`.346`). Waiting for ">= 9 samples" is
+      // not enough: if the counter never reset, the PREVIOUS render still satisfies it
+      // and the same frame is read twice. That is detectable in the data -- class A is
+      // always exactly 175.6 (the smooth environment, converged instantly) while class
+      // B varies at 9 samples, so two consecutive class-B arms identical to the decimal
+      // mean a stale read. The first cut of this census produced exactly that (arms 3
+      // and 4 both 94.5 / 4.9), so its counts were unusable.
+      const reset = await waitFor(async () => ((await samplesNow()) ?? 99) < 9, 30_000, 700)
+      if (!reset) {
+        console.log(
+          `  PTCENSUS: sample counter never reset after arm ${i} -- stopping (stale reads)`,
+        )
+        break
+      }
+      if (!clicked) {
+        // `.341` found Re-render is available once and then not again, capping a census
+        // at 2 arms. `.346` needs many arms per boot to test whether (u)'s rate shifts
+        // with setup timing (an independent per-session draw that is deterministic
+        // afterwards is the signature of a SETUP-TIME RACE). So inventory what controls
+        // the modal actually offers at this point, rather than assuming again -- the
+        // error `.339`, `.340` and `.344` all made in different costumes.
+        const inv = await page.evaluate(() => ({
+          buttons: [...document.querySelectorAll('button')].map((b) => ({
+            t: (b.textContent || '').trim().slice(0, 28) || b.getAttribute('aria-label') || '?',
+            dis: b.disabled,
+          })),
+          dialogs: document.querySelectorAll('[role=dialog]').length,
+        }))
+        console.log(
+          `  PTCENSUS: Re-render unavailable after arm ${i} -- controls now: ${JSON.stringify(inv)}`,
+        )
+        break
+      }
+      await new Promise((r) => setTimeout(r, 2500))
+    }
+    const a = seq.filter((x) => x.cls === 'A').length
+    console.log(`  PTCENSUS seq: ${seq.map((x) => x.cls).join('')}`)
+    console.log(`  PTCENSUS counts: ${a}A / ${seq.length - a}B  of ${seq.length} arms`)
+    console.log(`  PTCENSUS detail: ${JSON.stringify(seq)}`)
+  }
+  // PTHOLD=<seconds> -- keep sampling AFTER the target count is reached (`.282`).
+  // PTTRACE showed the displayed canvas frozen for a whole 256-sample render, so
+  // the question is whether it ever updates at all, and if so on what event.
+  if (process.env.PTHOLD) {
+    const holdMs = Number(process.env.PTHOLD) * 1000
+    const h0 = Date.now()
+    while (Date.now() - h0 < holdMs) {
+      await new Promise((r) => setTimeout(r, 5000))
+      const m2 = await page.evaluate(() => {
+        const t = document.body.innerText || ''
+        const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+        return r ? Number(r[1]) : null
+      })
+      const st = await page.evaluate(patchStatsFn)
+      if (st) {
+        console.log(
+          `  PTHOLD t=${((Date.now() - h0) / 1000).toFixed(0)}s samples=${m2} ` +
+            `L=${st.L.toFixed(1)} sd=${st.sd.toFixed(2)} R-B=${st.rb.toFixed(1)} canvases=${st.n}`,
+        )
+      }
+    }
   }
   // Read the tracer canvas's OWN PIXELS via toDataURL rather than screenshotting
   // the element. `.246` screenshotted it and the modal footer bled into the
@@ -348,22 +2216,136 @@ if (process.env.PT === '1') {
   // at that element's box and the canvas box runs under the chrome. toDataURL
   // cannot include DOM at all, and it returns full render resolution instead of
   // the CSS-scaled preview.
+  // Read the canvas's own pixels at full backing-store resolution (`.284`).
+  // `.283` switched this to a clipped screenshot believing canvas reads were
+  // unsound; they are not. Measuring five patches across one render's
+  // screenshots showed the screenshot channel agreeing with the in-page reads to
+  // 0.1 at every sample count, and showed a normal convergence curve on the wall
+  // patches (sd 7.65 -> 1.33). The reads were always fine -- `.282` had simply
+  // pointed its single probe patch at a region that is converged from sample 1.
+  // toDataURL gives 1920x1080 instead of the modal preview's ~1388x780, so the
+  // screenshot cost resolution for nothing.
   const png = await page.evaluate(() => {
     const list = [...document.querySelectorAll('canvas')]
-    // The tracer's canvas is the largest one that is not the live scene canvas
-    // (which is first in document order and sized to the viewport).
     const scene = list[0]
     const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
     const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
     if (!c) return null
+    // WHICH STAGE this is (`.284`). On completion `finalize()` replaces the host
+    // canvas with the AI-denoised output, which is a plain 2D canvas -- so a null
+    // WebGL context identifies the denoised frame, and a live one the raw trace.
+    // The two differ by ~30% in level and flip R-B (item (t)), so a traced figure
+    // is meaningless without saying which it came from. Every prior round quoted
+    // traced numbers without recording this, which is the whole reason `.280`
+    // through `.283` each mis-attributed the difference.
+    // Probe for a 2D context, not a WebGL one. Asking for 'webgl2' on a canvas
+    // that already holds a WebGL1 context returns null, so the WebGL test
+    // mislabels -- it reported 'ai-denoised' for a frame whose values were
+    // plainly the raw trace. getContext('2d') has no such ambiguity: it returns
+    // null on any WebGL canvas and a context on the denoised 2D one.
+    let stage = 'raw-trace'
     try {
-      return { url: c.toDataURL('image/png'), w: c.width, h: c.height }
+      if (c.getContext('2d')) stage = 'ai-denoised'
+    } catch {
+      stage = 'raw-trace'
+    }
+    try {
+      return { url: c.toDataURL('image/png'), w: c.width, h: c.height, stage }
     } catch {
       return null
     }
   })
   if (!png) throw new Error('PT: could not read a tracer canvas')
   fs.writeFileSync(`${OUT}/pathtraced.png`, Buffer.from(png.url.split(',')[1], 'base64'))
+  // PTDOUBLE=1 -- capture the SAME settled render a second time (`.287`). The
+  // whole-frame mean varies continuously across runs (113.8, 139.5, 155.7) while
+  // the anchors take only two discrete values, which is what a partially-updated
+  // TILED blit looks like: `tracer.tiles.set(n,n)` renders 2x2..6x6 tiles, so a
+  // capture can catch some tiles carrying the new image and others the old. If
+  // that is what is happening, two captures of one finished render will differ.
+  if (process.env.PTDOUBLE === '1') {
+    const stat = (buf) => {
+      let sl = 0
+      let srb = 0
+      const n = buf.length / 3
+      for (let i = 0; i < buf.length; i += 3) {
+        sl += 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]
+        srb += buf[i] - buf[i + 2]
+      }
+      return `frameL=${(sl / n).toFixed(1)} frameRB=${(srb / n).toFixed(1)}`
+    }
+    const first = await sharp(`${OUT}/pathtraced.png`).removeAlpha().raw().toBuffer()
+    console.log(`  PTDOUBLE capture 1: ${stat(first)}`)
+    for (const wait of [5000, 5000]) {
+      await new Promise((r) => setTimeout(r, wait))
+      const again = await page.evaluate(() => {
+        const list = [...document.querySelectorAll('canvas')]
+        const c = list
+          .filter((x) => x !== list[0] && x.width > 16 && x.height > 16)
+          .sort((a, b) => b.width * b.height - a.width * a.height)[0]
+        return c ? c.toDataURL('image/png') : null
+      })
+      if (!again) break
+      const p2 = `${OUT}/pathtraced-again.png`
+      fs.writeFileSync(p2, Buffer.from(again.split(',')[1], 'base64'))
+      const buf = await sharp(p2).removeAlpha().raw().toBuffer()
+      console.log(`  PTDOUBLE recapture:  ${stat(buf)}`)
+    }
+  }
+  if (process.env.PTAI) {
+    const after = await page.evaluate(() => window.__store.getState().featureFlags.hqAiDenoise)
+    console.log(`  PTAI read-back after capture: hqAiDenoise=${after}`)
+  }
+  // PT2=1 -- render a SECOND still in the SAME page session (`.310`), by clicking
+  // the modal's Re-render button and capturing again. This separates two families
+  // that every previous (u) round has conflated: a per-SESSION state (set once at
+  // boot / context creation, so both renders in one session share a class) from a
+  // per-RENDER one (so the two renders can differ). Everything CPU-side is
+  // identical across classes (`.306`-`.308`) and no GL error accompanies the fault
+  // (`.310`), so which of these it is decides where to look next.
+  if (process.env.PT2 === '1') {
+    const again = await page.evaluate(() => {
+      const b = [...document.querySelectorAll('button')].find(
+        (x) => (x.textContent || '').trim() === 'Re-render',
+      )
+      if (!b) return false
+      b.click()
+      return true
+    })
+    if (!again) {
+      console.log('  PT2: no Re-render button -- second render skipped')
+    } else {
+      const t2 = Date.now()
+      let got2 = 0
+      while (Date.now() - t2 < 420_000) {
+        await new Promise((r) => setTimeout(r, 4000))
+        const m2 = await page.evaluate(() => {
+          const t = document.body.innerText || ''
+          const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+          return r ? Number(r[1]) : null
+        })
+        if (m2 != null) {
+          if (m2 >= want && m2 === got2) break
+          got2 = m2
+        }
+      }
+      await new Promise((r) => setTimeout(r, 6000))
+      const png2 = await page.evaluate(() => {
+        const list = [...document.querySelectorAll('canvas')]
+        const c = list
+          .filter((x) => x !== list[0] && x.width > 16 && x.height > 16)
+          .sort((a, b) => b.width * b.height - a.width * a.height)[0]
+        return c ? { url: c.toDataURL('image/png'), w: c.width, h: c.height } : null
+      })
+      if (png2) {
+        fs.writeFileSync(`${OUT}/pathtraced2.png`, Buffer.from(png2.url.split(',')[1], 'base64'))
+        console.log(`  PT2: second render captured at ${got2} samples -> ${OUT}/pathtraced2.png`)
+      } else {
+        console.log('  PT2: could not read the canvas for the second render')
+      }
+    }
+  }
+  console.log(`  PT STAGE: ${png.stage} -- traced figures below are ${png.stage} values`)
   console.log(`pathtraced (${got} samples, ${png.w}x${png.h}) -> ${OUT}/pathtraced.png`)
 }
 // --- analysis -------------------------------------------------------------
@@ -372,6 +2354,12 @@ if (process.env.PT === '1') {
 const grey = async (buf) =>
   sharp(buf).removeAlpha().greyscale().raw().toBuffer({ resolveWithObject: true })
 const { data, info } = await grey(shot)
+// COLOUR buffer alongside the luminance one (`.267`). `.237` measured the app's
+// 19:00 pane at R-B 21.0 against a wall at R-B 21.3 -- no warm/cool separation at
+// the hour interior photography most depends on it -- and nothing followed it up.
+// Chroma is a different axis from everything `.249`-`.266` measured, and hue is far
+// less exposure- and framing-dependent than luminance.
+const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
 const down = await grey(shotDown)
 const W = info.width
 const H = info.height
@@ -535,7 +2523,17 @@ const geo = await page.evaluate(
         // than its near one, because bounce fills it (photo D: 0.85-0.86).
         // Along the window's INWARD NORMAL: how far into the room the sample is.
         const dWin = Math.abs((h.point.x - win.cx) * win.nx + (h.point.z - win.cz) * win.nz)
-        if (kind) out.push({ x, y, kind, dWin: +dWin.toFixed(2) })
+        // Carry the hit object's identity. `kind` is a NORMAL test only, so a
+        // sample can be plaster, a sideboard front, a TV or a window pane and
+        // the printed mean cannot tell them apart -- which is how the falloff
+        // metric measured furniture for 23 rounds (`.249`).
+        // Objects in this scene are overwhelmingly unnamed, so identify the hit
+        // by GEOMETRY TYPE + BASE COLOUR instead: plaster shell reads as a
+        // near-white plane/box, furniture as a tinted one.
+        const mat = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material
+        const hex = mat?.color?.getHexString?.() ?? '------'
+        const name = `${h.object.geometry?.type ?? '?'}#${hex}`
+        if (kind) out.push({ x, y, kind, dWin: +dWin.toFixed(2), name: name || '(unnamed)' })
       }
     }
     return out
@@ -599,23 +2597,32 @@ const geo = await page.evaluate(
       '    0.91-1.03 spread of the two qualifying photographs (.234).',
     ].join('\n'),
   )
-  // WALL FALLOFF with distance from the window. `.226` adopted this on the
-  // reasoning that it is the same material in the same frame, so composition
-  // cancels. **`.247` FALSIFIED THAT.** Two surfaces in one frame escape the
-  // frame-MEAN dependence that `.201` hit, but this metric also depends on WHICH
-  // wall pixels are visible, and that is set by framing. A pure viewport-aspect
-  // change, nothing else touched:
+  // WALL FALLOFF -- **RETIRED in `.249`. This is not a wall measurement.**
   //
-  //     1280x800 (16:10)  near 116.2 (1377)  far  85.5 (346)  -> 0.74
-  //     1280x720 (16:9)   near 115.3 (1238)  far 107.2 (528)  -> 0.93
-  //     1280x800 again    near 116.1 (1373)  far  85.5 (346)  -> 0.74
+  // `.226` adopted it as "same material, same frame, so composition cancels".
+  // `.247` falsified the "composition cancels" half (0.19 of swing on viewport
+  // aspect alone). `.249` falsified the "same material" half, which is worse:
+  // `kind = 'wall'` is only `|n.y| < 0.3`, i.e. ANY near-vertical surface, so the
+  // buckets were never plaster. Tallied by geometry type + base colour at the
+  // canonical pose, `medium`, photographic look, 13:00, aspect 1.50:
   //
-  // 0.19 of swing -- more than twice the width of the 0.85-0.86 band it is
-  // compared against, and the app BRACKETS the reference rather than missing it.
-  // The far bucket gains 182 much brighter samples at the wider aspect. So this
-  // is a DIAGNOSTIC, not a target, until a framing-matched reference exists: the
-  // one reference photograph's own aspect was never recorded (`.227`).
-  // Photo D reads 0.85-0.86 at an unknown aspect.
+  //     near (dWin<=1.5)  plaster 34%, WINDOW GLAZING 31%, curtain 9%, ...
+  //     far  (dWin>=3)    dark timber armchairs 64%, LAMPSHADE 21%,
+  //                       lamp pole 13%, plaster **0%**
+  //
+  // At every aspect a real camera shoots (1.33-1.52; see `.249` for the screened
+  // set's own aspects) the far bucket contains NO WALL AT ALL. Plaster only
+  // enters it past ~1.8, which is why the number climbs 0.60 -> 0.98 across
+  // 1.20 -> 2.00, non-monotonically in between: aspect decides how much dark
+  // furniture and bright right wall the frame admits.
+  //
+  // The reference, photo D at 0.85-0.86, was TWO HAND CROPS of actual plaster.
+  // So the two sides were never the same measurement -- `.233`'s method-mismatch
+  // lesson, on the axis the arc had left standing.
+  //
+  // Kept printing ONLY as a regression tripwire between two builds at a byte-
+  // identical pose and viewport. It is not comparable to any photograph.
+  // Use OVERLAY=1 to see the buckets before believing anything here.
   {
     const nearW = []
     const farW = []
@@ -631,12 +2638,726 @@ const geo = await page.evaluate(
     }
     const mn = mean(nearW)
     const mf2 = mean(farW)
+    // WHAT IS ACTUALLY IN EACH BUCKET. Printed unconditionally, because the
+    // number above is worthless without it (`.249`).
+    {
+      const tally = (pred, kind = 'wall') => {
+        const c = new Map()
+        for (const h of geo) {
+          if (h.kind !== kind || !pred(h.dWin)) continue
+          c.set(h.name, (c.get(h.name) || 0) + 1)
+        }
+        const tot = [...c.values()].reduce((a, b) => a + b, 0) || 1
+        return [...c.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([k, v]) => `${k} ${((100 * v) / tot).toFixed(0)}%`)
+          .join(', ')
+      }
+      console.log(`    near bucket population: ${tally((d) => d <= 1.5)}`)
+      console.log(`    far  bucket population: ${tally((d) => d >= 3)}`)
+      // GLAZING POPULATION -- the metric item (l) is actually about. `.236` measured
+      // clipping over a window RECTANGLE, which `.237` had to correct because the
+      // grilles dominate it. This selects by world-verified SIGNATURE instead, so
+      // the population is pane interiors by construction, and reports the fraction
+      // of it that CLIPS -- photographs run 15-39 %, the app 0.0 % (`.258` showed
+      // why: the scene carries 2.2-3.3x the wall where physics carries 20-200x).
+      {
+        const sig = process.env.GLAZE_SIG || 'BoxGeometry#bcd4e6'
+        const vs = []
+        for (const h of geo) {
+          if (h.name !== sig) continue
+          const gx = Math.min(W - 1, Math.floor(h.x * W))
+          const gy = Math.min(H - 1, Math.floor(h.y * H))
+          vs.push(data[gy * W + gx])
+        }
+        if (vs.length) {
+          const m = vs.reduce((a, b) => a + b, 0) / vs.length
+          const clipped = vs.filter((v) => v > 250).length
+          const hot = vs.filter((v) => v > 240).length
+          // STRUCTURE, not just the average (`.261`). `.260` found a real window's
+          // panes face different things -- open sky, a sunlit wall, a shaded porch
+          // -- and clip 59 / 33 / 9 % inside ONE photograph. The app has a single
+          // backdrop texture, so its panes blow together. An aggregate clipping
+          // fraction cannot tell those apart; a spread can.
+          const sd = Math.sqrt(vs.reduce((a, v) => a + (v - m) * (v - m), 0) / vs.length)
+          const sorted = [...vs].sort((a, b) => a - b)
+          const q = (f) => sorted[Math.min(sorted.length - 1, Math.floor(f * sorted.length))]
+          const mid = vs.filter((v) => v > 60 && v <= 240).length
+          console.log(
+            `    GLAZING (${sig}): n=${vs.length}  mean ${m.toFixed(1)}  >250 ${((100 * clipped) / vs.length).toFixed(1)} %  >240 ${((100 * hot) / vs.length).toFixed(1)} %   (photographs clip 15-39 %)`,
+          )
+          console.log(
+            `      structure: sd ${sd.toFixed(1)}  p05 ${q(0.05)}  p50 ${q(0.5)}  p95 ${q(0.95)}  spread(p95-p05) ${q(0.95) - q(0.05)}  mid-tone(60..240) ${((100 * mid) / vs.length).toFixed(1)} %`,
+          )
+          // CHROMA of the glazing population, and its separation from the walls.
+          // A daylit photograph reads warm-interior against cool-exterior (or the
+          // reverse at golden hour); `.237` found the app has none at 19:00.
+          let gr = 0
+          let gg = 0
+          let gb = 0
+          let gn = 0
+          for (const h of geo) {
+            if (h.name !== sig) continue
+            const gx = Math.min(W - 1, Math.floor(h.x * W))
+            const gy = Math.min(H - 1, Math.floor(h.y * H))
+            const o = (gy * W + gx) * 3
+            gr += rgb[o]
+            gg += rgb[o + 1]
+            gb += rgb[o + 2]
+            gn++
+          }
+          let wr = 0
+          let wg2 = 0
+          let wb = 0
+          let wn = 0
+          for (const h of geo) {
+            if (h.name !== 'PlaneGeometry#f5f5f0') continue
+            const gx = Math.min(W - 1, Math.floor(h.x * W))
+            const gy = Math.min(H - 1, Math.floor(h.y * H))
+            const o = (gy * W + gx) * 3
+            wr += rgb[o]
+            wg2 += rgb[o + 1]
+            wb += rgb[o + 2]
+            wn++
+          }
+          if (gn && wn) {
+            const grb = gr / gn - gb / gn
+            const wrb = wr / wn - wb / wn
+            console.log(
+              `      chroma: glazing RGB ${(gr / gn).toFixed(0)}/${(gg / gn).toFixed(0)}/${(gb / gn).toFixed(0)} R-B ${grb.toFixed(1)}  |  wall(n=${wn}) RGB ${(wr / wn).toFixed(0)}/${(wg2 / wn).toFixed(0)}/${(wb / wn).toFixed(0)} R-B ${wrb.toFixed(1)}  |  SEPARATION ${(wrb - grb).toFixed(1)}`,
+            )
+          }
+        } else {
+          console.log(`    GLAZING (${sig}): no samples at this pose`)
+        }
+      }
+      console.log(`    ALL 'wall' samples:      ${tally(() => true)}`)
+      console.log(`    ALL 'ceiling' samples:   ${tally(() => true, 'ceiling')}`)
+    }
+    // OVERLAY=1 paints every sample the falloff actually used onto the frame --
+    // green = near bucket, red = far bucket -- because `kind = 'wall'` is only
+    // `|n.y| < 0.3`, i.e. ANY near-vertical surface, and a printed mean cannot
+    // show whether that population is plaster or the sideboard front (`.249`).
+    if (process.env.OVERLAY === '1') {
+      const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
+      const dot = (gx, gy, r, g2, b) => {
+        for (let dy = -4; dy <= 4; dy++)
+          for (let dx = -4; dx <= 4; dx++) {
+            const px = gx + dx
+            const py = gy + dy
+            if (px < 0 || py < 0 || px >= W || py >= H) continue
+            const o = (py * W + px) * 3
+            rgb[o] = r
+            rgb[o + 1] = g2
+            rgb[o + 2] = b
+          }
+      }
+      for (const h of geo) {
+        if (h.kind !== 'wall') continue
+        const gx = Math.min(W - 1, Math.floor(h.x * W))
+        const gy = Math.min(H - 1, Math.floor(h.y * H))
+        if (h.dWin <= 1.5) dot(gx, gy, 0, 255, 0)
+        else if (h.dWin >= 3) dot(gx, gy, 255, 0, 0)
+      }
+      await sharp(rgb, { raw: { width: W, height: H, channels: 3 } })
+        .png()
+        .toFile(`${OUT}/falloff-samples.png`)
+      console.log(`  falloff sample overlay -> ${OUT}/falloff-samples.png`)
+    }
     console.log(
-      `  wall falloff: near-window ${mn.toFixed(1)} (${nearW.length}), far ${mf2.toFixed(1)} (${farW.length}), far/near = ${(mf2 / mn).toFixed(2)}   (photo 0.85-0.86 at UNKNOWN aspect; this metric swings 0.74-0.93 on viewport aspect alone -- see .247)`,
+      [
+        `  wall falloff: near-window ${mn.toFixed(1)} (${nearW.length}), far ${mf2.toFixed(1)} (${farW.length}), far/near = ${(mf2 / mn).toFixed(2)}`,
+        `    ** RETIRED as a photographic comparison (.249). NOT a wall measurement: at`,
+        `    camera aspects the far bucket is 98% furniture and 0% plaster, the near bucket`,
+        `    is 31% window glazing, and the number runs 0.60-0.98 on viewport aspect alone.`,
+        `    Compare only against another build at an IDENTICAL pose AND viewport. **`,
+      ].join('\n'),
     )
   }
   if (buckets.ceiling.length < 20)
     console.log('  WARNING: few ceiling samples — the pose may not see enough ceiling.')
+}
+
+/**
+ * ANCHORED WALL FALLOFF — the framing-invariant replacement for the metric
+ * `.249` retired.
+ *
+ * `.226`-`.247` measured falloff as a ratio of two SCREEN-SELECTED populations.
+ * `.249` showed why that could never work: `kind = 'wall'` is a normal test, so
+ * the far bucket was 64 % armchair backs and 0 % plaster, and viewport aspect
+ * decided the furniture-to-wall mix (0.60-0.98 on aspect alone).
+ *
+ * This defines the population IN THE WORLD instead. Walk out along the window's
+ * inward normal; at each distance `d`, shoot sideways to find the side wall;
+ * accept the anchor only if that surface is VERTICAL, its normal is PARALLEL to
+ * the window normal (a wall of constant orientation — `.227`'s own criterion for
+ * a usable reference photograph, applied to the app for the first time), and a
+ * fixed 0.24 x 0.24 m patch of it is unoccluded, on-screen, clear of the HUD and
+ * all one material. Every rejection is printed.
+ *
+ * That is the same measurement photo D got by hand — a patch of plaster near the
+ * window against a patch of the same plaster further along — so for the first
+ * time the two sides are comparable. And because the patch is defined in metres
+ * on the wall rather than in pixels on the screen, the number cannot move with
+ * framing. `ASPECT_INVARIANCE=1` re-runs the whole probe across aspects to check
+ * that claim rather than asserting it.
+ */
+if (process.env.ANCHORS === '1') {
+  const ANCHOR_Y = Number(process.env.ANCHOR_Y || 1.5)
+  const DS = (process.env.ANCHOR_DS || '0.6,1.2,1.8,2.4,3.0,3.6').split(',').map(Number)
+  const HALF = Number(process.env.ANCHOR_HALF || 0.12)
+  const GRID = Number(process.env.ANCHOR_GRID || 7)
+  const SIDES = (process.env.ANCHOR_SIDES || 'A,B,C,F').split(',')
+  const ANCHOR_OFF = Number(process.env.ANCHOR_OFF || 0)
+  const ANCHOR_MINFRAC = Number(process.env.ANCHOR_MINFRAC || 1)
+  const anchors = await page.evaluate(
+    ({ win, ds, y, half, grid, hud, sides, off, minFrac }) => {
+      const { scene, camera } = window.__three
+      const V = camera.position.constructor
+      const rc = new window.__three.raycaster.constructor()
+      const solid = (o) =>
+        o.visible && o.material?.colorWrite !== false && o.material?.opacity !== 0
+      const sig = (o) => {
+        const m = Array.isArray(o.material) ? o.material[0] : o.material
+        return `${o.geometry?.type ?? '?'}#${m?.color?.getHexString?.() ?? '------'}`
+      }
+      const firstHit = (from, dir) => {
+        rc.set(from, dir)
+        return rc.intersectObjects(scene.children, true).find((k) => solid(k.object) && k.face)
+      }
+      const n = new V(win.nx, 0, win.nz)
+      const perp = new V(-win.nz, 0, win.nx)
+      const inHud = (sx, sy) =>
+        hud.some((r) => sx >= r.x0 && sx <= r.x1 && sy >= r.y0 && sy <= r.y1)
+      const out = []
+      // `.252`: the same machinery, aimed at the CEILING and FLOOR as well as the
+      // side walls. Sides A/B shoot sideways, C shoots up, F shoots down. All
+      // four are world-anchored, so all four can be sampled identically on the
+      // raster frame and on the traced still.
+      const probes = [
+        { side: 'A', dir: () => perp.clone(), axis: 'perp' },
+        { side: 'B', dir: () => perp.clone().multiplyScalar(-1), axis: 'perp' },
+        { side: 'C', dir: () => new V(0, 1, 0), axis: 'up' },
+        { side: 'F', dir: () => new V(0, -1, 0), axis: 'up' },
+        // W shoots back TOWARD the window, so the anchor lands on the glazing --
+        // the surface item (l) is about. Its normal is parallel to the window
+        // normal, which is the `n` axis rather than `perp` or `up` (`.258`).
+        { side: 'W', dir: () => n.clone().multiplyScalar(-1), axis: 'n' },
+      ].filter((q) => sides.includes(q.side))
+      for (const d of ds) {
+        // ANCHOR_OFF shifts the ceiling/floor anchor line sideways off the room
+        // axis. The ceiling fan hangs on that axis and ROTATES, so a ceiling
+        // anchor above it intermittently hits a blade: `.254` saw d=1.2 land on
+        // `BoxGeometry#6b4f34` at one sweep point and clean plaster at the next,
+        // which the same-material rule rejects correctly but which makes the
+        // accepted anchor set vary run to run. Wall anchors are unaffected -- a
+        // sideways ray hits the same wall point wherever along `perp` it starts.
+        const origin = new V(
+          win.cx + win.nx * d + perp.x * off,
+          y,
+          win.cz + win.nz * d + perp.z * off,
+        )
+        for (const pr of probes) {
+          const rec = { d, side: pr.side }
+          const dir = pr.dir()
+          const h = firstHit(origin, dir)
+          if (!h) {
+            rec.reject = 'no sideways hit'
+            out.push(rec)
+            continue
+          }
+          rec.sig = sig(h.object)
+          rec.span = +h.distance.toFixed(2)
+          const wn = new V().copy(h.face.normal).transformDirection(h.object.matrixWorld)
+          // A SIDE wall runs away from the window, so its normal is parallel to
+          // the window wall's direction (`perp`) and PERPENDICULAR to the window
+          // normal. Testing against `n` instead is what the first `.250` attempt
+          // did, and it rejected all 12 anchors with |n.nWin| = 0 -- the value a
+          // correct side wall must have.
+          const axisVec = pr.axis === 'up' ? new V(0, 1, 0) : pr.axis === 'n' ? n : perp
+          rec.dotPerp = +Math.abs(wn.dot(axisVec)).toFixed(3)
+          rec.dotWin = +Math.abs(wn.dot(n)).toFixed(3)
+          if (pr.axis === 'up' ? Math.abs(wn.y) < 0.9 : Math.abs(wn.y) > 0.3) {
+            rec.reject = pr.axis === 'up' ? 'surface not horizontal' : 'surface not vertical'
+            out.push(rec)
+            continue
+          }
+          // A wall of CONSTANT ORIENTATION relative to the window (`.227`): its
+          // normal must be parallel to the window normal, or "further along" is
+          // not "further from the light" and the number mixes distance with
+          // incidence angle.
+          if (rec.dotPerp < 0.9) {
+            rec.reject = 'surface turns along its run (not constant orientation)'
+            out.push(rec)
+            continue
+          }
+          // No offset off the surface. `.252`'s first attempt pulled the patch 2 cm
+          // off along the probe direction and then tested visibility by comparing
+          // the camera ray's hit DISTANCE against the distance to the anchor. That
+          // works for a wall faced nearly head-on and fails completely for the
+          // ceiling and floor, which are seen almost edge-on from eye height: 2 cm
+          // of PERPENDICULAR offset becomes 0.08-0.12 m ALONG a grazing ray, over
+          // the 6 cm tolerance, so all 12 ceiling anchors read "occluded 225/225".
+          // The camera ray never starts on the surface, so no offset is needed;
+          // visibility is now object identity plus 3-D proximity.
+          const base = h.point.clone()
+          // In-plane basis derived from the HIT NORMAL, so one code path serves a
+          // vertical wall, the ceiling and the floor. U is the window's inward
+          // normal projected into the surface (so `a` always means "further into
+          // the room"); V completes the frame.
+          const bu = n.clone().sub(wn.clone().multiplyScalar(n.dot(wn)))
+          if (bu.length() < 1e-6) bu.copy(perp)
+          bu.normalize()
+          const bv = new V().crossVectors(wn, bu).normalize()
+          const pts = []
+          let occluded = 0
+          let offscreen = 0
+          let inhud = 0
+          let mixed = 0
+          for (let i = 0; i < grid; i++) {
+            for (let j = 0; j < grid; j++) {
+              const a = half * (2 * (i / (grid - 1)) - 1)
+              const b = half * (2 * (j / (grid - 1)) - 1)
+              const p = base
+                .clone()
+                .add(bu.clone().multiplyScalar(a))
+                .add(bv.clone().multiplyScalar(b))
+              const toCam = p.clone().sub(camera.position)
+              const hh = firstHit(camera.position, toCam.clone().normalize())
+              if (!hh || hh.object !== h.object || hh.point.distanceTo(p) > 0.05) {
+                occluded++
+                continue
+              }
+              if (sig(hh.object) !== rec.sig) {
+                mixed++
+                continue
+              }
+              const sp = p.clone().project(camera)
+              const sx = (sp.x + 1) / 2
+              const sy = (1 - sp.y) / 2
+              if (sx < 0 || sx > 1 || sy < 0 || sy > 1) {
+                offscreen++
+                continue
+              }
+              if (inHud(sx, sy)) {
+                inhud++
+                continue
+              }
+              pts.push([sx, sy])
+            }
+          }
+          rec.occluded = occluded
+          rec.offscreen = offscreen
+          rec.inhud = inhud
+          rec.mixed = mixed
+          rec.pts = pts
+          // Every point in `pts` is already verified same-object, same-signature and
+          // unoccluded, so a PARTIAL patch is still a clean population -- the gate
+          // is conservatism, not correctness. It has to be relaxable for the
+          // glazing, which is crossed by ~20 grille bars at ~12 cm pitch: no patch
+          // big enough to measure fits between them, and sampling "pane interiors
+          // between the bars" is exactly what `.237` did by hand (`.258`).
+          if (pts.length < Math.ceil(grid * grid * minFrac))
+            rec.reject = `patch only ${pts.length}/${grid * grid} clean (min ${Math.round(100 * minFrac)}%)`
+          out.push(rec)
+        }
+      }
+      return out
+    },
+    {
+      win: { cx: pose.cx, cz: pose.cz, nx: pose.nx, nz: pose.nz },
+      ds: DS,
+      y: ANCHOR_Y,
+      half: HALF,
+      grid: GRID,
+      sides: SIDES,
+      off: ANCHOR_OFF,
+      minFrac: ANCHOR_MINFRAC,
+      hud: [
+        { x0: 0.24, x1: 0.76, y0: 0, y1: 0.1 },
+        { x0: 0.9, x1: 1, y0: 0, y1: 0.06 },
+        { x0: 0.76, x1: 1, y0: 0.76, y1: 1 },
+      ],
+    },
+  )
+  console.log(
+    `\nANCHORED wall falloff  (y=${ANCHOR_Y} m, patch ${(2 * HALF).toFixed(2)}x${(2 * HALF).toFixed(2)} m, ${GRID}x${GRID} world samples, lateral offset ${ANCHOR_OFF} m)`,
+  )
+  // THE APERTURE, printed with the falloff. `.251`: how much a wall falls off away
+  // from its window is a property of the WINDOW-TO-WALL GEOMETRY, not only of the
+  // renderer. A window that fills most of the end wall lights the first few metres
+  // almost uniformly, whatever the light transport. So the geometry has to travel
+  // with the number, or two rooms get compared as if they were two renderers.
+  const aperture = await page.evaluate((winId) => {
+    const plan = window.__store.getState().floorPlan
+    // .336 SHAPE-TOLERANT PLAN READS. dev-1a's schema migration deletes
+    // `plan.rooms`/`walls`/`openings` and restructures to `levels[]`. These probes
+    // run in the BROWSER via page.evaluate, so they cannot import `src/floorplan/
+    // levels.ts` -- and the obvious inline flatMap
+    // `[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])` breaks at
+    // that final stage too, because it reads the ground floor as `plan` itself.
+    // Post-migration it would contribute nothing and silently return the upper
+    // storeys only (or [] for a single-storey plan) -- a plausible result rather
+    // than an error, exactly the `?? []` trap one level up.
+    const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+    const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
+    const op = allOf(plan, 'openings').find((o) => o.id === winId)
+    const w = allOf(plan, 'walls').find((x) => x.id === op?.wallId)
+    if (!op || !w) return null
+    const wallLen = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1])
+    const room = allOf(plan, 'rooms').find((r) => r.id === window.__probeRoom)
+    return {
+      width: +op.width.toFixed(2),
+      height: op.height != null ? +op.height.toFixed(2) : null,
+      sill: op.sill != null ? +op.sill.toFixed(2) : null,
+      wallLen: +wallLen.toFixed(2),
+      room: room ? { w: +room.width.toFixed(2), d: +room.depth.toFixed(2) } : null,
+    }
+  }, pose.id)
+  if (aperture)
+    console.log(
+      `  aperture: window ${aperture.width} m wide` +
+        (aperture.height ? ` x ${aperture.height} m tall (sill ${aperture.sill})` : '') +
+        ` in a ${aperture.wallLen} m wall = ${((100 * aperture.width) / aperture.wallLen).toFixed(0)} % of it` +
+        (aperture.room ? `; room ${aperture.room.w} x ${aperture.room.d} m` : ''),
+    )
+  // SAME PAINT ALONG THE RUN. `.233` screens reference photographs for "same
+  // plaster on both surfaces"; the same rule has to hold along one wall, and it
+  // does not come free. The first `.250` run accepted side A at d=1.8 with
+  // L=157.5 and signature `PlaneGeometry#ffffff` -- **the TV screen**, mounted on
+  // that wall, vertical, correctly oriented and uniform across the whole patch,
+  // so every per-patch test passed. Only looking at the overlay caught it.
+  // So a side is measured only over anchors sharing ONE signature, and the
+  // signature is printed for inspection.
+  {
+    const bySide = { A: [], B: [], C: [], F: [], W: [] }
+    for (const a of anchors) if (!a.reject && a.sig) bySide[a.side].push(a)
+    for (const side of SIDES) {
+      const counts = new Map()
+      for (const a of bySide[side]) counts.set(a.sig, (counts.get(a.sig) || 0) + 1)
+      const [dominant] = [...counts.entries()].sort((x, y) => y[1] - x[1])[0] ?? []
+      for (const a of bySide[side])
+        if (a.sig !== dominant)
+          a.reject = `different material along the run (${a.sig} vs ${dominant})`
+      if (bySide[side].length && counts.size > 1)
+        console.log(
+          `  side ${side}: ${counts.size} materials along the run -- ${[...counts.entries()].map(([k, v]) => `${k} x${v}`).join(', ')} -- measuring only ${dominant}`,
+        )
+    }
+  }
+  // THE TRACED PICTURE, SAMPLED AT THE SAME WORLD POINTS (`.251`).
+  //
+  // `.246` could not measure the tracer canvas because the probe's population was
+  // defined by a world-normal mask plus a screen split, and the tracer canvas
+  // offers no depth or normal readback. Anchors remove that problem entirely: the
+  // patch is a set of WORLD points chosen before either picture exists, so its
+  // projection is computed once from the shared camera and applied to both
+  // images. The only requirement is that the two pictures share an ASPECT, since
+  // `camera.project` uses it -- which is why PT=1 pins the walk viewport to 16:9
+  // (`.247`).
+  let traced = null
+  if (fs.existsSync(`${OUT}/pathtraced.png`)) {
+    const g = await sharp(`${OUT}/pathtraced.png`)
+      .removeAlpha()
+      .greyscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    const grgb = await sharp(`${OUT}/pathtraced.png`).removeAlpha().raw().toBuffer()
+    // STATE DISCRIMINATOR (`.285`). The traced instrument is nondeterministic
+    // between two discrete states -- runs with identical settings, identical
+    // exposure and identical denoise stage land in one or the other, ~45% apart
+    // at the anchors. They separate cleanly on the whole-frame mean:
+    //   state A (anomalous): frameL 156.1-156.5, frameRB -9.7 to -9.8
+    //   state B (expected):  frameL 112.3-114.7, frameRB +3.9 to +4.6
+    // frameRB even flips sign, so this is unambiguous and free (the PNG is
+    // already loaded). No traced figure in this arc means anything without it --
+    // no earlier round recorded which state it was measuring.
+    {
+      let fl = 0
+      let frb = 0
+      const fn = grgb.length / 3
+      for (let i = 0; i < grgb.length; i += 3) {
+        fl += 0.2126 * grgb[i] + 0.7152 * grgb[i + 1] + 0.0722 * grgb[i + 2]
+        frb += grgb[i] - grgb[i + 2]
+      }
+      const fL = fl / fn
+      const fRB = frb / fn
+      // `.285` classified on `fRB < -4` alone, which silently assumed there are
+      // exactly two states. `.286` forced an HDRI on and got frameL=182.8
+      // frameRB=+14.7 -- a third state that the old rule labelled "B (expected)".
+      // Classify against both terms and say UNKNOWN rather than guess: a
+      // discriminator that cannot report "not one of the ones I know" is how
+      // `.285` would have gone on to compare a studio-HDRI frame against
+      // gradient-lit numbers.
+      // `.293` tried to replace this with a left-vs-right CHROMA FALLOFF test,
+      // on the finding that the two "states" differ in how far the cold cast
+      // extends from the glazing rather than in a global mean. It was reverted:
+      // measured over the whole frame height the warm furniture in the lower
+      // third swamps the gradient, and the classifier called the KNOWN-HEALTHY
+      // frame anomalous (u1 falloff -1.8). The gradient is real but only in the
+      // upper wall/ceiling band -- so it is a diagnostic (PTPROFILE=1), not a
+      // classifier. This global-mean rule stays because it does separate the
+      // observed clusters empirically, while being explicit that it summarises a
+      // spatial field with one number.
+      const inA = fRB < -4 && fL > 145 && fL < 170
+      const inB = fRB > 0 && fRB < 10 && fL > 105 && fL < 130
+      const state = inA
+        ? 'A (ANOMALOUS -- cold cast does not fall off; see `.293`)'
+        : inB
+          ? 'B (expected)'
+          : 'UNKNOWN -- matches neither known state; do NOT compare against either'
+      console.log(`  PT FRAME STATE: ${state}  frameL=${fL.toFixed(1)} frameRB=${fRB.toFixed(1)}`)
+      // PTPROFILE=1 -- R-B across 24 columns over a y band (`.293`). Default band
+      // is the upper wall/ceiling third, where the cold-cast gradient lives; the
+      // lower third is furniture and swamps it. This is what showed the two
+      // "states" share a near-window asymptote and differ only in extent.
+      if (process.env.PTPROFILE === '1') {
+        const yb0 = Math.round(Number(process.env.PTPROF_Y0 || 0.19) * g.info.height)
+        const yb1 = Math.round(Number(process.env.PTPROF_Y1 || 0.46) * g.info.height)
+        const cols = []
+        for (let c = 0; c < 24; c++) {
+          const x0 = Math.floor((c * g.info.width) / 24)
+          const x1 = Math.floor(((c + 1) * g.info.width) / 24)
+          let s2 = 0
+          let n2 = 0
+          for (let y = yb0; y < yb1; y++) {
+            for (let x = x0; x < x1; x++) {
+              const i2 = (y * g.info.width + x) * 3
+              s2 += grgb[i2] - grgb[i2 + 2]
+              n2++
+            }
+          }
+          cols.push((s2 / n2).toFixed(1))
+        }
+        console.log(`  PT PROFILE y=${yb0}..${yb1} R-B by column: ${cols.join(' ')}`)
+      }
+    }
+    traced = { data: g.data, rgb: grgb, W: g.info.width, H: g.info.height }
+    const camNow = await camState()
+    const same = JSON.stringify(camNow) === JSON.stringify(camAtRaster)
+    console.log(
+      `  traced still ${traced.W}x${traced.H} (aspect ${(traced.W / traced.H).toFixed(3)}), raster ${W}x${H} (aspect ${(W / H).toFixed(3)})`,
+    )
+    console.log(
+      `  camera identical between raster capture and anchor projection: ${same ? 'YES' : `NO -- ${JSON.stringify(camAtRaster)} vs ${JSON.stringify(camNow)}`}`,
+    )
+    if (Math.abs(traced.W / traced.H - W / H) > 0.005)
+      console.log(
+        '  ** ASPECT MISMATCH: the two pictures are differently framed, so a shared\n' +
+          '  ** projection is invalid. Re-run with VH set so the walk viewport matches\n' +
+          '  ** the tracer output aspect. Traced figures below are NOT comparable. **',
+      )
+  }
+  const readings = { A: [], B: [], C: [], F: [], W: [] }
+  const tracedReadings = { A: [], B: [], C: [], F: [], W: [] }
+  const accepted = []
+  for (const a of anchors) {
+    if (a.reject) {
+      console.log(
+        `  d=${a.d.toFixed(1)} side ${a.side}  REJECTED: ${a.reject}   [${a.sig ?? '-'} span ${a.span ?? '-'} |n.perp| ${a.dotPerp ?? '-'}` +
+          (a.pts
+            ? `  clean ${a.pts.length}/${GRID * GRID}, occluded ${a.occluded}, offscreen ${a.offscreen}, hud ${a.inhud}, mixed ${a.mixed}`
+            : '') +
+          ']',
+      )
+      continue
+    }
+    accepted.push(a)
+    let sum = 0
+    for (const [sx, sy] of a.pts) {
+      const gx = Math.min(W - 1, Math.floor(sx * W))
+      const gy = Math.min(H - 1, Math.floor(sy * H))
+      sum += data[gy * W + gx]
+    }
+    const m = sum / a.pts.length
+    readings[a.side].push({ d: a.d, m })
+    let tm = null
+    if (traced) {
+      let ts = 0
+      for (const [sx, sy] of a.pts) {
+        const gx = Math.min(traced.W - 1, Math.floor(sx * traced.W))
+        const gy = Math.min(traced.H - 1, Math.floor(sy * traced.H))
+        ts += traced.data[gy * traced.W + gx]
+      }
+      tm = ts / a.pts.length
+      // Traced COLOUR as well as luminance (`.269`). A within-tracer A/B -- recolour
+      // one surface, re-render -- shares the rig on both sides, so `.255`'s rig
+      // mismatch cannot apply, and real light transport supplies the colour-bleed
+      // magnitude that photographs could not.
+      let tr2 = 0
+      let tg2 = 0
+      let tb2 = 0
+      for (const [sx, sy] of a.pts) {
+        const gx = Math.min(traced.W - 1, Math.floor(sx * traced.W))
+        const gy = Math.min(traced.H - 1, Math.floor(sy * traced.H))
+        const o = (gy * traced.W + gx) * 3
+        tr2 += traced.rgb[o]
+        tg2 += traced.rgb[o + 1]
+        tb2 += traced.rgb[o + 2]
+      }
+      const tn = a.pts.length
+      console.log(
+        `      traced RGB ${(tr2 / tn).toFixed(0)}/${(tg2 / tn).toFixed(0)}/${(tb2 / tn).toFixed(0)}  traced R-B ${(tr2 / tn - tb2 / tn).toFixed(1)}`,
+      )
+      tracedReadings[a.side].push({ d: a.d, m: tm })
+    }
+    let sr = 0
+    let sg = 0
+    let sb = 0
+    for (const [sx, sy] of a.pts) {
+      const gx = Math.min(W - 1, Math.floor(sx * W))
+      const gy = Math.min(H - 1, Math.floor(sy * H))
+      const o = (gy * W + gx) * 3
+      sr += rgb[o]
+      sg += rgb[o + 1]
+      sb += rgb[o + 2]
+    }
+    const n3 = a.pts.length
+    const cr = sr / n3
+    const cg = sg / n3
+    const cb = sb / n3
+    a.chroma = { r: cr, g: cg, b: cb, rb: cr - cb }
+    console.log(
+      `  d=${a.d.toFixed(1)} side ${a.side}  L=${m.toFixed(1)}${tm == null ? '' : `  traced L=${tm.toFixed(1)}`}  RGB ${cr.toFixed(0)}/${cg.toFixed(0)}/${cb.toFixed(0)} R-B ${(cr - cb).toFixed(1)}   ${a.sig}  span ${a.span} m  |n.perp| ${a.dotPerp}`,
+    )
+  }
+  for (const side of SIDES) {
+    const r = readings[side]
+    if (r.length < 2) {
+      console.log(`  side ${side}: ${r.length} usable anchor(s) — no profile`)
+      continue
+    }
+    const near = r[0]
+    const far = r[r.length - 1]
+    console.log(
+      `  side ${side}: L(${near.d}) = ${near.m.toFixed(1)}  ->  L(${far.d}) = ${far.m.toFixed(1)}   far/near = ${(far.m / near.m).toFixed(3)}   over ${(far.d - near.d).toFixed(1)} m, ${r.length} anchors`,
+    )
+    console.log(`    profile: ${r.map((x) => `${x.d}m ${x.m.toFixed(1)}`).join('  ')}`)
+    const t = tracedReadings[side]
+    if (t.length === r.length && t.length >= 2) {
+      const tn = t[0]
+      const tf = t[t.length - 1]
+      console.log(
+        `    TRACED side ${side}: L(${tn.d}) = ${tn.m.toFixed(1)}  ->  L(${tf.d}) = ${tf.m.toFixed(1)}   far/near = ${(tf.m / tn.m).toFixed(3)}`,
+      )
+      console.log(`    TRACED profile: ${t.map((x) => `${x.d}m ${x.m.toFixed(1)}`).join('  ')}`)
+    }
+  }
+  // CROSS-SURFACE RATIOS, RASTER vs TRACED (`.252`).
+  //
+  // `.251` established that the traced ABSOLUTE level is not reproducible across
+  // sample counts (141 / 132 / 143 at 48 / 101 / 251) while a ratio between two
+  // anchors is (spread 0.026), because whatever moves the level moves both. So
+  // the usable comparison is a ratio BETWEEN SURFACES, measured inside each
+  // picture and then compared across the two.
+  //
+  // This is the first instrument in the arc with no reference photograph in it.
+  // Both pictures are the same scene, same pose, same camera, same world anchors;
+  // one is rasterised and one is path-traced. A ratio that differs is a
+  // rasteriser error, with no pose, method, tier, framing (`.247`/`.249`) or scene
+  // (`.251`) confound available to explain it away. A ratio that agrees says the
+  // raster is already doing what real transport does, whatever a photograph of
+  // some other room says.
+  {
+    const label = { A: 'wall A', B: 'wall B', C: 'ceiling', F: 'floor', W: 'glazing' }
+    const mm = (rs) => (rs.length ? rs.reduce((a, b) => a + b.m, 0) / rs.length : null)
+    const rows = SIDES.map((k) => ({
+      k,
+      n: readings[k].length,
+      r: mm(readings[k]),
+      t: mm(tracedReadings[k]),
+    })).filter((x) => x.n > 0)
+    if (rows.length) {
+      console.log('\n  surface means over accepted anchors (raster | traced):')
+      for (const x of rows)
+        console.log(
+          `    ${label[x.k].padEnd(8)} n=${x.n}  raster ${x.r.toFixed(1)}` +
+            (x.t == null ? '' : `  traced ${x.t.toFixed(1)}`),
+        )
+    }
+    const haveTraced = rows.every((x) => x.t != null) && rows.length >= 2
+    if (haveTraced) {
+      console.log('  cross-surface ratios — RASTER vs TRACED at identical world anchors:')
+      for (let i = 0; i < rows.length; i++)
+        for (let j = 0; j < rows.length; j++) {
+          if (i === j) continue
+          const a = rows[i]
+          const b = rows[j]
+          if (a.k >= b.k) continue
+          const rr = a.r / b.r
+          const tr = a.t / b.t
+          console.log(
+            `    ${label[a.k]} / ${label[b.k]}:  raster ${rr.toFixed(3)}   traced ${tr.toFixed(3)}   ` +
+              `raster/traced = ${(rr / tr).toFixed(3)}  (${((100 * (rr / tr - 1)) | 0) >= 0 ? '+' : ''}${(100 * (rr / tr - 1)).toFixed(1)} %)`,
+          )
+        }
+      console.log(
+        '    A ratio that agrees means the rasteriser already matches real transport\n' +
+          '    on that pair. One that differs is a rasteriser error with no reference\n' +
+          '    photograph, and so no scene or framing confound, in it (.252).',
+      )
+    }
+  }
+  if (process.env.OVERLAY === '1') {
+    const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
+    const paint = (sx, sy, r, g2, b) => {
+      const gx = Math.min(W - 1, Math.floor(sx * W))
+      const gy = Math.min(H - 1, Math.floor(sy * H))
+      for (let dy = -3; dy <= 3; dy++)
+        for (let dx = -3; dx <= 3; dx++) {
+          const px = gx + dx
+          const py = gy + dy
+          if (px < 0 || py < 0 || px >= W || py >= H) continue
+          const o = (py * W + px) * 3
+          rgb[o] = r
+          rgb[o + 1] = g2
+          rgb[o + 2] = b
+        }
+    }
+    // Accepted anchors in cyan; every REJECTED anchor's surviving points in
+    // magenta, so a patch that was thrown out is visible rather than absent.
+    for (const a of anchors) {
+      if (!a.pts) continue
+      const acc = accepted.includes(a)
+      for (const [sx, sy] of a.pts) paint(sx, sy, acc ? 0 : 255, acc ? 255 : 0, 255)
+    }
+    await sharp(rgb, { raw: { width: W, height: H, channels: 3 } })
+      .png()
+      .toFile(`${OUT}/anchor-patches.png`)
+    console.log(`  anchor overlay (cyan accepted / magenta rejected) -> ${OUT}/anchor-patches.png`)
+    if (traced) {
+      const trgb = await sharp(`${OUT}/pathtraced.png`).removeAlpha().raw().toBuffer()
+      const tpaint = (sx, sy, r, g2, b) => {
+        const gx = Math.min(traced.W - 1, Math.floor(sx * traced.W))
+        const gy = Math.min(traced.H - 1, Math.floor(sy * traced.H))
+        for (let dy = -3; dy <= 3; dy++)
+          for (let dx = -3; dx <= 3; dx++) {
+            const px = gx + dx
+            const py = gy + dy
+            if (px < 0 || py < 0 || px >= traced.W || py >= traced.H) continue
+            const o = (py * traced.W + px) * 3
+            trgb[o] = r
+            trgb[o + 1] = g2
+            trgb[o + 2] = b
+          }
+      }
+      for (const a of anchors) {
+        if (!a.pts) continue
+        const acc = accepted.includes(a)
+        for (const [sx, sy] of a.pts) tpaint(sx, sy, acc ? 0 : 255, acc ? 255 : 0, 255)
+      }
+      await sharp(trgb, { raw: { width: traced.W, height: traced.H, channels: 3 } })
+        .png()
+        .toFile(`${OUT}/traced-patches.png`)
+      console.log(`  traced anchor overlay -> ${OUT}/traced-patches.png`)
+    }
+  }
+  console.log(
+    '  This number is defined in WORLD metres, so it does not move with viewport aspect\n' +
+      '  (verified by sweep in .250). It is the same measurement photo D got by hand:\n' +
+      '  one patch of plaster near the window against the same plaster further along.',
+  )
 }
 
 /**

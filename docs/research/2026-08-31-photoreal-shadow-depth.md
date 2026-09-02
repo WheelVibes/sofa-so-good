@@ -5488,3 +5488,7395 @@ answer before it can claim a GI deficit again: what aspect the reference photogr
 whether a framing-matched comparison shows any deficit at all.
 
 Nothing changed in `src/`.
+
+---
+
+## `.249` — the wall-falloff metric never measured a wall
+
+`.247` closed with two questions: what aspect the reference photograph was shot at, and whether a
+framing-matched comparison shows any deficit. The first has an answer. The second turns out to be the
+wrong question, because the app side was never measuring the surface it claimed to.
+
+Runs 03:33–03:46 local (2026-09-02), probe server on `:5199` (`vite.probe.config.ts`), all figures
+`medium` + photographic look + 13:00 + `livingDining` window + standoff 4.6 + pitch −0.06 + `walkFov` 50.
+
+### The reference set's aspect distribution
+
+Nine screened interior photographs survive on disk from the `.227`/`.233`/`.234` sweeps. Four further
+`.jpg` files from the same sweeps are HTML or plain text — Pexels/Wikimedia fetch failures that were never
+images — and are excluded here.
+
+| file | pixels | aspect | role |
+| --- | --- | --- | --- |
+| `p233-Home_Staging_Beisp` | 1280×853 | 1.501 | `.233` ceiling qualifier, 1.03 |
+| `ref-A_standard_living_room_i` | 1920×1279 | 1.501 | screened |
+| `p233-ocean` | 1920×1280 | 1.500 | screened |
+| `w-2029667` | 1600×1067 | 1.500 | `.227` falloff candidate, rejected (wall changes orientation) |
+| `ref-7_5_Wohnzimmer` | 1200×803 | 1.494 | screened |
+| `w-1643383` | 1600×1053 | 1.519 | `.227` falloff candidate, rejected (soffit in far crop) |
+| `p233-Living_room_Irelan` | 1387×966 | 1.436 | `.234` ceiling qualifier, 0.91 |
+| `p233-gibberd` | 1920×1440 | 1.333 | screened |
+| `w-1866149` | 1600×1200 | 1.333 | screened |
+
+**1.333–1.519, median 1.500, nothing above 1.52.** The mechanism is not a coincidence: 3:2 is the native
+aspect of 35 mm and APS-C sensors and 4:3 of Four Thirds / compacts / phones, so interior photography lands
+there by construction. **16:10 and 16:9 are display aspects. No camera shoots them** — and every app
+falloff figure from `.226` to `.247` was taken at 1.60 or 1.78.
+
+Caveat, stated because it matters: these are Wikimedia derivatives and may be crops of a differently-shaped
+original, and **photo D itself — the falloff reference — is no longer on disk**. This is the screened set's
+aspect distribution, not a measurement of photo D.
+
+### The aspect curve, and that aspect is the only variable
+
+`light-distribution.mjs` gained a **`VW`** knob (width at fixed height). `walkFov` is a *vertical* fov, so
+height sets vertical world coverage and width sets horizontal — which means an aspect can be reached two
+independent ways, and whether both give the same number is itself a test.
+
+Sweep at `VH=800`:
+
+| aspect | near-window (n) | far (n) | far / near |
+| --- | --- | --- | --- |
+| 1.200 | 116.9 (1142) | 70.6 (415) | 0.60 |
+| 1.334 | 117.2 (1268) | 78.5 (353) | 0.67 |
+| 1.430 | 114.8 (1378) | 71.8 (307) | 0.62 |
+| **1.500** | 116.5 (1451) | 71.4 (286) | **0.61** |
+| 1.600 | 116.2 (1378) | 85.6 (346) | 0.74 |
+| 1.778 | 115.6 (1238) | 107.3 (529) | 0.93 |
+| 2.000 | 117.1 (1082) | 114.4 (675) | 0.98 |
+
+**0.38 of swing** — twice `.247`'s 0.19 — and **non-monotonic** (1.334 sits above both its neighbours).
+1.600 → 0.74 (346) reproduces `.247`'s figure exactly, and 1.500 → 0.61 (286) reproduced on four separate
+runs.
+
+Two routes to one aspect, cross-checked:
+
+| route | aspect | far / near | far n |
+| --- | --- | --- | --- |
+| 1280×853 (`VH`) | 1.500 | 0.61 | 286 |
+| 1200×800 (`VW`) | 1.500 | 0.61 | 286 |
+| 1280×960 (`VH`) | 1.333 | 0.66 | 353 |
+| 1067×800 (`VW`) | 1.334 | 0.67 | 353 |
+
+Identical sample counts and identical ratios. So the metric is a clean function of **aspect**, not of pixel
+dimensions — the good news, and the thing that made the next step worth taking rather than guessing.
+
+### What is actually in the buckets
+
+Taken at face value the table says the app misses 0.85–0.86 at every camera aspect instead of bracketing
+it. `OVERLAY=1` — new, paints every sample the falloff used onto the frame, green near / red far — says
+why that reading is worthless. **The red dots are on the furniture.**
+
+Tallied by geometry type + base colour (also new, printed every run), at aspect 1.500:
+
+| bucket | population |
+| --- | --- |
+| near, `dWin ≤ 1.5` | `PlaneGeometry#f5f5f0` plaster 34 %, `BoxGeometry#bcd4e6` **window glazing 31 %**, `PlaneGeometry#b9b0a0` curtain 9 %, `#ffffff` 4 %, `#e6e7e4` 4 % |
+| far, `dWin ≥ 3` | `ExtrudeGeometry#7a5c3c` **dark timber armchair backs 64 %**, `CylinderGeometry#f3e6c8` lampshade 21 %, `CylinderGeometry#2b2b2b` lamp pole 13 %, `BoxGeometry#f1efea` 1 %, **plaster 0 %** |
+
+The classifier is `kind = 'wall'` iff `|n.y| < 0.3` — *any* near-vertical surface. A sideboard front, a TV,
+a sofa back, a lampshade and a window pane all qualify. So the metric is
+**(dark furniture near the camera) ÷ (the window glazing and the wall around it)**, and at every aspect a
+camera shoots there is **no wall in the far bucket at all**.
+
+At aspect 2.000 the far bucket becomes plaster 56 % / timber 24 % / lampshade 15 % / pole 5 %, because a
+wide frame admits a column of the bright right wall — far mean 71.4 → 114.5, hence 0.98. So the aspect
+dependence was never "which wall pixels are visible" (`.247`'s diagnosis); it is **how much furniture
+versus wall** the frame admits, and the non-monotonicity is those two populations trading places.
+
+### The method mismatch
+
+Photo D's 0.85–0.86 came from **two hand crops of actual plaster** — 188 → 162 and 195 → 165 (`.226`). The
+app's number is a screen-population mean dominated by armchairs. The two sides were never the same
+measurement. This is `.233`'s lesson exactly — there, the app's geometric mask swept in a wall junction the
+photo crop excluded, and half the apparent ceiling deficit was the two methods disagreeing — arriving on
+the one axis the arc had left standing after `.247`.
+
+### Retired
+
+**The wall-falloff metric itself**, not just its deviation. `.226` justified it as "same material, same
+frame, so composition cancels". `.247` killed *same frame*; this kills *same material*. It stays in the
+output only as a regression tripwire between two builds at a byte-identical pose **and** viewport, printed
+with the population tally and an explicit retirement so it cannot quietly become a target again.
+
+**Survives.** The mechanism arguments (`.189`–`.195`, `.226`, `.231`, `.235`) — `.247` already recorded
+that none rested on this number. `.226`'s *relative* finding that the photographic look sits lower than the
+default at identical framing also survives; it is simply not a statement about walls. And `.234`'s ceiling
+retirement survives, because it rests on a hand crop (0.93) and because the `'ceiling'` bucket is 92 %
+ceiling plaster — clean.
+
+**Newly suspect, for the next round.** The `'wall'` bucket that feeds the `ceiling/wall` diagnostic is
+`plaster 49 % / glazing 14 % / timber 6 % / …` — contaminated, though far less than the far bucket, and the
+0.92 it prints is therefore not a plaster reading either. The probe now prints that tally every run.
+Re-deriving `ceiling/wall` over a plaster-only population is the obvious next step.
+
+### What the GI question needs now
+
+`.247` said the diagnosis had lost its quantitative support. This says the support was never evidence.
+
+The falloff axis **cannot be repaired by matching framing**, because framing was the symptom. It needs a
+**plaster-only, world-anchored** population: rays cast at fixed world points along one wall of constant
+orientation to the window, at known distances from it, accepted only when every anchor is visible and every
+hit is plaster. That is framing-invariant by construction — the population is defined in the world, not on
+the screen — and it is the same measurement photo D got by hand, which is what would make the comparison
+legal for the first time. `.246`'s traced still then becomes a decisive instrument rather than a blocked
+one, because both pictures can be sampled at the same world anchors.
+
+The `.227` criterion is unchanged and now applies to the app as well as to the photographs: **an
+unobstructed wall of constant orientation, spanning near and far from a single window, with nothing mounted
+on it.** `.227` rejected reference 2029667 for failing it. The app's own metric has been failing it since
+`.226`.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.250` — the anchored wall metric, and the sign of the GI deficit
+
+`.249` ended by specifying the replacement for the metric it retired: a plaster-only, world-anchored wall
+population. This round builds it, validates the invariance claim by measurement rather than argument, and
+gets a result that inverts the arc's diagnosis.
+
+Runs 03:53–04:00 local (2026-09-02), probe server on `:5199`. Unless stated: `medium`, photographic look,
+13:00, `livingDining` window, standoff 4.6, pitch −0.06, `walkFov` 50.
+
+### Construction
+
+`ANCHORS=1` in `light-distribution.mjs`, so it inherits the window match / standoff clamp / arrival-checked
+teleport (`.245` learned what a standalone probe costs). For each `d` in 0.6…3.6 m along the window's
+inward normal, at `y = 1.5 m`, shoot sideways to find the side wall. The anchor is accepted only if:
+
+1. the surface is **vertical** (`|n.y| ≤ 0.3`);
+2. its normal is **parallel to the window wall's run** — a wall of *constant orientation* relative to the
+   window. This is `.227`'s criterion for a usable reference photograph, applied to the app for the first
+   time. `.227` rejected reference 2029667 for failing it; `.249` showed the app's own metric had been
+   failing it since `.226`;
+3. a fixed **0.24 × 0.24 m** patch, sampled as **7×7 world points** on the wall plane, is *entirely*
+   unoccluded (camera raycast distance matches the anchor's own distance to within 6 cm), on-screen, clear
+   of the HUD rectangles, and one single geometry+colour signature.
+
+Every rejection prints its cause and its counts (`occluded / offscreen / hud / mixed`), so a thinned
+population is visible rather than silent.
+
+**The first attempt rejected all 12 anchors** with `|n·n_win| = 0` — because it tested the side wall's
+normal for *parallelism* to the window normal. A side wall runs *away* from the window, so its normal is
+perpendicular to the window normal and parallel to the window wall's direction; 0 is the value a correct
+side wall must have. Corrected and recorded in the code, because it is an easy inversion to repeat.
+
+### Two knobs the round needed
+
+**`LIGHTS=off`.** Every frame this arc has captured shows the walk HUD printing *"Turn off ceiling light"* —
+i.e. the canonical pose stands under a lit fixture, and a daylit reference photograph has none. 19 of 87
+items were on. Effect: frame mean 110.7 → 107.2, `%<64` 12.61 → 14.30 %, and on the measured wall
+L(2.4) 132.4 → 131.1. Small, real, and now controllable instead of unknown.
+
+**Anchor patches in `OVERLAY=1`** — cyan accepted, magenta rejected-but-surviving-points, so the patches
+can be inspected on the frame.
+
+### Framing invariance, measured
+
+Photographic look, lights on, across exactly the aspect range over which `.249`'s screen-population metric
+ran 0.61 → 0.98:
+
+| aspect | L(1.2 m) | L(2.4 m) | L(3.0 m) | far/near, matched 1.2→2.4 |
+| --- | --- | --- | --- | --- |
+| 1.200 | 128.4 | 132.1 | offscreen | 1.029 |
+| 1.500 | 128.6 | 132.4 | offscreen | 1.030 |
+| 1.600 | 128.9 | 132.3 | offscreen | 1.026 |
+| 1.778 | 128.7 | 132.2 | 134.8 | 1.027 |
+| 2.000 | 128.6 | 132.2 | 134.9 | 1.028 |
+
+Per-anchor luminance moves **0.4 %**; the matched ratio spans **1.026–1.030, spread 0.004**, against
+**0.38** for the retired metric on the same sweep — about 90× tighter. Widening the aspect *adds* anchors
+without moving the existing ones, which is the behaviour a world-defined population must have and the
+screen-defined one could not.
+
+### The result
+
+Side B is the right wall, `PlaneGeometry#f5f5f0` plaster at every accepted anchor, span 1.65–1.70 m from
+the room axis. Lights off, aspect 2.000:
+
+| | L(1.2) | L(2.4) | L(3.0) | far/near over 1.8 m |
+| --- | --- | --- | --- | --- |
+| photographic look | 128.7 | 131.1 | 131.9 | **1.025** |
+| default look | 132.0 | 134.6 | 135.3 | **1.025** |
+| photo D (hand-cropped plaster, `.226`) | 188 → 162, 195 → 165 | | | **0.85–0.86** |
+
+**A real wall falls about 15 % away from its window; the app's rises about 2.5 %.**
+
+So a deficit is real and it is a GI signature — but **its sign is the opposite of what the arc has claimed
+since `.226`**. The claim was that the app's light *does not carry far enough into the room*. The
+measurement says it carries **too evenly**. The mechanism `.226` named was correct — *"the hemisphere ground
+term lights every wall equally at half weight with no distance dependence"* — and the symptom was predicted
+backwards from it. A distance-independent ambient fill does not make the far wall too dark. It makes the
+whole wall too **flat**.
+
+Every intervening round that reasoned "the far wall is too dark, GI would lift it" was reasoning from the
+retired furniture metric. Nothing in `src/` was ever changed on that basis (`.226` was recorded, not
+chased; `.189`–`.195`, `.231` and `.235` were all refutations), so no shipped behaviour rests on the
+inverted sign — but the arc's stated diagnosis did, for 24 rounds.
+
+### Correcting `.249`
+
+`.249` recorded that `.226`'s *relative* finding survives — "measured identically, the photographic look's
+falloff really is steeper" (0.74 against the default's 0.85). It does not. Anchored, both looks read
+**1.025**. They differ in *level* — 128.7 against 132.0, the photographic look ~2.5 % darker on that wall —
+and not at all in slope. That difference was furniture as well.
+
+### Corroboration and a caught contaminant
+
+`.246` eyeballed column profiles across this same right wall: raster `127 122 124 131 132 133 134 135`,
+traced `132 132 132 132 133 134 134 135`. Flat, rising slightly, with the dip identified as a corner shadow.
+It filed the observation as unusable because a hand crop is not the probe's measurement. It was right, and
+it agrees with the anchored numbers to within a couple of counts — two independent methods on the same wall.
+
+The contaminant, caught the way this arc always catches them. The first accepted **side A** anchor read
+**L = 157.7** at signature `PlaneGeometry#ffffff`: **the TV screen**. Wall-mounted, vertical, correctly
+oriented, unoccluded, and perfectly uniform across the whole 0.24 m patch — every per-patch test passed.
+Only the overlay caught it. The probe now additionally requires **one signature along the run**, which is
+`.233`'s "same plaster paint on both surfaces" rule applied lengthwise, and prints the material it measured.
+Side A yields no profile at this pose; every published number is side B.
+
+### Limits
+
+One wall, one pose, one room, 2–3 anchors. `d = 0.6` is always occluded (the curtain and the window reveal),
+`d = 1.8` straddles a pillar edge (14/49 mixed — visible in the overlay), `d ≥ 3.6` leaves the frame.
+
+The material limit is on the reference side: **photo D's crop distances were never recorded.** So the
+comparison is sign- and shape-matched but **not distance-matched** — the app rises where the photograph
+falls, which no rescaling of distance can flip, but "15 % over how far" is unknown. Widening the reference
+set under the `.233` criteria is the binding constraint again, and a qualifying photograph now also needs
+its crop distances recorded, not just its aspect.
+
+### What is now unblocked
+
+`.246`'s path-traced still has a legal instrument for the first time. The anchors are **world points**, so
+the tracer canvas can be sampled at exactly the same ones — the readback problem that defeated `.246`
+(no depth or normal available on the tracer canvas) does not apply, because the anchor positions are known
+before either picture is rendered and their screen projections are computed from the shared camera.
+
+If the traced wall **falls** where the raster wall **rises**, GI is confirmed as the cause and the size of
+the prize is finally quantified. That is the experiment `.245` set out to run.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.251` — the GI attribution is refuted by the app's own path tracer
+
+`.250` built a world-anchored wall metric and noted what it unblocked: because the anchors are world points
+chosen before either picture is rendered, the tracer canvas can be sampled at exactly the same ones. The
+depth/normal readback problem that defeated `.246` does not arise. This is `.245`'s experiment, finally
+runnable, and it comes back negative.
+
+Runs 04:05–04:18 local (2026-09-02). `medium`, photographic look, 13:00, `livingDining`, standoff 4.6,
+pitch −0.06, `walkFov` 50, walk viewport 16:9, tracer 1920×1080, `LIGHTS=off` (19 of 87 fixtures on).
+
+### Three guards, because a shared projection is easy to get silently wrong
+
+**Camera identity, checked numerically.** `PT=1` opens a modal and runs a tracer between the raster capture
+and the anchor projection. If anything in that sequence nudged the camera, the anchors would be computed
+for one pose and applied to a frame taken at another — and *looking would not catch it*, because the patches
+would still land on plaster. So position, quaternion, fov and aspect are snapshotted at the raster capture
+and compared.
+
+The first run reported **drift**: `q.x` −0.272 against −0.030. That was my own guard, not the app —
+the snapshot was being taken after the pitched-down floor capture, so it recorded `FLOOR_PITCH` (−0.55 rad)
+rather than the frame's own −0.06. Moved to immediately after the raster shot; it now prints `YES` on every
+run, and the reason is in the code, because a guard that cries wolf gets ignored and then a real drift walks
+through it.
+
+**Aspect match.** `camera.project` uses the camera aspect, so a shared projection is only valid if the two
+pictures share a framing — the reason `PT=1` pins the walk viewport to 16:9 (`.247`). The probe prints both
+aspects and refuses the comparison if they differ by more than 0.005.
+
+**Looked at it.** The anchor patches are painted onto the traced still as well as the raster frame. They
+land on the same plaster, in the same places, at the same sizes.
+
+### The result
+
+Side B, the right wall, `PlaneGeometry#f5f5f0` at every accepted anchor, 15×15 = 225 world samples per
+0.24 × 0.24 m patch:
+
+| | L(1.2) | L(2.4) | L(3.0) | far/near over 1.8 m |
+| --- | --- | --- | --- | --- |
+| raster | 128.4 | 131.2 | 131.7 | **1.026** |
+| traced, 48 samples | 141.3 | 141.7 | 139.9 | **0.990** |
+| traced, 101 samples | 132.1 | 133.3 | 132.6 | **1.004** |
+| traced, 251 samples | 142.6 | 144.7 | 144.9 | **1.016** |
+| photo D, hand-cropped plaster (`.226`) | | | | **0.85–0.86** |
+
+**Real inter-reflection moves the ratio by about 0.02. The distance to the photograph is 0.17.** The traced
+wall is flat, and visibly so — in the 251-sample still the right wall reads uniform from the window side to
+the camera side.
+
+So the wall-falloff gap is **not** absent inter-reflection. That attribution has been carried since `.226`,
+reached by elimination (`.189`–`.195` refuted the cheap stand-ins, `.226`/`.235` showed the hemisphere ground
+term has no distance dependence, `.231` ruled out the fill scale). `.245` said plainly that elimination is
+weaker than demonstration and that the diagnosis had been load-bearing for a dozen rounds. Demonstration has
+now been attempted, with the app's own renderer, and it refutes the attribution.
+
+### Why the app's wall is flat, and why that is not a defect
+
+The probe now prints the aperture alongside the falloff, because that turns out to be the governing fact:
+
+> **the window is 2.45 m wide in a 3.45 m wall — 71 % of the end wall — in a 3.4 × 5.67 m room.**
+
+The light source is essentially the entire end of the room. A 2.45 m aperture subtends a solid angle that
+barely shrinks over the first 3 m of a 3.4 m-wide room, so a nearly flat wall is the **correct** answer for
+this geometry — and the path tracer, computing real transport with no fill and no hemisphere shortcut,
+independently arrives at it.
+
+### The fourth confound, and the deepest
+
+| round | the metric depends on | |
+| --- | --- | --- |
+| `.232` | **pose** | ceiling/wall 0.68 → 0.96 on pitch |
+| `.233` | **method** | geometric mask 0.88 vs hand crop 0.93 |
+| `.239` | **tier** | |
+| `.247`/`.249` | **framing** | 0.60 → 0.98 on viewport aspect |
+| **`.251`** | **scene** | 71 % aperture ⇒ flat is correct |
+
+How much a wall falls off away from its window is a property of the **window-to-wall geometry** before it is
+a property of the renderer. Photo D's room geometry was never recorded, and neither were its crop distances
+(`.250`). So `0.74 vs 0.85` compared **two rooms as though they were two renderers**. No amount of pose,
+method, tier or framing matching could have fixed that, which is why four rounds of matching kept finding
+new artefacts instead of converging.
+
+### `.245`'s convergence claim is falsified
+
+`.245` reasoned that "a band MEAN over thousands of pixels averages sampling noise out, so ~40–60 samples
+suffice — a traced falloff number costs ~2 minutes". A mean averages **noise**, not **bias**. The traced
+absolute level on the same plaster patch reads **141.3 (48) → 132.1 (101) → 142.6 (251)** — an 8 % spread,
+and not monotone, so it is not simple convergence either.
+
+The **ratio** is much steadier — 0.990 / 1.004 / 1.016, spread 0.026 — because whatever moves the level
+moves both anchors together. So:
+
+- the traced instrument is usable for **ratios, quoted at ±0.02**;
+- it is **not** usable for absolute levels without a convergence sweep;
+- every traced figure must carry its sample count.
+
+That also means `.246`'s single 49-sample capture, and this round's own 48-sample first pass, were never
+safe to quote at face value. The ratio survives; the level does not.
+
+### What survives, what dies
+
+**Survives.** `.189`–`.195`, refuting the cheap GI stand-ins on their own measurements — independent of all
+of this. `.226`/`.235`'s mechanical fact, that the hemisphere ground term has no distance dependence — still
+true, simply no longer attached to a measured defect. Item **(l) WINDOW-LUMINANCE** — it rests on clipping
+fraction and distribution shape, not on falloff, and is untouched.
+
+**Dies.** The claim that the app has a wall-falloff deficit, and the claim that GI is what would fix it.
+Both withdrawn. Nothing in `src/` was ever changed on either — `.226` was recorded rather than chased — so no
+shipped behaviour is affected. But the arc's stated diagnosis was wrong in **population** (`.249`: the buckets
+were furniture), in **sign** (`.250`: the app is too flat, not too steep) and in **mechanism** (`.251`: real GI
+does not produce the photograph's falloff), and it took a world-anchored instrument plus the app's own path
+tracer to establish that.
+
+### Where the axis stands
+
+The wall-falloff comparison may not be measurable across rooms at all. A qualifying reference photograph
+would now need, cumulatively:
+
+1. `.233`'s screen — same plaster on both surfaces, daylit, croppable clear of junctions, no flash/HDR, not
+   AI stock;
+2. `.227`'s wall — unobstructed, constant orientation, spanning near and far from a single window, nothing
+   mounted on it;
+3. `.250` — its **crop distances** recorded;
+4. `.251` — its **window-to-wall aperture fraction** recorded.
+
+Three of four photographs failed criterion 2 alone (`.227`). Adding 3 and 4 makes the screen demanding
+enough that saying so is more useful than producing another n=1.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.252` — the path tracer is not a photograph-free reference
+
+`.251` settled the GI question but left the reference problem standing: a photograph brings pose, method,
+tier, framing, scene and crop-distance confounds, and the screen for a qualifying one is now so demanding
+that `.251` said as much out loud. The tempting escape is that **the app's own path tracer needs no
+photograph at all** — same scene, same pose, same world anchors, one rasterised and one path-traced, so a
+difference is a rasteriser error with no confound left to explain it away. `.251` also showed traced
+*levels* drift with sample count while *ratios* hold, so the instrument had to be a ratio **between
+surfaces** rather than a level.
+
+Built. Refuted. Runs 04:23–04:35 local (2026-09-02).
+
+### Generalising the anchors, and a bug in `.250`
+
+Ceiling (shoot up) and floor (shoot down) joined the two side walls, with the patch's in-plane basis derived
+from the hit normal so one code path serves all three orientations.
+
+That immediately exposed a bug in `.250`'s own visibility test. It offset each patch 2 cm off the surface
+along the probe direction and then tested visibility by comparing the camera ray's hit **distance** against
+the distance to the anchor, tolerance 6 cm. For a wall seen nearly head-on that works. For the ceiling and
+floor, seen almost **edge-on** from eye height, 2 cm of *perpendicular* offset becomes **0.08–0.12 m along
+the ray** — over tolerance — so every ceiling anchor reported `occluded 225/225` and side C produced nothing.
+
+Fixed by removing the offset entirely (the camera ray never starts on the surface, so none is needed) and
+testing **object identity plus 3-D proximity** instead. Consequences:
+
+- previously published anchor values move by **≤ 0.5 %** (wall B d = 1.2: 128.9 → 129.4), so `.250` and
+  `.251` stand unchanged;
+- the fix also admits **d = 0.6 on wall B, which reads 108.0** against 129–132 further into the room. That
+  patch sits in the **window-reveal / curtain shadow**, so including it turns a falloff measurement into a
+  shadow measurement. Wall B's "near" anchor stays at 1.2 m, and the 0.6 m reading is reported separately.
+
+### The comparison
+
+251 samples, `medium`, photographic look, 13:00, standoff 4.6, pitch −0.06, 16:9, lights off, 15×15 = 225
+world samples per 0.24 × 0.24 m patch. Camera identity verified `YES`; aspects matched.
+
+| surface | material | raster | traced | raster / traced |
+| --- | --- | --- | --- | --- |
+| wall B plaster, d = 1.2 / 2.4 / 3.0 | `MeshStandardMaterial` rough 0.92 | 129.0 / 131.2 / 131.9 | 131.7 / 131.5 / 131.8 | **≤ 2 %** |
+| ceiling, d = 0.6 / 1.2 / 1.8 | **`MeshLambertMaterial`** | 112.7 mean | 150.3 mean | **+33 %** |
+| rug, d = 1.2 | `MeshPhysicalMaterial` rough 0.95 | 218.0 | 115.9 | **−47 %** |
+
+As cross-surface ratios: wall B / ceiling raster 1.109 against traced 0.871 — **+27 %**; every pair
+involving the floor off by roughly **−50 %**.
+
+Taken at face value that is `.188`'s ceiling deficit resurrected — the raster's ceiling too dark relative to
+its walls, now against a physically-based reference *in the same room*, immune to every confound that
+retired it in `.234`.
+
+### It is not. Looking killed it.
+
+The traced ceiling **visibly reflects the window, the AC unit, the curtain rail and the ceiling fan** — a
+specular reflection in plaster, with the window's rectangle plainly legible. The rasterised ceiling over the
+identical crop is clean matte grey with a smooth gradient and no reflection whatsoever.
+
+**The mechanism is exact.** The ceiling is `MeshLambertMaterial` — **14 meshes** — a legacy non-PBR material
+that has **no `roughness` and no `metalness` field at all**. A PBR path tracer must interpret that, and
+interprets absent roughness as **0**: a mirror.
+
+The material census over the measured surfaces makes the pattern unambiguous:
+
+| colour | geometry | material | roughness | agreement |
+| --- | --- | --- | --- | --- |
+| `f5f5f0` (wall plaster, ×99) | Plane | `MeshStandardMaterial` | 0.92 | ≤ 2 % |
+| `ffffff` (×44) | Plane | `MeshStandardMaterial` | 0.85 | — |
+| `fafafa` (ceiling, ×14) | Plane | **`MeshLambertMaterial`** | **none** | +33 % |
+| `9c8f7a` (rug, ×1) | Box | `MeshPhysicalMaterial` | 0.95 | −47 % |
+
+Every surface where the two renderers agree carries an explicit roughness on a `MeshStandardMaterial`. The
+one that diverges upward has no roughness field. The rug diverges *downward* by a factor 1.9 despite a
+roughness of 0.95, which roughness cannot explain — sheen or clearcoat interpretation is the suspect, it is
+n = 1, and it is not resolved here.
+
+### What that means for the instrument
+
+**The path tracer is a valid reference only for surfaces whose material it interprets the same way the
+rasteriser does.** A cross-surface ratio mixes material types by construction, so it measures
+**material-interpretation mismatch, not light transport**. The instrument is off the table until the
+mismatch is characterised per material type — and characterising it is a worthwhile round in itself, since
+the answer is a per-material-type validity list for every future traced comparison.
+
+### What it means for `.251`
+
+It strengthens it. `.251`'s single measured surface — wall B plaster, `MeshStandardMaterial` roughness
+0.92 — is exactly the case where the two renderers demonstrably agree to ≤ 2 %. Its conclusion that real
+light transport also produces a flat wall therefore rests on the one surface class where the comparison is
+legitimate. That was luck when it was published; it is now demonstrated, and the demonstration came from
+the round that tried to extend the method and failed.
+
+### A shipped defect, found incidentally
+
+The HQ path-traced still is a **user-facing feature**, and it renders the ceiling as a mirror. Any user
+producing an HQ still of this room gets the window reflected in the ceiling. Filed as open item
+**(n) HQ-LAMBERT-CEILING** with two candidate fixes:
+
+1. **HQ-scoped (recommended)** — substitute an equivalent `MeshStandardMaterial` (roughness ≈ 0.9) for every
+   `MeshLambertMaterial` while building the tracer scene. Changes only the HQ path, so every raster
+   measurement in this arc keeps its meaning.
+2. **Scene-wide** — convert the 14 ceiling meshes in `src/`. More correct for plaster and fixes both paths,
+   but Lambert and Standard shade differently in the raster too, so it changes shipped viewport appearance,
+   re-bases every published ceiling figure, and costs a more expensive shader on a full-room surface at the
+   `performance` tier.
+
+Not fixed here: it is a `src` change to shipped appearance, and it deserves its own round with a
+before/after HQ still.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.253` — fixing the tracer's mirror ceiling repairs the instrument, and the ceiling deficit returns
+
+`.252` filed the HQ still's mirror ceiling as item (n) with two candidate fixes and did not take either.
+This round builds the recommended one. The point worth stating up front: the fix is not only a product fix.
+The mirror was the reason the cross-surface instrument had to be abandoned, so removing it is what makes
+the second half of this section possible.
+
+Runs 04:41–04:53 local (2026-09-02). `medium`, photographic look, 13:00, `livingDining`, standoff 4.6,
+pitch −0.06, 16:9, `LIGHTS=off`, 15×15 = 225 world samples per 0.24 m patch, camera identity verified.
+
+### Fix 1
+
+`pbrStandInFor` in `hqRenderSession.ts` substitutes a matte `MeshStandardMaterial` for every
+`MeshLambertMaterial` and `MeshPhongMaterial` **inside the tracer snapshot**, copying colour, maps, side,
+transparency, emissive and vertex-colour state, setting `metalness: 0`, and setting roughness to 0.9 for
+Lambert or mapping Phong's `shininess` monotonically back onto roughness so a deliberately shiny Phong
+stays shinier than a matte one. Substitutes are cached one per source material and disposed on every
+session exit path, since the live scene holds no reference to them.
+
+Scoped to the snapshot on purpose. The live scene keeps its Lambert materials, so the rasterised viewport
+cannot move, and every raster figure this arc has published keeps its meaning.
+
+`MeshBasicMaterial` is deliberately **not** substituted. It is unlit by intent — window panes, screens, the
+sky sphere — so giving it a PBR response would change what it is rather than correct how it is read. Whether
+the tracer reads Basic correctly is a separate, unmeasured question.
+
+**Verification.**
+
+| | before (`.252`) | after (`.253`) |
+| --- | --- | --- |
+| traced ceiling, 3 anchors | 150.3 | **140.7** |
+| traced ceiling reproducibility | 8 % drift across 48/101/251 (`.251`) | 140.2 @151, 140.7 @251 — **0.4 %** |
+| raster anchors | 129.0 / 131.2 / 131.9 | 128.9 / 131.1 / 131.8 |
+| the reflection | window rectangle, AC unit, curtain rail, ghost fan blade all legible | **none** |
+
+Looked at, both times. The improved reproducibility is a bonus worth noting: a mirror surface converges
+slowly and throws fireflies, so the artefact was itself a large part of the variance `.251` measured.
+
+### Fix 2, answered by measurement rather than by argument
+
+`.252` warned that converting the 14 ceiling meshes scene-wide would change viewport appearance and re-base
+every published ceiling figure. `CEIL_STD=1` tests that directly, swapping the **live raster** ceiling to
+Standard(0.9) with nothing else touched:
+
+| raster ceiling (3 anchors) | frame mean | `%<64` |
+| --- | --- | --- |
+| `MeshLambertMaterial` (shipped) | 108.2 | 13.58 % |
+| **113.0** | | |
+| `MeshStandardMaterial` 0.9 | 108.2 | 13.58 % |
+| **112.9** | | |
+
+**0.09 % on the ceiling, nothing at all on the frame.** The re-basing worry was unfounded. Fix 2 is
+therefore a **performance** question — Lambert is the cheaper shader and the ceiling is a full-room surface
+at the `performance` tier — and it buys nothing visible now that fix 1 has repaired the path that was
+broken. Recorded as: don't, absent a separate reason to unify materials.
+
+### The instrument, repaired — and `.188` returns
+
+`.252` had to abandon cross-surface raster-vs-traced ratios because they measured material-interpretation
+mismatch. With Lambert substituted, the ceiling joins plaster on the valid list, and the comparison that
+`.252` could not trust can now be run.
+
+| pair | raster | traced | raster ÷ traced |
+| --- | --- | --- | --- |
+| wall A / wall B — **control** | 1.278 | 1.237 (251) · 1.245 (151) | **1.033 · 1.027** |
+| **wall B / ceiling** | 1.115 · 1.109 | 0.938 (251) · 0.934 (151) | **1.189 · 1.186** |
+
+Per-anchor, 251 samples: wall B raster 128.9 / 131.1 / 131.8 against traced 132.3 / 133.0 / 133.2 (≤ 2.6 %);
+ceiling raster 100.7 / 114.5 / 121.1 against traced 142.8 / 137.0 / 142.4.
+
+**The raster's ceiling is ~16 % too dark relative to its wall** (1 ÷ 1.187 = 0.842); the traced ceiling is
+~25 % brighter in absolute terms.
+
+`.234` retired `.188`'s ceiling deficit for a good reason: measured the way the photographs were measured,
+the app's 0.93 sat inside their 0.91–1.03. `.251` then showed why that comparison could not have settled it
+either way — ceiling brightness and wall falloff are properties of the window-to-wall geometry before they
+are properties of the renderer, and photo D's geometry was never recorded. Against a physically-based
+reference **in the same room**, the deficit is there.
+
+Five controls, because a claim that reverses a retirement needs them:
+
+1. **Same scene** — one camera, one set of world anchors, two renderers. None of the five confounds this
+   arc has catalogued (`.232` pose, `.233` method, `.239` tier, `.247`/`.249` framing, `.251` scene) is
+   available.
+2. **A same-material control passes inside the same frame** — wall plaster, `MeshStandardMaterial` 0.92,
+   agrees to ≤ 2.6 % per anchor and ~3 % on the wall A / wall B pair. So the traced picture is not
+   uniformly offset; if it were, the walls would be offset too. This is the control that makes the ceiling
+   number mean something.
+3. **The material control passes** — the ceiling pair is raster-Lambert against traced-Standard, which
+   looks cross-material, but the live-raster swap above moves the raster ceiling by 0.09 %.
+4. **The artefact is removed** — `.252`'s +27 % contained a specular window reflection. +18.9 % survives
+   its removal.
+5. **Reproduced** at 151 and 251 samples, spread 0.003.
+
+### This is the symptom `.226`'s mechanism actually produces
+
+The ceiling receives almost no direct window light: the window sits below it and daylight enters going in
+and down. So the ceiling is lit almost entirely by inter-reflection off the floor and walls — and
+`.226`/`.235` established that the rasteriser's hemisphere ground term lights every surface equally at half
+weight with **no distance dependence**, with `.189`–`.195` refuting the cheap stand-ins.
+
+That mechanism has been correct since `.226`. What was wrong was the symptom attached to it: wall falloff
+with distance, which `.251` refuted (real transport also produces a flat wall, because the aperture is 71 %
+of the end wall). **The ceiling is the symptom absent inter-reflection actually produces**, and it is the
+one `.188` guessed at first, three months and sixty rounds ago, without an instrument that could confirm it.
+
+`PHOTO_GROUND_BOUNCE` (shipped at 3) exists precisely to lift the ceiling. `.234` retired its motivation
+and explicitly parked the question of whether it still earns its keep. The motivation is back, and this
+time with a target: **+16 % of ceiling relative to wall, measured against a physically-based reference in
+the same scene.**
+
+Filed as open item **(o) CEILING-BOUNCE**. Closing it means changing the fill/bounce model, which moves
+shipped appearance on every tier and re-bases the `%<64` and region-ratio figures this arc is calibrated on
+— so whether to close it is a call. Pricing it is a measurement, and it is the obvious next round: sweep
+`PHOTO_GROUND_BOUNCE` and the hemisphere ground term against the new target and report what closes the
+16 % and what it costs elsewhere.
+
+### Still unexplained
+
+The rug (`MeshPhysicalMaterial`, roughness 0.95) reads raster 218.0 against traced 105–116 — a factor ~2 in
+the *other* direction, unaffected by this fix, n = 1. Roughness cannot explain it; sheen or clearcoat
+interpretation is the suspect. Explicitly not claimed as anything.
+
+The tracer's per-material validity list now stands at:
+
+| material | valid as a reference? |
+| --- | --- |
+| `MeshStandardMaterial` | ✅ agrees ≤ 2.6 % |
+| `MeshLambertMaterial` / `MeshPhongMaterial` | ✅ via the `.253` substitute |
+| `MeshPhysicalMaterial` | ❌ factor ~2, unexplained |
+| `MeshBasicMaterial` | untested (unlit by intent, not substituted) |
+
+`src/` changed: `hqRenderSession.ts`, tracer snapshot only, plus three unit tests.
+
+---
+
+## `.254` — pricing the ceiling deficit, and two false negatives caught by a read-back
+
+`.253` measured a ceiling deficit against the app's own path tracer and filed item (o) with a promise: sweep
+the bounce term against the new target and report what closes it and what it costs. This is that round. The
+deficit survives at a revised size, and the lever turns out to be the wrong shape for it.
+
+Runs 04:59–05:15 local (2026-09-02). `medium`, photographic look, 13:00, `livingDining`, standoff 4.6,
+pitch −0.06, `LIGHTS=off`, 15×15 = 225 world samples per 0.24 m patch.
+
+### Two false negatives, and why assignment cannot work here
+
+`GBOUNCE=<n>` re-scales `PHOTO_GROUND_BOUNCE` on the live scene, so a sweep point costs 20 s instead of an
+edit-and-rebuild. `Lighting.tsx` applies the term as `hemi.groundColor *= photographicGroundBounce
+(photographicLook)`, so scaling the live `groundColor` by `target / shipped` should be exactly equivalent to
+shipping a different constant.
+
+Applied by assignment, the sweep read **dead flat**: ceiling 113.4 and frame mean 108.2 at *every* value from
+1 to 8. Twice — once with the patch applied before the pitch was set, once after, on the theory that
+`setPitch` was re-triggering the lighting effect.
+
+The post-capture read-back is what exposed it. It printed the **original** colour both times:
+
+```
+GBOUNCE=8  scale x2.6667  groundColor [1.25975,...] -> [3.35934,...]
+GBOUNCE held at capture:                                [1.25975,...]
+```
+
+`Lighting.tsx` recomputes `groundColor` from the eased day/night curve **every frame**, not on state change,
+so nothing written from outside survives to the next tick. Without that read-back this round would have
+published *"`PHOTO_GROUND_BOUNCE` does nothing"* — flatly contradicting `look.ts`'s own recorded ×1/×3.5/×6.5
+sweep, and a consequential false negative about a shipped term.
+
+The method that works is to **intercept, not assign**: wrap `setRGB` on that one `Color` instance so every
+per-frame write is scaled on its way in.
+
+```
+const orig = c.setRGB.bind(c)
+c.setRGB = (r, g, b, ...rest) => orig(r * k, g * k, b * k, ...rest)
+```
+
+After that the knob bites hard — frame mean 99.3 at ×1 against 123.4 at ×8. **Never patch a light by
+assignment in this app; and always read the patched value back after the capture, not before.**
+
+### A second hazard: the anchor set was not stable
+
+At `GBOUNCE=8` the `d = 1.2` ceiling anchor reported `BoxGeometry#6b4f34 span 0.76` — **a rotating fan
+blade** — and clean plaster at the next sweep point. `.253`'s same-material rule rejected it correctly, so no
+wrong number was produced, but an anchor set that changes between sweep points cannot be swept: the
+ceiling mean would be over three anchors at one point and two at the next.
+
+New `ANCHOR_OFF` shifts the ceiling/floor anchor line laterally off the room axis (the fan hangs on it).
+At **−0.7 m** all three ceiling anchors read `PlaneGeometry#fafafa` on every run; at **+0.7 m** d = 1.8 still
+catches a blade. Wall anchors are unaffected by construction — a sideways ray hits the same wall point
+wherever along `perp` it starts — and the numbers confirm it: wall B reads **128.9 / 131.2** at both offsets.
+
+This also revises `.253`. Its on-axis measurement had the unstable ceiling set *and* a wall mean that
+included the d = 0.6 reveal-shadow anchor (108.0), which lowered the wall mean and so flattered the ratio in
+the opposite direction. The fan-clear line is the trustworthy one.
+
+### The sweep
+
+Ceiling anchors 0.6 / 1.2 / 1.8 m, wall B 1.2 / 2.4 m, anchor line −0.7 m:
+
+| `PHOTO_GROUND_BOUNCE` | groundColor.r | ceiling mean | wall mean | **C ÷ W** | frame mean | `%<64` |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 (off) | 0.420 | 92.5 | 120.2 | 0.770 | 99.3 | 18.47 % |
+| 2 | 0.840 | 108.3 | 125.7 | 0.862 | 104.1 | 15.75 % |
+| **3 (shipped)** | 1.260 | **120.4** | **130.4** | **0.923** | **108.2** | **13.57 %** |
+| 4 | 1.680 | 129.9 | 134.7 | 0.964 | 111.8 | 12.21 % |
+| 5 | 2.100 | 137.9 | 138.6 | 0.995 | 115.1 | 11.30 % |
+| 6 | 2.519 | 144.3 | 142.2 | 1.015 | 118.0 | 10.63 % |
+| 8 | 3.359 | 155.6 | 148.8 | 1.046 | 123.4 | 9.75 % |
+| **traced target**, 252 samples | — | **139.7** | **132.65** | **1.053** | — | — |
+
+Monotonic and smooth in every column, which is what a working knob looks like.
+
+**Revised deficit: 12.3 %** (0.923 against 1.053), down from `.253`'s 16–19 %. Same sign, smaller magnitude.
+
+*Self-consistency check worth recording:* the sweep ran at viewport aspect 1.60 and the traced target at
+1.778 (`PT=1` pins 16:9 so the tracer and the walk camera share framing). Mixing them is only legitimate
+because the anchored metric is framing-invariant — and it shows: raster ceiling 110.6 / 124.9 / 125.6 at 1.60
+against 111.0 / 124.6 / 125.1 at 1.778, inside 0.5 %. `.250`'s invariance result earning its keep.
+
+The traced overlay was inspected: all three ceiling patches sit well clear of the fan on clean traced
+plaster, and `.253`'s mirror is still gone.
+
+### The verdict
+
+The target is reached at **`PHOTO_GROUND_BOUNCE` ≈ 8.5**, about 2.8× the shipped 3, and it costs:
+
+- **frame mean +15 %** (108.2 → ~125);
+- **`%<64` −4 points** (13.57 → ~9.5) — a real loss of the shadow depth calibrated across `.163`–`.168` and
+  re-checked against four photographs in `.186`;
+- **walls +14 %** (130.4 → 148.8 at ×8).
+
+The term *does* favour down-facing normals: from ×3 to ×8 the ceiling gains **+29 %** against the walls'
+**+14 %**. So there is real differential response, and it is why the ratio moves at all. But the efficiency
+is about **1:1** — 13 % of ceiling-to-wall ratio for 14 % of overall brightness. A hemisphere ground term
+lights everything with a downward normal component, which is most of a room.
+
+`look.ts` recorded exactly this in `.195`, before any target existed to check it against: *"The wall RATIO
+barely moves, but read that with care: the frame mean rises 17 % over the sweep, so the walls rise with it in
+absolute terms … That is what a bounce does; it is not a targeted ceiling repair."* It is now measured
+against a target, and the judgement holds.
+
+**So: the deficit is real, and the cheap lever is the wrong shape.** Recommending against retuning
+`PHOTO_GROUND_BOUNCE`, and recording the transfer function so the trade is explicit rather than
+rediscovered a third time.
+
+A targeted repair needs something that separates ceiling from wall, which a hemisphere cannot do by
+construction. The candidates are a **ceiling-specific fill term** or **real single-bounce GI** — both
+feature-sized, not tuning. Item (o) now carries the price and the recommendation; the remaining call is
+whether 12.3 % on one surface is worth a feature-sized change to a look tuned over ~70 rounds.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.255` — CORRECTION: the tracer is lit by a different rig, and item (o) is withdrawn
+
+This round set out to explain the one thing `.252`/`.253` left dangling: the rug's factor-2 raster-vs-traced
+discrepancy, with `sheen` as the leading suspect. It found something upstream of materials that invalidates
+my own last two rounds.
+
+Runs 05:19–05:22 local (2026-09-02).
+
+### The finding
+
+`buildTracerScene` in `hqRenderSession.ts` snapshots the live scene and copies **only**
+`DirectionalLight`, `PointLight` and `SpotLight`. `AmbientLight` and `HemisphereLight` are not copied, and
+the environment becomes a hardcoded `GradientEquirectTexture` (top `0xbfd4e6`, bottom `0x5a5650`) whenever no
+user HDRI is active.
+
+The function's header explains, correctly, why the live PMREM probe environment cannot be ingested. What was
+never measured is what dropping the two fill lights costs. At the pose every comparison in `.251`–`.254`
+used — 13:00, `medium`, photographic look:
+
+| light | intensity | copied? |
+| --- | --- | --- |
+| `AmbientLight` | 0.077 | **no** |
+| `HemisphereLight` | 0.243 | **no** |
+| `DirectionalLight` (sun) | 1.0 | yes |
+| `PointLight` × 4 | 9 | yes — and `LIGHTS=off` zeroed them in every comparison |
+
+*(A first census read `DirectionalLight` 0 and 19 point lights on, which looked like "the app has no sun".
+It was taken at the default clock — 05:20, i.e. night. Re-run at the probe's actual state, the sun is 1.0.
+Worth recording: a light census is meaningless without the hour it was taken at.)*
+
+### Quantified
+
+New `FILLOFF=1` zeroes exactly those two lights in the raster. `intensity` is a plain number that
+`Lighting.tsx` rewrites every frame, so it has to be intercepted with a getter rather than assigned —
+`.254`'s lesson, applied to a number instead of a Colour.
+
+| | fill on (shipped) | fill zeroed | loss |
+| --- | --- | --- | --- |
+| ceiling mean, anchors 0.6 / 1.2 / 1.8 m | 120.2 | 37.7 | **−69 %** |
+| wall B mean, anchors 1.2 / 2.4 m | 130.4 | 86.4 | **−34 %** |
+| frame mean | 108.2 | 75.2 | −31 % |
+| `%<64` | 13.56 % | 38.44 % | — |
+| ceiling ÷ wall | 0.922 | 0.436 | — |
+
+**The raster ceiling is 69 % lit by lights the path tracer does not have.** The traced ceiling is lit by a
+gradient sky the raster does not have. They are not two renderings of one lighting setup; they are two
+lighting setups.
+
+### What is withdrawn
+
+**`.253`'s ceiling deficit (+12.3 %) and `.254`'s target (C ÷ W = 1.053).** The gap was the difference
+between `PHOTO_GROUND_BOUNCE`-scaled hemisphere fill and `GradientEquirectTexture(0xbfd4e6 → 0x5a5650)`, not
+a measurement of absent inter-reflection. `.254`'s conclusion that the bounce term is "the wrong shape" also
+goes, since it was defined relative to that target. `.188`'s ceiling deficit returns to **unproven** —
+neither established (as `.253` said) nor retired (as `.234` said).
+
+### The control that was not a control
+
+`.253` listed five controls, and leaned hardest on this one: wall B agrees between the two renderers to
+≤ 2.6 %, so *"the traced picture is not uniformly offset — if it were, the walls would be offset too."*
+
+The wall is **also 34 % fill-lit**. Its agreement was a coincidence of level between two different rigs, and
+I read it as evidence that the rigs were equivalent. It is the same species of error as `.226`'s "same
+material, same frame, so composition cancels" — a plausible-sounding cancellation argument that was never
+checked.
+
+> **An agreement is not a control unless you know both sides share a mechanism.**
+
+That belongs with the arc's other method rules. Five controls, and the load-bearing one was hollow, because
+I never asked *what* was producing the agreement.
+
+### What survives
+
+- **`.251`'s refutation of the GI attribution for wall falloff.** Its weight is on the geometric argument —
+  the window is 71 % of the end wall, so a broad source of any kind lights the first 3 m near-uniformly —
+  and the traced still is real light transport through that aperture whatever its sky. The traced number
+  is corroboration, not the load-bearing part.
+- **`.252`'s conclusion that the tracer is not a photograph-free reference** — strengthened. The mismatch is
+  not only materials but lights, and lights are upstream.
+- **`.253`'s HQ mirror-ceiling fix** — untouched. That was a material-interpretation bug, confirmed by
+  looking at the before/after crops, and it is still fixed and still shipped.
+- **`.249`, `.250`, and `.254`'s sweep table** — pure raster measurements, unaffected.
+
+### The tracer's validity list, honestly
+
+`.252` produced a per-material validity list and `.253` extended it. Both are now void: the lighting
+mismatch applies to every surface regardless of material, so the list is **nothing, at present**. Not
+"Standard ✅, Physical ❌" — nothing, until (p) is fixed.
+
+### The rug, honestly
+
+Still unexplained, and `sheen` is no longer the leading suspect. The rug carries `sheen 0.4`,
+`sheenRoughness 0.6`, `sheenColor bbb4a9` and a normal map, and the scene has 61 sheen, 37 anisotropy and 14
+clearcoat `MeshPhysicalMaterial` surfaces — so the hypothesis was reasonable. But a factor-2 discrepancy sits
+comfortably inside what a wholly different fill rig produces, so the material explanation is not needed and
+nothing yet supports it.
+
+### The new defect
+
+Filed as **(p) HQ-FILL-RIG**. The shipped HQ still is not a higher-quality version of what the user sees; it
+is a different lighting setup, missing two-thirds of the ceiling's light and a third of the walls', with a
+fixed sky that cannot respond to the hour, the exposure grade, the photographic look, or
+`PHOTO_GROUND_BOUNCE`.
+
+The candidate fix is narrow and in the same family as (n): build the tracer's `GradientEquirectTexture` from
+the live `HemisphereLight`'s own `color`/`groundColor`/`intensity` plus the `AmbientLight`, rather than from
+two literals — a snapshot-only change, so the viewport cannot move. The judgement is the mapping (an
+`AmbientLight` is not directionally a sky gradient), which is why it is filed rather than taken.
+
+**It also blocks measurement**, which is the larger cost: fixing (p) would restore the most useful
+instrument this arc has built and let `.188`'s ceiling deficit be settled either way. The cheap next
+measurement, requiring no decision, is to render HQ stills at 13:00 and 21:00 and show how little the fill
+changes while the viewport changes a great deal.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.256` — (p) proven by the hour test, and two more snapshot infidelities
+
+`.255` withdrew item (o) on a code reading plus one `FILLOFF` intervention, and named the measurement that
+would make **(p)** undeniable while requiring no decision from anyone: render HQ stills at two hours and see
+what tracks between the renderers. It confirms (p), re-refutes `.253` by an independent route, hands the arc
+its first genuine control, and — once I looked at the frames — turns up two further ways the tracer snapshot
+is not the scene.
+
+Runs 05:27–05:38 local (2026-09-02). `PT=1`, 152 samples per still, `medium`, photographic look, standoff
+4.6, pitch −0.06, 16:9, world anchors at `ANCHOR_OFF −0.7`, lights **on** — the representative case, since
+point lights *are* copied into the snapshot.
+
+### The hour test
+
+| | 13:00 | 21:00 | change |
+| --- | --- | --- | --- |
+| raster ceiling (3 anchors) | 120.1 | 180.3 | **+50 %** |
+| traced ceiling | 140.8 | 152.7 | **+8 %** |
+| raster wall B (2 anchors) | 130.6 | 179.6 | +38 % |
+| traced wall B | 135.2 | 187.8 | +39 % |
+
+| raster ÷ traced | 13:00 | 21:00 | swing |
+| --- | --- | --- | --- |
+| **wall B** — lit by point lights, **copied** | 0.965 | 0.956 | **−1 %** |
+| **ceiling** — 69 % fill-lit (`.255`), **not copied** | 0.853 | 1.181 | **+38 %, sign inverts** |
+
+Read the two rows together and (p) is not arguable. The surface whose light the snapshot *keeps* tracks
+between the two renderers to within **1 %** across a day-to-night swing that moves it 38 %. The surface
+whose light the snapshot *drops* swings 38 % in the ratio and changes sign. And the traced ceiling barely
+registers the hour at all — **+8 %** against the raster's **+50 %** — because its light is a
+`GradientEquirectTexture` with hardcoded colours that has no idea what time it is.
+
+Visible as well as numeric: at 21:00 the traced ceiling carries a distinct cold blue cast from that fixed
+daytime sky (`topColor 0xbfd4e6`) while the rasterised ceiling over the same crop is warm cream.
+
+### It re-refutes `.253` from the opposite direction
+
+`.253` claimed the raster ceiling was ~12–19 % too dark relative to its wall, and read that as the
+inter-reflection deficit `.188` first guessed at. `.255` withdrew it from a code reading plus an
+intervention.
+
+**A genuine inter-reflection deficit cannot flip sign with the clock.** At 13:00 the traced ceiling is 17 %
+brighter than the raster's; at 21:00 the raster's is 18 % brighter. Whatever that number measures, it is not
+a property of the rasteriser's light transport. Two independent routes now agree, and they were reached
+without touching each other's evidence.
+
+### The arc's first real control
+
+`.255`'s new rule was stated as a caution: *an agreement is not a control unless you know both sides share a
+mechanism.* The wall row is that rule in its **positive** form. Wall B is lit substantially by the point
+lights, which the snapshot copies, so the two pipelines *do* share a mechanism there — and they agree to
+1 % across a large change. That is what licenses reading the ceiling's divergence as a real difference
+rather than as ambiguity, and it is the kind of control `.253` thought it had and did not.
+
+Worth keeping as a template: **the control and the measurement should differ in exactly one mechanism.**
+
+### Then I looked at the frames
+
+**Infidelity 2 — the HQ still's window is an opaque panel.** At native resolution, 21:00, same pose:
+
+| | raster (viewport) | traced (HQ still) |
+| --- | --- | --- |
+| grille | ~20 vertical bars + horizontal rails, pale cream | **absent — only the cross mullion** |
+| pane | near-black night sky | flat, *lighter* blue-grey |
+
+A census of every transparent material in the scene found the cause immediately: the glazing is
+`MeshPhysicalMaterial#bcd4e6` with **`opacity 0.22`** and **`transmission 0`**.
+
+`opacity` is a rasteriser alpha-blend concept — the raster composites the pane over whatever is behind it,
+so the grille bars and the night backdrop show through. A PBR path tracer has no alpha blend; it needs
+**`transmission`** to see through a surface. At `transmission: 0` the pane is an opaque diffuse surface, so
+it hides the grille and the sky and reads as a panel.
+
+Filed as **(q) HQ-GLAZING-OPAQUE**. Note the connection to item **(l) WINDOW-LUMINANCE**, whose subject is
+the window reading *"as a panel rather than an opening"* — in the HQ still it literally is one, and for a
+completely different reason than (l) is about.
+
+**Infidelity 3 — instanced geometry is dropped, and it matters less than I assumed.** `buildTracerScene`
+skips `isInstancedMesh` outright: **17 instanced meshes, 231 instances**. My first inference was that these
+*were* the missing grille bars. They are not. Hiding exactly the instanced meshes in the raster and diffing
+changed **765 of 480 000 pixels — 0.16 %**. A real omission with small consequence, and the guess was killed
+by a pixel diff before it reached a write-up. Cheap to fix (expand to per-instance clones); low priority.
+
+**Flagged, not claimed.** 61 `MeshBasicMaterial` planes are transparent via opacity, **ten of them at
+`opacity 0.00`** with `depthWrite: false` — fully invisible in the raster. Basic is copied to the snapshot
+untouched (`.253` deliberately did not substitute it, since Basic is unlit by intent), and opacity is not
+honoured, so ten invisible planes may be rendering as solid surfaces in the still. That is a plausible
+explanation for the faint curved streaks visible across the traced ceiling, but I have not isolated it. A
+hypothesis.
+
+*(Small correction to my own reading along the way: the white speckles across the traced night pane are
+path-tracer noise at 152 samples, not stars.)*
+
+### Where the tracer stands as an instrument
+
+Three independent infidelities, all in `buildTracerScene`, all fixable in the snapshot alone:
+
+| # | infidelity | measured consequence | item |
+| --- | --- | --- | --- |
+| 1 | `AmbientLight` + `HemisphereLight` not copied; fixed gradient sky | ceiling 69 % of its light; ratio swings 38 % and inverts across the day | **(p)** |
+| 2 | `opacity` transparency rendered opaque | window grille and night sky hidden; pane reads as a panel | **(q)** |
+| 3 | `isInstancedMesh` skipped | 231 instances; 0.16 % of pixels | (q), noted |
+
+`.252`'s per-material validity list stays void — these are all upstream of materials. The instrument is
+clearly worth repairing: the hour test shows it agrees to **1 %** wherever the snapshot is faithful, which
+is exactly the property a reference needs. But it is not usable for measurement until at least (p) and (q)
+are fixed, and `.188`'s ceiling deficit stays unproven until then.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.257` — the snapshot fixes, built and measured: a real improvement, reverted anyway
+
+`.255` filed (p) partly on the grounds that its mapping was "a real modelling choice". That deserved
+re-examining, and it does not survive: a `HemisphereLight` **is** a gradient environment — sky colour above,
+ground colour below — and an `AmbientLight` **is** a uniform one. That is precisely what a
+`GradientEquirectTexture` expresses. So the mapping is nearer a definition than an approximation, and
+`.256`'s hour test supplies a falsifiable success criterion: fix the rig and the ceiling should start
+tracking the way the wall already does.
+
+Built all four changes, measured against the `.256` baseline, looked at the frames, and reverted.
+
+Runs 05:45–06:18 local (2026-09-02).
+
+### What was built
+
+All inside `buildTracerScene`, so the live scene and the rasterised viewport are untouched by construction:
+
+1. **Fill derived from the live lights** — `top = Σ hemi.color·intensity + amb.color·intensity`,
+   `bottom = Σ hemi.groundColor·intensity + amb.color·intensity`, in place of the two literals.
+2. **`opacity` → `transmission`** for Standard/Physical at `opacity < 1, transmission 0`
+   (`transmission = 1 − opacity`, `ior 1.5`).
+3. **Compositing overlays excluded** — `transparent && depthWrite === false`, i.e. alpha-blended decoration
+   that depends on a draw order a path tracer does not have. **61 planes skipped.**
+4. **Instanced geometry expanded** to per-instance clones — **231 instances** that were being dropped.
+
+A dev-only line confirms all four fired: `HQ snapshot: 231 instances expanded, 61 compositing overlays
+skipped, fill from live lights`.
+
+### The hour test, before and after
+
+150 samples per still, `medium`, photographic look, 16:9, lights on, the same anchors as `.256`:
+
+| raster ÷ traced | 13:00 | 21:00 | swing |
+| --- | --- | --- | --- |
+| ceiling — **before** | 0.853 | 1.181 | +38 % |
+| ceiling — **after** | 0.825 | 1.022 | **+24 %** |
+| wall — before | 0.965 | 0.956 | −1 % |
+| wall — **after** | 0.927 | 0.927 | **0 %** |
+
+Hour response of the traced picture:
+
+| | before | after | raster |
+| --- | --- | --- | --- |
+| traced ceiling, 13:00 → 21:00 | +8 % | **+21 %** | +50 % |
+| traced wall, 13:00 → 21:00 | +39 % | **+37 %** | +37 % |
+
+The wall now matches the raster's hour response *exactly*, and its ratio is stable to the third decimal
+across a day-to-night swing. The ceiling improved substantially but not enough.
+
+### Two visible defects fixed
+
+- **The window grille is back** — all ~20 bars, where `.256` found only the cross mullion. The transmission
+  fix does exactly what it was meant to.
+- **The 21:00 ceiling is warm cream instead of cold blue.** The fill mapping does too: the still is no
+  longer lit by a hardcoded daytime sky.
+
+### One visible regression, which is why it is reverted
+
+With the glazing transmissive, the still now shows *through* it — to a **pale daylight-blue sky at 21:00**,
+where the viewport shows a near-black night pane. An opaque panel traded for a daylit one.
+
+**This is the round's most useful finding: (q) cannot be fixed in isolation.** Making the glass see-through
+is necessary and correct, and it immediately raises a second question that was hidden while the pane was
+opaque — *what should a refracted ray see?* The sky sphere is a `MeshBasicMaterial`, and the snapshot also
+assigns `root.background` to the derived gradient, so which of the two wins is unresolved. Recorded on item
+(q), because it changes what the decision is rather than just how to implement it.
+
+### And it does not restore the instrument
+
+24 % of ceiling swing survives, and the ratio still crosses unity between the two hours, so a ceiling
+measurement remains untrustworthy. The residual is **energetic, not structural**: a
+`GradientEquirectTexture` lights a surface by a cosine-weighted hemispherical integral, while three's
+`HemisphereLight` uses a cheap `0.5 + 0.5·(n·up)` blend. Same shape, different energy — so the residual
+concentrates on the ceiling, which faces straight down and is therefore the most orientation-sensitive
+surface in the room. What (p) needs next is an **energy calibration with a measurable target (ceiling swing
+→ 0)**, not a different mapping.
+
+### A bug in my own implementation, recorded because the symptom lied
+
+`MeshPhysicalMaterial.copy(source)` copies Physical-only *object* fields off the source —
+`clearcoatNormalScale` is a `Vector2` — so copying from a plain `MeshStandardMaterial` throws
+`Cannot read properties of undefined (reading 'x')`. The scene carries **seven** transparent Standard
+materials beside the Physical glazing, so this killed every HQ render.
+
+The symptom was a **ten-minute stall** ending in `PT: could not read a tracer canvas`, and my first reading
+was that transmission had made tracing too expensive. It had not: with the copy fixed, the render reached
+15/256 samples in ~20 s — the same rate as before any of this. **A stall is not evidence of cost.** The
+right move was to capture the page error, which took one small probe and named the line immediately.
+
+### Reverted, verified
+
+`src/scene/pathtrace/hqRenderSession.ts` restored from a `cp` backup taken at the start of the round;
+`git diff` on `src/` empty; `tsc` clean; full suite green.
+
+### Where this leaves the two items
+
+Both are better specified than when filed, and neither is a guess any more:
+
+- **(p)** — mapping correct in shape, worth ~14 of the 38 points, makes the wall track exactly. Needs an
+  energy calibration against a measurable target.
+- **(q)** — fix works and restores the grille, but must be taken together with the backdrop question, which
+  only became visible once the glass was transparent.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.258` — the window is a dynamic-range deficit, not a tone-mapping fight
+
+Nine rounds went into the path tracer as an instrument; it now needs an energy calibration (`.257`) and a
+backdrop decision, both blocked. This round deliberately leaves it alone, because the question below needs
+only the rasteriser, and goes back to the strongest photographic result the arc owns — item (l)'s
+**photographs blow their windows out (15–39 % of glazing pixels clipped, `.236`); the app clips 0.0 % at
+every hour.**
+
+Runs 06:25–06:29 local (2026-09-02).
+
+### How professional interior renders actually get a blown window
+
+Not with a post trick, and not by pushing a material. A daylit sky is roughly **2,000–15,000 cd/m²**; an
+interior wall in the same room is roughly **50–300 cd/m²**. So the *scene* carries **~20–200:1** across the
+glazing, and any exposure chosen to hold the interior at a mid-tone necessarily clips the window. The
+blow-out is a consequence of physical range, and the view transform merely reveals it.
+
+`.209` recorded the opposite reading — *"pushing the pane brighter fights the AgX view transform"* — and item
+(l) has carried that framing ever since. It is testable: bypass the curve and look at what range the scene
+has.
+
+### The instrument
+
+Two additions, both raster-only:
+
+- **`LINEAR=1`** intercepts `gl.toneMapping` → `NoToneMapping` and `gl.toneMappingExposure`, with getters
+  rather than assignment, because `Lighting.tsx` grades exposure every frame (`.254`'s lesson). Verified to
+  bite: frame mean collapses 113.0 → 98.9 at exposure 1.0 and 9.4 at exposure 0.05, and the patched values
+  are read back after the capture.
+- **A glazing anchor** (side `W`) shooting back along the window normal, so the patch lands on the pane. It
+  needed a **6 cm** patch and `ANCHOR_MINFRAC`: the window carries ~20 grille bars at ~12 cm pitch, so no
+  patch large enough to measure fits wholly between them. Every point in the accepted population is already
+  verified same-object, same-signature and unoccluded, so a partial patch is a *clean* population rather than
+  a compromised one — which is exactly what `.237` did by hand when it sampled "pane interiors only, between
+  the bars". The signature is confirmed as `BoxGeometry#bcd4e6` on every accepted anchor.
+
+An 8-bit gotcha worth recording: at `LIN_EXPO=0.05` the wall read **v = 5**, where one code value is a 20 %
+linear step. Quantisation, not signal. Re-run at exposure 1.0 the wall reads 98–116 and the glazing 168–170,
+both well resolved and neither clipped.
+
+### The measurement
+
+13:00, photographic look, canonical pose, wall plaster anchors at 1.2 and 2.4 m:
+
+| tier | wall (8-bit) | glazing (8-bit) | wall linear | glazing linear | **glazing : wall** |
+| --- | --- | --- | --- | --- | --- |
+| `medium` | 115.7 | 167.6 | 0.1736 | 0.3895 | **2.24 : 1** |
+| `performance` | 98.2 | 169.9 | 0.1227 | 0.4015 | **3.27 : 1** |
+| *physical daylight* | | | | | *~20–200 : 1* |
+
+**The app's window carries 2.2–3.3× the wall where physics carries 20–200×.**
+
+And the second half, which is the part that reframes the item:
+
+| tier | linear ratio | ratio under the shipped curve | what the curve removes |
+| --- | --- | --- | --- |
+| `medium` | 2.24 : 1 | 2.06 : 1 | 8 % |
+| `performance` | 3.27 : 1 | 2.88 : 1 | 12 % |
+
+**The tone curve is doing almost nothing to the window.** It is not compressing a large range down to a
+grey panel; there is no large range to compress. `.209`'s objection — that a brighter pane would be eaten by
+AgX — is measurably not the binding constraint at these levels.
+
+The 0.0 % clipping then needs no tone-mapping explanation at all: a pane at 2.2× the wall cannot clip while
+the wall sits mid-grey, whatever curve is applied.
+
+### Checks
+
+**Robust to its one assumption.** The reading is sRGB-encoded (three's default output colour space) and is
+decoded before ratioing. If the output were linear instead, the ratio would be **1.45:1** — *smaller*. The
+conclusion does not depend on the decode, only its magnitude does.
+
+**Cross-checked against a method 21 rounds older.** The tone-mapped 8-bit ratio at these anchors is
+**1.389**. `.237` measured pane-only glazing ÷ wall at 13:00 as **1.38**, by hand-sampling between the bars
+after `.236`'s whole-window rectangle was found to be dominated by grilles. Two entirely different methods
+agreeing to 0.01 — which is the strongest validation the new glazing anchor could get.
+
+**Looked at.** The linear frame is a coherent render, no artefacts, no error card — and the window in it is
+still a **mid-grey panel, not a blown hole**. The defect survives removal of the curve, visibly, which is
+the whole claim.
+
+### Confounds, and which way they lean
+
+This is a between-surface ratio, the family `.232`/`.233`/`.239`/`.247`/`.249`/`.251` spent ten rounds
+demolishing, so it has to be justified rather than assumed:
+
+| confound | status |
+| --- | --- |
+| framing | escaped — world anchors, invariant to viewport aspect (`.250`) |
+| tier | stated: 2.24 (`medium`), 3.27 (`performance`) |
+| pose | fixed world points, not screen bands |
+| method | one method both sides, and cross-checked against `.237`'s independent one |
+| **albedo** | **enters.** The wall is `#f5f5f0`, near-white, so its luminance sits at the *high* end of the plaster range |
+| **scene** | **enters.** A 71 %-of-wall aperture (`.251`) brightens the wall further |
+
+The last two both **raise the wall and so shrink the ratio**, which means they make the app look *better*
+than it is. **The deficit is understated, not overstated** — the direction an honest claim should err in.
+
+### What this changes
+
+Item (l) is reframed, not decided. It has been filed as a product call about pane luminance versus the AgX
+transform. The measurement says it is a **scene dynamic-range deficit with a quantified target**: the
+backdrop needs roughly **10–100× more luminance relative to the interior**, and that is a
+physical-correctness question before it is a look one.
+
+The fix space is unchanged in kind — brighter backdrop, a bloom-carrying emissive pane, or a separate
+exposure for the backdrop — but it now has a number attached, and the objection that AgX would eat it is
+measurably not what stands in the way.
+
+Still not decided here: it changes shipped appearance at every hour, and the **21:00 case `.236` recorded as
+already correct must not regress** (glazing 0.39 of wall, interior warm at R−B 23.4 against a neutral pane).
+A next round could price it exactly as `.254` priced the bounce term — sweep backdrop luminance and report
+what reaches a photographic clipping fraction and what it costs at 19:00 and 21:00.
+
+Nothing changed in `src/`.
+
+---
+
+## `.259` — pricing item (l): ≈×30 of exterior radiance, free in shadow depth
+
+`.258` reframed (l) from a tone-mapping fight into a scene dynamic-range deficit and named the follow-up:
+price it the way `.254` priced the bounce term. This round does that, and in the process corrects `.258`'s
+own phrasing about the curve.
+
+Runs 06:34–06:50 local (2026-09-02).
+
+### Finding the lever took two wrong turns
+
+**Wrong turn 1 — the sky dome.** `lighting/Sky.tsx` bakes a sky onto a `BackSide` sphere with a
+`meshBasicMaterial`, so the dome's `color` is the obvious knob. The probe threw: *no sky dome found*. Checked
+across modes rather than assumed:
+
+| state | dome present? |
+| --- | --- |
+| walk, +4.5 s | no |
+| walk, +16.5 s | no |
+| **orbit, +8 s** | **yes** — radius 200, mapped `MeshBasicMaterial`, `BackSide` |
+| walk again | no |
+
+`Sky.tsx` computes `backdropActive = isPhotoBackdropActive(kind, cameraMode, hasCustom, proceduralSky)` and
+returns `null` when it is set — and in walk mode it is. So the dome genuinely is not in the scene in the mode
+this entire arc measures in.
+
+**Wrong turn 2 — "the window has no exterior".** A raycast straight ahead through the glazing returns
+**exactly one hit** (`BoxGeometry`, `MeshStandardMaterial#bcd4e6`, opacity 0.28, emissive `#cfe4f5` × 0.4)
+and nothing beyond it. Read literally that says the window is a self-lit panel with nothing behind it, which
+would have been a dramatic finding and is **wrong**. In walk mode the exterior is `scene.background` — a
+`CanvasTexture` — which is not geometry and therefore cannot be raycast at all.
+
+Checking the mechanism instead of publishing the raycast is what caught it. The right lever is the scalar
+three provides for exactly this purpose: **`scene.backgroundIntensity`** (confirmed 1 at the shipped
+setting, `background` a `CanvasTexture`, `backdrop = 'sky'`).
+
+### A better glazing metric
+
+`.236` measured clipping over a window **rectangle**; `.237` had to correct it because grilles dominate that
+rectangle. This selects the population by **world-verified geometry+colour signature** from the existing
+raycast grid, so it is pane interiors by construction — **n = 413** samples — and it reproduces this item's
+headline exactly: **0.0 % clipped** at the shipped setting.
+
+### The sweep
+
+13:00, `medium`, photographic look, canonical pose, AgX, `backgroundIntensity` intercepted with a getter
+(`.254`'s lesson) and read back after capture:
+
+| ×  | glazing mean | **> 250** | > 240 | frame mean | `%<64` |
+| --- | --- | --- | --- | --- | --- |
+| **1 (shipped)** | 161.4 | **0.0 %** | 0.0 % | 113.0 | 11.85 % |
+| 2 | 184.4 | 0.0 % | 0.0 % | 115.5 | 11.85 % |
+| 4 | 206.6 | 0.0 % | 0.0 % | 117.9 | 11.85 % |
+| 8 | 224.5 | 0.0 % | 0.0 % | 119.9 | 11.85 % |
+| 16 | 237.2 | 0.0 % | 58.4 % | 121.3 | 11.85 % |
+| 24 | 242.3 | 4.1 % | 82.6 % | 121.8 | 11.85 % |
+| **32** | 245.3 | **39.7 %** | 90.3 % | 122.2 | 11.86 % |
+| 64 | 250.2 | 86.2 % | 95.6 % | 122.7 | 11.85 % |
+| *photographs (`.236`)* | | ***15–39 %*** | | | |
+
+**≈×28–32 lands inside the photographic band.** Two features of the table matter as much as that number:
+
+- **`%<64` is 11.85 % at every single point.** The lever costs *nothing* in shadow depth, because the
+  background is not a light — it does not illuminate the room. `.254`'s ground bounce, by contrast, bought
+  13 % of ceiling ratio for 14 % of overall brightness. This is the first lever this arc has priced that is
+  close to free.
+- **The response saturates**: each doubling adds less (161 → 184 → 207 → 225 → 237), which is the curve's
+  shoulder and the subject of the correction below.
+
+### Looked at
+
+At ×32 the window is a blown white opening with the **grille bars silhouetted** against it. That is what a
+daylit interior photograph looks like, and what this item describes as the target — *"a clipped white hole
+with detail only at its edges"*. The interior is visibly unchanged: walls, floor and furniture match the
+shipped frame, and no bloom artefact appears.
+
+The honest caveat: a blown pane shows **no view**. That is photographically correct and simultaneously a
+product question, since some users may want to see out.
+
+### Correcting `.258` on the tone curve
+
+`.258` concluded *"the tone curve is not what flattens it — it removes only 8–12 % of the ratio"*. That
+holds at the **shipped operating point**, which sits in the curve's near-linear region. It does not hold once
+the range is supplied: from ×16 to ×64 the input quadruples while the glazing mean moves 237 → 250.
+
+Tested directly at ×32:
+
+| view transform | glazing > 250 | frame mean | `%<64` |
+| --- | --- | --- | --- |
+| **AgX (shipped)** | 39.7 % | 122.2 | 11.86 % |
+| filmic | 86.4 % | 109.9 | 24.72 % |
+| neutral | 90.6 % | 95.1 | 32.80 % |
+
+**AgX's long shoulder is what resists clipping — and it is protecting the interior while doing so.** The
+other two curves clip the window readily and cost **13–21 points of `%<64`** and 12–27 of frame mean.
+
+So `.209` (*"pushing the pane brighter fights the AgX view transform"*) and `.258` (*"the scene is short of
+range"*) are **both correct, at different operating points**, and neither lever alone is the story. The
+practical consequence is convenient: **keep AgX, supply the range** — the curve's interior protection is
+worth more than the ~30× it costs at the window, since the 30× is nearly free.
+
+### Cost at the hours `.236` recorded as already correct
+
+The app **switches pane material by hour** — day `BoxGeometry#bcd4e6`, night `BoxGeometry#20272f` at opacity
+0.73. The first 21:00 run found *no glazing samples at all* under the day signature, which is how this came
+to light.
+
+| | glazing ×1 | glazing ×32 | frame mean | `%<64` |
+| --- | --- | --- | --- | --- |
+| 19:00 (day pane) | 141.0, 0.0 % clipped | 228.2, **0.0 %** clipped | 156.0 → 165.3 | 3.68 → 3.69 % |
+| 21:00 (night pane) | 23.0 | **43.0**, 0.0 % clipped | 133.9 → 136.0 | 15.65 → 14.09 % |
+
+19:00 remains unclipped, which is arguably right for golden hour. **21:00 is the real cost: the night pane
+roughly doubles.** It stays far from clipping and far below the wall, but `.236` recorded 21:00 as already
+correct, so this is a genuine change to it — and it is exactly the regression that item's own note warned
+against.
+
+That the app already switches pane material by hour is the useful part: **the fix need not be a single
+global scalar.** A per-hour or per-material exterior scale would reach the photographic band at midday and
+leave 21:00 untouched.
+
+### A method note, because it is a repeat
+
+Two sweep rows were initially invalid: zsh does not word-split an unquoted variable, so `set -- $cfg` left
+`BGMUL="16 neutral"`, `Number()` gave `NaN`, and the background rendered as nothing. It was caught only
+because the numbers were impossible — glazing mean 103 where ×16 had given 237. **This is the same mistake
+as `.249`**, which is why the re-run used an explicit argument list instead. Worth stating twice: in this
+shell, build argument lists explicitly, never by word-splitting.
+
+### Where item (l) now stands
+
+Priced, not decided: **≈×30 of exterior radiance, +8 % frame mean, zero `%<64` cost, a visibly photographic
+window, against a night pane that doubles.** The fix space is unchanged in kind but the numbers now exist,
+and the per-hour material switch offers a route that avoids the one measured regression.
+
+Nothing changed in `src/`.
+
+---
+
+## `.260` — the clipping band cannot be widened by automation, and it is the wrong shape of target
+
+`.259` priced item (l) at ≈×30 of exterior radiance against a **15–39 % clipping band resting on n = 2**.
+That band's width *is* the uncertainty in the answer: ×24 gives 4.1 % clipped, ×32 gives 39.7 %. So widening
+the reference set (thread 2) was the obvious next round, and clipping looked like the tractable case —
+a within-surface, distribution-based statistic needs none of the constant-orientation (`.227`), crop-distance
+(`.250`) or aperture-fraction (`.251`) screening that made the ratio work intractable.
+
+It did not widen. What came out instead is a reason the band was never a well-formed target.
+
+Runs 06:54–07:00 local (2026-09-02).
+
+### Automation does not work here
+
+40 real images were inventoried on disk (44 candidate files, 4 of them HTML/text from failed fetches) and
+screened on a contact sheet. A pane-finder then located the largest bright cluster in the upper three
+quarters of each frame, inset it 18 % to clear frames and mullions, and measured the interior.
+
+Every crop was looked at. They were:
+
+| candidate | what the crop actually contained |
+| --- | --- |
+| `r1`, `r10` | **curtains** |
+| `win-photos-1571460` | a **chandelier and ceiling** |
+| `win-photos-1080721` | the **whole kitchen interior** |
+| `q5`, `r2` | genuine glazing, but with a mullion or frame through it |
+| `r6` | a genuine pane — trees and a trunk, well exposed, not blown at all |
+| control `p233-Home_Staging` | the **brightest core** of one pane: **86.1 %** against `.236`'s **39.3 %** |
+
+Hand-picking is not automatically better: three of my first six hand-drawn boxes were mostly wall and
+ceiling, because y coordinates read off a grid overlay were about 0.08 too high. They were corrected only
+because every crop was inspected. `.233` concluded that the criteria, not the measurement, are the
+bottleneck. This is that bottleneck.
+
+### The finding: clipping is population-dependent *inside one photograph*
+
+The control's 86 % against 39 % is not an error to be fixed — it is the result. `Home_Staging` contains
+three windows. Hand-cropped pane interiors, each visually verified:
+
+| pane | what is behind it | mean | **> 250** | > 240 |
+| --- | --- | --- | --- | --- |
+| left | open sky, a neighbouring roof, bare branches | 229.1 | **58.9 %** | 63.1 % |
+| middle | a sunlit neighbouring wall | 193.3 | **32.6 %** | 36.0 % |
+| right | a **shaded** balcony with a wooden door and a lamp | 146.3 | **9.0 %** | 11.5 % |
+
+**A 6.5× spread within a single image.** Each crop still carries a frame sliver, which pulls the figures
+slightly down; the *spread* is the robust part and it is what matters.
+
+The reason is physical and obvious once seen: a real window is several panes onto **different things**. One
+faces open sky and blows out completely; one faces a sunlit wall and partly blows; one faces a shaded porch
+and does not blow at all. `.236`'s aggregate 39.3 % is a **mixture of those three**, not a property of
+glazing.
+
+### What that does to `.259`
+
+The app at ×32 reads **39.7 % across all 413 glazing samples** — it matches the aggregate almost exactly.
+But the app has **one backdrop texture**, a smooth sky gradient, so every pane blows *together*. A
+photograph that reaches ~39 % gets there by mixing a blown pane with an unblown one.
+
+**A single global multiplier therefore buys the right statistic and the wrong picture.**
+
+This is the same species of error the arc has hit repeatedly — `.226`'s "composition cancels", `.249`'s
+furniture in the wall bucket, `.253`'s hollow control: a number that is right for the wrong reason. The
+difference is that here it would have been matched *deliberately*, by aiming at an aggregate that no single
+backdrop can produce honestly.
+
+### Where item (l) actually stands
+
+The limiting uncertainty is **not** the size of the reference set. It is the **population definition**.
+*"Photographs clip 15–39 %"* is not a target without *"over what population"* attached — and once attached,
+scaling one backdrop reaches the photographic **average** but not its **structure**.
+
+`.259`'s ≈×30 stands as the aggregate-matching figure with that caveat now explicit. Whoever takes the
+decision is buying a **uniformly blown** window: markedly more photographic than today's flat grey panel,
+and still not what a photograph does.
+
+### What would actually widen the set
+
+Hand-cropped pane interiors, one pane at a time, **recording what each pane faces**, with provenance. That
+is precisely the labour `.233` identified and precisely what automation was meant to avoid. The inventory
+and the screening sheet now exist, so a future round can grind through it — but the unit of measurement has
+to be **the pane, not the photograph**, or the aggregate hides the structure again.
+
+*Provenance note, because it bears on any future use of this inventory: the `b*`, `q*` and `r*` files have
+no recorded source in the arc's notes, so they cannot be certified against `.233`'s "not AI stock"
+criterion. Only `p233-*`, `ref-*` and `win-photos-*` trace to the recorded Wikimedia sweeps. **No number
+published in this round comes from the uncertified set** — the three pane measurements are all from
+`p233-Home_Staging_Beisp`, the `.233` qualifier.*
+
+Nothing changed in `src/`; the probe is unchanged this round.
+
+---
+
+## `.261` — a real window is blown and readable at once; the app can only be one or the other
+
+`.260` established qualitatively that a photograph's glazing is a mixture while the app's is a uniform
+gradient, and left item (l) resting on that. This round measures it on both sides with matched statistics,
+and in doing so corrects `.260`'s own account of *why*.
+
+Runs 07:01–07:06 local (2026-09-02).
+
+### New statistics
+
+The probe's glazing population (n = 413 world-verified pane samples, selected by geometry+colour signature
+so grilles cannot dominate it) now also reports `sd`, percentiles, the `p95 − p05` spread, and the
+**mid-tone fraction** — `60 < v ≤ 240`, i.e. the part of the glazing you can actually see through.
+
+13:00, `medium`, photographic look, canonical pose:
+
+| `backgroundIntensity` | clipped | sd | p05 | p50 | p95 | spread | mid-tone |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **1 (shipped)** | 0.0 % | 17.4 | 127 | 166 | 182 | 55 | **100.0 %** |
+| 8 | 0.0 % | 17.4 | 193 | 230 | 238 | 45 | 100.0 % |
+| **32** | 39.7 % | 16.5 | 233 | 250 | 253 | **20** | **9.4 %** |
+
+The app's window **collapses** as it clips: the whole population migrates into 233–253.
+
+### The photograph, measured the same way
+
+A single **frame-free** pane of `p233-Home_Staging_Beisp` — the `.233` qualifier — containing a tiled roof
+edge, a soffit, blown sky and a bare branch. Verified by looking, and measured at three progressively
+tighter insets to show it is not a boundary artefact:
+
+| inset | n | mean | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- | --- | --- |
+| loose | 31 302 | 231.7 | 60.3 % | 33.7 | 90 | 36.0 % |
+| mid | 21 620 | 228.5 | 57.0 % | 35.4 | 92 | 39.8 % |
+| tight | 13 860 | 224.4 | 54.6 % | **37.7** | **95** | **43.7 %** |
+
+Stable, and drifting the *right* way — tightening removes blown sky, so sd and mid-tone rise slightly.
+
+### The comparison
+
+| | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- |
+| photograph, **one** pane | 54.6–60.3 % | **33.7–37.7** | 90–95 | **36–44 %** |
+| app, **whole** window @ ×32 | 39.7 % | 16.5 | 20 | 9.4 % |
+
+**At comparable clipping, one real pane carries about twice the internal variation of the app's entire
+window and four times the spread.** The comparison is *generous* to the app: its 413 samples pool every pane
+in the frame, which should give it more variation than a single pane, not less — and it still loses by 2×.
+
+**The structural fact:** a real pane is **55–60 % blown and 36–44 % mid-tone at the same time.** The sky is
+gone; the roof beneath it is still readable. The app is either all mid-tone and unclipped (×1) or nearly all
+blown (×32). It has no operating point that is both, because a smooth gradient scaled by any factor stays a
+smooth gradient.
+
+### Correcting `.260`
+
+`.260` attributed the photographic mixture to panes **facing different things** — open sky, a sunlit wall, a
+shaded porch, clipping 59 / 33 / 9 %. That is real, but decomposing the pooled variance shows it is the
+smaller half:
+
+| component | sd |
+| --- | --- |
+| **within**-pane | **42.3** |
+| between-pane | 20.9 |
+
+The dominant term is variation **inside** a single pane. What makes a real window structurally rich is that
+each pane **contains a scene with its own dynamic range**, not merely that panes differ from one another.
+`.260`'s emphasis was the wrong way round.
+
+### What this means for item (l)
+
+It separates two routes that had been conflated:
+
+| route | cost | what it buys |
+| --- | --- | --- |
+| **aggregate match** — ≈×30 exterior radiance (`.259`) | +8 % frame mean, **zero** `%<64`, night pane 23 → 43 (`.259`) | the right clipping *statistic*, and a **uniformly blown** window |
+| **structural match** — backdrop **content** with its own range | unpriced; a content change, not a lighting one | blown sky over a readable near object — what a photograph does |
+
+**No luminance multiplier can reach the structural target**, and the ×1 → ×32 table is the proof: mid-tone
+goes 100 % → 9.4 % without ever passing through the photograph's 36–44 % *while also* clipping. The backdrop
+today is `paintSkySurround`, a procedural sky gradient containing nothing but sky.
+
+For an HDB flat the diagnosis is a fortunate one. The real view from most windows **is another block** —
+near, mid-luminance, structured — which is exactly the content that would supply the range for free, and
+would make the window read as an opening rather than a panel without touching the lighting at all.
+
+That is a bigger and different decision than `.259` priced, and it is a content decision, so it is filed
+rather than taken.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.262` — the experiment failed, provably, and `.259`'s lever has an unknown mechanism
+
+`.261` proved one half of its claim and asserted the other:
+
+- **Proved:** no luminance multiplier reaches the photographic *structure*. A real pane is 55–60 % blown
+  **and** 36–44 % mid-tone simultaneously; the app runs 100 % → 9.4 % mid-tone across ×1 → ×32 without ever
+  being both.
+- **Asserted, never tested:** backdrop **content** would supply that range, and for an HDB flat the real
+  view out of most windows is another block.
+
+This round set out to test the assertion, entirely probe-side so that it reverts by construction.
+
+Runs 07:07–07:14 local (2026-09-02).
+
+### The intervention
+
+`scene.background` in walk mode is a **1024×512 equirect `CanvasTexture`** with
+`EquirectangularReflectionMapping` (mapping 303) and `srgb` colour space, whose `image` is a real `<canvas>`
+— so it can be drawn on directly. Row *h*/2 is the horizon, and with the camera pitched −0.06 rad the
+window's view spans roughly elevation −12°…+6°, i.e. rows ~239–290.
+
+`BGBLOCK=1` paints a neighbouring block into rows 0.485*h*…0.66*h*: vertical bands so the facade has its own
+internal structure the way a real block's columns and windows do, a roofline highlight, and a shadowed base.
+Painted at **~5 % of sky luminance**, so that a ×32 boost clips the sky while the facade lands mid-tone —
+and ~1/20 of sky luminance is roughly what a sunlit concrete facade is.
+
+### It did nothing
+
+| ×32 | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- |
+| no facade | 39.7 % | 16.4 | 20 | 9.7 % |
+| **with facade** | 39.5 % | 16.4 | 19 | 9.4 % |
+
+### The control that turned a puzzle into a result
+
+Rather than theorise, I blacked out the **entire** backdrop canvas and verified it was still black at
+capture time — the read-back discipline `.254` taught, and the only reason this round has a conclusion:
+
+| | frame mean | `%<64` | glazing mean | canvas at capture |
+| --- | --- | --- | --- | --- |
+| ×16, canvas normal | 121.3 | 11.85 % | 237.1 | — |
+| **×16, canvas ENTIRELY BLACK** | **121.3** | 11.84 % | **237.2** | rows 30/50/55 = `[0,0,0]` |
+| ×1, canvas entirely black | 113.0 | 11.84 % | 161.3 | rows 30/50/55 = `[0,0,0]` |
+
+**Blacking the whole backdrop changes nothing, anywhere** — not the frame mean, not the shadow fraction, not
+the glazing. And ×1-with-black-canvas reproduces the shipped ×1 glazing exactly (161.3 against 161.4).
+
+### So the experiment failed rather than returning a negative
+
+The canvas bound to `scene.background.image` is black and the renderer is sampling something else. That is a
+failed intervention, not evidence about content, and the distinction is the whole point: reporting this as
+*"content does not help"* would have been a false negative of exactly the kind `.254` produced and caught
+when a light patch was silently reverted every frame.
+
+**`.261`'s content hypothesis is untested, not refuted.** `BGBLOCK` stays in the probe, documented as
+**proven-inert**, because knowing that an intervention never reaches the renderer is worth more than deleting
+it — the next person to reach for "just paint the backdrop" will otherwise repeat this.
+
+### The caveat this puts on `.259`
+
+Two facts, both reproduced in this round:
+
+- `backgroundIntensity` moves the glazing: **161.4 → 237.1 → 245.2** at ×1/×16/×32.
+- The background's **content** moves the glazing by **0.1 counts**, even when replaced entirely by black.
+
+Together they mean the ×30 lever is **not** "make the view brighter". It scales something whose content is
+not the painted sky, and **the mechanism is not established.**
+
+This does not change `.259`'s measured costs — +8 % frame mean, zero `%<64`, night pane 23 → 43 all stand as
+measurements. It changes how much the *interpretation* attached to them should be trusted. This arc has now
+retired four metrics for being right-looking and wrong-mechanism (`.249` furniture in the wall bucket, `.251`
+scene-dependence, `.253` a hollow control, `.255` a different lighting rig). **A lever with a measured effect
+and an unknown mechanism belongs in the same suspicious category until the mechanism is found**, and item (l)
+is annotated accordingly.
+
+### Leading hypothesis for the next round
+
+Stated as a hypothesis, not a finding: `scene.environment` is also a texture, and if the renderer lights the
+glazing from a **PMREM derived once** from the sky rather than from the live canvas, then mutating the canvas
+would be inert while a scalar on the slot still scaled the derived result. The tests are cheap — check
+whether `scene.environment === scene.background`, and whether forcing a PMREM rebuild makes the facade
+appear.
+
+### Method note, third occurrence
+
+`set -- ${cfg}` does **not** word-split in zsh, so one comparison ran three times with `BGMUL="1 0"` → `NaN`
+before the impossible numbers gave it away (glazing 103.2 where ×1 gives 161.4). This is the same mistake as
+`.249` and `.259`. The rule that keeps being violated, stated once more: **in this shell, never build
+argument lists by word-splitting** — use an explicit function with positional parameters, which is what the
+final, correct comparison does.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.263` — mechanism resolved: the backdrop is cached and low-pass
+
+`.262` ended on a contradiction it could not resolve. `backgroundIntensity` moves the glazing
+161.4 → 237.1 → 245.2, yet blacking the **entire** backdrop canvas — verified black by read-back at capture
+time — changed nothing anywhere. Its parting hypothesis was a cached conversion. That is what it is.
+
+Runs 07:20–07:26 local (2026-09-02).
+
+### The mechanism
+
+three converts an equirect `scene.background` into a **CubeUV/PMREM** and caches the conversion **keyed on
+the texture object**. `texture.needsUpdate` does not invalidate that cache. So:
+
+- mutating the canvas bound to `scene.background.image` is **inert** — the renderer keeps sampling the
+  conversion built from the original content;
+- `scene.backgroundIntensity` still scales that cached conversion, so the scalar works;
+- handing the scene a **new `CanvasTexture`** cannot hit the stale entry, so fresh content appears.
+
+`BGBLOCK=3` does the last of those: it copies the current sky canvas, paints the facade into the copy, and
+assigns a new `CanvasTexture` (same mapping, same colour space) to `scene.background`. It does not dispose
+the old texture, which `SceneBackdrop` owns and restores.
+
+### The controlled comparison
+
+Identical painting code, identical rows, ×32, the only difference being **mutate versus fresh**:
+
+| | clipped | sd | spread | mid-tone |
+| --- | --- | --- | --- | --- |
+| mode 1 — mutate the bound canvas (`.262`) | 39.5 % | 16.4 | **19** | **9.4 %** |
+| **mode 3 — fresh texture object** | 8.7 % | 23.9 | **78** | **75.3 %** |
+
+One variable, a 4× change in spread. That is as clean as this arc gets.
+
+Also confirmed in passing: `scene.environment !== scene.background` — they are different textures, so the
+effect is genuinely via the background slot and not via the IBL.
+
+### Consequence 1 — `.259` is restored
+
+The window **does** show the background, and `backgroundIntensity` scales what the window shows. `.262`'s
+caveat — *"a lever with a measured effect and an unknown mechanism"* — is **withdrawn**. `.259`'s ≈×30
+pricing and its costs (+8 % frame mean, zero `%<64`, night pane 23 → 43) stand with their interpretation
+intact.
+
+This is worth dwelling on as a method point. `.262` was right to raise the caveat and right not to publish a
+false negative — but the caveat existed because an intervention had failed, not because the app was strange.
+Distinguishing "my instrument failed" from "the app is wrong" took one more round, and the cost of *not*
+distinguishing them would have been a permanently mistrusted result.
+
+### Consequence 2 — `.261`'s content hypothesis is confirmed in direction
+
+| backdrop | clipped | spread | mid-tone |
+| --- | --- | --- | --- |
+| app, sky only, ×32 | 39.7 % | 20 | 9.4 % |
+| **app, facade, ×32** | 8.7 % | **78** | **75.3 %** |
+| app, facade, ×48 | 19.1 % | 66 | 70.0 % |
+| photograph, one pane | 54.6–60.3 % | 90–95 | 36–44 % |
+
+Content raises glazing spread from 20 to 78 — roughly 4× — where `.261`'s luminance sweep (×1 → ×64) never
+moved spread above 55 and drove it *down* to 20 at the clipping point. So the structural deficit is indeed a
+content deficit, as `.261` argued.
+
+### Consequence 3 — but the path is low-pass, and that is the real finding
+
+**Looked at**, the facade arrives as a **soft blurred band**. The 8 px vertical bands painted into it — the
+facade structure, the roofline highlight, the shadowed base — are all gone. What reaches the window is a
+low-frequency luminance step, and the pane reads as **frosted glass rather than a view**.
+
+Independent confirmation from the numbers: moving the facade's top edge across **0.485 / 0.520 / 0.535** of
+the equirect changed clipped/spread/mid-tone by **≤ 0.1 %**. The pre-filter smears the edge so far that its
+position barely matters.
+
+The equirect → CubeUV conversion is *pre-filtered by construction* — that is what a PMREM is for — so the
+background path **cannot carry high-frequency detail at all**.
+
+### What that means for item (l)
+
+The structural route needs more than a better backdrop image. It needs a **path that can carry detail**:
+real geometry outside the window, or a background that bypasses the PMREM conversion. Painting a nicer sky
+texture cannot get there, however much content is in it, because the content is filtered away before it
+reaches the frame.
+
+That is a larger change than "paint a block into the sky", and it is worth knowing *before* anyone attempts
+the cheap version — which would have produced exactly the frosted-glass result seen here and been hard to
+diagnose after the fact.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.264` — the app already ships the content route, and the path destroys it
+
+`.263` concluded that item (l)'s structural route needs "real geometry outside the window, or a background
+that bypasses the PMREM conversion". Before proposing that anyone author new content, there is an obvious
+prior question: **the app already ships four exterior presets — `city`, `dusk`, `park`, `hills`. What do they
+deliver?** For an HDB flat, `city` is exactly the near-object content `.261` argued for.
+
+Runs 07:27–07:32 local (2026-09-02).
+
+### The source asset is good
+
+Dumped straight off `scene.background` with `toDataURL`: `city` is a **2048×1024** crisply drawn stylised
+skyline — blocks with clearly defined windows, sharp edges, strong contrast against a blue sky, buildings
+straddling the horizon exactly where a window looks. Entirely legible.
+
+### What reaches the window is not
+
+Looked at: **faint blue-grey blurred blobs** in the upper panes. Enough to tell that something
+building-shaped is out there; not enough to read as a view. The pane looks like patterned or frosted glass.
+
+| backdrop | source | glazing mean | sd | **spread** | mid-tone |
+| --- | --- | --- | --- | --- | --- |
+| `sky` (default) | 1024×512 procedural | 161.4 | 17.4 | **55** | 100 % |
+| **`city`** | **2048×1024 skyline** | 172.0 | 18.8 | **58** | 100 % |
+| `park` | 2048×1024 | 157.5 | 20.7 | **65** | 100 % |
+| *photograph, one pane (`.261`)* | | | *33.7–37.7* | ***90–95*** | *36–44 %* |
+
+**A crisp 2048×1024 city buys three points of spread — 55 → 58 — where the target needs 55 → 90.** `park`
+manages 65, presumably because its content is lower-frequency to begin with and so survives the filter
+better. Nothing clips under any preset.
+
+Sharp input, mush output: the loss is **entirely in the path**. This is `.263`'s equirect → CubeUV pre-filter,
+now demonstrated on shipped content rather than on a probe-painted facade, which is a considerably stronger
+demonstration — the facade could always have been dismissed as an artefact of my painting.
+
+### Filed as (r) BACKDROP-LOWPASS
+
+A **viewport** defect, not an HQ-still one: every user who picks a backdrop and expects to see it is
+affected, in ordinary use. `SceneBackdrop.tsx` configures presets *and* user uploads through the same
+`configureBackdropTexture` as LDR equirectangulars, so the custom-photo path is affected identically.
+`scene.backgroundBlurriness` is 0 — the blur is not deliberate.
+
+### Why this matters more than it first looks
+
+It **inverts the cost/benefit of item (l)'s structural route.** `.263` implied new content would be needed to
+make the window read as an opening. It would not: the content exists, it is good, and it is being filtered
+away. Fixing the *path* would unlock four presets at once, for every user, with nothing authored — a far
+better trade than either `.259`'s aggregate luminance route or a content project.
+
+### Method note — fourth shell-induced false result, second caught by a missing diagnostic
+
+The first attempt at this round put the probe edit and a helper function named `b` in one command. `b` is a
+shell alias, so zsh raised a **parse** error — which aborts the *entire* compound command, including the
+heredoc that was supposed to apply the edit. The probe therefore never learned about the `BACKDROP`
+environment variable, and three runs produced three near-identical rows for `sky` / `city` / `park`: a
+perfectly plausible *"the presets make no difference"* result, which is very close to the finding this round
+actually reports and would have been reported for entirely the wrong reason.
+
+What caught it was not the numbers. It was that the **`BACKDROPCHECK` line was missing from the output.**
+
+That generalises well past zsh, and it is now the third time it has mattered:
+
+| round | what the diagnostic caught |
+| --- | --- |
+| `.254` | a light patch silently reverted every frame → a dead-flat sweep |
+| `.262` | a canvas mutation that never reached the renderer |
+| **`.264`** | an edit that never applied, so the knob did nothing |
+
+**Print what the intervention actually did, and treat the absence of that print as a failure signal rather
+than as noise.** Every one of those three would otherwise have shipped a confident false negative.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.265` — (r)'s blur is fully recoverable, and none of my numbers could see it
+
+`.264` filed item (r): a crisp 2048×1024 `city` preset arrives at the window as faint blobs. The question
+that decides whether (r) is worth a render call is simply **whether the detail is recoverable at all.**
+
+Runs 07:35–07:38 local (2026-09-02).
+
+### The test
+
+`BGSHARP=uv` rehosts the same backdrop canvas in a **fresh** texture (required — the CubeUV cache is keyed
+on the texture object, `.263`) with `UVMapping` instead of `EquirectangularReflectionMapping`. three renders
+that as a flat screen background with **no CubeUV conversion**.
+
+### The result, by eye
+
+The window shows a **legible city skyline**: individual buildings, visible window grids, a clear roofline,
+blue sky above — against `.264`'s faint blue-grey blobs, on the same asset, at the same pose, in the same
+frame.
+
+**So (r)'s blur is entirely the pre-filter, and the content is 100 % recoverable.** It reaches the GPU
+intact; only the conversion destroys it. That upgrades (r) from "a defect with a speculative fix" to "a
+defect with a demonstrated fix space".
+
+`UVMapping` itself is **not** a candidate fix — a flat screen background has no parallax and is not
+projectively correct through a window; it is pasted, not seen. It is a mechanism proof.
+
+### And then the part that matters more
+
+Every numeric metric available failed to detect the most visible improvement this arc has produced:
+
+| metric | equirect (blobs) | UVMapping (legible city) | verdict |
+| --- | --- | --- | --- |
+| glazing spread p95−p05 | 56 | **50** | **worse** |
+| glazing sd | 18.6 | **15.9** | **worse** |
+| mid-tone fraction | 100 % | 100 % | unchanged |
+| micro-contrast, tight crop | 0.0820 | 0.0817 | unchanged |
+| micro-contrast, wide crop | 0.0897 | 0.0909 | unchanged |
+
+Three independent statistics — one of them introduced in `.261` **specifically to capture "structure"** —
+and all of them blind.
+
+The two failure modes are different and both worth keeping:
+
+- **Spread and sd measure dynamic range, not detail.** A blurred blob field with a wide soft gradient has
+  *more* luminance range than a sharp skyline of similar tone, so the metric moves the wrong way. `.261`
+  named this statistic "structure", which over-claims: it is the **dynamic-range** axis. `.261`'s comparison
+  against the photograph (spread 20 vs 90–95) stands on that axis; it simply does not speak to legibility.
+- **Micro-contrast is swamped by the grille.** The window carries ~20 bars at ~12 cm pitch — high-contrast
+  geometry, identical in both frames — and it dominates the band a 4 px high-pass sees. Any crop large
+  enough to measure contains bars, so the backdrop's contribution is a rounding error on top of them.
+
+### What that means
+
+**Item (r)'s severity cannot currently be tracked numerically**, and that is now recorded on the item, so
+that nobody "verifies" a fix with a number that cannot see it.
+
+More broadly it bounds this arc's method. Fifteen rounds of numeric work have been productive on
+**luminance** questions — clipping fractions, falloff, surface ratios, dynamic range — and every metric
+built here is a luminance metric. They are structurally unable to answer **legibility** questions: whether
+you can tell what you are looking at. A photorealism programme needs both, and only one of them has an
+instrument.
+
+This is also the arc's first method rule — *always look at the crop, never trust the number alone* —
+demonstrated rather than asserted. In `.233`, `.236`, `.243`, `.246`, `.252`, `.260` and `.264`, looking was
+a **check** that caught a contaminated number. Here it was not a check: **it was the only instrument that
+worked at all.**
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.266` — the legibility metric cannot be built: the metric is fine, the signal is 5 %
+
+`.265` found that no number could distinguish an illegible window from a legible one and left the gap open.
+This round tried to close it, using the ground-truth pair `.265` established as a calibration target: the
+same backdrop asset at the same pose, once via the equirect path (blobs) and once via `UVMapping` (legible
+skyline). A metric that cannot separate those two is not a legibility metric.
+
+Runs 07:41–07:46 local (2026-09-02).
+
+### Twelve candidates against the known answer
+
+High-pass at radii 2/4/8/16/32; difference-of-Gaussians band-passes at (4,16), (8,32), (16,64), (8,64);
+vertical and horizontal gradient energy. All normalised by crop mean, on an identical glazing crop:
+
+| metric | equirect (blobs) | UVMapping (legible) | ratio |
+| --- | --- | --- | --- |
+| `hp2` | 0.0491 | 0.0494 | 1.01 |
+| `hp8` | 0.1217 | 0.1212 | 1.00 |
+| `hp16` | 0.1439 | 0.1408 | 0.98 |
+| `hp32` | 0.1560 | 0.1530 | 0.98 |
+| `dog4_16` | 0.0851 | 0.0803 | 0.94 |
+| `dog8_32` | 0.0713 | 0.0696 | 0.98 |
+| **`dog16_64`** | 0.0566 | 0.0682 | **1.20** |
+| `dog8_64` | 0.0852 | 0.0926 | 1.09 |
+| `gradV` | 0.0119 | 0.0110 | 0.92 |
+| `gradH` | 0.0155 | 0.0155 | 1.00 |
+
+One candidate moved meaningfully, by 20 %. A tighter crop centred on the building mass gave 1.03 for the
+same metric — so even that 20 % is not stable across framing.
+
+### The diagnostic that explains it
+
+The same metrics applied where the signal is **unobstructed** — the dumped source city texture against a
+16 px-blurred copy of itself:
+
+| metric | blurred | sharp | ratio |
+| --- | --- | --- | --- |
+| **`hp8`** | 0.0047 | 0.0631 | **13.3×** |
+| `hp16` | 0.0137 | 0.0742 | 5.4× |
+| `dog4_16` | 0.0126 | 0.0396 | 3.1× |
+| `gradV` | 0.0031 | 0.0061 | 1.9× |
+
+**The metric is not the problem. `hp8` detects a 16 px blur at 13.3× when it can see the signal.** Through
+the window it detects the identical change at 1.05×.
+
+### The arithmetic
+
+The rendered window's high-frequency energy is `hp8 ≈ 0.12`. The **entire source image's** is `≈ 0.063`.
+
+So the window's own geometry — grille bars, rails, mullions — carries roughly **twice the high-frequency
+energy of the whole backdrop**, and the backdrop's contribution is a few percent of anything a high-pass
+sees. A 13× change in 5 % of the signal is a 1.05× change in the total. There is no tuning of the metric
+that escapes that; the information is drowned before it is measured.
+
+### An attempt to drain the population, reported as failed
+
+`HIDEGRILLE=1` hid 34 `BoxGeometry#e6e7e4` meshes, on the theory that removing the bars would restore
+sensitivity. Looked at afterwards: **all ~20 vertical bars and the horizontal rails are still present** —
+what was hidden is the window frame and reveal. The metrics did not move (`hp8` 0.1210 → 0.1206).
+
+So the grille attribution is **neither confirmed nor refuted** by that knob — it identified the wrong meshes.
+Kept in the probe and documented as mis-targeted, on the `.262` precedent that a known-broken tool is worth
+more than a deleted one.
+
+### Conclusion
+
+**Item (r) must be verified by looking — permanently, not provisionally.** `.265` recorded that as a current
+limitation of the instruments; this round establishes it as structural at this pose. The one weak indicator,
+`dog16_64` at 1.18–1.20 on two of three crops, is too weak to gate a decision: this arc's metrics have moved
+more than 20 % from pose and framing alone (`.232` 0.68 → 0.96, `.247` 0.74 → 0.93, `.249` 0.60 → 0.98).
+
+### The general lesson
+
+*A metric's sensitivity must be validated on the population it will be applied to, not on the phenomenon in
+isolation.*
+
+`hp8` is a superb blur detector — 13.3× on a clean image — and useless on this window. That is the same
+error the arc has now made three times at different levels:
+
+| round | the error |
+| --- | --- |
+| `.249` | the wall-falloff buckets were furniture, not wall |
+| `.260` | the clipping fraction depended on which population it was taken over |
+| **`.266`** | a metric validated against the phenomenon, not against the mixture it is measured in |
+
+The first two were contaminated populations. This one is a *diluted* population, which is harder to notice:
+nothing is wrong with the metric or the crop, and the number is simply insensitive. The only way it surfaced
+was calibrating against a case where the answer was already known by eye.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.267` — chroma separation: the app is not deficient, and the reference set can never settle the hours that matter
+
+`.266` established that the luminance metrics are exhausted for the window question. This round changes axis
+to one the arc has never worked: **colour**.
+
+There is an unfinished thread to pick up. `.237` measured the app's 19:00 pane at R−B 21.0 against a wall at
+21.3 and concluded *"at the hour when interior photography most depends on warm-interior-against-cool-exterior
+separation, the app has none."* Nothing followed it up for thirty rounds.
+
+Runs 07:46–07:50 local (2026-09-02).
+
+### The metric
+
+**Chroma separation = (wall R−B) − (glazing R−B)**, both taken within the same image.
+
+Absolute R−B is meaningless across images — it is set by white balance. The *difference between two surfaces
+in one frame* is not: both share that frame's white balance, so the separation survives. That makes this the
+first metric in the arc that is white-balance invariant by construction, which is a genuine advantage over
+every luminance metric built since `.226`.
+
+Implemented as a colour buffer alongside the existing luminance one, with per-anchor RGB and a
+glazing-versus-wall separation printed every run (glazing by world-verified signature, wall by plaster
+signature, n ≈ 1725).
+
+### The app across the day
+
+Canonical pose, `medium`, photographic look:
+
+| hour | glazing RGB | glazing R−B | wall R−B | **separation** | reading |
+| --- | --- | --- | --- | --- | --- |
+| 09:00 | 147/145/145 | 1.5 | 5.9 | **4.4** | slight cool window |
+| 13:00 | 160/162/165 | −5.0 | 4.4 | **9.4** | cool window, warm wall |
+| 17:00 | 183/172/165 | 18.0 | 6.1 | **−11.8** | **inverted** — window warmer |
+| 19:00 | 149/140/128 | 21.3 | 26.4 | **5.1** | both warm — `.237`'s case |
+| 21:00 | 23/23/21 | 1.8 | 28.8 | **27.0** | neutral pane, warm interior |
+
+This is a real day-curve, not a flat absence. The 17:00 **inversion** is worth noting: under a low warm sun
+the window is warmer than the room, which is physically right and is arguably the correct photographic look
+for that hour. `.237` saw only the 19:00 point and generalised from it.
+
+### The reference, measured identically
+
+`p233-Home_Staging_Beisp` — the `.233` qualifier — three hand-cropped pane interiors and a clean interior
+wall, all visually verified:
+
+| region | content | R−B | separation vs wall |
+| --- | --- | --- | --- |
+| wall | pale interior plaster | 9.0 | — |
+| pane, left | open sky, roof, bare branches | 7.5 | **+1.5** |
+| pane, middle | a sunlit neighbouring wall | 13.6 | **−4.6** |
+| pane, right | a shaded porch, wooden door | 13.0 | **−4.0** |
+
+**|separation| ≤ 4.6, and the sign varies from pane to pane.** That is the expected physics: in a daylit
+interior, inside and outside are lit by the *same* daylight, so there is little to separate.
+
+A second wall candidate was **rejected by looking** — it had a dark wooden ladder rail running through it,
+which would have shifted R−B by pigment rather than by light.
+
+### The result
+
+**The app is not deficient on this axis.** At daylight hours it shows **4.4–9.4** against the photograph's
+**≤ 4.6** — the same order, if anything slightly more separation than the reference. `.237`'s *"the app has
+none"* is not supported as a defect anywhere a reference exists, and at 21:00 the app shows a strong **27.0**,
+consistent with `.236` recording 21:00 as already correct.
+
+### The structural finding, which is worth more than the negative
+
+`.233`'s screening criteria **require daylit photographs** — that is criterion one, and it exists for good
+reasons (`.233`/`.234` rejected flash, HDR and AI stock on it).
+
+But chroma separation only becomes large at **golden hour and dusk**, when interior lamps burn against a blue
+sky. So:
+
+> **The arc's reference set is, by construction, incapable of adjudicating the hours where this axis
+> matters** — including the 19:00 case `.237` flagged. Every screened photograph is daylit; every one of them
+> will show ≈ 0 separation, forever.
+
+This is not a gap that more screening effort closes. It needs a **deliberately different screen**: dusk
+interiors, lamps on, sky still visible in frame — with its own confounds, since real-estate dusk shots are
+frequently long exposures, mixed colour temperature, and heavily graded. That is a distinct piece of work,
+and it is now specified rather than assumed.
+
+It also generalises: a reference set screened for one axis can be structurally blind on another. The `.233`
+criteria were designed for *luminance* comparisons of plaster, and they serve that well. Reusing them on a
+new axis without re-deriving them is the same error as reusing a metric on a new population — `.249`, `.260`,
+`.266`.
+
+### Caveat
+
+R−B conflates **paint** with **illumination**. The app's wall is `#f5f5f0`, whose own R−B is 5 — so the
+13:00 wall reading of 4.4 is essentially all paint, and the app's daylight wall carries no warm illumination
+tint beyond its pigment. The photograph's paint is unknown and cannot be decomposed. Within-image separation
+is still the perceptually relevant quantity; it simply is not a pure measure of light.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.268` — colour bleed is exactly zero, and this is the GI test with no confound available
+
+Every global-illumination test in this arc has died on a confound:
+
+| round | test | how it died |
+| --- | --- | --- |
+| `.226` → `.251` | wall falloff with distance | a 71 %-of-wall aperture makes *flat* the correct answer; real transport gives 1.00 too |
+| `.253` → `.255` | ceiling ÷ wall against the path tracer | the tracer runs a different lighting rig — it drops `AmbientLight` and `HemisphereLight` |
+
+So this round picks the one GI signature a grey hemisphere ambient **structurally cannot fake**: **colour
+bleed**. A hemisphere light is directionless and grey. It cannot tint a wall the colour of the object beside
+it, at any intensity, under any tuning.
+
+And crucially it can be tested as a **within-app A/B**: same pose, same framing, same tier, same material,
+same lights, with *the colour of a neighbouring surface* as the only variable.
+
+Runs 07:53–08:01 local (2026-09-02).
+
+### Step 1 — the app's plaster is chromatically flat
+
+Wall B, 13:00, `medium`, photographic look, anchored at fixed world points, per-anchor RGB (added `.267`):
+
+| y | d = 1.2 m | d = 2.4 m |
+| --- | --- | --- |
+| 1.0 m | RGB 117/117/117 → R−B **−0.0** | R−B 0.6 |
+| 1.5 m | RGB 129/129/129 → R−B **−0.0** | R−B 1.0 |
+| 2.0 m | RGB 125/125/125 → R−B **−0.0** | R−B 1.5 |
+
+**0.0 to 1.5 counts of R−B over 1.5 m of height.** (y = 0.5 rejected — occluded by furniture.) Worth noting
+in passing: the paint is `#f5f5f0`, whose own R−B is 5, yet the rendered wall reads 0 — the illumination is
+very slightly cool and cancels the pigment.
+
+### Step 2 — a real wall beside a saturated object is not flat
+
+`w-1866149`: saturated orange leather sofa against plain plaster.
+
+The obvious vertical comparison **fails**: near-sofa vs high-above gives R−B 10.9 vs 17.7 and 11.2 vs 23.1 —
+*backwards* — because luminance also differs sharply (239.4 vs 188.6) from a diagonal sun wedge across the
+wall. Illumination gradient swamps bleed.
+
+The usable design holds height constant, stays inside one shadow band, and varies only **distance from the
+sofa**:
+
+| distance | L | R−B |
+| --- | --- | --- |
+| adjacent | 214.1 | **13.8** |
+| ~8 cm | 186.9 | 13.1 |
+| ~15 cm | 177.3 | 9.6 |
+| ~23 cm | 168.4 | **10.3** |
+
+**~3.5 counts of chroma gradient over ~23 cm**, and luminance rises toward the sofa as well — the joint
+signature of an orange bounce, which adds warm light and so lifts both at once.
+
+### Step 3 — the decisive A/B
+
+`RECOLOR=fafafa:ff5a00` repaints the ceiling — **14 meshes, 171 m², fully exposed, directly adjacent to the
+measured wall** — saturated orange, and the same anchors are re-measured:
+
+| | wall at y = 2.0, d = 1.2 |
+| --- | --- |
+| ceiling as shipped | L 125.1, RGB 125/125/125, R−B **−0.0** |
+| **ceiling vivid orange** | L 125.2, RGB 125/125/125, R−B **−0.0** |
+
+**Verified by looking:** the ceiling is unmistakably, vividly orange across the entire top of the frame. The
+wall 30 cm beneath it is neutral to the last count.
+
+An earlier attempt repainted the *floor* instead (99 materials) and also returned zero — but the floor near
+those anchors is largely covered by the rug and sofa, so the exposed source was small and the null was weak.
+The ceiling version has no such weakness, which is why it is the one reported. Both are recorded because the
+first attempt is exactly the kind of under-powered null that would be easy to over-read.
+
+### So colour bleed in the app is exactly zero
+
+Not small — **zero to measurement precision**. A vivid orange ceiling is among the most visible GI effects
+there is; a real room would throw an obvious warm cast down the upper walls.
+
+### Why this result survives where the others did not
+
+It is a one-variable A/B inside a single build:
+
+- **no reference photograph in the load-bearing step**, so no screening, framing, aperture or paint confound;
+- **no second renderer**, so no rig mismatch (`.255`);
+- **no between-surface ratio**, so no albedo term (`.249`);
+- **chroma, not luminance**, so white-balance invariant within the frame (`.267`);
+- **same pose, framing and tier**, so none of `.232`/`.239`/`.247` applies.
+
+The photograph supplies only the *scale* of the effect to expect. Even if that 3.5-count figure were wrong by
+a factor of three, zero is still zero.
+
+### What it means for the arc
+
+The GI question has been open since `.226` and twice mis-attributed — falloff (refuted `.251`), ceiling
+(withdrawn `.255`). **This is the first GI measurement in the arc that holds.** It does not resurrect either
+of those claims, which were wrong on their own terms. It establishes positively and quantitatively that
+inter-reflection is absent, and it identifies the axis on which that absence is both measurable and visible.
+
+### Caveats
+
+The photograph is a product-style shot under directional sun, so **3.5 counts is one measurement, not a
+screened band**. The `.233` criteria were designed for luminance comparisons of plaster and are not a bleed
+screen; a proper one would need diffuse lighting, a saturated object against same-paint plaster, and a
+croppable run at constant height — reusing `.233` here would repeat the error `.267` identified.
+
+Zero bleed is also **expected** from the architecture: a hemisphere plus an ambient is grey and directionless,
+and cannot do otherwise. The contribution is the quantification and the instrument, not surprise at the sign.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.269` — sizing the bleed deficit: ~18 counts, from the app's own path tracer
+
+`.268` established that colour bleed in the app is exactly zero, but sized the effect to expect against
+**saturated orange leather** at 23 cm — a configuration no ordinary room contains. This round asks what the
+deficit is actually worth.
+
+Runs 08:04–08:13 local (2026-09-02).
+
+### Photographs cannot supply the bound, and the reason is structural
+
+Floor bleed is inherently a **vertical** comparison: floor below, wall above. Vertical comparisons in real
+interiors are confounded by lighting gradients, and usually in the *opposite* direction.
+
+`w-1643383` — dark walnut floor, plain white surfaces, a certified-provenance interior — measured down a
+single column:
+
+| band | L | R−B |
+| --- | --- | --- |
+| top | 169.5 | **27.8** |
+| upper-middle | 173.9 | 21.0 |
+| lower-middle | 173.4 | **8.5** |
+| low | 99.4 | 16.5 |
+| floor itself | 127.0 | 35.3 |
+
+The wall is **warmest at the top**, which is the opposite of floor bleed — because the ceiling carries warm
+downlights. Mixed lighting dominates the vertical axis.
+
+And three of the five crops were contaminated, which only looking revealed: the top band is a **ceiling
+soffit with a downlight in it**, two bands clip **cabinet edges**, and the low band is mostly a **dark
+doorway** (its luminance of 99.4 against ~173 for the rest is the tell). The non-monotonic pattern was
+entirely artefact. Fourth crop-selection error in this stretch — `.260`, `.267`, `.268`'s first attempt, and
+now this.
+
+`.268`'s clean result depended on a **horizontal** series at constant height beside a saturated object. That
+is a special configuration, not something a general interior offers.
+
+### The bound came from the app's own path tracer instead
+
+`.255` disqualified the tracer for luminance comparisons because it runs a different lighting rig — it drops
+`AmbientLight` and `HemisphereLight` and substitutes a hardcoded gradient.
+
+**That objection does not apply to a within-tracer A/B.** Both sides share the rig, so it cancels in the
+difference — exactly as the raster's rig cancels in `.268`'s raster A/B. The only variable is one surface's
+colour.
+
+Ceiling `fafafa` → `ff5a00` (14 meshes, 171 m², fully exposed, directly adjacent to the measured wall),
+wall B anchors at y = 2.0 m, 150 samples per still:
+
+| anchor | traced R−B shipped | traced R−B orange | **Δ traced** | **Δ raster** |
+| --- | --- | --- | --- | --- |
+| d = 1.2 m | −3.5 | 14.2 | **+17.7** | **0.0** |
+| d = 2.4 m | 2.9 | 21.9 | **+19.0** | **0.0** |
+
+**Real light transport moves the wall's hue by about 18 counts; the rasteriser moves it by zero.** Both
+measured on the same anchors, in the same runs, from the same frames.
+
+Traced **luminance** also falls, 144.0 → 122.2. An orange ceiling absorbs most of the spectrum, so there is
+less bounce overall — the tracer gets the hue shift *and* the energy loss, which is what real transport does
+and what a tint would not.
+
+### So the deficit is worth ~18 counts
+
+Five times the 3.5 counts the reference photograph showed beside saturated leather, and against a rasteriser
+response of exactly zero.
+
+### Caveat, and it matters for severity
+
+A vivid orange ceiling is not a realistic interior. The realistic magnitude scales with the saturation of the
+bouncing surface, and the app's own room is mostly neutral: white walls, pale ceiling, oak floor.
+
+The shipped-room traced-versus-raster difference (R−B −3.5 against −0.1 at d = 1.2) *looks* like a realistic
+bound, but it is **not clean** — in that comparison the rig mismatch is still present, and only the
+difference-of-differences cancels it. Quoting it would repeat exactly the error `.255` caught.
+
+**A realistic bound needs its own A/B with a realistic recolour** — a plausible feature-wall or floor tone
+rather than a vivid one. That is a cheap next round now that the instrument exists, and it is the honest way
+to turn "the deficit is real and large in principle" into "the deficit is worth *this much* in the rooms
+users actually build".
+
+### Where the GI thread stands
+
+Open since `.226`, twice mis-attributed — falloff (refuted `.251`), ceiling (withdrawn `.255`). It now has:
+
+- a **positive result** (`.268`: bleed is exactly zero, one-variable raster A/B, no confound available), and
+- a **magnitude** (`.269`: ~18 counts under real transport, one-variable tracer A/B, rig cancelled).
+
+Neither depends on a reference photograph in its load-bearing step. That is a firmer footing than the falloff
+or ceiling claims ever had, and it was reached by abandoning between-renderer comparison in favour of
+within-renderer difference.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.270` — the realistic bound: paint a feature wall and the rest of the room does not notice
+
+`.269` sized the colour-bleed deficit at ~18 counts using a **vivid orange ceiling**, and said plainly that a
+realistic bound needed its own A/B with a plausible recolour. There is a better way to do that than inventing
+a colour: use a finish **the app already ships and a user can pick from a menu**.
+
+Runs 08:16–08:24 local (2026-09-02).
+
+### Design
+
+`wall-paint-terracotta` (`#c08763`, procedural plaster) applied to the living/dining walls; everything else
+untouched. The **measured** surface is the **ceiling**, which remains white plaster in both arms — so nothing
+about the measured material changes, only what stands next to it.
+
+**Intervention verified before anything was read** (`.264`'s lesson): the wall's geometry+colour signature
+changes `PlaneGeometry#f5f5f0` → `PlaneGeometry#c08763`, and its rasterised colour goes RGB 108/108/108 →
+83/53/36. The finish took, strongly.
+
+### The ceiling's response
+
+13:00, `medium`, photographic look, fan-clear anchor line (`ANCHOR_OFF −0.7`), 150 traced samples per still:
+
+| ceiling anchor | raster R−B | traced R−B | Δ raster | **Δ traced** |
+| --- | --- | --- | --- | --- |
+| d = 0.6 m | 9.7 → 9.7 | −10.9 → −2.1 | **0.0** | **+8.8** |
+| d = 1.2 m | 10.0 → 10.0 | −10.8 → +2.7 | **0.0** | **+13.5** |
+| d = 1.8 m | 9.8 → 9.7 | −9.4 → +0.6 | **−0.1** | **+10.0** |
+
+| ceiling anchor | raster L | traced L | Δ raster | **Δ traced** |
+| --- | --- | --- | --- | --- |
+| d = 0.6 m | 110.5 → 110.7 | 158.9 → 128.7 | +0.2 % | **−19.0 %** |
+| d = 1.2 m | 124.2 → 124.4 | 161.4 → 129.1 | +0.2 % | **−20.0 %** |
+| d = 1.8 m | 125.0 → 125.0 | 160.5 → 135.1 | 0.0 % | **−15.8 %** |
+
+**The realistic bound is ~9–13 counts of hue** — about two-thirds of `.269`'s vivid-orange figure. More than
+one might guess: a terracotta *wall* is a very large adjacent surface, so modest saturation over a big area
+beats vivid saturation over a smaller one.
+
+### The energy half, which may matter more than the colour
+
+The traced ceiling does not only warm. It **darkens by 16–20 %**. The rasterised ceiling changes by **0.2 %**.
+
+In user terms: **paint a feature wall dark terracotta in this app, and the rest of the room does not notice.**
+In a real room a dark wall makes everything measurably darker and warmer — that is most of what choosing a
+dark paint *does*.
+
+This is the most concrete and most user-facing statement of the GI deficit the arc has produced. It is not a
+ratio at a canonical pose defended against a screened photograph; it is shipped content, selected from a
+menu, with a measurable and visible consequence that the renderer omits.
+
+### Looked at
+
+Side by side, the terracotta walls render correctly — deep warm brown on both side walls — and the ceiling is
+**visibly identical** in the two frames: same pale grey, no warming, no darkening. The numbers and the picture
+agree.
+
+### Why the comparison is sound
+
+Same one-variable A/B design as `.268` and `.269`: identical pose, framing, tier, hour, camera and anchors,
+with one finish as the only change.
+
+- The traced arm still runs the rig `.255` identified — but that rig is **identical in A and B**, so it
+  cancels in the difference.
+- Raster Δ and traced Δ are each computed **within their own renderer** before being compared, so no
+  between-renderer term enters.
+- Sample-count drift (`.251`) cancels the same way: both stills are 150 samples.
+
+### Caveats
+
+One finish, one room, one pose, one hour. Terracotta is warm and mid-saturation; the shipped `navy`
+(`#3b4a63`) and `forest` (`#4a5e4a`) finishes would bleed **cool** and are untested. The ceiling was chosen
+because it stays plaster in both arms — a floor-finish A/B is the natural companion and is equally cheap now
+that the design is established.
+
+### Where the GI thread stands
+
+| round | result |
+| --- | --- |
+| `.268` | bleed exists as a deficit and is **exactly zero** in the raster — one-variable raster A/B |
+| `.269` | **~18 counts** under an extreme source — one-variable tracer A/B, rig cancelled |
+| **`.270`** | **~9–13 counts of hue and 16–20 % of luminance** under a realistic, shipped, user-selectable source |
+
+All three avoid a reference photograph in the load-bearing step, which is what finally made the GI question
+tractable after `.251` and `.255` killed the photograph- and between-renderer-based attempts.
+
+This round required **no probe change at all** — it used `WALL`, `PT` and `ANCHORS` as they already stood,
+which is a fair sign the instrument built over `.250`–`.269` is now doing useful work without further
+scaffolding.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.271` — a cheap albedo-tinted fill recovers ~75 % of the measured GI response
+
+`.270`'s numbers carried a hint worth chasing. The ceiling's response to a terracotta wall was nearly
+**uniform** across anchors — +8.8 / +13.5 / +10.0 counts of hue, −19.0 / −20.0 / −15.8 % of luminance. A
+uniform response is a **global** effect, and a global effect may have a cheap global approximation.
+
+Runs 08:28–08:33 local (2026-09-02).
+
+### The model
+
+Bounced light is direct light × albedo, so the fill should scale with the room's average albedo. Repainting
+a wall lowers and warms that average, which tints the fill warm **and** darkens it — precisely the two
+effects `.270` measured.
+
+It is **calibration-free**: only the *ratio* of average albedo between two rooms is applied, so there is no
+constant to fit and no opportunity to tune the answer toward the target.
+
+### Scope mattered more than the model
+
+A whole-flat census (2186 m²) barely moves when one room is repainted:
+
+| census scope | ratio (terracotta ÷ white) | predicted darkening |
+| --- | --- | --- |
+| whole flat, 2186 m² | 0.984 / 0.972 / 0.968 | −2.6 % |
+| **living/dining only, 467 m²** | **0.9405 / 0.8960 / 0.8813** | −9.5 % |
+
+Bounce is **local**. A global average over the whole plan dilutes the one room that changed, and predicts an
+effect an order of magnitude too small. The census has to be scoped to the room — which is the same
+population lesson as `.249`, `.260` and `.266`, arriving this time on the *input* side rather than the output.
+
+Room-scoped area-weighted albedo:
+
+| | r | g | b |
+| --- | --- | --- | --- |
+| white walls | 0.8115 | 0.8067 | 0.7876 |
+| terracotta | 0.7632 | 0.7228 | 0.6941 |
+
+### Three model strengths, bracketing the target
+
+Ceiling anchors, 13:00, `medium`, photographic look, fan-clear line; Δ measured against the shipped
+white-walled arm:
+
+| fill model | per-channel scale | Δ L | Δ R−B | recovered |
+| --- | --- | --- | --- | --- |
+| single bounce, ρ | 0.9405 / 0.8960 / 0.8813 | −3.8 % | +2.6 | ~20 % |
+| midpoint | 0.8446 / 0.7605 / 0.7466 | −8.4 % | +5.1 | ~45 % |
+| **interreflection, ρ/(1−ρ)** | **0.7487 / 0.6250 / 0.6119** | **−14.1 %** | **+7.9** | **~75 %** |
+| *traced target (`.270`)* | | *−18.3 %* | *+10.8* | |
+
+The bracketing is the point: single-bounce **under**-predicts, full interreflection lands close, and the
+truth sits just beyond it. That the physically-motivated form is the one that fits — rather than a fudge
+factor chosen to fit — is what makes this worth reporting.
+
+**~75 % of the real response** (77 % of the luminance change, 73 % of the hue change) from a **per-channel
+scale on two lights that already exist**, driven by a room-albedo traverse. No probes, no irradiance volume,
+no extra draw calls. That last point matters: `src/scene/CLAUDE.md` records an irradiance volume as spiked
+and **rejected** — a 420-probe volume cost 6.19 ms.
+
+### Looked at
+
+Side by side with the untinted terracotta room, the tinted version is warmer and slightly darker, and the
+room reads as coherently lit **by** its terracotta walls rather than unaware of them. Natural, not dingy. The
+window is correctly unaffected, since the backdrop is not part of the fill.
+
+### Why this is a different kind of result
+
+`.254` priced the ground-bounce lever against the ceiling deficit and found it the **wrong shape** — it bought
+13 % of ratio for 14 % of overall brightness, because a hemisphere brightens everything with a downward
+normal. Here the lever is the *right* shape, because the effect being chased is genuinely global: a room's
+average albedo changed, and every surface in it should respond.
+
+The difference is that `.254` was chasing a *localised* deficit with a *global* tool, and this round is
+chasing a global one. Matching the shape of the lever to the shape of the effect is the lesson, and it was
+only possible once `.268`–`.270` had established what the effect's shape actually is.
+
+### What it does not do
+
+It reproduces the **global** part only. It cannot produce *localised* bleed — a wall redder near a red sofa —
+and `.268`'s ceiling-recolour A/B would still read ~0 under it, because scaling a global fill cannot tint one
+wall differently from another.
+
+`.270`'s configuration is global, and repainting a wall is the common user action. But "colour bleed" in
+general is not fully covered by this, and the 25 % shortfall is presumably where the localised part lives.
+
+### Caveats
+
+One finish, one room, one pose, one hour. The shipped `navy` (`#3b4a63`) and `forest` (`#4a5e4a`) finishes
+bleed **cool** and are untested — a cool bleed is the more visually risky case, since the app's fill is
+already slightly cool (`.268`: the wall's `#f5f5f0` pigment reads R−B 0 in render).
+
+A real implementation needs the albedo census at runtime with a recompute when finishes change: cheap, being
+a traverse, but not free. And the traced target inherits `.251`'s sample-count and `.255`'s rig caveats —
+both cancel in the Δ, but neither is zero in absolute terms.
+
+**Not shipped.** Probe-side only, and it changes shipped appearance in every room on every tier, so it is
+filed as **(s) ALBEDO-FILL** with the recovery figures attached.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.272` — the albedo fill gets energy right and hue wrong-signed; ship half of it
+
+`.271` recovered ~75 % of the measured GI response with a calibration-free albedo-ratio fill, and named the
+untested risk plainly: it was validated on **one warm finish**. The shipped `navy` (`#3b4a63`) is cooler and
+much darker, which makes ρ/(1−ρ) far more sensitive — the strongest test the shipped catalogue offers.
+
+Runs 08:37–08:44 local (2026-09-02).
+
+### The traced target, and it is counterintuitive
+
+Room-scoped area-weighted albedo under navy: `0.7027 / 0.7010 / 0.6941`, against white
+`0.8115 / 0.8067 / 0.7876`. Real transport on the ceiling anchors:
+
+| anchor | Δ traced L | Δ traced R−B |
+| --- | --- | --- |
+| d = 0.6 m | −20.5 % | **+3.0** |
+| d = 1.2 m | −22.3 % | **+5.4** |
+| d = 1.8 m | −17.5 % | **+4.1** |
+
+**A navy wall makes the ceiling warmer.** That is not the intuitive answer, and the mechanism is worth
+recording: the dark wall **absorbs the blue sky bounce** that previously cooled the ceiling, so the light that
+remains is more dominated by the warm direct sun. The room becomes bluer while the ceiling becomes warmer.
+
+The raster, as ever, moves by nothing: +0.1 % and −0.1 counts under navy with no tint — so the bleed deficit
+is not warm-specific.
+
+### The model's verdict, split down the middle
+
+| | Δ model | Δ traced target | verdict |
+| --- | --- | --- | --- |
+| luminance | −19.4 / −18.0 / −17.6 % | −20.5 / −22.3 / −17.5 % | **~90 % recovered** |
+| hue R−B | **−2.9 / −2.8 / −2.6** | **+3.0 / +5.4 / +4.1** | **wrong sign** |
+
+Energy is nearly exact — better than terracotta's 77 %. Hue is not merely wrong in magnitude; it points the
+other way.
+
+### The diagnosis
+
+The model tints the fill by the room's **reflectance** colour: *"the room is bluer, so the bounce is bluer."*
+
+Real transport is governed by what is **removed**: *"the wall absorbs the blue sky bounce, leaving the warm
+sun."*
+
+Those two reasonings agree for terracotta — a warm wall reflects warm *and* absorbs cool — and oppose for
+navy, where the wall reflects cool but absorbs a cool source. **So `.271`'s ~75 % was partly luck.** The model
+was never capturing hue; it agreed with it by accident on the single case tested.
+
+This is precisely why `.271` flagged the cool finish as the risk, and it is a general point about
+calibration-free models: being free of fitted constants makes a model *honest*, not *right*. It still needs a
+second, adversarially-chosen data point before it can be trusted, and the second point is worth more than the
+first.
+
+### Revised proposal — luminance only
+
+A **scalar** grey scale from ρ/(1−ρ):
+
+| finish | per-channel ratio | **scalar luminance** | luminance recovered |
+| --- | --- | --- | --- |
+| terracotta | 0.7487 / 0.6250 / 0.6119 | **0.650** | 77 % |
+| navy | 0.5490 / 0.5618 / 0.6119 | **0.563** | 90 % |
+
+That holds across an albedo range of 0.81 → 0.76 → 0.70 with **no hue risk at all**. The hue half needs a
+different model — one that accounts for the colour of the light being *absorbed* rather than the colour of the
+surface absorbing it.
+
+### Looked at, and the asymmetry is the argument
+
+The tinted navy room is visibly darker and reads as a darker room — not broken, not dingy. The hue error is
+±3 counts, **below visual threshold** at this scale; the luminance effect is −18 % and plainly visible.
+
+**The part that is wrong is the part you cannot see, and the part you can see is the part that is right.**
+That asymmetry is the whole case for shipping half the model, and it would not have been visible from the
+numbers alone — the hue error and the luminance recovery are comparable as *fractions*, and only look at each
+other's scale when rendered.
+
+### Caveats
+
+Two finishes now, still one room, one pose, one hour. The luminance recovery holding across 0.81 → 0.70 of
+room albedo is encouraging, but `forest` (`#4a5e4a`) is untested, and a green finish is where a
+reflectance-driven hue model would err differently again.
+
+Item **(s)** is updated with both finishes and the narrowed proposal.
+
+This round required **no probe change** — `WALL`, `ALBEDO`, `FILLTINT` and `PT` as they already stood.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.273` — the floor A/B is void, and diagnosing it found the albedo census is texture-blind
+
+`.272` validated the luminance half of the albedo fill at two points, but both **lowered** room albedo
+(0.81 → 0.76 → 0.70). If the model only works in the darkening direction that is a real limit, so this round
+went after a **brightening** case, and a different surface class, using the shipped floor finishes
+`floor-tile-white` (`#e6e3dc`) and `floor-wood-ebony` (`#43342a`).
+
+Runs 08:45–08:55 local (2026-09-02).
+
+### The A/B is void
+
+The store took the finish — the probe's own state dump reads `"floor":"floor-tile-white"` and
+`"floor":"floor-wood-ebony"`. The renderer did not:
+
+| evidence | result |
+| --- | --- |
+| room albedo census | **identical to four decimals** in both arms |
+| traced ceiling L | 158.7 / 161.0 / 159.2 and 159.2 / 160.8 / 158.8, baseline 158.9 / 161.4 / 160.5 |
+| the two frames, looked at | visible floor **unchanged** |
+
+Three independent signals agreeing that nothing happened. The finish reached the *state* and not the
+*render* within the probe's timing — the `.264` lesson in a new guise: **verify the intervention reached the
+render, not just the store.** Nothing is learned about the brightening direction, and that question stays
+open.
+
+### But diagnosing it found something that bears on `.271` and `.272`
+
+The living/dining floor mesh is **`color: #ffffff, map: true`** — its albedo lives entirely in a texture, and
+its `material.color` is byte-identical under every floor finish.
+
+`.271`'s census reads `material.color`. So:
+
+> **The albedo census is blind to texture-borne albedo.** It counts the floor as pure white when it is
+> actually mid-brown oak.
+
+### Sized honestly
+
+The floor is **8.3 %** of the room's 467 m² of surface. Counting it white (1.0) instead of the catalogue's
+oak swatch `#b88f5d` inflates ρ by about 0.046:
+
+| | census ρ | corrected ρ |
+| --- | --- | --- |
+| white walls | 0.8115 / 0.8067 / 0.7876 | 0.7885 / 0.7704 / 0.7351 |
+| terracotta | 0.7632 / 0.7228 / 0.6941 | 0.7402 / 0.6865 / 0.6416 |
+| navy | 0.7027 / 0.7010 / 0.6941 | 0.6797 / 0.6647 / 0.6416 |
+
+Crucially it inflates **both arms**, so most of it cancels in the ratio the model actually uses. Terracotta's
+ρ/(1−ρ) ratio moves **0.7487 / 0.6248 / 0.6119 → 0.7642 / 0.6526 / 0.6451** — a few percent, not a factor.
+
+**So `.271`/`.272`'s luminance conclusion survives and their scalars are approximate.** A 77–90 % recovery
+does not become 20 % or 200 % under this correction. But those scalars were computed from a wrong baseline
+and should not be quoted as final numbers.
+
+This is worth stating carefully because the temptation runs both ways: it would be as wrong to declare the
+previous two rounds void as it would be to ignore the flaw. The correction is small and mostly cancelling,
+and saying so precisely is more useful than either.
+
+### The implementation note, which is the useful part
+
+A correct census should read the **finish catalogue's `swatch`** rather than `material.color`. Every finish
+has one — `floor-wood-oak` `#b88f5d`, `floor-tile-white` `#e6e3dc`, `floor-wood-ebony` `#43342a`,
+`wall-paint-terracotta` `#c08763` — and it is the authoritative description of what the finish looks like.
+
+That is both more accurate than reading colours off materials **and** cheaper than averaging texture maps,
+which is the obvious alternative and would cost a readback per surface.
+
+### What remains open
+
+The **brightening direction**. Both validated points lowered ρ, and ρ/(1−ρ) rises steeply as ρ → 1, so a
+lighter room is exactly where the model might over-predict badly. Testing it needs the floor finish to reach
+the renderer first, which is its own small problem to solve.
+
+Item **(s)** carries the census flaw, the corrected figures, and the `swatch` recommendation.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.274` — CORRECTION: `.273`'s floor A/B was not void; I read the wrong frame
+
+`.273` reported the floor-finish A/B as void, concluding that the store took the finish but the render did
+not. **That is wrong**, and this round is the correction.
+
+Runs 08:58–09:04 local (2026-09-02).
+
+### The error
+
+The probe captures **two** frames per run: the eye-level pose, and a pitched-down one (`FLOOR_PITCH −0.55`)
+that exists precisely so the floor fills the lower frame instead of the furniture standing on it.
+
+`.273` read the **eye-level** frame, in which the living/dining floor is almost entirely occluded by the sofa,
+rug, coffee table and sideboard, saw no difference, and concluded the intervention had failed.
+
+The **pitched-down** frames differ unmistakably: pale grey-lilac tiles under `floor-tile-white`, dark brown
+planks under `floor-wood-ebony`. The finish reached the renderer all along.
+
+### The method refinement
+
+*Always look at the crop* is necessary and **not sufficient**. It has to be **the crop where the effect would
+show**.
+
+| round | looking did what |
+| --- | --- |
+| `.233`, `.236`, `.243`, `.246`, `.252`, `.260`, `.264` | caught a contaminated or impossible number |
+| `.265` | was the **only** instrument that worked |
+| **`.273`** | **misled**, because the crop chosen could not show the effect |
+
+The failure mode is subtle precisely because the discipline was followed: a frame was inspected, a difference
+was genuinely absent from it, and the conclusion followed. What was missing was asking *would this crop show
+the change if it had happened?* — the same question `.266` had to ask about a metric's sensitivity, arriving
+here about a crop's.
+
+### `.273`'s other finding stands
+
+The albedo census reads `material.color`, and the living/dining floor mesh is `color: #ffffff, map: true`
+under **every** finish. That was established by inspecting materials, not frames, so it is untouched by the
+error above. The census is genuinely texture-blind.
+
+### A second census flaw, now quantified
+
+New `FLOOREXPOSED=1` casts 3600 rays straight down over the room rect and tallies the first hit:
+
+| surface | share of the floor plane |
+| --- | --- |
+| **floor** (`PlaneGeometry#ffffff`) | **56.0 %** |
+| sofa (`ExtrudeGeometry#8aa1a8`) | 8.0 % |
+| rug (`BoxGeometry#9c8f7a`) | 7.4 % |
+| furniture, four wood tones | ~15 % |
+
+So the floor is **56 % exposed**. An albedo census must weight by exposure: 38.6 m² × 0.56 = **21.6 m²
+effective, 4.6 %** of the room's 467 m², against the 8.3 % `.271` used. This is a *second* correction, distinct
+from the texture-blindness, and it pushes the same way — `.271` over-weighted the floor twice over.
+
+It also **disproved my own first explanation**. On seeing the traced null I guessed the floor must be almost
+entirely covered; it is not, 56 % is exposed. That guess was wrong within a minute of being formed, which is
+why it was measured instead of written up.
+
+### What remains genuinely unresolved
+
+Why the traced ceiling barely moved across a white-tile → ebony floor swap
+(L 158.7 / 161.0 / 159.2 against 159.2 / 160.8 / 158.8, baseline 158.9 / 161.4 / 160.5) is **not
+established**. Attempts to sample a bare-floor strip in the traced stills landed on a wall and a sideboard —
+a third crop error in this pair of rounds, caught by looking at the crop rather than trusting its numbers.
+
+Rather than offer a third hypothesis, it is left open and labelled. Two candidate explanations remain
+untested: that the tracer snapshot did not pick up the swapped floor material, or that the floor is a weak
+bounce source in this room for reasons other than occlusion.
+
+### Where item (s) stands
+
+The albedo model's census needs **two** corrections before its scalars mean anything:
+
+1. **swatch-based albedo** (`.273`) — read the finish catalogue's `swatch`, not `material.color`;
+2. **exposure weighting** (`.274`) — weight each surface by its unoccluded fraction, for which
+   `FLOOREXPOSED` now provides a method.
+
+Neither overturns `.271`/`.272`'s luminance result, which is a **ratio** between two arms and so largely
+cancels both errors. Both mean the published scalars are approximate rather than final.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.275` — the floor contributes ≲1 % of the ceiling's light, because it is dim, not because it is hidden
+
+`.274` left one question open and noted that three crop errors across two rounds meant slowing down. So this
+round does **one** thing, with the instrument built to avoid that failure mode: **world-verified anchors**,
+which check signature and occlusion themselves, so no hand-picked crop is involved anywhere in the
+load-bearing step.
+
+The question: swapping the floor from `floor-tile-white` to `floor-wood-ebony` left the traced ceiling
+unmoved. Was that because **(a)** the tracer never received the finish, or **(b)** the floor is a weak bounce
+source?
+
+Runs 09:04–09:19 local (2026-09-02).
+
+### Method
+
+`PITCH=-0.5` looks down, so the floor is visible in both the raster frame and the traced still and the same
+anchors can be read in each.
+
+The first attempt returned only the **rug** (`BoxGeometry#9c8f7a`) — which correctly does not change under a
+floor finish — because the strict gate rejected the actual floor at **17/81 and 27/81 clean**.
+`ANCHOR_MINFRAC=0.15` fixed that, and the relaxation is principled: every included point is already verified
+same-object, same-signature and unoccluded (`.258`). The rejections are informative in themselves — they show
+the floor is heavily interrupted at eye height by furniture legs and the rug edge.
+
+### (a) is refuted — the tracer got the finish
+
+World-verified floor anchors, signature `PlaneGeometry#ffffff` in every case:
+
+| anchor | tile-white | ebony | change |
+| --- | --- | --- | --- |
+| d = 1.6 m, raster L | 49.5 | 29.2 | −41 % |
+| d = 1.6 m, **traced L** | **74.9** | **29.1** | **−61 %** |
+| d = 2.8 m, raster L | 57.4 | 17.9 | −69 % |
+| d = 2.8 m, **traced L** | **113.9** | **41.4** | **−64 %** |
+
+And confirmed by looking: the traced stills show a pale grey-lilac tiled floor against a dark brown plank
+floor, unmistakably, with the rest of the room looking near-identical in both — which is the visual form of
+the ceiling result.
+
+### So (b), and the mechanism is not occlusion
+
+`.274` established the floor is **56 % exposed**, so it is not hidden. It is **dim**. Even white-tiled, the
+traced floor reads **L 74.9–113.9** against a ceiling at **~159**. A surface that is itself poorly lit bounces
+little regardless of its albedo — reflectance sets the *fraction* returned, not the amount.
+
+| quantity | change between the two finishes |
+| --- | --- |
+| traced **floor** | **−61 % to −64 %** |
+| traced **ceiling** | **+0.3 % / −0.1 % / −0.3 %** |
+
+A **>200× ratio**. The floor contributes on the order of **1 %** of the ceiling's light in this furnished
+room.
+
+### Why the wall tests worked and this one did not
+
+`.270`–`.272` used *wall* finishes and got large, clean responses. Walls are brightly lit and close to the
+window. The floor is the dimmest large surface in the room, which makes it the **worst** available A/B source
+— not because the intervention fails, but because the surface has little light to give back.
+
+That is worth recording as a design rule for future A/B choices: **pick the brightest surface you can change,
+not the largest.**
+
+### A third correction for item (s)
+
+The albedo census now needs all of:
+
+| # | correction | source | size for the floor |
+| --- | --- | --- | --- |
+| 1 | **swatch-based albedo** — read the catalogue `swatch`, not `material.color` | `.273` | counted as white instead of oak |
+| 2 | **exposure weighting** — weight by unoccluded fraction | `.274` | ×0.56 |
+| 3 | **illumination weighting** — weight by light actually *leaving* the surface | `.275` | 4.6 % of area → ~1 % of contribution |
+
+The third is the physically correct form: bounce is governed by a **radiance**-weighted average, not a
+reflectance average. It is also the largest of the three for the floor.
+
+And it sharpens why `.271`/`.272` worked at all despite a flawed census: the surfaces they changed were
+**walls** — bright, well-exposed and untextured, which is precisely the one case where a naïve reflectance
+census is close to right. The model was validated on its easiest case.
+
+### Method note
+
+This round deliberately used anchors instead of hand-picked crops, because `.273`/`.274` produced three crop
+errors between them. The anchors rejected the rug, rejected furniture, and reported the signature of whatever
+they hit — every judgement the crops got wrong, made mechanically.
+
+That is the durable answer to the pacing problem this arc ran into: not *look harder*, but **use instruments
+that verify their own population**. The crop discipline depends on the operator choosing correctly; the anchor
+discipline does not.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.276` — the scalar fill wins on hue too: right-signed at all three finishes
+
+`.272` named `forest` (`#4a5e4a`) as the untested third finish — a green bleed, a third hue direction, a third
+validation point. This round closes that gap, and the answer **reverses `.272`'s framing** of which model to
+ship.
+
+Runs 09:23–09:31 local (2026-09-02).
+
+### Forest's target is almost identical to navy's
+
+Room-scoped albedo under forest: `0.7058 / 0.7065 / 0.6871`, against navy's `0.7027 / 0.7010 / 0.6941`. Both
+are mid-dark finishes of similar luminance, so the traced targets converge:
+
+| finish | Δ traced L | Δ traced R−B |
+| --- | --- | --- |
+| terracotta | −19.0 / −20.0 / −15.8 % | +8.8 / +13.5 / +10.0 |
+| navy | −20.5 / −22.3 / −17.5 % | +3.0 / +5.4 / +4.1 |
+| **forest** | **−20.3 / −22.0 / −17.4 %** | **+3.7 / +6.3 / +4.2** |
+
+**Forest also warms the ceiling.** So `.272`'s counterintuitive finding generalises: a dark wall of *any* hue
+absorbs the blue sky bounce that was cooling the ceiling, and the light that remains is more dominated by the
+warm sun. It is not a navy-specific curiosity; it is what dark walls do.
+
+### The reversal
+
+`.272` concluded: *ship luminance only; the hue half needs a different model.* But a **scalar** grey fill
+scale gets the hue **sign right at all three finishes** — because darkening a cool fill lets the warm sun
+dominate, which is **the same mechanism as the real effect**.
+
+| finish | scalar | Δ L (model) | luminance recovered | Δ R−B (model) | hue recovered | hue sign |
+| --- | --- | --- | --- | --- | --- | --- |
+| terracotta | 0.650 | −14.9 / −13.8 / −13.7 % | ~78 % | +0.4 / +0.9 / +1.0 | ~7 % | **right** |
+| navy | 0.563 | −19.4 / −18.1 / −17.9 % | ~90 % | +0.7 / +1.1 / +1.2 | ~23 % | **right** |
+| forest | 0.574 | −18.9 / −17.6 / −17.4 % | ~89 % | +0.7 / +1.0 / +1.2 | ~20 % | **right** |
+
+Against the **per-channel** version:
+
+| finish | Δ R−B (per-channel) | target | sign |
+| --- | --- | --- | --- |
+| terracotta (`.271`) | +7.9 | +10.8 | right |
+| navy (`.272`) | −2.9 | +3.0…+5.4 | **wrong** |
+| forest (`.276`) | −1.3 / −1.0 / −0.9 | +3.7 / +6.3 / +4.2 | **wrong** |
+
+### Why the cheaper model is the better one
+
+The per-channel version buys more hue on warm finishes by reasoning that happens to be wrong — it tints the
+fill by the room's *reflectance* colour. On cool and green finishes that reasoning inverts the sign.
+
+The scalar version encodes no colour reasoning at all. It only removes energy, and the *hue* consequence
+follows from the scene: less cool fill, relatively more warm sun. That is the actual mechanism, so the sign is
+right by construction rather than by coincidence.
+
+**A model with fewer parameters is more physically faithful here, because it declines to encode a mistaken
+mechanism.** That is worth recording as a general caution: adding a colour term looked like strictly more
+information, and was strictly worse.
+
+### Also resolved — the "brightening direction"
+
+`.272` and `.273` flagged it as an untested regime. It is largely **moot**: the model is a **ratio**, so
+white → navy and navy → white are the same experiment read in either direction, and `.272` tested it.
+
+The genuinely untested regime is ρ **above** the shipped 0.81, where ρ/(1−ρ) steepens sharply — reaching it
+needs an all-white room (many surfaces changed at once), not a single finish swap, so it is not achievable
+with one shipped selection.
+
+### Looked at
+
+Forest renders as deep green walls, and the scalar-tinted version is visibly dimmer throughout — reading as a
+dark green room should. No colour cast, no dinginess, no artefact.
+
+### Caveats
+
+Three finishes, but all **wall** finishes, one room, one pose, one hour. Hue recovery is small (7–23 %), so
+most of the hue effect remains unmodelled — it is simply no longer modelled *wrongly*. And the scalars still
+come from the uncorrected census (`.273`/`.274`/`.275`), so they are approximate — though `.274` showed those
+corrections largely cancel in a ratio.
+
+Item **(s)** now recommends the scalar form and carries the three-finish table.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.277` — the deficit is twice as large in a bedroom, and the model recovers half as much
+
+Item (s) was validated at three finishes but **one room**, and every metric in this arc has turned out
+geometry-dependent (`.232` pose, `.239` tier, `.247` framing, `.251` scene). So this round generalised the
+probe to any room and re-ran the test in a bedroom.
+
+Runs 09:33–09:50 local (2026-09-02).
+
+### A silent failure, worth recording
+
+Generalising `livingDining` out of the probe took four edits. Three applied; the **albedo census kept its
+hardcode**, because biome had collapsed that expression onto a single line after `.271` and my multi-line
+search pattern matched nothing.
+
+`grep -c` reported five matches and I read that as confirmation. What actually caught it was the
+**behaviour**: bedroom2 reported livingDining's albedo, to four decimals, over an identical 467 m².
+
+**A count is not a behaviour check.** Same lesson as `.264` — verify what the intervention *did*, not that
+the edit *looks* applied — arriving this time through a find-and-replace rather than an env var. The
+generalisable form: when an edit is meant to change behaviour, assert on the behaviour.
+
+### Three rooms characterised
+
+| room | ρ (area-weighted) | surface | **aperture** |
+| --- | --- | --- | --- |
+| livingDining | 0.8115 / 0.8067 / 0.7876 | 467 m² | **71 %** |
+| **bedroom2** | 0.8249 / 0.8100 / 0.7768 | 360 m² | **27 %** |
+| bedroom3 | 0.8280 / 0.8199 / 0.7912 | 395 m² | 66 % |
+
+### The deficit doubles
+
+Navy walls, traced ceiling anchors:
+
+| | livingDining | **bedroom2** |
+| --- | --- | --- |
+| Δ traced L | −20.5 / −22.3 % | **−43.1 / −50.3 %** |
+| Δ traced R−B | +3.0 / +5.4 | **+15.0 / +20.3** |
+| Δ **raster** | 0.0 | **0.0** |
+
+### Mechanism
+
+bedroom2 has a 27 % aperture and is small with high-albedo surfaces, so ρ/(1−ρ) = **4.7** and interreflection
+dominates its lighting.
+
+The tell is in the absolute levels: the **traced** bedroom ceiling is *brighter* (175–181) than the living
+room's (158–161) **despite a far smaller window**. A small bright room concentrates bounce — light makes more
+trips before being absorbed.
+
+The **raster's** fill knows nothing about room size or albedo, so its bedroom ceiling (118) is about the same
+as the living room's. Real transport rewards the small bright room; the rasteriser does not. Hence the larger
+shortfall.
+
+### Which means the arc has been measuring its best room
+
+`.268`–`.276` all used the living/dining room, which has the **largest aperture in the plan** (71 %). Most
+rooms in an HDB flat are bedrooms with 27–66 % apertures. The deficit reported in those rounds is the
+optimistic end of the range.
+
+### And the model recovers half as much, exactly where it is needed most
+
+| room | scalar | luminance recovered | hue recovered | hue sign |
+| --- | --- | --- | --- | --- |
+| livingDining — terracotta / navy / forest | 0.650 / 0.563 / 0.574 | 78 / 90 / 89 % | 7 / 23 / 20 % | right |
+| **bedroom2 — navy** | **0.494** | **~46 %** | ~10 % | right |
+
+The recovery is **room-dependent and worst where the deficit is largest** — the opposite of what one wants
+from an approximation. Scaling the fill lights cannot express an effect driven by interreflection that the
+fill does not model: the fill is a fixed hemisphere, and no scalar on it encodes "this room bounces light
+more times".
+
+The **per-channel** variant is wrong-signed again (−4.1 / −3.8 against +15.0 / +20.3). Third room, and it
+retires conclusively.
+
+### Looked at
+
+The bedroom's navy walls render as deep navy, and the ceiling is **visibly identical** between the two arms.
+In reality navy walls in a small bedroom would darken and warm the ceiling dramatically — the tracer says
+−43 to −50 %.
+
+### Caveat on pose
+
+livingDining was measured at pitch −0.06; bedroom2 needed **pitch +0.30**, because in a 3.5 m-deep room the
+ceiling is not in frame at all at the shipped pitch (all anchors rejected 0/81, offscreen). Each Δ is
+internally pose-consistent, so the **recovery fractions** are comparable; the **absolute** Δs between rooms
+are not pose-matched and should not be read as a like-for-like ratio.
+
+### Where item (s) stands
+
+Materially weakened. ~46 % recovery in the room type that dominates the plan is a much less attractive trade
+than 78–90 % in the single room with a 71 % aperture. The proposal is not dead — 46 % of a *larger* deficit is
+still a real improvement in absolute terms — but it can no longer be presented as "recovers most of it".
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.278` — the lever is big enough; the estimator is 2–4× wrong in a bedroom
+
+`.277` found the scalar fill recovers ~46 % in a bedroom against 78–90 % in the living/dining room, and could
+say only that recovery is "room-dependent". This round asks why.
+
+Runs 09:52–09:58 local (2026-09-02).
+
+### The obvious hypothesis, refuted
+
+If the fill carried a smaller share of the bedroom ceiling's light, the same scalar would move it less.
+`FILLOFF=1` measures that share directly:
+
+| | fill share of ceiling light |
+| --- | --- |
+| livingDining, d = 0.6 / 1.2 / 1.8 | 69.7 / 67.8 / 66.9 % |
+| bedroom2, d = 0.6 / 1.2 | 66.9 / 61.4 % |
+
+**Nearly identical.** A 4-point difference in fill share cannot halve a recovery. Hypothesis dead.
+
+### Inverting the question
+
+The fill-off run supplies a **second measured point** (scalar = 0), so the response can be interpolated in the
+scalar rather than guessed. That gives what the scalar *should* have been to hit each traced target:
+
+| room | fill-off Δ L | model scalar | **required scalar** | verdict |
+| --- | --- | --- | --- | --- |
+| livingDining d = 0.6 | −69.7 % | 0.563 | **0.551** | **2 % off** |
+| livingDining d = 1.2 | −67.8 % | 0.563 | **0.515** | **9 % off** |
+| bedroom2 d = 0.6 | −66.9 % | 0.494 | **0.262** | **1.9× under** |
+| bedroom2 d = 1.2 | −61.4 % | 0.494 | **0.134** | **3.7× under** |
+
+### Finding 1 — the lever is big enough
+
+Zeroing the fill gives **−61 to −70 %**, which exceeds every target measured across this whole thread
+(−17 % to −50 %). So scaling the ambient and hemisphere is an **adequate mechanism** in both rooms. The
+problem is not that the fill is too small a handle.
+
+That is the encouraging half, and it was not obvious: `.277` speculated that "no scalar on a fixed hemisphere
+encodes 'this room bounces light more times'", which reads as a mechanism limit. It is not one — the range is
+there.
+
+### Finding 2 — the estimator is geometry-blind
+
+ρ/(1−ρ) depends only on average albedo. The two rooms' albedos differ by **1.6 %** (0.8115 against 0.8249), so
+the form returns nearly the same scalar — **0.563 against 0.494, 12 % apart** — while the *required* scalars
+differ by **2–4×** (≈0.53 against ≈0.20).
+
+**The missing variable is room geometry, not albedo.** livingDining leaks light out of a 71 %-of-wall aperture;
+bedroom2 retains it behind a 27 % one. Same albedo, very different retention, and the closed-box form cannot
+see the difference — it assumes no aperture at all.
+
+### And the obvious geometric correction is ruled out
+
+The natural fix is to treat the window as a perfect absorber and fold it into the average. It does not work,
+by arithmetic: assuming a 2.0 m window height,
+
+| room | enclosing surface | window | window share |
+| --- | --- | --- | --- |
+| livingDining | 85.7 m² | 4.9 m² | **5.7 %** |
+| bedroom2 | 52.1 m² | 3.0 m² | **5.8 %** |
+
+An area-weighted aperture term is **the same in both rooms**, so it cannot supply a 2–4× factor. Whatever the
+missing geometry term is, it is not aperture *area* — it is presumably something like the aperture's solid
+angle as seen from the interior, or the mean free path between bounces, neither of which is a one-line
+correction.
+
+### What this means for item (s)
+
+The model is **well-calibrated where it was developed** — 2–9 % in livingDining — and wrong by 2–4 × in a
+bedroom, with a geometry-blind form and no obvious analytic repair.
+
+But because the lever is sufficient, there is a usable path: **calibrate a per-room scalar once against the
+path tracer, offline, and bake it.** The tracer already runs headlessly (`.245`), the anchors already measure
+the target, and the calibration is a one-time cost per room archetype rather than a runtime one. That trades
+an analytic model for a lookup — less elegant, considerably more likely to be right, and it sidesteps the
+missing geometry term entirely rather than pretending to model it.
+
+### Looked at
+
+The fill-off frame renders as a dramatically darker bedroom — ceiling and walls dim, only the window and
+directly-lit surfaces retaining brightness — consistent with the −67 % measured drop. The intervention is
+sane.
+
+### Caveats
+
+The interpolation assumes the response is linear in the scalar between s = 0 and the tested s. It is measured
+at two points per anchor, not verified as linear between them; a mid-point check would firm it up. Two rooms,
+one finish in the second. And the enclosure areas assume a 2.0 m window height, which the probe's aperture
+readout does not report.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.279` — the response saturates, so `.278`'s numbers were optimistic
+
+`.278` computed how far the albedo model's scalar sits from the one that would actually hit the traced target,
+and flagged the assumption it rested on: *"the interpolation assumes the response is linear in the scalar
+between s = 0 and the tested s… measured at two points per anchor, not verified between them."*
+
+That assumption is load-bearing for the round's headline numbers, so this round tests it — and rather than a
+bare linearity check, it tests `.278`'s **prediction**.
+
+Runs 09:59–10:06 local (2026-09-02).
+
+### The response saturates
+
+bedroom2, navy walls, ΔL against the white-walled baseline, seven scalars:
+
+| scalar | 0.05 | 0.134 | 0.262 | 0.40 | 0.494 | 0.75 | 1.0 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Δ L, d = 0.6 | −59.2 % | −49.4 % | −37.8 % | −27.9 % | −22.1 % | −9.6 % | −0.2 % |
+| Δ L, d = 1.2 | −54.6 % | −45.3 % | −35.0 % | −25.6 % | −20.4 % | −8.5 % | +0.1 % |
+
+`dL/ds` falls from about **138 to 45** across the range — strongly convex. The mechanism is the one `.259`
+documented at the window: **the tone curve compresses the bright end**, so each increment of fill buys less
+output. The s = 1.0 row also serves as a control: ΔL −0.2 % / +0.1 %, i.e. navy walls with an unmodified fill
+change the ceiling by nothing, reproducing `.277`.
+
+### `.278`'s prediction, tested
+
+`.278` predicted s ≈ 0.262 would reach −43.1 %. **Measured at 0.262: −37.8 %.** The prediction was off, in the
+direction convexity implies.
+
+### Corrected required scalars
+
+Read off the measured curve rather than interpolated between two points:
+
+| | target | **required (measured)** | `.278` said | model | **off by** |
+| --- | --- | --- | --- | --- | --- |
+| bedroom2 d = 0.6 | −43.1 % | **0.204** | 0.262 | 0.494 | **2.4×** |
+| bedroom2 d = 1.2 | −50.3 % | **0.089** | 0.134 | 0.494 | **5.6×** |
+| livingDining d = 0.6 | −20.5 % | **0.543** | 0.551 | 0.563 | 1.04× |
+| livingDining d = 1.2 | −22.3 % | **0.488** | 0.515 | 0.563 | 1.15× |
+| livingDining d = 1.8 | −17.5 % | **0.572** | — | 0.563 | 0.98× |
+
+### So `.278`'s conclusions stand, with corrected magnitudes
+
+Both move the same way:
+
+- **livingDining: well-calibrated.** Now *measured* at within **2–15 %** (mean ≈ 7 %), against `.278`'s
+  interpolated 2–9 %. The conclusion holds and is now on firmer ground.
+- **bedroom2: under-scales by 2.4–5.6×**, worse than the 1.9–3.7× reported.
+
+### Why saturation makes it worse where it hurts
+
+Because each increment of fill buys less output near s = 1, matching a **large** target requires a
+**disproportionately small** scalar. −50 % needs s ≈ 0.09, where a linear reading suggests ≈0.25.
+
+So the model's error is largest exactly where the target is largest. That compounds `.277`'s finding — the
+deficit doubles in a bedroom *and* the estimator's error more than doubles there too — rather than softening
+it.
+
+### Looked at
+
+The s = 0.134 frame renders as a plausibly dark bedroom: dimmer ceiling and walls, and the window correctly
+unaffected because the backdrop is not part of the fill. Not degenerate, not broken.
+
+### A note on flagged assumptions
+
+`.278` flagged this assumption explicitly, and testing it changed the numbers by up to 50 %. That makes four
+consecutive rounds where a flagged-but-untested assumption turned out to matter:
+
+| flagged in | assumption | resolved in | outcome |
+| --- | --- | --- | --- |
+| `.271` | the albedo census is adequate | `.273` | texture-blind |
+| `.272` | warm-finish validation generalises | `.276` | hue sign wrong on cool/green |
+| `.277` | one room is representative | `.277` | deficit doubles in a bedroom |
+| `.278` | the response is linear in s | **`.279`** | convex; numbers optimistic by ~50 % |
+
+**In this arc, a flagged-but-untested assumption has not once turned out to be harmless.** That is worth
+treating as a rule: the flag is a queue, not a disclaimer, and the next round should generally be the one that
+retires the most load-bearing flag rather than the one that opens new ground.
+
+### Where item (s) stands
+
+Unchanged in kind: the lever is sufficient (`.278`), the estimator is geometry-blind (`.278`), and a per-room
+scalar baked from an offline traced calibration is the usable path. But the analytic model is **further** from
+usable than `.278` implied — 2.4–5.6× off in the room type that dominates the plan.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.280` — CORRECTION: the bedroom traced target was unconverged; `.277`–`.279`'s bedroom findings are withdrawn
+
+`.279` closed with a rule — *retire the most load-bearing flag next* — and named two. The larger was that
+every traced target in `.268`–`.279` comes from a **150-sample** still, while `.251` had measured 8 % level
+drift with sample count and `.263` had only spot-checked it once.
+
+Runs 10:07–10:46 local (2026-09-02).
+
+### The bedroom's bright arm is not converged at 150 samples
+
+Same room, pose, anchors and finish; only the sample count differs:
+
+| white-walled bedroom2 | traced L, d = 0.6 | d = 1.2 |
+| --- | --- | --- |
+| **150 samples** | **175.4** | **181.1** |
+| 250 samples | 120.1 | 118.0 |
+| 256 samples | 118.6 | 117.3 |
+
+250 and 256 agree within **1.3 %**; 150 is high by **31–35 %**. (`PTSAMPLES=400` returned 256 — the HQ modal
+caps there, so 256 is the available ceiling.)
+
+The **navy** arm is stable across the same range: 99.8/90.0 at 150 against 98.7/90.7 at 250, within 1 %. Only
+the *bright* arm was bad — which is the diagnostic clue.
+
+### Looked at, and it is not Monte Carlo noise
+
+The 150-sample still is uniformly **washed out and flat**. The 250-sample still shows the cornice, tone across
+the ceiling, and detail in the curtains. That is a **systematic** difference in appearance, not variance
+around a mean.
+
+The app runs an AI denoise stage (`hqAiDenoise.ts`), and a bright, bounce-dominated room is precisely where a
+low-sample estimate plus aggressive denoise would read too bright and too smooth. Whatever the exact
+mechanism, the empirical fact is what matters: **150 samples is not enough in this room, and it fails in a
+direction that inflates the brighter arm.**
+
+### The corrected target
+
+| | 150 samples (as reported) | **converged** |
+| --- | --- | --- |
+| Δ traced L | −43.1 % / −50.3 % | **−16.8…−17.8 % / −22.7…−23.1 %** |
+| Δ traced R−B | +15.0 / +20.3 | **−5.6 / −6.3** |
+
+### What is withdrawn
+
+1. **`.277`'s "the deficit doubles in a bedroom."** Corrected Δ L is −17 to −23 %, essentially **identical**
+   to livingDining's −20.5 / −22.3 %.
+2. **`.277`'s "the arc has been measuring its best room."** No measured room-to-room difference remains.
+3. **`.278`'s "under-scales 1.9–3.7×" and `.279`'s "2.4–5.6×."** Against a −17 to −23 % target, the model's
+   own −22.1 / −20.4 % at s = 0.494 is **close** — the model appears **well-calibrated in the bedroom too**.
+4. **`.277`'s bedroom ceiling-warming (+15.0/+20.3).** Corrected to **−5.6/−6.3**: the bedroom ceiling goes
+   *cooler* under navy, not warmer.
+
+### What stands, and what is left without support
+
+**Stands.** `.268`'s zero-bleed result is a raster-only A/B with no tracer in it at all. `.279`'s seven-point
+response curve is raster-only. `.278`'s fill-fraction measurements are raster-only.
+
+**Left without measured support.** `.278`'s conclusion that ρ/(1−ρ) is *geometry-blind* was argued from the
+gap between two rooms' required scalars. With the bedroom target corrected, **there is no room-to-room gap
+left for a geometry term to explain.** The claim is not disproved — it may still be true in principle — but
+its evidence is gone.
+
+### Residual risk, stated plainly
+
+All the livingDining targets in `.269`–`.276` are also **150-sample**. Their convergence was spot-checked only
+in `.263`, at a *nearby but not identical* configuration — eye-level pose, `ANCHOR_OFF 0` — where it was 0.4 %
+across 151/251. That is reassuring and it is not the same test. **Those numbers carry the same class of risk
+and have not been re-verified at their own settings.**
+
+### New method rule
+
+**Sample-count adequacy must be verified per room and per pose, not once.**
+
+Convergence rate depends on how bounce-dominated the scene is. So the room where a GI measurement matters
+most — small, bright, high-albedo, small aperture — is exactly the room where the tracer converges slowest,
+and a spot-check in an easier room does not transfer. This is the same shape as `.266`'s lesson about metric
+sensitivity: **validate the instrument on the population you will use it on.**
+
+### And `.279`'s rule is vindicated harder than expected
+
+One flagged assumption, tested, withdrew the headline conclusions of **three consecutive rounds**. That is
+five in a row where a flagged-but-untested assumption turned out to matter:
+
+| flagged in | assumption | resolved in | outcome |
+| --- | --- | --- | --- |
+| `.271` | the albedo census is adequate | `.273` | texture-blind |
+| `.272` | warm-finish validation generalises | `.276` | hue sign wrong on cool/green |
+| `.277` | one room is representative | `.277` | (appeared true, now withdrawn) |
+| `.278` | the response is linear in s | `.279` | convex; numbers off ~50 % |
+| `.279` | 150 samples is enough | **`.280`** | **unconverged by 31–35 %; three rounds withdrawn** |
+
+### Where item (s) stands
+
+Better than it did. The bedroom evidence against it is withdrawn, and the model may be well-calibrated across
+rooms after all. But that is now resting on livingDining targets whose convergence has not been verified at
+their own settings — so the honest next step is to re-verify those, not to celebrate.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .281 — the 150-sample failure is a property of the room, not the aperture or the pose
+
+`.280` closed by naming its own residual risk: every livingDining target in `.269`–`.276` is a 150-sample
+still too, and their convergence had never been checked at their own settings. That is this round's first
+job; the second is to find out what actually predicts the failure.
+
+### livingDining is converged
+
+Same room, pose, anchors, finish as `.270`; only sample count differs (run 10:55 +08, medium tier,
+photographic look, hour 13, 1920×1080, `PITCH=-0.06`, anchors at y=1.5, off −0.7, side C, d = 0.6/1.2/1.8):
+
+| | d = 0.6 | d = 1.2 | d = 1.8 |
+| --- | --- | --- | --- |
+| 150 samples (`.270`) | 158.9 | 161.4 | 160.5 |
+| 250 samples | 159.1 | 161.7 | 160.4 |
+
+0.06–0.19 %. `.269`–`.276` stand.
+
+### Two predictors tested, two refuted
+
+**Aperture.** livingDining 71 % converges, bedroom2 27 % does not — so a window-size story fits n = 2.
+bedroom3 is 66 %, nearly livingDining's, and it fails just as hard (runs 10:58, 11:05 +08, `PITCH=0.30`,
+white, side C, d = 0.6/1.2): 172.1/175.3 at 150 against 120.3/117.7 at 250, i.e. **30–33 % high**, matching
+bedroom2's 31–35 %. Refuted.
+
+**Pose.** Both failing rooms had been shot at `PITCH=+0.30` and the converging one at `−0.06`, so room and
+pose were fully confounded — worth spending two runs to separate rather than publishing a confounded claim.
+livingDining at the bedroom's pitch (runs 11:06, 11:11 +08): 158.5/161.4 at 150 against 159.0/161.5 at 250 —
+**0.06–0.32 %**, converged. Refuted.
+
+A useful by-product: livingDining reads the same traced L at both pitches (158.5/161.4 vs 158.9/161.4). A
+world-anchored metric should be framing-invariant by construction, and here it demonstrably is.
+
+### What survives
+
+| room | floor area | aperture | converged at 150? |
+| --- | --- | --- | --- |
+| livingDining | ≈ 24.2 m² | 71 % | yes, at both pitches |
+| bedroom3 | 10.1 m² | 66 % | no (−30 to −33 %) |
+| bedroom2 | 9.7 m² | 27 % | no (−31 to −35 %) |
+
+The two failures are the two small rooms. Physically plausible — a small bright room has a short mean free
+path, so light bounces more times before escaping and each sample carries more interreflection variance. But
+n = 3, and "small bedroom" differs from "large living room" in many ways besides area. **Candidate, not
+result.**
+
+### Looking changed the diagnosis
+
+The bedroom3 150- and 250-sample stills were compared directly (first method rule). The 150-sample frame has
+**no plaster grain anywhere**, a flattened cornice, a cold blue-grey cast and a milky haze. The 250-sample
+frame has plaster texture on wall and ceiling, a cornice with a modelled bright top edge, and a warm neutral
+cast. Monte Carlo variance is grainy and unbiased; this is smooth and systematically shifted in level *and*
+hue. "Unconverged" is the wrong word for it.
+
+`.280` attributed this to `hqAiDenoise.ts`. That is wrong, or at most partial. The AI pass is opt-in
+(`aiDenoise`); what is on by default and is what the probe reads through `toDataURL` is the lib's
+edge-preserving **`DenoiseMaterial` blit** (`src/scene/pathtrace/hqRenderSession.ts:408`), at **fixed**
+strength — `sigma = 2.5`, `threshold = 0.1`, `kSigma = 1.0`, independent of sample count.
+
+Fixed strength does not mean fixed effect: at high input noise the local variance swamps the filter's edge
+criterion, so it smooths indiscriminately and takes the plaster grain with it. That is a reasonable account
+of the **texture loss**. It is not an account of the **30 % level shift** — a symmetric blur preserves the
+mean over a broad flat region like a wall.
+
+So the low-sample frame differs from the converged one in two separable ways, and only one has a candidate
+mechanism. The level shift is unexplained, and saying so is the point: `.280` closed the question with a
+guess that is now known not to hold.
+
+### Next
+
+1. Sweep sample count on bedroom3 (50/100/150/200/250) and look at the **shape** of the level decay. A smooth
+   asymptote means convergence; a step means a code path switching.
+2. Only if it looks convergence-like, test room size directly — measure the kitchen and the master bedroom,
+   rather than piling more n onto the extremes already measured.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .282 — CORRECTION: the tracer canvas was never showing the path trace
+
+`.281` set up a sample-count sweep on bedroom3 to decide between a smooth asymptote (convergence) and a step
+(a code path switching). The answer is that there was no curve at all.
+
+### The tell
+
+bedroom3 at **50** samples (run 11:21 +08, medium tier, photographic look, hour 13, 1920×1080, `PITCH=0.30`,
+white, side C, d = 0.6/1.2) read traced L **172.1 / 175.3** — the same to the last digit as `.281`'s
+**150**-sample run. Measured offline on fixed patches of the two saved PNGs: L agrees to 0.1, sd to 0.01,
+R−B to 0.0. No Monte Carlo estimator behaves that way across a 3× change in samples.
+
+### Instrumenting the render instead of running more of them
+
+`PTTRACE=1` samples a fixed 10 % patch of the tracer canvas on each 4 s poll, via `drawImage` onto a 2D
+scratch canvas (`toDataURL` on a 1920×1080 WebGL canvas every 4 s would perturb the timing it is measuring).
+One 256-sample bedroom3 render, 44 polls, 184 s (run 11:24 +08):
+
+| t | samples | patch L | sd | R−B |
+| --- | --- | --- | --- | --- |
+| 4 s | 4 | 179.7 | 0.93 | −14.2 |
+| 94 s | 132 | 179.7 | 0.93 | −14.2 |
+| 184 s | 256 | 179.7 | 0.93 | −14.2 |
+
+Every intermediate poll is identical too — unchanged to two decimal places from sample 4 to sample 256. The
+displayed canvas does not accumulate.
+
+`PTHOLD=90` then kept polling past completion (run 11:28 +08). The patch read `L=115.9 sd=1.14 R-B=+8.1` at
+the first poll 5 s later and held there for 90 s; that run's anchors read 120.3 / 117.6.
+
+### It is a different image, not a rougher one
+
+| | mid-render | finished |
+| --- | --- | --- |
+| patch L | 179.7 | 115.9–116.3 |
+| patch sd | 0.93 | 1.14–1.15 |
+| patch R−B | −14.2 (cold) | +8.1 (warm) |
+| plaster grain | absent | present |
+
+A 55 % brighter, smoother, *colder* image is not an under-sampled version of a warmer textured one. Cold blue
+with no grain is the signature of the hardcoded `GradientEquirectTexture` (top `0xbfd4e6`) that
+`buildTracerScene` substitutes for the Ambient/Hemisphere lights it drops (item (p)), so the placeholder is
+most consistent with an early pre-accumulation pass under the gradient environment alone. That identification
+is inferred; what is proven is that the two images are different in kind.
+
+### Corrected numbers
+
+Measured at the cap (runs 11:28–12:02 +08):
+
+| | placeholder (published) | finished |
+| --- | --- | --- |
+| bedroom3 white +0.30, d = 0.6/1.2 | 172.1 / 175.3 | 119.4 / 116.9; 120.3 / 117.6 |
+| livingDining white −0.06, d = 0.6/1.2/1.8 | 158.9 / 161.4 / 160.5 | 137.3 / 137.3 / 143.1 |
+
+The livingDining still was looked at and is unmistakably a real trace: plaster texture on the walls, weave on
+the sofa, wood grain, soft contact shadows under the coffee table, warm bounce off the floor.
+
+### Withdrawals
+
+- `.281` conclusion 1 (livingDining converged at 150, 0.06–0.19 %) — **withdrawn**. That agreement was two
+  reads of the same frozen placeholder. The true values are 10.8–14.9 % lower.
+- `.281` conclusions 2 and 3 (aperture and pose refuted as predictors) — **void**. Placeholder compared to
+  placeholder.
+- `.280` — right that the 150-sample numbers were wrong, wrong that sample count or `hqAiDenoise` was why.
+- `.269`–`.276` traced targets, and the within-tracer colour-bleed magnitudes — **suspect**, all read
+  mid-render.
+- Item (s) ALBEDO-FILL luminance calibration — **suspect**; its hue work was raster and survives.
+- `.268` colour-bleed-is-exactly-zero — **stands**, a raster A/B. All raster figures are untouched.
+
+### Three plausible fixes that failed
+
+Recorded because each looked right:
+
+1. Wait for the sample counter to settle → counter stopped at 256, waited 90 s, still saved the placeholder.
+   A counter says nothing about canvas contents.
+2. Also require the patch to hold still → the placeholder is perfectly stable, so "stable" selects the wrong
+   image.
+3. Require the patch to change with `!==` → tripped on 131.97 → 132.14, i.e. on noise.
+
+Shipped: clamp the request to the 256 cap (a smaller `PTSAMPLES` never shortened the render — the modal always
+runs to its own cap; it only made the probe read earlier), require the flip to exceed a magnitude threshold far
+above noise, and **throw** if the canvas never moves. The guard fired on its own verification run: in 1 of 3
+runs at the cap the flip never happens within 300 s. PT reads are now known-unreliable instead of silently
+wrong.
+
+Filed as item **(t) HQ-CANVAS-PLACEHOLDER**, a product defect as well as a probe one.
+
+### Method rule
+
+*Looking at the frame is necessary but not sufficient — an instrument must be able to fail loudly.* This arc
+looked at frames for fifty rounds and still measured the wrong image, because the wrong image was plausible:
+correctly framed, correctly furnished, lit like a room. What caught it was two runs that should have differed
+and didn't. A measurement path that can silently return a plausible wrong answer is worse than no measurement.
+
+### Next
+
+Re-measure the `.269`–`.276` targets at the cap, budgeting for roughly 1 run in 3 to throw. Nothing in the arc
+should rest on a traced number until that is done.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .283 — CORRECTION to .282: no placeholder; it is the raw trace vs the AI-denoised output
+
+`.282` concluded the HQ modal shows a frozen placeholder for a whole render, filed product defect (t) on that
+basis, and withdrew every traced figure in the arc. The core claim is wrong, and it was wrong for a specific
+and avoidable reason: it rested entirely on canvas pixel reads and never checked what was on screen.
+
+### The check that settles it
+
+`PTSHOT=1` screenshots the page each poll — the compositor, not a canvas read. One bedroom3 render
+(run 12:20 +08, medium tier, photographic look, hour 13, 1920×1080, `PITCH=0.30`):
+
+- 6 samples: heavily grainy path trace, noise across ceiling and walls.
+- 256 samples: clean and converged, button flipped to "Re-render".
+
+The render displays normally. No placeholder, no display defect. **(t) as filed is withdrawn.**
+
+### What the two images are
+
+`HqRenderModal.tsx:116-137` — `finalize()` runs on completion and, when `aiDenoise` is armed and
+`applyAiDenoise()` returns non-null, clears the host and appends a *different* canvas: a plain 2D
+`denoisedCanvas`. And `hqRenderSession.ts:622` returns `denoisedCanvas.toDataURL()` in preference to the
+tracer canvas.
+
+So the two states are the **raw path trace** and the **AI-denoised output**. Both real, both shipped.
+`.282`'s "1 run in 3 never flips" is just runs where the denoise pass produced nothing.
+
+### The defect, re-filed
+
+| bedroom3, white, pitch +0.30 | raw trace | after AI denoise |
+| --- | --- | --- |
+| anchor traced L, d = 0.6 / 1.2 | 172.1 / 175.3 | 120.3 / 117.6 |
+| patch L | 179.7 | 115.9 |
+| patch R−B | −14.2 (cold) | +8.1 (warm) |
+
+~30 % darker and a 22-count hue flip is not denoising. A linear/sRGB mismatch around a model trained on linear
+HDR would look like this — **hypothesis, untested, deliberately not published as a cause.** `.280`, `.281` and
+`.282` were each wrong in exactly that way. What is established: the magnitude, and that the saved PNG differs
+from the watched render and differs run to run depending on whether the pass succeeded.
+
+Which stage is *correct* is open. The raw trace is cold because the tracer environment is the hardcoded cold
+`GradientEquirectTexture` (item (p)); the denoised frame is warm and closer to the raster. The denoise may be
+masking (p) rather than causing an error.
+
+### What this does to .282's withdrawals
+
+`.282` withdrew `.269`–`.276` and all of `.281` citing a placeholder that does not exist, so those withdrawals
+do not stand as reasoned. The narrower truth: those rounds consistently measured the **raw trace**; `.282`'s
+"corrections" measured the **denoised output**. Two stages, each self-consistent. Status is **unknown pending
+(t)**, not withdrawn — and not restored either, since which stage is the right target is precisely what (t)
+now asks.
+
+### Left unresolved, on purpose
+
+`drawImage` and `gl.readPixels` on the tracer canvas agree with each other to the decimal and return constant
+values across a whole render, while the composited display of that same canvas visibly denoises from grainy to
+clean. `PTLIST=1` shows exactly two canvases, both 1920×1080 backing (live scene 1280×720 CSS, modal preview
+694×390 CSS), and the correct one is selected. Both observations are solid and repeated. **No mechanism is
+proposed.**
+
+### Probe changes
+
+PT capture waits for the sample counter to settle and takes a **clipped screenshot** of the modal canvas
+(~1388×780, aspect 1.779 vs the raster's 1.778) instead of `toDataURL` — lower resolution, but the path proven
+to match the display. `.282`'s flip guard and 256-clamp are removed as artefacts of the placeholder model.
+Diagnostics kept: `PTSHOT`, `PTGL`, `PTLIST`, `PTTRACE`, `PTHOLD`.
+
+### Method rule
+
+`.282` said an instrument must be able to fail loudly. Sharper, and what would have caught this three rounds
+earlier: **when an instrument disagrees with itself, check it against a completely different observation
+channel before theorising.** One page screenshot would have pre-empted the mechanisms published in `.280`,
+`.281` and `.282` — all three are refuted by it.
+
+### Next
+
+Settle (t): same pose with the denoise forced off and forced on, both compared against the raster's warmth,
+and decide which stage is the measurement target. The rest of the arc is blocked behind that.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .284 — resolved: the tracer converges normally; four rounds chased one variable and it was not sample count
+
+`.280`, `.281`, `.282` and `.283` each published a different mechanism for the same observation. All four were
+wrong. Measured properly, the answer is unremarkable.
+
+### A single patch is not an instrument
+
+`.282` declared the canvas frozen on the strength of one patch at normalized (0.45, 0.18) reading
+`L=179.7 sd=0.93` at every sample count. Five patches across the same render's screenshots (bedroom3, medium
+tier, photographic look, hour 13, 1920×1080, `PITCH=0.30`, run 12:20 +08) — L / sd:
+
+| samples | ceil-orig | wall-L | wall-R | window | corner-L |
+| --- | --- | --- | --- | --- | --- |
+| 6 | 180.0 / 0.77 | 150.2 / 7.65 | 151.9 / 8.92 | 171.1 / 8.13 | 166.5 / 18.07 |
+| 34 | 180.0 / 0.77 | 157.2 / 2.64 | 156.6 / 2.70 | 168.9 / 5.81 | 166.3 / 17.88 |
+| 70 | 180.0 / 0.77 | 157.3 / 1.58 | 154.0 / 1.81 | 168.3 / 5.91 | 166.4 / 17.97 |
+| 120 | 180.0 / 0.77 | 158.8 / 1.38 | 155.6 / 1.49 | 168.7 / 5.96 | 166.4 / 18.00 |
+| 191 | 180.0 / 0.77 | 158.1 / 1.34 | 155.4 / 1.43 | 168.5 / 6.01 | 166.4 / 17.98 |
+| 256 | 180.0 / 0.77 | 158.6 / 1.33 | 156.2 / 1.30 | 168.3 / 5.90 | 166.4 / 17.95 |
+
+The wall patches converge textbook-style: sd 7.65 → 1.33 (5.8× noise reduction), mean 150.2 → 158.6 (+5.6 %).
+`ceil-orig` is converged from sample 1; `corner-L` sits on a picture-frame edge so its sd 18 is structure and
+also constant. `.282` happened to pick one of the two patches in the frame that could not show convergence.
+
+### .283's "contradiction" was an impression, not a measurement
+
+`.283` reported reads constant while the display visibly denoised, and left it unexplained. Measured, the
+screenshot channel reads `L=179.7 sd=0.94 R-B=-14.2` at every sample count — matching the in-page reads to
+0.1. The channels never disagreed. My reading of the screenshots was right about the walls and wrong about the
+patch, because the patch was not on a wall.
+
+Consequently `.283`'s capture change is reverted: back to `toDataURL` at the full 1920×1080 backing store
+rather than the modal preview's ~1388×780. It traded resolution for a soundness problem that did not exist.
+
+### The single variable
+
+Whether `finalize()`'s AI-denoise swap had happened before the read. Nothing else:
+
+- wall means move +5.6 % across 6 → 256 samples, and under 0.5 % across 120 → 256
+- the raw-vs-denoised gap is ~30 % with an R−B sign flip
+
+Five times the whole convergence drift, so it is not a convergence artefact. **150 samples is adequate** and
+`.280`'s "not converged at 150" is refuted.
+
+### Restored
+
+`.269`–`.276` are valid **raw-trace** measurements at an adequate sample count; `.282` withdrew them on a
+premise that does not exist and `.283` left them in limbo. `.281` stands as well — its livingDining
+re-verification compared two raw-trace reads (0.06–0.19 %, consistent with the <0.5 % drift measured here), and
+its aperture and pose refutations were like-for-like raw-trace comparisons.
+
+Item (t) stands unchanged: the denoise shift is real, large, and unexplained by convergence.
+
+### Stage labelling
+
+Every traced figure now carries a `PT STAGE:` line reading `raw-trace` or `ai-denoised`. The first attempt
+tested for a WebGL context and mislabelled — `getContext('webgl2')` returns null on a canvas already holding a
+WebGL1 context, so it called a plainly raw frame (172.1/175.3) "ai-denoised". Caught because the label
+contradicted the values. It now tests `getContext('2d')` (null on any WebGL canvas, a context on the denoised
+2D one) and was verified reporting `ai-denoised` beside 120.1/117.1. The raw side gets confirmed next round
+when the denoise is forced off.
+
+### Method rule
+
+*A stability or convergence claim needs patches on surfaces with different convergence rates.* A single patch
+can sit in a dead region and report "nothing is changing" about a scene changing everywhere else. `.283`'s
+rule — check a second observation channel — was right but insufficient here: the second channel agreed with the
+first, because both were aimed at the same dead spot.
+
+### Next
+
+Item (t): same pose with `hqAiDenoise` forced off and on, both against the raster's warmth, and decide which
+stage is the measurement target.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .285 — item (t) refuted; the real fault is that the tracer returns one of two discrete outputs
+
+`.283` filed (t) claiming the AI denoise darkens by ~30 % and flips hue. This round ran the A/B `.283` should
+have run.
+
+### Item (t), refuted
+
+New `PTAI=off|on` forces the `hqAiDenoise` flag before the modal mounts, asserts the store took it, and reads
+it back after the capture (`.254`'s lesson: interventions can silently revert). bedroom3, white, medium tier,
+photographic look, hour 13, `PITCH=0.30`, 256 samples, anchors y=1.5 side C d=0.6/1.2 (runs 13:11, 13:19 +08):
+
+| | stage | traced L, d = 0.6 / 1.2 |
+| --- | --- | --- |
+| denoise off | `raw-trace` | 119.3 / 117.6 |
+| denoise on | `ai-denoised` | 118.0 / 115.7 |
+
+1.1–1.6 %. Radiometrically neutral. `.283`'s ~30 % was two runs in different states of the fault below. Also
+verifies `.284`'s stage label in both directions — previously confirmed only on the denoised side.
+
+### The actual fault
+
+Identical room, pose, hour, tier, sample count, exposure and denoise setting; the run lands in one of two
+states:
+
+| | frameL | frameRB | anchors d = 0.6 / 1.2 |
+| --- | --- | --- | --- |
+| state A | 156.1–156.5 | −9.7 to −9.8 (cold) | 172.1 / 175.3 |
+| state B | 112.3–114.7 | +3.9 to +4.6 (neutral) | ~118–120 / ~116–118 |
+
+~45 % apart at the anchors, opposite colour temperature, two tight clusters, no intermediates across 12 runs.
+
+A 6×4 grid over one frame from each state: all 24 cells darker in B by a near-constant ~0.62–0.70, R−B cold →
+neutral everywhere. A global exposure/environment difference; transport does not fail uniformly frame-wide.
+
+### Ruled out by measurement
+
+- Sample count — `.284`: +5.6 % over 6 → 256 samples, <0.5 % over 120 → 256.
+- AI denoise stage — (t) above: 1.1–1.6 %, and both states occur under the same stage label.
+- Exposure — two back-to-back runs, identical settings, both `gl.toneMappingExposure = 1.38`, `toneMapping = 6`
+  at modal-open and at Start render, opposite states (13:27 → A, 13:31 → B).
+
+### One lead, untested
+
+`createHqRenderSession` takes `hdriUrl` and falls back to the hardcoded `GradientEquirectTexture` (top
+`0xbfd4e6`) when absent. That fallback is brighter *and* colder — state A's signature — and a load race would
+give this coin flip while staying invisible to exposure and denoise. **A lead, not a finding.** `.280`–`.284`
+each published a mechanism a later round refuted; no sixth is being added.
+
+### Shipped instrument
+
+`PT FRAME STATE` prints on every run from the whole-frame mean of the already-loaded PNG. `frameRB` flips sign
+between states so classification is unambiguous. Verified on a fresh run (13:40 +08): state A, frameL 156.2,
+frameRB −9.8, anchors 172.1 / 175.3.
+
+### Cost to the arc
+
+No round before this recorded which state it measured, and the states are ~45 % apart. `.284` restored
+`.269`–`.276`; that restoration is now **qualified** — valid only if taken in state B, never recorded, roughly
+a coin flip per run. Filed as item (u). It is a shipped defect too: two users rendering the same scene get
+images 45 % apart and of opposite colour temperature.
+
+### Method note
+
+Four of the five candidate causes were killed by measurements that already existed. The expensive part was
+never the measuring — it was the five rounds of theorising before anyone built a discriminator. **Build the
+discriminator first.** A one-line whole-frame mean, available since `.246`, would have separated these states
+immediately and made `.280`–`.284` unnecessary.
+
+### Next
+
+Kill or confirm the HDRI-fallback lead: log whether `hdriUrl` resolved and which environment the session used,
+correlate against `PT FRAME STATE` across several runs. A direct test, not another inference.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .286 — the HDRI-fallback lead is refuted; the reason escalates item (p)
+
+`.285` left one lead for item (u) with an instruction to kill or confirm it directly.
+
+### Refuted by reading the default
+
+For the cold `GradientEquirectTexture` fallback to select between states A and B it would have to vary:
+
+- `store.hdriId` defaults to **null** (`src/state/slices/uiSlice.ts:385`; `hdri.test.ts` asserts it)
+- `hqEnvironmentUrl(on, null)` → `hdriById(null)?.url ?? null` → null
+- `hdriUrl` therefore reaches `createHqRenderSession` as `undefined` on every default run
+- `resolveTracerEnvironment` returns null, `buildTracerScene` takes the gradient branch
+  (`hqRenderSession.ts:352`) every time
+
+Forcing `hdriEnvironment=false` (`PTHDRI=off`, flag asserted and read back, run 13:47 +08) gave state A,
+frameL 155.7 / frameRB −10.1 — consistent with the branch being constant, not with it choosing the state. **A
+constant cannot be the variable.** (u)'s cause remains unidentified; no replacement hypothesis is offered.
+
+### The ON arm is void, caught only by looking
+
+`PTHDRI=on` with `studio_small_09` (run 13:52 +08) returned frameL 182.8 / frameRB +14.7 and a clean-looking
+still. Wrong room: setting `hdriId` reset `scene.environment` to null and moved the camera, so the capture is
+livingDining at eye level rather than bedroom3 pitched up. Anchors, frame state and sample count all read
+normally on a frame of a different room. Fifth time in this arc that looking caught a plausible number.
+
+### The discriminator was too weak
+
+`.285` classified on `frameRB < -4` alone — an implicit assumption that there are exactly two states — so it
+labelled the 182.8 / +14.7 frame "B (expected)". Now three-way against both terms with an explicit
+`UNKNOWN -- matches neither known state; do NOT compare against either`. A discriminator that cannot report
+"neither" is how a studio-HDRI frame of the wrong room gets compared against gradient-lit bedroom numbers.
+
+### Item (p), escalated
+
+The chain above is not a probe curiosity: **every HQ render a user produces, unless they hand-pick an HDRI, is
+lit by a hardcoded cold gradient** (top `0xbfd4e6`, bottom `0x5a5650`) rather than by the room they built.
+Item (p) recorded that the tracer drops `AmbientLight`/`HemisphereLight` and substitutes a gradient; this round
+establishes that this is the **default and only** path. The HQ still is the app's photoreal showcase and by
+default it is not lit by the user's scene — which reframes (p) from a fidelity gap into the central defect of
+the HQ path, and makes it the strongest candidate for the first fix this arc actually ships.
+
+### Method note
+
+The lead died to a default value and three lines of call chain; no render was required. `.285` had already
+spent four probe runs before writing it down. **Check whether a candidate cause is even a variable before
+building an A/B for it.** Roughly half of `.280`–`.285`'s cost went on A/Bs against constants.
+
+### Next
+
+(p) now outranks (u): confirm by direct observation which environment `buildTracerScene` installs on the
+shipped path, rather than inferring it from the call chain; then return to (u) discriminator-first.
+
+Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .287 — (p) confirmed by observation; four more (u) candidates eliminated; and the probe had never listened to the console
+
+### The missing observation channel
+
+`page.on('console')` was never wired into the probe. For the whole arc, every diagnostic and warning the app
+emitted was structurally invisible. Now added: tagged `[PROBE]` lines plus every warning and error, with
+Vite/HMR chatter filtered. `hqRenderSession` logs `HQ AI denoise failed`, `HQ render failed` and a blank-render
+guard behind `import.meta.env.DEV` — precisely the failures `.280`–`.283` speculated about while unable to see
+them.
+
+### Item (p), observed
+
+Temporary instrumentation in `buildTracerScene` (added, observed, reverted; `src/` verified clean via
+`git diff --stat`), default shipped path, bedroom3, medium tier, photographic look, hour 13, `PITCH=0.30`, 256
+samples, runs 14:02 and 14:10 +08:
+
+```
+[PROBE] buildTracerScene: hdriUrl=undefined env=NULL -> gradient fallback
+```
+
+Two independent runs, one in each of (u)'s states. `.286`'s escalation is confirmed: the shipped HQ path
+installs the hardcoded cold `GradientEquirectTexture` rather than the scene's own lighting.
+
+### Two more (u) candidates, observed away
+
+```
+[PROBE] session opts: toneMapping=agx exposure=1.38 maxSamples=256 1920x1080 aiDenoise=true
+```
+
+- Tone mapping is `agx` and constant. State A being brighter *and* colder is what a missing AgX pass would look
+  like, which made it the natural suspect; it is not missing. Refuted.
+- The environment branch is identical across states — refuted by observation, not merely as a constant.
+- No warnings or errors in either state: the denoise is not failing, the blank-render guard is not firing.
+
+### Capture race, refuted
+
+The continuum of whole-frame means across runs (112.7, 113.8, 139.5, 155.7) against only two discrete anchor
+values looked like a partially-updated tiled blit (`tracer.tiles.set(n,n)`, 2×2–6×6). `PTDOUBLE=1` captured one
+settled render three times, 5 s apart (run 14:25 +08): `frameL=112.7 frameRB=4.0` every time. The state is
+fixed per run, not per capture.
+
+### (u) elimination table — all measured, none argued
+
+| candidate | verdict | round |
+| --- | --- | --- |
+| sample count | refuted (+5.6 % over 6→256; gap ~45 %) | .284 |
+| AI denoise stage | refuted (1.1–1.6 %; both states share a label) | .285 |
+| exposure | refuted (1.38 at open and at Start) | .285 |
+| env branch as a constant | refuted | .286 |
+| env branch by observation | refuted (same branch, both states) | .287 |
+| tone mapping | refuted (`agx` both) | .287 |
+| denoise / blank-render failure | refuted (no warnings either state) | .287 |
+| per-capture tile race | refuted (3 identical recaptures) | .287 |
+
+Cause still unidentified. Unexplained and recorded, not theorised: frame mean is a continuum, anchors are
+binary.
+
+### Method note
+
+Every elimination here cost one line of logging and no reasoning. The listener that enabled three of them was
+eight lines and could have existed since `.246`. **Wire up the observation channels before the hypotheses.**
+Six rounds went on theorising about failures the probe could not see; four causes fell in one round once it
+could.
+
+### Next
+
+(p) outranks (u) and is confirmed rather than inferred, so it is ready for a decision: it needs a real `src/`
+fix (feed the tracer the scene's own lighting), which is a look-and-cost call and not mine to make.
+
+Nothing changed in `src/` — the instrumentation was reverted and `src/` verified clean.
+
+---
+
+## Round .288 — the qualifying photograph set widens to n=3, and the new one carries the EXIF thread 1 was blocked on
+
+(p) awaits a decision and (u)'s cause is unidentified, so this round takes the second standing thread: widen
+the qualifying photograph set beyond n=2 on `.233`'s criteria. Nothing here touches the tracer, so none of it
+is exposed to item (u).
+
+### Screening
+
+Wikimedia Commons category sweeps (`.234` established category listings as the usable route). Six categories
+`.234` did not use → 223 files after a name filter → 53 after size/mime → nine plausible modern painted
+interiors at full resolution, screened on a contact sheet.
+
+| candidate | verdict |
+| --- | --- |
+| `2017-07-30 Haus am Kopf Sankt-Englmar 01` | reject — timber ceiling |
+| `Brier Living Room` | reject — timber ceiling with beams |
+| `Beach House Bridgehampton (12)` | reject — vaulted/trussed (`.234`'s explicit reject class) |
+| `Antesala` | reject — patterned wallpaper |
+| `Basic Malek Mansion` | reject — LED cove strip lighting the ceiling; reads as CG |
+| `Bungalow N°10 - Living room` | reject — ceiling a sliver, not croppable |
+| `A standard living room in Accra` | reject — thin ceiling strip with a pendant lamp in it; very even exposure with soft shadows (flash or HDR) |
+| `Alternate Art & Design` | reject **on provenance** — uploader is the estate agency itself, i.e. a marketing asset |
+| `At La Palma 2021 1854` | **qualifies** |
+
+**A criterion `.233` lacked: screen provenance, not just appearance.** `Alternate Art & Design` passes every
+visual test and is killed only by `extmetadata` (Alternate Immobilien GmbH, "own work"). Estate-agency
+marketing images are routinely HDR-composited or virtually staged.
+
+### The qualifier
+
+`.233`'s method — a hand-picked patch on each surface, mean of each, ratio, crops written out and looked at:
+
+```
+ceiling  1008x221px at (1814,181)  L=172.3  R-B=16.0
+wall      806x484px at (2923,644)  L=155.8  R-B= 2.4
+ceiling / wall = 1.106
+```
+
+Both crops clean plaster, no junction/fixture/frame. Provenance: **Mike Peel, iPhone 12 Mini, 2021-12-04,
+apartment at Rocamar, Spain.** Flat white ceiling across the frame top, large clean white wall right, daylit
+from a balcony with a natural falloff (wall darkens away from the window — no flash), ceiling fixture unlit.
+
+**Caveat, recorded not glossed:** ceiling R−B +16.0 against wall +2.4. Consistent with warm terrazzo bounce on
+the ceiling and cool skylight on the wall — a real transport effect, not a bad sample. But "same plaster paint
+on both surfaces" can only be *judged* from a photograph, not verified, and here it is judged.
+
+### The set
+
+| photograph | ceiling ÷ wall |
+| --- | --- |
+| `Home_Staging_Beispiel_Nachher` (.233) | 1.03 |
+| `Living_room_(13152023964)` (.234) | 0.91 |
+| `At_La_Palma_2021_1854` (.288) | 1.106 |
+| the app, hand-cropped, canonical pose | 0.93 |
+
+Band widens 0.91–1.03 → **0.91–1.11**. The app stays inside, so `.234`'s retirement of `.188`'s ceiling deficit
+**survives a third reference** — the outcome that would have overturned it (a tight band excluding the app) did
+not occur. The app sits in the band's lower third; that is a far weaker claim than a deficit and is not
+actionable at n=3.
+
+### Thread 1's blocker, answered
+
+The standing brief requires a framing-matched reference before the GI comparison means anything, and asks what
+aspect the reference was shot at. For this reference it is now known from metadata rather than inferred:
+**iPhone 12 Mini, 4032×3024 = 4:3 (1.333), main camera ≈26 mm equivalent.** The PT branch pins the walk
+viewport to 16:9 (1.778) so raster and tracer match each other; matching *this photograph* means **4:3 at
+≈26 mm**. A concrete checkable target where the thread had none.
+
+### Method note
+
+Two of eight rejections came from metadata rather than the image: the estate-agency provenance, and the EXIF
+that answered thread 1. `.233` and `.234` screened on appearance alone and never fetched `extmetadata` — one
+API parameter. **Read the metadata that ships with the evidence.**
+
+### Next
+
+Either widen further (44 unscreened files already passed size/mime, and modern-interior categories beyond the
+six used here are largely untouched), or spend the framing figure and re-run the GI comparison at 4:3 / ≈26 mm
+against `At La Palma`. The second is worth more but depends on traced numbers, so it is blocked behind (u).
+
+Nothing changed in `src/`. Docs only — the measurement scripts were temporary and removed.
+
+---
+
+## Round .289 — a negative round on the photograph hunt: 0 of 7, one dead seam, and a validated 20× fix for what stopped it
+
+`.288` offered two continuations: widen further, or spend the framing figure. The second is blocked behind
+item (u), so this widened. It found nothing — and the reason turned out to be fixable.
+
+### Seam 2 — hospitality categories: 0 of 6
+
+Eight categories (hotels/apartments in Spain, Portugal, France, Italy, Denmark, plus `Hotel rooms`) → 164 names
+→ 33 past size/mime → six screened.
+
+| candidate | verdict |
+| --- | --- |
+| `Albergue de peregrinos, A Laxe 04`, `06` | reject — bare concrete, fluorescents on |
+| `Ponferrada - Hotel Temple 6` | reject — artificial downlights, dark timber |
+| `Santo Domingo … Hospital de Peregrinos` | reject — stone gothic vaulting, artificial |
+| `Santo Domingo …` dining room | reject — brick + spotlit mural |
+| `Executive Suite (Spa Building)` | reject — ceiling a thin uncroppable strip; hard sun patches |
+
+**Hospitality is a dead seam — do not sweep it again.** Commons hotel categories are lobbies, corridors,
+restaurants and stone halls: artificially lit, rarely plaster on both surfaces. `.288`'s living-room categories
+gave 1/9; this gave 0/6. Category choice dominates yield much more than volume.
+
+### Seam 3 — domestic categories: one file retrieved, and it rejects
+
+Six domestic categories → 216 names → 46 landscape JPEGs ≥1600 px. Only one download succeeded:
+`Bedroom_twin_beds` — reject, **no ceiling in frame** (`.234`'s class), plus a fully clipped window.
+
+### `.288`'s metadata screen rejected zero — negative on it as a general filter
+
+The agency/marketing signal that killed `Alternate Art & Design` does not recur here (traveller uploads), and
+`Software` is **empty on all 33** hospitality candidates, so the HDR-software screen is inert on Commons.
+`.288`'s metadata win was real but is a special case, not a routine filter.
+
+### What stopped the round, and the fix
+
+`upload.wikimedia.org` returns **HTTP 429** after roughly seven full-resolution downloads per session; seven of
+nine domestic candidates failed that way, and a 7 s-spaced retry failed too.
+
+The thumbnail route works after all. `.288` tried `iiurlwidth`, got non-JSON, and fell back to full-res URLs —
+**the parameter was never the problem; the API call was**, because titles containing `&` and `°` broke the query
+string. On a clean title it returns `thumburl` directly: **351,898 bytes vs 6.9 MB, 20× smaller.**
+
+And the metric is scale-invariant. Same normalized crops on `At La Palma`:
+
+| source | ceiling | wall | ceiling ÷ wall |
+| --- | --- | --- | --- |
+| 1280×960 thumbnail | 172.4 | 155.8 | 1.106 |
+| 4032×3024 original | 172.3 | 155.8 | 1.106 |
+
+Identical to three decimals. Future rounds can screen **and measure** from thumbnails and never reach the limit.
+
+**Scope caveat:** this validates **patch means**, a low-frequency statistic. It does *not* licence thumbnails
+for micro-contrast/micro-sd work, which is resolution-dependent by construction (the floor micro-contrast
+figures here are already normalised to ~300 px/m for that reason). Means: yes. Texture: no.
+
+### Thread 2, priced
+
+Qualifying rate across `.234` (1/10), `.288` (1/9), `.289` (0/7) = **2 of 26 ≈ 8 %**. n=5 needs ~40 more
+screened candidates — ~5 sessions at full resolution against the 429 ceiling, one or two via thumbnails. The set
+remains **n=3**: 1.03, 0.91, 1.106, app 0.93.
+
+### Method note
+
+Two of three findings here are corrections to `.288`, one round old: its metadata criterion does not
+generalise, and its abandonment of the thumbnail route was a misdiagnosis of its own malformed API call.
+**When a method step fails once, check whether the step or the plumbing failed before discarding the step.**
+`.288` discarded a 20× saving on one bad URL and this round paid for it in 429s.
+
+### Next
+
+Re-run the domestic seam via thumbnails: 46 landscape candidates are already identified and provenance-screened,
+at ~350 KB each — the whole batch for less than one full-res file.
+
+Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .290 — n=4, and the new reference lands on the app's own ratio to within 0.003
+
+`.289` said to re-run the domestic seam through the thumbnail route it had validated. This is the first round in
+the arc to screen *and* measure a reference entirely from a 1200 px thumbnail.
+
+### The fix holds; a second limit appears
+
+`.289` was stopped by `upload.wikimedia.org` 429ing after ~7 full-res downloads. Here: **19 of 19 thumbnails
+downloaded 200**, ~350 KB each, no throttling.
+
+But the **API** rate-limited independently — 9 of 15 `imageinfo` batches returned "too many requests", so the
+sweep produced 19 rows instead of ~46. Two separate ceilings; payload size fixes `upload.`, the API needs
+**request pacing**.
+
+### Screening: 18 files, 9 independent interiors, 1 qualifier
+
+A single upload batch (`2016_Grevillia_*`, one luxury villa) was **ten of the eighteen** files — all concealed
+LED cove lighting in dropped ceilings, copper/marble panels. **Dedupe by upload batch before treating a sweep's
+count as breadth.**
+
+| candidate | verdict |
+| --- | --- |
+| `2016_Grevillia_*` ×10 (one villa) | reject — LED cove lighting, not plaster |
+| `BB_chambredhote` | reject — firelight and lamps |
+| `201_B_Gruppe_hos_Wilse`, `9557_Aulestad` | reject — monochrome historical |
+| `9556_Aulestad` | reject — guitar close-up, no ceiling/wall |
+| `Arenal_3b` | reject — red walls vs white ceiling, lamp-lit |
+| `2023-07-30 Vogtsbauernhof Ortenauhaus 00` | **qualifies** |
+
+### Looking caught a contaminated crop again — worth 6.3 %
+
+| | L | sd | R−B |
+| --- | --- | --- | --- |
+| ceiling, 360×26 px | 149.2 | 4.57 | +8.1 |
+| wall, first crop | 150.8 | **19.18** | +9.4 |
+| wall, re-cropped clear | 161.0 | **5.79** | +7.0 |
+
+sd 19.18 is not plaster; the crop showed a dark jug/headboard corner intruding at bottom-right.
+**ceiling ÷ wall: 0.989 → 0.927.** Fifth time in this arc (`.233`, `.236`, `.243`, `.246`, `.234`) that a
+contaminated crop gave a plausible number, and the first time the error has been quantified against its clean
+counterpart.
+
+### The qualifier
+
+White lime plaster on walls and ceiling, daylit from a right-hand window with a natural falloff to the left (no
+flash), no artificial light on, Commons photograph dated 2023-07-30. **Chroma match is the tightest in the set:
+ceiling R−B +8.1 vs wall +7.0, a 1.1-count gap**, against `At La Palma`'s 13.6 — on the one criterion that can
+only be judged, not verified, this is the strongest sample so far.
+
+Caveats: the ceiling crop is a **thin strip** (26 px of 853, ~3 % of frame height) though clean; and the
+building is an **open-air museum farmhouse**, a period reconstruction rather than a contemporary dwelling. Real
+lime plaster and real daylight, so it meets the letter of `.233`, but it is a different building tradition and
+is not interchangeable with the other three.
+
+### The set, n=4
+
+| photograph | ceiling ÷ wall |
+| --- | --- |
+| `Living_room_(13152023964)` (.234) | 0.910 |
+| `Vogtsbauernhof_Ortenauhaus` (.290) | 0.927 |
+| **the app**, hand-cropped, canonical pose | **0.930** |
+| `Home_Staging_Beispiel_Nachher` (.233) | 1.030 |
+| `At_La_Palma_2021_1854` (.288) | 1.106 |
+
+The app is now **matched by a real photograph to within 0.003**. `.234` retired `.188`'s ceiling deficit because
+the app sat inside a two-photograph spread; at n=4 it is coincident with a reference measured the same way.
+`.288`'s observation that the app sits in the band's lower third is weaker still — a qualifying photograph sits
+there too.
+
+### Yield
+
+`.234` 1/10, `.288` 1/9, `.289` 0/7, `.290` 1/18 → **3 of 44 ≈ 6.8 %**, close to `.289`'s 8 % estimate. n=5
+needs ~15 more candidates; n=6, ~30.
+
+### Next
+
+Pace the API and finish the 46-candidate domestic list the sweep identified but could not fetch. The seam is
+productive — domestic categories have supplied 2 of the set's 4 references.
+
+Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .291 — pacing works and the pool grows 6×, but 0 of ~19 qualify: the `Bedrooms` seam is exhausted
+
+`.290` named the bottleneck (the API, needing pacing) and the work (the domestic candidate list). The sweep
+worked; the screening did not.
+
+### Pacing
+
+2.2 s between API calls, `--data-urlencode` per field:
+
+| | .290 | .291 |
+| --- | --- | --- |
+| names after filter | 154 | 313 |
+| candidates past size/mime/provenance | 19 | 116 |
+| API batch failures | 9 of 15 | 8 of ~26 |
+| thumbnails downloaded | 19/19 | 26/26 |
+
+6× the pool, no image throttling. The API still refuses ~a third of batches, so 2.2 s is not enough for
+sustained use, but it no longer binds pool size. `.290`'s dedupe lesson is implemented: uploader + title stem,
+cap 2 per batch (116 → 103).
+
+### 0 of ~19
+
+22 screened; one already in the set (`Vogtsbauernhof`), two known `.289`/`.290` rejects. The only candidate to
+reach examination, `Bedroom_of_Canopy_Tower_in_Gamboa_Panama`, **rejects on looking**: what reads as ceiling
+along the frame top is mostly wall *above the window* (the yellow trim marks the head), and the real ceiling is
+crossed by a structural brace with a light fixture in it. No clean flat plaster patch — and ambiguity is a
+reject, not a crop to force.
+
+### The reject census is the output
+
+| cause | count |
+| --- | --- |
+| wall colour not uniform / wall ≠ ceiling paint | 5 |
+| artificial light on | 5 |
+| period / château / museum-display | 4 |
+| timber or OSB linings | 2 |
+| ceiling not in frame | 2 |
+| no planar ceiling (cave dwelling) | 1 |
+| not a photograph (watercolour) | 1 |
+| ceiling not confidently croppable | 1 |
+
+Two causes are 45 %, and both are structural to the category: bedroom photography usually excludes the ceiling,
+and bedrooms disproportionately have a coloured feature wall or lamps on. **The `Bedrooms` seam is exhausted for
+this metric.** Productive seams were living-room categories (`.288`) and one museum farmhouse (`.290`).
+
+### Thread 2, repriced
+
+Cumulative yield **3 of ~63 ≈ 4.8 %**, down from `.289`'s 8 % and `.290`'s 6.8 %. The rate falls as the seam is
+worked deeper — the easy qualifiers came first. n=6 would need ~60 more candidates. **Thread 2 has poor and
+worsening marginal returns.**
+
+### A measurable replacement for the judgement call
+
+`.233`'s "same plaster paint on both surfaces" is the only screen criterion that cannot be verified — `.288`
+and `.290` both had to record it as *judged*. `.290` supplies a proxy: **R−B agreement between the patches**,
+**1.1 counts** on its strong sample versus **13.6** on `.288`'s marginal one. A chroma-agreement threshold would
+replace judgement with a number, admit coloured-wall rooms where ceiling and wall match each other (the largest
+reject class), and reject same-white rooms lit by very different sources. **Proposed, not adopted** — it needs
+calibrating against the existing four references first, and doing that at n=4 is itself weak.
+
+Set unchanged at n=4: 0.910, 0.927, [app 0.930], 1.030, 1.106.
+
+### Next
+
+Not more bedroom sweeps. Either calibrate the chroma criterion against the existing four and re-screen the
+rejected coloured-wall rooms with it — mining the 103-candidate pool already fetched rather than fetching more —
+or leave thread 2 at n=4 and say so. With (p) confirmed and awaiting a decision and (u) unidentified, 4.8 % is
+no longer obviously the best use of a round.
+
+Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .292 — three corrections and a refuted hypothesis
+
+An attempt to advance thread 1 without touching the tracer, which ended up auditing three of the previous four
+rounds' claims. All four results are negative or corrective.
+
+### The idea
+
+Thread 1's stated blocker is already answered: the anchor metric is framing-invariant (`.285`) and `.288` gave
+the reference aspect. What blocks it is (u), which affects only the **tracer**. `.268` proved the **raster** has
+exactly zero colour bleed, and a real daylit ceiling should be warmed by floor bounce while the wall sees more
+sky — so **ceiling-minus-wall R−B** would be a GI signature measurable from photographs alone.
+
+### Refuted at n=3
+
+| photograph | floor | ceiling R−B | wall R−B | Δ |
+| --- | --- | --- | --- | --- |
+| `At_La_Palma` | warm terrazzo | +16.0 | +2.4 | **+13.6** |
+| `Vogtsbauernhof` | timber, small window | +8.1 | +7.0 | **+1.1** |
+| `Home_Staging_Beispiel` | white tile | +6.0 | +8.8 | **−2.8** |
+
+Straddles zero, and tracks **floor colour** rather than the presence of GI: a white-tiled room's bounce is
+neutral so its ceiling is not warmed, and its wall is warmer than its ceiling because the wall carries warm
+timber window reveals. No systematic ceiling-warming exists to hold the app to. The quantity cannot serve as a
+tracer-free GI target.
+
+### Which kills `.291`'s proposal one round after it was made
+
+`.291` proposed replacing `.233`'s unverifiable "same plaster paint on both surfaces" with a **chroma-agreement
+threshold**, on 1.1 counts (strong sample) vs 13.6 (marginal). Those values are now known to span **−2.8 to
++13.6 across photographs that all qualify**. Such a threshold would reject `At_La_Palma`, which passes every
+other criterion and has documented provenance. **Refuted before adoption.** `.291` built it from the same two
+points this round's third measurement overturned: two points looked like a criterion, three made it noise.
+
+### Correction to `.288`: provenance over-rejects
+
+`.288` rejected `Alternate Art & Design` solely because the uploader was the estate agency. Fetching `.233`'s
+original reference exposed the inconsistency: `Home_Staging_Beispiel_Nachher` — the arc's first qualifying
+photograph — was uploaded by *"Die Home Stagerin Senta Hoffmann"*, a home-staging business promoting itself.
+Same provenance class; either both go or both stay.
+
+Resolved by checking the property provenance stood in for:
+
+- **`Home_Staging_Beispiel_Nachher` stays in** — hard cast shadows from the ladder and mullions, real
+  left-to-right falloff, and clipped blown windows (an HDR merge would have recovered them). Single exposure.
+- **`Alternate Art & Design` stays out, for the right reason** — no cast or contact shadow anywhere (desk
+  chair, lamp base, coffee table) and no cross-room falloff, the far wall as bright as the window wall. A
+  CG/composite signature, which is what "not AI stock" was actually about.
+
+Both verdicts unchanged, both reasons now correct. **Criterion amended: provenance is a prior that says look
+harder, not a verdict.** Reusable positive test for CG: **absent contact shadows + absent cross-room falloff.**
+
+### Correction to `.290`: the headline exceeded the method's resolution
+
+`.290` reported the app's 0.930 matched by a photograph to within **0.003**. Re-measuring
+`Home_Staging_Beispiel_Nachher` with this round's own verified-clean crops gives **0.976** against `.233`'s
+published **1.03** — same photograph, both crops clean, **5.4 % from crop choice alone**, eighteen times the gap
+`.290` celebrated. **The band's endpoints carry ~±5 % crop-choice uncertainty, so "matched to 0.003" is not
+meaningful.** What survives is `.234`'s original, weaker, robust claim: the app's ratio sits *inside* the
+photographic spread, which ±5 % does not threaten because the spread is ~0.9–1.1.
+
+The set stays n=4 and the published ratios stand (`.233`'s 1.03 retained rather than replaced by 0.976 —
+re-cropping every historical reference is a separate job, but both numbers are now on record).
+
+### Method note
+
+`.288`–`.291` each proposed something the next round had to qualify or withdraw: a provenance criterion that
+over-rejects, a chroma criterion built on n=2, a precision claim beyond the method's resolution. All three came
+from generalising a single new measurement immediately. **Do not turn one measurement into a criterion.**
+
+### Next
+
+Thread 2 is at n=4 with 4.8 % marginal yield and its screen now audited. Thread 1's tracer-free route is closed
+by this round's negative; its tracer route is blocked behind (u). (p) is confirmed and awaiting a decision.
+**The measurement threads are at a genuine stopping point — the remaining work is the decisions.**
+
+Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .293 — item (u) is not two states; it is one spatially varying cold cast whose extent varies
+
+Two of this round's own hypotheses were refuted, and the third finding overturns how (u) has been described
+since `.285`.
+
+### Pose refuted
+
+The frame mean is a continuum while the anchors are binary; since world-anchored values are framing-invariant
+(`.285`), a wandering camera would move the mean and leave anchors fixed — and `.286` showed the camera *can*
+move. Two runs, full logs (15:07, 15:15 +08):
+
+| | `reached` | drift | raster anchors | state | traced anchors |
+| --- | --- | --- | --- | --- | --- |
+| run 1 | [7.33, 3.4] | 0.37 | 118.2 / 128.3 | B (frameL 112.7) | 118.9 / 117.3 |
+| run 2 | [7.33, 3.4] | 0.37 | 118.1 / 128.3 | A (frameL 156.2) | 172.1 / 175.3 |
+
+Identical pose, identical raster, opposite states. (u) is downstream of pose and of the rasteriser.
+
+### Spatially local, not global
+
+3×3 grid compared cell-by-cell across frames, so content is controlled:
+
+| cell | mixed (`tm-1`) | all-B (`u1`) | all-A (`u2`) |
+| --- | --- | --- | --- |
+| (0,0) | +2.6 | +7.4 | −11.9 |
+| (0,2) | −12.9 | +3.3 | −14.0 |
+
+One render contains both behaviours in different regions — which explains binary anchors, the continuum of
+frame means, and `.287`'s recapture stability all at once.
+
+### Not per-tile
+
+`tracer.tiles` is 3 at 1920×1080, so per-tile assignment would step at x = 640/1280. A 24-column R−B profile
+over y = 200–500:
+
+```
+tm-1   +1.3 +1.2 +1.2 +1.3 +1.2 +1.2 +1.0 +0.6 -0.3 -2.1 -4.0 -6.3 -8.7 -11.2 -13.5 -13.8 -13.8 ...
+u2     -8.6 -8.7 -8.4 -8.9 -10.3 -11.6 -13.0 -13.7 -13.8 -13.8 -13.8 -13.8 ...
+```
+
+Smooth gradients, same right-hand asymptote (−13.8), differing only on the left (+1.3 vs −8.6).
+
+### The correct description
+
+**One spatially varying cold cast whose extent varies between runs.** Looking settles which is healthy: the
+good frame is warm on the far side, cold near the glazing, with a clean diagonal transition across the ceiling
+— cool skylight near the aperture, warmer bounce away from it. The anomalous frame is cold everywhere at the
+saturated value. **The anomaly is a missing falloff, not a colour shift.**
+
+This means `.285`'s discriminator measured the wrong thing: a whole-frame mean summarises a spatial field with
+one number, so its "two tight clusters" were partly an artefact of that summary.
+
+### A replacement built, failed, reverted
+
+| frame | left | right | falloff | verdict |
+| --- | --- | --- | --- | --- |
+| `u1` (known healthy) | +3.8 | +5.6 | **−1.8** | would be ANOMALOUS |
+| `tm-1` | −2.3 | −6.1 | +3.8 | ANOMALOUS |
+| `u2` | −11.3 | −6.7 | −4.6 | ANOMALOUS |
+
+Calls every frame anomalous including the healthy one: over the full frame height the warm furniture in the
+lower third swamps a gradient that exists only in the upper wall/ceiling band. **Reverted** — revert-and-report
+beats an unverified fix, and shipping a classifier that misclassifies the one known-good frame is worse than
+keeping the flawed one. The profile ships as an opt-in diagnostic (`PTPROFILE=1`).
+
+### Status
+
+Known: (u) is downstream of pose and the rasteriser, spatially varying, not tiled; the near-glazing value is
+invariant; the anomaly is a missing falloff. Unknown: what makes the extent vary. **Nine candidates eliminated
+across `.284`–`.293`; no mechanism proposed.**
+
+### Method note
+
+The failed classifier failed the same way four earlier rounds did: **a statistic over a whole frame mixes
+regions with different content.** `.282` measured one dead patch; `.285` averaged a field; `.293` averaged
+across furniture. **A frame-wide statistic needs its region declared, or it measures nothing in particular.**
+
+Nothing changed in `src/`. The probe gains `PTPROFILE=1`.
+
+---
+
+## Round .294 — (u) at n=24 instead of n=3: three discrete classes, and `.293`'s claim came from the wrong pair
+
+`.293` asked whether the cold-cast extent is bimodal or continuous and answered the surrounding questions from
+three frames. Every bedroom3 traced frame from `.280` on is still on disk at the same room, pose and finish, so
+the distribution was free.
+
+### Measurement
+
+Upper wall/ceiling band (y = 0.19–0.46 — the region `.293` established the gradient lives in; the lower third
+is furniture), left third vs right third R−B, plus whole-frame mean. All frames 1920×1080,
+`WINDOW=bedroom3 PITCH=0.30`, white walls, medium tier, photographic look, hour 13.
+
+| class | n | band L R−B | band R R−B | falloff | frameL |
+| --- | --- | --- | --- | --- | --- |
+| A | 12 | −10.1 … −10.6 | −12.8 | 2.2 – 2.7 | 155.7 – 156.5 |
+| B | 10 | +6.0 … +7.1 | +2.6 … +3.0 | 3.3 – 4.1 | 112.3 – 114.9 |
+| M | 2 | +1.1 … +1.4 | −12.6 … −12.7 | 13.8 – 14.0 | 139.5 – 139.7 |
+
+Three classes, each tight to under one count across a dozen runs. **A 50 %, B 42 %, M 8 %.**
+
+### `.293`'s central claim is wrong
+
+It stated both states share the near-glazing asymptote (−13.8), hence (u) is "one spatially varying cold cast
+whose extent varies". That came from profiling **`tm-1` against `u2`** — classes **M and A**, both cold on the
+right. **No class-B frame was profiled.** Class B's right band is **+2.8**.
+
+So **A and B differ globally across the upper band** — cold throughout versus warm throughout — not in the
+extent of a gradient. Only the two M frames are spatial mixtures, and they are 8 % of runs. The error was
+structural: with three frames to hand, two were the same class.
+
+### Survives / withdrawn
+
+Survives: pose and the rasteriser ruled out (identical arrival and raster anchors across opposite states); the
+per-tile hypothesis dead (no step at tile edges); class M frames genuinely contain both behaviours spatially.
+Withdrawn: the shared-asymptote claim, and the description of (u) as primarily a varying-extent phenomenon. It
+is primarily a **global** upper-band difference with an occasional mixed class.
+
+### `.285` partly vindicated, `.286` validated
+
+`.285` reported two tight clusters with no intermediates and `.293` called that an artefact of averaging a
+field. At n=24 the clusters are real and tight — `.285` was right about discreteness. And **`.286`'s UNKNOWN
+bucket is exactly what catches class M**, at 8 % about one run in twelve: the single 139.5 outlier `.285` saw
+and `.286` reclassified. Two rounds of criticism were each half right; the version now in the probe is correct.
+
+### On the cause
+
+The tracer's environment is the hardcoded cold `GradientEquirectTexture` (item (p), confirmed in `.287`). Class
+A is cold throughout and ~43 counts brighter; class B warm throughout and darker. That reads as
+environment-dominated vs bounce-dominated — **not published as a mechanism.** Ten candidates eliminated across
+`.284`–`.294`, and every mechanism proposed in that span was refuted by a later round.
+
+### Method note
+
+`.282` measured one dead patch; `.293` compared two frames of the same class. Both published conclusions that
+more of the *already available* data refuted. This round's data cost nothing — it sat in `/tmp` throughout
+`.285`–`.293`, which spent ~twenty probe runs generating exactly the frames needed and then reasoned from three.
+**Before running a new measurement, check whether the answer is already in the outputs of the old ones.**
+
+Nothing changed in `src/` or in the probe — the discriminator in place classifies all three classes correctly.
+
+---
+
+## Round .295 — free audit of every saved traced frame: which past conclusions (u) actually corrupted
+
+`.294` said to check old outputs before running anything new. Doing that again answers the arc's largest
+outstanding risk — did the published within-tracer A/Bs compare frames from different (u) classes? — at zero
+cost, since all ~48 traced frames from `.249` on are still on disk.
+
+### Method, and its limit
+
+`.294`'s classifier (upper band y = 0.19–0.46, left/right third R−B, plus frame mean) was calibrated on
+**white-walled bedroom3**. Deliberately recoloured arms move those same bands by design, so they **cannot** be
+class-assigned. Every claim below is confined to white-finish frames at a shared pose.
+
+### 1. The floor-finish A/Bs are clean
+
+| pair | band L | band R | frameL |
+| --- | --- | --- | --- |
+| `ld-floor-tile-white` / `-wood-ebony` | 3.5 / 2.9 | 0.9 / −0.1 | 135.8 / 133.7 |
+| `ld-fa-floor-tile-white` / `-wood-ebony` | 15.5 / 14.7 | −2.7 / −4.7 | 116.5 / 105.7 |
+| `ld-fb-floor-tile-white` / `-wood-ebony` | 19.4 / 22.3 | 2.3 / 6.0 | 118.9 / 99.3 |
+
+Within-pair band differences are **0.6–2.9 counts** against the **~17** separating (u)'s classes (and ~43 in
+frame mean). No pair straddles a class — those A/Bs measured the floor. First time any of the arc's traced A/Bs
+has been *shown* clean rather than assumed so.
+
+### 2. `.281`'s convergence pair was two class-A frames
+
+`ld-lp150` / `ld-lp250`: band L −8.4 / −5.2, frame mean 158.8 / 160.7 — both cold-banded, both ~159–161, the
+class-A signature, while white livingDining frames at the eye-level pose are warm-banded. `.281`'s "converged at
+150, 0.06–0.32 % agreement" was two frames of the same class agreeing. `.282` suspected this and could not
+demonstrate it; it is now demonstrated, and not because of a placeholder or a denoise swap.
+
+### 3. The bedroom2 anomaly, finally attributed
+
+`.277`–`.279` reported a bedroom2 white arm at 175.4 / 181.1, ~31–35 % high. `.280` blamed **sample count**;
+`.284` blamed the **denoise swap**. The saved frame:
+
+```
+ld-b2t (bedroom2, white)   band L = -9.4   band R = -11.4   frameL = 160.0
+```
+
+The class-A signature, in a room and finish where comparable livingDining frames are warm-banded at ~125–137.
+**The white arm was a class-A frame.** So the anomaly was neither sample count nor the denoise stage but (u)
+class assignment. `.280`'s *withdrawal* of those rounds stands; its reason and `.284`'s replacement reason are
+both wrong.
+
+### Position on the arc's traced results
+
+Not "all traced numbers are void" (`.282`), nor fully restored (`.284`). Specifically:
+
+- **clean:** the three floor-finish A/Bs
+- **same-class artefact:** `.281`'s convergence claim
+- **class-straddled, void:** `.277`–`.279`'s bedroom2 comparison
+- **not auditable by this method:** the recoloured arms of `.269`, `.270`, `.276` — status unknown, and saying
+  the audit cannot reach them is better than guessing
+
+### Method note
+
+Three rounds attributed the bedroom2 discrepancy to three different causes — sample count, the denoise swap,
+(u) class — and only the third used the frame that was on disk the whole time. `.280` and `.284` each reasoned
+from the numbers those runs printed; the image they saved carried the answer. **"Look at the frame" applies to
+old frames too, not only the one currently being produced.**
+
+Nothing changed in `src/` or in the probe. (u)'s cause remains unidentified; this round identifies its
+consequences.
+
+---
+
+## Round .296 — state of knowledge, `.230`–`.295`: what stands, what is withdrawn, what is unknown
+
+Sixteen of the last twenty rounds corrected an earlier one. The record is therefore internally
+self-contradictory when read front-to-back: several claims are asserted, withdrawn, restored and re-attributed
+across separate entries, and three separate causes were published for one anomaly. **The pending decisions on
+items (l)–(u) cannot be made from that without reading all sixty-six entries.** This round derives each claim's
+*current* status from its chain of corrections. No new measurement; the deliverable is the index.
+
+### Claims that STAND
+
+| claim | round | why it survives |
+| --- | --- | --- |
+| **Colour bleed in the rasteriser is exactly zero** | `.268` | A raster A/B with no confound available. Never depended on the tracer, so untouched by items (t)/(u) and by every tracer correction since. **The arc's most load-bearing positive result.** |
+| **Every HQ render is gradient-lit by default** | `.286`, `.287` | Inferred from `store.hdriId` defaulting to null, then **confirmed by direct observation** of the branch `buildTracerScene` takes. Item (p), escalated. |
+| **(u) has three discrete classes: A 50 %, B 42 %, M 8 %** | `.294` | n=24, content-controlled, each class tight to <1 count. Superseded `.285`'s two-state and `.293`'s gradient descriptions. |
+| **The three floor-finish A/Bs are class-clean** | `.295` | Within-pair band differences 0.6–2.9 counts against ~17 between classes. |
+| **The qualifying photograph band is 0.91–1.11, app at 0.93 inside it** | `.234`, `.288`, `.290` | n=4. Robust to the ±5 % crop-choice uncertainty `.292` measured, because the spread is wide. |
+| **A reference photograph's framing is known: 4:3, ≈26 mm** | `.288` | From Commons `extmetadata`, not inference. Answers half of thread 1's stated blocker. |
+| **The anchor metric is framing-invariant** | `.285` | Same world point reads 158.5/161.4 vs 158.9/161.4 at two pitches. Answers the other half of thread 1's blocker. |
+| **Patch means are scale-invariant; thumbnails are valid for them** | `.289` | 1.106 from both a 1280 px thumbnail and a 4032 px original. **Not** valid for micro-contrast. |
+| **The HQ mirror ceiling is fixed** | `.253` | `pbrStandInFor`; the arc's only shipped `src/` change, with unit tests. |
+
+### Claims that are WITHDRAWN
+
+| claim | asserted | withdrawn | note |
+| --- | --- | --- | --- |
+| `.188`'s ceiling deficit | `.188` | `.234`, and again `.255` | Revived by `.253`, withdrawn again when `.255` found the tracer runs a different lighting rig. Retired. |
+| The wall-falloff deviation | `.226`–`.236` | `.247`, metric retired `.249` | Framing-dependent; the metric never measured a wall. |
+| "Absent interreflection causes the wall falloff" | `.226` | `.251` | Real GI does not produce the photograph's falloff. The arc's founding diagnosis. |
+| `.277`–`.279`'s bedroom findings | `.277`–`.279` | `.280` | Withdrawal stands; its *reason* does not — see below. |
+| `.282`'s "the canvas never showed the path trace" | `.282` | `.283` | Screenshots show the render displays normally. |
+| Item (t), the AI-denoise radiometric shift | `.283` | `.285` | One-variable A/B: 1.1–1.6 %, not ~30 %. |
+| `.293`'s shared-asymptote / varying-extent model of (u) | `.293` | `.294` | Built on two frames of the same class; no class-B frame was profiled. |
+| `.291`'s chroma-agreement criterion | `.291` | `.292` | Refuted before adoption; would reject a qualifying reference. |
+| `.290`'s "app matched to within 0.003" | `.290` | `.292` | Crop choice alone moves one photograph 5.4 %. |
+| `.292`'s ceiling-warmth GI signature | `.292` | `.292` | Refuted in the same round at n=3; tracks floor colour, not GI. |
+
+### Claims RE-ATTRIBUTED (the withdrawal stood, the reason did not)
+
+The bedroom2 anomaly of `.277`–`.279` was explained three times:
+
+| round | cause proposed | status |
+| --- | --- | --- |
+| `.280` | sample count (unconverged at 150) | refuted by `.284` (+5.6 % over 6→256 samples) |
+| `.284` | the AI-denoise swap | refuted by `.285` (denoise is neutral) and `.295` |
+| `.295` | **(u) class straddling** — the white arm was a class-A frame | current |
+
+Similarly `.281`'s "livingDining converged at 150" was withdrawn by `.282` on a false premise, restored by
+`.284`, and finally shown by `.295` to be a **same-class artefact** (both frames class A).
+
+### UNKNOWN — genuinely open, not quietly assumed
+
+- **(u)'s cause.** Ten candidates eliminated across `.284`–`.294`: sample count, denoise stage, exposure, the
+  env branch (twice), tone mapping, denoise/blank-render failure, per-capture tile race, camera pose, per-tile
+  assignment. Every mechanism proposed in that span was refuted by a later round. **No mechanism is proposed.**
+- **The class status of the recoloured traced arms** in `.269`, `.270`, `.276`. `.295`'s classifier reads the
+  same bands a deliberate recolour moves, so it cannot reach them. Their magnitudes are neither confirmed nor
+  void.
+- **`.281`'s aperture and pose refutations.** `.284` restored them as like-for-like raw-trace comparisons, but
+  not every frame involved has a determinable class, so they are better described as unknown than as standing.
+- **Whether class A or class B is the correct render.** `.293` argued B looks physically sensible (cool near the
+  aperture, warm away from it) but that was on the mis-paired comparison `.294` overturned.
+
+### Decisions outstanding — the actual blocking list
+
+| item | state | what is needed |
+| --- | --- | --- |
+| **(p) HQ-FILL-RIG** | confirmed by direct observation `.287` | **A real `src/` fix** — feed the tracer the scene's own lighting instead of the hardcoded cold gradient. Look-and-cost call. **Highest value.** |
+| (l) WINDOW-LUMINANCE | diagnosed, priced ≈×30 `.259` | look call |
+| (m) PHOTO-VIGNETTE | built, measured, reverted `.244` | look call |
+| (n) HQ-LAMBERT-CEILING | fix 1 shipped `.253` | fix 2 call (near-moot) |
+| (q) HQ-GLAZING-OPAQUE | fix works but incomplete alone `.257` | call |
+| (r) BACKDROP-LOWPASS | proven recoverable `.265` | render call |
+| (s) ALBEDO-FILL | narrowed to luminance only `.272` | call; calibration used traced targets of unknown class |
+| (u) HQ-TRACE-NONDETERMINISM | three classes measured `.294`, consequences audited `.295` | cause unidentified; **blocks thread 1** |
+
+### Method rules the arc earned, consolidated
+
+1. Look at the crop/frame — and **at old frames too** (`.295`: three rounds mis-attributed an anomaly whose
+   answer was on disk).
+2. **A frame-wide statistic needs its region declared** (`.282` measured a dead patch; `.293` averaged across
+   furniture).
+3. **Do not turn one measurement into a criterion** (`.291` built a criterion on n=2; `.292` killed it at n=3).
+4. **Check whether a candidate cause is even a variable before A/B-ing it** (`.286`: the env branch is constant).
+5. **Wire up the observation channels before the hypotheses** (`.287`: the probe had never listened to the page
+   console; four causes fell in one round once it could).
+6. **Before running a new measurement, check the outputs of the old ones** (`.294`, `.295`: both free, both
+   overturned a published conclusion).
+7. **When an instrument disagrees with itself, check a different observation channel before theorising**
+   (`.283`).
+8. Provenance is a prior that says look harder, not a verdict (`.292`).
+9. Metrics are pose-, method-, tier-, framing- **and (u)-class-**dependent. Quote none without stating all.
+
+Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .298 — class A is physically impossible: its ceiling out-radiates the window
+
+`.296` listed "which of (u)'s classes is the correct render" as unknown, `.293`'s attempt having rested on the
+mis-paired comparison `.294` overturned. A physical constraint answers it without knowing (u)'s cause: **in a
+room lit only through a window, no interior surface can be brighter than the aperture.** Measured on frames
+already on disk; no probe runs.
+
+| frame | class | glazing | ceiling | wall-L | wall-R | verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| `u1` | B | 166.9 | 115.2 | 116.1 | 106.2 | interior 51–61 counts below the aperture ✔ |
+| `tm-1` | M | 169.5 | 127.4 | 138.2 | 153.4 | below ✔ |
+| `u2` | **A** | 170.9 | **181.5** | 157.7 | 157.2 | **ceiling out-radiates the window by 10.6** ✘ |
+
+Maxima agree (ceiling 184 vs glazing 173); all glazing/ceiling patches clean at sd 0.7–1.3. Looked at, since
+this is a headline claim: side by side, class B's pane is plainly brighter than a warm-grey ceiling, while class
+A's ceiling reads as light as the pane or slightly lighter. Both crops match their numbers.
+
+AgX compresses the bright end, so 10.6 displayed counts near 175 correspond to a larger radiance gap — the
+violation is **understated**.
+
+### Consequences
+
+- **Class B is the correct render; class A is a bug.** `.296`'s unknown is answered.
+- **(u) is not nondeterminism, it is half of all HQ stills being wrong.** Class A is 12 of 24 runs at one pose,
+  so a user pressing "Start render" has about even odds of a still whose ceiling emits more light than its
+  window.
+- **Class-A figures must be discarded, not merely labelled.** `.295`'s "record the class" is too weak: a class-A
+  number measures an impossible render, not a dimmer one. Every class-A figure in the arc is void.
+- **(u) now ranks level with (p)** — both make the photoreal showcase wrong by default, (p) always and (u) half
+  the time.
+
+### A constraint on the cause, and nothing more
+
+Whatever (u) is, it adds energy to interior surfaces the aperture cannot account for. `root.environment` lights
+every surface in three's IBL regardless of whether it can see the sky, and the tracer's environment is the
+hardcoded cold gradient (item (p), confirmed `.287`) — which would also explain class A being *cold* as well as
+bright. **Untested; not published as a mechanism.** Eleven candidates eliminated, and every mechanism proposed
+in `.280`–`.294` was refuted by a later round.
+
+### Reusable, and documented rather than shipped
+
+"Does any interior surface out-radiate the aperture?" is cheap, physical and independent of (u)'s cause — a
+better sanity check than any chroma statistic this arc built. It is **not** a probe knob: the patches are
+pose-specific and `.293` shipped a pose-specific classifier that misclassified a known-good frame. It is in
+`docs/hq-tracer-probe-notes.md` with the coordinates stated, so the caller declares the region.
+
+Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .299 — (u) localised: the environment is identical in both classes, class A delivers 2.2× more of it inside
+
+Eleven candidates eliminated, every mechanism refuted. `.298` left one lead and said it was one experiment from
+confirmed or dead. It is confirmed as a **localisation** — the first real narrowing since `.284`.
+
+### The experiment
+
+Temporary `src/` instrumentation (added, observed, **reverted**, `src/` verified clean), same pattern as `.287`:
+the tracer's `GradientEquirectTexture` set to **pure uniform green** (both colours `0x00ff00`, so no gradient
+confounds the reading). `root.background` takes the same texture, so **the glazing shows the environment
+directly and is a full-environment reference in the same frame**. Metric `green = G − (R+B)/2`.
+
+Three runs, bedroom3 `PITCH=0.30`, white walls, medium tier, photographic look, hour 13, 256 samples
+(15:49, 15:53, 16:01 +08):
+
+| run | frame L | glazing green | ceiling green | wall-L | wall-R |
+| --- | --- | --- | --- | --- | --- |
+| `g1` bright | 170.9 | 59.9 | 79.0 | 71.9 | 77.8 |
+| `g3` bright | 170.4 | 59.4 | 79.0 | 74.5 | 79.1 |
+| `g2` dim | 128.2 | 58.2 | 36.5 | 42.0 | 43.2 |
+| grey-env baseline | — | 1.1–1.2 | 1.1–1.3 | 2.1 | 2.1 |
+
+### Three findings
+
+1. **Interior lighting is environment-dominated** — greenness 36–79 vs ~2 baseline. Item (p) restated as a
+   magnitude: the hardcoded gradient is the principal light on walls and ceiling, not a minor fill.
+2. **The environment itself is invariant across classes** — glazing greenness 58.2 / 59.4 / 59.9, a 2.8 %
+   spread spanning both classes. The control that makes finding 3 meaningful, and the reason `.287`'s "same env
+   branch" was correct but insufficient.
+3. **Interior surfaces receive 1.7–2.2× more environment light in the bright class** — ceiling 79.0 vs 36.5
+   (2.16×), walls 1.71–1.83×. The bright class **replicates to the digit** (79.0 in both), so this is not noise.
+
+### What it explains
+
+(u) is a variation in the **transport** of environment light to interior surfaces, with the environment,
+exposure, tone mapping, denoise stage, sample count, camera pose and tile structure all previously eliminated.
+That accounts for the class-A signature the arc has puzzled over since `.285` — brighter **and** colder, because
+more of the *cold* gradient reaches the interior — and for `.298`'s physical violation, since a ceiling can
+out-radiate the aperture only if lit by something the aperture does not mediate.
+
+### Still open, precisely
+
+Two families, not separated by this experiment: a **visibility/occlusion** difference (the environment reaching
+surfaces that cannot see it, e.g. an unoccluded IBL term) versus an **intensity/importance-sampling** difference
+(same visibility, ~double weight). The discriminating test is a surface that **provably cannot see the
+aperture** — a windowless room, or the underside of a slab — under the green environment: an occlusion fault
+lights it green, an intensity fault leaves it dark in both classes. **No mechanism claimed until that runs.**
+
+### Method note
+
+Every earlier attempt compared the classes on quantities that mix all light sources, so none could attribute
+anything. **When a suspect source cannot be removed, dye it** — a dyed source is separable, and putting the same
+texture on `root.background` gives a built-in control in the same frame. Added to
+`docs/hq-tracer-probe-notes.md`.
+
+No `src/` change survives — the green environment was reverted and verified. Probe unchanged.
+
+---
+
+## Round .300 — the occlusion/intensity dichotomy was wrong: visibility is ignored in BOTH classes, and the class difference is saturation
+
+`.299` named two families and one discriminating test: a surface that provably cannot see the aperture, under
+the forced green environment. The test **refutes the dichotomy** rather than choosing a half.
+
+### Placement verified first
+
+Patches were composited onto the frame and looked at before anything rested on them — which corrected a
+standing assumption: the `wall-R` patch used since `.298` (`0.84, 0.42`) is on the right **side** wall, not the
+window wall. The new `winwall-L/R` patches do lie on the **window wall**, coplanar with the aperture, seeing
+zero direct sky. Three of the arc's costliest errors were mis-placed patches (`.282`, `.291`, `.293`); marking
+them cost one free render.
+
+### Result
+
+| | glazing | ceiling | winwall-L / -R (zero sky) | winwall ÷ ceiling |
+| --- | --- | --- | --- | --- |
+| `g1` bright | 59.9 · L=193 · sd 0.1 | 79.0 · L=193 · **sd 0.0** | 76.0 / 78.9 | 0.980 |
+| `g3` bright | 59.4 · L=193 | 79.0 · L=193 · **sd 0.0** | 77.4 / 80.3 | 0.998 |
+| `g2` dim | 58.2 · L=190 | 36.5 · L=127 · sd 1.1 | 38.5 / 46.7 | 1.168 |
+
+1. **Environment light ignores sky visibility in both classes** — a zero-sky wall is as green as the ceiling
+   every time (0.98 / 1.00 / 1.17). Present in the good class too, so **not** (u)'s differentiator; a separate
+   defect, belonging with item (p).
+2. **The class difference is the interior saturating at the environment's own level** — bright class ceiling
+   **L = 193, sd = 0.0** (every pixel identical), matching the glazing's 193. That is a constant
+   direction-independent environment term, not path-traced transport. Dim class: 127, sd 1.1.
+3. **`.299`'s 2.2× is a lower bound** — a saturated patch cannot report energy arriving past saturation.
+
+### What it explains, and what it does not
+
+`.298`'s physical violation now has a clean account: the ceiling out-radiates the aperture because it is lit to
+the environment's full level while the aperture's own view of that environment is attenuated by the glazing
+tint. **Why the magnitude differs run to run is still unidentified** — thirteen candidates eliminated, and the
+discipline holding since `.294` holds here: two measured signatures, no cause.
+
+The fix target is sharper though: the interior should never render at the environment's own level with zero
+variance, and a zero-sky surface should never match a sky-facing one.
+
+### Method note
+
+The most useful five minutes were spent drawing rectangles on a frame and looking at them, which overturned a
+three-round-old assumption before it could contaminate a conclusion. **Mark the patch on the picture before you
+trust the patch.** Added to `docs/hq-tracer-probe-notes.md`.
+
+No `src/` change — `.299`'s green diagnostic was reverted and verified absent. Probe unchanged.
+
+---
+
+## Round .301 — the tracer's ceiling ignores its own albedo: recolour it black, raster goes to 0.9, traced still stays at 192
+
+This round set out to check `.300`'s own first finding and found something larger by accident.
+
+### The check .300 needed
+
+`.300` concluded "environment light ignores sky visibility in both classes" because a zero-sky wall was as green
+as the ceiling. But in a **white** room interreflection is strong and near-uniform, which produces that pattern
+legitimately. The discriminator is to suppress bounce. `RECOLOR` was extended to take several `from:to` pairs
+(one at a time left the ceiling bouncing), and the room was repainted `f5f5f0:141414;fafafa:141414` — 113
+surfaces, 99 wall planes + 14 ceiling planes, per `RECOLORCHECK`.
+
+| | glazing | ceiling | sidewall-L | winwall-L | winwall-R |
+| --- | --- | --- | --- | --- | --- |
+| white room (`g1`) | L=193 | L=193 | L=171 | L=164 | L=161 |
+| dark room (`d1`) | L=192 | **L=192** | L=24 | L=9 | L=7 |
+
+Walls fell 7–23× while the sky-facing glazing held. **So wall greenness tracks albedo as transport should, and
+`.300`'s finding 1 is corrected: no occlusion fault is demonstrated on the walls.**
+
+### The ceiling did not move
+
+193 → 192, while every wall collapsed. Same run's raster settles which side is wrong:
+
+| `d1`, ceiling patch | value |
+| --- | --- |
+| raster | **L = 0.9** |
+| traced | **L = 192.1** |
+| traced, white ceiling (`g1`) | L = 192.7 |
+
+**The rasteriser renders the black ceiling correctly; the tracer renders 192 either way.** Filed as item (v).
+
+And 192 is the environment's own level — the glazing, showing `root.background`, reads 192 in the same frame,
+and `.300` measured this patch at L = 193 with **sd = 0.0**. Three independent observations that the traced
+ceiling renders *as the environment*, not as a surface.
+
+### Lead, untested
+
+If the ceiling is **absent or transparent in the tracer snapshot**, the camera sees `root.background` through
+it. Predicts and matches: equality with the glazing; zero variance; recolour immunity; greenness *higher* than
+the glazing (78.2 vs 60.3, no glazing tint in the way); class A's cold cast under the grey gradient; `.298`'s
+ceiling out-radiating the aperture; `.252`'s "mirror ceiling" that `.253` may have replaced with a hole. Six
+matched predictions, zero tests, and fourteen mechanisms in this arc refuted by a later round. **A lead.**
+
+Verification named: instrument `buildTracerScene` to report whether the ceiling mesh is in the snapshot and
+what material it carries, correlated with the (u) class.
+
+### Consequence
+
+Every traced *ceiling* figure (`.253`, `.254`, `.255`, tracer-based ceiling ÷ wall) measured a quantity that
+does not depend on the ceiling. `.255` withdrew `.253`'s deficit citing "a different lighting rig"; the reason
+is sharper and worse. The photographic band and the app's 0.93 are raster measurements and unaffected.
+
+### Method note
+
+Two rounds running have corrected their immediate predecessor by testing its weakest assumption first.
+**Budget a round for auditing the last one.**
+
+Green diagnostic reverted, `src/` verified clean. The probe keeps multi-pair `RECOLOR`, which is what made this
+measurable.
+
+---
+
+## Round .302 — the one-round-old lead is refuted: the ceiling IS in the snapshot, correctly dark and correctly PBR
+
+`.301` proposed the traced ceiling renders at the environment's level because it is **absent or transparent in
+the tracer snapshot**, with six matched predictions. One run kills it.
+
+### Direct observation
+
+Temporary instrumentation in `buildTracerScene` (added, observed, reverted, `src/` verified clean) censuses
+`root` by geometry, material type, colour and roughness. Room repainted `f5f5f0:141414;fafafa:141414`:
+
+```
+[PROBE] snapshot meshes=1104 distinct=180
+[PROBE]   x99 PlaneGeometry#141414 MeshStandardMaterial r=0.92     <- walls
+[PROBE]   x14 PlaneGeometry#141414 MeshStandardMaterial r=0.9      <- CEILINGS
+```
+
+The fourteen ceiling planes are **present**, carry the **recoloured** `#141414`, and are **correctly
+substituted** from Lambert to `MeshStandardMaterial` at `SUBSTITUTE_ROUGHNESS = 0.9`. `.253`'s `pbrStandInFor`
+does exactly its job. Fifteenth mechanism proposed and refuted in this arc.
+
+### Two more eliminated free, from source
+
+- **Traceability gate:** `buildTracerScene` skips meshes failing `mats.every(isTraceableMaterial)`, and that gate
+  runs *before* `pbrStandInFor` — but `isTraceableMaterial` explicitly accepts `isMeshLambertMaterial`.
+- **Back-face culling:** `Ceiling.tsx` uses `rotation={[Math.PI/2,0,0]}`, mapping `PlaneGeometry`'s `+Z` normal
+  to `(0,−1,0)` — down into the room — so default `FrontSide` is correct from below, and `pbrStandInFor` copies
+  `side`. (`RoomCeiling.tsx` deliberately uses `BackSide` for the other ceiling implementation: a genuine
+  asymmetry between the two, but not the fault here, since `r=0.9` identifies the Lambert path.)
+
+### Item (v) reproduced, more starkly
+
+| | traced ceiling | traced glazing | raster ceiling |
+| --- | --- | --- | --- |
+| `d1` | 192.1 | 192.0 | 0.9 |
+| `c1` | **181.5** | 169.0 | 0.9 |
+
+A **black** ceiling out-radiating the window by 12.5 counts — worse than `.298`'s white-ceiling violation.
+
+### Where the fault is
+
+**Downstream of the snapshot.** The material handed to the tracer is right in colour, type, roughness,
+orientation and presence. Whatever renders it at the environment's level does so *after* a correct hand-off —
+in the tracer's own material conversion or shading. Much narrower than "somewhere in the HQ path".
+
+### Method note
+
+`.301`'s lead matched six independent observations and was still wrong, because all six are consequences of
+"the ceiling renders as the environment" (true) and none discriminates *why*. **Matching predictions of a
+symptom does not validate a mechanism; only a prediction the rivals disagree about does.** Added to
+`docs/hq-tracer-probe-notes.md`.
+
+Instrumentation reverted, `src/` verified clean.
+
+---
+
+## Round .303 — (u) and (v) are one fault: in half of HQ renders the ceiling is not rendered as a surface
+
+`.302` narrowed the defect to "downstream of the snapshot", and its own method note said to write down what the
+rivals predict first. Doing that produced a discriminator that was already half measured.
+
+### The discriminator
+
+`.300` measured the ceiling at 193 in the bright class but **127 with real structure** in the dim class — so the
+ceiling *is* a surface in class B. If (v) were **independent**, a black ceiling would read bright in **every**
+run; if (v) is a **symptom of (u)**, only in class A. The rivals disagree, which is what makes it a test.
+
+Two runs, room repainted `f5f5f0:141414;fafafa:141414`, normal grey environment, bedroom3 `PITCH=0.30`, medium
+tier, photographic look, hour 13, 256 samples (16:31, 16:34 +08):
+
+| | frame L | traced ceiling | traced sidewall-L | traced winwall-R | raster ceiling |
+| --- | --- | --- | --- | --- | --- |
+| `k1` bright | 104.5 | **181.5** | 16.1 | 2.7 | **0.9** |
+| `k2` dim | 29.9 | **1.0** · sd 0.00 | 1.2 | 0.0 | **0.9** |
+
+The rasters are byte-identical, so only the tracer differs.
+
+### The unified statement
+
+**In class B the tracer renders the black ceiling correctly (1.0 vs raster 0.9); in class A it renders 181.5.**
+(v) is not independent — it is what class A is:
+
+> In roughly half of HQ renders, the ceiling is not rendered as a surface; the ceiling region shows the
+> environment instead.
+
+One wrongly-lit surface then floods the room: the *same black wall* reads **16.1 in class A vs 1.2 in class B**,
+13×. That single statement accounts for every class-A symptom since `.285` — global brightness, the cold cast,
+`.298`'s ceiling out-radiating the aperture, `.300`'s zero-variance patch, `.301`'s albedo immunity. The
+"saturation", "occlusion" and "transport" framings of `.299`–`.300` are no longer needed.
+
+### Geometry refuted, from data in hand
+
+The 99 wall planes are also `PlaneGeometry` and render correctly, collapsing 7–23× with albedo (`.301`). Not a
+BVH-misses-planes fault, not orientation — the walls are the control.
+
+### Lead, with a prediction the rivals disagree about
+
+The ceiling's one distinguishing property in the census: **it is the only substituted material** — 14 Lambert
+planes swapped to `MeshStandardMaterial` by `.253`'s `pbrStandInFor`, while the 99 walls are natively Standard.
+The swap is applied *after* `root.add(clone)`, inside a promise collected in `pending`.
+
+**Test:** a **finished** ceiling goes through `RoomCeiling.tsx` with a native `MeshStandardMaterial`, never
+substituted (`Ceiling.tsx` states this in its own comment). Substitution-linked ⇒ the fault never appears on a
+finished ceiling. Ceiling-as-such ⇒ it appears just as often. **No mechanism claimed until that runs.**
+
+Nothing changed in `src/` or in the probe.
+
+---
+
+## Round .304 — the substitution hypothesis is refuted; `.253`'s `pbrStandInFor` is cleared
+
+`.303` named the ceiling's one distinguishing property — being **the only substituted material** — and set a
+test with disagreeing rival outcomes.
+
+### The test, without touching `src/`
+
+New probe knob `CEILSTD=1` replaces every `MeshLambertMaterial` in the **live scene** with an equivalent native
+`MeshStandardMaterial` (same colour, roughness 1, metalness 0, same `side`), built by cloning an existing
+un-mapped Standard material since the page does not expose the three constructors. `pbrStandInFor` then has
+nothing to do — confirmed by `CEILSTDCHECK {"swapped":14,"kinds":{"PlaneGeometry#141414":14}}`.
+
+### Result: identical to the decimal
+
+Room repainted `f5f5f0:141414;fafafa:141414`, normal grey environment, bedroom3 `PITCH=0.30`, medium tier,
+photographic look, hour 13, 256 samples (16:43, 16:48 +08):
+
+| | ceiling, class B | ceiling, class A | sidewall B / A |
+| --- | --- | --- | --- |
+| with substitution (`k2`/`k1`) | 1.0 | 181.5 | 1.2 / 16.1 |
+| without substitution (`s1`/`s2`) | 1.0 | 181.5 | 1.2 / 15.7 |
+
+Same magnitude, same bimodality, one class-A and one class-B run in two attempts — exactly as before.
+**Refuted**; the sixteenth mechanism refuted in this arc.
+
+### Side effect worth recording: the arc's only shipped change is cleared
+
+`.253`'s `pbrStandInFor` is the one code change to come out of these rounds, and `.301` had it under suspicion
+since the ceiling is exactly the surface it touches. The fault survives its complete removal, and `.302` showed
+it does its job correctly in the snapshot census. **It stays.**
+
+### What still distinguishes the ceiling
+
+Not material type (this round); not geometry type — the 99 correctly-rendering plaster planes are also
+`PlaneGeometry` (`.301`); not back-face orientation (`.302`); not snapshot presence (`.302`). What remains is
+**where it is**: topmost surface, only large down-facing one, the thing between camera and environment on an
+upward pitch.
+
+### Next test
+
+Hide the ceiling entirely — `buildTracerScene` honours the visibility chain, so an invisible ceiling is
+genuinely absent rather than mis-shaded.
+
+- **Sole cause ⇒** every run dark and *stable*; no bimodality.
+- **Bimodality persists ⇒** the ceiling is a victim, not the cause, and (u) is about the environment's
+  contribution merely showing up most visibly there.
+
+### Status
+
+Sixteen mechanisms refuted; `.303`'s characterisation unchanged and unchallenged — *in roughly half of HQ
+renders the ceiling is not rendered as a surface; the ceiling region shows the environment.* Each elimination
+narrows the fix and none has touched the statement, which is why (u) stays fixable on its symptom without the
+final mechanistic step.
+
+No `src/` change. The probe keeps `CEILSTD=1`, which documents a refuted hypothesis and is the cheap way to take
+`pbrStandInFor` out of any future experiment.
+
+---
+
+## Round .305 — class A is quantitatively identical to the ceiling not being in the scene
+
+`.304` left one test with disagreeing predictions: hide the ceiling, since `buildTracerScene` honours the
+visibility chain and an invisible ceiling is genuinely **absent** rather than mis-shaded. The answer is sharper
+than either predicted outcome.
+
+New knob `HIDECEIL=1` sets `visible = false` on the ceiling planes —
+`HIDECEILCHECK {"hidden":14,"kinds":{"PlaneGeometry#141414":14}}`. Room repainted dark, normal grey environment,
+bedroom3 `PITCH=0.30`, medium tier, photographic look, hour 13, 256 samples (16:55, 16:59 +08):
+
+| | frame L | glazing | ceiling | sidewall-L | winwall-R |
+| --- | --- | --- | --- | --- | --- |
+| ceiling hidden (`h1`) | 104.5 | 168.8 | **181.5** sd 0.88 | **16.1** sd 0.94 | **2.7** sd 0.66 |
+| ceiling hidden (`h2`) | 104.4 | 168.9 | 181.5 sd 0.88 | 15.8 sd 0.92 | 2.7 sd 0.64 |
+| class A, present (`k1`) | 104.5 | 168.8 | **181.5** sd 0.88 | **16.1** sd 0.92 | **2.7** sd 0.67 |
+| class B, present (`k2`) | 29.9 | 164.9 | 1.0 sd 0.00 | 1.2 sd 0.39 | 0.0 sd 0.00 |
+
+Every figure matches class A **including the standard deviations**, and the hidden case is **stable** (both runs
+to 0.1) where the present case is bimodal.
+
+### The exact statement
+
+> In roughly half of HQ renders, the tracer renders as if the ceiling were not in the scene at all.
+
+**This refutes the last rival, mis-shading.** A ceiling shaded as emissive or background would put the right
+colour in the ceiling *region* but would still occlude and still bounce. The sidewall matches to 0.3 counts and
+the window wall to 0.1 — in class A the ceiling **neither occludes nor bounces**. Not mis-shaded: absent from
+the light transport.
+
+Combined with `.302` (the ceiling *is* in the snapshot), the ceiling is **in `root` and absent from the
+trace** — dropped downstream of `root`, i.e. in the **BVH**. First time this investigation has pointed at a
+component rather than a behaviour.
+
+### By-products
+
+- **Fix-verification criterion:** after any fix, the traced ceiling must never equal the hidden-ceiling value.
+  Sharper and cheaper than "looks right".
+- **One-frame detector:** the class-A signature is known exactly, so a single run classifies without a repeat.
+
+### Next test
+
+Instrument the tracer's geometry/BVH population per run, correlated with class. **Missing from the BVH ⇒**
+counts differ by exactly the ceiling planes. **In the BVH but not intersected ⇒** identical counts, and the
+fault is traversal or the geometry's own data.
+
+No `src/` change. The probe gains `HIDECEIL=1`, which produced the equivalence and generates a reference
+class-A frame on demand.
+
+---
+
+## Round .306 — bisection complete on the app's side: the snapshot at `setScene` is identical in both classes
+
+`.305` narrowed (u) to "the ceiling is in `root` and absent from the trace — dropped downstream of `root`". This
+round bisects that gap.
+
+### The measurement
+
+`.302`'s census ran *inside* `buildTracerScene`; the snapshot then travels before
+`tracer.setScene(snapshot, renderCamera)`. Temporary instrumentation (added, observed, reverted, `src/` verified
+clean) censuses it again **at the hand-off**:
+
+| run | frame L | class | at `setScene` |
+| --- | --- | --- | --- |
+| `b1` (17:06 +08) | 29.9 | B — correct render | `meshes=1104 darkPlanes=113 visible=true` |
+| `b3x` (17:16 +08) | 104.4 | A — ceiling absent from trace | `meshes=1104 darkPlanes=113 visible=true` |
+
+Identical: all 113 dark planes — 99 walls plus the 14 ceilings — present in both classes.
+
+### The app is cleared, end to end
+
+| stage | verdict | round |
+| --- | --- | --- |
+| `buildTracerScene` populates the snapshot | ceiling present, correct in every respect | .302 |
+| Lambert→Standard substitution | removing it changes nothing | .304 |
+| snapshot → `setScene` hand-off | identical in both classes | **.306** |
+| inside `setScene` / BVH / traversal | **← the fault is here** | — |
+
+**(u) is not a defect in the app's scene construction.** It is in `three-gpu-pathtracer`'s ingestion of a scene
+handed over correctly and identically every time — so the app's options are a **workaround** (force or verify
+the BVH build, await completion, rebuild on failure), not a fix to its own logic. That is a materially different
+decision from what (u) looked like at `.285`, and worth knowing before budgeting the work.
+
+### Honest limitation
+
+`.305`'s predicted discriminator is **not** answered. The BVH was unreadable at every path tried (`tracer._bvh`,
+`tracer.bvh`, `tracer.material.uniforms.bvh.value` → `n/a`); the tracer's own keys are only
+`[rasterizeScene, rasterizeSceneCallback, _previousScene, scene]`. The **upstream** half is settled (input
+identical); missing-from-BVH versus present-but-not-intersected still needs an access path into this library
+version. Saying which half was answered matters — `.301` and `.303` both over-reached by treating a partial
+answer as a whole one.
+
+### Incidental lead
+
+The tracer exposes **`_previousScene`**: `setScene` keeps state across calls. Each session builds a fresh tracer
+so it should be empty on first use, but a cache inside the component now known to hold the fault is the first
+thing to inspect once the access path is found. **A lead.**
+
+### Operational
+
+Batching two PT runs in one shell call exceeded the 10-minute command timeout and killed the second mid-render.
+One run per call. Added to `docs/hq-tracer-probe-notes.md`.
+
+Instrumentation reverted, `src/` verified clean.
+
+---
+
+## Round .307 — the ceiling IS in the merged geometry and the BVH IS built; and `.305`'s refutation of mis-shading was wrong
+
+`.306` could not answer `.305`'s question for want of an access path. Reading the library source supplied one.
+
+### The access path and the exact test
+
+`three-gpu-pathtracer@0.0.24`'s `WebGLPathTracer` keeps `_generator` (`PathTracingSceneGenerator`), which merges
+every mesh into one `geometry` and builds `bvh` from it. 14 `PlaneGeometry` ceiling planes contribute exactly
+**56 vertices / 28 triangles**, so the rivals differ by an exact number.
+
+| run | frame L | class | merged geometry |
+| --- | --- | --- | --- |
+| `g307a` (17:24 +08) | 29.9 | B — correct | `positions=930573 index=984120 bvh=object` |
+| `g307b` (17:29 +08) | 30.1 | B — correct | `positions=930573 index=984120 bvh=object` |
+| `g307c` (17:34 +08) | 104.2 | **A** | `positions=930573 index=984120 bvh=object` |
+
+Identical to the integer. **Present-but-not-contributing**; "missing from the BVH" is refuted.
+
+### Correction to .305
+
+`.305` claimed to have refuted mis-shading, reasoning that a ceiling shaded as emissive or background "would
+still occlude and still bounce". **That does not hold.** A surface returning *exactly the environment's
+radiance* sends the walls precisely the light they would receive through a hole — the two are **radiometrically
+indistinguishable**. `.305`'s numbers stand; its inference does not, and **mis-shading was never excluded**.
+
+`.305`'s statement weakens from "renders as if the ceiling were not in the scene" to what the data supports:
+*the ceiling region and the room's bounce are indistinguishable from a scene with no ceiling.* Whether the
+ceiling is skipped or shaded-as-environment is exactly what remains open.
+
+### A refuted guess, recorded because it is the natural one
+
+I expected an async BVH race — `setScene` returning a promise, called without `await`, with `session.start()`
+accumulating before the BVH exists. The source refutes it: `setScene` is **synchronous** unless `_buildAsync` is
+set, and that is set only by `setSceneAsync`, which the app never calls. `generator.generate()` and
+`_updateFromResults` run inline. Forty lines of reading killed the most plausible mechanism in this
+investigation before it cost a run.
+
+### Next lead, specific and untested
+
+`PathTracingSceneGenerator.generate()` calls `updateMaterialIndexAttribute(geometry, materials, materials)`
+**conditionally**, on `needsMaterialIndexUpdate` computed from `result.changeType` and a material-UUID
+comparison against `this._materialUuids`. A conditional material-index update is exactly the shape of fault that
+intermittently leaves triangles pointing at the wrong material, and "shaded as the environment" is what that
+could look like.
+
+Rivals disagree observably: a material-index fault predicts the ceiling is shaded as some *specific other scene
+material*, whose value need not equal the environment's; a skip predicts exactly the environment. Class A's
+ceiling reads 181.5 against the glazing's 168.8, so these are distinguishable in principle. Next step: read the
+ceiling triangles' material index and compare against the ceiling material's slot.
+
+### Status
+
+Eighteen mechanisms refuted (adding the async race), one of my own claims corrected, and (u) localised to
+*within* `PathTracingSceneGenerator` with a named conditional to inspect. `.305`'s fix-verification criterion is
+unaffected.
+
+Instrumentation reverted, `src/` verified clean.
+
+---
+
+## Round .308 — the material-index lead dies to reading; a latent library bug; and the renderer string confirmed at last
+
+`.307` showed that reading the library source is free and kills mechanisms before they cost runs. This round is
+mostly reading.
+
+### Material-index lead refuted, statically
+
+`.307` named the **conditional** `updateMaterialIndexAttribute` in `PathTracingSceneGenerator.generate()`. It
+cannot be the fault: the condition is effectively **always true**. On the first call
+`this._materialUuids === null` short-circuits it, and `WebGLPathTracer`'s constructor itself calls
+`setScene(new Scene(), new PerspectiveCamera())` — so the app's real `setScene` is the *second* call, where
+`changeType` is a rebuild (empty → 1104 meshes) and forces it true again. Nineteenth mechanism refuted.
+
+### A latent library bug
+
+`PathTracingSceneGenerator.js:180` compares `this._materialUuids.length !== length`, where **`length` is not in
+scope** — the intended `materials.length` is declared three lines below, scoped to the `for` statement. In a
+browser module a bare `length` resolves to `window.length` (frame count, 0), so the test is
+`_materialUuids.length !== 0`, true whenever a material exists. Benign here (forces the update *on*), but a real
+defect worth reporting upstream.
+
+### Recorded so it is not re-derived
+
+- Mesh collection uses `traverseVisible` (`three-mesh-bvh`'s `StaticGeometryGenerator`) — a second visibility
+  filter, consistent with the app's own chain; `.306`/`.307` confirm nothing is dropped.
+- `.304` already kills "async substitution order": the substituted materials are created in promise-resolution
+  order, which was an attractive candidate, but with `CEILSTD=1` there is no substitution and the fault persists.
+
+**Everything CPU-side is now identical across classes** — snapshot (`.306`), merged geometry and BVH (`.307`),
+material index (`.308`). The remaining variability must be downstream, in the GPU-side upload or shader path.
+
+### The renderer string, confirmed for the first time
+
+The playbook's real-GPU section warns that a wrong ANGLE backend *"silently gives you SwiftShader anyway"* and
+says to **always confirm the renderer string**. This probe launches with `--use-angle=metal` and had never
+checked. It now does, permanently:
+
+```
+WEBGL RENDERER: ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)
+```
+
+Exactly the expected string on this Mac. **The arc's path-traced measurements were real-GPU throughout** — now
+established rather than assumed.
+
+### A debt named rather than left implicit
+
+The playbook also says *"Before calling a headless finding a product defect, ask whether a real browser sees
+it."* (u) was called a product defect across `.298`–`.307` without that check. The renderer string makes it
+considerably more likely to be real — a real Chrome on macOS runs the same ANGLE/Metal backend on the same GPU —
+but headless flags, compositor state and driver timing remain unexcluded. **(u)'s product-defect framing is
+provisional until a real browser sees it**, and that is the next round.
+
+No `src/` change. The probe gains a permanent renderer-string assertion.
+
+---
+
+## Round .309 — (u) is not a headless artefact: it reproduces headed, same magnitude, same signature
+
+`.308` named a debt: the playbook says *"before calling a headless finding a product defect, ask whether a real
+browser sees it"*, and (u) had been escalated across `.298`–`.307` without that check. This round pays it as far
+as the session allows, and the answer strengthens the finding.
+
+### What was available
+
+Claude-in-Chrome needs a connected Chrome, which a non-interactive session lacks. The approximation is **headed
+Chromium** (`HEADED=1`), exercising the real compositor, window surface and swap chain instead of the headless
+offscreen path. `.308` had already established both modes run the same real GPU.
+
+### Result
+
+Room repainted dark, bedroom3 `PITCH=0.30`, medium tier, photographic look, hour 13, 256 samples (17:53, 17:57
++08):
+
+| | renderer | frame L | glazing | ceiling | sidewall-L |
+| --- | --- | --- | --- | --- | --- |
+| headed `hd1` | ANGLE Metal, Apple M4 | 104.4 | 168.9 | **181.5** sd 0.88 | 15.9 |
+| headed `hd2` | ANGLE Metal, Apple M4 | 104.2 | 169.0 | **181.5** sd 0.88 | 15.4 |
+| headless class A | ANGLE Metal, Apple M4 | 104.5 | 168.8 | **181.5** sd 0.88 | 16.1 |
+| headless class B | ANGLE Metal, Apple M4 | 29.9 | 164.9 | 1.0 sd 0.00 | 1.2 |
+
+**The fault reproduces headed, matching class A exactly — including the ceiling's sd of 0.88.** (u) is not an
+artefact of the headless rendering path.
+
+### Severity: provisional → supported
+
+Excluded: SwiftShader (`.308`), the headless path (`.309`). Untested: a user's *own* Chrome — profile,
+extensions, default flags rather than puppeteer's `--no-sandbox --use-gl=angle --use-angle=metal --enable-gpu`.
+Those flags force the backend real Chrome on macOS picks by default, so they narrow rather than widen the gap.
+**(u) reproduces on the real GPU with a real compositor; the only untested difference is the launch
+configuration.**
+
+Observation, not a claim: both headed runs were class A where headless is ~50/50 — at n = 2, P ≈ 25 %, so
+nothing is read into it. Across the dark-ceiling arm the classes remain roughly balanced.
+
+### What it settles
+
+The *reality* of the defect, not its cause. Nineteen mechanisms remain refuted and the CPU side is identical
+across classes (`.306`–`.308`), leaving the GPU-side upload or shader path. But it removes the one objection
+that would have made the whole investigation moot, before anyone spends engineering time on the item.
+
+### Method note
+
+**A severity claim carries its own verification debt, and naming the debt in the write-up is what makes it get
+paid.** Six earlier rounds asserted "half of all HQ stills are wrong" with no such note and none prompted the
+check; `.308` wrote it down and `.309` paid it one round later.
+
+No `src/` change. The probe gains `HEADED=1`.
+
+---
+
+## Round .310 — no GL error accompanies the fault, and (u) is per-render: both classes back-to-back in one session
+
+### 1. The upload does not report failure
+
+`.306`–`.308` left the GPU-side upload as the only place the variability could live. Temporary instrumentation
+(added, observed, reverted, `src/` verified clean) drained `gl.getError()` either side of `setScene`, on a
+**class-A** run:
+
+```
+gl errors before setScene: none
+gl limits: maxTexture=16384 max3D=2048 maxArray=2048 maxRenderbuffer=16384 lost=false
+gl errors after setScene: none
+```
+
+No error, no context loss, no size pressure (930,573 positions need 57 rows of a 16384-wide texture). The faulty
+class carries a completely clean GL state. Twentieth candidate eliminated.
+
+### 2. The fault is per-render, not per-page
+
+New `PT2=1` clicks **Re-render** and captures a second still in the same page session (run 18:08 +08):
+
+| | frame L | glazing | ceiling | sidewall-L |
+| --- | --- | --- | --- | --- |
+| render 1 | 104.4 | 168.9 | **181.5** sd 0.88 | 15.8 |
+| render 2 (Re-render) | 29.7 | 164.7 | **1.0** sd 0.00 | 1.2 |
+
+Class A then class B, each matching its signature exactly. **First time both classes have been produced back to
+back with everything else held constant** — same page, in-memory scene graph, dev server, wall-clock minute,
+GPU, renderer string.
+
+**Eliminates** anything set once per page (module init, first-context state, one-time shader compilation, boot
+sequence) and **slow drifts** (thermal, memory pressure, dev-server state), since both classes occurred within
+three minutes in one process.
+
+**Nuance:** each render constructs a new `WebGLRenderer` on a new canvas, so the two do not share a GL context.
+This eliminates *page*-level state, not per-context state. "Per-render" = "per `createHqRenderSession` call".
+
+### The efficiency win is worth as much as the finding
+
+`PT2=1` yields two class samples per boot instead of one, halving the cost of every future (u) experiment and
+removing page-boot variance as a confound. With twenty candidates eliminated, the next rounds need cheap paired
+samples more than another hypothesis.
+
+### Status
+
+(u) is bounded as: **decided per `createHqRenderSession` call, on the real GPU with a real compositor, with a
+clean GL state, from CPU-side inputs identical to the integer.** `.305`'s fix-verification criterion unchanged.
+
+Instrumentation reverted, `src/` verified clean. The probe keeps `PT2=1`.
+
+---
+
+## Round .311 — the AOV/denoise path refuted, and a tempting pattern killed inside the same round
+
+### 1. AOV/denoise is not the cause
+
+`captureAovPasses` runs immediately after `setScene`, on the same renderer and snapshot, and only when AI
+denoise is armed — a good candidate, left open because `.285`'s `PTAI=off` arm happened to draw two class-B
+runs. With `PTAI=off` (AOV passes never run) one boot produced both classes:
+
+| `PTAI=off`, one session | frame L | glazing | ceiling | sidewall-L | class |
+| --- | --- | --- | --- | --- | --- |
+| render 1 | 104.2 | 169.0 | **181.5** sd 0.88 | 15.4 | A |
+| render 2 | 29.8 | 164.9 | **1.0** sd 0.00 | 1.2 | B |
+
+Twenty-first candidate eliminated. By-products: re-confirms `.310`'s per-render finding in a different
+configuration, and confirms the denoise is radiometrically neutral **in class A too** (181.5 sd 0.88 with it
+off) — `.285` had only verified class B.
+
+### 2. A pattern tested and killed in the same round
+
+Two consecutive pairs came out A-then-B, implying a cold-first-render effect with an obvious workaround. The
+third pair:
+
+| pair | render 1 | render 2 |
+| --- | --- | --- |
+| `.310` `p2a` | A | B |
+| `.311` `ai1` (denoise off) | A | B |
+| `.311` `ai2` | **A** | **A** |
+
+*"The second render is always correct"* is **refuted**. At n = 2 it would have entered the record as a finding
+with a workaround attached, and a later round would have withdrawn it — the pattern `.291`, `.292` and `.301`
+each paid for.
+
+### 3. Tallies, not impressions
+
+| | class A | class B | share A |
+| --- | --- | --- | --- |
+| first render of a session | 12 | 5 | 71 % |
+| second render (paired) | 1 | 2 | 33 % |
+
+A first-vs-second difference is possible but **not established** at n = 3 second-renders. Both classes occur in
+both positions, so position is not determinative. The 71 % also sits against the ~50 % quoted since `.294`,
+which came from 24 frames at one pose and may deserve re-derivation now that position is a known variable.
+
+### Where (u) stands
+
+Decided per `createHqRenderSession` call; real GPU, real compositor; clean GL state; CPU inputs identical to the
+integer; not the substitution, AOV/denoise, page-level state, headless, geometry, material type, environment
+branch, tone mapping, exposure or sample count. What remains is inside the tracer's per-session GPU setup —
+shader compilation, texture upload ordering, uninitialised state — none of it reachable from the probe without
+library-side instrumentation.
+
+**Assessment:** twenty-one candidates have fallen and the last five rounds narrowed location without reaching
+cause. The item is already actionable — acceptance test written (`.305`), reproduction cheap and paired
+(`.310`), confirmed on real hardware (`.309`). **Further diagnosis is lower value than a decision on the
+workaround.**
+
+### Method note
+
+`.302`'s rule applies to *emerging patterns*, not only stated hypotheses. Two same-shaped observations felt like
+a result; testing cost one run and prevented a withdrawal.
+
+No `src/` change, no probe change.
+
+---
+
+## Round .312 — (p) priced: the hardcoded gradient is the majority of an HQ still's interior light. And class A's ceiling follows the background to black
+
+`.311` judged further (u) diagnosis worth less than a decision, so this round prices the item that is ready for
+one. (p) is confirmed (`.287`) but its cost was never measured. Zeroing the gradient leaves exactly what the
+scene's own copied lights provide.
+
+### Measured
+
+Temporary instrumentation (added, observed, reverted, `src/` verified clean); bedroom3 `PITCH=0.30`, medium
+tier, photographic look, hour 13, 256 samples, white room (run 18:37 +08):
+
+| | frame mean | glazing | ceiling | sidewall-L | winwall-R | lampshade |
+| --- | --- | --- | --- | --- | --- | --- |
+| gradient zeroed (scene lights only) | **38.4** | 111.0 | **0.0** | **69.2** | **49.3** | **36.5** |
+| normal, class B (correct) | 112.7 | 166.9 | 115.2 | 116.1 | 102.7 | 74.6 |
+| normal, class A | 156.2 | 170.9 | 181.5 | 157.7 | 147.6 | 103.1 |
+
+Removing the gradient cuts the frame mean **66 %**, the interior wall **40 %**, the window wall **52 %**, the
+lampshade **51 %**. **The hardcoded sky supplies the majority of the interior light.**
+
+**Arithmetic caveat:** these are displayed counts after AgX tone mapping. AgX is not a power curve, so no linear
+"% of photons" figure is quoted — an inverse-curve guess would be the false precision `.290` was corrected for.
+The drops are large enough that the conclusion does not depend on the curve.
+
+### What the decision looks like
+
+Fixing (p) is **not** swapping a wrong tint for a right one — it **replaces the dominant light source** in every
+HQ still. The direction is visible: with only the scene's own lights the walls read **warm, with a natural
+falloff and visible plaster texture**, where the gradient's contribution is cooler and brighter. **The fix makes
+HQ stills warmer and darker, closer to the rasteriser's look** — a larger look call than the item's filing
+suggested.
+
+### Bonus: the strongest confirmation yet of (u)'s characterisation
+
+This run was class A, and with a black background its ceiling reads **0.0** — a pure void, plainly visible.
+Across three independent manipulations the class-A ceiling **follows the background**:
+
+| background | class-A ceiling |
+| --- | --- |
+| green (`.299`) | greenness 79.0, above the glazing's 60 |
+| grey gradient (default) | 181.5, cold, sd 0.88 |
+| black (`.312`) | 0.0 |
+
+`.303`–`.307` inferred this from an equivalence with a hidden ceiling; this is a **dose-response on the
+suspected source**, which is stronger. It also re-confirms class A is unrelated to the ceiling's own material —
+a black-background void is not a shading of `#fafafa`.
+
+### Looked at
+
+The frame shows the ceiling as an unmistakable black void with the cornice lit around its edge, and the walls
+warmly lit with real texture. Both readings match the numbers.
+
+Instrumentation reverted, `src/` verified clean. No probe change.
+
+---
+
+## Round .313 — the HQ still agrees with the raster to 2.8 % when the tracer works, 19 % off when (u) bites — so ceiling ÷ wall cannot see item (p)
+
+`.312` showed the HQ still is dominated by a light source the user never chose. That raises the question this
+arc exists to answer and has never asked head-on: **is the HQ still less photorealistic than the real-time
+raster?** The one metric with photographic references is ceiling ÷ wall, and the probe captures both renders
+from the same camera in one run — so the comparison is free and **pose-matched**.
+
+Patch placement verified by marking it on the raster and looking; the ceiling patch is clear of the HUD toolbar
+(toolbar ends y ≈ 66 of 788, patch starts y ≈ 79).
+
+| run | render | ceiling | wall | ceiling ÷ wall |
+| --- | --- | --- | --- | --- |
+| `u1` (class B — working) | raster | 128.8 sd 1.64 | 133.5 sd 3.20 | **0.965** |
+| `u1` | traced | 115.2 sd 1.25 | 116.1 sd 3.00 | **0.992** |
+| `u2` (class A — (u) biting) | raster | 128.8 sd 1.65 | 133.5 sd 3.19 | **0.965** |
+| `u2` | traced | 181.5 sd 0.88 | 157.7 sd 1.31 | **1.151** |
+
+1. **Working tracer agrees with the raster to 0.027 (2.8 %)** — reassuring, and unexpected given the two use
+   entirely different lighting rigs.
+2. **Class A departs by 0.186 (19 %)** — so (u), not (p), is what pushes the HQ still away from the real-time
+   render on this metric.
+3. **Rasters identical across runs** (128.8 / 133.5), re-confirming the nondeterminism is tracer-only.
+
+### The uncomfortable consequence
+
+`.312` measured that the hardcoded gradient supplies **66 %** of an HQ still's frame mean. Yet ceiling ÷ wall
+moves only **2.8 %** between the gradient-lit tracer and the scene-lit raster.
+
+**So ceiling ÷ wall is a weak discriminator of lighting-rig fidelity.** The arc has used it as its photographic
+anchor since `.188`, and spent dozens of rounds deriving, correcting and defending it — and it cannot detect a
+defect that replaces most of the light in the frame. That does not make it wrong as a *photographic*
+comparison; it bounds what it can conclude. **A metric that a two-thirds change in the dominant light source
+moves by 2.8 % must not be read as evidence that the lighting is right.**
+
+### Caveat on the band
+
+The photographic band is 0.91–1.11 (n = 4) at the **canonical pose**, and `.232` established the ratio swings
+0.68 → 0.96 on pitch. Here the raster reads 0.965, not the canonical 0.93 — consistent with that. So class A
+exceeding the band's upper edge is **rough orientation, not a pose-matched claim**. The raster-vs-traced
+comparison is pose-matched and is the part to rely on.
+
+### For the pending decisions
+
+(u) is the larger defect on the arc's own photographic metric (19 % vs 2.8 %) even though (p) is physically
+larger. And (p)'s invisibility to this metric means **a fix for (p) cannot be validated by ceiling ÷ wall** — it
+needs a look call on the image, which is what `.312` concluded from the frame.
+
+No `src/` change, no probe change. Measured entirely from frames already on disk.
+
+---
+
+## Round .314 — chroma is the sensitive metric ceiling ÷ wall is not; it localises (p) to the ceiling and corrects `.312`
+
+`.313` found the arc's primary metric cannot see (p): a 66 % change in the dominant light moves ceiling ÷ wall
+by 2.8 %. This round looks for a sensitive quantity, and finds one with a correction attached.
+
+Frames already on disk; bedroom3 `PITCH=0.30`, white room, medium tier, photographic look, hour 13, 256
+samples; patches verified in `.300` and `.313`:
+
+| condition | ceiling R−B | wall-L R−B | winwall-R R−B |
+| --- | --- | --- | --- |
+| **raster** — scene's own lights (reference) | **+13.6** | **+5.8** | **+6.3** |
+| traced class B — scene + cold gradient | **+7.5** | **+4.8** | **+7.3** |
+| traced, gradient zeroed — no ambient at all | 0.0 (void) | **+8.3** | **+15.1** |
+| traced class A — (u) biting | **−14.4** | **−8.5** | **−6.2** |
+
+### 1. Sensitive where ceiling ÷ wall was not
+
+Class A departs from the raster by **20–28 counts** on every surface, and the gradient's effect on the *working*
+tracer is visible: ceiling **+7.5 vs the raster's +13.6**, a **6.1-count** gap that ceiling ÷ wall reported as
+2.8 %. The arc had an instrument that can see (p); it was not using it.
+
+### 2. It localises (p)'s error
+
+The working tracer's **wall** chroma matches the raster to ~**1 count**. The error is concentrated on the
+**ceiling** — 6.1 counts too cool — the surface most exposed to the gradient, and the same one (u) destroys.
+
+### 3. Correction to `.312`
+
+`.312` concluded the fix makes stills *"warmer and darker, closer to the rasteriser's look"*. **Darker stands**
+(38.4 vs 112.7). **Warmer does not**: the gradient-zeroed arm is *warmer than the raster* (+8.3 vs +5.8; +15.1
+vs +6.3), so warming **overshoots** the reference. The current cold gradient is closer to the raster's wall
+chroma than no ambient at all. `.312`'s claim came from looking at the frame, not from measuring against a
+reference.
+
+### 4. A distinction `.312` blurred
+
+The gradient-zeroed arm is the **null** — no ambient whatsoever — **not** a preview of the fix, which would
+supply the scene's own Ambient/Hemisphere lights. It correctly prices the gradient's contribution but does not
+show what a fixed still would look like. Conflating them produced the wrong direction.
+
+### 5. An acceptance test for (p) with no photographs
+
+Traced interior chroma should match the raster's — same room, same pipeline, same white balance. Currently
+**walls pass (~1 count), ceiling fails by 6.1**. Photographic anchoring is unavailable: `.267` established R−B
+is white-balance invariant only *within* a frame, so absolute chroma cannot cross to a photograph with its own
+white balance. The raster is the right reference precisely because it shares the pipeline.
+
+### Where the decisions stand
+
+(p) costs **6.1 counts of ceiling chroma** plus `.312`'s luminance error, with walls already correct — smaller
+and more localised than "the dominant light source is wrong" implied. (u) remains the larger defect on both
+metrics: 19 % on ceiling ÷ wall (`.313`), 20–28 counts of chroma here.
+
+### Method note
+
+Two rounds running, a conclusion drawn from *looking* at a frame failed when measured against a reference.
+Looking is what catches contaminated measurements; it is not a substitute for one. **Use the frame to decide
+what to measure, not what to conclude.**
+
+No `src/` change, no probe change.
+
+---
+
+## Round .315 — chroma does have a photographic anchor (the within-frame Δ); class A fails it, but the anchor is weak and the pose check could not be run
+
+`.314` stated chroma cannot be anchored photographically because `.267` established R−B is WB-invariant only
+*within* a frame. Right about **absolute** chroma, wrong about the **difference**: ceiling minus wall R−B is
+within-frame, hence WB-invariant, and crosses to a photograph. `.292` had already measured it on all three
+references.
+
+| source | ceiling R−B | wall R−B | ceiling − wall Δ |
+| --- | --- | --- | --- |
+| `Home_Staging_Beispiel` | +6.0 | +8.8 | **−2.8** |
+| `Vogtsbauernhof` | +8.1 | +7.0 | **+1.1** |
+| `At_La_Palma` | +16.0 | +2.4 | **+13.6** |
+| app — raster | +13.6 | +5.8 | **+7.8** inside |
+| app — traced class B | +7.5 | +4.8 | **+2.7** inside |
+| app — traced class A | −14.4 | −8.5 | **−5.9** outside |
+
+First photographically-anchored chroma result in the arc, and class A fails it.
+
+### Why it is weak, stated up front
+
+1. **The band is a 16.4-count spread on n = 3.** Class A misses the lower edge by 3.1. "Inside" is close to
+   unfalsifiable; "outside by 3.1" is not much of a failure.
+2. **`.292` already showed the quantity is non-systematic** — it straddles zero and tracks **floor colour**
+   (white tile −2.8, warm terrazzo +13.6), which is why `.292` refuted it as a GI signature.
+3. **Pose-matching is unresolved.** `.232` showed ceiling ÷ wall luminance swings 0.68 → 0.96 on pitch; Δ
+   chroma's pose-dependence is untested.
+
+### The pose test was attempted and defeated
+
+Two raster-only runs (40 s for both, no tracer) at `PITCH=-0.06` and `+0.30`. Marking the eye-level frame shows
+both patches invalid there: "ceiling" lands on the **window wall** beside the curtain, "wall" lands on the
+**framed picture**. bedroom3's eye-level view has almost no croppable ceiling — a thin strip, partly behind the
+HUD. Pose-dependence of Δ chroma remains **unmeasured**.
+
+### By-product: the raster is reproducible across boots
+
+Fresh `PITCH=0.30` run: ceiling 13.6 / wall 5.8 / Δ 7.8 / ceiling ÷ wall **0.964**, against `u1`'s forty minutes
+earlier at 13.6 / 5.8 / 7.8 / **0.965**. That underpins `.314`'s use of the raster as the (p) reference — the
+reference is stable to 0.001 on the ratio and 0.1 on chroma.
+
+### Net
+
+`.314`'s "chroma has no photographic anchor" is corrected — it has one. But it is wide, built on a
+non-systematic quantity, and not pose-matched, so it adds little beyond confirming class A is the outlier on
+every metric the arc possesses. **The raster remains the far better reference for a (p) fix.**
+
+### Method note
+
+Two attempts to reuse a verified patch set at a new pose have now failed (`.291`, `.315`). **A patch set is
+verified for one pose only.** Marking costs one free render and has caught the error both times.
+
+No `src/` change, no probe change.
+
+---
+
+## Round .316 — interior chroma is pose-robust: 0.9 counts across a pitch that swings the luminance ratio 0.68 → 0.96
+
+`.315` left Δ chroma's pose-dependence untested, and it could not be tested in bedroom3 (no croppable ceiling at
+eye level). livingDining has one. Raster only — 38 seconds for both poses, no tracer.
+
+### One surface, two pitches
+
+A single ceiling patch, verified by marking as valid at **both** pitches (livingDining, hour 13, medium tier,
+photographic look):
+
+| | ceiling R−B | ceiling L |
+| --- | --- | --- |
+| `PITCH=-0.06` | **10.3** | 122 |
+| `PITCH=+0.30` | **11.2** | 127 |
+| difference | **0.9 counts** | 4 % |
+
+`.232` established ceiling ÷ wall **luminance** swings **0.68 → 0.96** across pitch — the largest pose
+sensitivity in the arc. Chroma shifts under one count on the same axis.
+
+### Chroma is the better instrument on both measured axes
+
+| | sensitive to the lighting rig? | pose-robust? |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | no — 2.8 % for a 66 % light change (`.313`) | no — 0.68 → 0.96 (`.232`) |
+| interior chroma | yes — 6.1 counts for (p), 20–28 for (u) (`.314`) | yes — 0.9 counts (`.316`) |
+
+The arc chose its primary metric in `.188` and spent dozens of rounds deriving, correcting and defending it. The
+better one was available all along.
+
+### Caveats
+
+1. **Same surface, not the same spot** — fixed normalized coordinates sample different ceiling regions per
+   pitch. The comparison bounds "chroma of this surface", not "of this exact patch".
+2. **One room, two pitches, one surface.**
+3. **The wall comparison is confounded and not offered as evidence** — no single wall patch was valid at both
+   poses, so eye-level is the *right* wall (1.0) and pitched-up the *left* (2.7): different surfaces, different
+   sky exposure.
+4. **livingDining's ceiling light appears ON** at hour 13 (the frame offers "Turn off ceiling light"), so its
+   absolute chroma includes artificial light. Both pitches share it, so the pose comparison stands; the absolute
+   values are not a daylight measurement.
+
+### Process finding
+
+It took **three marking iterations** to get valid patches: the first ceiling patch **overlapped the HUD
+toolbar**; the pitched-up wall patch **straddled a structural beam**; a second candidate sat on a **different
+wall panel**. Fixed coordinates do not track surfaces across a pitch change, and in some rooms **no patch is
+valid at both poses at all** — a stronger statement than "the value changes with pose": often the surface is not
+there to measure.
+
+### Net
+
+`.315`'s caveat is discharged. Interior chroma is pose-robust where the primary metric is not, and sensitive to
+the defects the primary metric cannot see. With `.314`'s raster reference (reproducible to 0.1 counts across
+boots, `.315`), **(p) now has a metric, a reference and an acceptance test all better founded than the ratio
+this arc was built on.**
+
+No `src/` change, no probe change.
+
+---
+
+## Round .317 — the same-surface chroma gradient fails too, and that retires the chroma-anchoring line: chroma is set by what is outside the window
+
+`.316` left a split: the luminance ratio is photographically anchorable but insensitive (`.313`) and
+pose-dependent (`.232`); chroma is sensitive and pose-robust but its absolute value cannot cross to a photograph
+(`.315`). This round tries for both properties at once, and fails usefully.
+
+### The idea, which is the right shape
+
+A **same-surface chroma gradient with distance from the aperture** — two patches on the *same* ceiling, near the
+window and far from it. **Within-frame** (WB-invariant), **albedo-controlled** (one paint),
+**aperture-referenced**, **sensitive by construction** (window light must fall off across a ceiling; a uniform
+environment must not), and framing-invariant — what thread 1 asks for.
+
+### All three references support it and disagree wildly
+
+Patch pairs marked and looked at first; plaster sds 1.8–7.3:
+
+| reference | near-window ceiling | far ceiling | far − near |
+| --- | --- | --- | --- |
+| `At_La_Palma` — warm balcony outside | **+31.2** | +8.1 | **−23.1** |
+| `Home_Staging_Beispiel` | +3.4 | +7.7 | **+4.3** |
+| `Vogtsbauernhof` — cool sky outside | +2.4 | **+26.4** | **+24.0** |
+
+**47-count spread, sign flips.** Dead as a photographic anchor. The app was not measured against it — a
+reference spread straddling zero by ±24 counts is not something a render can be inside or outside of.
+
+### The reason, which is what makes this generalise
+
+The sign is set by **what is immediately outside and beside the aperture**, not by interior transport.
+`At_La_Palma`'s sunlit balcony bounces warm light onto its *nearest* ceiling (+31.2 — the warmest patch in the
+whole reference set). `Vogtsbauernhof`'s window sees cool sky, so its near ceiling is cool and its far ceiling is
+warmed by timber floor and furniture. `Home_Staging` sits between. All three are correct rooms; they disagree
+because their exteriors differ.
+
+### The line is retired
+
+| attempt | round | why it failed |
+| --- | --- | --- |
+| ceiling − wall Δ R−B | `.292`, `.315` | straddles zero, tracks floor colour; 16.4-count band on n = 3 |
+| absolute interior R−B | `.314` | not WB-invariant across sources (`.267`) |
+| same-surface gradient from the aperture | `.317` | 47-count spread, sign flips with the exterior |
+
+**Chroma is dominated by the exterior environment and the room's own materials** — both differ between any two
+real rooms. That is what chroma *is*, not a defect of crops or n. Luminance ratios anchor but are insensitive and
+pose-dependent. **The arc cannot get both properties from either family**, and recording that should prevent a
+fourth attempt.
+
+### What survives
+
+- **Chroma remains the best internal instrument** — sensitive to (p) and (u), pose-robust to 0.9 counts
+  (`.316`), with the raster as a pose-matched, pipeline-identical reference reproducible to 0.1 counts (`.315`).
+  `.314`'s acceptance test for (p) is untouched.
+- **Thread 1's framing-invariant metric requirement is already met** by the world-anchored `ANCHORS=1` sampler
+  (`.285`). This round confirms the *photographic* half of thread 1 is the harder half, and that it is limited
+  by the references' variety rather than by the app.
+
+### Method note
+
+A negative **with a mechanism** — "the sign follows what is outside the window" — is worth more than one
+without, because it generalises. **Record a failed metric with the reason it failed, or the next round
+re-invents it.**
+
+No `src/` change, no probe change.
+
+---
+
+## Round .318 — the metric the arc has been looking for: same-surface ceiling luminance falloff. The raster is inside the photographic band; the HQ still is too flat
+
+`.317` killed the chroma gradient because its sign follows the colour of what is outside the window. But `.317`
+measured **luminance** on those same patches and never looked at it — and luminance falloff should not care about
+the exterior's colour. It doesn't.
+
+### The references agree in sign
+
+| reference | near-window ceiling L | far ceiling L | far ÷ near |
+| --- | --- | --- | --- |
+| `Vogtsbauernhof` | 157.3 | 120.3 | **0.765** |
+| `At_La_Palma` | 177.2 | 149.6 | **0.844** |
+| `Home_Staging_Beispiel` | 195.7 | 175.2 | **0.895** |
+
+All below 1, no sign flip, spread 0.13 — against chroma's 47-count spread on the *same three photographs and the
+same patches*.
+
+### And the app splits cleanly
+
+bedroom3 `PITCH=0.30`, white room, medium tier, photographic look, hour 13; patches marked and verified clear of
+the HUD toolbar:
+
+| render | near L | far L | far ÷ near | vs band |
+| --- | --- | --- | --- | --- |
+| **raster** — scene's own lights | 129.7 | 111.8 | **0.862** | inside |
+| **traced class B** — working | 116.8 | 113.7 | **0.974** | **outside, too flat** |
+| traced class A — (u) biting | 179.0 | 180.7 | **1.009** | no falloff |
+
+### Three findings
+
+1. **This metric has every property the arc wanted**: photographically anchorable (consistent sign, n = 3),
+   sensitive to the lighting rig (0.11 separation where ceiling ÷ wall gave 2.8 %), exposure-invariant
+   (within-frame ratio), albedo-controlled (one surface), aperture-referenced by construction. Thread 1's
+   requirement, met.
+2. **A new photographically-anchored defect: the HQ still's ceiling is too flat.** 0.974 against a 0.765–0.895
+   band and the app's own raster at 0.862 — it lights the far ceiling almost as brightly as the near one. (p)'s
+   cost against real photographs, which `.313`/`.314` could not provide.
+3. **Class A is flat to within 1 %** (1.009) — uniform environment illumination with no aperture dependence, on
+   an independent metric.
+
+### Precision
+
+Patch sds 0.5–1.1 except the raster's far patch at 9.6 (a cornice gradient sits nearby). With ~12,500 px per
+patch the SE on that mean is ≈0.09 counts, so the ratio is precise to ~0.001 and the 0.11 separation is far from
+noise.
+
+### Two caveats, untested
+
+- **Pose-dependence.** This is a *luminance* ratio — the family `.232` showed swings 0.68 → 0.96 on pitch, and
+  `.316` showed only chroma is pose-robust. The app is at one pitch, the references at their own, so
+  "inside/outside the band" is **not pose-matched**. Testing is hard for the `.315`/`.316` reason: the ceiling's
+  visible extent changes drastically with pitch and at eye level there is often too little ceiling for two
+  separated patches.
+- **Room-dependence** — one app room, three reference rooms.
+
+**Status: a strong candidate metric with a real result attached, not yet a validated target.** The
+raster-vs-traced separation is pose-matched and solid; the band comparison is not, and until the pose check runs
+the band deserves the treatment `.234`'s ceiling ÷ wall band had before `.232` — suggestive, un-validated.
+
+### Method note
+
+`.317` collected these numbers and discarded them, because it was hunting a chroma result. **A round that
+measures two quantities and reports one has left evidence on the floor** — the `.294`/`.295` lesson, now inside a
+single round's own output.
+
+No `src/` change, no probe change.
+
+---
+
+## Round .319 — `.318`'s metric is pose-dependent: 0.85 → 1.06 over a 0.30 pitch range. Photographic claim withdrawn; raster-vs-traced stands
+
+`.318` called same-surface ceiling falloff "the metric the arc has been looking for" and named pose-dependence as
+its one untested caveat. The caveat was the right one, and the metric fails it.
+
+### The test
+
+Three *pitched-up* bedroom3 poses (0.15, 0.30, 0.45), chosen so each has a large visible ceiling — sidestepping
+the eye-level no-ceiling problem that defeated `.315`/`.316`. Raster only, 42 s for both new runs. Every patch
+verified as ceiling by marking.
+
+| pose | far ÷ near (`.318` placement) | far ÷ near (near at the window-wall junction) | far patch sd |
+| --- | --- | --- | --- |
+| `PITCH=0.15` | 0.847 | 0.887 | **21.5** |
+| `PITCH=0.30` | **0.862** (`.318`) | 0.912 | 9.6 |
+| `PITCH=0.45` | **1.059** | **1.059** | **1.3** |
+
+**0.21 swing across a 0.30 pitch range, crossing 1.0** — at 0.45 the far ceiling is *brighter* than the near
+one. And the pose with the cleanest far patch gives the most extreme value, so it is not noise in the outlier.
+
+### Withdrawn
+
+The app's 0.974 cannot be compared against a 0.765–0.895 band derived at unknown, different poses, because the
+quantity moves by more than the band's width when only the camera moves. **"The HQ still's ceiling is too flat
+against real photographs" is not supported.**
+
+### What survives
+
+`.318`'s **raster-versus-traced** comparison — 0.862 against 0.974, same pose, same room, same frame pair — is
+pose-matched by construction and stands. The working tracer does show less ceiling falloff than the app's own
+raster; photographs do not adjudicate it.
+
+### Two further errors in `.318` found by marking
+
+1. **The `near` patch was never physically placed.** At 0.15 the first candidate hit the **window head**, at 0.45
+   **mid-ceiling**, and `.318`'s 0.30 patch was mid-ceiling too. Re-placing consistently moves 0.30 from
+   **0.862 to 0.912** — a 0.05 shift from placement alone, a third of the band's width.
+2. **The far patch cannot be placed cleanly at shallow pitch** — sd 21.5 at 0.15 and 9.6 at 0.30 against 1.3 at
+   0.45, because it straddles the cornice shading gradient. The poses where the metric looked best are where its
+   far patch was worst.
+
+### The structural picture
+
+| metric | pose behaviour | round |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | 0.68 → 0.96 on pitch | .232 |
+| wall falloff | 0.74 → 0.93 on aspect; retired | .247, .249 |
+| same-surface ceiling far ÷ near | **0.85 → 1.06 on pitch** | .319 |
+| interior chroma | **0.9 counts on pitch — robust** | .316 |
+
+**Luminance carries the photographic anchor and is pose-fragile; chroma is pose-robust and cannot be anchored
+(`.317`).** After seven rounds on both families this looks structural, not a matter of finding the right
+variant. What survives is pose-matched same-frame comparison of the app against itself — the raster as reference
+(`.314`), the only construction that has survived every pose and placement challenge.
+
+### Method note
+
+`.318` named its own killing caveat and published the headline anyway, one round before testing it. **Naming a
+caveat is not discharging it — and the interval between the two is where a withdrawal gets manufactured. If a
+caveat would overturn the headline, test it before writing the headline.**
+
+No `src/` change, no probe change.
+
+---
+
+## Round .320 — thread 1's photographic half is closed quantitatively: the recoverable pose bracket (21°) is wider than the metric's entire range (17°)
+
+Thread 1's instruction is *"find out what aspect the reference photograph was shot at, or build a metric that is
+framing-invariant"*. `.288` recovered the aspect; `.319` showed the metric that needed it is pose-fragile. This
+round asks whether **pitch** is recoverable, and settles the thread with arithmetic.
+
+### What is known
+
+`At_La_Palma`: iPhone 12 Mini, 4032×3024 (4:3), ≈26 mm equivalent → **vertical FOV 49.6°**. Aspect and focal
+length settled; **pitch** is the one unknown pose-matching needs.
+
+### The classical method fails, visibly
+
+A wall's ceiling and floor junctions are parallel in 3-D and converge at the horizon. Read off a calibrated
+height grid on the right wall (ceiling 0.132 → 0.157 across x = 620 → 1290; floor 0.565 → 0.605 across
+x = 900 → 1290), they intersect at **x ≈ −5500 px**, horizon at **y = −0.095** — *above the frame top*.
+
+**Geometrically impossible**: a horizon above the frame means nothing above eye level is visible, yet the ceiling
+plainly is. The method is **ill-conditioned** because the dominant wall is near-frontal — slopes of ~4×10⁻⁵ per
+pixel, so one pixel of reading error moves the VP by thousands.
+
+### The rigorous bound, which decides the question
+
+The horizon must lie **between** the wall's ceiling junction and floor junction — no exceptions. y ∈ [0.16, 0.57]:
+
+| horizon at | implied pitch |
+| --- | --- |
+| y = 0.16 | **17.4° down** |
+| y = 0.30 (≈ picture-frame height) | 10.5° down |
+| y = 0.57 | **3.7° up** |
+
+**21.1° bracket.** `.319` measured the ceiling-falloff metric traversing its entire observed range
+(0.847 → 1.059) over **17.2°** of pitch. **The bracket is wider than the metric's full dynamic range**, so
+pose-matching a found photograph to the required precision is **infeasible**, not merely unmeasured.
+
+### Thread 1 answered on both branches
+
+- *"Find out what aspect…"* — **done** (`.288`) and **insufficient**: aspect and focal length come from EXIF,
+  pitch does not resolve better than ±10°, and pitch dominates.
+- *"Or build a framing-invariant metric"* — **exists** (`ANCHORS=1`, world-anchored, 0.3 % across two pitches,
+  `.285`) but works **only on the app's own renders**: a photograph has no world coordinates.
+
+So photographic comparison is limited to **pose-robust** quantities, of which the arc found exactly one —
+interior chroma — and that one cannot be anchored because chroma follows the exterior's colour (`.317`). **A
+closed loop, and the reason seven rounds of metric-hunting kept failing: the requirement is self-contradictory
+for found photographs.**
+
+### What remains valid
+
+Pose-matched same-frame comparison of the app against **itself** — the raster as reference (`.314`) — is
+untouched, because both arms share the pose by construction. Every surviving quantitative result of the last ten
+rounds is of that form: (p) costs 6.1 counts of ceiling chroma and 0.862 → 0.974 of falloff against the raster;
+(u) costs 19 % on the luminance ratio and 20–28 counts of chroma. **Those stand.** What does not stand is any
+claim that a *photograph* adjudicates them.
+
+### Method note
+
+The vanishing-point calculation was wrong and it took one step to know, because it produced a horizon that
+contradicted a plainly visible feature. **Check a geometric estimate against something the picture obviously
+shows** — the crop-looking discipline, applied to arithmetic.
+
+No `src/` change, no probe change.
+
+---
+
+## Round .321 — branch-health audit: `src/` clean after eight temporary instrumentations, and PR #109 merged 73 rounds ago
+
+Thread 1 closed (`.320`), thread 2 at ~5 % yield (`.291`), thread 3 a look call. So this round audits the state
+of the work, and finds the brief's own premise stale.
+
+### 1. Instrumentation audit — clean
+
+`.287`, `.299`, `.301`, `.302`, `.306`, `.307`, `.310`, `.312` each added temporary `src/` instrumentation and
+reverted it. Verified across **all 73 unpushed commits** rather than per round:
+
+| check | result |
+| --- | --- |
+| `src/` diff over the full span | only `hqRenderSession.ts` (+110), its tests (+53), `src/scene/CLAUDE.md` (+20), `src/version.ts` |
+| `console.log/warn/error` added to `src/` | none beyond pre-existing `import.meta.env.DEV` ones |
+| markers (`0x00ff00`, `[PROBE]`, `TEMPORARY .`) | none |
+| working tree | clean; no stray `tmp-*` probe scripts |
+| `package.json` ↔ `APP_VERSION` | in sync per the repo rule |
+| probe | `node --check` OK |
+
+The only shipped `src/` change in the arc remains `.253`'s `pbrStandInFor` and its tests — which `.304` cleared
+of involvement in (u). Eight temporary edits, eight clean reverts.
+
+### 2. PR #109 is MERGED, not open
+
+It merged into staging at **v0.31.5.247/.248** (merge commit `55c96fba`); `origin/fix/graphics-realism-tiers` is
+at **`4eccc532`, v0.31.5.248**. The brief's premise — *"PR #109 open into staging, at round .247"* — has been
+stale since round `.249`.
+
+### 3. So rounds .249–.320 have no PR and no remote copy
+
+`git branch -r --contains HEAD` returns **empty**. **73 commits, 15,061 insertions across 11 files, only in this
+worktree**: the `.249`–`.320` research record (5,856 lines), 2,141 lines of probe instrumentation, the new
+`docs/hq-tracer-probe-notes.md`, and the `(n)`–`(v)` decision entries. Nothing replicated.
+
+### 4. They would land cleanly
+
+Current staging is **exactly one commit ahead** of our base, and that commit is the merge of our own `.248`. No
+divergence to resolve.
+
+### 5. What the repo's flow requires
+
+Feature branches are cut **from** staging and open PRs **into** staging; a merged branch is spent, so committing
+onto `fix/graphics-realism-tiers` is off-flow. This needs a **new branch from current staging** and a **new PR**
+titled with the version it ships.
+
+Nothing has been pushed, branched or opened — outward-facing and unauthorised. But this is the one open item
+where waiting compounds rather than staying flat: the work is unreplicated.
+
+### Method note
+
+The brief's premise was wrong and no round had checked it — 73 rounds of reporting "unpushed on PR #109" while
+#109 was closed. **A standing premise deserves the same verification as a measurement**, and it costs one
+`gh pr view`.
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .322 — the unreplicated work is backed up locally and restore-tested, without pushing
+
+`.321` found rounds `.249`–`.321` exist only in this worktree — no PR, no remote copy — and that this is the one
+open item where waiting compounds. Pushing is not mine to do unasked. The *loss* risk, however, is removable
+locally.
+
+### Done — all local, no network, nothing published
+
+1. **Local safety branch** `arc-249-321-safety` pinned at HEAD; guards against an accidental checkout/reset
+   losing the tip. A ref only; no history rewritten.
+2. **`git bundle`** at `~/sofa-graphics-realism-arc-249-321.bundle` — 2.4 MB, one file, outside the worktree,
+   every commit from the pushed base to HEAD. `git bundle verify` → **okay**.
+
+### Restore-tested
+
+A scratch repo in `/tmp`, given the base ref, then fetched *from the bundle*:
+
+| check | result |
+| --- | --- |
+| restored HEAD | `a04bcd08` (round `.321`) |
+| commits on top of base | **74** |
+| `src/version.ts` | `APP_VERSION = '0.31.5.321'` |
+| `docs/hq-tracer-probe-notes.md` | 458 lines |
+| `## v0.31.5.3xx` changelog entries | 33 |
+
+Scratch repo then deleted. The bundle reconstructs the work faithfully.
+
+### One dependency, stated precisely
+
+A *thin* bundle: it requires base `4eccc532` (v0.31.5.248), which **is on origin** — merged to staging by PR
+#109. So **origin + bundle = full recovery**; the bundle alone is insufficient if GitHub were also unavailable.
+Deliberate trade — a self-contained bundle would carry the whole repository history for a 74-commit delta, and
+the base is a single well-known published commit.
+
+### What it does and does not change
+
+Removes the accidental-loss risk. Does **not** substitute for branch-and-PR, which still needs authorisation:
+the repo's flow wants a new branch from current staging and a PR into staging titled with the version it ships,
+because `fix/graphics-realism-tiers` was merged and is spent.
+
+### Refresh
+
+The bundle captures `.249`–`.321`; regenerate after each commit:
+
+```
+git bundle create ~/sofa-graphics-realism-arc-249-<n>.bundle 4eccc532..HEAD
+git bundle verify ~/sofa-graphics-realism-arc-249-<n>.bundle
+```
+
+### Method note
+
+`.321` identified the risk and stopped there, because the obvious remedy was unauthorised. **When the obvious
+remedy is unauthorised, isolate the unauthorised part and remove the rest** — the risk was *loss*, not *lack of
+publication*, and loss is addressable locally. Flagging a risk every round without mitigating the part within
+reach is narration, not caution.
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .323 — surface survey against the raster: the tracer's largest error is on the surface that should be darkest
+
+`.320` left one valid construction — the app against itself at a matched pose — and `.314` used it on two
+surfaces. This round surveys **seven** from the same frame pair, which is what a (p) decision needs: not "the
+lighting is wrong" but *which surfaces*.
+
+### Patch hygiene
+
+Marking caught two patches contaminated by the **HUD**: the intended wood and lampshade patches sat on the
+**minimap**. The raster carries the HUD and the traced canvas does not, so **any patch overlapping it is invalid
+by construction** — a trap specific to raster-vs-traced work, and not caught by an sd check.
+
+### The survey
+
+bedroom3 `PITCH=0.30`, white room, medium tier, photographic look, hour 13, 256 samples; traced arm is **class
+B**, so this is (p)'s cost and not (u)'s:
+
+| surface | raster L | traced L | ΔL | raster R−B | traced R−B | ΔR−B | sd raster → traced |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ceiling | 128.8 | 115.2 | −13.6 | 13.6 | 7.5 | **−6.1** | 1.6 → 1.3 |
+| ceiling2 | 129.9 | 115.0 | −14.9 | 12.5 | 8.8 | −3.7 | 0.4 → 1.1 |
+| sidewall-L | 133.5 | 116.1 | −17.4 | 5.8 | 4.8 | −1.0 | 3.2 → 3.0 |
+| **winwall-R** | **60.0** | **102.7** | **+42.7** | 6.3 | 7.3 | +1.0 | **11.6 → 1.7** |
+| glazing | 173.3 | 166.7 | −6.6 | −7.4 | −12.8 | −5.4 | 7.2 → 0.5 |
+| ~~curtain~~ | 123.6 | 59.0 | discarded | 18.8 | 18.0 | — | 7.3 → **21.0** |
+| ~~picmat~~ | 57.6 | 52.2 | discarded | 9.9 | 2.4 | — | **52.2 → 42.6** |
+
+Two patches discarded **on their own sd**, not on inspection — pleat shading and a frame/print edge make their
+large ΔL figures uninterpretable.
+
+### Findings
+
+1. **Plaster is uniformly 11–13 % darker** in the trace (−13.6, −14.9, −17.4), tightly grouped — a global level
+   offset, not a per-surface error.
+2. **The ceiling is disproportionately cooled** — ΔR−B −6.1 and −3.7 against the sidewall's −1.0, reproducing
+   `.314` on two independent ceiling patches.
+3. **The largest reliable error runs the other way: the window wall is +42.7, i.e. 71 % brighter.** Every plaster
+   surface that can see sky is darker in the trace; the one surface that can see **none** — coplanar with the
+   aperture — is dramatically brighter. **The tracer over-lights precisely the surface that should be darkest**,
+   the signature of an environment term that ignores visibility. `.301` showed these walls *are* properly shaded,
+   so: properly shaded, wrongly illuminated.
+4. **The shading is flattened 7×** — raster sd 11.6 on that wall against traced 1.7. Not merely brighter: the
+   gradient is removed. The glazing collapses similarly (7.2 → 0.5).
+
+### For the (p) decision
+
+Four checkable, pose-matched, photograph-free acceptance criteria: raise plaster ~11–13 %, warm the ceiling ~4–6
+counts R−B, **darken the window wall by ~40 counts**, and **restore its shading gradient**.
+
+### Method note
+
+`.314` measured two surfaces and concluded "walls right, ceiling wrong". With seven, the wall result splits: the
+*side* wall is right to 1 count, the *window* wall is wrong by 71 %. **"The walls" was not a category**, and a
+two-surface sample could not have shown it. Survey breadth is not padding when the target is a spatial
+distribution.
+
+No `src/` change, no probe change.
+
+---
+
+## Round .324 — (p) is a redistribution, not a level error: 5× too much on the zero-sky wall, 10–27 % too little on sky-facing ones. Intensity tuning cannot fix it
+
+`.323` found the window wall 71 % too bright and its shading flattened 7×. `.312`'s gradient-zeroed frame makes
+that attributable for free: subtract the no-ambient value per surface to get the *correct* ambient contribution
+(raster − none) against the *actual* one (traced − none).
+
+| surface | raster | traced | no-ambient | correct | actual | actual ÷ correct |
+| --- | --- | --- | --- | --- | --- | --- |
+| sidewall-L — sees sky | 133.5 | 116.1 | 69.2 | 64.3 | 46.9 | **0.73×** |
+| glazing — sees sky | 173.3 | 166.7 | 111.0 | 62.3 | 55.7 | **0.89×** |
+| **winwall-R — sees NO sky** | 60.0 | 102.7 | 49.3 | 10.7 | 53.4 | **4.99×** |
+
+**6.8× spread** between best- and worst-served surface.
+
+### 1. A redistribution
+
+`.312` established the gradient supplies the *majority* of interior light. This says it supplies roughly the
+right **total** in roughly the **wrong places** — taking 10–27 % from the surfaces that should receive most,
+giving 5× too much to the one that should receive almost none. Precisely what a uniform, visibility-blind
+environment does.
+
+### 2. Which explains why ceiling ÷ wall could never see (p)
+
+`.313` measured that metric moving 2.8 % for a 66 % change in the dominant light and could not account for it.
+**Ceiling ÷ wall compares two surfaces on the same side of the redistribution** — both sky-facing, both short by
+a similar factor (0.73×, 0.89×) — so the error largely cancels in their ratio. The window wall, on the other
+side, was never in the metric. Three rounds of confusion about metric sensitivity resolve into one sentence.
+
+### 3. Intensity tuning cannot fix it
+
+```
+scale the gradient by 1/4.99 to fix winwall-R:
+  sidewall-L ambient 46.9 -> 9.4  against a correct 64.3  = 0.15x
+```
+
+From 27 % short to catastrophically dark. **A fix must be visibility-aware, not a coefficient** — which rules
+out the cheapest class of fix, and is worth knowing before the work is scoped.
+
+### Caveats
+
+- **Displayed AgX counts, not energy.** Subtracting tone-mapped values is not physically exact, so the
+  multipliers are directional and approximate — the limit `.312` noted and `.290` was corrected for. The
+  5×-versus-0.73× *contrast* is far too large to be a tone-curve artefact; the precise figures are not.
+- **The no-ambient frame was a class-A run** (ceiling reads 0.0, a void), so (u) is present. With a black
+  environment the ceiling contributes essentially nothing in either class, so wall values are approximately
+  "scene lights only" regardless — the confound affects magnitude modestly, not direction. **The ceiling row
+  cannot be computed** and is omitted rather than estimated.
+
+### Status of (p)
+
+Diagnosed (`.286`), confirmed by observation (`.287`), priced (`.312`), localised by surface (`.323`), and now
+characterised as a **redistribution with a known failure mode for the obvious fix**. Four pose-matched
+acceptance criteria exist (`.323`). Nothing further can be established without authorisation to change `src/`.
+
+### Method note
+
+This round's main result came from subtracting two frames captured for other purposes, eleven and one rounds
+earlier. **Arms captured for one question often answer a different one** — the `.294`/`.295`/`.318` pattern, now
+three-for-three that re-reading existing arms beat a new measurement.
+
+No `src/` change, no probe change.
+
+---
+
+## Round .325 — a hue-discriminating environment confirms (u) by sign reversal, and shows `.324`'s baseline was the wrong (u) class
+
+`.324` left an honest gap: the ceiling row of the (p) attribution table, uncomputable because `.312`'s
+no-ambient frame was class A. Filling it showed the baseline itself was unsound.
+
+### Black cannot work
+
+A paired black-environment run returned **ceiling 0.0 on both arms**: under a black background a class-A void
+and a genuinely unlit ceiling are the same value, so discriminator and measurement collapse. **`.312`'s black
+data point was therefore confounded** and is withdrawn.
+
+### Dim blue works
+
+`0x000030` — faint enough not to swamp the scene lights, R−B −48 against room bounce +8, so the *sign* separates:
+
+| arm | ceiling L | ceiling R−B | class |
+| --- | --- | --- | --- |
+| render 1 | 6.8 | **−65.0** | A (environment hue) |
+| render 2 | 96.6 | **+12.2** | B (room bounce) |
+
+### Sign-reversal confirmation of (u)'s mechanism
+
+"Class A replaces the ceiling with the environment" predicts class A is brighter when the environment out-shines
+a correct ceiling and darker when it does not:
+
+| environment | ceiling A | ceiling B | sidewall A | sidewall B | class A is |
+| --- | --- | --- | --- | --- | --- |
+| normal grey gradient | 181.5 | 115.2 | 157.7 | 116.1 | brighter |
+| dim blue | **6.8** | **96.6** | **75.7** | **100.3** | **darker** |
+
+The effect reverses sign with the environment's brightness. A prediction that flips direction and does is worth
+more than `.312`'s three-point dose-response, and it repairs it.
+
+### And it invalidates .324
+
+`.324` used a class-A frame as its no-ambient baseline. In class A the ceiling is not a bounce surface, so the
+room is darker than a true class-B baseline: **sidewall 69.4 vs 100.3**, a 31-count understatement. Both
+"correct" and "actual" ambient were inflated. **Withdrawn: the redistribution ratios, the 6.8× spread, the
+ceiling ÷ wall explanation, and "intensity tuning cannot fix it".**
+
+| surface | raster | traced | class-A base | class-B base | correct | actual | ratio |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ceiling | 128.8 | 115.2 | void | 96.6 | 32.2 | 18.6 | 0.58× |
+| sidewall-L | 133.5 | 116.1 | 69.4 | 100.3 | 33.2 | 15.8 | 0.48× |
+| **winwall-R** | 60.0 | 102.7 | 49.3 | **78.4** | **−18.4** | 24.3 | **impossible** |
+| glazing | 173.3 | 166.7 | 111.0 | 115.4 | 57.9 | 51.3 | 0.89× |
+
+The window wall's implied correct ambient is **negative** — impossible. Its near-zero-ambient class-B value
+(78.4) already exceeds the raster's (60.0), so **the over-brightness is present with the environment nearly
+removed and is not attributable to the gradient.** `.323`'s observation stands (direct raster-vs-traced, no
+baseline needed); only the attribution falls.
+
+The recomputed ratios are **provisional and not a replacement headline** — dim blue is not exactly zero, n = 1
+per class, displayed-count arithmetic. After `.324`, one more inversion on a shaky baseline is exactly what
+should not be asserted.
+
+### The durable rule
+
+**A baseline arm must be verified to be in the same (u) class as the arm it baselines.** Two rounds were misled
+by an unverified-class baseline and both had to be withdrawn. The check is cheap: `PT2=1` plus a
+hue-discriminating environment, and read the sign.
+
+Instrumentation reverted; `src/` verified byte-identical to the committed state.
+
+---
+
+## Round .326 — the tracer already has a faithful sky and never looks at it
+
+`.325` left (p) described but unfixed, with "intensity tuning is not ruled out" as the only forward statement.
+The obvious next move was to price the gradient's error more precisely. That is the wrong move: `.324` showed
+where baseline-relative pricing of (p) leads. The better question is not *how wrong* the hardcoded gradient is
+but **whether a faithful substitute exists at all** — because if one does, the pricing is beside the point.
+
+### What the live scene actually offers
+
+`ENVDUMP=1`, added to the probe this round, reports both environment slots against the exact clauses of
+`isReusableEquirectEnvironment`. Run 20:13 local, default state, medium tier:
+
+| slot | ctor | render target? | mapping | image | `wouldPass` |
+| --- | --- | --- | --- | --- | --- |
+| `scene.environment` | CubeTexture | **yes** | 301 | Array | **false** |
+| `scene.background` | **CanvasTexture** | no | **303 (equirect)** | **canvas 1024x512** | **true** |
+
+The `environment` slot fails, correctly, and for exactly the reason the code documents: it is a PMREM cube
+render target the converter cannot read back. But `background` is a canvas-painted equirect — CPU-readable,
+hour-aware, and *literally what the raster shows through every window in the same frame*.
+
+`resolveTracerEnvironment` never evaluates it. Two independent reasons:
+
+1. `if (!hdriUrl) return null` — with `hdriId` null by default it returns before inspecting the live scene at
+   all.
+2. Even inside the HDRI branch it tests only `live.environment`, never `live.background`.
+
+So **(p) is not "the tracer lacks a faithful environment". It is "the tracer has one and does not look."** That
+is a sharper statement than any this arc has made about (p), and it needed no render to establish.
+
+### The naive substitution is a negative, and the cause is in the library
+
+Handing `live.background` to the tracer directly: **0 samples after 300 s, no tracer canvas, no page error, no
+GL warning.** No render at all, silently.
+
+`EquirectHdrInfoUniform` destructures `const { width, height, data } = map.image` — twice, in
+`preprocessEnvMap` and in the CDF pass — and builds the importance-sampling distributions from `data`. An
+`HTMLCanvasElement` has `width` and `height` but **no `data`**.
+
+This corrects a statement made earlier in this round. `scene.background` **does** pass
+`isReusableEquirectEnvironment` — and passing is **not sufficient**. The predicate tests `t.image` for
+truthiness, which a canvas satisfies; the tracer needs `image.data`. **The predicate is too weak by exactly
+that gap.** It is latent rather than live: the only thing that currently reaches it is an `RGBELoader` result,
+which *is* a DataTexture. But a canvas-backed equirect would pass the check and then silently kill HQ
+rendering, which is worth knowing before anyone extends the HDRI path.
+
+### The conversion, and the measurement
+
+Read the canvas into a `Float32Array` `DataTexture` (RGBA/Float/equirect/Repeat/ClampToEdge/Linear, mirroring
+`ProceduralEquirectTexture`), decoding sRGB → linear on the way — the tracer integrates radiance while canvas
+pixels are display-encoded. This renders: 256 samples, page log confirms `1024x512 DataTexture`.
+
+bedroom3 `PITCH=0.30`, medium tier, photographic look, hour 13, 16:9, 256 samples, ai-denoised. Runs 20:15 (A,
+committed src) and 20:54 (C, converted) local. Patches placed fresh from this round's frames and verified on
+the marked overlay.
+
+| patch | raster | A: hardcoded gradient | C: converted background | ΔA | ΔC | error removed |
+| --- | --- | --- | --- | --- | --- | --- |
+| ceiling | 129.4 | 115.0 | 125.2 | −14.4 | **−4.2** | 71 % |
+| sidewall-L | 134.5 | 116.9 | 121.7 | −17.5 | **−12.8** | 27 % |
+| winwall-L | 115.2 | 107.9 | 110.9 | −7.3 | **−4.3** | 41 % |
+| **winwall-R** | 70.0 | 105.8 | 106.0 | **+35.8** | **+36.1** | **0 %** |
+
+### The headline is the null result
+
+**The sky-blind wall does not respond.** +35.8 → +36.1 is 0.3 counts against a patch sd of 1.6. The tracer's
+dominant light source was replaced wholesale and the largest error in the frame ignored it.
+
+That **independently confirms** what `.325` could only reach by withdrawal: the window wall's over-brightness
+is not attributable to the environment. `.325` argued it from an implied *negative* correct-ambient on a
+class-B baseline — sound, but baseline-dependent, and `.324` is a standing lesson in what baselines do to this
+measurement. This route needs no baseline and no arithmetic: change the environment, watch the error stay.
+
+Two unrelated routes to the same conclusion. So **(p) is two faults, not one**:
+
+- a **plaster-wide deficit** on sky-facing surfaces, which the environment substitution largely explains;
+- a **sky-blind-wall excess**, which it does not touch at all, and whose cause remains unidentified.
+
+### The ceiling figure was the one at risk, and it survives
+
+(u) attacks precisely the ceiling, and here the class discriminator itself is compromised: `.325` calibrated it
+(class A 181.5, class B 115.2) **under the gradient environment this round replaces**, so run C cannot be
+classified the way `.323` classified its arm. This is a new form of an old trap — `.325`'s rule was "a baseline
+arm must be in the same (u) class as the arm it baselines"; the sharper version is that **an intervention on
+the environment invalidates any (u) discriminator calibrated under the old one.**
+
+`.305`'s acceptance test is immune, because it is a within-condition comparison. `HIDECEIL=1` under the *same*
+converted environment (14 ceiling planes hidden, confirmed by `HIDECEILCHECK`) reads:
+
+| | ceiling | sidewall-L | winwall-R |
+| --- | --- | --- | --- |
+| class-A reference (ceiling hidden) | **114.7** | 118.3 | 104.0 |
+| run C (ceiling present) | **125.2** | 121.7 | 106.0 |
+
+10.5 counts of separation at sd 1.4–1.6. Run C passes: the ceiling is rendering as a surface, not showing the
+environment. **−4.2 stands.** Looked at the hidden-ceiling frame to confirm the reference is what it claims —
+with the planes gone the region shows the environment as a smooth grey, as intended.
+
+### A new fact about (u)
+
+Under the grey gradient the two classes sit **66 counts** apart (181.5 vs 115.2). Under the converted sky they
+sit **10.5** apart, and in the **opposite direction** — class A now *darker*. A faithful sky radiates into the
+ceiling direction at nearly what a correctly-bounced ceiling reads.
+
+This is the same sign-reversal logic `.325` established, now with a practical consequence in both directions:
+a faithful environment would make (u) **far less damaging to look at**, and **far harder to detect**. Any
+future (u) work must re-derive its discriminator under whatever environment is in force.
+
+### What the conversion does not fix
+
+Chroma. The ceiling's R−B runs 11.9 (raster) → 7.8 (gradient) → **0.7** (converted sky). The substitution makes
+the trace *cooler*, not warmer. That is coherent rather than surprising: the app's warmth lives in the
+white-balance tint on the analytical hemisphere and ambient, and `buildTracerScene` drops both entirely. **No
+environment, however faithful, can restore light that was never copied.** That is (p)'s other half, and it is
+untouched by this round.
+
+### Patch hygiene
+
+Two patches discarded, and only looking caught the second:
+
+- `ceiling2` straddles the ceiling/wall junction — raster sd 16.3 against the trace's 4.5.
+- `glazing` is **not like-for-like in this pose**. The raster's window carries a full security grille; the
+  traced window has none, just a single mullion. Four bars cross the intended patch, which is what raster sd
+  24.3 against traced 0.7 records. `.323`'s glazing row (−6.6) may carry the same contamination, so this
+  round's −7.2 is **not** treated as confirming it, and the missing grille is a snapshot-fidelity gap
+  independent of lighting.
+
+Run A's frame also carries a hard-edged bright quadrilateral on the top-right ceiling that run C's does not —
+consistent with `.293`'s reading of (u) as one spatially varying region. **Not attributable to the
+intervention**: (u) is per-render, so chance produces the same difference. The `ceiling` patch is clear of it in
+both arms.
+
+### Replication
+
+Baseline arm A reproduces `.323` from patches placed fresh off a new frame: ceiling −14.4 (was −13.6),
+sidewall-L −17.5 (−17.4), winwall-R **+35.8** (+42.7). Independent re-placement agreeing to this degree is
+worth more than either round on its own — the plaster deficit and the sign reversal on the sky-blind wall are
+repeatable, not artefacts of one patch set.
+
+### Tooling
+
+`scripts/dev-probes/patch-read.mjs`, extracted this round. Every raster-vs-traced round since `.298`
+re-implemented patch reading inline, and the recurring failure was never the arithmetic — it was patches
+landing somewhere other than intended (`.300`, `.315`, `.316`, `.319`, `.323`). So the marked overlay is not
+optional output: it is written on **every** run.
+
+`ENVDUMP=1` added to `light-distribution.mjs`.
+
+### Not shipped
+
+This is a look change on the HQ path and belongs to the user; filed under (p) as a priced candidate. `src/` was
+reverted from the temporary instrumentation and verified byte-identical to HEAD (`git diff --stat` empty;
+gradient restored at lines 352–354).
+
+Also learned the hard way: a 256-sample PT run takes **~7½ minutes** (run A 20:15:21 → 20:22:41), close enough
+to the default background-command limit that run B was **killed** mid-trace with `frame.png` written and no
+`pathtraced.png`. Launch PT runs with an explicit timeout. `.306` lost a batch to the 10-minute *foreground*
+limit; the background default is tighter, not looser.
+
+---
+
+## Round .327 — the sky-blind wall is not floor bounce, and two silent no-ops nearly published the opposite
+
+`.326` split (p) into two faults and left the second unexplained: the sky-blind wall reads **+35.8** against the
+raster and does not respond to replacing the environment. The leading candidate was that this excess is genuine
+**path-traced floor bounce** the rasteriser cannot produce — which, if true, inverts (p)'s sign for that one
+surface: the trace would be closer to right there and the raster wrong.
+
+**Refuted.** But the route to the refutation is the more useful half of the round.
+
+### Why floor bounce was the leading candidate
+
+Four things can light that wall, and three were already accounted for:
+
+- **the environment** — ruled out by `.326`, 0.3 counts under wholesale replacement;
+- **the sun** — arrives through the aperture travelling *away* from that wall, so grazing at best;
+- **the point lights** — copied into the snapshot, so they cannot create a raster/trace divergence.
+
+What remained was inter-surface bounce, and the rasteriser has none — only an analytical fill. The floor is the
+dominant bounce source for a vertical wall in a daylit room.
+
+### Two interventions that silently did nothing
+
+| lever | what actually happened | how it was caught |
+| --- | --- | --- |
+| `FLOOR=floor-carpet-blue` | re-finishes the **living/dining** floor only; the pose was bedroom3 | raster arm **byte-identical**: 70.0 / 134.5 / 129.4 |
+| `RECOLOR d6b38d:3f4a63` | matches `material.color`, but a floor's catalog colour (`#d6b38d`) is a **painter input** to the generated texture — the material is white with a `map` | `repainted: 0` |
+
+The first is documented in the knob's own comment, which I had read earlier in the same session and still
+passed a bedroom to.
+
+### The false positive, in full
+
+Run E — dye not landed — reported the traced sky-blind wall at **144.5**, up **+38.7** from run A's 105.8, with
+R−B swinging from +7.4 to **−8.8**. Both a large luminance rise *and* a strong blue shift: the two signals I had
+nominated **in advance** as confirmation of floor bounce. Patches correctly placed, crops clean, sds tight,
+internally consistent.
+
+It was **item (u)**. Run E's ceiling read 178.2 against `.325`'s class-A value of 181.5; run A's read 115.0
+against class B's 115.2.
+
+Run G then repeated the experiment with the dye **verified landed** — 77 upward-facing meshes, found
+geometrically, confirmed by looking at the frame — and reproduced run E to **0.1 counts**:
+
+| | winwall-R | sidewall-L | ceiling | class |
+| --- | --- | --- | --- | --- |
+| run E, dye did NOT land | 144.5 | 154.3 | 178.2 | A |
+| run G, dye VERIFIED landed | 144.4 | 154.6 | 178.2 | A |
+
+So the dye changed nothing in class A, the entire apparent effect was the class, and **run E — the failed run —
+was what exposed it.** Had I discarded it as a botched attempt and kept only run G, run G's +38.6 against run A
+would have read as a confirmed mechanism.
+
+### Two rules out of this
+
+**1. Exact equality is evidence of a NO-OP, not of stability.** A real intervention essentially never leaves a
+figure identical to the last decimal — noise forbids it. `70.0 / 7.4 / 7.3` reproduced exactly is what condemned
+run E, and it is a stronger signal than any plausibility check on the value itself. Corollary: when a change
+leaves a metric or a test suite *exactly* unchanged, that is cause for suspicion rather than confidence.
+
+**2. Independent-looking signals are not independent if one confound drives them.** Designing the test around
+luminance *and* hue felt like insurance and bought nothing: (u) moves both, in the directions I was hoping for.
+The protection that actually worked was a **control arm that should have been inert** — not looking at the crop
+(the crops were fine), and not signal redundancy.
+
+### The test, done properly
+
+Paired renders (`PT2=1`) so both arms share one boot, dye verified, both arms class B. Runs 21:29 local,
+bedroom3 `PITCH=0.30`, medium, photographic look, hour 13, 16:9, 256 samples, ai-denoised.
+
+| patch | A: undyed, class B | H1 dyed | H2 dyed | Δ | R−B |
+| --- | --- | --- | --- | --- | --- |
+| **winwall-R** | 105.8 | 99.8 | 99.5 | **−6.1** | +7.4 → +1.4 |
+| sidewall-L | 116.9 | 110.1 | 108.1 | −7.8 | +6.6 → −1.3 |
+| ceiling | 115.0 | 104.2 | 103.5 | −10.9 | +7.8 → −2.4 |
+
+The dye cuts floor reflectance by roughly 60 % (oak `#d6b38d` → navy `#3f4a63`, multiplying the map) and the
+sky-blind wall drops **6 counts out of a 36-count excess** — about 6 % of its own value. **Floor bounce is not
+the mechanism.**
+
+Three checks say this is a real null and not a weak intervention:
+
+1. the dye plainly works in class B — every surface drops;
+2. the **hue follows it** — R−B falls on all three surfaces, the dyed floor's colour propagating as a bounce
+   source should;
+3. the **ceiling drops most** (−10.9), the physically sensible ordering, since it faces the floor most directly.
+
+Real, correctly signed, correctly ordered — and too small and too evenly spread to be a winwall-specific
+mechanism. It reads as a small general reduction in room interreflection.
+
+### The control gave a positive finding of its own
+
+**The raster's walls and ceiling are floor-independent.** Byte-identical with the floor dyed dark navy. The
+rasteriser carries **no floor-bounce term at all** for these surfaces — consistent with its hemisphere
+`groundColor` being a global constant rather than anything read off the actual floor material.
+
+### The reframing this forces, which matters more than the refuted hypothesis
+
+winwall-R is **coplanar with the aperture**. It sees no sky and takes no direct sun. **Bounce is the only
+physical source of light on it.** And the raster has no bounce mechanism.
+
+So the raster's 70.0 is produced *entirely* by a non-directional analytical fill that is not modelling the
+actual light path in any form. `.323`'s framing — "the tracer's largest error is on the surface that should be
+darkest" — **may have the sign backwards.** The 36 counts may be largely the *raster's* deficit, on the one
+surface where the raster's model has no mechanism whatsoever.
+
+This does **not** resolve which renderer is closer to correct. `.320` established that the app against itself
+at a matched pose is the only valid construction available, and that remains true — but **"the only available
+reference" is not "the correct reference"**, and this round is the first time the distinction has had teeth. It
+relocates the question from "why is the trace too bright there" to "which renderer is wrong on a
+bounce-only surface", and that is now the arc's top open thread.
+
+### What is still untested
+
+The dye isolates the floor. The remaining bounce sources onto winwall-R — the opposite wall, the ceiling, the
+curtains — are untested. They cannot be dyed by material hex, because the plaster walls share `#f5f5f0` with
+winwall-R itself, so repainting them repaints the measured surface. The tractable route is the one this round
+proved out: **dye geometrically by normal direction**, selecting walls whose normal points away from the
+measured surface. That is the natural follow-up.
+
+### Tooling
+
+`FLOORDYE=<hex>` — finds the floor geometrically (`getWorldDirection().y > 0.9`, which is a PlaneGeometry's
+world normal), tints via `color` so it multiplies the existing map, **prints every mesh it touched**, and
+**throws when it touches none**. After two silent no-ops in a single round, a failed intervention has to fail
+loudly rather than return a plausible number.
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .328 — the rasteriser has zero interreflection, and `.323`'s sign is backwards
+
+`.327` refuted floor bounce and reframed the question: winwall-R is **coplanar with the aperture**, so it sees no
+sky and takes no direct sun, and bounce is the only physical source of light on it. Is the raster capable of
+being right about such a surface at all? This round answers no, and does it against every surface in the room
+at once.
+
+### Method — partition the wall's light in a single run
+
+The remaining bounce sources after `.327` (opposite wall, ceiling, curtains) all share `#f5f5f0` with winwall-R
+itself, so hex recolour cannot separate them: repainting them repaints the measured surface. So instead of
+chasing sources one at a time, remove **all** of them and see what survives.
+
+`DYEEXCEPT=<hex>` dyes every mesh except those coplanar with the window wall. Selection is by world normal
+projected to horizontal, against the camera's own horizontal backward direction — the camera faces the window
+wall, so `−forward` is that wall's inward normal to within the pose's yaw. The glazing is spared deliberately:
+dyeing it would attenuate the light coming *in* and confound the partition.
+
+**1062 dyed / 59 spared, all `PlaneGeometry`**, verified by looking at the frame — window wall pale on both
+sides of the opening, everything else near-black, glazing bright.
+
+Whatever light survives on winwall-R must then be non-bounce: sun grazing, the point lights, or light arriving
+through the opening.
+
+### Result 1 — the rasteriser has exactly zero interreflection
+
+| patch | run A, undyed | run I, 1062 meshes dyed near-black |
+| --- | --- | --- |
+| winwall-R | 70.0 | **70.0** |
+| winwall-L | 115.2 | **115.2** |
+| ceiling | 129.4 | **0.0** |
+
+The ceiling reading 0.0 proves the dye landed in the raster. And both window-wall patches are **byte-identical
+to the decimal** with the entire rest of the room blackened.
+
+So this is not "a weak bounce term" — it is **none**. Raster wall luminance is a pure function of the
+analytical lights, and those know nothing about scene albedo. `.327` inferred this from a dyed floor; here it is
+established against every surface in the room simultaneously.
+
+Note this is also the strongest possible form of the rule from `.327`: byte-identical output is the signature of
+an absent mechanism, and here it is the *finding* rather than a warning.
+
+### Result 2 — the traced window wall is bounce-dominated
+
+Class B, dye verified (run J1):
+
+| patch | undyed, class B | all bounce surfaces dyed, class B | change |
+| --- | --- | --- | --- |
+| **winwall-R** | 105.8 | **34.4** | **−67 %** |
+| winwall-L | 107.9 | **16.4** | **−85 %** |
+
+Exactly what physics requires of surfaces coplanar with the aperture: remove the room's bounce and they
+collapse. The residual is the direct component — larger on winwall-R (34.4) than winwall-L (16.4), consistent
+with winwall-R sitting nearer the sideboard lamp and taking more grazing sun.
+
+### So `.323`'s framing has the sign backwards
+
+`.323` published "the tracer's largest error is on the surface that should be darkest". On this surface the two
+renderers are **not two qualities of one lighting model**. The tracer has a mechanism for the only light that
+physically reaches winwall-R; the rasteriser has none, and substitutes a non-directional analytical fill.
+
+So the +36-count gap is most likely the **raster's deficit**, not the tracer's excess, and **(p)'s second fault
+is probably not a tracer fault at all.**
+
+This does not make the trace *correct* — its absolute level is unvalidated and nothing in this arc can
+photographically anchor it (`.320`). What it does is retire the assumption baked into every round from `.323`
+onwards: that where the two renderers disagree, the raster is the value to move toward. On a bounce-only
+surface that assumption is unfounded.
+
+### An arithmetic I am refusing
+
+The raster's total (70.0) sits temptingly close to the trace's apparent bounce delta (105.8 − 34.4 = 71.4). It
+would be easy to write "the raster's fill approximates the trace's bounce term but omits its direct component".
+
+**That is not a legitimate decomposition.** Displayed counts under AgX tone mapping are not energy — a rule
+this arc has held since it started quoting no linear "% of photons" figures — so a tone-mapped value cannot be
+split into additive direct + bounce terms, and `34.4 + 71.4 = 105.8` is not valid addition in display space.
+The coincidence is recorded and explicitly not interpreted. All that is claimed is that **bounce dominates.**
+
+### The best (u) discriminator in the arc, obtained for free
+
+With all surfaces dyed near-black, the ceiling patch reads:
+
+| | ceiling |
+| --- | --- |
+| class B (ceiling rendered, dyed albedo) | **0.0** |
+| class A (ceiling absent, environment shows) | **178.2** |
+
+A **178-count separation** — because the intervention removes the ceiling's own albedo while leaving the
+environment behind it untouched, which is precisely the difference the two classes turn on. This is `.305`'s
+acceptance test at maximum sensitivity.
+
+Compare the discriminators this arc has used: `.325`'s dim-blue R−B sign test (66 counts, and it needed a
+temporary `src/` change), and the converted-sky case (10.5 counts, `.326`). This one is probe-only, needs no
+`src/` edit, and separates by 178. **Use it for any future (u) work.**
+
+### Two notes on (u) itself
+
+**Class A is deterministic across boots.** Run J2 read 106.4 / 111.7 / 178.2; run I's two arms read
+106.3–106.4 / 111.6 / 178.2 — separate page sessions, agreeing to 0.1 counts. Consistent with `.305`'s finding
+that class A is quantitatively identical to the ceiling being absent, and stable.
+
+**The tax is now the dominant cost of HQ measurement.** 3 of 4 traced arms in this round landed in class A; two
+paired runs (four renders, ~12 minutes) were needed to obtain one class-B arm. Every (p) measurement is
+effectively priced at 2× because of it.
+
+Also visible in J1's frame: the hard-edged bright quadrilateral in the top-right ceiling persists even in a
+class-B arm, with the rest of the ceiling correctly black. That is `.293`'s spatially-varying reading of (u),
+and the measured patch is clear of it.
+
+### Tooling and two errors caught before they cost a measurement
+
+`DYEEXCEPT=<hex>` — dyes all but the window-wall plane, prints the partition, and **throws unless both sides
+are non-empty**.
+
+**Error 1: `getWorldDirection` is a surface normal only for a `PlaneGeometry`.** The first cut of the knob
+spared 543 meshes, including books, a lamp and a plant — objects whose local +Z happened to point at the camera
+while they went on bouncing light. For a box, cylinder or sphere that call returns the object's *orientation*,
+not a normal. Restricting the spare rule to planes gives the clean 1062/59 partition.
+
+**Error 2: a check run without `PT=1` is not framed like a trace run.** `PT=1` pins the walk viewport to 16:9;
+without it `VH` defaults to 800 and the capture is 16:10. So a cheap no-PT verification frame is fine for
+confirming an intervention landed, but its *fractional patches are not comparable* with those of a trace run
+(`.247`). Pose was separately confirmed identical across all runs here (`reached [7.33, 3.4]`, standoff 3.6).
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .329 — the default render has zero interreflection, and that is the arc's most goal-relevant finding
+
+`.328` established that the rasteriser has no interreflection, but it established it while chasing an HQ
+question, on an artificial dye, at a pitched-up pose nobody uses. That finding is far bigger than the HQ path:
+**the rasteriser is the render every user actually sees.** So this round re-tests it as a *product action* and
+files it as item **(w)**.
+
+Worth stating why this reordering is right. Every open item in `docs/open-graphics-decisions.md` — (l), (m),
+(p), (q), (r), (s), (u) — concerns the **path-traced still**, a feature the user invokes deliberately. The arc's
+stated goal is that *the app's own render must look real*. The default walk view had not been challenged on
+interreflection at all.
+
+### The code check comes first
+
+Nothing in `src/scene/look.ts` or `src/scene/lighting/*` reads a wall, floor or ceiling finish. The only
+"albedo" anywhere in the lighting path is `skyGradient.ts`'s **exterior** ground tint for the lower hemisphere —
+the colour of the ground *outside*, not of any interior surface.
+
+So the analytical fill — hemisphere + ambient + the IBL probe — is a **constant with respect to interior
+surface finish**, by construction. The measurement below is a confirmation, not a discovery.
+
+### The intervention is a real product action
+
+Not a dye: bedroom3's walls repainted white → **`wall-paint-ink` `#2b3340`**, a shipped finish any user can
+select, applied through the app's own finish path. Raster only, so item (u) cannot contaminate anything.
+`PITCH=-0.10`, medium tier, photographic look, hour 13, 16:9 (`VH=720` pins it without invoking the tracer —
+~20 s per arm instead of ~4 min). Runs 22:11 local.
+
+| patch | white walls | Ink walls | Δ |
+| --- | --- | --- | --- |
+| wall-L — **landing check** | 140.3 | 20.9 | **−119.4** |
+| floor | 75.2 | **75.2** | **0.0** |
+| pillow | 153.8 | **153.8** | **0.0** |
+| ~~bed-top~~ | 155.5 | 154.6 | **discarded** |
+
+`bed-top` is discarded on its own sd, not on inspection: 11.0 → 18.1 says the patch composition changed, and
+the marked overlay shows its top-left corner clipping the mattress edge. Its −0.9 is that clipping, not a
+response.
+
+Wall reflectance falls roughly **0.91 → 0.033** — about 28×, decoding the sRGB base colours to linear. The
+floor and the pillow do not move **by one part in a thousand**.
+
+### Why this zero is trustworthy, when `.327` says zeros are suspect
+
+`.327`'s rule is that exact equality is evidence of a no-op. It applies here and is satisfied: the **same frame**
+carries a positive landing check, the wall's own −119.4. The intervention unambiguously fired; the zero is the
+*response of other surfaces*, which is the finding rather than an absence of one.
+
+This is the first round in which that rule was satisfied **by design** rather than retrospectively — the patch
+set was chosen to contain a surface that must move alongside surfaces that must not. That is the shape every
+future intervention arm in this arc should take.
+
+### Contrast with a physically correct render of the same scene
+
+`.328` removed the room's bounce surfaces and the traced window wall fell **67–85 %**. That is a different pose,
+so the absolute values are not comparable (`.247`, `.320`) — but the *responsiveness* is, and it is the whole
+point:
+
+| renderer | response to removing/darkening the room's bounce surfaces |
+| --- | --- |
+| path tracer | **67–85 %** |
+| rasteriser | **0.0 %** |
+
+### Why this matters more than a subtlety
+
+Interreflection is not a fine detail in a small high-reflectance room; it is a large fraction of the light
+reaching every surface. The app renders a charcoal bedroom **exactly as bright** as a white one. That is not a
+shortfall in nuance — it is a physically impossible result, in the default view, visible to any user who
+repaints a room.
+
+It also reframes what "photorealism parity" needs. The arc has spent eighty rounds on the HQ still's fill rig,
+tone mapping and non-determinism. Meanwhile the render users actually look at has no interreflection term at
+all, and nobody had measured it.
+
+### The fix direction — cheap, and not decided here
+
+Drive the analytical fill from the room's **area-weighted mean surface reflectance** rather than a constant —
+the classic room-cavity interreflection term. A scalar per room, recomputed when a finish changes; no new GPU
+work, no new passes, and it would make the fill respond in the right direction with roughly the right
+magnitude.
+
+But it is a **look change to the default render of every scene in the app**, which is a product call. Filed
+under (w) with its open sub-questions rather than decided: whether to scale hemisphere, ambient and the IBL
+probe together or separately; whether to clamp the darkening so dark schemes stay *usable* rather than
+photographically correct (a real tension — a physically correct charcoal bedroom at dusk is close to
+unusable for design work); and whether the term should track the visible room only or the whole plan.
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .330 — (w) priced, and it corrects `.329`
+
+`.329` filed item (w) on a structural finding (nothing in the lighting path reads an interior finish) plus two
+measured zeros (floor and pillow unchanged under a 28× wall-reflectance change). The structural half is solid.
+This round asked the question `.329` skipped: **what are the correct answers?** Because a zero is only a defect
+if the correct answer is non-zero.
+
+### Method
+
+Same product action — bedroom3's walls repainted white → **`wall-paint-ink` `#2b3340`** through the app's own
+finish path — but now measured in *both* renderers at one pose, with the trace **class-matched**.
+
+`WALKFOV=72`, `PITCH=-0.02`, medium tier, photographic look, hour 13, 16:9, 256 samples. The wide FOV was
+chosen so that ceiling, wall, bed and floor appear in a single frame — the ceiling because (u) classification
+needs it. `hqRenderFov` returns the live FOV when no focal length is set, so the wide FOV carries into the
+trace and one fractional patch set serves both images (checked before spending any traces).
+
+Patch set carries `.329`'s discipline: **`wall-L` must move** (its own albedo changes) alongside surfaces that
+can only move via interreflection. Same-frame landing check by construction.
+
+### The result
+
+| patch | raster white → Ink | raster Δ | tracer, class B, white → Ink | tracer Δ |
+| --- | --- | --- | --- | --- |
+| wall-L — landing check | 144.6 → 22.6 | −84 % | 120.7 → 14.4 | −88 % |
+| **ceiling** | 126.9 → **126.9** | **0.0 %** | 116.9 → 92.6 | **−21 %** |
+| floor | 102.5 → **102.5** | **0.0 %** | 122.0 → 122.3 | **+0.2 %** |
+| pillow | 161.6 → **161.6** | **0.0 %** | 158.0 → 154.4 | **−2.3 %** |
+| ~~bed-top~~ | 155.7 → 152.6 | — | — | **discarded** |
+
+`bed-top` is discarded on its own sd, which doubled (17.9 → 32.0) — the patch clips the mattress edge, and in
+the Ink arm that edge is against a near-black wall. Its apparent −2.0 % raster "response" is that clipping, not
+interreflection. Worth noting the raster *cannot* respond by construction, so any non-zero raster delta on a
+supposedly bounce-only surface is a patch-hygiene signal — a useful self-check this pose provided for free.
+
+### The correction to `.329`
+
+`.329`'s structural claim stands: there is no interreflection term, confirmed in code and by byte-identical
+output. But `.329` wrote that "the app renders a charcoal bedroom **exactly as bright** as a white one", and
+framed it as a physically impossible result visible to any user who repaints a room.
+
+On the surfaces `.329` actually measured, the correct answers are **+0.2 %** and **−2.3 %**. The raster is
+approximately right there. `.329` had measured the two **least wall-bounce-dependent surfaces in the room** —
+the floor and a pillow, both near the window and both dominated by direct skylight — and generalised from them
+to the room.
+
+The defect's real locus is the **ceiling**: ~21 % too bright. That is exactly where it should be, on reflection.
+The ceiling is the one surface that sees every wall and no window, so its illumination is almost entirely
+inter-reflected. The floor sees the sky directly.
+
+**The generalisable lesson: a zero is uninterpretable without a reference.** `.329` was structurally right and
+quantitatively unfounded in the same paragraph, and the arc's existing rules did not catch it — the intervention
+landed, the patches were clean, the control behaved. What was missing was the *other* renderer's answer to the
+same question.
+
+### A prediction of mine that was wrong
+
+Before running the class-B arms I stated that a class-A pair would give a **lower bound**, reasoning that a
+missing ceiling admits undyeable environment light which dilutes the walls' share.
+
+Wrong, and in the opposite direction:
+
+| patch | class-A pair | class-B pair |
+| --- | --- | --- |
+| bed-top | −7.5 % | −3.1 % |
+| floor | −5.2 % | +0.2 % |
+| pillow | −5.1 % | −2.3 % |
+
+Class A **overstates** the response for these surfaces. Plausibly because with the ceiling gone the walls become
+a larger fraction of the enclosure that light bounces off before reaching bed and floor — but that is a guess,
+not a measurement, and the operative rule is simply: **class-A figures bound nothing in class B, in either
+direction.** Compare class A only with class A.
+
+### (u) corroborated twice, by a shipped product action
+
+Across a 28× change in wall reflectance:
+
+| | ceiling response |
+| --- | --- |
+| class A | **0.0 %** — 175.2 → 175.2, to the decimal |
+| class B | **−21 %** — 116.9 → 92.6 |
+
+A real ceiling above near-black walls **must** darken. Class A's does not move by one part in a thousand, while
+every genuine surface in the same frame responds. That is precisely what "in class A the ceiling is not
+rendered as a surface" predicts.
+
+This is the cleanest form of the (u) argument the arc has produced, because the intervention is a **shipped
+product action** — a user picking a paint colour — rather than a dye, a special environment, or a temporary
+`src/` change. It needed none of those.
+
+### (u) is deterministic, not stochastic
+
+Eight renders across five boots. Every class-A arm read ceiling **175.2** to the decimal; paired arms agreed
+across all five patches (N1 ≡ N2 exactly, M1 ≡ M2 to 0.9 counts).
+
+So (u) is **not** a sampling race, an accumulation-order effect, or noise. It is a discrete alternative
+rendering, selected once per `createHqRenderSession` call and then followed deterministically — consistent with
+`.305` and `.328`, and a genuine constraint on what can still explain it: any hypothesis involving randomness
+*during* the trace is excluded.
+
+### Discriminator, self-calibrated at this pose
+
+| | ceiling | R−B |
+| --- | --- | --- |
+| class A | 175.2 | −13.8 |
+| class B, white walls | 116.9 | **+6.5** |
+| class B, Ink walls | 92.6 | +0.5 |
+
+A 58-count separation with an R−B sign flip. Calibrated **at this pose**, not imported from `.325`'s
+`PITCH=0.30` figures — `.326`'s trap. Note the class-B ceiling value itself moves with wall paint (116.9 → 92.6),
+which is exactly why a class threshold cannot be carried across an intervention either.
+
+### Cost
+
+Four paired PT runs (eight renders, ~30 minutes) to obtain one class-matched class-B pair. Six of eight arms
+landed in class A. (u)'s tax on (p)- and (w)-adjacent measurement is now roughly 4×.
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .331 — (w) gets a lever and a verified constant
+
+`.330` priced (w) at ~21 % too bright on the ceiling. A magnitude is not a fix. Two things were still unknown:
+whether the lever (w) proposes can *deliver* 21 %, and what it breaks elsewhere.
+
+Both are raster-only questions, so this round costs nothing in (u) tax — five runs at ~20 s each, against
+`.330`'s four paired traces at ~7 minutes.
+
+### The obvious lever has authority but the wrong shape
+
+`FILLSCALE=<f>`, added this round, multiplies the AmbientLight and HemisphereLight intensities together. `f=0`
+is the most that pair can possibly do:
+
+| patch | uniform fill, f=0 | tracer needs (`.330`) |
+| --- | --- | --- |
+| ceiling | **−59 %** | **−21 %** |
+| floor | −11 % | **+0.2 %** |
+| pillow | −5 % | −2.3 % |
+
+Authority is not the problem — −59 % against −21 % needed. The *profile* is. Scaled back to hit the ceiling
+target (f ≈ 0.64) it would darken the floor by roughly 4 %, and the floor should not move at all. A uniform
+fill scale cannot reproduce a spatially non-uniform requirement.
+
+### The hemisphere's ground term is the right lever
+
+In three's `HemisphereLight`, irradiance follows `normal·up`: a surface facing **up** receives `skyColor`, one
+facing **down** receives `groundColor`. A **ceiling faces down**. A floor faces up. So the ground term should
+move the ceiling and leave the floor alone — which is exactly the required signature.
+
+Zeroing the ground term alone (`GBOUNCE=0`):
+
+| patch | ground term at 0 | tracer needs |
+| --- | --- | --- |
+| ceiling | **−37 %** | **−21 %** |
+| floor | **−0.1 %** | **+0.2 %** |
+| pillow | −0.7 % | −2.3 % |
+
+Enough authority, and the collateral on the floor is a tenth of a percent.
+
+### The verified constant
+
+Sweeping `PHOTO_GROUND_BOUNCE` (shipped **3.0** under the photographic look), walls at `wall-paint-ink`,
+bedroom3 `WALKFOV=72` `PITCH=-0.02`, medium, hour 13, 16:9:
+
+| ground bounce | ceiling | floor | pillow | wall-L |
+| --- | --- | --- | --- | --- |
+| 3.0 (shipped) | 126.9 | 102.5 | 161.6 | 22.6 |
+| 1.29 | 105.5 | 102.5 | 160.9 | — |
+| **1.0** | **100.7** | **102.4** | 160.8 | 19.8 |
+| 0 | 79.7 | 102.4 | 160.4 | — |
+
+Target is **100.2** — the raster's white-wall ceiling of 126.9 less the tracer's 21 %. **`3.0 → 1.0` lands
+within 0.5 counts.**
+
+Collateral is ≤2 % and partly **beneficial**: the Ink wall moves from −84 % to −86 % against the tracer's
+−88 %, i.e. the same change nudges the wall the right way too. The residual is the pillow, left ~1.8 % too
+bright — small, and on a surface the tracer says should barely move anyway.
+
+Note the first prediction was off: linear interpolation in displayed counts said `1.29`, which gave 105.5
+rather than 100.2. Displayed counts are not linear in intensity under AgX, so the sweep had to be walked rather
+than solved. This is the same non-linearity that makes decomposing tone-mapped counts illegitimate (`.328`).
+
+### The landing proof is the sweep itself
+
+No read-back was needed. A **monotone ceiling response across four settings** — 126.9, 105.5, 100.7, 79.7 —
+with the floor pinned at 102.4–102.5 throughout, cannot be produced by a no-op. That is a stronger guarantee
+than `.327`'s rule demands, and worth noting as a pattern: **a monotone sweep is self-verifying in a way a
+single before/after pair is not.**
+
+### The required scaling is far weaker than proportional to reflectance
+
+White plaster ≈ **0.91**, Ink `#2b3340` ≈ **0.033** — a **27×** change in wall reflectance. The ground-bounce
+term needs only a **3×** change to compensate.
+
+Two points define a line, not a functional form, so **no exponent is claimed here.** Establishing the shape
+needs a third wall finish (`wall-paint-slate` ≈ 0.15 is the obvious mid-point), and each new point requires its
+own class-matched tracer target — roughly 30 minutes at (u)'s current 4× tax. That is the natural follow-up.
+
+The sub-linearity is at least qualitatively expected: room-cavity interreflection saturates, because the
+inter-reflected component depends on ρ/(1 − ρ·f) rather than on ρ, which compresses large reflectance ranges.
+But that is an explanation offered, not a fit demonstrated.
+
+### Why the ground term is the principled lever and not merely the convenient one
+
+It represents light arriving from below the horizon. In an interior, that *is* the room's own bounce — there is
+no exterior ground in view. `look.ts` already records, from `.183` and `.253`, that this is the term that
+governs ceiling brightness, and `.253` raised it to ×3 precisely to lift the ceiling into the photographic
+band.
+
+So "drive `groundColor` from the room's area-weighted mean surface reflectance" is the physically coherent form
+of (w)'s fix, and this round shows it is also the numerically correct one. The two agree, which is the best
+available evidence that the lever is the right abstraction rather than a fitted hack.
+
+### Status
+
+(w) is now a **one-line change with a measured constant** rather than a direction. It is still a look change to
+the default render of every scene, so it remains a product call and is **not shipped**. What is no longer
+unknown: which term to touch, how much authority it has, what constant reproduces the physically correct
+ceiling at this pose, and what the collateral costs (≤2 %, partly favourable).
+
+Tooling: `FILLSCALE=<f>` — same getter interception as `FILLOFF` (`.254`'s lesson, since `Lighting.tsx`
+rewrites `intensity` every frame), with a post-settle read-back that confirmed ambient 0.0772 → 0 and
+hemisphere 0.2426 → 0.
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .332 — two registered predictions, both refuted: the ceiling's response saturates by mid-grey
+
+`.331` produced a lever and a two-point calibration, and flagged the honest limit: two points define a line, not
+a functional form. Rather than fit a curve to two points, this round **registered two competing predictions in
+advance** and then measured a third wall finish to separate them.
+
+### The predictions, on the record before the data
+
+`.331` observed that the required ground-bounce change (3×) is far weaker than the wall-reflectance change
+(27×), and called it sub-linear. The obvious explanation: **only the walls changed, not the room.** With wall
+area a fraction *w* of the enclosure, `ρ_avg = w·ρ_wall + (1−w)·ρ_other`, so a 27× wall change is only a ~2.9×
+room change — which would make the relationship *linear in ρ_avg* after all, and the "sub-linearity" an
+artefact of attributing a room-level quantity to one surface class.
+
+Fitting the non-wall term on `.331`'s two points gives `(1−w)·ρ_other = 0.406·w`, self-consistent at w ≈ 0.58
+with ρ_other ≈ 0.56 against an actual ceiling-plus-floor mix of ~0.70 (ceiling 0.910, oak floor 0.486).
+
+Reflectances, sRGB decoded to linear luminance: white `#f5f5f0` **0.910**, slate `#6a6f76` **0.158**, ink
+`#2b3340` **0.0326**.
+
+| model | GB(slate) predicted |
+| --- | --- |
+| linear in area-weighted ρ_avg | **1.29** |
+| power law in wall reflectance alone (ρ^⅓) | **1.67** |
+
+One free parameter was fitted from `.331`'s points, so slate is a genuine out-of-sample test.
+
+### Measured: ≈0.88. Both refuted.
+
+| wall finish | ρ_wall | raster ceiling | tracer ceiling, class B | drop vs white | required GB |
+| --- | --- | --- | --- | --- | --- |
+| white | 0.910 | 126.9 | 116.9 | — | 3.0 (shipped) |
+| **slate** | **0.158** | 126.9 | **90.5** | **−22.6 %** | **≈0.88** |
+| ink | 0.0326 | 126.9 | 92.6 | −20.8 % | ≈1.0 |
+
+Required GB derived by interpolating `.331`'s raster sweep: target = 126.9 × (90.5 / 116.9) = 98.25, which sits
+0.88 of the way from GB 0 (79.7) to GB 1.0 (100.7).
+
+Both predictions over-shot, and in the same direction.
+
+### Why they failed: the response saturates before mid-grey
+
+**Slate and ink are statistically indistinguishable** — 90.5 against 92.6, a 2.1-count difference on a patch
+whose sd is 3.4. The ceiling's response to wall reflectance is essentially **complete by ρ ≈ 0.16**. Both models
+assumed slate would fall between white and ink; it does not, it falls *at* ink.
+
+Saturation is qualitatively what interreflection theory expects — the multiple-bounce term goes as
+ρ/(1 − ρ·k), and dropping ρ from 0.91 to 0.16 removes most of the amplification, so removing more changes
+little. But the naive infinite-bounce form **over-predicts in the opposite direction**: using ρ_avg ≈ 0.82 /
+0.39 / 0.31 it gives GB ≈ 0.41 for slate against 0.88 measured.
+
+So all three candidate forms fail: linear in ρ_avg (1.29), power law in ρ_wall (1.67), and ρ/(1−ρ) (0.41),
+against a measured 0.88. **Three points with uncertain surface areas do not determine the functional form**, and
+this round claims none. What it establishes is the *shape*: steep between 0.91 and 0.16, flat below.
+
+### The decision-relevant consequence
+
+The obvious implementation of (w)'s fix — linearly interpolate ground bounce between a white endpoint and a
+near-black one — predicts **GB ≈ 1.29 at slate** where the truth is **≈0.88**. That is a **46 % error**, and it
+lands on exactly the mid-tone greys a user is most likely to choose; the endpoints, where a lerp is exact by
+construction, are the least interesting cases.
+
+So (w) requires a **measured curve or a saturating form**, not a two-point lerp. This is the one thing `.331`
+could not have told anyone, and it is why the third point was worth 30 minutes.
+
+### (w)'s zero holds across all three finishes
+
+The raster's ceiling is **126.9** for white, slate and ink alike, and the floor 102.5, while wall-L moves
+144.6 → 67.5 → 22.6 (correctly ordered, so each finish landed). The defect is finish-independent, as the code
+reading implies it must be.
+
+### Environment incident, and why the extra two minutes mattered
+
+The :5199 dev server exited on its own mid-round — not killed. The first slate run died in **one second** on
+`ERR_CONNECTION_REFUSED`, with identical start and end stamps, which no trace can produce. Diagnosis came from
+the **first** lines of the log and the run's own timestamps, not the last lines; a probe that fails for an
+environmental reason looks nothing like one that fails for a rendering reason (`.326` learned the same about a
+killed run).
+
+Restarted with `--strictPort`, so a silent fallback to another port could not serve traces that would then be
+compared against `.330`'s numbers from the real server. **Then verified the replacement reproduces a known
+measurement before trusting a new one:** ceiling 126.9, wall 144.6, floor 102.5 — byte-identical across the
+restart. The new server is plain `vite` without the local backend, and the backend turns out to be irrelevant
+to the render — but that was *checked*, not assumed. Every figure in this round is a cross-condition
+comparison, so the reference must be the one thing that never silently changes.
+
+### Exact equality, used three ways
+
+Worth consolidating, because this arc has now leaned on the same signature for three different purposes:
+
+| round | exact equality meant | verdict |
+| --- | --- | --- |
+| `.327` | the intervention never fired | **bad** — a no-op masquerading as a result |
+| `.328`, `.329` | the mechanism is absent | **the finding itself** |
+| `.332` | the environment changed but the render did not | **good** — a validated control |
+
+The signature is informative precisely because it is improbable. Its **meaning depends entirely on whether the
+thing being compared should have moved** — which is a property of the experiment's design, not of the number.
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .333 — (w)'s fix is daytime-only, and its night half is blocked on (p)
+
+`.330` priced (w), `.331` found the lever and a constant, `.332` showed the interpolation must not be linear —
+all at **13:00**. `.330`'s own caveat was that one pose, one hour, one room, one tier is not a specification.
+
+Rather than buy another tracer target at ~30 minutes, this round tested a **necessary condition that costs
+nothing**: the fix can only be a simple per-reflectance constant if the lever's *authority* is stable across
+conditions. The lever's authority is a raster-only quantity, so it is ~20 s per run with no (u) tax. Four runs,
+~3 minutes.
+
+### The lever collapses at night
+
+Zeroing the hemisphere's ground term, bedroom3, `WALKFOV=72` `PITCH=-0.02` — same pose as `.330`–`.332`, so the
+patches transfer with no placement risk:
+
+| hour | ceiling GB=3 → GB=0 | authority | floor | wall-L |
+| --- | --- | --- | --- | --- |
+| 13:00 | 126.9 → 79.7 | **−37 %** | −0.1 % | — |
+| 21:00, lights on | 121.6 → 118.7 | **−2.4 %** | **0.0** | −0.3 |
+
+A ~**15× loss of authority**. This is exactly what `Lighting.tsx` implies: the hemisphere intensity is
+`cur.ambient * 1.1 * fillScale`, and `cur.ambient` follows the eased day level, so after the night ramp there
+is almost nothing left for a scale factor to act on. The lever is effectively inert at 21:00.
+
+### But the defect persists at night
+
+Walls white → `wall-paint-ink` at 21:00, raster:
+
+| patch | white | Ink | Δ |
+| --- | --- | --- | --- |
+| wall-L — **landing check** | 181.3 | 49.4 | **−73 %** |
+| **ceiling** | 121.6 | **121.6** | **0.0** |
+| floor | 90.4 | **90.4** | **0.0** |
+
+Same signature as `.329`/`.330`: a large landing check alongside exact zeros on the surfaces that could only
+respond through interreflection.
+
+### So the fix as specified is daytime-only
+
+The lever has essentially no authority in the condition where the defect is arguably **worst in kind**. At
+13:00 a ceiling receives some light via the sky and the room; at 21:00 there is no skylight at all, so a real
+ceiling's illumination is almost *entirely* bounce — and the raster has no bounce term.
+
+### At night it is not a mis-scaled fill — there is no term to scale
+
+This is the sharper statement. Hemisphere and ambient are **daylight-derived** and near-zero after the ramp, so
+nothing in the analytical rig represents **lamp bounce off walls**. The night ceiling reads 121.6 because the
+table lamp lights it **directly**, which the frame confirms: the ceiling is the brightest large surface in the
+image while the Ink walls sit at 49.4, and with white walls the ordering reverses (wall 181.3 > ceiling 121.6).
+
+So the daytime defect is a **mis-tuned constant** — a fill term that exists but does not respond. The night
+defect is a **missing mechanism** — there is no lamp-bounce term to tune, and adding a room-reflectance factor
+to a term that has been scaled to zero cannot create one. Structurally the night case is the bigger gap, and the
+`.331` lever does not reach it.
+
+### The night magnitude cannot be priced until (p) is fixed
+
+The only physically-motivated reference available is the path tracer. Its environment is item (p)'s two
+hardcoded constants, `0xbfd4e6` / `0x5a5650`, with **no hour dependence whatsoever** (`.326`, confirmed by
+direct instrumentation).
+
+The arc has already measured the consequence, in the hour test:
+
+| | 13:00 | 21:00 | change |
+| --- | --- | --- | --- |
+| raster ceiling | 120.1 | 180.3 | **+50 %** |
+| traced ceiling | 140.8 | 152.7 | **+8 %** |
+| raster ÷ traced, ceiling | 0.853 | 1.181 | **sign inverts** |
+
+A reference lit by a daylight sky at 21:00 cannot price a night defect. **(w)'s night half is blocked on (p)** —
+a genuine inter-item dependency, and the first one this arc has established in that direction. Until the tracer
+gets a faithful hour-aware environment (which `.326` showed is available in the scene and priced), there is no
+way to say how wrong the night render is.
+
+### Why this was worth doing before more daytime points
+
+`.331`'s and `.332`'s calibration is sound, but its **scope** was unstated and turned out to be half the day.
+Three minutes of raster runs bounded it. Had (w) shipped on that calibration, it would have been correct at
+midday, inert at night, and the night case — the structurally worse one — would have looked "already handled"
+because the same code path was in place.
+
+Generalisable: **before extending a calibration, test whether its lever still has authority in the conditions
+you have not measured.** Authority is usually a one-renderer question and therefore cheap; correctness is a
+two-renderer question and expensive.
+
+No `src/` change beyond the version bump.
+
+---
+
+## Round .334 — (p)'s gradient is 77× too bright at night, and (u) becomes an instrument
+
+`.333` established a sequencing conclusion: (p) should be decided before (w), because (w)'s night half is
+blocked on the tracer's hour-blind environment. `.326` priced a conversion of `scene.background` at 13:00, but
+never tested whether it repairs that **structural** defect rather than just the midday level.
+
+### Method — using (u) rather than fighting it
+
+**In class A the ceiling patch is a direct readout of the tracer's environment.** That is the whole content of
+(u): the ceiling stops being a surface and the region shows the environment.
+
+Class A has been landing 6 arms in 8, which is why `.330` cost four paired runs. Here that bias is an asset:
+the common case is the one I want. Two paired runs, ~12 minutes, against a class-matched 2×2 of
+environment × hour at ~60 minutes. And it is a *better* measurement, not merely a cheaper one — a class-B
+ceiling mixes the environment's contribution with room bounce, while a class-A ceiling is the environment and
+nothing else.
+
+Recording this as a general point: **a defect that is reproducible and understood can often be used as an
+instrument.** (u) has taxed this arc for fifty rounds; it is also the only probe that reads the tracer's
+environment directly, with no `src/` change.
+
+### The environment's own energy, measured at source
+
+`ENVDUMP` extended to compute the background canvas's mean **linear** luminance. This is independent of tone
+mapping, of (u), and of the renderer — it is the input, not the output.
+
+| | mean linear |
+| --- | --- |
+| app's own sky, 13:00 | **0.433008** |
+| app's own sky, 21:00 | **0.003900** |
+| hardcoded gradient, **any** hour | **≈0.298** |
+
+The app's own sky varies **111×** across the day.
+
+The gradient's value is computed rather than measured, from the library's own generation formula — verified in
+`ProceduralEquirectTexture.js`, which uses `t = (dir.y·0.5+0.5)^exponent` with `exponent = 2`, and an equirect
+whose rows are uniform in polar angle. So mean `t` = ∫₀¹ ((cos πv + 1)/2)² dv = **0.375**, and since luminance
+is linear in the channels, mean Y = Y_bottom + 0.375·(Y_top − Y_bottom) = 0.094 + 0.375·(0.639 − 0.094) ≈
+**0.298**.
+
+**So the hardcoded gradient is ~31 % too dark at 13:00 and ~77× too bright at 21:00.**
+
+### The midday figure corroborates `.326` by an independent route
+
+`.326` found that converting the background **brightened** the traced plaster — the ceiling deficit went
+−14.4 → −4.2. That is exactly what an environment 31 % too dark predicts, and `.326` reached it from surface
+measurements while this round reaches it from the environment's own energy. Two unrelated routes agreeing is
+worth more than either alone, and this arc has learned to distrust single routes (`.324`).
+
+### Render-side confirmation, and the control that made it interpretable
+
+| condition | class-A ceiling | R−B |
+| --- | --- | --- |
+| gradient, 13:00 | 175.2 | −13.8 |
+| gradient, 21:00 | 156.0 | −14.7 |
+| **converted, 21:00** | **21.4** | **+3.2** |
+
+A **7.3× drop**, and the R−B **sign flips** — the ceiling region stops showing a cool daylight sky at 9pm.
+
+**The −11 % hour drift under a constant environment is itself a finding.** The gradient cannot change with the
+hour; its two colours are hardcoded. Yet the class-A ceiling moved 175.2 → 156.0. So something else tracks the
+day level — most plausibly tone-mapping exposure, which the app does ease with the day curve.
+
+That control is what makes the 7.3× interpretable, and I registered the reading **before** measuring: a −20 %
+result would have proved nothing, and against an −11 % floor it would have been very easy to accept as
+confirmation after the fact. This is the `.327` failure mode — a plausible number in the predicted direction —
+guarded against by naming the null in advance.
+
+Also visible in the numbers: at 21:00 under the gradient, class A gives a **cool ceiling at 156.0 against
+lamp-lit walls at 186.9 (R−B +28.6)**. A night interior with a bright cool sky where the ceiling should be. That
+is (p)'s defect in a single frame.
+
+### Consequence for the docket
+
+`.326`'s conversion fixes (p)'s **structural** defect — hour-blindness — not merely its midday level. That
+removes the blocker `.333` identified on (w)'s night half.
+
+What it does **not** establish: that the tracer's night render is *correct*. Only that its environment is now
+hour-appropriate, which is the precondition for using it as a night reference at all. Validating the night
+render would be a separate round, and would need a class-matched class-B pair.
+
+### Cross-check
+
+Two independent implementations of the mean-radiance computation agree: the temporary `src/` log used an
+unweighted RGB mean and reported **0.00386**; `ENVDUMP` uses Rec.709 luminance weights and reports **0.0039**.
+Different code, different weighting, same answer to three significant figures.
+
+`src/` reverted from the temporary conversion and verified byte-identical to HEAD.
+
+---
+
+## Round .335 — the night defect is bigger and broader: 28 % on the ceiling, 26 % on a floor with no daytime defect
+
+`.333` established that (w)'s lever has ~2.4 % authority at night while the defect persists, and that pricing it
+was blocked on (p). `.334` removed that blocker by showing `.326`'s conversion restores hour-awareness. This
+round prices it.
+
+### Method
+
+The reference must be the **converted** environment, not the shipped gradient: `.334` measured the gradient at
+**77× too bright** at 21:00, which would flood the room with a fake daylight sky, dilute wall bounce, and
+understate the very quantity being measured. So `.326`'s conversion was re-applied as temporary
+instrumentation.
+
+bedroom3 `WALKFOV=72` `PITCH=-0.02`, medium tier, photographic look, **hour 21**, lights on, 16:9, 256 samples.
+Both wall conditions in **class B**, patches unchanged from `.330`–`.334` so they transfer without placement
+risk.
+
+### The result
+
+| patch | white | Ink | Δ | night error | daytime error (`.330`) |
+| --- | --- | --- | --- | --- | --- |
+| wall-L — **landing check** | 205.0 | 53.7 | **−74 %** | n/a — own albedo | n/a |
+| **ceiling** | 177.3 | 127.8 | **−28 %** | **28 %** | 21 % |
+| **floor** | 138.3 | 103.0 | **−26 %** | **26 %** | **~0 %** |
+
+Raster at night, same intervention: ceiling **121.6 → 121.6**, floor **90.4 → 90.4**. Both exactly zero, with
+wall-L moving −73 % as its own landing check (`.333`).
+
+### The prediction was registered first, confirmed, and then sharpened
+
+Before the runs I recorded the expectation that the night defect should *exceed* the daytime 21 %, because a
+lamp-lit room under a near-black sky has essentially no direct component — so a ceiling's light is almost
+entirely bounce. That holds: 28 %.
+
+But the larger finding is the one I named as the reasoning rather than the prediction: the defect **spreads to
+the floor**. At midday the floor has **no defect at all** (tracer +0.2 %, raster 0.0 %) because it is dominated
+by direct skylight. At night nothing is direct, so every surface becomes bounce-lit and every surface is
+exposed. The night defect is **broader in extent**, not merely larger in degree — and that is what makes it
+matter, since `.330` had to correct `.329` precisely for over-generalising a ceiling-only defect to the room.
+
+### Class A's error direction is not even consistent
+
+| | class-A estimate | class-B truth | class A errs |
+| --- | --- | --- | --- |
+| floor, night | −20 % | **−26 %** | **under** |
+| floor, midday (`.330`) | −5.2 % | **+0.2 %** | **over** |
+
+`.330` established that class-A figures cannot *bound* class-B ones. This adds that they cannot be relied on to
+err in a **fixed direction** either, so no correction factor can rescue them. The rule stands unqualified:
+**compare class A only with class A.**
+
+### Internal consistency check
+
+The class-A ceiling read **21.4 in both wall conditions** — identical to the decimal. In class A the ceiling
+region *is* the environment, and the environment cannot depend on wall paint. It does not. A free check that the
+intervention is not leaking somewhere it should not.
+
+### What this settles for (w)
+
+Two facts now sit together:
+
+- the night error is **~26–28 % on every surface measured**, not a ceiling-only effect;
+- the identified lever has **2.4 % authority** at night (`.333`), because hemisphere and ambient are
+  daylight-derived and scaled to near-zero after the day ramp.
+
+So the night case cannot be reached by retuning a constant. It needs a **new term** — lamp bounce, scaled by
+fixture output × room reflectance — which is materially more work than (w)'s daytime one-liner. My reading is
+that a 26 % error across an entire room is well past the threshold where that is worth building, but the trade
+between "a one-line daytime fix" and "a new mechanism covering both" is a product call and is not being made
+here.
+
+Sequencing, updated: **(p) → (w) daytime → (w) night**, with (p) first because it is what makes the night case
+measurable at all, and it already has a priced fix.
+
+### Environmental note — the third instance
+
+A task notification fired **~7 minutes early**, while the probe was still running. `pathtraced.png` was absent
+and the naive reading was "the run failed". Checking `pgrep` showed the node process alive; the run completed
+normally minutes later and produced both arms — the two class-B arms this entire round depended on.
+
+Third instance in this arc of an environmental signal masquerading as a result: `.326` a run killed by the shell
+clock, `.332` a dead dev server, `.335` an early completion notification. The rule that catches all three is the
+same: **verify the process and the run's own timestamps before interpreting missing output.** A failed
+measurement and a measurement that has not finished look identical from the filesystem.
+
+`src/` reverted from the temporary conversion and verified byte-identical to HEAD.
+
+---
+
+## Round .337 — the curve is proportional with a floor, and a pre-registration error of my own
+
+`.332` refuted two interpolation models on three finishes and left the shape open, with the practical warning
+that a chord between endpoints is 46 % wrong in mid-range. This round adds a fourth finish in that region, and
+closes (w)'s zero on the raster side.
+
+### Choosing the fourth point
+
+The shipped palette decides where accuracy matters. Decoding all 19 wall finishes to linear luminance:
+
+| band | finishes |
+| --- | --- |
+| rho > 0.6 | soft-white 0.839, almond 0.730, oat 0.617 |
+| 0.2–0.6 | lavender 0.423, mushroom 0.410, dusty-rose 0.401, **stone-grey 0.382**, eucalyptus 0.358, mustard 0.355, clay 0.296, mauve 0.233 |
+| 0.09–0.19 | olive 0.188, rust 0.160, slate 0.157, denim 0.155, teal 0.126, petrol 0.090 |
+| < 0.07 | graphite 0.067, ink 0.033 |
+
+**Twelve of nineteen sit above rho 0.15**, and the three genuinely dark ones are all in the flat zone `.332`
+found. So the informative region is the light-to-mid band, and `wall-paint-stone-grey` `#a8a6a1` (rho 0.382) is
+the natural probe — neutral in hue, so it cannot confound with the chroma axis, and roughly midway between
+white and slate.
+
+### Both registered predictions failed again
+
+| | GB(stone-grey) |
+| --- | --- |
+| linear in rho — a chord between (0.910, 3.0) and (0.033, 1.0) | 1.51 |
+| linear in log rho | 1.95 |
+| **measured** | **1.26** |
+
+Over-predicting, in the same direction as `.332`'s three failures. That consistency is the clue: every model I
+have tried treats the endpoints as anchors and interpolates between them, and every one has come out too high
+in mid-range.
+
+### The form that fits
+
+| finish | rho | required GB | `max(0.9, 3.3·rho)` | residual |
+| --- | --- | --- | --- | --- |
+| white | 0.910 | 3.00 | 3.00 | — **sets the slope** |
+| **stone-grey** | 0.382 | **1.26** | **1.26** | **−0.00** |
+| slate | 0.158 | 0.88 | 0.90 | −0.02 — **sets the floor** |
+| **ink** | 0.033 | 0.99 | 0.90 | **+0.09** |
+
+The slope is `3.0 / 0.910 = 3.30`, from the **white point alone**; the floor is set by slate. Stone-grey and ink
+are therefore **not used by the fit**, and both land within 0.09 GB. That is two free confirmations, not a
+four-parameter curve through four points.
+
+Why the chord failed is now obvious in hindsight: **a straight line between the endpoints is not
+proportionality.** Both pass through (0.910, 3.0) and near (0.033, ~1.0), but the chord bulges above
+proportionality throughout the middle — which is precisely the band the palette occupies.
+
+**What I cannot claim:** proportionality-through-the-origin was not one of my registered models. I did not
+predict this. It is a form that fits, and the honest test is out-of-sample: it predicts `wall-paint-oat`
+(rho 0.617) requires **GB ≈ 2.04**, against a chord's 2.4. That is a genuine discriminating measurement for a
+later round — and, per this round's other lesson, one whose observable separation should be computed first.
+
+### (w)'s zero is closed on the raster side
+
+| finish | rho | raster ceiling | raster floor | raster wall-L |
+| --- | --- | --- | --- | --- |
+| white | 0.910 | **126.9** | **102.5** | 144.6 |
+| stone-grey | 0.382 | **126.9** | **102.5** | 104.3 |
+| slate | 0.158 | **126.9** | **102.5** | 67.5 |
+| ink | 0.033 | **126.9** | **102.5** | 22.6 |
+
+A **28× reflectance range**, eight exact zeros, and four landing checks that are **monotonically ordered in
+reflectance** — an ordering no accidental no-op could produce. `.329`'s finding is no longer a one-finish
+result.
+
+### A pre-registration error of my own
+
+I registered two predictions **29 % apart in GB space** and treated that as a decisive test. Pushing them
+through the instrument first — which I did only after the arms came back class A — gives:
+
+| prediction | implied traced ceiling |
+| --- | --- |
+| linear in rho | 99.7 |
+| linear in log rho | 104.8 |
+
+**5.1 counts apart**, against a class-B arm-to-arm spread of **2.3 counts**. Marginal at best with one arm, and
+at ~6 runs per class-B arm at this pose that would have been an expensive way to learn it.
+
+**Pre-registration is only useful if the instrument can distinguish the predictions.** The separation to compute
+is the *observable* one. Registering a hypothesis in parameter space and assuming the measurement follows is a
+distinct failure from the ones this arc has catalogued so far — it is not a contaminated patch, a no-op, or a
+mis-classified arm, but a test with no power, which would have produced an inconclusive result that looked like
+a real one.
+
+### A correction to how I have quoted uncertainty since `.332`
+
+`.332` reads "2.1 counts against a patch sd of 3.4" and concludes slate ≈ ink. **The patch `sd` is the spatial
+spread of pixel luminance across the patch** — texture, shading gradient, plank joints — and is not the
+uncertainty of its mean. A large patch can have a large `sd` and a very reproducible mean, which is exactly what
+the class-A data show.
+
+The right figure for comparing two arms is **arm-to-arm reproducibility within a (u) class**:
+
+| | spread |
+| --- | --- |
+| class A, same boot and across boots | **0.0–0.1 counts** |
+| class B, same boot (NW3/NW4: 178.4 vs 176.1) | **2.3 counts** |
+
+`.332`'s conclusion survives — 2.1 counts is within a 2.3-count spread — but it was justified with the wrong
+number, and the same wrong number would have mattered had the difference been 3 counts.
+
+### Cost
+
+Three paired runs for one class-B arm; **five of six arms landed class A**. (u)'s tax at this pose is now
+running about 6×, up from the 4× recorded in `.330`. Nothing suggests the rate itself is drifting rather than
+this being small-sample noise, but it is worth watching: if class B is becoming rarer, every remaining (p)/(w)
+tracer target gets proportionally more expensive.
+
+No `src/` change beyond the version bump.

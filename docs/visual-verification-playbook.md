@@ -384,6 +384,17 @@ eventually sum the head and call it the whole.
 sum, and (c) what the denominator is. The three-pose table in `src/apartment/CLAUDE.md` is written
 that way.
 
+## Measuring the HQ PATH-TRACED still — see the dedicated notes
+
+The HQ still (`PT=1` in `light-distribution.mjs`) has its own family of traps, and they are severe enough to
+have caused sixteen self-corrections across the `.249`–`.296` graphics-realism rounds: the render is
+**nondeterministic between three discrete classes** (~45 % apart at an anchor), the modal **swaps in a
+different canvas** on completion so the same read returns either the raw trace or the denoised output, and a
+frame-wide statistic can sit in a region that never changes. Before adding an arm to that branch, read
+**[hq-tracer-probe-notes.md](hq-tracer-probe-notes.md)** — it also carries the reference-photograph screening
+method (Wikimedia rate limits, the 20× thumbnail route, the CG-detection test) and a reference for the PT
+knobs.
+
 ## When a probe reports ZERO, suspect the probe first (the false-zero family)
 
 A zero is the easiest number to believe and the easiest to fake. Four of these cost real time

@@ -153,6 +153,85 @@ function isTraceableMaterial(m: unknown): boolean {
 }
 
 /**
+ * Legacy lit materials the tracer MISREADS AS MIRRORS, and their PBR stand-ins.
+ *
+ * `MeshLambertMaterial` and `MeshPhongMaterial` predate PBR: neither has a
+ * `roughness` field at all. The tracer's converter reads `roughness` off every
+ * material and packs it into its float texture, so `undefined` lands as **0** —
+ * a perfect mirror. v0.31.5.252 measured the consequence and then saw it: the
+ * ceiling (14 `MeshLambertMaterial` planes) reflected the window, the AC unit,
+ * the curtain rail and the fan in the HQ still, reading **+33 %** against the
+ * rasterised ceiling over the identical crop, while every `MeshStandardMaterial`
+ * surface in the same frame agreed within **2 %**.
+ *
+ * So the snapshot substitutes an equivalent `MeshStandardMaterial`. This is
+ * deliberately scoped to the TRACER SNAPSHOT: the live scene keeps its Lambert
+ * materials, so the rasterised viewport is untouched — Lambert and Standard do
+ * not shade identically in the raster either, and changing that would re-base
+ * every ceiling figure the graphics-realism arc has published. Fixing it here
+ * fixes the defect where the defect is.
+ *
+ * `MeshBasicMaterial` is deliberately NOT substituted. It is unlit by intent
+ * (window panes, screens, the sky sphere), so giving it a PBR response would
+ * change what it is rather than correct how it is read. Whether the tracer reads
+ * it correctly is a separate, unmeasured question.
+ */
+const SUBSTITUTE_ROUGHNESS = 0.9
+
+export async function pbrStandInFor(mat: unknown, cache: Map<unknown, unknown>): Promise<unknown> {
+  const m = mat as {
+    isMeshLambertMaterial?: boolean
+    isMeshPhongMaterial?: boolean
+    shininess?: number
+    color?: { clone: () => unknown }
+    map?: unknown
+    side?: number
+    transparent?: boolean
+    opacity?: number
+    alphaMap?: unknown
+    alphaTest?: number
+    emissive?: { clone: () => unknown }
+    emissiveMap?: unknown
+    emissiveIntensity?: number
+    normalMap?: unknown
+    aoMap?: unknown
+    vertexColors?: boolean
+    flatShading?: boolean
+    name?: string
+  }
+  if (!m || (!m.isMeshLambertMaterial && !m.isMeshPhongMaterial)) return mat
+  const hit = cache.get(mat)
+  if (hit) return hit
+  const three = await import('three')
+  // Phong carries `shininess` (0..~100+) instead of roughness; map it back
+  // monotonically so a deliberately shiny Phong stays shinier than a matte one.
+  const roughness = m.isMeshPhongMaterial
+    ? Math.min(0.95, Math.max(0.15, 1 - Math.sqrt(Math.min(1024, m.shininess ?? 30) / 1024)))
+    : SUBSTITUTE_ROUGHNESS
+  const sub = new three.MeshStandardMaterial({
+    color: (m.color?.clone?.() ?? 0xffffff) as never,
+    map: (m.map ?? null) as never,
+    side: m.side as never,
+    transparent: Boolean(m.transparent),
+    opacity: m.opacity ?? 1,
+    alphaMap: (m.alphaMap ?? null) as never,
+    alphaTest: m.alphaTest ?? 0,
+    emissive: (m.emissive?.clone?.() ?? 0x000000) as never,
+    emissiveMap: (m.emissiveMap ?? null) as never,
+    emissiveIntensity: m.emissiveIntensity ?? 1,
+    normalMap: (m.normalMap ?? null) as never,
+    aoMap: (m.aoMap ?? null) as never,
+    vertexColors: Boolean(m.vertexColors),
+    flatShading: Boolean(m.flatShading),
+    roughness,
+    metalness: 0,
+  })
+  sub.name = `${m.name || 'legacy'}→standard`
+  cache.set(mat, sub)
+  return sub
+}
+
+/**
  * The environment the tracer is lit by when an HDRI is active (PHOTO-HDRI-PT):
  * reuse the live `scene.environment` when it's already the loaded equirect
  * (Medium+ tiers — never disposed here, the live scene still owns it), else
@@ -194,10 +273,14 @@ async function resolveTracerEnvironment(
 async function buildTracerScene(
   live: Scene,
   hdriUrl?: string,
-): Promise<{ root: Scene; ownedEnv: Texture | null }> {
+): Promise<{ root: Scene; ownedEnv: Texture | null; ownedMaterials: unknown[] }> {
   const three = await import('three')
   const { GradientEquirectTexture } = await import('three-gpu-pathtracer')
   const root = new three.Scene()
+  // Substitutes created for this snapshot, cached one-per-source-material and
+  // owned by the session (the live scene must never see them).
+  const subCache = new Map<unknown, unknown>()
+  const pending: Promise<void>[] = []
 
   live.updateMatrixWorld(true)
   live.traverse((obj: Object3D) => {
@@ -221,6 +304,15 @@ async function buildTracerScene(
       clone.matrixAutoUpdate = false
       clone.matrix.copy(src.matrixWorld)
       root.add(clone)
+      // Swap any legacy lit material for its PBR stand-in (see `pbrStandInFor`).
+      // Async only because `three` is imported lazily; resolved before the BVH.
+      pending.push(
+        (async () => {
+          const swapped = await Promise.all(mats.map((m) => pbrStandInFor(m, subCache)))
+          if (swapped.some((m, i) => m !== mats[i]))
+            clone.material = (Array.isArray(src.material) ? swapped : swapped[0]) as never
+        })(),
+      )
       return
     }
     const light = obj as {
@@ -248,11 +340,14 @@ async function buildTracerScene(
   // environment the real-time IBL uses, importance-sampled by the tracer —
   // else a soft gradient sky instead of the live PMREM probe (whose
   // render-target texture the converter can't read).
+  await Promise.all(pending)
+  const ownedMaterials = [...subCache.values()]
+
   const env = await resolveTracerEnvironment(live, hdriUrl)
   if (env) {
     root.environment = env.tex
     root.background = env.tex
-    return { root, ownedEnv: env.owned ? env.tex : null }
+    return { root, ownedEnv: env.owned ? env.tex : null, ownedMaterials }
   }
   const sky = new GradientEquirectTexture()
   sky.topColor.set(0xbfd4e6)
@@ -260,7 +355,7 @@ async function buildTracerScene(
   sky.update()
   root.environment = sky
   root.background = sky
-  return { root, ownedEnv: null }
+  return { root, ownedEnv: null, ownedMaterials }
 }
 
 /**
@@ -338,6 +433,10 @@ export async function createHqRenderSession(
   tracer.minSamples = 0
 
   let ownedEnv: Texture | null = null
+  // Materials this session created as PBR stand-ins for legacy lit ones. Owned
+  // here, so they must be disposed on every exit path -- the live scene has no
+  // reference to them and nothing else will.
+  let ownedMaterials: { dispose?: () => void }[] = []
   // Albedo + normal guide AOVs for the AI denoiser (PHOTO-DENOISE) — captured
   // one-shot below, right after the BVH snapshot, while the snapshot scene is
   // in scope. Null → colour-only denoise (still valid OIDN input).
@@ -348,6 +447,7 @@ export async function createHqRenderSession(
     const built = await buildTracerScene(scene, opts.hdriUrl)
     const snapshot = built.root
     ownedEnv = built.ownedEnv
+    ownedMaterials = built.ownedMaterials as { dispose?: () => void }[]
     let renderCamera: Camera = camera
     const live = camera as InstanceType<typeof three.PerspectiveCamera>
     const fov = hqRenderFov(opts.focalLengthMm, live.fov)
@@ -395,6 +495,8 @@ export async function createHqRenderSession(
     }
   } catch (err) {
     ownedEnv?.dispose()
+    for (const m of ownedMaterials) m.dispose?.()
+    ownedMaterials = []
     renderer.dispose()
     // Free the failed context's GPU slot immediately (see disposeSession).
     try {
@@ -425,6 +527,8 @@ export async function createHqRenderSession(
     tracer.dispose?.()
     // Only a texture this session loaded itself — never the live scene's.
     ownedEnv?.dispose()
+    for (const m of ownedMaterials) m.dispose?.()
+    ownedMaterials = []
     renderer.dispose()
     // Explicitly lose the offscreen context (three wraps WEBGL_lose_context —
     // same pattern as ui/WebGLFallback.tsx) so its GPU slot frees NOW instead
