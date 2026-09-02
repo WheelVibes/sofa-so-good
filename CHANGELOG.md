@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.329 — the DEFAULT render has zero interreflection: repaint a room near-black and nothing else changes by one part in a thousand
+
+`.328` proved the rasteriser has no interreflection while chasing an HQ question. That finding is much bigger
+than the HQ path, because the rasteriser is the render every user actually sees — so this round tests it as a
+**product action** rather than a probe hack, and files it as item **(w)**.
+
+**Code check first.** Nothing in `src/scene/look.ts` or `src/scene/lighting/*` reads a wall, floor or ceiling
+finish. The only "albedo" in the lighting path is `skyGradient.ts`'s *exterior* ground tint. The analytical
+fill is a **constant with respect to interior surface finish**.
+
+**Then the measurement.** bedroom3, `PITCH=-0.10`, medium, photographic look, hour 13, 16:9, raster only — so
+item (u) cannot contaminate it. Walls repainted white → **`wall-paint-ink` `#2b3340`, a shipped finish a user
+can pick**, through the app's own finish path:
+
+| patch | white walls | Ink walls | Δ |
+| --- | --- | --- | --- |
+| wall-L (landing check) | 140.3 | 20.9 | **−119.4** |
+| floor | 75.2 | **75.2** | **0.0** |
+| pillow | 153.8 | **153.8** | **0.0** |
+| ~~bed-top~~ | 155.5 | 154.6 | discarded — clips the mattress edge (sd 11.0 → 18.1) |
+
+Wall reflectance falls roughly **0.91 → 0.033**, about 28×. The floor and pillow do not move by one part in a
+thousand.
+
+**The zero is trustworthy because the same frame carries a positive landing check.** `.327`'s rule is that
+exact equality is evidence of a no-op; the wall's own −119.4 is the proof the intervention fired, which is why
+the design included it. This is the first round where that rule was satisfied deliberately rather than
+retrospectively.
+
+**Contrast.** `.328` removed the room's bounce surfaces and the traced window wall fell **67–85 %**. Different
+pose, so only responsiveness is comparable — which is the point: **the tracer is bounce-dominated, the
+rasteriser bounce-free.**
+
+**Why this is the most goal-relevant finding of the arc so far.** The arc's goal is the app's own render looking
+real. Every open item — (l), (m), (p), (q), (r), (s), (u) — concerns the **HQ still**. This one is the
+**default walk view**, and it is not a shortfall in subtlety: a charcoal bedroom renders exactly as bright as a
+white one, which is physically impossible and visible to any user who repaints a room.
+
+**Fix direction, not decided.** Drive the fill from the room's area-weighted mean surface reflectance (the
+classic room-cavity interreflection term) instead of a constant — a scalar per room, no new GPU work. But it
+changes the default look of every scene, so it is a product call, filed under (w) with the open sub-questions
+rather than made unilaterally.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.328 — the rasteriser has ZERO interreflection, the traced window wall is bounce-dominated, and `.323`'s sign is backwards
 
 `.327` refuted floor bounce as the sky-blind wall's mechanism and reframed the question: on a surface where

@@ -12072,3 +12072,94 @@ confirming an intervention landed, but its *fractional patches are not comparabl
 (`.247`). Pose was separately confirmed identical across all runs here (`reached [7.33, 3.4]`, standoff 3.6).
 
 No `src/` change beyond the version bump.
+
+---
+
+## Round .329 — the default render has zero interreflection, and that is the arc's most goal-relevant finding
+
+`.328` established that the rasteriser has no interreflection, but it established it while chasing an HQ
+question, on an artificial dye, at a pitched-up pose nobody uses. That finding is far bigger than the HQ path:
+**the rasteriser is the render every user actually sees.** So this round re-tests it as a *product action* and
+files it as item **(w)**.
+
+Worth stating why this reordering is right. Every open item in `docs/open-graphics-decisions.md` — (l), (m),
+(p), (q), (r), (s), (u) — concerns the **path-traced still**, a feature the user invokes deliberately. The arc's
+stated goal is that *the app's own render must look real*. The default walk view had not been challenged on
+interreflection at all.
+
+### The code check comes first
+
+Nothing in `src/scene/look.ts` or `src/scene/lighting/*` reads a wall, floor or ceiling finish. The only
+"albedo" anywhere in the lighting path is `skyGradient.ts`'s **exterior** ground tint for the lower hemisphere —
+the colour of the ground *outside*, not of any interior surface.
+
+So the analytical fill — hemisphere + ambient + the IBL probe — is a **constant with respect to interior
+surface finish**, by construction. The measurement below is a confirmation, not a discovery.
+
+### The intervention is a real product action
+
+Not a dye: bedroom3's walls repainted white → **`wall-paint-ink` `#2b3340`**, a shipped finish any user can
+select, applied through the app's own finish path. Raster only, so item (u) cannot contaminate anything.
+`PITCH=-0.10`, medium tier, photographic look, hour 13, 16:9 (`VH=720` pins it without invoking the tracer —
+~20 s per arm instead of ~4 min). Runs 22:11 local.
+
+| patch | white walls | Ink walls | Δ |
+| --- | --- | --- | --- |
+| wall-L — **landing check** | 140.3 | 20.9 | **−119.4** |
+| floor | 75.2 | **75.2** | **0.0** |
+| pillow | 153.8 | **153.8** | **0.0** |
+| ~~bed-top~~ | 155.5 | 154.6 | **discarded** |
+
+`bed-top` is discarded on its own sd, not on inspection: 11.0 → 18.1 says the patch composition changed, and
+the marked overlay shows its top-left corner clipping the mattress edge. Its −0.9 is that clipping, not a
+response.
+
+Wall reflectance falls roughly **0.91 → 0.033** — about 28×, decoding the sRGB base colours to linear. The
+floor and the pillow do not move **by one part in a thousand**.
+
+### Why this zero is trustworthy, when `.327` says zeros are suspect
+
+`.327`'s rule is that exact equality is evidence of a no-op. It applies here and is satisfied: the **same frame**
+carries a positive landing check, the wall's own −119.4. The intervention unambiguously fired; the zero is the
+*response of other surfaces*, which is the finding rather than an absence of one.
+
+This is the first round in which that rule was satisfied **by design** rather than retrospectively — the patch
+set was chosen to contain a surface that must move alongside surfaces that must not. That is the shape every
+future intervention arm in this arc should take.
+
+### Contrast with a physically correct render of the same scene
+
+`.328` removed the room's bounce surfaces and the traced window wall fell **67–85 %**. That is a different pose,
+so the absolute values are not comparable (`.247`, `.320`) — but the *responsiveness* is, and it is the whole
+point:
+
+| renderer | response to removing/darkening the room's bounce surfaces |
+| --- | --- |
+| path tracer | **67–85 %** |
+| rasteriser | **0.0 %** |
+
+### Why this matters more than a subtlety
+
+Interreflection is not a fine detail in a small high-reflectance room; it is a large fraction of the light
+reaching every surface. The app renders a charcoal bedroom **exactly as bright** as a white one. That is not a
+shortfall in nuance — it is a physically impossible result, in the default view, visible to any user who
+repaints a room.
+
+It also reframes what "photorealism parity" needs. The arc has spent eighty rounds on the HQ still's fill rig,
+tone mapping and non-determinism. Meanwhile the render users actually look at has no interreflection term at
+all, and nobody had measured it.
+
+### The fix direction — cheap, and not decided here
+
+Drive the analytical fill from the room's **area-weighted mean surface reflectance** rather than a constant —
+the classic room-cavity interreflection term. A scalar per room, recomputed when a finish changes; no new GPU
+work, no new passes, and it would make the fill respond in the right direction with roughly the right
+magnitude.
+
+But it is a **look change to the default render of every scene in the app**, which is a product call. Filed
+under (w) with its open sub-questions rather than decided: whether to scale hemisphere, ambient and the IBL
+probe together or separately; whether to clamp the darkening so dark schemes stay *usable* rather than
+photographically correct (a real tension — a physically correct charcoal bedroom at dusk is close to
+unusable for design work); and whether the term should track the visible room only or the whole plan.
+
+No `src/` change beyond the version bump.

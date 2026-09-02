@@ -2842,3 +2842,50 @@ rather than decided once, and (g) is a renderer change whose cost must be benchm
 weak-device tier before it lands. (k) is the only open item that is a genuine RENDER bug rather
 than a content or policy call — it is the strongest candidate for the next round, once the loss has
 been attributed to the glass or to the background tone-mapping path.
+
+## (w) RASTER-INTERREFLECTION — 🐞 REAL, and it is in the DEFAULT render path (found v0.31.5.329)
+
+**Repainting a room's walls from white to near-black changes the rest of the room's render by exactly zero.**
+This is the real-time walk render — the render every user actually sees — not the HQ still. It is independent of
+(l), (m), (p), (q), (r), (s) and (u), all of which concern the path-traced still.
+
+**Code check.** Nothing in `src/scene/look.ts` or `src/scene/lighting/*` reads a wall, floor or ceiling finish.
+The only "albedo" in the lighting path is `skyGradient.ts`'s *exterior* ground tint for the lower hemisphere.
+The analytical fill — hemisphere + ambient + the IBL probe — is a **constant with respect to interior surface
+finish**.
+
+**Measurement.** bedroom3, `PITCH=-0.10`, medium tier, photographic look, hour 13, 16:9, raster only (no (u) to
+control for). Walls repainted white → **`wall-paint-ink` `#2b3340`, a shipped finish a user can select**, via
+the app's own finish path:
+
+| patch | white walls | Ink walls | Δ |
+| --- | --- | --- | --- |
+| wall-L (landing check) | 140.3 | 20.9 | **−119.4** |
+| floor | 75.2 | **75.2** | **0.0** |
+| pillow | 153.8 | **153.8** | **0.0** |
+| ~~bed-top~~ | 155.5 | 154.6 | discarded — patch clips the mattress edge (sd 11.0 → 18.1) |
+
+Wall reflectance falls roughly **0.91 → 0.033** (≈28×, sRGB base colours decoded to linear). The floor and the
+pillow do not move by one part in a thousand.
+
+The zero is trustworthy precisely because the same frame carries a **positive landing check**: the wall itself
+moved −119.4, so the intervention unambiguously fired. Per `.327`'s rule an exact zero otherwise reads as a
+no-op.
+
+**Contrast with a physically correct render of the same scene.** `.328` removed the room's bounce surfaces and
+the traced window wall fell **67–85 %**. Different pose, so only the *responsiveness* is comparable, not the
+absolutes — but that is the point: **the tracer is bounce-dominated and the rasteriser is bounce-free.**
+
+**Why this matters for photorealism parity.** Interreflection is not a subtle effect in a small
+high-reflectance room; it is a large fraction of the light. The app renders a charcoal bedroom exactly as
+bright as a white one, which is not a shortfall in subtlety but a physically impossible result, visible to any
+user who repaints a room. Every other item in this document concerns the HQ still; this one is the default
+view.
+
+**The fix direction, not decided here.** Drive the analytical fill from the room's **area-weighted mean surface
+reflectance** rather than a constant — the classic room-cavity interreflection term. It is cheap (a scalar per
+room, recomputed on finish change), it needs no new GPU work, and it would make the fill respond in the right
+direction. But it is a **look change to the default render of every scene**, so it is a product call and is
+**not being made unilaterally**. Open questions for that call: whether to scale hemisphere, ambient and the IBL
+probe together or separately; whether to clamp the darkening so dark schemes stay usable rather than
+photographically correct; and whether it should track the *visible* room only or the whole plan.
