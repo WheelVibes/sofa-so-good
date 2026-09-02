@@ -3451,3 +3451,46 @@ without eliminating it.
 
 **Still open: tile vs geometry edge.** A single cell has no shape, so the finer grid could not distinguish them
 here. Needs livingDining (graded extents) at 12×5 or finer.
+
+### ⚠️ (w) RE-MEASURED AGAINST PHYSICS — bigger, and NOT ceiling-only (v0.31.6.6)
+
+First measurement against a **physically-motivated reference** rather than against the app
+itself: Blender Cycles with the `MULTIPLE_SCATTERING` atmospheric sky, placed by the app's
+own sun vector, lighting the app's own exported geometry at the app's own camera. Derived
+sun elevation 83.53° — correctly near-overhead for Singapore at 13:00.
+
+bedroom3, white → `wall-paint-ink`, identical camera and sun for both arms:
+
+| surface | raster (app) | HQ tracer (`.330`) | **Cycles (physical)** |
+| --- | --- | --- | --- |
+| ceiling | 0.0 % | −20.8 % | **−25.3 %** |
+| floor | 0.0 % | **+0.2 %** | **−13.6 %** |
+| wall-L (landing check) | −84 % | — | **−84 %** ✓ |
+
+**Three corrections to this document:**
+
+1. **(w)'s magnitude was understated ~22 % relative.** The ceiling target is **−25.3 %**.
+2. **`.330`'s "the floor has no defect" is wrong.** Physics says the floor responds
+   **−13.6 %**; the raster is ~14 % off there too. (w) is **not** a ceiling-only defect, and
+   the framing that made it one came from the HQ tracer, whose environment is hardcoded and
+   hour-blind (`.334`).
+3. **`.331`'s lever choice inverts.** Scaled to the corrected ceiling target, the hemisphere
+   **ground term** moves the floor **0.1 %** and the **uniform fill** moves it **4.7 %**,
+   against a physical **13.6 %**. `.331` picked the ground term *because* it left the floor
+   alone and rejected the uniform fill *for* darkening it — reasoning that rested on the
+   tracer's +0.2 %. **Neither lever is sufficient**; the ground term's selectivity is now a
+   defect rather than a feature.
+
+**So (w)'s implementation is reopened.** The five-point table (`.339`) and the two-line
+ground-bounce change (`.338`) were both derived against the HQ tracer and are ceiling-only by
+construction. A fix that satisfies physics has to move the floor too.
+
+**New, and a look call rather than a bug: the app is far warmer than physics.** Ceiling R−B
+is **+11.5** in the raster against **−39.4** in Cycles — a 51-count swing. Under a
+near-overhead sun with a north-facing window the room is lit by cool skylight. Part of the
+gap is a deliberate white-balance tint (`look.ts`), but it is much larger than any tint this
+arc has priced, and colour cast reads as "not photographic" before any luminance error does.
+
+Caveats: one pose, one room, one hour; only ratios compared (Cycles' absolute exposure is not
+matched, and need not be — a response ratio is exposure-invariant); the sky/sun balance uses
+the atmosphere model's own defaults rather than anything fitted.

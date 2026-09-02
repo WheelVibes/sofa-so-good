@@ -39,6 +39,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--scene", required=True, help="GLB to render")
     p.add_argument("--out", required=True, help="output PNG path")
     p.add_argument("--hdri", default="procedural", help="catalog id, path, or 'procedural'")
+    p.add_argument("--sky", action="store_true",
+                   help="light with the PHYSICAL atmospheric sky placed by --sun-dir, instead "
+                        "of an HDRI. Makes the render an absolute reference rather than "
+                        "something calibrated to the app. Requires --sun-dir.")
     p.add_argument("--hdri-strength", type=float, default=1.0)
     p.add_argument("--hdri-rotation", type=float, default=0.0, help="degrees")
     p.add_argument("--samples", type=int, default=64)
@@ -86,13 +90,23 @@ def render(a: argparse.Namespace) -> dict:
     centre, radius = S.scene_bounds()
     S.setup_cycles(samples=a.samples, res=(w, h))
 
-    hdri_path, how = hdri.resolve(a.hdri, allow_network=not a.no_network)
-    S.setup_world_hdri(hdri_path, strength=a.hdri_strength, rotation_deg=a.hdri_rotation)
-
-    if a.sun_dir:
-        S.add_sun_from_three_direction(_vec(a.sun_dir), energy=a.sun_energy)
-    elif a.sun_elevation is not None:
-        S.add_sun(a.sun_elevation, a.sun_azimuth, energy=a.sun_energy)
+    sky_info = None
+    if a.sky:
+        if not a.sun_dir:
+            raise ValueError("--sky requires --sun-dir (the app's DirectionalLight travel vector)")
+        # The sky node carries the sun disc itself, so no separate lamp is added -- one
+        # physical source beats a lamp whose energy would be a second invented parameter.
+        sky_info = S.setup_world_sky_from_three_direction(
+            _vec(a.sun_dir), strength=a.hdri_strength, sun_intensity=a.sun_energy
+        )
+        hdri_path, how = ("<physical sky>", "sky")
+    else:
+        hdri_path, how = hdri.resolve(a.hdri, allow_network=not a.no_network)
+        S.setup_world_hdri(hdri_path, strength=a.hdri_strength, rotation_deg=a.hdri_rotation)
+        if a.sun_dir:
+            S.add_sun_from_three_direction(_vec(a.sun_dir), energy=a.sun_energy)
+        elif a.sun_elevation is not None:
+            S.add_sun(a.sun_elevation, a.sun_azimuth, energy=a.sun_energy)
 
     pos = _vec(a.cam_pos)
     target = _vec(a.cam_target)
@@ -120,6 +134,7 @@ def render(a: argparse.Namespace) -> dict:
         "bytes": os.path.getsize(a.out) if os.path.exists(a.out) else 0,
         "hdri": os.path.basename(hdri_path),
         "hdri_route": how,
+        "sky": sky_info,
         "bpy": list(S.blender_version()),
         "meshes": len(meshes),
         "radius": round(radius, 4),

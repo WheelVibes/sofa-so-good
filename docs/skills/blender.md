@@ -111,6 +111,23 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-03 — there is no `NISHITA` sky on this build.** `sky_type` is
+  `HOSEK_WILKIE` / `MULTIPLE_SCATTERING` / `PREETHAM` / `SINGLE_SCATTERING`, defaulting to
+  **`MULTIPLE_SCATTERING`** (the Nishita successor). Code written against 4.x's `NISHITA`
+  raises on assignment. With `sun_disc=True` the node carries the sun itself, so add **no**
+  separate SUN lamp — a lamp's energy would be a second free parameter to invent.
+- **2026-09-03 — use the atmospheric sky, not a calibrated lamp, when Cycles is the
+  reference.** The app's intensities are artistic (its sun is ~1.0, neither watts nor a
+  plausible ~100 000 lx), so fitting Cycles to them makes the reference agree with the thing
+  being measured. Place the physical sky from the app's sun *direction* and let the model
+  supply radiance. Sanity check that worked: derived elevation **83.53°** for bedroom3 at
+  13:00, which is correctly near-overhead for Singapore in early September — a free check on
+  both the app's sun and the Y-up→Z-up conversion.
+- **2026-09-03 — compare RATIOS, not absolute levels.** Cycles' exposure is not matched to
+  the app's and need not be: a response ratio (surface under intervention A ÷ under B) is
+  exposure- and tone-mapping-invariant, so it is the quantity that survives. This is what let
+  a physical reference correct three of the previous arc's conclusions without ever
+  calibrating absolute brightness.
 - **2026-09-03 — Blender 5.2.1's glTF importer ABORTS on `KHR_materials_dispersion: {}`.**
   Upstream guard mismatch in `imp/pbrMetallicRoughness.py`: the settings node is created
   only when `dispersion != 0` (line 36) but *used* whenever the extension is merely present

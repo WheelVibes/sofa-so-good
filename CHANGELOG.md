@@ -5,6 +5,70 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.6 — physics disagrees with the HQ tracer: (w) is bigger than measured, the floor DOES respond, and `.331`'s lever choice inverts
+
+The first measurement made against a **physically-motivated reference** rather than against
+the app itself. Blender's `MULTIPLE_SCATTERING` atmospheric sky, placed by the app's own sun
+vector, lighting the app's own exported geometry at the app's own camera.
+
+**Why the sky and not an HDRI or a calibrated lamp.** The app's light intensities are
+artistic — its sun sits at ~1.0, which is neither watts nor a plausible lux for sunlight
+(~100 000 lx) — so matching Cycles to them would make the reference agree with the very
+thing under measurement. The atmosphere model supplies sky *and* sun radiance from a sun
+position, so the app's distance from it is the measurement. Derived elevation **83.53°**,
+azimuth 79.66° — near-overhead, correct for Singapore at 13:00 in early September, which is
+an independent check on both the app's sun and the frame conversion.
+
+**bedroom3, white → `wall-paint-ink`, identical camera and identical sun vector for both
+arms:**
+
+| surface | raster (app) | HQ tracer (`.330`) | **Cycles (physical)** |
+| --- | --- | --- | --- |
+| ceiling | 0.0 % | −20.8 % | **−25.3 %** |
+| floor | 0.0 % | **+0.2 %** | **−13.6 %** |
+| wall-L — landing check | −84 % | — | **−84 %** ✓ |
+
+Both renderers agree to the percent on the wall's own albedo change, so the intervention
+transferred identically — the control that must move, moving.
+
+**Correction 1 — (w)'s magnitude was understated by ~22 % relative.** The target is
+**−25.3 %**, not the −20.8 % taken from the HQ tracer.
+
+**Correction 2 — `.330`'s floor conclusion is wrong.** That round measured +0.2 % on the
+floor and concluded "the raster is approximately right there", which is how (w) came to be
+framed as a ceiling-only defect. Physics says the floor responds **−13.6 %**. The raster is
+~14 % off on the floor too. The HQ tracer's environment is hardcoded and hour-blind
+(`.334`), so its floor was dominated by a wrong environment rather than by real skylight —
+and the *mechanism* for the disagreement is not yet measured, only its existence.
+
+**Correction 3 — and this is the one that changes the fix: `.331`'s lever choice inverts.**
+Scaled to hit the corrected ceiling target:
+
+| lever | floor moves | physics wants |
+| --- | --- | --- |
+| hemisphere **ground term** (`.331`'s choice) | **0.1 %** | 13.6 % |
+| uniform fill (hemisphere + ambient) | **4.7 %** | 13.6 % |
+
+`.331` chose the ground term **because** it left the floor alone, and rejected the uniform
+fill precisely for darkening the floor ~4 % — citing the tracer's +0.2 %. That reasoning is
+now invalid: the floor *should* darken, so the ground term's selectivity is a defect rather
+than its selling point, and the uniform fill is directionally better while still
+under-delivering. **Neither lever is sufficient**, which reopens (w)'s implementation.
+
+**A new finding, and it bears directly on "photorealistic and cinematic": the app is far
+warmer than physics.** Ceiling R−B is **+11.5** in the raster against **−39.4** in Cycles —
+a 51-count swing. Under a near-overhead sun with a north-facing window the room is lit by
+cool skylight, and physics renders it cool; the app renders it warm. Some of that is a
+deliberate white-balance tint (`look.ts`), so this is a **look call, not a bug** — but the
+gap is much larger than any tint the arc has priced, and it is the kind of thing that reads
+as "not photographic" before any luminance error does.
+
+**Caveats.** One pose, one room, one hour. Only *ratios* are compared, because Cycles'
+absolute exposure is not matched to the app's — which is legitimate and is why the response
+ratio is the reported quantity. The ratio does depend on the sky/sun balance, for which the
+atmosphere model's own defaults (`sun_intensity` 1.0, `strength` 1.0) were used rather than
+anything fitted.
+
 ## v0.31.6.5 — a matched-pose Cycles reference now works, and it is already more faithful than the HQ tracer
 
 **The graphics arc's central limitation is removed.** `.320` concluded that "the app against

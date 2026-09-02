@@ -223,6 +223,69 @@ def place_camera(location: tuple[float, float, float],
     return cam
 
 
+def setup_world_sky_from_three_direction(travel_dir_three: tuple[float, float, float],
+                                         strength: float = 1.0,
+                                         sun_intensity: float = 1.0,
+                                         sun_disc: bool = True,
+                                         ground_albedo: float = 0.3,
+                                         sky_type: str = "MULTIPLE_SCATTERING") -> dict:
+    """Light the scene with a **physically-based atmospheric sky** placed by the app's sun.
+
+    This is what makes Cycles usable as an *absolute* reference rather than another
+    thing to calibrate. The app's own light intensities are artistic — its sun sits at
+    ~1.0, which is neither watts nor a plausible lux for sunlight (~100 000 lx) — so
+    matching Cycles to them would make the reference agree with the very thing under
+    measurement. Instead the atmosphere model supplies sky *and* sun radiance from a sun
+    position, and the app's distance from it is then the measurement.
+
+    ⚠️ **There is no `NISHITA` on this build.** Blender 5.2.1's `sky_type` enum is
+    `HOSEK_WILKIE`, `MULTIPLE_SCATTERING`, `PREETHAM`, `SINGLE_SCATTERING`, defaulting to
+    `MULTIPLE_SCATTERING` — the Nishita successor. Code written against 4.x's `NISHITA`
+    raises on assignment.
+
+    With `sun_disc=True` the sky node carries the sun itself, so **no separate SUN lamp is
+    added** — one physical source rather than a lamp whose energy would be a second free
+    parameter to invent.
+
+    Returns the derived angles so a caller can log/verify them rather than trust them.
+    """
+    # The app's vector is the direction light TRAVELS; the sun sits the other way.
+    tx, ty, tz = travel_dir_three
+    bx, by, bz = three_to_blender((-tx, -ty, -tz))
+    n = Vector((bx, by, bz))
+    if n.length < 1e-9:
+        raise ValueError("sun direction is zero-length")
+    n.normalize()
+    elevation = math.asin(max(-1.0, min(1.0, n.z)))
+    rotation = math.atan2(n.y, n.x)
+
+    world = bpy.data.worlds.new("sofa_sky") if not bpy.data.worlds else bpy.data.worlds[0]
+    bpy.context.scene.world = world
+    world.use_nodes = True
+    nt = world.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputWorld")
+    bg = nt.nodes.new("ShaderNodeBackground")
+    sky = nt.nodes.new("ShaderNodeTexSky")
+    sky.sky_type = sky_type
+    sky.sun_elevation = elevation
+    sky.sun_rotation = rotation
+    sky.sun_intensity = sun_intensity
+    sky.sun_disc = sun_disc
+    sky.ground_albedo = ground_albedo
+    bg.inputs["Strength"].default_value = strength
+    nt.links.new(sky.outputs["Color"], bg.inputs["Color"])
+    nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
+    return {
+        "sky_type": sky_type,
+        "sun_elevation_deg": round(math.degrees(elevation), 3),
+        "sun_rotation_deg": round(math.degrees(rotation), 3),
+        "sun_disc": sun_disc,
+        "sun_intensity": sun_intensity,
+        "strength": strength,
+    }
+
+
 def add_sun_from_three_direction(travel_dir_three: tuple[float, float, float],
                                  energy: float = 3.0,
                                  color: tuple[float, float, float] = (1.0, 0.95, 0.9)
