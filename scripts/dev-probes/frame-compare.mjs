@@ -19,8 +19,15 @@
  *   - dynamic range p99/p01
  *   - chroma (mean R−B), which is near exposure-invariant already
  *
+ * CROP IS NOT OPTIONAL FOR APP FRAMES. A probe screenshot includes the app's own UI
+ * chrome — a white toolbar pill, a white minimap — and the Cycles reference has none.
+ * The minimap alone is ~1.4 % of the pixels at near-255, which is exactly where p99
+ * lands, so an uncropped comparison can report the UI's dynamic range as the scene's.
+ * `--crop` takes FRACTIONAL x,y,w,h and is applied to BOTH images, so the two sides
+ * keep looking at the same part of the same camera.
+ *
  * Usage:
- *   node scripts/dev-probes/frame-compare.mjs <a.png> <b.png> [--labels A,B]
+ *   node scripts/dev-probes/frame-compare.mjs <a.png> <b.png> [--labels A,B] [--crop=x,y,w,h]
  */
 import process from 'node:process'
 import sharp from 'sharp'
@@ -31,12 +38,29 @@ if (files.length !== 2) {
   console.error('usage: frame-compare.mjs <a.png> <b.png> [--labels A,B]')
   process.exit(1)
 }
+const cropArg = args.find((a) => a.startsWith('--crop='))
+const crop = cropArg ? cropArg.slice(7).split(',').map(Number) : null
+if (crop && (crop.length !== 4 || crop.some((v) => !Number.isFinite(v)))) {
+  console.error('--crop wants four fractional numbers: x,y,w,h')
+  process.exit(1)
+}
 const labelsArg = args.find((a) => a.startsWith('--labels='))
 const labels = labelsArg ? labelsArg.slice(9).split(',') : files.map((f) => f.split('/').pop())
 
 /** Luminance + chroma histogram of one image. */
 async function stats(file) {
-  const { data, info } = await sharp(file).removeAlpha().raw().toBuffer({ resolveWithObject: true })
+  let img = sharp(file).removeAlpha()
+  if (crop) {
+    const meta = await img.metadata()
+    const [fx, fy, fw, fh] = crop
+    img = img.extract({
+      left: Math.round(fx * meta.width),
+      top: Math.round(fy * meta.height),
+      width: Math.round(fw * meta.width),
+      height: Math.round(fh * meta.height),
+    })
+  }
+  const { data, info } = await img.raw().toBuffer({ resolveWithObject: true })
   const n = info.width * info.height
   const lum = new Float64Array(n)
   let rb = 0

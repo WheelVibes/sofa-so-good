@@ -5,6 +5,77 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.9 — the fill level was already right; the app's SHADOWS match physics and its HIGHLIGHTS are 53 % short. Corrects v0.31.6.8
+
+`v0.31.6.8` (previous entry, same session) reported "tonality is 43 % flatter than physics"
+and proposed `FILLSCALE ≈ 0.28`. **Both are wrong.** Two contaminations, found by looking at
+the frames instead of the numbers:
+
+**1. The framings never matched.** The `×1` measurement came from the `BLENDREF` run, which
+sets `VH=720` so the raster matches the 16:9 Cycles render (2560×1440). Every fill-scale run
+(`×0.6`, `×0.45`, `×0.28`) used the probe **default `VH=800`** → 2560×**1600**, 16:10. A 16:10
+frame sees more ceiling and more floor. So the "bracket" mixed two framings — the arc's own
+rule ("metrics are pose-, method-, tier- AND framing-dependent") broken by its author.
+
+**2. The reference's dynamic range was one narrow band.** The app screenshot contains the
+app's own UI — a white toolbar pill, a white minimap — at ~1.4 % of pixels near 255, i.e.
+exactly where p99 lands. And the Cycles frame has a **near-black vertical band** at the
+right edge (an unlit adjacent space seen past the wall; a smooth ramp 0…7 with 8.1 % of the
+band at exact 0, so rendered geometry rather than a matte hole). Localising by strip:
+
+| region | app p99/p01 | **Cycles p99/p01** |
+| --- | --- | --- |
+| full frame | 24.6 | **42.8** ← the `.6.8` headline |
+| top 10 % only (ceiling) | 4.7 | 1.4 |
+| **right 20 % only** | 8.1 | **126.4** |
+| right strip excluded | 28.7 | 18.5 |
+| common crop (no UI, no band, no ceiling strip) | **24.1** | **24.9** |
+
+The reference's 42.8 lives entirely in that one strip. On a region both images can honestly
+be compared over, **the app is already at physics: 24.1 vs 24.9.** `frame-compare.mjs` now
+takes `--crop=x,y,w,h` (fractional, applied to **both** images) and the header states that
+crop is not optional for app frames.
+
+**FILLSCALE is refuted.** At matched framing (both 16:9) on the common crop:
+
+| | app ×1 | app ×0.28 | **Cycles** |
+| --- | --- | --- | --- |
+| p01 / median | 0.060 | 0.044 | 0.088 |
+| p05 / median | 0.273 | 0.215 | 0.376 |
+| p25 / median | 0.737 | 0.693 | 0.796 |
+| p75 / median | 1.137 | 1.205 | 1.102 |
+| p95 / median | 1.320 | 1.557 | **1.624** |
+| p99 / median | **1.436** | 1.725 | **2.194** |
+| dynamic range p99/p01 | **24.1** | 39.5 | **24.9** |
+| crushed < 8 | 1.1 % | 2.0 % | 0.9 % |
+| mid-tone 60..240 | 89.1 % | 81.7 % | 90.2 % |
+| mean R−B | +8.6 | +11.5 | **−31.6** |
+
+`×0.28` **overshoots by 59 %** and moves *every* axis away from physics — crushed pixels
+double against a physics value of 0.9 %, mid-tone occupancy drops 8.5 points. Turning the
+fill down is not the fix. The three surfaces the goal names (walk, orbit, room editor) share
+this rig, so this is a negative that applies to all three at once — and since nothing
+changed, nothing was spent from the ~16.5 ms/frame of medium-tier headroom.
+
+**What the corrected data actually says — the deficit is at the TOP, not the bottom.** The
+app's shadows already match, or are slightly *deeper* than, physics (p01 0.060 vs 0.088,
+p25 0.737 vs 0.796). The gap is the highlight tail:
+
+- **p99/median: 1.436 vs 2.194 — the app's brightest percentile is 53 % short.**
+- p95/median: 1.320 vs 1.624.
+- **Neither frame clips (0.0 % > 250 on both)**, so this is missing range, not lost range —
+  the headroom exists and the app simply never reaches into it.
+
+That reads as absent specular/window luminance, not absent shadow. It is the same direction
+as open item **(l) WINDOW-LUMINANCE**, and it reframes "the app looks flat/CGI": the flatness
+is a compressed *top* end. Chroma is unmoved by fill (+8.6 → +11.5 against physics' −31.6),
+consistent with `v0.31.6.7`'s finding that the **sky-colour** term is the one carrying the
+unexplained response.
+
+Next lever to test is therefore a highlight one, not a fill one — and highlights are the
+cheap kind of realism: a brighter window emitter and specular response cost no additional
+draw calls, so the ≥30 fps floor is not at risk.
+
 ## v0.31.6.8 — the app has SIX lighting rigs and the arc measured one; tonality is 43 % too flat; FPS baseline established
 
 Scope widened to every view, with a hard ≥30 fps floor. Three findings, one of which
