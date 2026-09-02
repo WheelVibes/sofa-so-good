@@ -1634,7 +1634,7 @@ Not a tuning change, which is why it is filed rather than taken:
 **The call needed:** whether a legible exterior is wanted, and by which of those routes. It touches the
 render path and shipped appearance for every backdrop user.
 
-## (s) ALBEDO-FILL — ⏳ OPEN, a candidate fix with a measured recovery (built + measured v0.31.5.271)
+## (s) ALBEDO-FILL — ⏳ OPEN, narrowed to LUMINANCE ONLY (built .271, falsified on hue .272)
 
 **The app has no colour bleed at all**, established across three rounds with one-variable A/B designs:
 
@@ -1670,6 +1670,39 @@ volume as spiked and **rejected** at 6.19 ms for 420 probes.
 
 **Looked at:** the tinted room is warmer and slightly darker, and reads as coherently lit *by* its terracotta
 walls rather than unaware of them. Natural, not dingy. The window is correctly unaffected.
+
+### v0.31.5.272 — tested on a cool finish: energy right, hue WRONG-SIGNED
+
+`.271` was validated on one **warm** finish. The shipped `navy` (`#3b4a63`) is cooler *and* much darker, so
+ρ/(1−ρ) is far more sensitive — the strongest test available.
+
+**The traced target is counterintuitive: a navy wall makes the ceiling WARMER** (ΔR−B +3.0 / +5.4 / +4.1)
+while darkening it (−20.5 / −22.3 / −17.5 %). The dark wall absorbs the **blue sky bounce** that previously
+cooled the ceiling, so what remains is more dominated by the warm direct sun. The room gets bluer; the
+ceiling gets warmer.
+
+| | Δ model | Δ traced target | verdict |
+| --- | --- | --- | --- |
+| luminance | −19.4 / −18.0 / −17.6 % | −20.5 / −22.3 / −17.5 % | **~90 % recovered** |
+| hue R−B | **−2.9 / −2.8 / −2.6** | **+3.0 / +5.4 / +4.1** | **wrong sign** |
+
+**Diagnosis.** The model tints by the room's **reflectance** colour ("the room is bluer, so the bounce is
+bluer"). Real transport is governed by what is **removed** ("the wall absorbs the blue sky bounce, leaving
+the warm sun"). Those agree for terracotta and oppose for navy — so `.271`'s ~75 % was partly luck, and the
+model was never capturing hue, only agreeing with it by accident on the one case tested.
+
+### Revised proposal — luminance only
+
+Apply a **scalar** grey scale from ρ/(1−ρ): **0.650** for terracotta, **0.563** for navy. That recovers
+**77 % (terracotta) to 90 % (navy)** of the darkening across an albedo range of 0.81 → 0.76 → 0.70, with
+**no hue risk**.
+
+The hue half needs a different model — one accounting for the colour of the light being *absorbed*, not the
+colour of the surface absorbing it. It is also the part you cannot see: the hue error is ±3 counts, below
+visual threshold, while the luminance effect is large and plainly visible in a side-by-side.
+
+**Untested:** `forest` (`#4a5e4a`); a green finish is where a reflectance-driven hue model would err
+differently again.
 
 ### What it does not do
 

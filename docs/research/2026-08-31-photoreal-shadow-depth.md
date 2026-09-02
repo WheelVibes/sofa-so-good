@@ -7953,3 +7953,92 @@ both cancel in the Δ, but neither is zero in absolute terms.
 filed as **(s) ALBEDO-FILL** with the recovery figures attached.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.272` — the albedo fill gets energy right and hue wrong-signed; ship half of it
+
+`.271` recovered ~75 % of the measured GI response with a calibration-free albedo-ratio fill, and named the
+untested risk plainly: it was validated on **one warm finish**. The shipped `navy` (`#3b4a63`) is cooler and
+much darker, which makes ρ/(1−ρ) far more sensitive — the strongest test the shipped catalogue offers.
+
+Runs 08:37–08:44 local (2026-09-02).
+
+### The traced target, and it is counterintuitive
+
+Room-scoped area-weighted albedo under navy: `0.7027 / 0.7010 / 0.6941`, against white
+`0.8115 / 0.8067 / 0.7876`. Real transport on the ceiling anchors:
+
+| anchor | Δ traced L | Δ traced R−B |
+| --- | --- | --- |
+| d = 0.6 m | −20.5 % | **+3.0** |
+| d = 1.2 m | −22.3 % | **+5.4** |
+| d = 1.8 m | −17.5 % | **+4.1** |
+
+**A navy wall makes the ceiling warmer.** That is not the intuitive answer, and the mechanism is worth
+recording: the dark wall **absorbs the blue sky bounce** that previously cooled the ceiling, so the light that
+remains is more dominated by the warm direct sun. The room becomes bluer while the ceiling becomes warmer.
+
+The raster, as ever, moves by nothing: +0.1 % and −0.1 counts under navy with no tint — so the bleed deficit
+is not warm-specific.
+
+### The model's verdict, split down the middle
+
+| | Δ model | Δ traced target | verdict |
+| --- | --- | --- | --- |
+| luminance | −19.4 / −18.0 / −17.6 % | −20.5 / −22.3 / −17.5 % | **~90 % recovered** |
+| hue R−B | **−2.9 / −2.8 / −2.6** | **+3.0 / +5.4 / +4.1** | **wrong sign** |
+
+Energy is nearly exact — better than terracotta's 77 %. Hue is not merely wrong in magnitude; it points the
+other way.
+
+### The diagnosis
+
+The model tints the fill by the room's **reflectance** colour: *"the room is bluer, so the bounce is bluer."*
+
+Real transport is governed by what is **removed**: *"the wall absorbs the blue sky bounce, leaving the warm
+sun."*
+
+Those two reasonings agree for terracotta — a warm wall reflects warm *and* absorbs cool — and oppose for
+navy, where the wall reflects cool but absorbs a cool source. **So `.271`'s ~75 % was partly luck.** The model
+was never capturing hue; it agreed with it by accident on the single case tested.
+
+This is precisely why `.271` flagged the cool finish as the risk, and it is a general point about
+calibration-free models: being free of fitted constants makes a model *honest*, not *right*. It still needs a
+second, adversarially-chosen data point before it can be trusted, and the second point is worth more than the
+first.
+
+### Revised proposal — luminance only
+
+A **scalar** grey scale from ρ/(1−ρ):
+
+| finish | per-channel ratio | **scalar luminance** | luminance recovered |
+| --- | --- | --- | --- |
+| terracotta | 0.7487 / 0.6250 / 0.6119 | **0.650** | 77 % |
+| navy | 0.5490 / 0.5618 / 0.6119 | **0.563** | 90 % |
+
+That holds across an albedo range of 0.81 → 0.76 → 0.70 with **no hue risk at all**. The hue half needs a
+different model — one that accounts for the colour of the light being *absorbed* rather than the colour of the
+surface absorbing it.
+
+### Looked at, and the asymmetry is the argument
+
+The tinted navy room is visibly darker and reads as a darker room — not broken, not dingy. The hue error is
+±3 counts, **below visual threshold** at this scale; the luminance effect is −18 % and plainly visible.
+
+**The part that is wrong is the part you cannot see, and the part you can see is the part that is right.**
+That asymmetry is the whole case for shipping half the model, and it would not have been visible from the
+numbers alone — the hue error and the luminance recovery are comparable as *fractions*, and only look at each
+other's scale when rendered.
+
+### Caveats
+
+Two finishes now, still one room, one pose, one hour. The luminance recovery holding across 0.81 → 0.70 of
+room albedo is encouraging, but `forest` (`#4a5e4a`) is untested, and a green finish is where a
+reflectance-driven hue model would err differently again.
+
+Item **(s)** is updated with both finishes and the narrowed proposal.
+
+This round required **no probe change** — `WALL`, `ALBEDO`, `FILLTINT` and `PT` as they already stood.
+
+Nothing changed in `src/` beyond the version bump.

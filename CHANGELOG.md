@@ -5,6 +5,71 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.272 — the albedo fill gets energy right and hue WRONG-SIGNED; ship half of it
+
+`.271` recovered ~75 % of the measured GI response with a calibration-free albedo-ratio fill, and named the
+untested risk: it was validated on **one warm finish**. The shipped `navy` (`#3b4a63`) is both cooler *and*
+much darker, which makes ρ/(1−ρ) far more sensitive — the strongest available test of whether the model
+generalises.
+
+It does not, and the failure is specific and useful.
+
+**The traced target, and it is counterintuitive.** Room albedo under navy: `0.7027 / 0.7010 / 0.6941`
+(against white `0.8115 / 0.8067 / 0.7876`). Real transport, ceiling anchors:
+
+| | Δ traced L | Δ traced R−B |
+| --- | --- | --- |
+| d = 0.6 m | −20.5 % | **+3.0** |
+| d = 1.2 m | −22.3 % | **+5.4** |
+| d = 1.8 m | −17.5 % | **+4.1** |
+
+**A navy wall makes the ceiling WARMER.** That is not what one would guess, and it is explicable: the dark
+wall absorbs the **blue sky bounce** that previously cooled the ceiling, so what remains is relatively more
+dominated by the warm direct sun. The room gets bluer; the ceiling gets warmer.
+
+**The raster, unchanged as always** — navy without any tint moves the ceiling by +0.1 % and −0.1 counts,
+confirming the deficit is not warm-specific.
+
+**The model's verdict, split cleanly down the middle:**
+
+| | Δ model | Δ traced target | verdict |
+| --- | --- | --- | --- |
+| luminance | −19.4 / −18.0 / −17.6 % | −20.5 / −22.3 / −17.5 % | **~90 % recovered** |
+| hue R−B | **−2.9 / −2.8 / −2.6** | **+3.0 / +5.4 / +4.1** | **wrong sign** |
+
+**Energy: nearly exact — better than terracotta's 77 %. Hue: not merely wrong in magnitude, wrong in
+direction.**
+
+**The diagnosis.** The model tints the fill by the room's **reflectance** colour — *"the room is bluer, so
+the bounce is bluer."* Real transport is governed by what is **removed**: *"the wall absorbs the blue sky
+bounce, leaving the warm sun."* Reflectance and absorption-of-a-coloured-source point the same way for
+terracotta and opposite ways for navy.
+
+So **`.271`'s ~75 % was partly luck.** For a warm finish the reflectance shift happens to coincide with the
+true hue shift. The model was never capturing hue; it was agreeing with it by accident on the one case tested.
+This is exactly why `.271` flagged the cool case as the risk, and it is why a calibration-free model still
+needs a second data point before it can be trusted.
+
+**Revised recommendation: ship the luminance half only.** A **scalar** grey scale from ρ/(1−ρ) —
+0.650 for terracotta, 0.563 for navy — recovers **77 % (terracotta) to 90 % (navy)** of the darkening across
+a wide albedo range, with **no hue risk at all**. The hue half needs a different model, one that accounts for
+the colour of the light being absorbed rather than the colour of the surface absorbing it.
+
+**Looked at.** The tinted navy room is visibly darker and reads as a darker room — not broken, not dingy. The
+hue error is ±3 counts, below visual threshold at this scale, while the luminance effect is large and plainly
+visible. That asymmetry is itself the argument for the split: the part that is wrong is the part you cannot
+see, and the part you can see is the part that is right.
+
+Item **(s)** updated with both finishes and the revised, narrower proposal.
+
+**Caveats.** Two finishes now, still one room, one pose, one hour. The luminance recovery holds across a wide
+albedo range (0.81 → 0.76 → 0.70) which is encouraging, but `forest` (`#4a5e4a`) is still untested and a
+green finish is the case where a reflectance-driven hue model would err differently again.
+
+Probe only — this round used `WALL`, `ALBEDO`, `FILLTINT` and `PT` as they already stood, with no probe
+change. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in `src/` beyond the version
+bump. Runs 08:37–08:44 local.
+
 ## v0.31.5.271 — a cheap albedo-tinted fill recovers ~75 % of the measured GI response
 
 `.270`'s numbers carried a hint: the ceiling's response to a terracotta wall was nearly **uniform** across
