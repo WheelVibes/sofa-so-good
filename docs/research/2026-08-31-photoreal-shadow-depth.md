@@ -10171,3 +10171,66 @@ three-round-old assumption before it could contaminate a conclusion. **Mark the 
 trust the patch.** Added to `docs/hq-tracer-probe-notes.md`.
 
 No `src/` change — `.299`'s green diagnostic was reverted and verified absent. Probe unchanged.
+
+---
+
+## Round .301 — the tracer's ceiling ignores its own albedo: recolour it black, raster goes to 0.9, traced still stays at 192
+
+This round set out to check `.300`'s own first finding and found something larger by accident.
+
+### The check .300 needed
+
+`.300` concluded "environment light ignores sky visibility in both classes" because a zero-sky wall was as green
+as the ceiling. But in a **white** room interreflection is strong and near-uniform, which produces that pattern
+legitimately. The discriminator is to suppress bounce. `RECOLOR` was extended to take several `from:to` pairs
+(one at a time left the ceiling bouncing), and the room was repainted `f5f5f0:141414;fafafa:141414` — 113
+surfaces, 99 wall planes + 14 ceiling planes, per `RECOLORCHECK`.
+
+| | glazing | ceiling | sidewall-L | winwall-L | winwall-R |
+| --- | --- | --- | --- | --- | --- |
+| white room (`g1`) | L=193 | L=193 | L=171 | L=164 | L=161 |
+| dark room (`d1`) | L=192 | **L=192** | L=24 | L=9 | L=7 |
+
+Walls fell 7–23× while the sky-facing glazing held. **So wall greenness tracks albedo as transport should, and
+`.300`'s finding 1 is corrected: no occlusion fault is demonstrated on the walls.**
+
+### The ceiling did not move
+
+193 → 192, while every wall collapsed. Same run's raster settles which side is wrong:
+
+| `d1`, ceiling patch | value |
+| --- | --- |
+| raster | **L = 0.9** |
+| traced | **L = 192.1** |
+| traced, white ceiling (`g1`) | L = 192.7 |
+
+**The rasteriser renders the black ceiling correctly; the tracer renders 192 either way.** Filed as item (v).
+
+And 192 is the environment's own level — the glazing, showing `root.background`, reads 192 in the same frame,
+and `.300` measured this patch at L = 193 with **sd = 0.0**. Three independent observations that the traced
+ceiling renders *as the environment*, not as a surface.
+
+### Lead, untested
+
+If the ceiling is **absent or transparent in the tracer snapshot**, the camera sees `root.background` through
+it. Predicts and matches: equality with the glazing; zero variance; recolour immunity; greenness *higher* than
+the glazing (78.2 vs 60.3, no glazing tint in the way); class A's cold cast under the grey gradient; `.298`'s
+ceiling out-radiating the aperture; `.252`'s "mirror ceiling" that `.253` may have replaced with a hole. Six
+matched predictions, zero tests, and fourteen mechanisms in this arc refuted by a later round. **A lead.**
+
+Verification named: instrument `buildTracerScene` to report whether the ceiling mesh is in the snapshot and
+what material it carries, correlated with the (u) class.
+
+### Consequence
+
+Every traced *ceiling* figure (`.253`, `.254`, `.255`, tracer-based ceiling ÷ wall) measured a quantity that
+does not depend on the ceiling. `.255` withdrew `.253`'s deficit citing "a different lighting rig"; the reason
+is sharper and worse. The photographic band and the app's 0.93 are raster measurements and unaffected.
+
+### Method note
+
+Two rounds running have corrected their immediate predecessor by testing its weakest assumption first.
+**Budget a round for auditing the last one.**
+
+Green diagnostic reverted, `src/` verified clean. The probe keeps multi-pair `RECOLOR`, which is what made this
+measurable.

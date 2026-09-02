@@ -5,6 +5,75 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.301 — the tracer's ceiling ignores the ceiling's albedo entirely: recolour it black and the raster goes to L=0.9 while the traced still stays at 192
+
+This round set out to check `.300`'s own first finding, and found something much larger by accident — which is
+why the check was worth running.
+
+**The check `.300` needed.** `.300` concluded that "environment light ignores sky visibility in both classes",
+on the strength of a zero-sky wall being as green as the ceiling. But in a **white** room interreflection is
+strong and nearly uniform, so that pattern is also exactly what legitimate GI produces. The discriminator is to
+**suppress bounce** — darken the room and see whether the zero-sky surface collapses relative to the sky-facing
+one. `RECOLOR` was extended to accept several `from:to` pairs (probe-only; one pair at a time left the ceiling
+bouncing and made the arm useless), and the room was repainted `f5f5f0:141414;fafafa:141414` — **113 surfaces,
+99 wall planes and 14 ceiling planes**, confirmed by `RECOLORCHECK`.
+
+**`.300`'s finding survives, and comfortably.** Under the dark room the zero-sky walls collapse while the
+sky-facing glazing does not:
+
+| | glazing | ceiling | sidewall-L | winwall-L | winwall-R |
+| --- | --- | --- | --- | --- | --- |
+| white room (`g1`) | L=193 | L=193 | L=171 | L=164 | L=161 |
+| **dark room (`d1`)** | **L=192** | **L=192** | **L=24** | **L=9** | **L=7** |
+
+Walls fell by 7–23×, so their green in the white room really was bounce-dominated — and `.300` was right not to
+call the visibility insensitivity (u)'s differentiator, but it was **over-claimed as a defect**. Wall greenness
+tracks albedo the way transport should. **That part of `.300` is corrected: there is no demonstrated occlusion
+fault on the walls.**
+
+**And then the ceiling did not move at all.** 193 → 192, while every wall around it collapsed. The same run's
+**raster** settles which side is wrong:
+
+| same run `d1`, ceiling patch | value |
+| --- | --- |
+| **raster** (`frame.png`) | **L = 0.9** |
+| **traced still** (`pathtraced.png`) | **L = 192.1** |
+| traced still, white ceiling (`g1`) | L = 192.7 |
+
+**The rasteriser renders the black ceiling correctly. The path tracer renders it at 192 whether it is
+`#fafafa` or `#141414`.** The tracer's ceiling is completely insensitive to the ceiling material — a
+reproducible, shipped defect, in the one code path this arc actually changed (`.253`'s `pbrStandInFor`
+substitution for the Lambert ceiling).
+
+**Note what 192 is.** The glazing — which shows `root.background` directly — reads **192** in the same frame,
+and `.300` measured this ceiling patch at **L=193 with sd = 0.0**, every pixel identical. So the traced ceiling
+is not a dark surface rendered too bright: **it is rendering at the environment's own level, with no spatial
+variation, immune to its own albedo.** Three independent observations of the same thing.
+
+**A mechanism that would explain all of it — explicitly untested.** If the ceiling is **absent or transparent in
+the tracer snapshot**, the camera would see `root.background` through it. That predicts, and matches: brightness
+equal to the glazing; zero variance; total immunity to recolour; greenness **higher** than the glazing's (78.2
+vs 60.3, because there is no glazing tint in the way); the cold cast of class A under the normal grey gradient;
+`.298`'s ceiling out-radiating the aperture; and `.252`'s original "mirror ceiling", where `.253` may have
+replaced a mirror with a hole. **That is six matched predictions and zero tests, and fourteen candidate
+mechanisms in this arc have been refuted by a later round. It is written down as a lead, not a finding.**
+
+**Verification is cheap and is the next round:** instrument `buildTracerScene` to report whether the ceiling
+mesh is present in the snapshot and what material it carries, and correlate with the (u) class.
+
+**What this does to the arc's ceiling results.** Every traced ceiling figure — `.253`, `.254`, `.255`, and the
+ceiling ÷ wall work that leaned on the tracer — measured a quantity that does not depend on the ceiling. `.255`
+already withdrew `.253`'s ceiling deficit because "the tracer runs a different lighting rig"; the reason is
+sharper now and worse: **the tracer's ceiling is not a ceiling.** The photographic ceiling ÷ wall band and the
+app's 0.93 are unaffected, being raster measurements.
+
+**Method note.** The round's finding came from a check on the *previous* round's claim, not from a new
+hypothesis. Two rounds running (`.300`, `.301`) have overturned or corrected their immediate predecessor by
+testing its weakest assumption first. **Budget a round for auditing the last one.**
+
+**Unchanged:** the green environment diagnostic was reverted and `src/` verified clean (`grep 0x00ff00` → 0).
+The probe keeps the multi-pair `RECOLOR`, which is what made this measurable.
+
 ## v0.31.5.300 — the occlusion/intensity dichotomy was wrong: environment light ignores sky visibility in BOTH classes, and the class difference is the interior saturating at the environment's own level
 
 `.299` named two families for (u) and one discriminating test: a surface that provably cannot see the aperture,

@@ -2114,6 +2114,22 @@ attenuated by the glazing tint.
 variance, and a zero-sky surface should never match a sky-facing one. **Why the magnitude differs run to run is
 still unidentified** — thirteen candidates eliminated; no mechanism claimed.
 
+**✅/❌ PARTLY CORRECTED v0.31.5.301.** Finding 1 above was over-claimed. Suppressing bounce (room repainted
+`f5f5f0:141414;fafafa:141414`, 113 surfaces) collapses the zero-sky walls by 7–23× — sidewall-L 171 → 24,
+winwall-L 164 → 9, winwall-R 161 → 7 — while the sky-facing glazing holds at 192. **Wall greenness tracks
+albedo the way transport should, so there is no demonstrated occlusion fault on the walls.**
+
+**But the ceiling did not move: 193 → 192, while every wall around it collapsed.** Same run, same scene:
+
+| ceiling patch | value |
+| --- | --- |
+| **raster** | **L = 0.9** |
+| **traced still** | **L = 192.1** |
+| traced still, white ceiling | L = 192.7 |
+
+**The rasteriser renders the black ceiling correctly; the path tracer renders it at 192 whether the ceiling is
+`#fafafa` or `#141414`.** See item **(v)**.
+
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.
 
@@ -2121,6 +2137,44 @@ opposite colour temperature. Whichever state is correct, the other is a shipped 
 the two are ~45 % apart. `.284` restored `.269`–`.276` as valid raw-trace measurements; that restoration must
 now be **qualified** — they are valid only if they were taken in state B, which was never recorded and is
 roughly a coin flip. Every traced figure in the arc needs re-measurement with the discriminator on.
+
+## (v) HQ-CEILING-ALBEDO-IGNORED — 🐞 REAL DEFECT, found v0.31.5.301; verification named
+
+**The path tracer's ceiling is completely insensitive to the ceiling material.** Recolour the ceiling from
+`#fafafa` to `#141414` (confirmed applied to 14 ceiling planes by `RECOLORCHECK`, and applied at probe line 494,
+long before the PT block) and:
+
+| same run, ceiling patch | value |
+| --- | --- |
+| raster (`frame.png`) | **L = 0.9** |
+| traced still (`pathtraced.png`) | **L = 192.1** |
+| traced still with a white ceiling | L = 192.7 |
+
+The rasteriser obeys the recolour; the tracer ignores it entirely.
+
+**192 is the environment's own level.** The glazing, which shows `root.background` directly, reads 192 in the
+same frame, and `.300` measured this ceiling patch at **L = 193 with sd = 0.0** — every pixel identical. So the
+traced ceiling is not a dark surface rendered too bright: **it renders at the environment's level, with zero
+spatial variation, immune to its own albedo.**
+
+**Lead, explicitly untested.** If the ceiling is **absent or transparent in the tracer snapshot**, the camera
+sees `root.background` through it. That predicts and matches: equality with the glazing; zero variance; immunity
+to recolour; greenness *higher* than the glazing (78.2 vs 60.3 — no glazing tint in the way); class A's cold
+cast under the normal grey gradient; `.298`'s ceiling out-radiating the aperture; and `.252`'s original "mirror
+ceiling", which `.253` may have replaced with a hole. Six matched predictions, zero tests — and fourteen
+mechanisms in this arc have been refuted by a later round.
+
+**Verification, cheap and named:** instrument `buildTracerScene` to report whether the ceiling mesh is present
+in the snapshot and what material it carries, and correlate with the (u) class.
+
+**Consequence for past results.** Every traced *ceiling* figure — `.253`, `.254`, `.255` and the tracer-based
+ceiling ÷ wall work — measured a quantity that does not depend on the ceiling. `.255` withdrew `.253`'s ceiling
+deficit citing "a different lighting rig"; the reason is sharper and worse: **the tracer's ceiling is not a
+ceiling.** The photographic band and the app's 0.93 are raster measurements and unaffected.
+
+**Relation to (p) and (u).** All three live in `hqRenderSession`'s snapshot/environment handling, and this may
+be the same fault as (u) seen from another angle — if the ceiling is sometimes present and sometimes not, that
+alone would produce (u)'s two classes.
 
 ## Summary
 
@@ -2141,6 +2195,7 @@ roughly a coin flip. Every traced figure in the arc needs re-measurement with th
 | l | WINDOW-LUMINANCE | render + product look | ⏳ **OPEN v0.31.5.236**, figures corrected in `.237` — photographs clip 15–39 % of their glazing; the app clips **0.0 %** at every hour, so the pane reads as a panel not an opening. Night (21:00) is already correct and must not regress |
 | t | HQ-DENOISE-SHIFT | render bug | ❌ **REFUTED v0.31.5.285** — one-variable A/B with the flag asserted and read back: denoise off 119.3/117.6 vs on 118.0/115.7, i.e. **1.1–1.6 %**. The pass is radiometrically neutral; `.283`'s ~30 % gap was two runs in different states of (u) |
 | u | HQ-TRACE-NONDETERMINISM | render bug | 🐞 **REAL v0.31.5.285, cause UNIDENTIFIED** — identical inputs give one of two discrete outputs ~45 % apart at the anchors, opposite colour temperature. Sample count, denoise stage and exposure all ruled out. Discriminator shipped in the probe; every traced figure in the arc needs re-measurement |
+| v | HQ-CEILING-ALBEDO-IGNORED | render bug | 🐞 **REAL DEFECT v0.31.5.301** — recolour the ceiling to `#141414` and the raster reads L=0.9 while the traced still reads L=192.1, the same as with a white ceiling. The traced ceiling renders at the environment's own level with sd=0.0, immune to its own albedo. May be the same fault as (u) |
 | k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect

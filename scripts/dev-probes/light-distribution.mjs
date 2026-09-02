@@ -701,25 +701,31 @@ const RECOLOR = process.env.RECOLOR || ''
 const applyRecolor = !RECOLOR
   ? null
   : async () => {
-      const [from, to] = RECOLOR.split(':')
-      const res = await page.evaluate(
-        ({ from: f, to: t }) => {
-          let n = 0
-          const kinds = {}
-          window.__three.scene.traverse((o) => {
-            if (!o.isMesh) return
-            const mats = Array.isArray(o.material) ? o.material : [o.material]
-            for (const m of mats) {
-              if (m?.color?.getHexString?.() !== f) continue
-              m.color.set(`#${t}`)
-              n++
-              kinds[o.geometry?.type ?? '?'] = (kinds[o.geometry?.type ?? '?'] ?? 0) + 1
-            }
-          })
-          return { repainted: n, kinds }
-        },
-        { from, to },
-      )
+      // Accepts SEVERAL pairs separated by ';' (`.301`) -- suppressing a room's
+      // interreflection needs the walls AND the ceiling repainted, and they carry
+      // different base colours (plaster f5f5f0, ceiling fafafa). One pair at a
+      // time left the ceiling bouncing and made the arm useless.
+      const pairs = RECOLOR.split(';')
+        .filter(Boolean)
+        .map((p2) => p2.split(':'))
+      const res = await page.evaluate((ps) => {
+        let n = 0
+        const kinds = {}
+        const map = new Map(ps.map(([f, t]) => [f, t]))
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh) return
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          for (const m of mats) {
+            const hex = m?.color?.getHexString?.()
+            if (!hex || !map.has(hex)) continue
+            m.color.set(`#${map.get(hex)}`)
+            n++
+            kinds[`${hex}->${map.get(hex)} ${o.geometry?.type ?? '?'}`] =
+              (kinds[`${hex}->${map.get(hex)} ${o.geometry?.type ?? '?'}`] ?? 0) + 1
+          }
+        })
+        return { repainted: n, kinds }
+      }, pairs)
       console.log(`RECOLORCHECK ${JSON.stringify(res)}`)
       await new Promise((r) => setTimeout(r, 800))
     }
