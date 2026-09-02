@@ -102,6 +102,22 @@ await page.evaluateOnNewDocument(() => {
 })
 await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
+// Forward the page's own console for lines we deliberately tag (`.287`). The
+// probe had no console listener at all, so any diagnostic the app logged -- and
+// any warning it emitted -- was invisible to every round in this arc.
+page.on('console', (m) => {
+  const t = m.text()
+  const type = m.type()
+  // Tagged diagnostics always, plus EVERY warning and error. `hqRenderSession`
+  // logs `HQ AI denoise failed`, `HQ render failed` and a blank-render guard
+  // behind `import.meta.env.DEV` -- all of which this arc has been blind to for
+  // forty rounds because the probe never listened. Skip the Vite/HMR chatter.
+  const noise = /\[vite]|HMR|Download the React DevTools|WebGL context/i
+  if (/^\[PROBE]/.test(t) || ((type === 'warning' || type === 'error') && !noise.test(t))) {
+    console.log(`  PAGE ${type}: ${t}`)
+  }
+})
+page.on('pageerror', (e) => console.log(`  PAGE ERROR ${e.message}`))
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
@@ -1490,6 +1506,41 @@ if (process.env.PT === '1') {
   })
   if (!png) throw new Error('PT: could not read a tracer canvas')
   fs.writeFileSync(`${OUT}/pathtraced.png`, Buffer.from(png.url.split(',')[1], 'base64'))
+  // PTDOUBLE=1 -- capture the SAME settled render a second time (`.287`). The
+  // whole-frame mean varies continuously across runs (113.8, 139.5, 155.7) while
+  // the anchors take only two discrete values, which is what a partially-updated
+  // TILED blit looks like: `tracer.tiles.set(n,n)` renders 2x2..6x6 tiles, so a
+  // capture can catch some tiles carrying the new image and others the old. If
+  // that is what is happening, two captures of one finished render will differ.
+  if (process.env.PTDOUBLE === '1') {
+    const stat = (buf) => {
+      let sl = 0
+      let srb = 0
+      const n = buf.length / 3
+      for (let i = 0; i < buf.length; i += 3) {
+        sl += 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]
+        srb += buf[i] - buf[i + 2]
+      }
+      return `frameL=${(sl / n).toFixed(1)} frameRB=${(srb / n).toFixed(1)}`
+    }
+    const first = await sharp(`${OUT}/pathtraced.png`).removeAlpha().raw().toBuffer()
+    console.log(`  PTDOUBLE capture 1: ${stat(first)}`)
+    for (const wait of [5000, 5000]) {
+      await new Promise((r) => setTimeout(r, wait))
+      const again = await page.evaluate(() => {
+        const list = [...document.querySelectorAll('canvas')]
+        const c = list
+          .filter((x) => x !== list[0] && x.width > 16 && x.height > 16)
+          .sort((a, b) => b.width * b.height - a.width * a.height)[0]
+        return c ? c.toDataURL('image/png') : null
+      })
+      if (!again) break
+      const p2 = `${OUT}/pathtraced-again.png`
+      fs.writeFileSync(p2, Buffer.from(again.split(',')[1], 'base64'))
+      const buf = await sharp(p2).removeAlpha().raw().toBuffer()
+      console.log(`  PTDOUBLE recapture:  ${stat(buf)}`)
+    }
+  }
   if (process.env.PTAI) {
     const after = await page.evaluate(() => window.__store.getState().featureFlags.hqAiDenoise)
     console.log(`  PTAI read-back after capture: hqAiDenoise=${after}`)

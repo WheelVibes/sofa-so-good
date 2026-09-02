@@ -1491,6 +1491,17 @@ Ambient/Hemisphere and substitutes a gradient"; it is worse than that, because i
 on every single render. The HQ still is the app's photoreal showcase and it is not lit by the room the user
 built.
 
+**✅ CONFIRMED BY DIRECT OBSERVATION v0.31.5.287.** Temporary instrumentation in `buildTracerScene` (added,
+observed, reverted; `src/` verified clean) logged the branch actually taken on the default shipped path:
+
+```
+[PROBE] buildTracerScene: hdriUrl=undefined env=NULL -> gradient fallback
+```
+
+Observed on two independent runs, one in each of item (u)'s two states. This is no longer an inference from
+default values. **The next step on (p) is a real `src/` fix — feed the tracer the scene's own lighting instead
+of the hardcoded gradient — which is a look-and-cost call and is not being made unilaterally.**
+
 ## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
 
 **The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,
@@ -1936,6 +1947,22 @@ fallback. It cannot be the state variable, because it is not a variable: `store.
 time. Forcing `hdriEnvironment=false` duly produced state A, but that is consistent with the branch being
 constant, not with it selecting the state. The cause of (u) remains **unidentified**, and no replacement
 hypothesis is offered.
+
+**Eliminated by direct observation (v0.31.5.287), not by argument.** With a page-console listener finally
+wired into the probe (it had never been):
+
+- **tone mapping** — session opts report `toneMapping=agx` in both states. State A being brighter *and* colder
+  is exactly what a missing AgX pass looks like, so this was the natural suspect. It is not missing. Refuted.
+- **the environment branch** — the same `gradient fallback` line appears in a state-A run and a state-B run.
+  Refuted by observation, where `.286` had only ruled it out as a constant.
+- **denoise / blank-render failure** — no warnings or errors fire in either state.
+- **a per-capture tile race** — `PTDOUBLE=1` recaptured one settled render three times, 5 s apart:
+  `frameL=112.7 frameRB=4.0` all three times. **The state is fixed per run, not per capture**, so whatever
+  selects it happens at or before render time and then holds.
+
+**One observation remains unexplained and is recorded rather than theorised:** the whole-frame mean takes a
+continuum of values across runs (112.7, 113.8, 139.5, 155.7) while the anchors take exactly two. No mechanism
+is proposed.
 
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.

@@ -5,6 +5,87 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.287 — item (p) confirmed by direct observation; four more candidate causes for (u) eliminated the same way; and the probe had never listened to the page console
+
+`.286` inferred from a call chain that every HQ render is gradient-lit and said the next step was to observe it
+rather than infer it. Done — plus the observation channel it needed turned out to have been missing all along.
+
+**The probe had no console listener. For the entire arc.** `page.on('console')` was never wired, so every
+diagnostic and every warning the app emitted was structurally invisible to all fifty-odd rounds. Now added:
+tagged `[PROBE]` diagnostics always, plus **every** warning and error (Vite/HMR chatter filtered). This matters
+because `hqRenderSession` logs `HQ AI denoise failed`, `HQ render failed` and a blank-render guard behind
+`import.meta.env.DEV` — rounds `.280`–`.283` speculated about exactly those failures while being unable to see
+them.
+
+**Item (p) — confirmed by observation.** Temporary instrumentation in `buildTracerScene` (added, observed,
+reverted; `src/` verified clean with `git diff --stat`) on the default shipped path, bedroom3, medium tier,
+photographic look, hour 13, pitch +0.30, 256 samples:
+
+```
+[PROBE] buildTracerScene: hdriUrl=undefined env=NULL -> gradient fallback
+```
+
+Observed on **two** independent runs (14:02 and 14:10 +08) — one of which landed in state B and the other in
+state A. So `.286`'s escalation is no longer an inference from defaults: **the shipped HQ path really does
+install the hardcoded cold `GradientEquirectTexture` instead of the scene's own lighting**, and it does so in
+both states. (p) stands as the arc's most consequential open item.
+
+**Two more candidates for (u), eliminated by observation rather than argument.** The same instrumentation
+reported the options the session is actually constructed with:
+
+```
+[PROBE] session opts: toneMapping=agx exposure=1.38 maxSamples=256 1920x1080 aiDenoise=true
+```
+
+- **Tone mapping** — `agx`, constant. State A being both brighter *and* colder is exactly what a missing AgX
+  pass would look like, which made it the natural suspect. It is not missing. **Refuted.**
+- **The environment** — identical branch in a state-A run and a state-B run, as above. **Refuted by direct
+  observation**, where `.286` had only ruled it out as a constant.
+- **No warnings or errors fire in either state.** The denoise is not failing and the blank-render guard is not
+  firing. Both had been speculated about.
+
+**Capture race — refuted.** The continuum of whole-frame means across runs (112.7, 113.8, 139.5, 155.7)
+against only *two* discrete anchor values looked like a partially-updated tiled blit: `tracer.tiles.set(n,n)`
+renders 2×2–6×6 tiles, so a capture could catch some tiles new and some old. New `PTDOUBLE=1` captures the same
+settled render three times, 5 s apart (run 14:25 +08):
+
+```
+PTDOUBLE capture 1: frameL=112.7 frameRB=4.0
+PTDOUBLE recapture:  frameL=112.7 frameRB=4.0
+PTDOUBLE recapture:  frameL=112.7 frameRB=4.0
+```
+
+Identical. **The state is fixed per run, not per capture.** Whatever selects it happens at or before render
+time and then holds.
+
+**The elimination table for (u) so far** — every row measured, none argued:
+
+| candidate | verdict | where |
+| --- | --- | --- |
+| sample count | refuted (+5.6 % over 6→256; gap is ~45 %) | `.284` |
+| AI denoise stage | refuted (1.1–1.6 %; both states share a label) | `.285` |
+| exposure | refuted (1.38 both, at open and at Start) | `.285` |
+| HDRI/env branch — as a constant | refuted | `.286` |
+| HDRI/env branch — by observation | refuted (same branch in both states) | `.287` |
+| tone mapping | refuted (`agx` both) | `.287` |
+| denoise/blank-render failure | refuted (no warnings in either state) | `.287` |
+| per-capture tile race | refuted (3 identical recaptures) | `.287` |
+
+**Still open, and honestly stated.** (u)'s cause is unidentified. One observation remains unexplained and is
+recorded rather than theorised: the whole-frame mean takes a **continuum** of values across runs while the
+anchors take exactly **two**. No mechanism is proposed for that.
+
+**Method note.** Every elimination this round cost one line of logging and no reasoning. The listener that made
+three of them possible was eight lines and could have been added in `.246`. **Wire up the observation channels
+before the hypotheses** — this arc spent six rounds theorising about failures it had no way to see, and then
+ruled four causes out in a single round once it could see them.
+
+**Next.** (p) outranks (u) and is now confirmed rather than inferred, so it is ready for a decision: it needs a
+real `src/` fix (feed the tracer the scene's own lighting instead of the gradient), which is a look-and-cost
+call and explicitly not mine to make.
+
+**Unchanged:** no `src/` change — the instrumentation was reverted and `src/` verified clean. Probe + docs only.
+
 ## v0.31.5.286 — the HDRI-fallback lead is refuted, and the reason escalates item (p): every HQ render is gradient-lit by default
 
 `.285` closed with one lead for item (u) and an instruction to kill or confirm it directly. It is dead, and

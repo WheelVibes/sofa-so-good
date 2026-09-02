@@ -9237,3 +9237,76 @@ building an A/B for it.** Roughly half of `.280`–`.285`'s cost went on A/Bs ag
 shipped path, rather than inferring it from the call chain; then return to (u) discriminator-first.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .287 — (p) confirmed by observation; four more (u) candidates eliminated; and the probe had never listened to the console
+
+### The missing observation channel
+
+`page.on('console')` was never wired into the probe. For the whole arc, every diagnostic and warning the app
+emitted was structurally invisible. Now added: tagged `[PROBE]` lines plus every warning and error, with
+Vite/HMR chatter filtered. `hqRenderSession` logs `HQ AI denoise failed`, `HQ render failed` and a blank-render
+guard behind `import.meta.env.DEV` — precisely the failures `.280`–`.283` speculated about while unable to see
+them.
+
+### Item (p), observed
+
+Temporary instrumentation in `buildTracerScene` (added, observed, reverted; `src/` verified clean via
+`git diff --stat`), default shipped path, bedroom3, medium tier, photographic look, hour 13, `PITCH=0.30`, 256
+samples, runs 14:02 and 14:10 +08:
+
+```
+[PROBE] buildTracerScene: hdriUrl=undefined env=NULL -> gradient fallback
+```
+
+Two independent runs, one in each of (u)'s states. `.286`'s escalation is confirmed: the shipped HQ path
+installs the hardcoded cold `GradientEquirectTexture` rather than the scene's own lighting.
+
+### Two more (u) candidates, observed away
+
+```
+[PROBE] session opts: toneMapping=agx exposure=1.38 maxSamples=256 1920x1080 aiDenoise=true
+```
+
+- Tone mapping is `agx` and constant. State A being brighter *and* colder is what a missing AgX pass would look
+  like, which made it the natural suspect; it is not missing. Refuted.
+- The environment branch is identical across states — refuted by observation, not merely as a constant.
+- No warnings or errors in either state: the denoise is not failing, the blank-render guard is not firing.
+
+### Capture race, refuted
+
+The continuum of whole-frame means across runs (112.7, 113.8, 139.5, 155.7) against only two discrete anchor
+values looked like a partially-updated tiled blit (`tracer.tiles.set(n,n)`, 2×2–6×6). `PTDOUBLE=1` captured one
+settled render three times, 5 s apart (run 14:25 +08): `frameL=112.7 frameRB=4.0` every time. The state is
+fixed per run, not per capture.
+
+### (u) elimination table — all measured, none argued
+
+| candidate | verdict | round |
+| --- | --- | --- |
+| sample count | refuted (+5.6 % over 6→256; gap ~45 %) | .284 |
+| AI denoise stage | refuted (1.1–1.6 %; both states share a label) | .285 |
+| exposure | refuted (1.38 at open and at Start) | .285 |
+| env branch as a constant | refuted | .286 |
+| env branch by observation | refuted (same branch, both states) | .287 |
+| tone mapping | refuted (`agx` both) | .287 |
+| denoise / blank-render failure | refuted (no warnings either state) | .287 |
+| per-capture tile race | refuted (3 identical recaptures) | .287 |
+
+Cause still unidentified. Unexplained and recorded, not theorised: frame mean is a continuum, anchors are
+binary.
+
+### Method note
+
+Every elimination here cost one line of logging and no reasoning. The listener that enabled three of them was
+eight lines and could have existed since `.246`. **Wire up the observation channels before the hypotheses.**
+Six rounds went on theorising about failures the probe could not see; four causes fell in one round once it
+could.
+
+### Next
+
+(p) outranks (u) and is confirmed rather than inferred, so it is ready for a decision: it needs a real `src/`
+fix (feed the tracer the scene's own lighting), which is a look-and-cost call and not mine to make.
+
+Nothing changed in `src/` — the instrumentation was reverted and `src/` verified clean.
