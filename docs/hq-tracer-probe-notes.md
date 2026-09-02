@@ -1047,3 +1047,32 @@ decision at session creation over allocation- or geometry-dependent behaviour.
 
 **Pooled: p(A) = 0.655, CI [0.53, 0.78], n = 58.** Both runs tests trend negative (z = −0.42, −1.33; Stouffer
 −1.24) — a slight clustering tendency, not significant, recorded so a future census accumulates against it.
+
+## (u) is a CONTINUUM — use `PTGRID`, not a patch mean
+
+`PTGRID=<cols>x<rows>` with `PTGRID_RECT=x,y,w,h` classifies a grid of cells over the ceiling per census arm.
+`.348`, 20 arms at livingDining over a verified clean rect (sd 3.3):
+
+| arm class | cells affected |
+| --- | --- |
+| A (11 arms) | **24/24 every time** — uniform |
+| B (9 arms) | **0, 3, 4, 4, 4, 6, 7, 10, 11** of 24 — a wedge at the same corner |
+
+| | |
+| --- | --- |
+| fully affected | 55 % |
+| partially affected | 40 % |
+| **unaffected** | **5 %** |
+| mean affected fraction | 0.65 |
+
+**"Class B" does not mean "the ceiling is correct"** — 8 of 9 class-B arms are partially affected. The
+two-state model from `.303` is retired: a single patch mean only reports whether *that rect* fell inside the
+affected region, which is why fifty rounds of measurement kept seeing two clean classes.
+
+**The boundary is diagonal** (arm 4: col ≥ 7, ≥ 6, ≥ 4 down the rows). Axis-aligned rectangles would indicate
+tiles; a diagonal is what a **geometry edge** projects to. With extent varying continuously, this points at a
+variable subset of the ceiling's geometry missing from the trace, anchored at one end of an ordering.
+
+**Use a grid for any future (u) work.** A patch mean cannot see extent, and extent is the thing that varies.
+Caveats: 8×3 is coarse, one room, one pose, and the corner anchoring has not been re-tested with a different
+rect placement.

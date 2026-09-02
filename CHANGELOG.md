@@ -5,6 +5,60 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.348 — (u) IS A CONTINUUM, NOT TWO CLASSES: a corner-anchored region of variable extent, and only 5 % of arms are unaffected
+
+`.347` found class A was not a single state and suggested a per-tile or per-triangle cause. This round mapped
+the **spatial extent** per arm instead of taking one patch mean — `PTGRID=<cols>x<rows>` over a verified clean
+ceiling rect (sd 3.3) — and the binary model this arc has used since `.303` is **wrong**.
+
+**20 arms, livingDining, 8×3 grid:**
+
+| arm class | cells affected | pattern |
+| --- | --- | --- |
+| **A** (11 arms) | **24/24 every time** | completely uniform |
+| **B** (9 arms) | **0, 3, 4, 4, 4, 6, 7, 10, 11** of 24 | wedge anchored at the **same corner** |
+
+```
+arm 4:  BBBBBBBA | BBBBBBAA | BBBBAAAA     7/24
+arm 8:  BBBBBAAA | BBBBBAAA | BBBBAAAA    10/24
+arm 11: BBBBBBBB | BBBBBBBB | BBBBBAAA     3/24
+arm 2:  AAAAAAAA | AAAAAAAA | AAAAAAAA    24/24
+```
+
+**So "class B = the ceiling renders correctly" was wrong.** Eight of nine class-B arms are *partially*
+affected. The real distribution:
+
+| | |
+| --- | --- |
+| fully affected | **55 %** |
+| partially affected | **40 %** (extents 3–11 of 24) |
+| **unaffected** | **5 %** — one arm in twenty |
+| mean affected fraction | **0.65 of the ceiling** |
+
+That materially worsens the severity statement. Every prior version — including `.347`'s softened "the majority
+show it wholly or partly" — rested on a binary read. **Only ~5 % of HQ stills render the ceiling correctly
+throughout.**
+
+**The boundary is diagonal, which is diagnostic.** In arm 4 it sits at col ≥ 7 on row 0, col ≥ 6 on row 1,
+col ≥ 4 on row 2 — moving left as the row descends. A **tile** artefact would give axis-aligned rectangles; a
+diagonal boundary in screen space is what a **geometry edge** projects to. Combined with the extent varying
+continuously across arms, this looks like **a variable subset of the ceiling's geometry missing from the
+trace, anchored at one end of an ordering** — the signature of a truncated or partially-built merge/BVH rather
+than a shading fault.
+
+**Consequences for the record.** Every p(A) figure in this arc — `.345`'s 0.722, `.346`'s 0.632, `.347`'s
+0.655 — is a **binary projection of a continuum**, and the threshold that produced it (a patch mean or an R−B
+sign over one rect) simply reports whether *that rect* fell inside the affected region. They remain valid for
+pricing measurement cost, since a "class-B arm" is still one whose measured patch is unaffected. They are not a
+characterisation of the defect, and `.303`'s two-state framing should be retired.
+
+**Caveats.** 8×3 is coarse: the diagonal inference rests on boundary positions shifting by 1–3 cells across
+three rows, and a finer grid is needed before claiming geometry edges over tiles. One room, one pose. The
+corner anchoring is consistent across all nine partial arms but has not been checked against a different grid
+placement, so it could in principle be tied to the rect rather than the scene.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.347 — no room-dependence in (u)'s rate, but CLASS A IS NOT ONE STATE: the binary model hides intermediate arms
 
 Two 20-arm censuses, one boot each, using `.346`'s Stop-then-Re-render mechanism.

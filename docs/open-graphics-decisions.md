@@ -2249,7 +2249,7 @@ value, and reads it back after the capture (`.254`'s lesson). Same room, pose, a
 runs that happened to be in different states of the nondeterminism now filed as (u). This also verifies the
 `.284` stage label in both directions.
 
-## (u) HQ-TRACE-NONDETERMINISM — 🐞 REAL, found v0.31.5.285; cause NOT yet identified
+## (u) HQ-TRACE-NONDETERMINISM — 🐞 REAL, found v0.31.5.285; a CONTINUUM not two classes (v0.31.5.348); cause NOT yet identified
 
 **The HQ tracer produces one of two discrete outputs from identical inputs.** Same room, pose, hour, tier,
 sample count, exposure and denoise setting; the run lands in one state or the other, and they are ~45 % apart
@@ -3389,3 +3389,41 @@ partly", with the partial cases previously invisible.
 Current characterisation: an independent draw per `createHqRenderSession` call at p(A) ≈ 0.66, deterministic
 once drawn, **not** timing-dependent (`.346`), with no detected room-dependence, and **not strictly binary**.
 ~26 candidate causes eliminated.
+
+### ⚠️ (u) IS A CONTINUUM, AND ONLY ~5 % OF STILLS ARE CLEAN (v0.31.5.348)
+
+Mapping the **spatial extent** per arm (`PTGRID`, 8×3 over a verified clean ceiling rect, 20 arms) retires the
+two-state model this document has carried since `.303`:
+
+| arm class | cells affected | |
+| --- | --- | --- |
+| A (11 arms) | **24/24 every time** | uniform |
+| B (9 arms) | **0, 3, 4, 4, 4, 6, 7, 10, 11** of 24 | wedge at the same corner |
+
+| | |
+| --- | --- |
+| fully affected | **55 %** |
+| partially affected | **40 %** |
+| **unaffected** | **5 %** |
+| mean affected fraction | **0.65 of the ceiling** |
+
+**"Class B" never meant "the ceiling is correct"** — 8 of 9 class-B arms are partially affected. A single patch
+mean only reports whether *that rect* fell inside the affected region, which is why fifty rounds of measurement
+saw two clean classes.
+
+**Severity is worse than every previous statement in this document.** Not "~72 % show the ceiling as
+environment", nor `.347`'s "the majority wholly or partly", but **only about one still in twenty renders the
+ceiling correctly throughout**.
+
+**New mechanistic lead.** The boundary is **diagonal** in screen space (arm 4: col ≥ 7, ≥ 6, ≥ 4 down the
+rows). Tiles would give axis-aligned rectangles; a diagonal is what a **geometry edge** projects to. With extent
+varying continuously arm to arm, this points at **a variable subset of the ceiling's geometry missing from the
+trace, anchored at one end of an ordering** — i.e. a truncated or partially-built merge/BVH, not a shading
+fault. That is a different shape of cause from anything among the ~26 candidates eliminated so far.
+
+**Every rate figure in this document is a binary projection** (`.345` 0.722, `.346` 0.632, `.347` 0.655). They
+remain valid for pricing measurement cost — a "class-B arm" is still one whose measured patch is unaffected —
+but they are not a characterisation of the defect.
+
+Caveats: 8×3 is coarse, one room, one pose, and the corner anchoring has not been re-tested against a different
+rect placement.

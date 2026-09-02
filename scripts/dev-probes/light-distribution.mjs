@@ -114,6 +114,19 @@ if (process.env.PTCLASS_RECT) {
     window.__ptClassRect = v
   }, r)
 }
+if (process.env.PTGRID) {
+  const m = /^(\d+)x(\d+)$/.exec(process.env.PTGRID)
+  if (!m) throw new Error('PTGRID: expected <cols>x<rows>')
+  const rect = (process.env.PTGRID_RECT || '0.1,0.05,0.8,0.35').split(',').map(Number)
+  if (rect.length !== 4 || rect.some((v) => !Number.isFinite(v)))
+    throw new Error('PTGRID_RECT: expected four finite fractional numbers')
+  await page.evaluateOnNewDocument(
+    (v) => {
+      window.__ptGrid = v
+    },
+    { cols: Number(m[1]), rows: Number(m[2]), rect },
+  )
+}
 await page.evaluateOnNewDocument(() => {
   try {
     localStorage.setItem('hdb_onboarded', '1')
@@ -1720,6 +1733,61 @@ if (process.env.PT === '1') {
       n: cands.length,
     }
   }
+  // PTGRID=<cols>x<rows> with PTGRID_RECT=x,y,w,h -- classify a GRID of cells over the
+  // ceiling instead of one patch mean (`.348`).
+  //
+  // `.347` found class A is not one state: bedroom3's class-A arms read 175.6 to the
+  // decimal every time, while livingDining's varied with ~14 % well below the cluster.
+  // Those are PARTIAL arms, and a single patch mean cannot see their structure. That
+  // restores `.293`'s "spatially varying cold cast whose extent varies" and the early
+  // ~8 % class-M observation.
+  //
+  // Whole-surface, per-tile and per-triangle causes predict DIFFERENT spatial patterns:
+  // uniform, axis-aligned blocks, or irregular patches. A grid distinguishes them, and
+  // a patch mean cannot -- so every rate figure in this arc has been a binary
+  // projection of something with structure.
+  const gridStatsFn = () => {
+    const list = [...document.querySelectorAll('canvas')]
+    const scene = list[0]
+    const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
+    const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
+    if (!c) return null
+    const g = window.__ptGrid || { cols: 8, rows: 4, rect: [0.1, 0.05, 0.8, 0.35] }
+    const [rx, ry, rw, rh] = g.rect
+    const W = Math.max(1, Math.round((c.width * rw) / g.cols))
+    const H = Math.max(1, Math.round((c.height * rh) / g.rows))
+    const s2 = document.createElement('canvas')
+    s2.width = W
+    s2.height = H
+    const ctx = s2.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return null
+    const cells = []
+    for (let j = 0; j < g.rows; j++) {
+      for (let i = 0; i < g.cols; i++) {
+        ctx.drawImage(
+          c,
+          Math.round(c.width * (rx + (i * rw) / g.cols)),
+          Math.round(c.height * (ry + (j * rh) / g.rows)),
+          W,
+          H,
+          0,
+          0,
+          W,
+          H,
+        )
+        const d = ctx.getImageData(0, 0, W, H).data
+        let sl = 0
+        let srb = 0
+        const n = d.length / 4
+        for (let k = 0; k < d.length; k += 4) {
+          sl += 0.2126 * d[k] + 0.7152 * d[k + 1] + 0.0722 * d[k + 2]
+          srb += d[k] - d[k + 2]
+        }
+        cells.push({ L: Number((sl / n).toFixed(1)), rb: Number((srb / n).toFixed(1)) })
+      }
+    }
+    return { cols: g.cols, rows: g.rows, cells }
+  }
   await page.evaluate((v) => window.__walkLook?.setPitch(v), PITCH)
   await new Promise((r) => setTimeout(r, 600))
   // PTAI=off|on -- force the `hqAiDenoise` feature flag before the modal mounts
@@ -2040,6 +2108,23 @@ if (process.env.PT === '1') {
       }
       const cls = mode === 'rb' ? (st.rb < 0 ? 'A' : 'B') : st.L >= thresh ? 'A' : 'B'
       seq.push({ i, cls, L: Number(st.L.toFixed(1)), rb: Number(st.rb.toFixed(1)) })
+      if (process.env.PTGRID) {
+        const gs = await page.evaluate(gridStatsFn)
+        if (gs) {
+          // One char per cell: A = environment-hued (R-B < 0), B = room bounce.
+          const rows = []
+          for (let j = 0; j < gs.rows; j++)
+            rows.push(
+              gs.cells
+                .slice(j * gs.cols, (j + 1) * gs.cols)
+                .map((c2) => (c2.rb < 0 ? 'A' : 'B'))
+                .join(''),
+            )
+          const flat = rows.join('')
+          const nA = [...flat].filter((ch) => ch === 'A').length
+          console.log(`  PTGRID arm ${i} (${cls}): ${rows.join('|')}  ${nA}/${flat.length} cells A`)
+        }
+      }
       if (i === n) break
       // `.346`: STOP FIRST. A re-render is far slower than the first render (~12 s vs
       // >120 s), and while one is running the modal offers "Stop", not "Re-render" --
