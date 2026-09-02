@@ -353,3 +353,24 @@ export function mapPlanRooms(plan: FloorPlan, fn: (room: PlanRoom) => PlanRoom):
     ),
   }
 }
+
+/**
+ * The single-storey plan a NEW item should be placed against.
+ *
+ * `itemsSlice.addItem` derives an item's `levelId` from the open room editor, so
+ * anything that resolves geometry at placement time (opening snaps, wall
+ * clearance) has to resolve the SAME storey or the two disagree: a curtain
+ * dropped while editing an upstairs room is tagged upstairs, but a snap searched
+ * against `plan.walls` either finds no window at all or snaps it to a GROUND
+ * window's coordinates. Mirrors `collision/placementWalls.ts`'s level rule.
+ */
+export function placementLevelPlan(s: {
+  floorPlan: FloorPlan
+  roomEditor: { active: boolean; roomId: string | null }
+}): FloorPlan {
+  if (s.roomEditor.active && s.roomEditor.roomId) {
+    const level = levelOfRoom(s.floorPlan, s.roomEditor.roomId)
+    if (level && level.id !== GROUND_LEVEL_ID) return levelAsPlan(s.floorPlan, level)
+  }
+  return s.floorPlan
+}

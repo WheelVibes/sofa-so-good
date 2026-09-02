@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.284 - measurements, placement snapping, suggested views, score suggestions
+
+Clears the last of the unaudited list from `TODO.md`.
+
+**`MeasurementOverlay` — the one that matters most for "fully to scale, measured".** Two failures:
+in the per-room editor a ground-only lookup found no room for an upstairs id and returned `null`,
+so an upstairs room had **no dimension markers at all**; in the whole-plan overview only ground
+rooms got markers and labels. Both paths now cover every storey, and the overview LIFTS each
+storey: `PlanShell` renders level N inside a group at `level.elevation`, but this overlay is
+mounted outside those groups, so it has to raise its own markers or they would all pile onto the
+ground slab. `DimensionMarkers` takes a `baseY` for that. The per-room editor deliberately passes
+0 — `RoomEditorScene` draws the single room at ground level whichever storey it belongs to, applying
+no `level.elevation`, so lifting there would float the markers above the room. Two paths, two
+correct answers; checked in the source rather than assumed. `ceilingOf` also falls back to the
+STOREY's ceiling height before the plan's.
+
+**`usePlacementController` — a real coordinate bug, not just a missing feature.** `addItem` derives
+an item's `levelId` from the open room editor, but the window/door snaps searched
+`floorPlan.walls`/`openings` (ground only). So a curtain dropped while editing an upstairs room was
+either rejected with "this plan has no window" or **snapped to a GROUND window's coordinates while
+being tagged to the upper storey** — placed geometry disagreeing with its own level tag. New
+`levels.ts:placementLevelPlan` resolves the storey the same way, mirroring
+`collision/placementWalls.ts`'s existing rule, and window fixtures are now sized against that
+storey's ceiling height.
+
+**`DesignScorePanel`** — its per-room suggestions were ground-only while `designScore` itself
+already used `allPlanRooms`, so the panel and the score sitting beside it disagreed about what the
+home contains. Item matching moved to `itemsInRoom`, so an upstairs wardrobe is no longer credited
+to the room beneath it (which could tell a bedroom to "add storage" it already had).
+
+**`scene/cameras/suggestViews`** — suggested camera views skipped every upstairs room.
+
+**Verified in the frame** (`scripts/scenarios/multistorey-measurements-f13.json`): the orbit view
+shows Sleeping Loft 9.9 m2, Stair Landing 2.6 m2 and Dressing 4.0 m2 on the loft, sitting above
+Open Living 25.7 m2 / Lounge & Study / Stairs / Bathroom on the ground, with dimension markers on
+both storeys (4.50 m x 2.20 m for the loft, matching its declared 4.5 x 2.2 rect). The assertion
+requires all three upstairs room names, so it cannot pass on a ground-only overlay.
+
+`state/schema.ts` and the `apartment/*` render layer remain unaudited; `apartment/*` reads are
+mostly inside `PlanShell`'s per-level groups, which is why they have not surfaced.
+
 ## v0.31.5.283 - wall elevations for every storey
 
 **Correcting .282's changelog first: I said `allWallElevations` was a dead export with no call

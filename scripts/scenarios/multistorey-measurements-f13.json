@@ -1,0 +1,30 @@
+{
+  "name": "multistorey-measurements-f13",
+  "description": "v0.31.5.284 visual verification: in the whole-plan orbit view of the two-storey Open Loft, dimension markers + room labels must appear on the UPPER storey lifted to its own elevation (they were ground-only, and this overlay sits outside PlanShell's per-level groups so it must raise its own geometry).",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissCallout?.('empty-room-hint'); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "load-loft-plan",
+      "eval": "(function(){ window.__loadErr=null; import('/src/floorplan/templates.ts').then(m => { const plan = m.PLAN_TEMPLATES.find(p => p.id === 'tpl-loft'); if (!plan) throw new Error('tpl-loft missing'); window.__store.getState().replaceFloorPlan(plan, { furniture: 'rehome' }); }).catch(e => { window.__loadErr = String(e); }); })()"
+    },
+    { "name": "plan-loaded", "waitFor": { "store": "window.__loadErr ? (() => { throw new Error(window.__loadErr) })() : (state.floorPlan.upperLevels||[]).length === 1" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 1500 },
+
+    { "name": "measurements-on", "eval": "(() => { const s=window.__store.getState(); if (!s.showMeasurements) { s.toggleMeasurements ? s.toggleMeasurements() : s.setShowMeasurements?.(true); } })()" },
+    { "name": "measurements-visible", "waitFor": { "store": "state.showMeasurements === true" }, "timeout": 10000 },
+    { "name": "settle-overlay", "wait": 1800 },
+
+    {
+      "name": "assert-upper-storey-room-labels",
+      "eval": "(function(){ const labels=[...document.querySelectorAll('.dim-room-name')].map(e=>(e.textContent||'').trim()); if(!labels.length) throw new Error('no dimension room labels rendered at all'); for (const need of ['Sleeping Loft','Dressing','Stair Landing']) { if(!labels.includes(need)) throw new Error('the measurement overlay omits the upstairs room \"'+need+'\" — it iterated plan.rooms (ground only). Got: '+labels.join(' | ')); } window.__dimLabels=labels.join(' | '); })()"
+    },
+    { "name": "shot-overview-measurements", "screenshot": "overview-measurements-two-storeys" }
+  ]
+}

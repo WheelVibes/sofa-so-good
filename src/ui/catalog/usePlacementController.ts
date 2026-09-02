@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isFeatureEnabled } from '../../features/featureFlags'
+import { placementLevelPlan } from '../../floorplan/levels'
 import { useCatalog } from '../../furniture/catalog'
 import { defaultItemProps as defaultProps } from '../../furniture/placement/defaultItemProps'
 import { doorFixtureProps, snapToNearestDoor } from '../../furniture/placement/doorSnap'
@@ -88,8 +89,16 @@ export function usePlacementController() {
     // on the window facing the room side dropped toward, and a plan with no window
     // rejects the placement (toast). Returns whether the commit succeeded.
     const commitWindowBound = (dropPos: [number, number]): boolean => {
-      const { floorPlan, addItem, notify, armedVariantProps } = useStore.getState()
-      const snap = snapToNearestWindow(floorPlan.walls, floorPlan.openings, dropPos)
+      const state = useStore.getState()
+      const { addItem, notify, armedVariantProps } = state
+      // Snap against the storey the item will actually LAND on (F13). `addItem`
+      // derives an item's level from the open room editor, so a curtain dropped
+      // while editing an upstairs room is tagged upstairs — but this searched
+      // `floorPlan.walls`/`openings` (ground only), so it either rejected the
+      // placement as "this plan has no window" or snapped the curtain to a
+      // GROUND window's coordinates while tagging it to the upper storey.
+      const lp = placementLevelPlan(state)
+      const snap = snapToNearestWindow(lp.walls, lp.openings, dropPos)
       if (!snap) {
         notify.start({
           kind: 'info',
@@ -109,7 +118,7 @@ export function usePlacementController() {
         props: {
           ...defaultProps(def),
           ...(armedVariantProps ?? {}),
-          ...windowFixtureProps(def.id, snap.window, floorPlan.ceilingHeight),
+          ...windowFixtureProps(def.id, snap.window, lp.ceilingHeight),
         },
       })
       return true
@@ -119,8 +128,11 @@ export function usePlacementController() {
     // spanning the doorway facing the room side dropped toward, and a plan with no
     // door rejects the placement (toast). Mirrors `commitWindowBound`.
     const commitDoorBound = (dropPos: [number, number]): boolean => {
-      const { floorPlan, addItem, notify, armedVariantProps } = useStore.getState()
-      const snap = snapToNearestDoor(floorPlan.walls, floorPlan.openings, dropPos)
+      const state = useStore.getState()
+      const { addItem, notify, armedVariantProps } = state
+      // Same storey resolution as `commitWindowBound` (F13).
+      const lp = placementLevelPlan(state)
+      const snap = snapToNearestDoor(lp.walls, lp.openings, dropPos)
       if (!snap) {
         notify.start({
           kind: 'info',

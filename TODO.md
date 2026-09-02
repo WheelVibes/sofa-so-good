@@ -263,11 +263,21 @@ exact commit so it can — do not leave it to be discovered.
   `openingSchedule`, `demolitionPlan`, `electricalPlan`, `plumbingPlan`, `settingOut`,
   `autoArrange`, `furnishPlan`, `Minimap` (via `minimapLevelView`), `rcp` (fanned out by
   `drawingSet`), `dxf` (ground-only BY DESIGN, documented in its header).
-- Still unaudited: `ui/MeasurementOverlay`, `ui/DesignScorePanel` (its suggestions list is
-  ground-only while `designScore` itself uses `allPlanRooms` — the panel and the score disagree),
-  `scene/cameras/suggestViews`, `ui/catalog/usePlacementController` (window/door snapping uses
-  ground walls, so a curtain cannot snap to an upstairs window), `apartment/*` render layer,
-  `state/schema.ts`. (`ui/ElevationPanel` done in .283.)
+- Still unaudited: **`state/schema.ts`** and the **`apartment/*` render layer**. The render layer
+  is lower risk than it looks — most of its `plan.*` reads sit INSIDE `PlanShell`'s per-level
+  groups (each mounted at `level.elevation` with a `levelAsPlan` result), which is why none have
+  surfaced. `schema.ts` is deliberately last: it is the serialisation boundary the FINAL migration
+  stage rewrites, so touching it before then would mean doing that work twice.
+  (`MeasurementOverlay`, `DesignScorePanel`, `suggestViews`, `usePlacementController` done in
+  .284; `ElevationPanel` in .283.)
+
+**A pattern worth naming, from .284.** Two consumers of the same overlay needed OPPOSITE answers
+about elevation: the whole-plan overview must lift an upstairs room's markers by
+`level.elevation` (it sits outside `PlanShell`'s per-level groups), while the per-room editor must
+NOT (it draws the single room at ground level and applies no elevation). So "does this consumer
+need the storey lift?" is a question about the RENDER TREE the consumer is mounted in, not about
+the data — and it can only be answered by reading the mount site. Assuming one answer for both
+would have floated the room-editor markers above the floor.
 
 **Confirmed target shape (dev-09 asked, 2026-09-03).** The field IS `plan.levels: PlanLevel[]`
 and the ground floor IS `levels[0]` — it does not stay separate. `levelAsPlan` keeps returning a
