@@ -12163,3 +12163,124 @@ photographically correct (a real tension — a physically correct charcoal bedro
 unusable for design work); and whether the term should track the visible room only or the whole plan.
 
 No `src/` change beyond the version bump.
+
+---
+
+## Round .330 — (w) priced, and it corrects `.329`
+
+`.329` filed item (w) on a structural finding (nothing in the lighting path reads an interior finish) plus two
+measured zeros (floor and pillow unchanged under a 28× wall-reflectance change). The structural half is solid.
+This round asked the question `.329` skipped: **what are the correct answers?** Because a zero is only a defect
+if the correct answer is non-zero.
+
+### Method
+
+Same product action — bedroom3's walls repainted white → **`wall-paint-ink` `#2b3340`** through the app's own
+finish path — but now measured in *both* renderers at one pose, with the trace **class-matched**.
+
+`WALKFOV=72`, `PITCH=-0.02`, medium tier, photographic look, hour 13, 16:9, 256 samples. The wide FOV was
+chosen so that ceiling, wall, bed and floor appear in a single frame — the ceiling because (u) classification
+needs it. `hqRenderFov` returns the live FOV when no focal length is set, so the wide FOV carries into the
+trace and one fractional patch set serves both images (checked before spending any traces).
+
+Patch set carries `.329`'s discipline: **`wall-L` must move** (its own albedo changes) alongside surfaces that
+can only move via interreflection. Same-frame landing check by construction.
+
+### The result
+
+| patch | raster white → Ink | raster Δ | tracer, class B, white → Ink | tracer Δ |
+| --- | --- | --- | --- | --- |
+| wall-L — landing check | 144.6 → 22.6 | −84 % | 120.7 → 14.4 | −88 % |
+| **ceiling** | 126.9 → **126.9** | **0.0 %** | 116.9 → 92.6 | **−21 %** |
+| floor | 102.5 → **102.5** | **0.0 %** | 122.0 → 122.3 | **+0.2 %** |
+| pillow | 161.6 → **161.6** | **0.0 %** | 158.0 → 154.4 | **−2.3 %** |
+| ~~bed-top~~ | 155.7 → 152.6 | — | — | **discarded** |
+
+`bed-top` is discarded on its own sd, which doubled (17.9 → 32.0) — the patch clips the mattress edge, and in
+the Ink arm that edge is against a near-black wall. Its apparent −2.0 % raster "response" is that clipping, not
+interreflection. Worth noting the raster *cannot* respond by construction, so any non-zero raster delta on a
+supposedly bounce-only surface is a patch-hygiene signal — a useful self-check this pose provided for free.
+
+### The correction to `.329`
+
+`.329`'s structural claim stands: there is no interreflection term, confirmed in code and by byte-identical
+output. But `.329` wrote that "the app renders a charcoal bedroom **exactly as bright** as a white one", and
+framed it as a physically impossible result visible to any user who repaints a room.
+
+On the surfaces `.329` actually measured, the correct answers are **+0.2 %** and **−2.3 %**. The raster is
+approximately right there. `.329` had measured the two **least wall-bounce-dependent surfaces in the room** —
+the floor and a pillow, both near the window and both dominated by direct skylight — and generalised from them
+to the room.
+
+The defect's real locus is the **ceiling**: ~21 % too bright. That is exactly where it should be, on reflection.
+The ceiling is the one surface that sees every wall and no window, so its illumination is almost entirely
+inter-reflected. The floor sees the sky directly.
+
+**The generalisable lesson: a zero is uninterpretable without a reference.** `.329` was structurally right and
+quantitatively unfounded in the same paragraph, and the arc's existing rules did not catch it — the intervention
+landed, the patches were clean, the control behaved. What was missing was the *other* renderer's answer to the
+same question.
+
+### A prediction of mine that was wrong
+
+Before running the class-B arms I stated that a class-A pair would give a **lower bound**, reasoning that a
+missing ceiling admits undyeable environment light which dilutes the walls' share.
+
+Wrong, and in the opposite direction:
+
+| patch | class-A pair | class-B pair |
+| --- | --- | --- |
+| bed-top | −7.5 % | −3.1 % |
+| floor | −5.2 % | +0.2 % |
+| pillow | −5.1 % | −2.3 % |
+
+Class A **overstates** the response for these surfaces. Plausibly because with the ceiling gone the walls become
+a larger fraction of the enclosure that light bounces off before reaching bed and floor — but that is a guess,
+not a measurement, and the operative rule is simply: **class-A figures bound nothing in class B, in either
+direction.** Compare class A only with class A.
+
+### (u) corroborated twice, by a shipped product action
+
+Across a 28× change in wall reflectance:
+
+| | ceiling response |
+| --- | --- |
+| class A | **0.0 %** — 175.2 → 175.2, to the decimal |
+| class B | **−21 %** — 116.9 → 92.6 |
+
+A real ceiling above near-black walls **must** darken. Class A's does not move by one part in a thousand, while
+every genuine surface in the same frame responds. That is precisely what "in class A the ceiling is not
+rendered as a surface" predicts.
+
+This is the cleanest form of the (u) argument the arc has produced, because the intervention is a **shipped
+product action** — a user picking a paint colour — rather than a dye, a special environment, or a temporary
+`src/` change. It needed none of those.
+
+### (u) is deterministic, not stochastic
+
+Eight renders across five boots. Every class-A arm read ceiling **175.2** to the decimal; paired arms agreed
+across all five patches (N1 ≡ N2 exactly, M1 ≡ M2 to 0.9 counts).
+
+So (u) is **not** a sampling race, an accumulation-order effect, or noise. It is a discrete alternative
+rendering, selected once per `createHqRenderSession` call and then followed deterministically — consistent with
+`.305` and `.328`, and a genuine constraint on what can still explain it: any hypothesis involving randomness
+*during* the trace is excluded.
+
+### Discriminator, self-calibrated at this pose
+
+| | ceiling | R−B |
+| --- | --- | --- |
+| class A | 175.2 | −13.8 |
+| class B, white walls | 116.9 | **+6.5** |
+| class B, Ink walls | 92.6 | +0.5 |
+
+A 58-count separation with an R−B sign flip. Calibrated **at this pose**, not imported from `.325`'s
+`PITCH=0.30` figures — `.326`'s trap. Note the class-B ceiling value itself moves with wall paint (116.9 → 92.6),
+which is exactly why a class threshold cannot be carried across an intervention either.
+
+### Cost
+
+Four paired PT runs (eight renders, ~30 minutes) to obtain one class-matched class-B pair. Six of eight arms
+landed in class A. (u)'s tax on (p)- and (w)-adjacent measurement is now roughly 4×.
+
+No `src/` change beyond the version bump.

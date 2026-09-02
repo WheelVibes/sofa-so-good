@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.330 — (w) priced, and it CORRECTS `.329`: the defect is the ceiling (~21 %), not the room
+
+`.329` filed (w) on a structural finding plus two zeros. This round measured what the *correct* answers are, and
+the zeros turn out to have been taken on the two least sensitive surfaces in the room.
+
+Class-matched throughout (both conditions class B for the trace), bedroom3 `WALKFOV=72` `PITCH=-0.02`, medium,
+photographic look, hour 13, 16:9, 256 samples. Walls white → `wall-paint-ink` `#2b3340` via the app's own
+finish path:
+
+| patch | raster white → Ink | raster Δ | tracer white → Ink | tracer Δ |
+| --- | --- | --- | --- | --- |
+| wall-L — landing check | 144.6 → 22.6 | −84 % | 120.7 → 14.4 | −88 % |
+| **ceiling** | 126.9 → **126.9** | **0.0 %** | 116.9 → 92.6 | **−21 %** |
+| floor | 102.5 → **102.5** | **0.0 %** | 122.0 → 122.3 | **+0.2 %** |
+| pillow | 161.6 → **161.6** | **0.0 %** | 158.0 → 154.4 | **−2.3 %** |
+| ~~bed-top~~ | 155.7 → 152.6 | — | — | discarded, sd 17.9 → 32.0 |
+
+**Correction to `.329`.** Its structural claim stands and is code-confirmed — the raster has no interreflection
+term, and nothing in `look.ts` or `src/scene/lighting/*` reads an interior finish. But `.329` wrote that "a
+charcoal bedroom renders exactly as bright as a white one", framing it as a result visible to any user. On the
+surfaces it measured — floor and pillow — the correct answers are **+0.2 %** and **−2.3 %**, so the raster is
+approximately right there. **A zero is only a defect if the correct answer is non-zero**, and `.329` asserted a
+magnitude it had not measured. The defect's locus is the **ceiling**, at ~21 %, because the ceiling is the one
+surface that sees every wall and no window.
+
+**A prediction of mine that was wrong.** `.330` set out expecting class A to be a *lower bound* on class B, on
+the reasoning that a missing ceiling admits environment light and dilutes the walls' share. It is not a bound
+in either direction: class A gave bed −7.5 %, floor −5.2 %, pillow −5.1 % against class B's −3.1 %, +0.2 %,
+−2.3 %. Class-A figures cannot bound class-B ones, only be compared with other class-A figures.
+
+**(u) corroborated twice, by a shipped product action rather than a probe artefact.** Across a 28× change in
+wall reflectance:
+
+| | ceiling response |
+| --- | --- |
+| class A | **0.0 %** (175.2 → 175.2, to the decimal) |
+| class B | **−21 %** (116.9 → 92.6) |
+
+A real ceiling above near-black walls must darken. Class A's does not move at all, which is what "the ceiling is
+not rendered as a surface" predicts — established here with no dye, no special environment and no `src/` change.
+
+**(u) is deterministic, not stochastic.** Eight renders across five boots: every class-A arm read ceiling 175.2
+to the decimal, and paired arms agreed across all five patches (N1 ≡ N2 exactly). So it is not a sampling race
+or accumulation noise but a discrete alternative rendering, chosen once per `createHqRenderSession` call and
+then followed exactly — consistent with `.305` and `.328`, and a real constraint on remaining hypotheses.
+
+**Discriminator self-calibrated at this pose** rather than imported across a pose change (`.326`'s trap): class
+A ceiling 175.2 / R−B −13.8, class B 116.9 / **+6.5** white and 92.6 / +0.5 Ink — a 58-count separation with an
+R−B sign flip.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.329 — the DEFAULT render has zero interreflection: repaint a room near-black and nothing else changes by one part in a thousand
 
 `.328` proved the rasteriser has no interreflection while chasing an HQ question. That finding is much bigger

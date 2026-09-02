@@ -2843,7 +2843,7 @@ weak-device tier before it lands. (k) is the only open item that is a genuine RE
 than a content or policy call — it is the strongest candidate for the next round, once the loss has
 been attributed to the glass or to the background tone-mapping path.
 
-## (w) RASTER-INTERREFLECTION — 🐞 REAL, and it is in the DEFAULT render path (found v0.31.5.329)
+## (w) RASTER-INTERREFLECTION — 🐞 REAL, in the DEFAULT render path; PRICED at ~21 % ON THE CEILING (found v0.31.5.329, priced v0.31.5.330)
 
 **Repainting a room's walls from white to near-black changes the rest of the room's render by exactly zero.**
 This is the real-time walk render — the render every user actually sees — not the HQ still. It is independent of
@@ -2889,3 +2889,36 @@ direction. But it is a **look change to the default render of every scene**, so 
 **not being made unilaterally**. Open questions for that call: whether to scale hemisphere, ambient and the IBL
 probe together or separately; whether to clamp the darkening so dark schemes stay usable rather than
 photographically correct; and whether it should track the *visible* room only or the whole plan.
+
+### ⚠️ PRICED v0.31.5.330 — and it corrects `.329`'s magnitude
+
+`.329` filed this item on a structural finding plus two zeros. `.330` measured what the **correct** answers are,
+class-matched in both renderers at one pose (bedroom3 `WALKFOV=72` `PITCH=-0.02`, medium, photographic look,
+hour 13, 16:9):
+
+| patch | raster Δ (white → Ink) | tracer Δ (class B) | raster error |
+| --- | --- | --- | --- |
+| **ceiling** | **0.0 %** | **−21 %** | **~21 %, the defect** |
+| floor | 0.0 % | **+0.2 %** | none |
+| pillow | 0.0 % | **−2.3 %** | ~2 % |
+| wall-L (landing check) | −84 % | −88 % | n/a — own albedo |
+
+**`.329`'s framing was over-strong and is corrected here.** Its structural claim stands — there is no
+interreflection term, confirmed in code and by byte-identical output. But it wrote that "a charcoal bedroom
+renders exactly as bright as a white one" and called that a result visible to any user, on the strength of
+zeros measured at the **floor and a pillow** — the two least wall-bounce-dependent surfaces in the room, both
+near the window and both dominated by direct skylight. The correct answers there are +0.2 % and −2.3 %, so the
+raster is approximately right on those surfaces.
+
+**The defect is localised to the ceiling**, at ~21 % too bright with dark walls — which is where it should be,
+since the ceiling is the one surface that sees every wall and no window.
+
+**What that means for the decision.** The fix is narrower and cheaper than `.329` implied, and the
+usability tension is milder: making the *ceiling* respond to wall reflectance is a much smaller look change
+than darkening the whole room, and it targets the surface carrying nearly all of the error. The open
+sub-questions from `.329` still stand (scale hemisphere/ambient/IBL together or separately; clamp for
+usability; visible room or whole plan), but the magnitude to aim for is now known for one pose and hour, and
+**~21 % on the ceiling is the number to price against** — not a room-wide darkening.
+
+Caveat, per this arc's standing rule: one pose, one hour, one room, one tier. The ceiling figure should be
+re-measured at a second pose before it is treated as a target.
