@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.304 - resolving .303's "cannot prove": the measurement was broken, not the fix
+
+`.303` shipped the curtain specification and then added an unusually careful caveat: the rendered
+pack improved when I corrected a probe argument, but running both arms through the test harness gave
+**byte-identical room lists**, so I declined to claim the fix as the explanation and logged it
+unresolved.
+
+**The caveat was wrong, and it was wrong for the third instance of one specific reason: my arm-swap
+never landed.** Biome had reformatted the call across seven lines, so the `str.replace` that was
+supposed to substitute `o.offset` for the constant matched nothing. Both "arms" were the same code.
+The identical results were not evidence of a no-op in the product — they were evidence that I had
+not changed the product.
+
+Re-measured with the swap **verified** (the probe now prints the argument actually in play beside
+the result, which is how the failure surfaced — my restore assertion threw):
+
+| probe argument | rooms resolved |
+|---|---|
+| `CURTAIN_PROBE_OFFSET` (0.2 m) | Main Bedroom, Bedroom 2, Bedroom 3, Living / Dining, AC Ledge, Bath/WC 2 |
+| `o.offset` | Main Bedroom, **Unassigned, Unassigned**, Living / Dining, AC Ledge, **Corridor** |
+
+Exactly the two frames. So the frames were truthful, the probe argument WAS the cause, and the
+`.303` caveat was an artefact of a broken instrument. `.303`'s changelog and TODO entries are
+corrected in place; the test comment now records both arms as measured fact rather than describing
+itself as an unprovable pin.
+
+**Why this keeps happening, stated precisely.** The rule I have written down twice is "verify the
+intervention landed". I did verify it in `.286` (printing the edited lines) and in `.291` (noticing
+a byte-identical failure) — but each time I verified the *product* edit, never the *measurement*
+edit. An arm-swap in a probe is itself an intervention, and it is the one most likely to fail
+silently, because a `str.replace` that matches nothing returns the original string without
+complaint and every downstream step still succeeds.
+
+The durable fix is structural rather than another reminder: **an arm-swap must assert it changed
+something, and the probe must print the state actually in play.** Both are now in this session's
+scripts — the assertion is what threw, and the printed argument is what named the cause.
+
+There is a second-order lesson worth keeping. `.303`'s caveat was *epistemically* the right move on
+the evidence I had: two disagreeing measurements, so claim neither. It was still a wrong conclusion,
+because one of the two instruments was broken and I had not checked either. **Careful hedging is not
+a substitute for verifying the instrument** — it just makes a broken measurement sound responsible.
+
+TODO.md's UNRESOLVED entry is removed rather than left standing, since leaving a resolved item
+described as open is its own kind of false record.
+
 ## v0.31.5.303 - curtain specification, and an honest account of a fix I cannot prove
 
 The curtains trade pack listed each treatment's rendered width x height, under a caveat that
@@ -27,7 +72,14 @@ installer's. The one nearby published figure — 150 mm single-track, 200 mm dou
 DEPTH, a different dimension; substituting it would have been easy, would have looked sourced, and
 would have put a fabricated number on a maker's order.
 
-## The part I need to be straight about
+## The part I need to be straight about — SUPERSEDED by v0.31.5.304
+
+> **Corrected.** The "cannot prove" conclusion below is wrong. My arm-swap never landed (biome had
+> reformatted the call across seven lines, so the `str.replace` matched nothing), which is why both
+> arms agreed. Re-measured with the swap verified, `o.offset` gives
+> "Main Bedroom, Unassigned, Unassigned, Living / Dining, AC Ledge, Corridor" against the constant's
+> correct six — exactly the two frames. The probe argument WAS the cause. Kept in place because a
+> retracted caveat that leaves no trace teaches nothing.
 
 Reading the first frame, two of six rows said "Unassigned" and one named the wrong room. I found
 that `roomsAcrossOpening`'s 4th argument is the PROBE DISTANCE perpendicular to the wall — every

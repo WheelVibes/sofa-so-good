@@ -226,19 +226,20 @@ describe('curtains pack carries a SPECIFICATION, not just footprints', () => {
   })
 
   it('resolves every window to a real room — not "Unassigned"', () => {
-    // A REGRESSION PIN, not a proof of the fix. Honest account:
+    // `roomsAcrossOpening`'s 4th argument is the PROBE DISTANCE perpendicular
+    // to the wall; every other caller passes a 0.2 m constant. Passing
+    // `PlanOpening.offset` — an ALONG-WALL position, spelled the same and also
+    // a `number` — probes a metre or more into the room. Measured on the
+    // default flat with the argument swapped and the swap VERIFIED to have
+    // landed:
     //
-    // The rendered pack changed for the better when the probe argument was
-    // corrected (two "Unassigned" rows and one wrong room became Bedroom 2,
-    // Bedroom 3 and Bath/WC 2), but running BOTH arms through this harness gave
-    // byte-identical room lists — so something in the live path contributes
-    // that this fixture does not reproduce, and I have not isolated it.
+    //   0.2 m constant → Main Bedroom, Bedroom 2, Bedroom 3, Living / Dining,
+    //                    AC Ledge, Bath/WC 2
+    //   `o.offset`     → Main Bedroom, Unassigned, Unassigned, Living / Dining,
+    //                    AC Ledge, Corridor
     //
-    // The fix stands on its own terms regardless: `roomsAcrossOpening`'s 4th
-    // argument is the PROBE DISTANCE perpendicular to the wall, and every other
-    // caller passes a 0.2 m constant. Passing `PlanOpening.offset` — an
-    // along-wall position, spelled the same, also a `number` — was wrong
-    // whatever it happened to produce here.
+    // Nothing but a rendered document distinguishes the two arguments: the
+    // compiler cannot, and neither can a reviewer reading the call.
     const pack = buildTradePack('curtains', fullInput)
     const at = pack.html.indexOf('Curtain specification')
     const table = pack.html.slice(at, pack.html.indexOf('</table>', at))
