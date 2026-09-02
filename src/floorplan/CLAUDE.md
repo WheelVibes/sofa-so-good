@@ -8,6 +8,18 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   resolve a room's storey with `levelOfRoom`, an item's with `levelOfItem`
   (`item.levelId`, absent = ground). Run any single-level geometry helper on one
   storey via `levelAsPlan(plan, level)` — never hand-roll level math.
+- **An item's room is `levels.ts` `roomAtItem(plan, item)`, never a `rooms.find(pointInRoom)`.**
+  That idiom is wrong TWICE in a multi-storey home: it cannot see an upstairs room, and once it
+  can (via `allPlanRooms`) it matches the room directly ABOVE OR BELOW the item, because storeys
+  share one XZ space. Room ids are plan-unique, so the mis-attribution is silent — a bed upstairs
+  gets costed into the living room beneath it. Five whole-plan consumers had hand-rolled it (FF&E
+  schedule, shopping list, `reportData`'s two per-room breakdowns).
+- **Whole-home enumeration is `allPlanRooms`/`allPlanWalls`/`allPlanOpenings`; whole-home area is
+  `planTotalAreaAllLevels`.** `planTotalArea` stays SINGLE-level (the plan editor calls it per
+  storey) — the asymmetry is deliberate, so a caller who wants everything has to say so.
+  **But when a per-room calculation depends on the room's LEVEL (ceiling height, elevation),
+  iterate `planLevels` + `levelAsPlan` instead** — a flat room list has lost the storey the
+  fallback needs. `wallAreaByFinish` is the worked example.
 - **Cross-item spatial scans must be level-gated**: two items only interact when
   `(a.levelId ?? 'ground') === (b.levelId ?? 'ground')` (see `itemsCollide`,
   `findNarrowGaps`, `findWallClipsByLevel`, `isItemInRoom`). Same for item↔wall

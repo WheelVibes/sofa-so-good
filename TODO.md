@@ -254,6 +254,18 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 (added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
 exact commit so it can — do not leave it to be discovered.
 
+**Confirmed target shape (dev-09 asked, 2026-09-03).** The field IS `plan.levels: PlanLevel[]`
+and the ground floor IS `levels[0]` — it does not stay separate. `levelAsPlan` keeps returning a
+`SingleLevelPlan = Omit<FloorPlan, 'levels'> & LevelGeometry`.
+
+**A consumer migrated AHEAD of the schema must be shape-tolerant, and the obvious form is not.**
+`[plan, ...(plan.upperLevels ?? [])].flatMap((l) => l.walls ?? [])` reads the ground level as
+`plan` ITSELF, so post-migration `[plan, ...]` contributes nothing and the consumer silently
+returns the upper storeys alone — empty for a single-storey plan. Use
+`const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]`, which takes the legacy branch
+today and the new one after. This only applies OUTSIDE `src/` (the probes); inside `src/`, import
+the `levels.ts` accessors and let them absorb the change in one place.
+
 **Why a lint guard is not an alternative (the load-bearing justification, recorded here because it
 gets lost once the diff is merged).** Grep cannot distinguish "whole plan" from "one storey" because
 the difference lives at the CALL SITE, not in the text. `planTotalArea` is the proof: the plan

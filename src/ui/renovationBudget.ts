@@ -7,6 +7,7 @@
 
 import { buildRenovationAllocation, type RenoAllocation } from '../analysis/renovationAllocator'
 import { isFeatureEnabled } from '../features/featureFlags'
+import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
@@ -18,7 +19,7 @@ import { csvNumberField, csvSafeField } from '../utils/csv'
 function floorMap(state: RootState, plan: FloorPlan): Record<string, string> {
   if (isDefaultPlan(plan)) return state.finishes.floor as Record<string, string>
   const m: Record<string, string> = {}
-  for (const r of plan.rooms) if (r.floor) m[r.id] = r.floor
+  for (const r of allPlanRooms(plan)) if (r.floor) m[r.id] = r.floor
   return m
 }
 
@@ -26,7 +27,7 @@ function floorMap(state: RootState, plan: FloorPlan): Record<string, string> {
 function wallMap(state: RootState, plan: FloorPlan): Record<string, string> {
   if (isDefaultPlan(plan)) return state.finishes.walls as Record<string, string>
   const m: Record<string, string> = {}
-  for (const r of plan.rooms) if (r.wall) m[r.id] = r.wall
+  for (const r of allPlanRooms(plan)) if (r.wall) m[r.id] = r.wall
   return m
 }
 

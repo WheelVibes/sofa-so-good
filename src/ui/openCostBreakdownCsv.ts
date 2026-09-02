@@ -1,3 +1,4 @@
+import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { useStore } from '../state/store'
@@ -18,7 +19,7 @@ function finishMaps(plan: FloorPlan): {
   }
   const floor: Record<string, string> = {}
   const walls: Record<string, string> = {}
-  for (const r of plan.rooms) {
+  for (const r of allPlanRooms(plan)) {
     if (r.floor) floor[r.id] = r.floor
     if (r.wall) walls[r.id] = r.wall
   }

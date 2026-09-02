@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.277 - the cost layer was quoting the ground floor only
+
+Second migration batch, and the biggest bug class found so far: **every procurement and cost
+surface enumerated `plan.rooms`, which is ground-only.** Verified whole-plan at every call site,
+so on a maisonette or loft:
+
+- **BOQ** (`openBoq`), the **cost-breakdown CSV**, the **renovation budget allocator** and the
+  **report's finishes tables** measured only the ground floor's floor and wall area. A flooring
+  order was short by the entire upstairs.
+- **FF&E schedule** and the **shopping list** filed every upstairs piece as "Unassigned".
+- The **room switcher / "Edit a room"** list (`state/rooms.ts`) never offered an upstairs room.
+
+**New: `levels.ts:roomAtItem(plan, item)`.** Five consumers had hand-rolled
+`plan.rooms.find(r => pointInRoom(r, x, z))`, which is wrong twice over — it cannot see an
+upstairs room, and simply swapping in `allPlanRooms` would have made it worse, matching the room
+directly ABOVE OR BELOW the item because storeys share one XZ coordinate space. Room ids are
+plan-unique, so that mis-attribution is silent: a bed upstairs costed into the living room
+beneath it. `roomAtItem` resolves the item's own storey first. A test places one item at the XZ
+where the two rooms overlap and pins each to its own level.
+
+**`wallAreaByFinish` is iterated per storey, not over the flat room list**, because the height
+fallback must be the room's OWN level's `ceilingHeight`. A flat room list has already lost that;
+using the ground floor's 2.6 m for a 3.2 m upper storey understates its paint by 19%. This is the
+general rule now recorded in `src/floorplan/CLAUDE.md`: flat accessors for enumeration,
+`planLevels` + `levelAsPlan` whenever the per-room maths depends on the storey.
+
+6 of the 8 new tests were confirmed to FAIL with the fixes stashed. The other two document
+`roomAtItem`'s above/below gating, which by construction cannot fail against its own absence.
+
+**Correction from dev-09, and it was a good catch.** I suggested its probes inline
+`[plan, ...(plan.upperLevels ?? [])].flatMap(l => l.walls ?? [])`. That is the PRE-migration shape
+only — after the final stage there is no `plan.walls`, so `[plan, ...]` contributes nothing and
+every probe silently returns the upper storeys alone (empty for a single-storey plan, reading as
+"no window matched"). The shape-tolerant form is `p.levels ?? [p, ...(p.upperLevels ?? [])]`.
+Recorded in `TODO.md` along with the confirmed target field name, since the same trap applies to
+any consumer migrated ahead of the schema.
+
 ## v0.31.5.276 - whole-home accessors, and three more ground-only bugs
 
 First migration batch. The user has authorised a full schema migration, and a better staging emerged

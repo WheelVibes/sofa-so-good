@@ -14,6 +14,7 @@ import {
   type PlanUpperLevel,
   type PlanWall,
   planTotalArea,
+  pointInRoom,
 } from './types'
 
 /** The ground floor's well-known level id (items/rooms with no explicit level). */
@@ -284,4 +285,26 @@ export function allPlanWalls(plan: FloorPlan): PlanWall[] {
 /** Every opening in the home, across all storeys. See {@link allPlanWalls}. */
 export function allPlanOpenings(plan: FloorPlan): PlanOpening[] {
   return planLevels(plan).flatMap((l) => (Array.isArray(l.openings) ? l.openings : []))
+}
+
+/**
+ * The room an item stands in, searched on the item's OWN storey only.
+ *
+ * The naive `plan.rooms.find((r) => pointInRoom(r, x, z))` is wrong twice over
+ * in a multi-storey home: it cannot see an upstairs room at all, and once it
+ * could (via `allPlanRooms`) it would match a room DIRECTLY ABOVE OR BELOW the
+ * item, because a plan's storeys share one XZ coordinate space. Room ids are
+ * plan-unique, so the mis-attribution is silent — a bed upstairs would be
+ * costed into the living room beneath it.
+ *
+ * Returns `null` for an item outside every room on its storey (the callers'
+ * "Unassigned" bucket).
+ */
+export function roomAtItem(
+  plan: FloorPlan,
+  item: Pick<FurnitureItem, 'levelId' | 'position'>,
+): PlanRoom | null {
+  const level = levelOfItem(plan, item)
+  const [x, z] = item.position
+  return level.rooms.find((r) => pointInRoom(r, x, z)) ?? null
 }
