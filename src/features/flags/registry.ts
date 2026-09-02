@@ -48,6 +48,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  deliveryAccess: {
+    label: 'Delivery access',
+    description: 'Check furniture can reach the room via lift, corridor and doors',
+    default: true,
+    tier: 'pro',
+  },
   siteMeasurements: {
     label: 'Site measurements',
     description: 'Reconcile tape-measured dimensions against the model',

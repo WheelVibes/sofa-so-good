@@ -259,6 +259,14 @@ proposing a channel change (meta-rule xvii-b).
   390px phone viewport. **Optional follow-up, not a gap:** wire the plan editor's existing measure
   tool so a tap-and-type records directly rather than going via the inspector — faster on site, but
   the inspector path is complete and usable as-is.
+- **[delivery access] Corridor turn + per-project route override UI.** v0.31.5.273 checks the three
+  rectangular apertures (lift door, cabin, main door) against published SG typicals. Not done:
+  (a) the CORRIDOR TURN from lift lobby to front door — the sources say measure it before ordering
+  anything over 1.5 m, but a turn is not a rectangular aperture and modelling it needs lobby geometry
+  the app does not have; (b) a UI to enter the user's ACTUAL measured route, which the sources are
+  emphatic matters ("even a difference of 5 to 10 centimeters"). The core already takes a `route`
+  argument, so (b) is a form plus a persisted field — and it should reuse the `SiteMeasuredField`
+  pattern from v0.31.5.271/.272 rather than inventing a second measurement surface.
 - **[layout critique] Add a walkway-width check using the SG figure, not the generic one.** The two
   standards disagree: 91 cm generic vs "at least 70-80 cm" in SG guidance
   (`docs/research/2026-09-02-layout-critique-standards.md` records both). `designScore`'s circulation

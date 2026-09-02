@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.273 - can the furniture actually get into the room?
+
+A fresh gap pass over the app after 29 commits found one fit question it had never asked.
+`analysis/accessibility.ts` checks a door is wide enough for a PERSON (0.85 m wheelchair clearance);
+`catalog/roomFit.ts` checks a piece fits the ROOM once it is in there. Nothing checked the route
+between the lorry and the room. A sofa that fits the living room perfectly and cannot clear the lift
+door is a real, expensive and very common failure — the SG furniture guides lead with it, and it is
+the check a designer makes before anything is ordered.
+
+New pure `analysis/deliveryAccess.ts` (`deliveryAccess` flag, pro), surfaced as a "Delivery access"
+section in the design report. Thresholds are cited, not derived — full provenance in
+`docs/research/2026-09-02-delivery-access-standards.md`: lift door 0.80 x 2.09 m, lift cabin
+1.00 x 2.34 m, main entrance door 0.80 x 2.10 m. Where a source gives a range the default takes the
+TIGHTER figure, since a warning should assume the tighter common case rather than the flattering one;
+a test pins the lift door at 0.80 m for that reason.
+
+**The rule.** A box passes an aperture when its two SMALLEST dimensions fit the aperture's two — you
+can always orient it to present its smallest face. Deliberately slightly conservative: it does not
+model the diagonal tilt the guides describe for sofas up to ~0.9 m seat depth. Occasionally flagging
+a piece a skilled crew could squeeze in beats letting someone order a sofa that goes back.
+
+**The caveat that shaped the design.** The box checked is the ASSEMBLED object, and plenty of
+furniture ships flat-packed — the sources themselves say a too-deep sofa "may need to be dismantled
+for delivery". So a finding is NOT a verdict. Each one reads "Needs 0.85 x 0.90 m clear on its
+smallest face, against Lift door opening at 0.80 x 2.09 m. Measure your actual lift door opening, or
+confirm it ships knock-down." A test asserts that wording contains "measure your actual" and "ships
+knock-down" and does NOT contain "cannot be delivered" or "will not fit" — a check that reads as a
+verdict when it is really a prompt gets ignored after the second false alarm, and flat-packed
+furniture guarantees there will be some.
+
+Also from the sources, and why the defaults are overridable per constraint: HDB lift sizes "vary by
+block, so the safest answer is to measure your actual lift", where "even a difference of 5 to 10
+centimeters can determine whether a large item fits".
+
+**Measured on the shipped 4-room layout**, two pieces flag and both are informative: `sofa-3seat`
+(0.85 m deep vs the 0.80 m default door — the exact marginal case the sources say to measure, and a
+test shows it clearing a measured 0.95 m route) and `shower` (0.90 m square, which in practice ships
+as flat panels — a textbook illustration of the assembled caveat).
+
++16 tests including the aperture rule in both orientations, exact-fit acceptance, one-finding-per-def
+de-duplication, tightest-blocker ordering, and Pro/Simple report gating. One test premise of mine was
+wrong and got fixed rather than the code: a 1.2 m box clears a 2 m-high door easily, so my
+ordering fixture had neither constraint actually blocking. Full suite green (9659).
+
 ## v0.31.5.272 - openings measured too, and mobile parity verified rather than assumed
 
 Completes the site-measurement recording surface. `SiteMeasuredField` is now on the OPENING

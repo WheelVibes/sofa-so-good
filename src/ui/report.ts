@@ -7,6 +7,7 @@
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildCoordinationClashes } from '../analysis/coordinationClashes'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
+import { buildDeliveryAccess } from '../analysis/deliveryAccess'
 import { buildDesignScore } from '../analysis/designScore'
 import {
   buildDesignedElectricalSchedule,
@@ -494,6 +495,32 @@ export function buildReportHtml(
     const it = plan.openings?.find((o) => o.id === id)
     return it ? `Door (${formatLength(it.width, units)})` : id
   }
+  // Delivery access — can each piece physically reach the room? A designer
+  // checks this before anything is ordered; a sofa that fits the room and not
+  // the lift door is a real and common failure.
+  const access = isFeatureEnabled('deliveryAccess') ? buildDeliveryAccess(items, catalog) : null
+  const accessSection =
+    !access || access.checked === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Delivery access</h2>
+      <div class="${access.allClear ? 'ok' : 'warn'}">
+        ${
+          access.allClear
+            ? `All ${access.checked} distinct pieces can be carried in assembled on the assumed route.`
+            : `${access.findings.length} of ${access.checked} pieces cannot be carried in assembled.`
+        }
+      </div>
+      ${
+        access.findings.length === 0
+          ? ''
+          : `<table class="sched">${access.findings
+              .map((f) => `<tr><td>${esc(f.label)}</td><td>${esc(f.action)}</td></tr>`)
+              .join('')}</table>`
+      }
+      <div class="note">${esc(access.scopeNote)}</div>
+    </div>`
+
   // Cross-discipline coordination (G9) — the one check that compares the
   // disciplines against EACH OTHER (MEP points vs furniture bodies vs ceiling
   // drops) rather than each against itself. Reads the user's PERSISTED MEP
@@ -1125,6 +1152,7 @@ export function buildReportHtml(
   ${suggestionsSection}
   ${accessibilitySection}
   ${coordinationSection}
+  ${accessSection}
   ${daylightSection}
   ${openingsSection}
   ${complianceSection}
