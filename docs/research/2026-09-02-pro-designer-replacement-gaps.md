@@ -408,6 +408,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
+| G4 (part) | v0.31.5.256 | Work-plane sampling (opt-in, per room kind) + Emin/Eavg uniformity on every grid. IES-into-lux, the calibration constant, reflectance-derived UF and sheet surfacing remain open. |
 | G2 | v0.31.5.255 | Skew/curved walls set out by datum-relative endpoint co-ordinates + angle (+ radius for arcs), disclosed on the plan and tabled on the sheet. |
 | G1 | v0.31.5.254 | Both conventional cuts (A cross / B longitudinal) at scored-informative positions, with view-direction cut marks on the plan. User-placed cuts deferred. |
 | G6 | v0.31.5.253 | Append-only revision history + `issueRevision`. Per-sheet letters and revision clouds deferred (nothing can populate them yet). |
@@ -415,8 +416,9 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 | G10 | v0.31.5.251 | `formatDrawingLength` — integer mm on every dimension line, imperial to 1/8". DXF deliberately stays in metres. |
 | G11 | v0.31.5.250 | Shared `planFootprints` using the shape-aware resolver; decomposed items draw as one silhouette. |
 
-Still open: **G4** (feed IES into the lux model, add
-work-plane height + Emin/Eavg), **G5** (draw the tile coursing the renderer
+Still open: **G4 remainder** (IES into the lux maths; the
+calibration constant; reflectance-derived utilisation factor; sheet surfacing),
+**G5** (draw the tile coursing the renderer
 computes), **G7** (written specification), **G3** and **G8** (both large).
 
 ## Ranked roadmap

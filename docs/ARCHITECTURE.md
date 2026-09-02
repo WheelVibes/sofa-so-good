@@ -1580,6 +1580,21 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Illuminance has a work plane and a uniformity score.** `lighting2d/luxGrid.ts`
+  `pointIlluminance(light, px, pz, planeHeight)` measures on a plane at `planeHeight` (default 0 =
+  floor); `roomLux.ts:WORK_PLANE_HEIGHT_M` gives the per-room-kind plane a lux target actually
+  applies to (~0.85 m kitchen worktop, ~0.75 m desk), beside the `RECOMMENDED_LUX` band. Requested
+  per-room via `LuxGridOptions.workPlane` — **opt-in on purpose**: these grids primarily feed the 3D
+  FLOOR heatmap (`scene/LuxOverlay.tsx`), and painting worktop illuminance onto a floor would
+  misrepresent it, so analysis opts in and the visual stays on the floor (an explicit `planeHeight`
+  overrides both). `RoomLuxGrid` also carries `minLux`/`meanLux`/`uniformity` (U0 = Emin/Eavg over
+  IN-ROOM cells only — masked cells are outside the room, not dark spots), with
+  `roomLux.ts:MIN_UNIFORMITY` holding the EN 12464-style floors (0.6 task / 0.4 general): an average
+  that meets its band can still be hotspots and dark corners. `roomLuxKind(room)` is the ONE
+  room-kind resolution shared by the room average and the grid. The lux maths is still isotropic
+  (`LUMENS_PER_CANDELA = 4π`) and anchored by `SCENE_INTENSITY_CALIBRATION` — see `TODO.md` for the
+  IES-into-lux remainder, and **do not calibrate it against the HQ render** (not a photometrically
+  anchored reference; see `docs/research/2026-09-02-pro-designer-replacement-gaps.md`).
 - **Setting-out covers non-orthogonal walls, by co-ordinates.**
   `floorplan/settingOut.ts`'s running rows dimension axis-aligned wall FACES, so a diagonal or arc
   wall cannot join them. `SettingOutSet.skew` reports those walls instead as

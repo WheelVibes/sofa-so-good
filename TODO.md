@@ -200,6 +200,21 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G4 remainder] IES into the lux maths, and the calibration constant.** v0.31.5.256 shipped the
+  work plane + uniformity. Still open: (a) `roomLux.ts` uses `LUMENS_PER_CANDELA = 4π` (explicitly
+  isotropic) and `luxGrid.ts` says "no new photometry", while `src/lighting/ies/` holds real profiles
+  used for RENDERING only — so a 24° downlight and a bare bulb of equal peak candela compute
+  identically. Feasible: profiles carry `verticalAngles` + `candela`, and `iesProfile.ts` already has
+  a `principalSlice` helper, so a `candelaAt(profile, theta)` interpolator plus an `iesProfile` id on
+  `PlanLight` (items already store `props.iesProfile`) would do it — but it needs correct absolute-vs-
+  relative photometry and `candelaMultiplier` handling, and a plausible-but-wrong photometric figure
+  is worse than an honestly isotropic one. (b) `SCENE_INTENSITY_CALIBRATION = 12` anchors lux output
+  to the renderer's stylised night-scene intensities; retiring it needs a real lumen/CCT/beam package
+  per fixture. (c) `UTILISATION_FACTOR` is a single global 0.45 though the app knows each room's
+  finish reflectances (`roomFinishes.ts`). (d) Surface `uniformity` on the lighting sheet + report
+  (needs grids threaded into `roomLuxTableHtml`, which today takes only `RoomLuxEstimate[]`).
+  NOTE: do NOT calibrate any of this against the HQ render — see the research doc's cross-cutting
+  section; the render is not a photometrically anchored reference.
 - **[G1 follow-up] Section cuts are automatic, not user-placed.** v0.31.5.254 emits both
   conventional cuts (A cross, B longitudinal) at scored-informative positions with proper plan
   marks. What is still missing is letting a user take a cut WHERE THEY WANT — through a specific

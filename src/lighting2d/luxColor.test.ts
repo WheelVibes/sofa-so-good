@@ -10,6 +10,10 @@ const grid = (cols: number, rows: number, values: number[]): RoomLuxGrid => ({
   rows,
   cell: 0.25,
   values: Float32Array.from(values),
+  minLux: 0,
+  meanLux: 0,
+  uniformity: 0,
+  planeHeight: 0,
   maxLux: Math.max(0, ...values),
 })
 

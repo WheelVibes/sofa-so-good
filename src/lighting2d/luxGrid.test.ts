@@ -354,3 +354,137 @@ describe('inter-room doorway bleed (R-BLEED)', () => {
     expect(open).toBeCloseTo(closed, 6)
   })
 })
+
+describe('pointIlluminance — work plane (G4)', () => {
+  const l = { x: 0, z: 0, height: 2.6, intensity: 9 }
+
+  it('reports MORE light on a raised plane directly under the fixture', () => {
+    // Closer to the source → higher illuminance. Inverse-square, so this is
+    // the direction that proves the plane height actually reached the maths.
+    const floor = pointIlluminance(l, 0, 0, 0)
+    const worktop = pointIlluminance(l, 0, 0, 0.85)
+    expect(worktop).toBeGreaterThan(floor)
+    // And by the expected ratio: E = I·h/(h²)^1.5 = I/h² directly beneath.
+    expect(worktop / floor).toBeCloseTo((2.6 / (2.6 - 0.85)) ** 2, 3)
+  })
+
+  it('defaults to the floor plane, so existing callers are unchanged', () => {
+    expect(pointIlluminance(l, 0, 0)).toBe(pointIlluminance(l, 0, 0, 0))
+  })
+
+  it('does not divide by zero for a plane at or above the fixture', () => {
+    expect(Number.isFinite(pointIlluminance(l, 0, 0, 2.6))).toBe(true)
+    expect(Number.isFinite(pointIlluminance(l, 0, 0, 99))).toBe(true)
+  })
+})
+
+describe('RoomLuxGrid — uniformity (G4)', () => {
+  it('reports min, mean and U0 over IN-ROOM cells only', () => {
+    const plan = {
+      name: 'p',
+      extent: [4, 4],
+      ceilingHeight: 2.6,
+      walls: [],
+      openings: [],
+      rooms: [{ id: 'k', name: 'Kitchen', origin: [0, 0], width: 4, depth: 4 }],
+    } as never
+    const lights = [
+      {
+        id: 'l1',
+        type: 'x',
+        label: 'L',
+        x: 1,
+        z: 1,
+        height: 2.6,
+        intensity: 9,
+        distance: 4,
+        color: '#fff',
+      },
+    ] as never
+    const [level] = buildLuxGrids(plan, lights, 'ground', {
+      fixtureLevel: 1,
+      daylightLevel: 0,
+    })
+    const g = level!.grids[0]!
+    expect(g.meanLux).toBeGreaterThan(0)
+    expect(g.minLux).toBeGreaterThan(0)
+    expect(g.minLux).toBeLessThanOrEqual(g.meanLux)
+    expect(g.maxLux).toBeGreaterThanOrEqual(g.meanLux)
+    // U0 = Emin/Eavg, and a single off-centre downlight is NOT uniform.
+    expect(g.uniformity).toBeCloseTo(g.minLux / g.meanLux, 6)
+    expect(g.uniformity).toBeLessThan(1)
+  })
+
+  it('leaves the grid on the FLOOR by default, so the 3D overlay is unchanged', () => {
+    const g = buildLuxGrids(
+      {
+        name: 'p',
+        extent: [4, 4],
+        ceilingHeight: 2.6,
+        walls: [],
+        openings: [],
+        rooms: [{ id: 'r', name: 'Kitchen', origin: [0, 0], width: 4, depth: 4 }],
+      } as never,
+      [],
+      'ground',
+      { fixtureLevel: 1, daylightLevel: 0 },
+    )[0]!.grids[0]!
+    expect(g.planeHeight).toBe(0)
+  })
+
+  it('samples a kitchen on its worktop plane when workPlane is requested', () => {
+    // Proves the per-room work-plane resolution actually reached the grid: the
+    // same room named as a bath (floor plane) must read LOWER under the light.
+    const mk = (name: string) =>
+      buildLuxGrids(
+        {
+          name: 'p',
+          extent: [4, 4],
+          ceilingHeight: 2.6,
+          walls: [],
+          openings: [],
+          rooms: [{ id: 'r', name, origin: [0, 0], width: 4, depth: 4 }],
+        } as never,
+        [
+          {
+            id: 'l1',
+            type: 'x',
+            label: 'L',
+            x: 2,
+            z: 2,
+            height: 2.6,
+            intensity: 9,
+            distance: 4,
+            color: '#fff',
+          },
+        ] as never,
+        'ground',
+        { fixtureLevel: 1, daylightLevel: 0, workPlane: true },
+      )[0]!.grids[0]!
+    const kitchen = mk('Kitchen')
+    const bath = mk('Bath')
+    expect(kitchen.planeHeight).toBeCloseTo(0.85, 3)
+    expect(bath.planeHeight).toBe(0)
+    expect(kitchen.maxLux).toBeGreaterThan(bath.maxLux)
+  })
+
+  it('reports zeroes rather than NaN for a fully dark room', () => {
+    const [level] = buildLuxGrids(
+      {
+        name: 'p',
+        extent: [4, 4],
+        ceilingHeight: 2.6,
+        walls: [],
+        openings: [],
+        rooms: [{ id: 'r', name: 'Store', origin: [0, 0], width: 4, depth: 4 }],
+      } as never,
+      [],
+      'ground',
+      { fixtureLevel: 0, daylightLevel: 0 },
+    )
+    const g = level!.grids[0]!
+    expect(g.meanLux).toBe(0)
+    expect(g.uniformity).toBe(0)
+    expect(Number.isNaN(g.uniformity)).toBe(false)
+  })
+})

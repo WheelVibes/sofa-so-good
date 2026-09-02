@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.256 — illuminance gets a work plane and a uniformity score
+
+Two of G4's four photometric gaps. The lux model (`src/lighting2d/`) already answered "is this room
+bright enough?" — a correction on my part, since an earlier pass of the research wrongly reported
+no lux model at all. What it could not answer is the two questions a lighting spec is actually
+written in.
+
+**Work plane.** `pointIlluminance` sampled the FLOOR. Standards specify illuminance at the working
+surface — ~0.85 m at a kitchen worktop, ~0.75 m at a desk — and that is where a 300–600 lx band
+applies. It now takes a `planeHeight` (default 0, so every existing caller is unchanged), and
+`WORK_PLANE_HEIGHT_M` in `roomLux.ts` gives the per-kind plane beside the `RECOMMENDED_LUX` band it
+belongs with.
+
+**Deliberately opt-in**, via `LuxGridOptions.workPlane`. The primary consumer of these grids is the
+3D FLOOR heatmap (`scene/LuxOverlay.tsx`); silently sampling a kitchen at worktop height would paint
+worktop illuminance onto the floor and misrepresent the picture. Analysis asks for the work plane;
+the visual keeps the floor. An explicit `planeHeight` still wins over both.
+
+**Uniformity.** `RoomLuxGrid` gains `minLux`, `meanLux` and `uniformity` (U0 = Emin/Eavg), computed
+over IN-ROOM cells only — folding masked cells in would report ~0 for every non-rectangular room.
+`MIN_UNIFORMITY` carries the EN 12464-style floors (0.6 task, 0.4 general). This matters because an
+average that meets its band can still be pools of light under each downlight with dark corners
+between, which is exactly what the grid reveals and never scored. Live on every grid immediately;
+no behaviour change, it is additive data.
+
+Also consolidated: `roomLuxKind(room)` is now the ONE room-kind resolution for the lux model
+(explicit `category` wins, else the name classifier), shared by the room average and the spatial
+grid so they cannot disagree about a room's kind.
+
++7 tests, and two of them exist specifically to prove the change LANDED rather than that it merely
+compiled: the worktop/floor ratio equals `(2.6/(2.6-0.85))²` directly beneath a fixture, and a
+kitchen resolves to plane 0.85 with higher peak lux than the same room named "Bath" (plane 0).
+All 61 pre-existing lighting2d tests still passed after the change, which is exactly the signature
+that should prompt suspicion rather than confidence — hence the explicit precondition assertions.
+Full suite green (9509).
+
+Still open on G4, deliberately not rushed: feeding the IES distribution into the lux maths (the
+profiles carry `verticalAngles` + `candela`, so a `candelaAt(profile, theta)` interpolator is
+feasible — but it needs `PlanLight` to carry a profile reference, plus correct handling of absolute
+vs relative photometry and `candelaMultiplier`; a plausible-but-wrong photometric number is worse
+than an honestly isotropic one), retiring `SCENE_INTENSITY_CALIBRATION` for fixtures with a real
+lumen package, and surfacing uniformity on the sheets. Recorded in `TODO.md`.
+
 ## v0.31.5.255 — the setting-out plan stops silently omitting walls
 
 `settingOut.ts` derives the datum-referenced running dimensions a contractor actually builds
