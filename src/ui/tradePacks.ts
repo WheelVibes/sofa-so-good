@@ -25,6 +25,7 @@
  * `openTradePack.ts`), so the whole composition is unit-testable.
  */
 import { buildAirconSystemPlan } from '../analysis/airconSystem'
+import { buildPaintQuantities } from '../analysis/paintQuantities'
 import { buildSocketAdvisory, DB_LOAD_NOTE } from '../analysis/socketAdvisory'
 import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
 import type { ElectricalPoint } from '../floorplan/electricalPlan'
@@ -496,10 +497,35 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
     if (!input.finishes) return ''
     const nameOf = (mid: string) => BUILTIN_MATERIALS[mid]?.name ?? mid
     const schedule: FinishSchedule = buildFinishSchedule(plan, input.finishes, nameOf)
-    const wallArea = schedule.totals
-      .filter((t) => t.kind === 'wall' || t.kind === 'accent')
-      .reduce((s, t) => s + t.area, 0)
-    return `<div class="fin-caveat">Paint-area quantity basis: ≈${sqm(wallArea, units)} of wall surface (net of door/window openings, from the wall finish totals below). Add ceilings + a coverage/coats factor per the paint spec.</div>`
+    // LITRES, not just an area. This block used to print the wall area and then
+    // say "add ceilings + a coverage/coats factor per the paint spec" — i.e. it
+    // handed the painter the arithmetic the app has every input for. Areas come
+    // from the finish schedule (net of openings), so the litres and the areas on
+    // the same pack can never disagree.
+    const byName: Record<string, (typeof BUILTIN_MATERIALS)[string] | undefined> = {}
+    for (const m of Object.values(BUILTIN_MATERIALS)) byName[m.name] = m
+    const paint = buildPaintQuantities(schedule.totals, byName)
+    if (paint.rows.length === 0) return ''
+    const rows = paint.rows
+      .map(
+        (r) =>
+          `<tr><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td class="n">${sqm(r.areaM2, units)}</td>` +
+          `<td class="n">${r.coats}</td><td class="n">${r.spreadingRateM2PerL}</td>` +
+          `<td class="n">${r.totalL} L</td>` +
+          `<td>${r.tins.map((t) => `${t.count} × ${t.size} L`).join(' + ') || '—'}</td></tr>`,
+      )
+      .join('')
+    return (
+      `<h3>Paint quantities</h3>` +
+      `<table class="sched"><tr class="h"><td>Code</td><td>Finish</td><td class="n">Area</td>` +
+      `<td class="n">Coats</td><td class="n">m²/L</td><td class="n">Paint</td><td>Buy</td></tr>` +
+      `${rows}<tr class="h"><td colspan="5">Total</td><td class="n">${paint.totalL} L</td><td></td></tr></table>` +
+      `<div class="fin-caveat">${esc(paint.note)}` +
+      (paint.omittedFinishes > 0
+        ? ` ${paint.omittedFinishes} non-paint wall/ceiling finish${paint.omittedFinishes === 1 ? '' : 'es'} carry no litres.`
+        : '') +
+      `</div>`
+    )
   }
 
   return ''

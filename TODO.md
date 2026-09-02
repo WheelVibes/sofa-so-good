@@ -314,6 +314,19 @@ must never make. Three options are written up with their trade-offs in
 walls alone is the WORST outcome unless the overlay legend changes with it.
 `src/authoredDataCoverage.test.ts` pins the 0/225 fact so it cannot drift either way unnoticed.
 
+## Paint quantities — ✅ SHIPPED v0.31.5.292. One follow-up worth doing:
+
+**Persist the intake state so the substrate is derived, not assumed.** `paintQuantities.ts` takes
+`substrate: 'primed' | 'bare'` and defaults to `'primed'`, stating the assumption on the sheet. But
+the app ALREADY KNOWS: Smart Start asks whether the flat is `bto-bare` / `bto-ocs` /
+`resale-asis` / `resale-stripout` (`furniture/intakeStates.ts`), and a BTO handover IS bare plaster.
+That answer is applied once and thrown away — nothing persists it. Adding
+`FloorPlan.intakeState?: IntakeStateId` (additive, no version bump per `src/floorplan/CLAUDE.md`)
+would let the paint quantity pick its own substrate, turning a stated assumption into a derived
+fact. Caveat already documented in `intakeStates.ts`: the curated default flat is not serialised, so
+it would be session-only there — which is fine for a live-computed schedule and only matters across
+a reload.
+
 **Remaining F13 follow-ups (v0.31.5.282).**
 - ~~`elevation/projectElevation.ts` ground-only~~ FIXED in v0.31.5.283. The "dead export"
   claim in .282 was wrong — I grepped the doc-comment name (`allWallElevations`) rather than the

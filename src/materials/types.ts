@@ -10,6 +10,15 @@
 export type MaterialId = string
 export type MaterialCategory = 'floor' | 'wall'
 
+/** A paint product's specified coverage. Rates are per COAT. */
+export interface PaintCoverage {
+  /** Spreading rate (m² per litre per coat) on a smooth, primed or
+   *  previously-painted surface. */
+  spreadingRateM2PerL: number
+  /** Standard number of topcoats for full opacity. */
+  coats: number
+}
+
 interface MaterialDefBase {
   id: MaterialId
   name: string
@@ -45,6 +54,18 @@ interface MaterialDefBase {
    * treat absence as "unknown", never as a default size.
    */
   moduleMm?: [number, number]
+  /**
+   * SPECIFIED paint coverage for a coating finish, consumed by
+   * `analysis/paintQuantities.ts` to turn a surface area into LITRES.
+   *
+   * Its PRESENCE is what marks a finish as paint — the same design as
+   * `moduleMm` marking a finish as modular. Deliberately not inferred from
+   * `pattern === 'plaster'`: that is a rendering constant, and deriving a
+   * procurement quantity from it is the mistake `floorplan/tileCoursing.ts`'s
+   * header warns about for tile sizes. A finish without this yields no paint
+   * row, and the caller reports how many were omitted.
+   */
+  paint?: PaintCoverage
 }
 
 export interface SolidMaterialDef extends MaterialDefBase {

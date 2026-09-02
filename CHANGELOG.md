@@ -5,6 +5,57 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.292 - paint in LITRES, not square metres
+
+Another instance of the `.288` shape: the number a contractor needs was one step beyond what the app
+produced, and the app had every input for the step. `tradePacks.ts`'s painter pack printed the wall
+area and then said, in as many words, **"Add ceilings + a coverage/coats factor per the paint
+spec"** — handing the painter arithmetic the app could do. That sentence was the gap, written down.
+
+New `analysis/paintQuantities.ts`: area → litres → tins, per finish code.
+
+**Consumes `FinishSchedule.totals`, never its own area maths.** Those are already net of
+door/window openings, per-room ceiling-height aware, and clamped against the over-deduction bug
+`finishSchedule.ts` documents. Re-deriving would let the litres and the areas on the SAME pack
+disagree.
+
+**Coverage is a specified product property**, new `MaterialDef.paint`, and its PRESENCE is what
+marks a finish as paint — the same design as `moduleMm` marking a finish as modular, and
+deliberately not inferred from `pattern === 'plaster'` (a rendering constant). Authored inside the
+`wall()` helper, so all 19 painted finishes carry it by construction and the `.288` failure mode
+cannot recur for paints added later.
+
+**12 m²/L per coat, 2 coats** — standard emulsion covers 12-14 m²/L on a smooth primed surface and
+two topcoats is the standard assumption. The LOWER end is taken deliberately, and the reasoning is
+worth stating because it points the opposite way to `deliveryAccess.ts`: there the TIGHTER aperture
+is conservative, here the LOWER coverage is. In both cases the choice is the one whose error is
+cheaper — running short mid-wall costs a second trip and a possible batch mismatch; over-ordering
+costs a part tin. "Always pick the smaller number" would have got one of the two wrong.
+
+**Bare/new plaster is a separate substrate, and it matters a lot.** A BTO handover is bare plaster:
+coverage drops to ~6 m²/L and the first coat is a mist/sealer coat at ~10 m²/L. On 60 m² that is
+**26 L against 10 L** — ordering the primed quantity for a new flat leaves the job less than half
+painted. Substrate rates live in the core rather than on every product, because they describe the
+SURFACE, not the paint. A test pins the >2x gap as the reason the assumption is stated on the sheet
+rather than buried.
+
+**The unpainted default counts, and this was the bug in my first cut.** A room that never had a
+finish picked appears on the schedule as the sentinel names `Plaster (neutral)` /
+`Ceiling paint (default white)` — names, not catalog products, so the material lookup missed them
+and the painter pack rendered NOTHING. Both are painted surfaces by definition (the constants' own
+comments say "neutral plaster shell" and "plain painted ceiling") and a painter still has to paint
+them, so excluding them zeroed the quantity for the most common case there is: a new flat where
+nothing has been chosen. Found because the pre-existing painter test failed on the new content, and
+diagnosed by reading the schedule's own constants rather than guessing at the lookup.
+
+**A correction to my own note this session:** I recorded "no curtain/window-treatment schedule" as a
+gap after grepping for `curtainSchedule`/`windowTreatment`. There IS one — a `curtains` trade pack
+that lists placed window treatments plus the door/window schedule. The grep was too narrow, the same
+mistake as `.283`'s `allWallElevations`. Searching for the name I expected rather than for the
+capability is now twice in this arc.
+
+19 new tests.
+
 ## v0.31.5.291 - the wall course grid, drawn on the elevations
 
 Completes `.290` the way `.288` completed the floor coursing: the numbers existed in a table, and a

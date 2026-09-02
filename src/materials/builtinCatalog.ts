@@ -107,6 +107,32 @@ function floor(
 
 /** Painted plaster wall in an arbitrary colour (shares the plaster normal,
  *  tinted by `swatch`) — used to widen the curated wall palette. */
+/**
+ * SPECIFIED coverage for the painted-plaster finishes below, consumed by
+ * `analysis/paintQuantities.ts`.
+ *
+ * **12 m²/L per coat, 2 coats.** Standard interior emulsion covers 12-14 m²/L
+ * per coat on a smooth, primed or previously-painted surface, and two topcoats
+ * is the standard assumption for full opacity. The LOWER end of the band is
+ * taken deliberately: a paint quantity that runs short mid-wall costs a second
+ * trip and a possible batch mismatch, while over-ordering slightly costs a part
+ * tin. (Note the direction is opposite to `deliveryAccess.ts`, which takes the
+ * TIGHTER aperture — in both cases the choice is the one whose error is
+ * cheaper, which is not the same as "always the smaller number".)
+ *
+ * Bare/new-plaster coverage and the sealer coat are properties of the SUBSTRATE
+ * rather than of the product, so they live in `paintQuantities.ts` instead of
+ * being repeated on all 19 paints here.
+ *
+ * Applied inside this helper rather than per entry, so every painted finish
+ * carries it by construction — the `.288` failure mode (a feature complete
+ * except for unauthored data) cannot recur for paints added later.
+ *
+ * Sources: sleeplesstradesman.com "Paint Coverage Calculator UK"; squote.app
+ * "Paint Coverage Calculator"; dulux.com.au paint calculator (2 coats).
+ */
+const EMULSION_COVERAGE = { spreadingRateM2PerL: 12, coats: 2 } as const
+
 function wall(id: string, name: string, swatch: string): MaterialDef {
   return {
     id,
@@ -116,6 +142,7 @@ function wall(id: string, name: string, swatch: string): MaterialDef {
     pattern: 'plaster',
     swatch,
     uvScale: PLASTER_UV_SCALE,
+    paint: EMULSION_COVERAGE,
   }
 }
 

@@ -133,10 +133,17 @@ describe('tradePacks — composition (all systems present)', () => {
     expect(pack.includedSheets.some((s) => s.name === 'Door & window schedule')).toBe(true)
   })
 
-  it('painter bundles a walls-only finish schedule + a paint-area basis', () => {
+  it('painter bundles a walls-only finish schedule + paint LITRES', () => {
     const pack = buildTradePack('painter', fullInput)
     expect(pack.includedSheets).toEqual([expect.objectContaining({ name: 'Finishes schedule' })])
-    expect(pack.html).toContain('Paint-area quantity basis')
+    // v0.31.5.292: this used to print an area and tell the painter to "add
+    // ceilings + a coverage/coats factor per the paint spec" — the arithmetic
+    // the app has every input for. Now it prints litres and what to buy.
+    expect(pack.html).toContain('Paint quantities')
+    expect(pack.html).toMatch(/\d+(\.\d+)? L/)
+    expect(pack.html).toContain('EXCLUDE wastage')
+    expect(pack.html).toContain('product data sheet')
+    expect(pack.html).not.toContain('Paint-area quantity basis')
     // Walls only — no floor column in the finish schedule.
     expect(pack.html).not.toContain('>Floor<')
     expect(pack.html).toContain('>Wall (net of openings)<')
