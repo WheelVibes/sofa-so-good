@@ -37,6 +37,7 @@ import {
   clampOpeningOffset,
   clampOpeningWidth,
   type FloorPlan,
+  type MeasuredTargetKind,
   type PlanDimension,
   type PlanElectricalPoint,
   type PlanGuide,
@@ -413,6 +414,23 @@ export interface FloorPlanSlice {
   removePlanGuide: (i: number) => void
   /** Remove every ruler guide. */
   clearPlanGuides: () => void
+
+  /**
+   * Record (or replace) a SITE MEASUREMENT for one wall / opening / room span —
+   * what a tape actually read, in mm. Reconciled against the model by
+   * `floorplan/siteMeasurements.ts` and printed on the As-built reconciliation
+   * sheet. One measurement per (kind, targetId): re-measuring the same wall
+   * REPLACES the old value rather than accumulating a history, because the
+   * useful question is "what does it actually measure", not "what did we think
+   * last time". Undoable + forks the default plan, like every plan mutation. */
+  setSiteMeasurement: (
+    kind: MeasuredTargetKind,
+    targetId: string,
+    measuredMm: number,
+    note?: string,
+  ) => void
+  /** Drop a recorded measurement for a target (the field cleared). */
+  clearSiteMeasurement: (kind: MeasuredTargetKind, targetId: string) => void
 
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
@@ -1462,6 +1480,42 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
 
   // Ruler guides are a plan-wide array (not level-tagged) — pure reference lines
   // the 2D editor snaps to (PARITY-PLAN-GUIDES). `addGuide` de-dupes per axis.
+  setSiteMeasurement: (kind, targetId, measuredMm, note) => {
+    if (!Number.isFinite(measuredMm) || measuredMm <= 0) return
+    get().pushHistory()
+    set((s) => {
+      const existing = s.floorPlan.siteMeasurements ?? []
+      const rest = existing.filter((m) => !(m.kind === kind && m.targetId === targetId))
+      return {
+        floorPlan: {
+          ...forkIfDefault(s.floorPlan),
+          siteMeasurements: [
+            ...rest,
+            {
+              id: `sm-${kind}-${targetId}`,
+              kind,
+              targetId,
+              measuredMm: Math.round(measuredMm),
+              ...(note?.trim() ? { note: note.trim() } : {}),
+            },
+          ],
+        },
+      }
+    })
+  },
+  clearSiteMeasurement: (kind, targetId) => {
+    get().pushHistory()
+    set((s) => {
+      const existing = s.floorPlan.siteMeasurements ?? []
+      const next = existing.filter((m) => !(m.kind === kind && m.targetId === targetId))
+      // Drop the key entirely when nothing is left, so an untouched plan stays
+      // byte-identical in the save file.
+      const { siteMeasurements: _drop, ...plan } = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: next.length > 0 ? { ...plan, siteMeasurements: next } : plan,
+      }
+    })
+  },
   addPlanGuide: (guide) => {
     get().pushHistory()
     set((s) => ({

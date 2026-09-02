@@ -254,13 +254,12 @@ proposing a channel change (meta-rule xvii-b).
   surface an arbitrary preset, so a user is never shown a theme whose palette is invented.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
-- **[site measurements] Needs a recording UI.** v0.31.5.270 ships the data core
-  (`floorplan/siteMeasurements.ts`), the schema field and the "As-built reconciliation" sheet. Still
-  needed: a way to ENTER a measurement — the natural home is the 2D plan editor's existing measure
-  tool (tap a wall, type what the tape read), plus the wall/room/opening inspectors. Until then the
-  field is only reachable by a save-file edit, so the sheet exists but nobody can populate it.
-  Note the plan-trace backdrop already lets a user reproduce a real flat; this closes the loop by
-  letting them PROVE the reproduction is right.
+- **[site measurements — recording UI DONE v0.31.5.271] Remaining: openings + mobile parity.** The
+  wall and room inspectors now carry `SiteMeasuredField` with inline deviation feedback. Still to do:
+  the OPENING inspector (door/window widths are commonly the thing that differs in a resale flat),
+  and a check that the field reads well in the mobile bottom-sheet inspector. Also worth considering:
+  wiring the plan editor's existing measure tool so a tap-and-type records directly, rather than
+  going via the inspector.
 - **[layout critique] Add a walkway-width check using the SG figure, not the generic one.** The two
   standards disagree: 91 cm generic vs "at least 70-80 cm" in SG guidance
   (`docs/research/2026-09-02-layout-critique-standards.md` records both). `designScore`'s circulation

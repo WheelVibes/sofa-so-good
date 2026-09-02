@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.271 - the measurement field, so the reconciliation sheet can actually be used
+
+v0.31.5.270 shipped the reconciliation core and its sheet, and I flagged the obvious hole: the field
+was only reachable by editing a save file, so the sheet existed and nobody could populate it. That
+is a capability, not a feature. This closes it.
+
+`setSiteMeasurement(kind, targetId, measuredMm)` / `clearSiteMeasurement` on `floorPlanSlice` —
+undoable and forking the default plan like every plan mutation. One measurement per
+(kind, targetId): re-measuring the same wall REPLACES the old value rather than accumulating a
+history, because the useful question is "what does it actually measure", not "what did we think last
+time". Clearing drops the key entirely so an untouched plan stays byte-identical in the save file.
+
+Surfaced as `SiteMeasuredField` in the wall inspector (beside Length) and the room inspector (width
+and depth separately). **The immediate feedback is the point**: an out-of-tolerance value reads as a
+danger-token warning inline — "+35 mm vs drawn 5590 mm — EXCEEDS the ±12 mm tolerance" — so the
+discrepancy is caught while the user is still standing in the room with the tape, not when they next
+open the drawing set. Verified visually.
+
+Empty input CLEARS the measurement rather than storing 0: an unmeasured dimension and a dimension
+measured as zero are different things, and a stored 0 would report a fictitious -5590 mm deviation.
+
+**A test failure worth reporting, because the answer was that the app is right.** My first test used
+`resetToDefault()` as its baseline and state leaked between cases. I checked whether the reset path
+fails to clear `siteMeasurements` — a plausible real bug — and it does not: `resetToDefault` resets
+FURNITURE only (it is the demo-layout restore), which is correct, and `resetFloorPlan` replaces the
+whole plan object so measurements of the old home are dropped by construction. My test's baseline was
+wrong, not the app. Fixed by replacing the plan outright, with the reasoning left in the test so the
+next reader does not repeat the investigation.
+
+Both store invariants this repo documents were checked rather than assumed: the field lives ON
+`floorPlan`, which is already in `serialize()`, the autosave watch-list and `HistorySnapshot`, so the
+lock-step invariants hold and the derived autosave guard test passes.
+
++10 store tests (replace-not-accumulate, per-target isolation, width vs depth, mm rounding,
+non-finite rejection, key removal on clear, undo). Full suite green (9643).
+
 ## v0.31.5.270 - verified to scale, not just drawn to scale
 
 The last unshipped item from the original gap analysis, and the one that underpins the rest. Every
