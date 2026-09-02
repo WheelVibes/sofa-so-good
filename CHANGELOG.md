@@ -19,7 +19,17 @@ pruned from `main`; entries from C251 on (branch
 > staging. Noted here instead so the log is confusing-but-honest rather than silently
 > ambiguous. Flagged for the maintainer; renumbering is a call for them, not for either session.
 
-## v0.31.7.0 — PR to staging: drawing accuracy, trade quantities, and the F13 multi-storey audit
+## v0.31.7.1 - say WHY the two sibling fields round in opposite directions
+
+`MaterialDef.moduleMm` is an exact product dimension; `MaterialDef.buildUp` takes the thicker
+end of a published range because it feeds a regulatory limit. Both docstrings said what they
+were; neither said why they differ. Two adjacent fields of the same shape with opposite
+conventions is an invitation to reconcile them, and reconciling them would silently understate
+a build-up — the direction that clears a floor which fails on site. Each now names the other.
+
+Credit to dev-09, which read the `0.31.7.0` summary and predicted exactly this tidy-up.
+
+## v0.31.7.0 - PR to staging: drawing accuracy, trade quantities, and the F13 multi-storey audit
 
 73 commits. Everything here serves one goal: making the app a professional replacement for
 hiring an interior designer — to scale, measured, and usable by a contractor as a precise

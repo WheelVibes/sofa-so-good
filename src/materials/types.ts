@@ -52,6 +52,13 @@ interface MaterialDefBase {
    * Absent for non-modular finishes (plaster, paint, poured, carpet) and for
    * modular finishes whose module has not been specified — a consumer must
    * treat absence as "unknown", never as a default size.
+   *
+   * **This figure is EXACT, and that is why it differs from `buildUp` below.**
+   * A module is a product dimension a supplier prints on the box, so there is
+   * no range to round and a "safe direction" would be meaningless. `buildUp`
+   * takes the THICKER end of a published range, because it feeds a regulatory
+   * limit where understating clears a floor that fails on site. The two fields
+   * look like siblings and want opposite treatment — do not reconcile them.
    */
   moduleMm?: [number, number]
   /**
@@ -83,7 +90,9 @@ interface MaterialDefBase {
    * These figures feed a REGULATORY LIMIT, so where a source gives a range the
    * value takes the THICKER end: understating a build-up clears a floor that
    * fails on site, and an inspection is a worse place to find out than a
-   * warning panel. Sources in `docs/research/2026-09-03-floor-build-up.md`.
+   * warning panel. **Deliberately the opposite of `moduleMm` above**, which is
+   * an exact product dimension with no range to round — see the note there.
+   * Sources in `docs/research/2026-09-03-floor-build-up.md`.
    */
   buildUp?: FloorBuildUp
 }
