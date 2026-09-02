@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { planTotalAreaAllLevels } from '../../floorplan/levels'
 import { type RescaleSpec, resolveRescaleFactor } from '../../floorplan/rescalePlan'
-import { planTotalArea, wallLength } from '../../floorplan/types'
+import { wallLength } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
 import { Select } from '../controls/Select'
@@ -75,7 +76,9 @@ export function ScalePlanModal({ open, onClose }: { open: boolean; onClose: () =
     factor = null
   }
 
-  const areaBefore = planTotalArea(plan)
+  // Whole home (F13): rescale scales EVERY storey, so the before/after area
+  // must count every storey too.
+  const areaBefore = planTotalAreaAllLevels(plan)
   const canApply = factor !== null && Math.abs(factor - 1) > 1e-9
 
   const apply = () => {

@@ -15,7 +15,7 @@
  * and easy to extend. Every threshold lives in `COMPLIANCE_THRESHOLDS`.
  */
 
-import { allPlanRooms, planLevels } from '../floorplan/levels'
+import { allPlanOpenings, allPlanRooms, allPlanWalls } from '../floorplan/levels'
 import { type FloorPlan, type PlanRoom, planRoomArea, wallLength } from '../floorplan/types'
 
 /** Advisory severity. `permit` = likely needs HDB permit / professional sign-off. */
@@ -256,11 +256,10 @@ export function buildComplianceReport(plan: FloorPlan): ComplianceReport {
     // directly, so normalising here fixes all of them in one place rather than
     // six. Callers pass the whole plan (`report.ts`), never a `levelAsPlan`
     // result, so whole-home is the correct reading.
-    const levels = planLevels(plan)
     const wholeHome: FloorPlan = {
       ...plan,
-      walls: levels.flatMap((l) => (Array.isArray(l.walls) ? l.walls : [])),
-      openings: levels.flatMap((l) => (Array.isArray(l.openings) ? l.openings : [])),
+      walls: allPlanWalls(plan),
+      openings: allPlanOpenings(plan),
       rooms: allPlanRooms(plan),
     }
     for (const rule of RULES) {

@@ -14,7 +14,7 @@
  * shape of `daylight.ts`.
  */
 
-import { allPlanRooms, planLevels } from '../floorplan/levels'
+import { allPlanOpenings, allPlanRooms, allPlanWalls } from '../floorplan/levels'
 import { assignRoomOpeningNames } from '../floorplan/roomWallNames'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { isExternalRoom } from './daylight'
@@ -79,9 +79,8 @@ export function buildAccessibilityReport(plan: FloorPlan): AccessibilityReport {
   // upstairs bedroom or door was silently never assessed. Callers pass the whole
   // plan (`report.ts`, `AccessibilityPanel`), never a `levelAsPlan` result, so
   // the whole-home read is the correct one here.
-  const levels = planLevels(plan)
-  const openings = levels.flatMap((l) => (Array.isArray(l.openings) ? l.openings : []))
-  const walls = levels.flatMap((l) => (Array.isArray(l.walls) ? l.walls : []))
+  const openings = allPlanOpenings(plan)
+  const walls = allPlanWalls(plan)
   const allRooms = allPlanRooms(plan)
   // Reuse the same room→opening allocation the plan editor uses for auto-naming,
   // so a door reads the same here as it does when selected on the plan. The

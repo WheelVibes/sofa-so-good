@@ -11,8 +11,9 @@
  * actual canvas raster lives in `openShareCard.ts` (browser-only) and consumes
  * these builders.
  */
+
+import { allPlanRooms, planTotalAreaAllLevels } from '../floorplan/levels'
 import type { FloorPlan } from '../floorplan/types'
-import { planTotalArea } from '../floorplan/types'
 import type { FurnitureItem } from '../furniture/types'
 import { formatArea, type UnitSystem } from '../utils/measurement'
 
@@ -38,9 +39,11 @@ export function buildShareCardStats(
   units: UnitSystem = 'metric',
 ): ShareCardStats {
   const n = items.length
-  const rooms = plan.rooms.length
+  // Whole home (F13) — `plan.rooms` is ground-only, so a maisonette's share
+  // card advertised half its rooms.
+  const rooms = allPlanRooms(plan).length
   const itemsText = `${n} ${n === 1 ? 'item' : 'items'}`
-  const areaText = formatArea(planTotalArea(plan), units)
+  const areaText = formatArea(planTotalAreaAllLevels(plan), units)
   const roomsText = `${rooms} ${rooms === 1 ? 'room' : 'rooms'}`
   return {
     itemsText,

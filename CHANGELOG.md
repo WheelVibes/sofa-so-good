@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.276 - whole-home accessors, and three more ground-only bugs
+
+First migration batch. The user has authorised a full schema migration, and a better staging emerged
+than the one recorded a commit ago: **no schema change is needed until the very end.** `planLevels`
+already DERIVES the level list from the legacy fields, so the read path is unified today — meaning
+consumers can be migrated off direct `plan.rooms`/`walls`/`openings` reads, suite green each commit,
+with the field deletion and save-version bump left as the final step. The earlier plan (add a stored
+`levels` field alongside the legacy trio and keep them in sync) is withdrawn: duplicate storage with
+a sync obligation is a drift bug waiting to happen.
+
+**New in `levels.ts`:** `allPlanWalls`, `allPlanOpenings` (companions to the existing
+`allPlanRooms`) and `planTotalAreaAllLevels`. The first two exist because the
+`planLevels(plan).flatMap(l => l.walls)` idiom had been hand-written in FIVE modules — which is
+precisely how the ground-only reads spread. All five now use the accessors.
+`junctionDetails` deliberately keeps its own `planLevels` loop: it pairs each opening with ITS OWN
+level's walls, which a flat accessor would lose.
+
+**Three more real bugs fixed**, the `planTotalArea` call sites logged in .275:
+- `ui/shareSummary.ts` and `ui/shareCard.ts` advertised a maisonette's GROUND FLOOR as the whole
+  home — both its area and (in shareCard/shareSummary) its room count.
+- `ui/floorplan/ScalePlanModal.tsx` showed a ground-only before/after area for a rescale that
+  scales every storey.
+
+`planTotalArea` itself is untouched and stays a single-level helper — the plan editor calls it per
+storey, which is correct and deliberate.
+
++6 tests on the new accessors, including that a ragged level with missing arrays does not throw and
+that a single-storey plan gives byte-identical results to the old ground-only read.
+
+**Correction from dev-09, and it matters for the final stage.** I had told it its dev-probes were
+safe because they read the live store rather than a serialised plan. That is wrong: **16 scripts in
+`scripts/dev-probes/` index `plan.openings`/`plan.walls`/`plan.rooms` off the live store**, including
+`light-distribution.mjs`, the primary instrument of its ~90-round arc. The field NAMES are the
+exposure, not serialisation — and their `?? []` fallbacks make it worse, since with the fields gone
+every lookup silently finds nothing and the probe fails as "no window matched", reading as a scene
+bug rather than a schema change. Recorded in `TODO.md` as part of the final stage; the new flat
+accessors are what those probes will need.
+
+Full suite green (9671).
+
 ## v0.31.5.275 - five PRE-EXISTING multi-storey bugs in the analysis layer
 
 Set out to build the "lint-by-grep" guard `docs/research/multi-level-design.md` called for and never

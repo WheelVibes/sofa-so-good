@@ -7,7 +7,14 @@
  */
 
 import type { FurnitureItem } from '../furniture/types'
-import type { FloorPlan, PlanOpening, PlanRoom, PlanUpperLevel, PlanWall } from './types'
+import {
+  type FloorPlan,
+  type PlanOpening,
+  type PlanRoom,
+  type PlanUpperLevel,
+  type PlanWall,
+  planTotalArea,
+} from './types'
 
 /** The ground floor's well-known level id (items/rooms with no explicit level). */
 export const GROUND_LEVEL_ID = 'ground'
@@ -246,4 +253,35 @@ export function restackLevelElevations(
     belowCeiling = l.ceilingHeight ?? groundCeilingHeight
     return { ...l, elevation }
   })
+}
+
+/**
+ * Total interior floor area across EVERY storey (m²).
+ *
+ * `types.ts:planTotalArea` is a legitimate SINGLE-LEVEL helper — the plan editor
+ * calls it per storey to show that storey's total, which is correct — and it
+ * lives in `types.ts`, which cannot import this module without a cycle. This is
+ * the whole-home counterpart, for callers that mean "the area of the home".
+ * Passing a whole plan to `planTotalArea` silently reports the ground floor only
+ * (F13); that was the bug at three call sites fixed in v0.31.5.276.
+ */
+export function planTotalAreaAllLevels(plan: FloorPlan): number {
+  return planLevels(plan).reduce((sum, level) => sum + planTotalArea(levelAsPlan(plan, level)), 0)
+}
+
+/**
+ * Every wall in the home, across all storeys.
+ *
+ * The companion to {@link allPlanRooms}. `plan.walls` is the GROUND FLOOR ONLY
+ * (F13), so a whole-home consumer needs this — and before it existed the
+ * `planLevels(plan).flatMap(l => l.walls)` idiom was hand-written in five
+ * modules, which is exactly how the ground-only reads spread in the first place.
+ */
+export function allPlanWalls(plan: FloorPlan): PlanWall[] {
+  return planLevels(plan).flatMap((l) => (Array.isArray(l.walls) ? l.walls : []))
+}
+
+/** Every opening in the home, across all storeys. See {@link allPlanWalls}. */
+export function allPlanOpenings(plan: FloorPlan): PlanOpening[] {
+  return planLevels(plan).flatMap((l) => (Array.isArray(l.openings) ? l.openings : []))
 }

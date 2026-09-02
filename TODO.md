@@ -234,8 +234,32 @@ multi-tick and MUST be staged — a big bang would leave the repo uncompilable a
    annotating single-level helpers as `SingleLevelPlan` as they are touched.
 3. Migrate test fixtures (98 files). A `makePlan({rooms, walls, openings})` helper keeps this
    mechanical.
-4. Remove the legacy trio + the mirror + the drift guard; add the schema migration and bump the
-   save version. `tsc` is the worklist — the error count is the progress metric.
+4. Remove the legacy trio; add the schema migration and bump the save version. `tsc` is the
+   worklist — the error count is the progress metric.
+
+**Revised staging (v0.31.5.276).** Stages 1-3 need NO schema change: `planLevels` already derives the
+level list from the legacy fields, so consumers can move onto
+`allPlanRooms`/`allPlanWalls`/`allPlanOpenings`/`levelAsPlan` with the suite green at every commit,
+and only the final stage deletes the fields and bumps the version. The originally-recorded "add a
+stored `levels` field and keep it in sync with the legacy trio" is WITHDRAWN — duplicate storage
+with a sync obligation is a drift bug waiting to happen, and it buys nothing the derived read path
+does not already give.
+
+**The final stage MUST also migrate `scripts/dev-probes/` (dev-09, verified 2026-09-03).** Sixteen
+probe scripts index `plan.openings`/`plan.walls`/`plan.rooms` directly off the live store —
+including `light-distribution.mjs`, the primary instrument of the graphics-realism arc. Reading the
+live store does NOT protect them: the field NAMES are the exposure. Worse, their `?? []` fallbacks
+mean that with the fields gone every lookup silently finds nothing and the probe fails at "no window
+matched", which reads as a scene bug rather than a schema change. `allPlanWalls`/`allPlanOpenings`
+(added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
+exact commit so it can — do not leave it to be discovered.
+
+**Why a lint guard is not an alternative (the load-bearing justification, recorded here because it
+gets lost once the diff is merged).** Grep cannot distinguish "whole plan" from "one storey" because
+the difference lives at the CALL SITE, not in the text. `planTotalArea` is the proof: the plan
+editor calls it per storey (correct) while three other sites passed the whole plan (wrong) — same
+function, opposite verdicts, identical text. It is a TYPE question, and only the type split can
+answer it. Two guard attempts were abandoned on this basis (see the entry above).
 
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`

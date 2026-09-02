@@ -30,7 +30,7 @@
  */
 
 import { diffWalls } from '../floorplan/demolitionPlan'
-import { allPlanRooms, planLevels } from '../floorplan/levels'
+import { allPlanOpenings, allPlanRooms } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
 import { type FloorPlan, type PlanRoom, planRoomArea, planRoomPerimeter } from '../floorplan/types'
 import { buildWaterproofingZones, totalMembraneAreaM2 } from '../floorplan/waterproofing'
@@ -140,7 +140,7 @@ function itemHeight(item: FurnitureItem, def: FurnitureDef): number {
 function totalOpeningArea(plan: FloorPlan): number {
   // EVERY storey (F13) — ground-only reads understated the BUDGET on a
   // two-storey home: upstairs rooms and openings were simply not allocated.
-  const openings = planLevels(plan).flatMap((l) => (Array.isArray(l.openings) ? l.openings : []))
+  const openings = allPlanOpenings(plan)
   let sum = 0
   for (const o of openings) {
     const w = Number.isFinite(o.width) ? o.width : 0
