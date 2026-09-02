@@ -5,6 +5,56 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.332 — both registered predictions REFUTED: the ceiling's response saturates by mid-grey, so (w) must not be interpolated linearly
+
+`.331` left (w)'s interpolation shape open and warned that two points define a line, not a form. This round
+registered **two competing predictions in advance**, then measured a third wall finish. Both are wrong.
+
+**The predictions, stated before the data.** Only the walls change, not the room, so a 27× wall-reflectance
+change is only a ~2.9× change in area-weighted room reflectance — which appeared to explain `.331`'s
+"sub-linearity". That model, fitted on `.331`'s two points, predicted **GB(slate) = 1.29**. A power law in wall
+reflectance alone predicted **1.67**. A ~30 % gap, resolvable by measurement.
+
+**Measured: ≈0.88.** Both refuted, both over-predicting.
+
+| wall finish | ρ_wall | raster ceiling | tracer ceiling, class B | required GB |
+| --- | --- | --- | --- | --- |
+| white `#f5f5f0` | 0.910 | 126.9 | 116.9 | 3.0 (shipped) |
+| **slate `#6a6f76`** | **0.158** | 126.9 | **90.5** | **≈0.88** |
+| ink `#2b3340` | 0.0326 | 126.9 | 92.6 | ≈1.0 |
+
+**Why both failed: the response SATURATES.** Slate and ink are statistically indistinguishable — 90.5 vs 92.6,
+a 2.1-count difference against a patch sd of 3.4. The ceiling's response to wall reflectance is essentially
+**complete by ρ ≈ 0.16**; going darker buys almost nothing. Both models assumed slate would sit between white
+and ink, and it does not — it sits *at* ink.
+
+Saturation is qualitatively what interreflection theory expects, since the multiple-bounce term depends on
+ρ/(1 − ρ·k) and dropping from 0.91 to 0.16 removes most of the amplification. But that naive form
+**over-predicts in the other direction** (≈0.41 against 0.88 measured), so it is not the answer either.
+**Three points with uncertain surface areas do not determine the functional form**, and none is claimed.
+
+**The decision-relevant consequence.** Linear interpolation between the two endpoints — the obvious
+implementation of (w)'s fix — predicts GB ≈ 1.29 at slate where the truth is ≈0.88: a **46 % error on exactly
+the mid-tone finishes users are most likely to choose.** So (w) needs a measured curve or a saturating form,
+not a lerp between white and near-black. That is the one thing `.331` could not have told anyone.
+
+**(w)'s zero holds across all three finishes.** The raster's ceiling is **126.9** for white, slate and ink
+alike, and the floor 102.5, while wall-L moves 144.6 → 67.5 → 22.6. The defect is finish-independent.
+
+**Environment incident, and why it mattered.** The :5199 dev server exited on its own mid-round (not killed);
+the first slate run died in **one second** on `ERR_CONNECTION_REFUSED`, with start and end stamps identical —
+which no trace can do. Restarted with `--strictPort` so a silent port change could not serve traces that would
+then be compared against `.330`'s figures. **Then verified the new server reproduces a known measurement
+before trusting a new one**: ceiling 126.9, wall 144.6, floor 102.5, byte-identical across the restart. The
+backend is irrelevant to the render, as expected — but that was checked, not assumed.
+
+Third distinct use of exact equality in this arc, and the pattern is worth naming: `.327` — it exposed a no-op
+intervention (bad); `.328`/`.329` — it *was* the finding (no interreflection term); here — it validates an
+environment change (good). The signature is informative because it is improbable; its **meaning depends
+entirely on whether the thing compared should have moved.**
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.331 — (w) has a lever and a verified constant: the hemisphere's GROUND term, 3.0 → 1.0
 
 `.330` priced (w) at ~21 % too bright on the ceiling. A magnitude is not yet a fix, so this round asked whether

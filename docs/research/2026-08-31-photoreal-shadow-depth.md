@@ -12392,3 +12392,106 @@ rewrites `intensity` every frame), with a post-settle read-back that confirmed a
 hemisphere 0.2426 → 0.
 
 No `src/` change beyond the version bump.
+
+---
+
+## Round .332 — two registered predictions, both refuted: the ceiling's response saturates by mid-grey
+
+`.331` produced a lever and a two-point calibration, and flagged the honest limit: two points define a line, not
+a functional form. Rather than fit a curve to two points, this round **registered two competing predictions in
+advance** and then measured a third wall finish to separate them.
+
+### The predictions, on the record before the data
+
+`.331` observed that the required ground-bounce change (3×) is far weaker than the wall-reflectance change
+(27×), and called it sub-linear. The obvious explanation: **only the walls changed, not the room.** With wall
+area a fraction *w* of the enclosure, `ρ_avg = w·ρ_wall + (1−w)·ρ_other`, so a 27× wall change is only a ~2.9×
+room change — which would make the relationship *linear in ρ_avg* after all, and the "sub-linearity" an
+artefact of attributing a room-level quantity to one surface class.
+
+Fitting the non-wall term on `.331`'s two points gives `(1−w)·ρ_other = 0.406·w`, self-consistent at w ≈ 0.58
+with ρ_other ≈ 0.56 against an actual ceiling-plus-floor mix of ~0.70 (ceiling 0.910, oak floor 0.486).
+
+Reflectances, sRGB decoded to linear luminance: white `#f5f5f0` **0.910**, slate `#6a6f76` **0.158**, ink
+`#2b3340` **0.0326**.
+
+| model | GB(slate) predicted |
+| --- | --- |
+| linear in area-weighted ρ_avg | **1.29** |
+| power law in wall reflectance alone (ρ^⅓) | **1.67** |
+
+One free parameter was fitted from `.331`'s points, so slate is a genuine out-of-sample test.
+
+### Measured: ≈0.88. Both refuted.
+
+| wall finish | ρ_wall | raster ceiling | tracer ceiling, class B | drop vs white | required GB |
+| --- | --- | --- | --- | --- | --- |
+| white | 0.910 | 126.9 | 116.9 | — | 3.0 (shipped) |
+| **slate** | **0.158** | 126.9 | **90.5** | **−22.6 %** | **≈0.88** |
+| ink | 0.0326 | 126.9 | 92.6 | −20.8 % | ≈1.0 |
+
+Required GB derived by interpolating `.331`'s raster sweep: target = 126.9 × (90.5 / 116.9) = 98.25, which sits
+0.88 of the way from GB 0 (79.7) to GB 1.0 (100.7).
+
+Both predictions over-shot, and in the same direction.
+
+### Why they failed: the response saturates before mid-grey
+
+**Slate and ink are statistically indistinguishable** — 90.5 against 92.6, a 2.1-count difference on a patch
+whose sd is 3.4. The ceiling's response to wall reflectance is essentially **complete by ρ ≈ 0.16**. Both models
+assumed slate would fall between white and ink; it does not, it falls *at* ink.
+
+Saturation is qualitatively what interreflection theory expects — the multiple-bounce term goes as
+ρ/(1 − ρ·k), and dropping ρ from 0.91 to 0.16 removes most of the amplification, so removing more changes
+little. But the naive infinite-bounce form **over-predicts in the opposite direction**: using ρ_avg ≈ 0.82 /
+0.39 / 0.31 it gives GB ≈ 0.41 for slate against 0.88 measured.
+
+So all three candidate forms fail: linear in ρ_avg (1.29), power law in ρ_wall (1.67), and ρ/(1−ρ) (0.41),
+against a measured 0.88. **Three points with uncertain surface areas do not determine the functional form**, and
+this round claims none. What it establishes is the *shape*: steep between 0.91 and 0.16, flat below.
+
+### The decision-relevant consequence
+
+The obvious implementation of (w)'s fix — linearly interpolate ground bounce between a white endpoint and a
+near-black one — predicts **GB ≈ 1.29 at slate** where the truth is **≈0.88**. That is a **46 % error**, and it
+lands on exactly the mid-tone greys a user is most likely to choose; the endpoints, where a lerp is exact by
+construction, are the least interesting cases.
+
+So (w) requires a **measured curve or a saturating form**, not a two-point lerp. This is the one thing `.331`
+could not have told anyone, and it is why the third point was worth 30 minutes.
+
+### (w)'s zero holds across all three finishes
+
+The raster's ceiling is **126.9** for white, slate and ink alike, and the floor 102.5, while wall-L moves
+144.6 → 67.5 → 22.6 (correctly ordered, so each finish landed). The defect is finish-independent, as the code
+reading implies it must be.
+
+### Environment incident, and why the extra two minutes mattered
+
+The :5199 dev server exited on its own mid-round — not killed. The first slate run died in **one second** on
+`ERR_CONNECTION_REFUSED`, with identical start and end stamps, which no trace can produce. Diagnosis came from
+the **first** lines of the log and the run's own timestamps, not the last lines; a probe that fails for an
+environmental reason looks nothing like one that fails for a rendering reason (`.326` learned the same about a
+killed run).
+
+Restarted with `--strictPort`, so a silent fallback to another port could not serve traces that would then be
+compared against `.330`'s numbers from the real server. **Then verified the replacement reproduces a known
+measurement before trusting a new one:** ceiling 126.9, wall 144.6, floor 102.5 — byte-identical across the
+restart. The new server is plain `vite` without the local backend, and the backend turns out to be irrelevant
+to the render — but that was *checked*, not assumed. Every figure in this round is a cross-condition
+comparison, so the reference must be the one thing that never silently changes.
+
+### Exact equality, used three ways
+
+Worth consolidating, because this arc has now leaned on the same signature for three different purposes:
+
+| round | exact equality meant | verdict |
+| --- | --- | --- |
+| `.327` | the intervention never fired | **bad** — a no-op masquerading as a result |
+| `.328`, `.329` | the mechanism is absent | **the finding itself** |
+| `.332` | the environment changed but the render did not | **good** — a validated control |
+
+The signature is informative precisely because it is improbable. Its **meaning depends entirely on whether the
+thing being compared should have moved** — which is a property of the experiment's design, not of the number.
+
+No `src/` change beyond the version bump.

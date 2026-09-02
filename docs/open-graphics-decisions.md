@@ -2955,3 +2955,28 @@ and near-black ≈ 1.0.** Remaining product questions: the interpolation shape b
 third measurement); whether to clamp so dark schemes stay usable rather than correct; whether to track the
 visible room or the whole plan; and whether the same term should also apply outside the photographic look
 (shipped ×1 there, so the response would need its own calibration).
+
+### ⚠️ DO NOT INTERPOLATE LINEARLY — v0.31.5.332
+
+A third wall finish refutes the two obvious interpolation models. Class-matched tracer targets, same pose:
+
+| wall finish | ρ_wall | raster ceiling | tracer ceiling | required ground bounce |
+| --- | --- | --- | --- | --- |
+| white `#f5f5f0` | 0.910 | 126.9 | 116.9 | **3.0** (shipped) |
+| **slate `#6a6f76`** | **0.158** | 126.9 | **90.5** | **≈0.88** |
+| ink `#2b3340` | 0.0326 | 126.9 | 92.6 | **≈1.0** |
+
+**Slate and ink are statistically indistinguishable** (2.1 counts apart, patch sd 3.4). The response
+**saturates by ρ ≈ 0.16** — nearly all of it happens between white and mid-grey.
+
+Predicted in advance and refuted: linear in area-weighted ρ_avg → 1.29; power law in ρ_wall → 1.67; naive
+ρ/(1−ρ) → 0.41. Measured **0.88**. No functional form is claimed on three points.
+
+**Consequence for implementation.** A two-point lerp between a white endpoint and a near-black one gives
+**1.29 at slate against a true ≈0.88 — a 46 % error**, on precisely the mid-tone greys users pick most. The
+endpoints are exact by construction and are the least interesting cases. So this item needs a **measured curve
+or an explicitly saturating form**; the simplest implementation is not merely imprecise but wrong where it
+matters.
+
+Also confirmed: the raster's ceiling is **126.9 for all three finishes** (floor 102.5 likewise), so the defect
+is finish-independent.
