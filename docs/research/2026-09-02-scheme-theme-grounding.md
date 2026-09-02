@@ -11,10 +11,12 @@ Singapore-specific HDB/condo sources. I did **not** visually inspect photographs
 myself; the grounding is in what those references state that these styles use.
 That distinction matters, so it is recorded here rather than glossed.
 
-**Verdict so far (6 of 17 audited).** Five themes verify accurately — several
-encode details only someone who knows the style would get right. **One needed
-correcting** (Modern Luxe; see round 2). One has a named fidelity gap that is a
-missing material rather than a wrong choice (Peranakan Accent).
+**Verdict: COMPLETE — all 17 presets addressed** (see the Final tally at the
+end). Ten style themes audited against published references: nine accurate as
+written, **one corrected** (Modern Luxe), **two with a flagged wall-vs-accent
+divergence** (Coastal, Tropical Biophilic), **one with a named missing material**
+(Peranakan encaustic tile). The seven `layout`-group presets are researched by
+construction — they author real-world arrangements rather than palettes.
 
 ## Round 1 — the four the comparison surfaces
 
@@ -104,14 +106,12 @@ This is worth noting as a pattern: the divergence was not in what the app DOES
 but in what it SAYS about what it does — which is exactly the class of error a
 grounding audit catches and a screenshot does not.
 
-### Still unaudited (11)
-Coastal, Warm Minimalist / Muji, Modern Mono, Tropical Biophilic, Boutique Suite,
-Broken Plan, Entertainer, Family Nursery, Open Lounge, Social Lounge, WFH Studio.
-Tropical Biophilic ("Teak floors, sage walls, lush greenery and terracotta
-accents") and Modern Mono ("Grey porcelain, charcoal walls, glossy monochrome")
-both read as internally coherent, but coherent is not verified — and Modern Luxe
-above was internally coherent too, while contradicting its own style's
-references. Audit before widening the comparison past three schemes.
+### Then still unaudited (11) — now closed in round 3 below
+The caution recorded at the time is worth keeping: Modern Luxe read as internally
+coherent while contradicting its own style's references, so "looks consistent" is
+not evidence. Round 3 checked the remaining style themes on that basis, and one
+of them (Modern Mono) came back clean precisely because it was checked rather
+than assumed either way.
 
 ## Additional sources (round 2)
 
@@ -147,3 +147,97 @@ wool and linen for Scandi, leather and reclaimed timber for Warm Industrial.
 - [Scandinavian Interior Design Singapore: HDB and Condo Guide — RS Carpentry](https://rscarpentry.com.sg/interior-design-trends/scandinavian-interior-design-singapore-hdb-condo-guide/)
 - [7 Best Modern HDB Interior Design Styles in Singapore — Swiss Interior](https://www.swissinterior.com.sg/blog/7-best-modern-interior-design-hdb-styles-in-singapore)
 
+## Round 3 (2026-09-02) — the audit is COMPLETE (17/17)
+
+### Warm Minimalist / Muji — `floor-wood-ash` + `wall-paint-soft-white` — VERIFIED
+"Re-modelled L/D: oat & cream, low furniture, no harsh contrast."
+
+A precise 4-for-4 match. References give "warm white, cream, **oatmeal**, sand,
+mushroom, and soft taupe"; "simple, **low** sofas… furniture is **low-profile**";
+and — the real tenet — "instead of **bold contrasts**, Muji design uses textures…
+creating depth without visual noise", i.e. exactly "no harsh contrast". Light
+wood confirmed. Nothing to change.
+
+### Tropical Biophilic — `floor-wood-teak` + `wall-paint-sage` — VERIFIED
+"Teak floors, sage walls, lush greenery and terracotta accents."
+
+The SG-specific sources name this palette almost verbatim: "warm whites, sandy
+beiges, **terracotta**, **sage green**, and warm wood tones in **teak**, oak, and
+walnut", and "terracotta and rust… pair beautifully with **greenery**". Also
+confirmed as climate-appropriate for Singapore rather than a transplanted look.
+
+### Modern Mono — `floor-tile-grey` + `wall-paint-charcoal` — VERIFIED
+"Grey porcelain, charcoal walls, glossy monochrome."
+
+I expected this to be a second "lacquered"-style overstatement and checked before
+claiming one. It is not: `floor-tile-grey` uses the `tile` painter, whose module
+doc states "the glaze is **glossy** (low roughness), the grout is a matte
+cement". So the floor genuinely renders as glossy glazed porcelain and "glossy
+monochrome" is accurate — the velvet armchair at `sheen: 0.4` is a deliberate
+texture contrast, not a contradiction. Worth recording that the check ran and
+came back clean, since the Modern Luxe correction made a second one plausible.
+
+### Coastal — `floor-wood-ash` + `wall-paint-blue` — VERIFIED, with a flagged divergence
+"Pale ash, sky-blue walls, navy + white nautical textiles."
+
+Every element is inside the documented coastal palette: "various blues ranging
+from **sky blue** to **deep navy**", light "whitewashed or weathered wood", and
+"stripes, especially **blue and white**" in textiles. So nothing here is wrong.
+
+**But the references warn against exactly this emphasis.** They say "using only
+bright white and navy can look crisp in a photo, but in real homes it may feel
+cold or too nautical", and recommend "warm whites, sand tones, light wood…
+a stronger foundation than obvious nautical themes… just enough editing to keep
+the room from tipping into **cliché**". The preset commits blue to the WALLS and
+leans on nautical textiles — the more cliché-prone reading, where best practice
+puts warm white / sand on the walls and keeps blue as an accent.
+
+### The same divergence, twice — walls vs accents
+Tropical Biophilic has the identical shape: its sources say "**one feature wall**
+in terracotta or sage green adds depth without overwhelming the space", while the
+preset applies sage to every dry wall.
+
+So both themes take a colour the references treat as an ACCENT or a single feature
+wall and make it the whole-home wall finish. Neither is factually wrong, and a
+bolder reading is a legitimate design choice — but it is a choice that diverges
+from the documented practice, and in Coastal's case toward the specific failure
+mode the sources name.
+
+**Deliberately NOT changed.** Repainting a shipped theme is a content decision,
+not a correctness fix (the same rule `docs/open-graphics-decisions.md` applies to
+re-drawing shipped plans). The options, if it is ever taken up: keep the bold
+reading as-is; soften the wall to warm white/sand and move the colour to a
+feature wall via `PlanWall.color` (both themes already support accent walls); or
+ship both as separate presets. Recorded in `TODO.md`.
+
+## Final tally
+
+**All 17 presets addressed.**
+
+- **10 `theme`-group** (style claims) audited against published references:
+  Modern Contemporary, Scandi Calm, Japandi, Warm Industrial, Peranakan Accent,
+  Modern Luxe, Warm Minimalist / Muji, Tropical Biophilic, Modern Mono, Coastal.
+  Result: 9 accurate as written, **1 corrected** (Modern Luxe's "lacquered" →
+  "satin"), **2 with a flagged wall-vs-accent divergence** (Coastal, Tropical
+  Biophilic), **1 with a named missing material** (Peranakan encaustic tile).
+- **7 `layout`-group** (arrangement claims, not palettes) — established in
+  v0.31.5.266 to be researched BY CONSTRUCTION: each authors an explicit
+  `livingDining` array that `presets/types.ts` describes as "a researched
+  real-world layout", and they demonstrably deliver what they describe
+  (`entertainer`'s bar cart, `social-lounge`'s angled armchairs). Their finishes
+  are incidental and reuse audited theme values.
+
+So the schemes G8 offers are grounded: the palettes are verified against
+published references, and the arrangements are the app's own authored research.
+
+## Additional sources (round 3)
+
+- [Coastal Interior Design — Nazmiyal](https://nazmiyalantiquerugs.com/blog/what-is-coastal-interior-design-and-home-decor-style/)
+- [The Ultimate Guide to Coastal Style — Wayfair](https://www.wayfair.com/sca/ideas-and-advice/styles/the-ultimate-guide-to-coastal-style-T1501)
+- [What Is Coastal Interior Design? — Floof](https://floofliving.com/blogs/pillow-talk/what-is-coastal-interior-design)
+- [Muji Style Interior Design: A Complete Guide — KLAAS](https://klaas.com.my/muji-style-interior-design-a-complete-guide-to-minimalist-japanese-living/)
+- [Muji Living Room Ideas — Livingetc](https://www.livingetc.com/ideas/muji-style-living-room)
+- [6 Ways To Attain A Muji Style Home — Nippon Paint SG](https://nipponpaint.com.sg/resources/painting-articles/muji-style-home/)
+- [Tropical Interior Design for Singapore Homes — Goodrich Global](https://www.goodrichglobal.com/singapore/article/tropical-interior-design-singapore/)
+- [Earth Tones and Warm Wood: the 2026 SG palette — Born in Colour](https://www.bornincolour.com/blogs/news/earth-tones-and-warm-wood-the-2026-interior-colour-palette-taking-over-singapore-homes)
+- [Biophilic Design in Singapore — Goodrich Global](https://www.goodrichglobal.com/singapore/article/biophilic-design-singapore-interiors/)

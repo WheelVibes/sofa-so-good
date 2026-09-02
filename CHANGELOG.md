@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.267 - theme grounding audit complete, 17 of 17
+
+Closes the user's requirement that every G8 scheme be grounded in real research rather than invented
+palettes. Round 3 audited the last four style themes; the record with citations is
+`docs/research/2026-09-02-scheme-theme-grounding.md` and the sources are grouped in `REFERENCES.md`
+with a note to read them before editing any preset.
+
+**Verified clean this round:**
+- **Warm Minimalist / Muji** — a 4-for-4 match, including the actual tenet: references say "instead
+  of bold contrasts, Muji design uses textures", which is exactly its "no harsh contrast".
+- **Tropical Biophilic** — the SG sources name the palette almost verbatim ("terracotta, sage green,
+  and warm wood tones in teak, oak, and walnut"), and confirm it as climate-appropriate rather than
+  a transplanted look.
+- **Modern Mono** — "glossy monochrome" is accurate, and this one is worth recording because I
+  expected a second "lacquered"-style overstatement and checked before claiming one. The `tile`
+  painter's own module doc says "the glaze is glossy (low roughness)", so grey porcelain genuinely
+  renders glossy. Checked, came back clean, no change made.
+
+**One divergence found twice, and deliberately NOT changed.** Coastal puts sky-blue on every dry
+wall; Tropical Biophilic puts sage on every dry wall. Both colours are squarely inside their
+documented palettes — but the references treat them as an ACCENT or a single feature wall ("one
+feature wall in terracotta or sage green adds depth without overwhelming the space"), and the
+coastal sources specifically warn that a blue-and-white commitment "may feel cold or too nautical"
+and tips into cliché. So both themes take the bolder reading. Neither is wrong; both diverge from
+documented practice, and Coastal's diverges toward the failure mode its own sources name.
+
+Left as a content call rather than a unilateral repaint — the same rule that governs re-drawing a
+shipped plan. `TODO.md` records the three options (leave it; soften the wall and move the colour to
+a feature wall via `PlanWall.color`, which both themes already support; or ship both readings).
+
+**Final tally: 17/17.** Ten style themes audited against published references — nine accurate as
+written, one corrected (Modern Luxe), two with the flagged wall-vs-accent divergence, one with a
+named missing material (Peranakan encaustic tile). Seven `layout`-group presets are researched by
+construction: they author explicit real-world arrangements rather than palettes, and v0.31.5.266
+established they demonstrably deliver them.
+
+So the schemes G8 offers are grounded on both axes — verified palettes, and the app's own authored
+layout research.
+
 ## v0.31.5.266 - the schemes use the researched layouts the app already had
 
 Auditing the remaining themes turned up something better than a palette check, and a correction to

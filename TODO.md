@@ -231,14 +231,17 @@ proposing a channel change (meta-rule xvii-b).
       between large pieces in the first place — that is the underlying quality issue, and fixing it
       would raise every scheme's score honestly rather than by re-tuning the ruler.
   Note (b) is the real problem and (a) only stops the score lying about it. Do not do (a) alone.
-- **[G8] Audit the remaining 11 theme presets against real-world references.** Verified so far in
-  `docs/research/2026-09-02-scheme-theme-grounding.md`: Modern Contemporary, Scandi Calm, Japandi,
-  Warm Industrial, Peranakan Accent (palette), and Modern Luxe (which needed a CORRECTION — it said
-  "lacquered finishes" where quiet luxury is matte/semi-matte and its own `sheen: 0.3` already was).
-  Unaudited: Coastal, Warm Minimalist / Muji, Modern Mono, Tropical Biophilic, Boutique Suite,
-  Broken Plan, Entertainer, Family Nursery, Open Lounge, Social Lounge, WFH Studio. Note Modern Luxe
-  read as internally coherent while contradicting its own style — so "looks consistent" is not
-  evidence. Do this BEFORE raising `SCHEME_COUNT` past 3 or letting a brief
+- **[G8 — DONE, one open content call] Theme grounding audit complete: 17/17.** Full record with
+  citations in `docs/research/2026-09-02-scheme-theme-grounding.md`. Ten style themes audited (nine
+  accurate; Modern Luxe corrected), seven `layout`-group presets are researched by construction.
+  **The one thing left is a content decision, not a fix:** Coastal puts sky-blue on every dry WALL
+  and Tropical Biophilic puts sage on every dry wall, whereas the references treat both as an ACCENT
+  or a single feature wall — and the coastal sources specifically warn that a blue-and-white
+  commitment "may feel cold or too nautical" and tips into cliché. Neither is wrong; both are a
+  bolder reading than documented practice. Options: leave as-is; soften the wall to warm white/sand
+  and move the colour to a feature wall via `PlanWall.color` (both themes already support accent
+  walls); or ship both readings as separate presets. Do NOT repaint a shipped theme unilaterally —
+  same rule as re-drawing a shipped plan. Do this BEFORE raising `SCHEME_COUNT` past 3 or letting a brief
   surface an arbitrary preset, so a user is never shown a theme whose palette is invented.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.

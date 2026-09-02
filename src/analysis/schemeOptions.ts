@@ -39,12 +39,14 @@
  * **The theme vocabulary is grounded, and that was checked.** Each surfaced
  * theme's encoded finishes were verified against published interior-design
  * references (including SG HDB/condo sources) — see
- * `docs/research/2026-09-02-scheme-theme-grounding.md`. Warm Industrial's greige
- * wall against a charcoal floor, for instance, is the documented fix for
- * industrial schemes reading cold, not a guess. So a weak comparison is NOT a
- * theme problem; it is the missing `kits` noted below. Thirteen of the
- * seventeen presets are still unaudited (`TODO.md`) — audit before widening the
- * spread past three schemes.
+ * `docs/research/2026-09-02-scheme-theme-grounding.md` — **all 17 audited**. Warm
+ * Industrial's greige wall against a charcoal floor, for instance, is the
+ * documented fix for industrial schemes reading cold, not a guess; and the
+ * `layout`-group presets are researched by construction, authoring real-world
+ * arrangements rather than palettes. One correction came out of it (Modern
+ * Luxe's "lacquered" → "satin") and one open content call is recorded in
+ * `TODO.md` (Coastal / Tropical Biophilic commit an ACCENT colour to every
+ * wall). So a weak comparison is not a theme problem.
  *
  * **Honest limits.** Scheme identity comes from the preset vocabulary, so two
  * schemes differ as much as their presets do — this does not invent a novel
