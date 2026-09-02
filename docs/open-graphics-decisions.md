@@ -1540,6 +1540,31 @@ one frame pair, class-B traced arm (so this is (p)'s cost, not (u)'s):
 **Four checkable acceptance criteria for a (p) fix**, all pose-matched and photograph-free: raise plaster ~11–13 %,
 warm the ceiling ~4–6 counts R−B, **darken the window wall by ~40 counts**, and **restore its shading gradient**.
 
+**❌ WITHDRAWN v0.31.5.325 — the block below used a baseline in the WRONG (u) CLASS.** `.324` took its "no
+ambient" values from a **class-A** frame, but in class A the ceiling is not a bounce surface, so the whole room
+is darker than a true class-B no-ambient render: **sidewall 69.4 (class A) vs 100.3 (class B)**, a 31-count
+understatement. With the baseline too low, both the "correct" and "actual" ambient figures were inflated. **The
+redistribution ratios, the 6.8× spread, the ceiling ÷ wall explanation, and "intensity tuning cannot fix it" are
+all withdrawn.**
+
+Recomputed on a **class-B** baseline (provisional — dim-blue is not exactly zero ambient, n = 1 per class,
+displayed-count arithmetic):
+
+| surface | raster | traced | class-B base | correct | actual | ratio |
+| --- | --- | --- | --- | --- | --- | --- |
+| ceiling | 128.8 | 115.2 | 96.6 | 32.2 | 18.6 | 0.58× |
+| sidewall-L | 133.5 | 116.1 | 100.3 | 33.2 | 15.8 | 0.48× |
+| **winwall-R** | 60.0 | 102.7 | **78.4** | **−18.4** | 24.3 | **impossible** |
+| glazing | 173.3 | 166.7 | 115.4 | 57.9 | 51.3 | 0.89× |
+
+The window wall's implied correct ambient is **negative**, which cannot happen — the near-zero-ambient class-B
+window wall (78.4) is already brighter than the raster's (60.0). **So its over-brightness is present with the
+environment nearly removed and is NOT attributable to the gradient.** `.323`'s *observation* (+42.7 vs raster,
+shading flattened 7×) stands — a direct raster-vs-traced comparison needing no baseline. Only the attribution
+falls. The recomputed ratios are **not** offered as a replacement finding.
+
+<details><summary>Withdrawn text of v0.31.5.324, kept for the record</summary>
+
 **⚖️ AND (p) IS A REDISTRIBUTION, NOT A LEVEL ERROR — v0.31.5.324.** Subtracting `.312`'s gradient-zeroed frame
 gives the *correct* ambient contribution (raster − none) against the *actual* one (traced − none):
 
@@ -1565,6 +1590,8 @@ work is scoped.
 5×-vs-0.73× **contrast** is far too large to be a tone-curve artefact; the exact figures are not). And the
 no-ambient frame was a class-A run, so the **ceiling row cannot be computed** and is omitted rather than
 estimated.
+
+</details>
 
 **Note also:** `.314`'s "walls right, ceiling wrong" does not survive breadth — the *side* wall is right to 1
 count, the *window* wall is wrong by 71 %. "The walls" was not a category.

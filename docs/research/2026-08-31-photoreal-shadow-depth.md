@@ -11586,3 +11586,69 @@ earlier. **Arms captured for one question often answer a different one** — the
 three-for-three that re-reading existing arms beat a new measurement.
 
 No `src/` change, no probe change.
+
+---
+
+## Round .325 — a hue-discriminating environment confirms (u) by sign reversal, and shows `.324`'s baseline was the wrong (u) class
+
+`.324` left an honest gap: the ceiling row of the (p) attribution table, uncomputable because `.312`'s
+no-ambient frame was class A. Filling it showed the baseline itself was unsound.
+
+### Black cannot work
+
+A paired black-environment run returned **ceiling 0.0 on both arms**: under a black background a class-A void
+and a genuinely unlit ceiling are the same value, so discriminator and measurement collapse. **`.312`'s black
+data point was therefore confounded** and is withdrawn.
+
+### Dim blue works
+
+`0x000030` — faint enough not to swamp the scene lights, R−B −48 against room bounce +8, so the *sign* separates:
+
+| arm | ceiling L | ceiling R−B | class |
+| --- | --- | --- | --- |
+| render 1 | 6.8 | **−65.0** | A (environment hue) |
+| render 2 | 96.6 | **+12.2** | B (room bounce) |
+
+### Sign-reversal confirmation of (u)'s mechanism
+
+"Class A replaces the ceiling with the environment" predicts class A is brighter when the environment out-shines
+a correct ceiling and darker when it does not:
+
+| environment | ceiling A | ceiling B | sidewall A | sidewall B | class A is |
+| --- | --- | --- | --- | --- | --- |
+| normal grey gradient | 181.5 | 115.2 | 157.7 | 116.1 | brighter |
+| dim blue | **6.8** | **96.6** | **75.7** | **100.3** | **darker** |
+
+The effect reverses sign with the environment's brightness. A prediction that flips direction and does is worth
+more than `.312`'s three-point dose-response, and it repairs it.
+
+### And it invalidates .324
+
+`.324` used a class-A frame as its no-ambient baseline. In class A the ceiling is not a bounce surface, so the
+room is darker than a true class-B baseline: **sidewall 69.4 vs 100.3**, a 31-count understatement. Both
+"correct" and "actual" ambient were inflated. **Withdrawn: the redistribution ratios, the 6.8× spread, the
+ceiling ÷ wall explanation, and "intensity tuning cannot fix it".**
+
+| surface | raster | traced | class-A base | class-B base | correct | actual | ratio |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ceiling | 128.8 | 115.2 | void | 96.6 | 32.2 | 18.6 | 0.58× |
+| sidewall-L | 133.5 | 116.1 | 69.4 | 100.3 | 33.2 | 15.8 | 0.48× |
+| **winwall-R** | 60.0 | 102.7 | 49.3 | **78.4** | **−18.4** | 24.3 | **impossible** |
+| glazing | 173.3 | 166.7 | 111.0 | 115.4 | 57.9 | 51.3 | 0.89× |
+
+The window wall's implied correct ambient is **negative** — impossible. Its near-zero-ambient class-B value
+(78.4) already exceeds the raster's (60.0), so **the over-brightness is present with the environment nearly
+removed and is not attributable to the gradient.** `.323`'s observation stands (direct raster-vs-traced, no
+baseline needed); only the attribution falls.
+
+The recomputed ratios are **provisional and not a replacement headline** — dim blue is not exactly zero, n = 1
+per class, displayed-count arithmetic. After `.324`, one more inversion on a shaky baseline is exactly what
+should not be asserted.
+
+### The durable rule
+
+**A baseline arm must be verified to be in the same (u) class as the arm it baselines.** Two rounds were misled
+by an unverified-class baseline and both had to be withdrawn. The check is cheap: `PT2=1` plus a
+hue-discriminating environment, and read the sign.
+
+Instrumentation reverted; `src/` verified byte-identical to the committed state.

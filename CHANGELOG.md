@@ -5,6 +5,76 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.325 — a hue-discriminating environment confirms (u)'s mechanism by SIGN REVERSAL, and shows `.324`'s baseline was the wrong (u) class — so `.324`'s attribution is withdrawn
+
+`.324` closed with an honest gap: the ceiling row of the (p) attribution table could not be computed because
+`.312`'s no-ambient frame was a class-A run whose ceiling is a void. This round set out to fill that cell, and
+instead found the baseline itself was unsound.
+
+**First attempt — black environment, and it cannot work in principle.** A paired run (`PT2=1`) under a black
+environment returned **ceiling 0.0 on both arms**. Under a black background a class-A void and a genuinely
+unlit ceiling are **the same value**, so the discriminator and the measurement collapse. That also means
+**`.312`'s black data point was confounded** — it was read as "class A's ceiling follows the background to
+black", but a class-B ceiling would read ~0 there too.
+
+**Second attempt — a dim BLUE environment, and it works.** `0x000030`: faint enough not to swamp the scene
+lights, and its **R−B is −48** where the room's own bounce is **+8**, so the *sign* separates the classes at low
+luminance:
+
+| paired arm | ceiling L | ceiling R−B | reading |
+| --- | --- | --- | --- |
+| render 1 | 6.8 | **−65.0** | environment hue → **class A** |
+| render 2 | 96.6 | **+12.2** | room bounce → **class B** |
+
+**And it delivers a sign-reversal confirmation of (u)'s mechanism — the strongest evidence yet.** "Class A
+replaces the ceiling with the environment" predicts class A is *brighter* when the environment out-shines a
+correct ceiling and *darker* when it does not. Both hold:
+
+| environment | ceiling A | ceiling B | sidewall A | sidewall B | class A is |
+| --- | --- | --- | --- | --- | --- |
+| normal grey gradient | 181.5 | 115.2 | 157.7 | 116.1 | **brighter** |
+| dim blue (`0x000030`) | **6.8** | **96.6** | **75.7** | **100.3** | **darker** |
+
+The class-A effect **reverses sign with the environment's brightness**. A prediction that flips direction and
+does is worth more than the three-point dose-response `.312` offered, and it repairs it: `.312`'s black point is
+**withdrawn** and replaced by this one, which discriminates.
+
+**And it invalidates `.324`.** `.324` used a **class-A** frame as its "no ambient" baseline for every surface.
+But in class A the ceiling is not a bounce surface, so the whole room is darker than a true class-B no-ambient
+render — **sidewall 69.4 (class A) against 100.3 (class B), a 31-count understatement.** With the baseline too
+low, both the "correct" and "actual" ambient figures were inflated. **`.324`'s headline — "(p) is a
+redistribution; 5× too much on the zero-sky wall, 6.8× spread" — is withdrawn**, along with the two claims that
+rested on it: that ceiling ÷ wall's insensitivity is *explained* by comparing two surfaces on one side of a
+redistribution, and that intensity tuning provably cannot fix (p).
+
+**With the corrected baseline the window-wall story changes in kind, not degree.**
+
+| surface | raster | traced | class-A base (`.324`) | **class-B base** | correct | actual | ratio |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ceiling | 128.8 | 115.2 | *void* | 96.6 | 32.2 | 18.6 | 0.58× |
+| sidewall-L | 133.5 | 116.1 | 69.4 | 100.3 | 33.2 | 15.8 | 0.48× |
+| **winwall-R** | **60.0** | **102.7** | 49.3 | **78.4** | **−18.4** | 24.3 | **impossible** |
+| glazing | 173.3 | 166.7 | 111.0 | 115.4 | 57.9 | 51.3 | 0.89× |
+
+**The window wall's implied "correct ambient" is negative**, which cannot happen — ambient light does not remove
+light. The class-B near-zero-ambient window wall (**78.4**) is already *brighter* than the raster's (**60.0**),
+so **its over-brightness is present with the environment nearly removed and is therefore not attributable to the
+gradient.** `.323`'s *observation* stands untouched — window wall +42.7 against the raster, shading flattened 7×
+— because that is a direct raster-vs-traced comparison needing no baseline. Only the attribution falls.
+
+**The recomputed ratios are offered as provisional, not as a replacement headline.** Dim blue is not exactly
+zero ambient, it is n = 1 per class, and it is displayed-count arithmetic on a tone-mapped image. What they
+suggest — the gradient *under*-supplying every computable surface (0.48–0.89×), the opposite of `.324`'s
+picture — is interesting and **not** being published as a finding. Given `.324`, one more inversion on a shaky
+baseline is exactly what should not be asserted.
+
+**The reusable rule, and it is this round's most durable output.** **A baseline arm must be verified to be in
+the same (u) class as the arm it baselines.** Two rounds — `.312` and `.324` — were misled by an
+unverified-class baseline, and both published something that had to be withdrawn. The check is now cheap:
+`PT2=1` for a paired sample plus a hue-discriminating environment, and read the sign.
+
+**Unchanged:** instrumentation reverted, `src/` verified byte-identical to the committed state. Probe unchanged.
+
 ## v0.31.5.324 — (p) is a REDISTRIBUTION, not a level error: the gradient under-supplies sky-facing surfaces and over-supplies the zero-sky wall 5×. So it cannot be fixed by tuning intensity
 
 `.323` found the window wall 71 % too bright and its shading flattened 7×. `.312`'s **gradient-zeroed** frame

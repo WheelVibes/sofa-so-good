@@ -117,6 +117,25 @@ round would have had to withdraw it, as happened in `.291`, `.292` and `.301`.
 Related: quote the counts, not the impression. `.311`'s tallies were first renders 12 A / 5 B, second renders
 1 A / 2 B — enough to say "both classes occur in both positions" and *not* enough to claim a position effect.
 
+## A BASELINE arm must be verified to be in the same (u) class
+
+Two rounds published results that had to be withdrawn because their "no ambient" baseline was a **class-A**
+frame. In class A the ceiling is replaced by the environment, so it stops being a **bounce surface** and the
+whole room reads darker: **sidewall 69.4 (class A) vs 100.3 (class B)** under the same near-zero environment — a
+31-count understatement that inflated every derived figure (`.312`, `.324`).
+
+**Check the class of every arm, including baselines.** `PT2=1` gives a paired sample per boot, and a
+**hue-discriminating environment** identifies the class at any luminance:
+
+- **Black does not work** — a class-A void and a genuinely unlit ceiling both read 0.0.
+- **Dim blue (`0x000030`) does** — faint enough not to swamp the scene lights, and its R−B is −48 where room
+  bounce is +8, so the **sign** separates the classes: ceiling R−B **−65.0** = class A, **+12.2** = class B
+  (`.325`).
+
+Bonus: this also gives (u)'s mechanism its strongest test. "Class A replaces the ceiling with the environment"
+predicts the class-A effect **reverses sign** with the environment's brightness — class A is brighter under the
+normal grey gradient (ceiling 181.5 vs 115.2) and **darker** under dim blue (6.8 vs 96.6). It does.
+
 ## Use `PT2=1` for paired samples — two renders per boot
 
 Every (u) experiment before `.310` paid ~3.5 minutes of page boot and scene load **per class sample**, and
