@@ -9916,3 +9916,100 @@ old frames too, not only the one currently being produced.**
 
 Nothing changed in `src/` or in the probe. (u)'s cause remains unidentified; this round identifies its
 consequences.
+
+---
+
+## Round .296 — state of knowledge, `.230`–`.295`: what stands, what is withdrawn, what is unknown
+
+Sixteen of the last twenty rounds corrected an earlier one. The record is therefore internally
+self-contradictory when read front-to-back: several claims are asserted, withdrawn, restored and re-attributed
+across separate entries, and three separate causes were published for one anomaly. **The pending decisions on
+items (l)–(u) cannot be made from that without reading all sixty-six entries.** This round derives each claim's
+*current* status from its chain of corrections. No new measurement; the deliverable is the index.
+
+### Claims that STAND
+
+| claim | round | why it survives |
+| --- | --- | --- |
+| **Colour bleed in the rasteriser is exactly zero** | `.268` | A raster A/B with no confound available. Never depended on the tracer, so untouched by items (t)/(u) and by every tracer correction since. **The arc's most load-bearing positive result.** |
+| **Every HQ render is gradient-lit by default** | `.286`, `.287` | Inferred from `store.hdriId` defaulting to null, then **confirmed by direct observation** of the branch `buildTracerScene` takes. Item (p), escalated. |
+| **(u) has three discrete classes: A 50 %, B 42 %, M 8 %** | `.294` | n=24, content-controlled, each class tight to <1 count. Superseded `.285`'s two-state and `.293`'s gradient descriptions. |
+| **The three floor-finish A/Bs are class-clean** | `.295` | Within-pair band differences 0.6–2.9 counts against ~17 between classes. |
+| **The qualifying photograph band is 0.91–1.11, app at 0.93 inside it** | `.234`, `.288`, `.290` | n=4. Robust to the ±5 % crop-choice uncertainty `.292` measured, because the spread is wide. |
+| **A reference photograph's framing is known: 4:3, ≈26 mm** | `.288` | From Commons `extmetadata`, not inference. Answers half of thread 1's stated blocker. |
+| **The anchor metric is framing-invariant** | `.285` | Same world point reads 158.5/161.4 vs 158.9/161.4 at two pitches. Answers the other half of thread 1's blocker. |
+| **Patch means are scale-invariant; thumbnails are valid for them** | `.289` | 1.106 from both a 1280 px thumbnail and a 4032 px original. **Not** valid for micro-contrast. |
+| **The HQ mirror ceiling is fixed** | `.253` | `pbrStandInFor`; the arc's only shipped `src/` change, with unit tests. |
+
+### Claims that are WITHDRAWN
+
+| claim | asserted | withdrawn | note |
+| --- | --- | --- | --- |
+| `.188`'s ceiling deficit | `.188` | `.234`, and again `.255` | Revived by `.253`, withdrawn again when `.255` found the tracer runs a different lighting rig. Retired. |
+| The wall-falloff deviation | `.226`–`.236` | `.247`, metric retired `.249` | Framing-dependent; the metric never measured a wall. |
+| "Absent interreflection causes the wall falloff" | `.226` | `.251` | Real GI does not produce the photograph's falloff. The arc's founding diagnosis. |
+| `.277`–`.279`'s bedroom findings | `.277`–`.279` | `.280` | Withdrawal stands; its *reason* does not — see below. |
+| `.282`'s "the canvas never showed the path trace" | `.282` | `.283` | Screenshots show the render displays normally. |
+| Item (t), the AI-denoise radiometric shift | `.283` | `.285` | One-variable A/B: 1.1–1.6 %, not ~30 %. |
+| `.293`'s shared-asymptote / varying-extent model of (u) | `.293` | `.294` | Built on two frames of the same class; no class-B frame was profiled. |
+| `.291`'s chroma-agreement criterion | `.291` | `.292` | Refuted before adoption; would reject a qualifying reference. |
+| `.290`'s "app matched to within 0.003" | `.290` | `.292` | Crop choice alone moves one photograph 5.4 %. |
+| `.292`'s ceiling-warmth GI signature | `.292` | `.292` | Refuted in the same round at n=3; tracks floor colour, not GI. |
+
+### Claims RE-ATTRIBUTED (the withdrawal stood, the reason did not)
+
+The bedroom2 anomaly of `.277`–`.279` was explained three times:
+
+| round | cause proposed | status |
+| --- | --- | --- |
+| `.280` | sample count (unconverged at 150) | refuted by `.284` (+5.6 % over 6→256 samples) |
+| `.284` | the AI-denoise swap | refuted by `.285` (denoise is neutral) and `.295` |
+| `.295` | **(u) class straddling** — the white arm was a class-A frame | current |
+
+Similarly `.281`'s "livingDining converged at 150" was withdrawn by `.282` on a false premise, restored by
+`.284`, and finally shown by `.295` to be a **same-class artefact** (both frames class A).
+
+### UNKNOWN — genuinely open, not quietly assumed
+
+- **(u)'s cause.** Ten candidates eliminated across `.284`–`.294`: sample count, denoise stage, exposure, the
+  env branch (twice), tone mapping, denoise/blank-render failure, per-capture tile race, camera pose, per-tile
+  assignment. Every mechanism proposed in that span was refuted by a later round. **No mechanism is proposed.**
+- **The class status of the recoloured traced arms** in `.269`, `.270`, `.276`. `.295`'s classifier reads the
+  same bands a deliberate recolour moves, so it cannot reach them. Their magnitudes are neither confirmed nor
+  void.
+- **`.281`'s aperture and pose refutations.** `.284` restored them as like-for-like raw-trace comparisons, but
+  not every frame involved has a determinable class, so they are better described as unknown than as standing.
+- **Whether class A or class B is the correct render.** `.293` argued B looks physically sensible (cool near the
+  aperture, warm away from it) but that was on the mis-paired comparison `.294` overturned.
+
+### Decisions outstanding — the actual blocking list
+
+| item | state | what is needed |
+| --- | --- | --- |
+| **(p) HQ-FILL-RIG** | confirmed by direct observation `.287` | **A real `src/` fix** — feed the tracer the scene's own lighting instead of the hardcoded cold gradient. Look-and-cost call. **Highest value.** |
+| (l) WINDOW-LUMINANCE | diagnosed, priced ≈×30 `.259` | look call |
+| (m) PHOTO-VIGNETTE | built, measured, reverted `.244` | look call |
+| (n) HQ-LAMBERT-CEILING | fix 1 shipped `.253` | fix 2 call (near-moot) |
+| (q) HQ-GLAZING-OPAQUE | fix works but incomplete alone `.257` | call |
+| (r) BACKDROP-LOWPASS | proven recoverable `.265` | render call |
+| (s) ALBEDO-FILL | narrowed to luminance only `.272` | call; calibration used traced targets of unknown class |
+| (u) HQ-TRACE-NONDETERMINISM | three classes measured `.294`, consequences audited `.295` | cause unidentified; **blocks thread 1** |
+
+### Method rules the arc earned, consolidated
+
+1. Look at the crop/frame — and **at old frames too** (`.295`: three rounds mis-attributed an anomaly whose
+   answer was on disk).
+2. **A frame-wide statistic needs its region declared** (`.282` measured a dead patch; `.293` averaged across
+   furniture).
+3. **Do not turn one measurement into a criterion** (`.291` built a criterion on n=2; `.292` killed it at n=3).
+4. **Check whether a candidate cause is even a variable before A/B-ing it** (`.286`: the env branch is constant).
+5. **Wire up the observation channels before the hypotheses** (`.287`: the probe had never listened to the page
+   console; four causes fell in one round once it could).
+6. **Before running a new measurement, check the outputs of the old ones** (`.294`, `.295`: both free, both
+   overturned a published conclusion).
+7. **When an instrument disagrees with itself, check a different observation channel before theorising**
+   (`.283`).
+8. Provenance is a prior that says look harder, not a verdict (`.292`).
+9. Metrics are pose-, method-, tier-, framing- **and (u)-class-**dependent. Quote none without stating all.
+
+Nothing changed in `src/` or in the probe. Docs only.

@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.296 — state of knowledge, `.230`–`.295`: what stands, what is withdrawn, what is unknown
+
+**Sixteen of the last twenty rounds corrected an earlier one.** Read front to back the record is now
+self-contradictory: several claims are asserted, withdrawn, restored and re-attributed in separate entries, and
+**one anomaly has three published causes**. The decisions waiting on items (l)–(u) cannot be made from that
+without reading all sixty-six entries. This round resolves the record into a single index, deriving each
+claim's *current* status from its chain of corrections. No new measurement — the index is the deliverable, and
+it is in the research doc under **Round .296**.
+
+**Nine claims stand.** The load-bearing one is `.268` — **colour bleed in the rasteriser is exactly zero**, a
+raster A/B with no confound available, which never touched the tracer and is therefore untouched by items
+(t)/(u) and by every tracer correction since. Also standing: (p) confirmed by direct observation (`.287`); (u)'s
+three classes at n=24 (`.294`); the three floor-finish A/Bs shown class-clean (`.295`); the n=4 photograph band
+0.91–1.11 with the app at 0.93 inside it; the reference framing (4:3, ≈26 mm, `.288`); the anchor metric's
+framing-invariance (`.285`); patch-mean scale-invariance (`.289`); and the shipped HQ mirror-ceiling fix
+(`.253`, the arc's only `src/` change).
+
+**Ten claims are withdrawn**, including the arc's founding diagnosis — *"absent interreflection causes the wall
+falloff"* (`.226`, refuted `.251`) — and `.188`'s ceiling deficit, which was retired, revived by `.253`, and
+retired again by `.255`.
+
+**Three claims were re-attributed: the withdrawal stood but the reason did not.** The bedroom2 anomaly of
+`.277`–`.279` was blamed on sample count (`.280`), then the AI-denoise swap (`.284`), and is now attributed to
+**(u) class straddling** (`.295`). `.281`'s convergence claim was withdrawn on a false premise (`.282`),
+restored (`.284`), and finally shown to be a **same-class artefact** (`.295`).
+
+**Four things are genuinely unknown and are recorded as such** rather than quietly assumed: (u)'s cause (ten
+candidates eliminated, every proposed mechanism refuted by a later round); the class status of the recoloured
+traced arms in `.269`/`.270`/`.276`, which `.295`'s classifier structurally cannot reach; `.281`'s aperture and
+pose refutations, since not every frame involved has a determinable class; and **which of (u)'s classes is the
+correct render** — `.293` argued for B but on the mis-paired comparison `.294` overturned.
+
+**The blocking list, which is the point of the exercise.** Eight items await a decision, and they are not
+equal: **(p) HQ-FILL-RIG is the highest value** — confirmed by direct observation, with a known fix (feed the
+tracer the scene's own lighting instead of the hardcoded cold gradient), needing only a look-and-cost call.
+(u) blocks thread 1 and has no identified cause. The other six ((l), (m), (n) fix 2, (q), (r), (s)) are
+diagnosed, priced and waiting.
+
+**Nine method rules are consolidated in one place**, several of which were paid for repeatedly: declare a
+statistic's region; do not turn one measurement into a criterion; check whether a candidate cause is even a
+variable before A/B-ing it; wire up the observation channels before the hypotheses; and check the outputs of
+old runs before generating new ones — `.294` and `.295` were both free and both overturned a published
+conclusion.
+
+**An honest note on the arc's shape.** Rounds `.280`–`.295` produced one shipped fix and a great deal of
+self-correction. The pattern is legible in hindsight: the arc kept measuring an instrument it had not
+validated, and each round's mechanism was refuted by the next round's better-instrumented look. The
+instrumentation is now sound — a stage label, a class discriminator, a console listener, an opt-in profile —
+and the measurement threads have converged on decisions rather than on more measurements.
+
+**Unchanged:** no `src/` change, no probe change. Docs only.
+
 ## v0.31.5.295 — free audit of every saved traced frame: which past conclusions item (u) actually corrupted. `.280` and `.284` both mis-attributed the bedroom2 anomaly, and the real cause was (u) class straddling
 
 `.294`'s method note said to check the old outputs before running anything new. Doing that again answers the
