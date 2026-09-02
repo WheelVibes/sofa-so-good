@@ -692,3 +692,29 @@ Room-stable to ±10 % relative; **hour-catastrophic**. So the lever generalises 
 and that was established in minutes rather than hours. Use the **geometric mask** (`ceiling N.NN wall N.NN
 floor N.NN (normalised by their own combined mean M)`) to recover absolutes without hand-placing a patch per
 pose — multiply the normalised figure by the combined mean.
+
+## Pre-register predictions in the space you MEASURE, not the space you model
+
+`.337` registered two interpolation models **29 % apart in parameter space** and treated that as a decisive
+test. In the space actually measured — the traced ceiling in counts — they were **5.1 counts apart** against a
+class-B arm-to-arm spread of **2.3 counts**. A single class-B arm could not have separated them, and at ~6 runs
+per class-B arm that would have been an expensive discovery.
+
+Before committing to a discriminating measurement, push the competing predictions **through the instrument** and
+check the observable separation exceeds the reproducibility. Parameter-space distance is not evidence.
+
+## The patch `sd` is spatial variation, NOT the uncertainty of the mean
+
+Rounds `.332` onward quoted lines like "2.1 counts against sd 3.4" as if `sd` bounded the measurement. It does
+not: `patch-read.mjs`'s `sd` is the spread of pixel luminance **across** the patch — texture, shading gradients,
+plank joints — and a large patch can have a large `sd` and a highly reproducible mean.
+
+The correct uncertainty for comparing two arms is **arm-to-arm reproducibility within a (u) class**:
+
+| | spread |
+| --- | --- |
+| class A, same boot and across boots | **0.0–0.1 counts** |
+| class B, same boot (NW3/NW4: 178.4 vs 176.1) | **2.3 counts** |
+
+Use ~2.3 counts for class-B comparisons. `.332`'s "slate ≈ ink" (2.1 counts apart) survives on this basis, but
+it was originally justified with the wrong number.

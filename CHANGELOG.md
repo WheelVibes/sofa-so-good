@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.337 — (w)'s curve is PROPORTIONAL WITH A FLOOR: `GB = max(0.9, 3.3·rho)` fits four finishes, and both registered predictions failed again
+
+`.332` refuted two interpolation models on three finishes and left the curve shape open. This round adds a
+fourth in the region that matters — the palette's own weight sits there — and closes (w)'s zero on the raster
+side.
+
+**The fourth point.** `wall-paint-stone-grey` `#a8a6a1`, **rho = 0.382**: neutral in hue, and roughly midway
+between white (0.910) and slate (0.158) where all the variation lives.
+
+**Both registered predictions refuted, both over-predicting** — the same direction as `.332`'s three failures:
+
+| | GB(stone-grey) |
+| --- | --- |
+| predicted, linear in rho (chord between endpoints) | 1.51 |
+| predicted, linear in log rho | 1.95 |
+| **measured** | **1.26** |
+
+**A simple form fits all four:**
+
+| finish | rho | required GB | `max(0.9, 3.3·rho)` | residual |
+| --- | --- | --- | --- | --- |
+| white | 0.910 | 3.00 | 3.00 | — **sets the slope** |
+| **stone-grey** | 0.382 | **1.26** | **1.26** | **−0.00** |
+| slate | 0.158 | 0.88 | 0.90 | −0.02 — **sets the floor** |
+| **ink** | 0.033 | 0.99 | 0.90 | **+0.09** |
+
+The slope is `3.0/0.910` from the **white point alone** and the floor from slate, so **stone-grey and ink are
+unused by the fit and both land within 0.09 GB.** Two points of confirmation, not four knobs on four points.
+
+Being precise: proportionality-through-the-origin was **not** among my registered models, so this was not
+predicted. It is a form that fits, offered with that caveat, and it makes a falsifiable out-of-sample
+prediction — `wall-paint-oat` (rho 0.617) should require **GB ≈ 2.04**. That is the next round's test.
+
+Why the chord failed is now clear: a straight line between the endpoints (0.910, 3.0) and (0.033, 1.0) is **not**
+proportionality, and the difference is largest in mid-range — which is where the palette lives.
+
+**(w)'s zero is closed on the raster side.** Four finishes across a **28× reflectance range** all give raster
+ceiling **126.9** and floor **102.5**, while `wall-L` tracks monotonically 144.6 → 104.3 → 67.5 → 22.6. Four
+independent landing checks against eight exact zeros, in an ordering no accidental no-op could produce. The
+"one finish only" caveat is retired.
+
+**A pre-registration error of my own, worth recording.** I registered two predictions **29 % apart in GB space**
+and treated that as decisive without checking their separation **in the space I actually measure**: 5.1 counts
+(99.7 vs 104.8) against a class-B arm-to-arm spread of 2.3 counts. A single class-B arm could never have
+separated them, and I would have found that out only after spending the runs. **Pre-registration is only useful
+if the instrument can distinguish the predictions** — compute the observable separation, not the parameter
+separation.
+
+**And a correction to how I have been quoting uncertainty since `.332`.** I wrote "2.1 counts against sd 3.4"
+and concluded slate ≈ ink. The patch `sd` is **spatial variation across the ceiling**, not the uncertainty of
+its mean. The right figure is **class-B arm-to-arm spread — 2.3 counts** (NW3/NW4: 178.4 vs 176.1). `.332`'s
+conclusion survives, on a sounder basis than the one I gave it.
+
+Cost: three paired runs for one class-B arm — five of six arms landed class A. (u)'s tax at this pose is now
+running ~6×.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.336 — the ground-term lever is ROOM-stable (37-46 % across four rooms) though not hour-stable, and the probe is hardened against the schema migration
 
 Two pieces: a necessary condition for (w) tested cheaply, and tooling protected against an incoming schema

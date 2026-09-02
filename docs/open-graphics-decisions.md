@@ -3072,3 +3072,38 @@ by fixture output × room reflectance. That is materially more work than the day
 
 Sequencing: **(p) → (w) daytime → (w) night.** (p) first because it is what makes the night case measurable at
 all, and it already has a priced fix (`.326`).
+
+### ✅ THE CURVE, FROM FOUR FINISHES — `GB = max(0.9, 3.3·rho_wall)` (v0.31.5.337)
+
+| finish | rho_wall | required ground bounce | `max(0.9, 3.3·rho)` | residual |
+| --- | --- | --- | --- | --- |
+| white `#f5f5f0` | 0.910 | **3.00** (shipped) | 3.00 | — sets the slope |
+| **stone-grey `#a8a6a1`** | **0.382** | **1.26** | **1.26** | **−0.00** |
+| slate `#6a6f76` | 0.158 | 0.88 | 0.90 | −0.02 — sets the floor |
+| ink `#2b3340` | 0.0326 | 0.99 | 0.90 | +0.09 |
+
+Slope from the **white point alone**, floor from slate — so **stone-grey and ink are unused by the fit and both
+land within 0.09 GB.** Two confirmations rather than four knobs.
+
+**Not pre-registered.** The models registered in advance were chord-linear (1.51) and log-linear (1.95), and
+both failed, over-predicting. Proportionality-with-a-floor is a form that fits, and it makes an out-of-sample
+prediction that has **not** yet been tested: `wall-paint-oat` (rho 0.617) → **GB ≈ 2.04**. Treat the form as
+provisional until that is measured.
+
+**Why the obvious implementation is wrong.** A chord between the endpoints (0.910, 3.0) and (0.033, 1.0) is not
+proportionality, and the two diverge most in mid-range — exactly where the shipped palette sits. Of 19 wall
+finishes, twelve are above rho 0.15, and the three genuinely dark ones (petrol 0.090, graphite 0.067, ink
+0.033) are all in the flat zone where the response has already saturated.
+
+**So the implementable form is two lines**, with a hard floor rather than an interpolation table:
+
+```
+photographicGroundBounce = max(0.9, 3.3 * meanWallReflectance)   // daytime only
+```
+
+Caveats that stand: one pose, one room, one tier, **daytime only** — the lever has 2.4 % authority at night
+(`.333`) and the night defect is 26–28 % on every surface (`.335`), which needs a different mechanism. Room
+spread on the lever's authority is ±10 % (`.336`), second-order against the 46 % error a chord would introduce.
+
+**(w)'s zero is closed on the raster side:** four finishes over a 28× reflectance range, raster ceiling 126.9
+and floor 102.5 for every one, with `wall-L` monotone at 144.6 / 104.3 / 67.5 / 22.6.

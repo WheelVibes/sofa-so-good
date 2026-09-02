@@ -12764,3 +12764,119 @@ same: **verify the process and the run's own timestamps before interpreting miss
 measurement and a measurement that has not finished look identical from the filesystem.
 
 `src/` reverted from the temporary conversion and verified byte-identical to HEAD.
+
+---
+
+## Round .337 — the curve is proportional with a floor, and a pre-registration error of my own
+
+`.332` refuted two interpolation models on three finishes and left the shape open, with the practical warning
+that a chord between endpoints is 46 % wrong in mid-range. This round adds a fourth finish in that region, and
+closes (w)'s zero on the raster side.
+
+### Choosing the fourth point
+
+The shipped palette decides where accuracy matters. Decoding all 19 wall finishes to linear luminance:
+
+| band | finishes |
+| --- | --- |
+| rho > 0.6 | soft-white 0.839, almond 0.730, oat 0.617 |
+| 0.2–0.6 | lavender 0.423, mushroom 0.410, dusty-rose 0.401, **stone-grey 0.382**, eucalyptus 0.358, mustard 0.355, clay 0.296, mauve 0.233 |
+| 0.09–0.19 | olive 0.188, rust 0.160, slate 0.157, denim 0.155, teal 0.126, petrol 0.090 |
+| < 0.07 | graphite 0.067, ink 0.033 |
+
+**Twelve of nineteen sit above rho 0.15**, and the three genuinely dark ones are all in the flat zone `.332`
+found. So the informative region is the light-to-mid band, and `wall-paint-stone-grey` `#a8a6a1` (rho 0.382) is
+the natural probe — neutral in hue, so it cannot confound with the chroma axis, and roughly midway between
+white and slate.
+
+### Both registered predictions failed again
+
+| | GB(stone-grey) |
+| --- | --- |
+| linear in rho — a chord between (0.910, 3.0) and (0.033, 1.0) | 1.51 |
+| linear in log rho | 1.95 |
+| **measured** | **1.26** |
+
+Over-predicting, in the same direction as `.332`'s three failures. That consistency is the clue: every model I
+have tried treats the endpoints as anchors and interpolates between them, and every one has come out too high
+in mid-range.
+
+### The form that fits
+
+| finish | rho | required GB | `max(0.9, 3.3·rho)` | residual |
+| --- | --- | --- | --- | --- |
+| white | 0.910 | 3.00 | 3.00 | — **sets the slope** |
+| **stone-grey** | 0.382 | **1.26** | **1.26** | **−0.00** |
+| slate | 0.158 | 0.88 | 0.90 | −0.02 — **sets the floor** |
+| **ink** | 0.033 | 0.99 | 0.90 | **+0.09** |
+
+The slope is `3.0 / 0.910 = 3.30`, from the **white point alone**; the floor is set by slate. Stone-grey and ink
+are therefore **not used by the fit**, and both land within 0.09 GB. That is two free confirmations, not a
+four-parameter curve through four points.
+
+Why the chord failed is now obvious in hindsight: **a straight line between the endpoints is not
+proportionality.** Both pass through (0.910, 3.0) and near (0.033, ~1.0), but the chord bulges above
+proportionality throughout the middle — which is precisely the band the palette occupies.
+
+**What I cannot claim:** proportionality-through-the-origin was not one of my registered models. I did not
+predict this. It is a form that fits, and the honest test is out-of-sample: it predicts `wall-paint-oat`
+(rho 0.617) requires **GB ≈ 2.04**, against a chord's 2.4. That is a genuine discriminating measurement for a
+later round — and, per this round's other lesson, one whose observable separation should be computed first.
+
+### (w)'s zero is closed on the raster side
+
+| finish | rho | raster ceiling | raster floor | raster wall-L |
+| --- | --- | --- | --- | --- |
+| white | 0.910 | **126.9** | **102.5** | 144.6 |
+| stone-grey | 0.382 | **126.9** | **102.5** | 104.3 |
+| slate | 0.158 | **126.9** | **102.5** | 67.5 |
+| ink | 0.033 | **126.9** | **102.5** | 22.6 |
+
+A **28× reflectance range**, eight exact zeros, and four landing checks that are **monotonically ordered in
+reflectance** — an ordering no accidental no-op could produce. `.329`'s finding is no longer a one-finish
+result.
+
+### A pre-registration error of my own
+
+I registered two predictions **29 % apart in GB space** and treated that as a decisive test. Pushing them
+through the instrument first — which I did only after the arms came back class A — gives:
+
+| prediction | implied traced ceiling |
+| --- | --- |
+| linear in rho | 99.7 |
+| linear in log rho | 104.8 |
+
+**5.1 counts apart**, against a class-B arm-to-arm spread of **2.3 counts**. Marginal at best with one arm, and
+at ~6 runs per class-B arm at this pose that would have been an expensive way to learn it.
+
+**Pre-registration is only useful if the instrument can distinguish the predictions.** The separation to compute
+is the *observable* one. Registering a hypothesis in parameter space and assuming the measurement follows is a
+distinct failure from the ones this arc has catalogued so far — it is not a contaminated patch, a no-op, or a
+mis-classified arm, but a test with no power, which would have produced an inconclusive result that looked like
+a real one.
+
+### A correction to how I have quoted uncertainty since `.332`
+
+`.332` reads "2.1 counts against a patch sd of 3.4" and concludes slate ≈ ink. **The patch `sd` is the spatial
+spread of pixel luminance across the patch** — texture, shading gradient, plank joints — and is not the
+uncertainty of its mean. A large patch can have a large `sd` and a very reproducible mean, which is exactly what
+the class-A data show.
+
+The right figure for comparing two arms is **arm-to-arm reproducibility within a (u) class**:
+
+| | spread |
+| --- | --- |
+| class A, same boot and across boots | **0.0–0.1 counts** |
+| class B, same boot (NW3/NW4: 178.4 vs 176.1) | **2.3 counts** |
+
+`.332`'s conclusion survives — 2.1 counts is within a 2.3-count spread — but it was justified with the wrong
+number, and the same wrong number would have mattered had the difference been 3 counts.
+
+### Cost
+
+Three paired runs for one class-B arm; **five of six arms landed class A**. (u)'s tax at this pose is now
+running about 6×, up from the 4× recorded in `.330`. Nothing suggests the rate itself is drifting rather than
+this being small-sample noise, but it is worth watching: if class B is becoming rarer, every remaining (p)/(w)
+tracer target gets proportionally more expensive.
+
+No `src/` change beyond the version bump.
