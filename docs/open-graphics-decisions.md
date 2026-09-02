@@ -2238,6 +2238,35 @@ configuration.**
 Observation, not a claim: both headed runs were class A where headless is ~50/50, but at n = 2 that is
 unremarkable (P ≈ 25 %). Across the dark-ceiling arm the classes stay roughly balanced.
 
+**🧭 BOUNDED FURTHER v0.31.5.310 — clean GL state, and the fault is PER-RENDER.**
+
+*No GL error accompanies it.* A class-A run drained `gl.getError()` either side of `setScene`: `none` both
+times, `lost=false`, and no size pressure (`maxTexture=16384`; 930,573 positions need 57 rows). A failed or
+clamped upload would have reported one. Twentieth candidate eliminated.
+
+*The class flips within one page session.* New `PT2=1` clicks **Re-render** and captures a second still in the
+same boot:
+
+| | frame L | glazing | ceiling | sidewall-L |
+| --- | --- | --- | --- | --- |
+| render 1 | 104.4 | 168.9 | **181.5** sd 0.88 | 15.8 |
+| render 2 | **29.7** | 164.7 | **1.0** sd 0.00 | 1.2 |
+
+Class A then class B, each matching its signature exactly — the first time both classes have been produced
+**back to back with everything else held constant** (same page, in-memory scene graph, dev server, wall-clock
+minute, GPU, renderer string).
+
+**Eliminates:** anything set once per page — module init, first-context state, one-time shader compilation, boot
+sequence — and **slow drifts** (thermal, memory pressure, dev-server state), since both classes occurred within
+three minutes in one process.
+
+**Nuance:** each render constructs a *new* `WebGLRenderer` on a new canvas, so the two do not share a GL
+context. This eliminates *page*-level state, not per-context state. "Per-render" = "per
+`createHqRenderSession` call", which is the correct scope for the remaining search.
+
+**(u) is now bounded as:** decided per `createHqRenderSession` call, on the real GPU with a real compositor,
+with a clean GL state, from CPU-side inputs identical to the integer.
+
 **Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
 as a surface in every run.
 

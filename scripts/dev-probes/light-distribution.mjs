@@ -1673,6 +1673,55 @@ if (process.env.PT === '1') {
     const after = await page.evaluate(() => window.__store.getState().featureFlags.hqAiDenoise)
     console.log(`  PTAI read-back after capture: hqAiDenoise=${after}`)
   }
+  // PT2=1 -- render a SECOND still in the SAME page session (`.310`), by clicking
+  // the modal's Re-render button and capturing again. This separates two families
+  // that every previous (u) round has conflated: a per-SESSION state (set once at
+  // boot / context creation, so both renders in one session share a class) from a
+  // per-RENDER one (so the two renders can differ). Everything CPU-side is
+  // identical across classes (`.306`-`.308`) and no GL error accompanies the fault
+  // (`.310`), so which of these it is decides where to look next.
+  if (process.env.PT2 === '1') {
+    const again = await page.evaluate(() => {
+      const b = [...document.querySelectorAll('button')].find(
+        (x) => (x.textContent || '').trim() === 'Re-render',
+      )
+      if (!b) return false
+      b.click()
+      return true
+    })
+    if (!again) {
+      console.log('  PT2: no Re-render button -- second render skipped')
+    } else {
+      const t2 = Date.now()
+      let got2 = 0
+      while (Date.now() - t2 < 420_000) {
+        await new Promise((r) => setTimeout(r, 4000))
+        const m2 = await page.evaluate(() => {
+          const t = document.body.innerText || ''
+          const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+          return r ? Number(r[1]) : null
+        })
+        if (m2 != null) {
+          if (m2 >= want && m2 === got2) break
+          got2 = m2
+        }
+      }
+      await new Promise((r) => setTimeout(r, 6000))
+      const png2 = await page.evaluate(() => {
+        const list = [...document.querySelectorAll('canvas')]
+        const c = list
+          .filter((x) => x !== list[0] && x.width > 16 && x.height > 16)
+          .sort((a, b) => b.width * b.height - a.width * a.height)[0]
+        return c ? { url: c.toDataURL('image/png'), w: c.width, h: c.height } : null
+      })
+      if (png2) {
+        fs.writeFileSync(`${OUT}/pathtraced2.png`, Buffer.from(png2.url.split(',')[1], 'base64'))
+        console.log(`  PT2: second render captured at ${got2} samples -> ${OUT}/pathtraced2.png`)
+      } else {
+        console.log('  PT2: could not read the canvas for the second render')
+      }
+    }
+  }
   console.log(`  PT STAGE: ${png.stage} -- traced figures below are ${png.stage} values`)
   console.log(`pathtraced (${got} samples, ${png.w}x${png.h}) -> ${OUT}/pathtraced.png`)
 }

@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.310 — no GL error accompanies the fault, and (u) is PER-RENDER: both classes produced back-to-back in one page session
+
+Two measurements, both cheap, and the second is the tightest paired observation of (u) the arc has managed.
+
+**1. The upload does not report failure.** `.306`–`.308` left the GPU-side upload as the only place the
+variability could live, so temporary instrumentation (added, observed, **reverted**, `src/` verified clean)
+drained `gl.getError()` either side of `setScene` and logged the limits. A **class-A** run:
+
+```
+gl errors before setScene: none
+gl limits: maxTexture=16384 max3D=2048 maxArray=2048 maxRenderbuffer=16384 lost=false
+gl errors after setScene: none
+```
+
+**No error, no context loss, and no size pressure** — 930,573 positions need 57 rows of a 16384-wide texture. So
+the faulty class carries a completely clean GL state; a failed or clamped allocation would have reported one.
+Twentieth candidate eliminated.
+
+**2. (u) is per-render, not per-page.** New `PT2=1` clicks the modal's **Re-render** and captures a second still
+in the **same page session**. One boot, two renders, ~3 minutes apart (run 18:08 +08):
+
+| | frame L | glazing | ceiling | sidewall-L |
+| --- | --- | --- | --- | --- |
+| render 1 | **104.4** | 168.9 | **181.5** sd 0.88 | 15.8 |
+| render 2 (Re-render) | **29.7** | 164.7 | **1.0** sd 0.00 | 1.2 |
+
+**Class A then class B, each matching its established signature exactly.** This is the first time the two
+classes have been produced **back to back with everything else held constant** — same page, same in-memory scene
+graph, same dev server, same wall-clock minute, same GPU, same renderer string.
+
+**What that eliminates.** Anything set once per page: module initialisation, the first WebGL context's state,
+one-time shader compilation, the app's boot sequence. And it eliminates **slow drifts** — thermal throttling,
+memory pressure accumulating over a session, dev-server state — because both classes occurred within three
+minutes of each other in one process.
+
+**One nuance, stated so it is not over-read.** Each render calls `createHqRenderSession`, which constructs a
+**new `WebGLRenderer` on a new canvas** — so the two renders do *not* share a GL context. This therefore
+eliminates *page*-level state but **not** per-context or per-session-construction state. "Per-render" here means
+"per `createHqRenderSession` call", which is the correct scope for the remaining search.
+
+**A real efficiency win, worth as much as the finding.** `PT2=1` yields **two class samples per boot** instead of
+one. Every (u) experiment so far has paid ~3.5 minutes of page boot and scene load per sample, and needed 2–3
+runs to see both classes. From here a single run can produce a paired A/B, which halves the cost and — more
+importantly — **removes page-boot variance as a confound** from any future comparison. Given twenty eliminated
+candidates, the next rounds need cheap paired samples more than they need another hypothesis.
+
+**Status.** Twenty candidates refuted. (u) is now bounded as: **decided per `createHqRenderSession` call, on the
+real GPU with a real compositor, with a clean GL state, from CPU-side inputs that are identical to the integer.**
+`.305`'s fix-verification criterion is unchanged.
+
+**Unchanged:** instrumentation reverted, `src/` verified clean. The probe keeps `PT2=1`.
+
 ## v0.31.5.309 — (u) is not a headless artefact: it reproduces in a real windowed browser with the real compositor, at the same magnitude and the same signature
 
 `.308` named a debt: the playbook says *"before calling a headless finding a product defect, ask whether a real

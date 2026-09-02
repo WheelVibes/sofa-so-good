@@ -10677,3 +10677,55 @@ paid.** Six earlier rounds asserted "half of all HQ stills are wrong" with no su
 check; `.308` wrote it down and `.309` paid it one round later.
 
 No `src/` change. The probe gains `HEADED=1`.
+
+---
+
+## Round .310 — no GL error accompanies the fault, and (u) is per-render: both classes back-to-back in one session
+
+### 1. The upload does not report failure
+
+`.306`–`.308` left the GPU-side upload as the only place the variability could live. Temporary instrumentation
+(added, observed, reverted, `src/` verified clean) drained `gl.getError()` either side of `setScene`, on a
+**class-A** run:
+
+```
+gl errors before setScene: none
+gl limits: maxTexture=16384 max3D=2048 maxArray=2048 maxRenderbuffer=16384 lost=false
+gl errors after setScene: none
+```
+
+No error, no context loss, no size pressure (930,573 positions need 57 rows of a 16384-wide texture). The faulty
+class carries a completely clean GL state. Twentieth candidate eliminated.
+
+### 2. The fault is per-render, not per-page
+
+New `PT2=1` clicks **Re-render** and captures a second still in the same page session (run 18:08 +08):
+
+| | frame L | glazing | ceiling | sidewall-L |
+| --- | --- | --- | --- | --- |
+| render 1 | 104.4 | 168.9 | **181.5** sd 0.88 | 15.8 |
+| render 2 (Re-render) | 29.7 | 164.7 | **1.0** sd 0.00 | 1.2 |
+
+Class A then class B, each matching its signature exactly. **First time both classes have been produced back to
+back with everything else held constant** — same page, in-memory scene graph, dev server, wall-clock minute,
+GPU, renderer string.
+
+**Eliminates** anything set once per page (module init, first-context state, one-time shader compilation, boot
+sequence) and **slow drifts** (thermal, memory pressure, dev-server state), since both classes occurred within
+three minutes in one process.
+
+**Nuance:** each render constructs a new `WebGLRenderer` on a new canvas, so the two do not share a GL context.
+This eliminates *page*-level state, not per-context state. "Per-render" = "per `createHqRenderSession` call".
+
+### The efficiency win is worth as much as the finding
+
+`PT2=1` yields two class samples per boot instead of one, halving the cost of every future (u) experiment and
+removing page-boot variance as a confound. With twenty candidates eliminated, the next rounds need cheap paired
+samples more than another hypothesis.
+
+### Status
+
+(u) is bounded as: **decided per `createHqRenderSession` call, on the real GPU with a real compositor, with a
+clean GL state, from CPU-side inputs identical to the integer.** `.305`'s fix-verification criterion unchanged.
+
+Instrumentation reverted, `src/` verified clean. The probe keeps `PT2=1`.

@@ -106,6 +106,20 @@ sd 0.88 in both — so it is not a headless artefact. What `HEADED=1` does **not
 without noting the debt and none prompted the check; `.308` wrote it down and `.309` paid it one round later.
 Write the debt into the entry.
 
+## Use `PT2=1` for paired samples — two renders per boot
+
+Every (u) experiment before `.310` paid ~3.5 minutes of page boot and scene load **per class sample**, and
+needed 2–3 runs to see both classes. `PT2=1` clicks the modal's **Re-render** and captures a second still in the
+same page session, so one run yields a **paired A/B**.
+
+That halves the cost and, more usefully, **removes page-boot variance as a confound**: in `.310` render 1 came
+out class A (ceiling 181.5, sd 0.88) and render 2 class B (ceiling 1.0, sd 0.00) with the same page, in-memory
+scene graph, dev server, wall-clock minute, GPU and renderer string. Prefer paired samples for any comparison
+that has to hold the environment constant.
+
+Note each render constructs a new `WebGLRenderer` on a new canvas, so the two renders do **not** share a GL
+context — a paired sample holds *page* state constant, not context state.
+
 ## One PT run per shell call
 
 A PT run is ~3–5 minutes including boot. Batching two in one shell call exceeded a 10-minute command timeout in
