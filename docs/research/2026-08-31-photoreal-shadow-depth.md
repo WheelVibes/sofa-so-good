@@ -7665,3 +7665,97 @@ Zero bleed is also **expected** from the architecture: a hemisphere plus an ambi
 and cannot do otherwise. The contribution is the quantification and the instrument, not surprise at the sign.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.269` — sizing the bleed deficit: ~18 counts, from the app's own path tracer
+
+`.268` established that colour bleed in the app is exactly zero, but sized the effect to expect against
+**saturated orange leather** at 23 cm — a configuration no ordinary room contains. This round asks what the
+deficit is actually worth.
+
+Runs 08:04–08:13 local (2026-09-02).
+
+### Photographs cannot supply the bound, and the reason is structural
+
+Floor bleed is inherently a **vertical** comparison: floor below, wall above. Vertical comparisons in real
+interiors are confounded by lighting gradients, and usually in the *opposite* direction.
+
+`w-1643383` — dark walnut floor, plain white surfaces, a certified-provenance interior — measured down a
+single column:
+
+| band | L | R−B |
+| --- | --- | --- |
+| top | 169.5 | **27.8** |
+| upper-middle | 173.9 | 21.0 |
+| lower-middle | 173.4 | **8.5** |
+| low | 99.4 | 16.5 |
+| floor itself | 127.0 | 35.3 |
+
+The wall is **warmest at the top**, which is the opposite of floor bleed — because the ceiling carries warm
+downlights. Mixed lighting dominates the vertical axis.
+
+And three of the five crops were contaminated, which only looking revealed: the top band is a **ceiling
+soffit with a downlight in it**, two bands clip **cabinet edges**, and the low band is mostly a **dark
+doorway** (its luminance of 99.4 against ~173 for the rest is the tell). The non-monotonic pattern was
+entirely artefact. Fourth crop-selection error in this stretch — `.260`, `.267`, `.268`'s first attempt, and
+now this.
+
+`.268`'s clean result depended on a **horizontal** series at constant height beside a saturated object. That
+is a special configuration, not something a general interior offers.
+
+### The bound came from the app's own path tracer instead
+
+`.255` disqualified the tracer for luminance comparisons because it runs a different lighting rig — it drops
+`AmbientLight` and `HemisphereLight` and substitutes a hardcoded gradient.
+
+**That objection does not apply to a within-tracer A/B.** Both sides share the rig, so it cancels in the
+difference — exactly as the raster's rig cancels in `.268`'s raster A/B. The only variable is one surface's
+colour.
+
+Ceiling `fafafa` → `ff5a00` (14 meshes, 171 m², fully exposed, directly adjacent to the measured wall),
+wall B anchors at y = 2.0 m, 150 samples per still:
+
+| anchor | traced R−B shipped | traced R−B orange | **Δ traced** | **Δ raster** |
+| --- | --- | --- | --- | --- |
+| d = 1.2 m | −3.5 | 14.2 | **+17.7** | **0.0** |
+| d = 2.4 m | 2.9 | 21.9 | **+19.0** | **0.0** |
+
+**Real light transport moves the wall's hue by about 18 counts; the rasteriser moves it by zero.** Both
+measured on the same anchors, in the same runs, from the same frames.
+
+Traced **luminance** also falls, 144.0 → 122.2. An orange ceiling absorbs most of the spectrum, so there is
+less bounce overall — the tracer gets the hue shift *and* the energy loss, which is what real transport does
+and what a tint would not.
+
+### So the deficit is worth ~18 counts
+
+Five times the 3.5 counts the reference photograph showed beside saturated leather, and against a rasteriser
+response of exactly zero.
+
+### Caveat, and it matters for severity
+
+A vivid orange ceiling is not a realistic interior. The realistic magnitude scales with the saturation of the
+bouncing surface, and the app's own room is mostly neutral: white walls, pale ceiling, oak floor.
+
+The shipped-room traced-versus-raster difference (R−B −3.5 against −0.1 at d = 1.2) *looks* like a realistic
+bound, but it is **not clean** — in that comparison the rig mismatch is still present, and only the
+difference-of-differences cancels it. Quoting it would repeat exactly the error `.255` caught.
+
+**A realistic bound needs its own A/B with a realistic recolour** — a plausible feature-wall or floor tone
+rather than a vivid one. That is a cheap next round now that the instrument exists, and it is the honest way
+to turn "the deficit is real and large in principle" into "the deficit is worth *this much* in the rooms
+users actually build".
+
+### Where the GI thread stands
+
+Open since `.226`, twice mis-attributed — falloff (refuted `.251`), ceiling (withdrawn `.255`). It now has:
+
+- a **positive result** (`.268`: bleed is exactly zero, one-variable raster A/B, no confound available), and
+- a **magnitude** (`.269`: ~18 counts under real transport, one-variable tracer A/B, rig cancelled).
+
+Neither depends on a reference photograph in its load-bearing step. That is a firmer footing than the falloff
+or ceiling claims ever had, and it was reached by abandoning between-renderer comparison in favour of
+within-renderer difference.
+
+Nothing changed in `src/` beyond the version bump.

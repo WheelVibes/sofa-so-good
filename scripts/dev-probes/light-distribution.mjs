@@ -1713,7 +1713,8 @@ if (process.env.ANCHORS === '1') {
       .greyscale()
       .raw()
       .toBuffer({ resolveWithObject: true })
-    traced = { data: g.data, W: g.info.width, H: g.info.height }
+    const grgb = await sharp(`${OUT}/pathtraced.png`).removeAlpha().raw().toBuffer()
+    traced = { data: g.data, rgb: grgb, W: g.info.width, H: g.info.height }
     const camNow = await camState()
     const same = JSON.stringify(camNow) === JSON.stringify(camAtRaster)
     console.log(
@@ -1761,6 +1762,25 @@ if (process.env.ANCHORS === '1') {
         ts += traced.data[gy * traced.W + gx]
       }
       tm = ts / a.pts.length
+      // Traced COLOUR as well as luminance (`.269`). A within-tracer A/B -- recolour
+      // one surface, re-render -- shares the rig on both sides, so `.255`'s rig
+      // mismatch cannot apply, and real light transport supplies the colour-bleed
+      // magnitude that photographs could not.
+      let tr2 = 0
+      let tg2 = 0
+      let tb2 = 0
+      for (const [sx, sy] of a.pts) {
+        const gx = Math.min(traced.W - 1, Math.floor(sx * traced.W))
+        const gy = Math.min(traced.H - 1, Math.floor(sy * traced.H))
+        const o = (gy * traced.W + gx) * 3
+        tr2 += traced.rgb[o]
+        tg2 += traced.rgb[o + 1]
+        tb2 += traced.rgb[o + 2]
+      }
+      const tn = a.pts.length
+      console.log(
+        `      traced RGB ${(tr2 / tn).toFixed(0)}/${(tg2 / tn).toFixed(0)}/${(tb2 / tn).toFixed(0)}  traced R-B ${(tr2 / tn - tb2 / tn).toFixed(1)}`,
+      )
       tracedReadings[a.side].push({ d: a.d, m: tm })
     }
     let sr = 0

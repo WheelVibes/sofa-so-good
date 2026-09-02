@@ -5,6 +5,60 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.269 — the bleed deficit sized at ~18 counts, by the app's own path tracer
+
+`.268` proved colour bleed is exactly zero but sized the effect against **saturated orange leather** — a
+configuration no ordinary room contains. This round asks what the deficit is actually worth.
+
+**Photographs cannot supply the answer, and the reason is structural.** Floor bleed is inherently a
+*vertical* comparison — floor below, wall above — and vertical comparisons in real interiors are confounded
+by lighting gradients. In `w-1643383` (dark walnut floor, plain white surfaces) the wall reads R−B 27.8 at
+the top and 8.5 lower down: **warmer at the top**, the opposite of floor bleed, because the ceiling carries
+warm downlights. `.268`'s clean result depended on a *horizontal* series at constant height, which needs a
+saturated object standing beside a wall — a special configuration, not a general one.
+
+Three of five hand-picked crops in that column were also contaminated — a **ceiling soffit with a downlight**,
+cabinet edges, and a **dark doorway** (luminance 99.4 against ~173 for the rest). The non-monotonic pattern
+was entirely artefact, and only looking caught it. Fourth crop-selection error in this stretch of the arc.
+
+**So the bound came from a better source: the app's own path tracer, in a within-tracer A/B.** `.255`
+disqualified the tracer for luminance comparisons because it runs a different lighting rig. That objection
+does not apply here: **both sides of an A/B share the rig**, so it cancels in the difference, exactly as the
+raster rig cancels in `.268`'s.
+
+Ceiling `fafafa` → `ff5a00` (14 meshes, 171 m², fully exposed), wall B anchors at y = 2.0, 150 samples:
+
+| anchor | traced R−B, shipped | traced R−B, orange ceiling | **Δ traced** | **Δ raster** |
+| --- | --- | --- | --- | --- |
+| d = 1.2 m | −3.5 | 14.2 | **+17.7** | **0.0** |
+| d = 2.4 m | 2.9 | 21.9 | **+19.0** | **0.0** |
+
+**Real light transport moves the wall's hue by ~18 counts. The rasteriser moves it by zero.** Measured in
+the same runs, on the same anchors, from the same frames.
+
+Traced *luminance* also falls, 144.0 → 122.2 — an orange ceiling absorbs most of the spectrum, so there is
+less bounce overall. That the tracer gets both the hue shift and the luminance loss is a further sign it is
+doing real transport rather than tinting.
+
+**So the deficit `.268` established is worth about 18 counts of R−B on this wall in this room** — five times
+the 3.5 counts the reference photograph showed beside saturated leather, and against a rasteriser response
+of exactly zero.
+
+**Caveat, and it matters for severity.** A vivid orange ceiling is not a realistic interior. The realistic
+magnitude scales down with the saturation of the bouncing surface, and the app's own room is mostly neutral
+— white walls, pale ceiling, oak floor. The shipped-room difference between traced and raster (R−B −3.5 vs
+−0.1 at d = 1.2) *looks* like a realistic bound, but it is **not clean**: in the shipped comparison the rig
+mismatch is still present, and only the difference-of-differences cancels it. **A realistic bound needs its
+own A/B with a realistic recolour** — a plausible feature-wall or floor tone rather than a vivid one — and
+that is a cheap next round now that the instrument exists.
+
+**What this settles.** The GI thread, open since `.226` and twice mis-attributed, now has a positive result
+(`.268`) *and* a magnitude (`.269`), both measured with rig-cancelling A/B designs and neither depending on a
+reference photograph. That is a firmer footing than the falloff or ceiling claims ever had.
+
+Probe only: traced RGB alongside traced luminance at each anchor. `npm test` 9437 passed, `tsc` clean,
+`biome` clean. Nothing changed in `src/` beyond the version bump. Runs 08:04–08:13 local.
+
 ## v0.31.5.268 — colour bleed is exactly zero, and this is the GI test with no confound available
 
 Every GI test this arc has run has died on a confound. `.251` refuted the wall-falloff test because a 71 %
