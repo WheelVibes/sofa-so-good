@@ -2,7 +2,7 @@ import { type CSSProperties, useMemo, useRef, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
-import { pointInRoom } from '../../floorplan/types'
+import { allPlanRooms, roomAtItem } from '../../floorplan/levels'
 import { useCatalog } from '../../furniture/catalog'
 import type { FurnitureItem } from '../../furniture/types'
 import { resolveFinishDrop } from '../../materials/finishDrop'
@@ -57,11 +57,16 @@ export function LayersPanel() {
   const groups = useMemo(() => {
     // Group by the ACTIVE plan's rooms (not the default ROOMS constant) so custom
     // floor plans group correctly; skip only the default plan's external ledges.
-    const rooms = plan.rooms.filter((r) => !ROOMS[r.id as RoomId]?.external)
+    // EVERY storey (F13) — the layer tree omitted every upstairs room.
+    const rooms = allPlanRooms(plan).filter((r) => !ROOMS[r.id as RoomId]?.external)
     const byRoom = new Map<string, FurnitureItem[]>()
     const other: FurnitureItem[] = []
     for (const it of items) {
-      const hit = rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+      // `roomAtItem` resolves on the item's OWN storey — stacked rooms share
+      // one XZ space, so a flat search would group an upstairs piece under the
+      // room beneath it.
+      const atRoom = roomAtItem(plan, it)
+      const hit = atRoom && rooms.some((r) => r.id === atRoom.id) ? atRoom : undefined
       if (hit) {
         if (!byRoom.has(hit.id)) byRoom.set(hit.id, [])
         byRoom.get(hit.id)?.push(it)

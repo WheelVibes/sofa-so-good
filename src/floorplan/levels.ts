@@ -308,3 +308,29 @@ export function roomAtItem(
   const [x, z] = item.position
   return level.rooms.find((r) => pointInRoom(r, x, z)) ?? null
 }
+
+/**
+ * The items standing in one room, searched on THAT ROOM's storey only.
+ *
+ * The inverse of {@link roomAtItem}, and wrong in the same way when
+ * hand-rolled: `items.filter((it) => pointInRoom(room, x, z))` sweeps up
+ * furniture from every storey that happens to overlap the room's XZ, so a
+ * ground-floor "Clear room" would delete the loft's furniture too.
+ *
+ * Returns `[]` for an unknown room id.
+ */
+export function itemsInRoom<T extends Pick<FurnitureItem, 'levelId' | 'position'>>(
+  plan: FloorPlan,
+  items: readonly T[],
+  roomId: string,
+): T[] {
+  const level = levelOfRoom(plan, roomId)
+  if (!level) return []
+  const room = level.rooms.find((r) => r.id === roomId)
+  if (!room) return []
+  return items.filter(
+    (it) =>
+      (it.levelId ?? GROUND_LEVEL_ID) === level.id &&
+      pointInRoom(room, it.position[0], it.position[1]),
+  )
+}

@@ -6,13 +6,14 @@ import { canPlace } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { useFeature } from '../features/useFeature'
+import { allPlanRooms, itemsInRoom } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import {
   resolvePlanRoomCeiling,
   resolvePlanRoomFloor,
   resolvePlanRoomWall,
 } from '../floorplan/roomFinishes'
-import { planRoomArea, pointInRoom } from '../floorplan/types'
+import { planRoomArea } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
 import { cloneRoomItems } from '../layout/cloneRoom'
@@ -122,10 +123,12 @@ export function FinishPicker() {
   }
   // Unlocked items inside this room (the set the room editor shows). Drives the
   // "Clear room" action + its count.
-  const planRoom = roomId ? plan.rooms.find((r) => r.id === roomId) : undefined
-  const roomItemIds = planRoom
-    ? items
-        .filter((it) => !it.locked && pointInRoom(planRoom, it.position[0], it.position[1]))
+  // EVERY storey (F13): `editableRooms` lists upstairs rooms, so a ground-only
+  // lookup left every Finish-picker action a silent no-op up there.
+  const planRoom = roomId ? allPlanRooms(plan).find((r) => r.id === roomId) : undefined
+  const roomItemIds = roomId
+    ? itemsInRoom(plan, items, roomId)
+        .filter((it) => !it.locked)
         .map((it) => it.id)
     : []
   const clearRoom = async () => {
@@ -161,10 +164,10 @@ export function FinishPicker() {
   const copyFinishesTo = (targetId: string) => {
     if (!roomId) return
     const st = useStore.getState()
-    const target = st.floorPlan.rooms.find((r) => r.id === targetId)
+    const target = allPlanRooms(st.floorPlan).find((r) => r.id === targetId)
     if (!target) return
     st.pushHistory()
-    const src = st.floorPlan.rooms.find((r) => r.id === roomId)
+    const src = allPlanRooms(st.floorPlan).find((r) => r.id === roomId)
     const floor = src ? resolvePlanRoomFloor(st.finishes, src) : st.finishes.floor[roomId]
     const wall = src
       ? (resolvePlanRoomWall(st.finishes, src) ?? st.finishes.walls[roomId])
@@ -210,7 +213,7 @@ export function FinishPicker() {
   const cloneLayoutTo = (targetId: string) => {
     if (!planRoom) return
     const st = useStore.getState()
-    const target = st.floorPlan.rooms.find((r) => r.id === targetId)
+    const target = allPlanRooms(st.floorPlan).find((r) => r.id === targetId)
     if (!target) return
     const dx = target.origin[0] + target.width / 2 - (planRoom.origin[0] + planRoom.width / 2)
     const dz = target.origin[1] + target.depth / 2 - (planRoom.origin[1] + planRoom.depth / 2)
@@ -250,14 +253,14 @@ export function FinishPicker() {
   const swapLayoutWith = (targetId: string) => {
     if (!planRoom) return
     const st = useStore.getState()
-    const target = st.floorPlan.rooms.find((r) => r.id === targetId)
+    const target = allPlanRooms(st.floorPlan).find((r) => r.id === targetId)
     if (!target) return
     const dx = target.origin[0] + target.width / 2 - (planRoom.origin[0] + planRoom.width / 2)
     const dz = target.origin[1] + target.depth / 2 - (planRoom.origin[1] + planRoom.depth / 2)
     const aIds = new Set(roomItemIds)
     const bIds = new Set(
-      st.items
-        .filter((it) => !it.locked && pointInRoom(target, it.position[0], it.position[1]))
+      itemsInRoom(st.floorPlan, st.items, target.id)
+        .filter((it) => !it.locked)
         .map((it) => it.id),
     )
     if (aIds.size === 0 && bIds.size === 0) {

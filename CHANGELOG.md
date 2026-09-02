@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.280 - the UI layer, including a bug .277 made newly reachable
+
+Fourth migration batch, and one entry here is a bug this branch CREATED the reach for. `.277`
+taught `editableRooms` to list upstairs rooms; `FinishPicker`'s five room lookups still went
+through ground-only `plan.rooms`, so selecting an upstairs room in the switcher left every
+Finish-picker action — copy finishes, clone layout, swap layouts, clear room — a silent no-op.
+Widening one enumeration exposed the narrow lookups downstream of it, which is the shape to expect
+from the rest of this migration.
+
+Fixed across the UI layer:
+- **`FinishPicker`** — 4 by-id room lookups plus 2 item-in-room filters.
+- **`BudgetPanel` / `spendByRoom`** — "Spend by room" bucketed every upstairs item under
+  "Outside rooms". `spendByRoom` now takes the PLAN rather than a bare `PlanRoom[]`, because a
+  room array carries no storey and so cannot be gated at all.
+- **`LayersPanel`** — the Objects/Layers tree omitted every upstairs room.
+- **`EmptyRoomHint`** — never fired for an upstairs room, and its emptiness test counted furniture
+  from every storey.
+
+**New: `levels.ts:itemsInRoom(plan, items, roomId)`**, the inverse of `.277`'s `roomAtItem` and
+wrong in exactly the same way when hand-rolled — four sites had. Worth stating the concrete
+consequence: a ground-floor "Clear room" would have deleted the loft's furniture.
+
+One incidental correctness note: `EmptyRoomHint` selected `allPlanRooms(s.floorPlan)` straight out
+of the store at first. That returns a fresh array on a multi-storey plan, which as a Zustand
+selector re-renders forever. It selects the plan and derives.
+
+**Visual verification** (`scripts/scenarios/multistorey-panels-f13.json`): on the Open Loft with
+four items upstairs, "Spend by room" reads **Sleeping Loft · 4 · 10% — $2,300** and the Layers tree
+shows a **SLEEPING LOFT — 4** group. The frames were taken from inside the UPSTAIRS room editor,
+which only `.277` made reachable.
+
+**Two harness notes.** The catalog/Layers drawer only mounts on an editing surface, so a scenario
+must enter a room editor first — an orbit-view `setCatalogOpen(true)` renders nothing. And I
+repeated last commit's mistake once: the first `Sleeping Loft` scroll target matched the toolbar's
+room-name field rather than the layers group, so the assertion passed while the frame showed
+nothing it had checked. Fixed by querying inside `.lyr-body` for a `.lyr-group` header and
+collapsing the ground room's 32 rows first. Recording it because writing the lesson down plainly
+did not stop me making it again the very next commit — the durable fix is scoping every DOM
+assertion to the container that owns it, not remembering to be careful.
+
 ## v0.31.5.279 - aircon trunking routed through the floor slab
 
 Third migration batch. `airconTrunking.ts` was the first module found reading BOTH ways at once:

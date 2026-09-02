@@ -14,6 +14,10 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   share one XZ space. Room ids are plan-unique, so the mis-attribution is silent — a bed upstairs
   gets costed into the living room beneath it. Five whole-plan consumers had hand-rolled it (FF&E
   schedule, shopping list, `reportData`'s two per-room breakdowns).
+- **The items in a room are `levels.ts` `itemsInRoom(plan, items, roomId)`** — the inverse of
+  `roomAtItem` and wrong the same way when hand-rolled: `items.filter((it) => pointInRoom(room, x,
+  z))` sweeps up furniture from every storey overlapping the room's XZ, so a ground-floor "Clear
+  room" would delete the loft's furniture too.
 - **Whole-home enumeration is `allPlanRooms`/`allPlanWalls`/`allPlanOpenings`; whole-home area is
   `planTotalAreaAllLevels`.** `planTotalArea` stays SINGLE-level (the plan editor calls it per
   storey) — the asymmetry is deliberate, so a caller who wants everything has to say so.

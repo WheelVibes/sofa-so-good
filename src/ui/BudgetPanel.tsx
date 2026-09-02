@@ -68,7 +68,7 @@ export function BudgetPanel() {
 
   // Per-room spend (estimate-based, so room subtotals always sum to `total`).
   // Complements "by category": which *room* is the budget going into.
-  const byRoom = useMemo(() => spendByRoom(items, catalog, plan.rooms), [items, catalog, plan])
+  const byRoom = useMemo(() => spendByRoom(items, catalog, plan), [items, catalog, plan])
 
   // Live SG retailer prices (dev-only, via the `npm run price-server` sidecar:
   // IKEA SG / Courts / HipVan / Castlery). Off by default; when on, each line
