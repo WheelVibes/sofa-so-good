@@ -2668,7 +2668,7 @@ Blender is absent.
   callers never hardcode a 3.x `bpy` name.
 - **`python/scripts/blender/inspect_asset.py`** — turntable QA for one GLB, framed from the
   asset's own bounds.
-- **`docs/blender-skill.md`** — **read first.** Verified `bpy` facts for the installed build
+- **`docs/skills/blender.md`** — **read first.** Verified `bpy` facts for the installed build
   (Blender 5.2.1 LTS), the gotchas that cost time if assumed, invocation examples from this
   repo, and a living lessons log each session appends to.
 

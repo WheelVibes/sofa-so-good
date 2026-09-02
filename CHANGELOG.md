@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.3 — skills become a tracked convention under `docs/skills/`, and a radians/degrees trap removed before it shipped
+
+**`docs/skills/` is now the convention**, with a `README.md` stating it: what a skill is
+for, why it cannot live in `.claude/skills/` (`.gitignore:48` ignores `.claude/`, so a skill
+there is local-only and never accumulates), and the five rules that make one worth having —
+record what was measured with the build attached, append in the same session, lead with the
+gotchas, prune rather than stack, and use real examples that have actually been run.
+`CLAUDE.md` now points at the directory rather than a single file.
+
+**A unit trap caught before it shipped.** `add_sun()`'s docstring claimed a caller could
+forward the app's altitude/azimuth "without converting". False:
+`src/scene/lighting/sunPosition.ts` returns `SunCalc.getPosition` unchanged and feeds
+`altitude` straight to `Math.cos`, so the app's angles are **radians** while the CLI flags
+are **degrees** — a 57.3× error.
+
+The reason it deserved more than a docstring fix: every plausible solar altitude in radians
+(0–1.5) is *also* a plausible-looking altitude in degrees, so the bug would have rendered a
+**believable low sun** rather than failing. So the fix is structural — **`add_sun_from_app()`
+takes radians, `add_sun()` takes degrees, and nothing takes "an angle".** The unit is
+settled by which function you call.
+
+Credit where due: caught because dev-1a reported hitting the identical shape in
+`roughlyAligned`, which read radians as degrees and so certified oblique furniture pairs as
+square — and where two of their own tests passed *because they shared the product's unit
+error*.
+
 ## v0.31.6.2 — Blender HDRI resolution + `render_still.py`, with a local set so the layer works offline
 
 Part B's core script, plus the HDRI plumbing it needs. Authorised to invent a local set

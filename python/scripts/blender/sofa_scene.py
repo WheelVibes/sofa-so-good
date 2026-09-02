@@ -135,11 +135,17 @@ def setup_world_hdri(hdr_path: str, strength: float = 1.0, rotation_deg: float =
 
 def add_sun(elevation_deg: float, azimuth_deg: float, energy: float = 3.0,
             color: tuple[float, float, float] = (1.0, 0.95, 0.9)) -> bpy.types.Object:
-    """Add a directional sun, matching the app's altitude/azimuth convention.
+    """Add a directional sun from angles **in degrees**.
 
-    The app drives its `directionalLight` from `useSunPosition` in
-    (altitude, azimuth) terms; this takes the same pair so a caller can forward
-    the store's values without converting to a vector.
+    ⚠️ **The app's values are RADIANS, not degrees.** `src/scene/lighting/sunPosition.ts`
+    returns `SunCalc.getPosition`'s output unchanged and feeds `altitude` straight to
+    `Math.cos`/`Math.sin`. Forwarding a store value into this function would be wrong by
+    57.3×, and — because every plausible solar altitude in radians (0–1.5) is also a
+    plausible-looking altitude in degrees — it would render as a *believable* low sun
+    rather than failing. Programmatic callers should use `add_sun_from_app()`, which takes
+    radians and makes the unit part of the function name instead of a thing to remember.
+
+    Degrees are kept here because this is what the CLI flags carry (`--sun-elevation 45`).
     """
     data = bpy.data.lights.new("sun", type="SUN")
     data.energy = energy
@@ -152,6 +158,17 @@ def add_sun(elevation_deg: float, azimuth_deg: float, energy: float = 3.0,
         math.radians(azimuth_deg),
     )
     return obj
+
+
+def add_sun_from_app(altitude_rad: float, azimuth_rad: float, energy: float = 3.0,
+                     color: tuple[float, float, float] = (1.0, 0.95, 0.9)) -> bpy.types.Object:
+    """Add a sun from the app's own angles, which are **radians**.
+
+    Exists so Part A's service can forward `sunPosition()` output directly and the unit is
+    settled by which function you call, not by remembering to convert. `add_sun()` takes
+    degrees for the CLI; this takes radians for the app. Nothing takes "an angle".
+    """
+    return add_sun(math.degrees(altitude_rad), math.degrees(azimuth_rad), energy, color)
 
 
 def place_camera(location: tuple[float, float, float],

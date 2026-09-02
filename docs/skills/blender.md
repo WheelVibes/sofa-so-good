@@ -1,11 +1,9 @@
 # Blender skill — sofa-so-good
 
-> **Why this lives in `docs/` and not `.claude/skills/`.** `.gitignore:48` ignores
+> **Why skills live here and not in `.claude/skills/`.** `.gitignore:48` ignores
 > `.claude/`, so a skill placed there would be **local-only and never committed** — which
-> defeats the point of a living document that future sessions read. This repo has no
-> tracked skills convention (nothing in `CLAUDE.md` referenced one), so the skill lives
-> with the other reference docs and is linked from `CLAUDE.md`, whose reference list is
-> loaded every turn.
+> defeats the point of a living document future sessions read. See
+> [`docs/skills/README.md`](README.md) for the convention.
 
 Headless Blender for photoreal rendering and asset R&D. **Read this before writing bpy
 code here**, and **append what you learn in the same session** — the point of this file
@@ -113,6 +111,15 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-03 — the app's sun angles are RADIANS; the CLI flags are DEGREES.**
+  `src/scene/lighting/sunPosition.ts` returns `SunCalc.getPosition` unchanged and feeds
+  `altitude` straight to `Math.cos`. An early docstring here claimed a caller could forward
+  store values into `add_sun()` "without converting" — wrong by **57.3×**, and it would have
+  rendered as a *believable* low sun rather than failing, because every plausible altitude
+  in radians (0–1.5) is also a plausible-looking altitude in degrees. Use
+  **`add_sun_from_app()`** for radians and `add_sun()` for degrees: the unit is settled by
+  which function you call, not by remembering. (Caught from dev-1a hitting the same shape in
+  `roughlyAligned`, which read radians as degrees and so certified oblique pairs as square.)
 - **2026-09-03 — a preview-resolution Cycles render is ~0.6 s, so Part A's ~800 ms debounce
   is realistic.** 400×300 at 24 samples on a 26-mesh asset took **0.64 s** on CPU (adaptive
   sampling on). Interior scenes will be heavier, but the order of magnitude says a
