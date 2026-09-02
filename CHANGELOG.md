@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.315 — chroma DOES have a photographic anchor after all (the within-frame Δ), class A fails it — but it is a weak one, and the pose check could not be run
+
+`.314` stated that chroma cannot be anchored photographically, because `.267` established R−B is
+white-balance invariant only *within* a frame. That is right about **absolute** chroma and wrong about the
+**difference**: **ceiling minus wall R−B is a within-frame quantity, so it is WB-invariant and it does cross to a
+photograph.** And `.292` already measured it on all three references. Correcting my own round from one round ago.
+
+**The comparison** — photographs from `.292`, app at bedroom3 `PITCH=0.30`, white room, medium tier,
+photographic look, hour 13:
+
+| source | ceiling R−B | wall R−B | **ceiling − wall Δ** |
+| --- | --- | --- | --- |
+| `Home_Staging_Beispiel` (`.292`) | +6.0 | +8.8 | **−2.8** |
+| `Vogtsbauernhof` (`.292`) | +8.1 | +7.0 | **+1.1** |
+| `At_La_Palma` (`.292`) | +16.0 | +2.4 | **+13.6** |
+| **the app — raster** | +13.6 | +5.8 | **+7.8** — inside |
+| **the app — traced, class B** | +7.5 | +4.8 | **+2.7** — inside |
+| **the app — traced, class A** | −14.4 | −8.5 | **−5.9** — **outside** |
+
+**Class A fails the photographic spread**; the raster and the working tracer sit inside it. That is the first
+photographically-anchored chroma result in the arc.
+
+**And it is weak evidence, for three reasons I would rather state than let a later round discover.**
+
+1. **The band is enormous.** −2.8 to +13.6 is a **16.4-count spread on n = 3**. Class A misses the lower edge by
+   **3.1 counts** against that spread. "Inside" is close to unfalsifiable here, and "outside by 3.1" is not much
+   of a failure.
+2. **`.292` already showed this quantity is not systematic** — it straddles zero and tracks **floor colour**
+   (white tile → −2.8, warm terrazzo → +13.6), which is why `.292` refuted it as a GI signature. Using a
+   non-systematic quantity as a band is exactly as weak as ceiling ÷ wall's own 0.91–1.11.
+3. **Pose-matching is unresolved, and I could not test it.** `.232` showed ceiling ÷ wall *luminance* swings
+   0.68 → 0.96 on pitch alone; whether Δ chroma does the same is **untested**.
+
+**The pose test was attempted and defeated by patch placement.** Two raster-only runs (cheap — 40 seconds for
+both, no tracer needed) at `PITCH=-0.06` and `+0.30`. Marking the patches on the eye-level frame and looking
+shows **both are invalid there**: the "ceiling" patch lands on the **window wall** beside the curtain, and the
+"wall" patch lands squarely on the **framed picture**, not plaster. bedroom3's eye-level view has almost no
+croppable ceiling at all — a thin strip at the frame top, partly behind the HUD toolbar. So the pose-dependence
+of Δ chroma remains **unmeasured**, and any pose-specific patch set would have to be re-verified by marking,
+per `.300`.
+
+**A free by-product worth recording: the raster is reproducible across boots.** The fresh `PITCH=0.30` run
+returns **ceiling 13.6 / wall 5.8 / Δ 7.8 / ceiling ÷ wall 0.964**, against `u1`'s run forty minutes earlier at
+**13.6 / 5.8 / 7.8 / 0.965**. That underpins `.314`'s use of the raster as the reference for a (p) fix — the
+reference itself is stable to 0.001 on the ratio and 0.1 on chroma.
+
+**Net contribution, stated plainly.** `.314`'s claim that chroma has no photographic anchor is corrected — it
+has one, via the within-frame Δ. But the anchor is wide, built on a quantity already shown to be
+non-systematic, and not yet pose-matched, so it adds little beyond confirming that class A is the outlier on
+every metric the arc possesses. **The raster remains the far better reference for a (p) fix**, being pose-matched
+by construction, pipeline-identical, and now shown reproducible.
+
+**Method note.** Two attempts to reuse a verified patch set at a new pose have now failed (`.291` mistook wall
+for ceiling; `.315` hit a picture frame). **A patch set is verified for one pose only.** Marking costs one free
+render and it has caught the error both times.
+
+**Unchanged:** no `src/` change, no probe change. Two raster-only runs (18:54 +08) and frames already on disk.
+
 ## v0.31.5.314 — chroma is the sensitive metric ceiling ÷ wall is not, it localises (p)'s error to the CEILING, and it corrects `.312`'s stated fix direction
 
 `.313` found the arc's primary metric cannot see item (p): a 66 % change in the dominant light source moves

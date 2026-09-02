@@ -154,6 +154,16 @@ them match.
 Fifteen mechanisms have been proposed and refuted in this arc. This was the first refuted with its predictions
 intact.
 
+## A patch set is verified for ONE pose only
+
+Two attempts to reuse a verified patch set at a new pose have failed. `.291` mistook *wall above the window* for
+ceiling. `.315` tried to test pose-dependence at `PITCH=-0.06` with patches verified at `+0.30`, and marking
+them showed the "ceiling" patch on the **window wall** and the "wall" patch squarely on a **framed picture**.
+
+Surfaces move with the camera; normalized coordinates do not follow them. **Re-mark and re-look for every new
+pose**, and expect some poses to have no usable patch at all — bedroom3 at eye level has almost no croppable
+ceiling (a thin strip, partly behind the HUD toolbar).
+
 ## Mark the patch on the PICTURE before you trust the patch
 
 Three of this arc's costliest errors were mis-placed measurement patches: `.282` measured a region that was

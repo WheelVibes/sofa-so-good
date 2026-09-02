@@ -1542,8 +1542,30 @@ the fix (which would supply the scene's own Ambient/Hemisphere). It prices the g
 not show what a fixed still looks like. Conflating the two is what produced `.312`'s wrong direction.
 
 **Acceptance test for (p), no photographs needed:** traced interior chroma should match the raster's — same
-pipeline, same white balance. Currently **walls pass (~1 count), ceiling fails by 6.1**. Photographic anchoring
-is unavailable because `.267` established R−B is white-balance invariant only *within* a frame.
+pipeline, same white balance. Currently **walls pass (~1 count), ceiling fails by 6.1**.
+
+**↩︎ CORRECTION v0.31.5.315 — chroma DOES have a photographic anchor**, just not the absolute value: **ceiling
+minus wall R−B is within-frame, hence WB-invariant, and crosses to a photograph.**
+
+| source | ceiling − wall Δ R−B |
+| --- | --- |
+| `Home_Staging_Beispiel` | −2.8 |
+| `Vogtsbauernhof` | +1.1 |
+| `At_La_Palma` | +13.6 |
+| app raster | **+7.8** — inside |
+| app traced, class B | **+2.7** — inside |
+| app traced, class A | **−5.9** — outside |
+
+**Weak evidence, for three stated reasons:** the band is a **16.4-count spread on n = 3** (class A misses by
+3.1); `.292` already showed the quantity is **non-systematic**, tracking floor colour rather than transport;
+and **pose-matching is unresolved** — `.232` showed ceiling ÷ wall luminance swings 0.68 → 0.96 on pitch, and Δ
+chroma's pose-dependence is **untested**.
+
+**The pose test was attempted and defeated by patch placement:** at `PITCH=-0.06` the fixed patches land on the
+**window wall** and on the **framed picture**, caught by marking and looking. bedroom3's eye-level view has
+almost no croppable ceiling. So **the raster remains the better reference for a (p) fix** — pose-matched by
+construction, pipeline-identical, and reproducible across boots (a fresh run 40 min later returned
+ceiling 13.6 / wall 5.8 / Δ 7.8 / ratio 0.964 against 13.6 / 5.8 / 7.8 / 0.965).
 
 **✅ CONFIRMED BY DIRECT OBSERVATION v0.31.5.287.** Temporary instrumentation in `buildTracerScene` (added,
 observed, reverted; `src/` verified clean) logged the branch actually taken on the default shipped path:
