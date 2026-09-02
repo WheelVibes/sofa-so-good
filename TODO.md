@@ -197,6 +197,46 @@ difference. Note that `wall-detail.mjs` already swept what each wall CHANNEL is 
 (normalScale x6, normal removed, albedo mottle added) — check its recorded result before
 proposing a channel change (meta-rule xvii-b).
 
+
+## F13 schema migration — make the plan level-agnostic (user-authorised 2026-09-03)
+
+> User: "I don't have any users, so we can migrate the schema fully." Removes the back-compat
+> constraint that forced the ground-only design in the first place
+> (`docs/research/multi-level-design.md`: "additive, no schema-version bump").
+>
+> **Why**: the ground-only invariant produced EIGHT silent bugs in one arc — three in new modules
+> (v0.31.5.274) and five pre-existing (v0.31.5.275). Every one only misbehaved on a
+> landed/maisonette plan, with no error. Two attempts at a lint guard failed (above).
+
+**Target shape.** Split "the whole home" from "one storey's geometry" so the compiler forbids the
+confusion:
+
+```ts
+interface LevelGeometry { rooms: PlanRoom[]; walls: PlanWall[]; openings: PlanOpening[] }
+interface PlanLevel extends LevelGeometry { id; name; elevation; ceilingHeight? }
+interface FloorPlan  { /* metadata only */ levels: PlanLevel[] }   // levels[0] = ground
+type SingleLevelPlan = Omit<FloorPlan, 'levels'> & LevelGeometry   // what levelAsPlan returns
+```
+
+Single-level helpers then take `SingleLevelPlan` and their BODIES are unchanged (they still read
+`.rooms`); whole-home consumers take `FloorPlan` and must go through `planLevels`/`allPlanRooms`.
+Passing a `FloorPlan` where one storey is expected becomes a compile error.
+
+**Measured blast radius (experiment run 2026-09-03, then reverted): removing the three fields from
+`FloorPlan` yields 1368 `tsc` errors across 212 files** (149 non-test + 98 test). So this is
+multi-tick and MUST be staged — a big bang would leave the repo uncompilable across tick boundaries.
+
+**Staging, each stage its own green commit:**
+1. `levels` becomes canonical; the legacy trio stays as a mirror of `levels[0]`, kept in sync at
+   every plan constructor, plus a drift guard asserting reference equality. `planLevels` reads
+   `levels`. Suite green throughout.
+2. Migrate consumers in dependency order — `analysis` → `export` → `floorplan` → `state` → `ui` —
+   annotating single-level helpers as `SingleLevelPlan` as they are touched.
+3. Migrate test fixtures (98 files). A `makePlan({rooms, walls, openings})` helper keeps this
+   mechanical.
+4. Remove the legacy trio + the mirror + the drift guard; add the schema migration and bump the
+   save version. `tsc` is the worklist — the error count is the progress metric.
+
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
@@ -266,12 +306,19 @@ proposing a channel change (meta-rule xvii-b).
   whole plan, so a maisonette's stated area is ground-floor only. Fix at the call sites by summing
   `planTotalArea(levelAsPlan(plan, l))` across `planLevels(plan)`, as `analysis/renoTimeline.ts` now
   does. The share ones are cosmetic; the scale modal shows an area the user may act on.
-- **[F13] A grep guard for ground-only reads does NOT work — do not re-propose it.** Attempted
-  v0.31.5.275. `src/floorplan` is full of legitimate single-level helpers whose callers pass
-  `levelAsPlan`, so a grep over that layer flags ~20 correct files; the correct/incorrect distinction
-  lives at the CALL SITE, which grep cannot see. A guard scoped to `src/analysis` alone WOULD be
-  precise (every module there is whole-home and called with the whole plan) — that narrow version is
-  still worth doing, and would have caught all five bugs fixed in .275.
+- **[F13] A grep guard for ground-only reads does NOT work AT ANY SCOPE — do not re-propose it.**
+  Attempted twice. First over `src/floorplan`: flags ~20 legitimate single-level helpers whose callers
+  pass `levelAsPlan`, because the correct/incorrect distinction lives at the CALL SITE.
+  (`planTotalArea` is the proof — the plan editor calls it per storey, correctly, while three other
+  sites pass the whole plan, wrongly. Same function, opposite verdicts.) Then narrowed to
+  `src/analysis`, which I had argued was uniformly whole-home: it is NOT. That layer also contains
+  functions taking a pre-flattened or single-level plan in a parameter named `plan`
+  (`hdbCompliance`'s rule functions since v0.31.5.275, `daylight`'s per-level recursion), plus
+  comments that mention the property names. Measured 46 hits, and every one inspected was a false
+  positive.
+  **The lesson: "is this identifier a whole plan or one storey?" is a TYPE question, and grep can
+  never answer it.** Which is the argument for the schema migration below — a type split makes the
+  bug unrepresentable, where no amount of text matching can even detect it.
 - **[delivery access] Corridor turn + per-project route override UI.** v0.31.5.273 checks the three
   rectangular apertures (lift door, cabin, main door) against published SG typicals. Not done:
   (a) the CORRIDOR TURN from lift lobby to front door — the sources say measure it before ordering
