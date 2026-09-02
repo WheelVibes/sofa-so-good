@@ -1960,9 +1960,34 @@ wired into the probe (it had never been):
   `frameL=112.7 frameRB=4.0` all three times. **The state is fixed per run, not per capture**, so whatever
   selects it happens at or before render time and then holds.
 
-**One observation remains unexplained and is recorded rather than theorised:** the whole-frame mean takes a
-continuum of values across runs (112.7, 113.8, 139.5, 155.7) while the anchors take exactly two. No mechanism
-is proposed.
+**✏️ RE-DESCRIBED v0.31.5.293 — this is not a two-state fault.** The continuum-versus-binary puzzle above is
+resolved, and it changes what (u) *is*:
+
+- **Spatially local, not global.** A 3×3 grid compared cell-by-cell across frames (content controlled): within
+  one mixed frame, cell (0,0) reads **+2.6** where the all-B frame reads +7.4 and the all-A frame −11.9, while
+  cell (0,2) reads **−12.9** against +3.3 / −14.0. One render contains both behaviours in different regions.
+  That explains binary anchors (each sits in one region), the continuum of frame means (the mix varies), and
+  recapture stability.
+- **Not per-tile.** `tracer.tiles` is 3 at 1920×1080, so a per-tile assignment would step at x = 640/1280. A
+  24-column R−B profile over y = 200–500 is a **smooth gradient** with no step.
+- **Both "states" share the same near-glazing asymptote (−13.8)** and differ only away from the window
+  (+1.3 vs −8.6).
+
+**So (u) is one spatially varying cold cast whose EXTENT varies between runs.** Looking settles which is
+healthy: the good frame is warm on the far side and cold near the glazing with a diagonal transition across
+the ceiling — cool skylight near the aperture, warmer bounce away from it. The anomalous frame is cold
+everywhere at the saturated value. **The anomaly is a missing falloff, not a colour shift.**
+
+**Also ruled out this round: camera pose.** Two runs with identical arrival (`reached [7.33,3.4]`, drift 0.37)
+and identical *raster* anchors landed in opposite states — so (u) is downstream of both pose and the
+rasteriser.
+
+**A falloff-based classifier was built and reverted.** Left-third vs right-third R−B calls *every* frame
+anomalous including the known-healthy one (`u1` falloff −1.8), because warm furniture in the lower third swamps
+a gradient that exists only in the upper wall/ceiling band. Reverted; the profile ships as an opt-in diagnostic
+(`PTPROFILE=1`) instead. `.285`'s global-mean rule stays, now documented as summarising a spatial field.
+
+**Cause still unidentified** — nine candidates eliminated across `.284`–`.293`. No mechanism is proposed.
 
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.

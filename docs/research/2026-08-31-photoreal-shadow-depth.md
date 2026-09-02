@@ -9706,3 +9706,84 @@ by this round's negative; its tracer route is blocked behind (u). (p) is confirm
 **The measurement threads are at a genuine stopping point — the remaining work is the decisions.**
 
 Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .293 — item (u) is not two states; it is one spatially varying cold cast whose extent varies
+
+Two of this round's own hypotheses were refuted, and the third finding overturns how (u) has been described
+since `.285`.
+
+### Pose refuted
+
+The frame mean is a continuum while the anchors are binary; since world-anchored values are framing-invariant
+(`.285`), a wandering camera would move the mean and leave anchors fixed — and `.286` showed the camera *can*
+move. Two runs, full logs (15:07, 15:15 +08):
+
+| | `reached` | drift | raster anchors | state | traced anchors |
+| --- | --- | --- | --- | --- | --- |
+| run 1 | [7.33, 3.4] | 0.37 | 118.2 / 128.3 | B (frameL 112.7) | 118.9 / 117.3 |
+| run 2 | [7.33, 3.4] | 0.37 | 118.1 / 128.3 | A (frameL 156.2) | 172.1 / 175.3 |
+
+Identical pose, identical raster, opposite states. (u) is downstream of pose and of the rasteriser.
+
+### Spatially local, not global
+
+3×3 grid compared cell-by-cell across frames, so content is controlled:
+
+| cell | mixed (`tm-1`) | all-B (`u1`) | all-A (`u2`) |
+| --- | --- | --- | --- |
+| (0,0) | +2.6 | +7.4 | −11.9 |
+| (0,2) | −12.9 | +3.3 | −14.0 |
+
+One render contains both behaviours in different regions — which explains binary anchors, the continuum of
+frame means, and `.287`'s recapture stability all at once.
+
+### Not per-tile
+
+`tracer.tiles` is 3 at 1920×1080, so per-tile assignment would step at x = 640/1280. A 24-column R−B profile
+over y = 200–500:
+
+```
+tm-1   +1.3 +1.2 +1.2 +1.3 +1.2 +1.2 +1.0 +0.6 -0.3 -2.1 -4.0 -6.3 -8.7 -11.2 -13.5 -13.8 -13.8 ...
+u2     -8.6 -8.7 -8.4 -8.9 -10.3 -11.6 -13.0 -13.7 -13.8 -13.8 -13.8 -13.8 ...
+```
+
+Smooth gradients, same right-hand asymptote (−13.8), differing only on the left (+1.3 vs −8.6).
+
+### The correct description
+
+**One spatially varying cold cast whose extent varies between runs.** Looking settles which is healthy: the
+good frame is warm on the far side, cold near the glazing, with a clean diagonal transition across the ceiling
+— cool skylight near the aperture, warmer bounce away from it. The anomalous frame is cold everywhere at the
+saturated value. **The anomaly is a missing falloff, not a colour shift.**
+
+This means `.285`'s discriminator measured the wrong thing: a whole-frame mean summarises a spatial field with
+one number, so its "two tight clusters" were partly an artefact of that summary.
+
+### A replacement built, failed, reverted
+
+| frame | left | right | falloff | verdict |
+| --- | --- | --- | --- | --- |
+| `u1` (known healthy) | +3.8 | +5.6 | **−1.8** | would be ANOMALOUS |
+| `tm-1` | −2.3 | −6.1 | +3.8 | ANOMALOUS |
+| `u2` | −11.3 | −6.7 | −4.6 | ANOMALOUS |
+
+Calls every frame anomalous including the healthy one: over the full frame height the warm furniture in the
+lower third swamps a gradient that exists only in the upper wall/ceiling band. **Reverted** — revert-and-report
+beats an unverified fix, and shipping a classifier that misclassifies the one known-good frame is worse than
+keeping the flawed one. The profile ships as an opt-in diagnostic (`PTPROFILE=1`).
+
+### Status
+
+Known: (u) is downstream of pose and the rasteriser, spatially varying, not tiled; the near-glazing value is
+invariant; the anomaly is a missing falloff. Unknown: what makes the extent vary. **Nine candidates eliminated
+across `.284`–`.293`; no mechanism proposed.**
+
+### Method note
+
+The failed classifier failed the same way four earlier rounds did: **a statistic over a whole frame mixes
+regions with different content.** `.282` measured one dead patch; `.285` averaged a field; `.293` averaged
+across furniture. **A frame-wide statistic needs its region declared, or it measures nothing in particular.**
+
+Nothing changed in `src/`. The probe gains `PTPROFILE=1`.

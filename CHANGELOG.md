@@ -5,6 +5,91 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.293 — item (u) is not two states. It is one spatially varying cold cast whose extent varies, and `.285`'s "two clusters" were an artefact of my own discriminator
+
+Two of this round's own hypotheses were refuted, and the third finding overturns how (u) has been described
+since `.285`.
+
+**Pose refuted.** The round opened on a new idea: the frame mean is a *continuum* while the anchors are
+*binary*, and since world-anchored values are framing-invariant (`.285`) a wandering camera would move the mean
+while leaving anchors fixed — and `.286` showed this probe's camera *can* move. Two runs, full logs (15:07 and
+15:15 +08):
+
+| | arrival `reached` | drift | raster anchors | frame state | traced anchors |
+| --- | --- | --- | --- | --- | --- |
+| run 1 | `[7.33, 3.4]` | 0.37 | 118.2 / 128.3 | **B** (frameL 112.7) | 118.9 / 117.3 |
+| run 2 | `[7.33, 3.4]` | 0.37 | 118.1 / 128.3 | **A** (frameL 156.2) | 172.1 / 175.3 |
+
+**Identical arrival, identical drift, identical raster anchors** — and opposite states. The camera and the
+raster are deterministic; the nondeterminism is confined to the tracer. Hypothesis dead, and a useful bound:
+whatever (u) is, it is downstream of pose and of the rasteriser.
+
+**The state is spatially local, not a frame property.** A 3×3 grid, compared **cell by cell across frames** so
+scene content is controlled:
+
+| cell | mixed frame (`tm-1`) | all-B frame (`u1`) | all-A frame (`u2`) |
+| --- | --- | --- | --- |
+| (0,0) | **+2.6** | +7.4 | −11.9 |
+| (0,2) | **−12.9** | +3.3 | −14.0 |
+
+Within the *single* `tm-1` frame, cell (0,0) is B-like and cell (0,2) is A-like, each matching the corresponding
+cell of the pure frames. **One render contains both behaviours in different regions.** That alone explains all
+three standing observations: binary anchors (each anchor sits in one region), a continuum of whole-frame means
+(the regional mix varies), and stability across recaptures (`.287`'s `PTDOUBLE`).
+
+**But it is not per-tile either.** `hqRenderSession` sets `tracer.tiles` to 3 at 1920×1080, so a per-tile
+assignment would step sharply at x = 640 and x = 1280. A 24-column R−B profile over the upper wall/ceiling band
+(y = 200–500) shows no step at all:
+
+```
+tm-1   +1.3 +1.2 +1.2 +1.3 +1.2 +1.2 +1.0 +0.6 -0.3 -2.1 -4.0 -6.3 -8.7 -11.2 -13.5 -13.8 -13.8 ...
+u2     -8.6 -8.7 -8.4 -8.9 -10.3 -11.6 -13.0 -13.7 -13.8 -13.8 -13.8 -13.8 -13.8 -13.8 ...
+```
+
+**Smooth gradients, and both reach the same right-hand asymptote of −13.8.** They differ only on the left: +1.3
+against −8.6. Second hypothesis dead.
+
+**So the correct description of (u).** Not two discrete states — **one spatially varying cold cast whose extent
+varies between runs.** The right-hand (near-glazing) value is the same every time; what changes is how far that
+cold reaches away from the window. Looking confirms it and settles which is which: the `tm-1` frame is **warm on
+the far side and cold near the glazing, with a clean diagonal transition across the ceiling** — cool skylight
+near the aperture, warmer bounce away from it, which is physically sensible. `u2` is cold everywhere at the
+saturated value, which is not. **The anomaly is the absence of falloff, not a colour shift.**
+
+**Which means `.285`'s discriminator measured the wrong thing.** It classified on a single whole-frame mean, and
+a whole-frame mean summarises a spatial field with one number — so the "two tight clusters with no
+intermediates" it reported were partly an artefact of that summary. `.286` already caught it mislabelling a
+third case; this is the deeper fault.
+
+**A replacement was built, failed validation, and was reverted.** The obvious fix is to classify on the
+falloff — left third versus right third R−B. Validated against five saved frames including the known-healthy
+one:
+
+| frame | left | right | falloff | verdict |
+| --- | --- | --- | --- | --- |
+| `u1` (known healthy) | +3.8 | +5.6 | **−1.8** | would be called ANOMALOUS |
+| `tm-1` | −2.3 | −6.1 | +3.8 | ANOMALOUS |
+| `u2` | −11.3 | −6.7 | −4.6 | ANOMALOUS |
+
+**It calls every frame anomalous, including the healthy one.** Over the full frame height the warm furniture in
+the lower third swamps the gradient, which exists only in the upper wall/ceiling band. **Reverted** — the arc's
+rule is that revert-and-report beats an unverified fix, and shipping a classifier that misclassifies the one
+frame known to be good would have been worse than keeping the flawed one. `.285`'s rule stays, now documented as
+summarising a spatial field, and the profile ships as an **opt-in diagnostic** (`PTPROFILE=1`, default band the
+upper third) rather than a classifier.
+
+**What is now known about (u), and what is not.** Known: it is downstream of pose and of the rasteriser; it is
+spatially varying, not global; it is not tiled; the near-glazing value is invariant; the anomaly is a missing
+falloff. Not known: what makes the extent vary. **No mechanism is proposed** — that is now nine candidates
+eliminated (`.284`–`.287` plus this round's pose and tile hypotheses) with the cause still open.
+
+**Method note.** The failed classifier failed for the same reason four earlier rounds failed: **a statistic
+computed over a whole frame mixes regions with different content.** `.282` measured one dead patch, `.285`
+averaged a field, `.293` averaged across furniture. The fix each time was to state the region. **A frame-wide
+statistic needs its region declared, or it is not a measurement of anything in particular.**
+
+**Unchanged:** no `src/` change. Probe gains `PTPROFILE=1` and a corrected comment on the discriminator.
+
 ## v0.31.5.292 — three corrections and a refuted hypothesis: `.288`'s provenance criterion over-rejects, `.291`'s proposed chroma criterion dies before adoption, and `.290`'s headline was measured to more precision than the method has
 
 This round tried to advance thread 1 without touching the tracer, and in the process audited three of the

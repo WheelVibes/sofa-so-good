@@ -2279,14 +2279,48 @@ if (process.env.ANCHORS === '1') {
       // discriminator that cannot report "not one of the ones I know" is how
       // `.285` would have gone on to compare a studio-HDRI frame against
       // gradient-lit numbers.
+      // `.293` tried to replace this with a left-vs-right CHROMA FALLOFF test,
+      // on the finding that the two "states" differ in how far the cold cast
+      // extends from the glazing rather than in a global mean. It was reverted:
+      // measured over the whole frame height the warm furniture in the lower
+      // third swamps the gradient, and the classifier called the KNOWN-HEALTHY
+      // frame anomalous (u1 falloff -1.8). The gradient is real but only in the
+      // upper wall/ceiling band -- so it is a diagnostic (PTPROFILE=1), not a
+      // classifier. This global-mean rule stays because it does separate the
+      // observed clusters empirically, while being explicit that it summarises a
+      // spatial field with one number.
       const inA = fRB < -4 && fL > 145 && fL < 170
       const inB = fRB > 0 && fRB < 10 && fL > 105 && fL < 130
       const state = inA
-        ? 'A (ANOMALOUS -- cold + ~1.4x bright)'
+        ? 'A (ANOMALOUS -- cold cast does not fall off; see `.293`)'
         : inB
           ? 'B (expected)'
           : 'UNKNOWN -- matches neither known state; do NOT compare against either'
       console.log(`  PT FRAME STATE: ${state}  frameL=${fL.toFixed(1)} frameRB=${fRB.toFixed(1)}`)
+      // PTPROFILE=1 -- R-B across 24 columns over a y band (`.293`). Default band
+      // is the upper wall/ceiling third, where the cold-cast gradient lives; the
+      // lower third is furniture and swamps it. This is what showed the two
+      // "states" share a near-window asymptote and differ only in extent.
+      if (process.env.PTPROFILE === '1') {
+        const yb0 = Math.round(Number(process.env.PTPROF_Y0 || 0.19) * g.info.height)
+        const yb1 = Math.round(Number(process.env.PTPROF_Y1 || 0.46) * g.info.height)
+        const cols = []
+        for (let c = 0; c < 24; c++) {
+          const x0 = Math.floor((c * g.info.width) / 24)
+          const x1 = Math.floor(((c + 1) * g.info.width) / 24)
+          let s2 = 0
+          let n2 = 0
+          for (let y = yb0; y < yb1; y++) {
+            for (let x = x0; x < x1; x++) {
+              const i2 = (y * g.info.width + x) * 3
+              s2 += grgb[i2] - grgb[i2 + 2]
+              n2++
+            }
+          }
+          cols.push((s2 / n2).toFixed(1))
+        }
+        console.log(`  PT PROFILE y=${yb0}..${yb1} R-B by column: ${cols.join(' ')}`)
+      }
     }
     traced = { data: g.data, rgb: grgb, W: g.info.width, H: g.info.height }
     const camNow = await camState()
