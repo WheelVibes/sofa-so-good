@@ -955,6 +955,22 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > gradient? a neighbouring block? a photograph?), which is exactly the call that has been open
 > since `.209`.
 
+> **v0.31.7.5 — the pane is also where the last chroma error lives, and it is ~16 counts.**
+> Absolute R−B cannot be compared across pipelines (`.315`: white-balance dependent, no
+> photographic anchor), so the app's +8.6 against Cycles' −31.6 is mostly a difference of white.
+> On the **WB-invariant** residual — each frame de-meaned before differencing — the whole-frame
+> disagreement collapses from 40 counts to **7.0 counts rms**, within **±4.2** everywhere except
+> two features, and the two worst tiles (**−15.2, −18.4**) are the **window tiles** — the same
+> two that hold 100 % of both frames' top percentile. The app's pane is ~16 counts too **cool
+> relative to its own room**: physics' pane is the least-blue thing in its frame (a bright
+> near-white sky glow), the app's is a cool grey slab against a warmer interior.
+>
+> **So the tonal tail and the chroma residual — measured differently, normalised differently,
+> sensitive to different things — both land on this one object.** The rest of the render agrees
+> with physics on both axes. That is the strongest argument yet for giving the window real
+> geometry, and it means this item is now the single open decision carrying *both* remaining
+> measured errors.
+
 **The 21:00 case is already right** (glazing 0.39 of wall, interior warm at R−B 23.4 against a
 neutral pane) — whatever ships must not regress it.
 

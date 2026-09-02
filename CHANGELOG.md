@@ -29,6 +29,64 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.5 — the 40-count chroma gap is white balance; the real residual is 7 counts and it is the WINDOW again
+
+`v0.31.6.9` left the app at mean R−B **+8.6** against the Cycles reference's **−31.6** — a
+40-count gap, and the one figure the fill level did not move. This round localises it, and the
+localisation changes what it is.
+
+**Step 1: it looked like a global cast.** New `scripts/dev-probes/chroma-locate.mjs` tiles the
+common crop 6×4 and reports mean R−B per tile. **All 24 tiles disagree, by +21.8 to +52.7**,
+most in the 33–48 band. No region is anywhere near agreement — the opposite of the luminance
+case, where `v0.31.6.10` found the whole-frame deficit lived in one narrow strip. A uniform
+error with a uniform shape is exactly what one per-channel fill scalar fixes, and `FILLTINT`
+already exists to do it.
+
+**Step 2: the arc had already forbidden that comparison.** `.315` established that **absolute
+R−B is white-balance dependent and has no photographic anchor** — only a *within-frame*
+difference is WB-invariant and crosses between pipelines. The app applies a white balance; a
+Cycles world lit by a blue sky does not. So a 40-count frame-mean gap is mostly the two
+pipelines' different idea of white, and pricing a fill tint against it would have been fitting
+a lever to a unit conversion. **Recorded as a near-miss:** the number was measured, uniform,
+reproducible, and had an obvious matching lever — and was still the wrong quantity. The rule
+that caught it was written 34 builds earlier and lived only in prose, so it is now implemented
+in the tool: `chroma-locate.mjs` prints the raw difference labelled *not a valid comparison*
+and the de-meaned residual labelled *read this one*.
+
+**Step 3: the WB-invariant residual, which is a different picture entirely.** Subtracting each
+frame's own mean before differencing cancels any global per-channel gain:
+
+```
+  (A − meanA) − (B − meanB)      residual rms 7.0 counts
+   -0.3   -1.8   +2.6   +7.9   +6.5   -0.4
+   +1.9   -2.8   -0.7  -15.2  -18.4   -6.6      <- window tiles
+   +3.8   +1.1   -0.1   -3.5   -6.6   -0.0
+   +3.7   +4.2   +7.7  +12.5   -4.7   +9.4      <- bookshelf
+```
+
+The 40-count gap collapses to **7.0 counts rms**, and away from two features it is within
+**±4.2 counts** — i.e. **the app's interior chroma already agrees with physics.**
+
+**Step 4: and the residual is the window.** The two worst tiles by a wide margin, **−15.2 and
+−18.4**, are the *same two tiles* that `v0.31.6.10` found hold **100 % of both frames' top
+percentile*. The sign says the app's pane is ~16 counts too **cool relative to its own room**:
+physics' pane is the least-blue thing in its frame (a bright near-white sky glow), while the
+app's is a cool grey slab against a warmer interior.
+
+**Two independent metrics now converge on one object.** The tonal tail (`v0.31.6.10`,
+`v0.31.7.4`) and the chroma residual (this round) were measured differently, normalised
+differently, and are sensitive to different things — and both land on the window pane. That is
+much stronger evidence for the pane fix than either alone, and it means the *rest* of the
+render is, on both axes, already at physics.
+
+**A second negative worth the cost of not acting on it:** chroma needs no lever of its own.
+`FILLTINT` is not the answer, no per-channel fill scaling is warranted, and nothing was changed
+— so nothing was spent from the ~16.5 ms/frame of medium-tier headroom, and the surfaces the
+goal names (walk, orbit, room editor) keep their measured 60 fps.
+
+The remaining chroma figure is added to item (l) in `docs/open-graphics-decisions.md`, which is
+now the single open item carrying **both** remaining measured errors.
+
 ## v0.31.7.4 — the horizon band survives but arrives ~10× too wide, so `scene.background` structurally cannot produce a highlight tail
 
 `v0.31.6.10` found no `BGMUL` value matches both highlight percentiles, and named the cause
