@@ -10794,3 +10794,59 @@ workaround.**
 a result; testing cost one run and prevented a withdrawal.
 
 No `src/` change, no probe change.
+
+---
+
+## Round .312 — (p) priced: the hardcoded gradient is the majority of an HQ still's interior light. And class A's ceiling follows the background to black
+
+`.311` judged further (u) diagnosis worth less than a decision, so this round prices the item that is ready for
+one. (p) is confirmed (`.287`) but its cost was never measured. Zeroing the gradient leaves exactly what the
+scene's own copied lights provide.
+
+### Measured
+
+Temporary instrumentation (added, observed, reverted, `src/` verified clean); bedroom3 `PITCH=0.30`, medium
+tier, photographic look, hour 13, 256 samples, white room (run 18:37 +08):
+
+| | frame mean | glazing | ceiling | sidewall-L | winwall-R | lampshade |
+| --- | --- | --- | --- | --- | --- | --- |
+| gradient zeroed (scene lights only) | **38.4** | 111.0 | **0.0** | **69.2** | **49.3** | **36.5** |
+| normal, class B (correct) | 112.7 | 166.9 | 115.2 | 116.1 | 102.7 | 74.6 |
+| normal, class A | 156.2 | 170.9 | 181.5 | 157.7 | 147.6 | 103.1 |
+
+Removing the gradient cuts the frame mean **66 %**, the interior wall **40 %**, the window wall **52 %**, the
+lampshade **51 %**. **The hardcoded sky supplies the majority of the interior light.**
+
+**Arithmetic caveat:** these are displayed counts after AgX tone mapping. AgX is not a power curve, so no linear
+"% of photons" figure is quoted — an inverse-curve guess would be the false precision `.290` was corrected for.
+The drops are large enough that the conclusion does not depend on the curve.
+
+### What the decision looks like
+
+Fixing (p) is **not** swapping a wrong tint for a right one — it **replaces the dominant light source** in every
+HQ still. The direction is visible: with only the scene's own lights the walls read **warm, with a natural
+falloff and visible plaster texture**, where the gradient's contribution is cooler and brighter. **The fix makes
+HQ stills warmer and darker, closer to the rasteriser's look** — a larger look call than the item's filing
+suggested.
+
+### Bonus: the strongest confirmation yet of (u)'s characterisation
+
+This run was class A, and with a black background its ceiling reads **0.0** — a pure void, plainly visible.
+Across three independent manipulations the class-A ceiling **follows the background**:
+
+| background | class-A ceiling |
+| --- | --- |
+| green (`.299`) | greenness 79.0, above the glazing's 60 |
+| grey gradient (default) | 181.5, cold, sd 0.88 |
+| black (`.312`) | 0.0 |
+
+`.303`–`.307` inferred this from an equivalence with a hidden ceiling; this is a **dose-response on the
+suspected source**, which is stronger. It also re-confirms class A is unrelated to the ceiling's own material —
+a black-background void is not a shading of `#fafafa`.
+
+### Looked at
+
+The frame shows the ceiling as an unmistakable black void with the cornice lit around its edge, and the walls
+warmly lit with real texture. Both readings match the numbers.
+
+Instrumentation reverted, `src/` verified clean. No probe change.

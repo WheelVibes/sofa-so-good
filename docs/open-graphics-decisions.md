@@ -1491,6 +1491,29 @@ Ambient/Hemisphere and substitutes a gradient"; it is worse than that, because i
 on every single render. The HQ still is the app's photoreal showcase and it is not lit by the room the user
 built.
 
+**💰 PRICED v0.31.5.312 — the gradient supplies the MAJORITY of an HQ still's interior light, not a fill.**
+Zeroing the gradient leaves exactly what the scene's own copied Directional/Point/Spot lights provide
+(bedroom3 `PITCH=0.30`, medium tier, photographic look, hour 13, 256 samples, white room):
+
+| | frame mean | glazing | ceiling | sidewall-L | winwall-R | lampshade |
+| --- | --- | --- | --- | --- | --- | --- |
+| **gradient zeroed** | **38.4** | 111.0 | 0.0 | **69.2** | **49.3** | **36.5** |
+| normal, class B (correct) | 112.7 | 166.9 | 115.2 | 116.1 | 102.7 | 74.6 |
+
+Removing it cuts the frame mean **66 %**, the interior wall **40 %**, the window wall **52 %**, the lampshade
+**51 %**.
+
+*Arithmetic caveat:* these are **displayed** counts after AgX tone mapping, and AgX is not a power curve, so no
+linear "% of photons" figure is quoted — an inverse-curve guess would be the false precision `.290` was
+corrected for. The drops are large enough that the conclusion does not depend on the curve.
+
+**What the decision now looks like.** Fixing (p) is **not** swapping a wrong tint for a right one — it
+**replaces the dominant light source** in every HQ still, so every existing HQ image changes substantially. The
+direction is visible in the frame: with only the scene's own lights the walls read **warm, with a natural
+falloff and visible plaster texture**, where the gradient's contribution is cooler and brighter. **The fix makes
+HQ stills warmer and darker, and closer to the rasteriser's look** — a larger look call than this item's filing
+suggested.
+
 **✅ CONFIRMED BY DIRECT OBSERVATION v0.31.5.287.** Temporary instrumentation in `buildTracerScene` (added,
 observed, reverted; `src/` verified clean) logged the branch actually taken on the default shipped path:
 
@@ -2266,6 +2289,19 @@ context. This eliminates *page*-level state, not per-context state. "Per-render"
 
 **(u) is now bounded as:** decided per `createHqRenderSession` call, on the real GPU with a real compositor,
 with a clean GL state, from CPU-side inputs identical to the integer.
+
+**🎯 CHARACTERISATION CONFIRMED BY MANIPULATION v0.31.5.312.** `.303`–`.307` inferred "class A's ceiling shows
+the environment" from an equivalence with a *hidden* ceiling. Changing the environment now changes the class-A
+ceiling to match it — a dose-response on the suspected source rather than an inference from a coincidence:
+
+| background | class-A ceiling |
+| --- | --- |
+| green (`.299`) | greenness **79.0**, above the glazing's 60 |
+| grey gradient (default) | **181.5**, cold, sd 0.88 |
+| **black** (`.312`) | **0.0** — a pure void, plainly visible in the frame |
+
+It also re-confirms class A is unrelated to the ceiling's own material: a black-background void is not a shading
+of `#fafafa`.
 
 **❌ AOV/DENOISE PATH REFUTED v0.31.5.311.** `captureAovPasses` runs right after `setScene` on the same renderer
 and snapshot, and only when AI denoise is armed — a good candidate, left open because `.285`'s `PTAI=off` arm

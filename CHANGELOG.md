@@ -5,6 +5,62 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.312 — item (p) priced: the hardcoded gradient supplies the MAJORITY of an HQ still's interior light, not a fill. And class A's ceiling follows the background to black
+
+`.311` concluded that further (u) diagnosis is worth less than a decision, so this round prices the item that is
+actually ready for one. **(p)** — every HQ render is lit by a hardcoded `GradientEquirectTexture` instead of the
+scene's own Ambient/Hemisphere lights — is confirmed by direct observation (`.287`) but its *cost* has never been
+measured. Zeroing the gradient leaves exactly the light the scene's own copied lights provide, so the difference
+is the answer.
+
+**Measured** (temporary instrumentation, added, observed, **reverted**, `src/` verified clean; bedroom3
+`PITCH=0.30`, medium tier, photographic look, hour 13, 256 samples, white room; run 18:37 +08):
+
+| | frame mean | glazing | ceiling | sidewall-L | winwall-R | lampshade |
+| --- | --- | --- | --- | --- | --- | --- |
+| **gradient zeroed** (scene lights only) | **38.4** | 111.0 | **0.0** | **69.2** | **49.3** | **36.5** |
+| normal gradient, class B (correct render) | 112.7 | 166.9 | 115.2 | 116.1 | 102.7 | 74.6 |
+| normal gradient, class A | 156.2 | 170.9 | 181.5 | 157.7 | 147.6 | 103.1 |
+
+**The gradient is not a fill.** Removing it cuts the frame mean by **66 %** (112.7 → 38.4), the interior wall by
+**40 %** (116.1 → 69.2), the window wall by **52 %** and the lampshade by **51 %**. **The hardcoded sky supplies
+the majority of the interior light in an HQ still.**
+
+**Arithmetic caveat, stated rather than papered over.** These are **displayed** counts after AgX tone mapping.
+AgX is not a power curve, so I am *not* converting them into a linear "X % of photons" figure — an inverse-curve
+guess would be false precision of exactly the kind `.290` was corrected for. The displayed drops are reported
+as-is, and they are large enough that the qualitative conclusion does not depend on the curve.
+
+**What this means for the decision, which is the point of measuring it.** Fixing (p) is **not** swapping a wrong
+tint for a right one — it **replaces the dominant light source** in every HQ still. Every existing HQ image
+would change substantially, and the direction is legible in the frame: with only the scene's own lights, the
+walls read **warm, with a natural falloff and visible plaster texture**, where the gradient's contribution is
+cooler and brighter. So the fix makes HQ stills **warmer and darker**, and closer to the rasteriser's look. That
+is a look call, and a bigger one than (p)'s filing suggested.
+
+**A bonus, and the strongest confirmation yet of (u)'s characterisation.** This run was class A, and with the
+background black its **ceiling reads 0.0** — a pure void, plainly visible in the frame. Across three independent
+manipulations of the background, class A's ceiling **follows the background**:
+
+| background | class-A ceiling |
+| --- | --- |
+| green (`.299`) | greenness **79.0**, above the glazing's 60 |
+| grey gradient (default) | **181.5**, cold, sd 0.88 |
+| **black** (`.312`) | **0.0** |
+
+`.303`–`.307` inferred "the ceiling shows the environment" from an equivalence with a *hidden* ceiling. This is
+stronger: **changing the environment changes the class-A ceiling to match it**, which is a dose-response on the
+suspected source rather than an inference from a coincidence. It also re-confirms that class A is unrelated to
+the ceiling's own material, since a black-background void is not a shading of `#fafafa`.
+
+**Looked at, per the first method rule.** The frame shows the ceiling as an unmistakable black void with the
+cornice lit around its edge — and the walls warmly lit with real texture. Both readings match the numbers.
+
+**Status.** (p) now has a price and a direction, which is what a decision needs; (u) has its characterisation
+confirmed by manipulation rather than inference. Neither is fixed, and neither fix is mine to authorise.
+
+**Unchanged:** instrumentation reverted, `src/` verified clean. No probe change.
+
 ## v0.31.5.311 — the AOV/denoise path is refuted, and a tempting pattern was tested and killed inside the same round
 
 **1. The AOV/denoise path is not the cause.** `captureAovPasses` runs immediately after `setScene`, on the same
