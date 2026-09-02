@@ -12495,3 +12495,92 @@ The signature is informative precisely because it is improbable. Its **meaning d
 thing being compared should have moved** — which is a property of the experiment's design, not of the number.
 
 No `src/` change beyond the version bump.
+
+---
+
+## Round .333 — (w)'s fix is daytime-only, and its night half is blocked on (p)
+
+`.330` priced (w), `.331` found the lever and a constant, `.332` showed the interpolation must not be linear —
+all at **13:00**. `.330`'s own caveat was that one pose, one hour, one room, one tier is not a specification.
+
+Rather than buy another tracer target at ~30 minutes, this round tested a **necessary condition that costs
+nothing**: the fix can only be a simple per-reflectance constant if the lever's *authority* is stable across
+conditions. The lever's authority is a raster-only quantity, so it is ~20 s per run with no (u) tax. Four runs,
+~3 minutes.
+
+### The lever collapses at night
+
+Zeroing the hemisphere's ground term, bedroom3, `WALKFOV=72` `PITCH=-0.02` — same pose as `.330`–`.332`, so the
+patches transfer with no placement risk:
+
+| hour | ceiling GB=3 → GB=0 | authority | floor | wall-L |
+| --- | --- | --- | --- | --- |
+| 13:00 | 126.9 → 79.7 | **−37 %** | −0.1 % | — |
+| 21:00, lights on | 121.6 → 118.7 | **−2.4 %** | **0.0** | −0.3 |
+
+A ~**15× loss of authority**. This is exactly what `Lighting.tsx` implies: the hemisphere intensity is
+`cur.ambient * 1.1 * fillScale`, and `cur.ambient` follows the eased day level, so after the night ramp there
+is almost nothing left for a scale factor to act on. The lever is effectively inert at 21:00.
+
+### But the defect persists at night
+
+Walls white → `wall-paint-ink` at 21:00, raster:
+
+| patch | white | Ink | Δ |
+| --- | --- | --- | --- |
+| wall-L — **landing check** | 181.3 | 49.4 | **−73 %** |
+| **ceiling** | 121.6 | **121.6** | **0.0** |
+| floor | 90.4 | **90.4** | **0.0** |
+
+Same signature as `.329`/`.330`: a large landing check alongside exact zeros on the surfaces that could only
+respond through interreflection.
+
+### So the fix as specified is daytime-only
+
+The lever has essentially no authority in the condition where the defect is arguably **worst in kind**. At
+13:00 a ceiling receives some light via the sky and the room; at 21:00 there is no skylight at all, so a real
+ceiling's illumination is almost *entirely* bounce — and the raster has no bounce term.
+
+### At night it is not a mis-scaled fill — there is no term to scale
+
+This is the sharper statement. Hemisphere and ambient are **daylight-derived** and near-zero after the ramp, so
+nothing in the analytical rig represents **lamp bounce off walls**. The night ceiling reads 121.6 because the
+table lamp lights it **directly**, which the frame confirms: the ceiling is the brightest large surface in the
+image while the Ink walls sit at 49.4, and with white walls the ordering reverses (wall 181.3 > ceiling 121.6).
+
+So the daytime defect is a **mis-tuned constant** — a fill term that exists but does not respond. The night
+defect is a **missing mechanism** — there is no lamp-bounce term to tune, and adding a room-reflectance factor
+to a term that has been scaled to zero cannot create one. Structurally the night case is the bigger gap, and the
+`.331` lever does not reach it.
+
+### The night magnitude cannot be priced until (p) is fixed
+
+The only physically-motivated reference available is the path tracer. Its environment is item (p)'s two
+hardcoded constants, `0xbfd4e6` / `0x5a5650`, with **no hour dependence whatsoever** (`.326`, confirmed by
+direct instrumentation).
+
+The arc has already measured the consequence, in the hour test:
+
+| | 13:00 | 21:00 | change |
+| --- | --- | --- | --- |
+| raster ceiling | 120.1 | 180.3 | **+50 %** |
+| traced ceiling | 140.8 | 152.7 | **+8 %** |
+| raster ÷ traced, ceiling | 0.853 | 1.181 | **sign inverts** |
+
+A reference lit by a daylight sky at 21:00 cannot price a night defect. **(w)'s night half is blocked on (p)** —
+a genuine inter-item dependency, and the first one this arc has established in that direction. Until the tracer
+gets a faithful hour-aware environment (which `.326` showed is available in the scene and priced), there is no
+way to say how wrong the night render is.
+
+### Why this was worth doing before more daytime points
+
+`.331`'s and `.332`'s calibration is sound, but its **scope** was unstated and turned out to be half the day.
+Three minutes of raster runs bounded it. Had (w) shipped on that calibration, it would have been correct at
+midday, inert at night, and the night case — the structurally worse one — would have looked "already handled"
+because the same code path was in place.
+
+Generalisable: **before extending a calibration, test whether its lever still has authority in the conditions
+you have not measured.** Authority is usually a one-renderer question and therefore cheap; correctness is a
+two-renderer question and expensive.
+
+No `src/` change beyond the version bump.

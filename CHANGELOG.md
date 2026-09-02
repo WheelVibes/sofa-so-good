@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.333 — (w)'s fix is DAYTIME-ONLY: the lever loses 15x its authority at night, while the defect persists
+
+`.330`–`.332` specified (w) at one hour. Before adding more tracer targets, this round tested a **necessary
+condition** that costs nothing: the fix can only be a simple per-reflectance constant if the lever's authority
+is stable. Four raster runs, ~3 minutes, no (u) tax.
+
+**The lever collapses at night.** Zeroing the hemisphere's ground term, bedroom3, same pose:
+
+| hour | ceiling GB=3 → GB=0 | authority |
+| --- | --- | --- |
+| 13:00 | 126.9 → 79.7 | **−37 %** |
+| 21:00, lights on | 121.6 → 118.7 | **−2.4 %** |
+
+A ~15× loss, exactly as `Lighting.tsx` implies — the hemisphere is scaled by the day level
+(`cur.ambient * 1.1 * fillScale`), so at night there is almost nothing left to scale.
+
+**But the defect persists at night.** Walls white → Ink at 21:00:
+
+| patch | white | Ink | Δ |
+| --- | --- | --- | --- |
+| wall-L — landing check | 181.3 | 49.4 | **−73 %** |
+| **ceiling** | 121.6 | **121.6** | **0.0** |
+| floor | 90.4 | **90.4** | **0.0** |
+
+**So the fix as specified in `.331`/`.332` is daytime-only.** The lever has essentially no authority in the
+condition where the defect is arguably worst in kind: at night there is no skylight, so a ceiling's light is
+almost entirely bounce, and the raster has no bounce term at all.
+
+**And at night it is not a mis-scaled fill — there is no term to scale.** Hemisphere and ambient are
+daylight-derived and near-zero after the day ramp, so nothing in the analytical rig represents *lamp* bounce off
+walls. The night ceiling reads 121.6 because the table lamp lights it **directly** (visible in the frame: the
+ceiling is the brightest large surface while the Ink walls sit at 49.4). Structurally that is a bigger gap than
+the daytime one, not a smaller one — a missing mechanism rather than a mis-tuned constant.
+
+**The night magnitude cannot be priced until (p) is fixed — a hard dependency.** The only physically-motivated
+reference available is the path tracer, and its environment is the two hardcoded constants of item (p) with **no
+hour dependence** (`.326`). The arc already measured the consequence: at 21:00 the raster ceiling rises **+50 %**
+while the traced ceiling rises **+8 %**, and the raster ÷ traced ceiling ratio **inverts sign** (0.853 → 1.181).
+A reference lit by a daylight sky at 21:00 cannot price a night defect. **(w)'s night half is blocked on (p).**
+
+This is worth more than another daytime data point: `.331`'s and `.332`'s calibration is sound but its scope is
+now bounded, and the bound was found in three minutes rather than after shipping.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.332 — both registered predictions REFUTED: the ceiling's response saturates by mid-grey, so (w) must not be interpolated linearly
 
 `.331` left (w)'s interpolation shape open and warned that two points define a line, not a form. This round

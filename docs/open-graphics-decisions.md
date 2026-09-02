@@ -2980,3 +2980,32 @@ matters.
 
 Also confirmed: the raster's ceiling is **126.9 for all three finishes** (floor 102.5 likewise), so the defect
 is finish-independent.
+
+### ⚠️ DAYTIME-ONLY, AND THE NIGHT HALF IS BLOCKED ON (p) — v0.31.5.333
+
+**The lever loses ~15× its authority at night.** Zeroing the hemisphere ground term, same pose:
+
+| hour | ceiling GB=3 → GB=0 | authority |
+| --- | --- | --- |
+| 13:00 | 126.9 → 79.7 | **−37 %** |
+| 21:00, lights on | 121.6 → 118.7 | **−2.4 %** |
+
+`Lighting.tsx` scales the hemisphere by the day level (`cur.ambient * 1.1 * fillScale`), so after the night ramp
+there is nothing left for a scale factor to act on.
+
+**The defect nonetheless persists at night** — walls white → Ink at 21:00: wall-L 181.3 → 49.4 (**−73 %**,
+landing check) while **ceiling 121.6 → 121.6** and floor 90.4 → 90.4, both exactly zero.
+
+**So `.331`/`.332`'s calibration is DAYTIME-ONLY.** And at night the problem is different in kind: hemisphere
+and ambient are daylight-derived and near-zero, so **no term represents lamp bounce off walls**. The night
+ceiling is bright because the lamp lights it *directly*. The daytime defect is a mis-tuned constant; the night
+defect is a **missing mechanism**, and this lever cannot reach it.
+
+**Blocked on (p).** Pricing the night defect needs a physically-motivated reference, and the only one available
+is the path tracer — whose environment is (p)'s two hardcoded constants with no hour dependence. The arc's hour
+test already shows the consequence: raster ceiling +50 % from 13:00 to 21:00 against the traced ceiling's +8 %,
+with the ratio inverting sign (0.853 → 1.181). **(w)'s night half cannot be specified until (p) is fixed.**
+
+Implication for sequencing: if (w) is to be fixed properly rather than at midday only, **(p) should be decided
+first** — and `.326` already established that a faithful hour-aware environment exists in the scene and priced
+the conversion.
