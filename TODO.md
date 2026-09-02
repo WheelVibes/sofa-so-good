@@ -314,7 +314,11 @@ must never make. Three options are written up with their trade-offs in
 walls alone is the WORST outcome unless the overlay legend changes with it.
 `src/authoredDataCoverage.test.ts` pins the 0/225 fact so it cannot drift either way unnoticed.
 
-## Paint quantities — ✅ SHIPPED v0.31.5.292. One follow-up worth doing:
+## Paint quantities — ✅ SHIPPED v0.31.5.292; substrate now DERIVED (v0.31.5.293).
+
+The follow-up below is done: `FloorPlan.intakeState` is persisted and
+`paintQuantities.ts:substrateForIntake` maps it to the substrate. Original note kept for the
+reasoning:
 
 **Persist the intake state so the substrate is derived, not assumed.** `paintQuantities.ts` takes
 `substrate: 'primed' | 'bare'` and defaults to `'primed'`, stating the assumption on the sheet. But

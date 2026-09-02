@@ -25,7 +25,7 @@
  * `openTradePack.ts`), so the whole composition is unit-testable.
  */
 import { buildAirconSystemPlan } from '../analysis/airconSystem'
-import { buildPaintQuantities } from '../analysis/paintQuantities'
+import { buildPaintQuantities, substrateForIntake } from '../analysis/paintQuantities'
 import { buildSocketAdvisory, DB_LOAD_NOTE } from '../analysis/socketAdvisory'
 import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
 import type { ElectricalPoint } from '../floorplan/electricalPlan'
@@ -504,7 +504,12 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
     // the same pack can never disagree.
     const byName: Record<string, (typeof BUILTIN_MATERIALS)[string] | undefined> = {}
     for (const m of Object.values(BUILTIN_MATERIALS)) byName[m.name] = m
-    const paint = buildPaintQuantities(schedule.totals, byName)
+    // Substrate DERIVED from the recorded intake where the plan has one
+    // (v0.31.5.293) — a BTO's bare skim coat needs a sealer coat and about half
+    // the coverage of a painted resale, a >2x difference in litres. Falls back
+    // to the stated 'primed' assumption when no intake was recorded.
+    const substrate = substrateForIntake(plan.intakeState) ?? 'primed'
+    const paint = buildPaintQuantities(schedule.totals, byName, substrate)
     if (paint.rows.length === 0) return ''
     const rows = paint.rows
       .map(

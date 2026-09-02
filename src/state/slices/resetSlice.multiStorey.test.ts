@@ -86,3 +86,59 @@ describe('intake + preset actions rewrite EVERY storey', () => {
     expect(lvl?.elevation).toBe(3)
   })
 })
+
+describe('applyResaleStripout — the path .281 missed', () => {
+  it('screeds an upstairs dry room too', () => {
+    // v0.31.5.281 fixed applyLayoutPreset / applyOcsStarter / applyBareBto and
+    // reported "3 paths". There were four: this one kept mapping `plan.rooms`,
+    // so a maisonette's upstairs stayed on its old finish while the ground
+    // floor was screeded.
+    useStore.getState().applyResaleStripout()
+    expect(upperFloor()).not.toBe('seed-floor')
+    expect(groundFloorFinish()).not.toBe('seed-floor')
+  })
+
+  it('keeps the upper level own metadata through the rewrite', () => {
+    useStore.getState().applyResaleStripout()
+    const lvl = useStore.getState().floorPlan.upperLevels?.[0]
+    expect(lvl?.id).toBe('upper')
+    expect(lvl?.elevation).toBe(3)
+  })
+})
+
+describe('intake state is PERSISTED on the plan', () => {
+  it('records which starting state was applied', () => {
+    // The wizard used to ask this and throw the answer away. Downstream
+    // quantities cannot recover it: a BTO's bare skim coat needs a sealer coat
+    // and about half the coverage of a painted resale.
+    useStore.getState().applyBareBto()
+    expect(useStore.getState().floorPlan.intakeState).toBe('bto-bare')
+
+    useStore.setState({ floorPlan: twoStorey() })
+    useStore.getState().applyOcsStarter()
+    expect(useStore.getState().floorPlan.intakeState).toBe('bto-ocs')
+
+    useStore.setState({ floorPlan: twoStorey() })
+    useStore.getState().applyResaleStripout()
+    expect(useStore.getState().floorPlan.intakeState).toBe('resale-stripout')
+
+    useStore.setState({ floorPlan: twoStorey() })
+    useStore.getState().applyResaleAsIs()
+    expect(useStore.getState().floorPlan.intakeState).toBe('resale-asis')
+  })
+
+  it('survives a serialise/parse round trip', async () => {
+    const { FloorPlanZ } = await import('../schema')
+    useStore.getState().applyBareBto()
+    const plan = useStore.getState().floorPlan
+    const parsed = FloorPlanZ.parse(JSON.parse(JSON.stringify(plan)))
+    expect(parsed.intakeState).toBe('bto-bare')
+  })
+
+  it('accepts a plan with NO intake state — additive and optional', async () => {
+    const { FloorPlanZ } = await import('../schema')
+    const bare = { ...twoStorey() } as Record<string, unknown>
+    delete bare.intakeState
+    expect(() => FloorPlanZ.parse(JSON.parse(JSON.stringify(bare)))).not.toThrow()
+  })
+})

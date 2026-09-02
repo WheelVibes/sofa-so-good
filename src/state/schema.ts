@@ -418,6 +418,10 @@ export const FloorPlanZ = z.object({
     .optional(),
   upperLevels: z.array(PlanUpperLevelZ).optional(),
   groundName: z.string().optional(),
+  // The buyer's starting state (Smart Start). Additive + optional; a save
+  // without it simply has no intake fact and downstream quantities fall back to
+  // their stated assumption.
+  intakeState: z.enum(['bto-bare', 'bto-ocs', 'resale-asis', 'resale-stripout']).optional(),
   notes: z
     .array(
       z.object({

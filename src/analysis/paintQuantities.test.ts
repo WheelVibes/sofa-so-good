@@ -5,6 +5,7 @@ import {
   BARE_PLASTER_RATE_M2_PER_L,
   buildPaintQuantities,
   SEALER_RATE_M2_PER_L,
+  substrateForIntake,
   tinsFor,
 } from './paintQuantities'
 
@@ -202,5 +203,26 @@ describe('buildPaintQuantities — the unpainted DEFAULT still needs paint', () 
     const q = buildPaintQuantities([total('WL-02', 'White tile', 'wall', 20)], byName)
     expect(q.rows).toEqual([])
     expect(q.omittedFinishes).toBe(1)
+  })
+})
+
+describe('substrateForIntake', () => {
+  it('treats both BTO states as BARE — skim coat, no paint history', () => {
+    // OCS supplies flooring and sanitary ware, not wall paint, so it is bare too.
+    expect(substrateForIntake('bto-bare')).toBe('bare')
+    expect(substrateForIntake('bto-ocs')).toBe('bare')
+  })
+
+  it('treats both resale states as PRIMED — existing paint remains', () => {
+    // The app's strip-out model screeds dry floors and strips furniture; it does
+    // NOT re-skim walls, so the existing paint is still there.
+    expect(substrateForIntake('resale-asis')).toBe('primed')
+    expect(substrateForIntake('resale-stripout')).toBe('primed')
+  })
+
+  it('returns undefined for no recorded intake, so the caller keeps its default', () => {
+    // Deliberately not defaulting inside here: handing back a guess would make a
+    // plan with no intake indistinguishable from one that recorded 'resale'.
+    expect(substrateForIntake(undefined)).toBeUndefined()
   })
 })

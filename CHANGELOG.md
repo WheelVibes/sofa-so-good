@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.293 - the intake answer is now kept, plus a path .281 missed
+
+Two things, one of them an admission.
+
+**A fourth ground-only rewrite in `resetSlice`, which `.281` missed while claiming three.**
+`applyResaleStripout` kept mapping `plan.rooms`, so a maisonette's upstairs stayed on its old finish
+while the ground floor was screeded. `.281`'s changelog says "resetSlice (3 paths)" — there were
+four, and I had the grep output listing all four in front of me at the time. Found while reading
+this function for an unrelated reason, which is the only reason it surfaced at all. Now on
+`mapPlanRooms` with a test verified to fail without the fix.
+
+**`FloorPlan.intakeState` is persisted.** Smart Start asks whether the flat is a bare BTO, an OCS
+BTO, a resale as-handed-over or a resale after strip-out — then applied its furniture and finishes
+and **threw the answer away**. Nothing recorded it, so no downstream quantity could use it.
+
+It matters because `.292`'s paint quantities have to know the substrate, and it is not recoverable
+from geometry: a new BTO "hands over with sound skim coat, no existing paint history", needing "one
+primer or sealer coat followed by two finishing coats" — roughly half the coverage of a painted
+resale, **26 L against 10 L on 60 m²**. The painter pack now DERIVES its substrate
+(`substrateForIntake`) instead of stating an assumption, falling back to the assumption only when
+no intake was recorded.
+
+The mapping is sourced, not guessed. Both BTO states are bare — `bto-ocs` too, because the Optional
+Component Scheme supplies flooring and sanitary ware, not wall paint. Both resale states are primed,
+including strip-out: **the app's own strip-out model** screeds dry floors and strips furniture,
+wardrobes and non-fitting carpentry, and does not re-skim walls, so the existing paint remains. A
+real strip-out that included re-skimming would be bare; that is a user override, not something this
+can infer, and the sheet says which assumption is in force.
+
+`substrateForIntake` returns `undefined` for an unrecorded intake rather than defaulting internally
+— otherwise a plan with no intake would be indistinguishable from one that recorded a resale.
+
+**`IntakeStateId` moved to `floorplan/types.ts`**, re-exported type-only from `intakeStates.ts`.
+`FloorPlan.intakeState` cannot reference the type where it lived, because `intakeStates.ts` imports
+FROM `types.ts` and **`types.ts` has zero imports** — deliberately, since it is the leaf every plan
+module depends on. That property is what forced the direction, and it is the same move
+`ElectricalKind`/`PlumbingKind` made for the same reason. Now recorded in
+`src/floorplan/CLAUDE.md` so the next person does not "fix" it by adding an import.
+
+Additive + optional through `schema.ts`, so a save without it parses unchanged — pinned by a test.
+The curated default flat is not serialised, so on that plan the value is session-only; that caveat
+was already documented in `intakeStates.ts` and is fine for a live-computed schedule.
+
+11 new tests.
+
 ## v0.31.5.292 - paint in LITRES, not square metres
 
 Another instance of the `.288` shape: the number a contractor needs was one step beyond what the app

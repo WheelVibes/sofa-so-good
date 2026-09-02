@@ -389,6 +389,18 @@ export interface SiteMeasurement {
   note?: string
 }
 
+/**
+ * The four buyer starting states offered in Smart Start.
+ *
+ * Declared HERE rather than in `furniture/intakeStates.ts` and re-exported
+ * type-only from there — the same move `ElectricalKind`/`PlumbingKind` made, and
+ * for the same reason: `intakeStates.ts` imports from this module, so
+ * `FloorPlan.intakeState` referencing its type would form a cycle. This file is
+ * deliberately import-free (it is the leaf every other plan module depends on),
+ * which is the property that forces the direction.
+ */
+export type IntakeStateId = 'bto-bare' | 'bto-ocs' | 'resale-asis' | 'resale-stripout'
+
 export interface FloorPlan {
   id: string
   name: string
@@ -414,6 +426,22 @@ export interface FloorPlan {
   /** Optional storeys above the ground floor (the top-level fields above ARE
    *  the ground floor). Absent/empty = the single-storey plans of today. */
   upperLevels?: PlanUpperLevel[]
+  /**
+   * The buyer's starting state, as chosen in Smart Start
+   * (`furniture/intakeStates.ts`). Additive + optional — older saves have none.
+   *
+   * Persisted because it is a FACT about the property that downstream
+   * quantities need and cannot otherwise recover. `analysis/paintQuantities.ts`
+   * is the motivating consumer: a BTO hands over with a sound skim coat and no
+   * paint history, so it needs a sealer coat and roughly half the coverage of a
+   * previously-painted resale — on 60 m² that is 26 L against 10 L. The wizard
+   * used to ask this, apply its furniture/finishes, and throw the answer away.
+   *
+   * Caveat (already documented in `intakeStates.ts`): the curated default flat
+   * is not serialised, so on that plan this is session-only. That is fine for a
+   * live-computed schedule and only matters across a reload.
+   */
+  intakeState?: IntakeStateId
   /** Optional custom name for the ground storey (the top-level geometry).
    *  Defaults to "Ground floor". Additive + optional. */
   groundName?: string

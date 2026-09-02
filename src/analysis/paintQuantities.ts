@@ -27,6 +27,7 @@
  */
 
 import { DEFAULT_CEILING, type FinishTotal, NEUTRAL_WALL } from '../floorplan/finishSchedule'
+import type { IntakeStateId } from '../floorplan/types'
 import type { MaterialDef, PaintCoverage } from '../materials/types'
 
 /**
@@ -43,6 +44,41 @@ import type { MaterialDef, PaintCoverage } from '../materials/types'
  *   approximately 10-12 m²/litre".
  */
 export type PaintSubstrate = 'primed' | 'bare'
+
+/**
+ * The substrate implied by the buyer's starting state, when the plan records one
+ * (`FloorPlan.intakeState`). Turns a stated ASSUMPTION into a derived fact.
+ *
+ * - `bto-bare`, `bto-ocs` → **bare**. A new BTO "hands over with sound skim
+ *   coat, no existing paint history and no moisture record", and needs "one
+ *   primer or sealer coat followed by two finishing coats" — which is exactly
+ *   the bare model here. `bto-ocs` is also bare: the Optional Component Scheme
+ *   supplies flooring and sanitary ware, not wall paint.
+ * - `resale-asis` → **primed**. A previously-owned flat has paint history.
+ * - `resale-stripout` → **primed**. The app's strip-out model removes furniture,
+ *   wardrobes and non-fitting carpentry and screeds the dry floors; it does NOT
+ *   re-skim the walls, and the existing paint remains. A real strip-out that
+ *   includes re-skimming would be bare — that is a user override, not something
+ *   this can infer, and the sheet's note says which assumption is in force.
+ *
+ * Returns `undefined` when the plan records no intake, so the caller keeps its
+ * own default rather than being handed a guess.
+ *
+ * Sources: painting.com.sg "BTO Flat Painting Before Your Move-In";
+ * mypaintjob.com.sg "Plaster Walls vs. Skim Coating".
+ */
+export function substrateForIntake(intake: IntakeStateId | undefined): PaintSubstrate | undefined {
+  switch (intake) {
+    case 'bto-bare':
+    case 'bto-ocs':
+      return 'bare'
+    case 'resale-asis':
+    case 'resale-stripout':
+      return 'primed'
+    default:
+      return undefined
+  }
+}
 
 /** Coverage on bare/new plaster (m²/L per coat) — the lower end of the 6-8
  *  band, for the same reason the product rate takes 12 rather than 14. */

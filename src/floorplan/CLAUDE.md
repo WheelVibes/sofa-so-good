@@ -28,6 +28,15 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   **But when a per-room calculation depends on the room's LEVEL (ceiling height, elevation),
   iterate `planLevels` + `levelAsPlan` instead** — a flat room list has lost the storey the
   fallback needs. `wallAreaByFinish` is the worked example.
+- **`FloorPlan.intakeState` is a persisted FACT, and `types.ts` hosts its type.** The Smart Start
+  answer (`bto-bare`/`bto-ocs`/`resale-asis`/`resale-stripout`) is stamped onto the plan by the four
+  `resetSlice` intake actions and round-trips through `schema.ts` (additive + optional, no version
+  bump). It exists because downstream quantities cannot recover it: a BTO hands over as bare skim
+  coat and needs a sealer coat plus ~half the coverage of a painted resale (`analysis/
+  paintQuantities.ts:substrateForIntake`). `IntakeStateId` was MOVED here from
+  `furniture/intakeStates.ts` (which re-exports it type-only) because that module imports from this
+  one and **this file is deliberately import-free** — the same move `ElectricalKind`/`PlumbingKind`
+  made. Keep it that way: an import here creates a cycle for every plan consumer.
 - **Cross-item spatial scans must be level-gated**: two items only interact when
   `(a.levelId ?? 'ground') === (b.levelId ?? 'ground')` (see `itemsCollide`,
   `findNarrowGaps`, `findWallClipsByLevel`, `isItemInRoom`). Same for item↔wall
