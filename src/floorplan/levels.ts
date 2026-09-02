@@ -334,3 +334,22 @@ export function itemsInRoom<T extends Pick<FurnitureItem, 'levelId' | 'position'
       pointInRoom(room, it.position[0], it.position[1]),
   )
 }
+
+/**
+ * A copy of the plan with `fn` applied to EVERY storey's rooms.
+ *
+ * The bare `{ ...plan, rooms: plan.rooms.map(fn) }` is ground-only, so a
+ * whole-home room rewrite (a finish preset, an OCS re-finish, a screed pass)
+ * silently left every upstairs room untouched. Levels with no rooms array are
+ * passed through unchanged rather than gaining an empty one.
+ */
+export function mapPlanRooms(plan: FloorPlan, fn: (room: PlanRoom) => PlanRoom): FloorPlan {
+  const next: FloorPlan = { ...plan, rooms: (plan.rooms ?? []).map(fn) }
+  if (!isMultiLevel(plan)) return next
+  return {
+    ...next,
+    upperLevels: plan.upperLevels?.map((l) =>
+      Array.isArray(l.rooms) ? { ...l, rooms: l.rooms.map(fn) } : l,
+    ),
+  }
+}

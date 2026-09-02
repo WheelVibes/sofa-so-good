@@ -7,6 +7,7 @@
  */
 import { canPlace, itemFootprint } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
+import { levelById } from '../floorplan/levels'
 import { pointInRoom } from '../floorplan/types'
 import { type MirrorAxis, mirrorSelection } from '../furniture/mirrorSelection'
 import type { FurnitureDef } from '../furniture/types'
@@ -22,9 +23,12 @@ function selectedUnlocked() {
   return s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
 }
 
-function roomRectAt(cx: number, cz: number) {
+function roomRectAt(cx: number, cz: number, levelId?: string) {
   const s = useStore.getState()
-  const room = s.floorPlan.rooms.find((r) => pointInRoom(r, cx, cz))
+  // The SELECTION's own storey (F13): stacked rooms share one XZ space, so a
+  // flat search would align an upstairs selection to the room beneath it.
+  const level = levelById(s.floorPlan, levelId)
+  const room = level.rooms.find((r) => pointInRoom(r, cx, cz))
   if (!room) return null
   return {
     minX: room.origin[0],
@@ -140,7 +144,8 @@ export function arrangeSelectionAsRun(catalog: Catalog): void {
   if (sel.length < 2) return
   const cx = sel.reduce((a, i) => a + i.position[0], 0) / sel.length
   const cz = sel.reduce((a, i) => a + i.position[1], 0) / sel.length
-  const room = s.floorPlan.rooms.find((r) => pointInRoom(r, cx, cz)) ?? s.floorPlan.rooms[0]
+  const level = levelById(s.floorPlan, sel[0]?.levelId)
+  const room = level.rooms.find((r) => pointInRoom(r, cx, cz)) ?? level.rooms[0]
   if (!room) return
   const rect = {
     minX: room.origin[0],

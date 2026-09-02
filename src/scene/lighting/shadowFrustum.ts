@@ -1,3 +1,4 @@
+import { allPlanRooms, allPlanWalls } from '../../floorplan/levels'
 import type { FloorPlan } from '../../floorplan/types'
 
 /**
@@ -44,11 +45,14 @@ export function planShadowBounds(plan: FloorPlan): Rect {
     if (x > maxX) maxX = x
     if (z > maxZ) maxZ = z
   }
-  for (const w of plan.walls) {
+  // EVERY storey (F13): an upper level that overhangs the ground footprint
+  // (or a landed house's first floor) fell OUTSIDE the shadow frustum, so its
+  // geometry cast no shadow at all.
+  for (const w of allPlanWalls(plan)) {
     acc(w.start[0], w.start[1])
     acc(w.end[0], w.end[1])
   }
-  for (const r of plan.rooms) {
+  for (const r of allPlanRooms(plan)) {
     if (r.polygon && r.polygon.length >= 3) {
       for (const [px, pz] of r.polygon) acc(px, pz)
       continue

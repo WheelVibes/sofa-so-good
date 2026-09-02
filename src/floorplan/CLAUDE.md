@@ -18,6 +18,10 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   `roomAtItem` and wrong the same way when hand-rolled: `items.filter((it) => pointInRoom(room, x,
   z))` sweeps up furniture from every storey overlapping the room's XZ, so a ground-floor "Clear
   room" would delete the loft's furniture too.
+- **A whole-home room REWRITE is `levels.ts` `mapPlanRooms(plan, fn)`.**
+  `{ ...plan, rooms: plan.rooms.map(fn) }` is ground-only, so a finish preset / OCS re-finish /
+  screed pass repainted the downstairs and silently left every upstairs room on its old floor.
+  Three `resetSlice` intake paths did exactly that.
 - **Whole-home enumeration is `allPlanRooms`/`allPlanWalls`/`allPlanOpenings`; whole-home area is
   `planTotalAreaAllLevels`.** `planTotalArea` stays SINGLE-level (the plan editor calls it per
   storey) — the asymmetry is deliberate, so a caller who wants everything has to say so.

@@ -140,3 +140,32 @@ describe('shadowMapSizeForExtent (SHADOW-TEXEL)', () => {
     expect(shadowMapSizeForExtent(-5, 4096)).toBe(SHADOW_MAP_MIN)
   })
 })
+
+describe('planShadowBounds — multi-storey (F13)', () => {
+  it('includes an upper storey that overhangs the ground footprint', () => {
+    // A ground-only read put the overhang OUTSIDE the shadow frustum, so its
+    // geometry cast no shadow at all.
+    const p = {
+      id: 'p',
+      name: 'p',
+      extent: [4, 4],
+      ceilingHeight: 2.6,
+      walls: [{ id: 'g', start: [0, 0], end: [4, 0], thickness: 'external' }],
+      openings: [],
+      rooms: [{ id: 'g-r', name: 'G', origin: [0, 0], width: 4, depth: 4 }],
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Upper',
+          elevation: 3,
+          walls: [{ id: 'u', start: [0, 0], end: [9, 0], thickness: 'external' }],
+          openings: [],
+          rooms: [{ id: 'u-r', name: 'U', origin: [0, 0], width: 9, depth: 7 }],
+        },
+      ],
+    } as unknown as FloorPlan
+    const b = planShadowBounds(p)
+    expect(b.maxX).toBeCloseTo(9, 6)
+    expect(b.maxZ).toBeCloseTo(7, 6)
+  })
+})

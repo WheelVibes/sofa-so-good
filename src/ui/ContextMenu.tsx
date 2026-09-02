@@ -2,9 +2,9 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { canPlace } from '../collision/placement'
 import { useFeature } from '../features/useFeature'
-import { levelById } from '../floorplan/levels'
+import { allPlanRooms, levelById, roomAtItem } from '../floorplan/levels'
 import { defaultOpeningName, defaultWallName } from '../floorplan/planElementName'
-import { type PlanRoom, pointInRoom } from '../floorplan/types'
+import type { PlanRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import type { ContextTarget } from '../state/slices/featuresSlice'
 import { useStore } from '../state/store'
@@ -238,12 +238,14 @@ function buildItemMenu(
       st.rotateItem(it.id, next)
     }
   }
-  const inRoom = s.floorPlan.rooms.some((r) => pointInRoom(r, item.position[0], item.position[1]))
+  // The item's OWN storey (F13) — a ground-only test said "not in a room" for
+  // every upstairs piece, hiding the room-relative actions below.
+  const inRoom = roomAtItem(s.floorPlan, item) !== null
   const centerInRoom = () => {
     const st = useStore.getState()
     const it = st.items.find((i) => i.id === item.id)
     if (!it || it.locked) return
-    const room = st.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    const room = roomAtItem(st.floorPlan, it)
     if (!room) return
     const c = roomCentre(room)
     if (
@@ -474,8 +476,10 @@ function buildRoomMenu(
   levelId: string | undefined,
 ): { heading: string; headingIcon: IconName; rows: MenuRow[] } | null {
   const s = useStore.getState()
-  const room = s.floorPlan.rooms.find((r) => r.id === id) ?? null
-  // Rooms may live on an upper storey; fall back to a name lookup across levels.
+  // EVERY storey (F13). The previous comment here claimed a cross-level name
+  // fallback that the code did not actually do — a ground-only `find` followed
+  // by `?? 'Room'`, so an upstairs room's menu was headed literally "Room".
+  const room = allPlanRooms(s.floorPlan).find((r) => r.id === id) ?? null
   const name = room?.name ?? 'Room'
   const rows: MenuRow[] = [
     {

@@ -5,6 +5,56 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.281 - the interactive layer: eleven more ground-only lookups
+
+Fifth migration batch, all of the same two shapes now covered by helpers, and all in paths a user
+drives directly:
+
+- **`ContextMenu`** — the "is this item in a room?" test said NO for every upstairs piece, hiding
+  the room-relative actions; `centerInRoom` centred against the room beneath. Its room-menu
+  heading is the sharper find: the code carried a comment saying "Rooms may live on an upper
+  storey; fall back to a name lookup across levels", and **did not do that** — a ground-only `find`
+  followed by `?? 'Room'`, so an upstairs room's menu was headed literally "Room". A comment
+  describing an intention rather than the code is worse than no comment; it stops the next reader
+  looking.
+- **`itemTransforms`** — "face into room" oriented an upstairs piece against the walls of the
+  room below it, and "centre in room" moved it to that room's centre.
+- **`selectionActions`** — align/distribute resolved the selection's room by bare XZ, so an
+  upstairs multi-select was aligned to the downstairs rect. Now gated on the selection's own
+  `levelId`.
+- **`RoomEditorCaption`** — the room-area pill never rendered upstairs.
+- **`DirectionRow`** — an upstairs room's texture angle/scale read as unset, so its finish
+  direction control always showed the default and an edit appeared to do nothing.
+- **`arrangeActions`** — the drop target picked the largest room from the ground floor only, so a
+  big loft could never win.
+- **`resetSlice`** (3 paths, via the new `mapPlanRooms`) — `applyLayoutPreset`, `applyOcsStarter`
+  and `applyBareBto` repainted the downstairs and left every upstairs room on its old floor: a
+  visibly half-finished home with no indication anything had been skipped.
+- **`ocsStarter`** — an upstairs room never received its OCS floor finish.
+- **`shadowFrustum`** — shadow bounds came from ground walls/rooms only, so an upper storey
+  overhanging the ground footprint (or a landed house's first floor) sat OUTSIDE the frustum and
+  cast no shadow. No effect on single-storey plans: `allPlanWalls` returns `plan.walls` verbatim,
+  so the common case gets the identical (tight) frustum and no texel-resolution loss.
+
+**New: `levels.ts:mapPlanRooms(plan, fn)`** for whole-home room rewrites, with a level missing its
+rooms array passed through rather than gaining an empty one.
+
+**A test-authoring note worth keeping.** The `applyLayoutPreset` test first passed for the wrong
+reason: I hardcoded a preset id (`'scandi'`) that does not exist, the action returned early on
+`!preset`, and nothing changed on EITHER storey — so an assertion about the upstairs floor was
+trivially satisfied by the whole action being a no-op. It now takes a real id from
+`LAYOUT_PRESETS` at runtime and asserts the ground floor changed TOO. A test whose subject never
+ran is the same class of error as measuring an invariant.
+
+3 of the 4 `resetSlice` tests and the `shadowFrustum` test confirmed failing with the fixes stashed.
+
+**Visual verification** (`scripts/scenarios/multistorey-interactions-f13.json`): the area pill
+reads **Area: 9.9 m²** in the upstairs Sleeping Loft (4.5 x 2.2). I first wrote a second step for
+the ContextMenu heading that imported the module and set a selection without asserting anything —
+the menu does not open in the room editor. It is deleted rather than left in: a step that asserts
+nothing reads as coverage and is worse than no step. **The ContextMenu heading fix is covered by
+code reading only, not by a frame** — stated here rather than implied.
+
 ## v0.31.5.280 - the UI layer, including a bug .277 made newly reachable
 
 Fourth migration batch, and one entry here is a bug this branch CREATED the reach for. `.277`

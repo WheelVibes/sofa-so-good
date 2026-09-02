@@ -1,3 +1,4 @@
+import { allPlanRooms } from '../floorplan/levels'
 import { planRoomArea } from '../floorplan/types'
 import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
@@ -13,11 +14,14 @@ import { formatArea } from '../utils/measurement'
 export function RoomEditorCaption() {
   const active = useStore((s) => s.roomEditor.active)
   const roomId = useStore((s) => s.roomEditor.roomId)
-  const rooms = useStore((s) => s.floorPlan.rooms)
+  // Select the PLAN, not a derived array — `allPlanRooms` returns a fresh
+  // reference on a multi-storey plan, which as a selector re-renders forever.
+  const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
   const showMeasurements = useStore((s) => s.showMeasurements)
   if (!active || !roomId || !showMeasurements) return null
-  const room = rooms.find((r) => r.id === roomId)
+  // EVERY storey (F13) — the area pill never appeared for an upstairs room.
+  const room = allPlanRooms(plan).find((r) => r.id === roomId)
   if (!room) return null
   return (
     <div className="room-editor-caption pointer-events-none absolute z-20" aria-hidden="true">
