@@ -576,6 +576,8 @@ const shotFor = async (pitch) => {
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyFillScale === 'function') await applyFillScale()
+  if (typeof applyAmbScale === 'function') await applyAmbScale()
+  if (typeof applyHemiScale === 'function') await applyHemiScale()
   if (typeof applyLinear === 'function') await applyLinear()
   if (typeof applyFillTint === 'function') await applyFillTint()
   if (typeof applyRecolor === 'function') await applyRecolor()
@@ -648,6 +650,76 @@ const applyFillOff =
 // rewrites `intensity` every frame, so a plain assignment is overwritten. The
 // per-frame writes are routed into `__fillRaw` and the renderer reads raw x f, so
 // the scale survives every subsequent frame.
+// AMBSCALE / HEMISCALE=<f> -- scale the AmbientLight or the HemisphereLight ALONE.
+//
+// `.331` picked the hemisphere ground term as (w)'s single lever because it moved the
+// ceiling and left the floor alone. `v0.31.6.6` re-measured (w) against a physical
+// Cycles reference and found the floor SHOULD move (-13.6 %, not the HQ tracer's
+// +0.2 %), so that selectivity is now a defect rather than a feature -- and no single
+// lever can hit two targets with a fixed ratio.
+//
+// Physics wants ceiling -25.3 % and floor -13.6 %, a 1.86:1 ratio. The ground term
+// delivers roughly 370:1 (ceiling-only) and the uniform fill ~5.4:1. So the fix needs
+// TWO levers with different spatial signatures, solved as a 2x2 -- which is still just
+// two scalars per frame, i.e. no new passes and no FPS cost.
+//
+// Separate knobs rather than one combined one because they must be measured
+// independently to build the response matrix; and they touch different objects, so
+// applying both at once cannot conflict. Same getter interception as FILLOFF/FILLSCALE
+// (`.254`): Lighting.tsx rewrites `intensity` every frame, so a plain assignment is
+// silently overwritten.
+const mkOneLightScale = (envName, label) => {
+  const raw = process.env[envName]
+  if (raw === undefined || raw === '') return null
+  const factor = Number(raw)
+  if (!Number.isFinite(factor)) throw new Error(`${envName}: expected a number, got ${raw}`)
+  return async () => {
+    const res = await page.evaluate(
+      ({ f, kind }) => {
+        const hit = []
+        window.__three.scene.traverse((o) => {
+          const isAmb = kind === 'ambient' && o.isAmbientLight
+          const isHemi = kind === 'hemisphere' && o.isHemisphereLight
+          if (!isAmb && !isHemi) return
+          const key = `__scale_${kind}`
+          if (!o[key]) {
+            o[`${key}_raw`] = o.intensity
+            Object.defineProperty(o, 'intensity', {
+              get() {
+                return this[`${key}_raw`] * this[`${key}_factor`]
+              },
+              set(v) {
+                this[`${key}_raw`] = v
+              },
+              configurable: true,
+            })
+            o[key] = true
+          }
+          o[`${key}_factor`] = f
+          hit.push({ type: o.type, raw: o[`${key}_raw`], eff: o.intensity })
+        })
+        return hit
+      },
+      { f: factor, kind: label },
+    )
+    if (!res.length) throw new Error(`${envName}: no ${label} light found`)
+    await new Promise((r) => setTimeout(r, 900))
+    // Read back AFTER the settle -- `.254`: an intervention that silently reverts looks
+    // exactly like one with no effect.
+    const after = await page.evaluate((kind) => {
+      const out = []
+      window.__three.scene.traverse((o) => {
+        if (kind === 'ambient' ? o.isAmbientLight : o.isHemisphereLight)
+          out.push({ type: o.type, eff: +o.intensity.toFixed(6) })
+      })
+      return out
+    }, label)
+    console.log(`${envName}CHECK f=${factor} ${JSON.stringify(after)}`)
+  }
+}
+const applyAmbScale = mkOneLightScale('AMBSCALE', 'ambient')
+const applyHemiScale = mkOneLightScale('HEMISCALE', 'hemisphere')
+
 const FILLSCALE = process.env.FILLSCALE
 const applyFillScale =
   FILLSCALE === undefined || FILLSCALE === ''

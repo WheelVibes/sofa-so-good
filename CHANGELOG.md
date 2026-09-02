@@ -5,6 +5,57 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.7 — (w)'s floor target is UNREACHABLE by the existing levers, and the sky term carries the floor
+
+`v0.31.6.6` established from physics that (w) needs ceiling **−25.3 %** and floor
+**−13.6 %**, and that `.331`'s single ceiling-only lever therefore cannot work. This round
+measured whether *any* combination of the app's existing fill terms can, by building the
+response matrix — raster-only, ~20 s per arm, so no (u) tax and no tracer.
+
+**New knobs `AMBSCALE` / `HEMISCALE`** scale the AmbientLight or the HemisphereLight
+*alone*, so each term's spatial signature can be measured independently (same getter
+interception as `FILLOFF`/`FILLSCALE`, since `Lighting.tsx` rewrites `intensity` every
+frame). Measured from base (ceiling 126.9, floor 102.5):
+
+| lever, fully removed | Δ ceiling | Δ floor | floor per unit ceiling |
+| --- | --- | --- | --- |
+| hemisphere **ground** colour | **−37.2 %** | −0.1 % | 0.003 |
+| hemisphere **sky** colour (derived) | **0.0 %** | **−7.1 %** | ∞ |
+| **ambient** | −7.2 % | −3.4 % | 0.472 |
+
+A free consistency check fell out: zeroing the ground colour and zeroing the whole
+hemisphere give an **identical** ceiling (79.7), which is what a downward-facing surface
+receiving only `groundColor` must do.
+
+**The decisive result — the floor target is out of reach:**
+
+| target | physics needs | max the ENTIRE fill delivers | |
+| --- | --- | --- | --- |
+| ceiling | −25.3 % | **−59.0 %** | ample |
+| floor | −13.6 % | **−11.2 %** | **unreachable** |
+
+Zeroing hemisphere *and* ambient together moves the floor only 11.2 %. So **the floor is not
+a tuning problem — the mechanism is missing**, the same conclusion `.333`/`.335` reached for
+the night half, now established for the daytime floor as well. Physically it makes sense: the
+floor is largely lit by direct skylight through the window, which does not depend on wall
+paint, and the raster has no term that does.
+
+**Best achievable, calculated from the measured coefficients** (a calculation, not yet a
+verified render): spend ambient and sky fully — sky costs nothing on the ceiling — and take
+the remainder from the ground term at ×0.513. That gives **ceiling −25.3 % exactly and floor
+−10.5 %, i.e. 78 % of the required floor change**, residual 3.1 pp.
+
+**And the sky term carries the floor.** A ground+ambient fix, leaving sky alone, reaches only
+**25 %** of the floor requirement. That is worth stating because sky is the term with *zero*
+ceiling authority — so it is invisible to any measurement that looks only at ceilings, which
+is every (w) measurement before `v0.31.6.6`.
+
+**Where this leaves (w).** The ceiling half is solvable exactly with terms that already
+exist, at **no FPS cost** — three scalars per frame, no new passes. The floor half needs a
+new term. Verifying the calculated combination needs a sky-only knob (`GBOUNCE` covers ground
+but nothing covers sky alone), which is the next step; the authority result above does not
+depend on it.
+
 ## v0.31.6.6 — physics disagrees with the HQ tracer: (w) is bigger than measured, the floor DOES respond, and `.331`'s lever choice inverts
 
 The first measurement made against a **physically-motivated reference** rather than against
