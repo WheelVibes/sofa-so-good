@@ -5,6 +5,56 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.296 - the items-side audit comes back CLEAN, and the next gap named
+
+Docs only. `.294`/`.295` audited `plan.rooms`/`walls`/`openings` and found eleven defects. This
+audits the fourth and last leg — cross-item scans and whole-home `items` consumers — and finds
+**nothing**, which is worth recording precisely so nobody re-runs it.
+
+**Checked and correct:**
+- Both `broadphase.ts` callers gate. `collision/placement.ts` passes cross-storey candidate pairs
+  to `itemsCollide`, which rejects them (`(a.levelId ?? 'ground') !== (b.levelId ?? 'ground')`);
+  `layout/walkway.ts` gates in its own loop before the gap test. `broadphase.ts` itself has no
+  level concept BY DESIGN — it is a generic AABB grid, and gating belongs to the caller.
+- `analysis/floorLoading.ts` is per-item (weight ÷ its own footprint) with no cross-item clustering
+  and no per-storey aggregation, so level-agnostic is right: the HDB 150 kg/m² slab limit applies
+  to any residential floor, and an item's density is the same figure whichever storey it sits on.
+- `analysis/deliveryAccess.ts` and `analysis/schemeOptions.ts` are per-def, not spatial.
+- `layout/cloneRoom.ts`, `mirrorRoom.ts`, `swapRooms.ts` operate on a caller-selected item set;
+  the gating is at the caller, which `.280` fixed (`FinishPicker` now uses `itemsInRoom`).
+
+**A method note, because it is the same mistake twice in one session.** My first sweep grepped for
+`levelId|itemsOnLevel|levelAsPlan|planLevels|itemsInRoom|roomAtItem|isItemInRoom` and reported 14
+modules with ZERO level awareness — including several I had already fixed. The pattern omitted
+`allPlanRooms`, `upperLevels`, `levelById` and `levelOfRoom`, so a module fixed via the flat
+accessors scored zero. Same shape as `.283`'s `allWallElevations` and `.292`'s curtain schedule:
+**searching for the names I expected rather than for the capability.** The corrected pattern cut the
+zero list from 14 to 6, all six of which are correct. A sweep whose false-positive rate is 8/14 is
+not a sweep, it is a source of made-up work.
+
+## The next gap, measured rather than asserted
+
+**The lighting schedule is a RENDER schedule presented as a professional one.** Its rows carry
+`type`, `label`, `count`, `height` and `intensity` — where `intensity` is a three.js unit, not a
+photometric quantity. What an electrician or lighting supplier needs to buy and install a fixture
+is absent:
+
+- **lumens** (or wattage) to specify the lamp;
+- **colour temperature (K)** — a designer decision, and in SG the difference between a 3000 K
+  living room and a 4000 K kitchen is a specification, not a preference;
+- **IP rating** — a bathroom fixture must be IP44 or better, which is a COMPLIANCE matter and not
+  merely procurement.
+
+Measured coverage of `furniture/lightEmitters.ts:EmitterSpec`: `height`, `color` (hex),
+`intensity`, `distance` — **0 of 6 emitters carry lumens, CCT or an IP rating.** So this is the
+`.288` shape again: the schedule exists, and the data it would need has never been authored.
+
+The `color` hex is NOT a shortcut to CCT. Converting a render tint back to Kelvin would be deriving
+a specification from a rendering constant — the exact mistake `tileCoursing.ts`'s header warns
+about for tile sizes and `paintQuantities.ts` avoids for "is this paint". Authoring the three
+fields per emitter (six of them) is the honest route, and it needs sourced SG figures rather than
+plausible ones, so it is logged rather than rushed.
+
 ## v0.31.5.295 - completing the audit: walls and openings, and a false positive on five surfaces
 
 `.294` swept `plan.rooms` and found five bugs. It did **not** sweep `plan.walls` or

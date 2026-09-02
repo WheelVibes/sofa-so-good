@@ -331,6 +331,24 @@ fact. Caveat already documented in `intakeStates.ts`: the curated default flat i
 it would be session-only there — which is fine for a live-computed schedule and only matters across
 a reload.
 
+## Lighting schedule needs a LAMP SPEC — next piece of work (scoped v0.31.5.296)
+
+`lighting2d/lightingPlan.ts`'s schedule rows carry `type/label/count/height/intensity`, where
+`intensity` is a three.js unit. Missing, and measured **0/6 emitters** in
+`furniture/lightEmitters.ts`:
+- **lumens** (or W) to specify the lamp;
+- **colour temperature (K)** — in SG, 3000 K living vs 4000 K kitchen is a spec, not a preference;
+- **IP rating** — a bathroom fixture must be IP44+, which is COMPLIANCE, not just procurement.
+
+Scope: extend `EmitterSpec` with the three fields (authored per emitter, six of them), add the
+columns to the schedule, and add a wet-area IP check to the compliance/checks surface — a fixture
+below IP44 in a `bath`/`powder`/`serviceYard` room is an advisory with a real basis.
+
+**Do NOT derive CCT from `EmitterSpec.color`.** That hex is a render tint; converting it back to
+Kelvin is deriving a specification from a rendering constant, the mistake `tileCoursing.ts`'s
+header warns about. Author the figures from sources, as `.288` (tile modules) and `.292` (paint
+coverage) did.
+
 ## Audited-correct, do NOT "fix" these (v0.31.5.294, walls/openings added .295)
 
 Sites that read `plan.rooms` and are RIGHT to:
@@ -346,6 +364,17 @@ Sites that read `plan.rooms` and are RIGHT to:
   per-level plan.
 - `floorplan/rescalePlan.ts:87`'s `onGround` — named for what it is, part of the whole-plan
   transform.
+
+**Items-side audit: CLEAN (v0.31.5.296).** Cross-item scans and whole-home `items` consumers were
+swept and all are correct — `broadphase.ts` callers gate (`itemsCollide` / `walkway`'s own loop),
+`floorLoading` is per-item so level-agnostic is right, `deliveryAccess`/`schemeOptions` are per-def,
+and `cloneRoom`/`mirrorRoom`/`swapRooms` gate at the caller. Do not re-run this leg.
+
+**Sweep-pattern rule (v0.31.5.296).** When grepping for "does this module know about levels",
+the pattern MUST include `allPlanRooms|allPlanWalls|allPlanOpenings|upperLevels|levelById|
+levelOfRoom` alongside the obvious `levelId|planLevels|levelAsPlan`. Omitting them reported 14
+modules as level-unaware when only 6 were, i.e. an 8/14 false-positive rate — a sweep that
+manufactures work rather than finding it.
 
 **Fixture rule from .295, worth keeping:** for a LEVEL-GATING bug, place the storeys' geometry
 APART — a fixture where both storeys' doors sit at the same offset makes the buggy and correct paths
