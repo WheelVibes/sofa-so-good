@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.305 - removing the name collision at its source
+
+Follow-through on `.303`/`.304`. Before changing anything I enumerated **every** caller of the two
+opening-probe helpers — eight of them, in `daylight`, `luxGrid`, `doorwayBleed`, `floorLevels` (x2),
+`finishSchedule` (x2) and my own `tradePacks`. All eight pass a named ~0.2 m constant. **Mine was
+the only wrong one**, so there was no latent bug elsewhere and any change here is purely
+preventive.
+
+That changes the cost/benefit. Branding the parameter as a distinct type would make the mistake
+impossible to compile, but it would churn eight call sites and their tests to prevent a fault that
+has occurred once. So the cheaper structural fix instead: **rename the parameter from `offset` to
+`probeOffsetM`**, which removes the collision that caused the error with zero call-site changes
+(the argument is positional). An author reaching for `o.offset` now sees a parameter that is not
+called that, and editors showing parameter hints surface the mismatch at the call site.
+
+Documented at both the module header and the parameter, with what the confusion actually cost —
+two of six windows resolved to "Unassigned" and one to the wrong room on a printed trade pack, and
+two commits to diagnose, because both sides are `number` and nothing but a rendered document
+distinguished them.
+
+This is the weaker half of the `.301` lesson applied honestly: a rename is not a structure, it does
+not fail the suite. It is what the evidence supports here — one occurrence, in new code, on a
+helper unlikely to gain many more callers. If a second instance ever appears, that is the signal to
+pay for the branded type.
+
 ## v0.31.5.304 - resolving .303's "cannot prove": the measurement was broken, not the fix
 
 `.303` shipped the curtain specification and then added an unusually careful caveat: the rendered
