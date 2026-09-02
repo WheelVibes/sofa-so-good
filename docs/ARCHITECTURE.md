@@ -1629,9 +1629,16 @@ same change that reshapes a system.
   IN-ROOM cells only — masked cells are outside the room, not dark spots), with
   `roomLux.ts:MIN_UNIFORMITY` holding the EN 12464-style floors (0.6 task / 0.4 general): an average
   that meets its band can still be hotspots and dark corners. `roomLuxKind(room)` is the ONE
-  room-kind resolution shared by the room average and the grid. The lux maths is still isotropic
-  (`LUMENS_PER_CANDELA = 4π`) and anchored by `SCENE_INTENSITY_CALIBRATION` — see `TODO.md` for the
-  IES-into-lux remainder, and **do not calibrate it against the HQ render** (not a photometrically
+  room-kind resolution shared by the room average and the grid. **The spatial grid is directional since v0.31.5.260**: `PlanLight.iesProfile` (from
+  `item.props.iesProfile`) plus an INJECTED `LuxGridOptions.iesShape` resolver
+  (`lighting/ies/iesShape.ts` bridging the stateful `iesStore` to the pure grid) scales the peak
+  candela by `relativeIntensityAt` — the profile's distribution normalised to its OWN peak, SHAPE
+  only, so the registry calibration still owns magnitude and no absolute photometry is asserted.
+  Unknown profile ⇒ factor 1 (isotropic, never dark). **It moves peaks/minima/uniformity but NOT
+  `meanLux`**: the indirect term tops the direct field up to the lumen-method average (Φ × UF / A),
+  which is distribution-agnostic by construction — measured, and documented in the module. The room
+  AVERAGE therefore remains isotropic and anchored by `SCENE_INTENSITY_CALIBRATION` — see `TODO.md`,
+  and **do not calibrate it against the HQ render** (not a photometrically
   anchored reference; see `docs/research/2026-09-02-pro-designer-replacement-gaps.md`).
 - **Setting-out covers non-orthogonal walls, by co-ordinates.**
   `floorplan/settingOut.ts`'s running rows dimension axis-aligned wall FACES, so a diagonal or arc

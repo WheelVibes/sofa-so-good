@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { noExportUserData } from '../export/sceneGltf'
 import { useFeature } from '../features/useFeature'
 import { useCatalogGetter } from '../furniture/catalog'
+import { iesShapeFactor } from '../lighting/ies/iesShape'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { luxGridRgba } from '../lighting2d/luxColor'
 import { buildLuxGrids, type RoomLuxGrid } from '../lighting2d/luxGrid'
@@ -123,6 +124,11 @@ export function LuxOverlay() {
       fixtureLevel: fq,
       daylightLevel: dq,
       doors,
+      // Directional distribution (G4): a fixture with an IES profile falls off
+      // by its OWN shape rather than isotropically. Injected because
+      // `iesStore` carries module state and `luxGrid` is pure. Shape only —
+      // magnitude stays on the registry calibration.
+      iesShape: iesShapeFactor,
     })
   }, [show, plan, items, viewLevelId, fq, dq, luxExcludedIds, doors])
 

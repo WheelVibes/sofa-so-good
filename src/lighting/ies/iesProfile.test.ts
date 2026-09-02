@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { iesMetrics } from './iesProfile'
-import { parseIes } from './parseIes'
+import { iesMetrics, relativeIntensityAt } from './iesProfile'
+import { type IesProfile, parseIes } from './parseIes'
 import { BUNDLED_IES_PROFILES, bundledIesProfile } from './sampleProfiles'
 
 describe('iesMetrics', () => {
@@ -54,6 +54,59 @@ TILT=NONE
       for (const v of [m.peakCandela, m.peakAngle, m.beamAngle, m.fieldAngle]) {
         expect(Number.isFinite(v)).toBe(true)
       }
+    }
+  })
+})
+
+describe('relativeIntensityAt', () => {
+  /** Vertical slice: full at nadir, half at 30 deg, zero at 60 deg. */
+  const prof = {
+    keywords: {},
+    lampCount: 1,
+    lumensPerLamp: 1000,
+    candelaMultiplier: 1,
+    verticalAngles: [0, 30, 60],
+    horizontalAngles: [0],
+    photometricType: 'C',
+    candela: [[1000, 500, 0]],
+  } as unknown as IesProfile
+
+  it('is 1 at the peak direction', () => {
+    expect(relativeIntensityAt(prof, 0)).toBeCloseTo(1, 9)
+  })
+
+  it('normalises to the profile peak, not to an absolute candela', () => {
+    // 500/1000 — a SHAPE factor, so the app's calibrated magnitude survives.
+    expect(relativeIntensityAt(prof, 30)).toBeCloseTo(0.5, 9)
+  })
+
+  it('interpolates linearly between sampled angles', () => {
+    expect(relativeIntensityAt(prof, 15)).toBeCloseTo(0.75, 9)
+    expect(relativeIntensityAt(prof, 45)).toBeCloseTo(0.25, 9)
+  })
+
+  it('clamps outside the sampled range instead of extrapolating', () => {
+    // An IES file stopping at 60 deg says nothing above it — hold the last value.
+    expect(relativeIntensityAt(prof, 90)).toBeCloseTo(0, 9)
+    expect(relativeIntensityAt(prof, 180)).toBeCloseTo(0, 9)
+  })
+
+  it('treats a negative angle as its magnitude', () => {
+    expect(relativeIntensityAt(prof, -30)).toBeCloseTo(0.5, 9)
+  })
+
+  it('falls back to 1 for a degenerate profile rather than zeroing a fixture', () => {
+    const empty = { ...prof, verticalAngles: [], candela: [[]] }
+    expect(relativeIntensityAt(empty, 0)).toBe(1)
+    const flat = { ...prof, candela: [[0, 0, 0]] }
+    expect(relativeIntensityAt(flat, 0)).toBe(1)
+  })
+
+  it('always returns a factor within [0, 1]', () => {
+    for (let a = 0; a <= 180; a += 7) {
+      const f = relativeIntensityAt(prof, a)
+      expect(f).toBeGreaterThanOrEqual(0)
+      expect(f).toBeLessThanOrEqual(1)
     }
   })
 })

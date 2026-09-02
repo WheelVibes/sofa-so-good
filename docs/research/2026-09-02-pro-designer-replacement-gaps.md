@@ -416,6 +416,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
+| G4 (rest) | v0.31.5.260 | IES distribution SHAPE into `pointIlluminance` (magnitude still registry-calibrated). Moves peaks/minima/U0; the lumen-method room AVERAGE is distribution-agnostic by construction and unchanged. |
 | G3 (part) | v0.31.5.259 | Audited what profile data exists; detailed the four junctions derivable exactly (ceiling drop, upturn, threshold, sill/head) + a separate `DETAIL_SCALE_RATIOS` ladder. Profile-dependent details deferred with a named prerequisite. |
 | G7 | v0.31.5.258 | Derived clauses (product/substrate/preparation/workmanship/tolerance/exclusions) per trade in scope, with `tradesNotCovered` named and NO asserted standard codes. |
 | G5 | v0.31.5.257 | **Research corrected**: no specified tile module existed (only a texture period + painter grid counts). Added `MaterialDef.moduleMm` as a product dimension, then `tileCoursing.ts` (centred field, sliver avoidance, cut widths) + a setting-out table on the finishes sheet. |
@@ -427,8 +428,8 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 | G10 | v0.31.5.251 | `formatDrawingLength` — integer mm on every dimension line, imperial to 1/8". DXF deliberately stays in metres. |
 | G11 | v0.31.5.250 | Shared `planFootprints` using the shape-aware resolver; decomposed items draw as one silhouette. |
 
-Still open: **G4 remainder** (IES into the lux maths; the
-calibration constant; reflectance-derived utilisation factor; sheet surfacing),
+Still open: **G4 tail** (the calibration constant; a
+reflectance-derived utilisation factor; surfacing uniformity on the sheets),
 **G3 remainder** (profile-dependent details — blocked on a
 specified trim profile/projection, same shape as G5's `moduleMm`) and **G8** (large,
 and partly blocked by furniture categories being opaque tags).

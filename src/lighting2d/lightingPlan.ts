@@ -28,6 +28,13 @@ export interface PlanLight {
   levelId?: string
   /** Coverage / falloff radius (m). */
   distance: number
+  /**
+   * The fixture's IES profile id (`item.props.iesProfile`), when one is
+   * selected. Consumed by the lux model for the DISTRIBUTION SHAPE only —
+   * magnitude still comes from `intensity` × the registry calibration (see
+   * `lighting/ies/iesProfile.ts:relativeIntensityAt`).
+   */
+  iesProfile?: string
   color: string
 }
 
@@ -86,6 +93,9 @@ export function buildLightingPlan(
       height,
       intensity: spec.intensity,
       ...(item.levelId ? { levelId: item.levelId } : {}),
+      ...(typeof item.props?.iesProfile === 'string' && item.props.iesProfile
+        ? { iesProfile: item.props.iesProfile }
+        : {}),
       distance: spec.distance,
       color: spec.color,
     })

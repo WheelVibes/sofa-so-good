@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.260 — a narrow-beam downlight stops computing like a bare bulb
+
+The last substantive piece of G4. `src/lighting/ies/` held real IES profiles used ONLY for
+rendering, while the lux model computed every fixture isotropically — so a 24° narrow-beam downlight
+and a bare bulb of equal peak intensity produced identical illuminance. The more carefully a user
+chose real fixtures, the further the lux figure drifted from the render.
+
+**Shape, not absolute candela — the deliberate scope limit.** New
+`iesProfile.ts:relativeIntensityAt(profile, angleDeg)` returns the distribution normalised to the
+profile's OWN peak, a factor in `[0, 1]`. Magnitude still comes from the emitter registry via
+`SCENE_INTENSITY_CALIBRATION`. Feeding absolute candela in would bypass that calibration and
+silently rescale every lux figure in the app, and doing it properly needs absolute-vs-relative
+photometry and `candelaMultiplier` handling this code does not assert. Using only the shape is the
+honest improvement: fixtures now differ by their real distribution without claiming an absolute
+photometric magnitude the model cannot back.
+
+Plumbing: `PlanLight.iesProfile` carries `item.props.iesProfile` through `lightingPlan.ts`;
+`pointIlluminance` takes an optional `iesShape` resolver and scales the peak candela by the shape at
+the point's true vertical angle from nadir (measured from the WORK PLANE, not the floor);
+`LuxGridOptions.iesShape` is INJECTED rather than imported so `luxGrid` stays pure — `iesStore`
+carries module state. The bridge is `lighting/ies/iesShape.ts`, wired at `scene/LuxOverlay.tsx`. An
+unknown or unloaded profile resolves to 1, i.e. isotropic as before — a missing profile must never
+make a room read as dark.
+
+**What this moves, and what it cannot.** Measured in the running app on the default flat with a
+forced 20° cone: `maxLux` 1430.6 → 1499.8, `minLux` 1170.1 → 1191.6, U0 0.819 → 0.851, and
+`meanLux` **identical** at 1272.0. The mean is invariant BY CONSTRUCTION — `luxGrid`'s indirect term
+tops the direct field up to the lumen-method average (Φ × UF / A), which is distribution-agnostic.
+So this improves the spatial distribution and the uniformity score; the room-average figure remains
+a lumen-method estimate. Making the average directional too would mean replacing the lumen method
+with a full point-by-point integration — a separate decision, now documented in the module.
+
+Worth recording how that was established: my first probe compared MEAN lux across four arms and got
+1271.951 in all four — the exact-equality no-op signature. I nearly logged it as "the IES path never
+fires". Re-probing on max/min/U0 showed the path works fine and my probe had measured the one
+quantity the model preserves on purpose. Exact equality means "check what you measured" as much as
+"check the intervention landed".
+
++7 interpolator tests (peak normalisation, linear interpolation, clamping outside the sampled range,
+degenerate-profile fallback to 1), +7 lux tests including that a fixture with no profile is
+byte-identical to before, that a profile with no resolver is byte-identical, and that a cone kills
+the off-axis contribution a bare bulb keeps. Full suite green (9567).
+
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G4).
+
 ## v0.31.5.259 — construction details, scoped to what the model can honestly state
 
 G3 was the largest structural gap: the set documented WHAT goes where and never HOW a junction is

@@ -210,15 +210,12 @@ proposing a channel change (meta-rule xvii-b).
   trim/joinery data, then the section can be drawn from it. Do NOT derive a projection from the
   render constants. Once profiles exist, the details should be DRAWN sections at 1:5/1:10
   (`DETAIL_SCALE_RATIOS` is already in place) rather than dimension tables.
-- **[G4 remainder] IES into the lux maths, and the calibration constant.** v0.31.5.256 shipped the
-  work plane + uniformity. Still open: (a) `roomLux.ts` uses `LUMENS_PER_CANDELA = 4π` (explicitly
-  isotropic) and `luxGrid.ts` says "no new photometry", while `src/lighting/ies/` holds real profiles
-  used for RENDERING only — so a 24° downlight and a bare bulb of equal peak candela compute
-  identically. Feasible: profiles carry `verticalAngles` + `candela`, and `iesProfile.ts` already has
-  a `principalSlice` helper, so a `candelaAt(profile, theta)` interpolator plus an `iesProfile` id on
-  `PlanLight` (items already store `props.iesProfile`) would do it — but it needs correct absolute-vs-
-  relative photometry and `candelaMultiplier` handling, and a plausible-but-wrong photometric figure
-  is worse than an honestly isotropic one. (b) `SCENE_INTENSITY_CALIBRATION = 12` anchors lux output
+- **[G4 remainder] The calibration constant and the utilisation factor.** v0.31.5.256 shipped the
+  work plane + uniformity; v0.31.5.260 shipped the IES distribution SHAPE into the spatial grid.
+  Still open: (a) the room AVERAGE stays isotropic because it is the lumen method (Φ × UF / A), which
+  is distribution-agnostic by construction — making it directional means replacing it with a full
+  point-by-point integration, a real decision rather than a fix. Also still shape-only: absolute
+  photometry (`lumensPerLamp`/`candelaMultiplier`) is deliberately not asserted. (b) `SCENE_INTENSITY_CALIBRATION = 12` anchors lux output
   to the renderer's stylised night-scene intensities; retiring it needs a real lumen/CCT/beam package
   per fixture. (c) `UTILISATION_FACTOR` is a single global 0.45 though the app knows each room's
   finish reflectances (`roomFinishes.ts`). (d) Surface `uniformity` on the lighting sheet + report

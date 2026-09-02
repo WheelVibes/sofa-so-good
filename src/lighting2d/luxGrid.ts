@@ -127,6 +127,9 @@ export interface RoomLuxGrid {
   planeHeight: number
 }
 
+/** See {@link LuxGridOptions.iesShape}. */
+export type IesShapeResolver = (profileId: string, angleDeg: number) => number
+
 export interface LuxGridOptions {
   /** Fixture contribution 0–1 (night = 1, daylight = 0, or lights-mode override). */
   fixtureLevel: number
@@ -138,6 +141,24 @@ export interface LuxGridOptions {
    *  (floor), which reproduces the previous behaviour exactly. Wins over
    *  {@link workPlane} when both are given. */
   planeHeight?: number
+  /**
+   * Resolve a fixture's IES distribution SHAPE at a vertical angle from nadir,
+   * **Note what this can and cannot move.** The indirect term below tops the
+   * direct field up to the lumen-method room average, so a directional
+   * distribution changes the grid's SHAPE (peaks, minima, uniformity) and
+   * leaves `meanLux` exactly unchanged — measured: a forced 20° cone on the
+   * default flat moved maxLux 1430.6 → 1499.8 and U0 0.819 → 0.851 with the
+   * mean identical at 1272.0. That is correct, not a bug: the room average is
+   * the lumen method (Φ × UF / A), which is distribution-agnostic by
+   * construction. Using IES for the AVERAGE too would mean abandoning the
+   * lumen method for a full point-by-point integration.
+   *
+   * returning a factor in `[0, 1]` relative to the profile's own peak. Injected
+   * rather than imported so this module stays pure — `lighting/ies/iesStore.ts`
+   * carries module state. Absent ⇒ every fixture computes isotropically, the
+   * previous behaviour exactly.
+   */
+  iesShape?: IesShapeResolver
   /**
    * Sample each room on its own per-kind WORK PLANE
    * ({@link WORK_PLANE_HEIGHT_M}) instead of the floor — what a lux target
@@ -199,16 +220,26 @@ export function planWindowSources(plan: FloorPlan): WindowSource[] {
  * than dividing by zero.
  */
 export function pointIlluminance(
-  light: Pick<PlanLight, 'x' | 'z' | 'height' | 'intensity'>,
+  light: Pick<PlanLight, 'x' | 'z' | 'height' | 'intensity' | 'iesProfile'>,
   px: number,
   pz: number,
   planeHeight = 0,
+  iesShape?: IesShapeResolver,
 ): number {
   const h = Math.max(0.05, light.height - planeHeight)
   const dx = px - light.x
   const dz = pz - light.z
-  const d2 = h * h + dx * dx + dz * dz
-  const candela = light.intensity * SCENE_INTENSITY_CALIBRATION
+  const r2 = dx * dx + dz * dz
+  const d2 = h * h + r2
+  let candela = light.intensity * SCENE_INTENSITY_CALIBRATION
+  // Directional distribution (G4): scale the peak candela by the fixture's own
+  // IES shape at this point's vertical angle from nadir. Without a profile the
+  // factor is 1, i.e. the previous isotropic behaviour, byte-identical.
+  if (light.iesProfile && iesShape) {
+    const angleDeg = (Math.atan2(Math.sqrt(r2), h) * 180) / Math.PI
+    const factor = iesShape(light.iesProfile, angleDeg)
+    if (Number.isFinite(factor) && factor >= 0) candela *= factor
+  }
   return (candela * h) / d2 ** 1.5
 }
 
@@ -277,7 +308,8 @@ export function buildRoomLuxGrid(
         continue
       }
       let direct = 0
-      for (const l of roomLights) direct += pointIlluminance(l, px, pz, planeHeight) * fixtureLevel
+      for (const l of roomLights)
+        direct += pointIlluminance(l, px, pz, planeHeight, opts.iesShape) * fixtureLevel
       let lux = direct
       for (const win of roomWindows) lux += windowIlluminance(win, px, pz) * daylightLevel
       // Belt-and-braces: the texture path must never see NaN/Infinity.

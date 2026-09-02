@@ -488,3 +488,59 @@ describe('RoomLuxGrid — uniformity (G4)', () => {
     expect(Number.isNaN(g.uniformity)).toBe(false)
   })
 })
+
+describe('pointIlluminance — IES distribution shape (G4)', () => {
+  const bulb = { x: 0, z: 0, height: 2.6, intensity: 9 }
+  const spot = { ...bulb, iesProfile: 'narrow' }
+
+  /** A 20-degree half-angle cone: full intensity to 20 deg, nothing beyond. */
+  const cone: (id: string, angleDeg: number) => number = (_id, angleDeg) => (angleDeg <= 20 ? 1 : 0)
+
+  it('is byte-identical to isotropic when the fixture has NO profile', () => {
+    expect(pointIlluminance(bulb, 1, 0, 0, cone)).toBe(pointIlluminance(bulb, 1, 0, 0))
+  })
+
+  it('is byte-identical when a profile is set but no resolver is supplied', () => {
+    expect(pointIlluminance(spot, 1, 0, 0)).toBe(pointIlluminance(bulb, 1, 0, 0))
+  })
+
+  it('distinguishes a narrow beam from a bare bulb — the whole point of G4', () => {
+    // Directly beneath (0 deg) both are full intensity...
+    expect(pointIlluminance(spot, 0, 0, 0, cone)).toBeCloseTo(pointIlluminance(bulb, 0, 0, 0), 9)
+    // ...but 2 m off-axis from a 2.6 m ceiling is ~37.6 deg, outside the cone,
+    // so the spot contributes nothing while the bare bulb still does.
+    expect(pointIlluminance(spot, 2, 0, 0, cone)).toBe(0)
+    expect(pointIlluminance(bulb, 2, 0, 0)).toBeGreaterThan(0)
+  })
+
+  it('passes the true vertical angle from nadir to the resolver', () => {
+    const seen: number[] = []
+    pointIlluminance(spot, 2.6, 0, 0, (_id, a) => {
+      seen.push(a)
+      return 1
+    })
+    // A horizontal offset equal to the mounting height is exactly 45 deg.
+    expect(seen[0]).toBeCloseTo(45, 6)
+  })
+
+  it('measures the angle from the WORK PLANE, not the floor', () => {
+    const seen: number[] = []
+    pointIlluminance(spot, 1.75, 0, 0.85, (_id, a) => {
+      seen.push(a)
+      return 1
+    })
+    // Drop is 2.6 - 0.85 = 1.75 m, so a 1.75 m offset is again 45 deg.
+    expect(seen[0]).toBeCloseTo(45, 6)
+  })
+
+  it('ignores a non-finite or negative factor rather than producing NaN', () => {
+    expect(Number.isFinite(pointIlluminance(spot, 1, 0, 0, () => Number.NaN))).toBe(true)
+    expect(Number.isFinite(pointIlluminance(spot, 1, 0, 0, () => -1))).toBe(true)
+  })
+
+  it('scales linearly with the shape factor', () => {
+    const full = pointIlluminance(spot, 1, 0, 0, () => 1)
+    const half = pointIlluminance(spot, 1, 0, 0, () => 0.5)
+    expect(half).toBeCloseTo(full / 2, 9)
+  })
+})
