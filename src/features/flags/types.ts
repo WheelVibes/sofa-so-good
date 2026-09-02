@@ -14,6 +14,7 @@ export type FeatureFlag =
   | 'clearanceChecks'
   | 'coordinationChecks'
   | 'specification'
+  | 'constructionDetails'
   | 'versions'
   | 'history'
   | 'shareExport'

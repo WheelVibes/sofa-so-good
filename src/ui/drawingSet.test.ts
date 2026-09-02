@@ -204,6 +204,23 @@ describe('buildDrawingSetHtml', () => {
     useStore.getState().setUiMode('pro')
   })
 
+  it('emits a Construction details sheet in Pro, and names what it excludes (G3)', () => {
+    useStore.getState().setUiMode('pro')
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('Construction details')
+    // The default flat has bathrooms + windows, so it has real details.
+    expect(html).toMatch(/D-(WP|WS)-01/)
+    // And it says what it does NOT detail, rather than implying completeness.
+    expect(html).toContain('no profiles or specified projections')
+  })
+
+  it('omits the Construction details sheet in Simple mode (G3)', () => {
+    useStore.getState().setUiMode('simple')
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).not.toContain('>Construction details<')
+    useStore.getState().setUiMode('pro')
+  })
+
   it('states the dimension unit once in every title block (G10)', () => {
     // Dimension labels are suffix-free integer mm, so the sheet must say so —
     // the standard convention, and the thing that makes "2745" unambiguous.

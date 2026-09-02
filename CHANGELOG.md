@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.259 — construction details, scoped to what the model can honestly state
+
+G3 was the largest structural gap: the set documented WHAT goes where and never HOW a junction is
+built. Before writing any drawing code I audited what profile data actually exists — the lesson
+from G5, where a tile module only LOOKED derivable. The split is clean and worth recording:
+
+**Derivable, and now detailed.** Every dimension comes from real design data —
+`ceilingClearance.ts` for a dropped ceiling's `dropMm` + finished clearance (from the same
+`buildCeiling` the 3D render uses), `waterproofing.ts` for the 300 mm general and 1800 mm shower
+upturns, `floorLevels.ts` for the step between two rooms' FFLs across a doorway, and
+`PlanOpening.sill`/`head` + the resolved wall thickness for a window sill/head/reveal.
+
+**NOT derivable, and therefore NOT drawn.** The model stores trim HEIGHTS but no profiles or
+specified projections: skirting (`baseboard.height`, default 90 mm) and cornice (`crown.height`,
+70 mm) have no profile, and the 3D render's ~12 mm projection is a RENDERING constant, not a
+specification. A shower kerb exists only as an advisory in `buildKerbAdvisories` with no geometry.
+Worktop edge/nosing and door jamb/architrave are not modelled at all. Drawing those would mean
+inventing dimensions a contractor would then build to.
+
+New pure `floorplan/junctionDetails.ts` emits a detail per DISTINCT condition (eight identical
+100 mm drops need one detail referenced eight times, not eight details), each with a quotable id
+(`D-WS-01`), its location, exact dimensions and construction notes. A test asserts it never emits a
+skirting/cornice/kerb/worktop/architrave detail even when trim heights ARE set — the honest limit,
+pinned.
+
+Surfaced as a "Construction details" sheet (`constructionDetails` flag, pro), which states in print
+what it excludes and why rather than implying completeness. Dimensions print as a table rather than
+a drawn section: they are derived and exact, whereas a section would need the profiles the model
+lacks — stating numbers precisely beats drawing an invented profile.
+
+`DETAIL_SCALE_RATIOS = [2, 5, 10]` is added as a SEPARATE ladder from `STANDARD_SCALE_RATIOS`.
+Merging 1:5 into the standard ladder was my first attempt and the existing "picks 1:20 for a tiny
+extent" test caught it immediately: `pickDrawingScale` takes the first ratio that FITS the paper, so
+a small room's whole floor plan would silently have printed at 1:5. A detail REQUESTS its scale; a
+plan fits to paper — two jobs, two ladders. My code comment had claimed no behaviour change; the
+test disproved it.
+
++10 junction-detail tests, +2 drawing-set tests (Pro/Simple). Full suite green (9553).
+
+Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G3, partial — the
+profile-dependent details remain open and now have a named prerequisite).
+
 ## v0.31.5.258 — the handover gets its written half
 
 The schedules said WHICH product goes WHERE. Nothing said to what standard, on what substrate,

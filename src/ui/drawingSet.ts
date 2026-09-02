@@ -36,6 +36,7 @@ import {
 import { buildElectricalPlan, type ElectricalPoint } from '../floorplan/electricalPlan'
 import { electricalSvg } from '../floorplan/electricalPlanSvg'
 import { buildFinishSchedule } from '../floorplan/finishSchedule'
+import { buildJunctionDetails } from '../floorplan/junctionDetails'
 import {
   allPlanRooms,
   isMultiLevel,
@@ -368,6 +369,42 @@ function specificationSheetBody(
     `<table class="sched"><tr class="h"><td>Clause</td><td>Element</td><td>Substrate</td><td>Preparation</td><td>Workmanship</td><td>Tolerance</td><td>Excludes</td><td>Standard</td></tr>${rows}</table>` +
     `<div class="note">${esc(spec.scopeNote)}</div>${uncovered}` +
     `<div class="note">Dimensions referenced in this specification are as drawn — ${esc(drawingUnitsNote(units).toLowerCase())}.</div>`
+  )
+}
+
+/**
+ * Detail sheet (G3) — the junction details the model can state honestly, at a
+ * real DETAIL scale. Each detail prints its dimensions as a table rather than a
+ * drawn section: the dimensions are derived and exact, whereas a drawn section
+ * would need trim profiles and projections the model does not carry (see
+ * `floorplan/junctionDetails.ts`). Stating the numbers precisely beats drawing
+ * a section whose profile is invented.
+ */
+function detailSheetBody(plan: FloorPlan, units: UnitSystem): string {
+  const details = buildJunctionDetails(plan)
+  if (details.length === 0) return ''
+  const blocks = details
+    .map(
+      (d) =>
+        `<div class="room-cost"><h3>${esc(d.id)} · ${esc(d.title)}</h3>` +
+        `<div class="note">At: ${esc(d.location)}</div>` +
+        `<table class="sched"><tr class="h"><td>Dimension</td><td class="n">Value</td></tr>${d.dimensions
+          .map(
+            (dim) =>
+              `<tr><td>${esc(dim.label)}</td><td class="n">${esc(formatDrawingLength(dim.mm / 1000, units))}</td></tr>`,
+          )
+          .join('')}</table>` +
+        `<table class="sched">${d.notes
+          .map((n) => `<tr><td>${esc(n)}</td></tr>`)
+          .join('')}</table></div>`,
+    )
+    .join('')
+  return (
+    `<h3>Construction details</h3>${blocks}` +
+    `<div class="note">Dimensions are derived from the design and exact.
+    Skirting, cornice, shower-kerb, worktop-edge and architrave details are NOT included: the model
+    stores trim heights but no profiles or specified projections, so drawing them would mean
+    inventing dimensions. Detail those separately with your contractor.</div>`
   )
 }
 
@@ -989,6 +1026,20 @@ export function buildDrawingSheets(
           topDown: true,
         })
       }
+    }
+  }
+
+  // Construction details (G3) — large-scale junction information, gated on the
+  // `constructionDetails` flag. Only details the model can derive are emitted.
+  if (isFeatureEnabled('constructionDetails')) {
+    const detailBody = detailSheetBody(plan, units)
+    if (detailBody) {
+      sheets.push({
+        name: 'Construction details',
+        body: detailBody,
+        calloutGroup: 'finishes',
+        scaleLabel: NTS,
+      })
     }
   }
 

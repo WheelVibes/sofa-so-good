@@ -97,7 +97,7 @@ Approach, in two independent steps:
    by chord endpoints + radius (or rise). Both are standard practice and both
    need no new geometry — just a second dimension strategy per wall kind.
 
-### G3 — Scale ladder stops at 1:20, so construction details are inexpressible
+### ◑ PARTLY SHIPPED v0.31.5.259 — G3 — Scale ladder stops at 1:20, so construction details are inexpressible
 **Status: CONFIRMED in source.** `src/floorplan/drawingScale.ts:15` —
 `STANDARD_SCALE_RATIOS = [20, 25, 50, 75, 100, 125, 150, 200]`, documented as
 "1:20 is the most detailed/largest drawing".
@@ -416,6 +416,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
+| G3 (part) | v0.31.5.259 | Audited what profile data exists; detailed the four junctions derivable exactly (ceiling drop, upturn, threshold, sill/head) + a separate `DETAIL_SCALE_RATIOS` ladder. Profile-dependent details deferred with a named prerequisite. |
 | G7 | v0.31.5.258 | Derived clauses (product/substrate/preparation/workmanship/tolerance/exclusions) per trade in scope, with `tradesNotCovered` named and NO asserted standard codes. |
 | G5 | v0.31.5.257 | **Research corrected**: no specified tile module existed (only a texture period + painter grid counts). Added `MaterialDef.moduleMm` as a product dimension, then `tileCoursing.ts` (centred field, sliver avoidance, cut widths) + a setting-out table on the finishes sheet. |
 | G4 (part) | v0.31.5.256 | Work-plane sampling (opt-in, per room kind) + Emin/Eavg uniformity on every grid. IES-into-lux, the calibration constant, reflectance-derived UF and sheet surfacing remain open. |
@@ -428,7 +429,9 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 Still open: **G4 remainder** (IES into the lux maths; the
 calibration constant; reflectance-derived utilisation factor; sheet surfacing),
-**G3** and **G8** (both large).
+**G3 remainder** (profile-dependent details — blocked on a
+specified trim profile/projection, same shape as G5's `moduleMm`) and **G8** (large,
+and partly blocked by furniture categories being opaque tags).
 
 ## Ranked roadmap
 

@@ -200,6 +200,16 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G3 remainder] Profile-dependent details need a trim/profile data model.** v0.31.5.259 details
+  the four junctions the model can state exactly (ceiling drop, waterproofing upturn, floor
+  threshold, window sill/head). Still missing, and ALL blocked on the same prerequisite: skirting and
+  cornice sections (heights exist as `PlanWall.baseboard.height`/`crown.height`, but there is no
+  profile and no specified projection — the 3D render's ~12 mm is a rendering constant), shower kerb
+  geometry (only `buildKerbAdvisories`, no height), worktop edge/nosing, and door jamb/architrave.
+  The fix is the same shape as G5's `MaterialDef.moduleMm`: a SPECIFIED profile + projection on the
+  trim/joinery data, then the section can be drawn from it. Do NOT derive a projection from the
+  render constants. Once profiles exist, the details should be DRAWN sections at 1:5/1:10
+  (`DETAIL_SCALE_RATIOS` is already in place) rather than dimension tables.
 - **[G4 remainder] IES into the lux maths, and the calibration constant.** v0.31.5.256 shipped the
   work plane + uniformity. Still open: (a) `roomLux.ts` uses `LUMENS_PER_CANDELA = 4π` (explicitly
   isotropic) and `luxGrid.ts` says "no new photometry", while `src/lighting/ies/` holds real profiles

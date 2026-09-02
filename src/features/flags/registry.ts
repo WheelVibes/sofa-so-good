@@ -48,6 +48,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  constructionDetails: {
+    label: 'Construction details',
+    description: 'Junction detail sheet (ceiling drops, upturns, thresholds, sills)',
+    default: true,
+    tier: 'pro',
+  },
   specification: {
     label: 'Specification',
     description: 'Written workmanship/tolerance spec sheet in the drawing set',

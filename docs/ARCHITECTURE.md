@@ -1580,6 +1580,20 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Construction details are scoped to what the model can state exactly.**
+  `floorplan/junctionDetails.ts:buildJunctionDetails(plan)` (`constructionDetails` flag, pro) emits
+  one detail per DISTINCT condition — dropped ceiling (`ceilingClearance.ts` drop + finished
+  clearance), wet-area upturn (`waterproofing.ts` 300/1800 mm), floor threshold (`floorLevels.ts`
+  step), window sill/head (`PlanOpening.sill`/`head` + resolved wall thickness) — each with a
+  quotable id (`D-WS-01`), location, exact dimensions and notes. It deliberately emits NO skirting /
+  cornice / kerb / worktop / architrave detail: the model stores trim HEIGHTS but no profile and no
+  specified projection (the render's ~12 mm is a rendering constant), so drawing one would invent a
+  dimension a contractor would build to — pinned by a test. Rendered as the "Construction details"
+  sheet (`ui/drawingSet.ts:detailSheetBody`) as dimension tables, not drawn sections, for the same
+  reason; the sheet prints what it excludes. **`DETAIL_SCALE_RATIOS = [2, 5, 10]` is a SEPARATE
+  ladder from `STANDARD_SCALE_RATIOS`** — merging them makes `pickDrawingScale` (first ratio that
+  FITS the paper) print a small room's floor plan at 1:5. A detail requests its scale; a plan fits
+  to paper. See `TODO.md` for the profile-data prerequisite that unblocks drawn sections.
 - **The written specification is derived, and asserts no standard codes.**
   `export/specification.ts:buildSpecification` (`specification` flag, pro) emits a clause per trade
   IN SCOPE — product · substrate · preparation · workmanship · tolerance · exclusions, with a

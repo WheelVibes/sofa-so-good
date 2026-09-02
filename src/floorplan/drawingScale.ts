@@ -14,6 +14,20 @@
  *  most detailed/largest drawing; 1:200 the most zoomed-out. */
 export const STANDARD_SCALE_RATIOS = [20, 25, 50, 75, 100, 125, 150, 200] as const
 
+/**
+ * CONSTRUCTION-DETAIL ratios (G3), deliberately a SEPARATE ladder from
+ * {@link STANDARD_SCALE_RATIOS}.
+ *
+ * At 1:20 a 12 mm shadow gap prints 0.6 mm — neither readable nor buildable —
+ * so a junction detail needs 1:10 or finer. They are not merged into the
+ * standard ladder because `pickDrawingScale` walks it and takes the first ratio
+ * that FITS the paper: adding 1:5 at the head would silently print a small
+ * room's whole floor plan at 1:5 (measured — the existing "picks 1:20 for a
+ * tiny extent" test fails that way). A detail REQUESTS its scale; a plan fits
+ * to paper. Two different jobs, two ladders.
+ */
+export const DETAIL_SCALE_RATIOS = [2, 5, 10] as const
+
 export interface PrintableAreaMm {
   /** Usable width in mm. */
   width: number
