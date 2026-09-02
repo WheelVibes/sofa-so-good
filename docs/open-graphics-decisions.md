@@ -3427,3 +3427,27 @@ but they are not a characterisation of the defect.
 
 Caveats: 8×3 is coarse, one room, one pose, and the corner anchoring has not been re-tested against a different
 rect placement.
+
+### (u) EXTENT IS ROOM-DEPENDENT; NO CLEAN ARM AT bedroom3 (v0.31.5.349)
+
+A 12×5 grid (60 cells) at bedroom3 `PITCH=0.30`, 11 arms (partial census):
+
+| arms | cells affected |
+| --- | --- |
+| 9 | 60/60 — fully affected |
+| 2 | **1/60** — a single corner cell |
+
+**The rate is room-invariant but the extent is not.** `.347` found no room-dependence in the A/B rate
+(z = +0.98); here bedroom3 is near-binary (60/60 or 1/60) against livingDining's graded 0–11 of 24. Two separate
+quantities; only the rate has been shown invariant.
+
+**`.348`'s "~5 % of stills are clean" does not generalise.** It came from one livingDining arm at 0/24. At
+bedroom3, **0 of 11 arms** render the ceiling correctly throughout — both class-B arms have a corner cell
+affected. So the clean fraction is room- and pose-dependent and may be lower than 5 %.
+
+**Corner anchoring survives a placement change** — the single affected cell is at the same corner as
+livingDining's wedge, in a different room, pose and rect. That weakens the "artefact of my rect" explanation
+without eliminating it.
+
+**Still open: tile vs geometry edge.** A single cell has no shape, so the finer grid could not distinguish them
+here. Needs livingDining (graded extents) at 12×5 or finer.

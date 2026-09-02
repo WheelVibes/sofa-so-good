@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.349 — the extent DISTRIBUTION is room-dependent even though the rate is not; and no bedroom3 arm is fully clean (partial census)
+
+A 12×5 grid (60 cells, 2.5× `.348`'s resolution) at **bedroom3 `PITCH=0.30`** — a different room, pose and rect
+placement, chosen to test `.348`'s two caveats. **Partial: 11 of 20 arms**, the census was killed when the
+session's loop was cancelled. Reported as partial.
+
+| arms | cells affected |
+| --- | --- |
+| 9 | **60/60** — fully affected |
+| 2 | **1/60** — a single cell, at the corner |
+
+**Two results.**
+
+**1. The extent distribution is room-dependent, even though the A/B rate is not.** `.347` found no
+room-dependence in the rate (z = +0.98). But the *extent* differs sharply:
+
+| room | extents observed |
+| --- | --- |
+| bedroom3 | 60/60 or **1/60** — near-binary |
+| livingDining (`.348`) | 0, 3, 4, 4, 4, 6, 7, 10, 11, 24/24 — graded |
+
+So bedroom3 is all-or-almost-nothing while livingDining is continuous. The rate and the extent are separate
+quantities and only the rate has been shown room-invariant.
+
+**2. No bedroom3 arm was fully clean.** Both class-B arms show **1/60** affected, not 0/60. `.348`'s "5 %
+unaffected" figure came from one livingDining arm at 0/24; at this pose **0 of 11 arms render the ceiling
+correctly throughout**. The clean fraction is therefore not established as ~5 % generally — it may be lower, and
+it is room- and pose-dependent.
+
+**3. The corner anchoring holds across rooms, poses and rect placements.** The single affected cell sits at the
+same corner as livingDining's wedge, at a different room, pose and rect. That weakens the "artefact of my rect"
+explanation `.348` flagged, without eliminating it — both rects' corners happen to point the same way in scene
+terms (toward the near-right of the ceiling, looking at the window).
+
+**What this did NOT resolve.** `.348`'s main open question was tile-vs-geometry: axis-aligned rectangles would
+indicate tiles, a diagonal would indicate a geometry edge. **A single cell has no shape**, so the finer grid
+could not test it at this pose. Resolving it needs a room and pose where the partial arms are *graded* —
+livingDining — at 12×5 or finer.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.348 — (u) IS A CONTINUUM, NOT TWO CLASSES: a corner-anchored region of variable extent, and only 5 % of arms are unaffected
 
 `.347` found class A was not a single state and suggested a per-tile or per-triangle cause. This round mapped

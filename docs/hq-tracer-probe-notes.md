@@ -1076,3 +1076,20 @@ variable subset of the ceiling's geometry missing from the trace, anchored at on
 **Use a grid for any future (u) work.** A patch mean cannot see extent, and extent is the thing that varies.
 Caveats: 8×3 is coarse, one room, one pose, and the corner anchoring has not been re-tested with a different
 rect placement.
+
+## Rate and EXTENT are separate quantities — only the rate is room-invariant
+
+| room | extents observed | shape |
+| --- | --- | --- |
+| bedroom3 `PITCH=0.30` (12×5 grid) | 60/60 or **1/60** | near-binary |
+| livingDining `PITCH=-0.02` (8×3 grid) | 0, 3, 4, 4, 4, 6, 7, 10, 11, 24/24 | graded |
+
+`.347` showed the A/B **rate** does not differ by room (z = +0.98). `.349` shows the **extent distribution**
+does, sharply. Do not carry an extent finding across rooms.
+
+Also: **no bedroom3 arm was fully clean** — both class-B arms had 1/60 affected, not 0/60. `.348`'s "~5 %
+unaffected" came from a single livingDining arm at 0/24 and does not generalise.
+
+**Still unresolved: tile vs geometry edge.** Axis-aligned rectangles would mean tiles, a diagonal would mean a
+geometry edge. bedroom3's partial arms are a *single cell*, which has no shape, so a finer grid there cannot
+test it. Use **livingDining at 12×5 or finer**, where partial arms are graded.
