@@ -1514,6 +1514,35 @@ falloff and visible plaster texture**, where the gradient's contribution is cool
 HQ stills warmer and darker, and closer to the rasteriser's look** — a larger look call than this item's filing
 suggested.
 
+**🔬 SURFACE SURVEY v0.31.5.323 — the largest error is on the surface that should be DARKEST.** Seven surfaces,
+one frame pair, class-B traced arm (so this is (p)'s cost, not (u)'s):
+
+| surface | raster L | traced L | ΔL | ΔR−B | sd raster → traced |
+| --- | --- | --- | --- | --- | --- |
+| ceiling | 128.8 | 115.2 | −13.6 | **−6.1** | 1.6 → 1.3 |
+| ceiling2 | 129.9 | 115.0 | −14.9 | −3.7 | 0.4 → 1.1 |
+| sidewall-L | 133.5 | 116.1 | −17.4 | −1.0 | 3.2 → 3.0 |
+| **winwall-R** | **60.0** | **102.7** | **+42.7 (+71 %)** | +1.0 | **11.6 → 1.7** |
+| glazing | 173.3 | 166.7 | −6.6 | −5.4 | 7.2 → 0.5 |
+
+(Curtain and picture-mat patches discarded on their own sd — 21.0 and 42–52 — as uninterpretable.)
+
+1. **Plaster is uniformly 11–13 % darker** in the trace — a global level offset, tightly grouped.
+2. **The ceiling is disproportionately cooled** (−6.1, −3.7) against the sidewall's −1.0, reproducing `.314` on
+   two independent patches.
+3. **The window wall — the only zero-sky surface — is 71 % BRIGHTER**, the opposite direction to every other
+   plaster surface. The tracer **over-lights precisely the surface that should be darkest**: the signature of an
+   environment term that ignores visibility of the aperture. `.301` showed these walls *are* properly shaded, so
+   they are properly shaded but wrongly **illuminated**.
+4. **The shading is flattened 7×** on that wall (raster sd 11.6 → traced 1.7); the glazing collapses too
+   (7.2 → 0.5).
+
+**Four checkable acceptance criteria for a (p) fix**, all pose-matched and photograph-free: raise plaster ~11–13 %,
+warm the ceiling ~4–6 counts R−B, **darken the window wall by ~40 counts**, and **restore its shading gradient**.
+
+**Note also:** `.314`'s "walls right, ceiling wrong" does not survive breadth — the *side* wall is right to 1
+count, the *window* wall is wrong by 71 %. "The walls" was not a category.
+
 **⚠️ AND ceiling ÷ wall CANNOT VALIDATE A FIX FOR THIS (v0.31.5.313).** At a matched pose the gradient-lit
 tracer agrees with the scene-lit raster on ceiling ÷ wall to **2.8 %** (0.992 vs 0.965) — even though the
 gradient supplies **66 %** of the frame's light. The arc's primary photographic metric is therefore a **weak

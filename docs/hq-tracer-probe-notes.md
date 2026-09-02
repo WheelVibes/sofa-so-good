@@ -271,6 +271,16 @@ Surfaces move with the camera; normalized coordinates do not follow them. **Re-m
 pose**, and expect some poses to have no usable patch at all — bedroom3 at eye level has almost no croppable
 ceiling (a thin strip, partly behind the HUD toolbar).
 
+## Raster-vs-traced: any patch touching the HUD is invalid by construction
+
+The raster (`frame.png`) carries the app's **HUD** — toolbar top-centre, minimap bottom-right, Measure button
+top-right — and the traced canvas does **not**. So a patch overlapping any of them compares HUD pixels against
+scene pixels. In `.323` the intended wood and lampshade patches both sat on the **minimap** and had to be
+replaced.
+
+This is specific to raster-vs-traced work and it is not caught by an sd check — the minimap is locally flat in
+places. **Mark the patches on the raster and look**, then measure both frames with the same coordinates.
+
 ## Mark the patch on the PICTURE before you trust the patch
 
 Three of this arc's costliest errors were mis-placed measurement patches: `.282` measured a region that was

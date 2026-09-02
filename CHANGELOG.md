@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.323 — surface survey against the raster: the tracer's largest error is on the surface that should be DARKEST. The window wall is 71 % too bright and its shading is flattened 7×
+
+`.320` left exactly one valid construction — the app against itself at a matched pose — and `.314` had used it on
+two surfaces (walls right, ceiling 6.1 counts cool). This round surveys **seven** surfaces from the same frame
+pair, which is what a (p) decision needs: not "the lighting is wrong" but *which surfaces*.
+
+**Patch hygiene first.** Marking the candidates caught two contaminated by the **HUD**: the intended wood and
+lampshade patches sat on the **minimap widget**. The raster carries the HUD and the traced canvas does not, so
+**any patch overlapping the HUD is invalid for this comparison by construction** — a trap specific to
+raster-vs-traced work. Replaced, re-marked, re-checked.
+
+**The survey** (bedroom3 `PITCH=0.30`, white room, medium tier, photographic look, hour 13, 256 samples; traced
+arm is **class B**, so this is (p)'s cost and not (u)'s):
+
+| surface | raster L | traced L | **ΔL** | raster R−B | traced R−B | ΔR−B | sd raster → traced |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ceiling | 128.8 | 115.2 | −13.6 | 13.6 | 7.5 | **−6.1** | 1.6 → 1.3 |
+| ceiling2 | 129.9 | 115.0 | −14.9 | 12.5 | 8.8 | −3.7 | 0.4 → 1.1 |
+| sidewall-L | 133.5 | 116.1 | −17.4 | 5.8 | 4.8 | −1.0 | 3.2 → 3.0 |
+| **winwall-R** | **60.0** | **102.7** | **+42.7** | 6.3 | 7.3 | +1.0 | **11.6 → 1.7** |
+| glazing | 173.3 | 166.7 | −6.6 | −7.4 | −12.8 | −5.4 | 7.2 → 0.5 |
+| ~~curtain~~ | 123.6 | 59.0 | *discarded* | 18.8 | 18.0 | — | 7.3 → **21.0** |
+| ~~picmat~~ | 57.6 | 52.2 | *discarded* | 9.9 | 2.4 | — | **52.2 → 42.6** |
+
+**Two patches discarded on their own sd**, not on inspection: the curtain patch straddles pleat shading (traced
+sd 21.0) and the picture-mat patch straddles the frame and print (sd 42–52). Their ΔL figures are large but
+uninterpretable and are not used.
+
+**1. Plaster is uniformly darker in the trace — a consistent offset, not a surface effect.** Ceiling −13.6,
+ceiling2 −14.9, sidewall −17.4: roughly **11–13 % darker** everywhere on plaster, tightly grouped. So one part of
+(p)'s cost is a global level offset, not a per-surface error.
+
+**2. The ceiling is disproportionately *cooled*** — ΔR−B **−6.1** and **−3.7** against the sidewall's **−1.0**.
+That reproduces `.314` on two independent ceiling patches.
+
+**3. And the largest error of any reliable patch runs the OTHER way: the window wall is +42.7, i.e. 71 %
+brighter in the trace** (60.0 → 102.7). Every plaster surface that can see sky is *darker* in the trace; the one
+surface that can see **no** sky — the wall coplanar with the aperture — is dramatically *brighter*.
+
+**That is the sharpest single statement of (p)'s error the arc has.** The defect is not a uniform tint or a
+uniform level shift: **the tracer over-lights precisely the surface that should be darkest**, which is the
+signature of an environment term that does not respect visibility of the aperture. `.301` had shown the walls
+*do* respond to albedo, so they are properly shaded — this shows they are properly shaded but wrongly
+*illuminated*.
+
+**4. And the shading is flattened 7×.** On that same wall the raster's within-patch sd is **11.6** — a real
+shading gradient across it — and the trace's is **1.7**. The tracer does not merely brighten the window wall, it
+**removes the gradient**. The glazing shows the same collapse (7.2 → 0.5).
+
+**What this gives the pending (p) decision.** A fix should be expected to: raise plaster by ~11–13 % overall,
+warm the ceiling by ~4–6 counts of R−B, and — the big one — **darken the window wall by ~40 counts and restore
+its shading gradient**. Those are four checkable, pose-matched acceptance criteria, all measurable from one
+frame pair, and none of them requires a photograph (`.320` having closed that route).
+
+**Method note.** `.314` measured two surfaces and concluded "walls right, ceiling wrong". With seven, the wall
+result splits: the *side* wall is right to 1 count, the *window* wall is wrong by 71 %. **"The walls" was not a
+category** — and a two-surface sample could not have shown that. Survey breadth is not padding when the thing
+being characterised is a spatial distribution.
+
+**Unchanged:** no `src/` change, no probe change. Measured from one frame pair already on disk, plus two
+markings.
+
 ## v0.31.5.322 — the unreplicated work is now backed up locally and the backup is restore-tested, without pushing anything
 
 `.321` found that rounds `.249`–`.321` exist **only in this worktree** — no PR, no remote copy — and noted that
