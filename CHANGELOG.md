@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.310 - a measured decision NOT to refactor the 17-argument builder
+
+`.309` logged `buildDrawingSetHtml`'s seventeen positional arguments as a design item, on the
+strength of having just been bitten by it. Investigating properly says **don't**, and the reasoning
+is worth more than the refactor would have been.
+
+**What the actual hazard is.** `tsc` already catches the fault that occurred (wrong arg COUNT —
+"Expected 3-15 arguments, but got 17" named it instantly). What types cannot catch is a **silent
+swap of two same-typed arguments**, and there are five adjacent candidates: three `boolean` sheet
+flags plus the two added in `.309`.
+
+**Measured, not assumed.** I swapped two adjacent booleans in the signature — verifying the swap
+landed before reading the result, per `.304` — and **four tests failed immediately** with legible
+messages: a carpentry sheet missing, and an RCP sheet appearing where carpentry had been asked for.
+Every one of the five parameters is individually pinned by an existing on/off test pair
+(`showSettingOut` at drawingSet.test.ts:349, `showCarpentry` at :1087/:1128, `showRcp` at
+:1281/:1302, and the two new ones by `.309`). So the remaining hazard is already guarded.
+
+**And the counting mattered.** 102 call sites, but only **22** reach the boolean tail — so the
+refactor was smaller than it looked. It is still the wrong trade: 22 hand-mapped edits across a
+signature whose middle arguments are mostly interchangeable `undefined` placeholders, to prevent a
+fault that tests already catch. A mis-mapped argument in MY bulk edit would be exactly the silent
+swap being guarded against — and bulk edits are where I have gone wrong three times today (the
+aquarium CCT authored against its own comment, the arm-swap that never landed, the finish fixture
+that depended on test order).
+
+**The rule this leaves.** A long positional signature is a smell, not a defect. Before paying to fix
+one, check whether each risky argument is already pinned — and prefer the guard you can demonstrate
+in one experiment to the refactor you have to get right in twenty-two places. `TODO.md` records the
+demonstration so the next reader is not re-tempted by the alarming argument count.
+
+No product change. The experiment is documented rather than committed, since a deliberately broken
+signature is not something to leave in the tree.
+
 ## v0.31.5.309 - the variation register as a handover sheet
 
 Closes the variation-register thread. `.307` put the register in the budget CSV, which is the right

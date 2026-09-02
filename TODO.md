@@ -374,11 +374,23 @@ coverage) did.
 - ~~**A printed register sheet**~~ DONE v0.31.5.309 — a "Variation register" sheet in the drawing
   set, naming the revision it varies from. Absent when nothing changed, because an empty variation
   sheet reads as "no changes since tender", a stronger claim than "nothing was compared".
-- **Still open (design):** `buildDrawingSetHtml` now takes SEVENTEEN positional arguments. Adding
-  the last two, I updated the inner builder and forgot the outer wrapper; only `tsc` caught it. An
-  options object would remove that whole class of error — but it is a wide refactor across the
-  builder, `openDrawingSet`, `tradePacks` and their tests, so it wants doing deliberately rather
-  than bundled with a feature.
+- **CLOSED, deliberately NOT done (v0.31.5.310):** the seventeen-positional-argument signature on
+  `buildDrawingSetHtml`. Do not "fix" this without reading the measurement:
+  - `tsc` already catches a wrong argument COUNT (it caught the .309 near-miss immediately).
+  - The only thing types cannot catch is a silent swap of two same-typed arguments — the three
+    boolean sheet flags plus the two added in .309. **Swapping two of them in the signature fails
+    four tests immediately** (measured, with the swap verified to have landed): every one of the
+    five is individually pinned by an on/off test pair — `showSettingOut` at
+    `drawingSet.test.ts:349`, `showCarpentry` at `:1087`/`:1128`, `showRcp` at `:1281`/`:1302`,
+    and the two new ones by the `.309` sheet tests.
+  - 102 call sites, of which only **22** reach the boolean tail. Smaller than it looks, and still
+    the wrong trade: 22 hand-mapped edits through mostly-`undefined` placeholders, to prevent a
+    fault tests already catch — where a slip in that very edit IS the silent swap being guarded
+    against.
+
+  **General rule:** a long positional signature is a smell, not a defect. Check whether each risky
+  argument is already pinned before paying to restructure, and prefer a guard you can demonstrate
+  in one experiment to a refactor you must get right in twenty-two places.
 
 ### Original scoping note (v0.31.5.306), kept — the three-part shape was the right call
 
