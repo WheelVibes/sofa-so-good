@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.313 - a tool instead of a fifth reminder
+
+I have written "always assert a scripted edit changed something" four times in this session and
+ignored it three of those. Per the distinction dev-09 named — **a prohibition lives in memory, a
+structure fails the suite** — this replaces the rule with `scripts/apply-edit.mjs`.
+
+It refuses to write unless every edit matches its expected occurrence count, verifies the whole
+batch BEFORE writing any of it (a half-applied file is worse than an untouched one — the compiler
+may still accept it and the diff looks intentional), refuses a no-op replacement, and exits 2 on
+bad input rather than guessing.
+
+The four occurrences it exists to prevent, recorded in its header with version numbers so the
+reason survives:
+
+- **.304** — an arm-swap in a MEASUREMENT never landed after biome reformatted the call across
+  seven lines. Both "arms" were the same code, so they agreed, and I published a real fix as
+  unprovable. Two commits to retract.
+- **.291** — a test repair matched nothing; the tell was a byte-identical failure including a stale
+  error.
+- **.302** — a sweep anchored on the wrong thing reported a layer clean with five bugs in it.
+- **.312** — a rename did nothing; `tsc` caught it only because a redeclaration happens to be a
+  type error.
+
+**Its own failure modes are pinned** (8 tests), because a guard that silently passes is worse than
+no guard: absent pattern, wrong count, correct explicit count, one-of-a-batch failing (nothing
+applied), no-op replacement, `--dry`, and bad input. And I used the tool to make its own `TODO.md`
+edit — if it could not do that, it would not be usable.
+
+Documented in `docs/developer/adding-features.md` rather than `CLAUDE.md`, which has to stay lean.
+
+The general point, which is the part worth keeping: **the number of times a rule has been restated
+is evidence about the rule, not about the person.** Four restatements meant the rule was the wrong
+shape — it needed to be a thing that fails, not a thing to remember.
+
 ## v0.31.5.312 - material-palette restraint, as an observation rather than a score
 
 Continuing on design QUALITY. Limiting the number of distinct finishes is one of the clearest

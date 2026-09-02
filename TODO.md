@@ -442,7 +442,13 @@ A `str.replace` that matches nothing returns the original string and every downs
 succeeds. So: (a) assert the swap changed something, and (b) have the probe PRINT the state
 actually in play beside its result. Both are cheap; the assertion is what caught this.
 
-**ALWAYS assert a scripted edit changed something (v0.31.5.312 — fourth instance).** Every
+**USE `scripts/apply-edit.mjs` FOR SCRIPTED EDITS (v0.31.5.313).** It refuses to write
+unless every edit matches the expected occurrence count, so the failure below cannot recur silently:
+
+    echo '{"file":"src/x.ts","edits":[{"old":"a","new":"b"}]}' | node scripts/apply-edit.mjs
+
+Original rule, kept for the history — **ALWAYS assert a scripted edit changed something (four
+instances before the tool existed).** Every
 `str.replace` in a helper script must be followed by an assertion, and every arm-swap must print the
 state in play. Silent no-ops have now cost: the `.304` retraction (an arm-swap that never landed),
 `.291` (a repair that matched nothing after biome reformatted), `.302`'s first sweep, and `.312`'s
