@@ -9627,3 +9627,82 @@ or leave thread 2 at n=4 and say so. With (p) confirmed and awaiting a decision 
 no longer obviously the best use of a round.
 
 Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .292 — three corrections and a refuted hypothesis
+
+An attempt to advance thread 1 without touching the tracer, which ended up auditing three of the previous four
+rounds' claims. All four results are negative or corrective.
+
+### The idea
+
+Thread 1's stated blocker is already answered: the anchor metric is framing-invariant (`.285`) and `.288` gave
+the reference aspect. What blocks it is (u), which affects only the **tracer**. `.268` proved the **raster** has
+exactly zero colour bleed, and a real daylit ceiling should be warmed by floor bounce while the wall sees more
+sky — so **ceiling-minus-wall R−B** would be a GI signature measurable from photographs alone.
+
+### Refuted at n=3
+
+| photograph | floor | ceiling R−B | wall R−B | Δ |
+| --- | --- | --- | --- | --- |
+| `At_La_Palma` | warm terrazzo | +16.0 | +2.4 | **+13.6** |
+| `Vogtsbauernhof` | timber, small window | +8.1 | +7.0 | **+1.1** |
+| `Home_Staging_Beispiel` | white tile | +6.0 | +8.8 | **−2.8** |
+
+Straddles zero, and tracks **floor colour** rather than the presence of GI: a white-tiled room's bounce is
+neutral so its ceiling is not warmed, and its wall is warmer than its ceiling because the wall carries warm
+timber window reveals. No systematic ceiling-warming exists to hold the app to. The quantity cannot serve as a
+tracer-free GI target.
+
+### Which kills `.291`'s proposal one round after it was made
+
+`.291` proposed replacing `.233`'s unverifiable "same plaster paint on both surfaces" with a **chroma-agreement
+threshold**, on 1.1 counts (strong sample) vs 13.6 (marginal). Those values are now known to span **−2.8 to
++13.6 across photographs that all qualify**. Such a threshold would reject `At_La_Palma`, which passes every
+other criterion and has documented provenance. **Refuted before adoption.** `.291` built it from the same two
+points this round's third measurement overturned: two points looked like a criterion, three made it noise.
+
+### Correction to `.288`: provenance over-rejects
+
+`.288` rejected `Alternate Art & Design` solely because the uploader was the estate agency. Fetching `.233`'s
+original reference exposed the inconsistency: `Home_Staging_Beispiel_Nachher` — the arc's first qualifying
+photograph — was uploaded by *"Die Home Stagerin Senta Hoffmann"*, a home-staging business promoting itself.
+Same provenance class; either both go or both stay.
+
+Resolved by checking the property provenance stood in for:
+
+- **`Home_Staging_Beispiel_Nachher` stays in** — hard cast shadows from the ladder and mullions, real
+  left-to-right falloff, and clipped blown windows (an HDR merge would have recovered them). Single exposure.
+- **`Alternate Art & Design` stays out, for the right reason** — no cast or contact shadow anywhere (desk
+  chair, lamp base, coffee table) and no cross-room falloff, the far wall as bright as the window wall. A
+  CG/composite signature, which is what "not AI stock" was actually about.
+
+Both verdicts unchanged, both reasons now correct. **Criterion amended: provenance is a prior that says look
+harder, not a verdict.** Reusable positive test for CG: **absent contact shadows + absent cross-room falloff.**
+
+### Correction to `.290`: the headline exceeded the method's resolution
+
+`.290` reported the app's 0.930 matched by a photograph to within **0.003**. Re-measuring
+`Home_Staging_Beispiel_Nachher` with this round's own verified-clean crops gives **0.976** against `.233`'s
+published **1.03** — same photograph, both crops clean, **5.4 % from crop choice alone**, eighteen times the gap
+`.290` celebrated. **The band's endpoints carry ~±5 % crop-choice uncertainty, so "matched to 0.003" is not
+meaningful.** What survives is `.234`'s original, weaker, robust claim: the app's ratio sits *inside* the
+photographic spread, which ±5 % does not threaten because the spread is ~0.9–1.1.
+
+The set stays n=4 and the published ratios stand (`.233`'s 1.03 retained rather than replaced by 0.976 —
+re-cropping every historical reference is a separate job, but both numbers are now on record).
+
+### Method note
+
+`.288`–`.291` each proposed something the next round had to qualify or withdraw: a provenance criterion that
+over-rejects, a chroma criterion built on n=2, a precision claim beyond the method's resolution. All three came
+from generalising a single new measurement immediately. **Do not turn one measurement into a criterion.**
+
+### Next
+
+Thread 2 is at n=4 with 4.8 % marginal yield and its screen now audited. Thread 1's tracer-free route is closed
+by this round's negative; its tracer route is blocked behind (u). (p) is confirmed and awaiting a decision.
+**The measurement threads are at a genuine stopping point — the remaining work is the decisions.**
+
+Nothing changed in `src/` or in the probe. Docs only.

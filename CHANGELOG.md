@@ -5,6 +5,85 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.292 — three corrections and a refuted hypothesis: `.288`'s provenance criterion over-rejects, `.291`'s proposed chroma criterion dies before adoption, and `.290`'s headline was measured to more precision than the method has
+
+This round tried to advance thread 1 without touching the tracer, and in the process audited three of the
+previous four rounds' own claims. All four results are negative or corrective, which is the honest outcome.
+
+**The idea. Thread 1's stated blocker is already answered** — the world-anchored anchor metric is
+framing-invariant (`.285`: livingDining reads 158.5/161.4 against 158.9/161.4 at two different pitches) and
+`.288` supplied the reference aspect. What blocks it is item (u), which affects only the **tracer**. But
+`.268` proved the app's **raster** has *exactly zero* colour bleed, and in a real daylit room the ceiling
+should be warmed by floor bounce while the wall sees more sky. That makes **ceiling-minus-wall R−B** a GI
+signature measurable from photographs alone — no tracer, no (u) exposure.
+
+**It is refuted at n=3.** Measured on the qualifying references, same method, crops looked at and clean:
+
+| photograph | floor | ceiling R−B | wall R−B | **Δ (GI signature)** |
+| --- | --- | --- | --- | --- |
+| `At_La_Palma` | warm terrazzo | +16.0 | +2.4 | **+13.6** |
+| `Vogtsbauernhof` | timber, small window | +8.1 | +7.0 | **+1.1** |
+| `Home_Staging_Beispiel` | **white tile** | +6.0 | +8.8 | **−2.8** |
+
+**The quantity straddles zero and tracks floor colour, not the presence of GI.** A white-tiled room's bounce is
+neutral, so its ceiling is not warmed at all — and its wall is *warmer* than its ceiling, because the wall
+carries warm timber window reveals. There is no systematic ceiling-warming to hold the app to. **Hypothesis
+dead; it cannot serve as a tracer-free GI target.**
+
+**Which also kills `.291`'s proposal, one round after it was made.** `.291` proposed replacing `.233`'s
+unverifiable *"same plaster paint on both surfaces"* with a measurable **chroma-agreement threshold**, on the
+strength of 1.1 counts for a strong sample against 13.6 for a marginal one. But those two numbers are now known
+to be **−2.8 to +13.6 across photographs that all qualify**. A chroma-agreement threshold would have rejected
+`At_La_Palma`, which passes every other criterion and has documented provenance. **Refuted before adoption** —
+and worth noting that `.291` proposed it *from the same two data points* that this round's third measurement
+overturned. Two points looked like a criterion; three points made it noise.
+
+**Correction to `.288`: the provenance criterion over-rejects.** `.288` rejected `Alternate Art & Design`
+*solely* because the uploader was the estate agency. Fetching `.233`'s original reference exposed the
+inconsistency: `Home_Staging_Beispiel_Nachher` — **the arc's very first qualifying photograph** — was uploaded
+by *"Die Home Stagerin Senta Hoffmann"*, a home-staging business promoting itself. Same provenance class.
+Either both go or both stay.
+
+Resolved by checking the property provenance was standing in for:
+
+- **`Home_Staging_Beispiel_Nachher` stays in.** Hard-edged cast shadows from the ladder and window mullions,
+  a real left-to-right falloff, and **clipped, blown-out windows** — an HDR merge would have recovered that
+  window detail. A single-exposure daylit photograph.
+- **`Alternate Art & Design` stays out**, for the right reason. **No cast or contact shadow anywhere** — not
+  under the desk chair, the floor-lamp base, or the coffee table — and **no falloff across the room**, with the
+  far wall as bright as the window wall. That is a CG/composite signature, which is what "not AI stock" was
+  actually about.
+
+**Both verdicts unchanged; both reasons now correct.** The criterion is amended: **provenance is a prior that
+says look harder, not a verdict.** And the audit produced a reusable positive test — **absent contact shadows
+plus absent cross-room falloff** — which is a far better CG detector than who uploaded the file.
+
+**Correction to `.290`: its headline claimed more precision than the method has.** `.290` reported the app's
+0.930 matched by a photograph to **within 0.003**. This round re-measured `Home_Staging_Beispiel_Nachher` with
+its own clean crops and got **ceiling ÷ wall = 0.976**, against `.233`'s published **1.03** — the same
+photograph, both crops verified clean, a **5.4 % difference from crop choice alone**. That is eighteen times the
+gap `.290` celebrated. **The band's endpoints carry roughly ±5 % crop-choice uncertainty, so "matched to 0.003"
+is not a meaningful statement** — it is one crop choice away from being 0.05. What survives is the weaker and
+still useful claim `.234` originally made: the app's ratio sits **inside** the photographic spread, which is
+robust to ±5 % because the spread is ~0.9–1.1.
+
+**The set stays at n=4**, and the ratios stay as published (`.233`'s 1.03 is retained rather than replaced by
+my 0.976, since re-cropping every historical reference is a separate job — but the two numbers are now both on
+record, which is the point).
+
+**Method note.** Four rounds in a row (`.288`–`.291`) each proposed something that the next round had to
+qualify or withdraw: a provenance criterion that over-rejects, a chroma criterion built on n=2, a precision
+claim beyond the method's resolution. All three came from generalising a single new measurement immediately.
+**Do not turn one measurement into a criterion** — `.290`'s chroma pair became `.291`'s proposed threshold and
+died on the third sample.
+
+**Next.** Thread 2 is at n=4 with 4.8 % marginal yield and its screen now audited; thread 1's tracer-free route
+is closed by this round's negative and its tracer route is blocked behind (u); (p) is confirmed and awaiting a
+decision. **The arc's measurement threads are genuinely at a stopping point** — the remaining work is the
+decisions, not more measurement.
+
+**Unchanged:** no `src/` change, no probe change. Docs only; scripts were temporary and removed.
+
 ## v0.31.5.291 — API pacing works and the pool grows 6×, but 0 of ~19 qualify: the `Bedrooms` seam is exhausted, and the reject census suggests a measurable replacement for the one criterion that needs judgement
 
 `.290` named the remaining bottleneck (the API, needing pacing rather than smaller payloads) and the remaining
