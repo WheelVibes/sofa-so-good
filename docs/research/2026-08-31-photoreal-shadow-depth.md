@@ -10729,3 +10729,68 @@ samples more than another hypothesis.
 clean GL state, from CPU-side inputs identical to the integer.** `.305`'s fix-verification criterion unchanged.
 
 Instrumentation reverted, `src/` verified clean. The probe keeps `PT2=1`.
+
+---
+
+## Round .311 — the AOV/denoise path refuted, and a tempting pattern killed inside the same round
+
+### 1. AOV/denoise is not the cause
+
+`captureAovPasses` runs immediately after `setScene`, on the same renderer and snapshot, and only when AI
+denoise is armed — a good candidate, left open because `.285`'s `PTAI=off` arm happened to draw two class-B
+runs. With `PTAI=off` (AOV passes never run) one boot produced both classes:
+
+| `PTAI=off`, one session | frame L | glazing | ceiling | sidewall-L | class |
+| --- | --- | --- | --- | --- | --- |
+| render 1 | 104.2 | 169.0 | **181.5** sd 0.88 | 15.4 | A |
+| render 2 | 29.8 | 164.9 | **1.0** sd 0.00 | 1.2 | B |
+
+Twenty-first candidate eliminated. By-products: re-confirms `.310`'s per-render finding in a different
+configuration, and confirms the denoise is radiometrically neutral **in class A too** (181.5 sd 0.88 with it
+off) — `.285` had only verified class B.
+
+### 2. A pattern tested and killed in the same round
+
+Two consecutive pairs came out A-then-B, implying a cold-first-render effect with an obvious workaround. The
+third pair:
+
+| pair | render 1 | render 2 |
+| --- | --- | --- |
+| `.310` `p2a` | A | B |
+| `.311` `ai1` (denoise off) | A | B |
+| `.311` `ai2` | **A** | **A** |
+
+*"The second render is always correct"* is **refuted**. At n = 2 it would have entered the record as a finding
+with a workaround attached, and a later round would have withdrawn it — the pattern `.291`, `.292` and `.301`
+each paid for.
+
+### 3. Tallies, not impressions
+
+| | class A | class B | share A |
+| --- | --- | --- | --- |
+| first render of a session | 12 | 5 | 71 % |
+| second render (paired) | 1 | 2 | 33 % |
+
+A first-vs-second difference is possible but **not established** at n = 3 second-renders. Both classes occur in
+both positions, so position is not determinative. The 71 % also sits against the ~50 % quoted since `.294`,
+which came from 24 frames at one pose and may deserve re-derivation now that position is a known variable.
+
+### Where (u) stands
+
+Decided per `createHqRenderSession` call; real GPU, real compositor; clean GL state; CPU inputs identical to the
+integer; not the substitution, AOV/denoise, page-level state, headless, geometry, material type, environment
+branch, tone mapping, exposure or sample count. What remains is inside the tracer's per-session GPU setup —
+shader compilation, texture upload ordering, uninitialised state — none of it reachable from the probe without
+library-side instrumentation.
+
+**Assessment:** twenty-one candidates have fallen and the last five rounds narrowed location without reaching
+cause. The item is already actionable — acceptance test written (`.305`), reproduction cheap and paired
+(`.310`), confirmed on real hardware (`.309`). **Further diagnosis is lower value than a decision on the
+workaround.**
+
+### Method note
+
+`.302`'s rule applies to *emerging patterns*, not only stated hypotheses. Two same-shaped observations felt like
+a result; testing cost one run and prevented a withdrawal.
+
+No `src/` change, no probe change.

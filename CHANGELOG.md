@@ -5,6 +5,70 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.311 — the AOV/denoise path is refuted, and a tempting pattern was tested and killed inside the same round
+
+**1. The AOV/denoise path is not the cause.** `captureAovPasses` runs immediately after `setScene`, on the same
+renderer and the same snapshot, and only when AI denoise is armed — a good candidate for a per-session
+disturbance, and one `.285` had left open because its `PTAI=off` arm happened to draw two class-B runs. With
+`PTAI=off` (so the AOV passes never run at all) a single boot produced both classes:
+
+| `PTAI=off`, one page session | frame L | glazing | ceiling | sidewall-L | class |
+| --- | --- | --- | --- | --- | --- |
+| render 1 | 104.2 | 169.0 | **181.5** sd 0.88 | 15.4 | **A** |
+| render 2 | 29.8 | 164.9 | **1.0** sd 0.00 | 1.2 | **B** |
+
+Exact signature matches on both. **Twenty-first candidate eliminated.** Two by-products: it re-confirms `.310`'s
+per-render finding in a *different* configuration, and it confirms the denoise is radiometrically neutral **in
+class A too** — ceiling 181.5 sd 0.88 with denoise off, identical to with it on. `.285` had only verified
+neutrality on class B.
+
+**2. A pattern I nearly published, tested and refuted in the same round.** Two consecutive paired runs came out
+**A then B** — `.310`'s and this round's `PTAI=off` pair. That would have been a systematic cold-first-render
+effect, and it carries an obvious workaround (do a throwaway render first). It is false. The third pair:
+
+| pair | render 1 | render 2 |
+| --- | --- | --- |
+| `.310` `p2a` | A | B |
+| `.311` `ai1` (denoise off) | A | B |
+| `.311` `ai2` | **A** | **A** |
+
+**"The second render is always correct" is refuted.** Had I stopped at two pairs, this would have entered the
+record as a finding with a workaround attached, and a later round would have had to withdraw it — the exact
+pattern `.291`, `.292` and `.301` each paid for.
+
+**3. What the tallies do and do not support.** Quoting counts rather than impressions:
+
+| | class A | class B | share A |
+| --- | --- | --- | --- |
+| **first** render of a page session | 12 | 5 | 71 % |
+| **second** render (paired) | 1 | 2 | 33 % |
+
+A first-versus-second difference is **possible but not established** at this n — three second-renders cannot
+carry it. What *is* established is that both classes occur in both positions, so position is not determinative.
+The 71 % on first renders is also worth noting against the ~50 % this arc has been quoting since `.294`; that
+figure came from 24 frames at one pose and may itself deserve re-derivation now that position is a known
+variable.
+
+**Where (u) stands after twenty-one eliminations.** Decided per `createHqRenderSession` call; real GPU, real
+compositor; clean GL state; CPU-side inputs identical to the integer; not the substitution, not the AOV/denoise
+path, not page-level state, not headless, not geometry, not material type, not the environment branch, not tone
+mapping, not exposure, not sample count. What remains is inside the tracer's per-session GPU setup —
+shader compilation, texture upload ordering, or uninitialised state — and none of that is reachable from the
+probe's vantage point without library-side instrumentation.
+
+**An honest assessment of the return on further rounds.** Twenty-one candidates have fallen and the last five
+rounds have each narrowed the location without reaching the cause. The item is already specified tightly enough
+to act on: **the acceptance test is written** (`.305`: the traced ceiling must never equal the hidden-ceiling
+value), the reproduction is cheap and paired (`.310`), and the fault is confirmed on real hardware (`.309`).
+**Further diagnosis is lower value than a decision on the workaround**, and that decision is not mine.
+
+**Method note.** `.302`'s rule — check what the rivals predict before spending a round — applies to *emerging
+patterns*, not only to stated hypotheses. Two same-shaped observations felt like a result; the cost of testing
+was one run and it prevented a withdrawal.
+
+**Unchanged:** no `src/` change, no probe change (the probe keeps `.310`'s `PT2=1`, which made all three pairs
+affordable).
+
 ## v0.31.5.310 — no GL error accompanies the fault, and (u) is PER-RENDER: both classes produced back-to-back in one page session
 
 Two measurements, both cheap, and the second is the tightest paired observation of (u) the arc has managed.

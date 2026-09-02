@@ -106,6 +106,17 @@ sd 0.88 in both — so it is not a headless artefact. What `HEADED=1` does **not
 without noting the debt and none prompted the check; `.308` wrote it down and `.309` paid it one round later.
 Write the debt into the entry.
 
+## Test an EMERGING pattern before it becomes a finding
+
+`.302`'s rule (write down what the rivals predict before spending a round) applies to patterns you notice, not
+only to hypotheses you state. In `.311` two consecutive paired runs came out **A then B**, which would have
+meant a systematic cold-first-render effect — with an obvious workaround attached, making it very tempting to
+publish. The third pair came out **A then A** and killed it. Cost: one run. Had it gone in at n = 2, a later
+round would have had to withdraw it, as happened in `.291`, `.292` and `.301`.
+
+Related: quote the counts, not the impression. `.311`'s tallies were first renders 12 A / 5 B, second renders
+1 A / 2 B — enough to say "both classes occur in both positions" and *not* enough to claim a position effect.
+
 ## Use `PT2=1` for paired samples — two renders per boot
 
 Every (u) experiment before `.310` paid ~3.5 minutes of page boot and scene load **per class sample**, and

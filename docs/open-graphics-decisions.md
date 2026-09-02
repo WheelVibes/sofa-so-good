@@ -2267,6 +2267,35 @@ context. This eliminates *page*-level state, not per-context state. "Per-render"
 **(u) is now bounded as:** decided per `createHqRenderSession` call, on the real GPU with a real compositor,
 with a clean GL state, from CPU-side inputs identical to the integer.
 
+**❌ AOV/DENOISE PATH REFUTED v0.31.5.311.** `captureAovPasses` runs right after `setScene` on the same renderer
+and snapshot, and only when AI denoise is armed — a good candidate, left open because `.285`'s `PTAI=off` arm
+drew two class-B runs. With `PTAI=off` (AOV passes never run) one boot gave **class A then class B**, exact
+signatures. Twenty-first candidate eliminated. By-products: re-confirms `.310`'s per-render finding in a
+different configuration, and confirms the denoise is radiometrically neutral **in class A too** (ceiling 181.5
+sd 0.88 with it off, identical to on) — `.285` had only verified class B.
+
+**A pattern tested and killed in the same round.** Two consecutive pairs came out A-then-B, implying a
+cold-first-render effect with an obvious workaround. The third pair is **A-then-A**, so *"the second render is
+always correct"* is **false**.
+
+| pair | render 1 | render 2 |
+| --- | --- | --- |
+| `.310` `p2a` | A | B |
+| `.311` `ai1` (denoise off) | A | B |
+| `.311` `ai2` | A | A |
+
+**Tallies, quoted rather than impressions:** first renders **12 A / 5 B (71 %)**, second renders **1 A / 2 B**
+(n = 3). A first-vs-second difference is *possible but not established*; both classes occur in both positions,
+so position is not determinative. Note 71 % on first renders sits against the ~50 % quoted since `.294` — that
+figure came from 24 frames at one pose and may deserve re-derivation now that position is a known variable.
+
+**Assessment of further diagnosis.** Twenty-one candidates have fallen; the last five rounds each narrowed the
+location without reaching the cause. What remains is inside the tracer's per-session GPU setup (shader
+compilation, texture upload ordering, uninitialised state), which is not reachable from the probe without
+library-side instrumentation. The item is already actionable: **acceptance test written** (`.305`),
+**reproduction cheap and paired** (`.310`), **confirmed on real hardware** (`.309`). **Further diagnosis is now
+lower value than a decision on the workaround.**
+
 **Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
 as a surface in every run.
 
