@@ -1115,7 +1115,52 @@ console.log(`frame -> ${OUT}/frame.png`)
 // that must be identical in both images. `.245`'s feasibility probe skipped it
 // and rendered the orbit dollhouse, which is `.218`'s trap all over again.
 if (process.env.PT === '1') {
-  const want = Number(process.env.PTSAMPLES || 48)
+  // The modal always runs to its own 256-sample cap, so a smaller PTSAMPLES
+  // cannot make a shorter render -- it only makes the probe read EARLIER, while
+  // the canvas still holds the pre-completion placeholder (`.282`). Every run
+  // that asked for the cap produced a real trace (bedroom3 119.4/116.9 and
+  // 120.3/117.6; livingDining 137.3/137.3/143.1); every run that asked for less
+  // produced the placeholder. So the request is clamped to the cap. PTSAMPLES is
+  // kept only to raise it should the cap ever change.
+  const want = Math.max(256, Number(process.env.PTSAMPLES || 256))
+  // Mean / sd / R-B of a fixed 10% patch of the tracer canvas, read in-page via
+  // drawImage onto a 2D scratch canvas (`.282`). Cheap enough to call on every
+  // poll, unlike toDataURL of a 1920x1080 WebGL canvas.
+  const patchStatsFn = () => {
+    const list = [...document.querySelectorAll('canvas')]
+    const scene = list[0]
+    const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
+    const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
+    if (!c) return null
+    const w = Math.round(c.width * 0.1)
+    const h = Math.round(c.height * 0.1)
+    const s2 = document.createElement('canvas')
+    s2.width = w
+    s2.height = h
+    const ctx = s2.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return null
+    ctx.drawImage(c, Math.round(c.width * 0.45), Math.round(c.height * 0.18), w, h, 0, 0, w, h)
+    const d = ctx.getImageData(0, 0, w, h).data
+    let sl = 0
+    let sl2 = 0
+    let srb = 0
+    const n = d.length / 4
+    for (let i = 0; i < d.length; i += 4) {
+      const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]
+      sl += l
+      sl2 += l * l
+      srb += d[i] - d[i + 2]
+    }
+    const mean = sl / n
+    return {
+      L: mean,
+      sd: Math.sqrt(Math.max(0, sl2 / n - mean * mean)),
+      rb: srb / n,
+      cw: c.width,
+      ch: c.height,
+      n: cands.length,
+    }
+  }
   await page.evaluate((v) => window.__walkLook?.setPitch(v), PITCH)
   await new Promise((r) => setTimeout(r, 600))
   await page.evaluate(() => window.__store.getState().setHqRenderOpen?.(true))
@@ -1138,8 +1183,112 @@ if (process.env.PT === '1') {
       return r ? Number(r[1]) : null
     })
     if (m != null) got = m
+    // PTTRACE=1 -- sample the tracer canvas DURING the render (`.282`). `.281`
+    // found bedroom3's traced level identical at 50 and 150 samples and totally
+    // different at 250 (level, texture AND colour temperature), which no Monte
+    // Carlo accumulation can do. Whole extra runs answer that slowly and
+    // confound sample count with wall-clock; one render read repeatedly gives
+    // the trajectory against both at once. Reads a small patch via drawImage
+    // onto a 2D scratch canvas -- toDataURL of a 1920x1080 WebGL canvas every
+    // 4 s would itself perturb the timing.
+    if (process.env.PTTRACE === '1') {
+      const st = await page.evaluate(patchStatsFn)
+      if (st) {
+        console.log(
+          `  PTTRACE t=${((Date.now() - t0) / 1000).toFixed(0)}s samples=${got} ` +
+            `L=${st.L.toFixed(1)} sd=${st.sd.toFixed(2)} R-B=${st.rb.toFixed(1)} ${st.cw}x${st.ch}`,
+        )
+      }
+    }
     if (got >= want) break
     await new Promise((r) => setTimeout(r, 4000))
+  }
+  // Wait for the render to COMPLETE before reading (`.282`). The HQ modal does
+  // NOT blit the accumulating frame to its canvas -- PTTRACE sampled a fixed
+  // patch 44 times across a whole 256-sample render and got L=179.7 sd=0.93
+  // R-B=-14.2 every single time, then the image changed the instant the render
+  // finished. So a read taken at `got >= want` returns a static placeholder,
+  // not the path trace, and every PT number in `.246`-`.281` that came from an
+  // incomplete render measured that placeholder. `want` cannot stop the render
+  // early either (the modal always runs to its own 256 cap), so there is no
+  // such thing as a valid low-sample read through this UI: always finish.
+  //
+  // Waiting on the SAMPLE COUNTER alone is not enough -- a first attempt did
+  // exactly that, watched the counter stop at 256, waited a further 90 s, and
+  // still saved the placeholder. The read has to touch the canvas: the run that
+  // first produced a real trace polled the canvas every 5 s, and the finished
+  // image was there 5 s after completion. So the settle loop below samples a
+  // patch every poll and requires BOTH the counter and the patch to hold still,
+  // which asserts on the image actually about to be saved rather than on a
+  // counter that says nothing about what the canvas contains.
+  if (process.env.PTNOWAIT !== '1') {
+    // Stability is NOT a completion signal -- the placeholder is perfectly
+    // stable too, so a "hold still for 3 polls" test can and did exit before the
+    // flip. What is diagnostic is that the patch CHANGES: the placeholder reads
+    // L~180 sd~0.93 R-B~-14 (smooth, cold, no texture) and the finished trace
+    // L~116 sd~1.15 R-B~+8 (textured, warm). So record the signature while the
+    // render is still running and wait for it to move.
+    const before = await page.evaluate(patchStatsFn)
+    const sigOf = (x) => (x ? `${x.L.toFixed(2)}/${x.sd.toFixed(2)}/${x.rb.toFixed(2)}` : '')
+    const sig0 = sigOf(before)
+    const w0 = Date.now()
+    let flipped = false
+    let sig = sig0
+    while (Date.now() - w0 < 300_000) {
+      await new Promise((r) => setTimeout(r, 4000))
+      const m2 = await page.evaluate(() => {
+        const t = document.body.innerText || ''
+        const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+        return r ? Number(r[1]) : null
+      })
+      if (m2 != null) got = m2
+      sig = sigOf(await page.evaluate(patchStatsFn))
+      // A magnitude threshold, not `!==`: a first attempt used exact inequality
+      // and tripped on 131.97 -> 132.14, i.e. on noise, then saved the
+      // placeholder anyway. The real flip moves L by ~60 and sd by ~0.2-12.
+      const now = await page.evaluate(patchStatsFn)
+      if (
+        now &&
+        before &&
+        (Math.abs(now.L - before.L) > 5 || Math.abs(now.sd - before.sd) > 0.15)
+      ) {
+        flipped = true
+        break
+      }
+    }
+    // One extra settle poll so the read lands after the flip, not during it.
+    await new Promise((r) => setTimeout(r, 4000))
+    const t = ((Date.now() - w0) / 1000).toFixed(0)
+    console.log(`  PT: ${got} samples, patch ${sig0} -> ${sig} after ${t}s`)
+    if (!flipped) {
+      throw new Error(
+        `PT: the tracer canvas never changed from its mid-render placeholder in 300s ` +
+          `(patch ${sig0}). The saved image would NOT be the path trace -- see \`.282\`. ` +
+          `Refusing to publish a placeholder measurement.`,
+      )
+    }
+  }
+  // PTHOLD=<seconds> -- keep sampling AFTER the target count is reached (`.282`).
+  // PTTRACE showed the displayed canvas frozen for a whole 256-sample render, so
+  // the question is whether it ever updates at all, and if so on what event.
+  if (process.env.PTHOLD) {
+    const holdMs = Number(process.env.PTHOLD) * 1000
+    const h0 = Date.now()
+    while (Date.now() - h0 < holdMs) {
+      await new Promise((r) => setTimeout(r, 5000))
+      const m2 = await page.evaluate(() => {
+        const t = document.body.innerText || ''
+        const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+        return r ? Number(r[1]) : null
+      })
+      const st = await page.evaluate(patchStatsFn)
+      if (st) {
+        console.log(
+          `  PTHOLD t=${((Date.now() - h0) / 1000).toFixed(0)}s samples=${m2} ` +
+            `L=${st.L.toFixed(1)} sd=${st.sd.toFixed(2)} R-B=${st.rb.toFixed(1)} canvases=${st.n}`,
+        )
+      }
+    }
   }
   // Read the tracer canvas's OWN PIXELS via toDataURL rather than screenshotting
   // the element. `.246` screenshotted it and the modal footer bled into the

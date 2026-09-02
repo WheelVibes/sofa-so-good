@@ -5,6 +5,95 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.282 — CORRECTION, and the biggest one: the tracer canvas was never showing the path trace. Every traced figure in the arc is withdrawn
+
+`.281` ended by naming the next step — sweep sample count on bedroom3 and see whether the level decay is a
+smooth asymptote (convergence) or a step (a code path). It is neither. There was no decay.
+
+**The first run gave the game away.** bedroom3 at **50** samples read traced L **172.1 / 175.3** — identical,
+to the last digit, to `.281`'s **150**-sample run. Monte Carlo cannot do that. Measured offline on fixed
+patches of the two saved stills, the agreement is worse than coincidence: **L to 0.1, sd to 0.01, R−B to 0.0.**
+
+**So the render was instrumented instead of re-run.** New `PTTRACE=1` samples a fixed 10 % patch of the
+tracer canvas on every 4 s poll. One whole 256-sample bedroom3 render, 44 polls, 184 s, samples 4 → 256:
+
+```
+PTTRACE t=4s   samples=4    L=179.7 sd=0.93 R-B=-14.2
+PTTRACE t=94s  samples=132  L=179.7 sd=0.93 R-B=-14.2
+PTTRACE t=184s samples=256  L=179.7 sd=0.93 R-B=-14.2
+```
+
+**Unchanged to two decimal places for the entire render.** The canvas is not accumulating. New `PTHOLD=90`
+then kept polling *past* completion — the patch became `L=115.9 sd=1.14 R-B=+8.1` within 5 s and held for 90 s,
+and that run's anchors read **120.3 / 117.6**.
+
+**The mid-render image is not an under-converged trace. It is a different image.**
+
+| | mid-render | finished |
+| --- | --- | --- |
+| patch L | 179.7 | 115.9–116.3 |
+| patch sd (texture) | 0.93 | 1.14–1.15 |
+| patch R−B | **−14.2** cold | **+8.1** warm |
+| plaster grain | absent | present |
+
+Smooth, cold and textureless is the signature of the hardcoded `GradientEquirectTexture` (top `0xbfd4e6`)
+that `buildTracerScene` substitutes for the Ambient/Hemisphere lights it drops — item (p). So it is most
+likely an early pre-accumulation pass under the gradient environment. **Inferred, not proven**; what is proven
+is that it is a different image, not a rougher one.
+
+**Corrected values, measured at the cap** (medium tier, photographic look, hour 13, 1920×1080; runs 11:28–12:02
++08):
+
+| | placeholder (what was published) | **finished trace** |
+| --- | --- | --- |
+| bedroom3, white, pitch +0.30, d = 0.6 / 1.2 | 172.1 / 175.3 | **119.4 / 116.9** and **120.3 / 117.6** (two runs, 0.8 %) |
+| livingDining, white, pitch −0.06, d = 0.6 / 1.2 / 1.8 | 158.9 / 161.4 / 160.5 | **137.3 / 137.3 / 143.1** |
+
+**What is withdrawn.** All of it, and `.281` first:
+
+- **`.281` conclusion 1 is wrong.** livingDining's 150-vs-250 agreement of 0.06–0.19 % was not convergence —
+  it was two reads of *the same frozen placeholder*. The real values are **10.8–14.9 % lower** than published.
+- **`.281` conclusions 2 and 3 are void.** Aperture and pose were "refuted" by comparing placeholder reads to
+  placeholder reads. Whatever those comparisons describe, it is not the tracer.
+- **`.280`'s correction was right in direction, wrong in mechanism.** The 150-sample bedroom numbers were
+  indeed wrong, but sample count was never the variable and the AI denoiser was never the cause.
+- **`.269`–`.276` traced targets are suspect** — all read mid-render. The within-tracer colour-bleed
+  magnitudes in `.269`/`.270` and every livingDining traced target are unpublished until re-measured.
+- **Item (s) ALBEDO-FILL's luminance calibration is suspect** for the same reason; its *hue* work was raster.
+- **`.268`'s colour-bleed-is-exactly-zero result stands** — that was a raster A/B and never touched the tracer.
+  Every raster figure in the arc is untouched; the raster capture is a separate path.
+
+**The fix, and three failed attempts at it.** Worth recording because each failure was a plausible fix:
+
+1. *Wait for the sample counter to settle.* Watched it stop at 256, waited 90 s more, still saved the
+   placeholder. A counter says nothing about what the canvas holds.
+2. *Also require the patch to hold still.* Failed for a reason that should have been obvious — **the
+   placeholder is perfectly stable too**, so "stable" is satisfied by the wrong image.
+3. *Require the patch to change (`!==`).* Tripped on `131.97 → 132.14`, i.e. on noise, and saved the
+   placeholder again.
+
+What ships: the request is **clamped to the 256 cap** (a smaller `PTSAMPLES` never shortened the render
+anyway — it only made the probe read earlier), the flip must exceed a magnitude threshold well above noise,
+and if the canvas never moves the probe **throws** instead of saving. It threw on its verification run — in
+**1 of 3** runs at the cap the flip never happens even after 300 s, so PT reads are now known-unreliable
+rather than silently wrong.
+
+**Filed as item (t) HQ-CANVAS-PLACEHOLDER** — a real product defect, not just a probe problem: a user watches
+a counter climb over a cold flat image that never improves, and on some runs that is still what they see after
+the render finishes.
+
+**New method rule, and it is the important output of this round.** *Looking at the frame is necessary but not
+sufficient — an instrument must also be able to fail loudly.* This arc looked at frames for fifty rounds and
+still measured the wrong image, because the wrong image was plausible: correctly framed, correctly furnished,
+lit like a room. What caught it was two runs that should have differed and didn't. **A measurement path that
+can silently return a plausible wrong answer is worse than no measurement**, and the probe now refuses rather
+than guesses.
+
+**Next.** Re-measure, at the cap, the targets `.269`–`.276` depended on — but expect roughly 1 run in 3 to
+throw, so budget accordingly. Nothing else in the arc should be built on a traced number until that is done.
+
+**Unchanged:** no `src/` change. Probe + docs only.
+
 ## v0.31.5.281 — the 150-sample failure is a property of the ROOM, not the aperture or the pose; livingDining re-verified
 
 `.280` ended by naming its own residual risk: every livingDining target in `.269`–`.276` is also a 150-sample

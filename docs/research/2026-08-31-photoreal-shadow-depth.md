@@ -8841,3 +8841,106 @@ guess that is now known not to hold.
    rather than piling more n onto the extremes already measured.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## Round .282 — CORRECTION: the tracer canvas was never showing the path trace
+
+`.281` set up a sample-count sweep on bedroom3 to decide between a smooth asymptote (convergence) and a step
+(a code path switching). The answer is that there was no curve at all.
+
+### The tell
+
+bedroom3 at **50** samples (run 11:21 +08, medium tier, photographic look, hour 13, 1920×1080, `PITCH=0.30`,
+white, side C, d = 0.6/1.2) read traced L **172.1 / 175.3** — the same to the last digit as `.281`'s
+**150**-sample run. Measured offline on fixed patches of the two saved PNGs: L agrees to 0.1, sd to 0.01,
+R−B to 0.0. No Monte Carlo estimator behaves that way across a 3× change in samples.
+
+### Instrumenting the render instead of running more of them
+
+`PTTRACE=1` samples a fixed 10 % patch of the tracer canvas on each 4 s poll, via `drawImage` onto a 2D
+scratch canvas (`toDataURL` on a 1920×1080 WebGL canvas every 4 s would perturb the timing it is measuring).
+One 256-sample bedroom3 render, 44 polls, 184 s (run 11:24 +08):
+
+| t | samples | patch L | sd | R−B |
+| --- | --- | --- | --- | --- |
+| 4 s | 4 | 179.7 | 0.93 | −14.2 |
+| 94 s | 132 | 179.7 | 0.93 | −14.2 |
+| 184 s | 256 | 179.7 | 0.93 | −14.2 |
+
+Every intermediate poll is identical too — unchanged to two decimal places from sample 4 to sample 256. The
+displayed canvas does not accumulate.
+
+`PTHOLD=90` then kept polling past completion (run 11:28 +08). The patch read `L=115.9 sd=1.14 R-B=+8.1` at
+the first poll 5 s later and held there for 90 s; that run's anchors read 120.3 / 117.6.
+
+### It is a different image, not a rougher one
+
+| | mid-render | finished |
+| --- | --- | --- |
+| patch L | 179.7 | 115.9–116.3 |
+| patch sd | 0.93 | 1.14–1.15 |
+| patch R−B | −14.2 (cold) | +8.1 (warm) |
+| plaster grain | absent | present |
+
+A 55 % brighter, smoother, *colder* image is not an under-sampled version of a warmer textured one. Cold blue
+with no grain is the signature of the hardcoded `GradientEquirectTexture` (top `0xbfd4e6`) that
+`buildTracerScene` substitutes for the Ambient/Hemisphere lights it drops (item (p)), so the placeholder is
+most consistent with an early pre-accumulation pass under the gradient environment alone. That identification
+is inferred; what is proven is that the two images are different in kind.
+
+### Corrected numbers
+
+Measured at the cap (runs 11:28–12:02 +08):
+
+| | placeholder (published) | finished |
+| --- | --- | --- |
+| bedroom3 white +0.30, d = 0.6/1.2 | 172.1 / 175.3 | 119.4 / 116.9; 120.3 / 117.6 |
+| livingDining white −0.06, d = 0.6/1.2/1.8 | 158.9 / 161.4 / 160.5 | 137.3 / 137.3 / 143.1 |
+
+The livingDining still was looked at and is unmistakably a real trace: plaster texture on the walls, weave on
+the sofa, wood grain, soft contact shadows under the coffee table, warm bounce off the floor.
+
+### Withdrawals
+
+- `.281` conclusion 1 (livingDining converged at 150, 0.06–0.19 %) — **withdrawn**. That agreement was two
+  reads of the same frozen placeholder. The true values are 10.8–14.9 % lower.
+- `.281` conclusions 2 and 3 (aperture and pose refuted as predictors) — **void**. Placeholder compared to
+  placeholder.
+- `.280` — right that the 150-sample numbers were wrong, wrong that sample count or `hqAiDenoise` was why.
+- `.269`–`.276` traced targets, and the within-tracer colour-bleed magnitudes — **suspect**, all read
+  mid-render.
+- Item (s) ALBEDO-FILL luminance calibration — **suspect**; its hue work was raster and survives.
+- `.268` colour-bleed-is-exactly-zero — **stands**, a raster A/B. All raster figures are untouched.
+
+### Three plausible fixes that failed
+
+Recorded because each looked right:
+
+1. Wait for the sample counter to settle → counter stopped at 256, waited 90 s, still saved the placeholder.
+   A counter says nothing about canvas contents.
+2. Also require the patch to hold still → the placeholder is perfectly stable, so "stable" selects the wrong
+   image.
+3. Require the patch to change with `!==` → tripped on 131.97 → 132.14, i.e. on noise.
+
+Shipped: clamp the request to the 256 cap (a smaller `PTSAMPLES` never shortened the render — the modal always
+runs to its own cap; it only made the probe read earlier), require the flip to exceed a magnitude threshold far
+above noise, and **throw** if the canvas never moves. The guard fired on its own verification run: in 1 of 3
+runs at the cap the flip never happens within 300 s. PT reads are now known-unreliable instead of silently
+wrong.
+
+Filed as item **(t) HQ-CANVAS-PLACEHOLDER**, a product defect as well as a probe one.
+
+### Method rule
+
+*Looking at the frame is necessary but not sufficient — an instrument must be able to fail loudly.* This arc
+looked at frames for fifty rounds and still measured the wrong image, because the wrong image was plausible:
+correctly framed, correctly furnished, lit like a room. What caught it was two runs that should have differed
+and didn't. A measurement path that can silently return a plausible wrong answer is worse than no measurement.
+
+### Next
+
+Re-measure the `.269`–`.276` targets at the cap, budgeting for roughly 1 run in 3 to throw. Nothing in the arc
+should rest on a traced number until that is done.
+
+Nothing changed in `src/` beyond the version bump.
