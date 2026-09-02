@@ -5,6 +5,54 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.338 — (w)'s daytime fix is fully specified: validated end-to-end at a second finish, and the curve is finished to the instrument's power
+
+Two results, one of them obtained without spending a single trace.
+
+**Applying `.337`'s own lesson first: compute the discrimination power before buying the measurement.** The
+planned next test was `wall-paint-oat` (rho 0.617) — a fifth point higher up the curve. Pushing the candidate
+forms through the instrument shows that would have been a **weak test**:
+
+| finish | rho | A: `max(0.9, 3.3·rho)` | B: chord | C: power law | separation |
+| --- | --- | --- | --- | --- | --- |
+| oat | 0.617 | 2.04 | 2.33 | 2.20 | **1.5σ** |
+| stone-grey | 0.382 | 1.26 | 1.80 | 1.50 | 2.7σ |
+| **clay** | **0.296** | **0.98** | **1.60** | **1.22** | **3.7σ** |
+
+The informative region for *discriminating* is **lower** than instinct suggested — around rho 0.23–0.30, where
+A's floor engages — not higher.
+
+**But the contest has already narrowed, and the answer is that the curve is done.** B (the chord) is refuted:
+`.337` measured 1.26 at stone-grey against B's 1.80, a 2.7σ miss, and B's error reaches **0.62 GB** in
+mid-range. What survives is A versus C, and those differ by at most **0.24 GB ≈ 3.3 counts ≈ 1.4σ per arm** —
+so separating them would need ~3 class-B arms, i.e. ~18 runs at the current 6× (u) tax.
+
+**They also agree to within 0.24 GB across the entire palette, so the choice between them is immaterial for
+implementation.** The curve is therefore **finished to this instrument's power**: further tracer targets for it
+would be unfalsifiable work. That is a stopping decision made by calculation rather than by exhaustion.
+
+**Second result — the fix validates end-to-end at a second finish:**
+
+| finish | GB applied | raster ceiling | target | error | floor | pillow |
+| --- | --- | --- | --- | --- | --- | --- |
+| ink (`.331`) | 1.0 | 100.7 | 100.2 | 0.5 counts | unchanged | −0.5 % |
+| **stone-grey** | **1.26** | **105.0** | **105.0** | **0.0 counts** | **unchanged** | −0.4 % |
+
+So `GB = max(0.9, 3.3·rho_wall)` now (a) fits four tracer targets within 0.09 GB, and (b) applied in the
+raster, reproduces the tracer's ceiling at two finishes to **≤0.5 counts**, with floor collateral **≤0.1 %**.
+
+**(w)'s daytime half is fully specified.** Defect measured, lever identified, authority confirmed room-stable,
+curve determined and validated end-to-end. Two lines:
+
+```
+photographicGroundBounce = max(0.9, 3.3 * meanWallReflectance)   // daytime only
+```
+
+Standing caveats, unchanged: one pose, one room, one tier, **daytime only** — the lever has 2.4 % authority at
+night (`.333`) and the night defect is 26–28 % on every surface (`.335`), needing a different mechanism.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.337 — (w)'s curve is PROPORTIONAL WITH A FLOOR: `GB = max(0.9, 3.3·rho)` fits four finishes, and both registered predictions failed again
 
 `.332` refuted two interpolation models on three finishes and left the curve shape open. This round adds a

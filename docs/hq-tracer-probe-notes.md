@@ -718,3 +718,26 @@ The correct uncertainty for comparing two arms is **arm-to-arm reproducibility w
 
 Use ~2.3 counts for class-B comparisons. `.332`'s "slate ≈ ink" (2.1 counts apart) survives on this basis, but
 it was originally justified with the wrong number.
+
+## Compute discrimination power BEFORE choosing where to measure
+
+`.338` extended `.337`'s lesson from "check the predictions are separable" to "choose the measurement point that
+separates them best". Push every candidate form through the instrument across the available options and rank by
+observable separation over reproducibility:
+
+| finish | rho | prop+floor | chord | power law | separation |
+| --- | --- | --- | --- | --- | --- |
+| oat | 0.617 | 2.04 | 2.33 | 2.20 | 1.5σ |
+| stone-grey | 0.382 | 1.26 | 1.80 | 1.50 | 2.7σ |
+| **clay** | **0.296** | **0.98** | **1.60** | **1.22** | **3.7σ** |
+| olive | 0.188 | 0.90 | 1.35 | 0.85 | 3.5σ |
+
+Instinct said "add a point higher up the curve" (oat). That would have been the **weakest** available test. The
+discriminating region is where the candidates diverge, which here is where one model's floor engages — nowhere
+near the endpoints.
+
+**And the same calculation tells you when to STOP.** Once the chord was refuted, the two surviving forms
+differed by ≤0.24 GB — about 1.4σ per arm, needing ~3 class-B arms (~18 runs at a 6× (u) tax) — while agreeing
+closely enough that the choice is immaterial. So the curve is finished *to this instrument's power*. Stopping by
+calculation is better than stopping by exhaustion, and it is reportable: "further points cannot discriminate" is
+a result, not a gap.

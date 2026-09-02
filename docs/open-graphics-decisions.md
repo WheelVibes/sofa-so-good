@@ -3107,3 +3107,42 @@ spread on the lever's authority is ±10 % (`.336`), second-order against the 46 
 
 **(w)'s zero is closed on the raster side:** four finishes over a 28× reflectance range, raster ceiling 126.9
 and floor 102.5 for every one, with `wall-L` monotone at 144.6 / 104.3 / 67.5 / 22.6.
+
+### ✅ (w) DAYTIME IS FULLY SPECIFIED AND VALIDATED — v0.31.5.338
+
+**End-to-end validation, two finishes.** Applying the derived ground bounce in the raster and checking it
+reproduces the tracer's ceiling:
+
+| finish | GB applied | raster ceiling | target | error | floor | pillow |
+| --- | --- | --- | --- | --- | --- | --- |
+| ink `#2b3340` | 1.0 | 100.7 | 100.2 | 0.5 counts | unchanged | −0.5 % |
+| **stone-grey `#a8a6a1`** | **1.26** | **105.0** | **105.0** | **0.0 counts** | **unchanged** | −0.4 % |
+
+**The curve is finished to the instrument's power.** The chord model is refuted (2.7σ at stone-grey, with errors
+to 0.62 GB in mid-range). The two surviving forms — `max(0.9, 3.3·rho)` and a 0.8-power law — differ by at most
+**0.24 GB across the whole palette**, which is ~1.4σ per arm and would need ~18 runs to separate. They agree
+closely enough that the choice does not matter. **Further tracer targets for the curve would be unfalsifiable
+work.**
+
+**So the daytime half needs no more measurement.** What is known: the defect (~21 % on the ceiling, raster
+response exactly 0.0 across four finishes spanning 28× reflectance); the lever (hemisphere `groundColor`, not
+the fill as a whole — a uniform fill scale wrongly darkens the floor ~4 %); its authority (−37 % to −46 % across
+four rooms, ±10 % relative); the curve (proportional with a floor, four targets fit within 0.09 GB); and
+end-to-end validation at two finishes to ≤0.5 counts.
+
+**The change itself:**
+
+```
+photographicGroundBounce = max(0.9, 3.3 * meanWallReflectance)   // daytime only
+```
+
+**What is still open and needs YOUR call:**
+
+1. **Ship the daytime fix?** It is a look change to the default render of every scene — ceilings darken in
+   rooms with dark walls, by up to ~21 %. Correct, but a visible change to existing designs.
+2. **Clamp for usability?** A physically correct dark scheme may be too dark to design in. The floor of 0.9 is
+   a measured value, not a usability judgement.
+3. **Build the night mechanism?** 26–28 % on every surface (`.335`) and unreachable by this lever (2.4 %
+   authority, `.333`). Needs a lamp-bounce term — materially more work.
+4. **`meanWallReflectance` scope** — visible room or whole plan; and whether the non-photographic look (where
+   the term ships at ×1) needs its own calibration.
