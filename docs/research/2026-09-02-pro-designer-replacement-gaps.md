@@ -491,10 +491,16 @@ because it removes the assumption that the renderer is a trustworthy reference t
 lux model could be calibrated against.
 
 **Verified by me** at this worktree's base commit:
-`src/scene/pathtrace/hqRenderSession.ts:211` copies only lights flagged
-`isDirectionalLight`/`isPointLight`/`isSpotLight` into the path-traced snapshot —
-so `AmbientLight` and `HemisphereLight` are not carried over — and `:237`–`:238`
-construct a `GradientEquirectTexture` with a hardcoded `topColor 0xbfd4e6`.
+`src/scene/pathtrace/hqRenderSession.ts`'s `buildTracerScene` copies only lights
+flagged `isDirectionalLight`/`isPointLight`/`isSpotLight` into the path-traced
+snapshot — so `AmbientLight` and `HemisphereLight` are not carried over — and its
+fallback branch constructs a `GradientEquirectTexture` with a hardcoded
+`topColor 0xbfd4e6`.
+
+> **Cite these by symbol, not line.** dev-09's arc holds ~78 unpushed commits
+> touching this file (its `.253` alone adds ~110 lines), so the same code sits
+> ~100 lines lower in its tree than in `origin/staging`. Line citations here
+> would silently drift with no way for a reader to tell; symbol names survive.
 
 **Peer measurements, attributed to `dev-09` and not verified by me** (its
 unpushed worktree; direct pose-matched comparisons, no baseline arithmetic):
