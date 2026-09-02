@@ -5,6 +5,65 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.307 — `.305`'s discriminator answered: the ceiling IS in the merged geometry and the BVH IS built. And `.305`'s refutation of mis-shading was wrong
+
+`.306` could not answer `.305`'s question for want of an access path into the tracer's internals. Reading the
+library source supplied one, and the answer arrives with a correction to `.305` attached.
+
+**The access path.** `three-gpu-pathtracer@0.0.24`'s `WebGLPathTracer` keeps a `_generator`
+(`PathTracingSceneGenerator`) which merges every mesh into a single `geometry` and builds `bvh` from it. So the
+counts `.305` wanted are readable at `tracer._generator.geometry` — and the two rivals differ by an **exact**
+number, because 14 `PlaneGeometry` ceiling planes contribute exactly **56 vertices / 28 triangles**.
+
+**Result** (temporary instrumentation, added, observed, **reverted**, `src/` verified clean; room repainted
+`f5f5f0:141414;fafafa:141414`, normal grey environment, bedroom3 `PITCH=0.30`, medium tier, photographic look,
+hour 13, 256 samples; runs 17:24, 17:29, 17:34 +08):
+
+| run | frame L | class | merged geometry |
+| --- | --- | --- | --- |
+| `g307a` | 29.9 | B — correct | `positions=930573 index=984120 bvh=object` |
+| `g307b` | 30.1 | B — correct | `positions=930573 index=984120 bvh=object` |
+| `g307c` | **104.2** | **A — ceiling absent from trace** | `positions=930573 index=984120 bvh=object` |
+
+**Identical, to the integer.** So the ceiling's triangles **are** in the merged geometry and the BVH **is**
+built in a class-A run. `.305`'s "missing from the BVH" branch is **refuted**; the answer is
+**present-but-not-contributing**.
+
+**And `.305` got something wrong, which this forces me to correct.** `.305` claimed to have refuted mis-shading,
+reasoning that *"a ceiling shaded as emissive or as background would still occlude and still bounce"*, so the
+exact match with a hidden ceiling proved true absence. **That reasoning does not hold.** A surface that returns
+**exactly the environment's radiance** sends the walls precisely the light they would have received through a
+hole — the two are **radiometrically indistinguishable**. `.305`'s numbers stand; its inference from them does
+not. **Mis-shading is back in play, and was never excluded.**
+
+That also means `.305`'s statement should be weakened from *"renders as if the ceiling were not in the scene"*
+to the observation it actually supports: **the ceiling region and the room's bounce are indistinguishable from a
+scene with no ceiling.** Whether the ceiling is skipped or shaded-as-environment is exactly what remains open.
+
+**A refuted guess worth recording, because it is the natural one.** At the start of this round I expected an
+async BVH race — `setScene` returning a promise while the app calls it without `await`, then `session.start()`
+accumulating before the BVH exists. The source refutes it: `setScene` is **synchronous** unless `_buildAsync` is
+set, and `_buildAsync` is set only by `setSceneAsync`, which the app never calls. `generator.generate()` and
+`_updateFromResults` both run inline. **Reading forty lines killed the most plausible mechanism in this
+investigation before it cost a run.**
+
+**The next lead, specific and untested.** `PathTracingSceneGenerator.generate()` calls
+`updateMaterialIndexAttribute(geometry, materials, materials)` **conditionally**, on a
+`needsMaterialIndexUpdate` flag computed from `result.changeType` and a material-UUID comparison against
+`this._materialUuids`. A **conditional material-index update** is exactly the shape of fault that leaves some
+triangles pointing at the wrong material intermittently — and "shaded as the environment" is what a wrong
+material index could look like. Per `.302`'s rule, the rivals disagree observably: a material-index fault
+predicts the ceiling is shaded as *some specific other material in the scene*, whose value need not equal the
+environment's, whereas a skip predicts exactly the environment. The class-A ceiling reads **181.5** against the
+glazing's **168.8**, so those are already distinguishable in principle — the next step is to read the ceiling
+triangles' material index directly and compare it against the ceiling material's slot.
+
+**Status.** Eighteen mechanisms proposed and refuted (adding the async race), one of my own claims corrected,
+and (u) now localised to *within* `PathTracingSceneGenerator` with a named conditional to inspect. `.305`'s
+fix-verification criterion is unaffected and still the acceptance test.
+
+**Unchanged:** instrumentation reverted, `src/` verified clean. Probe unchanged.
+
 ## v0.31.5.306 — bisection complete on the app's side: the snapshot handed to `tracer.setScene` is identical in both classes, so the ceiling is lost inside the tracer library
 
 `.305` narrowed (u) to "the ceiling is in `root` and absent from the trace — dropped downstream of `root`". This

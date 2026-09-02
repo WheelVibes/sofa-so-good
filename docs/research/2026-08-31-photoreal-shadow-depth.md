@@ -10507,3 +10507,63 @@ Batching two PT runs in one shell call exceeded the 10-minute command timeout an
 One run per call. Added to `docs/hq-tracer-probe-notes.md`.
 
 Instrumentation reverted, `src/` verified clean.
+
+---
+
+## Round .307 — the ceiling IS in the merged geometry and the BVH IS built; and `.305`'s refutation of mis-shading was wrong
+
+`.306` could not answer `.305`'s question for want of an access path. Reading the library source supplied one.
+
+### The access path and the exact test
+
+`three-gpu-pathtracer@0.0.24`'s `WebGLPathTracer` keeps `_generator` (`PathTracingSceneGenerator`), which merges
+every mesh into one `geometry` and builds `bvh` from it. 14 `PlaneGeometry` ceiling planes contribute exactly
+**56 vertices / 28 triangles**, so the rivals differ by an exact number.
+
+| run | frame L | class | merged geometry |
+| --- | --- | --- | --- |
+| `g307a` (17:24 +08) | 29.9 | B — correct | `positions=930573 index=984120 bvh=object` |
+| `g307b` (17:29 +08) | 30.1 | B — correct | `positions=930573 index=984120 bvh=object` |
+| `g307c` (17:34 +08) | 104.2 | **A** | `positions=930573 index=984120 bvh=object` |
+
+Identical to the integer. **Present-but-not-contributing**; "missing from the BVH" is refuted.
+
+### Correction to .305
+
+`.305` claimed to have refuted mis-shading, reasoning that a ceiling shaded as emissive or background "would
+still occlude and still bounce". **That does not hold.** A surface returning *exactly the environment's
+radiance* sends the walls precisely the light they would receive through a hole — the two are **radiometrically
+indistinguishable**. `.305`'s numbers stand; its inference does not, and **mis-shading was never excluded**.
+
+`.305`'s statement weakens from "renders as if the ceiling were not in the scene" to what the data supports:
+*the ceiling region and the room's bounce are indistinguishable from a scene with no ceiling.* Whether the
+ceiling is skipped or shaded-as-environment is exactly what remains open.
+
+### A refuted guess, recorded because it is the natural one
+
+I expected an async BVH race — `setScene` returning a promise, called without `await`, with `session.start()`
+accumulating before the BVH exists. The source refutes it: `setScene` is **synchronous** unless `_buildAsync` is
+set, and that is set only by `setSceneAsync`, which the app never calls. `generator.generate()` and
+`_updateFromResults` run inline. Forty lines of reading killed the most plausible mechanism in this
+investigation before it cost a run.
+
+### Next lead, specific and untested
+
+`PathTracingSceneGenerator.generate()` calls `updateMaterialIndexAttribute(geometry, materials, materials)`
+**conditionally**, on `needsMaterialIndexUpdate` computed from `result.changeType` and a material-UUID
+comparison against `this._materialUuids`. A conditional material-index update is exactly the shape of fault that
+intermittently leaves triangles pointing at the wrong material, and "shaded as the environment" is what that
+could look like.
+
+Rivals disagree observably: a material-index fault predicts the ceiling is shaded as some *specific other scene
+material*, whose value need not equal the environment's; a skip predicts exactly the environment. Class A's
+ceiling reads 181.5 against the glazing's 168.8, so these are distinguishable in principle. Next step: read the
+ceiling triangles' material index and compare against the ceiling material's slot.
+
+### Status
+
+Eighteen mechanisms refuted (adding the async race), one of my own claims corrected, and (u) localised to
+*within* `PathTracingSceneGenerator` with a named conditional to inspect. `.305`'s fix-verification criterion is
+unaffected.
+
+Instrumentation reverted, `src/` verified clean.

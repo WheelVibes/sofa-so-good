@@ -2163,6 +2163,41 @@ needs an access path into this library version's internals.
 calls. Each session builds a fresh tracer so it should be empty on first use, but a cache inside the component
 now known to hold the fault is the first thing to inspect once the access path is found.
 
+**🔎 DISCRIMINATOR ANSWERED v0.31.5.307 — present-but-not-contributing.** The access path is
+`tracer._generator.geometry` (`PathTracingSceneGenerator` merges every mesh into one geometry and builds `bvh`
+from it). 14 `PlaneGeometry` ceiling planes contribute exactly 56 vertices, so the rivals differ by an exact
+number:
+
+| run | frame L | class | merged geometry |
+| --- | --- | --- | --- |
+| `g307a` | 29.9 | B — correct | `positions=930573 index=984120 bvh=object` |
+| `g307b` | 30.1 | B — correct | `positions=930573 index=984120 bvh=object` |
+| `g307c` | **104.2** | **A** | `positions=930573 index=984120 bvh=object` |
+
+**Identical to the integer.** The ceiling's triangles ARE in the merged geometry and the BVH IS built in a
+class-A run. "Missing from the BVH" is refuted.
+
+**⚠️ CORRECTION TO `.305`.** `.305` claimed to refute mis-shading because "a ceiling shaded as emissive or
+background would still occlude and still bounce". **That reasoning is wrong:** a surface returning *exactly the
+environment's radiance* sends the walls precisely what they would receive through a hole, so the two are
+**radiometrically indistinguishable**. `.305`'s numbers stand; its inference does not. **Mis-shading was never
+excluded.** `.305`'s statement is weakened to what the data supports: *the ceiling region and the room's bounce
+are indistinguishable from a scene with no ceiling.*
+
+**Refuted guess worth recording:** an async BVH race (`setScene` returning a promise, called without `await`,
+with `session.start()` accumulating before the BVH exists) is **impossible here** — `setScene` is synchronous
+unless `_buildAsync` is set, and that is set only by `setSceneAsync`, which the app never calls. Reading forty
+lines of library source killed the most plausible mechanism in this investigation before it cost a run.
+
+**Next lead, specific and untested:** `PathTracingSceneGenerator.generate()` calls
+`updateMaterialIndexAttribute(geometry, materials, materials)` **conditionally**, on `needsMaterialIndexUpdate`
+computed from `result.changeType` and a material-UUID comparison. A conditional material-index update is exactly
+the shape of fault that intermittently leaves triangles pointing at the wrong material, and "shaded as the
+environment" is what that could look like. The rivals disagree observably — a material-index fault predicts the
+ceiling is shaded as some *specific other scene material* (value need not match the environment), a skip
+predicts exactly the environment; class A's ceiling reads 181.5 against the glazing's 168.8. Next step: read the
+ceiling triangles' material index and compare against the ceiling material's slot.
+
 **Fixability without the last mechanistic step:** the requirement is already precise — the ceiling must render
 as a surface in every run.
 
