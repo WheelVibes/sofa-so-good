@@ -5,6 +5,62 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.274 — CORRECTION: `.273`'s floor A/B was not void; I read the wrong frame
+
+`.273` reported the floor-finish A/B as void, concluding the store took the finish but "the render did not".
+**That is wrong.** The probe captures two frames — the eye-level pose and a pitched-down one, the latter
+existing precisely so the floor is visible. `.273` read the eye-level frame, where the living/dining floor is
+almost entirely occluded by the sofa, rug, coffee table and sideboard.
+
+**The pitched-down frames differ unmistakably:** pale grey-lilac tiles under `floor-tile-white`, dark brown
+planks under `floor-wood-ebony`. The finish reached the renderer.
+
+**That refines the arc's first method rule.** *Always look at the crop* is necessary and not sufficient — it
+has to be **the crop where the effect would show**. `.273` looked, saw no difference, and drew a confident
+conclusion from a frame in which the changed surface was hidden. Seven earlier rounds were saved by looking;
+this one was misled by looking at the wrong thing.
+
+**`.273`'s other finding stands, unaffected.** The albedo census reads `material.color`, and the floor mesh is
+`color: #ffffff, map: true` under **every** finish — so the census is genuinely texture-blind. That was
+established from material inspection, not from the frame, and is independent of the error above.
+
+**A second census flaw, now quantified.** New `FLOOREXPOSED=1` casts 3600 rays straight down over the room
+rect and tallies the first hit:
+
+| surface | share of the floor plane |
+| --- | --- |
+| **floor** (`PlaneGeometry#ffffff`) | **56.0 %** |
+| sofa | 8.0 % |
+| rug | 7.4 % |
+| furniture (four wood tones) | ~15 % |
+
+So the floor is **56 % exposed**, and an albedo census must weight it accordingly: 38.6 m² × 0.56 = **21.6 m²
+effective, 4.6 % of the room's 467 m²**, not the 8.3 % `.271` used. That is a *second* correction to the
+census, distinct from the texture-blindness, and it pushes the same way — `.271` over-weighted the floor
+twice over.
+
+**And it disproved my own first explanation.** On seeing the traced null I guessed the floor must be almost
+entirely covered. It is not: 56 % is exposed. That guess was wrong within a minute of being made, which is
+why it was measured rather than published.
+
+**What remains genuinely unresolved.** Why the traced ceiling barely moved between a white-tile and an ebony
+floor (L 158.7/161.0/159.2 against 159.2/160.8/158.8, baseline 158.9/161.4/160.5) is **not established**.
+Attempts to sample a bare-floor strip in the stills landed on a wall and a sideboard instead — a third crop
+error in this pair of rounds. Rather than offer a third hypothesis, it is left open and labelled as such.
+
+**Where item (s) stands.** The albedo model's census needs **two** corrections before its scalars mean
+anything:
+
+1. **swatch-based albedo** (`.273`) — read the catalogue's `swatch`, not `material.color`;
+2. **exposure weighting** (`.274`) — weight each surface by its unoccluded fraction, for which
+   `FLOOREXPOSED` now gives a method.
+
+Neither overturns `.271`/`.272`'s luminance result, which is a *ratio* between arms and so largely cancels
+both errors. Both mean the published scalars are approximate.
+
+Probe: `FLOOREXPOSED=1`, a world-space exposure census. `npm test` 9437 passed, `tsc` clean, `biome` clean.
+Nothing changed in `src/` beyond the version bump. Runs 08:58–09:04 local.
+
 ## v0.31.5.273 — the floor A/B is void, and diagnosing it found the albedo census is texture-blind
 
 `.272` validated the luminance half of the albedo fill at two points, but both **lowered** room albedo

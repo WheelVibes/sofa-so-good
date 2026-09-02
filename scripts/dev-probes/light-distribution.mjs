@@ -920,6 +920,56 @@ const applyLinear = !LINEAR
       if (res.error) throw new Error(`LINEAR: ${res.error}`)
       await new Promise((r) => setTimeout(r, 900))
     }
+// FLOOREXPOSED=1 measures what fraction of the room's FLOOR PLANE is actually
+// exposed, by casting rays straight down on a world grid and tallying the first
+// hit (`.274`).
+//
+// `.273` reported the floor-finish A/B as void because the store took the finish
+// but "the render did not". That was WRONG -- read from the eye-level frame, where
+// the living/dining floor is almost entirely occluded. The pitched-down frame the
+// probe also captures shows the finish plainly (pale tiles vs dark planks). The
+// traced null is real, and its cause is occlusion: a rug and furniture cover most
+// of the floor, so a floor finish changes very little of the room's reflecting
+// surface. Which means an albedo census must weight by EXPOSED area, not total
+// area -- a second flaw distinct from `.273`'s texture-blindness, pushing the same
+// way.
+if (process.env.FLOOREXPOSED === '1') {
+  const res = await page.evaluate(() => {
+    const { scene } = window.__three
+    const rc = new window.__three.raycaster.constructor()
+    const V = window.__three.camera.position.constructor
+    const solid = (o) => o.visible && o.material?.colorWrite !== false && o.material?.opacity !== 0
+    const sig = (o) => {
+      const m = Array.isArray(o.material) ? o.material[0] : o.material
+      return `${o.geometry?.type ?? '?'}#${m?.color?.getHexString?.() ?? '------'}`
+    }
+    const rm = window.__store.getState().floorPlan?.rooms?.find((r) => r.id === 'livingDining')
+    if (!rm) return { error: 'no livingDining room' }
+    const N = 60
+    const tally = {}
+    let n = 0
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const x = rm.origin[0] + ((i + 0.5) / N) * rm.width
+        const z = rm.origin[1] + ((j + 0.5) / N) * rm.depth
+        rc.set(new V(x, 2.55, z), new V(0, -1, 0))
+        const h = rc.intersectObjects(scene.children, true).find((k) => solid(k.object) && k.face)
+        const key = h ? sig(h.object) : '(nothing)'
+        tally[key] = (tally[key] || 0) + 1
+        n++
+      }
+    }
+    return {
+      n,
+      top: Object.entries(tally)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([k, v]) => `${k} ${((100 * v) / n).toFixed(1)}%`),
+    }
+  })
+  if (res.error) throw new Error(`FLOOREXPOSED: ${res.error}`)
+  console.log(`FLOOREXPOSED (${res.n} downward rays over the room rect): ${res.top.join(' | ')}`)
+}
 if (ALBEDO) {
   const a = await page.evaluate(() => {
     const V = window.__three.camera.position.constructor

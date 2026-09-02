@@ -1716,10 +1716,22 @@ every material (`floor-wood-oak` `#b88f5d`, `floor-tile-white` `#e6e3dc`, `floor
 rather than `material.color`. More accurate than reading colours off materials, and cheaper than averaging
 texture maps.
 
-**Still untested: the brightening direction.** Both validated points *lowered* ρ. Since ρ/(1−ρ) rises steeply
-as ρ → 1, a lighter room may over-predict badly. A floor-finish A/B was attempted in `.273` and came back
-**void** — the store took the finish but the renderer did not, verified by identical frames and identical
-traced values.
+**A SECOND census flaw — exposure weighting (v0.31.5.274).** `FLOOREXPOSED=1` casts 3600 rays straight down
+over the room rect: the floor is **56.0 %** exposed, with the sofa 8.0 %, the rug 7.4 % and furniture ~15 %
+covering the rest. So the floor's contribution must be weighted: 38.6 m² × 0.56 = **21.6 m² effective, 4.6 %
+of the room's 467 m²**, not the 8.3 % used. This pushes the same way as the texture-blindness — `.271`
+over-weighted the floor twice over.
+
+**So the census needs two fixes before its scalars mean anything:** swatch-based albedo (`.273`) and
+exposure weighting (`.274`). Neither overturns the luminance *ratio* result, which largely cancels both.
+
+**Still untested: the brightening direction.** Both validated points *lowered* ρ, and ρ/(1−ρ) rises steeply
+as ρ → 1, so a lighter room is where the model might over-predict badly.
+
+*Correction:* `.273` reported a floor-finish A/B as void, claiming the render never got the finish. **That was
+wrong** — `.274` found the pitched-down frames differ unmistakably (pale tiles vs dark planks); `.273` had
+read the eye-level frame, where the floor is almost entirely occluded. Why the *traced ceiling* barely moved
+across that swap is still **unexplained**.
 
 ### Revised proposal — luminance only
 

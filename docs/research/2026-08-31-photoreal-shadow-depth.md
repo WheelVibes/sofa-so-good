@@ -8120,3 +8120,88 @@ the renderer first, which is its own small problem to solve.
 Item **(s)** carries the census flaw, the corrected figures, and the `swatch` recommendation.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.274` — CORRECTION: `.273`'s floor A/B was not void; I read the wrong frame
+
+`.273` reported the floor-finish A/B as void, concluding that the store took the finish but the render did
+not. **That is wrong**, and this round is the correction.
+
+Runs 08:58–09:04 local (2026-09-02).
+
+### The error
+
+The probe captures **two** frames per run: the eye-level pose, and a pitched-down one (`FLOOR_PITCH −0.55`)
+that exists precisely so the floor fills the lower frame instead of the furniture standing on it.
+
+`.273` read the **eye-level** frame, in which the living/dining floor is almost entirely occluded by the sofa,
+rug, coffee table and sideboard, saw no difference, and concluded the intervention had failed.
+
+The **pitched-down** frames differ unmistakably: pale grey-lilac tiles under `floor-tile-white`, dark brown
+planks under `floor-wood-ebony`. The finish reached the renderer all along.
+
+### The method refinement
+
+*Always look at the crop* is necessary and **not sufficient**. It has to be **the crop where the effect would
+show**.
+
+| round | looking did what |
+| --- | --- |
+| `.233`, `.236`, `.243`, `.246`, `.252`, `.260`, `.264` | caught a contaminated or impossible number |
+| `.265` | was the **only** instrument that worked |
+| **`.273`** | **misled**, because the crop chosen could not show the effect |
+
+The failure mode is subtle precisely because the discipline was followed: a frame was inspected, a difference
+was genuinely absent from it, and the conclusion followed. What was missing was asking *would this crop show
+the change if it had happened?* — the same question `.266` had to ask about a metric's sensitivity, arriving
+here about a crop's.
+
+### `.273`'s other finding stands
+
+The albedo census reads `material.color`, and the living/dining floor mesh is `color: #ffffff, map: true`
+under **every** finish. That was established by inspecting materials, not frames, so it is untouched by the
+error above. The census is genuinely texture-blind.
+
+### A second census flaw, now quantified
+
+New `FLOOREXPOSED=1` casts 3600 rays straight down over the room rect and tallies the first hit:
+
+| surface | share of the floor plane |
+| --- | --- |
+| **floor** (`PlaneGeometry#ffffff`) | **56.0 %** |
+| sofa (`ExtrudeGeometry#8aa1a8`) | 8.0 % |
+| rug (`BoxGeometry#9c8f7a`) | 7.4 % |
+| furniture, four wood tones | ~15 % |
+
+So the floor is **56 % exposed**. An albedo census must weight by exposure: 38.6 m² × 0.56 = **21.6 m²
+effective, 4.6 %** of the room's 467 m², against the 8.3 % `.271` used. This is a *second* correction, distinct
+from the texture-blindness, and it pushes the same way — `.271` over-weighted the floor twice over.
+
+It also **disproved my own first explanation**. On seeing the traced null I guessed the floor must be almost
+entirely covered; it is not, 56 % is exposed. That guess was wrong within a minute of being formed, which is
+why it was measured instead of written up.
+
+### What remains genuinely unresolved
+
+Why the traced ceiling barely moved across a white-tile → ebony floor swap
+(L 158.7 / 161.0 / 159.2 against 159.2 / 160.8 / 158.8, baseline 158.9 / 161.4 / 160.5) is **not
+established**. Attempts to sample a bare-floor strip in the traced stills landed on a wall and a sideboard —
+a third crop error in this pair of rounds, caught by looking at the crop rather than trusting its numbers.
+
+Rather than offer a third hypothesis, it is left open and labelled. Two candidate explanations remain
+untested: that the tracer snapshot did not pick up the swapped floor material, or that the floor is a weak
+bounce source in this room for reasons other than occlusion.
+
+### Where item (s) stands
+
+The albedo model's census needs **two** corrections before its scalars mean anything:
+
+1. **swatch-based albedo** (`.273`) — read the finish catalogue's `swatch`, not `material.color`;
+2. **exposure weighting** (`.274`) — weight each surface by its unoccluded fraction, for which
+   `FLOOREXPOSED` now provides a method.
+
+Neither overturns `.271`/`.272`'s luminance result, which is a **ratio** between two arms and so largely
+cancels both errors. Both mean the published scalars are approximate rather than final.
+
+Nothing changed in `src/` beyond the version bump.
