@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.0 — PR to staging: the graphics-realism measurement arc, rounds .249-.349
+
+Patch bump for the PR into `staging`, per the repo's versioning rule — 103 commits, almost entirely
+measurement, documentation and probe tooling.
+
+**One product change lands**, from `.253`: `pbrStandInFor` in `src/scene/pathtrace/hqRenderSession.ts` (+110,
+with +53 of tests). `buildTracerScene` copies the live scene for the path tracer, but three's legacy lit
+materials (`MeshLambertMaterial`, `MeshPhongMaterial`) are not PBR, so the tracer rendered them flat. This
+substitutes an equivalent `MeshStandardMaterial` stand-in — preserving colour, maps, alpha, emissive and side —
+so legacy-lit surfaces are traced as PBR. Note `.304` later tested whether this substitution *caused* item (u)
+and cleared it: the swap is unrelated to the non-determinism, and removing it changed nothing about (u).
+
+Everything else in the diff is `CHANGELOG.md`, `docs/`, `scripts/dev-probes/`, `src/scene/CLAUDE.md` and the
+version line.
+
+What lands:
+
+- **(p) HQ-FILL-RIG quantified at source.** The path tracer's environment is two hardcoded constants and is
+  **hour-blind** — ~31 % too dark at 13:00 and **~77× too bright** at 21:00, against the app's own sky, which
+  varies 111× across the day. A faithful, hour-aware equirect is already present in the scene
+  (`scene.background`, a CPU-readable CanvasTexture) and the tracer never consults it; converting it fixes the
+  structural defect, not just the level. Priced, validated, **not shipped**.
+- **(w) RASTER-INTERREFLECTION — a new item, in the DEFAULT render path.** The real-time render has **no
+  interreflection term at all**: repainting a room's walls across a 28× reflectance range moves the ceiling and
+  floor by *exactly zero*, at five finishes and two rooms. Daytime fix specified end-to-end (the hemisphere's
+  `groundColor`, five-point measured table); the depth is room-dependent by 2.3× and the night half (26–28 % on
+  every surface) needs a different mechanism.
+- **(u) HQ-TRACE-NONDETERMINISM re-characterised.** Not two classes but a **continuum**: a corner-anchored
+  region of variable extent, with only a small minority of stills rendering the ceiling correctly throughout.
+  Rate measured (p(A) ≈ 0.63), arms shown independent, ~26 candidate causes eliminated, cause still open.
+- **Probe tooling**: `patch-read.mjs` (marked overlays on every run), and `light-distribution.mjs` knobs
+  `ENVDUMP`, `FILLSCALE`, `FLOORDYE`, `DYEEXCEPT`, `ROOMDIMS`, `ROOMH`, `PTWANT`, `PTCENSUS`, `PTGRID`.
+- **Method rules** in `docs/hq-tracer-probe-notes.md`, several of them earned by retracting my own published
+  figures — exact equality is a no-op signature; pre-register predictions in the space you measure; a zero is
+  uninterpretable without a reference; verify the intervention landed separately from measuring its effect.
+
+Items (l), (m), (p), (q), (r), (s), (u), (w) remain open and await a product/content call; none was decided
+unilaterally.
+
 ## v0.31.5.349 — the extent DISTRIBUTION is room-dependent even though the rate is not; and no bedroom3 arm is fully clean (partial census)
 
 A 12×5 grid (60 cells, 2.5× `.348`'s resolution) at **bedroom3 `PITCH=0.30`** — a different room, pose and rect
