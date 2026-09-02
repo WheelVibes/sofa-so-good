@@ -154,6 +154,25 @@ them match.
 Fifteen mechanisms have been proposed and refuted in this arc. This was the first refuted with its predictions
 intact.
 
+## Chroma cannot be anchored to photographs — three attempts, one reason
+
+Chroma is the arc's best **internal** instrument and its worst **photographic** one. Three separate attempts to
+anchor it to reference photographs have failed:
+
+| attempt | round | why |
+| --- | --- | --- |
+| ceiling − wall Δ R−B | `.292`, `.315` | straddles zero, tracks **floor colour**; 16.4-count band on n = 3 |
+| absolute interior R−B | `.314` | not white-balance invariant across sources (`.267`) |
+| same-surface gradient from the aperture | `.317` | 47-count spread, **sign flips** with what is outside the window |
+
+**The reason is the same each time: chroma is set by the exterior environment and the room's own materials.**
+`At_La_Palma`'s sunlit balcony bounces warm light onto the ceiling *nearest* its window (+31.2, the warmest
+patch in the reference set); `Vogtsbauernhof`'s window sees cool sky, so its near ceiling is cool (+2.4) and its
+far ceiling is warmed by timber floor and furniture (+26.4). Both are correct rooms; they simply disagree.
+
+**Do not try a fourth variant.** Use chroma against the **raster** (same room, pipeline and white balance) and
+use luminance ratios — with their insensitivity and pose-dependence stated — for photographic comparison.
+
 ## Prefer CHROMA over the luminance ratio
 
 Two rounds measured the arc's two candidate metrics on the axes that matter:

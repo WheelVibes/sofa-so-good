@@ -11079,3 +11079,69 @@ boots, `.315`), **(p) now has a metric, a reference and an acceptance test all b
 this arc was built on.**
 
 No `src/` change, no probe change.
+
+---
+
+## Round .317 — the same-surface chroma gradient fails too, and that retires the chroma-anchoring line: chroma is set by what is outside the window
+
+`.316` left a split: the luminance ratio is photographically anchorable but insensitive (`.313`) and
+pose-dependent (`.232`); chroma is sensitive and pose-robust but its absolute value cannot cross to a photograph
+(`.315`). This round tries for both properties at once, and fails usefully.
+
+### The idea, which is the right shape
+
+A **same-surface chroma gradient with distance from the aperture** — two patches on the *same* ceiling, near the
+window and far from it. **Within-frame** (WB-invariant), **albedo-controlled** (one paint),
+**aperture-referenced**, **sensitive by construction** (window light must fall off across a ceiling; a uniform
+environment must not), and framing-invariant — what thread 1 asks for.
+
+### All three references support it and disagree wildly
+
+Patch pairs marked and looked at first; plaster sds 1.8–7.3:
+
+| reference | near-window ceiling | far ceiling | far − near |
+| --- | --- | --- | --- |
+| `At_La_Palma` — warm balcony outside | **+31.2** | +8.1 | **−23.1** |
+| `Home_Staging_Beispiel` | +3.4 | +7.7 | **+4.3** |
+| `Vogtsbauernhof` — cool sky outside | +2.4 | **+26.4** | **+24.0** |
+
+**47-count spread, sign flips.** Dead as a photographic anchor. The app was not measured against it — a
+reference spread straddling zero by ±24 counts is not something a render can be inside or outside of.
+
+### The reason, which is what makes this generalise
+
+The sign is set by **what is immediately outside and beside the aperture**, not by interior transport.
+`At_La_Palma`'s sunlit balcony bounces warm light onto its *nearest* ceiling (+31.2 — the warmest patch in the
+whole reference set). `Vogtsbauernhof`'s window sees cool sky, so its near ceiling is cool and its far ceiling is
+warmed by timber floor and furniture. `Home_Staging` sits between. All three are correct rooms; they disagree
+because their exteriors differ.
+
+### The line is retired
+
+| attempt | round | why it failed |
+| --- | --- | --- |
+| ceiling − wall Δ R−B | `.292`, `.315` | straddles zero, tracks floor colour; 16.4-count band on n = 3 |
+| absolute interior R−B | `.314` | not WB-invariant across sources (`.267`) |
+| same-surface gradient from the aperture | `.317` | 47-count spread, sign flips with the exterior |
+
+**Chroma is dominated by the exterior environment and the room's own materials** — both differ between any two
+real rooms. That is what chroma *is*, not a defect of crops or n. Luminance ratios anchor but are insensitive and
+pose-dependent. **The arc cannot get both properties from either family**, and recording that should prevent a
+fourth attempt.
+
+### What survives
+
+- **Chroma remains the best internal instrument** — sensitive to (p) and (u), pose-robust to 0.9 counts
+  (`.316`), with the raster as a pose-matched, pipeline-identical reference reproducible to 0.1 counts (`.315`).
+  `.314`'s acceptance test for (p) is untouched.
+- **Thread 1's framing-invariant metric requirement is already met** by the world-anchored `ANCHORS=1` sampler
+  (`.285`). This round confirms the *photographic* half of thread 1 is the harder half, and that it is limited
+  by the references' variety rather than by the app.
+
+### Method note
+
+A negative **with a mechanism** — "the sign follows what is outside the window" — is worth more than one
+without, because it generalises. **Record a failed metric with the reason it failed, or the next round
+re-invents it.**
+
+No `src/` change, no probe change.
