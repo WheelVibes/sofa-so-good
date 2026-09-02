@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.249 — the plan sheets draw the footprint collision already knows
+
+A round dining table was drawn as a square. `ui/drawingSet.ts`, `ui/report.ts` and
+`ui/openPlanSvg.ts` each carried the same inline copy of `obbCorners(itemFootprint(it, def))` —
+the **single enclosing OBB** — while `collision/placement.ts` has offered `itemFootprintParts`
+(the convex decomposition, documented as such at line 126) all along, and collision, placement
+and the clearance checks all use it. So the app measured circulation against an item's real
+shape and then handed the drawing a rectangle covering bbox corners the item never occupies.
+`furniture/footprintShapes.ts` exists precisely to open those corners up, and
+`ui/reportPlanSvg.ts` already accepted arbitrary corner polygons and rendered them via
+`<polygon>` — the renderer was capable the whole time; only the value passed to it was coarse.
+
+Fixed by consolidating the three copies into one shared `ui/planFootprints.ts` that resolves via
+`itemFootprintParts` and emits one polygon per part. Defs without a decomposition are bit-identical
+to before: `itemFootprintParts` returns `[itemFootprint(...)]`, so their polygon is unchanged —
+which is why 282 existing collision/drawing tests stay green. Round and oval tables and L-shaped
+seating now read as their real shape on the floor plan sheet, the report diagram and the plan SVG
+export at once, and the plan no longer disagrees with the accessibility check about how much room
+is left to walk in.
+
+Follows the same consolidation `furniture/footprintDims.ts` did for six inline footprint copies.
++8 unit tests (`ui/planFootprints.test.ts`), including that a no-parts def keeps its exact previous
+corners and that a decomposed def leaves the unoccupied corner free.
+
+Not changed, deliberately: `elevation/projectElevation.ts`, `ui/elevation/sectionFigure.ts` and
+`scene/TapeMeasure.tsx` still take the single OBB. The first two project a silhouette where the
+union extent is what matters, and the third derives snap candidates — a behaviour change to an
+interaction, out of scope here. Recorded in
+`docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G11).
+
 ## v0.31.5.247 — the wall-falloff deviation is framing-dependent, and is withdrawn
 
 Pursuing `.246`'s next step — render the traced still at the viewport aspect so both pictures share

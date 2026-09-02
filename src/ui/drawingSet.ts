@@ -14,8 +14,6 @@ import {
   openingRoomsLabel,
   openingStyleMaterialLabel,
 } from '../analysis/openingSchedule'
-import { obbCorners } from '../collision/obb'
-import { itemFootprint } from '../collision/placement'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
 import { customMetaColumns } from '../export/ffeCsv'
@@ -52,7 +50,6 @@ import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
-import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux } from '../lighting2d/roomLux'
@@ -70,6 +67,7 @@ import {
   lightingPlanSvg,
   roomLuxTableHtml,
 } from './lighting2d/lightingPlanSvg'
+import { planFootprints } from './planFootprints'
 import { sgd } from './report/reportShared'
 import { reportPlanSvg } from './reportPlanSvg'
 
@@ -400,14 +398,7 @@ export function buildDrawingSheets(
   const cap = (base: string, level: PlanLevel) => (multi ? `${base} — ${level.name}` : base)
 
   // A-1 · Floor plan (furnished footprints under the walls, like the report).
-  const footprintsOf = (list: FurnitureItem[]) =>
-    list
-      .map((it) => {
-        const def = catalog[it.defId]
-        if (!def?.defaultFootprint) return null
-        return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
-      })
-      .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
+  const footprintsOf = (list: FurnitureItem[]) => planFootprints(list, catalog)
   // Tile setting-out crosses (G3) only make sense alongside the finishes
   // they refer to — a note pointing at "the floor finish" with no finishes
   // sheet on the set would be a dangling reference.

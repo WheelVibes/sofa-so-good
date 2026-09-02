@@ -1580,6 +1580,16 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
+- **Top-down furniture footprints for every plan renderer** come from the pure
+  `ui/planFootprints.ts` `planFootprints(items, catalog)` — the ONE resolver shared by
+  `drawingSet.ts`'s floor-plan sheet, `report.ts`'s plan diagram and `openPlanSvg.ts`'s export
+  (formerly three identical inline copies). It resolves via `collision/placement.ts`
+  `itemFootprintParts` (the shape-aware convex decomposition collision/clearance already use),
+  NOT the single enclosing `itemFootprint` OBB, and emits one polygon per part — so a round/oval
+  table or L-shaped sectional draws as its real shape instead of a rectangle claiming bbox corners
+  it never occupies, and the plan agrees with the accessibility check about free circulation. A def
+  with no `footprintParts` is unchanged (`itemFootprintParts` returns `[itemFootprint(...)]`).
+  Malformed defs (missing from the catalog / no `defaultFootprint`) are skipped, never thrown on.
 - **Sweet Home 3D import** (`importSh3d` flag, pro; PARITY-SH3D): pure parser core
   `floorplan/import/sh3d.ts` `parseSh3d(bytes)` unzips a `.sh3d` (fflate `unzipSync`), reads
   `Home.xml` (DOMParser), and maps it into our plan model — cm→m (÷100), origin-anchored bbox,

@@ -27,8 +27,7 @@ import { buildSuggestions } from '../analysis/suggestions'
 import { buildThermalReport, thermalKindLabel } from '../analysis/thermalAnalysis'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
-import { obbCorners } from '../collision/obb'
-import { findItemOverlaps, itemFootprint } from '../collision/placement'
+import { findItemOverlaps } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { isFeatureEnabled } from '../features/featureFlags'
@@ -65,6 +64,7 @@ import { elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
 import { finishScheduleHtml } from './finishScheduleHtml'
 import { lightingPlanSvg, roomLuxTableHtml } from './lighting2d/lightingPlanSvg'
+import { planFootprints } from './planFootprints'
 import {
   CAT_LABEL,
   ELEV_PRINT,
@@ -286,15 +286,8 @@ export function buildReportHtml(
 
   // Furniture footprints (top-down OBB corners) for the plan diagram, so the
   // report's floor plan shows a furnished layout — "where everything goes".
-  const footprintsOf = (list: FurnitureItem[]) =>
-    list
-      .map((it) => {
-        const def = catalog[it.defId]
-        // Guard defaultFootprint: a malformed def shouldn't crash the whole report.
-        if (!def?.defaultFootprint) return null
-        return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
-      })
-      .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
+  // Shape-aware parts, guarding malformed defs (see `planFootprints`).
+  const footprintsOf = (list: FurnitureItem[]) => planFootprints(list, catalog)
   // One captioned diagram per storey on multi-level plans (items filtered to
   // their storey; pinned annotations are ground-floor world coords).
   const planFigures = multi

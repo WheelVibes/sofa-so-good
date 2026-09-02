@@ -478,3 +478,13 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   drive a *virtual* active option via their own keydown handler, so a generic trap there would
   fight that pattern; add trapping consumer-side (as `ToolbarMenu` and `upload/ConfirmDialog`
   do) when a specific `Popover` payload is real Tab-navigable content.
+- **Top-down furniture footprints on a plan come from `planFootprints.ts`, never a local
+  `obbCorners(itemFootprint(...))`.** That inline form returns the single enclosing OBB, so a
+  round table draws square and the sheet claims corner area the item does not occupy — while
+  collision, placement and the clearance checks all measure against the shape-aware
+  `itemFootprintParts`. The shared resolver emits one polygon per part and is consumed by the
+  drawing-set floor plan, the report plan diagram and the plan SVG export; add new plan surfaces
+  to it rather than re-deriving corners (this was three identical copies before). Defs without a
+  decomposition are unaffected. `elevation/projectElevation.ts`, `elevation/sectionFigure.ts` and
+  `scene/TapeMeasure.tsx` legitimately keep the single OBB — the first two project a silhouette
+  where only the union extent matters, the third derives snap candidates.
