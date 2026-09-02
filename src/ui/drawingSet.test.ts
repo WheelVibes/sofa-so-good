@@ -221,6 +221,28 @@ describe('buildDrawingSetHtml', () => {
     useStore.getState().setUiMode('pro')
   })
 
+  it('emits an As-built reconciliation sheet and flags what exceeds tolerance', () => {
+    useStore.getState().setUiMode('pro')
+    const wall = plan.walls[0]!
+    const measured = {
+      ...plan,
+      siteMeasurements: [
+        { id: 'sm1', kind: 'wall' as const, targetId: wall.id, measuredMm: 999999 },
+      ],
+    }
+    const html = buildDrawingSetHtml(measured as typeof plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('As-built reconciliation')
+    expect(html).toContain('EXCEEDS')
+    // The scope note keeps it honest about the tolerance's provenance.
+    expect(html).toContain('cites no standard clause')
+  })
+
+  it('omits the reconciliation sheet when nothing was measured', () => {
+    useStore.getState().setUiMode('pro')
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).not.toContain('As-built reconciliation')
+  })
+
   it('states the dimension unit once in every title block (G10)', () => {
     // Dimension labels are suffix-free integer mm, so the sheet must say so —
     // the standard convention, and the thing that makes "2745" unambiguous.

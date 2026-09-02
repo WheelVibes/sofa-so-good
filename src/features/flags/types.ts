@@ -16,6 +16,7 @@ export type FeatureFlag =
   | 'specification'
   | 'constructionDetails'
   | 'schemeOptions'
+  | 'siteMeasurements'
   | 'versions'
   | 'history'
   | 'shareExport'

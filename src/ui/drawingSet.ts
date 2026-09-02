@@ -56,6 +56,7 @@ import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import { settingOutDimensions } from '../floorplan/settingOut'
+import { buildMeasurementReconciliation } from '../floorplan/siteMeasurements'
 import { planTileCoursing } from '../floorplan/tileCoursing'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
@@ -407,6 +408,51 @@ function detailSheetBody(plan: FloorPlan, units: UnitSystem): string {
     Skirting, cornice, shower-kerb, worktop-edge and architrave details are NOT included: the model
     stores trim heights but no profiles or specified projections, so drawing them would mean
     inventing dimensions. Detail those separately with your contractor.</div>`
+  )
+}
+
+/**
+ * As-built reconciliation sheet — what was measured on site against what the
+ * drawings show. Absent measurements yield no sheet, but the SET's cover-level
+ * honesty matters: a package with no reconciliation is unverified, and the
+ * sheet says so when it exists rather than implying agreement when it does not.
+ */
+function reconciliationSheetBody(plan: FloorPlan, units: UnitSystem): string {
+  const r = buildMeasurementReconciliation(plan, plan.siteMeasurements ?? [])
+  if (r.rows.length === 0) return ''
+  const mm = (v: number) => esc(formatDrawingLength(v / 1000, units))
+  const rows = r.rows
+    .map(
+      (row) =>
+        `<tr><td>${esc(row.targetLabel)}</td>` +
+        `<td class="n">${row.modelMm === null ? '—' : mm(row.modelMm)}</td>` +
+        `<td class="n">${mm(row.measuredMm)}</td>` +
+        `<td class="n">${
+          row.deviationMm === null ? '—' : `${row.deviationMm > 0 ? '+' : ''}${row.deviationMm}`
+        }</td>` +
+        `<td class="n">±${row.toleranceMm}</td>` +
+        `<td>${
+          row.verdict === 'within'
+            ? 'within'
+            : row.verdict === 'exceeds'
+              ? '⚠ EXCEEDS'
+              : '⚠ target deleted'
+        }</td>` +
+        `<td>${esc(row.note ?? '')}</td></tr>`,
+    )
+    .join('')
+  const verdict =
+    r.exceedsCount > 0
+      ? `<div class="warn">${r.exceedsCount} measurement${r.exceedsCount === 1 ? '' : 's'} exceed tolerance — worst ${r.worstDeviationMm} mm. Resolve against the model before building from these drawings.</div>`
+      : `<div class="ok">All ${r.rows.length} recorded measurement${r.rows.length === 1 ? '' : 's'} agree with the model within tolerance.</div>`
+  const unresolved =
+    r.unresolvedCount > 0
+      ? `<div class="note">${r.unresolvedCount} measurement${r.unresolvedCount === 1 ? '' : 's'} reference a wall, opening or room no longer in the plan — kept rather than discarded, since a measurement taken on site should never vanish silently.</div>`
+      : ''
+  return (
+    `<h3>As-built reconciliation</h3>${verdict}` +
+    `<table class="sched"><tr class="h"><td>Dimension</td><td class="n">Drawn</td><td class="n">Measured</td><td class="n">Deviation</td><td class="n">Tol.</td><td>Verdict</td><td>Note</td></tr>${rows}</table>` +
+    `${unresolved}<div class="note">${esc(r.scopeNote)}</div>`
   )
 }
 
@@ -1045,6 +1091,20 @@ export function buildDrawingSheets(
         name: 'Construction details',
         body: detailBody,
         calloutGroup: 'finishes',
+        scaleLabel: NTS,
+      })
+    }
+  }
+
+  // As-built reconciliation — measured vs drawn. Rides the `siteMeasurements`
+  // flag; no recorded measurements ⇒ no sheet.
+  if (isFeatureEnabled('siteMeasurements')) {
+    const reconBody = reconciliationSheetBody(plan, units)
+    if (reconBody) {
+      sheets.push({
+        name: 'As-built reconciliation',
+        body: reconBody,
+        calloutGroup: 'dimensions',
         scaleLabel: NTS,
       })
     }

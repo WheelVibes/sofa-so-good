@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.270 - verified to scale, not just drawn to scale
+
+The last unshipped item from the original gap analysis, and the one that underpins the rest. Every
+drawing this app produces is derived from the MODEL — but a real home is not the template: an HDB
+flat as built differs from its plan, and a traced backdrop is only as accurate as the trace. So the
+whole contractor package rested on an assumption nothing checked, that the model matches the actual
+flat.
+
+New pure `floorplan/siteMeasurements.ts` closes it. A user records what they measured on site with a
+tape (`plan.siteMeasurements`, additive/optional, schema round-tripped) and
+`buildMeasurementReconciliation` reports the deviation against the modelled dimension — walls,
+opening widths, room width/depth — flagged against a tolerance. Surfaced as an "As-built
+reconciliation" sheet (`siteMeasurements` flag, pro) that states plainly whether the drawings can be
+built from as-is: either "all N recorded measurements agree with the model within tolerance" or "N
+exceed tolerance - worst X mm. Resolve against the model before building from these drawings."
+
+**On the tolerance, deliberately.** Published manuals express dimensional tolerance as a band that
+WIDENS WITH LENGTH, and the default follows that convention (6 mm to 1.2 m, 9 mm to 1.8 m, 12 mm
+beyond). It cites no standard clause number. My search surfaced a mix of UK LABC and SG CONQUAS
+figures and I could not confirm which clause the length bands belong to, so asserting "per CONQUAS"
+would have been a fabricated citation reading as authoritative — the same rule
+`export/specification.ts` follows, and a test pins that the scope note contains no
+`SS|BS|EN|ISO|CONQUAS`-shaped reference. Each measurement can override the tolerance, and the sheet
+tells the reader to confirm what applies to their project.
+
+**One design decision worth naming.** A measurement whose target no longer exists is reported as
+`unresolved` and still printed, never dropped. Silently discarding a dimension someone physically
+went and measured would be the worst failure mode this feature could have, so the sheet says "target
+deleted" and explains why the row is still there.
+
+`SiteMeasurement` is declared in `floorplan/types.ts` rather than in its own module, following the
+precedent `types.ts` already documents for `ElectricalKind`/`PlumbingKind`: `FloorPlan` needs the
+type and the consumer imports `FloorPlan`, so the other direction would be an import cycle.
+
++19 tests, including the exactly-on-tolerance boundary, the signed deviation (positive = the real
+thing is bigger than drawn), the short-wall band, per-measurement overrides, and that an unresolved
+row does not inflate the worst-deviation figure. Full suite green (9633).
+
+Data core + sheet only; a recording UI is in `TODO.md`.
+
 ## v0.31.5.269 - the sofa check gets a cited figure instead of my derived one
 
 Closing the caveat I shipped one version ago. The layout critique's sofa check used a DERIVED bar —

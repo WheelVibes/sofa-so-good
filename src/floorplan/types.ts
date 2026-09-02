@@ -365,6 +365,30 @@ export interface PlanRoof {
   dormers?: PlanRoofDormer[]
 }
 
+/** What a recorded site measurement refers to (`siteMeasurements.ts`). */
+export type MeasuredTargetKind = 'wall' | 'opening' | 'room-width' | 'room-depth'
+
+/**
+ * One dimension the user actually measured on site, in MILLIMETRES — the unit a
+ * tape reads and the drawings print.
+ *
+ * Declared HERE rather than in `siteMeasurements.ts` for the same reason
+ * `ElectricalKind`/`PlumbingKind` live here: `FloorPlan` needs the type, and
+ * the consumer imports `FloorPlan`, so the other direction would be a cycle.
+ */
+export interface SiteMeasurement {
+  id: string
+  kind: MeasuredTargetKind
+  /** Wall / opening / room id the measurement is of. */
+  targetId: string
+  /** What the tape read (mm). */
+  measuredMm: number
+  /** Optional override of the length-banded default tolerance. */
+  toleranceMm?: number
+  /** Free text — who measured it, when, from where. Printed as-is. */
+  note?: string
+}
+
 export interface FloorPlan {
   id: string
   name: string
@@ -421,6 +445,13 @@ export interface FloorPlan {
    *  (`settingOut.ts:datumPoint`), which is what every setting-out plan uses
    *  in practice. Additive + optional. */
   datum?: { x: number; z: number }
+  /**
+   * Dimensions the user actually MEASURED on site, in mm — reconciled against
+   * the model by `siteMeasurements.ts`. Additive/optional (no version bump),
+   * like `datum` above. Empty/absent = the model is unverified, which the
+   * reconciliation sheet says explicitly rather than implying agreement.
+   */
+  siteMeasurements?: SiteMeasurement[]
   /** Optional parametric roof over the top storey (UX research round 3,
    *  `parametricRoof` pro flag). Additive + optional — absent = no roof (the
    *  prior behaviour). Rendered by `apartment/Roof.tsx` from the pure

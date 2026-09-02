@@ -498,6 +498,21 @@ export const FloorPlanZ = z.object({
   // Optional explicit setting-out datum (TODO G3). Optional + additive — no
   // schema-version bump; absent → the computed default corner.
   datum: z.object({ x: z.number(), z: z.number() }).optional(),
+  // Site measurements recorded against the model (`siteMeasurements.ts`).
+  // Optional + additive — no version bump; absent = the model is unverified,
+  // which the reconciliation sheet states rather than implying agreement.
+  siteMeasurements: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(['wall', 'opening', 'room-width', 'room-depth']),
+        targetId: z.string(),
+        measuredMm: z.number(),
+        toleranceMm: z.number().optional(),
+        note: z.string().optional(),
+      }),
+    )
+    .optional(),
   // Parametric roof (UX research round 3, `parametricRoof` pro flag). Optional
   // + additive — no schema-version bump; absent → no roof. The enums MUST stay
   // in parity with `RoofStyle`/`RoofMaterialKind`/`RoofDormerSide` in

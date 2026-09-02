@@ -416,6 +416,7 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
+| C3 (the real remainder) | v0.31.5.270 | Site-measurement reconciliation: record tape dimensions against the model, deviation vs a length-banded tolerance, "As-built reconciliation" sheet. Closes the one item re-scoped in the first pass and never shipped. Recording UI pending. |
 | G8 (core) | v0.31.5.262 | `buildSchemeOptions` — N schemes scored/priced with derived per-category trade-offs. **Research correction**: preset-swapping alone does NOT vary layout (no preset defines `kits`); the arranger's unused LAYOUT-REROLL seed does, and is now threaded through. UI surface pending. |
 | G4 (rest) | v0.31.5.260 | IES distribution SHAPE into `pointIlluminance` (magnitude still registry-calibrated). Moves peaks/minima/U0; the lumen-method room AVERAGE is distribution-agnostic by construction and unchanged. |
 | G3 (part) | v0.31.5.259 | Audited what profile data exists; detailed the four junctions derivable exactly (ceiling drop, upturn, threshold, sill/head) + a separate `DETAIL_SCALE_RATIOS` ladder. Profile-dependent details deferred with a named prerequisite. |

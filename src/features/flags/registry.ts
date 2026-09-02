@@ -48,6 +48,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  siteMeasurements: {
+    label: 'Site measurements',
+    description: 'Reconcile tape-measured dimensions against the model',
+    default: true,
+    tier: 'pro',
+  },
   schemeOptions: {
     label: 'Scheme options',
     description: 'Generate and compare alternative design schemes',
