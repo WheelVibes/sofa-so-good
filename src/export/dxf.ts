@@ -62,8 +62,11 @@
  *                       computed for `DEMOLITION`, so labelling adds are a
  *                       few lines, not a second pass.
  *
- * Units: DXF is unitless; `$INSUNITS = 6` declares metres, and all coordinates
- * are written in plan metres.
+ * Units: the file is written in MILLIMETRES, declared by `$INSUNITS = 4`, with
+ * `$MEASUREMENT = 1` for metric hatch/linetype selection (a separate concern —
+ * see `headerSection`). It used to be metres with `$INSUNITS = 6`: internally
+ * consistent, but the wrong convention for a building drawing and a silent
+ * 1000x under-scale in any importer that ignores the header. See `M_TO_DXF`.
  *
  * Y-axis convention: the app frame is +X east / +Z south (Z grows downward on
  * screen), whereas DXF is right-handed with +Y up. We map plan `(x, z)` to DXF
@@ -92,13 +95,32 @@ import {
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import type { UnitSystem } from '../utils/measurement'
-import { formatLength } from '../utils/measurement'
 
 /** DXF Y for a plan Z (flip so +Z south reads downward, not mirrored). */
 const dxfY = (z: number): number => -z
 
 /** Format a number for DXF: finite, fixed precision, no exponent. */
 const num = (n: number): string => (Number.isFinite(n) ? n.toFixed(6) : '0.000000')
+
+/**
+ * Plan metres → DXF drawing units. The file is written in MILLIMETRES.
+ *
+ * It used to be metres with `$INSUNITS = 6`, which is internally consistent but
+ * the wrong convention for this kind of drawing: for detail/building drawings
+ * architects work in millimetres almost universally, with metres reserved for
+ * landscape and civil masterplans (draftsperson.net, "Drafting Standards — What
+ * metric units do I draw with?"). A contractor opening a metre-unit plan against
+ * an mm template — or in any importer that ignores `$INSUNITS`, which is common
+ * — gets a flat 1000x too small, and a plan that silently imports at 1/1000
+ * scale is exactly the failure this export exists to prevent.
+ *
+ * Applied inside the four primitives, which every coordinate and length in the
+ * file passes through, so there is no second place to keep in step.
+ */
+const M_TO_DXF = 1000
+
+/** A plan-metre length/coordinate as a DXF unit string (millimetres). */
+const len = (metres: number): string => num(metres * M_TO_DXF)
 
 /** A single group-code / value pair (two physical DXF lines). */
 const pair = (code: number, value: string | number): string => `${code}\n${value}`
@@ -111,12 +133,12 @@ export function dxfLine(layer: string, x1: number, z1: number, x2: number, z2: n
   return block(
     pair(0, 'LINE'),
     pair(8, layer),
-    pair(10, num(x1)),
-    pair(20, num(dxfY(z1))),
-    pair(30, num(0)),
-    pair(11, num(x2)),
-    pair(21, num(dxfY(z2))),
-    pair(31, num(0)),
+    pair(10, len(x1)),
+    pair(20, len(dxfY(z1))),
+    pair(30, len(0)),
+    pair(11, len(x2)),
+    pair(21, len(dxfY(z2))),
+    pair(31, len(0)),
   )
 }
 
@@ -128,18 +150,18 @@ export function dxfPolyline(layer: string, pts: PlanVec2[]): string {
     // 66 = "vertices follow" (required in R12), 70 = 1 → closed polyline.
     pair(66, 1),
     pair(70, 1),
-    pair(10, num(0)),
-    pair(20, num(0)),
-    pair(30, num(0)),
+    pair(10, len(0)),
+    pair(20, len(0)),
+    pair(30, len(0)),
   )
   const verts = pts
     .map(([x, z]) =>
       block(
         pair(0, 'VERTEX'),
         pair(8, layer),
-        pair(10, num(x)),
-        pair(20, num(dxfY(z))),
-        pair(30, num(0)),
+        pair(10, len(x)),
+        pair(20, len(dxfY(z))),
+        pair(30, len(0)),
       ),
     )
     .join('')
@@ -153,10 +175,10 @@ export function dxfCircle(layer: string, x: number, z: number, r: number): strin
   return block(
     pair(0, 'CIRCLE'),
     pair(8, layer),
-    pair(10, num(x)),
-    pair(20, num(dxfY(z))),
-    pair(30, num(0)),
-    pair(40, num(r)),
+    pair(10, len(x)),
+    pair(20, len(dxfY(z))),
+    pair(30, len(0)),
+    pair(40, len(r)),
   )
 }
 
@@ -170,10 +192,10 @@ export function dxfText(layer: string, x: number, z: number, text: string, heigh
   return block(
     pair(0, 'TEXT'),
     pair(8, layer),
-    pair(10, num(x)),
-    pair(20, num(dxfY(z))),
-    pair(30, num(0)),
-    pair(40, num(height)),
+    pair(10, len(x)),
+    pair(20, len(dxfY(z))),
+    pair(30, len(0)),
+    pair(40, len(height)),
     pair(1, sanitizeText(text)),
   )
 }
@@ -271,7 +293,7 @@ function extDir(side: Dimension['side']): PlanVec2 | null {
  * "dumb dimension" is guaranteed to parse and measure correctly everywhere,
  * which is what a contractor handoff needs most.
  */
-function dxfDimension(d: Dimension, units: UnitSystem): string {
+function dxfDimension(d: Dimension): string {
   let out = dxfLine('DIMENSIONS', d.x1, d.y1, d.x2, d.y2)
 
   const [px, pz] = dimPerp(d)
@@ -297,12 +319,15 @@ function dxfDimension(d: Dimension, units: UnitSystem): string {
 
   const mx = (d.x1 + d.x2) / 2
   const mz = (d.y1 + d.y2) / 2
-  // Dimension TEXT keeps the DXF's own unit (metres — per $INSUNITS = 6 and the
-  // metre coordinates written throughout), NOT the printed sheets' integer-mm
-  // convention: a CAD recipient dimensions natively off the geometry, so "4000"
-  // beside a 4-unit line would contradict the file's own header. `d.value` is
-  // the raw span, so this is independent of how the sheets label it.
-  out += dxfText('DIMENSIONS', mx, mz, formatLength(d.value, units), 0.15)
+  // Dimension TEXT is integer MILLIMETRES, matching both the file's own unit
+  // ($INSUNITS = 4, mm coordinates) and the printed sheets' convention. The two
+  // used to disagree — the old comment here reasoned that "4000" beside a 4-unit
+  // line would contradict the header, which was right while the file was in
+  // metres, and is exactly backwards now that it is in mm. Unconditional rather
+  // than following the user's `units` preference: a DXF is a CAD interchange
+  // file whose header declares metric, and a recipient re-dimensions natively
+  // off the geometry — the sheets remain the surface that honours the preference.
+  out += dxfText('DIMENSIONS', mx, mz, `${Math.round(d.value * M_TO_DXF)}`, 0.15)
   return out
 }
 
@@ -484,11 +509,23 @@ const LAYERS: ReadonlyArray<readonly [string, number]> = [
   ['NEW_WORKS', 3],
 ]
 
-/** Minimal HEADER section: declare metres via $INSUNITS = 6. */
+/**
+ * Minimal HEADER section.
+ *
+ * `$INSUNITS = 4` declares MILLIMETRES (the value table is 4 = mm, 6 = m), which
+ * is what the coordinates are written in — see `M_TO_DXF`.
+ *
+ * `$MEASUREMENT = 1` declares metric and is a SEPARATE concern from `$INSUNITS`:
+ * it selects which hatch-pattern and linetype definition files the host uses, so
+ * a file can declare mm geometry and still load imperial linetypes if this is
+ * absent or 0 (ezdxf, "DXF Units"). It was not emitted at all before, which left
+ * that to the host's default.
+ */
 function headerSection(): string {
   return (
     block(pair(0, 'SECTION'), pair(2, 'HEADER')) +
-    block(pair(9, '$INSUNITS'), pair(70, 6)) +
+    block(pair(9, '$INSUNITS'), pair(70, 4)) +
+    block(pair(9, '$MEASUREMENT'), pair(70, 1)) +
     block(pair(9, '$ACADVER'), pair(1, 'AC1009')) +
     block(pair(0, 'ENDSEC'))
   )
@@ -569,7 +606,7 @@ function entitiesSection(
   out += mepSection(plan, items, catalog)
 
   const dims = buildDimensions(plan, units)
-  for (const d of [...dims.overall, ...dims.rooms]) out += dxfDimension(d, units)
+  for (const d of [...dims.overall, ...dims.rooms]) out += dxfDimension(d)
 
   out += demolitionSection(plan, baseline)
 

@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.287 - DXF export in millimetres, and the metric flag it never emitted
+
+A to-scale interop defect, on the "precise references for contractors" goal rather than the F13
+thread. Researched rather than recalled — CAD unit conventions are exactly the area where model
+knowledge is unreliable.
+
+**The file is now millimetres (`$INSUNITS = 4`), not metres (`= 6`).** The old pairing was
+internally consistent, so this is a convention judgement and worth stating the basis for: for
+detail and building drawings architects work in millimetres almost universally, with metres
+reserved for landscape and civil masterplans. The failure mode is not cosmetic — a metre-unit plan
+opened against a millimetre template, or in any importer that ignores `$INSUNITS`, lands a flat
+**1000x too small**, and a drawing that silently imports at 1/1000 scale is precisely what this
+export exists to prevent.
+
+**`$MEASUREMENT = 1` is now emitted; before, it was absent entirely.** It is a SEPARATE header
+variable from `$INSUNITS`: it selects which hatch-pattern and linetype definition files the host
+loads, so a file could declare millimetre geometry and still pick up imperial linetypes. That was
+left to the host's default.
+
+Applied as one `M_TO_DXF = 1000` inside the four primitives (`dxfLine`/`dxfPolyline`/`dxfCircle`/
+`dxfText`) that every coordinate and length in the file already passes through — including TEXT
+heights, which left in metres would have rendered 1000x too small to see.
+
+**The dimension-TEXT comment was right and is now backwards, which is worth recording.** It read:
+"a CAD recipient dimensions natively off the geometry, so `4000` beside a 4-unit line would
+contradict the file's own header." True while the file was in metres — and exactly inverted now.
+The label is integer mm, which agrees with both the header and the printed sheets. Unconditional
+rather than following the user's `units` preference: the header declares metric and a recipient
+re-dimensions natively; the sheets remain the surface that honours the preference. The now-dead
+`units` thread through `dxfDimension` is removed rather than left as a parameter that does nothing.
+
+**A process note on my own patch.** The mechanical rescale of the test coordinate pins used a
+`\b` word boundary before the DXF group code — which never matches after a literal `\n`, because
+`n` is a word character. So only the FIRST code in each assertion string was scaled: 13 literals
+instead of 46. The tests caught it (6 still failing), I re-ran from a clean checkout to avoid
+double-scaling, and the correct pass touched 46. Two things worth keeping: a partially-applied
+mechanical edit is a real hazard, and **the count is the check** — "13 scaled" should have looked
+too low for a file with that many pinned coordinates, exactly the "too good / too small for the
+intervention" signal the .286 retraction was about.
+
++5 tests, including a sweep asserting no sub-millimetre coordinate survives anywhere in the output
+(a missed call site would show up as a fractional value, since nothing in a real plan is
+legitimately 0.x mm). 10 pre-existing tests confirmed failing with the fix stashed.
+
 ## v0.31.5.286 - RETRACTION: the .285 measurement was wrong (135 -> 1279)
 
 **`.285` published a false number and I need to correct it plainly.** It claimed deleting

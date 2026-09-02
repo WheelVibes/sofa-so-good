@@ -60,9 +60,9 @@ describe('planToDxf', () => {
     expect(dxf.trimEnd().endsWith('EOF')).toBe(true)
   })
 
-  it('declares metres via $INSUNITS = 6', () => {
+  it('declares MILLIMETRES via $INSUNITS = 4, plus metric $MEASUREMENT', () => {
     expect(dxf).toContain('$INSUNITS')
-    expect(dxf).toMatch(/\$INSUNITS\n70\n6/)
+    expect(dxf).toMatch(/\$INSUNITS\n70\n4/)
   })
 
   it('defines all layers (walls/rooms/openings/labels + G6/G6b enrichment) in the LAYER table', () => {
@@ -117,7 +117,8 @@ describe('planToDxf', () => {
     // The north wall (4 m) is an overall dimension → its formatted label.
     // The DXF deliberately keeps METRES here (not the printed sheets' integer
     // mm), matching its own $INSUNITS = 6 header and metre coordinates.
-    expect(dxf).toContain('4.00 m')
+    // Integer mm, matching the file's own $INSUNITS = 4 and the printed sheets.
+    expect(dxf).toContain('4000')
   })
 
   it('emits one LINE per non-zero wall (+ opening lines on their own layers)', () => {
@@ -146,8 +147,8 @@ describe('planToDxf', () => {
 
   it('flips Z to -Y so the plan is not mirrored', () => {
     // North wall runs along z=0 → Y=0; south wall along z=3 → Y=-3.
-    expect(dxf).toContain('20\n-3.000000')
-    expect(dxf).not.toContain('20\n3.000000')
+    expect(dxf).toContain('20\n-3000.000000')
+    expect(dxf).not.toContain('20\n3000.000000')
   })
 })
 
@@ -261,18 +262,18 @@ describe('planToDxf furniture (G6)', () => {
     expect(dxf).toMatch(/POLYLINE\n8\nFURNITURE\n66\n1\n70\n1/)
     expect(count(dxf, '\n0\nVERTEX\n8\nFURNITURE\n')).toBe(4)
     // Hand-computed DXF (x, -z) pairs for the 4 rotated corners.
-    expect(dxf).toContain('10\n1.500000\n20\n0.000000\n30\n0.000000')
-    expect(dxf).toContain('10\n1.500000\n20\n-2.000000\n30\n0.000000')
-    expect(dxf).toContain('10\n0.500000\n20\n-2.000000\n30\n0.000000')
+    expect(dxf).toContain('10\n1500.000000\n20\n0.000000\n30\n0.000000')
+    expect(dxf).toContain('10\n1500.000000\n20\n-2000.000000\n30\n0.000000')
+    expect(dxf).toContain('10\n500.000000\n20\n-2000.000000\n30\n0.000000')
     // The 4th corner's Z lands on a signed-zero float residue (-0.000000).
-    expect(dxf).toMatch(/10\n0\.500000\n20\n-?0\.000000\n30\n0\.000000/)
+    expect(dxf).toMatch(/10\n500\.000000\n20\n-?0\.000000\n30\n0\.000000/)
   })
 
   it('labels the item by def name at the footprint centre on FURNITURE_TEXT', () => {
     expect(dxf).toMatch(/TEXT\n8\nFURNITURE_TEXT/)
     expect(dxf).toContain('Test Sideboard')
     // Centre (1,1) → DXF (1,-1).
-    expect(dxf).toMatch(/TEXT\n8\nFURNITURE_TEXT\n10\n1\.000000\n20\n-1\.000000/)
+    expect(dxf).toMatch(/TEXT\n8\nFURNITURE_TEXT\n10\n1000\.000000\n20\n-1000\.000000/)
   })
 
   it('prefers the item label override over the def name', () => {
@@ -320,7 +321,7 @@ describe('planToDxf MEP points (G6b)', () => {
     expect(layerEntityCount(dxf, 'CIRCLE', 'ELECTRICAL')).toBe(2)
     // Point (1,2) → DXF (1,-2), radius 0.06.
     expect(dxf).toMatch(
-      /CIRCLE\n8\nELECTRICAL\n10\n1\.000000\n20\n-2\.000000\n30\n0\.000000\n40\n0\.060000/,
+      /CIRCLE\n8\nELECTRICAL\n10\n1000\.000000\n20\n-2000\.000000\n30\n0\.000000\n40\n60\.000000/,
     )
     // "switch" (symbol "S") + mount-height suffix "@1200" beside the circle.
     expect(dxf).toContain('1\nS @1200')
@@ -378,7 +379,7 @@ describe('planToDxf MEP points (G6b)', () => {
     expect(layerEntityCount(dxf, 'CIRCLE', 'PLUMBING')).toBe(1)
     // Point (3,1) → DXF (3,-1).
     expect(dxf).toMatch(
-      /CIRCLE\n8\nPLUMBING\n10\n3\.000000\n20\n-1\.000000\n30\n0\.000000\n40\n0\.060000/,
+      /CIRCLE\n8\nPLUMBING\n10\n3000\.000000\n20\n-1000\.000000\n30\n0\.000000\n40\n60\.000000/,
     )
     expect(dxf).toContain('1\nW @600')
   })
@@ -437,9 +438,9 @@ describe('planToDxf demolition (H5)', () => {
     const dxf = planToDxf(current, [], {}, 'metric', baseline)
     // Hand-computed: w-mid (2,0)→(2,3) in plan, DXF Z flips: (2,0)→(2,-3).
     expect(dxf).toMatch(
-      /LINE\n8\nDEMOLITION\n10\n2\.000000\n20\n0\.000000\n30\n0\.000000\n11\n2\.000000\n21\n-3\.000000\n31\n0\.000000/,
+      /LINE\n8\nDEMOLITION\n10\n2000\.000000\n20\n0\.000000\n30\n0\.000000\n11\n2000\.000000\n21\n-3000\.000000\n31\n0\.000000/,
     )
-    expect(dxf).toMatch(/TEXT\n8\nDEMOLITION\n10\n2\.000000\n20\n-1\.500000/)
+    expect(dxf).toMatch(/TEXT\n8\nDEMOLITION\n10\n2000\.000000\n20\n-1500\.000000/)
     expect(dxf).toContain('(DEMOLISH)')
     expect(dxf).not.toContain('NOT PERMITTED')
   })
@@ -464,11 +465,11 @@ describe('planToDxf demolition (H5)', () => {
 
   it('labels an added wall "(NEW)" on NEW_WORKS but keeps it drawn on WALLS (no DEMOLITION line for it)', () => {
     const dxf = planToDxf(current, [], {}, 'metric', baseline)
-    expect(dxf).toMatch(/TEXT\n8\nNEW_WORKS\n10\n1\.000000\n20\n-0\.500000/)
+    expect(dxf).toMatch(/TEXT\n8\nNEW_WORKS\n10\n1000\.000000\n20\n-500\.000000/)
     expect(dxf).toContain('(NEW)')
     // w-new is drawn once on WALLS (the new-works reality), never re-drawn on DEMOLITION.
     expect(dxf).toMatch(
-      /LINE\n8\nWALLS\n10\n1\.000000\n20\n0\.000000\n30\n0\.000000\n11\n1\.000000\n21\n-1\.000000\n31\n0\.000000/,
+      /LINE\n8\nWALLS\n10\n1000\.000000\n20\n0\.000000\n30\n0\.000000\n11\n1000\.000000\n21\n-1000\.000000\n31\n0\.000000/,
     )
     expect(layerEntityCount(dxf, 'LINE', 'DEMOLITION')).toBe(1) // only w-mid, not w-new
   })
@@ -508,10 +509,10 @@ describe('dxf helpers', () => {
   it('dxfLine writes both endpoints with Z flipped', () => {
     const s = dxfLine('WALLS', 1, 2, 3, 4)
     expect(s).toContain('LINE')
-    expect(s).toMatch(/10\n1\.000000/)
-    expect(s).toMatch(/20\n-2\.000000/)
-    expect(s).toMatch(/11\n3\.000000/)
-    expect(s).toMatch(/21\n-4\.000000/)
+    expect(s).toMatch(/10\n1000\.000000/)
+    expect(s).toMatch(/20\n-2000\.000000/)
+    expect(s).toMatch(/11\n3000\.000000/)
+    expect(s).toMatch(/21\n-4000\.000000/)
   })
 
   it('dxfPolyline is closed and lists every vertex', () => {
@@ -528,9 +529,9 @@ describe('dxf helpers', () => {
   it('dxfCircle writes a centred CIRCLE with Z flipped and the given radius', () => {
     const s = dxfCircle('ELECTRICAL', 1, 2, 0.06)
     expect(s).toContain('CIRCLE')
-    expect(s).toMatch(/10\n1\.000000/)
-    expect(s).toMatch(/20\n-2\.000000/)
-    expect(s).toMatch(/40\n0\.060000/)
+    expect(s).toMatch(/10\n1000\.000000/)
+    expect(s).toMatch(/20\n-2000\.000000/)
+    expect(s).toMatch(/40\n60\.000000/)
   })
 
   it('dxfText sanitises newlines in the label', () => {
@@ -578,5 +579,55 @@ describe('planToDxf multi-storey opening marks (schedule agreement)', () => {
     // (Confirms the DXF is ground-only; the schedule still lists D2/W2.)
     expect(dxf).not.toContain('1\nD2')
     expect(dxf).not.toContain('1\nW2')
+  })
+})
+
+describe('planToDxf units (mm convention)', () => {
+  /** A bare 4 m x 3 m room so every coordinate is hand-checkable. */
+  const unitPlan = {
+    id: 'u',
+    name: 'Units',
+    ceilingHeight: 2.8,
+    extent: [4, 3],
+    walls: [
+      { id: 'n', start: [0, 0], end: [4, 0], thickness: 'external' },
+      { id: 'w', start: [0, 0], end: [0, 3], thickness: 'external' },
+    ],
+    openings: [],
+    rooms: [{ id: 'r', name: 'Room', origin: [0, 0], width: 4, depth: 3 }],
+  } as unknown as FloorPlan
+
+  const out = planToDxf(unitPlan, [], {}, 'metric')
+
+  it('declares metric via $MEASUREMENT = 1', () => {
+    // Separate header variable from $INSUNITS: it selects the hatch-pattern and
+    // linetype definition files, so without it a host may load imperial ones
+    // for a millimetre drawing. It was not emitted at all before.
+    expect(out).toMatch(/\$MEASUREMENT\n70\n1/)
+  })
+
+  it('writes a 4 m wall as 4000 units, not 4', () => {
+    // The whole point: a metre-unit file imported against an mm template (or by
+    // an importer that ignores $INSUNITS) lands 1000x too small.
+    expect(out).toContain('10\n4000.000000')
+    expect(out).not.toMatch(/10\n4\.000000\n/)
+  })
+
+  it('keeps the Z flip after scaling', () => {
+    // Plan (0,3) → DXF (0, -3000). Scaling must not lose the sign convention.
+    expect(out).toContain('20\n-3000.000000')
+  })
+
+  it('scales TEXT height into the same unit as the geometry', () => {
+    // A text height left in metres would render 1000x too small to see. The
+    // authored 0.25 m room label becomes 250 units.
+    expect(out).toMatch(/40\n250\.000000/)
+  })
+
+  it('has no bare sub-millimetre coordinate left behind', () => {
+    // A missed call site would show up as a coordinate under 1 unit — nothing
+    // in a real plan is legitimately 0.x mm. Signed zero is fine.
+    const stray = [...out.matchAll(/\n(?:10|11|20|21|40)\n(-?0\.\d*[1-9]\d*)\n/g)]
+    expect(stray.map((m) => m[1])).toEqual([])
   })
 })
