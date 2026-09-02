@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.265 - a theme correction, and the circulation score diagnosed
+
+Two findings, one fixed and one deliberately not.
+
+**Fixed: Modern Luxe said "lacquered finishes" for a style that is matte.** Continuing the theme
+grounding audit the user asked for. Quiet-luxury references are explicit that the look is "matte and
+semi-matte finishes" and that "UNLACQUERED brass is the quiet luxury metal because it develops a
+patina over time that cannot be faked" — "lacquered" describes high-gloss glam, close to the
+opposite style. Its colours and materials all verified (warm ivory, soft taupe, chocolate accent,
+walnut, brass).
+
+The important part: **the implementation was already right** — the preset's own style props use
+`sheen: 0.3`, i.e. semi-matte. Only the user-facing DESCRIPTION was wrong, and since v0.31.5.263
+that description renders in the scheme-comparison modal, so a user would have read "lacquered" while
+looking at satin surfaces. Fixed as a text correction with the reasoning inline at the preset so it
+is not "tidied" back. Worth naming the pattern: the divergence was not in what the app DOES but in
+what it SAYS it does — the class of error a grounding audit catches and a screenshot cannot.
+
+**Also verified: Peranakan Accent's palette**, including the contrast rule — references give
+"emerald, cobalt, coral… always contrasted against white or cream" and the preset names exactly
+those against cream. One fidelity gap named rather than glossed: geometric ENCAUSTIC FLOOR TILES are
+"among the most recognisable elements" of Peranakan interiors, and the preset carries the motif on a
+patterned rug because the catalog has no such material. A defensible substitution, and now a
+`TODO.md` item — it would be the highest-fidelity single improvement to any theme.
+
+6 of 17 themes audited; the remaining 11 are listed as unaudited. Modern Luxe is the cautionary
+note: it read as internally coherent while contradicting its own style's references, so "looks
+consistent" is not evidence.
+
+**Diagnosed, NOT fixed: the circulation score saturates at 0 for every auto-furnished layout.**
+Flagged from a screenshot last round, now measured. The hand-authored `defaultLayout()` scores
+circulation **58** (0 impassable, 21 tight) — the metric works. Every `furnishPlanItems` result
+scores **0**, at layout seeds 0/1/2 and across presets, so it is not my seed variation. The cause is
+arithmetic: `penalty = impassable x 20 + min(42, advisory x 3)`, so with advisories already at their
+42 cap, just **3** impassable pinches reach 102 and clamp to zero. The three found are all marginal
+— `bed-single<->bed-single 0.44 m`, `wardrobe-3door<->armchair 0.47 m`, `desk<->sofa-3seat 0.44 m`
+— just under the 0.5 m bar, not blocked routes. So the category cannot distinguish "tight in three
+spots" from "impassable throughout", and 20% of the ranking weight is dead in the G8 comparison.
+
+Left undecided on purpose: both candidate fixes re-calibrate a shipped, user-visible score
+(`DesignScorePanel`), which is a product decision. `TODO.md` records both and says which matters —
+giving the penalty headroom only stops the score lying, whereas fixing the ARRANGER so it stops
+producing 0.44-0.47 m pinches is the real problem. Explicitly noted: do not do the former alone.
+
 ## v0.31.5.264 - the G8 themes are checked against what these styles really look like
 
 On the user's requirement that the alternative schemes be grounded in real research rather than

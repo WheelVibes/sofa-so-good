@@ -200,15 +200,42 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
-- **[G8] Audit the remaining 13 theme presets against real-world references.** The four the
-  comparison surfaces today (Modern Contemporary, Scandi Calm, Japandi, Warm Industrial) are
-  verified accurate in `docs/research/2026-09-02-scheme-theme-grounding.md`. Unaudited: Coastal,
-  Warm Minimalist / Muji, Modern Luxe, Modern Mono, Peranakan Accent, Cozy Tropical, Boutique Suite,
-  Broken Plan, Entertainer, Family Nursery, Open Lounge, Social Lounge, WFH Studio. Two spot-checks
-  look sound but are not verified. Do this BEFORE raising `SCHEME_COUNT` past 3 or letting a brief
+- **[DIAGNOSED, not decided] The circulation score saturates at 0 for every auto-furnished layout,
+  so 20% of the design score carries no signal.** Measured 2026-09-02 on the default 4-room plan:
+  - hand-authored `defaultLayout()`: circulation **58** (0 impassable, 21 tight, 52 gaps) — the
+    metric works;
+  - every `furnishPlanItems` result, at layout seeds 0/1/2 and across presets: circulation **0**.
+  Cause is arithmetic, not a bug in the finder. `penalty = impassable x 20 + min(42, advisory x 3)`,
+  so with the advisory term already at its 42 cap, just **3** impassable pinches reach 102 and clamp
+  to zero. And the three found are all MARGINAL — `bed-single<->bed-single 0.44 m`,
+  `wardrobe-3door<->armchair 0.47 m`, `desk<->sofa-3seat 0.44 m` — i.e. just under the 0.5 m bar,
+  not catastrophically blocked routes. So the category cannot distinguish "tight in three spots"
+  from "impassable throughout", and in the G8 scheme comparison every candidate scores 0, making
+  circulation useless for ranking.
+  Two separable calls, NEITHER taken here because both re-calibrate a shipped, user-visible score
+  (`DesignScorePanel`) and that is a product decision, not a fix:
+  (a) give the penalty headroom so marginal pinches cannot saturate (e.g. scale `severe` by how far
+      under the bar the gap is, or cap the combined penalty below 100);
+  (b) separately, improve the ARRANGER so auto-furnishing stops producing 0.44-0.47 m pinches
+      between large pieces in the first place — that is the underlying quality issue, and fixing it
+      would raise every scheme's score honestly rather than by re-tuning the ruler.
+  Note (b) is the real problem and (a) only stops the score lying about it. Do not do (a) alone.
+- **[G8] Audit the remaining 11 theme presets against real-world references.** Verified so far in
+  `docs/research/2026-09-02-scheme-theme-grounding.md`: Modern Contemporary, Scandi Calm, Japandi,
+  Warm Industrial, Peranakan Accent (palette), and Modern Luxe (which needed a CORRECTION — it said
+  "lacquered finishes" where quiet luxury is matte/semi-matte and its own `sheen: 0.3` already was).
+  Unaudited: Coastal, Warm Minimalist / Muji, Modern Mono, Tropical Biophilic, Boutique Suite,
+  Broken Plan, Entertainer, Family Nursery, Open Lounge, Social Lounge, WFH Studio. Note Modern Luxe
+  read as internally coherent while contradicting its own style — so "looks consistent" is not
+  evidence. Do this BEFORE raising `SCHEME_COUNT` past 3 or letting a brief
   surface an arbitrary preset, so a user is never shown a theme whose palette is invented.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
+- **[G8] Add a Peranakan encaustic floor tile material.** The audit found the one real fidelity gap
+  in an otherwise-accurate theme: geometric encaustic floor tiles are "among the most recognisable
+  elements" of Peranakan interiors, and the preset approximates them with a patterned RUG over dark
+  wood because no such material exists in the catalog. Adding one (with a specified `moduleMm`, per
+  v0.31.5.257) would be the highest-fidelity single improvement to any theme.
 - **[G8] Give a few themes real `kits`, informed by the grounding audit.** No preset defines `kits`,
   so themes differ in finish/styling but place identical furniture (v0.31.5.262). The audit says
   what belongs: rattan/bamboo + handmade ceramics for Japandi, wool/linen textiles for Scandi Calm,

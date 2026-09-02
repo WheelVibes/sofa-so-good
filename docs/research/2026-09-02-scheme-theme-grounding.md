@@ -11,11 +11,12 @@ Singapore-specific HDB/condo sources. I did **not** visually inspect photographs
 myself; the grounding is in what those references state that these styles use.
 That distinction matters, so it is recorded here rather than glossed.
 
-**Verdict: the four themes the scheme comparison actually surfaces are
-accurate**, and two of them encode a detail that only someone who knows the
-style would get right. Nothing needed correcting.
+**Verdict so far (6 of 17 audited).** Five themes verify accurately — several
+encode details only someone who knows the style would get right. **One needed
+correcting** (Modern Luxe; see round 2). One has a named fidelity gap that is a
+missing material rather than a wrong choice (Peranakan Accent).
 
-## Verified
+## Round 1 — the four the comparison surfaces
 
 ### Modern Contemporary (`moveIn`) — the default
 Encodes `floor-wood-oak` + `wall-paint-white`, described as "White walls, warm
@@ -60,19 +61,66 @@ and walnut" as the warm counterpoint and "honeyed tan from leather". A greige
 wall against charcoal floor with leather and dark timber is the documented warm
 industrial recipe, not a guess.
 
-## Not yet verified
+## Round 2 (2026-09-02) — two more verified, and ONE correction found
 
-`LAYOUT_PRESETS` ships **17** themes. The scheme comparison currently surfaces
-the first three plus any the brief names, so the four above are what a user
-actually sees today. The remaining thirteen — Coastal, Warm Minimalist / Muji,
-Modern Luxe, Modern Mono, Peranakan Accent, Cozy Tropical, Boutique Suite,
-Broken Plan, Entertainer, Family Nursery, Open Lounge, Social Lounge, WFH Studio
-— are **unaudited**. Two spot-checks suggest they are likely sound (Coastal:
-`floor-wood-ash` + `wall-paint-blue` + "navy + white nautical textiles";
-Warm Minimalist / Muji: `floor-wood-ash` + `wall-paint-soft-white` + "oat &
-cream, low furniture, no harsh contrast" — both consistent with their styles),
-but *likely* is not *verified*, and they should be audited before the comparison
-widens beyond three schemes. Tracked in `TODO.md`.
+### Peranakan Accent — `floor-wood-ebony` + `wall-paint-warm` — VERIFIED (palette)
+"Cream & dark tropical wood, emerald/coral/cobalt jewel accents, patterned rug."
+
+The palette is exactly right, including the contrast RULE. References describe
+"vibrant jewel-tone colours: **emerald, cobalt, coral**, gold, and magenta,
+**always contrasted against white or cream**" — the preset names emerald, coral
+and cobalt against cream. Dark carved tropical hardwood is also correct
+(references name carved **teak and rosewood**; the preset's ebony is a plausible
+dark tropical stand-in from the app's palette).
+
+**One fidelity gap, and it is the iconic element.** References call the geometric
+**encaustic floor tiles** "among the most recognisable elements of this design
+tradition" — the Peranakans tiled floors and facades with them for their floral
+motifs and colour. The preset carries the motif on a *patterned rug* over a dark
+wood floor instead, because the material catalog has no Peranakan encaustic tile.
+That is a defensible substitution, not an error, but adding a Peranakan encaustic
+tile material would be the single highest-fidelity improvement available to any
+theme in the set. Recorded in `TODO.md`.
+
+### Modern Luxe — `floor-wood-walnut` + `wall-paint-warm` — CORRECTED
+Was: "Ivory, taupe & chocolate — brass accents, **lacquered** finishes, quiet
+luxury." Now: "… **satin** finishes …".
+
+The colours and materials verify precisely: references give "warm ivory", "soft
+taupe" and "chocolate" as a deeper accent, "solid oak and **walnut** for
+furniture", and brass as the metal. But they are equally explicit that the look is
+"**matte and semi-matte** finishes" and that "**unlacquered** brass is the quiet
+luxury metal because it develops a patina over time that cannot be faked".
+"Lacquered" describes high-gloss glam — close to the opposite style.
+
+Crucially, the **implementation was already right**: the preset's own style props
+use `sheen: 0.3`, i.e. semi-matte. So only the user-facing description was wrong —
+and since v0.31.5.263 that description renders in the scheme-comparison modal, so
+a user would have read "lacquered" while looking at satin surfaces. Fixed as a
+text correction, with the reasoning inline at the preset so it is not "tidied"
+back.
+
+This is worth noting as a pattern: the divergence was not in what the app DOES
+but in what it SAYS about what it does — which is exactly the class of error a
+grounding audit catches and a screenshot does not.
+
+### Still unaudited (11)
+Coastal, Warm Minimalist / Muji, Modern Mono, Tropical Biophilic, Boutique Suite,
+Broken Plan, Entertainer, Family Nursery, Open Lounge, Social Lounge, WFH Studio.
+Tropical Biophilic ("Teak floors, sage walls, lush greenery and terracotta
+accents") and Modern Mono ("Grey porcelain, charcoal walls, glossy monochrome")
+both read as internally coherent, but coherent is not verified — and Modern Luxe
+above was internally coherent too, while contradicting its own style's
+references. Audit before widening the comparison past three schemes.
+
+## Additional sources (round 2)
+
+- [Peranakan-Inspired Interior Design in Singapore — Goodrich Global](https://www.goodrichglobal.com/singapore/article/peranakan-inspired-interior-design/)
+- [Peranakan tiles: A harmony of colour, motif and texture — Garland Magazine](https://garlandmag.com/article/peranakan-tiles/)
+- [Baba Nyonya Design Inspiration & Ideas — Signature Malaysia](https://signature.my/blog/2026/03/28/baba-nyonya-design-inspiration-ideas-for-your-home/)
+- [2025 Interior Color Trends: Quiet Luxury — zeysey.com](https://www.zeysey.com/en/quiet-luxury-colors/blog/detail/2025-interior-color-trends-quiet-luxury-earthy-tones-soft-minimal-palettes)
+- [Quiet Luxury Color Palettes: Neutrals & Greige — Suave Vera](https://suavevera.com/quiet-luxury-color-palettes/)
+- [Quiet Luxury Interior Design: How to Get the Look — inspireddesigntalk.com](https://inspireddesigntalk.com/quiet-luxury-interior-design/)
 
 ## Consequence for G8
 
@@ -98,3 +146,4 @@ wool and linen for Scandi, leather and reclaimed timber for Warm Industrial.
 - [Singapore HDB Living Room Design Ideas 2025 — Space Factor](https://www.spacefactor.com.sg/top-hdb-living-room-design-ideas-in-singapore/)
 - [Scandinavian Interior Design Singapore: HDB and Condo Guide — RS Carpentry](https://rscarpentry.com.sg/interior-design-trends/scandinavian-interior-design-singapore-hdb-condo-guide/)
 - [7 Best Modern HDB Interior Design Styles in Singapore — Swiss Interior](https://www.swissinterior.com.sg/blog/7-best-modern-interior-design-hdb-styles-in-singapore)
+
