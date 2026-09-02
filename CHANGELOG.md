@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.5 — a matched-pose Cycles reference now works, and it is already more faithful than the HQ tracer
+
+**The graphics arc's central limitation is removed.** `.320` concluded that "the app against
+itself at a matched pose" was the *only* valid construction available: photographs could not
+be anchored, the raster has no interreflection term at all (`.328`), and the HQ tracer's own
+environment is hardcoded and hour-blind (`.334`). There was no physically-motivated
+reference. There is now.
+
+**`BLENDREF=<dir>`** on `light-distribution.mjs` exports everything needed to reproduce a
+pose offline — the GLB the app itself exports, the camera taken from the *same* snapshot
+`frame.png` was captured at, and the real light directions read out of the live scene rather
+than re-derived from the store. Verified on bedroom3: **41.57 MB GLB, 1274 meshes**, rendered
+in Cycles at 640×360/24 samples in **6.7 s**.
+
+**The framing matches, confirmed by inspection** — picture frame left, window centred with
+its grille, bed left, bookshelf right. That validates the whole transform chain end to end:
+Y-up → Z-up on positions, vertical FOV pinned via `sensor_fit`, target point, geometry.
+
+**The manifest independently reproduces the old arc's measurements.** Hemisphere intensity
+**0.2426** and ambient **0.0772** are exactly `.255`'s figures; the hemisphere ground colour
+exceeds 1.0 because `PHOTO_GROUND_BOUNCE ×3` is applied, as `.331` established; the
+background is a `CanvasTexture` at mapping 303, as `.326` found. Three facts measured a
+different way, agreeing.
+
+**Cycles is already more faithful than the HQ tracer on geometry.** `.326` found the traced
+window carried **no security grille** while the raster's did — a snapshot-fidelity gap that
+made glazing comparisons invalid. The Cycles render, importing the app's own export, **has
+the grille**. So the new reference is better on geometry as well as lighting.
+
+**Four upstream/bridge traps found and fixed, all recorded in `docs/skills/blender.md`:**
+
+- **Blender 5.2.1's glTF importer aborts on `KHR_materials_dispersion: {}`** — a guard
+  mismatch upstream (node created only when `dispersion != 0`, used whenever the extension
+  is present), and three's exporter writes exactly that empty object for glass. **4 of 897
+  materials blocked all 897.** `glb_fix.strip_noop_dispersion()` removes it losslessly.
+- **Y-up vs Z-up** on camera/light positions, verified by import extents.
+- **Light directions, not angles** — `add_sun_from_three_direction()` takes the travel vector
+  off the app's `DirectionalLight`, so there is no unit or azimuth-zero convention left.
+- **argparse eats a leading `-`**, so negative vectors need `--sun-dir=-0.5,…`.
+
+**What is not yet solved, stated plainly:** the Cycles render is much darker than the raster.
+three's `intensity: 0.99969` is not watts, and the hemisphere/ambient fill was deliberately
+*not* ported because Cycles computes real GI. So light-unit calibration is the next problem —
+and it is the (p)/(w) question in a far better form, because for the first time the answer
+can be checked against physics rather than against the app.
+
 ## v0.31.6.4 — a headless GLB export seam, and a second framing trap caught by looking for it
 
 Groundwork for using Cycles as a **physically-motivated reference** for the app's

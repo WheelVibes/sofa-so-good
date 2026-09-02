@@ -1651,6 +1651,109 @@ if (GBOUNCE != null) console.log(`GBOUNCE held at capture: ${JSON.stringify(awai
 // and the guard then reports drift on every run -- which is what the first `.251`
 // run did (q.x -0.272 vs -0.030, i.e. -0.55 rad against -0.06).
 const camAtRaster = await camState()
+// BLENDREF=<dir> -- export everything an offline renderer needs to reproduce THIS
+// pose: the GLB the app itself exports, the camera, and the real light directions.
+//
+// The graphics arc's central limitation (`.320`) was that no physically-motivated
+// reference existed -- photographs could not be anchored, the raster has no
+// interreflection term at all (`.328`), and the HQ tracer's own environment is
+// hardcoded and hour-blind (`.334`). So "the app against itself at a matched pose" was
+// the only valid construction. Cycles breaks that, but ONLY if the comparison is
+// genuinely matched -- which is why this writes the manifest from the SAME camera
+// snapshot `frame.png` was taken at, and reads the lights out of the live scene rather
+// than re-deriving them from the store.
+//
+// Lights are exported as TRAVEL DIRECTION VECTORS, not angles: this bridge has already
+// produced three implicit-frame bugs (radians vs degrees on the sun, vertical vs
+// horizontal on the FOV, Y-up vs Z-up on positions), and a vector in a named frame has
+// no convention left to get wrong.
+if (process.env.BLENDREF) {
+  const dir = process.env.BLENDREF
+  fs.mkdirSync(dir, { recursive: true })
+  const rig = await page.evaluate(() => {
+    const sc = window.__three.scene
+    const out = { directional: [], hemisphere: null, ambient: null, background: null }
+    sc.traverse((o) => {
+      if (o.isDirectionalLight) {
+        const p = o.getWorldPosition(o.position.clone())
+        const t = o.target
+          ? o.target.getWorldPosition(o.target.position.clone())
+          : { x: 0, y: 0, z: 0 }
+        out.directional.push({
+          // Travel direction: from the light toward its target.
+          travel: [t.x - p.x, t.y - p.y, t.z - p.z].map((v) => +v.toFixed(5)),
+          intensity: +o.intensity.toFixed(5),
+          color: [o.color.r, o.color.g, o.color.b].map((v) => +v.toFixed(4)),
+        })
+      } else if (o.isHemisphereLight) {
+        out.hemisphere = {
+          intensity: +o.intensity.toFixed(5),
+          sky: [o.color.r, o.color.g, o.color.b].map((v) => +v.toFixed(4)),
+          ground: [o.groundColor.r, o.groundColor.g, o.groundColor.b].map((v) => +v.toFixed(4)),
+        }
+      } else if (o.isAmbientLight) {
+        out.ambient = {
+          intensity: +o.intensity.toFixed(5),
+          color: [o.color.r, o.color.g, o.color.b].map((v) => +v.toFixed(4)),
+        }
+      }
+    })
+    const bg = sc.background
+    if (bg) out.background = { ctor: bg.constructor?.name ?? '?', mapping: bg.mapping ?? null }
+    return out
+  })
+  const fwd = await page.evaluate(() => {
+    const c = window.__three.camera
+    const v = c.position.clone()
+    c.getWorldDirection(v)
+    return [v.x, v.y, v.z].map((n) => +n.toFixed(5))
+  })
+  const glbB64 = await page.evaluate(async () => {
+    const f = window.__exportSceneGlbBase64
+    if (typeof f !== 'function') return null
+    try {
+      return await f()
+    } catch (e) {
+      return { error: String(e) }
+    }
+  })
+  let glbPath = null
+  if (typeof glbB64 === 'string' && glbB64.length > 0) {
+    glbPath = `${dir}/scene.glb`
+    fs.writeFileSync(glbPath, Buffer.from(glbB64, 'base64'))
+  } else {
+    console.log(
+      `  BLENDREF: GLB export unavailable (${JSON.stringify(glbB64)}) -- is this a DEV build with the seam?`,
+    )
+  }
+  const manifest = {
+    // Camera in THREE space (Y-up). fov is three's VERTICAL fov in degrees.
+    camera: {
+      space: 'three',
+      position: camAtRaster.p,
+      forward: fwd,
+      target: camAtRaster.p.map((v, i) => +(v + fwd[i] * 3).toFixed(5)),
+      fovVerticalDeg: camAtRaster.fov,
+      aspect: camAtRaster.aspect,
+      quaternion: camAtRaster.q,
+    },
+    lights: rig,
+    scene: {
+      ...state,
+      room: ROOM,
+      window: pose.id,
+      standoff: +pose.standoff.toFixed(2),
+      pitch: PITCH,
+    },
+    glb: glbPath ? 'scene.glb' : null,
+    raster: 'frame.png',
+    note: 'Camera/lights are in THREE (Y-up) space. Convert with sofa_scene.three_to_blender().',
+  }
+  fs.writeFileSync(`${dir}/manifest.json`, `${JSON.stringify(manifest, null, 2)}\n`)
+  console.log(
+    `  BLENDREF -> ${dir}/manifest.json${glbPath ? ` + scene.glb (${(fs.statSync(glbPath).size / 1e6).toFixed(2)} MB)` : ''}`,
+  )
+}
 const shotDown = await shotFor(FLOOR_PITCH)
 fs.writeFileSync(`${OUT}/frame.png`, shot)
 fs.writeFileSync(`${OUT}/frame-down.png`, shotDown)

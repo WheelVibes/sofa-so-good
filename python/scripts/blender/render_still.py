@@ -47,7 +47,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--fov-axis", default="vertical", choices=("vertical", "horizontal"),
                    help="which axis --fov measures; three.js PerspectiveCamera.fov is VERTICAL")
     p.add_argument("--cam-pos", default=None, help="x,y,z metres")
+    p.add_argument("--cam-space", default=None, choices=("three", "blender"),
+                   help="REQUIRED with --cam-pos: which frame the coords are in. "
+                        "three = Y-up (the app/glTF); blender = Z-up. Not defaulted "
+                        "on purpose -- an unstated frame silently misplaces the camera.")
     p.add_argument("--cam-target", default=None, help="x,y,z metres")
+    p.add_argument("--sun-dir", default=None,
+                   help="sun TRAVEL direction as x,y,z in THREE (Y-up) space — read straight "
+                        "from the app's DirectionalLight. Preferred over --sun-elevation: a "
+                        "vector in a named frame has no angle convention to get wrong.")
     p.add_argument("--sun-elevation", type=float, default=None, help="degrees; omit for no sun")
     p.add_argument("--sun-azimuth", type=float, default=0.0, help="degrees")
     p.add_argument("--sun-energy", type=float, default=3.0)
@@ -81,16 +89,29 @@ def render(a: argparse.Namespace) -> dict:
     hdri_path, how = hdri.resolve(a.hdri, allow_network=not a.no_network)
     S.setup_world_hdri(hdri_path, strength=a.hdri_strength, rotation_deg=a.hdri_rotation)
 
-    if a.sun_elevation is not None:
+    if a.sun_dir:
+        S.add_sun_from_three_direction(_vec(a.sun_dir), energy=a.sun_energy)
+    elif a.sun_elevation is not None:
         S.add_sun(a.sun_elevation, a.sun_azimuth, energy=a.sun_energy)
 
     pos = _vec(a.cam_pos)
-    target = _vec(a.cam_target) or centre
+    target = _vec(a.cam_target)
+    if pos is not None and a.cam_space is None:
+        raise ValueError(
+            "--cam-space is required with --cam-pos: 'three' (Y-up, the app/glTF) or "
+            "'blender' (Z-up). Leaving it implicit is how a camera silently ends up in "
+            "the wrong place while the geometry looks fine."
+        )
     if pos is None:
-        # Frame from bounds: back off along -Y and up, the app's default walk-ish angle.
+        # Frame from bounds: back off along -Y and up (Blender space).
         d = radius * 3.0
         pos = (centre[0], centre[1] - d, centre[2] + d * 0.35)
-    S.place_camera(pos, look_at=target, fov_deg=a.fov, fov_axis=a.fov_axis)
+        target = target or centre
+        S.place_camera(pos, look_at=target, fov_deg=a.fov, fov_axis=a.fov_axis)
+    elif a.cam_space == "three":
+        S.place_camera_from_three(pos, target, fov_deg_vertical=a.fov)
+    else:
+        S.place_camera(pos, look_at=target or centre, fov_deg=a.fov, fov_axis=a.fov_axis)
 
     S.render_png(a.out)
     return {

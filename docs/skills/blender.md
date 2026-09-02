@@ -111,6 +111,32 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-03 — Blender 5.2.1's glTF importer ABORTS on `KHR_materials_dispersion: {}`.**
+  Upstream guard mismatch in `imp/pbrMetallicRoughness.py`: the settings node is created
+  only when `dispersion != 0` (line 36) but *used* whenever the extension is merely present
+  (line 136), so a no-op extension dereferences `None` and kills the **entire** import with
+  `AttributeError: 'NoneType' object has no attribute 'inputs'`. three's `GLTFExporter`
+  writes exactly that empty object for a `MeshPhysicalMaterial` with `dispersion = 0`, so
+  any scene containing glass hits it — measured on this repo's own export, **4 of 897
+  materials, enough to block all 897**. `glb_fix.strip_noop_dispersion()` removes it
+  losslessly (zero dispersion *is* the glTF default) and `import_glb` runs it
+  unconditionally; it is a no-op when there is nothing to fix. **Delete when upstream
+  fixes it.**
+- **2026-09-03 — three positions are Y-up, Blender is Z-up: `(x, y, z) → (x, −z, y)`.**
+  Verified: importing `pool-table-6ft.glb` gives extents x 1.93 / y 1.073 / **z 0.80** with
+  `z_min = 0.0`, so the table's height lands on Z and it sits on the floor — the importer
+  converts geometry. Camera and light positions taken from the app must be converted too,
+  or they land elsewhere while the geometry looks right. Use `three_to_blender()` /
+  `place_camera_from_three()`; `render_still.py` **requires** `--cam-space` alongside
+  `--cam-pos` rather than defaulting it.
+- **2026-09-03 — pass light DIRECTIONS, not angles.** `add_sun_from_three_direction()`
+  takes the travel vector straight off the app's `DirectionalLight`
+  (`normalize(target − position)`). A vector in a named frame has no degrees/radians
+  question and no azimuth-zero question — after three implicit-frame bugs in this bridge,
+  that is worth more than any docstring.
+- **2026-09-03 — argparse eats a leading `-`**, so a negative vector needs the `=` form:
+  `--sun-dir=-0.5,-24.8,2.8`, not `--sun-dir -0.5,...` (which fails with "expected one
+  argument").
 - **2026-09-03 — three.js FOV is VERTICAL; Blender's `camera.angle` defaults to the LARGER
   axis.** `PerspectiveCamera.fov` is vertical, while Blender under `sensor_fit = 'AUTO'`
   measures the angle along the larger sensor dimension — horizontal for any landscape

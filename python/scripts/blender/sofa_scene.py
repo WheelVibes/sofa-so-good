@@ -83,6 +83,14 @@ def import_glb(path: str) -> list[bpy.types.Object]:
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"GLB not found: {path}")
+    # Pre-pass for an importer bug in this Blender build: a material carrying
+    # `KHR_materials_dispersion` with no properties aborts the ENTIRE import. Lossless
+    # and a no-op when there is nothing to fix -- see `glb_fix` for the diagnosis.
+    import glb_fix
+
+    path, fixed = glb_fix.strip_noop_dispersion(path)
+    if fixed:
+        print(f"[sofa_scene] stripped no-op KHR_materials_dispersion from {fixed} material(s)")
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=path)
     return [o for o in bpy.data.objects if o not in before]
@@ -213,6 +221,73 @@ def place_camera(location: tuple[float, float, float],
         con.track_axis = "TRACK_NEGATIVE_Z"
         con.up_axis = "UP_Y"
     return cam
+
+
+def add_sun_from_three_direction(travel_dir_three: tuple[float, float, float],
+                                 energy: float = 3.0,
+                                 color: tuple[float, float, float] = (1.0, 0.95, 0.9)
+                                 ) -> bpy.types.Object:
+    """Add a sun from the light's **travel direction** in three.js space.
+
+    Preferred over both `add_sun` (degrees) and `add_sun_from_app` (radians): a vector
+    in a named frame has no angle convention to get wrong, no degrees/radians question,
+    and no azimuth-zero-direction question. Read it off the app's actual
+    `DirectionalLight` as `normalize(target - position)` and pass it straight in — what
+    the app really did, rather than a re-derivation of it.
+
+    A Blender SUN emits along its local **−Z**, so the rotation is built with
+    `to_track_quat('-Z', 'Y')` rather than by composing eulers.
+    """
+    d = Vector(three_to_blender(travel_dir_three))
+    if d.length < 1e-9:
+        raise ValueError("travel direction is zero-length")
+    d.normalize()
+    data = bpy.data.lights.new("sun", type="SUN")
+    data.energy = energy
+    data.color = color
+    obj = bpy.data.objects.new("sun", data)
+    bpy.context.collection.objects.link(obj)
+    obj.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    return obj
+
+
+def three_to_blender(v: tuple[float, float, float]) -> tuple[float, float, float]:
+    """Convert a three.js / glTF **Y-up** vector to Blender's **Z-up** frame.
+
+    VERIFIED on this build: importing `pool-table-6ft.glb` yields extents
+    x=1.93, y=1.073, **z=0.80** with `z_min = 0.0` — i.e. the table's *height* lands on
+    Z and it sits on the floor, so `bpy.ops.import_scene.gltf` applies the Y-up → Z-up
+    conversion to geometry.
+
+    That means **camera and light positions taken from the app must be converted too**,
+    or they land somewhere else entirely while the geometry is correct. glTF is Y-up,
+    right-handed; Blender is Z-up, right-handed; the mapping is
+    `(x, y, z) → (x, −z, y)`.
+
+    Third instance of the implicit-frame class in this bridge, after radians/degrees on
+    the sun and vertical/horizontal on the FOV. Hence a named function rather than an
+    inline expression: the frame is stated at the call site.
+    """
+    x, y, z = v
+    return (x, -z, y)
+
+
+def place_camera_from_three(location_three: tuple[float, float, float],
+                            look_at_three: tuple[float, float, float] | None = None,
+                            fov_deg_vertical: float = 50.0) -> bpy.types.Object:
+    """Place the camera from **three.js-space** coordinates and a **vertical** FOV.
+
+    The two conversions this bridge keeps getting wrong, both applied and both named:
+    Y-up → Z-up on the positions, and vertical FOV (three's `PerspectiveCamera.fov`)
+    pinned via `sensor_fit`. A caller forwarding app values should use *this*, never
+    `place_camera`.
+    """
+    return place_camera(
+        three_to_blender(location_three),
+        look_at=three_to_blender(look_at_three) if look_at_three is not None else None,
+        fov_deg=fov_deg_vertical,
+        fov_axis="vertical",
+    )
 
 
 def render_png(out_path: str) -> str:
