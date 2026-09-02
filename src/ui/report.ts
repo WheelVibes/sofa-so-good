@@ -993,10 +993,15 @@ export function buildReportHtml(
   const lightingSection = lighting.lights.length
     ? `<div class="elev-section"><h2>Lighting plan</h2>
         ${lightingFigures}
-        <table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td class="num">Qty</td><td class="num">Height</td><td class="num">Intensity</td></tr>${lighting.schedule
+        <table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td class="num">Qty</td><td class="num">Height</td><td class="num">Output</td><td class="num">CCT</td><td class="num">IP</td></tr>${lighting.schedule
           .map(
+            // Lumens / CCT / IP — what a supplier needs to quote a fixture.
+            // `intensity` (scene candela) is deliberately no longer printed: it
+            // is a render unit on a register its own registry header warns must
+            // never be compared to a real luminaire, so putting it on a
+            // professional schedule invited exactly that comparison.
             (r) =>
-              `<tr><td>${esc(r.label)}</td><td class="num">×${r.count}</td><td class="num">${esc(formatLength(r.height, units))}</td><td class="num">${r.intensity} cd</td></tr>`,
+              `<tr><td>${esc(r.label)}</td><td class="num">×${r.count}</td><td class="num">${esc(formatLength(r.height, units))}</td><td class="num">${r.lumens} lm</td><td class="num">${r.cct}K</td><td class="num">IP${r.ip}</td></tr>`,
           )
           .join('')}</table>
         ${roomLuxTableHtml(

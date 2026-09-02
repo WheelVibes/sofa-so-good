@@ -235,7 +235,15 @@ describe('buildReportHtml', () => {
     expect(html).toContain('Lighting plan')
     expect(html).toContain('lighting plan,') // svg aria-label
     expect(html).toMatch(/×\d+/) // a fixture quantity in the schedule
-    expect(html).toContain('cd</td>') // intensity column (candela)
+    // v0.31.5.297: the schedule quotes what a supplier needs — lumens, colour
+    // temperature and ingress protection — not scene candela. `intensity` is a
+    // render unit whose own registry header warns it must never be compared to
+    // a real luminaire, so printing it on a professional schedule invited
+    // exactly that comparison.
+    expect(html).toMatch(/\d+ lm<\/td>/)
+    expect(html).toMatch(/\d+K<\/td>/)
+    expect(html).toMatch(/IP\d+<\/td>/)
+    expect(html).not.toContain('cd</td>')
   })
 
   it('escapes user-controlled strings (plan name + note) to prevent HTML injection', () => {

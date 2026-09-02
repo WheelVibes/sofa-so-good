@@ -11,6 +11,7 @@
  */
 import { isItemEmitter, LIGHT_EMITTERS } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { planLightLumens } from './roomLux'
 
 export interface PlanLight {
   id: string
@@ -44,7 +45,28 @@ interface LightScheduleRow {
   count: number
   /** Representative emit height (m) for the type. */
   height: number
+  /** Scene candela — a RENDER unit. Kept for the existing 2D/3D consumers, but
+   *  a schedule a supplier reads should quote `lumens` instead: `intensity`
+   *  lives on a stylised register its own registry header warns must never be
+   *  compared to a real luminaire. */
   intensity: number
+  /**
+   * Total flux per fixture (lm), from the SAME `planLightLumens` the lux model
+   * uses (`intensity × SCENE_INTENSITY_CALIBRATION × 4π`).
+   *
+   * Derived, never authored: the calibration constant is documented as mapping
+   * the registry onto realistic packages — "table lamp 4 cd ≈ 600 lm, floor
+   * lamp 7 cd ≈ 1050 lm, ceiling pendant 9 cd ≈ 1350 lm" — and published room
+   * guidance puts a bedroom ceiling fixture at 1200-1800 lm, so those land in
+   * band. Authoring a second lumens field would create two sources of truth for
+   * one quantity and let the schedule drift from the lighting calculation.
+   */
+  lumens: number
+  /** Specified colour temperature (K) — a product property, not derived from
+   *  the render tint. */
+  cct: number
+  /** Specified ingress protection (e.g. 20, 44). */
+  ip: number
 }
 
 export interface LightingPlan {
@@ -108,6 +130,9 @@ export function buildLightingPlan(
         count: 1,
         height,
         intensity: spec.intensity,
+        lumens: Math.round(planLightLumens({ intensity: spec.intensity })),
+        cct: spec.cct,
+        ip: spec.ip,
       })
   }
 

@@ -5,6 +5,56 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.297 - a lamp spec on the lighting schedule, and .296's claim corrected
+
+**Correcting `.296` first. It said the lighting schedule was missing lumens, measured as 0/6
+emitters. Both halves were wrong.**
+
+Lumens are NOT missing: `lighting2d/roomLux.ts:planLightLumens` already derives them
+(`intensity × SCENE_INTENSITY_CALIBRATION × 4π`), and that calibration constant is documented, with
+worked values — "table lamp 4 cd ≈ 600 lm, floor lamp 7 cd ≈ 1050 lm, ceiling pendant 9 cd
+≈ 1350 lm — all typical retail outputs". Published guidance puts a bedroom ceiling fixture at
+1200-1800 lm, so those land in band. Authoring a lumens field would have created **two sources of
+truth for one quantity**, free to drift from the lighting calculation.
+
+And the count was wrong: there are **8** emitters, not 6. `vanity` and `aquarium` use unquoted keys,
+which my `^  '[^']+':` pattern skipped. That is the third under-inclusive grep in two sessions
+(`.283` `allWallElevations`, `.292` the curtain pack, `.296` twice over) — and I adopted the rule
+"grep `src/` whole before asserting an absence" back at G4, for exactly this.
+
+**What was actually missing, and now exists:** the schedule quoted `intensity` in scene candela — a
+render unit on a register whose own registry header warns it must *never* be compared to a real
+luminaire. Printing it on a professional schedule invited precisely that comparison. It now quotes
+**lumens** (via the shared `planLightLumens`, one source of truth), plus two genuinely absent
+product properties, `EmitterSpec.cct` and `EmitterSpec.ip`.
+
+**CCT is authored, never derived from `EmitterSpec.color`.** That hex is a render tint; converting
+it to Kelvin would be deriving a specification from a rendering constant — the mistake
+`tileCoursing.ts` warns about for tile sizes, and the mirror image of the warning already sitting
+above `intensity`.
+
+**A bulk edit produced one wrong value and review caught it.** My regex authored 3000 K warm white
+on all eight emitters — including the **aquarium**, whose own comment two lines up calls it "a cool
+aqua accent" with a `#bfe8f2` tint. Corrected to 6500 K, the standard freshwater aquarium lamp.
+Exactly the plausible-but-contradicted data the `moduleMm` / paint-coverage rules exist to stop, and
+a reminder that a uniform bulk value needs reading per site, not just compiling.
+
+**New `analysis/lampSpecAdvisory.ts` — two checks the numbers make possible:**
+
+- **Ingress protection (COMPLIANCE, not procurement).** Bathroom zones 1 and 2 require **IP44
+  minimum**; every shipped emitter is IP20, so a ceiling or vanity light in a bath/powder room is a
+  real finding. Zones are deliberately NOT modelled — that needs a shower envelope the app does not
+  have — so the check is ROOM-level: conservative in the safe direction (it may flag a fixture
+  outside the zones, it will never miss one inside them), and the wording says so and offers the
+  out. Inventing zone geometry would produce confident misses.
+- **Colour temperature against room use (a SPEC, not a preference).** 3000 K suits living rooms and
+  bedrooms; a task space wants ~4000 K neutral, which "keeps the colour of meat, fish, herbs and
+  produce true". Raised as a question rather than silently re-specifying the fixture — a bath fires
+  BOTH checks, since it is wet *and* a task space.
+
+18 new tests. Sources: hollowaysofludlow.com and meteorelectrical.com (IP zones); tecolite.com and
+olamled.com (3000 K vs 4000 K); leuchtstark.de and lumarysmart.com (room lumen bands).
+
 ## v0.31.5.296 - the items-side audit comes back CLEAN, and the next gap named
 
 Docs only. `.294`/`.295` audited `plan.rooms`/`walls`/`openings` and found eleven defects. This

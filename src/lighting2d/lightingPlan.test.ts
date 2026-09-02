@@ -66,7 +66,19 @@ describe('buildLightingPlan', () => {
       defs,
     )
     expect(plan.schedule).toEqual([
-      { type: 'ceiling-light', label: 'Ceiling light', count: 2, height: 2.05, intensity: 9 },
+      // `lumens` is DERIVED from `intensity` via the lux model's calibration
+      // (9 cd x 12 x 4pi ~= 1357 lm), so it is asserted as the rounded value
+      // rather than a second authored figure — one source of truth.
+      {
+        type: 'ceiling-light',
+        label: 'Ceiling light',
+        count: 2,
+        height: 2.05,
+        intensity: 9,
+        lumens: Math.round(9 * 12 * 4 * Math.PI),
+        cct: 3000,
+        ip: 20,
+      },
       expect.objectContaining({ type: 'floor-lamp', count: 1 }),
     ])
   })
@@ -78,6 +90,8 @@ describe('buildLightingPlan', () => {
       color: '#fff',
       intensity: 5,
       distance: 2,
+      cct: 3000,
+      ip: 20,
       enabled: (p) => p.lights === 'yes',
     }
     try {

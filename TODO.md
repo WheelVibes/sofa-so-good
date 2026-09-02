@@ -331,7 +331,14 @@ fact. Caveat already documented in `intakeStates.ts`: the curated default flat i
 it would be session-only there — which is fine for a live-computed schedule and only matters across
 a reload.
 
-## Lighting schedule needs a LAMP SPEC — next piece of work (scoped v0.31.5.296)
+## Lighting lamp spec — ✅ SHIPPED v0.31.5.297. Remaining: surface the advisory in the UI.
+
+`analysis/lampSpecAdvisory.ts` exists and is tested but is NOT yet wired to a surface. It needs the
+placed fixtures with their rooms resolved on their own storey (`levels.ts:roomAtItem`), then a group
+in `ui/ClearancePanel.tsx` (the Checks panel) and/or a report section, behind its own flag. Both
+findings are actionable and one is a compliance matter, so this should not sit unsurfaced for long.
+
+### Original scoping note — NOTE its lumens claim was WRONG, see .297
 
 `lighting2d/lightingPlan.ts`'s schedule rows carry `type/label/count/height/intensity`, where
 `intensity` is a three.js unit. Missing, and measured **0/6 emitters** in
