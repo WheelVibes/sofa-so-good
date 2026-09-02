@@ -117,3 +117,33 @@ describe('variation register flow', () => {
     useStore.getState().reresolveFeatureFlags()
   })
 })
+
+describe('the tendered snapshot survives a save/restore round trip', () => {
+  it('serialises and hydrates back, so the register outlives a reload', async () => {
+    // Session-only (as .307 shipped) undercut the whole point: a tender
+    // snapshot has to survive the weeks between pricing and building.
+    const { serialize, applySerialized, SerializedStateZ } = await import('../state/schema')
+    useStore.getState().captureTenderedSnapshot()
+    const captured = useStore.getState().tenderedSnapshot!
+    const parsed = SerializedStateZ.parse(
+      JSON.parse(JSON.stringify(serialize(useStore.getState()))),
+    )
+    const restored = applySerialized(parsed, new Set())
+    expect(restored.tenderedSnapshot?.revision).toBe(captured.revision)
+    expect(restored.tenderedSnapshot?.at).toBe(captured.at)
+    expect(restored.tenderedSnapshot?.finishes.floor).toEqual(captured.finishes.floor)
+  })
+
+  it('hydrates a save with NO snapshot to null, not undefined', () => {
+    // The slice's initial value is `null`, so the register's "nothing marked
+    // yet" branch must read identically on a fresh boot and on a restore.
+    return import('../state/schema').then(({ serialize, applySerialized, SerializedStateZ }) => {
+      useStore.getState().clearTenderedSnapshot()
+      const restored = applySerialized(
+        SerializedStateZ.parse(JSON.parse(JSON.stringify(serialize(useStore.getState())))),
+        new Set(),
+      )
+      expect(restored.tenderedSnapshot).toBeNull()
+    })
+  })
+})

@@ -368,10 +368,9 @@ coverage) did.
 
 ## Variation register — ✅ SHIPPED v0.31.5.307. Two follow-ups:
 
-- **Persist `tenderedSnapshot`.** Session-only today, which undercuts the point: a tender snapshot
-  wants to survive the weeks between pricing and building. Needs `serialize()`, the autosave watch
-  list and its lock-step guard changed TOGETHER (the CLAUDE.md invariant is autosave ⊇ serialize),
-  which is why it was not bundled with the feature.
+- ~~**Persist `tenderedSnapshot`**~~ DONE v0.31.5.308 — schema + `serialize` + `applySerialized`
+  + `PERSISTENT_WATCH_KEYS` + the lock-step guard case, all in one commit. Absent hydrates to
+  `null`, matching the slice's initial value.
 - **A printed register sheet**, not just the CSV block. The drawing set is what gets handed over;
   a variation is arguably a sheet with its own revision letter.
 

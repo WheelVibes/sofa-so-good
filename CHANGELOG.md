@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.308 - the tendered snapshot persists
+
+`.307` shipped the variation register with a session-only snapshot and said plainly that this
+undercut the point: a tender snapshot has to survive the weeks between pricing and building, and
+one that vanishes on reload is a demo. Now persisted.
+
+Done as the **lock-step change CLAUDE.md requires**, all in one commit rather than piecemeal:
+
+1. `SerializedStateZ` gains an optional `tenderedSnapshot` (plan + items + finishes + timestamp +
+   revision letter). Additive: a save without one simply has no register.
+2. `serialize()` writes it when present.
+3. `applySerialized()` restores it, mapping absent to **`null` rather than `undefined`** so the
+   register's "nothing marked yet" branch reads identically on a fresh boot and on a restore.
+4. `PERSISTENT_WATCH_KEYS` watches it — the invariant is autosave ⊇ `serialize()`, and a field
+   written but unwatched is the documented BUG-001 shape: editing only that field leaves autosave
+   silent and the change is lost on reload. Which would be precisely fatal here, since marking a
+   design as tendered usually changes nothing else.
+5. The existing lock-step guard test gains a `tenderedSnapshot` case, so capture alone must trigger
+   a save.
+
+Both round-trip tests confirmed failing with the schema change stashed.
+
+Worth noting what made this safe to do quickly: the invariant was already written down in
+`CLAUDE.md`, the watch list already carried a comment saying a guard test asserts it stays a
+superset, and that guard already listed four fields ("BUG-001") that had once been persisted but
+unwatched. The previous person to make this mistake left the trap disarmed for the next one — which
+is the argument for recording a failure in the place the next change will touch, rather than only in
+a changelog entry nobody re-reads.
+
 ## v0.31.5.307 - the variation register, built as a whole slice
 
 `.306` named this the largest remaining professional gap and deliberately did not start it, because

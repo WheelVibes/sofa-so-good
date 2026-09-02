@@ -22,6 +22,7 @@ const DEBOUNCE_MS = 500
  *  reference compare suffices.) */
 type Persistent = {
   items: unknown
+  tenderedSnapshot: unknown
   floorPlan: unknown
   doors: unknown
   finishes: unknown
@@ -55,6 +56,7 @@ type Persistent = {
  *  (the lock-step invariant). */
 export const PERSISTENT_WATCH_KEYS = [
   'items',
+  'tenderedSnapshot',
   'floorPlan',
   'doors',
   'finishes',
@@ -87,6 +89,7 @@ function pickPersistent(): Persistent {
   const s = useStore.getState()
   return {
     items: s.items,
+    tenderedSnapshot: s.tenderedSnapshot,
     floorPlan: s.floorPlan,
     doors: s.doors,
     finishes: s.finishes,
@@ -119,6 +122,7 @@ function pickPersistent(): Persistent {
 function shallowEqual(a: Persistent, b: Persistent): boolean {
   return (
     a.items === b.items &&
+    a.tenderedSnapshot === b.tenderedSnapshot &&
     a.floorPlan === b.floorPlan &&
     a.doors === b.doors &&
     a.finishes === b.finishes &&
