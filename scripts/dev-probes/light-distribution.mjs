@@ -2041,20 +2041,59 @@ if (process.env.PT === '1') {
       const cls = mode === 'rb' ? (st.rb < 0 ? 'A' : 'B') : st.L >= thresh ? 'A' : 'B'
       seq.push({ i, cls, L: Number(st.L.toFixed(1)), rb: Number(st.rb.toFixed(1)) })
       if (i === n) break
-      const clicked = await waitFor(
-        () =>
-          page.evaluate(() => {
-            const b = [...document.querySelectorAll('button')].find(
-              (x) => (x.textContent || '').trim() === 'Re-render',
-            )
-            if (!b || b.disabled) return false
-            b.click()
-            return true
-          }),
-        90_000,
-      )
+      // `.346`: STOP FIRST. A re-render is far slower than the first render (~12 s vs
+      // >120 s), and while one is running the modal offers "Stop", not "Re-render" --
+      // which is why `.341`'s census capped at 2 arms and why `.339`/`.340` kept
+      // concluding the button was missing. The inventory settled it: mid-render the
+      // controls are Close / Stop / Save PNG, with Re-render absent.
+      //
+      // The class is readable at 9 samples (`.339`), so convergence is unnecessary:
+      // stop as soon as the arm is classifiable and Re-render returns. ~20 s per arm
+      // instead of a whole boot, which is what makes measuring (u)'s RATE -- and
+      // testing whether it shifts with setup timing -- affordable at all.
+      const clickByLabel = (label) =>
+        page.evaluate((l) => {
+          const b = [...document.querySelectorAll('button')].find(
+            (x) => (x.textContent || '').trim() === l,
+          )
+          if (!b || b.disabled) return false
+          b.click()
+          return true
+        }, label)
+      await clickByLabel('Stop')
+      await new Promise((r) => setTimeout(r, 1200))
+      const clicked = await waitFor(() => clickByLabel('Re-render'), 60_000)
+      // VERIFY A NEW RENDER ACTUALLY STARTED (`.346`). Waiting for ">= 9 samples" is
+      // not enough: if the counter never reset, the PREVIOUS render still satisfies it
+      // and the same frame is read twice. That is detectable in the data -- class A is
+      // always exactly 175.6 (the smooth environment, converged instantly) while class
+      // B varies at 9 samples, so two consecutive class-B arms identical to the decimal
+      // mean a stale read. The first cut of this census produced exactly that (arms 3
+      // and 4 both 94.5 / 4.9), so its counts were unusable.
+      const reset = await waitFor(async () => ((await samplesNow()) ?? 99) < 9, 30_000, 700)
+      if (!reset) {
+        console.log(
+          `  PTCENSUS: sample counter never reset after arm ${i} -- stopping (stale reads)`,
+        )
+        break
+      }
       if (!clicked) {
-        console.log(`  PTCENSUS: Re-render unavailable after arm ${i} -- stopping early`)
+        // `.341` found Re-render is available once and then not again, capping a census
+        // at 2 arms. `.346` needs many arms per boot to test whether (u)'s rate shifts
+        // with setup timing (an independent per-session draw that is deterministic
+        // afterwards is the signature of a SETUP-TIME RACE). So inventory what controls
+        // the modal actually offers at this point, rather than assuming again -- the
+        // error `.339`, `.340` and `.344` all made in different costumes.
+        const inv = await page.evaluate(() => ({
+          buttons: [...document.querySelectorAll('button')].map((b) => ({
+            t: (b.textContent || '').trim().slice(0, 28) || b.getAttribute('aria-label') || '?',
+            dis: b.disabled,
+          })),
+          dialogs: document.querySelectorAll('[role=dialog]').length,
+        }))
+        console.log(
+          `  PTCENSUS: Re-render unavailable after arm ${i} -- controls now: ${JSON.stringify(inv)}`,
+        )
         break
       }
       await new Promise((r) => setTimeout(r, 2500))

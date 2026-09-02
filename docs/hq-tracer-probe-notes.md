@@ -972,3 +972,44 @@ trace and anything persistent *between* calls in a session.
 **Method note.** Never quote a rate from arms a round happened to produce — rounds stop as soon as they get the
 class they need, which truncates every sequence on a class-B arm. Count only fixed-length samples, and prefer
 the first one per condition.
+
+## PTCENSUS: 20 (u) arms per boot — click STOP, then Re-render
+
+`.341`'s recorded bound ("Re-render gives one extra arm per boot") is **withdrawn**. The mid-render control
+inventory is:
+
+    Close · Stop · Save PNG      (Re-render absent; resolution/samples/DoF disabled)
+
+Re-render is absent only because a render is **running**, and re-renders are far slower than the first (~12 s vs
+>120 s), so a 60–90 s wait expires. Since the class is readable at **9 samples**, convergence is unnecessary:
+**Stop the render, and Re-render returns.** ~36 s per arm.
+
+`.339`, `.340` and `.341` each concluded the button was missing/limited by *inferring* from what they expected.
+Enumerating the controls settled it in one run. **When a control seems absent, list what is present.**
+
+## A census must verify the render actually restarted
+
+Waiting for "≥ 9 samples" after clicking Re-render is **not** sufficient: if the sample counter has not reset,
+the previous render satisfies it and the same frame is counted again.
+
+The tell is available in the data: **class A reads exactly 175.6 every time** (smooth environment, converged
+instantly) while **class B varies at 9 samples** (89–117). So *duplicate class-B values are impossible* unless a
+frame was read twice. The unguarded census produced arms 3 and 4 both at 94.5 / 4.9 — and a p(A) of 0.35 that
+appeared to support the attractive setup-time-race hypothesis.
+
+Guard: require the counter to drop below the threshold before counting an arm; abort the census if it never
+does. With the guard, p(A) = 0.55 and the race lead evaporates.
+
+## Best (u) rate estimate: p(A) = 0.63, CI [0.48, 0.78], n = 38
+
+Pooling `.345`'s converged first-pair arms (13/18) with `.346`'s guarded census (11/20); the two do not differ
+(two-proportion z = +1.10, p ≈ 0.27), so converged first renders and rapid-cycled re-renders draw from the same
+distribution.
+
+| | |
+| --- | --- |
+| **p(A)** | **0.632**, CI [0.48, 0.78] |
+| independence | runs test on a 20-arm sequence: 10 vs 10.9 expected, z = −0.42 |
+| tax | 1.7 boots per class-B arm |
+
+Supersedes `.345`'s 0.722 (n = 18).

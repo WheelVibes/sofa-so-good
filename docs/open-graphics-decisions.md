@@ -3338,3 +3338,24 @@ on top of the ~25 candidates already eliminated.
 environment instead — or the reverse in terms of which is "correct", since `.328` established the traced ceiling
 in class B is the physically sensible one. Either way it is not a rare glitch: it is the majority outcome, and
 any user exercising the HQ still repeatedly will see both.
+
+### (u) RATE REFINED, AND A TIMING LEAD REFUTED (v0.31.5.346)
+
+A census mechanism now yields **20 arms per boot** (~36 s each) rather than 2 — click **Stop** at 9 samples,
+then Re-render. `.341`'s recorded bound that Re-render gives only one extra arm per boot is **withdrawn**: the
+button is absent mid-render only because a render is *running*, and re-renders are ~10× slower than the first.
+
+| | |
+| --- | --- |
+| **pooled p(A)** | **0.632**, 95 % CI **[0.48, 0.78]**, n = 38 |
+| independence | runs test on a 20-arm sequence — 10 observed vs 10.9 expected, z = −0.42 |
+| tax | 1.7 boots per class-B arm |
+
+Supersedes `.345`'s 0.722. **A setup-time race — the leading remaining hypothesis — is refuted**: rapid-cycled
+re-renders (11/20) and converged first renders (13/18) draw from the same distribution (two-proportion
+z = +1.10, p ≈ 0.27). An unguarded first census suggested otherwise (p(A) = 0.35), but that was stale frames
+being counted twice; the guard requires the sample counter to reset before an arm counts.
+
+**So (u) stands as:** an independent draw per `createHqRenderSession` call at **p(A) ≈ 0.63**, deterministic
+once drawn, with no dependence on session timing, no clustering, and ~26 candidate causes eliminated. It affects
+the **majority** of HQ stills, so it is not a rare glitch.

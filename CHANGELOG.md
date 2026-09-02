@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.346 — the missing control was "Stop": 20 (u) arms per boot, the setup-race lead REFUTED, and a stale-read flaw caught before publication
+
+**The control I had concluded didn't exist was there all along.** `.339` decided there was no Re-render button
+during a render; `.340` that it "never became available"; `.341` recorded a *bound* — "Re-render gives one extra
+arm per boot, not repeated sampling". All three were the same misreading, and `.341`'s bound is **withdrawn**.
+
+Inventorying the modal mid-render instead of inferring:
+
+    Close · Stop · Save PNG   (Re-render absent; resolution/samples/DoF disabled)
+
+Re-render is absent because a render is **running**, and re-renders are far slower than the first (~12 s vs
+>120 s), so every wait I had set expired. The class is readable at **9 samples** (`.339`), so convergence is
+unnecessary: **click Stop, and Re-render returns.**
+
+**Result: 20 arms in one boot, ~36 s per arm**, against 2 arms per ~7-minute boot before.
+
+**Then the instrument nearly produced a false discovery, and I want the near-miss on the record.** The first
+census gave **p(A) = 0.35** against the converged-arm estimate of 0.72 — a difference large enough to look like
+a finding, with a ready-made mechanism: *an independent per-session draw whose rate shifts with session timing
+is exactly the signature of a **setup-time race***, which was this round's opening hypothesis and would have
+been the first positive mechanism after ~25 eliminated candidates.
+
+What stopped it was not scepticism about the story but an internal inconsistency: **class A reads exactly 175.6
+every time** (the smooth environment, converged instantly) while **class B varies at 9 samples** (89–117). So
+two consecutive class-B arms identical to the decimal are impossible unless the same frame was read twice — and
+arms 3 and 4 both read **94.5 / 4.9**. My loop waited for "≥ 9 samples" after clicking Re-render, which the
+*previous* render already satisfied if the counter had not reset.
+
+Guard added: require the sample counter to **reset** before counting an arm, and stop the census if it never
+does. Re-run, all class-B values distinct:
+
+| | |
+| --- | --- |
+| guarded census | `BABBABAAAAABBBAAABBA` — **11A / 9B**, p(A) = 0.550, CI [0.33, 0.77] |
+| runs test | 10 observed vs 10.9 expected, **z = −0.42** → no clustering |
+| converged first-pair arms (`.345`) | 13/18 = 0.722 |
+| **two-proportion test** | **z = +1.10, p ≈ 0.27 — not significant** |
+
+**So the setup-timing race lead is refuted**, and the unguarded 0.35 was my own stale reads inflating class B.
+
+**Two things gained anyway.** Independence is now confirmed on a proper **20-arm sequence** rather than pairs
+(runs test, z = −0.42), which is a much stronger test than `.345`'s χ² on 9 pairs. And the pooled rate is
+tighter:
+
+| | |
+| --- | --- |
+| **pooled p(A)** | **0.632**, 95 % CI **[0.48, 0.78]**, n = 38 |
+| tax | 1.7 boots per class-B arm, or ~36 s per arm by census |
+
+That supersedes `.345`'s 0.722 (n = 18) as the best estimate.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.345 — (u)'s class rate measured for the first time, arms shown INDEPENDENT, and three of my own tax figures withdrawn
 
 No new runs. `.341` established that every rate this arc has quoted came from arms accumulated while measuring
