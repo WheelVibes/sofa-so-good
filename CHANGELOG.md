@@ -5,6 +5,67 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.321 — branch-health audit: `src/` is clean after eight temporary instrumentations, and PR #109 has been MERGED since round .248 — so 73 rounds have no PR and no remote copy
+
+Thread 1 is closed (`.320`), thread 2 is at ~5 % marginal yield (`.291`), thread 3 is a look call. So this round
+audits the state of the work itself, and it turns up something the brief has been mis-describing for 73 rounds.
+
+**1. The instrumentation audit — clean.** Rounds `.287`, `.299`, `.301`, `.302`, `.306`, `.307`, `.310` and
+`.312` each added temporary `src/` instrumentation and reverted it. Verified across **all 73 unpushed commits**,
+not per round:
+
+| check | result |
+| --- | --- |
+| `src/` diff over the full span | only `hqRenderSession.ts` (+110), its tests (+53), `src/scene/CLAUDE.md` (+20), `src/version.ts` |
+| `console.log`/`warn`/`error` added to `src/` | **none** (beyond the pre-existing `import.meta.env.DEV` ones) |
+| leftover markers (`0x00ff00`, `[PROBE]`, `TEMPORARY .`) | **none** |
+| working tree | clean; no stray `tmp-*` probe scripts |
+| `package.json` ↔ `APP_VERSION` | **in sync** — "0.31.5" mirrors 0.31.5.321, as the repo rule requires |
+| probe parses | `node --check` OK |
+
+So the only shipped `src/` change in the whole arc remains `.253`'s `pbrStandInFor` plus its unit tests — which
+`.304` independently cleared of involvement in (u). **Eight temporary edits, eight clean reverts.**
+
+**2. And the finding that matters: PR #109 is `MERGED`, not open.** It merged into staging at
+**v0.31.5.247/.248** (merge commit `55c96fba`), and `origin/fix/graphics-realism-tiers` sits at
+**`4eccc532` — v0.31.5.248**. The brief's premise — *"PR #109 open into staging, at round .247"* — has been
+**stale since round .249**.
+
+**3. Consequence, stated plainly: rounds `.249`–`.320` have no PR and no remote copy.**
+
+```
+git branch -r --contains HEAD   →   (empty)
+```
+
+**73 commits, 15,061 insertions across 11 files, existing only in this worktree** — the entire `.249`–`.320`
+research record (5,856 lines), 2,141 lines of probe instrumentation, the new
+`docs/hq-tracer-probe-notes.md`, and the `docs/open-graphics-decisions.md` entries for items (n)–(v). Nothing
+is replicated anywhere.
+
+**4. They would land cleanly.** Current staging is **exactly one commit ahead** of our base — and that commit is
+the merge of our own `.248`. There is no divergence to resolve.
+
+**5. What the repo's own flow requires.** `CLAUDE.md`: feature branches are cut **from** staging and open PRs
+back **into** staging; nothing is pushed to staging directly; every PR title states the version it ships. A
+merged branch is spent, so continuing to commit onto `fix/graphics-realism-tiers` is off-flow. This work needs
+**a new branch cut from current staging** and **a new PR into staging titled `… (v0.31.5.321)`**.
+
+**I have not pushed, branched or opened anything** — those are outward-facing and I have never had
+authorisation, which is also why I have flagged the unpushed count every round. But this is the one item where
+waiting has a cost that compounds rather than staying flat: **the work is unreplicated, and a lost worktree
+loses all 73 rounds.**
+
+**What I can do on a word from you:** cut `fix/graphics-realism-arc-2` (or a name you prefer) from current
+staging, carry the 73 commits across, push, and open the PR with a summary drawn from `.296`'s
+state-of-knowledge index and the eight open decision items. That is mechanical and I would not need further
+input.
+
+**Method note.** The brief's own premise was wrong and no round had checked it — 73 rounds of reporting
+"unpushed on PR #109" while #109 was closed. **A standing premise deserves the same verification as a
+measurement**, and it costs one `gh pr view`.
+
+**Unchanged:** no `src/` change beyond the version bump. Docs only.
+
 ## v0.31.5.320 — thread 1's photographic half is closed, quantitatively: the recoverable pose bracket (21°) is WIDER than the metric's entire dynamic range (17°)
 
 Thread 1's standing instruction is *"find out what aspect the reference photograph was shot at, or build a

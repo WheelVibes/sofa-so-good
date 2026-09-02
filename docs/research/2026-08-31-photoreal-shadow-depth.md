@@ -11344,3 +11344,61 @@ contradicted a plainly visible feature. **Check a geometric estimate against som
 shows** — the crop-looking discipline, applied to arithmetic.
 
 No `src/` change, no probe change.
+
+---
+
+## Round .321 — branch-health audit: `src/` clean after eight temporary instrumentations, and PR #109 merged 73 rounds ago
+
+Thread 1 closed (`.320`), thread 2 at ~5 % yield (`.291`), thread 3 a look call. So this round audits the state
+of the work, and finds the brief's own premise stale.
+
+### 1. Instrumentation audit — clean
+
+`.287`, `.299`, `.301`, `.302`, `.306`, `.307`, `.310`, `.312` each added temporary `src/` instrumentation and
+reverted it. Verified across **all 73 unpushed commits** rather than per round:
+
+| check | result |
+| --- | --- |
+| `src/` diff over the full span | only `hqRenderSession.ts` (+110), its tests (+53), `src/scene/CLAUDE.md` (+20), `src/version.ts` |
+| `console.log/warn/error` added to `src/` | none beyond pre-existing `import.meta.env.DEV` ones |
+| markers (`0x00ff00`, `[PROBE]`, `TEMPORARY .`) | none |
+| working tree | clean; no stray `tmp-*` probe scripts |
+| `package.json` ↔ `APP_VERSION` | in sync per the repo rule |
+| probe | `node --check` OK |
+
+The only shipped `src/` change in the arc remains `.253`'s `pbrStandInFor` and its tests — which `.304` cleared
+of involvement in (u). Eight temporary edits, eight clean reverts.
+
+### 2. PR #109 is MERGED, not open
+
+It merged into staging at **v0.31.5.247/.248** (merge commit `55c96fba`); `origin/fix/graphics-realism-tiers` is
+at **`4eccc532`, v0.31.5.248**. The brief's premise — *"PR #109 open into staging, at round .247"* — has been
+stale since round `.249`.
+
+### 3. So rounds .249–.320 have no PR and no remote copy
+
+`git branch -r --contains HEAD` returns **empty**. **73 commits, 15,061 insertions across 11 files, only in this
+worktree**: the `.249`–`.320` research record (5,856 lines), 2,141 lines of probe instrumentation, the new
+`docs/hq-tracer-probe-notes.md`, and the `(n)`–`(v)` decision entries. Nothing replicated.
+
+### 4. They would land cleanly
+
+Current staging is **exactly one commit ahead** of our base, and that commit is the merge of our own `.248`. No
+divergence to resolve.
+
+### 5. What the repo's flow requires
+
+Feature branches are cut **from** staging and open PRs **into** staging; a merged branch is spent, so committing
+onto `fix/graphics-realism-tiers` is off-flow. This needs a **new branch from current staging** and a **new PR**
+titled with the version it ships.
+
+Nothing has been pushed, branched or opened — outward-facing and unauthorised. But this is the one open item
+where waiting compounds rather than staying flat: the work is unreplicated.
+
+### Method note
+
+The brief's premise was wrong and no round had checked it — 73 rounds of reporting "unpushed on PR #109" while
+#109 was closed. **A standing premise deserves the same verification as a measurement**, and it costs one
+`gh pr view`.
+
+No `src/` change beyond the version bump.
