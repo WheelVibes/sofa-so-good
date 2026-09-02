@@ -10901,3 +10901,66 @@ larger. And (p)'s invisibility to this metric means **a fix for (p) cannot be va
 needs a look call on the image, which is what `.312` concluded from the frame.
 
 No `src/` change, no probe change. Measured entirely from frames already on disk.
+
+---
+
+## Round .314 — chroma is the sensitive metric ceiling ÷ wall is not; it localises (p) to the ceiling and corrects `.312`
+
+`.313` found the arc's primary metric cannot see (p): a 66 % change in the dominant light moves ceiling ÷ wall
+by 2.8 %. This round looks for a sensitive quantity, and finds one with a correction attached.
+
+Frames already on disk; bedroom3 `PITCH=0.30`, white room, medium tier, photographic look, hour 13, 256
+samples; patches verified in `.300` and `.313`:
+
+| condition | ceiling R−B | wall-L R−B | winwall-R R−B |
+| --- | --- | --- | --- |
+| **raster** — scene's own lights (reference) | **+13.6** | **+5.8** | **+6.3** |
+| traced class B — scene + cold gradient | **+7.5** | **+4.8** | **+7.3** |
+| traced, gradient zeroed — no ambient at all | 0.0 (void) | **+8.3** | **+15.1** |
+| traced class A — (u) biting | **−14.4** | **−8.5** | **−6.2** |
+
+### 1. Sensitive where ceiling ÷ wall was not
+
+Class A departs from the raster by **20–28 counts** on every surface, and the gradient's effect on the *working*
+tracer is visible: ceiling **+7.5 vs the raster's +13.6**, a **6.1-count** gap that ceiling ÷ wall reported as
+2.8 %. The arc had an instrument that can see (p); it was not using it.
+
+### 2. It localises (p)'s error
+
+The working tracer's **wall** chroma matches the raster to ~**1 count**. The error is concentrated on the
+**ceiling** — 6.1 counts too cool — the surface most exposed to the gradient, and the same one (u) destroys.
+
+### 3. Correction to `.312`
+
+`.312` concluded the fix makes stills *"warmer and darker, closer to the rasteriser's look"*. **Darker stands**
+(38.4 vs 112.7). **Warmer does not**: the gradient-zeroed arm is *warmer than the raster* (+8.3 vs +5.8; +15.1
+vs +6.3), so warming **overshoots** the reference. The current cold gradient is closer to the raster's wall
+chroma than no ambient at all. `.312`'s claim came from looking at the frame, not from measuring against a
+reference.
+
+### 4. A distinction `.312` blurred
+
+The gradient-zeroed arm is the **null** — no ambient whatsoever — **not** a preview of the fix, which would
+supply the scene's own Ambient/Hemisphere lights. It correctly prices the gradient's contribution but does not
+show what a fixed still would look like. Conflating them produced the wrong direction.
+
+### 5. An acceptance test for (p) with no photographs
+
+Traced interior chroma should match the raster's — same room, same pipeline, same white balance. Currently
+**walls pass (~1 count), ceiling fails by 6.1**. Photographic anchoring is unavailable: `.267` established R−B
+is white-balance invariant only *within* a frame, so absolute chroma cannot cross to a photograph with its own
+white balance. The raster is the right reference precisely because it shares the pipeline.
+
+### Where the decisions stand
+
+(p) costs **6.1 counts of ceiling chroma** plus `.312`'s luminance error, with walls already correct — smaller
+and more localised than "the dominant light source is wrong" implied. (u) remains the larger defect on both
+metrics: 19 % on ceiling ÷ wall (`.313`), 20–28 counts of chroma here.
+
+### Method note
+
+Two rounds running, a conclusion drawn from *looking* at a frame failed when measured against a reference.
+Looking is what catches contaminated measurements; it is not a substitute for one. **Use the frame to decide
+what to measure, not what to conclude.**
+
+No `src/` change, no probe change.

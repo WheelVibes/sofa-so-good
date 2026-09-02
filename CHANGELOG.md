@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.314 — chroma is the sensitive metric ceiling ÷ wall is not, it localises (p)'s error to the CEILING, and it corrects `.312`'s stated fix direction
+
+`.313` found the arc's primary metric cannot see item (p): a 66 % change in the dominant light source moves
+ceiling ÷ wall by 2.8 %. This round looks for a quantity that *is* sensitive, and finds one — with a usable
+reference and an uncomfortable correction attached.
+
+**Measured** on frames already on disk, all bedroom3 `PITCH=0.30`, white room, medium tier, photographic look,
+hour 13, 256 samples; patches verified on this pose in `.300` and `.313`:
+
+| condition | ceiling R−B | wall-L R−B | winwall-R R−B |
+| --- | --- | --- | --- |
+| **raster** — scene's own lights, the reference | **+13.6** | **+5.8** | **+6.3** |
+| traced class B — scene lights + hardcoded cold gradient | **+7.5** | **+4.8** | **+7.3** |
+| traced, gradient zeroed — no ambient at all (`.312`) | 0.0 (void) | **+8.3** | **+15.1** |
+| traced class A — (u) biting | **−14.4** | **−8.5** | **−6.2** |
+
+**1. Chroma is sensitive where ceiling ÷ wall was not.** Class A departs from the raster by **20–28 counts** on
+every surface, and — the point of the exercise — **the gradient's effect on the working tracer is visible too**:
+the ceiling reads **+7.5 against the raster's +13.6**, a **6.1-count** gap that ceiling ÷ wall reported as
+2.8 %. So the arc does have an instrument that can see (p); it simply was not using it.
+
+**2. And it localises (p)'s error.** The working tracer's **wall** chroma agrees with the raster to about **one
+count** (+4.8 vs +5.8; +7.3 vs +6.3). The error is concentrated on the **ceiling**, which is 6.1 counts too
+cool — exactly the surface most exposed to the gradient, and the same surface (u) destroys. That is a much more
+precise statement of (p)'s cost than "66 % of the light is wrong".
+
+**3. Correction to `.312`, and it is mine from one round ago.** `.312` concluded the (p) fix makes HQ stills
+*"warmer and darker, and closer to the rasteriser's look"*. The **darker** half stands — frame mean 38.4 against
+112.7. The **warmer** half was a visual impression of the frame, and measured against the raster it is wrong in
+direction: the gradient-zeroed arm is **warmer than the raster** (+8.3 vs +5.8 on the wall, +15.1 vs +6.3 on the
+window wall), so "warmer" **overshoots** the reference rather than approaching it. **The current cold gradient is
+closer to the raster's wall chroma than no ambient at all.**
+
+**4. A distinction `.312` blurred and this round must state.** The gradient-zeroed arm is the **null** — *no
+ambient whatsoever* — not a preview of the fix, which would replace the gradient with the scene's own
+Ambient/Hemisphere lights. So `.312`'s numbers correctly **price the gradient's contribution** but they do **not**
+show what a fixed HQ still would look like. Reading them as a preview is what produced the wrong direction in
+`.312`, and it is worth naming because the two arms are easy to conflate.
+
+**5. An acceptance test for (p) that needs no photographs.** The traced interior chroma should match the
+raster's, because the raster is the scene-lit render of the same room through the same pipeline. Currently:
+**walls pass (~1 count), the ceiling fails by 6.1 counts.** That is a concrete, cheap criterion — and it matters
+because photographic anchoring is unavailable here: `.267` established R−B is white-balance invariant only
+*within* a frame, so absolute chroma cannot be compared against a photograph with its own white balance. **The
+raster is the right reference precisely because it shares the app's pipeline and white balance.**
+
+**What the two pending decisions look like now.** (p)'s cost is **6.1 counts of chroma on the ceiling** plus the
+luminance error `.312` measured, with the walls already correct — smaller and more localised than "the dominant
+light source is wrong" implied, though the luminance side remains large. (u) remains the bigger defect on both
+metrics: 19 % on ceiling ÷ wall (`.313`) and 20–28 counts of chroma here.
+
+**Method note.** Two rounds running have now found that a conclusion drawn from *looking* at a frame
+(`.312`'s "warmer… closer to the raster") failed when measured against a reference. Looking is what catches
+contaminated measurements; it is not a substitute for one. **Use the frame to decide what to measure, not what
+to conclude.**
+
+**Unchanged:** no `src/` change, no probe change. Measured entirely from frames already on disk.
+
 ## v0.31.5.313 — the HQ still agrees with the raster to 2.8 % when the tracer works, and 19 % off when (u) bites. Which means the arc's primary metric cannot see item (p) at all
 
 `.312` showed the HQ still is dominated by a light source the user never chose. That raises the question this arc

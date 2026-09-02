@@ -1517,7 +1517,33 @@ suggested.
 **⚠️ AND ceiling ÷ wall CANNOT VALIDATE A FIX FOR THIS (v0.31.5.313).** At a matched pose the gradient-lit
 tracer agrees with the scene-lit raster on ceiling ÷ wall to **2.8 %** (0.992 vs 0.965) — even though the
 gradient supplies **66 %** of the frame's light. The arc's primary photographic metric is therefore a **weak
-discriminator of lighting-rig fidelity**, and any (p) fix will need a **look call on the image**, not a ratio.
+discriminator of lighting-rig fidelity**.
+
+**✅ BUT CHROMA CAN, AND IT LOCALISES THE ERROR (v0.31.5.314).** Interior R−B against the raster (same room,
+pose, pipeline and white balance):
+
+| condition | ceiling R−B | wall-L R−B | winwall-R R−B |
+| --- | --- | --- | --- |
+| **raster** — scene's own lights (reference) | **+13.6** | **+5.8** | **+6.3** |
+| traced class B — scene + cold gradient | **+7.5** | **+4.8** | **+7.3** |
+| traced, gradient zeroed — *no ambient at all* | 0.0 (void) | +8.3 | +15.1 |
+| traced class A — (u) biting | −14.4 | −8.5 | −6.2 |
+
+**(p)'s chroma error is concentrated on the CEILING** — 6.1 counts too cool (+7.5 vs +13.6) — while the **walls
+agree with the raster to ~1 count**. Much more precise than "66 % of the light is wrong".
+
+**⚠️ CORRECTION TO `.312`'s FIX DIRECTION.** `.312` said the fix makes stills *"warmer and darker, closer to the
+rasteriser's look"*. **Darker stands** (frame 38.4 vs 112.7); **warmer does not** — the gradient-zeroed arm is
+*warmer than the raster* (+8.3 vs +5.8), so warming **overshoots** the reference. The current cold gradient is
+*closer* to the raster's wall chroma than no ambient at all.
+
+**A distinction to keep:** the gradient-zeroed arm is the **null** (no ambient whatsoever), **not** a preview of
+the fix (which would supply the scene's own Ambient/Hemisphere). It prices the gradient's contribution; it does
+not show what a fixed still looks like. Conflating the two is what produced `.312`'s wrong direction.
+
+**Acceptance test for (p), no photographs needed:** traced interior chroma should match the raster's — same
+pipeline, same white balance. Currently **walls pass (~1 count), ceiling fails by 6.1**. Photographic anchoring
+is unavailable because `.267` established R−B is white-balance invariant only *within* a frame.
 
 **✅ CONFIRMED BY DIRECT OBSERVATION v0.31.5.287.** Temporary instrumentation in `buildTracerScene` (added,
 observed, reverted; `src/` verified clean) logged the branch actually taken on the default shipped path:
