@@ -5,6 +5,69 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.6.8 — the app has SIX lighting rigs and the arc measured one; tonality is 43 % too flat; FPS baseline established
+
+Scope widened to every view, with a hard ≥30 fps floor. Three findings, one of which
+reframes the whole arc.
+
+**1. There are six lighting rigs, and 100+ rounds measured one of them.**
+
+| surface | rig | reached by a `Lighting.tsx` fix? |
+| --- | --- | --- |
+| walk (`Scene.tsx`, `firstPerson`) | shared `Lighting` + `SceneEnvironment` | **yes** |
+| **orbit** (`Scene.tsx`, same mount) | shared — one `<Lighting />` for both modes | **yes** |
+| **room editor** (`RoomEditorScene.tsx`) | imports the same `Lighting` + `SceneEnvironment` | **yes** |
+| GLB designer (`DesignerViewport`) | own `hemisphereLight intensity={0.6}` | no |
+| catalog thumbnails | own `hemisphereLight 0.9` | no |
+| configurator preview | own `hemisphereLight 0.6` | no |
+| parametric preview | own `hemisphereLight 0.6` | no |
+| pack thumbnails (`catalog/packs/thumbnail.ts`) | own `HemisphereLight 1.2` | no |
+
+Good news for the three surfaces named in the goal — walk, orbit and the room editor
+**share one rig**, so a single fix reaches all three. The five preview surfaces each
+hardcode their own and would stay inconsistent.
+
+**A caveat that specifically limits orbit:** `PlanShell.tsx:908` culls per-room ceilings in
+orbit ("downward-facing — seen in walk, culled in orbit"). So **(w)'s ceiling half — the
+entire solvable part — is invisible in orbit view.** What orbit shows is floors and walls,
+and the floor is precisely the half whose mechanism is missing (`v0.31.6.7`).
+
+**2. Tonality is 43 % flatter than physics, and the fill is bracketed.** New
+`scripts/dev-probes/frame-compare.mjs` compares whole-frame distributions
+**exposure-invariantly** (normalise to a common median, then compare shape), because the
+Cycles reference's absolute exposure is deliberately unmatched.
+
+| | app (fill ×1) | app (fill ×0) | **Cycles (physics)** |
+| --- | --- | --- | --- |
+| dynamic range p99/p01 | **24.6** | **57.7** | **42.8** |
+| p99 / median | 1.843 | 2.313 | 2.362 |
+| p05 / median | 0.328 | 0.175 | 0.249 |
+| mid-tone 60..240 | 88.8 % | 70.8 % | 87.8 % |
+| mean R−B | +11.4 | — | **−29.6** |
+
+The app compresses **both** ends — highlights low *and* shadows lifted — which is the
+signature of excess fill, and physics sits **between** ×1 and ×0, so the correct level is
+bracketed rather than merely "less".
+
+**A failed prediction, recorded as one.** Interpolating linearly between ×0 and ×1 for the
+target range predicted **×0.45**; measured **33.6**, not 42.8 (×0.6 → 30.7). The response is
+steeply non-linear near zero, so the linear interpolation was invalid. Re-interpolating on
+the measured bracket gives **≈×0.28**, which is **untested**.
+
+**3. FPS baseline, so the floor is a measured constraint rather than an assumption.** The
+repo's own `tier-fps.mjs` already states the same criterion ("an auto-selected tier is only
+defensible if it holds the 30fps floor"). At 1280×800 dpr2:
+
+| tier | orbit fps | worst frame | |
+| --- | --- | --- | --- |
+| medium | **60** | 16.8 ms | ~2× headroom |
+| high | 58.8 | 50 ms | one spike over budget |
+
+The main canvas is `frameloop="demand"`, so this is the rate the pump chooses under
+interaction. **The proposed fill fix is three scalars per frame — zero added work, so it
+cannot cost frames.** The ~16.5 ms of spare frame time at medium is the budget available for
+anything that genuinely adds cost, which is where a real GI approximation would have to fit.
+
 ## v0.31.6.7 — (w)'s floor target is UNREACHABLE by the existing levers, and the sky term carries the floor
 
 `v0.31.6.6` established from physics that (w) needs ceiling **−25.3 %** and floor
