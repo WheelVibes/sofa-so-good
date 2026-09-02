@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.266 - the schemes use the researched layouts the app already had
+
+Auditing the remaining themes turned up something better than a palette check, and a correction to
+my own earlier claim.
+
+**The 17 presets are two different things.** `group: 'theme'` presets make STYLE claims (finishes +
+cosmetic props). `group: 'layout'` presets make ARRANGEMENT claims — "a slat screen zones the lounge
+from the dining without closing it", "L-sofa to a media credenza + bar cart" — and they deliver
+them: each authors an explicit `livingDining` array of furniture with positions, described in
+`presets/types.ts` as "a researched real-world layout". Measured: `entertainer` contributes a
+`bar-cart` no other preset has, `social-lounge` its angled armchairs, and item counts differ (81 /
+80 / 79 vs the default's 87).
+
+**So v0.31.5.262's header was too broad.** It said no preset varies the furniture. True of the
+`theme` group and of the generic kit path — but wrong about the authored layouts, which are exactly
+the mechanism I had said did not exist. Corrected in the module header rather than quietly.
+
+Those layouts are applied by `layoutPresets.ts:buildPresetItems` (the curated-default-flat path) and
+are NOT seen by `furnishPlanItems` (the custom-plan path) — which is all my scheme generator used.
+So on the default flat, the app's own researched layouts were being discarded in favour of a generic
+kit reseed. `buildSchemeOptions` now takes an optional `itemsFor` resolver and the modal supplies
+`buildPresetItems` when `isDefaultPlan(plan)`; a custom or template plan still falls through to the
+kit path plus the layout seed, since it has no authored overrides.
+
+The modal also now fills the spread from the `layout` group FIRST. Without that, three `theme`
+presets on the default flat furnish identically and score identically — a restyle presented as three
+alternatives, which the previous screenshot showed plainly (three cards, all 83, all 87 items, all
+$23,880).
+
+**Three measured consequences:**
+- Overall score 66-68 -> **83** (grade D -> B).
+- **Circulation 0 -> 58.** Last round's diagnosis said the arranger produced 0.44-0.47 m pinches;
+  the authored layouts do not, so the saturation disappears on this path. The `TODO.md` entry stands
+  for the custom-plan path, where it still applies.
+- Schemes now genuinely differ: 80 / 81 items at $24,065 / $24,695, with different arrangements.
+
+**Honest limit, visible in the screenshot.** All three still score 83 with identical category
+figures, so `designScore` cannot discriminate between three genuinely different arrangements and the
+ranking falls through to price — which the recommendation states outright ("score level at 83;
+Broken-Plan Living is recommended as the cheaper of the two"). The tie-break behaving as designed,
+but it means the score is not yet a useful ranking signal between layouts.
+
++3 tests, including one that asserts `entertainer`'s scheme contains `bar-cart` and
+`social-lounge`'s does not — a checkable proof the authored layout was used rather than a reseed.
+Full suite green (9597). Verified visually.
+
 ## v0.31.5.265 - a theme correction, and the circulation score diagnosed
 
 Two findings, one fixed and one deliberately not.

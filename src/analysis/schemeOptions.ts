@@ -8,15 +8,25 @@
  *
  * This module does that by composing machinery the app already has rather than
  * inventing a layout engine:
- *  - `furniture/furnishPlan.ts:furnishPlanItems(plan, preset, …, seed)`
- *    furnishes an entire plan. **Two levers, and BOTH are needed** — measured,
+ *  - Furniture comes from `itemsFor`, or by default from
+ *    `furniture/furnishPlan.ts:furnishPlanItems(plan, preset, …, seed)`.
+ *
+ *    **On a CUSTOM plan, two levers are needed and BOTH matter** — measured,
  *    not assumed: a `LayoutPreset` changes the finishes and per-def cosmetic
- *    style props, but NO shipped preset defines `kits`, so preset-swapping
- *    alone places the identical furniture in the identical positions (a test
- *    comparing two presets' `defId` sets caught exactly this). The layout
- *    variation comes from the arranger's LAYOUT-REROLL `seed`, which rotates
- *    each piece's edge-candidate list so the same furniture lands against
- *    different walls. Preset = how it reads; seed = where things go.
+ *    style props, but no preset defines `kits`, so preset-swapping alone places
+ *    the identical furniture in the identical positions (a test comparing two
+ *    presets' `defId` sets caught exactly this). Layout variation comes from
+ *    the arranger's LAYOUT-REROLL `seed`, which rotates each piece's
+ *    edge-candidate list so the same furniture lands against different walls.
+ *    Preset = how it reads; seed = where things go.
+ *
+ *    **On the curated DEFAULT FLAT there is a better source**, and a caller
+ *    should pass it via `itemsFor`: `layoutPresets.ts:buildPresetItems` applies
+ *    each `layout`-group preset's hand-authored, researched `livingDining`
+ *    override, which DOES vary what is placed (`entertainer` brings a
+ *    `bar-cart`; `social-lounge` angled armchairs). An earlier revision of this
+ *    header claimed no preset varies the furniture — true of the `theme` group
+ *    and of the generic kit path, but wrong about the authored layouts.
  *  - `analysis/designScore.ts:buildDesignScore` scores each result on
  *    clearance / furnishing / circulation / daylight / lighting.
  *  - `furniture/furniturePrices.ts:itemPrice` totals each result.
@@ -97,6 +107,21 @@ export interface SchemeOptionsInput {
    */
   presets: LayoutPreset[]
   /**
+   * Resolve a preset's furniture. Defaults to `furnishPlanItems` + the layout
+   * seed — the generic kit path, correct for a custom or template plan.
+   *
+   * The CURATED DEFAULT FLAT has a better source: `layoutPresets.ts:
+   * buildPresetItems` applies each `layout`-group preset's hand-authored
+   * `livingDining`/`rooms` overrides, described in `presets/types.ts` as "a
+   * researched real-world layout". Those genuinely differ in WHAT is placed —
+   * measured: `entertainer` contributes a `bar-cart` no other preset has,
+   * `social-lounge` its angled armchairs — which the generic kit path cannot
+   * do, since no preset defines `kits`. A caller on the default flat should
+   * pass that resolver so the schemes use the researched layouts instead of a
+   * generic reseed.
+   */
+  itemsFor?: (preset: LayoutPreset, index: number) => FurnitureItem[]
+  /**
    * Layout seed per preset, by index. A missing entry falls back to the
    * preset's index, so callers get varied layouts by default instead of the
    * same arrangement three times. Pass all-zeros to compare pure styling.
@@ -134,7 +159,9 @@ export function buildSchemeOptions(input: SchemeOptionsInput): SchemeComparison 
 
   for (const [i, preset] of presets.entries()) {
     const seed = input.seeds?.[i] ?? i
-    const items = furnishPlanItems(plan, preset, defs, doors, true, seed)
+    const items = input.itemsFor
+      ? input.itemsFor(preset, i)
+      : furnishPlanItems(plan, preset, defs, doors, true, seed)
     if (items.length === 0) {
       emptyPresetIds.push(preset.id)
       continue

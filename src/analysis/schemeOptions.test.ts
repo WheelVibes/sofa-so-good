@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
-import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
+import { buildPresetItems, LAYOUT_PRESETS } from '../furniture/layoutPresets'
 import { buildSchemeOptions, TRADEOFF_MIN_GAP } from './schemeOptions'
 
 const plan = buildDefaultPlan()
@@ -183,5 +183,58 @@ describe('buildSchemeOptions', () => {
     expect(out.candidates).toEqual([])
     expect(out.tradeoffs).toEqual([])
     expect(out.recommendation).toBe('')
+  })
+})
+
+describe('buildSchemeOptions — authored layouts via itemsFor', () => {
+  it('uses the researched authored layout when a resolver is supplied', () => {
+    // The default flat's `layout`-group presets author their own living/dining.
+    // These DO vary what is placed, which the generic kit path cannot do.
+    const ids = ['entertainer', 'social-lounge', 'wfh-studio']
+    const presets = LAYOUT_PRESETS.filter((p) => ids.includes(p.id))
+    expect(presets.length).toBeGreaterThanOrEqual(2)
+    const out = buildSchemeOptions({
+      plan,
+      defs,
+      presets,
+      itemsFor: (p) => buildPresetItems(p) as never,
+    })
+    const defsOf = (presetId: string) =>
+      new Set(out.candidates.find((c) => c.presetId === presetId)?.items.map((i) => i.defId) ?? [])
+    // The entertainer's bar cart is the checkable difference — no other preset
+    // has it, so its presence proves the authored layout was used and not a
+    // generic reseed.
+    expect([...defsOf('entertainer')]).toContain('bar-cart')
+    expect([...defsOf('social-lounge')]).not.toContain('bar-cart')
+  })
+
+  it('produces different item SETS across authored layouts, not just positions', () => {
+    const ids = ['entertainer', 'social-lounge', 'wfh-studio']
+    const presets = LAYOUT_PRESETS.filter((p) => ids.includes(p.id))
+    const out = buildSchemeOptions({
+      plan,
+      defs,
+      presets,
+      itemsFor: (p) => buildPresetItems(p) as never,
+    })
+    const sig = (i: number) =>
+      [...new Set(out.candidates[i]!.items.map((x) => x.defId))].sort().join('|')
+    expect(sig(0)).not.toBe(sig(1))
+  })
+
+  it('still falls back to the kit path when no resolver is given', () => {
+    const presets = trio()
+    const withResolver = buildSchemeOptions({
+      plan,
+      defs,
+      presets,
+      itemsFor: () => [] as never,
+    })
+    // An empty resolver yields nothing placeable, so every preset is reported
+    // empty — proving the resolver is what supplies the items.
+    expect(withResolver.candidates).toEqual([])
+    expect(withResolver.emptyPresetIds).toHaveLength(presets.length)
+    // Without it, the kit path furnishes normally.
+    expect(buildSchemeOptions({ plan, defs, presets }).candidates.length).toBeGreaterThan(0)
   })
 })

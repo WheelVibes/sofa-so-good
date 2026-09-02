@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { buildSchemeOptions, type SchemeCandidate } from '../analysis/schemeOptions'
+import { isDefaultPlan } from '../floorplan/planGeometry'
 import { parseBrief, parseBriefBudget } from '../furniture/briefParser'
 import { buildMergedCatalog } from '../furniture/catalog'
-import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
+import { buildPresetItems, LAYOUT_PRESETS } from '../furniture/layoutPresets'
+import type { FurnitureItem } from '../furniture/types'
 import { useStore } from '../state/store'
 import { Button } from './controls/Button'
 import { EmptyState } from './EmptyState'
@@ -50,14 +52,35 @@ export function SchemeCompareModal() {
         )
       : null
     const led = match ? LAYOUT_PRESETS.filter((p) => p.id === match.presetId) : []
-    const rest = LAYOUT_PRESETS.filter((p) => !led.some((l) => l.id === p.id))
-    const presets = [...led, ...rest].slice(0, SCHEME_COUNT)
+    // Fill the rest from the `layout` GROUP first. Measured: those presets
+    // author their own living/dining, so they differ in WHAT is placed (a bar
+    // cart, angled armchairs, a study nook); `theme`-group presets author no
+    // layout, so on the default flat three of them furnish identically and
+    // score identically — a restyle, not a set of alternatives. A brief-named
+    // preset still leads regardless of its group.
+    const others = LAYOUT_PRESETS.filter((p) => !led.some((l) => l.id === p.id))
+    const byLayoutFirst = [
+      ...others.filter((p) => p.group === 'layout'),
+      ...others.filter((p) => p.group !== 'layout'),
+    ]
+    const presets = [...led, ...byLayoutFirst].slice(0, SCHEME_COUNT)
+    // On the curated default flat, use each preset's hand-authored, researched
+    // living/dining layout (`buildPresetItems`) rather than a generic kit
+    // reseed — that is where the schemes genuinely differ in WHAT is placed
+    // (the entertainer's bar cart, the social lounge's angled armchairs). A
+    // custom or template plan has no authored overrides, so it falls through to
+    // `furnishPlanItems` + the layout seed.
+    const authored = isDefaultPlan(plan)
+      ? (preset: (typeof LAYOUT_PRESETS)[number]) =>
+          buildPresetItems(preset) as unknown as FurnitureItem[]
+      : undefined
     return buildSchemeOptions({
       plan,
       defs,
       presets,
       doors,
       budget: brief.trim() ? parseBriefBudget(brief) : null,
+      ...(authored ? { itemsFor: authored } : {}),
     })
   }, [open, generated, brief, plan, doors])
 

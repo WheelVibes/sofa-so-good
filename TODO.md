@@ -200,11 +200,22 @@ proposing a channel change (meta-rule xvii-b).
 ## Open — drawing accuracy (2026-09-02, pro-designer goal)
 > Research + ranked gap list: `docs/research/2026-09-02-pro-designer-replacement-gaps.md`
 > (11 gaps confirmed against source, G1-G11). Shipped work lives in `CHANGELOG.md`.
+- **[G8] `designScore` cannot rank genuinely different layouts.** With the authored layouts wired in
+  (v0.31.5.266), three substantively different arrangements (80/81/83 items, different furniture)
+  score IDENTICALLY at 83 on every category, so the comparison falls through to the price tie-break.
+  The categories are too coarse to express "this arrangement is better than that one". Adding the
+  layout-critique dimensions G8 originally proposed — circulation route quality, sightlines to a
+  focal point, conversation-grouping geometry, furniture-to-room proportion — is what would make the
+  ranking mean something. Note this is a DIFFERENT problem from the circulation-saturation entry
+  below: that one is a broken ruler, this one is a ruler that does not measure the thing.
 - **[DIAGNOSED, not decided] The circulation score saturates at 0 for every auto-furnished layout,
   so 20% of the design score carries no signal.** Measured 2026-09-02 on the default 4-room plan:
   - hand-authored `defaultLayout()`: circulation **58** (0 impassable, 21 tight, 52 gaps) — the
     metric works;
   - every `furnishPlanItems` result, at layout seeds 0/1/2 and across presets: circulation **0**.
+  **Scope narrowed v0.31.5.266**: the default flat now uses the authored layouts, which do NOT
+  produce these pinches (circulation 58 there). This still applies to the CUSTOM-plan path, which
+  goes through `furnishPlanItems` + the arranger.
   Cause is arithmetic, not a bug in the finder. `penalty = impassable x 20 + min(42, advisory x 3)`,
   so with the advisory term already at its 42 cap, just **3** impassable pinches reach 102 and clamp
   to zero. And the three found are all MARGINAL — `bed-single<->bed-single 0.44 m`,
