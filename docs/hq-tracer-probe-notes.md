@@ -154,6 +154,23 @@ them match.
 Fifteen mechanisms have been proposed and refuted in this arc. This was the first refuted with its predictions
 intact.
 
+## Prefer CHROMA over the luminance ratio
+
+Two rounds measured the arc's two candidate metrics on the axes that matter:
+
+| | sensitive to the lighting rig? | pose-robust? |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | **no** — 2.8 % for a 66 % change in the dominant light (`.313`) | **no** — 0.68 → 0.96 on pitch (`.232`) |
+| interior chroma (R−B) | **yes** — 6.1 counts for (p), 20–28 for (u) (`.314`) | **yes** — 0.9 counts on pitch (`.316`) |
+
+Interior chroma sees the defects the ratio cannot and barely moves on the axis that wrecks the ratio. Use it,
+with the raster as the reference — same room, same pipeline, same white balance, and reproducible to 0.1 counts
+across boots (`.315`).
+
+Two limits: **absolute** R−B does not cross to a photograph (white balance, `.267`) — only the **within-frame**
+ceiling−wall Δ does (`.315`), and that band is wide and non-systematic. And chroma is only as good as the patch,
+so mark and look (below).
+
 ## A patch set is verified for ONE pose only
 
 Two attempts to reuse a verified patch set at a new pose have failed. `.291` mistook *wall above the window* for

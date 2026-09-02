@@ -11019,3 +11019,63 @@ Two attempts to reuse a verified patch set at a new pose have now failed (`.291`
 verified for one pose only.** Marking costs one free render and has caught the error both times.
 
 No `src/` change, no probe change.
+
+---
+
+## Round .316 — interior chroma is pose-robust: 0.9 counts across a pitch that swings the luminance ratio 0.68 → 0.96
+
+`.315` left Δ chroma's pose-dependence untested, and it could not be tested in bedroom3 (no croppable ceiling at
+eye level). livingDining has one. Raster only — 38 seconds for both poses, no tracer.
+
+### One surface, two pitches
+
+A single ceiling patch, verified by marking as valid at **both** pitches (livingDining, hour 13, medium tier,
+photographic look):
+
+| | ceiling R−B | ceiling L |
+| --- | --- | --- |
+| `PITCH=-0.06` | **10.3** | 122 |
+| `PITCH=+0.30` | **11.2** | 127 |
+| difference | **0.9 counts** | 4 % |
+
+`.232` established ceiling ÷ wall **luminance** swings **0.68 → 0.96** across pitch — the largest pose
+sensitivity in the arc. Chroma shifts under one count on the same axis.
+
+### Chroma is the better instrument on both measured axes
+
+| | sensitive to the lighting rig? | pose-robust? |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | no — 2.8 % for a 66 % light change (`.313`) | no — 0.68 → 0.96 (`.232`) |
+| interior chroma | yes — 6.1 counts for (p), 20–28 for (u) (`.314`) | yes — 0.9 counts (`.316`) |
+
+The arc chose its primary metric in `.188` and spent dozens of rounds deriving, correcting and defending it. The
+better one was available all along.
+
+### Caveats
+
+1. **Same surface, not the same spot** — fixed normalized coordinates sample different ceiling regions per
+   pitch. The comparison bounds "chroma of this surface", not "of this exact patch".
+2. **One room, two pitches, one surface.**
+3. **The wall comparison is confounded and not offered as evidence** — no single wall patch was valid at both
+   poses, so eye-level is the *right* wall (1.0) and pitched-up the *left* (2.7): different surfaces, different
+   sky exposure.
+4. **livingDining's ceiling light appears ON** at hour 13 (the frame offers "Turn off ceiling light"), so its
+   absolute chroma includes artificial light. Both pitches share it, so the pose comparison stands; the absolute
+   values are not a daylight measurement.
+
+### Process finding
+
+It took **three marking iterations** to get valid patches: the first ceiling patch **overlapped the HUD
+toolbar**; the pitched-up wall patch **straddled a structural beam**; a second candidate sat on a **different
+wall panel**. Fixed coordinates do not track surfaces across a pitch change, and in some rooms **no patch is
+valid at both poses at all** — a stronger statement than "the value changes with pose": often the surface is not
+there to measure.
+
+### Net
+
+`.315`'s caveat is discharged. Interior chroma is pose-robust where the primary metric is not, and sensitive to
+the defects the primary metric cannot see. With `.314`'s raster reference (reproducible to 0.1 counts across
+boots, `.315`), **(p) now has a metric, a reference and an acceptance test all better founded than the ratio
+this arc was built on.**
+
+No `src/` change, no probe change.

@@ -1567,6 +1567,32 @@ almost no croppable ceiling. So **the raster remains the better reference for a 
 construction, pipeline-identical, and reproducible across boots (a fresh run 40 min later returned
 ceiling 13.6 / wall 5.8 / Δ 7.8 / ratio 0.964 against 13.6 / 5.8 / 7.8 / 0.965).
 
+**✅ POSE CAVEAT DISCHARGED v0.31.5.316 — interior chroma is pose-ROBUST.** Tested in livingDining, which does
+have a croppable ceiling at eye level. One ceiling patch, verified by marking as valid at both pitches, raster
+only:
+
+| | ceiling R−B | ceiling L |
+| --- | --- | --- |
+| `PITCH=-0.06` | **10.3** | 122 |
+| `PITCH=+0.30` | **11.2** | 127 |
+| difference | **0.9 counts** | 4 % |
+
+`.232` established ceiling ÷ wall **luminance** swings **0.68 → 0.96** across pitch. **So chroma shifts under one
+count on the axis that wrecks the luminance ratio.**
+
+| | sensitive to the lighting rig? | pose-robust? |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | **no** — 2.8 % for a 66 % light change (`.313`) | **no** — 0.68 → 0.96 (`.232`) |
+| interior chroma | **yes** — 6.1 counts for (p), 20–28 for (u) (`.314`) | **yes** — 0.9 counts (`.316`) |
+
+*Caveats:* same surface but not the same spot (fixed coords sample different ceiling regions per pitch); one
+room, two pitches, one surface; the wall comparison is **confounded and not offered as evidence** (no single wall
+patch was valid at both poses — eye-level right wall 1.0 vs pitched-up left wall 2.7, different surfaces); and
+**livingDining's ceiling light appears ON** at hour 13, so its absolute values are not a daylight measurement
+(both pitches share it, so the pose comparison stands).
+
+**So (p) has a metric, a reference and an acceptance test better founded than the ratio this arc was built on.**
+
 **✅ CONFIRMED BY DIRECT OBSERVATION v0.31.5.287.** Temporary instrumentation in `buildTracerScene` (added,
 observed, reverted; `src/` verified clean) logged the branch actually taken on the default shipped path:
 

@@ -5,6 +5,62 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.316 — interior chroma is pose-ROBUST: 0.9 counts across a pitch that swings the luminance ratio 0.68 → 0.96. `.315`'s caveat resolved in chroma's favour
+
+`.315` left one caveat hanging: Δ chroma's pose-dependence was **untested**, and it could not be tested in
+bedroom3 because the eye-level view has no croppable ceiling. livingDining does, so this round tests it there —
+on the raster only, which needs no tracer and cost **38 seconds for both poses**.
+
+**The test that works: one surface, two pitches.** A single ceiling patch, verified by marking as valid at
+**both** pitches, measured on the raster (livingDining, hour 13, medium tier, photographic look):
+
+| | ceiling R−B | ceiling L |
+| --- | --- | --- |
+| `PITCH=-0.06` (eye level) | **10.3** | 122 |
+| `PITCH=+0.30` (up) | **11.2** | 127 |
+| **difference** | **0.9 counts** | 4 % |
+
+**Chroma barely moves.** For comparison, `.232` established that ceiling ÷ wall **luminance** swings
+**0.68 → 0.96** across pitch — the single largest pose sensitivity in the arc. So on the same axis that wrecks
+the luminance ratio, chroma shifts by under one count.
+
+**Which makes chroma the better instrument on both axes now measured:**
+
+| | sensitive to the lighting rig? | pose-robust? |
+| --- | --- | --- |
+| ceiling ÷ wall luminance | **no** — 2.8 % for a 66 % change in the dominant light (`.313`) | **no** — 0.68 → 0.96 on pitch (`.232`) |
+| interior chroma | **yes** — 6.1 counts on the ceiling for (p), 20–28 for (u) (`.314`) | **yes** — 0.9 counts on pitch (`.316`) |
+
+The arc chose its primary metric in `.188` and spent dozens of rounds deriving, correcting and defending it. The
+better one was available all along.
+
+**Four caveats, because the result is only as good as they allow.**
+
+1. **Same surface, not the same spot.** Fixed normalized coordinates sample *different regions* of the ceiling at
+   different pitches. Both are ceiling plaster, so the comparison bounds "chroma of this surface" and not "chroma
+   of this exact patch".
+2. **One room, two pitches, one surface.** n is small.
+3. **The wall comparison is confounded and is not offered as evidence.** No single wall patch was valid at both
+   poses, so the eye-level reading is the **right** wall (R−B 1.0) and the pitched-up one the **left** wall
+   (2.7) — different surfaces with different sky exposure. That difference bounds pose *and* surface together.
+4. **livingDining's ceiling light appears to be ON** at hour 13 — the frame offers "Turn off ceiling light" —
+   so the absolute chroma here includes artificial light. Both pitches share it, so the pose comparison stands,
+   but this room's absolute values are not a daylight measurement.
+
+**A process finding worth recording, because it is the deeper reason metrics here are pose-bound.** It took
+**three marking iterations** to obtain valid patches: the first ceiling patch **overlapped the HUD toolbar**; the
+pitched-up wall patch **straddled a structural beam**; a second candidate sat on a **different wall panel**.
+Fixed normalized coordinates do not track surfaces across a pitch change, and in some rooms **no patch is valid
+at both poses at all**. That is a stronger statement than "the value changes with pose": often *the surface is
+not there to measure*.
+
+**Net.** `.315`'s open caveat is discharged: interior chroma is pose-robust where the arc's primary metric is
+not, and it is sensitive to the defects the primary metric cannot see. Combined with `.314`'s raster reference —
+reproducible to 0.1 counts across boots (`.315`) — **(p) now has a metric, a reference and an acceptance test
+that are all better founded than the ratio this arc was built on.**
+
+**Unchanged:** no `src/` change, no probe change. Two raster-only runs (18:59 +08) plus three free markings.
+
 ## v0.31.5.315 — chroma DOES have a photographic anchor after all (the within-frame Δ), class A fails it — but it is a weak one, and the pose check could not be run
 
 `.314` stated that chroma cannot be anchored photographically, because `.267` established R−B is
