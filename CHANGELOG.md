@@ -5,6 +5,73 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.299 — (u) localised to environment→interior transport: the environment is identical in both classes, but class A delivers 2.2× more of it to interior surfaces
+
+Eleven candidates had been eliminated and every proposed mechanism refuted. `.298` left one lead and said it
+was a single experiment from confirmed or dead. It is confirmed — not as a full mechanism, but the fault is now
+**localised**, which is the first real narrowing since `.284`.
+
+**The experiment.** Temporary `src/` instrumentation (added, observed, **reverted**, `src/` verified clean with
+`git diff --stat`), the same pattern `.287` used: the tracer's hardcoded `GradientEquirectTexture` was set to
+**pure uniform green** — `topColor` and `bottomColor` both `0x00ff00`, so there is no gradient to confound the
+reading. `root.background` gets the same texture, so **the glazing shows the environment directly and acts as a
+full-environment reference**. Any surface the environment reaches then carries an unmistakable cast, measured
+as `green = G − (R+B)/2`.
+
+**One variable, three runs, bedroom3 `PITCH=0.30`, white walls, medium tier, photographic look, hour 13, 256
+samples** (runs 15:49, 15:53, 16:01 +08):
+
+| run | frame L | **glazing** green | ceiling green | wall-L | wall-R |
+| --- | --- | --- | --- | --- | --- |
+| `g1` (bright class) | 170.9 | **59.9** | **79.0** | 71.9 | 77.8 |
+| `g3` (bright class) | 170.4 | **59.4** | **79.0** | 74.5 | 79.1 |
+| `g2` (dim class) | 128.2 | **58.2** | **36.5** | 42.0 | 43.2 |
+| *grey-env baseline* | — | 1.1–1.2 | 1.1–1.3 | 2.1 | 2.1 |
+
+**Three findings, in order of how much they narrow the problem.**
+
+**1. The tracer's interior lighting is environment-dominated.** Interior greenness runs **36–79** against a
+grey-environment baseline of **~2**. Whatever else is true, the hardcoded gradient is not a minor fill — it is
+the principal light on the walls and ceiling of an HQ still. That is item (p) restated as a magnitude rather
+than a code path.
+
+**2. The environment itself is identical across classes.** Glazing greenness is **58.2 / 59.4 / 59.9** across
+all three runs — a 2.8 % spread spanning both classes. The environment texture, its colour, and the direct view
+of it are **not** what varies. This is the control that makes the next line mean something, and it is why
+`.287`'s "same env branch in both classes" observation was correct but not sufficient.
+
+**3. Interior surfaces receive 1.7–2.2× more environment light in the bright class.** Ceiling **79.0 vs 36.5**
+(2.16×), walls 71.9–74.5 vs 42.0 (1.71–1.77×) and 77.8–79.1 vs 43.2 (1.80–1.83×). The bright class **replicates
+to the digit** — ceiling 79.0 in both `g1` and `g3` — so this is not run-to-run noise.
+
+**So (u) is a variation in the TRANSPORT of environment light to interior surfaces**, with the environment, the
+exposure, the tone mapping, the denoise stage, the sample count, the camera pose and the tile structure all
+previously eliminated by measurement. That also retro-explains the class-A signature that has puzzled the arc
+since `.285`: class A is **both brighter and colder** because more of the *cold* gradient reaches the interior.
+And it explains `.298`'s physical violation — a ceiling can out-radiate the aperture only if it is being lit by
+something the aperture does not mediate.
+
+**What is still open, stated precisely.** Two families remain and this experiment does not separate them:
+
+- a **visibility/occlusion** difference — the environment reaching surfaces that cannot see it, e.g.
+  `root.environment` acting as an unoccluded IBL term in some runs;
+- an **intensity or importance-sampling** difference — the same visibility, but the environment weighted
+  roughly twice as strongly.
+
+The discriminating test is a surface that **provably cannot see the aperture** — a windowless room, or the
+underside of a slab. Under the green environment, an occlusion fault would light it green; an intensity fault
+would leave it dark in both classes. **That is the next experiment, and no mechanism is claimed until it runs.**
+Twelve candidates have now been eliminated and every mechanism proposed in `.280`–`.294` was refuted by a later
+round, so the discipline stands: this round reports a *localisation*, not a cause.
+
+**Why the green forcing worked where eleven eliminations had not.** Every previous attempt compared the two
+classes on quantities that mix light from all sources — luminance, chroma, band gradients. Dyeing one source
+and leaving everything else alone separates that source's contribution from every other, and gives a built-in
+control (the glazing) in the same frame. **When a suspect source cannot be removed, dye it.**
+
+**Unchanged:** no `src/` change survives — the green environment was reverted and verified. Probe unchanged;
+measurement script temporary and removed.
+
 ## v0.31.5.298 — class A is physically impossible: its ceiling out-radiates the window. So (u) is not nondeterminism, it is *half of all HQ stills being wrong*
 
 `.296` listed *"which of (u)'s classes is the correct render"* as genuinely unknown, and noted that `.293`'s

@@ -70,6 +70,26 @@ radiance gap. And the app's glazing is a mid-tone panel that clips 0.0 % (item (
 daylight — so this compares interior surfaces against *the app's own aperture*, which is the right internal
 comparison but is not a comparison against a real sky.
 
+## When a suspect light source cannot be removed, DYE it
+
+Eleven candidate causes for (u) were eliminated by comparing the two classes on luminance, chroma and band
+gradients — quantities that **mix light from every source**, so none of them could attribute anything. What
+finally localised the fault in one round was forcing the tracer's `GradientEquirectTexture` to **pure uniform
+green** (`topColor` and `bottomColor` both `0x00ff00`, so no gradient confounds the reading) and measuring
+`green = G − (R+B)/2` per surface.
+
+Two properties make this work, and both are worth copying:
+
+- **A dyed source is separable.** Interior greenness ran 36–79 against a ~2 grey-environment baseline, so the
+  environment's contribution could be read off directly instead of inferred from a difference of totals.
+- **`root.background` gets the same texture, so the glazing is a full-environment reference in the same
+  frame.** Its greenness was 58.2 / 59.4 / 59.9 across runs spanning both classes — proving the environment
+  itself was invariant, which is what made "interior surfaces get 2.2× more of it" a meaningful statement
+  rather than an uncontrolled comparison.
+
+Do it as temporary instrumentation: back the file up, observe, restore, and verify with
+`git diff --stat -- src/` that nothing survived.
+
 ## Reading the tracer canvas: you may get either of two different images
 
 `HqRenderModal.tsx` shows `session.canvas` (the tracer's WebGL canvas) while rendering, and on completion

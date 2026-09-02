@@ -2059,6 +2059,37 @@ every mechanism proposed in `.280`–`.294` was refuted by a later round.
 **This puts (u) level with (p) in priority:** both make the app's photoreal showcase wrong by default — (p)
 always, (u) half the time.
 
+**🎯 LOCALISED v0.31.5.299 — the environment is identical in both classes; class A delivers 2.2× more of it to
+interior surfaces.** Temporary instrumentation (added, observed, reverted, `src/` verified clean) set the
+tracer's `GradientEquirectTexture` to **pure uniform green**, so any surface the environment reaches carries an
+unmistakable cast (`green = G − (R+B)/2`) and the glazing — which shows `root.background` directly — acts as a
+full-environment reference in the same frame.
+
+| run | frame L | glazing green | ceiling green | wall-L | wall-R |
+| --- | --- | --- | --- | --- | --- |
+| bright class | 170.9 | 59.9 | **79.0** | 71.9 | 77.8 |
+| bright class (replicate) | 170.4 | 59.4 | **79.0** | 74.5 | 79.1 |
+| dim class | 128.2 | 58.2 | **36.5** | 42.0 | 43.2 |
+| grey-env baseline | — | 1.1 | 1.1 | 2.1 | 2.1 |
+
+1. **Interior lighting is environment-dominated** — greenness 36–79 against a ~2 baseline. Item (p) restated as
+   a magnitude: the hardcoded gradient is the principal light on walls and ceiling, not a minor fill.
+2. **The environment itself is invariant across classes** — glazing greenness 58.2 / 59.4 / 59.9, a 2.8 %
+   spread spanning both. This is the control, and it is why `.287`'s "same env branch" was correct but not
+   sufficient.
+3. **Interior surfaces get 1.7–2.2× more environment light in class A** — ceiling 79.0 vs 36.5, replicated to
+   the digit across two bright runs.
+
+**So (u) is a variation in the TRANSPORT of environment light to interior surfaces.** That retro-explains why
+class A is both brighter *and* colder (more of the cold gradient reaches the interior) and why `.298` found a
+ceiling out-radiating the aperture (possible only if lit by something the aperture does not mediate).
+
+**Two families remain, and this experiment does not separate them:** a **visibility/occlusion** difference (the
+environment reaching surfaces that cannot see it) versus an **intensity/importance-sampling** difference (same
+visibility, roughly double weight). The discriminating test is a surface that provably cannot see the
+aperture — a windowless room or the underside of a slab — under the green environment. **No mechanism is
+claimed until that runs.**
+
 **Why it matters beyond the probe.** Two users rendering the same scene get images 45 % apart in level and of
 opposite colour temperature. Whichever state is correct, the other is a shipped bug.
 

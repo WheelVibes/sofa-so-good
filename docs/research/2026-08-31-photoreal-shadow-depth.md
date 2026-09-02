@@ -10063,3 +10063,62 @@ pose-specific and `.293` shipped a pose-specific classifier that misclassified a
 `docs/hq-tracer-probe-notes.md` with the coordinates stated, so the caller declares the region.
 
 Nothing changed in `src/` or in the probe. Docs only.
+
+---
+
+## Round .299 — (u) localised: the environment is identical in both classes, class A delivers 2.2× more of it inside
+
+Eleven candidates eliminated, every mechanism refuted. `.298` left one lead and said it was one experiment from
+confirmed or dead. It is confirmed as a **localisation** — the first real narrowing since `.284`.
+
+### The experiment
+
+Temporary `src/` instrumentation (added, observed, **reverted**, `src/` verified clean), same pattern as `.287`:
+the tracer's `GradientEquirectTexture` set to **pure uniform green** (both colours `0x00ff00`, so no gradient
+confounds the reading). `root.background` takes the same texture, so **the glazing shows the environment
+directly and is a full-environment reference in the same frame**. Metric `green = G − (R+B)/2`.
+
+Three runs, bedroom3 `PITCH=0.30`, white walls, medium tier, photographic look, hour 13, 256 samples
+(15:49, 15:53, 16:01 +08):
+
+| run | frame L | glazing green | ceiling green | wall-L | wall-R |
+| --- | --- | --- | --- | --- | --- |
+| `g1` bright | 170.9 | 59.9 | 79.0 | 71.9 | 77.8 |
+| `g3` bright | 170.4 | 59.4 | 79.0 | 74.5 | 79.1 |
+| `g2` dim | 128.2 | 58.2 | 36.5 | 42.0 | 43.2 |
+| grey-env baseline | — | 1.1–1.2 | 1.1–1.3 | 2.1 | 2.1 |
+
+### Three findings
+
+1. **Interior lighting is environment-dominated** — greenness 36–79 vs ~2 baseline. Item (p) restated as a
+   magnitude: the hardcoded gradient is the principal light on walls and ceiling, not a minor fill.
+2. **The environment itself is invariant across classes** — glazing greenness 58.2 / 59.4 / 59.9, a 2.8 %
+   spread spanning both classes. The control that makes finding 3 meaningful, and the reason `.287`'s "same env
+   branch" was correct but insufficient.
+3. **Interior surfaces receive 1.7–2.2× more environment light in the bright class** — ceiling 79.0 vs 36.5
+   (2.16×), walls 1.71–1.83×. The bright class **replicates to the digit** (79.0 in both), so this is not noise.
+
+### What it explains
+
+(u) is a variation in the **transport** of environment light to interior surfaces, with the environment,
+exposure, tone mapping, denoise stage, sample count, camera pose and tile structure all previously eliminated.
+That accounts for the class-A signature the arc has puzzled over since `.285` — brighter **and** colder, because
+more of the *cold* gradient reaches the interior — and for `.298`'s physical violation, since a ceiling can
+out-radiate the aperture only if lit by something the aperture does not mediate.
+
+### Still open, precisely
+
+Two families, not separated by this experiment: a **visibility/occlusion** difference (the environment reaching
+surfaces that cannot see it, e.g. an unoccluded IBL term) versus an **intensity/importance-sampling** difference
+(same visibility, ~double weight). The discriminating test is a surface that **provably cannot see the
+aperture** — a windowless room, or the underside of a slab — under the green environment: an occlusion fault
+lights it green, an intensity fault leaves it dark in both classes. **No mechanism claimed until that runs.**
+
+### Method note
+
+Every earlier attempt compared the classes on quantities that mix all light sources, so none could attribute
+anything. **When a suspect source cannot be removed, dye it** — a dyed source is separable, and putting the same
+texture on `root.background` gives a built-in control in the same frame. Added to
+`docs/hq-tracer-probe-notes.md`.
+
+No `src/` change survives — the green environment was reverted and verified. Probe unchanged.
