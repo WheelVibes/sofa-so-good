@@ -15,6 +15,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { PLAN_TEMPLATES } from './floorplan/templates'
+import { LIGHT_EMITTERS, OVERRIDE_EMITTER } from './furniture/lightEmitters'
 import { BUILTIN_MATERIALS } from './materials/builtinCatalog'
 
 describe('modular finishes carry a specified module', () => {
@@ -94,5 +95,70 @@ describe('template wall structure is unauthored, deliberately', () => {
       const declared = buildDefaultPlan().walls.filter((w) => w.structure)
       expect(declared.length).toBeGreaterThan(0)
     })
+  })
+})
+
+/**
+ * Lamp specification, guarded by ENUMERATION rather than by remembering.
+ *
+ * Two lessons converge here, both learned the hard way in this arc:
+ *
+ * **1. A regex over source is a sample, not an enumeration, and its coverage is
+ * invisible in the result.** v0.31.5.296 reported "0 of 6 emitters carry a lamp
+ * spec". There are EIGHT — `vanity` and `aquarium` use unquoted keys the pattern
+ * skipped — and lumens were already derived, so both the numerator and the
+ * denominator were wrong from one bad pattern. The wrong denominator is what
+ * made the wrong numerator look plausible. These tests import the registry, so
+ * a ninth emitter is counted whether or not anyone remembers it exists.
+ *
+ * **2. A prohibition lives in memory; a structure fails the suite.** `cct`/`ip`
+ * being required on `EmitterSpec` already makes TypeScript catch a new emitter
+ * with no spec. What types CANNOT catch is a value that compiles but
+ * contradicts the fixture — which is exactly what happened: a bulk edit
+ * authored 3000 K warm white onto the aquarium, whose own comment two lines up
+ * calls it "a cool aqua accent". Review caught it; nothing automated would
+ * have. So the semantic intent is pinned below.
+ */
+describe('every light emitter carries a coherent lamp spec', () => {
+  const emitters = Object.entries(LIGHT_EMITTERS).filter(([, v]) => v)
+
+  it('enumerates the registry rather than trusting a remembered count', () => {
+    // The specific number matters less than the fact this is derived. If an
+    // emitter is added, the assertions below cover it automatically; this line
+    // just makes a silent registry SHRINK visible too.
+    expect(emitters.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('offers every authored CCT in the inspector control', () => {
+    // A value the inspector cannot represent would be unreachable to edit and
+    // would silently snap to something else on the first change.
+    const OFFERED = new Set([2700, 3000, 4000, 6500])
+    for (const [id, spec] of emitters) {
+      expect(OFFERED.has(spec!.cct), `${id} has CCT ${spec!.cct}, not an offered option`).toBe(true)
+    }
+    expect(OFFERED.has(OVERRIDE_EMITTER.cct)).toBe(true)
+  })
+
+  it('offers every authored IP rating in the inspector control', () => {
+    const OFFERED = new Set([20, 44, 65])
+    for (const [id, spec] of emitters) {
+      expect(OFFERED.has(spec!.ip), `${id} has IP${spec!.ip}, not an offered option`).toBe(true)
+    }
+    expect(OFFERED.has(OVERRIDE_EMITTER.ip)).toBe(true)
+  })
+
+  it('keeps the aquarium COOL — the one fixture a bulk edit got wrong', () => {
+    // Its render tint is `#bfe8f2` and its comment says "cool aqua accent".
+    // A uniform warm-white value compiled fine and contradicted both.
+    expect(LIGHT_EMITTERS.aquarium?.cct).toBeGreaterThan(5000)
+  })
+
+  it('keeps every OTHER shipped fixture warm — residential, not office', () => {
+    // The counterpart assertion, so "all cool" would fail too. Without it, the
+    // aquarium test above passes on a registry that has drifted entirely cool.
+    for (const [id, spec] of emitters) {
+      if (id === 'aquarium') continue
+      expect(spec!.cct, `${id} is not warm white`).toBeLessThanOrEqual(3000)
+    }
   })
 })

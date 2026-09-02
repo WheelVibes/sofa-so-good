@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.301 - converting the remaining prohibitions into structure
+
+Guards + docs, prompted by dev-09 naming a distinction better than mine: **a prohibition lives in
+memory; a structure fails the suite.** My "don't derive a specification from a rendering constant"
+rule has been broken or nearly broken three times (tile modules from `uvScale`, "is this paint" from
+`pattern`, colour temperature from `EmitterSpec.color`). Writing it down did not stop it. `.299`
+accidentally did the right thing by making the two override registers separate and testing that the
+resolver ignores the render pair; this commit finishes the job for the data.
+
+**New enumeration guards in `authoredDataCoverage.test.ts`**, importing `LIGHT_EMITTERS` rather than
+grepping it:
+
+- every authored CCT is one the inspector actually offers (a value it cannot represent would be
+  unreachable to edit and would snap on first change), same for IP;
+- the **aquarium stays cool** — the one fixture a bulk edit got wrong, authoring 3000 K warm white
+  against its own comment calling it "a cool aqua accent";
+- and the counterpart, that every OTHER fixture stays warm, so "all cool" fails too. A one-sided
+  assertion would pass on a registry that had drifted entirely cool — the same one-sidedness the
+  `.300` report test avoids by asserting the before/after pair.
+
+**Why these tests and not more types.** `cct`/`ip` are already required on `EmitterSpec`, so a new
+emitter cannot ship without a spec — that is structural and needs no vigilance. **Types catch
+absence, not incoherence.** A value that compiles and contradicts the fixture is invisible to them,
+which is exactly what happened. That distinction is now written down rather than rediscovered.
+
+**Two formulations recorded in `docs/research/2026-09-03-authored-data-coverage.md`**, both dev-09's
+and both sharper than what I had:
+
+1. **A regex over source is a SAMPLE, not an enumeration, and its coverage is invisible in the
+   result.** `.296` is the worst version: "0 of 6 emitters" when there are eight and lumens were
+   already derived — one bad pattern gave a wrong numerator AND denominator, and **the wrong
+   denominator is what made the wrong numerator look plausible.**
+2. **The danger scales with how PLAUSIBLE the conversion is.** Hex → Kelvin is standard,
+   well-documented, and lands in the right range; nothing in the output would have signalled that
+   its input was a tint chosen to look nice. A conversion that looks principled gets waved through
+   review, where one that looks like a hack does not.
+
++5 tests.
+
 ## v0.31.5.300 - the compliance finding reaches the printed handover
 
 Last of the lamp-spec thread that is mine rather than a content call. The advisories have been in

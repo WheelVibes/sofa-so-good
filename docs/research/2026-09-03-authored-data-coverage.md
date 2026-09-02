@@ -87,6 +87,40 @@ transfer to the condo/landed templates.
 Option 2 without the legend change would be the worst outcome, which is exactly why it is written
 down rather than done.
 
+## Two formulations worth keeping (dev-09, 2026-09-03)
+
+**A regex over source is a SAMPLE, not an enumeration — and its coverage is invisible in the
+result.** This is the sharpest statement of the mistake this arc kept making. The v0.31.5.296 case
+is the worst version: it reported "0 of 6 emitters carry a lamp spec" when there are **eight**
+(`vanity` and `aquarium` use unquoted keys the pattern skipped) and lumens were already derived. One
+bad pattern produced a wrong numerator AND a wrong denominator, and **the wrong denominator is what
+made the wrong numerator look plausible.** Nothing in the output signalled the sample was partial.
+
+So: count by IMPORTING the catalog, never by grepping it. Every guard in
+`src/authoredDataCoverage.test.ts` does.
+
+**A prohibition lives in memory; a structure fails the suite.** "Don't derive a specification from a
+rendering constant" is a rule I have now broken or nearly broken three times — tile modules from
+`uvScale`, "is this paint" from `pattern`, colour temperature from `EmitterSpec.color`. Writing it
+down did not stop it. What works is making the two registers separate objects and adding a test
+that the resolver ignores the wrong one (`resolveLampSpec` vs
+`lightColor`/`lightIntensity`), so a future change that helpfully wires them together fails rather
+than being reviewed.
+
+**And the danger scales with how PLAUSIBLE the conversion is.** Hex → Kelvin is standard,
+well-documented and produces a number in the right range. Nothing about the output would have
+signalled that its input was a tint chosen to look nice in a night render. A conversion that
+*looks* principled is more dangerous than one that looks like a hack, because review waves it
+through.
+
+**Corollary for types: they catch absence, not incoherence.** `cct`/`ip` are required on
+`EmitterSpec`, so a new emitter cannot ship without a spec — that part is structural and needs no
+vigilance. What the compiler cannot see is a value that compiles and contradicts the fixture, which
+is exactly what a bulk edit produced: 3000 K warm white on the aquarium, whose own comment two
+lines above calls it "a cool aqua accent". A test now pins that, plus its counterpart (every other
+fixture stays warm) so "all cool" fails too — a one-sided assertion would pass on a registry that
+had drifted entirely cool.
+
 ## The general check, for next time
 
 When adding a `pro` feature that reads an OPTIONAL field:
