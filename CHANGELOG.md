@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.275 — the floor contributes ≲1 % of the ceiling's light, because it is dim, not because it is hidden
+
+`.274` left one question open and flagged that three crop errors in two rounds meant slowing down. So this
+round does **one** thing, with the tool built to avoid that failure mode: **world-verified floor anchors**,
+which check signature and occlusion themselves, so no hand-picked crop is involved.
+
+The question: when the floor finish was swapped from `floor-tile-white` to `floor-wood-ebony`, the traced
+ceiling did not move. Was that because **(a)** the tracer never received the finish, or **(b)** the floor is a
+weak bounce source?
+
+**Looking down (`PITCH=-0.5`) makes the floor visible to both the raster frame and the traced still**, so the
+same anchors can be read in each. The strict acceptance gate rejected the floor at 17/81 and 27/81 clean, so
+`ANCHOR_MINFRAC=0.15` was used — principled, because every included point is already verified same-object and
+unoccluded (`.258`).
+
+**(a) is refuted. The tracer got the finish.** World-verified floor anchors, signature `PlaneGeometry#ffffff`:
+
+| anchor | tile-white | ebony | change |
+| --- | --- | --- | --- |
+| d = 1.6 m, raster L | 49.5 | 29.2 | −41 % |
+| d = 1.6 m, **traced L** | **74.9** | **29.1** | **−61 %** |
+| d = 2.8 m, raster L | 57.4 | 17.9 | −69 % |
+| d = 2.8 m, **traced L** | **113.9** | **41.4** | **−64 %** |
+
+Confirmed by looking: the traced stills show a pale grey-lilac tiled floor against a dark brown plank floor,
+unmistakably.
+
+**So (b) it is, and the mechanism is not occlusion.** `.274` established the floor is **56 % exposed**, so it
+is not hidden. It is **dim**: even white-tiled, the traced floor reads L **74.9–113.9** against a ceiling at
+**~159**. A surface that is itself poorly lit bounces little regardless of its albedo.
+
+**Quantified:** between the two finishes the traced **floor** changed by **61–64 %** while the traced
+**ceiling** changed by **+0.3 / −0.1 / −0.3 %**. A >200× ratio. **The floor contributes on the order of 1 %
+of the ceiling's light in this furnished room.**
+
+**Which explains why the wall tests worked and this one did not.** `.270`–`.272` used wall finishes and got
+large, clean responses; walls are brightly lit and close to the window. The floor is the dimmest large surface
+in the room, so it is the worst possible A/B source — not because the intervention fails, but because the
+surface has little light to give back.
+
+**And it is a third correction for item (s).** The albedo census now needs all of:
+
+1. **swatch-based albedo** (`.273`) — read the catalogue `swatch`, not `material.color`;
+2. **exposure weighting** (`.274`) — weight by unoccluded fraction (floor: 0.56);
+3. **illumination weighting** (`.275`) — weight by the light actually *leaving* each surface.
+
+The third is the physically correct form: the quantity that governs bounce is a **radiance**-weighted average,
+not a reflectance average. And it is the largest of the three for the floor, which carries 4.6 % of
+exposure-weighted area but ~1 % of the ceiling's light.
+
+That also sharpens why `.271`/`.272` worked at all despite a flawed census: the surfaces they changed were
+walls, which are bright, well-exposed and untextured — the one case where a naïve reflectance census is close
+to right.
+
+**Method note.** This round used anchors rather than hand-picked crops precisely because `.273`/`.274`
+produced three crop errors. The anchors rejected the rug, rejected furniture, and reported the signature of
+what they hit — every judgement the crops got wrong, made mechanically. That is the durable answer to the
+pacing problem: not "look harder", but **use instruments that verify their own population**.
+
+Probe only; no probe change this round. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in
+`src/` beyond the version bump. Runs 09:04–09:19 local.
+
 ## v0.31.5.274 — CORRECTION: `.273`'s floor A/B was not void; I read the wrong frame
 
 `.273` reported the floor-finish A/B as void, concluding the store took the finish but "the render did not".

@@ -8205,3 +8205,96 @@ Neither overturns `.271`/`.272`'s luminance result, which is a **ratio** between
 cancels both errors. Both mean the published scalars are approximate rather than final.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.275` — the floor contributes ≲1 % of the ceiling's light, because it is dim, not because it is hidden
+
+`.274` left one question open and noted that three crop errors across two rounds meant slowing down. So this
+round does **one** thing, with the instrument built to avoid that failure mode: **world-verified anchors**,
+which check signature and occlusion themselves, so no hand-picked crop is involved anywhere in the
+load-bearing step.
+
+The question: swapping the floor from `floor-tile-white` to `floor-wood-ebony` left the traced ceiling
+unmoved. Was that because **(a)** the tracer never received the finish, or **(b)** the floor is a weak bounce
+source?
+
+Runs 09:04–09:19 local (2026-09-02).
+
+### Method
+
+`PITCH=-0.5` looks down, so the floor is visible in both the raster frame and the traced still and the same
+anchors can be read in each.
+
+The first attempt returned only the **rug** (`BoxGeometry#9c8f7a`) — which correctly does not change under a
+floor finish — because the strict gate rejected the actual floor at **17/81 and 27/81 clean**.
+`ANCHOR_MINFRAC=0.15` fixed that, and the relaxation is principled: every included point is already verified
+same-object, same-signature and unoccluded (`.258`). The rejections are informative in themselves — they show
+the floor is heavily interrupted at eye height by furniture legs and the rug edge.
+
+### (a) is refuted — the tracer got the finish
+
+World-verified floor anchors, signature `PlaneGeometry#ffffff` in every case:
+
+| anchor | tile-white | ebony | change |
+| --- | --- | --- | --- |
+| d = 1.6 m, raster L | 49.5 | 29.2 | −41 % |
+| d = 1.6 m, **traced L** | **74.9** | **29.1** | **−61 %** |
+| d = 2.8 m, raster L | 57.4 | 17.9 | −69 % |
+| d = 2.8 m, **traced L** | **113.9** | **41.4** | **−64 %** |
+
+And confirmed by looking: the traced stills show a pale grey-lilac tiled floor against a dark brown plank
+floor, unmistakably, with the rest of the room looking near-identical in both — which is the visual form of
+the ceiling result.
+
+### So (b), and the mechanism is not occlusion
+
+`.274` established the floor is **56 % exposed**, so it is not hidden. It is **dim**. Even white-tiled, the
+traced floor reads **L 74.9–113.9** against a ceiling at **~159**. A surface that is itself poorly lit bounces
+little regardless of its albedo — reflectance sets the *fraction* returned, not the amount.
+
+| quantity | change between the two finishes |
+| --- | --- |
+| traced **floor** | **−61 % to −64 %** |
+| traced **ceiling** | **+0.3 % / −0.1 % / −0.3 %** |
+
+A **>200× ratio**. The floor contributes on the order of **1 %** of the ceiling's light in this furnished
+room.
+
+### Why the wall tests worked and this one did not
+
+`.270`–`.272` used *wall* finishes and got large, clean responses. Walls are brightly lit and close to the
+window. The floor is the dimmest large surface in the room, which makes it the **worst** available A/B source
+— not because the intervention fails, but because the surface has little light to give back.
+
+That is worth recording as a design rule for future A/B choices: **pick the brightest surface you can change,
+not the largest.**
+
+### A third correction for item (s)
+
+The albedo census now needs all of:
+
+| # | correction | source | size for the floor |
+| --- | --- | --- | --- |
+| 1 | **swatch-based albedo** — read the catalogue `swatch`, not `material.color` | `.273` | counted as white instead of oak |
+| 2 | **exposure weighting** — weight by unoccluded fraction | `.274` | ×0.56 |
+| 3 | **illumination weighting** — weight by light actually *leaving* the surface | `.275` | 4.6 % of area → ~1 % of contribution |
+
+The third is the physically correct form: bounce is governed by a **radiance**-weighted average, not a
+reflectance average. It is also the largest of the three for the floor.
+
+And it sharpens why `.271`/`.272` worked at all despite a flawed census: the surfaces they changed were
+**walls** — bright, well-exposed and untextured, which is precisely the one case where a naïve reflectance
+census is close to right. The model was validated on its easiest case.
+
+### Method note
+
+This round deliberately used anchors instead of hand-picked crops, because `.273`/`.274` produced three crop
+errors between them. The anchors rejected the rug, rejected furniture, and reported the signature of whatever
+they hit — every judgement the crops got wrong, made mechanically.
+
+That is the durable answer to the pacing problem this arc ran into: not *look harder*, but **use instruments
+that verify their own population**. The crop discipline depends on the operator choosing correctly; the anchor
+discipline does not.
+
+Nothing changed in `src/` beyond the version bump.

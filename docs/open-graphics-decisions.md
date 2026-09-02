@@ -1722,8 +1722,27 @@ covering the rest. So the floor's contribution must be weighted: 38.6 m² × 0.5
 of the room's 467 m²**, not the 8.3 % used. This pushes the same way as the texture-blindness — `.271`
 over-weighted the floor twice over.
 
-**So the census needs two fixes before its scalars mean anything:** swatch-based albedo (`.273`) and
-exposure weighting (`.274`). Neither overturns the luminance *ratio* result, which largely cancels both.
+**A THIRD correction — illumination weighting (v0.31.5.275).** The floor's finish was swapped from
+`floor-tile-white` to `floor-wood-ebony`. World-verified floor anchors show the **traced floor darkened
+61–64 %** (d = 1.6: 74.9 → 29.1; d = 2.8: 113.9 → 41.4), while the **traced ceiling moved +0.3 / −0.1 /
+−0.3 %** — a >200× ratio. **The floor contributes on the order of 1 % of the ceiling's light.**
+
+Not because it is hidden (it is 56 % exposed) but because it is **dim**: even white-tiled it reads L 74.9–113.9
+against a ceiling at ~159. A poorly-lit surface bounces little whatever its albedo.
+
+**So the census needs three fixes before its scalars mean anything:**
+
+1. **swatch-based albedo** (`.273`) — read the catalogue `swatch`, not `material.color`;
+2. **exposure weighting** (`.274`) — weight by unoccluded fraction (floor: 0.56);
+3. **illumination weighting** (`.275`) — weight by the light actually *leaving* each surface.
+
+The third is the physically correct form: bounce is governed by a **radiance**-weighted average, not a
+reflectance average. It is also the largest of the three for the floor, which carries 4.6 % of
+exposure-weighted area but ~1 % of the ceiling's light.
+
+This also explains why `.271`/`.272` worked despite a flawed census: they changed **walls** — bright,
+well-exposed and untextured, the one case where a naïve reflectance census is close to right. None of the
+three corrections overturns the luminance *ratio* result, which largely cancels them.
 
 **Still untested: the brightening direction.** Both validated points *lowered* ρ, and ρ/(1−ρ) rises steeply
 as ρ → 1, so a lighter room is where the model might over-predict badly.
