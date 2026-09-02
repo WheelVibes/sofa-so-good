@@ -3312,3 +3312,29 @@ Registered bath1 prediction shifts to **≈ −44 %** (linear-in-ratio), from `.
 **So the state of the geometric rule is unchanged: two points, fitted, untested.** The room-dependence itself
 remains measured and real (2.3×). For the decision, that means: shipping `.339`'s table globally over-corrects
 large rooms ~2.5×, and the *rule* for scaling it per room is plausible but unverified.
+
+### (u) RATE MEASURED — p(A) ≈ 0.72, arms independent, tax ~2.1 boots (v0.31.5.345)
+
+First unbiased estimate, from the existing record using only the **first fixed-length pair per condition**
+(later pairs exist only because an earlier one lacked the wanted class, so including them biases toward B):
+
+| | |
+| --- | --- |
+| first-pair sample | 13A / 5B of 18 arms |
+| **p(A)** | **0.722**, 95 % CI [0.52, 0.93] |
+| independence (AA / mixed / BB) | 5 / 3 / 1 vs 4.69 / 3.61 / 0.69 expected; χ² = 0.26 → **independent** |
+| **tax** | **2.1 boots** per class-B arm |
+
+**Withdrawn:** the "4×" (`.330`) and "6×" (`.337`) tax figures, and `.337`'s note that the tax was rising and
+"worth watching" — P(≥5 of 6 class A) is 0.469 at this rate, so that was noise. `.340`'s p(A) ≈ 0.75 was close
+but from a biased sample.
+
+**Sharper statement of the defect.** With `.330`'s determinism result, (u) is an **independent Bernoulli draw
+per `createHqRenderSession` call at p(A) ≈ 0.72, deterministic once drawn.** That excludes anything stochastic
+*during* the trace **and** anything persistent *between* calls in a session — two whole classes of explanation,
+on top of the ~25 candidates already eliminated.
+
+**Decision impact:** (u) makes roughly **28 % of HQ stills** render the ceiling correctly and ~72 % show the
+environment instead — or the reverse in terms of which is "correct", since `.328` established the traced ceiling
+in class B is the physically sensible one. Either way it is not a rare glitch: it is the majority outcome, and
+any user exercising the HQ still repeatedly will see both.

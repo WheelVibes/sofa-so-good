@@ -947,3 +947,28 @@ The error slipped through because **the output looked reasonable for every room*
 number whatever height you feed it, so nothing in the result signalled a wrong input. It surfaced only when
 `src/apartment/constants.ts` was read for an unrelated reason. When an instrument derives a quantity from a
 shared default, print the input alongside the output.
+
+## (u)'s class rate: p(A) ≈ 0.72, arms INDEPENDENT, tax ~2.1 boots per class-B arm
+
+Measured in `.345` from the existing record, using only the **first `PT2`/census pair per condition** — the only
+class-independent sample, since later pairs exist only because an earlier one lacked the wanted class.
+
+| | |
+| --- | --- |
+| first-pair sample | 13A / 5B of 18 arms |
+| **p(A)** | **0.722**, 95 % CI [0.52, 0.93] |
+| independence (AA / mixed / BB) | 5 / 3 / 1 vs 4.69 / 3.61 / 0.69 expected; χ² = 0.26 |
+| **tax** | **2.1 boots** per class-B arm |
+| all pairs incl. retries | p(A) = 0.625 — biased toward B, as expected |
+
+**Use 2.1 boots per class-matched arm when planning.** Earlier figures of "4×" (`.330`) and "6×" (`.337`) are
+withdrawn: P(≥5 of 6 arms class A) is 0.469 at this rate, so `.337`'s run of bad luck was unremarkable and its
+"the tax is rising, worth watching" note was reading noise.
+
+**Combined with `.330`'s determinism finding**, the characterisation is now: an **independent Bernoulli draw per
+`createHqRenderSession` call**, deterministic once drawn. That excludes both anything stochastic *during* the
+trace and anything persistent *between* calls in a session.
+
+**Method note.** Never quote a rate from arms a round happened to produce — rounds stop as soon as they get the
+class they need, which truncates every sequence on a class-B arm. Count only fixed-length samples, and prefer
+the first one per condition.

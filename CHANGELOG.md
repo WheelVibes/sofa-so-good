@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.345 — (u)'s class rate measured for the first time, arms shown INDEPENDENT, and three of my own tax figures withdrawn
+
+No new runs. `.341` established that every rate this arc has quoted came from arms accumulated while measuring
+something else, with a stopping rule biased toward class B. That is correctable from the existing record:
+`PT2`/census runs emit a **fixed** number of arms, so each pair is an unbiased sample of two draws — the bias
+lives only in *which pairs I chose to run*. Restricting to the **first pair per condition** removes it.
+
+**First unbiased estimate:**
+
+| | |
+| --- | --- |
+| first-pair sample | **13A / 5B of 18 arms** |
+| **p(A)** | **0.722**, 95 % CI **[0.52, 0.93]** |
+| all pairs including retries | p(A) = 0.625 |
+
+The contaminated estimate is **lower**, exactly as the stopping bias predicts — weak but real evidence the
+correction is in the right direction.
+
+**Arms within a boot are INDEPENDENT.** Observed AA = 5, mixed = 3, BB = 1 against 4.69 / 3.61 / 0.69 expected
+at p(A) = 0.722; χ² = 0.26, df 1. No clustering, no alternation, no session-level state.
+
+**Combined with `.330`'s determinism result, this is the tightest characterisation (u) has had:** the class is
+an **independent Bernoulli draw per `createHqRenderSession` call at p(A) ≈ 0.72**, and once drawn the render is
+deterministic (class-A arms reproduce to 0.1 counts across boots). That constrains the cause in two directions
+at once — nothing stochastic *during* the trace, and nothing persistent *between* calls.
+
+**Three of my own figures withdrawn:**
+
+- `.337`'s "**(u)'s tax at this pose is now ~6×, up from `.330`'s 4× … worth watching: if class B is getting
+  rarer**". It is not. P(≥5 of 6 arms class A) at p(A) = 0.722 is **0.469** — a coin-flip outcome. I was
+  reading noise as a trend, and then recommending others watch it.
+- `.330`'s "4×" and `.337`'s "6×" as tax estimates. The measured tax is **2.1 boots per class-B arm**
+  (P(≥1 B in a 2-arm boot) = 0.478).
+- `.340`'s "p(A) ≈ 0.75" — close to the truth, but arrived at from a biased sample, so the agreement is luck.
+
+The general fault: I quoted a rate from whatever arms a round happened to produce, in rounds that **stopped as
+soon as they got the class they needed**. That truncates every sequence on a class-B arm. It is the same
+sample-versus-enumeration error as choosing a test point by eyeballing frames (`.343`) — a statistic computed
+over a convenience sample, with the selection mechanism invisible in the result.
+
+**What this does not settle:** the cause. But it removes a class of explanation — anything involving state
+carried between renders in a session — and it prices the remaining (p)/(w) tracer work honestly at ~2 boots per
+class-matched arm rather than ~6.
+
+No `src/` change beyond the version bump. No new probe runs.
+
 ## v0.31.5.344 — the controlled height experiment is not performable from the probe; a false bug report avoided; and `.343`'s bathroom ratios were my own error
 
 `.343` named the cleaner test for (w)'s geometric hypothesis: vary **ceiling height inside one room**, which
