@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.13 — the crux claim is now tested, not asserted: `uv1` generation ships with a Blender-generated fixture
+
+Item (w)'s whole design rests on one claim: **the app can regenerate Blender's lightmap UV
+layout exactly**, so a baked `aoMap` needs no UV table shipped beside every map. That claim has
+been repeated for three rounds and never checked. This round makes it code and holds it to a
+fixture.
+
+**`src/scene/lightmapUv.ts`** — `computeBoxAtlasUv()`, the deliberate twin of
+`bake_material.py:make_box_uvs`. Face normals are computed from each triangle's own winding
+rather than read from a normal attribute, because a shaded normal may be smoothed or flipped by
+the exporter while the slot assignment has to follow the geometry **the bake actually saw**. All
+five tests are green, and the first is the one that matters:
+
+- **Agreement with Blender on all 36 loops of a real shell mesh, to 1e-5.** The fixture
+  (`src/scene/__fixtures__/lightmapUv.blender.json`) is emitted by `make_box_uvs` itself from a
+  24-vertex mesh in an exported plan. Two independent implementations — one reading Blender's
+  `poly.normal`, one deriving it from winding — landing on the same UVs is a real cross-check,
+  not a tautology. The test also asserts it checked 36 loops, so a fixture that lost its
+  polygons fails instead of passing vacuously.
+- **`conflicts === 0`, which is what makes `uv1` viable at all.** A vertex shared by two faces
+  in *different* atlas slots cannot be represented by a per-vertex attribute. Box and plane
+  geometries duplicate their corners per face, so the shell is fine — but the function counts
+  and returns conflicts rather than staying silent, because silence there is indistinguishable
+  from a subtly wrong map.
+- Every UV stays inside its own slot with the margin respected; a unit cube's six faces reach
+  six distinct slots (built in the test rather than imported, so the mapping is pinned
+  independently of any exporter); and a **zero-extent axis maps to 0 rather than `NaN`** — a
+  floor plane has no thickness, and the naive normalisation would divide by zero on every one of
+  its vertices.
+
+**Nothing is wired into the renderer, deliberately.** This is a pure function plus tests: no
+feature flag needed because there is no feature yet, no `aoMap` assigned, no shell geometry
+touched. So there is **no way for it to change a pixel or a frame** — the ≥30 fps floor and the
+measured 60 fps at `medium` cannot be affected by construction, which is the right shape for the
+first increment of a change whose regression risk is bounded at ≤4 % (`v0.31.7.10`) but not zero.
+
+**What remains** is now genuinely small and sequenced: assign `uv1` on the shell meshes at
+build time, bake the starter plans, wire `aoMap` + `aoMapIntensity` at γ ≈ 0.7 behind a feature
+flag, and re-run `spatial-profile.mjs --explain` per room to confirm the 80 % holds in the app
+rather than in the analysis.
+
+Suite: **10004 tests green** (up 5), `tsc`, biome and knip clean.
+
 ## v0.31.7.12 — blocker 3 answered by measurement (albedo 0.81), and blocker 2 dissolves: the per-mesh mean was the wrong instrument
 
 Two of `v0.31.7.11`'s three blockers resolve, and one of them resolves by being wrong.
