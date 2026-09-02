@@ -95,7 +95,15 @@ describe('buildSection', () => {
     expect(o.kind).toBe('window')
     expect(o.sill).toBeCloseTo(0.9, 6)
     expect(o.head).toBeCloseTo(2.1, 6)
-    expect(o.width).toBeCloseTo(2, 6)
+    // CORRECTED v0.31.5.282 (was pinned at 2, the opening's along-wall run).
+    // The section plane is x = 3 spanning (z, y). The host wall runs along X at
+    // z = 4 with thickness t in z, so the plane meets the wall — and the window
+    // in it — over z in [4 - t/2, 4 + t/2]. The void's horizontal extent is the
+    // WALL THICKNESS; the 2 m figure is the window's extent along X, which this
+    // plane only touches at a single point. The old value drew a 2 m hole in a
+    // 0.2 m wall column, spilling across the rooms either side (visible in the
+    // Open Loft report frame).
+    expect(o.width).toBeCloseTo(0.2, 6)
     // Gap sits on the south wall (pos z=4).
     expect(o.pos).toBeCloseTo(4, 6)
   })

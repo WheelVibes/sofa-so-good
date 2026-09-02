@@ -658,7 +658,10 @@ export function buildDrawingSheets(
   // marks, so the cuts must be known before it is built. Only cuts that
   // actually produce a section are kept, so a mark never points at a sheet
   // that was skipped for being empty.
-  const silhouettes = sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog)
+  // EVERY storey (F13) — `buildSection` stacks the levels and filters these
+  // per storey itself; passing only the ground floor's items drew an empty
+  // upper storey on a maisonette's section sheet.
+  const silhouettes = sectionSilhouettes(items, catalog)
   const resolvedSections = layerOn(layers, 'section')
     ? conventionalSectionCuts(plan)
         .map(({ cut, mark }) => ({ cut, mark, section: buildSection(plan, cut, silhouettes) }))

@@ -5,6 +5,56 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.282 - sections now show every storey, and two drawing-accuracy fixes
+
+This one is a GAP, not just a migration bug. **A section is the drawing where storeys matter** —
+it is the single sheet a contractor reads to see how the levels stack — and `buildSection` cut the
+ground floor only. A maisonette's Section A-A showed an open-topped ground floor with nothing
+above it. Both the report and the drawing-set sheet were affected.
+
+**Stacked sections.** `buildSection` is now a wrapper over the unchanged single-plane core
+(`buildLevelSection`): each storey is cut independently via `levelAsPlan`, then lifted to its own
+`elevation`. Every height in a `Section` is already ABSOLUTE — the renderer maps them straight
+through `y()` — so raising a storey is a uniform offset and no geometry is re-derived. `SectionRoom`
+and `SectionItem` gain a `base` (their storey's floor height); `SectionItemInput` gains an optional
+`levelId`, which the wrapper filters on, or every piece in the home would be drawn once per storey.
+`sectionSvg` draws each room's floor line and label at `y(r.base)` and stands each item on
+`it.base` — clamping the item's TOP rather than its height, or an upstairs piece would be squashed
+instead of raised. Single-storey output is byte-identical: `base` is 0 throughout.
+
+**Two accuracy defects found by LOOKING at the frame, not by a test.**
+
+1. **The report's section cut was hardcoded to the plan midpoint, which is not guaranteed to cross
+   anything.** With stacking working, the Open Loft's section still showed one storey: its upper
+   level occupies z 3.4-5.9 while the mid-extent cut lands at z = 3.0. The report now picks the
+   cut via `conventionalSectionCuts`, which SCORES candidates by how much geometry they cross — and
+   now that sections stack, a cut through two storeys naturally outscores one through one. Falls
+   back to the midpoint when nothing scores.
+
+2. **An opening on a cut wall was drawn six times too wide, and a test had pinned it that way.**
+   The gap used the opening's run along its own HOST wall (1.2 m) as its width in the section. But
+   a cut wall is perpendicular to the section plane: the plane meets the wall — and the opening in
+   it — only across the wall's THICKNESS, so the void is 0.2 m wide, not 1.2 m. The old value drew
+   a hole wider than the wall, spilling across the rooms either side. `section.test.ts` asserted
+   `width === 2`, so this shipped as pinned behaviour; that expectation is corrected in place with
+   the geometric reasoning recorded beside it, since a wrong pinned value is worse than none — it
+   makes the next reader assume the question was settled. The opening's run still decides WHETHER
+   the cut hits it, which a test now separates explicitly.
+
+**Verified in the frame** (`scripts/scenarios/multistorey-section-f13.json`): Section A-A shows
+Lounge / Study · Stairs · Bathroom below and Sleeping Loft (queen bed, wardrobe, 2 nightstands) ·
+Stair Landing · Dressing above, with an overall height dimension of **5.5 m** — the whole home, not
+the ground storey — and the window void now a thin dashed sliver inside its wall column. The
+assertion checks the wall columns have at least two distinct tops and there is more than one floor
+line, so it cannot pass on a single-storey section.
+
+12 new tests; 8 confirmed failing with the fix stashed. The pre-existing "guards an empty /
+malformed plan" test also caught the wrapper reading `isMultiLevel(null)` before the core's
+documented null guard — worth noting as a case where the existing suite did its job.
+
+**Not fixed here, logged instead:** `elevation/projectElevation.ts`'s `allWallElevations` is
+ground-only, but it has no call sites outside its own module, so it is dead rather than broken.
+
 ## v0.31.5.281 - the interactive layer: eleven more ground-only lookups
 
 Fifth migration batch, all of the same two shapes now covered by helpers, and all in paths a user

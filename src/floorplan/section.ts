@@ -23,7 +23,7 @@
  * Pure + self-contained: imports only `./types`. All lengths in metres.
  */
 
-import { allPlanRooms } from './levels'
+import { allPlanRooms, GROUND_LEVEL_ID, isMultiLevel, levelAsPlan, planLevels } from './levels'
 import { roomLabelPoint } from './roomCentroid'
 import {
   type FloorPlan,
@@ -76,6 +76,8 @@ interface SectionOpening {
 /** A room the cut passes through, as a labelled floor segment. */
 interface SectionRoom {
   name: string
+  /** Floor height of the storey this room sits on, metres (0 = ground). */
+  base: number
   /** Start position along the section axis, metres. */
   start: number
   /** End position along the section axis, metres. */
@@ -92,6 +94,10 @@ export interface SectionItemInput {
   corners: PlanVec2[]
   /** Above-floor height in metres. */
   height: number
+  /** The storey this piece stands on (absent = ground). Used to place it at
+   *  that storey's floor level; a multi-storey section that ignored this drew
+   *  every piece standing on the ground slab. */
+  levelId?: string
 }
 
 /** A furniture piece projected onto the section plane (elevation of what stands
@@ -105,6 +111,8 @@ interface SectionItem {
   end: number
   /** Above-floor height in metres. */
   height: number
+  /** Floor height of the storey it stands on, metres (0 = ground). */
+  base: number
 }
 
 /** A ceiling run at height `y` spanning `[start,end]` along the section axis. */
@@ -127,7 +135,8 @@ export interface Section {
   /** Furniture standing in the cut's room band, shown in elevation behind the
    *  cut (empty when no silhouettes were supplied — e.g. a bare shell). */
   items: SectionItem[]
-  /** Floor line height, metres (0). */
+  /** Floor line height, metres (0) — the GROUND slab. Upper storeys carry
+   *  their own floor height on each room/item `base`. */
   floorY: number
   ceil: SectionCeil[]
 }
@@ -190,6 +199,77 @@ function crossAlong(a: PlanVec2, b: PlanVec2, axis: SectionAxis, at: number): nu
  * plan bounds (→ an empty section, never throws). All values clamped ≥ 0.
  */
 export function buildSection(
+  plan: FloorPlan,
+  cut: SectionCut,
+  silhouettes: SectionItemInput[] = [],
+): Section {
+  // The core is documented as defensive about a malformed plan, so the
+  // multi-storey branch must not read off it first — `isMultiLevel(null)`
+  // throws (caught by the pre-existing "guards an empty / malformed plan" test).
+  if (!plan || typeof plan !== 'object') return buildLevelSection(plan, cut, silhouettes)
+  // MULTI-STOREY (F13). A section is THE drawing where storeys matter — it is
+  // the one sheet a contractor reads to see how the levels stack — and this
+  // built the ground floor only, so a maisonette's section showed an open-topped
+  // ground floor with nothing above it. Each storey is now cut independently and
+  // its geometry lifted to that storey's `elevation`, giving one stacked section.
+  //
+  // Kept as a wrapper rather than threading levels through the core: the core is
+  // 250 lines of single-plane geometry that is correct as written, and every
+  // multi-storey concern here is a Y offset applied afterwards.
+  if (isMultiLevel(plan)) {
+    const levels = planLevels(plan)
+    const parts = levels.map((level) =>
+      liftSection(
+        buildLevelSection(
+          levelAsPlan(plan, level),
+          cut,
+          // Silhouettes are level-tagged; without this filter every piece in
+          // the home would be drawn once per storey.
+          safeSilhouettes(silhouettes).filter(
+            (sil) => (sil.levelId ?? GROUND_LEVEL_ID) === level.id,
+          ),
+        ),
+        level.elevation,
+      ),
+    )
+    const nonEmpty = parts.filter((p) => p.walls.length > 0 || p.rooms.length > 0)
+    const kept = nonEmpty.length > 0 ? nonEmpty : parts
+    return {
+      axis: parts[0]!.axis,
+      at: parts[0]!.at,
+      length: Math.max(...kept.map((p) => p.length)),
+      height: Math.max(...kept.map((p) => p.height)),
+      walls: kept.flatMap((p) => p.walls),
+      openings: kept.flatMap((p) => p.openings),
+      rooms: kept.flatMap((p) => p.rooms),
+      // Tallest-first across the whole stack, preserving the core's paint order.
+      items: kept.flatMap((p) => p.items).sort((a, b) => b.height - a.height),
+      floorY: 0,
+      ceil: kept.flatMap((p) => p.ceil),
+    }
+  }
+  return buildLevelSection(plan, cut, silhouettes)
+}
+
+/** Lift one storey's section by `dy` metres. Every height in the section is
+ *  ABSOLUTE (the renderer maps them straight through `y()`), so raising a
+ *  storey is a uniform offset — no geometry is re-derived. */
+function liftSection(sec: Section, dy: number): Section {
+  if (!(Number.isFinite(dy) && dy !== 0)) return sec
+  return {
+    ...sec,
+    height: sec.height + dy,
+    walls: sec.walls.map((w) => ({ ...w, base: w.base + dy, top: w.top + dy })),
+    openings: sec.openings.map((o) => ({ ...o, sill: o.sill + dy, head: o.head + dy })),
+    rooms: sec.rooms.map((r) => ({ ...r, base: r.base + dy })),
+    items: sec.items.map((it) => ({ ...it, base: it.base + dy })),
+    ceil: sec.ceil.map((c) => ({ ...c, y: c.y + dy })),
+  }
+}
+
+/** Cut ONE storey. `plan` must be single-level (the plan itself, or a
+ *  `levelAsPlan` result) — every read below is single-level by design. */
+function buildLevelSection(
   plan: FloorPlan,
   cut: SectionCut,
   silhouettes: SectionItemInput[] = [],
@@ -271,7 +351,15 @@ export function buildSection(
       const head = Math.max(sill, o.head ?? top)
       sectionOpenings.push({
         pos,
-        width: Math.max(0, wid),
+        // The gap's width in the SECTION is the wall's THICKNESS, not the
+        // opening's run along its own wall. A cut wall is perpendicular to the
+        // section axis: you see the wall as a thin column and the opening as a
+        // void punched through that column. Using the opening width drew a
+        // 1.2 m window as a 1.2 m-wide hole in a 0.2 m wall — six times too
+        // wide, spilling across the neighbouring rooms. Seen in the Open Loft
+        // report frame while verifying the stacked section (v0.31.5.282);
+        // `wid` is still what decides WHETHER the cut hits the opening above.
+        width: thicknessM(w),
         sill,
         head: Math.min(head, top),
         kind: o.kind === 'door' ? 'door' : 'window',
@@ -291,7 +379,12 @@ export function buildSection(
       typeof r.ceilingHeight === 'number' && r.ceilingHeight > 0 ? r.ceilingHeight : planCeil
     for (const [s, e] of spans) {
       if (e - s < EPS) continue
-      sectionRooms.push({ name: typeof r.name === 'string' ? r.name : '', start: s, end: e })
+      sectionRooms.push({
+        name: typeof r.name === 'string' ? r.name : '',
+        start: s,
+        end: e,
+        base: 0,
+      })
       ceil.push({ start: s, end: e, y: rCeil })
       if (rCeil > maxTop) maxTop = rCeil
     }
@@ -324,7 +417,7 @@ export function buildSection(
     if (aHi - aLo < EPS) continue
     const h = sil.height > 0 ? sil.height : 0
     if (h < EPS) continue
-    sectionItems.push({ id: sil.id, label: sil.label, start: aLo, end: aHi, height: h })
+    sectionItems.push({ id: sil.id, label: sil.label, start: aLo, end: aHi, height: h, base: 0 })
     if (h > maxTop) maxTop = h
   }
   // Tallest-first so a renderer painting in order keeps shorter pieces on top.

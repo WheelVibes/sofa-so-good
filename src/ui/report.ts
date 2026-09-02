@@ -46,7 +46,7 @@ import {
   planLevels,
 } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
-import { buildSection } from '../floorplan/section'
+import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
@@ -937,13 +937,24 @@ export function buildReportHtml(
     : ''
 
   // Cross-section — a vertical cut through the middle of the plan (along Z),
-  // with ground-floor furniture in the cut's room band drawn in elevation. The
-  // companion to the wall elevations; degrades to the bare shell when empty.
-  const section = buildSection(
-    plan,
-    { axis: 'z', at: (Array.isArray(plan.extent) ? plan.extent[1] : 0) / 2 },
-    sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog),
-  )
+  // with the furniture in the cut's room band drawn in elevation. The companion
+  // to the wall elevations; degrades to the bare shell when empty.
+  // EVERY storey (F13): `buildSection` stacks the levels and filters the
+  // silhouettes per storey itself, so it gets the whole home's items — the old
+  // `itemsOnLevel(items, levels[0].id)` was the ground-only section's input.
+  //
+  // The cut position is CHOSEN, not hardcoded to the plan midpoint. The midpoint
+  // is not guaranteed to cross anything: on the shipped Open Loft template the
+  // upper storey occupies z 3.4-5.9 while the mid-extent cut lands at z = 3.0,
+  // so a stacked section drawn there still showed one storey. `conventionalSectionCuts`
+  // scores candidates by how much geometry they actually cross — and now that
+  // `buildSection` stacks, a cut through two storeys outscores one through one.
+  // Falls back to the midpoint when nothing scores (a plan with no walls).
+  const sectionSilhouetteInputs = sectionSilhouettes(items, catalog)
+  const chosenCut =
+    conventionalSectionCuts(plan).find((c) => c.cut.axis === 'z')?.cut ??
+    ({ axis: 'z', at: (Array.isArray(plan.extent) ? plan.extent[1] : 0) / 2 } as const)
+  const section = buildSection(plan, chosenCut, sectionSilhouetteInputs)
   const sectionSection = section.walls.length
     ? `<div class="elev-section"><h2>Section A–A</h2><div class="plan-wrap">${sectionSvg(section, {
         palette: SECTION_PRINT,
