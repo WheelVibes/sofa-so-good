@@ -1752,18 +1752,28 @@ wrong** — `.274` found the pitched-down frames differ unmistakably (pale tiles
 read the eye-level frame, where the floor is almost entirely occluded. Why the *traced ceiling* barely moved
 across that swap is still **unexplained**.
 
-### Revised proposal — luminance only
+### RECOMMENDED FORM — a scalar grey fill scale (validated at three finishes, v0.31.5.276)
 
-Apply a **scalar** grey scale from ρ/(1−ρ): **0.650** for terracotta, **0.563** for navy. That recovers
-**77 % (terracotta) to 90 % (navy)** of the darkening across an albedo range of 0.81 → 0.76 → 0.70, with
-**no hue risk**.
+Apply a **scalar** grey scale from ρ/(1−ρ). Validated across warm, cool and green finishes:
 
-The hue half needs a different model — one accounting for the colour of the light being *absorbed*, not the
-colour of the surface absorbing it. It is also the part you cannot see: the hue error is ±3 counts, below
-visual threshold, while the luminance effect is large and plainly visible in a side-by-side.
+| finish | scalar | luminance recovered | hue recovered | hue sign |
+| --- | --- | --- | --- | --- |
+| terracotta | **0.650** | ~78 % | ~7 % | **right** |
+| navy | **0.563** | ~90 % | ~23 % | **right** |
+| forest | **0.574** | ~89 % | ~20 % | **right** |
 
-**Untested:** `forest` (`#4a5e4a`); a green finish is where a reflectance-driven hue model would err
-differently again.
+**The scalar gets the hue sign right at all three**, because darkening a cool fill lets the warm sun dominate
+— which is *the same mechanism as the real effect*. The **per-channel** version is right-signed only for
+terracotta (`.271`) and **wrong-signed** for navy (`.272`) and forest (`.276`), because it encodes the
+reflectance colour rather than the colour of the light being removed.
+
+**So the cheaper model is the better one:** simpler, no hue risk, 78–90 % of the luminance, and 7–23 % of the
+hue for free and in the right direction. Most of the hue effect remains unmodelled — but it is no longer
+modelled *wrongly*.
+
+**Also resolved:** the "brightening direction" is largely moot. The model is a **ratio**, so white → navy and
+navy → white are the same experiment read either way, and `.272` tested it. The untested regime is ρ *above*
+the shipped 0.81, which needs an all-white room (many surfaces at once), not one finish swap.
 
 ### What it does not do
 

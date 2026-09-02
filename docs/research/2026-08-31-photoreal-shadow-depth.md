@@ -8298,3 +8298,86 @@ that verify their own population**. The crop discipline depends on the operator 
 discipline does not.
 
 Nothing changed in `src/` beyond the version bump.
+
+---
+
+## `.276` — the scalar fill wins on hue too: right-signed at all three finishes
+
+`.272` named `forest` (`#4a5e4a`) as the untested third finish — a green bleed, a third hue direction, a third
+validation point. This round closes that gap, and the answer **reverses `.272`'s framing** of which model to
+ship.
+
+Runs 09:23–09:31 local (2026-09-02).
+
+### Forest's target is almost identical to navy's
+
+Room-scoped albedo under forest: `0.7058 / 0.7065 / 0.6871`, against navy's `0.7027 / 0.7010 / 0.6941`. Both
+are mid-dark finishes of similar luminance, so the traced targets converge:
+
+| finish | Δ traced L | Δ traced R−B |
+| --- | --- | --- |
+| terracotta | −19.0 / −20.0 / −15.8 % | +8.8 / +13.5 / +10.0 |
+| navy | −20.5 / −22.3 / −17.5 % | +3.0 / +5.4 / +4.1 |
+| **forest** | **−20.3 / −22.0 / −17.4 %** | **+3.7 / +6.3 / +4.2** |
+
+**Forest also warms the ceiling.** So `.272`'s counterintuitive finding generalises: a dark wall of *any* hue
+absorbs the blue sky bounce that was cooling the ceiling, and the light that remains is more dominated by the
+warm sun. It is not a navy-specific curiosity; it is what dark walls do.
+
+### The reversal
+
+`.272` concluded: *ship luminance only; the hue half needs a different model.* But a **scalar** grey fill
+scale gets the hue **sign right at all three finishes** — because darkening a cool fill lets the warm sun
+dominate, which is **the same mechanism as the real effect**.
+
+| finish | scalar | Δ L (model) | luminance recovered | Δ R−B (model) | hue recovered | hue sign |
+| --- | --- | --- | --- | --- | --- | --- |
+| terracotta | 0.650 | −14.9 / −13.8 / −13.7 % | ~78 % | +0.4 / +0.9 / +1.0 | ~7 % | **right** |
+| navy | 0.563 | −19.4 / −18.1 / −17.9 % | ~90 % | +0.7 / +1.1 / +1.2 | ~23 % | **right** |
+| forest | 0.574 | −18.9 / −17.6 / −17.4 % | ~89 % | +0.7 / +1.0 / +1.2 | ~20 % | **right** |
+
+Against the **per-channel** version:
+
+| finish | Δ R−B (per-channel) | target | sign |
+| --- | --- | --- | --- |
+| terracotta (`.271`) | +7.9 | +10.8 | right |
+| navy (`.272`) | −2.9 | +3.0…+5.4 | **wrong** |
+| forest (`.276`) | −1.3 / −1.0 / −0.9 | +3.7 / +6.3 / +4.2 | **wrong** |
+
+### Why the cheaper model is the better one
+
+The per-channel version buys more hue on warm finishes by reasoning that happens to be wrong — it tints the
+fill by the room's *reflectance* colour. On cool and green finishes that reasoning inverts the sign.
+
+The scalar version encodes no colour reasoning at all. It only removes energy, and the *hue* consequence
+follows from the scene: less cool fill, relatively more warm sun. That is the actual mechanism, so the sign is
+right by construction rather than by coincidence.
+
+**A model with fewer parameters is more physically faithful here, because it declines to encode a mistaken
+mechanism.** That is worth recording as a general caution: adding a colour term looked like strictly more
+information, and was strictly worse.
+
+### Also resolved — the "brightening direction"
+
+`.272` and `.273` flagged it as an untested regime. It is largely **moot**: the model is a **ratio**, so
+white → navy and navy → white are the same experiment read in either direction, and `.272` tested it.
+
+The genuinely untested regime is ρ **above** the shipped 0.81, where ρ/(1−ρ) steepens sharply — reaching it
+needs an all-white room (many surfaces changed at once), not a single finish swap, so it is not achievable
+with one shipped selection.
+
+### Looked at
+
+Forest renders as deep green walls, and the scalar-tinted version is visibly dimmer throughout — reading as a
+dark green room should. No colour cast, no dinginess, no artefact.
+
+### Caveats
+
+Three finishes, but all **wall** finishes, one room, one pose, one hour. Hue recovery is small (7–23 %), so
+most of the hue effect remains unmodelled — it is simply no longer modelled *wrongly*. And the scalars still
+come from the uncorrected census (`.273`/`.274`/`.275`), so they are approximate — though `.274` showed those
+corrections largely cancel in a ratio.
+
+Item **(s)** now recommends the scalar form and carries the three-finish table.
+
+Nothing changed in `src/` beyond the version bump.

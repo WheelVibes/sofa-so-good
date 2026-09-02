@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.276 — the scalar fill wins on hue too: right-signed at all three finishes, where per-channel is not
+
+`.272` named `forest` (`#4a5e4a`) as the untested third finish — a green bleed, a third hue direction, and a
+third validation point. This round closes that gap, and the answer reverses `.272`'s framing of *which* model
+to ship.
+
+**Forest's traced target is almost identical to navy's**, which makes sense: room albedo `0.7058 / 0.7065 /
+0.6871` against navy's `0.7027 / 0.7010 / 0.6941`. Both are mid-dark finishes of similar luminance.
+
+| finish | Δ traced L | Δ traced R−B |
+| --- | --- | --- |
+| terracotta | −19.0 / −20.0 / −15.8 % | +8.8 / +13.5 / +10.0 |
+| navy | −20.5 / −22.3 / −17.5 % | +3.0 / +5.4 / +4.1 |
+| **forest** | **−20.3 / −22.0 / −17.4 %** | **+3.7 / +6.3 / +4.2** |
+
+**Forest also warms the ceiling** — so `.272`'s counterintuitive finding is general, not navy-specific: a dark
+wall of *any* hue absorbs the blue sky bounce that was cooling the ceiling, and what remains is more dominated
+by the warm sun.
+
+**And here is the reversal.** `.272` recommended "ship luminance only; the hue half needs a different model".
+But a **scalar** grey fill scale gets the hue **sign right at all three finishes** — because darkening a cool
+fill lets the warm sun dominate, which is *the same mechanism as the real effect*:
+
+| finish | scalar | Δ L (model) | luminance recovered | Δ R−B (model) | hue recovered | hue sign |
+| --- | --- | --- | --- | --- | --- | --- |
+| terracotta | 0.650 | −14.9 / −13.8 / −13.7 % | ~78 % | +0.4 / +0.9 / +1.0 | ~7 % | **right** |
+| navy | 0.563 | −19.4 / −18.1 / −17.9 % | ~90 % | +0.7 / +1.1 / +1.2 | ~23 % | **right** |
+| forest | 0.574 | −18.9 / −17.6 / −17.4 % | ~89 % | +0.7 / +1.0 / +1.2 | ~20 % | **right** |
+
+Against the **per-channel** version, which was right-signed only for terracotta (`.271`, +7.9 against a
++10.8 target) and **wrong-signed** for navy (`.272`, −2.9 against +3.0…+5.4) and forest here
+(−1.3 / −1.0 / −0.9).
+
+**So the cheaper model is also the better one.** The scalar is simpler, carries no hue risk, recovers
+78–90 % of the luminance, and picks up 7–23 % of the hue **for free and in the right direction**. The
+per-channel version buys more hue on warm finishes by reasoning that happens to be wrong, and pays for it on
+cool and green ones. That is a rare and pleasing outcome: the model with fewer parameters is more physically
+faithful, because it does not encode a mistaken mechanism.
+
+**Also resolved: the "brightening direction" question.** `.272`/`.273` flagged it as untested. It is largely
+moot — the model is a **ratio**, so white → navy and navy → white are the same experiment read in either
+direction, and `.272` already tested it. The genuinely untested regime is ρ *above* the shipped 0.81, where
+ρ/(1−ρ) steepens sharply; reaching it needs an all-white room (many surfaces at once), not one finish change,
+and is not achievable with a single shipped swap.
+
+**Looked at.** Forest renders as deep green walls; the scalar-tinted version is visibly dimmer throughout and
+reads as a dark green room should. No colour cast, no dinginess, no artefact.
+
+**Caveats.** Three finishes, but all *wall* finishes, one room, one pose, one hour. Hue recovery is small
+(7–23 %), so most of the hue effect remains unmodelled — it is simply no longer modelled *wrongly*. And the
+scalars here still come from the uncorrected census, so they are approximate (`.273`/`.274`/`.275`), though
+`.274` showed those corrections largely cancel in a ratio.
+
+Item **(s)** updated: **recommend the scalar form**, with the three-finish table.
+
+Probe only; no probe change this round. `npm test` 9437 passed, `tsc` clean, `biome` clean. Nothing changed in
+`src/` beyond the version bump. Runs 09:23–09:31 local.
+
 ## v0.31.5.275 — the floor contributes ≲1 % of the ceiling's light, because it is dim, not because it is hidden
 
 `.274` left one question open and flagged that three crop errors in two rounds meant slowing down. So this
