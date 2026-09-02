@@ -19,6 +19,33 @@ pruned from `main`; entries from C251 on (branch
 > staging. Noted here instead so the log is confusing-but-honest rather than silently
 > ambiguous. Flagged for the maintainer; renumbering is a call for them, not for either session.
 
+## v0.31.6.3 - the missing artefact for the version counter
+
+`0.31.6.1` found 67 duplicate build numbers and noted them. This adds the mechanism whose
+absence caused them, from dev-09's design.
+
+Its framing is the right one and worth recording in full: **the file-level coordination between
+the two sessions worked because git FORCES a conflict** — the artefact is shared whether the two
+parties cooperate or not. The version counter had no such artefact, so it relied on memory
+across two processes that never run simultaneously. That is an absent mechanism, not a
+discipline failure, and no amount of care would have fixed it. Same shape as its own `add_sun`
+fix: **a convention only one party can see is not a convention.**
+
+`src/changelogVersions.test.ts` parses `## vX.Y.Z.B` and asserts no version appears twice
+unacknowledged. Two properties make it the right artefact rather than just a check: it lives in
+the file both parties must touch, and it **fails on merge rather than on write** — exactly when
+a collision comes into existence, and the only moment either session could have seen it.
+
+The allowlist is the load-bearing part. Failing outright would force the renumbering already
+measured and declined; ignoring duplicates restores the original problem. Requiring
+*acknowledgement* makes the next collision cost one line and a sentence, and impossible to miss.
+Two further tests keep the guard from rotting: one asserts it finds 500+ headings at all, since
+a heading-format change would otherwise make the whole thing vacuous and still green — and one
+fails on a STALE allowlist entry, because an allowlist that outlives its duplicates quietly
+permits new ones in the same range.
+
+Verified by planting a duplicate outside the acknowledged range: it fails, naming the version.
+
 ## v0.31.6.2 - the bathroom floor is 8 mm above the bedroom, and the app could not tell you
 
 `PlanRoom.floorLevelMm` drives the FFL tags, doorway step markers, the real 3D risers and the
