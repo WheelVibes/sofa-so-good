@@ -106,6 +106,14 @@ await page.setViewport({
   height: Number(process.env.VH || (process.env.PT === '1' ? 720 : 800)),
   deviceScaleFactor: 2,
 })
+if (process.env.PTCLASS_RECT) {
+  const r = process.env.PTCLASS_RECT.split(',').map(Number)
+  if (r.length !== 4 || r.some((v) => !Number.isFinite(v)))
+    throw new Error('PTCLASS_RECT: expected four finite fractional numbers x,y,w,h')
+  await page.evaluateOnNewDocument((v) => {
+    window.__ptClassRect = v
+  }, r)
+}
 await page.evaluateOnNewDocument(() => {
   try {
     localStorage.setItem('hdb_onboarded', '1')
@@ -1561,14 +1569,30 @@ if (process.env.PT === '1') {
     const cands = list.filter((c) => c !== scene && c.width > 16 && c.height > 16)
     const c = cands.sort((a, b) => b.width * b.height - a.width * a.height)[0]
     if (!c) return null
-    const w = Math.round(c.width * 0.1)
-    const h = Math.round(c.height * 0.1)
+    // PTCLASS_RECT=x,y,w,h (fractional) -- `.340` found the historic fixed rect
+    // (0.45, 0.18, 10 %, 10 %) lands on clean ceiling at bedroom3 but NOT at
+    // livingDining, where it reported R-B -0.7 for an arm whose proper ceiling patch
+    // reads -11.0. The discriminator's MARGIN is pose-dependent even when its sign
+    // rule is sound, so the rect has to follow the pose.
+    const RECT = window.__ptClassRect || [0.45, 0.18, 0.1, 0.1]
+    const w = Math.round(c.width * RECT[2])
+    const h = Math.round(c.height * RECT[3])
     const s2 = document.createElement('canvas')
     s2.width = w
     s2.height = h
     const ctx = s2.getContext('2d', { willReadFrequently: true })
     if (!ctx) return null
-    ctx.drawImage(c, Math.round(c.width * 0.45), Math.round(c.height * 0.18), w, h, 0, 0, w, h)
+    ctx.drawImage(
+      c,
+      Math.round(c.width * RECT[0]),
+      Math.round(c.height * RECT[1]),
+      w,
+      h,
+      0,
+      0,
+      w,
+      h,
+    )
     const d = ctx.getImageData(0, 0, w, h).data
     let sl = 0
     let sl2 = 0
@@ -1863,6 +1887,76 @@ if (process.env.PT === '1') {
         `  PTWANT: class ${wantCls} after ${kept.attempt} re-render(s) (L=${kept.st.L.toFixed(1)} rb=${kept.st.rb.toFixed(1)}) -- kept, converged`,
       )
     }
+  }
+  // PTCENSUS=<n> -- sample n+1 (u) arms IN ONE BOOT and report the class sequence.
+  //
+  // `.340` turned up the arc's first candidate correlate for (u) in ~25 eliminated
+  // candidates: bedroom3 showed no wall-dependence (white and ink both 3A/1B) while
+  // livingDining split cleanly (white 2/2 B, ink 4/4 A). At p(A) ~ 0.75 that is ~2 % by
+  // chance with n of 2 and 4 -- suggestive, untestable at one arm per ~7-minute boot.
+  //
+  // But Re-render creates a FRESH session, i.e. a fresh draw (`.310` produced both
+  // classes back-to-back in one page session; PT2 relies on it), and the class is
+  // readable at ~9 samples (`.339`). So an arm costs ~25 s inside a boot instead of a
+  // whole run, and (u)'s RATE becomes measurable rather than inferred.
+  //
+  // Waits for the button and checks `disabled` rather than assuming it is there --
+  // `.340`'s silent bail returned a wrong-class arm as a measurement precisely because
+  // it assumed.
+  if (process.env.PTCENSUS) {
+    const n = Number(process.env.PTCENSUS)
+    const mode = process.env.PTCLASS_MODE || 'l'
+    const thresh = Number(process.env.PTCLASS_THRESH || 150)
+    const seq = []
+    const samplesNow = () =>
+      page.evaluate(() => {
+        const t = document.body.innerText || ''
+        const r = t.match(/(\d+)\s*\/\s*(\d+)\s*samples?/i)
+        return r ? Number(r[1]) : null
+      })
+    const waitFor = async (fn, ms, every = 1200) => {
+      const t = Date.now()
+      while (Date.now() - t < ms) {
+        if (await fn()) return true
+        await new Promise((r) => setTimeout(r, every))
+      }
+      return false
+    }
+    for (let i = 0; i <= n; i++) {
+      if (!(await waitFor(async () => ((await samplesNow()) ?? 0) >= 9, 90_000))) {
+        console.log(`  PTCENSUS: arm ${i} never reached 9 samples -- stopping`)
+        break
+      }
+      const st = await page.evaluate(patchStatsFn)
+      if (!st) {
+        console.log(`  PTCENSUS: arm ${i} unreadable -- stopping`)
+        break
+      }
+      const cls = mode === 'rb' ? (st.rb < 0 ? 'A' : 'B') : st.L >= thresh ? 'A' : 'B'
+      seq.push({ i, cls, L: Number(st.L.toFixed(1)), rb: Number(st.rb.toFixed(1)) })
+      if (i === n) break
+      const clicked = await waitFor(
+        () =>
+          page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')].find(
+              (x) => (x.textContent || '').trim() === 'Re-render',
+            )
+            if (!b || b.disabled) return false
+            b.click()
+            return true
+          }),
+        90_000,
+      )
+      if (!clicked) {
+        console.log(`  PTCENSUS: Re-render unavailable after arm ${i} -- stopping early`)
+        break
+      }
+      await new Promise((r) => setTimeout(r, 2500))
+    }
+    const a = seq.filter((x) => x.cls === 'A').length
+    console.log(`  PTCENSUS seq: ${seq.map((x) => x.cls).join('')}`)
+    console.log(`  PTCENSUS counts: ${a}A / ${seq.length - a}B  of ${seq.length} arms`)
+    console.log(`  PTCENSUS detail: ${JSON.stringify(seq)}`)
   }
   // PTHOLD=<seconds> -- keep sampling AFTER the target count is reached (`.282`).
   // PTTRACE showed the displayed canvas frozen for a whole 256-sample render, so

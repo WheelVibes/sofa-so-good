@@ -3194,3 +3194,33 @@ tracer side is unmeasured.
 as-is, the risk is that the *magnitude* differs per room while the *shape* holds — the lever's room-stable
 authority (±10 %) bounds how wrong that can be, and `.332` showed the curve's shape matters ~5× more than
 per-room normalisation. So shipping the single-room table is defensible; it is not verified.
+
+### ⚠️ THE RESPONSE IS ROOM-DEPENDENT — the single-room table is NOT transferable (v0.31.5.341)
+
+Class-B matched pairs, traced ceiling, white → Ink:
+
+| room | white | Ink | response |
+| --- | --- | --- | --- |
+| bedroom3 | 116.9 | 92.6 | **−20.8 %** |
+| **livingDining** | **148.9** | **135.3** | **−9.1 %** |
+
+A **2.3× difference**, and real: 13.6 counts against 3.1 counts of class-B reproducibility at livingDining
+(white arms 147.3 / 150.4). The Ink side is n=1 and deserves a second arm.
+
+**Mechanism, visible in the frames:** livingDining has a **ceiling-mounted fan light**, bedroom3 a table lamp.
+A ceiling lit partly by a direct fixture depends proportionally less on wall bounce — and livingDining's traced
+ceiling is duly brighter (148.9 vs 116.9). So the governing quantity is **the fraction of a ceiling's light that
+arrives as wall bounce rather than direct**, which varies with room geometry *and* with which fixtures are on.
+
+**Consequence for the decision.** `.339`'s five-point table is a **bedroom3** measurement. The *shape*
+(proportional with a floor) plausibly transfers; the *depth* does not. So:
+
+- shipping the table globally would over-correct rooms with ceiling fixtures — roughly 2× at livingDining;
+- a correct fix scales the wall-bounce term by the bounce fraction, which needs that fraction computed per room
+  (cheap in principle: it is the ratio the tracer already reveals, but the app would need its own estimate);
+- the daytime "two-line change" from `.338` is therefore **understated** as a cost. It is right in shape and
+  wrong in depth outside the room it was measured in.
+
+This does not reopen the defect — (w)'s zero is confirmed at five finishes across a 28× reflectance range and
+at two rooms. It reopens the **magnitude**, and it is the strongest remaining argument for measuring a second
+room properly before implementing.

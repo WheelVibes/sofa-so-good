@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.341 — `.340`'s (u) lead REFUTED by my own data, and (w)'s response is ROOM-DEPENDENT: −21 % vs −9 %
+
+Built a census instrument for (u), which refuted the lead it was built to test — and, incidentally, delivered
+the answer `.340` could not get.
+
+**`.340`'s lead is refuted.** Same conditions, different boots, opposite classes:
+
+| condition | `.340` | `.341` |
+| --- | --- | --- |
+| livingDining, white | B, B | **A, A** |
+| livingDining, ink | A, A, A, A | **B, B** |
+
+Confirmed against ground truth on the converged frames (ink ceiling 135.3 R−B +5.9; white 169.0 R−B −9.8), so
+the classifier is right and the inversion is real. **(u)'s class is not determined by room or wall finish** —
+`.340`'s clean split was chance, within the ~2 % it allowed. Recording it as "not a finding" was correct, and
+the refutation cost one round rather than a design decision.
+
+**(w)'s required response IS room-dependent.** The new arms complete a class-B matched pair at livingDining:
+
+| room | traced ceiling, white → Ink | response |
+| --- | --- | --- |
+| bedroom3 | 116.9 → 92.6 | **−20.8 %** |
+| **livingDining** | **148.9 → 135.3** | **−9.1 %** |
+
+A **2.3× difference**. The effect at livingDining is 13.6 counts against a class-B reproducibility of 3.1
+counts there (white arms 147.3 / 150.4), so it is real — though the ink side is n=1 and deserves a second arm.
+
+**Likely mechanism, visible in the frames.** livingDining has a **ceiling-mounted fan light**; bedroom3 has a
+table lamp. A ceiling lit partly by a direct fixture depends proportionally less on wall bounce, and
+livingDining's traced ceiling is correspondingly brighter (148.9 vs 116.9). So the governing quantity is not the
+room but **the fraction of a ceiling's light that arrives as wall bounce rather than direct** — which varies
+with room geometry *and* with which fixtures are on.
+
+**This materially changes (w)'s implementation.** `.339`'s five-point table is measured at bedroom3 and is
+**not** transferable as an absolute. What likely transfers is the *shape* (proportional with a floor); what does
+not is the *depth* of the response. A correct fix would scale the wall-bounce term by that fraction rather than
+apply one global curve — which is more work than the two-line change, and is now the honest statement of the
+item's cost.
+
+**Instrument built, and its limit.** `PTCENSUS=<n>` samples n+1 arms in one boot via Re-render (~25 s per arm
+against ~7 min per boot), with `PTCLASS_RECT` making the classifier rect configurable — `.340` found the fixed
+rect lands on clean ceiling at bedroom3 but not livingDining (R−B margin −0.7 against a proper −11.0).
+
+**It stopped after 2 arms: "Re-render unavailable after arm 1".** So the button appears once and then not
+again, and census sampling does not yet work at n=12. That is the same control-availability problem as `.339`
+and `.340`, now bounded rather than assumed: Re-render is good for **one** extra arm per boot (which is what
+`PT2` has always relied on), not for repeated sampling. (u)'s *rate* therefore remains unmeasured, and every
+rate quoted in this arc is still from arms that accumulated while measuring something else — a sample with a
+stopping rule biased toward class B.
+
+No `src/` change beyond the version bump.
+
 ## v0.31.5.340 — INCOMPLETE: room-dependence of (w)'s table is still unanswered; a silent wrong-class bug found and fixed; one testable lead on (u)
 
 An honest partial. The question — **are (w)'s required ground-bounce values room-dependent?** — is **not

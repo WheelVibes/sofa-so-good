@@ -823,3 +823,28 @@ instead — `WALL="$w"` — which this probe already treats as unset when empty.
 
 Note the compounding error: the first fix (an absolute script path) addressed a plausible cause that had not
 been verified. `127` means "command not found", which named the real problem immediately once read.
+
+## Re-render gives ONE extra arm per boot, not repeated sampling
+
+`.341` built `PTCENSUS=<n>` to sample n+1 (u) arms in one boot, on the reasoning that Re-render creates a fresh
+session at ~25 s against ~7 min for a boot. It stopped after **2 arms** every time: `Re-render unavailable after
+arm 1`.
+
+So the button is available once after the first convergence and not again. That is exactly what `PT2` has always
+used, and it is the bound: **one extra arm per boot.** Repeated in-boot sampling needs a different mechanism
+(closing and reopening the modal, or a page reload), which has not been built.
+
+Consequence worth remembering: **(u)'s class rate has never been measured.** Every figure quoted in this arc
+("~50 % class A", "42 % class B", `.337`'s 6× tax, `.340`'s p(A) ≈ 0.75) comes from arms that accumulated while
+measuring something else — and those rounds stopped as soon as they got the class they needed, which truncates
+the sequence on a class-B arm and biases the estimate. Treat all of them as anecdote.
+
+## A clean way to refute your own correlate: re-run the same condition on a fresh boot
+
+`.340` observed livingDining splitting cleanly by wall finish (white B/B, ink A/A/A/A) and flagged it as a
+possible first correlate for (u). `.341` re-ran both conditions and got the **exact inversion** (white A/A, ink
+B/B), confirmed against the converged frames.
+
+One re-run of the same condition on a fresh boot is the cheapest possible test of any claimed correlate here,
+and it should precede any deeper investigation. The cost is one boot; the alternative is building a theory on a
+2 % coincidence.
