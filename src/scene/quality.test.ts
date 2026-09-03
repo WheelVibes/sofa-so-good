@@ -261,11 +261,13 @@ describe('resolveQuality — undefined override values (QUALITY-OVERRIDE-UNDEF)'
     expect(r).toEqual(presetFor('realistic', 'weak'))
   })
 
-  it('defaults to the capable variant when no device class is given', () => {
-    // The default exists so the 4 store-driven call sites read naturally; it must
-    // be the RICHER one, because the alternative silently downgrades anyone whose
-    // call site forgot to pass it.
-    expect(resolveQuality('realistic', undefined)).toEqual(presetFor('realistic', 'capable'))
+  it('REQUIRES a device class — the parameter is not optional', () => {
+    // This replaced a test that asserted a `capable` default and argued it was the
+    // safe direction. It was not: all four call sites took the default, so the
+    // class was detected, persisted and stepped by the adaptive ladder while the
+    // renderer ignored it — a phone would have rendered the capable preset. The
+    // arity is the guard, so assert the arity.
+    expect(resolveQuality.length).toBe(3)
   })
 })
 

@@ -61,6 +61,7 @@ export function GraphicsSettings({
   showBack?: boolean
 }) {
   const tier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   const overrides = useStore(useShallow((s) => s.qualityOverrides))
   const userSet = useStore((s) => s.qualityUserSet)
   const assetTier = useStore((s) => s.assetTier)
@@ -83,7 +84,7 @@ export function GraphicsSettings({
   const setUnits = useStore((s) => s.setUnits)
   const proMode = useStore((s) => s.uiMode === 'pro')
 
-  const eff = resolveQuality(tier, overrides)
+  const eff = resolveQuality(tier, overrides, deviceClass)
   const hasOverrides = Object.keys(overrides).length > 0
 
   // Shared Modal shell (UIUX-15): modal guard, Escape, backdrop click and the

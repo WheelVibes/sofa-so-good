@@ -279,7 +279,15 @@ export function effectiveAssetTier(
 export function resolveQuality(
   tier: RenderTier,
   overrides: Partial<QualitySettings> | undefined,
-  device: DeviceClass = 'capable',
+  // REQUIRED, deliberately. It was defaulted to `capable` for one round and every
+  // one of the four call sites silently took the default — so the class was
+  // detected, persisted and stepped by the adaptive ladder while the renderer
+  // ignored it, meaning a phone or software rasteriser would have rendered the
+  // CAPABLE preset. Numeric parity checks did not catch it; "do the two variants
+  // of a mode differ from each other?" did, at 0.002 counts where 24.3 was
+  // expected. A default here buys nothing and costs the type system's ability to
+  // find the omission.
+  device: DeviceClass,
 ): QualitySettings {
   // Fall back rather than spreading `undefined`. `qualityTier` is PERSISTED, so
   // a value written by an older build (or any tier since renamed/retired) would

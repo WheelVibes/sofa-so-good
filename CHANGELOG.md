@@ -29,6 +29,62 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.70 — visual verification of all four variants, which found the collapse's real bug
+
+`.68` shipped with a numeric parity table and I called it verified. Looking at the frames found a
+defect the table could not see.
+
+**`deviceClass` was detected, persisted, stepped by the adaptive ladder — and ignored by the
+renderer.** All four `resolveQuality` call sites took the `device: DeviceClass = 'capable'` default,
+so a phone, a tablet or a software rasteriser would have rendered the **capable** preset: 4096²
+shadow maps and the full post stack on hardware the class exists to protect.
+
+**Why the parity table missed it and the cross-check caught it.** Parity compares each new variant
+against the retired rung it should equal, and two of four rows passed perfectly — the two capable
+ones. The failing rows looked like small numbers, not like a stuck knob. Adding the *inverse*
+question — do the two variants of a mode differ from **each other**? — gave `perf/weak` vs
+`perf/capable` at **0.002 counts** where **24.3** was expected. A parity check confirms what should
+be the same; it takes a separation check to notice that nothing is different.
+
+**The default parameter was the bug**, so it is gone: `device` is now required and TypeScript names
+every call site. The test that asserted the default is replaced by one asserting the arity — the
+old test had *rationalised* the hazard ("it must be the RICHER one, because the alternative
+silently downgrades anyone whose call site forgot to pass it"), which is exactly backwards: the
+alternative is that the compiler tells you.
+
+**A second bug found while wiring it:** `setDeviceClass` did not resync the IBL signal, though
+`ibl` is `false` in `performance`/weak and `true` in `performance`/capable. Materials read that
+flag at BUILD time and nothing comes back to fix them — the failure `syncIblFromTier`'s own comment
+describes. A class step now resyncs exactly as a mode change does.
+
+**`DEVICE=weak|capable` on `light-distribution.mjs`**, because a capable machine renders only one of
+each mode's two looks, so the weak variants were unverifiable on the development machine — which is
+precisely where they would go unnoticed. It must be **re-asserted after boot**: `QualityController`
+detects the class in an effect and overwrites a value set during setup, the same "never set a value
+before the state change that recomputes it" rule the GBOUNCE lever already carries.
+
+**All four variants, verified numerically and by eye** (mainBedroom, VH=720, lights off):
+
+| variant | vs the retired rung | |
+| --- | --- | --- |
+| `performance`/`weak` | old performance | **0.004 counts** |
+| `performance`/`capable` | old medium | **0.009 counts** |
+| `realistic`/`weak` | old high | **0.014 counts** |
+| `realistic`/`capable` | old maximum | **0.160 counts** |
+
+Separation intact: `perf/weak` ↔ `perf/capable` **24.315** (expected 24.3), `realistic/weak` ↔
+`realistic/capable` **2.541** (expected 2.5).
+
+And the frames agree with the numbers, which is the part a ratio cannot tell you:
+`performance`/weak is flat with blob grounding only; `performance`/capable adds corner darkening at
+the wall-ceiling junctions and AO in the window reveal; `realistic`/weak brings the filmic curve and
+deep contact shadows; `realistic`/capable adds visible **chromatic aberration on the window
+mullions** and film grain, which `realistic`/weak's clean grey bars do not have — `cinematic` and
+`aoFullRes` doing exactly what they claim. Every variant renders complete geometry (lamp shades
+present, the tell for the NaN-segment failure a bad preset lookup causes).
+
+Suite **10081 green**, `tsc`, biome and `knip` clean.
+
 ## v0.31.7.69 — docs follow the tier collapse: live rules rewritten, measured history left alone
 
 The documentation half of `.68`, and the interesting decision is what **not** to change.

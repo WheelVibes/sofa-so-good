@@ -48,7 +48,15 @@ import { appUrl, assertSceneAlive } from './lib.mjs'
 import { resolvePlanSpec } from './resolve-plan.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
+// `DEVICE=weak|capable` pins the device class, which is otherwise detected from
+// the live GL context. Needed because a mode now has TWO looks and a capable
+// machine can only render one of them by itself — so without this knob the `weak`
+// variants are unverifiable on the development machine, which is exactly where
+// they would go unnoticed. `v0.31.7.68` mapped them onto the retired rungs:
+// performance/weak = old performance, performance/capable = old medium,
+// realistic/weak = old high, realistic/capable = old maximum.
+const DEVICE = process.env.DEVICE || null
 const WINDOW = process.env.WINDOW || 'livingDining'
 // ROOM scopes the finish setters, the albedo census and the exposure census
 // (`.277`). Everything downstream of `.271` hardcoded `livingDining`, which made
@@ -249,11 +257,12 @@ await page.evaluate((r) => {
   window.__probeRoom = r
 }, ROOM)
 await page.evaluate(
-  ({ h, t, fov, photo, floor, wall, tone, backdrop, room }) => {
+  ({ h, t, device, fov, photo, floor, wall, tone, backdrop, room }) => {
     const s = window.__store.getState()
     s.setTimeMode('manual')
     s.setManualHour(h)
     s.setQualityTier(t)
+    if (device) s.setDeviceClass(device)
     s.setCameraMode('firstPerson')
     s.dismissCallout?.('walk-mode')
     s.setWalkFov?.(fov)
@@ -272,6 +281,7 @@ await page.evaluate(
   {
     h: HOUR,
     t: TIER,
+    device: DEVICE,
     fov: WALKFOV,
     photo: PHOTO,
     floor: FLOOR,
@@ -649,6 +659,26 @@ const applyGBounce =
         if (res.error) throw new Error(`GBOUNCE: ${res.error}`)
         await new Promise((r) => setTimeout(r, 700))
       }
+// DEVICE has to be RE-ASSERTED after boot, not just set once.
+//
+// `QualityController` detects the class from the live GL context in an effect and
+// calls `setDeviceClass` itself, so a value written during setup is overwritten
+// on mount — which made `DEVICE=weak` silently render the `capable` look. The
+// numeric parity table did not catch it (two of four rows still matched); the
+// cross-check "do the two variants of a mode differ from each other?" did, at
+// 0.014 counts where 24.3 was expected. Same lesson as GBOUNCE below: never set a
+// value before a state change that recomputes it.
+const applyDevice = !DEVICE
+  ? null
+  : async () => {
+      const res = await page.evaluate((d) => {
+        window.__store.getState().setDeviceClass(d)
+        return { got: window.__store.getState().deviceClass }
+      }, DEVICE)
+      if (res.got !== DEVICE) throw new Error(`DEVICE: asked ${DEVICE}, store has ${res.got}`)
+      await new Promise((r) => setTimeout(r, 700))
+    }
+
 const shotFor = async (pitch) => {
   await page.evaluate((v) => window.__walkLook?.setPitch(v), pitch)
   await new Promise((r) => setTimeout(r, 900))
@@ -658,6 +688,7 @@ const shotFor = async (pitch) => {
   // any earlier patch. `.254`'s first sweep was applied before the pitch and read
   // dead flat across GBOUNCE 1..8 -- a completely false negative that only the
   // post-capture read-back caught. Never patch a light before a state change.
+  if (typeof applyDevice === 'function') await applyDevice()
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyFillScale === 'function') await applyFillScale()

@@ -22,8 +22,12 @@ import { QUALITY_LABEL, RENDER_TIERS, resolveQuality } from '../../scene/quality
  * `SceneEnvironment`'s effect could set it. Pushing it from the store — at
  * module init below and on every tier change — closes that window.
  */
-function syncIblFromTier(tier: RenderTier, overrides: Partial<QualitySettings> | undefined): void {
-  setIblActive(resolveQuality(tier, overrides).ibl)
+function syncIblFromTier(
+  tier: RenderTier,
+  overrides: Partial<QualitySettings> | undefined,
+  device: DeviceClass,
+): void {
+  setIblActive(resolveQuality(tier, overrides, device).ibl)
 }
 
 // Seed it at module load, because the shell builds its materials before any React
@@ -34,7 +38,10 @@ function syncIblFromTier(tier: RenderTier, overrides: Partial<QualitySettings> |
 // capped and is then un-capped by `SceneEnvironment`'s effect looks right either
 // way, whereas the reverse renders black. Correctness across later tier changes
 // does NOT rely on this seed — see IBL-CAP-LIVE in `materials/iblSignal.ts`.
-syncIblFromTier('performance', undefined)
+// `weak` for the seed: the conservative end, matching the store's own initial
+// `deviceClass`. The comment above explains why an under-capped seed is the safe
+// direction here.
+syncIblFromTier('performance', undefined, 'weak')
 
 import { DEFAULT_TONE_MAPPING_SETTING, type ToneMappingSetting } from '../../scene/toneContext'
 import type { DrawingLayer, DrawingLayerVisibility } from '../../ui/drawingLayers'
@@ -474,7 +481,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     // metalness while this is false — and they must see the right value at the
     // moment a material is BUILT, which for the shell (door leaves, 0.8 × 2.1 m)
     // is during the first mount, well before SceneEnvironment's effect runs.
-    syncIblFromTier(t, get().qualityOverrides)
+    syncIblFromTier(t, get().qualityOverrides, get().deviceClass)
     set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false })
     // Rebuilding the renderer under a new tier (new shadow maps, post effects,
     // asset swaps…) can visibly freeze the frame for a beat, especially
@@ -493,7 +500,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       autoShadowsOff: false,
     })),
   autoSetQualityTier: (t) => {
-    syncIblFromTier(t, get().qualityOverrides)
+    syncIblFromTier(t, get().qualityOverrides, get().deviceClass)
     set((s) => (s.qualityUserSet || s.qualityTier === t ? {} : { qualityTier: t }))
   },
   setQualityOverride: (key, value) =>
@@ -523,7 +530,15 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
   setAutoMaxDevice: (d) => set({ autoMaxDevice: d }),
-  setDeviceClass: (d) => set({ deviceClass: d }),
+  setDeviceClass: (d) => {
+    // Must resync IBL like a mode change does: `ibl` is false in
+    // performance/weak and true in performance/capable, so a class step changes
+    // it. Without this the flag goes stale in exactly the way the
+    // `syncIblFromTier` note above describes — materials read the wrong value at
+    // BUILD time and there is no effect that comes back to fix them.
+    syncIblFromTier(get().qualityTier, get().qualityOverrides, d)
+    set({ deviceClass: d })
+  },
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),

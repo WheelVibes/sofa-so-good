@@ -16,14 +16,14 @@ describe('resolveQuality', () => {
     // A persisted tier from an older build must not produce an all-undefined
     // settings object: that yields NaN geometry segments and meshes that render
     // as nothing (a floor lamp keeps its pole and silently loses its shade).
-    const rogue = resolveQuality('quality' as RenderTier, undefined)
+    const rogue = resolveQuality('quality' as RenderTier, undefined, 'weak')
     expect(rogue).toEqual(presetFor('performance', 'weak'))
     expect(Number.isFinite(rogue.geometryDetail)).toBe(true)
     expect(Number.isFinite(seg(28, rogue.geometryDetail))).toBe(true)
   })
 
   it('still lets overrides win over the fallback', () => {
-    const r = resolveQuality('nope' as RenderTier, { geometryDetail: 1.25 })
+    const r = resolveQuality('nope' as RenderTier, { geometryDetail: 1.25 }, 'weak')
     expect(r.geometryDetail).toBe(1.25)
   })
 
@@ -31,7 +31,7 @@ describe('resolveQuality', () => {
     // Includes the RETIRED tier names on purpose: they are still sitting in real
     // browsers' localStorage, so they must resolve to a real settings object.
     for (const t of ['performance', 'realistic', 'medium', 'high', 'maximum', 'quality', '']) {
-      const d = resolveQuality(t as RenderTier, undefined).geometryDetail
+      const d = resolveQuality(t as RenderTier, undefined, 'weak').geometryDetail
       expect(Number.isNaN(seg(28, d))).toBe(false)
     }
   })

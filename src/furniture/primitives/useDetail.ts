@@ -1,11 +1,13 @@
 import { resolveQuality } from '../../scene/quality'
 import { useStore } from '../../state/store'
 
-/** Furniture-geometry tessellation multiplier from the active quality tier
- *  (Low 0.7 → Medium 1 → High 1.8). Subscribes narrowly so a primitive
- *  re-renders only when the multiplier actually changes. Use with `seg`. */
+/** Furniture-geometry tessellation multiplier from the active mode + device class
+ *  (0.7 / 1 / 1.4 / 1.8). Subscribes narrowly so a primitive re-renders only when
+ *  the multiplier actually changes. Use with `seg`. */
 export function useDetail(): number {
-  return useStore((s) => resolveQuality(s.qualityTier, s.qualityOverrides).geometryDetail)
+  return useStore(
+    (s) => resolveQuality(s.qualityTier, s.qualityOverrides, s.deviceClass).geometryDetail,
+  )
 }
 
 /** Scale a baseline radial/curve segment count by the detail multiplier,
