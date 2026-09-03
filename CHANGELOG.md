@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.96 — livingDining HAS the headroom, and the app is 28 % too BRIGHT there. Replace moves the right way and overshoots 3×
+
+Followed `.95`'s redirect. It was the right call, and the answer inverts the framing this thread has
+carried.
+
+**Same bake, same 24 shell meshes, different view.** mainBedroom and livingDining are two poses of the
+*same* flat, so the bake is identical — `ctx d03ee082` both times. That makes this a clean test of
+view-dependence rather than of two different scenes. Captured at `performance`/`capable`, which the
+parity contract makes byte-identical to the retired `medium` the ld2 reference was taken at.
+
+| 4-Room livingDining, mapped shell only | p10 | median | p90 | p90/p10 |
+| --- | --- | --- | --- | --- |
+| app, no lightmaps | 44.3 | **98.1** | 158.7 | 3.58 |
+| sky-dome **replace** | 0.0 | **33.1** | 158.7 | ∞ |
+| Cycles reference | 46.6 | **76.5** | 102.4 | 2.20 |
+
+**The shell error is scene-dependent AND signed:**
+
+| pose | app shell median | physics | ratio |
+| --- | --- | --- | --- |
+| mainBedroom | 132.5 | 133.5 | **1.008× — already right** |
+| livingDining | 98.1 | 76.5 | **0.780× — app 28 % too BRIGHT** |
+
+That is item (x)'s scene-independence localised to the shell, and it is the direction the arc's own
+diagnosis predicted: a **visibility-blind fill over-lights surfaces that cannot see the sky**. So the
+correction a baked term has to make is not "add light" — in this room it is "take light away", and in
+the bedroom it is "change nothing". No scalar does both, which is exactly why every fixed-shape
+candidate in this arc traded one view against another.
+
+**And `replace` moves the right way.** It needs to go 98.1 → 76.5, i.e. down 21.6, and goes down 65 to
+33.1 — overshooting ~3×. That is a **calibration** problem now, not a direction problem, and the
+arithmetic gives a starting point: the indirect term scales linearly in gain before AgX, so
+`VISIBILITY_GAIN` ≈ 6 × (76.5 / 33.1) ≈ **14** should land the median.
+
+**One blocker that gain cannot fix: `p10 = 0.0` exactly.** Some mapped texels are zero, so a tenth of
+the shell renders black however the gain is set, and the spread stays wrong (∞ against physics' 2.20).
+Zero-valued texels in a bake are usually atlas margin or unused slots being sampled — the arc has
+`?aoDebug=1` and `--uv-margin` for exactly this, and it is a diagnosis rather than a guess away.
+
+**So the thread finally has a target with headroom, a known sign, an estimated gain, and one named
+blocker** — instead of six rounds on a pose that had nothing to correct.
+
+Suite **10098 green**, `tsc` and biome clean. Measurement only; the flag stays off and `'multiply'`
+remains the default.
+
 ## v0.31.7.95 — shader fix VERIFIED, replace mode measured, and `.93`'s retraction was too broad
 
 Started a dev server on :5200 (the one this worktree needs; only the other worktree's :5199 was up)
