@@ -30,7 +30,7 @@
  */
 import fs from 'node:fs'
 import process from 'node:process'
-import sharp from 'sharp'
+import { readRed } from './read-image.mjs'
 
 const args = process.argv.slice(2)
 const refArg = args.find((a) => a.startsWith('--ref='))
@@ -42,9 +42,13 @@ if (!dirs.length) {
 }
 
 async function noiseOf(file, radius) {
-  const { data, info } = await sharp(file).removeAlpha().raw().toBuffer({ resolveWithObject: true })
-  const { width: w, height: h } = info
-  const at = (x, y) => data[(y * w + x) * 3]
+  // `readRed`, not a bare `.raw()`: that returns 8-BIT data for a 16-bit PNG, and
+  // `--pass irradiance` writes 16-bit. Read the wrong way its dark texels collapse
+  // to zero and every relative error there reads ~100 % — which produced a real
+  // wrong answer in `v0.31.7.72` before the read was fixed. 8-bit maps (the
+  // shipped visibility set) are unaffected either way.
+  const { v: data, w, h } = await readRed(file)
+  const at = (x, y) => data[y * w + x]
   let hp = 0
   let sum = 0
   let n = 0
@@ -84,11 +88,9 @@ async function diffAgainstRef(dir, maps) {
     const refFile = refByKey.get(m.key)
     if (!refFile) continue
     const [a, b] = await Promise.all(
-      [`${dir}/${m.file}`, `${refDir}/${refFile}`].map((f) =>
-        sharp(f).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
-      ),
+      [`${dir}/${m.file}`, `${refDir}/${refFile}`].map((f) => readRed(f)),
     )
-    if (a.data.length !== b.data.length) continue
+    if (a.v.length !== b.v.length || a.max !== b.max) continue
     let se = 0
     let sum = 0
     let n = 0
@@ -102,14 +104,16 @@ async function diffAgainstRef(dir, maps) {
     let seDark = 0
     let sumDark = 0
     let nDark = 0
-    const DARK = 0.1 * 255
-    for (let i = 0; i < a.data.length; i += 3) {
-      se += (a.data[i] - b.data[i]) ** 2
-      sum += b.data[i]
+    // Fraction of full scale, so the threshold means the same thing whether the
+    // map is 8-bit or 16-bit.
+    const DARK = 0.1 * a.max
+    for (let i = 0; i < a.v.length; i += 1) {
+      se += (a.v[i] - b.v[i]) ** 2
+      sum += b.v[i]
       n += 1
-      if (b.data[i] > 0 && b.data[i] < DARK) {
-        seDark += (a.data[i] - b.data[i]) ** 2
-        sumDark += b.data[i]
+      if (b.v[i] > 0 && b.v[i] < DARK) {
+        seDark += (a.v[i] - b.v[i]) ** 2
+        sumDark += b.v[i]
         nDark += 1
       }
     }

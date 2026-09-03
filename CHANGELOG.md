@@ -29,6 +29,61 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.72 — the irradiance bake is within 5 % of a 1024-sample reference; and I retracted my own noise finding inside ten minutes
+
+Settling the sample count `.71` left open, which took three measurements because the first two were
+wrong in the same way.
+
+**First answer (wrong).** A seed pair at 64 samples put the noise at **13.4 %** of the local level
+overall and **31.9 %** on dark texels, up to 63 % on the darkest maps. Against a 1024-sample ground
+truth: **5.2 % all / 48.4 % dark**. Conclusion drawn: the sample count is hopeless for the interior
+levels, which is where a camera inside the room actually looks.
+
+**Then the convergence rate refused to agree.** 64 → 256 samples moved the dark error 48.4 → 34.5 %,
+a factor 1.40 where Monte Carlo predicts 2.0. A floor that samples do not clear is not variance, so
+I looked for quantisation — and found it, in the wrong place.
+
+**`sharp(f).raw()` returns 8-BIT data for a 16-bit PNG.** The maps are `ushort` (that is what
+`--float-buffer` buys); the *measuring script* was truncating them. A true value of 3/65535 reads as
+0/255, so any difference on a dark texel becomes a ~100 % relative error. Read correctly:
+
+| | vs the 1024-sample reference |
+| --- | --- |
+| 64 samples | **5.2 % all, 5.2 % dark** |
+| 64 samples, seed 2 | 5.3 % / 5.3 % — reproducible |
+| 256 samples | **3.4 % / 3.4 %** |
+
+**The error is uniform across levels and there is no dark-texel problem.** Both earlier figures are
+retracted. The hypothesis that caught it was right about the mechanism (8-bit quantisation) and
+wrong about the culprit, which is the only reason it got tested rather than believed.
+
+**Scoping, because it decides whether older findings survive: they do.** The shipped visibility
+lightmaps are `uchar`, so every bake measurement in this arc that read them with a bare `.raw()` was
+correct — including the per-slot blur's 21.8 %. The trap fires only on the 16-bit maps
+`--pass irradiance` introduced, i.e. only on work from `.71` onward.
+
+**Fixed at the source rather than remembered.** New `read-image.mjs` (`readRed`, `readLuma`,
+`maxFor`) is now used by `bake-noise.mjs` and `bake-gain.mjs`. One wrinkle sharp does not advertise,
+found by the test failing: `raw({depth:'ushort'})` widens the *container* but does **not** rescale an
+8-bit source, so `max` is reported per file and callers normalise by it — raw counts are never
+comparable across depths. `maxFor` fails **safe** at 255 for anything unrecognised, since treating
+an 8-bit file as 16-bit divides every value by 257 and silently reports a near-black map.
+
+Two tests, and an honest note in the file about what they cannot cover: sharp writes an 8-bit PNG
+from a `Uint16Array` and from `raw.depth: 'ushort'` alike, so a synthetic 16-bit fixture is silently
+8-bit and would make the test pass while checking nothing — which the first two versions of it did.
+So the depth→max rule is tested directly and the read path on the depth a fixture can express; the
+16-bit path is exercised by the real maps.
+
+Regression-checked on the shipped 8-bit set: `bake-noise` still reports 3×3 14.0 % / 9×9 10.7 %.
+
+**Where this leaves the bake:** 64 samples is within 5 % of a 1024-sample reference at every level,
+in 23 s on the GPU; 256 samples buys 3.4 % for 22 s. Sample count is not the constraint anyone
+thought it was, and `--denoise` remains what it says on the tin — the box blur measured harmful,
+kept only so the finding is not repeated.
+
+Suite **10083 green** (+2), `tsc`, biome and `knip` clean.
+
 ## v0.31.7.71 — the irradiance bake exists, takes 23 seconds, and carries 171× the spatial variation the app cannot produce
 
 Phase 1's artefact. `bake_material.py --pass irradiance` bakes Cycles direct+indirect diffuse under

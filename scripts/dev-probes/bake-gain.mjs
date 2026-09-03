@@ -31,7 +31,6 @@
  */
 import fs from 'node:fs'
 import process from 'node:process'
-import sharp from 'sharp'
 
 const args = process.argv.slice(2)
 const dir = args.find((a) => !a.startsWith('--'))
@@ -45,16 +44,15 @@ const encode = encArg ? Number(encArg.slice(9)) : 1
 const index = JSON.parse(fs.readFileSync(`${dir}/index.json`, 'utf8'))
 const perCtx = new Map()
 for (const m of index.maps) {
-  const { data, info } = await sharp(`${dir}/${m.file}`)
-    .removeAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-  const { width: w, height: h } = info
+  // Depth-correct: a bare `.raw()` truncates a 16-bit map to 8 bits (see
+  // `read-image.mjs`). Means are reported as FRACTIONS of full scale so 8-bit and
+  // 16-bit maps stay comparable.
+  const { v: data, w, h, max } = await readRed(`${dir}/${m.file}`)
   // Which of the six slots carry anything at all.
   const live = new Set()
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
-      if (data[(y * w + x) * 3] > 0) live.add(Math.floor((y * 2) / h) * 3 + Math.floor((x * 3) / w))
+      if (data[y * w + x] > 0) live.add(Math.floor((y * 2) / h) * 3 + Math.floor((x * 3) / w))
     }
   }
   let sum = 0
@@ -63,7 +61,7 @@ for (const m of index.maps) {
     for (let x = 0; x < w; x += 1) {
       if (!live.has(Math.floor((y * 2) / h) * 3 + Math.floor((x * 3) / w))) continue
       // Undo the storage encode so the mean is of the physical quantity.
-      sum += (data[(y * w + x) * 3] / 255) ** (1 / encode)
+      sum += (data[y * w + x] / max) ** (1 / encode)
       n += 1
     }
   }
