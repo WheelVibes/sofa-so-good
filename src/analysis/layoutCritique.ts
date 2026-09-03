@@ -46,6 +46,7 @@ import { OPENABLE_CABINET_PRIMITIVES } from '../furniture/cabinetOpen'
 import { resolveFootprintDims } from '../furniture/footprintDims'
 import { isInteractableScreen } from '../furniture/screenInteract'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { roleOf } from '../layout/arrangeRoles'
 import { CLEARANCE } from '../layout/designRules'
 
 /**
@@ -85,9 +86,32 @@ export const CRITIQUE = {
    */
   tvDiagonalMin: 1.2,
   tvDiagonalMax: 1.6,
-  /** Facing-seat conversation band. */
+  /** Facing-seat conversation band — the IDEAL, quoted in the detail. */
   convMin: 1.8,
   convIdealMax: 2.4,
+  /**
+   * Lower bound for a WARNING (m) — Hall's social-space floor, not the ideal.
+   *
+   * Edward T. Hall's proxemics puts "social space for casual and professional
+   * relationships" at **4 to 10 feet**, with personal space at 2-4 feet. So
+   * 1.22 m is where facing seats stop being social and become intimate, and
+   * 3.05 m (= 10 ft, `convBreakdown`) is where social space ends — the two
+   * bounds come from the same source.
+   *
+   * **Corrected v0.31.8.20.** The warning used to fire below the 6 ft IDEAL
+   * (`convMin`), which meant warning at distances Hall calls normal social
+   * distance. Measured across the shipped templates: of six "too close"
+   * warnings, four were at 1.33 / 1.37 / 1.63 / 1.79 m — all inside Hall's
+   * social range — and they were all in a studio, a 1-bed, a condo studio or a
+   * terrace, i.e. small homes where that spacing IS the right answer. Only
+   * 1.08 m and 1.16 m sat in personal space and are genuine findings.
+   *
+   * That is the same failure this file's own history records for the first sofa
+   * check: a bar that "described the housing stock rather than the design". The
+   * ideal is still reported; it just no longer produces a warning on a correctly
+   * furnished small SG living room.
+   */
+  convSocialMin: 1.2,
   /** Past this, conversation across the group stops working. */
   convBreakdown: 3.05,
   /**
@@ -216,7 +240,32 @@ export interface LayoutCritique {
   applied: number
 }
 
-const SEATING_RE = /^(sofa|armchair)/
+/**
+ * Lounge seating, for the TV-distance and conversation checks.
+ *
+ * **Was `SEATING_RE = /^(sofa|armchair)/` (corrected v0.31.8.20).** That caught 5
+ * defs and MISSED 5 genuine lounge seats — `recliner`, `chaise-lounge`,
+ * `banquette`, `bay-daybed`, `ottoman` — because their ids do not begin "sofa"
+ * or "armchair". Measured consequence: a living room furnished with a recliner
+ * and a TV and no sofa reported "No TV and seating pair in one room to measure",
+ * i.e. the check SKIPPED an ordinary lounge. A silent skip is worse than a wrong
+ * number, because nothing prompts the reader to look.
+ *
+ * Selection now uses the authored arrange ROLE (`layout/arrangeRoles.ts`), which
+ * puts exactly those 9 lounge pieces under `seating` and `armchair` while
+ * keeping `dining-chair`, `bar-stool`, `office-chair` and `bench` out — the cut
+ * these checks want, already made by someone who was thinking about it. Third
+ * name-regex-as-taxonomy fixed in this module after the rug anchor and the TV
+ * selector.
+ *
+ * **`ottoman` is then excluded, and that is measured rather than assumed.** It is
+ * a footstool that sits BETWEEN the sofa and the TV, so counting it as the
+ * "nearest seat" understates the viewing distance: on a fixture with a sofa at a
+ * correct 2.60 m (pass for a 75" screen) and an ottoman at 1.60 m, including it
+ * flips the room to a warn. Same reasoning for the conversation spread, where an
+ * extra point can only widen the furthest pair and so only add warnings.
+ */
+const LOUNGE_ROLES: ReadonlySet<string> = new Set(['seating', 'armchair'])
 const TABLE_RE = /^coffee-table/
 /** Pieces a rug is sized against. */
 /**
@@ -581,7 +630,9 @@ export function buildLayoutCritique(
     const def = defs[it.defId]
     return def?.defaultFootprint ? [{ it, def }] : []
   })
-  const seating = resolved.filter((r) => SEATING_RE.test(r.it.defId))
+  const seating = resolved.filter(
+    (r) => LOUNGE_ROLES.has(roleOf(r.it.defId, defs)) && r.it.defId !== 'ottoman',
+  )
   const tvs = resolved.filter((r) => isTvScreen(r.def))
   const tables = resolved.filter((r) => TABLE_RE.test(r.it.defId))
 
@@ -648,10 +699,13 @@ export function buildLayoutCritique(
         }
       }
       const room = rooms.find((r) => r.id === roomId)
+      // Warn OUTSIDE Hall's social space, not outside the ideal — see
+      // `CRITIQUE.convSocialMin`. Above `convIdealMax` still warns (further
+      // apart than ideal, though still social) and above `convBreakdown` fails.
       const verdict =
         widest > CRITIQUE.convBreakdown
           ? 'fail'
-          : widest >= CRITIQUE.convMin && widest <= CRITIQUE.convIdealMax
+          : widest >= CRITIQUE.convSocialMin && widest <= CRITIQUE.convIdealMax
             ? 'pass'
             : 'warn'
       findings.push({
@@ -661,7 +715,9 @@ export function buildLayoutCritique(
         detail:
           verdict === 'fail'
             ? `Seats ${widest.toFixed(2)} m apart — past ${CRITIQUE.convBreakdown} m a group cannot hold one conversation.`
-            : `Widest seat spacing ${widest.toFixed(2)} m (ideal ${CRITIQUE.convMin}–${CRITIQUE.convIdealMax} m).`,
+            : widest < CRITIQUE.convSocialMin
+              ? `Seats only ${widest.toFixed(2)} m apart — closer than the ${CRITIQUE.convSocialMin} m social minimum, which reads as intimate rather than sociable.`
+              : `Widest seat spacing ${widest.toFixed(2)} m (ideal ${CRITIQUE.convMin}–${CRITIQUE.convIdealMax} m; sociable from ${CRITIQUE.convSocialMin} m).`,
         roomName: room?.name,
       })
     }

@@ -524,3 +524,136 @@ describe('buildLayoutCritique — TV viewing distance is size-dependent', () => 
     expect(tvAt(1.66, 2.6).verdict).toBe('pass')
   })
 })
+
+/**
+ * **Lounge seating comes from the arrange ROLE, not a name regex
+ * (v0.31.8.20).** `SEATING_RE = /^(sofa|armchair)/` missed `recliner`,
+ * `chaise-lounge`, `banquette`, `bay-daybed` and `ottoman`, so a living room
+ * furnished with a recliner and a TV reported "No TV and seating pair in one room
+ * to measure" — a silent SKIP of an ordinary lounge, which is worse than a wrong
+ * number because nothing prompts the reader to look.
+ */
+describe('buildLayoutCritique — lounge seating selection', () => {
+  const seatDef = (id: string, role: 'lounge' | 'dining'): FurnitureDef =>
+    ({
+      id,
+      name: id,
+      category: role === 'lounge' ? 'seating' : 'seating',
+      kind: 'primitive',
+      defaultFootprint: { w: 0.9, d: 0.9, h: 0.8 },
+    }) as unknown as FurnitureDef
+
+  // Real catalogue ids, so `roleOf` resolves them through the real ROLE table
+  // rather than through a fixture that could disagree with it.
+  const local: Record<string, FurnitureDef> = {
+    ...defs,
+    'flatscreen-tv': tvDef('flatscreen-tv', 1.66),
+    recliner: seatDef('recliner', 'lounge'),
+    'dining-chair': seatDef('dining-chair', 'dining'),
+    ottoman: seatDef('ottoman', 'lounge'),
+  }
+
+  it('measures a recliner as a seat — the regex skipped the whole room', () => {
+    const f = find(
+      buildLayoutCritique(
+        plan(),
+        [item('tv', 'flatscreen-tv', 3, 0.3), item('rc', 'recliner', 3, 2.9)],
+        local,
+      ),
+      'tv-distance',
+    )
+    expect(f.verdict).not.toBe('skipped')
+    expect(f.verdict).toBe('pass')
+  })
+
+  it('does NOT treat a dining chair as lounge seating', () => {
+    // `dining-chair` is role `diningChair`; the cited "6-8 feet between facing
+    // seats" band is about lounge seating, and a dining chair near the TV would
+    // otherwise become the "nearest seat".
+    const f = find(
+      buildLayoutCritique(
+        plan(),
+        [item('tv', 'flatscreen-tv', 3, 0.3), item('dc', 'dining-chair', 3, 1.0)],
+        local,
+      ),
+      'tv-distance',
+    )
+    expect(f.verdict).toBe('skipped')
+  })
+
+  it('does NOT let an ottoman become the nearest seat', () => {
+    // Measured: a sofa at a correct 2.60 m plus a footstool at 1.60 m flips the
+    // room to a warn if the ottoman counts. It sits BETWEEN sofa and TV, so it
+    // understates the viewing distance rather than representing a viewing spot.
+    const f = find(
+      buildLayoutCritique(
+        plan(),
+        [
+          item('tv', 'flatscreen-tv', 3, 0.3),
+          item('sf', 'sofa-3seat', 3, 2.9),
+          item('ot', 'ottoman', 3, 1.9),
+        ],
+        local,
+      ),
+      'tv-distance',
+    )
+    expect(f.verdict).toBe('pass')
+    expect(f.detail).toMatch(/^2\.60 m/)
+  })
+})
+
+/**
+ * **The conversation warning fires outside Hall's SOCIAL space, not outside the
+ * ideal (v0.31.8.20).** Edward T. Hall's proxemics puts social space at 4-10
+ * feet and personal space at 2-4 feet, so 1.22 m is where facing seats stop
+ * being sociable and 3.05 m is where social space ends — `convBreakdown` was
+ * already the 10 ft bound, and the lower bound now comes from the same source
+ * instead of from the 6 ft ideal.
+ *
+ * Measured: of six "too close" warnings across the shipped templates, four were
+ * at 1.33-1.79 m — inside Hall's social range, all in a studio, 1-bed, condo
+ * studio or terrace, where that spacing IS the right answer for the room. Only
+ * 1.08 m and 1.16 m were genuinely in personal space.
+ */
+describe('buildLayoutCritique — conversation uses social space, not the ideal', () => {
+  const twoSeats = (apart: number) =>
+    find(
+      buildLayoutCritique(
+        plan(),
+        [item('a', 'sofa-3seat', 2, 2.5), item('b', 'armchair', 2 + apart, 2.5)],
+        defs,
+      ),
+      'conversation',
+    )
+
+  it('passes 1.5 m — close, but normal social distance in a small home', () => {
+    // The regression this fixes: the old bar warned here because 1.5 < the 6 ft
+    // ideal, which described the housing stock rather than the design.
+    const f = twoSeats(1.5)
+    expect(f.verdict).toBe('pass')
+  })
+
+  it('warns below the 1.2 m social floor, which is personal space', () => {
+    const f = twoSeats(1.0)
+    expect(f.verdict).toBe('warn')
+    expect(f.detail).toMatch(/closer than the 1\.2 m social minimum/)
+  })
+
+  it('still passes the ideal band and quotes it', () => {
+    const f = twoSeats(2.2)
+    expect(f.verdict).toBe('pass')
+    expect(f.detail).toMatch(/ideal 1\.8–2\.4 m/)
+  })
+
+  it('still warns beyond the ideal but inside social space', () => {
+    expect(twoSeats(2.8).verdict).toBe('warn')
+  })
+
+  it('still FAILS past the 10 ft social bound', () => {
+    // Unchanged, and the strongest claim the check makes — 3.05 m is Hall's
+    // upper social bound, so beyond it a single conversation really does break.
+    const f = twoSeats(4.0)
+    expect(f.verdict).toBe('fail')
+    expect(f.detail).toMatch(/cannot hold one conversation/)
+  })
+})

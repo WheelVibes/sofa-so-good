@@ -27,6 +27,55 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.20 - Conversation warned on normal social distance; seating came from a regex
+
+Finished re-verifying the layout-critique thresholds. Two more faults, both found
+by measuring which way the findings fell rather than by reading the numbers.
+
+**1. The conversation warning fired outside the IDEAL, not outside social space.**
+Edward T. Hall's proxemics — already the source behind the 3.05 m breakdown bound
+— puts "social space for casual and professional relationships" at **4 to 10
+feet**, with personal space at 2-4 feet. The check warned below the 6 ft ideal,
+so it was warning at distances Hall calls normal social distance.
+
+Measured across the shipped templates: of six "too close" warnings, **four were at
+1.33 / 1.37 / 1.63 / 1.79 m — all inside Hall's social range — and every one was
+in a studio, a 1-bed, a condo studio or a terrace**, i.e. small homes where that
+spacing IS the right answer. Only 1.08 m and 1.16 m sat in personal space and are
+genuine findings.
+
+That is precisely the failure this file's own history records for the first sofa
+check: a bar that "described the housing stock rather than the design". The lower
+warning bound is now Hall's 1.2 m social floor, so both bounds come from one
+source; the 1.8-2.4 m ideal is still reported, it just no longer condemns a
+correctly furnished small SG living room. Effect: warns **8 -> 4**, passes 7 ->
+11, and **all 6 fails unchanged** — the fails are 3.07-4.88 m, genuinely past
+Hall's social bound.
+
+**2. Lounge seating came from `SEATING_RE = /^(sofa|armchair)/`.** It caught 5
+defs and missed 5 real lounge seats — `recliner`, `chaise-lounge`, `banquette`,
+`bay-daybed`, `ottoman`. Measured consequence: a living room with a recliner and a
+TV and no sofa reported "No TV and seating pair in one room to measure". The check
+SKIPPED an ordinary lounge, which is worse than a wrong number because nothing
+prompts the reader to look.
+
+Selection now uses the authored arrange ROLE, which puts exactly those pieces
+under `seating`/`armchair` and keeps `dining-chair`, `bar-stool`, `office-chair`
+and `bench` out — the cut these checks want, already made by someone thinking
+about it. That is the **third** name-regex-as-taxonomy in this one module, after
+the rug anchor and the TV selector.
+
+`ottoman` is then excluded, and measured rather than assumed: it is a footstool
+that sits BETWEEN the sofa and the TV, so counting it as the "nearest seat"
+understates the viewing distance — on a fixture with a sofa at a correct 2.60 m
+and an ottoman at 1.60 m, including it flips the room to a warn.
+
+**Checked and found sound:** the coffee-table reach band (14-18 inches is arm's
+length, not context-dependent) and the sofa-width band (already an absolute
+SG-cited figure that replaced a rejected ratio). Neither has the size- or
+context-dependence that made the TV band wrong. I did not re-source those two
+numbers themselves — only tested them for that failure mode.
+
 ## v0.31.8.19 - TV viewing distance: a size-blind band, and a selector wrong in both directions
 
 Continued re-verifying the cited thresholds after `.18` found one recorded wrong.
