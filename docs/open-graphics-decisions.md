@@ -871,7 +871,19 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
+## (l) WINDOW-LUMINANCE — 🔍 MECHANISM FOUND v0.31.7.77, value corrected 12 → 4; a SMALL look call remains
+
+> **Read `(y)` below before acting on anything in this section.** The mechanism is now known
+> and it is not what this write-up spent five rounds assuming. The window was never "27 % too
+> dark": `scene.background` is an **LDR sRGB texture**, max ≈ 1.0 linear, and AgX has a
+> shoulder — so the pane was **clipped at the wrong end of the curve**, with **0.0 % of glazing
+> pixels able to exceed 219 counts** against the reference's 49.6 %. The escalated `BGMUL ≈ 12`
+> was fitted to **p99**, a statistic later shown to be pinned by a fixed bright feature the sky
+> never touches. Fitted to the pane *distribution* with a Blender-generated glazing mask, the
+> answer is **4**, and it matches physics to 0.1 of a percentage point.
+
+### Original write-up (the framing is superseded; the measurements are not)
+⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
 
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
@@ -3799,3 +3811,74 @@ arc has priced, and colour cast reads as "not photographic" before any luminance
 Caveats: one pose, one room, one hour; only ratios compared (Cycles' absolute exposure is not
 matched, and need not be — a response ratio is exposure-invariant); the sky/sun balance uses
 the atmosphere model's own defaults rather than anything fitted.
+
+
+---
+
+## (y) SESSION REGISTER — six decisions from the 2026-09-03 Blender/graphics arc
+
+Every open call this session produced, with the number that decides it and where the working is.
+Written because the findings are spread across ~25 CHANGELOG entries and a decision is not
+actionable if you have to reconstruct it.
+
+**None of these is a bug awaiting a fix.** Each is a trade only you can price. The bugs this session
+found were fixed and shipped (`.82` the black twilight sky, `.85` the adaptive guard, `.83` 63 stale
+probe defaults).
+
+### 1. Window: ship the Cycles sky **and** `backgroundIntensity ≈ 4` — ⏳ needs a yes/no
+
+Neither works alone. The intensity without the physical sky raises a 4×-oversaturated gradient; the
+sky without the intensity stays capped at 0.0 % of glazing above 219 counts. Together the pane
+distribution lands within **0.1 percentage points** of the Cycles reference (54.9 % vs 55.0 % above
+219). **Verified not to touch the interior**: interior median 107.1 and mean 103.5 are identical at
+intensity 1, 4 and 12, because `backgroundIntensity` scales what is *seen*, not what *lights*
+(`environmentIntensity` does that). Working: `.73`, `.74`, `.76`, `.77`.
+
+### 2. Golden hour: the sky is 6–20× short below 20° elevation — ⏳ needs a look call
+
+Measured against ten Cycles equirects at fixed sun altitudes: ~1.2× short near overhead, **~6× at
+20°**, **~20× at the horizon**. Preetham's zenith luminance is only valid for a sun well above the
+horizon, and this is the model's own falloff, not a tuning error. Fixing it re-grades every dawn and
+dusk in the app, and it needs **both** the zenith luminance and the `night` fade to move (at −8° the
+fade is exactly 0 and forces black whatever the luminance says). Working: `.80`, `.81`.
+
+### 3. Twilight seam: sky ~5 counts under a ground band at ~60 — ⏳ needs a look call
+
+`.82` removed the *black* (a negative luminance silently clamped), but not the **visible hard
+horizon cut**, and reading the code says why: the lower hemisphere has its own level term,
+`lvl = 0.12 + 0.88 * night`, which at −3° is **0.666**. The ground holds two-thirds brightness while
+the sky collapses to ~2 % of its horizon value. Closing it means lifting the sky (decision 2) or
+dropping the ground (a different look change). Working: `.82`.
+
+### 4. Twilight warmth: the app paints a sunset where physics models blue hour — ⏳ needs a look call
+
+At elev ≈ 0 the app's horizon is **R−B +71…+76** against Cycles' **−18…+10** — a ~90-count swing. At
+−1° the sun is below the horizon, so the direct path that makes a real sunset orange is blocked and
+Blender gives blue hour. A stylised warm sunset may be deliberate art direction; "physics says blue
+hour" is not the same as "users want blue hour". Working: `.78` (numbers), `.79` (corrected).
+
+### 5. `dprMax` in the demotion chain — ⏳ needs a look call, and it is the biggest lever left
+
+`.86` verified the guard now recovers `realistic` from **10.9 → 29.6 fps** automatically. That lands
+*on* the 30 fps floor with nothing left in the chain. The unused lever is the largest one measured:
+**`dprMax` 2 → 1 is worth 4.5× (10.9 → 49.6 fps)** — more than shadows, post and transmission
+combined. It trades resolution for frame rate, which is a look decision. Working: `.84`, `.86`.
+
+### 6. Visibility lightmaps: the flag stays off — ⏳ unchanged, and superseded in prospect
+
+Baked aperture visibility helps one view of five and hurts four (+79 % / −64 % / … measured with the
+HUD mask in `.76`). The replacement candidate now exists: **`--pass irradiance`** bakes real Cycles
+direct+indirect with the scene's own materials, **23 s on the GPU**, within **5.2 %** of a
+1024-sample reference, carrying **171× spatial variation between shell surfaces** (cv 139 %) against
+the app's cv 8.7 %. What is missing is the runtime path that **replaces** the ambient/hemisphere term
+rather than multiplying it — `.67` measured that multiplying by irradiance is *worse* than
+multiplying by visibility, which is what double-counting looks like. Working: `.67`, `.71`, `.72`.
+
+### Still genuinely open as engineering, no decision needed
+
+- **(w)/(x) interior indirect light.** Interior sits at **107.1** against physics' **124.2** — 1.16×
+  short — and is **unmoved by any background change**, which is what finally separated it from (l).
+  The irradiance bake is the candidate; the shader replacement path is the work.
+- **`realistic`/weak at 25.1 fps** in walk, and the whole chain bottoming out at 29.6. Decision 5 is
+  the lever.
+

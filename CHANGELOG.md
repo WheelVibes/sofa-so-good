@@ -29,6 +29,35 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.87 — the six open decisions consolidated into the register they belong in
+
+Not a measurement round. The findings of this arc are spread across ~25 CHANGELOG entries, and a
+decision is not actionable if acting on it means reconstructing it first. `docs/open-graphics-decisions.md`
+exists for exactly this, so the open calls now live there.
+
+**New section `(y)`** carries all six, each with the number that decides it and a pointer to the
+working: the Cycles sky + `backgroundIntensity ≈ 4` pair; the 6–20× golden-hour shortfall; the
+twilight ground/sky seam (`lvl = 0.12 + 0.88 * night` holding the ground at 0.666 while the sky
+collapses to ~2 %); the twilight warmth question (~90 counts of R−B against physics); the `dprMax`
+demotion step (4.5×, the biggest unused lever); and the visibility-lightmap flag with its irradiance
+successor. Plus the two items that are genuinely open *as engineering* and need no call — the interior's
+1.16× indirect-light deficit, and the fact that the demotion chain bottoms out at 29.6 fps.
+
+**And `(l)`'s header is corrected**, because leaving it as "⏳ OPEN, needs a product call" would keep
+asking for a decision on a framing this session refuted. It now reads **🔍 MECHANISM FOUND, value
+corrected 12 → 4**, with a note at the top that the window was never "27 % too dark" — it was an LDR
+sRGB background clipped at the wrong end of the AgX shoulder, and the escalated `BGMUL ≈ 12` was
+fitted to a p99 that turned out to be pinned by a fixed feature outside the glazing entirely. The
+original write-up is kept verbatim underneath: its measurements stand, only its interpretation
+changed.
+
+**Explicitly recorded in `(y)`:** none of the six is a bug awaiting a fix. Every bug this session
+found was fixed and shipped — the black twilight sky (`.82`), the adaptive guard's blindness and its
+wrong-axis gate (`.85`), and 63 probe defaults my own tier collapse had silently pointed at retired
+rungs (`.83`).
+
+Suite **10092 green**, `tsc` and biome clean. Documentation only.
+
 ## v0.31.7.86 — the degradation chain verified end to end: 10.9 fps becomes 29.6, automatically, with the user's mode intact
 
 `.85` fixed the two bugs that stopped the guard working. This traces what it now actually does, and
