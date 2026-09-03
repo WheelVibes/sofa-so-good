@@ -3285,8 +3285,9 @@ The ceiling and floor did not change; their *ratios* fell ~4 % because the denom
 
 **What this specifically invalidates:**
 
-- **The GI's headline `ceiling 0.69 → 0.92`** (`v0.31.7.114`) — the baseline is now 0.66, so the
-  comparison needs re-running before that number is quoted again.
+- ~~**The GI's headline `ceiling 0.69 → 0.92`** (`v0.31.7.114`)~~ — **re-measured in `v0.31.7.160`:
+  `ceiling 0.66 → 0.87`** post-fix, i.e. **+0.21** against the pre-fix **+0.23**. The GI's benefit
+  survives the renormalisation; quote the new pair.
 - `(w)`'s ceiling/wall figures and the photographic-band comparisons, all taken pre-fix.
 - Any cross-session comparison of these ratios that straddles `.157`.
 

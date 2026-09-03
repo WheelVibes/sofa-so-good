@@ -29,6 +29,34 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.160 — the GI headline re-measured against the post-fix baseline: `ceiling 0.66 → 0.87`, the benefit survives
+
+`.159` invalidated the GI's headline by shifting the normaliser. Re-ran it immediately, since it is
+the number `(z)`1 rests on and the only stale load-bearing figure left in the arc.
+
+Same tier, same pose, post-`(l)`-fix, 52/52 materials loaded:
+
+| | GI off | **GI on** |
+| --- | --- | --- |
+| ceiling | 0.66 | **0.87** |
+| wall | 1.06 | 1.03 |
+| floor | 0.72 | 0.63 |
+| combined mean | 104.0 | **111.5** |
+
+**The GI's lift survives the renormalisation:** **+0.21** on the ceiling against the pre-fix **+0.23**,
+same direction and effectively the same magnitude. So `.114`'s conclusion holds — the effect is real
+and in the right direction — with the pair now quotable as **0.66 → 0.87** rather than 0.69 → 0.92.
+
+Also worth keeping: the combined mean rises **104.0 → 111.5** with the GI on, which is the
+`(w)`/`(x)` direction (interior measured **1.16× short** of physics). The GI moves the interior level
+as well as the ceiling ratio.
+
+**Nothing about the GI decision changes.** It remains built, gated to `realistic`, and held off by the
+edge artefact parked at `.130` with six causes eliminated — that is a visual defect, and this round
+only corrects the number that justified pursuing it.
+
+Documentation and measurement only. Suite **10167 green**, `tsc` and biome clean.
+
 ## v0.31.7.159 — `(l)`'s fix shifted EVERY region ratio in the arc by ~4 %, because the glazing is 10 % of the wall mask
 
 Checked what shipping `(l)` did to the rest of the arc's measurements, since a brighter window changes
