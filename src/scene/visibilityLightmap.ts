@@ -46,6 +46,22 @@ import { LinearFilter } from 'three'
  */
 export const VISIBILITY_GAIN = 6
 
+/**
+ * The mean visibility of the plan `VISIBILITY_GAIN` was fitted against (the 4-Room default).
+ *
+ * Only the *ratio* to another plan's mean is used, so this is a unit-carrying reference rather
+ * than a tuned number: a plan whose surfaces see more sky needs proportionally less gain. The
+ * 5-Room plan measures 0.355 against this 0.208, and applying the unscaled gain to it made its
+ * spatial match worse (1.53× → 2.25×, `v0.31.7.44`).
+ */
+const VISIBILITY_REFERENCE_MEAN = 0.20809
+
+/** The gain to use for a plan whose area-weighted mean visibility is `mean`. */
+export function gainForPlanMean(mean: number | undefined): number {
+  if (!mean || mean <= 0) return VISIBILITY_GAIN
+  return VISIBILITY_GAIN * (VISIBILITY_REFERENCE_MEAN / mean)
+}
+
 /** three's chunk that writes the final colour. Replaced only by the DEV visualiser. */
 const OUTPUT_INCLUDE = '#include <opaque_fragment>'
 /** Where the indirect-diffuse term is available to modify. */

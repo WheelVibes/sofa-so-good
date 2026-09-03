@@ -20,7 +20,7 @@ import { BufferAttribute } from 'three'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { computeBoxAtlasUv } from './lightmapUv'
-import { applyVisibilityLightmap } from './visibilityLightmap'
+import { applyVisibilityLightmap, gainForPlanMean } from './visibilityLightmap'
 
 /** Where the baked set lives, base-path aware so it survives a non-root deployment.
  *  Not exported: it is the default for `baseUrl` below, and an export nothing imports fails
@@ -126,6 +126,10 @@ export function applyLightmapsFromIndex(
     keyed.push({ mesh: o, key: lightmapKey(positions) })
   })
   const ctx = resolver.chooseContext(keyed.map((k) => k.key))
+  // Scaled per plan unless the caller overrides. A plan whose surfaces see more sky needs less
+  // gain, and the index records each plan's mean so one fitted measurement calibrates all of
+  // them (`v0.31.7.44`).
+  const planGain = gain ?? gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined)
   let applied = 0
   for (const { mesh: o, key } of keyed) {
     const url = ctx ? resolver.urlFor(key, ctx) : null
@@ -156,7 +160,7 @@ export function applyLightmapsFromIndex(
       if (conflicts > 0) continue
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
-    applyVisibilityLightmap(o.material as never, loadTexture(url), gain, debug)
+    applyVisibilityLightmap(o.material as never, loadTexture(url), planGain, debug)
     applied += 1
   }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)

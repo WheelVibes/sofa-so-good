@@ -17,7 +17,17 @@
  * mesh does not have, and averaging those zeros in would drag the mean down and inflate the gain.
  * A texel counts only if any texel in its slot is non-zero.
  *
- * Usage: node scripts/dev-probes/bake-gain.mjs <bakeDir> [--encode=<e>]
+ * **Reported PER PLAN CONTEXT**, because the gain is not global. `v0.31.7.27` showed the derived
+ * value is scope-dependent, and `v0.31.7.44` measured the consequence: a gain fitted on the
+ * 4-Room plan applied to the 5-Room plan makes its spatial match *worse* (1.53× → 2.25×). If two
+ * plans have different mean visibility, one constant cannot serve both.
+ *
+ * `--write` annotates the index with each plan's mean, which is what lets ONE fitted measurement
+ * calibrate every plan: the runtime scales the fitted gain by `referenceMean / thisPlanMean`.
+ * Kept as a separate step rather than folded into the bake because it is a whole-index property —
+ * it can only be computed once every map for a plan exists.
+ *
+ * Usage: node scripts/dev-probes/bake-gain.mjs <bakeDir> [--encode=<e>] [--write]
  */
 import fs from 'node:fs'
 import process from 'node:process'
@@ -33,9 +43,7 @@ const encArg = args.find((a) => a.startsWith('--encode='))
 const encode = encArg ? Number(encArg.slice(9)) : 1
 
 const index = JSON.parse(fs.readFileSync(`${dir}/index.json`, 'utf8'))
-let areaSum = 0
-let weighted = 0
-let counted = 0
+const perCtx = new Map()
 for (const m of index.maps) {
   const { data, info } = await sharp(`${dir}/${m.file}`)
     .removeAlpha()
@@ -61,11 +69,35 @@ for (const m of index.maps) {
   }
   if (!n) continue
   const mean = sum / n
-  weighted += mean * m.area
-  areaSum += m.area
-  counted += 1
+  const ctx = m.ctx ?? 'no-ctx'
+  const acc = perCtx.get(ctx) ?? { weighted: 0, area: 0, count: 0 }
+  acc.weighted += mean * (m.area ?? 1)
+  acc.area += m.area ?? 1
+  acc.count += 1
+  perCtx.set(ctx, acc)
 }
-const mean = weighted / areaSum
-console.log(`${dir}  maps ${counted}  area ${areaSum.toFixed(1)} m2`)
-console.log(`  area-weighted mean visibility = ${mean.toFixed(4)}`)
-console.log(`  => derived gain 1/mean = ${(1 / mean).toFixed(2)}`)
+console.log(dir)
+const means = []
+for (const [ctx, a] of perCtx) {
+  const mean = a.weighted / a.area
+  means.push({ ctx, mean })
+  console.log(
+    `  ctx ${ctx}  ${String(a.count).padStart(3)} maps  ${a.area.toFixed(0).padStart(4)} m2` +
+      `  mean visibility ${mean.toFixed(4)}  => 1/mean ${(1 / mean).toFixed(2)}`,
+  )
+}
+if (args.includes('--write')) {
+  const contexts = {}
+  for (const { ctx, mean } of means) contexts[ctx] = { mean: Number(mean.toFixed(5)) }
+  const out = { ...index, contexts }
+  fs.writeFileSync(`${dir}/index.json`, `${JSON.stringify(out, null, 2)}\n`)
+  console.log(`  wrote per-plan means into ${dir}/index.json`)
+}
+if (means.length > 1) {
+  const lo = Math.min(...means.map((m) => m.mean))
+  const hi = Math.max(...means.map((m) => m.mean))
+  console.log(
+    `  spread across plans: ${(hi / lo).toFixed(2)}x — one global gain cannot serve both if this` +
+      ' is far from 1',
+  )
+}

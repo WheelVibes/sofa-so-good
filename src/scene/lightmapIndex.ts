@@ -56,6 +56,20 @@ export interface LightmapIndex {
   /** The UV layout the maps were baked in. Mismatch here means every lookup is wrong. */
   uv: string
   maps: LightmapEntry[]
+  /**
+   * Per-plan area-weighted mean visibility, keyed by context.
+   *
+   * **This is what lets one fitted gain serve every plan.** The gain relates the app's artistic
+   * fill to physical visibility and is a calibration constant, not a derivable one
+   * (`v0.31.7.27`). But the *ratio* between plans is measurable: the 5-Room plan's mean is
+   * **0.355** against the 4-Room's **0.208**, a 1.71× spread, and applying the 4-Room's gain to
+   * the 5-Room plan made its spatial match *worse* — 1.53× → 2.25× (`v0.31.7.44`). Scaling the
+   * fitted gain by `referenceMean / thisPlanMean` removes that.
+   *
+   * Optional: a set baked before this existed still loads, and the runtime falls back to the
+   * unscaled gain rather than refusing.
+   */
+  contexts?: Record<string, { mean: number }>
 }
 
 /** The only index shape this build understands. v1 had no per-map context and could therefore
@@ -91,7 +105,17 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
     maps.push({ key: m.key, file: m.file, ctx: m.ctx, object: m.object, area: m.area })
   }
   if (!maps.length) return { error: 'index lists no maps' }
-  return { index: { version: o.version, pass: String(o.pass ?? 'unknown'), uv: o.uv, maps } }
+  const contexts =
+    o.contexts && typeof o.contexts === 'object'
+      ? Object.fromEntries(
+          Object.entries(o.contexts)
+            .filter(([, v]) => typeof (v as { mean?: unknown })?.mean === 'number')
+            .map(([k, v]) => [k, { mean: (v as { mean: number }).mean }]),
+        )
+      : undefined
+  return {
+    index: { version: o.version, pass: String(o.pass ?? 'unknown'), uv: o.uv, maps, contexts },
+  }
 }
 
 /** A resolver over one baked set, counting hits and misses as it goes. */

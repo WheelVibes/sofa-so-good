@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.44 — the assets are finally self-consistent, a plan change was leaving the old plan's maps attached, and the gain is per-plan
+
+Three findings, two fixed and verified, one honestly unresolved.
+
+**The asset set is now self-consistent.** After re-baking both plans with `<ctx>-<key>.png`
+naming: **176 index entries = 176 distinct files = 176 PNGs on disk, 0 missing**, across two
+contexts (111 for the 4-Room default, 65 for the 5-Room). Those numbers agreeing is the check
+that caught `v0.31.7.43`'s bug, so it is worth stating that they now do.
+
+**Plan 1 still resolves correctly with two contexts present** — 72.44 / 1.36×, unchanged from the
+single-context set. So `chooseContext()` picks the right plan and ignores the other's maps,
+including for the 20 keys the two plans share.
+
+**Bug: the effect never re-ran on a plan change.** Traced by recording which lightmap URLs the
+page requests: after switching to the 5-Room plan, the app was still applying context
+**`2c1aca20`** — the 4-Room maps. `VisibilityLightmaps`' effect depended only on `[enabled,
+scene, invalidate]`, so **every plan except the one loaded first rendered with the wrong plan's
+visibility.** Fixed by adding `floorPlan` as an invalidation key; verified by the same tracing —
+the 5-Room plan now requests `d20bc459` and reports `71/168 meshes matched (42 %)`.
+
+The dependency needed a lint suppression with a reason, because `floorPlan` is not read in the
+body: a linter cannot see a dependency whose only purpose is invalidation.
+
+**And the gain is per-plan, which one fitted measurement can still cover.** `bake-gain.mjs` now
+reports per context:
+
+| plan | maps | area | mean visibility | 1/mean |
+| --- | --- | --- | --- | --- |
+| 4-Room (`2c1aca20`) | 107 | 889 m² | **0.2081** | 4.81 |
+| 5-Room (`d20bc459`) | 65 | 776 m² | **0.3554** | 2.81 |
+
+**A 1.71× spread**, so one constant cannot serve both — a plan whose surfaces see more sky needs
+proportionally less gain. `--write` annotates the index with each plan's mean, and the runtime
+scales the fitted gain by `referenceMean / thisPlanMean`. That keeps the single fitted
+measurement (`v0.31.7.27`: the gain is a calibration constant, not a derivable one) while making
+it transferable. Three tests cover the identity case, the scaling case, and the fallback for a
+set with no recorded mean.
+
+**Unresolved, and stated as such.** Plan 2 measures **1.53× flag-off against 2.25× flag-on**, and
+that 2.25× is *byte-identical across three different code states* — before the re-run fix, after
+it, and after per-plan gain scaling. Three substantive changes producing the same number to two
+decimals is not credible, so **the plan-2 measurement path is not trustworthy** and I am not
+claiming either that the term regresses there or that it is fixed. The likely culprit is the
+probe's `PLAN=` switch interacting with when the effect runs. That is the next thing to isolate,
+and until it is, plan 2 is unverified rather than good or bad.
+
+Suite **10054 green**; `tsc`, biome, knip clean; flag off by default.
+
 ## v0.31.7.43 — the context fixed the index and not the files: 176 entries, 156 PNGs
 
 Caught by comparing two numbers that should have been equal.

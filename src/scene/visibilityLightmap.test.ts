@@ -5,6 +5,7 @@ import { LinearFilter } from 'three'
 import { describe, expect, it } from 'vitest'
 import {
   applyVisibilityLightmap,
+  gainForPlanMean,
   prepareVisibilityTexture,
   VISIBILITY_GAIN,
 } from './visibilityLightmap'
@@ -115,6 +116,28 @@ describe('applyVisibilityLightmap', () => {
 
   it('leaves the output chunk alone when NOT debugging', () => {
     expect(compile(6, false).s.fragmentShader).toContain('#include <opaque_fragment>')
+  })
+})
+
+describe('gainForPlanMean', () => {
+  it('returns the fitted gain for the plan it was fitted on', () => {
+    // 0.20809 is the 4-Room default's measured mean; the ratio is 1, so nothing is scaled.
+    expect(gainForPlanMean(0.20809)).toBeCloseTo(VISIBILITY_GAIN, 4)
+  })
+
+  it('scales DOWN for a plan whose surfaces see more sky', () => {
+    // The 5-Room plan measures 0.355 -- a 1.71x brighter mean -- so it needs proportionally
+    // less gain. Applying the unscaled gain there made its spatial match worse (1.53x -> 2.25x).
+    const g = gainForPlanMean(0.35545)
+    expect(g).toBeLessThan(VISIBILITY_GAIN)
+    expect(g).toBeCloseTo(VISIBILITY_GAIN * (0.20809 / 0.35545), 4)
+  })
+
+  it('falls back to the fitted gain for a set with no recorded mean', () => {
+    // A set baked before the index carried per-plan means must still load, unscaled, rather
+    // than dividing by zero or refusing.
+    expect(gainForPlanMean(undefined)).toBe(VISIBILITY_GAIN)
+    expect(gainForPlanMean(0)).toBe(VISIBILITY_GAIN)
   })
 })
 

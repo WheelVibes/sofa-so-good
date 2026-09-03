@@ -2,6 +2,7 @@ import { useThree } from '@react-three/fiber'
 import { useEffect } from 'react'
 import { type Texture, TextureLoader } from 'three'
 import { useFeature } from '../features/useFeature'
+import { useStore } from '../state/store'
 import { applyLightmapsFromIndex } from './applyVisibilityLightmaps'
 import { parseLightmapIndex } from './lightmapIndex'
 
@@ -28,7 +29,21 @@ export function VisibilityLightmaps() {
   const enabled = useFeature('visibilityLightmap')
   const scene = useThree((s) => s.scene)
   const invalidate = useThree((s) => s.invalidate)
+  // RE-RUN ON PLAN CHANGE. The maps are per-plan (each carries the digest of the plan it was
+  // baked from), and the scene is rebuilt when the plan changes — so a mount-only effect leaves
+  // the PREVIOUS plan's visibility attached. Measured: switching the 4-Room default to the
+  // 5-Room plan kept context `2c1aca20` applied and took that plan's spatial match from 1.53x to
+  // 2.25x, i.e. the feature actively degraded every plan except the one loaded first.
+  //
+  // Re-running costs the ~19 shader compiles again, but a plan change already rebuilds the whole
+  // scene behind a loader, so this is the one moment where that cost is already being paid.
+  const floorPlan = useStore((s) => s.floorPlan)
 
+  // `floorPlan` below is a deliberate RE-RUN TRIGGER, not a value this body reads. The maps are
+  // per-plan and the scene is rebuilt on a plan change, so without it the previous plan's
+  // visibility stays attached — measured as the 5-Room plan rendering with the 4-Room context
+  // (`v0.31.7.44`). A linter cannot see a dependency whose only purpose is invalidation.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: floorPlan is an invalidation key
   useEffect(() => {
     if (!enabled) return
     let cancelled = false
@@ -87,7 +102,7 @@ export function VisibilityLightmaps() {
     return () => {
       cancelled = true
     }
-  }, [enabled, scene, invalidate])
+  }, [enabled, scene, invalidate, floorPlan])
 
   return null
 }
