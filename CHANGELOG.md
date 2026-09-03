@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.53 — re-tested on a pose that PASSES the preflight: the generalisation failure is real, and the 15× was 3×
+
+`v0.31.7.52` downgraded four conclusions and said re-testing needed a 5-Room pose with an aperture
+in frame. The preflight found two, and the most informative — the kitchen, **3.01 %** aperture and
+p05 18/median 92, better framed than either 4-Room view — settles both questions.
+
+**The generalisation failure is REAL, not a framing artefact.** On that valid pose:
+
+| 5-Room kitchen | |
+| --- | --- |
+| flag off | **1.57×** |
+| flag on | **3.69×** |
+| visibility explains the baseline error | **−119 %** |
+
+So `v0.31.7.47` and `v0.31.7.48` are **restored**, now on evidence that passes the pose check. The
+term degrades a properly-framed view of the second plan, and aperture visibility anti-explains its
+error. Across the three valid views: **+80 %** (4-Room livingDining), **−34 %** (4-Room bedroom3),
+**−119 %** (5-Room kitchen). One view in three, and the two failures are on both plans — so it is
+not a plan-level property either.
+
+**The scene-independence claim survives, and is three times smaller than I said.** Restricted to
+valid poses:
+
+| | p99/median across the three valid views | cv |
+| --- | --- | --- |
+| app | 1.468, 1.485, 1.775 | **8.9 %** |
+| physics | 2.967, 2.199, 1.542 | **26.0 %** |
+
+**Physics varies 3× more than the app, not 15×.** `v0.31.7.49`'s figure was inflated by the two
+aperture-less poses, exactly as `v0.31.7.51` suspected. The qualitative point stands — the app's
+tonal range responds far less to the scene than physics does — but the effect is ordinary rather
+than dramatic, and I should not have published 15× from views the preflight now rejects.
+
+**One new fact, and it is the sharpest thing in this round.** In the kitchen view the app's
+`p99/median` is **1.775 against physics' 1.542** — the app is *higher*. Every earlier measurement
+had the app short on highlights (51 %, 32 %). So the sign of the highlight error **flips between
+views**, on properly framed evidence. That kills any fixed-direction correction for item (l) as
+surely as the visibility result kills a fixed-shape correction for item (w): a constant "brighten
+the window" would help two views and hurt this one.
+
+**Where the arc actually stands.** Two candidate fixes, both measured to help in some views and
+hurt in others, with the sign of the error itself varying. The mechanical work is complete and
+verified; the physics references and the instruments to compare against them are the durable
+output. What is *not* available is a scene-independent correction, because the error is not
+scene-independent.
+
+`tsc`, biome clean; suite **10058 green**; flag off by default.
+
 ## v0.31.7.52 — resolved: the 5-Room poses have no window in view, so they cannot measure dynamic range. Preflight check added
 
 `v0.31.7.51` downgraded four conclusions because the 5-Room references looked implausibly bright

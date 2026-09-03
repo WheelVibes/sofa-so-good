@@ -3033,6 +3033,15 @@ been attributed to the glass or to the background tone-mapping path.
 > attaching one mid-session cost a **216 ms** compile hitch. Attach at material creation; a flag
 > that toggles `aoMap` live will stutter. Read the flag where the material is built.
 >
+> **⛔ CONFIRMED ON PROPERLY-FRAMED EVIDENCE — v0.31.7.53.** Re-tested on a 5-Room pose that
+> passes the new aperture preflight (kitchen, 3.01 % aperture, better framed than either 4-Room
+> view): flag off **1.57×**, flag on **3.69×**, visibility explains **−119 %**. Across the three
+> valid views the term explains +80 % / −34 % / −119 % — one in three, with failures on *both*
+> plans, so it is not a plan-level property. Also measured there: the app's highlight ratio is
+> **higher** than physics (1.775 vs 1.542) where in the 4-Room views it was 32–51 % *short*, so
+> the sign of the error flips between views and no fixed-direction correction can serve all of
+> them.
+>
 > **⛔ THE PREMISE HOLDS IN ONE VIEW OF FOUR — v0.31.7.48.** Running `--explain` on every view
 > with a reference: aperture visibility explains **+80 %** of the 4-Room `livingDining` error
 > (baseline 4.76×) and **−34 % / −153 % / −270 %** in 4-Room `bedroom3` (1.74×), 5-Room bedroom 2
