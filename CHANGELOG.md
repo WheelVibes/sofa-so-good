@@ -29,6 +29,44 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.156 — both `(l)` questions answered: the guard's daylight premise IS stale, and dusk DOES bloom
+
+`.155` named two things that would settle whether sky-catch ×13 can ship. Both done.
+
+**1. The guard predates the bloom ramp, so its daylight premise is inverted.** `git log -S`: the
+`< 1.05` assertion landed **2026-06-13** (`RZ2: window glass sky-catch`); the day-ramp
+`BLOOM.intensity · (1 − d)` landed **2026-06-27** (`v0.5.0.0`), two weeks later. When the guard was
+written, bloom was active in daylight and "a bright pane will bloom" was simply true. The ramp made
+bloom **zero at full day** — which is exactly why the 13:00 frame at ×13 has crisp grille bars and no
+halo.
+
+**2. But dusk does bloom, and it is visible.** 19:00 at ×13: pane mean 231.6, `> 240` **0.0 %** — the
+statistics look harmless. The frame does not: a **soft glow spills onto the wall and ceiling and the
+grille bars lose definition**, against sharp bars at 13:00. **The number would have passed this and
+the frame caught it**, which is the same lesson as `.107` from the other direction.
+
+**And no reshaping of the sky-catch alone removes the overlap**, because bloom is non-zero for every
+`d < 1`:
+
+| day level | bloom | `d·5.2` | `d³·5.2` |
+| --- | --- | --- | --- |
+| 0.4 | 60 % | 2.08 | 0.33 |
+| 0.6 | 40 % | 3.12 | 1.12 |
+| 0.8 | 20 % | 4.16 | 2.66 |
+| 1.0 | **0 %** | 5.2 | 5.2 |
+
+A cubic ramp holds the pane under the guard until `d ≈ 0.59`, where bloom is still 41 % on. The
+overlap narrows; it does not close.
+
+**So this is a genuine look call, with three options** — accept the dusk glow (photographically
+normal, costs grille definition for an hour either side), ramp the boost as `d³` (full effect at
+midday, overlap pushed into a narrow high-daylight band), or narrow bloom's own ramp (frees the whole
+daylight range, touches a separate shipped look).
+
+Reverted again, clean. Your ×13 call stands for **full daylight** and is verified there by frame; what
+it needs is a decision about dusk, which nobody had the evidence for until now. Suite **10165 green**,
+`tsc` and biome clean.
+
 ## v0.31.7.155 — `(l)` at ×13: the frame is right and the SUITE BLOCKED IT on a bloom guard. Reverted.
 
 You chose to ship sky-catch ×13. Implemented it (`glassSkyCatchIntensity` 0.4 → 5.2) and the test

@@ -987,11 +987,38 @@ day**, while the sky-catch is `d · 5.2`, **zero at night**. They are anti-corre
 | 1 (full day) | **0** | 5.2 | none — pass is not even mounted |
 
 So the guard protects a **dusk band** that neither the 13:00 frame nor the >240 sweep touches.
-**Reverted rather than shipped**, and the two things that would settle it:
+**Both settling questions are now answered, `v0.31.7.156`:**
 
-1. A frame at a dusk hour (day level ~0.4) at ×13 — does the pane halo?
-2. Whether the `< 1.05` guard predates the bloom day-ramp. If bloom was once active in daylight, the
-   guard's premise is inverted and it may be protecting nothing that still exists.
+**1. The guard predates the ramp — its daylight premise IS inverted.** `git log -S`:
+`materialRealism.test.ts`'s `< 1.05` assertion landed **2026-06-13** (`RZ2: window glass sky-catch`);
+the bloom day-ramp landed **2026-06-27** (`v0.5.0.0`). So when the guard was written bloom was active
+in daylight and "a bright pane will bloom" was true. The ramp later made bloom **zero at full day**,
+which is why the 13:00 frame at ×13 has crisp grille bars and no halo.
+
+**2. But dusk DOES bloom, visibly.** 19:00 at ×13: pane mean 231.6, `> 240` 0.0 % — and the frame
+shows a **soft glow spilling onto the wall and ceiling, with the grille bars losing definition**.
+Compare 13:00, where they are sharp. The guard still protects a real case.
+
+**And no smooth curve avoids it**, because bloom is non-zero for every `d < 1`:
+
+| day level | bloom | `d·5.2` | `d³·5.2` |
+| --- | --- | --- | --- |
+| 0.4 | 60 % | 2.08 | 0.33 |
+| 0.6 | 40 % | 3.12 | 1.12 |
+| 0.8 | 20 % | 4.16 | 2.66 |
+| 1.0 | **0 %** | 5.2 | 5.2 |
+
+A cubic ramp keeps the pane under the guard until `d ≈ 0.59` — where bloom is still 41 % on. So the
+overlap can be *narrowed* but not removed by reshaping the sky-catch alone.
+
+**Three real options, and it is a look call:**
+
+- **Accept the dusk glow.** A glowing window at dusk is photographically normal; the cost is the
+  grille losing definition for an hour or so either side.
+- **Ramp the boost as `d³`** — full effect at midday, and the overlap pushed into a narrower,
+  higher-daylight band where bloom is weak.
+- **Narrow bloom's own ramp** so it reaches zero earlier than full daylight, freeing the whole
+  daylight range for the pane. Touches a separate shipped look.
 
 
 ### (l)/(z)4 — the baked-key-set route is MEASURED VIABLE, `v0.31.7.148`
