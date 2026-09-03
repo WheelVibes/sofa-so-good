@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.130 — `conflicts` reported at last, and it is ZERO: the sixth elimination, and I am parking the seam
+
+`.129` named this as the next step and said not to theorise before doing it. `conflicts` has gated a
+`continue` in `applyLightmapsFromIndex` since the UV builder existed and was never surfaced, so
+**"skipped because a vertex straddles two atlas slots" and "no map for this key" were
+indistinguishable from outside**. Now reported in the same line as the hit rate and the mirrored-face
+count.
+
+**Measured on the 333-map set at `realistic`: zero meshes skipped.** So the dots sit on a mesh that
+**is** mapped, with valid non-conflicting UVs, in a map with a 1.9 % hole rate.
+
+**Six hypotheses eliminated for one artefact:**
+
+| hypothesis | verdict |
+| --- | --- |
+| mapped/unmapped boundary at low coverage (`.114`) | refuted — 10 % → 50 %, unchanged |
+| per-map scale colliding on a shared material | refuted — 0 of 175 materials |
+| UV margin mismatch | refuted — identical formulas |
+| shader/lookup fault rather than data | refuted — `?aoDebug=1` shows them in the map |
+| unwritten atlas holes at the island edge | refuted — 1.9 % holes, dots unchanged |
+| **meshes skipped on a `uv1` conflict** | **refuted — 0 skipped** |
+
+**Parking it here, deliberately.** Six refutations and no cause, on an artefact confined to the
+silhouette edges of narrow meshes on a tier behind a flag that is off. Continuing to guess has a
+poor record tonight: three of the six refutations were of mechanisms I had described confidently,
+and `.128` had to retract three rounds of numbers because the instrument, not the subject, was
+wrong. The remaining evidence — evenly spaced, geometric rather than texel-aligned, present in the
+sampled map — is recorded for whoever picks it up with fresh eyes.
+
+**Third observability gap closed in this arc**, and the pattern is worth naming: `.123`'s
+`textured_share` could not fire, `.127`'s `padded` was computed and never returned, and `conflicts`
+gated real control flow while reporting nothing. **Every one of these numbers already existed.**
+The bug was never the measurement — it was that nothing surfaced it.
+
+Suite **10142 green**, `tsc` and biome clean. Nothing shipped; flag still off.
+
 ## v0.31.7.129 — `--fill-holes` at 16-bit reaches a 1.9 % hole rate and the DOTS SURVIVE: they are not the holes
 
 Four rounds of padding work, scored on the corrected metric, then verified on the frame — which is

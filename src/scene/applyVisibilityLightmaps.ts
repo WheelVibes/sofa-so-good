@@ -88,6 +88,8 @@ export interface ApplyResult {
   /** Human-readable hit-rate line, and whether it looks wrong. */
   report: string
   suspect: boolean
+  /** Meshes skipped because a vertex was shared across two atlas slots. */
+  conflicts: number
 }
 
 /**
@@ -184,6 +186,7 @@ export function applyLightmapsFromIndex(
   let applied = 0
   // Faces relocated to the mirror atlas row because the bake put the data there.
   let flippedFaces = 0
+  let conflictMeshes = 0
   for (const { mesh: o, key } of keyed) {
     const url = ctx ? resolver.urlFor(key, ctx) : null
     if (!url) continue
@@ -218,7 +221,16 @@ export function applyLightmapsFromIndex(
       // A conflict means two faces in different atlas slots share a vertex, so a per-vertex
       // attribute cannot represent the layout and the map would land wrong. Skip rather than
       // render something subtly incorrect.
-      if (conflicts > 0) continue
+      if (conflicts > 0) {
+        // COUNTED, not just acted on. `conflicts` has gated this `continue` since the UV builder
+        // existed and was never surfaced, so "the mesh was skipped" and "the mesh had no map" were
+        // indistinguishable from outside — and a skipped mesh sitting next to a mapped one is a
+        // candidate for the edge artefact `v0.31.7.129` has now eliminated five other causes for.
+        // Third time in this arc that the number needed was already being computed (`.123`'s
+        // `textured_share`, `.127`'s `padded`).
+        conflictMeshes += 1
+        continue
+      }
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
     // PER MAP, not once for the set. Under `--per-map-scale` each map is normalised to its own
@@ -236,6 +248,10 @@ export function applyLightmapsFromIndex(
     applied += 1
   }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)
-  const report = flippedFaces > 0 ? `${message}, ${flippedFaces} face(s) mirrored` : message
-  return { candidates, applied, detached, context: ctx, report, suspect }
+  const extras = [
+    flippedFaces > 0 ? `${flippedFaces} face(s) mirrored` : null,
+    conflictMeshes > 0 ? `${conflictMeshes} mesh(es) SKIPPED on uv1 conflict` : null,
+  ].filter(Boolean)
+  const report = extras.length ? `${message}, ${extras.join(', ')}` : message
+  return { candidates, applied, detached, conflicts: conflictMeshes, context: ctx, report, suspect }
 }

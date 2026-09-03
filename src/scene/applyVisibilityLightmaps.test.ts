@@ -312,3 +312,18 @@ describe('per-map scale', () => {
     }
   })
 })
+
+describe('conflict reporting (v0.31.7.130)', () => {
+  it('reports the conflict count, so a SKIPPED mesh is distinguishable from an unmatched one', () => {
+    // `conflicts` gated a `continue` since the UV builder existed and was never surfaced, so
+    // "skipped because a vertex straddles two atlas slots" and "no map for this key" looked
+    // identical from outside. Measured 0 on the real scene once reported, which eliminated it as
+    // the cause of the edge artefact — but only because it became visible.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
+    expect(res.conflicts).toBe(0)
+    expect(res.report).not.toContain('SKIPPED')
+  })
+})
