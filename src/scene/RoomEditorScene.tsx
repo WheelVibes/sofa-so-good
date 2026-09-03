@@ -70,7 +70,13 @@ export function RoomEditorScene() {
   // see the matching note on the main orbit Canvas in Scene.tsx.
   const dprMax = useQuality().dprMax
   const dprRange = useMemo<[number, number]>(() => [1, dprMax], [dprMax])
-  const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
+  const shadowMapType =
+    SHADOW_FILTER_THREE[
+      shadowFilterForTier(
+        useStore((s) => s.qualityTier),
+        useStore((s) => s.deviceClass),
+      )
+    ]
   const floorLevelsOn = useFeature('floorLevels')
   if (!roomId) return null
   const editorShell = getRoomEditorShell(plan, roomId)

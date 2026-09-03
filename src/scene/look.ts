@@ -6,7 +6,7 @@
  * returned by SunCalc (negative below the horizon, ~1.57 at zenith).
  */
 
-import type { RenderTier } from './quality'
+import { type DeviceClass, presetFor, type RenderTier } from './quality'
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
 const smoothstep = (a: number, b: number, x: number) => {
@@ -535,8 +535,13 @@ export type ShadowFilter = 'pcf' | 'vsm'
  * staying on the cheap filter also avoids VSM's receivers-also-cast material
  * recompiles on the flat default tier. Pure + unit-tested.
  */
-export function shadowFilterForTier(tier: RenderTier): ShadowFilter {
-  return tier === 'performance' ? 'pcf' : 'vsm'
+export function shadowFilterForTier(tier: RenderTier, device: DeviceClass): ShadowFilter {
+  // Keyed on whether there IS a shadow map, not on the mode name. Gating on the
+  // name looks equivalent and is not: the old `medium` rung rendered VSM, and it
+  // is now `performance`/`capable` — so `tier === 'performance' ? 'pcf' : 'vsm'`
+  // would have silently downgraded soft shadows for most users. Caught by
+  // `look.test.ts` during the two-mode collapse.
+  return presetFor(tier, device).shadowMapSize > 0 ? 'vsm' : 'pcf'
 }
 
 /** VSM sun-shadow tuning (PHOTO-SOFTSHADOW). `radius`/`blurSamples` drive the

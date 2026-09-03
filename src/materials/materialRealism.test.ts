@@ -11,14 +11,14 @@ import {
   windowTransmission,
 } from './materialRealism'
 
-const ALL_TIERS: RenderTier[] = ['performance', 'medium', 'high', 'maximum']
+const ALL_TIERS: RenderTier[] = ['performance', 'realistic']
 
 describe('transmissionTiers', () => {
   it('gates real transmission to High + Maximum only', () => {
     expect(transmissionTiers('performance')).toBe(false)
-    expect(transmissionTiers('medium')).toBe(false)
-    expect(transmissionTiers('high')).toBe(true)
-    expect(transmissionTiers('maximum')).toBe(true)
+    expect(transmissionTiers('performance')).toBe(false)
+    expect(transmissionTiers('realistic')).toBe(true)
+    expect(transmissionTiers('realistic')).toBe(true)
   })
 })
 
@@ -44,8 +44,8 @@ describe('glassConfig', () => {
     }
   })
 
-  it('returns refractive physical glass on High/Maximum', () => {
-    for (const tier of ['high', 'maximum'] as RenderTier[]) {
+  it('returns refractive physical glass in realistic', () => {
+    for (const tier of ['realistic'] as RenderTier[]) {
       const { physical, cheap } = glassConfig(tier, 0.3)
       expect(cheap).toBeNull()
       expect(physical).not.toBeNull()
@@ -57,21 +57,21 @@ describe('glassConfig', () => {
   })
 
   it('maps a clearer pane (lower opacity) to higher transmission', () => {
-    const clear = glassConfig('high', 0.1).physical
-    const frosted = glassConfig('high', 0.6).physical
+    const clear = glassConfig('realistic', 0.1).physical
+    const frosted = glassConfig('realistic', 0.6).physical
     expect(clear?.transmission ?? 0).toBeGreaterThan(frosted?.transmission ?? 1)
   })
 
   it('clamps transmission away from the degenerate ends', () => {
-    const veryClear = glassConfig('high', 0).physical
-    const veryFrosted = glassConfig('high', 1).physical
+    const veryClear = glassConfig('realistic', 0).physical
+    const veryFrosted = glassConfig('realistic', 1).physical
     expect(veryClear?.transmission).toBeLessThanOrEqual(0.98)
     expect(veryFrosted?.transmission).toBeGreaterThanOrEqual(0.55)
   })
 
   it('thickens the volume for tinted glass', () => {
-    const clear = glassConfig('high', 0.3, 0).physical
-    const tinted = glassConfig('high', 0.3, 1).physical
+    const clear = glassConfig('realistic', 0.3, 0).physical
+    const tinted = glassConfig('realistic', 0.3, 1).physical
     expect(tinted?.thickness ?? 0).toBeGreaterThan(clear?.thickness ?? 0)
   })
 })
@@ -173,11 +173,11 @@ describe('glassSkyCatchIntensity (RZ2)', () => {
 describe('windowGlassPhysical (PHOTO-GLASS)', () => {
   it('is null on Performance/Medium so cheap panes stay byte-identical', () => {
     expect(windowGlassPhysical('performance')).toBeNull()
-    expect(windowGlassPhysical('medium')).toBeNull()
+    expect(windowGlassPhysical('performance')).toBeNull()
   })
 
-  it('returns architectural-glass params on High/Maximum', () => {
-    for (const tier of ['high', 'maximum'] as const) {
+  it('returns architectural-glass params in realistic', () => {
+    for (const tier of ['realistic'] as const) {
       const p = windowGlassPhysical(tier)
       expect(p).not.toBeNull()
       expect(p?.ior).toBe(1.5)
@@ -214,11 +214,13 @@ describe('windowTransmission (day/night blend)', () => {
 })
 
 describe('transmissionResolutionScaleForTier', () => {
-  it('bounds the transmissive pass at 75% on High, full res elsewhere', () => {
-    expect(transmissionResolutionScaleForTier('high')).toBe(0.75)
-    expect(transmissionResolutionScaleForTier('maximum')).toBe(1)
-    // Inert (no transmission pass) on the cheap tiers — keep neutral 1.
-    expect(transmissionResolutionScaleForTier('performance')).toBe(1)
-    expect(transmissionResolutionScaleForTier('medium')).toBe(1)
+  it('bounds the transmissive pass at 75% on a weak device, full res elsewhere', () => {
+    // Parity: the old High rung took 0.75 and Maximum took 1, and those rungs are
+    // now `realistic`/weak and `realistic`/capable.
+    expect(transmissionResolutionScaleForTier('realistic', 'weak')).toBe(0.75)
+    expect(transmissionResolutionScaleForTier('realistic', 'capable')).toBe(1)
+    // Inert (no transmission pass) in performance — keep neutral 1.
+    expect(transmissionResolutionScaleForTier('performance', 'weak')).toBe(1)
+    expect(transmissionResolutionScaleForTier('performance', 'capable')).toBe(1)
   })
 })

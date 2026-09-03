@@ -58,16 +58,16 @@ describe('loading overlay state', () => {
     useStore.getState().setQualityTier('performance') // no change
     expect(useStore.getState().loading.active).toBe(false)
 
-    useStore.getState().setQualityTier('maximum')
-    expect(useStore.getState().qualityTier).toBe('maximum')
+    useStore.getState().setQualityTier('realistic')
+    expect(useStore.getState().qualityTier).toBe('realistic')
     expect(useStore.getState().loading.active).toBe(true)
-    expect(useStore.getState().loading.label).toMatch(/maximum/i)
+    expect(useStore.getState().loading.label).toMatch(/realistic/i)
   })
 
   it('re-selecting the already-active quality tier never flashes the overlay', () => {
-    useStore.getState().setQualityTier('medium')
+    useStore.getState().setQualityTier('performance')
     useStore.getState().hideLoading()
-    useStore.getState().setQualityTier('medium') // already active — must be a no-op
+    useStore.getState().setQualityTier('performance') // already active — must be a no-op
     expect(useStore.getState().loading.active).toBe(false)
   })
 })

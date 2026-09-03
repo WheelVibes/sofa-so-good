@@ -3,19 +3,14 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { isProfilerBenchmarkActive } from '../dev/profiler/benchmarkSignal'
 import { setProceduralBaseSize } from '../materials/procedural/generators'
 import { useStore } from '../state/store'
-import { classifyWindow, DEMOTE_WINDOWS, decideAutoTier } from './adaptiveTier'
+import { classifyWindow, DEMOTE_WINDOWS, decideAutoDevice } from './adaptiveTier'
 import {
   closeFrameCostSample,
   installFrameCostMeter,
   takeCostWindow,
   uninstallFrameCostMeter,
 } from './frameCost'
-import {
-  detectCapabilityCeiling,
-  detectDefaultTier,
-  type RenderTier,
-  shouldSampleFps,
-} from './quality'
+import { type DeviceClass, detectDeviceClass, shouldSampleFps } from './quality'
 import { useQuality } from './useQuality'
 
 /**
@@ -40,7 +35,7 @@ export function QualityController() {
 
   // The capability CEILING for this device — a best-effort veto the adaptive
   // ladder may not climb past, captured once (TIER-AUTODETECT).
-  const ceiling = useRef<RenderTier>('performance')
+  const ceiling = useRef<DeviceClass>('weak')
 
   // One-time boot pick. Skipped when the user pinned a tier, AND when prefs
   // restored a SETTLED tier — otherwise every reload would stomp a device that
@@ -48,10 +43,11 @@ export function QualityController() {
   // re-probe from scratch.
   useEffect(() => {
     const ctx = gl.getContext() as WebGLRenderingContext | WebGL2RenderingContext
-    ceiling.current = detectCapabilityCeiling(ctx)
-    const st = useStore.getState()
-    if (st.qualityUserSet || st.qualityAutoSettled) return
-    st.autoSetQualityTier(detectDefaultTier(ctx))
+    ceiling.current = detectDeviceClass(ctx)
+    useStore.getState().setDeviceClass(ceiling.current)
+    // No boot MODE pick any more: `BOOT_TIER` is the store's initial value, so a
+    // first visit is already there, and a returning visitor's persisted mode must
+    // not be stomped. Detection now only chooses the variant, above.
   }, [gl])
 
   // Apply the effective device-pixel-ratio clamp. This controller is the SOLE
@@ -153,15 +149,19 @@ export function QualityController() {
     }
 
     const st = useStore.getState()
-    const next = decideAutoTier(
-      { tier: st.qualityTier, autoMaxTier: st.autoMaxTier },
+    // The ladder now moves the DEVICE CLASS, not the mode: the mode is the user's
+    // intent and auto-adjust must not overrule it. A demotion here from
+    // `capable` to `weak` is exactly the old medium→performance step inside
+    // `performance`, and the old maximum→high step inside `realistic`.
+    const next = decideAutoDevice(
+      { device: st.deviceClass, autoMaxDevice: st.autoMaxDevice },
       ceiling.current,
       a.good,
       a.bad,
     )
     if (next) {
-      if (next.tier !== st.qualityTier) st.autoSetQualityTier(next.tier)
-      if (next.autoMaxTier !== st.autoMaxTier) st.setAutoMaxTier(next.autoMaxTier)
+      if (next.device !== st.deviceClass) st.setDeviceClass(next.device)
+      if (next.autoMaxDevice !== st.autoMaxDevice) st.setAutoMaxDevice(next.autoMaxDevice)
       // The evidence has been spent on this decision.
       a.good = 0
       a.bad = 0

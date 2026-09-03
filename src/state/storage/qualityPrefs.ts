@@ -21,7 +21,7 @@ import {
   DEFAULT_SCENE_SATURATION,
   DEFAULT_SCENE_WARMTH,
 } from '../../scene/look'
-import { RENDER_TIERS, type RenderTier } from '../../scene/quality'
+import { DEVICE_CLASSES, type DeviceClass, type RenderTier } from '../../scene/quality'
 import {
   DEFAULT_TONE_MAPPING_SETTING,
   TONE_MAPPING_SETTINGS,
@@ -37,11 +37,11 @@ export function loadQualityPrefs(): void {
     if (!raw) return
     const p = JSON.parse(raw) as {
       // Legacy prefs (≤ v1 tiers) used 'low' for the flat tier; migrate it.
-      tier?: 'low' | 'performance' | 'medium' | 'high' | 'maximum'
+      tier?: string
       overrides?: Record<string, unknown>
       userSet?: boolean
       assetTier?: 'low' | 'medium' | 'high' | null
-      autoMaxTier?: 'performance' | 'medium' | 'high' | 'maximum' | null
+      autoMaxDevice?: 'weak' | 'capable' | null
       autoSettled?: boolean
       toneMapping?: string
       exposure?: number
@@ -54,9 +54,24 @@ export function loadQualityPrefs(): void {
       verticalLock?: boolean
       parallelProjection?: boolean
     }
-    // Migrate the old flat tier name. Other names map 1:1 onto the new
-    // RenderTier union (medium/high unchanged; maximum is new).
-    const tier = p.tier === 'low' ? 'performance' : (p.tier ?? 'performance')
+    // Map every tier name this app has ever persisted onto the two modes.
+    //
+    // This is not a deprecation shim — the old modes are gone from the code
+    // entirely. It is input validation on data already sitting in browsers: a
+    // returning user's stored `'maximum'` has to land somewhere, and dropping it
+    // to the default would silently reset a preference they set deliberately.
+    // The mapping follows the parity pairing in `quality.ts`: the old High and
+    // Maximum are the two variants of `realistic`, and the old flat and Medium
+    // are the two variants of `performance`, so nobody's picture changes.
+    const LEGACY_TIERS: Record<string, RenderTier> = {
+      low: 'performance',
+      performance: 'performance',
+      medium: 'performance',
+      high: 'realistic',
+      maximum: 'realistic',
+      realistic: 'realistic',
+    }
+    const tier: RenderTier = LEGACY_TIERS[p.tier ?? ''] ?? 'performance'
     // Only accept a known tone-mapping setting (back-compat: absent → default
     // 'auto'; a legacy 'filmic'/'agx'/'neutral' is a valid setting and is kept
     // as an explicit user pick).
@@ -70,10 +85,12 @@ export function loadQualityPrefs(): void {
       qualityOverrides: (p.overrides as never) ?? {},
       // If they'd customised before, keep auto-adjust off so we honour it.
       qualityUserSet: !!p.userSet,
-      // TIER-ADAPTIVE: the learned ceiling (the tier that FAILED on this
-      // device). Only accept a value the current tier union knows.
-      autoMaxTier: RENDER_TIERS.includes(p.autoMaxTier as RenderTier)
-        ? (p.autoMaxTier as RenderTier)
+      // TIER-ADAPTIVE: the learned ceiling (the device class that FAILED here).
+      // A legacy value named a retired tier, which says nothing about the new
+      // axis, so it is discarded rather than guessed at — the ladder simply
+      // re-probes, which is what it is for.
+      autoMaxDevice: DEVICE_CLASSES.includes(p.autoMaxDevice as DeviceClass)
+        ? (p.autoMaxDevice as DeviceClass)
         : null,
       // A restored tier is a SETTLED tier — the adaptive ladder already ran on
       // this device. `QualityController` reads this to skip its one-time
@@ -121,7 +138,7 @@ export function watchQualityPrefs(): void {
       overrides: s.qualityOverrides,
       userSet: s.qualityUserSet,
       assetTier: s.assetTier,
-      autoMaxTier: s.autoMaxTier,
+      autoMaxDevice: s.autoMaxDevice,
       toneMapping: s.toneMapping,
       exposure: s.exposure,
       sceneWarmth: s.sceneWarmth,

@@ -1,22 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import {
-  AUTO_PROMOTE_CEILING,
-  type AutoTierState,
+  type AutoDeviceState,
   classifyWindow,
   DEMOTE_COST_MS,
   DEMOTE_WINDOWS,
-  decideAutoTier,
+  decideAutoDevice,
   effectiveCeiling,
   FRAME_BUDGET_MS,
   MIN_WINDOW_FRAMES,
-  minTier,
+  minDevice,
   PROMOTE_COST_MS,
   PROMOTE_WINDOWS,
 } from './adaptiveTier'
 
-const at = (tier: AutoTierState['tier'], autoMaxTier: AutoTierState['autoMaxTier'] = null) => ({
-  tier,
-  autoMaxTier,
+const at = (
+  device: AutoDeviceState['device'],
+  autoMaxDevice: AutoDeviceState['autoMaxDevice'] = null,
+) => ({
+  device,
+  autoMaxDevice,
 })
 
 const win = (p90: number, n = MIN_WINDOW_FRAMES) => ({ n, p50: p90, p90 })
@@ -61,76 +63,77 @@ describe('classifyWindow', () => {
   })
 })
 
-describe('minTier', () => {
+describe('minDevice', () => {
   it('orders by the canonical tier ladder', () => {
-    expect(minTier('performance', 'maximum')).toBe('performance')
-    expect(minTier('high', 'medium')).toBe('medium')
-    expect(minTier('high', 'high')).toBe('high')
+    expect(minDevice('weak', 'capable')).toBe('weak')
+    expect(minDevice('capable', 'weak')).toBe('weak')
+    expect(minDevice('capable', 'capable')).toBe('capable')
   })
 })
 
 describe('effectiveCeiling', () => {
   it('never exceeds the auto ceiling even on unrestricted hardware', () => {
-    expect(effectiveCeiling('maximum', null)).toBe(AUTO_PROMOTE_CEILING)
+    expect(effectiveCeiling('capable', null)).toBe('capable')
   })
 
   it('respects the capability veto', () => {
-    expect(effectiveCeiling('performance', null)).toBe('performance')
+    expect(effectiveCeiling('weak', null)).toBe('weak')
   })
 
   it('respects a learned ceiling', () => {
-    expect(effectiveCeiling('high', 'medium')).toBe('medium')
+    expect(effectiveCeiling('capable', 'weak')).toBe('weak')
   })
 
   it('takes the most restrictive of the three', () => {
-    expect(effectiveCeiling('performance', 'high')).toBe('performance')
-    expect(effectiveCeiling('high', 'performance')).toBe('performance')
+    expect(effectiveCeiling('weak', 'capable')).toBe('weak')
+    expect(effectiveCeiling('capable', 'weak')).toBe('weak')
   })
 })
 
-describe('decideAutoTier — demotion', () => {
+describe('decideAutoDevice — demotion', () => {
   it('steps down after the demote threshold', () => {
-    expect(decideAutoTier(at('high'), 'high', 0, DEMOTE_WINDOWS)).toEqual({
-      tier: 'medium',
-      autoMaxTier: 'medium',
+    expect(decideAutoDevice(at('capable'), 'capable', 0, DEMOTE_WINDOWS)).toEqual({
+      device: 'weak',
+      autoMaxDevice: 'weak',
     })
   })
 
   it('holds below the demote threshold', () => {
-    expect(decideAutoTier(at('high'), 'high', 0, DEMOTE_WINDOWS - 1)).toBeNull()
+    expect(decideAutoDevice(at('capable'), 'capable', 0, DEMOTE_WINDOWS - 1)).toBeNull()
   })
 
   it('records the failure as the learned ceiling', () => {
     // This — not a wider threshold — is what stops oscillation: the rung that
     // failed is never climbed back into.
-    const down = decideAutoTier(at('high'), 'high', 0, DEMOTE_WINDOWS)
-    expect(down?.autoMaxTier).toBe('medium')
-    expect(decideAutoTier(down!, 'high', PROMOTE_WINDOWS, 0)).toBeNull()
+    const down = decideAutoDevice(at('capable'), 'capable', 0, DEMOTE_WINDOWS)
+    expect(down?.autoMaxDevice).toBe('weak')
+    expect(decideAutoDevice(down!, 'capable', PROMOTE_WINDOWS, 0)).toBeNull()
   })
 
   it('cannot step below the lowest tier', () => {
-    expect(decideAutoTier(at('performance'), 'high', 0, DEMOTE_WINDOWS * 5)).toBeNull()
+    expect(decideAutoDevice(at('weak'), 'capable', 0, DEMOTE_WINDOWS * 5)).toBeNull()
   })
 
   it('prefers demotion over promotion when both thresholds are met', () => {
-    // A tier failing RIGHT NOW must come down even if good windows accumulated
-    // earlier in the session.
-    expect(decideAutoTier(at('medium'), 'high', PROMOTE_WINDOWS, DEMOTE_WINDOWS)?.tier).toBe(
-      'performance',
-    )
+    // A class failing RIGHT NOW must come down even if good windows accumulated
+    // earlier in the session. Started from `capable`, because `weak` is the floor
+    // and has nowhere to go — which is a different rule, tested above.
+    expect(
+      decideAutoDevice(at('capable'), 'capable', PROMOTE_WINDOWS, DEMOTE_WINDOWS)?.device,
+    ).toBe('weak')
   })
 })
 
-describe('decideAutoTier — promotion', () => {
+describe('decideAutoDevice — promotion', () => {
   it('steps up after the promote threshold', () => {
-    expect(decideAutoTier(at('medium'), 'high', PROMOTE_WINDOWS, 0)).toEqual({
-      tier: 'high',
-      autoMaxTier: null,
+    expect(decideAutoDevice(at('weak'), 'capable', PROMOTE_WINDOWS, 0)).toEqual({
+      device: 'capable',
+      autoMaxDevice: null,
     })
   })
 
   it('holds below the promote threshold', () => {
-    expect(decideAutoTier(at('medium'), 'high', PROMOTE_WINDOWS - 1, 0)).toBeNull()
+    expect(decideAutoDevice(at('weak'), 'capable', PROMOTE_WINDOWS - 1, 0)).toBeNull()
   })
 
   it('is slower to promote than to demote', () => {
@@ -140,52 +143,54 @@ describe('decideAutoTier — promotion', () => {
   })
 
   it('stops at the auto ceiling and never reaches maximum', () => {
-    const state = at(AUTO_PROMOTE_CEILING, null)
-    expect(decideAutoTier(state, 'maximum', PROMOTE_WINDOWS * 10, 0)).toBeNull()
+    const state = at('capable', null)
+    expect(decideAutoDevice(state, 'capable', PROMOTE_WINDOWS * 10, 0)).toBeNull()
   })
 
   it('never promotes past a capability veto', () => {
-    expect(decideAutoTier(at('performance'), 'performance', PROMOTE_WINDOWS * 10, 0)).toBeNull()
+    expect(decideAutoDevice(at('weak'), 'weak', PROMOTE_WINDOWS * 10, 0)).toBeNull()
   })
 
   it('does NOT set the learned ceiling on the way up', () => {
-    // `autoMaxTier` means "the rung that failed here". Setting it on a SUCCESS
+    // `autoMaxDevice` means "the rung that failed here". Setting it on a SUCCESS
     // would cap the ladder at the rung just reached, so performance→medium would
     // never continue to high. Boot memory is the persisted `tier` instead.
-    expect(decideAutoTier(at('medium'), 'high', PROMOTE_WINDOWS, 0)?.autoMaxTier).toBeNull()
-    expect(decideAutoTier(at('medium'), 'high', PROMOTE_WINDOWS, 0)?.tier).toBe('high')
+    expect(decideAutoDevice(at('weak'), 'capable', PROMOTE_WINDOWS, 0)?.autoMaxDevice).toBeNull()
+    expect(decideAutoDevice(at('weak'), 'capable', PROMOTE_WINDOWS, 0)?.device).toBe('capable')
   })
 
-  it('climbs one rung at a time', () => {
-    // Probing two rungs at once would risk a much larger stutter and give no
-    // information about the rung in between.
-    const first = decideAutoTier(at('performance'), 'high', PROMOTE_WINDOWS, 0)
-    expect(first?.tier).toBe('medium')
-    expect(decideAutoTier(first!, 'high', PROMOTE_WINDOWS, 0)?.tier).toBe('high')
+  it('climbs one rung and then holds at the top', () => {
+    // The ladder is two rungs now, so one step IS the whole climb. What still
+    // matters is that it stops: a second promotion attempt from the top must
+    // return null rather than stepping off the end of the array.
+    const first = decideAutoDevice(at('weak'), 'capable', PROMOTE_WINDOWS, 0)
+    expect(first?.device).toBe('capable')
+    expect(decideAutoDevice(first!, 'capable', PROMOTE_WINDOWS, 0)).toBeNull()
   })
 })
 
-describe('decideAutoTier — convergence', () => {
+describe('decideAutoDevice — convergence', () => {
   it('settles instead of oscillating when a rung keeps failing', () => {
     // Walk the ladder the way a device that can hold Medium but not High would:
     // promote, fail, demote — and then confirm it stays put no matter how much
     // good evidence accumulates afterwards.
-    let state: AutoTierState = at('medium')
-    state = decideAutoTier(state, 'high', PROMOTE_WINDOWS, 0) ?? state
-    expect(state.tier).toBe('high')
-    state = decideAutoTier(state, 'high', 0, DEMOTE_WINDOWS) ?? state
-    expect(state.tier).toBe('medium')
+    let state: AutoDeviceState = at('weak')
+    state = decideAutoDevice(state, 'capable', PROMOTE_WINDOWS, 0) ?? state
+    expect(state.device).toBe('capable')
+    state = decideAutoDevice(state, 'capable', 0, DEMOTE_WINDOWS) ?? state
+    expect(state.device).toBe('weak')
     for (let i = 0; i < 20; i++) {
-      const next = decideAutoTier(state, 'high', PROMOTE_WINDOWS, 0)
+      const next = decideAutoDevice(state, 'capable', PROMOTE_WINDOWS, 0)
       expect(next).toBeNull()
       state = next ?? state
     }
-    expect(state).toEqual({ tier: 'medium', autoMaxTier: 'medium' })
+    expect(state).toEqual({ device: 'weak', autoMaxDevice: 'weak' })
   })
 
   it('reaches the ceiling on hardware that sustains it', () => {
-    let state: AutoTierState = at('medium')
-    for (let i = 0; i < 5; i++) state = decideAutoTier(state, 'high', PROMOTE_WINDOWS, 0) ?? state
-    expect(state).toEqual({ tier: AUTO_PROMOTE_CEILING, autoMaxTier: null })
+    let state: AutoDeviceState = at('weak')
+    for (let i = 0; i < 5; i++)
+      state = decideAutoDevice(state, 'capable', PROMOTE_WINDOWS, 0) ?? state
+    expect(state).toEqual({ device: 'capable', autoMaxDevice: null })
   })
 })

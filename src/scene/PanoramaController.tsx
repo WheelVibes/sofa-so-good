@@ -54,7 +54,7 @@ export function PanoramaController() {
       // Keep the render loop pumping so the reveal fades actually animate.
       const releasePump = registerAnimatedSource()
       try {
-        store.setQualityTier('high')
+        store.setQualityTier('realistic')
         store.setQualityOverride('postprocessing', true)
         store.setQualityOverride('wallReveal', false)
 

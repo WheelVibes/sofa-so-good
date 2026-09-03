@@ -31,15 +31,11 @@ describe('uiSlice lights mode', () => {
     expect(useStore.getState().autoShadowsOff).toBe(false)
   })
 
-  it('cycleQuality steps performance → medium → high → maximum → performance', () => {
+  it('cycleQuality steps performance → realistic → performance', () => {
     useStore.getState().setQualityTier('performance')
     const cycle = () => useStore.getState().cycleQuality()
     cycle()
-    expect(useStore.getState().qualityTier).toBe('medium')
-    cycle()
-    expect(useStore.getState().qualityTier).toBe('high')
-    cycle()
-    expect(useStore.getState().qualityTier).toBe('maximum')
+    expect(useStore.getState().qualityTier).toBe('realistic')
     cycle()
     expect(useStore.getState().qualityTier).toBe('performance')
   })

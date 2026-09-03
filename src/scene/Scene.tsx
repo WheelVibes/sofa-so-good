@@ -126,7 +126,13 @@ export function Scene() {
   // in r3f state — see InteractiveDprController.tsx / QualityController.tsx.
   const dprMax = useQuality().dprMax
   const dprRange = useMemo<[number, number]>(() => [1, dprMax], [dprMax])
-  const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
+  const shadowMapType =
+    SHADOW_FILTER_THREE[
+      shadowFilterForTier(
+        useStore((s) => s.qualityTier),
+        useStore((s) => s.deviceClass),
+      )
+    ]
   const cameraMode = useStore((s) => s.cameraMode)
   return (
     <Canvas

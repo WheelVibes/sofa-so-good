@@ -35,7 +35,7 @@
  * frame (no precomputed tangents) for the tangent-space view vector.
  */
 import { MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
-import type { RenderTier } from '../scene/quality'
+import type { DeviceClass, RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
 import { isIblActive, NO_IBL_METALNESS } from './iblSignal'
 import { LruCache } from './materialLru'
@@ -61,20 +61,14 @@ export function pomEligiblePattern(pattern: ProceduralPattern): boolean {
 /** POM runs on High / Maximum only (shader ray-march cost). Performance / Medium
  *  stay on the flat normal-map path — byte-identical to before. */
 export function pomFloorTierEnabled(tier: RenderTier): boolean {
-  return tier === 'high' || tier === 'maximum'
+  return tier === 'realistic'
 }
 
 /** Ray-march step budget for a tier: 0 disables POM (Performance / Medium), High
  *  ~16, Maximum ~32 (finer relief, more cost). */
-export function pomStepsForTier(tier: RenderTier): number {
-  switch (tier) {
-    case 'maximum':
-      return 32
-    case 'high':
-      return 16
-    default:
-      return 0
-  }
+export function pomStepsForTier(tier: RenderTier, device: DeviceClass): number {
+  if (tier !== 'realistic') return 0
+  return device === 'capable' ? 32 : 16
 }
 
 /** Per-pattern parallax depth scale (in UV units) — how deep the grout / joint
@@ -240,8 +234,9 @@ const POM_CACHE = new LruCache<MeshStandardMaterial>({
 export function buildPomFloorMaterial(
   def: ProceduralMaterialDef,
   tier: RenderTier,
+  device: DeviceClass,
 ): MeshStandardMaterial {
-  const steps = pomStepsForTier(tier)
+  const steps = pomStepsForTier(tier, device)
   const scale = pomHeightScaleForPattern(def.pattern)
   const key = `${def.id}@pom@${steps}`
   const cached = POM_CACHE.get(key)
@@ -339,6 +334,7 @@ const POM_PHOTO_CACHE = new LruCache<MeshStandardMaterial>({
 export function buildPomPhotoFloorMaterial(
   def: TexturedMaterialDef,
   tier: RenderTier,
+  device: DeviceClass,
   textures: {
     albedo?: Texture
     normal?: Texture
@@ -348,7 +344,7 @@ export function buildPomPhotoFloorMaterial(
     displacement?: Texture
   },
 ): MeshStandardMaterial {
-  const steps = pomStepsForTier(tier)
+  const steps = pomStepsForTier(tier, device)
   const scale = POM_PHOTO_HEIGHT_SCALE
   const key = `${def.id}@pomphoto@${steps}@ibl${isIblActive() ? 1 : 0}`
   const cached = POM_PHOTO_CACHE.get(key)

@@ -193,9 +193,11 @@ export function useProceduralMaterial(def: ProceduralMaterialDef): MeshStandardM
  *  order); the tier subscription re-renders the floor when the tier changes. */
 export function useFloorProceduralMaterial(def: ProceduralMaterialDef): MeshStandardMaterial {
   const tier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   const pomOn = useFeature('pomFloors')
   const base = useProceduralMaterial(def)
-  if (pomFloorEligible(def.pattern, tier, pomOn)) return buildPomFloorMaterial(def, tier)
+  if (pomFloorEligible(def.pattern, tier, pomOn))
+    return buildPomFloorMaterial(def, tier, deviceClass)
   return base
 }
 
@@ -250,12 +252,13 @@ export function useTexturedMaterial(def: TexturedMaterialDef): MeshStandardMater
  *  The base hook is always called first so hook order stays stable. */
 export function useFloorTexturedMaterial(def: TexturedMaterialDef): MeshStandardMaterial {
   const tier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   const pomOn = useFeature('pomFloors')
   const base = useTexturedMaterial(def)
   if (!pomPhotoFloorEligible(def, tier, pomOn)) return base
   // Reuse the textures the base hook already loaded (drei's `useTexture` is
   // URL-keyed, so this is a cache hit, not a second download).
-  return buildPomPhotoFloorMaterial(def, tier, {
+  return buildPomPhotoFloorMaterial(def, tier, deviceClass, {
     albedo: base.map ?? undefined,
     normal: base.normalMap ?? undefined,
     roughness: base.roughnessMap ?? undefined,

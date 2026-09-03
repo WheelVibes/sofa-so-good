@@ -31,7 +31,9 @@ describe('qualityPrefs persistence', () => {
       JSON.stringify({ tier: 'maximum', overrides: {}, userSet: true }),
     )
     loadQualityPrefs()
-    expect(useStore.getState().qualityTier).toBe('maximum')
+    // A persisted `maximum` maps onto `realistic`, whose `capable` variant IS the
+    // old maximum preset — so the returning user's picture is unchanged.
+    expect(useStore.getState().qualityTier).toBe('realistic')
   })
 
   it('defaults asset tier to Auto (null) when absent from saved prefs', () => {

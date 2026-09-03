@@ -27,8 +27,8 @@ describe('Original (high) asset tier is lossless', () => {
   it('an explicit Original choice is never overridden by the render tier', () => {
     // Whatever the render tier (incl. the mobile/desktop default Performance),
     // an explicit high asset tier stays high — no device branch exists.
-    expect(effectiveAssetTier('high', 'performance')).toBe('high')
-    expect(effectiveAssetTier('high', 'medium')).toBe('high')
-    expect(effectiveAssetTier('high', 'maximum')).toBe('high')
+    expect(effectiveAssetTier('high', 'performance', 'weak')).toBe('high')
+    expect(effectiveAssetTier('high', 'performance', 'capable')).toBe('high')
+    expect(effectiveAssetTier('high', 'realistic', 'capable')).toBe('high')
   })
 })

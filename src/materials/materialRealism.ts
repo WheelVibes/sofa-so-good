@@ -16,14 +16,14 @@
  *    render pass), so it is **tier-gated**: only High / Maximum get true
  *    transmission; Performance / Medium keep the cheap transparent+opacity look.
  */
-import type { RenderTier } from '../scene/quality'
+import type { DeviceClass, RenderTier } from '../scene/quality'
 
 /** Render tiers that can afford real glass transmission (extra render pass).
  *  Performance + Medium stay on cheap transparency so the flat default and the
  *  mid tier never pay for it. Mirrors `mirrorReflectorConfig`'s High/Maximum
  *  gate. */
 export function transmissionTiers(tier: RenderTier): boolean {
-  return tier === 'high' || tier === 'maximum'
+  return tier === 'realistic'
 }
 
 /** Physical glass parameters for the transmission-capable tiers. `transmission`
@@ -168,8 +168,8 @@ export function windowTransmission(daylight: number): number {
  * full-wall window panes; Maximum keeps full res. Tiers without transmission
  * never render the pass, so the value is inert there — keep it 1.
  */
-export function transmissionResolutionScaleForTier(tier: RenderTier): number {
-  return tier === 'high' ? 0.75 : 1
+export function transmissionResolutionScaleForTier(tier: RenderTier, device: DeviceClass): number {
+  return tier === 'realistic' && device === 'weak' ? 0.75 : 1
 }
 
 /**

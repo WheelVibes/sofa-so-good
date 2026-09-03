@@ -85,12 +85,13 @@ export function Lighting() {
   // radius/blurSamples); the renderer-level filter switch lives in
   // ShadowFilterController — here we only feed the matching per-light params.
   const qualityTier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   // PHOTO-FILL: the flag ships the control; this is the user's setting.
   const photoFlag = useFeature('photographicFill')
   const photographicLook = useStore((s) => s.photographicLook) && photoFlag
   // Publish for the material factories, which live outside React.
   useEffect(() => setPhotographicLook(photographicLook), [photographicLook])
-  const shadowFilter = shadowFilterForTier(qualityTier)
+  const shadowFilter = shadowFilterForTier(qualityTier, deviceClass)
   const shadowParams = shadowParamsForFilter(shadowFilter)
   // IBL is on for Medium+ tiers; when it is, the procedural environment provides
   // ambient bounce, so the analytical hemisphere+ambient fill is dialled down to

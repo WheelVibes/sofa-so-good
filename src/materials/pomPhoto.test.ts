@@ -23,20 +23,22 @@ function def(textures: Partial<TexturedMaterialDef['textures']> = {}): TexturedM
 
 describe('pomPhotoFloorEligible', () => {
   it('needs a displacement map — a scan without one has no relief to march', () => {
-    expect(pomPhotoFloorEligible(def(), 'maximum', true)).toBe(false)
-    expect(pomPhotoFloorEligible(def({ displacement: 'height.webp' }), 'maximum', true)).toBe(true)
+    expect(pomPhotoFloorEligible(def(), 'realistic', true)).toBe(false)
+    expect(pomPhotoFloorEligible(def({ displacement: 'height.webp' }), 'realistic', true)).toBe(
+      true,
+    )
   })
 
   it('is gated to High / Maximum, matching the procedural path', () => {
     const d = def({ displacement: 'height.webp' })
     expect(pomPhotoFloorEligible(d, 'performance', true)).toBe(false)
-    expect(pomPhotoFloorEligible(d, 'medium', true)).toBe(false)
-    expect(pomPhotoFloorEligible(d, 'high', true)).toBe(true)
-    expect(pomPhotoFloorEligible(d, 'maximum', true)).toBe(true)
+    expect(pomPhotoFloorEligible(d, 'performance', true)).toBe(false)
+    expect(pomPhotoFloorEligible(d, 'realistic', true)).toBe(true)
+    expect(pomPhotoFloorEligible(d, 'realistic', true)).toBe(true)
   })
 
   it('respects the pomFloors flag', () => {
-    expect(pomPhotoFloorEligible(def({ displacement: 'h.webp' }), 'maximum', false)).toBe(false)
+    expect(pomPhotoFloorEligible(def({ displacement: 'h.webp' }), 'realistic', false)).toBe(false)
   })
 
   it('reads runtimeUrls when present (hydrated user/remote material)', () => {
@@ -46,7 +48,7 @@ describe('pomPhotoFloorEligible', () => {
       ...def(),
       runtimeUrls: { albedo: 'blob:a', displacement: 'blob:h' },
     }
-    expect(pomPhotoFloorEligible(d, 'high', true)).toBe(true)
+    expect(pomPhotoFloorEligible(d, 'realistic', true)).toBe(true)
   })
 
   it('does not fall back to a procedural height scale', () => {

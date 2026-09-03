@@ -29,6 +29,78 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.68 — four render tiers become two modes × two device classes, with parity proved rather than asserted
+
+`high` and `maximum` are gone, along with `medium`. There are now two **modes** — `performance` and
+`realistic` — and a separate **device class** (`weak` | `capable`) that scales whichever mode is
+active. Nothing is deprecated; the old names exist only in a read-time map for `localStorage`.
+
+**The measurement that decided the shape.** Baselines captured from the pre-refactor build before
+anything was touched (mainBedroom, VH=720, lights off, `img-diff.mjs`):
+
+| pair | mean difference |
+| --- | --- |
+| performance vs medium | **24.3 counts** |
+| medium vs high | **17.6 counts** |
+| high vs maximum | **2.5 counts** |
+
+The old top two rungs were nearly the same picture — which is what made retiring one safe. But
+`medium` is 17-24 counts from both neighbours and its own docstring called it the rung "the adaptive
+ladder auto-selects for most browsers", so folding it into either single mode would have changed
+what **most users see**. Keeping it as `performance`/`capable` is what makes the collapse invisible.
+
+**So the four reachable settings objects are the four old presets, exactly.**
+
+| mode / class | is byte-identical to the old |
+| --- | --- |
+| `performance` / `weak` | `performance` |
+| `performance` / `capable` | **`medium`** |
+| `realistic` / `weak` | `high` |
+| `realistic` / `capable` | `maximum` |
+
+`quality.test.ts` pins this against **hardcoded copies** of the retired presets — not regenerated
+from the new table, which would be tautological — plus an assertion that exactly four *distinct*
+objects are reachable, so neither a fifth look nor a lost one can slip in.
+
+**And verified end-to-end, not just in unit tests.** Re-rendering the same pose after the refactor:
+new `performance` vs old **medium** is **0.008 counts** and new `realistic` vs old **maximum** is
+**0.159 counts** — pixel-identical. (This machine detects as `capable`, which is why those are the
+two it must match: the old ladder booted `medium` on capable hardware.)
+
+**The adaptive ladder now steps the device class, not the mode**, because the mode is user intent
+and auto-adjust must not overrule it. Every demotion maps onto an old one: `performance/capable →
+weak` *is* the old medium→performance step, and `realistic/capable → weak` is maximum→high.
+`AUTO_PROMOTE_CEILING` is deleted — it existed only to keep the ladder out of `maximum`, and
+reaching the cinematic settings is now the user picking `realistic`.
+
+**Two real bugs the work surfaced, both of which would have shipped silently:**
+
+- **`shadowFilterForTier` gated on the mode name.** `tier === 'performance' ? 'pcf' : 'vsm'` reads
+  as equivalent and is not: old `medium` rendered VSM and is now `performance`/`capable`, so most
+  users would have quietly lost soft shadows. It now keys on `shadowMapSize > 0`, which is the
+  actual condition. Caught by `look.test.ts`.
+- **A missing `useEffect` dependency.** `RendererTierController` reads `deviceClass` for both the
+  transmission scale and the shadow filter, so without it in the deps an adaptive step would leave
+  the renderer on the old filter until the mode changed. Caught by biome, not by me.
+
+**Dead code removed rather than left behind:** `capabilityCeilingTier` → `deviceClassFor`,
+`detectCapabilityCeiling` → `detectDeviceClass`, `minTier` → `minDevice`, `decideAutoTier` →
+`decideAutoDevice`, `AutoTierState` → `AutoDeviceState`, `autoMaxTier` → `autoMaxDevice`. And
+`initialAutoTier` / `detectDefaultTier` are **deleted**: after the collapse both ignored their
+`DeviceCapabilities` argument and returned a constant, so they are now one documented
+`BOOT_TIER`. A function that ignores its only argument is a constant wearing a costume. `knip`
+reports no unused exports.
+
+**Persisted preferences are mapped, not dropped.** A browser holding `'maximum'` resolves to
+`'realistic'`, `'medium'`/`'low'` to `'performance'`. That is input validation on data already in
+the wild, not a compatibility shim in the API — dropping it to the default would silently reset a
+preference someone set deliberately. A legacy `autoMaxTier` IS discarded: it names a retired rung
+and says nothing about the new axis, so the ladder re-probes, which is what it is for.
+
+Suite **10081 green**, `tsc` clean, biome clean, `knip` clean. 35 files, and TypeScript enumerated
+every one of them — which is the mechanism that made "make sure nothing breaks" checkable rather
+than hopeful.
+
 ## v0.31.7.67 — the cheap proxy for baked irradiance has a knob the real bake does not, so it cannot decide the question
 
 Phase 1 asks whether baked **irradiance** fixes what baked **visibility** could not. Before spending

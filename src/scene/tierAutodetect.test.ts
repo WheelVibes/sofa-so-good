@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  capabilityCeilingTier,
+  BOOT_TIER,
+  DEVICE_CLASSES,
   type DeviceCapabilities,
-  detectDefaultTier,
+  deviceClassFor,
   FPS_GUARD_WARMUP_MS,
-  initialAutoTier,
   RENDER_TIERS,
   shouldSampleFps,
 } from './quality'
@@ -15,27 +15,14 @@ function caps(over: Partial<DeviceCapabilities> = {}): DeviceCapabilities {
 }
 
 describe('capabilityCeilingTier (TIER-AUTODETECT — a veto, not a claim)', () => {
-  it('never vetoes above high — maximum is always an explicit user choice', () => {
-    const samples: DeviceCapabilities[] = [
-      caps({ renderer: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)' }),
-      caps({ renderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11)' }),
-      caps(),
-      caps({ coarsePointer: true }),
-    ]
-    for (const c of samples) {
-      expect(['performance', 'medium', 'high']).toContain(capabilityCeilingTier(c))
-      expect(capabilityCeilingTier(c)).not.toBe('maximum')
-    }
-  })
-
-  it('always returns a real tier', () => {
-    expect(RENDER_TIERS).toContain(capabilityCeilingTier(caps()))
+  it('always returns a real device class', () => {
+    expect(DEVICE_CLASSES).toContain(deviceClassFor(caps()))
   })
 
   it('does not treat an UNKNOWN core count as weak', () => {
     // Privacy-hardened browsers report 0/undefined; that must not read as a
     // 2-core machine and silently veto everyone back to the flat tier.
-    expect(capabilityCeilingTier(caps({ cores: 0 }))).toBe('high')
+    expect(deviceClassFor(caps({ cores: 0 }))).toBe('capable')
   })
 
   describe('software rasterisers fall back to the flat tier', () => {
@@ -49,7 +36,7 @@ describe('capabilityCeilingTier (TIER-AUTODETECT — a veto, not a claim)', () =
     ]
     for (const renderer of software) {
       it(renderer.slice(0, 40), () => {
-        expect(capabilityCeilingTier(caps({ renderer }))).toBe('performance')
+        expect(deviceClassFor(caps({ renderer }))).toBe('weak')
       })
     }
   })
@@ -57,17 +44,15 @@ describe('capabilityCeilingTier (TIER-AUTODETECT — a veto, not a claim)', () =
   it('keeps phones and tablets on the flat tier', () => {
     // Thermals and fill rate bind on mobile, not peak capability — and a phone
     // can report a "strong"-looking renderer string.
-    expect(capabilityCeilingTier(caps({ coarsePointer: true, renderer: 'Apple GPU' }))).toBe(
-      'performance',
-    )
+    expect(deviceClassFor(caps({ coarsePointer: true, renderer: 'Apple GPU' }))).toBe('weak')
   })
 
   it('keeps pre-WebGL2 devices on the flat tier', () => {
-    expect(capabilityCeilingTier(caps({ webgl2: false }))).toBe('performance')
+    expect(deviceClassFor(caps({ webgl2: false }))).toBe('weak')
   })
 
   it('keeps very low core counts on the flat tier', () => {
-    expect(capabilityCeilingTier(caps({ cores: 2 }))).toBe('performance')
+    expect(deviceClassFor(caps({ cores: 2 }))).toBe('weak')
   })
 
   it('expresses "no opinion" as high, so measurement decides', () => {
@@ -81,50 +66,31 @@ describe('capabilityCeilingTier (TIER-AUTODETECT — a veto, not a claim)', () =
       'ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11)',
     ]
     for (const renderer of noVeto) {
-      expect(capabilityCeilingTier(caps({ renderer }))).toBe('high')
+      expect(deviceClassFor(caps({ renderer }))).toBe('capable')
     }
   })
 
   it('matches renderer names case-insensitively', () => {
-    expect(capabilityCeilingTier(caps({ renderer: 'SWIFTSHADER' }))).toBe('performance')
-    expect(capabilityCeilingTier(caps({ renderer: 'LLVMpipe' }))).toBe('performance')
+    expect(deviceClassFor(caps({ renderer: 'SWIFTSHADER' }))).toBe('weak')
+    expect(deviceClassFor(caps({ renderer: 'LLVMpipe' }))).toBe('weak')
   })
 
   it('spots a software rasteriser even when the string also names real hardware', () => {
-    expect(capabilityCeilingTier(caps({ renderer: 'SwiftShader emulating GeForce' }))).toBe(
-      'performance',
-    )
+    expect(deviceClassFor(caps({ renderer: 'SwiftShader emulating GeForce' }))).toBe('weak')
   })
 })
 
-describe('initialAutoTier — the conservative FIRST-VISIT tier', () => {
-  it('boots medium when nothing is vetoed', () => {
-    // Medium is measurably free on capable hardware (vsync-capped 60fps, same as
-    // the flat tier) while adding sun shadows + the IBL probe.
-    expect(initialAutoTier(caps())).toBe('medium')
-    expect(initialAutoTier(caps({ renderer: 'Apple M4' }))).toBe('medium')
-  })
-
-  it('boots performance whenever the capability guard vetoes', () => {
-    expect(initialAutoTier(caps({ coarsePointer: true }))).toBe('performance')
-    expect(initialAutoTier(caps({ renderer: 'SwiftShader' }))).toBe('performance')
-    expect(initialAutoTier(caps({ webgl2: false }))).toBe('performance')
-    expect(initialAutoTier(caps({ cores: 2 }))).toBe('performance')
-  })
-
-  it('never boots into a post-processing tier unmeasured', () => {
-    // The ladder has to earn High by measurement; nobody starts there.
-    for (const c of [caps(), caps({ renderer: 'Apple M4' }), caps({ coarsePointer: true })]) {
-      expect(['performance', 'medium']).toContain(initialAutoTier(c))
-    }
-  })
-})
-
-describe('detectDefaultTier', () => {
-  it('falls back to the flat tier with no context', () => {
-    // `resolveQuality` calls this with no argument when a PERSISTED tier is
-    // unrecognised — there is no device to inspect, so take the safe floor.
-    expect(detectDefaultTier()).toBe('performance')
+describe('BOOT_TIER', () => {
+  it('is the performance mode on every device — capability picks the variant', () => {
+    // This replaced `initialAutoTier`, which after the two-mode collapse ignored
+    // its `DeviceCapabilities` argument entirely. Not a behaviour change: the old
+    // boot rung was `medium` on capable hardware, and that preset is now
+    // `performance`/`capable`, so a capable machine still boots with sun shadows
+    // and the IBL probe.
+    expect(BOOT_TIER).toBe('performance')
+    expect(RENDER_TIERS).toContain(BOOT_TIER)
+    expect(deviceClassFor(caps({ renderer: 'Apple M4' }))).toBe('capable')
+    expect(deviceClassFor(caps({ coarsePointer: true }))).toBe('weak')
   })
 })
 

@@ -9,7 +9,7 @@ import {
   DEFAULT_SCENE_SATURATION,
   DEFAULT_SCENE_WARMTH,
 } from '../../scene/look'
-import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
+import type { AssetTier, DeviceClass, QualitySettings, RenderTier } from '../../scene/quality'
 import { QUALITY_LABEL, RENDER_TIERS, resolveQuality } from '../../scene/quality'
 
 /**
@@ -88,8 +88,13 @@ export interface UiSlice {
   /** True once the user picks a tier manually — stops the adaptive monitor
    *  from overriding their choice. */
   qualityUserSet: boolean
-  /** Per-setting overrides layered on top of the active tier preset. */
+  /** Per-setting overrides layered on top of the active mode preset. */
   qualityOverrides: Partial<QualitySettings>
+  /** Which variant of the active mode to render. Detected on boot and moved by
+   *  the adaptive monitor; it scales a mode rather than replacing it, so a
+   *  struggling machine drops resolution and effects without changing the mode
+   *  the user chose. */
+  deviceClass: DeviceClass
   /** GLB asset detail (mesh/texture LOD), decoupled from the render tier.
    *  `null` = Auto (follow `qualityTier`); an explicit tier pins asset detail
    *  independently and is immune to the FPS auto-downgrade. */
@@ -204,8 +209,8 @@ export interface UiSlice {
    *  reach on THIS device, recorded when a tier FAILS. `null` = nothing learned
    *  yet. Persisted per-device by `qualityPrefs` so a device that already proved
    *  it can't hold a tier never probes it again. */
-  autoMaxTier: RenderTier | null
-  /** True once a SETTLED tier has been restored from persisted prefs, so the
+  autoMaxDevice: DeviceClass | null
+  /** True once a SETTLED value has been restored from persisted prefs, so the
    *  one-time capability boot pick must not overwrite it (TIER-ADAPTIVE). */
   qualityAutoSettled: boolean
   /** Bumped whenever a DLC/catalog furniture material finishes building into
@@ -261,12 +266,14 @@ export interface UiSlice {
   toggleShowFps: () => void
   /** Manual tier change — clears overrides and marks qualityUserSet. */
   setQualityTier: (t: RenderTier) => void
-  /** Cycle Performance → Medium → High → Maximum → Performance (manual). */
+  /** Cycle Performance → Realistic → Performance (manual). */
   cycleQuality: () => void
   /** Adaptive auto-adjust (does not set qualityUserSet). */
   autoSetQualityTier: (t: RenderTier) => void
+  /** Adaptive device-class adjust (does not set qualityUserSet). */
+  setDeviceClass: (d: DeviceClass) => void
   /** Record the TIER-ADAPTIVE learned ceiling (does not set qualityUserSet). */
-  setAutoMaxTier: (t: RenderTier | null) => void
+  setAutoMaxDevice: (d: DeviceClass | null) => void
   /** Override a single quality setting (marks qualityUserSet). */
   setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void
   /** Drop all overrides so settings follow the tier preset again. */
@@ -323,7 +330,8 @@ export const UI_INITIAL: Pick<
   | 'wallRevealScope'
   | 'drawingLayers'
   | 'autoShadowsOff'
-  | 'autoMaxTier'
+  | 'autoMaxDevice'
+  | 'deviceClass'
   | 'qualityAutoSettled'
   | 'backdrop'
   | 'hdriId'
@@ -358,6 +366,9 @@ export const UI_INITIAL: Pick<
   qualityTier: 'performance',
   qualityUserSet: false,
   qualityOverrides: {},
+  // `weak` until a live GL context is inspected: the safe floor, and the same
+  // choice the retired `detectCapabilityCeiling` made with no context.
+  deviceClass: 'weak' as DeviceClass,
   assetTier: null,
   toneMapping: DEFAULT_TONE_MAPPING_SETTING,
   exposure: DEFAULT_EXPOSURE,
@@ -371,7 +382,7 @@ export const UI_INITIAL: Pick<
   wallRevealScope: 'exterior' as const,
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
-  autoMaxTier: null,
+  autoMaxDevice: null,
   qualityAutoSettled: false,
   snapEnabled: false,
   gridSize: 0.5,
@@ -511,7 +522,8 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
-  setAutoMaxTier: (t) => set({ autoMaxTier: t }),
+  setAutoMaxDevice: (d) => set({ autoMaxDevice: d }),
+  setDeviceClass: (d) => set({ deviceClass: d }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),
