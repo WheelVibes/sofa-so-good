@@ -109,6 +109,22 @@ describe('applyLightmapsFromIndex', () => {
     expect(loud.report).toContain('ZERO matched')
   })
 
+  it('threads a gain override through to the material patch', () => {
+    // The bisect seam (`?aoGain=` in DEV). Verified by compiling the patch callback and
+    // reading the uniform, because a gain that silently fails to arrive would look exactly
+    // like a term that is too weak -- which is the open question it exists to answer.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, { gain: 42 })
+    const shader = {
+      uniforms: {} as Record<string, { value: number }>,
+      fragmentShader: 'void main() {\n#include <aomap_fragment>\n}',
+    }
+    ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
+    expect(shader.uniforms.aoGain.value).toBe(42)
+  })
+
   it('does not re-create uv1 that already exists', () => {
     // Re-running must be cheap and must not clobber a bake-matched attribute.
     const root = new Object3D()

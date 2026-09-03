@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.34 — the gain demonstrably works; six hypotheses eliminated and the discrepancy survives all of them
+
+The named next step from `v0.31.7.33`, run: a DEV-only `?aoGain=<n>` bisect seam, added to the
+mount and threaded through `applyLightmapsFromIndex`.
+
+**The shader reads the gain.** Frame mean with the flag on: **gain 6 → 99.78, gain 60 → 125.59**,
+against a baseline of 115.64. A 10× gain moves the frame by 26 counts and crosses the baseline, so
+the map is sampled, the uniform arrives, and the patched program is the one in use. That was the
+last remaining doubt about the mechanism itself.
+
+**And the discrepancy is still there.** The probe applying the *same* maps at the *same* gain
+measured **72.43 / 1.36×**; the wired path measures **99.78 / 4.75×**. Six hypotheses have now
+been tested and refuted:
+
+| hypothesis | how it was refuted |
+| --- | --- |
+| texture decode timing | all 127 decoded by 2 s; a 12 s settle changes nothing |
+| raw `attribute.array` vs accessors | fixed anyway; moved the numbers by 0.02 |
+| different material/UV state | 11 properties dumped, all identical (`v0.31.7.33`) |
+| shader-compile failures in one path | **0** shader errors logged in either |
+| gain not reaching the shader | 10× gain moves the frame 26 counts |
+| maps dropped by later state changes | 127/118 unchanged through hour, look and walk-mode switches |
+| the two map sets differing | byte-identical: same 111 files, same md5, same index |
+
+**That last one is the check I should have run first**, and it is the cheapest of the seven. It
+cost nothing and would have retired an entire class of doubt at any point in the last three
+rounds.
+
+**What is left, stated as the single remaining tool rather than another guess:** read back the
+*compiled fragment source* for a known wall material through the WebGL context and diff it against
+the probe's. Every input to the shader is now verified identical, so the difference has to be in
+the program text or in which program a given draw call uses — and that is the one thing not yet
+looked at directly.
+
+**Kept as a real seam, not scaffolding.** `?aoGain=` is DEV-only and tested (the patch callback is
+compiled in a test and the uniform read back), because a gain that silently fails to arrive looks
+exactly like a term that is too weak — which is precisely the open question. It is also the knob
+the eventual look call will want.
+
+**Nothing at risk.** Flag off by default; with it off the render is byte-identical to baseline;
+60 fps unaffected. Suite **10046 green**; `tsc`, biome, knip clean.
+
 ## v0.31.7.33 — the wired state is verified IDENTICAL to the probe's, and the render still differs. Diagnosis parked with a named next step
 
 `v0.31.7.32` left the mounted feature delivering ~40 % of the probe's darkening and none of its

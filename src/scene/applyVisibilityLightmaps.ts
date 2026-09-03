@@ -27,6 +27,13 @@ import { applyVisibilityLightmap } from './visibilityLightmap'
  *  `npm run deadcode`. */
 const LIGHTMAP_BASE = `${import.meta.env.BASE_URL}assets/lightmaps`
 
+export interface ApplyOptions {
+  baseUrl?: string
+  expectCoverage?: boolean
+  /** Override the fitted `VISIBILITY_GAIN`. Diagnostic only — see `VisibilityLightmaps`. */
+  gain?: number
+}
+
 export interface ApplyResult {
   /** Meshes considered — large enough, and carrying a material with an `aoMap` slot. */
   candidates: number
@@ -91,7 +98,7 @@ export function applyLightmapsFromIndex(
   root: Object3D,
   index: LightmapIndex,
   loadTexture: (url: string) => Texture,
-  { baseUrl = LIGHTMAP_BASE, expectCoverage = false } = {},
+  { baseUrl = LIGHTMAP_BASE, expectCoverage = false, gain }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
   root.updateMatrixWorld(true)
@@ -130,7 +137,7 @@ export function applyLightmapsFromIndex(
       if (conflicts > 0) return
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
-    applyVisibilityLightmap(o.material as never, loadTexture(url))
+    applyVisibilityLightmap(o.material as never, loadTexture(url), gain)
     applied += 1
   })
   const { message, suspect } = resolver.describeHitRate(expectCoverage)

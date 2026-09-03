@@ -62,7 +62,17 @@ export function VisibilityLightmaps() {
         cache.set(url, tex)
         return tex
       }
-      const result = applyLightmapsFromIndex(scene, parsed.index, load)
+      // DEV-only gain override, `?aoGain=<n>`. Exists as a BISECT TOOL: `v0.31.7.32`/`.33`
+      // found the mounted path delivering ~40 % of the effect the probe measured with the same
+      // maps, the same gain and verifiably identical material state, and the remaining question
+      // is whether the patched shader responds to the gain at all. Driving it to an extreme
+      // answers that in one run. It doubles as the knob the eventual look call will want.
+      const gainOverride = import.meta.env.DEV
+        ? Number(new URLSearchParams(window.location.search).get('aoGain'))
+        : Number.NaN
+      const result = applyLightmapsFromIndex(scene, parsed.index, load, {
+        gain: Number.isFinite(gainOverride) && gainOverride > 0 ? gainOverride : undefined,
+      })
       if (import.meta.env.DEV || result.suspect) {
         const log = result.suspect ? console.warn : console.info
         log(`${result.report} — applied to ${result.applied}/${result.candidates} candidates`)
