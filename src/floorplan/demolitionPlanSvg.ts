@@ -35,7 +35,7 @@
 import type { WallDiff } from './demolitionPlan'
 import { permitNotes } from './permitNotes'
 import type { HousingType, PlanWall } from './types'
-import { establishedWallStructure, isDemolitionRestricted } from './wallHackability'
+import { establishedWallStructureInPlan, isDemolitionRestricted } from './wallHackability'
 
 interface DemolitionPalette {
   /** Kept walls (unchanged). */
@@ -64,6 +64,12 @@ export interface DemolitionSvgOpts {
    *  HDB permit path, the Condominium MCST path, and the Landed BCA-direct
    *  path. Defaults to the HDB text (prior universal behaviour) when unset. */
   housingType?: HousingType
+  /** Ids of walls bounding a household shelter (`shelterWallIds(plan)`). A
+   *  hacking plan MUST mark these NOT PERMITTED: SCDF forbids hacking any part
+   *  of a household shelter's RC walls, and no permit or PE endorsement lifts
+   *  that. Omitted → no shelter rule applied (a diff on a plan with no shelter,
+   *  and the prior behaviour). */
+  shelterWalls?: ReadonlySet<string>
 }
 
 /** Padding (metres) around the wall bounds. */
@@ -124,9 +130,13 @@ function wallBounds(walls: PlanWall[]): Bounds {
 // nobody declared it, and every shipped template leaves `structure` unset
 // (v0.31.8.4). Reading `w.structure` directly reported a flat's own facade as
 // "Unclassified".
-const isStructural = (w: PlanWall) => isDemolitionRestricted(establishedWallStructure(w))
+const EMPTY_SHELTER: ReadonlySet<string> = new Set<string>()
+
+const isStructuralIn = (w: PlanWall, shelter: ReadonlySet<string>) =>
+  isDemolitionRestricted(establishedWallStructureInPlan(w, shelter))
 /** Absent `structure` means the SAME thing as an explicit `'unknown'`. */
-const isUnverified = (w: PlanWall) => (establishedWallStructure(w) ?? 'unknown') === 'unknown'
+const isUnverifiedIn = (w: PlanWall, shelter: ReadonlySet<string>) =>
+  (establishedWallStructureInPlan(w, shelter) ?? 'unknown') === 'unknown'
 
 /**
  * Render a hacking plan as a standalone SVG string. Plan metres map to pixels
@@ -134,6 +144,9 @@ const isUnverified = (w: PlanWall) => (establishedWallStructure(w) ?? 'unknown')
  */
 export function demolitionSvg(diff: WallDiff, opts: DemolitionSvgOpts): string {
   const { palette } = opts
+  const shelter = opts.shelterWalls ?? EMPTY_SHELTER
+  const isStructural = (w: PlanWall) => isStructuralIn(w, shelter)
+  const isUnverified = (w: PlanWall) => isUnverifiedIn(w, shelter)
   const widthPx = opts.widthPx && opts.widthPx > 0 ? opts.widthPx : 800
 
   const all = [...diff.kept, ...diff.demolished, ...diff.added]

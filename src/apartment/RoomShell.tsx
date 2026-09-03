@@ -2,7 +2,7 @@ import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { type Mesh, type MeshStandardMaterial, Vector2 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../features/useFeature'
-import { establishedWallStructure } from '../floorplan/wallHackability'
+import { establishedWallStructureInPlan, shelterWallIds } from '../floorplan/wallHackability'
 import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import type {
   MaterialId,
@@ -43,6 +43,7 @@ import { useWallTexTransform } from './walls/wallTexTransform'
  *  room (IKEA-planner-style camera-facing wall reveal, matching orbit mode). */
 function WallBox({
   wall,
+  shelterWalls,
   center,
   material,
   roomId,
@@ -56,6 +57,8 @@ function WallBox({
   cornerWallIds,
 }: {
   wall: ClippedWall
+  /** Ids of walls bounding a household shelter — see `shelterWallIds`. */
+  shelterWalls: ReadonlySet<string>
   center: [number, number]
   material: MeshStandardMaterial
   /** The isolated room this clipped wall belongs to (finish-drop target tag). */
@@ -183,7 +186,15 @@ function WallBox({
   const wallTypes3dFlag = useFeature('wallTypes3d')
   const showWallTypes = useStore((s) => s.showWallTypes)
   // Resolved (v0.31.8.4) — see `PlanShell.tsx`; both views must agree.
-  const overlayColor = wallTypeOverlayColor(establishedWallStructure(wall.spec))
+  // Plan-aware, matching `PlanShell` and the 2D `HackabilityLayer`: a household
+  // shelter's RC walls must tint identically in all three. `ClippedWall.spec`
+  // carries no id, so the source `wallId` is what the shelter set is keyed on.
+  const overlayColor = wallTypeOverlayColor(
+    establishedWallStructureInPlan(
+      { id: wall.wallId, structure: wall.spec.structure, thickness: wall.spec.thickness },
+      shelterWalls,
+    ),
+  )
   const showWallTypeJacket = wallTypes3dFlag && showWallTypes && overlayColor !== null
 
   if (len < 1e-6) return null
@@ -221,6 +232,9 @@ function WallBox({
 // kind exactly like the floor path so procedural/textured/solid all work.
 interface WallDispatchProps {
   wall: ClippedWall
+  /** Ids of walls bounding a household shelter — `shelterWallIds(plan)`, resolved
+   *  once by the parent so the per-room boundary walk isn't repeated per wall. */
+  shelterWalls: ReadonlySet<string>
   center: [number, number]
   roomId: string
   startAbut: number
@@ -347,6 +361,11 @@ function cornerMiters(
  *  (with accent-wall overrides). Lightweight: no ceiling, no skirting, no
  *  exterior. Windows/doors are filtered to the room's own openings. */
 export function RoomShell({ shell }: { shell: RoomShellData }) {
+  // Wall ids bounding a household shelter — resolved once here, not per wall
+  // (the walk is per-room), and handed down so the 3D Wall-types tint agrees
+  // with `PlanShell` and the 2D `HackabilityLayer` on the same wall.
+  const shelterPlan = useStore((s) => s.floorPlan)
+  const shelterWalls = useMemo(() => shelterWallIds(shelterPlan), [shelterPlan])
   const roomId = shell.roomId
   const floorFinish = useStore((s) => s.finishes.floor[roomId])
   const wallFinish = useStore((s) => s.finishes.walls[roomId])
@@ -386,6 +405,7 @@ export function RoomShell({ shell }: { shell: RoomShellData }) {
             // wall finish, matching WallSegment's resolution.
             materialId={wallAccents[`${w.wallId}:${roomId}`] ?? wallFinish}
             wall={w}
+            shelterWalls={shelterWalls}
             center={shell.center}
             roomId={roomId}
             startAbut={cm.startAbut}

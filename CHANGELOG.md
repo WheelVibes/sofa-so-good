@@ -27,6 +27,68 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.26 — A household shelter's walls are NOT PERMITTED, not "Unclassified"
+
+`wallHackability.ts` recorded this as blocked: *"Household-shelter walls ARE
+universally RC (post-1997 flats), but the app has no `'shelter'` room category to
+recognise one without guessing from its name."* v0.31.8.25 added the category.
+
+Measured before the change: of 22 walls bounding a household shelter across the
+shipped plans, **10 reported `unknown`** — the app could not tell a user that a
+blast-shelter wall may not be touched. Only the default flat declared them
+explicitly; every template left `structure` unset.
+
+New in `wallHackability.ts`: **`shelterWallIds(plan)`** (level-aware per F13) and
+**`establishedWallStructureInPlan(wall, shelterWalls)`**, which fills an undeclared
+shelter wall as `'rc-partition'` → NOT PERMITTED. Precedence is user declaration →
+shelter → envelope. All **20** shelter-bounding walls now classify `'no'`, with no
+wall entering the set that bounds no shelter room.
+
+This stays inside the module's existing rule that structure is only ever filled from
+a DECLARATION plus a documented regulation, never from geometry — the declaration
+here is `PlanRoom.category === 'shelter'`, exactly as `thickness: 'external'` is the
+declaration behind the envelope rule. Grounding: the household shelter is compulsory
+in HDB flats from **1996** onwards (the docstring said 1997 — corrected); its walls,
+floor and ceiling are cast as blast-resistant reinforced concrete; and SCDF's
+permitted-works schedule forbids hacking, drilling or removing any part of them,
+listed alongside load-bearing walls, columns and beams. Unlike those, **no permit or
+PE endorsement can lift it** — a stronger prohibition than `'load-bearing'` carries.
+
+Wired through every consumer, so the three surfaces that must agree do: the 2D
+`HackabilityLayer`, the 3D `PlanShell` and `RoomShell` wall-type tints, the
+drawing-set and report **hacking plans** (`demolitionSvg` takes `shelterWalls`), the
+report plan SVG, and the `WallInspector` delete guard. The set is computed once per
+plan by each caller — it walks every room's boundary.
+
+Measurement corrected two claims I had made:
+
+- **The level scoping does real work, and I had only assumed it.** A test asserting
+  a shelter cannot classify an upper-storey wall FAILED at first — my fixture had
+  invented a `levels`/`wall.level` API the model does not use (storeys are
+  `plan.upperLevels`, each carrying its own arrays). The implementation was right and
+  the fixture was wrong. A second test now proves the scoping on real data: a
+  level-blind walk finds MORE walls for `tpl-hdb-maisonette`'s ground-floor shelter
+  than the scoped resolver does, which is exactly the 22 → 20 difference.
+- **Visual verification prompted a check that changed the story.** In the overlay,
+  partitions beside `tpl-hdb-4room`'s shelter stayed grey. That template's shelter
+  matched only 1 wall — and the cause is NOT a matching failure: the plan contains
+  no wall along three of its four edges (nearest candidate 0.70–0.80 m away, in
+  another room). The resolver classified everything the data supports. The missing
+  partitions are a template DATA gap, now logged in `TODO.md` with per-template
+  counts.
+
+The `roomBoundaryWalls` 0.25 m tolerance can catch a wall running just outside a
+shelter. That over-classifies towards NOT PERMITTED, which is the safe direction
+here: wrongly labelling an adjacent partition is not comparable to telling someone
+they may remove a blast-shelter wall.
+
+Verified: 10124 tests pass; `tsc`, `biome` and `knip` clean. New scenario
+`hackability-shelter.json` (16 steps) loads `tpl-hdb-4room`, opens the plan editor
+and the View ▾ → Hackability overlay, and asserts every shelter wall classifies
+NOT PERMITTED; visually reviewed the rendered overlay. A corpus test guards the rule
+against going inert (at least one shipped shelter wall must be one the rule — not a
+declaration or the envelope rule — is what classifies).
+
 ## v0.31.8.25 — A household shelter is its own room category
 
 v0.31.8.24 stopped the daylight check advising a window for a room with no façade

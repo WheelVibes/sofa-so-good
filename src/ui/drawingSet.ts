@@ -63,6 +63,7 @@ import { planTileCoursing } from '../floorplan/tileCoursing'
 import { tileLayoutSvg } from '../floorplan/tileLayoutSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
+import { shelterWallIds } from '../floorplan/wallHackability'
 import { planWallTileCoursing, type WallTileCoursing } from '../floorplan/wallTileCoursing'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -757,6 +758,10 @@ export function buildDrawingSheets(
     day: 'numeric',
   })
   const sheets: Sheet[] = []
+  // Wall ids bounding a household shelter — computed once for the demolition
+  // sheets, which MUST mark them NOT PERMITTED (SCDF forbids hacking any part of
+  // a shelter's RC walls; no permit or PE endorsement lifts that).
+  const drawShelterWalls = shelterWallIds(plan)
 
   // Per-storey fan-out (F13): on a multi-level plan every plan-derived sheet
   // renders once per storey ("… — Ground floor", "… — Upper storey"), with the
@@ -1225,6 +1230,7 @@ export function buildDrawingSheets(
         sheets.push({
           name: `Demolition & new walls — ${row.levelName}`,
           body: `${note}<div class="draw">${demolitionSvg(row.diff, {
+            shelterWalls: drawShelterWalls,
             palette: {
               kept: '#9ca3af',
               demolished: '#dc2626',
@@ -1249,6 +1255,7 @@ export function buildDrawingSheets(
         sheets.push({
           name: 'Demolition & new walls',
           body: `<div class="draw">${demolitionSvg(wallDiff, {
+            shelterWalls: drawShelterWalls,
             palette: {
               kept: '#9ca3af',
               demolished: '#dc2626',

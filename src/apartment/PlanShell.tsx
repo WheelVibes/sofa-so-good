@@ -39,7 +39,7 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
-import { establishedWallStructure } from '../floorplan/wallHackability'
+import { establishedWallStructureInPlan, shelterWallIds } from '../floorplan/wallHackability'
 import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import {
   type GrilleMemberInstance,
@@ -651,6 +651,9 @@ function PlanLevelShell({
   // (WALL-REVEAL-CORNER-SPREAD) — the same static map WallSegment/useWallReveal
   // build; plan geometry only changes with the plan itself.
   const neighbors = useMemo(() => cornerNeighbors(lp.walls), [lp])
+  // Wall ids bounding a household shelter on THIS storey — resolved once per
+  // level plan (the boundary walk is per-room) and reused by the wall boxes.
+  const shelterWalls = useMemo(() => shelterWallIds(lp), [lp])
 
   // Pair each render box with whether its source wall is an external/perimeter
   // wall: only those fade for the camera reveal (internal partitions stay solid
@@ -670,11 +673,13 @@ function PlanLevelShell({
             // Wall-types 3D overlay tint (`wallTypes3d` flag) — null when
             // unclassified; resolved once here rather than in the render loop.
             // Resolved (v0.31.8.4), so the 3D Wall-types tint cannot disagree with the
-            // 2D Hackability overlay about the same facade.
-            overlayColor: wallTypeOverlayColor(establishedWallStructure(w)),
+            // 2D Hackability overlay about the same facade — which is why this
+            // takes the plan-aware resolver, matching `HackabilityLayer`: a
+            // household shelter's RC walls must tint the same in both views.
+            overlayColor: wallTypeOverlayColor(establishedWallStructureInPlan(w, shelterWalls)),
           })),
         ),
-    [lp, wallColor],
+    [lp, wallColor, shelterWalls],
   )
 
   // Walls with `railing` set: render an open metal railing (top rail + posts

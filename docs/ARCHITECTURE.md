@@ -458,7 +458,14 @@ same change that reshapes a system.
   entry). It differs only in its WALLS and daylight obligations, not its contents — `furnishPlan`
   gives it `KITS.storeroom` and `suggestions.ts` puts it in the same `'utility'` bucket, and both
   `toRoomKind`/`toArrangeKind` map it exactly where `storeroom` maps (verified: recategorising
-  the 8 authored template shelters produced ZERO drift in either downmap). Adding it touched only
+  the 8 authored template shelters produced ZERO drift in either downmap). It also drives the
+  household-shelter WALL rule — `wallHackability.ts:shelterWallIds(plan)` +
+  `establishedWallStructureInPlan(wall, shelterWalls)` fill an undeclared shelter wall as
+  `'rc-partition'` → NOT PERMITTED (SCDF forbids hacking any part of a shelter's RC walls, and
+  unlike a load-bearing wall no permit or PE endorsement lifts it). Level-aware per F13, and
+  wired through EVERY consumer so the 2D `HackabilityLayer`, the 3D `PlanShell`/`RoomShell`
+  tints, both hacking plans (`demolitionSvg` takes `shelterWalls`), the report plan SVG and the
+  `WallInspector` delete guard cannot disagree about the same wall. Adding it touched only
   `roomCategory.ts` (label + name rule ordered BEFORE the storeroom rule + `toRoomKind`) and
   `state/schema.ts`'s enum — but the type-checker does NOT flag consumers that `switch` on the
   category directly, and `furnishPlan.ts`/`suggestions.ts` both did, so a green `tsc` was not

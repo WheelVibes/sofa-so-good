@@ -1882,3 +1882,22 @@ for natural ventilation with a minimum opening area of 5% of room space). If the
 daylight ratio is ever presented as more than indicative, source it first — no
 official SG habitable-room exclusion list was findable either, which is why the
 façade test above is derived from the plan's own geometry instead of a rule list.
+
+## Template household shelters are drawn without three of their four walls
+
+Measured on `tpl-hdb-4room`: the shelter is authored as a room rectangle at
+`origin [5, 0.2]`, `1.5 × 2.0 m`, but the plan contains a wall along only ONE of its
+four boundary edges (the external north wall). For the other three, the nearest wall
+is 0.70–0.80 m away and belongs to a different room — so there is no wall to
+classify, not a matching failure. `shelterWallIds` correctly returns 1 wall there.
+
+Consequences: the hackability overlay can only mark the one wall NOT PERMITTED, the
+3D shell renders the shelter unenclosed on three sides, and a drawing set cannot show
+the RC enclosure a contractor needs. Corpus counts of shelter-bounding walls:
+DEFAULT 4, `-exec` 3, `-3gen` 3, `-maisonette` 3, `-2room` 2, `-jumbo` 2, and
+`-3room`/`-4room`/`-5room` just **1** each.
+
+Fixing this is a template DATA change (author the missing RC partitions, 300 mm per
+the default flat's `apartment/constants.ts` derivation), not a logic change. Check
+whether `templateEnclosure.test.ts` should have caught it — if that test passes on a
+room missing three walls, its enclosure criterion is weaker than its name suggests.

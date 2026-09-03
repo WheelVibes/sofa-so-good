@@ -61,6 +61,7 @@ import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
+import { shelterWallIds } from '../floorplan/wallHackability'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
 import { LIGHT_EMITTERS, resolveLampSpec } from '../furniture/lightEmitters'
@@ -743,6 +744,10 @@ export function buildReportHtml(
   // uses); rides the existing `report` flag (additive section). Skipped when no
   // analysed room actually has a window (a bare shell / windowless plan), so an
   // all-zero table never shows.
+  // Wall ids bounding a household shelter — computed once for the hacking-plan
+  // sections below, which MUST mark them NOT PERMITTED (SCDF forbids hacking any
+  // part of a shelter's RC walls, and no permit or PE endorsement lifts that).
+  const demoShelterWalls = shelterWallIds(plan)
   const daylight = buildDaylightReport(plan)
   const daylightRoomsWithGlazing = daylight.rooms.filter((r) => r.glazingArea > 0)
   const daylightPct = (f: number) => `${Math.round(f * 100)}%`
@@ -924,7 +929,7 @@ export function buildReportHtml(
                       : 'Entire storey removed — it existed only in the original layout.'
                   }</div>`
                 : ''
-            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700, housingType: plan.category?.housingType })}</div>`,
+            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700, housingType: plan.category?.housingType, shelterWalls: demoShelterWalls })}</div>`,
         )
         .join('')}</div>`
       : ''
@@ -935,6 +940,7 @@ export function buildReportHtml(
         palette: DEMO_PALETTE,
         widthPx: 700,
         housingType: plan.category?.housingType,
+        shelterWalls: demoShelterWalls,
       })}</div></div>`
       : ''
 
