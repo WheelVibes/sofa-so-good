@@ -29,6 +29,53 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.46 — the anomaly was a PROBE ordering bug, and with it fixed the term makes the second plan WORSE
+
+Five code states had produced byte-identical numbers. The cause was not in the feature.
+
+**`PLAN=<n>` ran 85 lines AFTER the frame was captured.** I inserted it beside `BLENDREF`, which
+sits *after* `shotFor(PITCH)` — so every `PLAN=` run **exported the selected plan's GLB while
+capturing the default plan's frame.** Comparing a 4-Room frame against a 5-Room reference gave a
+stable, meaningless 2.25× that was invariant to the plan-change re-run fix, per-plan gain
+scaling, detach-before-apply and the cache bypass — because none of those touch a scene that
+never changed. The BLENDREF export was correct throughout, which is exactly what made it hard to
+see.
+
+Moved before the capture, with the reason recorded at the call site. The knob immediately failed
+with *"no window opening matching /livingDining/i"* — which **is the proof it now takes effect**,
+since the 5-Room plan has no such opening. The probe's error now lists what is available
+(`h5-main, h5-master, h5-kit-win, h5-b2-win, h5-m-win, h5-liv-win`), because guessing costs a
+90-second run each time.
+
+**The plan-2 reference was wrong for the same reason** — a 4-Room camera pose applied to 5-Room
+geometry — so it was re-exported at `h5-liv-win` and re-rendered.
+
+**And with both fixed, the finding reverses:**
+
+| `livingDining` of… | flag off | flag on |
+| --- | --- | --- |
+| 4-Room (baked, fitted) | 4.76× | **1.36×** |
+| bedroom3 of the 4-Room | 1.74× | **1.48×** |
+| **5-Room (baked)** | **1.20×** | **2.34×** |
+
+**The term makes the 5-Room plan worse.** Its flag-off pose is already close to physics (1.20×),
+and applying visibility overshoots. So the term **does not generalise across plans as
+calibrated** — and unlike the earlier scare, this measurement responds to code changes (69.42
+against the bogus 90.70), so it is real.
+
+**Which means the flag stays off, and per-plan gain scaling is not sufficient.** The 1.71×
+difference in mean visibility is captured, yet the result is still wrong, so the mismatch is not
+purely a level: a plan whose surfaces mostly see their windows has little visibility *structure*
+to add, and adding it anyway introduces error. That is a substantive design question — when the
+term should apply at all — rather than a tuning one.
+
+**Worth naming as a process failure, not just a bug.** The arc's own rule is that framing and
+ordering contaminate every measurement here, and I broke it by inserting a scene-changing knob
+next to a related one instead of next to the thing it must precede. Five rounds of increasingly
+elaborate hypotheses followed, when checking *where* the knob ran would have cost one `grep`.
+
+Suite **10058 green**; `tsc`, biome clean.
+
 ## v0.31.7.45 — three defects fixed on their own merits, and an anomaly I could not crack
 
 Chasing the plan-2 measurement produced three independently justified fixes and did **not**
