@@ -37,6 +37,27 @@ export interface BoxAtlasUvInput {
   /** Triangle vertex indices. Pass `null` for a non-indexed geometry. */
   indices?: ArrayLike<number> | null
   margin?: number
+  /**
+   * Atlas slots the bake actually filled with room-facing data, as `[col, row]`
+   * pairs from the index. When given, a face whose computed slot is NOT in this
+   * set is placed in the **mirror row of the same column** instead.
+   *
+   * **Why this exists.** The bake derives the slot from Blender's `poly.normal`;
+   * this function derives it from the triangle cross product of the app's own
+   * indices. They agree only if the exported winding agrees with Blender's
+   * polygon orientation, and when it does not the sign flips, `row` flips, and
+   * the lookup lands on the **empty** mirror slot. `v0.31.7.98` measured the
+   * consequence: whole surfaces — the entire ceiling, the upper wall bands —
+   * rendering solid black, with the four worst maps holding data in exactly one
+   * slot (`[2, 0]`) and 83–92 % of their texels zero.
+   *
+   * Reconciling the two normal conventions is not reliably possible from this
+   * side; the exporter is free to wind however it likes. But the bake already
+   * *recorded* where it put the data, so the ambiguity can be resolved by
+   * **asking the artefact** rather than by re-deriving a convention. Absent, the
+   * behaviour is exactly as before.
+   */
+  occupiedSlots?: ReadonlyArray<readonly [number, number]> | null
 }
 
 export interface BoxAtlasUvResult {
@@ -50,6 +71,13 @@ export interface BoxAtlasUvResult {
    * here would otherwise be indistinguishable from a subtly wrong map.
    */
   conflicts: number
+  /**
+   * Faces whose computed slot was empty and were placed in the mirror row
+   * instead. Non-zero means the exporter's winding disagrees with Blender's
+   * polygon orientation for this mesh — expected, and reported so the
+   * reconciliation is visible rather than silent.
+   */
+  flipped: number
 }
 
 /** The two axes that are not `axis`, in ascending order — the in-slot coordinate pair. */
@@ -70,10 +98,15 @@ export function computeBoxAtlasUv({
   positions,
   indices = null,
   margin = LIGHTMAP_UV_MARGIN,
+  occupiedSlots = null,
 }: BoxAtlasUvInput): BoxAtlasUvResult {
   const vertexCount = Math.floor(positions.length / 3)
   const uv = new Float32Array(vertexCount * 2)
   const slotOf = new Int8Array(vertexCount).fill(-1)
+  const occupied = occupiedSlots?.length
+    ? new Set(occupiedSlots.map(([c, r]) => `${c},${r}`))
+    : null
+  let flipped = 0
   let conflicts = 0
 
   const min = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY]
@@ -109,8 +142,18 @@ export function computeBoxAtlasUv({
     for (let k = 1; k < 3; k += 1) {
       if (Math.abs(n[k]) > Math.abs(n[axis])) axis = k
     }
-    const row = n[axis] >= 0 ? 0 : 1
     const col = axis
+    let row = n[axis] >= 0 ? 0 : 1
+    if (occupied && !occupied.has(`${col},${row}`)) {
+      // The computed slot holds nothing. If the mirror does, the winding
+      // disagreed with Blender's; if neither does, leave it alone so the miss
+      // stays visible rather than being silently relocated.
+      const mirror = row === 0 ? 1 : 0
+      if (occupied.has(`${col},${mirror}`)) {
+        row = mirror
+        flipped += 1
+      }
+    }
     const slot = row * ATLAS_COLS + col
     const [o1, o2] = otherAxes(axis)
 
@@ -124,5 +167,5 @@ export function computeBoxAtlasUv({
     }
   }
 
-  return { uv, conflicts }
+  return { uv, conflicts, flipped }
 }

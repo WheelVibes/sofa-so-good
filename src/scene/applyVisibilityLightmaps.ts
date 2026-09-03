@@ -163,6 +163,8 @@ export function applyLightmapsFromIndex(
   // them (`v0.31.7.44`).
   const planGain = gain ?? gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined)
   let applied = 0
+  // Faces relocated to the mirror atlas row because the bake put the data there.
+  let flippedFaces = 0
   for (const { mesh: o, key } of keyed) {
     const url = ctx ? resolver.urlFor(key, ctx) : null
     if (!url) continue
@@ -185,7 +187,15 @@ export function applyLightmapsFromIndex(
         indices = new Uint32Array(idx.count)
         for (let i = 0; i < idx.count; i += 1) indices[i] = idx.getX(i)
       }
-      const { uv, conflicts } = computeBoxAtlasUv({ positions: local, indices })
+      // Hand the bake's own slot occupancy to the UV builder. Without it a
+      // winding disagreement puts the lookup on the empty mirror row and the
+      // surface renders black (`v0.31.7.98`).
+      const { uv, conflicts, flipped } = computeBoxAtlasUv({
+        positions: local,
+        indices,
+        occupiedSlots: ctx ? resolver.slotsFor(key, ctx) : null,
+      })
+      if (flipped > 0) flippedFaces += flipped
       // A conflict means two faces in different atlas slots share a vertex, so a per-vertex
       // attribute cannot represent the layout and the map would land wrong. Skip rather than
       // render something subtly incorrect.
@@ -196,5 +206,6 @@ export function applyLightmapsFromIndex(
     applied += 1
   }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)
-  return { candidates, applied, detached, context: ctx, report: message, suspect }
+  const report = flippedFaces > 0 ? `${message}, ${flippedFaces} face(s) mirrored` : message
+  return { candidates, applied, detached, context: ctx, report, suspect }
 }

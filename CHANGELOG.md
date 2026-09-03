@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.99 — built the mirror-slot reconciliation, and it REFUTES `.98`'s hypothesis: zero faces needed it
+
+`.98` concluded the black shell was a `row` (normal-sign) disagreement between the bake's
+`poly.normal` and the runtime's triangle winding. This round built the reconciliation, and the
+reconciliation reports that nothing needed reconciling.
+
+**The mechanism, implemented and tested.** `bake_material.py` now records `slots` — the `[col, row]`
+pairs it filled with room-facing data — in every index entry (24/24 carry it). `lightmapIndex` exposes
+`slotsFor(key, ctx)`, and `computeBoxAtlasUv` takes `occupiedSlots`: a face whose computed slot is
+empty while its **mirror row** is filled is placed in the mirror, and the count is reported as
+`flipped`. Four tests pin it, including the conservative case — **when neither row is filled the face
+is left where it is**, so a genuine gap in the bake stays visible instead of being relocated behind a
+plausible-looking lookup.
+
+**And the answer is `flipped = 0`.** Every slot the runtime computes is already inside the bake's
+occupancy set, so there is no flip to make. The render is unchanged to the decimal:
+
+| livingDining, mapped shell | median | near-black |
+| --- | --- | --- |
+| no lightmaps | 98.1 | 0.4 % |
+| replace, pre-fix | 33.1 | 45.1 % |
+| replace + slots | **33.1** | **45.1 %** |
+| Cycles reference | 76.5 | 0.0 % |
+
+**So `.98` is retracted.** The two implementations agree about which slot a face belongs to. The
+reasoning that led there — identical rules, different normal sources, whole surfaces black rather than
+rims — was sound and still is; it just does not describe this fault.
+
+**What the occupancy data says instead.** Across the 24 maps: 5 have one interior slot, 2 have two, 4
+have three, 7 have four, 3 have five, 3 have all six. So most meshes occupy *several* slots, and
+"slot-level" occupancy is too coarse a question. A slot is a 21×32-texel region and a face's UVs are
+normalised by the **mesh bounding box**, so a face that does not span the full extent covers only part
+of its slot — the rest is zero. Both sides normalise by the same box over the same vertices (the
+geometry keys match, or the map would not resolve at all), so they *should* land on the same
+sub-region. Something in that sub-region placement does not, and slot-level bookkeeping cannot see it.
+
+**The next instrument is therefore sub-slot, and it is a kind not yet built:** dump the runtime's
+`uv1` for one black mesh and overlay it on that mesh's baked map, so where the lookups fall relative
+to the data is *visible* rather than inferred. Every diagnostic so far has aggregated over pixels or
+texels; this fault appears to live in the correspondence between them.
+
+The reconciliation stays. It is tested, it is inert when unnecessary (`flipped = 0` changes nothing),
+it records occupancy the index should carry regardless, and it is correct for the case it handles.
+
+Suite **10102 green** (+4), `tsc`, biome and `knip` clean, 11 python tests pass.
+
 ## v0.31.7.98 — the black is a ROW (normal-sign) disagreement, and the row bit should not exist
 
 `.97` narrowed the black shell to whole atlas slots. This round found which bit is wrong, by reading

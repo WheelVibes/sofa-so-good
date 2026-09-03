@@ -105,3 +105,49 @@ describe('computeBoxAtlasUv', () => {
     expect([...uv].every(Number.isFinite)).toBe(true)
   })
 })
+
+describe('mirror-slot resolution from the bake index (v0.31.7.99)', () => {
+  // One triangle at (0,0,0),(1,0,0),(0,0,1). e1 x e2 = (0,-1,0), so the dominant
+  // axis is Y with a NEGATIVE sign: the computed slot is [col 1, row 1]. Derived
+  // rather than assumed -- the first version of this test guessed row 0 and
+  // failed, which is the same winding ambiguity the feature exists to resolve.
+  const upTri = {
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 0, 1]),
+    indices: null,
+  }
+  const slotOfUv = (uv: Float32Array) => [Math.floor(uv[0] * 3), Math.floor(uv[1] * 2)] as const
+
+  it('leaves the computed slot alone when the bake filled it', () => {
+    const a = computeBoxAtlasUv({ ...upTri, occupiedSlots: [[1, 1]] })
+    expect(slotOfUv(a.uv)).toEqual([1, 1])
+    expect(a.flipped).toBe(0)
+  })
+
+  it('MIRRORS the row when the computed slot is empty and the mirror is filled', () => {
+    // The defect this fixes: the bake read Blender's `poly.normal` and put the
+    // data in the other row; the runtime's winding disagrees; the lookup lands on
+    // an empty slot and the surface renders solid black -- `v0.31.7.98` measured
+    // the whole ceiling and the upper wall bands exactly that way.
+    const b = computeBoxAtlasUv({ ...upTri, occupiedSlots: [[1, 0]] })
+    expect(slotOfUv(b.uv)).toEqual([1, 0])
+    expect(b.flipped).toBe(1)
+  })
+
+  it('leaves the slot alone when NEITHER row is filled, so a genuine miss stays visible', () => {
+    // Relocating here would hide a real gap in the bake behind a plausible-looking
+    // lookup. A miss must stay a miss.
+    const c = computeBoxAtlasUv({ ...upTri, occupiedSlots: [[2, 0]] })
+    expect(slotOfUv(c.uv)).toEqual([1, 1])
+    expect(c.flipped).toBe(0)
+  })
+
+  it('behaves exactly as before when the index carries no slots', () => {
+    // Every map baked before v0.31.7.99 has no `slots` field.
+    const before = computeBoxAtlasUv(upTri)
+    const withNull = computeBoxAtlasUv({ ...upTri, occupiedSlots: null })
+    const withEmpty = computeBoxAtlasUv({ ...upTri, occupiedSlots: [] })
+    expect([...withNull.uv]).toEqual([...before.uv])
+    expect([...withEmpty.uv]).toEqual([...before.uv])
+    expect(before.flipped).toBe(0)
+  })
+})

@@ -47,6 +47,17 @@ interface LightmapEntry {
   ctx: string
   object?: string
   area?: number
+  /**
+   * Atlas slots the bake filled with room-facing data, `[col, row]`.
+   *
+   * The consumer needs this because the two sides derive the slot from different
+   * normals — Blender's `poly.normal` in the bake, the app's triangle winding at
+   * runtime — and a disagreement flips `row` onto the empty mirror slot.
+   * `v0.31.7.98` measured whole surfaces black from exactly that. Optional: an
+   * index baked before `v0.31.7.99` has none, and the UV builder then behaves as
+   * it always did.
+   */
+  slots?: [number, number][]
 }
 
 export interface LightmapIndex {
@@ -136,6 +147,8 @@ export interface LightmapResolver {
    * to prevent, so there is deliberately no convenient way to perform one.
    */
   urlFor(key: string, ctx: string): string | null
+  /** The slots that map filled, or `null` when the index predates the field. */
+  slotsFor(key: string, ctx: string): [number, number][] | null
   /** `{ looked, hit, missed, rate }` — `rate` is `hit / looked`, or 0 before any lookup. */
   stats(): { looked: number; hit: number; missed: number; rate: number }
   /**
@@ -161,6 +174,11 @@ export function createLightmapResolver(
   minLookupsToJudge = 20,
 ): LightmapResolver {
   const byCtxKey = new Map(index.maps.map((m) => [`${m.ctx}/${m.key}`, m.file]))
+  const slotsByCtxKey = new Map(
+    index.maps
+      .filter((m) => Array.isArray(m.slots) && m.slots.length > 0)
+      .map((m) => [`${m.ctx}/${m.key}`, m.slots as [number, number][]]),
+  )
   const keysByCtx = new Map<string, Set<string>>()
   for (const m of index.maps) {
     const set = keysByCtx.get(m.ctx) ?? new Set<string>()
@@ -197,6 +215,9 @@ export function createLightmapResolver(
         return null
       }
       return best
+    },
+    slotsFor(key, ctx) {
+      return slotsByCtxKey.get(`${ctx}/${key}`) ?? null
     },
     urlFor(key, ctx) {
       looked += 1

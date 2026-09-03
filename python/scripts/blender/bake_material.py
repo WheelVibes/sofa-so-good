@@ -710,7 +710,14 @@ def main(argv: list[str] | None = None) -> int:
     # before any file is written, because it is part of the filename.
     fresh = [
         {"key": o["key"], "file": os.path.basename(o["out"]), "object": o["object"],
-         "area": o["area"], "ctx": plan_context}
+         "area": o["area"], "ctx": plan_context,
+         # Where the bake actually put room-facing data. The runtime derives the
+         # slot from the app's triangle winding, which is free to disagree with
+         # Blender's `poly.normal` and did: v0.31.7.98 measured whole surfaces
+         # black because the lookup landed on the empty mirror row. Recording the
+         # occupancy lets the consumer ASK rather than re-derive a convention
+         # neither side controls.
+         "slots": o.get("interior_slots") or []}
         for o in baked
         if "out" in o
     ]
