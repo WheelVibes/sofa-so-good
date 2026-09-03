@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.21 — a bake-noise metric, and 4× the samples buys nothing: the blur is doing the work
+
+`v0.31.7.20` judged bake quality by rendering the app and looking, which is slow and
+subjective, and its one-scale metric could not see either artefact it was chasing. This round
+builds a direct measurement and uses it to kill an expensive assumption.
+
+**`scripts/dev-probes/bake-noise.mjs` measures the map itself.** Aperture visibility is smooth at
+room scale by construction (`v0.31.7.9`: full-GI visibility varying over metres), so **any**
+high-frequency content in a baked map is noise. The probe reports the residual after a low-pass,
+normalised by the map's own mean, **per atlas slot** — counting the hard discontinuities at slot
+borders would swamp it — and at **two scales**, because they have different causes and different
+cures:
+
+- **3×3** sees salt-and-pepper sampling noise, which a blur removes.
+- **9×9** sees the soft *mottling* that survives a blur, which a low-pass only spreads.
+
+| bake | 3×3 residual | 9×9 residual |
+| --- | --- | --- |
+| 256 px, no blur | 13.6 % | 10.3 % |
+| 256 px + per-slot blur | **2.0 %** | **1.6 %** |
+
+A ~7× reduction at both scales, matching the eye's verdict that the speckle is gone.
+
+**And the expensive assumption is refuted: samples above 256 buy nothing.** `v0.31.7.20` closed
+by proposing more samples as the fix for the residual mottling. Measured on the same 8 meshes:
+
+| samples | 3×3 | 9×9 | bake time (8 meshes) |
+| --- | --- | --- | --- |
+| 256 | 2.0 % | 1.6 % | 16 s |
+| **1024** | **2.0 %** | **1.6 %** | 23 s |
+
+**4× the samples changes neither figure.** So the post-blur noise floor is not sample-limited,
+and the bake stays at ~3 min per plan rather than the ~12 min a 1024-sample bake would cost.
+
+**Stated as a confound, because it is one:** both arms were blurred, so this measures the
+*post-blur floor* — not the raw sampling noise, which more samples certainly would reduce. That
+floor is the quantity that matters for the shipped asset, but the comparison does not license the
+broader claim that samples never matter.
+
+**What is still unquantified.** The mottling visible on a wall in `v0.31.7.20` sits at a scale
+coarser than 9×9 texels, so neither of these figures sees it. That is the honest limit of this
+round: the metric now covers the artefact that *was* fixed and not the one that remains. A
+third, wider scale — or a per-map comparison against a heavily-supersampled ground truth — is
+what would close it.
+
+**Nothing shipped.** Probe and bake script only; 60 fps intact at all three views; `tsc`, biome,
+knip clean, 10011 tests green.
+
 ## v0.31.7.20 — bake quality: the metric hits the analysis' ideal (1.37×) and the picture is nearly there
 
 `v0.31.7.19` left the term working (spread 4.76× → 1.46×) and the render visibly blotchy. This

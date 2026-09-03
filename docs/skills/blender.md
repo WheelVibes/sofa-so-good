@@ -173,6 +173,12 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — for a bake whose signal is smooth, measure the map, not the render.** Aperture
+  visibility varies over metres, so any high-frequency content in the texture is noise:
+  `scripts/dev-probes/bake-noise.mjs` reports the post-low-pass residual per atlas slot at two
+  scales (3×3 for speckle, 9×9 for mottling). Far faster and less subjective than rendering the
+  app per attempt — and it showed **4× the samples changes nothing** once a blur is applied
+  (2.0 %/1.6 % at both 256 and 1024 samples), saving ~9 min per plan.
 - **2026-09-03 — `hasattr(bpy.ops.X, 'y')` is NOT a capability check.** `bpy.ops` namespaces
   answer `hasattr` for any name. `bpy.ops.image.denoise` reported present and then failed with
   *"could not be found"*. Call it in a `try`, or check `bpy.ops.image.denoise.poll()`.
