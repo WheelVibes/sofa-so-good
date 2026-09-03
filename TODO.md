@@ -1979,3 +1979,17 @@ splits the bedroom zone further (2 groups -> 3) instead of fixing anything.
 Closing it properly means adding doors inside the zone AND connecting the zone to
 the living — i.e. the corridor re-plan that is blocked on the 4-room/5-room/exec
 content call (`docs/open-graphics-decisions.md` (f)). Fix them together.
+
+## A built-in wardrobe variant would unlock the narrow-bedroom corridors
+
+`wardrobe-3door` is a freestanding 1.5 m × 0.6 m piece that needs
+`CLEARANCE.storageFront` of clear floor to open into. That total (~1.35 m) plus a
+2.0 m bed exceeds a 2.3 m deep bedroom, which is why carving a corridor out of
+`tpl-condo-3bed`'s column costs all three wardrobes — measured in v0.31.8.39, and
+NOT fixed by narrowing the piece (v0.31.8.40 proved width is not the constraint).
+
+A real 2.7 m condo bedroom has a BUILT-IN wardrobe: shallower, and its doors slide
+rather than swing, so it needs far less clear floor. A `layout: 'built-in'` variant
+with a reduced front clearance would let those corridors land, which would close the
+last `bedroomPrivacy.test.ts` entries and possibly the three blocked levels in
+`templateConnectivity.test.ts`.

@@ -95,7 +95,10 @@ describe('dining chairs are tucked to their table', () => {
       // second common bath in the corridor replaces it, while the grandparent
       // suite and master both KEEP their queen beds. Two earlier layouts lost
       // one or both beds and were reshaped rather than ratcheted.
-      'tpl-hdb-3gen': 86,
+      // 86 → 89 in v0.31.8.40: `furnishPlan` now sizes a wardrobe to its room, so
+      // the grandparent suite (3.8 x 2.3) picks up the wardrobe it had been
+      // losing, plus two more pieces that then fit.
+      'tpl-hdb-3gen': 89,
       // 120 → 116 in v0.31.8.29: the jumbo re-author divided bedrooms 4 and 5
       // (one undivided volume before) and shrank the master from a rectangle
       // that overran the corridor wall and both baths, 11.5 → 6.9 m². Fewer,
@@ -177,7 +180,12 @@ describe('dining chairs are tucked to their table', () => {
     // washing machine — measured per-def, then moved rather than ratcheted.
     // 1429 → 1428 in `.36`: the 2-room's TV console, traded for a front door
     // that no longer opens into the bathroom.
-    expect(total).toBe(1428)
+    //
+    // 1428 → 1431 in `.40`, an INCREASE with no trade: sizing a wardrobe to its
+    // room lets three pieces fit that previously did not. The threshold is 2.5 m
+    // precisely because 2.7 also restores wardrobes into rooms with no windowless
+    // wall, which parks them in front of glass.
+    expect(total).toBe(1431)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

@@ -198,6 +198,45 @@ function kitForRoom(room: PlanRoom): KitPiece[] | null {
   }
 }
 
+/**
+ * A wardrobe sized to the room it stands in.
+ *
+ * `wardrobe-3door` defaults to 1.5 m wide, and in a narrow bedroom that leaves no
+ * wall run beside the bed: a 2.7 m wide room takes a 1.5 m bed plus 1.5 m of
+ * wardrobe only if they never share a wall, so the wardrobe is dropped instead.
+ * Measured on `tpl-condo-3bed`: carving a 1.0 m corridor out of its bedroom column
+ * cost ALL THREE wardrobes and a dresser for exactly this reason.
+ *
+ * The def's own `width` param already goes down to 1.0, which is what a real HDB or
+ * condo second bedroom fits. This is deliberately NOT the global narrowing measured
+ * and rejected in v0.31.5.121 — that resized every wardrobe in every template for a
+ * net-zero sightline gain. This keys on the ROOM, so a generous bedroom keeps its
+ * 1.5 m wardrobe.
+ */
+function narrowWardrobe(defId: string, room: PlanRoom): ParamProps {
+  if (defId !== 'wardrobe-3door') return {}
+  const shortest = Math.min(room.width, room.depth)
+  return shortest < NARROW_BEDROOM_M ? { width: 1.0 } : {}
+}
+
+/**
+ * A bedroom this narrow (m, shorter side) cannot seat a bed and a full-width
+ * wardrobe along the same wall.
+ *
+ * 2.5 is measured, not chosen: at 2.7 the rule also fires on rooms that DO have
+ * space for the narrower piece but no windowless wall to put it on, and three
+ * restored wardrobes then stand in front of glass (`jb-b5-win` among them). At 2.5
+ * the gain is clean — `tpl-hdb-3gen`'s grandparent suite (3.8 x 2.3) picks up the
+ * wardrobe it had been losing, and no window is newly blocked.
+ *
+ * NOTE this cannot rescue a room that is too SHALLOW. A wardrobe needs its ~0.6 m
+ * depth plus `CLEARANCE.storageFront` of clear floor to open into, which alongside
+ * a 2.0 m bed exceeds a 2.3 m room depth however narrow the piece is — measured
+ * when this rule failed to save `tpl-condo-3bed`'s corridor, which still cost all
+ * three of its wardrobes.
+ */
+const NARROW_BEDROOM_M = 2.5
+
 /** Expand a kit + the preset's cosmetic style into seeded items at the room
  *  centre. Each piece's props = schema defaults < kit-fixed props < preset
  *  style override < the preset's per-room-CATEGORY `categoryStyle` override
@@ -222,6 +261,7 @@ function seedRoom(
       ...(piece.props ?? {}),
       ...(style[piece.defId] ?? {}),
       ...(categoryStyle?.[piece.defId] ?? {}),
+      ...narrowWardrobe(piece.defId, room),
     }
     const n = piece.count ?? 1
     for (let i = 0; i < n; i++) {

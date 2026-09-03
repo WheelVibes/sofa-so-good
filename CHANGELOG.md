@@ -27,6 +27,35 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.40 — a wardrobe sized to its room: +3 pieces, nothing traded away
+
+`wardrobe-3door` is 1.5 m wide by default, and in a narrow bedroom that leaves no
+wall run beside the bed, so the arranger drops it. Its own `width` param already
+goes down to 1.0 — what a real HDB or condo second bedroom fits — so `furnishPlan`
+now picks the narrow one when the room's shorter side is under **2.5 m**. 12 of the
+library's 40 wardrobes narrow, in rooms measuring 1.7–2.4 m across.
+
+`tpl-hdb-3gen` gains **3 pieces** — its grandparent suite (3.8 × 2.3 m) picks up the
+wardrobe it had been losing, and two more then fit. Item total 1428 → **1431**, an
+increase with nothing traded away and no guard touched.
+
+**The 2.5 m threshold is measured, not chosen.** At 2.7 the rule also fires on rooms
+that have space for the narrower piece but no windowless wall to put it on, and
+three restored wardrobes then stand in front of glass (`jb-b5-win` among them). At
+2.5 the gain is clean. This is deliberately NOT the global narrowing measured and
+rejected in v0.31.5.121, which resized every wardrobe in every template for a
+net-zero sightline gain — this keys on the room, so a generous bedroom keeps 1.5 m.
+
+**It does not do what I built it for, and I checked rather than assumed.** The idea
+was to make `tpl-condo-3bed`'s bedroom corridor affordable. It does not: that
+corridor still costs all three wardrobes, because the binding constraint there is
+DEPTH, not width — a wardrobe needs its ~0.6 m plus `CLEARANCE.storageFront` of
+clear floor to open into, which alongside a 2.0 m bed exceeds a 2.3 m room whatever
+the piece's width. That is now recorded in the rule's own comment so the idea is not
+retried.
+
+Verified: 10128 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.39 — condo 3-bed connected, and a new guard so its chain stays visible
 
 `tpl-condo-3bed`'s bedroom column was the last level not blocked on the content
