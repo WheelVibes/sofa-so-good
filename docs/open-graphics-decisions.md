@@ -984,6 +984,12 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > is the same in every room. The app pins its own at **178–181 (cv 0.8 %)**, at **0.73×**, in all
 > three views across two plans.
 >
+> **✅ VERIFIED REACHABLE — v0.31.7.55: `BGMUL ≈ 12`.** app p99 goes 178 → **242** (livingDining),
+> 181 → **244** (bedroom3), 179 → **243** (5-Room kitchen) against physics' 245/245/247, with the
+> median unchanged to the count in every case. ×20 overshoots. This also retires `v0.31.6.10`'s
+> "BGMUL saturates below physics" — that was the *ratio* `p99/median` hitting `255/median`; the
+> absolute p99 reaches 248 and the target is 245.
+>
 > **So the call is one multiplier: ~1.37× on the window's luminance.** Not a curve, not a
 > per-plan value, not a structure change — everything above about the pane reading "as a panel
 > rather than an opening" concerns its *structure*, which is a separate and still-open question

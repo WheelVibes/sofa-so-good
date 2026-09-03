@@ -29,6 +29,57 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.55 — the constant is VERIFIED achievable: `BGMUL ≈ 12` lands the highlight on physics in three views, and the residual is exactly error (B)
+
+`v0.31.7.54` measured the window as 27 % too dark by a scene-independent factor. This round checks
+the existing lever can actually deliver it — a measurement, not a decision, since item (l) stays
+escalated.
+
+| view | app p99 @ ×1 | @ **×12** | @ ×20 | physics p99 | median (all three) |
+| --- | --- | --- | --- | --- | --- |
+| 4-Room livingDining | 178 | **242** | 248 | 245 | 121 → 121 |
+| 4-Room bedroom3 | 181 | **244** | 249 | 245 | 122 → 122 |
+| 5-Room kitchen | 179 | **243** | 248 | 247 | 96 → 96 |
+
+**One value — `BGMUL ≈ 12` — lands the absolute highlight within 1–2 % of physics in all three
+views across two plans.** ×20 overshoots slightly. And the median does not move by a single count
+at any setting, confirming `v0.31.6.10`'s finding that this is a nearly pure highlight lever: it
+corrects error (A) without touching error (B).
+
+**Which also settles an old objection.** `v0.31.6.10` concluded `BGMUL` "saturates at the encoding
+ceiling" and could not reach physics — but that was measured on the *ratio* `p99/median`, capped at
+`255/median`. The absolute `p99` reaches 248, and the target is 245. The lever was never the
+limitation; the metric was.
+
+**And the residual after the fix is (B), exactly as decomposed:**
+
+| view | ratio at ×12 | physics | app median | physics median |
+| --- | --- | --- | --- | --- |
+| 4-Room livingDining | 2.001 | 2.967 | 121 | **83** |
+| 4-Room bedroom3 | 1.995 | 2.199 | 122 | **112** |
+| 5-Room kitchen | 2.530 | 1.542 | 96 | **160** |
+
+With the highlight pinned, `bedroom3` nearly matches (1.995 vs 2.199) because its median is nearly
+right (122 vs 112). `livingDining` is still short and the kitchen now *overshoots* — and in both
+cases the sign follows the median error exactly: **the app is too bright in dark rooms and too dark
+in bright ones.** Physics' median spans 83–160 (1.93×); the app's spans 96–122 (1.27×).
+
+**So the arc lands on two separable statements, each with a number.**
+
+- **(A) The window is 27 % too dark by a constant factor.** Verified reachable with one existing
+  knob at one setting, cross-checked on three views in two plans. Escalated for the look call,
+  with the value attached.
+- **(B) The room's brightness under-responds to the scene by ~1.5×** in span. Unaffected by (A),
+  and the whole of the remaining tonal error once (A) is corrected.
+
+**One caveat kept deliberately.** `v0.31.6.10` also showed that raising `BGMUL` makes the pane a
+brighter *uniform slab* — the level is right, the structure is not, and `v0.31.7.4` closed the
+`scene.background` route for structure because the PMREM pre-filter cannot carry a horizon band.
+So (A) fixes the measured level and does not make the window read as a view. Those are different
+defects and only one of them now has a verified fix.
+
+`tsc`, biome clean; suite **10058 green**; nothing shipped.
+
 ## v0.31.7.54 — ★ the error decomposes into ONE scene-independent constant and one scene-dependent term. Corrects v0.31.7.53
 
 `v0.31.7.53` concluded that the sign of the highlight error flips between views, so no
