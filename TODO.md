@@ -275,6 +275,26 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 (added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
 exact commit so it can — do not leave it to be discovered.
 
+## Hexagon tile setting-out — NOT MODELLED, and deliberately not faked (v0.31.8.16)
+
+Every other tile family now carries its researched product `moduleMm`, so the
+setting-out sheet covers them. Hexagons carry none, because `moduleMm` is a
+`[w, h]` RECTANGLE and hex does not work that way. Researched: "hexagonal grids
+do NOT align with room walls the way square tiles do, so perimeter cuts will be
+irregular"; the field is set out from the CENTRE of the most visible area
+outward; each perimeter cut is measured individually from the last full tile; the
+flat-top vs point-top orientation changes how those cuts fall; and the trade
+allows ~15% waste against ~10% for square tile.
+
+Measured the cost of faking it — a 200 mm across-flats hex on a 2.4 x 2.0 m room:
+true count by area 138.6 tiles (160 with the 15% allowance), rectangular model
+**120** (13.4% short before waste, 25% short of what a tiler would order), plus a
+uniform 76.2 mm end cut that no hex perimeter has.
+
+Doing it properly needs its own model: centre origin, half-tile row offset,
+per-tile angled perimeter cuts, and its own waste factor. Until then the sheet
+counts these rooms as OMITTED and says so, which is the honest state.
+
 ## Wall-tile setting-out — ✅ SHIPPED v0.31.5.391 (table). Two follow-ups remain:
 - **Opening-aware field.** Openings are currently cut around a field set out over the full face.
   A genuinely opening-aware setting-out (where a balanced centre may sit elsewhere, and the

@@ -27,6 +27,56 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.16 - Specify the tile modules that were missing; refuse the one that cannot exist
+
+`.15` found the Specification sheet denying tiling work because 14 tile finishes
+carried no `moduleMm`. This specifies them, from researched PRODUCT dimensions —
+never from `uvScale`, which is what that field's docs forbid.
+
+| finish family | module | source |
+|---|---|---|
+| subway (2) | 75 x 150 | 3"x6", "the original dimension used in New York's subways ... a benchmark in design for over a century" |
+| Peranakan (5) | 200 x 200 | "Peranakan tiles commonly exist in sizes such as 20cm x 20cm"; "the traditional 200mm (20cm) size is the standard" |
+| heritage checker (2) | 200 x 200 | Peranakan shophouse floors, so the Peranakan product size |
+| generic checker (2) | 300 x 300 | the 12"x12" checkerboard product line (TileBar, Edward Martin, Stone Tile Depot all list 12x12 checkerboard) |
+| marble (1) | 600 x 600 | "2x2 feet or 24x24 inches", the size that "can reduce grout lines and improve visual flow" |
+
+Coverage: floor tile finishes with a module **7 -> 15**, wall **2 -> 6** (every wall
+tile now covered — the old scoping note recorded "wall moduleMm coverage 2/57").
+Verified in the running app: a Peranakan-tiled home produced ZERO setting-out rows
+before and now produces them at 200x200.
+
+**Hexagons deliberately get none, and this is measured rather than argued.**
+Published hex practice: "hexagonal grids do NOT align with room walls the way
+square tiles do, so perimeter cuts will be irregular"; the field is set out from
+the CENTRE of the most visible area outward; each perimeter cut is measured
+individually from the last full tile; flat-top vs point-top orientation changes
+how they fall; and the trade allows ~15% waste against ~10% for square tile "due
+to the complexity of angled perimeter cuts". None of that fits one `[w, h]`
+rectangle.
+
+Then measured the cost of faking it — 200 mm across-flats hex on a 2.4 x 2.0 m
+room (point height 230.9 mm): true count by area **138.6** tiles (160 at the 15%
+allowance), rectangular model **120** — 13.4% short before waste, **25% short of
+what a tiler would order** — plus a uniform 76.2 mm end cut that no hex perimeter
+has. Verified in-app that hex yields zero rows AND a non-zero omitted count, so
+the sheet discloses the gap instead of printing a fabricated field.
+
+**A contradiction inside the app, resolved rather than left standing.**
+`floor-tile-marble` was asserted NON-modular by `authoredDataCoverage.test.ts`,
+grouped with concrete, screed and carpet. But `builtinCatalog`'s `TILE_PATTERNS`
+already counted `marble` as a tile, and `docs/research/2026-09-03-floor-build-up.md`
+researched it AS one: "10 mm tile body on a 5 mm adhesive bed". A 10 mm body is a
+tile; a marble SLAB is 20 mm+ and cut to size. So the app treated one finish as a
+tile for build-up and a slab for setting-out. Resolved toward the tile reading,
+with the note that if a continuous slab floor was the intent, the fix is to drop
+`marble` from `TILE_PATTERNS` too rather than keep the halves disagreeing.
+
+Also corrected a comment that would have propagated the forbidden inference: the
+heritage checkers read "Two tiles ~ 0.6 m each at this uvScale", which describes
+the TEXTURE. Taking it as a spec would have specified a 600 mm heritage checker
+where the researched Peranakan product is 200 mm.
+
 ## v0.31.8.15 - Auditing the printed scope notes: one claimed too much, one claimed absence
 
 `.14` found a sheet note asserting a limitation that did not exist. That suggested
