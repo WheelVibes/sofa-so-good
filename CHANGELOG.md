@@ -27,6 +27,42 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.37 — item (i) is DONE: every shipped front door opens into an entrance space
+
+`tpl-hdb-5room`'s front door opened into the **MASTER BEDROOM**, and unlike the
+earlier (i) fixes this one could not be solved by moving the offset: `h5-s` is lined
+ONLY by the master (offsets 6.3-10.1), the master bath (4.4-6.1) and the balcony
+(0.1-4.0), so no position on that wall is correct. The door had to change wall.
+
+It now fronts `h5-n` at offset 7.0, inside the Living / Dining — beside the kitchen
+and service yard that already front that wall, which is the conventional HDB
+corridor-facing entry. Three positions were measured (`h5-n` at 7.0 and 8.0, `h5-e`
+at 1.0); all three land in the living and hold the furniture floor, so the choice is
+the conventional one, not a forced one.
+
+**`KNOWN_MISPLACED_MAIN_DOORS` now has no live entries.** The list and its sweep stay
+— a new template or an edited offset can still introduce one, and every fix is
+recorded inline so the next reader can see why each offset is what it is.
+
+A side effect worth noting: moving the door off the master's wall freed that room's
+layout, and its wardrobe no longer stands in front of `h5-m-win`. **Item (j) has gone
+11 → 8 without a single arranger change** — every clearance has come from fixing (f)
+and (i) instead.
+
+Also corrected a stale comment I left in v0.31.8.36: it recorded the 2-room door as
+moving to 3.5, but 3.5 was the option that LOST the flat's dining table; the shipped
+offset is 2.6.
+
+**Deliberately not fixed:** the 5-room shows a stray-wall warning (`h5-b2-e` stops
+0.4 m and 0.3 m short at its ends). Those gaps are the only way bedrooms 2 and 3
+reach the master band, so extending the wall would split the bedroom zone (2 groups
+→ 3) rather than fix anything. Closing it properly needs the corridor re-plan that is
+blocked on the (f) content call — logged in `TODO.md` so the two are fixed together.
+
+Verified: 10126 tests pass; `tsc`, `biome`, `knip` clean. Scenario
+`h5-mainroom.json` asserts the door is on `h5-n` AND that its x-span falls inside the
+living room's own footprint; plan reviewed.
+
 ## v0.31.8.36 — the dining-kit threshold is the wrong instrument; 2-room's front door fixed
 
 I proposed an area threshold for the dining kit last tick. **Measured first, and it

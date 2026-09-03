@@ -1968,3 +1968,14 @@ Measured and REJECTED already (see `docs/open-graphics-decisions.md` (f), v0.31.
 committing the chair to its own slot as a last resort. Ignoring all checks costs
 899 -> 875 items; relaxing only the keep-outs costs 899 -> 897. Both are the exact
 pattern that guard was written to catch.
+
+## tpl-hdb-5room ships a stray-wall warning that must NOT be closed on its own
+
+`h5-b2-e` (x=3.2, z 3.6-6.9) stops 0.4 m short of `h5-svc-s` and 0.3 m short of
+`h5-m-n`, so the plan shows "⚠ 1 stray" in the editor. Do not just extend it: those
+gaps are the only way bedrooms 2 and 3 reach the master band, so sealing the wall
+splits the bedroom zone further (2 groups -> 3) instead of fixing anything.
+
+Closing it properly means adding doors inside the zone AND connecting the zone to
+the living — i.e. the corridor re-plan that is blocked on the 4-room/5-room/exec
+content call (`docs/open-graphics-decisions.md` (f)). Fix them together.

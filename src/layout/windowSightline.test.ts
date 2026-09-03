@@ -39,7 +39,6 @@ const KNOWN_BLOCKED = [
   'tpl-hdb-4room/h4-m-win: wardrobe-3door',
   // h5-b2-win CLEARED in v0.31.5.121 by preferring windowless walls for tall
   // storage — the wardrobe had a windowless alternative in that room.
-  'tpl-hdb-5room/h5-m-win: wardrobe-3door',
   'tpl-hdb-exec/ex-b2-win: wardrobe-3door',
   // ADDED by v0.31.5.118, and an honest trade rather than a regression: fixing
   // (h) gave `ex-master` a window it never had AND restored the wardrobe that
@@ -115,7 +114,7 @@ describe('tall furniture does not stand in front of a window', () => {
   })
 
   // Without this the list could pass by measuring nothing: 80 windows are
-  // examined and 73 of them are clear.
+  // examined and 74 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     // 79 from v0.31.8.29: the jumbo re-author added `jb-b3-win`, Bedroom 3's
@@ -132,6 +131,10 @@ describe('tall furniture does not stand in front of a window', () => {
     // the block as a side effect of fixing item (h).
     // 72 → 73 in `.34`: `tpl-1bed`'s living-room window is no longer blocked by
     // a potted plant, the room having gained a door for the arranger to work to.
-    expect(windows - hits.length).toBe(73)
+    // 73 → 74 in `.37`: moving the 5-room's front door off the master's wall
+    // freed that room's layout, and its wardrobe no longer stands in front of
+    // `h5-m-win`. Item (j) has now gone 11 → 8 purely as a side effect of (f)
+    // and (i) work — no arranger change has been needed for any of them.
+    expect(windows - hits.length).toBe(74)
   })
 })

@@ -181,7 +181,14 @@ export function hdb5Room(): FloorPlan {
       iwall('h5-m-n', [T, 7.2], [3.8, 7.2]),
     ],
     openings: [
-      door('h5-main', 'h5-s', 7.2),
+      // MAIN-DOOR-ROOM (i): offset 7.2 on `h5-s` put the front door at x 3.1-2.2
+      // — inside the MASTER BEDROOM. That wall is lined ONLY by the master
+      // (offsets 6.3-10.1), the master bath (4.4-6.1) and the balcony (0.1-4.0),
+      // so there is no correct position on it; the door has to change wall. The
+      // living/dining fronts `h5-n` at offsets 6.2-10.1, beside the kitchen and
+      // service yard that already front it — the conventional HDB
+      // corridor-facing entry. `h5-e` at offset 1.0 measured equally well.
+      door('h5-main', 'h5-n', 7.0),
       door('h5-master', 'h5-m-n', 1.0),
       window('h5-kit-win', 'h5-n', 1.6, 1.8),
       window('h5-b2-win', 'h5-w', 4.4, 1.5),
