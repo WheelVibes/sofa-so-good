@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.131 — `(w)` is the SAME FIX as the GI, measured: no second mechanism, and it resolves a conflict between two of your decisions
+
+Moved to `(z)`9 after parking the seam. `(w)` is a real defect in the **default** render path, priced
+at ~21 % on the ceiling with lever and constant already verified — so it looked like independent,
+shippable work.
+
+**It is not independent.** `(w)`'s verified requirement, from `v0.31.7.8`/`.17`, is to *modulate
+indirect irradiance PER FRAGMENT by aperture visibility, allowing values above 1* — which is exactly
+what `visibilityLightmap.ts`'s shader injection does. And the Cycles **irradiance** bake is a
+superset of visibility: it carries the real bounced light rather than the fraction of sky a point
+sees.
+
+**Tested rather than argued.** One fresh 256-sample Cycles reference at the current default pose,
+rendered from tonight's manifest, with the GI as the only variable:
+
+| | GI off | **GI on (333 maps)** |
+| --- | --- | --- |
+| column spread | 1.48× | **1.37×** (−7 %) |
+| row spread | 1.98× | **1.46×** (−26 %) |
+
+**Enabling the GI moves `(w)`'s own quantity the right way on both axes.** So building a second
+visibility path would be fixing the same physics twice — which is precisely the double-count
+`(z)`9 asked me to check for, and the answer is that the two are one fix rather than two that
+overlap.
+
+**Stated carefully:** this is *not* the 80 % the visibility candidate predicted at γ=1, and **the
+absolute spreads are not comparable to `(w)`'s recorded 4.76×/6.36×** — different pose, different
+reference, my own 256-sample render. What the comparison establishes is direction and mechanism, not
+a headline percentage.
+
+**And it resolves a conflict between two decisions I put to you separately.** `(z)`5 retires the
+`visibility` pass, its assets and the `multiply` operator *entirely*; `(z)`9 ships `(w)`, whose named
+mechanism **was** aperture visibility. Answered in isolation, those two are contradictory. They are
+consistent only because irradiance subsumes visibility — which was worth checking rather than
+assuming, and is now recorded in `(w)`'s own section.
+
+**Consequence: `(w)` is blocked on the same edge artefact the GI is** (`v0.31.7.130`, six causes
+eliminated). Not new work, and not shippable ahead of it.
+
+Suite **10143 green**, `tsc` and biome clean. Documentation only.
+
 ## v0.31.7.130 — `conflicts` reported at last, and it is ZERO: the sixth elimination, and I am parking the seam
 
 `.129` named this as the next step and said not to theorise before doing it. `conflicts` has gated a

@@ -2982,7 +2982,27 @@ histogram has nothing to drive it either.
 transported through the room, which is what the renderer does not do. It needs a real indirect
 term — not a scalar, a curve or a baked map — and item (w) is where that work would live.
 
-## (w) RASTER-INTERREFLECTION — 🐞 REAL; ✅ DECIDED 2026-09-04, see (z)9: ship (verify no double-count with the GI path first). In the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
+## (w) RASTER-INTERREFLECTION — 🐞 REAL; ✅ DECIDED 2026-09-04, see (z)9 — and `v0.31.7.131` finds it is THE SAME FIX AS THE GI, needing no separate mechanism.
+
+> **`v0.31.7.131`: the GI path measurably reduces (w)'s spatial error, so (w) is not separate work.**
+> (w)'s verified requirement is "modulate indirect irradiance PER FRAGMENT by aperture visibility,
+> allowing values above 1" — which is exactly `visibilityLightmap.ts`'s shader injection, and the
+> Cycles **irradiance** bake is a superset of visibility (it carries the real bounced light rather
+> than the fraction of sky seen). Measured against one fresh 256-sample Cycles reference at the
+> current default pose, GI the only variable: **column spread 1.48x → 1.37x, row spread 1.98x →
+> 1.46x (−26 %)**.
+>
+> Not the 80 % the visibility candidate predicted at γ=1, and **the absolute spreads here are not
+> comparable to the 4.76x/6.36x below** — different pose, different reference. What the comparison
+> does establish is direction and mechanism: enabling the GI moves (w)'s own quantity the right way,
+> so building a second visibility path would be fixing the same physics twice. **(w) is therefore
+> blocked on the same thing the GI is** — the edge artefact parked in `v0.31.7.130`.
+>
+> This also resolves a tension between the decisions: `(z)`5 retires the `visibility` pass entirely
+> while `(z)`9 ships (w), whose named mechanism *was* aperture visibility. They are consistent only
+> because irradiance subsumes visibility — which was worth checking rather than assuming.
+
+In the DEFAULT render path. In the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
 
 > **⚠️ RE-PRICED, v0.31.7.7, CORRECTED v0.31.7.8 — a ~3× error on a whole wall, and it is
 > APERTURE VISIBILITY.** *(The figures below are `v0.31.7.7`'s, taken against a reference that
