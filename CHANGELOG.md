@@ -29,6 +29,70 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.67 — the cheap proxy for baked irradiance has a knob the real bake does not, so it cannot decide the question
+
+Phase 1 asks whether baked **irradiance** fixes what baked **visibility** could not. Before spending
+a bake I tried to answer it with a camera render: `render_visibility.py` gained `--sky`, which swaps
+its constant white world for the manifest's physical sky and sun, turning the output from visibility
+into irradiance. Nine seconds a frame on the GPU against ~12 minutes for a bake. Three findings, all
+negative, and the third is the useful one.
+
+**1. As a MULTIPLIER, the real term explains less than the proxy — in 4 of 4 pairs.** (HUD excluded.)
+
+| view | axis | baseline | visibility explains | irradiance explains |
+| --- | --- | --- | --- | --- |
+| livingDining | columns | 4.33× | **+79 %** | +58 % |
+| livingDining | rows | 2.20× | **+61 %** | +36 % |
+| mainBedroom | columns | 1.51× | −64 % | **−31 %** |
+| mainBedroom | rows | 1.58× | **+25 %** | +20 % |
+
+That much is expected rather than damning: `--explain` tests `A/B × candidate`, and multiplying by
+irradiance **double-counts** light the app already has. It is evidence for the design note that a
+baked irradiance term must *replace* the ambient/hemisphere contribution, not modulate it.
+
+**2. So I tested it as a REPLACEMENT instead — how well each candidate's own profile tracks physics.
+Visibility still wins, 4 of 4.**
+
+| candidate vs physics | ld2 cols | ld2 rows | mb cols | mb rows |
+| --- | --- | --- | --- | --- |
+| the app | 4.33× | 2.20× | 1.51× | 1.58× |
+| visibility | **1.39×** | **2.03×** | **1.27×** | **1.16×** |
+| irradiance | 1.69× | 2.56× | 1.29× | 1.34× |
+
+Every baked candidate tracks physics better than the app does — which is the case for baking at all —
+but the sun-independent proxy beats the physically-correct term everywhere.
+
+**3. Two explanations tried; the first is refuted and the second kills the method.**
+
+- *The direct sun contaminates it* (three.js already computes direct sun, and at albedo 1.0 a sun
+  patch is disproportionately bright). Added `--no-sun-disc` for diffuse skylight only: **1.72 /
+  2.56 / 1.30 / 1.35** against full irradiance's **1.69 / 2.56 / 1.29 / 1.34**. Identical. Refuted.
+- *The whitened room is a light trap.* Looking at the frame — which the arc's own rule requires —
+  it is nearly uniform bright white: albedo 1.0 with multiple bounces and no absorption. So I swept
+  it:
+
+| ld2, irradiance | cols | rows | own mean |
+| --- | --- | --- | --- |
+| albedo 1.0 | 1.69× | 2.56× | 140.8 |
+| albedo 0.5 | 1.86× | **1.92×** | 62.7 |
+| albedo 0.2 | **25.33×** | 6.24× | 25.5 |
+
+**The figure of merit moves from 1.39 to 25.33 on a parameter I invented.** At 0.5 irradiance beats
+visibility on rows (1.92 vs 2.03) and loses on columns; at 0.2 it collapses into noise. No candidate
+dominates, and the ranking is decided by the albedo I picked.
+
+**That is what settles it: the proxy has a free knob the real bake does not have.** A whitened render
+imposes one uniform albedo; `bake_material.py --pass diffuse` with `use_pass_color = False` bakes
+direct+indirect with the **real materials** governing every bounce. Those are different quantities,
+and the cheap one is only as good as a number nobody can justify. **The question needs the actual
+bake** — which the GPU path from `.65` brings to ~12 minutes.
+
+Spent ~5 minutes of renders to avoid a 35-minute bake, and learned the shortcut cannot answer it.
+The instrument stays: `--sky` and `--no-sun-disc` are the right way to render an irradiance
+reference, whatever it is later compared against.
+
+Suite **10078 green**, `tsc` and biome clean, 11 python tests pass.
+
 ## v0.31.7.66 — un-capped the render pump (max performance over power, per the call), and RETRACTED the maximum-tier figure
 
 **The trade in `.64` was resolved the other way: maximum power draw for maximum performance.** So

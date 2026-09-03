@@ -58,6 +58,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "of one-time kernel compilation.")
     p.add_argument("--samples", type=int, default=128)
     p.add_argument("--res", default=None, help="WxH; default the manifest aspect at 800 wide")
+    p.add_argument("--no-sun-disc", action="store_true",
+                   help="with --sky, drop the SUN DISC and keep only diffuse skylight. This is "
+                        "the variant that matches what the app is actually missing: three.js "
+                        "computes DIRECT sun (and its shadows) already, so a baked term that "
+                        "includes the sun double-counts it -- and at albedo 1.0 a sun patch is "
+                        "far brighter relative to its surroundings than on a real floor, which "
+                        "measurably made full irradiance a WORSE predictor of physics than "
+                        "sun-free visibility (v0.31.7.67).")
+    p.add_argument("--sky", action="store_true",
+                   help="light with the manifest's PHYSICAL SKY AND SUN instead of a constant "
+                        "white world. Turns the output from VISIBILITY into IRRADIANCE: the "
+                        "same white-Lambertian surfaces, but weighted by the real radiance "
+                        "distribution of the sky and lit by the sun. Sky-dependent and so less "
+                        "reusable than visibility -- valid only for the time of day it was made "
+                        "at -- but it is the ACTUAL missing term rather than a proxy for it.")
     p.add_argument("--albedo", type=float, default=1.0,
                    help="white-diffuse albedo. 1.0 makes the render proportional to visibility "
                         "INCLUDING interreflection between surfaces; a low value (e.g. 0.05) "
@@ -179,10 +194,27 @@ def main(argv: list[str] | None = None) -> int:
     S.reset_scene()
     S.import_glb(fixed)
     S.setup_cycles(samples=a.samples, res=(w, h), device=a.device)
-    make_visibility_world()
+    sky_info = None
+    if a.sky:
+        # Order still matters exactly as for visibility: open the apertures BEFORE
+        # whitening, or the whitened glazing seals the room. The difference is only
+        # which world is overhead.
+        directional = manifest.get("lights", {}).get("directional") or []
+        if not directional:
+            raise ValueError(
+                "--sky needs a directional light in the manifest to place the sun from; "
+                "this reference has none (re-capture with the app's sun enabled)"
+            )
+        sky_info = S.setup_world_sky_from_three_direction(
+            tuple(directional[0]["travel"]), sun_disc=not a.no_sun_disc
+        )
+    else:
+        make_visibility_world()
     opened, opened_names = open_apertures()
     slots = whiten_all_materials(a.albedo)
-    # No sun: a sun would add a direct term, and visibility is an indirect quantity.
+    # Without --sky there is no sun: a sun would add a direct term, and visibility is
+    # an indirect quantity. WITH --sky the sun is part of the sky node itself, so the
+    # direct term is included on purpose -- irradiance means all of it.
     # This helper pins the vertical FOV via sensor_fit itself, which is the whole reason
     # to use it rather than place_camera().
     S.place_camera_from_three(
@@ -201,7 +233,8 @@ def main(argv: list[str] | None = None) -> int:
         "glazing_meshes_removed": opened,
         "glazing_examples": opened_names,
         "dispersion_stripped": stripped,
-        "world": "constant white (visibility, not sky-weighted)",
+        "world": "physical sky + sun (IRRADIANCE)" if a.sky else "constant white (visibility, not sky-weighted)",
+        "sky": sky_info,
         "sun": None,
     }
     print("RENDER_VISIBILITY " + json.dumps(result))
