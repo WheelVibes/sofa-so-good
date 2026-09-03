@@ -2048,6 +2048,72 @@ const applyAoMap = !AOMAP
           })
           return out.sort((a, b) => b.span - a.span).slice(0, 8)
         })
+        // The ROOM-SCOPED derived gain (`v0.31.7.27`). `bake-gain.mjs` averages over every map
+        // in the plan -- corridors, bathrooms, other bedrooms -- but the quantity the app's
+        // fill stands in for is the average irradiance of THE ROOM BEING LIT. If those differ,
+        // the flat-wide gain is simply the wrong constant for any given room, which is a
+        // candidate for the 1.25x gap between the derived gain (4.81) and the metric's optimum
+        // (6). Frustum-tested and area-weighted, so it is the average of what the camera sees.
+        const scoped = await page.evaluate(() => {
+          const { scene, camera } = window.__three
+          camera.updateMatrixWorld(true)
+          scene.updateMatrixWorld(true)
+          let areaSum = 0
+          let weighted = 0
+          let n = 0
+          scene.traverse((o) => {
+            const g = o.geometry
+            const m = o.material
+            const key = o.userData.__lmKey
+            if (!g?.attributes?.uv1 || !m?.aoMap || !key) return
+            const cv = window.__aoCanvases?.[key]
+            if (!cv) return
+            // In view? Project the geometry's bounding-box centre and corners; count the mesh
+            // if any corner lands inside the clip volume. Cheaper and more robust than
+            // building a Frustum without a three global.
+            if (!g.boundingBox) g.computeBoundingBox()
+            const bb = g.boundingBox
+            const v = camera.position.clone()
+            let visible = false
+            for (const cx of [bb.min.x, bb.max.x]) {
+              for (const cy of [bb.min.y, bb.max.y]) {
+                for (const cz of [bb.min.z, bb.max.z]) {
+                  v.set(cx, cy, cz).applyMatrix4(o.matrixWorld).project(camera)
+                  if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1 && v.z >= -1 && v.z <= 1)
+                    visible = true
+                }
+              }
+            }
+            if (!visible) return
+            // Area from the bounding box's two largest extents -- adequate for a weight.
+            const e = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z].sort(
+              (a, b) => b - a,
+            )
+            const area = e[0] * e[1]
+            const ctx = cv.getContext('2d')
+            const px = ctx.getImageData(0, 0, cv.width, cv.height).data
+            const uv = g.attributes.uv1
+            let sum = 0
+            for (let i = 0; i < uv.count; i++) {
+              const x = Math.min(cv.width - 1, Math.max(0, Math.round(uv.getX(i) * cv.width)))
+              const y = Math.min(
+                cv.height - 1,
+                Math.max(0, Math.round((1 - uv.getY(i)) * cv.height)),
+              )
+              sum += px[(y * cv.width + x) * 4] / 255
+            }
+            weighted += (sum / uv.count) * area
+            areaSum += area
+            n += 1
+          })
+          return { n, mean: areaSum ? weighted / areaSum : null, areaSum }
+        })
+        if (scoped.mean) {
+          console.log(
+            `AOPROBE  IN-VIEW scope: ${scoped.n} mapped meshes, ${scoped.areaSum.toFixed(1)} m2,` +
+              ` mean visibility ${scoped.mean.toFixed(4)} => room-scoped gain ${(1 / scoped.mean).toFixed(2)}`,
+          )
+        }
         console.log('AOPROBE  what each mesh SAMPLES vs what its map CONTAINS:')
         for (const r of rows) {
           console.log(

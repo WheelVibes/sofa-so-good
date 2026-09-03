@@ -29,6 +29,58 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.27 — the gain is NOT derivable: it is scope-dependent by 2.7×. Corrects v0.31.7.23
+
+`v0.31.7.26` closed on a 1.25× gap between the derived gain (4.81) and the metric's optimum
+(~6), with a hypothesis attached: the maps cover only the shell, so unmapped furniture keeps its
+unattenuated fill and mapped surfaces must over-correct. This round tests that, and a second
+hypothesis, and **both fail — which invalidates the derivation itself.**
+
+**Hypothesis 1 — unmapped furniture. Refuted, cheaply.** If furniture were the cause, a crop
+containing almost none of it should favour the derived gain. Measured on the bare left-wall
+region (one lamp, no furniture mass) against the full furniture-heavy crop:
+
+| | wall-only crop | full crop |
+| --- | --- | --- |
+| gain 4.81 (derived) | 1.60× | 1.49× |
+| gain 6 (fitted) | **1.39×** | **1.36×** |
+
+The fitted gain wins by the same margin either way. Furniture coverage is not the cause — and
+this cost two crops of frames already on disk rather than a two-hour bake of 500 furniture
+meshes, which was the alternative.
+
+**Hypothesis 2 — wrong scope. Refuted, and in the opposite direction.** `bake-gain.mjs` averages
+over every map in the plan: corridors, bathrooms, other bedrooms. But the app's fill stands in
+for the average irradiance of **the room being lit**, so the flat-wide average is arguably the
+wrong constant. `AOPROBE` now computes the in-view, area-weighted mean by projecting each mapped
+mesh's bounding-box corners through the live camera:
+
+| scope | mean visibility | implied gain |
+| --- | --- | --- |
+| whole plan, 110 maps, 901 m² | 0.2081 | **4.81** |
+| in view, 47 maps, 323 m² | 0.0762 | **13.12** |
+| — | *fitted optimum* | **~6** |
+
+**A 2.7× range depending on which surfaces you average**, with the fitted value sitting between
+them. So the scope does not resolve the gap; it shows the question was ill-posed.
+
+**Which corrects `v0.31.7.23`.** That round reported "the gain is derived and agrees with the
+fit" as strong evidence the term behaves as modelled. The agreement was real but **partly an
+artefact of the scope chosen** — a different, equally defensible scope gives 13.12. `1/mean(V)`
+is only well-defined if you know which surfaces the app's artistic fill was calibrated against,
+and nothing defines that: the fill is a constant chosen to look right, not a measured room
+average.
+
+**So the gain is a calibration constant, and fitting it is correct rather than lazy.** It relates
+an artistic fill to a physical quantity, which is exactly the kind of number that has to be
+measured against a reference. The fit is also **stable** — 1.36× and 1.39× at gain 6 across two
+very different crops — which is the property that matters for shipping it.
+
+**What this does not touch:** the term itself, its 4.76× → 1.36× improvement, the bake quality
+work, or the frame-cost measurement. Only the claim that the gain could be computed a priori.
+
+**Nothing shipped.** Probes only; 60 fps intact; `tsc`, biome, knip clean, 10011 tests green.
+
 ## v0.31.7.26 — adaptive sampling cuts the dark-texel noise 4×, and a seed pair removes the reference from the measurement
 
 `v0.31.7.25` found the bake 35 % wrong on the dark interior texels a camera actually sees, and

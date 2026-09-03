@@ -209,6 +209,12 @@ the research docs.*
   A uniform multiplier at the same average level (`AOSYNTH=white AOGAIN=0.17`, mean 63.5 vs the
   real map's 72.2) gave a perfectly smooth wall where the real map speckled — isolating the data
   as the source and clearing the material in one run.
+- **2026-09-03 — the shader gain for a baked term is a CALIBRATION constant, not a derivable
+  one.** `1/mean(V)` looks principled and is scope-dependent by **2.7×**: averaging over a whole
+  plan gives 4.81, over just the in-view surfaces 13.12, with the fitted optimum (~6) in between.
+  It is only well-defined if you know which surfaces the app's artistic fill was calibrated
+  against — and a fill chosen to look right has no such definition. Fit it against a reference
+  and check the fit is stable across crops (measured 1.36× and 1.39× at gain 6).
 - **2026-09-03 — DERIVE the shader gain for a visibility map; don't fit it.** If the app's fill
   stands in for a room's average indirect irradiance, the gain is exactly `1 / mean(V)` computed
   from the maps (area-weighted, counting only filled atlas slots): **0.1674 ⇒ 5.97**, which landed
