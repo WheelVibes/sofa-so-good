@@ -27,6 +27,42 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.32 — tpl-hdb-4room needs a content call: its defects are in direct tension
+
+Fourth template attempted and the first that cannot be fixed without a decision.
+Four layouts were built and measured; **all four are reverted** and the plan file
+is unchanged. This entry is the measurement.
+
+**Not a "one door short" case like the 3-room.** The bedroom zone holds bedrooms
+2 and 3, both baths and the master as ONE open volume with no corridor, so a door
+anywhere on `h4-liv-w` opens straight into a bedroom — there is no circulation to
+open onto. And `h4-bed3` touches **no external wall at all**, so fixing item (h)
+for it is a re-plan, not a window offset.
+
+**The tension.** The zone's only façades are west and south; the living column owns
+the entire east side. Giving bedroom 3 a façade therefore takes frontage from the
+living, and every version starves it:
+
+- living 3.2 × 4.0 m (12.8 m²) → 1 chair stranded **1.32 m** from its table
+  (threshold 1.2 m);
+- living 3.2 × 4.5 m (14.4 m²) → 1 chair at **3.69 m**, worse;
+- living 3.7 × 4.0 m (14.8 m²) → **4** chairs stranded, worst 2.90 m.
+
+I also swept the living's east-wall openings (main door at offsets 2.3 / 3.0 / 5.0,
+window 1.4–2.0 m at three offsets): best case 1.32 m, none under threshold. The
+original 23 m² living passes the tuck test; a 4-seat dining set plus a lounge does
+not fit in 13–15 m².
+
+So this plan can have **either** a bedroom 3 with daylight **or** a living room that
+seats its dining set — not both, unless the envelope or the room programme changes.
+Three options are written up in `docs/open-graphics-decisions.md` (f): shrink the
+living and accept a smaller dining set; leave bedroom 3 interior and windowless
+(shipping a known compliance defect, which is today's behaviour); or re-cut the flat
+so the bedrooms wrap the west and south façades. Recorded, not chosen.
+
+No production code changed. 10126 tests pass with all three of the template's
+ratchet entries left exactly as they were.
+
 ## v0.31.8.31 — tpl-hdb-3room re-authored (3 of 16); a living room's door budget
 
 Third template, and the smallest change yet: **the plan was one door short.**

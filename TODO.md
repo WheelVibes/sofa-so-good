@@ -1938,3 +1938,15 @@ that, but it has to avoid the Common Bath now sitting in it (x 6.4-8.3, z 9.7-11
 so it needs either an L-shaped room or the bath moved to one end — a content call.
 
 Check the other 15 levels for the same thing as they are re-authored.
+
+## tpl-hdb-4room re-author is blocked on a content call
+
+Four layouts built and measured, all reverted — see `docs/open-graphics-decisions.md`
+(f) under v0.31.8.32. The template's bedroom zone has no corridor (so any door from
+the living opens into a bedroom) and `h4-bed3` touches no external wall at all, so
+item (h) needs a re-plan rather than a window offset. But the zone's only façades
+are west and south, and the living owns the whole east side — so giving bedroom 3
+daylight starves the living: measured 1.32 m, 3.69 m and 4-chairs-stranded for
+living areas of 12.8, 14.4 and 14.8 m². The original 23 m² living passes.
+
+Three options are written up in the decisions doc; the call is the maintainer's.

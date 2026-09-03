@@ -303,6 +303,47 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.32 — `tpl-hdb-4room` NEEDS A CONTENT CALL: its defects are in direct tension
+
+Fourth template attempted, and the first that cannot be fixed without a decision. Four layouts
+were built and measured; **all four are reverted.** The plan file is unchanged.
+
+**Why it is not a "one door short" case like the 3-room.** `tpl-hdb-4room`'s bedroom zone
+(x 0.1-5.7, z 2.9-9.7) contains bedrooms 2 and 3, both baths and the master as ONE open volume
+with no corridor. Nothing pierces `h4-liv-w`, so none of them is reachable. But a door anywhere on
+that wall opens straight into a bedroom, because the rooms fill the zone — there is no circulation
+to open onto. And `h4-bed3` (x 3.2-5.6, z 3.2-6.2) touches **no external wall at all**, which is
+why it ships windowless: fixing item (h) for it is not a window offset, it is a re-plan.
+
+**The tension.** The zone's only façades are west (`h4-w`) and south (`h4-s`). The living column
+occupies the whole east side. So giving bedroom 3 a façade means taking frontage from the living —
+and every version of that starves the living room:
+
+| living | result |
+| --- | --- |
+| 3.2 × 4.0 m (12.8 m²) | 1 chair stranded **1.32 m** from its table (threshold 1.2) |
+| 3.2 × 4.5 m (14.4 m²) | 1 chair at **3.69 m** — worse |
+| 3.7 × 4.0 m (14.8 m²) | **4** chairs stranded, worst 2.90 m |
+
+Door and window positions on the living's east wall were swept too (main door at offsets 2.3 / 3.0
+/ 5.0, window 1.4-2.0 m wide at three offsets): best case 1.32 m, none under the threshold. The
+original 23 m² living passes the tuck test; a 4-seat dining set plus a lounge does not fit in
+13-15 m².
+
+So the plan can have **either** a bedroom 3 with daylight **or** a living room that seats its
+dining set, not both, unless the envelope or the room programme changes. That is a content
+decision, not a defect fix:
+
+1. **Shrink the living and accept a smaller dining set** (a 2-seat table, or drop the dining zone
+   and let the kitchen take it). Clears every ratchet entry.
+2. **Leave bedroom 3 interior and windowless**, fixing only connectivity by carving a corridor out
+   of the bedrooms. An HDB habitable room needs natural light, so this ships a known compliance
+   defect — but it is what the plan does today.
+3. **Re-cut the whole flat** so the bedrooms wrap the west and south façades and the living sits
+   inland. Biggest change, closest to a real 4-room, and it stops being the shipped layout.
+
+Recorded rather than chosen. The three ratchet entries stay as they are.
+
 ### v0.31.8.31 — `tpl-hdb-3room` re-authored (3 of 16); the living room sets a hard door budget
 
 Third template, and the smallest change of the three so far: **the plan was one door short.**
