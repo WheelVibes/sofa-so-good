@@ -921,6 +921,31 @@ glazing material, which is a different quantity and not a contradiction.
 showing, rather than from a constant. That is a `materialRealism` change, not a background change,
 and it is what `(l)` has actually needed all along.
 
+**And the magnitude is now measured, `v0.31.7.153`.** Sweeping the probe's `SKYCATCH` multiplier
+(applied with interception and read-back, so the intervention is verified — `0.4 → 6.4` emissive
+across the sweep), 13:00, `realistic`, world-verified glazing (n = 367):
+
+| `SKYCATCH` | glazing mean | **> 240** | > 250 |
+| --- | --- | --- | --- |
+| 1 (shipped) | 174.6 | 0.0 % | 0.0 % |
+| 4 | 211.3 | 0.0 % | 0.0 % |
+| 8 | 228.1 | 0.0 % | 0.0 % |
+| 10 | 229.9 | 0.0 % | 0.0 % |
+| **12** | 233.2 | **7.9 %** | 0.0 % |
+| **14** | 238.5 | **43.1 %** | 0.0 % |
+| 16 | 240.6 | 56.4 % | 0.0 % |
+| *photographs* | | *15–39 %* | |
+
+**≈×13 lands in the photographic band.** Two further observations:
+
+- **`> 250` stays 0.0 % at every multiplier**, even with the mean at 240.6. That is AgX's shoulder —
+  the same mechanism this item recorded for the background. So the app can approach the photographic
+  band at `> 240` but cannot reach a hard clip; a metric defined at `> 250` would call every setting
+  a failure.
+- **≈13 is suspiciously close to the `BGMUL ≈ 12` this item escalated and then corrected down to 4.**
+  Since the background provably cannot reach the pane, the discarded ~12 may have been the right
+  *magnitude* measured on the wrong *lever*. Offered as an observation, not a conclusion.
+
 ### (l)/(z)4 — the baked-key-set route is MEASURED VIABLE, `v0.31.7.148`
 
 `(z)`4 was decided ("ship the Cycles sky **and** `backgroundIntensity ≈ 4`") but not scoped: the sun

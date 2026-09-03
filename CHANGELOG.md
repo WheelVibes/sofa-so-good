@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.153 — the revised `(l)` fix has a number: sky-catch ≈×13 reaches the photographic band
+
+`.152` established that `(z)`4's lever cannot reach the pane — brightness is an emissive constant, not
+the background. So the revised fix is a `materialRealism` change, and the useful next step was to
+price it rather than argue it. The probe's `SKYCATCH` knob already exists for exactly this, applied
+with interception and read-back so the intervention is verified (`0.4 → 6.4` emissive across the
+sweep).
+
+13:00, `realistic`, world-verified glazing (n = 367):
+
+| `SKYCATCH` | glazing mean | **> 240** | > 250 |
+| --- | --- | --- | --- |
+| 1 (shipped) | 174.6 | 0.0 % | 0.0 % |
+| 8 | 228.1 | 0.0 % | 0.0 % |
+| **12** | 233.2 | **7.9 %** | 0.0 % |
+| **14** | 238.5 | **43.1 %** | 0.0 % |
+| 16 | 240.6 | 56.4 % | 0.0 % |
+| *photographs* | | *15–39 %* | |
+
+**≈×13 lands in the band**, and the transition is sharp — 7.9 % to 43.1 % between ×12 and ×14 — so
+the setting matters and is worth fitting rather than guessing.
+
+**Two things worth keeping.**
+
+- **`> 250` never leaves 0.0 %**, even at a mean of 240.6. That is AgX's shoulder, the same mechanism
+  this item already recorded for the background. So a "clipping" metric defined at `> 250` would
+  report failure at every setting, including ones that reach the photographic band at `> 240`. Worth
+  knowing before anyone fits against the stricter threshold.
+- **≈13 is close to the `BGMUL ≈ 12` that `(l)` escalated and then corrected down to 4.** Since the
+  background provably cannot reach the pane, that discarded ~12 may have been the right *magnitude*
+  measured on the wrong *lever*. An observation, not a conclusion — but a suggestive one, and it
+  would mean the round that "corrected" it moved away from the answer.
+
+So `(l)` now has a located gate (`GLASS_SKYCATCH_COLOR` / `glassSkyCatchIntensity`), a measured
+magnitude (≈×13), a known ceiling (AgX prevents `> 250` regardless) and a decision that needs
+re-taking, since `(z)`4 was answered on the assumption the background was the lever.
+
+Measurement only — no code change; `SKYCATCH` is an existing probe knob. Suite **10165 green**, `tsc`
+and biome clean.
+
 ## v0.31.7.152 — `(z)`4 built behind DEV seams, and the measurement says its PREMISE is wrong: the pane is an emissive constant
 
 Built both halves of `(z)`4 — `?skyKeys=1` composites the baked Cycles keys (two draws per key so the
