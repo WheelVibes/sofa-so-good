@@ -480,7 +480,12 @@ export function condoPenthouse(): FloorPlan {
       window('cp-kit-win', 'cp-n', 1.4, 1.8),
       window('cp-b2-win', 'cp-e', 1.2, 1.6),
       window('cp-b3-win', 'cp-e', 4.4, 1.6),
-      window('cp-m-win', 'cp-e', 7.6, 2.0),
+      // BEDROOM-WINDOW (h): this was called `cp-m-win` but its probe lands in the
+      // master BATHROOM, not the bedroom — renamed to say what it is. The master
+      // itself had no window at all; it lines offsets 2.4-4.4 of `cp-s`, which
+      // carries no other opening.
+      window('cp-mbath-win', 'cp-e', 7.6, 2.0),
+      window('cp-m-win', 'cp-s', 2.7, 1.4),
       window('cp-liv-win', 'cp-n', 5.0, 3.0),
     ],
     rooms: [

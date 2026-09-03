@@ -25,11 +25,15 @@ const KNOWN_WINDOWLESS_BEDROOMS = [
   // h5-master FIXED in v0.31.5.116 — `h5-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (8.2 -> 1.0).
   'tpl-hdb-exec/ex-bed3',
-  'tpl-hdb-exec/ex-bed2b',
   // ex-master FIXED in v0.31.5.118 — `ex-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (9.8 -> 0.4).
+  // c4-bed4 is NOT an interior room — it fronts `c4-n`, and offsets 6.1-8.7 of
+  // that wall are clear. A window was added and REVERTED: at every offset in that
+  // span the room's wardrobe stands in front of the glass, because `c4-n` is the
+  // only wall it can take. Giving this room daylight needs its layout changed,
+  // not a window added, so it stays here rather than trading one ratchet for the
+  // other (measured v0.31.8.41).
   'tpl-condo-4bed/c4-bed4',
-  'tpl-condo-penthouse/cp-master',
 ]
 
 /** Does this room own `win`? Probe 0.3 m either side of the glass centre — the
@@ -98,6 +102,6 @@ describe('template bedrooms have daylight', () => {
     // grandparent suite a window on the south wall it owns; 38 from `.31`, the
     // 3-room re-author — `h3-b2-win` had been at z=2.0, in the KITCHEN, and
     // bedroom 2 does not reach that wall at all.
-    expect(owning).toBe(38)
+    expect(owning).toBe(40)
   })
 })

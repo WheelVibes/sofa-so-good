@@ -88,7 +88,9 @@ describe('dining chairs are tucked to their table', () => {
       // (the stray kitchen window had been blocking the extractor's wall, the
       // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
       // master's wardrobe had been dropped and now places.
-      'tpl-hdb-exec': 93,
+      // 93 → 95 in v0.31.8.41: `ex-bed2b` gains the window it never had, and two
+      // pieces then fit in that room.
+      'tpl-hdb-exec': 95,
       // 95 → 86 in v0.31.8.30, the 3Gen re-author. Verified by per-def diff, not
       // inferred: the east wing lost its bathroom (4 pieces) — it cannot hold a
       // furnishable bedroom AND an ensuite, see the template comment — and a
@@ -185,7 +187,8 @@ describe('dining chairs are tucked to their table', () => {
     // room lets three pieces fit that previously did not. The threshold is 2.5 m
     // precisely because 2.7 also restores wardrobes into rooms with no windowless
     // wall, which parks them in front of glass.
-    expect(total).toBe(1431)
+    // 1431 → 1433 in `.41`: `ex-bed2b`'s first window lets two pieces fit.
+    expect(total).toBe(1433)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

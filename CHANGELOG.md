@@ -27,6 +27,40 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.41 — two more bedrooms get windows, and two more windows were in the wrong room
+
+Item (h) had six entries left. Three are interior rooms with no external wall, so
+they are blocked on the (f) content call. The other three are not — and checking
+them turned up the same misplacement bug twice more:
+
+- **`tpl-condo-penthouse`'s `cp-m-win` is not the master's window.** Its probe lands
+  in the master BATHROOM. Renamed `cp-mbath-win` to say what it is, and the master
+  got its own on `cp-s`, a wall carrying no other opening.
+- **`cp-liv-win` lands in `cp-dining`, not the living room** — recorded, not yet
+  fixed; the living room is not a bedroom so it is a separate item.
+- `tpl-hdb-exec`'s `ex-bed2b` simply had none. It lines offsets 3.1-5.5 of `ex-w`,
+  clear between the two existing windows.
+
+Bedrooms owning a window: **38 → 40**. The exec gains 2 pieces of furniture as well,
+because the new window changes what fits in that room — total 1431 → **1433**.
+
+**`tpl-condo-4bed`'s `c4-bed4` was attempted and REVERTED.** It is not an interior
+room — it fronts `c4-n`, with offsets 6.1-8.7 clear — but at every offset in that
+span the room's wardrobe stands in front of the glass, because `c4-n` is the only
+wall the wardrobe can take. Giving that room daylight needs its layout changed, not
+a window added, so it stays in the windowless list rather than trading the
+bedroom-window ratchet against the sightline one. The reason is recorded there.
+
+**Also corrected my own note from last tick.** I had logged a built-in wardrobe
+variant as the thing that would unlock the narrow-bedroom corridors. Measured: only
+FOUR wardrobes are missing library-wide, and `tpl-condo-3bed`'s corridor is blocked
+by the COLUMN's depth, not the wardrobe's — three bedrooms plus a bath in a 9.3 m
+column leaves each ~2.4 m deep, and a 2.0 m bed leaves 0.4 m, less than a wardrobe
+at any width. A built-in variant is still worth having for realism; it just will not
+do that job.
+
+Verified: 10128 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.40 — a wardrobe sized to its room: +3 pieces, nothing traded away
 
 `wardrobe-3door` is 1.5 m wide by default, and in a narrow bedroom that leaves no

@@ -113,15 +113,17 @@ describe('tall furniture does not stand in front of a window', () => {
     expect(blockedWindows().hits).toEqual(KNOWN_BLOCKED)
   })
 
-  // Without this the list could pass by measuring nothing: 80 windows are
-  // examined and 74 of them are clear.
+  // Without this the list could pass by measuring nothing: 82 windows are
+  // examined and 76 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     // 79 from v0.31.8.29: the jumbo re-author added `jb-b3-win`, Bedroom 3's
     // first window of its own (item (h)); 80 from `.30`, where the 3Gen
     // re-author gave bedroom 2 its own window (`g3-b3-win` had been sitting in
     // bedroom 2, and `g3-m-win` in the kitchen).
-    expect(windows).toBe(80)
+    // 82 from `.41`: `ex-bed2b` and `cp-master` gained the windows they never had
+    // (item (h)), and neither is blocked.
+    expect(windows).toBe(82)
     // 67 → 69: one more window examined (`jb-b3-win`) and one fewer blocked
     // (`jb-b5-win`, cleared because the jumbo re-author divided bedrooms 4/5).
     // 69 → 71 in `.30`: `g3-b2-win` added and `g3-liv-win` cleared, the living
@@ -135,6 +137,7 @@ describe('tall furniture does not stand in front of a window', () => {
     // freed that room's layout, and its wardrobe no longer stands in front of
     // `h5-m-win`. Item (j) has now gone 11 → 8 purely as a side effect of (f)
     // and (i) work — no arranger change has been needed for any of them.
-    expect(windows - hits.length).toBe(74)
+    // 74 → 76 in `.41`, both new windows clear.
+    expect(windows - hits.length).toBe(76)
   })
 })

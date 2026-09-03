@@ -1989,7 +1989,21 @@ content call (`docs/open-graphics-decisions.md` (f)). Fix them together.
 NOT fixed by narrowing the piece (v0.31.8.40 proved width is not the constraint).
 
 A real 2.7 m condo bedroom has a BUILT-IN wardrobe: shallower, and its doors slide
-rather than swing, so it needs far less clear floor. A `layout: 'built-in'` variant
-with a reduced front clearance would let those corridors land, which would close the
-last `bedroomPrivacy.test.ts` entries and possibly the three blocked levels in
-`templateConnectivity.test.ts`.
+rather than swing, so it needs far less clear floor.
+
+**CORRECTED v0.31.8.41 — do not build this expecting it to unlock the corridors.**
+Measured: only FOUR wardrobes are missing library-wide (`tpl-hdb-3room` ×2,
+`tpl-hdb-jumbo` ×2), and `tpl-condo-3bed`'s corridor is blocked by the COLUMN's
+depth, not the wardrobe's: three bedrooms plus a bath in a 9.3 m column leaves each
+bedroom ~2.4 m deep, and a 2.0 m bed leaves 0.4 m — less than a wardrobe's depth at
+any width. A shallower piece would still not fit. The two rooms that could take a
+recovered wardrobe (`h3-master` and `jb-bed5`) are both 2.6 m across, so no
+threshold separates them, and recovering `jb-bed5`'s parks it in front of a window.
+A built-in variant is still worth having for realism, but its value is NOT here.
+
+## tpl-condo-penthouse: `cp-liv-win` is in the dining room, not the living room
+
+Found while fixing item (h) in v0.31.8.41. Its probe lands in `cp-dining`. The living
+room may therefore have no window of its own — check against the daylight report and
+give it one on a wall it owns, the same fix applied to `cp-master` in that release.
+Not a bedroom, so `bedroomWindow.test.ts` does not cover it.
