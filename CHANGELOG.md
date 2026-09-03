@@ -29,6 +29,61 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.102 — the black shell is the VISIBILITY DATA ITSELF, not a coordinate bug: 52-80 % of slots are dark in the shipped set
+
+Three rounds chased a coordinate error — `.98` blamed the mirror row, `.99` refuted it, `.100` blamed
+sub-slot misregistration, `.101` retracted that as my own probe's flip. This round measured the
+**values** instead of the mapping, and there is no coordinate bug left to find.
+
+**First, two more hypotheses killed by direct measurement.**
+
+*Axis permutation.* `make_box_uvs` converts `poly.normal` with `blender_to_three` while the ray path
+one function above uses `rot @ poly.normal`. Dumping per-object axis histograms from the imported GLB:
+every object has `rotation_euler == 0`, and a wall (`Mesh_657`, 1152 faces) reads `[465, 687, 0]` —
+**zero** faces on axis 2. I first read that as "Y-up, so the conversion is spurious"; it is the
+opposite. A wall in **Z-up** has no vertical-facing faces, which is what `axis 2 == 0` says. The
+geometry is Z-up, the importer's conversion is applied, and `blender_to_three` is **correct**.
+
+*Slot collapse.* Running the bake's own slot assignment over the probe's keys: `114cf680` is a 12-face
+box that writes **all six slots, 2 faces each** — exactly matching the runtime's six-slot UV coverage.
+The bake does not collapse anything. `.101`'s "single middle column" was the *map content*, not the
+*UV assignment*, and I conflated the two.
+
+**Then the actual measurement.** New probe `slot-means.mjs`: mean baked value per atlas slot. Over all
+**176 maps** of the shipped `pass=visibility` set:
+
+| slot | mean (/255) | maps dark (<8) |
+| --- | --- | --- |
+| `0,0` +X | 39.0 | 111/176 — 63 % |
+| `0,1` −X | 9.4 | 126/176 — **72 %** |
+| `1,0` +Y up | 41.8 | 115/176 — 65 % |
+| `1,1` −Y down | 23.2 | 140/176 — **80 %** |
+| `2,0` +Z | 26.5 | 92/176 — 52 % |
+| `2,1` −Z | 27.8 | 118/176 — 67 % |
+
+**And 35 of 176 maps (20 %) are dark in all six slots.**
+
+A six-key sample first suggested "only the up-facing slot is lit" — `114cf680` reads 227.0 in `1,0`
+and 0.0 in the other five. **That did not generalise:** at population scale `+Y up` is dark in 65 % of
+maps, no better than its neighbours. Recording the wrong generalisation because it is the third
+sample-vs-population error in this thread.
+
+**So the ~45 % near-black shell is the data doing what it was built to do.** `multiply` mode scales a
+surface's indirect light by its *sky visibility along its own normal* — and `bake_material.py`'s own
+docstring already says the whole-map figures are "dominated by outdoor-facing slots pinned at 1.0 and
+by empty ones". Most interior surfaces genuinely have near-zero sky visibility: a wall facing another
+wall is lit by **bounces off the floor**, which a one-ray-along-the-normal test cannot see. Multiplying
+by that number is not a bug in the pipeline; it is the wrong operator for the quantity.
+
+**Which is the case for the `replace`/irradiance architecture, now on measured rather than
+architectural grounds.** Irradiance captures the bounces that visibility structurally cannot. Its
+remaining problem is a ~3x overshoot in `livingDining` (implied gain ~14) — a **calibration** number,
+not a correspondence failure. That is a tractable next step; "45 % of the shell is black" was not.
+
+`slotRect` is a named, tested function (`slot-means.test.ts`, 3 cases) because the UV-`v=0`-bottom vs
+PNG-row-0-top flip inside it is precisely what invalidated `.100`. Suite **10105 green**, `tsc` and
+biome clean. No shipped change.
+
 ## v0.31.7.101 — RETRACTED `.100`'s numbers (my probe compared mirrored masks), and the picture shows the real fault: the bake wrote ONE COLUMN
 
 `.100` reported the UVs and the baked data as "nearly disjoint" — 33.0 % of lookups on zero, 95.8 % on
