@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.23 - Audited my own recent guards for silently-suppressed findings
+
+`.22` found that a 320 kg aquarium survived `.21`'s new category filter only
+because two lines happened to be in the right order. Seventeen commits of changes
+to interacting checks made that worth a deliberate pass: for each guard I added,
+does it suppress a finding another rule deliberately makes, leaving the user with
+nothing?
+
+**One real gap, and I created it.** `.21` stopped `floorLoading` counting
+`mounted` items as FLOOR load — correct, a wall shelf hangs off the wall — but
+removed a wrong finding without leaving a right one. Measured on a `wall-shelf`:
+zero load findings from `floorLoading`, from `designScore` (its only issues are
+daylight and lighting) and from the layout critique. Before `.21` the user got a
+finding that was wrong in KIND but right in OBJECT; now there is silence, and a
+loaded wall shelf is a real hazard.
+
+Researched what would close it — a 12 mm gypsum drywall partition with metal studs
+holds ~10 kg via a toggle anchor into a stud, bare gypsum only 2.2-4.5 kg, solid
+walls "hold a TV almost anywhere" — so a 200 kg loaded bookcase is two orders of
+magnitude past the drywall figure. **Not built**, because the check needs to know
+whether the wall behind the item is drywall or concrete and
+`establishedWallStructure` resolves only EXTERNAL walls; internal partitions,
+exactly the ones shelves hang on, stay `'unknown'` by design. A check that cannot
+tell 200 kg from 2 kg usefully would be the wrong shape. Logged with the figures
+and a sketch of the honest version (a mounted-item schedule quoting the limit, in
+the manner of the lamp-spec IP advisory).
+
+**A fixture artefact I nearly reported as a second gap.** I tested whether a
+nightstand fully blocking the only side of a bed goes unreported now that
+`.11`'s bed-access filters sub-0.5 m² blockers. `bed-access` said pass and
+circulation said nothing — but my fixture plan had `walls: []`, so the bed's other
+side read as unobstructed to infinity and passed for THAT reason, not because of
+the area filter. The probe proved nothing. Caught before writing it up; the same
+scepticism I have been applying to other people's recorded claims applies to my
+own probes.
+
+**Guards checked and found not to create gaps:** the wall-aware pinch rejection
+(`.6`) suppresses only pinches through solid walls, where there is nothing to
+cover; the ottoman exclusion (`.20`) hides no problem, since an ottoman near a TV
+is not one; the `monitor` exclusion (`.19`) leaves a genuine gap that was already
+logged when it was made.
+
+No code change — this version is the audit and its findings.
+
 ## v0.31.8.22 - Audited the floor-loading weight figures; the slab limit checks out
 
 `.21` fixed which items the structural check measures. This checks the NUMBERS it

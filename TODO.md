@@ -275,6 +275,24 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 (added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
 exact commit so it can — do not leave it to be discovered.
 
+- **[coverage gap I CREATED in v0.31.8.21] Wall-mounted load is checked by nothing.** `.21` stopped
+  `floorLoading` counting `mounted` items as FLOOR load — correct, a wall shelf hangs off the wall —
+  but it removed a wrong finding without leaving a right one. Measured: a `wall-shelf` now produces
+  zero load findings from `floorLoading`, `designScore` (its only issues are daylight/lighting) and
+  the layout critique. Before `.21` the user at least got a finding that was wrong in KIND but right
+  in OBJECT; now there is silence.
+  Researched figures if this is taken up: a 12 mm gypsum drywall partition with metal studs holds
+  **~10 kg** using a toggle anchor through the board INTO a stud; a screw into bare gypsum holds
+  only **2.2-4.5 kg**; solid walls "hold a TV almost anywhere", and HDB walls are concrete
+  100-150 mm or drywall partitions 75-100 mm. A 200 kg loaded bookcase is two orders of magnitude
+  past the drywall figure.
+  **Why it is not built yet:** the check needs to know whether the wall behind the item is drywall
+  or concrete, and `establishedWallStructure` resolves only EXTERNAL walls — internal partitions,
+  exactly the ones shelves hang on, stay `'unknown'` (v0.31.8.4, deliberately). So the check would
+  either fire unconditionally ("confirm the fixing", low value, and it cannot distinguish 200 kg
+  from 2 kg usefully) or fire almost never. The honest version is probably a mounted-item SCHEDULE
+  with estimated weights and the drywall figure quoted, like the lamp-spec IP advisory: state the
+  limit, ask for confirmation, grant no approval. Needs a feature flag.
 - **[tidy] The HDB 50 mm rule exists as TWO constants for one regulation.**
   `analysis/floorBuildUp.ts:HDB_MAX_BUILD_UP_MM` (50) and
   `analysis/floorLoading.ts:CONCRETE_RAISE_LIMIT_M` (0.05) are the same rule —
