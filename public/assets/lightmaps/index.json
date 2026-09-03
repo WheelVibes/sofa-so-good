@@ -1,0 +1,675 @@
+{
+  "version": 1,
+  "pass": "visibility",
+  "albedo": 0.81,
+  "uv": "box-atlas-3x2",
+  "uv_margin": 0.04,
+  "maps": [
+    {
+      "key": "8d4c1497",
+      "file": "8d4c1497.png",
+      "object": "Mesh_116",
+      "area": 34.2
+    },
+    {
+      "key": "2b9b2640",
+      "file": "2b9b2640.png",
+      "object": "Mesh_137",
+      "area": 29.57
+    },
+    {
+      "key": "2b6bce38",
+      "file": "2b6bce38.png",
+      "object": "Mesh_162",
+      "area": 26.45
+    },
+    {
+      "key": "70e55d20",
+      "file": "70e55d20.png",
+      "object": "Mesh_37",
+      "area": 24.02
+    },
+    {
+      "key": "b04c03d3",
+      "file": "b04c03d3.png",
+      "object": "Mesh_95",
+      "area": 21.75
+    },
+    {
+      "key": "c6625fec",
+      "file": "c6625fec.png",
+      "object": "Mesh_145",
+      "area": 19.66
+    },
+    {
+      "key": "d9c19984",
+      "file": "d9c19984.png",
+      "object": "Mesh_256",
+      "area": 19.43
+    },
+    {
+      "key": "114cf680",
+      "file": "114cf680.png",
+      "object": "Mesh_155",
+      "area": 19.39
+    },
+    {
+      "key": "ce497848",
+      "file": "ce497848.png",
+      "object": "Mesh_34",
+      "area": 19.3
+    },
+    {
+      "key": "4b1218e6",
+      "file": "4b1218e6.png",
+      "object": "Mesh_11",
+      "area": 19.3
+    },
+    {
+      "key": "0ea45bc2",
+      "file": "0ea45bc2.png",
+      "object": "Mesh_357",
+      "area": 17.37
+    },
+    {
+      "key": "edccb3ec",
+      "file": "edccb3ec.png",
+      "object": "Mesh_391",
+      "area": 15.83
+    },
+    {
+      "key": "ca42fc6c",
+      "file": "ca42fc6c.png",
+      "object": "Mesh_301",
+      "area": 14.4
+    },
+    {
+      "key": "86b74b68",
+      "file": "86b74b68.png",
+      "object": "Mesh_80",
+      "area": 14.01
+    },
+    {
+      "key": "6600a054",
+      "file": "6600a054.png",
+      "object": "Mesh_331",
+      "area": 13.45
+    },
+    {
+      "key": "9eadb95b",
+      "file": "9eadb95b.png",
+      "object": "Mesh_103",
+      "area": 13.43
+    },
+    {
+      "key": "950ec680",
+      "file": "950ec680.png",
+      "object": "Mesh_129",
+      "area": 13.18
+    },
+    {
+      "key": "2b735c80",
+      "file": "2b735c80.png",
+      "object": "Mesh_246",
+      "area": 12.27
+    },
+    {
+      "key": "5b89afcd",
+      "file": "5b89afcd.png",
+      "object": "Mesh_99",
+      "area": 12.1
+    },
+    {
+      "key": "d623d608",
+      "file": "d623d608.png",
+      "object": "Mesh_138",
+      "area": 12.03
+    },
+    {
+      "key": "d8aa6b3f",
+      "file": "d8aa6b3f.png",
+      "object": "Mesh_91",
+      "area": 12.02
+    },
+    {
+      "key": "ebe17b4c",
+      "file": "ebe17b4c.png",
+      "object": "Mesh_344",
+      "area": 11.25
+    },
+    {
+      "key": "6fe1fad0",
+      "file": "6fe1fad0.png",
+      "object": "Mesh_23",
+      "area": 10.68
+    },
+    {
+      "key": "022b2d5c",
+      "file": "022b2d5c.png",
+      "object": "Mesh_0",
+      "area": 10.68
+    },
+    {
+      "key": "369845f4",
+      "file": "369845f4.png",
+      "object": "Mesh_65",
+      "area": 10.67
+    },
+    {
+      "key": "d65ca2e0",
+      "file": "d65ca2e0.png",
+      "object": "Mesh_324",
+      "area": 10.62
+    },
+    {
+      "key": "fd1fe570",
+      "file": "fd1fe570.png",
+      "object": "Mesh_26",
+      "area": 10.17
+    },
+    {
+      "key": "f9ff007c",
+      "file": "f9ff007c.png",
+      "object": "Mesh_3",
+      "area": 10.17
+    },
+    {
+      "key": "ec66779a",
+      "file": "ec66779a.png",
+      "object": "Mesh_117",
+      "area": 10.07
+    },
+    {
+      "key": "06fae53c",
+      "file": "06fae53c.png",
+      "object": "Mesh_614",
+      "area": 10.03
+    },
+    {
+      "key": "e0ef90b8",
+      "file": "e0ef90b8.png",
+      "object": "Mesh_694",
+      "area": 10.03
+    },
+    {
+      "key": "18182058",
+      "file": "18182058.png",
+      "object": "Mesh_2",
+      "area": 9.73
+    },
+    {
+      "key": "34039ae8",
+      "file": "34039ae8.png",
+      "object": "Mesh_25",
+      "area": 9.73
+    },
+    {
+      "key": "c98b2ad2",
+      "file": "c98b2ad2.png",
+      "object": "Mesh_133",
+      "area": 9.52
+    },
+    {
+      "key": "6f5a1254",
+      "file": "6f5a1254.png",
+      "object": "Mesh_96",
+      "area": 9.23
+    },
+    {
+      "key": "fb760a20",
+      "file": "fb760a20.png",
+      "object": "Mesh_146",
+      "area": 9.17
+    },
+    {
+      "key": "69f847e0",
+      "file": "69f847e0.png",
+      "object": "Mesh_149",
+      "area": 9.17
+    },
+    {
+      "key": "c7452170",
+      "file": "c7452170.png",
+      "object": "Mesh_156",
+      "area": 9.17
+    },
+    {
+      "key": "3a061a18",
+      "file": "3a061a18.png",
+      "object": "Mesh_159",
+      "area": 9.17
+    },
+    {
+      "key": "0d4a5a08",
+      "file": "0d4a5a08.png",
+      "object": "Mesh_413",
+      "area": 9.13
+    },
+    {
+      "key": "8a028021",
+      "file": "8a028021.png",
+      "object": "Mesh_58",
+      "area": 8.95
+    },
+    {
+      "key": "6cef786c",
+      "file": "6cef786c.png",
+      "object": "Mesh_956",
+      "area": 8.51
+    },
+    {
+      "key": "667f0954",
+      "file": "667f0954.png",
+      "object": "Mesh_76",
+      "area": 8.25
+    },
+    {
+      "key": "8ac7d2d4",
+      "file": "8ac7d2d4.png",
+      "object": "Mesh_112",
+      "area": 7.95
+    },
+    {
+      "key": "baa7330c",
+      "file": "baa7330c.png",
+      "object": "Mesh_604",
+      "area": 7.65
+    },
+    {
+      "key": "d1e42cac",
+      "file": "d1e42cac.png",
+      "object": "Mesh_31",
+      "area": 7.36
+    },
+    {
+      "key": "01074a20",
+      "file": "01074a20.png",
+      "object": "Mesh_8",
+      "area": 7.36
+    },
+    {
+      "key": "c7a302a2",
+      "file": "c7a302a2.png",
+      "object": "Mesh_860",
+      "area": 7.29
+    },
+    {
+      "key": "808ba4f4",
+      "file": "808ba4f4.png",
+      "object": "Mesh_605",
+      "area": 7.15
+    },
+    {
+      "key": "10d7b7d1",
+      "file": "10d7b7d1.png",
+      "object": "Mesh_123",
+      "area": 6.44
+    },
+    {
+      "key": "9faf29ce",
+      "file": "9faf29ce.png",
+      "object": "Mesh_861",
+      "area": 6.12
+    },
+    {
+      "key": "94be06ae",
+      "file": "94be06ae.png",
+      "object": "Mesh_378",
+      "area": 6.08
+    },
+    {
+      "key": "17578a78",
+      "file": "17578a78.png",
+      "object": "Mesh_1004",
+      "area": 5.91
+    },
+    {
+      "key": "c2947ef4",
+      "file": "c2947ef4.png",
+      "object": "Mesh_978",
+      "area": 5.9
+    },
+    {
+      "key": "87fe1f58",
+      "file": "87fe1f58.png",
+      "object": "Mesh_4",
+      "area": 5.6
+    },
+    {
+      "key": "daf4e480",
+      "file": "daf4e480.png",
+      "object": "Mesh_27",
+      "area": 5.6
+    },
+    {
+      "key": "a7d8bd00",
+      "file": "a7d8bd00.png",
+      "object": "Mesh_247",
+      "area": 5.4
+    },
+    {
+      "key": "989882c0",
+      "file": "989882c0.png",
+      "object": "Mesh_250",
+      "area": 5.4
+    },
+    {
+      "key": "bd63f06d",
+      "file": "bd63f06d.png",
+      "object": "Mesh_236",
+      "area": 5.13
+    },
+    {
+      "key": "ad5ab0d0",
+      "file": "ad5ab0d0.png",
+      "object": "Mesh_196",
+      "area": 5.06
+    },
+    {
+      "key": "71ccb1a4",
+      "file": "71ccb1a4.png",
+      "object": "Mesh_199",
+      "area": 5.06
+    },
+    {
+      "key": "56ef7ee4",
+      "file": "56ef7ee4.png",
+      "object": "Mesh_719",
+      "area": 5.0
+    },
+    {
+      "key": "23a3a910",
+      "file": "23a3a910.png",
+      "object": "Mesh_673",
+      "area": 5.0
+    },
+    {
+      "key": "79643a4c",
+      "file": "79643a4c.png",
+      "object": "Mesh_325",
+      "area": 4.81
+    },
+    {
+      "key": "ded563f4",
+      "file": "ded563f4.png",
+      "object": "Mesh_328",
+      "area": 4.81
+    },
+    {
+      "key": "4be9196c",
+      "file": "4be9196c.png",
+      "object": "Mesh_130",
+      "area": 4.81
+    },
+    {
+      "key": "45659f5c",
+      "file": "45659f5c.png",
+      "object": "Mesh_404",
+      "area": 4.78
+    },
+    {
+      "key": "afdc5b3c",
+      "file": "afdc5b3c.png",
+      "object": "Mesh_407",
+      "area": 4.78
+    },
+    {
+      "key": "0b380ec2",
+      "file": "0b380ec2.png",
+      "object": "Mesh_452",
+      "area": 4.65
+    },
+    {
+      "key": "4b662acc",
+      "file": "4b662acc.png",
+      "object": "Mesh_811",
+      "area": 4.59
+    },
+    {
+      "key": "12284c98",
+      "file": "12284c98.png",
+      "object": "Mesh_720",
+      "area": 4.58
+    },
+    {
+      "key": "6db70f88",
+      "file": "6db70f88.png",
+      "object": "Mesh_674",
+      "area": 4.58
+    },
+    {
+      "key": "44885254",
+      "file": "44885254.png",
+      "object": "Mesh_100",
+      "area": 4.51
+    },
+    {
+      "key": "62befce4",
+      "file": "62befce4.png",
+      "object": "Mesh_537",
+      "area": 4.51
+    },
+    {
+      "key": "53c099b8",
+      "file": "53c099b8.png",
+      "object": "Mesh_335",
+      "area": 4.29
+    },
+    {
+      "key": "4d4bead0",
+      "file": "4d4bead0.png",
+      "object": "Mesh_338",
+      "area": 4.29
+    },
+    {
+      "key": "627066b0",
+      "file": "627066b0.png",
+      "object": "Mesh_348",
+      "area": 4.29
+    },
+    {
+      "key": "f3407cc0",
+      "file": "f3407cc0.png",
+      "object": "Mesh_351",
+      "area": 4.29
+    },
+    {
+      "key": "7186c474",
+      "file": "7186c474.png",
+      "object": "Mesh_606",
+      "area": 4.25
+    },
+    {
+      "key": "e3009f4c",
+      "file": "e3009f4c.png",
+      "object": "Mesh_577",
+      "area": 4.17
+    },
+    {
+      "key": "ffa47d88",
+      "file": "ffa47d88.png",
+      "object": "Mesh_92",
+      "area": 4.03
+    },
+    {
+      "key": "804975ce",
+      "file": "804975ce.png",
+      "object": "Mesh_456",
+      "area": 4.01
+    },
+    {
+      "key": "16502a9c",
+      "file": "16502a9c.png",
+      "object": "Mesh_28",
+      "area": 3.98
+    },
+    {
+      "key": "7cbabf38",
+      "file": "7cbabf38.png",
+      "object": "Mesh_5",
+      "area": 3.98
+    },
+    {
+      "key": "c5e2e948",
+      "file": "c5e2e948.png",
+      "object": "Mesh_175",
+      "area": 3.81
+    },
+    {
+      "key": "a62eac48",
+      "file": "a62eac48.png",
+      "object": "Mesh_178",
+      "area": 3.81
+    },
+    {
+      "key": "8abd29b4",
+      "file": "8abd29b4.png",
+      "object": "Mesh_652",
+      "area": 3.81
+    },
+    {
+      "key": "fd3a4da8",
+      "file": "fd3a4da8.png",
+      "object": "Mesh_120",
+      "area": 3.69
+    },
+    {
+      "key": "9c9df8d4",
+      "file": "9c9df8d4.png",
+      "object": "Mesh_561",
+      "area": 3.65
+    },
+    {
+      "key": "adaeed9c",
+      "file": "adaeed9c.png",
+      "object": "Mesh_566",
+      "area": 3.65
+    },
+    {
+      "key": "4a851ed4",
+      "file": "4a851ed4.png",
+      "object": "Mesh_598",
+      "area": 3.65
+    },
+    {
+      "key": "467afea4",
+      "file": "467afea4.png",
+      "object": "Mesh_556",
+      "area": 3.65
+    },
+    {
+      "key": "6fcb6cd4",
+      "file": "6fcb6cd4.png",
+      "object": "Mesh_134",
+      "area": 3.55
+    },
+    {
+      "key": "906a1de8",
+      "file": "906a1de8.png",
+      "object": "Mesh_7",
+      "area": 3.55
+    },
+    {
+      "key": "ac225580",
+      "file": "ac225580.png",
+      "object": "Mesh_30",
+      "area": 3.55
+    },
+    {
+      "key": "14b476b0",
+      "file": "14b476b0.png",
+      "object": "Mesh_1",
+      "area": 3.49
+    },
+    {
+      "key": "1e62bd08",
+      "file": "1e62bd08.png",
+      "object": "Mesh_24",
+      "area": 3.49
+    },
+    {
+      "key": "66ccf34c",
+      "file": "66ccf34c.png",
+      "object": "Mesh_613",
+      "area": 3.33
+    },
+    {
+      "key": "5e53aba0",
+      "file": "5e53aba0.png",
+      "object": "Mesh_770",
+      "area": 3.26
+    },
+    {
+      "key": "e777b40c",
+      "file": "e777b40c.png",
+      "object": "Mesh_800",
+      "area": 3.26
+    },
+    {
+      "key": "3841fe38",
+      "file": "3841fe38.png",
+      "object": "Mesh_13",
+      "area": 3.24
+    },
+    {
+      "key": "4f5f5c9e",
+      "file": "4f5f5c9e.png",
+      "object": "Mesh_36",
+      "area": 3.24
+    },
+    {
+      "key": "493bea2c",
+      "file": "493bea2c.png",
+      "object": "Mesh_29",
+      "area": 3.24
+    },
+    {
+      "key": "8d847f70",
+      "file": "8d847f70.png",
+      "object": "Mesh_6",
+      "area": 3.24
+    },
+    {
+      "key": "97a3789c",
+      "file": "97a3789c.png",
+      "object": "Mesh_216",
+      "area": 3.19
+    },
+    {
+      "key": "76558990",
+      "file": "76558990.png",
+      "object": "Mesh_144",
+      "area": 3.17
+    },
+    {
+      "key": "1ad16b76",
+      "file": "1ad16b76.png",
+      "object": "Mesh_141",
+      "area": 3.17
+    },
+    {
+      "key": "fa3752d4",
+      "file": "fa3752d4.png",
+      "object": "Mesh_143",
+      "area": 3.17
+    },
+    {
+      "key": "7f6a7fe0",
+      "file": "7f6a7fe0.png",
+      "object": "Mesh_33",
+      "area": 3.12
+    },
+    {
+      "key": "6187eaec",
+      "file": "6187eaec.png",
+      "object": "Mesh_10",
+      "area": 3.12
+    },
+    {
+      "key": "8f1fe77c",
+      "file": "8f1fe77c.png",
+      "object": "Mesh_704",
+      "area": 3.06
+    }
+  ]
+}

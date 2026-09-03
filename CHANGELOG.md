@@ -29,6 +29,57 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.31 — the wiring function, the shipped maps, and a span filter chosen so it cannot exclude what the set has
+
+`src/scene/applyVisibilityLightmaps.ts` pulls the four pure modules together:
+`lightmapIndex` (which maps exist) → `lightmapKey` (what a live mesh is called in that set) →
+`lightmapUv` (the `uv1` they were baked in) → `visibilityLightmap` (the shader patch and gain).
+
+**Testable without a renderer, because the texture loader is injected.** Six tests run in the
+node environment against *real* three objects — `Mesh`, `BufferGeometry`, `MeshStandardMaterial`
+— with a stub texture, so there is no GPU, no network, and no fixture drift. The shader patch is
+a callback three would invoke at compile time, and nothing here compiles.
+
+**What the tests pin, and why each one matters:**
+
+- A matching mesh gets a map **and** a `uv1` attribute.
+- A **non**-matching mesh is left completely untouched — `uv1` absent, `aoMap` still null. This is
+  the *common* case with one shared index (an unbaked or user-edited plan) and it has to be a
+  no-op, not an error.
+- Sub-1.5 m meshes are never keyed, so a room full of furniture costs no hashes.
+- **Keys are computed in world space**: moving a mesh 5 m makes it stop matching. That is the
+  property that lets one index serve every plan, and the bug that matched 0 of 385 meshes when
+  the frame was wrong.
+- Zero hits stays quiet unless `expectCoverage` is set.
+- Re-running does not clobber an existing `uv1`.
+
+**Two deliberate choices worth stating.**
+
+The span filter is **1.5 m while the bake's threshold is 3 m²** — deliberately *below* it, because
+a mesh just over 3 m² can be under 1.5 m in its longest axis, and a filter tighter than the bake
+would silently exclude meshes the set actually has. Erring the other way only costs a hash.
+
+A `conflicts > 0` geometry is **skipped, not approximated**. A vertex shared by two faces in
+different atlas slots cannot be represented by a per-vertex attribute, so the map would land on
+the wrong texels — rendering something subtly incorrect is worse than rendering today's picture.
+
+**World-space keying without an allocation per vertex.** The matrix is applied inline rather than
+through `Vector3.applyMatrix4`: at ~400 candidate meshes that would be thousands of throwaway
+objects during load, for a function that runs while the loader is on screen.
+
+**The baked maps ship: `public/assets/lightmaps/`, 111 PNGs + index, 1.4 MB.** Stated plainly
+because it is a real repo addition for a feature that is **off by default** and currently covers
+**one** plan. The alternative — holding the assets until every starter plan is baked — would mean
+no end-to-end verification in a browser until then, which is the worse trade given how many of
+this arc's errors only appeared end to end.
+
+**Not yet mounted**, so still nothing can regress: no component calls this, the flag defaults
+off, and all three views keep their measured 60 fps at `medium`. Mounting it — one component in
+the scene, calling this once while the loader is up so the ~19 shader compiles hide behind it —
+is the last step.
+
+Suite: **10045 green** (up 6); `tsc`, biome, knip clean.
+
 ## v0.31.7.30 — the flag, and an architectural question answered: ONE index for every plan, not one per plan
 
 Two things this round, both prerequisites for wiring that turned out to be more than paperwork.
