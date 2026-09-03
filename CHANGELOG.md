@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.78 — the sky calibrated against Cycles at five elevations: daytime is TWO constants, and the sunset is a modelling disagreement
+
+`.77` solved item (l) but its fix was not shippable as it stood: a Cycles equirect is valid for one
+sun position, and the app's sky is **sun-driven and continuous** (the T cycle re-bakes it as the sun
+moves). Shipping a single baked sky would trade one defect for a broken feature. The alternative is
+to use Blender as ground truth to **calibrate the app's own generator** — no assets, no fps, T cycle
+intact — which needs the error as a function of elevation rather than one number at noon.
+
+Five hours, the app's own live sun vector read per hour and handed to `render_equirect.py` so both
+sides are the same sun (4 s each on the GPU):
+
+| h | elev | upper sky app/cyc | ratio | R−B app / cyc | horizon ratio | horizon R−B app / cyc |
+| --- | --- | --- | --- | --- | --- | --- |
+| 7 | −1° | 98 / 132 | 1.35 | −6 / −36 | **0.72** | **+76 / −18** |
+| 10 | 47° | 161 / 231 | **1.44** | −77 / −22 | 1.21 | −8 / −18 |
+| 13 | 82° | 165 / 234 | **1.42** | −82 / −22 | 1.26 | −14 / −18 |
+| 16 | 43° | 159 / 231 | **1.45** | −76 / −23 | 1.20 | −7 / −18 |
+| 19 | 1° | 109 / 177 | 1.62 | −12 / −28 | **0.95** | **+71 / +10** |
+
+**Daytime is two constants.** Above 40° elevation the upper sky is **1.44× too dark** (1.44 / 1.42 /
+1.45, cv ~1 %) and **~3.5× too blue** (R−B −76…−82 against a near-constant −22). Both are flat in
+elevation, so both are single scalars in `skyGradient.ts` rather than a curve to fit. That is a much
+smaller change than it looked from the noon measurement alone, and it explains why the noon window
+gap was so reproducible.
+
+**Near the horizon the disagreement changes sign and character.** At elev ≈ 0 the app's horizon band
+is *brighter* than physics (0.72× at h7) and dramatically **warmer**: R−B **+76 against −18**, a
+94-count swing. The app paints a warm sunset; Blender's `MULTIPLE_SCATTERING` at −1° elevation models
+**blue hour** — the sun is below the horizon, so the direct path that makes a real sunset orange is
+blocked. Even at +1.2° Blender gives only +10 against the app's +71.
+
+**That one is a modelling disagreement, not obviously an app defect**, and it is the kind of call this
+arc does not make on its own: a stylised warm sunset may be deliberate art direction, and "physics
+says blue hour" is not the same as "users want blue hour". Recorded with numbers rather than resolved.
+
+**So the shippable piece is narrow and well-specified:** correct the daytime level by **1.44×** and
+desaturate the blue to **R−B ≈ −22**, both in the generator, leaving the twilight behaviour alone
+pending a look call. Combined with `.77`'s `backgroundIntensity ≈ 4` — which is what lets the
+corrected sky actually reach the top of the AgX range — that is item (l) closed without a single
+baked asset and without touching the interior.
+
+Suite **10083 green**, `tsc` and biome clean. Measurement only; nothing shipped changed.
+
 ## v0.31.7.77 — item (l) SOLVED: the ceiling is the background's linear intensity, the value is 4 (not 12), and the window and interior errors are provably independent
 
 Reading the composite path instead of guessing a fifth time gave a mechanism, and the mechanism
