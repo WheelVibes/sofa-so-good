@@ -2378,6 +2378,30 @@ if (GBOUNCE != null) console.log(`GBOUNCE held at capture: ${JSON.stringify(awai
 // and the guard then reports drift on every run -- which is what the first `.251`
 // run did (q.x -0.272 vs -0.030, i.e. -0.55 rad against -0.06).
 const camAtRaster = await camState()
+// PLAN=<n> loads starter plan `n` from `PLAN_TEMPLATES` before anything else runs.
+//
+// Baked visibility maps are keyed by world-space geometry, so ONE index serves every plan --
+// but each plan has to be exported and baked separately, and that means the probe needs to be
+// able to sit in a plan other than the move-in default. There are ~25 templates and a full flat
+// bakes in ~35 min, so this is the knob that makes the asset set fillable incrementally.
+//
+// The templates module is imported dynamically FROM THE PAGE, which works because Vite serves
+// source in dev. That avoids exposing the whole plan library on `window` in production just to
+// let a probe reach it.
+const PLAN = process.env.PLAN
+if (PLAN !== undefined && PLAN !== '') {
+  const picked = await page.evaluate(async (n) => {
+    const mod = await import('/src/floorplan/templates.ts')
+    const list = mod.PLAN_TEMPLATES
+    if (!Array.isArray(list) || !list[n]) return { error: `no template ${n} of ${list?.length}` }
+    window.__store.getState().setFloorPlan(list[n])
+    return { count: list.length, name: list[n].name ?? list[n].id ?? `#${n}` }
+  }, Number(PLAN))
+  if (picked.error) throw new Error(`PLAN: ${picked.error}`)
+  await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
+  await new Promise((r) => setTimeout(r, 4000))
+  console.log(`PLAN=${PLAN} loaded ${JSON.stringify(picked.name)} (of ${picked.count} templates)`)
+}
 // BLENDREF=<dir> -- export everything an offline renderer needs to reproduce THIS
 // pose: the GLB the app itself exports, the camera, and the real light directions.
 //

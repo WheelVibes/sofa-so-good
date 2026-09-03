@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.41 — the asset set becomes fillable: a plan selector for the probe, and a merging bake
+
+The flag stays off until the shipped starter plans are baked, and there are **19** of them at
+~35 min each — about eleven hours of Blender. That has to be incremental, which needs two things
+that did not exist.
+
+**`PLAN=<n>` on `light-distribution.mjs`** loads a starter template before anything else runs, so
+the probe can sit in a plan other than the move-in default. The templates module is imported
+**dynamically from the page** — Vite serves source in dev — rather than exposing the whole plan
+library on `window` in production just so a probe can reach it. Verified: `PLAN=3` loads
+*HDB 5-Room* (19 templates), exports a 36.10 MB GLB, and the light-set guard confirms
+daylight-only.
+
+**`--merge` on `bake_material.py`** appends to an existing `index.json` instead of replacing it.
+This is not a convenience: maps are keyed by world-space geometry so **one index carries every
+baked plan**, and each plan is a separate run. Without merging, baking a second plan silently
+discards the first plan's entries *while leaving its PNGs on disk* — an index that under-reports
+what is shipped, which would present as "the maps stopped working for that plan".
+
+**Both merge paths tested, and one of the tests validated the design rather than the code.**
+
+| case | before | after |
+| --- | --- | --- |
+| bake plan A | — | 2 maps |
+| merge a **second pose of the same flat** | 2 | **2** |
+| merge the **5-Room plan** | 2 | **4** (`merged_from: 2`) |
+
+That middle row is the interesting one. Two poses of one flat produced **identical keys**, so the
+merge replaced rather than duplicated — which is exactly what geometry-keyed identity is supposed
+to guarantee, and it is now demonstrated rather than argued. A repeat bake of the same plan is
+therefore idempotent: last write wins, no drift.
+
+**Cost recorded so the remaining work is a known quantity**, not an open-ended one: 19 templates,
+~35 min each, ~11 h total, and the index can absorb them one at a time with no coordination.
+
+Suite **10048 green**; `tsc`, biome clean.
+
 ## v0.31.7.40 — the second room improves too, refuting `v0.31.7.10`'s predicted regression. There is no trade
 
 The arc's own rule is that one room is not a validation, and `bedroom3` was specifically the room

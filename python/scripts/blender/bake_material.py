@@ -127,6 +127,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "shell meshes, whose UVs are tiling coordinates outside 0..1); "
                         "'existing' bakes into the exporter's UVs and is only right for assets "
                         "that already have a unique layout")
+    p.add_argument("--merge", action="store_true",
+                   help="append to an existing index.json in --out-dir instead of replacing it. "
+                        "Required for the shared-index design: maps are keyed by world-space "
+                        "geometry so one index carries EVERY baked plan, and each plan is baked "
+                        "in a separate run. Without this, baking a second plan silently discards "
+                        "the first plan's entries while leaving its PNGs on disk -- an index that "
+                        "under-reports what is shipped, which reads as 'the maps stopped working "
+                        "for that plan'.")
     p.add_argument("--json", action="store_true")
     return p.parse_args(argv)
 
@@ -538,22 +546,38 @@ def main(argv: list[str] | None = None) -> int:
     # An index beside the maps, so the app loads one small file rather than probing for
     # 40 textures by name. `object` and `area` are debugging aids only -- the key is the
     # contract.
+    fresh = [
+        {"key": o["key"], "file": os.path.basename(o["out"]), "object": o["object"],
+         "area": o["area"]}
+        for o in baked
+        if "out" in o
+    ]
+    maps = fresh
+    merged_from = 0
+    index_path = os.path.join(out_dir, "index.json")
+    if a.merge and os.path.exists(index_path):
+        with open(index_path) as fh:
+            prior = json.load(fh).get("maps", [])
+        merged_from = len(prior)
+        # Keyed by geometry, so a repeat bake of the SAME plan replaces its own entries rather
+        # than duplicating them -- the key is the identity, and last write wins.
+        by_key = {m["key"]: m for m in prior}
+        for m in fresh:
+            by_key[m["key"]] = m
+        maps = sorted(by_key.values(), key=lambda m: m["key"])
     index = {
         "version": 1,
         "pass": a.pass_,
         "albedo": a.albedo,
         "uv": "box-atlas-3x2",
         "uv_margin": 0.04,
-        "maps": [
-            {"key": o["key"], "file": os.path.basename(o["out"]), "object": o["object"],
-             "area": o["area"]}
-            for o in baked
-            if "out" in o
-        ],
+        "maps": maps,
     }
-    with open(os.path.join(out_dir, "index.json"), "w") as fh:
+    with open(index_path, "w") as fh:
         json.dump(index, fh, indent=2)
-    result["index"] = os.path.join(out_dir, "index.json")
+    result["index"] = index_path
+    result["index_maps_total"] = len(maps)
+    result["index_merged_from"] = merged_from
     print("BAKE_MATERIAL " + json.dumps(result))
     return 0
 
