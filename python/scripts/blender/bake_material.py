@@ -546,9 +546,21 @@ def main(argv: list[str] | None = None) -> int:
     # An index beside the maps, so the app loads one small file rather than probing for
     # 40 textures by name. `object` and `area` are debugging aids only -- the key is the
     # contract.
+    # A PLAN CONTEXT, because a mesh key is not a sufficient identity on its own. Aperture
+    # visibility is a property of a surface IN ITS SURROUNDINGS, and `geometry_key` hashes only
+    # the surface. Measured on real data: baking the 5-Room plan on top of the 4-Room set,
+    # 20 of 65 meshes collided -- HDB layouts share wall positions on a grid, so the same wall
+    # geometry recurs at the same coordinates in different plans while seeing entirely different
+    # rooms. Without a context the second bake silently overwrites the first and one plan renders
+    # with the other's visibility.
+    #
+    # The context is the digest of THIS plan's own baked keys, so it is derived from the same
+    # geometry the runtime sees and needs nothing stored about plan identity (there is no plan id
+    # in the store -- v0.31.7.30).
+    plan_context = fnv1a32(";".join(sorted(o["key"] for o in baked if "key" in o)))
     fresh = [
         {"key": o["key"], "file": os.path.basename(o["out"]), "object": o["object"],
-         "area": o["area"]}
+         "area": o["area"], "ctx": plan_context}
         for o in baked
         if "out" in o
     ]
@@ -561,12 +573,17 @@ def main(argv: list[str] | None = None) -> int:
         merged_from = len(prior)
         # Keyed by geometry, so a repeat bake of the SAME plan replaces its own entries rather
         # than duplicating them -- the key is the identity, and last write wins.
-        by_key = {m["key"]: m for m in prior}
+        # Keyed by (context, key): a repeat bake of the SAME plan replaces its own entries,
+        # while a different plan that happens to share a wall position keeps both.
+        by_key = {(m.get("ctx"), m["key"]): m for m in prior}
         for m in fresh:
-            by_key[m["key"]] = m
-        maps = sorted(by_key.values(), key=lambda m: m["key"])
+            by_key[(m["ctx"], m["key"])] = m
+        maps = sorted(by_key.values(), key=lambda m: (m.get("ctx") or "", m["key"]))
     index = {
-        "version": 1,
+        # v2 adds the per-map `ctx`. The loader refuses versions it does not implement rather
+        # than loading a v1 set, whose maps carry no context and could be applied to the wrong
+        # plan -- exactly the failure this version exists to prevent.
+        "version": 2,
         "pass": a.pass_,
         "albedo": a.albedo,
         "uv": "box-atlas-3x2",
@@ -578,6 +595,8 @@ def main(argv: list[str] | None = None) -> int:
     result["index"] = index_path
     result["index_maps_total"] = len(maps)
     result["index_merged_from"] = merged_from
+    result["plan_context"] = plan_context
+    result["contexts_in_index"] = len({m.get("ctx") for m in maps})
     print("BAKE_MATERIAL " + json.dumps(result))
     return 0
 

@@ -104,15 +104,24 @@ export function applyLightmapsFromIndex(
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
   root.updateMatrixWorld(true)
+  // TWO PASSES, because a key can belong to more than one baked plan. Pass one keys every
+  // candidate and asks which plan they belong to; pass two applies only that plan's maps.
+  // Applying per-key as they are found would mix two plans' visibility on real data -- 20 of 65
+  // meshes in the 5-Room plan share a key with the 4-Room set.
+  const keyed: { mesh: Mesh; key: string }[] = []
   let candidates = 0
-  let applied = 0
   root.traverse((o) => {
     if (!isCandidate(o)) return
     candidates += 1
     const positions = worldPositions(o)
     if (!positions) return
-    const url = resolver.urlFor(lightmapKey(positions))
-    if (!url) return
+    keyed.push({ mesh: o, key: lightmapKey(positions) })
+  })
+  const ctx = resolver.chooseContext(keyed.map((k) => k.key))
+  let applied = 0
+  for (const { mesh: o, key } of keyed) {
+    const url = ctx ? resolver.urlFor(key, ctx) : null
+    if (!url) continue
     const geometry = o.geometry as BufferGeometry
     if (!geometry.getAttribute('uv1')) {
       // Read through the ACCESSORS, not `attribute.array`. A raw array is only plain xyz
@@ -136,12 +145,12 @@ export function applyLightmapsFromIndex(
       // A conflict means two faces in different atlas slots share a vertex, so a per-vertex
       // attribute cannot represent the layout and the map would land wrong. Skip rather than
       // render something subtly incorrect.
-      if (conflicts > 0) return
+      if (conflicts > 0) continue
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
     applyVisibilityLightmap(o.material as never, loadTexture(url), gain, debug)
     applied += 1
-  })
+  }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)
   return { candidates, applied, report: message, suspect }
 }

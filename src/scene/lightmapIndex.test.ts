@@ -2,13 +2,14 @@
 import { describe, expect, it } from 'vitest'
 import { createLightmapResolver, type LightmapIndex, parseLightmapIndex } from './lightmapIndex'
 
+const CTX = 'ctxaaaa'
 const valid = () => ({
-  version: 1,
+  version: 2,
   pass: 'visibility',
   uv: 'box-atlas-3x2',
   maps: [
-    { key: 'aaaa1111', file: 'aaaa1111.png', object: 'Mesh_116', area: 34.2 },
-    { key: 'bbbb2222', file: 'bbbb2222.png' },
+    { key: 'aaaa1111', file: 'aaaa1111.png', ctx: CTX, object: 'Mesh_116', area: 34.2 },
+    { key: 'bbbb2222', file: 'bbbb2222.png', ctx: CTX },
   ],
 })
 
@@ -28,20 +29,34 @@ describe('parseLightmapIndex', () => {
     expect(r).toEqual({ error: 'unsupported uv layout lightmap-packed (need box-atlas-3x2)' })
   })
 
-  it('rejects a future version', () => {
-    expect(parseLightmapIndex({ ...valid(), version: 2 })).toEqual({
-      error: 'unsupported index version 2 (need 1)',
+  it('rejects a version it does not implement', () => {
+    expect(parseLightmapIndex({ ...valid(), version: 3 })).toEqual({
+      error: 'unsupported index version 3 (need 2)',
     })
+  })
+
+  it('rejects a v1 set, whose maps carry no plan context', () => {
+    // Not pedantry: a v1 map could be applied to the wrong plan, because a mesh key alone is
+    // not a sufficient identity -- 20 of 65 meshes collided between two real HDB plans.
+    expect(parseLightmapIndex({ ...valid(), version: 1 })).toEqual({
+      error: 'unsupported index version 1 (need 2)',
+    })
+  })
+
+  it('rejects a map entry with no context', () => {
+    const bad = valid()
+    bad.maps = [{ key: 'aaaa1111', file: 'a.png' } as never]
+    expect(parseLightmapIndex(bad)).toEqual({ error: 'map aaaa1111 has no plan context' })
   })
 
   it.each([
     ['not an object', 42, 'index is not an object'],
     ['null', null, 'index is not an object'],
-    ['no maps array', { version: 1, uv: 'box-atlas-3x2' }, 'index has no maps array'],
-    ['empty maps', { version: 1, uv: 'box-atlas-3x2', maps: [] }, 'index lists no maps'],
+    ['no maps array', { version: 2, uv: 'box-atlas-3x2' }, 'index has no maps array'],
+    ['empty maps', { version: 2, uv: 'box-atlas-3x2', maps: [] }, 'index lists no maps'],
     [
       'entry without file',
-      { version: 1, uv: 'box-atlas-3x2', maps: [{ key: 'a' }] },
+      { version: 2, uv: 'box-atlas-3x2', maps: [{ key: 'a' }] },
       'a map entry is missing key or file',
     ],
   ])('returns an error for %s instead of throwing', (_label, input, error) => {
@@ -56,29 +71,29 @@ describe('createLightmapResolver', () => {
   it('resolves a key to a URL and normalises a missing trailing slash', () => {
     const a = createLightmapResolver(index(), '/assets/lm')
     const b = createLightmapResolver(index(), '/assets/lm/')
-    expect(a.urlFor('aaaa1111')).toBe('/assets/lm/aaaa1111.png')
-    expect(b.urlFor('aaaa1111')).toBe('/assets/lm/aaaa1111.png')
+    expect(a.urlFor('aaaa1111', CTX)).toBe('/assets/lm/aaaa1111.png')
+    expect(b.urlFor('aaaa1111', CTX)).toBe('/assets/lm/aaaa1111.png')
   })
 
   it('counts hits and misses', () => {
     const r = createLightmapResolver(index(), '/lm')
-    r.urlFor('aaaa1111')
-    r.urlFor('nope')
-    r.urlFor('bbbb2222')
+    r.urlFor('aaaa1111', CTX)
+    r.urlFor('nope', CTX)
+    r.urlFor('bbbb2222', CTX)
     expect(r.stats()).toEqual({ looked: 3, hit: 2, missed: 1, rate: 2 / 3 })
   })
 
   it('does NOT cry wolf on a zero hit rate before enough lookups', () => {
     // The scene mounts progressively; judging after two lookups would warn on every load.
     const r = createLightmapResolver(index(), '/lm', 20)
-    r.urlFor('nope')
+    r.urlFor('nope', CTX)
     expect(r.describeHitRate().suspect).toBe(false)
   })
 
   it('flags a sustained zero hit rate as a bug WHEN coverage was expected', () => {
     // This is the property that caught keys hashed in Blender space matching 0 of 385 meshes.
     const r = createLightmapResolver(index(), '/lm', 5)
-    for (let i = 0; i < 6; i += 1) r.urlFor(`miss${i}`)
+    for (let i = 0; i < 6; i += 1) r.urlFor(`miss${i}`, CTX)
     const d = r.describeHitRate(true)
     expect(d.suspect).toBe(true)
     expect(d.message).toContain('ZERO matched')
@@ -89,7 +104,7 @@ describe('createLightmapResolver', () => {
     // With one shared index across all baked plans, an unbaked or user-edited layout matching
     // nothing is the normal state -- warning there would cry wolf on the common case.
     const r = createLightmapResolver(index(), '/lm', 5)
-    for (let i = 0; i < 6; i += 1) r.urlFor(`miss${i}`)
+    for (let i = 0; i < 6; i += 1) r.urlFor(`miss${i}`, CTX)
     const d = r.describeHitRate()
     expect(d.suspect).toBe(false)
     expect(d.message).toContain('no maps for this plan')
@@ -98,8 +113,8 @@ describe('createLightmapResolver', () => {
   it('does not flag a partial hit rate — the shell is mapped, furniture is not', () => {
     // 118 of 385 meshes matching is the expected, correct state: only shell meshes are baked.
     const r = createLightmapResolver(index(), '/lm', 5)
-    for (let i = 0; i < 9; i += 1) r.urlFor(`miss${i}`)
-    r.urlFor('aaaa1111')
+    for (let i = 0; i < 9; i += 1) r.urlFor(`miss${i}`, CTX)
+    r.urlFor('aaaa1111', CTX)
     expect(r.describeHitRate().suspect).toBe(false)
     expect(r.describeHitRate().message).toContain('1/10')
   })

@@ -29,12 +29,13 @@ function trinket(): Mesh {
   return new Mesh(g, new MeshStandardMaterial())
 }
 
+const CTX = 'ctxtest1'
 const indexFor = (keys: string[]): LightmapIndex => {
   const r = parseLightmapIndex({
-    version: 1,
+    version: 2,
     pass: 'visibility',
     uv: 'box-atlas-3x2',
-    maps: keys.map((k) => ({ key: k, file: `${k}.png` })),
+    maps: keys.map((k) => ({ key: k, file: `${k}.png`, ctx: CTX })),
   })
   if (!('index' in r)) throw new Error('bad fixture')
   return r.index
@@ -127,6 +128,34 @@ describe('applyLightmapsFromIndex', () => {
     }
     ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
     expect(shader.uniforms.visGain.value).toBe(42)
+  })
+
+  it('applies only ONE plan’s maps when a key exists in two', () => {
+    // Real data: 20 of 65 meshes in the 5-Room plan share a key with the 4-Room set, because
+    // HDB layouts repeat wall positions. Mixing two plans' visibility is worse than none.
+    const root = new Object3D()
+    const w = wall()
+    const w2 = wall(9)
+    root.add(w, w2)
+    const parsed = parseLightmapIndex({
+      version: 2,
+      pass: 'visibility',
+      uv: 'box-atlas-3x2',
+      maps: [
+        { key: keyOf(w), file: 'shared-a.png', ctx: 'planA' },
+        { key: keyOf(w), file: 'shared-b.png', ctx: 'planB' },
+        { key: keyOf(w2), file: 'b-only.png', ctx: 'planB' },
+      ],
+    })
+    if (!('index' in parsed)) throw new Error('bad fixture')
+    const urls: string[] = []
+    applyLightmapsFromIndex(root, parsed.index, (u) => {
+      urls.push(u)
+      return stubTexture()
+    })
+    // planB wins on 2 matches to planA's 1, so the shared mesh must take planB's file.
+    expect(urls.some((u) => u.endsWith('shared-b.png'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('shared-a.png'))).toBe(false)
   })
 
   it('does not re-create uv1 that already exists', () => {

@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.42 — a mesh key is NOT a sufficient identity: 20 of 65 meshes collided between two real plans
+
+Baking a second plan found a design flaw that only real data could reveal, and it would have
+shipped one plan rendering with another plan's lighting.
+
+**The measurement.** Merging the 5-Room plan into the 4-Room set: 65 meshes baked, index went
+111 → 156, so **20 keys already existed**. Not a hash weakness — genuinely identical geometry.
+HDB layouts repeat wall positions on a grid, so the same wall recurs at the same world
+coordinates in different plans:
+
+    collided key 06fae53c -> Mesh_115  area 10.03
+    collided key e0ef90b8 -> Mesh_195  area 10.03
+    collided key 6cef786c -> Mesh_457  area  8.51
+    …20 in total
+
+**Why that is a defect and not a happy coincidence.** `geometry_key` hashes the surface. Aperture
+visibility is a property of a surface **in its surroundings** — the same wall in a 4-Room and a
+5-Room flat sees different rooms and different windows, so its visibility differs. Sharing a key
+means the second bake overwrites the first and one plan renders with the other's visibility. The
+`v0.31.7.30` reasoning — "world-space keys mean a wall in plan A cannot collide with one in plan
+B" — was wrong, and wrong in the direction that ships a bug.
+
+**The fix: a plan context.** Each map now carries `ctx`, the digest of its own plan's key set —
+derived from the same geometry the runtime sees, so it needs nothing stored about plan identity
+(there still is none, `v0.31.7.30`). Resolution became **two-pass**: key every candidate, ask
+`chooseContext()` which plan those keys belong to, then apply only that plan's maps. Applying
+per-key as they are found would mix two plans on real data.
+
+**Three judgement calls, all tested:**
+
+- **Ties and zero matches decline rather than guess.** With one shared key and nothing else,
+  the evidence does not distinguish two plans, and guessing applies the wrong visibility half
+  the time.
+- **`urlFor(key, ctx)` requires the context** — no convenient unscoped overload, because an
+  unscoped lookup is precisely the bug the parameter exists to prevent.
+- **Declining still records the evidence examined.** Without that, `urlFor` is never called on a
+  total miss, `looked` stays 0, and the hit-rate diagnostic loses its denominator — so the one
+  case it exists to report would report nothing. A test caught this regression.
+
+**Index version 2, and v1 is refused rather than read.** A v1 map carries no context and could be
+applied to the wrong plan; that is the whole reason for the bump, so loading it would defeat it.
+The committed v1 assets are therefore inert at this commit — which the flag default already
+guaranteed — and are being re-baked.
+
+**Suite 10051 green** (up 3); `tsc`, biome, knip clean.
+
 ## v0.31.7.41 — the asset set becomes fillable: a plan selector for the probe, and a merging bake
 
 The flag stays off until the shipped starter plans are baked, and there are **19** of them at

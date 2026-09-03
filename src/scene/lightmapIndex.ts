@@ -34,6 +34,17 @@
 interface LightmapEntry {
   key: string
   file: string
+  /**
+   * The plan this map was baked from — the digest of that plan's own key set.
+   *
+   * **A mesh key alone is not a sufficient identity.** Aperture visibility is a property of a
+   * surface *in its surroundings*, while the key hashes only the surface. Measured: baking the
+   * 5-Room plan on top of the 4-Room set, **20 of 65 meshes collided** — HDB layouts repeat wall
+   * positions on a grid, so the same wall recurs at the same coordinates in different plans while
+   * seeing entirely different rooms. Without the context, one plan renders with another's
+   * visibility.
+   */
+  ctx: string
   object?: string
   area?: number
 }
@@ -47,8 +58,9 @@ export interface LightmapIndex {
   maps: LightmapEntry[]
 }
 
-/** The only index shape this build understands. */
-const SUPPORTED_VERSION = 1
+/** The only index shape this build understands. v1 had no per-map context and could therefore
+ *  apply one plan's maps to another; refusing it outright is the point of the bump. */
+const SUPPORTED_VERSION = 2
 /** Must match `bake_material.py:make_box_uvs` and `src/scene/lightmapUv.ts`. */
 const SUPPORTED_UV = 'box-atlas-3x2'
 
@@ -75,7 +87,8 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
     if (typeof m?.key !== 'string' || typeof m?.file !== 'string') {
       return { error: 'a map entry is missing key or file' }
     }
-    maps.push({ key: m.key, file: m.file, object: m.object, area: m.area })
+    if (typeof m?.ctx !== 'string') return { error: `map ${m.key} has no plan context` }
+    maps.push({ key: m.key, file: m.file, ctx: m.ctx, object: m.object, area: m.area })
   }
   if (!maps.length) return { error: 'index lists no maps' }
   return { index: { version: o.version, pass: String(o.pass ?? 'unknown'), uv: o.uv, maps } }
@@ -83,8 +96,22 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
 
 /** A resolver over one baked set, counting hits and misses as it goes. */
 export interface LightmapResolver {
-  /** URL for a geometry key, or `null` if this set has no map for it. Counts the lookup. */
-  urlFor(key: string): string | null
+  /**
+   * Which baked plan the given keys belong to, or `null` if none matches.
+   *
+   * Called with every candidate key **before** any lookup, because a key can exist in more than
+   * one plan's maps (20 of 65 did, on real data) and applying the wrong plan's visibility is
+   * worse than applying none. The context with the most matches wins; ties and zero matches
+   * return `null`, which leaves the render untouched.
+   */
+  chooseContext(keys: readonly string[]): string | null
+  /**
+   * URL for a geometry key within `ctx`, or `null`. Counts the lookup.
+   *
+   * `ctx` is required rather than optional: an unscoped lookup is the bug this parameter exists
+   * to prevent, so there is deliberately no convenient way to perform one.
+   */
+  urlFor(key: string, ctx: string): string | null
   /** `{ looked, hit, missed, rate }` — `rate` is `hit / looked`, or 0 before any lookup. */
   stats(): { looked: number; hit: number; missed: number; rate: number }
   /**
@@ -109,14 +136,47 @@ export function createLightmapResolver(
   baseUrl: string,
   minLookupsToJudge = 20,
 ): LightmapResolver {
-  const byKey = new Map(index.maps.map((m) => [m.key, m.file]))
+  const byCtxKey = new Map(index.maps.map((m) => [`${m.ctx}/${m.key}`, m.file]))
+  const keysByCtx = new Map<string, Set<string>>()
+  for (const m of index.maps) {
+    const set = keysByCtx.get(m.ctx) ?? new Set<string>()
+    set.add(m.key)
+    keysByCtx.set(m.ctx, set)
+  }
   const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   let looked = 0
   let hit = 0
   return {
-    urlFor(key) {
+    chooseContext(keys) {
+      const wanted = new Set(keys)
+      let best: string | null = null
+      let bestScore = 0
+      let tied = false
+      for (const [ctx, ctxKeys] of keysByCtx) {
+        let score = 0
+        for (const k of ctxKeys) if (wanted.has(k)) score += 1
+        if (score > bestScore) {
+          bestScore = score
+          best = ctx
+          tied = false
+        } else if (score === bestScore && score > 0) {
+          tied = true
+        }
+      }
+      // A tie means the evidence does not distinguish two plans; guessing would apply the wrong
+      // visibility half the time, so decline.
+      if (tied || bestScore === 0) {
+        // Record the evidence examined even when declining. Otherwise `urlFor` is never called,
+        // `looked` stays 0, and the hit-rate diagnostic silently loses its denominator — so the
+        // one case it exists to report (nothing matched) would report nothing at all.
+        looked += keys.length
+        return null
+      }
+      return best
+    },
+    urlFor(key, ctx) {
       looked += 1
-      const file = byKey.get(key)
+      const file = byCtxKey.get(`${ctx}/${key}`)
       if (!file) return null
       hit += 1
       return `${base}${file}`
