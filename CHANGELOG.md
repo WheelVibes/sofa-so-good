@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.49 — the unifying finding: the app's tonal response is nearly SCENE-INDEPENDENT, and physics varies 15× more
+
+Having found that aperture visibility explains one view in four, I checked whether the *other*
+established gap — the highlight tail — generalises where visibility did not. It does not either,
+and the reason turns out to be the same one, stated more generally than anything else in this arc.
+
+| view | app p99/median | physics p99/median | app short by | baseline spatial |
+| --- | --- | --- | --- | --- |
+| 4-Room livingDining | 1.468 | **2.967** | 51 % | 4.76× |
+| 4-Room bedroom3 | 1.485 | **2.199** | 32 % | 1.74× |
+| 5-Room living | 1.492 | **1.541** | 3 % | 1.20× |
+| 5-Room bedroom 2 | 1.548 | **1.401** | **−10 %** | 1.55× |
+
+**Read the app column vertically.** It is 1.468, 1.485, 1.492, 1.548 — a **1.05× range, cv 2.0 %**
+across four completely different rooms in two different flats. Physics over the same four views
+is 1.401 to 2.967 — a **2.12× range, cv 30.6 %**.
+
+> **Physics varies 15× more than the app across the same four views.**
+
+**So the app is not "too flat" — it is nearly scene-independent.** It produces the same tonal
+signature whatever the room is, and therefore matches physics only where physics happens to
+coincide with that constant output. In a deep room with one distant window it is 51 % short; in a
+small bright bedroom it is 10 % *over*.
+
+**That single fact explains every disappointment in this arc.** A term with a fixed shape —
+baked visibility, a fill scalar, a window multiplier — shifts the whole output and can only trade
+one view against another, which is precisely what the four-view visibility table showed
+(+80 %, −34 %, −153 %, −270 %). `v0.31.6.9`'s "the app's shadows already match physics" and
+`v0.31.6.10`'s "the highlights are 53 % short" were both true *of one view*, and both were read as
+properties of the renderer.
+
+**And it reframes what a fix has to do.** Not add a missing term, but make the render *respond*
+to scene content: the same room geometry and window area that physics integrates over should
+drive the app's exposure and tonal range, instead of a constant fill and a constant tone curve.
+That is a different and larger piece of work than any lever tried here, and it is the first
+statement of the problem in this arc that all four views agree with.
+
+**Nothing shipped this round** — it is measurement on frames already on disk. The visibility flag
+stays off. `tsc`, biome clean; suite **10058 green**.
+
 ## v0.31.7.48 — the 80 % was measured on the single most favourable view; in the other three, visibility ANTI-explains the error
 
 The `--explain` test that started this implementation, now run on every view I have a reference
