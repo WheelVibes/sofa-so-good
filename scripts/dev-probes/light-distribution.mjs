@@ -648,6 +648,7 @@ const shotFor = async (pitch) => {
   if (typeof applyEnvDump === 'function') await applyEnvDump()
   if (typeof applyRoomH === 'function') await applyRoomH()
   if (typeof applyRoomDims === 'function') await applyRoomDims()
+  if (typeof applyRoomLight === 'function') await applyRoomLight()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
@@ -1391,6 +1392,69 @@ const applyFloorDye = !FLOORDYE
         throw new Error('FLOORDYE: no upward-facing mesh found -- intervention did NOT land')
       await new Promise((r) => setTimeout(r, 900))
     }
+// ROOMLIGHT=1 -- glazing area per unit of room surface, for the POSED room (`v0.31.7.56`).
+//
+// This is the candidate predictor for error (B). `v0.31.7.54`/`.55` split the tonal error into a
+// scene-INDEPENDENT window level (fixed by one constant) and a scene-DEPENDENT room level: the
+// app's median spans 96-122 across three views where physics spans 83-160, so the app is too
+// bright in dark rooms and too dark in bright ones. Something about the room has to drive that,
+// and the obvious physical candidate is how much aperture it has for its size -- a small kitchen
+// with a normal window is genuinely brighter than a deep living room with one distant one.
+//
+// Computed from the PLAN rather than from pixels, so it is available at runtime with no
+// reference and no render: opening dimensions and room polygons are already in the store.
+//
+// Openings are attributed to a room by the walls they sit on, and a wall can be shared between
+// two rooms -- so an opening counts for both, which is correct: a window in a shared wall lights
+// both sides.
+const applyRoomLight =
+  process.env.ROOMLIGHT !== '1'
+    ? null
+    : async () => {
+        const res = await page.evaluate(
+          ({ roomId, winId }) => {
+            const plan = window.__store.getState().floorPlan
+            const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+            const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
+            const globalH = plan.wallHeight ?? plan.ceilingHeight ?? 2.6
+            // Rooms are RECTANGLES here, not polygons: {origin,width,depth,extension?}.
+            // The first version of this knob assumed polygons and reported one room and zero
+            // glazing -- read the schema, do not infer it from a sibling probe.
+            const room = allOf(plan, 'rooms').find((r) => r.id === roomId)
+            if (!room) return { error: `no room ${roomId}` }
+            const rect = (w, d) => ({ area: w * d, perim: 2 * (w + d) })
+            const base = rect(room.width, room.depth)
+            const ext = room.extension
+              ? rect(room.extension.width, room.extension.depth)
+              : { area: 0, perim: 0 }
+            const floor = base.area + ext.area
+            const h = room.ceilingHeight ?? globalH
+            // Perimeter of a base rect plus an extension, less the shared edge counted twice.
+            // Approximate: an L-shape's true perimeter is base+ext minus 2x the join width.
+            const join = room.extension ? 2 * Math.min(room.width, room.extension.width) : 0
+            const perim = base.perim + ext.perim - join
+            const surface = 2 * floor + perim * h
+            // Opening height is head - sill; there is no `height` field.
+            const win = allOf(plan, 'openings').find((o) => o.id === winId)
+            const glazing = win ? win.width * Math.max(0, (win.head ?? 0) - (win.sill ?? 0)) : 0
+            return {
+              room: room.id,
+              floor: +floor.toFixed(1),
+              surface: +surface.toFixed(1),
+              ceilingH: h,
+              window: winId,
+              glazing: +glazing.toFixed(2),
+              pct: +((100 * glazing) / Math.max(1e-6, surface)).toFixed(3),
+            }
+          },
+          { roomId: pose.roomId ?? ROOM, winId: pose.id },
+        )
+        if (res.error) throw new Error(`ROOMLIGHT: ${res.error}`)
+        console.log(
+          `ROOMLIGHT ${res.room} floor ${res.floor} m2  surface ${res.surface} m2  h ${res.ceilingH}` +
+            `  window ${res.window} ${res.glazing} m2  glazing/surface ${res.pct} %`,
+        )
+      }
 // ROOMDIMS=1 -- report every room's footprint and its wall/ceiling area ratio.
 //
 // `.342` refuted the fixture explanation for (w)'s room-dependence and left a geometric

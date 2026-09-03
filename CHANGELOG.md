@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.56 — error (B): glazing ratio is refuted *in direction*; room size is monotone with it
+
+Error (B) from `v0.31.7.54` is that the app's median under-responds to the scene — it spans
+96–122 where physics spans 83–160. Finding a predictor for it needs something the runtime can
+compute without a reference, so this round tests the obvious physical one.
+
+**New knob `ROOMLIGHT=1`** reports the posed room's floor and surface area and the posed window's
+glazing area, from the *plan* rather than from pixels — so it is available at runtime with no
+render. It also cost a schema lesson: the first version assumed rooms were polygons and openings
+had a `height`, reported one room and zero glazing, and had to be rewritten. Rooms here are
+**rectangles** (`origin/width/depth/extension`) and an opening's height is `head − sill`. Reading
+the schema beats inferring it from a sibling probe.
+
+| view | glazing ÷ surface | room floor | **physics median** |
+| --- | --- | --- | --- |
+| 4-Room livingDining | **5.284 %** | 19.3 m² | **83** |
+| 4-Room bedroom3 | 5.17 % | 10.2 m² | **112** |
+| 5-Room kitchen | **4.207 %** | 9.0 m² | **160** |
+
+**Glazing ratio is refuted, and not by a tie — by an inversion.** The room with the *most*
+aperture per unit of surface renders *darkest* in physics, monotonically across all three. A
+physical expectation reversing is stronger evidence than a weak correlation, so this candidate is
+out.
+
+**Room size is monotone with it, inversely.** 19.3 → 83, 10.2 → 112, 9.0 → 160. And that has a
+mechanism: for a given window, light falls off with distance, so a small room sits close to its
+aperture throughout while a large one carries a dark far end that dominates the frame's median.
+It also explains why the glazing ratio inverts — livingDining has the biggest window *and* the
+most room to spread it over.
+
+**Stated with its limits, because I have been burned by exactly this.** Three points admit many
+monotone relations, and I have now fitted two predictors to this set (in-view visibility in
+`v0.31.7.50`, glazing ratio here) and refuted both. Room size is **consistent, not
+established** — the difference between bedroom3 and the kitchen is 13 % in area against 43 % in
+median, so the relation is certainly not linear and may not be area at all. What would test it
+properly is *mean distance from the aperture*, which is the quantity the mechanism actually
+implies, on more views than three.
+
+**What (B) would buy if solved.** With (A) corrected by one constant (`v0.31.7.55`), (B) is the
+entire remaining tonal error: `bedroom3` matches physics to 9 % once its highlight is pinned,
+while `livingDining` and the kitchen miss by exactly the amount their medians miss.
+
+`tsc`, biome clean; suite **10058 green**; nothing shipped.
+
 ## v0.31.7.55 — the constant is VERIFIED achievable: `BGMUL ≈ 12` lands the highlight on physics in three views, and the residual is exactly error (B)
 
 `v0.31.7.54` measured the window as 27 % too dark by a scene-independent factor. This round checks
