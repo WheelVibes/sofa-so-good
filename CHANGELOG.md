@@ -29,6 +29,59 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.77 — item (l) SOLVED: the ceiling is the background's linear intensity, the value is 4 (not 12), and the window and interior errors are provably independent
+
+Reading the composite path instead of guessing a fifth time gave a mechanism, and the mechanism
+predicted its own test.
+
+**`scene.background` is an LDR sRGB texture — max ≈ 1.0 in linear terms.** AgX has a shoulder, so
+1.0 linear lands near 0.8 display, not 1.0. A real sky is 10–100× above 1.0. That is why a *prettier*
+LDR equirect bought only **+8.5 %** and why 0.0 % of pane pixels could ever exceed 219: the pane was
+never dark, it was **clipped at the wrong end of the curve**. So the prediction: raising the
+background's linear intensity should break the ceiling, and nothing else has to change.
+
+| glazing pixels only | mean | p95 | max | share ≥219 |
+| --- | --- | --- | --- | --- |
+| Cycles sky, `backgroundIntensity` 1 | 165.9 | 202.6 | 249.1 | **0.0 %** |
+| Cycles sky, **intensity 4** | 202.9 | 236.8 | 252.1 | **54.9 %** |
+| Cycles sky, intensity 12 | 222.3 | 250.1 | 254.0 | 80.2 % |
+| **Cycles reference** | 212.8 | 246.4 | 247.8 | **55.0 %** |
+
+**At 4 the pane distribution matches physics to 0.1 of a percentage point** — 54.9 % against 55.0 %
+above 219. Confirmed, mechanism and value.
+
+**And the previously escalated recommendation was wrong by 3×.** `BGMUL ≈ 12` was fitted to match
+**p99** — the statistic `.74` showed is pinned by a fixed bright feature the sky never touches, and
+`.76` showed sits outside the glazing entirely. Fitted to the pane *distribution* instead, the answer
+is **4**. Same knob, correct target, three times smaller. That is the clearest case in this arc for
+why the mask was worth building before the recommendation was made.
+
+**The safety check passes, and it is the reason this is shippable.** Interior pixels (glazing and HUD
+excluded) read **median 107.1, mean 103.5 at intensity 1, 4 AND 12 — identical**. `backgroundIntensity`
+scales what is *seen*, not what *lights* the room (that is `environmentIntensity`). So the window can
+be fixed without disturbing a single interior surface.
+
+**Which finally separates the two errors this arc has been conflating.** On the same frames, with the
+same masks:
+
+| | app | physics | |
+| --- | --- | --- | --- |
+| **glazing** | 165.9 → **202.9** at intensity 4 | 212.8 | fixed by the background |
+| **interior** | 107.1 | 124.2 | **1.16× short, and unmoved by ANY background change** |
+
+The window was never evidence about the renderer's lighting, and the interior deficit was never
+going to yield to a window fix. Item (l) is a **display-referred background driven through a
+scene-referred tone curve**; items (w)/(x) are **missing indirect light**, which is what the
+irradiance bake (`.71`, 171× spatial variation) exists for.
+
+**Recommendation, now specified rather than escalated:** ship the Cycles equirect
+(`render_equirect.py`, 4 s on the GPU) as the sky backdrop *and* set `backgroundIntensity ≈ 4`.
+Neither alone is sufficient — the intensity without the physical sky raises a 4×-oversaturated
+gradient, and the sky without the intensity is capped at 0.0 % above 219. Still your call, but the
+question is now "ship this pair" rather than "pick a fudge factor".
+
+Suite **10083 green**, `tsc` and biome clean. Nothing shipped changed in this commit.
+
 ## v0.31.7.76 — a Blender-generated pane mask, and the app's glazing has a CEILING: 0.0 % of it ever exceeds 219 counts
 
 `.75` ended by naming the missing instrument: a pane-only mask, because a rectangular window crop
