@@ -29,6 +29,57 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.114 — the GI ships as infrastructure, but NOT enabled: at `realistic` it draws a visible seam, and `.111`'s "not visible" was measured at the wrong tier
+
+Decision `(z)`1–3 was to ship the irradiance GI on `realistic`, 40 maps, committed to the repo. Three
+of the four parts are done and verified. The fourth — turning it on — is **held**, on evidence found
+while verifying it.
+
+**Shipped and verified**
+
+- **The asset swap.** `public/assets/lightmaps` is now the 40-map `irradiance` set from the `.111`
+  recipe: **1.2 MB** replacing 2.7 MB, all `bitdepth 8`, 40/40 entries carrying both `scale` and
+  `slots`.
+- **The `realistic` gate**, verified in both directions: at `TIER=realistic` 52 materials patch and
+  **52 of 52** carry image data; at `TIER=performance` **zero** patch.
+- **`detachAllVisibilityLightmaps`**, because the gate was one-way. Materials outlive the effect, so
+  `!enabled` returning early left the baked light attached after a switch to `performance` or a flag
+  toggle. Now an explicit removal. **A gate that only works in one direction is not a gate.**
+- Flag copy corrected from "Baked light occlusion / skylight visibility" to **"Baked global
+  illumination"** — the old text described the `visibility` pass that `.102` retired.
+
+**The effect is real and in the right direction**, realistic tier, flag off vs on:
+
+| | off | on |
+| --- | --- | --- |
+| frame mean | 102.02 | **108.72** (+6.7) |
+| mean abs diff | — | 11.34 counts, 57.8 % of channels |
+| ceiling | 0.69 | **0.92** |
+| wall | 1.05 | 1.02 |
+| ceiling/wall | 0.657 | **0.902** |
+
+**And it draws a seam.** With maps on at `realistic` there is a **dark dotted vertical line on the
+left wall** that is absent with the flag off. Same pose, same tier, one variable.
+
+**`v0.31.7.111` is wrong on this point and I am correcting it.** It said the boundary artefact was
+"no longer visible at this coverage" — measured at `performance`, where the frame is softer. At
+`realistic`, the tier the decision ships to, it is visible. **The same maps, the same 1.2 MB, a
+different tier, a different answer.** So decision `(z)`2 (40 maps for size) was taken on evidence
+that did not cover the tier it applies to. That is mine to own: I offered the coverage trade as
+verified when the verification was at the wrong tier.
+
+**One cause ruled out.** The mirror-row relocation now runs for the first time (26 faces), so it was
+the obvious suspect. Disabling it entirely changes the frame by **0.096 counts** with frame means
+identical to a thousandth — it is not the relocation. The seam is a mapped/unmapped boundary, which
+is what **10 % mesh coverage** (40 of 385) means in practice: the `.106` hard patch in a subtler form.
+
+**Why the flag stays `false`.** Everything above is one line away from being live, and flipping it is
+the whole of shipping. But a visible seam on the tier chosen for looks is worse than no GI, and the
+coverage/size call now needs re-deciding against evidence that includes `realistic`. Not a
+disagreement with the decision — a correction to the facts it was based on.
+
+Suite **10119 green**, `tsc` and biome clean.
+
 ## v0.31.7.113 — every open graphics decision answered: sixteen calls recorded in `(z)`
 
 The whole document was put to the user as questions and answered in one sitting. **There are now zero

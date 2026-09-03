@@ -41,8 +41,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // is where the move-in default lives. Frame cost measured at nil for both auto-selected tiers
   // (v0.31.7.15), so it does not need to be gated on quality either.
   visibilityLightmap: {
-    label: 'Baked light occlusion',
-    description: 'Physically baked skylight visibility on walls, floors and ceilings',
+    label: 'Baked global illumination',
+    // Copy updated with the artefact: the shipped set is a Cycles `irradiance` bake that
+    // REPLACES the ambient term, not the `visibility` occlusion map the old label described.
+    // `v0.31.7.102` measured multiplying by sky visibility as the wrong operator outright.
+    description: 'Cycles-baked bounced daylight on walls, floors and ceilings (realistic mode)',
+    // STILL OFF, and this is a reversal of the plan for `v0.31.7.114` rather than an oversight.
+    // The irradiance set is real and its effect is right -- gated to `realistic` it lifts the
+    // ceiling ratio 0.69 -> 0.92 and the frame mean 102.0 -> 108.7. But rendered AT `realistic`,
+    // the tier it ships to, it also draws a **dark dotted vertical seam** on the left wall that
+    // is absent with the flag off. `v0.31.7.111` reported that boundary artefact as "no longer
+    // visible at this coverage" -- measured at `performance`, where the frame is softer. At
+    // `realistic` it is visible. 40 maps is 10 % mesh coverage, so mapped/unmapped boundaries
+    // are everywhere; the seam is the coverage trade becoming visible, not a bug in the path.
+    //
+    // Everything around this line is verified and stays: the asset swap, the `realistic` gate
+    // and the two-way detach. Flipping this to `true` is the whole of shipping it.
     default: false,
     tier: 'simple',
   },

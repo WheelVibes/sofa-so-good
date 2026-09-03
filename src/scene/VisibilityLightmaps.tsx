@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { type Texture, TextureLoader } from 'three'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
-import { applyLightmapsFromIndex } from './applyVisibilityLightmaps'
+import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
 import { parseLightmapIndex } from './lightmapIndex'
 
 /**
@@ -26,7 +26,14 @@ import { parseLightmapIndex } from './lightmapIndex'
  * subtle lighting term are indistinguishable in a screenshot.
  */
 export function VisibilityLightmaps() {
-  const enabled = useFeature('visibilityLightmap')
+  const flagOn = useFeature('visibilityLightmap')
+  // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
+  // the fast editing path on `performance` — so this is where it belongs by design, not only by
+  // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
+  // `performance` (`v0.31.7.110`), so the gate is about intent, and it also keeps the load-time
+  // texture work off the tier chosen for responsiveness.
+  const tier = useStore((s) => s.qualityTier)
+  const enabled = flagOn && tier === 'realistic'
   const scene = useThree((s) => s.scene)
   const invalidate = useThree((s) => s.invalidate)
   // RE-RUN ON PLAN CHANGE. The maps are per-plan (each carries the digest of the plan it was
@@ -45,7 +52,14 @@ export function VisibilityLightmaps() {
   // (`v0.31.7.44`). A linter cannot see a dependency whose only purpose is invalidation.
   // biome-ignore lint/correctness/useExhaustiveDependencies: floorPlan is an invalidation key
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      // NOT just an early return. Materials outlive the effect, so leaving them patched would
+      // keep the baked GI on after a switch to `performance` or a flag toggle -- a gate that only
+      // works in one direction is not a gate.
+      const removed = detachAllVisibilityLightmaps(scene)
+      if (removed > 0) invalidate()
+      return
+    }
     let cancelled = false
     // `?aoDir=<name>` (DEV only) serves an alternate lightmap set from
     // `public/assets/<name>`. The shipped set is a `visibility` bake; an

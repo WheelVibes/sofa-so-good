@@ -51,6 +51,25 @@ export interface ApplyOptions {
   mode?: LightmapMode
 }
 
+/**
+ * Strip the injection from every material under `root`. Returns how many were stripped.
+ *
+ * **Exported because turning the feature OFF has to be a real removal.** The apply path detaches
+ * as its first step, so re-applying was always safe; but a caller that simply stops calling apply
+ * — which is what a tier gate or a flag toggle does — left the previous state attached forever.
+ * `v0.31.7.114` gated the GI to `realistic`, and without this a `realistic -> performance` switch
+ * would keep the baked light on the tier chosen for responsiveness.
+ */
+export function detachAllVisibilityLightmaps(root: Object3D): number {
+  let detached = 0
+  root.traverse((o) => {
+    const m = (o as Mesh).material
+    if (!m || Array.isArray(m)) return
+    if (detachVisibilityLightmap(m as never)) detached += 1
+  })
+  return detached
+}
+
 export interface ApplyResult {
   /** Meshes considered — large enough, and carrying a material with an `aoMap` slot. */
   candidates: number
@@ -137,12 +156,7 @@ export function applyLightmapsFromIndex(
   // DETACH FIRST. Materials survive a plan change, so anything patched for the previous plan is
   // still carrying that plan's visibility; adding the new plan's maps on top leaves the reused
   // materials wrong and the result stubbornly unchanged (`v0.31.7.45`).
-  let detached = 0
-  root.traverse((o) => {
-    const m = (o as Mesh).material
-    if (!m || Array.isArray(m)) return
-    if (detachVisibilityLightmap(m as never)) detached += 1
-  })
+  const detached = detachAllVisibilityLightmaps(root)
   root.updateMatrixWorld(true)
   // TWO PASSES, because a key can belong to more than one baked plan. Pass one keys every
   // candidate and asks which plan they belong to; pass two applies only that plan's maps.
