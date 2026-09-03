@@ -727,6 +727,94 @@ def _fibonacci_sphere(n: int) -> list[tuple[float, float, float]]:
     return out
 
 
+def room_albedo_area(rooms, reach: float = 0.25) -> list[dict]:
+    """AREA-weighted mean albedo per room, over UNOCCLUDED faces. The theoretically right one.
+
+    **Why this and not the other two.** `v0.31.7.124` measured four censuses giving four answers for
+    the same room, spanning **0.36-0.76**, and concluded the disagreement was not measurement error
+    but a missing definition. The interreflection form `rho/(1-rho)` comes from enclosure radiosity,
+    where rho is the **area-weighted** mean over the surfaces that actually participate:
+
+    - the downward ray probe measures floors and furniture tops only (0.362);
+    - the spherical probe is solid-angle weighted from interior points, which is form-factor
+      weighting and a different average (0.760);
+    - `sceneRoomAlbedo` in the app does area but counts **occluded** surface -- a wall behind a
+      wardrobe returns nothing (0.672).
+
+    This is area weighting with the occluded area removed, which is the one radiosity asks for.
+
+    **Occlusion is one SHORT ray along the face normal.** `reach` is 0.25 m on purpose, and the
+    first version used `face_blocked`'s 4.0 m and was wrong: in an enclosed room the opposite wall is
+    always within 4 m, so every wall classified as blocked and the census reported **96 % of a
+    bedroom occluded**. That number is what caught it. The question here is not "does this face see
+    anything" but "is something *up against* it" -- a wall behind a wardrobe, a floor under a rug --
+    which is a contact-distance test.
+
+    Cheap, and it is why this belongs in Blender: `v0.31.7.122` recorded the app rejecting an
+    irradiance volume at 6.19 ms for 420 probes, and this is one ray per face.
+    """
+    dg = bpy.context.evaluated_depsgraph_get()
+    acc = {r["id"]: {"area": 0.0, "weighted": 0.0, "faces": 0, "occluded": 0.0} for r in rooms}
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH" or not obj.data.polygons:
+            continue
+        rho, _is_tex = _material_albedo(obj)
+        if rho is None:
+            continue
+        mw = obj.matrix_world
+        rot = mw.to_3x3()
+        for poly in obj.data.polygons:
+            centre_world = mw @ poly.center
+            three = S.blender_to_three(tuple(centre_world))
+            room = _room_containing(rooms, three[0], three[2])
+            if room is None:
+                continue
+            # `poly.area` is in LOCAL units; scale by the object's world scale so an instanced
+            # mesh contributes its rendered size, not its authored one.
+            sc = mw.to_scale()
+            area = poly.area * abs(sc[0] * sc[1] + sc[1] * sc[2] + sc[2] * sc[0]) / 3.0
+            if area <= 0:
+                continue
+            n = (rot @ poly.normal).normalized()
+            blocked = bpy.context.scene.ray_cast(
+                dg, origin=centre_world + n * 0.01, direction=n, distance=reach
+            )[0]
+            a = acc[room]
+            if blocked:
+                a["occluded"] += area
+                continue
+            a["area"] += area
+            a["weighted"] += area * rho
+            a["faces"] += 1
+    out = []
+    for r in rooms:
+        a = acc[r["id"]]
+        total = a["area"] + a["occluded"]
+        out.append(
+            {
+                "id": r["id"],
+                "name": r.get("name"),
+                # `None`, not a default: no participating area is a different condition from a
+                # neutral room, and a silent fallback would hide an empty traversal.
+                "rho": round(a["weighted"] / a["area"], 4) if a["area"] > 0 else None,
+                "participating_m2": round(a["area"], 1),
+                "occluded_m2": round(a["occluded"], 1),
+                "occluded_share": round(a["occluded"] / total, 3) if total > 0 else None,
+                "faces": a["faces"],
+            }
+        )
+    return out
+
+
+def _room_containing(rooms, x: float, z: float):
+    """Room id whose rectangle contains `(x, z)` in THREE's frame, or `None`."""
+    for r in rooms:
+        ox, oz = r["origin"]
+        if ox <= x <= ox + r["width"] and oz <= z <= oz + r["depth"]:
+            return r["id"]
+    return None
+
+
 def room_albedo(rooms, samples: int = 48, dirs: int = 1) -> list[dict]:
     """EXPOSURE-WEIGHTED mean albedo per room, by ray-casting the scene from the ceiling down.
 
@@ -1173,8 +1261,13 @@ def main(argv: list[str] | None = None) -> int:
         # is a measured number rather than an assumption. The downward one is cheap and the
         # spherical one is the quantity that scales interreflected fill.
         down = room_albedo(rooms, samples=24, dirs=1)
-        room_rho = room_albedo(rooms, samples=12, dirs=48)
+        sphere = room_albedo(rooms, samples=12, dirs=48)
+        # The AREA-weighted, occlusion-corrected one is what goes in the index: `v0.31.7.124`
+        # established it is the average enclosure radiosity actually asks for. The other two are
+        # printed alongside so the three stay comparable in one run.
+        room_rho = room_albedo_area(rooms)
         print("ROOM_ALBEDO_DOWN " + json.dumps(down))
+        print("ROOM_ALBEDO_SPHERE " + json.dumps(sphere))
         print("ROOM_ALBEDO " + json.dumps(room_rho))
 
     candidates = []

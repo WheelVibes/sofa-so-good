@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.133 — `(s)`: the theoretically-correct census, built in Blender and measured — and the REFERENCE is now the thing to re-derive
+
+`.124` established that four censuses gave four answers spanning 0.36–0.76 because **the quantity was
+never defined**, and that enclosure radiosity asks for one specific average: **area-weighted over the
+surfaces that participate**. `.122` established it belongs in Blender, where visibility is already
+traced. Built it.
+
+**`room_albedo_area`** walks every face in a room's rectangle, weights by world-space triangle area,
+and drops faces with something *up against* them. Written into the index alongside the other two, so
+all three stay comparable in one run:
+
+| room | downward | spherical | **AREA (correct)** | participating | occluded |
+| --- | --- | --- | --- | --- | --- |
+| `livingDining` | 0.362 | 0.760 | **0.7018** | **112.9 m²** | 22.9 % |
+| `mainBedroom` | 0.444 | 0.806 | 0.7197 | 77.1 m² | 26.5 % |
+| `kitchen` | 0.455 | 0.651 | 0.6547 | 59.4 m² | 24.5 % |
+| `corridor` | 0.380 | 0.810 | 0.8155 | 61.1 m² | 2.9 % |
+
+**A parameter error, caught by an implausible number.** The first run reused `face_blocked`'s **4.0 m**
+reach and reported **96 % of a bedroom occluded**. In an enclosed room the opposite wall is always
+within 4 m, so every wall classified as blocked. The question here is not "does this face see
+anything" but "is something *up against* it" — a wall behind a wardrobe, a floor under a rug — which
+is a **contact-distance** test. At 0.25 m the occluded shares are 0.2–27.9 %, and `livingDining`'s
+112.9 m² of participating area sits close to its 100.16 m² of bare shell, which is the sanity check
+that it is measuring surface rather than solid angle.
+
+**And the remaining disagreement is now with the REFERENCE, not the census.** The correct census reads
+`livingDining` at **0.702**; `.271`'s measured 0.650 fill scale implies **0.546**. But `.271`'s census
+counted **467 m²** where this one finds 112.9 m² of participating surface — 4× more, necessarily
+including occluded and/or double-sided area. **So 0.546 is a number produced by a census now known to
+be wrong**, and matching it would be fitting the right model to a bad target.
+
+The next step is therefore to **re-derive the target**, not to keep tuning the census: re-measure the
+traced response to a repaint and fit the scale against *this* ρ. That is a Cycles A/B, which is
+exactly the kind of thing this arc has for breakfast — and it is the first time in five rounds on
+`(s)` that the open question is about the reference rather than my own instrument.
+
+Still not wired. Suite **10149 green**, `tsc` and biome clean; the index now carries 11 rooms with
+their ρ, and nothing consumes it yet.
+
 ## v0.31.7.132 — `(r)`: the cube-texture route is REFUTED, tested without re-authoring anything
 
 `(z)`10 says ship `(r)`, but the item offers three routes and the decision did not pick one. Route 2 —
