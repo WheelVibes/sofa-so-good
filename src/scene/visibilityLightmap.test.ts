@@ -65,6 +65,12 @@ describe('applyVisibilityLightmap', () => {
     expect(s.fragmentShader).toContain('texture2D( aoMap, vAoMapUv ).r * aoGain')
     expect(s.fragmentShader).toContain('reflectedLight.indirectDiffuse *= ambientOcclusion')
     expect(s.uniforms.aoGain.value).toBe(6)
+    // And it keeps three's own compile guard. Without it the injected code lands in programs
+    // where `aoMap` was never declared, the shader fails to compile, and the material silently
+    // falls back -- measured as a WORSE render (frame mean 46.7 vs 72.4) that looks like a
+    // tuning problem rather than a compile error.
+    expect(s.fragmentShader).toContain('#ifdef USE_AOMAP')
+    expect(s.fragmentShader).toContain('#endif')
   })
 
   it('does NOT attenuate indirect specular — measured worse (1.51x vs 1.36x)', () => {

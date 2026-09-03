@@ -145,7 +145,14 @@ page.on('console', (m) => {
   // behind `import.meta.env.DEV` -- all of which this arc has been blind to for
   // forty rounds because the probe never listened. Skip the Vite/HMR chatter.
   const noise = /\[vite]|HMR|Download the React DevTools|WebGL context/i
-  if (/^\[PROBE]/.test(t) || ((type === 'warning' || type === 'error') && !noise.test(t))) {
+  // `lightmaps:` too: the visibility-lightmap wiring reports its hit rate through
+  // `console.info`, and that report is the one diagnostic that distinguishes "maps never
+  // loaded" from "maps loaded and the term is subtle" (`v0.31.7.32`).
+  if (
+    /^\[PROBE]/.test(t) ||
+    /lightmaps:/i.test(t) ||
+    ((type === 'warning' || type === 'error') && !noise.test(t))
+  ) {
     console.log(`  PAGE ${type}: ${t}`)
   }
 })

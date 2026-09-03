@@ -106,10 +106,24 @@ export function applyLightmapsFromIndex(
     if (!url) return
     const geometry = o.geometry as BufferGeometry
     if (!geometry.getAttribute('uv1')) {
-      const { uv, conflicts } = computeBoxAtlasUv({
-        positions: geometry.getAttribute('position').array,
-        indices: geometry.index?.array ?? null,
-      })
+      // Read through the ACCESSORS, not `attribute.array`. A raw array is only plain xyz
+      // triples for a tightly-packed, non-normalised, non-interleaved buffer -- three makes no
+      // such promise, and an interleaved geometry would silently produce garbage UVs that look
+      // like a tuning problem rather than a data one.
+      const pos = geometry.getAttribute('position')
+      const local = new Float32Array(pos.count * 3)
+      for (let i = 0; i < pos.count; i += 1) {
+        local[i * 3] = pos.getX(i)
+        local[i * 3 + 1] = pos.getY(i)
+        local[i * 3 + 2] = pos.getZ(i)
+      }
+      const idx = geometry.index
+      let indices: Uint32Array | null = null
+      if (idx) {
+        indices = new Uint32Array(idx.count)
+        for (let i = 0; i < idx.count; i += 1) indices[i] = idx.getX(i)
+      }
+      const { uv, conflicts } = computeBoxAtlasUv({ positions: local, indices })
       // A conflict means two faces in different atlas slots share a vertex, so a per-vertex
       // attribute cannot represent the layout and the map would land wrong. Skip rather than
       // render something subtly incorrect.

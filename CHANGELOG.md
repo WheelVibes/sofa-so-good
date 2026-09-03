@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.32 — mounted, and a shader-compile bug found that the probe path had hidden. Still delivering only ~40 % of the probe's effect
+
+`<VisibilityLightmaps />` is mounted in `Scene.tsx` beside the rig it corrects, flag-gated and
+off by default. Attaching happens once on mount, inside the scene, so the ~19 shader compiles
+land while the app's loader is still up rather than mid-session — the **216 ms** hitch measured
+in `v0.31.7.15`. The consequence is documented at the mount: toggling the flag at runtime *will*
+hitch, and that is not a defect to chase.
+
+**A real bug, and the probe had been hiding it.** With the flag on, the render changed — and got
+*worse* (frame mean 46.7 against a baseline of 115.6, spatial spread **7.90×** against 4.76×).
+Dumping every console message rather than the probe's filtered subset showed why:
+
+> `THREE.WebGLProgram: Shader Error — 'aoMap' : undeclared identifier`
+
+Replacing `#include <aomap_fragment>` wholesale **removes three's own `#ifdef USE_AOMAP`
+guard**, so the injected code compiles into programs where three never declared the `aoMap`
+uniform or the `vAoMapUv` varying. The shader fails, the material falls back, and the render
+changes for entirely the wrong reason. Restoring the guard fixes it; a test now asserts the
+`#ifdef` is present, because its absence looks exactly like a tuning problem.
+
+**The probe never saw this because it never listened.** Its console filter forwarded `[PROBE]`
+tags plus warnings and errors — and it *would* have shown a shader error, but the wiring's own
+`console.info` hit-rate line was filtered out, so the first symptom (no report at all) looked
+like "the effect never ran". The filter now forwards `lightmaps:` lines too. Two rounds of
+diagnosis for one missing log.
+
+**Where it now stands, and it is not finished.** With the guard in place the app reports
+`118/385 meshes matched (31 %)`, all 127 affected materials carry a decoded texture within 2 s,
+and no shader errors remain. But:
+
+| | frame mean R | spatial spread |
+| --- | --- | --- |
+| baseline | 115.6 | 4.76× |
+| **wired, flag on** | **99.8** | **4.75×** |
+| probe applying the same maps at the same gain | 72.4 | **1.36×** |
+
+**The wired path delivers about 40 % of the probe's darkening and none of its spatial
+improvement**, with the same maps, the same gain, the same 118 meshes. Two candidates were tested
+and refuted this round: texture-decode timing (all 127 decoded by 2 s, and a 12 s settle changes
+nothing) and raw-`array` versus accessor reads of the position attribute (fixed anyway, since
+`attribute.array` is only plain xyz for a tightly-packed non-interleaved buffer — but it moved
+the numbers by 0.02).
+
+So something still differs between the two paths and it is not yet identified. The flag stays
+**off**, nothing regresses, and the next step is a direct comparison of the two — same scene, maps
+applied both ways, diffing what each actually wrote to the materials.
+
+Suite: **10045 green**; `tsc`, biome, knip clean; 60 fps unaffected with the flag off.
+
 ## v0.31.7.31 — the wiring function, the shipped maps, and a span filter chosen so it cannot exclude what the set has
 
 `src/scene/applyVisibilityLightmaps.ts` pulls the four pure modules together:

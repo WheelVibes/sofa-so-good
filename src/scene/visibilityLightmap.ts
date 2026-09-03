@@ -83,8 +83,16 @@ export function applyVisibilityLightmap(
       .replace('void main() {', 'uniform float aoGain;\nvoid main() {')
       .replace(
         AOMAP_INCLUDE,
-        'float ambientOcclusion = texture2D( aoMap, vAoMapUv ).r * aoGain;\n' +
-          'reflectedLight.indirectDiffuse *= ambientOcclusion;',
+        // KEEP three's `#ifdef USE_AOMAP` guard. Replacing the include wholesale removes it,
+        // and the injected code then compiles into programs where three never declared the
+        // `aoMap` uniform or the `vAoMapUv` varying -- which fails with
+        // `'aoMap' : undeclared identifier` and drops the material to a default shader, so the
+        // render changes for the WRONG reason (measured: frame mean 46.7 instead of 72.4, and
+        // the spatial match got worse than baseline).
+        '#ifdef USE_AOMAP\n' +
+          '  float ambientOcclusion = texture2D( aoMap, vAoMapUv ).r * aoGain;\n' +
+          '  reflectedLight.indirectDiffuse *= ambientOcclusion;\n' +
+          '#endif',
       )
   }
   material.customProgramCacheKey = () => `aoGain${gain}`
