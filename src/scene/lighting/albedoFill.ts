@@ -44,10 +44,23 @@
  * **3. And `REFERENCE_RHO` is geometry-dependent**, so "the default look is untouched" holds only
  * for the one room shape it is derived from -- a 4.6 x 6.2 room reads 0.930, not 1.0.
  *
- * The fix is a census over shell finishes **and** furniture/glazing, calibrated so the default
- * shell lands on the reference by construction rather than by coincidence. The mechanism below
- * (`rho/(1-rho)`, room-scoped, luminance-only) is the part `.271`/`.272` validated and is worth
- * keeping; only the rho it is fed is wrong.
+ * **4. And the gap is now SIZED, which rules the plan-data approach out entirely.** `h4-living`
+ * (`tpl-hdb-4room`'s Living / Dining) is 3.2 x 7.2 m, so its shell is
+ * `23.04 + 23.04 + 54.08 = 100.16 m2`. `.271`'s room-scoped census for the same room is
+ * **467 m2**. The shell is therefore **21.4 %** of the census weight and non-shell surfaces --
+ * furniture, fittings, glazing -- are **78.6 %**. For the total to reach the 0.546 the measured
+ * 0.650 scale implies, those surfaces must average **rho = 0.4845**, which is exactly what a room
+ * of wood, fabric and mid-tones should read.
+ *
+ * So the arithmetic closes: the MODEL is right and the TARGET is right, and this census sees a
+ * fifth of the room. It cannot be calibrated into agreement by choosing a better reference,
+ * because the missing 79 % is precisely what moves when a room is furnished or repainted -- a
+ * constant cannot stand in for a variable.
+ *
+ * **The fix is therefore a SCENE-GRAPH census** (as `.271` had) with the catalogue swatch
+ * substituted for textured materials (fixing `.273` without losing the furniture). The mechanism
+ * below -- `rho/(1-rho)`, room-scoped, luminance-only -- is the part `.271`/`.272` validated and
+ * is worth keeping; only the rho it is fed is wrong.
  */
 
 import type { PlanRoom } from '../../floorplan/types'

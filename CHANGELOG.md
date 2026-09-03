@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.119 — `(s)`'s census gap SIZED: the shell is 21.4 % of the room, so a plan-data census can never work
+
+`.118` recorded that the catalogue census over-reads ρ by 0.225 and left the fix as "a census over
+shell finishes **and** furniture/glazing". That was too vague to act on, so this sizes it — and the
+answer rules out the approach rather than adjusting it.
+
+**Measured, on the real template.** `h4-living` (`tpl-hdb-4room`'s Living / Dining) is **3.2 × 7.2 m**
+from `templates/hdb.ts`, so its shell is:
+
+| surface | m² |
+| --- | --- |
+| floor | 23.04 |
+| ceiling | 23.04 |
+| walls (2·(3.2+7.2)·2.6) | 54.08 |
+| **shell total** | **100.16** |
+
+`.271`'s room-scoped census for the same room is **467 m²**.
+
+| | |
+| --- | --- |
+| shell share of the census | **21.4 %** |
+| non-shell (furniture, fittings, glazing) | **78.6 %** |
+| ρ this census reads (shell only) | 0.7712 |
+| ρ implied by `.271`'s measured 0.650 scale | 0.546 |
+| **⇒ implied non-shell ρ** | **0.4845** |
+
+**The arithmetic closes.** A non-shell average of 0.4845 is exactly what a room of wood, fabric and
+mid-tones should read — so the **model is right**, the **target is right**, and this census sees a
+fifth of the room.
+
+**Which means it cannot be calibrated into agreement.** Choosing a lower `REFERENCE_RHO` would fix
+the default case and nothing else, because the missing 79 % is *precisely what moves* when a room is
+furnished or repainted. A constant cannot stand in for a variable. `.118` framed this as needing an
+addition; it needs a **different source**.
+
+**So the fix is a scene-graph census** — what `.271` already had — with the catalogue swatch
+substituted for textured materials, which fixes `.273`'s texture-blindness *without* discarding the
+furniture. My "read the catalogue instead" was the right idea applied to the wrong scope: it should
+replace the *albedo lookup*, not the *surface enumeration*.
+
+Still **not wired** (`grep albedoFill Lighting.tsx` → 0). Suite **10136 green**, `tsc` and biome
+clean. Documentation and sizing only.
+
 ## v0.31.7.118 — `(s)` albedo fill: built, MEASURED, and NOT WIRED — fixing the texture-blindness introduced a bigger error
 
 `(z)`11 is "ship the luminance-only colour fill". Built the module, measured it before trusting it,
