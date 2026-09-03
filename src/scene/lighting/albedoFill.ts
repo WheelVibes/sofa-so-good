@@ -99,9 +99,21 @@ export function swatchLuminance(hex: string): number {
  * **Measured, `v0.31.7.136`.** `wall-paint-terracotta`'s swatch `#c08763` has luminance **0.294**.
  * Reconstructing the room's rho from baked area weights and that swatch gives **0.4131**, against a
  * direct census of the exported scene reading **0.5719** — and solving the same buckets for the wall
- * term the census implies gives **0.623**. The app repaints via a **luminance-preserving recolor**
- * (`FINISH-RECOLOR`), so a "terracotta" wall keeps most of the white plaster's brightness: 0.91 →
- * ~0.62, not → 0.29.
+ * term the census implies gives **0.623**.
+ *
+ * **`v0.31.7.138` corrects why.** `.136` blamed a "luminance-preserving recolor". Reading
+ * `recolorPixels`, that is not what it does: it computes `f = pixelLuma / meanLuma` and writes
+ * `target * f`, so the recoloured texture's mean **is** the swatch — in **sRGB byte space**. A
+ * radiometric census needs the *linear* mean, and linearisation is convex, so variation in `f`
+ * raises it (Jensen). But **that is not enough to explain the gap**: simulated at ±0.25/±0.5/±0.8
+ * spread the linear mean goes 0.294 → 0.303 / 0.322 / **0.353**, against the 0.623 required.
+ *
+ * The remaining explanation is **bucket composition, not colour space**: `_surface_class` picks
+ * walls by proximity to the room perimeter (`edge < 0.3 m`), which also catches window reveals,
+ * columns, skirting and the far side of party walls — none of which take the room's wall finish.
+ * `wall_m2` is 57.25 against a shell wall area of 54.08, and a **45 / 55 mix of terracotta and
+ * white reads 0.633**, which is the measured 0.623. So the bucket is over-inclusive and the fix is
+ * in the classifier, not in a colour-space correction.
  *
  * Two consequences, both mine to own:
  *

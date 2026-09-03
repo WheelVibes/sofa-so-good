@@ -29,6 +29,53 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.138 — CORRECTING `.136`: the recolor is not "luminance-preserving", and colour space explains only a fifth of the gap
+
+`.136` explained the 28 % reconstruction error by saying the app repaints via a
+**luminance-preserving recolor**, so a terracotta wall keeps the white plaster's brightness. **I did
+not read `recolorPixels` before writing that, and it is wrong.**
+
+**What it actually does.** Pass 1 takes the source's mean sRGB luma; pass 2 writes
+`target * (pixelLuma / mean)` per pixel. So `mean(f) = 1` by construction and **the recoloured
+texture's mean IS the swatch** — in **sRGB byte space**. It preserves the texture's *relative*
+variation, not its brightness. "Luminance-preserving" describes the opposite of what the code does.
+
+**There is a real colour-space effect, and it is far too small.** A radiometric census needs the
+**linear** mean, and linearisation is convex, so variation in `f` raises it above
+`linearise(swatch)`. Simulated:
+
+| texture contrast (± spread in `f`) | linear mean |
+| --- | --- |
+| flat (0) | 0.2944 = the swatch exactly |
+| ±0.25 | 0.3033 |
+| ±0.50 | 0.3216 |
+| ±0.80 | **0.3534** |
+| **required to explain the census** | **0.623** |
+
+**At most +0.06 of a +0.33 gap.** Convexity is real, worth recording, and not the cause.
+
+**The cause is bucket composition, in my own classifier.** `_surface_class` picks walls by proximity
+to the room perimeter (`edge < 0.3 m`), which also catches **window reveals, columns, skirting and
+the far side of party walls** — none of which take the room's wall finish. `wall_m2` is **57.25**
+against a shell wall area of **54.08**, and a **45 / 55 mix of terracotta and white reads 0.633**
+against the measured **0.623**. So roughly half the wall bucket never changed colour.
+
+**Second wrong mechanism I have asserted about this one measurement** (`.136`'s recolor, now this),
+and both times the fix was to read the code or run the numbers rather than reason from the name of a
+thing. `FINISH-RECOLOR` *sounds* luminance-preserving; the function is nine lines long and says
+otherwise.
+
+Corrected in both places the wrong claim was written — `albedoFill.ts`'s contract and
+`stampAlbedo`'s comment — because a wrong mechanism in a docstring outlives a changelog entry. The
+`albedoSwatchIsEffective` fix from `.137` stands on its own: the swatch is still not the linear
+albedo, for a smaller and now-quantified reason.
+
+**Next step is the classifier**, not a colour-space correction: verify bucket composition by diffing
+per-face colour between the two arms, and tighten the wall test so it only claims faces that
+actually take the finish.
+
+Suite **10150 green**, `tsc` and biome clean.
+
 ## v0.31.7.137 — fixed `.120`'s stamp: it now says WHETHER it is the rendered albedo, and the consumer refuses it otherwise
 
 `.136` found `v0.31.7.120`'s `albedoSwatch` stamp records the **catalogue** swatch — what a picker
