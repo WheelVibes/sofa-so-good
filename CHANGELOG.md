@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.147 — correcting `.146`: the HQ renderer is NOT shared, which closes the whole "state leaks between renders" family for `(u)`
+
+`.146` ended by naming the shared `renderer` as "the nearest remaining surface". **It is not shared.**
+`hqRenderSession` line 381 constructs `new WebGLRenderer({ canvas, antialias: false,
+preserveDrawingBuffer: true })` on a **fresh offscreen canvas**, per render. I inferred "shared" from
+the `new WebGLPathTracer(renderer)` call one line below without reading where `renderer` came from —
+the same partial-read error as `.136`, `.140`, `.142` and `.143`, four hours and five corrections
+into knowing better.
+
+Also checked and out: neither `postprocessing` nor `three-gpu-pathtracer` assigns
+`renderer.outputColorSpace`, so the colour-space variant — attractive because `(u)`'s two classes have
+*opposite colour temperature* — cannot be it either.
+
+**The useful consequence is a whole family closed, not just one mechanism.** Renderer, tracer,
+geometry generator and BVH are **all constructed per render**:
+
+| suspect | verdict |
+| --- | --- |
+| unawaited BVH build | refuted (`.146`) — `setScene` is synchronous |
+| stale BVH from a reused tracer | refuted (`.146`) — tracer is per-render |
+| renderer state carried over | **refuted** — renderer is per-render |
+| library mutating `outputColorSpace` | **refuted** — neither library assigns it |
+
+So `(u)`'s two discrete outputs **cannot come from anything carried between renders**.
+
+**And that reframes the experiment.** Every attempt so far — sixteen refuted mechanisms — has looked
+*downstream* of a snapshot assumed to be constant. But the snapshot is taken from the **live** scene:
+animated (sun, curtains, `RenderPump`), with asynchronously-loaded textures. `.302` censused it in
+*one* run and found the ceiling correct; it never established that two runs snapshot the same thing.
+
+**The untried experiment is therefore: census the snapshot in BOTH classes and diff them**, using the
+discriminator the probe already ships. Cheap, and structurally different from everything tried,
+because it tests the input rather than the pipeline.
+
+Recorded in `(u)`'s own section, including the retraction of my "shared renderer" claim. Documentation
+only. Suite **10155 green**, `tsc` and biome clean.
+
 ## v0.31.7.146 — `(u)`: two more mechanisms eliminated from the leading class of explanation, at zero runtime cost
 
 `(z)`13 reduces to diagnosing `(u)` (`.145` established `(v)` folds into it, and the doc records

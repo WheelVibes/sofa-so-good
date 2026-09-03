@@ -2892,8 +2892,30 @@ empty BVH** would produce.
    `hqRenderSession` does `const tracer = new WebGLPathTracer(renderer)` **per render**, so the mesh
    set goes 0 → ~1100 every time, `forceUpdate` fires, and `bvhChanged` is true.
 
-**What these do NOT rule out:** the `renderer` itself is shared across sessions, and the constructor
-allocates GPU resources against it. That is the nearest remaining surface of this shape.
+**And a third, `v0.31.7.147`: renderer state carried between renders — REFUTED, along with my own
+claim that the renderer is shared.** I wrote above that "the `renderer` itself is shared across
+sessions"; it is not. `hqRenderSession` line 381 constructs
+`new WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true })` on a **fresh offscreen
+canvas**, per render. I inferred "shared" from `new WebGLPathTracer(renderer)` without reading where
+`renderer` came from — the same partial-read error this session has made repeatedly. Neither
+`postprocessing` nor `three-gpu-pathtracer` assigns `renderer.outputColorSpace` either, so the
+colour-space variant of the idea is out too.
+
+**So the whole "state leaks between renders" family is closed.** Renderer, tracer, generator and BVH
+are all constructed per render. `(u)`'s two classes cannot come from anything carried over.
+
+**Which reframes what is left.** The remaining possibilities are:
+
+1. **Input non-determinism** — the snapshot is taken from the *live* scene, which is animated (sun,
+   curtains, `RenderPump`) and whose textures load asynchronously. Two runs may legitimately snapshot
+   different scenes. `.302`'s census confirmed the ceiling *present* in one run; it did not establish
+   that every run snapshots the same thing.
+2. **Uninitialised GPU resource** inside a single render.
+3. **Driver/GPU non-determinism.**
+
+(1) is the cheapest to test and has never been checked: census the snapshot on *both* classes and
+diff, rather than censusing it once. That is a different experiment from every one tried so far,
+which have all looked for a mechanism *downstream* of a snapshot assumed constant.
 
 ## (v) HQ-CEILING-ALBEDO-IGNORED — 🐞 REAL DEFECT; ✅ DECIDED 2026-09-04, see (z)13: fix. Found v0.31.5.301; verification named
 
