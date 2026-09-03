@@ -27,6 +27,52 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.31 — tpl-hdb-3room re-authored (3 of 16); a living room's door budget
+
+Third template, and the smallest change yet: **the plan was one door short.**
+Nothing pierced `h3-liv-w`, so the entire bedroom wing — master, ensuite and
+bedroom 2 — had no way in from the rest of the flat. Its original topology is
+fine; it just needed a door onto the living room.
+
+Four ratchet entries cleared:
+
+- connectivity 2 groups → 1;
+- `h3-kit + h3-yard + h3-shelter + h3-cbath + h3-living` — the **Common Bath was
+  open to the kitchen and living room**;
+- `h3-mbath + h3-bed2` — no wall between the Master Bath and Bedroom 2, which is
+  now a real ensuite off the master;
+- `h3-bed2` in the windowless-bedroom list. `h3-b2-win` sat at offset 6.4 on
+  `h3-w`, i.e. z=2.0 — **in the kitchen** — and bedroom 2 does not reach that wall
+  at all. Item (j) gained as a side effect: the refrigerator standing in front of
+  that kitchen-bound window is no longer blocking it.
+
+**A hard constraint, measured: this living room affords exactly ONE door on
+`h3-liv-w`.** It is 3.2 m wide, and a second door's swing keep-out strands the 4th
+dining chair 2.2 m from its table. One door passes the tuck test, two fail, and
+neither narrowing both to 0.8 m nor moving them to the wall ends changed it — so
+bedroom 2 is reached across the strip rather than by its own door.
+
+**Enclosing a small bath costs fixtures.** Walling the two baths at their original
+2.2 and 2.7 m² cost **both a toilet and a basin** — a door swing covers most of a
+room that size. They were enlarged to 2.7 and 3.0 m² rather than ratcheted, which
+restored every fixture.
+
+The global furniture floor moved 900 → **899** — the first time it has been
+lowered — for exactly one piece: bedroom 2's 2.0 m south wall cannot take both its
+new window and a wardrobe. An HDB habitable room needs natural light, which
+outranks a wardrobe in a 5.6 m² bedroom. Three alternatives were measured first (a
+1.0 m window, a deeper master bath, no window) and none recovered it; the comment
+on that assertion says so, and says not to lower it again for a placement failure.
+
+Also fixed a pre-existing stray-wall warning the plan shipped with: `h3-m-e`
+stopped 0.1 m short of the walls at both ends.
+
+Verified: 10126 tests pass; `tsc`, `biome`, `knip` clean. New scenario
+`h3-reauthor.json` (14 steps) asserts the enclosure walls exist, that bedroom 2's
+window is on its own wall, and that `h3-liv-w` carries exactly ONE door — the
+constraint above, so a future edit cannot quietly add a second. 2D plan reviewed:
+8 rooms, both baths enclosed, no stray warning.
+
 ## v0.31.8.30 — tpl-hdb-3gen re-authored (2 of 16); "two en-suite" proved impossible
 
 Second template of the (f) re-author. Every 3Gen ratchet entry is gone:

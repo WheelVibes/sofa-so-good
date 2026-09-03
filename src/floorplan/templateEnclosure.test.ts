@@ -22,8 +22,6 @@ import { pointInRoom } from './types'
 /** Rooms that share one wall-free volume with another declared room, where at
  *  least one of them is a bath/powder. `plan/level: room + room + …`. */
 const KNOWN_SHARED_ENCLOSURES = [
-  'tpl-hdb-3room/ground: h3-kit + h3-yard + h3-shelter + h3-cbath + h3-living',
-  'tpl-hdb-3room/ground: h3-mbath + h3-bed2',
   'tpl-hdb-4room/ground: h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath',
   'tpl-hdb-5room/ground: h5-kit + h5-yard + h5-shelter + h5-living + h5-balcony + h5-bed2 + h5-bed3 + h5-master + h5-cbath + h5-mbath',
   'tpl-hdb-exec/ground: ex-bed2 + ex-bed3 + ex-cbath + ex-mbath',

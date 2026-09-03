@@ -219,7 +219,19 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
   it('loses NO furniture — the criterion two reverted attempts failed', () => {
     // 893 and 895 on the earlier tries. This is the assertion that caught them;
     // "stranded = 0" alone reported success while items were being deleted.
-    expect(sweep().total).toBeGreaterThanOrEqual(900)
+    //
+    // 900 → 899 in v0.31.8.31, and ONLY because a content change legitimately
+    // costs exactly one piece: giving `tpl-hdb-3room`'s Bedroom 2 its first
+    // window (item (h) — it had none, and its "own" window sat in the kitchen)
+    // leaves its 2.0 m south wall unable to take a wardrobe as well. An HDB
+    // habitable room needs natural light, which outranks a wardrobe in a 5.6 m²
+    // bedroom. Verified by per-def diff that this is the only loss, and three
+    // alternatives were measured first: a narrower 1.0 m window, a deeper master
+    // bath, and leaving the window out — none recovered the piece.
+    //
+    // Do NOT lower this again for a placement failure. It exists to catch items
+    // being DELETED by a bug, and it still catches any multi-item regression.
+    expect(sweep().total).toBeGreaterThanOrEqual(899)
   }, 30_000)
 
   it('cuts wall-hugging pieces stranded on the seed point from 20 to a handful', () => {

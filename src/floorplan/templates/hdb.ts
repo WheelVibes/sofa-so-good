@@ -57,25 +57,51 @@ export function hdb3Room(): FloorPlan {
       ...perimeter('h3', W, D),
       iwall('h3-liv-w', [4.0, 2.8], [4.0, D - T]),
       iwall('h3-svc-s', [T, 2.8], [4.0, 2.8]),
-      iwall('h3-m-e', [3.4, 2.9], [3.4, 5.5]),
+      // The wing keeps its original topology: `h3-m-e` fences the master behind a
+      // narrow strip that also serves Bedroom 2, and `h3-b2-n` stops at x=3.4 so
+      // the strip stays open to it. The plan was simply ONE DOOR short — nothing
+      // pierced `h3-liv-w`, so the whole wing had no way in (v0.31.8.31).
+      //
+      // Exactly one door goes on `h3-liv-w`, deliberately: the living room is
+      // only 3.2 m wide, and a SECOND door's swing keep-out on that wall strands
+      // the 4th dining chair 2.2 m from its table. Measured both ways — one door
+      // passes the tuck test, two do not, and narrowing them to 0.8 m or moving
+      // them to the wall ends changed nothing.
+      // Extended to MEET `h3-svc-s` (z=2.8) and `h3-b2-n` (z=5.6): it used to
+      // stop 0.1 m short at both ends, so the plan shipped with a stray-wall
+      // integrity warning. `h3-b2-n` still stops at x=3.4, which is what keeps
+      // the strip open to Bedroom 2.
+      iwall('h3-m-e', [3.4, 2.8], [3.4, 5.6]),
       iwall('h3-b2-n', [T, 5.6], [3.4, 5.6]),
+      // Master Bath was sharing one volume with Bedroom 2 — no wall between.
+      iwall('h3-mb-e', [1.9, 5.6], [1.9, D - T]),
+      // Common Bath was open to the kitchen and living room.
+      iwall('h3-cb-w', [6.0, T], [6.0, 2.4]),
+      iwall('h3-cb-s', [6.0, 2.4], [W - T, 2.4]),
     ],
     openings: [
       door('h3-main', 'h3-s', 5.2),
+      door('h3-wing', 'h3-liv-w', 0.7),
       door('h3-master', 'h3-m-e', 1.2),
+      // The Master Bath opens off the master, making it a real ensuite.
+      door('h3-mbath', 'h3-b2-n', 0.5, 0.7),
+      door('h3-cbath', 'h3-cb-s', 0.6, 0.7),
       window('h3-kit-win', 'h3-n', 1.2, 1.6),
       window('h3-m-win', 'h3-w', 3.6, 1.5),
-      window('h3-b2-win', 'h3-w', 6.4, 1.4),
+      // BEDROOM-WINDOW (h): offset 6.4 on `h3-w` (which runs south→north from
+      // z=8.4) sat at z=2.0 — in the KITCHEN. Bedroom 2 does not reach that wall
+      // at all; its own external wall is `h3-s`, where offsets 3.4-5.4 line it.
+      window('h3-b2-win', 'h3-s', 3.5, 1.4),
       window('h3-liv-win', 'h3-e', 5.0, 1.8),
     ],
     rooms: [
       room('h3-kit', 'Kitchen', 0.2, 0.2, 2.6, 2.4, 'floor-tile-grey', 'kitchen'),
       room('h3-yard', 'Service Yard', 2.9, 0.2, 1.5, 1.6, 'floor-tile-grey', 'serviceYard'),
       room('h3-shelter', 'Household Shelter', 4.5, 0.2, 1.5, 2.0, 'floor-tile-grey', 'shelter'),
-      room('h3-cbath', 'Common Bath', 6.1, 0.2, 1.3, 1.7, 'floor-tile-white', 'bath'),
+      room('h3-cbath', 'Common Bath', 6.1, 0.2, 1.3, 2.1, 'floor-tile-white', 'bath'),
       room('h3-living', 'Living / Dining', 4.2, 2.8, 3.2, 5.6, 'floor-wood-oak', 'living'),
       room('h3-master', 'Master Bedroom', 0.2, 2.8, 3.0, 2.6, 'floor-wood-oak', 'masterBedroom'),
-      room('h3-mbath', 'Master Bath', 0.2, 5.6, 1.6, 1.7, 'floor-tile-marble', 'bath'),
+      room('h3-mbath', 'Master Bath', 0.2, 5.7, 1.6, 1.9, 'floor-tile-marble', 'bath'),
       room('h3-bed2', 'Bedroom 2', 2.0, 5.6, 2.0, 2.8, 'floor-wood-walnut', 'bedroom'),
     ],
   }

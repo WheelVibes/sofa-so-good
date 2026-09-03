@@ -36,7 +36,6 @@ import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
  * window with furniture parked in front of it.
  */
 const KNOWN_BLOCKED = [
-  'tpl-hdb-3room/h3-b2-win: refrigerator',
   'tpl-hdb-4room/h4-m-win: wardrobe-3door',
   // h5-b2-win CLEARED in v0.31.5.121 by preferring windowless walls for tall
   // storage — the wardrobe had a windowless alternative in that room.
@@ -117,7 +116,7 @@ describe('tall furniture does not stand in front of a window', () => {
   })
 
   // Without this the list could pass by measuring nothing: 80 windows are
-  // examined and 71 of them are clear.
+  // examined and 72 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     // 79 from v0.31.8.29: the jumbo re-author added `jb-b3-win`, Bedroom 3's
@@ -129,6 +128,9 @@ describe('tall furniture does not stand in front of a window', () => {
     // (`jb-b5-win`, cleared because the jumbo re-author divided bedrooms 4/5).
     // 69 → 71 in `.30`: `g3-b2-win` added and `g3-liv-win` cleared, the living
     // room having been reshaped so a wardrobe no longer parks in front of it.
-    expect(windows - hits.length).toBe(71)
+    // 71 → 72 in `.31`: `h3-b2-win` was sitting in the 3-room KITCHEN with the
+    // refrigerator in front of it; moving it onto Bedroom 2's own wall cleared
+    // the block as a side effect of fixing item (h).
+    expect(windows - hits.length).toBe(72)
   })
 })

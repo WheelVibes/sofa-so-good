@@ -70,7 +70,9 @@ describe('dining chairs are tucked to their table', () => {
     )
     expect(counts).toEqual({
       'tpl-hdb-2room': 49,
-      'tpl-hdb-3room': 67,
+      // 67 → 66 in v0.31.8.31: Bedroom 2 trades its wardrobe for its first
+      // window (item (h)); its 2.0 m south wall cannot take both.
+      'tpl-hdb-3room': 66,
       // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
@@ -136,7 +138,13 @@ describe('dining chairs are tucked to their table', () => {
     // the bathroom there is replaced by one in the corridor. Both queen beds
     // survive — two earlier layouts lost one or both and were reshaped, not
     // ratcheted.
-    expect(total).toBe(1431)
+    //
+    // 1431 → 1430 in `.31`, the 3-room re-author: one wardrobe, traded for
+    // Bedroom 2's first window. Two bathrooms that had been open to the kitchen
+    // and living room are now enclosed at no furniture cost — enclosing them at
+    // their original 2.2 m² DID cost both a toilet and a basin, so they were
+    // enlarged to 2.7-3.0 m² rather than ratcheted.
+    expect(total).toBe(1430)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

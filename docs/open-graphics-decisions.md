@@ -303,6 +303,38 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.31 — `tpl-hdb-3room` re-authored (3 of 16); the living room sets a hard door budget
+
+Third template, and the smallest change of the three so far: **the plan was one door short.**
+Nothing pierced `h3-liv-w`, so the whole bedroom wing (master + ensuite + bedroom 2) had no way in
+from the rest of the flat. Its original topology — `h3-m-e` fencing the master behind a narrow
+strip that also serves bedroom 2 — is fine; it just needed a door onto the living.
+
+Four entries cleared: connectivity 2 groups → 1; **`h3-kit + h3-yard + h3-shelter + h3-cbath +
+h3-living`** (the Common Bath was open to the kitchen and the living room); **`h3-mbath +
+h3-bed2`** (no wall between the Master Bath and Bedroom 2); and `h3-bed2` in the windowless-bedroom
+list — `h3-b2-win` had been at offset 6.4 on `h3-w`, i.e. z=2.0, **in the kitchen**, and bedroom 2
+does not reach that wall at all. Item (j) gained too: the refrigerator that had been standing in
+front of that kitchen-bound window is no longer blocking it.
+
+**A hard constraint worth recording: this living room affords exactly ONE door on `h3-liv-w`.**
+It is 3.2 m wide, and a second door's swing keep-out strands the 4th dining chair 2.2 m from its
+table. Measured directly — one door passes the tuck test, two fail — and neither narrowing both to
+0.8 m nor moving them to the ends of the wall changed the outcome. So bedroom 2 is reached across
+the strip rather than by its own door off the living. Any future re-plan of a narrow living room
+should budget door swings the same way.
+
+**Enclosing a small bath costs fixtures.** Walling the two baths at their original sizes
+(2.2 m² and 2.7 m²) cost **both a toilet and a basin** — the door swing covers most of such a
+room. They were enlarged to 2.7 and 3.0 m² rather than ratcheted, which restored every fixture.
+
+The global furniture floor moved 900 → **899**, the first time it has been lowered, for exactly one
+piece: bedroom 2's 2.0 m south wall cannot take both its new window and a wardrobe. An HDB
+habitable room needs natural light, which outranks a wardrobe in a 5.6 m² bedroom. Three
+alternatives were measured first (a 1.0 m window, a deeper master bath, no window at all) and none
+recovered it. Also closed a pre-existing stray-wall warning: `h3-m-e` stopped 0.1 m short of the
+walls at both ends.
+
 ### v0.31.8.30 — `tpl-hdb-3gen` re-authored (2 of 16), and one researched target proved impossible
 
 Second template. All of 3Gen's ratchet entries are gone — connectivity 7 groups → 1, the shared

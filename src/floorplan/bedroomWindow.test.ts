@@ -18,7 +18,6 @@ import { pointInRoom } from './types'
  * bedroom with no daylight.
  */
 const KNOWN_WINDOWLESS_BEDROOMS = [
-  'tpl-hdb-3room/h3-bed2',
   'tpl-hdb-4room/h4-bed3',
   // h4-master FIXED in v0.31.5.115 — `h4-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (7.4 -> 0.6).
@@ -96,7 +95,9 @@ describe('template bedrooms have daylight', () => {
     // `jb-m-win` had been at z=2.9, inside the kitchen; 37 from `.30`, the 3Gen
     // re-author, which fixed the SAME class of bug (`g3-m-win` at z=1.7, also in
     // the kitchen, and `g3-b3-win` at z=4.3, inside bedroom 2) and gave the
-    // grandparent suite a window on the south wall it owns.
-    expect(owning).toBe(37)
+    // grandparent suite a window on the south wall it owns; 38 from `.31`, the
+    // 3-room re-author — `h3-b2-win` had been at z=2.0, in the KITCHEN, and
+    // bedroom 2 does not reach that wall at all.
+    expect(owning).toBe(38)
   })
 })
