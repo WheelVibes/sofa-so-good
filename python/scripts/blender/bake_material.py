@@ -104,6 +104,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "pixels sampling black (v0.31.7.97). Unlike --denoise this NEVER "
                         "rewrites a baked value, so it cannot bias the map -- it only extends "
                         "it into padding that held nothing.")
+    p.add_argument("--texels-per-metre", type=float, default=None, dest="tpm",
+                   help="choose --res PER OBJECT so every surface gets this texel density, instead "
+                        "of one resolution for everything. A 3x2 atlas gives each face group a "
+                        "slot of res/3 x res/2, so density is (res/3)/extent -- which means a "
+                        "fixed --res makes a 0.7 m panel 4x finer than a 3 m wall while costing "
+                        "the same bytes, and starves the wall. Measured both ends of that: at "
+                        "--res 256 the 40 largest meshes look right (~28 texels/m) but cover only "
+                        "11 % of the scene, and at --res 64 all 333 meshes fit in 4.3 MB and the "
+                        "walls read as blotchy cloud because a whole wall face gets 21x32 texels. "
+                        "Rounded UP to a power of two and clamped to [--res-min, --res]. 28 is the "
+                        "density the good-looking 256 px set actually had.")
+    p.add_argument("--res-min", type=int, default=32,
+                   help="floor for --texels-per-metre. Tiny trims still need a slot each.")
     p.add_argument("--scale", type=float, default=1.0,
                    help="divide every texel by this before saving, and record it in the index so "
                         "the consumer can multiply it back. REQUIRED FOR THE IRRADIANCE PASS: PNG "
@@ -438,6 +451,20 @@ def _blur_per_slot(img: bpy.types.Image, res: int, passes: int = 3) -> None:
     img.pixels[:] = px
 
 
+def res_for(obj, tpm: float, lo: int, hi: int) -> int:
+    """Power-of-two atlas edge giving `obj` at least `tpm` texels per metre.
+
+    The 3x2 atlas splits the edge into 3 columns, so a face group's in-slot resolution is
+    `res / 3` texels across its own extent. Sizing from the object's LARGEST dimension is
+    deliberately conservative -- it is the extent that would be starved first, and a face pair
+    is normalised by the mesh bounding box rather than by its own size.
+    """
+    m = max(obj.dimensions) if obj.dimensions else 0.0
+    want = max(1.0, 3.0 * tpm * m)
+    pow2 = 1 << max(0, (int(want) - 1).bit_length())
+    return max(lo, min(hi, pow2))
+
+
 def bake_object(
     obj: bpy.types.Object,
     out_path: str,
@@ -521,9 +548,18 @@ def bake_object(
         img.pixels[:] = px_all
     img.filepath_raw = out_path
     img.file_format = "PNG"
-    # SIXTEEN bits whenever a scale is in play. Scaling packs a ~56x range into 0..1, so 8 bits
-    # would leave a quantisation step of ~0.22 in irradiance units -- coarse against the 9.4 mean
-    # and ruinous in the dark corners this pass exists to describe.
+    # SIXTEEN bits is what we need and what we get -- but NOT from here. `Image.save()` ignores
+    # `scene.render.image_settings` entirely; it writes from the image's own buffer, so a FLOAT
+    # image saves 16-bit PNG on its own. Proved by a `--scale 1` run, where the line below could
+    # not have executed, coming out `bitdepth 16` all the same. `v0.31.7.104` claimed `--scale`
+    # "forces 16-bit"; the float buffer does, and `--scale` only guarantees a float buffer.
+    #
+    # The same deafness killed a `--grey` flag: three identical channels is 3x the bytes for the
+    # same map and the shader only samples `.r`, but `color_mode = "BW"` is ignored here too and
+    # every output stayed `colortype 2`. `Image.save_render()` WOULD respect these settings and
+    # is not an option -- it applies the scene's colour management, and this is deliberately
+    # Non-Color data, which is the exact corruption the long comment above guards against.
+    # Removed rather than left inert; a flag that silently does nothing is worse than no flag.
     if scale != 1.0:
         bpy.context.scene.render.image_settings.color_depth = "16"
     img.save()
@@ -697,7 +733,7 @@ def main(argv: list[str] | None = None) -> int:
             stats = bake_object(
                 obj,
                 out,
-                res=a.res,
+                res=res_for(obj, a.tpm, a.res_min, a.res) if a.tpm else a.res,
                 bake_type=bake_type,
                 interior_slots=interior_slots,
                 encode=a.encode,
@@ -728,6 +764,7 @@ def main(argv: list[str] | None = None) -> int:
         "sky": sky_info,
         "out_dir": out_dir,
         "res": a.res,
+        "texels_per_metre": a.tpm,
         "uv_mode": a.uv,
         "albedo": a.albedo,
         "samples": a.samples,

@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.108 — `--texels-per-metre`: constant density fixes the artefact's SCALE, and exposes that the noise was undersampling. Two flags were inert.
+
+`.107` refuted a constant `--res 64`. This adds resolution **per object**, proportional to its size,
+so a 12 m² wall and a 0.5 m² panel get the same texels per metre instead of the same bytes.
+
+    res = clamp(next_pow2(3 * texels_per_metre * max_dimension), res_min, res)
+
+The `3 *` is the atlas: a 3×2 grid gives each face group `res/3` texels across its own extent, so a
+fixed `--res` makes a small panel finer than a wall *and* costs the same. 28 texels/m is the density
+the good-looking 256 px set actually had, measured rather than picked.
+
+**It works, at the level it addresses.** At `--texels-per-metre 28` the 333-map set resolves to
+64 px × 45, 128 px × 57, 256 px × 231, and the frame's giant cloud blotches are gone — replaced by
+fine grain. **The artefact changed scale, not existence:** walls and ceiling read as sandy concrete
+rather than painted plaster, with a dark smudge beside the TV.
+
+**And the cause is undersampling, not resolution.** The clean 40-map set used `--samples 4096`; this
+one used 1024. Per-texel noise in a hemisphere integration does not care how many texels there are.
+Re-baking at 4096 is the test, and it is a bake-time problem rather than a design one.
+
+**`ceiling/wall` was 0.96 for a third consecutive configuration** — 40@256 clean, 333@64 unusable,
+333@256-density grainy. Three visually distinct results, one metric value. `.107` called this out and
+this round confirms it is not a coincidence: the region-mean ratio is structurally incapable of seeing
+map quality.
+
+**Two flags were doing nothing, and one of them was mine from `.104`.**
+
+- `Image.save()` **ignores `scene.render.image_settings` entirely.** So `color_depth = "16"` never
+  did anything. The 16-bit output is real but comes from the **float buffer** — proved by a
+  `--scale 1` run, where that line cannot execute, emerging `bitdepth 16` anyway. `.104` claimed
+  `--scale` "forces 16-bit PNG"; what it actually forces is a float buffer, which is what does it.
+  The comment now says so.
+- A `--grey` flag added this round hit the same deafness: three identical channels is 3× the bytes
+  for a map the shader only samples `.r` from, and every output stayed `colortype 2`.
+  **Removed rather than left in** — a flag that silently does nothing is worse than no flag.
+  `Image.save_render()` would respect the settings and is *not* an option: it applies the scene's
+  colour management to what is deliberately `Non-Color` data, the exact corruption `v0.31.7.17`
+  measured as making the match to physics worse.
+
+So the 3× size cut is still on the table but needs a route that is not Blender's image settings. At
+31 MB for 333 maps, size remains the shipping blocker. Suite **10116 green**, `tsc` and biome clean.
+
 ## v0.31.7.107 — res 64 buys full coverage and destroys the image; the region metric could not tell
 
 `.106` left one blocker: **11 % coverage** (42 of 385 meshes), which showed up as a hard-edged bright
