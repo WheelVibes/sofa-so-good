@@ -76,6 +76,12 @@ const BACKDROP_IMG = process.env.BACKDROP_IMG || null
 // "comparison" was a measurement of a failed fetch. A silent no-op is the worst
 // possible failure for a difference measurement, because it looks like a result.
 const REQUIRE_LIGHTMAPS = process.env.REQUIRE_LIGHTMAPS === '1'
+// How many times the gate actually executed. A guard on a code path the run never takes is
+// indistinguishable from a guard that passed -- the same defect `v0.31.7.103` found in
+// `slotsFor`, where a field that was never populated reported "nothing to relocate". Checked at
+// the end of the run, because a flag the user set and the probe silently ignored is worse than
+// no flag: they will trust the numbers more, not less.
+let lightmapGateRan = 0
 // `SKYCATCH=<mult>` scales every window pane's EMISSIVE sky-catch (RZ2).
 //
 // `glassSkyCatchIntensity(daylight) = daylight * 0.4`, with a fixed colour
@@ -795,26 +801,52 @@ const assertLightmapsApplied = !REQUIRE_LIGHTMAPS
   : async () => {
       // Count the materials the injection actually marked, and confirm at least
       // one of their sampler uniforms holds a texture with real image data.
-      const r = await page.evaluate(() => {
-        let patched = 0
-        let withImage = 0
-        window.__three.scene.traverse((o) => {
-          const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
-          for (const m of mats) {
-            if (!m.userData?.visLightmap) continue
-            patched += 1
-            const t = m.__visMapForProbe
-            const img = t?.image
-            if (img && (img.width ?? 0) > 0) withImage += 1
-          }
+      const readLightmapState = () =>
+        page.evaluate(() => {
+          let patched = 0
+          let withImage = 0
+          window.__three.scene.traverse((o) => {
+            const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
+            for (const m of mats) {
+              if (!m.userData?.visLightmap) continue
+              patched += 1
+              const t = m.__visMapForProbe
+              const img = t?.image
+              if (img && (img.width ?? 0) > 0) withImage += 1
+            }
+          })
+          return { patched, withImage }
         })
-        return { patched, withImage }
-      })
+      let r = await readLightmapState()
+      lightmapGateRan += 1
+      // BOUNDED WAIT, because texture fetches are async and the injection is not. The
+      // materials are patched synchronously during the traversal; `texture.image` only appears
+      // once the fetch resolves, so checking once immediately conflates "the maps are broken"
+      // with "the maps are still in flight". Bounded and loud on timeout -- an unbounded wait
+      // would turn a real load failure into a hang, and a silent give-up is the whole defect
+      // this flag exists to prevent.
+      for (let i = 0; i < 40 && r.patched > 0 && r.withImage === 0; i += 1) {
+        await new Promise((res) => setTimeout(res, 250))
+        r = await readLightmapState()
+      }
       if (r.patched === 0) {
         throw new Error(
           'REQUIRE_LIGHTMAPS: no material carries the lightmap injection. The flag, the ' +
             'index or the plan context did not line up, and any frame taken now measures ' +
             'the unmapped app.',
+        )
+      }
+      // A PATCHED MATERIAL WITH NO TEXTURE IS THE FAILURE THIS FLAG EXISTS FOR, and the first
+      // version of this check let it through: it threw only on `patched === 0`, so a run where
+      // every injection was in place but every fetch had failed reported success. In `replace`
+      // mode that assigns ZERO into the indirect term, which is not a subtle difference -- it is
+      // a black shell that looks like a result. `withImage` was already being counted and
+      // printed; nothing acted on it.
+      if (r.withImage === 0) {
+        throw new Error(
+          `REQUIRE_LIGHTMAPS: ${r.patched} material(s) carry the injection but NONE holds a ` +
+            'texture with image data. The maps did not load (404, wrong `aoDir`, or a stale ' +
+            'index), and in `replace` mode the shader is now multiplying by zero.',
         )
       }
       console.log(`  lightmaps: ${r.patched} patched material(s), ${r.withImage} with image data`)
@@ -4815,4 +4847,17 @@ console.log('  floor     NOT a target — four photographs span 0.87–1.30. The
 console.log('            tracks floor ALBEDO (pale stone vs dark parquet), not light')
 console.log('            transport (see the .181 and .188 entries in the research doc)')
 console.log('  wall      NOT a target — four photographs span 0.53–1.43')
+// The flag has to have DONE something. `REQUIRE_LIGHTMAPS=1` on a run that never reaches
+// `shotFor` would otherwise exit 0 having checked nothing, which is how it behaved on a run
+// where the maps demonstrably did not apply -- it printed no `lightmaps:` line at all, and I
+// read the silence as a pass.
+if (REQUIRE_LIGHTMAPS && lightmapGateRan === 0) {
+  await browser.close()
+  throw new Error(
+    'REQUIRE_LIGHTMAPS=1 was set but the check never ran: this invocation takes no code path ' +
+      'that captures a frame through `shotFor`, so nothing was verified. Exiting non-zero ' +
+      'rather than reporting a clean run.',
+  )
+}
+if (REQUIRE_LIGHTMAPS) console.log(`  REQUIRE_LIGHTMAPS: gate ran ${lightmapGateRan}x`)
 await browser.close()

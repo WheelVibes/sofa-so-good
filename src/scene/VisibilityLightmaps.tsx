@@ -108,6 +108,17 @@ export function VisibilityLightmaps() {
       // a mismatched pair cannot be configured into existence.
       const mode = parsed.index.pass === 'irradiance' ? 'replace' : 'multiply'
       const result = applyLightmapsFromIndex(scene, parsed.index, load, {
+        // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
+        // `?aoDir=` redirected the index fetch and left the map URLs pointing at
+        // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
+        // its materials -- and then fetched 40 files that were not there. `v0.31.7.106`
+        // measured 54 patched materials with ZERO textures carrying image data.
+        //
+        // This is why `v0.31.7.90`-`.93` got statistics identical to the decimal from three
+        // different irradiance bakes and concluded the bakes were equivalent. They were never
+        // loaded. The `__visMapForProbe` handle was added to catch exactly this and did catch
+        // it, the moment anything finally asserted on it.
+        baseUrl: base,
         gain: Number.isFinite(gainOverride) && gainOverride > 0 ? gainOverride : undefined,
         // `?aoDebug=1` paints the sampled map instead of shading. Unusable by design.
         debug: import.meta.env.DEV && params.get('aoDebug') === '1',

@@ -29,6 +29,66 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.106 — `?aoDir=` never redirected the MAP URLs, so `v0.31.7.90`-`.93` compared three bakes that were never loaded
+
+The seam existed. The option existed. Nothing connected them.
+
+`VisibilityLightmaps.tsx` computes `base = assets/<aoDir>` and fetches `index.json` from it —
+then calls `applyLightmapsFromIndex` **without passing `baseUrl`**, so the resolver fell back to
+`LIGHTMAP_BASE = assets/lightmaps`. An alternate set loaded its index, matched its keys, patched its
+materials, and then fetched 40 files that were not there.
+
+Measured, with the hardened gate below: **54 patched materials, 0 with texture image data.** After
+passing `baseUrl: base`: **54 of 54.** One line.
+
+**That is the explanation for `.90`–`.93`**, which compared several irradiance bakes and got
+statistics identical *to the decimal* from three different frame files and from map PNGs with
+different md5s. The conclusion at the time was that the bakes were equivalent. They were never loaded.
+The `__visMapForProbe` handle was added specifically to catch this — and it did, the moment anything
+finally asserted on it.
+
+**So `REQUIRE_LIGHTMAPS=1` was closed, and it caught this on its first run.** Three defects in the
+guard itself:
+
+1. **It threw only on `patched === 0`.** `withImage` was counted and printed and *nothing acted on
+   it*, so a run where every injection was in place but every fetch had failed reported success. In
+   `replace` mode that assigns zero into the indirect term — a black shell that looks like a result.
+2. **It checked once, immediately.** The injection is synchronous, the fetch is not, so a single read
+   conflates "broken" with "in flight". Now a bounded 10 s wait, loud on timeout. (This run needed
+   the bound: 10 s of waiting still gave zero, which is how the hard failure was distinguished from a
+   race.)
+3. **It could not tell "passed" from "never ran".** An invocation that takes no `shotFor` path exited
+   0 having verified nothing — which is exactly how it behaved on the run recorded as "fails open": it
+   printed no `lightmaps:` line at all and I read the silence as a pass. Now counted and asserted at
+   the end, and the count is reported (`gate ran 2x`). Same defect class as `.103`'s `slotsFor`.
+
+**With the maps genuinely applied, the first real measurement of the irradiance set** (40 maps,
+`--scale 4`, 16-bit, 0 clipped), geometric-mask regions at the standard pose:
+
+| | baseline | **irradiance** |
+| --- | --- | --- |
+| ceiling | 0.76 | **0.97** |
+| wall | 1.04 | 1.01 |
+| floor | 0.85 | 0.74 |
+| **ceiling/wall** | **0.73** | **0.96** |
+
+And **206 faces mirrored** — the mirror-row relocation ran for the first time ever, because `.103`
+fixed the parse that dropped `slots` and this is the first set to carry them. `.99`'s `flipped = 0` is
+now confirmed to have been a dead path, not a refutation.
+
+**Looked at the frame, both arms.** The baseline ceiling is flat grey and the right wall is a
+featureless slab. With the maps: the ceiling brightens and its plaster texture reads, the window-to-
+far-wall falloff appears, and the reveals pick up light. That is the GI the flat render was missing.
+
+**Not shippable yet, and the frame is why the metric alone would have said otherwise.** The right wall
+carries a **hard-edged bright rectangular patch** — a step between a mapped and an unmapped surface,
+which is what 42 of 385 meshes (**11 %** coverage) looks like when adjacent geometry disagrees. The
+`ceiling/wall` figure is also a diagnostic, pose- and method-bound, and the `0.91–1.03` photographic
+spread belongs to the hand-crop method, not to this mask — so 0.96 landing inside that range is
+**not** a claim I can make. The direction is right; the coverage is the blocker.
+
+Suite **10116 green**, `tsc` and biome clean. The scratch set was not committed.
+
 ## v0.31.7.105 — the first unclipped irradiance bake, and the reader that called it "entirely black"
 
 **The bake.** Two-pass, as `.104` set up. Pass 1 at `--scale 1`, cheap: global max **3.197**, and
