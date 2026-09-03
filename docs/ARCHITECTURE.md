@@ -439,8 +439,8 @@ same change that reshapes a system.
   DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
   unchanged. Flag off → today's behaviour exactly.
   **Room categories (RM1, 2026-07-19 SG-presets plan):** `PlanRoom.category?: RoomCategory`
-  (`floorplan/types.ts` — 13 values: living/dining/bedroom/masterBedroom/kitchen/bath/powder/
-  study/serviceYard/storeroom/balcony/foyer/other; `PlanRoomZ` additive enum) is the persisted,
+  (`floorplan/types.ts` — 14 values: living/dining/bedroom/masterBedroom/kitchen/bath/powder/
+  study/serviceYard/storeroom/**shelter**/balcony/foyer/other; `PlanRoomZ` additive enum) is the persisted,
   USER-declared room type, edited via the `RoomInspector`'s "Room type" `Select` right under Name
   (first option "Auto — ‹inferred›" clears it back to undefined; `updateRoom` persists, undoable).
   `floorplan/roomCategory.ts` is the ONE resolver: `roomCategory(room)` (explicit `category` wins,
@@ -450,8 +450,19 @@ same change that reshapes a system.
   so every existing coarse consumer keeps working unchanged when a room has no explicit category.
   This module owns its OWN regex set rather than delegating to `roomKindFromName` — `RoomCategory`
   is a strict refinement (splits `bath`→`bath`/`powder`, `bedroom`→`bedroom`/`masterBedroom`, the
-  catch-all `balcony` bucket→`serviceYard`/`storeroom`/`foyer`/`balcony`) that the coarser
-  classifiers' regexes can't recover once collapsed. RM1 migrated: `CatalogDrawer`'s room-aware
+  catch-all `balcony` bucket→`serviceYard`/`storeroom`/`shelter`/`foyer`/`balcony`) that the coarser
+  classifiers' regexes can't recover once collapsed.
+  **`'shelter'`** (v0.31.8.25) splits the HDB household shelter out of `storeroom`: it is a
+  reinforced-concrete civil-defence enclosure whose walls may not be altered and which is
+  windowless by design, so the daylight check must never advise a window there (see the Daylight
+  entry). It differs only in its WALLS and daylight obligations, not its contents — `furnishPlan`
+  gives it `KITS.storeroom` and `suggestions.ts` puts it in the same `'utility'` bucket, and both
+  `toRoomKind`/`toArrangeKind` map it exactly where `storeroom` maps (verified: recategorising
+  the 8 authored template shelters produced ZERO drift in either downmap). Adding it touched only
+  `roomCategory.ts` (label + name rule ordered BEFORE the storeroom rule + `toRoomKind`) and
+  `state/schema.ts`'s enum — but the type-checker does NOT flag consumers that `switch` on the
+  category directly, and `furnishPlan.ts`/`suggestions.ts` both did, so a green `tsc` was not
+  proof of coverage (the shelter silently lost its shelving until the test suite caught it). RM1 migrated: `CatalogDrawer`'s room-aware
   landing (explicit category resolved from `floorPlan.rooms` before falling back to
   `roomDisplayName`), `EmptyRoomHint`'s starter chips, `furnishPlan.ts`'s `kitForRoom` (switches on
   `roomCategory(room)` — `serviceYard`/`storeroom`/`foyer`/`other` still get no kit; those kits are
@@ -2115,6 +2126,14 @@ same change that reshapes a system.
   NOTE the test is the FAÇADE, not `wallHackability`: an external wall maps to `load-bearing` →
   NOT PERMITTED, but "cannot be demolished" is not "cannot hold a window", and keying on
   hackability suppressed a genuine windowless-bedroom finding in `tpl-hdb-jumbo`.
+  A **household shelter** (`RoomCategory` `'shelter'`, `row.blastShelter`) is exempt
+  UNCONDITIONALLY — façade or not — because an opening in its RC walls is not permitted; 7
+  templates author it against an external wall, so the façade test alone left them advising one.
+  `exemptReason(row)` supplies the display wording, and the two reasons are NOT interchangeable
+  (calling a façade-side shelter an "interior room" would be false).
+  Counting against the score and being ADVISED to add a window are separate: an interior
+  habitable room stays in the score's denominator but is kept out of the "add or widen windows"
+  advisory, since it has no façade to open onto.
 - **Aircon cooling-load (BTU) advisory** (`analysis/airconSizing.ts` pure → `buildAirconSizing(plan,
   orientationDeg)`: per-room recommended BTU = floor area × `BTU_PER_SQM` (600, the ~50–60 BTU/ft²
   SG rule-of-thumb mid) × modifiers — `+15%` for an exterior window facing W/E (room-side compass ⊕

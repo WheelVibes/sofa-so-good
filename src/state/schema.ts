@@ -336,6 +336,7 @@ const PlanRoomZ = z.object({
       'study',
       'serviceYard',
       'storeroom',
+      'shelter',
       'balcony',
       'foyer',
       'other',

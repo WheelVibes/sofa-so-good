@@ -194,6 +194,7 @@ export const ROOM_CATEGORIES = [
   'study',
   'serviceYard',
   'storeroom',
+  'shelter',
   'balcony',
   'foyer',
   'other',

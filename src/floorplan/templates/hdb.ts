@@ -37,7 +37,7 @@ export function hdb2Room(): FloorPlan {
     rooms: [
       room('h2-master', 'Master Bedroom', 0.2, 0.2, 3.1, 3.0, 'floor-wood-walnut', 'masterBedroom'),
       room('h2-kit', 'Kitchen', 3.5, 0.2, 2.3, 2.2, 'floor-tile-grey', 'kitchen'),
-      room('h2-shelter', 'Household Shelter', 3.5, 2.4, 1.5, 1.4, 'floor-tile-grey', 'storeroom'),
+      room('h2-shelter', 'Household Shelter', 3.5, 2.4, 1.5, 1.4, 'floor-tile-grey', 'shelter'),
       room('h2-living', 'Living / Dining', 0.2, 3.4, 3.3, 2.8, 'floor-wood-oak', 'living'),
       room('h2-bath', 'Bathroom', 3.8, 4.0, 1.7, 2.2, 'floor-tile-marble', 'bath'),
     ],
@@ -71,7 +71,7 @@ export function hdb3Room(): FloorPlan {
     rooms: [
       room('h3-kit', 'Kitchen', 0.2, 0.2, 2.6, 2.4, 'floor-tile-grey', 'kitchen'),
       room('h3-yard', 'Service Yard', 2.9, 0.2, 1.5, 1.6, 'floor-tile-grey', 'serviceYard'),
-      room('h3-shelter', 'Household Shelter', 4.5, 0.2, 1.5, 2.0, 'floor-tile-grey', 'storeroom'),
+      room('h3-shelter', 'Household Shelter', 4.5, 0.2, 1.5, 2.0, 'floor-tile-grey', 'shelter'),
       room('h3-cbath', 'Common Bath', 6.1, 0.2, 1.3, 1.7, 'floor-tile-white', 'bath'),
       room('h3-living', 'Living / Dining', 4.2, 2.8, 3.2, 5.6, 'floor-wood-oak', 'living'),
       room('h3-master', 'Master Bedroom', 0.2, 2.8, 3.0, 2.6, 'floor-wood-oak', 'masterBedroom'),
@@ -116,7 +116,7 @@ export function hdb4Room(): FloorPlan {
     rooms: [
       room('h4-kit', 'Kitchen', 0.2, 0.2, 3.0, 2.6, 'floor-tile-grey', 'kitchen'),
       room('h4-yard', 'Service Yard', 3.3, 0.2, 1.5, 1.6, 'floor-tile-grey', 'serviceYard'),
-      room('h4-shelter', 'Household Shelter', 5.0, 0.2, 1.5, 2.0, 'floor-tile-grey', 'storeroom'),
+      room('h4-shelter', 'Household Shelter', 5.0, 0.2, 1.5, 2.0, 'floor-tile-grey', 'shelter'),
       room('h4-living', 'Living / Dining', 5.8, 2.4, 3.2, 7.2, 'floor-wood-oak', 'living'),
       room('h4-bed2', 'Bedroom 2', 0.2, 3.2, 2.8, 3.0, 'floor-wood-walnut', 'bedroom'),
       room('h4-bed3', 'Bedroom 3', 3.2, 3.2, 2.4, 3.0, 'floor-wood-walnut', 'bedroom'),
@@ -159,7 +159,7 @@ export function hdb5Room(): FloorPlan {
     rooms: [
       room('h5-kit', 'Kitchen', 0.2, 0.2, 3.0, 3.0, 'floor-tile-grey', 'kitchen'),
       room('h5-yard', 'Service Yard', 3.3, 0.2, 1.5, 1.8, 'floor-tile-grey', 'serviceYard'),
-      room('h5-shelter', 'Household Shelter', 4.9, 0.2, 1.3, 2.0, 'floor-tile-grey', 'storeroom'),
+      room('h5-shelter', 'Household Shelter', 4.9, 0.2, 1.3, 2.0, 'floor-tile-grey', 'shelter'),
       room('h5-living', 'Living / Dining', 6.3, 0.2, 3.9, 8.4, 'floor-wood-oak', 'living'),
       room('h5-balcony', 'Balcony', 6.3, 8.8, 3.9, 1.8, 'floor-terrazzo', 'balcony'),
       room('h5-bed2', 'Bedroom 2', 0.2, 3.4, 3.0, 3.3, 'floor-wood-walnut', 'bedroom'),
@@ -217,7 +217,7 @@ export function hdbExecutive(): FloorPlan {
     rooms: [
       room('ex-kit', 'Kitchen', 0.2, 0.2, 3.0, 2.8, 'floor-tile-grey', 'kitchen'),
       room('ex-yard', 'Service Yard', 3.5, 0.2, 1.5, 2.8, 'floor-tile-grey', 'serviceYard'),
-      room('ex-shelter', 'Household Shelter', 5.3, 0.2, 1.5, 2.0, 'floor-tile-grey', 'storeroom'),
+      room('ex-shelter', 'Household Shelter', 5.3, 0.2, 1.5, 2.0, 'floor-tile-grey', 'shelter'),
       room('ex-study', 'Study', 7.2, 0.2, 4.2, 2.2, 'floor-wood-oak', 'study'),
       room('ex-living', 'Living / Dining', 7.2, 2.8, 4.2, 9.2, 'floor-wood-oak', 'living'),
       room('ex-bed2', 'Bedroom 2', 0.2, 3.4, 3.0, 3.0, 'floor-wood-walnut', 'bedroom'),
@@ -268,7 +268,7 @@ export function hdb3Gen(): FloorPlan {
     rooms: [
       room('g3-kit', 'Kitchen', 0.2, 0.2, 2.8, 2.6, 'floor-tile-grey', 'kitchen'),
       room('g3-yard', 'Service Yard', 3.3, 0.2, 1.5, 2.6, 'floor-tile-grey', 'serviceYard'),
-      room('g3-shelter', 'Household Shelter', 4.9, 0.2, 1.3, 2.0, 'floor-tile-grey', 'storeroom'),
+      room('g3-shelter', 'Household Shelter', 4.9, 0.2, 1.3, 2.0, 'floor-tile-grey', 'shelter'),
       room('g3-living', 'Living / Dining', 6.4, 0.2, 3.9, 8.6, 'floor-wood-oak', 'living'),
       room('g3-gen', 'Grandparent Suite', 6.4, 8.8, 3.9, 2.4, 'floor-wood-oak', 'masterBedroom'),
       room('g3-gbath', 'Grandparent Bath', 4.7, 3.2, 1.5, 1.7, 'floor-tile-marble', 'bath'),
@@ -327,7 +327,7 @@ export function hdbJumbo(): FloorPlan {
     rooms: [
       room('jb-kit', 'Kitchen', 0.2, 0.2, 3.6, 2.8, 'floor-tile-grey', 'kitchen'),
       room('jb-yard', 'Service Yard', 4.3, 0.2, 1.5, 2.8, 'floor-tile-grey', 'serviceYard'),
-      room('jb-shelter', 'Household Shelter', 6.3, 0.2, 1.9, 2.0, 'floor-tile-grey', 'storeroom'),
+      room('jb-shelter', 'Household Shelter', 6.3, 0.2, 1.9, 2.0, 'floor-tile-grey', 'shelter'),
       room('jb-living', 'Living / Dining', 8.6, 0.2, 5.6, 6.2, 'floor-wood-oak', 'living'),
       room('jb-family', 'Family Room', 8.6, 6.8, 2.6, 6.2, 'floor-wood-oak', 'living'),
       room('jb-bed4', 'Bedroom 4', 11.6, 6.8, 2.6, 3.0, 'floor-wood-walnut', 'bedroom'),
@@ -425,7 +425,7 @@ export function hdbMaisonette(): FloorPlan {
     rooms: [
       room('em-kit', 'Kitchen', 0.2, 0.2, 3.0, 2.6, 'floor-tile-grey', 'kitchen'),
       room('em-yard', 'Service Yard', 3.4, 0.2, 1.5, 1.8, 'floor-tile-grey', 'serviceYard'),
-      room('em-shelter', 'Household Shelter', 5.1, 0.2, 1.5, 2.0, 'floor-tile-grey', 'storeroom'),
+      room('em-shelter', 'Household Shelter', 5.1, 0.2, 1.5, 2.0, 'floor-tile-grey', 'shelter'),
       room('em-wc', 'WC', 6.8, 0.2, 1.4, 1.8, 'floor-tile-white', 'powder'),
       room('em-stair', 'Stair Hall', 0.2, 3.0, 1.6, 3.6, 'floor-wood-oak', 'foyer'),
       room('em-living', 'Living / Dining', 3.4, 3.0, 4.8, 6.2, 'floor-wood-oak', 'living'),

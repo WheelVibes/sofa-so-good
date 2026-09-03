@@ -56,6 +56,13 @@ interface DaylightRow {
    * an exemption — see `isDaylightExempt`.
    */
   habitable: boolean
+  /**
+   * True for an HDB household shelter (`RoomCategory` `'shelter'`) — a
+   * reinforced-concrete civil-defence enclosure. Windowless by design AND
+   * prohibited from being altered, so it is never assessed even when it sits on
+   * the façade. See `isDaylightExempt`.
+   */
+  blastShelter: boolean
 }
 
 /** Whole-report summary. */
@@ -193,6 +200,7 @@ export function buildDaylightReport(plan: FloorPlan, _items?: unknown): Daylight
   }
 
   const rooms: DaylightRow[] = interiorRooms.map((r) => {
+    const category = roomCategory(r)
     const floorArea = planRoomArea(r)
     const glazingArea = glazingByRoom.get(r.id) ?? 0
     const ventArea = glazingArea * OPENABLE_FRACTION
@@ -213,7 +221,8 @@ export function buildDaylightReport(plan: FloorPlan, _items?: unknown): Daylight
       ventPass,
       // Zero glazing is required as well as no façade wall — see `hasNoFacade`.
       noFacade: glazingArea === 0 && hasNoFacade(r, planWalls),
-      habitable: HABITABLE_CATEGORIES.has(roomCategory(r)),
+      habitable: HABITABLE_CATEGORIES.has(category),
+      blastShelter: category === 'shelter',
     }
   })
 
@@ -244,9 +253,32 @@ export function buildDaylightReport(plan: FloorPlan, _items?: unknown): Daylight
  * `tpl-hdb-4room`/`-5room`/`-exec` each author an interior `Bedroom 3` and
  * `tpl-condo-penthouse` an interior `Lounge`.
  *
+ * A **household shelter** is exempt unconditionally, façade or not. The façade
+ * test alone was not enough: measured across the corpus, 7 templates
+ * (`tpl-hdb-3room`, `-4room`, `-5room`, `-exec`, `-3gen`, `-jumbo`,
+ * `-maisonette`) author the shelter against an external wall — realistic, since
+ * an HDB shelter often forms part of the façade — so they went on advising an
+ * opening that its RC walls prohibit. Only knowing the room IS a shelter fixes
+ * that, which is why `RoomCategory` gained `'shelter'`.
+ *
  * The one predicate every consumer shares (design score, in-app panel, printed
  * report) so the three cannot disagree about which rooms are being counted.
  */
-export function isDaylightExempt(row: Pick<DaylightRow, 'noFacade' | 'habitable'>): boolean {
-  return row.noFacade && !row.habitable
+/**
+ * Why a row is exempt, for display. The two reasons are NOT interchangeable: a
+ * household shelter on the façade genuinely HAS an external wall, so calling it
+ * an "interior room" would be false — it is exempt because an opening in its RC
+ * walls is not permitted. Checked in the same order as `isDaylightExempt`.
+ */
+export function exemptReason(
+  row: Pick<DaylightRow, 'noFacade' | 'habitable' | 'blastShelter'>,
+): string {
+  if (row.blastShelter) return 'household shelter — RC walls, no opening permitted'
+  return 'interior room, no external wall for a window'
+}
+
+export function isDaylightExempt(
+  row: Pick<DaylightRow, 'noFacade' | 'habitable' | 'blastShelter'>,
+): boolean {
+  return row.blastShelter || (row.noFacade && !row.habitable)
 }

@@ -1,0 +1,66 @@
+{
+  "name": "daylight-shelter-facade",
+  "description": "SHELTER-CATEGORY: an HDB household shelter is never advised to add a window, even when it sits ON the facade. Loads tpl-hdb-4room, whose shelter is authored against an external wall (asserted in daylight.test.ts, so this fixture cannot go inert) and asserts the Daylight panel renders it as a neutral N/A while a genuinely fixable room still reads as a failure. Pro-tier panel; Simple arm covered by daylight-simple.json.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "load-4room",
+      "eval": "import('/src/floorplan/templates.ts').then(m=>{const t=m.PLAN_TEMPLATES.find(p=>p.id==='tpl-hdb-4room'); window.__store.getState().replaceFloorPlan(JSON.parse(JSON.stringify(t)), {furniture:'rehome'})}); 'started'"
+    },
+    {
+      "name": "plan-loaded",
+      "waitFor": {
+        "store": "state.floorPlan.rooms.some(r => r.name === 'Household Shelter')"
+      },
+      "timeout": 10000,
+      "failMessage": "tpl-hdb-4room did not load"
+    },
+    {
+      "name": "open-panel",
+      "store": {
+        "action": "setDaylightOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "panel-visible",
+      "waitFor": {
+        "css": "#daylightPanel"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "scroll-to-shelter",
+      "eval": "(()=>{const t=[...document.querySelectorAll('#daylightPanel .ci-title')].find(e=>e.textContent.includes('Household Shelter')); if(!t) throw new Error('no Household Shelter row'); t.closest('.clr-item').scrollIntoView({block:'center'}); return 'ok'})()"
+    },
+    {
+      "name": "assert-shelter-na",
+      "eval": "(()=>{const t=[...document.querySelectorAll('#daylightPanel .ci-title')].find(e=>e.textContent.includes('Household Shelter')); const row=t.closest('.clr-item'); if(row.classList.contains('err')) throw new Error('shelter still styled as an error'); const b=row.querySelector('.badge'); if(b.textContent.trim()!=='N/A') throw new Error('shelter badge is '+b.textContent); return 'ok'})()"
+    },
+    {
+      "name": "assert-a-real-failure-survives",
+      "eval": "(()=>{const rows=[...document.querySelectorAll('#daylightPanel .clr-item')]; const errs=rows.filter(r=>r.classList.contains('err')).map(r=>r.querySelector('.ci-title').textContent.trim()); if(errs.length===0) throw new Error('every room was suppressed - over-suppression'); return errs.join(', ')})()"
+    },
+    {
+      "name": "shot",
+      "screenshot": "shelter-facade-na"
+    }
+  ]
+}

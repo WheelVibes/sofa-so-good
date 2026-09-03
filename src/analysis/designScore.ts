@@ -373,7 +373,11 @@ function daylightCategory(plan: FloorPlan): ScoreCategory {
     // are being counted. An interior room in a HABITABLE category is NOT exempt:
     // it keeps counting against the score, and gets its own stronger finding.
     const assessable = report.rooms.filter((r) => !isDaylightExempt(r))
-    const sealed = report.rooms.filter((r) => isDaylightExempt(r))
+    // The two exemption reasons get their own notes — a shelter on the façade
+    // genuinely has an external wall, so lumping it in with the interior rooms
+    // would state something false about the plan.
+    const shelters = report.rooms.filter((r) => r.blastShelter)
+    const sealed = report.rooms.filter((r) => isDaylightExempt(r) && !r.blastShelter)
     const sealedHabitable = report.rooms.filter((r) => r.noFacade && r.habitable)
     if (assessable.length === 0) {
       issues.push({
@@ -386,13 +390,20 @@ function daylightCategory(plan: FloorPlan): ScoreCategory {
         assessable.filter((r) => r.daylightPass).length +
         assessable.filter((r) => r.ventPass).length
       score = clamp(Math.round((passes / (assessable.length * 2)) * 100))
-      const failing = assessable.filter((r) => !r.daylightPass || !r.ventPass)
+      // Counting against the score and being told to add a window are different
+      // things. An interior habitable room stays in `assessable` (it keeps
+      // costing the plan points — a bedroom with no daylight is a real defect)
+      // but is kept OUT of this advisory, because it has no façade to open onto
+      // and gets its own stronger message below. Without this split,
+      // `tpl-condo-penthouse`'s interior `Lounge` was both told to "add or widen
+      // windows" and told no window was possible.
+      const failing = assessable.filter((r) => (!r.daylightPass || !r.ventPass) && !r.noFacade)
       if (failing.length > 0)
         issues.push({
           severity: 'warning',
           message: `${failing.length} ${plural(failing.length, 'room')} below the daylight/airflow rule of thumb — add or widen windows.`,
         })
-      else
+      else if (assessable.every((r) => r.daylightPass && r.ventPass))
         issues.push({
           severity: 'info',
           message: `Every ${sealed.length > 0 ? 'assessed ' : ''}room meets the daylight & airflow guide.`,
@@ -407,6 +418,11 @@ function daylightCategory(plan: FloorPlan): ScoreCategory {
       issues.push({
         severity: 'info',
         message: `${sealed.map((r) => r.roomName).join(', ')} ${sealed.length === 1 ? 'is an interior room' : 'are interior rooms'} with no external wall — no window is possible, so not assessed.`,
+      })
+    if (shelters.length > 0)
+      issues.push({
+        severity: 'info',
+        message: `${shelters.map((r) => r.roomName).join(', ')} ${shelters.length === 1 ? 'is a household shelter' : 'are household shelters'} — reinforced-concrete walls that may not be opened, windowless by design, so not assessed.`,
       })
   }
   return {

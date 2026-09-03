@@ -28,8 +28,13 @@ describe('roomCategoryFromName', () => {
     ['Service Yard', 'serviceYard'],
     ['Utility', 'serviceYard'],
     ['Laundry', 'serviceYard'],
-    ['Household Shelter', 'storeroom'],
+    // A household shelter is its OWN category, not a store room (v0.31.8.25):
+    // its RC walls may not be altered and it is windowless by design, so the
+    // daylight check must never advise a window there.
+    ['Household Shelter', 'shelter'],
+    ['HS', 'shelter'],
     ['Store Room', 'storeroom'],
+    ['Store', 'storeroom'],
     ['Balcony', 'balcony'],
     ['Foyer', 'foyer'],
     ['Entrance', 'foyer'],

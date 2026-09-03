@@ -171,7 +171,12 @@ function kitForRoom(room: PlanRoom): KitPiece[] | null {
       return KITS.bath
     case 'serviceYard':
       return KITS.serviceYard
+    // A household shelter is furnished exactly like a store room — shelving
+    // only. `'shelter'` is a distinct category because its WALLS and its
+    // daylight obligations differ (RC, unalterable, windowless by design), not
+    // because it holds different things.
     case 'storeroom':
+    case 'shelter':
       return KITS.storeroom
     case 'foyer':
       return KITS.foyer

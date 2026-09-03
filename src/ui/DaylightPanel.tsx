@@ -5,6 +5,7 @@ import { buildAirconTrunkingPlan, resolveAirconTrunkingInput } from '../analysis
 import {
   buildDaylightReport,
   DAYLIGHT_MIN_RATIO,
+  exemptReason,
   isDaylightExempt,
   VENT_MIN_RATIO,
 } from '../analysis/daylight'
@@ -178,7 +179,7 @@ export function DaylightPanel() {
                     <div style={{ marginTop: 5, color: 'var(--text-3)', fontSize: 'var(--t-2xs)' }}>
                       {formatArea(r.glazingArea, units)} glazing · {formatArea(r.floorArea, units)}{' '}
                       floor
-                      {sealed ? ' · interior room, no external wall for a window' : ''}
+                      {sealed ? ` · ${exemptReason(r)}` : ''}
                     </div>
                   </div>
                 </div>

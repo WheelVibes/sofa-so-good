@@ -317,18 +317,30 @@ describe('buildDesignScore — daylight excludes windowless interior rooms', () 
     // ...but the room is still disclosed, by name, as unassessed.
     const note = msgs.find((m) => m.includes('Household Shelter'))
     expect(note).toBeDefined()
-    expect(note).toContain('is an interior room with no external wall')
+    // Named as a shelter, so it gets the shelter reason — an interior-room note
+    // would be the wrong statement for a shelter that sits on the façade.
+    expect(note).toContain('is a household shelter')
+    expect(note).toContain('may not be opened')
     expect(dayOf(planWithInteriorShelter()).issues.find((i) => i.message === note)!.severity).toBe(
       'info',
     )
   })
 
   it('still advises windows for a windowless room that touches the façade', () => {
-    // Same shelter geometry, but its walls are external — the advice is possible
-    // there, so it must survive. Guards against over-suppression.
+    // Same geometry, but its walls are external — the advice is possible there,
+    // so it must survive. Guards against over-suppression.
+    //
+    // The room is re-categorised to `storeroom` deliberately: a `'shelter'` is
+    // exempt unconditionally (its RC walls may not be opened), so leaving the
+    // fixture as a household shelter would make this arm test the shelter rule
+    // instead of the façade rule — which is exactly how it began failing when
+    // `'shelter'` was added to `RoomCategory`.
     const p = planWithInteriorShelter()
     const facade = {
       ...p,
+      rooms: p.rooms.map((r) =>
+        r.id === 'hs' ? { ...r, name: 'Store', category: 'storeroom' as const } : r,
+      ),
       walls: p.walls.map((w) =>
         w.id.startsWith('hs-') ? { ...w, thickness: 'external' as const } : w,
       ),
@@ -372,5 +384,45 @@ describe('buildDesignScore — an interior HABITABLE room is a warning, not a no
     const asStore = dayIssues('Utility', 'storeroom').find((i) => i.message.includes('Utility'))
     expect(asBedroom!.severity).toBe('warning')
     expect(asStore!.severity).toBe('info')
+  })
+})
+
+describe('buildDesignScore — an interior habitable room counts but is not advised', () => {
+  const dayOf = (name: string, category: string) => {
+    const p = planWithInteriorShelter()
+    const rooms = p.rooms.map((r) =>
+      r.id === 'hs' ? { ...r, name, category: category as never } : r,
+    )
+    return buildDesignScore([], defs, { ...p, rooms }).categories.find((c) => c.id === 'daylight')!
+  }
+
+  it('still costs the plan points, unlike an exempt utility room', () => {
+    // Both rooms fail. The bedroom is counted (it is a real defect); the store
+    // room is exempt. So the bedroom variant must score strictly LOWER.
+    expect(dayOf('Bedroom 3', 'bedroom').score).toBeLessThan(dayOf('Store', 'storeroom').score)
+  })
+
+  it('is left out of the "add or widen windows" advisory', () => {
+    // It has no façade to open onto, so it gets the stronger message instead of
+    // the generic one — the two must not both fire for the same room.
+    const issues = dayOf('Bedroom 3', 'bedroom').issues
+    const generic = issues.find((i) => i.message.includes('add or widen windows'))
+    expect(generic).toBeUndefined()
+    expect(issues.some((i) => i.message.includes('no daylight is possible at all'))).toBe(true)
+  })
+
+  it('does not suppress the advisory for a façade room that fails alongside it', () => {
+    // Guard against the split swallowing real advice: give the plan a windowless
+    // room that DOES touch the façade, and the generic advisory must still fire.
+    const p = planWithInteriorShelter()
+    const rooms = p.rooms.map((r) =>
+      r.id === 'hs' ? { ...r, name: 'Bedroom 3', category: 'bedroom' as never } : r,
+    )
+    // Strip both windows so the two façade rooms fail too.
+    const day = buildDesignScore([], defs, { ...p, rooms, openings: [] }).categories.find(
+      (c) => c.id === 'daylight',
+    )!
+    expect(day.issues.some((i) => i.message.includes('add or widen windows'))).toBe(true)
+    expect(day.issues.some((i) => i.message.includes('no daylight is possible at all'))).toBe(true)
   })
 })

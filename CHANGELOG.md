@@ -27,6 +27,58 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.25 — A household shelter is its own room category
+
+v0.31.8.24 stopped the daylight check advising a window for a room with no façade
+wall, which fixed the shipped default flat. **7 templates still advised one** —
+`tpl-hdb-3room`, `-4room`, `-5room`, `-exec`, `-3gen`, `-jumbo`, `-maisonette` all
+author the Household Shelter against an external wall, which is realistic: an HDB
+shelter often forms part of the façade. Its RC walls still prohibit an opening, so
+a façade test could not fix it; only knowing the room IS a shelter can.
+
+`RoomCategory` gains **`'shelter'`** (14 values). `roomCategory.ts` gets the label,
+a name rule ordered BEFORE the storeroom rule (`household shelter` / `shelter` /
+`hs`), and a `toRoomKind` case; `state/schema.ts` gets the enum value. The daylight
+row gains `blastShelter`, and `isDaylightExempt` now exempts a shelter
+**unconditionally** — façade or not.
+
+The category differs only in its WALLS and daylight obligations, not its contents:
+`furnishPlan` gives it `KITS.storeroom` and `suggestions.ts` puts it in the same
+`'utility'` bucket. Verified that recategorising the 8 authored template shelters
+produces **zero drift** in `toRoomKind`/`toArrangeKind`.
+
+Three things measurement caught that reasoning did not:
+
+- **My "9 shelters resolve to storeroom" claim was only half the story.** Adding the
+  category moved just **1** room, because the 8 templates author an EXPLICIT
+  `category: 'storeroom'` and `roomCategory` gives the authored field precedence
+  over name inference. The templates had to be recategorised too.
+- **A green `tsc` was not proof of coverage.** The type-checker flags exhaustive
+  `Record<RoomCategory, …>` consumers, but NOT code that `switch`es on the category
+  directly — and `furnishPlan.ts` and `suggestions.ts` both do. The shelter silently
+  lost its shelving (and `suggestions.ts`, whose own docstring names the household
+  shelter, would have handed it a bogus outdoor-seating idea). 4 tests caught it; my
+  earlier "inert" claim had checked only the two downmappers.
+- **Visual verification caught a false statement in the copy.** The exempt row read
+  "interior room, no external wall for a window" on a shelter that plainly HAS an
+  external wall. `exemptReason(row)` now supplies the right wording per reason, and
+  the design score and printed report split their notes the same way.
+
+Also separated two things that had been conflated: **counting against the score**
+and **being advised to add a window**. An interior habitable room stays in the
+score's denominator (a bedroom with no daylight is a real defect) but is kept out of
+the "add or widen windows" advisory, because it has no façade to open onto — before
+this, `tpl-condo-penthouse`'s interior `Lounge` was simultaneously told to add a
+window and told no window was possible.
+
+Verified: 10116 tests pass; `tsc`, `biome` and `knip` clean. New scenario
+`daylight-shelter-facade.json` (11 steps) loads `tpl-hdb-4room` and asserts the
+shelter renders N/A with the shelter reason while Service Yard / Living-Dining /
+Bedroom 3 / Common Bath still read FAIL; `daylight-simple.json` green across 21
+steps in BOTH modes. Two unit tests guard the corpus against the rule going inert (a
+shelter must exist ON a façade; every shipped shelter must be exempt). Visually
+reviewed both rendered panels.
+
 ## v0.31.8.24 — Daylight: stop telling a household shelter to add a window
 
 The daylight/ventilation check was reporting the shipped default flat's **Household

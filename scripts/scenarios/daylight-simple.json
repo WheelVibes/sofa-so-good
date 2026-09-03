@@ -1,6 +1,6 @@
 {
   "name": "daylight-simple",
-  "description": "IXT-SUITES: daylight & ventilation check (pro). Hidden in Simple, present in Pro; the panel (#daylightPanel) mounts with the per-room glazing/ventilation breakdown. Mobile bottom-sheet; back-to-Simple hides it. Also asserts an interior room with no facade wall (Household Shelter) renders as a neutral N/A row, not a red failure.",
+  "description": "IXT-SUITES: daylight & ventilation check (pro). Hidden in Simple, present in Pro; the panel (#daylightPanel) mounts with the per-room glazing/ventilation breakdown. Mobile bottom-sheet; back-to-Simple hides it. Also asserts an interior room with no facade wall (Household Shelter) renders as a neutral N/A row citing the shelter reason, not a red failure.",
   "url": "http://localhost:5208/",
   "steps": [
     {
@@ -68,7 +68,7 @@
     },
     {
       "name": "assert-shelter-not-error",
-      "eval": "(()=>{const t=[...document.querySelectorAll('#daylightPanel .ci-title')].find(e=>e.textContent.includes('Household Shelter')); const row=t.closest('.clr-item'); if(row.classList.contains('err')) throw new Error('shelter row still styled as an error'); const b=row.querySelector('.badge'); if(b.textContent.trim()!=='N/A') throw new Error('shelter badge is '+b.textContent); if(!row.textContent.includes('no external wall')) throw new Error('missing interior-room note'); return 'ok'})()"
+      "eval": "(()=>{const t=[...document.querySelectorAll('#daylightPanel .ci-title')].find(e=>e.textContent.includes('Household Shelter')); const row=t.closest('.clr-item'); if(row.classList.contains('err')) throw new Error('shelter row still styled as an error'); const b=row.querySelector('.badge'); if(b.textContent.trim()!=='N/A') throw new Error('shelter badge is '+b.textContent); if(!row.textContent.includes('no opening permitted')) throw new Error('missing shelter reason, got: '+row.textContent); return 'ok'})()"
     },
     {
       "name": "assert-kitchen-still-fails",

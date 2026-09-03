@@ -769,11 +769,11 @@ export function buildReportHtml(
         ${daylight.rooms
           .map(
             (r) =>
-              `<tr><td>${esc(r.roomName)}${isDaylightExempt(r) ? ' <span style="color:#6b7280">(no external wall)</span>' : ''}</td><td class="num">${esc(formatArea(r.floorArea, units))}</td><td class="num" style="color:${isDaylightExempt(r) ? '#6b7280' : r.daylightPass ? '#047857' : '#b91c1c'}">${esc(formatArea(r.glazingArea, units))} · ${daylightPct(r.glazingPct)}</td><td class="num" style="color:${isDaylightExempt(r) ? '#6b7280' : r.ventPass ? '#047857' : '#b91c1c'}">${daylightPct(r.ventPct)}</td></tr>`,
+              `<tr><td>${esc(r.roomName)}${isDaylightExempt(r) ? ` <span style="color:#6b7280">(${r.blastShelter ? 'shelter, no opening permitted' : 'no external wall'})</span>` : ''}</td><td class="num">${esc(formatArea(r.floorArea, units))}</td><td class="num" style="color:${isDaylightExempt(r) ? '#6b7280' : r.daylightPass ? '#047857' : '#b91c1c'}">${esc(formatArea(r.glazingArea, units))} · ${daylightPct(r.glazingPct)}</td><td class="num" style="color:${isDaylightExempt(r) ? '#6b7280' : r.ventPass ? '#047857' : '#b91c1c'}">${daylightPct(r.ventPct)}</td></tr>`,
           )
           .join('')}
       </table>
-      <div class="foot" style="margin-top:6px">Rule-of-thumb check (glazing ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} of floor area for daylight, openable ≥ ${daylightPct(VENT_MIN_RATIO)} for ventilation) — indicative, not a certified BCA/HDB calculation; openable ≈ half the window area for sliding windows.${daylightSealed.length > 0 ? ` ${esc(daylightSealed.map((r) => r.roomName).join(', '))} ${daylightSealed.length === 1 ? 'is an interior room' : 'are interior rooms'} with no external wall, so no window is possible and ${daylightSealed.length === 1 ? 'it is' : 'they are'} excluded from the ratios above.` : ''}</div>
+      <div class="foot" style="margin-top:6px">Rule-of-thumb check (glazing ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} of floor area for daylight, openable ≥ ${daylightPct(VENT_MIN_RATIO)} for ventilation) — indicative, not a certified BCA/HDB calculation; openable ≈ half the window area for sliding windows.${daylightSealed.length > 0 ? ` ${esc(daylightSealed.map((r) => r.roomName).join(', '))} ${daylightSealed.length === 1 ? 'cannot hold a window' : 'cannot hold windows'} — an interior room with no external wall, or a household shelter whose RC walls may not be opened — and ${daylightSealed.length === 1 ? 'is' : 'are'} excluded from the ratios above.` : ''}</div>
     </div>`
 
   // Openings schedule (PARITY-OPENING-SCHED) — the door & window schedule an

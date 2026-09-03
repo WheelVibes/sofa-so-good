@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { roomCategory } from '../floorplan/roomCategory'
+import { roomBoundaryWalls } from '../floorplan/roomWallNames'
+import { PLAN_TEMPLATES } from '../floorplan/templates'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
 import {
   buildDaylightReport,
   DAYLIGHT_MIN_RATIO,
+  exemptReason,
   isDaylightExempt,
   isExternalRoom,
   OPENABLE_FRACTION,
@@ -306,12 +310,20 @@ describe('buildDaylightReport — noFacade requires zero glazing', () => {
 
 describe('isDaylightExempt', () => {
   it('exempts only a room that needs no light and can get none', () => {
-    expect(isDaylightExempt({ noFacade: true, habitable: false })).toBe(true)
+    const row = (noFacade: boolean, habitable: boolean, blastShelter = false) => ({
+      noFacade,
+      habitable,
+      blastShelter,
+    })
+    expect(isDaylightExempt(row(true, false))).toBe(true)
     // Habitable + no façade is a layout defect, not an exemption.
-    expect(isDaylightExempt({ noFacade: true, habitable: true })).toBe(false)
+    expect(isDaylightExempt(row(true, true))).toBe(false)
     // A room that CAN get light is always assessed.
-    expect(isDaylightExempt({ noFacade: false, habitable: false })).toBe(false)
-    expect(isDaylightExempt({ noFacade: false, habitable: true })).toBe(false)
+    expect(isDaylightExempt(row(false, false))).toBe(false)
+    expect(isDaylightExempt(row(false, true))).toBe(false)
+    // A blast shelter is exempt unconditionally — even sitting on the façade,
+    // where `noFacade` is false, because its RC walls may not be opened.
+    expect(isDaylightExempt(row(false, false, true))).toBe(true)
   })
 
   it('marks an authored bedroom habitable and a store room not', () => {
@@ -323,5 +335,77 @@ describe('isDaylightExempt', () => {
     expect(isDaylightExempt(rowFor('bedroom'))).toBe(false)
     expect(rowFor('storeroom').habitable).toBe(false)
     expect(isDaylightExempt(rowFor('storeroom'))).toBe(true)
+  })
+})
+
+describe('buildDaylightReport — a household shelter on the façade', () => {
+  // The case the `'shelter'` RoomCategory exists for: 7 templates author the
+  // shelter against an EXTERNAL wall, so the façade test alone left them
+  // advising an opening that an RC blast shelter's walls prohibit.
+  const walls = boxWalls('hs', 0, 0, 2, 'external')
+  const rowFor = (name: string, category?: 'shelter' | 'storeroom') =>
+    buildDaylightReport(plan([{ ...rectRoom('hs', name, 0, 0, 2), category }], walls, [])).rooms[0]
+
+  it('is exempt even though it has a façade wall', () => {
+    const row = rowFor('Household Shelter')
+    expect(row.noFacade).toBe(false) // it genuinely touches the façade
+    expect(row.blastShelter).toBe(true)
+    expect(isDaylightExempt(row)).toBe(true)
+  })
+
+  it('resolves "Household Shelter" to the shelter category by name', () => {
+    expect(rowFor('Household Shelter').blastShelter).toBe(true)
+    expect(rowFor('HS').blastShelter).toBe(true)
+  })
+
+  it('does NOT exempt a plain store room on the façade', () => {
+    // The fixture is not inert: same geometry, storeroom category → still
+    // assessed, because a store room's wall CAN take a window.
+    const row = rowFor('Store', 'storeroom')
+    expect(row.blastShelter).toBe(false)
+    expect(isDaylightExempt(row)).toBe(false)
+  })
+})
+
+describe('exemptReason', () => {
+  it('does not call a façade-side shelter an interior room', () => {
+    // The two reasons are not interchangeable: a shelter on the façade HAS an
+    // external wall, so the interior-room wording would state something false.
+    expect(exemptReason({ noFacade: false, habitable: false, blastShelter: true })).toContain(
+      'household shelter',
+    )
+    expect(exemptReason({ noFacade: false, habitable: false, blastShelter: true })).not.toContain(
+      'interior room',
+    )
+    expect(exemptReason({ noFacade: true, habitable: false, blastShelter: false })).toContain(
+      'interior room',
+    )
+  })
+})
+
+describe('shipped templates — shelter exemption is exercised, not incidental', () => {
+  it('authors at least one shelter ON the façade', () => {
+    // Guards the `daylight-shelter-facade` scenario (and the rule itself) from
+    // going inert: if every shipped shelter were interior, `noFacade` alone
+    // would exempt them all and the `'shelter'` category would be untested by
+    // the corpus. Measured at the time of writing: 7 templates author it against
+    // an external wall, which is realistic — an HDB shelter often forms part of
+    // the façade.
+    const onFacade = PLAN_TEMPLATES.flatMap((t) =>
+      (t.rooms ?? [])
+        .filter((r) => roomCategory(r) === 'shelter')
+        .filter((r) => roomBoundaryWalls(t.walls ?? [], r).some((w) => w.thickness === 'external'))
+        .map((r) => `${t.id}:${r.name}`),
+    )
+    expect(onFacade.length).toBeGreaterThan(0)
+  })
+
+  it('exempts every shipped household shelter', () => {
+    const notExempt = PLAN_TEMPLATES.flatMap((t) =>
+      buildDaylightReport(t)
+        .rooms.filter((r) => r.blastShelter && !isDaylightExempt(r))
+        .map((r) => `${t.id}:${r.roomName}`),
+    )
+    expect(notExempt).toEqual([])
   })
 })
