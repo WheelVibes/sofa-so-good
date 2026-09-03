@@ -1437,11 +1437,31 @@ const applyRoomLight =
             // Opening height is head - sill; there is no `height` field.
             const win = allOf(plan, 'openings').find((o) => o.id === winId)
             const glazing = win ? win.width * Math.max(0, (win.head ?? 0) - (win.sill ?? 0)) : 0
+            // Extent PERPENDICULAR to the window wall -- the distance light has to travel to
+            // reach the far end. `v0.31.7.57` found floor AREA predicts only the rank of a
+            // room's rendered median, and the mechanism it implies is distance, not area: for a
+            // given window, light falls off with range, so what should matter is how deep the
+            // room is from its aperture rather than how much floor it has.
+            //
+            // Window ids carry the wall's compass letter (`win-livingDining-N`), so an N/S
+            // window looks along `depth` and an E/W one along `width`. Reported alongside both
+            // dimensions so a caller can check the attribution rather than trust it.
+            const compass = /-([NSEW])$/.exec(winId ?? '')?.[1] ?? null
+            const perpendicular =
+              compass === 'N' || compass === 'S'
+                ? room.depth
+                : compass === 'E' || compass === 'W'
+                  ? room.width
+                  : Math.max(room.width, room.depth)
             return {
               room: room.id,
               floor: +floor.toFixed(1),
               surface: +surface.toFixed(1),
               ceilingH: h,
+              width: room.width,
+              depth: room.depth,
+              compass,
+              perpendicular: +perpendicular.toFixed(2),
               window: winId,
               glazing: +glazing.toFixed(2),
               pct: +((100 * glazing) / Math.max(1e-6, surface)).toFixed(3),
@@ -1451,8 +1471,9 @@ const applyRoomLight =
         )
         if (res.error) throw new Error(`ROOMLIGHT: ${res.error}`)
         console.log(
-          `ROOMLIGHT ${res.room} floor ${res.floor} m2  surface ${res.surface} m2  h ${res.ceilingH}` +
-            `  window ${res.window} ${res.glazing} m2  glazing/surface ${res.pct} %`,
+          `ROOMLIGHT ${res.room} floor ${res.floor} m2  ${res.width}x${res.depth} m  ` +
+            `wall ${res.compass ?? '?'}  perpendicular ${res.perpendicular} m  ` +
+            `glazing ${res.glazing} m2  glazing/surface ${res.pct} %`,
         )
       }
 // ROOMDIMS=1 -- report every room's footprint and its wall/ceiling area ratio.

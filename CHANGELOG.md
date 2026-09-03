@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.58 — (B)'s predictor is DEPTH FROM THE APERTURE, not floor area — and the confirming case is the pair that refuted area
+
+`v0.31.7.57` found floor area predicts only the *rank* of a room's rendered median, failing badly
+on magnitude: 14.2 m² → 110 against 10.2 m² → 112, a 39 % area difference for two counts. The
+mechanism it implied was distance rather than area, so `ROOMLIGHT` now reports the room's extent
+**perpendicular to the window wall** — the range light has to cross to reach the far end. Window
+ids carry the wall's compass letter, so an N/S window looks along `depth` and an E/W one along
+`width`; both dimensions are printed so the attribution can be checked rather than trusted.
+
+| view | **depth from window** | floor | physics median |
+| --- | --- | --- | --- |
+| 4-Room livingDining | **5.67 m** | 19.3 m² | 83 |
+| 4-Room mainBedroom | **3.52 m** | 14.2 m² | 110 |
+| 4-Room bedroom3 | **3.52 m** | 10.2 m² | 112 |
+| 5-Room kitchen | **3.00 m** | 9.0 m² | 160 |
+
+**The anomaly that killed the area hypothesis is exactly what depth explains.** `mainBedroom` and
+`bedroom3` have *identical* depth (3.52 m) and near-identical medians (110, 112) despite a **39 %
+difference in floor area**. Area predicted they should differ; depth predicts they should not; they
+do not. That is the strongest form of evidence available here — a competing hypothesis failing on
+the same point where this one succeeds — and it did not require a new reference.
+
+**The functional form is still unknown, and I am not going to guess it again.** `median × depth`
+gives 471, 387, 394, 480 and `median × depth²` gives 2669, 1363, 1387, 1440 — neither is constant.
+The relation is steep between 3.0 m and 3.5 m (−94 counts/m) and shallow between 3.5 m and 5.67 m
+(−13 counts/m). Having now interpolated linearly twice and been wrong twice (`v0.31.6.8`'s
+`FILLSCALE`, `v0.31.7.57`'s area prediction), the honest statement is: **depth orders the four
+views and explains the area anomaly; its curve needs more than three distinct depths.**
+
+**Why this matters for the fix.** (B) is the whole remaining tonal error once (A)'s constant is
+applied, and a predictor the runtime can compute is what makes (B) fixable at all. Depth from the
+aperture is available in the plan — `ROOMLIGHT` reads it with no render and no reference — so if
+the curve can be pinned, the correction becomes a per-room scalar at zero frame cost, the same
+shape as (A) but scene-dependent.
+
+**What would pin it:** references at depths between 3.5 m and 5.7 m, where the curve is currently
+a straight line between two distant points, and at least one E/W window to check the compass
+attribution rather than assume it.
+
+`tsc`, biome clean; suite **10058 green**; nothing shipped.
+
 ## v0.31.7.57 — (A) confirmed OUT OF SAMPLE on a fourth view: 0.731. (B)'s ordering survives; its magnitude prediction fails
 
 A fourth reference, built in about a minute now that the tooling exists, and used to test both
