@@ -16,23 +16,18 @@ import {
  * in the node environment with no GPU.
  */
 
-const fakeTexture = () =>
-  ({ channel: 0, generateMipmaps: true, minFilter: 0, needsUpdate: false }) as never
+const fakeTexture = () => ({ generateMipmaps: true, minFilter: 0, needsUpdate: false }) as never
 
 const fakeMaterial = () => ({ aoMap: null, aoMapIntensity: 0, needsUpdate: false }) as never
 
-/** A fragment shader with the two anchor points three's real one has. */
+/** A shader pair carrying the four anchor points three's real ones have. */
 const shaderStub = () => ({
-  uniforms: {} as Record<string, { value: number }>,
-  fragmentShader: 'uniform float x;\nvoid main() {\n#include <aomap_fragment>\n}',
+  uniforms: {} as Record<string, { value: unknown }>,
+  vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+  fragmentShader: 'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
 })
 
 describe('prepareVisibilityTexture', () => {
-  it('samples uv1, because three defaults a texture to channel 0 (the tiling uv)', () => {
-    const t = prepareVisibilityTexture(fakeTexture())
-    expect((t as { channel: number }).channel).toBe(1)
-  })
-
   it('disables mipmaps, because mip levels average across atlas slot boundaries', () => {
     const t = prepareVisibilityTexture(fakeTexture()) as unknown as {
       generateMipmaps: boolean
@@ -42,99 +37,91 @@ describe('prepareVisibilityTexture', () => {
     expect(t.minFilter).toBe(LinearFilter)
   })
 
-  it('is idempotent, so one map can be shared across materials', () => {
-    const t = fakeTexture()
-    prepareVisibilityTexture(t)
-    const first = { ...(t as object) }
-    prepareVisibilityTexture(t)
-    expect({ ...(t as object) }).toEqual(first)
+  it('does NOT set a texture channel — the map no longer goes through three’s aoMap slot', () => {
+    // Routed through `aoMap`, the mapped materials compiled without `USE_AOMAP` and the
+    // attenuation never ran (v0.31.7.36). The shader now declares its own sampler and varying,
+    // so three's channel plumbing is not involved and setting `channel` would be misleading.
+    const t = prepareVisibilityTexture(fakeTexture()) as unknown as { channel?: number }
+    expect(t.channel).toBeUndefined()
   })
 })
 
 describe('applyVisibilityLightmap', () => {
-  it('replaces three’s aomap chunk with a plain multiply that may exceed 1', () => {
+  const compile = (gain?: number, debug?: boolean) => {
     const m = fakeMaterial() as unknown as {
       onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
-    }
-    applyVisibilityLightmap(m as never, fakeTexture(), 6)
-    const s = shaderStub()
-    m.onBeforeCompile(s)
-    // The clamped include must be gone...
-    expect(s.fragmentShader).not.toContain('#include <aomap_fragment>')
-    // ...replaced by an unclamped product, and the gain declared.
-    expect(s.fragmentShader).toContain('texture2D( aoMap, vAoMapUv ).r * aoGain')
-    expect(s.fragmentShader).toContain('reflectedLight.indirectDiffuse *= ambientOcclusion')
-    expect(s.uniforms.aoGain.value).toBe(6)
-    // And it keeps three's own compile guard. Without it the injected code lands in programs
-    // where `aoMap` was never declared, the shader fails to compile, and the material silently
-    // falls back -- measured as a WORSE render (frame mean 46.7 vs 72.4) that looks like a
-    // tuning problem rather than a compile error.
-    expect(s.fragmentShader).toContain('#ifdef USE_AOMAP')
-    expect(s.fragmentShader).toContain('#endif')
-  })
-
-  it('does NOT attenuate indirect specular — measured worse (1.51x vs 1.36x)', () => {
-    const m = fakeMaterial() as unknown as {
-      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
-    }
-    applyVisibilityLightmap(m as never, fakeTexture())
-    const s = shaderStub()
-    m.onBeforeCompile(s)
-    expect(s.fragmentShader).not.toContain('indirectSpecular')
-  })
-
-  it('sets a program cache key that varies with gain, or the patch is silently ignored', () => {
-    const a = fakeMaterial() as unknown as { customProgramCacheKey: () => string }
-    const b = fakeMaterial() as unknown as { customProgramCacheKey: () => string }
-    applyVisibilityLightmap(a as never, fakeTexture(), 6)
-    applyVisibilityLightmap(b as never, fakeTexture(), 4)
-    expect(a.customProgramCacheKey()).not.toBe(b.customProgramCacheKey())
-  })
-
-  it('encodes aoMap PRESENCE in the cache key, so variants cannot collapse', () => {
-    // Measured failure: with a constant key, three served 15 draw calls a program compiled
-    // with the patch but without `USE_AOMAP` defined, so the guarded code was preprocessed
-    // out and those surfaces got no attenuation. A key that ignores map presence lets a
-    // with-map and a without-map program share one cache entry.
-    const m = fakeMaterial() as unknown as {
       customProgramCacheKey: () => string
-      aoMap: unknown
+      needsUpdate: boolean
     }
-    applyVisibilityLightmap(m as never, fakeTexture(), 6)
-    const withMap = m.customProgramCacheKey()
-    m.aoMap = null
-    expect(m.customProgramCacheKey()).not.toBe(withMap)
+    applyVisibilityLightmap(m as never, fakeTexture(), gain, debug)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return { m, s }
+  }
+
+  it('declares its own sampler, uniform and varying — nothing conditional on a three define', () => {
+    // The whole point of the rewrite: no `#ifdef` that three can compile out.
+    const { s } = compile(6)
+    expect(s.fragmentShader).toContain('uniform sampler2D visMap')
+    expect(s.fragmentShader).toContain('uniform float visGain')
+    expect(s.fragmentShader).toContain('varying vec2 vVisUv')
+    expect(s.fragmentShader).not.toContain('#ifdef')
   })
 
-  it('leaves aoMapIntensity at 1, since the patch bypasses the intensity lerp', () => {
-    const m = fakeMaterial() as unknown as { aoMapIntensity: number }
-    applyVisibilityLightmap(m as never, fakeTexture())
-    expect(m.aoMapIntensity).toBe(1)
+  it('passes uv1 through the VERTEX shader, since a fragment varying needs a source', () => {
+    const { s } = compile(6)
+    expect(s.vertexShader).toContain('attribute vec2 uv1')
+    expect(s.vertexShader).toContain('vVisUv = uv1')
+  })
+
+  it('multiplies indirect diffuse after lights_fragment_end, and not specular', () => {
+    // Specular attenuation is physically tempting and measured worse (1.51x vs 1.36x).
+    const { s } = compile(6)
+    expect(s.fragmentShader).toContain('reflectedLight.indirectDiffuse *= visOcclusion * visGain')
+    expect(s.fragmentShader).not.toContain('indirectSpecular')
+    expect(s.fragmentShader).toContain('#include <lights_fragment_end>')
+  })
+
+  it('binds the map and the gain as uniforms', () => {
+    const { s } = compile(42)
+    expect(s.uniforms.visGain.value).toBe(42)
+    expect(s.uniforms.visMap.value).toBeTruthy()
   })
 
   it('defaults to the fitted gain rather than a derived one', () => {
     expect(VISIBILITY_GAIN).toBe(6)
-    const m = fakeMaterial() as unknown as {
-      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
-    }
-    applyVisibilityLightmap(m as never, fakeTexture())
-    const s = shaderStub()
-    m.onBeforeCompile(s)
-    expect(s.uniforms.aoGain.value).toBe(VISIBILITY_GAIN)
+    expect(compile().s.uniforms.visGain.value).toBe(VISIBILITY_GAIN)
+  })
+
+  it('keys the program cache by gain and debug mode, so variants cannot collapse', () => {
+    // A constant key let a with-map and a without-map program share one entry (v0.31.7.35).
+    expect(compile(6).m.customProgramCacheKey()).not.toBe(compile(4).m.customProgramCacheKey())
+    expect(compile(6).m.customProgramCacheKey()).not.toBe(
+      compile(6, true).m.customProgramCacheKey(),
+    )
   })
 
   it('flags the material for recompilation', () => {
-    const m = fakeMaterial() as unknown as { needsUpdate: boolean }
-    applyVisibilityLightmap(m as never, fakeTexture())
-    expect(m.needsUpdate).toBe(true)
+    expect(compile().m.needsUpdate).toBe(true)
+  })
+
+  it('in debug mode paints the sampled value, with MAGENTA for never-sampled', () => {
+    // The distinction that found the fault: "no map here" and "map reads zero" are identical
+    // in a brightness measurement, and every measurement of this bug was one.
+    const { s } = compile(6, true)
+    expect(s.fragmentShader).toContain('vec4( 1.0, 0.0, 1.0, 1.0 )')
+    expect(s.fragmentShader).not.toContain('#include <opaque_fragment>')
+  })
+
+  it('leaves the output chunk alone when NOT debugging', () => {
+    expect(compile(6, false).s.fragmentShader).toContain('#include <opaque_fragment>')
   })
 })
 
 describe('runtime-attachment hazard', () => {
   it('is documented as construction-time only (216 ms compile hitch if toggled live)', () => {
-    // Not a behavioural test -- a tripwire. If the module's warning is ever deleted, the
-    // reason it exists goes with it, and a feature flag that toggles aoMap at runtime will
-    // stutter for a fifth of a second with no clue why.
+    // A tripwire, not a behavioural test. If the warning is deleted, the reason goes with it
+    // and a flag that toggles this at runtime stutters for a fifth of a second with no clue why.
     const src = readFileSync(join(__dirname, 'visibilityLightmap.ts'), 'utf8')
     expect(src).toContain('never on a live material')
     expect(src).toContain('216 ms')

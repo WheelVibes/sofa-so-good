@@ -46,93 +46,91 @@ import { LinearFilter } from 'three'
  */
 export const VISIBILITY_GAIN = 6
 
-/** three's `aomap_fragment` include, replaced wholesale — see requirement 3. */
-const AOMAP_INCLUDE = '#include <aomap_fragment>'
-/** three's final colour write. Replaced only by the DEV visualiser below. */
+/** three's chunk that writes the final colour. Replaced only by the DEV visualiser. */
 const OUTPUT_INCLUDE = '#include <opaque_fragment>'
+/** Where the indirect-diffuse term is available to modify. */
+const LIGHTS_END = '#include <lights_fragment_end>'
 
 /**
  * Prepare a texture as a visibility map. Idempotent, so a shared texture is safe.
  *
- * Exported separately because a map may be prepared once and attached to several materials, and
- * the channel/mipmap settings live on the *texture* rather than the material.
+ * **No `channel` is set, because the map no longer goes through three's `aoMap` slot** — the
+ * shader below declares its own sampler and its own `uv1` varying. See
+ * `applyVisibilityLightmap` for why.
  */
 export function prepareVisibilityTexture(texture: Texture): Texture {
-  texture.channel = 1
   texture.generateMipmaps = false
   texture.minFilter = LinearFilter
-  // `flipY` is deliberately LEFT AT three's default (`true`). Tested: forcing `false` changes
-  // the render materially — frame mean 99.8 → 84.7, spatial spread 4.75× → 6.77× — so the V
-  // orientation is load-bearing, and `true` is the correct one. Recorded because "it looked
-  // like it might be flipped" is a tempting and wrong change to make twice.
   texture.needsUpdate = true
   return texture
 }
 
 /**
- * Attach `texture` to `material` as a gained visibility map.
+ * Attach `texture` to `material` as a gained visibility map, via a **self-contained shader
+ * injection** rather than three's `aoMap` slot.
  *
- * `gain` defaults to the fitted `VISIBILITY_GAIN`; pass another only to measure.
+ * **Why not `aoMap`.** It was the obvious slot and it does not work here. Routed through it, the
+ * mapped materials compiled **without `USE_AOMAP`** — proven by painting the sampled value out as
+ * the fragment colour with a sentinel for "branch never ran": the mapped walls came back
+ * **magenta** (`v0.31.7.36`). three derives that define from `!!material.aoMap` *at program-build
+ * time* and pairs it with an `aoMapUv` channel parameter and a matching vertex attribute, and
+ * something in that chain does not hold for a map attached after the material exists. Nine
+ * hypotheses were eliminated chasing it.
+ *
+ * So this stops depending on that chain. It declares its own `visMap` sampler, its own `visGain`
+ * uniform, and its own `uv1` attribute → varying, and multiplies `reflectedLight.indirectDiffuse`
+ * immediately after `lights_fragment_end`. Nothing here is conditional on a three define, so
+ * there is no branch that can be compiled out. It is more code than a slot assignment and it is
+ * the code that runs.
+ *
+ * **Diffuse only** — attenuating `indirectSpecular` too is physically tempting and measured
+ * *worse* (1.51× against 1.36×).
+ *
+ * **Call this where the material is built, never on a live material.** Adding the injection
+ * compiles a new shader variant — ~19 across a plan — and doing it mid-session cost a measured
+ * **216 ms** frame (`v0.31.7.15`). Steady-state cost is nil: 60 fps unchanged at `performance`
+ * and `medium` with 331 distinct maps attached.
  */
 export function applyVisibilityLightmap(
   material: MeshStandardMaterial,
   texture: Texture,
   gain: number = VISIBILITY_GAIN,
   /**
-   * DEV visualiser: write the sampled occlusion value out as the fragment colour instead of
-   * shading. Exists because every *indirect* measurement of this term has been exhausted — the
-   * texture, UVs, channel, gain and compiled program are all verified correct, yet the wired
-   * render darkens uniformly instead of spatially (`v0.31.7.35`). Showing the shader's own view
-   * of the map is the only thing left that looks at it directly rather than inferring.
-   *
-   * Not a feature: it makes the scene unusable by design.
+   * DEV visualiser: write the sampled value out as the fragment colour instead of shading, with
+   * magenta for "never sampled". Every *indirect* measurement of this term was exhausted before
+   * it existed, and it found the fault in one frame. Not a feature: unusable by design.
    */
   debug = false,
 ): void {
-  material.aoMap = prepareVisibilityTexture(texture)
-  // Left at 1 deliberately: the intensity lerp is bypassed entirely by the patch below, and a
-  // value other than 1 would silently do nothing, which is worse than being ignored.
-  material.aoMapIntensity = 1
+  const map = prepareVisibilityTexture(texture)
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.aoGain = { value: gain }
+    shader.uniforms.visMap = { value: map }
+    shader.uniforms.visGain = { value: gain }
+    shader.vertexShader = shader.vertexShader
+      .replace('void main() {', 'attribute vec2 uv1;\nvarying vec2 vVisUv;\nvoid main() {')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvVisUv = uv1;')
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'void main() {',
-        `uniform float aoGain;\n${debug ? 'vec4 aoDebugValue = vec4( -1.0 );\n' : ''}void main() {`,
+        'uniform sampler2D visMap;\nuniform float visGain;\nvarying vec2 vVisUv;\n' +
+          `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
       .replace(
+        LIGHTS_END,
+        `${LIGHTS_END}\n\tfloat visOcclusion = texture2D( visMap, vVisUv ).r;\n` +
+          '\treflectedLight.indirectDiffuse *= visOcclusion * visGain;' +
+          (debug ? '\n\tvisDebug = visOcclusion;' : ''),
+      )
+    if (debug) {
+      shader.fragmentShader = shader.fragmentShader.replace(
         OUTPUT_INCLUDE,
-        debug
-          ? // `aoDebugValue` is seeded to a sentinel and only written inside the USE_AOMAP
-            // block, so a surface that never sampled the map shows magenta rather than black —
-            // "no map here" and "map reads zero" must not look the same.
-            'gl_FragColor = aoDebugValue.x < 0.0\n' +
-              '  ? vec4( 1.0, 0.0, 1.0, 1.0 )\n' +
-              '  : vec4( vec3( clamp( aoDebugValue.x, 0.0, 1.0 ) ), 1.0 );'
-          : OUTPUT_INCLUDE,
+        'gl_FragColor = visDebug < 0.0\n' +
+          '  ? vec4( 1.0, 0.0, 1.0, 1.0 )\n' +
+          '  : vec4( vec3( clamp( visDebug, 0.0, 1.0 ) ), 1.0 );',
       )
-      .replace(
-        AOMAP_INCLUDE,
-        // KEEP three's `#ifdef USE_AOMAP` guard. Replacing the include wholesale removes it,
-        // and the injected code then compiles into programs where three never declared the
-        // `aoMap` uniform or the `vAoMapUv` varying -- which fails with
-        // `'aoMap' : undeclared identifier` and drops the material to a default shader, so the
-        // render changes for the WRONG reason (measured: frame mean 46.7 instead of 72.4, and
-        // the spatial match got worse than baseline).
-        '#ifdef USE_AOMAP\n' +
-          '  float ambientOcclusion = texture2D( aoMap, vAoMapUv ).r * aoGain;\n' +
-          '  reflectedLight.indirectDiffuse *= ambientOcclusion;\n' +
-          (debug ? '  aoDebugValue = vec4( texture2D( aoMap, vAoMapUv ).r );\n' : '') +
-          '#endif',
-      )
+    }
   }
-  // The cache key must encode whether this material HAS a map, not just the gain. Measured:
-  // with a constant key, three served 15 draw calls a program compiled with the patch but
-  // WITHOUT `USE_AOMAP` defined — so the guarded code was preprocessed out and those surfaces
-  // got no attenuation at all, which is why the wired path delivered ~40 % of the effect the
-  // same maps produced through the probe (`v0.31.7.32`–`.34`). Two genuinely different program
-  // variants must not collapse into one cache entry.
-  material.customProgramCacheKey = () =>
-    `aoGain${gain}:${material.aoMap ? 1 : 0}${debug ? ':dbg' : ''}`
+  // Encodes the gain and the debug mode, so two variants cannot share one cached program.
+  material.customProgramCacheKey = () => `visGain${gain}${debug ? ':dbg' : ''}`
   material.needsUpdate = true
 }

@@ -62,7 +62,9 @@ describe('applyLightmapsFromIndex', () => {
     const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
     expect(res).toMatchObject({ candidates: 1, applied: 1 })
     expect(w.geometry.getAttribute('uv1')).toBeTruthy()
-    expect((w.material as MeshStandardMaterial).aoMap).toBeTruthy()
+    // The map is bound by a shader injection, not by `material.aoMap` -- that slot compiled
+    // the attenuation out entirely (v0.31.7.36/.37), so its absence here is correct.
+    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).toContain('visGain')
   })
 
   it('leaves a mesh untouched when the set has no map for it', () => {
@@ -73,7 +75,7 @@ describe('applyLightmapsFromIndex', () => {
     const res = applyLightmapsFromIndex(root, indexFor(['deadbeef']), stubTexture)
     expect(res).toMatchObject({ candidates: 1, applied: 0 })
     expect(w.geometry.getAttribute('uv1')).toBeUndefined()
-    expect((w.material as MeshStandardMaterial).aoMap).toBeNull()
+    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).not.toContain('visGain')
   })
 
   it('never keys sub-1.5 m meshes, so furniture costs nothing', () => {
@@ -119,10 +121,12 @@ describe('applyLightmapsFromIndex', () => {
     applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, { gain: 42 })
     const shader = {
       uniforms: {} as Record<string, { value: number }>,
-      fragmentShader: 'void main() {\n#include <aomap_fragment>\n}',
+      vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+      fragmentShader:
+        'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
     }
     ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
-    expect(shader.uniforms.aoGain.value).toBe(42)
+    expect(shader.uniforms.visGain.value).toBe(42)
   })
 
   it('does not re-create uv1 that already exists', () => {

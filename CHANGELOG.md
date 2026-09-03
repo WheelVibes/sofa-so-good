@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.37 — ✅ IT WORKS. Dropping three's `aoMap` slot for a self-contained injection reproduces the reference EXACTLY
+
+`v0.31.7.36` proved the mapped materials compile without `USE_AOMAP`, so the attenuation never
+ran. Rather than keep hunting *why* three withholds that define, this round stops depending on
+it.
+
+**The rewrite.** `applyVisibilityLightmap` no longer touches `material.aoMap`. It declares its
+own `visMap` sampler and `visGain` uniform, passes `uv1` through the vertex shader into its own
+`vVisUv` varying, and multiplies `reflectedLight.indirectDiffuse` immediately after
+`lights_fragment_end`. **Nothing in it is conditional on a three define**, so there is no branch
+that can be compiled out. More code than a slot assignment, and it is the code that runs.
+
+**The result, in the app, through the shipped path:**
+
+| | frame mean R | spatial spread vs physics |
+| --- | --- | --- |
+| baseline (flag off) | 115.64 | **4.76×** |
+| **shipped path, flag on** | **72.43** | **1.36×** |
+| probe applying the same maps | 72.43 | 1.36× |
+
+**Identical to the probe reference to the last digit** — which is the strongest possible evidence
+that the two paths are now doing the same thing, and the number the whole arc has been aiming at:
+`v0.31.7.9`'s analysis predicted **1.36×** as the ideal, `v0.31.7.10` predicted 1.88× at γ = 0.7,
+and the app now measures 1.36×. Zero shader errors.
+
+**And looking at it, the frame's structure matches the Cycles reference**: the near wall dark, the
+far wall brighter, the ceiling lit toward the window. What remains beside physics is the
+white-balance difference (`v0.31.7.5`: not comparable across pipelines) and the residual bake
+grain from the dark interior faces (`v0.31.7.26`: 10 % after adaptive sampling).
+
+**Six rounds of hunting, and the fix was to stop using the mechanism.** Worth stating plainly:
+nine hypotheses were eliminated, a real cache-key collapse was found and fixed, `flipY` was
+tested and refuted, and none of it mattered — the slot itself was the problem. The lesson is not
+"three is broken" but that **a shader injection which owns its own uniforms cannot be silently
+disabled by the engine's parameter derivation**, and for a term this important that robustness is
+worth the extra fifteen lines.
+
+**Twelve tests rewritten for the new mechanism**, including that the fragment shader contains
+**no `#ifdef` at all** (the property that makes it un-disableable), that `uv1` is threaded through
+the vertex shader, that specular is untouched, and that the debug visualiser's magenta sentinel
+survives.
+
+**Still flag-gated and off by default**, because only one plan is baked — with the flag off the
+render is byte-identical to baseline, and the ≥30 fps floor is unaffected (`v0.31.7.15`: free at
+both auto-selected tiers). Suite **10048 green**; `tsc`, biome, knip clean.
+
 ## v0.31.7.36 — the fault is located exactly: the mapped materials compile WITHOUT `USE_AOMAP`, so the attenuation never runs
 
 Nine hypotheses were eliminated by indirect measurement over three rounds. This round looks at

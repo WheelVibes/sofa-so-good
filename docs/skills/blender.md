@@ -254,6 +254,13 @@ the research docs.*
   cut distinct levels **223 → 166**, backwards from the intent. `float_buffer=True` at image
   creation restored it (206). Note the encode then made no visible difference — quantisation was
   not the cause. Fixing a real bug is not evidence that it was the bug you were chasing.
+- **2026-09-03 — do not route a baked term through three's `aoMap` slot; own the injection.**
+  Attached to a live material, the mapped materials compiled **without `USE_AOMAP`** and the
+  attenuation never executed — found by painting the sampled value out as the fragment colour with
+  a **magenta sentinel** for "branch never ran". Nine hypotheses died chasing it. A shader
+  injection that declares its own sampler, uniform and `uv1`→varying, and modifies
+  `reflectedLight.indirectDiffuse` after `lights_fragment_end`, has no `#ifdef` the engine can
+  compile out — and reproduced the reference measurement exactly (spread 1.36×).
 - **2026-09-03 — three's `Texture.channel` defaults to 0, so setting `uv1` is NOT enough.** A
   baked map assigned to `aoMap` samples the `uv` attribute unless you set `texture.channel = 1`.
   With tiling shell UVs (−2.9…+2.9) that reads wrapped noise, and the symptoms are wildly
