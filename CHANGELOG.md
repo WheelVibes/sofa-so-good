@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.91 — `replace` was erasing albedo; found by reading three's source, and it halves the error
+
+`.90` recorded the leading hypothesis as an AgX encoding mismatch. Reading three's shader instead of
+testing that guess found something simpler and certainly wrong in my own code.
+
+**`indirectDiffuse` is not irradiance.** From `lights_physical_pars_fragment.glsl.js`:
+
+    vec3 diffuse = irradiance * BRDF_Lambert( material.diffuseContribution );
+
+So the slot holds **irradiance × albedo/π**. `.88`'s `replace` assigned a bare value into it —
+`indirectDiffuse = vec3( map * gain )` — which **erases albedo on every mapped surface**: a dark wood
+floor and a white wall receive the same number. The map now goes through the same BRDF three would
+have applied, using `material`, which is in scope at `lights_fragment_end` because that is where
+three passes it to `RE_IndirectDiffuse`.
+
+| interior | p10 | median | p90 | **p90/p10** |
+| --- | --- | --- | --- | --- |
+| app, no lightmaps | 46.4 | 107.1 | 140.5 | 3.03 |
+| `replace`, albedo erased (`.90`) | 2.2 | 64.4 | 131.4 | **59.40** |
+| **`replace`, albedo preserved** | 5.0 | 78.7 | 152.5 | **30.49** |
+| Cycles reference | 53.5 | 124.2 | 145.7 | **2.72** |
+
+**The spread halves, 59.40 → 30.49.** A real fix, and it also settles that the defect was in the
+shader rather than in the bake's encoding — the AgX hypothesis `.90` named is neither confirmed nor
+needed to explain the bulk of the error, and it is withdrawn as *the* leading candidate.
+
+**But it does not close it: 30.49 against physics' 2.72, and the median still moves the wrong way**
+(107.1 → 78.7 where physics wants 124.2). And the remaining confound is one `.90` named and then
+dismissed too quickly: **only 24 of 385 meshes carry maps.** The frame is a mixture of two lighting
+models — mapped shell surfaces lit by the map, everything else still lit by the ambient fill it was
+supposed to replace. A p10 of 5.0 and a p90 of 152.5 are plausibly *different populations*, not a
+distribution. With the albedo error removed, that explanation now accounts for most of what is left,
+where before it looked too small to matter.
+
+**So the next instrument is a mapped-surface mask**, built the same way `--mask-glazing` was: mark
+the baked meshes white in Blender at the same pose and measure only those pixels. That is exactly the
+move that turned the window thread from four wrong hypotheses into a mechanism, and measuring a
+partially-mapped scene without it is measuring the mixture.
+
+Nothing shipped changes — `'multiply'` is the default, the flag is off, and the staged measurement
+assets were deleted rather than committed. One new test pins the BRDF, because a bare assignment
+compiles fine and only shows up as a ratio nobody was looking at.
+
+Suite **10098 green** (+1), `tsc` and biome clean.
+
 ## v0.31.7.90 — irradiance-as-replacement measured in the app: a clear NEGATIVE, and the statistic that makes it one
 
 The last hop of the (w)/(x) path, and it fails. `?aoDir=<name>` (DEV) serves an alternate lightmap

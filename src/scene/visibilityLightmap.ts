@@ -155,11 +155,21 @@ export function applyVisibilityLightmap(
         LIGHTS_END,
         `${LIGHTS_END}\n\tfloat visOcclusion = texture2D( visMap, vVisUv ).r;\n` +
           (mode === 'replace'
-            ? // The map IS the indirect light, so it stands in for the fill rather
-              // than scaling it. Anything already accumulated into
+            ? // The map IS the incoming light, so it stands in for the fill rather
+              // than scaling it -- anything already accumulated into
               // `indirectDiffuse` (ambient + hemisphere + IBL) is discarded on
-              // purpose -- keeping it is the double-count `.67` measured.
-              '\treflectedLight.indirectDiffuse = vec3( visOcclusion * visGain );'
+              // purpose, because keeping it is the double-count `.67` measured.
+              //
+              // But `indirectDiffuse` is NOT irradiance. Read from three's own
+              // source: `RE_IndirectDiffuse_Physical` computes
+              // `irradiance * BRDF_Lambert( material.diffuseContribution )`, i.e.
+              // irradiance x albedo/PI. Assigning a bare grey value therefore
+              // ERASES ALBEDO on every mapped surface -- a dark floor and a white
+              // wall get the same number. `v0.31.7.90` measured what that does:
+              // interior p90/p10 went 3.03 -> 59.40 against physics' 2.72, twenty
+              // times too contrasty, and no gain can fix a ratio. So the map is
+              // put through the same BRDF three would have.
+              '\treflectedLight.indirectDiffuse = visOcclusion * visGain * BRDF_Lambert( material.diffuseContribution );'
             : '\treflectedLight.indirectDiffuse *= visOcclusion * visGain;') +
           (debug ? '\n\tvisDebug = visOcclusion;' : ''),
       )

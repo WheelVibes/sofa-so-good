@@ -203,14 +203,14 @@ describe('replace mode (v0.31.7.88)', () => {
     // -- the double-count `v0.31.7.67` measured as WORSE than the crude proxy
     // (+58 % against visibility's +79 % on the one view where either helps).
     const f = frag('replace')
-    expect(f).toContain('reflectedLight.indirectDiffuse = vec3(')
+    expect(f).toContain('reflectedLight.indirectDiffuse = visOcclusion * visGain')
     expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
   })
 
   it('still MULTIPLIES by default, so the shipped visibility path is unchanged', () => {
     const f = frag()
     expect(f).toContain('reflectedLight.indirectDiffuse *=')
-    expect(f).not.toContain('reflectedLight.indirectDiffuse = vec3(')
+    expect(f).not.toContain('reflectedLight.indirectDiffuse = visOcclusion')
   })
 
   it('gives the two modes different program cache keys', () => {
@@ -222,5 +222,14 @@ describe('replace mode (v0.31.7.88)', () => {
     applyVisibilityLightmap(a as never, fakeTexture(), 6, false, 'multiply')
     applyVisibilityLightmap(b as never, fakeTexture(), 6, false, 'replace')
     expect(a.customProgramCacheKey?.()).not.toBe(b.customProgramCacheKey?.())
+  })
+
+  it('puts the map through the SAME Lambert BRDF three would have', () => {
+    // `indirectDiffuse` is irradiance x albedo/PI, not irradiance -- read from
+    // three's `RE_IndirectDiffuse_Physical`. Assigning a bare value erases albedo
+    // on every mapped surface, which `v0.31.7.90` measured as interior p90/p10
+    // 3.03 -> 59.40 against physics' 2.72. A ratio no gain can correct.
+    const f = frag('replace')
+    expect(f).toContain('BRDF_Lambert( material.diffuseContribution )')
   })
 })
