@@ -3265,6 +3265,34 @@ histogram has nothing to drive it either.
 transported through the room, which is what the renderer does not do. It needs a real indirect
 term — not a scalar, a curve or a baked map — and item (w) is where that work would live.
 
+## ⚠️ MEASUREMENT BOUNDARY — `(l)`'s fix (v0.31.7.157) shifted EVERY region ratio by ~4 %
+
+**Any region ratio in this document measured before `v0.31.7.157` cannot be compared with one
+measured after it.** Not because the surfaces changed, but because the normaliser did.
+
+The geometric-mask ratios are reported "normalised by their own combined mean", and **the glazing is
+10 % of the `wall` sample population** (`BoxGeometry#bcd4e6`). `(l)`'s fix raises the pane from a mean
+of 174.6 to 234.6, so the combined mean rises with it. Same tier, same pose, GI off in both:
+
+| | pre-fix (`v0.31.7.114`) | post-fix (`v0.31.7.159`) |
+| --- | --- | --- |
+| combined mean | 98.2 | **104.0** (+5.9 %) |
+| ceiling | 0.69 | **0.66** |
+| wall | 1.05 | 1.06 |
+| floor | 0.75 | **0.72** |
+
+The ceiling and floor did not change; their *ratios* fell ~4 % because the denominator rose.
+
+**What this specifically invalidates:**
+
+- **The GI's headline `ceiling 0.69 → 0.92`** (`v0.31.7.114`) — the baseline is now 0.66, so the
+  comparison needs re-running before that number is quoted again.
+- `(w)`'s ceiling/wall figures and the photographic-band comparisons, all taken pre-fix.
+- Any cross-session comparison of these ratios that straddles `.157`.
+
+**It does not invalidate** the absolute glazing statistics (`> 240` shares), the frame means, or
+anything measured on a crop that excludes glazing.
+
 ## (w) RASTER-INTERREFLECTION — 🐞 REAL; ✅ DECIDED 2026-09-04, see (z)9 — and `v0.31.7.131` finds it is THE SAME FIX AS THE GI, needing no separate mechanism.
 
 > **`v0.31.7.131`: the GI path measurably reduces (w)'s spatial error, so (w) is not separate work.**

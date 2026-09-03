@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.159 — `(l)`'s fix shifted EVERY region ratio in the arc by ~4 %, because the glazing is 10 % of the wall mask
+
+Checked what shipping `(l)` did to the rest of the arc's measurements, since a brighter window changes
+more than the window. It does, and it is a measurement-boundary event rather than a regression.
+
+Same tier, same pose, GI off in both arms:
+
+| | pre-fix (`.114`) | post-fix | |
+| --- | --- | --- | --- |
+| combined mean | 98.2 | **104.0** | +5.9 % |
+| ceiling | 0.69 | **0.66** | −4 % |
+| wall | 1.05 | 1.06 | — |
+| floor | 0.75 | **0.72** | −4 % |
+
+**The ceiling and floor did not change.** Their *ratios* fell because the denominator rose: the
+geometric-mask ratios are normalised by "their own combined mean", and **the glazing is 10 % of the
+`wall` sample population** (`BoxGeometry#bcd4e6`, read from the probe's own census). Raising the pane
+from 174.6 to 234.6 raises the normaliser with it.
+
+**What this invalidates, stated so nobody re-quotes it:**
+
+- **The GI's headline `ceiling 0.69 → 0.92`** from `v0.31.7.114`. The baseline is now **0.66**, so
+  that comparison must be re-run before the number is used again — and it is the number the GI
+  decision rests on.
+- `(w)`'s ceiling/wall figures and the photographic-band comparisons, all pre-fix.
+- Any comparison of these ratios that straddles `.157`.
+
+**What it does not touch:** absolute glazing statistics (`> 240` shares), frame means, and anything
+measured on a crop that excludes glazing.
+
+Recorded as a dated boundary at the top of `(w)`'s section, because that is the item most likely to be
+re-measured next and the one whose numbers are most affected.
+
+**Worth noticing about the method.** This is the second time tonight that fixing one thing silently
+moved a metric another thing was measured against — the first was `.114`, where a verification taken
+at the wrong tier produced a "verified clean" that was not. Both were caught by asking what *else*
+changed, which is a question the frame cannot answer and the numbers only answer if you go looking.
+
+Documentation only. Suite **10167 green**, `tsc` and biome clean.
+
 ## v0.31.7.158 — fixing `(l)` properly made `(z)`4's other half moot: the Cycles sky is worth 0.34 counts behind a correct pane
 
 With `(l)` shipped (`.157`), the pane is correctly bright — so the sky behind it is nearly invisible.
