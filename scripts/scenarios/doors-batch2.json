@@ -1,0 +1,72 @@
+{
+  "name": "doors-batch2",
+  "description": "TEMPLATE (f) v0.31.8.34: second doors batch. Loads tpl-condo-2bed (5 sealed groups -> fully connected) and asserts its new doors exist plus the Open Kitchen pass-through, then screenshots the plan.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "load-c2",
+      "eval": "import('/src/floorplan/templates.ts').then(m=>{const t=m.PLAN_TEMPLATES.find(p=>p.id==='tpl-condo-2bed'); window.__store.getState().replaceFloorPlan(JSON.parse(JSON.stringify(t)), {furniture:'rehome'})}); 'started'"
+    },
+    {
+      "name": "plan-loaded",
+      "waitFor": {
+        "store": "state.floorPlan.rooms.some(r => r.id === 'c2-master')"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-every-room-reachable",
+      "eval": "(()=>{const s=window.__store.getState().floorPlan; const doors=s.openings.filter(o=>o.kind==='door'); const need=['c2-bed-door','c2-master-door','c2-bal-door']; const missing=need.filter(id=>!doors.find(o=>o.id===id)); if(missing.length) throw new Error('missing doors: '+missing); if(doors.find(o=>o.id==='c2-kit-door')) throw new Error('the Open Kitchen should have a pass-through, not a door'); const kw=s.walls.find(w=>w.id==='c2-kit-n'); if(Math.abs(kw.end[0]-1.5)>0.01) throw new Error('c2-kit-n should stop at x=1.5, got '+kw.end[0]); return doors.length+' doors, kitchen pass-through 1.1 m'})()"
+    },
+    {
+      "name": "open-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "editor-settled",
+      "waitFor": {
+        "store": "state.floorPlanEditing === true && state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "editor-ready",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-plan",
+      "wait": 1200
+    },
+    {
+      "name": "shot-plan",
+      "screenshot": "c2-plan"
+    }
+  ]
+}

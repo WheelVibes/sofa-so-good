@@ -122,23 +122,27 @@ function roomGroups(
   return used.size
 }
 
-/** `plan/level` -> number of mutually sealed room groups (doors open). */
+/** `plan/level` -> number of mutually sealed room groups (doors open).
+ *
+ * 16 levels when first measured in v0.31.8.28. Every entry removed since is a
+ * template whose rooms can now all be walked to; every entry that DROPPED to 2 is
+ * one where the doorless rooms were fixed and what remains is a bedroom column
+ * with no corridor — its rooms fill the zone, so a door from the living opens
+ * straight into a bedroom. That last case is a content decision, written up in
+ * `docs/open-graphics-decisions.md` (f). */
 const KNOWN_DISCONNECTED: Record<string, number> = {
-  'tpl-1bed/ground': 2,
-  'tpl-condo-2bed/ground': 5,
   // 7 → 2 in v0.31.8.33: the kitchen, service yard, common bath, master ensuite
   // and balcony had NO doors at all. What remains is the bedroom column, which
   // has no corridor — its rooms fill it, so any door from the living opens
   // straight into bedroom 2. Same class as `tpl-hdb-4room`; see the decisions doc.
   'tpl-condo-3bed/ground': 2,
-  'tpl-condo-4bed/ground': 7,
-  'tpl-condo-penthouse/ground': 5,
+  'tpl-condo-4bed/ground': 2,
+  'tpl-condo-penthouse/ground': 2,
   'tpl-hdb-4room/ground': 2,
   'tpl-hdb-5room/ground': 2,
   'tpl-hdb-exec/ground': 6,
-  'tpl-loft/lf-up': 3,
-  'tpl-terrace-ground/ct-up': 2,
-  'tpl-terrace-ground/ground': 5,
+  'tpl-loft/lf-up': 2,
+  'tpl-terrace-ground/ground': 2,
 }
 
 describe('template connectivity (doors open)', () => {

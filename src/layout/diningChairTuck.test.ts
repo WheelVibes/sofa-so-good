@@ -109,11 +109,16 @@ describe('dining chairs are tucked to their table', () => {
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
       // chair alive by refusing it a slot outside the room (it had been placed
       // out there and then dropped).
-      'tpl-1bed': 47,
+      // 47 → 48 in v0.31.8.34: the bedroom/kitchen group gained its first door.
+      'tpl-1bed': 48,
       'tpl-loft': 44,
       'tpl-condo-1bed': 44,
       'tpl-condo-1study': 53,
-      'tpl-condo-2bed': 68,
+      // 68 → 67 in `.34`: bedroom 2's new door costs it a wardrobe. Its master
+      // KEEPS its queen bed and the kitchen its counter and stove — mid-wall
+      // doors lost all three, so they moved to the wall ends and the "Open
+      // Kitchen" got a 1.1 m pass-through instead of a door.
+      'tpl-condo-2bed': 67,
       // 80 → 81 in v0.31.8.33: the balcony parapet now MEETS the walls at both
       // ends (it stopped 0.1 m short, a stray-wall warning), so the balcony is a
       // real enclosure and furnishes properly.
@@ -121,7 +126,11 @@ describe('dining chairs are tucked to their table', () => {
       'tpl-condo-4bed': 95,
       'tpl-condo-studio': 25,
       'tpl-condo-penthouse': 118,
-      'tpl-terrace-ground': 122,
+      // 122 → 120 in `.34`, mostly redistribution once the car porch, dining and
+      // kitchen got doors: dining and kitchen each gain one, the living and
+      // service yard each lose one, and one piece that had been standing outside
+      // every room is gone.
+      'tpl-terrace-ground': 120,
     })
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
@@ -156,7 +165,14 @@ describe('dining chairs are tucked to their table', () => {
     // costs nothing here, and closing `tpl-condo-3bed`'s balcony parapet (it
     // stopped 0.1 m short of the walls at both ends) makes that balcony a real
     // enclosure, which furnishes one piece better.
-    expect(total).toBe(1431)
+    //
+    // 1431 → 1429 in `.34`, the second doors batch across seven more levels:
+    // `tpl-1bed` +1, `tpl-condo-2bed` −1 (a wardrobe), `tpl-terrace-ground` −2
+    // (mostly redistribution, including one piece that had been standing outside
+    // every room). Every door offset here was placed at a wall END after
+    // mid-wall versions cost a queen bed, a kitchen counter and stove, and a
+    // washing machine — measured per-def, then moved rather than ratcheted.
+    expect(total).toBe(1429)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

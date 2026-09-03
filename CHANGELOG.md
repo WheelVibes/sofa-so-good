@@ -27,6 +27,48 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.34 — the second doors batch: 7 more levels, 3 now fully connected
+
+18 more doors from the same wall-scan, across every remaining template that was
+not blocked on a content call. Connectivity now:
+
+- **fully connected** (entry removed): `tpl-1bed`, `tpl-condo-2bed`,
+  `tpl-terrace-ground/ct-up`;
+- **`tpl-condo-4bed` 7 → 2**, **`tpl-condo-penthouse` 5 → 2**,
+  **`tpl-terrace-ground/ground` 5 → 2**, **`tpl-loft/lf-up` 3 → 2**.
+
+The ratchet is down from **16 levels to 8**, and its docstring now records what a
+remaining "2" means: the doorless rooms are fixed and what is left is a bedroom
+column with no corridor, which is the content call already written up for the
+4-room.
+
+**Every door offset here was moved to a wall END, and only because measurement
+said so.** Mid-wall the same doors cost:
+
+- `tpl-condo-2bed`'s master its **queen bed** — the room is 1.7 m wide, so the
+  door's keep-out sat exactly where the bed goes;
+- that flat's kitchen its **counter run and stove**, at either end. It is named
+  "Open Kitchen", so it got a 1.1 m **pass-through** instead of a door — the
+  honest fixture for an open kitchen, and it costs nothing;
+- `tpl-condo-penthouse`'s service yard its **utility cabinet and washing
+  machine**, in a 1.9 m room.
+
+Two of my own mistakes the gate caught: `lfu-land-door` and `ctu-fam-door`
+referenced UPPER-storey walls but I wrote them into the ground floor's openings
+array — an opening must live on the same level as its wall. And moving
+`c4-bed3-door` off its scanned offset to dodge a sightline block silently broke
+the connection it was there to make (2 → 3 groups); 3.2 satisfies both.
+
+Item total 1431 → 1429: `tpl-1bed` +1, `tpl-condo-2bed` −1 (a wardrobe),
+`tpl-terrace-ground` −2, mostly redistribution once its car porch, dining and
+kitchen gained doors — including one piece that had been standing outside every
+room. Also cleared a blocked window as a side effect: `tpl-1bed`'s living-room
+window no longer has a potted plant in front of it.
+
+Verified: 10126 tests pass; `tsc`, `biome`, `knip` clean. Scenario
+`doors-batch2.json` asserts condo-2bed's new doors AND that its Open Kitchen has
+a pass-through rather than a door; plan reviewed.
+
 ## v0.31.8.33 — 12 rooms across 3 templates had no door at all
 
 Instead of discovering each template's blocker one tick at a time, I triaged all 13

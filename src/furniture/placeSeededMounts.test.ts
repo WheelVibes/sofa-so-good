@@ -278,6 +278,13 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // outdoor-table` and `su-balcony: outdoor-table` were sitting at their room
     // centre because those balconies had NO DOOR, so the table had no wall to
     // relate to. With a door they place properly. Dumped before this was touched.
-    expect(sweep().centred).toBe(27)
+    //
+    // 27 → 28 in v0.31.8.34, the second doors batch: `c2-living: rug` +
+    // `c2-living: coffee-table` and `ob-living: rug` now settle on their room
+    // centres (both living rooms gained a door on a wall they front), while
+    // `c2-balcony: outdoor-table` and `ob-dining: dining-table-4` stop being
+    // centred because those rooms finally have a door to relate to. All five are
+    // in CENTRE_IS_RIGHT. Dumped before this number was touched.
+    expect(sweep().centred).toBe(28)
   }, 30_000)
 })
