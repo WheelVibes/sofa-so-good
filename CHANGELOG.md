@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.98 — the black is a ROW (normal-sign) disagreement, and the row bit should not exist
+
+`.97` narrowed the black shell to whole atlas slots. This round found which bit is wrong, by reading
+both implementations and then looking at the frame.
+
+**The two slot rules are textually identical.** Bake (`make_box_uvs`) and runtime (`lightmapUv.ts`)
+both do `axis = argmax|n|`, `row = n[axis] >= 0 ? 0 : 1`, `col = axis`, ascending other-axes, the same
+inset formula — and the bake converts to three's frame first via `blender_to_three`, which is a
+determinant-+1 rotation, so handedness is preserved. The rule is not the bug.
+
+**They differ in where the normal comes from.** The bake reads Blender's **`poly.normal`**; the runtime
+computes a **triangle cross product** from the app's own indices. Those agree only if the exported
+winding agrees with Blender's polygon orientation — and if it does not, `n[axis]` flips sign, which
+flips `row`, which selects **the mirror slot in the same column**.
+
+**Looking at the debug frame says that is what happens.** `?aoDebug=1` repaints only patched
+materials, so the room renders normally and the 24 mapped meshes stand out — as **entire surfaces of
+solid black**: the whole ceiling, the upper wall bands, the vertical strips. Not rims. Whole surfaces,
+which is what reading an empty slot looks like and is not what an edge-bleed or margin error looks
+like. It is also why `.97`'s dilation changed nothing.
+
+**And the bake's own bookkeeping corroborates it.** The four maps `.97` measured as 83–92 % zero each
+have **exactly one** interior slot, all of them `[2, 0]`, with `int_texels = 672` ≈ 1/6 of a 4096-texel
+atlas:
+
+    ce497848  Mesh_34   slots=[[2, 0]]  int_texels=672
+    4b1218e6  Mesh_11   slots=[[2, 0]]  int_texels=672
+    d623d608  Mesh_138  slots=[[2, 0]]  int_texels=672
+    022b2d5c  Mesh_0    slots=[[2, 0]]  int_texels=672
+
+Five of six slots are legitimately empty for these meshes. A runtime that picks `[2, 1]` for the
+room-facing face gets black, over the whole surface, exactly as observed.
+
+**The fix I would make is to delete the bit rather than reconcile it.** The row encodes the *sign* of
+the dominant axis, so a ±Z pair of faces occupies two slots. For the room **shell** that buys almost
+nothing — a wall's outward face is not visible from inside, and the interior-facing side is the only
+one being measured — while it is the single degree of freedom on which two independently-written
+implementations can silently disagree. Collapsing the atlas from **3×2 to 3×1** removes the
+disagreement by construction and doubles the texel density per slot at the same resolution.
+
+That is a change to both the bake and the runtime UV builder plus its fixtures, so it is the next
+round rather than this one. What is settled here is *which* bit is wrong and why, which four rounds of
+gain and dilation work could not establish.
+
+Suite **10098 green**, `tsc` and biome clean. No shipped change.
+
 ## v0.31.7.97 — dilation implemented, and its NULL result localises the fault to whole atlas slots
 
 Diagnosing `.96`'s `p10 = 0.0`. The answer came from the remedy failing.
