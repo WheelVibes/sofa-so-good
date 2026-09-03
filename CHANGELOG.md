@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.35 — compiled-source readback finds a real bug (a program without `USE_AOMAP`), fixing it changes nothing, and the wired effect is now CHARACTERISED rather than guessed at
+
+The last named tool, used: read back the compiled fragment source through the WebGL context.
+
+**It found a real defect.** Among the programs whose cache key carries `aoGain`, one has
+**`USE_AOMAP` undefined** and `usedTimes: 15` — fifteen draw calls using a program compiled *with*
+the patch and *without* the define, so the guarded body is preprocessed out and those surfaces
+receive no attenuation. Cause: `customProgramCacheKey` returned a constant, which lets a
+with-map and a without-map variant collapse into one cache entry. Fixed to
+`aoGain${gain}:${aoMap ? 1 : 0}`, with a test, because the collapse is invisible otherwise.
+
+**Fixing it changed the render not at all** — 99.78 / 4.75× before and after. So those fifteen
+draw calls were not the cause. The fix is kept on its own merits; it is a latent bug either way.
+
+**A second candidate tested and refuted, and worth recording so it is not tried twice.**
+`flipY` looked suspicious — a V flip would make each wall sample the *other* atlas row, i.e. its
+exterior face, which bakes to a near-uniform 1.0. Forcing `flipY = false` does change the render
+materially (mean 99.8 → 84.7, spread 4.75× → **6.77×**), so V orientation is load-bearing — but
+the result is *worse*, so three's default `true` is correct. The module now says so explicitly.
+
+**What is now a characterisation rather than a hypothesis.** The wired path darkens the frame
+14 % while leaving the spatial spread **unchanged to two decimals** (4.75× against a 4.76×
+baseline). A correctly-sampled spatially-varying map *cannot* do that: it must change the spatial
+profile. So whatever the cause, the values reaching the shader are effectively **near-uniform**,
+even though the texture, the UVs, the channel, the gain and the program are all verified correct.
+
+That is a much sharper statement than "the numbers differ", and it names the next instrument
+precisely: render the sampled `aoMap` value *itself* to the screen for one known wall — output
+`vec4(ambientOcclusion, ...)` as the fragment colour instead of lighting — so the shader's own
+view of the map can be looked at directly. Every indirect measurement has now been exhausted.
+
+**Eight hypotheses eliminated across three rounds**, which is worth stating as a whole: decode
+timing, accessor reads, material/UV state, shader-compile failure, gain delivery, map loss on
+state change, byte-identical assets, cache-key collapse, and flipY. The remaining possibilities
+are narrow.
+
+**Nothing at risk.** Flag off by default; render byte-identical with it off; 60 fps unaffected.
+Suite **10047 green**; `tsc`, biome, knip clean.
+
 ## v0.31.7.34 — the gain demonstrably works; six hypotheses eliminated and the discrepancy survives all of them
 
 The named next step from `v0.31.7.33`, run: a DEV-only `?aoGain=<n>` bisect seam, added to the

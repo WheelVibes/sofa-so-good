@@ -91,6 +91,21 @@ describe('applyVisibilityLightmap', () => {
     expect(a.customProgramCacheKey()).not.toBe(b.customProgramCacheKey())
   })
 
+  it('encodes aoMap PRESENCE in the cache key, so variants cannot collapse', () => {
+    // Measured failure: with a constant key, three served 15 draw calls a program compiled
+    // with the patch but without `USE_AOMAP` defined, so the guarded code was preprocessed
+    // out and those surfaces got no attenuation. A key that ignores map presence lets a
+    // with-map and a without-map program share one cache entry.
+    const m = fakeMaterial() as unknown as {
+      customProgramCacheKey: () => string
+      aoMap: unknown
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6)
+    const withMap = m.customProgramCacheKey()
+    m.aoMap = null
+    expect(m.customProgramCacheKey()).not.toBe(withMap)
+  })
+
   it('leaves aoMapIntensity at 1, since the patch bypasses the intensity lerp', () => {
     const m = fakeMaterial() as unknown as { aoMapIntensity: number }
     applyVisibilityLightmap(m as never, fakeTexture())

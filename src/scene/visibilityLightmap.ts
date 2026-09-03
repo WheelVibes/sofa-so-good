@@ -59,6 +59,10 @@ export function prepareVisibilityTexture(texture: Texture): Texture {
   texture.channel = 1
   texture.generateMipmaps = false
   texture.minFilter = LinearFilter
+  // `flipY` is deliberately LEFT AT three's default (`true`). Tested: forcing `false` changes
+  // the render materially — frame mean 99.8 → 84.7, spatial spread 4.75× → 6.77× — so the V
+  // orientation is load-bearing, and `true` is the correct one. Recorded because "it looked
+  // like it might be flipped" is a tempting and wrong change to make twice.
   texture.needsUpdate = true
   return texture
 }
@@ -95,6 +99,12 @@ export function applyVisibilityLightmap(
           '#endif',
       )
   }
-  material.customProgramCacheKey = () => `aoGain${gain}`
+  // The cache key must encode whether this material HAS a map, not just the gain. Measured:
+  // with a constant key, three served 15 draw calls a program compiled with the patch but
+  // WITHOUT `USE_AOMAP` defined — so the guarded code was preprocessed out and those surfaces
+  // got no attenuation at all, which is why the wired path delivered ~40 % of the effect the
+  // same maps produced through the probe (`v0.31.7.32`–`.34`). Two genuinely different program
+  // variants must not collapse into one cache entry.
+  material.customProgramCacheKey = () => `aoGain${gain}:${material.aoMap ? 1 : 0}`
   material.needsUpdate = true
 }
