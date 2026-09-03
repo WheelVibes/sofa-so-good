@@ -203,6 +203,12 @@ export function applyLightmapsFromIndex(
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
     applyVisibilityLightmap(o.material as never, loadTexture(url), planGain, debug, mode)
+    if (import.meta.env.DEV) {
+      // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
+      // handed to compare its `uv1` against that map's texels, and the texture
+      // itself may carry an `ImageBitmap` with no `src` to read back.
+      ;(o.material as { userData: Record<string, unknown> }).userData.visMapUrl = url
+    }
     applied += 1
   }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)

@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.100 — the sub-slot instrument: the UVs and the baked data are nearly DISJOINT
+
+`.99` said the fault must live below slot level and named the instrument. Built it, and it gives the
+first hard numbers on the correspondence itself.
+
+**`uv-overlay.mjs`** pulls each patched mesh's `uv1` and the URL of the map it was handed (recorded in
+DEV as `userData.visMapUrl`, because the texture may hold an `ImageBitmap` with no `src` to read
+back), rasterises the UV triangles into a 64² coverage mask, and compares it texel-by-texel against
+the non-zero mask of that exact PNG. Two numbers settle a question no aggregate could:
+
+| | |
+| --- | --- |
+| lookups landing on **zero** texels | **33.0 %** |
+| baked texels **never read** | **29.5 %** |
+
+**And per mesh it is near-total for the small footprints:**
+
+| key | covered texels | covered-but-zero | baked texels | baked-but-unread |
+| --- | --- | --- | --- | --- |
+| `d623d608` | 570 | **95.8 %** | 817 | **97.1 %** |
+| `4b1218e6` | 570 | 86.7 % | 807 | 90.6 % |
+| `ce497848` | 570 | 86.7 % | 950 | 92.0 % |
+| `114cf680` | 3480 | 55.1 % | 1919 | 18.7 % |
+| `ebe17b4c` | 3480 | 43.2 % | 2365 | 16.5 % |
+
+For the single-slot meshes the two regions are **almost disjoint** — the runtime reads one area, the
+bake wrote another, and they barely intersect. That is not padding (`.97`), not slot assignment
+(`.99`, `flipped = 0`), and not gain: it is **misregistration inside the slot**.
+
+**Which rules out the formulas and points at their inputs.** Both sides compute the in-slot position
+as the two non-dominant local coordinates normalised by the mesh's own bounding box, in ascending axis
+order, with the same inset — I compared them line by line in `.98`. If the arithmetic matches and the
+result does not, the **inputs** differ, and the input is the bounding box: the bake takes `mn`/`mx`
+over `mesh.vertices` of the **imported GLB mesh**, the runtime over `BufferGeometry.position` of the
+**app's own geometry**.
+
+**The geometry key matching does not protect this.** `lightmapKey` hashes **world-space**,
+mm-rounded vertices; the UVs use **local** space. A mesh whose node carries a transform can match on
+the key and still have different local bounds on the two sides — and a shifted or rescaled box moves
+the whole sub-region, which for a footprint of 570 texels in a 21×32 slot is enough to miss entirely.
+
+So the next step is to dump the two bounding boxes for one key and compare the **values**, not the
+code. That is a small, decisive diagnostic, and it is the first candidate in this thread that explains
+*near-disjoint* rather than merely *wrong*.
+
+Suite **10102 green**, `tsc`, biome and `knip` clean. No shipped change: the probe is new, and the URL
+handle is DEV-only.
+
 ## v0.31.7.99 — built the mirror-slot reconciliation, and it REFUTES `.98`'s hypothesis: zero faces needed it
 
 `.98` concluded the black shell was a `row` (normal-sign) disagreement between the bake's
