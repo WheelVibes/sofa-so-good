@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.121 — BOTH of `.120`'s named causes were wrong, one with the opposite sign; the real residual is relative WEIGHT, not albedo
+
+`.120` closed by naming two causes for the remaining ρ gap. Measured both. **Neither holds**, and
+recording that because `.120` presented them as diagnosis rather than hypothesis.
+
+**Cause 1 — "furniture lacks a trustworthy albedo" — is minor.** Of 200 meshes in `livingDining`,
+188 carry no `albedoSwatch`, which sounded severe. But only **70** of those have a texture at all,
+and only **20** are the `.273` failure shape (textured *and* white, luminance > 0.85). The rest
+report meaningful `material.color`:
+
+| unswatched meshes | min | p50 | max |
+| --- | --- | --- | --- |
+| all 188 | 0.009 | **0.337** | 1.00 |
+| the 70 with a map | 0.028 | **0.121** | 1.00 |
+
+A p50 of 0.337 is a sensibly dark furnished room, not white. **10 % of meshes are affected, not 94 %.**
+
+**Cause 2 — "bounding-box area understates the real surface" — has the OPPOSITE SIGN.**
+
+| area over the same 200 meshes | m² |
+| --- | --- |
+| triangle (what the module sums) | **198.2** |
+| bounding box (what the probe approximated with) | 312.3 |
+
+The box **overstates** a sofa, it does not understate it. I asserted the reverse in `.120` and it was
+a guess dressed as an explanation.
+
+**And the framing was wrong too: ρ is SCALE-INVARIANT in area.** Doubling every mesh leaves a
+weighted mean unchanged, so `.271`'s 467 m² against this census's 198.2 m² **cannot itself be the
+gap** — which is what `.120` implied by pairing the two areas with the two ρ values.
+
+**What the residual actually is.** The module, measured with its own triangle-area formula, reads
+`livingDining` at **ρ = 0.6719** against 0.546. The difference is *relative share*:
+
+| | wall share of census | ⇒ Δρ from a wall repaint |
+| --- | --- | --- |
+| this census | 54.1 / 198.2 = **27.3 %** | 0.19 |
+| `.271` | 54.1 / 467 = **11.6 %** | 0.107 |
+
+**2.36× more wall weight here**, so the fill over-responds to a repaint by about that factor — which
+is exactly the saturation `.118` observed, now attributed correctly. `.271`'s census counted ~2.4×
+more non-shell area than this one; whether that is two-sided triangles, a wider mesh selection, or
+something else cannot be settled without its code, which is not in the repo.
+
+So `(s)` stands at: **mechanism validated, census principled and measured, one unexplained 2.36×
+weighting difference against the only reference measurement available.** Still **not wired** —
+wiring it now would ship a fill that over-responds by that factor. Suite **10142 green**, `tsc` and
+biome clean.
+
 ## v0.31.7.120 — `sceneRoomAlbedo`: the census moves ρ 0.771 → 0.655 against a 0.546 target, and names the two causes of the rest
 
 `.119` specified the fix as "a scene-graph census with the catalogue swatch substituted for textured

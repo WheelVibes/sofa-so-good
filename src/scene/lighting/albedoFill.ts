@@ -179,6 +179,15 @@ export function albedoFillScale(rho: number, rhoRef: number = REFERENCE_RHO): nu
 /**
  * Area-weighted mean albedo luminance over the SCENE GRAPH, room-scoped.
  *
+ * **Measured, `v0.31.7.121`: this reads `livingDining` at ρ = 0.6719**, against the 0.546 that
+ * `.271`'s measured 0.650 scale implies. The residual is a **relative-weight** difference, not an
+ * albedo one: ρ is scale-invariant in area, so `.271`'s 467 m² against this census's 198.2 m² is
+ * not itself the gap. What differs is the SHARE — walls are **27.3 %** of this census and only
+ * **11.6 %** of `.271`'s, i.e. **2.36× more wall weight here**, so a wall repaint moves ρ by 0.19
+ * where theirs moved it 0.107, and the fill over-responds by roughly that factor.
+ *
+ * Reconciling further needs `.271`'s census code, which is not in the repo.
+ *
  * **This is the census that can actually work**, and `v0.31.7.119` is why: the shell is only
  * **21.4 %** of a room's census area (`h4-living`'s six surfaces are 100.16 m² against `.271`'s
  * 467 m²), so a plan-data census structurally cannot see the 78.6 % — furniture, fittings,
