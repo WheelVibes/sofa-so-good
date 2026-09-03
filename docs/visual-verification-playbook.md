@@ -1,5 +1,12 @@
 # Visual verification playbook
 
+> **`TIER=` values changed on 2026-09-03 (`v0.31.7.68`).** The four rungs became two modes plus a
+> device class: `TIER=performance` and `TIER=realistic`. Old `medium` is `performance` on a capable
+> device, old `high` is `realistic` on a weak one, old `maximum` is `realistic` on a capable one —
+> byte-identical settings either way, so **measurements in this file that name a retired rung are
+> still valid and still reproducible**, just under the new name. Probes that pin a tier now also
+> need the device class where the two variants differ.
+
 > **Chrome first (2026-08-24).** When Claude-in-Chrome is connected, drive the **real tab**
 > instead of this headless harness — see **[chrome-interactive-audit.md](chrome-interactive-audit.md)**.
 > It runs the same step vocabulary against a real GPU, real fonts and the real compositor, and

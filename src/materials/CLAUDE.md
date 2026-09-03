@@ -46,7 +46,8 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   per-mesh UVs or assume a unit cube.
 - **Parallax-occlusion floors (`pomFloor.ts`, PHOTO-POM)**: hero grout-relief FLOOR finishes
   (procedural `tile`/`hexagon`/`subway`/`checker`/`brick`/`parquet`/`herringbone`) get real recessed
-  grout/joints that occlude as the camera moves, on **High/Maximum only** (shader ray-march cost),
+  grout/joints that occlude as the camera moves, in **`realistic` only** (shader ray-march cost;
+  step budget scales with the device class — 16 on weak, 32 on capable),
   behind the `pomFloors` flag (pro tier, default on — pure procedural height, prod-safe). No new art:
   it reuses the pattern's OWN height field — `generateProceduralHeightTexture` (generators.ts) bakes
   the same `f.height` that `heightToNormalRGBA` turns into the normal map into a linear depth map.
@@ -1203,7 +1204,7 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
 - **Glass is CORRECT and the tier gate demonstrably fires — audited, nothing changed
   (GLASS-TIER-VERIFIED, v0.31.5.52).** Glass is ~4% of the walk view and was the last
   top-coverage class with no evidence behind it. `materialRealism.ts` documents transmission as
-  High/Maximum-only because it costs an extra render pass, but a comment is not evidence that a
+  `realistic`-only because it costs an extra render pass, but a comment is not evidence that a
   gate fires (meta-rule xvii), so `class-id.mjs` censused the same meshes on both sides of it:
 
   | surface | Medium (the default) | Maximum |

@@ -3,6 +3,29 @@
 
 Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 
+> **Tier vocabulary changed on 2026-09-03 (`v0.31.7.68`) — read this before any tier name below.**
+> The four rungs `performance` / `medium` / `high` / `maximum` were replaced by two **modes** and a
+> **device class** that scales whichever mode is active:
+>
+> | old rung | is now |
+> | --- | --- |
+> | `performance` | `performance` / `weak` |
+> | `medium` | `performance` / `capable` |
+> | `high` | `realistic` / `weak` |
+> | `maximum` | `realistic` / `capable` |
+>
+> The settings objects are **byte-identical** across that mapping (pinned in `quality.test.ts`
+> against hardcoded copies), so every measurement recorded below is still a fact about the build
+> that produced it and is still reachable today — just under a different name. **Measured numbers
+> in this file deliberately keep their original rung names**; rewriting them would misreport what
+> was run. Live *rules* use the new vocabulary.
+>
+> Two traps that follow from the mapping. First, `medium` became a *device variant of
+> `performance`*, not its own mode — so any gate written as `tier === 'performance'` now catches
+> what used to be Medium, which is how `shadowFilterForTier` nearly lost soft shadows for most
+> users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
+> the **device class**, never the mode: the mode is user intent.
+
 - **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — three rules that are
   load-bearing, all measured.** They correct the fill's *visibility-blindness*: every surface
   currently gets the same skylight whether or not it can see the sky, which is a ~3× error on a
@@ -202,7 +225,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     `object.layers.test(camera.layers)` in `projectObject` — that is the CAMERA's layers, so
     per-room light layers only work with a render pass per room, which costs more than it saves.
 - **Coincident same-kind fixtures merge on the low tiers** (`fixtureLights.ts:
-  aggregateFixtureLights`, `quality.mergeCoincidentLights`, on for Performance/Medium). A
+  aggregateFixtureLights`, `quality.mergeCoincidentLights`, on in every mode and class). A
   false-ceiling downlight grid is several identical bulbs 0.6–0.8 m apart that read as one
   source, and each costs a full BRDF per fragment. The rule is deliberately narrow — same
   `defId`, same bulb colour, never an IES spot, within `MERGE_RADIUS_M` (1.0 m) of the
@@ -213,7 +236,9 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   rearranged for performance, which is the thing this whole area is not allowed to do.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
-  High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
+  `realistic` only, at either device class (`mirrorReflectorConfig(tier, device)` is the pattern —
+  it takes the class too, because the reflection resolution is what used to distinguish High from
+  Maximum).
 - **Orbit + the room editor run the full walk-mode lighting simulation** (ORBIT-CEILING,
   replaces the retired ORBIT-DOLLHOUSE flat-fill). The graded sun, PCF sun shadows, day/night
   exposure grading, and day-ramped bloom apply in every view mode at every tier (still gated by
@@ -229,7 +254,8 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **The sun shadow map is FROZEN when nothing that shapes it changes (PERF-MAX-1).** The
   directional shadow frustum is centred on the plan, NOT the camera, so a pure camera orbit /
   turntable auto-rotate / walk produces an identical depth map every continuous frame —
-  re-rendering the up-to-4096² map (Maximum; 2048² High, 1024² Medium) each frame is pure waste
+  re-rendering the up-to-4096² map (`realistic`/capable; 2048² realistic/weak, 1024²
+  performance/capable) each frame is pure waste
   (sun shadows are the profiler's #2 cost). `Lighting.tsx` sets the sun light's
   `shadow.autoUpdate = false` and only sets `shadow.needsUpdate = true` when the map can actually
   change: the day/night tween is easing (`!settled`), the light just (re)mounted, boot/warmup

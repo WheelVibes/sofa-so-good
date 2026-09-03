@@ -967,17 +967,36 @@ same change that reshapes a system.
   styling pass: up to 2 `noClip` decor props per host surface (sofa→cushions, coffee
   table→bowl/magazines, bed→cushions, nightstand→plant/candle, desk→plant/books,
   sideboard/console→frames/sculpture). Skip via `withDecor=false`.
-- **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
-  Maximum. **The boot tier is capability-detected** (TIER-AUTODETECT, `tierForCapabilities`,
-  pure + unit-tested) is now only a best-effort **veto** — software rasteriser / phone-tablet /
-  no-WebGL2 / <4 cores → Performance, everything else → High meaning "no opinion". The tier is
-  actually chosen by MEASURING frames (`scene/adaptiveTier.ts` + `scene/frameCost.ts`,
-  TIER-ADAPTIVE): first visit boots `initialAutoTier` (conservative Medium), then the ladder steps
-  both ways on p90 render COST per displayed frame (never frame rate — under `frameloop="demand"`
-  rate measures demand, not capability, and vsync clamps it). Promotion is a probe; oscillation is
-  prevented by a persisted learned ceiling (`autoMaxTier` = the rung that failed). **Maximum is
-  never auto-selected.** Measured p90 cost at 2560x1600: performance 4.7ms / medium 6.0 / high 8.9
-  / maximum 11.7, budget 16.7ms (`scripts/dev-probes/frame-time.mjs`).
+- **Quality: two modes × two device classes** (`quality.ts`, `v0.31.7.68`). `RenderTier` =
+  **Performance | Realistic** — what the user wants — and `DeviceClass` = **weak | capable** —
+  what the machine can take. The mode is *intent*; the class *scales* it. This replaced the four
+  rungs Performance/Medium/High/Maximum, which conflated the two questions and had stopped
+  ordering correctly (measured in walk mode, `high` held 25.1 fps while `maximum` swung 10.9–41.7,
+  so a lower rung was sometimes slower than a higher one).
+  - **The four reachable settings objects ARE the four retired presets, byte-identical**:
+    `performance`/weak = old Performance, `performance`/capable = old **Medium**,
+    `realistic`/weak = old High, `realistic`/capable = old Maximum. Pinned in `quality.test.ts`
+    against hardcoded copies (not regenerated from the table, which would be tautological), plus
+    an assertion that exactly four *distinct* objects are reachable. Verified end-to-end too:
+    re-rendering one pose across the change gave 0.008 counts of mean difference against old
+    Medium and 0.159 against old Maximum.
+  - **Boot** is `BOOT_TIER` = Performance on every device — a constant, because Realistic costs
+    more per frame and is never assumed on a user's behalf. Capability detection
+    (`deviceClassFor`, pure + unit-tested) picks the *class*: software rasteriser / phone-tablet /
+    no-WebGL2 / <4 cores → weak, everything else → capable. A capable machine therefore still
+    boots with sun shadows and the IBL probe, exactly as the old Medium boot did.
+  - **The adaptive ladder moves the CLASS, never the mode** (`scene/adaptiveTier.ts` +
+    `scene/frameCost.ts`, TIER-ADAPTIVE), on p90 render COST per displayed frame — never frame
+    rate, since under `frameloop="demand"` rate measures demand, not capability, and vsync clamps
+    it. Promotion is a probe; oscillation is prevented by a persisted learned ceiling
+    (`autoMaxDevice` = the class that failed). Each demotion maps onto an old one:
+    `performance`/capable→weak *is* the old Medium→Performance step.
+  - **Gate on the SETTING, not the mode name.** `medium` became a device variant of
+    `performance`, so `tier === 'performance'` now catches what used to be Medium — which nearly
+    cost most users their soft shadows via `shadowFilterForTier`. It keys on `shadowMapSize > 0`.
+  - Measured p90 cost at 2560x1600 on the retired rungs, still the four reachable variants:
+    performance 4.7ms / medium 6.0 / high 8.9 / maximum 11.7, budget 16.7ms
+    (`scripts/dev-probes/frame-time.mjs`).
   Performance is flat (no shadows/IBL/post, DPR 1);
   Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+**ToneMapping**+HueSat+Vignette+SMAA);
   Maximum=+cinematic
@@ -1100,7 +1119,7 @@ same change that reshapes a system.
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
-  transmission (High/Maximum) vs cheap transparency (Performance/Medium). `GLOSSY_ENV_INTENSITY`
+  transmission (`realistic`) vs cheap transparency (`performance`). `GLOSSY_ENV_INTENSITY`
   boosts IBL on glossy finishes (free on Performance — no IBL there).
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps

@@ -146,7 +146,7 @@ build one in the browser:
   soft glow of velvet/satin), **Clearcoat** (a lacquer gloss film), **Transmission** (see‑through
   glass, with **Index of refraction** + **Thickness**) and **Anisotropy** (a brushed‑metal
   highlight, with a **Brush angle**). *Glass see‑through only shows in the preview on the
-  High/Maximum graphics tiers, but it always exports correctly.*
+  Realistic graphics mode, but it always exports correctly.*
 - **Texture scale & grain** — once a texture is set, a **Texture** section appears: **Scale**
   (0.25×–4×) makes the pattern coarser or finer, and **Grain** (**Along X** / **Along Z**) turns the
   grain a quarter‑turn so wood runs along the length you want. Both are baked into the saved asset.

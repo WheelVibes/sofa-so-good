@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.69 — docs follow the tier collapse: live rules rewritten, measured history left alone
+
+The documentation half of `.68`, and the interesting decision is what **not** to change.
+
+`src/scene/CLAUDE.md` alone had 46 mentions of the retired rungs, and most of them are
+**measurements** — "at Maximum the 19 fixtures cost 9.75 ms", "`frame-time.mjs` reads medium p90
+8.3 ms". Rewriting those to the new vocabulary would misreport what was actually run. So they keep
+their original rung names, and each affected doc gains a **translation block** stating the mapping
+and, crucially, that the settings objects are byte-identical across it — which is what makes an old
+measurement still reachable today under a new name rather than merely historical.
+
+**Live rules did get rewritten**, because a present-tense gate in the old vocabulary is just wrong:
+
+- `mirrorReflectorConfig(tier)` → `(tier, device)` — it takes the class now, because reflection
+  resolution is what used to distinguish High from Maximum.
+- POM floors: "High/Maximum only" → "`realistic` only, step budget 16 on weak / 32 on capable".
+- Fixture-light merging: "on for Performance/Medium" → on everywhere (it already was; the doc was
+  stale from before the profiler reversed that decision).
+- Shadow-map sizes: "4096² Maximum; 2048² High, 1024² Medium" → named by mode/class.
+- Glass, mirrors and transmission gates in `src/furniture/CLAUDE.md` and `src/materials/CLAUDE.md`.
+
+**`docs/ARCHITECTURE.md`'s quality section is replaced outright**, since it described the
+four-rung ladder and the retired `initialAutoTier`/`autoMaxTier`/"Maximum is never auto-selected"
+machinery — none of which exists. The new text states both axes, the parity table, the boot
+constant, that the ladder moves the class and never the mode, and the trap that `tier ===
+'performance'` now catches what used to be Medium.
+
+**User-facing docs say "Realistic", not "High/Maximum".** `tips-and-faq.md` promised mirrors "on
+the High and Maximum graphics tiers" and pointed at a control that no longer has those settings —
+the one class of doc error a user can actually hit.
+
+`docs/visual-verification-playbook.md` gets the note rather than a rewrite: its `TIER=` values
+changed, but its recorded numbers are still reproducible.
+
+Dated research notes and superpowers plans are **deliberately untouched** — they are history, and
+this arc's convention is that history records what was true when it was written.
+
+Suite **10081 green**, `tsc`, biome and `knip` clean.
+
 ## v0.31.7.68 — four render tiers become two modes × two device classes, with parity proved rather than asserted
 
 `high` and `maximum` are gone, along with `medium`. There are now two **modes** — `performance` and
