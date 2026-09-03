@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.109 — `--per-map-scale` and `--bit-depth 8`: ~6x smaller maps, and a correction to `.104`'s reasoning
+
+Size is the shipping blocker, not look. At 127 kB per 256 px map a 333-map set is **~42 MB**, and more
+samples do not help: the 4096-sample maps compress no better than the 1024-sample ones, because
+16-bit smooth gradients are simply high-entropy to PNG.
+
+**`.104` argued against a per-map scale and the argument was wrong.** It said per-map normalisation
+"would destroy the between-mesh ratios that are the entire point of a GI bake". That is only true if
+the consumer applies **one** factor to maps that were normalised **differently**. When the divisor
+travels *with the map* and is re-applied *per material*, the ratios are reconstructed exactly — and
+the index already had per-entry structure to carry it. Recording the correction because the reasoning
+was stated confidently and shaped two rounds of work.
+
+**Producer.** `--per-map-scale` divides each map by its own maximum (×1.02 headroom, and a map that
+baked to all zeros keeps 1 rather than dividing by zero) and writes that divisor into the map's index
+entry. `--bit-depth 8` is produced by copying the finished pixels into a fresh **non-float** image and
+saving that — `Image.save()` reads the buffer, not `scene.render.image_settings` (`.108`), so a float
+image is always 16-bit and there is no flag for it.
+
+**Consumer.** `LightmapEntry.scale` takes precedence over the index-level `scale`, resolved through a
+new `scaleFor(key, ctx)` and multiplied in **per material** rather than once for the set. `0`, a
+negative, `NaN` and `Infinity` are refused rather than treated as 1.
+
+**Measured**, 8 maps at 256 px, `--per-map-scale --bit-depth 8`:
+
+| | |
+| --- | --- |
+| bit depth | **8**, verified from the header |
+| per-entry scales | 3.028 – 3.045, recorded |
+| size | **22–46 kB** vs 127 kB — ~3–6× |
+
+**The honest caveat: per-map scale bought almost no precision in this scene.** Every map's maximum
+lands within 0.6 % of the others (3.028–3.045), because they are all pinned by the same
+window-lit brightness, so the 8-bit step is ~0.0119 against a global scale's ~0.0131 — a 9 %
+improvement, not the order of magnitude the mechanism allows. **The size win is real and stands on its
+own; the precision argument did not materialise here.** Against a median map mean of 0.049 the step is
+still ~24 % of the typical value, which is a genuine risk to the dark maps and is **not yet visually
+tested**. An 8-vs-16-bit A/B on a full set is the next measurement, and it must be a look at the
+frame — `.107` and `.108` both showed `ceiling/wall` returning 0.96 across visually distinct results,
+so the region metric cannot arbitrate this.
+
+Three new cases: the entry scale wins over the index-level one (3 × 2 = 6, not 100 × 2), absence falls
+back to the index level, and an unusable per-map scale is refused. Suite **10119 green**, `tsc` and
+biome clean.
+
 ## v0.31.7.108 — `--texels-per-metre`: constant density fixes the artefact's SCALE, and exposes that the noise was undersampling. Two flags were inert.
 
 `.107` refuted a constant `--res 64`. This adds resolution **per object**, proportional to its size,

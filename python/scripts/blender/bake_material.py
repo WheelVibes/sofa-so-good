@@ -115,6 +115,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "walls read as blotchy cloud because a whole wall face gets 21x32 texels. "
                         "Rounded UP to a power of two and clamped to [--res-min, --res]. 28 is the "
                         "density the good-looking 256 px set actually had.")
+    p.add_argument("--per-map-scale", action="store_true",
+                   help="divide each map by ITS OWN maximum and record that divisor in the map's "
+                        "index entry, instead of one global --scale for the set. This is what "
+                        "makes 8-bit output usable: with a global scale the set's brightest texel "
+                        "sets the step for every map, and measured across 333 maps the global max "
+                        "is 3.33 while the MEDIAN map's mean is 0.049 -- a step of 72 % of the "
+                        "typical value. Per map the step is ~0.4 % of that map's own maximum. "
+                        "v0.31.7.104 argued against this on the grounds that per-map "
+                        "normalisation destroys between-mesh ratios; that was WRONG, because the "
+                        "divisor travels with the map and is re-applied per material, so the "
+                        "ratios are reconstructed exactly. It only breaks if the consumer applies "
+                        "one factor to all of them, which is what the index entry prevents.")
+    p.add_argument("--bit-depth", type=int, default=16, choices=(8, 16),
+                   help="PNG bit depth. `Image.save()` writes 16-bit for any FLOAT image and "
+                        "ignores scene.render.image_settings, so 8-bit is produced by copying the "
+                        "finished pixels into a fresh non-float image -- there is no flag for it. "
+                        "8-bit is ~8x smaller (a 256 px map goes ~127 kB -> ~16 kB) and needs "
+                        "--per-map-scale to be worth using.")
     p.add_argument("--res-min", type=int, default=32,
                    help="floor for --texels-per-metre. Tiny trims still need a slot each.")
     p.add_argument("--scale", type=float, default=1.0,
@@ -473,6 +491,8 @@ def bake_object(
     interior_slots: set[tuple[int, int]] | None = None,
     encode: float = 1.0,
     scale: float = 1.0,
+    per_map_scale: bool = False,
+    bit_depth: int = 16,
     denoise: bool = False,
     float_buffer: bool = False,
     dilate: int = 4,
@@ -540,6 +560,11 @@ def bake_object(
     # hide the clipping this flag exists to prevent.
     pre = list(img.pixels)[0::4]
     pre_max = max(pre) if pre else 0.0
+    # PER MAP, the divisor is this map's own maximum with a little headroom, so the top of the
+    # 8-bit range is actually used. A map that baked to all zeros keeps scale 1 rather than
+    # dividing by zero.
+    if per_map_scale:
+        scale = (pre_max * 1.02) if pre_max > 0 else 1.0
     if scale != 1.0:
         px_all = list(img.pixels)
         for i in range(len(px_all)):
@@ -560,9 +585,20 @@ def bake_object(
     # is not an option -- it applies the scene's colour management, and this is deliberately
     # Non-Color data, which is the exact corruption the long comment above guards against.
     # Removed rather than left inert; a flag that silently does nothing is worse than no flag.
-    if scale != 1.0:
-        bpy.context.scene.render.image_settings.color_depth = "16"
-    img.save()
+    if bit_depth == 8:
+        # The ONLY way to get 8 bits out of a float bake: `Image.save()` reads the buffer, not the
+        # scene settings, so a float image is always 16-bit. Copy the finished pixels into a fresh
+        # non-float image and save that instead. Done last, after dilate and the scale divide, so
+        # the single quantisation still happens at save time.
+        flat = bpy.data.images.new(f"flat_{obj.name}", width=res, height=res, float_buffer=False)
+        flat.colorspace_settings.name = "Non-Color"
+        flat.pixels[:] = list(img.pixels)
+        flat.filepath_raw = out_path
+        flat.file_format = "PNG"
+        flat.save()
+        bpy.data.images.remove(flat)
+    else:
+        img.save()
     # EVERY statistic below is PRE-SCALE, in the bake's own units. One convention throughout, or
     # `--scale` would silently change the meaning of the numbers you use to choose `--scale`.
     reds = pre
@@ -572,6 +608,9 @@ def bake_object(
         # Loud, per map, because the failure is invisible in the saved file: a clipped map looks
         # like a plausible bright one. 20 of 24 maps in the v99 irradiance set tripped this.
         "clipped": pre_max / scale > 1.0,
+        # The divisor this map was actually written with -- identical to `--scale` for a global
+        # run, this map's own maximum under `--per-map-scale`. The consumer needs THIS number.
+        "scale": round(scale, 6),
         "mean": round(sum(reds) / len(reds), 4),
     }
     # Interior-only statistics. The whole-map figures above are dominated by outdoor-facing
@@ -738,6 +777,8 @@ def main(argv: list[str] | None = None) -> int:
                 interior_slots=interior_slots,
                 encode=a.encode,
                 scale=a.scale,
+                per_map_scale=a.per_map_scale,
+                bit_depth=a.bit_depth,
                 denoise=a.denoise,
                 float_buffer=a.float_buffer,
                 dilate=a.dilate,
@@ -797,7 +838,12 @@ def main(argv: list[str] | None = None) -> int:
          # black because the lookup landed on the empty mirror row. Recording the
          # occupancy lets the consumer ASK rather than re-derive a convention
          # neither side controls.
-         "slots": o.get("interior_slots") or []}
+         "slots": o.get("interior_slots") or [],
+         # PER-MAP divisor. Present on every entry, equal to the global `--scale` unless
+         # `--per-map-scale` was used. The consumer multiplies by THIS in preference to the
+         # index-level value, which is what keeps between-mesh ratios exact when each map was
+         # normalised to its own maximum.
+         "scale": o.get("scale", 1.0)}
         for o in baked
         if "out" in o
     ]

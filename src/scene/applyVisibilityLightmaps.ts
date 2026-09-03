@@ -166,7 +166,7 @@ export function applyLightmapsFromIndex(
   // conversion recorded by the producer, the other is a fitted look constant, and collapsing them
   // is how `v0.31.7.104`'s clipped set came to be "explained" by a gain of ~14.
   const scale = index.scale ?? 1
-  const planGain = scale * (gain ?? gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined))
+  const baseGain = gain ?? gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined)
   let applied = 0
   // Faces relocated to the mirror atlas row because the bake put the data there.
   let flippedFaces = 0
@@ -207,7 +207,12 @@ export function applyLightmapsFromIndex(
       if (conflicts > 0) continue
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
-    applyVisibilityLightmap(o.material as never, loadTexture(url), planGain, debug, mode)
+    // PER MAP, not once for the set. Under `--per-map-scale` each map is normalised to its own
+    // maximum, so a single factor would rescale every mesh by the wrong amount and flatten the
+    // between-mesh ratios a GI bake exists to carry. The entry's own divisor wins; the
+    // index-level one is the fallback for a globally scaled set.
+    const mapGain = (resolver.scaleFor(key, ctx ?? '') ?? scale) * baseGain
+    applyVisibilityLightmap(o.material as never, loadTexture(url), mapGain, debug, mode)
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
       // handed to compare its `uv1` against that map's texels, and the texture

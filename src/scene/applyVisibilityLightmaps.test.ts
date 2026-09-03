@@ -249,3 +249,66 @@ describe('mode threading (v0.31.7.89)', () => {
     expect((w.material as MeshStandardMaterial).customProgramCacheKey()).toContain(':replace')
   })
 })
+
+describe('per-map scale', () => {
+  it('uses the ENTRY scale in preference to the index-level one', () => {
+    // Under `--per-map-scale` every map is normalised to its own maximum, so applying one
+    // factor to all of them flattens exactly the between-mesh ratios a GI bake carries.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    const parsed = parseLightmapIndex({
+      version: 2,
+      pass: 'irradiance',
+      uv: 'box-atlas-3x2',
+      scale: 100,
+      maps: [{ key: keyOf(w), file: 'a.png', ctx: CTX, scale: 3 }],
+    })
+    if (!('index' in parsed)) throw new Error('bad fixture')
+    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 2, mode: 'replace' })
+    const shader = {
+      uniforms: {} as Record<string, { value: number }>,
+      vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+      fragmentShader:
+        'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+    }
+    ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
+    // 3 (the map's own) x 2 (gain) -- NOT 100 x 2.
+    expect(shader.uniforms.visGain.value).toBe(6)
+  })
+
+  it('falls back to the index-level scale when the entry has none', () => {
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    const parsed = parseLightmapIndex({
+      version: 2,
+      pass: 'irradiance',
+      uv: 'box-atlas-3x2',
+      scale: 5,
+      maps: [{ key: keyOf(w), file: 'a.png', ctx: CTX }],
+    })
+    if (!('index' in parsed)) throw new Error('bad fixture')
+    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 2, mode: 'replace' })
+    const shader = {
+      uniforms: {} as Record<string, { value: number }>,
+      vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+      fragmentShader:
+        'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+    }
+    ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
+    expect(shader.uniforms.visGain.value).toBe(10)
+  })
+
+  it('REFUSES an unusable per-map scale rather than treating it as 1', () => {
+    for (const bad of [0, -1, Number.NaN]) {
+      const r = parseLightmapIndex({
+        version: 2,
+        pass: 'irradiance',
+        uv: 'box-atlas-3x2',
+        maps: [{ key: 'k', file: 'a.png', ctx: CTX, scale: bad }],
+      })
+      expect('error' in r, `scale ${String(bad)} should be refused`).toBe(true)
+    }
+  })
+})

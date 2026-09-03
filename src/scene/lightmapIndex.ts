@@ -58,6 +58,15 @@ interface LightmapEntry {
    * it always did.
    */
   slots?: [number, number][]
+  /**
+   * This map's own divisor, taking precedence over the index-level `scale`.
+   *
+   * Per-map normalisation is only safe because this travels WITH the map and is re-applied per
+   * material — the between-mesh ratios are reconstructed exactly. `v0.31.7.104` argued the
+   * opposite and was wrong; what breaks ratios is one factor applied to maps normalised
+   * differently, which is precisely what this field prevents.
+   */
+  scale?: number
 }
 
 export interface LightmapIndex {
@@ -160,12 +169,21 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
             Array.isArray(s) && s.length === 2 && s.every((n) => typeof n === 'number'),
         )
       : undefined
+    // Same validation as the index-level scale: 0, negative, NaN and Infinity are refused
+    // rather than silently treated as 1, which would misread the map by the real factor.
+    if (
+      m.scale !== undefined &&
+      (typeof m.scale !== 'number' || !(m.scale > 0) || !Number.isFinite(m.scale))
+    ) {
+      return { error: `map ${m.key} has an unusable scale ${String(m.scale)}` }
+    }
     maps.push({
       key: m.key,
       file: m.file,
       ctx: m.ctx,
       object: m.object,
       area: m.area,
+      ...(typeof m.scale === 'number' ? { scale: m.scale } : {}),
       ...(slots?.length ? { slots } : {}),
     })
   }
@@ -211,6 +229,8 @@ export interface LightmapResolver {
   urlFor(key: string, ctx: string): string | null
   /** The slots that map filled, or `null` when the index predates the field. */
   slotsFor(key: string, ctx: string): [number, number][] | null
+  /** That map's own divisor, or `null` to fall back to the index-level `scale`. */
+  scaleFor(key: string, ctx: string): number | null
   /** `{ looked, hit, missed, rate }` — `rate` is `hit / looked`, or 0 before any lookup. */
   stats(): { looked: number; hit: number; missed: number; rate: number }
   /**
@@ -236,6 +256,11 @@ export function createLightmapResolver(
   minLookupsToJudge = 20,
 ): LightmapResolver {
   const byCtxKey = new Map(index.maps.map((m) => [`${m.ctx}/${m.key}`, m.file]))
+  const scaleByCtxKey = new Map(
+    index.maps
+      .filter((m) => typeof m.scale === 'number')
+      .map((m) => [`${m.ctx}/${m.key}`, m.scale as number]),
+  )
   const slotsByCtxKey = new Map(
     index.maps
       .filter((m) => Array.isArray(m.slots) && m.slots.length > 0)
@@ -277,6 +302,9 @@ export function createLightmapResolver(
         return null
       }
       return best
+    },
+    scaleFor(key, ctx) {
+      return scaleByCtxKey.get(`${ctx}/${key}`) ?? null
     },
     slotsFor(key, ctx) {
       return slotsByCtxKey.get(`${ctx}/${key}`) ?? null
