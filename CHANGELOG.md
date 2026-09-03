@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.44 — room names the app could not read: 11 contradictions, one ordering bug
+
+Third sweep in the same series, this time over room categories: where a template
+AUTHORS a category, does the room's own name imply the same thing? **11
+contradictions.** Reading them, almost none were authoring errors — they were gaps
+in `roomCategoryFromName`, which matters because a room with no authored category
+falls back to it, and that is exactly the position a USER-drawn room is in.
+
+- **An ordering bug.** `tpl-hdb-exec`'s "Bedroom 2 Hall" resolved to `living`,
+  because the living rule matches `hall` before the bedroom rule ran. An explicit
+  "bedroom" now wins over every rule below it.
+- **`stair` / `landing` were circulation the app read as a living hall.** Five rooms
+  across three templates ("Stair Hall", "Stair Landing", "Stairs"). They now infer
+  `foyer`, alongside the existing foyer/entry/corridor terms — the `hall` arm stays
+  HDB parlance for a living/dining hall, which is why these needed their own rule
+  rather than a change to that one.
+- **`suite`** ("Grandparent Suite") and **"Family Area"** (three templates) fell
+  through to `other`. `family` alone now matches, not just `family room`.
+
+One room's resolved category actually changed as a result — `tpl-loft`'s "Stairs",
+which carries no authored category, from `other` to `foyer` — and it gains **5
+pieces of furniture**, because `other` seeds nothing. Item total 1432 → **1437**,
+back where this whole series started, with every plan fixed along the way.
+
+**A rule I had to narrow after measuring it.** A bare `sleep` test picked up
+`tpl-condo-studio`'s "Living / Sleeping" and turned a living space into a bedroom,
+costing that template three pieces. It is now `sleeping (loft|area|nook|zone)`, and
+both the case it must catch and the case it must not are in
+`roomCategory.test.ts` — along with "Hall" on its own, which must stay `living`.
+
+Verified: 10131 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.43 — the same sweep for doors, and it caught two I had introduced myself
 
 Extended last release's naming sweep to doors: does a door called `<room>-door`

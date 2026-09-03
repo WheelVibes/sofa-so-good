@@ -96,6 +96,17 @@ export function roomCategoryFromName(name: string | undefined): RoomCategory {
   // bare "master"/"main"/"primary" with no bed/room context is too
   // ambiguous and falls through instead of guessing.
   if (/(master|main|primary)\s*(bed\s?room|bed\b)/.test(n)) return 'masterBedroom'
+  // An explicit "bedroom" wins over EVERY rule below, including the `hall` arm
+  // of the living check: `tpl-hdb-exec`'s "Bedroom 2 Hall" resolved to `living`
+  // because `hall` matched first (measured v0.31.8.44). A `suite` is a bedroom
+  // too — "Grandparent Suite" had been falling through to `other`.
+  if (/bed\s?room/.test(n)) return 'bedroom'
+  if (/\bsuite\b/.test(n)) return 'masterBedroom'
+  // "Sleeping Loft" is a bedroom, but the rule has to be narrow: a bare `loft` is
+  // often the whole unit, and a bare `sleep` swallows `tpl-condo-studio`'s
+  // "Living / Sleeping", which is a living space and lost three pieces of
+  // furniture when it was miscategorised (measured v0.31.8.44).
+  if (/\bsleeping\s+(loft|area|nook|zone)\b/.test(n)) return 'bedroom'
   if (/\b(kitchen|kitchenette|pantry)\b/.test(n)) return 'kitchen'
   // Powder / WC (half-bath) before the general bath check.
   if (/(powder|\bwc\b)/.test(n)) return 'powder'
@@ -103,7 +114,10 @@ export function roomCategoryFromName(name: string | undefined): RoomCategory {
   if (/(stud(y|io\b)|home\s?office|\boffice\b|\bden\b|library)/.test(n)) return 'study'
   // Foyer / entrance / corridor — before the generic living check (a "Hall"
   // still reads as living per HDB parlance, per module doc).
-  if (/(foyer|\bentry\b|entrance|corridor|hallway)/.test(n)) return 'foyer'
+  // A STAIR hall or landing is circulation, not a living hall — the `hall` arm
+  // of the living check below is HDB parlance for a living/dining hall and must
+  // not swallow these.
+  if (/(foyer|\bentry\b|entrance|corridor|hallway|stair|landing)/.test(n)) return 'foyer'
   // Service yard / utility (washer, drying rack) before storeroom.
   if (/(\byard\b|service|utility|laundry)/.test(n)) return 'serviceYard'
   // Household shelter (the HDB civil-defence blast shelter) BEFORE the
@@ -116,7 +130,10 @@ export function roomCategoryFromName(name: string | undefined): RoomCategory {
   if (/(balcony|ledge|patio|\bbin\b)/.test(n)) return 'balcony'
   // 'living' is checked before 'dining' so a combined "Living / Dining" room
   // reads as living (the superset use) rather than dining-only.
-  if (/(living|lounge|family\s?room|great\s?room|hall)/.test(n)) return 'living'
+  // `family` alone, not just `family room`: "Family Area" is the name three
+  // templates use. `loft` covers "Sleeping Loft", which the bedroom rule above
+  // already catches when the name says bed — this is the bare form.
+  if (/(living|lounge|family|great\s?room|hall)/.test(n)) return 'living'
   if (/(dining|\bdine\b)/.test(n)) return 'dining'
   if (/(bed\s?room|\bbed\b|nursery|guest)/.test(n)) return 'bedroom'
   return 'other'

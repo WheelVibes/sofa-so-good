@@ -119,7 +119,10 @@ describe('dining chairs are tucked to their table', () => {
       // out there and then dropped).
       // 47 → 48 in v0.31.8.34: the bedroom/kitchen group gained its first door.
       'tpl-1bed': 48,
-      'tpl-loft': 44,
+      // 44 → 49 in v0.31.8.44: "Stairs" now infers `foyer` rather than `other`,
+      // so the room is furnished at all. It carries no authored category, which
+      // is exactly the case a user-drawn room is in.
+      'tpl-loft': 49,
       'tpl-condo-1bed': 44,
       'tpl-condo-1study': 53,
       // 68 → 67 in `.34`: bedroom 2's new door costs it a wardrobe. Its master
@@ -193,7 +196,8 @@ describe('dining chairs are tucked to their table', () => {
     // wall, which parks them in front of glass.
     // 1431 → 1433 in `.41`: `ex-bed2b`'s first window lets two pieces fit.
     // 1433 → 1432 in `.42`, the window-naming sweep: see the penthouse note above.
-    expect(total).toBe(1432)
+    // 1432 → 1437 in `.44`, an increase from one room: see the loft note above.
+    expect(total).toBe(1437)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal
