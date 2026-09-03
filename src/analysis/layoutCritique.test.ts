@@ -29,9 +29,40 @@ function item(id: string, defId: string, x: number, z: number): FurnitureItem {
   return { id, defId, position: [x, z], rotation: 0, props: {} } as unknown as FurnitureItem
 }
 
+/**
+ * A real TV fixture (v0.31.8.19). These tests previously used `tv-console` as
+ * "the TV", because the old `TV_RE = /^tv/` accepted it — so the fixtures
+ * encoded the bug: a media console with no screen was being measured for
+ * viewing distance. A TV is now selected by the authored screen capability (a
+ * `screenContent` enum in the paramSchema), which a console does not have.
+ */
+function tvDef(id: string, w: number): FurnitureDef {
+  return {
+    id,
+    name: id,
+    category: 'electronics',
+    kind: 'parametric',
+    primitive: 'FlatscreenTV',
+    defaultFootprint: { w, d: 0.08, h: w * 0.6 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'screenContent',
+        label: 'Screen',
+        default: 'landscape',
+        options: [{ value: 'landscape', label: 'Landscape' }],
+      },
+    ],
+  } as unknown as FurnitureDef
+}
+
 const defs: Record<string, FurnitureDef> = {
   'sofa-3seat': def('sofa-3seat', 2.1, 0.9),
   armchair: def('armchair', 0.8, 0.8),
+  // A 1.66 m wide 16:9 panel = 75" diagonal, matching the shipped `tv-wall`;
+  // its band is 2.29-3.05 m at 1.2-1.6x diagonal.
+  'flatscreen-tv': tvDef('flatscreen-tv', 1.66),
+  // Kept so the console can be asserted NOT to be measured as a screen.
   'tv-console': def('tv-console', 1.4, 0.4),
   'coffee-table': def('coffee-table', 1.1, 0.55),
 }
@@ -43,7 +74,7 @@ describe('buildLayoutCritique — TV viewing distance', () => {
   it('passes a seat inside the published 2.4-3.7 m band', () => {
     const c = buildLayoutCritique(
       plan(),
-      [item('s', 'sofa-3seat', 3, 1), item('t', 'tv-console', 3, 4)],
+      [item('s', 'sofa-3seat', 3, 1), item('t', 'flatscreen-tv', 3, 4)],
       defs,
     )
     expect(find(c, 'tv-distance').verdict).toBe('pass')
@@ -53,7 +84,7 @@ describe('buildLayoutCritique — TV viewing distance', () => {
   it('warns when the seat is too close to the screen', () => {
     const c = buildLayoutCritique(
       plan(),
-      [item('s', 'sofa-3seat', 3, 3), item('t', 'tv-console', 3, 4)],
+      [item('s', 'sofa-3seat', 3, 3), item('t', 'flatscreen-tv', 3, 4)],
       defs,
     )
     expect(find(c, 'tv-distance').verdict).toBe('warn')
@@ -65,7 +96,7 @@ describe('buildLayoutCritique — TV viewing distance', () => {
       [
         item('far', 'sofa-3seat', 3, 0.5),
         item('near', 'armchair', 3, 3.9),
-        item('t', 'tv-console', 3, 4),
+        item('t', 'flatscreen-tv', 3, 4),
       ],
       defs,
     )
@@ -187,7 +218,7 @@ describe('buildLayoutCritique — scoring', () => {
   })
 
   it('exposes its thresholds so a caller can cite them', () => {
-    expect(CRITIQUE.tvMin).toBe(2.4)
+    expect(CRITIQUE.tvDiagonalMin).toBe(1.2)
     expect(CRITIQUE.convBreakdown).toBe(3.05)
     expect(CRITIQUE.tableMin).toBe(0.36)
   })
@@ -425,5 +456,71 @@ describe('buildLayoutCritique — bed access', () => {
 
   it('skips when there is no bed', () => {
     expect(access([]).verdict).toBe('skipped')
+  })
+})
+
+/**
+ * **TV viewing distance is size-dependent, and the TV selector was wrong in both
+ * directions (v0.31.8.19).**
+ *
+ * The band was a flat 2.4–3.7 m from "position seating around 8 to 12 feet from
+ * the television", which ignores screen size even though the app knows every
+ * screen's width. The industry figures are angular, as diagonal multipliers:
+ * ~1.2x (THX/immersive, ~40°) to ~1.6x (SMPTE/relaxed, ~30°). Cross-checked: a
+ * 55" 4K is published at 5.5 ft THX / 7.3 ft SMPTE = 1.68–2.23 m, and 1.2–1.6x a
+ * 55" diagonal gives 1.68–2.24 m.
+ *
+ * And `TV_RE = /^tv/` matched `tv-console` — a media console with NO screen — while
+ * MISSING `flatscreen-tv`, an actual TV. One name regex measured furniture and
+ * ignored a real TV.
+ */
+describe('buildLayoutCritique — TV viewing distance is size-dependent', () => {
+  const tvAt = (screenW: number, seatDistance: number) => {
+    const local: Record<string, FurnitureDef> = {
+      ...defs,
+      'flatscreen-tv': tvDef('flatscreen-tv', screenW),
+    }
+    const items = [
+      item('tv', 'flatscreen-tv', 3, 0.5),
+      item('s', 'sofa-3seat', 3, 0.5 + seatDistance),
+    ]
+    return find(buildLayoutCritique(plan(), items, local), 'tv-distance')
+  }
+
+  it('passes a 55" TV at 2.0 m, which the old flat band called too close', () => {
+    // 55" => 1.397 m diagonal => 1.68–2.24 m. The old 2.4 m lower bound warned
+    // here, telling a user their correctly-placed TV was too near.
+    const f = tvAt(1.218, 2.0)
+    expect(f.verdict).toBe('pass')
+    expect(f.detail).toMatch(/55" screen wants 1\.6\d–2\.2\d m/)
+  })
+
+  it('warns the SAME 2.0 m distance for a 75" TV', () => {
+    // 75" => 1.905 m diagonal => 2.29–3.05 m. Identical geometry, different
+    // verdict — which is the whole point of making the band size-dependent.
+    expect(tvAt(1.66, 2.0).verdict).toBe('warn')
+  })
+
+  it('warns when the seat is too FAR for a small screen', () => {
+    // 3.2 m from a 55" TV is past even the relaxed 1.6x bound. A flat band with
+    // a 3.7 m ceiling passed this.
+    expect(tvAt(1.218, 3.2).verdict).toBe('warn')
+  })
+
+  it('does NOT measure a tv-console — it has no screen', () => {
+    // The old `/^tv/` selector reported a viewing distance to this console.
+    const f = find(
+      buildLayoutCritique(
+        plan(),
+        [item('c', 'tv-console', 3, 0.5), item('s', 'sofa-3seat', 3, 3.0)],
+        defs,
+      ),
+      'tv-distance',
+    )
+    expect(f.verdict).toBe('skipped')
+  })
+
+  it('DOES measure flatscreen-tv, which the old selector missed entirely', () => {
+    expect(tvAt(1.66, 2.6).verdict).toBe('pass')
   })
 })

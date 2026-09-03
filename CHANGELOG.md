@@ -27,6 +27,61 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.19 - TV viewing distance: a size-blind band, and a selector wrong in both directions
+
+Continued re-verifying the cited thresholds after `.18` found one recorded wrong.
+This one had two independent faults.
+
+**1. The band ignored screen size, which the app already knows.** It was a flat
+2.4-3.7 m from "position seating around 8 to 12 feet from the television". The
+industry figures are angular, expressed as diagonal multipliers: "immersive
+(THX-style, ~40 degrees): sit about 1.2 times the screen diagonal away; balanced:
+about 1.4 times; relaxed (SMPTE-style, ~30 degrees): about 1.6 times", and for 4K
+"you can sit at roughly 1.2 times the screen diagonal ... without seeing pixels".
+
+Cross-checked against published per-size figures rather than taken on one source:
+a 55" 4K is quoted at 5.5 ft THX / 7.3 ft SMPTE = 1.68-2.23 m, and 1.2-1.6x a 55"
+diagonal computes to 1.68-2.24 m. A 65" is quoted at 8.1 ft THX / 9.4 ft SMPTE =
+2.47-2.87 m against 1.98-2.64 m computed, so the multipliers sit slightly tighter
+than that source's near end — the band is generous there rather than falsely
+strict, which is the direction to err for a warning.
+
+The band now derives from each screen's own resolved width, so a resized TV
+re-bands itself, and the wording says which screen it is: "2.25 m from the nearest
+seat — a 75\" screen wants 2.29-3.05 m".
+
+**2. `TV_RE = /^tv/` was wrong in BOTH directions.** It matched `tv-console` — a
+media console with no screen, so the check reported a viewing distance to a piece
+of furniture — and it MISSED `flatscreen-tv`, an actual TV whose id does not start
+with "tv". One name regex measured the wrong thing and ignored the right one:
+exactly the class of mistake the rug anchor made with `rug-bedroom`.
+
+Selection now uses the authored screen capability (`isInteractableScreen` — a
+`screenContent` enum in the paramSchema), verified at runtime to be exactly
+`{tv-wall, flatscreen-tv, monitor}`. `monitor` is excluded deliberately: a desk
+monitor is viewed at arm's length, a different published standard, and it was not
+in scope before either. Logged in `TODO.md` rather than given the wrong band.
+
+**The test fixtures encoded the bug.** They used `tv-console` AS the TV, because
+the old regex accepted it — so 10 tests failed the moment the selector was
+corrected. They now use a real TV def, and one asserts the console is *not*
+measured.
+
+**A robustness bug the fixtures exposed.** `screenContentField` did
+`def.paramSchema.find(...)` with no array guard, and threw on a def that claims
+`kind: 'parametric'` without a schema. That path is reached with defs that never
+came from the builtin catalogue — a user-imported def is hydrated from JSON, and
+walk-mode aim calls it on every placed item — and `layoutCritique` explicitly
+promises never to throw on a malformed def. Hardened.
+
+**Measured effect on shipped content, stated precisely:** the authored flat now
+reports ONE tv-distance finding instead of two (the console one is gone), and
+`tpl-hdb-4room` flips pass -> warn at 3.47 m, correctly — that is past the relaxed
+30-degree figure for a 75". Every shipped TV is 1.66 m wide, so the size
+dependence does not vary across templates; its value is for a user who resizes a
+TV or places a smaller one, where the old band would have called an ideal 2.0 m
+viewing distance for a 55" too close.
+
 ## v0.31.8.18 - HDB's walkway figure was recorded wrong, in the permissive direction
 
 `TODO.md` asked for a walkway-width check and told me which number to use: the

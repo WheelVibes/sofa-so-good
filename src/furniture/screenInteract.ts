@@ -21,6 +21,13 @@ import type { FurnitureDef, FurnitureItem, ParamField, ParamProps } from './type
  *  (not a parametric def, or a parametric def with no screen surface). */
 function screenContentField(def: FurnitureDef): Extract<ParamField, { kind: 'enum' }> | null {
   if (def.kind !== 'parametric') return null
+  // `paramSchema` is required by the type, but this is reached with defs that
+  // did not come from the builtin catalogue — a user-imported def is hydrated
+  // from JSON, and the walk-mode aim path calls this on every placed item. A
+  // missing array threw here (v0.31.8.19), which `analysis/layoutCritique.ts`
+  // in particular must not allow: it promises never to throw on a malformed
+  // def. Treat an absent schema as "not a screen" rather than crashing.
+  if (!Array.isArray(def.paramSchema)) return null
   const field = def.paramSchema.find((f) => f.kind === 'enum' && f.key === 'screenContent')
   return field && field.kind === 'enum' ? field : null
 }

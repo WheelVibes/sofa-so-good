@@ -275,6 +275,15 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 (added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
 exact commit so it can — do not leave it to be discovered.
 
+- **[layout critique] A desk MONITOR has its own viewing-distance standard, and is currently
+  unchecked.** The TV check selects screens by the authored `screenContent` capability, which is
+  `{tv-wall, flatscreen-tv, monitor}`, and then deliberately excludes `monitor`: a 28" desk monitor
+  is viewed at roughly arm's length, not at 1.2-1.6x its diagonal, so applying the TV band would
+  replace one category error with another (it was NOT in scope before either — the old `/^tv/`
+  regex never matched it). Adding it properly means researching the monitor figure (viewing
+  distance and the ~15-20 degree vertical angle guidance) and giving it its own band. Small and
+  well-defined; just not the same rule.
+
 ## Hexagon tile setting-out — NOT MODELLED, and deliberately not faked (v0.31.8.16)
 
 Every other tile family now carries its researched product `moduleMm`, so the

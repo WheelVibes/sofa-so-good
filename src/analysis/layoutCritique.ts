@@ -43,6 +43,8 @@ import { itemFootprint } from '../collision/placement'
 import { allPlanRooms, allPlanWalls, roomAtItem } from '../floorplan/levels'
 import { type FloorPlan, type PlanRoom, type PlanWall, planRoomArea } from '../floorplan/types'
 import { OPENABLE_CABINET_PRIMITIVES } from '../furniture/cabinetOpen'
+import { resolveFootprintDims } from '../furniture/footprintDims'
+import { isInteractableScreen } from '../furniture/screenInteract'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { CLEARANCE } from '../layout/designRules'
 
@@ -59,8 +61,30 @@ const WALKWAY_OBSTACLE_AREA = 0.5
 /** Published thresholds, all metres. See the module header for sources. */
 export const CRITIQUE = {
   /** Screen-to-seat comfortable band. */
-  tvMin: 2.4,
-  tvMax: 3.7,
+  /**
+   * TV viewing distance as a multiple of the screen's DIAGONAL — the modern
+   * standard, and size-dependent (corrected v0.31.8.19).
+   *
+   * This was a flat 2.4-3.7 m band from "position seating around 8 to 12 feet
+   * from the television", which ignores screen size entirely even though the app
+   * knows every screen's width. The industry figures are angular, expressed as
+   * diagonal multipliers: "immersive (THX-style, ~40 degrees): sit about 1.2
+   * times the screen diagonal away; balanced: about 1.4 times; relaxed
+   * (SMPTE-style, ~30 degrees): about 1.6 times". For 4K "you can sit at roughly
+   * 1.2 times the screen diagonal ... without seeing pixels".
+   *
+   * Cross-checked against the published per-size figures: a 55" 4K "sits best at
+   * 5.5 feet (THX) or 7.3 feet (SMPTE)" = 1.68-2.23 m, and 1.2-1.6x a 55"
+   * diagonal (1.397 m) gives 1.68-2.24 m. A 65" is quoted at 8.1 ft THX / 9.4 ft
+   * SMPTE = 2.47-2.87 m against 1.98-2.64 m computed — the multipliers land a
+   * little tighter than that source's THX figure, so the band is if anything
+   * generous at the near end rather than falsely strict.
+   *
+   * The old flat band happened to suit the shipped 75" TV (2.29-3.05 m computed)
+   * and would have warned a user with a 55" TV sitting at an ideal 2.0 m.
+   */
+  tvDiagonalMin: 1.2,
+  tvDiagonalMax: 1.6,
   /** Facing-seat conversation band. */
   convMin: 1.8,
   convIdealMax: 2.4,
@@ -193,7 +217,6 @@ export interface LayoutCritique {
 }
 
 const SEATING_RE = /^(sofa|armchair)/
-const TV_RE = /^tv/
 const TABLE_RE = /^coffee-table/
 /** Pieces a rug is sized against. */
 /**
@@ -508,6 +531,44 @@ function frontClearance(
   return clearanceToward(item, def, fx, fz, others, walls, max)
 }
 
+/**
+ * A screen's rendered width (m) — the item's live resolved footprint width, so a
+ * user who resizes a TV gets a band that follows it.
+ */
+function screenWidth(item: FurnitureItem, def: FurnitureDef): number {
+  if (def.kind === 'parametric') {
+    return resolveFootprintDims(def, item.props, {
+      w: def.defaultFootprint.w,
+      d: def.defaultFootprint.d,
+    }).w
+  }
+  return def.defaultFootprint.w
+}
+
+/**
+ * Is this def a TV, for the viewing-distance check?
+ *
+ * **Was `TV_RE = /^tv/`, which was wrong in BOTH directions (v0.31.8.19).** It
+ * matched `tv-console` — a media console with no screen at all, so the check
+ * reported a "TV viewing distance" to a piece of furniture — and it MISSED
+ * `flatscreen-tv`, an actual TV whose id does not start with "tv". One name regex
+ * measured the wrong thing and ignored the right one; the same class of mistake
+ * as the rug anchor matching `rug-bedroom`.
+ *
+ * Selection now uses the authored screen capability (`isInteractableScreen` —
+ * true for a def whose `paramSchema` carries a `screenContent` enum), which is
+ * exactly {`tv-wall`, `flatscreen-tv`, `monitor`} and excludes the console by
+ * construction.
+ *
+ * `monitor` is then excluded deliberately: a desk monitor is viewed at roughly
+ * arm's length, which is a different published standard, and it is not in this
+ * check's scope today. Applying a TV band to a 28" desk monitor would replace
+ * one category error with another. Logged in `TODO.md`.
+ */
+function isTvScreen(def: FurnitureDef): boolean {
+  return isInteractableScreen(def) && def.id !== 'monitor'
+}
+
 export function buildLayoutCritique(
   plan: FloorPlan,
   items: FurnitureItem[],
@@ -521,10 +582,12 @@ export function buildLayoutCritique(
     return def?.defaultFootprint ? [{ it, def }] : []
   })
   const seating = resolved.filter((r) => SEATING_RE.test(r.it.defId))
-  const tvs = resolved.filter((r) => TV_RE.test(r.it.defId))
+  const tvs = resolved.filter((r) => isTvScreen(r.def))
   const tables = resolved.filter((r) => TABLE_RE.test(r.it.defId))
 
   // 1 — TV viewing distance, per TV, to its NEAREST seat in the same room.
+  //     The band is derived from THIS screen's diagonal (see `CRITIQUE`), so a
+  //     55" and a 75" are not judged against one number.
   if (tvs.length === 0 || seating.length === 0) {
     findings.push({
       id: 'tv-distance',
@@ -541,12 +604,18 @@ export function buildLayoutCritique(
         dist(centre(s.it), centre(tv.it)) < dist(centre(best.it), centre(tv.it)) ? s : best,
       )
       const d = dist(centre(nearest.it), centre(tv.it))
-      const verdict = d >= CRITIQUE.tvMin && d <= CRITIQUE.tvMax ? 'pass' : 'warn'
+      // 16:9 screen: diagonal = width x sqrt(1 + (9/16)^2). The width is the
+      // item's own resolved footprint width, so a resized TV re-bands itself.
+      const diagonal = screenWidth(tv.it, tv.def) * Math.sqrt(1 + (9 / 16) ** 2)
+      const near = diagonal * CRITIQUE.tvDiagonalMin
+      const far = diagonal * CRITIQUE.tvDiagonalMax
+      const verdict = d >= near && d <= far ? 'pass' : 'warn'
+      const inches = Math.round(diagonal / 0.0254)
       findings.push({
         id: 'tv-distance',
         label: 'TV viewing distance',
         verdict,
-        detail: `${d.toFixed(2)} m from the nearest seat (comfortable band ${CRITIQUE.tvMin}–${CRITIQUE.tvMax} m).`,
+        detail: `${d.toFixed(2)} m from the nearest seat — a ${inches}" screen wants ${near.toFixed(2)}–${far.toFixed(2)} m (1.2x diagonal immersive to 1.6x relaxed).`,
         roomName: room?.name,
       })
     }
