@@ -29,6 +29,58 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.52 — resolved: the 5-Room poses have no window in view, so they cannot measure dynamic range. Preflight check added
+
+`v0.31.7.51` downgraded four conclusions because the 5-Room references looked implausibly bright
+and neither a geometry hole nor albedo explained it. This round finds the cause, and it is not the
+references.
+
+**Three more explanations eliminated by measurement.**
+
+| candidate | measured |
+| --- | --- |
+| more/larger glazing floods the room | **less**: 20.6 m² (2.59 % of shell) against 30.9 m² (3.32 %) |
+| a wall faded to transparent by the app's own fade, captured at export | **no**: both exports carry only glazing at alpha 0.28, 20.4 m² vs 30.2 m² |
+| brighter finishes | **no** (`v0.31.7.51`): albedo 0.778 against 0.812 |
+
+**The actual cause is the pose.** The 5-Room views face a large near wall with a small window off
+to one side. Measured on the app's own raster, which needs no reference at all:
+
+| pose | p05 / median | aperture share in view |
+| --- | --- | --- |
+| 4-Room default | 40 / 120 | **0.70 %** |
+| 5-Room living | 42 / 121 | **0.03 %** |
+
+**A 23× difference in how much bright aperture is in frame.** A view dominated by mid-lit
+surfaces has little tonal range *by construction* — in physics and in the app alike — so
+comparing `p99/median` there measures the framing, not the renderer. The references were never
+wrong; they were answering a question those poses cannot ask.
+
+**So a matched pose is necessary and not sufficient**, which is a genuinely new rule for this
+arc. Every earlier framing lesson was about making the two renderers agree on *where the camera
+is*; this one is about whether that camera can see anything worth measuring.
+
+**`BLENDREF` now runs a pose preflight** and says so either way — it warns when the frame has no
+dark end (`p05 > 0.6 × median`) or no bright aperture (`< 0.5 %` of pixels at ≥2× median),
+naming which, and explains that both renderers will look flat regardless of fidelity. Judged on
+the raster, so it costs nothing and needs no reference. Verified against both poses above: the
+4-Room one passes, the 5-Room one is flagged for exactly the right reason.
+
+That is worth more than the conclusions it invalidated: a 35-minute bake and a reference render
+now cannot be spent on a pose that cannot support the comparison.
+
+**Status of the downgraded conclusions.** They stay downgraded, with the reason now known:
+`v0.31.7.47`'s 5-Room regression, `v0.31.7.48`'s −153 %/−270 %, `v0.31.7.49`'s 15× and
+`v0.31.7.50`'s predictor negative all rest on views with no aperture in frame. Re-testing them
+needs 5-Room poses that pass the preflight — cheap now that the check exists, and the honest
+prerequisite for saying anything about generalisation.
+
+One nuance kept rather than smoothed over: the app's 5-Room raster *does* have a dark end
+(p05 42) while its reference does not (p05 107). The preflight keys on the aperture because that
+is what `p99/median` depends on, but that disagreement is unexplained and remains open.
+
+`tsc`, biome clean; suite **10058 green**; flag off.
+
 ## v0.31.7.51 — ⚠️ the 5-Room references are anomalously bright, which puts three of the last four conclusions in doubt
 
 Testing the aperture-share predictor meant looking at the reference renders side by side, and the

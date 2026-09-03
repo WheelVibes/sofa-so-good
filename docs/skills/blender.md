@@ -374,6 +374,13 @@ the research docs.*
   reference agree with the artistic choice under test — the same failure the physical-sky
   decision avoids. Daylight-only on both sides, or real photometric lumen data; never a
   constant chosen to match.
+- **2026-09-03 — a matched pose is necessary and NOT sufficient: check the pose can measure what
+  you are measuring.** A view facing a large near wall with the window off-frame has little tonal
+  range *by construction*, in Cycles and in the app alike, so `p99/median` there measures the
+  framing. Measured: 0.70 % of the frame is bright aperture in a good pose against **0.03 %** in a
+  bad one, a 23× difference — and four conclusions drawn from the bad ones had to be downgraded.
+  `BLENDREF` now preflights the raster (no dark end, or no bright aperture) and warns before the
+  35-minute bake is spent.
 - **2026-09-03 — one room is not a validation, and a second one costs 37 seconds.** Every
   conclusion drawn against `bedroom3` at 13:00 was an n = 1 claim. Adding `livingDining`
   confirmed the highlight deficit (34 % and 45 % short) and **broke** the finding that the

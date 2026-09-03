@@ -2565,6 +2565,50 @@ if (process.env.BLENDREF) {
   } else {
     console.log(`  BLENDREF: no placed lights on -- light sets match the daylight-only reference`)
   }
+
+  // POSE QUALITY. A matched pose is necessary and not sufficient: a view dominated by one flat
+  // near surface has little tonal range BY CONSTRUCTION, in physics and in the app alike, so
+  // comparing them there measures the framing rather than the renderer. `v0.31.7.47`-`.51` drew
+  // four conclusions from two such poses -- the 5-Room references' darkest 5 % sat at 107 and 154
+  // against 22 and 42 for the informative ones -- and every one had to be downgraded.
+  //
+  // Judged on the RASTER, which is available here and needs no reference: if the app's own frame
+  // has no dark end and no bright aperture, neither will the reference, and the pair cannot say
+  // anything about dynamic range.
+  const poseQuality = await sharp(shot)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+    .then(({ data, info }) => {
+      const n = info.width * info.height
+      const lum = new Float64Array(n)
+      for (let i = 0; i < n; i += 1) {
+        lum[i] = 0.2126 * data[i * 3] + 0.7152 * data[i * 3 + 1] + 0.0722 * data[i * 3 + 2]
+      }
+      const sorted = Float64Array.from(lum).sort()
+      const q = (f) => sorted[Math.floor(f * (n - 1))]
+      const median = q(0.5)
+      let bright = 0
+      for (const v of lum) if (v >= 2 * median) bright += 1
+      return { p05: q(0.05), median, aperture: bright / n }
+    })
+  const shallow = poseQuality.p05 > 0.6 * poseQuality.median
+  const noAperture = poseQuality.aperture < 0.005
+  if (shallow || noAperture) {
+    console.log(
+      `  ** BLENDREF POSE WARNING: p05 ${poseQuality.p05.toFixed(0)} vs median ` +
+        `${poseQuality.median.toFixed(0)}, aperture ${(100 * poseQuality.aperture).toFixed(2)} % ` +
+        `-- ${shallow ? 'no dark end' : ''}${shallow && noAperture ? ' and ' : ''}` +
+        `${noAperture ? 'no bright aperture in view' : ''}. This pose cannot support a ` +
+        `dynamic-range comparison: it is dominated by mid-lit surfaces, so both renderers will ` +
+        `look flat regardless of fidelity. Pick a pose facing a window with some room depth.`,
+    )
+  } else {
+    console.log(
+      `  BLENDREF pose ok: p05 ${poseQuality.p05.toFixed(0)} / median ` +
+        `${poseQuality.median.toFixed(0)}, aperture ${(100 * poseQuality.aperture).toFixed(2)} %`,
+    )
+  }
 }
 const shotDown = await shotFor(FLOOR_PITCH)
 fs.writeFileSync(`${OUT}/frame.png`, shot)
