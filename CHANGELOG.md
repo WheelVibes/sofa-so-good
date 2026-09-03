@@ -29,6 +29,66 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.81 — the twilight fix, costed against ground truth: it needs BOTH the zenith luminance and the night fade, and it is a look change below ~20°
+
+Ten Cycles equirects at exact sun altitudes (−10° to +20°, 4 s each on the GPU, `--sun-dir`
+constructed per altitude rather than harvested from an hour, so the sweep is even). This is the
+ground truth a fix for `.80`'s black-sky bug has to hit.
+
+**Directly measured — no inversion, no fitting:**
+
+| sun alt | app's analytic level | Cycles displayed luma |
+| --- | --- | --- |
+| −10° | **0.0000** | 5.4 |
+| −8° | **0.0000** | 10.5 |
+| −6° | **0.0000** | 18.6 |
+| −4° | **0.0000** | 39.9 |
+| −2° | **0.0000** | **99.6** |
+| 0° | 0.0316 | 157.8 |
+| 2° | 0.0667 | 185.5 |
+| 10° | 0.1728 | 215.0 |
+| 20° | 0.2805 | 223.1 |
+
+Cycles gives a smooth twilight ramp that never reaches zero — 99.6 at −2°, still 5.4 at −10°. The
+app is identically zero from −2° down. That part needs no interpretation.
+
+**Derived, and stated as indicative rather than precise.** Fitting the app's level→displayed mapping
+from two measured anchors (level 1.6225 → 217.6, level 0.0527 → 66.9) gives `display ≈ 184.5·L^0.344`,
+and inverting it for each Cycles target gives the zenith luminance the app would need:
+
+| alt | required Yz | Preetham Yz | shortfall |
+| --- | --- | --- | --- |
+| 82° | 43.8 | 35.7 | 1.23× |
+| 20° | 38.2 | 6.17 | **6.2×** |
+| 5° | 29.2 | 2.49 | **11.7×** |
+| 0° | 14.0 | 0.695 | **20.1×** |
+| −2° | 4.89 | **−0.129** | ∞ |
+| −6° | 0.112 | −1.958 | ∞ |
+
+The inversion is ill-conditioned at the top (Cycles' displayed luma saturates — 223 at 20° against
+233.9 at 82°, so a 5 % display difference becomes a 15 % level difference), so treat the high-altitude
+ratios as indicative. The ones that matter are robust: **directly measured 2.65× displayed at +1.2°**
+in `.79`, and **exactly zero** below −2° here.
+
+**Three consequences for the fix, which is why this is a costing and not a patch:**
+
+1. **The deficit is not confined to twilight.** It grows monotonically as the sun descends — ~1.2× near
+   overhead, ~6× at 20° elevation, ~20× at the horizon. `.79`'s "noon is essentially correct" holds,
+   but noon in Singapore is the single most favourable altitude the model has.
+2. **Fixing `Yz` alone is insufficient.** At −8° and below, `night = (alt+8)/8` is exactly 0 and the
+   final `rgb * night` forces black whatever the zenith luminance says. Both terms have to move.
+3. **So it is a look change, not a bug fix, below ~20°.** Multiplying dusk brightness by 6–20× alters
+   the app's entire dawn/dusk appearance — the same class of change this arc has consistently put to a
+   look call, and a much larger one than the sky-catch or background-intensity questions.
+
+**What I would ship, and what I would not.** The **black** band (−2° to −8°) is indefensible at any
+setting — a negative luminance silently clamped to zero is not a look, and Cycles says 18.6–99.6
+there. That is worth fixing on its own. The **6–20× brightening from 20° down to the horizon** is a
+deliberate re-grade of golden hour and needs your eye, not my ratio.
+
+Suite **10083 green**, `tsc` and biome clean. Measurement only; the ten reference equirects are
+reproducible from `render_equirect.py --sun-dir` at the altitudes listed above.
+
 ## v0.31.7.80 — a BUG, found by reading the formula: the twilight sky is pure black for ~6° of sun altitude
 
 `.79` ended by noting that the two findings which held up came from reading code, and the three
