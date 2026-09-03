@@ -69,7 +69,10 @@ describe('dining chairs are tucked to their table', () => {
       PLAN_TEMPLATES.map((t) => [t.id, furnishPlanItems(t, movein, BUILTIN_CATALOG, {}).length]),
     )
     expect(counts).toEqual({
-      'tpl-hdb-2room': 49,
+      // 49 → 48 in v0.31.8.36: the living/dining trades its TV console for the
+      // front door, which used to open into the BATHROOM. Its master gains a
+      // wardrobe (it had none) now that its second, misplaced window is gone.
+      'tpl-hdb-2room': 48,
       // 67 → 66 in v0.31.8.31: Bedroom 2 trades its wardrobe for its first
       // window (item (h)); its 2.0 m south wall cannot take both.
       'tpl-hdb-3room': 66,
@@ -172,7 +175,9 @@ describe('dining chairs are tucked to their table', () => {
     // every room). Every door offset here was placed at a wall END after
     // mid-wall versions cost a queen bed, a kitchen counter and stove, and a
     // washing machine — measured per-def, then moved rather than ratcheted.
-    expect(total).toBe(1429)
+    // 1429 → 1428 in `.36`: the 2-room's TV console, traded for a front door
+    // that no longer opens into the bathroom.
+    expect(total).toBe(1428)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

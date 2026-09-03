@@ -27,12 +27,23 @@ export function hdb2Room(): FloorPlan {
       iwall('h2-bath-n', [3.7, 4.0], [W - T, 4.0]),
     ],
     openings: [
-      door('h2-main', 'h2-s', 1.2),
+      // MAIN-DOOR-ROOM (i): offset 1.2 on `h2-s` put the front door at x 4.7-3.8
+      // — inside the BATHROOM. `h2-s` runs east→west from x=5.9 and the living
+      // room lines offsets 2.4-5.7 of it. 3.5 (x 2.4-1.5) is the position that
+      // also leaves the living its TV console: at 2.6 and 4.6 the door's keep-out
+      // took the console wall, measured as 899 -> 898 and 896 items.
+      door('h2-main', 'h2-s', 2.6),
       door('h2-bed', 'h2-bed-s', 1.0),
       door('h2-bath', 'h2-bath-n', 0.6, 0.7),
-      window('h2-bed-win', 'h2-n', 1.2, 1.6),
+      // West end of the master's north frontage (was 1.2): with the master's
+      // SECOND window removed, its wardrobe had only this wall left and stood in
+      // front of the glass. At 0.3 the run x 1.9-3.2 stays clear for it.
+      window('h2-bed-win', 'h2-n', 0.3, 1.6),
       window('h2-kit-win', 'h2-n', 4.0, 1.2),
-      window('h2-liv-win', 'h2-w', 4.2, 1.4),
+      // `h2-w` runs south→north from z=6.3, so offset 4.2 sat at z 2.1-0.7 —
+      // inside the MASTER BEDROOM, which already has `h2-bed-win`, leaving the
+      // living/dining with no window at all. The living lines offsets 0.1-2.9.
+      window('h2-liv-win', 'h2-w', 0.8, 1.4),
     ],
     rooms: [
       room('h2-master', 'Master Bedroom', 0.2, 0.2, 3.1, 3.0, 'floor-wood-walnut', 'masterBedroom'),

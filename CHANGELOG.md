@@ -27,6 +27,42 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.36 — the dining-kit threshold is the wrong instrument; 2-room's front door fixed
+
+I proposed an area threshold for the dining kit last tick. **Measured first, and it
+does not hold up:** `tpl-hdb-2room`'s living/dining seats four chairs at **9.2 m²**
+today with no strand, so area does not predict fit — geometry does. A threshold set
+high enough to help a 13 m² re-plan (≥15 m²) would strip chairs from two rooms where
+they demonstrably work, to fix a room that does not exist yet. Dropped.
+
+That closes both routes to (f)'s option 1 for the tight HDB plans — the placement
+fallback costs items (v0.31.8.35), the kit threshold is the wrong tool — so those 8
+levels stay as they are and the 4/5-room/exec write-up stands.
+
+**Spent the tick on item (i) instead, and found two real defects in `tpl-hdb-2room`:**
+
+- its **front door opened into the BATHROOM** (offset 1.2 on `h2-s` = x 4.7-3.8);
+- its **living/dining had no window at all** — `h2-liv-win` sat at offset 4.2 on
+  `h2-w`, which runs south→north from z=6.3, putting it at z 2.1-0.7 **inside the
+  master**, which already had `h2-bed-win`.
+
+Both fixed. `KNOWN_MISPLACED_MAIN_DOORS` is down to a single entry.
+
+**The offset that reads best on paper is the wrong one.** Three positions on the
+living's frontage were measured: **3.5 loses the flat's dining TABLE altogether** —
+4 chairs and no table, the exact regression `diningChairTuck` exists to catch — 4.6
+costs three items, and 2.6 costs one. Took 2.6. Removing the master's second window
+also left its wardrobe standing in front of the remaining one until that window moved
+to the west end of its frontage.
+
+The furniture floor moves 899 → **898** for that one item: the living's TV console,
+traded for a front door that no longer opens into a bathroom and a living room that
+finally has a window. Per-def diff recorded, which is the only reason that guard has
+ever moved — and its comment now says explicitly that a PLACEMENT change may not move
+it, citing v0.31.8.35. The 2-room's master also GAINS a wardrobe it never had.
+
+Verified: 10126 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.35 — the naive dining-chair fallback is measured worse; the real fix is the kit
 
 Taking (f)'s option 1 myself — shrink the living and accept a smaller dining set,

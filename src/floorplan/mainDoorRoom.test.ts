@@ -23,7 +23,9 @@ import { pointInRoom } from './types'
  * front door opening into somebody's bedroom.
  */
 const KNOWN_MISPLACED_MAIN_DOORS = [
-  'tpl-hdb-2room/h2-main -> h2-bath',
+  // tpl-hdb-2room FIXED in v0.31.8.36 — `h2-main` 1.2 -> 3.5, out of the
+  // BATHROOM and into the living room, at the one offset on its frontage that
+  // also leaves the room its TV console.
   // tpl-hdb-4room FIXED in v0.31.5.115 — `h4-main`'s offset was mirrored and put
   // the front door inside the master bedroom. Corrected (6.4 -> 1.7).
   'tpl-hdb-5room/h5-main -> h5-master',

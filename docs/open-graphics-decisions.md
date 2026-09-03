@@ -303,6 +303,41 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.36 — an area threshold for the dining kit is the WRONG instrument; (i) 2-room fixed instead
+
+Last entry proposed reducing the dining kit for small combined living/dining rooms. **Measured
+first, and it does not hold up.** Every room that receives a dining set, smallest first:
+
+| area | room | kit |
+| --- | --- | --- |
+| 3.1 m² | `tpl-1bed/ob-dining` | diningRoom |
+| 5.8 m² | `tpl-condo-penthouse/cp-dining` | diningRoom |
+| 7.3 m² | `tpl-terrace-ground/ct-dining` | diningRoom |
+| **9.2 m²** | **`tpl-hdb-2room/h2-living`** | **living+dining** |
+| 11.1 m² | `tpl-1bed/ob-living` | living+dining |
+| 17.9 m² | `tpl-hdb-3room/h3-living`, `tpl-condo-1bed/c1-living` | living+dining |
+| … up to 38.6 m² | `tpl-hdb-exec/ex-living` | living+dining |
+
+**`h2-living` seats four chairs at 9.2 m² today, with no strand.** So area does not predict fit —
+geometry does. An area threshold set high enough to help a 13 m² re-plan (≥15 m²) would strip
+chairs from two rooms where they demonstrably work, to fix a room that does not exist yet. Dropped.
+
+That closes both routes to (f)'s option 1 for the tight HDB plans: the placement fallback costs
+items (v0.31.8.35) and the kit threshold is the wrong instrument. The 8 remaining levels stay as
+they are, and the 4-room/5-room/exec entry above stands as written.
+
+**Spent the tick on (i) instead, where two entries were still open.** `tpl-hdb-2room`'s front door
+opened into the **BATHROOM** (offset 1.2 on `h2-s` = x 4.7-3.8), and its living/dining had **no
+window at all** — `h2-liv-win` sat at offset 4.2 on `h2-w`, which runs south→north from z=6.3, so
+it was at z 2.1-0.7, inside the MASTER, which already had one. Both fixed. `KNOWN_MISPLACED_MAIN_DOORS`
+is down to one entry (`tpl-hdb-5room/h5-main -> h5-master`).
+
+Three door offsets were measured on the living's frontage, and the readable-on-paper one is wrong:
+**3.5 loses the flat's dining TABLE altogether** (4 chairs, no table — the exact regression
+`diningChairTuck` was written for), 4.6 costs three items, 2.6 costs one (the TV console). Removing
+the master's second window also left its wardrobe in front of the remaining one until that window
+moved to the west end of its frontage.
+
 ### v0.31.8.35 — the last 8 levels need a smaller dining set, and the naive fallback is measured worse
 
 Having decided to take (f)'s option 1 myself (shrink the living, accept a smaller dining set,

@@ -229,9 +229,18 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // alternatives were measured first: a narrower 1.0 m window, a deeper master
     // bath, and leaving the window out — none recovered the piece.
     //
-    // Do NOT lower this again for a placement failure. It exists to catch items
-    // being DELETED by a bug, and it still catches any multi-item regression.
-    expect(sweep().total).toBeGreaterThanOrEqual(899)
+    // 899 → 898 in v0.31.8.36, again a content trade with a per-def diff behind
+    // it: `tpl-hdb-2room`'s front door moves out of the BATHROOM into the living
+    // room, and its living/dining gets its first window (`h2-liv-win` had been
+    // sitting at z=2.1, inside the master, which already had one). The door's
+    // keep-out costs the living its TV console. Two other offsets were measured:
+    // 3.5 loses the flat's dining TABLE entirely, 4.6 costs three items.
+    //
+    // Do NOT lower this for a PLACEMENT change. That was tried in v0.31.8.35 — a
+    // last-resort dining-chair commit — and cost 24 items ignoring checks, or 2
+    // relaxing only keep-outs. Both were reverted, which is what this guard is
+    // for. It moves only for a content change whose per-def diff is recorded.
+    expect(sweep().total).toBeGreaterThanOrEqual(898)
   }, 30_000)
 
   it('cuts wall-hugging pieces stranded on the seed point from 20 to a handful', () => {
@@ -285,6 +294,10 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // `c2-balcony: outdoor-table` and `ob-dining: dining-table-4` stop being
     // centred because those rooms finally have a door to relate to. All five are
     // in CENTRE_IS_RIGHT. Dumped before this number was touched.
-    expect(sweep().centred).toBe(28)
+    //
+    // 28 → 30 in v0.31.8.36: `h2-living: rug` + `h2-living: coffee-table` settle
+    // on their room centre now that the 2-room's front door opens into the living
+    // instead of the bathroom. Both are in CENTRE_IS_RIGHT.
+    expect(sweep().centred).toBe(30)
   }, 30_000)
 })
