@@ -2940,6 +2940,42 @@ maps the render is byte-identical).
 `LIGHTS=off` is not optional: the reference is daylight-only, and a lamp-lit raster compared
 against it inflates the error it is measuring.
 
+**The `irradiance` pass needs TWO passes, because PNG cannot hold it.** `visibility` is a
+dimensionless ratio already inside `0..1`, so it saves cleanly. Irradiance is not: Blender clips a
+float buffer at **1.0** on save, and a sky-lit interior bakes well above that. Measured on the
+production selection at `--scale 1`: global max **3.197**, and **22 of 40 maps clipped** — with the
+v99 set reaching a max of **56** against a whole-map *mean* of **9.4**, i.e. the typical texel
+saturated, not just the highlights. A clipped map is unrecoverable downstream, and it does not look
+broken: it looks like a plausible bright map that no gain can fit. That cost `v0.31.7.98`–`.102` four
+refuted correspondence hypotheses before anyone read the `max` the index had been reporting all along.
+
+So:
+
+    # pass 1 -- cheap, only to learn the maximum. Stats are PRE-scale, so this is the
+    # number you scale by; res and samples barely move it.
+    blender --background --factory-startup \
+      --python python/scripts/blender/bake_material.py -- \
+      --dir /tmp/ref --out-dir /tmp/irr-probe --pass irradiance \
+      --min-area 3.0 --res 64 --samples 64 --scale 1
+    # read the largest "max" across the reported maps, and add ~25 % headroom
+
+    # pass 2 -- production, at that scale. `--scale` also forces a float buffer and a
+    # 16-bit PNG, because packing a ~56x range into 0..1 at 8 bits quantises to ~0.22 in
+    # irradiance units -- ruinous in the dark corners this pass exists to describe.
+    blender --background --factory-startup \
+      --python python/scripts/blender/bake_material.py -- \
+      --dir /tmp/ref --out-dir public/assets/lightmaps-irr --pass irradiance \
+      --min-area 3.0 --res 256 --samples 4096 --adaptive-threshold 0.001 --scale 4
+
+Check `"clipped": false` on every map in pass 2 — it is reported per map precisely because the
+failure is invisible in the file. The divisor is written into `index.json` as `scale`, and
+`applyVisibilityLightmaps` multiplies it back in **separately from `gain`**: one is a measured unit
+conversion owned by the producer, the other a fitted look constant, and collapsing them is how a
+clipped set came to be "explained" by a gain of 14.
+
+**One global scale, never per map.** Per-map normalisation would destroy the between-mesh ratios that
+are the entire point of a GI bake.
+
 **Runtime**, all four modules in `src/scene/`:
 
 | module | job |

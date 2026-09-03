@@ -29,6 +29,72 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.105 — the first unclipped irradiance bake, and the reader that called it "entirely black"
+
+**The bake.** Two-pass, as `.104` set up. Pass 1 at `--scale 1`, cheap: global max **3.197**, and
+**22 of 40 maps clipped** — the clipping confirmed on the production selection, independently of the
+v99 logs it was first found in. Pass 2 at `--scale 4`, production quality
+(`--min-area 3.0 --res 256 --samples 4096 --adaptive-threshold 0.001`), 11.5 minutes on GPU:
+
+| | |
+| --- | --- |
+| maps | 40 |
+| `"clipped": true` | **0 / 40** |
+| bit depth | **16**, verified from the PNG header |
+| `scale` / `encode` in index | **4.0** / 1.0 |
+| entries carrying `slots` | **40 / 40** |
+
+That last row matters: `.103` fixed a parse that dropped `slots`, and this is the first set that
+actually carries them, so the mirror-row relocation has real data for the first time.
+
+**Then the instrument lied again, in the same place.** Read back, the set measured **0.0 mean on all
+six atlas slots of all 40 maps**. One keystroke from writing up "the new bake is entirely black". It
+was not: `sharp().stats()` reported max **46888 / 65535 = 0.715**, exactly matching the bake's own
+`2.862 / 4`. The file was right; the ruler was wrong.
+
+`raw({depth:'ushort'})` has **two** different behaviours and `read-image.mjs` documented only one:
+
+- **8-bit source** — widens the container, does not rescale. Values stay `0..255`. Documented, tested,
+  correct.
+- **16-bit source** — *downconverts to 8 bits*, then widens. Values come back **/256** while `maxFor`
+  still returns 65535. **256× too dark.**
+
+Measured across five variants: only `toColourspace('rgb16')` preserves them. `pipelineColourspace`
+does not; a bare `raw()` does not. Applied **conditionally**, on `ushort` sources only — on an 8-bit
+file it would rescale `0..255` up to `0..65535` while `maxFor('uchar')` divided by 255.
+
+**Nothing earlier is invalidated, and that is checkable rather than asserted.** Nothing wrote a 16-bit
+PNG before `.104` set `color_depth`: the shipped visibility set was baked *with* a float buffer
+(`dilate > 0`) and saved at `bitdepth 8`. Re-running the 176-map aggregate after the fix returns
+byte-identical numbers (`+Z` 26.5, `−Z` 27.8, 35/176 fully dark), so the `5.2 %` dark-texel figure and
+every other 8-bit measurement stand.
+
+**The corrected distribution**, irradiance (40 maps, one plan, ÷4) against visibility (176 maps):
+
+| slot | vis mean | **irr mean** | vis dark | **irr dark** |
+| --- | --- | --- | --- | --- |
+| `+X` | 39.0 | 7.4 | 63 % | 83 % |
+| `−X` | 9.4 | 7.1 | 72 % | 80 % |
+| `+Y` up | 41.8 | **82.5** | 65 % | **43 %** |
+| `−Y` down | 23.2 | 2.6 | 80 % | 98 % |
+| `+Z` | 26.5 | 5.9 | 52 % | 83 % |
+| `−Z` | 27.8 | 30.4 | 67 % | 73 % |
+
+Up-facing surfaces carry ~10× the side faces (1.29 vs 0.12 in bake units). **Not the result I
+expected** — irradiance is *darker* on the side slots than visibility was, and 28 % of maps are dark
+in all six slots against 20 %. The two sets are not directly comparable (different map counts, one
+plan vs several, dimensionless ratio vs scaled radiometric units), so this is recorded as the measured
+starting point, not as an improvement.
+
+A 16-bit fixture is now synthesised in the test rather than declared impossible — earlier rounds
+recorded that as a `sharp` limitation, and the missing ingredient was `toColourspace('rgb16')`, not
+`raw.depth`. The test cross-checks against `sharp().stats()`, which the bug never touched, so it is an
+independent check rather than a restatement. The two-pass workflow and the reason for it are now in
+`docs/ARCHITECTURE.md` beside the bake command.
+
+Not shipped into `public/assets`: that needs the gain call and a look at the frame. Suite **10116
+green**, `tsc` and biome clean.
+
 ## v0.31.7.104 — the irradiance maps were CLIPPED: PNG holds 0..1, the bake wrote values up to 56 with a mean of 9.4
 
 The `replace`/irradiance path could never have worked, and the reason is one line of format

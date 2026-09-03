@@ -16,11 +16,30 @@
  * hypothesis that caught it (8-bit quantisation) was right about the mechanism and
  * wrong about the culprit: the truncation was in the measuring script.
  *
- * Asking for `ushort` always is the fix — with one wrinkle sharp does not document
- * loudly: it widens the CONTAINER to 16 bits but does NOT rescale an 8-bit
- * source's values, so a `uchar` file still yields 0..255. Hence `max` is reported
- * per file and callers normalise by it; only fractions are comparable across
- * depths, never raw counts. (Found by the test below failing.)
+ * Asking for `ushort` is NOT sufficient on its own, and `v0.31.7.105` measured why.
+ * Two separate sharp behaviours, both undocumented loudly:
+ *
+ * 1. For an **8-bit** source, `raw({depth:'ushort'})` widens the CONTAINER to 16
+ *    bits but does NOT rescale the values, so a `uchar` file still yields 0..255.
+ *    Hence `max` is reported per file and callers normalise by it; only fractions
+ *    are comparable across depths, never raw counts. (Found by the test below.)
+ * 2. For a **16-bit** source, `raw({depth:'ushort'})` *downconverts to 8 bits* and
+ *    then widens, so the values come back divided by 256 — while `maxFor` still
+ *    returns 65535. Measured on a real baked map: `max` read **183** where
+ *    `sharp().stats()` reports **46888**, i.e. every value **256x too dark**.
+ *    `toColourspace('rgb16')` is the only variant that preserves them; both
+ *    `pipelineColourspace('rgb16')` and a bare `raw()` do not.
+ *
+ * (2) bit immediately. The first `--scale`d irradiance bake — 40 maps, verifiably
+ * `bitdepth 16`, `"clipped": false`, `sharp().stats()` max 46888/65535 = 0.715
+ * exactly matching the reported 2.862/4 — read back as **0.0 mean on all six atlas
+ * slots of all 40 maps**. A confident "the new bake is entirely black". The file was
+ * right; the ruler was wrong, for the second time in this arc and in the same place.
+ *
+ * It does not invalidate anything earlier: nothing wrote a 16-bit PNG before
+ * `v0.31.7.104` set `color_depth`, and the shipped visibility set proves it — baked
+ * with a float buffer (`dilate > 0`) and saved at `bitdepth 8`. The `5.2 %`
+ * dark-texel figure above was measured on 8-bit files and stands.
  */
 import sharp from 'sharp'
 
@@ -30,11 +49,24 @@ export function maxFor(depth) {
   return depth === 'ushort' || depth === 'short' ? 65535 : 255
 }
 
+/**
+ * A pipeline that will actually hand back 16-bit samples for a 16-bit file.
+ *
+ * `toColourspace('rgb16')` ONLY when the source is already `ushort` — applied to an
+ * 8-bit file it would rescale 0..255 up to 0..65535, and `maxFor('uchar')` would
+ * then divide by 255. Conditional, not unconditional, is the whole point.
+ */
+function wide(file, meta) {
+  const img = sharp(file).removeAlpha()
+  return meta.depth === 'ushort' || meta.depth === 'short' ? img.toColourspace('rgb16') : img
+}
+
 /** `{ lum, w, h, depth, max }` — luminance in RAW COUNTS at the file's own depth. */
 export async function readLuma(file) {
-  const img = sharp(file).removeAlpha()
-  const meta = await img.metadata()
-  const { data, info } = await img.raw({ depth: 'ushort' }).toBuffer({ resolveWithObject: true })
+  const meta = await sharp(file).metadata()
+  const { data, info } = await wide(file, meta)
+    .raw({ depth: 'ushort' })
+    .toBuffer({ resolveWithObject: true })
   const n = info.width * info.height
   const lum = new Float64Array(n)
   const ch = info.channels
@@ -50,9 +82,10 @@ export async function readLuma(file) {
 
 /** Single-channel (red) read, for maps where the three channels are equal. */
 export async function readRed(file) {
-  const img = sharp(file).removeAlpha()
-  const meta = await img.metadata()
-  const { data, info } = await img.raw({ depth: 'ushort' }).toBuffer({ resolveWithObject: true })
+  const meta = await sharp(file).metadata()
+  const { data, info } = await wide(file, meta)
+    .raw({ depth: 'ushort' })
+    .toBuffer({ resolveWithObject: true })
   const n = info.width * info.height
   const out = new Float64Array(n)
   for (let i = 0; i < n; i++) out[i] = data.readUInt16LE(i * info.channels * 2)
