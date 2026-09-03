@@ -29,6 +29,63 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.59 — (B) is not fixable by correction: four predictors refuted on five views, and the app's own output carries no signal either
+
+A fifth reference, chosen to **discriminate** rather than to confirm: the Executive living room is
+4.2 × 9.2 m — floor area 38.6 m², twice `livingDining`'s, but depth only 4.2 m. Area and depth
+therefore predicted opposite things, and I committed to both before rendering: **depth → 95–105**
+(4.2 m sits between 3.52 m → 110 and 5.67 m → 83); **area → below 83** (largest room measured).
+
+**Measured: 187.** Brighter than every previous view. Both predictions fail, in the same direction,
+by a wide margin.
+
+| view | depth | area | glazing ÷ surface | **physics median** |
+| --- | --- | --- | --- | --- |
+| 4-Room livingDining | 5.67 m | 19.3 m² | 5.284 % | 83 |
+| 4-Room mainBedroom | 3.52 m | 14.2 m² | 4.833 % | 110 |
+| 4-Room bedroom3 | 3.52 m | 10.2 m² | 5.17 % | 112 |
+| 5-Room kitchen | 3.00 m | 9.0 m² | 4.207 % | 160 |
+| **Executive living** | **4.20 m** | **38.6 m²** | **1.878 %** | **187** |
+
+Ordering the five views by each candidate and reading the medians off:
+
+- by **depth** → 160, 110, 112, 187, 83 — not monotone
+- by **area** → 160, 112, 110, 83, 187 — not monotone
+- by **glazing ratio** → 187, 160, 110, 112, 83 — monotone but for the 110/112 pair, which is a
+  two-count tie. Physically backwards though: *less* aperture per unit surface, *brighter* render.
+
+Four candidates have now been tested against this quantity — in-view visibility (`v0.31.7.50`),
+glazing ratio (`.56`), floor area (`.57`), depth from the aperture (`.58`) — and none survives
+five views. **At that point the problem is the approach, not the candidate: the physics median is
+a property of the VIEW — which surfaces are in frame, at what distance and angle — and I have been
+trying to predict it from properties of the ROOM.**
+
+**And the app cannot infer it from its own output either.** That was the remaining hope: a
+correction driven by the app's own histogram rather than by plan geometry.
+
+| | values across the five views | cv | range |
+| --- | --- | --- | --- |
+| app median | 121, 123, 122, 96, 116 | **8.7 %** | 1.28× |
+| physics median | 83, 110, 112, 160, 187 | **28.9 %** | 2.25× |
+
+Ordering by the app's own median gives physics 160, 187, 83, 112, 110 — **no relation at all.**
+The app's output is nearly constant while physics varies 2.25×, so it carries essentially no
+information about what physics would do. A self-driven correction has nothing to drive it.
+
+**So (B) is not a tuning problem and cannot be corrected post hoc.** Neither room geometry nor the
+app's own render predicts how bright a view should be, because the quantity depends on light
+actually being transported through the room — which is the thing the app does not do. Closing
+(B) as *"needs real indirect light, not a correction"* is a substantive result, and it is the
+opposite conclusion from (A), where one measured constant does the whole job.
+
+**Where the arc ends up, stated plainly.** (A): the window is 27 % too dark by a scene-independent
+factor, `cv 0.63 %` over four views, reachable with one existing knob at one setting — a concrete
+escalated call. (B): the remaining tonal error, no predictor, not correctable. Everything else
+built along the way — the Blender reference chain, the pose preflight, seven measurement probes,
+the bake/keying/shader pipeline — is verified and reusable.
+
+`tsc`, biome clean; suite **10058 green**; nothing shipped.
+
 ## v0.31.7.58 — (B)'s predictor is DEPTH FROM THE APERTURE, not floor area — and the confirming case is the pair that refuted area
 
 `v0.31.7.57` found floor area predicts only the *rank* of a room's rendered median, failing badly

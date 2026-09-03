@@ -1434,23 +1434,33 @@ const applyRoomLight =
             const join = room.extension ? 2 * Math.min(room.width, room.extension.width) : 0
             const perim = base.perim + ext.perim - join
             const surface = 2 * floor + perim * h
-            // Opening height is head - sill; there is no `height` field.
-            const win = allOf(plan, 'openings').find((o) => o.id === winId)
-            const glazing = win ? win.width * Math.max(0, (win.head ?? 0) - (win.sill ?? 0)) : 0
+
             // Extent PERPENDICULAR to the window wall -- the distance light has to travel to
             // reach the far end. `v0.31.7.57` found floor AREA predicts only the rank of a
             // room's rendered median, and the mechanism it implies is distance, not area: for a
             // given window, light falls off with range, so what should matter is how deep the
             // room is from its aperture rather than how much floor it has.
             //
-            // Window ids carry the wall's compass letter (`win-livingDining-N`), so an N/S
-            // window looks along `depth` and an E/W one along `width`. Reported alongside both
-            // dimensions so a caller can check the attribution rather than trust it.
-            const compass = /-([NSEW])$/.exec(winId ?? '')?.[1] ?? null
+            // Opening height is head - sill; there is no `height` field.
+            const win = allOf(plan, 'openings').find((o) => o.id === winId)
+            const glazing = win ? win.width * Math.max(0, (win.head ?? 0) - (win.sill ?? 0)) : 0
+            // Orientation comes from the WALL's own endpoints, not from the opening's id. The
+            // 4-Room plan happens to encode a compass letter (`win-livingDining-N`) and most
+            // plans do not (`ex-liv-win`, `lf-e1`), so an id-based rule silently fell back to
+            // `max(width, depth)` outside one plan -- which is the wrong axis half the time.
+            // Walls carry `start`/`end` as [x, z], so a wall running mostly along x faces
+            // north/south and the room's depth is the perpendicular extent.
+            const wall = allOf(plan, 'walls').find((w) => w.id === win?.wallId)
+            let axis = null
+            if (wall?.start && wall?.end) {
+              const dx = Math.abs(wall.end[0] - wall.start[0])
+              const dz = Math.abs(wall.end[1] - wall.start[1])
+              axis = dx >= dz ? 'NS' : 'EW'
+            }
             const perpendicular =
-              compass === 'N' || compass === 'S'
+              axis === 'NS'
                 ? room.depth
-                : compass === 'E' || compass === 'W'
+                : axis === 'EW'
                   ? room.width
                   : Math.max(room.width, room.depth)
             return {
@@ -1460,7 +1470,7 @@ const applyRoomLight =
               ceilingH: h,
               width: room.width,
               depth: room.depth,
-              compass,
+              axis,
               perpendicular: +perpendicular.toFixed(2),
               window: winId,
               glazing: +glazing.toFixed(2),
@@ -1472,7 +1482,7 @@ const applyRoomLight =
         if (res.error) throw new Error(`ROOMLIGHT: ${res.error}`)
         console.log(
           `ROOMLIGHT ${res.room} floor ${res.floor} m2  ${res.width}x${res.depth} m  ` +
-            `wall ${res.compass ?? '?'}  perpendicular ${res.perpendicular} m  ` +
+            `wall ${res.axis ?? '?'}  perpendicular ${res.perpendicular} m  ` +
             `glazing ${res.glazing} m2  glazing/surface ${res.pct} %`,
         )
       }

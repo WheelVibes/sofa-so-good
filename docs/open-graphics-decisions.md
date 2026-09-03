@@ -2949,6 +2949,27 @@ weak-device tier before it lands. (k) is the only open item that is a genuine RE
 than a content or policy call — it is the strongest candidate for the next round, once the loss has
 been attributed to the glass or to the background tone-mapping path.
 
+## (x) SCENE-RESPONSE — ⛔ CLOSED as not-correctable (v0.31.7.59)
+
+The app's rendered median is nearly scene-independent: **121, 123, 122, 96, 116** across five
+matched-pose views where Cycles gives **83, 110, 112, 160, 187** (cv 8.7 % against 28.9 %, range
+1.28× against 2.25×). So the app is too bright in dark rooms and too dark in bright ones, and this
+is the entire remaining tonal error once item (l)'s constant is applied.
+
+**Four predictors tested and refuted on five views:** in-view aperture visibility, glazing area per
+unit surface, room floor area, and room depth perpendicular to the window. None is monotone with
+the physics median. The decisive case was the Executive living room — 38.6 m² of floor but only
+4.2 m deep — where the area and depth hypotheses predicted opposite results (below 83 against
+95–105) and the truth was **187**, outside both.
+
+**And the app's own output carries no signal:** ordering the five views by the app's median gives
+physics medians 160, 187, 83, 112, 110 — no relation. So a correction driven by the app's own
+histogram has nothing to drive it either.
+
+**Conclusion: this is not a tuning problem.** How bright a view should be depends on light being
+transported through the room, which is what the renderer does not do. It needs a real indirect
+term — not a scalar, a curve or a baked map — and item (w) is where that work would live.
+
 ## (w) RASTER-INTERREFLECTION — 🐞 REAL, in the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
 
 > **⚠️ RE-PRICED, v0.31.7.7, CORRECTED v0.31.7.8 — a ~3× error on a whole wall, and it is
