@@ -29,6 +29,61 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.51 — ⚠️ the 5-Room references are anomalously bright, which puts three of the last four conclusions in doubt
+
+Testing the aperture-share predictor meant looking at the reference renders side by side, and the
+5-Room pair does not look like a daylit interior. Quantified over the same crop:
+
+| reference | median | **p05** | p95 | > 235 |
+| --- | --- | --- | --- | --- |
+| 4-Room livingDining | 83 | **22** | 180 | 2.5 % |
+| 4-Room bedroom3 | 112 | **42** | 205 | 3.6 % |
+| 5-Room living | 156 | **107** | 182 | 1.3 % |
+| 5-Room bedroom 2 | 180 | **154** | 241 | 8.7 % |
+
+**The 5-Room references have no dark end.** Their darkest 5 % sits at 107 and 154 against 22 and
+42 for the 4-Room — an interior lit only through windows at 13:00 has deep shadows somewhere, and
+these have none. They also have **zero pixels at ≥2× their own median**, i.e. no bright aperture
+at all, which is what made them read as "flat physics".
+
+**Two explanations tested and eliminated.**
+
+- **A hole in the geometry** (missing ceiling, junction gaps) would flood the room. Ray-cast
+  straight up from the camera in both exports: **both hit a ceiling at 1.0 m.** Sealed.
+- **Brighter finishes** would raise interreflection legitimately. Measured area-weighted albedo:
+  the 5-Room plan is **lower**, 0.778 against 0.812.
+
+So the brightness is unexplained, and until it is, **the 5-Room references cannot be treated as
+physics.**
+
+**Which downgrades three conclusions from findings to provisional:**
+
+| round | claim | status |
+| --- | --- | --- |
+| `v0.31.7.47` | the term degrades the 5-Room plan (1.20× → 2.34×, 1.55× → 1.69×) | **provisional** |
+| `v0.31.7.48` | visibility anti-explains by −153 % / −270 % there | **provisional** |
+| `v0.31.7.49` | physics varies 15× more than the app | **provisional** — the 15× is driven by the two low physics values (1.541, 1.401) that come from these references |
+| `v0.31.7.50` | in-view visibility does not predict the tonal range | **provisional** — one of its three points is a 5-Room view |
+
+**What still stands.** Everything measured against the 4-Room references, whose exposure is
+plausible: the +80 % explanatory power, the 4.76× → 1.36× improvement, the `bedroom3` result, and
+every mechanical verification (bake, keys, contexts, shader injection, nil frame cost, three
+views). And `v0.31.7.48`'s core caution survives independently of the 5-Room numbers: the 80 %
+was measured on one view, and `bedroom3` of the *same* plan anti-explains at −34 % — so the
+premise is still only demonstrated in one view.
+
+**The next step is to explain the 5-Room brightness, not to draw more conclusions from it.**
+Candidates not yet eliminated: window count and area in that plan, whether the pose sits in an
+open-plan volume rather than an enclosed room, and whether the sky strength interacts with a
+larger flat (1680 m² of surface against 467 m²).
+
+**A note on the pattern.** This is the third time in this session that looking at a frame
+overturned a numeric conclusion — after the lamp-lit reference (`v0.31.7.8`) and the mismatched
+plan capture (`v0.31.7.46`). Each time the numbers were internally consistent and the picture was
+not.
+
+`tsc`, biome clean; suite **10058 green**; flag off.
+
 ## v0.31.7.50 — the obvious predictor is refuted: in-view visibility does not track physics' tonal range
 
 `v0.31.7.49` showed the app's tonal response is nearly scene-independent while physics varies
