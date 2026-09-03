@@ -173,6 +173,17 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — bake DATA as `Non-Color`, and set it AT IMAGE CREATION.** Blender writes 8-bit
+  PNGs through the image's colour space (default sRGB), so a linear bake gets transfer-encoded on
+  the way out. For a map a shader multiplies into irradiance that is not just a brightness error
+  — sRGB compresses highlights and expands shadows, distorting the map's spatial contrast, which
+  is the whole quantity. Setting `colorspace_settings.name = 'Non-Color'` **after** the bake
+  reinterprets the buffer and zeroes it (measured: every interior mean 0.0). Set it before.
+- **2026-09-03 — build a CONTROL LADDER before debugging a bake end to end.** Replacing the baked
+  values with a uniform 1.0 must reproduce the baseline render exactly; a uniform 0.5 must darken
+  evenly with no structure. A uniform value cannot be affected by UV error, so those two rungs
+  separate "wiring/UVs wrong" from "data wrong" in one run. That took an unresolved two-cause
+  failure to a single cause immediately.
 - **2026-09-03 — the glTF importer converts Y-up → Z-up in LOCAL vertices too, not just the
   world transform.** Measured: a wall's Blender local bbox is x −2.92…2.87, y −0.15…0.15,
   **z 0…2.6** — height on Z where the app has it on Y. So *anything* computed from Blender

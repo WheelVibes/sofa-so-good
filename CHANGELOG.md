@@ -29,6 +29,67 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.17 — the wiring is proven correct, and `aoMap` is the WRONG SLOT. Corrects v0.31.7.8
+
+`v0.31.7.16` ended with two entangled failures — the room went dark *and* the UVs might be
+wrong — and no way to tell which. This round separates them with controls, fixes a real encoding
+bug, and reaches a conclusion that **overturns `v0.31.7.8`'s choice of mechanism**.
+
+**A control ladder, because each rung has an exactly predictable result.** `AOSYNTH=` replaces
+the baked texel values with a known pattern: `white` (every texel 255 ⇒ `aoMap` = 1 ⇒ the render
+*must* be identical to baseline), `grey` (uniform 0.5), `slots` (one constant per atlas slot). A
+uniform value cannot be affected by UV error, which is what makes the first two controls rather
+than tests.
+
+| arm | frame mean R |
+| --- | --- |
+| baseline, no `aoMap` | **115.64** |
+| synth **white** | **115.64** — exactly equal |
+| synth grey (0.5) | 92.72 |
+| real baked maps | 34.13 |
+
+**`white` reproducing baseline to the last digit proves the wiring, the key lookup and the UVs
+are all correct.** `v0.31.7.16`'s open worry — "the visible faces still sample near-black
+regions" — is answered: they don't. The problem is entirely the **data**.
+
+**An encoding bug, found and fixed, and the ordering is load-bearing.** A visibility map is
+*data* — three multiplies it straight into `irradiance` — but Blender saves an 8-bit PNG through
+the image's colour space, which defaults to **sRGB**. A linear bake was being transfer-encoded on
+the way out and used as linear on the way in. That is not just a brightness error: sRGB
+compresses highlights and expands shadows, so it distorts the map's **spatial contrast**, which
+is the entire quantity. Setting `colorspace_settings = 'Non-Color'` **at image creation** fixes
+it; setting it *after* the bake instead reinterprets the buffer and zeroes it (measured: every
+interior mean `0.0`). With the fix the true linear values are **lower** — interior median
+0.11 → **0.034** — so the map is darker still, which is the correct answer and makes the real
+problem unmistakable.
+
+**The real problem: `aoMap` cannot express this correction.** The app's fill is not sky radiance;
+it is a calibrated stand-in for the **average** interior irradiance. So the quantity that belongs
+in the shader is `V / mean(V)` — *relative* visibility, which is **greater than 1** wherever a
+surface sees more sky than the room's average. An `aoMap` is capped at 1 and can only darken.
+Every way of squeezing the term into that cap fails, and each failure was measured:
+
+| approach | result |
+| --- | --- |
+| raw absolute visibility | mean 34.1, spatial spread **4.76× → 6.27×** (worse) |
+| normalise by 0.6 / 0.35 / 0.2, clamp to 1 | mean 35–37, spread 6.02 / 5.90 / **5.71×** (all worse) |
+| global fill gain to compensate | over-brightens the **267 unmapped meshes** — maps cover 118 of 385 |
+
+**So `v0.31.7.8`'s conclusion — "the fix has to be an `aoMap`, the one slot three multiplies into
+indirect irradiance" — is wrong.** It is the right *place* and the wrong *operator*. The
+analysis that predicted 80 % multiplied by a **median-normalised** profile, i.e. `V / mean(V)`
+with mean 1 by construction, and that was never something a ≤1 multiplier could provide. The
+prediction and the mechanism were mismatched from the start, and only building it surfaced that.
+
+**What the mechanism has to be instead:** a shader injection (`onBeforeCompile`, or a custom
+material) that multiplies indirect irradiance by a value allowed to exceed 1. That is still one
+texture fetch with no extra pass — so `v0.31.7.15`'s frame-cost measurement stands — but it is a
+materially more invasive change than assigning a standard material slot, and it needs its own
+design pass.
+
+**Nothing shipped; nothing regressed.** All of this lives in probe knobs and the offline bake.
+The three views the goal names hold their measured 60 fps at `medium`; `tsc`, biome, knip clean.
+
 ## v0.31.7.16 — end-to-end attempt: two frame bugs found and fixed, and the pipeline still does NOT work
 
 The first attempt to run item (w)'s fix through the whole pipeline — bake a real plan, apply the

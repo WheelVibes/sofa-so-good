@@ -246,6 +246,14 @@ def bake_object(
     map be addressable by the app's own mesh UVs.
     """
     img = bpy.data.images.new(f"bake_{obj.name}", width=res, height=res, float_buffer=False)
+    # NON-COLOUR, set BEFORE the bake writes, not after. A visibility map is DATA -- three
+    # multiplies it straight into `irradiance` -- and Blender saves an 8-bit PNG through the
+    # image's colour space, which defaults to sRGB. A linear bake would be transfer-encoded on
+    # the way out and used as linear on the way in, which does not merely change brightness:
+    # sRGB compresses highlights and expands shadows, distorting the map's SPATIAL contrast,
+    # which is the whole quantity. Setting it AFTER the bake instead reinterprets the buffer
+    # and zeroes it (measured: every interior mean 0.0), so the order is load-bearing.
+    img.colorspace_settings.name = "Non-Color"
     mat = obj.data.materials[0]
     nt = mat.node_tree
     tex = nt.nodes.new("ShaderNodeTexImage")
@@ -257,6 +265,14 @@ def bake_object(
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.bake(type=bake_type, use_clear=True, margin=2)
 
+    # NON-COLOUR, and this is not a detail. A visibility map is DATA, not a picture: three
+    # multiplies it straight into `irradiance`. Blender saves an 8-bit PNG through the image's
+    # colour space, which defaults to sRGB, so a linear bake would be transfer-encoded on the
+    # way out and then used as if it were linear on the way in. That does not merely darken or
+    # brighten -- sRGB compresses highlights and expands shadows, so it distorts the map's
+    # SPATIAL contrast, which is the entire quantity being baked. `v0.31.7.17` measured the
+    # consequence: applying the map made the match to physics WORSE (spread 4.76x -> 6.27x)
+    # rather than better.
     img.filepath_raw = out_path
     img.file_format = "PNG"
     img.save()

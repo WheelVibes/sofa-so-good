@@ -2943,11 +2943,20 @@ been attributed to the glass or to the background tone-mapping path.
 > 3. **The right quantity is aperture visibility** — what fraction of the window each point
 >    sees. The app's `HemisphereLight` + `AmbientLight` give every surface the same skylight
 >    whether or not it can see the sky.
-> 4. **And it must be an `aoMap`, not a per-material scalar** (`v0.31.7.8`). Scaling the IBL
->    probe alone (`ENVSCALE`) or the analytical fill alone (`FILLSCALE`) each makes the spatial
->    shape *worse* (spread 6.97× and 10.06× against 6.36×), so both terms are equally
->    visibility-blind. A per-material `envMapIntensity` cannot reach the analytical lights,
->    which are per-*light*; only an `aoMap` modulates indirect irradiance per fragment.
+> 4. **It must modulate indirect irradiance PER FRAGMENT** (`v0.31.7.8`). Scaling the IBL probe
+>    alone (`ENVSCALE`) or the analytical fill alone (`FILLSCALE`) each makes the spatial shape
+>    *worse* (spread 6.97× and 10.06× against 6.36×), so both terms are equally visibility-blind.
+>    A per-material `envMapIntensity` cannot reach the analytical lights, which are per-*light*.
+> 5. **⚠️ But NOT via `aoMap` — corrected in `v0.31.7.17`.** The app's fill stands in for the
+>    room's *average* irradiance, so the shader needs `V / mean(V)`, which **exceeds 1** wherever
+>    a surface sees more sky than average. `aoMap` is capped at 1 and can only darken. Measured:
+>    raw visibility gives spread 4.76× → **6.27×** (worse); normalising and clamping gives 5.71–
+>    6.02× (all worse); and compensating with a global fill gain over-brightens the **267 unmapped
+>    meshes** (maps cover 118 of 385). The analysis that predicted 80 % multiplied by a
+>    *median-normalised* profile — mean 1 by construction — which a ≤1 multiplier was never able
+>    to supply. **The mechanism must be a shader injection** (`onBeforeCompile` or a custom
+>    material) allowing values above 1. Still one texture fetch and no extra pass, so
+>    `v0.31.7.15`'s frame-cost measurement stands.
 >
 > **✅ CONFIRMED AND QUANTIFIED, v0.31.7.9 — visibility explains 80 % of the error, and a naive
 > multiply regresses small rooms.** `render_visibility.py` renders the term itself (white

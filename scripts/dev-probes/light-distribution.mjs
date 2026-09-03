@@ -1669,7 +1669,39 @@ const applyBgHorizon = !BGHORIZON
 // a deep room's error for a <=4 % regression in a small one). Applied by raising the texel
 // values to `g` on the CPU rather than via `aoMapIntensity`, because three's intensity
 // parameter lerps toward white linearly and is NOT the same curve as an exponent.
+// AOSYNTH replaces the baked texel values with a KNOWN pattern, so the wiring can be
+// separated from the data (`v0.31.7.17`). `v0.31.7.16` ended with two entangled failures --
+// the room went dark AND the UVs might be wrong -- and no way to tell which. Each mode has an
+// exactly predictable result, so a disagreement localises the fault instead of hinting at it:
+//
+//   white  -- every texel 255. aoMap = 1 everywhere, so the render must be IDENTICAL to
+//             baseline. Any difference at all means the wiring itself is broken, before any
+//             question of UVs or levels.
+//   grey   -- every texel 128. A uniform ~50 % of indirect, so the frame must darken smoothly
+//             and evenly, with no structure. Structure here means the UVs sample somewhere
+//             they should not (edges, empty slots).
+//   slots  -- a distinct constant per atlas slot. Each face should read as ONE flat shade; a
+//             face showing two shades means its UVs straddle a slot boundary.
+//
+// A uniform value cannot be affected by UV error, which is what makes `white` and `grey`
+// controls rather than tests.
 const AOMAP = process.env.AOMAP || ''
+const AOSYNTH = process.env.AOSYNTH || ''
+// AONORM=<v> divides texels by `v` before clamping to 1 (`v0.31.7.17`).
+//
+// Baked visibility is ABSOLUTE: a surface deep in the flat sees ~11 % of the sky, so applying
+// it raw multiplies indirect light by 0.11 and the room goes black -- measured, frame mean
+// 115.6 -> 34.1. The app's fill is not sky radiance though; it is a calibrated stand-in for the
+// AVERAGE interior irradiance, so the quantity that belongs in an `aoMap` is visibility
+// RELATIVE to that average, not visibility itself.
+//
+// The exact form would be `V_i / mean(V)` with the fill scaled by `mean(V)` to compensate --
+// but that gain is global while the maps cover only the shell (118 of 385 meshes), so every
+// unmapped piece of furniture would be lit by a fill 3-9x too strong. Normalising by a high
+// percentile instead keeps the multiplier at or below 1, needs no global gain, and leaves
+// unmapped meshes exactly as they are. It is the ordinary ambient-occlusion idiom, and it is
+// what a <=1 multiplier can honestly express.
+const AONORM = process.env.AONORM ? Number(process.env.AONORM) : 0
 const AOGAMMA = process.env.AOGAMMA ? Number(process.env.AOGAMMA) : 0.7
 const applyAoMap = !AOMAP
   ? null
@@ -1738,7 +1770,7 @@ const applyAoMap = !AOMAP
           `data:image/png;base64,${fs.readFileSync(`${AOMAP}/${byKey.get(k)}`).toString('base64')}`
       }
       const applied = await page.evaluate(
-        async ({ maps, gamma }) => {
+        async ({ maps, gamma, synth, norm }) => {
           const load = (url) =>
             new Promise((resolve, reject) => {
               const img = new Image()
@@ -1753,10 +1785,33 @@ const applyAoMap = !AOMAP
             cv.height = img.height
             const ctx = cv.getContext('2d')
             ctx.drawImage(img, 0, 0)
+            if (synth) {
+              const W = cv.width
+              const H = cv.height
+              const d0 = ctx.getImageData(0, 0, W, H)
+              for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                  const i = (y * W + x) * 4
+                  let v = 255
+                  if (synth === 'grey') v = 128
+                  else if (synth === 'slots') {
+                    const slot = Math.floor((y * 2) / H) * 3 + Math.floor((x * 3) / W)
+                    v = 40 + slot * 35
+                  }
+                  d0.data[i] = v
+                  d0.data[i + 1] = v
+                  d0.data[i + 2] = v
+                  d0.data[i + 3] = 255
+                }
+              }
+              ctx.putImageData(d0, 0, 0)
+              return cv
+            }
             // Gamma on the CPU: three's `aoMapIntensity` lerps toward white, a different curve.
             const d = ctx.getImageData(0, 0, cv.width, cv.height)
             for (let i = 0; i < d.data.length; i += 4) {
-              const g = Math.round(255 * (d.data[i] / 255) ** gamma)
+              const raw = norm > 0 ? Math.min(1, d.data[i] / 255 / norm) : d.data[i] / 255
+              const g = Math.round(255 * raw ** gamma)
               d.data[i] = g
               d.data[i + 1] = g
               d.data[i + 2] = g
@@ -1840,7 +1895,7 @@ const applyAoMap = !AOMAP
           })
           return { n }
         },
-        { maps: payload, gamma: AOGAMMA },
+        { maps: payload, gamma: AOGAMMA, synth: AOSYNTH, norm: AONORM },
       )
       if (applied.error) throw new Error(`AOMAP: ${applied.error}`)
       await new Promise((r) => setTimeout(r, 1500))
