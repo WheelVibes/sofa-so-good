@@ -856,6 +856,27 @@ def _surface_class(rooms, room_id: str, centre_three, normal_three) -> str:
 
     Deliberately conservative: a face that is ambiguous falls to `other`, which makes it a fixed
     weight rather than one that responds to the wrong control.
+
+    ## ⚠️ The `wall` test is 2.6x OVER-INCLUSIVE — measured, `v0.31.7.139`
+
+    Diffing every face's albedo between two exports of the same room that differ only in
+    `wall-paint-terracotta` says exactly which faces take the wall finish:
+
+        class      area m2   changed m2   changed %   changed faces
+        ceiling      20.00         0.00        0.0 %              0
+        floor        13.51         0.00        0.0 %              0
+        other        21.84         0.00        0.0 %              0
+        wall         63.04        23.81       37.8 %             20
+
+    `floor`, `ceiling` and `other` are **clean** — nothing in them moves, which is the property a
+    fixed bucket must have. But only **37.8 %** of the `wall` bucket actually repaints: `edge < 0.3`
+    also claims window reveals, columns, skirting and the far side of party walls.
+
+    **And with the true area the reconstruction works.** Taking the wall bucket as the 23.81 m2 that
+    changed, and solving the fixed remainder from the base census, gives terracotta **0.5780**
+    against a directly censused **0.5719** -- **1.1 % out of sample**, where the over-inclusive
+    bucket was 28 % out. So the architecture is right and this one test is wrong: the wall bucket
+    must be the faces carrying the wall MATERIAL, not the faces near the perimeter.
     """
     room = next((r for r in rooms if r["id"] == room_id), None)
     if room is None:

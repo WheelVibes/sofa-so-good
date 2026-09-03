@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.139 — measured WHICH faces take a finish, and the bucket architecture reconstructs ρ to 1.1 % out of sample
+
+`.138` blamed the reconstruction error on an over-inclusive wall bucket and estimated 45 % from an
+albedo mix. Measured it properly: diff every face's albedo between the two exports that differ only
+in `wall-paint-terracotta`, and the faces that changed **are** the wall-finish faces, by definition.
+
+| class | area m² | changed m² | changed % | changed faces |
+| --- | --- | --- | --- | --- |
+| ceiling | 20.00 | 0.00 | **0.0 %** | 0 |
+| floor | 13.51 | 0.00 | **0.0 %** | 0 |
+| other | 21.84 | 0.00 | **0.0 %** | 0 |
+| **wall** | **63.04** | **23.81** | **37.8 %** | 20 |
+
+**Three of four buckets are clean** — nothing in `floor`, `ceiling` or `other` moves, which is
+exactly the property a fixed weight must have, and it is the first direct confirmation that the
+classifier works at all. The `wall` test is **2.6× over-inclusive**: `edge < 0.3 m` also claims
+window reveals, columns, skirting and the far side of party walls. (My 45 % estimate was 37.8 %.)
+
+**And with the true area the architecture is validated.** Taking the wall bucket as the 23.81 m²
+that actually changed, and solving the fixed remainder from the base census:
+
+| | reconstructed | direct census |
+| --- | --- | --- |
+| base | 0.7018 | 0.7018 — exact **by construction**, since ρ_fixed was solved from it |
+| **terracotta** | **0.5780** | **0.5719** |
+
+**1.1 % out of sample**, where the over-inclusive bucket was **28 %** out. The terracotta arm is the
+real test — nothing about it was fitted — and it passes. So `(s)`'s design holds: **bake the area
+that takes each finish plus the fixed remainder's ρ, and the app recomputes ρ exactly when a finish
+changes**, with no runtime visibility work at all.
+
+**One test to fix, and it is well-specified now:** the wall bucket must be the faces carrying the
+wall **material**, not the faces near the perimeter — 23.81 m² rather than 63.04 m². The measurement
+also gives the acceptance criterion: `changed %` must be ~100 % for a finish bucket and 0 % for the
+others.
+
+Recorded in `_surface_class`'s own docstring, where the wrong test lives. Suite **10150 green**,
+`tsc` and biome clean.
+
 ## v0.31.7.138 — CORRECTING `.136`: the recolor is not "luminance-preserving", and colour space explains only a fifth of the gap
 
 `.136` explained the 28 % reconstruction error by saying the app repaints via a
