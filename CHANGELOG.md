@@ -29,6 +29,59 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.63 — the app half of every reference pair had the UI in it; and an out-of-sample view
+
+Two results, one instrument fix, and a retraction.
+
+**The app raster is the RAW composited page.** `light-distribution.mjs` has excluded the UI
+rectangles from its *own* statistics since `v0.31.5.182` — which removed them believing an element
+screenshot excludes overlaying DOM, and learned that Puppeteer clips the *composited* page to the
+element's box. But **the file it saves is unmasked**, and every downstream probe reads that file
+while the Cycles half has no chrome at all. The minimap is a near-white block over the
+bottom-right 24 % × 24 %; the walk-mode pill sits in the floor band. Together the five rectangles
+are **16.8 % of the frame**.
+
+| 4-Room livingDining, columns | baseline | residual | explains |
+| --- | --- | --- | --- |
+| HUD included | 3.48× | 1.38× | +74 % |
+| HUD excluded | **4.33×** | **1.35×** | **+79 %** |
+
+**That reproduces the published +80 % and the published 4.76× baseline** from the surviving
+artefacts — which the unmasked run did not. So `v0.31.7.47`'s headline stands, and is now
+reproducible with a recorded invocation. `spatial-profile.mjs` gained `--hud`, and it now **echoes
+its own invocation with its results**, because the reason this took a day to pin down is that no
+table said whether it had a `--crop`.
+
+**The rectangles moved to `hud.mjs`, with 6 tests, and that was not tidying.** Adding the mask by
+hand I copied **three of the five** — omitting the pill and the hint bar — and the result looked
+perfectly clean. The first assertion in the new test is the list of five names.
+
+**An out-of-sample view: 4-Room mainBedroom**, captured fresh with the provenance `.62` added
+(plan, invocation, both halves in one directory), Cycles at 128 samples, aperture 1.29 %, pose
+preflight passed.
+
+| 4-Room mainBedroom | baseline | residual | explains |
+| --- | --- | --- | --- |
+| columns | 1.51× | 1.96× | **−64 %** |
+| rows | 1.58× | 1.41× | **+25 %** |
+
+**Visibility anti-explains a fourth view**, so item (w)'s record is now one view where it helps and
+four where it hurts. The flag stays off.
+
+**And a caveat with teeth: the two axes of one view disagree.** −64 % on columns, +25 % on rows.
+Every ±% figure this arc has published is *one axis of a two-axis measurement* and none of them
+says which. The tool now prints both, labelled, above its own command line.
+
+**Retraction.** Last round I said the post-visibility residual was ≈2.4× regardless of baseline. I
+built that by inverting `explained = 1 − ln(residual)/ln(spread)` using the **4.76× column from a
+different probe** as `spread` — `spatial-profile`'s spread and `light-distribution`'s flag-on/off
+ratio are not the same quantity, and mixing them is exactly the error `.315` retired `p99/p01`
+for. Measured residuals are 1.35 / 1.36 / 1.96 / 1.41. There is no such constant.
+
+The `hud.mjs` refactor is a verified no-op on the probe's own numbers: frame mean 110.3, %<64
+13.91 %, ceiling/wall/floor 0.80/0.98/0.59, geometric 0.51/1.03/0.50 — identical before and after.
+Suite **10078 green** (+6), `tsc` and biome clean.
+
 ## v0.31.7.62 — the arc's evidence base was in `/tmp` and three fifths of it is gone: references now state their own provenance
 
 Going to re-run `--explain` on a fourth view, I found the reference set no longer exists. `/tmp`

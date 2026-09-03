@@ -43,6 +43,7 @@
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
 import sharp from 'sharp'
+import { isHud } from './hud.mjs'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 import { resolvePlanSpec } from './resolve-plan.mjs'
 
@@ -2654,11 +2655,39 @@ if (process.env.BLENDREF) {
     c.getWorldDirection(v)
     return [v.x, v.y, v.z].map((n) => +n.toFixed(5))
   })
+  // `null` used to mean three different things -- seam absent, no scene root, or an
+  // export that returned a string -- and the failure message asked the reader to
+  // guess which ("is this a DEV build with the seam?"). Without a GLB there is no
+  // physical reference at all, so this is the last place to be vague.
   const glbB64 = await page.evaluate(async () => {
+    if (typeof window.__exportSceneGlbBase64 !== 'function') {
+      // Install it. The seam is a module side effect of openSceneExport.ts, so
+      // whether it exists depended on whether a menu happened to be mounted --
+      // and in walk mode none is, which is precisely the mode a reference pose is
+      // captured in. Importing it directly is the same trick PLAN= uses for
+      // templates.ts and works for the same reason: Vite serves source in dev.
+      try {
+        await import('/src/ui/openSceneExport.ts')
+      } catch (e) {
+        return { error: `could not import openSceneExport.ts to install the seam: ${String(e)}` }
+      }
+    }
     const f = window.__exportSceneGlbBase64
-    if (typeof f !== 'function') return null
+    if (typeof f !== 'function') {
+      return {
+        error:
+          'window.__exportSceneGlbBase64 is absent. It is installed as a module side effect of ' +
+          'src/ui/openSceneExport.ts under import.meta.env.DEV, so it only exists once something ' +
+          'imports that module (CommandPalette / FileMenu / ShareModal). A dev server alone is ' +
+          'not enough if none of them has mounted.',
+      }
+    }
     try {
-      return await f()
+      const out = await f()
+      if (typeof out === 'string' && out.length > 0) return out
+      return {
+        error: `the seam ran and returned ${out === null ? 'null (no scene root, or the exporter handed back a string)' : typeof out}`,
+      }
     } catch (e) {
       return { error: String(e) }
     }
@@ -2669,7 +2698,8 @@ if (process.env.BLENDREF) {
     fs.writeFileSync(glbPath, Buffer.from(glbB64, 'base64'))
   } else {
     console.log(
-      `  BLENDREF: GLB export unavailable (${JSON.stringify(glbB64)}) -- is this a DEV build with the seam?`,
+      `  ** BLENDREF: NO scene.glb -- ${glbB64?.error ?? JSON.stringify(glbB64)}\n` +
+        '     Without it this directory cannot produce a physical reference; it is a raster and a pose only.',
     )
   }
   const manifest = {
@@ -2694,7 +2724,13 @@ if (process.env.BLENDREF) {
       pitch: PITCH,
     },
     glb: glbPath ? 'scene.glb' : null,
-    raster: 'frame.png',
+    // The truth, not the intention. This said 'frame.png' unconditionally while the
+    // raster is actually written to OUT -- so a run with BLENDREF but no OUT left a
+    // manifest naming a file that was not there, and the app half of the pair went to
+    // OUT's default `/tmp/light-distribution`, which EVERY subsequent probe run
+    // overwrites. A reference whose two halves are one shared directory apart is a
+    // reference with a countdown on it.
+    raster: OUT === dir ? 'frame.png' : `${OUT}/frame.png`,
     note: 'Camera/lights are in THREE (Y-up) space. Convert with sofa_scene.three_to_blender().',
   }
   fs.writeFileSync(`${dir}/manifest.json`, `${JSON.stringify(manifest, null, 2)}\n`)
@@ -2704,6 +2740,13 @@ if (process.env.BLENDREF) {
   // Loud, because quiet was expensive. A daylight-only reference compared against a
   // lamp-lit raster is not a wrong measurement of the app -- it is a measurement of a
   // different scene, and it reads as an app defect (`v0.31.7.8`).
+  if (OUT !== dir) {
+    console.log(
+      `  ** BLENDREF WARNING: the app raster goes to ${OUT}/frame.png, NOT into ${dir}. ` +
+        `OUT defaults to /tmp/light-distribution and is overwritten by the next probe run, so ` +
+        `this reference pair will come apart. Re-run with OUT=${dir} to keep both halves together.`,
+    )
+  }
   if (rig.placed?.on) {
     console.log(
       `  ** BLENDREF WARNING: ${rig.placed.on} placed light(s) are ON ` +
@@ -3472,27 +3515,16 @@ const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
 const down = await grey(shotDown)
 const W = info.width
 const H = info.height
-// HUD cut-outs are REQUIRED. v0.31.5.182 removed them believing an element
-// screenshot excludes overlaying DOM; it does not — Puppeteer clips the COMPOSITED
-// page to the element's box, so the toolbar, the Measure button and the minimap
-// are still in a "canvas" capture (verified by sampling: 235,232,227 in both a
-// page shot and an element shot). Hiding the DOM instead blanks the canvas too,
-// because the canvas is not a direct child of the app root. So: cut the rectangles.
-const TOOLBAR = { x0: 0.24 * W, x1: 0.76 * W, y1: 0.1 * H }
-const MEASURE = { x0: 0.9 * W, y1: 0.06 * H }
-const MINIMAP = { x0: 0.76 * W, y0: 0.76 * H }
-// v0.31.5.229: the walk-mode PILL ("Turn off ceiling light") and the HINT BAR
-// sit in the lower middle of the frame and were never excluded -- they land
-// squarely inside the FLOOR band, so the floor ratio was being measured partly
-// over DOM chrome.
-const PILL = { x0: 0.4 * W, x1: 0.61 * W, y0: 0.81 * H, y1: 0.89 * H }
-const HINTS = { x0: 0.28 * W, x1: 0.72 * W, y0: 0.9 * H, y1: 0.98 * H }
-const hud = (x, y) =>
-  (x >= TOOLBAR.x0 && x < TOOLBAR.x1 && y < TOOLBAR.y1) ||
-  (x >= MEASURE.x0 && y < MEASURE.y1) ||
-  (x >= MINIMAP.x0 && y >= MINIMAP.y0) ||
-  (x >= PILL.x0 && x <= PILL.x1 && y >= PILL.y0 && y <= PILL.y1) ||
-  (x >= HINTS.x0 && x <= HINTS.x1 && y >= HINTS.y0 && y <= HINTS.y1)
+// HUD cut-outs are REQUIRED, and the rectangles now live in `hud.mjs` so this
+// probe and every downstream consumer of the raster it SAVES share one list.
+// v0.31.5.182 removed them believing an element screenshot excludes overlaying
+// DOM; it does not -- Puppeteer clips the COMPOSITED page to the element's box, so
+// the toolbar, the Measure button and the minimap are still in a "canvas" capture
+// (verified by sampling: 235,232,227 in both a page shot and an element shot).
+// Hiding the DOM instead blanks the canvas too, because the canvas is not a direct
+// child of the app root. So: cut the rectangles. v0.31.5.229 added the walk-mode
+// pill and hint bar, which land inside the FLOOR band.
+const hud = (x, y) => isHud(x / W, y / H)
 const BANDS = {
   ceiling: { y0: 0.02, y1: 0.16, x0: 0.05, x1: 0.95 },
   wall: { y0: 0.3, y1: 0.6, x0: 0.82, x1: 0.98 },

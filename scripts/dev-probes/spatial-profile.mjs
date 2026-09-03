@@ -41,6 +41,7 @@
  */
 import process from 'node:process'
 import sharp from 'sharp'
+import { hudCoverage, hudMask } from './hud.mjs'
 
 const args = process.argv.slice(2)
 const files = args.filter((a) => !a.startsWith('--'))
@@ -48,6 +49,16 @@ if (files.length !== 2) {
   console.error('usage: spatial-profile.mjs <app.png> <ref.png> [--crop=x,y,w,h] [--bins=N]')
   process.exit(1)
 }
+// `--hud` excludes the app's UI chrome from BOTH images.
+//
+// **Why this is not optional in practice.** The app raster written into a BLENDREF
+// directory is the RAW composited page: toolbar, Measure button, minimap, the
+// walk-mode pill and the hint bar are all in it. `light-distribution.mjs` has cut
+// those rectangles out of its OWN statistics since `v0.31.5.182`, but the FILE it
+// saves is unmasked -- and every downstream probe, this one included, reads that
+// file while the Cycles half has no chrome at all. The rectangles live in `hud.mjs`
+// because copying them is how three of the five got left out on the first attempt.
+const USE_HUD = args.includes('--hud')
 const cropArg = args.find((a) => a.startsWith('--crop='))
 const crop = cropArg ? cropArg.slice(7).split(',').map(Number) : null
 if (crop && (crop.length !== 4 || crop.some((v) => !Number.isFinite(v)))) {
@@ -75,8 +86,17 @@ async function load(file) {
   for (let i = 0; i < n; i++) {
     lum[i] = 0.2126 * data[i * 3] + 0.7152 * data[i * 3 + 1] + 0.0722 * data[i * 3 + 2]
   }
-  const median = Float64Array.from(lum).sort()[Math.floor(0.5 * (n - 1))]
-  return { lum, w: info.width, h: info.height, median }
+  // 1 = counted. Masked pixels are EXCLUDED, not filled: filling with any value
+  // (black, grey, the frame median) would bias the very bin means the mask exists
+  // to protect.
+  const use = USE_HUD ? hudMask(info.width, info.height) : new Uint8Array(n).fill(1)
+  let kept = 0
+  for (let i = 0; i < n; i++) if (use[i]) kept += 1
+  const vals = new Float64Array(kept)
+  let k = 0
+  for (let i = 0; i < n; i++) if (use[i]) vals[k++] = lum[i]
+  const median = vals.sort()[Math.floor(0.5 * (kept - 1))]
+  return { lum, use, w: info.width, h: info.height, median, kept, n }
 }
 
 /** Mean luminance per bin along one axis, normalised by the frame's own median. */
@@ -91,11 +111,13 @@ function profile(im, axis) {
     let n = 0
     for (let a = a0; a < a1; a++) {
       for (let o = 0; o < other; o++) {
-        s += axis === 'col' ? im.lum[o * im.w + a] : im.lum[a * im.w + o]
+        const i = axis === 'col' ? o * im.w + a : a * im.w + o
+        if (!im.use[i]) continue
+        s += im.lum[i]
         n++
       }
     }
-    out.push(s / n / im.median)
+    out.push(n === 0 ? Number.NaN : s / n / im.median)
   }
   return out
 }
@@ -104,6 +126,15 @@ const explainArg = args.find((a) => a.startsWith('--explain='))
 const [A, B, C] = await Promise.all(
   [files[0], files[1], ...(explainArg ? [explainArg.slice(10)] : [])].map(load),
 )
+// Echo the invocation with the results. A row of this arc's CHANGELOG tables could
+// not be reproduced from the surviving artefacts because nobody recorded whether it
+// had a `--crop`; a number that cannot say how it was produced is not a measurement.
+console.log(
+  `\n  spatial-profile ${process.argv.slice(2).join(' ')}` +
+    `\n  bins=${BINS} crop=${crop ? crop.join(',') : 'none'} hud=${USE_HUD ? 'EXCLUDED' : 'included'}` +
+    `${USE_HUD ? ` (${(100 * hudCoverage(A.w, A.h)).toFixed(1)} % of pixels masked)` : ''}`,
+)
+
 const f = (v) => v.toFixed(3).padStart(7)
 for (const [axis, label] of [
   ['col', 'COLUMNS (left -> right)'],
