@@ -93,6 +93,19 @@ export interface LightmapIndex {
    * against, so this build rejects instead of guessing.
    */
   encode?: number
+  /**
+   * Divisor the bake applied before saving; texels hold `irradiance / scale`.
+   *
+   * **This is a unit conversion, not a look knob, so it is read from the artefact and is not
+   * overridable.** PNG is an integer format and Blender clips a float buffer at 1.0 on save,
+   * while sky-lit interior irradiance runs far above that — `v0.31.7.104` measured 20 of 24 maps
+   * in the v99 set clipping, with a whole-map **mean of 9.4** against the 1.0 ceiling. The saved
+   * map was very nearly a binary `>= 1.0` mask, which is why no consumer-side gain could ever
+   * fit it and why the fitted `~14` looked arbitrary: it was reconstructing the lost scale.
+   *
+   * Absent on a `visibility` set, whose values are dimensionless and already in `0..1`.
+   */
+  scale?: number
 }
 
 /** The only index shape this build understands. v1 had no per-map context and could therefore
@@ -121,6 +134,14 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
   // A non-unit encode is silently misread by every consumer in this build; see `encode` above.
   if (typeof o.encode === 'number' && o.encode !== 1) {
     return { error: `index uses --encode ${o.encode}; this build only reads unencoded maps` }
+  }
+  // A scale of 0, NaN or a negative would silently blank or invert every surface. Refusing beats
+  // falling back to 1, which would misread the map by whatever the real factor was.
+  if (
+    o.scale !== undefined &&
+    (typeof o.scale !== 'number' || !(o.scale > 0) || !Number.isFinite(o.scale))
+  ) {
+    return { error: `index has an unusable scale ${String(o.scale)}` }
   }
   if (!Array.isArray(o.maps)) return { error: 'index has no maps array' }
   const maps: LightmapEntry[] = []
@@ -165,6 +186,7 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
       maps,
       contexts,
       ...(typeof o.encode === 'number' ? { encode: o.encode } : {}),
+      ...(typeof o.scale === 'number' ? { scale: o.scale } : {}),
     },
   }
 }

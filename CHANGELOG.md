@@ -29,6 +29,63 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.104 — the irradiance maps were CLIPPED: PNG holds 0..1, the bake wrote values up to 56 with a mean of 9.4
+
+The `replace`/irradiance path could never have worked, and the reason is one line of format
+mismatch. `bake_object` writes a float buffer to **PNG**, an integer format, and Blender clips at
+**1.0** on save. From the v99 bake logs:
+
+| | value |
+| --- | --- |
+| per-map `max`, p50 | **54.98** |
+| per-map `max`, range | 0.48 – 58.04 |
+| whole-map `mean`, p50 | **9.38** |
+| maps with `max > 1.0` | **20 of 24** |
+| saved PNG bit depth | **8** |
+
+The *mean* is 9.4× above the ceiling, not just the highlights — so the saved map was very nearly a
+binary `>= 1.0` mask. **No consumer-side gain can recover a clipped signal**, which retires the whole
+calibration thread: the "implied gain ≈ 14" that `.102` left open was not a look constant being
+fitted, it was **the lost scale being reconstructed** from a saturated mask, and its ~3× disagreement
+between rooms was just how much each room clipped.
+
+Also worth stating plainly: the per-map `max` was reported all along, in the index, at 55 — and I read
+past it for many rounds because I was looking for a *correspondence* fault. `.98` through `.101`
+proposed a mirror row, an axis permutation, sub-slot misregistration and a slot collapse, and refuted
+every one. The number that mattered was in the log the whole time.
+
+**Producer — `--scale`, verified end to end.** Divides every texel before save and records the divisor
+in the index:
+
+- **One GLOBAL scale, not per map.** Per-map normalisation would destroy the between-mesh ratios that
+  are the entire point of a GI bake.
+- **Forces a float buffer.** Dividing an already-clipped 8-bit buffer recovers nothing.
+- **Forces 16-bit PNG.** Packing a ~56× range into `0..1` at 8 bits leaves a quantisation step of
+  ~0.22 in irradiance units — coarse against the 9.4 mean, ruinous in the dark corners this pass
+  exists to describe. Verified: `bitdepth 16`.
+- **Stats stay PRE-scale**, in the bake's own units, so `--scale` cannot change the meaning of the
+  numbers you choose `--scale` from. Verified: `max`/`mean` are byte-identical across `--scale 58`
+  and `--scale 3.3` runs of the same set.
+- **A per-map `clipped` boolean**, because the failure is invisible in the output — a clipped map
+  looks like a plausible bright one.
+- The call site now passes **keywords**, not positions: inserting `scale` after `encode` would have
+  shifted `denoise`, which is exactly how `dilate` once got passed as `float_buffer`.
+
+Measured on a 6-map / 128 px / 32-sample subset: `max = 3.24`, `clipped: false` at `--scale 3.3`,
+using 98 % of the range. (The 55–58 figures above are the 24-map set; both exceed 1.0, so both
+clipped unscaled.)
+
+**Consumer — `scale` multiplies back in, and stays separate from `gain`.** One is a measured unit
+conversion recorded by the producer; the other is a fitted look constant. Collapsing them is how a
+clipped set came to be "explained" by a gain of 14. `parseLightmapIndex` **refuses** a scale of `0`, a
+negative, `NaN`, `Infinity` or a string rather than degrading to 1.0 — a silent fallback would misread
+the map by whatever the real factor was. `encode` and `scale` are now written to the **index**, not
+just the stdout report, which is the defect `.103` found for `encode`.
+
+**Inert on the shipped set:** it is a `visibility` pass with no `scale` field, so the multiplier is 1
+and nothing renders differently. No visual delta to verify; the next irradiance bake is where this
+lands. Suite **10115 green**, `tsc` and biome clean.
+
 ## v0.31.7.103 — `parseLightmapIndex` silently dropped `slots`, so `v0.31.7.99`'s `flipped = 0` measured a dead code path
 
 Two real defects, both found by asking what the *consumer* does with what the *producer* writes.

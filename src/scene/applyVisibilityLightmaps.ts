@@ -161,7 +161,12 @@ export function applyLightmapsFromIndex(
   // Scaled per plan unless the caller overrides. A plan whose surfaces see more sky needs less
   // gain, and the index records each plan's mean so one fitted measurement calibrates all of
   // them (`v0.31.7.44`).
-  const planGain = gain ?? gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined)
+  // The bake's `scale` multiplies back IN, restoring the map to the units it was baked in before
+  // any artistic gain applies. Kept separate from `gain` on purpose: one is a measured unit
+  // conversion recorded by the producer, the other is a fitted look constant, and collapsing them
+  // is how `v0.31.7.104`'s clipped set came to be "explained" by a gain of ~14.
+  const scale = index.scale ?? 1
+  const planGain = scale * (gain ?? gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined))
   let applied = 0
   // Faces relocated to the mirror atlas row because the bake put the data there.
   let flippedFaces = 0

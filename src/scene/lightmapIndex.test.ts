@@ -180,3 +180,33 @@ describe('parseLightmapIndex — fields that were silently dropped', () => {
     expect('index' in parseLightmapIndex(base)).toBe(true)
   })
 })
+
+describe('parseLightmapIndex — the bake `scale`', () => {
+  const base = {
+    version: 2,
+    pass: 'irradiance',
+    uv: 'box-atlas-3x2',
+    maps: [{ key: 'k1', file: 'a.png', ctx: 'c1' }],
+  }
+
+  it('carries a valid scale through', () => {
+    const r = parseLightmapIndex({ ...base, scale: 3.3 })
+    if (!('index' in r)) throw new Error('parse failed')
+    expect(r.index.scale).toBe(3.3)
+  })
+
+  it('leaves scale undefined when the index has none — a visibility set is already 0..1', () => {
+    const r = parseLightmapIndex(base)
+    if (!('index' in r)) throw new Error('parse failed')
+    expect(r.index.scale).toBeUndefined()
+  })
+
+  it('REFUSES a scale that would blank or invert every surface', () => {
+    // 0 blanks the shell, a negative inverts it, NaN makes every texel NaN. None of these
+    // should degrade to 1.0, which would misread the map by whatever the real factor was.
+    for (const bad of [0, -2, Number.NaN, Number.POSITIVE_INFINITY, '3' as unknown]) {
+      const r = parseLightmapIndex({ ...base, scale: bad })
+      expect('error' in r, `scale ${String(bad)} should be refused`).toBe(true)
+    }
+  })
+})

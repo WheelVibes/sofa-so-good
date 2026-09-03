@@ -104,6 +104,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "pixels sampling black (v0.31.7.97). Unlike --denoise this NEVER "
                         "rewrites a baked value, so it cannot bias the map -- it only extends "
                         "it into padding that held nothing.")
+    p.add_argument("--scale", type=float, default=1.0,
+                   help="divide every texel by this before saving, and record it in the index so "
+                        "the consumer can multiply it back. REQUIRED FOR THE IRRADIANCE PASS: PNG "
+                        "is an integer format and Blender clips a float buffer at 1.0 on save, "
+                        "while sky-lit interior irradiance runs to ~56 with a MEAN of ~9.4. "
+                        "Measured on the v99 set: 20 of 24 maps clipped, so the saved map was very "
+                        "nearly a binary '>= 1.0' mask and no consumer-side gain could recover it. "
+                        "One GLOBAL scale for the whole set, not per map -- per-map normalisation "
+                        "would destroy the between-mesh ratios that are the entire point of a GI "
+                        "bake. Find the value by baking once at --scale 1 and reading the largest "
+                        "reported 'max' (the stats are taken from the float buffer, so they are "
+                        "PRE-clip and remain trustworthy).")
     p.add_argument("--encode", type=float, default=1.0,
                    help="store texel^encode instead of the raw value; the consumer must apply "
                         "the inverse. 0.5 (a square root) is the useful setting. An 8-bit PNG "
@@ -433,6 +445,7 @@ def bake_object(
     bake_type: str,
     interior_slots: set[tuple[int, int]] | None = None,
     encode: float = 1.0,
+    scale: float = 1.0,
     denoise: bool = False,
     float_buffer: bool = False,
     dilate: int = 4,
@@ -447,7 +460,12 @@ def bake_object(
     # 223 distinct levels before, 166 after, exactly backwards from the intent. The float
     # buffer keeps the bake's real values until the single quantisation at save time.
     img = bpy.data.images.new(
-        f"bake_{obj.name}", width=res, height=res, float_buffer=float_buffer or encode != 1.0 or denoise or dilate > 0
+        f"bake_{obj.name}",
+        width=res,
+        height=res,
+        # `scale` belongs here: dividing an already-clipped 8-bit buffer recovers nothing, so a
+        # scaled bake must hold the real values until the single quantisation at save time.
+        float_buffer=float_buffer or encode != 1.0 or scale != 1.0 or denoise or dilate > 0,
     )
     # NON-COLOUR, set BEFORE the bake writes, not after. A visibility map is DATA -- three
     # multiplies it straight into `irradiance` -- and Blender saves an 8-bit PNG through the
@@ -490,14 +508,34 @@ def bake_object(
                 v = px_all[i + c]
                 px_all[i + c] = (v if v > 0 else 0.0) ** encode
         img.pixels[:] = px_all
+    # Captured BEFORE the divide, so `max`/`mean` below stay in the bake's own units and remain
+    # the numbers you pick `--scale` from. Reading them after would report ~1.0 for every map and
+    # hide the clipping this flag exists to prevent.
+    pre = list(img.pixels)[0::4]
+    pre_max = max(pre) if pre else 0.0
+    if scale != 1.0:
+        px_all = list(img.pixels)
+        for i in range(len(px_all)):
+            if i % 4 != 3:
+                px_all[i] = px_all[i] / scale
+        img.pixels[:] = px_all
     img.filepath_raw = out_path
     img.file_format = "PNG"
+    # SIXTEEN bits whenever a scale is in play. Scaling packs a ~56x range into 0..1, so 8 bits
+    # would leave a quantisation step of ~0.22 in irradiance units -- coarse against the 9.4 mean
+    # and ruinous in the dark corners this pass exists to describe.
+    if scale != 1.0:
+        bpy.context.scene.render.image_settings.color_depth = "16"
     img.save()
-    px = list(img.pixels)
-    reds = px[0::4]
+    # EVERY statistic below is PRE-SCALE, in the bake's own units. One convention throughout, or
+    # `--scale` would silently change the meaning of the numbers you use to choose `--scale`.
+    reds = pre
     stats = {
         "min": round(min(reds), 4),
-        "max": round(max(reds), 4),
+        "max": round(pre_max, 4),
+        # Loud, per map, because the failure is invisible in the saved file: a clipped map looks
+        # like a plausible bright one. 20 of 24 maps in the v99 irradiance set tripped this.
+        "clipped": pre_max / scale > 1.0,
         "mean": round(sum(reds) / len(reds), 4),
     }
     # Interior-only statistics. The whole-map figures above are dominated by outdoor-facing
@@ -653,16 +691,20 @@ def main(argv: list[str] | None = None) -> int:
         # plans sharing a wall position share a file.
         out = os.path.join(out_dir, f"{plan_context}-{key}.png")
         try:
+            # KEYWORDS, not positions. `v0.31.7.x` inserted `dilate` ahead of `float_buffer`
+            # in the signature and the positional call silently passed a bool as an int; adding
+            # `scale` after `encode` would have done the same to `denoise`. Names cannot slip.
             stats = bake_object(
                 obj,
                 out,
-                a.res,
-                bake_type,
-                interior_slots,
-                a.encode,
-                a.denoise,
-                a.float_buffer,
-                a.dilate,
+                res=a.res,
+                bake_type=bake_type,
+                interior_slots=interior_slots,
+                encode=a.encode,
+                scale=a.scale,
+                denoise=a.denoise,
+                float_buffer=a.float_buffer,
+                dilate=a.dilate,
             )
         except RuntimeError as exc:  # noqa: PERF203 — one bad mesh must not lose the batch
             baked.append({"object": obj.name, "area": round(area, 2), "error": str(exc)[:120]})
@@ -693,6 +735,7 @@ def main(argv: list[str] | None = None) -> int:
         "seed": a.seed,
         "adaptive_threshold": a.adaptive_threshold,
         "encode": a.encode,
+        "scale": a.scale,
         "glazing_removed": removed,
         "dispersion_stripped": stripped,
         "candidates_over_min_area": len(candidates),
@@ -745,6 +788,11 @@ def main(argv: list[str] | None = None) -> int:
         "albedo": a.albedo,
         "uv": "box-atlas-3x2",
         "uv_margin": 0.04,
+        # IN THE INDEX, not just the stdout report. `encode` has been reported for many versions
+        # and never written here, which is why the runtime could not read it even in principle
+        # (`v0.31.7.103`). A transform applied to the data must travel WITH the data.
+        "encode": a.encode,
+        "scale": a.scale,
         "maps": maps,
     }
     with open(index_path, "w") as fh:

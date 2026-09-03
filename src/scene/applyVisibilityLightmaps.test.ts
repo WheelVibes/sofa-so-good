@@ -132,6 +132,48 @@ describe('applyLightmapsFromIndex', () => {
     expect(shader.uniforms.visGain.value).toBe(42)
   })
 
+  it('MULTIPLIES the bake scale into the gain, so the map returns to its baked units', () => {
+    // `scale` is the divisor the bake applied before saving a >1.0 float buffer into an integer
+    // PNG. It must come back in, and it must come back in SEPARATELY from the fitted gain:
+    // `v0.31.7.104` found the irradiance set clipped with a mean of 9.4 against a 1.0 ceiling,
+    // and the "gain of ~14" that seemed to fix it was silently standing in for this factor.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    const parsed = parseLightmapIndex({
+      version: 2,
+      pass: 'irradiance',
+      uv: 'box-atlas-3x2',
+      scale: 3,
+      maps: [{ key: keyOf(w), file: 'a.png', ctx: CTX }],
+    })
+    if (!('index' in parsed)) throw new Error('bad fixture')
+    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 5, mode: 'replace' })
+    const shader = {
+      uniforms: {} as Record<string, { value: number }>,
+      vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+      fragmentShader:
+        'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+    }
+    ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
+    expect(shader.uniforms.visGain.value).toBe(15)
+  })
+
+  it('leaves the gain alone when the index declares no scale', () => {
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, { gain: 7 })
+    const shader = {
+      uniforms: {} as Record<string, { value: number }>,
+      vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+      fragmentShader:
+        'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+    }
+    ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
+    expect(shader.uniforms.visGain.value).toBe(7)
+  })
+
   it('applies only ONE plan’s maps when a key exists in two', () => {
     // Real data: 20 of 65 meshes in the 5-Room plan share a key with the 4-Room set, because
     // HDB layouts repeat wall positions. Mixing two plans' visibility is worse than none.
