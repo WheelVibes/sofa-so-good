@@ -69,6 +69,21 @@ const out = await page.evaluate(() => {
       dim: dim.map((v) => Number(v.toFixed(2))),
       vol: Number((dim[0] * dim[1] * dim[2]).toFixed(3)),
       visible: o.visible,
+      url: mats.map((m) => m?.userData?.visMapUrl).find(Boolean) ?? null,
+      // World centroid, so a mesh can be identified by WHERE it is rather than by its
+      // `Mesh_NNN` name — which is how a specific room's ceiling gets found.
+      c: (() => {
+        const b = o.geometry.boundingBox
+        if (!b) return null
+        const v = new o.geometry.boundingBox.min.constructor(
+          (b.min.x + b.max.x) / 2,
+          (b.min.y + b.max.y) / 2,
+          (b.min.z + b.max.z) / 2,
+        )
+        o.updateMatrixWorld(true)
+        v.applyMatrix4(o.matrixWorld)
+        return [v.x, v.y, v.z].map((n) => Number(n.toFixed(2)))
+      })(),
       // The bake's own gate (`--min-area 3.0`) and the applier's (`MIN_SPAN_M
       // 1.5`) are both size filters, so record the span the applier tests.
       span: Number(Math.max(...[0, 1, 2].map((k) => dim[k])).toFixed(2)),
@@ -84,6 +99,26 @@ console.log(`tier=${TIER}  meshes=${out.length}  mapped=${mapped.length}  unmapp
 console.log(
   `  unmapped WITH a uv1 attribute (baked-for but not bound): ${un.filter((r) => r.hasUv1).length}`,
 )
+if (process.env.MAPPED === '1') {
+  const { readFileSync } = await import('node:fs')
+  const idx = JSON.parse(readFileSync('public/assets/lightmaps/index.json', 'utf8'))
+  const scaleFor = new Map(idx.maps.map((m) => [m.file, m.scale]))
+  // The map SCALE is the bake's own claim about that surface's peak irradiance: each map is
+  // normalised to its own maximum, so `?aoDebug=1` (which paints the pre-scale value) cannot be
+  // compared BETWEEN meshes. Reconstruction is value * scale * gain, so this column is the half
+  // the debug view cannot show.
+  console.log('\nMAPPED meshes, sorted by height — dim, world centroid, map scale:')
+  const rows = mapped
+    .map((r) => ({ ...r, sc: scaleFor.get((r.url || '').split('/').pop()) ?? null }))
+    .sort((a, b) => (a.c?.[1] ?? 0) - (b.c?.[1] ?? 0))
+  for (const r of rows) {
+    console.log(
+      `  dim=${String(r.dim.join('x')).padEnd(22)} c=${String((r.c || []).join(',')).padEnd(24)} scale=${r.sc === null ? '?' : r.sc.toFixed(4)}`,
+    )
+  }
+  process.exit(0)
+}
+
 const byVol = un
   .filter((r) => r.visible)
   .sort((a, b) => b.vol - a.vol)

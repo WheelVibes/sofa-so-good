@@ -29,6 +29,57 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.170 — the residual ceiling deficit is SPATIAL, not a level; sun-bounce refuted, and the room is sky-lit
+
+`.169` shipped the GI and its own numbers named the next gap: the bedroom3 ceiling still sits at
+**108.5** against a Cycles **187.2** while the wall reaches 145.2 against 177.9. This chases that.
+
+**No single gain can fix both, which makes it a distribution problem rather than an exposure one.**
+Swept against the reference at the same pose:
+
+| gain | left wall (target 177.9) | ceiling (target 187.2) |
+| --- | --- | --- |
+| 6 (shipped) | 145.2 | 108.5 |
+| 10 | 160.0 | 124.4 |
+| 16 | 171.9 | 138.2 |
+| 24 | **180.4** ✓ | 148.9 — still **38 short**, and flattening |
+
+The wall matches around gain ~20 and the ceiling cannot reach its target at any gain on this curve.
+
+**What the maps actually claim.** Sorting the 52 mapped meshes by height, the ceilings (y = 2.6,
+flat) carry `scale` **0.2183–0.3417** while the walls carry **2.9191** — a 13x difference in the
+bake's own record of peak irradiance. Combining with `?aoDebug=1`'s pre-scale values, the
+reconstructed irradiance is **0.105** on the ceiling against **1.82** on the wall, ~17x apart.
+(`?aoDebug=1` alone cannot show this: each map is normalised to its own maximum, so the debug view
+is not comparable BETWEEN meshes. `lightmap-census.mjs MAPPED=1` now prints the scale beside the
+geometry, which is the half it cannot.)
+
+**A clean hypothesis, tested and refuted.** A ceiling in a sunlit room is lit mostly by sun bouncing
+off the floor, and the bake removes the sun disc as a SOURCE to avoid double-counting the direct sun
+the app draws itself — which would remove the sun's *indirect* bounce too, and the app does not draw
+that either. It would have explained the ceiling exactly. Re-rendering the reference with
+`--sun-energy 0` moves the ceiling by **−0.1 counts** and the wall by **−0.1**: at 83.9° elevation
+the sun is nearly overhead and barely enters a vertical window, so **this room is sky-lit** and there
+is no sun bounce to have lost. The bake's sun removal is not implicated here.
+
+**A caveat on `.169`'s own figures, stated because I quoted them as if they were energy.** "Closes
+53 % / 17 %" are fractions of a *displayed-count* deficit, and at 178–187 AgX is deep in its
+shoulder, where very different linear values compress to similar bytes. The DIRECTION and ORDERING
+of every comparison in `.169` are safe — the app is darker than the reference on every mapped
+surface and moves toward it — but those percentages should not be read as fractions of energy.
+Neither renderer here can be asked for linear output without work: `render_still.py` has no
+view-transform flag, and the app's linear buffer is not readable, so a genuinely linear comparison
+needs both halves changed, not one.
+
+**Where that leaves the ceiling.** The deficit is real and spatial. The two candidates left are the
+bake under-representing ceilings (coverage, normalisation, or a path the bake excludes that is not
+the sun) and the app's shading of a correct map. Distinguishing them wants a linear comparison, so
+the cheapest next step is a `--view-transform` flag on `render_still.py` plus a linear read on the
+app side — which is also the instrument every future app-vs-traced round in this arc will want.
+
+Suite 10167 green, `tsc` and biome clean. Nothing shipped.
+
+
 ## v0.31.7.169 — 🎉 SHIPPED: the Blender-baked GI is ON at `realistic`, validated against Cycles at two poses
 
 `(z)`1's decision was made long ago and held behind a seam. `.164`–`.168` took that seam apart, and
