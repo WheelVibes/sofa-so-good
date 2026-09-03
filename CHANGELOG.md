@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.29 — the loader, with the hit-rate diagnostic built into the code rather than the prose
+
+`src/scene/lightmapIndex.ts` — `parseLightmapIndex()` and `createLightmapResolver()`. The third
+and last pure module item (w) needs before wiring: read a baked set's `index.json`, resolve a
+geometry key to a map URL, and **count whether anything matched**.
+
+**Why the counting is the point.** A lightmap that never matches and a correctly-working subtle
+lighting term look *identical* in a screenshot. The first end-to-end attempt matched **0 of 385**
+meshes because the keys were hashed in Blender's coordinate frame rather than the app's
+(`v0.31.7.16`), and it was caught in minutes only because the probe treated a zero hit rate as a
+hard error. That property is now in `src/` instead of in a probe: the resolver tracks lookups and
+`describeHitRate()` reports `hit/looked` with a `suspect` flag.
+
+**Two judgement calls in that flag, both tested:**
+
+- **It does not fire below `minLookupsToJudge` (20).** The scene mounts progressively, so a hit
+  rate over two lookups means nothing and judging early would warn on every load.
+- **It does not fire on a *partial* hit rate.** 118 of 385 meshes matching is the expected,
+  *correct* state — only shell meshes are baked, so every piece of furniture is a legitimate
+  miss. Only a sustained **zero** is a bug, and the message says which two causes to check
+  (wrong plan, or keys hashed in a different frame).
+
+**Validation refuses rather than throws, and refuses one thing on purpose.** A missing or stale
+set must degrade to today's render, never break the scene, so every failure returns
+`{ error }`. But the `uv` field is checked strictly against `box-atlas-3x2`: a set baked in a
+different layout would load, look plausible, and be wrong on every texel — the hardest class of
+bug to notice, and worth refusing outright.
+
+**13 tests**, including a table-driven set for the malformed-input cases, and one asserting the
+`1/10` partial-hit message so the arithmetic in the summary line can't drift.
+
+**Still nothing wired.** Three modules now exist — `lightmapUv`, `lightmapKey`,
+`visibilityLightmap`, `lightmapIndex` — none with a caller outside its tests, so the render and
+frame budget remain untouchable by construction and all three views keep their measured 60 fps.
+What remains is the wiring itself: `uv1` on the shell at build time, the resolver hooked to the
+current plan, and the flag read at material construction.
+
+Suite: **10034 tests green** (up 13); `tsc`, biome, knip clean.
+
 ## v0.31.7.28 — the shader patch becomes real code: `visibilityLightmap.ts`, one test per measured failure
 
 Everything item (w) needs is now measured: the term (4.76× → 1.36×), the gain (fitted 6, stable
