@@ -4168,7 +4168,7 @@ several turned out to mean something different once implemented. **Read this bef
 | 1 | GI on `realistic` | **Infrastructure shipped and verified** — asset swap, tier gate proved in both directions, two-way detach. **Flag HELD off**: at `realistic` the maps draw a dark dotted seam on narrow meshes' silhouette edges. Effect is real (ceiling 0.69 → 0.92). |
 | 2 | 40 maps, 1.2 MB | **Superseded.** You re-decided for 333 maps after `.114` showed my "no seam at this coverage" was measured at the wrong tier. Baked (10 MB, 0 clipped, 50 % coverage) — **and the seam persists at both**, so coverage was not the cause. |
 | 3 | Commit maps to the repo | **Done** — the 40-map set is `public/assets/lightmaps`. |
-| 4 | Cycles sky + `backgroundIntensity ≈ 4` | **Not started.** Still the most self-contained shippable item on this list. |
+| 4 | Cycles sky + `backgroundIntensity ≈ 4` | ❌ **MEASURED AND DECLINED `v0.31.7.163`** — its premise was spent by `(l)`'s fix. See the block below. |
 | 5 | Delete the `visibility` pass | **Partly.** Assets replaced; the pass and `multiply` operator are still in the code. |
 | 6 | Reproduce the 1459 ms load hitch | **Not started** (n=1). |
 | 7 | `dprMax` 2 → 1 as last rung | **Not started.** Largest unused perf lever (4.5×). |
@@ -4180,6 +4180,84 @@ several turned out to mean something different once implemented. **Read this bef
 | 13 | Fix all five HQ defects | **Not started.** |
 | 14–16 | `(f)`, `(g)`, `(i)`, `(j)` plan fixes | **Not started.** Scope, from the summary table: `(f)` **9 templates** with unenclosed bathrooms, `(i)` **3 left** and none offset-fixable, `(j)` **11 of 78**. |
 | — | `(h)` — I closed it in error | **REOPENED `v0.31.7.145`.** 12 of 44 remain and `.120` proved none is offset-fixable; I generalised from three worked examples without checking the count. |
+
+### ❌ `(z)`4 is CLOSED as declined — measured `v0.31.7.163`, and it is a premise failure
+
+Decision 4 (ship the Cycles sky keys **and** `backgroundIntensity ≈ 4`) was answered to close `(l)`:
+the window read as a panel rather than an opening because the pane was too DARK. **`(l)` was then
+fixed by a different lever** — the `d³ · 5.2` glass sky-catch ramp in `v0.31.7.157` — which raised
+the daytime pane on its own. Applying decision 4 on top of that fix overshoots in both directions.
+
+**First, the bound nobody had stated.** `scene.background` is painted **in walk mode only, and is
+seen exclusively through a window aperture** (`SceneBackdrop.tsx`). There is no view in this app
+where the sky fills the frame. That caps what any sky improvement can be worth, and it explains the
+daytime null below rather than being explained by it.
+
+Measured on clean glass (patch sd ≤ 0.6, placement confirmed on the written overlay — the first
+patch set straddled mullions and a sconce reflection and gave sd 48, which is why the overlay is
+not optional):
+
+| 21:00, clean glass | base | `bgIntensity 4` | + Cycles keys |
+| --- | --- | --- | --- |
+| upper pane (above horizon) | 27.3 | 27.3 | **197.4** |
+| lower pane (below horizon) | 79.2 | 84.4 | **155.4** |
+| lamp-lit wall | 210.2 | 210.2 | 210.2 |
+
+| 13:00, clean glass | base | `bgIntensity 4` | + Cycles keys |
+| --- | --- | --- | --- |
+| upper pane | 227.9 | 238.4 | **243.4** |
+| lamp-lit wall | 224.8 | 224.8 | 224.8 |
+
+Three findings, in order of how much they matter:
+
+1. **At night the keys are a REGRESSION, and a large one.** `skyKeyBlend` clamps below its lowest
+   key rather than extrapolating (deliberately — twilight is the analytic continuation's job), so
+   at 21:00 the sky is the **sun-at-horizon** key: the upper pane goes 27.3 → 197.4, which is
+   *brighter than the lamp-lit wall it sits in* (210.2). A sunset sky at 9pm.
+2. **By day there is nothing to win.** The pane is ALREADY 227.9 of 255 after `(l)`'s fix. The
+   decided configuration takes it to 243.4, i.e. further toward clipping, destroying what sky
+   structure the aperture still resolves. Whole-frame at `bgIntensity 1` the two arms differ by
+   **0.27–0.46 counts** (max 5–8) at 09:00 and 13:00 — the aperture is too small and too
+   attenuated for a radiometrically better sky to register.
+3. **The sky provably cannot light the room**, which is the one thing that held: the wall patch is
+   unchanged to the count in every arm at both hours (224.8, 210.2). `skyRadiance` reaches only
+   `paintSkyEquirect` and `skySurround`, both background; `backgroundIntensity` scales what is
+   SEEN, never what LIGHTS. Verified, not assumed.
+
+**Kept, not deleted:** the four keys (500 kB), `skyKeys.ts`, `skyKeyBake.ts`, `equirectToCube.ts`
+and the `?skyKeys=1` / `?bgIntensity=<n>` seams. None is fetched by default, and they are a
+*validated* Cycles reference for the sky — `.148`–`.150` priced their accuracy (≤1.4 % whole-frame,
+≤0.67 % in the brightest decile, error independent of resolution and sample count). Throwing away a
+calibrated instrument because this particular application of it lost is the wrong trade.
+
+### ❌ A night-sky "urban skyglow" floor — BUILT, MEASURED, REVERTED `v0.31.7.163`
+
+Worth recording because the reasoning was sound and the premise was still wrong, and because the
+error was one this arc has made before: **reading a screenshot instead of measuring it.**
+
+The night frame *looks* like a black rectangle punched in a lit wall, and night-render practice is
+explicit that it should not be — "real night skies and city glow never reach pure black, so a dim
+sky map keeps dark regions readable and prevents the crushed, noisy look"
+(`archfine.com/rendering-techniques/night-architectural-renders`), with the sky as a low-intensity
+gradient pushed deep blue against warm interiors. That last part also has a physical reading rather
+than a stylistic one: a sensor balanced for the 2700 K interior renders a 6500 K exterior blue.
+
+So I built an additive skyglow term — physical in SHAPE (aerosol-scattered ground light, brightest
+at the horizon, `SKYGLOW_ZENITH_FRACTION` toward the zenith), fading in from −6° to −18° as
+`skyNight` fades out, so no altitude has both strong or both absent. It is graded, not derived, and
+Blender cannot supply the level either: neither Preetham nor Cycles' Nishita sky has a
+light-pollution term, so a −20° reference render returns black for exactly the same reason.
+
+**Then the measurement killed it.** The pane is not crushed. Clean glass at 21:00 spans **27.3
+counts** (above the horizon) to **79.2** (below) against a 210.2 wall — ratios of 0.13 to 0.38,
+inside the range the practice above recommends. The dark-top/brighter-bottom split is not an
+artefact either: it is what a city night window actually looks like, dark sky over lit ground. And
+the glass carries warm interior reflection (R−B +14) rather than being a dead surface.
+
+The term's effect was **~4 counts** at 4× the amplitude I first guessed (0.008 → 45.7, 0.030 → 50.1
+on the aperture mean), because most of the aperture at eye height is the GROUND hemisphere, which
+the sky term does not touch. A 4-count change fixing a defect that measurement says is absent is
+not worth a permanent look constant, so it is reverted rather than tuned.
 
 **Two threads are parked with hypotheses eliminated and fallbacks identified**, not abandoned:
 

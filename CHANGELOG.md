@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.163 — `(z)`4 measured and DECLINED: the Cycles sky's premise was spent by `(l)`'s fix
+
+Two negative results, no shipped code. Both were worth the run because both were about to be built.
+
+**`(z)`4 (Cycles sky keys + `backgroundIntensity ≈ 4`) is closed as declined.** It was decided to
+fix `(l)` — the window reading as a panel because the pane was too DARK — and `(l)` was then fixed
+by a different lever entirely, the `d³ · 5.2` glass sky-catch ramp in `v0.31.7.157`. Measured on
+today's code, the decided configuration overshoots in both directions.
+
+First, a bound nobody had stated: `scene.background` is painted **in walk mode only and is seen
+exclusively through a window aperture**. No view in this app shows the sky at scale, which caps what
+any sky work can be worth.
+
+Clean glass, patch sd ≤ 0.6, placement confirmed on the written overlay:
+
+| 21:00 | base | `bgIntensity 4` | + Cycles keys |
+| --- | --- | --- | --- |
+| upper pane (above horizon) | 27.3 | 27.3 | **197.4** |
+| lower pane (below horizon) | 79.2 | 84.4 | **155.4** |
+| lamp-lit wall | 210.2 | 210.2 | 210.2 |
+
+At night the keys are a large regression: `skyKeyBlend` clamps below its lowest key rather than
+extrapolating, so 21:00 gets the **sun-at-horizon** key and the upper pane lands *brighter than the
+lamp-lit wall it sits in*. By day there is nothing to win — the pane is already 227.9 of 255 after
+`(l)`'s fix and this takes it to 243.4, further toward clipping; whole-frame the two arms differ by
+**0.27–0.46 counts** at 09:00 and 13:00. The one thing that held is that the sky provably cannot
+light the room: the wall patch is unchanged to the count in every arm at both hours.
+
+The keys, the modules and the `?skyKeys=1` seam are **kept** — none is fetched by default and they
+are a calibrated Cycles reference (`.148`–`.150`: ≤1.4 % whole-frame, error independent of
+resolution and sample count).
+
+**A night-sky urban-skyglow floor was built and reverted.** The night frame *looks* like a black
+rectangle, and practice says night skies should never be pure black, pushed deep blue against warm
+interiors — which is physics rather than style, since a sensor balanced for the 2700 K interior
+renders a 6500 K exterior blue. So I built an additive term, physical in shape and honestly graded
+in level (no clear-sky model has a light-pollution term, so Blender cannot supply it either).
+
+Then the measurement killed it: the pane is not crushed. Clean glass at 21:00 spans **27.3** counts
+above the horizon to **79.2** below, against a 210.2 wall — 0.13 to 0.38, inside the recommended
+range — and the dark-top/brighter-bottom split is what a city night window looks like. The term
+moved the aperture ~4 counts at 4× my first amplitude, because most of the aperture at eye height is
+the ground hemisphere the sky term never touches. Reverted rather than tuned.
+
+The lesson is one this arc keeps relearning: **I read the screenshot instead of measuring it.** The
+first patch set also straddled mullions and a sconce reflection and returned sd 48, which is why
+`patch-read.mjs` writes the overlay on every run.
+
+
 ## v0.31.7.162 — the dpr rung finally actuates (and the win is in the long frames)
 
 `(z)`7's last rung — halve `dpr` when the lowest tier has already shed shadows — has been decided
