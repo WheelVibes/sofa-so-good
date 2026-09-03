@@ -217,6 +217,15 @@ export interface UiSlice {
    *  yet. Persisted per-device by `qualityPrefs` so a device that already proved
    *  it can't hold a tier never probes it again. */
   autoMaxDevice: DeviceClass | null
+  /**
+   * The adaptive ladder's LAST RUNG: cap the device pixel ratio at 1. `(z)`7.
+   *
+   * Separate from `deviceClass` because `realistic` carries `dprMax: 2` at BOTH classes, so the
+   * class ladder cannot reach resolution at all — which is why `v0.31.7.86` measured the chain
+   * bottoming out at 29.6 fps. Worth 4.5x (10.9 -> 49.6 fps), the largest lever in this arc, and
+   * engaged only after the class ladder AND the shadow fallback are both spent.
+   */
+  dprHalved: boolean
   /** True once a SETTLED value has been restored from persisted prefs, so the
    *  one-time capability boot pick must not overwrite it (TIER-ADAPTIVE). */
   qualityAutoSettled: boolean
@@ -280,6 +289,7 @@ export interface UiSlice {
   /** Adaptive device-class adjust (does not set qualityUserSet). */
   setDeviceClass: (d: DeviceClass) => void
   /** Record the TIER-ADAPTIVE learned ceiling (does not set qualityUserSet). */
+  setDprHalved: (v: boolean) => void
   setAutoMaxDevice: (d: DeviceClass | null) => void
   /** Override a single quality setting (marks qualityUserSet). */
   setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void
@@ -338,6 +348,7 @@ export const UI_INITIAL: Pick<
   | 'drawingLayers'
   | 'autoShadowsOff'
   | 'autoMaxDevice'
+  | 'dprHalved'
   | 'deviceClass'
   | 'qualityAutoSettled'
   | 'backdrop'
@@ -390,6 +401,7 @@ export const UI_INITIAL: Pick<
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
   autoMaxDevice: null,
+  dprHalved: false,
   qualityAutoSettled: false,
   snapEnabled: false,
   gridSize: 0.5,
@@ -455,6 +467,9 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       selectedItemId: null,
       selectedItemIds: [],
     })
+  },
+  setDprHalved: (v: boolean) => {
+    set({ dprHalved: v })
   },
   exitRoomEditor: () => {
     // Orbit/walk over the whole flat are view-only, so any selection made in

@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.143 — `(z)`7 shipped: `dprMax` 2 → 1 as the ladder's LAST rung, gated behind everything else
+
+The largest unused lever in this arc — **4.5×, 10.9 → 49.6 fps**, more than shadows, post and
+transmission combined — and the reason it was needed is structural: **`realistic` carries
+`dprMax: 2` at BOTH device classes**, so demoting `capable → weak` changes shadows and post but not
+one pixel of resolution. That is why `v0.31.7.86` measured the chain recovering to **29.6 fps** and
+stopping there, right on the 30 fps floor with nothing left to give.
+
+**Last down, first up.** The ordering is the whole design, and it is enforced rather than hoped for:
+
+| order | measure |
+| --- | --- |
+| 1 | class ladder `capable → weak` (shadows, post) |
+| 2 | shed the sun-shadow pass |
+| **3** | **cap dpr at 1** |
+
+`decideAutoDevice` takes a `shadowsShed` argument and **refuses** the dpr rung without it. Without
+that gate the ladder would spend resolution *first*: a state change returns early, so the
+controller's shadow fallback never runs on that tick. And on the way back up, **resolution is
+restored before the class ladder climbs** — the recovered headroom buys back pixels before it buys
+back post, because pixels were given up last.
+
+**A silent no-op caught by the linter, not by me.** The `useLayoutEffect` that calls `setDpr` read
+`dprHalved` without listing it as a dependency, so the rung would have flipped in the store and
+**never reached the renderer** — inert, while looking correct in every test of the decision logic.
+Biome's `useExhaustiveDependencies` found it. That is the same shape as `v0.31.7.106`'s unpassed
+`baseUrl` and `v0.31.7.108`'s two dead flags, which is three times this arc has shipped a change
+that silently did nothing; this time something caught it before the measurement did.
+
+Five new tests on the ordering specifically: no dpr while a class rung remains, none before shadows
+are spent, halving once both are, idempotence, and restoration ahead of promotion. Two existing
+convergence tests updated — they compare whole state objects, so the new field was a real
+(harmless) break.
+
+Suite **10155 green**, `tsc` and biome clean.
+
 ## v0.31.7.142 — status header on the `(z)` register: what the sixteen decisions actually mean after 28 commits of implementing them
 
 The sixteen calls in `(z)` were answered *before* the work on them. Several turned out to mean

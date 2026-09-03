@@ -131,6 +131,21 @@ export interface AutoDeviceState {
    * memory is the ordinary persisted value.
    */
   autoMaxDevice: DeviceClass | null
+  /**
+   * THE LAST RUNG: halve the device pixel ratio to 1 when the class ladder has bottomed out and
+   * frames are still slow. `(z)`7.
+   *
+   * **Why it is needed at all.** `realistic` carries `dprMax: 2` at BOTH device classes, so
+   * demoting `capable -> weak` changes shadows and post but not one pixel of resolution — which is
+   * why `v0.31.7.86` measured the chain recovering to **29.6 fps** and stopping there, right on the
+   * 30 fps floor with nothing left to give. `dprMax` 2 -> 1 is the largest lever measured in this
+   * arc: **4.5x (10.9 -> 49.6 fps)**, more than shadows, post and transmission combined.
+   *
+   * **Last down, first up**, which the ordering in {@link decideAutoDevice} enforces: resolution is
+   * the most visible thing to sacrifice, so nothing else should still be available when it goes,
+   * and it should come back before the class ladder starts climbing again.
+   */
+  dprHalved: boolean
 }
 
 const index = (d: DeviceClass): number => DEVICE_CLASSES.indexOf(d)
@@ -178,6 +193,8 @@ export function decideAutoDevice(
   detected: DeviceClass,
   goodWindows: number,
   badWindows: number,
+  /** Has the sun-shadow fallback already been used? Gates the dpr rung — see below. */
+  shadowsShed = false,
 ): AutoDeviceState | null {
   const { device, autoMaxDevice } = state
   const lowest = DEVICE_CLASSES[0]
@@ -186,7 +203,22 @@ export function decideAutoDevice(
     const down = step(device, -1)
     // Record the failure as the new ceiling so the ladder never climbs back into
     // it — this, not a bigger threshold, is what stops oscillation.
-    return { device: down, autoMaxDevice: down }
+    return { device: down, autoMaxDevice: down, dprHalved: state.dprHalved }
+  }
+
+  // THE LAST RUNG, and it must genuinely be last. `shadowsShed` is required because halving the
+  // resolution is MORE visible than dropping the sun-shadow pass: without this gate the ladder
+  // would spend resolution first and only then try shadows, since a state change here returns
+  // early and the controller's shadow fallback never runs on that tick.
+  if (badWindows >= DEMOTE_WINDOWS && device === lowest && shadowsShed && !state.dprHalved) {
+    return { ...state, dprHalved: true }
+  }
+
+  // RESOLUTION RETURNS FIRST, before the class ladder climbs. A promotion that restored shadows
+  // and post while leaving the frame at half resolution would spend the recovered headroom on the
+  // least visible thing available.
+  if (goodWindows >= PROMOTE_WINDOWS && state.dprHalved) {
+    return { ...state, dprHalved: false }
   }
 
   const ceiling = effectiveCeiling(detected, autoMaxDevice)
@@ -196,7 +228,7 @@ export function decideAutoDevice(
     // two makes every successful promotion cap the ladder where it just arrived.
     // Boot memory is a separate concern: the settled value is persisted by
     // `qualityPrefs`.
-    return { device: step(device, 1), autoMaxDevice }
+    return { device: step(device, 1), autoMaxDevice, dprHalved: state.dprHalved }
   }
 
   return null

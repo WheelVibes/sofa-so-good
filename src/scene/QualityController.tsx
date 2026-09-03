@@ -32,6 +32,7 @@ export function QualityController() {
   const advance = useThree((s) => s.advance)
   const setDpr = useThree((s) => s.setDpr)
   const dprMax = useQuality().dprMax
+  const dprHalved = useStore((s) => s.dprHalved)
 
   // The capability CEILING for this device — a best-effort veto the adaptive
   // ladder may not climb past, captured once (TIER-AUTODETECT).
@@ -63,7 +64,10 @@ export function QualityController() {
   // demand-mode frame. A layout effect runs pre-composite (a plain useEffect
   // is one composite late); same rule as InteractiveDprController.
   useLayoutEffect(() => {
-    setDpr(Math.min(window.devicePixelRatio || 1, dprMax))
+    // `(z)`7: the ladder's last rung caps the device pixel ratio at 1. Worth 4.5x measured
+    // (10.9 -> 49.6 fps), and it only engages after the class ladder and the shadow fallback are
+    // both spent.
+    setDpr(Math.min(window.devicePixelRatio || 1, dprHalved ? 1 : dprMax))
     if (!document.hidden && gl.domElement.isConnected) {
       try {
         advance(performance.now(), true)
@@ -71,7 +75,11 @@ export function QualityController() {
         // mid-teardown — the next scheduled frame repaints instead
       }
     }
-  }, [dprMax, gl, setDpr, advance])
+    // `dprHalved` is a REAL dependency, not a lint appeasement: without it the last rung would
+    // flip in the store and never reach `setDpr`, making the whole lever inert. Biome caught this
+    // -- the same silent-no-op shape that `v0.31.7.106`'s `baseUrl` and `v0.31.7.108`'s two dead
+    // flags took.
+  }, [dprMax, dprHalved, gl, setDpr, advance])
 
   // Procedural finish textures generate at 256² on Performance (the default
   // tier — quarter the texels, near-identical at room scale) and 512² above.
@@ -169,17 +177,21 @@ export function QualityController() {
     // `capable` to `weak` is exactly the old medium→performance step inside
     // `performance`, and the old maximum→high step inside `realistic`.
     const next = decideAutoDevice(
-      { device: st.deviceClass, autoMaxDevice: st.autoMaxDevice },
+      { device: st.deviceClass, autoMaxDevice: st.autoMaxDevice, dprHalved: st.dprHalved },
       // A pinned user gets demotion but not promotion: capping the ceiling at the
       // class already active makes `decideAutoDevice`'s promote branch a no-op
       // without touching its demote branch.
       userPinned ? st.deviceClass : ceiling.current,
       a.good,
       a.bad,
+      // `(z)`7's dpr rung only fires once the shadow fallback is already spent, so resolution is
+      // the last thing sacrificed rather than the first.
+      st.autoShadowsOff,
     )
     if (next) {
       if (next.device !== st.deviceClass) st.setDeviceClass(next.device)
       if (next.autoMaxDevice !== st.autoMaxDevice) st.setAutoMaxDevice(next.autoMaxDevice)
+      if (next.dprHalved !== st.dprHalved) st.setDprHalved(next.dprHalved)
       // The evidence has been spent on this decision.
       a.good = 0
       a.bad = 0

@@ -18,9 +18,11 @@ import {
 const at = (
   device: AutoDeviceState['device'],
   autoMaxDevice: AutoDeviceState['autoMaxDevice'] = null,
-) => ({
+  dprHalved = false,
+): AutoDeviceState => ({
   device,
   autoMaxDevice,
+  dprHalved,
 })
 
 // `intervalP90: -1` = no wall-clock data, which is how a window from before
@@ -115,6 +117,7 @@ describe('decideAutoDevice — demotion', () => {
     expect(decideAutoDevice(at('capable'), 'capable', 0, DEMOTE_WINDOWS)).toEqual({
       device: 'weak',
       autoMaxDevice: 'weak',
+      dprHalved: false,
     })
   })
 
@@ -149,6 +152,7 @@ describe('decideAutoDevice — promotion', () => {
     expect(decideAutoDevice(at('weak'), 'capable', PROMOTE_WINDOWS, 0)).toEqual({
       device: 'capable',
       autoMaxDevice: null,
+      dprHalved: false,
     })
   })
 
@@ -204,14 +208,14 @@ describe('decideAutoDevice — convergence', () => {
       expect(next).toBeNull()
       state = next ?? state
     }
-    expect(state).toEqual({ device: 'weak', autoMaxDevice: 'weak' })
+    expect(state).toEqual({ device: 'weak', autoMaxDevice: 'weak', dprHalved: false })
   })
 
   it('reaches the ceiling on hardware that sustains it', () => {
     let state: AutoDeviceState = at('weak')
     for (let i = 0; i < 5; i++)
       state = decideAutoDevice(state, 'capable', PROMOTE_WINDOWS, 0) ?? state
-    expect(state).toEqual({ device: 'capable', autoMaxDevice: null })
+    expect(state).toEqual({ device: 'capable', autoMaxDevice: null, dprHalved: false })
   })
 })
 
@@ -244,5 +248,45 @@ describe('classifyWindow — the wall clock (v0.31.7.85)', () => {
     // demotion). Same rule the p90 side already had.
     expect(classifyWindow(win(4))).toBe('good')
     expect(classifyWindow(win(DEMOTE_COST_MS))).toBe('bad')
+  })
+})
+
+describe('the dpr rung — (z)7, the last resort', () => {
+  const bad = DEMOTE_WINDOWS
+  const good = PROMOTE_WINDOWS
+
+  it('does NOT halve dpr while the class ladder still has a rung', () => {
+    // Resolution is the most visible thing to give up; anything else must go first.
+    const next = decideAutoDevice(at('capable'), 'capable', 0, bad, true)
+    expect(next?.device).toBe('weak')
+    expect(next?.dprHalved).toBe(false)
+  })
+
+  it('does NOT halve dpr before the shadow fallback is spent', () => {
+    // `shadowsShed = false`: dropping the sun-shadow pass is cheaper to the eye than halving
+    // resolution, and without this gate the ladder spends resolution FIRST — because a state
+    // change returns early and the controller's shadow fallback never runs on that tick.
+    expect(decideAutoDevice(at('weak'), 'weak', 0, bad, false)).toBeNull()
+  })
+
+  it('halves dpr once the class ladder AND shadows are both spent', () => {
+    const next = decideAutoDevice(at('weak'), 'weak', 0, bad, true)
+    expect(next?.dprHalved).toBe(true)
+    expect(next?.device).toBe('weak')
+  })
+
+  it('is idempotent — no repeated state churn once halved', () => {
+    expect(decideAutoDevice(at('weak', null, true), 'weak', 0, bad, true)).toBeNull()
+  })
+
+  it('RESTORES resolution before promoting the class ladder', () => {
+    // The recovered headroom should buy back pixels before it buys back shadows and post: those
+    // are what was given up second, so they come back second.
+    const next = decideAutoDevice(at('weak', null, true), 'capable', good, 0, true)
+    expect(next?.dprHalved).toBe(false)
+    expect(next?.device).toBe('weak')
+    // Only on a later window does the class climb.
+    const after = decideAutoDevice(at('weak', null, false), 'capable', good, 0, true)
+    expect(after?.device).toBe('capable')
   })
 })
