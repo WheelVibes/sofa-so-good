@@ -27,6 +27,63 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.2 - Coastal and Tropical Biophilic: theme colour off every wall, onto one feature wall
+
+The last open call from the G8 theme-grounding audit, resolved on the maintainer's
+decision to research SG-specific treatments and implement.
+
+Both themes painted their signature colour on EVERY dry wall, where the references
+treat it as an accent or a single feature wall — and the coastal sources warn by
+name that a blue-and-white commitment "may feel cold or too nautical" and tips into
+cliche. Now:
+
+| Theme | Was | Now |
+|---|---|---|
+| Coastal | sky blue on every dry wall | Oat `#d8cdb8` + one sky-blue fluted panel |
+| Tropical Biophilic | sage on every dry wall | Warm cream `#e9d8c4` + one sage fluted panel |
+
+The SG sources are more pointed than the general ones: these shades "work best on a
+single feature wall, providing a focal point that doesn't overwhelm the room's
+proportions"; "warm white, off-white, warm sand, and sage green all complement teak
+and walnut furniture" (teak being Tropical Biophilic's own floor); and fluted
+panelling is "one of the most sought-after interior treatments in Singapore, from
+HDB living room feature walls to hotel lobby backdrops".
+
+Panels sit at `[12.53, 2.45]` — the wall Japandi and Modern Mono already use against
+the same default layout, so the position is proven rather than newly guessed.
+
+**A rendering defect found while verifying, worth more than the change itself.** The
+first cut used `finish: 'painted'` and the panel rendered as a completely FLAT slab.
+The flutes are real half-round cylinders, but `getPaintedMaterial` supplies no map
+or normal map, and at 3.0 m wide the batten radius is only ~25 mm — no shading cue
+at all seen face-on in diffuse interior light. Raising `sheen` to 0.4 (which does
+reach the material, dropping roughness from 0.72) changed nothing perceptible. Both
+panels now use a tinted `wood` finish, which multiplies the theme colour over the
+grain, and is the truer spec anyway since painted timber boarding shows its grain.
+Logged in `TODO.md`: a painted fluted panel is a legitimate real specification, so
+the def needs a normal map or a deeper default flute to render one honestly.
+
+**Three verification mistakes, all mine, all caught by looking at the pixels:**
+
+- The first scenario slept 2.5 s after `enterRoomEditor` and screenshotted the
+  "Entering room..." splash. Every step still PASSED, because the assertions were
+  store-level while the render was not ready. Now waits on
+  `state.loading.active === false`.
+- I used Japandi as the control and read its WOOD GRAIN as flute geometry. That
+  misreading is what made "painted has no flutes" look like a regression I had
+  introduced rather than a property of the material.
+- Framing the camera tightly on the panel dollied it straight THROUGH the wall to
+  the back face, because the panel's normal points -x and the frame centre was on
+  the wall plane. Centring inside the room fixed it.
+
+The control was still worth having: it is what proved the missing panel in the first
+wide shot was the camera pose and not my content.
+
+**Honest limits.** Coastal shiplap is HORIZONTAL boarding and `FeatureWall` only
+profiles vertical flutes, so this is a vertical fluted panel, not shiplap — stated
+in the preset rather than glossed. Terracotta was left alone in Tropical Biophilic
+because it was already an accent; only sage's scope changed.
+
 ## v0.31.8.1 - Renumbered the 67 duplicate build numbers
 
 On the maintainer's decision, against my own advice. I had measured the renumbering

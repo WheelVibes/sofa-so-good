@@ -203,12 +203,50 @@ bolder reading is a legitimate design choice — but it is a choice that diverge
 from the documented practice, and in Coastal's case toward the specific failure
 mode the sources name.
 
-**Deliberately NOT changed.** Repainting a shipped theme is a content decision,
-not a correctness fix (the same rule `docs/open-graphics-decisions.md` applies to
-re-drawing shipped plans). The options, if it is ever taken up: keep the bold
-reading as-is; soften the wall to warm white/sand and move the colour to a
-feature wall via `PlanWall.color` (both themes already support accent walls); or
-ship both as separate presets. Recorded in `TODO.md`.
+### RESOLVED 2026-09-03 (v0.31.8.2) — the colour moved to one feature wall
+
+Escalated as a content decision rather than fixed unilaterally, and the
+maintainer chose to research SG-specific treatments and implement. Both themes
+now use a warm neutral foundation with the theme colour on a single fluted
+feature wall in the living/dining.
+
+| Theme | Was | Now |
+|---|---|---|
+| Coastal | `wall-paint-blue` on every dry wall | `wall-paint-oat` (`#d8cdb8`) + one sky-blue (`#a9c1d6`) fluted panel |
+| Tropical Biophilic | `wall-paint-sage` on every dry wall | `wall-paint-warm` (`#e9d8c4`) + one sage (`#a7b59a`) fluted panel |
+
+The SG-specific sources are more pointed than the general ones. On biophilic
+colour: these shades "work best on a single feature wall, providing a focal point
+that doesn't overwhelm the room's proportions", and terracotta "should be used as
+a feature wall rather than on all four walls in smaller HDB rooms". On the
+foundation: "warm white, off-white, warm sand, and sage green all complement teak
+and walnut furniture" — teak being exactly Tropical Biophilic's floor. On the
+treatment itself: fluted panelling is "one of the most sought-after interior
+treatments in Singapore, from HDB living room feature walls to hotel lobby
+backdrops", and its coastal reading is documented as boards "painted white or
+soft grey" for a "breezy, coastal-Scandi mood".
+
+The panels sit at `[12.53, 2.45]`, the living/dining wall Japandi and Modern Mono
+already use against the same default layout — none of the four presets overrides
+`livingDining`, so the position was proven rather than newly guessed.
+
+**Two honest limits.** Coastal shiplap is HORIZONTAL boarding and `FeatureWall`
+only profiles vertical flutes/slats, so this is a vertical fluted panel, not
+shiplap. And terracotta was left alone in Tropical Biophilic because it was
+already an accent (pillow, throws) — only sage's SCOPE changed.
+
+**A defect found while verifying, worth more than the change.** The first cut used
+`finish: 'painted'`, and the panel rendered as a completely FLAT slab: the flutes
+are real half-round cylinders, but `getPaintedMaterial` supplies no map or normal
+map, and at a 3.0 m width the batten radius is only ~25 mm — no shading cue at all
+face-on in this app's diffuse interior light. Raising `sheen` to 0.4 (which does
+reach the material, dropping roughness from 0.72) changed nothing perceptible. I
+had also mistaken Japandi's WOOD GRAIN for its flute geometry when using it as the
+control; the stripes that read as flutes are the grain. Both panels therefore use
+a tinted `wood` finish, which multiplies the theme colour over the grain — and is
+the truer spec anyway, since painted timber boarding shows its grain. Logged in
+`TODO.md`: a painted fluted panel is a legitimate real-world specification, so the
+def needs a normal map or a deeper default flute to render one honestly.
 
 ## Final tally
 
@@ -241,3 +279,8 @@ published references, and the arrangements are the app's own authored research.
 - [Tropical Interior Design for Singapore Homes — Goodrich Global](https://www.goodrichglobal.com/singapore/article/tropical-interior-design-singapore/)
 - [Earth Tones and Warm Wood: the 2026 SG palette — Born in Colour](https://www.bornincolour.com/blogs/news/earth-tones-and-warm-wood-the-2026-interior-colour-palette-taking-over-singapore-homes)
 - [Biophilic Design in Singapore — Goodrich Global](https://www.goodrichglobal.com/singapore/article/biophilic-design-singapore-interiors/)
+- [Fluted Panel Wall Design Ideas for Singapore Homes — Goodrich Global](https://www.goodrichglobal.com/singapore/article/fluted-panel-wall-design-singapore/)
+- [Fluted Wall Panels Singapore: The Complete Guide — Lexsure Flooring](https://lexsureflooring.com/tips/fluted-wall-panels-singapore/)
+- [Wall Panelling Ideas for Singapore Homes — Goodrich Global](https://www.goodrichglobal.com/singapore/article/wall-panelling-ideas-singapore/)
+- [Bringing Nature Home: Biophilic Design in Your Singapore HDB Interior — The Interior Lab](https://www.theinteriorlab.com.sg/bringing-nature-home-a-guide-to-incorporating-biophilic-design-in-your-singapore-hdb-interior/)
+- [Feature Wall Trends: Statements for Singapore Homes — Lemon Fridge](https://www.lemonfridge.sg/feature-wall/)

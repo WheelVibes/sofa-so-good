@@ -568,15 +568,20 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
 - **[G8 — DONE, one open content call] Theme grounding audit complete: 17/17.** Full record with
   citations in `docs/research/2026-09-02-scheme-theme-grounding.md`. Ten style themes audited (nine
   accurate; Modern Luxe corrected), seven `layout`-group presets are researched by construction.
-  **The one thing left is a content decision, not a fix:** Coastal puts sky-blue on every dry WALL
-  and Tropical Biophilic puts sage on every dry wall, whereas the references treat both as an ACCENT
-  or a single feature wall — and the coastal sources specifically warn that a blue-and-white
-  commitment "may feel cold or too nautical" and tips into cliché. Neither is wrong; both are a
-  bolder reading than documented practice. Options: leave as-is; soften the wall to warm white/sand
-  and move the colour to a feature wall via `PlanWall.color` (both themes already support accent
-  walls); or ship both readings as separate presets. Do NOT repaint a shipped theme unilaterally —
-  same rule as re-drawing a shipped plan. Do this BEFORE raising `SCHEME_COUNT` past 3 or letting a brief
-  surface an arbitrary preset, so a user is never shown a theme whose palette is invented.
+  **The open content call is RESOLVED (v0.31.8.2), on the maintainer's decision.** Coastal put
+  sky-blue on every dry wall and Tropical Biophilic put sage on every dry wall, whereas the
+  references treat both as an ACCENT or a single feature wall — and the coastal sources warn that a
+  blue-and-white commitment "may feel cold or too nautical" and tips into cliché. The maintainer
+  chose to research SG-specific treatments and implement, so both themes now use a warm neutral
+  foundation (Oat / Warm cream) with the theme colour on ONE fluted feature wall, grounded in SG
+  sources that call fluted panelling the most-specified local feature-wall treatment and say these
+  shades "work best on a single feature wall". Sources added to
+  `docs/research/2026-09-02-scheme-theme-grounding.md`.
+  **Follow-up worth taking, found while verifying it:** a `painted` `FeatureWall` renders its flutes
+  INVISIBLY — `getPaintedMaterial` has no map or normal map, and at a 3.0 m width the batten radius
+  is ~25 mm, which gives no shading cue face-on in diffuse light. Both new panels use a tinted
+  `wood` finish for that reason. A painted fluted panel is a legitimate real-world spec, so the def
+  arguably needs a normal map or a deeper default flute to be honest about what it renders.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
 - **[site measurements — recording UI COMPLETE v0.31.5.373]** `SiteMeasuredField` is on the wall,
