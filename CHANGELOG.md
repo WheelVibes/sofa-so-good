@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.22 — REVERSAL: the bake was never noisy. The blur is 21.8 % wrong and the "noise" was signal
+
+`v0.31.7.20` called a per-slot blur *"what actually worked"*. `v0.31.7.21` built a noise metric
+on the premise that any high-frequency content in a visibility map is noise. **Both are wrong**,
+and a ground-truth comparison shows it in one measurement.
+
+**The test the previous two rounds should have run.** `bake-noise.mjs --ref=<dir>` compares each
+map against the same key in a **4096-sample** bake, per texel. A low-pass residual cannot
+distinguish noise from wanted structure, and cannot see error coarser than its kernel; a diff
+against a converged bake has neither limitation — any difference is error by definition.
+
+| bake (256 px, 8 largest maps) | 3×3 residual | **error vs 4096-sample ground truth** |
+| --- | --- | --- |
+| 256 samples, raw | 13.6 % | **1.5 %** (worst map 4.4 %) |
+| 256 samples, float buffer only | 13.7 % | **1.5 %** (worst map 4.4 %) |
+| 256 samples **+ per-slot blur** | 2.9 % | **21.8 %** (worst map **29.0 %**) |
+
+**The unblurred bake was already accurate to 1.5 %.** It was never noisy. The 13.6 % of
+high-frequency content is **real fine-scale occlusion** — wall/floor junctions, contact under
+furniture — which the converged bake reproduces identically. The blur destroys signal, and is
+**fourteen times** further from truth than the bake it was "fixing".
+
+**Isolated properly, because the blur arm differed in two ways.** `--denoise` forces a float
+buffer, so it was never a clean comparison against an 8-bit bake. A new `--float-buffer` flag
+provides the control: float-only is **identical** to 8-bit (1.5 %, 13.7 %). The blur is the
+cause, not the buffer type. That control cost two lines and would have changed the conclusion of
+the last two rounds had it existed then.
+
+**What this overturns:**
+
+- `v0.31.7.20`'s "what actually worked: a per-slot box blur" — it made the map 14× worse.
+- `v0.31.7.21`'s premise that HF content is noise, and with it the framing of "4× samples buys
+  nothing": that measured a *post-blur floor* produced by an operation that should not exist.
+  (The underlying number stands — 256 samples is enough — but for the opposite reason: the bake
+  converges early, not because a blur hides the difference.)
+- The `--denoise` flag is now documented as **measured harmful** and kept only so the finding is
+  not repeated; `_blur_per_slot` carries the same warning at its definition.
+
+**So where does the visible mottling come from?** From the render, not the bake: the map is
+accurate, and the shader multiplies it by a **gain of ~10**, so genuine fine-scale occlusion is
+amplified tenfold and reads as harsh blotching. That is a **look** question — it belongs to the
+γ/gain pair from `v0.31.7.10`, not to bake quality — and it is the right question to ask next.
+Blurring the data to make the picture calmer would have been fixing the render by corrupting the
+physics.
+
+**Nothing shipped.** Bake script and probe only; 60 fps intact; `tsc`, biome, knip clean, 10011
+tests green.
+
 ## v0.31.7.21 — a bake-noise metric, and 4× the samples buys nothing: the blur is doing the work
 
 `v0.31.7.20` judged bake quality by rendering the app and looking, which is slow and

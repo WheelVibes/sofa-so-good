@@ -173,6 +173,18 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — compare a bake against a CONVERGED bake, not against a low-pass of itself.** A
+  residual-after-blur metric cannot tell noise from wanted structure. Measured against a
+  4096-sample ground truth, a 256-sample visibility bake is accurate to **1.5 %** — it was never
+  noisy — while the 3-texel blur added to "clean" it is **21.8 %** wrong. The high-frequency
+  content was real occlusion detail. `bake-noise.mjs --ref=<dir>` does this comparison.
+- **2026-09-03 — `--denoise`/blur on a visibility bake is MEASURED HARMFUL.** Kept in
+  `bake_material.py` only so the finding is not repeated. If a render looks blotchy, suspect the
+  shader gain amplifying real detail before suspecting the bake.
+- **2026-09-03 — when an option forces a second change, add the control for it.** `--denoise`
+  also forced a float buffer, so every comparison against a default 8-bit bake varied two things.
+  A two-line `--float-buffer` flag isolated it (float-only is identical to 8-bit) and showed the
+  blur was the culprit. Two rounds of conclusions rested on that missing control.
 - **2026-09-03 — for a bake whose signal is smooth, measure the map, not the render.** Aperture
   visibility varies over metres, so any high-frequency content in the texture is noise:
   `scripts/dev-probes/bake-noise.mjs` reports the post-low-pass residual per atlas slot at two

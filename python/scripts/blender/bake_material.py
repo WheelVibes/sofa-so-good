@@ -63,6 +63,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "quantity, so it needs far less resolution than an albedo map; 64 is "
                         "ample and keeps the asset small.")
     p.add_argument("--samples", type=int, default=64)
+    p.add_argument("--float-buffer", dest="float_buffer", action="store_true",
+                   help="force a float bake buffer without enabling blur or encoding. Exists to "
+                        "ISOLATE it: --denoise and --encode both force one, so any measurement "
+                        "comparing them against a default 8-bit bake varies two things at once. "
+                        "v0.31.7.22 needed exactly this control.")
     p.add_argument("--encode", type=float, default=1.0,
                    help="store texel^encode instead of the raw value; the consumer must apply "
                         "the inverse. 0.5 (a square root) is the useful setting. An 8-bit PNG "
@@ -74,7 +79,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "denoising -- because it is quantisation, not sampling noise). A square "
                         "root spends far more of the 256 levels where the values actually live.")
     p.add_argument("--denoise", action="store_true",
-                   help="denoise each baked image with `bpy.ops.image.denoise`. NOT via "
+                   help="⚠️ MEASURED HARMFUL -- kept only so the finding is not repeated. "
+                        "Box-blurs each atlas slot to remove what looked like sampling noise. "
+                        "Against a 4096-sample ground-truth bake it causes 21.8 % rms error "
+                        "(worst map 29 %), while the unblurred 256-sample bake is accurate to "
+                        "1.5 %. The 'noise' it removes is REAL fine-scale occlusion structure, "
+                        "which the converged bake has too. Isolated against a float-buffer-only "
+                        "control (identical to 8-bit at 1.5 %), so the blur is the cause and not "
+                        "the buffer type. Do not enable. Originally: blurs with "
                         "`scene.cycles.use_denoising`, which is a RENDER setting: `BakeSettings` "
                         "has no denoise flag at all, so that route is silently inert -- measured "
                         "in v0.31.7.20, where it changed neither the timing nor the speckle. "
@@ -255,7 +267,14 @@ def make_box_uvs(
 
 
 def _blur_per_slot(img: bpy.types.Image, res: int, passes: int = 3) -> None:
-    """Smooth the bake by box-blurring each atlas slot INDEPENDENTLY.
+    """Box-blur each atlas slot independently. **MEASURED HARMFUL — see `--denoise`.**
+
+    Retained as a record, not as a tool. `v0.31.7.22` compared bakes against a 4096-sample
+    ground truth: unblurred 256 samples is accurate to **1.5 %**, this blur is **21.8 %** wrong.
+    The premise it rested on — "aperture visibility is smooth at room scale, so high-frequency
+    content is noise" — is false. The map carries genuine fine-scale occlusion (wall/floor
+    junctions, contact under furniture) that a converged bake reproduces identically, so a
+    3-texel low-pass destroys signal rather than noise.
 
     **Why a hand-rolled blur.** This build has no bake denoiser. `BakeSettings` carries no
     denoise flag, `scene.cycles.use_denoising` is a render-only setting that leaves a bake
@@ -314,6 +333,7 @@ def bake_object(
     interior_slots: set[tuple[int, int]] | None = None,
     encode: float = 1.0,
     denoise: bool = False,
+    float_buffer: bool = False,
 ) -> dict:
     """Bake one object to its own image. Per-object rather than an atlas.
 
@@ -325,7 +345,7 @@ def bake_object(
     # 223 distinct levels before, 166 after, exactly backwards from the intent. The float
     # buffer keeps the bake's real values until the single quantisation at save time.
     img = bpy.data.images.new(
-        f"bake_{obj.name}", width=res, height=res, float_buffer=encode != 1.0 or denoise
+        f"bake_{obj.name}", width=res, height=res, float_buffer=float_buffer or encode != 1.0 or denoise
     )
     # NON-COLOUR, set BEFORE the bake writes, not after. A visibility map is DATA -- three
     # multiplies it straight into `irradiance` -- and Blender saves an 8-bit PNG through the
@@ -460,7 +480,9 @@ def main(argv: list[str] | None = None) -> int:
         key = geometry_key(obj)
         out = os.path.join(out_dir, f"{key}.png")
         try:
-            stats = bake_object(obj, out, a.res, bake_type, interior_slots, a.encode, a.denoise)
+            stats = bake_object(
+                obj, out, a.res, bake_type, interior_slots, a.encode, a.denoise, a.float_buffer
+            )
         except RuntimeError as exc:  # noqa: PERF203 — one bad mesh must not lose the batch
             baked.append({"object": obj.name, "area": round(area, 2), "error": str(exc)[:120]})
             continue
