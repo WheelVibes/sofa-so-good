@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.134 — `(s)`'s reference RE-DERIVED in Cycles, and the correct census lands within 13 % of it with no tuning
+
+`.133` concluded the open question in `(s)` was the reference, not the census: `.271`'s implied
+ρ = 0.546 came from a census counting **467 m²** where the corrected one finds **112.9 m²** of
+participating surface. So the target had to be re-measured rather than matched.
+
+**The traced response, measured independently.** Two GLBs exported from the app differing only in
+`wall-paint-terracotta` (verified: different md5s, app frame mean 108.76 → 91.32), each rendered in
+Cycles at 192 samples, same pose, same sun:
+
+| | base | terracotta | Δ |
+| --- | --- | --- | --- |
+| ceiling luminance | 112.64 | 93.01 | **−17.4 %** |
+| ceiling R−B | 0.74 | 17.18 | **+16.44** counts |
+| whole frame | 110.50 | 84.39 | −23.6 % |
+
+**This reproduces the documented response from a separate pipeline** — `v0.31.5.270`/`.271` recorded
+16–20 % darkening and +8.8 to +13.5 warming. Same sign, same order. That is what makes it a usable
+target rather than a number to be matched.
+
+**And the corrected census hits it.** Same census on both arms, `livingDining`:
+
+| | |
+| --- | --- |
+| ρ base / terracotta | 0.7018 / **0.5719** |
+| participating area | 112.9 m² in **both** — a repaint changes albedo, not geometry |
+| interreflection scale `ρ/(1−ρ)` | **0.568** |
+| `.271`'s independently fitted scale | 0.650 |
+
+**Within 13 %, with no calibration.** And plausibly *better*: `.271` reported its 0.650 model
+delivering ΔL −14.1 % against a traced −18.3 %, i.e. under-responding; 0.568 is more aggressive and
+the traced target here is −17.4 %.
+
+**A correction to my own reasoning in `.121`.** I estimated the corrected census would over-respond by
+~2× and wrote that the fill "would over-respond by that factor" — that estimate came from a **guessed**
+wall share (27.3 % of a total-area census), not a measurement. Measured on the right census, the
+response is 0.568 against a 0.650 target. **The 2× was my arithmetic on the wrong census, not a
+property of the model.**
+
+So `(s)` is now: correct census, validated reference, agreement without tuning, and **nothing wired**.
+The wiring step is a scalar on `fillScale` and a comparison of the app's own ceiling response against
+the −17.4 % traced here — which is the first end-to-end check this item has ever had available.
+
+`finish-response.mjs` promoted from scratch to a kept probe: it is the instrument that measures this
+target, and `(s)` will need it again. Suite **10149 green**, `tsc` and biome clean.
+
 ## v0.31.7.133 — `(s)`: the theoretically-correct census, built in Blender and measured — and the REFERENCE is now the thing to re-derive
 
 `.124` established that four censuses gave four answers spanning 0.36–0.76 because **the quantity was
