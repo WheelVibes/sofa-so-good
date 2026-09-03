@@ -2930,6 +2930,27 @@ if (process.env.BLENDREF) {
       standoff: +pose.standoff.toFixed(2),
       pitch: PITCH,
     },
+    // ROOM RECTANGLES, so Blender can compute per-room quantities the app cannot afford.
+    //
+    // `v0.31.7.122` established that a room-albedo census has to weight by EXPOSED area -- a rug
+    // and furniture cover 44 % of this room's floor -- and that exposure is a visibility
+    // computation the raster path cannot pay for: `src/scene/CLAUDE.md` records an irradiance
+    // volume rejected at 6.19 ms for 420 probes, while a useful exposure sample is tens of
+    // thousands of rays. Blender is already tracing visibility, so the census belongs there and
+    // ships as one number per room. It needs the rectangles, and the manifest carried camera,
+    // lights and scene state but no geometry of the plan itself.
+    rooms: await page.evaluate(() => {
+      const fp = window.__store.getState().floorPlan
+      const rs = fp?.rooms ?? fp?.levels?.flatMap((l) => l.rooms ?? []) ?? []
+      return rs.map((r) => ({
+        id: r.id,
+        name: r.name,
+        origin: r.origin,
+        width: r.width,
+        depth: r.depth,
+        ceilingHeight: r.ceilingHeight ?? null,
+      }))
+    }),
     glb: glbPath ? 'scene.glb' : null,
     // The truth, not the intention. This said 'frame.png' unconditionally while the
     // raster is actually written to OUT -- so a run with BLENDREF but no OUT left a

@@ -29,6 +29,59 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.123 — the room-albedo census moves to Blender, and by EXPOSED AREA the `.273` blind spot is 69 %, not 10 %
+
+`.122` concluded the exposure-weighted room albedo belongs in Blender, next to the irradiance bake,
+where visibility is already traced. Built it, and it immediately corrected one of my own conclusions.
+
+**Producer.** `light-distribution.mjs` now writes `rooms` (id, name, origin, width, depth,
+ceilingHeight) into the BLENDREF manifest — it carried camera, lights and scene state but no plan
+geometry. `bake_material.py --room-albedo` then casts a 48×48 grid of rays **down from just under
+the ceiling** per room and writes one ρ per room into the index. Rays go down so that a ray hitting
+a rug counts the **rug**, not the floor beneath it — which is the entire point of exposure weighting.
+
+**`.121`'s conclusion was wrong, and this is why.** I measured "only 20 of 200 meshes are
+textured-with-white, so the `.273` blind spot is minor — 10 % of meshes". Wrong denominator. By
+**exposed area**:
+
+| room | textured share of rays |
+| --- | --- |
+| `livingDining` | **69.1 %** |
+| `corridor` | 92.0 % |
+| `bath2` | 84.8 % |
+| `householdShelter` | 100 % |
+
+**A mesh count and an area share are not the same question**, and the one that matters for a census
+is area. The blind spot is dominant, not minor.
+
+**And my first version discarded exactly that 69 %.** It returned `None` for a textured material and
+`continue`d, so ρ was the mean of whatever happened to be untextured — 30.9 % of the room, reported
+as the room's albedo. Now it reads the linked image's mean (subsampled at a **prime** stride of 97,
+so the sampling cannot lock onto a tile's repeat period and report one stripe as the whole texture,
+and linearised from sRGB before averaging):
+
+| | before | after |
+| --- | --- | --- |
+| `livingDining` coverage | 30.9 % | **84.0 %** |
+| `corridor` coverage | 8.0 % | **100 %** |
+| `livingDining` ρ | 0.3816 | **0.3713** |
+
+**A diagnostic field that could not fire.** `textured_share` reported **0.0 for every room** in the
+first run, because the counter sat after the `continue` that a textured material always took. It was
+the one field that would have shown me the 69 % immediately. Fixed, and the three shares are now
+fractions of *all* rays so they compose.
+
+**Stated limitation rather than a quiet one: the rays only go DOWN.** This samples floors and the
+tops of furniture and **never samples a wall**, so it is a real exposure-weighted albedo of the
+horizontal surfaces and an incomplete one for the room. The complete version is a sphere of
+directions from many points in the volume — cheap in Blender, and the natural next step. Called out
+in the docstring rather than shipped as though it were a room average.
+
+For reference the three censuses now read `livingDining` at **0.6719** (scene graph, total area),
+**0.546** (implied by `.271`) and **0.3713** (Blender, exposure-weighted, horizontal only).
+
+Suite **10142 green**, `tsc` and biome clean. Nothing consumes the new index field yet.
+
 ## v0.31.7.122 — the missing census term was already written down in a probe comment: weight by EXPOSED area, and that is a job for Blender
 
 Chasing `.121`'s unexplained 2.36× wall over-weighting, and it turned out the repo already contained

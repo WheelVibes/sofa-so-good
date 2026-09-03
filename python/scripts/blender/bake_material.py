@@ -116,6 +116,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "walls read as blotchy cloud because a whole wall face gets 21x32 texels. "
                         "Rounded UP to a power of two and clamped to [--res-min, --res]. 28 is the "
                         "density the good-looking 256 px set actually had.")
+    p.add_argument("--room-albedo", action="store_true", dest="room_albedo",
+                   help="also compute an EXPOSURE-WEIGHTED mean albedo per room (from --dir's "
+                        "manifest `rooms`) and write it into the index. Rays cast down from just "
+                        "under the ceiling, so a rug counts as a rug and not as the floor beneath "
+                        "it -- v0.31.7.122 measured 44 %% of the reference room's floor as covered. "
+                        "Cheap here because Blender is already tracing visibility; the raster path "
+                        "cannot afford it at all.")
     p.add_argument("--portals", action="store_true",
                    help="place a Cycles light portal over each glazing opening before baking. "
                         "Standard archviz practice for daylit interiors: it guides the sampler "
@@ -557,6 +564,156 @@ def add_portals(bounds) -> int:
     return placed
 
 
+def room_albedo(rooms, samples: int = 48) -> list[dict]:
+    """EXPOSURE-WEIGHTED mean albedo per room, by ray-casting the scene from the ceiling down.
+
+    **Why this lives in Blender.** `v0.31.7.122` established that a room-albedo census has to weight
+    by *exposed* area, not total area -- a rug and furniture cover **44 %** of the reference room's
+    floor, so counting a floor mesh's full area over-weights it by ~1.8x. Exposure is a visibility
+    computation, and the app cannot pay for it: `src/scene/CLAUDE.md` records an irradiance volume
+    spiked and REJECTED at 6.19 ms for 420 probes, while a useful exposure sample is tens of
+    thousands of rays. Blender is already tracing visibility for the bake, so the census is nearly
+    free here and ships as ONE NUMBER PER ROOM in the index.
+
+    **Rays go DOWN from just under the ceiling**, so what they hit is what the ceiling and upper
+    walls actually see -- which is the surface that returns light to the room. A ray that hits a rug
+    counts the rug, not the floor beneath it. That is the whole point.
+
+    Albedo comes from the hit material's base colour, reading the linked TEXTURE's mean when one
+    drives it -- glTF puts the albedo in the image and leaves `baseColorFactor` white, the exact
+    `v0.31.5.273` blind spot, and it is **69 %** of this room's exposed area. `textured_share`,
+    `unknown_share` and `hit_share` are all reported as fractions of ALL rays, so a reader can see
+    how much of `rho` stands on a subsample rather than having to trust it.
+
+    ## Known limitation: DOWNWARD rays only, so this is "what the ceiling sees"
+
+    Every ray goes straight down, which samples the floor and the tops of furniture and **never
+    samples a wall**. For the room albedo that scales interreflected fill you want every surface,
+    weighted by how much light it actually returns -- which is a sphere of directions from many
+    points in the volume, not one direction from a grid. So the number below is a real
+    exposure-weighted albedo of the horizontal surfaces and an INCOMPLETE one for the room.
+    Extending it is more rays in more directions, which is cheap here and is the natural next step;
+    it is called out rather than quietly shipped as a room average.
+    """
+    dg = bpy.context.evaluated_depsgraph_get()
+    out = []
+    for room in rooms:
+        ox, oz = room["origin"]
+        w, d = room["width"], room["depth"]
+        h = (room.get("ceilingHeight") or 2.6) - 0.05
+        # The plan is in THREE's frame (+X east, +Z south, Y up); Blender is Z-up.
+        weighted = 0.0
+        hits = 0
+        textured = 0
+        missed = 0
+        for i in range(samples):
+            for j in range(samples):
+                tx = ox + (i + 0.5) / samples * w
+                tz = oz + (j + 0.5) / samples * d
+                origin = Vector(S.three_to_blender((tx, h, tz)))
+                hit, _loc, _nrm, _idx, obj, _mw = bpy.context.scene.ray_cast(
+                    dg, origin=origin, direction=Vector((0.0, 0.0, -1.0)), distance=h + 0.5
+                )
+                if not hit or obj is None:
+                    continue
+                rho, is_tex = _material_albedo(obj)
+                # COUNTED BEFORE THE SKIP. The first version incremented `textured` after
+                # `if rho is None: continue`, and a textured material returns `rho = None` -- so the
+                # counter was unreachable and `textured_share` reported 0.0 for every room while
+                # 69 % of rays were being silently discarded. A diagnostic field that cannot fire
+                # is worse than no field: it actively certifies the thing it was meant to catch.
+                if is_tex:
+                    textured += 1
+                if rho is None:
+                    missed += 1
+                    continue
+                weighted += rho
+                hits += 1
+        out.append(
+            {
+                "id": room["id"],
+                "name": room.get("name"),
+                # `None`, not a default: no hits is a DIFFERENT condition from a neutral room, and a
+                # silent fallback would make an empty room look like a white one.
+                "rho": round(weighted / hits, 4) if hits else None,
+                "samples": samples * samples,
+                "hits": hits,
+                # Shares of ALL rays, not of hits, so they actually sum toward 1 and a reader can
+                # see how much of `rho` is standing on a subsample.
+                "textured_share": round(textured / (samples * samples), 3),
+                "unknown_share": round(missed / (samples * samples), 3),
+                "hit_share": round(hits / (samples * samples), 3),
+            }
+        )
+    return out
+
+
+_TEX_MEAN: dict[str, float | None] = {}
+
+
+def _image_mean_luma(img, stride: int = 97) -> float | None:
+    """Mean Rec.709 luminance of an image, subsampled.
+
+    **Subsampled on purpose.** A 2K albedo is 16M floats and `image.pixels` is a slow RNA
+    accessor; a census wants the mean, and a mean converges long before every texel is read. 97 is
+    prime, so the stride cannot lock onto a tiled pattern's period and report one stripe's colour
+    as the whole image -- which a round number like 100 can do on a 100-px-repeat tile.
+    """
+    if img is None or img.size[0] == 0:
+        return None
+    key = img.name
+    if key in _TEX_MEAN:
+        return _TEX_MEAN[key]
+    try:
+        px = list(img.pixels)
+    except (RuntimeError, AttributeError):
+        _TEX_MEAN[key] = None
+        return None
+    if not px:
+        _TEX_MEAN[key] = None
+        return None
+    total = 0.0
+    n = 0
+    # glTF albedo images are sRGB-encoded; linearise before averaging or dark texels are
+    # over-credited -- the same error `swatchLuminance` guards in the app.
+    for i in range(0, len(px) - 3, 4 * stride):
+        r, g, b = px[i], px[i + 1], px[i + 2]
+        lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in (r, g, b)]
+        total += 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+        n += 1
+    mean = total / n if n else None
+    _TEX_MEAN[key] = mean
+    return mean
+
+
+def _material_albedo(obj) -> tuple[float | None, bool]:
+    """Rec.709 luminance of an object's base colour, and whether a texture drives it.
+
+    **Reads the TEXTURE when one is linked**, rather than giving up. `v0.31.7.123` measured that
+    doing otherwise discards **69 %** of the exposed area in the reference living/dining room --
+    glTF puts the albedo in the image and leaves `baseColorFactor` white, so the earlier version
+    censused the 31 % of surfaces that happened to be untextured and reported the mean of that
+    subsample as the room's albedo.
+    """
+    mats = [m for m in getattr(obj.data, "materials", []) or [] if m and m.node_tree]
+    if not mats:
+        return None, False
+    for node in mats[0].node_tree.nodes:
+        sock = node.inputs.get("Base Color") if hasattr(node, "inputs") else None
+        if sock is None:
+            continue
+        if sock.is_linked:
+            src = sock.links[0].from_node if sock.links else None
+            img = getattr(src, "image", None)
+            mean = _image_mean_luma(img)
+            # `is_tex` stays True either way, so the share is still reported -- but a mean that
+            # WAS read is a real albedo and counts.
+            return mean, True
+        c = sock.default_value
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], False
+    return None, False
+
+
 def bake_object(
     obj: bpy.types.Object,
     out_path: str,
@@ -808,6 +965,17 @@ def main(argv: list[str] | None = None) -> int:
         bpy.context.scene.render.bake.use_pass_direct = True
         bpy.context.scene.render.bake.use_pass_indirect = True
 
+    # Before the bake mutates materials (visibility whitens them), so the census reads the real
+    # albedos rather than the whitened stand-ins.
+    room_rho = []
+    if a.room_albedo:
+        rooms = (manifest or {}).get("rooms") or []
+        if not rooms:
+            raise ValueError("--room-albedo needs `rooms` in the manifest; re-export with a probe "
+                             "new enough to write them (v0.31.7.123+)")
+        room_rho = room_albedo(rooms)
+        print("ROOM_ALBEDO " + json.dumps(room_rho))
+
     candidates = []
     for obj in bpy.context.scene.objects:
         if obj.type != "MESH" or not obj.data.polygons:
@@ -958,6 +1126,9 @@ def main(argv: list[str] | None = None) -> int:
         # (`v0.31.7.103`). A transform applied to the data must travel WITH the data.
         "encode": a.encode,
         "scale": a.scale,
+        # One exposure-weighted rho per room, when asked for. The app's fill can multiply by this
+        # without doing any visibility work of its own -- see `src/scene/lighting/albedoFill.ts`.
+        **({"rooms": room_rho} if room_rho else {}),
         "maps": maps,
     }
     with open(index_path, "w") as fh:
