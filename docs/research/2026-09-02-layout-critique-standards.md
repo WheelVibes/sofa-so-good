@@ -143,6 +143,46 @@ findings that survive are real: Bedroom 2's rug is neither a proper runner nor a
 proper under-bed rug, and the living-room rug is narrower than the sofa it sits
 under.
 
+## The head-direction convention, and how it was wrong for 46% of beds
+
+**Corrected v0.31.8.9.** `headDir` derived the headboard direction as
+`(sin, -cos)`, citing "the SAME transform `itemFootprint` applies". The
+arithmetic matched that transform, but the transform is the wrong authority: it
+rotates a GLB's off-origin OFFSET (`ox`/`oz`), which is 0 for every parametric
+bed, and its sense is opposite to the render's. three.js turns local +Z to
+`(sin, cos)` — the convention `layout/faceWall.ts` documents — so local -Z goes to
+`(-sin, -cos)`.
+
+Settled against the app's own bed placer rather than by re-deriving the algebra:
+`placeFlush(edge:'W')` puts a bed against the WEST wall at `inward('W') = π/2`,
+so at rotation π/2 the headboard points west, `(-1, 0)`. The old formula gave
+`(+1, 0)` — the foot.
+
+| | old | corrected |
+|---|---|---|
+| rotation 0 / π | head correct | head correct (the two agree when `sin r = 0`) |
+| rotation ±π/2 | returns the FOOT | returns the head |
+
+Both directions of error followed: for a quarter-turned bed the check excluded the
+FOOT (missing real shortfalls, since the convention requires coverage there) and
+measured the HEAD (reporting false shortfalls, since it is deliberately bare).
+
+**Why the tests did not catch it.** Both rotated-bed arms asserted the head points
++X at rotation π/2 — copied from the formula they were checking. A test that
+shares the product's error cannot detect it. Same lesson as the radian/degree pair
+recorded above, but harder to spot: a wrong CONVENTION looks like geometry on both
+sides, where a wrong UNIT eventually reads as an absurd number. The fix was to
+derive the expectations from `inward()` — a different, independently-verified part
+of the codebase — and to confirm each arm fails against the old formula.
+
+**Measured impact:** 64 of 138 beds in shipped/auto-furnished content are
+quarter-turned, and 26 of 137 rug findings (19%) changed their reported
+measurement. No verdict flipped in the corpus, because every auto-arranged rug
+already fails on size — worth stating rather than glossing, since it is the reason
+the defect survived a full corpus sweep. The shipped default flat could not have
+caught it either: all three of its beds sit at rotation 0, where the two
+conventions agree exactly.
+
 ## Sources
 
 - [The ultimate guide to living room clearances, measurements, and spacing — Homes & Gardens](https://www.homesandgardens.com/interior-design/living-rooms/a-guide-to-living-room-clearances-measurements-and-spacing)

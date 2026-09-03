@@ -196,13 +196,27 @@ const RUG_DIRS: readonly RugDir[] = ['-x', '+x', '-z', '+z']
  */
 function headDir(bed: FurnitureItem): RugDir {
   const rad = bed.rotation ?? 0
-  // Local (0, -1) through the SAME transform `itemFootprint` applies:
-  // world = (cos*lx - sin*lz, sin*lx + cos*lz), so (0, -1) maps to (sin, -cos).
-  // Getting the x sign backwards here silently excludes the FOOT instead of the
-  // head on a quarter-turned bed — caught by the rotated-bed test, which is the
-  // only reason a direction-derived exclusion is worth more than dropping the
-  // worst side.
-  const x = Math.sin(rad)
+  // Local (0, -1) under the RENDER rotation, which is what decides where the
+  // headboard physically points: three.js turns local +Z to world
+  // `(sin, cos)` (the convention `layout/faceWall.ts` documents), so local -Z
+  // goes to `(-sin, -cos)`.
+  //
+  // **Corrected v0.31.8.9 — this returned the FOOT for any bed rotated ±90°.**
+  // The previous version used `(sin, -cos)`, justified as "the SAME transform
+  // `itemFootprint` applies". That transform is real but it is the wrong
+  // authority twice over: it rotates a GLB's off-origin OFFSET (`ox`/`oz`),
+  // which is 0 for every parametric bed so it never even runs, and its sense is
+  // opposite to the render's. Ground truth is the app's own bed placer:
+  // `placeFlush(edge:'W')` puts a bed against the WEST wall at
+  // `inward('W') = π/2`, so at rotation π/2 the head points WEST — `(-1, 0)`,
+  // which is what this returns and the old version did not.
+  //
+  // The rotated-bed tests encoded the same wrong convention, so they passed on
+  // the bug: a test that shares the product's error cannot detect it, and this
+  // time the shared error was a CONVENTION rather than a unit. Their
+  // expectations are now derived from `inward()` instead of from the formula
+  // they are checking.
+  const x = -Math.sin(rad)
   const z = -Math.cos(rad)
   if (Math.abs(x) > Math.abs(z)) return x > 0 ? '+x' : '-x'
   return z > 0 ? '+z' : '-z'

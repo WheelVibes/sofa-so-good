@@ -27,6 +27,49 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.9 - `headDir` returned the FOOT for any bed rotated 90 degrees
+
+A bug I shipped in PR #111, found while researching something else (`bedSurround`),
+and it affected **64 of 138 beds (46%)** in real content — not a hypothetical case.
+
+`headDir` derived the headboard direction as `(sin, -cos)`, justified in its own
+comment as "the SAME transform `itemFootprint` applies". That transform is real
+and the arithmetic was right, but it is the wrong authority twice over:
+
+- it rotates a GLB's off-origin OFFSET (`ox`/`oz`), which is **0 for every
+  parametric bed**, so it never even runs for the subject at hand;
+- its sense is OPPOSITE to the render's. three.js turns local +Z to world
+  `(sin, cos)` — the convention `layout/faceWall.ts` documents — so local -Z goes
+  to `(-sin, -cos)`.
+
+**Ground truth is the app's own bed placer**, which is how this was settled rather
+than by re-deriving algebra I had already got wrong once: `placeFlush(edge:'W')`
+puts a bed against the WEST wall at `inward('W') = π/2`, so at rotation π/2 the
+headboard points west, `(-1, 0)`. The old formula returned `(+1, 0)` — the foot.
+
+Consequence for the rug check, in both directions: for a quarter-turned bed it
+EXCLUDED the foot (where the convention requires coverage, so real shortfalls were
+missed) and MEASURED the head (which is deliberately left bare, so it reported
+false shortfalls).
+
+**The tests passed on the bug because they encoded the same wrong convention.**
+Both rotated-bed arms asserted the head points +X at rotation π/2, copied from the
+formula they were meant to be checking. A test that shares the product's error
+cannot detect it — the same lesson as the radian/degree pair in `.415`, except
+this time the shared error was a CONVENTION rather than a unit, which is harder to
+notice because both sides look like geometry. Their expectations are now derived
+from `inward()` instead, and each was verified to FAIL against the old formula.
+
+**Measured impact.** Verdicts do not flip anywhere in the 62-layout corpus, and
+saying so matters: every auto-arranged rug already fails on size, which masks it.
+What does change is the reported MEASUREMENT on **26 of 137 rug findings (19%)** —
+the detail named the wrong side or the wrong shortfall. On a correctly-sized rug
+with a quarter-turned bed the verdict does flip, which is what the two unit arms
+demonstrate.
+
+The shipped default flat could never have caught this: all three of its beds sit at
+rotation 0, where the two conventions agree exactly.
+
 ## v0.31.8.8 - Storage access: making a documented rule that nothing implemented real
 
 `.7` established that `CLEARANCE.storageFront` (0.75 m) has **no consumer
