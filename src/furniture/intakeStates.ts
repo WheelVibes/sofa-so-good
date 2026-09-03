@@ -61,7 +61,7 @@ import type { MaterialId } from '../materials/types'
 /** The four buyer starting states offered in Smart Start (BSJ-4). `bto-ocs`
  *  routes to the existing `applyOcsStarter`; the other three are new here.
  *
- *  MOVED to `floorplan/types.ts` (v0.31.5.293) so `FloorPlan.intakeState` can
+ *  MOVED to `floorplan/types.ts` (v0.31.5.394) so `FloorPlan.intakeState` can
  *  reference it without an import cycle — this module imports from that one, and
  *  that one is deliberately import-free. Re-exported type-only here so every
  *  existing consumer is unchanged; same pattern as `ElectricalKind`. */

@@ -21,7 +21,7 @@
  * the field is centred so the two opposite cuts are equal and as wide as
  * possible, borrowing a whole tile back when that widens them.
  *
- * **The `sliver` flag is a backstop, not the safeguard — corrected v0.31.5.288.**
+ * **The `sliver` flag is a backstop, not the safeguard — corrected v0.31.5.389.**
  * An earlier version of this note implied it was the active check against "the
  * most common and most expensive category of on-site rework". It cannot be:
  * after borrowing, `cut = (leftover + mod) / 2` with `leftover < mod`, so the

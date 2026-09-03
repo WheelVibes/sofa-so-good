@@ -1,6 +1,6 @@
 {
   "name": "lamp-spec-override",
-  "description": "v0.31.5.299 visual verification: the per-item lamp SPECIFICATION controls (colour temp + IP rating) in the item inspector, separate from the render Colour/Brightness overrides above them.",
+  "description": "v0.31.5.400 visual verification: the per-item lamp SPECIFICATION controls (colour temp + IP rating) in the item inspector, separate from the render Colour/Brightness overrides above them.",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },

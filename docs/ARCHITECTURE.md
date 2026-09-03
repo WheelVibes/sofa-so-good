@@ -1685,7 +1685,7 @@ same change that reshapes a system.
   spec is written for) and returns U0 vs the kind's `MIN_UNIFORMITY`, keyed by room id. Passed as
   `roomLuxTableHtml`'s optional 4th arg to add a "U0 / min" column — omitted keeps the previous
   5-column table. Consumed by the drawing set's lighting sheet and the report's lighting section. A
-  fully dark room PASSES (no meaningful uniformity; the average status already flags it `low`). **The spatial grid is directional since v0.31.5.260**: `PlanLight.iesProfile` (from
+  fully dark room PASSES (no meaningful uniformity; the average status already flags it `low`). **The spatial grid is directional since v0.31.5.361**: `PlanLight.iesProfile` (from
   `item.props.iesProfile`) plus an INJECTED `LuxGridOptions.iesShape` resolver
   (`lighting/ies/iesShape.ts` bridging the stateful `iesStore` to the pure grid) scales the peak
   candela by `relativeIntensityAt` — the profile's distribution normalised to its OWN peak, SHAPE
@@ -1951,7 +1951,7 @@ same change that reshapes a system.
   RUNNER recognised as its own published layout and judged on length rather than overhang).
   Each finding carries the measured figure + the band so a user can judge the call; `skipped`
   where the design lacks the pieces. Consumed by `schemeOptions` (compare modal) **and**, since
-  v0.31.5.314, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed
+  v0.31.5.415, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed
   by `schemeOptions` ALONE, so it critiqued generated alternatives and never the home the user
   drew. `FurnitureItem.rotation` is RADIANS here (`itemFootprint` feeds it to `Math.cos`);
   `roughlyAligned` compares against a quarter turn, not `% 90`. Thresholds/sources:

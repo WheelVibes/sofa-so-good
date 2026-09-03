@@ -235,7 +235,7 @@ describe('buildReportHtml', () => {
     expect(html).toContain('Lighting plan')
     expect(html).toContain('lighting plan,') // svg aria-label
     expect(html).toMatch(/×\d+/) // a fixture quantity in the schedule
-    // v0.31.5.297: the schedule quotes what a supplier needs — lumens, colour
+    // v0.31.5.398: the schedule quotes what a supplier needs — lumens, colour
     // temperature and ingress protection — not scene candela. `intensity` is a
     // render unit whose own registry header warns it must never be compared to
     // a real luminaire, so printing it on a professional schedule invited
@@ -943,7 +943,7 @@ describe('report palette-restraint note (F13-adjacent design review)', () => {
   })
 })
 
-describe('layout critique in the report (v0.31.5.314)', () => {
+describe('layout critique in the report (v0.31.5.415)', () => {
   const plan = buildDefaultPlan()
   const items = defaultLayout().map((e) => {
     const d = BUILTIN_CATALOG[e.defId]

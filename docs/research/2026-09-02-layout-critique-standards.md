@@ -29,7 +29,7 @@ published spacing standards)" instead of "the cheaper of the two".
 | Sofa-to-coffee-table, SG | 0.30–0.45 m | SG sources give "30-45 cm between the sofa and the coffee table" vs the generic 0.36–0.46 m. Close enough that the current band passes either way, but noted. |
 | Sofa width | 1.75–2.20 m | "Three-seaters are typically 175cm to 220cm wide"; for a 4-room HDB, "a 3-seater straight sofa between 190 and 210 cm wide fits comfortably". |
 
-## The sofa check was derived, then replaced with a cited figure (v0.31.5.269)
+## The sofa check was derived, then replaced with a cited figure (v0.31.5.370)
 
 The first version used a **derived** bar — sofa width ≤ 60% of the room's shorter
 span — because the generic sources give room dimensions but no ratio. It warned
@@ -80,7 +80,7 @@ because the wrong number was *plausible* — it would have read as a real findin
 about the layouts rather than a bug in the ruler, and it was only caught by
 noticing that both schemes reported the identical suspicious value.
 
-## Rug sizing (added v0.31.5.314) — and four false alarms on the way
+## Rug sizing (added v0.31.5.415) — and four false alarms on the way
 
 The most-cited amateur error in interior design, and the app could place a rug
 via `autoArrange` without ever checking it: `suggestions.ts` only prompted when a

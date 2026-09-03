@@ -1117,7 +1117,7 @@ describe('buildDrawingSetHtml — carpentry sheets (TODO G8)', () => {
     expect(on).toContain('class="section-cut"')
     // Two "A" bubbles on the carpentry front elevation. Scoped from
     // 'FRONT ELEVATION' (which only the carpentry sheet carries — 'Carpentry —'
-    // also appears in the cover's sheet index): since v0.31.5.254 the PLAN
+    // also appears in the cover's sheet index): since v0.31.5.355 the PLAN
     // sheets carry section cut marks lettered A too, so a document-wide count
     // would conflate the two.
     const carpentrySheet = on.slice(on.indexOf('FRONT ELEVATION'))

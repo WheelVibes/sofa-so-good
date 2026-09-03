@@ -151,7 +151,7 @@ export function buildReportHtml(
     ? buildFinishSchedule(plan, finishes, (id) => BUILTIN_MATERIALS[id]?.name ?? id)
     : null
   const finishScheduleBody = finishSchedule ? finishScheduleHtml(finishSchedule, units) : ''
-  // Material-palette restraint (v0.31.5.312) — printed with the finish schedule
+  // Material-palette restraint (v0.31.5.413) — printed with the finish schedule
   // on purpose: the reader is already looking at the list of finishes, so
   // "these three cover 4% between them" lands where the codes are visible.
   // An observation, not a score: it is deliberately NOT a `designScore`
@@ -475,7 +475,7 @@ export function buildReportHtml(
   // `report` flag (additive section, no new analysis code). Skipped when the rules
   // produce nothing (e.g. a bare shell with no habitable rooms, or a fully-kitted home).
   // EVERY storey (F13), matched with `itemsInRoom` so a piece counts toward the
-  // room on its OWN floor. v0.31.5.284 fixed exactly this in `DesignScorePanel`
+  // room on its OWN floor. v0.31.5.385 fixed exactly this in `DesignScorePanel`
   // — and this block says "mirroring DesignScorePanel", which it then stopped
   // doing. Found by auditing my own .277-.284 claims after .293 turned up a
   // path .281 had missed.
@@ -504,7 +504,7 @@ export function buildReportHtml(
     else sugByRoom.set(s.roomId, [s])
   }
   const sugColor = (sev: string) => (sev === 'tip' ? '#b45309' : '#6b7280')
-  // Layout critique for THIS design (v0.31.5.314). The module has shipped for a
+  // Layout critique for THIS design (v0.31.5.415). The module has shipped for a
   // while and was consumed only by `schemeOptions`, so its cited thresholds
   // assessed generated alternatives and never the user's own home. Fail/warn
   // findings first — a list that opens with four passes buries the one problem.
@@ -1109,7 +1109,7 @@ export function buildReportHtml(
           )
           .join('')
       : `<div class="plan-wrap">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>`
-  // Lamp-specification advisories (v0.31.5.300). The Checks panel has carried
+  // Lamp-specification advisories (v0.31.5.401). The Checks panel has carried
   // these since .298, but a COMPLIANCE finding that lives only in the app never
   // reaches the person it is for: a contractor reads this document, not a panel
   // in someone else's browser. Each fixture's room is resolved on ITS OWN

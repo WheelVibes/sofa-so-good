@@ -600,7 +600,7 @@ const RawSerializedStateZ = z.object({
   version: z.literal(2),
   apartmentId: z.literal('serangoon-north-vista-4r'),
   items: z.array(FurnitureItemZ),
-  // The design as marked AS TENDERED (v0.31.5.308) — what a contractor priced,
+  // The design as marked AS TENDERED (v0.31.5.409) — what a contractor priced,
   // diffed by `analysis/variationRegister.ts`. Persisted because the whole
   // point is surviving the weeks between pricing and building; session-only
   // (as it shipped in .307) undercut it. Additive + optional: a save without

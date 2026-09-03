@@ -97,7 +97,7 @@ luxury metal because it develops a patina over time that cannot be faked".
 
 Crucially, the **implementation was already right**: the preset's own style props
 use `sheen: 0.3`, i.e. semi-matte. So only the user-facing description was wrong —
-and since v0.31.5.263 that description renders in the scheme-comparison modal, so
+and since v0.31.5.364 that description renders in the scheme-comparison modal, so
 a user would have read "lacquered" while looking at satin surfaces. Fixed as a
 text correction, with the reasoning inline at the preset so it is not "tidied"
 back.
@@ -125,7 +125,7 @@ than assumed either way.
 ## Consequence for G8
 
 Scheme generation rests on a sound style vocabulary — so the weakness in G8 is
-**not** the themes. It is what v0.31.5.262 already recorded: no preset defines
+**not** the themes. It is what v0.31.5.363 already recorded: no preset defines
 `kits`, so themes differ in finish and styling but place identical furniture, and
 layout variety comes only from the arranger's reroll seed. The highest-value next
 step remains giving a few themes real kit differences — and this audit says what
@@ -221,7 +221,7 @@ ship both as separate presets. Recorded in `TODO.md`.
   "satin"), **2 with a flagged wall-vs-accent divergence** (Coastal, Tropical
   Biophilic), **1 with a named missing material** (Peranakan encaustic tile).
 - **7 `layout`-group** (arrangement claims, not palettes) — established in
-  v0.31.5.266 to be researched BY CONSTRUCTION: each authors an explicit
+  v0.31.5.367 to be researched BY CONSTRUCTION: each authors an explicit
   `livingDining` array that `presets/types.ts` describes as "a researched
   real-world layout", and they demonstrably deliver what they describe
   (`entertainer`'s bar cart, `social-lounge`'s angled armchairs). Their finishes

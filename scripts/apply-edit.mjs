@@ -8,15 +8,15 @@
  * complaint, every downstream step still succeeds, and the result looks
  * explicable. That has gone wrong four separate times in this repo:
  *
- *  - **v0.31.5.304** — an arm-swap in a measurement never landed (biome had
+ *  - **v0.31.5.405** — an arm-swap in a measurement never landed (biome had
  *    reformatted the call across seven lines). Both "arms" were the same code,
  *    so they agreed, and a real fix was published as unprovable. The retraction
  *    cost two commits.
- *  - **v0.31.5.291** — a test repair matched nothing after biome reformatted the
+ *  - **v0.31.5.392** — a test repair matched nothing after biome reformatted the
  *    block. The tell was a byte-identical failure, including a stale error.
- *  - **v0.31.5.302** — a sweep pattern anchored on the wrong thing reported a
+ *  - **v0.31.5.403** — a sweep pattern anchored on the wrong thing reported a
  *    layer "clean"; five real bugs were sitting in it.
- *  - **v0.31.5.312** — a rename of a colliding local did nothing; `tsc` caught
+ *  - **v0.31.5.413** — a rename of a colliding local did nothing; `tsc` caught
  *    the redeclaration, but only by luck of it being a type error.
  *
  * The rule "assert the edit changed something" was written down after the first

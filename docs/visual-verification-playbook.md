@@ -3211,7 +3211,7 @@ Symptom: `waitFor` times out on a selector (`.clr-list`), the console shows **no
 a happy-dom test rendering the same component finds the element fine.
 
 Cause: the dev server was started while the component was still being edited, and HMR left it in an
-inconsistent state. Restarting `npx vite` fixed it with zero code change (v0.31.5.311).
+inconsistent state. Restarting `npx vite` fixed it with zero code change (v0.31.5.412).
 
 So: when the unit tests and the scenario disagree about whether something renders, suspect the
 server before the component. Cheap to rule out, and it cost a debugging cycle to learn.

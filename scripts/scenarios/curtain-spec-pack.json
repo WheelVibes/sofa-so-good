@@ -1,6 +1,6 @@
 {
   "name": "curtain-spec-pack",
-  "description": "v0.31.5.303 visual verification: the Curtain specification table in the curtains trade pack. Seven columns on a pack sheet is a real overflow risk, so the point is legibility, not just presence.",
+  "description": "v0.31.5.404 visual verification: the Curtain specification table in the curtains trade pack. Seven columns on a pack sheet is a real overflow risk, so the point is legibility, not just presence.",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },

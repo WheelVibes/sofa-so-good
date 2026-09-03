@@ -97,7 +97,7 @@ export function openingProbePoints(
    * and also a `number`. Passing one where the other belongs compiles cleanly
    * and silently probes a metre or more into the room: it resolved two of six
    * windows to "Unassigned" and one to the wrong room on a printed trade pack
-   * (v0.31.5.303/.304, where it cost two commits to diagnose). Nothing but a
+   * (v0.31.5.404/.304, where it cost two commits to diagnose). Nothing but a
    * rendered document distinguished them, so the collision is removed at the
    * source — an author reaching for `o.offset` now sees a parameter that is not
    * called that.

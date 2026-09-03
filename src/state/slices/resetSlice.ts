@@ -297,7 +297,7 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     // Keep only wet-area + kitchen FITTINGS; strip furniture + wardrobes + carpentry.
     const items = get().items.filter((it) => isStripoutKeep(it.defId))
     if (!isDefaultPlan(plan)) {
-      // EVERY storey (F13) via `mapPlanRooms`. MISSED in v0.31.5.281, which
+      // EVERY storey (F13) via `mapPlanRooms`. MISSED in v0.31.5.382, which
       // fixed the other three intake paths and said so — this fourth one kept
       // screeding the ground floor only, leaving a maisonette's upstairs on its
       // old finish. Found while reading this function for an unrelated reason.

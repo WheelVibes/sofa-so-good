@@ -5,19 +5,73 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-> **Duplicate build numbers in `0.31.5.249`–`0.31.5.349` (recorded 2026-09-03).** Two sessions
-> worked this repo in parallel worktrees and independently numbered their builds from the same
-> `0.31.5.248` base, so **67 version strings appear twice** with unrelated content: this branch's
-> drawing-accuracy work (`0.31.5.249`–`.314`, the entries immediately below) and the merged
-> graphics-realism arc (`0.31.5.249`–`.349`, further down, shipped as `0.31.6.0` in PR #110).
-> Read the surrounding entries for which is which; the two ranges never touch the same files.
+> **Resolved 2026-09-03: the duplicate build numbers were renumbered.** Two sessions worked this
+> repo in parallel worktrees and independently numbered their builds from the same `0.31.5.248`
+> base, so **67 version strings meant two unrelated things**. On the maintainer's decision this
+> branch's drawing-accuracy range was renumbered **`0.31.5.249`–`.314` → `0.31.5.350`–`.415`**,
+> clear of the graphics-realism arc's `.349` ceiling (that arc keeps `.249`–`.349`, shipped as
+> `0.31.6.0` in PR #110). Every heading in the log is now unique except `0.29.3.6`, and
+> `src/changelogVersions.test.ts` fails on any new collision.
 >
-> Renumbering was measured and **declined**: this branch's range is referenced 150 times across
-> 46 source files (`// corrected v0.31.5.288`, `// Added v0.31.5.314`, …) plus the entries' own
-> prose cross-references, and rewriting all of it buys nothing functional — `APP_VERSION` is
-> the only version the update flow compares, and the branch tip is `0.31.6.1`, correctly above
-> staging. Noted here instead so the log is confusing-but-honest rather than silently
-> ambiguous. Flagged for the maintainer; renumbering is a call for them, not for either session.
+> **Which references moved, and how that was decided.** Both arcs used overlapping numbers
+> (`.252`–`.263` and `.293`–`.314` appear in both), so a global find-and-replace would have
+> silently corrupted the graphics arc's own references. Every one of the 208 in-range references
+> was instead classified by `git blame` against the two merge parents (PR #111's commits vs
+> PR #110's): **135 drawing-accuracy references were renumbered, 73 graphics references were left
+> alone, none were unclassifiable.** The split cross-checks against file paths exactly — every
+> graphics-classified reference sits in `src/scene/`, `docs/open-graphics-decisions.md` or a
+> graphics probe.
+>
+> **What could NOT be fixed.** Git commit messages still cite the old numbers, and rewriting them
+> would mean rewriting merged history. So a commit message reading `(v0.31.5.288)` corresponds to
+> the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
+> functional depends on either: `APP_VERSION` is the only version the update flow compares.
+
+## v0.31.8.1 - Renumbered the 67 duplicate build numbers
+
+On the maintainer's decision, against my own advice. I had measured the renumbering
+and recommended keeping the allowlist guard instead; the call was theirs, and this
+is it. `0.31.5.249`-`.314` (drawing accuracy) becomes `0.31.5.350`-`.415`, clear of
+the graphics arc's `.349` ceiling.
+
+**The part worth recording is why a find-and-replace would have been wrong.** Both
+arcs numbered from `0.31.5.248`, so their ranges OVERLAP: `.252`-`.263` and
+`.293`-`.314` appear in both. A global substitution would have renumbered the
+graphics arc's own source references — silently, and in exactly the files nobody
+reviewing a version-label change would think to check.
+
+So every in-range reference was classified by provenance instead. `git blame` each
+of the 208 sites, then test the commit against the two merge parents' commit sets
+(`rev-list 6280b612^2 ^6280b612^1` for PR #111, the same for PR #110):
+
+- **135 drawing-accuracy references renumbered**, across 45 files
+- **73 graphics references left alone**
+- **0 unclassifiable**
+
+The result cross-checks independently: every graphics-classified reference lives in
+`src/scene/`, `docs/open-graphics-decisions.md`, or a graphics dev-probe. Blame
+provenance and file semantics agree on all 208, which is the evidence that the split
+is right rather than merely plausible.
+
+The CHANGELOG edit was confined to the drawing-accuracy block by locating it from
+its own headings (`.314` down to `.249`) rather than by line number, and asserted:
+80 refs changed inside it, the 66 graphics-block refs in the same numeric range
+untouched, and the new headings landing exactly on a contiguous `.350`-`.415`.
+
+**`KNOWN_DUPLICATE_RANGES` is deleted, not emptied.** Its expiry test — dev-09's
+design — fired the moment the renumbering landed, reporting 1 duplicate where it
+demanded >50. That is the mechanism working: a suppression with no remaining subject
+is indistinguishable from an absent check. Leaving an empty array and a test
+iterating nothing would have been scaffolding, so the hatch went with the duplicates
+it described, and the reason it existed is recorded where someone facing 67
+collisions again will find it. The named allowlist stays for `0.29.3.6`, whose
+entries were pruned from `main` with the C1-C250 history and so cannot be renumbered
+against anything.
+
+**Honest limit: git commit messages still cite the old numbers**, and rewriting them
+would mean rewriting merged history. Add 101 to any drawing-accuracy build cited in
+a commit message. Nothing functional reads either — `APP_VERSION` is the only version
+the update flow compares.
 
 ## v0.31.8.0 - The default flat stops failing its own compliance check
 
@@ -224,7 +278,7 @@ careless: two sessions coordinating on *files* successfully and on *the version 
 all, because nothing made the counter shared. A convention only one party can see is not a
 convention.
 
-## v0.31.5.314 - the critique was never applied to the user's own design
+## v0.31.5.415 - the critique was never applied to the user's own design
 
 `analysis/layoutCritique.ts` has shipped for a while with cited thresholds — TV viewing
 distance, conversation distance, coffee-table gap, sofa proportion — and was consumed by
@@ -253,7 +307,7 @@ Layout quality on the default flat: 33 → 58. The two findings that survive are
 2's rug is neither a proper runner nor a proper under-bed rug, and the living-room rug is
 narrower than the sofa it sits under.
 
-## v0.31.5.313 - a tool instead of a fifth reminder
+## v0.31.5.414 - a tool instead of a fifth reminder
 
 I have written "always assert a scripted edit changed something" four times in this session and
 ignored it three of those. Per the distinction dev-09 named — **a prohibition lives in memory, a
@@ -287,7 +341,7 @@ The general point, which is the part worth keeping: **the number of times a rule
 is evidence about the rule, not about the person.** Four restatements meant the rule was the wrong
 shape — it needed to be a thing that fails, not a thing to remember.
 
-## v0.31.5.312 - material-palette restraint, as an observation rather than a score
+## v0.31.5.413 - material-palette restraint, as an observation rather than a score
 
 Continuing on design QUALITY. Limiting the number of distinct finishes is one of the clearest
 things an experienced designer does and an inexperienced one does not, and nothing in the app looked
@@ -331,7 +385,7 @@ retraction. Redone with an assertion on both the declaration and a count of the 
 four times this session that an unasserted bulk edit has silently no-opped; the fix is mechanical
 and I keep not applying it by default.
 
-## v0.31.5.311 - lighting LAYERS: the question average illuminance cannot answer
+## v0.31.5.412 - lighting LAYERS: the question average illuminance cannot answer
 
 A fresh pass on design QUALITY rather than deliverables — the "experienced designer" half of the
 goal rather than the drawing half.
@@ -377,7 +431,7 @@ in the console — because I had started the dev server *mid-edit* and HMR left 
 Restarting vite fixed it with no code change. When a scenario cannot find a selector the unit tests
 prove is rendered, restart the dev server before debugging the component.
 
-## v0.31.5.310 - a measured decision NOT to refactor the 17-argument builder
+## v0.31.5.411 - a measured decision NOT to refactor the 17-argument builder
 
 `.309` logged `buildDrawingSetHtml`'s seventeen positional arguments as a design item, on the
 strength of having just been bitten by it. Investigating properly says **don't**, and the reasoning
@@ -411,7 +465,7 @@ demonstration so the next reader is not re-tempted by the alarming argument coun
 No product change. The experiment is documented rather than committed, since a deliberately broken
 signature is not something to leave in the tree.
 
-## v0.31.5.309 - the variation register as a handover sheet
+## v0.31.5.410 - the variation register as a handover sheet
 
 Closes the variation-register thread. `.307` put the register in the budget CSV, which is the right
 place for the number a contractor prices against — but **the drawing set is the document that
@@ -443,7 +497,7 @@ type system rather than a test: the test failed too, but it could not have said 
 
 +2 tests, both confirmed failing with the builder change stashed.
 
-## v0.31.5.308 - the tendered snapshot persists
+## v0.31.5.409 - the tendered snapshot persists
 
 `.307` shipped the variation register with a session-only snapshot and said plainly that this
 undercut the point: a tender snapshot has to survive the weeks between pricing and building, and
@@ -472,7 +526,7 @@ unwatched. The previous person to make this mistake left the trap disarmed for t
 is the argument for recording a failure in the place the next change will touch, rather than only in
 a changelog entry nobody re-reads.
 
-## v0.31.5.307 - the variation register, built as a whole slice
+## v0.31.5.408 - the variation register, built as a whole slice
 
 `.306` named this the largest remaining professional gap and deliberately did not start it, because
 the useful version needs snapshot state, a diff core AND a surface — and a core with no surface is
@@ -522,7 +576,7 @@ establish is order-dependent by construction.
 
 18 new tests.
 
-## v0.31.5.306 - adding a wall was free in the budget
+## v0.31.5.407 - adding a wall was free in the budget
 
 A fresh pass over the PROCESS rather than the deliverables. Looking for variation/change-order
 tracking (which does not exist — logged below) turned up something simpler and worse in the
@@ -564,7 +618,7 @@ tender, then a diff of two `RenoAllocation`s per trade line.
 Deliberately not started this pass, because the useful version needs the snapshot state, the diff
 core AND a surface, and a core with no surface is the `.297` mistake. Scoped in `TODO.md`.
 
-## v0.31.5.305 - removing the name collision at its source
+## v0.31.5.406 - removing the name collision at its source
 
 Follow-through on `.303`/`.304`. Before changing anything I enumerated **every** caller of the two
 opening-probe helpers — eight of them, in `daylight`, `luxGrid`, `doorwayBleed`, `floorLevels` (x2),
@@ -589,7 +643,7 @@ not fail the suite. It is what the evidence supports here — one occurrence, in
 helper unlikely to gain many more callers. If a second instance ever appears, that is the signal to
 pay for the branded type.
 
-## v0.31.5.304 - resolving .303's "cannot prove": the measurement was broken, not the fix
+## v0.31.5.405 - resolving .303's "cannot prove": the measurement was broken, not the fix
 
 `.303` shipped the curtain specification and then added an unusually careful caveat: the rendered
 pack improved when I corrected a probe argument, but running both arms through the test harness gave
@@ -634,7 +688,7 @@ a substitute for verifying the instrument** — it just makes a broken measureme
 TODO.md's UNRESOLVED entry is removed rather than left standing, since leaving a resolved item
 described as open is its own kind of false record.
 
-## v0.31.5.303 - curtain specification, and an honest account of a fix I cannot prove
+## v0.31.5.404 - curtain specification, and an honest account of a fix I cannot prove
 
 The curtains trade pack listed each treatment's rendered width x height, under a caveat that
 admitted the problem: "measure the finished opening on site before ordering". Those are the ITEM's
@@ -656,7 +710,7 @@ installer's. The one nearby published figure — 150 mm single-track, 200 mm dou
 DEPTH, a different dimension; substituting it would have been easy, would have looked sourced, and
 would have put a fabricated number on a maker's order.
 
-## The part I need to be straight about — SUPERSEDED by v0.31.5.304
+## The part I need to be straight about — SUPERSEDED by v0.31.5.405
 
 > **Corrected.** The "cannot prove" conclusion below is wrong. My arm-swap never landed (biome had
 > reformatted the call across seven lines, so the `str.replace` matched nothing), which is why both
@@ -689,7 +743,7 @@ And the frame remains the only place either problem surfaced at all.
 
 15 new tests on the core (all discriminating), 3 on the pack (2 discriminating, 1 a labelled pin).
 
-## v0.31.5.302 - five more mis-attributions, invisible to my own two sweeps
+## v0.31.5.403 - five more mis-attributions, invisible to my own two sweeps
 
 dev-09 offered a formulation — **a regex over source is a SAMPLE, not an enumeration, and its
 coverage is invisible in the result** — and it cost me five bugs within the hour of writing it down.
@@ -729,7 +783,7 @@ TODO.md now carries the concrete rule: anchor a sweep on the OPERATION (`rooms.f
 pointInRoom`), never on the receiver (`plan.rooms`), because an aliased collection is invisible to
 the latter — and prefer not to rely on a grep at all.
 
-## v0.31.5.301 - converting the remaining prohibitions into structure
+## v0.31.5.402 - converting the remaining prohibitions into structure
 
 Guards + docs, prompted by dev-09 naming a distinction better than mine: **a prohibition lives in
 memory; a structure fails the suite.** My "don't derive a specification from a rendering constant"
@@ -768,7 +822,7 @@ and both sharper than what I had:
 
 +5 tests.
 
-## v0.31.5.300 - the compliance finding reaches the printed handover
+## v0.31.5.401 - the compliance finding reaches the printed handover
 
 Last of the lamp-spec thread that is mine rather than a content call. The advisories have been in
 the Checks panel since `.298`, which is the wrong and only place for them: **a compliance finding
@@ -797,7 +851,7 @@ shape for anything that checks a finding was resolved.
   document a contractor is most likely to be handed, but it is also already 42 sheets, so adding a
   compliance note there is a judgement about sheet economy rather than correctness.
 
-## v0.31.5.299 - per-item lamp specification, and two registers kept apart
+## v0.31.5.400 - per-item lamp specification, and two registers kept apart
 
 The real resolution for `.298`'s advisories: a user can now specify the fixture they actually
 bought, instead of being permanently told about the registry default. `props.lampCct` /
@@ -836,7 +890,7 @@ so a change that made the advisory unreachable would fail.
 options 2700 / 3000 / 4000 / 6500 K — discrete choices rather than a free number, so the field
 cannot hold a value no product has.
 
-## v0.31.5.298 - the lamp-spec advisory reaches a surface, and the default flat fails it
+## v0.31.5.399 - the lamp-spec advisory reaches a surface, and the default flat fails it
 
 `.297` built `analysis/lampSpecAdvisory.ts`, tested it, and left it wired to nothing — which I
 flagged at the time as something that should not sit long, since one of its two findings is a
@@ -855,7 +909,7 @@ outside every room is dropped by the builder rather than checked against a guess
 - **COLOUR TEMP · Ceiling light · Bath/WC 1** — a bath fires both, being wet AND a task space.
 
 That is the second time this week the DEFAULT configuration has failed a newly-added professional
-check (v0.31.5.290: a 2.6 m ceiling with 300x600 wall tile leaves a 200 mm bottom cut, under the
+check (v0.31.5.391: a 2.6 m ceiling with 300x600 wall tile leaves a 200 mm bottom cut, under the
 half-course bar). Both are worth stating plainly rather than quietly fixing the fixture data: the
 checks are only worth adding because real designs trip them, and the app's own default IS a real
 design. Changing the default flat's fixtures to silence its own advisory would be the wrong order of
@@ -870,7 +924,7 @@ caveat is buried below its findings reads as a verdict.
 
 +3 tests.
 
-## v0.31.5.297 - a lamp spec on the lighting schedule, and .296's claim corrected
+## v0.31.5.398 - a lamp spec on the lighting schedule, and .296's claim corrected
 
 **Correcting `.296` first. It said the lighting schedule was missing lumens, measured as 0/6
 emitters. Both halves were wrong.**
@@ -920,7 +974,7 @@ a reminder that a uniform bulk value needs reading per site, not just compiling.
 18 new tests. Sources: hollowaysofludlow.com and meteorelectrical.com (IP zones); tecolite.com and
 olamled.com (3000 K vs 4000 K); leuchtstark.de and lumarysmart.com (room lumen bands).
 
-## v0.31.5.296 - the items-side audit comes back CLEAN, and the next gap named
+## v0.31.5.397 - the items-side audit comes back CLEAN, and the next gap named
 
 Docs only. `.294`/`.295` audited `plan.rooms`/`walls`/`openings` and found eleven defects. This
 audits the fourth and last leg — cross-item scans and whole-home `items` consumers — and finds
@@ -970,7 +1024,7 @@ about for tile sizes and `paintQuantities.ts` avoids for "is this paint". Author
 fields per emitter (six of them) is the honest route, and it needs sourced SG figures rather than
 plausible ones, so it is logged rather than rushed.
 
-## v0.31.5.295 - completing the audit: walls and openings, and a false positive on five surfaces
+## v0.31.5.396 - completing the audit: walls and openings, and a false positive on five surfaces
 
 `.294` swept `plan.rooms` and found five bugs. It did **not** sweep `plan.walls` or
 `plan.openings`, which carry the same class — so this finishes the job. Most hits are the
@@ -1014,7 +1068,7 @@ fixture is stronger depends on which direction the bug runs.)
 
 +6 tests.
 
-## v0.31.5.294 - auditing my own .277-.284 claims, and five more findings
+## v0.31.5.395 - auditing my own .277-.284 claims, and five more findings
 
 `.293` turned up a path `.281` had missed *by accident*. That is a bad way to find things, so this
 audits my own claims: a sweep for the three idioms this arc has been replacing, then classifying
@@ -1067,7 +1121,7 @@ the changed code produces, which here was a number, not a name.
 
 +7 tests; the four that can discriminate are confirmed failing with their fixes stashed.
 
-## v0.31.5.293 - the intake answer is now kept, plus a path .281 missed
+## v0.31.5.394 - the intake answer is now kept, plus a path .281 missed
 
 Two things, one of them an admission.
 
@@ -1112,7 +1166,7 @@ was already documented in `intakeStates.ts` and is fine for a live-computed sche
 
 11 new tests.
 
-## v0.31.5.292 - paint in LITRES, not square metres
+## v0.31.5.393 - paint in LITRES, not square metres
 
 Another instance of the `.288` shape: the number a contractor needs was one step beyond what the app
 produced, and the app had every input for the step. `tradePacks.ts`'s painter pack printed the wall
@@ -1163,7 +1217,7 @@ capability is now twice in this arc.
 
 19 new tests.
 
-## v0.31.5.291 - the wall course grid, drawn on the elevations
+## v0.31.5.392 - the wall course grid, drawn on the elevations
 
 Completes `.290` the way `.288` completed the floor coursing: the numbers existed in a table, and a
 tiler works from a drawing. `elevationSvg` takes an optional `tileCoursing` and strikes the course
@@ -1206,7 +1260,7 @@ fixture being blunt, not a suggestion to tile a bedroom.
 
 +6 tests.
 
-## v0.31.5.290 - wall tile setting-out, and the default SG bathroom fails it
+## v0.31.5.391 - wall tile setting-out, and the default SG bathroom fails it
 
 Closes Finding A from `.289`: two wall tiles declared a 300x600 module and nothing consumed it.
 New `floorplan/wallTileCoursing.ts` + a **Wall tile setting-out** table on the finishes sheet.
@@ -1255,7 +1309,7 @@ rooms yields a face per room, since each side is a separate job with its own fin
 22 new tests. One of them caught my own error while writing them: my "healthy bottom cut" example
 used 2.6 m, which is itself a sliver — which is how the default-configuration finding surfaced.
 
-## v0.31.5.289 - hunting the .288 failure mode: features complete except for their data
+## v0.31.5.390 - hunting the .288 failure mode: features complete except for their data
 
 No new feature. `.288` found the tile setting-out table had been rendering **empty since it
 shipped** — code finished, tests green, and no floor material carried a `moduleMm`, so it produced
@@ -1315,7 +1369,7 @@ shipped, whatever the tests say — author the data in the same change or say pl
 inert. And prefer a visible "N omitted, no data" report over a silent empty result; that is why
 .288's gap was recoverable at all.
 
-## v0.31.5.288 - the tiling layout plan, and the reason it was dead on arrival
+## v0.31.5.389 - the tiling layout plan, and the reason it was dead on arrival
 
 A fresh gap pass over the drawing set rather than more of the F13 thread. The set already covers
 17 sheet kinds and has revision history, so the gap was not a missing sheet TYPE — it was a
@@ -1377,7 +1431,7 @@ leader spaghetti. Tag-plus-key is the drafting answer for per-room data that wil
 16 new tests. Sources: homeanddecor.com.sg; thedesignfactory.studio; tsd.sg; weiken.com — cited in
 `materials/builtinCatalog.ts` beside the constants.
 
-## v0.31.5.287 - DXF export in millimetres, and the metric flag it never emitted
+## v0.31.5.388 - DXF export in millimetres, and the metric flag it never emitted
 
 A to-scale interop defect, on the "precise references for contractors" goal rather than the F13
 thread. Researched rather than recalled — CAD unit conventions are exactly the area where model
@@ -1421,7 +1475,7 @@ intervention" signal the .286 retraction was about.
 (a missed call site would show up as a fractional value, since nothing in a real plan is
 legitimately 0.x mm). 10 pre-existing tests confirmed failing with the fix stashed.
 
-## v0.31.5.286 - RETRACTION: the .285 measurement was wrong (135 -> 1279)
+## v0.31.5.387 - RETRACTION: the .285 measurement was wrong (135 -> 1279)
 
 **`.285` published a false number and I need to correct it plainly.** It claimed deleting
 `plan.rooms`/`walls`/`openings` now costs **135 errors across 49 files**, down 90% from 1368. That
@@ -1471,16 +1525,16 @@ The partial `levels[]` restructure started this session is discarded, not commit
 tables in `CHANGELOG.md` and `TODO.md` are corrected in place rather than deleted — a retracted
 number that leaves no trace invites the same mistake again.
 
-## v0.31.5.285 - the migration's blast radius, re-measured: 1368 -> 135 [RETRACTED, see .286]
+## v0.31.5.386 - the migration's blast radius, re-measured: 1368 -> 135 [RETRACTED, see .286]
 
 > **RETRACTED.** Every figure below is wrong: the measuring script removed the fields from
 > `PlanUpperLevel`, not `FloorPlan`. The real cost is **1279 errors / 205 files / 503 non-test**,
 > i.e. no material reduction. Kept in place, struck through, because a deleted mistake teaches
-> nothing. See v0.31.5.286.
+> nothing. See v0.31.5.387.
 
 Docs + measurement only, no product code. The number is the reason to record it.
 
-When the F13 migration was planned (v0.31.5.275) I measured what deleting `plan.rooms` /
+When the F13 migration was planned (v0.31.5.376) I measured what deleting `plan.rooms` /
 `plan.walls` / `plan.openings` would cost: **1368 `tsc` errors across 212 files** (149 non-test,
 1219 test). That figure was the argument for the staged approach — migrate consumers first, with
 no schema change and a green suite at every commit, and leave the field deletion last.
@@ -1520,7 +1574,7 @@ single change rather than the 212-file rewrite it started as.
 `state/schema.ts` is deliberately still untouched: it is the serialisation boundary the final stage
 rewrites, so migrating it earlier would mean doing that work twice.
 
-## v0.31.5.284 - measurements, placement snapping, suggested views, score suggestions
+## v0.31.5.385 - measurements, placement snapping, suggested views, score suggestions
 
 Clears the last of the unaudited list from `TODO.md`.
 
@@ -1561,7 +1615,7 @@ requires all three upstairs room names, so it cannot pass on a ground-only overl
 `state/schema.ts` and the `apartment/*` render layer remain unaudited; `apartment/*` reads are
 mostly inside `PlanShell`'s per-level groups, which is why they have not surfaced.
 
-## v0.31.5.283 - wall elevations for every storey
+## v0.31.5.384 - wall elevations for every storey
 
 **Correcting .282's changelog first: I said `allWallElevations` was a dead export with no call
 sites. That was wrong** — I grepped the name in the doc comment instead of the actual export,
@@ -1596,7 +1650,7 @@ Wall 7 — Loft reads 8.00 m × 1.00 m, which is correct: that is `lfu-rail`, th
 
 7 new tests, all 7 confirmed failing with the fix stashed.
 
-## v0.31.5.282 - sections now show every storey, and two drawing-accuracy fixes
+## v0.31.5.383 - sections now show every storey, and two drawing-accuracy fixes
 
 This one is a GAP, not just a migration bug. **A section is the drawing where storeys matter** —
 it is the single sheet a contractor reads to see how the levels stack — and `buildSection` cut the
@@ -1646,7 +1700,7 @@ documented null guard — worth noting as a case where the existing suite did it
 **Not fixed here, logged instead:** `elevation/projectElevation.ts`'s `allWallElevations` is
 ground-only, but it has no call sites outside its own module, so it is dead rather than broken.
 
-## v0.31.5.281 - the interactive layer: eleven more ground-only lookups
+## v0.31.5.382 - the interactive layer: eleven more ground-only lookups
 
 Fifth migration batch, all of the same two shapes now covered by helpers, and all in paths a user
 drives directly:
@@ -1696,7 +1750,7 @@ the menu does not open in the room editor. It is deleted rather than left in: a 
 nothing reads as coverage and is worse than no step. **The ContextMenu heading fix is covered by
 code reading only, not by a frame** — stated here rather than implied.
 
-## v0.31.5.280 - the UI layer, including a bug .277 made newly reachable
+## v0.31.5.381 - the UI layer, including a bug .277 made newly reachable
 
 Fourth migration batch, and one entry here is a bug this branch CREATED the reach for. `.277`
 taught `editableRooms` to list upstairs rooms; `FinishPicker`'s five room lookups still went
@@ -1736,7 +1790,7 @@ collapsing the ground room's 32 rows first. Recording it because writing the les
 did not stop me making it again the very next commit — the durable fix is scoping every DOM
 assertion to the container that owns it, not remembering to be careful.
 
-## v0.31.5.279 - aircon trunking routed through the floor slab
+## v0.31.5.380 - aircon trunking routed through the floor slab
 
 Third migration batch. `airconTrunking.ts` was the first module found reading BOTH ways at once:
 rooms from every storey (`allPlanRooms`) but routes blocked only by the GROUND floor's walls
@@ -1769,7 +1823,7 @@ room and the per-storey router then failed to find it, silently unresolving the 
 3 of the 5 new tests confirmed failing with the fix stashed; the other two pin the
 single-storey no-op.
 
-## v0.31.5.278 - visual verification of the F13 cost fixes, and two harness lessons
+## v0.31.5.379 - visual verification of the F13 cost fixes, and two harness lessons
 
 Verified `.277` on the shipped two-storey **Open Loft** template with four items moved onto the
 upper level. New scenario `scripts/scenarios/multistorey-cost-coverage-f13.json`.
@@ -1802,7 +1856,7 @@ smaller plan, and `src/floorplan/CLAUDE.md` already documents both the cause and
 skip predicate makes it worse. Called out so a later reader does not mistake it for fallout from
 the accessor migration.
 
-## v0.31.5.277 - the cost layer was quoting the ground floor only
+## v0.31.5.378 - the cost layer was quoting the ground floor only
 
 Second migration batch, and the biggest bug class found so far: **every procurement and cost
 surface enumerated `plan.rooms`, which is ground-only.** Verified whole-plan at every call site,
@@ -1839,7 +1893,7 @@ every probe silently returns the upper storeys alone (empty for a single-storey 
 Recorded in `TODO.md` along with the confirmed target field name, since the same trap applies to
 any consumer migrated ahead of the schema.
 
-## v0.31.5.276 - whole-home accessors, and three more ground-only bugs
+## v0.31.5.377 - whole-home accessors, and three more ground-only bugs
 
 First migration batch. The user has authorised a full schema migration, and a better staging emerged
 than the one recorded a commit ago: **no schema change is needed until the very end.** `planLevels`
@@ -1879,7 +1933,7 @@ accessors are what those probes will need.
 
 Full suite green (9671).
 
-## v0.31.5.275 - five PRE-EXISTING multi-storey bugs in the analysis layer
+## v0.31.5.376 - five PRE-EXISTING multi-storey bugs in the analysis layer
 
 Set out to build the "lint-by-grep" guard `docs/research/multi-level-design.md` called for and never
 got. **The guard idea did not survive contact with the codebase, and looking for it found five real
@@ -1926,7 +1980,7 @@ in `TODO.md` — the share ones are cosmetic, the scale modal may matter.
 
 Full suite green (9671).
 
-## v0.31.5.274 - three multi-storey bugs in my own new modules
+## v0.31.5.375 - three multi-storey bugs in my own new modules
 
 Self-audit of the modules added over this arc, against the rule `src/floorplan/CLAUDE.md` states
 first and in bold: **`plan.rooms`/`plan.walls`/`plan.openings` are the GROUND floor only** — for the
@@ -1962,7 +2016,7 @@ had read it: the ground-only invariant is easy to violate because `plan.walls` R
 walls". Worth a grep for `plan.walls`/`plan.rooms`/`plan.openings` in any new floorplan consumer
 before review. Full suite green (9665).
 
-## v0.31.5.273 - can the furniture actually get into the room?
+## v0.31.5.374 - can the furniture actually get into the room?
 
 A fresh gap pass over the app after 29 commits found one fit question it had never asked.
 `analysis/accessibility.ts` checks a door is wide enough for a PERSON (0.85 m wheelchair clearance);
@@ -2006,7 +2060,7 @@ de-duplication, tightest-blocker ordering, and Pro/Simple report gating. One tes
 wrong and got fixed rather than the code: a 1.2 m box clears a 2 m-high door easily, so my
 ordering fixture had neither constraint actually blocking. Full suite green (9659).
 
-## v0.31.5.272 - openings measured too, and mobile parity verified rather than assumed
+## v0.31.5.373 - openings measured too, and mobile parity verified rather than assumed
 
 Completes the site-measurement recording surface. `SiteMeasuredField` is now on the OPENING
 inspector as well as walls and rooms — door and window widths are commonly the dimension that
@@ -2029,13 +2083,13 @@ how this was verified. Three things came out of actually looking:
   needs the full width to read as a sentence, and the caption-above pattern already exists in this
   inspector for the "Sloping top" group. Noted here so it reads as a choice rather than drift.
 
-No new tests — this reuses the component and store actions already covered by v0.31.5.271's 10
+No new tests — this reuses the component and store actions already covered by v0.31.5.372's 10
 tests, and the parity question was a rendering one that only a screenshot could answer. Full suite
 green (9643).
 
-## v0.31.5.271 - the measurement field, so the reconciliation sheet can actually be used
+## v0.31.5.372 - the measurement field, so the reconciliation sheet can actually be used
 
-v0.31.5.270 shipped the reconciliation core and its sheet, and I flagged the obvious hole: the field
+v0.31.5.371 shipped the reconciliation core and its sheet, and I flagged the obvious hole: the field
 was only reachable by editing a save file, so the sheet existed and nobody could populate it. That
 is a capability, not a feature. This closes it.
 
@@ -2069,7 +2123,7 @@ lock-step invariants hold and the derived autosave guard test passes.
 +10 store tests (replace-not-accumulate, per-target isolation, width vs depth, mm rounding,
 non-finite rejection, key removal on clear, undo). Full suite green (9643).
 
-## v0.31.5.270 - verified to scale, not just drawn to scale
+## v0.31.5.371 - verified to scale, not just drawn to scale
 
 The last unshipped item from the original gap analysis, and the one that underpins the rest. Every
 drawing this app produces is derived from the MODEL — but a real home is not the template: an HDB
@@ -2109,7 +2163,7 @@ row does not inflate the worst-deviation figure. Full suite green (9633).
 
 Data core + sheet only; a recording UI is in `TODO.md`.
 
-## v0.31.5.269 - the sofa check gets a cited figure instead of my derived one
+## v0.31.5.370 - the sofa check gets a cited figure instead of my derived one
 
 Closing the caveat I shipped one version ago. The layout critique's sofa check used a DERIVED bar —
 width <= 60% of the room's shorter span — because the generic sources give room dimensions but no
@@ -2139,7 +2193,7 @@ was the actual mistake, not the specific number.
 
 +3 tests replacing the ratio ones, including the room-independence pin. Full suite green.
 
-## v0.31.5.268 - a ruler that can actually tell two layouts apart
+## v0.31.5.369 - a ruler that can actually tell two layouts apart
 
 G8's comparison had a hole I put there: three genuinely different authored arrangements score
 IDENTICALLY at 83 on every `designScore` category, so the ranking fell through to its price
@@ -2183,7 +2237,7 @@ future pass should source an SG-specific ratio or drop the check.
 it lacks and a 100 means "no evidence of a problem", not "perfect" — `applied` is returned so a
 caller can say which. Full suite green (9613). Verified visually.
 
-## v0.31.5.267 - theme grounding audit complete, 17 of 17
+## v0.31.5.368 - theme grounding audit complete, 17 of 17
 
 Closes the user's requirement that every G8 scheme be grounded in real research rather than invented
 palettes. Round 3 audited the last four style themes; the record with citations is
@@ -2216,13 +2270,13 @@ a feature wall via `PlanWall.color`, which both themes already support; or ship 
 **Final tally: 17/17.** Ten style themes audited against published references — nine accurate as
 written, one corrected (Modern Luxe), two with the flagged wall-vs-accent divergence, one with a
 named missing material (Peranakan encaustic tile). Seven `layout`-group presets are researched by
-construction: they author explicit real-world arrangements rather than palettes, and v0.31.5.266
+construction: they author explicit real-world arrangements rather than palettes, and v0.31.5.367
 established they demonstrably deliver them.
 
 So the schemes G8 offers are grounded on both axes — verified palettes, and the app's own authored
 layout research.
 
-## v0.31.5.266 - the schemes use the researched layouts the app already had
+## v0.31.5.367 - the schemes use the researched layouts the app already had
 
 Auditing the remaining themes turned up something better than a palette check, and a correction to
 my own earlier claim.
@@ -2235,7 +2289,7 @@ them: each authors an explicit `livingDining` array of furniture with positions,
 `bar-cart` no other preset has, `social-lounge` its angled armchairs, and item counts differ (81 /
 80 / 79 vs the default's 87).
 
-**So v0.31.5.262's header was too broad.** It said no preset varies the furniture. True of the
+**So v0.31.5.363's header was too broad.** It said no preset varies the furniture. True of the
 `theme` group and of the generic kit path — but wrong about the authored layouts, which are exactly
 the mechanism I had said did not exist. Corrected in the module header rather than quietly.
 
@@ -2268,7 +2322,7 @@ but it means the score is not yet a useful ranking signal between layouts.
 `social-lounge`'s does not — a checkable proof the authored layout was used rather than a reseed.
 Full suite green (9597). Verified visually.
 
-## v0.31.5.265 - a theme correction, and the circulation score diagnosed
+## v0.31.5.366 - a theme correction, and the circulation score diagnosed
 
 Two findings, one fixed and one deliberately not.
 
@@ -2280,7 +2334,7 @@ opposite style. Its colours and materials all verified (warm ivory, soft taupe, 
 walnut, brass).
 
 The important part: **the implementation was already right** — the preset's own style props use
-`sheen: 0.3`, i.e. semi-matte. Only the user-facing DESCRIPTION was wrong, and since v0.31.5.263
+`sheen: 0.3`, i.e. semi-matte. Only the user-facing DESCRIPTION was wrong, and since v0.31.5.364
 that description renders in the scheme-comparison modal, so a user would have read "lacquered" while
 looking at satin surfaces. Fixed as a text correction with the reasoning inline at the preset so it
 is not "tidied" back. Worth naming the pattern: the divergence was not in what the app DOES but in
@@ -2312,7 +2366,7 @@ Left undecided on purpose: both candidate fixes re-calibrate a shipped, user-vis
 giving the penalty headroom only stops the score lying, whereas fixing the ARRANGER so it stops
 producing 0.44-0.47 m pinches is the real problem. Explicitly noted: do not do the former alone.
 
-## v0.31.5.264 - the G8 themes are checked against what these styles really look like
+## v0.31.5.365 - the G8 themes are checked against what these styles really look like
 
 On the user's requirement that the alternative schemes be grounded in real research rather than
 invented palettes. Audited each theme the comparison actually surfaces against published
@@ -2345,16 +2399,16 @@ past 3 on auditing them, flagging Peranakan Accent especially: it is the one cul
 theme, so an invented palette there is worse than an aesthetic miss.
 
 Consequence recorded in the module header: scheme generation rests on a sound style vocabulary, so
-a weak comparison is NOT a theme problem — it is the missing `kits` from v0.31.5.262. The audit also
+a weak comparison is NOT a theme problem — it is the missing `kits` from v0.31.5.363. The audit also
 says what those kits should hold (rattan/bamboo + ceramics for Japandi, wool/linen for Scandi,
 leather + reclaimed timber for Warm Industrial), which is now a `TODO.md` item.
 
 Sources added to `REFERENCES.md` per the repo rule, grouped with a note to consult them before
 editing any preset's finishes or description.
 
-## v0.31.5.263 - the scheme comparison gets a surface
+## v0.31.5.364 - the scheme comparison gets a surface
 
-G8's review-and-pick UI over v0.31.5.262's data core. `SchemeCompareModal` shows each scheme's
+G8's review-and-pick UI over v0.31.5.363's data core. `SchemeCompareModal` shows each scheme's
 score breakdown, price, item count and budget verdict, the DERIVED trade-off lines, and applies the
 chosen one. The brief box reuses `briefParser` — it already extracts both a preset id and a budget
 from free text, so "warm scandi for a young family, budget $8000" biases the spread and sets the
@@ -2382,7 +2436,7 @@ The repo's own `inlinePxGuard` also caught a literal `paddingLeft: '1.1em'`, now
 visually at 1100x1000: three hairline-separated schemes ranked with the leader marked
 "· recommended", its 68 matching the recommendation line, scrolling correctly.
 
-## v0.31.5.262 — alternative schemes, and the lever that actually makes them different
+## v0.31.5.363 — alternative schemes, and the lever that actually makes them different
 
 G8's core, on the user's decision to take the full scope. `analysis/suggestions.ts` is a rule-based
 "what to add" wizard — you design, it names missing categories. What a designer sells is the
@@ -2427,10 +2481,10 @@ as a zero-score scheme — an empty home is not a design option.
 
 +15 tests. Full suite green (9591). UI surface still to come — this is the data core only.
 
-## v0.31.5.261 — uniformity reaches the sheets
+## v0.31.5.362 — uniformity reaches the sheets
 
 Completes the G4 tail item that mattered most: `RoomLuxGrid.uniformity` has been computed since
-v0.31.5.256 but nothing printed it, so the deliverables still stated only an average — and an
+v0.31.5.357 but nothing printed it, so the deliverables still stated only an average — and an
 average that meets its band can be pools of light under each downlight with dark corners between.
 
 `luxGrid.ts:buildRoomUniformity(plan, lights, iesShape?)` assesses the **design condition** —
@@ -2444,7 +2498,7 @@ as `low` — failing it twice is noise.
 `roomLuxTableHtml` gains an optional uniformity map; supplied ⇒ a "U0 / min" column coloured by
 pass/fail, omitted ⇒ the previous 5-column table byte-identical. Wired into BOTH the drawing set's
 lighting sheet and the report's lighting section, each passing `iesShapeFactor` so the assessment
-uses the same directional distribution v0.31.5.260 gave the grid.
+uses the same directional distribution v0.31.5.361 gave the grid.
 
 +9 tests. Two exist because 155 related tests passed unchanged after the wiring — the exact-equality
 signature that now prompts me to check rather than relax: one asserts the column APPEARS with a map
@@ -2452,7 +2506,7 @@ and is absent without, another that a kitchen's assessment is taken at plane 0.8
 silently revert to the floor). One test pins the point of the whole feature: a room whose average
 reads `ok` at 350 lx while its U0 of 0.20 fails a 0.60 floor. Full suite green (9576).
 
-## v0.31.5.260 — a narrow-beam downlight stops computing like a bare bulb
+## v0.31.5.361 — a narrow-beam downlight stops computing like a bare bulb
 
 The last substantive piece of G4. `src/lighting/ies/` held real IES profiles used ONLY for
 rendering, while the lux model computed every fixture isotropically — so a 24° narrow-beam downlight
@@ -2497,7 +2551,7 @@ the off-axis contribution a bare bulb keeps. Full suite green (9567).
 
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G4).
 
-## v0.31.5.259 — construction details, scoped to what the model can honestly state
+## v0.31.5.360 — construction details, scoped to what the model can honestly state
 
 G3 was the largest structural gap: the set documented WHAT goes where and never HOW a junction is
 built. Before writing any drawing code I audited what profile data actually exists — the lesson
@@ -2539,7 +2593,7 @@ test disproved it.
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G3, partial — the
 profile-dependent details remain open and now have a named prerequisite).
 
-## v0.31.5.258 — the handover gets its written half
+## v0.31.5.359 — the handover gets its written half
 
 The schedules said WHICH product goes WHERE. Nothing said to what standard, on what substrate,
 within what tolerance, or what was excluded — so a contractor could install exactly the specified
@@ -2583,7 +2637,7 @@ green (9541).
 
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G7).
 
-## v0.31.5.257 — tiles get a specified module, and a setting-out table
+## v0.31.5.358 — tiles get a specified module, and a setting-out table
 
 **A correction to my own research first.** The G5 gap claimed the app "already computes true tile
 coursing — only the deliverable is missing". That was overstated. What existed was a texture PERIOD
@@ -2623,7 +2677,7 @@ good cut and NOT a sliver — a genuine unavoidable sliver needs a room narrower
 
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G5, with the correction).
 
-## v0.31.5.256 — illuminance gets a work plane and a uniformity score
+## v0.31.5.357 — illuminance gets a work plane and a uniformity score
 
 Two of G4's four photometric gaps. The lux model (`src/lighting2d/`) already answered "is this room
 bright enough?" — a correction on my part, since an earlier pass of the research wrongly reported
@@ -2666,7 +2720,7 @@ vs relative photometry and `candelaMultiplier`; a plausible-but-wrong photometri
 than an honestly isotropic one), retiring `SCENE_INTENSITY_CALIBRATION` for fixtures with a real
 lumen package, and surfacing uniformity on the sheets. Recorded in `TODO.md`.
 
-## v0.31.5.255 — the setting-out plan stops silently omitting walls
+## v0.31.5.356 — the setting-out plan stops silently omitting walls
 
 `settingOut.ts` derives the datum-referenced running dimensions a contractor actually builds
 partitions from — and handled **axis-aligned walls only**: arc walls were skipped at line 41
@@ -2702,7 +2756,7 @@ Full suite green (9502).
 
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G2).
 
-## v0.31.5.254 — a sheet named "Section A–A" can finally be located
+## v0.31.5.355 — a sheet named "Section A–A" can finally be located
 
 `drawingSet.ts:621` called `buildSection` exactly ONCE, hardcoded to
 `{ axis: 'z', at: plan.extent[1] / 2 }`, and emitted a sheet literally named "Section A–A". Three
@@ -2746,7 +2800,7 @@ surface, and the automatic pair is the right default either way.
 
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G1).
 
-## v0.31.5.253 — the revision table becomes an audit trail
+## v0.31.5.354 — the revision table becomes an audit trail
 
 `drawingSet.ts` rendered the Revisions table with a single hardcoded `<tr>` built from
 `template.revision` + `template.revisionNote`. So a set reissued at Rev C printed "C" and nothing
@@ -2783,7 +2837,7 @@ B / 3 July / Issued for tender · C / 2 September / Kitchen layout revised.
 
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G6).
 
-## v0.31.5.252 — the disciplines are finally checked against each other
+## v0.31.5.353 — the disciplines are finally checked against each other
 
 Every discipline was checked only against ITSELF. `collision/` tests furniture against furniture
 and walls; `socketAdvisory.ts` counts outlets per room and says outright it has "no notion of
@@ -2804,7 +2858,7 @@ with two checks, both grounded in data the model already held:
   that will not fit under a bulkhead, reported with both numbers and the drop.
 
 It reuses the accurate resolvers rather than re-deriving geometry: `itemFootprintParts` (the
-shape-aware decomposition from v0.31.5.249, so a round table doesn't claim bbox corners it never
+shape-aware decomposition from v0.31.5.350, so a round table doesn't claim bbox corners it never
 occupies), the ONE `itemHeight` resolver, `buildCeilingClearance`, and `pointInRoom`. The only new
 geometry is a 12-line point-in-OBB test — `collision/obb.ts` had box-vs-box and box-vs-segment but
 no point containment.
@@ -2821,7 +2875,7 @@ Full suite green (9469).
 
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G9).
 
-## v0.31.5.251 — drawings are dimensioned in millimetres, as drawings are
+## v0.31.5.352 — drawings are dimensioned in millimetres, as drawings are
 
 Every dimension on every sheet was labelled `"2.75 m"` — two decimals of a metre, so **10 mm
 resolution**, in decimal metres. Three things wrong with that, and the first is the worst:
@@ -2862,7 +2916,7 @@ Verified visually at 1100x1000: the dimensioned + setting-out plan reads 5590 / 
 3030 / 2885 / 3525 / 5675 — millimetre values that "3.53 m" / "5.68 m" would have destroyed.
 Recorded in `docs/research/2026-09-02-pro-designer-replacement-gaps.md` (G10).
 
-## v0.31.5.250 — a decomposed footprint draws as one silhouette, not five stroked boxes
+## v0.31.5.351 — a decomposed footprint draws as one silhouette, not five stroked boxes
 
 Visual verification of `.249` (`scripts/scenarios/plan-footprint-shape.json`, plus a forced-round
 dining table) caught what the unit tests could not: the parts were right, the ink was not.
@@ -2884,7 +2938,7 @@ faceted rather than a true arc. Fine at 1:50-1:100; a large-format detail would 
 ellipse path. Needs a convexity/shape hint on the def to know an arc is safe (a hull would wrongly
 fill an L-shaped sofa's notch), so it is not a rendering-only change.
 
-## v0.31.5.249 — the plan sheets draw the footprint collision already knows
+## v0.31.5.350 — the plan sheets draw the footprint collision already knows
 
 A round dining table was drawn as a square. `ui/drawingSet.ts`, `ui/report.ts` and
 `ui/openPlanSvg.ts` each carried the same inline copy of `obbCorners(itemFootprint(it, def))` —

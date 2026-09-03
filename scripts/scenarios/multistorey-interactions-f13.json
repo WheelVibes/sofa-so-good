@@ -1,6 +1,6 @@
 {
   "name": "multistorey-interactions-f13",
-  "description": "v0.31.5.281 visual verification: in the UPSTAIRS room editor of the Open Loft, the room-area caption pill must render (it was ground-only). (The ContextMenu room-heading fix in the same commit is NOT covered here — the menu does not open in the room editor; it is covered by code reading only.)",
+  "description": "v0.31.5.382 visual verification: in the UPSTAIRS room editor of the Open Loft, the room-area caption pill must render (it was ground-only). (The ContextMenu room-heading fix in the same commit is NOT covered here — the menu does not open in the room editor; it is covered by code reading only.)",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
