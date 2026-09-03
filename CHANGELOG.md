@@ -19,6 +19,45 @@ pruned from `main`; entries from C251 on (branch
 > staging. Noted here instead so the log is confusing-but-honest rather than silently
 > ambiguous. Flagged for the maintainer; renumbering is a call for them, not for either session.
 
+## v0.31.8.0 - The default flat stops failing its own compliance check
+
+`analysis/lampSpecAdvisory.ts` raised **5 findings against the app's own move-in
+content**: both bathroom ceiling lights carried the catalogue's IP20 default in a
+shower room, and those two plus the kitchen light carried 3000 K warm white in a
+task space. A default that violates the advisories teaches users the warnings are
+noise, which is worse than shipping no warnings at all.
+
+Fixed as CONTENT, not by touching the check. `props.lampIp` / `props.lampCct` — the
+per-item SPECIFICATION register, deliberately separate from the `lightColor` /
+`lightIntensity` render register — now specify IP44 / 4000 K on the two bath lights
+and 4000 K on the kitchen light. **The catalogue defaults stay IP20 / 3000 K**, so
+the advisory still fires for a user who drops a plain ceiling light in their own
+bathroom. The content was corrected; the gate was not loosened, and a test pins
+that half specifically.
+
+Nothing rendered changes: the specification register feeds the schedule and the
+advisories, never the scene.
+
+Two things this exposed in my own earlier tests, both worth more than the fix:
+
+- **Three `report.test.ts` arms used the shipped flat's non-compliance as their
+  fixture.** Two broke. The third — "is absent in Simple mode" — started passing
+  **vacuously**: it asserts the finding is absent, and the finding had become absent
+  everywhere. A test that shares its fixture with shipped content silently changes
+  meaning the moment that content is corrected. Each arm now constructs its own
+  IP20 input, and the Simple-mode arm asserts the Pro arm DOES render on the same
+  input, so it cannot pass for the wrong reason again.
+- The new `defaults/lampSpec.test.ts` was checked to **fail on the pre-fix
+  content** (2 of 4 arms), and the 2 that still pass are exactly the two that
+  should be content-invariant. It also asserts a fixture floor of 19, so "no
+  findings" can never mean "nothing was examined".
+
+I first wrote the bath-light comment claiming the fitting sits "inside bathroom
+zone 1". It does not — it is room-centred, ~0.71 m from the shower centre, and the
+app models no shower envelope to measure the 0.6 m zone-2 boundary against, which
+is the whole reason the advisory is room-level. Corrected before commit: IP44 is
+specified because it is a shower room, not because a zone was computed.
+
 ## v0.31.7.2 - 33 unused exports, and a CI comment that described a gate the config does not implement
 
 CI's knip job failed on PR #111 with 33 findings accumulated across 74 commits: 8 unused
