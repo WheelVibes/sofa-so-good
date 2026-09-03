@@ -29,6 +29,53 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.135 — `(s)` is a WITHIN-ROOM delta, not a between-room level: sized the blast radius before wiring, and it changed the design
+
+`.134` left `(s)` with a correct census, a Cycles-validated reference and agreement to 13 % — so the
+next step looked like wiring. Sizing what wiring would actually do first turned out to change the
+design.
+
+**Applied across rooms against one reference, the model is unusable.** Eleven rooms of
+`tpl-hdb-4room`, `livingDining`'s ρ = 0.7018 as the reference:
+
+| room | ρ | raw scale | fill delta |
+| --- | --- | --- | --- |
+| `householdShelter` | 0.8466 | 2.345 | **+35 % (clamped)** |
+| `serviceYard` | 0.8364 | 2.172 | **+35 % (clamped)** |
+| `corridor` | 0.8155 | 1.878 | **+35 % (clamped)** |
+| `acLedge` | 0.7737 | 1.453 | **+35 % (clamped)** |
+| `bath1` | 0.7672 | 1.400 | **+35 % (clamped)** |
+| `bath2` | 0.7532 | 1.297 | +29.7 % |
+| `bedroom3` | 0.7441 | 1.236 | +23.6 % |
+| `mainBedroom` | 0.7197 | 1.091 | +9.1 % |
+| `livingDining` | 0.7018 | 1.000 | 0.0 % |
+| `kitchen` | 0.6547 | 0.806 | **−19.4 %** |
+
+**Five of eleven rooms hit the clamp**, with raw scales of 1.40–2.35. `ρ/(1−ρ)` is too steep at
+ρ 0.65–0.85 for a 0.2 spread in albedo to mean anything like a 0.2 spread in fill — so as a
+between-room normaliser it would brighten most of the flat by a third and darken the kitchen by a
+fifth, on the strength of albedo differences that are largely just which room has more pale tile.
+
+**Within one room it lands exactly where the reference is.** Same room, base against terracotta:
+0.7018 → 0.5719 gives **0.568**, against `.271`'s fitted **0.650** and this session's traced
+**−17.4 %**.
+
+**So the quantity is a within-room DELTA, not a between-room LEVEL** — and the difference is not a
+tuning detail, it is the difference between a validated 0.568 and a clamped 2.35. Consequences:
+
+1. The census must report each room's ρ **twice** — as-designed and as-if-default-finishes — and the
+   consumer takes the ratio.
+2. `REFERENCE_RHO` and its geometry-dependence problem (`.118` blocker 3) **disappear entirely**:
+   there is no global constant left to be wrong.
+3. `(z)`11's "ship luminance-only" is intact, but "ship" means *ship the delta*, and I would have
+   shipped the level.
+
+Recorded in `albedoFillScale`'s own contract rather than a changelog note, because the parameter that
+matters is `rhoRef` and this is where anyone would read it.
+
+**Not wired, and the reason is now a design step rather than an unknown.** Suite **10149 green**,
+`tsc` and biome clean.
+
 ## v0.31.7.134 — `(s)`'s reference RE-DERIVED in Cycles, and the correct census lands within 13 % of it with no tuning
 
 `.133` concluded the open question in `(s)` was the reference, not the census: `.271`'s implied

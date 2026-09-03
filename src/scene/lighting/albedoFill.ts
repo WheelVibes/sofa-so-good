@@ -167,6 +167,23 @@ const MAX_SCALE = 1.35
  * `ρ/(1−ρ)` recovered ~75–90 % (`.271`, `.272`). Normalised by the reference room so no absolute
  * calibration is implied, and clamped.
  */
+/**
+ * ⚠️ `rhoRef` MUST be the same room's rho with DEFAULT finishes — never a global constant.
+ *
+ * **Measured, `v0.31.7.135`.** Used as a cross-room normaliser against one reference room, the
+ * interreflection form is unusable: with `livingDining`'s 0.7018 as the reference, the eleven rooms
+ * of `tpl-hdb-4room` span **kitchen −19.4 %** to **+35 %**, and **five of eleven CLAMP** (raw scales
+ * 1.40–2.35). `rho/(1-rho)` is simply too steep at rho 0.65–0.85 for a 0.2 spread in albedo to mean
+ * a 0.2 spread in fill.
+ *
+ * Used WITHIN a room — that room repainted against that room's own default — it lands where the
+ * traced reference is: base 0.7018 → terracotta 0.5719 gives **0.568** against `.271`'s
+ * independently fitted **0.650** and a Cycles-traced ceiling response of **−17.4 %**.
+ *
+ * So the quantity is a *within-room delta*, not a *between-room level*. The census must therefore
+ * report each room's rho **twice** — as-designed and as-if-default-finishes — and the consumer take
+ * the ratio. That also removes the need for any global constant, `REFERENCE_RHO` included.
+ */
 export function albedoFillScale(rho: number, rhoRef: number = REFERENCE_RHO): number {
   const f = (r: number) => {
     const c = Math.min(Math.max(r, 0.01), 0.95)
