@@ -303,6 +303,50 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.30 — `tpl-hdb-3gen` re-authored (2 of 16), and one researched target proved impossible
+
+Second template. All of 3Gen's ratchet entries are gone — connectivity 7 groups → 1, the shared
+enclosure `g3-gbath + g3-bed2 + g3-master + g3-mbath`, the bisected `g3-b-corr through g3-master`,
+and its front door (item (i)) which had opened **into the master bedroom**. With jumbo's, the
+`KNOWN_BISECTED_ROOMS` list is now **empty**.
+
+Grounded in `docs/research/hdb-floor-plans.md`: 3Gen is ~115 m², **4 bedrooms and 3 baths, two of
+them en-suite**, bedrooms on opposite sides of the shared living. The template's room SET already
+matched; its geometry contradicted it — the "Grandparent Bath" sat 6 m from the grandparent suite
+at the far end of the flat, and the "Master Bath" floated in the corridor with no walls of its own.
+
+**The "two en-suite" target is not achievable in this envelope, and that is measured, not assumed.**
+The west wing is 6.1 m wide and takes a bedroom plus ensuite comfortably (master 10.3 m², bath
+5.4 m²). The east wing is 4.1 m. A `masterBedroom`-kit room needs roughly 9–10 m² before the kit
+starts dropping pieces: at 6.2 m² the grandparent suite lost its **queen bed** and five other
+items, and at 4.6 m² it lost seven. A furnishable bedroom there leaves ≤1.1 m for a bath, below any
+usable width. So the suite takes the whole east wing (8.7 m²) and the third bath moved to dead
+corridor floor as "Bathroom 2" — 4 bedrooms, 3 baths, **one** ensuite. Ship-blocking alternatives
+were built and measured before choosing.
+
+**Item (h): the same window bug as jumbo, twice over.** `g3-w` runs south→north, so `g3-m-win` at
+offset 9.6 sat at z=1.7 — **in the kitchen** — and `g3-b3-win` at 7.0 sat at z=4.3, **inside
+bedroom 2**. Three bedrooms (`g3-master`, `g3-bed3`, `g3-gen`) gained windows on walls they own;
+template bedrooms owning a window 34 → 37. **Item (j):** `g3-liv-win` cleared, 10 → 9 blocked.
+
+**Six geometry iterations, each corrected by measurement rather than reasoning:**
+
+1. Carving both ensuites lost **both** queen beds (`bed-queen` 2 → 0).
+2. Deepening the south wing recovered the master's bed but not the suite's.
+3. Swapping the suite to the east wall so its window ran along the long side was a **no-op** —
+   identical output, because the blocker is kit-vs-area, not headboard geometry.
+4. Giving the suite the whole wing recovered its bed but dropped the plan under the global
+   ≥900-item furniture floor (899).
+5. Moving the corridor door to offset 3.4 made it **open into the common-bath box** — measurably
+   costing furniture. Restored clear of both bath boxes.
+6. A dining chair stranded 7.2 m from its table: I had shortened the living room to 8.1 m so the
+   4th chair no longer fit. Restoring the east wing wall to z=8.8 took it to 2.1 m, and routing
+   the service band off the CORRIDOR instead of the living's west wall (where the door sat beside
+   the dining zone) cleared it entirely.
+
+The item total is now **exactly 900**, the floor that assertion guards. That is tight by
+construction — this plan trades a bathroom in the wing for one in the corridor.
+
 ### v0.31.8.29 — `tpl-hdb-jumbo` re-authored (1 of 16), all three ratchets improved
 
 Directed to re-author all 16 disconnected levels, starting with the two frame-proven worst.

@@ -241,42 +241,105 @@ export function hdb3Gen(): FloorPlan {
     extent: [W, D],
     walls: [
       ...perimeter('g3', W, D),
-      // North service band.
+      // North service band: kitchen | service yard | utility lobby, the lobby
+      // holding the household-shelter door (v0.31.8.30).
       iwall('g3-svc-s', [T, 3.0], [6.2, 3.0]),
       iwall('g3-kit-e', [3.2, T], [3.2, 3.0]),
       iwall('g3-yard-e', [4.8, T], [4.8, 3.0]),
-      // Living on the east.
+      // z=2.0, not 2.2: the utility lobby below it must be deep enough for the
+      // living-side door to sit clear of BOTH this wall and the service band at
+      // z=3.0. At 2.2 the door straddled this junction.
+      iwall('g3-hs-s', [4.8, 2.0], [6.2, 2.0]),
+      // Living on the east, running the depth of the flat.
       iwall('g3-liv-w', [6.2, T], [6.2, D - T]),
-      // West bedroom column.
-      iwall('g3-b-corr', [3.4, 3.2], [3.4, D - T]),
-      iwall('g3-b3-s', [T, 6.0], [3.4, 6.0]),
-      iwall('g3-m-n', [T, 8.8], [3.4, 8.8]),
-      // Grandparent ensuite at the SE of the living column.
-      iwall('g3-g-bath-w', [4.6, 3.2], [4.6, 5.0]),
-      iwall('g3-g-bath-s', [4.6, 5.0], [6.2, 5.0]),
+      // West bedroom column: bedrooms 2 and 3, each off the corridor. It now
+      // STOPS at the south wing (was z=D-T, running through the master).
+      iwall('g3-b-corr', [3.4, 3.2], [3.4, 8.4]),
+      iwall('g3-b3-s', [T, 5.8], [3.4, 5.8]),
+      // Common bath, off the corridor. Its west wall used to start at z=3.2
+      // while the service band sits at z=3.0, leaving a 0.2 m gap in the
+      // enclosure; it now meets it.
+      iwall('g3-cb-w', [4.6, 3.0], [4.6, 5.0]),
+      iwall('g3-cb-s', [4.6, 5.0], [6.2, 5.0]),
+      // Second common bath, also off the corridor, in what was dead corridor
+      // floor. The 3Gen type carries three baths; the east wing cannot hold an
+      // ensuite (see below), so the third one lives here.
+      iwall('g3-b2b-n', [4.6, 6.2], [6.2, 6.2]),
+      iwall('g3-b2b-w', [4.6, 6.2], [4.6, 8.4]),
+      // South wing, full width: master suite + ensuite (west) and the
+      // grandparent suite (east). Before this the "Grandparent Bath" sat 6 m
+      // from the grandparent suite, at the opposite end of the flat, and the
+      // "Master Bath" floated in the corridor with no walls of its own.
+      //
+      // The 3Gen type is 4 bedrooms and 3 baths, TWO of them en-suite
+      // (docs/research/hdb-floor-plans.md). This plan delivers 4 bedrooms but
+      // only ONE ensuite, and that is a MEASURED limit of the envelope, not an
+      // oversight: the west wing is 6.1 m wide and hosts a bedroom plus ensuite
+      // comfortably, while the east wing is 4.1 m. A `masterBedroom`-kit room
+      // needs roughly 9-10 m² before the kit stops being dropped — at 6.2 m²
+      // the grandparent suite lost its QUEEN BED and five other pieces — so a
+      // furnishable bedroom there leaves at most ~1.1 m for a bath, below any
+      // usable width. Both arrangements were built and measured before choosing.
+      iwall('g3-s-wing-n', [T, 8.4], [6.2, 8.4]),
+      iwall('g3-mb-e', [2.25, 8.4], [2.25, D - T]),
+      // Kept at z=8.8 while the WEST wing wall sits at 8.4: pulling this one north
+      // too shortened the living room to 8.1 m and stranded a dining chair 7.2 m
+      // from its table (the 4th chair no longer fit inside the room).
+      iwall('g3-gen-n', [6.2, 8.8], [W - T, 8.8]),
     ],
     openings: [
-      door('g3-main', 'g3-s', 7.6),
-      door('g3-master', 'g3-m-n', 1.0),
-      door('g3-b3', 'g3-b3-s', 1.0),
+      // MAIN-DOOR-ROOM (i): offset 7.6 on `g3-s` put the front door at x 2.7-1.8
+      // — inside the MASTER BEDROOM. The south wall is now entirely master /
+      // ensuite / grandparent suite, so the entry moves to the living room's own
+      // external wall on the east, clear of both windows on it.
+      door('g3-main', 'g3-e', 1.0),
+      // Service line: living → utility lobby → service yard → kitchen, shelter
+      // off the lobby. None of these three rooms had a door before.
+      // Reaches the service band from the CORRIDOR, not the living room: a door
+      // on the living's west wall sat beside its dining zone and stranded a
+      // chair there. `g3-svc-s` at x 3.6-4.5 joins the corridor to the yard.
+      door('g3-svc-door', 'g3-svc-s', 3.5),
+      door('g3-hs', 'g3-hs-s', 0.4, 0.7),
+      door('g3-yard-door', 'g3-yard-e', 1.9),
+      door('g3-kit-door', 'g3-kit-e', 1.9),
+      // Bedroom corridor off the living hall, one door per room.
+      // Must clear the common-bath box (z 3.0-5.0) AND the Bathroom 2 box
+      // (z 6.2-8.4) on the same side: offset 3.4 opened this door straight into
+      // the common bath, which measurably cost the plan furniture.
+      door('g3-corr', 'g3-liv-w', 5.0),
+      door('g3-bed2', 'g3-b-corr', 1.0),
+      door('g3-bed3', 'g3-b-corr', 3.4),
+      door('g3-cbath', 'g3-cb-w', 0.8, 0.7),
+      door('g3-bath2', 'g3-b2b-w', 0.9, 0.7),
+      // Master suite: entered from the corridor, ensuite entered from the room.
+      door('g3-master', 'g3-s-wing-n', 4.2),
+      door('g3-mbath', 'g3-mb-e', 0.5, 0.8),
+      // Grandparent suite: entered from the living, its ensuite from the room.
+      door('g3-gen', 'g3-gen-n', 1.6),
       window('g3-kit-win', 'g3-n', 1.2, 1.6),
-      window('g3-b3-win', 'g3-w', 7.0, 1.5),
-      window('g3-m-win', 'g3-w', 9.6, 1.6),
-      window('g3-gen-win', 'g3-e', 3.8, 1.6),
-      window('g3-liv-win', 'g3-e', 7.4, 2.0),
+      // BEDROOM-WINDOW (h): `g3-w` runs SOUTH→NORTH from [0.1, 11.3], so an
+      // offset o sits at z = 11.3 − o. `g3-m-win` was at offset 9.6, i.e.
+      // z = 1.7 — inside the KITCHEN — and `g3-b3-win` at 7.0 sat at z = 4.3,
+      // inside BEDROOM 2. Both bedroom windows are now on their own rooms, and
+      // the master takes one on the south wall it actually owns.
+      window('g3-b2-win', 'g3-w', 5.9, 1.5),
+      window('g3-b3-win', 'g3-w', 3.3, 1.5),
+      window('g3-m-win', 'g3-s', 5.0, 1.6),
+      window('g3-gen-win', 'g3-e', 9.2, 1.5),
+      window('g3-liv-win', 'g3-e', 6.0, 2.0),
     ],
     rooms: [
       room('g3-kit', 'Kitchen', 0.2, 0.2, 2.8, 2.6, 'floor-tile-grey', 'kitchen'),
       room('g3-yard', 'Service Yard', 3.3, 0.2, 1.5, 2.6, 'floor-tile-grey', 'serviceYard'),
-      room('g3-shelter', 'Household Shelter', 4.9, 0.2, 1.3, 2.0, 'floor-tile-grey', 'shelter'),
-      room('g3-living', 'Living / Dining', 6.4, 0.2, 3.9, 8.6, 'floor-wood-oak', 'living'),
-      room('g3-gen', 'Grandparent Suite', 6.4, 8.8, 3.9, 2.4, 'floor-wood-oak', 'masterBedroom'),
-      room('g3-gbath', 'Grandparent Bath', 4.7, 3.2, 1.5, 1.7, 'floor-tile-marble', 'bath'),
-      room('g3-bed2', 'Bedroom 2', 0.2, 3.2, 3.0, 2.6, 'floor-wood-walnut', 'bedroom'),
-      room('g3-bed3', 'Bedroom 3', 0.2, 6.2, 3.0, 2.4, 'floor-wood-walnut', 'bedroom'),
-      room('g3-cbath', 'Common Bath', 0.2, 8.8, 1.6, 2.4, 'floor-tile-white', 'bath'),
-      room('g3-master', 'Master Bedroom', 1.9, 9.0, 4.2, 2.2, 'floor-wood-oak', 'masterBedroom'),
-      room('g3-mbath', 'Master Bath', 3.6, 6.8, 2.4, 2.0, 'floor-tile-marble', 'bath'),
+      room('g3-shelter', 'Household Shelter', 4.9, 0.2, 1.3, 1.7, 'floor-tile-grey', 'shelter'),
+      room('g3-living', 'Living / Dining', 6.4, 0.2, 3.8, 8.5, 'floor-wood-oak', 'living'),
+      room('g3-cbath', 'Common Bath', 4.7, 3.1, 1.4, 1.8, 'floor-tile-white', 'bath'),
+      room('g3-bath2', 'Bathroom 2', 4.7, 6.3, 1.4, 2.0, 'floor-tile-white', 'bath'),
+      room('g3-bed2', 'Bedroom 2', 0.2, 3.3, 3.1, 2.4, 'floor-wood-walnut', 'bedroom'),
+      room('g3-bed3', 'Bedroom 3', 0.2, 5.9, 3.1, 2.4, 'floor-wood-walnut', 'bedroom'),
+      room('g3-mbath', 'Master Bath', 0.2, 8.5, 2.0, 2.7, 'floor-tile-marble', 'bath'),
+      room('g3-master', 'Master Bedroom', 2.3, 8.5, 3.8, 2.7, 'floor-wood-oak', 'masterBedroom'),
+      room('g3-gen', 'Grandparent Suite', 6.4, 8.9, 3.8, 2.3, 'floor-wood-oak', 'masterBedroom'),
     ],
   }
 }

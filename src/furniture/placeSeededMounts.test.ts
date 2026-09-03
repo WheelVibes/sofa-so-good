@@ -254,6 +254,13 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // keep-outs, and `jb-living: rug` + `jb-living: coffee-table` now settle on
     // its centre. Both are in CENTRE_IS_RIGHT; `stranded` is unchanged and the
     // item total stayed at 904 (≥ 900). Dumped before this number was touched.
-    expect(sweep().centred).toBe(26)
+    //
+    // 26 → 29 in v0.31.8.30, the 3Gen re-author: `g3-living: rug`,
+    // `g3-living: coffee-table` and `g3-master: rug` now settle on their room
+    // centres. All three are in CENTRE_IS_RIGHT and `stranded` is unchanged.
+    // The item total is 900 — exactly the floor the sibling assertion guards,
+    // because this plan trades a bathroom in the east wing for one in the
+    // corridor. Dumped before this number was touched.
+    expect(sweep().centred).toBe(29)
   }, 30_000)
 })

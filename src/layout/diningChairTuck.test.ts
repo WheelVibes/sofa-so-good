@@ -84,7 +84,13 @@ describe('dining chairs are tucked to their table', () => {
       // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
       // master's wardrobe had been dropped and now places.
       'tpl-hdb-exec': 93,
-      'tpl-hdb-3gen': 95,
+      // 95 → 86 in v0.31.8.30, the 3Gen re-author. Verified by per-def diff, not
+      // inferred: the east wing lost its bathroom (4 pieces) — it cannot hold a
+      // furnishable bedroom AND an ensuite, see the template comment — and a
+      // second common bath in the corridor replaces it, while the grandparent
+      // suite and master both KEEP their queen beds. Two earlier layouts lost
+      // one or both beds and were reshaped rather than ratcheted.
+      'tpl-hdb-3gen': 86,
       // 120 → 116 in v0.31.8.29: the jumbo re-author divided bedrooms 4 and 5
       // (one undivided volume before) and shrank the master from a rectangle
       // that overran the corridor wall and both baths, 11.5 → 6.9 m². Fewer,
@@ -123,7 +129,14 @@ describe('dining chairs are tucked to their table', () => {
     // bedrooms, plus one piece that had been standing outside every room.
     // An earlier L-shaped master DID lose the bed (`bed-queen` 2 → 1) — that is
     // what this assertion is for, and it was reshaped rather than ratcheted.
-    expect(total).toBe(1440)
+    //
+    // 1440 → 1431 in `.30`, the 3Gen re-author, same character: its east wing
+    // cannot hold a furnishable bedroom AND an ensuite (a `masterBedroom` kit
+    // needs ~9-10 m² before pieces start dropping; the wing is 4.1 m wide), so
+    // the bathroom there is replaced by one in the corridor. Both queen beds
+    // survive — two earlier layouts lost one or both and were reshaped, not
+    // ratcheted.
+    expect(total).toBe(1431)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

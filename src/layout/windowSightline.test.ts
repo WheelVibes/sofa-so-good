@@ -47,7 +47,6 @@ const KNOWN_BLOCKED = [
   // had been dropped, so the room went from NO glass to glass partly blocked by
   // its own wardrobe. Third instance of item (j)'s pattern.
   'tpl-hdb-exec/ex-m-win: wardrobe-3door',
-  'tpl-hdb-3gen/g3-liv-win: wardrobe-3door',
   'tpl-hdb-jumbo/jb-b4-win: wardrobe-3door',
 
   'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
@@ -117,15 +116,19 @@ describe('tall furniture does not stand in front of a window', () => {
     expect(blockedWindows().hits).toEqual(KNOWN_BLOCKED)
   })
 
-  // Without this the list could pass by measuring nothing: 79 windows are
-  // examined and 69 of them are clear.
+  // Without this the list could pass by measuring nothing: 80 windows are
+  // examined and 71 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     // 79 from v0.31.8.29: the jumbo re-author added `jb-b3-win`, Bedroom 3's
-    // first window of its own (item (h)).
-    expect(windows).toBe(79)
+    // first window of its own (item (h)); 80 from `.30`, where the 3Gen
+    // re-author gave bedroom 2 its own window (`g3-b3-win` had been sitting in
+    // bedroom 2, and `g3-m-win` in the kitchen).
+    expect(windows).toBe(80)
     // 67 → 69: one more window examined (`jb-b3-win`) and one fewer blocked
     // (`jb-b5-win`, cleared because the jumbo re-author divided bedrooms 4/5).
-    expect(windows - hits.length).toBe(69)
+    // 69 → 71 in `.30`: `g3-b2-win` added and `g3-liv-win` cleared, the living
+    // room having been reshaped so a wardrobe no longer parks in front of it.
+    expect(windows - hits.length).toBe(71)
   })
 })

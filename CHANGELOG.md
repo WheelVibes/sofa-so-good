@@ -27,6 +27,58 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.30 — tpl-hdb-3gen re-authored (2 of 16); "two en-suite" proved impossible
+
+Second template of the (f) re-author. Every 3Gen ratchet entry is gone:
+connectivity 7 groups → 1, the shared enclosure, the bisected master, and its
+front door — which had opened **into the master bedroom** (item (i)). With
+jumbo's, `KNOWN_BISECTED_ROOMS` is now **empty**.
+
+Grounded in `docs/research/hdb-floor-plans.md`: 3Gen is 4 bedrooms and 3 baths,
+two of them en-suite. The room SET already matched; the geometry contradicted it —
+the "Grandparent Bath" sat 6 m from the grandparent suite at the far end of the
+flat, and the "Master Bath" floated in the corridor with no walls of its own.
+
+**The "two en-suite" target is not achievable in this envelope, and that is
+measured.** The west wing is 6.1 m wide and takes a bedroom plus ensuite
+comfortably (master 10.3 m², bath 5.4 m²). The east wing is 4.1 m, and a
+`masterBedroom`-kit room needs ~9–10 m² before pieces start dropping: at 6.2 m²
+the grandparent suite lost its **queen bed** and five other items. So the suite
+takes the whole east wing and the third bath moved to dead corridor floor as
+"Bathroom 2" — 4 bedrooms, 3 baths, ONE ensuite. Both alternatives were built and
+measured before choosing.
+
+**Item (h) — the same window bug as jumbo, twice.** `g3-w` runs south→north, so
+`g3-m-win` at offset 9.6 sat at z=1.7, **in the kitchen**, and `g3-b3-win` at 7.0
+sat at z=4.3, **inside bedroom 2**. Three bedrooms gained windows on walls they
+own; bedrooms owning a window 34 → 37. **Item (j):** `g3-liv-win` cleared, blocked
+windows 10 → 9.
+
+Six geometry iterations, each corrected by measurement rather than reasoning:
+
+1. Carving both ensuites lost **both** queen beds (`bed-queen` 2 → 0).
+2. Deepening the south wing recovered the master's bed, not the suite's.
+3. Swapping the suite to the east wall was a **no-op** — bit-identical output,
+   because the blocker is kit-vs-area, not headboard geometry.
+4. Giving the suite the whole wing recovered its bed but dropped the plan under
+   the global ≥900-item floor (899).
+5. Moving the corridor door to offset 3.4 made it **open into the common-bath
+   box**, measurably costing furniture.
+6. A dining chair stranded 7.2 m from its table — I had shortened the living room
+   to 8.1 m so the 4th chair no longer fit. Restoring the east wing wall took it
+   to 2.1 m, and routing the service band off the CORRIDOR instead of the
+   living's west wall (where the door sat beside the dining zone) cleared it.
+
+Item total 1440 → 1431, and the global count is now **exactly 900** — the floor
+that assertion guards. Tight by construction: this plan trades a bathroom in the
+wing for one in the corridor. I did not lower either guard; both are what caught
+iterations 1, 4 and 6.
+
+Verified: 10126 tests pass; `tsc`, `biome`, `knip` clean. New scenario
+`g3-reauthor.json` (14 steps) asserts the master can take a bed, that no bath or
+the suite overlaps it, and the door/room counts, then screenshots the 2D plan —
+visually reviewed: 11 rooms, both baths off the corridor, sensible proportions.
+
 ## v0.31.8.29 — tpl-hdb-jumbo re-authored: 7 sealed groups → 1 (template 1 of 16)
 
 First template of the authorised full (f) re-author. Every ratchet entry jumbo held

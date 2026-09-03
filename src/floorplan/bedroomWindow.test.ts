@@ -29,9 +29,6 @@ const KNOWN_WINDOWLESS_BEDROOMS = [
   'tpl-hdb-exec/ex-bed2b',
   // ex-master FIXED in v0.31.5.118 — `ex-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (9.8 -> 0.4).
-  'tpl-hdb-3gen/g3-gen',
-  'tpl-hdb-3gen/g3-bed3',
-  'tpl-hdb-3gen/g3-master',
   'tpl-condo-4bed/c4-bed4',
   'tpl-condo-penthouse/cp-master',
 ]
@@ -96,7 +93,10 @@ describe('template bedrooms have daylight', () => {
     // 29 until v0.31.5.115 (4-room), 30 until `.116` (5-room), 31 until `.118`
     // (exec) gave their masters their windows back; 34 from v0.31.8.29, when the
     // jumbo re-author gave jb-master and jb-bed3 windows on their OWN walls —
-    // `jb-m-win` had been at z=2.9, inside the kitchen.
-    expect(owning).toBe(34)
+    // `jb-m-win` had been at z=2.9, inside the kitchen; 37 from `.30`, the 3Gen
+    // re-author, which fixed the SAME class of bug (`g3-m-win` at z=1.7, also in
+    // the kitchen, and `g3-b3-win` at z=4.3, inside bedroom 2) and gave the
+    // grandparent suite a window on the south wall it owns.
+    expect(owning).toBe(37)
   })
 })

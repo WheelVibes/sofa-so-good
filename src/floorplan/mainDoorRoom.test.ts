@@ -29,7 +29,6 @@ const KNOWN_MISPLACED_MAIN_DOORS = [
   'tpl-hdb-5room/h5-main -> h5-master',
   // tpl-hdb-exec FIXED in v0.31.5.118 — `ex-main` 8.4 -> 2.1, out of the master
   // and into ex-living, which lines offsets 0.1-4.3 of that wall.
-  'tpl-hdb-3gen/g3-main -> g3-master',
   // tpl-hdb-jumbo FIXED in v0.31.5.119 — `jb-main` 9.2 -> 4.1, out of the master
   // and into jb-family. The Living / Dining never touches this wall (it fronts
   // jb-n and jb-e), so the Family Room is the correct target, not the living room.
