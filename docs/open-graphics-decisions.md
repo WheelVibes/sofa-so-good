@@ -891,6 +891,35 @@ remains in any shipped plan.**
 > never touches. Fitted to the pane *distribution* with a Blender-generated glazing mask, the
 > answer is **4**, and it matches physics to 0.1 of a percentage point.
 
+### (l)/(z)4 — the baked-key-set route is MEASURED VIABLE, `v0.31.7.148`
+
+`(z)`4 was decided ("ship the Cycles sky **and** `backgroundIntensity ≈ 4`") but not scoped: the sun
+moves, so one equirect will not do, and the choice was between a **baked key set with
+interpolation** and an in-app Nishita implementation. Measured instead of argued.
+
+Eight Cycles equirects at fixed sun altitudes (0–75°, 512×256, 32 samples) took **17 seconds** on the
+GPU. Linear interpolation of two neighbouring keys against a directly-baked midpoint:
+
+| key spacing | MAE (display counts) | as % of frame mean |
+| --- | --- | --- |
+| **15°** | 0.38 – 0.44 | **0.2 – 0.3 %** |
+| **30°** | 1.09 – 2.17 | **0.6 – 1.4 %** |
+| 60° | 3.66 | 2.2 % |
+
+**30° keys hold the sky to ≤1.4 %**, and 15° to ≤0.3 %.
+
+**And azimuth is free.** A multiple-scattering sky is azimuthally symmetric about the sun, so moving
+the sun in azimuth is a **u-offset on the equirect**, not another key. Only *altitude* needs keys —
+which is why the set is small.
+
+So the route is: **~4–6 keys over the daylight range plus a couple below the horizon, interpolated by
+altitude and rotated by azimuth.** At 512×256 the eight test renders total under 1 MB, so the whole
+set is well inside a sensible asset budget, and an in-app Nishita implementation is unnecessary.
+
+**Caveats, stated:** measured at 512×256/32 samples on the sky itself. Item `(l)` cares about the
+*pane distribution* seen through glazing, which is a narrower crop of a brighter region and may be
+more sensitive than the whole-frame MAE above — that wants checking before the key count is fixed.
+
 ### Original write-up (the framing is superseded; the measurements are not)
 ~~⏳ OPEN, needs a product call~~ — ✅ ANSWERED by (z)4. (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
 

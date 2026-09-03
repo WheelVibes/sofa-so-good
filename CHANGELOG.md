@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.148 — `(z)`4's design call answered by measurement: 30° sky keys hold the Cycles sky to ≤1.4 %, and azimuth is free
+
+`(z)`4 was decided but not scoped. Its fix needs the **physical** sky (the intensity alone was
+refuted — it raises a 4×-oversaturated gradient), the sun moves, so one baked equirect cannot serve,
+and the choice was between a **baked key set with interpolation** and implementing Nishita in the
+app. I deferred it earlier tonight as "not a 4am task" on the assumption that the asset side was
+expensive. **That assumption was wrong and cost 17 seconds to disprove.**
+
+Eight Cycles equirects at fixed sun altitudes (0–75°, 512×256, 32 samples) rendered in **17 seconds**
+on the GPU. Linear interpolation of two neighbouring keys against a directly-baked midpoint:
+
+| key spacing | MAE (display counts) | as % of frame mean |
+| --- | --- | --- |
+| **15°** | 0.38 – 0.44 | **0.2 – 0.3 %** |
+| **30°** | 1.09 – 2.17 | **0.6 – 1.4 %** |
+| 60° | 3.66 | 2.2 % |
+
+**And azimuth costs nothing.** A multiple-scattering sky is azimuthally symmetric about the sun, so
+moving the sun in azimuth is a **u-offset on the equirect** — not another key. Only *altitude* needs
+keys, which is why the set is small: **~4–6 keys over daylight plus a couple below the horizon**. The
+eight test renders total **1.0 MB** at 512×256, so the whole set fits a sensible asset budget and the
+in-app Nishita route is unnecessary.
+
+**Caveats, stated rather than buried:** measured at 512×256/32 samples, on the sky itself. Item
+`(l)`'s actual target is the **pane distribution** through glazing — a narrower crop of a brighter
+region, plausibly more sensitive than a whole-frame MAE. That wants checking before the key count is
+fixed, and it is a cheap check now that the renders are known to cost seconds.
+
+**Why this round happened at all:** the `(u)` experiment I named as next needs temporary
+instrumentation on a shipped render path plus several slow HQ renders, and tonight's error rate on
+*inference* has been high while measurements have held up. So I picked the measurement. It also
+retires a deferral I made on a guess — the third time tonight that "this is expensive" turned out to
+be untested (`.141`'s exporter tag already existed; `.132`'s cube route cost one seam to refute).
+
+`sky-interp.mjs` committed. Suite **10155 green**, `tsc` and biome clean; no shipped change.
+
 ## v0.31.7.147 — correcting `.146`: the HQ renderer is NOT shared, which closes the whole "state leaks between renders" family for `(u)`
 
 `.146` ended by naming the shared `renderer` as "the nearest remaining surface". **It is not shared.**
