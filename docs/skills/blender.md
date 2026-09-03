@@ -173,6 +173,21 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — measure bake noise with a SEED PAIR, not against a "ground truth" bake.** Two
+  bakes at identical settings with different `cycles.seed` differ only by noise, and their
+  per-texel difference is **√2 ×** the noise of one — no converged reference needed, and no
+  reference-noise term mixed into the answer. Measured: flat 256 samples ⇒ 39.3 % dark noise,
+  matching (and cleaner than) the 35 % obtained against an unconverged 4096-sample reference.
+- **2026-09-03 — use ADAPTIVE sampling for a visibility bake, not a flat sample count.** The
+  error is wildly unequal across one atlas: exterior faces see open sky, bake to 1.0 and converge
+  in ~16 samples; interior faces sit near 0.03 and need thousands. A flat count spends its budget
+  on texels that were already right. `cycles.adaptive_threshold = 0.001` with max 4096 cut dark
+  noise **39.3 % → 10.0 %**, a 4× win, at ~17 min for a 111-mesh plan. Threshold 0.0002 buys a
+  further 1.3× for 1.9× the time — not worth it.
+- **2026-09-03 — a metric that doesn't move when noise drops 4× was never measuring noise.**
+  Across a flat-256 / adaptive-0.001 / adaptive-0.0002 sweep the 3×3 and 9×9 residuals stayed
+  pinned at 13.6 % and 10.3 % while seed-pair noise fell fourfold. Useful as a *falsification*
+  test for any metric you are about to trust.
 - **2026-09-03 — normalise bake error by the texels you CARE about.** A visibility atlas mixes
   exterior faces (which see open sky, bake to 1.0 and converge in ~16 samples) with interior
   faces (~0.03, needing thousands). A whole-map relative error is dominated by the former:

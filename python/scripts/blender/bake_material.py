@@ -63,6 +63,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "quantity, so it needs far less resolution than an albedo map; 64 is "
                         "ample and keeps the asset small.")
     p.add_argument("--samples", type=int, default=64)
+    p.add_argument("--seed", type=int, default=None,
+                   help="Cycles sampling seed. Two bakes at the same settings with DIFFERENT "
+                        "seeds let you estimate noise without a converged reference: their "
+                        "per-texel difference is sqrt(2) x the noise of one. v0.31.7.25 showed "
+                        "a 4096-sample bake is itself unconverged on dark texels, so measuring "
+                        "against it conflates the candidate's noise with the reference's. A "
+                        "seed pair has no such term.")
+    p.add_argument("--adaptive-threshold", type=float, default=None,
+                   help="Cycles adaptive sampling noise threshold (lower = more samples where "
+                        "noisy). This is the right control for a visibility bake: exterior "
+                        "faces see open sky and converge in ~16 samples while interior faces sit "
+                        "near 0.03 and need thousands, so a flat sample count spends nearly all "
+                        "of its budget on texels that were already correct.")
     p.add_argument("--float-buffer", dest="float_buffer", action="store_true",
                    help="force a float bake buffer without enabling blur or encoding. Exists to "
                         "ISOLATE it: --denoise and --encode both force one, so any measurement "
@@ -431,6 +444,11 @@ def main(argv: list[str] | None = None) -> int:
     S.reset_scene()
     S.import_glb(fixed)
     S.setup_cycles(samples=a.samples, res=(64, 64))
+    if a.seed is not None:
+        bpy.context.scene.cycles.seed = a.seed
+    if a.adaptive_threshold is not None:
+        bpy.context.scene.cycles.use_adaptive_sampling = True
+        bpy.context.scene.cycles.adaptive_threshold = a.adaptive_threshold
 
     removed = 0
     if a.pass_ == "visibility":
@@ -508,6 +526,8 @@ def main(argv: list[str] | None = None) -> int:
         "albedo": a.albedo,
         "samples": a.samples,
         "denoise": a.denoise,
+        "seed": a.seed,
+        "adaptive_threshold": a.adaptive_threshold,
         "encode": a.encode,
         "glazing_removed": removed,
         "dispersion_stripped": stripped,

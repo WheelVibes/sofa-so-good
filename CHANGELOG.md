@@ -29,6 +29,68 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.26 — adaptive sampling cuts the dark-texel noise 4×, and a seed pair removes the reference from the measurement
+
+`v0.31.7.25` found the bake 35 % wrong on the dark interior texels a camera actually sees, and
+flagged that the figure was itself limited: it was measured against a 4096-sample reference that
+is not converged in the dark either, so the candidate's noise and the reference's were mixed
+together. This round fixes the instrument first, then the bake.
+
+**A seed pair removes the reference entirely.** Two bakes at identical settings with different
+Cycles seeds differ only by noise, and their per-texel difference is **√2 ×** the noise of one.
+No converged reference is needed, and no reference-noise term contaminates the result. `--seed`
+was two lines; it should have existed before any of the last four rounds' figures were quoted.
+
+| bake (256 px, dark texels) | seed-pair difference | **implied noise of one bake** | time / seed, 8 meshes |
+| --- | --- | --- | --- |
+| flat 256 samples | 55.6 % | **39.3 %** | 8 s |
+| adaptive, threshold 0.001, max 4096 | 14.1 % | **10.0 %** | 72 s |
+| adaptive, threshold 0.0002, max 8192 | 11.2 % | **7.9 %** | 139 s |
+
+The seed-pair estimate for the flat bake (39.3 %) sits just above `v0.31.7.25`'s 35 % against
+the noisy reference — consistent, and now free of the reference's contribution.
+
+**Adaptive sampling is the right control, for a stated reason rather than by trial.** A
+visibility bake's error is wildly unequal across one texture: exterior faces see open sky, bake
+to 1.0 and converge in ~16 samples, while interior faces sit near 0.03 and need thousands. A
+flat sample count spends nearly its whole budget on texels that were already correct. Cycles'
+adaptive threshold allocates by *relative* error, which is exactly that distribution — and it
+delivers a **4× noise reduction** at threshold 0.001. Tightening to 0.0002 buys a further 1.3×
+for 1.9× the time; **0.001 / max 4096 is the setting**, at ~17 min for a full plan's 111 meshes.
+
+**An independent confirmation of `v0.31.7.22`, for free.** Across every arm above the 3×3 and
+9×9 residuals stayed pinned at **13.6 % and 10.3 %** while the actual noise fell fourfold. A
+metric that does not move when noise drops 4× was never measuring noise. That settles it: the
+high-frequency content in these maps is **signal**, `v0.31.7.21`'s premise was wrong, and
+`v0.31.7.22`'s correction of it was right — now shown by a mechanism rather than by argument.
+
+**The full plan, baked properly: 111 meshes, 33 min, 1.4 MB.** And the converged bake moves the
+derived gain: mean visibility **0.1674 → 0.2081**, so `1/mean` drops **5.97 → 4.81**. The noise
+was biasing the mean *down* — another figure the previous rounds quoted from a noisy bake.
+
+| arm | frame mean R | spatial spread vs physics |
+| --- | --- | --- |
+| baseline (no map) | 115.6 | **4.76×** |
+| adaptive maps, derived gain 4.81 | 67.2 | 1.49× |
+| adaptive maps, gain 6 | 72.4 | **1.36×** |
+
+**And the render finally looks right.** The near-left wall is dark and **largely smooth** — the
+heavy speckle that has dominated six rounds is gone, leaving faint fine grain — and the frame's
+structure now matches the Cycles reference: dark near wall, brighter far wall, ceiling lit toward
+the window. Against the reference side by side, what remains is the white-balance difference
+(`v0.31.7.5`: not comparable across pipelines) and that residual grain.
+
+**One honest gap.** The derived gain (4.81) and the metric's optimum (6) still differ by 1.25×.
+That is much closer than the 1.7× of `v0.31.7.23` and in the same direction, so it is likely the
+same unmodelled term — the maps cover the shell only, 118 of 385 meshes, so unmapped furniture
+keeps its unattenuated fill and the mapped surfaces must over-correct slightly to match the
+frame. Not yet measured, and stated as a hypothesis.
+
+**FPS unchanged and re-confirmed by construction:** the asset is 1.4 MB of 256 px maps and the
+shader work is identical to `v0.31.7.15`'s measurement — free at both auto-selected tiers.
+
+**Nothing shipped.** Probes and bake scripts only; `tsc`, biome, knip clean, 10011 tests green.
+
 ## v0.31.7.25 — the speckle is found: the bake is 35 % wrong where the camera looks, and my own accuracy metric hid it
 
 Looking at the actual atlas slot a visible wall samples resolves the whole sequence — and
