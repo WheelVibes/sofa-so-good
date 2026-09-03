@@ -29,6 +29,70 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.168 — ⚠️ CORRECTING `.166` AND `.167`: Cycles says the GI at gain 6 is RIGHT to 2.1 counts, and GI-off is 67.7 too dark
+
+`.166` called a +65.6-count change on the acLedge exterior wall a defect. `.167` built an arithmetic
+case that the reconstruction was ~4x too bright. **A physical reference at that pose says the
+opposite**, and both entries' conclusions are withdrawn.
+
+| `extWall` | value | vs Cycles |
+| --- | --- | --- |
+| app, GI **off** | 163.7 | **−67.7** |
+| app, gain 1 | 193.3 | −38.1 |
+| app, gain 3 | 218.3 | −13.1 |
+| app, gain 6 (shipped) | **229.3** | **−2.1** |
+| **Cycles reference** | **231.4** | — |
+
+The far wall is the control that makes this specific rather than a global exposure offset: Cycles
+214.5 against 210.5–210.9 in *every* app arm, a surface the GI barely touches and where the app was
+already right. So the app is not uniformly dark — it was 67.7 counts too dark on exactly the surface
+the GI corrects, and the shipped gain lands 2.1 counts from the reference.
+
+**The chromatic half points the same way and is not yet finished.** R−B: Cycles **−12.5** (a sky-lit
+wall really is cool), app GI-off **+17.0**, app gain 6 **+3.5**. The GI moves the tint 13.5 counts
+in the correct direction and is still ~16 short. What `.167` recorded as "a neutral indirect swamps
+the warm direct term" is the app's warm bias being partly corrected, not a defect introduced.
+
+### Two method failures, and they are the same failure twice
+
+**1. I judged a reference by how it looked and threw it away.** `.167` reported the acLedge Cycles
+render as unusable because it came back "almost entirely white", and asserted that a bare
+`--sky` at `sun_intensity 3.0` "is not the app's rig". That assertion was **wrong**:
+`render_from_manifest.py` — the arc's own reference tool — emits `--sky` plus the manifest's
+`--sun-dir` and nothing else, so my hand invocation was already the sanctioned rig. The render was
+valid the whole time. A semi-outdoor service ledge at 83.5° sun elevation IS near-white against an
+interior exposure; the existing `bedroom3` reference in the same directory is properly exposed and
+dim, which is what an *interior* should be. I had both images and dismissed the one that disagreed
+with me.
+
+**2. `.167`'s gain sweep used the wrong target.** It found interior rooms "level-neutral at gain
+2.8–3" and treated that as evidence for a corrected gain. But level-neutrality was measured against
+the app's own GI-off frame — and GI-off is precisely the thing under correction. Matching a baseline
+that is 67.7 counts wrong on one surface is not a correctness criterion. The interior gain is
+therefore **unvalidated**, not fitted at 2.8–3: it needs Cycles references at interior poses, and
+this measurement says nothing against the shipped 6.
+
+`.167`'s *measurements* stand — the maps are clean (all 40 peak at exactly 250, zero saturated
+texels), `recon_max` is 17.17, and `--per-map-scale` does squeeze a mixed-exposure mesh into ~26 of
+250 levels. Only the inference from them is withdrawn: an indirect diffuse of ~4.4 linear sounded
+absurd for "light bouncing around a room", but this surface is not in a room — it faces open sky,
+where that is the right order of magnitude.
+
+### Where `(z)`1 now stands
+
+The blocker was mostly my own misreadings. Three things that looked like defects were not: the
+curtain rod's dashes (its own faceting, `.164`), the curtain-top "comb" (a zero-difference region,
+`.164`), and this wall (the fix, not the bug). What survives is small: a **5.5-count** mapped/
+unmapped step at silhouettes, and the two mitigations `.165` correctly rejected for it.
+
+**This is n = 1 surface**, which is the honest limit — one reference at one pose. The next step is
+the same instrument at interior poses, where `light-distribution.mjs BLENDREF=` + `REQUIRE_LIGHTMAPS`
+can produce a matched app/manifest pair with the GI on and off, and `render_from_manifest.py` the
+physical half. If gain 6 holds up there, the flag should go on.
+
+Suite 10167 green, `tsc` and biome clean. Nothing shipped; flag still off.
+
+
 ## v0.31.7.167 — the maps are CLEAN; the reconstruction is not: `recon_max` 17.17 is ~4x a white surface in full sun
 
 `.166` left an observation with no mechanism attached: most of the 40 maps carry `scale` ≈ 2.9191
