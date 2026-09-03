@@ -46,18 +46,34 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     // REPLACES the ambient term, not the `visibility` occlusion map the old label described.
     // `v0.31.7.102` measured multiplying by sky visibility as the wrong operator outright.
     description: 'Cycles-baked bounced daylight on walls, floors and ceilings (realistic mode)',
-    // STILL OFF, and this is a reversal of the plan for `v0.31.7.114` rather than an oversight.
-    // The irradiance set is real and its effect is right -- gated to `realistic` it lifts the
-    // ceiling ratio 0.69 -> 0.92 and the frame mean 102.0 -> 108.7. But rendered AT `realistic`,
-    // the tier it ships to, it also draws a **dark dotted vertical seam** on the left wall that
-    // is absent with the flag off. `v0.31.7.111` reported that boundary artefact as "no longer
-    // visible at this coverage" -- measured at `performance`, where the frame is softer. At
-    // `realistic` it is visible. 40 maps is 10 % mesh coverage, so mapped/unmapped boundaries
-    // are everywhere; the seam is the coverage trade becoming visible, not a bug in the path.
+    // ON as of `v0.31.7.169`, after the seam that held it back was measured against a PHYSICAL
+    // reference rather than judged by eye. Three things that looked like defects were not: the
+    // curtain rod's dashes are its own faceting and are present with the flag OFF (`.164`), the
+    // curtain-top "comb" is the region where the difference is ZERO (`.164`), and the acLedge
+    // wall's +65.6-count jump is the FIX (`.168`).
     //
-    // Everything around this line is verified and stays: the asset swap, the `realistic` gate
-    // and the two-way detach. Flipping this to `true` is the whole of shipping it.
-    default: false,
+    // Cycles references at two poses, via `render_from_manifest.py` on a matched BLENDREF pair
+    // (`LIGHTS=off` on both sides, so the comparison is daylight-only):
+    //
+    //   surface        GI off    GI on    Cycles
+    //   acLedge wall    163.7    229.3     231.4   <- lands 2.1 counts from the reference
+    //   bedroom3 wall   108.2    145.2     177.9   <- closes 53 % of a 70-count deficit
+    //   bedroom3 ceil    92.8    108.5     187.2   <- closes 17 % of a 94-count deficit
+    //
+    // The app is 40-95 counts too DARK indoors, not too bright, and every mapped surface moves
+    // toward the reference; none moves away. The far-wall control (Cycles 214.5 vs 210.5 in every
+    // arm) rules out a global exposure offset, so this is the GI correcting specific surfaces.
+    //
+    // What is knowingly accepted: a **5.5-count** step at mapped/unmapped silhouettes, because
+    // only 52 of 1122 meshes are eligible (`--min-area 3.0` bakes the shell only, `.164`). Two
+    // mitigations were built and rejected on measurement (`.165`) -- a shader lift hit the target
+    // but stalled 2100 ms compiling, a fill scale was free but moved <=1 count. A 5.5-count seam
+    // is the smaller error by an order of magnitude, and lowering `--min-area` is the real fix.
+    //
+    // Cost at `realistic`, two runs per arm: p50 5.9/6.1 -> 6.6/6.2 ms, drawn fps 42.8/42.5 ->
+    // 42.0/42.3, p90 unchanged. Worst frame 143 -> 293 ms is 52 materials compiling at attach,
+    // which lands during load because this mounts inside the scene.
+    default: true,
     tier: 'simple',
   },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },

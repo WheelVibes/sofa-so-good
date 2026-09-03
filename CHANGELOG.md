@@ -29,6 +29,62 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.169 — 🎉 SHIPPED: the Blender-baked GI is ON at `realistic`, validated against Cycles at two poses
+
+`(z)`1's decision was made long ago and held behind a seam. `.164`–`.168` took that seam apart, and
+what remained did not justify blocking it. **The flag is on.**
+
+### The evidence that settled it
+
+Cycles references via `render_from_manifest.py` on matched `BLENDREF` pairs, `LIGHTS=off` on both
+sides so the comparison is daylight-only and nothing is calibrated to the app:
+
+| surface | GI off | GI on | **Cycles** | |
+| --- | --- | --- | --- | --- |
+| acLedge exterior wall | 163.7 | **229.3** | 231.4 | lands **2.1 counts** from the reference |
+| bedroom3 left wall | 108.2 | **145.2** | 177.9 | closes **53 %** of a 70-count deficit |
+| bedroom3 ceiling | 92.8 | **108.5** | 187.2 | closes **17 %** of a 94-count deficit |
+| bedroom3 sill wall (unmapped) | 100.7 | 100.0 | 147.2 | unchanged — outside the bake's coverage |
+
+**The app is 40–95 counts too DARK indoors**, not too bright, and every mapped surface moves toward
+the reference while none moves away. The far-wall control rules out a global exposure offset: Cycles
+214.5 against 210.5–210.9 in *every* app arm, on a surface the GI barely touches. So this is the GI
+correcting specific surfaces, which is what a GI is for.
+
+### What is knowingly accepted
+
+A **5.5-count** step at mapped/unmapped silhouettes, because only **52 of 1122** meshes are eligible
+— `bake_material.py --min-area 3.0` bakes the shell and nothing else (`.164`). Two mitigations were
+built and rejected on measurement (`.165`): a shader lift hit the target exactly but stalled
+**2100 ms** compiling, and a fill scale was free and provably targeted but moved ≤1 count. Shipping
+with a 5.5-count seam to fix a 40–95-count deficit is the right side of that trade by an order of
+magnitude, and lowering `--min-area` is the real fix when it comes.
+
+### Cost, because the goal is also "fps manageable and smooth"
+
+Two runs per arm at `realistic`, walk: p50 **5.9/6.1 → 6.6/6.2 ms**, drawn fps **42.8/42.5 →
+42.0/42.3**, p90 unchanged. Steady state is essentially free. Worst frame **143 → 293 ms** is 52
+materials compiling at attach, which lands during load because `VisibilityLightmaps` mounts inside
+the scene — the probe sees it as a tier-switch cost because it switches tier mid-session.
+
+### Verified as shipped, not just as a flag edit
+
+Default path vs the explicit `?ff=visibilityLightmap:on` override, both captured in the same window:
+**0.054 counts**, i.e. the same frame. The flag tests were updated rather than flipped — the
+permission test now checks the **off** direction, since with a `true` default an "on" override would
+pass on the default alone and quietly stop testing permissions.
+
+### One measurement-hygiene note
+
+A forced-on capture from 06:18 and the identical configuration at 07:25 differ by **5.28 counts**
+(max 156) — dev-server HMR state accumulating across a long session. Every conclusion above was
+captured in a tight window with its own matched arms, which is why they are unaffected; but a
+baseline from hours earlier in the same server is not a baseline. This is the second time today the
+same class of drift nearly produced a wrong number.
+
+Suite 10167 green, `tsc` and biome clean.
+
+
 ## v0.31.7.168 — ⚠️ CORRECTING `.166` AND `.167`: Cycles says the GI at gain 6 is RIGHT to 2.1 counts, and GI-off is 67.7 too dark
 
 `.166` called a +65.6-count change on the acLedge exterior wall a defect. `.167` built an arithmetic

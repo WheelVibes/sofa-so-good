@@ -10,20 +10,23 @@ import { resolveFlags } from './resolve'
  * where the fidelity gain matters most.
  */
 describe('visibilityLightmap flag', () => {
-  it('is registered, simple-tier and OFF by default until plans are baked', () => {
+  it('is registered, simple-tier and ON by default', () => {
     const def = FEATURE_FLAGS.visibilityLightmap
     expect(def.tier).toBe('simple')
-    // Off by default on purpose: with no baked maps the render is identical to today's, so
-    // shipping it on would add ~19 shader variants and change nothing.
-    expect(def.default).toBe(false)
+    // ON as of `v0.31.7.169`. Held off for many rounds by a seam that turned out to be three
+    // separate non-defects; settled by Cycles references at two poses, which measured the app
+    // 40-95 counts too DARK indoors and every mapped surface moving toward the reference.
+    expect(def.default).toBe(true)
     // NOT devOnly -- the maps are CC0-irrelevant generated assets with no licensing or sidecar
     // dependency, so there is nothing to keep out of production.
     expect(def.devOnly).toBeUndefined()
   })
 
-  it('stays off in BOTH modes while its default is false', () => {
-    expect(resolveFlags(false, {}, false, 'simple').visibilityLightmap).toBe(false)
-    expect(resolveFlags(false, {}, false, 'pro').visibilityLightmap).toBe(false)
+  it('is ON in BOTH modes now that its default is true', () => {
+    // The tier assertion above is what makes this pass in Simple: a `pro` tier would be stripped
+    // there, silencing the flag in the mode the move-in default lives in.
+    expect(resolveFlags(false, {}, false, 'simple').visibilityLightmap).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').visibilityLightmap).toBe(true)
   })
 
   it('can be enabled in BOTH modes — a simple-tier flag is not stripped by Simple', () => {
@@ -36,10 +39,11 @@ describe('visibilityLightmap flag', () => {
   })
 
   it('ignores an override for an unprivileged user, like every other flag', () => {
-    // Overrides need dev or admin. Pinned so the fidelity flag is not accidentally made
-    // publicly togglable when its default flips.
-    const on = { visibilityLightmap: true }
-    expect(resolveFlags(false, on, false, 'simple').visibilityLightmap).toBe(false)
-    expect(resolveFlags(false, on, true, 'simple').visibilityLightmap).toBe(true)
+    // Overrides need dev or admin. Tested in the OFF direction now that the default is true --
+    // with an `on` override this assertion would pass on the default alone and prove nothing,
+    // which is how a permission test quietly stops testing permissions.
+    const off = { visibilityLightmap: false }
+    expect(resolveFlags(false, off, false, 'simple').visibilityLightmap).toBe(true)
+    expect(resolveFlags(false, off, true, 'simple').visibilityLightmap).toBe(false)
   })
 })
