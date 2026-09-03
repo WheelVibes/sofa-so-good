@@ -27,6 +27,69 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.7 - Tried to fix the arranger's bed-vs-storage pinches; it did not work
+
+`.6` cleared the false positives and left 39 real pinches, 18 of them a bed
+against storage. This is the attempt on those 18, and it is **reverted** — the
+code is not shipped, only what it established.
+
+**Two gaps found on the way, both real and neither fixed here:**
+
+- **`CLEARANCE.storageFront` (0.75 m) has ZERO consumers.** `designRules.ts`'s
+  header calls these constants "the single source of truth for furniture spacing"
+  that the arranger "should reference rather than hard-coding gaps", and
+  `docs/interior-design-guidelines.md` tabulates `storageFront` as a rule the app
+  follows. Nothing anywhere enforces it. `bedSurround` appears only as a soft
+  scoring penalty, never as a constraint. Same class as the layout-critique
+  thresholds that shipped with no consumer.
+- **`snapToWall` tries exactly ONE along-wall position per edge** — the piece's
+  seeded position, clamped to fit — so a wall with room somewhere ELSE along it
+  reads as full. The bedroom storage loop's comment claims "Collision enforces
+  door-swing gaps"; it does not. `canPlace` tests OVERLAP plus the ROOM's door
+  keep-outs, and nothing reserves floor for a wardrobe's own doors.
+
+**Why the obvious fix fails.** Adding along-wall candidates and preferring the one
+that leaves `storageFront` clear cleared 3 blocked windows and COST 3 pinches:
+
+| variant | blocked windows | large-piece pinches | bed-vs-storage | items placed |
+|---|---|---|---|---|
+| baseline | 11 | 39 | 18 | 4584 / 845 large |
+| + along-wall candidates | 8 | 42 | 25 | 4584 / 845 |
+| + clearance sort (all items) | 8 | — | 22 | 4584 / 845 |
+| + clearance sort (large only) | 8 | 42 | 20 | 4584 / 845 |
+
+**The confound was measured and excluded.** More candidate positions means more
+placements succeed, so the pinch rise could have been the side effect of placing
+MORE furniture — which this repo rightly treats as the metric that matters. Item
+count is IDENTICAL across every variant (4584 items, 845 large pieces), so it is
+not that. The layouts are genuinely, slightly worse.
+
+Two things that cost me the attempt, worth recording:
+
+- **My objective disagreed with my metric.** Scoring against every floor item took
+  pinches from 18 UP to 22, because a route pinch needs BOTH sides to be a large
+  piece — nightstands, plants and stools were dragging the wardrobe around while
+  contributing nothing to the measure. Restricting the objective to large pieces
+  recovered 22 -> 20, still short of baseline.
+- **A local per-item objective cannot fix pairwise pinches in a greedy sequential
+  placer.** Storage is placed after the bed, so buying clearance from the bed
+  pushes it into the desk placed later. A real fix needs joint placement with
+  backtracking, or deciding the bed's along-position with storage in mind, or a
+  post-pass that nudges large pairs apart — the Checks panel's "Nudge apart" fix
+  already does the last one interactively, so the mechanism exists.
+
+**Not shipped as a trade, deliberately.** A window blocked by a wardrobe is
+arguably worse than a 0.46 m gap between a bed and a wardrobe, so 3-for-3 might
+well be worth taking. That is a product judgement about visible layout quality,
+not a fix, and the numbers are in `TODO.md` for the maintainer rather than decided
+here.
+
+One thing worth keeping from the failed attempt: `windowSightline.test.ts` records
+that "the 11 that remain have no windowless wall with room". That is **wrong** for
+`g3-liv-win`, `jb-b4-win` and `jb-b5-win` — there is room on a windowless wall,
+just not at the seeded along-position. Noted in `TODO.md`; the test's list is
+unchanged because the code that cleared them is reverted.
+
 ## v0.31.8.6 - A wall between two pieces is not a circulation pinch
 
 Went looking for the arranger quality issue that `TODO.md` calls the real problem

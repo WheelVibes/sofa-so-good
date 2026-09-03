@@ -594,6 +594,40 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
       every exhaustive `Record<RoomCategory,…>` consumer (see the root `CLAUDE.md` rule);
   (b) let a user IMPORT their own block's official plan and classify against it, which is the only
       thing that can honestly resolve internal partitions for a real address.
+- **[ATTEMPTED AND REVERTED v0.31.8.7 — read this before trying again] Reducing the arranger's
+  bed-vs-storage pinches with a clearance-preferring placement does NOT work.** Four things were
+  established; the first two are gaps worth fixing on their own terms, the last two are why the
+  obvious fix fails.
+  1. **`CLEARANCE.storageFront` (0.75 m) has ZERO consumers.** `designRules.ts`'s header calls
+     these constants "the single source of truth for furniture spacing" that the arranger "should
+     reference rather than hard-coding gaps", and
+     `docs/interior-design-guidelines.md` tabulates `storageFront` as a rule the app follows.
+     Nothing enforces it anywhere. `bedSurround` fares slightly better — it appears only as a soft
+     scoring penalty in `scoreBedroomEdges`, never as a constraint.
+  2. **`snapToWall` tries exactly ONE along-wall position per edge** — the piece's seeded position
+     clamped to fit — so a wall with room somewhere ELSE along it reads as full. The comment at the
+     bedroom storage loop claims "Collision enforces door-swing gaps"; it does not. `canPlace`
+     tests OVERLAP plus the ROOM's door keep-outs, and nothing reserves floor for a wardrobe's own
+     doors.
+  3. **Adding along-wall candidates clears 3 blocked windows and COSTS 3 pinches.** Measured over
+     62 auto-furnished layouts: blocked windows 11 -> 8 (`g3-liv-win`, `jb-b4-win`, `jb-b5-win`),
+     large-piece pinches 39 -> 42, bed-vs-storage 18 -> 20. **Item count is IDENTICAL** (4584
+     items / 845 large pieces), so the extra pinches are NOT the side effect of placing more
+     furniture — that confound was measured and excluded. A window blocked by a wardrobe is
+     arguably worse than a 0.46 m gap, but that is a product trade, not a fix, so it was reverted
+     rather than shipped. **The numbers are here if the maintainer wants the trade.**
+     Worth keeping regardless: `windowSightline.test.ts` records that "the 11 that remain have no
+     windowless wall with room", and that is WRONG for those 3 — there is room, just not at the
+     seeded along-position.
+  4. **A local per-item clearance objective cannot fix pairwise pinches in a greedy sequential
+     placer.** Storage is placed after the bed, so buying clearance from the bed pushes it into the
+     desk placed later. Scoring against every floor item made it worse still (18 -> 22) because the
+     objective disagreed with the metric: a route pinch needs BOTH sides to be a large piece, so
+     nightstands and plants were dragging the wardrobe around while contributing nothing.
+     Restricting the objective to large pieces recovered 22 -> 20, still short of the 18 baseline.
+     A real fix needs joint placement with backtracking, or deciding the bed's along-position with
+     storage in mind, or a post-pass that nudges large pairs apart (the Checks panel's "Nudge
+     apart" fix already does this interactively, so the mechanism exists).
 - **[FIXED v0.31.8.6] `findNarrowGaps` reported pinches THROUGH walls.** The item-item pass
   measured an edge-to-edge distance and never asked whether anything stood between the pair, so 22
   of 59 corpus pinches (37%) were gaps nobody can walk through — 18 in different rooms, 4 in the
