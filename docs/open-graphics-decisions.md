@@ -2872,6 +2872,29 @@ the two are ~45 % apart. `.284` restored `.269`–`.276` as valid raw-trace meas
 now be **qualified** — they are valid only if they were taken in state B, which was never recorded and is
 roughly a coin flip. Every traced figure in the arc needs re-measurement with the discriminator on.
 
+### (u) — TWO MORE MECHANISMS ELIMINATED by source inspection, `v0.31.7.145`
+
+Both at zero runtime cost, and both were worth checking because class A's symptom — *the ceiling
+shows the environment, with zero variance, immune to its own albedo* — is exactly what a **missing or
+empty BVH** would produce.
+
+1. **An unawaited BVH build — REFUTED.** `hqRenderSession` calls `tracer.setScene(snapshot, camera)`
+   and ignores the return value, which would be a race if the build were async. It is not:
+   `WebGLPathTracer.setScene` takes the synchronous branch unless `_buildAsync` is set (only
+   `setSceneAsync` sets it), calling `generator.generate()` and then `_updateFromResults`, and
+   `_updateFromResults` contains no awaits. The accumulation cannot start before the BVH exists.
+
+2. **A stale BVH from a reused tracer — REFUTED.** `_updateFromResults` gates
+   `material.bvh.updateFrom(bvh)` on `bvhChanged`, which is `result.changeType !== NO_CHANGE`, and
+   `StaticGeometryGenerator` leaves `changeType` at `NO_CHANGE` unless `forceUpdate` fires. A tracer
+   reused across renders could therefore keep an old BVH — and the constructor seeds it with
+   `setScene(new Scene(), ...)`, i.e. **empty**, which would give precisely class A. But
+   `hqRenderSession` does `const tracer = new WebGLPathTracer(renderer)` **per render**, so the mesh
+   set goes 0 → ~1100 every time, `forceUpdate` fires, and `bvhChanged` is true.
+
+**What these do NOT rule out:** the `renderer` itself is shared across sessions, and the constructor
+allocates GPU resources against it. That is the nearest remaining surface of this shape.
+
 ## (v) HQ-CEILING-ALBEDO-IGNORED — 🐞 REAL DEFECT; ✅ DECIDED 2026-09-04, see (z)13: fix. Found v0.31.5.301; verification named
 
 **The path tracer's ceiling is completely insensitive to the ceiling material.** Recolour the ceiling from

@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.146 — `(u)`: two more mechanisms eliminated from the leading class of explanation, at zero runtime cost
+
+`(z)`13 reduces to diagnosing `(u)` (`.145` established `(v)` folds into it, and the doc records
+`(n)`, `(p)`, `(u)`, `(v)` sharing one subsystem). Class A's symptom is very specific — *the ceiling
+shows the environment, zero variance, immune to its own albedo* — and that is what a **missing or
+empty BVH** produces. `.302` censused the snapshot **scene** and found the ceiling present with the
+right material; it did not census the **acceleration structure**, which is what the tracer actually
+intersects. That distinction was untested, so I chased it in the library source.
+
+**1. An unawaited BVH build — refuted.** `hqRenderSession` calls `tracer.setScene(snapshot, camera)`
+and discards the return value, which would be a genuine race if the build were async. It is not:
+`WebGLPathTracer.setScene` takes the synchronous branch unless `_buildAsync` is set (only
+`setSceneAsync` sets it), and `_updateFromResults` contains no awaits. Accumulation cannot begin
+before the BVH exists.
+
+**2. A stale BVH from a reused tracer — refuted, and this one had a good fit.**
+`_updateFromResults` gates `material.bvh.updateFrom(bvh)` on `bvhChanged` =
+`result.changeType !== NO_CHANGE`, and `StaticGeometryGenerator` leaves `changeType` at `NO_CHANGE`
+unless `forceUpdate` fires. Critically, `WebGLPathTracer`'s constructor seeds itself with
+`setScene(new Scene(), …)` — **empty**. So a reused tracer that reported no change would render the
+empty BVH: environment everywhere, zero variance, albedo-immune, brighter, opposite colour
+temperature. Every class-A symptom. **But the tracer is constructed per render**
+(`const tracer = new WebGLPathTracer(renderer)`), so the mesh set goes 0 → ~1100 each time,
+`forceUpdate` fires and `bvhChanged` is true.
+
+**What survives:** the `renderer` *is* shared across sessions and the constructor allocates GPU
+resources against it — the nearest remaining surface of this shape, and untested.
+
+Recorded in `(u)`'s own section. This brings the arc's tally of refuted `(u)` mechanisms to sixteen;
+the value of these two is that they cost nothing but reading, and they close off the most plausible
+family of explanation for class A rather than another one-off.
+
+**Process note, and it is mine.** This entry first went in as `v0.31.7.145b` with no `APP_VERSION`
+bump, and I committed it with a **red suite** — `changelogVersions.test.ts` failed because the
+heading regex reads `145b` as `0.31.7.145`, a duplicate. My own rule is `npm test` before every
+commit and I read the exit code after committing rather than before. The guard did exactly its job;
+I did not do mine. Renumbered to `.146`, `APP_VERSION` bumped, suite green.
+
+Documentation only. Suite **10155 green**, `tsc` and biome clean.
+
 ## v0.31.7.145 — REOPENING `(h)`: I closed it on three worked examples out of fifteen, and `(v)` turns out not to be independent either
 
 Two corrections, both found by reading the summary table at the foot of
