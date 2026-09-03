@@ -27,6 +27,53 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.6 - A wall between two pieces is not a circulation pinch
+
+Went looking for the arranger quality issue that `TODO.md` calls the real problem
+behind the circulation score, censused the pinches it produces, and found that a
+third of them are not the arranger's fault at all.
+
+Over the 62-layout corpus, `findNarrowGaps`' item-item pass reported 59 pinches
+under 0.5 m between large pieces. **22 of them (37%) had a wall between the two
+items** — 18 in different rooms, 4 in the same room (an L-shaped room or a stub
+wall, so same-room does not imply unobstructed). The pass computed an
+edge-to-edge distance and never asked whether anything stood in between, so the
+design score was charging real points for gaps nobody can walk through.
+
+Now rejected: 59 pinches -> 39, and median corpus circulation 55.5 -> 68.5. The
+shipped default flat's own panel goes 56 -> 65 (21 snug gaps -> 18, 31 sub-ideal
+-> 23, 37 affected items -> 34), which matches the offline probe exactly.
+
+**Doors are treated as OPEN for this test, and only for this test.** A doorway IS
+a route, so two pieces pinching either side of one is a genuine finding and must
+survive. The item-wall pass keeps its closed-door walls, because flagging an item
+that crowds a doorway is a separate and deliberately conservative check.
+
+That choice is **not measurable on the current corpus** — 0 of the 59 pinches are
+blocked only by a doorway, so both door states score identically today. Rather
+than let an unfalsifiable decision ride on my reasoning, `walkway.test.ts` pins it
+with a constructed fixture: the same two boxes 0.45 m apart across the same wall,
+with and without an opening at that exact height, asserting the two arms
+DISAGREE. Without that arm the door handling would have been untested.
+
+**A measurement artefact I nearly reported as a bug.** After the fix, 2 pinches
+still looked wall-separated. They are both on `tpl-hdb-maisonette`, and the fault
+was my probe: it tested line of sight against the whole plan's walls, so an
+UPPER-storey wall spuriously blocked a ground-floor sightline. The finder resolves
+walls per storey and is right; the probe was the coarser instrument. Both are
+correct keeps.
+
+**What remains is genuinely the arranger**, and it is now visible instead of buried
+in false positives: of the 39 real pinches, 18 are a bed against storage
+(`bed <-> wardrobe` 8, `bed-queen <-> dresser` 5, `bed-single <-> desk` 5) and
+bedrooms hold 19 of them. That is the next piece of work, and it is a placement
+change rather than a scoring one.
+
+Note the sequencing: the ruler was recalibrated and frozen in `.3`, and only then
+was this measured against it. The old saturating score could not have detected
+either this fix or an arranger improvement — changing the ruler and the thing
+measured together would have made any result unattributable.
+
 ## v0.31.8.5 - The 2D and 3D wall tints disagreed about the same facade
 
 A consistency bug I created in `.4` and did not catch until re-reading the user

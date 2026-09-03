@@ -1953,6 +1953,11 @@ same change that reshapes a system.
   `CIRCULATION.gradedFloor` is 0.40 m because that is the INSTRUMENT's floor, not a human dimension:
   `findNarrowGaps` skips any item↔item gap `≤ CLEARANCE.sofaToCoffee`, so **a genuinely blocked
   route is invisible to this category** — a measured, test-pinned limitation, logged in `TODO.md`.
+  **The finder is wall-aware (v0.31.8.6).** An item↔item pair with a wall between it is rejected —
+  no route, so no pinch. Measured: 22 of 59 corpus pinches (37%) were wall-separated, 18 of them
+  in different rooms; removing them moved median corpus circulation 55.5 → 68.5 and the shipped
+  flat 56 → 65. Doors are treated as OPEN for this test only (a doorway IS a route, so a pinch
+  across one survives), while the item↔wall pass keeps its closed-door walls.
 - **Layout critique** (`analysis/layoutCritique.ts` pure → `buildLayoutCritique(plan,items,catalog)`:
   cited comfort bands — TV viewing distance, conversation distance, coffee-table reach, SG sofa
   proportion, and rug size against the sofa / dining table / bed it anchors, with a bedside

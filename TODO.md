@@ -594,6 +594,18 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
       every exhaustive `Record<RoomCategory,…>` consumer (see the root `CLAUDE.md` rule);
   (b) let a user IMPORT their own block's official plan and classify against it, which is the only
       thing that can honestly resolve internal partitions for a real address.
+- **[FIXED v0.31.8.6] `findNarrowGaps` reported pinches THROUGH walls.** The item-item pass
+  measured an edge-to-edge distance and never asked whether anything stood between the pair, so 22
+  of 59 corpus pinches (37%) were gaps nobody can walk through — 18 in different rooms, 4 in the
+  same room (L-shaped rooms and stub walls). Now rejected via `isLineOfSightBlocked` on per-storey
+  walls: 59 -> 39 pinches, median corpus circulation 55.5 -> 68.5, shipped flat 56 -> 65. Doors are
+  treated as OPEN for that test only (a doorway is a route, so a pinch across one is real); the
+  item-wall pass keeps its closed-door walls. The corpus cannot distinguish the two door states, so
+  a constructed fixture in `walkway.test.ts` pins it instead.
+  **What is left is genuinely the arranger, and now visible:** of the 39 real pinches, **18 are a
+  bed against storage** (`bed <-> wardrobe` 8, `bed-queen <-> dresser` 5, `bed-single <-> desk` 5)
+  and bedrooms hold 19. That is a placement fix, not a scoring one, and it is the next piece of
+  work on this thread.
 - **[MEASURED, NOT FIXED] `findNarrowGaps` is BLIND to genuinely blocked routes, so the design
   score cannot see the worst case.** `layout/walkway.ts` skips any item-item gap
   `<= CLEARANCE.sofaToCoffee` (0.40 m) as "intentional close spacing". That is right for a sofa and

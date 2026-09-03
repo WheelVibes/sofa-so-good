@@ -237,3 +237,52 @@ describe('custom-plan + per-level wall pinches (F13 remnant)', () => {
     ).toBe(false)
   })
 })
+
+/**
+ * A wall between two pieces means there is no route between them to pinch
+ * (v0.31.8.6). Measured over a 62-layout corpus: 22 of 59 reported pinches
+ * (37%) had a wall between the two items, 18 of those in different rooms, and
+ * every one of them was costing the design score real points for a gap nobody
+ * can walk through.
+ */
+describe('findNarrowGaps — a wall between the pair', () => {
+  /** Two boxes 0.45 m apart across x=0, optionally split by a wall on that line. */
+  const fixture = (opts: { wall: boolean; door: boolean }): FloorPlan => {
+    const walls: FloorPlan['walls'] = opts.wall
+      ? [{ id: 'mid', start: [0, -3], end: [0, 3], thickness: 'internal' }]
+      : []
+    const openings: FloorPlan['openings'] = opts.door
+      ? [{ id: 'd1', kind: 'door', wallId: 'mid', offset: 2.2, width: 0.9, sill: 0, head: 2.1 }]
+      : []
+    return { ...buildDefaultPlan(), id: 'custom-wall-between', walls, openings }
+  }
+  // Edge-to-edge gap 0.45 m, centred on the wall line at x=0, at z=0 — level
+  // with the doorway when one exists (offset 2.2 of a 6 m wall spans z∈[-0.8,0.1]).
+  const pair = () => {
+    seq = 0
+    return [mk('box', -0.725, 0), mk('box', 0.725, 0)]
+  }
+  const itemPinches = (plan: FloorPlan) => findNarrowGaps(pair(), defs, plan).filter((g) => !g.wall)
+
+  it('reports the pinch when nothing is between them (control)', () => {
+    const found = itemPinches(fixture({ wall: false, door: false }))
+    expect(found).toHaveLength(1)
+    expect(found[0]!.gap).toBeCloseTo(0.45, 3)
+  })
+
+  it('does NOT report it through a solid wall', () => {
+    expect(itemPinches(fixture({ wall: true, door: false }))).toHaveLength(0)
+  })
+
+  it('DOES report it across a doorway — a doorway is a route', () => {
+    // This is the arm that makes the door handling falsifiable rather than
+    // assumed. The corpus cannot distinguish the two door states (0 pinches are
+    // blocked only by a doorway), so without this fixture the choice to treat
+    // doors as open would be untested. Same geometry as the arm above, one
+    // opening added, and the two MUST disagree.
+    const withDoor = itemPinches(fixture({ wall: true, door: true }))
+    const withoutDoor = itemPinches(fixture({ wall: true, door: false }))
+    expect(withDoor).toHaveLength(1)
+    expect(withoutDoor).toHaveLength(0)
+  })
+})
