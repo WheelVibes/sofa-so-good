@@ -29,6 +29,69 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.73 — a Cycles sky equirect, and the app's procedural sky is both too dark AND 4× too blue
+
+The Blender-side answer to item (l), and it turns out to be a bigger finding than the level.
+
+**The app paints its sky background on a canvas** — 1024×512, three linear gradient stops plus a
+hand-drawn haze band (`backdropEquirect.ts:bakeSkyEquirect`). No atmospheric scattering, no
+sun-angle dependence beyond those stops. And that texture *is* what the window shows: item (l)'s
+window p99 is `scene.background` seen through the pane.
+
+New **`render_equirect.py`** renders `MULTIPLE_SCATTERING` sky through an `EQUIRECTANGULAR`
+panoramic camera at the app's own sun vector, straight into the same 2:1 slot — **4 seconds on the
+GPU**. No new runtime machinery is needed: the generator's own docstring says it was "shaped to be
+swapped for real CC0 equirectangular photos later (same background slot)", and a render placed from
+the app's sun beats a photo because it is *consistent with the scene's own lighting*.
+
+**Both sides are AgX** — Blender's view transform and three's `AgXToneMapping` — so these are
+displayed-count ratios, directly comparable to item (l)'s displayed-count 1.368×.
+
+| band | app | Cycles | Cycles/app |
+| --- | --- | --- | --- |
+| zenith | 202.2 | 240.5 | 1.189 |
+| upper sky | 164.9 | 234.0 | **1.419** |
+| horizon band | 174.9 | 220.9 | **1.263** |
+| lower / ground | 69.2 | 77.9 | 1.126 |
+
+**Item (l)'s required 1.368× sits inside the upper-sky/horizon range the window actually looks at.**
+So the window deficit that has been sitting as an unexplained scene-independent constant is
+substantially just *the sky being too dark* — and a physical sky supplies the level by construction
+rather than by an invented `BGMUL ≈ 12`. (Those two numbers are consistent, not rival: `BGMUL`
+scales linear radiance and AgX compresses hard at the top, so 12× linear reading as 1.368×
+displayed is exactly what the arc's "displayed counts are not energy" rule predicts.)
+
+**And the chroma is worse than the level.**
+
+| band | app R−B | Cycles R−B |
+| --- | --- | --- |
+| zenith | **−70.5** | −13.6 |
+| upper sky | **−82.6** | −21.7 |
+| horizon | −14.0 | −17.9 |
+| ground | **+4.6** | **−47.5** |
+
+The app's sky is **~4× more blue-saturated** than physics at zenith and upper sky. At this sun
+elevation (83.5°, near-overhead Singapore noon) the real sky is close to white, not cornflower — the
+side-by-side reads as illustration against photograph. And the lower hemisphere's hue is
+**sign-flipped**: the app paints a warm grey ground, while physically it is ground albedo lit by a
+blue sky, so it is cool. A 52-count swing.
+
+**Which puts a scope note on `v0.31.7.60`.** That round closed chroma as "not a defect" on a
+WB-invariant residual of 7.3 counts — measured on **interior** surfaces. The background is a
+different quantity and it is off by 60–80 counts in R−B. The earlier conclusion stands for what it
+measured; it never covered the view out the window.
+
+**A probe bug worth recording**, because its symptom lied: `Vec3` is a `readonly [number, number,
+number]` **tuple**, and the first version of the comparison passed `{x, y, z}`. Every `a[0]` was
+`undefined`, every dot product `NaN`, and the canvas clamped to zero — which printed as "the app's
+sky is black" rather than "the probe called it wrong". Recorded in the probe next to the fix.
+
+**Not yet done:** injecting the Cycles equirect into the app's `custom` backdrop slot and
+re-measuring the window p99 against the Cycles reference. That is the end-to-end test, and it is
+now one probe run away.
+
+Suite **10083 green**, `tsc`, biome and `knip` clean, 11 python tests pass.
+
 ## v0.31.7.72 — the irradiance bake is within 5 % of a 1024-sample reference; and I retracted my own noise finding inside ten minutes
 
 Settling the sample count `.71` left open, which took three measurements because the first two were
