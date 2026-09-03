@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.95 — shader fix VERIFIED, replace mode measured, and `.93`'s retraction was too broad
+
+Started a dev server on :5200 (the one this worktree needs; only the other worktree's :5199 was up)
+and closed the loop.
+
+**The shader compiles: 0 `VALIDATE_STATUS` failures**, maps applied to 24/385, a frame produced. So
+`.94`'s fix — `BRDF_Lambert( material.diffuseColor )` in place of the physical-only
+`diffuseContribution` — is confirmed at runtime, not just by the struct survey.
+
+**And `replace` mode, measured on a program that exists:**
+
+| mapped shell only | p10 | median | p90 | p90/p10 |
+| --- | --- | --- | --- | --- |
+| app, no lightmaps | 65.4 | **132.5** | 140.6 | 2.15 |
+| sky-dome **replace** | 0.0 | **10.9** | 43.0 | ∞ |
+| Cycles reference | 111.5 | **133.5** | 146.7 | 1.32 |
+
+The median moved off the dead runs' 20.9, which is how I know this frame is real. It is **12× too
+dark**: the map holds Blender radiometric values (0.0274–1.0437) and the shader multiplies by
+`VISIBILITY_GAIN = 6`, a constant calibrated for a dimensionless [0,1] visibility ratio. Uncalibrated
+by roughly two orders of magnitude.
+
+**`.93` over-retracted, and that matters more than the calibration.** It withdrew `.92`'s conclusion
+that the shell was already correct — but that conclusion rests on the **`no lightmaps` row**, which
+involves no injection at all and so was never touched by the compile failure. It stands, and it is
+now measured twice: **the app's shell median is 132.5 against physics' 133.5 — 0.7 % — with a spread
+of 2.15 against 1.32.**
+
+**Which is the finding worth keeping from this whole thread.** On this pose there is **no headroom on
+the shell**, so no shell-only bake can help however well it is scaled: the surfaces the bake covers
+are the surfaces that are already right. The 1.16× interior deficit lives elsewhere — in the other
+361 meshes, or in poses where the shell genuinely is wrong. Item (w) measured a ~3× wall error in
+**4-Room livingDining**, a different plan and view; that is where a shell bake has something to
+correct, and mainBedroom was simply the wrong test bed.
+
+**So the redirect is:** re-run this comparison on livingDining before spending any more on
+calibration. If the shell is already right there too, the shell-only approach is finished regardless
+of gain, and the target is furniture and non-shell geometry.
+
+Note for whoever picks this up: a dev server is now running on **:5200** (`npx vite --port 5200
+--strictPort`, log at `/tmp/vite5200.log`). It was started to complete this measurement and is safe
+to stop.
+
+Suite **10098 green**, `tsc` and biome clean. `'multiply'` is still the default and the flag is off.
+
 ## v0.31.7.94 — ROOT CAUSE: the injected shader never compiled. `VALIDATE_STATUS false`, hidden in a log I had not read
 
 The reason four rounds of GI measurement produced dead numbers, found by reading the app's own console
