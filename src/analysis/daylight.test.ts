@@ -3,6 +3,7 @@ import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/ty
 import {
   buildDaylightReport,
   DAYLIGHT_MIN_RATIO,
+  isDaylightExempt,
   isExternalRoom,
   OPENABLE_FRACTION,
   VENT_MIN_RATIO,
@@ -213,5 +214,114 @@ describe('isExternalRoom', () => {
     expect(
       isExternalRoom({ id: 'living', name: 'Living', origin: [0, 0], width: 1, depth: 1 }),
     ).toBe(false)
+  })
+})
+
+/**
+ * `noFacade` — a room with no external wall can never gain a window, so a
+ * daylight/ventilation shortfall there has no remedy and must not be advised.
+ * The four walls of a square room are built explicitly so each fixture controls
+ * its own `thickness` values.
+ */
+function boxWalls(
+  prefix: string,
+  x: number,
+  z: number,
+  side: number,
+  thickness: PlanWall['thickness'],
+): PlanWall[] {
+  return [
+    { id: `${prefix}-n`, start: [x, z], end: [x + side, z], thickness },
+    { id: `${prefix}-e`, start: [x + side, z], end: [x + side, z + side], thickness },
+    { id: `${prefix}-s`, start: [x + side, z + side], end: [x, z + side], thickness },
+    { id: `${prefix}-w`, start: [x, z + side], end: [x, z], thickness },
+  ]
+}
+
+describe('buildDaylightReport — noFacade', () => {
+  const room = rectRoom('shelter', 'Household Shelter', 0, 0, 2)
+
+  it('flags a room whose every bounding wall is internal', () => {
+    const rows = buildDaylightReport(plan([room], boxWalls('s', 0, 0, 2, 'internal'), [])).rooms
+    expect(rows).toHaveLength(1)
+    expect(rows[0].noFacade).toBe(true)
+    // The shortfall itself is still reported truthfully — only the ADVICE changes.
+    expect(rows[0].daylightPass).toBe(false)
+    expect(rows[0].ventPass).toBe(false)
+  })
+
+  it('does NOT flag a windowless room that touches the façade', () => {
+    // Regression guard for a wrong first implementation: this test was written
+    // against a version keyed on `wallHackability`, which maps an external wall
+    // to load-bearing → NOT PERMITTED and so exempted this room. "Cannot be
+    // demolished" is not "cannot hold a window" — measured on the template
+    // corpus, that version suppressed the genuine windowless-Master-Bedroom
+    // finding in `tpl-hdb-jumbo`.
+    const walls = boxWalls('b', 0, 0, 2, 'external').map((w) => ({
+      ...w,
+      structure: 'load-bearing' as const,
+    }))
+    const rows = buildDaylightReport(plan([room], walls, [])).rooms
+    expect(rows[0].noFacade).toBe(false)
+    expect(rows[0].daylightPass).toBe(false)
+  })
+
+  it('does not flag a room with a single external wall among internal ones', () => {
+    const walls = boxWalls('m', 0, 0, 2, 'internal')
+    walls[0] = { ...walls[0], thickness: 'external' }
+    expect(buildDaylightReport(plan([room], walls, [])).rooms[0].noFacade).toBe(false)
+  })
+
+  it('does not flag a room with no resolvable bounding walls', () => {
+    // No walls at all is unknown, not proven-interior — stay conservative and
+    // keep the advice rather than silently exempting a hand-built plan.
+    expect(buildDaylightReport(plan([room], [], [])).rooms[0].noFacade).toBe(false)
+  })
+})
+
+describe('buildDaylightReport — noFacade requires zero glazing', () => {
+  // A 4×4 room ringed by INTERNAL walls, one of which nonetheless carries a
+  // window. `hasNoFacade` alone would exempt it; real glazing proves otherwise.
+  // Measured on the shipped default flat: `Bath/WC 2` is exactly this shape
+  // (all-internal bounding walls, 7.4% glazing) and was wrongly shown as N/A.
+  const room = rectRoom('bath2', 'Bath/WC 2', 0, 0, 4)
+  const walls = boxWalls('b2', 0, 0, 4, 'internal')
+
+  it('does not flag a room the window probe gives glazing to', () => {
+    const rows = buildDaylightReport(
+      plan([room], walls, [win('w1', 'b2-n', 1, 1.2, 0.9, 2.1)]),
+    ).rooms
+    expect(rows[0].glazingArea).toBeGreaterThan(0)
+    expect(rows[0].noFacade).toBe(false)
+  })
+
+  it('still flags the same room once its window is removed', () => {
+    // The fixture is not inert: strip the window and the exemption returns, so
+    // the glazing guard is what the first assertion is measuring.
+    const rows = buildDaylightReport(plan([room], walls, [])).rooms
+    expect(rows[0].glazingArea).toBe(0)
+    expect(rows[0].noFacade).toBe(true)
+  })
+})
+
+describe('isDaylightExempt', () => {
+  it('exempts only a room that needs no light and can get none', () => {
+    expect(isDaylightExempt({ noFacade: true, habitable: false })).toBe(true)
+    // Habitable + no façade is a layout defect, not an exemption.
+    expect(isDaylightExempt({ noFacade: true, habitable: true })).toBe(false)
+    // A room that CAN get light is always assessed.
+    expect(isDaylightExempt({ noFacade: false, habitable: false })).toBe(false)
+    expect(isDaylightExempt({ noFacade: false, habitable: true })).toBe(false)
+  })
+
+  it('marks an authored bedroom habitable and a store room not', () => {
+    const walls = boxWalls('h', 0, 0, 4, 'internal')
+    const rowFor = (category: 'bedroom' | 'storeroom') =>
+      buildDaylightReport(plan([{ ...rectRoom('r', 'Room', 0, 0, 4), category }], walls, []))
+        .rooms[0]
+    expect(rowFor('bedroom').habitable).toBe(true)
+    expect(isDaylightExempt(rowFor('bedroom'))).toBe(false)
+    expect(rowFor('storeroom').habitable).toBe(false)
+    expect(isDaylightExempt(rowFor('storeroom'))).toBe(true)
   })
 })

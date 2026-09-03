@@ -2104,6 +2104,17 @@ same change that reshapes a system.
   `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`
   for sliding windows; level-gated for multi-storey). `ui/DaylightPanel.tsx` + the report's
   "Daylight & ventilation" section (PARITY-DAYLIGHT-DIGEST; skipped when no room has a window).
+  **A room that can never hold a window is exempted, not failed** — `isDaylightExempt(row)` is the
+  ONE predicate the score, the panel and the printed report share (so the three cannot disagree on
+  what is being counted): `noFacade` (zero glazing AND no bounding wall with `thickness ===
+  'external'`, via the shared `roomWallNames.ts:roomBoundaryWalls`) AND NOT `habitable`
+  (`roomCategory.ts:HABITABLE_CATEGORIES`). The HDB **household shelter** is the case it exists
+  for — a windowless RC blast shelter was being told to "add or widen windows". An interior room
+  in a habitable category is deliberately NOT exempt: it keeps counting against the score and gets
+  its own stronger warning (an interior bedroom has no daylight at all — a layout defect).
+  NOTE the test is the FAÇADE, not `wallHackability`: an external wall maps to `load-bearing` →
+  NOT PERMITTED, but "cannot be demolished" is not "cannot hold a window", and keying on
+  hackability suppressed a genuine windowless-bedroom finding in `tpl-hdb-jumbo`.
 - **Aircon cooling-load (BTU) advisory** (`analysis/airconSizing.ts` pure → `buildAirconSizing(plan,
   orientationDeg)`: per-room recommended BTU = floor area × `BTU_PER_SQM` (600, the ~50–60 BTU/ft²
   SG rule-of-thumb mid) × modifiers — `+15%` for an exterior window facing W/E (room-side compass ⊕

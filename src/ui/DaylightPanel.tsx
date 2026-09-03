@@ -2,7 +2,12 @@ import { useMemo, useState } from 'react'
 import { buildAirconSizing } from '../analysis/airconSizing'
 import { AIRCON_SERVED_CATEGORIES, buildAirconSystemPlan } from '../analysis/airconSystem'
 import { buildAirconTrunkingPlan, resolveAirconTrunkingInput } from '../analysis/airconTrunking'
-import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
+import {
+  buildDaylightReport,
+  DAYLIGHT_MIN_RATIO,
+  isDaylightExempt,
+  VENT_MIN_RATIO,
+} from '../analysis/daylight'
 import { useFeature } from '../features/useFeature'
 import { allPlanRooms } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
@@ -79,8 +84,18 @@ export function DaylightPanel() {
 
   if (!open || !report) return null
 
-  const { rooms: rows, daylightPassCount, ventPassCount, allPass } = report
+  const { rooms: rows } = report
   const fmtPct = (v: number) => `${(v * 100).toFixed(1)}%`
+  // The header counts only rooms whose glazing could actually change, matching
+  // `designScore`'s daylight sub-score: an interior room with no façade wall
+  // (household shelter) can never hold a window, so counting it would put the
+  // panel at a permanent "4/5" no user action can ever clear.
+  const assessable = rows.filter((r) => !isDaylightExempt(r))
+  const dayPass = assessable.filter((r) => r.daylightPass).length
+  const ventPass = assessable.filter((r) => r.ventPass).length
+  // Deliberately NOT `report.allPass`, which counts the sealed room and would
+  // keep advising "add or widen windows" on a plan where nothing is actionable.
+  const assessablePass = dayPass === assessable.length && ventPass === assessable.length
 
   return (
     <aside className="panel mini aux aux-360" id="daylightPanel">
@@ -98,15 +113,15 @@ export function DaylightPanel() {
       <hr className="hr" />
       <div className="panel-body">
         <div className="clr-summary">
-          <div className={`clr-stat ${daylightPassCount === rows.length ? 'ok' : 'err'}`}>
+          <div className={`clr-stat ${dayPass === assessable.length ? 'ok' : 'err'}`}>
             <div className="n">
-              {daylightPassCount}/{rows.length}
+              {dayPass}/{assessable.length}
             </div>
             <div className="l">Daylight</div>
           </div>
-          <div className={`clr-stat ${ventPassCount === rows.length ? 'ok' : 'err'}`}>
+          <div className={`clr-stat ${ventPass === assessable.length ? 'ok' : 'err'}`}>
             <div className="n">
-              {ventPassCount}/{rows.length}
+              {ventPass}/{assessable.length}
             </div>
             <div className="l">Ventilation</div>
           </div>
@@ -122,15 +137,19 @@ export function DaylightPanel() {
           <div className="clr-list">
             {rows.map((r) => {
               const roomPass = r.daylightPass && r.ventPass
+              // An interior room with no façade wall (household shelter) has
+              // nowhere to put a window — it reads as a neutral "N/A", never a
+              // red failure the user is expected to act on.
+              const sealed = isDaylightExempt(r) && !roomPass
               return (
                 <div
                   key={r.roomId}
-                  className={`clr-item ${roomPass ? '' : 'err'}`}
+                  className={`clr-item ${roomPass || sealed ? '' : 'err'}`}
                   style={roomPass ? { borderLeftColor: 'var(--accent)' } : undefined}
                 >
                   <div className="ci-head">
-                    <span className={`badge ${roomPass ? 'ok' : 'err'}`}>
-                      {roomPass ? 'Pass' : 'Fail'}
+                    <span className={`badge ${sealed ? 'neutral' : roomPass ? 'ok' : 'err'}`}>
+                      {sealed ? 'N/A' : roomPass ? 'Pass' : 'Fail'}
                     </span>
                     <span className="ci-title">{r.roomName}</span>
                   </div>
@@ -143,20 +162,23 @@ export function DaylightPanel() {
                         marginBottom: 4,
                       }}
                     >
-                      <span className={`badge ${r.daylightPass ? 'ok' : 'err'}`}>
-                        {r.daylightPass ? 'OK' : 'Low'}
+                      <span
+                        className={`badge ${sealed ? 'neutral' : r.daylightPass ? 'ok' : 'err'}`}
+                      >
+                        {sealed ? '—' : r.daylightPass ? 'OK' : 'Low'}
                       </span>
                       <span>Daylight glazing {fmtPct(r.glazingPct)}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
-                      <span className={`badge ${r.ventPass ? 'ok' : 'err'}`}>
-                        {r.ventPass ? 'OK' : 'Low'}
+                      <span className={`badge ${sealed ? 'neutral' : r.ventPass ? 'ok' : 'err'}`}>
+                        {sealed ? '—' : r.ventPass ? 'OK' : 'Low'}
                       </span>
                       <span>Ventilation openable {fmtPct(r.ventPct)}</span>
                     </div>
                     <div style={{ marginTop: 5, color: 'var(--text-3)', fontSize: 'var(--t-2xs)' }}>
                       {formatArea(r.glazingArea, units)} glazing · {formatArea(r.floorArea, units)}{' '}
                       floor
+                      {sealed ? ' · interior room, no external wall for a window' : ''}
                     </div>
                   </div>
                 </div>
@@ -168,8 +190,8 @@ export function DaylightPanel() {
         {rows.length > 0 && (
           <div className="ci-fix" style={{ marginTop: 'var(--s-3)' }}>
             <Icon.Check width={14} height={14} />
-            {allPass
-              ? 'Every room meets the daylight & ventilation rule of thumb.'
+            {assessablePass
+              ? `Every ${assessable.length < rows.length ? 'assessed ' : ''}room meets the daylight & ventilation rule of thumb.`
               : 'Add or widen windows on failing rooms to improve daylight & airflow.'}
           </div>
         )}

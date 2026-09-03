@@ -27,6 +27,69 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.24 — Daylight: stop telling a household shelter to add a window
+
+The daylight/ventilation check was reporting the shipped default flat's **Household
+Shelter** as failing both daylight AND ventilation, with the advice "add or widen
+windows". A household shelter is a reinforced-concrete blast shelter that is
+windowless by design, so that advice is not merely a false alarm — it asks for work
+that is not permitted. Measured on the default flat: **5 rooms reported as failing,
+3 of them with no possible remedy.**
+
+`analysis/daylight.ts` now marks a room `noFacade` when it has zero glazing AND no
+bounding wall with `thickness === 'external'`, and `habitable` from the authored
+`PlanRoom.category` (`roomCategory.ts:HABITABLE_CATEGORIES` — living/dining/bedroom/
+masterBedroom/study). The exported **`isDaylightExempt(row)`** = `noFacade &&
+!habitable` is the single predicate the design score, the in-app panel and the
+printed report all share, so the three cannot drift on which rooms they count. The
+room-to-walls association reuses `roomWallNames.ts:roomBoundaryWalls`, factored out
+of `assignRoomWallNames` so there is one resolver rather than two.
+
+On the default flat the actionable findings drop **5 → 3**: Corridor and Household
+Shelter become neutral "N/A" rows carrying "interior room, no external wall for a
+window", and the daylight sub-score rises 50 → 63 because a room that can never
+pass no longer drags it down.
+
+Three corrections found by measurement rather than reasoning, each recorded in the
+code:
+
+- **The first implementation keyed on `wallHackability` and was wrong.**
+  `establishedWallStructure` maps an external wall to `load-bearing` → NOT
+  PERMITTED, but "cannot be demolished" is not "cannot hold a window" — every window
+  in the flat is in an external load-bearing wall. Swept across the template corpus,
+  that version exempted `tpl-hdb-jumbo`'s **Master Bedroom**, suppressing a genuine
+  windowless-bedroom finding. A façade test keeps that finding and still exempts the
+  shelter. `daylight.test.ts` carries the regression guard.
+- **Visual verification caught a second fault the tests did not.** `Bath/WC 2`
+  resolves to all-internal bounding walls yet the window probe attributes 7.4%
+  glazing to it — the two associations disagree, and the room was rendering as N/A,
+  hiding an actionable "widen the window" finding. The exemption now also requires
+  zero glazing; real glazing proves a façade exists.
+- **An interior HABITABLE room must not be quietly downgraded.** The corpus authors
+  an interior `Bedroom 3` in `tpl-hdb-4room`/`-5room`/`-exec` and an interior
+  `Lounge` in `tpl-condo-penthouse`. Those now raise their own *warning* — "no
+  daylight is possible at all; the layout needs an opening onto the façade" — and
+  keep counting against the score, instead of being waved through as N/A.
+
+Grounding: a BCA circular corroborates the **5% openable-area** figure for SG
+residential natural ventilation. No official Singapore habitable-room definition or
+exclusion list was findable (searches returned only NCC/UK/US codes, which is where
+the 10% glazing rule of thumb comes from) — which is why the exemption is derived
+from the plan's own geometry and authored categories rather than from a rule list.
+Logged in `TODO.md`.
+
+Verified: 10105 tests pass; `tsc`, `biome` and `knip` clean; `daylight-simple`
+scenario green across all 21 steps in BOTH Simple and Pro, with new steps asserting
+the shelter row is a neutral N/A and that Kitchen still reads as a failure (an
+over-suppression guard). Visually reviewed the rendered panel.
+
+Known gap, logged in `TODO.md`: **7 templates still advise a window for the
+Household Shelter** (`tpl-hdb-3room`, `-4room`, `-5room`, `-exec`, `-3gen`, `-jumbo`,
+`-maisonette`) because they author it against an external wall, which is realistic.
+A façade test cannot fix that — it needs to know the room IS a shelter. That is the
+measured justification for the `'shelter'` `RoomCategory` (all 9 "Household Shelter"
+rooms across every plan currently resolve to `storeroom`).
+
 ## v0.31.8.23 - Audited my own recent guards for silently-suppressed findings
 
 `.22` found that a 320 kg aquarium survived `.21`'s new category filter only

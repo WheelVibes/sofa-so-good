@@ -6,7 +6,12 @@
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildCoordinationClashes } from '../analysis/coordinationClashes'
-import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
+import {
+  buildDaylightReport,
+  DAYLIGHT_MIN_RATIO,
+  isDaylightExempt,
+  VENT_MIN_RATIO,
+} from '../analysis/daylight'
 import { buildDeliveryAccess } from '../analysis/deliveryAccess'
 import { buildDesignScore } from '../analysis/designScore'
 import {
@@ -741,25 +746,34 @@ export function buildReportHtml(
   const daylight = buildDaylightReport(plan)
   const daylightRoomsWithGlazing = daylight.rooms.filter((r) => r.glazingArea > 0)
   const daylightPct = (f: number) => `${Math.round(f * 100)}%`
+  // An interior room with no façade wall (the HDB household shelter) has nowhere
+  // to put a window — so it is reported neutrally rather than as a red failure,
+  // and is left out of the pass ratios (matching `designScore` and the panel).
+  const daylightAssessable = daylight.rooms.filter((r) => !isDaylightExempt(r))
+  const daylightSealed = daylight.rooms.filter((r) => isDaylightExempt(r))
+  const daylightDayPass = daylightAssessable.filter((r) => r.daylightPass).length
+  const daylightVentPass = daylightAssessable.filter((r) => r.ventPass).length
+  const daylightAllPass =
+    daylightDayPass === daylightAssessable.length && daylightVentPass === daylightAssessable.length
   const daylightSection =
     daylightRoomsWithGlazing.length === 0
       ? ''
       : `<div class="room-cost">
       <h2>Daylight &amp; ventilation</h2>
-      <div class="${daylight.allPass ? 'ok' : 'warn'}">
-        ${daylight.daylightPassCount}/${daylight.rooms.length} rooms meet daylight ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} glazing ·
-        ${daylight.ventPassCount}/${daylight.rooms.length} meet ventilation ≥ ${daylightPct(VENT_MIN_RATIO)} openable
+      <div class="${daylightAllPass ? 'ok' : 'warn'}">
+        ${daylightDayPass}/${daylightAssessable.length} rooms meet daylight ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} glazing ·
+        ${daylightVentPass}/${daylightAssessable.length} meet ventilation ≥ ${daylightPct(VENT_MIN_RATIO)} openable
       </div>
       <table style="margin-top:6px">
         <tr class="cat"><td>Room</td><td class="num">Floor</td><td class="num">Glazing</td><td class="num">Openable</td></tr>
         ${daylight.rooms
           .map(
             (r) =>
-              `<tr><td>${esc(r.roomName)}</td><td class="num">${esc(formatArea(r.floorArea, units))}</td><td class="num" style="color:${r.daylightPass ? '#047857' : '#b91c1c'}">${esc(formatArea(r.glazingArea, units))} · ${daylightPct(r.glazingPct)}</td><td class="num" style="color:${r.ventPass ? '#047857' : '#b91c1c'}">${daylightPct(r.ventPct)}</td></tr>`,
+              `<tr><td>${esc(r.roomName)}${isDaylightExempt(r) ? ' <span style="color:#6b7280">(no external wall)</span>' : ''}</td><td class="num">${esc(formatArea(r.floorArea, units))}</td><td class="num" style="color:${isDaylightExempt(r) ? '#6b7280' : r.daylightPass ? '#047857' : '#b91c1c'}">${esc(formatArea(r.glazingArea, units))} · ${daylightPct(r.glazingPct)}</td><td class="num" style="color:${isDaylightExempt(r) ? '#6b7280' : r.ventPass ? '#047857' : '#b91c1c'}">${daylightPct(r.ventPct)}</td></tr>`,
           )
           .join('')}
       </table>
-      <div class="foot" style="margin-top:6px">Rule-of-thumb check (glazing ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} of floor area for daylight, openable ≥ ${daylightPct(VENT_MIN_RATIO)} for ventilation) — indicative, not a certified BCA/HDB calculation; openable ≈ half the window area for sliding windows.</div>
+      <div class="foot" style="margin-top:6px">Rule-of-thumb check (glazing ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} of floor area for daylight, openable ≥ ${daylightPct(VENT_MIN_RATIO)} for ventilation) — indicative, not a certified BCA/HDB calculation; openable ≈ half the window area for sliding windows.${daylightSealed.length > 0 ? ` ${esc(daylightSealed.map((r) => r.roomName).join(', '))} ${daylightSealed.length === 1 ? 'is an interior room' : 'are interior rooms'} with no external wall, so no window is possible and ${daylightSealed.length === 1 ? 'it is' : 'they are'} excluded from the ratios above.` : ''}</div>
     </div>`
 
   // Openings schedule (PARITY-OPENING-SCHED) — the door & window schedule an

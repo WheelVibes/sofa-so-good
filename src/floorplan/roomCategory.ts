@@ -70,6 +70,23 @@ export const ROOM_CATEGORY_LABELS: Record<RoomCategory, string> = {
  * Returns `'other'` when nothing matches (never `null` — every room needs
  * SOME category once inferred, unlike the nullable coarse classifiers).
  */
+/**
+ * Room categories that need natural light to be usable as designed — the rooms a
+ * daylight shortfall is a real defect in. Wet/utility/circulation rooms (bath,
+ * powder, kitchen, service yard, store, foyer, balcony, other) are legitimately
+ * windowless in an HDB flat.
+ *
+ * Lives here, with the category vocabulary, so the daylight check and the design
+ * score cannot drift apart on which rooms count.
+ */
+export const HABITABLE_CATEGORIES: ReadonlySet<RoomCategory> = new Set<RoomCategory>([
+  'living',
+  'dining',
+  'bedroom',
+  'masterBedroom',
+  'study',
+])
+
 export function roomCategoryFromName(name: string | undefined): RoomCategory {
   if (!name) return 'other'
   const n = name.toLowerCase()

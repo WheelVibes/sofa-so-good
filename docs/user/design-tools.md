@@ -178,6 +178,13 @@ furniture needed).
 
 ## Cooling load — aircon sizing (Pro)
 
+Rooms that **cannot** have a window — an interior room with no external wall,
+like the **household shelter**, a store or an internal bathroom — are shown as
+**N/A** rather than failed, and are left out of the pass counts. Adding a window
+there is not possible, so the check does not ask you to. A **bedroom, living,
+dining or study** room with no external wall is still flagged, because a room you
+live in does need daylight.
+
 The **Daylight & ventilation** check panel also carries a **Cooling load**
 section: a per‑room aircon **BTU** recommendation, using the Singapore rule of
 thumb (~50–60 BTU/ft² of floor area) with the uplifts installers add — **+15%**

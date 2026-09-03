@@ -12,6 +12,8 @@
  */
 import { isMultiLevel, levelAsPlan, planLevels } from '../floorplan/levels'
 import { roomsAcrossOpening } from '../floorplan/openingProbe'
+import { HABITABLE_CATEGORIES, roomCategory } from '../floorplan/roomCategory'
+import { roomBoundaryWalls } from '../floorplan/roomWallNames'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 
@@ -42,6 +44,18 @@ interface DaylightRow {
   ventPct: number
   daylightPass: boolean
   ventPass: boolean
+  /**
+   * True when NO wall bounding the room is on the façade, so no window can ever
+   * be added and a daylight/ventilation shortfall has no remedy. See
+   * `hasNoFacade`.
+   */
+  noFacade: boolean
+  /**
+   * True for a room category that needs natural light to be usable as designed
+   * (`HABITABLE_CATEGORIES`). An interior HABITABLE room is a layout defect, not
+   * an exemption — see `isDaylightExempt`.
+   */
+  habitable: boolean
 }
 
 /** Whole-report summary. */
@@ -78,6 +92,43 @@ const EXTERNAL_NAME = /\b(ledge|balcon|planter|aircon|a\/?c\b|parapet|external)/
 
 export function isExternalRoom(r: PlanRoom): boolean {
   return EXTERNAL_NAME.test(r.name) || EXTERNAL_NAME.test(r.id)
+}
+
+/**
+ * Can this room's shortfall be remedied at all? Only a room that touches the
+ * FAÇADE can gain or widen a window — an interior room has no wall to put one
+ * in, so advising "add or widen windows" there asks for something impossible.
+ * `PlanWall.thickness === 'external'` is the façade marker the whole app already
+ * uses (minimap stroke weight, plan-SVG wall widths, the editor's wall layers).
+ *
+ * The HDB **household shelter** is the canonical case: a reinforced-concrete
+ * blast shelter sits inside the flat and is windowless BY DESIGN, yet on the
+ * shipped default flat it was reported as failing daylight AND ventilation with
+ * no legal fix available.
+ *
+ * NOTE this deliberately does NOT test `wallHackability`. That was the first
+ * attempt and it was wrong: `establishedWallStructure` maps an external wall to
+ * `load-bearing` → NOT PERMITTED, but "cannot be demolished" is not "cannot hold
+ * a window" — every window in the flat is in an external load-bearing wall.
+ * Measured on the corpus, that version flagged `tpl-hdb-jumbo`'s **Master
+ * Bedroom** as unassessable, suppressing a genuine windowless-bedroom finding.
+ * A façade test keeps that finding and still exempts the shelter.
+ *
+ * `roomBoundaryWalls` matches a wall within 0.25 m of a boundary edge, so an
+ * interior room hugging an external wall reads as façade-facing and keeps its
+ * advice. That is the safe direction — a kept advisory is a smaller fault than a
+ * silently suppressed one — so the tolerance is left as the naming pass sets it.
+ *
+ * Callers must additionally require ZERO glazing: this predicate and the
+ * window-to-room probe are two different associations and they can disagree. On
+ * the shipped default flat, `Bath/WC 2` resolves to all-internal bounding walls
+ * yet the probe attributes a window to it (7.4% glazing) — a room with real
+ * glazing plainly HAS a façade, and reporting it as unassessable would hide an
+ * actionable "widen the window" finding behind an N/A.
+ */
+function hasNoFacade(room: PlanRoom, walls: readonly PlanWall[]): boolean {
+  const bounding = roomBoundaryWalls(walls, room)
+  return bounding.length > 0 && bounding.every((w) => w.thickness !== 'external')
 }
 
 /**
@@ -160,6 +211,9 @@ export function buildDaylightReport(plan: FloorPlan, _items?: unknown): Daylight
       ventPct,
       daylightPass,
       ventPass,
+      // Zero glazing is required as well as no façade wall — see `hasNoFacade`.
+      noFacade: glazingArea === 0 && hasNoFacade(r, planWalls),
+      habitable: HABITABLE_CATEGORIES.has(roomCategory(r)),
     }
   })
 
@@ -177,4 +231,22 @@ export function buildDaylightReport(plan: FloorPlan, _items?: unknown): Daylight
     allPass: failCount === 0,
     thresholds: { daylight: DAYLIGHT_MIN_RATIO, vent: VENT_MIN_RATIO },
   }
+}
+
+/**
+ * Should this room be left out of the daylight/ventilation assessment entirely?
+ * Only when no window is possible (`noFacade`) AND the room does not need
+ * natural light in the first place.
+ *
+ * An interior room in a HABITABLE category is deliberately NOT exempt: a bedroom
+ * or lounge with no external wall has no daylight at all, which is a layout
+ * defect that must keep counting against the plan — measured on the corpus,
+ * `tpl-hdb-4room`/`-5room`/`-exec` each author an interior `Bedroom 3` and
+ * `tpl-condo-penthouse` an interior `Lounge`.
+ *
+ * The one predicate every consumer shares (design score, in-app panel, printed
+ * report) so the three cannot disagree about which rooms are being counted.
+ */
+export function isDaylightExempt(row: Pick<DaylightRow, 'noFacade' | 'habitable'>): boolean {
+  return row.noFacade && !row.habitable
 }

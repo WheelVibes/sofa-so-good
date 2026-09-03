@@ -1863,3 +1863,40 @@ wall-mounted lighting should refuse a wall opening outright. Fix belongs in
 `layout/designRules.ts` + `layout/autoArrange.ts`, not in the look.
 
 Not touched in `.232`, which was a measurement round.
+
+## Daylight: a household shelter ON the façade is still advised to add a window
+
+`analysis/daylight.ts:hasNoFacade` exempts a room with no external wall from the
+daylight/ventilation advice, which fixes the shipped default flat (its shelter is
+interior). **Measured across the template corpus, 7 templates still advise it** —
+`tpl-hdb-3room`, `-4room`, `-5room`, `-exec`, `-3gen`, `-jumbo`, `-maisonette` all
+author the Household Shelter against an external wall, which is realistic: an HDB
+shelter often forms part of the façade. Its RC walls still prohibit an opening, so
+the advice remains impermissible there.
+
+A façade test cannot fix this — it needs to know the room IS a shelter. This is the
+concrete, measured justification for the **`'shelter'` `RoomCategory`** (all 9
+"Household Shelter" rooms across every plan currently resolve to `storeroom`, so the
+app cannot tell a blast shelter from a store room). Adding it must update the union,
+`FURNITURE_CATEGORIES`, and every exhaustive `Record<RoomCategory, …>` consumer the
+type-checker flags — measure that ripple before starting. The same category also
+unblocks household-shelter wall structure.
+
+## Daylight: no model of mechanical ventilation
+
+The check measures openable WINDOW area only. An interior bathroom or WC is legally
+ventilated mechanically, so `noFacade` now reports it as "not assessed" rather than
+failing — honest, but the app still cannot say whether such a room is adequately
+ventilated. Modelling extract fans / ducted vents would let those rooms be assessed
+properly instead of skipped.
+
+## Daylight: the 10% glazing figure is not sourced to Singapore
+
+`DAYLIGHT_MIN_RATIO = 0.1` is documented as a rule of thumb, which is honest, but a
+web search for a Singapore/BCA habitable-room definition returned only Australian
+(NCC), UK and US codes carrying the 10% figure. The **5% ventilation** figure IS
+corroborated for SG (a BCA circular requires residential developments to be designed
+for natural ventilation with a minimum opening area of 5% of room space). If the
+daylight ratio is ever presented as more than indicative, source it first — no
+official SG habitable-room exclusion list was findable either, which is why the
+façade test above is derived from the plan's own geometry instead of a rule list.

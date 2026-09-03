@@ -266,3 +266,111 @@ describe('circulation scoring', () => {
     expect(circulationOf([mk('box', 2.5, 2.5)]).score).toBe(100)
   })
 })
+
+/**
+ * The daylight sub-score must not charge a plan for a room that can never hold a
+ * window. Adds an interior room ringed by INTERNAL walls (an HDB household
+ * shelter) to `makePlan`, whose two real rooms both pass on their own windows.
+ *
+ * The shelter is held ≥0.8 m clear of the perimeter deliberately: the shared
+ * room-to-walls resolver matches a wall within 0.25 m of a boundary edge, so a
+ * shelter hugging the external wall picks that wall up and reads as façade-facing
+ * (the first fixture did, at 0.1 m). That tolerance errs towards KEEPING the
+ * window advice, which is the safe direction, but it makes a near-perimeter
+ * fixture test the tolerance rather than the rule.
+ */
+function planWithInteriorShelter(): FloorPlan {
+  const p = makePlan()
+  const int: FloorPlan['walls'][number]['thickness'] = 'internal'
+  return {
+    ...p,
+    rooms: [
+      ...p.rooms,
+      { id: 'hs', name: 'Household Shelter', origin: [4.7, 1.4], width: 0.4, depth: 3 },
+    ],
+    walls: [
+      ...p.walls,
+      { id: 'hs-n', start: [4.7, 1.4], end: [5.1, 1.4], thickness: int },
+      { id: 'hs-e', start: [5.1, 1.4], end: [5.1, 4.4], thickness: int },
+      { id: 'hs-s', start: [5.1, 4.4], end: [4.7, 4.4], thickness: int },
+      { id: 'hs-w', start: [4.7, 4.4], end: [4.7, 1.4], thickness: int },
+    ],
+  }
+}
+
+describe('buildDesignScore — daylight excludes windowless interior rooms', () => {
+  const dayOf = (plan: FloorPlan) =>
+    buildDesignScore([], defs, plan).categories.find((c) => c.id === 'daylight')!
+
+  it('keeps the sub-score at the level of the assessable rooms only', () => {
+    const base = dayOf(makePlan())
+    const withShelter = dayOf(planWithInteriorShelter())
+    // The shelter fails both checks, so counting it would drag the score down.
+    // Excluding it must leave the score exactly where the two real rooms put it.
+    expect(withShelter.score).toBe(base.score)
+  })
+
+  it('reports the shelter as a factual note, never as window advice', () => {
+    const msgs = dayOf(planWithInteriorShelter()).issues.map((i) => i.message)
+    // The impossible remedy must not be advised for it...
+    expect(msgs.some((m) => m.includes('add or widen windows'))).toBe(false)
+    // ...but the room is still disclosed, by name, as unassessed.
+    const note = msgs.find((m) => m.includes('Household Shelter'))
+    expect(note).toBeDefined()
+    expect(note).toContain('is an interior room with no external wall')
+    expect(dayOf(planWithInteriorShelter()).issues.find((i) => i.message === note)!.severity).toBe(
+      'info',
+    )
+  })
+
+  it('still advises windows for a windowless room that touches the façade', () => {
+    // Same shelter geometry, but its walls are external — the advice is possible
+    // there, so it must survive. Guards against over-suppression.
+    const p = planWithInteriorShelter()
+    const facade = {
+      ...p,
+      walls: p.walls.map((w) =>
+        w.id.startsWith('hs-') ? { ...w, thickness: 'external' as const } : w,
+      ),
+    }
+    const msgs = dayOf(facade).issues.map((i) => i.message)
+    expect(msgs.some((m) => m.includes('add or widen windows'))).toBe(true)
+  })
+})
+
+describe('buildDesignScore — an interior HABITABLE room is a warning, not a note', () => {
+  const dayIssues = (name: string, category?: string) => {
+    const p = planWithInteriorShelter()
+    const rooms = p.rooms.map((r) =>
+      r.id === 'hs' ? { ...r, name, category: category as never } : r,
+    )
+    return buildDesignScore([], defs, { ...p, rooms }).categories.find((c) => c.id === 'daylight')!
+      .issues
+  }
+
+  it('warns that a windowless interior bedroom has no daylight at all', () => {
+    const issues = dayIssues('Bedroom 3', 'bedroom')
+    const hit = issues.find((i) => i.message.includes('Bedroom 3'))
+    expect(hit).toBeDefined()
+    expect(hit!.severity).toBe('warning')
+    expect(hit!.message).toContain('no daylight is possible at all')
+    // Still not the impossible remedy — the room has no façade to open onto.
+    expect(hit!.message).not.toContain('add or widen windows')
+  })
+
+  it('keeps a windowless interior store room as an info note', () => {
+    const issues = dayIssues('Store', 'storeroom')
+    const hit = issues.find((i) => i.message.includes('Store'))
+    expect(hit!.severity).toBe('info')
+    expect(hit!.message).toContain('no window is possible')
+  })
+
+  it('resolves the category from the authored field, not the room name', () => {
+    // Same name, opposite authored categories → opposite severities. If the code
+    // fell back to a name regex both arms would agree and this would fail.
+    const asBedroom = dayIssues('Utility', 'bedroom').find((i) => i.message.includes('Utility'))
+    const asStore = dayIssues('Utility', 'storeroom').find((i) => i.message.includes('Utility'))
+    expect(asBedroom!.severity).toBe('warning')
+    expect(asStore!.severity).toBe('info')
+  })
+})
