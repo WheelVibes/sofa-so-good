@@ -29,6 +29,75 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.167 — the maps are CLEAN; the reconstruction is not: `recon_max` 17.17 is ~4x a white surface in full sun
+
+`.166` left an observation with no mechanism attached: most of the 40 maps carry `scale` ≈ 2.9191
+and a handful carry 0.15–0.22. Two mechanisms were on the table and one number distinguishes them.
+
+**The maps are exonerated, decisively.** Every one of the 40 peaks at exactly **250** with **zero**
+saturated texels, so the set is correctly per-map normalised and `scale` is each map's own true
+maximum. The 22 high-scale maps vary in the fourth decimal — 2.9191, 2.9189, 2.9187, 2.9184 — so
+they are not clamped to a shared ceiling either. They each contain a texel that sees the **full
+unobstructed sky**, which is the same irradiance wherever you measure it. That is why 22 of 40 agree
+to three decimals and why it looked like a clamp. `lightmap-range.mjs` reads this offline from the
+committed PNGs — no browser, no GPU.
+
+**The fault is in the reconstruction.** The shader computes
+`indirectDiffuse = map.r * (scale * VISIBILITY_GAIN) * BRDF_Lambert(diffuseColor)`, and for the
+high-scale maps `(250/255) * 2.919 * 6` = **17.17**. Through Lambert at the index's own albedo 0.81
+that is an indirect diffuse of **≈ 4.4** in linear light — about **4x a white surface in full sun**,
+for a term that is supposed to be the light *bouncing around the room*. The frame shows precisely
+that: the sky-exposed surfaces over-brighten and desaturate (the acLedge wall's R−B falls 17.0 →
+10.1 → 3.5 across gain 1 → 6 as a neutral indirect swamps the warm direct term).
+
+**`VISIBILITY_GAIN = 6` is being applied where its derivation does not hold.** Its own docstring
+records the fit: 6 minimises spatial mismatch against a Cycles reference **for a visibility map**,
+a dimensionless [0,1] occlusion ratio that MULTIPLIES the app's fill. An irradiance map in
+`'replace'` mode is the light itself, so the only factor it wants is a unit conversion, and `scale`
+already is one. The module keeps the two separate and warns that collapsing them is how
+`v0.31.7.104`'s clipped set came to be "explained" by a gain of ~14 — this is the same class of
+error from the other direction.
+
+**Swept it, and the answer is not simply "use 1".** Whole-frame mean against GI-off:
+
+| view | g1 | g2 | g3 | g6 |
+| --- | --- | --- | --- | --- |
+| `mainBedroom-y1` | −2.8 | −1.2 | **+0.2** | +3.8 |
+| `bedroom3-y1` | −7.3 | −2.4 | **+1.2** | +10.0 |
+| `acLedge-y3` | +10.3 | +16.8 | +20.1 | +24.5 |
+| `kitchen-y2` | −6.7 | −6.4 | −6.1 | −5.2 |
+
+Interior rooms are level-neutral at **gain ≈ 2.8–3**, which is what a correctly-exposed GI should
+be: it redistributes light (contact shadows, gradients) rather than changing the room's level. But
+the sky-exposed views are **+10.3 even at gain 1**, so a gain correction alone will not fix them —
+their maps genuinely carry far more light than the app's analytic fill does out there, and the
+kitchen is darker at every gain (a surface losing light, which is the GI working).
+
+**A separate cost this exposed, worth recording before it is rediscovered.** `--per-map-scale`
+normalises to each mesh's own maximum, so a wall whose max is 2.919 because ONE corner sees the sky
+has its entire interior range squeezed into the bottom tenth of 0..250 — roughly **26 levels** at
+8-bit for the part anyone looks at. That is a resolution problem, not the over-brightness, and it
+argues for clamping or splitting mixed-exposure meshes rather than normalising them whole.
+
+**Next**, and it is now two separable questions rather than one: fit the `'replace'`-mode gain
+against a Cycles reference (the interior sweep already brackets it at 2.8–3), and settle separately
+whether the sky-exposed surfaces are the maps being right and the app's fill being too dark — which
+needs a reference at that pose. A first attempt at one is recorded below as a failure.
+
+**What did NOT work, so the next attempt starts further along.** Rendering the acLedge view with
+`render_still.py --sky` on the raw 42 MB scene export came back **almost entirely white**, floor and
+railing included — a bare physical sky at `sun_intensity 3.0` with no view-transform or light
+matching is not the app's rig, so the frame is unusable as a reference. The right instrument is
+`render_from_manifest.py`, which takes the app's own camera and lights from a BLENDREF manifest, but
+it accepts only `--dir` and the exporter (`light-distribution.mjs`) is WINDOW-pose driven, so it
+cannot currently be pointed at a service space with no window in its set. `walk-tour.mjs` now writes
+`cams.json` with every frame's camera position, target and vertical FOV in three-space, which is
+what `--cam-space three` consumes — so the missing piece is a manifest camera override, not another
+export path.
+
+Suite 10167 green, `tsc` and biome clean. Nothing shipped; flag still off.
+
+
 ## v0.31.7.166 — `(z)`1's real blocker is NOT the seam: a mapped exterior wall over-brightens by +65.6 counts
 
 `.165` closed by saying the seam was ~3 % and the remaining question was a look call to settle

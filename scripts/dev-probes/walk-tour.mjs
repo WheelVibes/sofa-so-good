@@ -25,6 +25,8 @@ import { appUrl, assertSceneAlive } from './lib.mjs'
 const HOUR = Number(process.env.HOUR || 13)
 const OUT = process.env.OUT || '/tmp/ssg-walk'
 fs.mkdirSync(OUT, { recursive: true })
+/** Per-frame camera transforms, written to `cams.json` for Cycles view parity. */
+const cams = []
 
 const browser = await puppeteer.launch({
   headless: true,
@@ -321,6 +323,34 @@ for (const p of poses) {
       })
       return { vis, tris: Math.round(tris) }
     })
+    // CAMERA DUMP, so a Cycles render can reproduce this exact view.
+    // Every app-vs-traced round in this arc has had to re-establish view parity by hand, and
+    // `render_still.py --cam-space three` takes these numbers directly. Written per frame because
+    // walk mode's yaw comes from `FirstPersonCamera`'s own refs, so the only trustworthy source
+    // for where the camera actually ended up is the camera itself, after the fact.
+    const cam = await page.evaluate(() => {
+      const c = window.__three?.camera
+      if (!c) return null
+      c.updateMatrixWorld(true)
+      const p0 = [
+        c.matrixWorld.elements[12],
+        c.matrixWorld.elements[13],
+        c.matrixWorld.elements[14],
+      ]
+      // three cameras look down LOCAL -Z; column 2 of the world matrix is +Z.
+      const fwd = [
+        -c.matrixWorld.elements[8],
+        -c.matrixWorld.elements[9],
+        -c.matrixWorld.elements[10],
+      ]
+      return {
+        pos: p0.map((v) => Number(v.toFixed(4))),
+        target: p0.map((v, k) => Number((v + fwd[k] * 3).toFixed(4))),
+        fovDeg: Number((c.fov ?? 0).toFixed(3)),
+        aspect: Number((c.aspect ?? 0).toFixed(4)),
+      }
+    })
+    if (cam) cams.push({ id: `${p.id}-y${i}`, ...cam })
     const shot = await page.screenshot({ type: 'png' })
     fs.writeFileSync(`${OUT}/${p.id}-y${i}.png`, shot)
     // EMPTY-FRAME GUARD (meta-rule lvii). ~180 frames have been judged in this
@@ -413,3 +443,5 @@ if (empties.length) {
 }
 console.log(`\nframes -> ${OUT}`)
 await browser.close()
+fs.writeFileSync(`${OUT}/cams.json`, JSON.stringify(cams, null, 1))
+console.log(`camera transforms -> ${OUT}/cams.json (${cams.length})`)
