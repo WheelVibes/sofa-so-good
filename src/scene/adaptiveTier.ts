@@ -100,6 +100,25 @@ export const PROMOTE_WINDOWS = 4
  */
 export const MIN_WINDOW_FRAMES = 20
 
+/**
+ * Wall-clock frame interval that counts as failing, ms.
+ *
+ * 33.3 ms is the 30 fps floor the tier ladder is documented against —
+ * `tier-fps.mjs`: "an auto-selected tier is only defensible if it holds the 30fps
+ * floor on the hardware it is selected for". Sustained frames at or past this are
+ * a demotion regardless of how cheaply they submitted.
+ */
+export const DEMOTE_INTERVAL_MS = 1000 / 30
+
+/**
+ * Wall-clock interval a window must beat to count as evidence for PROMOTION.
+ *
+ * 20 ms (50 fps) leaves a hysteresis band against {@link DEMOTE_INTERVAL_MS}, the
+ * same shape the submit-cost pair already has — without it the ladder could
+ * promote at 31 fps and demote at 29 fps forever.
+ */
+export const PROMOTE_INTERVAL_MS = 20
+
 export interface AutoDeviceState {
   /** The device class currently active — which variant of the mode is rendering. */
   device: DeviceClass
@@ -193,7 +212,19 @@ export function decideAutoDevice(
 export function classifyWindow(window: CostWindow): 'good' | 'bad' | 'neutral' {
   if (window.n < MIN_WINDOW_FRAMES) return 'neutral'
   if (!Number.isFinite(window.p90) || window.p90 < 0) return 'neutral'
+  // WALL CLOCK FIRST. Submit time cannot see a GPU-bound frame: `v0.31.7.84`
+  // measured 10.9 fps (92 ms/frame) at a 6.9 ms submit p90, i.e. "cheap" by this
+  // function's original standard while missing the frame-rate floor by 3x. A
+  // window that is slow on the wall is bad however fast it submitted.
+  const wall = window.intervalP90
+  if (Number.isFinite(wall) && wall >= DEMOTE_INTERVAL_MS) return 'bad'
   if (window.p90 >= DEMOTE_COST_MS) return 'bad'
-  if (window.p90 <= PROMOTE_COST_MS) return 'good'
+  // Promotion still requires BOTH to be comfortable. Climbing on a cheap submit
+  // while the wall clock is mediocre is how the ladder would oscillate into the
+  // configuration it just left.
+  if (window.p90 <= PROMOTE_COST_MS) {
+    if (!Number.isFinite(wall) || wall < 0) return 'good'
+    return wall <= PROMOTE_INTERVAL_MS ? 'good' : 'neutral'
+  }
   return 'neutral'
 }

@@ -3,6 +3,7 @@ import {
   type AutoDeviceState,
   classifyWindow,
   DEMOTE_COST_MS,
+  DEMOTE_INTERVAL_MS,
   DEMOTE_WINDOWS,
   decideAutoDevice,
   effectiveCeiling,
@@ -10,6 +11,7 @@ import {
   MIN_WINDOW_FRAMES,
   minDevice,
   PROMOTE_COST_MS,
+  PROMOTE_INTERVAL_MS,
   PROMOTE_WINDOWS,
 } from './adaptiveTier'
 
@@ -21,7 +23,23 @@ const at = (
   autoMaxDevice,
 })
 
-const win = (p90: number, n = MIN_WINDOW_FRAMES) => ({ n, p50: p90, p90 })
+// `intervalP90: -1` = no wall-clock data, which is how a window from before
+// `v0.31.7.85` behaves — so these cases still exercise the submit-cost path alone.
+const win = (p90: number, n = MIN_WINDOW_FRAMES) => ({
+  n,
+  p50: p90,
+  p90,
+  intervalP50: -1,
+  intervalP90: -1,
+})
+/** A window with an explicit wall-clock interval. */
+const winWall = (p90: number, intervalP90: number, n = MIN_WINDOW_FRAMES) => ({
+  n,
+  p50: p90,
+  p90,
+  intervalP50: intervalP90,
+  intervalP90,
+})
 
 describe('classifyWindow', () => {
   it('classifies an over-budget window as bad', () => {
@@ -44,7 +62,9 @@ describe('classifyWindow', () => {
     // The bug this replaced: in demand mode a window can close after a couple of
     // frames, and one expensive discrete edit then read as a sustained failure.
     expect(classifyWindow(win(50, MIN_WINDOW_FRAMES - 1))).toBe('neutral')
-    expect(classifyWindow({ n: 0, p50: -1, p90: -1 })).toBe('neutral')
+    expect(classifyWindow({ n: 0, p50: -1, p90: -1, intervalP50: -1, intervalP90: -1 })).toBe(
+      'neutral',
+    )
   })
 
   it('treats a non-finite cost as neutral', () => {
@@ -192,5 +212,37 @@ describe('decideAutoDevice — convergence', () => {
     for (let i = 0; i < 5; i++)
       state = decideAutoDevice(state, 'capable', PROMOTE_WINDOWS, 0) ?? state
     expect(state).toEqual({ device: 'capable', autoMaxDevice: null })
+  })
+})
+
+describe('classifyWindow — the wall clock (v0.31.7.85)', () => {
+  it('calls a GPU-BOUND window bad even though it submitted cheaply', () => {
+    // The exact case that slipped through: realistic/walk measured 10.9 fps
+    // (92 ms/frame) at a 6.9 ms submit p90 — "cheap" by submit cost, 3x past the
+    // 30 fps floor on the wall. Before this, `classifyWindow` returned 'good'.
+    expect(classifyWindow(winWall(6.9, 92))).toBe('bad')
+    expect(classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS))).toBe('bad')
+  })
+
+  it('still calls an expensive submit bad regardless of the wall clock', () => {
+    expect(classifyWindow(winWall(DEMOTE_COST_MS, 10))).toBe('bad')
+  })
+
+  it('refuses to PROMOTE on a cheap submit when the wall clock is mediocre', () => {
+    // Promoting at 40 fps and demoting at 29 would oscillate. Neutral holds.
+    expect(classifyWindow(winWall(4, 25))).toBe('neutral')
+    expect(classifyWindow(winWall(4, PROMOTE_INTERVAL_MS))).toBe('good')
+  })
+
+  it('leaves the hysteresis band intact on the wall-clock pair too', () => {
+    expect(DEMOTE_INTERVAL_MS - PROMOTE_INTERVAL_MS).toBeGreaterThanOrEqual(3)
+  })
+
+  it('treats absent wall-clock data as no evidence, not as failure', () => {
+    // A window with fewer than two displayed frames reports -1; that must not
+    // read as a 0 ms frame (instant promotion) or as a bad frame (spurious
+    // demotion). Same rule the p90 side already had.
+    expect(classifyWindow(win(4))).toBe('good')
+    expect(classifyWindow(win(DEMOTE_COST_MS))).toBe('bad')
   })
 })

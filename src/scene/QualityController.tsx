@@ -130,7 +130,22 @@ export function QualityController() {
     if (a.t < 1.5) return
     a.t = 0
     const costWindow = takeCostWindow()
-    if (useStore.getState().qualityUserSet) return
+    // `qualityUserSet` used to stop auto-adjust dead, and since `v0.31.7.68` that
+    // gates the WRONG AXIS. It records that the user chose a MODE — their intent,
+    // which the ladder must never overrule. But the ladder no longer touches the
+    // mode: it moves the DEVICE CLASS, a capability adaptation nobody expressed an
+    // opinion about.
+    //
+    // Left in place it made the guard unreachable exactly where it is needed:
+    // `realistic` is only ever entered through `setQualityTier`, which sets this
+    // flag, so a user opting into the expensive mode got NO adaptive protection at
+    // all. Measured: 28 s of continuous walking at ~11 fps with the device class
+    // pinned at `capable` and the learned ceiling still `null` (`v0.31.7.85`).
+    //
+    // Demotion is therefore no longer gated. Promotion still is — climbing back up
+    // under someone who has pinned a look is the behaviour the flag was written
+    // for, and `decideAutoDevice` is told the ceiling is what it currently has.
+    const userPinned = useStore.getState().qualityUserSet
 
     // Consecutive-window counters: a verdict resets the opposite streak, so one
     // good window can't cancel a genuine sustained failure and vice versa. A
@@ -155,7 +170,10 @@ export function QualityController() {
     // `performance`, and the old maximum→high step inside `realistic`.
     const next = decideAutoDevice(
       { device: st.deviceClass, autoMaxDevice: st.autoMaxDevice },
-      ceiling.current,
+      // A pinned user gets demotion but not promotion: capping the ceiling at the
+      // class already active makes `decideAutoDevice`'s promote branch a no-op
+      // without touching its demote branch.
+      userPinned ? st.deviceClass : ceiling.current,
       a.good,
       a.bad,
     )

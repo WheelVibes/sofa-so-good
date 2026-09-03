@@ -48,8 +48,25 @@
 export interface CostWindow {
   /** Number of displayed frames sampled. */
   n: number
+  /** CPU time inside `gl.render`, ms. */
   p50: number
   p90: number
+  /**
+   * WALL-CLOCK interval between consecutive displayed frames, ms. `-1` when
+   * fewer than two frames were sampled.
+   *
+   * **Why submit time alone is not enough.** `v0.31.7.84` measured
+   * `realistic`/walk at **10.9 fps — 92 ms per frame — while p90 inside
+   * `gl.render` was 6.9 ms**, comfortably under `DEMOTE_COST_MS`. A GPU-bound
+   * frame submits fast and then blocks, so the guard whose whole job is holding a
+   * frame-rate floor could not see the floor being missed. The retired ladder
+   * papered over it by hand (`AUTO_PROMOTE_CEILING = 'high'`, whose comment said
+   * `maximum` "WOULD pass the probe, which is exactly why it needs an explicit
+   * ceiling"); `v0.31.7.68` deleted that ceiling and left nothing in its place.
+   * This is the missing signal rather than another hand-placed cap.
+   */
+  intervalP50: number
+  intervalP90: number
 }
 
 /**
@@ -64,15 +81,23 @@ export function percentileSorted(sorted: ReadonlyArray<number>, p: number): numb
   return sorted[i]
 }
 
-/** Summarise raw per-frame costs. Pure, so the stats are unit-testable. */
+/**
+ * Summarise raw per-frame SUBMIT costs. Pure, so the stats are unit-testable.
+ *
+ * Reports `intervalP50/P90` as `-1` — "not measured here". Wall-clock intervals
+ * are a property of the live sampling sequence, not of a bag of costs, so
+ * {@link takeCostWindow} supplies them and this stays pure.
+ */
 export function summariseCosts(samples: ReadonlyArray<number>): CostWindow {
   const finite = samples.filter((x) => Number.isFinite(x) && x >= 0)
-  if (finite.length === 0) return { n: 0, p50: -1, p90: -1 }
+  const none = { intervalP50: -1, intervalP90: -1 }
+  if (finite.length === 0) return { n: 0, p50: -1, p90: -1, ...none }
   const sorted = finite.slice().sort((a, b) => a - b)
   return {
     n: sorted.length,
     p50: percentileSorted(sorted, 0.5),
     p90: percentileSorted(sorted, 0.9),
+    ...none,
   }
 }
 
@@ -89,6 +114,16 @@ let restore: (() => void) | null = null
 let pending = 0
 /** Completed per-frame costs since the last `takeCostWindow()`. */
 let samples: number[] = []
+/** Wall-clock gaps between consecutive DISPLAYED frames, ms. */
+let intervals: number[] = []
+let lastCloseMs = 0
+/**
+ * A gap longer than this is treated as "resumed after idle", not a slow frame.
+ * Demand mode idles constantly, so without this every wake-up would look like a
+ * multi-hundred-millisecond frame. Generous on purpose: a genuinely terrible
+ * 5 fps frame is 200 ms and must still count as evidence.
+ */
+const IDLE_GAP_MS = 500
 
 /**
  * Wrap a renderer's `render` so its cost is accumulated. Idempotent per
@@ -137,14 +172,37 @@ export function closeFrameCostSample(): void {
     pending = 0
     // Bound the buffer: a long continuous span must not grow without limit.
     if (samples.length > 600) samples.shift()
+    // Wall-clock interval between DISPLAYED frames. Only between two frames that
+    // both rendered, and only when the gap is plausibly one frame: demand mode
+    // idles constantly, so a resumed-after-idle gap of 400 ms is not a slow frame
+    // and must not be read as one. `IDLE_GAP_MS` is generous enough to keep a
+    // genuinely terrible 5 fps frame (200 ms) as evidence.
+    const now = performance.now()
+    if (lastCloseMs > 0) {
+      const dt = now - lastCloseMs
+      if (dt <= IDLE_GAP_MS) {
+        intervals.push(dt)
+        if (intervals.length > 600) intervals.shift()
+      }
+    }
+    lastCloseMs = now
   }
 }
 
 /** Drain and summarise everything sampled since the last call. */
 export function takeCostWindow(): CostWindow {
   const out = summariseCosts(samples)
+  const iv = intervals.slice().sort((a, b) => a - b)
   samples = []
-  return out
+  intervals = []
+  // `lastCloseMs` is deliberately NOT reset: the next window's first interval is
+  // still a real frame-to-frame gap, and dropping it would discard one sample per
+  // window for no reason.
+  return {
+    ...out,
+    intervalP50: iv.length ? percentileSorted(iv, 0.5) : -1,
+    intervalP90: iv.length ? percentileSorted(iv, 0.9) : -1,
+  }
 }
 
 /** Test-only: reset the singleton. */
@@ -153,4 +211,6 @@ export function __resetFrameCostMeter(): void {
   restore = null
   pending = 0
   samples = []
+  intervals = []
+  lastCloseMs = 0
 }

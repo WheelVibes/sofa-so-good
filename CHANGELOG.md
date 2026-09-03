@@ -29,6 +29,53 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.85 — the adaptive guard can see GPU-bound frames now, and it was ALSO switched off for the mode that needed it
+
+Fixing the regression `.84` traced to my own `.68`. It turned out to be two independent bugs, and the
+second was only visible because fixing the first still did nothing.
+
+**Bug 1: the guard measured the wrong quantity.** `frameCost.ts` wraps `gl.render` and accumulates
+CPU submit time. In `realistic`/walk that p90 is **6.9 ms** against `DEMOTE_COST_MS = 14`, while the
+user gets **92 ms per frame** — a GPU-bound frame submits fast and then blocks. `CostWindow` now also
+carries **`intervalP50`/`intervalP90`**, the wall-clock gap between displayed frames, measured in
+`closeFrameCostSample` where the per-frame hook already runs. Gaps over 500 ms are discarded as
+resumed-after-idle (demand mode idles constantly), which still keeps a genuinely awful 200 ms frame as
+evidence. `classifyWindow` checks the wall clock **first**: bad at ≥ **33.3 ms** (the documented 30 fps
+floor), and promotion now requires *both* signals comfortable, with a hysteresis band (20 ms) so the
+ladder cannot promote at 31 fps and demote at 29 forever.
+
+**Bug 2, found because Bug 1's fix changed nothing: the guard was never running.** 28 s of continuous
+walking at ~11 fps left the device class pinned at `capable` and the learned ceiling still `null`.
+The cause is one line — `if (useStore.getState().qualityUserSet) return` — and since `.68` it gates
+**the wrong axis**. That flag records that the user chose a **mode**, which the ladder must never
+overrule. But the ladder no longer touches the mode; it moves the **device class**, a capability
+adaptation nobody expressed an opinion about. And `realistic` is *only* reachable through
+`setQualityTier`, which sets the flag — so **every user who opted into the expensive mode had no
+adaptive protection at all**, by construction.
+
+Demotion is no longer gated by it. Promotion still is, implemented by capping the ceiling at the class
+already active, so `decideAutoDevice`'s promote branch becomes a no-op while its demote branch is
+untouched — climbing back up under someone who pinned a look is the behaviour the flag was written
+for.
+
+**Verified end-to-end, in the real UI flow** (`setQualityTier('realistic')`, i.e. `qualityUserSet =
+true`):
+
+    DEMOTED at t=8s -> device=weak  learnedCeiling=weak  (qualityUserSet=true, mode still realistic)
+    mode after demotion: realistic
+
+So a user picking Realistic on a machine that cannot hold it now lands on `realistic`/**weak** —
+byte-identical to the retired `high` preset, which `.66` measured at **25.1 fps** in walk against
+`realistic`/capable's 10.9. A 2.3× recovery, with the look they asked for preserved and only the
+resolution knobs moved.
+
+**Nine tests**, including the one that pins the original defect: `classifyWindow(winWall(6.9, 92))`
+must be `'bad'` — cheap submit, 92 ms wall — where the old function returned `'good'`. And one that
+records the boundary: absent wall-clock data (`-1`, fewer than two displayed frames) is *no evidence*,
+never a 0 ms frame and never a failure.
+
+Suite **10092 green** (+5), `tsc`, biome and `knip` clean.
+
 ## v0.31.7.84 — the 10.9 fps attributed: fill rate and shadow maps. And the adaptive guard CANNOT SEE IT — which my own `.68` refactor removed the workaround for
 
 `.83` left ~85 ms/frame unattributed in `realistic`/walk. Bisected it with single-axis ablations
