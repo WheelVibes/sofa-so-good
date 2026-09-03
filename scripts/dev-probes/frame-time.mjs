@@ -41,6 +41,12 @@ const WALKPITCH = process.env.WALKPITCH !== '0'
 // has already decided for that frame -- this doubles the drawn rate. If walk mode
 // is genuinely saturated, it changes nothing (or makes it worse).
 const EXTRAINV = process.env.EXTRAINV === '1'
+// IDLE=1 drives NOTHING and measures how many frames the scene draws at rest.
+// This is the regression guard for `RenderPump`'s `invalidate(2)`: incrementing the
+// frame counter instead of setting it is what un-capped walk mode, but a counter
+// that saturates at 60 could in principle keep the scene drawing forever. It must
+// still reach 0 frames when nothing is happening.
+const IDLE = process.env.IDLE === '1'
 if (MODE !== 'orbit' && MODE !== 'walk') {
   console.error(`MODE must be orbit or walk, got ${MODE}`)
   process.exit(1)
@@ -98,13 +104,35 @@ if (MODE === 'walk') {
 
 console.log(
   `viewport 1280x800 @ dpr ${DSF} (${((1280 * DSF * 800 * DSF) / 1e6).toFixed(1)}M px), ` +
-    `${SECONDS}s ${MODE === 'walk' ? `WALK (translate${WALKPITCH ? ' + pitch' : ', pitch OFF = instrument control'}; no yaw)` : 'orbit drag'} per tier`,
+    `${SECONDS}s ${IDLE ? 'IDLE (no input at all -- expect ~0 drawn frames)' : MODE === 'walk' ? `WALK (translate${WALKPITCH ? ' + pitch' : ', pitch OFF = instrument control'}; no yaw)` : 'orbit drag'} per tier`,
 )
 
 /** Drive motion for SECONDS, in whichever mode was asked for. */
 async function drive() {
   const t0 = Date.now()
   let i = 0
+  if (IDLE) {
+    // Report WHY the pump thinks a frame is wanted. "Idle draws 60 fps" is either a
+    // stuck continuous flag or something genuinely animating, and the two have
+    // opposite fixes.
+    const why = await page.evaluate(() => {
+      const s = window.__store.getState()
+      return {
+        cameraMode: s.cameraMode,
+        autoRotate: s.autoRotate,
+        touring: Boolean(s.touring),
+        recording: s.recording,
+        showcaseAccumulating: s.showcaseAccumulating,
+        dragging: s.draggingItemId != null,
+        loadingActive: Boolean(s.loading?.active),
+        sceneReady: s.sceneReady,
+        renderingContinuously: window.__renderingContinuously ?? null,
+      }
+    })
+    console.log(`  pump inputs at idle: ${JSON.stringify(why)}`)
+    await new Promise((r) => setTimeout(r, SECONDS * 1000))
+    return
+  }
   if (MODE === 'orbit') {
     await page.mouse.move(cx, cy)
     await page.mouse.down()

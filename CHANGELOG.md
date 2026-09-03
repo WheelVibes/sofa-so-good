@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.66 — un-capped the render pump (max performance over power, per the call), and RETRACTED the maximum-tier figure
+
+**The trade in `.64` was resolved the other way: maximum power draw for maximum performance.** So
+the cadence fix ships. `RenderPump` now calls **`invalidate(2)`**, not `invalidate()`.
+
+**Why the 2 is load-bearing.** r3f's `invalidate(frames = 1)` *sets* `internal.frames = 1`, and the
+render loop *decrements* to 0 after drawing. Both loops re-register with `requestAnimationFrame`, so
+callback order within one animation frame is not ours to control — and in the losing order r3f
+checks `frames` before the pump has set it, skips, and the flag is spent on the following frame.
+Every other frame renders. With `frames > 1` r3f **increments** instead (`min(60, frames + frames)`),
+so a continuously-invalidating pump keeps the counter above zero whatever the order. Orbit was never
+affected only because drei's `OrbitControls` contributes a second invalidate of its own.
+
+| walk mode | before | after |
+| --- | --- | --- |
+| performance | 30.2 | **60.0** |
+| medium | 30.2 | **55.8** |
+| high | 25.1 | 25.1 |
+| maximum | — | *not reproducible* |
+
+Every ratio is now **1.00**. `performance` and `medium` match the `EXTRAINV` prediction exactly and
+are stable across runs, so the ~2× is real and it applies to every pump-driven mode — walk, tour,
+turntable, recording — not just walk.
+
+**RETRACTION: `.64`'s "maximum 10.8 → 29.9–41.4" was noise read as signal.** Four back-to-back runs
+of `maximum` in walk mode, alternating the shipped fix alone against the fix plus an extra invalidate:
+**41.7 / 10.9 / 26.7 / 40.8**. A 3.8× swing that does not track the condition being varied. The
+tier is **non-deterministic in walk mode** and no claim can be made about it either way. The stable
+finding stands: `high` is pinned at 25.1 with only ~8 ms inside `gl.render`, so ~32 ms/frame is
+elsewhere.
+
+**And an honest negative on my own comment.** I wrote that idle still reaches 0 frames, then failed
+to observe it: with every store flag idle — orbit camera, not touring/recording/dragging, load
+complete — the built-in plan renders **60 fps at rest**, because `animatedSourceCount()` is
+non-zero. The shipped default plan has no truly-idle state to measure, and this change doubles its
+at-rest rate from ~30 to 60 too. `frame-time.mjs` gained `IDLE=1`, which reports the pump's inputs
+alongside the rate so the two possible causes — a stuck continuous flag versus genuinely animated
+content — are distinguishable rather than guessed. The comment now says what was verified.
+
+Suite **10078 green**, `tsc` and biome clean.
+
 ## v0.31.7.65 — Cycles on the GPU: 2.84x, and verified against the noise floor rather than eyeballed
 
 Phase 0 of the baked-lighting plan. `--device CPU|GPU` on `render_still`, `render_visibility` and
