@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.142 — status header on the `(z)` register: what the sixteen decisions actually mean after 28 commits of implementing them
+
+The sixteen calls in `(z)` were answered *before* the work on them. Several turned out to mean
+something different once implemented, two are superseded, and one contradicted another. The register
+was becoming misleading to read top-down, so it now opens with where each decision actually stands.
+
+**The ones that changed meaning:**
+
+- **`(z)`2 (40 maps)** — superseded by your own re-decision, after `.114` showed my "no seam at this
+  coverage" was measured at `performance` while the decision ships to `realistic`. The 333-map bake
+  is done and **the seam persists at both**, so coverage was never the cause.
+- **`(z)`8 (twilight)** — re-scoped by you to below-horizon once `.115` showed the measured curve
+  forces a whole-day re-grade. Shipped, and its ceiling is now measured: physical twilight at −2°
+  wants **7× the app's own horizon sky**, so the black band cannot go below −8° in that scope.
+- **`(z)`9 (`(w)`)** — not separate work at all. `(w)` and the GI are one fix, measured, which also
+  resolves a contradiction with `(z)`5 (retire the `visibility` pass) that only appeared because I
+  asked the two questions separately.
+- **`(z)`10 (`(r)`)** — one of its three routes is now refuted, so it needs a narrower call than
+  "ship".
+- **`(z)`11 (`(s)`)** — "ship luminance-only" is intact, but it means ship a *within-room delta*, and
+  I would have shipped a between-room level.
+
+**Shipped and needing nothing further:** `(m)` vignette on all tiers; the twilight continuation; the
+GI infrastructure and its `realistic` gate; seven new bake flags; `equirectToCube`; and six probe
+fixes.
+
+**Four items are still untouched** — `(z)`4 (Cycles sky + `backgroundIntensity`), `(z)`7 (`dprMax`,
+the largest unused perf lever at 4.5×), `(z)`13 (five HQ defects) and `(z)`14–16 (four plan fixes) —
+and `(z)`4 and `(z)`7 are the most self-contained shippable work left on the list.
+
+**Two threads parked, with the eliminations and the fallbacks recorded** rather than the work
+abandoned: the GI seam (six causes ruled out) and `(s)`'s wall classifier (four attempts, all
+plateauing at 42 %, with an exact two-export fallback already proven to reconstruct ρ to 1.1 %).
+
+Documentation only. Suite **10150 green**, `tsc` and biome clean.
+
 ## v0.31.7.141 — the exporter tag ALREADY EXISTS and I read it — and the number did not move. Parking the classifier.
 
 `.140` specified the complete fix as "tag shell meshes with their surface role on export". **It is

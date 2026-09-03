@@ -3852,6 +3852,42 @@ should come on; its blocker — "the runtime path that **replaces** the ambient 
 multiplying it" — now exists and is measured (`v0.31.7.106`). And `(l)`'s remaining look call is
 decision 4 below.
 
+### ⏱ STATUS after the 2026-09-04 overnight run (`v0.31.7.114`–`.141`)
+
+Written because the sixteen decisions below were answered before ~30 commits of work on them, and
+several turned out to mean something different once implemented. **Read this before the tables.**
+
+| # | decision | where it actually stands |
+| --- | --- | --- |
+| 1 | GI on `realistic` | **Infrastructure shipped and verified** — asset swap, tier gate proved in both directions, two-way detach. **Flag HELD off**: at `realistic` the maps draw a dark dotted seam on narrow meshes' silhouette edges. Effect is real (ceiling 0.69 → 0.92). |
+| 2 | 40 maps, 1.2 MB | **Superseded.** You re-decided for 333 maps after `.114` showed my "no seam at this coverage" was measured at the wrong tier. Baked (10 MB, 0 clipped, 50 % coverage) — **and the seam persists at both**, so coverage was not the cause. |
+| 3 | Commit maps to the repo | **Done** — the 40-map set is `public/assets/lightmaps`. |
+| 4 | Cycles sky + `backgroundIntensity ≈ 4` | **Not started.** Still the most self-contained shippable item on this list. |
+| 5 | Delete the `visibility` pass | **Partly.** Assets replaced; the pass and `multiply` operator are still in the code. |
+| 6 | Reproduce the 1459 ms load hitch | **Not started** (n=1). |
+| 7 | `dprMax` 2 → 1 as last rung | **Not started.** Largest unused perf lever (4.5×). |
+| 8 | Twilight fully physical | **Re-scoped by you to below-horizon, then shipped** (`.116`). Black-band onset moved −4° → −8°; **cannot go further in that scope** — physical twilight at −2° wants 7× the app's own horizon sky. |
+| 9 | Ship `(w)` | **Not separate work.** `(w)` and the GI are one fix (measured: GI cuts `(w)`'s row spread 1.98× → 1.46×), so it is **blocked on the same seam**. Also resolves a contradiction between this and decision 5. |
+| 10 | Ship `(r)` | **Cube route REFUTED** on the shipped asset without re-authoring. Needs a route call: backdrop-as-geometry, or accept. |
+| 11 | `(s)` luminance-only | **Architecture validated** — buckets reconstruct ρ to **1.1 % out of sample**, reference re-derived in Cycles (−17.4 % traced). **Not wired**; it is a *within-room delta*, not a between-room level, and the wall classifier is parked at 42 %. |
+| 12 | `(m)` vignette on all tiers | ✅ **SHIPPED AND VERIFIED** — centre byte-identical, corners 133 → 107, no measurable fps cost. |
+| 13 | Fix all five HQ defects | **Not started.** |
+| 14–16 | `(f)`, `(g)`, `(i)`, `(j)` plan fixes | **Not started.** |
+
+**Two threads are parked with hypotheses eliminated and fallbacks identified**, not abandoned:
+
+- **The GI seam** — six causes ruled out (coverage, per-map scale on shared materials, UV margin,
+  shader-vs-data, atlas holes, `uv1` conflicts). It is in the baked data, on narrow meshes'
+  silhouette edges, evenly spaced and geometric rather than texel-aligned.
+- **`(s)`'s wall classifier** — four attempts (perimeter, inward-facing, exporter tag, tag+side) all
+  plateau at 42 % of the bucket actually repainting. **The fallback works**: an empirical two-export
+  face diff is an exact classifier by definition, and `.139` proved those buckets reconstruct ρ.
+
+**What shipped tonight and needs no further decision:** `(m)`; the twilight continuation; the GI
+infrastructure and its gate; `--scale` / `--per-map-scale` / `--bit-depth` / `--texels-per-metre` /
+`--fill-holes` / `--room-albedo` / `--portals` in the bake; `equirectToCube`; and six probe fixes,
+four of which were instruments that had been reporting confidently wrong numbers.
+
 ### Blender GI
 
 | # | decision | answer |
