@@ -598,7 +598,12 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   bed-vs-storage pinches with a clearance-preferring placement does NOT work.** Four things were
   established; the first two are gaps worth fixing on their own terms, the last two are why the
   obvious fix fails.
-  1. **`CLEARANCE.storageFront` (0.75 m) has ZERO consumers.** `designRules.ts`'s header calls
+  1. **`CLEARANCE.storageFront` (0.75 m) had ZERO consumers — now REPORTED (v0.31.8.8).** The
+     Layout critique's new `storage-access` check measures the clear floor in front of each
+     openable piece; the authored default flat passes and 17 of 20 auto-furnished templates warn,
+     wardrobes at 0.00-0.37 m. Reported, not enforced — see item 4 for why enforcement fails.
+     `bedSurround` is still only a soft scoring penalty and remains unenforced.
+     ORIGINAL NOTE: `designRules.ts`'s header calls
      these constants "the single source of truth for furniture spacing" that the arranger "should
      reference rather than hard-coding gaps", and
      `docs/interior-design-guidelines.md` tabulates `storageFront` as a rule the app follows.

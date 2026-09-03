@@ -38,7 +38,7 @@ placement stays consistent. Keep this doc and that module in sync.
 | Door / drawer / cabinet swing | 0.85 (`doorSwing`) | — | ≈ the leaf width |
 | Walk-around at a bed | 0.60 (`bedSurround`) | — | ≥1 long side + foot |
 | Flush-to-wall gap | 0.05 (`wallGap`) | — | skirting / AC trunking |
-| Clear floor in front of storage | 0.75 (`storageFront`) | — | open + pass |
+| Clear floor in front of storage | 0.75 (`storageFront`) | — | open + pass · **checked** by the Layout critique's *Storage access* (v0.31.8.8); reported, not enforced |
 
 ## TV viewing distance — `tvViewingDistance(diagonalInches)`
 

@@ -40,9 +40,11 @@
 
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
-import { allPlanRooms, roomAtItem } from '../floorplan/levels'
-import { type FloorPlan, type PlanRoom, planRoomArea } from '../floorplan/types'
+import { allPlanRooms, allPlanWalls, roomAtItem } from '../floorplan/levels'
+import { type FloorPlan, type PlanRoom, type PlanWall, planRoomArea } from '../floorplan/types'
+import { OPENABLE_CABINET_PRIMITIVES } from '../furniture/cabinetOpen'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { CLEARANCE } from '../layout/designRules'
 
 /** Published thresholds, all metres. See the module header for sources. */
 export const CRITIQUE = {
@@ -102,9 +104,33 @@ export const CRITIQUE = {
    */
   sofaWidthMin: 1.75,
   sofaWidthMax: 2.2,
+  /**
+   * Clear floor a STORAGE piece needs in front of it to open and pass (m).
+   *
+   * Not a new number — it is `layout/designRules.ts`'s `CLEARANCE.storageFront`,
+   * re-exported here as the critique's own threshold so the two cannot drift.
+   * `designRules.ts`'s header calls those constants "the single source of truth
+   * for furniture spacing" and `docs/interior-design-guidelines.md` tabulates
+   * this one as a rule the app follows — but until v0.31.8.8 it had **no
+   * consumer anywhere in the codebase**. A documented rule nothing implements is
+   * indistinguishable from no rule.
+   *
+   * It is REPORTED rather than enforced, deliberately. Making the auto-arranger
+   * honour it was tried in v0.31.8.7 and measured worse (see that entry and the
+   * `TODO.md` note): a local per-item clearance objective cannot fix pairwise
+   * spacing in a greedy sequential placer. Telling the user their wardrobe has
+   * 0.45 m to open into is useful even when the app cannot fix it for them.
+   */
+  storageFront: CLEARANCE.storageFront,
 } as const
 
-type CritiqueId = 'tv-distance' | 'conversation' | 'coffee-table' | 'sofa-proportion' | 'rug-size'
+type CritiqueId =
+  | 'tv-distance'
+  | 'conversation'
+  | 'coffee-table'
+  | 'sofa-proportion'
+  | 'rug-size'
+  | 'storage-access'
 
 type CritiqueVerdict = 'pass' | 'warn' | 'fail' | 'skipped'
 
@@ -334,6 +360,78 @@ function itemWidth(item: FurnitureItem, def: FurnitureDef): number {
  * design; checks are scoped per room so a two-living-space plan is judged room
  * by room rather than across the home.
  */
+/**
+ * Clear distance (m) straight out from a piece's FRONT face until something
+ * blocks it — another floor item, or a wall — or `max` if nothing does.
+ *
+ * Furniture faces local **+Z**, and a three.js Y-rotation θ turns that front to
+ * world `(sin θ, cos θ)` (`layout/faceWall.ts` derives it; cross-checked against
+ * two shipped placements — `default-bath1-basin` at rotation π sits on the south
+ * wall facing north, and `bath2-basin` at π/2 sits on the west wall facing
+ * east). Getting this sign wrong is exactly how the bed-head rug check went
+ * wrong in v0.31.5.415, so it is verified rather than derived.
+ *
+ * Obstacles are projected onto the front axis and the perpendicular one; only
+ * those whose perpendicular span overlaps the piece's own width count, so a
+ * wardrobe is not "blocked" by something standing beside it. Mounted and noClip
+ * pieces are skipped — they do not occupy floor.
+ */
+function frontClearance(
+  item: FurnitureItem,
+  def: FurnitureDef,
+  others: Array<{ it: FurnitureItem; def: FurnitureDef }>,
+  walls: PlanWall[],
+  max: number,
+): number {
+  const rot = item.rotation ?? 0
+  const fx = Math.sin(rot)
+  const fz = Math.cos(rot)
+  // Perpendicular (right-hand) axis in the plan.
+  const px = fz
+  const pz = -fx
+  const corners = obbCorners(itemFootprint(item, def))
+  let frontAlong = Number.NEGATIVE_INFINITY
+  let halfLo = Number.POSITIVE_INFINITY
+  let halfHi = Number.NEGATIVE_INFINITY
+  const cx = item.position[0]
+  const cz = item.position[1]
+  for (const [x, z] of corners) {
+    const a = (x - cx) * fx + (z - cz) * fz
+    const p = (x - cx) * px + (z - cz) * pz
+    frontAlong = Math.max(frontAlong, a)
+    halfLo = Math.min(halfLo, p)
+    halfHi = Math.max(halfHi, p)
+  }
+  let clear = max
+  const consider = (pts: Array<readonly [number, number]>) => {
+    let minA = Number.POSITIVE_INFINITY
+    let lo = Number.POSITIVE_INFINITY
+    let hi = Number.NEGATIVE_INFINITY
+    for (const [x, z] of pts) {
+      const a = (x - cx) * fx + (z - cz) * fz
+      const p = (x - cx) * px + (z - cz) * pz
+      minA = Math.min(minA, a)
+      lo = Math.min(lo, p)
+      hi = Math.max(hi, p)
+    }
+    // Must sit IN FRONT and overlap the piece's own width to block it.
+    if (minA <= frontAlong) return
+    if (Math.min(hi, halfHi) - Math.max(lo, halfLo) <= 0) return
+    clear = Math.min(clear, minA - frontAlong)
+  }
+  for (const o of others) {
+    if (o.def.mounted || o.def.noClip) continue
+    consider(obbCorners(itemFootprint(o.it, o.def)) as Array<readonly [number, number]>)
+  }
+  for (const w of walls) {
+    consider([
+      [w.start[0], w.start[1]],
+      [w.end[0], w.end[1]],
+    ])
+  }
+  return clear
+}
+
 export function buildLayoutCritique(
   plan: FloorPlan,
   items: FurnitureItem[],
@@ -608,6 +706,69 @@ export function buildLayoutCritique(
         label: 'Rug size',
         verdict: 'skipped',
         detail: `${skewed} rug${skewed === 1 ? '' : 's'} not square to its anchor — overhang is not measured on a rotated pair, because a bounding box would overstate the rug's coverage.`,
+      })
+    }
+  }
+
+  // 6 — Storage access: `storageFront` clear in front of a piece you open and
+  // stand at. Selected by the existing OPENABLE-CABINET PRIMITIVE FAMILY, never
+  // by a name regex (a regex is a guess about a taxonomy that already exists —
+  // how the rug check once matched `rug-bedroom` as its own anchor, v0.31.5.415)
+  // and not by `category === 'storage'` either, which was the first cut and was
+  // too wide: it dragged in NIGHTSTANDS (0.18 m², reached from the bed, where
+  // 0.75 m of standing room in front is not a published requirement) and cube
+  // shelving. That is the same error as applying the dining-rug threshold to a
+  // bed — a cited number aimed at the wrong subject.
+  //
+  // A footprint-area cut was measured and rejected: the 0.5 m² obstacle bar
+  // excludes nightstands correctly but also excludes a `utility-cabinet`
+  // (0.20 m²) that genuinely had a washing machine 0.14 m in front of its door.
+  // Size answers "do you walk around it"; this rule is about "do you open it".
+  //
+  // The FAMILY is used rather than `supportsCabinetOpen(def, props)` because
+  // that helper asks whether there is something to ANIMATE, and answers no for a
+  // SLIDING wardrobe — which still needs somewhere to stand and pass, even with
+  // nothing to swing.
+  {
+    const storage = resolved.filter(
+      (r) =>
+        !r.def.mounted &&
+        r.def.kind === 'parametric' &&
+        OPENABLE_CABINET_PRIMITIVES.has(r.def.primitive),
+    )
+    if (storage.length === 0) {
+      findings.push({
+        id: 'storage-access',
+        label: 'Storage access',
+        verdict: 'skipped',
+        detail: 'No floor-standing storage to measure.',
+      })
+    } else {
+      const walls = allPlanWalls(plan)
+      // Report the TIGHTEST piece, and say how many were measured — a single
+      // worst case with a count is honest, where a bare "1 issue" hides scope.
+      let worst: { name: string; clear: number; roomName?: string } | null = null
+      for (const s of storage) {
+        const others = resolved.filter((r) => r.it.id !== s.it.id)
+        // Measured only up to the target: anything roomier is a pass and the
+        // exact figure past 0.75 m carries no information for this check.
+        const clear = frontClearance(s.it, s.def, others, walls, CRITIQUE.storageFront)
+        if (!worst || clear < worst.clear)
+          worst = { name: s.def.name, clear, roomName: roomAtItem(plan, s.it)?.name }
+      }
+      const tightest = worst as { name: string; clear: number; roomName?: string }
+      const ok = tightest.clear >= CRITIQUE.storageFront - 1e-6
+      findings.push({
+        id: 'storage-access',
+        label: 'Storage access',
+        verdict: ok ? 'pass' : 'warn',
+        // Named only on a WARN: the pass line is a statement about the whole
+        // home, so attributing it to the tightest piece's room would imply the
+        // check only looked there.
+        ...(ok ? {} : { roomName: tightest.roomName }),
+        detail: ok
+          ? `All ${storage.length} storage ${storage.length === 1 ? 'piece has' : 'pieces have'} the recommended ${CRITIQUE.storageFront} m clear in front to open and pass.`
+          : `${tightest.name} has ${tightest.clear.toFixed(2)} m clear in front — ${CRITIQUE.storageFront} m is recommended so a door or drawer opens and you can still pass (tightest of ${storage.length} measured).`,
       })
     }
   }

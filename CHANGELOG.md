@@ -27,6 +27,64 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.8 - Storage access: making a documented rule that nothing implemented real
+
+`.7` established that `CLEARANCE.storageFront` (0.75 m) has **no consumer
+anywhere in the codebase**, despite `designRules.ts` calling these constants "the
+single source of truth for furniture spacing" and
+`docs/interior-design-guidelines.md` tabulating this one as a rule the app
+follows. A documented rule nothing implements is indistinguishable from no rule.
+
+Enforcing it in the arranger was tried in `.7` and measured WORSE, so this
+**reports** it instead: a new `storage-access` check in `analysis/layoutCritique.ts`
+measures the clear floor in FRONT of each piece you open and names the tightest.
+
+**It discriminates, which is the point.** The hand-authored default flat PASSES —
+both its storage pieces have the full 0.75 m — while **17 of 20 auto-furnished
+templates warn**, with wardrobes at 0.00-0.37 m. A check that condemned everything
+would be useless; this one separates the curated content from the generated
+content, and says what is wrong in words a contractor can act on ("Wardrobe has
+0.01 m clear in front") rather than as a gap statistic.
+
+It also states the bedroom problem far better than the pinch metric could. A
+pinch says "these two things are 0.41 m apart"; this says **the wardrobe opens
+directly into the bed**.
+
+**Direction is the whole difficulty.** Front comes from the item's rotation
+(`faceWall.ts`'s `(sin θ, cos θ)`, cross-checked against two shipped placements
+rather than derived, because getting this sign wrong is exactly how the bed-head
+rug check went wrong in `.415`). An obstacle counts only if it is in front AND
+overlaps the piece's own width, so a wardrobe is not "blocked" by something beside
+or behind it.
+
+**Two scoping errors, both caught by measuring the check against real content:**
+
+- **`category === 'storage'` was too wide.** It dragged in NIGHTSTANDS (0.18 m²,
+  reached from the bed, where 0.75 m of standing room in front is not a published
+  requirement) and cube shelving. Same error as applying the dining-rug threshold
+  to a bed: a cited number aimed at the wrong subject.
+- **A footprint-area cut was measured and rejected.** The 0.5 m² obstacle bar
+  excludes nightstands correctly but also excludes a `utility-cabinet` (0.20 m²)
+  that genuinely had a washing machine 0.14 m in front of its door. Size answers
+  "do you walk around it"; this rule is about "do you open it". The subject is the
+  existing openable-cabinet PRIMITIVE family — an established taxonomy, not one I
+  invented. The family is used rather than `supportsCabinetOpen(def, props)`
+  because that helper asks whether there is something to ANIMATE and answers no
+  for a sliding wardrobe, which still needs somewhere to stand.
+
+**An inert fixture, caught by deleting the code it was supposed to test.** Both
+directional gates were removed one at a time to check each fails a test. The
+in-front gate did; the **width-overlap gate did not** — my "beside the wardrobe"
+fixture put the bed at the same z, where the IN-FRONT gate already excluded it, so
+the width gate was never reached. Rewritten so the bed sits genuinely in front but
+laterally clear, which only the width gate can pass. Both gates now fail exactly
+one test when removed.
+
+Reported figures are capped at the 0.75 m target: past it the exact number carries
+no information for this check. A pass line deliberately carries no room name — it
+is a whole-home statement, and attributing it to the tightest piece's room would
+imply the check only looked there.
+
 ## v0.31.8.7 - Tried to fix the arranger's bed-vs-storage pinches; it did not work
 
 `.6` cleared the false positives and left 39 real pinches, 18 of them a bed

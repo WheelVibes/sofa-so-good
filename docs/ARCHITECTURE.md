@@ -1960,8 +1960,16 @@ same change that reshapes a system.
   across one survives), while the item↔wall pass keeps its closed-door walls.
 - **Layout critique** (`analysis/layoutCritique.ts` pure → `buildLayoutCritique(plan,items,catalog)`:
   cited comfort bands — TV viewing distance, conversation distance, coffee-table reach, SG sofa
-  proportion, and rug size against the sofa / dining table / bed it anchors, with a bedside
-  RUNNER recognised as its own published layout and judged on length rather than overhang).
+  proportion, rug size against the sofa / dining table / bed it anchors, with a bedside
+  RUNNER recognised as its own published layout and judged on length rather than overhang, and
+  **storage access** — `CLEARANCE.storageFront` (0.75 m) clear in FRONT of a piece you open, which
+  until v0.31.8.8 was tabulated in `docs/interior-design-guidelines.md` as a rule the app follows
+  while having no consumer anywhere. Front direction comes from the item's rotation
+  (`faceWall.ts`'s `(sin θ, cos θ)`), and obstacles must both sit in front AND overlap the piece's
+  own width — a wardrobe is not blocked by something beside or behind it. Subject is the openable
+  cabinet PRIMITIVE family, not `category === 'storage'` (which dragged in nightstands) and not a
+  footprint cut (which excluded a real utility-cabinet hit). Reported, never enforced: making the
+  arranger honour it was measured worse in v0.31.8.7).
   Each finding carries the measured figure + the band so a user can judge the call; `skipped`
   where the design lacks the pieces. Consumed by `schemeOptions` (compare modal) **and**, since
   v0.31.5.415, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed

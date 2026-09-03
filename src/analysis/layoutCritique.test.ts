@@ -202,3 +202,126 @@ describe('buildLayoutCritique — scoring', () => {
     ).not.toThrow()
   })
 })
+
+/**
+ * Storage access (v0.31.8.8). `CLEARANCE.storageFront` (0.75 m) is tabulated in
+ * `docs/interior-design-guidelines.md` as a rule the app follows and had NO
+ * consumer anywhere in the codebase until this check. It is REPORTED, not
+ * enforced — making the arranger honour it was tried in v0.31.8.7 and measured
+ * worse.
+ *
+ * The directional arms are the ones that matter: a piece beside or behind a
+ * wardrobe does not stop its door opening, and a check that cannot tell the
+ * difference would warn on almost every correct bedroom.
+ */
+describe('buildLayoutCritique — storage access', () => {
+  /** A hinged wardrobe: 1.4 m wide, 0.6 m deep, front faces local +Z. */
+  const wardrobe: FurnitureDef = {
+    id: 'wardrobe-3door',
+    name: 'Wardrobe',
+    category: 'storage',
+    kind: 'parametric',
+    primitive: 'Wardrobe',
+    defaultFootprint: { w: 1.4, d: 0.6, h: 2.1 },
+  } as unknown as FurnitureDef
+  const blocker: FurnitureDef = {
+    id: 'bed-queen',
+    name: 'Bed',
+    category: 'beds',
+    kind: 'primitive',
+    defaultFootprint: { w: 1.5, d: 2.0, h: 0.5 },
+  } as unknown as FurnitureDef
+  const storeDefs: Record<string, FurnitureDef> = {
+    'wardrobe-3door': wardrobe,
+    'bed-queen': blocker,
+  }
+
+  /** Wardrobe at the room's north edge facing +Z (into the room). */
+  const wd = () => item('wd', 'wardrobe-3door', 3, 0.3)
+  /** Bed centred `gap` metres in front of the wardrobe's front face (z=0.6). */
+  const bedInFront = (gap: number) => item('bd', 'bed-queen', 3, 0.6 + gap + 1.0)
+
+  it('passes when the recommended clearance is there', () => {
+    const c = buildLayoutCritique(plan(), [wd(), bedInFront(1.2)], storeDefs)
+    const f = find(c, 'storage-access')
+    expect(f.verdict).toBe('pass')
+    expect(f.detail).toMatch(/0\.75 m clear in front/)
+  })
+
+  it('warns, naming the piece, its room and its actual clearance', () => {
+    const c = buildLayoutCritique(plan(), [wd(), bedInFront(0.2)], storeDefs)
+    const f = find(c, 'storage-access')
+    expect(f.verdict).toBe('warn')
+    expect(f.detail).toMatch(/Wardrobe has 0\.20 m clear in front/)
+    // A contractor reading "0.20 m clear" needs to know WHICH wardrobe.
+    expect(f.roomName).toBe('Living')
+  })
+
+  it('does not attribute a PASS to one room — it is a whole-home statement', () => {
+    const f = find(
+      buildLayoutCritique(plan(), [wd(), bedInFront(1.2)], storeDefs),
+      'storage-access',
+    )
+    expect(f.verdict).toBe('pass')
+    expect(f.roomName).toBeUndefined()
+  })
+
+  it('ignores a piece BEHIND the wardrobe — its door does not open backwards', () => {
+    // Bed north of the wardrobe (behind its back), 0.05 m away.
+    const c = buildLayoutCritique(
+      plan(),
+      [item('wd', 'wardrobe-3door', 3, 2.0), item('bd', 'bed-queen', 3, 0.65)],
+      storeDefs,
+    )
+    expect(find(c, 'storage-access').verdict).toBe('pass')
+  })
+
+  it('ignores a piece OFF TO THE SIDE even though it is further into the room', () => {
+    // This fixture is built so the WIDTH-OVERLAP gate is the only thing that can
+    // pass it. The bed is genuinely in front in the +Z sense (its near edge is
+    // 0.4 m past the wardrobe's front face, so the in-front gate admits it) but
+    // sits laterally clear of the wardrobe's 1.4 m width span, so nothing blocks
+    // the door. An earlier version of this test put the bed alongside at the
+    // same z, where the IN-FRONT gate excluded it — the width gate was never
+    // reached, and removing that gate did not fail a single test.
+    const c = buildLayoutCritique(
+      plan(),
+      [item('wd', 'wardrobe-3door', 1.0, 0.3), item('bd', 'bed-queen', 4.0, 2.0)],
+      storeDefs,
+    )
+    expect(find(c, 'storage-access').verdict).toBe('pass')
+  })
+
+  it('reads the FRONT from rotation, not from a fixed axis', () => {
+    // Same pair, rotated a quarter turn: wardrobe faces +X, bed sits +X of it.
+    const rot = (it: FurnitureItem, r: number) => ({ ...it, rotation: r })
+    const c = buildLayoutCritique(
+      plan(),
+      [
+        rot(item('wd', 'wardrobe-3door', 0.3, 2.5), Math.PI / 2),
+        item('bd', 'bed-queen', 0.3 + 0.3 + 0.2 + 1.0, 2.5),
+      ],
+      storeDefs,
+    )
+    expect(find(c, 'storage-access').verdict).toBe('warn')
+  })
+
+  it('skips when there is no openable storage — a nightstand is not the subject', () => {
+    // Category 'storage' but not an openable-cabinet primitive: the first cut of
+    // this check selected on category and warned on nightstands, which are
+    // reached from the bed and have no published standing-room requirement.
+    const nightstand = {
+      ...wardrobe,
+      id: 'nightstand',
+      name: 'Nightstand',
+      primitive: 'Nightstand',
+      defaultFootprint: { w: 0.45, d: 0.4, h: 0.55 },
+    } as unknown as FurnitureDef
+    const c = buildLayoutCritique(
+      plan(),
+      [item('ns', 'nightstand', 3, 0.3), item('bd', 'bed-queen', 3, 1.2)],
+      { nightstand, 'bed-queen': blocker },
+    )
+    expect(find(c, 'storage-access').verdict).toBe('skipped')
+  })
+})

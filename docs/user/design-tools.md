@@ -360,7 +360,12 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   distance, conversation distance, coffee-table reach, sofa proportion for an HDB
   living room, and rug size against the sofa, dining table or bed it sits under
   (a **bedside runner** is recognised as its own layout and judged on length, not
-  overhang). Failures and warnings sort above passes, each row shows the measured
+  overhang), and **storage access** — whether a wardrobe, cabinet, sideboard or
+  chest of drawers has the recommended 0.75 m of clear floor **in front of** it to
+  open a door or drawer and still get past. It reads the direction each piece
+  faces, so something standing beside or behind it doesn't count; on a warning it
+  names the tightest piece, its room and the clearance it actually has. Failures
+  and warnings sort above passes, each row shows the measured
   figure and the band so you can judge the call yourself, and checks your home
   has no pieces for are left out rather than listed as blanks — an **accessibility**
   check (doorway clear widths + a 1.5 m wheelchair turning circle per room),
