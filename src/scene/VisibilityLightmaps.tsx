@@ -47,7 +47,16 @@ export function VisibilityLightmaps() {
   useEffect(() => {
     if (!enabled) return
     let cancelled = false
-    const base = `${import.meta.env.BASE_URL}assets/lightmaps`
+    // `?aoDir=<name>` (DEV only) serves an alternate lightmap set from
+    // `public/assets/<name>`. The shipped set is a `visibility` bake; an
+    // `irradiance` bake is a different quantity that must be compared against the
+    // same Cycles references before it could replace it, and that comparison needs
+    // the app to load it. Not a feature — a measurement seam, like `?aoGain=`.
+    const dirParam = import.meta.env.DEV
+      ? new URLSearchParams(window.location.search).get('aoDir')
+      : null
+    const dir = dirParam && /^[a-z0-9-]+$/i.test(dirParam) ? dirParam : 'lightmaps'
+    const base = `${import.meta.env.BASE_URL}assets/${dir}`
     const run = async () => {
       let raw: unknown
       try {

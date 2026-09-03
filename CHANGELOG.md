@@ -29,6 +29,56 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.90 — irradiance-as-replacement measured in the app: a clear NEGATIVE, and the statistic that makes it one
+
+The last hop of the (w)/(x) path, and it fails. `?aoDir=<name>` (DEV) serves an alternate lightmap
+set, the irradiance bake went in, and the app applied it — **24/385 meshes, `ctx d03ee082`, replace
+mode** — so the whole chain works. What it produces does not.
+
+**First, `.89`'s stated blocker was wrong and is withdrawn.** I said the irradiance maps could not be
+served because they are keyed to the *default* 4-Room plan while the shipped set is keyed to the
+*template*. That is not the mechanism. `plan_context = fnv1a32(sorted geometry keys)` — the ctx
+fingerprints the **baked set**, not the plan, so 24 meshes and 111 meshes of the *same* plan hash
+differently by construction. And `chooseContext` scores by geometry-key overlap and takes the best,
+so it selected the 24-mesh index without needing any plan identity at all. No reconciliation was
+required; I invented a blocker out of a hash I had not read.
+
+**The measurement** (interior pixels, glazing and HUD excluded):
+
+| | p10 | median | p90 | **p90/p10** |
+| --- | --- | --- | --- | --- |
+| app, no lightmaps | 46.4 | 107.1 | 140.5 | 3.03 |
+| app, **irradiance replace** | **2.2** | **64.4** | 131.4 | **59.40** |
+| Cycles reference | 53.5 | 124.2 | 145.7 | **2.72** |
+
+The median moves the **wrong way** — 107.1 → 64.4 where physics wants 124.2, so the gap closes by
+**−249 %**.
+
+**And `p90/p10` is why this is a refutation rather than a missed calibration.** A gain is a scalar; it
+moves the level and leaves the ratio untouched. The rendered interior goes from a spread of 3.03 to
+**59.40** against physics' **2.72** — twenty times too contrasty — and no value of `?aoGain=` can
+change that. The map is not mis-scaled, it is the wrong *shape* for the slot.
+
+**Leading hypothesis, untested and named rather than assumed.** The bake stores `texel^encode` with
+`--encode` defaulting to 1.0, and the shader reads the texel raw — so if Blender wrote those PNGs
+through its **AgX view transform** (which `.73` confirmed is the scene's transform, and which
+`render_png` uses), the map is **display-referred** while the shader treats it as scene-linear. That
+is a non-linear mismatch, which is exactly what distorts a ratio rather than a level — and it is the
+same class of error as `.77`'s window finding, where display-referred background data was pushed
+through a scene-referred curve. Checking whether the bake output is AgX-encoded or raw is the next
+step, and it is a read, not another sweep.
+
+**Also worth stating: the shell is 24 of 385 meshes.** Everything else in the room kept its ambient
+fill, so this frame is a mixture of two lighting models. That dilutes the level comparison but does
+not explain a 20× spread, which is dominated by the mapped surfaces going near-black (p10 = 2.2).
+
+The staged measurement assets were deleted rather than committed; the bake is reproducible from
+`bake_material.py --dir /tmp/mb --pass irradiance --min-area 3.0 --res 64 --samples 128 --device GPU
+--float-buffer`. Nothing shipped changes: the flag is off, the shipped index still declares
+`pass: "visibility"`, and `?aoDir=` is DEV-only and pattern-validated.
+
+Suite **10097 green**, `tsc` and biome clean.
+
 ## v0.31.7.89 — the runtime derives `multiply` vs `replace` from the artefact, not from a setting
 
 Wiring `.88`'s `replace` mode through to the loader. The design decision worth recording is where the
