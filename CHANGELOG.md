@@ -29,6 +29,59 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.107 — res 64 buys full coverage and destroys the image; the region metric could not tell
+
+`.106` left one blocker: **11 % coverage** (42 of 385 meshes), which showed up as a hard-edged bright
+patch where a mapped wall met an unmapped one. The fix is more maps. The obstacle is bytes: 333 maps
+at 256 px 16-bit is **~39 MB**, which is not a web download.
+
+**So I tried to buy coverage with resolution, and measured the trade honestly.** Irradiance is a
+smooth room-scale quantity — `bake_material.py`'s own docstring says so — which is the argument for a
+small map. Full-coverage bake at `--min-area 0.5 --res 64 --samples 512 --scale 10`, 333 maps in 7.5
+minutes:
+
+| | |
+| --- | --- |
+| maps | **333**, 0 clipped |
+| total size | **4.3 MB** |
+| coverage | 42/385 → **232/385 (60 %)** |
+| materials loaded | 271 / 271 |
+| faces mirrored | 2290 |
+
+Every number says success. **The frame says unusable.** Walls, ceiling and even the TV cabinet are
+covered in a blotchy, high-contrast cloud pattern like camouflage. At 64 px a 3×2 atlas gives roughly
+**21×32 texels for an entire wall face** — about 15 cm per texel on a 3 m wall — so what reads as
+mottling *is* the texel grid, bilinear-interpolated, with per-texel sample noise magnified across the
+surface. Two compounding faults, resolution and noise, and neither is fixable by more samples alone.
+
+**The part worth keeping.** The region metric was **blind to it**:
+
+| | 40 maps @ 256 (looked good) | 333 maps @ 64 (unusable) |
+| --- | --- | --- |
+| ceiling | 0.97 | 0.98 |
+| wall | 1.01 | 1.02 |
+| **ceiling/wall** | **0.96** | **0.96** |
+
+Identical to two decimals across a catastrophic visual regression. A region-mean ratio integrates over
+exactly the spatial structure that broke. **This is the "always look at the frame" rule earning its
+keep** — on the numbers alone I would have shipped this as the coverage fix.
+
+**One methodological correction.** The pass-1 scale probe reported a global max of **8.766** at 32
+samples; the same selection at 512 samples reports **3.334**. The 8.766 was a *noise spike*, so
+`--scale 10` wasted ~1.6 bits of the 16 available. Harmless here, but the two-pass workflow's pass 1
+needs enough samples to estimate a maximum, not just enough to finish — otherwise it scales for noise.
+
+**And the reason a global scale forces 16-bit, now quantitative.** Across 333 maps the global max is
+3.33 while the *median map's mean* is **0.049** — a ~180:1 range between the brightest texel anywhere
+and the typical map's typical value. At 8 bits after a global scale the quantisation step would be
+~72 % of the median map's mean. `.104`'s 16-bit forcing was right, and the 40-map subset that
+suggested otherwise (median mean 0.456) was unrepresentative by 9×.
+
+Next step is constant **texel density** rather than a constant `--res`: resolution per object
+proportional to its area, so a 12 m² wall gets a large map and a 0.5 m² panel a small one, and total
+bytes scale with total surface area instead of mesh count. Suite **10116 green**, `tsc` and biome
+clean. No shipped change; scratch sets not committed.
+
 ## v0.31.7.106 — `?aoDir=` never redirected the MAP URLs, so `v0.31.7.90`-`.93` compared three bakes that were never loaded
 
 The seam existed. The option existed. Nothing connected them.
