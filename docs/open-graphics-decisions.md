@@ -303,6 +303,32 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.38 — every room in the library now has a door; (f) is down to 4 levels, all one shape
+
+Re-triaged the 8 remaining levels instead of assuming they were all the hard case, and **half of
+them were not**: four held a single room that still had no door — `tpl-loft/lf-up`'s Dressing,
+`tpl-condo-4bed`'s Balcony, `tpl-condo-penthouse`'s Master Bath and `tpl-terrace-ground`'s Service
+Yard. Earlier scans returned no suggestion for these because they touched no wall shared with the
+main component *at the time*; the component has since grown, so the same scan now answers cleanly.
+`tpl-hdb-exec` held four more (living, kitchen, service yard, shelter).
+
+Eight doors later: **`tpl-loft`, `tpl-condo-4bed`, `tpl-condo-penthouse` and `tpl-terrace-ground`
+are fully connected**, and `tpl-hdb-exec` goes **6 groups → 2**. The ratchet is **16 levels →
+4**, and every one of those four is now the SAME shape: a bedroom zone with no corridor, reachable
+only by opening a door straight into a bedroom. `tpl-hdb-4room`, `-5room` and `-exec` additionally
+hold a bedroom with no external wall, so the fix there is a re-plan and it is blocked on the
+content call above. `tpl-condo-3bed`'s column has no interior bedroom — it is purely the
+door-into-a-bedroom question.
+
+**Two offsets had to be measured, both for the same reason as every earlier batch:** the exec's
+kitchen door at the near end of its run took the stove wall and the room lost its **RANGE HOOD**;
+the loft's dressing door cost the ground-floor stairs a bench until it moved. Both were fixed by
+moving the door, not by adjusting a guard — and this batch needed no guard change at all, which is
+the first time a doors batch has been free.
+
+Also cleared as a side effect: `ex-b2-win` no longer has a wardrobe in front of it. **Item (j) is
+now 11 → 7, entirely from (f) and (i) work.**
+
 ### v0.31.8.36 — an area threshold for the dining kit is the WRONG instrument; (i) 2-room fixed instead
 
 Last entry proposed reducing the dining kit for small combined living/dining rooms. **Measured

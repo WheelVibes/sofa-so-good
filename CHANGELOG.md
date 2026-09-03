@@ -27,6 +27,43 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.38 — every room in the library now has a door; (f) is 16 levels → 4
+
+I re-triaged the 8 remaining levels rather than assuming they were all the hard
+case, and **half of them were not.** Four held a single room that still had no door
+at all: `tpl-loft/lf-up`'s Dressing, `tpl-condo-4bed`'s Balcony,
+`tpl-condo-penthouse`'s Master Bath and `tpl-terrace-ground`'s Service Yard. Earlier
+scans returned nothing for these because they shared no wall with the main component
+*at the time* — it has since grown, so the same scan now answers cleanly.
+`tpl-hdb-exec` held four more (living, kitchen, service yard, shelter).
+
+Eight doors later:
+
+- **fully connected:** `tpl-loft`, `tpl-condo-4bed`, `tpl-condo-penthouse`,
+  `tpl-terrace-ground`;
+- **`tpl-hdb-exec` 6 groups → 2.**
+
+The connectivity ratchet is **16 levels → 4**, and all four remaining are the same
+shape: a bedroom zone with no corridor, reachable only by opening a door straight
+into a bedroom. Three of them (`-4room`, `-5room`, `-exec`) also hold a bedroom with
+no external wall, so that fix is a re-plan and stays blocked on the content call;
+`tpl-condo-3bed`'s column has no interior bedroom and is purely the
+door-into-a-bedroom question.
+
+**Two offsets had to be measured, for the same reason as every earlier batch.** The
+exec's kitchen door at the near end of its run took the stove wall and the room lost
+its **range hood**; the loft's dressing door cost the ground-floor stairs a bench
+until it moved. Both fixed by moving the door — and this batch needed **no guard
+change at all**, the first doors batch that has been free.
+
+Side effect: `ex-b2-win` no longer has a wardrobe in front of it. **Item (j) is now
+11 → 7, entirely from (f) and (i) work** — no arranger change has been needed for any
+of it, which is the opposite of where that item started.
+
+Verified: 10126 tests pass; `tsc`, `biome`, `knip` clean. Scenario
+`doors-final.json` asserts the exec's four new doors; plan reviewed — swings on the
+kitchen, service yard, shelter and living, no stray warning.
+
 ## v0.31.8.37 — item (i) is DONE: every shipped front door opens into an entrance space
 
 `tpl-hdb-5room`'s front door opened into the **MASTER BEDROOM**, and unlike the

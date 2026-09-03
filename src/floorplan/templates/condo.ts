@@ -154,6 +154,8 @@ export function loft(): FloorPlan {
       // dressing area could not be reached. Openings must live on the SAME level
       // as their wall — this one belongs to `lf-up`, not the ground storey.
       door('lfu-land-door', 'lfu-land-w', 0.82),
+      // The dressing area was the last room in the library with no door at all.
+      door('lfu-ward-door', 'lfu-ward-w', 0.8, 0.8),
       window('lfu-win', 'lfu-s', 3.6, 1.8),
       window('lfu-e-win', 'lfu-e', 0.6, 1.2),
     ],
@@ -459,6 +461,10 @@ export function condoPenthouse(): FloorPlan {
     ],
     openings: [
       door('cp-main', 'cp-w', 6.0),
+      // v0.31.8.38: the last rooms in the library with NO door. Wall + offset
+      // from the same scan, placed at a wall END — mid-wall offsets cost a queen
+      // bed, a kitchen counter and a washing machine in earlier batches.
+      door('cp-mbath-door', 'cp-mbath-w', 0.2, 0.8),
       // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
       // for the longest span where the sealed room and the main circulation face
       // each other; positions then checked against the sightline/soundness tests.
@@ -562,6 +568,10 @@ export function condoTerrace(): FloorPlan {
     ],
     openings: [
       door('ct-main', 'ct-s', 2.4),
+      // v0.31.8.38: the last rooms in the library with NO door. Wall + offset
+      // from the same scan, placed at a wall END — mid-wall offsets cost a queen
+      // bed, a kitchen counter and a washing machine in earlier batches.
+      door('ct-yard-door', 'ct-yard-n', 0.15),
       // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
       // for the longest span where the sealed room and the main circulation face
       // each other; positions then checked against the sightline/soundness tests.
@@ -651,6 +661,10 @@ export function condo4Bed(): FloorPlan {
     ],
     openings: [
       door('c4-main', 'c4-s', 5.0, 1.1),
+      // v0.31.8.38: the last rooms in the library with NO door. Wall + offset
+      // from the same scan, placed at a wall END — mid-wall offsets cost a queen
+      // bed, a kitchen counter and a washing machine in earlier batches.
+      door('c4-bal-door', 'c4-bal', 0.2),
       // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
       // for the longest span where the sealed room and the main circulation face
       // each other; positions then checked against the sightline/soundness tests.

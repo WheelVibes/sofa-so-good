@@ -246,6 +246,15 @@ export function hdbExecutive(): FloorPlan {
       // this wall). `ex-s` runs east→west (len 11.4); 11.4 - 8.4 - 0.9 = 2.1 is
       // the exact mirror and lands it in ex-living, which lines 0.1-4.3.
       door('ex-main', 'ex-s', 2.1),
+      // v0.31.8.38: the last rooms in the library with NO door. Wall + offset
+      // from the same scan, placed at a wall END — mid-wall offsets cost a queen
+      // bed, a kitchen counter and a washing machine in earlier batches.
+      door('ex-liv-door', 'ex-liv-w', 3.3),
+      // EAST end of the kitchen's run: at 0.15 the door's keep-out took the
+      // stove wall and the room lost its RANGE HOOD.
+      door('ex-kit-door', 'ex-svc-s', 2.3),
+      door('ex-yard-door', 'ex-svc-s', 3.5),
+      door('ex-hs-door', 'ex-svc-s', 5.3),
       door('ex-master', 'ex-m-n', 1.0),
       door('ex-b2', 'ex-b2-s', 1.0),
       window('ex-kit-win', 'ex-n', 1.2, 1.8),
