@@ -774,6 +774,14 @@ def room_albedo_area(rooms, reach: float = 0.25) -> list[dict]:
         rho, _is_tex = _material_albedo(obj)
         if rho is None:
             continue
+        # THE EXPORTER ALREADY SAYS WHICH FINISH A MESH TAKES. `sceneGltf.ts` writes
+        # `userData.finishTarget = { kind, roomId }` for every shell surface, three's exporter puts
+        # it in glTF `extras`, and Blender's importer exposes it as an object custom property --
+        # 486 of 1782 objects carry it. `v0.31.7.140` was about to add exporter-side tagging for
+        # exactly this and it already existed; the geometric heuristic it replaces plateaued at
+        # 42.4 % of the wall bucket actually taking the wall finish.
+        tag = obj.get("finishTarget")
+        tag = dict(tag) if hasattr(tag, "keys") else None
         mw = obj.matrix_world
         rot = mw.to_3x3()
         for poly in obj.data.polygons:
@@ -812,7 +820,7 @@ def room_albedo_area(rooms, reach: float = 0.25) -> list[dict]:
             # three's -Z, i.e. north/south. The symptom was `floor_m2 = 0.07` where the floor is
             # ~23 m2, and repainted wall faces leaking into `other` (its rho moved 0.5818 ->
             # 0.5474 between arms, which a fixed bucket cannot do).
-            cls = _surface_class(rooms, room, three, S.blender_to_three(tuple(n)))
+            cls = _surface_class(rooms, room, three, S.blender_to_three(tuple(n)), tag)
             a[f"{cls}_area"] += area
             if cls == "other":
                 a["other_weighted"] += area * rho
@@ -845,7 +853,7 @@ def room_albedo_area(rooms, reach: float = 0.25) -> list[dict]:
     return out
 
 
-def _surface_class(rooms, room_id: str, centre_three, normal_three) -> str:
+def _surface_class(rooms, room_id: str, centre_three, normal_three, tag=None) -> str:
     """Classify a face as `floor` / `wall` / `ceiling` / `other`.
 
     **Position, not just normal.** A table top and a floor share an up-facing normal, and a cabinet
@@ -894,12 +902,41 @@ def _surface_class(rooms, room_id: str, centre_three, normal_three) -> str:
     role instead of inferring it. That makes this classifier exact rather than heuristic, and the
     acceptance criterion already exists: `changed %` ~100 for a finish bucket, 0 for the others.
     """
+    # Unpacked FIRST: the tag branch below uses `ny` and `x`/`z`, and putting these after it threw
+    # `UnboundLocalError`.
+    x, y, z = centre_three
+    ny = normal_three[1]
+    # EXACT when the exporter told us. `kind` is `floor` / `wall` / `ceiling`, and `roomId` says
+    # whose finish it follows -- which is stricter than rectangle containment, because a wall
+    # between two rooms belongs to one of them and only repaints with that one.
+    if tag is not None:
+        kind = tag.get("kind")
+        if tag.get("roomId") == room_id and kind in ("floor", "wall", "ceiling"):
+            # THE TAG NAMES THE OBJECT, NOT THE FACE. A wall mesh is a box: its inner face takes
+            # the finish, its outer face belongs to the next room, and its edges take neither.
+            # Measured (`v0.31.7.141`): trusting the tag alone gave a 56.06 m2 wall bucket of which
+            # only 23.81 m2 (42.5 %) actually repainted -- almost exactly the inner-face share.
+            # So the tag supplies IDENTITY and the geometry still has to supply WHICH SIDE.
+            if kind == "wall":
+                room = next((r for r in rooms if r["id"] == room_id), None)
+                if room is None:
+                    return "other"
+                ox, oz = room["origin"]
+                cx = ox + room["width"] / 2.0
+                cz = oz + room["depth"] / 2.0
+                inward = (cx - x) * normal_three[0] + (cz - z) * normal_three[2]
+                # Edges of a wall box point along the wall, not across it, so a near-zero
+                # projection is an edge and takes no finish.
+                return "wall" if inward > 0.05 else "other"
+            if kind == "floor":
+                return "floor" if ny > 0.5 else "other"
+            return "ceiling" if ny < -0.5 else "other"
+        # Tagged, but for a DIFFERENT room -- so it is fixed as far as this room is concerned.
+        return "other"
     room = next((r for r in rooms if r["id"] == room_id), None)
     if room is None:
         return "other"
     h = room.get("ceilingHeight") or 2.6
-    x, y, z = centre_three
-    ny = normal_three[1]
     if ny > 0.7 and y < 0.15:
         return "floor"
     if ny < -0.7 and y > h - 0.3:

@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.141 — the exporter tag ALREADY EXISTS and I read it — and the number did not move. Parking the classifier.
+
+`.140` specified the complete fix as "tag shell meshes with their surface role on export". **It is
+already there.** `sceneGltf.ts` writes `userData.finishTarget = { kind, roomId }`, three's exporter
+puts it in glTF `extras`, and Blender's importer exposes it as an object custom property. Measured on
+the shipped export:
+
+| | |
+| --- | --- |
+| nodes carrying `finishTarget` | **143** (14 `floor`, 129 `wall`) |
+| mesh objects with their own tag | 143 |
+| tagged for `livingDining` | **18 wall, 3 floor** |
+
+So `.140`'s "the complete fix is exporter-side" was **wrong about the work being needed** — I was
+about to build something that has been shipping all along. Checking cost one glTF JSON dump.
+
+**Wired it up, and combined it with the face-side test**, because the tag names the *object* and a
+wall mesh is a box: its inner face takes the finish, its outer face belongs to the next room, its
+edges take neither.
+
+| | heuristic | **tag + face side** |
+| --- | --- | --- |
+| `wall` area | 56.04 m² | **56.04 m²** |
+| `wall` changed | 42.4 % | **42.4 %** |
+
+**Identical.** So neither identity nor face-side is the missing discriminator. 18 tagged wall objects
+for this room yield 56.04 m² of inward-facing area of which only 23.79 m² repaints, and I have not
+isolated what the other 32 m² is.
+
+**Parking it here**, on the same grounds as the seam at `.130`: four rounds on this classifier
+(perimeter → inward → tag → tag+side), each a plausible mechanism, none moving the number past 42 %.
+The measurement is cheap and repeatable, which is what makes stopping safe.
+
+**And the fallback is known to work**, which matters more than the classifier: the empirical face
+diff **is** an exact classifier — it defines a finish's faces as the ones that change when that
+finish changes. It needs one extra export per surface class, which the bake pipeline could afford,
+and `.139` already showed the resulting buckets reconstruct ρ to **1.1 % out of sample**. So `(s)`
+has a working route that does not depend on solving this.
+
+The tag path is **kept** even though the number did not move: for a tagged object it replaces
+rectangle containment with the exporter's own assignment, which is correct in principle — a wall
+between two rooms belongs to whichever room the app says, not to whichever centroid it sits nearest.
+
+Suite **10150 green**, `tsc` and biome clean.
+
 ## v0.31.7.140 — the geometric wall test PLATEAUS at 42.4 %: geometry cannot finish this, and the fix is exporter-side
 
 `.139` specified the wall bucket must be "the faces carrying the wall material, not the faces near
