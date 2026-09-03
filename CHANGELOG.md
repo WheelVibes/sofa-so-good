@@ -29,6 +29,39 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.103 — `parseLightmapIndex` silently dropped `slots`, so `v0.31.7.99`'s `flipped = 0` measured a dead code path
+
+Two real defects, both found by asking what the *consumer* does with what the *producer* writes.
+
+**1. `slots` was never copied through the parse.** `LightmapEntry.slots` exists on the interface,
+`createLightmapResolver` builds a `slotsByCtxKey` from it, and `slotsFor` is wired into
+`applyVisibilityLightmaps` — but `parseLightmapIndex`'s `maps.push({...})` never included the field.
+So `slotsByCtxKey` was **always empty**, `slotsFor` returned `null` for every key, and the mirror-row
+relocation in `lightmapUv.ts` **never ran**.
+
+That retro-invalidates a reading, not just a line of code. `v0.31.7.99` refuted the row-flip
+hypothesis on the evidence that `flipped = 0` — and `flipped` was zero because the relocation was
+unreachable, not because no face needed relocating. **A null-guarded feature that is never fed reports
+"nothing to do" and "working correctly" with the same number.** The relocation still has not been
+exercised; `.99`'s refutation should be read as untested rather than as established.
+
+**2. `--encode` was write-only.** `bake_material.py` has offered `--encode` (store `texel ** encode`)
+and records it in the index; nothing in the runtime has ever read it. An encoded set would load, look
+plausible, and be wrong by a power on every surface — the exact failure class the `uv` check exists to
+prevent, and **indistinguishable from a mis-calibrated gain**, which is the symptom `.102` spent its
+whole round chasing. `parseLightmapIndex` now **refuses** a non-unit encode with a clear error rather
+than guessing; applying `pow(v, 1/encode)` is the eventual fix, and there is no encoded set to
+validate it against yet.
+
+**Behaviourally inert on the shipped set, with evidence:** `public/assets/lightmaps/index.json` has
+**0 of 176** entries carrying `slots` and no `encode` field, so nothing renders differently today and
+there is no visual delta to verify. The fix matters for the next bake, which is when it would
+otherwise have failed silently again.
+
+Five new cases in `lightmapIndex.test.ts` — `slots` reaches the entry, `slotsFor` returns it,
+malformed pairs are dropped rather than trusted, a non-unit encode is refused, and both an explicit
+`encode: 1` and an absent field still load. Suite **10110 green**, `tsc` and biome clean.
+
 ## v0.31.7.102 — the black shell is the VISIBILITY DATA ITSELF, not a coordinate bug: 52-80 % of slots are dark in the shipped set
 
 Three rounds chased a coordinate error — `.98` blamed the mirror row, `.99` refuted it, `.100` blamed

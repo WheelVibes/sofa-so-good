@@ -119,3 +119,64 @@ describe('createLightmapResolver', () => {
     expect(r.describeHitRate().message).toContain('1/10')
   })
 })
+
+describe('parseLightmapIndex — fields that were silently dropped', () => {
+  const base = {
+    version: 2,
+    pass: 'visibility',
+    uv: 'box-atlas-3x2',
+    maps: [
+      {
+        key: 'k1',
+        file: 'a.png',
+        ctx: 'c1',
+        slots: [
+          [1, 0],
+          [2, 1],
+        ],
+      },
+    ],
+  }
+
+  it('carries `slots` through to the entry', () => {
+    // It did not. The field existed on the interface and on the resolver, and the parse never
+    // copied it, so `slotsFor` returned null for every key ever baked.
+    const r = parseLightmapIndex(base)
+    expect('index' in r).toBe(true)
+    if (!('index' in r)) return
+    expect(r.index.maps[0]?.slots).toEqual([
+      [1, 0],
+      [2, 1],
+    ])
+  })
+
+  it('makes `slotsFor` actually return those slots', () => {
+    const r = parseLightmapIndex(base)
+    if (!('index' in r)) throw new Error('parse failed')
+    const res = createLightmapResolver(r.index, '/assets/lm')
+    expect(res.slotsFor('k1', 'c1')).toEqual([
+      [1, 0],
+      [2, 1],
+    ])
+  })
+
+  it('drops malformed slot pairs rather than trusting them', () => {
+    const r = parseLightmapIndex({
+      ...base,
+      maps: [{ key: 'k1', file: 'a.png', ctx: 'c1', slots: [[1], 'x', [0, 0]] }],
+    })
+    if (!('index' in r)) throw new Error('parse failed')
+    expect(r.index.maps[0]?.slots).toEqual([[0, 0]])
+  })
+
+  it('REFUSES a non-unit --encode instead of misreading it by a power', () => {
+    const r = parseLightmapIndex({ ...base, encode: 0.5 })
+    expect('error' in r).toBe(true)
+    if ('error' in r) expect(r.error).toContain('encode')
+  })
+
+  it('accepts an explicit encode of 1, and an index with no encode field', () => {
+    expect('index' in parseLightmapIndex({ ...base, encode: 1 })).toBe(true)
+    expect('index' in parseLightmapIndex(base)).toBe(true)
+  })
+})

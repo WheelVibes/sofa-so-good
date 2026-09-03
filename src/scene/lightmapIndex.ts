@@ -81,6 +81,18 @@ export interface LightmapIndex {
    * unscaled gain rather than refusing.
    */
   contexts?: Record<string, { mean: number }>
+  /**
+   * The bake's `--encode` exponent: texels hold `value ** encode`.
+   *
+   * **Consumed only to REFUSE it.** `bake_material.py` has offered `--encode` since
+   * `v0.31.7.x` and records it in the index, and nothing in the runtime has ever read it — so an
+   * encoded set would load, look plausible, and be wrong by a power everywhere. That is the same
+   * failure class the `uv` check exists to prevent, and it is indistinguishable from a
+   * mis-calibrated gain, which is exactly the symptom `v0.31.7.102` spent the round chasing.
+   * Applying `pow(v, 1/encode)` is the eventual fix; there is no encoded set to validate it
+   * against, so this build rejects instead of guessing.
+   */
+  encode?: number
 }
 
 /** The only index shape this build understands. v1 had no per-map context and could therefore
@@ -106,6 +118,10 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
   if (o.uv !== SUPPORTED_UV) {
     return { error: `unsupported uv layout ${String(o.uv)} (need ${SUPPORTED_UV})` }
   }
+  // A non-unit encode is silently misread by every consumer in this build; see `encode` above.
+  if (typeof o.encode === 'number' && o.encode !== 1) {
+    return { error: `index uses --encode ${o.encode}; this build only reads unencoded maps` }
+  }
   if (!Array.isArray(o.maps)) return { error: 'index has no maps array' }
   const maps: LightmapEntry[] = []
   for (const m of o.maps) {
@@ -113,7 +129,24 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
       return { error: 'a map entry is missing key or file' }
     }
     if (typeof m?.ctx !== 'string') return { error: `map ${m.key} has no plan context` }
-    maps.push({ key: m.key, file: m.file, ctx: m.ctx, object: m.object, area: m.area })
+    // `slots` was ADDED TO THE INTERFACE AND NEVER COPIED HERE, so `slotsByCtxKey` below was
+    // always empty and `slotsFor` always returned null. The mirror-row relocation in
+    // `lightmapUv.ts` therefore never ran, which is why `v0.31.7.99` measured `flipped = 0` and
+    // read it as evidence against the row-flip hypothesis rather than as a dead code path.
+    const slots = Array.isArray(m.slots)
+      ? m.slots.filter(
+          (s): s is [number, number] =>
+            Array.isArray(s) && s.length === 2 && s.every((n) => typeof n === 'number'),
+        )
+      : undefined
+    maps.push({
+      key: m.key,
+      file: m.file,
+      ctx: m.ctx,
+      object: m.object,
+      area: m.area,
+      ...(slots?.length ? { slots } : {}),
+    })
   }
   if (!maps.length) return { error: 'index lists no maps' }
   const contexts =
@@ -125,7 +158,14 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
         )
       : undefined
   return {
-    index: { version: o.version, pass: String(o.pass ?? 'unknown'), uv: o.uv, maps, contexts },
+    index: {
+      version: o.version,
+      pass: String(o.pass ?? 'unknown'),
+      uv: o.uv,
+      maps,
+      contexts,
+      ...(typeof o.encode === 'number' ? { encode: o.encode } : {}),
+    },
   }
 }
 
