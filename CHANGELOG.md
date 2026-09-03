@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.144 — `(z)`7 is NOT ACTUATED: I shipped the ladder and measured the lever doing nothing
+
+`.143` shipped the dpr rung with five tests on its ordering and called it done. **It changes nothing
+on screen.** Verified in the app, which is what I should have done before writing that entry:
+
+| | `dprHalved` | canvas |
+| --- | --- | --- |
+| before | false | 2560×1600 |
+| after `setDprHalved(true)` | true | **2560×1600** |
+
+**Two attempts failed, and the codebase already documented why** — I read the warning only after
+walking into it.
+
+1. **r3f `setDpr` from `QualityController` is stomped.** `InteractiveDprController`'s docstring
+   records this from a **stack-trace dated 2026-07-24**: r3f's root `configure()` re-runs on every
+   Canvas commit and re-applies the `dpr` prop whenever it differs from `viewport.dpr`, so a degrade
+   held in r3f state is reset by any store-driven re-render.
+2. **Clamping the Canvas `dpr` prop instead** did not take either, and that path carries a
+   documented white-flash hazard — each stomp clears the buffer with no repaint. **Reverted.**
+
+**The working mechanism is named in the same docstring:** raw `gl.setPixelRatio`, deliberately
+invisible to `viewport.dpr`, followed by a same-value `setSize` nudge and a same-task `advance`.
+And one further constraint found while measuring: `InteractiveDprController.effectiveDpr()` clamps
+to `dprMax`, so it would **stomp this rung on every gesture release** — both must share one notion
+of the ceiling. That makes it a two-file change in the interactive-degrade path, with a known
+flicker hazard, which is not 4am work.
+
+**What stands:** the ladder logic is correct and unit-tested — no dpr while a class rung remains,
+none before shadows are spent, halving once both are, idempotent, and restored ahead of promotion.
+The store flag is set correctly by it. Only the actuation is missing, and it is now specified
+precisely in the flag's own docstring rather than left as a surprise.
+
+**The pattern, stated plainly because it is now four for four.** `.106`'s unpassed `baseUrl`,
+`.108`'s two dead flags, `.143`'s missing hook dependency — and now this. Every one *looked* correct
+and passed its unit tests. The only thing that has reliably caught them is exercising the real path
+and looking at the result; and in this case the answer was sitting in a docstring written two months
+ago by someone who had already paid for it.
+
+Suite **10155 green**, `tsc` and biome clean.
+
 ## v0.31.7.143 — `(z)`7 shipped: `dprMax` 2 → 1 as the ladder's LAST rung, gated behind everything else
 
 The largest unused lever in this arc — **4.5×, 10.9 → 49.6 fps**, more than shadows, post and

@@ -224,6 +224,28 @@ export interface UiSlice {
    * class ladder cannot reach resolution at all — which is why `v0.31.7.86` measured the chain
    * bottoming out at 29.6 fps. Worth 4.5x (10.9 -> 49.6 fps), the largest lever in this arc, and
    * engaged only after the class ladder AND the shadow fallback are both spent.
+   *
+   * ## ⚠️ NOT YET ACTUATED — the flag is decided correctly and changes nothing on screen
+   *
+   * `v0.31.7.144` measured it: flipping this leaves the canvas at **2560x1600**. Two attempts
+   * failed, and the codebase already documents why:
+   *
+   * 1. r3f `setDpr` from `QualityController` is **stomped**. `InteractiveDprController`'s docstring
+   *    records it from a July stack-trace — r3f's root `configure()` re-runs on every Canvas commit
+   *    and re-applies the `dpr` prop whenever it differs from `viewport.dpr`, so a degrade held in
+   *    r3f state is reset by any store-driven re-render.
+   * 2. Clamping the Canvas `dpr` prop instead did not take either, and that path carries a
+   *    documented white-flash hazard (each stomp clears the buffer with no repaint).
+   *
+   * **The working mechanism is raw `gl.setPixelRatio`, deliberately invisible to `viewport.dpr`,
+   * followed by a same-value `setSize` nudge and a same-task `advance`** — exactly what
+   * `InteractiveDprController.apply()` does. Additional constraint found while measuring: that
+   * controller's own `effectiveDpr()` clamps to `dprMax`, so it would stomp this rung on every
+   * gesture release. **Both must share one notion of the ceiling**, which is why this is a
+   * two-file change and not a one-line fix.
+   *
+   * The ladder that sets this flag is correct and unit-tested (`adaptiveTier.test.ts`); only the
+   * actuation is missing.
    */
   dprHalved: boolean
   /** True once a SETTLED value has been restored from persisted prefs, so the
