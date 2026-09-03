@@ -3033,6 +3033,18 @@ been attributed to the glass or to the background tone-mapping path.
 > attaching one mid-session cost a **216 ms** compile hitch. Attach at material creation; a flag
 > that toggles `aoMap` live will stutter. Read the flag where the material is built.
 >
+> **⚠️ IN-SAMPLE ONLY — v0.31.7.47.** The improvement below was measured on the same plan the
+> gain was fitted against. Out of sample the term **degrades**: the 5-Room plan goes 1.20× → 2.34×
+> in one pose and 1.55× → 1.69× in another, consistently in both, while the 4-Room plan improves in
+> both of its poses. Per-plan gain scaling (means differ 1.71×) does not fix it, and the plans'
+> visibility *spread* barely differs (cv 0.981 vs 0.914), so neither level nor structure explains
+> it. `bedroom3` in `v0.31.7.40` looked like generalisation and was a different **pose of the same
+> plan**.
+>
+> **So the flag stays off**, and the open question is well-posed: what property of a plan predicts
+> how much visibility-blindness its render actually suffers? Everything mechanical is verified —
+> bake, keys, contexts, shader injection, per-plan resolution, nil frame cost, all three views.
+>
 > **✅ DEMONSTRATED IN THE RENDERER, v0.31.7.19 — spread 4.76× → 1.46×.** With baked visibility
 > applied through a patched `aomap_fragment` (a plain `texel × gain`, so the multiplier may exceed
 > 1) and `Texture.channel = 1`, the app's spatial match to physics beats the analysis' own
