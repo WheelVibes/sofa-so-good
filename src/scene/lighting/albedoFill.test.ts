@@ -2,9 +2,17 @@
  * The albedo census and its scalar fill scale. Tested on OUTPUT properties and on the shipped
  * catalogue's real swatches, because the whole point is that a dark repaint has to move the fill.
  */
+
+import { BoxGeometry, Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { describe, expect, it } from 'vitest'
 import type { PlanRoom } from '../../floorplan/types'
-import { albedoFillScale, REFERENCE_RHO, roomAlbedoLuminance, swatchLuminance } from './albedoFill'
+import {
+  albedoFillScale,
+  REFERENCE_RHO,
+  roomAlbedoLuminance,
+  sceneRoomAlbedo,
+  swatchLuminance,
+} from './albedoFill'
 
 const room = (patch: Partial<PlanRoom> = {}): PlanRoom =>
   ({ id: 'r', name: 'r', origin: [0, 0], width: 4, depth: 5, ...patch }) as PlanRoom
@@ -114,5 +122,75 @@ describe('albedoFillScale', () => {
     expect(albedoFillScale(0.999)).toBeLessThanOrEqual(1.35)
     expect(albedoFillScale(0.0001)).toBeGreaterThanOrEqual(0.45)
     expect(Number.isFinite(albedoFillScale(1))).toBe(true)
+  })
+})
+
+describe('sceneRoomAlbedo (v0.31.7.120)', () => {
+  const box = (
+    w: number,
+    h: number,
+    d: number,
+    hex: string,
+    textured: boolean,
+    at: [number, number, number],
+  ) => {
+    const m = new Mesh(new BoxGeometry(w, h, d), new MeshStandardMaterial({ color: hex }))
+    if (textured) {
+      // The `.273` shape: albedo lives in a texture, `color` is left white.
+      ;(m.material as MeshStandardMaterial).color.set('#ffffff')
+      ;(m.material as MeshStandardMaterial).userData.albedoSwatch = hex
+    }
+    m.position.set(...at)
+    return m
+  }
+  const ROOM = { id: 'r', name: 'r', origin: [0, 0], width: 6, depth: 6 } as PlanRoom
+
+  it('prefers userData.albedoSwatch over material.color, so a TEXTURED floor counts correctly', () => {
+    // The whole point of `.273`: reading `material.color` here would return ~1.0 (white) for a
+    // mid-brown oak floor. This is the assertion that the swatch wins.
+    const root = new Object3D()
+    root.add(box(4, 0.1, 4, '#b88f5d', true, [3, 0, 3]))
+    const rho = sceneRoomAlbedo(root, ROOM)
+    expect(rho).not.toBeNull()
+    expect(rho!).toBeCloseTo(swatchLuminance('#b88f5d'), 3)
+    expect(rho!).toBeLessThan(0.6) // NOT white
+  })
+
+  it('falls back to material.color when no swatch was stamped', () => {
+    const root = new Object3D()
+    root.add(box(4, 0.1, 4, '#808080', false, [3, 0, 3]))
+    // `material.color` is already linear in three, so compare against the linear grey.
+    expect(sceneRoomAlbedo(root, ROOM)!).toBeGreaterThan(0)
+  })
+
+  it('EXCLUDES meshes outside the room -- bounce is local', () => {
+    // `.271` measured a whole-flat census predicting 2.6 % darkening against a measured 16-20 %.
+    const root = new Object3D()
+    root.add(box(4, 0.1, 4, '#111111', true, [3, 0, 3])) // inside, near-black
+    root.add(box(4, 0.1, 4, '#ffffff', true, [3, 0, 30])) // far away, white
+    const rho = sceneRoomAlbedo(root, ROOM)!
+    expect(rho).toBeLessThan(0.1)
+  })
+
+  it('area-weights, so a large pale surface outweighs a small dark one', () => {
+    const root = new Object3D()
+    root.add(box(5, 0.1, 5, '#ffffff', true, [3, 0, 3]))
+    root.add(box(0.3, 0.3, 0.3, '#000000', true, [3, 1, 3]))
+    expect(sceneRoomAlbedo(root, ROOM)!).toBeGreaterThan(0.85)
+  })
+
+  it('returns NULL for an empty census rather than pretending the room is neutral', () => {
+    // A broken traversal and a white room must not look the same to the caller.
+    expect(sceneRoomAlbedo(new Object3D(), ROOM)).toBeNull()
+  })
+
+  it('counts a SCALED instance at its rendered size', () => {
+    const root = new Object3D()
+    const small = box(1, 0.1, 1, '#000000', true, [3, 0, 3])
+    const big = box(1, 0.1, 1, '#ffffff', true, [3, 1, 3])
+    big.scale.set(4, 1, 4)
+    root.add(small, big)
+    // The white plane is 16x the area once scaled, so it must dominate.
+    expect(sceneRoomAlbedo(root, ROOM)!).toBeGreaterThan(0.7)
   })
 })

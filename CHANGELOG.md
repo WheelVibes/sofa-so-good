@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.120 — `sceneRoomAlbedo`: the census moves ρ 0.771 → 0.655 against a 0.546 target, and names the two causes of the rest
+
+`.119` specified the fix as "a scene-graph census with the catalogue swatch substituted for textured
+materials — replace the albedo LOOKUP, not the surface ENUMERATION". Built both halves and measured
+them on the live scene.
+
+**`buildMaterial` now stamps `userData.albedoSwatch = def.swatch`** at all three of its return paths,
+via one `stampAlbedo` helper rather than three copies of the same comment. This is the `.273` fix at
+the right scope: the catalogue swatch *is* the material's albedo, and for a textured finish it is the
+only place that survives — the living/dining floor is `color: #ffffff, map: true` while the real
+surface is oak `#b88f5d`.
+
+**`sceneRoomAlbedo(root, room)`** area-weights over real triangles in world space (so a scaled
+instance counts its rendered size), scopes by world position, prefers the swatch over
+`material.color`, and returns **`null`** rather than a fallback for an empty census — a broken
+traversal and a white room must not look the same to the caller.
+
+**Measured on the live scene**, `livingDining`:
+
+| census | ρ | area |
+| --- | --- | --- |
+| plan-data (`.118`) | 0.7712 | 100.2 m² |
+| **scene-graph** | **0.6548** | **223.7 m²** |
+| target implied by `.271`'s measured 0.650 scale | 0.546 | 467 m² |
+
+**Roughly half the gap closed, in both ρ and area.** The approach is validated as moving the right
+number in the right direction, which `.118`'s could not.
+
+**And the remaining half has two named causes, not a mystery.**
+
+1. **Only 10 of 185 meshes carry a swatch.** Furniture is not built by `buildMaterial` — it comes
+   from the furniture system and imported GLBs — so 175 meshes fall back to `material.color`. If
+   furniture is textured with a white base colour, `.273`'s exact error still applies to it, and
+   furniture is the bulk of the room.
+2. **The in-page measurement used BOUNDING-BOX area, not triangle area.** A sofa's box overstates
+   nothing and understates its real surface badly, which is most of why 223.7 m² is short of 467 m².
+   The shipped module sums triangles; the probe approximated, and the approximation is named rather
+   than presented as the module's result.
+
+Still **not wired** (`grep albedoFill Lighting.tsx` → 0). Six new tests on the census — swatch beats
+`material.color`, out-of-room meshes excluded, area weighting, scaled instances counted at rendered
+size, and `null` for an empty census. Suite **10142 green**, `tsc` and biome clean.
+
 ## v0.31.7.119 — `(s)`'s census gap SIZED: the shell is 21.4 % of the room, so a plan-data census can never work
 
 `.118` recorded that the catalogue census over-reads ρ by 0.225 and left the fix as "a census over

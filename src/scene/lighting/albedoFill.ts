@@ -63,6 +63,8 @@
  * is worth keeping; only the rho it is fed is wrong.
  */
 
+import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D } from 'three'
+import { Vector3 } from 'three'
 import type { PlanRoom } from '../../floorplan/types'
 import { BUILTIN_MATERIALS, DEFAULT_FLOOR, DEFAULT_WALL } from '../../materials/builtinCatalog'
 
@@ -172,4 +174,86 @@ export function albedoFillScale(rho: number, rhoRef: number = REFERENCE_RHO): nu
   }
   const raw = f(rho) / f(rhoRef)
   return Math.min(Math.max(raw, MIN_SCALE), MAX_SCALE)
+}
+
+/**
+ * Area-weighted mean albedo luminance over the SCENE GRAPH, room-scoped.
+ *
+ * **This is the census that can actually work**, and `v0.31.7.119` is why: the shell is only
+ * **21.4 %** of a room's census area (`h4-living`'s six surfaces are 100.16 m² against `.271`'s
+ * 467 m²), so a plan-data census structurally cannot see the 78.6 % — furniture, fittings,
+ * glazing — that is *precisely what moves* when a room is furnished or repainted.
+ *
+ * **Albedo per material comes from `userData.albedoSwatch`** (stamped by `buildMaterial`) in
+ * preference to `material.color`. That is the `.273` fix applied at the right scope: replace the
+ * albedo LOOKUP, not the surface ENUMERATION. A textured oak floor is `color: #ffffff` with the
+ * real albedo only in the catalogue swatch.
+ *
+ * Area is summed from real triangles in WORLD space, so a scaled instance counts its rendered
+ * size rather than its authored one.
+ */
+export function sceneRoomAlbedo(root: Object3D, room: PlanRoom): number | null {
+  const [ox, oz] = room.origin
+  const inRoom = (p: Vector3) =>
+    p.x >= ox && p.x <= ox + room.width && p.z >= oz && p.z <= oz + room.depth
+  let weighted = 0
+  let area = 0
+  const centre = new Vector3()
+  root.updateMatrixWorld(true)
+  root.traverse((o) => {
+    const mesh = o as Mesh
+    const geom = mesh.geometry as BufferGeometry | undefined
+    const mat = mesh.material as MeshStandardMaterial | undefined
+    if (!geom?.attributes?.position || !mat || Array.isArray(mesh.material)) return
+    if (mat.transparent && (mat.opacity ?? 1) < 0.5) return
+    if (!geom.boundingBox) geom.computeBoundingBox()
+    geom.boundingBox?.getCenter(centre)
+    if (!inRoom(centre.applyMatrix4(mesh.matrixWorld))) return
+    const a = worldTriangleArea(mesh, geom)
+    if (a <= 0) return
+    const swatch = (mat.userData as { albedoSwatch?: string } | undefined)?.albedoSwatch
+    const rho = swatch
+      ? swatchLuminance(swatch)
+      : 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b
+    weighted += a * rho
+    area += a
+  })
+  // `null`, not a fallback: an empty census is a DIFFERENT condition from a neutral room, and
+  // silently returning the reference would make a broken traversal look like a white room.
+  return area > 0 ? weighted / area : null
+}
+
+const _a = new Vector3()
+const _b = new Vector3()
+const _c = new Vector3()
+const _ab = new Vector3()
+const _ac = new Vector3()
+
+/** Summed triangle area in world space. Indexed and non-indexed geometry both. */
+function worldTriangleArea(mesh: Mesh, geom: BufferGeometry): number {
+  const pos = geom.attributes.position as {
+    count: number
+    getX(i: number): number
+    getY(i: number): number
+    getZ(i: number): number
+  }
+  const index = geom.index
+  const tris = index ? index.count / 3 : pos.count / 3
+  // Guard: a huge mesh would make this O(n) walk dominate a plan change. 60k triangles is well
+  // above any single shell or furniture mesh here and bounds the worst case.
+  if (!Number.isFinite(tris) || tris <= 0 || tris > 60000) return 0
+  const at = (i: number, v: Vector3) => {
+    const j = index ? index.getX(i) : i
+    return v.set(pos.getX(j), pos.getY(j), pos.getZ(j)).applyMatrix4(mesh.matrixWorld)
+  }
+  let total = 0
+  for (let t = 0; t < tris; t += 1) {
+    at(t * 3, _a)
+    at(t * 3 + 1, _b)
+    at(t * 3 + 2, _c)
+    _ab.subVectors(_b, _a)
+    _ac.subVectors(_c, _a)
+    total += _ab.cross(_ac).length() / 2
+  }
+  return total
 }
