@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.35 — the naive dining-chair fallback is measured worse; the real fix is the kit
+
+Taking (f)'s option 1 myself — shrink the living and accept a smaller dining set,
+rather than ship windowless habitable bedrooms — I went after what actually blocks
+it: a 4-seat set does not fit a 13-15 m² living/dining, and the 4th chair falls
+through to `arrangeCore`'s room-wide safety settle, which parks it metres away.
+
+**The obvious fix fails the furniture guard, and I reverted it.** Committing the
+chair to its own table-side slot when every slot is rejected, built and measured
+twice:
+
+- ignoring all checks: **899 → 875 items** — an overlapping chair becomes an
+  obstacle for everything placed after it, so the loss cascades;
+- relaxing only the door/window keep-outs, still enforcing item and wall collisions:
+  **899 → 897**, with `tpl-1bed` 48 → 46. The chair legitimately claims table-side
+  floor two accents used to get, because chairs are placed before accents while the
+  safety settle runs last.
+
+Both are precisely what `total >= 899` exists to catch — its docstring records two
+earlier attempts that scored 893 and 895 while reporting a stranding win. I am not
+lowering that guard for a placement change. The one time it moved (900 → 899 in
+v0.31.8.31) it was for a content trade with a per-def diff behind it.
+
+**So option 1 needs the dining KIT to change, not the placement.** `furnishPlan.ts`
+gives every combined living/dining a `dining-table-4` plus 4 chairs with no reference
+to the room's area; a small one wants a 2-chair set. That prevents the strand instead
+of papering over it, and it is a deliberate content change — but it costs 2 items per
+affected room, so it belongs in its own change with the affected rooms measured
+first, not folded into a template re-plan. Logged in `TODO.md`.
+
+State of the (f) programme: 16 disconnected levels → **8**, and every level fixed so
+far was fixed without touching a guard.
+
+No production code changed. 10126 tests pass.
+
 ## v0.31.8.34 — the second doors batch: 7 more levels, 3 now fully connected
 
 18 more doors from the same wall-scan, across every remaining template that was

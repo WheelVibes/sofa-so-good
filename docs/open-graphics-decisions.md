@@ -303,6 +303,42 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.35 — the last 8 levels need a smaller dining set, and the naive fallback is measured worse
+
+Having decided to take (f)'s option 1 myself (shrink the living, accept a smaller dining set,
+rather than ship windowless habitable bedrooms), I went after the thing that actually blocks it: a
+4-seat dining set does not fit a 13-15 m² living/dining, and the 4th chair falls through to
+`arrangeCore`'s room-wide safety settle, which parks it metres from its table.
+
+**The obvious fix is a last-resort commit at the table, and it fails the furniture guard.**
+`arrangeLivingAnyEdge` already offers the table's two ENDS as spare slots; when those are rejected
+too the chair is simply left unplaced. Committing it to its own slot anyway was built and measured
+twice:
+
+- **Ignoring all checks: 899 → 875 items.** An overlapping chair becomes an obstacle for
+  everything placed after it, so the loss cascades far beyond the chair.
+- **Relaxing only the door/window keep-outs, still enforcing item and wall collisions:
+  899 → 897.** `tpl-1bed` goes 48 → 46: the chair legitimately claims table-side floor that two
+  accents used to get, because dining chairs are placed before accents while the safety settle
+  runs last.
+
+Both are exactly what `placeSeededMounts.test.ts`'s `total >= 899` exists to catch — its own
+docstring records two earlier attempts that scored 893 and 895 while reporting a stranding win.
+**Reverted.** I am not lowering that guard for a placement change; the one time it moved
+(900 → 899, v0.31.8.31) it was for a content trade with a per-def diff behind it.
+
+**So option 1 needs the dining KIT to change, not the placement.** `furnishPlan.ts` gives every
+combined living/dining `KITS.living + KITS.dining` — a `dining-table-4` and 4 chairs — with no
+reference to the room's area. A small combined room wants a 2-chair set. That is a deliberate
+content change with a visible rationale (a 13 m² living/dining genuinely does not seat four), it
+PREVENTS the strand rather than papering over it, and it costs 2 items per affected room, which
+will move the same guard. Worth doing, but as its own change with the affected rooms measured
+first — not folded into a template re-plan.
+
+**State of the (f) programme:** 16 disconnected levels → **8**. Every level fixed so far was fixed
+without touching a guard. The 8 that remain are all the same shape: a bedroom column with no
+corridor, where carving one costs living-room area, and that area is what seats the dining set.
+
 ### v0.31.8.33 — 12 rooms across 3 templates had NO DOOR; and a triage of what remains
 
 Rather than keep discovering each template's blocker one at a time, I triaged all 13 remaining

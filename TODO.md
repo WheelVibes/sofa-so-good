@@ -1950,3 +1950,21 @@ daylight starves the living: measured 1.32 m, 3.69 m and 4-chairs-stranded for
 living areas of 12.8, 14.4 and 14.8 m². The original 23 m² living passes.
 
 Three options are written up in the decisions doc; the call is the maintainer's.
+
+## Small combined living/dining rooms should get a 2-chair dining set
+
+`furnishPlan.ts` gives every combined living/dining `KITS.living + KITS.dining` — a
+`dining-table-4` plus 4 chairs — regardless of area. In a 13-15 m² room that does not
+fit, and the 4th chair falls through to the room-wide safety settle, which parks it
+metres from its table. This is what blocks (f)'s remaining 8 levels: carving a
+bedroom corridor costs living area, and that area is what seats the set.
+
+Do this as its own change: measure which template rooms fall under the threshold
+first, then reduce the kit. It removes 2 items per affected room, so it will move
+`placeSeededMounts.test.ts`'s `total >= 899` — legitimately, as a content trade with
+a per-def diff, which is the only reason that guard has ever moved.
+
+Measured and REJECTED already (see `docs/open-graphics-decisions.md` (f), v0.31.8.35):
+committing the chair to its own slot as a last resort. Ignoring all checks costs
+899 -> 875 items; relaxing only the keep-outs costs 899 -> 897. Both are the exact
+pattern that guard was written to catch.
