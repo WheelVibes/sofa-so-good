@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.92 — the mapped-surface mask says the shell was already right, and names the decomposition error I made twice
+
+Built the instrument `.91` called for and it settled the thread — including that the thread's premise
+was wrong for this pose.
+
+**`render_visibility.py --mask-from-index <index.json>`** renders a binary mask of exactly the meshes
+a bake covered, reading the object names from that bake's **own index**. Not by re-deriving
+`--min-area`/`--limit`, which would be a second selection rule free to disagree — and it raises if any
+named object is missing from the scene, because a silently smaller mask shrinks the population under
+measurement. 24 objects, matching the bake's 24 maps.
+
+**Measured on the mapped surfaces alone, both sides the same population:**
+
+| variant | p10 | median | p90 | p90/p10 |
+| --- | --- | --- | --- | --- |
+| app, **no lightmaps** | 65.4 | **132.5** | 140.6 | 2.15 |
+| `replace` + albedo | 1.8 | 20.9 | 192.3 | 107.59 |
+| Cycles reference | 111.5 | **133.5** | 146.7 | 1.32 |
+
+**On this pose's shell the app is already within 0.7 % of physics** — 132.5 against 133.5 — and its
+spread (2.15) is closer to physics (1.32) than the mapped result is. So the bake was aimed at the
+surfaces that were already correct. The 1.16× interior deficit this thread set out to close
+(`107.1` against `124.2`) is **not on the shell** for this view; it is in the other 361 meshes or the
+non-shell pixels. That does not refute item (w), which was measured on a different plan and view —
+but it does mean the shell-only bake could never have closed it here.
+
+**And `?aoDebug=1` — the visualiser this arc built for exactly this — isolates why the replacement is
+dark: 0.0 % magenta, 74.5 % sampling ~0.** Zero magenta means every mapped pixel *is* sampled: the
+UV channel, the atlas layout and the key resolution are all correct. Three-quarters of the shell
+simply reads near-zero.
+
+**The cause is a decomposition error, and it is the second time I have got this quantity wrong.**
+`.88` made the pass indirect-only, reasoning that the app computes direct sun itself so a baked direct
+term would double-count. True of the *sun* — and wrong about the *sky*. **Cycles classifies light
+arriving from the world without a bounce as `DIFFUSE_DIRECT`**, so `use_pass_direct = False` discards
+**skylight through the window**, which is precisely what the app's `HemisphereLight` + `AmbientLight`
+fill represents. What survived was inter-surface bounce only — a small correction, not the term.
+
+Neither Cycles pass alone equals the app's indirect slot:
+
+    app.indirectDiffuse  ~=  sky dome (Cycles DIRECT)  +  all bounces (Cycles INDIRECT)
+    app.directDiffuse    ~=  sun disc + lamps          (Cycles DIRECT)
+
+**So the correct bake is world-lit with the sun disc OFF and both passes ON** — sky dome plus its
+bounces, excluding sun and lamps. `render_visibility.py` already has `--sky --no-sun-disc` for the
+render side; `bake_material.py` needs the same, and that is a small change rather than a new idea.
+
+Nothing shipped changes. Suite **10098 green**, `tsc`, biome clean, 11 python tests pass.
+
 ## v0.31.7.91 — `replace` was erasing albedo; found by reading three's source, and it halves the error
 
 `.90` recorded the leading hypothesis as an AgX encoding mismatch. Reading three's shader instead of

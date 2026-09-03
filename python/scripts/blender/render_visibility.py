@@ -66,6 +66,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "far brighter relative to its surroundings than on a real floor, which "
                         "measurably made full irradiance a WORSE predictor of physics than "
                         "sun-free visibility (v0.31.7.67).")
+    p.add_argument("--mask-from-index", default=None, metavar="INDEX.JSON",
+                   help="render a BINARY MASK of exactly the meshes a bake covered, read "
+                        "from that bake's own index.json. Guarantees the same set by "
+                        "construction rather than by re-deriving --min-area/--limit, which "
+                        "would be a second selection rule free to disagree. Needed because a "
+                        "partial bake makes a frame a MIXTURE of two lighting models, and "
+                        "measuring the mixture is not measuring the map (v0.31.7.91).")
     p.add_argument("--mask-glazing", action="store_true",
                    help="render a BINARY MASK of the glazing (white glass, black "
                         "everything else) at the manifest pose, instead of a "
@@ -158,6 +165,51 @@ def find_glazing() -> list:
         if transmissive:
             found.append(obj)
     return found
+
+
+def mask_objects(names: set) -> tuple[int, list[str]]:
+    """Binary mask of the NAMED meshes: white for those, black for everything else.
+
+    Same emission trick as `mask_glazing()`, different selector. Reading the names
+    from a bake's `index.json` is deliberate: the bake already recorded which
+    objects it covered, so the mask cannot drift from the set it is describing.
+    """
+    black = bpy.data.materials.new("mask_black")
+    black.use_nodes = True
+    nt = black.node_tree
+    nt.nodes.clear()
+    e = nt.nodes.new("ShaderNodeEmission")
+    e.inputs["Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+    e.inputs["Strength"].default_value = 0.0
+    nt.links.new(e.outputs["Emission"], nt.nodes.new("ShaderNodeOutputMaterial").inputs["Surface"])
+
+    white = bpy.data.materials.new("mask_white")
+    white.use_nodes = True
+    nt2 = white.node_tree
+    nt2.nodes.clear()
+    e2 = nt2.nodes.new("ShaderNodeEmission")
+    e2.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    # Overdriven for the same reason mask_glazing overdrives: the mask is
+    # thresholded, and emission 1.0 through AgX lands well short of 255.
+    e2.inputs["Strength"].default_value = 50.0
+    nt2.links.new(e2.outputs["Emission"], nt2.nodes.new("ShaderNodeOutputMaterial").inputs["Surface"])
+
+    hit = 0
+    missing = sorted(names)
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH" or not obj.data.materials:
+            continue
+        marked = obj.name in names
+        for i in range(len(obj.data.materials)):
+            obj.data.materials[i] = white if marked else black
+        if marked:
+            hit += 1
+            if obj.name in missing:
+                missing.remove(obj.name)
+    make_visibility_world(strength=0.0)
+    # Report what was asked for but not found -- a silently smaller mask would
+    # quietly shrink the population under measurement.
+    return hit, missing[:8]
 
 
 def mask_glazing() -> tuple[int, list[str]]:
@@ -259,7 +311,21 @@ def main(argv: list[str] | None = None) -> int:
     S.import_glb(fixed)
     S.setup_cycles(samples=a.samples, res=(w, h), device=a.device)
     sky_info = None
-    if a.mask_glazing:
+    if a.mask_from_index:
+        with open(os.path.abspath(a.mask_from_index)) as fh:
+            idx = json.load(fh)
+        wanted = {m["object"] for m in idx.get("maps", []) if m.get("object")}
+        if not wanted:
+            raise ValueError(f"{a.mask_from_index} lists no objects to mask")
+        masked, mask_names = mask_objects(wanted)
+        if masked != len(wanted):
+            raise ValueError(
+                f"index names {len(wanted)} objects but only {masked} are in the scene; "
+                f"missing e.g. {mask_names} -- the mask would describe a different set"
+            )
+        opened, opened_names = 0, []
+        slots = 0
+    elif a.mask_glazing:
         masked, mask_names = mask_glazing()
         opened, opened_names = 0, []
         slots = 0
@@ -278,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     else:
         make_visibility_world()
-    if not a.mask_glazing:
+    if not (a.mask_glazing or a.mask_from_index):
         # Skipped in mask mode: deleting the glazing would remove the very thing
         # being masked, and whitening would erase the black/white distinction.
         opened, opened_names = open_apertures()
@@ -304,13 +370,15 @@ def main(argv: list[str] | None = None) -> int:
         "glazing_meshes_removed": opened,
         "glazing_examples": opened_names,
         "dispersion_stripped": stripped,
-        "world": "black (GLAZING MASK)"
+        "world": "black (OBJECT MASK)"
+        if a.mask_from_index
+        else "black (GLAZING MASK)"
         if a.mask_glazing
         else "physical sky + sun (IRRADIANCE)"
         if a.sky
         else "constant white (visibility, not sky-weighted)",
-        "masked_glazing": masked if a.mask_glazing else None,
-        "mask_examples": mask_names if a.mask_glazing else None,
+        "masked_glazing": masked if (a.mask_glazing or a.mask_from_index) else None,
+        "mask_examples": mask_names if (a.mask_glazing or a.mask_from_index) else None,
         "sky": sky_info,
         "sun": None,
     }
