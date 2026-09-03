@@ -70,6 +70,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "kernel cache is warm; the FIRST GPU render on a machine pays ~100 s "
                         "of one-time kernel compilation.")
     p.add_argument("--samples", type=int, default=64)
+    p.add_argument("--with-direct", action="store_true",
+                   help="include DIRECT light in --pass irradiance. OFF by default: the app "
+                        "computes direct sun with its own shadow map, so a baked term carrying "
+                        "direct light is double-counted the moment it replaces the indirect "
+                        "slot. On for comparison against v0.31.7.71, which baked with direct "
+                        "included and so measured mostly the term the app already has.")
     p.add_argument("--seed", type=int, default=None,
                    help="Cycles sampling seed. Two bakes at the same settings with DIFFERENT "
                         "seeds let you estimate noise without a converged reference: their "
@@ -513,6 +519,21 @@ def main(argv: list[str] | None = None) -> int:
         # that first-bounce-only bears no resemblance to physics (59.7x at the window).
         bpy.context.scene.render.bake.use_pass_color = False
         bpy.context.scene.render.bake.use_pass_direct = True
+        bpy.context.scene.render.bake.use_pass_indirect = True
+    if a.pass_ == "irradiance" and not a.with_direct:
+        # INDIRECT ONLY, and this is the whole point of the pass.
+        #
+        # The app already computes direct sun, with its own shadow map -- what it lacks
+        # is bounce (items (w)/(x): every surface gets the same fill whether or not it
+        # can see the sky). A map carrying direct light would therefore be DOUBLE-COUNTED
+        # the moment it replaced `reflectedLight.indirectDiffuse`, which is the only slot
+        # a baked term can legitimately occupy.
+        #
+        # `v0.31.7.71` baked this pass with direct ON and reported a 171x spread across
+        # shell surfaces -- true, but that spread is dominated by which faces the SUN
+        # strikes, not by which can see the sky, so it was measuring mostly the term the
+        # app already has. `--with-direct` keeps that behaviour available for comparison.
+        bpy.context.scene.render.bake.use_pass_direct = False
         bpy.context.scene.render.bake.use_pass_indirect = True
 
     candidates = []

@@ -187,3 +187,40 @@ describe('runtime-attachment hazard', () => {
     expect(src).toContain('216 ms')
   })
 })
+
+describe('replace mode (v0.31.7.88)', () => {
+  const frag = (mode?: 'multiply' | 'replace') => {
+    const m = fakeMaterial() as unknown as { onBeforeCompile: (s: unknown) => void }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, mode)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return s.fragmentShader
+  }
+
+  it('ASSIGNS the indirect term rather than scaling it', () => {
+    // The distinction is the whole point: an irradiance map IS the light, so
+    // multiplying leaves the app's ambient/hemisphere fill in place and scales it
+    // -- the double-count `v0.31.7.67` measured as WORSE than the crude proxy
+    // (+58 % against visibility's +79 % on the one view where either helps).
+    const f = frag('replace')
+    expect(f).toContain('reflectedLight.indirectDiffuse = vec3(')
+    expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
+  })
+
+  it('still MULTIPLIES by default, so the shipped visibility path is unchanged', () => {
+    const f = frag()
+    expect(f).toContain('reflectedLight.indirectDiffuse *=')
+    expect(f).not.toContain('reflectedLight.indirectDiffuse = vec3(')
+  })
+
+  it('gives the two modes different program cache keys', () => {
+    // A constant key collapsed two variants into one program once already
+    // (v0.31.7.44); mode must be part of it or `replace` would silently render
+    // with `multiply`'s compiled shader.
+    const a = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
+    const b = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
+    applyVisibilityLightmap(a as never, fakeTexture(), 6, false, 'multiply')
+    applyVisibilityLightmap(b as never, fakeTexture(), 6, false, 'replace')
+    expect(a.customProgramCacheKey?.()).not.toBe(b.customProgramCacheKey?.())
+  })
+})

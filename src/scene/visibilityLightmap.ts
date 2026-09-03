@@ -107,6 +107,25 @@ export function prepareVisibilityTexture(texture: Texture): Texture {
  * **216 ms** frame (`v0.31.7.15`). Steady-state cost is nil: 60 fps unchanged at `performance`
  * and `medium` with 331 distinct maps attached.
  */
+/**
+ * How a baked map enters the shading.
+ *
+ * - `'multiply'` — `indirectDiffuse *= map * gain`. Correct for a *visibility*
+ *   map, which is a dimensionless [0,1] occlusion ratio: it modulates the fill the
+ *   app already computes.
+ * - `'replace'` — `indirectDiffuse = map * gain`. Required for an *irradiance*
+ *   map, which is the light itself. `v0.31.7.67` measured that multiplying by
+ *   irradiance is **worse** than multiplying by visibility (+58 % vs +79 % on the
+ *   one view where either helps), which is exactly what double-counting looks
+ *   like: the app's ambient/hemisphere fill is still there, and the map scales it
+ *   instead of standing in for it.
+ *
+ * The map fed to `'replace'` must be **indirect-only** — `bake_material.py
+ * --pass irradiance` bakes it that way by default, because the app computes
+ * direct sun itself and a baked direct term would be double-counted in turn.
+ */
+export type LightmapMode = 'multiply' | 'replace'
+
 export function applyVisibilityLightmap(
   material: MeshStandardMaterial,
   texture: Texture,
@@ -117,6 +136,7 @@ export function applyVisibilityLightmap(
    * it existed, and it found the fault in one frame. Not a feature: unusable by design.
    */
   debug = false,
+  mode: LightmapMode = 'multiply',
 ): void {
   const map = prepareVisibilityTexture(texture)
   material.onBeforeCompile = (shader) => {
@@ -134,7 +154,13 @@ export function applyVisibilityLightmap(
       .replace(
         LIGHTS_END,
         `${LIGHTS_END}\n\tfloat visOcclusion = texture2D( visMap, vVisUv ).r;\n` +
-          '\treflectedLight.indirectDiffuse *= visOcclusion * visGain;' +
+          (mode === 'replace'
+            ? // The map IS the indirect light, so it stands in for the fill rather
+              // than scaling it. Anything already accumulated into
+              // `indirectDiffuse` (ambient + hemisphere + IBL) is discarded on
+              // purpose -- keeping it is the double-count `.67` measured.
+              '\treflectedLight.indirectDiffuse = vec3( visOcclusion * visGain );'
+            : '\treflectedLight.indirectDiffuse *= visOcclusion * visGain;') +
           (debug ? '\n\tvisDebug = visOcclusion;' : ''),
       )
     if (debug) {
@@ -147,7 +173,9 @@ export function applyVisibilityLightmap(
     }
   }
   // Encodes the gain and the debug mode, so two variants cannot share one cached program.
-  material.customProgramCacheKey = () => `visGain${gain}${debug ? ':dbg' : ''}`
+  // Mode is in the key: `replace` and `multiply` are different programs, and a
+  // constant key already collapsed two variants once (`v0.31.7.44`).
+  material.customProgramCacheKey = () => `visGain${gain}:${mode}${debug ? ':dbg' : ''}`
   // Marked so it can be found and DETACHED again. Materials outlive a plan change -- they are
   // shared/cached across plans -- so a re-run that only adds maps leaves the previous plan's
   // visibility on any material the new plan reuses (`v0.31.7.45`).

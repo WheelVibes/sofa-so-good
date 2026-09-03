@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.88 — the irradiance bake was 90 % the sun the app already has; corrected, and the shader can now REPLACE instead of multiply
+
+Building the runtime path for items (w)/(x) surfaced a design error in my own bake before it could
+propagate into the shader.
+
+**`--pass irradiance` was baking direct + indirect.** The app computes direct sun itself, with its own
+shadow map — what it lacks is **bounce**. A baked term carrying direct light is therefore
+double-counted the instant it occupies `reflectedLight.indirectDiffuse`, which is the only slot a
+baked term can legitimately take. The pass is now **indirect-only** by default, with `--with-direct`
+kept for comparison.
+
+**How much of `v0.31.7.71`'s map was the wrong term:**
+
+| bake | range (interior-texel mean) | spread | cv |
+| --- | --- | --- | --- |
+| direct + indirect (`.71`) | 0.0368 – 6.3111 | 171× | 139 % |
+| **indirect only** | 0.0004 – 0.5083 | **1271×** | 98 % |
+
+**Median 90 % of `.71`'s map was direct sun**, 9–100 % across meshes. So that round's "171× spatial
+variation" was largely measuring which faces the sun strikes — a term the app already renders —
+rather than which can see the sky. The headline is retracted in that form.
+
+**And it survives in a stronger one.** Isolated to bounce alone the spread is **1271×**, three orders
+of magnitude between shell surfaces, against an app that gives every surface the same fill (items
+(w)/(x): between-view cv 8.7 % where physics has 28.9 %). The dynamic range is *larger* for the
+correct quantity, because a deeply occluded surface receives almost no bounce at all — which is
+precisely the structure the fake fill cannot represent.
+
+**The shader can now stand in for the fill rather than scale it.** `applyVisibilityLightmap` takes a
+`LightmapMode`:
+
+- `'multiply'` (default, unchanged) — `indirectDiffuse *= map * gain`, correct for a dimensionless
+  visibility ratio.
+- `'replace'` — `indirectDiffuse = vec3( map * gain )`, required for irradiance, which *is* the light.
+
+`.67` measured that multiplying by irradiance is **worse** than multiplying by visibility (+58 %
+against +79 % on the one view where either helps) — the signature of leaving the ambient/hemisphere
+fill in place and scaling it. Three tests pin the distinction, including that the two modes get
+**different program cache keys**: a constant key already collapsed two variants into one program once
+(`.44`).
+
+**Caveat carried forward rather than hidden:** the indirect-only levels are ~10× lower than the
+direct-included ones (0.0004–0.5 against 0.04–6.3), so `.72`'s "5.2 % against a 1024-sample
+reference" was established on the brighter quantity and deserves re-measuring at this one. This bake
+used 128 samples rather than 64 for that reason, but the seed-pair check has not been re-run.
+
+Nothing shipped changes: `'multiply'` is the default and the `visibilityLightmap` flag remains off.
+Suite **10095 green** (+3), `tsc`, biome and `knip` clean, 11 python tests pass.
+
 ## v0.31.7.87 — the six open decisions consolidated into the register they belong in
 
 Not a measurement round. The findings of this arc are spread across ~25 CHANGELOG entries, and a
