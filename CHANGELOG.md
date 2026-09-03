@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.86 — the degradation chain verified end to end: 10.9 fps becomes 29.6, automatically, with the user's mode intact
+
+`.85` fixed the two bugs that stopped the guard working. This traces what it now actually does, and
+records where it runs out of road.
+
+**The chain fires and settles**, on the real UI flow (`setQualityTier('realistic')`, walking
+continuously):
+
+    t= 2s  device=capable  shadows on
+    t= 8s  device=weak                  <- device demotion
+    t=14s  device=weak + autoShadowsOff  <- final fallback
+           then stable for 26 s, no oscillation
+
+**And where it lands:**
+
+| state | walk fps |
+| --- | --- |
+| `realistic` / capable — where a user started | **10.9** |
+| → `realistic` / weak (t=8s) | ~25.1 |
+| → + shadows shed (t=14s) | **29.6** |
+| `performance`, for reference | 57.3 |
+
+So Realistic goes from **broken to playable without the user touching anything**, and the mode they
+chose is preserved — only the capability knobs move. 29.6 fps against the 30 fps floor the ladder is
+documented against is the guard doing its job to the limit of what it has.
+
+**"To the limit" is the honest caveat.** It lands *on* the floor, not above it, and after shedding
+shadows there is nothing left in the chain — a weaker device than this M4 has no further step inside
+`realistic`. The obvious next lever is the one `.84` measured as the biggest by far: **`dprMax` 2 → 1
+was worth 4.5× (10.9 → 49.6 fps)**, more than shadows and post and transmission combined. Adding a
+dpr step to the fallback chain is the highest-value remaining perf work, and it is a look trade
+(resolution for frame rate) rather than a bug.
+
+**A measurement note, because the first attempt at this trace contradicted the second.** Run one
+showed no demotion at all across 40 s; run two showed the clean chain above. The difference was mine:
+run one added an in-page `requestAnimationFrame` loop to sample frame intervals, and that extra rAF
+callback perturbed the very cadence it was measuring — the same observer effect `.64` had to control
+for with `WALKPITCH=0`. The trustworthy runs poll the store only and take frame rate from a separate
+`frame-time.mjs` pass. **Do not measure the render loop from inside the render loop.**
+
+Suite **10092 green**, `tsc` and biome clean. Measurement only; `.85` was the change.
+
 ## v0.31.7.85 — the adaptive guard can see GPU-bound frames now, and it was ALSO switched off for the mode that needed it
 
 Fixing the regression `.84` traced to my own `.68`. It turned out to be two independent bugs, and the
