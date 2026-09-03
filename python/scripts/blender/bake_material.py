@@ -47,7 +47,7 @@ import glb_fix  # noqa: E402
 import render_visibility as RV  # noqa: E402
 import sofa_scene as S  # noqa: E402
 
-PASSES = ("visibility", "ao", "diffuse", "combined")
+PASSES = ("visibility", "ao", "diffuse", "combined", "irradiance")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -451,6 +451,7 @@ def main(argv: list[str] | None = None) -> int:
         glb = os.path.join(d, manifest.get("glb", "scene.glb"))
         out_dir = a.out_dir or os.path.join(d, "bake")
     else:
+        manifest = None
         glb = os.path.abspath(a.scene)
         out_dir = a.out_dir or os.path.join(os.path.dirname(glb), "bake")
     os.makedirs(out_dir, exist_ok=True)
@@ -466,7 +467,33 @@ def main(argv: list[str] | None = None) -> int:
         bpy.context.scene.cycles.adaptive_threshold = a.adaptive_threshold
 
     removed = 0
-    if a.pass_ == "visibility":
+    sky_info = None
+    if a.pass_ == "irradiance":
+        # The REAL missing term, not a proxy for it. `visibility` bakes a
+        # sun-independent geometric quantity under a constant white world; this
+        # bakes what Cycles actually computes for this scene under the app's own
+        # sun -- real materials governing every bounce, no invented albedo.
+        #
+        # `v0.31.7.67` tried to answer "does irradiance beat visibility?" with a
+        # cheap whitened camera render instead, and could not: whitening imposes a
+        # uniform albedo the bake does not have, and the answer moved from 1.39x to
+        # 25.33x across the value picked. That is why this pass exists.
+        #
+        # Sky-dependent, and therefore only valid for the time of day it was baked
+        # at -- which is the trade the cache-and-rebake architecture accepts.
+        if manifest is None:
+            raise ValueError("--pass irradiance needs --dir (it reads the sun from the manifest)")
+        directional = manifest.get("lights", {}).get("directional") or []
+        if not directional:
+            raise ValueError(
+                "--pass irradiance needs a directional light in the manifest to place the sun from"
+            )
+        # Apertures are opened for the same reason visibility opens them: whitened
+        # or not, sealed glazing makes the interior nearly black. Materials are NOT
+        # whitened here -- that is the whole point.
+        removed, _ = RV.open_apertures()
+        sky_info = S.setup_world_sky_from_three_direction(tuple(directional[0]["travel"]))
+    elif a.pass_ == "visibility":
         # Order matters and is load-bearing: open the apertures BEFORE whitening, or the
         # whitened glazing seals the room and every baked texel is zero.
         RV.make_visibility_world()
@@ -476,6 +503,7 @@ def main(argv: list[str] | None = None) -> int:
     bake_type = {
         "visibility": "DIFFUSE",
         "diffuse": "DIFFUSE",
+        "irradiance": "DIFFUSE",
         "ao": "AO",
         "combined": "COMBINED",
     }[a.pass_]
@@ -548,6 +576,7 @@ def main(argv: list[str] | None = None) -> int:
         "ok": True,
         "pass": a.pass_,
         "bake_type": bake_type,
+        "sky": sky_info,
         "out_dir": out_dir,
         "res": a.res,
         "uv_mode": a.uv,

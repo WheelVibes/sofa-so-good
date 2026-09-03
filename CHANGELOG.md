@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.71 — the irradiance bake exists, takes 23 seconds, and carries 171× the spatial variation the app cannot produce
+
+Phase 1's artefact. `bake_material.py --pass irradiance` bakes Cycles direct+indirect diffuse under
+the **manifest's own physical sky**, with the scene's **real materials** governing every bounce —
+which is precisely what `v0.31.7.67`'s whitened camera-render proxy could not be, because whitening
+imposes a uniform albedo the bake does not have (and the answer moved from 1.39× to 25.33× across
+the value picked).
+
+**It is fast.** 24 shell meshes, 64² maps, 64 samples: **23 seconds** on Metal. Not the ~12 minutes
+extrapolated from the CPU full-flat figure — `--min-area` selects the shell, and the shell is 24
+objects out of 1274. That changes the architecture conversation: a shell bake is loading-screen
+territory today, without any of the sample/denoise work that was going to be needed.
+
+**And it carries the signal the app structurally lacks.** Interior-texel mean per shell mesh
+(linear, float buffer):
+
+| | |
+| --- | --- |
+| darkest | Mesh_246 **0.0368**, Mesh_0 0.0750, Mesh_11 0.0980 |
+| brightest | Mesh_357 5.9136, Mesh_37 **6.3111** |
+| spread | **171× between surfaces, cv 139 %** |
+
+Set against the numbers that closed item (x) as not-correctable: the app's own between-view
+variation is **cv 8.7 %** and physics' is **28.9 %**. A term with cv 139 % between surfaces is a
+different kind of object from anything tried in this arc — every previous candidate (a fill scalar,
+a window multiplier, aperture visibility) had a fixed shape and could only trade one view against
+another.
+
+**Two things visible in the maps that no statistic reported.** New `map-sheet.mjs` upscales 64²
+maps nearest-neighbour into a contact sheet, because a 64×64 PNG at native size is unreadable and
+this arc's rule is to look at the artefact:
+
+- **Interreflection is tinted.** On the most-occluded mesh the two lit faces are *differently
+  coloured* — one warm, one cool: bounce off the wood floor against bounce carrying skylight. The
+  app's grey `AmbientLight`/`HemisphereLight` fill cannot produce colour bleeding at all, and it is
+  a photorealism cue that does not show up in any luminance ratio.
+- **The dark faces are noisy** at 64 samples, and the dark faces are exactly where the interior
+  levels live (int_mean 0.04–0.6 against a 56 maximum). So the sample count is not yet settled;
+  `bake-noise.mjs`'s seed-pair estimator is the instrument for that, and it is the next thing to
+  run rather than a number to guess at.
+
+**Not yet answered:** whether applying this in the app fixes items (w) and (x). That needs the
+shader to **replace** the ambient/hemisphere contribution rather than modulate it — `.67` measured
+that multiplying by irradiance is *worse* than multiplying by visibility, which is exactly what
+double-counting looks like. The bake is the prerequisite, and it now exists.
+
+Suite **10081 green**, `tsc`, biome clean, 11 python tests pass.
+
 ## v0.31.7.70 — visual verification of all four variants, which found the collapse's real bug
 
 `.68` shipped with a numeric parity table and I called it verified. Looking at the frames found a
