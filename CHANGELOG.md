@@ -29,6 +29,67 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.80 — a BUG, found by reading the formula: the twilight sky is pure black for ~6° of sun altitude
+
+`.79` ended by noting that the two findings which held up came from reading code, and the three
+retractions came from probing first. So this round read first, and it found something a probe would
+not have looked for.
+
+**`skyGradient.ts` uses the textbook Preetham zenith luminance:**
+
+    chi = (4/9 - T/120) * (PI - 2*thetaS)
+    Yz  = (4.0453*T - 4.971) * tan(chi) - 0.2155*T + 2.4192
+
+Three properties of that expression, along the app's own shipped turbidity curve (T=5 at 30°+, 6 at
+10°, 8 at the horizon, 9 at −6°, 10 at −12°):
+
+| sun alt | T | Yz | Yz/22 = the app's linear level |
+| --- | --- | --- | --- |
+| 82° | 5.0 | 35.696 | 1.6225 |
+| 30° | 5.0 | 8.187 | 0.3721 |
+| 10° | 6.0 | 3.801 | 0.1728 |
+| 0° | 8.0 | 0.695 | 0.0316 |
+| **−2°** | 8.3 | **−0.129** | **0.0000** |
+| −6° | 9.0 | −1.958 | 0.0000 |
+| −12° | 10.0 | −5.144 | 0.0000 |
+
+1. **A 51× collapse** from noon to the horizon — Preetham is only valid for a sun well above it.
+2. **The turbidity term is inverted.** At the horizon the `tan` term vanishes and `Yz = 2.4192 −
+   0.2155·T`, so *hazier air makes twilight darker* — backwards, and the app's curve raises T toward
+   the horizon, compounding it. Zero crossing at **T = 11.2**; the shipped curve reaches 10.
+3. **Below −2° altitude `Yz` is NEGATIVE**, and `Math.max(Y, 0)` clamps it. The sky is not dim, it is
+   **exactly (0,0,0)**.
+
+**The discriminating test, predicted before it was run.** If the clamp is responsible then the sky
+must be black even where the day/night fade still reports daylight — `night = (alt+8)/8` is 0.37 at
+−5° and 0.62 at −3°:
+
+| hour | sun alt | night factor | upper sky mean / max | ground band mean |
+| --- | --- | --- | --- | --- |
+| 6.89 | −5.0° | **0.37** | **0.00 / 0** | 55.4 |
+| 6.95 | −3.0° | **0.62** | **0.00 / 0** | 60.4 |
+| 7.00 | −1.2° | 0.85 | 23.4 / 40 | 64.4 |
+
+**Confirmed: pure black at 37 % and 62 % daylight.** Not the night fade — the clamp. And because the
+lower hemisphere is a separate code path (ground tint × `lvl`, blended to a haze sample that is
+itself zero), the result is a **black upper sky above a lit grey ground with a hard horizon cut**,
+which the rendered equirect shows plainly. It spans roughly **−2° to −8° of sun altitude** — the
+civil-twilight band a user crosses every time they scrub the time slider.
+
+**Scope, stated because it bounds the impact:** this is the equirect the `sky` backdrop paints into
+`scene.background`, which is walk-mode only and only when that backdrop is selected. Users on a photo
+backdrop or in orbit do not see it. It is still wrong, and it is wrong in a way no amount of
+parameter tuning fixes — a negative luminance is not a look.
+
+**Which is where Blender earns the fix rather than the diagnosis.** Preetham is invalid in exactly
+the band Cycles handles properly: `MULTIPLE_SCATTERING` measured **luma 132–177** at −1° and +1°
+where the app gives 23–67 and then 0. So the shape of the fix is **analytic sky for daytime — where
+`.79` measured it at 1.08×, essentially correct — and baked Cycles equirects across the twilight
+band**, a handful of 4-second renders, no fps cost, T cycle intact.
+
+Suite **10083 green**, `tsc` and biome clean. Nothing shipped changed: this commit is the diagnosis
+and the reproduction.
+
 ## v0.31.7.79 — RETRACTION: `.73` and `.78` measured the sky at a turbidity the app never uses; noon is 1.08x, not 1.44x, and twilight is the real defect
 
 Going to ship `.78`'s "two constants" fix, I looked for where turbidity is set — and found the
