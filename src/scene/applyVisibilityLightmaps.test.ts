@@ -160,6 +160,18 @@ describe('applyLightmapsFromIndex', () => {
     expect(urls.some((u) => u.endsWith('shared-a.png'))).toBe(false)
   })
 
+  it('detaches the previous plan’s maps before applying, and reports how many', () => {
+    // The plan-change path: materials survive it, so re-running must clear first.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    const index = indexFor([keyOf(w)])
+    expect(applyLightmapsFromIndex(root, index, stubTexture).detached).toBe(0)
+    const second = applyLightmapsFromIndex(root, index, stubTexture)
+    expect(second.detached).toBe(1)
+    expect(second.applied).toBe(1)
+  })
+
   it('does not re-create uv1 that already exists', () => {
     // Re-running must be cheap and must not clobber a bake-matched attribute.
     const root = new Object3D()

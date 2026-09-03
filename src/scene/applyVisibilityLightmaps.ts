@@ -20,7 +20,11 @@ import { BufferAttribute } from 'three'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { computeBoxAtlasUv } from './lightmapUv'
-import { applyVisibilityLightmap, gainForPlanMean } from './visibilityLightmap'
+import {
+  applyVisibilityLightmap,
+  detachVisibilityLightmap,
+  gainForPlanMean,
+} from './visibilityLightmap'
 
 /** Where the baked set lives, base-path aware so it survives a non-root deployment.
  *  Not exported: it is the default for `baseUrl` below, and an export nothing imports fails
@@ -41,6 +45,8 @@ export interface ApplyResult {
   candidates: number
   /** Meshes that matched a baked key and now carry a map. */
   applied: number
+  /** Materials whose PREVIOUS map was removed first — non-zero on a plan change. */
+  detached: number
   /**
    * Which baked plan was chosen, or `null` if none matched or the evidence tied.
    *
@@ -111,6 +117,15 @@ export function applyLightmapsFromIndex(
   { baseUrl = LIGHTMAP_BASE, expectCoverage = false, gain, debug = false }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
+  // DETACH FIRST. Materials survive a plan change, so anything patched for the previous plan is
+  // still carrying that plan's visibility; adding the new plan's maps on top leaves the reused
+  // materials wrong and the result stubbornly unchanged (`v0.31.7.45`).
+  let detached = 0
+  root.traverse((o) => {
+    const m = (o as Mesh).material
+    if (!m || Array.isArray(m)) return
+    if (detachVisibilityLightmap(m as never)) detached += 1
+  })
   root.updateMatrixWorld(true)
   // TWO PASSES, because a key can belong to more than one baked plan. Pass one keys every
   // candidate and asks which plan they belong to; pass two applies only that plan's maps.
@@ -164,5 +179,5 @@ export function applyLightmapsFromIndex(
     applied += 1
   }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)
-  return { candidates, applied, context: ctx, report: message, suspect }
+  return { candidates, applied, detached, context: ctx, report: message, suspect }
 }

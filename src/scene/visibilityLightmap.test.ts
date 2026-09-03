@@ -5,6 +5,7 @@ import { LinearFilter } from 'three'
 import { describe, expect, it } from 'vitest'
 import {
   applyVisibilityLightmap,
+  detachVisibilityLightmap,
   gainForPlanMean,
   prepareVisibilityTexture,
   VISIBILITY_GAIN,
@@ -19,7 +20,9 @@ import {
 
 const fakeTexture = () => ({ generateMipmaps: true, minFilter: 0, needsUpdate: false }) as never
 
-const fakeMaterial = () => ({ aoMap: null, aoMapIntensity: 0, needsUpdate: false }) as never
+// `userData` because three's Material always has one and the module marks patched materials
+// there so they can be detached again.
+const fakeMaterial = () => ({ needsUpdate: false, userData: {} }) as never
 
 /** A shader pair carrying the four anchor points three's real ones have. */
 const shaderStub = () => ({
@@ -116,6 +119,40 @@ describe('applyVisibilityLightmap', () => {
 
   it('leaves the output chunk alone when NOT debugging', () => {
     expect(compile(6, false).s.fragmentShader).toContain('#include <opaque_fragment>')
+  })
+})
+
+describe('detachVisibilityLightmap', () => {
+  it('restores the stock program so a re-applied plan cannot inherit the old one', () => {
+    // Materials survive a plan change, so without this the previous plan's visibility stays on
+    // every material the new plan reuses -- measured as a result that would not move across
+    // three different code states.
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: unknown
+      customProgramCacheKey?: unknown
+      userData: Record<string, unknown>
+      needsUpdate: boolean
+    }
+    applyVisibilityLightmap(m as never, fakeTexture())
+    expect(m.userData.visLightmap).toBe(true)
+    expect(detachVisibilityLightmap(m as never)).toBe(true)
+    // `customProgramCacheKey` must be DELETED, not set to undefined: three falls back to
+    // Material.prototype's implementation, and an own-property `undefined` would shadow it.
+    expect(Object.hasOwn(m, 'customProgramCacheKey')).toBe(false)
+    expect(m.userData.visLightmap).toBeUndefined()
+    expect(m.needsUpdate).toBe(true)
+  })
+
+  it('leaves an unpatched material alone and reports it', () => {
+    const m = fakeMaterial()
+    expect(detachVisibilityLightmap(m as never)).toBe(false)
+  })
+
+  it('is idempotent — a second detach is a no-op', () => {
+    const m = fakeMaterial()
+    applyVisibilityLightmap(m as never, fakeTexture())
+    expect(detachVisibilityLightmap(m as never)).toBe(true)
+    expect(detachVisibilityLightmap(m as never)).toBe(false)
   })
 })
 

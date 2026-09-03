@@ -51,7 +51,14 @@ export function VisibilityLightmaps() {
     const run = async () => {
       let raw: unknown
       try {
-        const res = await fetch(`${base}/index.json`)
+        // `no-cache` because `public/` assets are NOT content-hashed by Vite: a returning
+        // browser can hold a stale `index.json` indefinitely, and a stale index is not a
+        // cosmetic problem — it silently pins the previous asset set, so per-plan means and
+        // newly baked plans never arrive. Measured: four substantive code changes in a row
+        // produced byte-identical renders because the page kept serving an older index
+        // (`v0.31.7.45`). The maps themselves are immutable (their names contain a content
+        // digest), so only the index needs this.
+        const res = await fetch(`${base}/index.json`, { cache: 'no-cache' })
         if (!res.ok) return
         raw = await res.json()
       } catch {
@@ -93,7 +100,8 @@ export function VisibilityLightmaps() {
         const log = result.suspect ? console.warn : console.info
         log(
           `${result.report} — applied to ${result.applied}/${result.candidates} candidates` +
-            ` (plan ${result.context ?? 'unrecognised'})`,
+            ` (plan ${result.context ?? 'unrecognised'}` +
+            `${result.detached ? `, ${result.detached} detached` : ''})`,
         )
       }
       invalidate()

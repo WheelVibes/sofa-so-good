@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.45 — three defects fixed on their own merits, and an anomaly I could not crack
+
+Chasing the plan-2 measurement produced three independently justified fixes and did **not**
+explain the thing it set out to explain. Both halves are worth recording.
+
+**1. Materials survive a plan change, so the feature has to be able to DETACH.** The maps are
+per-plan; re-running the apply pass without clearing first leaves the previous plan's visibility
+on every material the new plan reuses — indistinguishable from the feature working.
+`detachVisibilityLightmap()` restores three's stock program and the apply pass now detaches
+before applying, reporting how many it cleared.
+
+The detail worth keeping: `customProgramCacheKey` is **deleted, not set to `undefined`**, because
+three falls back to `Material.prototype`'s implementation and an own-property `undefined` would
+shadow it. Tested, along with idempotence.
+
+**2. `index.json` is now fetched with `cache: 'no-cache'`.** Files in `public/` are not
+content-hashed by Vite, so a returning browser can hold a stale index indefinitely — which
+silently pins the previous asset set, so per-plan means and newly baked plans never arrive. The
+maps themselves are immutable (their names carry a digest), so only the index needs this.
+
+**3. The gain is scaled per plan** (from `v0.31.7.44`), now with the fallback tested for a set
+baked before the index recorded means.
+
+**The anomaly, unresolved.** Plan 2 measures **1.53× flag-off against 2.25× flag-on**, and that
+2.25× has now come back **byte-identical across five substantive code states**: before the
+plan-change re-run fix, after it, after per-plan gain scaling, after detach-before-apply, and
+after the cache bypass. A gain change from 6 to 3.51 is a direct multiplier on the term — it
+*cannot* leave the frame mean unchanged — so something in that measurement path is invariant to
+all of it.
+
+What is ruled out: the maps are definitely being sampled on plan 2's visible surfaces (the debug
+visualiser reports **0 % magenta, 83.7 % greyscale**, so no surface is missing the branch), the
+context selection demonstrably picks `d20bc459` after a plan switch, and the index on disk
+carries the per-plan means.
+
+So **plan 2 is unverified — not good, not bad.** The invariance is now the finding, and it is a
+sharper target than the regression was: five changes that must alter the render, and do not.
+Chasing it further this session would be guessing; the honest state is that the term is verified
+on the 4-Room plan (two rooms, both improved) and unverified elsewhere, with the flag off.
+
+Suite **10058 green**; `tsc`, biome, knip clean.
+
 ## v0.31.7.44 — the assets are finally self-consistent, a plan change was leaving the old plan's maps attached, and the gain is per-plan
 
 Three findings, two fixed and verified, one honestly unresolved.

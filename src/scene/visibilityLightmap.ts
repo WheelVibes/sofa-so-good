@@ -148,5 +148,32 @@ export function applyVisibilityLightmap(
   }
   // Encodes the gain and the debug mode, so two variants cannot share one cached program.
   material.customProgramCacheKey = () => `visGain${gain}${debug ? ':dbg' : ''}`
+  // Marked so it can be found and DETACHED again. Materials outlive a plan change -- they are
+  // shared/cached across plans -- so a re-run that only adds maps leaves the previous plan's
+  // visibility on any material the new plan reuses (`v0.31.7.45`).
+  material.userData.visLightmap = true
   material.needsUpdate = true
+}
+
+/**
+ * Remove a visibility lightmap from a material, restoring three's own shading.
+ *
+ * Needed because **materials survive a plan change**. The maps are per-plan, so re-running the
+ * apply pass without first detaching leaves the old plan's visibility attached to every material
+ * the new plan happens to reuse — which is indistinguishable from the feature working, and was
+ * measured as a plan-2 result that did not move across three different code states.
+ *
+ * Restores rather than nulls: `onBeforeCompile` and `customProgramCacheKey` are three's own
+ * no-op/default when untouched, so putting those back is what actually returns the material to
+ * its stock program.
+ */
+export function detachVisibilityLightmap(material: MeshStandardMaterial): boolean {
+  if (!material.userData?.visLightmap) return false
+  material.onBeforeCompile = () => {}
+  // Deleting restores `Material.prototype.customProgramCacheKey`, which is what three uses when
+  // a material has not overridden it. Assigning `undefined` would break that lookup.
+  delete (material as { customProgramCacheKey?: unknown }).customProgramCacheKey
+  delete material.userData.visLightmap
+  material.needsUpdate = true
+  return true
 }
