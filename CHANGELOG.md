@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.40 — the second room improves too, refuting `v0.31.7.10`'s predicted regression. There is no trade
+
+The arc's own rule is that one room is not a validation, and `bedroom3` was specifically the room
+where the term was *predicted to hurt*. Measured through the shipped path, against its own
+matched-pose Cycles reference:
+
+| | frame mean R | spatial spread vs physics |
+| --- | --- | --- |
+| `bedroom3`, flag off | 112.08 | **1.74×** |
+| **`bedroom3`, flag on** | 89.97 | **1.48×** |
+| `livingDining`, flag off | 115.64 | 4.76× |
+| `livingDining`, flag on | 72.43 | **1.36×** |
+
+**Both rooms improve.** `v0.31.7.10` predicted the opposite for this one — that full strength
+would take `bedroom3` from 1.74× to **2.10×**, a 21 % regression — and built a whole argument on
+it: γ ≈ 0.7 as the ship point, a "strongly asymmetric trade", a ≤4 % regression bound. **That
+prediction is refuted, and the reason is instructive.** It was computed by multiplying `bedroom3`'s
+error profile by the *median-normalised* profile of the **64 px, unconverged** bake at γ = 1. The
+shipped path uses the converged adaptive bake (`v0.31.7.26`: dark-texel noise 39 % → 10 %) with a
+fitted gain. Different quantity, different answer.
+
+**So the regression risk that motivated γ = 0.7 does not exist**, and with it the reason to ship
+at less than full strength. The term as shipped is strictly better in both rooms measured, which
+is a materially stronger position than "68 % of the gain for a ≤4 % cost".
+
+**Recorded as a correction of my own reasoning, because the pattern is the point:** a prediction
+derived from a noisy intermediate artefact was carried forward for eight rounds as a constraint on
+the design. It was cheap to test against the real thing and was never tested until now.
+
+**Verified by eye as well.** `bedroom3` with the term on shows a plausible gradient — darker away
+from the window, brighter toward it — in the same direction as the Cycles reference, where the
+flag-off frame is flat. The plaster relief reads more strongly, which is the expected consequence
+of reducing fill on a normal-mapped surface rather than an artefact. No speckle, no black patches.
+
+Suite **10048 green**; `tsc`, biome, knip clean; flag still off by default pending more baked
+plans.
+
 ## v0.31.7.39 — docs caught up: the pipeline, the three load-bearing rules, and the two-command bake
 
 Forty commits of pipeline landed without touching `docs/ARCHITECTURE.md`, against a hard rule

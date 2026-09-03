@@ -2977,6 +2977,13 @@ been attributed to the glass or to the background tone-mapping path.
 > ~10 % across 8 of 10 columns, from two unrelated world setups — so the reference's structure
 > *is* visibility.
 >
+> **⚠️ SUPERSEDED by `v0.31.7.40` — there is no trade, so full strength is correct.** Measured
+> through the shipped path against each room's own Cycles reference: `bedroom3` **1.74× → 1.48×**
+> and `livingDining` **4.76× → 1.36×**. Both improve. The predicted `bedroom3` regression below
+> was computed from the *median-normalised profile of the 64 px unconverged bake*; the shipped
+> path uses the converged adaptive bake with a fitted gain, and behaves differently. The γ = 0.7
+> compromise and the ≤4 % regression bound are no longer needed.
+>
 > **✅ STRENGTH DECIDED, v0.31.7.10 — γ ≈ 0.7.** `--gamma-sweep` on `(app ÷ physics) ×
 > visibility^γ` (γ = 0 is the untouched baseline, so any γ above it is a regression):
 >
