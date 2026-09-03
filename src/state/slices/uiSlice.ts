@@ -225,27 +225,28 @@ export interface UiSlice {
    * bottoming out at 29.6 fps. Worth 4.5x (10.9 -> 49.6 fps), the largest lever in this arc, and
    * engaged only after the class ladder AND the shadow fallback are both spent.
    *
-   * ## ⚠️ NOT YET ACTUATED — the flag is decided correctly and changes nothing on screen
+   * ## ✅ ACTUATED in `v0.31.7.162`, via `InteractiveDprController`
    *
-   * `v0.31.7.144` measured it: flipping this leaves the canvas at **2560x1600**. Two attempts
-   * failed, and the codebase already documents why:
+   * `v0.31.7.144` measured two failed attempts — flipping this left the canvas at 2560x1600. An r3f
+   * `setDpr` is **stomped** by `configure()` on every Canvas commit (that controller's docstring
+   * records it from a July stack-trace), and clamping the Canvas `dpr` prop did not take either.
    *
-   * 1. r3f `setDpr` from `QualityController` is **stomped**. `InteractiveDprController`'s docstring
-   *    records it from a July stack-trace — r3f's root `configure()` re-runs on every Canvas commit
-   *    and re-applies the `dpr` prop whenever it differs from `viewport.dpr`, so a degrade held in
-   *    r3f state is reset by any store-driven re-render.
-   * 2. Clamping the Canvas `dpr` prop instead did not take either, and that path carries a
-   *    documented white-flash hazard (each stomp clears the buffer with no repaint).
+   * It works now because the rung is folded into `InteractiveDprController.effectiveDpr()`, which
+   * already owns the **raw `gl.setPixelRatio`** level, keeps `viewport.dpr` at the full clamp so
+   * `configure()` has nothing to disagree with, and whose rAF loop **heals external stomps** every
+   * frame. Verified: `glRatio 2 → 1`, canvas `2560x1600 → 1280x800`, and clean restoration.
    *
-   * **The working mechanism is raw `gl.setPixelRatio`, deliberately invisible to `viewport.dpr`,
-   * followed by a same-value `setSize` nudge and a same-task `advance`** — exactly what
-   * `InteractiveDprController.apply()` does. Additional constraint found while measuring: that
-   * controller's own `effectiveDpr()` clamps to `dprMax`, so it would stomp this rung on every
-   * gesture release. **Both must share one notion of the ceiling**, which is why this is a
-   * two-file change and not a one-line fix.
+   * Measured value, `realistic` walk, two runs each — the win is in **drawn frames and long-frame
+   * latency**, not in CPU submit time, which is what a fill-rate lever should look like:
    *
-   * The ladder that sets this flag is correct and unit-tested (`adaptiveTier.test.ts`); only the
-   * actuation is missing.
+   * | | dpr 2 | dpr 1 |
+   * | --- | --- | --- |
+   * | drawn fps | 38.6 / 43.8 | **59.8 / 59.8** (vsync cap) |
+   * | max frame | 182.9 / 153.4 ms | **16.9 / 12.7 ms** |
+   * | p50 | 7.5 / 6.1 ms | 9.8 / 6.5 ms |
+   *
+   * One coupling to know: the rung rides `interactiveDegrade` (default **on**). With that flag off
+   * the app has opted out of resolution degradation entirely, so the rung not firing is consistent.
    */
   dprHalved: boolean
   /** True once a SETTLED value has been restored from persisted prefs, so the

@@ -32,7 +32,6 @@ export function QualityController() {
   const advance = useThree((s) => s.advance)
   const setDpr = useThree((s) => s.setDpr)
   const dprMax = useQuality().dprMax
-  const dprHalved = useStore((s) => s.dprHalved)
 
   // The capability CEILING for this device — a best-effort veto the adaptive
   // ladder may not climb past, captured once (TIER-AUTODETECT).
@@ -64,10 +63,12 @@ export function QualityController() {
   // demand-mode frame. A layout effect runs pre-composite (a plain useEffect
   // is one composite late); same rule as InteractiveDprController.
   useLayoutEffect(() => {
-    // `(z)`7: the ladder's last rung caps the device pixel ratio at 1. Worth 4.5x measured
-    // (10.9 -> 49.6 fps), and it only engages after the class ladder and the shadow fallback are
-    // both spent.
-    setDpr(Math.min(window.devicePixelRatio || 1, dprHalved ? 1 : dprMax))
+    // DELIBERATELY IGNORES `dprHalved`. `viewport.dpr` must keep matching the Canvas `dpr` prop,
+    // or r3f's `configure()` re-applies the prop on every commit — a buffer-clearing resize with no
+    // same-task repaint, i.e. a white flash. `v0.31.7.144` measured an r3f `setDpr` for the rung
+    // being stomped straight back. The rung therefore lives at the raw GL level in
+    // `InteractiveDprController`, which owns that layer and heals stomps every frame.
+    setDpr(Math.min(window.devicePixelRatio || 1, dprMax))
     if (!document.hidden && gl.domElement.isConnected) {
       try {
         advance(performance.now(), true)
@@ -75,11 +76,7 @@ export function QualityController() {
         // mid-teardown — the next scheduled frame repaints instead
       }
     }
-    // `dprHalved` is a REAL dependency, not a lint appeasement: without it the last rung would
-    // flip in the store and never reach `setDpr`, making the whole lever inert. Biome caught this
-    // -- the same silent-no-op shape that `v0.31.7.106`'s `baseUrl` and `v0.31.7.108`'s two dead
-    // flags took.
-  }, [dprMax, dprHalved, gl, setDpr, advance])
+  }, [dprMax, gl, setDpr, advance])
 
   // Procedural finish textures generate at 256² on Performance (the default
   // tier — quarter the texels, near-identical at room scale) and 512² above.

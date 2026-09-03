@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.162 — the dpr rung finally actuates (and the win is in the long frames)
+
+`(z)`7's last rung — halve `dpr` when the lowest tier has already shed shadows — has been decided
+correctly and unit-tested since the ladder landed, and has done **nothing on screen** the whole time.
+`.144` measured both of my attempts failing: the canvas stayed at 2560x1600.
+
+**Why they failed, and where it belongs.** An r3f `setDpr` from `QualityController` is stomped by
+r3f's root `configure()`, which re-applies the Canvas `dpr` prop on every commit whenever it differs
+from `viewport.dpr` — so a degrade held in r3f state is reset by the next store-driven re-render.
+Clamping the Canvas prop instead didn't take either, and carries a documented white-flash hazard.
+`InteractiveDprController` already solved this problem for gesture degradation: **raw
+`gl.setPixelRatio`, deliberately invisible to `viewport.dpr`**, plus a same-value `setSize` nudge and
+a same-task `advance`. So the rung is now one term in that controller's `effectiveDpr()` rather than
+a new mechanism, which also means its rAF loop **heals external stomps** every frame for free.
+`QualityController.setDpr` deliberately ignores the flag, keeping `viewport.dpr` matched to the prop
+so `configure()` never has anything to disagree with.
+
+Actuation verified through the store: `glRatio 2 → 1`, canvas `2560x1600 → 1280x800`, clean restore.
+
+**Measured value** — `realistic` walk, two runs per arm, dpr forced through the probe's own override:
+
+| | dpr 2 | dpr 1 |
+| --- | --- | --- |
+| drawn fps | 38.6 / 43.8 | **59.8 / 59.8** (vsync cap) |
+| max frame | 182.9 / 153.4 ms | **16.9 / 12.7 ms** |
+| p50 | 7.5 / 6.1 ms | 9.8 / 6.5 ms |
+
+The mean fps gain is 1.45× and it **saturates the display refresh**, but the more useful number is
+the worst frame: a 183 ms hitch is a visible stutter and it goes to 17 ms. Note p50 does *not*
+improve — CPU submit time is unchanged, which is exactly what a fill-rate lever should look like,
+and is the reason this rung helps precisely the device class that needs it.
+
+Correcting an earlier note in passing: the "4.5×" figure attached to this lever came from a 10.9 fps
+baseline in a much worse state, not from a like-for-like comparison. Today's number is 1.45× to the
+cap.
+
 ## v0.31.7.161 — regression sweep over everything shipped tonight: both tiers, three hours, all clean
 
 Three user-visible changes went live this session — `(l)`'s window fix (`d³ · 5.2`), `(m)`'s vignette

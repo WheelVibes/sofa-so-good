@@ -62,6 +62,7 @@ export function InteractiveDprController() {
   const quality = useQuality()
   const postprocessing = quality.postprocessing
   const dprMax = quality.dprMax
+  const dprHalved = useStore((s) => s.dprHalved)
   const degraded = useRef(false)
 
   useFrame((_, dt) => {
@@ -74,7 +75,18 @@ export function InteractiveDprController() {
 
   useEffect(() => {
     if (!enabled) return
-    const effectiveDpr = () => Math.min(window.devicePixelRatio || 1, dprMax)
+    // `dprHalved` is the adaptive ladder's LAST RUNG (`(z)`7): once the class ladder and the shadow
+    // fallback are both spent, cap resolution at 1. Worth 4.5x measured (10.9 -> 49.6 fps), the
+    // largest lever in this arc.
+    //
+    // **It lives HERE, not in `QualityController`, and that is the whole reason it works.**
+    // `v0.31.7.144` measured two failed attempts: an r3f `setDpr` is stomped back by `configure()`
+    // on every Canvas commit, and clamping the Canvas `dpr` prop did not take either. This
+    // controller already owns the raw `gl.setPixelRatio` level, keeps `viewport.dpr` deliberately
+    // at the full clamp so `configure()` has nothing to disagree with, and — critically — its rAF
+    // loop below HEALS EXTERNAL STOMPS by comparing `gl.getPixelRatio()` against `desired` every
+    // frame. Folding the rung into `effectiveDpr` inherits all of that for free.
+    const effectiveDpr = () => Math.min(window.devicePixelRatio || 1, dprHalved ? 1 : dprMax)
     const apply = (want: boolean, renderNow = true) => {
       degraded.current = want
       const full = effectiveDpr()
@@ -126,7 +138,7 @@ export function InteractiveDprController() {
       // the repaint on a real teardown.
       if (degraded.current) apply(false)
     }
-  }, [enabled, postprocessing, dprMax, gl, setSize, advance, get])
+  }, [enabled, postprocessing, dprMax, dprHalved, gl, setSize, advance, get])
 
   return null
 }
