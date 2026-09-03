@@ -29,6 +29,58 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.124 — four censuses, four answers spanning 2×: the open question in `(s)` is the DEFINITION, not the measurement
+
+Added the spherical census `.123` named as the natural next step — deterministic Fibonacci
+directions from three heights through the room's volume, so walls and ceiling are sampled and not
+just "what the ceiling sees". Ran it beside the downward one, and the comparison is the result.
+
+| room | downward | **spherical** | Δ |
+| --- | --- | --- | --- |
+| `livingDining` | 0.362 | **0.760** | **+0.398** |
+| `mainBedroom` | 0.444 | 0.806 | +0.362 |
+| `corridor` | 0.380 | 0.810 | +0.430 |
+| `kitchen` | 0.455 | 0.651 | +0.196 |
+| `bath1` | 0.467 | 0.715 | +0.247 |
+
+**The two differ by a factor of two, and both are correctly measured.** Downward sees floor and
+furniture tops — dark. A sphere from inside the room is dominated by walls and ceiling — pale. Escape
+rates are low (`livingDining` 3.0 %, `acLedge` 45.5 % as it should be, being outdoors), so this is
+not a sampling artefact.
+
+**So there are now four numbers for "the room's albedo":**
+
+| census | `livingDining` ρ |
+| --- | --- |
+| Blender, downward, exposure-weighted | **0.362** |
+| `.271`'s implied value | **0.546** |
+| scene graph, total triangle area | **0.672** |
+| Blender, spherical, solid-angle weighted | **0.760** |
+
+**None of mine reproduces `.271`'s, and they span 0.36–0.76.** That is the finding: after four
+rounds of improving the *measurement*, the disagreement is not measurement error — **the quantity was
+never defined**. Each census answers a different question, and all four are defensible answers to
+theirs.
+
+**And the theory picks one.** The interreflection form `ρ/(1−ρ)` comes from enclosure radiosity,
+where ρ is the **area-weighted** mean over the participating surfaces. That is not the downward probe
+(floor only), and not the spherical probe (solid-angle weighted, which is form-factor weighting from
+a point, a different average). It is closest to the **scene-graph area census, corrected for
+occlusion** — total area is wrong because a wall behind a wardrobe returns nothing, and that
+correction is exactly what `.122`'s exposure rule was about.
+
+So `(s)`'s remaining work is: area-weighted, over unoccluded surface. Both halves now exist
+separately — `sceneRoomAlbedo` does area, the Blender probes do occlusion — and neither combines
+them. I am stopping here rather than building a fifth census, because the last four each looked
+like progress and the actual blocker was upstream of all of them.
+
+`--room-albedo` now reports `dirs`, and `escaped_share` alongside the other shares — a ray that
+leaves through a window returns no bounce, which is physically correct and must not average in as a
+dark surface. Sampling is deterministic (no RNG): a census that moves between runs cannot be
+compared against a reference measured earlier, which is the only use this number has.
+
+Suite **10142 green**, `tsc` and biome clean. Still nothing consuming it.
+
 ## v0.31.7.123 — the room-albedo census moves to Blender, and by EXPOSED AREA the `.273` blind spot is 69 %, not 10 %
 
 `.122` concluded the exposure-weighted room albedo belongs in Blender, next to the irradiance bake,

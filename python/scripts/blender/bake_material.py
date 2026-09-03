@@ -564,7 +564,23 @@ def add_portals(bounds) -> int:
     return placed
 
 
-def room_albedo(rooms, samples: int = 48) -> list[dict]:
+def _fibonacci_sphere(n: int) -> list[tuple[float, float, float]]:
+    """`n` roughly-uniform directions on the unit sphere, DETERMINISTICALLY.
+
+    No RNG: a census that moves between runs cannot be compared between runs, and the whole use of
+    this number is a ratio against a reference measured earlier.
+    """
+    out = []
+    ga = math.pi * (3.0 - math.sqrt(5.0))
+    for i in range(n):
+        z = 1.0 - (2.0 * i + 1.0) / n
+        r = math.sqrt(max(0.0, 1.0 - z * z))
+        th = ga * i
+        out.append((r * math.cos(th), r * math.sin(th), z))
+    return out
+
+
+def room_albedo(rooms, samples: int = 48, dirs: int = 1) -> list[dict]:
     """EXPOSURE-WEIGHTED mean albedo per room, by ray-casting the scene from the ceiling down.
 
     **Why this lives in Blender.** `v0.31.7.122` established that a room-albedo census has to weight
@@ -606,29 +622,45 @@ def room_albedo(rooms, samples: int = 48) -> list[dict]:
         hits = 0
         textured = 0
         missed = 0
+        escaped = 0
+        # `dirs == 1` keeps the original DOWNWARD probe -- "what the ceiling sees". Anything more
+        # samples a sphere from points spread through the room's volume, which is the quantity that
+        # actually scales interreflected fill: every surface, weighted by how much of the room's
+        # solid angle it occupies. Heights are inset from floor and ceiling so an origin cannot
+        # start inside the slab it is trying to measure.
+        rays = [(0.0, 0.0, -1.0)] if dirs <= 1 else _fibonacci_sphere(dirs)
+        heights = [h] if dirs <= 1 else [0.35 * h, 0.6 * h, 0.85 * h]
+        reach = math.hypot(w, d) + h
         for i in range(samples):
             for j in range(samples):
                 tx = ox + (i + 0.5) / samples * w
                 tz = oz + (j + 0.5) / samples * d
-                origin = Vector(S.three_to_blender((tx, h, tz)))
-                hit, _loc, _nrm, _idx, obj, _mw = bpy.context.scene.ray_cast(
-                    dg, origin=origin, direction=Vector((0.0, 0.0, -1.0)), distance=h + 0.5
-                )
-                if not hit or obj is None:
-                    continue
-                rho, is_tex = _material_albedo(obj)
-                # COUNTED BEFORE THE SKIP. The first version incremented `textured` after
-                # `if rho is None: continue`, and a textured material returns `rho = None` -- so the
-                # counter was unreachable and `textured_share` reported 0.0 for every room while
-                # 69 % of rays were being silently discarded. A diagnostic field that cannot fire
-                # is worse than no field: it actively certifies the thing it was meant to catch.
-                if is_tex:
-                    textured += 1
-                if rho is None:
-                    missed += 1
-                    continue
-                weighted += rho
-                hits += 1
+                for hh in heights:
+                    for dxyz in rays:
+                        origin = Vector(S.three_to_blender((tx, hh, tz)))
+                        hit, _loc, _nrm, _idx, obj, _mw = bpy.context.scene.ray_cast(
+                            dg, origin=origin, direction=Vector(dxyz), distance=reach
+                        )
+                        if not hit or obj is None:
+                            # A ray that leaves through a window returns no bounce, which is
+                            # physically correct and must not be averaged in as a dark surface.
+                            escaped += 1
+                            continue
+                        rho, is_tex = _material_albedo(obj)
+                        # COUNTED BEFORE THE SKIP. The first version incremented `textured` after
+                        # `if rho is None: continue`, and a textured material returns `rho = None`
+                        # -- so the counter was unreachable and `textured_share` reported 0.0 for
+                        # every room while 69 % of rays were being silently discarded. A diagnostic
+                        # field that cannot fire is worse than no field: it actively certifies the
+                        # thing it was meant to catch.
+                        if is_tex:
+                            textured += 1
+                        if rho is None:
+                            missed += 1
+                            continue
+                        weighted += rho
+                        hits += 1
+        total_rays = samples * samples * len(heights) * len(rays)
         out.append(
             {
                 "id": room["id"],
@@ -636,13 +668,15 @@ def room_albedo(rooms, samples: int = 48) -> list[dict]:
                 # `None`, not a default: no hits is a DIFFERENT condition from a neutral room, and a
                 # silent fallback would make an empty room look like a white one.
                 "rho": round(weighted / hits, 4) if hits else None,
-                "samples": samples * samples,
+                "samples": samples * samples * len(heights) * len(rays),
+                "dirs": len(rays),
                 "hits": hits,
                 # Shares of ALL rays, not of hits, so they actually sum toward 1 and a reader can
                 # see how much of `rho` is standing on a subsample.
-                "textured_share": round(textured / (samples * samples), 3),
-                "unknown_share": round(missed / (samples * samples), 3),
-                "hit_share": round(hits / (samples * samples), 3),
+                "textured_share": round(textured / max(1, total_rays), 3),
+                "unknown_share": round(missed / max(1, total_rays), 3),
+                "escaped_share": round(escaped / max(1, total_rays), 3),
+                "hit_share": round(hits / max(1, total_rays), 3),
             }
         )
     return out
@@ -973,7 +1007,12 @@ def main(argv: list[str] | None = None) -> int:
         if not rooms:
             raise ValueError("--room-albedo needs `rooms` in the manifest; re-export with a probe "
                              "new enough to write them (v0.31.7.123+)")
-        room_rho = room_albedo(rooms)
+        # BOTH probes, so the difference between "what the ceiling sees" and "what the room sees"
+        # is a measured number rather than an assumption. The downward one is cheap and the
+        # spherical one is the quantity that scales interreflected fill.
+        down = room_albedo(rooms, samples=24, dirs=1)
+        room_rho = room_albedo(rooms, samples=12, dirs=48)
+        print("ROOM_ALBEDO_DOWN " + json.dumps(down))
         print("ROOM_ALBEDO " + json.dumps(room_rho))
 
     candidates = []
