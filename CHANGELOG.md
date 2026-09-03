@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.24 — three candidates eliminated with clean controls; the speckle is in the MAP DATA and still unexplained
+
+`v0.31.7.23` established the speckle is systematic — reproducible at 16× the samples — and named
+ray leakage at geometry seams as the hypothesis. This round tests that and two others. **All
+three are refuted**, and the fault is localised further than before.
+
+**Leakage at seams — refuted by prediction.** Leakage through the joins between abutting wall
+boxes would concentrate the artefact *near mesh borders*. The observed speckle covers whole walls
+uniformly, so the hypothesis fails on its own prediction without needing an experiment.
+
+**Mipmapping — refuted.** A promising candidate: three generates mipmaps by default, and on a
+3×2 packed atlas every mip level averages **across slot boundaries**, mixing one face's
+visibility into another's (at mip 4 a 256 px atlas has 5×8-texel slots, so the bleed is total).
+The 0.04 UV margin protects bilinear filtering at mip 0 and is nowhere near enough for a mip
+chain. Measured with `AOMIPS` as the control: **mipmaps ON and OFF are identical** — 72.15 mean,
+1.36× spread, and no visible difference in the crop. Kept off anyway, because an atlas genuinely
+should not carry mips; but it is not the cause.
+
+**"The darkening reveals the plaster normal map" — refuted by the round's best control.** With
+indirect light cut to ~17 %, a surface's bump detail could plausibly become visible as texture
+that reads as speckle. The control is a **uniform** multiplier at the *same* average darkening —
+`AOSYNTH=white AOGAIN=0.17`, mean R 63.5 against the real map's 72.2. Result: **the uniform arm
+gives a perfectly smooth dark wall** while the real map speckles. So the material is innocent and
+**the speckle is in the map data.**
+
+**Where that leaves it.** The artefact is: in the map, systematic (unchanged at 16× samples),
+not from mipmaps, not from the material, and not at slot borders. Yet a 1024 px bake of the
+largest wall's slot inspected directly is **smooth** — a clean gradient with only fine grain. The
+remaining inconsistency is between that smooth slot and the 13.6 % high-frequency residual the
+maps carry overall, which suggests the variation lives in *particular* slots rather than
+everywhere. Narrowing it needs the exact slot the visible wall samples, read directly — which is
+the next step, and is a small extension of the existing `AOPROBE`.
+
+**Method note.** Three candidates fell this round for three different reasons: one to a
+prediction it could not meet, one to an A/B with an explicit control, one to a matched-darkening
+control that isolated the variable. None needed a guess about what "looked" right. The
+matched-darkening control in particular is the kind that only works if you resist the temptation
+to compare against baseline — comparing a darkened render to an undarkened one would have proved
+nothing.
+
+**Nothing shipped.** Probes only; 60 fps intact; `tsc`, biome, knip clean, 10011 tests green.
+
 ## v0.31.7.23 — the gain is DERIVED and agrees with the fit; the speckle is SYSTEMATIC, not sampling noise
 
 Three results, and the last one explains the previous three rounds.

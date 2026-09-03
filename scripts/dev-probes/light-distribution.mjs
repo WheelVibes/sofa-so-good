@@ -1728,6 +1728,8 @@ const AOSYNTH = process.env.AOSYNTH || ''
 // unattenuated and dilutes the term, which a larger gain then has to compensate for. Aperture
 // visibility should attenuate specular IBL too -- a surface that cannot see the sky cannot
 // reflect it either.
+// AOMIPS=1 restores three's default mipmap generation, as the control for the no-mip fix.
+const AOMIPS = process.env.AOMIPS === '1'
 const AOSPEC = process.env.AOSPEC === '1'
 const AOGAIN = process.env.AOGAIN ? Number(process.env.AOGAIN) : 0
 const AONORM = process.env.AONORM ? Number(process.env.AONORM) : 0
@@ -1799,7 +1801,7 @@ const applyAoMap = !AOMAP
           `data:image/png;base64,${fs.readFileSync(`${AOMAP}/${byKey.get(k)}`).toString('base64')}`
       }
       const applied = await page.evaluate(
-        async ({ maps, gamma, synth, norm, gain, spec }) => {
+        async ({ maps, gamma, synth, norm, gain, spec, mips }) => {
           const load = (url) =>
             new Promise((resolve, reject) => {
               const img = new Image()
@@ -1924,6 +1926,18 @@ const applyAoMap = !AOMAP
             // 1.2x, because the values being multiplied were not the baked ones at all.
             // Setting `uv1` on the geometry is necessary and NOT sufficient.
             t.channel = 1
+            if (!mips) {
+              // NO MIPMAPS on an atlas. three generates them by default, and each level
+              // averages neighbouring texels -- which on a 3x2 packed atlas averages ACROSS
+              // SLOT BOUNDARIES, mixing one face's visibility into another's. At mip 4 a
+              // 256 px atlas has 5x8-texel slots, so the bleed is total. The 0.04 UV margin
+              // protects against bilinear filtering at mip 0 and is nowhere near enough for
+              // the mip chain. This is the standing candidate for the coarse blotching seen
+              // in `v0.31.7.20`-`.23`: at 1024 px the MAP itself is smooth, so the artefact is
+              // introduced after the bake, not in it.
+              t.generateMipmaps = false
+              t.minFilter = 1006 // LinearFilter -- no mip chain to select from
+            }
             t.needsUpdate = true
             m.aoMap = t
             m.aoMapIntensity = 1
@@ -1954,6 +1968,7 @@ const applyAoMap = !AOMAP
           norm: AONORM,
           gain: AOGAIN,
           spec: AOSPEC,
+          mips: AOMIPS,
         },
       )
       if (applied.error) throw new Error(`AOMAP: ${applied.error}`)

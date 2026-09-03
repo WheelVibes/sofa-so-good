@@ -173,6 +173,16 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — an ATLAS must not carry mipmaps.** Every mip level averages across slot
+  boundaries, mixing one face's baked value into another's — at mip 4 a 256 px 3×2 atlas has
+  5×8-texel slots, so the bleed is total, and a UV margin sized for bilinear filtering does
+  nothing for the mip chain. Set `generateMipmaps = false` and `minFilter = LinearFilter`.
+  (Measured *not* to be the cause of one particular artefact, but the reasoning stands.)
+- **2026-09-03 — to test "is the artefact in the map or in the surface", use a UNIFORM map at
+  MATCHED darkening.** Comparing a darkened render against an undarkened baseline proves nothing.
+  A uniform multiplier at the same average level (`AOSYNTH=white AOGAIN=0.17`, mean 63.5 vs the
+  real map's 72.2) gave a perfectly smooth wall where the real map speckled — isolating the data
+  as the source and clearing the material in one run.
 - **2026-09-03 — DERIVE the shader gain for a visibility map; don't fit it.** If the app's fill
   stands in for a room's average indirect irradiance, the gain is exactly `1 / mean(V)` computed
   from the maps (area-weighted, counting only filled atlas slots): **0.1674 ⇒ 5.97**, which landed
