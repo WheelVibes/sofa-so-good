@@ -27,6 +27,30 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.5 - The 2D and 3D wall tints disagreed about the same facade
+
+A consistency bug I created in `.4` and did not catch until re-reading the user
+documentation. I wired `establishedWallStructure` into the five sites that read
+`wall.structure` for the 2D plan and the printed sheets, and missed the two 3D
+ones — `apartment/PlanShell.tsx` and `RoomShell.tsx`'s Wall-types tint. So the 2D
+Hackability overlay showed a flat's facade as structural while the 3D view of the
+very same wall showed it untinted. Both resolve through it now.
+
+**The doc update is what exposed the code gap.** `docs/user/navigating.md` says the
+3D tint reads "straight off each wall's Structure tag" and
+`docs/user/floor-plan-editor.md` told users to "classify your walls to see it
+work" — neither was true any more. Going to correct the sentences is what made me
+check which code paths actually resolved, which is a decent argument for treating
+the docs as part of the change rather than as a trailing chore. Both passages now
+state the rule the app applies for you (an *Exterior* wall counts as structural
+untagged), that your own tag always wins, and that interior partitions stay
+unclassified on purpose because a load-bearing wall and a precast partition look
+identical on plan.
+
+Also documented the `.3` circulation recalibration and the `.4` resolver in
+`docs/ARCHITECTURE.md`, including the measured 0.40 m blindness in
+`findNarrowGaps`.
+
 ## v0.31.8.4 - The hacking plan called a flat's own facade "Unclassified"
 
 All 19 shipped templates left `PlanWall.structure` unset on every wall, so the G7

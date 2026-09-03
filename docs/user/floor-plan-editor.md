@@ -113,8 +113,11 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
   wall live by its demolition-permit status while you edit — **red** = never
   hackable (load-bearing / RC), **amber** = permit required (brick / dry
   partition), **muted** = still unclassified — with a small legend above the
-  plan. It's driven straight off each wall's **Structure** tag, so classify your
-  walls to see it work. Deleting a wall you've tagged load-bearing/RC first
+  plan. It's driven off each wall's **Structure** tag, plus one rule the app
+  applies for you: a wall set to *Exterior* thickness counts as structural even
+  untagged, because HDB's external walls cannot be hacked. Your own tag always
+  wins. Interior partitions stay muted until you classify them — the app will not
+  guess, since a load-bearing wall and a precast partition look the same on plan. Deleting a wall you've tagged load-bearing/RC first
   raises a **"NOT PERMITTED under HDB rules"** confirmation — it warns, it doesn't
   block (you can still remove it from the drawing).
 - **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
