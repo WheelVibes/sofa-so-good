@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.110 — the GI path costs ~1.4 ms p50 on `realistic` and nothing measurable on `performance`; the first measurement said it made things FASTER
+
+The user's constraint on this whole arc is "keep the fps manageable and smooth", and the cost of 271
+patched materials with 333 baked textures had never been measured. It is now, in walk mode at
+1280×800 dpr 2.
+
+**The first pair said the GI path made `realistic` 63 % faster** — 18.2 → 29.7 drawn fps. That is
+backwards, so I repeated both arms twice more instead of writing it up.
+
+| tier | metric | baseline ×3 | lightmaps ×3 |
+| --- | --- | --- | --- |
+| performance | p50 frame cost | 3.6 / 3.4 / 3.3 | 3.3 / 3.5 / 4.6 |
+| performance | drawn fps | 53.6 / 56.2 / 54.1 | 44.0 / 60.0 / 53.9 |
+| realistic | **p50 frame cost** | 6.0 / 7.5 / 6.1 → **6.5** | 5.9 / 9.0 / 8.7 → **7.9** |
+| realistic | drawn fps | 18.2 / 17.0 / 19.1 | 29.7 / 17.9 / 23.6 |
+
+**What survives three samples:**
+
+- **`realistic` p50 rises 6.5 → 7.9 ms, about +22 %** (~1.4 ms). Consistent in sign across the pairs
+  and the only clean signal here.
+- **`performance` shows no measurable cost.** Baseline mean 54.6 fps against 52.6 with maps, and the
+  p50 bands overlap.
+- **`drawnFrames/s` cannot arbitrate this.** The lightmaps arm spans 17.9–29.7 on `realistic` — a
+  1.7× spread within one configuration — because the adaptive controller reacts to load and changes
+  what it is drawing. The baseline band (17.0–19.1) is tight and the mapped band is not, which is
+  itself the tell.
+
+So the **63 % speed-up was noise**, and a single pair would have shipped it. Same lesson as `.107`
+and `.108` from the other direction: there the metric was too *blind* to see a real change, here it
+was too *noisy*, and both times the fix was more than one observation.
+
+**One real hazard, seen once and not reproduced:** a `max` frame of **1459 ms** on the first
+`performance` run with maps, against 12–257 ms everywhere else. That is the shape of a texture
+upload/decode stall for 333 files, not a steady-state cost — which matters, because a 1.5 s hitch on
+entering a mode is exactly the kind of thing a p50 hides. Worth pinning down before this ships, and
+worth noting the sample size honestly: n=1.
+
+**Net:** the shader injection is cheap. The GI path is not an fps problem in steady state on either
+tier; it is a load-time problem and a bytes problem (`.109`). Suite **10119 green**, `tsc` and biome
+clean. No shipped change.
+
 ## v0.31.7.109 — `--per-map-scale` and `--bit-depth 8`: ~6x smaller maps, and a correction to `.104`'s reasoning
 
 Size is the shipping blocker, not look. At 127 kB per 256 px map a 333-map set is **~42 MB**, and more
