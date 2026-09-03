@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.84 — the 10.9 fps attributed: fill rate and shadow maps. And the adaptive guard CANNOT SEE IT — which my own `.68` refactor removed the workaround for
+
+`.83` left ~85 ms/frame unattributed in `realistic`/walk. Bisected it with single-axis ablations
+(`OVERRIDE=key=value` on `frame-time.mjs`, plus `TRANSSCALE` to pin
+`gl.transmissionResolutionScale`), all in walk mode against the 10.9 fps baseline:
+
+| ablation | walk fps | gain |
+| --- | --- | --- |
+| baseline `realistic` | 10.9 | — |
+| `postprocessing=false` | 14.4 | 1.3× |
+| transmission pass ~free (`TRANSSCALE=0.05`) | 18.4 | 1.7× |
+| `shadowMapSize` 4096 → 1024 | 35.5 | **3.3×** |
+| **`dprMax` 2 → 1** | **49.6** | **4.5×** |
+
+**It is fill rate and shadow maps**, both inherited from the retired `maximum`: 4.1M drawing-buffer
+pixels at dpr 2, and a 4096² sun shadow map. Neither is exotic and both are already per-mode,
+per-device knobs — `realistic`/**weak** ships 2048² at the same dpr, so the cheaper variant should
+already be several times faster.
+
+**But the adaptive guard cannot see any of this, and that is the real defect.** Read rather than
+inferred: `frameCost.ts:installFrameCostMeter` wraps `gl.render` and accumulates
+`performance.now()` deltas — **CPU submit time**, the same quantity `frame-time.mjs` reports as p50.
+In `realistic`/walk that p90 is **6.9 ms**, comfortably under `DEMOTE_COST_MS = 14`. So the ladder
+concludes the frame is cheap and never demotes, while the user is getting **92 ms per frame**.
+
+The guard exists precisely to stop this, and it is measuring the one number that cannot detect it.
+A GPU-bound frame submits fast and then blocks — `frame-time.mjs`'s own docstring assumes "a starved
+GPU blocks the submit, so it tracks", and this is the counter-example.
+
+**And I removed the workaround.** The retired ladder carried `AUTO_PROMOTE_CEILING = 'high'` with the
+comment that `maximum` "measures 11.7 ms p90 here, i.e. it *would* pass the probe, which is exactly
+why it needs an explicit ceiling rather than being left to the ladder." That was a hand-placed guard
+around this blind spot. `.68` deleted it, reasoning that "reaching the cinematic settings is now the
+user picking `realistic`" — true as far as it goes, and it removed the only protection against a
+mode the measurement cannot police. The ceiling was load-bearing for a reason its own comment stated
+and I did not weigh.
+
+**The fix is specified: the cost window needs a wall-clock term.** `RenderPump`'s rAF loop and
+`frame-time.mjs` both already measure displayed-frame interval, so the signal exists and is cheap —
+the guard simply does not consume it. Demote when *either* submit cost or frame interval exceeds
+budget. That changes when the app downgrades quality for real users, so it wants a landed base and a
+deliberate decision rather than being appended to 92 unpushed commits.
+
+Suite **10087 green**, `tsc` and biome clean. Measurement and two probe knobs; no shipped behaviour
+changed.
+
 ## v0.31.7.83 — my own tier collapse silently broke 63 probes; and `realistic` runs at 10.9 fps in walk mode
 
 Went to check the "manageable and smooth" half of the goal after `.68`'s tier collapse and found two

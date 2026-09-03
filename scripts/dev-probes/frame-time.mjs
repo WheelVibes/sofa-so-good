@@ -41,6 +41,21 @@ const WALKPITCH = process.env.WALKPITCH !== '0'
 // has already decided for that frame -- this doubles the drawn rate. If walk mode
 // is genuinely saturated, it changes nothing (or makes it worse).
 const EXTRAINV = process.env.EXTRAINV === '1'
+// TRANSSCALE=<n> pins `gl.transmissionResolutionScale`, ablating the cost of
+// three's transmission pass without touching the scene or the materials.
+//
+// `realistic` is the ONLY mode with real transmission (`transmissionTiers`), and
+// it is the mode measured at 10.9 fps in walk against 58.9 in orbit
+// (`v0.31.7.83`) — with p50 inside `gl.render` at just 6.4 ms, so ~85 ms/frame is
+// unattributed. A transmissive mesh forces a scene re-render into a transmission
+// target when it is in frustum, and walk mode faces the window while orbit often
+// does not. Setting the scale to ~0.05 makes that pass nearly free; if the frame
+// rate recovers, this is the cost.
+const TRANSSCALE = process.env.TRANSSCALE == null ? null : Number(process.env.TRANSSCALE)
+// OVERRIDE=key=value sets one `qualityOverrides` entry, so a single axis of a mode
+// can be ablated without inventing a new mode. Values are JSON-parsed, so
+// `postprocessing=false`, `dprMax=1` and `shadowMapSize=1024` all work.
+const OVERRIDE = process.env.OVERRIDE || null
 // IDLE=1 drives NOTHING and measures how many frames the scene draws at rest.
 // This is the regression guard for `RenderPump`'s `invalidate(2)`: incrementing the
 // frame counter instead of setting it is what un-capped walk mode, but a counter
@@ -185,6 +200,42 @@ for (const tier of TIERS) {
       }
       window.__extraInvId = requestAnimationFrame(tick)
     })
+  }
+  if (OVERRIDE) {
+    const [k, ...rest] = OVERRIDE.split('=')
+    const raw = rest.join('=')
+    let value
+    try {
+      value = JSON.parse(raw)
+    } catch {
+      value = raw
+    }
+    const got = await page.evaluate(
+      ({ key, v }) => {
+        window.__store.getState().setQualityOverride(key, v)
+        return window.__store.getState().qualityOverrides[key]
+      },
+      { key: k, v: value },
+    )
+    if (got !== value) throw new Error(`OVERRIDE ${OVERRIDE}: store has ${JSON.stringify(got)}`)
+    // setQualityOverride marks qualityUserSet, which stops the adaptive ladder --
+    // wanted here, so the measurement is not chasing a moving device class.
+    await new Promise((r) => setTimeout(r, 1200))
+  }
+  if (TRANSSCALE != null) {
+    const got = await page.evaluate((k) => {
+      const gl = window.__three.gl
+      // Pin it: `RendererTierController` writes this from the tier, and a plain
+      // assignment would be reverted the next time that effect runs.
+      Object.defineProperty(gl, 'transmissionResolutionScale', {
+        get: () => k,
+        set: () => {},
+        configurable: true,
+      })
+      return gl.transmissionResolutionScale
+    }, TRANSSCALE)
+    if (got !== TRANSSCALE) throw new Error(`TRANSSCALE: asked ${TRANSSCALE}, gl has ${got}`)
+    await new Promise((r) => setTimeout(r, 800))
   }
   await page.evaluate(() => {
     const gl = window.__three.gl
