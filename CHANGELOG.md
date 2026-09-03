@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.82 — SHIPPED: the twilight sky is no longer literally black. The visible hard cut is NOT fixed, and I found what causes it
+
+The one piece of `.81`'s costing that needed no look call: a negative luminance silently clamped to
+zero is not a look, whatever anyone's taste. `skyRadiance` now continues the Preetham curve below the
+horizon instead of clamping it.
+
+    const Yfloored = Math.max(Y, twilightZenithY(sunAltDeg), 0)
+
+`twilightZenithY` returns **0 at and above 0°** — so nothing above the horizon changes — and below it
+decays from the app's **own** horizon value (`Yz(0°) ≈ 0.695`) with the *shape* Cycles measures
+(~10× per 2° of altitude). Pinned to the app's value, not physics, deliberately: matching Cycles
+would need **~6× more light at 20° and ~20× at the horizon** (`.81`), which is a re-grade of golden
+hour and yours to call.
+
+| | before | after |
+| --- | --- | --- |
+| upper sky at −5° | **0.00 / max 0** | **1.04 / max 1** |
+| upper sky at −3° | **0.00 / max 0** | **5.04 / max 5** |
+| upper sky at noon | 217.62 | 217.54 (**−0.077**) |
+
+The two twilight rows are unambiguous regardless of anything else: you cannot get `mean 0.00, max 0`
+out of a non-degenerate sky. Daytime is untouched to a tenth of a count.
+
+**Four tests pin it**, including the one that matters — that above the horizon the rendered luma
+still tracks the *raw Preetham ratio* between altitudes, so a floor leaking upward would fail. That
+assertion is on output, not on the internal: the first version imported `twilightZenithY` directly
+and tested the wrong thing.
+
+**What this does NOT fix, stated plainly: the visible hard horizon cut is still there.** The sky now
+sits at ~5 counts while the ground band sits at ~60, so the seam is as sharp as before — the black is
+gone, the *cut* is not. Reading the ground branch shows why, and it is a separate defect: the lower
+hemisphere has its **own** level term, `lvl = 0.12 + 0.88 * night`, which at −3° is **0.666**. The
+ground holds two-thirds brightness while the sky collapses to ~2 % of its horizon value. That 0.12
+floor is what keeps a lit ground under a dark sky, and closing the gap means either lifting the sky
+(the golden-hour re-grade) or dropping the ground (a different look change). Identified, measured, not
+decided.
+
+**A measurement-validity note worth more than the number it invalidated.** The h7 row of this
+comparison read 23.36 → 14.18 and looked like a regression. It is not: the app's sun position depends
+on the real date, and the sun drifted **0.33°** between the two runs (alt −1.194° → −1.520°). At
+~10× per 2° of altitude, a third of a degree is a factor 1.65 — which is the whole apparent change.
+**Near-horizon sky measurements are not comparable across runs**, and the only reason the −5°/−3°
+rows survive that is that their "before" was exactly zero.
+
+Suite **10087 green** (+4), `tsc`, biome and `knip` clean.
+
 ## v0.31.7.81 — the twilight fix, costed against ground truth: it needs BOTH the zenith luminance and the night fade, and it is a look change below ~20°
 
 Ten Cycles equirects at exact sun altitudes (−10° to +20°, 4 s each on the GPU, `--sun-dir`

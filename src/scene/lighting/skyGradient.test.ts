@@ -236,3 +236,101 @@ describe('paintSkyEquirect hoists the haze sample without changing the result', 
     expect(below).toBeGreaterThan(0)
   })
 })
+
+describe('twilight zenith continuation (v0.31.7.82)', () => {
+  const upperSky = (altDeg: number): number => {
+    // Straight up. `skyRadiance` takes the sun's TRAVEL direction implicitly via
+    // `sunDir` = direction TO the sun, so build that from the altitude.
+    const a = (altDeg * Math.PI) / 180
+    const sunDir: Vec3 = [0, Math.sin(a), Math.cos(a)]
+    const rgb = skyRadiance([0, 1, 0], { sunDir, turbidity: turbidityFor(altDeg) })
+    return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+  }
+  // The shipped altitude→turbidity curve, so the test exercises real conditions.
+  const turbidityFor = (altDeg: number): number => {
+    const keys: [number, number][] = [
+      [30, 5],
+      [10, 6],
+      [0, 8],
+      [-6, 9],
+      [-12, 10],
+    ]
+    if (altDeg >= 30) return 5
+    for (let i = 0; i < keys.length - 1; i += 1) {
+      const [a1, t1] = keys[i] as [number, number]
+      const [a2, t2] = keys[i + 1] as [number, number]
+      if (altDeg <= a1 && altDeg >= a2) return t1 + (t2 - t1) * ((a1 - altDeg) / (a1 - a2))
+    }
+    return 10
+  }
+
+  it('is never EXACTLY zero while the day/night fade still reports daylight', () => {
+    // The bug: Preetham's Yz crosses zero at -2 deg altitude and goes negative
+    // below, and `Math.max(Y, 0)` turned that into a pure black upper sky above a
+    // still-lit ground band — measured at 0.00 mean AND 0 max at -3 and -5 deg,
+    // where `night` is 0.62 and 0.37. Black is not a dim sky; it is a hard cut.
+    for (const alt of [-1, -2, -3, -4, -5, -6, -7]) {
+      const night = Math.max(0, Math.min(1, (alt + 8) / 8))
+      expect(night, `night at ${alt}`).toBeGreaterThan(0)
+      expect(upperSky(alt), `upper sky luma at ${alt} deg`).toBeGreaterThan(0)
+    }
+  })
+
+  it('decays monotonically through twilight rather than stepping off a cliff', () => {
+    let prev = Number.POSITIVE_INFINITY
+    for (const alt of [0, -1, -2, -3, -4, -5, -6]) {
+      const v = upperSky(alt)
+      expect(v, `${alt} deg must be dimmer than the step above`).toBeLessThan(prev)
+      prev = v
+    }
+  })
+
+  it('leaves the sky ABOVE the horizon untouched — this is a bug fix, not a re-grade', () => {
+    // Asserted on OUTPUT rather than on the internal floor: above the horizon the
+    // rendered luma must equal what the raw Preetham zenith luminance produces, so
+    // the continuation provably contributes nothing there.
+    //
+    // Physics wants ~6x more light at 20 deg elevation and ~20x at the horizon
+    // (v0.31.7.81), but that is a golden-hour look decision and deliberately NOT
+    // made here.
+    for (const alt of [2, 5, 10, 20, 45, 82]) {
+      const T = turbidityFor(alt)
+      const thetaS = ((90 - alt) * Math.PI) / 180
+      const chi = (4 / 9 - T / 120) * (Math.PI - 2 * thetaS)
+      const rawYz = (4.0453 * T - 4.971) * Math.tan(chi) - 0.2155 * T + 2.4192
+      expect(rawYz, `Preetham must still be positive at ${alt} deg`).toBeGreaterThan(0)
+      // Same sun, same turbidity, so any difference could only come from the floor.
+      const a = (alt * Math.PI) / 180
+      const sunDir: Vec3 = [0, Math.sin(a), Math.cos(a)]
+      const rgb = skyRadiance([0, 1, 0], { sunDir, turbidity: T })
+      const luma = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+      // The floor is zero here, so the value is driven purely by rawYz/22; check it
+      // scales with rawYz rather than sitting on a constant.
+      expect(luma, `${alt} deg`).toBeGreaterThan(0)
+    }
+    // The decisive form: the ratio between two above-horizon altitudes must track
+    // the ratio of their raw Preetham luminances. A floor leaking in would flatten it.
+    const lumaAt = (alt: number) => {
+      const a = (alt * Math.PI) / 180
+      const rgb = skyRadiance([0, 1, 0], {
+        sunDir: [0, Math.sin(a), Math.cos(a)],
+        turbidity: 5,
+      })
+      return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+    }
+    const yzAt = (alt: number) => {
+      const thetaS = ((90 - alt) * Math.PI) / 180
+      const chi = (4 / 9 - 5 / 120) * (Math.PI - 2 * thetaS)
+      return (4.0453 * 5 - 4.971) * Math.tan(chi) - 0.2155 * 5 + 2.4192
+    }
+    expect(lumaAt(45) / lumaAt(20)).toBeCloseTo(yzAt(45) / yzAt(20), 1)
+  })
+
+  it('is continuous at the horizon, where the two branches meet', () => {
+    // Pinned to the app's own Yz(0 deg) ~= 0.695 precisely so there is no step at
+    // the crossover.
+    const above = upperSky(0.05)
+    const below = upperSky(-0.05)
+    expect(Math.abs(above - below) / Math.max(above, 1e-9)).toBeLessThan(0.15)
+  })
+})

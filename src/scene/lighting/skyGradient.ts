@@ -86,6 +86,40 @@ function perez(c: PerezCoeff, cosTheta: number, gamma: number): number {
   return (1 + c.A * Math.exp(c.B / ct)) * (1 + c.C * Math.exp(c.D * gamma) + c.E * cosG * cosG)
 }
 
+/**
+ * Zenith luminance below the horizon, continuing the Preetham curve instead of
+ * letting it go NEGATIVE.
+ *
+ * **The bug this fixes.** Preetham's `Yz` is only valid for a sun well above the
+ * horizon. At the horizon the `tan` term vanishes and it degenerates to
+ * `2.4192 - 0.2155*T`, which (a) makes *hazier* air darker — backwards — and (b)
+ * crosses zero at **T = 11.2**. The shipped turbidity curve reaches T = 10 at
+ * −12°, and `Yz` is already negative at **−2°** (−0.129). That was being clamped
+ * by `Math.max(Y, 0)`, so for roughly six degrees of sun altitude the sky was not
+ * dim, it was **exactly (0,0,0)** — while the day/night fade still reported 25–75 %
+ * daylight and the lower hemisphere (a separate code path) stayed lit. The result
+ * was a pure black upper sky above a grey ground with a hard horizon cut, on every
+ * dawn and dusk the time slider passes through. Measured in `v0.31.7.80`: 0.00 mean
+ * AND 0 max at −3° and −5°, against Cycles' 39.9–99.6.
+ *
+ * **What this deliberately does NOT do.** It does not match physics. Cycles wants
+ * roughly **6× more light at 20° elevation and 20× at the horizon**
+ * (`v0.31.7.81`), which is a re-grade of golden hour and a look decision, not a bug
+ * fix. So the continuation is pinned to the app's OWN value at the horizon
+ * (`Yz(0°) ≈ 0.695`) and decays from there with the SHAPE Cycles measures — the
+ * reference twilight level falls about ten-fold every 2° of altitude. Above the
+ * horizon nothing changes at all: the floor is only consulted where Preetham has
+ * already gone invalid.
+ */
+const TWILIGHT_YZ_AT_HORIZON = 0.695
+/** Degrees of sun altitude per e-fold of twilight decay (Cycles: ~10x per 2°). */
+const TWILIGHT_YZ_SCALE_DEG = 0.87
+
+function twilightZenithY(sunAltDeg: number): number {
+  if (sunAltDeg >= 0) return 0
+  return TWILIGHT_YZ_AT_HORIZON * Math.exp(sunAltDeg / TWILIGHT_YZ_SCALE_DEG)
+}
+
 /** Zenith xyY for the given turbidity + solar zenith angle (Preetham). */
 function zenithxyY(T: number, thetaS: number): { Y: number; x: number; y: number } {
   const t2 = T * T
@@ -244,7 +278,11 @@ export function skyRadiance(view: Vec3, params: SkyParams, hazeSample?: Vec3): V
 
   // Zenith luminance Yz is in kcd/m^2 (~tens at midday); normalise to a relative
   // LDR range. The divisor is chosen so a clear midday sky lands near ~0.5–1.0.
-  const rgb = xyYtoLinearRGB(x, y, Math.max(Y, 0) / 22)
+  // `Math.max(Y, 0)` alone produced a black sky wherever Preetham went negative;
+  // the floor continues the curve instead. Identical above the horizon, where
+  // `twilightZenithY` returns 0 and `Y` is positive.
+  const Yfloored = Math.max(Y, twilightZenithY(sunAltDeg), 0)
+  const rgb = xyYtoLinearRGB(x, y, Yfloored / 22)
 
   return [rgb[0] * night, rgb[1] * night, rgb[2] * night]
 }
