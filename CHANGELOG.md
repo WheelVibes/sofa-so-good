@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.111 — 8-bit is INDISTINGUISHABLE from 16-bit at 4.2x smaller, and the recipe finally produces a clean frame
+
+`.109` shipped `--bit-depth 8` with an open worry: against a median map mean of 0.049 the 8-bit step
+is ~24 % of the typical value, which looked like a real risk to the dark maps. **It does not
+manifest.** Two full bakes of the same 40 meshes, identical settings, 4096 samples, differing only in
+bit depth:
+
+| | 8-bit | 16-bit |
+| --- | --- | --- |
+| total | **1.2 MB** (28 kB/map) | 4.9 MB (122 kB/map) |
+| rendered frame, mean abs diff | **0.209 / 255** | — |
+| own frame mean | 123.46 | 123.46 (Δ 0.003) |
+| channels differing by >2 | **0.46 %** | — |
+
+Frame means agree to **three thousandths of a count**. The quantisation error is real in the map and
+irrelevant in the image, because a dark map's absolute contribution to shading is small — so its
+*relative* error, which is what the 24 % figure described, never becomes visible. **The concern was
+correctly identified and wrongly weighted**, and only rendering both arms settled it.
+
+**The recipe that produces a clean frame**, and every term in it was established by a refuted
+alternative:
+
+    --min-area 3.0 --texels-per-metre 28 --res 256 --samples 4096 \
+      --adaptive-threshold 0.001 --per-map-scale --bit-depth 8
+    # 40 maps, 1.2 MB, 0 clipped
+
+- `--texels-per-metre 28` — `.107` refuted a flat `--res 64` (cloud blotches at ~21×32 texels per
+  wall face); `.108` established 28 as the density the good-looking set already had.
+- `--samples 4096` — `.108` found 1024 leaves sandy grain, and that the grain was undersampling
+  rather than resolution.
+- `--per-map-scale --bit-depth 8` — `.109` for the 4× size cut, this round for the evidence it costs
+  nothing.
+- `--scale` at all — `.104`, because PNG clips a float buffer at 1.0 and irradiance runs far above it.
+
+**Looked at the frame.** Best of the arc: walls read as smooth painted plaster with a gentle
+window-to-far-wall gradient, the ceiling carries soft variation, the reveals pick up light, and the
+dark smudge beside the TV from `.108` is gone. The **hard-edged bright patch** that `.106` called the
+shipping blocker is also no longer visible at this coverage, which was not the fix I expected — it
+suggests the step was aggravated by the uniform 256 px resolution rather than by coverage alone. Not
+yet explained, and recorded as an observation rather than a conclusion.
+
+Still open: whether to go to `--min-area 0.5` (333 maps, ~10 MB at 8-bit, 60 % mesh coverage) or keep
+40 maps at 1.2 MB. That needs the same frame comparison, not a coverage percentage. And the 1459 ms
+load hitch from `.110` (n=1) is unaddressed. Suite **10119 green**, `tsc` and biome clean; scratch
+sets not committed.
+
 ## v0.31.7.110 — the GI path costs ~1.4 ms p50 on `realistic` and nothing measurable on `performance`; the first measurement said it made things FASTER
 
 The user's constraint on this whole arc is "keep the fps manageable and smooth", and the cost of 271
