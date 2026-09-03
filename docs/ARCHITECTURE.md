@@ -1980,7 +1980,14 @@ same change that reshapes a system.
   own width — a wardrobe is not blocked by something beside or behind it. Subject is the openable
   cabinet PRIMITIVE family, not `category === 'storage'` (which dragged in nightstands) and not a
   footprint cut (which excluded a real utility-cabinet hit). Reported, never enforced: making the
-  arranger honour it was measured worse in v0.31.8.7).
+  arranger honour it was measured worse in v0.31.8.7), and **bed access** —
+  `CLEARANCE.bedSurround` (0.6 m, published as 24") on at least ONE long side, since the rule is
+  about the side you get in and out on, so a single bed in a corner is a normal small-room answer.
+  Sides come from the bed's rotation. Only pieces ≥ 0.5 m² count as blocking: a NIGHTSTAND is part
+  of the bedside arrangement, not an obstruction — without that filter the authored default flat
+  warned at 0.24 m, the gap to its own nightstand. Note this is the OPPOSITE call to storage
+  access, deliberately: "is there a walkway" is what the area bar is for, "can you open this door"
+  is not).
   Each finding carries the measured figure + the band so a user can judge the call; `skipped`
   where the design lacks the pieces. Consumed by `schemeOptions` (compare modal) **and**, since
   v0.31.5.415, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed

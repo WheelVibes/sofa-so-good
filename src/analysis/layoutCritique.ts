@@ -46,6 +46,16 @@ import { OPENABLE_CABINET_PRIMITIVES } from '../furniture/cabinetOpen'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { CLEARANCE } from '../layout/designRules'
 
+/**
+ * Footprint area (m²) at which a piece DEFINES a walkway rather than being
+ * something you step past. Mirrors `analysis/designScore.ts`'s
+ * `CIRCULATION.obstacleArea`, whose docstring is the rationale: below it —
+ * "lamps, plants, stools, a monitor" — "you step around; it never defines a
+ * walkway". Duplicated as a literal rather than imported to keep this module
+ * free of a dependency on the score that consumes it.
+ */
+const WALKWAY_OBSTACLE_AREA = 0.5
+
 /** Published thresholds, all metres. See the module header for sources. */
 export const CRITIQUE = {
   /** Screen-to-seat comfortable band. */
@@ -122,9 +132,35 @@ export const CRITIQUE = {
    * 0.45 m to open into is useful even when the app cannot fix it for them.
    */
   storageFront: CLEARANCE.storageFront,
+  /**
+   * Walking access alongside a bed (m) — `layout/designRules.ts`'s
+   * `CLEARANCE.bedSurround`, re-exported so the two cannot drift.
+   *
+   * Published as **24 inches ≈ 0.61 m**: "the minimum recommended walking
+   * clearance alongside a bed is 24 inches (about 61 cm)", with 30-36" the
+   * comfortable figure. The constant's 0.6 m is that minimum, so the check
+   * speaks up only below what the sources treat as the floor.
+   *
+   * Like `bedSurround` itself this is about ONE side: "for walking space on any
+   * side you use to get in and out, aim for 18 to 24 inches". A single bed
+   * pushed into a corner with three sides against walls is a normal small-room
+   * answer, not a defect — the same reason the rug check judges a bedside runner
+   * on length rather than condemning it for not framing the bed.
+   *
+   * **The FOOT is deliberately not part of the verdict, and that is measured.**
+   * Sources do give 24" at the foot too, and `docs/interior-design-guidelines.md`
+   * described the intended rule as "≥1 long side + foot". Across the 47 beds in
+   * the authored flat and all 19 templates: 66% meet 0.6 m on a side, 45% at the
+   * foot, and only **23% meet both** — and the curated default flat's own Main
+   * Bedroom measures **0.00 m at the foot**. Requiring it would fail the app's
+   * own hand-authored master bedroom, which is the clearest possible signal that
+   * a foot-to-wall bed is a normal HDB answer rather than a defect.
+   */
+  bedSurround: CLEARANCE.bedSurround,
 } as const
 
 type CritiqueId =
+  | 'bed-access'
   | 'tv-distance'
   | 'conversation'
   | 'coffee-table'
@@ -390,16 +426,16 @@ function itemWidth(item: FurnitureItem, def: FurnitureDef): number {
  * wardrobe is not "blocked" by something standing beside it. Mounted and noClip
  * pieces are skipped — they do not occupy floor.
  */
-function frontClearance(
+function clearanceToward(
   item: FurnitureItem,
   def: FurnitureDef,
+  /** Unit direction in the plan, world-space. */
+  fx: number,
+  fz: number,
   others: Array<{ it: FurnitureItem; def: FurnitureDef }>,
   walls: PlanWall[],
   max: number,
 ): number {
-  const rot = item.rotation ?? 0
-  const fx = Math.sin(rot)
-  const fz = Math.cos(rot)
   // Perpendicular (right-hand) axis in the plan.
   const px = fz
   const pz = -fx
@@ -444,6 +480,32 @@ function frontClearance(
     ])
   }
   return clear
+}
+
+/** Local axes of an item in world space, under the RENDER rotation (three.js:
+ *  local `+Z` -> `(sin θ, cos θ)`; see `headDir` for why that is the authority
+ *  and `docs/ARCHITECTURE.md` for the v0.31.8.10 mirror bug that came of using a
+ *  different one). `forward` is local +Z, `right` is local +X. */
+function localAxes(item: FurnitureItem): {
+  forward: [number, number]
+  right: [number, number]
+} {
+  const rot = item.rotation ?? 0
+  const s = Math.sin(rot)
+  const c = Math.cos(rot)
+  return { forward: [s, c], right: [c, -s] }
+}
+
+/** Clear floor straight out from a piece's FRONT face (local +Z). */
+function frontClearance(
+  item: FurnitureItem,
+  def: FurnitureDef,
+  others: Array<{ it: FurnitureItem; def: FurnitureDef }>,
+  walls: PlanWall[],
+  max: number,
+): number {
+  const [fx, fz] = localAxes(item).forward
+  return clearanceToward(item, def, fx, fz, others, walls, max)
 }
 
 export function buildLayoutCritique(
@@ -783,6 +845,68 @@ export function buildLayoutCritique(
         detail: ok
           ? `All ${storage.length} storage ${storage.length === 1 ? 'piece has' : 'pieces have'} the recommended ${CRITIQUE.storageFront} m clear in front to open and pass.`
           : `${tightest.name} has ${tightest.clear.toFixed(2)} m clear in front — ${CRITIQUE.storageFront} m is recommended so a door or drawer opens and you can still pass (tightest of ${storage.length} measured).`,
+      })
+    }
+  }
+
+  // 7 — Bed access: at least ONE long side walkable. Selected by CATEGORY,
+  // which for beds is a real taxonomy (`category === 'beds'`) — the same cut the
+  // rug check uses for its anchor after a name regex matched `rug-bedroom`.
+  {
+    const beds = resolved.filter((r) => r.def.category === 'beds' && !r.def.mounted)
+    if (beds.length === 0) {
+      findings.push({
+        id: 'bed-access',
+        label: 'Bed access',
+        verdict: 'skipped',
+        detail: 'No bed to measure.',
+      })
+    } else {
+      const walls = allPlanWalls(plan)
+      let worst: { clear: number; roomName?: string } | null = null
+      for (const b of beds) {
+        // Only pieces that DEFINE a walkway block a bedside. A nightstand is part
+        // of the bedside arrangement, not an obstruction to it — you step past
+        // it, which is exactly what `CIRCULATION.obstacleArea`'s own docstring
+        // says of anything under 0.5 m² ("lamps, plants, stools — you step
+        // around; it never defines a walkway").
+        //
+        // Measured: without this the AUTHORED default flat warned at 0.24 m,
+        // which is the gap from the bed's side face to its own nightstand. A
+        // check that condemns a bed for having a bedside table is worse than no
+        // check.
+        //
+        // Note this is the OPPOSITE call to `storage-access` above, and
+        // deliberately so: there the question is "can you open this door", where
+        // a small piece in the way still blocks it, and an area cut wrongly
+        // excused a washing machine parked 0.14 m from a cabinet front. Here the
+        // question is "is there a walkway", which is what the area bar is for.
+        const others = resolved.filter(
+          (r) =>
+            r.it.id !== b.it.id &&
+            r.def.defaultFootprint.w * r.def.defaultFootprint.d >= WALKWAY_OBSTACLE_AREA,
+        )
+        const { right } = localAxes(b.it)
+        // The BETTER of the two long sides: the published rule is about the side
+        // you get in and out on, so a bed against a wall on one side is fine.
+        const sides = [
+          clearanceToward(b.it, b.def, right[0], right[1], others, walls, CRITIQUE.bedSurround),
+          clearanceToward(b.it, b.def, -right[0], -right[1], others, walls, CRITIQUE.bedSurround),
+        ]
+        const best = Math.max(...sides)
+        if (!worst || best < worst.clear)
+          worst = { clear: best, roomName: roomAtItem(plan, b.it)?.name }
+      }
+      const tightest = worst as { clear: number; roomName?: string }
+      const ok = tightest.clear >= CRITIQUE.bedSurround - 1e-6
+      findings.push({
+        id: 'bed-access',
+        label: 'Bed access',
+        verdict: ok ? 'pass' : 'warn',
+        ...(ok ? {} : { roomName: tightest.roomName }),
+        detail: ok
+          ? `Every bed has at least one long side with the recommended ${CRITIQUE.bedSurround} m to walk and make it up (${beds.length} measured).`
+          : `The roomiest side of this bed is ${tightest.clear.toFixed(2)} m — ${CRITIQUE.bedSurround} m is the published minimum for getting in and out and making the bed (tightest of ${beds.length} measured).`,
       })
     }
   }

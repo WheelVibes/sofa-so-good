@@ -364,8 +364,11 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   chest of drawers has the recommended 0.75 m of clear floor **in front of** it to
   open a door or drawer and still get past. It reads the direction each piece
   faces, so something standing beside or behind it doesn't count; on a warning it
-  names the tightest piece, its room and the clearance it actually has. Failures
-  and warnings sort above passes, each row shows the measured
+  names the tightest piece, its room and the clearance it actually has, and
+  **bed access** — whether at least one long side of each bed has the recommended
+  0.6 m to walk down and make it up. Only one side needs it, so a single bed
+  tucked into a corner isn't marked down, and a bedside table doesn't count as
+  blocking the side it sits on. Failures and warnings sort above passes, each row shows the measured
   figure and the band so you can judge the call yourself, and checks your home
   has no pieces for are left out rather than listed as blanks — an **accessibility**
   check (doorway clear widths + a 1.5 m wheelchair turning circle per room),

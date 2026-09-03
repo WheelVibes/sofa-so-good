@@ -325,3 +325,105 @@ describe('buildLayoutCritique — storage access', () => {
     expect(find(c, 'storage-access').verdict).toBe('skipped')
   })
 })
+
+/**
+ * Bed access (v0.31.8.11). `CLEARANCE.bedSurround` (0.6 m) existed only as a
+ * soft scoring penalty inside the auto-arranger and was never reported. Published
+ * as 24 inches: "the minimum recommended walking clearance alongside a bed is 24
+ * inches (about 61 cm)".
+ *
+ * ONE long side is enough, per "for walking space on any side you use to get in
+ * and out" — a single bed in a corner is a normal small-room answer, not a defect.
+ */
+describe('buildLayoutCritique — bed access', () => {
+  const bed: FurnitureDef = {
+    id: 'bed-queen',
+    name: 'Bed',
+    category: 'beds',
+    kind: 'primitive',
+    defaultFootprint: { w: 1.5, d: 2.0, h: 0.5 },
+  } as unknown as FurnitureDef
+  /** 0.9 m² — a real circulation obstacle. */
+  const wardrobe: FurnitureDef = {
+    id: 'wardrobe-3door',
+    name: 'Wardrobe',
+    category: 'storage',
+    kind: 'primitive',
+    defaultFootprint: { w: 1.5, d: 0.6, h: 2.1 },
+  } as unknown as FurnitureDef
+  /** 0.18 m² — something you step past, not a walkway boundary. */
+  const nightstand: FurnitureDef = {
+    id: 'nightstand',
+    name: 'Nightstand',
+    category: 'storage',
+    kind: 'primitive',
+    defaultFootprint: { w: 0.45, d: 0.4, h: 0.55 },
+  } as unknown as FurnitureDef
+  const bedDefs: Record<string, FurnitureDef> = {
+    'bed-queen': bed,
+    'wardrobe-3door': wardrobe,
+    nightstand,
+  }
+  const access = (items: FurnitureItem[]) =>
+    find(buildLayoutCritique(plan(), items, bedDefs), 'bed-access')
+
+  // Bed centred at x=1.5 in a 6x5 room: its side faces sit at x=0.75 and x=2.25.
+  const bd = () => item('bd', 'bed-queen', 1.5, 2.5)
+
+  it('passes when a long side has the recommended walking clearance', () => {
+    expect(access([bd()]).verdict).toBe('pass')
+  })
+
+  it('warns when BOTH long sides are blocked by real obstacles', () => {
+    // Wardrobes 0.2 m off each side face (their 0.6 m depth faces the bed).
+    const f = access([
+      bd(),
+      { ...item('w1', 'wardrobe-3door', 0.75 - 0.2 - 0.3, 2.5), rotation: Math.PI / 2 },
+      { ...item('w2', 'wardrobe-3door', 2.25 + 0.2 + 0.3, 2.5), rotation: Math.PI / 2 },
+    ])
+    expect(f.verdict).toBe('warn')
+    expect(f.detail).toMatch(/roomiest side of this bed is 0\.20 m/)
+    expect(f.roomName).toBe('Living')
+  })
+
+  it('needs only ONE clear side — a bed against a wall on one side passes', () => {
+    // Only the west side blocked; the east side is open floor.
+    expect(
+      access([
+        bd(),
+        { ...item('w1', 'wardrobe-3door', 0.75 - 0.2 - 0.3, 2.5), rotation: Math.PI / 2 },
+      ]).verdict,
+    ).toBe('pass')
+  })
+
+  it('does NOT count a NIGHTSTAND as blocking the bedside', () => {
+    // The false alarm this check shipped with for one measurement round: the
+    // AUTHORED default flat warned at 0.24 m, which was the gap from the bed's
+    // side face to its own nightstand. A bedside table is part of the bedside
+    // arrangement — you step past it. Remove the walkway-area filter and this
+    // test fails.
+    const f = access([
+      bd(),
+      item('n1', 'nightstand', 0.75 - 0.1 - 0.225, 2.5),
+      item('n2', 'nightstand', 2.25 + 0.1 + 0.225, 2.5),
+    ])
+    expect(f.verdict).toBe('pass')
+  })
+
+  it('reads the bed SIDES from its rotation, not from a fixed axis', () => {
+    // Quarter-turned bed: its long sides now face ±Z, so blockers must be
+    // north/south of it to count. A check keyed to a fixed axis would miss these.
+    const rotBed = { ...item('bd', 'bed-queen', 3, 2.5), rotation: Math.PI / 2 }
+    const f = access([
+      rotBed,
+      { ...item('w1', 'wardrobe-3door', 3, 2.5 - 0.75 - 0.2 - 0.3), rotation: 0 },
+      { ...item('w2', 'wardrobe-3door', 3, 2.5 + 0.75 + 0.2 + 0.3), rotation: 0 },
+    ])
+    expect(f.verdict).toBe('warn')
+    expect(f.detail).toMatch(/0\.20 m/)
+  })
+
+  it('skips when there is no bed', () => {
+    expect(access([]).verdict).toBe('skipped')
+  })
+})

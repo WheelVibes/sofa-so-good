@@ -27,6 +27,53 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.11 - Bed access: the last unenforced clearance constant, now reported
+
+`CLEARANCE.bedSurround` (0.6 m) existed only as a soft scoring penalty inside the
+auto-arranger and was never reported to anyone. It is published as **24 inches**:
+"the minimum recommended walking clearance alongside a bed is 24 inches (about
+61 cm)". With this, both clearance constants `.7` found unenforced are now
+reported — `storageFront` in `.8`, `bedSurround` here.
+
+**ONE long side is enough**, per "for walking space on any side you use to get in
+and out". A single bed pushed into a corner is a normal small-room answer, and the
+check reports the roomier of the two sides.
+
+**The FOOT is measured but deliberately excluded from the verdict, and that is a
+measurement rather than a preference.** Sources give 24" at the foot too, and
+`docs/interior-design-guidelines.md` described the intended rule as "≥1 long side
++ foot". Across the 47 beds in the authored flat and all 19 templates:
+
+| | beds meeting 0.6 m |
+|---|---|
+| at least one long side | 31 / 47 (66%) |
+| foot | 21 / 47 (45%) |
+| **both** | **11 / 47 (23%)** |
+
+And the curated default flat's own Main Bedroom measures **0.00 m at the foot**.
+Requiring it would fail the app's hand-authored master bedroom — the clearest
+possible signal that a foot-to-wall bed is a normal HDB answer, not a defect. The
+guidelines table now records that, rather than continuing to describe a rule the
+check does not implement.
+
+**A false alarm caught by censusing before believing the check.** The first cut
+warned on the AUTHORED default flat at 0.24 m, which turned out to be the gap from
+the bed's side face to **its own nightstand**. A bedside table is part of the
+bedside arrangement — you step past it. Only pieces ≥ 0.5 m² now count, which is
+exactly what `CIRCULATION.obstacleArea`'s docstring says that bar is for ("lamps,
+plants, stools — you step around; it never defines a walkway").
+
+Note that this is the **opposite call to `storage-access`** in `.8`, deliberately:
+there an area cut was measured and REJECTED because it excused a washing machine
+parked 0.14 m from a cabinet door. "Is there a walkway" is what the area bar is
+for; "can you open this door" is not. Same constant, opposite answer, because the
+question differs — worth stating so the inconsistency reads as reasoned.
+
+Result: the authored flat passes and 10 of 20 templates warn, at 0.14-0.47 m. Both
+mechanisms were verified load-bearing by disabling them one at a time — dropping
+the area filter fails the nightstand arm, freezing the side axis to world +X fails
+the rotated-bed arm.
+
 ## v0.31.8.10 - Asymmetric footprints collided as their own mirror image
 
 Found by sweeping for other places the `.9` mistake could repeat — deriving a
