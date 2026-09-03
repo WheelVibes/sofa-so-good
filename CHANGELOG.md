@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.75 — the sky-catch ablation works now, and it refutes my own hypothesis: the emissive is worth 5 %, not the window
+
+`.74` proposed that the window's hardcoded emissive sky-catch (`daylight * 0.4`, `#cfe4f5`) explained
+item (l) — a constant that never reads the sky would be sky-independent, scene-independent and short
+by a fixed factor, which is exactly what four views measured. The ablation was a no-op, so the
+hypothesis went in untested. Now it is tested, and it is wrong.
+
+**Assignment does not work; interception does.** `m.emissiveIntensity = 0` is reverted before the
+capture (read-back: `[0.4,…]` on all six materials) because the value is recomputed whenever the
+light state is re-derived. `Object.defineProperty` with a no-op setter pins it — the same mechanism
+BGMUL already uses for `backgroundIntensity`. Read-back now `[0,0,0,0,0,0]`.
+
+| window crop | p95 | median | mean | share ≥219 |
+| --- | --- | --- | --- | --- |
+| sky-catch 0.4 (shipped) | 180.8 | 161.8 | 149.3 | 1.11 % |
+| sky-catch **0** (intercepted) | 172.2 | 152.2 | 141.4 | 1.11 % |
+| Cycles reference | 246.1 | 217.9 | 205.2 | 49.58 % |
+
+**The emissive is worth 7.9 counts — 5.3 % of the window's mean.** Real, and *less* than the
+physical sky's +7.8 %. It is not the dominant term and it does not explain item (l). Hypothesis
+refuted by the test built to check it, which is the only reason it did not become an assertion.
+
+**Three levers now measured on the same crop, and they are all small:**
+
+| lever | window mean |
+| --- | --- |
+| physical Cycles sky instead of the canvas gradient | **+7.8 %** |
+| `realistic` (real transmission) instead of `performance` | **+5.2 %** |
+| the hardcoded emissive sky-catch | **5.3 %** |
+
+Together ~18 % against a gap of ~38 % at p95 — and, more tellingly, **the share of the crop above
+219 counts is 1.11 % under every one of them**, against 49.58 % in the reference. Not one of these
+levers changes the *shape* of the distribution. Whatever holds the app's panes below ~180 is none of
+the three things that looked most likely.
+
+**A confound worth naming for whoever picks this up.** The crop contains the mullion grille, the
+curtain panels and the headboard as well as glass, and those are opaque mid-grey in both pipelines —
+so a crop *mean* understates the pane difference. p95 is the better proxy (it responds: 180.8 →
+202.9 with the physical sky), and a proper answer wants a pane-only mask rather than a rectangle.
+That is the next instrument, not another guess at the cause.
+
+Suite **10083 green**, `tsc` and biome clean. `SKYCATCH` is a probe knob; nothing shipped changed.
+
 ## v0.31.7.74 — the Cycles sky, tested in the shipped app: it helps 8 %, and item (l)'s window gap is not a gain error at all
 
 `BACKDROP_IMG=<path>` loads any image into the app's **existing** `custom` backdrop slot, so

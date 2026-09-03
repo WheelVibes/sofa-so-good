@@ -731,8 +731,22 @@ const applySkyCatch =
               if (!m.emissive || m.emissiveIntensity === undefined) continue
               const hex = `#${m.emissive.getHexString()}`
               if (hex !== '#cfe4f5') continue
-              if (m.__skyCatch0 === undefined) m.__skyCatch0 = m.emissiveIntensity
-              m.emissiveIntensity = m.__skyCatch0 * k
+              // INTERCEPT, do not assign. The first version of this ablation set
+              // `m.emissiveIntensity` and was silently reverted before the shot
+              // (read-back returned 0.4 on all six), because the value is
+              // recomputed from `glassSkyCatchIntensity(daylight)` on the material
+              // whenever the light state is re-derived. A no-op setter pins it
+              // exactly the way BGMUL pins `backgroundIntensity`.
+              if (m.__skyCatchPinned === undefined) {
+                const base = m.emissiveIntensity
+                m.__skyCatch0 = base
+                Object.defineProperty(m, 'emissiveIntensity', {
+                  get: () => base * k,
+                  set: () => {},
+                  configurable: true,
+                })
+                m.__skyCatchPinned = k
+              }
               m.needsUpdate = true
               n += 1
               if (seen.length < 3) seen.push({ hex, was: m.__skyCatch0, now: m.emissiveIntensity })
