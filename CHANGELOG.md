@@ -29,6 +29,66 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.112 — researched archviz practice, implemented light portals, and MEASURED THEM AS NO HELP in this scene
+
+Asked to ground the Blender work in published practice rather than my own assumptions, so this round
+is research first, then verification. Four findings, three of which changed what I do.
+
+**1. Light portals — the standard archviz answer for daylit interiors, and it does not work here.**
+A forward path tracer has to find its way out of a small opening by chance, which is why a daylit
+interior is the classic noisy case; a portal tells Cycles where the opening is. The documented
+limitation is that portals accelerate **environment light only and do nothing for sun lamps** — and
+the irradiance pass turns the sun disc OFF and bakes the sky dome plus bounces, so on paper it is
+*exactly* the case portals exist for.
+
+Implemented `--portals` (9 portals placed over 9 glazing openings, from bounds captured before
+`open_apertures()` deletes them). Then measured it against a matched control, both 512 samples, both
+diffed against the converged 4096-sample bake:
+
+| | mean abs diff vs 4096 ref | channels >2 | bytes |
+| --- | --- | --- | --- |
+| portals @ 512 | 1.932 | 22.28 % | 1760 kB |
+| **no portals @ 512** | **1.803** | **21.10 %** | **1732 kB** |
+
+**Slightly worse on all three.** The mechanism fits the research rather than contradicting it: portals
+*importance-sample the world*, and this world is `setup_world_sky_from_three_direction` with the sun
+disc off — a smooth **analytic gradient** that is already cheap to sample. Portals pay off against a
+high-contrast HDRI with a bright sun spot in the image, which is what the tutorials all use. The flag
+stays (it is correct, cheap, and would help an HDRI world) and is **off**.
+
+**2. Bake denoising is structurally unavailable to this pass.** Blender's denoise-on-bake only runs
+when the bake type is `Combined`. The irradiance pass is `DIFFUSE` with direct+indirect, so it is
+excluded by design — which is *why* 4096 samples are needed and not a tuning failure. External OIDN
+on the finished PNG remains open.
+
+**3. There is no universal lightmap texel density**, and the published guidance is that *consistency*
+matters more than any particular number, with archviz deliberately pushing denser than an engine's
+"optimal" hint. That is exactly what `--texels-per-metre` implements (`.108`), so this validates the
+lever rather than the value; 28 remains measured-from-our-own-good-frame, not borrowed.
+
+**4. RGBM is the industry-standard 8-bit lightmap HDR encoding** (Unity, Unreal, Bioshock Infinite),
+storing a shared multiplier per *texel* in alpha — a strictly better version of `.109`'s per-*map*
+scale, and the reason per-map bought only 9 % there (every map's maximum was within 0.6 %). three.js
+lightmaps do **not** support RGBM natively, though it can be decoded with fixed functions.
+**Deliberately not adopted:** `.111` measured plain 8-bit + per-map scale as indistinguishable from
+16-bit (mean abs diff 0.209/255), so RGBM would add machinery to solve a problem this scene does not
+have. It is the right escalation if a wider-range scene ever shows banding.
+
+**A byproduct worth keeping: PNG size is a noise metric.** The same 40 meshes come to 1732–1760 kB at
+512 samples and **1244 kB at 4096** — noise is incompressible, so bytes fall as the bake converges.
+Free, and it needs no render.
+
+**And the sample requirement is now quantified:** at 512 samples **21 %** of channels still differ by
+more than 2 counts from the converged answer. 4096 is not conservatism.
+
+One bug the guard caught: holding glazing objects across `open_apertures()` raises
+`ReferenceError: StructRNA of type Object has been removed`, so `glazing_bounds()` captures plain
+numbers first. And `add_portals` **reads `is_portal` back and raises** if it did not stick — an area
+light that fails to become a portal *emits*, which would not look like a bug, it would look like a
+brighter, cleaner bake.
+
+Suite **10119 green**, `tsc` and biome clean; scratch sets not committed.
+
 ## v0.31.7.111 — 8-bit is INDISTINGUISHABLE from 16-bit at 4.2x smaller, and the recipe finally produces a clean frame
 
 `.109` shipped `--bit-depth 8` with an open worry: against a median map mean of 0.049 the 8-bit step

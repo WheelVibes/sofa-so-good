@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -115,6 +116,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "walls read as blotchy cloud because a whole wall face gets 21x32 texels. "
                         "Rounded UP to a power of two and clamped to [--res-min, --res]. 28 is the "
                         "density the good-looking 256 px set actually had.")
+    p.add_argument("--portals", action="store_true",
+                   help="place a Cycles light portal over each glazing opening before baking. "
+                        "Standard archviz practice for daylit interiors: it guides the sampler "
+                        "through the window instead of leaving it to find the hole by chance. "
+                        "Applies to ENVIRONMENT light only -- documented as doing nothing for sun "
+                        "lamps -- which suits the irradiance pass, whose sun disc is off.")
     p.add_argument("--per-map-scale", action="store_true",
                    help="divide each map by ITS OWN maximum and record that divisor in the map's "
                         "index entry, instead of one global --scale for the set. This is what "
@@ -483,6 +490,73 @@ def res_for(obj, tpm: float, lo: int, hi: int) -> int:
     return max(lo, min(hi, pow2))
 
 
+def glazing_bounds(glazing) -> list[tuple[tuple[float, float, float], tuple[float, float, float]]]:
+    """World-space `(lo, hi)` per glazing object, as PLAIN NUMBERS.
+
+    Taken before `open_apertures()` runs, because that deletes the objects and a held reference
+    then raises `ReferenceError: StructRNA of type Object has been removed`. Numbers survive; the
+    objects do not.
+    """
+    out = []
+    for obj in glazing:
+        corners = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+        lo = tuple(min(c[i] for c in corners) for i in range(3))
+        hi = tuple(max(c[i] for c in corners) for i in range(3))
+        out.append((lo, hi))
+    return out
+
+
+def add_portals(bounds) -> int:
+    """Put a Cycles light PORTAL over every glazing opening. Returns how many were placed.
+
+    **Why this is the right lever for the irradiance pass specifically.** A forward path tracer
+    has to find its way out of a small opening by chance, which is why a daylit interior is the
+    classic noisy case; a portal tells Cycles where the opening is so it can sample the world
+    directly through it. The documented limitation is that portals accelerate **environment
+    lighting only and do nothing for sun lamps** -- and the irradiance pass turns the sun disc OFF
+    and bakes the sky dome plus bounces, so it is exactly the case portals exist for. The
+    visibility pass is the same shape.
+
+    Placed from the glazing bounds captured BEFORE `open_apertures()` deletes them, because the
+    aperture and the portal have to describe the same hole.
+
+    **A portal that fails to become a portal EMITS**, which would not look like a bug -- it would
+    look like a brighter, cleaner bake -- so `is_portal` is read back and a failure raises.
+    """
+    placed = 0
+    for idx, (lo_t, hi_t) in enumerate(bounds):
+        lo = Vector(lo_t)
+        hi = Vector(hi_t)
+        size = hi - lo
+        thin = min(range(3), key=lambda i: size[i])
+        wide = [i for i in range(3) if i != thin]
+        light = bpy.data.lights.new(name=f"portal_{idx}", type="AREA")
+        light.shape = "RECTANGLE"
+        light.size = max(size[wide[0]], 1e-3)
+        light.size_y = max(size[wide[1]], 1e-3)
+        cy = getattr(light, "cycles", None)
+        if cy is None or not hasattr(cy, "is_portal"):
+            raise RuntimeError(
+                "this Blender exposes no `light.cycles.is_portal`; an AREA light without it "
+                "would EMIT into the bake instead of guiding it"
+            )
+        cy.is_portal = True
+        if not cy.is_portal:
+            raise RuntimeError("is_portal did not stick -- refusing to bake with an emitting light")
+        ob = bpy.data.objects.new(light.name, light)
+        bpy.context.scene.collection.objects.link(ob)
+        ob.location = (lo + hi) / 2.0
+        # Local -Z is the area light's normal. Point it along the glazing's THIN axis, which is
+        # the direction light travels through the pane.
+        ob.rotation_euler = (
+            (0.0, math.pi / 2.0, 0.0) if thin == 0
+            else (math.pi / 2.0, 0.0, 0.0) if thin == 1
+            else (0.0, 0.0, 0.0)
+        )
+        placed += 1
+    return placed
+
+
 def bake_object(
     obj: bpy.types.Object,
     out_path: str,
@@ -658,6 +732,7 @@ def main(argv: list[str] | None = None) -> int:
         bpy.context.scene.cycles.adaptive_threshold = a.adaptive_threshold
 
     removed = 0
+    portals = 0
     sky_info = None
     if a.pass_ == "irradiance":
         # The REAL missing term, not a proxy for it. `visibility` bakes a
@@ -682,7 +757,11 @@ def main(argv: list[str] | None = None) -> int:
         # Apertures are opened for the same reason visibility opens them: whitened
         # or not, sealed glazing makes the interior nearly black. Materials are NOT
         # whitened here -- that is the whole point.
+        # Captured BEFORE the apertures are opened -- `open_apertures()` deletes these objects,
+        # and the portal has to sit in the hole they leave.
+        pbounds = glazing_bounds(RV.find_glazing()) if a.portals else []
         removed, _ = RV.open_apertures()
+        portals = add_portals(pbounds) if a.portals else 0
         sky_info = S.setup_world_sky_from_three_direction(
             tuple(directional[0]["travel"]), sun_disc=a.with_sun_disc
         )
@@ -690,7 +769,9 @@ def main(argv: list[str] | None = None) -> int:
         # Order matters and is load-bearing: open the apertures BEFORE whitening, or the
         # whitened glazing seals the room and every baked texel is zero.
         RV.make_visibility_world()
+        pbounds = glazing_bounds(RV.find_glazing()) if a.portals else []
         removed, _ = RV.open_apertures()
+        portals = add_portals(pbounds) if a.portals else 0
         RV.whiten_all_materials(a.albedo)
 
     bake_type = {
@@ -815,6 +896,7 @@ def main(argv: list[str] | None = None) -> int:
         "encode": a.encode,
         "scale": a.scale,
         "glazing_removed": removed,
+        "portals": portals,
         "dispersion_stripped": stripped,
         "candidates_over_min_area": len(candidates),
         "baked": len(baked),
