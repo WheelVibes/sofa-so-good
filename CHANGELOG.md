@@ -29,6 +29,60 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.18 — the shader operator works and can exceed 1, but it does NOT recover the render, and the numbers do not add up
+
+`v0.31.7.17` concluded the `aoMap` slot delivers correctly and only its *operator* is wrong —
+three's chunk lerps from 1 toward the texel, so it is capped at 1 and can only darken, while the
+correction needs `V / mean(V)`, which exceeds 1 wherever a surface sees more sky than the room's
+average. This round implements the operator and tests it. **It works as a mechanism and fails as
+a fix.**
+
+**The patch is minimal, because the slot was never the problem.** `AOGAIN=<g>` replaces
+`#include <aomap_fragment>` with a plain `texel × gain` multiply into
+`reflectedLight.indirectDiffuse`. The map, the `uv1` channel and the key lookup all stay exactly
+as they were. `customProgramCacheKey` is set alongside, or three reuses a program compiled from
+the unpatched chunk and the patch silently does nothing — the `.254` failure class.
+
+**It is verified with a DISCRIMINATING control, not a reassuring one.** `gain = 1` on a uniform
+white map reproduces baseline exactly (115.64) — but so would an inert patch, since three's own
+chunk also yields 1 there. The control that separates them is **`gain = 2` on a white map**:
+measured **115.64 → 139.43**, where the clamped chunk would have left it unchanged. So the
+operator is live and genuinely exceeds 1.
+
+**And with the real maps it does not work.** Non-Color bake, γ = 1:
+
+| arm | frame mean R | spatial spread vs physics |
+| --- | --- | --- |
+| baseline | **115.64** | **4.76×** |
+| gain 10 | 35.74 | 5.98× |
+| gain 20 | 37.74 | 5.86× |
+| gain 30 | 39.09 | 5.75× |
+
+**A 3× gain moves the frame mean by 9 %.** That is the finding, and it is not consistent with
+anything established so far. The maps' own statistics say the interior median texel is **0.034**
+and the brightest mesh interior mean is **0.42**, so `gain = 30` should put a median surface back
+at roughly its baseline brightness — and the frame should return near 115. It returns 39.
+
+**So one of these is false, and the round ends without knowing which:** either the visible
+surfaces sample texels far below the maps' own median, or the surfaces carrying maps contribute
+much less to the frame than the 115 → 36 drop implies. The `white` control rules out a broken
+lookup — but it replaces *every* texel with 255, so it proves the sampling path works without
+proving that the particular texels a wall samples are ones the bake filled. That is the gap, and
+it is the next thing to isolate: read the texels a known visible wall actually samples, rather
+than the map's aggregate.
+
+**What is now settled, and worth keeping.** The delivery path is proven (`v0.31.7.17`), the
+operator is proven (this round), the asset pipeline is proven (111 meshes, 111 unique keys,
+480 KB, 22 s), the frame cost is measured (`v0.31.7.15`: free at both auto-selected tiers), and
+the term's explanatory power is measured (`v0.31.7.9`: 80 % of the spatial error). **What is not
+settled is whether the baked values reach the surfaces they were baked for**, and until that is
+resolved the fix cannot ship. Five rounds in, this is the one link still unverified — and it is
+the link every earlier round assumed.
+
+**Nothing shipped; nothing regressed.** All of it is probe knobs and offline bakes. The three
+views the goal names hold their measured 60 fps at `medium`; `tsc`, biome, knip clean, 10011
+tests green.
+
 ## v0.31.7.17 — the wiring is proven correct, and `aoMap` is the WRONG SLOT. Corrects v0.31.7.8
 
 `v0.31.7.16` ended with two entangled failures — the room went dark *and* the UVs might be

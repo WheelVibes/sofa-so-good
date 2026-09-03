@@ -173,6 +173,15 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — a control that both hypotheses pass is not a control.** `gain = 1` on a uniform
+  white map reproduced the baseline render exactly — and an inert shader patch would have done
+  the same, since three's own chunk also yields 1 there. Only `gain = 2` on a white map
+  discriminates (115.64 → 139.43 measured, where the unpatched chunk leaves it unchanged). Ask
+  what result the *null* hypothesis predicts before trusting a control.
+- **2026-09-03 — a uniform-value control proves the SAMPLING PATH, not the DATA.** Replacing every
+  texel with 255 shows the lookup works; it cannot show that the particular texels a surface
+  samples are ones the bake actually filled. Those are different claims and conflating them cost
+  a round.
 - **2026-09-03 — bake DATA as `Non-Color`, and set it AT IMAGE CREATION.** Blender writes 8-bit
   PNGs through the image's colour space (default sRGB), so a linear bake gets transfer-encoded on
   the way out. For a map a shader multiplies into irradiance that is not just a brightness error

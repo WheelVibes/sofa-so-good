@@ -1701,6 +1701,25 @@ const AOSYNTH = process.env.AOSYNTH || ''
 // percentile instead keeps the multiplier at or below 1, needs no global gain, and leaves
 // unmapped meshes exactly as they are. It is the ordinary ambient-occlusion idiom, and it is
 // what a <=1 multiplier can honestly express.
+// AOGAIN=<g> replaces three's `aomap_fragment` so the multiplier can EXCEED 1 (`v0.31.7.18`).
+//
+// `v0.31.7.17` proved the delivery path correct (a uniform 1.0 map reproduces the baseline
+// render exactly) and the OPERATOR wrong. three's chunk is
+//
+//     ambientOcclusion = ( texture2D( aoMap, vAoMapUv ).r - 1.0 ) * aoMapIntensity + 1.0
+//
+// which lerps from 1 toward the texel and is therefore capped at 1: it can only darken. The
+// app's fill stands in for the room's AVERAGE irradiance, so the correction it needs is
+// `V / mean(V)`, which is greater than 1 wherever a surface sees more sky than average.
+//
+// So the slot stays -- it already delivers the map and the `uv1` channel correctly -- and only
+// the arithmetic is replaced with a plain multiply by `texel * gain`. That is still one texture
+// fetch in a shader that already runs, so `v0.31.7.15`'s frame-cost measurement continues to
+// apply.
+//
+// `customProgramCacheKey` is set alongside, or three reuses a cached program compiled from the
+// unpatched chunk and the patch silently does nothing -- the same class of failure as `.254`.
+const AOGAIN = process.env.AOGAIN ? Number(process.env.AOGAIN) : 0
 const AONORM = process.env.AONORM ? Number(process.env.AONORM) : 0
 const AOGAMMA = process.env.AOGAMMA ? Number(process.env.AOGAMMA) : 0.7
 const applyAoMap = !AOMAP
@@ -1770,7 +1789,7 @@ const applyAoMap = !AOMAP
           `data:image/png;base64,${fs.readFileSync(`${AOMAP}/${byKey.get(k)}`).toString('base64')}`
       }
       const applied = await page.evaluate(
-        async ({ maps, gamma, synth, norm }) => {
+        async ({ maps, gamma, synth, norm, gain }) => {
           const load = (url) =>
             new Promise((resolve, reject) => {
               const img = new Image()
@@ -1889,13 +1908,26 @@ const applyAoMap = !AOMAP
             t.needsUpdate = true
             m.aoMap = t
             m.aoMapIntensity = 1
+            if (gain > 0) {
+              m.onBeforeCompile = (shader) => {
+                shader.uniforms.aoGain = { value: gain }
+                shader.fragmentShader = shader.fragmentShader
+                  .replace('void main() {', 'uniform float aoGain;\nvoid main() {')
+                  .replace(
+                    '#include <aomap_fragment>',
+                    'float ambientOcclusion = texture2D( aoMap, vAoMapUv ).r * aoGain;\n' +
+                      'reflectedLight.indirectDiffuse *= ambientOcclusion;',
+                  )
+              }
+              m.customProgramCacheKey = () => `aoGain${gain}`
+            }
             if (!g.attributes.uv1) g.setAttribute('uv1', boxAtlasUv(g))
             m.needsUpdate = true
             n++
           })
           return { n }
         },
-        { maps: payload, gamma: AOGAMMA, synth: AOSYNTH, norm: AONORM },
+        { maps: payload, gamma: AOGAMMA, synth: AOSYNTH, norm: AONORM, gain: AOGAIN },
       )
       if (applied.error) throw new Error(`AOMAP: ${applied.error}`)
       await new Promise((r) => setTimeout(r, 1500))
