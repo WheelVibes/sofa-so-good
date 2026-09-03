@@ -76,7 +76,10 @@ export function VisibilityLightmaps() {
       })
       if (import.meta.env.DEV || result.suspect) {
         const log = result.suspect ? console.warn : console.info
-        log(`${result.report} — applied to ${result.applied}/${result.candidates} candidates`)
+        log(
+          `${result.report} — applied to ${result.applied}/${result.candidates} candidates` +
+            ` (plan ${result.context ?? 'unrecognised'})`,
+        )
       }
       invalidate()
     }

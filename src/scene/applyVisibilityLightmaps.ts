@@ -41,6 +41,14 @@ export interface ApplyResult {
   candidates: number
   /** Meshes that matched a baked key and now carry a map. */
   applied: number
+  /**
+   * Which baked plan was chosen, or `null` if none matched or the evidence tied.
+   *
+   * Reported because it is the field that distinguishes the three states a caller cares about:
+   * maps applied from plan X, no plan recognised (normal for an unbaked layout), and *ambiguous*
+   * — and the last two are indistinguishable from `applied: 0` alone.
+   */
+  context: string | null
   /** Human-readable hit-rate line, and whether it looks wrong. */
   report: string
   suspect: boolean
@@ -152,5 +160,5 @@ export function applyLightmapsFromIndex(
     applied += 1
   }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)
-  return { candidates, applied, report: message, suspect }
+  return { candidates, applied, context: ctx, report: message, suspect }
 }

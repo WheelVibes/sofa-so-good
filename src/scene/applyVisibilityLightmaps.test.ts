@@ -61,7 +61,7 @@ describe('applyLightmapsFromIndex', () => {
     const w = wall()
     root.add(w)
     const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
-    expect(res).toMatchObject({ candidates: 1, applied: 1 })
+    expect(res).toMatchObject({ candidates: 1, applied: 1, context: CTX })
     expect(w.geometry.getAttribute('uv1')).toBeTruthy()
     // The map is bound by a shader injection, not by `material.aoMap` -- that slot compiled
     // the attenuation out entirely (v0.31.7.36/.37), so its absence here is correct.
@@ -74,7 +74,9 @@ describe('applyLightmapsFromIndex', () => {
     const w = wall()
     root.add(w)
     const res = applyLightmapsFromIndex(root, indexFor(['deadbeef']), stubTexture)
-    expect(res).toMatchObject({ candidates: 1, applied: 0 })
+    // `context: null` is the honest report for an unbaked plan, and distinguishes it from
+    // "recognised the plan but matched nothing", which would be a bug.
+    expect(res).toMatchObject({ candidates: 1, applied: 0, context: null })
     expect(w.geometry.getAttribute('uv1')).toBeUndefined()
     expect((w.material as MeshStandardMaterial).customProgramCacheKey()).not.toContain('visGain')
   })

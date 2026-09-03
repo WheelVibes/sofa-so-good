@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.43 — the context fixed the index and not the files: 176 entries, 156 PNGs
+
+Caught by comparing two numbers that should have been equal.
+
+**The bug.** `v0.31.7.42` gave each map a plan `ctx` so the 20 keys shared between the 4-Room and
+5-Room plans stop overwriting each other in the index — and the index duly reported **176
+entries across 2 contexts** (111 + 65). But the files were still named `<key>.png`, so those 20
+shared keys resolved to the *same filename* and the second bake overwrote the first plan's
+pixels: **156 PNGs on disk against 176 index entries.** The index was correct and the assets were
+not, which is the worse half of the same bug — every lookup succeeds and 20 of them return
+another plan's visibility.
+
+**The fix, and the ordering it forced.** Maps are now `<ctx>-<key>.png`. That means the context
+has to be known *before the first file is written*, while it is the digest of the plan's key set —
+so the bake now keys every candidate first (a hash per mesh, no rendering, cheap) and derives the
+context from that, then bakes. Verified on a two-mesh case across both plans: **4 entries, 4
+distinct files, 4 on disk.**
+
+**Also this round: the apply result now reports the chosen context.** `applied: 0` conflates two
+states that need distinguishing — "no plan recognised", which is normal for an unbaked or
+user-edited layout, and "recognised but matched nothing", which would be a bug. `context: null`
+vs `context: '<digest>'` separates them, and both are tested.
+
+**An honest open item.** The app's hit-rate log appeared in probe output two rounds ago and does
+not now, though the logging code, the probe's console filter and the `DEV` guard are all intact
+and the maps demonstrably apply (the render changes). Zero page messages were forwarded on the
+latest run where earlier runs showed them. Given how many defects in this arc hid behind a silent
+diagnostic, it is recorded as an open defect rather than assumed cosmetic.
+
+Both plans are being re-baked with the corrected naming; the assets stay uncommitted until that
+finishes, so the shipped set is never in a half-renamed state.
+
+Suite **10051 green**; `tsc`, biome, knip clean.
+
 ## v0.31.7.42 — a mesh key is NOT a sufficient identity: 20 of 65 meshes collided between two real plans
 
 Baking a second plan found a design flaw that only real data could reveal, and it would have

@@ -490,10 +490,23 @@ def main(argv: list[str] | None = None) -> int:
     candidates.sort(key=lambda t: -t[0])
     selected = candidates[: a.limit]
 
-    baked = []
+    # The context must be known BEFORE the first file is written, because it goes in the
+    # FILENAME. Naming maps `<key>.png` was not enough: the 20 keys shared between the 4-Room and
+    # 5-Room plans resolved to the same filename, so the second bake overwrote the first plan's
+    # pixels even though the index kept both entries -- 176 entries against 156 files on disk.
+    # The index was fixed and the assets were not, which is the worse half of the same bug.
+    #
+    # Keying every candidate first is cheap (a hash per mesh, no rendering) and removes the
+    # chicken-and-egg: the context is the digest of this plan's key set.
+    keyed = []
     for area, obj in selected:
         if not obj.data.materials:
             continue
+        keyed.append((area, obj, geometry_key(obj)))
+    plan_context = fnv1a32(";".join(sorted(k for _, _, k in keyed)))
+
+    baked = []
+    for area, obj, key in keyed:
         if a.uv == "box":
             interior = classify_faces(obj)
             interior_slots = make_box_uvs(obj, interior)
@@ -501,10 +514,10 @@ def main(argv: list[str] | None = None) -> int:
         else:
             interior_slots = None
             uv_name = obj.data.uv_layers.active.name
-        # Named by KEY, not by object: `Mesh_116` is an exporter index the runtime has never
-        # heard of, and the map has to be findable from live geometry alone.
-        key = geometry_key(obj)
-        out = os.path.join(out_dir, f"{key}.png")
+        # Named by CONTEXT + KEY. `Mesh_116` is an exporter index the runtime has never heard
+        # of, so the name has to come from geometry -- and it needs the context too, or two
+        # plans sharing a wall position share a file.
+        out = os.path.join(out_dir, f"{plan_context}-{key}.png")
         try:
             stats = bake_object(
                 obj, out, a.res, bake_type, interior_slots, a.encode, a.denoise, a.float_buffer
@@ -548,16 +561,10 @@ def main(argv: list[str] | None = None) -> int:
     # contract.
     # A PLAN CONTEXT, because a mesh key is not a sufficient identity on its own. Aperture
     # visibility is a property of a surface IN ITS SURROUNDINGS, and `geometry_key` hashes only
-    # the surface. Measured on real data: baking the 5-Room plan on top of the 4-Room set,
-    # 20 of 65 meshes collided -- HDB layouts share wall positions on a grid, so the same wall
-    # geometry recurs at the same coordinates in different plans while seeing entirely different
-    # rooms. Without a context the second bake silently overwrites the first and one plan renders
-    # with the other's visibility.
-    #
-    # The context is the digest of THIS plan's own baked keys, so it is derived from the same
-    # geometry the runtime sees and needs nothing stored about plan identity (there is no plan id
-    # in the store -- v0.31.7.30).
-    plan_context = fnv1a32(";".join(sorted(o["key"] for o in baked if "key" in o)))
+    # the surface. Measured: baking the 5-Room plan on top of the 4-Room set, 20 of 65 meshes
+    # collided -- HDB layouts share wall positions on a grid, so the same wall recurs at the same
+    # coordinates in different plans while seeing entirely different rooms. Computed above,
+    # before any file is written, because it is part of the filename.
     fresh = [
         {"key": o["key"], "file": os.path.basename(o["out"]), "object": o["object"],
          "area": o["area"], "ctx": plan_context}
