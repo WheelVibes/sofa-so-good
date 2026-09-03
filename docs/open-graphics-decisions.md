@@ -946,6 +946,26 @@ across the sweep), 13:00, `realistic`, world-verified glazing (n = 367):
   Since the background provably cannot reach the pane, the discarded ~12 may have been the right
   *magnitude* measured on the wrong *lever*. Offered as an observation, not a conclusion.
 
+**Across the day at ×13, and the night constraint is satisfied by construction:**
+
+| hour | ×1 mean | ×13 mean | ×13 `> 240` |
+| --- | --- | --- | --- |
+| 08:00 | 154.8 | 233.7 | 1.9 % |
+| 13:00 | 174.6 | 237.3 | **33.0 %** |
+| 18:00 | 175.0 | 236.5 | **27.5 %** |
+| 21:00 | — | — | **0 by construction** |
+
+This item's standing constraint is *"Night (21:00) is already correct and must not regress"*, and it
+is met without a guard: `glassSkyCatchIntensity(d) = clamp(d, 0, 1) * 0.4`, so at zero daylight the
+sky-catch is **exactly 0** and any multiplier has nothing to scale. `materialRealism.test.ts` already
+pins `glassSkyCatchIntensity(0) === 0`. (The probe emits no glazing population at 21:00 — `.127`
+keyed the glass off sun altitude, so the night pane has a different material signature — so this is
+established from the source and its test rather than from the metric.)
+
+The daylight ramp also means the effect **self-scales with time of day**: in-band at midday and
+evening, well under it at 08:00, zero at night. That is the right shape for a window, and it comes
+free from the existing function.
+
 ### (l)/(z)4 — the baked-key-set route is MEASURED VIABLE, `v0.31.7.148`
 
 `(z)`4 was decided ("ship the Cycles sky **and** `backgroundIntensity ≈ 4`") but not scoped: the sun

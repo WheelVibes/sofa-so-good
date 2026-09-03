@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.154 — `(l)`'s night constraint is satisfied by construction, and ×13 self-scales across the day
+
+`.153` measured sky-catch ≈×13 reaching the photographic band at 13:00. This item carries an explicit
+constraint — *"Night (21:00) is already correct and must not regress"* — so that had to be checked
+before the fix could be proposed.
+
+| hour | ×1 mean | ×13 mean | ×13 `> 240` |
+| --- | --- | --- | --- |
+| 08:00 | 154.8 | 233.7 | 1.9 % |
+| 13:00 | 174.6 | 237.3 | **33.0 %** |
+| 18:00 | 175.0 | 236.5 | **27.5 %** |
+| 21:00 | — | — | **0 by construction** |
+
+**Night is safe without a guard.** `glassSkyCatchIntensity(d) = clamp(d, 0, 1) * 0.4` — at zero
+daylight the sky-catch is **exactly 0**, so any multiplier has nothing to scale, and
+`materialRealism.test.ts` already pins `glassSkyCatchIntensity(0) === 0`.
+
+**Established from source rather than from the metric, deliberately.** The probe emits **no glazing
+population at 21:00** — `.127` keyed the glass off sun altitude, so the night pane has a different
+material signature and the world-verified population does not match it. An absent measurement is not
+a passing one, so the constraint is answered by the function and its test instead, and the gap in the
+probe is recorded rather than papered over.
+
+**And the effect self-scales with time of day** — in band at midday and evening, well under it at
+08:00, zero at night — which is the right shape for a window and comes free from the existing
+daylight ramp rather than needing an hour-dependent constant.
+
+So the revised `(l)` fix is fully characterised: one multiplier on
+`glassSkyCatchIntensity`, ≈×13, in-band at midday/evening, provably inert at night, with AgX
+preventing `> 250` at any setting. What remains is a look call — it is a visible change to every
+window in daylight, and `(z)`4 was answered on a premise `.152` disproved.
+
+Measurement and documentation only. Suite **10165 green**, `tsc` and biome clean.
+
 ## v0.31.7.153 — the revised `(l)` fix has a number: sky-catch ≈×13 reaches the photographic band
 
 `.152` established that `(z)`4's lever cannot reach the pane — brightness is an emissive constant, not
