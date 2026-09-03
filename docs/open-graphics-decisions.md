@@ -971,6 +971,10 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > geometry, and it means this item is now the single open decision carrying *both* remaining
 > measured errors.
 
+> **★ FOUR VIEWS, TWO PLANS, cv 0.62 % — v0.31.7.57.** app p99 ÷ physics p99 = 0.7265, 0.7388,
+> 0.7287, **0.7306** (the last measured after the constant was published). Mean **0.7312** ⇒
+> correction **1.368×**.
+>
 > **★ THE LEVEL IS ONE CONSTANT, MEASURED ON THREE VIEWS — v0.31.7.54.** Decomposing
 > `p99/median` into its parts separates the window's *level* from the room's:
 >

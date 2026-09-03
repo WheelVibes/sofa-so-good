@@ -29,6 +29,53 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.57 — (A) confirmed OUT OF SAMPLE on a fourth view: 0.731. (B)'s ordering survives; its magnitude prediction fails
+
+A fourth reference, built in about a minute now that the tooling exists, and used to test both
+open claims. The pose preflight earned its keep immediately: of two candidate windows in the
+4-Room plan, `win-mainBedroom-N` passed (aperture 2.89 %) and `win-bedroom2-N` was **rejected**
+(aperture 0.00 %) — a reference that would have been worthless was not rendered.
+
+**(A) The window constant holds out of sample.**
+
+| view | app p99 | physics p99 | ratio |
+| --- | --- | --- | --- |
+| 4-Room livingDining | 178 | 245 | 0.7265 |
+| 4-Room bedroom3 | 181 | 245 | 0.7388 |
+| 5-Room kitchen | 180 | 247 | 0.7287 |
+| **4-Room mainBedroom** (new) | **179** | **245** | **0.7306** |
+
+**mean 0.7312, cv 0.63 %** — so the correction is **1.368×**, and the fourth view was measured
+after the constant was published rather than before. Physics pins its highlight at 245/245/247/245
+because the window shows the sky; the app pins its own at 178–181 for the same reason and lands
+27 % low every time.
+
+**(B) The ordering survives four points; the quantitative prediction fails.** Before rendering, I
+committed to a prediction from `v0.31.7.56`'s room-size relation: 14.2 m² sits between 19.3 m²
+(→ 83) and 10.2 m² (→ 112), so the median should be **90–105**. Measured: **110**.
+
+| room floor | physics median |
+| --- | --- |
+| 19.3 m² | 83 |
+| **14.2 m²** | **110** (predicted 90–105) |
+| 10.2 m² | 112 |
+| 9.0 m² | 160 |
+
+The *rank* order still holds across all four — bigger room, darker render — which is a real
+out-of-sample confirmation of the direction. But **14.2 → 110 against 10.2 → 112 is a 39 % area
+difference for a 2-count median difference**, while 10.2 → 9.0 moves it 112 → 160. So area
+predicts rank and not value, the relation is wildly non-linear, and my interpolation assumed a
+linearity the data does not have. Same mistake as `v0.31.6.8`'s `FILLSCALE` interpolation, which
+is worth noting since I made it twice.
+
+**Net position.** (A) is now the best-established number in the arc: one constant, four views, two
+plans, cv 0.6 %, verified reachable with an existing knob at one setting (`v0.31.7.55`). (B) has a
+confirmed direction, no usable magnitude, and its app-side counterpart unchanged — app median cv
+**9.8 %** against physics' **23.9 %**.
+
+`tsc`, biome clean; suite **10058 green**; nothing shipped, item (l) still escalated with its
+number attached.
+
 ## v0.31.7.56 — error (B): glazing ratio is refuted *in direction*; room size is monotone with it
 
 Error (B) from `v0.31.7.54` is that the app's median under-responds to the scene — it spans
