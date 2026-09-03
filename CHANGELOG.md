@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.48 — the 80 % was measured on the single most favourable view; in the other three, visibility ANTI-explains the error
+
+The `--explain` test that started this implementation, now run on every view I have a reference
+for. It is the most important measurement of the arc and it does not support the design.
+
+| view | baseline error | aperture visibility explains |
+| --- | --- | --- |
+| 4-Room livingDining | **4.76×** | **+80 %** |
+| 4-Room bedroom3 | 1.74× | **−34 %** |
+| 5-Room bedroom 2 | 1.55× | **−153 %** |
+| 5-Room living | 1.20× | **−270 %** |
+
+**Visibility explains the error in exactly one of four views** — the one with by far the worst
+baseline — and in the other three, multiplying by it makes the disagreement with physics *worse*,
+by up to 3.7×.
+
+**This is measured at the ANALYSIS level, which rules out every implementation explanation.** It
+is profile arithmetic on rendered frames: no shader, no `uv1`, no texture channel, no gain, no
+atlas. So the six rounds spent hunting `USE_AOMAP`, cache keys, `flipY`, contexts and plan
+ordering were all fixing real bugs in service of a term whose premise holds in one view.
+
+**And it explains the in-sample result without appealing to overfitting of the gain.** The 80 %
+came from `livingDining` of the 4-Room plan, which is the most visibility-blind view available —
+a deep room where the near wall sees almost no sky. `v0.31.7.9` measured it there, `v0.31.7.10`
+fitted γ there, and every subsequent "confirmation" was the same plan. The relationship across
+the four views is monotone in the baseline: the worse the render already is, the more visibility
+accounts for it, crossing from useful to harmful somewhere between **1.74× and 4.76×**.
+
+**What that means for shipping.** A correction that helps only where the baseline is already bad
+would need to know the baseline per view — which requires the Cycles reference at runtime, so it
+is not available. Gating per plan does not work either: the 4-Room plan itself contains one view
+where visibility explains 80 % and another where it anti-explains 34 %. So **the term cannot be
+applied uniformly**, and the flag stays off.
+
+**What survives, and it is not small.** Every mechanical part is built, tested and verified
+independently of the hypothesis: the Blender bake chain (five scripts), geometry-keyed
+addressing with per-plan contexts, the reproducible UV atlas, the self-contained shader
+injection, per-plan resolution and detach, nil frame cost at both auto-selected tiers, and six
+measurement probes whose headers record what each earlier metric hid. Any future indirect-light
+correction — a different term, a coarse GI probe, a screen-space method — reuses all of it.
+
+**The honest terminus for this thread.** Item (w) is real: the app's fill *is* visibility-blind,
+and that is a ~3× error on a wall in the one view where it dominates. But **baked aperture
+visibility is not a general fix for it**, and I now have the four-view measurement that says so
+rather than the one-view measurement that said otherwise.
+
+Suite **10058 green**; `tsc`, biome clean; flag off by default.
+
 ## v0.31.7.47 — the 1.36× was an IN-SAMPLE fit: the term helps the plan it was calibrated on and degrades the other
 
 Four measurements now, two plans and two poses each, all against matched-pose Cycles references:

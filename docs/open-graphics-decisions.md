@@ -3033,6 +3033,19 @@ been attributed to the glass or to the background tone-mapping path.
 > attaching one mid-session cost a **216 ms** compile hitch. Attach at material creation; a flag
 > that toggles `aoMap` live will stutter. Read the flag where the material is built.
 >
+> **⛔ THE PREMISE HOLDS IN ONE VIEW OF FOUR — v0.31.7.48.** Running `--explain` on every view
+> with a reference: aperture visibility explains **+80 %** of the 4-Room `livingDining` error
+> (baseline 4.76×) and **−34 % / −153 % / −270 %** in 4-Room `bedroom3` (1.74×), 5-Room bedroom 2
+> (1.55×) and 5-Room living (1.20×). Monotone in the baseline: the worse the render already is,
+> the more visibility accounts for it, crossing from useful to harmful between **1.74× and 4.76×**.
+>
+> Measured at the *analysis* level — profile arithmetic on rendered frames, no shader involved —
+> so no implementation detail explains it. A correction that only helps where the baseline is bad
+> would need the reference at runtime, and gating per plan fails because the 4-Room plan contains
+> both a +80 % view and a −34 % view. **So the term cannot be applied uniformly and the flag stays
+> off.** The mechanical work (bake chain, keying, UV atlas, shader injection, nil frame cost) is
+> verified and reusable for any future indirect-light term.
+>
 > **⚠️ IN-SAMPLE ONLY — v0.31.7.47.** The improvement below was measured on the same plan the
 > gain was fitted against. Out of sample the term **degrades**: the 5-Room plan goes 1.20× → 2.34×
 > in one pose and 1.55× → 1.69× in another, consistently in both, while the 4-Room plan improves in
