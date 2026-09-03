@@ -1562,8 +1562,14 @@ describe('wall tile setting-out table', () => {
     // ON the sheet, since a tiler reads the sheet and not the source.
     expect(html).toContain('at least half a tile')
     expect(html).toContain('from the CEILING down')
-    // And the honest limitation, rather than implying corner alignment.
-    expect(html).toContain('not generally align around a corner')
+    // Corner alignment, stated CORRECTLY (v0.31.8.14). This assertion used to
+    // require the sheet to say courses "not generally align around a corner",
+    // which is false: courses run from the top down and every face of a room
+    // shares its ceiling height, so the grid is identical on all four faces by
+    // construction — measured empty on every tiled room the app ships. The test
+    // was pinning a wrong statement onto a contractor document.
+    expect(html).toContain('DO align around each corner')
+    expect(html).not.toContain('not generally align around a corner')
   })
 
   it('is absent when every room is painted (no modular wall finish)', () => {

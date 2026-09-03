@@ -279,9 +279,22 @@ exact commit so it can — do not leave it to be discovered.
 - **Opening-aware field.** Openings are currently cut around a field set out over the full face.
   A genuinely opening-aware setting-out (where a balanced centre may sit elsewhere, and the
   courses above a door differ from those beside it) is a larger model.
-- **Corner coursing consistency.** Faces are set out independently, so courses do not generally
-  align around a corner. Enforcing it means solving all four faces of a wet room together with a
-  shared origin and choosing which face's balance to sacrifice — a design decision.
+- ~~**Corner coursing consistency.**~~ **RESOLVED v0.31.8.14 — the premise was wrong.** This said
+  "faces are set out independently, so courses do not generally align around a corner" and called
+  the fix a larger job needing a design decision about which face's balance to sacrifice. Measured:
+  courses are struck from the TOP of each face down, and every face of a room shares the room's
+  ceiling height and its single per-room wall finish, so **the course grid is identical on all four
+  faces by construction.** Bath/WC 1, Bath/WC 2 and the Kitchen each have all four faces at one
+  `(fullCourses, bottomCut)` pair. What varies per face is the END CUT (175-300 mm across those
+  twelve faces) — vertical joints on perpendicular faces, which are not meant to continue round a
+  corner anyway.
+  The one real exception is a face with its own `topHeight` (a shower knee wall) whose tiled height
+  is not a whole number of courses: verified that 1.2 m on a 600 mm module still aligns, while
+  1.1 m puts that face's joint at 500 mm against 600 mm — a 100 mm step, exactly
+  `(2400 - 1100) mod 600`. That case is now REPORTED (`cornerCourseSteps`) instead of asserted
+  globally, and the sheet note — which used to print the false claim to contractors — states the
+  truth. Four tests pin it, including one that fails if the reference face is picked by order
+  rather than by majority.
 - ~~**A drawn wall-tile elevation**~~ DONE v0.31.5.392 — the course grid is overlaid on the
   existing elevation sheets (no new sheet), joints struck from the end-cut offset and from the
   ceiling down, cut bands tinted, drawn under the furniture.

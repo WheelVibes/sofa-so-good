@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.14 - The tiling sheet told contractors something false about corners
+
+`TODO.md` recorded a follow-up: "faces are set out independently, so courses do not
+generally align around a corner", with the fix scoped as a larger job needing a
+design decision about which face's balance to sacrifice. **The premise is wrong,
+and the false claim was being PRINTED on the contractor sheet** — the wall
+tile setting-out note read "Faces are set out independently, so courses will not
+generally align around a corner", which could prompt a tiler to intervene where
+nothing is wrong.
+
+Courses are struck from the TOP of each face down, and every face of a room shares
+the room's ceiling height and its single per-room wall finish — so the course grid
+is identical on all four faces **by construction**. Measured on the shipped flat:
+
+| room | faces | distinct `(fullCourses, bottomCut)` |
+|---|---|---|
+| Bath/WC 1 | 4 | `{(4, 0)}` |
+| Bath/WC 2 | 4 | `{(4, 0)}` |
+| Kitchen | 4 | `{(4, 200)}` |
+
+What varies per face is the END CUT — 175 to 300 mm across those twelve faces —
+i.e. the VERTICAL joint positions. Those do not need to continue around a corner,
+because the two faces meeting there are perpendicular. Conflating the two is what
+made the gap look real.
+
+**The one genuine exception, found by looking for it rather than assuming there
+wasn't one:** a face with its own `topHeight` (a shower knee wall) whose tiled
+height is not a whole number of courses. Verified in both directions — `topHeight`
+1.2 m on a 600 mm module still aligns (joints at 600 mm either side), while 1.1 m
+puts that face's joint at 500 mm against 600 mm on its neighbours: a 100 mm step,
+exactly `(2400 - 1100) mod 600`. That is now reported per face
+(`cornerCourseSteps`) and printed as an EXCEPT clause, instead of the sheet
+asserting a blanket failure that does not occur.
+
+**A test was pinning the false statement.** `drawingSet.test.ts` required the sheet
+to contain "not generally align around a corner", with the comment "the honest
+limitation, rather than implying corner alignment". It was neither honest nor a
+limitation — and a test that asserts wrong copy is how wrong copy survives a
+rewrite. It now asserts the corrected claim and that the old wording is absent.
+
+Four tests pin the behaviour, including one that fails if the reference face is
+chosen by ORDER rather than by majority — the earlier fixture put the odd face
+second, where both rules agree, so it could not tell them apart.
+
 ## v0.31.8.13 - F13 multi-storey audit: two gaps, and a lot of correct code
 
 Audited every direct reader of `plan.rooms` / `plan.walls` / `plan.openings` —

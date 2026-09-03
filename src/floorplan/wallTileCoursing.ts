@@ -119,6 +119,16 @@ function courses(heightMm: number, moduleMm: number): { full: number; bottomCut:
   return { full, bottomCut: bottomCut < 1 ? 0 : bottomCut }
 }
 
+/** A face whose horizontal course lines step against the rest of its room's. */
+export interface CornerCourseStep {
+  roomId: string
+  roomName: string
+  wallId: string
+  wallName: string
+  /** Vertical offset between this face's joints and the room's majority (mm). */
+  stepMm: number
+}
+
 /**
  * Setting-out for one wall face, or `null` when it cannot be stated honestly:
  * no finish, a finish with no SPECIFIED module, or a degenerate face.
@@ -182,7 +192,7 @@ export function planWallTileCoursing(
   plan: FloorPlan,
   wallFinishes: Record<string, string | undefined>,
   materials: Record<string, MaterialDef | undefined>,
-): { rows: WallTileCoursing[]; omittedFaces: number } {
+): { rows: WallTileCoursing[]; omittedFaces: number; cornerCourseSteps: CornerCourseStep[] } {
   const walls = Array.isArray(plan?.walls) ? plan.walls : []
   const rooms = Array.isArray(plan?.rooms) ? plan.rooms : []
   const openings: PlanOpening[] = Array.isArray(plan?.openings) ? plan.openings : []
@@ -219,5 +229,80 @@ export function planWallTileCoursing(
       else omittedFaces += 1
     }
   }
-  return { rows, omittedFaces }
+  return { rows, omittedFaces, cornerCourseSteps: cornerCourseSteps(rows) }
+}
+
+/**
+ * Faces whose horizontal course lines do NOT line up with the rest of their
+ * room's, and by how much (mm).
+ *
+ * **Measured 2026-09-03: this is empty for every tiled room the app ships.**
+ * `TODO.md` recorded that "faces are set out independently, so courses do not
+ * generally align around a corner", and called fixing it a larger job needing a
+ * design decision about which face's balance to sacrifice. That premise is
+ * wrong. Courses are struck from the TOP of each face down (`courses()`), and
+ * every face of a room shares the room's ceiling height and its single
+ * per-room wall finish — so the course grid is identical on all four faces **by
+ * construction**. Measured on the shipped flat: Bath/WC 1, Bath/WC 2 and the
+ * Kitchen each have all four faces at one `(fullCourses, bottomCut)` pair.
+ *
+ * What varies per face is the END CUT (175-300 mm across those twelve faces),
+ * i.e. the VERTICAL joint positions — and those do not need to continue around
+ * a corner, because the two faces meeting there are perpendicular.
+ *
+ * The one way alignment can break is a face with its own `topHeight` — a shower
+ * knee wall — whose tiled height is not congruent to the room's modulo the tile
+ * height. Verified both ways: `topHeight` 1.2 m on a 600 mm module still aligns
+ * (joints at 600 mm either side), while 1.1 m puts that face's joint at 500 mm
+ * against 600 mm on its neighbours — a 100 mm step, exactly
+ * `(2400 - 1100) mod 600`. That is what this reports, so the tiler is told
+ * rather than left to find it on the wall.
+ */
+function cornerCourseSteps(rows: WallTileCoursing[]): CornerCourseStep[] {
+  const byRoom = new Map<string, WallTileCoursing[]>()
+  for (const r of rows) {
+    const list = byRoom.get(r.roomId)
+    if (list) list.push(r)
+    else byRoom.set(r.roomId, [r])
+  }
+  const out: CornerCourseStep[] = []
+  for (const faces of byRoom.values()) {
+    if (faces.length < 2) continue
+    // Phase = where the course grid sits relative to the face top. Faces with
+    // equal phase have joints at the same heights above the floor.
+    const phase = (f: WallTileCoursing) => {
+      const mh = f.moduleMm[1]
+      return mh > 0 ? ((f.faceMm[1] % mh) + mh) % mh : 0
+    }
+    const counts = new Map<number, number>()
+    for (const f of faces) {
+      const p = Math.round(phase(f) * 1000) / 1000
+      counts.set(p, (counts.get(p) ?? 0) + 1)
+    }
+    // The room's majority phase is the reference; ties resolve to the smaller
+    // phase so the choice is deterministic rather than insertion-ordered.
+    let ref = Number.POSITIVE_INFINITY
+    let best = -1
+    for (const [p, n] of counts) {
+      if (n > best || (n === best && p < ref)) {
+        best = n
+        ref = p
+      }
+    }
+    for (const f of faces) {
+      const mh = f.moduleMm[1]
+      const d = Math.abs(phase(f) - ref)
+      // A step of a full module is no step at all — the joints coincide.
+      const step = Math.min(d, mh - d)
+      if (step < 1) continue
+      out.push({
+        roomId: f.roomId,
+        roomName: f.roomName,
+        wallId: f.wallId,
+        wallName: f.wallName,
+        stepMm: step,
+      })
+    }
+  }
+  return out
 }

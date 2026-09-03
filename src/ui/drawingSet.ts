@@ -328,7 +328,11 @@ function wallCoursingTable(
     const w = resolvePlanRoomWall(finishes, room)
     if (w) wallByRoom[room.id] = w
   }
-  const { rows, omittedFaces } = planWallTileCoursing(levelPlan, wallByRoom, BUILTIN_MATERIALS)
+  const { rows, omittedFaces, cornerCourseSteps } = planWallTileCoursing(
+    levelPlan,
+    wallByRoom,
+    BUILTIN_MATERIALS,
+  )
   if (rows.length === 0) return ''
   const mm = (v: number) => esc(formatDrawingLength(v / 1000, units))
   const body = rows
@@ -356,7 +360,25 @@ function wallCoursingTable(
     `Courses run from the CEILING down, so the cut course lands at the bottom. ` +
     `A bottom cut under half a course is a design decision (drop the tiled height, change module, or accept) — it is flagged, not adjusted. ` +
     `Openings are cut around the set-out field; verify on site. ` +
-    `Faces are set out independently, so courses will not generally align around a corner. ` +
+    // CORRECTED v0.31.8.14. This note used to read "Faces are set out
+    // independently, so courses will not generally align around a corner",
+    // which is false and was printed on a contractor sheet — it could prompt a
+    // tiler to intervene where nothing is wrong. Courses are struck from the
+    // top of each face and every face of a room shares the room's ceiling
+    // height and its single wall finish, so the grid is identical on all four
+    // faces by construction; measured empty on every tiled room the app ships.
+    // The one real exception is reported per face instead of asserted globally.
+    `Because courses run from the top down and every face of a room shares its ceiling height, ` +
+    `the course lines DO align around each corner — the end cuts differ per face, but those are ` +
+    `vertical joints on perpendicular faces and are not meant to continue. ` +
+    (cornerCourseSteps.length > 0
+      ? `EXCEPT: ${cornerCourseSteps
+          .map(
+            (s) =>
+              `${esc(s.wallName)} steps ${mm(s.stepMm)} against the rest of ${esc(s.roomName)}`,
+          )
+          .join('; ')} — a face tiled to its own height that is not a whole number of courses. `
+      : '') +
     `Tile counts EXCLUDE wastage. ` +
     (omittedFaces > 0
       ? `${omittedFaces} face${omittedFaces === 1 ? '' : 's'} omitted — finish has no specified module.`
