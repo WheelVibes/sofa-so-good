@@ -18,20 +18,61 @@ import sharp from 'sharp'
 
 const read = async (f) => {
   const { data, info } = await sharp(f).removeAlpha().raw().toBuffer({ resolveWithObject: true })
-  return { data, n: info.width * info.height * info.channels }
+  return { data, n: info.width * info.height * info.channels, info }
 }
 
-/** Mean abs difference between `mid` and the average of `lo`/`hi`, and `mid`'s own mean. */
+/**
+ * Mean abs difference between `mid` and the average of `lo`/`hi`, whole-frame AND on the regions a
+ * window actually shows.
+ *
+ * **Why regions.** `(l)`'s target is the pane distribution through glazing, not the whole sky: a
+ * window shows a narrow band around the horizon, which is the brightest and fastest-changing part of
+ * the image. A whole-frame MAE averages that with the zenith and the ground half, both of which move
+ * far less, so it can understate the error where it matters. `horizon` is rows 40-60 % of height
+ * (the horizon sits at 50 % in an equirect); `bright10` is the top decile by value, wherever it is,
+ * because a pane can face the sun.
+ */
 async function interpError(loF, midF, hiF) {
   const [lo, mid, hi] = await Promise.all([read(loF), read(midF), read(hiF)])
+  const { width, height, channels } = mid.info
+  const y0 = Math.round(height * 0.4)
+  const y1 = Math.round(height * 0.6)
   let err = 0
   let sum = 0
+  let bErr = 0
+  let bSum = 0
+  let bN = 0
   for (let i = 0; i < mid.n; i += 1) {
     // Linear in DISPLAY counts, which is what a texture lerp in the app would do.
-    err += Math.abs((lo.data[i] + hi.data[i]) / 2 - mid.data[i])
+    const e = Math.abs((lo.data[i] + hi.data[i]) / 2 - mid.data[i])
+    err += e
     sum += mid.data[i]
+    const row = Math.floor(i / (width * channels))
+    if (row >= y0 && row < y1) {
+      bErr += e
+      bSum += mid.data[i]
+      bN += 1
+    }
   }
-  return { mae: err / mid.n, mean: sum / mid.n }
+  const sorted = Array.from(mid.data.slice(0, mid.n)).sort((a, b) => b - a)
+  const cut = sorted[Math.floor(sorted.length * 0.1)] ?? 255
+  let hErr = 0
+  let hSum = 0
+  let hN = 0
+  for (let i = 0; i < mid.n; i += 1) {
+    if (mid.data[i] < cut) continue
+    hErr += Math.abs((lo.data[i] + hi.data[i]) / 2 - mid.data[i])
+    hSum += mid.data[i]
+    hN += 1
+  }
+  return {
+    mae: err / mid.n,
+    mean: sum / mid.n,
+    bandMae: bN ? bErr / bN : 0,
+    bandMean: bN ? bSum / bN : 0,
+    hiMae: hN ? hErr / hN : 0,
+    hiMean: hN ? hSum / hN : 0,
+  }
 }
 
 const cases = [
@@ -44,11 +85,12 @@ const cases = [
 ]
 const dir = process.argv[2] ?? '/tmp/sky'
 console.log(
-  `${'case'.padEnd(30)} ${'MAE'.padStart(7)} ${'mean'.padStart(7)} ${'MAE %'.padStart(7)}`,
+  `${'case'.padEnd(30)} ${'all %'.padStart(7)} ${'horizon %'.padStart(10)} ${'bright10 %'.padStart(11)}`,
 )
 for (const c of cases) {
   const r = await interpError(`${dir}/a${c.lo}.png`, `${dir}/a${c.mid}.png`, `${dir}/a${c.hi}.png`)
+  const pct = (e, m) => (m ? ((100 * e) / m).toFixed(2) : '-')
   console.log(
-    `${c.label.padEnd(30)} ${r.mae.toFixed(2).padStart(7)} ${r.mean.toFixed(1).padStart(7)} ${((100 * r.mae) / r.mean).toFixed(1).padStart(6)}%`,
+    `${c.label.padEnd(30)} ${pct(r.mae, r.mean).padStart(7)} ${pct(r.bandMae, r.bandMean).padStart(10)} ${pct(r.hiMae, r.hiMean).padStart(11)}`,
   )
 }

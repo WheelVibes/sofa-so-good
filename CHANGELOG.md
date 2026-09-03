@@ -29,6 +29,37 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.149 — the `(z)`4 caveat checked: the window-relevant sky interpolates BETTER than the whole frame, so 30° keys are settled
+
+`.148` measured 30° sky keys at ≤1.4 % whole-frame and flagged one caveat: `(l)`'s real target is the
+**pane distribution** through glazing — a narrow, bright crop that I expected to be *more* sensitive
+than a whole-frame average. Checked it. **It is less sensitive**, on both region definitions:
+
+| case | all | horizon band | brightest decile |
+| --- | --- | --- | --- |
+| 15° keys | 0.23 – 0.26 % | **0.12 – 0.13 %** | 0.16 – 0.21 % |
+| 30° keys | 0.65 – 1.40 % | 0.24 – 1.36 % | **0.39 – 0.67 %** |
+| 60° keys | 2.21 % | 1.31 % | 0.83 % |
+
+The reason is straightforward once seen: the bright parts of the sky are large, smooth and
+high-valued, so a linear blend tracks them closely. What actually changes fastest between altitudes
+is the sun's immediate surroundings and the sky/ground boundary, and those occupy little area — so
+averaging them into a whole-frame figure *overstates* the error for a window, not understates it.
+
+**So the key count is settled: 30° spacing, 4–6 keys, ~1 MB**, and no refinement is needed for the
+pane case. `(z)`4 is now fully specified — bake the set, interpolate by altitude, rotate by azimuth
+(free, since a multiple-scattering sky is azimuthally symmetric about the sun).
+
+Two definitions, both stated in the probe: the horizon band is rows 40–60 % of height (the horizon
+sits at 50 % in an equirect) and the brightest decile is taken wherever it falls, because a pane can
+face the sun.
+
+A small thing worth noting: this is the first caveat I raised tonight that turned out to be
+*pessimistic*. The others — `.114`'s wrong-tier verification, `.128`'s relative threshold, `.136`'s
+recolor mechanism — all understated a problem. Checking it cost one probe edit.
+
+Suite **10155 green**, `tsc` and biome clean; no shipped change.
+
 ## v0.31.7.148 — `(z)`4's design call answered by measurement: 30° sky keys hold the Cycles sky to ≤1.4 %, and azimuth is free
 
 `(z)`4 was decided but not scoped. Its fix needs the **physical** sky (the intensity alone was

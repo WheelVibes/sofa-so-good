@@ -916,9 +916,22 @@ So the route is: **~4–6 keys over the daylight range plus a couple below the h
 altitude and rotated by azimuth.** At 512×256 the eight test renders total under 1 MB, so the whole
 set is well inside a sensible asset budget, and an in-app Nishita implementation is unnecessary.
 
-**Caveats, stated:** measured at 512×256/32 samples on the sky itself. Item `(l)` cares about the
-*pane distribution* seen through glazing, which is a narrower crop of a brighter region and may be
-more sensitive than the whole-frame MAE above — that wants checking before the key count is fixed.
+**The caveat was checked and resolves the SAFE way, `v0.31.7.149`.** I expected the
+window-relevant region to be *more* sensitive than the whole frame. It is less:
+
+| case | all | horizon band | brightest decile |
+| --- | --- | --- | --- |
+| 15° keys | 0.23 – 0.26 % | **0.12 – 0.13 %** | 0.16 – 0.21 % |
+| 30° keys | 0.65 – 1.40 % | 0.24 – 1.36 % | **0.39 – 0.67 %** |
+| 60° keys | 2.21 % | 1.31 % | 0.83 % |
+
+The bright, high-valued parts of the sky are smooth and interpolate well; what changes fastest is the
+sun's immediate surroundings and the sky/ground boundary, which occupy little area. So **30° keys
+hold the pane-relevant regions to ≤1.4 %, and the brightest decile to ≤0.67 %** — the key count is
+settled at 30° spacing, i.e. **4–6 keys**, with no need to refine it for the window case.
+
+Measured at 512×256/32 samples; the horizon band is rows 40–60 % of height, and the decile is taken
+wherever it falls because a pane can face the sun.
 
 ### Original write-up (the framing is superseded; the measurements are not)
 ~~⏳ OPEN, needs a product call~~ — ✅ ANSWERED by (z)4. (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
