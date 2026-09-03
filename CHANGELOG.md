@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.38 — verified in all three views, with the FPS cost measured on the real feature; and the room editor was getting nothing
+
+With the term finally working, this round does the verification the goal actually asks for: all
+three views, and frames.
+
+**FPS, measured on the shipped feature rather than the stress test.** `v0.31.7.15` predicted nil
+cost from 331 synthetic maps; this is the real thing, 111 baked maps through the real code path:
+
+| tier | flag off | flag on |
+| --- | --- | --- |
+| `performance` | 60 fps / 16.8 ms | **60 fps / 16.8 ms** |
+| `medium` | 60 fps / 16.8 ms | **60 fps / 16.8 ms** |
+| `high` | 57.6 fps / 83.3 ms | 58.3 fps / 66.6 ms |
+
+**Byte-identical at both auto-selected tiers**, and `high` lands slightly *better* — inside
+run-to-run noise, whose spread that 83.3 ms baseline itself illustrates. The ≥30 fps floor is not
+merely predicted safe, it is measured safe on the code that ships.
+
+**A real gap, found by checking rather than assuming.** `App.tsx:334` swaps `<Scene />` for
+`<RoomEditorScene />` — they are alternatives, not nested. `VisibilityLightmaps` was mounted only
+in `Scene`, so **the room editor, one of the three views this whole arc targets, received no maps
+at all.** Now mounted in both, with a comment at each site saying why it appears twice. Verified
+by counting patched materials *inside* the room editor: **18 with the flag on, 0 with it off** —
+and it would have been 0 either way an hour ago.
+
+**Orbit verified visually.** Room-to-room differentiation is clearly present with the flag on and
+absent without it; no black patches, no magenta, no artefacts. Worth noting the effect is
+*correctly* subtle there: `v0.31.6.8` established that orbit culls per-room ceilings, so what
+orbit shows is floors and walls.
+
+**Room-editor verified visually.** Renders correctly, and the effect is mild by construction — a
+single room in isolation is mostly surfaces that *can* see its window, which is exactly where
+aperture visibility should do least.
+
+So the fidelity gain now reaches **walk** (measured 4.76× → 1.36× against the Cycles reference),
+**orbit** and the **room editor**, at no measurable frame cost, still behind a flag that is off
+until more plans are baked.
+
+Suite **10048 green**; `tsc`, biome, knip clean.
+
 ## v0.31.7.37 — ✅ IT WORKS. Dropping three's `aoMap` slot for a self-contained injection reproduces the reference EXACTLY
 
 `v0.31.7.36` proved the mapped materials compile without `USE_AOMAP`, so the attenuation never

@@ -48,6 +48,7 @@ import { SelectionOutline } from './selection/SelectionOutline'
 import { TiltGizmo } from './selection/TiltGizmo'
 import { TONE_MAPPING_THREE } from './toneMappingThree'
 import { useQuality } from './useQuality'
+import { VisibilityLightmaps } from './VisibilityLightmaps'
 
 /** Per-room editor scene. Renders one isolated room but with the SAME rendering
  *  stack as the main orbit `<Canvas>` (shadows, procedural/HDRI IBL via
@@ -143,6 +144,11 @@ export function RoomEditorScene() {
       <color attach="background" args={['#e6eaef']} />
       <SceneEnvironment />
       <Lighting />
+      {/* Baked skylight-visibility maps (item (w)). Mounted HERE as well as in
+          `Scene`: App.tsx swaps one for the other, so a component mounted only in
+          `Scene` leaves the room editor -- one of the three views the fidelity work
+          targets -- with no maps at all. Flag-gated and off by default. */}
+      <VisibilityLightmaps />
       <CurtainLightController />
       <FurnitureLights />
       {editorShell.kind === 'default' ? (
