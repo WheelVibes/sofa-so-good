@@ -186,7 +186,20 @@ export function albedoFillScale(rho: number, rhoRef: number = REFERENCE_RHO): nu
  * **11.6 %** of `.271`'s, i.e. **2.36× more wall weight here**, so a wall repaint moves ρ by 0.19
  * where theirs moved it 0.107, and the fill over-responds by roughly that factor.
  *
- * Reconciling further needs `.271`'s census code, which is not in the repo.
+ * **`v0.31.7.122` found the missing term, and it was already written down.** `light-distribution.mjs`
+ * carries a `FLOOREXPOSED` seam whose own comment states the rule: *"an albedo census must weight by
+ * EXPOSED area, not total area -- a second flaw distinct from `.273`'s texture-blindness, pushing the
+ * same way."* Run over `livingDining` (3600 downward rays), the floor plane is **56.0 %** exposed and
+ * **44 %** is covered by furniture -- so counting a floor mesh's full triangle area over-weights it
+ * by ~1.8x, and the same applies to every wall a wardrobe stands against. That is the right order to
+ * explain the 2.36x.
+ *
+ * **And it is why this cannot be an area census at runtime.** Exposure is a visibility computation,
+ * and `src/scene/CLAUDE.md` records an irradiance volume spiked and REJECTED at 6.19 ms for 420
+ * probes; a useful exposure sample is tens of thousands of rays. The natural home is therefore
+ * **Blender**, alongside the irradiance bake, where visibility is already being traced -- one
+ * exposure-weighted rho per room, written into the lightmap index. That is the same move the GI path
+ * made: compute where it is cheap, ship a number.
  *
  * **This is the census that can actually work**, and `v0.31.7.119` is why: the shell is only
  * **21.4 %** of a room's census area (`h4-living`'s six surfaces are 100.16 m² against `.271`'s

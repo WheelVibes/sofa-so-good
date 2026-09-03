@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.122 — the missing census term was already written down in a probe comment: weight by EXPOSED area, and that is a job for Blender
+
+Chasing `.121`'s unexplained 2.36× wall over-weighting, and it turned out the repo already contained
+the answer — in a comment, next to an unrun seam.
+
+**`light-distribution.mjs`'s `FLOOREXPOSED` block states the rule outright:** *"an albedo census must
+weight by EXPOSED area, not total area — a second flaw distinct from `.273`'s texture-blindness,
+pushing the same way."* The seam existed, the rule was recorded, and its result had never been
+measured or written up.
+
+**Ran it.** 3600 downward rays over `livingDining`:
+
+| what the ray hits | share of the floor footprint |
+| --- | --- |
+| the floor plane (`PlaneGeometry#ffffff`) | **56.0 %** |
+| rug (`ExtrudeGeometry#8aa1a8`) | 8.0 % |
+| cabinet (`BoxGeometry#9c8f7a`) | 7.3 % |
+| tables / seating (four `ExtrudeGeometry`) | 5.3 + 4.4 + 3.1 % |
+| remaining furniture | ~3.7 % |
+
+**44 % of the floor is covered.** So counting a floor mesh's full triangle area over-weights it by
+~1.8×, and the same applies to every wall a wardrobe stands against — the right order of magnitude to
+explain the 2.36×, and it pushes the same way as the two flaws already known. Also worth noting: the
+top hit is `#ffffff`, i.e. the textured-white floor that `.273` is about, so `.120`'s `albedoSwatch`
+stamp is fixing the single largest exposed surface in the room.
+
+**And this is why `(s)` cannot be an area census at runtime.** Exposure is a visibility computation.
+`src/scene/CLAUDE.md` records an irradiance volume spiked and **rejected at 6.19 ms for 420 probes**;
+a useful exposure sample is tens of thousands of rays. There is no version of this that runs on a
+plan change.
+
+**Which puts it in Blender.** The exposure-weighted room albedo belongs next to the irradiance bake,
+where visibility is already being traced — **one ρ per room, written into the lightmap index**. That
+is precisely the move the GI path made: compute where it is cheap, ship a number. It also means
+`(s)` and the Blender arc are the same piece of work rather than two, which is not how `(z)`11 was
+scoped.
+
+`(s)` therefore stands at: mechanism validated, three flaws found and sized (texture-blindness 0.046,
+shell-only source 0.225, exposure ~1.8× on the floor), and the correct implementation identified as a
+**bake-time** quantity. Still not wired. Suite **10142 green**, `tsc` and biome clean.
+
 ## v0.31.7.121 — BOTH of `.120`'s named causes were wrong, one with the opposite sign; the real residual is relative WEIGHT, not albedo
 
 `.120` closed by naming two causes for the remaining ρ gap. Measured both. **Neither holds**, and
