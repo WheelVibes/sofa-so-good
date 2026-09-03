@@ -754,7 +754,20 @@ def room_albedo_area(rooms, reach: float = 0.25) -> list[dict]:
     irradiance volume at 6.19 ms for 420 probes, and this is one ray per face.
     """
     dg = bpy.context.evaluated_depsgraph_get()
-    acc = {r["id"]: {"area": 0.0, "weighted": 0.0, "faces": 0, "occluded": 0.0} for r in rooms}
+    acc = {
+        r["id"]: {
+            "area": 0.0,
+            "weighted": 0.0,
+            "faces": 0,
+            "occluded": 0.0,
+            "floor_area": 0.0,
+            "wall_area": 0.0,
+            "ceiling_area": 0.0,
+            "other_area": 0.0,
+            "other_weighted": 0.0,
+        }
+        for r in rooms
+    }
     for obj in bpy.context.scene.objects:
         if obj.type != "MESH" or not obj.data.polygons:
             continue
@@ -786,6 +799,23 @@ def room_albedo_area(rooms, reach: float = 0.25) -> list[dict]:
             a["area"] += area
             a["weighted"] += area * rho
             a["faces"] += 1
+            # BUCKET BY SURFACE CLASS, so the consumer can recompute rho when a finish changes
+            # without re-baking. Areas do not move when a wall is repainted; only albedo does. The
+            # app can therefore evaluate
+            #     rho = (Af*af + Aw*aw + Ac*ac + Ao*rho_o) / (Af + Aw + Ac + Ao)
+            # from the catalogue swatch of whatever finish is currently selected -- which is what
+            # makes `v0.31.7.135`'s within-room delta computable at runtime, given that
+            # `v0.31.7.122` ruled out a runtime exposure census on cost (an irradiance volume was
+            # rejected at 6.19 ms for 420 probes; this is arithmetic on four numbers).
+            # The NORMAL must be converted too. The first version passed `n` in Blender's frame
+            # while `_surface_class` tests `normal[1]` as UP -- in Blender that component is
+            # three's -Z, i.e. north/south. The symptom was `floor_m2 = 0.07` where the floor is
+            # ~23 m2, and repainted wall faces leaking into `other` (its rho moved 0.5818 ->
+            # 0.5474 between arms, which a fixed bucket cannot do).
+            cls = _surface_class(rooms, room, three, S.blender_to_three(tuple(n)))
+            a[f"{cls}_area"] += area
+            if cls == "other":
+                a["other_weighted"] += area * rho
     out = []
     for r in rooms:
         a = acc[r["id"]]
@@ -801,9 +831,48 @@ def room_albedo_area(rooms, reach: float = 0.25) -> list[dict]:
                 "occluded_m2": round(a["occluded"], 1),
                 "occluded_share": round(a["occluded"] / total, 3) if total > 0 else None,
                 "faces": a["faces"],
+                # Area weights per surface class, occlusion already removed.
+                "floor_m2": round(a["floor_area"], 2),
+                "wall_m2": round(a["wall_area"], 2),
+                "ceiling_m2": round(a["ceiling_area"], 2),
+                "other_m2": round(a["other_area"], 2),
+                # Mean albedo of everything the user cannot repaint (furniture, fittings, glazing).
+                "other_rho": (
+                    round(a["other_weighted"] / a["other_area"], 4) if a["other_area"] > 0 else None
+                ),
             }
         )
     return out
+
+
+def _surface_class(rooms, room_id: str, centre_three, normal_three) -> str:
+    """Classify a face as `floor` / `wall` / `ceiling` / `other`.
+
+    **Position, not just normal.** A table top and a floor share an up-facing normal, and a cabinet
+    side and a wall share a horizontal one -- so normal alone would make a repaint of the wall
+    finish move the sofa's albedo. The discriminator is where the face IS: a floor sits at floor
+    level, a ceiling at ceiling height, a wall on the room's perimeter. Everything else is `other`,
+    whose albedo is baked because nothing in the UI can change it.
+
+    Deliberately conservative: a face that is ambiguous falls to `other`, which makes it a fixed
+    weight rather than one that responds to the wrong control.
+    """
+    room = next((r for r in rooms if r["id"] == room_id), None)
+    if room is None:
+        return "other"
+    h = room.get("ceilingHeight") or 2.6
+    x, y, z = centre_three
+    ny = normal_three[1]
+    if ny > 0.7 and y < 0.15:
+        return "floor"
+    if ny < -0.7 and y > h - 0.3:
+        return "ceiling"
+    if abs(ny) < 0.5:
+        ox, oz = room["origin"]
+        edge = min(x - ox, ox + room["width"] - x, z - oz, oz + room["depth"] - z)
+        if edge < 0.3:
+            return "wall"
+    return "other"
 
 
 def _room_containing(rooms, x: float, z: float):

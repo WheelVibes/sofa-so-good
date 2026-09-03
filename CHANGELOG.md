@@ -29,6 +29,59 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.136 — baked the per-class area weights, and found that a CATALOGUE SWATCH IS NOT THE RENDERED ALBEDO
+
+`.135` specified the design: bake the **area weights** (the expensive geometric part, which does not
+change when a wall is repainted) and let the app recompute ρ from whatever finish is selected. Built
+it, and the self-check failed in an informative way.
+
+**The buckets, occlusion already removed, `livingDining`:**
+
+| | m² |
+| --- | --- |
+| floor | 13.51 (of 23.04 footprint — 41 % participating, matching the 44 %-covered ray census) |
+| wall | 57.25 |
+| ceiling | 20.00 |
+| other (furniture, fittings, glazing) | 22.16, ρ = **0.295** |
+| total | 112.92 = the direct census's participating area |
+
+**`other_rho` is identical across both arms (0.295)**, which is the check that the classification
+works: a wall repaint must not move the bucket that cannot be repainted. It did move on the first
+run — 0.5818 → 0.5474 — because **I classified using a Blender-frame normal while testing
+`normal[1]` as up**; in Blender that component is three's −Z. The symptom was `floor_m2 = 0.07`
+where the floor is ~23 m². Caught by the implausible number, fixed by converting the normal.
+
+**Then the reconstruction failed, and that is the real finding.** Rebuilding ρ from the buckets and
+the catalogue swatches:
+
+| | reconstructed | direct census |
+| --- | --- | --- |
+| base | 0.7253 | 0.7018 |
+| **terracotta** | **0.4131** | **0.5719** |
+
+Base agrees to 3 %; terracotta is off by 28 %. Solving the same buckets for the wall term the census
+implies gives **0.623** — against `wall-paint-terracotta`'s swatch luminance of **0.294**. The app
+repaints via a **luminance-preserving recolor**, so a terracotta wall keeps most of the white
+plaster's brightness: 0.91 → ~0.62, not → 0.29.
+
+**Two consequences, both mine to own.**
+
+1. **`v0.31.7.120`'s `albedoSwatch` stamp is wrong for recoloured finishes.** It records the
+   catalogue swatch — what a picker thumb shows — not what the surface reflects. Still correct for
+   procedural bases that re-bake to their swatch, which is why it looked right when tested on oak.
+2. **Choosing a dark paint in this app barely darkens the surface**, which *bounds* how much colour
+   bleed `(s)` can ever produce — and means `.134`'s traced **−17.4 %** is the response to a
+   0.62-albedo wall, not to real terracotta. That is arguably a separate defect from `(s)`.
+
+So the runtime reconstruction cannot use catalogue swatches; it needs the same recolor the material
+builder applies. Recorded in `albedoFill.ts` next to the lookup rather than only here.
+
+*(The 0.623 is derived from the buckets and the census, not read from the GLB — a direct material
+dump would not import the export without `sofa_scene`'s dispersion fix-up and was not worth more
+time at this hour. Labelled as derived.)*
+
+Suite **10149 green**, `tsc` and biome clean. Still not wired.
+
 ## v0.31.7.135 — `(s)` is a WITHIN-ROOM delta, not a between-room level: sized the blast radius before wiring, and it changed the design
 
 `.134` left `(s)` with a correct census, a Cycles-validated reference and agreement to 13 % — so the

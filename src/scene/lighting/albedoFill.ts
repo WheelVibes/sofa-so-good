@@ -93,6 +93,26 @@ export function swatchLuminance(hex: string): number {
   return 0.2126 * lin[0]! + 0.7152 * lin[1]! + 0.0722 * lin[2]!
 }
 
+/**
+ * ⚠️ A CATALOGUE SWATCH IS NOT THE RENDERED ALBEDO for a recoloured finish.
+ *
+ * **Measured, `v0.31.7.136`.** `wall-paint-terracotta`'s swatch `#c08763` has luminance **0.294**.
+ * Reconstructing the room's rho from baked area weights and that swatch gives **0.4131**, against a
+ * direct census of the exported scene reading **0.5719** — and solving the same buckets for the wall
+ * term the census implies gives **0.623**. The app repaints via a **luminance-preserving recolor**
+ * (`FINISH-RECOLOR`), so a "terracotta" wall keeps most of the white plaster's brightness: 0.91 →
+ * ~0.62, not → 0.29.
+ *
+ * Two consequences, both mine to own:
+ *
+ * 1. **`v0.31.7.120`'s `albedoSwatch` stamp is wrong for recoloured finishes.** It records the
+ *    catalogue swatch, which is what a picker thumb shows and not what the surface reflects. It is
+ *    still right for procedural bases that re-bake to their swatch.
+ * 2. **Choosing a dark paint in this app barely darkens the surface**, which BOUNDS how much colour
+ *    bleed `(s)` can ever produce. That is arguably a separate defect from `(s)`, and it means the
+ *    −17.4 % traced ceiling response measured in `v0.31.7.134` is the response to a 0.62-albedo
+ *    wall, not to real terracotta.
+ */
 function swatchFor(id: string | undefined, fallback: string): number {
   const def = BUILTIN_MATERIALS[(id ?? fallback) as keyof typeof BUILTIN_MATERIALS]
   return swatchLuminance(def?.swatch ?? '#cccccc')
