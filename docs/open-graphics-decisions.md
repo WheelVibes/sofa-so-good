@@ -1034,6 +1034,26 @@ overlap can be *narrowed* but not removed by reshaping the sky-catch alone.
   daylight range for the pane. Touches a separate shipped look.
 
 
+### ⚠️ (z)4's OTHER half is also moot once (l) is fixed — `v0.31.7.158`
+
+With `glassSkyCatchIntensity` shipped at `d³ · 5.2` (`.157`), the pane is correctly bright — and the
+sky behind it is therefore almost invisible. Measured at 13:00, `realistic`, both paths confirmed
+engaged by `BACKDROPCHECK` (1024×512 analytic vs 512×256 keyed):
+
+| | mean abs diff | channels > 2 |
+| --- | --- | --- |
+| before `(l)`'s fix (`v0.31.7.152`) | 0.938 counts | 7.5 % |
+| **after `(l)`'s fix** | **0.339 counts** | **1.49 %** |
+
+**So the whole `(z)`4 asset route buys 0.34 counts in the shipped interior view.** Both halves of that
+decision turn out not to matter for `(l)`: the intensity provably cannot reach the pane, and the
+physical sky is hidden behind a pane that is now correctly blown out.
+
+**Kept, not shipped.** `skyKeys.ts`, `skyKeyBake.ts`, the 500 kB key set and the `?skyKeys=1` seam are
+all correct and tested, and the sky would matter for a **direct** view of it — a balcony, an open
+door, looking up — which this pose does not contain. Making it the default on 0.34 counts would be
+paying 500 kB for nothing measurable.
+
 ### (l)/(z)4 — the baked-key-set route is MEASURED VIABLE, `v0.31.7.148`
 
 `(z)`4 was decided ("ship the Cycles sky **and** `backgroundIntensity ≈ 4`") but not scoped: the sun

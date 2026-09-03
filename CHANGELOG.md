@@ -29,6 +29,37 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.158 — fixing `(l)` properly made `(z)`4's other half moot: the Cycles sky is worth 0.34 counts behind a correct pane
+
+With `(l)` shipped (`.157`), the pane is correctly bright — so the sky behind it is nearly invisible.
+Re-ran the sky comparison with the fix live, 13:00, `realistic`, both paths confirmed engaged by
+`BACKDROPCHECK` (1024×512 analytic vs 512×256 keyed):
+
+| | mean abs diff | channels > 2 |
+| --- | --- | --- |
+| before `(l)`'s fix (`.152`) | 0.938 counts | 7.5 % |
+| **after `(l)`'s fix** | **0.339 counts** | **1.49 %** |
+
+**So `(z)`4's asset route buys 0.34 counts in the shipped interior view** — and both halves of that
+decision are now measured irrelevant to the problem it was decided for: `backgroundIntensity`
+provably cannot reach the pane (`.152`), and the physical sky is hidden behind a pane that is now
+correctly blown out.
+
+**Kept, not shipped.** `skyKeys.ts`, `skyKeyBake.ts`, the 500 kB key set and the `?skyKeys=1` seam are
+correct and tested, and the sky *would* matter for a **direct** view — a balcony, an open door,
+looking up — which this pose does not contain. Defaulting it on 0.34 counts would pay 500 kB for
+nothing measurable.
+
+**Worth stating about the shape of the night's work.** `(z)`4 was decided in good faith on this
+item's own documented fix space, and it took `.148`–`.150` (pricing the assets), `.151`–`.152`
+(building it and finding the lever wrong), `.153`–`.156` (finding the right lever, its magnitude, its
+curve and a stale guard) and `.157` (shipping) to discover that **the decision's premise was wrong and
+its remedy unnecessary**. The fix was a single coefficient on a function that had been in the tree
+since June. That is not a criticism of the decision — the evidence for it was in the item — but it is
+the clearest example in this arc of why a documented fix space deserves measuring before it is built.
+
+Documentation only. Suite **10167 green**, `tsc` and biome clean.
+
 ## v0.31.7.157 — `(l)` FIXED AND SHIPPED: `d³ · 5.2` on the pane emissive. Windows read as openings for the first time.
 
 The oldest open window finding in this arc, closed — and **not by the route the item proposed**.
