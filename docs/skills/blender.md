@@ -173,6 +173,18 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — `hasattr(bpy.ops.X, 'y')` is NOT a capability check.** `bpy.ops` namespaces
+  answer `hasattr` for any name. `bpy.ops.image.denoise` reported present and then failed with
+  *"could not be found"*. Call it in a `try`, or check `bpy.ops.image.denoise.poll()`.
+- **2026-09-03 — `scene.cycles.use_denoising` does NOT denoise a bake.** It is a render setting;
+  `BakeSettings` has no denoise flag. Measured: enabling it changed neither timing nor speckle.
+  A visibility bake is pure indirect light in a dark interior — the noisiest case Cycles has —
+  so plan for post-processing the image yourself.
+- **2026-09-03 — re-encoding an already-quantised buffer LOSES precision.** Storing `sqrt(v)` to
+  spend more 8-bit levels on a dark map only works on a float buffer: applied to an 8-bit bake it
+  cut distinct levels **223 → 166**, backwards from the intent. `float_buffer=True` at image
+  creation restored it (206). Note the encode then made no visible difference — quantisation was
+  not the cause. Fixing a real bug is not evidence that it was the bug you were chasing.
 - **2026-09-03 — three's `Texture.channel` defaults to 0, so setting `uv1` is NOT enough.** A
   baked map assigned to `aoMap` samples the `uv` attribute unless you set `texture.channel = 1`.
   With tiling shell UVs (−2.9…+2.9) that reads wrapped noise, and the symptoms are wildly

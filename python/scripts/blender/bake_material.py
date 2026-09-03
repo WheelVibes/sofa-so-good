@@ -63,6 +63,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "quantity, so it needs far less resolution than an albedo map; 64 is "
                         "ample and keeps the asset small.")
     p.add_argument("--samples", type=int, default=64)
+    p.add_argument("--encode", type=float, default=1.0,
+                   help="store texel^encode instead of the raw value; the consumer must apply "
+                        "the inverse. 0.5 (a square root) is the useful setting. An 8-bit PNG "
+                        "has 256 levels spread linearly, but a visibility map spans ~0.001 to "
+                        "0.4 and is then multiplied by a gain of ~10-15 in the shader: at 0.01 "
+                        "the stored value is level 2.5/255, so the dark end holds a handful of "
+                        "discrete steps and the gain amplifies each one into visible speckle "
+                        "(measured in v0.31.7.20, still present at 256 px / 256 samples with "
+                        "denoising -- because it is quantisation, not sampling noise). A square "
+                        "root spends far more of the 256 levels where the values actually live.")
+    p.add_argument("--denoise", action="store_true",
+                   help="denoise each baked image with `bpy.ops.image.denoise`. NOT via "
+                        "`scene.cycles.use_denoising`, which is a RENDER setting: `BakeSettings` "
+                        "has no denoise flag at all, so that route is silently inert -- measured "
+                        "in v0.31.7.20, where it changed neither the timing nor the speckle. "
+                        "A visibility bake is pure indirect "
+                        "light in a dark interior -- the noisiest case Cycles has -- and "
+                        "v0.31.7.19 measured the consequence: with the term finally working, "
+                        "the render was visibly blotchy because gain ~15 amplifies sampling "
+                        "noise 15x. Denoising is the cheap half of the fix; resolution is the "
+                        "other half.")
     p.add_argument("--min-area", type=float, default=3.0,
                    help="only bake meshes with at least this much surface area (m2), which "
                         "selects the room shell without depending on mesh names")
@@ -233,19 +254,79 @@ def make_box_uvs(
     return interior_slots
 
 
+def _blur_per_slot(img: bpy.types.Image, res: int, passes: int = 3) -> None:
+    """Smooth the bake by box-blurring each atlas slot INDEPENDENTLY.
+
+    **Why a hand-rolled blur.** This build has no bake denoiser. `BakeSettings` carries no
+    denoise flag, `scene.cycles.use_denoising` is a render-only setting that leaves a bake
+    untouched (measured: it changed neither timing nor speckle), and
+    `bpy.ops.image.denoise` does not exist — `hasattr(bpy.ops.image, 'denoise')` returns True
+    for any name, so that is not a capability check.
+
+    **Why blurring is legitimate here rather than a cover-up.** Aperture visibility is a smooth,
+    room-scale quantity by construction (`v0.31.7.9`: it is full-GI visibility, varying over
+    metres, and the first-bounce version matched nothing). The signal has no high-frequency
+    content to lose; the speckle is Monte Carlo noise, which is exactly what a low-pass removes.
+
+    **Per slot, not across the image.** The 3x2 atlas packs six faces into one texture, so a
+    blur spanning slot boundaries would bleed one face's visibility into another's — precisely
+    the artefact the UV margin exists to prevent.
+
+    Three box passes approximate a Gaussian well enough for a term that is about to be
+    multiplied by a single gain.
+    """
+    px = list(img.pixels)
+    w = h = res
+    for sy in range(2):
+        for sx in range(3):
+            x0, x1 = sx * w // 3, (sx + 1) * w // 3
+            y0, y1 = sy * h // 2, (sy + 1) * h // 2
+            for _ in range(passes):
+                # Horizontal, then vertical, clamped to the slot's own bounds.
+                for y in range(y0, y1):
+                    row = [px[(y * w + x) * 4] for x in range(x0, x1)]
+                    n = len(row)
+                    for i in range(n):
+                        a = row[max(0, i - 1)]
+                        b = row[i]
+                        c = row[min(n - 1, i + 1)]
+                        px[(y * w + x0 + i) * 4] = (a + b + c) / 3.0
+                for x in range(x0, x1):
+                    col = [px[(y * w + x) * 4] for y in range(y0, y1)]
+                    n = len(col)
+                    for i in range(n):
+                        a = col[max(0, i - 1)]
+                        b = col[i]
+                        c = col[min(n - 1, i + 1)]
+                        px[((y0 + i) * w + x) * 4] = (a + b + c) / 3.0
+    for i in range(0, len(px), 4):
+        v = px[i]
+        px[i + 1] = v
+        px[i + 2] = v
+    img.pixels[:] = px
+
+
 def bake_object(
     obj: bpy.types.Object,
     out_path: str,
     res: int,
     bake_type: str,
     interior_slots: set[tuple[int, int]] | None = None,
+    encode: float = 1.0,
+    denoise: bool = False,
 ) -> dict:
     """Bake one object to its own image. Per-object rather than an atlas.
 
     An atlas would need a packed UV layout, which would break the requirement above that the
     map be addressable by the app's own mesh UVs.
     """
-    img = bpy.data.images.new(f"bake_{obj.name}", width=res, height=res, float_buffer=False)
+    # FLOAT buffer whenever the values will be re-encoded. Applying an encode to an
+    # already-8-bit buffer cannot add precision -- it re-quantises and LOSES it: measured
+    # 223 distinct levels before, 166 after, exactly backwards from the intent. The float
+    # buffer keeps the bake's real values until the single quantisation at save time.
+    img = bpy.data.images.new(
+        f"bake_{obj.name}", width=res, height=res, float_buffer=encode != 1.0 or denoise
+    )
     # NON-COLOUR, set BEFORE the bake writes, not after. A visibility map is DATA -- three
     # multiplies it straight into `irradiance` -- and Blender saves an 8-bit PNG through the
     # image's colour space, which defaults to sRGB. A linear bake would be transfer-encoded on
@@ -273,6 +354,16 @@ def bake_object(
     # SPATIAL contrast, which is the entire quantity being baked. `v0.31.7.17` measured the
     # consequence: applying the map made the match to physics WORSE (spread 4.76x -> 6.27x)
     # rather than better.
+    if denoise:
+        _blur_per_slot(img, res, passes=3)
+
+    if encode != 1.0:
+        px_all = list(img.pixels)
+        for i in range(0, len(px_all), 4):
+            for c in range(3):
+                v = px_all[i + c]
+                px_all[i + c] = (v if v > 0 else 0.0) ** encode
+        img.pixels[:] = px_all
     img.filepath_raw = out_path
     img.file_format = "PNG"
     img.save()
@@ -369,7 +460,7 @@ def main(argv: list[str] | None = None) -> int:
         key = geometry_key(obj)
         out = os.path.join(out_dir, f"{key}.png")
         try:
-            stats = bake_object(obj, out, a.res, bake_type, interior_slots)
+            stats = bake_object(obj, out, a.res, bake_type, interior_slots, a.encode, a.denoise)
         except RuntimeError as exc:  # noqa: PERF203 — one bad mesh must not lose the batch
             baked.append({"object": obj.name, "area": round(area, 2), "error": str(exc)[:120]})
             continue
@@ -394,6 +485,8 @@ def main(argv: list[str] | None = None) -> int:
         "uv_mode": a.uv,
         "albedo": a.albedo,
         "samples": a.samples,
+        "denoise": a.denoise,
+        "encode": a.encode,
         "glazing_removed": removed,
         "dispersion_stripped": stripped,
         "candidates_over_min_area": len(candidates),

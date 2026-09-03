@@ -29,6 +29,56 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.20 — bake quality: the metric hits the analysis' ideal (1.37×) and the picture is nearly there
+
+`v0.31.7.19` left the term working (spread 4.76× → 1.46×) and the render visibly blotchy. This
+round chases the noise. Three of the four things tried were wrong, and each was wrong in a way
+worth recording.
+
+**Resolution + samples: 256 px / 256 samples costs ~3 min for 111 meshes and 5.3 MB.** Cheap
+enough that quality is not budget-limited. Spread at gain 10 improved to **1.36×** — matching
+the **1.37×** the `v0.31.7.9` analysis gave as the ideal, exactly.
+
+**`scene.cycles.use_denoising` is inert for bakes.** `BakeSettings` has no denoise flag at all;
+that property is a *render* setting. Measured: enabling it changed neither the timing nor the
+speckle. So `--denoise` had been doing nothing since it was added earlier this round.
+
+**`hasattr(bpy.ops.image, 'denoise')` returns `True` and the operator does not exist.** `bpy.ops`
+namespaces answer `hasattr` for any name, so it is **not a capability check** — calling it fails
+with *"could not be found"*. A capability was assumed from a truthy probe, which is the same
+mistake class as assuming an intervention fired.
+
+**Encoding: a real bug fixed, and it turned out not to be the cause.** An 8-bit PNG holds 256
+linear levels while a visibility map spans ~0.001–0.4 and is then multiplied by ~10, so the dark
+end should be starved of precision. `--encode 0.5` stores the square root for the consumer to
+undo. But applying it to an **already-quantised** buffer *loses* precision rather than adding it:
+measured **223 distinct levels → 166**. Creating the image with `float_buffer=True` fixed that
+(**206**). And then the render was **visually identical** — so quantisation was never the
+dominant term. The bug was real, the hypothesis was wrong, and only looking at the frame
+separated them.
+
+**What actually worked: a per-slot box blur.** Legitimate rather than a cover-up, for a stated
+reason — aperture visibility is *full-GI* visibility varying over metres (`v0.31.7.9`; the
+first-bounce version matched nothing), so the signal has no high-frequency content to lose, while
+the speckle is Monte Carlo noise. Blurring **per atlas slot** rather than across the image,
+because a blur spanning slot boundaries would bleed one face's visibility into another's — the
+artefact the UV margin exists to prevent.
+
+| | mean R | spread vs physics |
+| --- | --- | --- |
+| baseline | 115.6 | 4.76× |
+| 64 px, no blur (`v0.31.7.19`) | 95.0 | 1.46× |
+| 256 px + blur + sqrt encode | **85.2** | **1.37×** |
+
+**Looking at the wall: the salt-and-pepper speckle is gone; soft mottling remains.** Three box
+passes reach only ~±3 texels at 256 px. The metric cannot see either artefact — it averages over
+columns — so this is judged by eye, as it has to be.
+
+**Where it stands.** Mechanism proven, magnitude matching the prediction to two decimal places,
+asset cost 5.3 MB and ~3 min per plan, runtime cost measured at zero for both auto-selected
+tiers. Remaining is residual bake noise: more samples, a wider blur, or an actual denoiser via
+the compositor. **Nothing shipped; 60 fps intact; `tsc`, biome, knip clean, 10011 tests green.**
+
 ## v0.31.7.19 — ROOT CAUSE: `Texture.channel` defaults to 0. The term works — spread 4.76× → 1.46× — and the bake is far too noisy to ship
 
 Five rounds of symptoms resolve to one line of three's API, and with it fixed **item (w)'s fix
