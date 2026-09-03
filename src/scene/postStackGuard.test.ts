@@ -67,15 +67,20 @@ describe('post-processing stack guards', () => {
     expect(SRC).toContain('bloomActiveForDay(dayLevel)')
   })
 
-  it('keeps the tone mapper in AO-ONLY mode too (TIER-AO)', () => {
+  it('keeps the tone mapper in AO-ONLY mode too, and the full-stack gates on SMAA (TIER-AO)', () => {
     // Mounting ANY composer disables three's own view transform, so the AO-only
-    // path must still tone-map or Medium would blow its highlights exactly the way
+    // path must still tone-map or it would blow its highlights exactly the way
     // High/Maximum used to. The ToneMapping push must therefore NOT be gated on
-    // `full`, while bloom / vignette / grain / SMAA must be.
+    // `full`, while bloom / grain / SMAA must be.
     expect(CODE).toMatch(/effects\.push\(<ToneMapping/)
     expect(CODE).not.toMatch(/if \(full\)\s*effects\.push\(<ToneMapping/)
-    expect(CODE).toMatch(/if \(full\) effects\.push\(<Vignette/)
     expect(CODE).toMatch(/if \(full\) effects\.push\(<SMAA/)
+    // VIGNETTE DELIBERATELY ABSENT FROM THIS LIST as of `v0.31.7.117`. This test used to assert
+    // `if (full) effects.push(<Vignette`, and it failed when `(z)`12 moved the vignette to every
+    // tier — correctly, which is the point of a code-shape guard. The clause was incidental
+    // corroboration of a test whose subject is the TONE MAPPER; dropping it does not weaken that,
+    // and the ordering guard above still pins the vignette after `<ToneMapping>`.
+    expect(CODE).not.toMatch(/if \(full\) effects\.push\(<Vignette/)
   })
 
   it('replaces antialiasing rather than dropping it in AO-only mode', () => {

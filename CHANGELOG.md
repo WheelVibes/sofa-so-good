@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.117 — `(m)` vignette on every tier, and it is free: centre byte-identical, corners 133 → 107
+
+`(m)` was full-stack-only, and with `high`/`maximum` retired that meant **`realistic` only** — so the
+tier most editing happens on looked the least photographic, for no stated reason. Its own header says
+the vignette exists "so the frame reads 'shot, not rendered'", which is a claim about every frame.
+
+**Free, and measured rather than assumed.** `postprocessing` merges simple `Effect`s into the single
+fragment pass the composer already runs, and a composer already mounts on **every** tier — because
+rendering straight into the `preserveDrawingBuffer` default framebuffer drops interior wall faces
+(WALL-NO-COMPOSER). So this adds fragment math to an existing pass, not a pass:
+
+| `performance`, walk | p50 | drawn fps |
+| --- | --- | --- |
+| baseline ×3 (`.110`) | 3.6 / 3.4 / 3.3 | 53.6 / 56.2 / 54.1 |
+| **with vignette** | **3.3** | **55.8** |
+
+Inside the baseline band on both.
+
+**And it is a vignette, not an exposure change** — the distinction worth measuring, because a global
+darkening would have produced a similar mean shift:
+
+| `performance` frame | centre | corners | corner/centre |
+| --- | --- | --- | --- |
+| before | 164.5 | 133.4 | 0.811 |
+| **after** | **164.5** | **106.6** | **0.648** |
+
+**The centre is byte-identical.** Frame mean 116.02 → 108.72, 52 % of channels changed, all of it
+edge falloff.
+
+**A guard test caught the change, correctly.** `postStackGuard.test.ts` asserted the literal source
+shape `if (full) effects.push(<Vignette` — so moving the vignette failed the suite, which is exactly
+what a code-shape guard is for. That clause was incidental corroboration in a test whose subject is
+the **tone mapper** (which must NOT be gated on `full`, or an AO-only tier renders raw linear HDR).
+Dropped the vignette clause, kept the tone-mapper and SMAA assertions, **inverted** it to assert the
+vignette is *not* full-gated so the old shape cannot come back, and renamed the test to match what it
+now checks. The ordering guard that pins `<Vignette>` after `<ToneMapping>` was already separate and
+still passes.
+
+Suite **10124 green**, `tsc` and biome clean.
+
 ## v0.31.7.116 — twilight, scoped below the horizon: the black band's onset moves −4° → −8°, and it CANNOT be removed in this scope
 
 `(z)`8 was re-scoped after `.115` to "below the horizon only, blend up". Implemented, measured, and

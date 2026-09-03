@@ -224,7 +224,18 @@ export default function EffectsImpl({
       <ChromaticAberration key="ca" offset={caOffset} radialModulation modulationOffset={0.35} />,
     )
   }
-  if (full) effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)
+  // EVERY TIER, as of `v0.31.7.117` (`(z)`12). Its own header says the vignette exists "so the
+  // frame reads 'shot, not rendered'" — which is a claim about every frame, not about the frames
+  // that happen to be on the expensive tier. It was full-stack-only, and with `high`/`maximum`
+  // retired that meant `realistic` only, so the tier most people edit in looked the least
+  // photographic for no stated reason.
+  //
+  // **Free, and that is why it is safe here rather than a trade.** `postprocessing` merges simple
+  // `Effect`s into the single fragment pass the composer already runs — and a composer already
+  // mounts on every tier, because rendering straight into the `preserveDrawingBuffer` default
+  // framebuffer drops interior wall faces (WALL-NO-COMPOSER). So this adds fragment math to an
+  // existing pass, not a pass. Measured in `v0.31.7.117`.
+  effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)
   if (full && cinematic) effects.push(<Noise key="noise" premultiply opacity={0.035} />)
   else if (photographicLook)
     effects.push(<Noise key="photo-grain" premultiply opacity={PHOTO_GRAIN_OPACITY} />)
