@@ -190,6 +190,13 @@ export function applyVisibilityLightmap(
   // shared/cached across plans -- so a re-run that only adds maps leaves the previous plan's
   // visibility on any material the new plan reuses (`v0.31.7.45`).
   material.userData.visLightmap = true
+  if (import.meta.env.DEV) {
+    // DEV-only handle so a probe can check the texture actually LOADED, not just
+    // that the injection ran. `v0.31.7.93`: three irradiance bakes produced
+    // identical statistics because the fetch had failed and `replace` was
+    // assigning zero -- indistinguishable, from outside, from a real result.
+    ;(material as unknown as { __visMapForProbe?: unknown }).__visMapForProbe = map
+  }
   material.needsUpdate = true
 }
 

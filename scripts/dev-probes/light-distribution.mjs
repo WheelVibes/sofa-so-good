@@ -66,6 +66,16 @@ const DEVICE = process.env.DEVICE || null
 // all — which is the difference between "the sky is 1.4x too dark" as a property
 // of two PNGs and as a property of the shipped window.
 const BACKDROP_IMG = process.env.BACKDROP_IMG || null
+// `REQUIRE_LIGHTMAPS=1` refuses to produce a frame unless the app reports that it
+// actually applied baked lightmaps.
+//
+// **Why this is not optional.** `v0.31.7.90`-`.92` compared several irradiance
+// bakes through this probe and got statistics identical TO THE DECIMAL from three
+// different frame files and from map PNGs with different md5s. The maps had not
+// loaded; `replace` mode was assigning zero into the indirect term, so every
+// "comparison" was a measurement of a failed fetch. A silent no-op is the worst
+// possible failure for a difference measurement, because it looks like a result.
+const REQUIRE_LIGHTMAPS = process.env.REQUIRE_LIGHTMAPS === '1'
 // `SKYCATCH=<mult>` scales every window pane's EMISSIVE sky-catch (RZ2).
 //
 // `glassSkyCatchIntensity(daylight) = daylight * 0.4`, with a fixed colour
@@ -780,6 +790,36 @@ const applySkyCatch =
         console.log(`  SKYCATCH read-back after settle: ${JSON.stringify(back)}`)
       }
 
+const assertLightmapsApplied = !REQUIRE_LIGHTMAPS
+  ? null
+  : async () => {
+      // Count the materials the injection actually marked, and confirm at least
+      // one of their sampler uniforms holds a texture with real image data.
+      const r = await page.evaluate(() => {
+        let patched = 0
+        let withImage = 0
+        window.__three.scene.traverse((o) => {
+          const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
+          for (const m of mats) {
+            if (!m.userData?.visLightmap) continue
+            patched += 1
+            const t = m.__visMapForProbe
+            const img = t?.image
+            if (img && (img.width ?? 0) > 0) withImage += 1
+          }
+        })
+        return { patched, withImage }
+      })
+      if (r.patched === 0) {
+        throw new Error(
+          'REQUIRE_LIGHTMAPS: no material carries the lightmap injection. The flag, the ' +
+            'index or the plan context did not line up, and any frame taken now measures ' +
+            'the unmapped app.',
+        )
+      }
+      console.log(`  lightmaps: ${r.patched} patched material(s), ${r.withImage} with image data`)
+    }
+
 const shotFor = async (pitch) => {
   await page.evaluate((v) => window.__walkLook?.setPitch(v), pitch)
   await new Promise((r) => setTimeout(r, 900))
@@ -792,6 +832,7 @@ const shotFor = async (pitch) => {
   if (typeof applyDevice === 'function') await applyDevice()
   if (typeof applyBackdropImg === 'function') await applyBackdropImg()
   if (typeof applySkyCatch === 'function') await applySkyCatch()
+  if (typeof assertLightmapsApplied === 'function') await assertLightmapsApplied()
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyFillScale === 'function') await applyFillScale()

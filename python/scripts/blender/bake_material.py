@@ -70,12 +70,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "kernel cache is warm; the FIRST GPU render on a machine pays ~100 s "
                         "of one-time kernel compilation.")
     p.add_argument("--samples", type=int, default=64)
-    p.add_argument("--with-direct", action="store_true",
-                   help="include DIRECT light in --pass irradiance. OFF by default: the app "
-                        "computes direct sun with its own shadow map, so a baked term carrying "
-                        "direct light is double-counted the moment it replaces the indirect "
-                        "slot. On for comparison against v0.31.7.71, which baked with direct "
-                        "included and so measured mostly the term the app already has.")
+    p.add_argument("--with-sun-disc", action="store_true",
+                   help="include the SUN DISC in --pass irradiance. Off by default, and that "
+                        "default is the whole decomposition: the app renders sun and lamps itself "
+                        "as DIRECT light, so those must not be baked. What it lacks is everything "
+                        "the sky dome delivers -- both the skylight arriving straight through a "
+                        "window AND its bounces. Cycles calls the first of those DIFFUSE_DIRECT "
+                        "(the world is visible along the ray), so an indirect-only bake discards "
+                        "it: v0.31.7.92 measured 74.5 % of the shell sampling ~0 for exactly that "
+                        "reason. Sky-dome-only with BOTH passes on is the app's indirect slot.")
     p.add_argument("--seed", type=int, default=None,
                    help="Cycles sampling seed. Two bakes at the same settings with DIFFERENT "
                         "seeds let you estimate noise without a converged reference: their "
@@ -498,7 +501,9 @@ def main(argv: list[str] | None = None) -> int:
         # or not, sealed glazing makes the interior nearly black. Materials are NOT
         # whitened here -- that is the whole point.
         removed, _ = RV.open_apertures()
-        sky_info = S.setup_world_sky_from_three_direction(tuple(directional[0]["travel"]))
+        sky_info = S.setup_world_sky_from_three_direction(
+            tuple(directional[0]["travel"]), sun_disc=a.with_sun_disc
+        )
     elif a.pass_ == "visibility":
         # Order matters and is load-bearing: open the apertures BEFORE whitening, or the
         # whitened glazing seals the room and every baked texel is zero.
@@ -520,20 +525,24 @@ def main(argv: list[str] | None = None) -> int:
         bpy.context.scene.render.bake.use_pass_color = False
         bpy.context.scene.render.bake.use_pass_direct = True
         bpy.context.scene.render.bake.use_pass_indirect = True
-    if a.pass_ == "irradiance" and not a.with_direct:
-        # INDIRECT ONLY, and this is the whole point of the pass.
+    if a.pass_ == "irradiance":
+        # BOTH passes on, and the sun disc OFF. This is the decomposition, arrived at
+        # by getting it wrong twice:
         #
-        # The app already computes direct sun, with its own shadow map -- what it lacks
-        # is bounce (items (w)/(x): every surface gets the same fill whether or not it
-        # can see the sky). A map carrying direct light would therefore be DOUBLE-COUNTED
-        # the moment it replaced `reflectedLight.indirectDiffuse`, which is the only slot
-        # a baked term can legitimately occupy.
+        #   app.directDiffuse    ~= sun + lamps            (Cycles DIRECT)
+        #   app.indirectDiffuse  ~= sky dome               (Cycles DIRECT, no bounce)
+        #                         + every bounce           (Cycles INDIRECT)
         #
-        # `v0.31.7.71` baked this pass with direct ON and reported a 171x spread across
-        # shell surfaces -- true, but that spread is dominated by which faces the SUN
-        # strikes, not by which can see the sky, so it was measuring mostly the term the
-        # app already has. `--with-direct` keeps that behaviour available for comparison.
-        bpy.context.scene.render.bake.use_pass_direct = False
+        # `v0.31.7.71` baked direct+indirect WITH the sun disc: a median 90 % of that map
+        # was sun the app already renders. `v0.31.7.88` then made it indirect-only, which
+        # removed the sun but also removed SKYLIGHT THROUGH THE WINDOW -- Cycles files
+        # unbounced world light under DIFFUSE_DIRECT -- and `v0.31.7.92` measured the
+        # consequence: 74.5 % of the shell sampling ~0, a rendered median of 20.9 against
+        # physics' 133.5.
+        #
+        # Neither Cycles pass alone equals the app's indirect slot. Removing the SOURCE
+        # (the sun disc) rather than the PASS is what isolates it.
+        bpy.context.scene.render.bake.use_pass_direct = True
         bpy.context.scene.render.bake.use_pass_indirect = True
 
     candidates = []

@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.93 — RETRACTION: every app-side GI comparison since `.90` measured a failed texture load
+
+The sky-dome bake is right and its Blender-side numbers hold. **The app-side measurements do not**,
+and the way that surfaced is the point.
+
+**The sky-dome decomposition is verified — on the bake side, where no browser is involved.**
+`bake_material.py --pass irradiance` now removes the **source** (sun disc off) rather than the
+**pass**, with both DIRECT and INDIRECT on:
+
+| bake | range | spread | cv |
+| --- | --- | --- | --- |
+| `.71` sun + sky, both passes | 0.0368 – 6.3111 | 171× | 139 % |
+| `.88` indirect only | 0.0004 – 0.5083 | 1271× | 98 % |
+| **sky dome, both passes** | **0.0274 – 1.0437** | **38×** | 111 % |
+
+**Median 57 % of the sky-dome term is bounce**, so ~43 % is skylight Cycles files as `DIFFUSE_DIRECT`
+— the term `.88` discarded, quantified. The floor rises 68× (0.0004 → 0.0274), which is what "the sky
+reaches everywhere a little" should look like.
+
+**And then the app-side measurement refused to move.** Three separate frames — `.91`'s indirect-only,
+this round's sky-dome, and a cache-busted re-run under a fresh directory — produced statistics
+identical **to the decimal**: p10 1.8, median 20.9, p90 192.3, spread 107.59. The PNGs on disk have
+different md5s (`46bb8355` vs `4f5c809f`) and the frame files themselves differ. Identical statistics
+from different pixels over 1.2M samples does not happen.
+
+Checking the app logs closes it: the `lightmaps: 24/385 meshes matched` line appears in **exactly one**
+of those runs — the first, in `.90`. In the others the maps never applied, and `replace` mode was
+therefore assigning **zero** into the indirect term. Every "comparison" was a measurement of a failed
+fetch, which is the worst possible failure mode for a difference measurement because a silent no-op
+looks exactly like a result.
+
+**So these are retracted:** `.90`'s −249 % gap, `.91`'s "the albedo fix halves the spread from 59.40
+to 30.49", `.92`'s "74.5 % of the shell samples ~0" and its conclusion that the shell was already
+correct. The *code* changes those rounds made stand on their own reasoning — the BRDF fix is what
+three's own source says (`irradiance * BRDF_Lambert( material.diffuseContribution )`), and
+`--mask-from-index` is verified against the index it reads — but their **numbers** are not evidence.
+
+**`REQUIRE_LIGHTMAPS=1` is the intended guard and it is NOT YET WORKING.** It is meant to refuse a
+frame unless materials carry the injection with loaded image data. On a run where the maps demonstrably
+did not apply it printed nothing and exited 0, so it is failing open — the one thing a guard must
+never do. Recorded as unfinished rather than claimed: a guard that silently passes is worse than none,
+because it converts "I did not check" into "I checked".
+
+Nothing shipped changes. Suite **10098 green**, `tsc`, biome clean, 11 python tests pass.
+
 ## v0.31.7.92 — the mapped-surface mask says the shell was already right, and names the decomposition error I made twice
 
 Built the instrument `.91` called for and it settled the thread — including that the thread's premise
