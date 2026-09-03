@@ -29,6 +29,59 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.126 — padding is NOT the seam either: eight hypotheses eliminated, and the ring zeros are real holes in the UV layout
+
+`.125` put the seam in the baked data and named padding as the fix. **Measured it, and padding is not
+the fix.** Four arms over the same 12 meshes, only the padding differing, scored on the new
+`ring-zeros.mjs`:
+
+| bake margin | dilate passes | ring zero |
+| --- | --- | --- |
+| 2 | 4 (shipped) | **41.8 %** |
+| 12 | 4 | 36.8 % |
+| 2 | 16 | 33.6 % |
+| 12 | 16 | **33.1 %** |
+
+**A 6× margin and a 4× dilation together move it 41.8 → 33.1 %.** If unshaded padding were the
+cause, that would have cleared it.
+
+**And 8-bit quantisation is not the cause either** — the hypothesis that dilation writes small values
+which then round to zero. Same bake at `--bit-depth 16`: **41.8 %, identical to 8-bit.** Byte for
+byte the same fraction.
+
+**So the eight-item elimination now reads:**
+
+| hypothesis | verdict |
+| --- | --- |
+| mapped/unmapped boundary at low coverage (`.114`) | **refuted** — 10 % → 50 % coverage, seam unchanged |
+| per-map scale colliding on a shared material | **refuted** — 0 of 175 materials got two map URLs |
+| UV margin mismatch between bake and runtime | **refuted** — both 0.04, formulas character-identical |
+| a shader/lookup fault rather than data | **refuted** — `?aoDebug=1` shows the dots in the map |
+| insufficient Cycles bake margin | **~5 pt of 42** |
+| insufficient dilation passes | **~8 pt of 42** |
+| 8-bit quantisation eating dilated values | **refuted** — 16-bit identical |
+| large genuinely-unaddressed regions in the band | **what is left** |
+
+**And the last one has a mechanism.** In-slot coordinates are normalised by the **mesh bounding
+box**, not by the face — so a mesh whose faces on one axis do not tile their bbox cross-section
+leaves real, large holes inside the addressable band. Iterative one-texel-per-pass dilation cannot
+cross them: 16 passes reach 16 texels into a hole that may be 40 wide, which is exactly the slow
+convergence the table shows. The fix is a **flood fill / push-pull pyramid** rather than more passes
+of the same loop, or clamping the sampled region to what the faces actually cover.
+
+**`ring-zeros.mjs` is committed** because it made this round cheap: it scores a padding change from
+PNGs alone, no browser, no pose, no render. Four bake arms in 72 seconds.
+
+**Two corrections while here.** `--scale`'s help still claimed per-map normalisation "would destroy
+the between-mesh ratios that are the entire point of a GI bake" — `.109` established that is wrong
+and corrected the changelog but not the flag's own documentation, which is where anyone would read
+it. Fixed, with the correction stated inline. And a fifth arm failed with
+`unrecognized arguments: --scale 4`, which looked like a flag regression and was **my shell**:
+`--scale 4` works correctly when invoked directly. Third quoting slip of this session, recorded as
+mine rather than left looking like a bug.
+
+Suite **10142 green**, `tsc` and biome clean. Nothing shipped.
+
 ## v0.31.7.125 — the 333-map bake landed, the seam SURVIVED it, and `aoDebug` put the fault in the BAKED DATA: 33.7 % of the addressable ring is unwritten
 
 The bake `(z)`2 was re-decided for finished after ~80 minutes:

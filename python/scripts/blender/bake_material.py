@@ -147,6 +147,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "finished pixels into a fresh non-float image -- there is no flag for it. "
                         "8-bit is ~8x smaller (a 256 px map goes ~127 kB -> ~16 kB) and needs "
                         "--per-map-scale to be worth using.")
+    p.add_argument("--bake-margin", type=int, default=2, dest="bake_margin",
+                   help="Cycles bake margin in PIXELS -- how far shaded values are extended past "
+                        "the UV island's edge. `v0.31.7.125` measured 33.7 %% of the outermost "
+                        "ADDRESSABLE texel ring as unwritten across 301 of 333 maps, which is what "
+                        "the edge dots on a column are: a texel whose centre falls outside the UV "
+                        "triangle is never shaded, and 2 px of margin does not reach it.")
     p.add_argument("--res-min", type=int, default=32,
                    help="floor for --texels-per-metre. Tiny trims still need a slot each.")
     p.add_argument("--scale", type=float, default=1.0,
@@ -156,9 +162,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "while sky-lit interior irradiance runs to ~56 with a MEAN of ~9.4. "
                         "Measured on the v99 set: 20 of 24 maps clipped, so the saved map was very "
                         "nearly a binary '>= 1.0' mask and no consumer-side gain could recover it. "
-                        "One GLOBAL scale for the whole set, not per map -- per-map normalisation "
-                        "would destroy the between-mesh ratios that are the entire point of a GI "
-                        "bake. Find the value by baking once at --scale 1 and reading the largest "
+                        "A GLOBAL scale for the whole set; see --per-map-scale for the per-map "
+                        "alternative. (This help used to claim per-map normalisation 'would "
+                        "destroy the between-mesh ratios that are the entire point of a GI bake'. "
+                        "That was WRONG and v0.31.7.109 corrected it: the divisor travels with the "
+                        "map and is re-applied per material, so the ratios reconstruct exactly.) "
+                        "Find the value by baking once at --scale 1 and reading the largest "
                         "reported 'max' (the stats are taken from the float buffer, so they are "
                         "PRE-clip and remain trustworthy).")
     p.add_argument("--encode", type=float, default=1.0,
@@ -756,6 +765,7 @@ def bake_object(
     interior_slots: set[tuple[int, int]] | None = None,
     encode: float = 1.0,
     scale: float = 1.0,
+    bake_margin: int = 2,
     per_map_scale: bool = False,
     bit_depth: int = 16,
     denoise: bool = False,
@@ -796,7 +806,7 @@ def bake_object(
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.bake(type=bake_type, use_clear=True, margin=2)
+    bpy.ops.object.bake(type=bake_type, use_clear=True, margin=bake_margin)
 
     # NON-COLOUR, and this is not a detail. A visibility map is DATA, not a picture: three
     # multiplies it straight into `irradiance`. Blender saves an 8-bit PNG through the image's
@@ -1065,6 +1075,7 @@ def main(argv: list[str] | None = None) -> int:
                 interior_slots=interior_slots,
                 encode=a.encode,
                 scale=a.scale,
+                bake_margin=a.bake_margin,
                 per_map_scale=a.per_map_scale,
                 bit_depth=a.bit_depth,
                 denoise=a.denoise,
