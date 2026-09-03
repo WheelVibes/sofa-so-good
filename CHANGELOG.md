@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.151 — `(z)`4 part one: the four sky keys baked (500 kB, 8 s) and the selection math tested against the convention that owns it
+
+Building `(z)`4 after `.148`–`.150` priced it. Two pieces landed; neither changes the shipped look.
+
+**The assets.** Four Cycles equirects at **0°, 30°, 60°, 88°** sun altitude (Singapore's maximum is
+~88°), 512×256, 128 samples, committed to `public/assets/sky-keys/`: **500 kB total, 8 seconds to
+bake.** Daylight only — below the horizon is the analytic continuation's job as of `.116`, and a
+baked daylight key extrapolated into negative altitudes would fight it.
+
+**The selection math**, `skyKeys.ts`: given the app's own sun **travel** vector, return the two keys
+to sample, the blend weight, and the `u` offset that rotates the key to the sun's azimuth. Azimuth
+needs no keys — a multiple-scattering sky is azimuthally symmetric about the sun, so it is one
+texture offset.
+
+**Tested against `skyGradient.equirectDir`, which owns the app's equirect convention.** That is
+deliberate: the failure that matters here is a sky that is *correct and rotated wrong*, which looks
+like a working feature to every brightness metric and like nonsense out of the window. The azimuth
+test finds the column whose direction best matches the sun under `equirectDir` and checks the offset
+agrees — so the two cannot drift apart. Ten cases: exact keys, linear interpolation across every
+interval, correct bracketing, clamping at both ends, zero offset at the baked azimuth, agreement with
+`equirectDir` at five azimuths, and wrapping.
+
+**One test corrected in the writing.** I first asserted `loAlt === alt` at an exact key, which failed
+against a correct implementation — 30° is equally validly `{lo: 0, hi: 30, t: 1}` or
+`{lo: 30, hi: 30, t: 0}`. Rewritten to assert the **effective** altitude `lo·(1−t) + hi·t`, which
+tests the meaning rather than the representation. Pinning a representation is how a test blocks a
+refactor it should not care about.
+
+Remaining for `(z)`4: the loader that samples two keys and blends them into `scene.background`,
+behind a DEV flag first — same pattern as `?bgCube=1` in `.132` — then verification across several
+hours before any default changes.
+
+Suite **10165 green** (10 new), `tsc` and biome clean.
+
 ## v0.31.7.150 — the sky-key error is resolution- and sample-INDEPENDENT, so `(z)`4's asset budget is settled
 
 Last unknown in `(z)`4: whether `.148`/`.149`'s numbers were an artefact of measuring at 512×256 with
