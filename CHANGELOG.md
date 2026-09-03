@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.97 — dilation implemented, and its NULL result localises the fault to whole atlas slots
+
+Diagnosing `.96`'s `p10 = 0.0`. The answer came from the remedy failing.
+
+**Where the zeros are, measured on both sides:**
+
+| | |
+| --- | --- |
+| shader, on the mapped shell | 0.0 % magenta, **44.5 % sampling exactly zero**, 55.5 % non-zero |
+| the 24 map files themselves | **55.3 % of all texels are exactly zero** (worst map 92 %, best 31 %) |
+
+Zero magenta means the UV attribute and key resolution are fine — every pixel *is* sampled. And the
+55.3 % matches the coverage the bake already reports (`int_texels` ≈ 2080 of 4096): the 3×2 box atlas
+is about half uncovered by construction.
+
+**So I implemented dilation**, the standard remedy: `--dilate N` (default 4) fills exactly-zero texels
+from their non-zero neighbours, one ring per pass, snapshotting per pass so a filled texel cannot seed
+further fills and smear one value across the padding. **It is explicitly not `--denoise`** — that blur
+rewrites *real* texels and measured 21.8 % wrong against ground truth (220.9 % on dark ones), which is
+why it survives only as a warning. Dilation never touches a baked value, so it cannot bias the map.
+
+It worked on the maps: **55.3 % → 40.3 % zero texels.**
+
+**And it changed the render by nothing at all:**
+
+| livingDining, mapped shell | p10 | median | p90/p10 | near-black |
+| --- | --- | --- | --- | --- |
+| app, no lightmaps | 44.3 | 98.1 | 3.58 | 0.4 % |
+| replace, no dilation | 0.0 | 33.1 | ∞ | **45.1 %** |
+| replace, **dilated** | 0.0 | **33.1** | ∞ | **45.1 %** |
+| Cycles reference | 46.6 | 76.5 | 2.20 | 0.0 % |
+
+Identical to the decimal. **That null result is the finding.** If the black pixels were padding bleed
+at slot boundaries, four rings of dilation would have moved them. They did not move at all — so those
+fragments are landing **deep inside atlas slots the bake never filled**, not near the edges of slots it
+did.
+
+**Which localises the fault precisely: the runtime UVs and the bake's atlas disagree about which face
+goes in which slot.** `lightmapUv.ts` computes the app-side UVs and `make_box_uvs()` packs the bake's
+3×2 grid, and ~45 % of fragments — close to half — read empty slots. A half-and-half split is what a
+sign or axis-order mismatch looks like, and this pair has had exactly that bug before: the arc already
+found the UV atlas built in **Blender's frame** rather than three's and had to convert it.
+
+So the next step is a direct comparison of the two slot-assignment rules, not another bake. Dilation
+stays: it is a real improvement to the artefact (15 points of padding filled), costs nothing, and it
+is the right thing to have when the addressing is fixed.
+
+Suite **10098 green**, `tsc` and biome clean, 11 python tests pass. Flag off, `'multiply'` default.
+
 ## v0.31.7.96 — livingDining HAS the headroom, and the app is 28 % too BRIGHT there. Replace moves the right way and overshoots 3×
 
 Followed `.95`'s redirect. It was the right call, and the answer inverts the framing this thread has

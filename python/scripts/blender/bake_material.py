@@ -97,6 +97,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "ISOLATE it: --denoise and --encode both force one, so any measurement "
                         "comparing them against a default 8-bit bake varies two things at once. "
                         "v0.31.7.22 needed exactly this control.")
+    p.add_argument("--dilate", type=int, default=4, metavar="PASSES",
+                   help="fill exactly-zero texels from non-zero neighbours, N passes "
+                        "(0 disables). ON by default: the box atlas is ~half uncovered and "
+                        "those texels bake to 0, which reached the shader as 44.5 % of shell "
+                        "pixels sampling black (v0.31.7.97). Unlike --denoise this NEVER "
+                        "rewrites a baked value, so it cannot bias the map -- it only extends "
+                        "it into padding that held nothing.")
     p.add_argument("--encode", type=float, default=1.0,
                    help="store texel^encode instead of the raw value; the consumer must apply "
                         "the inverse. 0.5 (a square root) is the useful setting. An 8-bit PNG "
@@ -303,6 +310,63 @@ def make_box_uvs(
     return interior_slots
 
 
+def _dilate_into_zeros(img: bpy.types.Image, res: int, passes: int = 4) -> int:
+    """Fill EXACTLY-ZERO texels from their non-zero neighbours. Returns texels filled.
+
+    **Why.** The 3x2 box atlas is about half uncovered by construction -- the bake
+    reports it itself (`int_texels` ~2080 of 4096) -- and uncovered texels are 0.
+    Measured in `v0.31.7.97`: **55.3 %** of every baked map is exactly zero, and
+    **44.5 %** of rendered shell pixels sample one, so a tenth of the surface goes
+    black whatever gain is applied. `p10 = 0.0` and a spread of infinity against
+    physics' 2.20.
+
+    **This is NOT the blur `--denoise` applies, and the difference is the whole
+    point.** That blur rewrites REAL texels and was measured 21.8 % wrong against a
+    4096-sample ground truth (220.9 % on dark texels), which is why it is kept only
+    as a warning. Dilation only ever writes into texels that are exactly zero; a
+    baked value is never touched. It cannot bias the measurement it feeds, only
+    extend it into the padding that has no value at all.
+
+    Standard lightmap practice for exactly this reason: bilinear filtering at a
+    slot boundary blends against whatever sits outside it, so the padding has to
+    hold something plausible rather than black.
+    """
+    px = list(img.pixels)
+    w = h = res
+    filled = 0
+    for _ in range(passes):
+        # Snapshot per pass, so a filled texel does not seed further fills within
+        # the same pass -- that would smear one value across the whole padding.
+        src = list(px)
+        for y in range(h):
+            for x in range(w):
+                i = (y * w + x) * 4
+                if src[i] != 0.0 or src[i + 1] != 0.0 or src[i + 2] != 0.0:
+                    continue
+                acc = [0.0, 0.0, 0.0]
+                n = 0
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        nx, ny = x + dx, y + dy
+                        if not (0 <= nx < w and 0 <= ny < h):
+                            continue
+                        j = (ny * w + nx) * 4
+                        if src[j] == 0.0 and src[j + 1] == 0.0 and src[j + 2] == 0.0:
+                            continue
+                        for c in range(3):
+                            acc[c] += src[j + c]
+                        n += 1
+                if n == 0:
+                    continue
+                for c in range(3):
+                    px[i + c] = acc[c] / n
+                filled += 1
+    img.pixels[:] = px
+    return filled
+
+
 def _blur_per_slot(img: bpy.types.Image, res: int, passes: int = 3) -> None:
     """Box-blur each atlas slot independently. **MEASURED HARMFUL — see `--denoise`.**
 
@@ -371,6 +435,7 @@ def bake_object(
     encode: float = 1.0,
     denoise: bool = False,
     float_buffer: bool = False,
+    dilate: int = 4,
 ) -> dict:
     """Bake one object to its own image. Per-object rather than an atlas.
 
@@ -382,7 +447,7 @@ def bake_object(
     # 223 distinct levels before, 166 after, exactly backwards from the intent. The float
     # buffer keeps the bake's real values until the single quantisation at save time.
     img = bpy.data.images.new(
-        f"bake_{obj.name}", width=res, height=res, float_buffer=float_buffer or encode != 1.0 or denoise
+        f"bake_{obj.name}", width=res, height=res, float_buffer=float_buffer or encode != 1.0 or denoise or dilate > 0
     )
     # NON-COLOUR, set BEFORE the bake writes, not after. A visibility map is DATA -- three
     # multiplies it straight into `irradiance` -- and Blender saves an 8-bit PNG through the
@@ -413,6 +478,10 @@ def bake_object(
     # rather than better.
     if denoise:
         _blur_per_slot(img, res, passes=3)
+
+    dilated = 0
+    if dilate:
+        dilated = _dilate_into_zeros(img, res, passes=dilate)
 
     if encode != 1.0:
         px_all = list(img.pixels)
@@ -585,7 +654,15 @@ def main(argv: list[str] | None = None) -> int:
         out = os.path.join(out_dir, f"{plan_context}-{key}.png")
         try:
             stats = bake_object(
-                obj, out, a.res, bake_type, interior_slots, a.encode, a.denoise, a.float_buffer
+                obj,
+                out,
+                a.res,
+                bake_type,
+                interior_slots,
+                a.encode,
+                a.denoise,
+                a.float_buffer,
+                a.dilate,
             )
         except RuntimeError as exc:  # noqa: PERF203 — one bad mesh must not lose the batch
             baked.append({"object": obj.name, "area": round(area, 2), "error": str(exc)[:120]})
