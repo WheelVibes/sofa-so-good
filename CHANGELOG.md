@@ -29,6 +29,64 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.115 — decision `(z)`8 cannot be scoped to twilight: the measured curve forces a re-grade of the WHOLE day, including noon
+
+Started implementing "twilight goes fully physical". Reconciled my model against the app's actual code
+first, which was worth doing on its own, and then found a constraint that changes what the decision
+means. **No code change** — reporting before re-grading every daylight hour in the app.
+
+**First, the reconciliation.** My initial pass used turbidity 2.5 and got `Yz(0°) = 1.880` against the
+app's constant of 0.695. Wrong: turbidity is **altitude-dependent** (`SKY_KEYS`: T=5 at 30°, 6 at 10°,
+**8 at 0°**, 9 at −6°, 10 at −12°). With the real curve every value reproduces `v0.31.7.81` exactly —
+`Yz` 35.696 / 6.170 / 2.486 / 0.695 / −0.129 / −1.958 against the doc's 35.7 / 6.17 / 2.49 / 0.695 /
+−0.129 / −1.958, and gains 1.23× / 6.19× / 11.74× / 20.14× against 1.23 / 6.2 / 11.7 / 20.1. The model
+in front of me is now provably the model in the app.
+
+**Then the blocker: a twilight-only fix is NON-MONOTONIC.** Applying the measured 6.19× at 20° while
+leaving daytime at gain 1.0:
+
+| sun alt | resulting `Yz` |
+| --- | --- |
+| 20° | **38.2** |
+| 25° | 7.2 |
+| 30° | 8.2 |
+| 82° | 35.7 |
+
+**The sky would get five times darker as the sun ROSE from 20° to 25°.** The measured "required" curve
+is nearly flat (38.2 at 20°, 43.8 at 82°) while Preetham rises steeply (6.17 → 35.70), so matching it
+at 20° and not above is not a smaller version of the change — it is a discontinuity. To stay monotonic
+the gain has to apply everywhere:
+
+| sun alt | gain needed |
+| --- | --- |
+| 20° | 6.19× |
+| 30° | 4.78× |
+| 40° | 3.65× |
+| 60° | 2.26× |
+| 82° | **1.23×** |
+
+**So `(z)`8 as approved implies brightening the sky at every altitude, including ~1.23× at Singapore
+noon.** My question described it as "the sky is 6–20× short below 20°", which understated the scope:
+it is a re-grade of the entire day cycle, and midday is what every other calibration in this arc was
+measured against (interior 107.1 vs physics 124.2, the window distributions, the `(w)` ceiling
+pricing). That is a disclosure failure in how I posed it, not a change of mind about the physics.
+
+**And the daytime end of that curve is the weakest data in the table.** It comes from inverting a
+display mapping that is nearly saturated — Cycles displays 215.0 at 10°, 223.1 at 20°, 233.9 at 82°,
+so a 5 % display difference becomes a ~15 % level difference. `.81` flagged this itself: "treat the
+high-altitude ratios as indicative". The gains 1.23×–4.78× rest entirely on that inversion. The
+**unsaturated** measurements are the ones below the horizon — 99.6 at −2°, 39.9 at −4°, 18.6 at −6°,
+10.5 at −8°, 5.4 at −10° — and those are where the app is currently exactly **0.0000**.
+
+**One hypothesis killed before it became a claim.** I expected the +71…+76 R−B warm cast to be
+Preetham's chromaticity cubics extrapolated past their domain — the same root cause as the negative
+`Yz`, which would have made all three twilight faults one bug. Computed: the zenith chromaticity is
+**blue at every altitude**, R−B −121 at 82° rising only to +35 at −10°, and −39 at the horizon. It
+never reaches +71, so it is **not** the source. The warmth has to come from the Perez *directional*
+term near the sun's azimuth. Wrong guess, caught by evaluating it.
+
+Suite **10119 green**, `tsc` and biome clean.
+
 ## v0.31.7.114 — the GI ships as infrastructure, but NOT enabled: at `realistic` it draws a visible seam, and `.111`'s "not visible" was measured at the wrong tier
 
 Decision `(z)`1–3 was to ship the irradiance GI on `realistic`, 40 maps, committed to the repo. Three
