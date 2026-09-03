@@ -29,6 +29,53 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.65 — Cycles on the GPU: 2.84x, and verified against the noise floor rather than eyeballed
+
+Phase 0 of the baked-lighting plan. `--device CPU|GPU` on `render_still`, `render_visibility` and
+`bake_material`, plus `--seed` on `render_still` (it already existed on `bake_material`).
+
+**Setting `scene.cycles.device = "GPU"` is not enough**, which is the trap worth recording. The
+device list lives in add-on preferences, and `--factory-startup` — which every script here uses on
+purpose — starts it at `NONE`. So the render falls back to CPU while every log line says GPU.
+`enable_gpu()` sets the backend and enables the devices, and `device_report()` goes into the JSON so
+a fallback is **visible** rather than inferred from a suspicious timing:
+
+    "device": {"requested": "GPU", "backend": "METAL",
+               "active": ["Apple M4 (GPU - 10 cores)"], "fell_back_to_cpu": false}
+
+| | 800×450, 128 samples |
+| --- | --- |
+| CPU | 32.24 / 32.31 s |
+| GPU (Metal, warm) | **11.36 s** |
+
+**2.84×.** But a speedup that changes the image is not a speedup, and two path traces never match
+exactly — so the question needs the arc's own instrument: **a seed pair**. Two renders differing
+only in `cycles.seed` differ only by noise, which is the yardstick any "did this change the
+picture?" claim has to beat.
+
+| comparison | mean \|diff\| | channels >2 counts |
+| --- | --- | --- |
+| CPU seed 1 vs CPU seed 2 — pure sampling noise | 1.285 counts | 12.65 % |
+| CPU vs GPU, same seed — the device switch | **0.513 counts** | **2.18 %** |
+
+**The device changes the image less than half as much as re-rolling the seed does**, and the frame
+means agree to 0.05 counts. So the GPU path is equivalent within the renderer's own noise floor —
+concluded from a control, not from the two images looking similar. (`max` is 141 against the seed
+pair's 37: a handful of outlier pixels, which is what a same-seed comparison on different hardware
+should look like.)
+
+New `scripts/dev-probes/img-diff.mjs`: mean/max/over-threshold plus each frame's own mean, so a
+uniform shift is distinguishable from localised disagreement. It lives in the repo because **sharp
+only resolves from a script file inside it** — the first version of this diff was written to `/tmp`
+and could not import.
+
+**What this unlocks.** The ~35 min full-flat bake becomes ~12 min, which is what makes the
+background-bake architecture arguable rather than theoretical. Defaults are unchanged (`CPU`
+everywhere) until a *bake* is compared the same way — this round measured a camera render, and the
+arc's float-buffer and denoise findings were all established on CPU.
+
+Suite **10078 green**, `tsc` and biome clean, 11 python tests pass.
+
 ## v0.31.7.64 — walk mode draws at HALF the rate it could, and Cycles has been on the CPU all along
 
 Prompted by a direct question: are the fidelity captures still renders or real walk mode? They are

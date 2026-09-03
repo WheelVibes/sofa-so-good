@@ -50,6 +50,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="render_visibility.py")
     p.add_argument("--dir", required=True, help="a BLENDREF directory")
     p.add_argument("--out", default=None, help="default <dir>/visibility.png")
+    p.add_argument("--device", default="CPU", choices=("CPU", "GPU"),
+                   help="Cycles compute device. GPU also enables the backend in add-on "
+                        "preferences (factory-startup leaves it at NONE, which silently "
+                        "falls back to CPU). Metal measured 2.6x faster than CPU once its "
+                        "kernel cache is warm; the FIRST GPU render on a machine pays ~100 s "
+                        "of one-time kernel compilation.")
     p.add_argument("--samples", type=int, default=128)
     p.add_argument("--res", default=None, help="WxH; default the manifest aspect at 800 wide")
     p.add_argument("--albedo", type=float, default=1.0,
@@ -172,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
 
     S.reset_scene()
     S.import_glb(fixed)
-    S.setup_cycles(samples=a.samples, res=(w, h))
+    S.setup_cycles(samples=a.samples, res=(w, h), device=a.device)
     make_visibility_world()
     opened, opened_names = open_apertures()
     slots = whiten_all_materials(a.albedo)

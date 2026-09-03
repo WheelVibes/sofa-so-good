@@ -63,6 +63,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="texture edge in px. Aperture visibility is a smooth, room-scale "
                         "quantity, so it needs far less resolution than an albedo map; 64 is "
                         "ample and keeps the asset small.")
+    p.add_argument("--device", default="CPU", choices=("CPU", "GPU"),
+                   help="Cycles compute device. GPU also enables the backend in add-on "
+                        "preferences (factory-startup leaves it at NONE, which silently "
+                        "falls back to CPU). Metal measured 2.6x faster than CPU once its "
+                        "kernel cache is warm; the FIRST GPU render on a machine pays ~100 s "
+                        "of one-time kernel compilation.")
     p.add_argument("--samples", type=int, default=64)
     p.add_argument("--seed", type=int, default=None,
                    help="Cycles sampling seed. Two bakes at the same settings with DIFFERENT "
@@ -452,7 +458,7 @@ def main(argv: list[str] | None = None) -> int:
     fixed, stripped = glb_fix.strip_noop_dispersion(glb)
     S.reset_scene()
     S.import_glb(fixed)
-    S.setup_cycles(samples=a.samples, res=(64, 64))
+    S.setup_cycles(samples=a.samples, res=(64, 64), device=a.device)
     if a.seed is not None:
         bpy.context.scene.cycles.seed = a.seed
     if a.adaptive_threshold is not None:

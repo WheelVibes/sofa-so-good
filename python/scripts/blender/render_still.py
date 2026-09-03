@@ -46,6 +46,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "something calibrated to the app. Requires --sun-dir.")
     p.add_argument("--hdri-strength", type=float, default=1.0)
     p.add_argument("--hdri-rotation", type=float, default=0.0, help="degrees")
+    p.add_argument("--seed", type=int, default=None,
+                   help="Cycles sampling seed. Two renders differing ONLY in seed differ only "
+                        "by noise, which is the control for any did-this-change-the-image "
+                        "question such as a device switch. Mirrors bake_material.py --seed.")
+    p.add_argument("--device", default="CPU", choices=("CPU", "GPU"),
+                   help="Cycles compute device. GPU also enables the backend in add-on "
+                        "preferences (factory-startup leaves it at NONE, which silently "
+                        "falls back to CPU). Metal measured 2.6x faster than CPU once its "
+                        "kernel cache is warm; the FIRST GPU render on a machine pays ~100 s "
+                        "of one-time kernel compilation.")
     p.add_argument("--samples", type=int, default=64)
     p.add_argument("--res", default="1280x720", help="WxH")
     p.add_argument("--fov", type=float, default=50.0, help="FOV degrees (see --fov-axis)")
@@ -89,7 +99,7 @@ def render(a: argparse.Namespace) -> dict:
         raise RuntimeError(f"no mesh objects in {a.scene}")
 
     centre, radius = S.scene_bounds()
-    S.setup_cycles(samples=a.samples, res=(w, h))
+    S.setup_cycles(samples=a.samples, res=(w, h), device=a.device, seed=a.seed)
 
     sky_info = None
     if a.sky:
@@ -137,6 +147,7 @@ def render(a: argparse.Namespace) -> dict:
         "hdri_route": how,
         "sky": sky_info,
         "bpy": list(S.blender_version()),
+        "device": S.device_report(),
         "meshes": len(meshes),
         "radius": round(radius, 4),
         "samples": a.samples,

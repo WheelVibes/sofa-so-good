@@ -96,8 +96,63 @@ def import_glb(path: str) -> list[bpy.types.Object]:
     return [o for o in bpy.data.objects if o not in before]
 
 
-def setup_cycles(samples: int = 64, res: tuple[int, int] = (1280, 720), device: str = "CPU") -> None:
+def enable_gpu() -> dict:
+    """Turn on Cycles GPU compute, and report what was actually selected.
+
+    **Setting `scene.cycles.device = "GPU"` is not enough.** The device list lives in
+    add-on preferences, and with `--factory-startup` (which every script here uses,
+    on purpose) it starts at `NONE` -- so the render falls back to CPU while every
+    log line says GPU. The returned dict is printed by the callers so a fallback is
+    visible rather than inferred from a suspicious timing.
+
+    **The first GPU render on a machine pays a large one-time kernel compilation**
+    (measured: 111.6 s, against 13.0 s warm). Blender caches the kernels on disk, so
+    the cost lands once per machine per Blender version -- but a benchmark that runs
+    one render and stops will attribute it to the GPU and conclude the GPU is slower.
+    It was that ordering, not the hardware, that made the first CPU/Metal comparison
+    in `v0.31.7.64` point the wrong way.
+    """
+    prefs = bpy.context.preferences.addons["cycles"].preferences
+    available = [t[0] for t in prefs.get_device_types(bpy.context)]
+    backend = next((b for b in ("METAL", "CUDA", "OPTIX", "HIP", "ONEAPI") if b in available), None)
+    if backend is None:
+        return {"backend": None, "devices": [], "note": "no GPU backend available; Cycles stays on CPU"}
+    prefs.compute_device_type = backend
+    prefs.refresh_devices()
+    used = []
+    for d in prefs.devices:
+        d.use = d.type == backend
+        if d.use:
+            used.append(d.name)
+    return {"backend": backend, "devices": used}
+
+
+def device_report() -> dict:
+    """What Cycles will ACTUALLY compute on. Print this; do not infer it from a flag."""
+    sc = bpy.context.scene
+    prefs = bpy.context.preferences.addons["cycles"].preferences
+    active = [d.name for d in prefs.devices if getattr(d, "use", False)]
+    return {
+        "requested": sc.cycles.device,
+        "backend": prefs.compute_device_type,
+        "active": active,
+        # The tell for a silent fallback: GPU asked for, nothing enabled to run it on.
+        "fell_back_to_cpu": sc.cycles.device == "GPU" and not active,
+    }
+
+
+def setup_cycles(
+    samples: int = 64,
+    res: tuple[int, int] = (1280, 720),
+    device: str = "CPU",
+    seed: int | None = None,
+) -> None:
     """Select Cycles and set sampling/resolution.
+
+    `device="GPU"` also has to enable the backend in USER PREFERENCES, not just set
+    `cycles.device`: with the preference left at its default the render silently
+    falls back to CPU and looks like a GPU run that happened to be slow. See
+    `enable_gpu()`.
 
     Assigned directly — see note 1 in the module docstring on why the engine enum
     must not be consulted. Adaptive sampling is left on (5.2.1 default) so the
@@ -105,12 +160,19 @@ def setup_cycles(samples: int = 64, res: tuple[int, int] = (1280, 720), device: 
     """
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
+    if device == "GPU":
+        enable_gpu()
     sc.cycles.device = device
     sc.cycles.samples = samples
     sc.render.resolution_x, sc.render.resolution_y = res
     sc.render.resolution_percentage = 100
     sc.render.image_settings.file_format = "PNG"
     sc.render.film_transparent = False
+    if seed is not None:
+        # Two renders differing ONLY in seed differ only by noise -- the control for
+        # any "did this change the image?" question. Lives here because the entry
+        # points do not all import bpy.
+        sc.cycles.seed = seed
 
 
 def setup_world_hdri(hdr_path: str, strength: float = 1.0, rotation_deg: float = 0.0) -> None:
