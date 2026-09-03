@@ -29,6 +29,61 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.79 — RETRACTION: `.73` and `.78` measured the sky at a turbidity the app never uses; noon is 1.08x, not 1.44x, and twilight is the real defect
+
+Going to ship `.78`'s "two constants" fix, I looked for where turbidity is set — and found the
+measurement had been wrong for two rounds.
+
+**The shipped turbidity is an altitude-driven curve, not a constant.** `skyFromAltitude(alt).turbidity`
+keys **T=5 at 30°+, 6 at 10°, 8 at the horizon, 9 at −6°, 10 at −12°**. The probe I wrote in `.73`
+called `bakeSkyEquirect(toSun, 2.5)` — a literal **I invented** — and every sky figure in `.73` and
+`.78` is against that. A probe that supplies its own value for the parameter under test is measuring
+itself.
+
+**Two other errors in `.73` fall out of the same reading.** It described the sky as "three linear
+gradient stops plus a hand-drawn haze band". That is the **photo** backdrop path
+(`city`/`dusk`/`park`/`hills`). The `sky` preset is a **Perez analytic sky model** — a real one, with
+turbidity, Rayleigh and Mie parameters. And `.78` proposed raising turbidity to 8, which is **exactly
+what the app already uses at the horizon**; applying it globally would have flattened the altitude
+curve — a regression dressed as a fix.
+
+**Corrected, at the turbidity that actually ships:**
+
+| h | elev | app luma | Cycles | ratio | app R−B | Cycles | error |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 7 | −1° | **23.4** | 132.0 | **5.65×** | +5.8 | −35.7 | +41.5 |
+| 13 | 82° | 217.6 | 233.9 | **1.08×** | −62.5 | −21.7 | −40.8 |
+| 19 | 1° | **66.9** | 177.3 | **2.65×** | +9.8 | −28.0 | +37.8 |
+
+**The noon sky is essentially correct — 1.08×, against the 1.42–1.44× reported twice.** `.78`'s
+headline "daytime is 1.44× too dark" is retracted; so is its "the app's horizon is *brighter* than
+physics (0.72×)", which inverts: at the shipped turbidity the app's twilight sky is **2.6–5.7× too
+DARK**. The direction of the defect was wrong, not just its size.
+
+**What survives, and what replaces it:**
+
+- **Noon chroma is a real defect**, reduced: the app is **40.8 counts** too blue in R−B, not 60.7.
+- **Twilight is the actual level defect**, and it is large: 5.65× at elev −1°, 2.65× at +1°. Blender
+  models blue hour as still fairly bright (luma 132–177); the app fades to 23–67.
+- **Twilight chroma is inverted**: the app is ~40 counts too *warm* where physics is cool. So the
+  earlier "the app paints a warm sunset physics does not support" reading stands, but it sits on top
+  of a sky that is also far too dark rather than too bright.
+- **`.77`'s item (l) result is untouched.** That test drove the app with the *Cycles* equirect as the
+  backdrop, so it never used the app's generator: `backgroundIntensity ≈ 4` matching the pane
+  distribution to 0.1 of a point, and the interior invariance, both stand. Same for `.74`/`.76`'s
+  pane-ceiling work, which used the app's own default sky at its real turbidity.
+
+**Fixed so it cannot recur:** the probe's `TURBIDITY` now defaults to `null`, meaning "read
+`skyFromAltitude` at this sun's altitude", and it reports which source it used. Verified: at h13 the
+shipped-curve path reproduces the T=5 override exactly (luma 217.6, R−B −62.5) and differs from the
+old 2.5 literal (164.8, −82.5).
+
+**And no sky change ships.** The fix `.78` specified was aimed at a defect that is five times smaller
+than measured and in the wrong place. The real target is twilight, which is where the arc had already
+noted a modelling disagreement worth a look call — so it needs that call rather than a scalar.
+
+Suite **10083 green**, `tsc` and biome clean.
+
 ## v0.31.7.78 — the sky calibrated against Cycles at five elevations: daytime is TWO constants, and the sunset is a modelling disagreement
 
 `.77` solved item (l) but its fix was not shippable as it stood: a Cycles equirect is valid for one

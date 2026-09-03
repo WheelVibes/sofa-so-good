@@ -23,6 +23,18 @@ const refArg = args.find((a) => a.startsWith('--ref='))
 const outArg = args.find((a) => a.startsWith('--out='))
 const OUT = outArg ? outArg.slice(6) : '/tmp/app-sky-equirect.png'
 const HOUR = Number(process.env.HOUR || 13)
+// TURBIDITY sweeps the Perez model's haze parameter. The `sky` preset is a real
+// Perez sky (not the gradient the photo presets use — `v0.31.7.73` said gradient
+// and was describing the wrong code path), so its over-blueness has a PHYSICAL
+// knob: low turbidity means very clear air and a deeply saturated blue. The
+// shipped default is 2.5, i.e. "exceptionally clear", for tropical Singapore.
+// Unset = read the SHIPPED value from `skyFromAltitude(altitude).turbidity`, the
+// altitude-driven curve the app actually uses (T=5 at 30 deg+, 6 at 10 deg, 8 at
+// the horizon, 10 at -12 deg). Do NOT default to a literal: `v0.31.7.73` and `.78`
+// were measured with a hardcoded 2.5 this probe invented, and reported the app's
+// noon sky as 1.42x too dark when at its real T=5 it is 1.07x. A probe that
+// supplies its own value for the parameter under test is measuring itself.
+const TURBIDITY = process.env.TURBIDITY == null ? null : Number(process.env.TURBIDITY)
 
 const browser = await puppeteer.launch({
   headless: true,
@@ -41,9 +53,10 @@ await page.evaluate((h) => {
 }, HOUR)
 await new Promise((r) => setTimeout(r, 1500))
 
-const got = await page.evaluate(async () => {
+const got = await page.evaluate(async (t) => {
   const mod = await import('/src/scene/backdropEquirect.ts')
   const sun = await import('/src/scene/lighting/sunPosition.ts')
+  const curve = await import('/src/scene/lighting/altitudeCurve.ts')
   const three = window.__three
   // The app's own live sun: read the DirectionalLight's travel vector, the same
   // quantity BLENDREF writes into the manifest that Cycles was placed from.
@@ -64,15 +77,19 @@ const got = await page.evaluate(async () => {
   // is what the first run of this probe produced, and it read as "the app's sky is
   // black" rather than "the probe called it wrong".
   const toSun = [-dir[0] / len, -dir[1] / len, -dir[2] / len]
-  const canvas = mod.bakeSkyEquirect(toSun, 2.5)
+  const alt = Math.asin(Math.max(-1, Math.min(1, toSun[1])))
+  const turb = t == null ? curve.skyFromAltitude(alt).turbidity : t
+  const canvas = mod.bakeSkyEquirect(toSun, turb)
   return {
+    turbidity: turb,
+    turbiditySource: t == null ? 'shipped curve' : 'override',
     dataUrl: canvas.toDataURL('image/png'),
     w: canvas.width,
     h: canvas.height,
     travel: dir.map((v) => +v.toFixed(5)),
     hasSunPosition: typeof sun.orientedSunDirection === 'function',
   }
-})
+}, TURBIDITY)
 if (got.error) throw new Error(got.error)
 fs.writeFileSync(OUT, Buffer.from(got.dataUrl.split(',')[1], 'base64'))
 console.log(
