@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.33 — the wired state is verified IDENTICAL to the probe's, and the render still differs. Diagnosis parked with a named next step
+
+`v0.31.7.32` left the mounted feature delivering ~40 % of the probe's darkening and none of its
+spatial improvement, with two candidates already refuted. This round rules out the obvious
+remaining class — that the wiring writes something different from the probe — and it does not
+find the cause.
+
+**Every inspected property matches.** Dumping the largest matched meshes in the live app with the
+flag on:
+
+| property | wired | probe (`v0.31.7.26`) |
+| --- | --- | --- |
+| atlas slots covered | all 6 | all 6 |
+| vertices | 144 / 132 / 36 | same meshes |
+| `uv1` range | u 0.013–0.987, v 0.02–0.98 | same |
+| `texture.channel` | 1 | 1 |
+| `generateMipmaps` | false | false |
+| image | 256×256 | 256×256 |
+| `colorSpace` / `flipY` | `""` / true | `""` / true |
+| `aoMapIntensity` | 1 | 1 |
+| `onBeforeCompile` / cache key | present / `aoGain6` | present / `aoGain6` |
+
+**So the discrepancy is not in what reaches the materials.** That was the most likely class and it
+is now excluded — which is worth a round on its own, because every previous failure in this
+sequence *was* in that class (wrong frame, wrong channel, wrong UV layout, wrong encoding).
+
+**One number is unexplained but not yet damning:** 24 of 155 programs carry `aoGain` in their
+cache key while 127 materials hold a map. Programs are shared between materials with identical
+parameters, so 24 may be correct — it is the next thing to pin rather than a finding.
+
+**Parked deliberately, with the next step named.** The remaining difference must be in what the
+shader *does* with correct inputs, so the next probe is one of: read back the compiled fragment
+source for a known wall material through the WebGL context, or bisect by driving the gain to an
+extreme value and checking the render responds at all. Either answers it in one run; neither is a
+guess.
+
+**Nothing is at risk while this is open.** The flag defaults off, the render with it off is
+byte-identical to baseline (measured: 115.64 both ways), and all three views hold their measured
+60 fps. What is shipped and working is the offline half — the bake, the maps, the keys, the
+measurement instruments — and the four pure modules with 33 tests between them.
+
+`tsc`, biome, knip clean; 10045 tests green.
+
 ## v0.31.7.32 — mounted, and a shader-compile bug found that the probe path had hidden. Still delivering only ~40 % of the probe's effect
 
 `<VisibilityLightmaps />` is mounted in `Scene.tsx` beside the rig it corrects, flag-gated and
