@@ -27,6 +27,36 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.46 — my own undeclared-floor number was 3× too big; and two more windows unblocked
+
+**Correcting last release.** I reported 264 m² of template floor belonging to no
+room and set out to declare corridors across the library. Splitting those cells by
+distance to the nearest declared room first: **156 m² is margin** — the 0.1-0.2 m
+band left because room rectangles are inset from wall centrelines, which is
+structural to the model, not a defect — and only **75 m² is real space**, roughly
+3 m² per level. The split is sound: a 1 m corridor's centre cells sit 0.5 m from any
+room and count as real, so only its outer band reads as margin.
+
+So the remaining templates hold 4-11 m² of real corridor each, not the 15-22 m² the
+raw figure implied, and re-authoring their room rectangles for that is not worth it.
+Jumbo — the one template where the real space WAS substantial, a 26 m² central hall —
+is already fixed. `TODO.md` corrected; the work is not queued.
+
+**Item (j): two more blocked windows cleared, with no furniture moved.** Both were
+windows sitting at the far end of their room's span, leaving the room's wardrobe no
+wall but the glass one:
+
+- `ex-b2-win` was at offset 7.2 with a 1.6 m pane, running to 8.8 — **0.1 m past
+  bedroom 2's own edge** (5.7-8.7). Moved to 5.9.
+- `jb-b4-win` was at 8.0 in a 6.7-9.6 span. Moved to 6.9.
+
+Blocked windows **6 → 4**, and item (j) is now 11 → 4 overall — still without a
+single arranger change, entirely from fixing where openings sit. Two others were
+swept and would not move (`h4-m-win`, `ex-m-win`): their rooms have no wall the
+wardrobe can take instead.
+
+Verified: 10140 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.45 — a third of jumbo's floor belonged to no room
 
 Two measurements this release, one of which turned into a fix.

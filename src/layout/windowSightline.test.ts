@@ -39,13 +39,11 @@ const KNOWN_BLOCKED = [
   'tpl-hdb-4room/h4-m-win: wardrobe-3door',
   // h5-b2-win CLEARED in v0.31.5.121 by preferring windowless walls for tall
   // storage — the wardrobe had a windowless alternative in that room.
-  'tpl-hdb-exec/ex-b2-win: wardrobe-3door',
   // ADDED by v0.31.5.118, and an honest trade rather than a regression: fixing
   // (h) gave `ex-master` a window it never had AND restored the wardrobe that
   // had been dropped, so the room went from NO glass to glass partly blocked by
   // its own wardrobe. Third instance of item (j)'s pattern.
   'tpl-hdb-exec/ex-m-win: wardrobe-3door',
-  'tpl-hdb-jumbo/jb-b4-win: wardrobe-3door',
 
   'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
   'tpl-condo-studio/su-bath-win: bathroom-sink',
@@ -114,7 +112,7 @@ describe('tall furniture does not stand in front of a window', () => {
   })
 
   // Without this the list could pass by measuring nothing: 83 windows are
-  // examined and 77 of them are clear.
+  // examined and 79 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     // 79 from v0.31.8.29: the jumbo re-author added `jb-b3-win`, Bedroom 3's
@@ -139,6 +137,10 @@ describe('tall furniture does not stand in front of a window', () => {
     // `h5-m-win`. Item (j) has now gone 11 → 8 purely as a side effect of (f)
     // and (i) work — no arranger change has been needed for any of them.
     // 74 → 76 in `.41`, both new windows clear.
-    expect(windows - hits.length).toBe(77)
+    // 77 → 79 in v0.31.8.46: `ex-b2-win` and `jb-b4-win` were sitting at the far
+    // end of their rooms' spans — `ex-b2-win` actually ran 0.1 m PAST bedroom 2's
+    // edge — which left each room's wardrobe no wall but the glass one. Moving
+    // each window within its own span cleared both, with no furniture moved.
+    expect(windows - hits.length).toBe(79)
   })
 })

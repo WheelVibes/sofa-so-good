@@ -265,7 +265,10 @@ export function hdbExecutive(): FloorPlan {
       door('ex-master', 'ex-m-n', 1.0),
       door('ex-b2', 'ex-b2-s', 1.0),
       window('ex-kit-win', 'ex-n', 1.2, 1.8),
-      window('ex-b2-win', 'ex-w', 7.2, 1.6),
+      // 5.9, not 7.2: bedroom 2 lines offsets 5.7-8.7 of `ex-w`, so a 1.6 m pane
+      // at 7.2 ran to 8.8 — past the room's own edge — and left its wardrobe the
+      // only wall it could take, in front of the glass (item (j)).
+      window('ex-b2-win', 'ex-w', 5.9, 1.6),
       // BEDROOM-WINDOW (h): `ex-bed2b` had none. It lines offsets 3.1-5.5 of
       // `ex-w`, which is clear between `ex-m-win` (0.4-2.2) and `ex-b2-win`
       // (7.2-8.8).
@@ -500,7 +503,9 @@ export function hdbJumbo(): FloorPlan {
       // Bedroom 3 owned no window either (z 7.0-9.4 → offsets 3.7-6.1).
       window('jb-b3-win', 'jb-w', 4.6, 1.4),
       window('jb-liv-win', 'jb-e', 2.0, 2.2),
-      window('jb-b4-win', 'jb-e', 8.0, 1.6),
+      // 6.9, not 8.0: bedroom 4 lines offsets 6.7-9.6 of `jb-e`, and at the far
+      // end of its span the wardrobe had nowhere but the glass wall (item (j)).
+      window('jb-b4-win', 'jb-e', 6.9, 1.6),
       window('jb-b5-win', 'jb-e', 11.0, 1.6),
     ],
     rooms: [

@@ -2007,11 +2007,22 @@ Fixed along with three more of the same kind, found by a sweep rather than by ha
 `src/floorplan/windowNaming.test.ts` now ratchets the whole library at zero known
 misnamed windows.
 
-## 264 m² of template floor belongs to no room
+## ~~264 m²~~ 75 m² of template floor belongs to no room — CORRECTED v0.31.8.46
 
 Measured v0.31.8.45 by flood-filling each level's interior and subtracting the
 declared room rectangles. The hand-authored default flat is **4%** undeclared; the
-templates run 4–31%. Undeclared floor is invisible to the area readout, the floor
+templates run 4–31%.
+
+**The 264 m² figure OVERSTATED it about threefold.** Splitting those cells by
+distance to the nearest declared room (v0.31.8.46): **156 m² is margin** — the 0.1-0.2 m
+band left because room rectangles are inset from wall centrelines, which is
+structural to the model and not a defect — and only **75 m² is real space**, about
+3 m² per level. The split is sound: a 1 m corridor's centre cells sit 0.5 m from any
+room and count as real; only its outer band counts as margin.
+
+Jumbo was the one template where the real space was substantial, and it is fixed.
+For the rest, 4-11 m² of real corridor each does not justify re-authoring room
+rectangles — revisit only if a template is being re-planned for another reason. Undeclared floor is invisible to the area readout, the floor
 finish, the socket counts and the circulation statistic, so a plan that is 15–30%
 unaccounted is not contractor-grade.
 
