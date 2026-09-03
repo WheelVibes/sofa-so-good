@@ -27,6 +27,37 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.42 — swept every window against the room its name claims; four were wrong
+
+This bug has been found FIVE times by hand, one template at a time — `h4-m-win`,
+`h5-m-win` and `g3-m-win` all sat in their flat's KITCHEN, `h2-liv-win` in the
+master, `cp-m-win` in the master BATHROOM — and each instance meant one room shipped
+dark while another had two windows. So instead of finding a sixth by hand I swept
+all 83 windows in the library against the room each one's id claims.
+
+**Four more were wrong:**
+
+- `c3-kit-win` landed in the **living room** — the kitchen lines offsets 2.0-5.0 of
+  `c3-w` and the glass sat at 5.0, just past its edge;
+- `cp-liv-win` was a 3.0 m pane overrunning into the **dining room**;
+- `ct-din-win` and `ct-kit-win` were on **each other's side of the house** —
+  the dining room's window sat on the east wall and landed in the **CAR PORCH**.
+
+All four fixed, and the penthouse dining room — which had been borrowing the living
+room's overrunning pane — now has its own. Windows in the library: 82 → **83**.
+
+**Shipped the sweep as `windowNaming.test.ts`**, with an EMPTY known-misnamed list.
+It is deliberately conservative: a window is judged only when its id resolves to
+exactly one room, so 4 of 83 are skipped rather than guessed at, and a second case
+asserts at least 70 are actually judged so an empty list cannot pass vacuously.
+
+Two offsets were measured rather than assumed: past ~10.5 on `ct-e` the kitchen's
+new window reaches the powder room's basin wall and the sink stands in front of it,
+and the penthouse living room's pane had to shrink 3.0 → 2.4 m to fit its own span,
+which costs that template one piece of furniture (1433 → 1432).
+
+Verified: 10130 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.41 — two more bedrooms get windows, and two more windows were in the wrong room
 
 Item (h) had six entries left. Three are interior rooms with no external wall, so

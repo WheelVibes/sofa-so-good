@@ -133,7 +133,11 @@ describe('dining chairs are tucked to their table', () => {
       'tpl-condo-3bed': 81,
       'tpl-condo-4bed': 95,
       'tpl-condo-studio': 25,
-      'tpl-condo-penthouse': 118,
+      // 118 → 117 in v0.31.8.42: `cp-liv-win` was a 3.0 m pane at offset 5.0 that
+      // overran the living room and landed in the DINING room. Pulled back onto
+      // the living's own 3.7-6.3 span (2.4 m) and the dining given its own; one
+      // piece no longer fits beside the relocated glass.
+      'tpl-condo-penthouse': 117,
       // 122 → 120 in `.34`, mostly redistribution once the car porch, dining and
       // kitchen got doors: dining and kitchen each gain one, the living and
       // service yard each lose one, and one piece that had been standing outside
@@ -188,7 +192,8 @@ describe('dining chairs are tucked to their table', () => {
     // precisely because 2.7 also restores wardrobes into rooms with no windowless
     // wall, which parks them in front of glass.
     // 1431 → 1433 in `.41`: `ex-bed2b`'s first window lets two pieces fit.
-    expect(total).toBe(1433)
+    // 1433 → 1432 in `.42`, the window-naming sweep: see the penthouse note above.
+    expect(total).toBe(1432)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

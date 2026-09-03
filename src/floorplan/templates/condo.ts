@@ -411,7 +411,9 @@ export function condo3Bed(): FloorPlan {
       door('c3-mbath-door', 'c3-mbath-n', 0.3, 0.8),
       // The balcony is reached through its parapet line, as a slider would be.
       door('c3-bal-door', 'c3-bal-n', 0.55),
-      window('c3-kit-win', 'c3-w', 5.0, 1.4),
+      // The kitchen lines offsets 2.0-5.0 of `c3-w`; at 5.0 the glass sat just
+      // past its edge and the probe landed it in the living room instead.
+      window('c3-kit-win', 'c3-w', 2.6, 1.4),
       window('c3-b2-win', 'c3-e', 0.8, 1.5),
       window('c3-b3-win', 'c3-e', 3.0, 1.5),
       window('c3-m-win', 'c3-e', 5.6, 1.8),
@@ -486,7 +488,13 @@ export function condoPenthouse(): FloorPlan {
       // carries no other opening.
       window('cp-mbath-win', 'cp-e', 7.6, 2.0),
       window('cp-m-win', 'cp-s', 2.7, 1.4),
-      window('cp-liv-win', 'cp-n', 5.0, 3.0),
+      // The living room lines offsets 3.7-6.3 of `cp-n`; a 3.0 m pane at 5.0 ran
+      // past it and the probe landed in the DINING room.
+      window('cp-liv-win', 'cp-n', 3.9, 2.4),
+      // The dining room had been borrowing `cp-liv-win`, which overran into it.
+      // With that pane pulled back onto the living room's own span, the dining
+      // room gets its own on the 6.4-8.2 stretch it fronts.
+      window('cp-din-win', 'cp-n', 6.6, 1.4),
     ],
     rooms: [
       room('cp-kit', 'Kitchen', 0.2, 0.2, 3.4, 3.2, 'floor-tile-grey', 'kitchen'),
@@ -586,8 +594,13 @@ export function condoTerrace(): FloorPlan {
       door('ct-kit-door', 'ct-din-n', 4.25),
       door('ct-pwd', 'ct-pwd-w', 0.8),
       window('ct-liv-win', 'ct-w', 4.0, 2.0),
-      window('ct-din-win', 'ct-e', 6.0, 2.0),
-      window('ct-kit-win', 'ct-n', 1.0, 1.6),
+      // These two were on each other's side of the house: `ct-din-win` sat on
+      // `ct-e` and landed in the CAR PORCH, `ct-kit-win` on `ct-n`. The dining
+      // room lines offsets 1.9-4.4 of `ct-w`, the kitchen 9.4-11.9 of `ct-e`.
+      window('ct-din-win', 'ct-w', 2.2, 1.6),
+      // 9.6, not further along: past ~10.5 the glass reaches the powder room's
+      // basin wall and the sink stands in front of it.
+      window('ct-kit-win', 'ct-e', 9.6, 1.6),
     ],
     rooms: [
       room('ct-porch', 'Car Porch', 0.2, 0.2, 6.0, 2.4, 'floor-terrazzo', 'other'),

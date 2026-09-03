@@ -2001,9 +2001,8 @@ recovered wardrobe (`h3-master` and `jb-bed5`) are both 2.6 m across, so no
 threshold separates them, and recovering `jb-bed5`'s parks it in front of a window.
 A built-in variant is still worth having for realism, but its value is NOT here.
 
-## tpl-condo-penthouse: `cp-liv-win` is in the dining room, not the living room
+## ~~tpl-condo-penthouse: `cp-liv-win` is in the dining room~~ — FIXED v0.31.8.42
 
-Found while fixing item (h) in v0.31.8.41. Its probe lands in `cp-dining`. The living
-room may therefore have no window of its own — check against the daylight report and
-give it one on a wall it owns, the same fix applied to `cp-master` in that release.
-Not a bedroom, so `bedroomWindow.test.ts` does not cover it.
+Fixed along with three more of the same kind, found by a sweep rather than by hand.
+`src/floorplan/windowNaming.test.ts` now ratchets the whole library at zero known
+misnamed windows.
