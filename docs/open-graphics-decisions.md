@@ -2099,13 +2099,19 @@ Not a tuning change, which is why it is filed rather than taken:
 - **Render the backdrop as geometry** — a large textured shell (or a screen-facing quad at distance) sampled
   directly rather than via `scene.background`, bypassing the CubeUV conversion. Correct parallax, full
   sharpness; costs a draw call and needs care with the sky dome and the HQ snapshot.
-- **Keep `scene.background` but supply a cube texture**, which is not PMREM-converted for background
-  rendering the way an equirect is. Preserves the current structure; needs the presets re-authored as cube
-  maps.
+- ~~**Keep `scene.background` but supply a cube texture**~~ — **❌ REFUTED, `v0.31.7.132`.** Tested on
+  the existing `city` preset without re-authoring anything: `equirectToCube.ts` resamples the same
+  canvas into six 512 px faces (matched resolution — a face spans 90° where the equirect spans 360°,
+  so both are 5.7 px/degree) and `?bgCube=1` hosts it as a `CubeTexture`. The glazing definitely
+  changes (window-crop mean |diff| **7.34**, 57.2 % of channels), so the path is live — and the view
+  is **equally blobby**. Judged by looking, as this item requires. The premise that a cube background
+  escapes the pre-filter does not hold, so the route is closed and the presets never needed
+  re-authoring to find that out.
 - **Accept it and document it** — the presets become mood tinting rather than views, which is arguably what
   they are today.
 
-**The call needed:** whether a legible exterior is wanted, and by which of those routes. It touches the
+**The call needed:** whether a legible exterior is wanted, and — with the cube route refuted — whether
+to pay for **backdrop-as-geometry** or accept the presets as mood tinting. It touches the
 render path and shipped appearance for every backdrop user.
 
 ## (s) ALBEDO-FILL — ✅ DECIDED 2026-09-04, see (z)11: ship luminance-only (built .271, falsified on hue .272)

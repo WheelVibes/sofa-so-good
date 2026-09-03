@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.132 — `(r)`: the cube-texture route is REFUTED, tested without re-authoring anything
+
+`(z)`10 says ship `(r)`, but the item offers three routes and the decision did not pick one. Route 2 —
+"keep `scene.background` but supply a cube texture, which is not PMREM-converted for background
+rendering the way an equirect is" — rests on a claim about three's internals, and taking it would mean
+re-authoring four presets as cube maps. **So it was worth testing on the existing assets first.**
+
+**`equirectToCube.ts`** resamples an equirect into six cube faces at the matched resolution: a face
+spans 90° where the equirect spans 360°, so `width / 4` gives both 5.7 px/degree and no detail is
+invented or discarded. `?bgCube=1` (DEV) hosts the result as a `CubeTexture` on the real backdrop
+path, so the same shipped `city` asset goes through both.
+
+**The path is live and the view is unchanged.** Window crop, `city`, walk mode, `realistic`:
+
+| | |
+| --- | --- |
+| window-crop mean abs diff | **7.34 counts**, 57.2 % of channels |
+| whole-frame mean | 102.14 → 102.39 (Δ 0.26) |
+| h-gradient in the crop | 3.874 → 3.768 |
+
+The glazing genuinely changes — so the cube texture *is* being sampled — while the frame mean barely
+moves, which is the signature of a detail change rather than a brightness one. **And looking at it,
+both are the same faint blue-grey blobs.** No skyline, no window grids, no roofline — against
+`v0.31.5.265`'s ground truth where `UVMapping` on the same asset shows all three.
+
+**So route 2 is closed**, and `(r)`'s remaining fix space is backdrop-as-geometry or accept-and-
+document. The useful part is that this cost one DEV seam instead of four re-authored presets.
+
+**Assessed by looking, deliberately.** `(r)` is recorded as **structurally unverifiable by number** —
+twelve candidate metrics were calibrated against the legible/illegible ground-truth pair in
+`v0.31.5.266` and only one moved, by less than this arc's metrics move from pose alone, because the
+rendered window's high-frequency energy is about twice the entire source image's. My h-gradient is
+exactly such a metric: it is dominated by the ~20 grille bars, which are identical in both frames. It
+is reported for completeness and **carries no weight**.
+
+`equirectToCube.ts` is kept — it is correct, tested, and route 1 would need the same resample. Six
+tests, including a **round-trip against `skyGradient.equirectDir`**, which owns the app's
+direction convention: the failure that matters here is a backdrop that is sharp and *pointing the
+wrong way*, which no brightness metric can see. That test caught a real half-texel error on the first
+run — mine, in the test, not the module.
+
+Suite **10149 green**, `tsc` and biome clean. Shipped path unchanged; the seam is DEV-only.
+
 ## v0.31.7.131 — `(w)` is the SAME FIX as the GI, measured: no second mechanism, and it resolves a conflict between two of your decisions
 
 Moved to `(z)`9 after parking the seam. `(w)` is a real defect in the **default** render path, priced

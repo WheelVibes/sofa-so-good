@@ -1,11 +1,18 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { CanvasTexture, EquirectangularReflectionMapping, SRGBColorSpace, Texture } from 'three'
+import {
+  CanvasTexture,
+  CubeTexture,
+  EquirectangularReflectionMapping,
+  SRGBColorSpace,
+  Texture,
+} from 'three'
 import { useFeature } from '../features/useFeature'
 import type { CameraMode } from '../state/slices/cameraSlice'
 import type { BackdropKind } from '../state/slices/uiSlice'
 import { useStore } from '../state/store'
 import { bakeBackdropEquirect, bakeSkyEquirect, type PhotoBackdropKind } from './backdropEquirect'
+import { equirectToCubeFaces } from './equirectToCube'
 import {
   daylightFromAltitude,
   lightingFromAltitude,
@@ -62,6 +69,48 @@ export function isPhotoBackdropActive(
   return true
 }
 
+/**
+ * Rehost an equirect texture's pixels as a `CubeTexture`. DEV measurement seam for `(r)`.
+ *
+ * Returns `null` rather than throwing if the source has no readable image -- a backdrop that fails
+ * to convert must fall back to the shipped equirect path, not blank the sky.
+ */
+function asCube(tex: Texture): CubeTexture | null {
+  const img = tex.image as (HTMLCanvasElement | HTMLImageElement) | undefined
+  const w = (img as HTMLCanvasElement | undefined)?.width ?? 0
+  const h = (img as HTMLCanvasElement | undefined)?.height ?? 0
+  if (!img || w < 8 || h < 4) return null
+  const read = document.createElement('canvas')
+  read.width = w
+  read.height = h
+  const rctx = read.getContext('2d')
+  if (!rctx) return null
+  rctx.drawImage(img, 0, 0)
+  // A cube face spans 90 degrees where the equirect spans 360, so `w / 4` is the matched
+  // resolution: larger would invent detail, smaller would throw away what `(r)` is about.
+  const size = Math.max(16, Math.min(1024, Math.round(w / 4)))
+  const faces = equirectToCubeFaces(rctx.getImageData(0, 0, w, h), size)
+  const canvases = faces.map((f) => {
+    const c = document.createElement('canvas')
+    c.width = size
+    c.height = size
+    const cctx = c.getContext('2d')
+    if (cctx) {
+      // `createImageData` + `set` rather than `new ImageData(data, w, h)`: the constructor's
+      // overload rejects a plain `Uint8ClampedArray` under this TS lib, and going through the
+      // context also guarantees the buffer matches the canvas it is written to.
+      const id = cctx.createImageData(size, size)
+      id.data.set(f.data)
+      cctx.putImageData(id, 0, 0)
+    }
+    return c
+  })
+  const cube = new CubeTexture(canvases)
+  cube.colorSpace = SRGBColorSpace
+  cube.needsUpdate = true
+  return cube
+}
+
 /** Configure a texture as an LDR equirectangular `scene.background`. */
 function asEquirect(tex: Texture): Texture {
   tex.mapping = EquirectangularReflectionMapping
@@ -115,7 +164,20 @@ export function SceneBackdrop() {
         tex.dispose()
         return
       }
-      texture = asEquirect(tex)
+      // `?bgCube=1` (DEV) hosts the SAME asset as a CUBE texture instead of an equirect.
+      //
+      // A measurement seam for item `(r)`, not a feature. `v0.31.5.263`/`.265` established that
+      // three converts an equirect `scene.background` into a pre-filtered CubeUV/PMREM, so a crisp
+      // 2048x1024 skyline arrives at the window as faint blobs -- and that the content survives to
+      // the GPU intact, since rehosting the same canvas with `UVMapping` shows a legible city.
+      // `UVMapping` is not shippable (no parallax, not projectively correct through a window); a
+      // cube texture is the candidate that keeps `scene.background`'s structure. The premise --
+      // that a cube background is NOT PMREM-converted the way an equirect is -- is a claim about
+      // three's internals worth testing on the existing presets before re-authoring four of them.
+      const wantCube =
+        import.meta.env.DEV && new URLSearchParams(window.location.search).get('bgCube') === '1'
+      const cube = wantCube ? asCube(tex) : null
+      texture = cube ?? asEquirect(tex)
       scene.background = texture
       invalidate()
     }
