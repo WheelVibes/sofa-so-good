@@ -29,6 +29,67 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.164 — the GI seam is DIAGNOSED after six refutations: it is a coverage-by-CLASS gap, and 1070 of 1122 meshes get no GI
+
+`.130` parked this with six hypotheses eliminated and no cause. All six were about the UV/atlas/bake
+machinery — coverage, per-map scale, UV margin, shader-vs-data, atlas holes, `uv1` conflicts — and
+**all six were right to hold**, because the machinery was never at fault.
+
+**Two attribution errors caught on the way, both by controls rather than by reasoning.**
+
+1. The curtain rod shows an evenly spaced dark dashed pattern along its length, which matches the
+   recorded description ("evenly spaced, geometric rather than texel-aligned") almost exactly. It is
+   present with the feature **OFF**: it is the rod's own faceting. A GI-off crop of the same rect
+   settled it in one look.
+2. The "comb" of teeth at the curtain tops in the difference image is not an artefact drawn on the
+   curtain — it is the region where the difference is **zero**. The curtain is bit-identical between
+   the arms while the wall behind it darkens, so what reads as a toothed seam is the silhouette of a
+   mesh that receives no GI at all.
+
+**The census, once it read the right property.** `material.lightMap` is empty on every mesh — the GI
+is injected by a shader patch on `diffuseColor`, so a census of the standard slot reports
+`mapped=0` while the frame visibly changes by 2.56 counts. Read through `userData.visMapUrl`, which
+the applier stamps in DEV for exactly this purpose:
+
+```
+tier=realistic  meshes=1122  mapped=52  unmapped=1070
+unmapped WITH a uv1 attribute: 0
+```
+
+The machinery is clean — every mesh given `uv1` also got a map, zero strays. The gap is **which
+meshes are eligible at all**, and it has two layers:
+
+- **By class.** The bake takes `--min-area 3.0` and only shell-sized meshes qualify, so curtains,
+  furniture and trim are never baked. This is the dominant layer: ~1000 meshes.
+- **By budget.** Some genuine shell is unmapped too — `1.42 × 2.6 × 0.3` and `1.3 × 2.6 × 0.3`
+  meshes are walls — because the shipped set is 40 maps at ~50 % coverage.
+
+**This is why `.114`'s refutation could not have worked.** It raised coverage 10 % → 50 % and saw no
+change, and concluded the mapped/unmapped boundary was not the cause. But coverage varies the
+*second* layer only; baking more maps never reaches a mesh nothing intends to bake. The hypothesis
+was right and the experiment addressed the wrong variable — which is a different failure from the
+five genuine refutations beside it, and worth separating.
+
+**Not yet fixed, and the route is now a choice rather than a hunt.** The discontinuity is largely a
+LEVEL step (the shell darkens broadly and smoothly; unmapped meshes stay at 1.0), so the cheap route
+is to apply the set's mean GI factor to ineligible meshes — no new assets, no bake, and it removes
+the step while leaving the spatial variation the maps exist to carry. The expensive route is to lower
+`--min-area` and bake the contents, which costs download and bake time. The cheap route is measured
+next.
+
+**Three instruments added**, each because a look-at-the-artefact step had no tool:
+
+- `crop-zoom.mjs` — nearest-neighbour crop, so a few-texel edge artefact is legible and countable.
+- `diff-image.mjs` — amplified absolute-difference frame. This is what localised the artefact; a
+  2.5-count mean is invisible in a side-by-side.
+- `lightmap-census.mjs` — which meshes actually BIND a map, with spans, plus the trap that
+  `material.lightMap` is the wrong property to ask.
+
+Also recorded: `(z)`4's measurements in `.163` were taken at `performance`; re-run at `realistic`
+the GI effect is 2.29–2.56 counts (max 41, ~34 % of channels), and the tier's whole-frame mean is
+159.7 against `performance`'s 199.6 — a reminder that every number here is tier-dependent.
+
+
 ## v0.31.7.163 — `(z)`4 measured and DECLINED: the Cycles sky's premise was spent by `(l)`'s fix
 
 Two negative results, no shipped code. Both were worth the run because both were about to be built.

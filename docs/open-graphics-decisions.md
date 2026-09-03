@@ -4261,9 +4261,16 @@ not worth a permanent look constant, so it is reverted rather than tuned.
 
 **Two threads are parked with hypotheses eliminated and fallbacks identified**, not abandoned:
 
-- **The GI seam** — six causes ruled out (coverage, per-map scale on shared materials, UV margin,
-  shader-vs-data, atlas holes, `uv1` conflicts). It is in the baked data, on narrow meshes'
-  silhouette edges, evenly spaced and geometric rather than texel-aligned.
+- **The GI seam** — ✅ **DIAGNOSED `v0.31.7.164`, no longer parked.** All six earlier refutations
+  were about the UV/atlas/bake machinery and all six hold: the machinery is clean (`mapped=52`,
+  `unmapped=1070`, and **zero** meshes carry `uv1` without a map). The cause is *eligibility*: the
+  bake's `--min-area 3.0` takes only shell-sized meshes, so ~1000 curtain/furniture/trim meshes are
+  never baked, and the shell itself is only ~50 % covered by the 40-map budget. What reads as a
+  dotted seam on a narrow mesh is the silhouette of an UNMAPPED mesh beside a darkened wall — in
+  the difference image it is the region where the difference is **zero**. `.114`'s coverage test
+  (10 % → 50 %) could not have refuted this: it varies the budget layer, never the class layer.
+  Two look-alikes were excluded by control — the curtain rod's dashes are its own faceting and are
+  present with the feature OFF.
 - **`(s)`'s wall classifier** — four attempts (perimeter, inward-facing, exporter tag, tag+side) all
   plateau at 42 % of the bucket actually repainting. **The fallback works**: an empirical two-export
   face diff is an exact classifier by definition, and `.139` proved those buckets reconstruct ρ.
