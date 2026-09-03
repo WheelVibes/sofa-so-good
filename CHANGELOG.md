@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.60 — chroma decomposes the same way, and its residual is small and consistent: CLOSED as not a defect
+
+The five references make one more open quantity testable. `v0.31.7.5` measured a WB-invariant
+chroma residual of ~6 counts on a single plan and left it as "the pane is *a* consistent chroma
+offender". Across all five views:
+
+| view | WB-invariant residual | raw frame-mean gap |
+| --- | --- | --- |
+| 4-Room livingDining | 8.7 | **+18.2** |
+| 4-Room bedroom3 | 7.0 | **+32.5** |
+| 4-Room mainBedroom | 7.6 | **+32.8** |
+| 5-Room kitchen | 7.0 | **+1.6** |
+| Executive living | 6.2 | **−11.3** |
+
+**Chroma splits exactly as tonality did**, which is the interesting part:
+
+- The **raw** gap swings from **+32.8 to −11.3** and *changes sign* — scene-dependent, like error
+  (B). That term is white balance, which `.315` established is not comparable across pipelines,
+  so its variation is expected and meaningless.
+- The **WB-invariant residual** is **6.2–8.7 counts, mean 7.3, cv 11 %** — scene-*independent*,
+  like error (A).
+
+**And unlike (A), the constant is small enough to close the item.** Seven counts of R−B on an
+8-bit channel difference, consistent across two plans and five rooms, sits well below the defects
+this arc actually found: a ~3× error on a wall (item w) and a 27 % window deficit (item l). There
+is no scene-dependence to make it intractable and no magnitude to make it worth fixing. **The
+app's chroma structure agrees with physics.**
+
+That also retires the "the pane is a consistent chroma offender" framing from `v0.31.7.5`: the
+worst tile is +14 to +16 counts in four views and −14.6 in the fifth, so the sign is not even
+consistent, and the aggregate never exceeds 8.7.
+
+**Which leaves the arc with exactly two live items and one closed pair.** (l) the window level —
+one constant, 1.368×, cv 0.63 %, escalated with the number. (w) interreflection — real, and the
+baked-visibility approach measured as non-generalising. (x) scene response — closed, needs real
+indirect light. Chroma — closed, not a defect.
+
+`tsc`, biome clean; suite **10058 green**; measurement only, on references already on disk.
+
 ## v0.31.7.59 — (B) is not fixable by correction: four predictors refuted on five views, and the app's own output carries no signal either
 
 A fifth reference, chosen to **discriminate** rather than to confirm: the Executive living room is
