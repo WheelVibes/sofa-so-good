@@ -1719,6 +1719,16 @@ const AOSYNTH = process.env.AOSYNTH || ''
 //
 // `customProgramCacheKey` is set alongside, or three reuses a cached program compiled from the
 // unpatched chunk and the patch silently does nothing -- the same class of failure as `.254`.
+// AOSPEC=1 also attenuates indirect SPECULAR (`v0.31.7.23`).
+//
+// The derived gain -- `1 / mean(V)` computed from the maps themselves, area-weighted -- is
+// **5.97**, while sweeping puts the best spatial match near **10**. A factor of 1.7 is too large
+// to shrug at, and one candidate is physical: the patch attenuates only
+// `reflectedLight.indirectDiffuse`, so the environment's specular contribution survives
+// unattenuated and dilutes the term, which a larger gain then has to compensate for. Aperture
+// visibility should attenuate specular IBL too -- a surface that cannot see the sky cannot
+// reflect it either.
+const AOSPEC = process.env.AOSPEC === '1'
 const AOGAIN = process.env.AOGAIN ? Number(process.env.AOGAIN) : 0
 const AONORM = process.env.AONORM ? Number(process.env.AONORM) : 0
 const AOGAMMA = process.env.AOGAMMA ? Number(process.env.AOGAMMA) : 0.7
@@ -1789,7 +1799,7 @@ const applyAoMap = !AOMAP
           `data:image/png;base64,${fs.readFileSync(`${AOMAP}/${byKey.get(k)}`).toString('base64')}`
       }
       const applied = await page.evaluate(
-        async ({ maps, gamma, synth, norm, gain }) => {
+        async ({ maps, gamma, synth, norm, gain, spec }) => {
           const load = (url) =>
             new Promise((resolve, reject) => {
               const img = new Image()
@@ -1925,10 +1935,11 @@ const applyAoMap = !AOMAP
                   .replace(
                     '#include <aomap_fragment>',
                     'float ambientOcclusion = texture2D( aoMap, vAoMapUv ).r * aoGain;\n' +
-                      'reflectedLight.indirectDiffuse *= ambientOcclusion;',
+                      'reflectedLight.indirectDiffuse *= ambientOcclusion;' +
+                      (spec ? '\nreflectedLight.indirectSpecular *= ambientOcclusion;' : ''),
                   )
               }
-              m.customProgramCacheKey = () => `aoGain${gain}`
+              m.customProgramCacheKey = () => `aoGain${gain}${spec ? 's' : ''}`
             }
             if (!g.attributes.uv1) g.setAttribute('uv1', boxAtlasUv(g))
             m.needsUpdate = true
@@ -1936,7 +1947,14 @@ const applyAoMap = !AOMAP
           })
           return { n }
         },
-        { maps: payload, gamma: AOGAMMA, synth: AOSYNTH, norm: AONORM, gain: AOGAIN },
+        {
+          maps: payload,
+          gamma: AOGAMMA,
+          synth: AOSYNTH,
+          norm: AONORM,
+          gain: AOGAIN,
+          spec: AOSPEC,
+        },
       )
       if (applied.error) throw new Error(`AOMAP: ${applied.error}`)
       await new Promise((r) => setTimeout(r, 1500))

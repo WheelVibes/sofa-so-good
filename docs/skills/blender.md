@@ -173,6 +173,15 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — DERIVE the shader gain for a visibility map; don't fit it.** If the app's fill
+  stands in for a room's average indirect irradiance, the gain is exactly `1 / mean(V)` computed
+  from the maps (area-weighted, counting only filled atlas slots): **0.1674 ⇒ 5.97**, which landed
+  on the same value the sweep found. `scripts/dev-probes/bake-gain.mjs`.
+- **2026-09-03 — if 16× the samples does not change the bake, the artefact is SYSTEMATIC.** A
+  256-sample visibility bake matched a 4096-sample one to 1.5 % while both showed the same
+  speckle. That rules out Monte Carlo noise and points at geometry — ray leakage at the seams of
+  abutting wall boxes is the standing hypothesis. It also explains why blurring "helped" the
+  picture while corrupting the data: it was smoothing reproducible signal.
 - **2026-09-03 — compare a bake against a CONVERGED bake, not against a low-pass of itself.** A
   residual-after-blur metric cannot tell noise from wanted structure. Measured against a
   4096-sample ground truth, a 256-sample visibility bake is accurate to **1.5 %** — it was never

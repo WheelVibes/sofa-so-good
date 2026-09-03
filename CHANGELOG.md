@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.23 — the gain is DERIVED and agrees with the fit; the speckle is SYSTEMATIC, not sampling noise
+
+Three results, and the last one explains the previous three rounds.
+
+**The gain is computed, not fitted.** `scripts/dev-probes/bake-gain.mjs` derives it from the maps:
+the app's fill stands in for a room's *average* indirect irradiance, so with the operator being
+`texel × gain` the physically-right value is exactly `1 / mean(V)`. Area-weighted over 110 maps
+and 901 m² — a 34 m² wall and a 3 m² one contribute very differently to a room's average — and
+counting only texels in slots the atlas actually filled, since averaging empty slots in would
+inflate the gain:
+
+> **mean visibility 0.1674 ⇒ derived gain 5.97**
+
+**And it agrees with the sweep.** On the accurate 256 px maps, **gain 6 gives spread 1.36×** —
+the same figure the `v0.31.7.9` analysis gave as its ideal, and the same the sweep reaches at
+gain 10. `v0.31.7.19`'s "optimum near 10" was an artefact of the old 64 px bake; with accurate
+maps the derived and fitted gains coincide. A number computed from first principles landing on
+the number found by search is the strongest evidence yet that the term is behaving as modelled.
+
+**Specular attenuation: physically motivated, and refuted.** A surface that cannot see the sky
+cannot reflect it either, so `AOSPEC=1` also attenuates `reflectedLight.indirectSpecular`.
+Measured: **1.51× at gain 6** against 1.36× without it, and 1.35× vs 1.36× at gain 10. It makes
+the match slightly worse at the derived gain and changes nothing at the fitted one, so indirect
+specular is not the diluting term. Kept as a knob, documented as refuted.
+
+**Then look at the wall, and the real problem is finally named.** At the derived gain the
+near-left wall is correctly **dark** — physics has it dark too — but it is covered in fine
+speckle that physics does not have. Combined with `v0.31.7.22`'s ground-truth result, that is
+diagnostic:
+
+> The 256-sample bake matches a **4096-sample** bake to **1.5 %**. If the speckle were Monte
+> Carlo noise, sixteen times the samples would have removed it. It did not. **The speckle is
+> systematic — reproducible at any sample count.**
+
+That single fact explains the whole sequence: why more samples bought nothing (`v0.31.7.21`),
+why the blur "worked" visually while being 21.8 % wrong (`v0.31.7.22` — it was smoothing a
+*reproducible* artefact, i.e. destroying data), and why the map reads as accurate against its own
+converged version while looking wrong in the render.
+
+**The likely cause, stated as a hypothesis to test rather than a conclusion:** ray leakage at
+geometry seams. The shell is built from abutting boxes, and a bake ray starting on one wall can
+slip through the join with its neighbour and see the sky, giving that texel a large stable value
+while its neighbour gets none. Testable with a ray-bias/offset or by baking a welded shell —
+which is the next round.
+
+**Nothing shipped.** Probes and bake scripts only; 60 fps intact; `tsc`, biome, knip clean,
+10011 tests green.
+
 ## v0.31.7.22 — REVERSAL: the bake was never noisy. The blur is 21.8 % wrong and the "noise" was signal
 
 `v0.31.7.20` called a per-slot blur *"what actually worked"*. `v0.31.7.21` built a noise metric
