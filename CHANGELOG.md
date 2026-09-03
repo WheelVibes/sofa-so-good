@@ -29,6 +29,70 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.64 — walk mode draws at HALF the rate it could, and Cycles has been on the CPU all along
+
+Prompted by a direct question: are the fidelity captures still renders or real walk mode? They are
+real walk mode — live WebGL, real tier, settled — which exposed the gap that **every frame-cost
+figure in this arc was taken in ORBIT mode** while every fidelity figure was taken in WALK. Those
+are different rigs with different content: walk is inside the room and mounts the HUD and the
+minimap. `frame-time.mjs` gained `MODE=walk`.
+
+**Walk mode is roughly half as fast as orbit at every tier — and it is not saturation.**
+
+| tier | orbit drawn/s | walk drawn/s | walk rAF/s | ratio |
+| --- | --- | --- | --- | --- |
+| performance | 59.9 | 30.2 | 60.0 | **1.99** |
+| medium | 59.9 | 30.2 | 60.0 | **1.99** |
+| high | 59.4 | 25.1 | 49.7 | **1.98** |
+| maximum | 58.5 | 10.8 | 21.1 | **1.95** |
+
+**The rAF-to-drawn ratio is 2.00 at every tier in walk and 1.00 in orbit.** That is a cadence, not
+a cost curve: the renderer draws on every *other* animation frame. `RenderPump` has no such
+throttle — it calls `invalidate()` on every rAF while walk is active — so the suspicion was that
+its single invalidate lands after r3f has already decided the frame, where orbit gets a second one
+from `OrbitControls`' own `change` event.
+
+**Tested, not assumed.** `__three` now exposes `invalidate` (dev-only seam, mirroring `advance`),
+and `EXTRAINV=1` adds one more invalidate per rAF:
+
+| tier | walk drawn/s | + extra invalidate |
+| --- | --- | --- |
+| performance | 30.2 | **60.0** |
+| medium | 30.2 | **55.8** |
+| high | 25.1 | 24.9 |
+| maximum | 10.8 | **29.9 – 41.4** |
+
+Every ratio becomes 1.00 and the rate roughly doubles — **~2× walk-mode frame rate for no fidelity
+change.** The orbit control passes: orbit is already 1:1, and the extra invalidate moves it 59.9 →
+59.9 and 58.5 → 59.5, so the instrument does not inflate rates by itself. `WALKPITCH=0` is a second
+control — the pitch driver costs a CDP round-trip per iteration and could have caused the stall it
+was measuring; without it the numbers reproduce to within 0.4 fps.
+
+**A real inversion: `high` is SLOWER than `maximum` in walk mode.** `high` is pinned at 24.9 / 25.1
+/ 24.9 / 24.9 across four runs and does not respond to the extra invalidate at all, while `maximum`
+moves to 29.9–41.4. So `high` has a genuine ~40 ms/frame bottleneck in walk mode, and only ~8 ms of
+it is inside `gl.render`. Unexplained, and now measured.
+
+**Separately: every render and bake in this arc has been CPU-only.** `setup_cycles(device="CPU")`
+is the default and nothing overrides it.
+
+| device | 800×450, 128 samples |
+| --- | --- |
+| CPU | 32.4 / 34.2 s |
+| Metal, first render on a cold kernel cache | **111.6 s** |
+| Metal, warm | **11.3 / 12.9 / 13.0 s** |
+
+**Metal is 2.6× faster once warm** — and the first measurement said the opposite. I ran CPU first
+and Metal second in one process and got 111.6 s, which reads as "GPU is 3.4× slower"; that figure
+was one-time Metal kernel compilation, which Blender caches to disk, so the next process saw 11.3 s
+on its *first* Metal render. A single ordering made the conclusion point the wrong way. This is a
+camera render, not a bake, so the bake speedup is indicated rather than measured, and no default
+changed here.
+
+Suite **10078 green**, `tsc` and biome clean. No fix shipped for the invalidate cadence: doubling
+the walk render rate also doubles walk-mode power draw, and `RenderPump`'s whole design note is the
+idle battery win, so that trade is the user's call — with the numbers now attached.
+
 ## v0.31.7.63 — the app half of every reference pair had the UI in it; and an out-of-sample view
 
 Two results, one instrument fix, and a retraction.
