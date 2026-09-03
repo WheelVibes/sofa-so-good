@@ -29,6 +29,44 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.161 — regression sweep over everything shipped tonight: both tiers, three hours, all clean
+
+Three user-visible changes went live this session — `(l)`'s window fix (`d³ · 5.2`), `(m)`'s vignette
+on every tier, and the twilight continuation. Swept them together rather than trusting three separate
+single-arm verifications.
+
+| tier | 08:00 | 13:00 | 21:00 |
+| --- | --- | --- | --- |
+| `performance` | 110.30 | 112.66 | **37.84** |
+| `realistic` | 106.12 | 106.69 | **34.62** |
+
+All six render with exit 0. **Night is properly dark at both tiers** (37.8 / 34.6 against ~110 by
+day), which is `(l)`'s standing constraint holding in the frame as well as in the function — the
+sky-catch is exactly 0 at zero daylight, so the ×13 coefficient has nothing to scale.
+
+**Looked at the highest-risk combination**: `performance` at 13:00, the tier most users see, carrying
+both new changes at once. Bright window with **crisp grille bars**, subtly darkened corners, no
+artefacts, no bloom, no seams. And it delivers on the thing `glassSkyCatchIntensity`'s docstring
+claimed all along — *"works on every tier, including the flat Performance default where windows
+otherwise read as flat dark panes"* — which was true of the mechanism and not of the magnitude until
+tonight.
+
+Nothing regressed. Suite **10167 green**, `tsc` and biome clean.
+
+**State of the arc at the end of this session:**
+
+- **Live and frame-verified:** `(l)` windows read as openings at every daylight hour; `(m)` vignette
+  on both tiers at no measurable cost; twilight's black band moved −4° → −8°, to the ceiling its
+  scope allows.
+- **Built, gated, with a measured reason each:** the Blender GI (ceiling **0.66 → 0.87**, ~1.4 ms
+  p50, blocked on one edge artefact with six causes eliminated); the `dprMax` rung (ladder tested,
+  actuation needs the raw-`gl` path `InteractiveDprController` documents); `(s)`'s bake-time census
+  (reconstructs ρ to **1.1 %** out of sample, wall classifier parked at 42 %); the Cycles sky keys
+  (correct and tested, measured worth **0.34 counts** once `(l)` was fixed properly).
+- **Instruments repaired: six**, four of which had been reporting confidently wrong numbers — mirrored
+  masks, 16-bit reads 256× too dark, a counter that could not fire, and a threshold valid at only one
+  bit depth.
+
 ## v0.31.7.160 — the GI headline re-measured against the post-fix baseline: `ceiling 0.66 → 0.87`, the benefit survives
 
 `.159` invalidated the GI's headline by shifting the normaliser. Re-ran it immediately, since it is
