@@ -662,6 +662,17 @@ same change that reshapes a system.
   SketchUp/Blender/Figma "zoom to selection". Pure bounds→camera math in
   `scene/cameras/frameSelection.ts` (unit-tested): `resolveSelectionExtents` turns each selected
   item into a world-space `itemFootprint` OBB + vertical span (`def.verticalSpan ?? [0, h]`),
+  *(**Rotation convention — one authority, and it is the render.** `Furniture.tsx` mounts the mesh
+  at `rotation={itemRotation(item)}` = `[pitch, yaw, roll]`, i.e. plain three.js, where local `+Z`
+  maps to world `(sin θ, cos θ)` — the convention `layout/faceWall.ts` documents and every
+  forward-direction derivation in `layout/` and `analysis/` follows. Until v0.31.8.10
+  `collision/placement.ts` rotated part/GLB offsets with the OPPOSITE sense, so an asymmetric
+  footprint at any rotation with `sin θ ≠ 0` collided as its own MIRROR IMAGE — 1.82 m off for
+  `sofa-lshape` at π/2, and wrong in 3 of the 4 natural orientations of `cabinet-corner`, which
+  exists to be rotated into a corner. Invisible for a centred rectangle and for the symmetric
+  ellipse approximations, which is why it survived; `granularFootprint.test.ts` now pins
+  collision against the drawn overlay at non-axis rotations. **Never derive a facing direction
+  from a transform that happens to be nearby — look it up.**)*
   `selectionBounds` unions them (via `layout/alignDistribute.ts` `obbAxisHalf`) into one bounding
   sphere, and `fitDistanceForFov` (the same formula `OrbitCamera`'s whole-plan `fitDistance` uses)
   turns the radius into a camera distance, clamped to the `<OrbitControls>` min/max

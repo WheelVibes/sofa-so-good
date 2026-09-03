@@ -113,8 +113,8 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
   const sz = (item.flipZ ? -oz : oz) * scaleZ
 
   return {
-    cx: item.position[0] + cos * sx - sin * sz,
-    cz: item.position[1] + sin * sx + cos * sz,
+    cx: item.position[0] + cos * sx + sin * sz,
+    cz: item.position[1] - sin * sx + cos * sz,
     hx: (w * scaleX) / 2,
     hz: (d * scaleZ) / 2,
     rot: item.rotation,
@@ -145,8 +145,8 @@ export function itemFootprintParts(item: FurnitureItem, def: FurnitureDef): OBB[
     const sdx = p.dx * scaleX
     const sdz = p.dz * scaleZ
     return {
-      cx: base.cx + cos * sdx - sin * sdz,
-      cz: base.cz + sin * sdx + cos * sdz,
+      cx: base.cx + cos * sdx + sin * sdz,
+      cz: base.cz - sin * sdx + cos * sdz,
       hx: (p.w * scaleX) / 2,
       hz: (p.d * scaleZ) / 2,
       rot: item.rotation + (p.rot ?? 0),

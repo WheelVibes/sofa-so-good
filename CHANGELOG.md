@@ -27,6 +27,54 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.10 - Asymmetric footprints collided as their own mirror image
+
+Found by sweeping for other places the `.9` mistake could repeat — deriving a
+rotation convention instead of looking it up. It repeated in the collision core.
+
+`collision/placement.ts` rotated footprint-part offsets (and a GLB's authored
+off-origin offset) as `(cos·dx − sin·dz, sin·dx + cos·dz)`. The render uses plain
+three.js — `Furniture.tsx` mounts the mesh at `rotation={itemRotation(item)}` —
+where local `+Z` maps to `(sin θ, cos θ)`. Those are **opposite senses**, so for
+any asymmetric footprint at a rotation with `sin θ ≠ 0` the collision shape was
+the MIRROR IMAGE of the drawn one.
+
+Measured on `sofa-lshape` at π/2: collision and the drawn overlay were **1.82 m
+apart**. At rotation 0 and π they agree exactly, which is most of why this
+survived.
+
+**The overlay was always right, and that is what settled the direction.**
+`SelectionOutline` and `PlacementGhost` drop `itemFootprintPartsLocal` into a
+group rotated `[0, obb.rot, 0]` — three.js, same as the mesh. So the app has been
+DRAWING the correct footprint and colliding against a mirrored one.
+
+**Two defs are affected, and the second is the telling one:**
+
+- `sofa-lshape` — the chaise blocked on the wrong side.
+- `cabinet-corner` — a corner cabinet exists to be rotated into a corner, so 3 of
+  its 4 natural orientations were wrong.
+
+**Impact on shipped content is ZERO, and that is worth stating rather than
+hiding.** Censused across the authored flat and all 19 templates x 3 seeds: 4254
+placed items, 73 with multiple footprint parts, and **0 of them asymmetric** —
+every multi-part piece in generated layouts is one of the mirror-symmetric
+ellipse approximations. Neither affected def appears in any preset's output. So
+the full test suite passed unchanged after the fix, which is a statement about
+coverage, not about safety: nothing tested an asymmetric footprint at a non-axis
+rotation, so there was nothing to break. It bites a USER who rotates an L-sofa or
+a corner cabinet, which is the entirely ordinary thing to do with both.
+
+The new invariant is the durable part: `granularFootprint.test.ts` asserts
+collision and the overlay agree for the L-sofa at six rotations including two
+non-axis ones, and **4 of the 6 fail against the old transform** (exactly those
+with `sin θ ≠ 0`). A companion test asserts the L-sofa's parts are genuinely
+asymmetric, so the invariant cannot quietly stop protecting anything if that shape
+is ever changed.
+
+`analysis/layoutCritique.ts`'s `headDir` cited this same transform as its
+authority in `.9`. It was the wrong authority for a direction then, and it turns
+out the transform itself was wrong for offsets too.
+
 ## v0.31.8.9 - `headDir` returned the FOOT for any bed rotated 90 degrees
 
 A bug I shipped in PR #111, found while researching something else (`bedSurround`),
