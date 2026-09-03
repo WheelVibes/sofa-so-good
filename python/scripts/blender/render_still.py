@@ -28,6 +28,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bpy  # noqa: E402
 import cli_argv  # noqa: E402
 import hdri  # noqa: E402
 import sofa_scene as S  # noqa: E402
@@ -74,6 +75,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--sun-elevation", type=float, default=None, help="degrees; omit for no sun")
     p.add_argument("--sun-azimuth", type=float, default=0.0, help="degrees")
     p.add_argument("--sun-energy", type=float, default=3.0)
+    p.add_argument("--view-transform", default=None,
+                   help="OCIO view transform, e.g. 'Standard' or 'AgX'. OMIT to keep Blender's "
+                        "default, which is AgX and is what the app's three.js tiers also use -- "
+                        "that match is deliberate, so this is an opt-in for ONE purpose: "
+                        "comparing in a shoulder-free transform. Above ~175 displayed counts AgX "
+                        "compresses hard, so two very different linear values land on similar "
+                        "bytes and a percentage taken there is not a fraction of energy "
+                        "(v0.31.7.170 had to qualify exactly that). `Standard` is plain sRGB with "
+                        "no shoulder, so ratios survive. The enum reads only NONE under "
+                        "--factory-startup and is still assignable, like `engine`.")
     p.add_argument("--no-network", action="store_true", help="never fetch an HDRI")
     p.add_argument("--json", action="store_true", help="emit a machine-readable result line")
     return p.parse_args(cli_argv.normalise(p, argv))
@@ -138,6 +149,11 @@ def render(a: argparse.Namespace) -> dict:
     else:
         S.place_camera(pos, look_at=target or centre, fov_deg=a.fov, fov_axis=a.fov_axis)
 
+    if a.view_transform:
+        # Set on `view_settings`, not `image_settings`: the latter is the FILE encoding and
+        # silently ignores a view transform, which is the same class of trap as `Image.save()`
+        # ignoring `scene.render.image_settings` in the bake path (v0.31.7.105).
+        bpy.context.scene.view_settings.view_transform = a.view_transform
     S.render_png(a.out)
     return {
         "ok": True,

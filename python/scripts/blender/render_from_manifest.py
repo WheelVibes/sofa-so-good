@@ -54,6 +54,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "reference and the app raster frame the same scene region")
     p.add_argument("--sun-energy", type=float, default=None,
                    help="override the physical sky's sun; omit to let --sky place it")
+    p.add_argument("--view-transform", default=None,
+                   help="passthrough to render_still.py; omit to keep AgX, which is what the app "
+                        "uses. Set BOTH sides to a low-shoulder transform (the app's TONE=neutral "
+                        "pairs with 'Khronos PBR Neutral') when a RATIO matters -- v0.31.7.171 "
+                        "measured the same gap as 116/146 counts there against 33/79 under AgX.")
     p.add_argument("--json", action="store_true")
     return p.parse_args(cli_argv.normalise(p, argv))
 
@@ -111,6 +116,8 @@ def flags_for(manifest: dict, d: str, args: argparse.Namespace) -> list[str]:
         print("  NOTE: manifest has no directional light -- rendering without a sun")
     if args.sun_energy is not None:
         flags += ["--sun-energy", str(args.sun_energy)]
+    if args.view_transform:
+        flags += ["--view-transform", args.view_transform]
     return flags
 
 

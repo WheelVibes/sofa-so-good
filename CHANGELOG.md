@@ -29,6 +29,57 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.171 — a shoulder-free comparison, and the RATIO test: the GI makes the ceiling/wall balance WORSE
+
+`.170` could not separate "the bake under-represents ceilings" from "the app mis-shades a correct
+map", because both sides tone-map with AgX and above ~175 counts its shoulder compresses very
+different linear values onto similar bytes. This builds the missing instrument and uses it.
+
+**The instrument.** `render_still.py` gains `--view-transform`, defaulting to Blender's AgX — the
+match with the app's three.js tiers is deliberate, so this is opt-in for one purpose. The app
+already had the other half: `TONE=neutral` selects **Khronos PBR Neutral**, which Blender 5.2.1 also
+provides, so both sides can be put in the same low-shoulder transform with no new app code. A bogus
+name raises `TypeError` rather than silently falling back, which matters because the enum reads only
+`NONE` under `--factory-startup` and looks unavailable. `render_from_manifest.py` passes it through.
+
+**The gaps are much larger than AgX suggested**, which is the qualification `.170` predicted:
+
+| patch | app GI-off | app GI-on | **Cycles** | AgX gap | neutral gap |
+| --- | --- | --- | --- | --- | --- |
+| left wall | 79.9 | 141.3 | **196.4** | 33 | **55** |
+| ceiling | 66.8 | 89.8 | **212.4** | 79 | **123** |
+
+**The result that matters is a RATIO, because a ratio inside one frame is immune to whatever
+exposure difference remains between two renderers:**
+
+| | ceiling / wall |
+| --- | --- |
+| Cycles reference | **1.08** — the ceiling is *brighter* than the wall |
+| app, GI **off** | 0.84 |
+| app, GI **on** | **0.64** |
+
+The reference puts the ceiling above the wall; the app puts it below; and **the GI moves the balance
+further from the reference, not toward it** (0.84 → 0.64). It lifts both surfaces in absolute terms —
+which is why `.169`'s decision to ship still holds — but it lifts the wall far more, because the
+wall's map carries `scale` 2.9191 against the ceiling's 0.2183. Combined with `.170`'s finding that
+no gain can fix both, the bake's *relative* treatment of ceilings is now the identified fault, and it
+is a bake-side problem rather than an app-side one.
+
+**A chromatic difference, recorded and NOT called a defect.** R−B: Cycles −52.4 / −46.2 against the
+app's −0.3 / +2.1. A sky-lit room genuinely is that blue with no white balance applied, and Cycles
+applies none; the app applies one, which is what a camera or a human eye does. The comparison is
+therefore not evidence of an app bug, and it is also why every luminance figure above is read from
+the mean rather than per-channel.
+
+**Next**, now that the fault is localised to the bake: find why a downward-facing surface bakes ~17x
+less irradiance than a wall in the same room when the reference says it should be slightly more. The
+box-atlas slot for a `−Y` normal, the ceiling's own `--texels-per-metre` allocation, and whether the
+bake's hemisphere sampling is biased against downward normals are the three candidates that can be
+tested without a re-bake.
+
+Suite 10167 green, `tsc` and biome clean.
+
+
 ## v0.31.7.170 — the residual ceiling deficit is SPATIAL, not a level; sun-bounce refuted, and the room is sky-lit
 
 `.169` shipped the GI and its own numbers named the next gap: the bedroom3 ceiling still sits at
