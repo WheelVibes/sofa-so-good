@@ -29,6 +29,36 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.137 — fixed `.120`'s stamp: it now says WHETHER it is the rendered albedo, and the consumer refuses it otherwise
+
+`.136` found `v0.31.7.120`'s `albedoSwatch` stamp records the **catalogue** swatch — what a picker
+thumb shows — not what the surface reflects. Fixed at both ends.
+
+**Producer.** `stampAlbedo` now also writes **`albedoSwatchIsEffective`**, false whenever either path
+makes the swatch a lie:
+
+- **`recolorAlbedo` (FINISH-RECOLOR)** repaints a texture *luminance-preservingly*, so the surface
+  keeps most of its base brightness. `wall-paint-terracotta`'s swatch is luminance **0.294** while
+  the rendered wall reads **~0.62**, and a census trusting the swatch put the room's ρ **28 % low**.
+- **a bound `map`** supplies the albedo while `color` stays white — `v0.31.5.273`.
+
+**Consumer.** `sceneRoomAlbedo` uses the swatch **only** when it is marked effective, and otherwise
+falls back to `material.color`. That is the right default on measured grounds: `.121` found unswatched
+materials report a sensible `material.color` (p50 **0.337**), so an unqualified swatch is *worse* than
+the fallback, not better.
+
+**Why `.120` looked correct.** It was tested on `floor-wood-oak`, a procedural base that re-bakes to
+its swatch — where the stamp is exact. The assumption only fails for the recoloured and mapped
+paths, and neither was in the test. **A boolean that is true for the case you tested is not a
+verified boolean**, which is the third time this arc has been caught by that shape.
+
+New test asserts the refusal directly: a material carrying a near-black swatch **without** the
+effective flag must still census as its white `material.color`. The existing textured-floor test now
+sets the flag, which is what a procedural finish would.
+
+Suite **10150 green**, `tsc` and biome clean. The stamp is in shipped code (`buildMaterial`); its only
+consumer remains unwired.
+
 ## v0.31.7.136 — baked the per-class area weights, and found that a CATALOGUE SWATCH IS NOT THE RENDERED ALBEDO
 
 `.135` specified the design: bake the **area weights** (the expensive geometric part, which does not

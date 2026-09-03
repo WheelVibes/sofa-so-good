@@ -270,7 +270,13 @@ export function sceneRoomAlbedo(root: Object3D, room: PlanRoom): number | null {
     if (!inRoom(centre.applyMatrix4(mesh.matrixWorld))) return
     const a = worldTriangleArea(mesh, geom)
     if (a <= 0) return
-    const swatch = (mat.userData as { albedoSwatch?: string } | undefined)?.albedoSwatch
+    // Only trust the swatch when the material says it IS the rendered albedo. `v0.31.7.136`
+    // measured a recoloured wall's swatch at luminance 0.294 against ~0.62 rendered, which put a
+    // room's rho 28 % low -- so an unqualified swatch is worse than `material.color`, not better.
+    const ud = mat.userData as
+      | { albedoSwatch?: string; albedoSwatchIsEffective?: boolean }
+      | undefined
+    const swatch = ud?.albedoSwatchIsEffective ? ud.albedoSwatch : undefined
     const rho = swatch
       ? swatchLuminance(swatch)
       : 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b

@@ -139,11 +139,25 @@ describe('sceneRoomAlbedo (v0.31.7.120)', () => {
       // The `.273` shape: albedo lives in a texture, `color` is left white.
       ;(m.material as MeshStandardMaterial).color.set('#ffffff')
       ;(m.material as MeshStandardMaterial).userData.albedoSwatch = hex
+      ;(m.material as MeshStandardMaterial).userData.albedoSwatchIsEffective = true
     }
     m.position.set(...at)
     return m
   }
   const ROOM = { id: 'r', name: 'r', origin: [0, 0], width: 6, depth: 6 } as PlanRoom
+
+  it('IGNORES a swatch not marked effective -- a recoloured finish reflects far more than it', () => {
+    // `v0.31.7.136`: `wall-paint-terracotta`'s swatch is luminance 0.294 while the rendered wall
+    // reads ~0.62, because FINISH-RECOLOR is luminance-preserving. Trusting the swatch put a
+    // room's rho 28 % low, so an unqualified swatch is worse than `material.color`.
+    const root = new Object3D()
+    const m = new Mesh(new BoxGeometry(4, 0.1, 4), new MeshStandardMaterial({ color: '#ffffff' }))
+    ;(m.material as MeshStandardMaterial).userData.albedoSwatch = '#111111'
+    // No `albedoSwatchIsEffective`, so the dark swatch must NOT be used.
+    m.position.set(3, 0, 3)
+    root.add(m)
+    expect(sceneRoomAlbedo(root, ROOM)!).toBeGreaterThan(0.8)
+  })
 
   it('prefers userData.albedoSwatch over material.color, so a TEXTURED floor counts correctly', () => {
     // The whole point of `.273`: reading `material.color` here would return ~1.0 (white) for a

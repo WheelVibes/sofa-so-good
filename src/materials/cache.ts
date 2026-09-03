@@ -223,6 +223,18 @@ async function scheduleWorkerUpgrade(
  */
 function stampAlbedo(m: MeshStandardMaterial, def: MaterialDef): void {
   m.userData.albedoSwatch = def.swatch
+  // WHETHER THE SWATCH IS THE RENDERED ALBEDO, which `v0.31.7.120` assumed and `v0.31.7.136`
+  // disproved. Two paths make it false:
+  //
+  //   - `recolorAlbedo` (FINISH-RECOLOR) repaints a texture LUMINANCE-PRESERVINGLY, so the surface
+  //     keeps most of its base brightness. Measured: `wall-paint-terracotta`'s swatch is luminance
+  //     0.294 while the rendered wall reads ~0.62, and a census trusting the swatch put the room's
+  //     rho 28 % low.
+  //   - a bound `map` supplies the albedo while `color` stays white, which is `v0.31.5.273`.
+  //
+  // A consumer that needs the real reflectance must read the texture, not this. The swatch is still
+  // exact for procedural bases that re-bake to it -- which is why testing `.120` on oak passed.
+  m.userData.albedoSwatchIsEffective = !def.recolorAlbedo && !m.map
 }
 
 export function buildMaterial(
