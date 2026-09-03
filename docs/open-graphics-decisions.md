@@ -891,6 +891,36 @@ remains in any shipped plan.**
 > never touches. Fitted to the pane *distribution* with a Blender-generated glazing mask, the
 > answer is **4**, and it matches physics to 0.1 of a percentage point.
 
+### ⚠️ (l)/(z)4 — THE PREMISE IS WRONG: the pane is an EMISSIVE CONSTANT, `v0.31.7.152`
+
+`(z)`4 is "ship the Cycles sky **and** `backgroundIntensity ≈ 4`". Both halves are now built behind
+DEV seams (`?skyKeys=1`, `?bgIntensity=<n>`) and measured on the world-verified glazing population
+(n = 367), 13:00, `realistic`:
+
+| arm | glazing mean | **> 240** |
+| --- | --- | --- |
+| analytic sky, intensity 1 | 174.6 | **0.0 %** |
+| Cycles keys, intensity 1 | 179.2 | **0.0 %** |
+| Cycles keys, intensity 4 | 179.1 | **0.0 %** |
+| analytic sky, intensity 4 | 171.1 | **0.0 %** |
+| *photographs* | | *15–39 %* |
+
+**Nothing moves.** And the reason is in the source: `GLASS_SKYCATCH_COLOR = '#cfe4f5'` is a
+**constant**, and a pane's brightness is an **emissive** driven by `glassSkyCatchIntensity(daylight)`
+(`materialRealism.ts`). It never reads `scene.background`. So no change to the background or its
+intensity can reach the pane — which is also why the probe already carries a `SKYCATCH` knob, built
+by an earlier round that suspected exactly this and measured a 1.4× brighter background moving the
+window mean by only ~8 %.
+
+**So `(z)`4 as decided cannot close `(l)`.** The sky-catch emissive is the gate. The Cycles sky and
+the intensity are still worth having for the sky *seen past the window frame* — and `.77`'s
+"matched the pane distribution to 0.1 pt" was presumably measured on that region rather than on the
+glazing material, which is a different quantity and not a contradiction.
+
+**Revised shape of the fix:** the pane must derive its brightness from the sky it is supposed to be
+showing, rather than from a constant. That is a `materialRealism` change, not a background change,
+and it is what `(l)` has actually needed all along.
+
 ### (l)/(z)4 — the baked-key-set route is MEASURED VIABLE, `v0.31.7.148`
 
 `(z)`4 was decided ("ship the Cycles sky **and** `backgroundIntensity ≈ 4`") but not scoped: the sun

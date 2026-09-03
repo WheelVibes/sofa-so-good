@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.152 — `(z)`4 built behind DEV seams, and the measurement says its PREMISE is wrong: the pane is an emissive constant
+
+Built both halves of `(z)`4 — `?skyKeys=1` composites the baked Cycles keys (two draws per key so the
+azimuth rotation wraps; blended with canvas `globalAlpha`, which is the sRGB-space lerp the
+`.148`–`.150` error figures were measured on), and `?bgIntensity=<n>` sets
+`scene.backgroundIntensity`. Then measured the thing `(l)` is actually about.
+
+**World-verified glazing population (n = 367), 13:00, `realistic`:**
+
+| arm | glazing mean | **> 240** |
+| --- | --- | --- |
+| analytic sky, intensity 1 | 174.6 | **0.0 %** |
+| Cycles keys, intensity 1 | 179.2 | **0.0 %** |
+| Cycles keys, intensity 4 | 179.1 | **0.0 %** |
+| analytic sky, intensity 4 | 171.1 | **0.0 %** |
+| *photographs* | | *15–39 %* |
+
+**Nothing moves.** `GLASS_SKYCATCH_COLOR = '#cfe4f5'` is a **constant** and a pane's brightness is an
+**emissive** driven by `glassSkyCatchIntensity(daylight)` — it never reads `scene.background`. So no
+background change can reach the pane. The probe already carries a `SKYCATCH` knob built by an earlier
+round that suspected this and measured a 1.4× brighter background moving the window mean ~8 %; I had
+read that comment hours ago and still had to measure it to believe what it implied for `(z)`4.
+
+**So `(z)`4 as decided cannot close `(l)`.** The sky-catch emissive is the gate, and the fix belongs
+in `materialRealism` — the pane must derive its brightness from the sky it is supposed to be showing.
+The Cycles sky and the intensity remain worth having for the sky *seen past the window frame*, and
+`.77`'s "matched the pane distribution to 0.1 pt" was presumably measured on that region rather than
+on the glazing material — a different quantity, not a contradiction.
+
+**And I nearly published a null result from a broken check.** My first verification compared frames at
+three hours and found only 0.94–1.96 counts of difference, which I was about to read as "the Cycles
+sky barely matters". Then a puppeteer check reported `scene.background` **absent in both arms** —
+because `SkyBackdrop` only mounts in walk mode and my check was not in it. The probe's own
+`BACKDROPCHECK` settled it: **1024×512 analytic vs 512×256 keyed**, so the key path *had* engaged and
+the small difference was real. **The flawed instrument was the one I wrote to check the instrument.**
+
+Everything is behind DEV flags; the shipped default is unchanged. Suite **10165 green**, `tsc` and
+biome clean.
+
 ## v0.31.7.151 — `(z)`4 part one: the four sky keys baked (500 kB, 8 s) and the selection math tested against the convention that owns it
 
 Building `(z)`4 after `.148`–`.150` priced it. Two pieces landed; neither changes the shipped look.

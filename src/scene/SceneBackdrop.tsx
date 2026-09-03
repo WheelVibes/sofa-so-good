@@ -18,6 +18,7 @@ import {
   lightingFromAltitude,
   skyFromAltitude,
 } from './lighting/altitudeCurve'
+import { bakeSkyFromKeys, preloadSkyKeys, skyKeysReady } from './lighting/skyKeyBake'
 import { type SkyState, shouldRebuildSky } from './lighting/skyRebuild'
 import { orientedSunDirection } from './lighting/sunPosition'
 import { useSunPosition } from './lighting/useSunPosition'
@@ -248,6 +249,14 @@ function SkyBackdrop() {
   const prevBgRef = useRef<Texture | null>(null)
   const savedPrev = useRef(false)
 
+  // Kick the key-set fetch on mount (DEV seam only). `preloadSkyKeys` is idempotent and resolves
+  // even on failure, so a missing asset degrades to the analytic sky instead of hanging.
+  useEffect(() => {
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('skyKeys') === '1') {
+      void preloadSkyKeys().then(() => invalidate())
+    }
+  }, [invalidate])
+
   // Mount/unmount: remember + restore the prior background, dispose on exit.
   useEffect(() => {
     if (!savedPrev.current) {
@@ -275,7 +284,33 @@ function SkyBackdrop() {
     const candidate: SkyState = { sunDir, turbidity, orientationDeg }
     if (!shouldRebuildSky(lastBaked.current, candidate)) return
     const handle = setTimeout(() => {
-      const tex = asEquirect(new CanvasTexture(bakeSkyEquirect(sunDir, turbidity)))
+      // `?skyKeys=1` (DEV) swaps the analytic Preetham paint for the baked CYCLES key set.
+      //
+      // The runtime half of `(z)`4 / item `(l)`: the app's window reads as a panel rather than an
+      // opening, and `v0.31.7.77` measured that the fix needs the PHYSICAL sky —
+      // `backgroundIntensity ~= 4` alone raises a 4x-oversaturated gradient. `.148`–`.150` priced
+      // the key set: 30° of altitude holds Cycles to <=1.4 % (<=0.67 % in the brightest decile),
+      // the error is independent of resolution and sample count, and four keys are 500 kB.
+      //
+      // A DEV seam first, not a default, following `?bgCube=1` in `.132`: a new default sky is
+      // user-visible at every hour of the day and wants frames at several of them before it ships.
+      const keyed =
+        import.meta.env.DEV &&
+        new URLSearchParams(window.location.search).get('skyKeys') === '1' &&
+        skyKeysReady()
+          ? bakeSkyFromKeys(sunDir)
+          : null
+      const tex = asEquirect(new CanvasTexture(keyed ?? bakeSkyEquirect(sunDir, turbidity)))
+      // `?bgIntensity=<n>` (DEV) — the OTHER half of `(l)`'s fix, and it is measured useless alone
+      // in both directions: `v0.31.7.77` found the intensity without the physical sky raises a
+      // 4x-oversaturated gradient, and `v0.31.7.152` found the physical sky without the intensity
+      // moves the interior frame by ~1-2 counts. `scene.backgroundIntensity` scales what is SEEN,
+      // not what LIGHTS (that is `environmentIntensity`), which is why `.77` could verify the
+      // interior median unchanged at intensity 1, 4 and 12.
+      if (import.meta.env.DEV) {
+        const bg = Number(new URLSearchParams(window.location.search).get('bgIntensity'))
+        if (Number.isFinite(bg) && bg > 0) scene.backgroundIntensity = bg
+      }
       const old = textureRef.current
       textureRef.current = tex
       lastBaked.current = candidate
