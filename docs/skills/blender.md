@@ -172,7 +172,13 @@ the research docs.*
   *"expected one argument"*. `--sun-dir` and any camera coordinate can be negative. **Passing
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
-  being recorded once for the CLI.
+  being recorded once for the CLI. **FIXED IN THE PARSER on 2026-09-03 after it bit a
+  THIRD time** (a hand-built repro of the five-view set): `cli_argv.normalise()` re-attaches a
+  negative numeric value to its flag before argparse sees it, in all four entry points. Both
+  forms now work. **The generalisable lesson is not about argparse** — this was documented
+  here twice and recurred anyway, which is the same finding `changelogVersions.test.ts`
+  records: when a mistake repeats through care, what is missing is a mechanism, not more
+  discipline. Prose cannot be the guard for something a machine can check.
 - **2026-09-03 — measure bake noise with a SEED PAIR, not against a "ground truth" bake.** Two
   bakes at identical settings with different `cycles.seed` differ only by noise, and their
   per-texel difference is **√2 ×** the noise of one — no converged reference needed, and no
@@ -419,9 +425,12 @@ the research docs.*
   (`normalize(target − position)`). A vector in a named frame has no degrees/radians
   question and no azimuth-zero question — after three implicit-frame bugs in this bridge,
   that is worth more than any docstring.
-- **2026-09-03 — argparse eats a leading `-`**, so a negative vector needs the `=` form:
-  `--sun-dir=-0.5,-24.8,2.8`, not `--sun-dir -0.5,...` (which fails with "expected one
-  argument").
+- **2026-09-03 — argparse eats a leading `-`.** Historically a negative vector needed the
+  `=` form: `--sun-dir=-0.5,-24.8,2.8`. **No longer required** — `cli_argv.normalise()` fixes
+  it in the parser for all four entry points, and `--sun-dir -0.5,...` now works too. The `=`
+  form stays correct, so existing callers are unaffected. Exception, asserted in
+  `test_cli_argv.py`: a *non-numeric* dash-leading token (a path like `-1.glb`) is still left
+  alone, because widening the rule would mean swallowing real flags.
 - **2026-09-03 — three.js FOV is VERTICAL; Blender's `camera.angle` defaults to the LARGER
   axis.** `PerspectiveCamera.fov` is vertical, while Blender under `sensor_fit = 'AUTO'`
   measures the angle along the larger sensor dimension — horizontal for any landscape

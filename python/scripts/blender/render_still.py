@@ -28,6 +28,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cli_argv  # noqa: E402
 import hdri  # noqa: E402
 import sofa_scene as S  # noqa: E402
 
@@ -65,7 +66,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--sun-energy", type=float, default=3.0)
     p.add_argument("--no-network", action="store_true", help="never fetch an HDRI")
     p.add_argument("--json", action="store_true", help="emit a machine-readable result line")
-    return p.parse_args(argv)
+    return p.parse_args(cli_argv.normalise(p, argv))
 
 
 def _vec(s: str | None) -> tuple[float, float, float] | None:

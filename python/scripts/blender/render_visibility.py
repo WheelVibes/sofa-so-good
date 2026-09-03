@@ -39,6 +39,7 @@ import sys
 import bpy
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cli_argv  # noqa: E402
 import glb_fix  # noqa: E402
 import sofa_scene as S  # noqa: E402
 
@@ -57,7 +58,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "suppresses bounce so the result is nearly PURE first-bounce sky "
                         "visibility. Both are informative and they are different quantities.")
     p.add_argument("--json", action="store_true")
-    return p.parse_args(argv)
+    return p.parse_args(cli_argv.normalise(p, argv))
 
 
 def make_visibility_world(strength: float = 1.0) -> None:

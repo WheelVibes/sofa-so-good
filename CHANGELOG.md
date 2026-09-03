@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.61 — the negative-vector trap, fixed in the parser instead of the docs
+
+`--sun-dir -0.50585,-24.83117,2.77232` exits 2 with *"expected one argument"*, because argparse
+treats any token starting with `-` as an option. Camera positions and sun vectors are negative
+about half the time, so this is the normal case, not an edge case — and it had already cost a
+five-view reference set that had to be re-issued.
+
+**The reason this is a commit and not a one-line habit change is that the habit was already
+tried.** The trap is written up twice in `docs/skills/blender.md`, and it fired again *after*
+both entries existed. That is the same finding `src/changelogVersions.test.ts` records about
+version collisions: *"an absent mechanism, not a discipline failure, and no amount of care fixes
+it."* Prose cannot guard something a machine can check.
+
+**`cli_argv.normalise(parser, argv)`** rewrites `['--sun-dir', '-0.5,1,2']` to
+`['--sun-dir=-0.5,1,2']` before argparse runs. Three properties make it safe rather than clever:
+
+- **A value must contain a digit** to be re-attached, so no option string can ever be swallowed —
+  `--sun-dir --json` still errors exactly as before, asserted directly.
+- **Which flags take a value is derived from the parser**, not hardcoded, so a numeric flag added
+  later is covered without anyone remembering the file exists. `store_true` flags (`nargs = 0`)
+  are excluded, so `--sky -1` stays a positional error.
+- **The `=` form is untouched**, so all existing callers keep working — this widens what is
+  accepted rather than moving it.
+
+Wired into **all four** entry points (`render_still`, `render_from_manifest`, `render_visibility`,
+`bake_material`). The module is deliberately **bpy-free**, so its tests run in a plain
+interpreter — the four scripts all import `bpy` transitively and cannot be imported outside
+Blender, which is why the eleventh test reads them as *text* and asserts each one routes argv
+through `normalise`. A perfect helper that nothing calls fixes nothing.
+
+**Verified on the actual failure, not just in tests**: the verbatim command from the repro log now
+renders in **16.75 s**, exit 0, and the frame is a correct `bedroom3` reference — mullions
+resolved, a horizon band visible in the pane, plausible interior falloff. `python3
+python/scripts/blender/test_cli_argv.py` → **11 passed**. Suite **10058 green**, `tsc` and biome
+clean.
+
+One boundary is asserted rather than assumed: a *non-numeric* dash-leading token (a path like
+`-1.glb`) is still left alone and still needs the `=` form. Widening the rule to any token would
+mean swallowing real flags, and a silently wrong value is worse than a failed launch.
+
 ## v0.31.7.60 — chroma decomposes the same way, and its residual is small and consistent: CLOSED as not a defect
 
 The five references make one more open quantity testable. `v0.31.7.5` measured a WB-invariant

@@ -2877,6 +2877,11 @@ Blender is absent.
   is open). The ground truth item (w) is validated against.
 - **`python/scripts/blender/bake_material.py`** — bakes visibility/AO/diffuse to per-object
   textures keyed by geometry. See the lightmap pipeline below.
+- **`python/scripts/blender/cli_argv.py`** — `normalise(parser, argv)`, which re-attaches a
+  negative numeric value to its flag (`--sun-dir -0.5,…` → `--sun-dir=-0.5,…`) before argparse
+  can mistake it for an option. Every entry point routes its argv through it. Deliberately
+  **bpy-free** so `test_cli_argv.py` runs in a plain interpreter: `python3
+  python/scripts/blender/test_cli_argv.py` (11 tests, no Blender).
 - **`python/scripts/blender/glb_fix.py`** — works around the 5.2.1 importer aborting on
   `KHR_materials_dispersion: {}`; 4 glass materials out of 897 otherwise block a whole import.
 - **`docs/skills/blender.md`** — **read first.** Verified `bpy` facts for the installed build

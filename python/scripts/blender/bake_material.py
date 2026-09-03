@@ -42,6 +42,7 @@ import bpy
 from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cli_argv  # noqa: E402
 import glb_fix  # noqa: E402
 import render_visibility as RV  # noqa: E402
 import sofa_scene as S  # noqa: E402
@@ -136,7 +137,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "under-reports what is shipped, which reads as 'the maps stopped working "
                         "for that plan'.")
     p.add_argument("--json", action="store_true")
-    return p.parse_args(argv)
+    return p.parse_args(cli_argv.normalise(p, argv))
 
 
 def mesh_area(obj: bpy.types.Object) -> float:
