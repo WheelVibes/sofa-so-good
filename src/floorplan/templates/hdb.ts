@@ -561,6 +561,15 @@ export function hdbMaisonette(): FloorPlan {
       door('em-main', 'em-s', 0.6, 1.0),
       door('em-wc', 'em-wc-s', 0.4, 0.7),
       door('em-study', 'em-study-n', 2.0),
+      // v0.31.8.33: the kitchen, service yard and stair hall had no doors — on
+      // the maisonette the stair hall is how you reach the upper storey at all,
+      // so it was a flat you could not walk through. Offsets from a wall scan.
+      door('em-kit-door', 'em-svc-s', 2.07),
+      // On the service band's SOUTH wall rather than the yard's east wall: on
+      // the east wall its keep-out crowded the yard's own window and pushed the
+      // utility cabinet in front of it.
+      door('em-yard-door', 'em-svc-s', 3.6),
+      door('em-stair-door', 'em-stair-e', 1.4),
       window('em-kit-win', 'em-n', 1.0, 1.6),
       window('em-yard-win', 'em-n', 3.6, 1.0),
       window('em-liv-win', 'em-e', 5.2, 2.2),

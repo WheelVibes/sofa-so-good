@@ -99,6 +99,11 @@ describe('dining chairs are tucked to their table', () => {
       // honestly-sized rooms hold fewer pieces; the master keeps its queen bed
       // (an earlier L-shaped attempt lost it — no leg was 2.0 m deep).
       'tpl-hdb-jumbo': 116,
+      // UNCHANGED at 141 through v0.31.8.33, which gave its kitchen, service yard
+      // and STAIR HALL their first doors — on a maisonette the stair hall is the
+      // only way to the upper storey. Putting the yard's door on the service
+      // band's south wall rather than the yard's east wall kept every piece; the
+      // east-wall version cost one AND pushed a cabinet in front of the window.
       'tpl-hdb-maisonette': 141,
       'tpl-studio': 23,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
@@ -109,7 +114,10 @@ describe('dining chairs are tucked to their table', () => {
       'tpl-condo-1bed': 44,
       'tpl-condo-1study': 53,
       'tpl-condo-2bed': 68,
-      'tpl-condo-3bed': 80,
+      // 80 → 81 in v0.31.8.33: the balcony parapet now MEETS the walls at both
+      // ends (it stopped 0.1 m short, a stray-wall warning), so the balcony is a
+      // real enclosure and furnishes properly.
+      'tpl-condo-3bed': 81,
       'tpl-condo-4bed': 95,
       'tpl-condo-studio': 25,
       'tpl-condo-penthouse': 118,
@@ -144,7 +152,11 @@ describe('dining chairs are tucked to their table', () => {
     // and living room are now enclosed at no furniture cost — enclosing them at
     // their original 2.2 m² DID cost both a toilet and a basin, so they were
     // enlarged to 2.7-3.0 m² rather than ratcheted.
-    expect(total).toBe(1430)
+    // 1430 → 1431 in v0.31.8.33, an INCREASE: giving rooms that had no door one
+    // costs nothing here, and closing `tpl-condo-3bed`'s balcony parapet (it
+    // stopped 0.1 m short of the walls at both ends) makes that balcony a real
+    // enclosure, which furnishes one piece better.
+    expect(total).toBe(1431)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

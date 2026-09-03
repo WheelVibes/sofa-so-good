@@ -27,6 +27,52 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.33 — 12 rooms across 3 templates had no door at all
+
+Instead of discovering each template's blocker one tick at a time, I triaged all 13
+remaining levels first: per sealed group, how much SPARE floor it holds (circulation
+to open a door onto) and whether it contains a bedroom with no external wall. That
+splits the remaining work cleanly, and it saved attempting two dead ends.
+
+**Blocked, same tension as the 4-room:** `tpl-hdb-5room` (`h5-bed3`) and
+`tpl-hdb-exec` (`ex-bed3`) each have a bedroom with no façade at all, so the decision
+already written up for `tpl-hdb-4room` covers all three.
+
+**Fixed here — 12 rooms that simply had no door.** A wall-by-wall scan for the
+longest span where a sealed room and the main circulation face each other gives the
+wall and offset directly:
+
+- `tpl-condo-3bed` **7 groups → 2**: kitchen, service yard, common bath, master
+  ensuite and balcony all doorless.
+- `tpl-condo-studio` **3 → 1**: kitchenette and balcony.
+- `tpl-hdb-maisonette` **4 → 1**: kitchen, service yard and the **stair hall** — on a
+  maisonette that hall is the only route upstairs, so the plan shipped a two-storey
+  home whose second storey could not be reached.
+
+**Two door positions had to be measured.** At its first offset the condo master's
+ensuite door pushed the wardrobe onto the east wall in front of `c3-m-win`, and the
+maisonette's yard door crowded that room's own window and parked a utility cabinet in
+front of it — caught by `windowSightline` and `placementSoundness`, not by me.
+Moving one to the west end and the other onto the service band's south wall cleared
+both.
+
+I also have to correct something I said last tick: I called condo-3bed a "clean win"
+after running only the floorplan and furniture tests. It was not — `windowSightline`
+was not in that selection and the wardrobe regression was already there. Judged on
+the full suite from here.
+
+Also closed a pre-existing stray-wall warning (`c3-bal-n` stopped 0.1 m short at both
+ends). That makes the balcony a real enclosure and it furnishes one piece better, so
+the item total went UP: 1430 → 1431.
+
+Still open: condo-3bed's bedroom column keeps 2 groups because it has no corridor —
+its bedrooms fill it, so any door from the living opens into bedroom 2, the same class
+as the 4-room. `tpl-condo-2bed`, `-4bed`, `-penthouse`, `tpl-1bed`, `tpl-loft/lf-up`
+and both `tpl-terrace-ground` levels have doors suggested and are next.
+
+Verified: 10126 tests pass; `tsc`, `biome`, `knip` clean. Scenario
+`doors-batch.json` asserts all five new condo-3bed doors exist; plan reviewed.
+
 ## v0.31.8.32 — tpl-hdb-4room needs a content call: its defects are in direct tension
 
 Fourth template attempted and the first that cannot be fixed without a decision.

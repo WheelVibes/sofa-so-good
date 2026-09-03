@@ -362,12 +362,26 @@ export function condo3Bed(): FloorPlan {
       iwall('c3-cbath-w', [5.2, 6.0], [5.2, D - T]),
       iwall('c3-cbath-n', [5.2, 6.0], [7.0, 6.0]),
       // Balcony off the living's south.
-      parapet('c3-bal-n', [3.1, 7.6], [5.1, 7.6]),
+      // Meets `c3-kit-e` (x=3.0) and `c3-cbath-w` (x=5.2): it used to stop 0.1 m
+      // short at both ends, so the plan shipped a stray-wall integrity warning.
+      parapet('c3-bal-n', [3.0, 7.6], [5.2, 7.6]),
     ],
     openings: [
       door('c3-main', 'c3-w', 1.0),
       door('c3-b2', 'c3-b2-s', 0.9),
       door('c3-b3', 'c3-b3-s', 0.9),
+      // v0.31.8.33: the kitchen, service yard, common bath, master ensuite and
+      // balcony had NO doors at all — five rooms nobody could walk into. Offsets
+      // come from a wall-by-wall scan for the longest span where the sealed room
+      // and the main circulation face each other.
+      door('c3-kit-door', 'c3-kit-e', 1.17),
+      door('c3-yard-door', 'c3-yard-n', 1.0),
+      door('c3-cbath-door', 'c3-cbath-n', 0.48, 0.7),
+      // Kept to the WEST end: at offset 1.0 its keep-out pushed the master's
+      // wardrobe onto the east wall, in front of `c3-m-win`.
+      door('c3-mbath-door', 'c3-mbath-n', 0.3, 0.8),
+      // The balcony is reached through its parapet line, as a slider would be.
+      door('c3-bal-door', 'c3-bal-n', 0.55),
       window('c3-kit-win', 'c3-w', 5.0, 1.4),
       window('c3-b2-win', 'c3-e', 0.8, 1.5),
       window('c3-b3-win', 'c3-e', 3.0, 1.5),
@@ -553,6 +567,9 @@ export function condoStudio(): FloorPlan {
     openings: [
       door('su-main', 'su-w', 2.4),
       door('su-bath', 'su-col', 0.8, 0.7),
+      // v0.31.8.33: the kitchenette and balcony had no way in.
+      door('su-kit-door', 'su-bk', 0.65),
+      door('su-bal-door', 'su-col', 4.8),
       window('su-liv-win', 'su-n', 0.6, 2.0),
       window('su-bath-win', 'su-e', 0.4, 1.0),
     ],

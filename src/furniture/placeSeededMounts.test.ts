@@ -273,6 +273,11 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // The item total is 900 — exactly the floor the sibling assertion guards,
     // because this plan trades a bathroom in the east wing for one in the
     // corridor. Dumped before this number was touched.
-    expect(sweep().centred).toBe(29)
+    //
+    // 29 → 27 in v0.31.8.33, and both losses are improvements: `c3-balcony:
+    // outdoor-table` and `su-balcony: outdoor-table` were sitting at their room
+    // centre because those balconies had NO DOOR, so the table had no wall to
+    // relate to. With a door they place properly. Dumped before this was touched.
+    expect(sweep().centred).toBe(27)
   }, 30_000)
 })

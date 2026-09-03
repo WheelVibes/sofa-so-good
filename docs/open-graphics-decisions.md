@@ -303,6 +303,42 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.33 — 12 rooms across 3 templates had NO DOOR; and a triage of what remains
+
+Rather than keep discovering each template's blocker one at a time, I triaged all 13 remaining
+levels first: per sealed group, how much SPARE floor it holds (circulation available to open a
+door onto) and whether it contains a bedroom with no external wall. That splits the work cleanly.
+
+**Blocked by the same tension as (f)'s 4-room entry** — a bedroom with no façade at all:
+`tpl-hdb-5room` (`h5-bed3`) and `tpl-hdb-exec` (`ex-bed3`). The decision written up for
+`tpl-hdb-4room` covers all three; attempting them individually just repeats that dead end.
+
+**Cheap, and done here:** groups that are a single room with ~0 spare are rooms that simply have
+no door. A wall-by-wall scan for the longest span where a sealed room and the main circulation
+face each other gives the wall and offset directly. Fixed 12 such rooms:
+
+- `tpl-condo-3bed` **7 groups → 2**: kitchen, service yard, common bath, master ensuite and
+  balcony all had no door.
+- `tpl-condo-studio` **3 → 1**: kitchenette and balcony.
+- `tpl-hdb-maisonette` **4 → 1**: kitchen, service yard and the **stair hall** — on a maisonette
+  that hall is the only route to the upper storey, so the plan shipped a two-storey home whose
+  second storey could not be reached.
+
+**Two door positions had to be measured, not guessed.** At its first offset the condo master's
+ensuite door pushed the wardrobe onto the east wall in front of `c3-m-win`, and the maisonette's
+yard door (on the yard's east wall) crowded that room's own window and put a utility cabinet in
+front of it — caught by `windowSightline` and `placementSoundness`. Moving the ensuite door to the
+west end and the yard door onto the service band's south wall cleared both.
+
+Also closed a pre-existing stray-wall warning: `c3-bal-n`, the balcony parapet, stopped 0.1 m
+short of the walls at both ends. Closing it makes the balcony a real enclosure and it furnishes
+one piece better — the item total went UP, 1430 → 1431.
+
+**What still remains, and why:** `tpl-condo-3bed`'s bedroom column keeps 2 groups because it has
+no corridor — its three bedrooms fill it, so any door from the living opens straight into bedroom
+2. Same class as 4-room. `tpl-condo-2bed`, `-4bed`, `-penthouse`, `tpl-1bed`, `tpl-loft/lf-up` and
+both `tpl-terrace-ground` levels have suggested doors ready from the same scan and are next.
+
 ### v0.31.8.32 — `tpl-hdb-4room` NEEDS A CONTENT CALL: its defects are in direct tension
 
 Fourth template attempted, and the first that cannot be fixed without a decision. Four layouts
