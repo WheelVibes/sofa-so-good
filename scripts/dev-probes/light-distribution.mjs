@@ -2020,6 +2020,17 @@ const applyAoMap = !AOMAP
             if (!g.boundingBox) g.computeBoundingBox()
             const bb = g.boundingBox
             const span = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z)
+            // WHICH SLOTS the mesh's uv1 actually lands in (`v0.31.7.25`). `v0.31.7.24` left an
+            // inconsistency: a 1024 px slot inspected by hand was smooth, while the maps carry
+            // 13.6 % high-frequency residual overall -- so the variation must live in
+            // particular slots. Without knowing which slot a visible wall reads, the wrong one
+            // gets inspected, which is exactly what happened.
+            const slots = new Set()
+            for (let i = 0; i < uv.count; i++) {
+              const cx = Math.min(2, Math.max(0, Math.floor(uv.getX(i) * 3)))
+              const cy = Math.min(1, Math.max(0, Math.floor(uv.getY(i) * 2)))
+              slots.add(`${cx},${cy}`)
+            }
             // The map's own overall mean, for contrast with what this mesh reaches.
             let all = 0
             for (let i = 0; i < px.length; i += 4) all += px[i] / 255
@@ -2032,6 +2043,7 @@ const applyAoMap = !AOMAP
                 mean: +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(4),
               },
               mapMean: +(all / (px.length / 4)).toFixed(4),
+              slots: [...slots].sort(),
             })
           })
           return out.sort((a, b) => b.span - a.span).slice(0, 8)
@@ -2040,7 +2052,8 @@ const applyAoMap = !AOMAP
         for (const r of rows) {
           console.log(
             `  span ${String(r.span).padStart(5)}m  key ${r.key}  at-uv mean ${String(r.atUv.mean).padEnd(6)}` +
-              ` (min ${r.atUv.min} max ${r.atUv.max})   whole-map mean ${r.mapMean}`,
+              ` (min ${r.atUv.min} max ${r.atUv.max})   whole-map mean ${r.mapMean}` +
+              `   slots ${r.slots.join(' ')}`,
           )
         }
       }

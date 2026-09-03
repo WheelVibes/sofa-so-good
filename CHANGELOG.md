@@ -29,6 +29,62 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.25 — the speckle is found: the bake is 35 % wrong where the camera looks, and my own accuracy metric hid it
+
+Looking at the actual atlas slot a visible wall samples resolves the whole sequence — and
+corrects `v0.31.7.22`'s central number, which was mine.
+
+**Look at the slot, not the map.** `AOPROBE` now reports which atlas slots each mesh's `uv1`
+lands in. The three largest walls span all six; extracting them and viewing each
+contrast-normalised shows the answer immediately: **slot (0,0) — the interior face — is pure
+noise**, a full rectangle of random speckle, while slot (1,1) is uniform **white**, the exterior
+face seeing open sky.
+
+**And that is why my accuracy figure was wrong.** `v0.31.7.22` reported the 256-sample bake as
+accurate to **1.5 %** against a 4096-sample reference and concluded "it was never noisy". That
+error was normalised by a map mean **dominated by the white exterior texels**, which converge
+instantly. The dark interior texels — the only ones an interior camera ever sees — were diluted
+into invisibility. Measuring them separately:
+
+| bake (256 px) | whole-map error | **dark texels only** |
+| --- | --- | --- |
+| 256 samples, raw | 1.5 % | **35.0 %** |
+| 256 samples + blur | 21.8 % | **220.9 %** |
+
+**So the bake is 35 % wrong exactly where it matters, and that is the speckle.** The
+whole-map number was not a mistake in arithmetic; it answered a question nobody needed.
+
+**What survives, what does not:**
+
+- **`v0.31.7.22`'s "the bake was never noisy" is retracted.** It is noisy, badly, on dark faces.
+- **`v0.31.7.22`'s finding that the blur is harmful stands and strengthens** — 220.9 % on dark
+  texels against 35 % without it. Smoothing does not rescue a 35 % error; it triples it.
+- **`v0.31.7.21`'s "4× samples buys nothing" is explained rather than defended.** Both metrics
+  it relied on were blind to dark texels. Measured properly, samples *do* help — and slowly:
+
+| samples | dark-texel error | time (8 meshes) |
+| --- | --- | --- |
+| 256 | 35.0 % | 16 s |
+| 1024 | 23.6 % | 22 s |
+| 2048 | 22.3 % | 27 s |
+
+**8× the samples for a 1.6× reduction** — the √N law, and it flattens out. Which raises the last
+caveat, stated because it limits every figure above: **the 4096-sample reference is not
+converged in the dark either.** Its own noise is inside the "error" being reported, so the true
+22 % is partly the reference's. A 4096-sample bake cannot serve as ground truth for texels at
+0.03.
+
+**Where this points.** Not brute force. Cycles' **adaptive sampling** with a tight noise
+threshold allocates samples by relative error, which is exactly the distribution needed here
+(exterior faces converge at 16 samples, interior ones need thousands). That is the next round.
+
+**Method note worth keeping.** Every aggregate in this sequence — the 3×3 residual, the 9×9
+residual, the whole-map ground-truth error — was blind to the artefact, and the thing that
+finally showed it was extracting one 85×128 slot and looking at it. Three rounds of numbers
+against one image.
+
+**Nothing shipped.** Probes only; 60 fps intact; `tsc`, biome, knip clean, 10011 tests green.
+
 ## v0.31.7.24 — three candidates eliminated with clean controls; the speckle is in the MAP DATA and still unexplained
 
 `v0.31.7.23` established the speckle is systematic — reproducible at 16× the samples — and named

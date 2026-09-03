@@ -173,6 +173,17 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — normalise bake error by the texels you CARE about.** A visibility atlas mixes
+  exterior faces (which see open sky, bake to 1.0 and converge in ~16 samples) with interior
+  faces (~0.03, needing thousands). A whole-map relative error is dominated by the former:
+  measured **1.5 %** overall while the dark interior texels an inside camera actually sees were
+  **35 %** wrong. `bake-noise.mjs --ref=` now reports both.
+- **2026-09-03 — a 4096-sample bake is NOT ground truth for dark texels.** Its own noise sits
+  inside any error you measure against it. Sample scaling measured 35 % → 23.6 % → 22.3 % at
+  256/1024/2048 samples, and the floor is partly the reference's own noise, not the candidate's.
+- **2026-09-03 — extract ONE atlas slot and look at it.** Three rounds of aggregate metrics (3×3
+  residual, 9×9 residual, whole-map ground-truth error) were all blind to a wall's interior slot
+  being pure noise. One 85×128 crop, contrast-normalised, showed it instantly.
 - **2026-09-03 — an ATLAS must not carry mipmaps.** Every mip level averages across slot
   boundaries, mixing one face's baked value into another's — at mip 4 a 256 px 3×2 atlas has
   5×8-texel slots, so the bleed is total, and a UV margin sized for bilinear filtering does

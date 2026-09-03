@@ -78,6 +78,8 @@ async function diffAgainstRef(dir, maps) {
   let accRel = 0
   let k = 0
   let worst = 0
+  let accDark = 0
+  let kDark = 0
   for (const m of maps) {
     const refFile = refByKey.get(m.key)
     if (!refFile) continue
@@ -90,10 +92,26 @@ async function diffAgainstRef(dir, maps) {
     let se = 0
     let sum = 0
     let n = 0
+    // DARK texels only, in a second accumulator. A whole-map relative error is normalised by
+    // a mean the exterior faces dominate -- they see open sky and bake to 1.0 -- so a large
+    // error on the DARK interior faces, which are the ones a camera inside the room actually
+    // sees, is diluted into invisibility. `v0.31.7.22` reported 1.5 % on that basis and
+    // concluded the bake was accurate; `v0.31.7.25` found slot (0,0) of a visible wall is pure
+    // noise. Both are true of different texels, which is the whole problem with the first
+    // figure.
+    let seDark = 0
+    let sumDark = 0
+    let nDark = 0
+    const DARK = 0.1 * 255
     for (let i = 0; i < a.data.length; i += 3) {
       se += (a.data[i] - b.data[i]) ** 2
       sum += b.data[i]
       n += 1
+      if (b.data[i] > 0 && b.data[i] < DARK) {
+        seDark += (a.data[i] - b.data[i]) ** 2
+        sumDark += b.data[i]
+        nDark += 1
+      }
     }
     const rms = Math.sqrt(se / n)
     const mean = sum / n
@@ -101,9 +119,21 @@ async function diffAgainstRef(dir, maps) {
     acc += rms
     accRel += rms / mean
     worst = Math.max(worst, rms / mean)
+    if (nDark > 32 && sumDark / nDark > 0.5) {
+      accDark += Math.sqrt(seDark / nDark) / (sumDark / nDark)
+      kDark += 1
+    }
     k += 1
   }
-  return k ? { rms: acc / k, rel: (100 * accRel) / k, worst: 100 * worst, k } : null
+  return k
+    ? {
+        rms: acc / k,
+        rel: (100 * accRel) / k,
+        worst: 100 * worst,
+        dark: kDark ? (100 * accDark) / kDark : null,
+        k,
+      }
+    : null
 }
 
 for (const dir of dirs) {
@@ -125,8 +155,8 @@ for (const dir of dirs) {
   if (refDir && refDir !== dir) {
     const d = await diffAgainstRef(dir, sample)
     extra = d
-      ? `   |  vs ground truth: rms ${d.rms.toFixed(2)} counts = ${d.rel.toFixed(1)} % of mean` +
-        ` (worst map ${d.worst.toFixed(1)} %)`
+      ? `   |  vs truth: ${d.rel.toFixed(1)} % of mean (worst ${d.worst.toFixed(1)} %)` +
+        `   DARK texels only: ${d.dark === null ? 'n/a' : `${d.dark.toFixed(1)} %`}`
       : '   |  vs ground truth: no comparable maps'
   }
   console.log(`${dir.padEnd(20)} residual vs mean:  ${out.join('   ')}${extra}`)
