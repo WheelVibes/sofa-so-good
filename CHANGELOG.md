@@ -29,6 +29,59 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.116 — twilight, scoped below the horizon: the black band's onset moves −4° → −8°, and it CANNOT be removed in this scope
+
+`(z)`8 was re-scoped after `.115` to "below the horizon only, blend up". Implemented, measured, and
+the limit of that scope measured too.
+
+**Two changes, both below the horizon.**
+
+1. **A separate `skyNight` fade reaching zero at −18°** (astronomical twilight) instead of −8°. The
+   sky's final line is `rgb * night`, so at `night = 0` it was **identically (0,0,0)** whatever the
+   zenith luminance said. `.80`/`.82` fixed the negative `Yz`; `.81` named this second cause and
+   nothing addressed it. The **ground keeps the −8° fade** deliberately — an unlit ground under a
+   faintly glowing sky is what deep twilight looks like, and it narrows the `(y)`3 sky-under-ground
+   seam instead of widening it.
+2. **`TWILIGHT_YZ_SCALE_DEG` 0.87 → 1.24**, and the old comment's justification was wrong. It cited
+   "Cycles: ~10× per 2°", which is neither the displayed nor the level ratio. From `.81`'s
+   required-`Yz` anchors (14.0 at 0°, 4.89 at −2°, 0.112 at −6°) the level falls
+   `(0.112/14.0)^(1/3) = 0.20` per 2° — **~5× per 2°** — giving `2/ln(5) = 1.24`. The shipped value
+   decayed ~40 % faster than the reference it cited.
+
+**Measured, zenith byte, before vs after:**
+
+| sun alt | before | **after** | Cycles | after/Cycles |
+| --- | --- | --- | --- | --- |
+| +2° | 76 | 76 | — | — |
+| 0° | 51 | **51** | 157.8 | 0.32 |
+| −2° | 8 | **17** | 99.6 | 0.17 |
+| −4° | 1 | **3** | 39.9 | 0.08 |
+| −6° | **0** | **1** | 18.6 | 0.05 |
+| −8° | 0 | **0** | 10.5 | 0.00 |
+| −10° | 0 | 0 | 5.4 | 0.00 |
+
+**Daylight is provably untouched** — 0° and +2° are byte-identical, which is the scope boundary and is
+now asserted in a test rather than claimed.
+
+**And the black band is not gone.** Its onset moves from −4°/−6° to −8°, and below that the sky is
+still exactly 0 — not because of the fade any more, but because the *level* is sub-byte: at −8° the
+linear value is `2.8e-5`, which encodes to **0.09 of one byte**. The fade fix is necessary and
+insufficient.
+
+**Why it cannot be fixed in this scope, stated as a number.** Physical twilight at −2° wants `Yz`
+**4.89** against the app's own horizon value of **0.695** — *seven times more than the sky directly
+overhead at sunset*. Any curve anchored to Preetham at the horizon is bounded below that, so
+twilight and daylight are **not separable**: closing the twilight gap requires the horizon to rise,
+which is the whole-day re-grade `(z)`8 explicitly excluded. `.115` established that; this measures
+the consequence.
+
+Five tests, all on **output** rather than internals: not-black at −6°, daylight unchanged at 0°/+2°,
+monotonic across +4° → −24° (the failure `.115` found), zero by −18°, and one asserting the residual
+gap is **still ~6× at −2°** — written so that if a future change closes it, the test **fails and gets
+deleted**, rather than the gap being quietly forgotten.
+
+Suite **10124 green**, `tsc` and biome clean.
+
 ## v0.31.7.115 — decision `(z)`8 cannot be scoped to twilight: the measured curve forces a re-grade of the WHOLE day, including noon
 
 Started implementing "twilight goes fully physical". Reconciled my model against the app's actual code

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { skyFromAltitude } from './altitudeCurve'
 import {
   encodeByte,
   equirectDir,
@@ -332,5 +333,57 @@ describe('twilight zenith continuation (v0.31.7.82)', () => {
     const above = upperSky(0.05)
     const below = upperSky(-0.05)
     expect(Math.abs(above - below) / Math.max(above, 1e-9)).toBeLessThan(0.15)
+  })
+})
+
+describe('twilight below the horizon (v0.31.7.116)', () => {
+  const DEG = Math.PI / 180
+  /** Brightest encoded byte at the zenith for a given sun altitude, via the shipped curve. */
+  const zenithByte = (altDeg: number): number => {
+    const a = altDeg * DEG
+    const p: SkyParams = {
+      ...skyFromAltitude(a),
+      sunDir: [0, Math.sin(a), -Math.cos(a)] as Vec3,
+    }
+    return Math.max(...skyRadiance([0, 1, 0], p).map(encodeByte))
+  }
+
+  it('is no longer EXACTLY BLACK at -6 degrees', () => {
+    // The regression this locks. Two separate causes made the twilight sky identically (0,0,0):
+    // a negative Preetham `Yz` (fixed in .80/.82) and `night` reaching exactly 0 at -8 degrees,
+    // which .81 named and nothing addressed. Cycles measures 18.6 displayed counts here.
+    expect(zenithByte(-6)).toBeGreaterThan(0)
+  })
+
+  it('leaves the horizon and daylight untouched', () => {
+    // The scope boundary, asserted. `(z)`8 was deliberately narrowed to below the horizon
+    // because matching physics above it forces a re-grade of the whole day cycle (.115), so a
+    // change here that moved 0 degrees or above would be out of scope, not a bonus.
+    expect(zenithByte(0)).toBe(51)
+    expect(zenithByte(2)).toBe(76)
+  })
+
+  it('decreases monotonically as the sun sets', () => {
+    // A non-monotonic sky -- getting darker as the sun RISES -- is exactly the failure .115
+    // measured when the gain was applied below 20 degrees only.
+    const alts = [4, 2, 0, -2, -4, -6, -8, -12, -18, -24]
+    const bytes = alts.map(zenithByte)
+    for (let i = 1; i < bytes.length; i += 1) {
+      expect(bytes[i]!, `alt ${alts[i]} vs ${alts[i - 1]}`).toBeLessThanOrEqual(bytes[i - 1]!)
+    }
+  })
+
+  it('reaches zero by astronomical twilight and stays there', () => {
+    expect(zenithByte(-18)).toBe(0)
+    expect(zenithByte(-30)).toBe(0)
+  })
+
+  it('does NOT claim to match Cycles -- the residual gap is real and in scope only for (z)8', () => {
+    // Honest bound rather than a target. Physical twilight at -2 degrees wants Yz 4.89 against
+    // the app's own horizon value of 0.695, so it cannot be reached while the horizon stays
+    // anchored to Preetham. -2 degrees improved from 8 to 17 bytes against Cycles' 99.6: better,
+    // and still ~6x short. If a future change closes that, this assertion should FAIL and be
+    // deleted -- it exists so the gap cannot be quietly forgotten.
+    expect(zenithByte(-2)).toBeLessThan(99.6 / 3)
   })
 })
