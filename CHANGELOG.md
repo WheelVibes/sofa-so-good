@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.127 — `--fill-holes`: the best padding arm by a clear margin, and NOT the default, because it does not do what I designed it to do
+
+`.126` named the fix: a push-pull pyramid instead of `--dilate`'s one-texel-per-pass, because the
+holes are large unaddressed regions and 16 passes cannot cross a 40-texel gap. Built it, per atlas
+slot (a fill crossing a slot boundary would bleed one face's light onto another — the exact artefact
+`uv_margin` exists to prevent), writing only into exact zeros.
+
+**It is comfortably the best arm measured:**
+
+| arm | unwritten addressable ring | zeros within populated slots |
+| --- | --- | --- |
+| `--dilate 4` (shipped) | 41.8 % | 47.3 % |
+| bake margin 12 + `--dilate 16` | 33.1 % | 35.2 % |
+| **`--fill-holes`** | **28.7 %** | **29.7 %** |
+
+Better than a 6× bake margin with 4× the dilation passes, and O(n) rather than O(n·passes).
+
+**And it is wrong, by its own design.** A push-pull that pulls from a 1×1 top level must leave
+**0 %** in any slot that holds data. It leaves **29.7 %**. The pyramid terminates correctly
+(85×128 → … → 1×1), the pull cascades coarsest-first, and the write-back guard only touches zeros —
+so the logic reads correct and the measurement says otherwise. **The mechanism is not identified**,
+and I am not shipping a padding routine on the strength of it being the best of four when it is
+missing its own target by 30 points.
+
+**One anomaly is worse than the shortfall.** The same run reports **62 populated slots where the
+dilation arm reports 66**. A fill that only writes into zeros *cannot reduce* the number of slots
+holding data. Two candidates, and I have not separated them:
+
+1. The fill slices slots with **floor division** (`col * res // 3` → widths 85/85/86 at 256 px)
+   while `slot-means.mjs` uses **rounding** (85/86/85). They disagree by a texel, which would
+   misattribute edge texels between adjacent slots — and the ring metric samples exactly the slot
+   edge, so a one-texel disagreement lands precisely where it hurts most.
+2. The fill is clobbering real data.
+
+Until that is settled `--fill-holes` stays opt-in and off. **A padding routine that quietly deletes
+baked light would look exactly like the seam it was written to remove** — which is the whole reason
+this arc keeps finding its own instruments at fault rather than the subject.
+
+Off-by-one candidate (1) is also a latent defect in the *measurement* side of everything since
+`.101`, since `slot-means.mjs`'s `slotRect` is what `ring-zeros.mjs` and the slot-mean tables all
+use. Worth resolving before either number is trusted further.
+
+Suite **10142 green**, `tsc` and biome clean. Default path unchanged.
+
 ## v0.31.7.126 — padding is NOT the seam either: eight hypotheses eliminated, and the ring zeros are real holes in the UV layout
 
 `.125` put the seam in the baked data and named padding as the fix. **Measured it, and padding is not

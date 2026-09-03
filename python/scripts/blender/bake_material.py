@@ -147,6 +147,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "finished pixels into a fresh non-float image -- there is no flag for it. "
                         "8-bit is ~8x smaller (a 256 px map goes ~127 kB -> ~16 kB) and needs "
                         "--per-map-scale to be worth using.")
+    p.add_argument("--fill-holes", action="store_true", dest="fill_holes",
+                   help="fill EVERY zero texel from real data with a per-slot push-pull pyramid, "
+                        "instead of --dilate's one-texel-per-pass. v0.31.7.126 measured dilation "
+                        "converging far too slowly (4 -> 16 passes moved the unwritten ring only "
+                        "41.8%% -> 33.6%%) because the holes are large unaddressed regions, not "
+                        "thin margins. O(n) and closes any hole size.")
     p.add_argument("--bake-margin", type=int, default=2, dest="bake_margin",
                    help="Cycles bake margin in PIXELS -- how far shaded values are extended past "
                         "the UV island's edge. `v0.31.7.125` measured 33.7 %% of the outermost "
@@ -374,6 +380,105 @@ def make_box_uvs(
             uv.data[li].uv = (u, v)
     mesh.uv_layers.active = uv
     return interior_slots
+
+
+def _fill_holes_pushpull(img: bpy.types.Image, res: int) -> int:
+    """Fill every zero texel from real data via a PUSH-PULL pyramid, per atlas slot.
+
+    **Why not more dilation passes.** `_dilate_into_zeros` advances one texel per pass, so a hole
+    40 texels wide needs 40 passes. `v0.31.7.126` measured that directly: going from 4 passes to 16
+    moved the unwritten fraction of the addressable ring only 41.8 % -> 33.6 %, and 16 more would
+    still not close it. The holes are not thin margins -- in-slot coordinates are normalised by the
+    MESH BOUNDING BOX rather than by the face, so a mesh whose faces do not tile their bbox
+    cross-section leaves large genuinely-unaddressed regions inside the band the UVs address.
+
+    Push-pull is the standard answer and is O(n): average non-zero children up the pyramid, then
+    fill zeros from the parent on the way down. Any hole closes regardless of size.
+
+    **PER SLOT, and that is load-bearing.** The 3x2 atlas packs six face directions into one
+    texture; a fill that crossed a slot boundary would bleed one face's light onto another, which
+    is the exact artefact `uv_margin` exists to prevent. Each slot is pyramided independently.
+
+    Real texels are never touched -- only exact zeros are written, same contract as
+    `_dilate_into_zeros`, so this cannot bias a baked value.
+
+    ## NOT THE DEFAULT, because it does not yet do what this docstring claims
+
+    Measured over 12 meshes (`v0.31.7.127`), it is the best padding arm by a clear margin --
+    unwritten addressable ring **41.8 % -> 28.7 %**, zeros within populated slots
+    **47.3 % -> 29.7 %** -- and beats a 6x bake margin with 4x the dilation passes (33.1 %). But a
+    fill that pulls from a 1x1 top level should leave **0 %** in any slot holding data, and it
+    leaves 29.7 %. Something in it is not reaching, and the mechanism is not identified.
+
+    Worse, the same run reports **62 populated slots where the dilation arm reports 66**. A fill
+    that only writes into zeros cannot reduce the number of slots holding data, so either the
+    counter is measuring across a slot rectangle the fill computes differently -- the fill uses
+    floor division (`col * res // 3`) while `slot-means.mjs` uses rounding, which disagree by a
+    texel at 256 px -- or the fill is clobbering real data. Until that is settled this stays behind
+    a flag: a padding routine that quietly deletes baked light would look exactly like the seam it
+    was written to remove.
+    """
+    px = list(img.pixels)
+    filled = 0
+    for col in range(3):
+        for row in range(2):
+            x0, x1 = (col * res) // 3, ((col + 1) * res) // 3
+            y0, y1 = (row * res) // 2, ((row + 1) * res) // 2
+            w, h = x1 - x0, y1 - y0
+            if w <= 0 or h <= 0:
+                continue
+            # Level 0: (r, g, b, weight) with weight 1 where the bake wrote something.
+            cur = []
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    i = (y * res + x) * 4
+                    r, g, b = px[i], px[i + 1], px[i + 2]
+                    cur.append((r, g, b, 1.0 if (r or g or b) else 0.0))
+            levels = [(w, h, cur)]
+            while levels[-1][0] > 1 or levels[-1][1] > 1:
+                pw, ph, prev = levels[-1]
+                nw, nh = max(1, (pw + 1) // 2), max(1, (ph + 1) // 2)
+                nxt = []
+                for y in range(nh):
+                    for x in range(nw):
+                        r = g = b = acc = 0.0
+                        for dy in (0, 1):
+                            for dx in (0, 1):
+                                sx, sy = x * 2 + dx, y * 2 + dy
+                                if sx >= pw or sy >= ph:
+                                    continue
+                                c = prev[sy * pw + sx]
+                                if c[3] > 0.0:
+                                    r += c[0]
+                                    g += c[1]
+                                    b += c[2]
+                                    acc += 1.0
+                        nxt.append((r / acc, g / acc, b / acc, 1.0) if acc > 0 else (0.0, 0.0, 0.0, 0.0))
+                levels.append((nw, nh, nxt))
+            # Pull: a zero takes its parent's average, coarsest level first.
+            for li in range(len(levels) - 2, -1, -1):
+                cw, ch, cl = levels[li]
+                pwid, _ph, par = levels[li + 1]
+                for y in range(ch):
+                    for x in range(cw):
+                        i = y * cw + x
+                        if cl[i][3] > 0.0:
+                            continue
+                        pc = par[(y // 2) * pwid + (x // 2)]
+                        if pc[3] > 0.0:
+                            cl[i] = (pc[0], pc[1], pc[2], 1.0)
+            # Write back only what was a hole.
+            _w, _h, lvl0 = levels[0]
+            for y in range(h):
+                for x in range(w):
+                    c = lvl0[y * w + x]
+                    i = ((y0 + y) * res + (x0 + x)) * 4
+                    if (px[i] or px[i + 1] or px[i + 2]) or c[3] <= 0.0:
+                        continue
+                    px[i], px[i + 1], px[i + 2] = c[0], c[1], c[2]
+                    filled += 1
+    img.pixels[:] = px
+    return filled
 
 
 def _dilate_into_zeros(img: bpy.types.Image, res: int, passes: int = 4) -> int:
@@ -766,6 +871,7 @@ def bake_object(
     encode: float = 1.0,
     scale: float = 1.0,
     bake_margin: int = 2,
+    fill_holes: bool = False,
     per_map_scale: bool = False,
     bit_depth: int = 16,
     denoise: bool = False,
@@ -787,7 +893,12 @@ def bake_object(
         height=res,
         # `scale` belongs here: dividing an already-clipped 8-bit buffer recovers nothing, so a
         # scaled bake must hold the real values until the single quantisation at save time.
-        float_buffer=float_buffer or encode != 1.0 or scale != 1.0 or denoise or dilate > 0,
+        float_buffer=float_buffer
+        or encode != 1.0
+        or scale != 1.0
+        or denoise
+        or dilate > 0
+        or fill_holes,
     )
     # NON-COLOUR, set BEFORE the bake writes, not after. A visibility map is DATA -- three
     # multiplies it straight into `irradiance` -- and Blender saves an 8-bit PNG through the
@@ -820,7 +931,9 @@ def bake_object(
         _blur_per_slot(img, res, passes=3)
 
     dilated = 0
-    if dilate:
+    if fill_holes:
+        dilated = _fill_holes_pushpull(img, res)
+    elif dilate:
         dilated = _dilate_into_zeros(img, res, passes=dilate)
 
     if encode != 1.0:
@@ -1076,6 +1189,7 @@ def main(argv: list[str] | None = None) -> int:
                 encode=a.encode,
                 scale=a.scale,
                 bake_margin=a.bake_margin,
+                fill_holes=a.fill_holes,
                 per_map_scale=a.per_map_scale,
                 bit_depth=a.bit_depth,
                 denoise=a.denoise,
