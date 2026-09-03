@@ -248,6 +248,12 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // `ex-master: rug` settle exactly on their room centres. All three are in
     // CENTRE_IS_RIGHT and `stranded` is still 3 (the same three pieces named in
     // `.108`), so nothing was displaced. Dumped before this number was touched.
-    expect(sweep().centred).toBe(24)
+    //
+    // 24 → 26 in v0.31.8.29, same shape again: the jumbo re-author added the
+    // `jb-corr` and `jb-lobby` doors on `jb-liv-w`, changing that room's door
+    // keep-outs, and `jb-living: rug` + `jb-living: coffee-table` now settle on
+    // its centre. Both are in CENTRE_IS_RIGHT; `stranded` is unchanged and the
+    // item total stayed at 904 (≥ 900). Dumped before this number was touched.
+    expect(sweep().centred).toBe(26)
   }, 30_000)
 })

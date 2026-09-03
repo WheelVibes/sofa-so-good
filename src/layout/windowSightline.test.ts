@@ -49,7 +49,7 @@ const KNOWN_BLOCKED = [
   'tpl-hdb-exec/ex-m-win: wardrobe-3door',
   'tpl-hdb-3gen/g3-liv-win: wardrobe-3door',
   'tpl-hdb-jumbo/jb-b4-win: wardrobe-3door',
-  'tpl-hdb-jumbo/jb-b5-win: wardrobe-3door',
+
   'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
   'tpl-1bed/ob-liv-win: potted-plant',
   'tpl-condo-studio/su-bath-win: bathroom-sink',
@@ -117,11 +117,15 @@ describe('tall furniture does not stand in front of a window', () => {
     expect(blockedWindows().hits).toEqual(KNOWN_BLOCKED)
   })
 
-  // Without this the list could pass by measuring nothing: 78 windows are
-  // examined and 67 of them are clear.
+  // Without this the list could pass by measuring nothing: 79 windows are
+  // examined and 69 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
-    expect(windows).toBe(78)
-    expect(windows - hits.length).toBe(67)
+    // 79 from v0.31.8.29: the jumbo re-author added `jb-b3-win`, Bedroom 3's
+    // first window of its own (item (h)).
+    expect(windows).toBe(79)
+    // 67 → 69: one more window examined (`jb-b3-win`) and one fewer blocked
+    // (`jb-b5-win`, cleared because the jumbo re-author divided bedrooms 4/5).
+    expect(windows - hits.length).toBe(69)
   })
 })

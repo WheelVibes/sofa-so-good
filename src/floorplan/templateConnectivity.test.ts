@@ -135,7 +135,6 @@ const KNOWN_DISCONNECTED: Record<string, number> = {
   'tpl-hdb-4room/ground': 2,
   'tpl-hdb-5room/ground': 2,
   'tpl-hdb-exec/ground': 6,
-  'tpl-hdb-jumbo/ground': 7,
   'tpl-hdb-maisonette/ground': 4,
   'tpl-loft/lf-up': 3,
   'tpl-terrace-ground/ct-up': 2,

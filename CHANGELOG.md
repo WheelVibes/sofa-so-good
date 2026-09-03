@@ -27,6 +27,57 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.29 — tpl-hdb-jumbo re-authored: 7 sealed groups → 1 (template 1 of 16)
+
+First template of the authorised full (f) re-author. Every ratchet entry jumbo held
+is now gone, and each was verified by measurement rather than assumed:
+
+- **Connectivity 7 groups → 1.** The plan had no doors for its kitchen, service yard
+  or shelter at all, and the west stack chained bed2 → bed3 → master with no way in
+  from the flat. Added a service line (living → utility lobby → service yard →
+  kitchen, shelter off the lobby) and a bedroom corridor off the living hall with one
+  door per room.
+- **Shared enclosure gone.** Per the recorded decision the Common Bath moved out to
+  the corridor — its name says common, so it must be reachable without crossing the
+  master — and the ensuite is walled off as a full-depth strip.
+- **Bisected room gone.** The master rectangle had overrun the corridor wall at x=4.0
+  AND both baths, claiming 11.5 m²; it is an honest 6.9 m² now.
+- **Item (h): `jb-m-win` was in the KITCHEN.** At offset 10.2 on `jb-w`, which runs
+  south→north, it sat at z=2.9 — so the kitchen had two windows and the master none.
+  Moved to the master's own external wall; `jb-bed3` also got its first window.
+  Template bedrooms owning a window: 32 → 34.
+- **Item (j): one window cleared.** Dividing bedrooms 4 and 5 (one undivided volume
+  before) cleared `jb-b5-win`. Blocked windows 11 → 10.
+
+This landed exactly on item (f)'s own prediction — "any correct partition makes the
+master roughly 2.1 m wide" — the master is 2.1 × 3.3 m. That is the cost the decision
+accepted, not a slip.
+
+**My first attempt lost the master's bed.** An L-shaped master wrapping a
+corner-placed ensuite left no leg deeper than 1.8 m, and a queen bed is 2.0 m long,
+so it could not be placed anywhere — caught as `bed-queen` 2 → 1 in a per-def diff.
+I reshaped the room rather than ratcheting the number, which is what that assertion
+exists for.
+
+Two further authoring errors caught by the gate: two doors at offset 2.3 on 3.1 m
+walls ran off the end, and one of them would have crossed the shelter's south-wall
+junction and breached its enclosure. Fixed by deepening the utility lobby.
+
+Item total 1444 → 1440 is the first step in this series to REDUCE it, and the
+comment on that assertion now says so honestly: it is room geometry, not a placement
+failure — a wardrobe and a desk in the now-smaller bedrooms plus one piece that had
+been standing outside every room, while the ensuite gained a shower and a second
+basin.
+
+Verified: 10126 tests pass; `tsc`, `biome`, `knip` clean. New scenario
+`jumbo-reauthor.json` (18 steps) asserts the master can take a bed, the Common Bath
+is clear of it, and the door count, then screenshots the 2D plan and 3D shell — both
+visually reviewed: every wall present, door leaves throughout, rooms enclosed.
+
+Recorded in `docs/open-graphics-decisions.md` (f), including what is still open here:
+the central corridor is ~43 m² of UNDECLARED space (pre-existing), so the app
+accounts no floor finish or area for a third of the flat.
+
 ## v0.31.8.28 — (f) is wider than measured: 16 of 22 template levels are internally disconnected
 
 Starting the authorised re-authoring of `tpl-hdb-jumbo`, I read its west wing before

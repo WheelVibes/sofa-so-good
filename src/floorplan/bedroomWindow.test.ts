@@ -32,8 +32,6 @@ const KNOWN_WINDOWLESS_BEDROOMS = [
   'tpl-hdb-3gen/g3-gen',
   'tpl-hdb-3gen/g3-bed3',
   'tpl-hdb-3gen/g3-master',
-  'tpl-hdb-jumbo/jb-bed3',
-  'tpl-hdb-jumbo/jb-master',
   'tpl-condo-4bed/c4-bed4',
   'tpl-condo-penthouse/cp-master',
 ]
@@ -96,7 +94,9 @@ describe('template bedrooms have daylight', () => {
         }
       }
     // 29 until v0.31.5.115 (4-room), 30 until `.116` (5-room), 31 until `.118`
-    // (exec) gave their masters their windows back.
-    expect(owning).toBe(32)
+    // (exec) gave their masters their windows back; 34 from v0.31.8.29, when the
+    // jumbo re-author gave jb-master and jb-bed3 windows on their OWN walls —
+    // `jb-m-win` had been at z=2.9, inside the kitchen.
+    expect(owning).toBe(34)
   })
 })

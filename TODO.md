@@ -1927,3 +1927,14 @@ Consequence for the authorised (f) work: re-authoring jumbo is not just partitio
 moving the Common Bath, it also needs corridor doors, and 15 other levels share the
 defect. Details and the two wrong instruments are in
 `docs/open-graphics-decisions.md` (f) under v0.31.8.28.
+
+## tpl-hdb-jumbo: the central corridor is ~43 m² of undeclared space
+
+Pre-existing (jumbo never had a corridor room), surfaced by the v0.31.8.29
+re-author. The strip x 4.0-8.4 × z 3.2-13.1 is the flat's circulation spine and is
+covered by no declared room, so the app accounts no floor finish, no area and no
+sockets for roughly a third of a 119.7 m² plan. Declaring it as a hall would fix
+that, but it has to avoid the Common Bath now sitting in it (x 6.4-8.3, z 9.7-11.7),
+so it needs either an L-shaped room or the bath moved to one end — a content call.
+
+Check the other 15 levels for the same thing as they are re-authored.

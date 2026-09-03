@@ -303,6 +303,43 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.29 — `tpl-hdb-jumbo` re-authored (1 of 16), all three ratchets improved
+
+Directed to re-author all 16 disconnected levels, starting with the two frame-proven worst.
+`tpl-hdb-jumbo` is done and every ratchet entry it held is GONE:
+
+- **connectivity 7 groups → 1.** Added the doors the plan simply did not have: a service line
+  (living → utility lobby → service yard → kitchen, shelter off the lobby) and a bedroom corridor
+  off the living hall with one door per room. Before this, the kitchen, service yard and shelter
+  had NO doors at all, and the west stack chained bed2 → bed3 → master with no way in.
+- **shared enclosure `jb-cbath + jb-master + jb-mbath` → gone.** Per the recorded decision, the
+  Common Bath moved OUT to the corridor (its name says common, so it must be reachable without
+  crossing the master) and the ensuite is walled off as a full-depth strip.
+- **bisected room `jb-wb-corr through jb-master` → gone.** The master rectangle had overrun the
+  corridor wall at x=4.0 *and* both baths, claiming 11.5 m²; it is now an honest 6.9 m².
+- **item (h), two bedrooms fixed.** `jb-m-win` sat at offset 10.2 on `jb-w`, which runs
+  south→north — so it was at z=2.9, **inside the kitchen**, giving that room a second window and
+  the master none. It moved to the master's own external wall (`jb-s`), and `jb-bed3` got its
+  first window. Template bedrooms owning a window: 32 → 34.
+- **item (j), one window cleared.** Dividing bedrooms 4 and 5 (previously one undivided volume)
+  cleared `jb-b5-win`. Blocked windows 11 → 10.
+
+**This hit item (f)'s own prediction exactly.** The write-up warned that "any correct partition
+makes the master bedroom roughly 2.1 m wide" — the master is now 2.1 × 3.3 m. That is the cost the
+decision accepted, not a slip.
+
+**An L-shaped master was tried first and lost the bed.** Wrapping the master round a corner-placed
+ensuite gave no leg deeper than 1.8 m, and a queen bed is 2.0 m long, so it could not be placed at
+all — measured as `bed-queen` 2 → 1 across the template, i.e. a master shipping with no bed. The
+shape was changed rather than the ratchet. Total pieces 1444 → 1440 is a genuine
+room-geometry consequence (verified by per-def diff: a wardrobe and a desk in the now-smaller
+bedrooms, plus one piece that had been standing outside every room; the ensuite GAINED a shower
+and a second basin).
+
+**Still open on this template:** the central corridor is ~43 m² of UNDECLARED space (pre-existing —
+jumbo never had a corridor room), so the app accounts no floor finish or area for a third of the
+flat. Worth declaring as a hall, but it is a separate content call.
+
 ### v0.31.8.28 — (f) is WIDER than measured: 16 of 22 template levels are internally disconnected
 
 Starting the authorised re-authoring of `tpl-hdb-jumbo`, I read its west wing before moving

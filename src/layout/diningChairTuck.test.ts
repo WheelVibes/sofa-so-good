@@ -85,7 +85,12 @@ describe('dining chairs are tucked to their table', () => {
       // master's wardrobe had been dropped and now places.
       'tpl-hdb-exec': 93,
       'tpl-hdb-3gen': 95,
-      'tpl-hdb-jumbo': 120,
+      // 120 → 116 in v0.31.8.29: the jumbo re-author divided bedrooms 4 and 5
+      // (one undivided volume before) and shrank the master from a rectangle
+      // that overran the corridor wall and both baths, 11.5 → 6.9 m². Fewer,
+      // honestly-sized rooms hold fewer pieces; the master keeps its queen bed
+      // (an earlier L-shaped attempt lost it — no leg was 2.0 m deep).
+      'tpl-hdb-jumbo': 116,
       'tpl-hdb-maisonette': 141,
       'tpl-studio': 23,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
@@ -106,9 +111,19 @@ describe('dining chairs are tucked to their table', () => {
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
     // 1441 after `.115` restored the 4-room kitchen's range hood; 1442 after
     // `.116` restored the 5-room's; 1444 after `.118` restored the exec's hood
-    // AND its master wardrobe.
-    // Every step ADDED pieces — none of this deletes furniture.
-    expect(total).toBe(1444)
+    // AND its master wardrobe. Every step up to here ADDED pieces.
+    //
+    // 1444 → 1440 in v0.31.8.29 is the FIRST step to reduce it, and it is a
+    // room-geometry change rather than a placement failure: the jumbo re-author
+    // divided bedrooms 4 and 5 (previously one undivided volume) and shrank a
+    // master rectangle that had overrun the corridor wall and both baths,
+    // 11.5 → 6.9 m². Verified by dumping the per-def diff, not inferred: the
+    // master KEEPS its queen bed and its ensuite gained a shower and a second
+    // basin; the four fewer pieces are a wardrobe and a desk in the smaller
+    // bedrooms, plus one piece that had been standing outside every room.
+    // An earlier L-shaped master DID lose the bed (`bed-queen` 2 → 1) — that is
+    // what this assertion is for, and it was reshaped rather than ratcheted.
+    expect(total).toBe(1440)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

@@ -293,19 +293,41 @@ export function hdbJumbo(): FloorPlan {
     extent: [W, D],
     walls: [
       ...perimeter('jb', W, D),
-      // North service band across the rear.
+      // North service band across the rear: kitchen | service yard | utility
+      // lobby, the lobby holding the household-shelter door (v0.31.8.29).
       iwall('jb-svc-s', [T, 3.2], [8.4, 3.2]),
       iwall('jb-kit-e', [4.0, T], [4.0, 3.2]),
       iwall('jb-yard-e', [6.0, T], [6.0, 3.2]),
+      // Shelter's own south wall, so the RC box is enclosed and the strip below
+      // it becomes the utility lobby rather than being part of the shelter.
+      iwall('jb-hs-s', [6.0, 2.0], [8.4, 2.0]),
       // Central living spine divides the two former units.
       iwall('jb-liv-w', [8.4, T], [8.4, D - T]),
-      // West bedroom stack.
+      // West bedroom stack, entered from the corridor (x 4.0-8.4) rather than
+      // through the neighbouring bedroom.
       iwall('jb-wb-corr', [4.0, 3.2], [4.0, D - T]),
       iwall('jb-b2-s', [T, 6.8], [4.0, 6.8]),
       iwall('jb-m-n', [T, 9.6], [4.0, 9.6]),
+      // Master ensuite: the bath takes a full-depth strip on the west and the
+      // master the rest, instead of three rooms sharing one volume.
+      //
+      // An L-shaped master was tried first and was WRONG: the enclosure is only
+      // 3.5 m deep, so no leg of the L was deeper than 1.8 m and a 2.0 m queen
+      // bed could not be placed at all — measured as `bed-queen` 2 → 1 across
+      // the template, i.e. a master bedroom shipping with no bed. A 2.1 × 3.3 m
+      // master takes the bed along its long axis with a 0.6 m side walkway.
+      iwall('jb-mb-e', [1.75, 9.6], [1.75, D - T]),
+      // Common Bath, moved OUT of the master enclosure to open off the corridor
+      // (the decision recorded for item (f)) — its name says common, so it must
+      // be reachable without entering the master bedroom.
+      iwall('jb-cb-n', [6.3, 9.6], [8.4, 9.6]),
+      iwall('jb-cb-w', [6.3, 9.6], [6.3, 11.8]),
+      iwall('jb-cb-s', [6.3, 11.8], [8.4, 11.8]),
       // East column: second living + two more bedrooms toward the south.
       iwall('jb-eliv-s', [8.4, 6.6], [W - T, 6.6]),
       iwall('jb-eb-mid', [11.4, 6.6], [11.4, D - T]),
+      // Bedrooms 4 and 5 were one undivided volume.
+      iwall('jb-b45', [11.4, 9.9], [W - T, 9.9]),
     ],
     openings: [
       // MAIN-DOOR-ROOM (v0.31.5.119): was 9.2, which put the front door at
@@ -315,28 +337,61 @@ export function hdbJumbo(): FloorPlan {
       // a living-category space. The Living / Dining never touches this wall —
       // it fronts jb-n and jb-e — so the Family Room is the correct target.
       door('jb-main', 'jb-s', 4.1),
-      door('jb-master', 'jb-m-n', 1.0),
-      door('jb-b2', 'jb-b2-s', 1.0),
+      // Service line: living → utility lobby → service yard → kitchen, with the
+      // shelter opening off the lobby. Before v0.31.8.29 the kitchen, yard and
+      // shelter had NO doors at all and were sealed off from the flat.
+      door('jb-lobby', 'jb-liv-w', 2.6),
+      door('jb-hs', 'jb-hs-s', 0.6, 0.7),
+      // Both walls are 3.1 m long (z 0.1-3.2), so a 0.9 m door cannot start
+      // later than 2.2. These sit at z 2.2-3.1, i.e. SOUTH of the shelter's own
+      // south wall (z=2.0) — a door higher up would cross that junction and
+      // breach the shelter enclosure.
+      door('jb-yard-door', 'jb-yard-e', 2.1),
+      door('jb-kit-door', 'jb-kit-e', 2.1),
+      // Bedroom corridor off the living hall, then one door per room. The old
+      // plan chained bed2 → bed3 → master through internal walls with no way in
+      // from the rest of the flat.
+      door('jb-corr', 'jb-liv-w', 4.4),
+      door('jb-bed2', 'jb-wb-corr', 1.6),
+      door('jb-bed3', 'jb-wb-corr', 4.7),
+      door('jb-master', 'jb-wb-corr', 7.1),
+      door('jb-mbath', 'jb-mb-e', 0.9, 0.8),
+      door('jb-cbath', 'jb-cb-w', 1.0, 0.8),
+      // East column.
+      door('jb-family', 'jb-eliv-s', 1.1),
+      door('jb-bed4', 'jb-eb-mid', 1.4),
+      door('jb-bed5', 'jb-eb-mid', 4.9),
       window('jb-kit-win', 'jb-n', 1.6, 1.8),
       window('jb-b2-win', 'jb-w', 7.4, 1.6),
-      window('jb-m-win', 'jb-w', 10.2, 1.8),
+      // BEDROOM-WINDOW (h): `jb-m-win` was at offset 10.2 on `jb-w`, which runs
+      // SOUTH→NORTH from [0.1, 13.1] — so it sat at z = 13.1 − 10.2 = 2.9, i.e.
+      // in the KITCHEN, giving that room a second window and the master none.
+      // The master no longer reaches `jb-w` (the ensuite strip does), so its own
+      // external wall is the south perimeter: `jb-s` runs east→west from x=14.3,
+      // and offset 10.8 spans x 3.5→2.1, inside the master's 1.8-3.9.
+      window('jb-m-win', 'jb-s', 10.8, 1.4),
+      // Bedroom 3 owned no window either (z 7.0-9.4 → offsets 3.7-6.1).
+      window('jb-b3-win', 'jb-w', 4.6, 1.4),
       window('jb-liv-win', 'jb-e', 2.0, 2.2),
       window('jb-b4-win', 'jb-e', 8.0, 1.6),
       window('jb-b5-win', 'jb-e', 11.0, 1.6),
     ],
     rooms: [
       room('jb-kit', 'Kitchen', 0.2, 0.2, 3.6, 2.8, 'floor-tile-grey', 'kitchen'),
-      room('jb-yard', 'Service Yard', 4.3, 0.2, 1.5, 2.8, 'floor-tile-grey', 'serviceYard'),
-      room('jb-shelter', 'Household Shelter', 6.3, 0.2, 1.9, 2.0, 'floor-tile-grey', 'shelter'),
+      room('jb-yard', 'Service Yard', 4.2, 0.2, 1.6, 2.8, 'floor-tile-grey', 'serviceYard'),
+      room('jb-shelter', 'Household Shelter', 6.2, 0.2, 2.0, 1.7, 'floor-tile-grey', 'shelter'),
       room('jb-living', 'Living / Dining', 8.6, 0.2, 5.6, 6.2, 'floor-wood-oak', 'living'),
       room('jb-family', 'Family Room', 8.6, 6.8, 2.6, 6.2, 'floor-wood-oak', 'living'),
-      room('jb-bed4', 'Bedroom 4', 11.6, 6.8, 2.6, 3.0, 'floor-wood-walnut', 'bedroom'),
-      room('jb-bed5', 'Bedroom 5', 11.6, 10.0, 2.6, 3.0, 'floor-wood-walnut', 'bedroom'),
+      room('jb-bed4', 'Bedroom 4', 11.6, 6.8, 2.6, 2.9, 'floor-wood-walnut', 'bedroom'),
+      room('jb-bed5', 'Bedroom 5', 11.6, 10.1, 2.6, 2.9, 'floor-wood-walnut', 'bedroom'),
       room('jb-bed2', 'Bedroom 2', 0.2, 3.4, 3.6, 3.2, 'floor-wood-walnut', 'bedroom'),
       room('jb-bed3', 'Bedroom 3', 0.2, 7.0, 3.6, 2.4, 'floor-wood-walnut', 'bedroom'),
-      room('jb-cbath', 'Common Bath', 0.2, 9.6, 1.8, 2.0, 'floor-tile-white', 'bath'),
-      room('jb-master', 'Master Bedroom', 2.2, 9.8, 3.6, 3.2, 'floor-wood-oak', 'masterBedroom'),
-      room('jb-mbath', 'Master Bath', 0.2, 11.8, 1.8, 1.2, 'floor-tile-marble', 'bath'),
+      // Now in the corridor, not inside the master enclosure.
+      room('jb-cbath', 'Common Bath', 6.4, 9.7, 1.9, 2.0, 'floor-tile-white', 'bath'),
+      // 2.1 x 3.3 = 6.9 m², where the old rectangle claimed 11.5 m² by
+      // overrunning the corridor wall at x=4.0 AND both baths.
+      room('jb-master', 'Master Bedroom', 1.8, 9.7, 2.1, 3.3, 'floor-wood-oak', 'masterBedroom'),
+      room('jb-mbath', 'Master Bath', 0.2, 9.7, 1.5, 3.3, 'floor-tile-marble', 'bath'),
     ],
   }
 }
