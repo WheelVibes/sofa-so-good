@@ -8,6 +8,7 @@
 export type FeatureFlag =
   | 'report'
   | 'walkthrough'
+  | 'visibilityLightmap'
   | 'sunStudy'
   | 'measure'
   | 'budget'

@@ -75,14 +75,24 @@ describe('createLightmapResolver', () => {
     expect(r.describeHitRate().suspect).toBe(false)
   })
 
-  it('flags a sustained zero hit rate as a bug, not an empty set', () => {
+  it('flags a sustained zero hit rate as a bug WHEN coverage was expected', () => {
     // This is the property that caught keys hashed in Blender space matching 0 of 385 meshes.
     const r = createLightmapResolver(index(), '/lm', 5)
     for (let i = 0; i < 6; i += 1) r.urlFor(`miss${i}`)
-    const d = r.describeHitRate()
+    const d = r.describeHitRate(true)
     expect(d.suspect).toBe(true)
     expect(d.message).toContain('ZERO matched')
     expect(d.message).toContain('coordinate frame')
+  })
+
+  it('stays quiet on zero hits when coverage was NOT expected', () => {
+    // With one shared index across all baked plans, an unbaked or user-edited layout matching
+    // nothing is the normal state -- warning there would cry wolf on the common case.
+    const r = createLightmapResolver(index(), '/lm', 5)
+    for (let i = 0; i < 6; i += 1) r.urlFor(`miss${i}`)
+    const d = r.describeHitRate()
+    expect(d.suspect).toBe(false)
+    expect(d.message).toContain('no maps for this plan')
   })
 
   it('does not flag a partial hit rate — the shell is mapped, furniture is not', () => {

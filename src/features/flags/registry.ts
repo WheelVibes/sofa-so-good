@@ -27,6 +27,25 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Baked aperture-visibility maps modulating indirect light (item (w)). Measured against a
+  // Cycles reference it takes the spatial lighting mismatch from 4.76x to 1.36x, and it is the
+  // largest single fidelity defect the graphics arc found -- a ~3x error on a wall that can
+  // barely see a window, because the analytical fill gives every surface the same skylight
+  // whether or not it can see the sky.
+  //
+  // `default: false` because it needs BAKED ASSETS, which exist for one plan so far: with no
+  // maps the render is byte-identical to today's, so shipping it on would do nothing for most
+  // plans while adding ~19 shader variants. Turn it on when the shipped starter plans are baked.
+  //
+  // `tier: 'simple'` deliberately -- this is fidelity, not a professional tool, and Simple mode
+  // is where the move-in default lives. Frame cost measured at nil for both auto-selected tiers
+  // (v0.31.7.15), so it does not need to be gated on quality either.
+  visibilityLightmap: {
+    label: 'Baked light occlusion',
+    description: 'Physically baked skylight visibility on walls, floors and ceilings',
+    default: false,
+    tier: 'simple',
+  },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
   measure: {
     label: 'Measure',

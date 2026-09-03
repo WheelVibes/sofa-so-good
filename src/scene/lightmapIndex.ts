@@ -14,6 +14,18 @@
  * because the probe treated a zero hit rate as an error. This module keeps that property: it
  * tracks lookups and `describeHitRate()` reports them, so a caller can log or throw instead of
  * silently rendering exactly what it rendered before.
+ *
+ * **One index for every baked plan, not one per plan — and the reason is worth stating.** There
+ * is no plan-preset id in the store: a plan is a data structure the user can edit, so there is
+ * nothing stable to name an asset folder after. Geometry keys make that unnecessary. A key hashes
+ * *world-space* vertices, so a wall in plan A cannot collide with one in plan B, and a single
+ * index can carry every shipped plan's maps with the per-mesh lookup doing the discrimination.
+ *
+ * **Which changes what zero hits means, so `suspect` takes a parameter.** With a plan-specific
+ * set, zero hits is a bug. With one shared index, zero hits is the *normal* state for a plan
+ * nobody has baked — a user-edited layout, say — and firing a warning there would cry wolf on
+ * exactly the case the design expects to be common. So the caller states whether it believes
+ * this scene *should* be covered; the resolver reports facts either way.
  */
 
 /** One baked map. `object` and `area` are provenance for debugging; `key` is the contract.
@@ -76,11 +88,14 @@ export interface LightmapResolver {
   /** `{ looked, hit, missed, rate }` — `rate` is `hit / looked`, or 0 before any lookup. */
   stats(): { looked: number; hit: number; missed: number; rate: number }
   /**
-   * A one-line summary, plus `suspect: true` when the hit rate is low enough to mean the set does
-   * not belong to this scene. **Zero hits after a real number of lookups is a bug, not an empty
-   * set** — see the module docs.
+   * A one-line summary, plus `suspect`.
+   *
+   * `expectCoverage` is the caller's claim that this scene *should* have maps. Pass `true` for a
+   * plan known to be baked, where zero hits means a real bug (wrong coordinate frame, stale
+   * asset). Pass `false` — the default — for the shared-index case, where an unbaked plan
+   * legitimately matches nothing and a warning would be noise.
    */
-  describeHitRate(): { message: string; suspect: boolean }
+  describeHitRate(expectCoverage?: boolean): { message: string; suspect: boolean }
 }
 
 /**
@@ -109,18 +124,21 @@ export function createLightmapResolver(
     stats() {
       return { looked, hit, missed: looked - hit, rate: looked ? hit / looked : 0 }
     },
-    describeHitRate() {
+    describeHitRate(expectCoverage = false) {
       const { rate } = this.stats()
       const pct = (100 * rate).toFixed(0)
       const judged = looked >= minLookupsToJudge
+      const suspect = expectCoverage && judged && rate === 0
       return {
         message:
           `lightmaps: ${hit}/${looked} meshes matched (${pct} %), ${index.maps.length} maps in set` +
-          (judged && rate === 0
-            ? ' — ZERO matched, so this set does not belong to this scene (wrong plan, or keys' +
-              ' hashed in a different coordinate frame)'
-            : ''),
-        suspect: judged && rate === 0,
+          (suspect
+            ? ' — ZERO matched on a plan expected to be covered, so something is wrong (stale' +
+              ' asset, or keys hashed in a different coordinate frame)'
+            : judged && rate === 0
+              ? ' — no maps for this plan (expected for an unbaked or user-edited layout)'
+              : ''),
+        suspect,
       }
     },
   }

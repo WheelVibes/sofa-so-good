@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.30 — the flag, and an architectural question answered: ONE index for every plan, not one per plan
+
+Two things this round, both prerequisites for wiring that turned out to be more than paperwork.
+
+**There is no plan id to hang assets on — and geometry keys make one unnecessary.** The obvious
+asset layout is `assets/lightmaps/<planId>/`, and there is no `planId`: a plan is an editable
+data structure in the store, so nothing stable names it. That looked like a blocker and is
+actually a simplification. A `geometry_key` hashes **world-space** vertices, so a wall in plan A
+cannot collide with one in plan B, and **a single shared index can carry every baked plan** with
+the per-mesh lookup doing all the discrimination.
+
+**Which changes what zero hits means, so the diagnostic had to change with it.** With a
+plan-specific set, zero hits is a bug — that property is what caught the wrong-coordinate-frame
+failure in `v0.31.7.16`. With one shared index, zero hits is the **normal** state for a plan
+nobody has baked, and a user-edited layout is exactly the case the design expects to be common.
+Warning there would cry wolf on the common path. So `describeHitRate(expectCoverage)` now takes
+the caller's claim about whether this scene *should* be covered:
+
+- `expectCoverage: true` — zero hits reports *"something is wrong (stale asset, or keys hashed in
+  a different coordinate frame)"* and sets `suspect`.
+- default `false` — zero hits reports *"no maps for this plan (expected for an unbaked or
+  user-edited layout)"* and stays quiet.
+
+Both branches tested, because the whole value of the diagnostic is that it fires when it should
+and **not** when it shouldn't; a warning nobody trusts is worse than none.
+
+**The feature flag: `visibilityLightmap`, `tier: 'simple'`, `default: false`.**
+
+- **`simple`, deliberately.** This is fidelity, not a professional tool, and Simple mode is where
+  the move-in default lives — a `pro` tier would strip it from the very mode that matters most.
+  Frame cost is nil at both auto-selected tiers (`v0.31.7.15`), so it needs no quality gate
+  either.
+- **`false`, because it needs baked assets** and one plan is baked so far. With no maps the render
+  is byte-identical to today's, so shipping it on would add ~19 shader variants and change
+  nothing for most plans.
+- **Not `devOnly`:** the maps are generated assets with no licence or sidecar dependency, so
+  there is nothing to keep out of production.
+
+Four tests in both modes, per CLAUDE.md — including that an override is **ignored for an
+unprivileged user**, pinned now so the flag cannot quietly become publicly togglable when its
+default flips.
+
+**Still nothing wired**, so the render and frame budget remain untouchable and all three views
+keep their measured 60 fps. Suite: **10039 green**; `tsc`, biome, knip clean.
+
 ## v0.31.7.29 — the loader, with the hit-rate diagnostic built into the code rather than the prose
 
 `src/scene/lightmapIndex.ts` — `parseLightmapIndex()` and `createLightmapResolver()`. The third
