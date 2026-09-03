@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.172 — a global-scale diagnostic bake: the bake itself gives ceilings 4-8x less than walls
+
+`.171` localised the ceiling deficit to the bake. Per-map normalisation makes cross-mesh comparison
+invalid by construction (each map is divided by its own maximum), so this re-bakes the same scene
+with **one global `--scale 64`**, where every object's reported statistics are directly comparable.
+
+**The bake's own numbers, one scale for the whole set:**
+
+| | interior mean | max |
+| --- | --- | --- |
+| ceilings (the single-slot `(2,0)` meshes) | **0.08 – 0.24** | 0.57 – 1.58 |
+| walls (multi-slot) | **0.65 – 1.20** | 3.00 – 3.24 |
+
+So the bake gives a ceiling roughly **4–8x** less irradiance than a wall in the same flat. That is
+the bake's own claim, measured without any normalisation that could distort it, and it is consistent
+with `.171`'s rendered ratio going the wrong way.
+
+**Two things I am NOT concluding, because the comparison does not support them.**
+
+1. *That the shipped index's scales are wrong.* Those imply 13x, this bake shows 4–8x — but the two
+   are different quantities on different baked sets (peak-vs-peak against interior-mean-vs-mean),
+   and this diagnostic baked **24** meshes where the shipped set has 40. Not comparable.
+2. *That 4–8x is itself the fault.* A ceiling is lit only by bounce while a wall's mesh-level mean
+   includes texels that see the window directly, so some ratio is expected. The confound that has
+   dogged this thread is that the bake reports **mesh-level** statistics while the frames measure
+   **patch-level** regions, and a shaded wall patch is not the wall's mean. The decisive experiment
+   compares baked irradiance at the specific texels in view against Cycles at the same points.
+
+**A real operational gotcha, found by checking a guess instead of stating it.** Three exports of the
+same flat produced three different `plan_context` values (`daabc05f` shipped, `d03ee082`,
+`01d79f75`). My first guess was that `LIGHTS=off` changed the exported mesh set. Reading the code
+instead: `plan_context = fnv1a32(";".join(sorted(keys)))` over the **baked** set, so it changes with
+anything that changes which meshes qualify — `--min-area 30` baked 1 mesh and produced the third
+hash by itself. The context is a namespace derived from the bake, not a property of the plan, so a
+re-bake with different thresholds produces a different context; the app still matches on keys, but
+two sets must never be mixed.
+
+Also worth recording from the run: `candidates_over_min_area: 111` against `baked: 24`, so something
+between the area filter and the bake drops 87 meshes. That gap is unexplained and is the cheapest
+remaining lead on why the shipped set covers only 52 of 1122 meshes.
+
+Suite 10167 green, `tsc` and biome clean. Nothing shipped.
+
+
 ## v0.31.7.171 — a shoulder-free comparison, and the RATIO test: the GI makes the ceiling/wall balance WORSE
 
 `.170` could not separate "the bake under-represents ceilings" from "the app mis-shades a correct
