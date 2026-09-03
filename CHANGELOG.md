@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.140 — the geometric wall test PLATEAUS at 42.4 %: geometry cannot finish this, and the fix is exporter-side
+
+`.139` specified the wall bucket must be "the faces carrying the wall material, not the faces near
+the perimeter", and gave the acceptance criterion: `changed %` ~100 for a finish bucket, 0 for the
+others. Took the cheapest step toward it and measured the ceiling on that approach.
+
+**The step: require the face to point INWARD.** A face on this room's side of a party wall has its
+normal aimed at the room centre; the neighbour's side of the same wall does not, and takes the
+neighbour's finish.
+
+| | before | **after** |
+| --- | --- | --- |
+| `wall` area | 63.04 m² | **56.04 m²** |
+| `wall` changed | 37.8 % | **42.4 %** |
+| `other` changed | 0.0 % | **0.1 %** (0.03 m² — should be 0) |
+
+**Real, and it plateaus well short.** 42.4 % against a target of ~100 %, and it introduced a small
+leak into the bucket that must stay clean.
+
+**Geometry cannot finish the job, and the reason is structural.** Window reveals and columns sit at
+the perimeter, face inward, and are the same shape as wall. They differ only in *what material they
+carry* — and the GLB names materials `Material_0`, `Material_1`, … with no finish identity at all
+(checked, not assumed).
+
+**So the complete fix is exporter-side:** tag shell meshes with their surface role on export —
+`userData` → glTF `extras`, alongside the existing `noExport` convention that `sceneGltf.ts` already
+uses for exclusion. The bake then reads the role instead of inferring it, the classifier becomes
+exact rather than heuristic, and `.139`'s acceptance criterion tells you immediately whether it
+worked.
+
+Stopping at the plateau rather than adding a third heuristic: the last two rounds each improved a
+guess about geometry (perimeter → inward-facing) while the actual discriminator is identity, and this
+arc's record on "one more heuristic" is poor. The measurement that says so is cheap and repeatable,
+which is the useful part.
+
+Recorded in `_surface_class`'s docstring. Suite **10150 green**, `tsc` and biome clean.
+
 ## v0.31.7.139 — measured WHICH faces take a finish, and the bucket architecture reconstructs ρ to 1.1 % out of sample
 
 `.138` blamed the reconstruction error on an over-inclusive wall bucket and estimated 45 % from an

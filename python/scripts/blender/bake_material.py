@@ -877,6 +877,22 @@ def _surface_class(rooms, room_id: str, centre_three, normal_three) -> str:
     against a directly censused **0.5719** -- **1.1 % out of sample**, where the over-inclusive
     bucket was 28 % out. So the architecture is right and this one test is wrong: the wall bucket
     must be the faces carrying the wall MATERIAL, not the faces near the perimeter.
+
+    ## The geometric route PLATEAUS at 42.4 % -- measured, `v0.31.7.140`
+
+    Adding an inward-facing requirement (a face on this room's side of a party wall has its normal
+    pointing at the room centre; the neighbour's side does not) moves the wall bucket from
+    **37.8 % -> 42.4 %** changed and drops 7 m2 of outward-facing area. Real, and nowhere near the
+    ~100 % the acceptance criterion needs. It also leaked 0.03 m2 into `other`, which should be 0.
+
+    **Geometry cannot finish this job.** Window reveals and columns sit at the perimeter, face
+    inward, and are the same shape as wall -- they are only distinguishable by *what material they
+    carry*, and the GLB names materials `Material_0`, `Material_1`, ... with no finish identity.
+
+    **The complete fix is exporter-side:** tag shell meshes with their surface role on export
+    (`userData` -> glTF `extras`, next to the existing `noExport` convention) so the bake reads the
+    role instead of inferring it. That makes this classifier exact rather than heuristic, and the
+    acceptance criterion already exists: `changed %` ~100 for a finish bucket, 0 for the others.
     """
     room = next((r for r in rooms if r["id"] == room_id), None)
     if room is None:
@@ -892,7 +908,16 @@ def _surface_class(rooms, room_id: str, centre_three, normal_three) -> str:
         ox, oz = room["origin"]
         edge = min(x - ox, ox + room["width"] - x, z - oz, oz + room["depth"] - z)
         if edge < 0.3:
-            return "wall"
+            # INWARD-FACING ONLY. The far side of a party wall sits at the same perimeter with its
+            # normal pointing away from this room, and it does not take this room's finish -- it
+            # takes the neighbouring room's. `v0.31.7.139` measured only 37.8 % of this bucket
+            # actually repainting; this removes one of the named causes for the rest (the others
+            # are window reveals and columns, which need material identity to separate).
+            cx = ox + room["width"] / 2.0
+            cz = oz + room["depth"] / 2.0
+            if (cx - x) * normal_three[0] + (cz - z) * normal_three[2] > 0:
+                return "wall"
+            return "other"
     return "other"
 
 
