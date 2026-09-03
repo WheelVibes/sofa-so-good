@@ -27,6 +27,62 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.3 - The circulation score had TWO saturating terms, not one
+
+Recalibrated against a 62-layout corpus on the maintainer's decision: 19 templates
+x 3 arranger seeds, plus 4 presets on the default plan and the authored flat.
+
+**The corpus found something worse than the original diagnosis.** The recorded
+problem was "circulation saturates at 0 for auto-furnished layouts". What is
+actually true:
+
+- **53 of 62 layouts hit `advisoryCap`**, and for every one of those the score was
+  EXACTLY `58 - 20 x impassable`. The old formula reproduced all 62 rows with zero
+  mismatches. A 100-point category with five inputs was behaving as a 4-valued
+  function of one integer.
+- Only 8 of 62 clamped to zero, so even the "saturates at 0" framing was too
+  narrow. The real failure was resolution, everywhere.
+
+Now: route pinches graded by DEPTH below the squeeze bar rather than counted flat,
+advisory gaps charged by SHORTFALL below the 0.9 m ideal rather than a flat 3 each,
+and both terms capped so neither can zero the category alone. Category scores are
+rounded, because the graded penalties are fractional where the old integer counts
+never were.
+
+Corpus spread: **13 distinct scores -> 43, eight floor-clamped layouts -> zero**,
+median 58 -> 55.5, range 0-88 -> 16-97. The authored default flat reads 56 (was
+58), which the live panel confirms — cross-validating the offline probe.
+
+**A wrong turn, caught by measuring rather than by testing.** The first cut
+anchored the graded band at 0.30 m on anthropometric grounds (adult chest depth is
+200-250 mm, so 300 mm is the physical floor to pass at all) and emitted a "blocked
+route - an adult cannot pass" finding below it. That band is **unreachable**:
+`findNarrowGaps` skips any item-item gap `<= CLEARANCE.sofaToCoffee` (0.40 m) as
+intentional close spacing. I would have shipped dead code and a test that passed
+only because I wrote it against the same mistaken model. The band is now anchored
+at 0.40 m — the instrument's floor, explicitly documented as such.
+
+**And it retracts a claim I made an hour earlier.** "Every impassable gap in the
+corpus measured 0.400-0.500 m, so nothing is remotely blocked" describes the
+FINDER's range, not the layouts' quality. The finder is blind below 0.40 m, so
+nothing about genuinely blocked routes was measured at all.
+
+That blindness is a real defect and is logged, not fixed: two large obstacles
+jammed 0.05 m apart produce NO circulation finding — verified directly at 0.05 /
+0.25 / 0.32 / 0.40 m, all silent, with 0.45 m reporting normally. The skip is right
+for a sofa and its coffee table but is applied to every pair. `findNarrowGaps` also
+feeds the Checks panel and the clearance advisories, so it needs its own
+verification pass rather than riding along with a scoring change.
+
+**Circulation had no unit tests at all**, which is part of why both terms could
+saturate unnoticed. It has 8 now, including one that pins the 0.40 m blindness as a
+known measured limitation (it SHOULD fail when the finder is fixed) and two
+discrimination tests — pinch depth and gap magnitude — that were verified to FAIL
+on the old flat-charge arithmetic.
+
+The arranger still produces the pinches. This stops the score misreporting their
+severity; it does not improve the layouts, and that remains open.
+
 ## v0.31.8.2 - Coastal and Tropical Biophilic: theme colour off every wall, onto one feature wall
 
 The last open call from the G8 theme-grounding audit, resolved on the maintainer's

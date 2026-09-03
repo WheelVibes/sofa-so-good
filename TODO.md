@@ -557,14 +557,34 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   not catastrophically blocked routes. So the category cannot distinguish "tight in three spots"
   from "impassable throughout", and in the G8 scheme comparison every candidate scores 0, making
   circulation useless for ranking.
-  Two separable calls, NEITHER taken here because both re-calibrate a shipped, user-visible score
-  (`DesignScorePanel`) and that is a product decision, not a fix:
-  (a) give the penalty headroom so marginal pinches cannot saturate (e.g. scale `severe` by how far
-      under the bar the gap is, or cap the combined penalty below 100);
-  (b) separately, improve the ARRANGER so auto-furnishing stops producing 0.44-0.47 m pinches
-      between large pieces in the first place — that is the underlying quality issue, and fixing it
-      would raise every scheme's score honestly rather than by re-tuning the ruler.
-  Note (b) is the real problem and (a) only stops the score lying about it. Do not do (a) alone.
+  **(a) DONE v0.31.8.3 on the maintainer's decision; (b) STILL OPEN; and a THIRD defect found.**
+  Recalibrated against a 62-layout corpus (19 templates x 3 arranger seeds + 4 presets on the
+  default plan + the authored flat). What the corpus showed was worse than the original diagnosis:
+  **53 of 62 layouts hit `advisoryCap`, and for every one of those the score was exactly
+  `58 - 20 x impassable`** — a 100-point category with five inputs behaving as a 4-valued function
+  of one integer. Both terms saturated, not just one. Now: pinches graded by depth below the
+  squeeze bar, advisory gaps charged by shortfall below the 0.9 m ideal, both capped so neither can
+  zero the category. Corpus spread went 13 distinct scores -> 43, 8 floor-clamped layouts -> 0,
+  median 58 -> 55.5. Circulation had NO unit tests before this; it has 8 now, two of which fail on
+  the old arithmetic.
+  **(b) is still the real problem and is NOT done** — the arranger still produces the pinches; the
+  score has merely stopped lying about their severity.
+- **[MEASURED, NOT FIXED] `findNarrowGaps` is BLIND to genuinely blocked routes, so the design
+  score cannot see the worst case.** `layout/walkway.ts` skips any item-item gap
+  `<= CLEARANCE.sofaToCoffee` (0.40 m) as "intentional close spacing". That is right for a sofa and
+  its coffee table, but it is applied to EVERY pair, so **two large obstacles jammed 0.05 m apart
+  produce no circulation finding at all** — measured directly at 0.05 / 0.25 / 0.32 / 0.40 m, all
+  silent, with 0.45 m reporting normally (pinned in `designScore.test.ts`, which SHOULD fail once
+  this is fixed). Two consequences worth keeping straight:
+  - it is why `CIRCULATION.gradedFloor` is 0.40 and not an anthropometric figure. An earlier cut of
+    the recalibration anchored the band at 0.30 m on chest-depth grounds (200-250 mm) and was
+    unreachable dead code — tests written against it would have passed anyway;
+  - it means the corpus finding "every impassable gap measured 0.400-0.500 m" describes the
+    FINDER's range, not the layouts' quality. Do not quote it as evidence that nothing is blocked.
+  The fix is to make the skip conditional on the pair NOT being two circulation obstacles
+  (`CIRCULATION.obstacleArea` already draws that line — a coffee table is below it). Not taken here
+  because `findNarrowGaps` also feeds the Checks panel and the clearance advisories, so it needs
+  its own verification pass rather than riding along with a scoring change.
 - **[G8 — DONE, one open content call] Theme grounding audit complete: 17/17.** Full record with
   citations in `docs/research/2026-09-02-scheme-theme-grounding.md`. Ten style themes audited (nine
   accurate; Modern Luxe corrected), seven `layout`-group presets are researched by construction.
