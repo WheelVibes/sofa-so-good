@@ -589,6 +589,7 @@ const shotFor = async (pitch) => {
   if (typeof applyBgBlock === 'function') await applyBgBlock()
   if (typeof applyBgHorizon === 'function') await applyBgHorizon()
   if (typeof applyBgMul === 'function') await applyBgMul()
+  if (typeof applyAoMap === 'function') await applyAoMap()
   if (typeof applyFloorDye === 'function') await applyFloorDye()
   if (typeof applyDyeExcept === 'function') await applyDyeExcept()
   if (typeof applyEnvDump === 'function') await applyEnvDump()
@@ -1649,6 +1650,212 @@ const applyBgHorizon = !BGHORIZON
       if (res.error) throw new Error(`BGHORIZON: ${res.error}`)
       await new Promise((r) => setTimeout(r, 900))
       console.log(`BGHORIZON=${BGHORIZON} painted: ${JSON.stringify(res)}`)
+    }
+// AOMAP=<bakeDir> — apply REAL baked visibility maps to the live scene (`v0.31.7.16`).
+//
+// This is the verification step item (w) has been building toward, and it tests two links at
+// once that nothing else can:
+//
+//   1. **Do live meshes key to the baked maps at all?** The keys were computed by Blender from
+//      an EXPORTED GLB. If the exporter merges, splits or transforms geometry, the live scene's
+//      world-space vertices differ and every lookup misses -- and a miss looks exactly like a
+//      feature that does nothing. The hit rate is therefore reported, and a zero hit rate is a
+//      hard error rather than a quiet no-op.
+//   2. **Does the predicted 80 % survive contact with the renderer?** `v0.31.7.9` measured that
+//      in analysis, by multiplying profiles. Multiplying two images is not the same as three
+//      sampling an `aoMap` into `irradiance`, and only this can tell them apart.
+//
+// AOGAMMA=<g> sets the strength (default 0.7, the value `v0.31.7.10` measured as buying 68 % of
+// a deep room's error for a <=4 % regression in a small one). Applied by raising the texel
+// values to `g` on the CPU rather than via `aoMapIntensity`, because three's intensity
+// parameter lerps toward white linearly and is NOT the same curve as an exponent.
+const AOMAP = process.env.AOMAP || ''
+const AOGAMMA = process.env.AOGAMMA ? Number(process.env.AOGAMMA) : 0.7
+const applyAoMap = !AOMAP
+  ? null
+  : async () => {
+      const indexPath = `${AOMAP}/index.json`
+      if (!fs.existsSync(indexPath)) throw new Error(`AOMAP: no index.json in ${AOMAP}`)
+      const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'))
+      const byKey = new Map(index.maps.map((m) => [m.key, m.file]))
+
+      // Pass 1: key every candidate mesh in the LIVE scene, using the same canonical form as
+      // `src/scene/lightmapKey.ts` and `bake_material.py:geometry_key`.
+      const keys = await page.evaluate((minArea) => {
+        const canon = (v) => {
+          const r = Number(v.toFixed(3))
+          return (r === 0 ? 0 : r).toFixed(3)
+        }
+        const fnv = (t) => {
+          let h = 0x811c9dc5
+          for (let i = 0; i < t.length; i++) {
+            h ^= t.charCodeAt(i)
+            h = Math.imul(h, 0x01000193)
+          }
+          return (h >>> 0).toString(16).padStart(8, '0')
+        }
+        const out = []
+        window.__three.scene.updateMatrixWorld(true)
+        window.__three.scene.traverse((o) => {
+          const g = o.geometry
+          const m = o.material
+          if (!g?.attributes?.position || !m || Array.isArray(m) || !('aoMap' in m)) return
+          if (!g.boundingBox) g.computeBoundingBox()
+          const bb = g.boundingBox
+          const span = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z)
+          if (span < minArea) return
+          const pos = g.attributes.position
+          const triples = []
+          // Borrow a Vector3 from the live camera rather than reaching for a constructor:
+          // three is not a global in the page.
+          const v = window.__three.camera.position.clone()
+          for (let i = 0; i < pos.count; i++) {
+            v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld)
+            triples.push(`${canon(v.x)},${canon(v.y)},${canon(v.z)}`)
+          }
+          triples.sort()
+          o.userData.__lmKey = fnv(triples.join(';'))
+          out.push(o.userData.__lmKey)
+        })
+        return out
+      }, 1.5)
+
+      const hits = keys.filter((k) => byKey.has(k))
+      console.log(
+        `AOMAP keyed ${keys.length} live meshes, ${hits.length} matched the bake ` +
+          `(${((100 * hits.length) / Math.max(1, keys.length)).toFixed(0)} % hit rate)`,
+      )
+      if (!hits.length)
+        throw new Error(
+          'AOMAP: 0 live meshes matched a baked key -- the export transforms geometry, so the ' +
+            'key is not an identity across the export boundary. Nothing was applied.',
+        )
+
+      // Pass 2: hand the page the matched PNGs as data URLs, plus the gamma.
+      const payload = {}
+      for (const k of new Set(hits)) {
+        payload[k] =
+          `data:image/png;base64,${fs.readFileSync(`${AOMAP}/${byKey.get(k)}`).toString('base64')}`
+      }
+      const applied = await page.evaluate(
+        async ({ maps, gamma }) => {
+          const load = (url) =>
+            new Promise((resolve, reject) => {
+              const img = new Image()
+              img.onload = () => resolve(img)
+              img.onerror = reject
+              img.src = url
+            })
+          const texFor = async (url) => {
+            const img = await load(url)
+            const cv = document.createElement('canvas')
+            cv.width = img.width
+            cv.height = img.height
+            const ctx = cv.getContext('2d')
+            ctx.drawImage(img, 0, 0)
+            // Gamma on the CPU: three's `aoMapIntensity` lerps toward white, a different curve.
+            const d = ctx.getImageData(0, 0, cv.width, cv.height)
+            for (let i = 0; i < d.data.length; i += 4) {
+              const g = Math.round(255 * (d.data[i] / 255) ** gamma)
+              d.data[i] = g
+              d.data[i + 1] = g
+              d.data[i + 2] = g
+            }
+            ctx.putImageData(d, 0, 0)
+            return cv
+          }
+          // The box-atlas layout, inlined to mirror `src/scene/lightmapUv.ts` and
+          // `bake_material.py:make_box_uvs`. It must agree with the layout the maps were
+          // baked in, or every lookup lands on the wrong texel and the result is noise that
+          // still LOOKS like a working feature.
+          const boxAtlasUv = (g) => {
+            const M = 0.04
+            const pos = g.attributes.position
+            const idx = g.index
+            const n = pos.count
+            const uv = new Float32Array(n * 2)
+            const mn = [Infinity, Infinity, Infinity]
+            const mx = [-Infinity, -Infinity, -Infinity]
+            for (let i = 0; i < n; i++) {
+              const c = [pos.getX(i), pos.getY(i), pos.getZ(i)]
+              for (let k = 0; k < 3; k++) {
+                if (c[k] < mn[k]) mn[k] = c[k]
+                if (c[k] > mx[k]) mx[k] = c[k]
+              }
+            }
+            const size = [0, 1, 2].map((k) => Math.max(mx[k] - mn[k], 1e-6))
+            const triCount = idx ? idx.count / 3 : n / 3
+            const at = (i) => [pos.getX(i), pos.getY(i), pos.getZ(i)]
+            for (let t = 0; t < triCount; t++) {
+              const ia = idx ? idx.getX(t * 3) : t * 3
+              const ib = idx ? idx.getX(t * 3 + 1) : t * 3 + 1
+              const ic = idx ? idx.getX(t * 3 + 2) : t * 3 + 2
+              const a = at(ia)
+              const b = at(ib)
+              const c = at(ic)
+              const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+              const e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
+              const nr = [
+                e1[1] * e2[2] - e1[2] * e2[1],
+                e1[2] * e2[0] - e1[0] * e2[2],
+                e1[0] * e2[1] - e1[1] * e2[0],
+              ]
+              let ax = 0
+              for (let k = 1; k < 3; k++) if (Math.abs(nr[k]) > Math.abs(nr[ax])) ax = k
+              const row = nr[ax] >= 0 ? 0 : 1
+              const others = ax === 0 ? [1, 2] : ax === 1 ? [0, 2] : [0, 1]
+              for (const vi of [ia, ib, ic]) {
+                const co = at(vi)
+                const pa = (co[others[0]] - mn[others[0]]) / size[others[0]]
+                const pb = (co[others[1]] - mn[others[1]]) / size[others[1]]
+                uv[vi * 2] = (ax + M + pa * (1 - 2 * M)) / 3
+                uv[vi * 2 + 1] = (row + M + pb * (1 - 2 * M)) / 2
+              }
+            }
+            const AttrCtor = g.attributes.uv?.constructor ?? pos.constructor
+            return new AttrCtor(uv, 2)
+          }
+          const canvases = {}
+          for (const [k, url] of Object.entries(maps)) canvases[k] = await texFor(url)
+          let TextureCtor = null
+          window.__three.scene.traverse((o) => {
+            if (TextureCtor) return
+            const m = o.material
+            if (m && !Array.isArray(m) && m.map?.isTexture) TextureCtor = m.map.constructor
+          })
+          if (!TextureCtor) return { error: 'no Texture instance to borrow from' }
+          let n = 0
+          window.__three.scene.traverse((o) => {
+            const key = o.userData.__lmKey
+            if (!key || !canvases[key]) return
+            const m = o.material
+            const g = o.geometry
+            const t = new TextureCtor(canvases[key])
+            t.needsUpdate = true
+            m.aoMap = t
+            m.aoMapIntensity = 1
+            if (!g.attributes.uv1) g.setAttribute('uv1', boxAtlasUv(g))
+            m.needsUpdate = true
+            n++
+          })
+          return { n }
+        },
+        { maps: payload, gamma: AOGAMMA },
+      )
+      if (applied.error) throw new Error(`AOMAP: ${applied.error}`)
+      await new Promise((r) => setTimeout(r, 1500))
+      const after = await page.evaluate(() => {
+        let withAo = 0
+        window.__three.scene.traverse((o) => {
+          const m = o.material
+          if (m && !Array.isArray(m) && m.aoMap) withAo++
+        })
+        return withAo
+      })
+      if (!after) throw new Error('AOMAP: no material kept an aoMap after settling')
+      console.log(
+        `AOMAP applied to ${applied.n} meshes, ${after} still carry one; gamma=${AOGAMMA}`,
+      )
     }
 const BGMUL = process.env.BGMUL ? Number(process.env.BGMUL) : null
 const readBg = () =>

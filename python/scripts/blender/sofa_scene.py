@@ -335,6 +335,20 @@ def three_to_blender(v: tuple[float, float, float]) -> tuple[float, float, float
     return (x, -z, y)
 
 
+def blender_to_three(v: tuple[float, float, float]) -> tuple[float, float, float]:
+    """Inverse of `three_to_blender` — Blender **Z-up** back to three.js / glTF **Y-up**.
+
+    Needed whenever a value computed IN Blender has to be understood by the app, as opposed to
+    an app value being placed in Blender. `v0.31.7.16` is why it exists: baked-lightmap keys
+    were hashed from Blender world coordinates and matched **0 of 385** live meshes, because the
+    importer had already rotated the geometry. The key was fine; the frame was not.
+
+    `(x, y, z)_blender → (x, z, −y)_three`, which round-trips `three_to_blender` exactly.
+    """
+    x, y, z = v
+    return (x, z, -y)
+
+
 def place_camera_from_three(location_three: tuple[float, float, float],
                             look_at_three: tuple[float, float, float] | None = None,
                             fov_deg_vertical: float = 50.0) -> bpy.types.Object:

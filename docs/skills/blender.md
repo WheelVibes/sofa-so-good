@@ -173,6 +173,22 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — the glTF importer converts Y-up → Z-up in LOCAL vertices too, not just the
+  world transform.** Measured: a wall's Blender local bbox is x −2.92…2.87, y −0.15…0.15,
+  **z 0…2.6** — height on Z where the app has it on Y. So *anything* computed from Blender
+  geometry that the app must reproduce — hash keys, UV atlases, per-face axis choices — has to be
+  converted with `blender_to_three()` first. Two separate bugs from this in one session: a key
+  that matched 0 of 385 live meshes, and a UV atlas whose slots were permuted (symptom: black
+  walls with sharp white stripes). **The consumer defines the frame.**
+- **2026-09-03 — make a zero hit rate a HARD ERROR, not a log line.** A baked map that never
+  matches and a feature that subtly works look identical in a screenshot. The `AOMAP` knob throws
+  on 0 % and that is the only reason the frame bug above was caught in minutes rather than
+  shipped.
+- **2026-09-03 — an `aoMap` can only darken, so a visibility map is not drop-in.** three caps it
+  at 1, and baked absolute visibility has a *median around 0.11* — applying it removed ~80 % of
+  indirect light globally as well as redistributing it (frame mean 115.6 → 34.1). The analysis
+  that predicted the win multiplied by a MEDIAN-NORMALISED profile, mean 1 by construction. A
+  shipped fix needs the map *and* a matched fill gain, derived together.
 - **2026-09-03 — key baked assets by GEOMETRY IN PLACE, never by mesh name.** `Mesh_116` is an
   exporter index; the live scene has never heard of it and it shifts on any upstream reorder, so
   a name-keyed map simply never loads and the render looks untouched. `geometry_key()` hashes

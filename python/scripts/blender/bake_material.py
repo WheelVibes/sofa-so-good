@@ -136,7 +136,11 @@ def geometry_key(obj: bpy.types.Object) -> str:
     triples = []
     for vert in obj.data.vertices:
         co = mw @ vert.co
-        triples.append(",".join(_canonical(c) for c in co))
+        # Hash in THREE's frame, not Blender's. The glTF importer has already applied Y-up ->
+        # Z-up to the geometry, so a key hashed from Blender world coordinates describes a
+        # rotated copy of the mesh and matches nothing the app computes -- measured in
+        # `v0.31.7.16` as 0 hits out of 385 live meshes. The consumer defines the frame.
+        triples.append(",".join(_canonical(c) for c in S.blender_to_three(tuple(co))))
     triples.sort()
     return fnv1a32(";".join(triples))
 
@@ -199,12 +203,19 @@ def make_box_uvs(
     mesh = obj.data
     uv = mesh.uv_layers.get(BAKE_UV) or mesh.uv_layers.new(name=BAKE_UV)
     interior_slots: set[tuple[int, int]] = set()
-    coords = [v.co for v in mesh.vertices]
-    mn = Vector((min(c.x for c in coords), min(c.y for c in coords), min(c.z for c in coords)))
-    mx = Vector((max(c.x for c in coords), max(c.y for c in coords), max(c.z for c in coords)))
+    # Compute in THREE's frame, not Blender's. The glTF importer bakes Y-up -> Z-up into the
+    # LOCAL vertices as well as the world transform -- measured: a wall's local bbox is
+    # x -2.92..2.87, y -0.15..0.15, z 0..2.6, i.e. its height is on Z where the app has it on Y.
+    # Computing the atlas in Blender's frame therefore permutes the slot axes relative to the
+    # runtime, and every lookup lands on the wrong slot. `v0.31.7.16` saw that directly: black
+    # walls with sharp white stripes, the signature of sampling empty atlas slots. Same rule as
+    # `geometry_key` -- the consumer defines the frame.
+    co_of = [Vector(S.blender_to_three(tuple(v.co))) for v in mesh.vertices]
+    mn = Vector((min(c.x for c in co_of), min(c.y for c in co_of), min(c.z for c in co_of)))
+    mx = Vector((max(c.x for c in co_of), max(c.y for c in co_of), max(c.z for c in co_of)))
     size = Vector((max(mx[i] - mn[i], 1e-6) for i in range(3)))
     for poly in mesh.polygons:
-        n = poly.normal
+        n = Vector(S.blender_to_three(tuple(poly.normal)))
         axis = max(range(3), key=lambda i: abs(n[i]))
         row = 0 if n[axis] >= 0 else 1
         col = axis
@@ -212,7 +223,7 @@ def make_box_uvs(
             interior_slots.add((col, row))
         o1, o2 = (i for i in range(3) if i != axis)
         for li in poly.loop_indices:
-            co = mesh.vertices[mesh.loops[li].vertex_index].co
+            co = co_of[mesh.loops[li].vertex_index]
             a = (co[o1] - mn[o1]) / size[o1]
             b = (co[o2] - mn[o2]) / size[o2]
             u = (col + margin + a * (1 - 2 * margin)) / 3.0

@@ -29,6 +29,66 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.16 — end-to-end attempt: two frame bugs found and fixed, and the pipeline still does NOT work
+
+The first attempt to run item (w)'s fix through the whole pipeline — bake a real plan, apply the
+real maps to the live scene, measure against physics. **It does not work yet.** Two genuine bugs
+were found and fixed on the way, and a third problem is identified but unsolved. Recording the
+failure at the same length as a success, because every one of these was invisible to the
+analysis that predicted 80 %.
+
+**The asset side is done and is cheap.** The move-in default plan's full shell — **111 meshes
+≥ 3 m²** — bakes in **22 s** to **480 KB** total, with **111 unique keys out of 111**: no
+collisions on a real flat, which is the strongest available evidence for the key design.
+
+**Bug 1 — the key was hashed in the wrong frame: 0 of 385 live meshes matched.** `geometry_key`
+hashed Blender world coordinates, but the glTF importer has already applied Y-up → Z-up, so the
+key described a *rotated copy* of the mesh. `sofa_scene.blender_to_three()` (the inverse that
+never existed) now converts before hashing, and the hit rate went **0 % → 31 %** (118 of 385
+live meshes; the rest are furniture below the bake's area threshold).
+
+**This is exactly what the guard was for.** The new `AOMAP=<dir>` knob treats a 0 % hit rate as
+a **hard error**, because a missed lookup and a working-but-subtle feature look identical in a
+screenshot. Without it this would have shipped as a map that silently never loads.
+
+**Bug 2 — the UV atlas was built in the wrong frame too.** Measured: a wall's Blender *local*
+bbox is x −2.92…2.87, y −0.15…0.15, **z 0…2.6** — its height is on Z where the app has it on Y,
+so the importer bakes the conversion into local vertices as well. The box atlas assigns slots by
+dominant axis, so computing it in Blender's frame **permutes the slots** relative to the runtime
+and every lookup lands on the wrong one. The symptom was unmistakable once looked at: **black
+walls with sharp white stripes.** `make_box_uvs` now converts vertices and normals to three's
+frame first; the fixture was regenerated and `lightmapUv.test.ts` still holds the two
+implementations together, now in the frame the app actually uses.
+
+**Same rule twice, and worth stating once: the consumer defines the frame.** This is the fourth
+and fifth instance of the implicit-frame class in this bridge, after radians/degrees on the sun
+and vertical/horizontal on the FOV.
+
+**Problem 3, unsolved — the maps darken the room instead of redistributing it.** With both fixes
+in, applying the maps takes mean frame luminance from **115.6 to 34.1**, and the walls read
+near-black with bright slot rims. Two contributions, one understood and one not:
+
+- **Understood: absolute visibility is not a redistribution.** `v0.31.7.9`/`.10` multiplied by a
+  **median-normalised** profile, whose mean is 1 by construction. The baked map carries
+  *absolute* visibility with a median of **0.11**, so applying it removes ~80 % of indirect
+  light globally *as well as* redistributing it. Compensating the fill (`FILLSCALE=ENVSCALE=4.5`)
+  recovers only 34 → 50, so the level cannot simply be scaled back either. **An `aoMap` is
+  capped at 1 and can only darken, so it cannot express "brighter than average" at all** — the
+  fix therefore needs the map *and* a matched fill gain, and the pair has to be derived rather
+  than guessed.
+- **Not understood: the visible faces still sample near-black regions.** After the frame fix the
+  stripes are gone but the walls are still far darker than the map's own interior statistics
+  (median 0.11 → 0.22 after γ = 0.7) can explain. So the UV correspondence is **not yet proven
+  correct**, only improved.
+
+**So the predicted 80 % is NOT demonstrated in the renderer, and this round does not claim it
+is.** The analysis stands on its own terms; what this shows is that the distance between "the
+profiles multiply correctly" and "three samples an `aoMap` into `irradiance`" contains at least
+three real defects, two now fixed.
+
+**Nothing shipped, so nothing regressed** — the `AOMAP` knob is a probe, and all three views the
+goal names hold their measured 60 fps at `medium`. `tsc`, biome, knip clean; 10011 tests green.
+
 ## v0.31.7.15 — item (w)'s fix is PRICED IN FRAMES before being built: free at performance/medium, not quite free at high
 
 Ten rounds of this arc have asserted that the aperture-visibility fix costs nothing per frame —
