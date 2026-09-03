@@ -178,9 +178,38 @@ export function transmissionResolutionScaleForTier(tier: RenderTier, device: Dev
  * Cheap (emissive only, no transmission pass) so it works on every tier —
  * including the flat Performance default where windows otherwise read as flat
  * dark panes. `daylight` is 0 (night) … 1 (full day).
+ *
+ * ## `d³ · 5.2` is item `(l)`'s fix — the magnitude and the CURVE are both measured
+ *
+ * **Why 5.2 (×13 the old 0.4).** `(l)` WINDOW-LUMINANCE: photographs blow their windows out,
+ * clipping **15–39 %** of the glazing, while the app clipped **0.0 % at every hour** — so a pane
+ * read as a panel, not an opening. The item's fix space pointed at `scene.background`, and
+ * `v0.31.7.152` proved that **cannot work**: a pane never reads the background, it reads this
+ * emissive. Four arms (analytic/Cycles sky × intensity 1/4) all measured 0.0 % above 240. Swept on
+ * the real lever, ×13 gives **33.0 %** at 13:00 and **27.5 %** at 18:00 — both in band.
+ *
+ * **Why cubed, and not linear.** At flat ×13 the 19:00 frame **blooms**: a glow spills onto the wall
+ * and ceiling and the grille bars lose definition (`v0.31.7.156`), while the statistics looked
+ * harmless — pane mean 231.6, `> 240` 0.0 %. `bloomIntensityForDay(d) = BLOOM.intensity · (1 − d)`
+ * is non-zero for every `d < 1`, so the overlap cannot be removed by reshaping this function; the
+ * cube **narrows** it, holding the pane under the old `< 1.05` threshold until `d ≈ 0.59`:
+ *
+ * | day level | bloom | linear `d·5.2` | **cubic `d³·5.2`** |
+ * | --- | --- | --- | --- |
+ * | 0.4 | 60 % | 2.08 | **0.33** |
+ * | 0.6 | 40 % | 3.12 | **1.12** |
+ * | 0.8 | 20 % | 4.16 | 2.66 |
+ * | 1.0 | **0 %** | 5.2 | 5.2 |
+ *
+ * **Night cannot regress, by construction rather than by guard** — `(l)`'s standing constraint. At
+ * `daylight = 0` this is exactly 0, so no coefficient has anything to scale; the test below pins it.
+ *
+ * `> 250` stays at 0.0 % for every multiplier tried, including ×16 at a mean of 240.6: that is AgX's
+ * shoulder. A clipping metric defined at `> 250` would call every setting a failure.
  */
 export function glassSkyCatchIntensity(daylight: number): number {
-  return clamp(daylight, 0, 1) * 0.4
+  const d = clamp(daylight, 0, 1)
+  return d * d * d * 5.2
 }
 
 /** Sheen layer for a soft-fabric finish kind. Velvet shows the strongest, most

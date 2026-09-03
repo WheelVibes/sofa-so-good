@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.157 — `(l)` FIXED AND SHIPPED: `d³ · 5.2` on the pane emissive. Windows read as openings for the first time.
+
+The oldest open window finding in this arc, closed — and **not by the route the item proposed**.
+
+**The fix:** `glassSkyCatchIntensity(d) = d³ · 5.2`, one coefficient and one curve on the pane's
+emissive. Verified by frame at four times of day, not just by number:
+
+| hour | pane mean | `> 240` | frame |
+| --- | --- | --- | --- |
+| 13:00 | 234.6 | **21.5 %** | bright opening, **crisp mullions**, no halo |
+| 18:00 | 233.8 | **15.0 %** | in band at the lower edge |
+| 19:00 | 233.7 | 0.8 % | bright, fully defined, **no bloom** |
+| 21:00 | — | — | **0 by construction** |
+
+Photographs clip **15–39 %**. The app clipped **0.0 % at every hour** before this — which is what
+"the pane reads as a panel, not an opening" meant numerically.
+
+**Three things had to be got right, and each was wrong first.**
+
+1. **The lever.** The item's entire fix space pointed at `scene.background` +
+   `backgroundIntensity ≈ 4`, and `(z)`4 was decided on it. `.152` measured four arms —
+   analytic/Cycles sky × intensity 1/4 — all at **0.0 % above 240**, because a pane never reads the
+   background. The right lever was an emissive that had been sitting there since June.
+2. **The magnitude.** ≈×13, swept with read-back on the real lever (`.153`). Suggestively close to
+   the `BGMUL ≈ 12` this item once escalated and then corrected down to 4 — the right magnitude on
+   the wrong lever.
+3. **The curve.** Flat ×13 **bloomed at dusk** (`.156`): a glow on the wall, mullions washed out —
+   while its statistics looked clean at pane mean 231.6, `> 240` 0.0 %. The cube narrows the overlap
+   with the bloom ramp, and the 19:00 frame confirms it.
+
+**A stale guard, dated rather than assumed.** `materialRealism.test.ts` asserted
+`glassSkyCatchIntensity(1) < 1.05` and blocked this fix. `git log -S` dated it **2026-06-13**, two
+weeks before the bloom day-ramp (**2026-06-27**) that made bloom **zero at `d = 1`** — so the guard
+was testing the one day level that cannot bloom and leaving dusk, which can, untested. Reformulated
+to assert the threshold **where bloom is strong** (`d = 0.5` → 0.65), with the dating in the test so
+nobody has to rediscover it.
+
+**And night still cannot regress**, which is this item's standing constraint: at `d = 0` the function
+is exactly 0, so no coefficient has anything to scale. Pinned by its own test.
+
+Suite **10167 green**, `tsc` and biome clean. **This is a shipped, user-visible change to every
+window in daylight.**
+
 ## v0.31.7.156 — both `(l)` questions answered: the guard's daylight premise IS stale, and dusk DOES bloom
 
 `.155` named two things that would settle whether sky-catch ×13 can ship. Both done.

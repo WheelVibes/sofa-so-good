@@ -880,7 +880,20 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ✅ DECIDED 2026-09-04, see (z)4: ship the Cycles sky AND `backgroundIntensity ≈ 4`
+## (l) WINDOW-LUMINANCE — ✅ **FIXED AND SHIPPED v0.31.7.157** — but NOT by the route this item proposed
+
+> **The fix is `glassSkyCatchIntensity(d) = d³ · 5.2`**, a single coefficient and curve on the pane's
+> emissive. Verified by frame at 13:00 (bright opening, crisp mullions, `> 240` **21.5 %**), 18:00
+> (**15.0 %**), 19:00 (bright, defined, no bloom, 0.8 %) and 21:00 (zero by construction).
+> Photographs clip **15–39 %**; the app clipped **0.0 % at every hour** before this.
+>
+> **Everything this item proposed about the background was the wrong lever.** `v0.31.7.152` measured
+> four arms — analytic/Cycles sky × `backgroundIntensity` 1/4 — all at **0.0 % above 240**, because a
+> pane's brightness never reads `scene.background`; it reads this emissive. `(z)`4 was decided on
+> that premise and could not have worked.
+>
+> The curve is cubic because flat ×13 **bloomed at dusk** (`v0.31.7.156`: glow on the wall, mullions
+> washed out) while its statistics looked clean. See `materialRealism.ts` for the full derivation.
 
 > **Read `(y)` below before acting on anything in this section.** The mechanism is now known
 > and it is not what this write-up spent five rounds assuming. The window was never "27 % too

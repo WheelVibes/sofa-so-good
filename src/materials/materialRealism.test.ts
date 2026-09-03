@@ -165,8 +165,29 @@ describe('glassSkyCatchIntensity (RZ2)', () => {
     expect(glassSkyCatchIntensity(-1)).toBe(0)
   })
 
-  it('stays below the bloom threshold so windows do not bloom', () => {
-    expect(glassSkyCatchIntensity(1)).toBeLessThan(1.05)
+  it('stays below the bloom threshold WHERE BLOOM IS STRONG (item (l), reformulated)', () => {
+    // This assertion used to read `glassSkyCatchIntensity(1) < 1.05`, and it blocked `(l)`'s fix.
+    // `v0.31.7.156` dated both sides: the guard landed 2026-06-13, the bloom DAY-RAMP
+    // (`BLOOM.intensity * (1 - d)`) landed 2026-06-27. When the guard was written bloom was active
+    // in daylight, so testing at `d = 1` was the right place. After the ramp, `d = 1` is exactly
+    // where bloom is OFF — so the old form guarded the one day level that cannot bloom, and left
+    // dusk, which can, untested.
+    //
+    // Reformulated to assert the threshold where bloom is actually strong. At `d = 0.5` bloom is at
+    // half strength and the cubic ramp puts the pane at 0.65.
+    expect(glassSkyCatchIntensity(0.5)).toBeLessThan(1.05)
+    expect(glassSkyCatchIntensity(0.4)).toBeLessThan(0.5)
+  })
+
+  it('reaches the (l) magnitude at full daylight, where bloom is off', () => {
+    expect(glassSkyCatchIntensity(1)).toBeCloseTo(5.2, 6)
+  })
+
+  it('is EXACTLY ZERO at night, so the (l) fix cannot regress it', () => {
+    // `(l)`'s standing constraint is that 21:00 must not regress, met by construction rather than
+    // by a guard: no coefficient has anything to scale at zero daylight.
+    expect(glassSkyCatchIntensity(0)).toBe(0)
+    expect(glassSkyCatchIntensity(-0.5)).toBe(0)
   })
 })
 
