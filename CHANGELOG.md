@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.113 — every open graphics decision answered: sixteen calls recorded in `(z)`
+
+The whole document was put to the user as questions and answered in one sitting. **There are now zero
+live `⏳ OPEN` markers in `docs/open-graphics-decisions.md`** — the only remaining match is a
+struck-through historical line inside `(l)`.
+
+Recorded as a new `(z)` section plus a status update on all fourteen affected item headers, because a
+decision that lives only in a chat log is not actionable and this file is what the next session reads.
+
+**Blender GI**
+
+1. **Ship the irradiance GI on `realistic` only** — matches the two-mode split; ~1.4 ms p50 there,
+   nothing measurable on `performance`.
+2. **40 maps, 1.2 MB** — the only configuration with a verified-clean frame.
+3. **Commit the maps to the repo** — reproducible from a clean checkout, no bake step.
+4. **Ship the Cycles sky AND `backgroundIntensity ≈ 4`.** **This closes `(l)`**, the oldest open
+   window finding.
+5. **Delete the `visibility` pass, its 2.7 MB of assets and the `multiply` path entirely** — `.102`
+   measured the operator as wrong. Removal, not deprecation.
+6. **Reproduce the 1459 ms load hitch before fixing it** — n=1 is not enough to design against.
+
+**Look and render**
+
+7. **`dprMax` 2 → 1 as the LAST demotion rung only.** 8. **Twilight goes fully physical** — all three
+linked findings, which re-grades every dawn and dusk. 9. **Ship `(w)`**, verifying no double-count
+against the GI path first, since both add interreflection. 10–12. **Ship `(r)`, `(s)` luminance-only,
+and `(m)` on all tiers.**
+
+**HQ path-traced still**
+
+13. **Invest and fix all five** — `(n)`, `(p)`, `(q)`, `(u)`, `(v)`. Explicitly including `(u)`, whose
+cause is unidentified after many rounds; taken as an open-ended commitment with that known.
+
+**Plans and content**
+
+14–16. **Fix `(f)`, `(g)`, `(i)` and `(j)`.** `(i)` on `tpl-hdb-5room` provably cannot be done by an
+offset, so it is a restructure; `(j)` needs an arranger strategy rather than a nudge.
+
+**And one item closed without needing a decision.** `(h)` was still headed OPEN, but `tpl-hdb-4room`
+(`.115`), `tpl-hdb-5room` (`.116`) and `tpl-hdb-exec` (`.118`) were each fixed and the header was
+never updated. Closed as already shipped — and `(j)` exists *because* those windows now exist and are
+still not visible from the room centre.
+
+Two items changed shape rather than simply being answered, and the section says so: `(y)6` asked
+whether the lightmap flag should come on, and its stated blocker — the runtime path that **replaces**
+the ambient term rather than multiplying it — now exists and is measured (`.106`).
+
+No code change. Suite **10119 green**, `tsc` and biome clean.
+
 ## v0.31.7.112 — researched archviz practice, implemented light portals, and MEASURED THEM AS NO HELP in this scene
 
 Asked to ground the Blender work in published practice rather than my own assumptions, so this round

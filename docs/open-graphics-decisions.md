@@ -262,7 +262,7 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
-## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ OPEN, needs a content call (measured v0.31.5.109)
+## (f) TEMPLATE-ROOM-ENCLOSURE — ✅ DECIDED 2026-09-04, see (z)14: fix (measured v0.31.5.109)
 
 **What you would see.** Load `tpl-hdb-jumbo`, walk into the Master Bedroom, and look west: **two
 toilets and a washbasin are standing in the same open volume as the bed**, with no wall or door
@@ -312,7 +312,7 @@ up as a required edit to the list.
 
 ---
 
-## (g) LEVEL-ISOLATION-IN-WALK — ⏳ OPEN, needs a design + cost call (measured v0.31.5.110)
+## (g) LEVEL-ISOLATION-IN-WALK — ✅ DECIDED 2026-09-04, see (z)15: fix (measured v0.31.5.110)
 
 **What you would see.** Open `tpl-loft`, pick View → Levels → "Loft" (the ONLY way to walk the
 mezzanine), and walk to the guard rail. Over the rail there is **no floor, no far wall and no room
@@ -365,7 +365,7 @@ measured cost there is small. Benchmark on the Performance tier before committin
 
 ---
 
-## (h) BEDROOM-WINDOW — ⏳ OPEN, needs a content call (measured v0.31.5.113)
+## (h) BEDROOM-WINDOW — ✅ CLOSED 2026-09-04, see (z): already shipped in .115/.116/.118 (measured v0.31.5.113)
 
 **What you would see.** Load `tpl-hdb-4room`, walk into the Master Bedroom and turn through all
 four yaws: **four blank walls, no window.** Walk into the Kitchen and there are **two**. Confirmed
@@ -450,7 +450,7 @@ curtain must set `drawAmount: 0` explicitly.
 
 ---
 
-## (i) MAIN-DOOR-ROOM — ⏳ OPEN, needs a content call (measured v0.31.5.114)
+## (i) MAIN-DOOR-ROOM — ✅ DECIDED 2026-09-04, see (z)16: fix (5room needs a restructure) (measured v0.31.5.114)
 
 **What you would see.** Stand in `tpl-hdb-4room`'s Master Bedroom and there are **two doors** — the
 internal one on its north wall, and a second on the **south EXTERNAL wall**. That second one is
@@ -528,7 +528,7 @@ unfixable by offset:**
 
 ---
 
-## (j) WINDOW-SIGHTLINE — ⏳ OPEN, needs an arranger strategy (measured v0.31.5.117)
+## (j) WINDOW-SIGHTLINE — ✅ DECIDED 2026-09-04, see (z)16: fix via an arranger strategy (measured v0.31.5.117)
 
 **What you would see.** Walk into `tpl-hdb-4room`'s or `tpl-hdb-5room`'s master bedroom after
 `.115`/`.116` gave each of them a window, and the glass is **not visible from the room centre in any
@@ -871,7 +871,7 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — 🔍 MECHANISM FOUND v0.31.7.77, value corrected 12 → 4; a SMALL look call remains
+## (l) WINDOW-LUMINANCE — ✅ DECIDED 2026-09-04, see (z)4: ship the Cycles sky AND `backgroundIntensity ≈ 4`
 
 > **Read `(y)` below before acting on anything in this section.** The mechanism is now known
 > and it is not what this write-up spent five rounds assuming. The window was never "27 % too
@@ -883,7 +883,7 @@ remains in any shipped plan.**
 > answer is **4**, and it matches physics to 0.1 of a percentage point.
 
 ### Original write-up (the framing is superseded; the measurements are not)
-⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
+~~⏳ OPEN, needs a product call~~ — ✅ ANSWERED by (z)4. (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
 
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
@@ -1250,7 +1250,7 @@ the **21:00 case `.236` recorded as already correct must not regress** (glazing 
 at R−B 23.4 against a neutral pane). Root `CLAUDE.md` reserves calls like this. What has changed is that the
 call is now a physical-correctness question with a number, not a look-versus-AgX trade.
 
-## (m) PHOTO-VIGNETTE — ⏳ OPEN, needs a look call (built and measured v0.31.5.244; its counter-metric retired in v0.31.5.249)
+## (m) PHOTO-VIGNETTE — ✅ DECIDED 2026-09-04, see (z)12: ship on all tiers (built and measured v0.31.5.244; its counter-metric retired in v0.31.5.249)
 
 `EffectsImpl.tsx` mounts `Vignette` — its own header calls it *"subtle edge darkening so the frame reads
 'shot, not rendered'"* — **only on the full post stack** (`high`/`maximum`). `medium` runs the AO-only
@@ -1305,7 +1305,7 @@ photographic look is **opt-in** (`ui.photographicLook` defaults off), so blast r
 who chose it; and **every `medium` + photographic figure in this arc was measured without the vignette**,
 so adopting it re-bases those numbers.
 
-## (n) HQ-LAMBERT-CEILING — ✅ FIX 1 SHIPPED v0.31.5.253; fix 2 still open (and now nearly moot)
+## (n) HQ-LAMBERT-CEILING — ✅ FIX 1 SHIPPED v0.31.5.253; fix 2 ✅ DECIDED 2026-09-04, see (z)13: fix
 
 **The shipped HQ path-traced still renders the ceiling as a mirror.** It reflects the window, the AC
 unit, the curtain rail and the ceiling fan. The rasterised viewport over the identical crop is clean
@@ -1495,7 +1495,7 @@ it is the one place where the absence of inter-reflection is now demonstrated to
 12 % on one surface, against a look this arc has spent ~70 rounds tuning, and the cheap lever has been
 priced and rejected.
 
-## (p) HQ-FILL-RIG — ⏳ OPEN (found v0.31.5.255, proven v0.31.5.256, fix built + measured + reverted v0.31.5.257)
+## (p) HQ-FILL-RIG — ✅ DECIDED 2026-09-04, see (z)13: fix (found v0.31.5.255, proven v0.31.5.256, fix built + measured + reverted v0.31.5.257)
 
 **The shipped HQ path-traced still is not a higher-quality version of what the user sees. It is a
 different lighting setup.**
@@ -1954,7 +1954,7 @@ photographically anchor it (`.320`). The honest position is that (p) has **one**
 plaster-wide deficit, fixable by converting the scene's own sky (`.326`) — and that the second apparent fault
 is a raster limitation showing up in a raster-referenced comparison.
 
-## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
+## (q) HQ-GLAZING-OPAQUE — ✅ DECIDED 2026-09-04, see (z)13: fix; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
 
 **The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,
 21:00, same pose:
@@ -2019,7 +2019,7 @@ explicitly when it is not.
   **Hypothesis, not isolated.** *Excluding `transparent && depthWrite === false` was implemented in
   `.257` and skipped 61 planes cleanly; also reverted only because it shipped with the rest.*
 
-## (r) BACKDROP-LOWPASS — ⏳ OPEN, a real defect needing a render call (found .264; proven RECOVERABLE .265)
+## (r) BACKDROP-LOWPASS — ✅ DECIDED 2026-09-04, see (z)10: ship (found .264; proven RECOVERABLE .265)
 
 **The app ships four exterior backdrops — `city`, `dusk`, `park`, `hills` — and almost none of their
 content reaches the window.**
@@ -2108,7 +2108,7 @@ Not a tuning change, which is why it is filed rather than taken:
 **The call needed:** whether a legible exterior is wanted, and by which of those routes. It touches the
 render path and shipped appearance for every backdrop user.
 
-## (s) ALBEDO-FILL — ⏳ OPEN, narrowed to LUMINANCE ONLY (built .271, falsified on hue .272)
+## (s) ALBEDO-FILL — ✅ DECIDED 2026-09-04, see (z)11: ship luminance-only (built .271, falsified on hue .272)
 
 **The app has no colour bleed at all**, established across three rounds with one-variable A/B designs:
 
@@ -2367,7 +2367,7 @@ value, and reads it back after the capture (`.254`'s lesson). Same room, pose, a
 runs that happened to be in different states of the nondeterminism now filed as (u). This also verifies the
 `.284` stage label in both directions.
 
-## (u) HQ-TRACE-NONDETERMINISM — 🐞 REAL, found v0.31.5.285; a CONTINUUM not two classes (v0.31.5.348); cause NOT yet identified
+## (u) HQ-TRACE-NONDETERMINISM — 🐞 REAL; ✅ DECIDED 2026-09-04, see (z)13: keep hunting. Found v0.31.5.285; a CONTINUUM not two classes (v0.31.5.348); cause NOT yet identified
 
 **The HQ tracer produces one of two discrete outputs from identical inputs.** Same room, pose, hour, tier,
 sample count, exposure and denoise setting; the run lands in one state or the other, and they are ~45 % apart
@@ -2857,7 +2857,7 @@ the two are ~45 % apart. `.284` restored `.269`–`.276` as valid raw-trace meas
 now be **qualified** — they are valid only if they were taken in state B, which was never recorded and is
 roughly a coin flip. Every traced figure in the arc needs re-measurement with the discriminator on.
 
-## (v) HQ-CEILING-ALBEDO-IGNORED — 🐞 REAL DEFECT, found v0.31.5.301; verification named
+## (v) HQ-CEILING-ALBEDO-IGNORED — 🐞 REAL DEFECT; ✅ DECIDED 2026-09-04, see (z)13: fix. Found v0.31.5.301; verification named
 
 **The path tracer's ceiling is completely insensitive to the ceiling material.** Recolour the ceiling from
 `#fafafa` to `#141414` (confirmed applied to 14 ceiling planes by `RECOLORCHECK`, and applied at probe line 494,
@@ -2982,7 +2982,7 @@ histogram has nothing to drive it either.
 transported through the room, which is what the renderer does not do. It needs a real indirect
 term — not a scalar, a curve or a baked map — and item (w) is where that work would live.
 
-## (w) RASTER-INTERREFLECTION — 🐞 REAL, in the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
+## (w) RASTER-INTERREFLECTION — 🐞 REAL; ✅ DECIDED 2026-09-04, see (z)9: ship (verify no double-count with the GI path first). In the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
 
 > **⚠️ RE-PRICED, v0.31.7.7, CORRECTED v0.31.7.8 — a ~3× error on a whole wall, and it is
 > APERTURE VISIBILITY.** *(The figures below are `v0.31.7.7`'s, taken against a reference that
@@ -3815,7 +3815,60 @@ the atmosphere model's own defaults rather than anything fitted.
 
 ---
 
-## (y) SESSION REGISTER — six decisions from the 2026-09-03 Blender/graphics arc
+## (z) DECIDED — sixteen calls made 2026-09-04, in one sitting
+
+Every open decision in this document was put to the user as a question and answered. Recorded here
+because a decision that lives only in a chat log is not actionable, and because several of these
+**reverse or supersede** the framing the items above were written under.
+
+**Standing note on the two that changed shape.** `(y)6` asked whether the visibility-lightmap flag
+should come on; its blocker — "the runtime path that **replaces** the ambient term rather than
+multiplying it" — now exists and is measured (`v0.31.7.106`). And `(l)`'s remaining look call is
+decision 4 below.
+
+### Blender GI
+
+| # | decision | answer |
+| --- | --- | --- |
+| 1 | Ship the irradiance GI, and on which tier? | **`realistic` only.** Matches the two-mode split: `performance` stays the fast editing path. Costs ~1.4 ms p50 there, nothing measurable on `performance` (`.110`). |
+| 2 | Coverage / download budget | **40 maps, 1.2 MB.** The only configuration whose frame is verified clean (`.111`). |
+| 3 | Where the maps live | **Committed to the repo.** Reproducible from a clean checkout with no bake step, as the current set already is. |
+| 4 | Window: Cycles sky **and** `backgroundIntensity ≈ 4` | **Ship both.** Neither works alone; together the pane lands within 0.1 pt of reference, and it is verified not to touch the interior. **This closes `(l)`.** |
+| 5 | The superseded `visibility` pass | **Delete the pass, the assets and the `multiply` path entirely.** `.102` measured the operator as wrong (52–80 % of slots dark by design). Removal, not deprecation. |
+| 6 | The 1459 ms load hitch (n=1) | **Reproduce first, then fix.** One observation is not enough to design against; confirm it is upload cost before hiding or pre-warming. |
+
+### Look and render
+
+| # | decision | answer |
+| --- | --- | --- |
+| 7 | `dprMax` 2 → 1 in the demotion chain | **Yes, as the LAST rung only** — it fires only once the chain has bottomed out at 29.6 fps and is still short. Worth 4.5×. |
+| 8 | Twilight (three linked findings) | **Go fully physical.** Lift the sky 6–20× below 20°, close the sky/ground seam, and move the ~90-count warm cast to blue hour. This re-grades every dawn and dusk. |
+| 9 | `(w)` raster interreflection, ~21 % on the ceiling | **Ship it.** Verify no double-count against the GI path first — both add interreflection. |
+| 10 | `(r)` backdrops reaching the window | **Ship.** |
+| 11 | `(s)` luminance-only colour fill | **Ship.** The hue variant stays falsified. |
+| 12 | `(m)` vignette on all tiers | **Ship.** Needed re-deciding anyway now that tiers are `performance`/`realistic`. |
+
+### The HQ path-traced still
+
+| # | decision | answer |
+| --- | --- | --- |
+| 13 | Five open findings — `(n)`, `(p)`, `(q)`, `(u)`, `(v)` | **Invest and fix all five.** Explicitly including `(u)`, whose cause is unidentified after many rounds — this is an open-ended commitment, made with that known. `(p)`'s fix was previously built and reverted, so it starts from a measured position. |
+
+### Plans and content
+
+| # | decision | answer |
+| --- | --- | --- |
+| 14 | `(f)` `tpl-hdb-jumbo` toilets sharing the bedroom volume | **Fix.** |
+| 15 | `(g)` void over the loft mezzanine rail | **Fix.** Design + cost call taken. |
+| 16 | `(i)` front door opening into the Master Bedroom, `(j)` windows hidden by wardrobes | **Fix both.** `(i)` on `tpl-hdb-5room` provably cannot be done by an offset, so it is a restructure; `(j)` needs an arranger strategy, not a nudge. |
+
+### `(h)` closes without a decision
+
+`(h)` is still headed OPEN but `tpl-hdb-4room` (`.115`), `tpl-hdb-5room` (`.116`) and `tpl-hdb-exec`
+(`.118`) were each fixed. The header was never updated. Closing it as **already shipped**, and
+`(j)` exists precisely because those windows now exist but are not visible from the room centre.
+
+## (y) SESSION REGISTER — six decisions from the 2026-09-03 Blender/graphics arc — ✅ ALL ANSWERED, see (z)
 
 Every open call this session produced, with the number that decides it and where the working is.
 Written because the findings are spread across ~25 CHANGELOG entries and a decision is not
