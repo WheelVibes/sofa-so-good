@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.101 — RETRACTED `.100`'s numbers (my probe compared mirrored masks), and the picture shows the real fault: the bake wrote ONE COLUMN
+
+`.100` reported the UVs and the baked data as "nearly disjoint" — 33.0 % of lookups on zero, 95.8 % on
+the worst mesh. **That was my own probe's bug.** `cov` is indexed in UV space (v = 0 at the bottom);
+`readRed` returns PNG rows (row 0 at the top). I compared **mirrored masks**, and applied the same
+flip to both panels of the image, so a footprint sitting in one half looked disjoint from its own data.
+
+Corrected — map rows re-indexed into UV space:
+
+| | before (mirrored) | corrected |
+| --- | --- | --- |
+| lookups on zero texels | 33.0 % | **28.7 %** |
+| baked texels never read | 29.5 % | **25.0 %** |
+| worst mesh, covered-but-zero | `d623d608` **95.8 %** | `114cf680` **55.1 %** |
+
+The near-total offenders vanished from the top of the list: the single-slot meshes register correctly.
+So **`.100`'s headline is withdrawn** — the correspondence is not disjoint, and "misregistration
+inside the slot" was the wrong description.
+
+**And the corrected picture is unambiguous about what IS wrong.** Three panels for `114cf680`:
+
+- **UV coverage: all six slots.** The runtime spreads this mesh's faces across 3 columns × 2 rows.
+- **Baked data: a single vertical band in the MIDDLE COLUMN**, continuous across the row boundary.
+- **Overlay: middle column green, both outer columns solid red** — read, empty.
+
+`col = axis`, so a band confined to column 1 spanning the full height means the bake computed
+**`axis = 1` for every face**, with both row values. The runtime computed all three axes for the same
+mesh. This is an **axis** disagreement, not the sign disagreement `.98` proposed and `.99` refuted.
+
+**Which vindicates `.100`'s direction while retracting its number.** The formulas match line for line;
+the *inputs* differ. The bake takes `poly.normal` from the **imported GLB mesh in Blender's local
+space** and converts with `blender_to_three`; the runtime takes a triangle cross product from the
+**app's own local geometry**. If the glTF importer folds a node transform into one side and not the
+other, the dominant axis can genuinely differ per face — and every face collapsing to a single axis is
+what a rotation would do.
+
+**The next diagnostic is small and decisive:** dump the per-face dominant axis for one mesh key from
+both sides and compare the histograms. Three numbers against three numbers. Not another bake, not
+another render.
+
+Two lessons on the record, both about the instrument rather than the subject: a mask comparison must
+state its coordinate convention, and **the picture caught what the aggregate hid — twice now.** The
+numbers said "disjoint" and were wrong; the panels said "one column" and were right.
+
+Suite **10102 green**, `tsc` and biome clean. No shipped change.
+
 ## v0.31.7.100 — the sub-slot instrument: the UVs and the baked data are nearly DISJOINT
 
 `.99` said the fault must live below slot level and named the instrument. Built it, and it gives the

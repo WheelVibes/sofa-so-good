@@ -23,6 +23,7 @@
 import fs from 'node:fs'
 import process from 'node:process'
 import puppeteer from 'puppeteer'
+import sharp from 'sharp'
 import { appUrl } from './lib.mjs'
 import { readRed } from './read-image.mjs'
 
@@ -121,8 +122,17 @@ for (const m of meshes) {
   let cz = 0
   let d = 0
   let du = 0
+  // `cov` is indexed in UV space (v = 0 at the BOTTOM); `readRed` returns PNG
+  // rows (row 0 at the TOP). Comparing them directly compares MIRRORED masks --
+  // which is exactly what the first version of this probe did, and it reported
+  // 33 % of lookups landing on nothing for footprints that sit in one half.
+  const at = (i) => {
+    const x = i % RES
+    const y = Math.floor(i / RES)
+    return v[(RES - 1 - y) * RES + x]
+  }
   for (let i = 0; i < cov.length; i++) {
-    const nonZero = v[i] > 0
+    const nonZero = at(i) > 0
     if (cov[i]) {
       c++
       if (!nonZero) cz++
@@ -148,3 +158,57 @@ console.log(
   `\n  TOTAL: ${((100 * totCovZero) / (totCov || 1)).toFixed(1)} % of lookups land on ZERO texels; ` +
     `${((100 * totDataUncov) / (totData || 1)).toFixed(1)} % of baked texels are never read`,
 )
+
+// Write the WORST mesh as three panels: where the shader reads, where the bake
+// wrote, and the overlap. Aggregates have been wrong twice in this thread while
+// the picture was right the first time, so the picture ships with the numbers.
+if (rows.length > 0) {
+  const worstKey = rows[0][0]
+  const m = meshes.find((x) => x.src.includes(worstKey))
+  if (m) {
+    const { v } = await readRed(`public/assets/${DIR}/${m.src.split('/').pop()}`)
+    const cov = coverage(m)
+    const SCALE = 6
+    const GAP = 4
+    const W = RES * 3 * SCALE + GAP * 4
+    const H = RES * SCALE + GAP * 2
+    const px = Buffer.alloc(W * H * 3, 40)
+    const put = (panel, x, y, rgb) => {
+      const ox = GAP + panel * (RES * SCALE + GAP)
+      for (let sy = 0; sy < SCALE; sy++)
+        for (let sx = 0; sx < SCALE; sx++) {
+          const i = ((GAP + y * SCALE + sy) * W + ox + x * SCALE + sx) * 3
+          px[i] = rgb[0]
+          px[i + 1] = rgb[1]
+          px[i + 2] = rgb[2]
+        }
+    }
+    for (let y = 0; y < RES; y++)
+      for (let x = 0; x < RES; x++) {
+        const i = y * RES + x
+        // Same UV-space indexing as `cov`, so the two panels are comparable.
+        const data = v[(RES - 1 - y) * RES + x] > 0
+        put(0, x, RES - 1 - y, cov[i] ? [80, 180, 255] : [0, 0, 0]) // UV coverage
+        put(1, x, RES - 1 - y, data ? [255, 200, 80] : [0, 0, 0]) // baked data
+        put(
+          2,
+          x,
+          RES - 1 - y,
+          cov[i] && data
+            ? [120, 255, 120]
+            : cov[i]
+              ? [255, 60, 60]
+              : data
+                ? [90, 70, 20]
+                : [0, 0, 0],
+        )
+      }
+    await sharp(px, { raw: { width: W, height: H, channels: 3 } })
+      .png()
+      .toFile(OUT)
+    console.log(
+      `  wrote ${OUT} for ${worstKey}: blue = UV coverage, amber = baked data,\n` +
+        '    green = both, RED = read-but-empty, dim amber = written-but-unread',
+    )
+  }
+}
