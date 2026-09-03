@@ -252,9 +252,16 @@ export function hdbExecutive(): FloorPlan {
       door('ex-liv-door', 'ex-liv-w', 3.3),
       // EAST end of the kitchen's run: at 0.15 the door's keep-out took the
       // stove wall and the room lost its RANGE HOOD.
-      door('ex-kit-door', 'ex-svc-s', 2.3),
-      door('ex-yard-door', 'ex-svc-s', 3.5),
-      door('ex-hs-door', 'ex-svc-s', 5.3),
+      // Service band reached from the LIVING column, not through a bedroom.
+      // v0.31.8.38 put these three on `ex-svc-s`, whose south side is entirely
+      // bedroom 3 — so the kitchen, yard and shelter were entered by crossing
+      // somebody's bedroom. `ex-liv-w` is the only wall the band shares with
+      // circulation; from there the band chains west through its own dividers.
+      door('ex-svc-door', 'ex-liv-w', 1.0),
+      // 1.0, not lower down: the shelter ROOM ends at z=2.2 while the wall runs
+      // to 3.2, so a door further south touches only the undeclared strip.
+      door('ex-hs-door', 'ex-yard-e', 1.0),
+      door('ex-kit-door', 'ex-kit-e', 2.0),
       door('ex-master', 'ex-m-n', 1.0),
       door('ex-b2', 'ex-b2-s', 1.0),
       window('ex-kit-win', 'ex-n', 1.2, 1.8),
@@ -599,7 +606,9 @@ export function hdbMaisonette(): FloorPlan {
       // On the service band's SOUTH wall rather than the yard's east wall: on
       // the east wall its keep-out crowded the yard's own window and pushed the
       // utility cabinet in front of it.
-      door('em-yard-door', 'em-svc-s', 3.6),
+      // Named for the service band, not the yard: it opens onto the band's
+      // undeclared strip, from which the yard is reached.
+      door('em-svc-door', 'em-svc-s', 3.6),
       door('em-stair-door', 'em-stair-e', 1.4),
       window('em-kit-win', 'em-n', 1.0, 1.6),
       window('em-yard-win', 'em-n', 3.6, 1.0),

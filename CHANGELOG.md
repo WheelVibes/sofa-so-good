@@ -27,6 +27,34 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.43 — the same sweep for doors, and it caught two I had introduced myself
+
+Extended last release's naming sweep to doors: does a door called `<room>-door`
+actually have that room on one side? 98 of 108 doors resolve to exactly one room and
+are judged; the front door is excluded because `mainDoorRoom.test.ts` asks a
+stricter question of it. The file is now `openingNaming.test.ts`.
+
+**Two mismatches, and both were mine.** In the v0.31.8.38 doors batch I put
+`tpl-hdb-exec`'s kitchen, service yard and shelter doors on `ex-svc-s` — and the
+south side of that wall is entirely **BEDROOM 3**. The exec shipped a flat where you
+reached the kitchen by crossing somebody's bedroom. Connectivity was satisfied and
+never noticed; the naming sweep did.
+
+The exec's whole west half below the service band is bedrooms, so its only
+circulation is the living column. The band now hangs off `ex-liv-w` and chains west
+through its own dividers: living/study → shelter → yard → kitchen. Connectivity and
+bedroom-privacy are unchanged at 2 groups and 4 entries.
+
+The shelter door also had to move to offset 1.0 on `ex-yard-e`: the shelter ROOM
+ends at z=2.2 while the wall runs to 3.2, so a door further south touches only the
+undeclared strip beyond it. And `tpl-hdb-maisonette`'s `em-yard-door` was renamed
+`em-svc-door` — it opens onto the service band's strip, not the yard itself, which
+is what the sweep was reporting.
+
+Both ratchets ship at **zero** known misnamed openings, windows and doors alike.
+
+Verified: 10131 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.42 — swept every window against the room its name claims; four were wrong
 
 This bug has been found FIVE times by hand, one template at a time — `h4-m-win`,

@@ -6,7 +6,7 @@ import { PLAN_TEMPLATES } from './templates'
 import type { FloorPlan } from './types'
 
 /**
- * WINDOW-NAMING (v0.31.8.42) — does a window called `<room>-win` actually open
+ * OPENING-NAMING (v0.31.8.42, doors added v0.31.8.43) — does a window called `<room>-win` actually open
  * into that room?
  *
  * This class of bug has been found FIVE times by hand, one template at a time, and
@@ -39,6 +39,7 @@ const HINT_ALIAS: Record<string, string> = {
   hs: 'shelter',
   cb: 'cbath',
   mb: 'mbath',
+  bal: 'balcony',
 }
 
 function hintOf(winId: string): string | null {
@@ -71,8 +72,38 @@ function mismatches(planId: string, plan: FloorPlan): string[] {
   return out
 }
 
+/** A door is judged the same way, except it serves TWO rooms: the named one must
+ *  be on one side of it. The front door is excluded — `mainDoorRoom.test.ts` asks
+ *  a different and stricter question of it. */
+function doorMismatches(planId: string, plan: FloorPlan): string[] {
+  const out: string[] = []
+  for (const level of planLevels(plan))
+    for (const o of level.openings) {
+      if (o.kind !== 'door' || /main/.test(o.id)) continue
+      const hint = hintOf(o.id.replace(/-door$/, 'win'))
+      if (!hint) continue
+      const wall = level.walls.find((w) => w.id === o.wallId)
+      if (!wall) continue
+      const cands = level.rooms.filter((r) => {
+        const tail = r.id.replace(/^[a-z0-9]+-/, '')
+        return tail === hint || tail.startsWith(hint)
+      })
+      if (cands.length !== 1) continue
+      const across = roomsAcrossOpening(level.rooms, wall, o, 0.35, true)
+      const sides = [across?.plus?.id ?? null, across?.minus?.id ?? null]
+      if (!sides.includes(cands[0].id))
+        out.push(
+          `${planId}/${level.id}: ${o.id} named for ${cands[0].id}, opens ${sides.join(' | ')}`,
+        )
+    }
+  return out
+}
+
 /** Windows named for a room they do not open into. */
 const KNOWN_MISNAMED: string[] = []
+
+/** Doors named for a room they do not serve. */
+const KNOWN_MISNAMED_DOORS: string[] = []
 
 describe('window naming', () => {
   it('matches the known-misnamed ratchet exactly', { timeout: 60_000 }, () => {
@@ -81,6 +112,19 @@ describe('window naming', () => {
       ...PLAN_TEMPLATES.flatMap((t) => mismatches(t.id ?? '?', t)),
     ]
     expect(found.sort()).toEqual([...KNOWN_MISNAMED].sort())
+  })
+
+  it('matches the known-misnamed DOOR ratchet exactly', { timeout: 60_000 }, () => {
+    // Two were found when this arm was written, and both were doors I had added
+    // myself in the v0.31.8.38 batch: `ex-hs-door` and `ex-yard-door` sat on
+    // `ex-svc-s`, whose south side is entirely BEDROOM 3 — so the exec's kitchen,
+    // service yard and shelter were entered by crossing somebody's bedroom. The
+    // band now hangs off `ex-liv-w`, the only wall it shares with circulation.
+    const found = [
+      ...doorMismatches('DEFAULT', buildDefaultPlan()),
+      ...PLAN_TEMPLATES.flatMap((t) => doorMismatches(t.id ?? '?', t)),
+    ]
+    expect(found.sort()).toEqual([...KNOWN_MISNAMED_DOORS].sort())
   })
 
   it('judges most of the library, so an empty list means something', { timeout: 60_000 }, () => {
