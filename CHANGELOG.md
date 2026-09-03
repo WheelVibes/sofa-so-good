@@ -27,6 +27,53 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.13 - F13 multi-storey audit: two gaps, and a lot of correct code
+
+Audited every direct reader of `plan.rooms` / `plan.walls` / `plan.openings` —
+163 sites across ~40 files — for the F13 invariant that those fields are GROUND
+FLOOR ONLY. Most are legitimate: a function called with `levelAsPlan(plan, level)`
+is *correct* to read them, so the audit is only about functions that take the
+WHOLE plan and produce a whole-home result.
+
+**Mostly clean, and worth saying so:** `accessibility`, `ffeSchedule`,
+`openingSchedule` (reads `level.plan`), `daylight` (recursive per-level dispatch,
+and it reasons well — "a ground window must not light an upstairs bedroom at the
+same XZ"), `rcp` (called with `levelPlan`), `plumbingPlan` (level-agnostic, works
+off points that carry their own `levelId`) and `state/schema.ts` all handle it
+correctly. `hdbCompliance`'s six rules were already correct too.
+
+**Gap 1 — the compliance emptiness GATE was ground-only.**
+`buildComplianceReport` flattens every storey through `allPlanWalls` /
+`allPlanOpenings` / `allPlanRooms` before running the rules, but the
+`isNonEmptyPlan` check in FRONT of them tested the raw plan. A home whose ground
+floor was cleared but whose upper storeys were not read as empty, and the entire
+compliance section was silently skipped.
+
+That is the more dangerous half of this invariant: **a wrong rule reports
+something wrong; a wrong gate reports nothing at all.** The rules had been fixed
+and the guard in front of them had not — worth remembering as a shape, because
+it generalises past F13.
+
+**Gap 2 — upper storeys had ceilings but no shadow occluders.**
+`occluderRectsForPlan` reads `plan.rooms`, and `Scene.tsx` calls it with the whole
+plan — while `PlanShell` renders ceilings by iterating a per-level `lp.rooms`. So
+an upper-storey room had a ceiling drawn and the sun poured straight through it in
+the shadow map, as if unroofed. Measured on shipped templates: **8 rooms on
+`tpl-hdb-maisonette`, 7 on `tpl-terrace-ground`, 3 on `tpl-loft` — 18 in all.**
+
+The fix needed more than swapping in `planLevels`: `y` has to carry the level
+ELEVATION, because a plane at the ground storey's 2.6 m does not roof a room whose
+floor starts at 2.9 m. A test pins that specifically, and it is the half that
+would have been easy to miss — iterating all levels while leaving `y` alone looks
+right and fixes nothing.
+
+Verified in the running app on `tpl-hdb-maisonette`: upper occluders exist and sit
+above the ground ones, and the rendered upper floor is uniformly shaded with no sun
+patches, no z-fighting, and the planes still invisible to the camera.
+
+Both fixes were checked to FAIL against their previous behaviour — 1 arm for the
+gate, 2 for the occluders.
+
 ## v0.31.8.12 - The unit/convention sweep: two more mirrored offsets, and two clean negatives
 
 A systematic sweep of the class that has now bitten three times — `% 90` on a

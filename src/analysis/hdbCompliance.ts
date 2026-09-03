@@ -249,7 +249,7 @@ const RULES: ComplianceRule[] = [
  */
 export function buildComplianceReport(plan: FloorPlan): ComplianceReport {
   const advisories: Advisory[] = []
-  if (plan && isNonEmptyPlan(plan)) {
+  if (plan) {
     // Flatten EVERY storey once (F13) and run the rules against that.
     // `plan.walls`/`rooms`/`openings` are ground-only, so an upper-storey wall
     // or wet area was previously never assessed — and each rule reads geometry
@@ -262,8 +262,17 @@ export function buildComplianceReport(plan: FloorPlan): ComplianceReport {
       openings: allPlanOpenings(plan),
       rooms: allPlanRooms(plan),
     }
-    for (const rule of RULES) {
-      advisories.push(...rule.run(wholeHome))
+    // The emptiness GATE reads the flattened plan too (v0.31.8.13). It used to
+    // test `plan` itself, i.e. the ground storey only — so a home whose ground
+    // floor was cleared but whose upper storeys were not read as empty and the
+    // entire compliance section was silently skipped. The rules were already
+    // F13-correct; the gate in front of them was not, which is the more
+    // dangerous half: a wrong rule reports something wrong, a wrong gate reports
+    // nothing at all.
+    if (isNonEmptyPlan(wholeHome)) {
+      for (const rule of RULES) {
+        advisories.push(...rule.run(wholeHome))
+      }
     }
   }
   let permitCount = 0

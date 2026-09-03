@@ -633,6 +633,16 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
      A real fix needs joint placement with backtracking, or deciding the bed's along-position with
      storage in mind, or a post-pass that nudges large pairs apart (the Checks panel's "Nudge
      apart" fix already does this interactively, so the mechanism exists).
+- **[AUDITED v0.31.8.13] F13 whole-home sweep of `state/schema.ts` and `apartment/*` — 2 gaps, rest
+  clean.** Checked all 163 direct readers of `plan.rooms`/`walls`/`openings`; a function called with
+  `levelAsPlan` is correctly reading them, so only whole-plan callers matter. Clean:
+  `accessibility`, `ffeSchedule`, `openingSchedule`, `daylight`, `rcp`, `plumbingPlan`,
+  `state/schema.ts`, and `hdbCompliance`'s rules. Fixed: (a) `hdbCompliance`'s emptiness GATE read
+  the raw plan, so a home with an empty ground floor and populated upper storeys had its whole
+  compliance section silently skipped — the rules were F13-correct and the guard in front of them
+  was not, which is the worse half; (b) `occluderRectsForPlan` gave upper storeys no shadow
+  occluder while `PlanShell` rendered their ceilings, so sun poured through 18 rooms across three
+  templates. The occluder `y` needed the level ELEVATION, not just all-levels iteration.
 - **[FIXED v0.31.8.6] `findNarrowGaps` reported pinches THROUGH walls.** The item-item pass
   measured an edge-to-edge distance and never asked whether anything stood between the pair, so 22
   of 59 corpus pinches (37%) were gaps nobody can walk through — 18 in different rooms, 4 in the

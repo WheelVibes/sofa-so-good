@@ -137,3 +137,47 @@ describe('buildComplianceReport', () => {
     expect(report.cautionCount).toBeGreaterThanOrEqual(1)
   })
 })
+
+/**
+ * **The emptiness GATE was ground-floor only (v0.31.8.13).** The rules were
+ * already F13-correct — `buildComplianceReport` flattens every storey through
+ * `allPlanWalls`/`allPlanOpenings`/`allPlanRooms` before running them — but the
+ * `isNonEmptyPlan` check in front of them tested the raw plan, i.e. the ground
+ * storey. A home whose ground floor was cleared but whose upper storeys were not
+ * read as empty, and the whole compliance section was silently skipped.
+ *
+ * That is the more dangerous half of the F13 invariant: a wrong rule reports
+ * something wrong, a wrong gate reports nothing at all.
+ */
+describe('buildComplianceReport — multi-storey emptiness gate', () => {
+  /** Ground floor deliberately empty; an upper storey carries a wet area whose
+   *  waterproofing rule must still fire. */
+  const upperOnly = () =>
+    plan({
+      walls: [],
+      openings: [],
+      rooms: [],
+      upperLevels: [
+        {
+          id: 'l2',
+          name: 'Second storey',
+          elevation: 2.9,
+          walls: [wall({ id: 'u-w1', thickness: 'external' })],
+          openings: [],
+          rooms: [room({ id: 'u-bath', name: 'Bath / WC 2' })],
+        },
+      ],
+    } as Partial<FloorPlan>)
+
+  it('assesses an upper storey when the ground floor is empty', () => {
+    const report = buildComplianceReport(upperOnly())
+    expect(report.advisories.length).toBeGreaterThan(0)
+  })
+
+  it('still reports nothing for a genuinely empty plan', () => {
+    // The gate must keep doing its job: this is what stops an unstarted design
+    // producing a page of advisories.
+    const report = buildComplianceReport(plan({}))
+    expect(report.advisories).toEqual([])
+  })
+})
