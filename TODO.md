@@ -569,6 +569,31 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   the old arithmetic.
   **(b) is still the real problem and is NOT done** — the arranger still produces the pinches; the
   score has merely stopped lying about their severity.
+- **[G7 — PARTLY DONE v0.31.8.4; the traced part CANNOT be done as asked] Template `PlanWall.structure`.**
+  All 19 templates left `structure` unset on every wall, so the hacking plan reported an entire
+  flat — facade included — as "Unclassified". `establishedWallStructure` now resolves an
+  undeclared **external** wall to `'load-bearing'`, which is a documented HDB rule ("the external
+  walls of your HDB flat belong to HDB and cannot be hacked") and matches what the curated default
+  flat already declares and calls "deliberately conservative". It reads `thickness`, which is an
+  authored DECLARATION that a wall is the envelope — not wall thickness in mm. Sources do say
+  "structural walls are typically 150 mm or thicker, partition walls 75-100 mm", and that heuristic
+  is deliberately NOT used: `structure`'s own docstring records why (a non-structural precast /
+  Ferrolite partition and a load-bearing wall are identical on plan, a documented HDB
+  hacking-plan failure mode), and it would manufacture confident wrong answers for precisely the
+  walls people get hurt by getting wrong.
+  **The maintainer chose "trace from official HDB plans", and that cannot be executed for
+  templates.** A template is a flat-TYPE archetype, not a block: the structural layout of a 4-room
+  flat differs by block and construction era, so an official per-block plan has no unique mapping
+  onto a template. Internal partitions therefore stay `'unknown'`, which the sheet renders as
+  "Unclassified" — correctly distinct from "removable with a permit". Two ways forward, both the
+  maintainer's call:
+  (a) add a `'shelter'` `RoomCategory` so household-shelter walls (universally RC in post-1997
+      flats) can be established the same way. Blocked today only because there is no such category
+      and recognising a shelter by NAME would be a guess about a taxonomy — the same mistake the
+      rug-anchor regex made. Note the ripple cost: a new `RoomCategory` must update the union plus
+      every exhaustive `Record<RoomCategory,…>` consumer (see the root `CLAUDE.md` rule);
+  (b) let a user IMPORT their own block's official plan and classify against it, which is the only
+      thing that can honestly resolve internal partitions for a real address.
 - **[MEASURED, NOT FIXED] `findNarrowGaps` is BLIND to genuinely blocked routes, so the design
   score cannot see the worst case.** `layout/walkway.ts` skips any item-item gap
   `<= CLEARANCE.sofaToCoffee` (0.40 m) as "intentional close spacing". That is right for a sofa and

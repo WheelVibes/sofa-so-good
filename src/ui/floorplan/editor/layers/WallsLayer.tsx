@@ -1,7 +1,10 @@
 import type React from 'react'
 import type { PlanWall } from '../../../../floorplan/types'
 import { wallCurveMidpoint, wallSvgPath } from '../../../../floorplan/wallArc'
-import { isDemolitionRestricted } from '../../../../floorplan/wallHackability'
+import {
+  establishedWallStructure,
+  isDemolitionRestricted,
+} from '../../../../floorplan/wallHackability'
 import type { PlanSelection } from '../../../../state/slices/floorPlanSlice'
 import type { Tool } from '../planConstants'
 
@@ -72,7 +75,7 @@ export function WallsLayer({
         // not a toggle, since it's how these plans are always read. Skeleton
         // mode stays a uniform thin stroke (its whole point is exposing
         // corner gaps/overlaps regardless of wall type).
-        const structural = !skeleton && isDemolitionRestricted(w.structure)
+        const structural = !skeleton && isDemolitionRestricted(establishedWallStructure(w))
         const gableEnd = !skeleton && w.structure === 'gable-end'
         const stroke = inSel
           ? 'var(--accent)'

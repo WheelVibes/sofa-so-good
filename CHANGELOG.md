@@ -27,6 +27,56 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.4 - The hacking plan called a flat's own facade "Unclassified"
+
+All 19 shipped templates left `PlanWall.structure` unset on every wall, so the G7
+hacking plan reported an entire flat as unclassified — including its facade, which
+is the one wall class HDB is unambiguous about: "the external walls of your HDB
+flat belong to HDB and cannot be hacked or modified". Reporting that as unknown is
+not caution, it is a missing fact.
+
+`establishedWallStructure` resolves an undeclared **external** wall to
+`'load-bearing'`, and a user declaration always wins — it only fills blanks. Wired
+into the demolition sheet, the report plan, the hackability overlay, the walls
+layer and the wall inspector, so the fact reaches the user everywhere the raw
+field was being read. Verified on the overlay: the facade now renders "Not
+permitted" while internal partitions stay amber "Unclassified" — correctly
+distinct from "removable with a permit".
+
+This extends an existing convention rather than inventing one: the curated default
+flat already declares its facade and household-shelter ring `'load-bearing'`, and
+`apartment/constants.ts`'s own header calls tagging mixed external facades that way
+"deliberately conservative".
+
+**The heuristic I did NOT use.** Sources are clear that "structural walls are
+typically 150 mm or thicker, partition walls 75-100 mm", and it is tempting because
+the app models wall thickness. `structure`'s own docstring records why it must not
+be used: a non-structural precast / Ferrolite partition and a load-bearing wall are
+identical on plan, and that confusion is a documented HDB hacking-plan failure
+mode. A thickness heuristic would manufacture confident wrong answers for exactly
+the walls people get hurt by getting wrong. What this function reads instead is
+`thickness: 'external' | 'internal'` — an authored DECLARATION that a wall is the
+building envelope, so mapping it to a documented rule about envelopes is a lookup,
+not an inference. Same distinction as `moduleMm` not being derived from `uvScale`.
+
+**The maintainer chose "trace from official HDB plans", and that part cannot be
+executed for templates.** A template is a flat-TYPE archetype, not a block: the
+structural layout of a 4-room flat differs by block and construction era, so an
+official per-block plan has no unique mapping onto a template. Internal partitions
+therefore stay `'unknown'`. Two ways forward are logged in `TODO.md`, both product
+calls: add a `'shelter'` `RoomCategory` so universally-RC household-shelter walls
+can be established the same way (blocked today only because recognising a shelter
+by NAME would be a guess about a taxonomy — the same mistake the rug-anchor regex
+made), or let a user import their own block's official plan, which is the only
+thing that can honestly classify internal partitions for a real address.
+
+Two corrections to my own reading along the way. I first wrote that "every shipped
+template left `structure` unset" without qualifying it — the curated default flat
+is the exception, and it matters because it is the precedent for the mapping. And
+looking at the overlay screenshot I attributed the household-shelter ring's "Not
+permitted" tint to this change; it was already declared `load-bearing` in
+`apartment/constants.ts`. The facade is the new part.
+
 ## v0.31.8.3 - The circulation score had TWO saturating terms, not one
 
 Recalibrated against a 62-layout corpus on the maintainer's decision: 19 templates
