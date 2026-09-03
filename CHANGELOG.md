@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.145 — REOPENING `(h)`: I closed it on three worked examples out of fifteen, and `(v)` turns out not to be independent either
+
+Two corrections, both found by reading the summary table at the foot of
+`docs/open-graphics-decisions.md` — which I had not done before writing the status header in `.142`.
+
+**1. `(h)` BEDROOM-WINDOW is not closed, and closing it was my error.** I read the three
+"PLAN FIXED" notes in its section — `.115` `tpl-hdb-4room`, `.116` `tpl-hdb-5room`, `.118`
+`tpl-hdb-exec` — and concluded the item was done, marked it ✅ CLOSED, and told the user it needed no
+decision. The summary table says **15 of 44** master bedrooms were windowless, **12 remain**, and
+`.120` proved **none of the twelve is fixable by moving an offset** — each needs a new opening cut
+into a wall.
+
+**Three of fifteen is not fifteen.** I generalised from the worked examples I happened to read and
+never checked the count. Reopened, with the error recorded in the item's own header rather than only
+here, because the header is what anyone reads first — and a wrongly-closed item is worse than an open
+one: nobody re-examines it.
+
+**And the real scope of `(z)`14–16 is larger than "four plan fixes":** `(f)` is **9 templates** with
+unenclosed bathrooms, `(i)` has **3 left** and none offset-fixable, `(j)` is **11 of 78**.
+
+**2. `(v)` HQ-CEILING-ALBEDO-IGNORED was already folded into `(u)` in `.303`.** It is not an
+independent defect — it is what `(u)`'s class A *is*. A black-ceiling A/B with **byte-identical
+rasters** gives a traced ceiling of **1.0** in class B (raster 0.9, correct) and **181.5** in class
+A. So the albedo immunity is a symptom of the nondeterminism, not a separate bug.
+
+That matters for `(z)`13 ("invest and fix all five"): the doc records that `(n)`, `(p)`, `(u)` and
+`(v)` **all live in `hqRenderSession`'s snapshot/environment handling**, and that `(v)` may be `(u)`
+seen from another angle. So the five are plausibly **two** faults, one of them unidentified — the
+same shape as `(w)`+GI in `.131`, where two decisions turned out to be one fix.
+
+**A pattern in my own errors tonight, worth naming:** `.136`'s recolor mechanism, `.140`'s
+"exporter-side fix needed", `.142`'s closing of `(h)`, and `.143`'s working dpr lever. Each was a
+confident generalisation from a partial read — of a function's name, of three examples, of a passing
+unit test. The corrections all came from reading the thing itself or exercising the real path.
+
+Documentation only. Suite **10155 green**, `tsc` and biome clean.
+
 ## v0.31.7.144 — `(z)`7 is NOT ACTUATED: I shipped the ladder and measured the lever doing nothing
 
 `.143` shipped the dpr rung with five tests on its ordering and called it done. **It changes nothing

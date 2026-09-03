@@ -365,7 +365,16 @@ measured cost there is small. Benchmark on the Performance tier before committin
 
 ---
 
-## (h) BEDROOM-WINDOW — ✅ CLOSED 2026-09-04, see (z): already shipped in .115/.116/.118 (measured v0.31.5.113)
+## (h) BEDROOM-WINDOW — ⏳ STILL OPEN: **12 of 44 remain** and none is offset-fixable (measured v0.31.5.113)
+
+> **⚠️ I CLOSED THIS IN ERROR ON 2026-09-04, and `v0.31.7.145` reopens it.** I read the three
+> "PLAN FIXED" notes below (`.115` `tpl-hdb-4room`, `.116` `tpl-hdb-5room`, `.118` `tpl-hdb-exec`)
+> and concluded the item was done. The summary table at the foot of this file says otherwise and is
+> right: it was **15 of 44** windowless master bedrooms, **12 remain**, and `.120` proved **none of
+> the twelve is fixable by moving an offset** — each needs a *new opening cut into a wall*.
+>
+> Three of fifteen is not fifteen. I generalised from the three worked examples I happened to read
+> and did not check the count, then told the user it could close.
 
 **What you would see.** Load `tpl-hdb-4room`, walk into the Master Bedroom and turn through all
 four yaws: **four blank walls, no window.** Walk into the Kitchen and there are **two**. Confirmed
@@ -3872,7 +3881,8 @@ several turned out to mean something different once implemented. **Read this bef
 | 11 | `(s)` luminance-only | **Architecture validated** — buckets reconstruct ρ to **1.1 % out of sample**, reference re-derived in Cycles (−17.4 % traced). **Not wired**; it is a *within-room delta*, not a between-room level, and the wall classifier is parked at 42 %. |
 | 12 | `(m)` vignette on all tiers | ✅ **SHIPPED AND VERIFIED** — centre byte-identical, corners 133 → 107, no measurable fps cost. |
 | 13 | Fix all five HQ defects | **Not started.** |
-| 14–16 | `(f)`, `(g)`, `(i)`, `(j)` plan fixes | **Not started.** |
+| 14–16 | `(f)`, `(g)`, `(i)`, `(j)` plan fixes | **Not started.** Scope, from the summary table: `(f)` **9 templates** with unenclosed bathrooms, `(i)` **3 left** and none offset-fixable, `(j)` **11 of 78**. |
+| — | `(h)` — I closed it in error | **REOPENED `v0.31.7.145`.** 12 of 44 remain and `.120` proved none is offset-fixable; I generalised from three worked examples without checking the count. |
 
 **Two threads are parked with hypotheses eliminated and fallbacks identified**, not abandoned:
 
@@ -3924,11 +3934,13 @@ four of which were instruments that had been reporting confidently wrong numbers
 | 15 | `(g)` void over the loft mezzanine rail | **Fix.** Design + cost call taken. |
 | 16 | `(i)` front door opening into the Master Bedroom, `(j)` windows hidden by wardrobes | **Fix both.** `(i)` on `tpl-hdb-5room` provably cannot be done by an offset, so it is a restructure; `(j)` needs an arranger strategy, not a nudge. |
 
-### `(h)` closes without a decision
+### ~~`(h)` closes without a decision~~ — ❌ **THAT WAS WRONG, see `v0.31.7.145`**
 
-`(h)` is still headed OPEN but `tpl-hdb-4room` (`.115`), `tpl-hdb-5room` (`.116`) and `tpl-hdb-exec`
-(`.118`) were each fixed. The header was never updated. Closing it as **already shipped**, and
-`(j)` exists precisely because those windows now exist but are not visible from the room centre.
+I wrote that `(h)` could close because `tpl-hdb-4room` (`.115`), `tpl-hdb-5room` (`.116`) and
+`tpl-hdb-exec` (`.118`) were each fixed. **Three of fifteen is not fifteen.** The summary table at
+the foot of this file records **12 of 44 still windowless**, with `.120` proving none of the twelve
+is offset-fixable — each needs a new opening cut. `(h)` is open and is the largest content item on
+the list.
 
 ## (y) SESSION REGISTER — six decisions from the 2026-09-03 Blender/graphics arc — ✅ ALL ANSWERED, see (z)
 
