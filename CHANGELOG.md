@@ -27,6 +27,52 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.18 - HDB's walkway figure was recorded wrong, in the permissive direction
+
+`TODO.md` asked for a walkway-width check and told me which number to use: the
+standards "disagree: 91 cm generic vs 'at least 70-80 cm' in SG guidance", so a
+future check should "use the SG figure for this app". The standards doc said the
+same and called them ~20 cm apart.
+
+**Re-researched before implementing, and the premise is wrong.** HDB's own
+renovation guidance is that "the internal corridor within an HDB flat should
+maintain a minimum width of **900mm (90cm)** to ensure free and safe movement",
+"designed to allow a single person to walk comfortably through the corridor
+without obstruction" — confirmed from two independent searches. That is the SAME
+bar as the generic 36" (0.91 m). They do not disagree.
+
+The "70-80 cm" figure came from generic decor copy, not HDB. **Following the TODO
+as written would have made the app more permissive than HDB's own guideline** —
+which is why the figure was worth checking rather than inheriting. Note the
+constant was already right: `CLEARANCE.walkwayIdeal` has been 0.9 all along. The
+note was wrong, not the code.
+
+Implemented as a stricter tier than the 1.5 m turning circle: a room under 900 mm
+is not walkable at all, where failing the turn circle only rules out a wheelchair.
+Reported ABOVE the turn failures and worded distinctly ("too narrow to walk
+through, not just to turn in"), and excluded from that list — a room failing this
+necessarily fails the turn circle too, so it would otherwise be buried under the
+milder wording.
+
+Applied to every habitable room's min span rather than to "corridors": a room
+under 900 mm is unwalkable whatever it is called, and there is no `corridor`
+`RoomCategory` to key on — recognising one by NAME would be a guess about a
+taxonomy, the mistake the rug-anchor regex made.
+
+**It fires on no shipped plan, and that is stated rather than hidden:** measured
+168 rooms across all 19 templates plus the default flat, narrowest 1.00 m. So the
+fixtures are constructed, and the value is for a user-drawn plan — the only place
+a sub-900 mm room can occur. Verified in the running app both ways: the shipped
+flat reports none, and narrowing its corridor to 0.7 m makes the section appear.
+
+Also found while researching, recorded in the standards doc: galley kitchen
+walkway 0.9-1.0 m for one cook and 1.2-1.5 m for two; SCDF's 1.2 m applies to the
+COMMON corridor outside the flat, which is not an interior-design figure.
+
+Still open and genuinely harder — the width of the main ROUTE through a room,
+which needs a route model the app does not have. That is the part of the TODO I
+have NOT done.
+
 ## v0.31.8.17 - Peranakan Accent lays real encaustic tile, in the zone the sources put it
 
 A TODO entry called this "the one real fidelity gap in an otherwise-accurate

@@ -756,11 +756,22 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   emphatic matters ("even a difference of 5 to 10 centimeters"). The core already takes a `route`
   argument, so (b) is a form plus a persisted field — and it should reuse the `SiteMeasuredField`
   pattern from v0.31.5.372/.272 rather than inventing a second measurement surface.
-- **[layout critique] Add a walkway-width check using the SG figure, not the generic one.** The two
-  standards disagree: 91 cm generic vs "at least 70-80 cm" in SG guidance
-  (`docs/research/2026-09-02-layout-critique-standards.md` records both). `designScore`'s circulation
-  category covers gaps between items but not the width of the MAIN route through a room. If added,
-  use the SG figure for this app.
+- ~~**[layout critique] Add a walkway-width check using the SG figure, not the generic one.**~~
+  **DONE v0.31.8.18 — and this entry's premise was WRONG.** It said the standards "disagree: 91 cm
+  generic vs 'at least 70-80 cm' in SG guidance" and instructed a future check to "use the SG figure
+  for this app". Re-researched: HDB's own renovation guidance is a **900 mm** minimum internal
+  corridor width "to ensure free and safe movement" — the same bar as the generic 36". The 70–80 cm
+  figure came from generic decor copy, not HDB, and following this entry as written would have made
+  the app **more permissive than HDB's own guideline**. `CLEARANCE.walkwayIdeal` was already 0.9, so
+  the constant was right and the note was wrong.
+  Implemented as `accessibility.ts:MIN_WALKABLE_WIDTH` (0.9), a stricter tier than the 1.5 m turning
+  circle, reported above it and worded distinctly ("too narrow to walk through, not just to turn
+  in"). Applied to every habitable room's min span rather than to "corridors" — a room under 900 mm
+  is unwalkable whatever it is called, and there is no `corridor` `RoomCategory` to key on.
+  **It fires on no shipped plan** (168 rooms across 19 templates + the default flat, narrowest
+  1.00 m), which is the honest reason it exists: a user-drawn corridor is the only place it can
+  occur. Still open, and genuinely harder: the width of the main ROUTE through a room, which needs a
+  route model the app does not have.
 - ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
   half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
   researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus

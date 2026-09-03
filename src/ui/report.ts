@@ -615,7 +615,13 @@ export function buildReportHtml(
   // for an unfurnished shell; skipped when the plan has no doors or rooms.
   const a11y = buildAccessibilityReport(plan)
   const a11yFailDoors = a11y.doors.filter((d) => !d.pass)
-  const a11yFailRooms = a11y.rooms.filter((r) => !r.pass)
+  // Listed ABOVE the turn-circle failures and worded distinctly: below HDB's
+  // 900 mm internal-corridor minimum the space is not walkable at all, which is
+  // a different (and more serious) statement than "no room for a wheelchair to
+  // turn". A room that fails this necessarily fails the turn circle too, so it
+  // would otherwise be buried in that list under the milder wording.
+  const a11yUnwalkable = a11y.rooms.filter((r) => !r.walkable)
+  const a11yFailRooms = a11y.rooms.filter((r) => !r.pass && r.walkable)
   const doorName = (id: string) => {
     const it = plan.openings?.find((o) => o.id === id)
     return it ? `Door (${formatLength(it.width, units)})` : id
@@ -699,6 +705,15 @@ export function buildReportHtml(
               .map(
                 (d) =>
                   `<tr><td class="indent">${esc(doorName(d.id))} — widen to ≥ ${esc(formatLength(a11y.thresholds.door, units))}</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        a11yUnwalkable.length > 0
+          ? `<div class="warn">Rooms below HDB's ${esc(formatLength(a11y.thresholds.walkable, units))} internal-corridor minimum — too narrow to walk through, not just to turn in:</div><table>${a11yUnwalkable
+              .map(
+                (r) =>
+                  `<tr><td class="indent">${esc(r.roomName)} — ${esc(formatLength(r.minDim, units))} min span, widen to ≥ ${esc(formatLength(a11y.thresholds.walkable, units))}</td></tr>`,
               )
               .join('')}</table>`
           : ''
