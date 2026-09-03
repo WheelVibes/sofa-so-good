@@ -1901,3 +1901,15 @@ Fixing this is a template DATA change (author the missing RC partitions, 300 mm 
 the default flat's `apartment/constants.ts` derivation), not a logic change. Check
 whether `templateEnclosure.test.ts` should have caught it — if that test passes on a
 room missing three walls, its enclosure criterion is weaker than its name suggests.
+
+## (j) WINDOW-SIGHTLINE: the beside-the-glass option is measured impossible
+
+Recorded in `docs/open-graphics-decisions.md` (j) under v0.31.8.27. Implemented and
+instrumented: the blocking gate fires 15 times across the 19 templates and accepts
+**zero** moves — in 9 cases the usable wall span is narrower than the item itself
+(1.26 m vs 1.50 m; one span is **−0.04 m**), and in the other 6 a pane-clearing
+candidate is rejected by collision / door swing / the window front keep-out.
+
+The change was reverted (it was a bit-identical no-op). **(f) TEMPLATE-ROOM-ENCLOSURE
+is a precondition**: those 0.86–1.26 m bedroom wall spans are the same mis-sized
+template rectangles (f) measures, so re-measure (j) only after (f) lands.

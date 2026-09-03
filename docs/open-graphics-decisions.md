@@ -559,6 +559,41 @@ offenders, the very masters that motivated the round, straight back**, because f
 position is the only position. It also still lost one wardrobe and added a stray dining chair. Both
 attempts are reverted; the tree is unchanged.
 
+### v0.31.8.27 — the "wall segment beside the glass" route is MEASURED IMPOSSIBLE, not merely hard
+
+Directed to try the beside-the-glass option, I implemented it in `snapToWall`: on a windowed
+edge, offer along-wall coordinates that stand clear of the pane BEFORE the piece's own
+coordinate, always keeping today's coordinate as the last candidate so nothing can go unplaced
+(the shape that made `.121`'s windowless preference safe). Result on the ratchet: **11 → 11,
+bit-identical.** Exact equality is evidence of a no-op, so I instrumented it rather than
+believing it.
+
+Instrumented over all 19 templates (`SL_DEBUG`, since removed):
+
+- 116 `snapToWall` calls for `storage` pieces, 67 with `tall` true, `ctx.windowKeepOut` populated
+  every time, 40 seeing a windowed edge — **the branch is live, not dead code.**
+- The blocking gate (`the piece's own coordinate covers a pane`) fires **15 times**.
+- **Accepted beside-moves: 0.** Every candidate fails, and the split says why:
+  - **9 of 15 — no candidate exists at all.** The usable wall span is SMALLER THAN THE ITEM:
+    `wallSpan 1.26 m` vs `itemW 1.50 m`, `0.86` vs `1.50`, and one case at **`wallSpan −0.04 m`**
+    (the span is negative — the wall is narrower than the wardrobe, so the clamp range is empty).
+    A 1.5 m wardrobe on a 0.86–1.26 m wall has nowhere to be except across the glass.
+  - **6 of 15 — a candidate clears the pane but `tryPlace` rejects it** (collision, door swing,
+    or the window's own front keep-out).
+
+So this option is closed on geometry, and closed for the same underlying reason the item already
+records ("the room is simply too small"). It is not a tuning problem.
+
+**This also links (j) to (f).** Bedroom wall spans of 0.86–1.26 m are not plausible room
+dimensions; they are the same mis-sized template rectangles item (f) measures. **(f) looks like a
+precondition for (j)**: re-authoring those bedroom/bath wings changes the wall spans this option
+depends on, so (j) is worth re-measuring only AFTER (f) lands, not before.
+
+Levers now measured and rejected: deeper keep-out (`.117`, dropped 5 wardrobes), narrower wardrobe
+(`.121`, net zero), windowless-wall preference (`.121`, shipped, 12 → 11), beside-the-glass segment
+(`.27`, no-op — no geometric room). Remaining untried: content changes to room size (= (f)), or
+accept.
+
 **What needs a human / a different approach.** More clearance is not the answer — the room is simply
 too small for a 1.8 m wide, 2.1 m tall wardrobe plus a queen bed plus a window. The options are an
 arranger strategy (prefer a narrower wardrobe variant in a tight room; or accept the window wall but

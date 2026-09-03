@@ -27,6 +27,46 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.27 — (j) WINDOW-SIGHTLINE: the beside-the-glass route is measured impossible
+
+Directed to take item (j)'s "arranger picks the wall segment beside the glass" route,
+I implemented it in `snapToWall` — on a windowed edge, offer along-wall coordinates
+clear of the pane BEFORE the piece's own, always keeping today's coordinate last so
+nothing can go unplaced (the shape that made `.121`'s windowless preference safe).
+
+**Result: 11 → 11 blocked windows, bit-identical.** Exact equality is evidence of a
+no-op, so I instrumented rather than believed it. Over all 19 templates: the branch
+is live (116 storage `snapToWall` calls, 67 `tall`, keep-outs populated every time,
+40 seeing a windowed edge) and the blocking gate fires **15 times** — but **zero**
+beside-moves are accepted:
+
+- **9 of 15: no candidate exists.** The usable wall span is smaller than the item —
+  `1.26 m` vs a `1.50 m` wardrobe, `0.86` vs `1.50`, and one span at **`−0.04 m`**
+  (negative: the wall is narrower than the wardrobe, so the range is empty).
+- **6 of 15:** a pane-clearing candidate exists but `tryPlace` rejects it (collision,
+  door swing, or the window's own front keep-out).
+
+The option is closed on geometry, not tuning. **Reverted** — shipping a no-op would
+have implied the item was addressed.
+
+Two things this establishes, both recorded in `docs/open-graphics-decisions.md` (j):
+
+- Four levers have now been measured against this ratchet: deeper keep-out (`.117`,
+  dropped 5 wardrobes), narrower wardrobe (`.121`, net zero), windowless-wall
+  preference (`.121`, shipped, 12 → 11) and beside-the-glass (`.27`, no room to move).
+  Remaining: change room sizes, or accept.
+- **(f) is a precondition for (j).** Bedroom wall spans of 0.86–1.26 m are not
+  plausible room dimensions — they are the same mis-sized template rectangles item
+  (f) measures. So (j) should be re-measured only AFTER (f) is re-authored, not before.
+
+Also corrects an error in my own measurement during this work: I first compared a
+bespoke sweep's output (15 at baseline) against the TEST's known list (11) and read
+the difference as a regression, then as an improvement. Two different rulers —
+`windowSightline.test.ts`'s own function is now the single ruler for any (j) claim.
+
+No production code changed. Version bumped for the decision record and `TODO.md`
+entry; 10124 tests pass with the ratchet at its original 11.
+
 ## v0.31.8.26 — A household shelter's walls are NOT PERMITTED, not "Unclassified"
 
 `wallHackability.ts` recorded this as blocked: *"Household-shelter walls ARE
