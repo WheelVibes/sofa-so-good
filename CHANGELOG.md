@@ -29,6 +29,59 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.76 — a Blender-generated pane mask, and the app's glazing has a CEILING: 0.0 % of it ever exceeds 219 counts
+
+`.75` ended by naming the missing instrument: a pane-only mask, because a rectangular window crop
+also contains the mullion grille, the curtain panels and the sill. Built it in Blender rather than
+by hand, and it changes the diagnosis.
+
+**`render_visibility.py --mask-glazing`** renders the glazing white and everything else black at the
+manifest pose. `find_glazing()` is `open_apertures()`'s predicate, factored out — **one predicate**,
+so a mask and an aperture can never disagree about what a window is. The mask is exact rather than
+drawn: same geometry, same camera, so it applies to the app's frame and the reference alike. 9
+meshes, 11.4 % of the frame, and 5 seconds on the GPU. (It also catches the sheer curtains, since
+they are alpha-transmissive — stated because it is a real inclusion, not a bug.)
+
+**Glazing pixels only, identical mask on all five frames:**
+
+| variant | mean | median | p95 | share ≥219 |
+| --- | --- | --- | --- | --- |
+| app, own sky | 152.8 | 163.1 | 180.1 | **0.0 %** |
+| app, Cycles sky | 165.9 | 179.4 | 202.6 | **0.0 %** |
+| app, `realistic` + Cycles sky | **172.0** | 186.2 | 204.7 | **0.0 %** |
+| app, sky-catch 0 (ablated) | 143.7 | 154.1 | 171.2 | 0.0 % |
+| **Cycles reference** | **212.8** | 233.7 | 246.4 | **55.0 %** |
+
+**The app's panes never exceed 219 counts. Not in one configuration, not in one pixel — 0.0 %
+throughout — while 55 % of the reference's pane pixels do.** So the crop dilution `.75` suspected
+was not the story: the panes genuinely cannot get bright. p95 tops out at ~205 with every lever
+pulled at once.
+
+That is the signature of a **ceiling**, not a gain error — and it retires the framing this thread
+has carried since item (l) was opened. "The window is 27 % too dark" implies a multiplier would fix
+it. A term that cannot reach the top of the range whatever you multiply is a different defect.
+
+**With the confound removed, the three levers are cleanly additive and cleanly insufficient:**
+
+| lever | pane mean |
+| --- | --- |
+| baseline (own canvas sky, `performance`) | 152.8 |
+| + physical Cycles sky | 165.9 (**+8.5 %**) |
+| + `realistic` real transmission | 172.0 (**+12.6 %** cumulative) |
+| the emissive sky-catch is worth | 6.3 % (152.8 → 143.7 when ablated) |
+
+Best achievable **172.0** against physics' **212.8** — **1.238×** still missing, and none of it
+recoverable from these three.
+
+**Which is where black-box probing stops being the efficient tool.** Four hypotheses about this
+window have now been eliminated by measurement (background level, background chroma, real
+transmission, the emissive constant), each one caught by a control rather than by inspection. The
+remaining question — why an alpha-blended `transparent` pane over an equirect background cannot
+reach the top of the range — is a question about how the pane is composited, and reading
+`Window.tsx`/`PlanShell.tsx` against the composer will settle it faster than a fifth ablation.
+
+Suite **10083 green**, `tsc` and biome clean, 11 python tests pass. Nothing shipped changed.
+
 ## v0.31.7.75 — the sky-catch ablation works now, and it refutes my own hypothesis: the emissive is worth 5 %, not the window
 
 `.74` proposed that the window's hardcoded emissive sky-catch (`daylight * 0.4`, `#cfe4f5`) explained

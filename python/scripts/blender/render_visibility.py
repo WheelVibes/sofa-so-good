@@ -66,6 +66,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "far brighter relative to its surroundings than on a real floor, which "
                         "measurably made full irradiance a WORSE predictor of physics than "
                         "sun-free visibility (v0.31.7.67).")
+    p.add_argument("--mask-glazing", action="store_true",
+                   help="render a BINARY MASK of the glazing (white glass, black "
+                        "everything else) at the manifest pose, instead of a "
+                        "visibility render. Use it to measure the window PANES alone "
+                        "-- a rectangular crop also contains the grille, the curtains "
+                        "and the sill, which dilutes every window figure.")
     p.add_argument("--sky", action="store_true",
                    help="light with the manifest's PHYSICAL SKY AND SUN instead of a constant "
                         "white world. Turns the output from VISIBILITY into IRRADIANCE: the "
@@ -117,16 +123,27 @@ def open_apertures() -> tuple[int, list[str]]:
     Detection is by transmissive/transparent shading on the ORIGINAL material, since that is
     what glazing is, in any exporter's output.
     """
-    doomed: list[bpy.types.Object] = []
-    names: list[str] = []
+    doomed = find_glazing()
+    names = [o.name for o in doomed]
+    for obj in doomed:
+        bpy.data.objects.remove(obj, do_unlink=True)
+    return len(doomed), names[:8]
+
+
+def find_glazing() -> list:
+    """The glazing meshes, by transmissive/transparent shading on the ORIGINAL material.
+
+    Split out of `open_apertures()` so the same predicate can also MARK the glass
+    instead of deleting it -- see `mask_glazing()`. One predicate, so a mask and an
+    aperture can never disagree about what a window is.
+    """
+    found = []
     for obj in list(bpy.context.scene.objects):
         if obj.type != "MESH":
             continue
         transmissive = False
         for mat in obj.data.materials:
-            if mat is None:
-                continue
-            if not mat.node_tree:
+            if mat is None or not mat.node_tree:
                 continue
             for node in mat.node_tree.nodes:
                 for sock_name in ("Transmission Weight", "Alpha"):
@@ -139,11 +156,58 @@ def open_apertures() -> tuple[int, list[str]]:
                     if sock_name == "Alpha" and val < 0.9:
                         transmissive = True
         if transmissive:
-            doomed.append(obj)
-            names.append(obj.name)
-    for obj in doomed:
-        bpy.data.objects.remove(obj, do_unlink=True)
-    return len(doomed), names[:8]
+            found.append(obj)
+    return found
+
+
+def mask_glazing() -> tuple[int, list[str]]:
+    """Render-ready BINARY MASK of the glazing: white glass, black everything else.
+
+    **Why a mask is needed.** Comparing the window through a rectangular crop is
+    confounded: the crop also contains the mullion grille, the curtain panels and
+    whatever furniture sits below the sill, all opaque mid-grey in both pipelines.
+    `v0.31.7.74`/`.75` measured three separate levers at +5-8 % each on a crop mean
+    and could not tell how much of that dilution was geometry -- the share of the
+    crop above 219 counts stayed pinned at 1.11 % against the reference's 49.58 %,
+    which is the signature of measuring mostly not-glass.
+
+    Generated in Blender from the SAME pose and the SAME geometry the reference
+    render uses, so the mask is exact rather than hand-drawn, and it applies to the
+    app's frame too because both sides are the same scene at the same camera.
+    """
+    glazing = set(o.name for o in find_glazing())
+    black = bpy.data.materials.new("mask_black")
+    black.use_nodes = True
+    nt = black.node_tree
+    nt.nodes.clear()
+    e = nt.nodes.new("ShaderNodeEmission")
+    e.inputs["Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+    e.inputs["Strength"].default_value = 0.0
+    nt.links.new(e.outputs["Emission"], nt.nodes.new("ShaderNodeOutputMaterial").inputs["Surface"])
+
+    white = bpy.data.materials.new("mask_white")
+    white.use_nodes = True
+    nt2 = white.node_tree
+    nt2.nodes.clear()
+    e2 = nt2.nodes.new("ShaderNodeEmission")
+    e2.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    # Emission strength 1.0 through AgX lands well short of 255; the mask is
+    # thresholded, not measured, so overdrive it to make the binary unambiguous.
+    e2.inputs["Strength"].default_value = 50.0
+    nt2.links.new(e2.outputs["Emission"], nt2.nodes.new("ShaderNodeOutputMaterial").inputs["Surface"])
+
+    n = 0
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH" or not obj.data.materials:
+            continue
+        mat = white if obj.name in glazing else black
+        for i in range(len(obj.data.materials)):
+            obj.data.materials[i] = mat
+        if mat is white:
+            n += 1
+    # A lit world would show through the glass and pollute the mask.
+    make_visibility_world(strength=0.0)
+    return n, sorted(glazing)[:8]
 
 
 def whiten_all_materials(albedo: float) -> int:
@@ -195,7 +259,11 @@ def main(argv: list[str] | None = None) -> int:
     S.import_glb(fixed)
     S.setup_cycles(samples=a.samples, res=(w, h), device=a.device)
     sky_info = None
-    if a.sky:
+    if a.mask_glazing:
+        masked, mask_names = mask_glazing()
+        opened, opened_names = 0, []
+        slots = 0
+    elif a.sky:
         # Order still matters exactly as for visibility: open the apertures BEFORE
         # whitening, or the whitened glazing seals the room. The difference is only
         # which world is overhead.
@@ -210,8 +278,11 @@ def main(argv: list[str] | None = None) -> int:
         )
     else:
         make_visibility_world()
-    opened, opened_names = open_apertures()
-    slots = whiten_all_materials(a.albedo)
+    if not a.mask_glazing:
+        # Skipped in mask mode: deleting the glazing would remove the very thing
+        # being masked, and whitening would erase the black/white distinction.
+        opened, opened_names = open_apertures()
+        slots = whiten_all_materials(a.albedo)
     # Without --sky there is no sun: a sun would add a direct term, and visibility is
     # an indirect quantity. WITH --sky the sun is part of the sky node itself, so the
     # direct term is included on purpose -- irradiance means all of it.
@@ -233,7 +304,13 @@ def main(argv: list[str] | None = None) -> int:
         "glazing_meshes_removed": opened,
         "glazing_examples": opened_names,
         "dispersion_stripped": stripped,
-        "world": "physical sky + sun (IRRADIANCE)" if a.sky else "constant white (visibility, not sky-weighted)",
+        "world": "black (GLAZING MASK)"
+        if a.mask_glazing
+        else "physical sky + sun (IRRADIANCE)"
+        if a.sky
+        else "constant white (visibility, not sky-weighted)",
+        "masked_glazing": masked if a.mask_glazing else None,
+        "mask_examples": mask_names if a.mask_glazing else None,
         "sky": sky_info,
         "sun": None,
     }
