@@ -91,10 +91,18 @@ export function VisibilityLightmaps() {
       // answers that in one run. It doubles as the knob the eventual look call will want.
       const params = new URLSearchParams(window.location.search)
       const gainOverride = import.meta.env.DEV ? Number(params.get('aoGain')) : Number.NaN
+      // The MODE comes from the artefact, never from a setting. An index declares
+      // its own `pass`, and the two passes are not interchangeable: `visibility`
+      // is a dimensionless occlusion ratio that MULTIPLIES the fill, `irradiance`
+      // is the light itself and REPLACES it. `v0.31.7.67` measured getting that
+      // backwards as worse than not applying a map at all. Deriving it here means
+      // a mismatched pair cannot be configured into existence.
+      const mode = parsed.index.pass === 'irradiance' ? 'replace' : 'multiply'
       const result = applyLightmapsFromIndex(scene, parsed.index, load, {
         gain: Number.isFinite(gainOverride) && gainOverride > 0 ? gainOverride : undefined,
         // `?aoDebug=1` paints the sampled map instead of shading. Unusable by design.
         debug: import.meta.env.DEV && params.get('aoDebug') === '1',
+        mode,
       })
       if (import.meta.env.DEV || result.suspect) {
         const log = result.suspect ? console.warn : console.info

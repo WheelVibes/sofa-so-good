@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.89 — the runtime derives `multiply` vs `replace` from the artefact, not from a setting
+
+Wiring `.88`'s `replace` mode through to the loader. The design decision worth recording is where the
+mode comes from.
+
+**It is not configurable.** `VisibilityLightmaps` reads the index's own **`pass`** field —
+`bake_material.py` already writes it — and maps `irradiance` → `'replace'`, anything else →
+`'multiply'`:
+
+    const mode = parsed.index.pass === 'irradiance' ? 'replace' : 'multiply'
+
+The two passes are not interchangeable quantities. A `visibility` map is a dimensionless [0,1]
+occlusion ratio that must **multiply** the fill; an `irradiance` map is the light itself and must
+**replace** it. `v0.31.7.67` measured getting that backwards as *worse than the crude proxy* (+58 %
+against visibility's +79 % on the one view where either helps). Deriving the mode from the artefact
+means a mismatched pair **cannot be configured into existence** — the same reasoning as `cli_argv`
+and the plan-name resolver: where a mistake is silent and recurrent, remove the opportunity rather
+than document it.
+
+`ApplyOptions.mode` defaults to `'multiply'`, so an index with no `pass` field — anything baked before
+this — keeps the shipped behaviour. Two tests pin both halves: the default lands `:multiply` in the
+program cache key, and an explicit `replace` lands `:replace`. The key matters because a constant one
+already collapsed two shader variants into a single compiled program (`.44`).
+
+**Still not measured: whether it closes (w)/(x).** The maps exist (`/tmp/mb/irr-ind`, 24 shell
+meshes, indirect-only), the shader path exists, and the loader now selects correctly — but the
+irradiance maps are baked against the **default** 4-Room plan (`ctx d03ee082`) while the shipped set
+is keyed to the *template* (`2c1aca20`), a distinction `.62` turned up and this arc has not yet
+reconciled. Serving them needs either that reconciliation or a DEV directory override, and then the
+interior comparison against the Cycles reference (**107.1 against 124.2**) is one probe run.
+
+Suite **10097 green** (+2), `tsc`, biome and `knip` clean. Nothing shipped changes: the flag is off
+and the only index in `public/assets/lightmaps` still declares `pass: "visibility"`.
+
 ## v0.31.7.88 — the irradiance bake was 90 % the sun the app already has; corrected, and the shader can now REPLACE instead of multiply
 
 Building the runtime path for items (w)/(x) surfaced a design error in my own bake before it could

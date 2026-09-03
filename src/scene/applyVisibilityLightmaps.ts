@@ -24,6 +24,7 @@ import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
   gainForPlanMean,
+  type LightmapMode,
 } from './visibilityLightmap'
 
 /** Where the baked set lives, base-path aware so it survives a non-root deployment.
@@ -38,6 +39,16 @@ export interface ApplyOptions {
   gain?: number
   /** DEV visualiser: paint the sampled occlusion value instead of shading. */
   debug?: boolean
+  /**
+   * How the map enters the shading. Derived from the INDEX's own `pass` field by
+   * the caller, not configured: a `visibility` map is a dimensionless occlusion
+   * ratio that must MULTIPLY the fill, and an `irradiance` map is the light
+   * itself and must REPLACE it. Getting that backwards is not a tuning error —
+   * `v0.31.7.67` measured multiplying by irradiance as *worse* than multiplying
+   * by visibility, because the app's ambient/hemisphere fill stays in place and
+   * gets scaled instead of stood in for.
+   */
+  mode?: LightmapMode
 }
 
 export interface ApplyResult {
@@ -114,7 +125,13 @@ export function applyLightmapsFromIndex(
   root: Object3D,
   index: LightmapIndex,
   loadTexture: (url: string) => Texture,
-  { baseUrl = LIGHTMAP_BASE, expectCoverage = false, gain, debug = false }: ApplyOptions = {},
+  {
+    baseUrl = LIGHTMAP_BASE,
+    expectCoverage = false,
+    gain,
+    debug = false,
+    mode = 'multiply',
+  }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
   // DETACH FIRST. Materials survive a plan change, so anything patched for the previous plan is
@@ -175,7 +192,7 @@ export function applyLightmapsFromIndex(
       if (conflicts > 0) continue
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
-    applyVisibilityLightmap(o.material as never, loadTexture(url), planGain, debug)
+    applyVisibilityLightmap(o.material as never, loadTexture(url), planGain, debug, mode)
     applied += 1
   }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)

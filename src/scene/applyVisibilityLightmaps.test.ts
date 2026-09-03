@@ -184,3 +184,26 @@ describe('applyLightmapsFromIndex', () => {
     expect(w.geometry.getAttribute('uv1')).toBe(first)
   })
 })
+
+describe('mode threading (v0.31.7.89)', () => {
+  it('defaults to multiply, so an index cannot silently REPLACE the fill', () => {
+    // A `visibility` map is a [0,1] occlusion ratio. Applied as a replacement it
+    // would stand in for the ENTIRE fill at map*gain, a different and much darker
+    // picture than the one it was baked for. The default has to be the safe one.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
+    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).toContain(':multiply')
+  })
+
+  it('threads an explicit replace mode into the program cache key', () => {
+    // The key must differ, or three serves `replace` from `multiply`'s compiled
+    // program -- the collapse `v0.31.7.44` already paid for once.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, { mode: 'replace' })
+    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).toContain(':replace')
+  })
+})
