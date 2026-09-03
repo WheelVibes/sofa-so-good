@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.39 — docs caught up: the pipeline, the three load-bearing rules, and the two-command bake
+
+Forty commits of pipeline landed without touching `docs/ARCHITECTURE.md`, against a hard rule
+that says update it *in the same change*. Paying that debt, and choosing where each piece goes
+per the repo's own "prefer many small, scoped docs" guidance rather than growing the root file.
+
+**`docs/ARCHITECTURE.md`** — the Blender section now lists all five bpy entry points (it had two),
+and gains a subsection for the one output that feeds the real-time render, since everything else
+there is offline and that distinction matters:
+
+- **why it exists** — the fill is visibility-blind, measured as a ~3× error on a wall, and applying
+  the maps takes the spatial mismatch against a Cycles reference from **4.76× to 1.36×** at no
+  measurable frame cost;
+- **the two-command bake**, ~35 min for a whole flat, with `LIGHTS=off` marked *not optional*
+  because a lamp-lit raster compared against a daylight-only reference inflates the very error it
+  is measuring;
+- **a table of the four runtime modules** and what each is for;
+- **the measurement instruments**, with the note that each exists because an earlier aggregate
+  metric hid a real defect.
+
+**`src/scene/CLAUDE.md`** — the three rules someone editing this code can break silently, each
+with the measurement that proves it:
+
+1. **The injection owns its own sampler/uniform/varying; do not move it to `aoMap`.** Through that
+   slot the materials compiled without `USE_AOMAP` and the attenuation never ran. There is
+   deliberately **no `#ifdef`** in the injected code, because an `#ifdef` is what the engine can
+   disable.
+2. **Apply at construction, never to a live material** — ~19 shader compiles, a measured 216 ms
+   frame.
+3. **Mount in both `Scene` and `RoomEditorScene`** — `App.tsx` swaps one for the other, so a
+   single mount leaves the room editor with nothing. It did, for exactly one commit.
+
+Put in the *path-scoped* file rather than the root, which its own rules require: the root stays a
+lean entry point, and this guidance only matters to someone already in `src/scene/`.
+
+Docs-only; no behaviour change. Suite **10048 green**; `tsc`, biome clean.
+
 ## v0.31.7.38 — verified in all three views, with the FPS cost measured on the real feature; and the room editor was getting nothing
 
 With the term finally working, this round does the verification the goal actually asks for: all

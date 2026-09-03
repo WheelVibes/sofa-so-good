@@ -3,6 +3,21 @@
 
 Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 
+- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — three rules that are
+  load-bearing, all measured.** They correct the fill's *visibility-blindness*: every surface
+  currently gets the same skylight whether or not it can see the sky, which is a ~3× error on a
+  wall in a normal living room. Behind `visibilityLightmap`, off by default. Full pipeline in
+  `docs/ARCHITECTURE.md`.
+  1. **The shader injection owns its own sampler, uniform and `uv1` varying — do NOT move it to
+     three's `aoMap` slot.** Routed through that slot the materials compiled *without*
+     `USE_AOMAP` and the attenuation silently never ran; nine hypotheses died before a debug
+     visualiser with a magenta "branch never ran" sentinel found it. There is deliberately no
+     `#ifdef` in the injected fragment code, because an `#ifdef` is what the engine can disable.
+  2. **Apply at material construction, never to a live material.** Attaching mid-session compiles
+     ~19 shader variants and cost a measured 216 ms frame, so a flag toggled at runtime hitches.
+  3. **Mount `<VisibilityLightmaps />` in BOTH `Scene` and `RoomEditorScene`.** `App.tsx` swaps
+     one for the other — they are alternatives, not nested — so a single mount silently leaves the
+     room editor with no maps at all. It did, for one commit.
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,
   the user's call); the render path needs both. It scales the hemisphere, the flat ambient and the

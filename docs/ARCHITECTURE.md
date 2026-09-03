@@ -60,7 +60,8 @@ same change that reshapes a system.
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
   (IKEA/Courts/HipVan/Castlery).
-- `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build).
+- `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build), plus
+  `python/scripts/blender/` — the bpy layer (references, bakes, QA). See the Blender section.
 - **Performance profiler (dev-only)**: `src/dev/profiler/` — detached-window
   (`window.open`) live metrics dashboard + on-demand effect-cost sweep + per-object
   GPU breakdown; ⌘K → "Open profiler (dev)" (`profiler` flag, `devOnly`+`pro`, plus
@@ -2864,6 +2865,20 @@ Blender is absent.
   callers never hardcode a 3.x `bpy` name.
 - **`python/scripts/blender/inspect_asset.py`** — turntable QA for one GLB, framed from the
   asset's own bounds.
+- **`python/scripts/blender/render_still.py`** — photoreal still; also the module the render
+  service calls. `--sky` places the *physical* atmospheric sky from the app's own sun vector,
+  which is what makes a render an absolute reference rather than something calibrated to the app.
+- **`python/scripts/blender/render_from_manifest.py`** — the **matched-pose** reference, in one
+  command, from a `BLENDREF` directory. The pose is *read* from the manifest, never retyped:
+  camera position, look-at, vertical FOV and sun vector are four flags and four chances to
+  mis-transcribe, and a mis-transcribed pose is the most expensive error class in this area.
+- **`python/scripts/blender/render_visibility.py`** — renders **aperture visibility** itself
+  (white Lambertian everything, *constant* white world, no sun, glazing deleted so the aperture
+  is open). The ground truth item (w) is validated against.
+- **`python/scripts/blender/bake_material.py`** — bakes visibility/AO/diffuse to per-object
+  textures keyed by geometry. See the lightmap pipeline below.
+- **`python/scripts/blender/glb_fix.py`** — works around the 5.2.1 importer aborting on
+  `KHR_materials_dispersion: {}`; 4 glass materials out of 897 otherwise block a whole import.
 - **`docs/skills/blender.md`** — **read first.** Verified `bpy` facts for the installed build
   (Blender 5.2.1 LTS), the gotchas that cost time if assumed, invocation examples from this
   repo, and a living lessons log each session appends to.
@@ -2872,3 +2887,52 @@ Interchange is the existing `.sofa.json` + GLB export (`src/export/sceneGltf.ts`
 format. Note the Poly Haven HDRIs are **CDN-hosted, not bundled**
 (`src/scene/lighting/hdriCatalog.ts`), so any Blender path wanting them must fetch and cache
 locally rather than globbing the repo.
+
+### Baked visibility lightmaps (item (w)) — the one thing Blender feeds back into the app
+
+Everything above is *offline*. This is the exception: a Blender bake that ships as an asset and
+changes the real-time render. It exists because the app's `HemisphereLight` + `AmbientLight` are
+**visibility-blind** — every surface receives the same skylight whether or not it can see the sky
+— which measures as a ~3× error on a wall in a normal living room, the largest single fidelity
+defect found in the graphics arc. Applied, it takes the spatial mismatch against a Cycles
+reference from **4.76× to 1.36×** in walk view, at **no measurable frame cost** at either
+auto-selected tier.
+
+Behind `visibilityLightmap` (off by default: only the move-in default plan is baked, and with no
+maps the render is byte-identical).
+
+**Baking a plan** — two commands, ~35 min for a whole flat:
+
+    # 1. export the pose + GLB from the running app (dev server on :5200)
+    SSG_URL=http://localhost:5200/ OUT=/tmp/ref VH=720 LIGHTS=off BLENDREF=/tmp/ref \
+      node scripts/dev-probes/light-distribution.mjs
+
+    # 2. bake every shell mesh, keyed by geometry
+    blender --background --factory-startup \
+      --python python/scripts/blender/bake_material.py -- \
+      --dir /tmp/ref --out-dir public/assets/lightmaps \
+      --pass visibility --min-area 3.0 --res 256 --samples 4096 --adaptive-threshold 0.001
+
+`LIGHTS=off` is not optional: the reference is daylight-only, and a lamp-lit raster compared
+against it inflates the error it is measuring.
+
+**Runtime**, all four modules in `src/scene/`:
+
+| module | job |
+| --- | --- |
+| `lightmapKey.ts` | names a map by **world-space** geometry, so one shared index serves every baked plan and a wall in plan A cannot collide with one in plan B |
+| `lightmapUv.ts` | the `uv1` 3×2 box atlas, derived from local geometry so the runtime regenerates Blender's layout without shipping a UV table |
+| `lightmapIndex.ts` | parses `index.json`, resolves keys, and **counts the hit rate** — a map that never loads and a working subtle term are indistinguishable in a screenshot |
+| `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection |
+
+**Two things that will bite anyone touching this.** The injection **owns its own sampler,
+uniform and `uv1` varying** rather than using three's `aoMap` slot — routed through that slot the
+materials compiled without `USE_AOMAP` and the attenuation silently never ran. And it must be
+applied **at material construction, never to a live material**: attaching mid-session compiles
+~19 shader variants and cost a measured 216 ms frame, so a flag toggled at runtime will hitch.
+
+**Measurement instruments** (`scripts/dev-probes/`): `frame-compare.mjs` (exposure-invariant
+tonality), `spatial-profile.mjs` (where the error is, and `--explain` to test a candidate cause),
+`chroma-locate.mjs` (WB-invariant chroma), `highlight-locate.mjs`, `bake-noise.mjs` (seed-pair
+noise, dark-texel error), `bake-gain.mjs`. Each exists because an earlier aggregate metric hid a
+real defect; the headers say which.
