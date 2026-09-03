@@ -27,6 +27,57 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.21 - Swept all 9 selector regexes; the structural check had the live bugs
+
+Three name-regex-as-taxonomy faults in `layoutCritique` (rug anchor, TV selector,
+lounge seating) made the pattern worth sweeping properly. Measured all **9**
+id-regex selectors in `analysis/` against the real catalogue. The one that
+mattered was `floorLoading.ts` — a STRUCTURAL check estimating whether furniture
+exceeds the ~150 kg/m² slab guideline, so a wrong subject mis-states load.
+
+**Live bug: WALL shelves counted as FLOOR load.** `BOOKCASE_RE` matched
+`wall-shelf` and `cat-wall-shelf`, both `mounted: true`, and
+`estimateItemWeightKg` returns `LOADED_BOOKCASE_KG` (200 kg) unconditionally for
+anything it matches. The loop's only guard was `if (!def) continue`, so a pair of
+wall shelves added **400 kg of floor loading that physically hangs off the wall**.
+Every other check in the app already exempts mounted/noClip items; this one did
+not.
+
+**Live bug: a baby changing table estimated at 160 kg.** `TABLE_RE` is
+`/table|desk|island|console/`, and `changing-table` (category `kids`) declares
+`finish=concrete`, which satisfies `hasStoneMaterial` and returns the 160 kg
+stone-top figure. Now closed by a `CATEGORY_EXCLUDE` of lighting/decor/kids/pets.
+
+**A claim I had to retract mid-audit.** `TABLE_RE` also matches `table-lamp`,
+`desk-plant` and `tabletop-decor`, and I first wrote that up as "a table lamp
+estimated at 160 kg". Checking the defs, none of the three declares a
+stone-capable finish option, so `hasStoneMaterial` cannot be satisfied from a
+builtin def's own enum and that branch never fires for them. Latent, not live —
+worth closing anyway (an imported def can carry an arbitrary material string),
+but not worth claiming as a bug that existed.
+
+**A test of mine that was inert.** My first wall-shelf test passed with the
+`mounted` guard REMOVED, because those two defs are `decor` and `pets` and the new
+category exclusion already stops them — the two fixes overlap on exactly the
+measured cases. Added a constructed `storage`-category mounted shelf so the guard
+is isolated; both fixes now fail a test independently when reverted.
+
+**`PLATFORM_RE` matches nothing in the catalogue** — no platform/dais/riser/
+podium/tatami def exists, so that branch and `RAISE_KEYS` are unreachable. Kept
+rather than deleted (the HDB raise limit it guards is real, and a platform bed is
+a plausible future def) with a test pinning that it matches nothing today, so the
+day one is added the test says so instead of the branch quietly starting to fire.
+
+**The other six selectors are sound, and saying so is part of the result:**
+`RUG_RE` catches exactly the one `rug` def; the rug anchor's narrower subject
+(sofa / dining table, plus bed by CATEGORY) matches its three cited rules rather
+than lounge seating generally, which is correct — the published rules name those
+three pieces; `CARPENTRY_RE`'s 14 hits are all genuinely carpentry;
+`GLASS_RE` is exact; and `layoutCritique`'s `TABLE_RE` catches only
+`coffee-table`. `planStatistics.ts:CIRCULATION_RE` matches room NAMES, and is the
+one legitimate name regex in the set — there is no `corridor` `RoomCategory` to
+key on, which is the same gap the walkable-width check had to work around.
+
 ## v0.31.8.20 - Conversation warned on normal social distance; seating came from a regex
 
 Finished re-verifying the layout-critique thresholds. Two more faults, both found

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import type { FurnitureDef, FurnitureItem, ParamProps } from '../furniture/types'
 import {
   buildFloorLoadingReport,
@@ -105,5 +106,84 @@ describe('buildFloorLoadingReport — raised platforms', () => {
       catalog,
     )
     expect(r.platforms).toHaveLength(0)
+  })
+})
+
+/**
+ * **Selector audit (v0.31.8.21).** This is a STRUCTURAL check — it estimates
+ * whether furniture exceeds the ~150 kg/m² slab guideline — so getting the
+ * subject wrong mis-states load. Three faults found by measuring what the three
+ * id regexes actually match against the real catalogue:
+ *
+ *  - `BOOKCASE_RE` matched `wall-shelf` and `cat-wall-shelf`, both
+ *    `mounted: true`, and the loop's only guard was `if (!def) continue` — so a
+ *    pair of WALL shelves added 400 kg of FLOOR loading. Live and wrong.
+ *  - `TABLE_RE` matches `table-lamp`, `desk-plant`, `tabletop-decor` and
+ *    `changing-table`. The first three are latent (no stone-capable finish
+ *    option, so `hasStoneMaterial` cannot be satisfied) — verified rather than
+ *    assumed — but `changing-table` declares `finish=concrete` and WAS being
+ *    estimated at 160 kg.
+ *  - `PLATFORM_RE` matches nothing at all.
+ */
+describe('floor loading — subject selection', () => {
+  const at = (defId: string, props: Record<string, unknown> = {}) => ({
+    id: `i-${defId}`,
+    defId,
+    position: [2, 2] as [number, number],
+    rotation: 0,
+    props,
+  })
+
+  it('does NOT count the catalogue wall shelves as floor load', () => {
+    const rep = buildFloorLoadingReport(
+      [at('wall-shelf'), at('cat-wall-shelf')] as never,
+      BUILTIN_CATALOG,
+    )
+    const named = [...rep.exceeding, ...rep.watch].map((r) => r.defId)
+    expect(named).not.toContain('wall-shelf')
+    expect(named).not.toContain('cat-wall-shelf')
+  })
+
+  it('does NOT count a MOUNTED shelf in a load-bearing category', () => {
+    // The arm that isolates the `mounted` guard. The two catalogue wall shelves
+    // are `decor` and `pets`, so `CATEGORY_EXCLUDE` already stops them and the
+    // test above passes with the guard removed — it was inert. This def is
+    // `storage` (not excluded), matches BOOKCASE_RE, and is mounted, so only the
+    // guard can reject it.
+    const mountedShelf = {
+      id: 'floating-bookshelf',
+      name: 'Floating bookshelf',
+      category: 'storage',
+      mounted: true,
+      defaultFootprint: { w: 0.9, d: 0.3, h: 0.3 },
+    } as unknown as FurnitureDef
+    const rep = buildFloorLoadingReport([at('floating-bookshelf')] as never, {
+      ...BUILTIN_CATALOG,
+      'floating-bookshelf': mountedShelf,
+    })
+    expect([...rep.exceeding, ...rep.watch].map((r) => r.defId)).not.toContain('floating-bookshelf')
+  })
+
+  it('still counts a floor-standing bookshelf', () => {
+    // The mounted guard must not silence the real case — a packed full-height
+    // bookcase is one of the heaviest things in a flat.
+    const rep = buildFloorLoadingReport([at('bookshelf')] as never, BUILTIN_CATALOG)
+    expect([...rep.exceeding, ...rep.watch].map((r) => r.defId)).toContain('bookshelf')
+  })
+
+  it('does NOT treat a concrete-finish changing table as a stone-topped table', () => {
+    expect(estimateItemWeightKg('changing-table', { finish: 'concrete' }, 'kids')).toBe(0)
+  })
+
+  it('still treats a stone-topped dining table as heavy', () => {
+    expect(estimateItemWeightKg('dining-table', { top: 'marble' }, 'tables')).toBeGreaterThan(0)
+  })
+
+  it('records that PLATFORM_RE matches nothing in the catalogue today', () => {
+    // Pins the measurement so the branch cannot start firing unnoticed: the day
+    // a platform-bed or tatami dais def is added, this fails and whoever adds it
+    // sees that a raise check now applies to it.
+    const PLATFORM_RE = /platform|dais|riser|podium|tatami/
+    expect(Object.keys(BUILTIN_CATALOG).filter((id) => PLATFORM_RE.test(id))).toEqual([])
   })
 })

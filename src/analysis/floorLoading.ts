@@ -56,13 +56,39 @@ const HEAVY_KG_BY_DEF: Record<string, number> = {
 const STONE_MATERIALS = new Set(['marble', 'stone', 'granite', 'terrazzo', 'quartz', 'concrete'])
 /** Estimated weight of a stone/marble-topped table (kg) — a 20–30 mm slab top. */
 const STONE_TABLE_KG = 160
-/** Def ids that are tables (a stone top makes them heavy). */
+/**
+ * Def ids that are tables (a stone top makes them heavy).
+ *
+ * **Audited v0.31.8.21.** This matches 16 defs, including `table-lamp`,
+ * `desk-plant` and `tabletop-decor` — a lamp, a plant and a decor object. Those
+ * are LATENT rather than live: none of them declares a stone-capable finish
+ * option, so `hasStoneMaterial` cannot be satisfied from a builtin def's own
+ * enum and the 160 kg branch never fires for them. Checked before claiming
+ * otherwise.
+ *
+ * `CATEGORY_EXCLUDE` closes them anyway, because "latent" only holds until
+ * someone adds a marble base to a table lamp, and because an imported def can
+ * carry an arbitrary material string. It also removes the one REACHABLE false
+ * positive found: `changing-table` (category `kids`) declares
+ * `finish=concrete`, so a baby changing table was being estimated at 160 kg.
+ */
 const TABLE_RE = /table|desk|island|console/
+/** Categories that are never a stone-topped SURFACE, whatever the id says. */
+const CATEGORY_EXCLUDE: ReadonlySet<string> = new Set(['lighting', 'decor', 'kids', 'pets'])
 /** Def ids that are open shelving / bookcases (loaded with books ≈ heavy). */
 const BOOKCASE_RE = /bookshelf|bookcase|shelf|shelving/
 /** Estimated loaded weight of a full-height bookcase packed with books (kg). */
 const LOADED_BOOKCASE_KG = 200
-/** Def ids that model a raised floor platform. */
+/**
+ * Def ids that model a raised floor platform.
+ *
+ * **Matches NOTHING in the catalogue (measured v0.31.8.21)** — there is no
+ * platform/dais/riser/podium/tatami def, so this branch and `RAISE_KEYS` are
+ * unreachable today. Kept rather than deleted because the HDB raise limit it
+ * guards is real and a platform-bed or tatami dais is a plausible future def;
+ * `floorLoading.test.ts` pins that it currently matches nothing, so the day one
+ * is added the test says so instead of the branch quietly starting to fire.
+ */
 const PLATFORM_RE = /platform|dais|riser|podium|tatami/
 
 /** Prop keys a raised-platform height might be stored under (metres). */
@@ -131,9 +157,16 @@ function hasStoneMaterial(props: ParamProps | undefined): boolean {
 }
 
 /** Estimate an item's in-use weight (kg), or 0 when it is not a heavy suspect. */
-export function estimateItemWeightKg(defId: string, props: ParamProps | undefined): number {
+export function estimateItemWeightKg(
+  defId: string,
+  props: ParamProps | undefined,
+  /** The def's category, when the caller has it — lets the stone-table branch
+   *  reject a lamp/plant/decor/kids piece whose ID merely contains "table". */
+  category?: string,
+): number {
   const id = defId.toLowerCase()
   if (HEAVY_KG_BY_DEF[id] != null) return HEAVY_KG_BY_DEF[id]
+  if (category != null && CATEGORY_EXCLUDE.has(category)) return 0
   if (TABLE_RE.test(id) && hasStoneMaterial(props)) return STONE_TABLE_KG
   if (BOOKCASE_RE.test(id)) return LOADED_BOOKCASE_KG
   return 0
@@ -154,6 +187,14 @@ export function buildFloorLoadingReport(
   for (const item of Array.isArray(items) ? items : []) {
     const def = catalog?.[item?.defId]
     if (!def) continue
+    // A wall/ceiling fixture does not load the SLAB, and a rug has no weight
+    // worth counting (v0.31.8.21). Without this, `BOOKCASE_RE` matched
+    // `wall-shelf` and `cat-wall-shelf` — both `mounted: true` — and
+    // `estimateItemWeightKg` returned `LOADED_BOOKCASE_KG` (200 kg)
+    // unconditionally for them, so a pair of wall shelves added 400 kg of
+    // floor loading that physically hangs off the wall. Every other check in
+    // the app already exempts mounted/noClip items; this one did not.
+    if (def.mounted || def.noClip) continue
     const id = def.id.toLowerCase()
 
     // Raised-platform check.
@@ -171,7 +212,7 @@ export function buildFloorLoadingReport(
     }
 
     // Heavy-item density check.
-    const weight = estimateItemWeightKg(def.id, item.props)
+    const weight = estimateItemWeightKg(def.id, item.props, def.category)
     if (weight <= 0) continue
     const area = footprintArea(def, item)
     const density = weight / area
