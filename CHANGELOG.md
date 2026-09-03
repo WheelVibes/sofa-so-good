@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.166 — `(z)`1's real blocker is NOT the seam: a mapped exterior wall over-brightens by +65.6 counts
+
+`.165` closed by saying the seam was ~3 % and the remaining question was a look call to settle
+against frames in several rooms. Ran that tour — 44 frames, 11 rooms, `realistic`, GI on vs off —
+and it answers a different question than the one I asked.
+
+**The seam is not the blocker. A gain error is.** In `acLedge-y3` the exterior-facing wall goes
+**163.7 → 229.3, +65.6 counts**, losing most of its shading to near-white, while in the SAME frame
+the far wall moves +0.4 and the ceiling **0.0**. It is not a global exposure shift and not a
+tone-mapping artefact: it is one surface reconstructing far too bright while its neighbours
+reconstruct correctly.
+
+Per-room whole-frame deltas show how unevenly this lands, which is why one pose could not have found
+it — the mainBedroom window pose I had been working in is one of the well-behaved ones:
+
+| view | Δ mean | | view | Δ mean |
+| --- | --- | --- | --- | --- |
+| `acLedge-y3` | **+24.5** | | `bedroom2-y1` | +8.4 |
+| `acLedge-y1` | +18.6 | | `bedroom3-y1` | +10.0 |
+| `serviceYard-y1` | +16.5 | | `kitchen-y2` | **−5.2** |
+| `serviceYard-y0` | +10.4 | | `mainBedroom-y1` | +3.8 |
+| bath1 / bath2 / corridor / householdShelter | ~0.0 (no maps) | | | |
+
+The rooms that move most are the ones open to the sky, which is the pattern to explain.
+
+**An observation about the index, recorded WITHOUT a mechanism attached**, because three of this
+arc's confident mechanisms have been wrong and one cost three rounds of retracted numbers. Of 40
+maps, most carry `scale` **2.9191 identical to six decimal places**, and a handful carry
+**0.15–0.22** — a 19× spread with a shared ceiling. `--per-map-scale` normalises each map to its
+OWN maximum, so a scale shared exactly across most of the set is not what that flag should produce.
+The apply path multiplies it back in (`scaleFor(key) * baseGain`), so whatever that number means, it
+is directly in the reconstruction of the surfaces that over-brighten. Whether the two facts are
+connected is the next measurement, not a conclusion.
+
+**Next step, and it is a comparison rather than a hunt:** identify the map serving that exterior wall
+and check its reconstructed irradiance against a Cycles reference for the same surface. That is a
+number the bake can produce directly, and it distinguishes "the map is wrong" from "the gain applied
+to a correct map is wrong" — which the frame cannot.
+
+**What this does to the earlier framing.** `.165`'s closing suggestion — that a 3 % step might be
+worth accepting to ship the GI — is withdrawn. Not because 3 % is too much, but because the seam was
+never the thing standing in the way, and I would have shipped a +65-count error while debating a
++5.5-count one. The two mitigations `.165` rejected remain correctly rejected; they were solving the
+smaller problem.
+
+Suite 10167 green, `tsc` and biome clean. Nothing shipped; flag still off.
+
+
 ## v0.31.7.165 — two routes built for the GI seam, both measured, both rejected: one stalls 2100 ms, the other moves one count
 
 `.164` diagnosed the seam and named two routes. I built the cheap one, then the cheaper one. Neither
