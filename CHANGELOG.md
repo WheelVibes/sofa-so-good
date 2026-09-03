@@ -29,6 +29,53 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.62 — the arc's evidence base was in `/tmp` and three fifths of it is gone: references now state their own provenance
+
+Going to re-run `--explain` on a fourth view, I found the reference set no longer exists. `/tmp`
+was cleared across the date boundary and **three of the five pairs every conclusion in this arc
+rests on are gone** — only `bedroom3` and `livingDining` survive. Worse, the surviving manifests
+cannot say what they are: they record a room, a window and a tier, but **no plan**, so the only
+way I could identify one was to recognise its camera position.
+
+**And the invocations turned out not to be recoverable from the record.** The CHANGELOG says
+"5-Room kitchen". Reproducing it needs `PLAN=5-Room WINDOW=h5-kit-win LIGHTS=off` — the opening
+ids are per-plan and `WINDOW=kitchen` does not resolve at all (the probe's own listing was what
+told me: `h5-main, h5-master, h5-kit-win, h5-b2-win, h5-m-win, h5-liv-win`). So the 1.368 ×
+window constant, the five-view chroma table and the visibility generalisation result were all
+**unfalsifiable in practice** — not because the measurements were bad, but because nothing
+recorded how to get back to them.
+
+**Three fixes, all of the same kind as `.61`'s** — an identifier or a record that a machine
+maintains, rather than a habit:
+
+- **`PLAN=` takes a NAME.** It was a positional index into `PLAN_TEMPLATES`, a hand-ordered array
+  of 19 that grows: `PLAN=3` means the 5-Room flat *today*, and every recorded result keyed to it
+  silently re-binds if a template is inserted above. `PLAN=5-Room` cannot drift. Indices still
+  work.
+- **Ambiguity is refused, not first-matched.** `PLAN=Executive` matches both *Executive Apartment*
+  and *Executive Maisonette* in the shipped list — verified, not hypothetical. A first match would
+  run a different plan than asked for *and* report a plausible name, which is the worst available
+  outcome.
+- **The manifest records its own provenance:** `scene.plan` (spec, index, id, name) and
+  `scene.invocation` — every `process.env` knob the probe reads that was actually set. The knob
+  list is **scanned out of the probe's own source**, not hand-maintained, so it cannot fall behind
+  the next knob added.
+
+`resolvePlanSpec` lives in a plain module with **14 tests**, and the load-bearing half runs against
+the *shipped* list: every template resolves by its own id and by its own name, the three reference
+plans resolve to `tpl-hdb-4room` / `tpl-hdb-5room` / `tpl-hdb-exec`, and `Executive` really is
+ambiguous. Those assertions name the **id, never the index** — encoding the ordering would
+reintroduce exactly the fragility the resolver exists to remove.
+
+**Verified end-to-end, twice:** `PLAN=5-Room` resolved to `[3] "HDB 5-Room" (tpl-hdb-5room)`, and
+the written manifest carried `plan: {spec: "5-Room", index: 3, id: "tpl-hdb-5room", …}` and
+`invocation: {env: {BLENDREF, LIGHTS: "off", PLAN: "5-Room", WINDOW: "h5-kit-win"}}`. One honest
+boundary, stated in the docstring: `SSG_URL` is read in `lib.mjs` and so is absent — it selects
+which server to point at, not what the scene is.
+
+Suite **10072 green** (+14), `tsc` and biome clean. The three lost pairs are not regenerated here;
+what changed is that regenerating them now produces directories that stay identifiable.
+
 ## v0.31.7.61 — the negative-vector trap, fixed in the parser instead of the docs
 
 `--sun-dir -0.50585,-24.83117,2.77232` exits 2 with *"expected one argument"*, because argparse

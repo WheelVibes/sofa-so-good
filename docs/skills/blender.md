@@ -104,6 +104,15 @@ manifest, never retyped** — four flags, four chances to mis-transcribe a pose,
 mis-transcribed pose is the most expensive error class in this arc (two rounds lost to framing
 that looked fine and was not).
 
+The manifest also records **which scene it is** — `scene.plan` (spec, index, id, name) and
+`scene.invocation` (every `process.env` knob the probe reads that was actually set). Neither was
+there before **2026-09-03**, and their absence cost this arc its evidence base: three of the five
+reference pairs were lost when `/tmp` was cleared, and the invocations turned out not to be
+recoverable. The CHANGELOG says "5-Room kitchen"; the probe needs `PLAN=5-Room
+WINDOW=h5-kit-win LIGHTS=off` — the opening ids are per-plan (`h5-kit-win`, `h5-liv-win`,
+`h5-b2-win`) and `WINDOW=kitchen` simply does not resolve. A reference directory now states
+its own provenance, so any figure taken from it can be re-derived.
+
 Thin by construction: it resolves flags and calls `render_still.main(argv)` in-process, so
 scene construction has one implementation. Anything it cannot express is a missing
 `render_still.py` flag, not a reason to duplicate. It also runs the GLB through

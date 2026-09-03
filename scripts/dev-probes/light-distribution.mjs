@@ -44,6 +44,7 @@ import fs from 'node:fs'
 import puppeteer from 'puppeteer'
 import sharp from 'sharp'
 import { appUrl, assertSceneAlive } from './lib.mjs'
+import { resolvePlanSpec } from './resolve-plan.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
 const TIER = process.env.TIER || 'medium'
@@ -200,18 +201,48 @@ await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout
 // source in dev. That avoids exposing the whole plan library on `window` in production just to
 // let a probe reach it.
 const PLAN = process.env.PLAN
+// The resolved plan, recorded so a reference directory can say which flat it is.
+// It could not before: the two surviving manifests of this arc's five-view set
+// identify a room and a window but no PLAN, so the only way to tell a `PLAN=3`
+// run from a default run was to recognise the camera position.
+let planInfo = null
 if (PLAN !== undefined && PLAN !== '') {
+  // Resolution happens HERE rather than in the page so `resolvePlanSpec` is a
+  // plain module with tests (`resolve-plan.test.mjs`); the page only supplies the
+  // list and applies an index. `PLAN=` now takes a NAME as well as an index --
+  // an index into a hand-ordered array is not a durable identifier for a result
+  // that outlives the ordering.
+  const list = await page.evaluate(async () => {
+    const mod = await import('/src/floorplan/templates.ts')
+    const l = mod.PLAN_TEMPLATES
+    if (!Array.isArray(l)) return { error: 'PLAN_TEMPLATES is not an array' }
+    return { list: l.map((p) => ({ id: p.id ?? null, name: p.name ?? null })) }
+  })
+  if (list.error) throw new Error(`PLAN: ${list.error}`)
+  const hit = resolvePlanSpec(list.list, PLAN)
+  if (hit.error) throw new Error(`PLAN: ${hit.error}`)
   const picked = await page.evaluate(async (n) => {
     const mod = await import('/src/floorplan/templates.ts')
     const list = mod.PLAN_TEMPLATES
-    if (!Array.isArray(list) || !list[n]) return { error: `no template ${n} of ${list?.length}` }
+    if (!list[n]) return { error: `no template ${n} of ${list?.length}` }
     window.__store.getState().setFloorPlan(list[n])
-    return { count: list.length, name: list[n].name ?? list[n].id ?? `#${n}` }
-  }, Number(PLAN))
+    return { count: list.length, id: list[n].id ?? null, name: list[n].name ?? null }
+  }, hit.index)
   if (picked.error) throw new Error(`PLAN: ${picked.error}`)
+  planInfo = { spec: PLAN, index: hit.index, id: picked.id, name: picked.name }
   await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
   await new Promise((r) => setTimeout(r, 4000))
-  console.log(`PLAN=${PLAN} loaded ${JSON.stringify(picked.name)} (of ${picked.count} templates)`)
+  console.log(
+    `PLAN=${PLAN} -> [${hit.index}] ${JSON.stringify(picked.name)} (${picked.id}) of ${picked.count} templates`,
+  )
+} else {
+  // Also record the DEFAULT plan. A manifest that only names a plan when one was
+  // explicitly chosen leaves the common case unidentifiable, which is the case
+  // both surviving reference dirs are in.
+  planInfo = await page.evaluate(() => {
+    const fp = window.__store.getState().floorPlan
+    return fp ? { spec: null, index: null, id: fp.id ?? null, name: fp.name ?? null } : null
+  })
 }
 await page.evaluate((r) => {
   window.__probeRoom = r
@@ -2535,6 +2566,28 @@ const camAtRaster = await camState()
 // produced three implicit-frame bugs (radians vs degrees on the sun, vertical vs
 // horizontal on the FOV, Y-up vs Z-up on positions), and a vector in a named frame has
 // no convention left to get wrong.
+/**
+ * Every knob this probe reads that was actually SET, plus argv.
+ *
+ * **Why it is derived from the source rather than listed.** Three of this arc's
+ * five reference pairs were lost when `/tmp` was cleared, and their exact
+ * invocations turned out not to be recoverable: the CHANGELOG names a plan and a
+ * room in prose, but the probe needs a `WINDOW` opening id (`h5-kit-win`, not
+ * `kitchen`), a `PITCH`, and `LIGHTS=off` to reproduce a pose, and none of that
+ * was written down anywhere durable. A hand-maintained list of knobs would drift
+ * the first time one was added; scanning this file for `process.env.X` cannot.
+ *
+ * Boundary: knobs read by sibling modules (`SSG_URL` in `lib.mjs`) are absent on
+ * purpose — they select which server to point at, not what the scene is.
+ */
+function probeInvocation() {
+  const src = fs.readFileSync(new URL(import.meta.url), 'utf8')
+  const keys = [...new Set([...src.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]))]
+  const env = {}
+  for (const k of keys.sort()) if (process.env[k] !== undefined) env[k] = process.env[k]
+  return { env, argv: process.argv.slice(2) }
+}
+
 if (process.env.BLENDREF) {
   const dir = process.env.BLENDREF
   fs.mkdirSync(dir, { recursive: true })
@@ -2633,6 +2686,8 @@ if (process.env.BLENDREF) {
     lights: rig,
     scene: {
       ...state,
+      plan: planInfo,
+      invocation: probeInvocation(),
       room: ROOM,
       window: pose.id,
       standoff: +pose.standoff.toFixed(2),
