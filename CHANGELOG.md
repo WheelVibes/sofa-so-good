@@ -29,6 +29,62 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.15 — item (w)'s fix is PRICED IN FRAMES before being built: free at performance/medium, not quite free at high
+
+Ten rounds of this arc have asserted that the aperture-visibility fix costs nothing per frame —
+*"one texture fetch in a shader that already runs"*. That claim rests on an assumption worth
+testing: a **distinct** map per wall means a distinct texture bind per wall, which would break
+batching if the walls currently shared a material. This round measures it instead of repeating
+it, and the claim survives at the tiers that matter and **fails in one respect at `high`**.
+
+**`tier-fps.mjs AOSTRESS=<minSizeM>`** attaches a distinct 64 px `aoMap` — plus a `uv1` channel
+— to every shell-sized mesh before measuring. The maps are deliberately distinct per mesh, since
+sharing one would measure the wrong thing entirely. The UVs are the mesh's existing ones: the
+*cost* of sampling an `aoMap` depends on the attribute, the bind and the fetch, not on the UV
+values, so this prices the shipped feature exactly while needing none of its correctness.
+
+**331 distinct maps across 433 meshes** (so some materials are shared), orbit, 1280×800 @ dpr 2:
+
+| tier | baseline | with 331 aoMaps | verdict |
+| --- | --- | --- | --- |
+| `performance` | 60 fps / 16.8 ms | **60 fps / 16.8 ms** | no measurable cost |
+| `medium` | 60 fps / 16.8 ms | **60 fps / 16.8 ms** | no measurable cost |
+| `high` | 58.8 fps / **50 ms** | 57.9 fps / **66.6 ms** | worst frame **+33 %** |
+| shader programs | 133–161 | **+18–19 at every tier** | a real, consistent cost |
+
+**The headline claim holds where the ≥30 fps floor lives.** `performance` and `medium` — the
+only tiers ever auto-selected — are byte-identical to baseline on both average and worst frame.
+The floor is not at risk.
+
+**But it is not free at `high`.** The worst frame grows 50 → 66.6 ms, a third worse at the tier
+that was already over a 33 ms budget on its tail. Average fps moves within noise, so this is a
+tail effect, not a throughput one. `high` is opt-in only, which is the reason this is a note
+rather than a blocker — but "zero cost" was too strong and is corrected here.
+
+**And there is a cost at every tier that is not frame time: +18–19 shader programs.** Materials
+with an `aoMap` compile a different variant, so the program count rises everywhere. That has a
+sharp consequence for the design, found by accident: the first stress run recorded a **216.6 ms
+worst frame** because it attached the maps and measured immediately, catching the compilation.
+So:
+
+> **Attach the map at material creation; never toggle `aoMap` at runtime.** A feature flag that
+> switches it live would compile ~19 shader variants mid-session and hitch for a fifth of a
+> second. The flag must be read where the material is built.
+
+That is a real constraint on how the flag is wired, and it would have been discovered the
+expensive way — as a mysterious stutter on toggle — had the measurement not been taken first.
+
+**Two instrument fixes, both from being wrong first.** The stress originally borrowed a texture
+constructor from `scene.background`, which is a canvas equirect **in walk mode only** — this
+harness measures orbit, so it threw. It now borrows from any material's `map`. And
+`gl.info.render.calls` is *not* reported: read after `advance()` it returns `calls 1 /
+triangles 1`, plainly wrong for this scene, and an obviously bogus number is still a number
+someone will quote. `gl.info.programs` is reliable and is the one that mattered anyway.
+
+**Memory, for completeness:** 331 maps × 64² RGBA ≈ **5.4 MB** uncompressed, ~7 MB with
+mipmaps. Modest, and reducible — aperture visibility is smooth at room scale, so 64 px is
+already generous.
+
 ## v0.31.7.14 — a baked map is now ADDRESSABLE: keyed by geometry-in-place, cross-tested against Blender
 
 The next item in `v0.31.7.13`'s sequence was `uv1` at build time. It is the wrong next item —

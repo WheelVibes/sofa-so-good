@@ -3000,6 +3000,23 @@ been attributed to the glass or to the background tone-mapping path.
 > matches nothing. Short-range AO is the wrong quantity, independently re-confirming why N8AO at
 > 1 m cannot substitute.
 >
+> **⏱ PRICED IN FRAMES, v0.31.7.15.** `tier-fps.mjs AOSTRESS=` attaches 331 distinct 64 px
+> `aoMap`s + `uv1` to every shell-sized mesh and measures orbit at 1280×800 dpr 2:
+>
+> | tier | baseline | with maps |
+> | --- | --- | --- |
+> | `performance` | 60 fps / 16.8 ms | **60 fps / 16.8 ms** |
+> | `medium` | 60 fps / 16.8 ms | **60 fps / 16.8 ms** |
+> | `high` | 58.8 fps / 50 ms | 57.9 fps / **66.6 ms** |
+>
+> Free at both auto-selected tiers, so the ≥30 fps floor is not at risk. **Not free at `high`**,
+> whose worst frame grows 33 % — opt-in only, so a note rather than a blocker, but "zero cost"
+> was too strong.
+>
+> **Design constraint, found by measuring:** an `aoMap` adds **+18–19 shader programs**, and
+> attaching one mid-session cost a **216 ms** compile hitch. Attach at material creation; a flag
+> that toggles `aoMap` live will stutter. Read the flag where the material is built.
+>
 > **Which makes the fix a bake, at zero per-frame cost.** Aperture visibility is static per room
 > geometry, so Blender can bake it (`bake_material.py`, Part B) and the fill can be modulated by
 > it; the room shell is low-poly enough that vertex colours may carry it. Nothing per frame, so
