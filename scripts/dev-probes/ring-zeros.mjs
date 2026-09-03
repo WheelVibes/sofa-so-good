@@ -20,8 +20,20 @@ import { slotRect } from './slot-means.mjs'
 
 /** Must match `lightmapUv.ts:LIGHTMAP_UV_MARGIN` and the bake's `make_box_uvs`. */
 const UV_MARGIN = 0.04
-/** Below this fraction of full scale a texel renders as black. */
-const DARK = 0.002
+/**
+ * A texel is a HOLE only if it is exactly zero AND has a lit neighbour in the same slot.
+ *
+ * **The correction this encodes** (`v0.31.7.128`). The first version used a RELATIVE threshold,
+ * `value / max < 0.002`. On an 8-bit file that is exactly zero -- fine -- but on a 16-bit file it
+ * is anything under 131/65535, so a legitimately DARK texel counted as unwritten. That is why the
+ * 8-bit and 16-bit arms both read 28.6 % and why `--fill-holes` appeared to miss its own target:
+ * the fill writes a dark average into a dark region, which is CORRECT, and the metric called it a
+ * failure. **The padding figures in `v0.31.7.125`-`.127` are measured against that flaw.**
+ *
+ * Adjacency is the other half. A legitimately empty slot is not a hole and no face samples it; a
+ * zero next to real data is exactly the seam `?aoDebug=1` shows on a column edge.
+ */
+const HOLE_MAX = 0
 
 export async function ringZeros(dir) {
   const files = readdirSync(dir).filter((f) => f.endsWith('.png'))
@@ -29,7 +41,9 @@ export async function ringZeros(dir) {
   let total = 0
   let dirty = 0
   for (const f of files) {
-    const { v, w, h, max } = await readRed(join(dir, f))
+    // `max` deliberately unused: the corrected metric works in the FILE'S OWN units, because a
+    // threshold relative to full scale is what made this probe wrong at 16-bit (see HOLE_MAX).
+    const { v, w, h } = await readRed(join(dir, f))
     let fileZeros = 0
     for (let col = 0; col < 3; col += 1) {
       for (let row = 0; row < 2; row += 1) {
@@ -42,13 +56,18 @@ export async function ringZeros(dir) {
         const iy1 = r.y1 - Math.floor(UV_MARGIN * sh)
         let interior = 0
         for (let y = iy0 + 2; y < iy1 - 2; y += 1)
-          for (let x = ix0 + 2; x < ix1 - 2; x += 1) if (v[y * w + x] / max >= DARK) interior += 1
+          for (let x = ix0 + 2; x < ix1 - 2; x += 1) if (v[y * w + x] > HOLE_MAX) interior += 1
         if (interior === 0) continue
+        const lit = (x, y) =>
+          x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1 && v[y * w + x] > HOLE_MAX
         for (let y = iy0; y < iy1; y += 1) {
           for (let x = ix0; x < ix1; x += 1) {
             if (!(x < ix0 + 1 || x >= ix1 - 1 || y < iy0 + 1 || y >= iy1 - 1)) continue
             total += 1
-            if (v[y * w + x] / max < DARK) {
+            if (v[y * w + x] > HOLE_MAX) continue
+            // A zero with a lit neighbour IN THE SAME SLOT. A neighbour across a slot boundary is
+            // a different face's data and is not fillable context.
+            if (lit(x - 1, y) || lit(x + 1, y) || lit(x, y - 1) || lit(x, y + 1)) {
               zero += 1
               fileZeros += 1
             }

@@ -29,6 +29,56 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.128 — RETRACTING three rounds of padding numbers: my metric counted dark texels as holes, and the real rate is 4.5 %, not 33.7 %
+
+`ring-zeros.mjs` used a **relative** threshold, `value / max < 0.002`. On an 8-bit file that is
+exactly zero, which is what I checked it against. On a **16-bit** file it is anything under
+`131/65535` — so a legitimately *dark* texel counted as unwritten. Every padding figure in
+`.125`–`.127` was measured through that.
+
+**Corrected metric: a hole is a texel that is exactly zero AND has a lit neighbour in the same
+slot.** Adjacency matters because a legitimately empty slot is not a hole and no face samples it,
+while a zero beside real data is exactly the seam `?aoDebug=1` shows on a column edge. Re-scored:
+
+| arm | published | **corrected** |
+| --- | --- | --- |
+| `--dilate 4`, 8-bit (shipped) | 41.8 % | **4.0 %** |
+| bake margin 12 + `--dilate 16` | 33.1 % | 3.5 % |
+| `--fill-holes`, 8-bit | 28.6 % | 3.1 % |
+| **`--fill-holes`, 16-bit** | 28.6 % | **1.0 %** |
+| the shipped 333-map recipe | **33.7 %** | **4.5 %** |
+
+**Three specific retractions.**
+
+1. **`.125`'s headline — "33.7 % of the addressable ring is unwritten" — is wrong by 7×.** The real
+   rate is **4.5 %**. The seam is real (seen directly in the debug view) but I over-stated its
+   extent by an order of magnitude.
+2. **`.126`'s "8-bit quantisation is not the cause — 16-bit is identical" is wrong.** It read
+   identical *because the metric was blind to the difference*. Corrected, the fill goes **3.1 % →
+   1.0 %** between 8- and 16-bit: quantisation of filled values is real and material.
+3. **`.127`'s "`--fill-holes` is wrong by its own design, missing 0 % by 30 points" is wrong.** At
+   16-bit it reaches **1.0 %** — it does what it was designed to do. And the "62 populated slots vs
+   66" anomaly dissolves: `populated` was defined with the same broken threshold.
+
+**What survives.** The slot-convention unification is a real fix on its own merits — three
+conventions were in use (`slotRect`'s rounding, the fill's floor division, the stats loop's
+left-edge) and two were wrong; `slot_bounds`/`slot_of` now derive it from the texel **centre**,
+which is the only defensible reading (`res/3` is never an integer, so the three disagree by a texel
+at exactly the slot edge the ring metric samples). `--fill-holes` is a genuine 4× improvement over
+the shipped padding. And `bake_object` now **reports** `padded` and `padding`, which is the gap that
+let three rounds of arms be scored without anyone able to see whether the routine had run.
+
+**The standing lesson, for the fourth time in this arc.** The instrument was wrong, not the subject
+— `.101` (mirrored masks), `.105` (16-bit reads 256× dark), `.123` (a counter that could not fire),
+and now a threshold that was correct at one bit depth and meaningless at the other. **A relative
+threshold on data whose scale is per-file is not a threshold.**
+
+Next: `--fill-holes` at 16-bit is the best padding measured, at 4× the bytes. That is a real trade
+and needs the frame, not the metric — the seam was always a visual defect and the metric has now
+been wrong about it three times.
+
+Suite **10142 green**, `tsc` and biome clean. Default path unchanged.
+
 ## v0.31.7.127 — `--fill-holes`: the best padding arm by a clear margin, and NOT the default, because it does not do what I designed it to do
 
 `.126` named the fix: a push-pull pyramid instead of `--dilate`'s one-texel-per-pass, because the

@@ -382,6 +382,41 @@ def make_box_uvs(
     return interior_slots
 
 
+def slot_bounds(col: int, row: int, w: int, h: int) -> tuple[int, int, int, int]:
+    """Pixel bounds `(x0, x1, y0, y1)` of atlas slot `(col, row)`. THE one convention.
+
+    **A texel belongs to the slot containing its CENTRE**, i.e. texel `i` is in
+    `floor((i + 0.5) * 3 / w)`. At 256 px the column boundaries are therefore **0, 85, 171, 256**
+    (widths 85/86/85), because texel 85's centre 85.5 exceeds the true boundary 85.33 while texel
+    170's centre 170.5 does not reach 170.67.
+
+    **Written because three conventions were in use and two were wrong** (`v0.31.7.128`):
+
+    - `slot-means.mjs:slotRect` used `Math.round(col * w / 3)` -> 0, 85, 171. **Correct**, and it
+      is what every published slot mean and `ring-zeros.mjs` figure rests on.
+    - `_fill_holes_pushpull` used floor division -> 0, 85, **170**. It placed texel 170 in slot 2
+      when its centre belongs to slot 1, so the fill pulled values ACROSS a slot boundary -- the
+      one thing a per-slot fill exists to prevent.
+    - the interior-statistics loop used the texel's LEFT EDGE (`int(ix * 3 / res)`) -> texel 85
+      lands in slot 0 when its centre belongs to slot 1. Off by one the other way.
+
+    Fractional boundaries are why this is easy to get wrong: `res / 3` is not an integer for any
+    power-of-two `res`, so floor, round and left-edge all disagree, and each looks reasonable
+    alone.
+    """
+    return (
+        int(col * w / 3 + 0.5),
+        int((col + 1) * w / 3 + 0.5),
+        int(row * h / 2 + 0.5),
+        int((row + 1) * h / 2 + 0.5),
+    )
+
+
+def slot_of(ix: int, iy: int, w: int, h: int) -> tuple[int, int]:
+    """Which slot a texel belongs to, by its CENTRE. Inverse of `slot_bounds`."""
+    return (min(2, int((ix + 0.5) * 3 / w)), min(1, int((iy + 0.5) * 2 / h)))
+
+
 def _fill_holes_pushpull(img: bpy.types.Image, res: int) -> int:
     """Fill every zero texel from real data via a PUSH-PULL pyramid, per atlas slot.
 
@@ -422,8 +457,7 @@ def _fill_holes_pushpull(img: bpy.types.Image, res: int) -> int:
     filled = 0
     for col in range(3):
         for row in range(2):
-            x0, x1 = (col * res) // 3, ((col + 1) * res) // 3
-            y0, y1 = (row * res) // 2, ((row + 1) * res) // 2
+            x0, x1, y0, y1 = slot_bounds(col, row, res, res)
             w, h = x1 - x0, y1 - y0
             if w <= 0 or h <= 0:
                 continue
@@ -570,8 +604,7 @@ def _blur_per_slot(img: bpy.types.Image, res: int, passes: int = 3) -> None:
     w = h = res
     for sy in range(2):
         for sx in range(3):
-            x0, x1 = sx * w // 3, (sx + 1) * w // 3
-            y0, y1 = sy * h // 2, (sy + 1) * h // 2
+            x0, x1, y0, y1 = slot_bounds(sx, sy, w, h)
             for _ in range(passes):
                 # Horizontal, then vertical, clamped to the slot's own bounds.
                 for y in range(y0, y1):
@@ -996,6 +1029,12 @@ def bake_object(
         # Loud, per map, because the failure is invisible in the saved file: a clipped map looks
         # like a plausible bright one. 20 of 24 maps in the v99 irradiance set tripped this.
         "clipped": pre_max / scale > 1.0,
+        # HOW MANY TEXELS THE PADDING ACTUALLY WROTE. Computed since padding existed and never
+        # reported, so every `--dilate` and `--fill-holes` arm in `v0.31.7.126`/`.127` was scored
+        # without anyone able to see whether the routine had run. Same class of gap as `.123`'s
+        # unreachable `textured_share`: the number existed, nothing surfaced it.
+        "padded": dilated,
+        "padding": "fill-holes" if fill_holes else (f"dilate{dilate}" if dilate else "none"),
         # The divisor this map was actually written with -- identical to `--scale` for a global
         # run, this map's own maximum under `--per-map-scale`. The consumer needs THIS number.
         "scale": round(scale, 6),
@@ -1008,7 +1047,7 @@ def bake_object(
         vals = []
         for iy in range(res):
             for ix in range(res):
-                slot = (int(ix * 3 / res), int(iy * 2 / res))
+                slot = slot_of(ix, iy, res, res)
                 if slot in interior_slots:
                     vals.append(reds[iy * res + ix])
         if vals:

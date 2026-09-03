@@ -11,7 +11,7 @@
  *    features it carries.
  *  - **Never** bump **major** until explicitly told to.
  */
-export const APP_VERSION = '0.31.7.127'
+export const APP_VERSION = '0.31.7.128'
 
 export interface VersionParts {
   major: number
