@@ -29,6 +29,65 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.118 — `(s)` albedo fill: built, MEASURED, and NOT WIRED — fixing the texture-blindness introduced a bigger error
+
+`(z)`11 is "ship the luminance-only colour fill". Built the module, measured it before trusting it,
+and it is wrong in a way that would have been invisible in a screenshot. **Committed unwired**, with
+the blockers as executable tests rather than prose.
+
+**The mechanism is the part that was already validated** and it is kept intact: room-scoped
+area-weighted albedo, applied as a scalar in the interreflection form `ρ/(1−ρ)`. `.271` measured
+single-bounce recovering ~20 %, midpoint ~45 %, and `ρ/(1−ρ)` **~75–90 %**. Luminance-only because
+`.272` found the per-channel hue term **wrong-signed** on navy (model −2.9/−2.8/−2.6 against a traced
+**+3.0/+5.4/+4.1**): a dark wall absorbs the *blue sky bounce* that used to cool the ceiling, so the
+room gets bluer while the ceiling gets warmer. The model tints by what the room **reflects**; real
+transport is governed by what it **removes**. Energy was right on both finishes, so shipping the
+scalar and dropping the tint is correct.
+
+**My one design change was reading the CATALOGUE instead of `material.color`.** That looked strictly
+better: `.273` found the living/dining floor is `#ffffff` with `map: true`, so a scene-graph census
+counts mid-brown oak as pure white and inflates ρ by ~0.046. `BUILTIN_MATERIALS['floor-wood-oak']`
+carries the real `#b88f5d`. Reading the finish id sidesteps the texture entirely.
+
+**It traded a 0.046 error for a 0.225 one.** The catalogue only describes the **six shell surfaces**,
+and by default those are all pale — white walls, white ceiling, oak floor. Measured:
+
+| | ρ |
+| --- | --- |
+| this census, default shell | **0.771** |
+| implied by `.271`'s measured 0.650 scale for terracotta | **0.546** |
+
+`.271` censused the scene graph, so it counted furniture, glazing (near-zero reflectance back into
+the room) and openings — all of which pull ρ down. **Fixing the smaller error by changing source
+introduced a larger one.**
+
+**And the consequence is not a small offset — it destroys the model.** At ρ = 0.771 the
+interreflection form is in its steep region (`f(0.771) = 3.37`), so every real repaint pins to the
+clamp:
+
+| room | scale | `.271`/`.272` target |
+| --- | --- | --- |
+| terracotta walls | **0.45** | ~0.65 |
+| navy walls | **0.45** | ~0.40 |
+| navy walls + walnut floor | **0.45** | — |
+
+**Three visibly different rooms, one identical answer.** A model that cannot separate a warm
+mid-tone from a dark blue is not modelling anything — and the raw ratio is 0.23 before clamping,
+against a measured 0.65.
+
+**A third flaw, smaller but real:** `REFERENCE_RHO` is derived from a 4×5 room, so ρ moves with the
+wall/floor area ratio. A 4.6 × 6.2 room reads **0.930**, not 1.0 — so "the default look is
+untouched" is false for any other room shape.
+
+**All three are committed as failing-if-fixed tests**, not comments: one asserts the geometry
+dependence, one asserts that all three repaints collapse to the same clamped value. When the census
+is fixed they will start failing, which is the point.
+
+The fix is a census over shell finishes **and** furniture/glazing, calibrated so the default shell
+lands on the reference by construction rather than coincidence. Suite **10136 green** (12 new), `tsc`
+and biome clean. `grep albedoFill src/scene/lighting/Lighting.tsx` → **0 hits**: nothing renders
+differently.
+
 ## v0.31.7.117 — `(m)` vignette on every tier, and it is free: centre byte-identical, corners 133 → 107
 
 `(m)` was full-stack-only, and with `high`/`maximum` retired that meant **`realistic` only** — so the
