@@ -1586,3 +1586,67 @@ describe('wall tile setting-out table', () => {
     expect(html).not.toContain('Wall tile setting-out')
   })
 })
+
+/**
+ * **The Specification sheet must not assert the absence of work that exists
+ * (v0.31.8.15).** `hasTiling` was driven solely by tile COURSING, which needs a
+ * specified `moduleMm` — and 12 floor plus 4 wall tile finishes carry none. So a
+ * home floored entirely in `floor-tile-marble` printed "Not covered by this
+ * specification: tiler … — no such work appears in the design".
+ *
+ * Claiming a trade is uninvolved is the dangerous direction for a contractor
+ * document to drift: a reader has no prompt to question it, and the trade simply
+ * does not get priced.
+ */
+describe('Specification sheet — tiling trade on a module-less tile finish', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  const tiledEverywhere = () => {
+    const floor: Record<string, string> = {}
+    for (const r of plan.rooms ?? []) floor[r.id] = 'floor-tile-marble'
+    return { floor, walls: {} }
+  }
+
+  it('does not list the tiler as uncovered on a fully tiled home', () => {
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      tiledEverywhere(),
+    )
+    expect(html).toContain('>Specification<')
+    const uncovered = html.match(/Not covered by this specification: ([^<]*)/)?.[1] ?? ''
+    expect(uncovered).not.toMatch(/tiler/)
+  })
+
+  it('still lists the tiler as uncovered when nothing is tiled', () => {
+    // The gate must keep working — a vinyl-floored, painted home should not be
+    // handed a tiling clause just because the check was loosened.
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const floor: Record<string, string> = {}
+    for (const r of plan.rooms ?? []) floor[r.id] = 'floor-vinyl-oak'
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      { floor, walls: {} },
+    )
+    const uncovered = html.match(/Not covered by this specification: ([^<]*)/)?.[1] ?? ''
+    expect(uncovered).toMatch(/tiler/)
+  })
+})

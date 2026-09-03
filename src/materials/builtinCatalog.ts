@@ -133,6 +133,24 @@ const TILE_PATTERNS: readonly ProceduralPattern[] = [
   'checker',
   'peranakan',
 ]
+/**
+ * Whether a finish is a TILE product — the authored `pattern` decides, never the
+ * name and never the presence of `moduleMm`.
+ *
+ * Added v0.31.8.15 because the Specification sheet was deciding "is there tiling
+ * work" from whether tile SETTING-OUT could be computed, which needs a specified
+ * `moduleMm`. 12 floor and 4 wall tile finishes carry no module
+ * (`floor-tile-marble`, `floor-tile-hex`, `floor-checker-*`, `wall-subway-*`,
+ * `wall-peranakan-*`), so a home tiled entirely in any of them printed "Not
+ * covered by this specification: tiler — no such work appears in the design".
+ * Those are two different questions: the tiling TRADE is present because a tile
+ * finish is specified; the setting-out CLAUSE needs the module.
+ */
+export function isTiledFinish(material: MaterialDef | undefined): boolean {
+  if (material?.kind !== 'procedural') return false
+  return TILE_PATTERNS.includes(material.pattern)
+}
+
 /** Patterns that are timber-board products. */
 const WOOD_PATTERNS: readonly ProceduralPattern[] = ['wood', 'parquet', 'herringbone']
 

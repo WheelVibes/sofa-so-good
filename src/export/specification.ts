@@ -59,8 +59,22 @@ export interface SpecificationInput {
   /** Distinct floor/wall/ceiling finish names actually used, for the tiling and
    *  painting clauses. */
   finishNames: { floor: string[]; wall: string[]; ceiling: string[] }
-  /** Tile coursing rows (G5) — presence drives the tiling setting-out clause. */
+  /** Tile coursing rows (G5) — presence drives the tiling SETTING-OUT content. */
   coursing?: RoomTileCoursing[]
+  /**
+   * Whether any floor/wall finish in the design is a TILE product
+   * (`materials/builtinCatalog.ts:isTiledFinish`, keyed on the authored
+   * pattern).
+   *
+   * Separate from `coursing` on purpose. Coursing needs a specified `moduleMm`,
+   * and 12 floor plus 4 wall tile finishes carry none — so gating the tiling
+   * TRADE on coursing made the sheet print "Not covered by this specification:
+   * tiler — no such work appears in the design" for a home tiled entirely in
+   * `floor-tile-marble`, `floor-tile-hex`, a `floor-checker-*`, a
+   * `wall-subway-*` or a `wall-peranakan-*`. Asserting the ABSENCE of work that
+   * exists is the dangerous direction for a contractor document to drift.
+   */
+  hasTiledFinish?: boolean
   /** Names of wet/hard-service rooms with a waterproofing zone. */
   wetRoomNames?: string[]
   /** Carpentry/joinery item names actually placed. */
@@ -107,7 +121,10 @@ export function buildSpecification(input: SpecificationInput): Specification {
     return `${prefix}-${String(seq[prefix]).padStart(2, '0')}`
   }
 
-  const hasTiling = (input.coursing?.length ?? 0) > 0
+  // A tile FINISH means there is tiling work, whether or not its module is
+  // specified well enough to set the coursing out (v0.31.8.15). `coursing` is
+  // still what drives the setting-out wording below.
+  const hasTiling = input.hasTiledFinish === true || (input.coursing?.length ?? 0) > 0
   if (hasTiling) {
     clauses.push({
       id: nextId('TIL'),

@@ -27,6 +27,62 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.15 - Auditing the printed scope notes: one claimed too much, one claimed absence
+
+`.14` found a sheet note asserting a limitation that did not exist. That suggested
+the drift could run the other way too — a note claiming coverage the code does not
+provide, which is the more dangerous direction on a contractor document. Audited
+all 13 printed notes; two were wrong, and both in that direction.
+
+**1. "Dimensions are derived from the design and exact" — of two that are not.**
+The Construction details sheet said that of EVERY dimension on it. Drops, finished
+clearances, floor-level steps, sill and head heights, opening heights and reveal
+depths genuinely are derived. The two waterproofing UPTURNS are not: they are
+standard figures the app supplies. A contractor reading "derived from the design"
+has no reason to verify them.
+
+Both turned out to be citable, so the fix strengthens the sheet rather than just
+hedging it — **BCA Good Industry Practices** for internal wet areas, under Code of
+Practice **SS 637:2018**: the membrane "should have an upturn of at least 300mm to
+create minimum tanking protection", and "should be applied to at least 1800mm
+height and 1500mm width of the wall or the entire enclosure at bath and shower
+areas". `waterproofing.ts` carried both numbers with a bare one-line comment and
+no source; they now cite it, and record that 300 mm is taken over the 150 mm some
+practice notes give as an absolute floor because under-specifying waterproofing is
+discovered as a leak into the room below.
+
+Also checked: the app's `SHOWER_RUN_PER_ITEM_M` (2.4 m nominal) sits comfortably
+above BCA's 1500 mm width bound, so the membrane quantity is conservative.
+
+**2. The Specification sheet asserted the ABSENCE of tiling work that exists.**
+`hasTiling` was driven solely by tile COURSING — which needs a specified
+`moduleMm`. Measured: **12 floor and 4 wall tile finishes carry none**
+(`floor-tile-marble`, `floor-tile-hex`, `floor-checker-*`, `wall-subway-*`,
+`wall-peranakan-*`). So a home floored entirely in marble tile printed:
+
+> Not covered by this specification: **tiler**, painter, carpenter, … — no such
+> work appears in the design.
+
+Verified end to end on the real sheet, and the regression test was checked to FAIL
+without the fix — it produced exactly that string. Claiming a trade is uninvolved
+is worse than any over-claim: the reader has no prompt to question it, and the
+trade simply does not get priced.
+
+Those are two different questions, and the fix separates them: the tiling TRADE is
+present because a tile finish is specified; the setting-out CLAUSE needs the
+module. Tile-ness comes from the authored `pattern` via a new `isTiledFinish`,
+reusing `builtinCatalog`'s existing `TILE_PATTERNS` taxonomy rather than inventing
+a second one or matching on names. It reads walls as well as floors — a
+vinyl-floored kitchen with subway-tiled walls is still a tiling job.
+
+Both gates were verified to keep working in the negative direction: a
+vinyl-floored painted home still lists the tiler as uncovered, and a design with
+no tile finish still gets no tiling clause.
+
+**Notes audited and found accurate:** the co-ordinate setting-out datum/centreline
+note, the floor-tile centred-field note, the specification scope + as-drawn notes,
+the unresolved-measurement note, and the variation-register notes.
+
 ## v0.31.8.14 - The tiling sheet told contractors something false about corners
 
 `TODO.md` recorded a follow-up: "faces are set out independently, so courses do not
