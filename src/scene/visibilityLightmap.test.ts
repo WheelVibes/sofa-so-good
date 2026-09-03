@@ -230,6 +230,9 @@ describe('replace mode (v0.31.7.88)', () => {
     // on every mapped surface, which `v0.31.7.90` measured as interior p90/p10
     // 3.03 -> 59.40 against physics' 2.72. A ratio no gain can correct.
     const f = frag('replace')
-    expect(f).toContain('BRDF_Lambert( material.diffuseContribution )')
+    // , not : only PhysicalMaterial declares
+    // the latter, and referencing it made the program fail to compile on any
+    // Lambert/Phong material the bake happened to cover (v0.31.7.94).
+    expect(f).toContain('BRDF_Lambert( material.diffuseColor )')
   })
 })

@@ -165,11 +165,22 @@ export function applyVisibilityLightmap(
               // `irradiance * BRDF_Lambert( material.diffuseContribution )`, i.e.
               // irradiance x albedo/PI. Assigning a bare grey value therefore
               // ERASES ALBEDO on every mapped surface -- a dark floor and a white
-              // wall get the same number. `v0.31.7.90` measured what that does:
-              // interior p90/p10 went 3.03 -> 59.40 against physics' 2.72, twenty
-              // times too contrasty, and no gain can fix a ratio. So the map is
-              // put through the same BRDF three would have.
-              '\treflectedLight.indirectDiffuse = visOcclusion * visGain * BRDF_Lambert( material.diffuseContribution );'
+              // wall get the same number. So the map goes through the same Lambert
+              // BRDF three would have applied.
+              //
+              // `material.diffuseColor`, NOT `diffuseContribution`. Only
+              // `PhysicalMaterial` declares the latter -- `BlinnPhongMaterial` and
+              // `ToonMaterial` do not -- and this injection is applied to whatever
+              // material a baked mesh happens to carry. Referencing a
+              // physical-only field made the program fail to compile
+              // (`VALIDATE_STATUS false`), and a failed program renders as if the
+              // term were zero, which is indistinguishable from a real result:
+              // `v0.31.7.90`-`.92`'s app-side numbers were all that failure.
+              // `diffuseColor` exists in every struct. For physical materials
+              // three's own path uses `diffuseContribution`, which additionally
+              // accounts for transmission/sheen energy, so this is a slight
+              // simplification -- and a compiling one.
+              '\treflectedLight.indirectDiffuse = visOcclusion * visGain * BRDF_Lambert( material.diffuseColor );'
             : '\treflectedLight.indirectDiffuse *= visOcclusion * visGain;') +
           (debug ? '\n\tvisDebug = visOcclusion;' : ''),
       )

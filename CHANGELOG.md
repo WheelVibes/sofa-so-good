@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.94 — ROOT CAUSE: the injected shader never compiled. `VALIDATE_STATUS false`, hidden in a log I had not read
+
+The reason four rounds of GI measurement produced dead numbers, found by reading the app's own console
+output instead of the statistics computed from its frames.
+
+    PAGE info:  lightmaps: 24/385 meshes matched — applied to 24/385 candidates (plan d03ee082)
+    PAGE error: THREE.WebGLProgram: Shader Error 0 - VALIDATE_STATUS false
+
+**The maps applied. The program did not compile.** A failed program renders as though the term were
+zero, which is indistinguishable from a real result — so `.90`'s −249 %, `.91`'s spread halving and
+`.92`'s "74.5 % samples ~0 / the shell was already correct" were all measurements of a broken shader.
+`.93` retracted them for the right reason (a silent no-op) but guessed the wrong mechanism (a failed
+fetch). It was a compile failure, and the evidence was two lines above the numbers I was reading.
+
+**Why it failed, established by surveying the installed build rather than the source tree:**
+
+| struct | `diffuseColor` | `diffuseContribution` |
+| --- | --- | --- |
+| `PhysicalMaterial` | ✅ | ✅ |
+| `BlinnPhongMaterial` | ✅ | ❌ |
+| `ToonMaterial` | ✅ | ❌ |
+
+`.91` injected `BRDF_Lambert( material.diffuseContribution )` after reading
+`RE_IndirectDiffuse_Physical`, which does use that field. But this injection is applied to **whatever
+material a baked mesh happens to carry**, and only the physical struct declares it. `.90`'s
+`vec3( map * gain )` form referenced no struct field at all, which is exactly why it compiled — and
+why the timeline points at `.91`: that round's numbers moved (59.40 → 30.49) because the *program
+stopped existing*, not because albedo was restored.
+
+Now `BRDF_Lambert( material.diffuseColor )` — present in every struct. For physical materials three's
+own path uses `diffuseContribution`, which additionally accounts for transmission and sheen energy, so
+this is a slight simplification and a compiling one. The test asserts the portable field by name.
+
+**NOT VERIFIED AT RUNTIME, and stated plainly.** The confirming run never loaded: the dev server on
+**:5200 is down** (`ERR_CONNECTION_REFUSED`; only the other worktree's :5199 is up). So my
+"0 shader errors" grep was vacuous — zero matches in a log where the page never rendered. The fix
+rests on the struct survey, which is solid, and on the timeline, which is consistent; it does not yet
+rest on a compiling frame. **Restart the dev server on :5200 and the measurement is one probe run.**
+
+Suite **10098 green**, `tsc` and biome clean. `'multiply'` remains the default and the flag is off, so
+nothing shipped is affected either way.
+
 ## v0.31.7.93 — RETRACTION: every app-side GI comparison since `.90` measured a failed texture load
 
 The sky-dome bake is right and its Blender-side numbers hold. **The app-side measurements do not**,
