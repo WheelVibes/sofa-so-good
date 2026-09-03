@@ -275,6 +275,15 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 (added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
 exact commit so it can — do not leave it to be discovered.
 
+- **[tidy] The HDB 50 mm rule exists as TWO constants for one regulation.**
+  `analysis/floorBuildUp.ts:HDB_MAX_BUILD_UP_MM` (50) and
+  `analysis/floorLoading.ts:CONCRETE_RAISE_LIMIT_M` (0.05) are the same rule —
+  "HDB does not permit raising of floor level exceeding 50mm (inclusive of floor
+  finishes) using concrete" — reached from two directions (finish thickness vs
+  added dead load; the sources give both justifications for the one limit).
+  Verified 2026-09-04, not a discrepancy today, but two constants for one
+  regulation can drift and a future change to HDB's figure would need both
+  edited. Worth one shared constant with both rationales recorded on it.
 - **[layout critique] A desk MONITOR has its own viewing-distance standard, and is currently
   unchecked.** The TV check selects screens by the authored `screenContent` capability, which is
   `{tv-wall, flatscreen-tv, monitor}`, and then deliberately excludes `monitor`: a 28" desk monitor

@@ -38,17 +38,38 @@ export const CONCRETE_RAISE_LIMIT_M = 0.05
  * weight and is never flagged.
  */
 const HEAVY_KG_BY_DEF: Record<string, number> = {
-  // A standard bathtub holds ~230 L; with the tub + a bather ≈ 300 kg.
-  bathtub: 300,
-  // A large glass aquarium: water + rock + glass + stand, ~250–350 kg.
+  // A standard bathtub holds ~230 L. 230 kg of water + ~30 kg acrylic tub +
+  // a ~70 kg bather = ~330 kg. Corrected from 300 in v0.31.8.22: the old
+  // comment stated the same three components and then rounded DOWN, which is
+  // the wrong direction for this module's stated conservative policy. It does
+  // not change any verdict — over its 1.20 m² footprint that is 275 vs 250
+  // kg/m², both far past the 150 limit — but the arithmetic should be right.
+  bathtub: 330,
+  // A large glass aquarium: water + rock + glass + stand. The def is
+  // 0.90 × 0.42 m and 1.12 m tall including its stand, so the tank itself is
+  // ~170 L → ~220 kg realistically; 320 kg is the conservative end, matching
+  // published totals for a 200 L tank (~275 kg all-in).
   aquarium: 320,
+  // "Aquarium stand + tank" — a tank INCLUDING its stand, so the same figure.
+  // Placing an `aquarium` on top of one would double-count to 640 kg; unlikely
+  // (the stand def already has a tank) and left alone rather than special-cased.
   'aquarium-stand': 320,
-  'fish-tank': 320,
-  // Upright / grand piano.
+  // Upright piano: published ranges put uprights at 227–363 kg, so 300 is
+  // mid-range rather than conservative — deliberate, because an upright is the
+  // realistic HDB case and the density check flags it comfortably anyway
+  // (0.87 m² footprint → 345 kg/m²).
   piano: 300,
+  // **DEAD ENTRIES, kept deliberately (v0.31.8.22).** `fish-tank`,
+  // `upright-piano`, `grand-piano` and `safe` are not defs in the catalogue —
+  // 4 of the 8 keys this table had, including its heaviest figure (a 420 kg
+  // grand piano applying to nothing). Kept because each is a plausible future
+  // def and the figures are researched (grand pianos run 227–590 kg; a home
+  // safe 50–500 kg), and pinned by a test that records WHICH keys are live, so
+  // adding one of these defs surfaces the pre-set weight instead of it quietly
+  // starting to apply.
+  'fish-tank': 320,
   'upright-piano': 300,
   'grand-piano': 420,
-  // A safe / gun cabinet.
   safe: 250,
 }
 
@@ -165,6 +186,13 @@ export function estimateItemWeightKg(
   category?: string,
 ): number {
   const id = defId.toLowerCase()
+  // **ORDER MATTERS, and it is not obvious.** The explicit heavy-item table must
+  // be consulted BEFORE `CATEGORY_EXCLUDE`, because two of its entries sit in
+  // excluded categories: `aquarium` is `decor` and `aquarium-stand` is `pets`.
+  // Reversing these two lines would silently return 0 for a 320 kg aquarium —
+  // the exclusion exists only to stop an ID regex catching a lamp, never to
+  // override a figure someone put in the table on purpose.
+  // `floorLoading.test.ts` pins this ordering.
   if (HEAVY_KG_BY_DEF[id] != null) return HEAVY_KG_BY_DEF[id]
   if (category != null && CATEGORY_EXCLUDE.has(category)) return 0
   if (TABLE_RE.test(id) && hasStoneMaterial(props)) return STONE_TABLE_KG

@@ -187,3 +187,73 @@ describe('floor loading — subject selection', () => {
     expect(Object.keys(BUILTIN_CATALOG).filter((id) => PLATFORM_RE.test(id))).toEqual([])
   })
 })
+
+/**
+ * **Weight-figure audit (v0.31.8.22).** These numbers drive a structural warning
+ * against a regulatory limit, so they were checked against sources rather than
+ * left as round numbers.
+ *
+ * Verified: the 150 kg/m² slab limit is HDB's own ("designed to support a
+ * standard live load of 1.5 kN/m², which translates to roughly 150 kg per square
+ * meter"), and the 50 mm concrete-raise limit is real WITH the structural
+ * justification the module claims ("HDB does not permit raising of floor level
+ * exceeding 50mm inclusive of floor finishes using concrete … if your floor is
+ * too thick, it adds unnecessary dead load to the structure"). I had suspected
+ * that framing was a misattribution of the finishes-thickness rule; it is not.
+ */
+describe('floor loading — weight figures and lookup order', () => {
+  const at = (defId: string) => ({
+    id: `i-${defId}`,
+    defId,
+    position: [2, 2] as [number, number],
+    rotation: 0,
+    props: {},
+  })
+
+  it('keeps the heavy table AHEAD of the category exclusion', () => {
+    // The non-obvious invariant. `aquarium` is category `decor` and
+    // `aquarium-stand` is `pets`, both in CATEGORY_EXCLUDE — which exists only
+    // to stop an ID regex catching a lamp, never to override a figure someone
+    // put in the table on purpose. Reversing those two lines returns 0 for a
+    // 320 kg aquarium, silently.
+    expect(estimateItemWeightKg('aquarium', {}, 'decor')).toBe(320)
+    expect(estimateItemWeightKg('aquarium-stand', {}, 'pets')).toBe(320)
+  })
+
+  it('still flags every live heavy def after the v0.31.8.21 guards', () => {
+    // Regression guard for the mounted/category filters added a version earlier:
+    // they must not silence the explicit heavy items.
+    for (const id of ['aquarium', 'aquarium-stand', 'bathtub', 'piano', 'bookshelf']) {
+      const rep = buildFloorLoadingReport([at(id)] as never, BUILTIN_CATALOG)
+      const hit = [...rep.exceeding, ...rep.watch].find((r) => r.defId === id)
+      expect(hit, `${id} lost its floor-load estimate`).toBeTruthy()
+      expect(hit?.exceeds, `${id} no longer exceeds`).toBe(true)
+    }
+  })
+
+  it('records which heavy-table keys are LIVE defs and which are not', () => {
+    // 4 of 8 keys named defs that do not exist — including the table's heaviest
+    // figure, a 420 kg grand piano applying to nothing. They are kept as
+    // researched values for plausible future defs; this pins the split so adding
+    // one surfaces the pre-set weight rather than it quietly starting to apply.
+    const keys = [
+      'bathtub',
+      'aquarium',
+      'aquarium-stand',
+      'fish-tank',
+      'piano',
+      'upright-piano',
+      'grand-piano',
+      'safe',
+    ]
+    const live = keys.filter((k) => BUILTIN_CATALOG[k as keyof typeof BUILTIN_CATALOG])
+    expect(live).toEqual(['bathtub', 'aquarium', 'aquarium-stand', 'piano'])
+  })
+
+  it('uses the corrected bathtub figure', () => {
+    // 230 kg water + ~30 kg acrylic tub + ~70 kg bather. The old 300 stated the
+    // same components and rounded DOWN, against this module's conservative
+    // policy. No verdict changes (275 vs 250 kg/m², both past 150).
+    expect(estimateItemWeightKg('bathtub', {})).toBe(330)
+  })
+})

@@ -27,6 +27,62 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.22 - Audited the floor-loading weight figures; the slab limit checks out
+
+`.21` fixed which items the structural check measures. This checks the NUMBERS it
+measures them against — uncited weights driving a warning against a regulatory
+limit, the same profile as the thresholds that turned out wrong in `.18`-`.20`.
+
+**The two regulatory figures are sound, and one suspicion of mine was wrong.**
+The 150 kg/m² slab limit is HDB's own: floors are "structurally designed to
+support a standard live load of 1.5 kN/m², which translates to roughly 150 kg per
+square meter", and "no loads greater than 150 kilograms per metre square of floor
+area is allowed". And the 50 mm concrete-raise limit is real WITH the structural
+justification the module claims — "HDB does not permit raising of floor level
+exceeding 50mm (inclusive of floor finishes) using concrete", because "if your
+floor is too thick, it adds unnecessary dead load to the structure". I had
+suspected that framing was a misattribution of the finishes-thickness rule I
+researched for `floorBuildUp`; it is not. The sources give both justifications for
+the one limit.
+
+That does surface a duplication: `floorBuildUp`'s `HDB_MAX_BUILD_UP_MM` (50) and
+`floorLoading`'s `CONCRETE_RAISE_LIMIT_M` (0.05) are **the same regulation as two
+constants**. Not a discrepancy today; logged, since two constants for one rule can
+drift.
+
+**Weights judged against the module's OWN stated policy** ("deliberately
+conservative rule-of-thumb estimates"), not against engineering precision:
+
+| figure | published range | verdict |
+|---|---|---|
+| grand piano 420 kg | 227-590 kg; baby grand ~317 | conservative ✓ |
+| upright piano 300 kg | 227-363 kg | mid-range ✓ |
+| aquarium 320 kg | a 200 L tank totals ~275 kg all-in | conservative ✓ |
+| loaded bookcase 200 kg | ~140 kg computed for a 0.9×1.8 m case | conservative ✓ |
+| stone top 160 kg | ~137 kg computed for a 25 mm granite slab + base | conservative ✓ |
+| **bathtub 300 kg** | 230 water + ~30 tub + ~70 bather = **330** | **under**, corrected |
+
+The bathtub comment stated those three components and then rounded DOWN, against
+the module's own policy. Corrected to 330. **No verdict changes** — over its
+1.20 m² footprint that is 275 vs 250 kg/m², both far past 150 — and saying so
+matters more than the fix.
+
+**4 of the 8 heavy-table keys name defs that do not exist:** `fish-tank`,
+`upright-piano`, `grand-piano` and `safe` — including the table's heaviest figure,
+a 420 kg grand piano applying to nothing. Kept rather than deleted (each is a
+plausible future def and the figures are researched) with a test recording WHICH
+keys are live, so adding one surfaces the pre-set weight instead of it quietly
+starting to apply. Same treatment as `PLATFORM_RE` in `.21`.
+
+**A non-obvious ordering invariant, found by checking my own previous change.**
+`aquarium` is category `decor` and `aquarium-stand` is `pets` — both in the
+`CATEGORY_EXCLUDE` set I added in `.21`. The heavy-item table is consulted FIRST,
+so they survive; had I written those two lines in the other order, `.21` would
+have silently returned 0 for a 320 kg aquarium. That ordering was implicit. It is
+now documented and pinned: reversing the two lines fails 2 tests. Also added a
+regression test that every live heavy def still exceeds after `.21`'s guards,
+because that interaction is exactly the kind that fails quietly.
+
 ## v0.31.8.21 - Swept all 9 selector regexes; the structural check had the live bugs
 
 Three name-regex-as-taxonomy faults in `layoutCritique` (rug anchor, TV selector,
