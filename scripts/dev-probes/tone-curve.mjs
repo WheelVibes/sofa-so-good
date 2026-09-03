@@ -33,7 +33,7 @@ import sharp from 'sharp'
 import { appUrl, assertSceneAlive, frameStats } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-tone'
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const DSF = Number(process.env.DSF || 2)
 const MODE = process.env.MODE || 'walk'
 const HOURS = (process.env.HOURS || '9,13,18,21').split(',').map(Number)

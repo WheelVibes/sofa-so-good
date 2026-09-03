@@ -16,7 +16,7 @@
 import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 
 const browser = await puppeteer.launch({
   headless: true,

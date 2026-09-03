@@ -10,7 +10,7 @@ import puppeteer from 'puppeteer'
 import { appUrl } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const PHOTO = process.env.PHOTO !== '0'
 
 // Launch config matched to `light-distribution.mjs` -- see `.219`. The previous

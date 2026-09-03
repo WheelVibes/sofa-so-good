@@ -43,7 +43,7 @@ import sharp from 'sharp'
 import { appUrl, assertSceneAlive, frameStats } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-warmcast'
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const DSF = Number(process.env.DSF || 2)
 const HOUR = Number(process.env.HOUR || 9)
 const MODE = process.env.MODE || 'walk'

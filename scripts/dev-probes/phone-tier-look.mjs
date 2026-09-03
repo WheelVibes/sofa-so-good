@@ -96,7 +96,7 @@ await page
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
-const TIERS = (process.env.TIERS || 'performance,medium,maximum').split(',')
+const TIERS = (process.env.TIERS || 'performance,realistic').split(',')
 const HOURS = (process.env.HOURS || '13,21').split(',').map(Number)
 
 /** Interior statistics over a centre slab of the CANVAS (never the full rect). */

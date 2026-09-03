@@ -121,7 +121,7 @@ const LEVEL = process.env.LEVEL || ''
 /** FURNISH=1 — clear the old furniture and auto-furnish the template instead. */
 const FURNISH = process.env.FURNISH === '1'
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const TIER_AUTO = TIER === 'auto'
 /** Look direction, radians. YXZ Euler Y: forward is (-sin, 0, -cos), so 0 looks -Z. */
 const YAW = Number(process.env.YAW || 0)

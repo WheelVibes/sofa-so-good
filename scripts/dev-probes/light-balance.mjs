@@ -12,7 +12,7 @@
 import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const HOURS = (process.env.HOURS || '9,13,17,21').split(',').map(Number)
 
 const browser = await puppeteer.launch({

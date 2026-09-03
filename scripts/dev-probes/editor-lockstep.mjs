@@ -30,7 +30,7 @@ import fs from 'node:fs'
 import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const HOUR = Number(process.env.HOUR || 13)
 
 const browser = await puppeteer.launch({

@@ -101,7 +101,7 @@ await page
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
-const TIERS = (process.env.TIERS || 'medium,maximum').split(',')
+const TIERS = (process.env.TIERS || 'performance,realistic').split(',')
 
 async function report(label) {
   const out = await page.evaluate(async () => {

@@ -15,7 +15,7 @@
 import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const HOUR = Number(process.env.HOUR || 9)
 const MODE = process.env.MODE || 'walk'
 const POINTS = (

@@ -102,7 +102,7 @@ await assertSceneAlive(page, 'after setup')
  * attenuation with the plan's window fixtures OPEN and then CLOSED. A plan whose
  * windows the controller cannot see reports the same number for both.
  */
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const PLAN = process.env.PLAN || ''
 const FURNISH = process.env.FURNISH === '1'
 

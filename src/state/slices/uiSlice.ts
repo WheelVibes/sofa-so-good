@@ -475,6 +475,21 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   bumpMaterialEpoch: () => set((s) => ({ materialEpoch: s.materialEpoch + 1 })),
   setShowcaseAccumulating: (v) => set({ showcaseAccumulating: v }),
   setQualityTier: (t) => {
+    // Loud in DEV on an unknown mode. `resolveQuality` falls back to the FLATTEST
+    // preset for a tier it does not recognise -- correct for a value persisted by
+    // an older build, silent and wrong for a caller that simply passed the wrong
+    // string. The two-mode collapse turned 63 dev probes' `TIER=medium` /
+    // `TIER=maximum` defaults into exactly that: they kept running and quietly
+    // measured flat shading. A persisted legacy value never reaches here (it is
+    // mapped at load by `qualityPrefs`'s LEGACY_TIERS), so anything invalid at this
+    // point is a bug in the caller.
+    if (import.meta.env.DEV && !RENDER_TIERS.includes(t)) {
+      console.error(
+        `setQualityTier: unknown mode ${JSON.stringify(t)}. Valid: ${RENDER_TIERS.join(' | ')}. ` +
+          'Rendering will fall back to the flattest preset, which silently invalidates any ' +
+          'measurement taken from it.',
+      )
+    }
     const changed = get().qualityTier !== t
     // Keep the material layer's IBL flag in step. Metals with no environment to
     // reflect render black, so `getMetalMaterial`/`getSolidMaterial` cap

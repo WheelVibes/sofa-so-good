@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.83 — my own tier collapse silently broke 63 probes; and `realistic` runs at 10.9 fps in walk mode
+
+Went to check the "manageable and smooth" half of the goal after `.68`'s tier collapse and found two
+things, the first of them my own fault.
+
+**63 dev probes were measuring flat shading and reporting it as `medium` or `maximum`.** Their
+defaults are `process.env.TIER || 'medium'` (38 of them), `|| 'maximum'` (14), `|| 'high'` (2), plus
+9 `TIERS` lists naming the retired rungs. After the collapse `setQualityTier('medium')` stores a mode
+that does not exist, `resolveQuality` hits its unknown-tier fallback, and that fallback returns the
+**flattest** preset — correct for a value persisted by an older build, silently wrong for a caller
+that passed the wrong string. Every one of those probes kept running and kept printing numbers.
+
+Defaults rewritten to the equivalent modes (`medium`→`performance`, `maximum`/`high`→`realistic`,
+since `performance`/capable *is* the old medium and `realistic`/capable *is* the old maximum), and
+`setQualityTier` now **console.errors in DEV** on an unknown mode. A legacy persisted value never
+reaches it — `qualityPrefs` maps those at load — so anything invalid there is a caller bug and should
+say so.
+
+**And the number that matters for the goal:**
+
+| mode | orbit | walk |
+| --- | --- | --- |
+| performance | 7.5 ms p50, **60 fps** | 4.9 ms p50, **56 fps** |
+| realistic | 11.5 ms p50, **58.9 fps** | 6.4 ms p50, **10.9 fps** |
+
+**`realistic` delivers 10.9 fps in walk mode on an M4** — the mode a user is offered as "Realistic",
+in the mode this entire arc's fidelity work is measured in. Orbit is fine at 58.9. That is a shipping
+blocker for the two-mode UI as a user-facing choice, and it is the worst frame-rate figure in the arc.
+
+**Two hypotheses tested and refuted, cheaply:**
+
+- **Shader recompilation.** Program counts are **130 (performance) / 173 (realistic)** and both are
+  **stable across 7 s** of walking — 173 → 173 → 173 → 173 → 173 → 173. Not compilation.
+- **CPU submit cost.** p50 inside `gl.render` is only **6.4 ms**, which would permit ~156 fps. So
+  ~85 ms of each frame is outside every `gl.render` call — and the composer's ~18 sibling calls plus
+  the mirror's extra scene pass are already bucketed into that 6.4 ms.
+
+**Which is also a limitation of the instrument, stated because it bounds what can be concluded.**
+`frame-time.mjs`'s docstring assumes "a starved GPU blocks the submit, so it tracks". Here it does
+not: submit stays at 6.4 ms while rAF collapses to 10.9 Hz. Attributing the remaining 85 ms needs
+**GPU-side timing** (`EXT_disjoint_timer_query`), not CPU submit timing. That is the next instrument,
+and I would rather name it than offer a third guess.
+
+Suite **10087 green**, `tsc`, biome and `knip` clean.
+
 ## v0.31.7.82 — SHIPPED: the twilight sky is no longer literally black. The visible hard cut is NOT fixed, and I found what causes it
 
 The one piece of `.81`'s costing that needed no look call: a negative luminance silently clamped to

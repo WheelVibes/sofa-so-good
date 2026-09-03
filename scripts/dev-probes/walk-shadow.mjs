@@ -25,7 +25,7 @@ import sharp from 'sharp'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-walkshadow'
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const DSF = Number(process.env.DSF || 2)
 const HOUR = Number(process.env.HOUR || 9)
 const SIZES = (process.env.SIZES || '4096,2048,1024,512,4096').split(',').map(Number)

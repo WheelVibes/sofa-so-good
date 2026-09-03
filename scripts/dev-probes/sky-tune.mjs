@@ -28,7 +28,7 @@ import sharp from 'sharp'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-skytune'
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const DSF = Number(process.env.DSF || 2)
 const HOUR = Number(process.env.HOUR || 13)
 const SWEEP = (process.env.SWEEP || 'rayleigh=1;rayleigh=2;rayleigh=3;rayleigh=1')

@@ -19,7 +19,7 @@
 import puppeteer from 'puppeteer'
 import { appUrl } from './lib.mjs'
 
-const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
+const TIERS = (process.env.TIERS || 'performance,realistic').split(',')
 const DSF = Number(process.env.DSF || 2)
 // Viewport in CSS px. The DPR ceiling (`dprMax`) caps the pixel RATIO but not
 // the viewport SIZE, so a large display is the uncapped cost variable: a 5K iMac

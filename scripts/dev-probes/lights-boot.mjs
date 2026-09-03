@@ -227,7 +227,7 @@ await read('2. + setTimeMode/setManualHour')
 
 await page.evaluate(
   (t) => window.__store.getState().setQualityTier(t),
-  process.env.TIER || 'medium',
+  process.env.TIER || 'performance',
 )
 await new Promise((r) => setTimeout(r, 2000))
 await read('3. + setQualityTier')

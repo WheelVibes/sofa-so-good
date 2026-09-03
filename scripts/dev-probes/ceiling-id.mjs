@@ -104,7 +104,7 @@ await assertSceneAlive(page, 'after setup')
  * stands at each room's own centroid and raycasts UPWARD-ish, reporting the hit
  * object's name, material colour/type, world bbox and ancestor chain.
  */
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const PLAN = process.env.PLAN || ''
 const FURNISH = process.env.FURNISH === '1'
 const ROOMS_ENV = (process.env.ROOMS || '').split(',').filter(Boolean)

@@ -13,7 +13,7 @@ import puppeteer from 'puppeteer'
 import { appUrl } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const STANDOFF = Number(process.env.STANDOFF || 4.6)
 const PITCH = Number(process.env.PITCH || -0.06)
 const WINDOW = process.env.WINDOW || 'livingDining'

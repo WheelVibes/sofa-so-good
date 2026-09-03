@@ -34,7 +34,7 @@ import puppeteer from 'puppeteer'
 import { appUrl, centerBox, frameStats } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-look'
-const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
+const TIERS = (process.env.TIERS || 'performance,realistic').split(',')
 const HOURS = (process.env.HOURS || '13').split(',').map(Number)
 const URL_ = appUrl()
 fs.mkdirSync(OUT, { recursive: true })

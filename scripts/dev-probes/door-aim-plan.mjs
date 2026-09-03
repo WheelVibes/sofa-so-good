@@ -95,7 +95,7 @@ await page
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const PLAN = process.env.PLAN || ''
 const LEVEL = process.env.LEVEL || ''
 const FURNISH = process.env.FURNISH === '1'

@@ -11,7 +11,7 @@
 import puppeteer from 'puppeteer'
 import { appUrl } from './lib.mjs'
 
-const TIER = process.env.TIER || 'high'
+const TIER = process.env.TIER || 'realistic'
 const DSF = Number(process.env.DSF || 2)
 
 const browser = await puppeteer.launch({

@@ -65,7 +65,7 @@ await page
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
-const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
+const TIERS = (process.env.TIERS || 'performance,realistic').split(',')
 const SECONDS = Number(process.env.SECONDS || 5)
 
 await page.evaluate((m) => window.__store.getState().setLightsMode(m), process.env.LIGHTS || 'on')

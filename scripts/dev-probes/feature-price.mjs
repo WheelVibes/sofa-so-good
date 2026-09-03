@@ -17,7 +17,7 @@ import sharp from 'sharp'
 import { appUrl, centerBox } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-price'
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const DSF = Number(process.env.DSF || 2)
 const SECONDS = Number(process.env.SECONDS || 10)
 const HOUR = Number(process.env.HOUR || 13)

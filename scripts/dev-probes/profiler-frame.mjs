@@ -25,7 +25,7 @@ import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 21)
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const OUT = process.env.OUT || '/tmp/ssg-night-lights'
 fs.mkdirSync(OUT, { recursive: true })
 
