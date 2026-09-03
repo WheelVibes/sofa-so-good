@@ -57,6 +57,26 @@ const TIER = process.env.TIER || 'performance'
 // performance/weak = old performance, performance/capable = old medium,
 // realistic/weak = old high, realistic/capable = old maximum.
 const DEVICE = process.env.DEVICE || null
+// `BACKDROP_IMG=<path>` loads an image file into the app's CUSTOM backdrop slot.
+//
+// The slot already exists for a user-uploaded panorama, and `backdropEquirect.ts`
+// says it was "shaped to be swapped for real CC0 equirectangular photos later
+// (same background slot)". So a Cycles-rendered equirect (`render_equirect.py`)
+// can be tested end-to-end against a physical reference with no app change at
+// all — which is the difference between "the sky is 1.4x too dark" as a property
+// of two PNGs and as a property of the shipped window.
+const BACKDROP_IMG = process.env.BACKDROP_IMG || null
+// `SKYCATCH=<mult>` scales every window pane's EMISSIVE sky-catch (RZ2).
+//
+// `glassSkyCatchIntensity(daylight) = daylight * 0.4`, with a fixed colour
+// `GLASS_SKYCATCH_COLOR = '#cfe4f5'` — so a pane's brightness is a CONSTANT that
+// never reads `scene.background`. That is the hypothesis this knob exists to
+// test: swapping a 1.4x brighter, 4x less saturated sky into the background moved
+// the window mean only ~8 % and left the share of the crop above 219 pinned at
+// 1.11 %, against 49.6 % in the physical reference. `SKYCATCH=0` ablates the term:
+// if the pane barely changes, the emissive was not the limiter and the hypothesis
+// is wrong.
+const SKYCATCH = process.env.SKYCATCH == null ? null : Number(process.env.SKYCATCH)
 const WINDOW = process.env.WINDOW || 'livingDining'
 // ROOM scopes the finish setters, the albedo census and the exposure census
 // (`.277`). Everything downstream of `.271` hardcoded `livingDining`, which made
@@ -679,6 +699,73 @@ const applyDevice = !DEVICE
       await new Promise((r) => setTimeout(r, 700))
     }
 
+const applyBackdropImg = !BACKDROP_IMG
+  ? null
+  : async () => {
+      const b64 = fs.readFileSync(BACKDROP_IMG).toString('base64')
+      const res = await page.evaluate((url) => {
+        const s = window.__store.getState()
+        s.setCustomBackdropUrl(url)
+        s.setBackdrop('custom')
+        return { backdrop: window.__store.getState().backdrop }
+      }, `data:image/png;base64,${b64}`)
+      if (res.backdrop !== 'custom') throw new Error(`BACKDROP_IMG: store says ${res.backdrop}`)
+      // The texture is loaded from the data URL by an <img> onload inside
+      // SceneBackdrop, so the frame must not be taken until that has landed.
+      await new Promise((r) => setTimeout(r, 1500))
+    }
+
+const applySkyCatch =
+  SKYCATCH == null
+    ? null
+    : async () => {
+        const res = await page.evaluate((k) => {
+          let n = 0
+          const seen = []
+          window.__three.scene.traverse((o) => {
+            const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
+            for (const m of mats) {
+              // A window pane is the emissive+transparent glass: identify by the
+              // sky-catch colour it is authored with rather than by name, since
+              // names come from the exporter.
+              if (!m.emissive || m.emissiveIntensity === undefined) continue
+              const hex = `#${m.emissive.getHexString()}`
+              if (hex !== '#cfe4f5') continue
+              if (m.__skyCatch0 === undefined) m.__skyCatch0 = m.emissiveIntensity
+              m.emissiveIntensity = m.__skyCatch0 * k
+              m.needsUpdate = true
+              n += 1
+              if (seen.length < 3) seen.push({ hex, was: m.__skyCatch0, now: m.emissiveIntensity })
+            }
+          })
+          return { n, seen }
+        }, SKYCATCH)
+        console.log(
+          `  SKYCATCH=${SKYCATCH}: scaled ${res.n} pane material(s) ${JSON.stringify(res.seen)}`,
+        )
+        if (res.n === 0) throw new Error('SKYCATCH: no pane material matched #cfe4f5')
+        await new Promise((r) => setTimeout(r, 600))
+        // POST-CAPTURE READ-BACK, non-negotiable. The first run of this ablation
+        // produced BYTE-IDENTICAL frames, which reads as "the term does not
+        // matter" and is far more often "the write did not stick" — `.254` lost a
+        // whole GBOUNCE sweep to exactly that, because `Lighting.tsx` recomputes
+        // the value every frame. Without this check the two conclusions are
+        // indistinguishable.
+        const back = await page.evaluate(() => {
+          const out = []
+          window.__three.scene.traverse((o) => {
+            const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
+            for (const m of mats) {
+              if (!m.emissive || m.emissiveIntensity === undefined) continue
+              if (`#${m.emissive.getHexString()}` !== '#cfe4f5') continue
+              out.push(m.emissiveIntensity)
+            }
+          })
+          return out
+        })
+        console.log(`  SKYCATCH read-back after settle: ${JSON.stringify(back)}`)
+      }
+
 const shotFor = async (pitch) => {
   await page.evaluate((v) => window.__walkLook?.setPitch(v), pitch)
   await new Promise((r) => setTimeout(r, 900))
@@ -689,6 +776,8 @@ const shotFor = async (pitch) => {
   // dead flat across GBOUNCE 1..8 -- a completely false negative that only the
   // post-capture read-back caught. Never patch a light before a state change.
   if (typeof applyDevice === 'function') await applyDevice()
+  if (typeof applyBackdropImg === 'function') await applyBackdropImg()
+  if (typeof applySkyCatch === 'function') await applySkyCatch()
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyFillScale === 'function') await applyFillScale()

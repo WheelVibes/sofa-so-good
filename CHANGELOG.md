@@ -29,6 +29,60 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.74 — the Cycles sky, tested in the shipped app: it helps 8 %, and item (l)'s window gap is not a gain error at all
+
+`BACKDROP_IMG=<path>` loads any image into the app's **existing** `custom` backdrop slot, so
+`render_equirect.py`'s output can be tested end-to-end **with no app change** — the slot was built
+for an uploaded panorama and its generator says it was "shaped to be swapped for real CC0
+equirectangular photos later (same background slot)".
+
+**What the physical sky buys, measured in the window crop** (0.35,0.20,0.30,0.42 — central, so
+HUD-free by construction):
+
+| | p95 | median | mean | share ≥219 |
+| --- | --- | --- | --- | --- |
+| performance + own sky | 180.8 | 161.8 | 149.3 | **1.11 %** |
+| performance + Cycles sky | 202.9 | 176.9 | 161.0 | **1.11 %** |
+| realistic + own sky | 190.7 | 174.7 | 157.1 | **1.38 %** |
+| realistic + Cycles sky | 205.5 | 185.0 | 164.7 | **1.38 %** |
+| **Cycles reference** | 246.1 | 217.9 | 205.2 | **49.58 %** |
+
+The physical sky is worth **+7.8 %** of window mean on `performance` and **+4.8 %** on `realistic`;
+switching to `realistic` (real transmission instead of cheap transparency) is worth another 5.2 %.
+Combined, 149.3 → 164.7, **+10.3 %** — real, and about a third of the p95 gap.
+
+**But the gap is not a level error, and that is the finding.** Half the reference window sits above
+219 counts. **One percent of the app's does** — and that share does not move when the sky is
+replaced with one that is 1.4× brighter and 4× less saturated, nor when the panes switch to real
+transmission. A renderer that were merely 27 % dim would shift that share; this one cannot reach
+those levels at all.
+
+**Which invalidates the statistic item (l) was built on.** The top-1 % pixel SETS of the two app
+frames — own sky versus Cycles sky — overlap **100 %**. The app's window p99 is a fixed bright
+feature that the sky does not touch, so **p99 cannot see a sky change**, and item (l)'s headline
+1.368× was measuring that feature rather than the pane. A fixed feature is also exactly the kind of
+thing that produces a "scene-independent constant" at **cv 0.63 %** across four views, which is the
+property that made the number look so trustworthy.
+
+**A candidate cause, found and NOT yet tested.** `glassSkyCatchIntensity(daylight) = daylight * 0.4`
+with a hardcoded `GLASS_SKYCATCH_COLOR = '#cfe4f5'` (RZ2) — 6 live materials in this scene carry
+exactly `emissiveIntensity: 0.4`. A pane lit by a constant emissive that never reads
+`scene.background` would explain all of it: sky-independent, scene-independent, uniform, and short
+by a fixed factor.
+
+**The ablation was a no-op, and only the read-back knew.** `SKYCATCH=0` reported scaling 6 materials
+and produced **byte-identical** frames — 180.8 / 161.8 / 149.3 / 1.11 %, unchanged to the decimal.
+That reads as "the term does not matter"; the post-capture read-back says
+**`[0.4,0.4,0.4,0.4,0.4,0.4]`** — the write was reverted before the shot. Same failure `.254` lost a
+whole GBOUNCE sweep to: a value recomputed per frame cannot be ablated by assignment, it has to be
+**intercepted**. So the hypothesis stands untested, and the probe now always prints the read-back
+rather than leaving the two conclusions indistinguishable.
+
+Suite **10083 green**, `tsc`, biome and `knip` clean. No shipped behaviour changed: `BACKDROP_IMG`
+and `SKYCATCH` are probe knobs, and whether the window's sky-catch should derive from the sky is
+item (l)'s open decision — now with a far better-specified question than "multiply the background
+by 12".
+
 ## v0.31.7.73 — a Cycles sky equirect, and the app's procedural sky is both too dark AND 4× too blue
 
 The Blender-side answer to item (l), and it turns out to be a bigger finding than the level.
