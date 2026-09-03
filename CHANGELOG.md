@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.39 — condo 3-bed connected, and a new guard so its chain stays visible
+
+`tpl-condo-3bed`'s bedroom column was the last level not blocked on the content
+call. Two fixes were built and measured:
+
+- **carve a 1.0 m corridor** — correct architecture, and it costs **all three
+  wardrobes and a dresser**. At 2.7 m wide none of the bedrooms fits a 1.5 m
+  freestanding wardrobe beside a bed. All three beds survive.
+- **one door from the living into the column** — connects it at **zero** furniture
+  cost, and leaves the existing chain (bedroom 2 → bedroom 3 → master).
+
+I took the door. The measured defect is "rooms nobody can reach", and the door fixes
+it for free; the corridor's extra benefit is real but unmeasured, and its cost is an
+artefact of modelling a wardrobe as a 1.5 m freestanding piece rather than the
+built-in a 2.7 m condo bedroom actually has. The connectivity ratchet is **16 levels
+→ 3**.
+
+**But a door that makes a plan "connected" also makes its chain invisible**, so this
+ships a new ratchet: **`bedroomPrivacy.test.ts`** — can a bedroom be reached without
+walking through ANOTHER bedroom? Four offenders across the library
+(`c3-bed3`, `c4-bed4`, `cp-bed3`, `ex-master`), all in bedroom groups with no
+corridor of their own.
+
+**Two instruments were wrong before this one worked**, both recorded in the test:
+
+- a room-adjacency graph over doors reported **18** offenders including
+  `tpl-hdb-jumbo`'s master, which demonstrably has its own corridor door. These
+  plans have UNDECLARED corridors — circulation that is not a declared room — so a
+  graph over declared rooms cannot represent it;
+- flooding once with all bedrooms blocked and probing each doorway still
+  mis-reported `tpl-hdb-3room`'s bedroom 2, which is reached through a doorless GAP
+  rather than a door.
+
+The shipped version floods once per bedroom with every OTHER bedroom blocked, which
+handles doors and gaps alike, and carries a not-vacuous case pinned to jumbo — the
+plan re-authored specifically to give each bedroom its own door.
+
+Verified: 10128 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.38 — every room in the library now has a door; (f) is 16 levels → 4
 
 I re-triaged the 8 remaining levels rather than assuming they were all the hard

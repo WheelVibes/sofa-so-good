@@ -303,6 +303,22 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.39 — condo 3-bed: the door, not the corridor — and a ratchet so the chain stays visible
+
+`tpl-condo-3bed` was the last level not blocked on the content call. Both fixes were built and
+measured: a **1.0 m corridor** is the correct architecture and costs **all three wardrobes and a
+dresser** (a 2.7 m wide bedroom cannot take a 1.5 m freestanding wardrobe beside a bed; all three
+beds survive), while **one door from the living** connects the column at **zero** furniture cost
+and leaves the chain bedroom 2 → bedroom 3 → master.
+
+Took the door. The measured defect is "rooms nobody can reach"; the corridor's extra benefit is
+real but unmeasured, and its cost is an artefact of the app modelling a wardrobe as a freestanding
+1.5 m piece rather than the built-in a real 2.7 m condo bedroom has. Connectivity: **16 → 3**.
+
+**The honest problem with that choice is that the door hides the chain**, so this adds
+`src/floorplan/bedroomPrivacy.test.ts` — bedrooms reachable only by crossing another bedroom. Four
+across the library. If the wardrobe kit ever gains a built-in variant, revisit the corridor.
+
 ### v0.31.8.38 — every room in the library now has a door; (f) is down to 4 levels, all one shape
 
 Re-triaged the 8 remaining levels instead of assuming they were all the hard case, and **half of

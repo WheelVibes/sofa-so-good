@@ -302,6 +302,10 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // 30 → 32 in v0.31.8.37: `h5-living: rug` + `h5-living: coffee-table` settle
     // on their room centre now the 5-room's front door fronts the living instead
     // of the master bedroom. Both are in CENTRE_IS_RIGHT.
-    expect(sweep().centred).toBe(32)
+    //
+    // 32 → 34 in v0.31.8.39: `c3-living: rug` + `c3-living: coffee-table` settle
+    // on their room centre now the condo 3-bed's living room has a door into the
+    // bedroom column. Both are in CENTRE_IS_RIGHT.
+    expect(sweep().centred).toBe(34)
   }, 30_000)
 })

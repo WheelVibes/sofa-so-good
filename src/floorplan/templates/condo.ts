@@ -396,6 +396,7 @@ export function condo3Bed(): FloorPlan {
     ],
     openings: [
       door('c3-main', 'c3-w', 1.0),
+      door('c3-bed-door', 'c3-bed-w', 1.0),
       door('c3-b2', 'c3-b2-s', 0.9),
       door('c3-b3', 'c3-b3-s', 0.9),
       // v0.31.8.33: the kitchen, service yard, common bath, master ensuite and

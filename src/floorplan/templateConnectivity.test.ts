@@ -131,17 +131,16 @@ function roomGroups(
  * straight into a bedroom. That last case is a content decision, written up in
  * `docs/open-graphics-decisions.md` (f).
  *
- * DOWN TO FOUR as of v0.31.8.38, and all four are the same shape — a bedroom
+ * DOWN TO THREE as of v0.31.8.39 — `tpl-condo-3bed` closed with a single door from
+ * its living room into the bedroom column. That column is still a CHAIN (bedroom 2 →
+ * bedroom 3 → master), which this test cannot see and `bedroomPrivacy.test.ts` now
+ * ratchets instead, so the chain did not become invisible when the door made the plan
+ * connected. All three remaining are the same shape — a bedroom
  * zone with no corridor, reachable only by opening a door straight into a
  * bedroom. `tpl-hdb-4room`, `-5room` and `-exec` additionally hold a bedroom
  * with NO external wall, so the fix there is a re-plan, not a door. Everything
  * that was a room simply missing a door has been fixed. */
 const KNOWN_DISCONNECTED: Record<string, number> = {
-  // 7 → 2 in v0.31.8.33: the kitchen, service yard, common bath, master ensuite
-  // and balcony had NO doors at all. What remains is the bedroom column, which
-  // has no corridor — its rooms fill it, so any door from the living opens
-  // straight into bedroom 2. Same class as `tpl-hdb-4room`; see the decisions doc.
-  'tpl-condo-3bed/ground': 2,
   'tpl-hdb-4room/ground': 2,
   'tpl-hdb-5room/ground': 2,
   'tpl-hdb-exec/ground': 2,
