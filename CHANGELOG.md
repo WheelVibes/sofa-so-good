@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.28 — the shader patch becomes real code: `visibilityLightmap.ts`, one test per measured failure
+
+Everything item (w) needs is now measured: the term (4.76× → 1.36×), the gain (fitted 6, stable
+across crops), the bake (adaptive 0.001 / 256 px, 33 min, 1.4 MB per plan), the asset key, the UV
+layout, and the frame cost (nil at both auto-selected tiers). This round moves the piece with the
+subtlest requirements out of a probe knob and into `src/`, with a test for each requirement.
+
+**`src/scene/visibilityLightmap.ts`** — `prepareVisibilityTexture()` and
+`applyVisibilityLightmap()`. Five lines of real behaviour, and every one of them is a round of
+this arc:
+
+| requirement | what it cost to learn |
+| --- | --- |
+| `texture.channel = 1` | **five rounds.** three defaults a texture to channel 0 — the *tiling* `uv` — so setting `uv1` on the geometry is necessary and not sufficient |
+| no mipmaps | mip levels average across the 3×2 atlas's slot boundaries; at mip 4 a 256 px atlas has 5×8-texel slots |
+| replace `aomap_fragment` | three's chunk lerps from 1 toward the texel, so it is capped at 1 and can only darken; the correction exceeds 1 |
+| `customProgramCacheKey` | without it three reuses a program built from the unpatched chunk and the patch silently does nothing |
+| diffuse only | attenuating `indirectSpecular` is physically tempting and measured **worse** (1.51× vs 1.36×) |
+
+**Ten tests, each anchored to one of those.** They run in the node environment against minimal
+stand-ins rather than real three materials, so no GPU is involved: the chunk is actually replaced,
+the gain reaches the uniform, `indirectSpecular` is *absent*, two gains produce different cache
+keys, `aoMapIntensity` stays at 1 (any other value would silently do nothing, which is worse than
+being ignored), and the texture setup is idempotent so one map can be shared.
+
+**One of them is a tripwire rather than a behaviour test.** It asserts the module still carries
+its "never on a live material" warning and the figure **216 ms** — the compile hitch measured in
+`v0.31.7.15` when an `aoMap` is attached mid-session. If that comment is ever tidied away, a
+future feature flag that toggles this at runtime will stutter for a fifth of a second with no
+clue why. The test fails instead.
+
+**`VISIBILITY_GAIN = 6`, documented as fitted rather than derived**, with `v0.31.7.27`'s 2.7×
+scope-dependence recorded at the constant so nobody re-derives it and gets 4.81 or 13.12 and
+believes either.
+
+**Nothing is wired, so nothing can regress.** No `aoMap` is assigned anywhere, no geometry is
+touched, no feature flag is needed because no feature exists yet — the module has no callers
+outside its test. The render and the frame budget are untouchable by construction, and all three
+views the goal names keep their measured 60 fps at `medium`.
+
+Suite: **10021 tests green** (up 10); `tsc`, biome, knip clean.
+
 ## v0.31.7.27 — the gain is NOT derivable: it is scope-dependent by 2.7×. Corrects v0.31.7.23
 
 `v0.31.7.26` closed on a 1.25× gap between the derived gain (4.81) and the metric's optimum
