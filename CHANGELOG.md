@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.129 — `--fill-holes` at 16-bit reaches a 1.9 % hole rate and the DOTS SURVIVE: they are not the holes
+
+Four rounds of padding work, scored on the corrected metric, then verified on the frame — which is
+where it had to be settled, because `.125`–`.127`'s numbers were all measured through the flawed
+threshold `.128` retracted.
+
+**The padding is genuinely fixed.** 40 maps, `--fill-holes`, at the production recipe:
+
+| | holes (corrected metric) | size |
+| --- | --- | --- |
+| `--dilate 4` 8-bit (shipped) | 4.0 % | — |
+| `--fill-holes` 8-bit | **2.7 %** | 1.5 MB |
+| `--fill-holes` 16-bit | **1.9 %** | 4.5 MB |
+
+**And the dots are still there.** Cropped 3× at the same pose, flag-off against the 333-map dilate
+set against `--fill-holes` 16-bit: the two rows of dark dashes along the column's edges are
+unchanged. The whole frame moves (mean abs diff 10.2 counts, 48.6 % of channels) — so the padding is
+doing real work — but the defect it was built for is untouched.
+
+**So the dots are not atlas holes.** That is the fifth hypothesis eliminated for this one artefact:
+
+| hypothesis | verdict |
+| --- | --- |
+| mapped/unmapped boundary at low coverage (`.114`) | refuted — 10 % → 50 %, unchanged |
+| per-map scale colliding on a shared material | refuted — 0 of 175 materials |
+| UV margin mismatch | refuted — identical formulas both sides |
+| a shader/lookup fault rather than data | refuted — `?aoDebug=1` shows them in the map |
+| **unwritten atlas holes at the UV island edge** | **refuted — 1.9 % holes, dots unchanged** |
+
+What is left, and I am not going to guess at it again tonight: the dots are **evenly spaced down a
+narrow mesh's silhouette edges**, they are in the sampled map, and they survive a padding routine
+that demonstrably fills 97 % of holes. Even spacing on a *geometric* feature rather than a texel
+grid points at the mesh's own vertex spacing — a per-vertex `uv1` on an edge loop, where two faces
+that meet at a vertex want different slots. `computeBoxAtlasUv` calls that a *conflict* and skips
+the whole mesh; if the count is wrong, or a vertex is shared in a way the check misses, the
+symptom would be exactly this. **`conflicts` is computed and never reported** — the same
+observability gap as `.123`'s counter and `.127`'s `padded`, and the next thing to fix before
+forming another theory.
+
+**Kept:** `--fill-holes` is a real improvement (4.0 % → 1.9 %) and stays available and off. The
+16-bit variant costs 3× the bytes for 0.8 pt, which is not worth it on this evidence.
+
+Suite **10142 green**, `tsc` and biome clean. Nothing shipped; flag still off.
+
 ## v0.31.7.128 — RETRACTING three rounds of padding numbers: my metric counted dark texels as holes, and the real rate is 4.5 %, not 33.7 %
 
 `ring-zeros.mjs` used a **relative** threshold, `value / max < 0.002`. On an 8-bit file that is
