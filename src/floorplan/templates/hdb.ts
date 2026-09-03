@@ -504,6 +504,23 @@ export function hdbJumbo(): FloorPlan {
       window('jb-b5-win', 'jb-e', 11.0, 1.6),
     ],
     rooms: [
+      // The central strip between the bedroom wing and the living column. It was
+      // undeclared — 55 m², THIRTY-ONE PERCENT of this flat's interior floor,
+      // belonging to no room, so the area readout, floor finish and socket counts
+      // all ignored it (measured v0.31.8.45; the hand-authored default flat is
+      // 4%). A jumbo is two merged units, so a hall this generous is characteristic
+      // rather than wasted. L-shaped: the extension is the leg west of the Common
+      // Bath, which sits in the strip's south-east corner.
+      {
+        id: 'jb-hall',
+        name: 'Hall',
+        origin: [4.1, 3.3],
+        width: 4.2,
+        depth: 6.2,
+        extension: { offset: [0, 6.3], width: 2.1, depth: 3.4 },
+        floor: 'floor-tile-grey',
+        category: 'foyer',
+      },
       room('jb-kit', 'Kitchen', 0.2, 0.2, 3.6, 2.8, 'floor-tile-grey', 'kitchen'),
       room('jb-yard', 'Service Yard', 4.2, 0.2, 1.6, 2.8, 'floor-tile-grey', 'serviceYard'),
       room('jb-shelter', 'Household Shelter', 6.2, 0.2, 2.0, 1.7, 'floor-tile-grey', 'shelter'),

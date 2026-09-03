@@ -27,6 +27,36 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.45 — a third of jumbo's floor belonged to no room
+
+Two measurements this release, one of which turned into a fix.
+
+**264 m² of template floor is undeclared.** Flood-filling each level's interior and
+subtracting the declared room rectangles: the hand-authored default flat is **4%**
+undeclared, while the templates run 4–31%. That floor is invisible to the area
+readout, the floor finish, the socket counts and the circulation statistic — a plan
+that is 15–30% unaccounted is not contractor-grade.
+
+`tpl-hdb-jumbo` was the worst at **55 m², 31% of its interior**: the central strip
+between its bedroom wing and living column, which no room covered. Declared as an
+L-shaped **Hall** (`foyer`), wrapping the Common Bath that sits in its south-east
+corner. Undeclared floor there drops to **21.8 m² (12%)**, in line with the rest of
+the library, and the hall is now FURNISHED — +5 pieces, total 1437 → **1442**. Every
+other guard passed unchanged: connectivity, bedroom privacy, opening naming, daylight,
+sightline and enclosure. The remaining templates are listed worst-first in `TODO.md`.
+
+**Template wall structure is 50% unclassified, and that is correct.** 127 walls
+resolve to NOT PERMITTED, 10 to permit-required, 139 to unclassified — and all ten
+`permit` walls are in the default flat; no template declares one. I looked for a way
+to close that and there isn't an honest one: `wallHackability.ts` already records why
+inferring structure from millimetre thickness is forbidden (a non-structural precast
+partition and a load-bearing wall are identical on plan, a documented HDB
+hacking-plan failure mode), and the app already tells the user the right thing —
+`Unclassified — confirm structure with HDB/PE before hacking`, plus a ⚠ per wall on
+the hacking sheet. Recorded in `TODO.md` so the 50% is not mistaken for a gap later.
+
+Verified: 10140 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.44 — room names the app could not read: 11 contradictions, one ordering bug
 
 Third sweep in the same series, this time over room categories: where a template

@@ -106,7 +106,10 @@ describe('dining chairs are tucked to their table', () => {
       // that overran the corridor wall and both baths, 11.5 → 6.9 m². Fewer,
       // honestly-sized rooms hold fewer pieces; the master keeps its queen bed
       // (an earlier L-shaped attempt lost it — no leg was 2.0 m deep).
-      'tpl-hdb-jumbo': 116,
+      // 116 → 121 in v0.31.8.45: the central hall is a declared room now, so it
+      // is furnished at all. It had been 55 m² — 31% of the flat — belonging to
+      // no room.
+      'tpl-hdb-jumbo': 121,
       // UNCHANGED at 141 through v0.31.8.33, which gave its kitchen, service yard
       // and STAIR HALL their first doors — on a maisonette the stair hall is the
       // only way to the upper storey. Putting the yard's door on the service
@@ -197,7 +200,8 @@ describe('dining chairs are tucked to their table', () => {
     // 1431 → 1433 in `.41`: `ex-bed2b`'s first window lets two pieces fit.
     // 1433 → 1432 in `.42`, the window-naming sweep: see the penthouse note above.
     // 1432 → 1437 in `.44`, an increase from one room: see the loft note above.
-    expect(total).toBe(1437)
+    // 1437 → 1442 in `.45`: jumbo's central hall, declared and therefore furnished.
+    expect(total).toBe(1442)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

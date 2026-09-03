@@ -2006,3 +2006,36 @@ A built-in variant is still worth having for realism, but its value is NOT here.
 Fixed along with three more of the same kind, found by a sweep rather than by hand.
 `src/floorplan/windowNaming.test.ts` now ratchets the whole library at zero known
 misnamed windows.
+
+## 264 m² of template floor belongs to no room
+
+Measured v0.31.8.45 by flood-filling each level's interior and subtracting the
+declared room rectangles. The hand-authored default flat is **4%** undeclared; the
+templates run 4–31%. Undeclared floor is invisible to the area readout, the floor
+finish, the socket counts and the circulation statistic, so a plan that is 15–30%
+unaccounted is not contractor-grade.
+
+`tpl-hdb-jumbo` is fixed (31% → 12%, by declaring its central Hall). Remaining, worst
+first: `tpl-condo-penthouse` 22.3 m² (16%), `tpl-hdb-exec` 19.9 (15%),
+`tpl-condo-4bed` 19.9 (16%), `tpl-hdb-3gen` 19.0 (17%), `tpl-hdb-4room` 15.0 (18%),
+`tpl-condo-3bed` 14.7 (15%), `tpl-hdb-5room` 14.5 (14%), `tpl-hdb-maisonette` 13.0 +
+12.0 across two storeys, `tpl-hdb-3room` 9.7 (17%), `tpl-condo-1bed` 7.3 (16%).
+
+Each needs its own read: the space is usually a corridor, and declaring it means
+choosing a category (`foyer` for circulation) and an L-shape where a bath or store
+sits in the strip. Jumbo's entry is the worked example. Declaring a room also gets it
+FURNISHED, which is a gain (+5 pieces there) but changes the per-template counts.
+
+## Template wall structure is 50% unclassified — and that is CORRECT
+
+Measured v0.31.8.45: across the library, 127 walls resolve to NOT PERMITTED, 10 to
+permit-required and **139 to unclassified**. Every one of the 10 `permit` walls is in
+the hand-authored default flat; no template declares a single one.
+
+Do NOT "fix" this by inferring structure from wall thickness in mm —
+`wallHackability.ts` records why that is forbidden (a non-structural precast
+partition and a load-bearing wall are identical on plan, a documented HDB
+hacking-plan failure mode). For a generic flat-TYPE archetype there is no correct
+answer, and the app already says so: `Unclassified — confirm structure with HDB/PE
+before hacking`, plus a ⚠ per wall on the hacking sheet. Recorded so the 50% is not
+mistaken for a gap by a future reader.
