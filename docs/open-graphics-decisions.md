@@ -4165,7 +4165,7 @@ several turned out to mean something different once implemented. **Read this bef
 
 | # | decision | where it actually stands |
 | --- | --- | --- |
-| 1 | GI on `realistic` | **Infrastructure shipped and verified** — asset swap, tier gate proved in both directions, two-way detach. **Flag HELD off**: at `realistic` the maps draw a dark dotted seam on narrow meshes' silhouette edges. Effect is real (ceiling 0.69 → 0.92). |
+| 1 | GI on `realistic` | **Infrastructure shipped and verified.** Seam **diagnosed** `.164` (coverage by class: 52 of 1122 meshes mapped) and **sized** `.165`: it is a **5.5-count step on ~185, ~3 %**. Two mitigations built and rejected — a shader lift hit the target but stalled **2100 ms** compiling, a fill scale was free and provably targeted but moved **≤1 count**. Flag still off, but the open question is now a look call (is 3 % worth blocking a markedly better frame?) rather than a hunt. |
 | 2 | 40 maps, 1.2 MB | **Superseded.** You re-decided for 333 maps after `.114` showed my "no seam at this coverage" was measured at the wrong tier. Baked (10 MB, 0 clipped, 50 % coverage) — **and the seam persists at both**, so coverage was not the cause. |
 | 3 | Commit maps to the repo | **Done** — the 40-map set is `public/assets/lightmaps`. |
 | 4 | Cycles sky + `backgroundIntensity ≈ 4` | ❌ **MEASURED AND DECLINED `v0.31.7.163`** — its premise was spent by `(l)`'s fix. See the block below. |

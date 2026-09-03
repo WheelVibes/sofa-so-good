@@ -29,6 +29,76 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.165 — two routes built for the GI seam, both measured, both rejected: one stalls 2100 ms, the other moves one count
+
+`.164` diagnosed the seam and named two routes. I built the cheap one, then the cheaper one. Neither
+ships, and the numbers are the point.
+
+**The step being closed**, from `.164`: when the GI comes on, mapped surfaces move **+5.4 … +5.9**
+displayed counts (and −4.6 … −6.4 in R−B, cooler) while unmapped ones move **0.0**. 52 of 1122
+meshes are mapped, so that step lands on every silhouette where the two kinds meet.
+
+### Route A — a shader injection on the 1070 unmapped materials. Correct, and unshippable.
+
+`applyIndirectLift` scaled each unmapped material's existing `indirectDiffuse` by a constant. It
+**scales rather than assigns** deliberately: three's fill is hemisphere-weighted, so assigning a
+constant would erase that gradient and flatten every object in the room to fix a 5-count edge.
+
+Fitted against the target and it hit it: 1.20 → +1.3, 1.50 → +3.2, 1.70 → +4.4, **1.90 → +5.5** on
+the curtain and **+5.3** on the headboard, with the mapped wall unchanged at 189.7. A neutral scalar
+reproduced the chromatic half on its own (R−B −6.1), because the fill it scales is already
+sky-tinted.
+
+**Killed by compile cost: max frame 2100.1 ms against 156.3 ms without.** p50 barely moved
+(5.8 → 6.6 ms), so steady state was fine — the stall was all shader compilation. My own docstring
+had claimed a shared `customProgramCacheKey` would keep this to one program per material type, and
+that was wrong: the key MUST compose with each material's prior key (dropping it collides two
+programs, which `drapeTranslucency`'s docstring already warns about), so every material with a
+distinct prior key gets its own program.
+
+**A bug found by measurement on the way, worth recording.** The first version assigned
+`onBeforeCompile` directly and the curtains came back **4.9 counts darker and 6 warmer, insensitive
+to the lift value**. `drapeTranslucency.ts` already owns that hook on exactly those materials, as
+`pomFloor.ts` does on floors, so assigning deleted their patch — a lift that silently removes
+another feature is worse than the seam it closes. The insensitivity was the tell: a term under test
+that ignores its own parameter is not the term producing the change.
+
+### Route B — scale the analytic fill instead. Free, provably targeted, and too weak.
+
+An irradiance set runs in `'replace'` mode, whose injected line *assigns* `indirectDiffuse` after
+`lights_fragment_end` — so ambient + hemisphere is discarded on every MAPPED surface and survives on
+every unmapped one. Scaling the two existing lights therefore reaches exactly the set that needs
+lifting, for one uniform and no shader variant.
+
+**The mechanism verified perfectly and the magnitude did not.** Mapped surfaces were untouched to
+within noise (ceiling +0.2, wall −0.1), which is the whole premise confirmed. But the effect on
+unmapped meshes was **+0.2 … +1.0 counts** at 1.9× — a fifth of the step. Cause: at 13:00 the fill
+is IBL-dominated (`iblFillScale` already ties it to the day level), so ambient + hemisphere is a
+small share of it. Reaching +5.4 would need a multiplier large enough to wreck night, where ambient
++ hemisphere is the *entire* fill.
+
+**And a measurement lesson.** An intermediate capture read +1.0/+2.6 and I nearly reported it. A
+two-run noise floor at identical config came back at **±0.2 counts** — so the disagreement between
+that capture and the proper baseline (curtain 199.9 vs 199.1) was not noise; the capture was taken
+straight after an HMR edit and was not the configuration it claimed to be. The noise floor is cheap
+and I should measure it before, not after.
+
+### Where this leaves `(z)`1
+
+The remaining route is the expensive one `.164` named: lower `--min-area` and bake the contents, so
+objects get real GI instead of a fudge. That is also the route the arc's goal actually points at, and
+there is precedent — the 333-map set was already accepted at 10 MB.
+
+But the prior question is now worth asking, because the parked note over-stated the artefact: the
+real step is **5.5 counts on ~185, about 3 %**, and the two things that looked most like a dotted
+seam turned out to be the curtain rod's own faceting (`.164`) and a zero-difference region. The
+GI-on frame is markedly more photographic — contact darkening in the ceiling corners, real depth in
+the window reveal. Whether a 3 % step at silhouettes is worth blocking that is a look call to settle
+against frames in several rooms, not another mitigation mechanism.
+
+Suite 10167 green, `tsc` and biome clean. Nothing shipped; flag still off.
+
+
 ## v0.31.7.164 — the GI seam is DIAGNOSED after six refutations: it is a coverage-by-CLASS gap, and 1070 of 1122 meshes get no GI
 
 `.130` parked this with six hypotheses eliminated and no cause. All six were about the UV/atlas/bake
