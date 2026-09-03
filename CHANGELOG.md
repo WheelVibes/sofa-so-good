@@ -29,6 +29,68 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.19 — ROOT CAUSE: `Texture.channel` defaults to 0. The term works — spread 4.76× → 1.46× — and the bake is far too noisy to ship
+
+Five rounds of symptoms resolve to one line of three's API, and with it fixed **item (w)'s fix
+works end to end for the first time**. It is also visibly unacceptable, for a completely
+different reason that only looking at the frame reveals.
+
+**The root cause.** three selects a texture's UV set *per texture*, via `Texture.channel`, and
+it **defaults to `0` — the `uv` attribute**. Setting `uv1` on the geometry is necessary and
+**not sufficient**. The shell's `uv` is a *tiling* coordinate running −2.9…+2.9, so the `aoMap`
+was sampling the atlas with wrapping and reading essentially noise, mostly dark.
+
+That single default explains every symptom of the last three rounds:
+
+| symptom | explanation |
+| --- | --- |
+| black walls with sharp white stripes (`v0.31.7.16`) | tiling UVs wrapping across the atlas |
+| room darkens 115.6 → 34 (`v0.31.7.17`) | the sampled values were near-zero noise, not the bake |
+| a **15× gain** moves the frame mean **1.2×** (`v0.31.7.18`) | the values being multiplied were never the baked ones |
+| `AOPROBE` says walls sample healthy texels (this round) | it read `uv1`; **the shader was reading `uv`** |
+
+That last row is the sharp one. `AOPROBE` was built to check exactly this and reported the
+right answer to the wrong question — it sampled the channel the map was *supposed* to use, not
+the one three was *actually* using.
+
+**With `channel = 1`, the term works.** Non-Color bake, γ = 1, `livingDining`, matched
+light sets:
+
+| gain | frame mean R | spatial spread vs physics |
+| --- | --- | --- |
+| baseline (no map) | 115.64 | **4.76×** |
+| 1 | 41.4 | 4.92× |
+| 2.7 | 55.2 | 2.88× |
+| 5 | 67.4 | 1.93× |
+| 10 | 84.1 | 1.49× |
+| **15** | **95.0** | **1.46×** |
+| 22 | 106.0 | 1.70× |
+
+**4.76× → 1.46×**, a clear minimum at gain ≈ 15, and better than the 1.88× that `v0.31.7.10`
+predicted for γ = 0.7 — close to the 1.37× the analysis gave as the ideal. The frame mean also
+responds to gain again (41 → 106), as it must. **The aperture-visibility term does what five
+rounds of analysis said it would.**
+
+**And the picture is not shippable.** The walls and ceiling show coarse blotchy mottling — a
+noisy, low-resolution bake stretched over large surfaces. At 64 px across a 3×2 atlas a 5.8 m
+wall gets roughly **0.2 m per texel**, and 48 Cycles samples in a dark interior is very noisy;
+gain 15 multiplies that noise by 15.
+
+**The metric improved while the image got worse, and that is the lesson.** `spatial-profile.mjs`
+averages over columns, so it is blind to high-frequency noise by construction — it measured a
+real improvement in the low-frequency term it was built for and said nothing about the artefact
+that dominates the view. This is the arc's own rule ("always look at the crop") arriving in a new
+form: not a contaminated measurement this time, but a *correct* measurement of an incomplete
+question.
+
+**Next, and it is all offline cost:** raise the bake resolution (256 px ⇒ ~5 cm texels), raise
+samples, and denoise. That pushes the asset from 480 KB toward ~29 MB uncompressed for 111 maps,
+so it also forces a compression or atlas-packing decision. **No runtime cost changes** — the
+shader work is identical, so `v0.31.7.15`'s frame-cost measurement still holds.
+
+**Nothing shipped; nothing regressed.** Probe knobs and offline bakes only; the three views the
+goal names hold their measured 60 fps at `medium`. `tsc`, biome, knip clean; 10011 tests green.
+
 ## v0.31.7.18 — the shader operator works and can exceed 1, but it does NOT recover the render, and the numbers do not add up
 
 `v0.31.7.17` concluded the `aoMap` slot delivers correctly and only its *operator* is wrong —

@@ -1891,6 +1891,7 @@ const applyAoMap = !AOMAP
           }
           const canvases = {}
           for (const [k, url] of Object.entries(maps)) canvases[k] = await texFor(url)
+          window.__aoCanvases = canvases
           let TextureCtor = null
           window.__three.scene.traverse((o) => {
             if (TextureCtor) return
@@ -1905,6 +1906,14 @@ const applyAoMap = !AOMAP
             const m = o.material
             const g = o.geometry
             const t = new TextureCtor(canvases[key])
+            // CHANNEL 1. three selects a texture's UV set per-texture via `Texture.channel`,
+            // and it defaults to 0 -- the `uv` attribute. The shell's `uv` is a TILING
+            // coordinate running -2.9..+2.9, so an aoMap left on channel 0 samples the atlas
+            // with wrapping and reads essentially noise, mostly dark. That is what made the
+            // frame insensitive to the gain in `v0.31.7.18`: a 15x gain moved the frame mean
+            // 1.2x, because the values being multiplied were not the baked ones at all.
+            // Setting `uv1` on the geometry is necessary and NOT sufficient.
+            t.channel = 1
             t.needsUpdate = true
             m.aoMap = t
             m.aoMapIntensity = 1
@@ -1940,6 +1949,68 @@ const applyAoMap = !AOMAP
         return withAo
       })
       if (!after) throw new Error('AOMAP: no material kept an aoMap after settling')
+
+      // AOPROBE=1 -- read the texels each mesh's OWN uv1 actually covers (`v0.31.7.19`).
+      //
+      // `v0.31.7.18` ended on an inconsistency it could not resolve: a 3x gain moved the frame
+      // mean 9 %, when the maps' aggregate statistics (interior median texel 0.034) said it
+      // should have restored the level outright. The `white` control proves the sampling PATH
+      // works, because it replaces every texel with 255 -- but it cannot show that the texels a
+      // given wall samples are ones the bake FILLED. Those are different claims, and the
+      // aggregate cannot tell them apart: a map can have a healthy overall mean while every
+      // texel a visible face reaches is zero.
+      //
+      // So this samples per mesh, at the mesh's own UVs, and reports the biggest ones by area.
+      if (process.env.AOPROBE === '1') {
+        const rows = await page.evaluate(() => {
+          const out = []
+          window.__three.scene.traverse((o) => {
+            const g = o.geometry
+            const m = o.material
+            const key = o.userData.__lmKey
+            if (!g?.attributes?.uv1 || !m?.aoMap || !key) return
+            const cv = window.__aoCanvases?.[key]
+            if (!cv) return
+            const ctx = cv.getContext('2d')
+            const px = ctx.getImageData(0, 0, cv.width, cv.height).data
+            const uv = g.attributes.uv1
+            // Sample at the vertices' own UVs -- exactly where the shader will look.
+            const vals = []
+            for (let i = 0; i < uv.count; i++) {
+              const u = uv.getX(i)
+              const v = uv.getY(i)
+              const x = Math.min(cv.width - 1, Math.max(0, Math.round(u * cv.width)))
+              // Canvas rows run top-down; three samples bottom-up.
+              const y = Math.min(cv.height - 1, Math.max(0, Math.round((1 - v) * cv.height)))
+              vals.push(px[(y * cv.width + x) * 4] / 255)
+            }
+            if (!g.boundingBox) g.computeBoundingBox()
+            const bb = g.boundingBox
+            const span = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z)
+            // The map's own overall mean, for contrast with what this mesh reaches.
+            let all = 0
+            for (let i = 0; i < px.length; i += 4) all += px[i] / 255
+            out.push({
+              key,
+              span: +span.toFixed(2),
+              atUv: {
+                min: +Math.min(...vals).toFixed(4),
+                max: +Math.max(...vals).toFixed(4),
+                mean: +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(4),
+              },
+              mapMean: +(all / (px.length / 4)).toFixed(4),
+            })
+          })
+          return out.sort((a, b) => b.span - a.span).slice(0, 8)
+        })
+        console.log('AOPROBE  what each mesh SAMPLES vs what its map CONTAINS:')
+        for (const r of rows) {
+          console.log(
+            `  span ${String(r.span).padStart(5)}m  key ${r.key}  at-uv mean ${String(r.atUv.mean).padEnd(6)}` +
+              ` (min ${r.atUv.min} max ${r.atUv.max})   whole-map mean ${r.mapMean}`,
+          )
+        }
+      }
       console.log(
         `AOMAP applied to ${applied.n} meshes, ${after} still carry one; gamma=${AOGAMMA}`,
       )

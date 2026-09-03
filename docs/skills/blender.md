@@ -173,6 +173,20 @@ the research docs.*
   argv as a Python list does not avoid this** — the rule is about the value's first character,
   not shell quoting, which is why it bit a second time in `render_from_manifest.py` after
   being recorded once for the CLI.
+- **2026-09-03 — three's `Texture.channel` defaults to 0, so setting `uv1` is NOT enough.** A
+  baked map assigned to `aoMap` samples the `uv` attribute unless you set `texture.channel = 1`.
+  With tiling shell UVs (−2.9…+2.9) that reads wrapped noise, and the symptoms are wildly
+  misleading: black walls with white stripes, a room darkening 3×, and a **15× gain moving the
+  frame mean 1.2×**. Five rounds of debugging traced to this one default.
+- **2026-09-03 — a diagnostic can answer the right question about the wrong thing.** A probe that
+  read the texels each wall's `uv1` covered reported healthy values and *looked* like it cleared
+  the data — while the shader was sampling `uv`. Check which channel the renderer actually uses,
+  not the one you intended.
+- **2026-09-03 — a column-averaged metric is blind to bake noise.** With the channel fixed, the
+  spatial spread improved 4.76× → 1.46× (better than predicted) while the render became visibly
+  blotchy: 64 px across a 3×2 atlas is ~0.2 m per texel on a 5.8 m wall, and gain 15 amplifies
+  Cycles' sampling noise 15×. The metric measured a real improvement in the term it was built for
+  and said nothing about the artefact dominating the view. **Look at the frame.**
 - **2026-09-03 — a control that both hypotheses pass is not a control.** `gain = 1` on a uniform
   white map reproduced the baseline render exactly — and an inert shader patch would have done
   the same, since three's own chunk also yields 1 there. Only `gain = 2` on a white map

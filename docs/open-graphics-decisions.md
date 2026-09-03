@@ -3026,6 +3026,27 @@ been attributed to the glass or to the background tone-mapping path.
 > attaching one mid-session cost a **216 ms** compile hitch. Attach at material creation; a flag
 > that toggles `aoMap` live will stutter. Read the flag where the material is built.
 >
+> **✅ DEMONSTRATED IN THE RENDERER, v0.31.7.19 — spread 4.76× → 1.46×.** With baked visibility
+> applied through a patched `aomap_fragment` (a plain `texel × gain`, so the multiplier may exceed
+> 1) and `Texture.channel = 1`, the app's spatial match to physics beats the analysis' own
+> prediction:
+>
+> | gain | frame mean R | spread vs physics |
+> | --- | --- | --- |
+> | baseline | 115.6 | 4.76× |
+> | 5 | 67.4 | 1.93× |
+> | **15** | **95.0** | **1.46×** |
+> | 22 | 106.0 | 1.70× |
+>
+> **The root cause of five rounds of failure was `Texture.channel`, which defaults to 0 (`uv`)** —
+> setting `uv1` on the geometry is necessary and not sufficient, and with tiling shell UVs the map
+> was read as wrapped noise.
+>
+> **Blocked on bake QUALITY, not on mechanism.** The render is visibly blotchy: 64 px across a 3×2
+> atlas is ~0.2 m per texel on a 5.8 m wall, and gain 15 amplifies Cycles' noise 15×. Fixing it is
+> offline cost only (resolution, samples, denoise) but pushes the asset from 480 KB toward ~29 MB
+> uncompressed, forcing a compression/packing decision. Runtime cost is unchanged.
+>
 > **Which makes the fix a bake, at zero per-frame cost.** Aperture visibility is static per room
 > geometry, so Blender can bake it (`bake_material.py`, Part B) and the fill can be modulated by
 > it; the room shell is low-poly enough that vertex colours may carry it. Nothing per frame, so
