@@ -32,6 +32,8 @@ export interface ApplyOptions {
   expectCoverage?: boolean
   /** Override the fitted `VISIBILITY_GAIN`. Diagnostic only — see `VisibilityLightmaps`. */
   gain?: number
+  /** DEV visualiser: paint the sampled occlusion value instead of shading. */
+  debug?: boolean
 }
 
 export interface ApplyResult {
@@ -98,7 +100,7 @@ export function applyLightmapsFromIndex(
   root: Object3D,
   index: LightmapIndex,
   loadTexture: (url: string) => Texture,
-  { baseUrl = LIGHTMAP_BASE, expectCoverage = false, gain }: ApplyOptions = {},
+  { baseUrl = LIGHTMAP_BASE, expectCoverage = false, gain, debug = false }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
   root.updateMatrixWorld(true)
@@ -137,7 +139,7 @@ export function applyLightmapsFromIndex(
       if (conflicts > 0) return
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
-    applyVisibilityLightmap(o.material as never, loadTexture(url), gain)
+    applyVisibilityLightmap(o.material as never, loadTexture(url), gain, debug)
     applied += 1
   })
   const { message, suspect } = resolver.describeHitRate(expectCoverage)

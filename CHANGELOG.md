@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.36 — the fault is located exactly: the mapped materials compile WITHOUT `USE_AOMAP`, so the attenuation never runs
+
+Nine hypotheses were eliminated by indirect measurement over three rounds. This round looks at
+the map through the shader's own eyes, and the answer is unambiguous in one frame.
+
+**The instrument.** A DEV-only `?aoDebug=1` replaces three's `opaque_fragment` output with the
+sampled occlusion value written straight to `gl_FragColor`. The value is seeded to a **sentinel
+of −1** at file scope and only written *inside* the `#ifdef USE_AOMAP` block, so the render
+distinguishes three states rather than two:
+
+- grey — the map was sampled, and the shade *is* the value;
+- black — sampled and reads zero;
+- **magenta — the block never executed at all.**
+
+That third case is the whole point. "No map here" and "map reads zero" are identical in a
+brightness measurement, and every measurement this arc has taken of this bug was a brightness
+measurement.
+
+**The result: the mapped walls are magenta.** The two large side walls — the ones with maps,
+spans 5.86 m and 5.89 m, verified in `v0.31.7.33` to carry a 256×256 texture on channel 1 with
+correct `uv1` — never enter the `USE_AOMAP` branch. **`USE_AOMAP` is not defined for the
+materials that have an `aoMap`.** No shader errors; everything else in the frame renders
+normally.
+
+**Which retires the whole class of explanation this arc has been chasing.** The map, the UVs, the
+channel, the gain, the program text and the assets were all verified correct — and all of it is
+irrelevant, because the branch containing them is compiled out. It also explains the exact
+symptom: a 14 % darkening with the spatial spread **unchanged to two decimals**, because whatever
+small effect remains does not come from the map at all.
+
+**And it retro-explains the readback in `v0.31.7.35`:** the program with `USE_AOMAP` undefined and
+`usedTimes: 15` was not an oddity to be tidied away by a cache-key fix, it was *the bug*, seen
+one round early and misread as a side issue because the fix for it changed no pixels.
+
+**Next, and it is now a narrow question with a small answer space:** why does three omit
+`USE_AOMAP` for a material whose `aoMap` is non-null? The candidates are few — a parameter
+computed before the assignment lands, a required companion define, or a UV-channel prerequisite
+that `channel = 1` imposes — and all are answerable by reading three's `WebGLPrograms`
+parameters for one of these materials rather than by another render.
+
+**Nothing at risk.** The visualiser is DEV-only and makes the scene deliberately unusable; the
+flag is off by default; the render with it off is byte-identical to baseline; 60 fps unaffected.
+Suite **10047 green**; `tsc`, biome, knip clean.
+
 ## v0.31.7.35 — compiled-source readback finds a real bug (a program without `USE_AOMAP`), fixing it changes nothing, and the wired effect is now CHARACTERISED rather than guessed at
 
 The last named tool, used: read back the compiled fragment source through the WebGL context.

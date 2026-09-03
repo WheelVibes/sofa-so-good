@@ -67,11 +67,12 @@ export function VisibilityLightmaps() {
       // maps, the same gain and verifiably identical material state, and the remaining question
       // is whether the patched shader responds to the gain at all. Driving it to an extreme
       // answers that in one run. It doubles as the knob the eventual look call will want.
-      const gainOverride = import.meta.env.DEV
-        ? Number(new URLSearchParams(window.location.search).get('aoGain'))
-        : Number.NaN
+      const params = new URLSearchParams(window.location.search)
+      const gainOverride = import.meta.env.DEV ? Number(params.get('aoGain')) : Number.NaN
       const result = applyLightmapsFromIndex(scene, parsed.index, load, {
         gain: Number.isFinite(gainOverride) && gainOverride > 0 ? gainOverride : undefined,
+        // `?aoDebug=1` paints the sampled map instead of shading. Unusable by design.
+        debug: import.meta.env.DEV && params.get('aoDebug') === '1',
       })
       if (import.meta.env.DEV || result.suspect) {
         const log = result.suspect ? console.warn : console.info

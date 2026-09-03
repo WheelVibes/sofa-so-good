@@ -48,6 +48,8 @@ export const VISIBILITY_GAIN = 6
 
 /** three's `aomap_fragment` include, replaced wholesale — see requirement 3. */
 const AOMAP_INCLUDE = '#include <aomap_fragment>'
+/** three's final colour write. Replaced only by the DEV visualiser below. */
+const OUTPUT_INCLUDE = '#include <opaque_fragment>'
 
 /**
  * Prepare a texture as a visibility map. Idempotent, so a shared texture is safe.
@@ -76,6 +78,16 @@ export function applyVisibilityLightmap(
   material: MeshStandardMaterial,
   texture: Texture,
   gain: number = VISIBILITY_GAIN,
+  /**
+   * DEV visualiser: write the sampled occlusion value out as the fragment colour instead of
+   * shading. Exists because every *indirect* measurement of this term has been exhausted — the
+   * texture, UVs, channel, gain and compiled program are all verified correct, yet the wired
+   * render darkens uniformly instead of spatially (`v0.31.7.35`). Showing the shader's own view
+   * of the map is the only thing left that looks at it directly rather than inferring.
+   *
+   * Not a feature: it makes the scene unusable by design.
+   */
+  debug = false,
 ): void {
   material.aoMap = prepareVisibilityTexture(texture)
   // Left at 1 deliberately: the intensity lerp is bypassed entirely by the patch below, and a
@@ -84,7 +96,21 @@ export function applyVisibilityLightmap(
   material.onBeforeCompile = (shader) => {
     shader.uniforms.aoGain = { value: gain }
     shader.fragmentShader = shader.fragmentShader
-      .replace('void main() {', 'uniform float aoGain;\nvoid main() {')
+      .replace(
+        'void main() {',
+        `uniform float aoGain;\n${debug ? 'vec4 aoDebugValue = vec4( -1.0 );\n' : ''}void main() {`,
+      )
+      .replace(
+        OUTPUT_INCLUDE,
+        debug
+          ? // `aoDebugValue` is seeded to a sentinel and only written inside the USE_AOMAP
+            // block, so a surface that never sampled the map shows magenta rather than black —
+            // "no map here" and "map reads zero" must not look the same.
+            'gl_FragColor = aoDebugValue.x < 0.0\n' +
+              '  ? vec4( 1.0, 0.0, 1.0, 1.0 )\n' +
+              '  : vec4( vec3( clamp( aoDebugValue.x, 0.0, 1.0 ) ), 1.0 );'
+          : OUTPUT_INCLUDE,
+      )
       .replace(
         AOMAP_INCLUDE,
         // KEEP three's `#ifdef USE_AOMAP` guard. Replacing the include wholesale removes it,
@@ -96,6 +122,7 @@ export function applyVisibilityLightmap(
         '#ifdef USE_AOMAP\n' +
           '  float ambientOcclusion = texture2D( aoMap, vAoMapUv ).r * aoGain;\n' +
           '  reflectedLight.indirectDiffuse *= ambientOcclusion;\n' +
+          (debug ? '  aoDebugValue = vec4( texture2D( aoMap, vAoMapUv ).r );\n' : '') +
           '#endif',
       )
   }
@@ -105,6 +132,7 @@ export function applyVisibilityLightmap(
   // got no attenuation at all, which is why the wired path delivered ~40 % of the effect the
   // same maps produced through the probe (`v0.31.7.32`–`.34`). Two genuinely different program
   // variants must not collapse into one cache entry.
-  material.customProgramCacheKey = () => `aoGain${gain}:${material.aoMap ? 1 : 0}`
+  material.customProgramCacheKey = () =>
+    `aoGain${gain}:${material.aoMap ? 1 : 0}${debug ? ':dbg' : ''}`
   material.needsUpdate = true
 }
