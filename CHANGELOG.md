@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.54 — ★ the error decomposes into ONE scene-independent constant and one scene-dependent term. Corrects v0.31.7.53
+
+`v0.31.7.53` concluded that the sign of the highlight error flips between views, so no
+fixed-direction correction could work. **That was an artefact of measuring a ratio.** Since
+`p99/median × median = p99`, decomposing it separates two errors that had been entangled all
+session:
+
+| view | app median | app p99 | physics median | physics p99 | **app p99 ÷ physics p99** |
+| --- | --- | --- | --- | --- | --- |
+| 4-Room livingDining | 121 | 178 | 83 | 245 | **0.725** |
+| 4-Room bedroom3 | 122 | 181 | 112 | 245 | **0.740** |
+| 5-Room kitchen | 101 | 180 | 160 | 247 | **0.731** |
+
+**(A) The window is 27 % too dark, in every view, to within ±1 %.** Physics pins its highlight at
+**245–247 (cv 0.4 %)** — of course it does: the window shows the sky, and the sky's luminance does
+not care what room you are standing in. The app pins its own at **178–181 (cv 0.8 %)**, also
+constant, at **0.73× physics** in all three views.
+
+That is a **single scene-independent constant**, and it is item (l). The correction is
+`1 / 0.732 ≈ 1.37×` on the window's luminance, and it is the same number in a deep living room, a
+small bedroom and a kitchen in a different flat.
+
+**(B) The room's overall level barely responds to the scene.** App median varies **cv 8.2 %**
+across the three views where physics varies **26.7 %** — 3.3× less. Physics' median moves 83 → 160
+as rooms get brighter; the app's moves 121 → 101, and in the *wrong direction* for the kitchen.
+
+**So the "sign flip" was (B) masquerading as (A).** The ratio `p99/median` mixes both, and it
+flipped because the median moved, not because the highlight error did. Every earlier statement in
+this arc about "highlights 51 % short" or "10 % over" was reading a compound of two errors as one
+— and the one that looked hopeless (sign-flipping, scene-dependent) is actually the cleanest
+constant measured all session.
+
+**Why this matters more than anything else here.** Item (l) has been open since `.209`, escalated
+as a look call, and repeatedly assessed as unreachable — `.261` judged luminance insufficient
+against photographs, `v0.31.7.4` closed the `scene.background` route because the PMREM cannot
+carry a horizon band. All of that was about the window's *structure*. Its **level** is a different
+question, and the level is off by one constant factor that three independent views agree on to
+±1 %.
+
+**What is still not solved:** (B). A room's overall brightness should respond to how much light it
+actually receives, and the app's does not. That is the scene-adaptive problem, correctly scoped
+now to the median rather than to the tonal ratio, and it is unaffected by (A).
+
+**Still escalated, not decided.** Item (l) is on the do-not-decide-unilaterally list, and this
+round makes the call concrete rather than open: **one multiplier, ~1.37×, measured on three views
+in two plans.** `docs/open-graphics-decisions.md` carries the number.
+
+`tsc`, biome clean; suite **10058 green**; nothing shipped.
+
 ## v0.31.7.53 — re-tested on a pose that PASSES the preflight: the generalisation failure is real, and the 15× was 3×
 
 `v0.31.7.52` downgraded four conclusions and said re-testing needed a 5-Room pose with an aperture

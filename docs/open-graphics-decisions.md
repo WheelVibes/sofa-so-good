@@ -971,6 +971,29 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > geometry, and it means this item is now the single open decision carrying *both* remaining
 > measured errors.
 
+> **★ THE LEVEL IS ONE CONSTANT, MEASURED ON THREE VIEWS — v0.31.7.54.** Decomposing
+> `p99/median` into its parts separates the window's *level* from the room's:
+>
+> | view | app p99 | physics p99 | ratio |
+> | --- | --- | --- | --- |
+> | 4-Room livingDining | 178 | 245 | **0.725** |
+> | 4-Room bedroom3 | 181 | 245 | **0.740** |
+> | 5-Room kitchen | 180 | 247 | **0.731** |
+>
+> Physics pins its highlight at **245–247 (cv 0.4 %)** — the window shows the sky, whose luminance
+> is the same in every room. The app pins its own at **178–181 (cv 0.8 %)**, at **0.73×**, in all
+> three views across two plans.
+>
+> **So the call is one multiplier: ~1.37× on the window's luminance.** Not a curve, not a
+> per-plan value, not a structure change — everything above about the pane reading "as a panel
+> rather than an opening" concerns its *structure*, which is a separate and still-open question
+> (`v0.31.7.4`: the PMREM path cannot carry a horizon band). The level is scene-independent and
+> off by a single factor.
+>
+> Earlier ratio-based readings of this item (51 % short, 32 % short, 10 % over) were a compound of
+> this constant and the app's under-responsive median (`cv 8.2 %` against physics' `26.7 %`), and
+> should not be used.
+
 **The 21:00 case is already right** (glazing 0.39 of wall, interior warm at R−B 23.4 against a
 neutral pane) — whatever ships must not regress it.
 
