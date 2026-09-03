@@ -29,6 +29,60 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.125 — the 333-map bake landed, the seam SURVIVED it, and `aoDebug` put the fault in the BAKED DATA: 33.7 % of the addressable ring is unwritten
+
+The bake `(z)`2 was re-decided for finished after ~80 minutes:
+
+| | |
+| --- | --- |
+| maps | **333**, `clipped 0/333` |
+| size | **10 MB**, all 8-bit |
+| per-map `scale` / `slots` | 333/333 / 331/333 |
+| resolution spread (the `tpm` lever working) | 64 px × 45, 128 px × 57, **256 px × 231** |
+| coverage at `realistic` | 40/385 → **193/385 (50 %)**, 223/223 materials loaded |
+
+**And the seam is still there.** Same dark dotted line down the left-hand column, at five times the
+coverage. **So `.114`'s attribution was wrong** — I called it "a mapped/unmapped boundary, which is
+what 10 % coverage means in practice", and 50 % coverage changed nothing about it.
+
+**Two more hypotheses killed by measurement rather than argument.**
+
+- **Per-map scale colliding on a shared material.** `applyVisibilityLightmap` sets `visGain` on the
+  *material*, and materials are shared — so two meshes with different per-map divisors could fight
+  over one uniform. Measured: 175 patched materials, 10 used by more than one mesh (up to 12), and
+  **0 with more than one map URL**. The shared ones are identical instances resolving to one key.
+  Clean refutation of a mechanism I was confident about.
+- **A UV margin mismatch.** Both sides use `0.04` and the formulas are character-identical
+  (`(col + margin + a * (1 - 2 * margin)) / 3`). Not it.
+
+**Then `?aoDebug=1` — the tool built for exactly this — settled it in one frame.** It paints the
+sampled map instead of shading, and **the dots are present in the debug view**. The fault is in the
+baked data, not in the shader, not in the lookup, not in coverage.
+
+**Measured on the shipped 333-map set.** The UVs address the band `[margin, 1−margin]` of each slot,
+so the outermost addressable texel ring is what a face's silhouette edge samples:
+
+| | |
+| --- | --- |
+| texels on the inset ring, **populated slots only** | 392,318 |
+| of those, **zero** | **132,340 — 33.7 %** |
+| maps with at least one zero on the ring | **301 / 333** |
+
+**A third of the outermost addressable ring was never written**, in 90 % of maps. A face whose UV
+reaches its bounding-box extreme — every silhouette edge — samples black, and the even spacing of the
+dots is the texel grid.
+
+*(First pass reported 58.9 %. That counted empty slots, whose ring is trivially zero and which no
+face samples. Narrowed to populated slots before reporting: 33.7 % is the honest figure.)*
+
+**So it is a bake-side padding failure**, not a runtime one: Cycles' `margin=2` bake margin plus
+`--dilate 4` does not fill the edge of a thin UV island. The fix is on the same side — more dilation
+passes, a wider bake margin, or a larger `uv_margin` so the island's edge sits further inside written
+territory. Not shipped: `public/assets/lightmaps` still holds the 40-map set and the flag is still
+off.
+
+Suite **10142 green**, `tsc` and biome clean.
+
 ## v0.31.7.124 — four censuses, four answers spanning 2×: the open question in `(s)` is the DEFINITION, not the measurement
 
 Added the spherical census `.123` named as the natural next step — deterministic Fibonacci
