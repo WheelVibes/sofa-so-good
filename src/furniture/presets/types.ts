@@ -19,6 +19,24 @@ export interface LayoutPreset {
   description: string
   /** Floor finish for the dry living spaces. */
   dryFloor: MaterialId
+  /**
+   * Optional per-room-CATEGORY floor override, applied over `dryFloor`
+   * (v0.31.8.17). A category absent here keeps `dryFloor`.
+   *
+   * Added for Peranakan Accent, where a single whole-home floor cannot express
+   * the researched treatment: encaustic tiles "line the five-foot ways and
+   * prestigious interior spaces" of a Peranakan shophouse, in a plan that
+   * "transitions from public to private" — the front hall and courtyard, not the
+   * bedrooms. Putting the tile on every dry floor would be the same error as
+   * Coastal painting every wall its accent colour (fixed in v0.31.8.2): taking
+   * an element the sources treat as belonging to one zone and making it the
+   * whole home.
+   *
+   * Deliberately keyed on `RoomCategory` rather than `RoomId`, so it works on a
+   * custom plan and a template as well as the fixed default flat — the same
+   * reasoning as `categoryStyle`.
+   */
+  dryFloorByCategory?: Partial<Record<RoomCategory, MaterialId>>
   /** Wall paint for the dry living spaces. */
   wall: MaterialId
   /** Per-defId cosmetic prop overrides merged onto the default items. */

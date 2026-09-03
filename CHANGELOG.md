@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.17 - Peranakan Accent lays real encaustic tile, in the zone the sources put it
+
+A TODO entry called this "the one real fidelity gap in an otherwise-accurate
+theme": geometric encaustic floor tiles are "among the most recognisable
+elements" of Peranakan interiors, and the preset approximated them with a
+patterned RUG over dark wood "because no such material exists in the catalog".
+
+**The entry was half-stale, which is why it was worth checking rather than
+believing.** `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was
+written — and `.16` gave them the researched 200 mm module. The material existed;
+the theme just never used it. The remaining gap was real.
+
+**Only the living/dining is tiled, and that came from research rather than
+caution.** Encaustic tiles "line the five-foot ways and prestigious interior
+spaces" of a Peranakan shophouse, whose plan "transitions from public to
+private" — the front hall and courtyard, not the bedrooms. Putting the tile on
+every dry floor would have repeated exactly what Coastal did by painting every
+wall its accent colour (fixed in `.2`): taking an element the sources place in one
+zone and making it the whole home. I went looking for that boundary specifically
+because of the `.2` mistake.
+
+That needed a new field: `LayoutPreset.dryFloor` is a single finish for the whole
+home, so `dryFloorByCategory` now overrides it per room CATEGORY (not room id, so
+it works on a custom plan and a template as well as the fixed default flat — the
+same reasoning `categoryStyle` already uses). Both application paths in
+`resetSlice` resolve a category already, and the default-flat path reuses the
+existing `ROOM_ID_CATEGORY` map through a new `presetRoomCategory` rather than a
+second table. No other preset sets the field, so nothing else changes.
+
+The patterned rug stays — it is a real Peranakan element in its own right, and it
+now sits ON the tile instead of standing in for it.
+
+Verified: the living/dining renders a genuine repeating jade encaustic field with
+the rug over it, and an in-app assertion confirms `mainBedroom` keeps `dryFloor`
+and is NOT the tile. **The bedroom screenshot is weak evidence** — the camera kept
+the previous frame-selection target so the room is small and off-centre; the store
+assertion is what actually establishes the zoning, and the test covers both arms
+(a bug that applied the override everywhere passes the living assertion alone).
+
 ## v0.31.8.16 - Specify the tile modules that were missing; refuse the one that cannot exist
 
 `.15` found the Specification sheet denying tiling work because 14 tile finishes

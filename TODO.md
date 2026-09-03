@@ -761,11 +761,17 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   (`docs/research/2026-09-02-layout-critique-standards.md` records both). `designScore`'s circulation
   category covers gaps between items but not the width of the MAIN route through a room. If added,
   use the SG figure for this app.
-- **[G8] Add a Peranakan encaustic floor tile material.** The audit found the one real fidelity gap
-  in an otherwise-accurate theme: geometric encaustic floor tiles are "among the most recognisable
-  elements" of Peranakan interiors, and the preset approximates them with a patterned RUG over dark
-  wood because no such material exists in the catalog. Adding one (with a specified `moduleMm`, per
-  v0.31.5.358) would be the highest-fidelity single improvement to any theme.
+- ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
+  half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
+  researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus
+  a patterned rug, so the theme was still approximating its most recognisable element. Peranakan
+  Accent now lays the real tile.
+  **Only in the living/dining, and that is researched rather than cautious:** encaustic tiles "line
+  the five-foot ways and prestigious interior spaces" of a shophouse, whose plan "transitions from
+  public to private" — the front hall and courtyard, not the bedrooms. Tiling every dry floor would
+  repeat Coastal's all-walls mistake (fixed v0.31.8.2). Needed a new `LayoutPreset`
+  `dryFloorByCategory` field, since `dryFloor` is one finish for the whole home; it is keyed on
+  `RoomCategory` so it works on custom plans and templates too, and no other preset sets it.
 - **[G8] Give a few themes real `kits`, informed by the grounding audit.** No preset defines `kits`,
   so themes differ in finish/styling but place identical furniture (v0.31.5.363). The audit says
   what belongs: rattan/bamboo + handmade ceramics for Japandi, wool/linen textiles for Scandi Calm,
