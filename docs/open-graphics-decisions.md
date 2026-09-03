@@ -930,8 +930,26 @@ sun's immediate surroundings and the sky/ground boundary, which occupy little ar
 hold the pane-relevant regions to ≤1.4 %, and the brightest decile to ≤0.67 %** — the key count is
 settled at 30° spacing, i.e. **4–6 keys**, with no need to refine it for the window case.
 
-Measured at 512×256/32 samples; the horizon band is rows 40–60 % of height, and the decile is taken
-wherever it falls because a pane can face the sun.
+**And the error is RESOLUTION- AND SAMPLE-INDEPENDENT, `v0.31.7.150`.** Re-run at 1024×512 with 128
+samples, every figure is identical to two decimals (0.26 / 0.12 / 0.22 against 0.26 / 0.12 / 0.21,
+and so on). The interpolation error is a property of how the sky model varies with **altitude**, not
+of how finely it is sampled — so the key count can be fixed independently of the asset resolution.
+
+**Asset budget, measured:**
+
+| resolution | 8 keys | ⇒ a 4-key set | bake time (8 keys) |
+| --- | --- | --- | --- |
+| 512×256 | 1.0 MB | **~0.5 MB** | 17 s |
+| 1024×512 | 3.7 MB | **~1.9 MB** | 30 s |
+
+**The resolution choice is therefore about gradient sharpness, not fidelity to Cycles** — and a
+clear sky is a smooth gradient with the sun disc excluded, so it has little high-frequency content to
+lose. That is reasoning rather than measurement: item `(r)` is the standing warning that a backdrop's
+legibility through a window can only be judged by looking, so the resolution should be picked from a
+frame, not from this table.
+
+Measured at 512×256/32 and 1024×512/128; the horizon band is rows 40–60 % of height, and the decile
+is taken wherever it falls because a pane can face the sun.
 
 ### Original write-up (the framing is superseded; the measurements are not)
 ~~⏳ OPEN, needs a product call~~ — ✅ ANSWERED by (z)4. (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)

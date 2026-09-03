@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.150 — the sky-key error is resolution- and sample-INDEPENDENT, so `(z)`4's asset budget is settled
+
+Last unknown in `(z)`4: whether `.148`/`.149`'s numbers were an artefact of measuring at 512×256 with
+32 samples. Re-ran the whole comparison at **1024×512 with 128 samples**:
+
+| case | all | horizon | bright decile |
+| --- | --- | --- | --- |
+| 15° keys, mid 7.5° | 0.26 % | 0.12 % | 0.22 % |
+| 30° keys, mid 15° | 0.65 % | 0.24 % | 0.39 % |
+| 60° keys, mid 30° | 2.21 % | 1.30 % | 0.83 % |
+
+**Identical to two decimals** against the 512×256/32-sample run. The interpolation error is a
+property of how the sky varies with **altitude**, not of how finely it is sampled — so the key count
+and the asset resolution are independent choices, which is a more useful result than either number
+alone.
+
+**Asset budget, measured rather than estimated:**
+
+| resolution | 8 keys | ⇒ 4-key set | bake time |
+| --- | --- | --- | --- |
+| 512×256 | 1.0 MB | **~0.5 MB** | 17 s |
+| 1024×512 | 3.7 MB | **~1.9 MB** | 30 s |
+
+**So the resolution is a sharpness decision, not an accuracy one.** A clear sky is a smooth gradient
+with the sun disc excluded, so there is little high-frequency content to lose at 512×256 — but that
+is *reasoning*, and item `(r)` is the standing proof that a backdrop's legibility through a window
+can only be judged by looking. Recorded as such: pick the resolution from a frame, not from the
+table.
+
+`(z)`4 now has: the operator (`backgroundIntensity ≈ 4`, verified in `.77` not to touch the
+interior), the key spacing (30°), the key count (4–6), the azimuth handling (a u-offset, free), an
+error budget (≤1.4 %, ≤0.67 % where a window looks), a bake cost (seconds) and an asset cost
+(0.5–1.9 MB). What remains is building it — a new default background is a user-visible change wanting
+verification across several times of day, which is a fresh-session task, not a 4:30am one.
+
+Suite **10155 green**, `tsc` and biome clean; no shipped change.
+
 ## v0.31.7.149 — the `(z)`4 caveat checked: the window-relevant sky interpolates BETTER than the whole frame, so 30° keys are settled
 
 `.148` measured 30° sky keys at ≤1.4 % whole-frame and flagged one caveat: `(l)`'s real target is the
