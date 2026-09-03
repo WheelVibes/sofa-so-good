@@ -27,6 +27,49 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.28 — (f) is wider than measured: 16 of 22 template levels are internally disconnected
+
+Starting the authorised re-authoring of `tpl-hdb-jumbo`, I read its west wing before
+moving anything and found the wing has **no door to the corridor at all**:
+`jb-wb-corr` carries no opening, and the wing's only doors are on internal walls, so
+bedroom 2 → bedroom 3 → master form a chain with no way in.
+
+`templateEnclosure.test.ts` could not see this. It flood-fills with **every wall
+solid and openings ignored** — deliberately, since a door still separates two rooms —
+so it measures too few WALLS. Treating doors as OPEN measures a different defect:
+too few DOORS.
+
+Measured across all 22 template levels: **16 are internally disconnected**, their
+declared rooms falling into two or more mutually sealed groups. `tpl-hdb-jumbo` has
+**seven** — kitchen, service yard, household shelter, living/dining and family room
+are each sealed off, plus the west stack and the bed4/bed5 pair.
+
+New ratchet **`src/floorplan/templateConnectivity.test.ts`** (16 entries, keyed on
+group COUNT so a merge shows up as a required edit), plus a second case asserting at
+least one level IS connected — so the instrument cannot pass by calling everything
+broken.
+
+This re-scopes the (f) content decision that was just authorised: re-authoring jumbo
+is not "add partitions and move the Common Bath", the wing also needs corridor doors,
+and 15 other levels share the defect. Recorded in
+`docs/open-graphics-decisions.md` (f) so the call can be re-made with the real size.
+
+**Two wrong instruments, recorded so they are not repeated.** A flood fill needs a
+seed, and seeding from the main door was wrong twice:
+
+- The **exterior is free space too**, so seeding on the wrong side of the door floods
+  outside the flat and every interior room reads unreachable. That produced a
+  "13 of 20 templates have unreachable rooms" result I nearly reported.
+- Requiring the seed to land inside a declared room did **not** fix it, because
+  template room rectangles overrun the perimeter walls — itself one of item (f)'s own
+  findings — so a point outside the flat can still test as inside a room. The
+  giveaway was seeds landing in a Service Yard for two condo plans.
+
+The shipped instrument picks no seed at all: it labels every free-space component and
+counts how many the declared rooms occupy, which has no side to get wrong.
+
+No production code changed — a measurement, a ratchet test and a re-scoped decision.
+
 ## v0.31.8.27 — (j) WINDOW-SIGHTLINE: the beside-the-glass route is measured impossible
 
 Directed to take item (j)'s "arranger picks the wall segment beside the glass" route,

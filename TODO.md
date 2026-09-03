@@ -1913,3 +1913,17 @@ candidate is rejected by collision / door swing / the window front keep-out.
 The change was reverted (it was a bit-identical no-op). **(f) TEMPLATE-ROOM-ENCLOSURE
 is a precondition**: those 0.86–1.26 m bedroom wall spans are the same mis-sized
 template rectangles (f) measures, so re-measure (j) only after (f) lands.
+
+## (f) is wider than recorded: 16 of 22 template levels are internally disconnected
+
+Measured with every door treated as OPEN (`src/floorplan/templateConnectivity.test.ts`,
+new ratchet, 16 entries). `templateEnclosure.test.ts` flood-fills with openings
+IGNORED, so it measures too few WALLS; this measures too few DOORS. `tpl-hdb-jumbo`
+splits into **7** sealed groups — its kitchen, service yard, household shelter,
+living/dining and family room are each unreachable, and the west bedroom stack has
+no opening in `jb-wb-corr` at all.
+
+Consequence for the authorised (f) work: re-authoring jumbo is not just partitions +
+moving the Common Bath, it also needs corridor doors, and 15 other levels share the
+defect. Details and the two wrong instruments are in
+`docs/open-graphics-decisions.md` (f) under v0.31.8.28.

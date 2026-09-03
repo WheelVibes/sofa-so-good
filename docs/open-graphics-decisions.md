@@ -303,6 +303,50 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.28 — (f) is WIDER than measured: 16 of 22 template levels are internally disconnected
+
+Starting the authorised re-authoring of `tpl-hdb-jumbo`, I read its west wing before moving
+anything and found the wing has **no door to the corridor at all**: `jb-wb-corr` (x=4.0,
+z 3.2→13.1) carries no opening, and the only doors in that wing are `jb-b2` and `jb-master`, on
+INTERNAL walls. So bedroom 2, bedroom 3 and the master form a chain with no way in.
+
+`.109`'s sweep could not see this: it flood-fills with **every wall solid, openings ignored** —
+deliberately, because a door still separates two rooms. That measures too few WALLS. Treating
+doors as OPEN measures a different defect: too few DOORS.
+
+Measured with doors open, over all 22 template levels — **16 are internally disconnected**, i.e.
+their declared rooms fall into two or more mutually sealed groups:
+
+| level | groups |
+| --- | --- |
+| `tpl-hdb-jumbo/ground` | **7** — Kitchen · Service Yard · Household Shelter · Living/Dining · Family Room · Bed4+Bed5 · the west stack |
+| `tpl-hdb-3gen/ground` | 7 |
+| `tpl-condo-3bed/ground` | 7 |
+| `tpl-condo-4bed/ground` | 7 |
+| `tpl-hdb-exec/ground` | 6 |
+| `tpl-condo-2bed`, `tpl-condo-penthouse`, `tpl-terrace-ground` (ground) | 5 |
+| `tpl-hdb-maisonette/ground` | 4 |
+| `tpl-loft/lf-up`, `tpl-condo-studio/ground`, `tpl-terrace-ground/ct-up` | 3 |
+| `tpl-hdb-3room`, `-4room`, `-5room`, `tpl-1bed` (ground) | 2 |
+
+Ratcheted in **`src/floorplan/templateConnectivity.test.ts`** (16 entries, by group COUNT so a
+merge shows up as a required edit), with a second case asserting at least one level IS connected —
+so the instrument cannot pass by calling everything broken.
+
+**This changes the shape of the (f) decision.** Re-authoring `tpl-hdb-jumbo` is not "add partitions
+and move the Common Bath" — the wing also needs door openings onto the corridor, and the same is
+true of 15 other levels. It is still a content call, but a larger one, and worth re-scoping before
+committing to "one template per change".
+
+**Two wrong instruments, recorded so they are not repeated.** A flood fill needs a seed, and
+seeding from the main door was wrong twice. The exterior is free space too, so seeding on the wrong
+side floods OUTSIDE the flat and every interior room reads unreachable — that produced a
+"13 of 20 templates have unreachable rooms" result I nearly reported. Requiring the seed to land
+inside a declared room did not fix it, because template room rectangles overrun the perimeter walls
+(itself one of this item's own findings), so a point outside the flat can still test as inside a
+room. The shipped instrument picks NO seed: it labels every free-space component and counts how
+many the declared rooms occupy.
+
 **Recommendation — re-author the bedroom/bath wings, worst first, one template per change.** Start
 with `tpl-hdb-jumbo` (the only one whose damage is frame-proven) and `tpl-hdb-3gen`, which share
 the same shape: a bath wing with no partitions and a master rectangle overrunning the corridor
