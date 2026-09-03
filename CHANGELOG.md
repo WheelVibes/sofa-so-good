@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.50 — the obvious predictor is refuted: in-view visibility does not track physics' tonal range
+
+`v0.31.7.49` showed the app's tonal response is nearly scene-independent while physics varies
+15×, and that a fix must make the render *respond* to scene content. That needs a **predictor** —
+something cheap the runtime can compute that tracks what physics does. This tests the obvious
+candidate and it fails.
+
+**Candidate: how much sky the visible surfaces see.** It is already available — the baked maps
+give it per mesh, and `render_visibility.py` gives it per view — so if physics' tonal range
+tracked it, the fix would be a per-view scalar at no frame cost.
+
+| view | in-view visibility mean | physics p99/median |
+| --- | --- | --- |
+| 4-Room livingDining | 0.3234 | **2.967** |
+| 4-Room bedroom3 | 0.4199 | **2.199** |
+| 5-Room living | **0.2906** | **1.541** |
+
+Ordered by ascending visibility: `5R living < 4R livingDining < 4R bedroom3`. Ordered by
+descending physics: `4R livingDining > 4R bedroom3 > 5R living`. **The orders differ**, and not
+marginally — the view with the *least* visible sky has the *flattest* physics response, which is
+the opposite of the expected relation.
+
+**So aperture visibility fails twice, in two different roles.** As a *correction* it explains one
+view in four (`v0.31.7.48`); as a *predictor* of the tonal range it does not order three views
+correctly. Both negatives point the same way: the quantity is real and measurable, and it is not
+what governs how a room's render should look.
+
+**Stated with its limits:** three views is thin, and a rank comparison on three points is weak
+evidence in general. What makes it worth acting on is that the disagreement is a full inversion
+on one item rather than a near-tie — the relation would have to be non-monotone to survive, which
+is not what a useful predictor looks like.
+
+**What the next candidate class has to be.** `p99/median` is set by how bright the window is
+*relative to the room's median*, so the predictor is more likely to involve the aperture's share
+of the frame and the room's own brightness than the surfaces' sky exposure — e.g. glazing area in
+view against room depth. That is measurable with the same instruments, on the same references,
+and is the natural next test.
+
+Measurement only, on frames already on disk. `tsc`, biome clean; suite **10058 green**; the
+visibility flag remains off.
+
 ## v0.31.7.49 — the unifying finding: the app's tonal response is nearly SCENE-INDEPENDENT, and physics varies 15× more
 
 Having found that aperture visibility explains one view in four, I checked whether the *other*
