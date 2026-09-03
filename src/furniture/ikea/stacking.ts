@@ -58,11 +58,24 @@ function newStackId(): string {
   return `stack-${Math.random().toString(36).slice(2, 10)}`
 }
 
-/** Rotate a base-local [dx, dz] offset into world XZ by the base rotation. */
+/**
+ * Rotate a base-local [dx, dz] offset into world XZ by the base rotation.
+ *
+ * **Corrected v0.31.8.12** — this used the OPPOSITE rotation sense to the
+ * render, so every local-Z offset landed on the wrong side of a base whose yaw
+ * had `sin θ ≠ 0`. `Furniture.tsx` mounts the mesh in a plain three.js
+ * Y-rotation, where local `(x, z)` maps to `(x·cos + z·sin, −x·sin + z·cos)`;
+ * the old form flipped the x term's sign. Visible consequence: on a
+ * quarter-turned base, an `'around'` seat documented as sitting at the base's
+ * FRONT edge landed BEHIND it (and, being rotated to face the base, faced
+ * away), and a `'back'` edge item landed in front. Same family as the
+ * `collision/placement.ts` mirror fixed in v0.31.8.10 — see
+ * `docs/ARCHITECTURE.md` for the one authority.
+ */
 function toWorld(baseItem: FurnitureItem, dx: number, dz: number): [number, number] {
   const cos = Math.cos(baseItem.rotation)
   const sin = Math.sin(baseItem.rotation)
-  return [baseItem.position[0] + dx * cos - dz * sin, baseItem.position[1] + dx * sin + dz * cos]
+  return [baseItem.position[0] + dx * cos + dz * sin, baseItem.position[1] - dx * sin + dz * cos]
 }
 
 /** Place `topDef`/`topVariant` onto/around `baseItem` per the matched category.

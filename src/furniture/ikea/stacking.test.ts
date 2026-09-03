@@ -300,3 +300,54 @@ describe('combineOnto', () => {
     expect(it.groupId).toBe(res.groupId)
   })
 })
+
+/**
+ * **Local offsets must be rotated the way the RENDER rotates them
+ * (v0.31.8.12).** `toWorld` used the opposite sense, so every local-Z offset
+ * landed on the wrong side of a base whose yaw had `sin θ ≠ 0`: an `'around'`
+ * seat documented as sitting at the base's FRONT edge appeared BEHIND it, facing
+ * away. Rotation 0 was correct, which is why nothing caught it — and nothing
+ * tested a rotated base at all.
+ *
+ * `Furniture.tsx` mounts the mesh at `rotation={itemRotation(item)}`, a plain
+ * three.js Y-rotation, so the base's forward (+Z local) is world
+ * `(sin θ, cos θ)`. Expectations below are derived from THAT rather than from
+ * `toWorld`'s own arithmetic — the mistake in v0.31.8.9 was a test copying the
+ * formula it was meant to check.
+ */
+describe('combineOnto — local offsets follow the render rotation', () => {
+  /** World direction of an item's front (local +Z), per three.js. */
+  const forward = (rot: number): [number, number] => [Math.sin(rot), Math.cos(rot)]
+
+  const aroundSeat = (rot: number) => {
+    const base = tableDef()
+    seedGltfSupportPlane(base.variants[0].url ?? '', 0.74)
+    const baseItem: FurnitureItem = {
+      id: 'tbl',
+      defId: base.id,
+      position: [5, 5],
+      rotation: rot,
+      props: {},
+    }
+    const chair = chairDef()
+    const res = combineOnto(baseItem, base, chair, chair.variants[0], 'Chairs')
+    if (!('items' in res)) throw new Error('expected items')
+    return res.items[0]!
+  }
+
+  for (const rot of [0, Math.PI / 2, -Math.PI / 2, Math.PI, Math.PI / 3]) {
+    it(`puts the seat on the base's FRONT side at rotation ${rot.toFixed(3)}`, () => {
+      const seat = aroundSeat(rot)
+      const [fx, fz] = forward(rot)
+      const dx = seat.position[0] - 5
+      const dz = seat.position[1] - 5
+      // The offset must point along the base's forward vector, not against it.
+      const along = dx * fx + dz * fz
+      expect(along).toBeGreaterThan(0)
+      // And it must be essentially PURELY forward — no lateral drift, which is
+      // what the old wrong sense produced (it mirrored the x component).
+      const lateral = dx * fz - dz * fx
+      expect(Math.abs(lateral)).toBeLessThan(1e-6)
+    })
+  }
+})

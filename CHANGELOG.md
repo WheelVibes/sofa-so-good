@@ -27,6 +27,57 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.12 - The unit/convention sweep: two more mirrored offsets, and two clean negatives
+
+A systematic sweep of the class that has now bitten three times — `% 90` on a
+radian field (`.415`), `headDir` (`.9`), and `collision/placement.ts` (`.10`).
+Warranted by evidence rather than tidiness, and it found two more instances plus
+two useful negative results.
+
+**Clean negatives, worth recording so the class is bounded:**
+
+- **No mm-vs-metre mixing anywhere in `analysis/`.** 245 numeric thresholds across
+  29 files; every `*Mm` comparison has mm on both sides
+  (`coordinationClashes:160`, `floorBuildUp:242`, `:289`).
+- **No degree/radian confusion left.** Only three `.rotation` comparisons exist in
+  `analysis/`, `layout/` and `floorplan/`, and all are correct: `% quarter` where
+  `quarter = Math.PI/2` (the one fixed in `.415`) and cos/sin fed straight to
+  trig. `orientationDeg` is genuinely degrees end to end — normalised `% 360` at
+  the store, added to literal 0/90/180/270 bearings in `airconSizing` — and no
+  degree value reaches a trig call unconverted.
+
+**Two more mirrored local-offset rotations**, both the same shape as `.10`:
+
+- **`ikea/stacking.ts:toWorld` — functionally wrong and user-visible.** It placed
+  an `'around'` seat documented as sitting at the base's FRONT edge BEHIND it on
+  any base with `sin θ ≠ 0`, and — being rotated to face the base — facing away.
+  A `'back'` edge item landed in front. A chair combined onto a quarter-turned
+  table appeared on the opposite side.
+- **`layout/decorStyling.ts` — the same flip, and it holds two conventions in one
+  file**: the wall-art pass a hundred lines below correctly documents and uses
+  `(sin, cos)`.
+
+`glbEdit/arrayBuild.ts` was checked and is **correct** — and it is the only one of
+the four that explains itself ("three's Y-rotation of an (x,z) vector"), which is
+not a coincidence worth ignoring.
+
+**Measured, not assumed:** the decor fix moves **249 of 538 props (46%)** — every
+one on a host with a rotated yaw. An earlier draft of that comment called it
+harmless because the local offsets are symmetric about 0; that is true of the
+PATTERN and false of the individual props, and measuring it is what caught the
+overstatement. Visually verified afterwards: books and bowl centred on the coffee
+table, cushions and throw along the sofa seat, candles on the dining table,
+nothing floating or off-surface.
+
+The stacking fix is pinned by tests at five rotations, derived from the RENDER
+convention rather than from `toWorld`'s own arithmetic — the mistake in `.9` was a
+test copying the formula it was meant to check. **3 of the 5 fail against the old
+sense**, exactly those with `sin θ ≠ 0`.
+
+The decor fix is deliberately NOT given a test: with offsets symmetric about both
+local axes there is no assertion that can distinguish the two senses behaviourally,
+so a test would be scaffolding. The measurement above is the evidence instead.
+
 ## v0.31.8.11 - Bed access: the last unenforced clearance constant, now reported
 
 `CLEARANCE.bedSurround` (0.6 m) existed only as a soft scoring penalty inside the
