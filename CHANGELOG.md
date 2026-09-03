@@ -29,6 +29,39 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.155 — `(l)` at ×13: the frame is right and the SUITE BLOCKED IT on a bloom guard. Reverted.
+
+You chose to ship sky-catch ×13. Implemented it (`glassSkyCatchIntensity` 0.4 → 5.2) and the test
+suite stopped it: `materialRealism.test.ts` asserts `glassSkyCatchIntensity(1) < 1.05` — *"stays below
+the bloom threshold so windows do not bloom"*. A deliberate guard I did not know existed.
+
+**And the frame is exactly what `(l)` has been asking for.** I looked before deciding what to do —
+having measured the >240 statistics without looking, which is the discipline I have applied all night
+and skipped here. At 13:00, `realistic`: the panes read as a **bright, blown-out opening with the
+grille silhouetted against them**, edges crisp, no visible halo. The first time in this arc a window
+has looked like an opening rather than a panel.
+
+**So the guard needed understanding, not overriding.** `bloomIntensityForDay(d) = BLOOM.intensity ·
+(1 − d)` — bloom is **full at night, zero at full day** — while the sky-catch is `d · 5.2`, **zero at
+night**. Anti-correlated:
+
+| day level | bloom | sky-catch at ×13 | risk |
+| --- | --- | --- | --- |
+| 0 (night) | full | **0** | none — nothing to bloom |
+| ~0.3–0.6 (dusk) | 40–70 % | **1.6 – 3.1** | **over the guard, unexamined** |
+| 1 (full day) | **0** | 5.2 | none — the pass is not even mounted |
+
+**The guard protects a dusk band that neither my frame nor my sweep touched.** 13:00, 18:00 and 08:00
+are all high-daylight; the exposure is at day level ~0.3–0.6, which I never rendered.
+
+**Reverted.** Shipping would either trip a deliberate guard or require weakening it on a guess, and
+"the 13:00 frame looks great" is not evidence about dusk. Two things settle it: a frame at a dusk hour
+at ×13, and whether the `< 1.05` guard predates the bloom day-ramp — if bloom was once active in
+daylight, the guard's premise is inverted and it may be protecting a case that no longer exists.
+
+Recorded in `(l)`'s section with the table, so the next attempt starts from the constraint rather than
+rediscovering it. Suite **10165 green** (reverted clean), `tsc` and biome clean.
+
 ## v0.31.7.154 — `(l)`'s night constraint is satisfied by construction, and ×13 self-scales across the day
 
 `.153` measured sky-catch ≈×13 reaching the photographic band at 13:00. This item carries an explicit

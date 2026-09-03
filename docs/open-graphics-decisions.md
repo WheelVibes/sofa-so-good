@@ -966,6 +966,34 @@ The daylight ramp also means the effect **self-scales with time of day**: in-ban
 evening, well under it at 08:00, zero at night. That is the right shape for a window, and it comes
 free from the existing function.
 
+### ⚠️ (l) — ×13 BLOCKED by a bloom guard, and the frame is right, `v0.31.7.155`
+
+Implemented `glassSkyCatchIntensity` at ×13 (0.4 → 5.2) and **the suite caught it**:
+`materialRealism.test.ts` asserts `glassSkyCatchIntensity(1) < 1.05` — *"stays below the bloom
+threshold so windows do not bloom"*.
+
+**The frame at ×13 is exactly what `(l)` asks for.** 13:00, `realistic`: the panes read as a bright,
+blown-out opening with the grille silhouetted against them, edges crisp, no visible halo — the first
+time in this arc a window has looked like an opening rather than a panel.
+
+**But the guard is not obviously stale, and the interaction is subtle.**
+`bloomIntensityForDay(d) = BLOOM.intensity · (1 − d)`, so bloom is **full at night and zero at full
+day**, while the sky-catch is `d · 5.2`, **zero at night**. They are anti-correlated, so:
+
+| day level | bloom | sky-catch at ×13 | risk |
+| --- | --- | --- | --- |
+| 0 (night) | full | **0** | none — nothing to bloom |
+| ~0.3–0.6 (dusk) | 40–70 % | **1.6 – 3.1** | **above the 1.05 guard, unexamined** |
+| 1 (full day) | **0** | 5.2 | none — pass is not even mounted |
+
+So the guard protects a **dusk band** that neither the 13:00 frame nor the >240 sweep touches.
+**Reverted rather than shipped**, and the two things that would settle it:
+
+1. A frame at a dusk hour (day level ~0.4) at ×13 — does the pane halo?
+2. Whether the `< 1.05` guard predates the bloom day-ramp. If bloom was once active in daylight, the
+   guard's premise is inverted and it may be protecting nothing that still exists.
+
+
 ### (l)/(z)4 — the baked-key-set route is MEASURED VIABLE, `v0.31.7.148`
 
 `(z)`4 was decided ("ship the Cycles sky **and** `backgroundIntensity ≈ 4`") but not scoped: the sun
