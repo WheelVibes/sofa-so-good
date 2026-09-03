@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.47 — the 1.36× was an IN-SAMPLE fit: the term helps the plan it was calibrated on and degrades the other
+
+Four measurements now, two plans and two poses each, all against matched-pose Cycles references:
+
+| plan | pose | flag off | flag on | |
+| --- | --- | --- | --- | --- |
+| 4-Room (baked **and fitted**) | livingDining | 4.76× | **1.36×** | helps |
+| 4-Room | bedroom3 | 1.74× | **1.48×** | helps |
+| 5-Room (baked) | living | 1.20× | **2.34×** | hurts |
+| 5-Room | bedroom 2 | 1.55× | **1.69×** | hurts |
+
+**It is plan-dependent, not pose-dependent** — consistent in both poses of each plan, in opposite
+directions.
+
+**And that reframes the headline result.** The gain was fitted against the 4-Room plan
+(`v0.31.7.27`: it is a calibration constant, not derivable) and the 4.76× → 1.36× improvement was
+then measured *on that same plan*. **That is an in-sample fit**, and out of sample the term makes
+things worse. The `bedroom3` confirmation in `v0.31.7.40` — which I read as generalisation — was a
+different *pose of the same plan*, so it never tested the thing that mattered.
+
+**Two candidate explanations were tested and neither holds.**
+
+- **Level.** Per-plan mean visibility differs 1.71× (0.208 vs 0.355) and the gain is already
+  scaled by it (`v0.31.7.44`). Still wrong, so it is not purely a level error.
+- **Structure.** If the term only helps where there is visibility variation to add, the plans'
+  spread should differ sharply. Measured, it barely does: **cv 0.981 vs 0.914** (7 % apart), and
+  p90/p10 42.3 vs 23.4. Not enough to separate "helps a lot" from "hurts".
+
+`bake-gain.mjs` now reports cv and p90/p10 per plan, so the next candidate can be checked against
+data rather than argued.
+
+**Where that leaves the feature.** Everything mechanical is solid and verified — the bake, the
+keys, the contexts, the shader injection, the per-plan resolution, zero frame cost at both
+auto-selected tiers, all three views reached. What is *not* established is that the correction
+generalises beyond the plan it was tuned on, and the flag stays off because of it. Calling it
+finished on the strength of an in-sample number would have been the single worst outcome of this
+arc.
+
+**The remaining question is now well-posed:** what property of a plan predicts how much
+visibility-blindness its render actually suffers? It is not the mean and not the spread. Until
+that is answered, the term is a measured improvement for one plan and a measured regression for
+another.
+
+Suite **10058 green**; `tsc`, biome clean.
+
 ## v0.31.7.46 — the anomaly was a PROBE ordering bug, and with it fixed the term makes the second plan WORSE
 
 Five code states had produced byte-identical numbers. The cause was not in the feature.

@@ -69,21 +69,35 @@ for (const m of index.maps) {
   }
   if (!n) continue
   const mean = sum / n
+  // Also the SPREAD, because the mean alone does not say how much structure the term has to
+  // add. Measured: the term helps a plan whose baseline is far from physics (4-Room, 4.76x ->
+  // 1.36x) and HURTS one already close (5-Room, 1.20x -> 2.34x), so what matters is not the
+  // average visibility but how unevenly it is distributed (`v0.31.7.47`).
   const ctx = m.ctx ?? 'no-ctx'
-  const acc = perCtx.get(ctx) ?? { weighted: 0, area: 0, count: 0 }
+  const acc = perCtx.get(ctx) ?? { weighted: 0, area: 0, count: 0, vals: [] }
   acc.weighted += mean * (m.area ?? 1)
   acc.area += m.area ?? 1
   acc.count += 1
+  // Per-MAP means, area-weighted by repetition, as the sample for the spread. A per-texel
+  // sample would be dominated by the largest surface rather than by the room layout.
+  const reps = Math.max(1, Math.round((m.area ?? 1) / 3))
+  for (let i = 0; i < reps; i += 1) acc.vals.push(mean)
   perCtx.set(ctx, acc)
 }
 console.log(dir)
 const means = []
 for (const [ctx, a] of perCtx) {
   const mean = a.weighted / a.area
-  means.push({ ctx, mean })
+  const sorted = [...a.vals].sort((x, y) => x - y)
+  const q = (f) => sorted[Math.min(sorted.length - 1, Math.floor(f * (sorted.length - 1)))]
+  const sd = Math.sqrt(a.vals.reduce((s2, v) => s2 + (v - mean) ** 2, 0) / a.vals.length)
+  const cv = sd / mean
+  const ratio = q(0.9) / Math.max(1e-6, q(0.1))
+  means.push({ ctx, mean, cv, ratio })
   console.log(
     `  ctx ${ctx}  ${String(a.count).padStart(3)} maps  ${a.area.toFixed(0).padStart(4)} m2` +
-      `  mean visibility ${mean.toFixed(4)}  => 1/mean ${(1 / mean).toFixed(2)}`,
+      `  mean ${mean.toFixed(4)}  1/mean ${(1 / mean).toFixed(2)}` +
+      `  cv ${cv.toFixed(3)}  p90/p10 ${ratio.toFixed(1)}`,
   )
 }
 if (args.includes('--write')) {
