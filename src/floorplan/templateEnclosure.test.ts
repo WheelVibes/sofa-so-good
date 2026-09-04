@@ -23,7 +23,10 @@ import { pointInRoom } from './types'
  *  least one of them is a bath/powder. `plan/level: room + room + …`. */
 const KNOWN_SHARED_ENCLOSURES = [
   'tpl-hdb-3room/ground: h3-kit + h3-yard + h3-shelter + h3-cbath + h3-living',
-  'tpl-hdb-3room/ground: h3-mbath + h3-bed2',
+  // h3-mbath + h3-bed2 FIXED in v0.31.7.201 — one partition at x 1.9 plus a door onto the master.
+  // The OTHER `tpl-hdb-3room` entry above is deliberately still open: subdividing the north strip
+  // (kitchen / yard / shelter / common bath, none of which have walls between them) is a layout
+  // design question about how the kitchen and yard are entered, not a missing-partition bug.
   // tpl-hdb-4room FIXED in v0.31.7.194 — `h4-cbath`/`h4-mbath` owned no walls at all. Three
   // partitions close the bath column (x 3.6-5.7, z 6.5-9.7) and two doors reach them, which also
   // separates the master and both bedrooms: the whole five-room component is gone.

@@ -262,7 +262,12 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
-## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **3 of 20 remain** (`.194` 4-room, `.195` 5-room, `.196` exec, `.197` jumbo, `.199` condo-4bed, `.200` 3gen)
+## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **2 of 20 remain** (`.194` 4-room, `.195` 5-room, `.196` exec, `.197` jumbo, `.199` condo-4bed, `.200` 3gen, `.201` 3-room's master bath)
+
+> **The two left are different in kind.** `tpl-hdb-3room`'s north strip and
+> `tpl-hdb-maisonette/em-up` are not missing partitions — subdividing them asks how rooms are
+> ENTERED, and a wrong answer produces a kitchen reachable only through the service yard. The two
+> bisection entries need room rectangles resized, not walls added.
 
 > **Note for the remaining six:** closing a column can SEAL a bathroom — `tpl-hdb-exec` had no door
 > on either bounding wall, and the enclosure ratchet passes happily on two sealed boxes. Check the

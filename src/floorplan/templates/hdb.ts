@@ -59,10 +59,16 @@ export function hdb3Room(): FloorPlan {
       iwall('h3-svc-s', [T, 2.8], [4.0, 2.8]),
       iwall('h3-m-e', [3.4, 2.9], [3.4, 5.5]),
       iwall('h3-b2-n', [T, 5.6], [3.4, 5.6]),
+      // (f): `h3-mbath` (x 0.2-1.8) and `h3-bed2` (x 2.0-4.0) sit side by side below `h3-b2-n`
+      // with nothing between them — a bath sharing a volume with a bedroom.
+      iwall('h3-mb-e', [1.9, 5.6], [1.9, D - T]),
     ],
     openings: [
       door('h3-main', 'h3-s', 5.2),
       door('h3-master', 'h3-m-e', 1.2),
+      // (f): the new wall would seal `h3-mbath`, so it opens north onto the master through
+      // `h3-b2-n` (starts x 0.1), centred on the bath.
+      door('h3-mbath-door', 'h3-b2-n', 0.45),
       window('h3-kit-win', 'h3-n', 1.2, 1.6),
       window('h3-m-win', 'h3-w', 3.6, 1.5),
       window('h3-b2-win', 'h3-w', 6.4, 1.4),

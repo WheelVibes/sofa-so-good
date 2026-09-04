@@ -70,7 +70,7 @@ describe('dining chairs are tucked to their table', () => {
     )
     expect(counts).toEqual({
       'tpl-hdb-2room': 49,
-      'tpl-hdb-3room': 66,
+      'tpl-hdb-3room': 64,
       // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
@@ -119,7 +119,7 @@ describe('dining chairs are tucked to their table', () => {
     // wall space and the arranger drops one wall-hugging piece. That is the trade item (h) is
     // asking for: a bedroom with daylight and one fewer accessory. Every other template gained or
     // held.
-    expect(total).toBe(1444)
+    expect(total).toBe(1442)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

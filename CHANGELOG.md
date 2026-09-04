@@ -29,6 +29,33 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.201 — `(f)`: `tpl-hdb-3room`'s master bath separated from bedroom 2 — and the other half left open on purpose
+
+`tpl-hdb-3room` carries **two** entries in the ratchet, and they are not the same kind of problem.
+
+**Fixed:** `h3-mbath + h3-bed2`. The bath (x 0.2–1.8) and bedroom 2 (x 2.0–4.0) sit side by side
+below `h3-b2-n` with nothing between them — a bath sharing a volume with a bedroom. One partition at
+x 1.9 closes it, and a door onto the master keeps it reachable. Verified in the frame: the master
+bath renders with a working **"Open door"** prompt and is drawn as its own room.
+
+**Left open, deliberately:** `h3-kit + h3-yard + h3-shelter + h3-cbath + h3-living`. Subdividing the
+north strip is not a missing-partition bug like the six templates before it — those had rooms with
+no walls where walls obviously belong. This one asks *how the kitchen and service yard are entered*
+in a 7.6 × 8.6 m flat, and any answer changes circulation through the whole plan. Adding three
+verticals would satisfy the ratchet and could easily produce a kitchen reachable only through the
+yard. The ratchet comment now says so, so the next person does not read the remaining entry as
+simply unfinished.
+
+**3 → 2 of 20 remain** (`tpl-hdb-3room`'s north strip and `tpl-hdb-maisonette/em-up`), plus the two
+bisection entries, which need room rectangles resized rather than walls added.
+
+The trade again, and the largest yet in relative terms: `tpl-hdb-3room` 66 → **64**. It is the
+smallest flat in the set, so every partition costs it proportionally more furniture — it has now
+given up three pieces across `(h)` and `(f)`.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.200 — `(f)`: `tpl-hdb-3gen` — a 0.2 m leak and a bath with no walls east of the corridor
 
 Sixth template. `g3-gbath + g3-bed2 + g3-master + g3-mbath` were one component, from two separate
