@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.274 — the bake is exonerated: the shipped floor map reproduces to 0.1 %
+
+`(z7)` has been "the floor is 19 % dark and I don't know whose fault it is" for four versions. It is
+now the shading's, because the bake has been checked against itself.
+
+**The tooling that unblocked it.** `bake_material.py --uv-layer` bakes into a named existing UV
+layer instead of whichever is active — after a glTF import that is `UVMap` (uv0), which for shell
+meshes holds TILING coordinates outside 0..1, so plain `--uv existing` would silently have baked
+into nonsense. The layer worth naming is **`UVMap.001`**: that is the app's own runtime box atlas
+(`uv1`) carried through the export, so a fresh map can be read at the SAME uv1 a probe samples the
+shipped map with. A fresh bake gets its own `plan_context`, so this is the only way to compare the
+two.
+
+**The result.** Same GLB, shipped settings (res 256, 1024 samples, `--keep-glazing`), floor object
+`Mesh_11` — and the key matches the shipped one, `4b1218e6`, because keys are position-derived:
+
+| | interior slot mean | max |
+| --- | --- | --- |
+| shipped | 0.1648 | 0.8746 |
+| fresh, matched | **0.1650** | 0.8536 |
+| fresh, glazing REMOVED | 0.0721 | 0.3355 |
+
+**0.1 % on the robust statistic.** The map is right and reproducible, so the 19 % is downstream:
+gain, albedo, the Lambert term, or the direct light the app adds itself.
+
+**`--keep-glazing` nearly cost this conclusion.** It is not the default, and omitting it made the
+fresh map **2.6× darker** — which would have read as "the shipped map is 2.6× too bright", a
+confident and completely wrong finding. `v0.31.7.181` had already measured that removing glazing
+darkens THIS pass, and the index's `bake` block records `keep_glazing: true` for exactly this
+reason. The block earned its keep today.
+
+**A convention trap worth naming.** The fresh map's energy lands in the MIRROR row — `[2,1]` where
+the shipped map fills `[2,0]` — because glTF puts the UV origin at top-left while Blender's is
+bottom-left, so the importer flips v. Read at the un-flipped uv1, the fresh map returns **0.0000**,
+which reads exactly like "the bake produced nothing". What caught it was `map-stats.mjs`'s 3×2 slot
+grid: 82 % of `[2,1]` non-zero and 1 % of `[2,0]`, which is a relocation, not an absence. Sample a
+Blender-baked map at `1 - v`.
+
+That is three times in two rounds that an instrument returned a plausible wrong number rather than
+an error, and all three were caught by a second instrument disagreeing rather than by reading the
+code.
+
+
 ## v0.31.7.273 — shipped lightmaps are readable at last, and a row flip that lied convincingly
 
 **`map-stats.mjs`** reports a shipped map's `mean`, `int_mean` and `max` in irradiance units

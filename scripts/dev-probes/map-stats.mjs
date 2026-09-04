@@ -20,8 +20,15 @@
  * And a whole-map mean is the proxy `v0.31.7.244` already discarded once, having read 2.164 where
  * the true patch value was 0.926: the padding and the exterior slots dominate it.
  *
+ * `FILE`+`SCALE` read an ARBITRARY map instead of a shipped one, and `AT=u,v` additionally
+ * samples one texel. That is what makes a fresh bake comparable to a shipped one: a fresh bake
+ * gets its own `plan_context` so the app's index cannot resolve it, but `bake_material.py --uv
+ * existing --uv-layer UVMap.001` bakes into the app's OWN runtime atlas, so the same uv1 a probe
+ * used on the shipped map addresses the same surface point in the fresh one (item `(z7)`).
+ *
  * Usage:
  *   node scripts/dev-probes/map-stats.mjs <key> [<key> ...]
+ *   FILE=/tmp/x.png SCALE=0.3423 AT=0.857,0.273 node scripts/dev-probes/map-stats.mjs
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -31,6 +38,63 @@ const DIR = join(import.meta.dirname, '..', '..', 'public', 'assets', 'lightmaps
 const index = JSON.parse(readFileSync(join(DIR, 'index.json'), 'utf8'))
 const entries = Array.isArray(index.maps) ? index.maps : Object.values(index.maps)
 const keys = process.argv.slice(2)
+
+if (process.env.FILE) {
+  const scale = Number(process.env.SCALE ?? 1)
+  const { data, info } = await sharp(process.env.FILE).raw().toBuffer({ resolveWithObject: true })
+  const { width: w, height: h, channels } = info
+  let sum = 0
+  let max = 0
+  for (let i = 0; i < w * h; i += 1) {
+    const v = data[i * channels] / 255
+    sum += v
+    if (v > max) max = v
+  }
+  let at = ''
+  if (process.env.AT) {
+    const [u, v] = process.env.AT.split(',').map(Number)
+    // Same mapping `gi-point.mjs` uses: UV origin bottom-left, PNG row 0 top.
+    const px = Math.min(w - 1, Math.max(0, Math.round(u * w - 0.5)))
+    const py = Math.min(h - 1, Math.max(0, Math.round((1 - v) * h - 0.5)))
+    const t = data[(py * w + px) * channels] / 255
+    at = `  at(${u},${v}) texel=${t.toFixed(4)} E=${(t * scale).toFixed(4)}`
+  }
+  // 3x2 slot occupancy. "The map is empty AT THIS TEXEL" and "the map is empty" are different
+  // claims, and only a per-slot breakdown separates them -- a bake that wrote into a DIFFERENT
+  // slot than the app samples looks identical to a bake that produced nothing.
+  let grid = ''
+  for (let r = 1; r >= 0; r -= 1) {
+    const cells = []
+    for (let c = 0; c < 3; c += 1) {
+      const x0 = Math.floor((c * w) / 3)
+      const x1 = Math.floor(((c + 1) * w) / 3)
+      const y0 = Math.floor((1 - (r + 1) / 2) * h)
+      const y1 = Math.floor((1 - r / 2) * h)
+      let cs = 0
+      let cn = 0
+      let cnz = 0
+      for (let y = y0; y < y1; y += 1) {
+        for (let x = x0; x < x1; x += 1) {
+          const v = data[(y * w + x) * channels] / 255
+          cs += v
+          cn += 1
+          if (v > 0) cnz += 1
+        }
+      }
+      cells.push(
+        `[${c},${r}] mean=${((cs / cn) * scale).toFixed(4)} nz=${((100 * cnz) / cn).toFixed(0)}%`,
+      )
+    }
+    grid += `\n        ${cells.join('  ')}`
+  }
+
+  console.log(
+    `  ${process.env.FILE} ${w}x${h} scale=${scale}${grid}\n` +
+      `        mean=${((sum / (w * h)) * scale).toFixed(4)}  max=${(max * scale).toFixed(4)}${at}`,
+  )
+  process.exit(0)
+}
+
 if (keys.length === 0) {
   console.error('usage: map-stats.mjs <key> [<key> ...]')
   process.exit(1)

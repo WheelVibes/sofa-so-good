@@ -248,6 +248,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "shell meshes, whose UVs are tiling coordinates outside 0..1); "
                         "'existing' bakes into the exporter's UVs and is only right for assets "
                         "that already have a unique layout")
+    p.add_argument("--uv-layer", default=None, dest="uv_layer",
+                   help="with --uv existing, the UV layer to bake into BY NAME instead of "
+                        "whichever happens to be active. After a glTF import the active layer is "
+                        "`UVMap` (uv0), which for the app's shell meshes holds TILING texture "
+                        "coordinates outside 0..1 -- baking into that is meaningless, and it is "
+                        "what plain --uv existing would silently have done. The layer worth "
+                        "naming is `UVMap.001`: that is the app's own runtime box atlas (`uv1`) "
+                        "carried through the export, so a map baked into it can be read at the "
+                        "SAME uv1 a probe samples the shipped map with. That is the only way to "
+                        "compare a fresh bake against a shipped one -- a fresh bake gets its own "
+                        "plan_context, so the app's index cannot resolve it (item `(z7)`).")
     p.add_argument("--merge", action="store_true",
                    help="append to an existing index.json in --out-dir instead of replacing it. "
                         "Required for the shared-index design: maps are keyed by world-space "
@@ -1503,6 +1514,18 @@ def main(argv: list[str] | None = None) -> int:
             uv_name = BAKE_UV
         else:
             interior_slots = None
+            if a.uv_layer:
+                layer = obj.data.uv_layers.get(a.uv_layer)
+                if layer is None:
+                    raise SystemExit(
+                        f"--uv-layer {a.uv_layer!r} not on {obj.name}; "
+                        f"has {[l.name for l in obj.data.uv_layers]}"
+                    )
+                # ACTIVE and active_render both: the bake writes through the active layer, and
+                # leaving active_render on uv0 would sample the tiling coordinates for the
+                # material's own textures mid-bake.
+                obj.data.uv_layers.active = layer
+                layer.active_render = True
             uv_name = obj.data.uv_layers.active.name
         # Named by CONTEXT + KEY. `Mesh_116` is an exporter index the runtime has never heard
         # of, so the name has to come from geometry -- and it needs the context too, or two
@@ -1649,6 +1672,7 @@ def main(argv: list[str] | None = None) -> int:
             "adaptive_threshold": a.adaptive_threshold,
             "seed": a.seed,
             "uv_mode": a.uv,
+            "uv_layer": a.uv_layer,
             "device": a.device,
             # The four that decide light transport, and whose absence cost those rounds.
             "keep_glazing": a.keep_glazing,
