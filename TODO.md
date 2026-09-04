@@ -951,9 +951,9 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
     cause — raising it 0.2 -> 0.35 changes nothing. And the rect asymmetry is not a bug to be
     smoothed away: a room authored lopsided relative to its walls genuinely HAS a lopsided usable
     rect, and re-centring would discard the whole point.
-    **What it needs:** pairing with along-wall chair placement, i.e. item 2 of the
-    bed-vs-storage thread above (`snapToWall` tries exactly ONE along-wall position per edge, so
-    a wall with room somewhere ELSE along it reads as full). Do them together or not at all.
+    **What it needs was thought to be along-wall placement. That was tried in v0.31.8.62 and it
+    is a WORSE trade than the rect fix — see the ALONG-WALL entry below.** Both halves of the
+    pairing are now measured and declined; do not re-attempt either without a new idea.
     Other churn seen in the same run, all expected and none blocking: `placeSeededMounts`'
     room-centre CONTROL (34 -> 12, because pieces centre on the RECT and the rect is no longer
     symmetric about the room), `windowSightline`, item counts, and the route ratchets.
@@ -966,6 +966,34 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   offenders and `docs/open-graphics-decisions.md` item (f) defers re-drawing them as content.
   `tpl-hdb-4room/ground: h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath` is the same fact
   seen through a looser ruler.
+- **[ALONG-WALL SWEEP — MEASURED AND DECLINED TWICE (v0.31.8.7, v0.31.8.62). Do not re-attempt
+  without a new idea.]** `snapToWall` tries exactly ONE along-wall position per edge — the
+  piece's seeded position clamped to fit — so a wall with room somewhere ELSE along it reads as
+  full.
+  **The defect it causes is real and traced end to end.** `tpl-condo-3bed`'s stove is marooned at
+  its kitchen's exact centre, 1.05 m from any wall, because all four edges reject it and every
+  rejection is at that single position: W is under the 2.4 m counter run, N under the fridge, E
+  overlaps the kitchen door's keep-out (z 5.57-6.47 vs the stove's 6.38-6.98), and S overlaps the
+  service-yard door's (x 1.10-2.00 vs the stove's 1.25-1.85). **The south wall is clear from
+  x 0.20 to 1.10 and the stove never asks for it.**
+  **Implemented as a nearest-first sweep in 0.25 m steps.** It works: the condo-3bed stove places
+  against a wall AND its range hood follows it (`placeSeededMounts` only makes a hood follow a
+  stove that has MOVED off the seed), clearing two separately-ratcheted findings with one change.
+  **It costs more than it buys.** Unbounded, it also stranded a `tpl-hdb-jumbo` dining chair
+  **4.54 m** from its table and added 2 window blockages. Capping the travel at **1.2 m** (still
+  clears a 0.9 m door keep-out) fixed the dining regression completely — but blocked windows went
+  **4 -> 7**: `tpl-loft/lfu-win: bookshelf`, `tpl-loft/lfu-e-win: shower`,
+  `tpl-terrace-ground/ct-kit-win: bathroom-sink`. **Two appliances fixed for three windows
+  blocked** is the wrong direction, and a window blocked by a shower is worse than an appliance a
+  metre off its wall.
+  **Two orderings were tried to recover the windows and NEITHER worked**: preferring along-wall
+  candidates that clear `ctx.windowKeepOut`, first for `tall` storage only (the three new
+  blockers are a shower, a sink and a bookshelf — none are `storage`, so it missed all three) and
+  then for every piece (no change at all, so `windowSightline` is measuring something the
+  keep-out rects do not capture — find out what before trying a third ordering).
+  v0.31.8.7 measured the same lever on the pre-route codebase and got a different trade in the
+  same shape (3 blocked windows cleared for 3 new pinches). **Two independent measurements, two
+  declines.**
 - ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
   half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
   researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus

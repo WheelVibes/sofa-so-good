@@ -27,6 +27,73 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.62 — the along-wall sweep: built, works, costs more than it buys
+
+v0.31.8.61 said the appliance fix needed pairing with along-wall placement, and that they were
+one piece of work. This release builds the other half. It is also declined — and now both halves
+are measured, so this thread can stop.
+
+### The defect is real and traced to the arithmetic
+
+`snapToWall` tries exactly ONE along-wall position per edge: the piece's seeded position clamped
+to fit. So a wall with room somewhere **else** along it reads as full.
+
+`tpl-condo-3bed`'s stove sits marooned at its kitchen's exact centre, 1.05 m from any wall,
+because all four edges reject it and every rejection is at that single position:
+
+| edge | why it fails |
+| --- | --- |
+| W | under the 2.4 m counter run (z 4.80–7.20) |
+| N | under the fridge (x 1.20–1.90, z 4.68–5.38) |
+| E | overlaps the kitchen door keep-out (z 5.57–6.47 vs the stove's 6.38–6.98) |
+| S | overlaps the service-yard door keep-out (x 1.10–2.00 vs the stove's 1.25–1.85) |
+
+**The south wall is clear from x 0.20 to 1.10, and the stove never asks for it.**
+
+### The sweep works, and clears two findings with one change
+
+A nearest-first sweep in 0.25 m steps places the stove against a wall — **and its range hood
+follows it**, because `placeSeededMounts` only makes a hood follow a stove that has *moved off
+the seed*. Two separately-ratcheted findings, one fix, exactly as v0.31.8.59 predicted when it
+tied them together.
+
+### And it costs more than it buys
+
+Unbounded it stranded a `tpl-hdb-jumbo` dining chair **4.54 m** from its table and added two
+window blockages. Capping the travel at **1.2 m** — still enough to clear a 0.9 m door keep-out,
+which is the whole point — **fixed the dining regression completely**. But:
+
+| | before | after |
+| --- | --- | --- |
+| marooned appliances | 15 | **14** |
+| hoods away from their stove | 1 | **0** |
+| **windows blocked by furniture** | **4** | **7** |
+
+New blockages: `tpl-loft/lfu-win: bookshelf`, `tpl-loft/lfu-e-win: shower`,
+`tpl-terrace-ground/ct-kit-win: bathroom-sink`. **Two appliances fixed for three windows
+blocked** is the wrong direction — a shower standing in front of a window is worse than an
+appliance a metre off its wall.
+
+### Two attempts to recover the windows, both failed, both recorded
+
+1. **Prefer along-wall candidates that clear `ctx.windowKeepOut`, for `tall` storage only.** No
+   change — the three new blockers are a shower, a bathroom sink and a bookshelf, and none of
+   them is `storage`, so the `tall` gate missed all three.
+2. **The same ordering for every piece.** Also no change, which means `windowSightline` is
+   measuring something the keep-out rects do not capture. Whoever tries a third ordering should
+   find out what that is first; `TODO.md` says so.
+
+### Why this closes the thread rather than pausing it
+
+v0.31.8.7 measured this same lever on the pre-route codebase and got a trade of the same shape —
+3 blocked windows cleared for 3 new pinches. **Two independent measurements, two declines**, and
+`TODO.md` now carries both with the numbers and an explicit "do not re-attempt without a new
+idea". The rect half (v0.31.8.61) is recorded the same way.
+
+No production code ships in this release.
+
+Verified: 10187 tests pass on the reverted tree; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.61 — the fix works, fixes exactly what it should, and I reverted it
 
 Last release identified the mechanism behind eight appliances stranded at 0.32 m from their wall
