@@ -29,6 +29,44 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.262 — `.259`'s impossible reading explained, `(z3)`'s casters confirmed present, and a real shadow inconsistency that is NOT the cause
+
+Four things measured, three reverted, one kept.
+
+**`.259`'s mystery, solved.** In-page mutations to the sun's `castShadow` and `normalBias` do not
+stick: `Lighting.tsx:224` rewrites `castShadow` every frame and `normalBias` arrives as a JSX prop
+reapplied on render. Run through `aim-look` — whose state line now prints the sun — the `nocast` arm
+reported `cast0` at the moment of mutation and `cast1` in the resolved line moments later.
+`mapSize` is the one that persists, which is why it was the only arm whose state changed. So `.259`
+was measuring nothing, and now the reason is recorded instead of unexplained.
+
+**`ray-probe.mjs` gains `ALL=1`**, and this is the kept change. Its default filter drops
+`transparent`/zero-opacity hits — which is exactly what a ceiling OCCLUDER is, so a shadow question
+asked with the default filter can never see the mesh it is about. Without it, a ray test "proving"
+the occluder is off the path would have been guaranteed by the filter rather than measured.
+
+**With it, the casters are confirmed present.** From the wall toward the sun: the path is blocked at
+**1.94 m** by `[T]` the occluder AND a non-transparent ceiling mesh, both at (10.75, 2.60, 3.88) —
+exactly where `.258` predicted the ray exits the ceiling. From the floor toward the sun: an opaque
+wall at 2.38 m. And the floor IS shadowed, the wall is not.
+
+**A real inconsistency, found and eliminated as the cause.** The curated flat's wall mesh
+(`RoomShell.tsx:191`) sets `castShadow={false}` and leaves **`receiveShadow` unset**, while
+`WallSegment.tsx` — the same surface on a CUSTOM plan — sets both. That is worth fixing on its own
+terms. It is not `(z3)`: adding `receiveShadow`, adding `castShadow` to all three ceiling components
+(`RoomCeiling`, `RoomCeilingTile`, and `Ceiling`'s plain fallback mesh), and both together each moved
+the wall **0.0 counts** at 13:00 and 17:00. Every combination reverted, `git status` clean.
+
+So `(z3)` stands on a sharper and stranger statement than before: that surface takes full unshadowed
+Lambert, its light path demonstrably contains two meshes, and nothing I can set on either the caster
+or the receiver makes it shadowable.
+
+One incidental confirmation: at 13:00 the sun now reads `i0.997`, not 1.000 — `.257`'s curve
+interpolating 83.91° between the 45° and 85° keys, which is the arithmetic working as intended.
+
+Suite 10219 green.
+
+
 ## v0.31.7.261 — `.260` claimed a doc row it did not write, for the second time, by the same `;`-chained mechanism I documented in `.248`
 
 `.260`'s entry says `(z3)`'s row "now sits on one question". The row was not updated: the script

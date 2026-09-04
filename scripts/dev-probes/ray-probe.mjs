@@ -83,49 +83,62 @@ const resolved = await page.evaluate(() => {
 })
 console.log(`resolved ${resolved}`)
 
-const hits = await page.evaluate((rays) => {
-  const scene = window.__three.scene
-  const rc = new window.__three.raycaster.constructor()
-  const V3 = window.__three.camera.position.constructor
-  const out = []
-  for (const r of rays) {
-    rc.set(new V3(...r.origin), new V3(...r.dir).normalize())
-    // ALL opaque hits along the ray, not just the first: "the envelope is closed" is a claim
-    // about the sequence of surfaces a ray crosses, and the first hit alone hides whether the
-    // thing that stopped it was the wall or something behind the gap.
-    const all = rc
-      .intersectObjects(scene.children, true)
-      .filter((h) => {
-        const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material
-        if (!h.object.visible || !m || m.transparent === true || m.opacity === 0) return false
-        let p = h.object.parent
-        while (p) {
-          if (p.visible === false) return false
-          p = p.parent
-        }
-        return true
-      })
-      .slice(0, 4)
-      .map((h) => {
-        let itemId = null
-        let o = h.object
-        while (o && !itemId) {
-          itemId = o.userData?.itemId ?? null
-          o = o.parent
-        }
-        const it = itemId ? window.__store.getState().items.find((i) => i.id === itemId) : null
-        return {
-          d: +h.distance.toFixed(2),
-          x: +h.point.x.toFixed(2),
-          y: +h.point.y.toFixed(2),
-          z: +h.point.z.toFixed(2),
-          what: it?.defId ?? h.object.name ?? h.object.type,
-        }
-      })
-    out.push({ label: r.label, all })
-  }
-  return out
-}, RAYS)
+const hits = await page.evaluate(
+  ({ rays, process_env_all }) => {
+    const scene = window.__three.scene
+    const rc = new window.__three.raycaster.constructor()
+    const V3 = window.__three.camera.position.constructor
+    const out = []
+    for (const r of rays) {
+      rc.set(new V3(...r.origin), new V3(...r.dir).normalize())
+      // ALL opaque hits along the ray, not just the first: "the envelope is closed" is a claim
+      // about the sequence of surfaces a ray crosses, and the first hit alone hides whether the
+      // thing that stopped it was the wall or something behind the gap.
+      const all = rc
+        .intersectObjects(scene.children, true)
+        .filter((h) => {
+          const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material
+          // ALL=1 keeps transparent and zero-opacity hits. Needed because the ceiling OCCLUDERS are
+          // `transparent: true, opacity: 0` by design, so the default filter skips exactly the
+          // meshes a shadow question is about — three's shadow pass does not filter on transparency.
+          // `v0.31.7.262`: without this, a ray test "proving" the occluder is not on the path would
+          // have been guaranteed by the filter rather than measured.
+          if (!h.object.visible || !m) return false
+          if (process_env_all !== '1' && (m.transparent === true || m.opacity === 0)) return false
+          let p = h.object.parent
+          while (p) {
+            if (p.visible === false) return false
+            p = p.parent
+          }
+          return true
+        })
+        .slice(0, 4)
+        .map((h) => {
+          let itemId = null
+          let o = h.object
+          while (o && !itemId) {
+            itemId = o.userData?.itemId ?? null
+            o = o.parent
+          }
+          const it = itemId ? window.__store.getState().items.find((i) => i.id === itemId) : null
+          return {
+            transparent: (() => {
+              const mm = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material
+              return mm?.transparent === true || mm?.opacity === 0
+            })(),
+            d: +h.distance.toFixed(2),
+            x: +h.point.x.toFixed(2),
+            y: +h.point.y.toFixed(2),
+            z: +h.point.z.toFixed(2),
+            what: it?.defId ?? h.object.name ?? h.object.type,
+          }
+        })
+      out.push({ label: r.label, all })
+    }
+    return out
+  },
+  { rays: RAYS, process_env_all: process.env.ALL ?? '0' },
+)
 
 for (const h of hits) {
   if (h.all.length === 0) {
@@ -133,7 +146,7 @@ for (const h of hits) {
     continue
   }
   console.log(
-    `  ${h.label.padEnd(12)} ${h.all.map((a) => `${a.what}@${a.d}m (${a.x},${a.y},${a.z})`).join('  ->  ')}`,
+    `  ${h.label.padEnd(12)} ${h.all.map((a) => `${a.transparent ? '[T]' : ''}${a.what}@${a.d}m (${a.x},${a.y},${a.z})`).join('  ->  ')}`,
   )
 }
 await assertSceneAlive(page)
