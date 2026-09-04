@@ -195,6 +195,42 @@ const hits = await page.evaluate(
                       // if the surface IS lightmapped, a level error is the injection's, and if it
                       // is not, the same error means something entirely different.
                       visLightmap: h.object.material?.userData?.visLightmap === true,
+                      // The `visGain` vec3 ACTUALLY BOUND, recovered by invoking the material's
+                      // own `onBeforeCompile` against a stub. `(z10)`: the same tree renders this
+                      // floor 22 counts apart on two dev servers, and the leading suspect is
+                      // `surfaceOrientation()` classifying it differently depending on whether
+                      // parent transforms are settled at attach time. The tint's CHROMA RATIO
+                      // (z/x) names the strength that was applied, so this reads the answer off
+                      // the material instead of inferring it from a rendered colour.
+                      visGain: (() => {
+                        const mm = Array.isArray(h.object.material)
+                          ? h.object.material[0]
+                          : h.object.material
+                        if (typeof mm?.onBeforeCompile !== 'function') return null
+                        const stub = {
+                          uniforms: {},
+                          vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+                          fragmentShader:
+                            'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+                        }
+                        try {
+                          mm.onBeforeCompile(stub, null)
+                        } catch {
+                          return null
+                        }
+                        const g = stub.uniforms?.visGain?.value
+                        if (!g || typeof g !== 'object' || !('x' in g)) return null
+                        return {
+                          rgb: [+g.x.toFixed(4), +g.y.toFixed(4), +g.z.toFixed(4)],
+                          luma: +(0.2126 * g.x + 0.7152 * g.y + 0.0722 * g.z).toFixed(4),
+                          // Sky chroma is blue-heavy, so z/x rises with tint strength.
+                          zOverX: +(g.z / g.x).toFixed(4),
+                        }
+                      })(),
+                      cacheKey:
+                        typeof h.object.material?.customProgramCacheKey === 'function'
+                          ? h.object.material.customProgramCacheKey()
+                          : null,
                       hasUv1: !!h.object.geometry?.attributes?.uv1,
                       color: mm.color?.getHexString?.() ?? null,
                       roughness: mm.roughness ?? null,

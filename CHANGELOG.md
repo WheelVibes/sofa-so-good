@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.276 — `(z7)` was never real: the probe measured the floor before its lightmap attached
+
+**The cause of `(z10)`, and it retracts a lot.** `aim-look` waited for `store.loading.active` to go
+false and then captured. But `applyLightmapsFromIndex` runs AFTER that flag clears and its textures
+load asynchronously, so the frame could be taken while the baked GI was still attaching. The probe
+now polls the count of materials carrying `userData.visLightmap` until it stops changing (6 polls ×
+750 ms) and PRINTS it — 179 on the default flat.
+
+| | floor | ceiling | wall |
+| --- | --- | --- | --- |
+| without the wait | 104.7 | 181.3 | 195.8 |
+| with the wait | **126.6** | 181.3 | 195.8 |
+
+Ceiling and wall are unaffected — their lightmaps attach early, which is why only the floor ever
+moved and why the ceiling/wall calibrations were sound.
+
+**So `(z7)` largely dissolves.** With the GI settled the floor reads **126.5 against Cycles' 129.0,
+a ratio of 0.981** — not 0.811. Ceiling 1.034, wall 1.026. Every surface within 3.4 %. The "floor is
+20 % dark" that four versions chased was a measurement artefact.
+
+Everything eliminated on the way still stands and was still worth eliminating: the bake reproduces
+the shipped map to 0.1 %, sun-bounce on this surface is 1.6 %, contact shadows move it 0.1 counts,
+and the sampling and atlas slots are correct. But the headline number they were being weighed
+against was wrong.
+
+**`(z8)`'s floor strength was also calibrated on those frames, so it is corrected.** Re-measured
+with the GI settled, the floor's endpoints are **38.1 at strength 0 and 25.2 at 1** — a span of only
+12.9 against a target of 19.5, so the lever **saturates**: even fully sky-coloured the floor stays
+5.7 counts too warm. `up` is now **1.0**, the lever's maximum rather than a solved value. That gains
+2.8 counts and restores the ordering physics expects — `up 1.0 > side 0.866 > down 0.539`, since a
+floor sees sky through the glazing most directly, which is what I expected before the bad
+measurement talked me out of it. The residual cannot be closed by this dial: the floor's R−B is
+dominated by its warm wood albedo, which both renderers share.
+
+**The lesson is the one I got wrong: repeatability is not validity.** Four identical unwaited runs
+returned 104.7, 104.7, 104.7, 105.8 — stable to 1.1 counts — and I read that stability as
+confirmation that 104.7 was the true value. It was a reproducible measurement of the wrong thing.
+`(z10)`'s first framing (fresh versus long-running server) was wrong too; both regimes are
+deterministic, they simply settle differently under machine load, and the two anomalous readings
+happened to follow heavy Blender runs. The `.275` result that "contact shadows brighten the floor by
+22 counts" was an unattached frame compared against an attached one.
+
+
 ## v0.31.7.275 — two `(z7)` suspects eliminated, then the baseline itself failed to reproduce
 
 **Sun-bounce, measured on the floor object itself: 1.6 %.** `.272` bounded the mechanism on other

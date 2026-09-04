@@ -52,7 +52,18 @@ const LIGHTMAP_BASE = `${import.meta.env.BASE_URL}assets/lightmaps`
  * | --------- | ---- | ----- | ------ | ------ |
  * | ceiling   |  0.0 | −20.4 | −11.0  | 0.539  |
  * | wall      |  1.8 | −16.9 | −14.4  | 0.866  |
- * | floor     | 34.8 |  15.0 |  19.5  | 0.773  |
+ *
+ * The FLOOR row of that table was measured on frames where the floor's own lightmap had NOT yet
+ * attached (`(z10)`) and is void. Re-measured with the GI settled, its endpoints are **38.1 at 0
+ * and 25.2 at 1** — a span of only 12.9, so the lever SATURATES: even fully sky-coloured the floor
+ * stays **5.7 counts too warm** against Cycles' 19.5. `up` is therefore set to the lever's maximum
+ * rather than to a solved value, which also restores the ordering physics expects — of the three,
+ * a floor sees sky through the glazing most directly, so it should carry the MOST sky chroma:
+ * `up 1.0 > side 0.866 > down 0.539`.
+ *
+ * The residual is not a tint-strength problem and cannot be fixed by this dial: the floor's R−B is
+ * dominated by its warm wood albedo (0.527 / 0.361 / 0.216), which both renderers share, so a
+ * chroma multiplier on the indirect term cannot close the last 5.7 counts.
  *
  * The wall's 0.866 independently reproduces `(z4)`'s 0.87, which was fitted lights-ON at 17:00
  * against this run's lights-OFF at 13:00 — two different arms agreeing on the same surface is the
@@ -64,8 +75,9 @@ const LIGHTMAP_BASE = `${import.meta.env.BASE_URL}assets/lightmaps`
  * through the glazing directly. Treat as measured-but-provisional.
  */
 export const SKY_TINT_STRENGTH: Readonly<Record<'up' | 'down' | 'side', number>> = {
-  /** Floors. Faces up, so it sees sky and upper-wall bounce. */
-  up: 0.773,
+  /** Floors. Sees sky through the glazing most directly of the three, so it carries the MOST
+   *  sky chroma -- and 1.0 is the lever's maximum, not a solved value (see above). */
+  up: 1,
   /** Ceilings. Faces down onto a warm floor, so it needs the LEAST sky chroma. */
   down: 0.539,
   /** Walls and everything else. */
