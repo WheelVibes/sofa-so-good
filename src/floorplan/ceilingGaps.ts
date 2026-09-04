@@ -31,6 +31,21 @@
  * faces, across 19 templates. Room rects are what the furniture arranger and the area reports
  * measure, so that ripples into ratchets counting 1506 chairs and 897 mounts. This changes no room.
  *
+ * **Cost, measured in the app** (`v0.31.7.250`, `tpl-hdb-4room`, 36-frame walk tour, control by
+ * reverting this render and re-running the same tour):
+ *
+ * | | visible meshes in frustum | triangles |
+ * | --- | --- | --- |
+ * | with gap ceilings | 242 | 110 974 |
+ * | without | 230 | 110 949 |
+ * | delta | **+12 (+5.2 %)** | **+25 (+0.02 %)** |
+ *
+ * The static rect count is 30 for this plan, so only about a third are in frustum at a time. Twelve
+ * extra draw calls of two triangles each is the whole geometric cost; the triangle delta is inside
+ * rounding. Deliberately measured as GEOMETRY rather than frame time, because a Blender bake was
+ * saturating the CPU and a timing number taken then would have been worthless — mesh and triangle
+ * counts are exact regardless of load.
+ *
  * **Wall footprints are deliberately INCLUDED.** The region is simply footprint-minus-rooms, so
  * the fill abuts each room's ceiling exactly and cannot leave a hairline between them. A ceiling
  * plane over a wall is invisible — the wall is solid to ceiling height — so covering it costs

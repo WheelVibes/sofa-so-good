@@ -29,6 +29,32 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.250 — discharging the cost claim `.234` deferred: +12 draw calls, +25 triangles
+
+`.234` shipped gap ceilings quoting only a static rect count, and `.235` deferred the benchmark
+because a bake was saturating the CPU. Two rounds later the bake is still running, so rather than
+keep deferring I measured the part that CPU load cannot corrupt: geometry.
+
+`tpl-hdb-4room`, 36-frame walk tour, control by reverting the render and re-running the same tour:
+
+| | visible meshes in frustum | triangles |
+| --- | --- | --- |
+| with gap ceilings | 242 | 110 974 |
+| without | 230 | 110 949 |
+| **delta** | **+12 (+5.2 %)** | **+25 (+0.02 %)** |
+
+The static rect count for this plan is 30, so only about a third sit in frustum at once. Twelve extra
+draw calls of two triangles each is the entire geometric cost, and the triangle delta is inside
+rounding — `walk-tour` counts meshes that are visible AND intersect the frustum, using three's own
+submission counters, so these are the numbers the renderer actually sees.
+
+Frame time is still owed and I am not guessing it. What this bounds is how much there could be to
+find: twelve draw calls on a tier that already submits 230.
+
+Recorded in `ceilingGaps.ts` beside the design notes, since that is where someone weighing the
+mesh-count trade will be reading. Suite 10219 green; the `--keep-glazing` bake is at 129 of ~189.
+
+
 ## v0.31.7.249 — those were not blinds, they were the approved SAFETY GRILLE
 
 `.247` reported that the north window is "covered by vertical blind slats rendered as shell
