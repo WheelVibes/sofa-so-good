@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.244 — a shortcut attempted and INVALIDATED by its own control: whole-map means cannot stand in for patch texels
+
+The `--keep-glazing` bake needs ~57 minutes, so I tried to answer its question early from files I
+already had: compute baked irradiance `E = texel x scale` per map straight from the PNGs, and compare
+the ceiling/floor ratio across the four 2x2 cells without installing anything or booting the app.
+
+It does not work, and the shipped set is its own control:
+
+| ceiling / floor irradiance, shipped set | value |
+| --- | --- |
+| whole-map mean of non-zero texels | **2.164** |
+| the actual PATCH texels `gi-point` read from that same set | **0.926** |
+| Cycles sky-only reference | **0.852** |
+
+The patch figure agrees with the reference to 9 %. The whole-map proxy is **2.3x out**, and worse, it
+points the wrong way: it says the bake gives the ceiling twice the floor's irradiance, while the app
+measurement in `.243` shows the ceiling rendering 36 % SHORT. A statistic that inverts the sign of
+the effect is not a rough approximation, it is a different quantity.
+
+The reason is the atlas. A map covers a whole mesh in a 3x2 box layout, and occupancy differs per
+mesh — a ceiling mesh fills one slot, a floor mesh with a different face distribution fills others —
+so "mean over non-zero texels" averages across slots that the measured patch never samples. There is
+no fix that keeps the shortcut: the quantity needed is the texel at the surface point the patch
+covers, and getting it means installing the set and casting a ray, which is what `gi-point.mjs`
+already does.
+
+Recording it because the numbers were plausible. 2.164 against a reference of 0.852 would have read
+as "the bake over-gives the ceiling", which is a clean story, publishable, and wrong — and the only
+thing that caught it was running the proxy on the set whose true answer I already knew. Any new
+statistic in this arc should be tried on the shipped set first for exactly that reason.
+
+Nothing shipped. The `--min-area 1.5 --keep-glazing` bake is at 16 maps of ~189. Suite 10219 green.
+
+
 ## v0.31.7.243 — re-fitting the gain on the 189-map set: wall and floor land at 1.02/0.99, the ceiling at 0.64. And `.242`'s archaeology does not survive
 
 `.242` predicted the 189-map set only needed a gain re-fit. Half right.
