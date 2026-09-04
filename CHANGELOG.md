@@ -27,6 +27,81 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.28 — a ranked defect score, and it overturns last release's verdict
+
+v0.31.9.27 rejected four placement levers and recorded the reason as a rule: **do not attempt
+another placement lever until defect classes can be RANKED**, because every ratchet reads one line
+per finding and a reshuffle cannot be told from progress. This builds the ranking — and the first
+thing it did was disagree with me.
+
+### `analysis/layoutDefects.ts`
+
+One survey over the 19 templates, six classes, ordered by what the product goal actually cares
+about — a plan a contractor can build from and a room a person can live in — not by how easy each
+is to fix:
+
+| sev | class | count today |
+|---|---|---|
+| 1 | `missing-fixture` (no hob/fridge/counter, no bed, no WC or basin) | 6 |
+| 2 | `outside-room` (footprint through a wall or on the neighbour's floor) | 10 |
+| 3 | `unreachable-room` | 12 |
+| 4 | `stranded-satellite` (a chair metres from its table) | 17 |
+| 5 | `marooned-wall-hugger` (a piece needing services, off its wall) | 37 |
+| 6 | `blocked-window` | 3 |
+
+`defectScore` weights lexicographically — `SCORE_BASE ** (6 - sev)` — so a severity-1 regression
+cannot be paid for with any number of lesser fixes. **Base 10 was measured as too small and the
+test caught it on its first run:** ten `outside-room` findings summed to exactly one
+`missing-fixture`, so the ordering the score exists to express did not hold. Base 100 holds while
+no class exceeds 99 findings, which is now asserted (largest is 37).
+
+Corpus baseline: **61,012,173,703**.
+
+### It found a phantom in `windowSightline.test.ts`
+
+The new survey is level-scoped and disagreed with that ratchet by exactly one.
+**`tpl-hdb-maisonette/em-yard-win` is a GROUND-floor service-yard window and both of that
+template's `wardrobe-3door`s are on `em-up`** — the ratchet was testing every item against every
+window on every storey, so the finding was never real. That is an F13 violation in a test.
+`KNOWN_BLOCKED` 4 -> 3 and the clear-window count 79 -> 80, with no furniture moved.
+
+It also flagged a real gap in my own severity order: the survey initially omitted bathrooms, so a
+change that LOSES a basin would have scored as free — precisely the trade v0.31.9.27 rejected the
+lever bundle for. `bath`/`powder` now require a WC and a basin, taking `missing-fixture` 5 -> 6
+(`tpl-terrace-ground/ctu-mbath`'s basin, which `bathroomFixtures.test.ts` records).
+`ROOM_REQUIREMENTS` moved into the module so the ratchet and the score cannot drift on what a
+fixture IS, while `roomCompleteness.test.ts` keeps its own documented SCOPE of bedrooms and
+kitchens — duplicating bathrooms there would double-count.
+
+### The verdict: v0.31.9.27 was wrong to reject the levers
+
+Scoring the corpus with levers A+C+D applied (counter sized to the inset rect, 0.15 m sweep step,
+wall ENDS as candidates):
+
+```
+baseline   61,012,173,703
+A+C+D      60,813,173,903     -198,999,800  (lower is better)
+
+missing-fixture      6 ->  6      outside-room         10 ->  8
+unreachable-room    12 -> 13      stranded-satellite   17 -> 17
+marooned-wall-hugger 37 -> 39     blocked-window        3 ->  3
+```
+
+Severity 1 is a **1-for-1 swap**, which is what I could not see before: the bundle gains
+`cs-kit`'s hob and counter and loses `emu-cbath`'s basin, and those cancel. `stranded-satellite`
+is likewise unchanged corpus-wide — the jumbo chair `diningChairTuck` flags is offset by one that
+tucks elsewhere, which one-line-per-finding ratchets could not show. So the verdict rests on the
+lower classes, where **two `outside-room` fixes outweigh one severed room and two marooned
+appliances.**
+
+**The levers are therefore justified and land next**, with the score as the stated price. The
+ratchet files forbid "an entry to silence a failure", and this is not that: it is the
+already-established pattern of an explicitly priced trade, the way `windowSightline`'s own
+v0.31.8.71 entry reads "accepted at nine appliance fixes for one blockage".
+
+No functional change to the app in this release — a new analysis module, its baseline test, one
+test bug fixed, and `ROOM_REQUIREMENTS` re-homed.
+
 ## v0.31.9.27 — the four levers are a wash, the over-stuffed-kit theory is dead, and the kitchens need three walls not a new primitive
 
 v0.31.9.26 unblocked v0.31.9.24's four placement levers. Re-applied them, measured every subset,

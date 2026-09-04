@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { itemAabbBox } from '../collision/placement'
-import { planLevels } from '../floorplan/levels'
+import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import { PLAN_TEMPLATES } from '../floorplan/templates'
 import { wallLength } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
@@ -48,7 +48,9 @@ const KNOWN_BLOCKED = [
   // its own wardrobe. Third instance of item (j)'s pattern.
   'tpl-hdb-exec/ex-m-win: wardrobe-3door',
 
-  'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
+  // `tpl-hdb-maisonette/em-yard-win: wardrobe-3door` REMOVED in v0.31.9.28 — it
+  // was never real. This survey was not level-scoped, and that window is on the
+  // GROUND floor while both of the template's wardrobes are on `em-up`.
   'tpl-condo-studio/su-bath-win: bathroom-sink',
   // `tpl-condo-penthouse/cp-m-win: wardrobe-3door` CLEARED in v0.31.9.22 by the
   // ALONG-WALL SWEEP in `snapToWall`. It was added in v0.31.8.71 as the accepted
@@ -76,6 +78,15 @@ function blockedWindows() {
         const len = wallLength(wall)
         if (!len) continue
         windows++
+        // LEVEL-SCOPED (v0.31.9.28, F13). This loop used to test EVERY item
+        // against every window on every storey, so a piece upstairs could be
+        // reported as blocking a window downstairs. That is exactly what
+        // happened: `tpl-hdb-maisonette/em-yard-win` is a GROUND-floor service
+        // yard window and both of that template's `wardrobe-3door`s are on
+        // `em-up`, so the finding was a phantom. Found by building
+        // `analysis/layoutDefects.ts`, whose survey is level-scoped and
+        // therefore disagreed by exactly one.
+        const onLevel = items.filter((it) => (it.levelId ?? GROUND_LEVEL_ID) === level.id)
         const ux = (wall.end[0] - wall.start[0]) / len
         const uz = (wall.end[1] - wall.start[1]) / len
         const nx = -uz
@@ -83,7 +94,7 @@ function blockedWindows() {
         const ox = wall.start[0] + ux * o.offset
         const oz = wall.start[1] + uz * o.offset
         const sill = o.sill ?? 0.95
-        for (const it of items) {
+        for (const it of onLevel) {
           const def = BUILTIN_CATALOG[it.defId]
           if (!def || def.mounted || def.noClip || def.windowBound) continue
           if (def.defaultFootprint.h <= sill) continue
@@ -156,6 +167,8 @@ describe('tall furniture does not stand in front of a window', () => {
     // appliance fixes for one blockage — see KNOWN_BLOCKED above.
     // 78 -> 79 in v0.31.9.22: that blockage is CLEARED by the along-wall sweep,
     // so the v0.31.8.71 trade is bought back at no cost to the appliance fixes.
-    expect(windows - hits.length).toBe(79)
+    // 79 -> 80 in v0.31.9.28: one fewer BLOCKED window, because the phantom
+    // cross-storey hit above is gone. No furniture moved.
+    expect(windows - hits.length).toBe(80)
   })
 })

@@ -90,9 +90,17 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   a net content win. Even lever A alone (counter sizing) trades `cs-kit`'s fixtures and two
   overhangs for a 0.60 m `st-kit` overhang — the worst in the corpus — plus a severed
   `cs-balcony` and two marooned appliances. Full per-subset table in `CHANGELOG.md` v0.31.9.27.
-  **Do not re-attempt a placement lever until defect classes can be RANKED** (proposed order in
-  that entry): four attempts in a row have traded one class for another, and the ratchets read
-  every class as one line, so a reshuffle is indistinguishable from progress.
+  **The ranking now EXISTS** (`analysis/layoutDefects.ts`, v0.31.9.28) and it **overturns that
+  rejection.** Scored: baseline 61,012,173,703 -> 60,813,173,903 with levers A+C+D, i.e. a net
+  improvement. Severity 1 is a 1-for-1 swap (gains `cs-kit`'s hob + counter, loses `emu-cbath`'s
+  basin) and `stranded-satellite` is unchanged corpus-wide; the verdict rests on two
+  `outside-room` fixes outweighing one severed room and two marooned appliances.
+  **NEXT RELEASE: land A+C+D**, with the score as the stated price. Ratchets to edit, all as
+  explicitly priced trades rather than silenced failures: `roomCompleteness` (`cs-kit` improves),
+  `bathroomFixtures` (+`emu-cbath`), `routeAccess` (+`cs-balcony`), `applianceWall` (+2 marooned,
+  snapped 42 -> 40), `roomOverhang` (-2), `diningChairTuck` (item counts + the jumbo chair).
+  Lever B (settle containment) stays out — it adds two stranded chairs and the score does not pay
+  for them.
   `dropUnplaceable` (v0.31.9.25) closes the FURNISH half — it is a measured no-op today, and it
   means this class can only ever show up as an item-count delta there, never as an invalid item.
 - **`fittedCounter` measures against the wrong box** — `max(room.width, room.depth)` where the

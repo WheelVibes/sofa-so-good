@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ROOM_REQUIREMENTS } from '../analysis/layoutDefects'
 import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
 import { PLAN_TEMPLATES } from '../floorplan/templates'
@@ -41,20 +42,20 @@ import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')
 
 /** Any one of these satisfies the requirement. */
-interface Requirement {
-  label: string
-  anyOf: string[]
-}
 
-const REQUIREMENTS: Partial<Record<RoomCategory, Requirement[]>> = {
-  bedroom: [{ label: 'a bed', anyOf: ['bed-single', 'bed-queen', 'bed-king', 'bed-double'] }],
-  masterBedroom: [{ label: 'a bed', anyOf: ['bed-single', 'bed-queen', 'bed-king', 'bed-double'] }],
-  kitchen: [
-    { label: 'a hob', anyOf: ['stove'] },
-    { label: 'a fridge', anyOf: ['refrigerator'] },
-    { label: 'a counter', anyOf: ['kitchen-counter-l', 'kitchen-counter', 'kitchen-sink'] },
-  ],
-}
+/**
+ * MOVED to `analysis/layoutDefects.ts` in v0.31.9.28 and imported here, so this
+ * ratchet and the ranked defect score cannot drift apart on what a fixture IS.
+ *
+ * The SCOPE stays this file's own: bedrooms and kitchens, as it has always
+ * covered. `ROOM_REQUIREMENTS` also carries `bath`/`powder`, because the ranked
+ * score puts a missing WC or basin at severity 1 — but bathrooms are measured by
+ * `bathroomFixtures.test.ts`, which knows about powder rooms and showers, and
+ * duplicating them here would double-count `ctu-mbath`'s basin.
+ */
+const COVERED = ['bedroom', 'masterBedroom', 'kitchen'] as const
+const REQUIREMENTS: Partial<Record<RoomCategory, (typeof ROOM_REQUIREMENTS)['kitchen']>> =
+  Object.fromEntries(COVERED.map((c) => [c, ROOM_REQUIREMENTS[c]]))
 
 /**
  * `<template>/<level>/<room>: missing …` — every shipped room that furnishes

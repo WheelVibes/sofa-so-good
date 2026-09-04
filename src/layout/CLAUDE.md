@@ -290,6 +290,47 @@ back, at no cost to the nine appliance fixes it was traded for). Cost: `tpl-cond
 loses its desk and book-set, and `tpl-1bed/ob-kit` its ceiling light — both recorded per-def in
 `diningChairTuck.test.ts` and named in `TODO.md`.
 
+## Judge a placement change with the RANKED score, not the ratchet count (v0.31.9.28)
+
+`analysis/layoutDefects.ts` surveys the corpus once and returns findings tagged with a severity
+from the product goal — a plan a contractor can build from — and `defectScore` weights them
+LEXICOGRAPHICALLY (`SCORE_BASE ** (6 - sev)`, base 100) so a severity-1 regression cannot be paid
+for with any number of lesser fixes. Corpus baseline **61,012,173,703**.
+
+| sev | class | today |
+|---|---|---|
+| 1 | `missing-fixture` — no hob/fridge/counter, no bed, no WC or basin | 6 |
+| 2 | `outside-room` | 10 |
+| 3 | `unreachable-room` | 12 |
+| 4 | `stranded-satellite` | 17 |
+| 5 | `marooned-wall-hugger` | 37 |
+| 6 | `blocked-window` | 3 |
+
+**Use it before accepting or rejecting an arranger change.** The seven per-class ratchets read one
+line per finding, which cannot distinguish a reshuffle from progress — and that is not a
+hypothetical: v0.31.9.27 rejected four levers on the ratchets alone, and the score says they are a
+net **improvement** of ~199 M. Severity 1 turned out to be a 1-for-1 swap (`cs-kit`'s hob and
+counter for `emu-cbath`'s basin) and `stranded-satellite` unchanged corpus-wide, so the verdict
+rests on two `outside-room` fixes against one severed room and two marooned appliances. None of
+that was visible one line at a time.
+
+Two things it caught about the existing measures on its first run, both worth knowing:
+
+- **`windowSightline.test.ts` was not level-scoped** and reported an `em-up` wardrobe as blocking
+  a GROUND-floor service-yard window (`em-yard-win`). An F13 violation in a test; fixed, and
+  `KNOWN_BLOCKED` went 4 -> 3 with no furniture moved.
+- **A severity order has to be complete to be safe.** The survey initially omitted bathrooms, so a
+  change losing a basin scored as free — exactly the trade being judged. `bath`/`powder` now
+  require a WC and a basin.
+
+`ROOM_REQUIREMENTS` lives in that module and `roomCompleteness.test.ts` imports it, so the two
+cannot drift on what a fixture is; the ratchet keeps its own SCOPE (bedrooms + kitchens) because
+bathrooms are measured by `bathroomFixtures.test.ts`.
+
+Restating a rule risks drifting from it, so `layoutDefects.test.ts` pins every class count against
+what the corresponding ratchet records, and asserts no class is empty — three emptiness assertions
+on this thread have passed because a loop body never ran.
+
 ## Four placement levers, all rejected — and what the corpus is actually short of (v0.31.9.27)
 
 v0.31.9.24 built four levers, v0.31.9.26 unblocked them, and v0.31.9.27 measured every subset and
