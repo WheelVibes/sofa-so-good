@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.246 — the bake-reproduction workflow written into the skill doc, with the measured parameter sensitivities
+
+`.245` made new bakes self-describing. This puts the knowledge that cost six rounds where the next
+person will actually look: `docs/skills/blender.md`, beside the `bake_material.py` recipe, rather
+than only in a changelog entry nobody greps.
+
+It records the three traps in order of how convincingly they mislead:
+
+- **A matching map COUNT is not a matching bake.** A re-run at the shipped `--min-area 3.0` selected
+  exactly 111 objects, same as shipped, and read as success while every per-map `scale` was wrong.
+- **`scale` is the map's own maximum × 1.02**, so it is a direct readout of how much light a surface
+  received — the sharpest way to tell two bakes apart, needing no app and no GPU.
+- **Sky-visible maps agree trivially**, because their maximum is the sky's own radiance: 33 of 111
+  shared 3.031 across two different bakes. Compare keys whose maximum is interior-only.
+
+And the sensitivities, measured on one ceiling key, so a future level mismatch can be bisected
+rather than guessed:
+
+| change | effect on `scale` |
+| --- | --- |
+| `--diffuse-bounces` default → 12 | 1.309 → 1.769 (+35 %) |
+| → 32 | 1.964 (overshoots) |
+| `--keep-glazing` | 1.769 → 2.351 (+33 %) |
+| `--portals` | 1.309 → 1.402 (+7 %, convergence not level) |
+| `--with-sun-disc` | 3.03 → 56.4 — never for an irradiance pass |
+| lamp emissives lit in the export | 1.769 → 2.909 (+64 %) |
+
+Plus the two method notes that made those numbers cheap and trustworthy: bisect with
+`--limit 10 --samples 256` (~90 s a cell instead of 40 minutes, and far enough down the area
+ranking to reach interior keys), and never substitute a whole-map mean for a patch texel when
+comparing distributions — it reads 2.3x out and inverts the sign, because a 3x2 atlas's slot
+occupancy differs per mesh.
+
+The doc also states plainly that sets baked before `.245` — including the one in
+`public/assets/lightmaps` — carry no `bake` block and **cannot be reproduced from the index alone**,
+so nobody repeats the attempt believing the index is sufficient.
+
+Suite 10219 green. The `--min-area 1.5 --keep-glazing` bake is at 55 maps of ~189.
+
+
 ## v0.31.7.245 — the bake now records its own invocation, so `.239`-`.244`'s archaeology cannot repeat
 
 Six rounds and three 40-minute bakes went into failing to reproduce the shipped map set, and the

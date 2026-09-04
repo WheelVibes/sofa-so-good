@@ -144,6 +144,42 @@ the same quantity and can be checked against each other.
 
 Verified: 4 shell meshes at 64 px / 32 samples in ~4 s, means 0.164–0.428 across walls.
 
+#### Reproducing a shipped map set — read the `bake` block, do not guess
+
+`index.json` now carries a **`bake` object** recording the resolved invocation: `min_area, limit,
+res, samples, bit_depth, per_map_scale, dilate, bake_margin, keep_glazing, portals, with_sun_disc,
+diffuse_bounces, sun_travel`, the Blender version, and the rest (`v0.31.7.245`). Read it and pass
+the same values. Sets baked before that commit — including the one in `public/assets/lightmaps` —
+do NOT have it, and **cannot be reproduced from the index alone**.
+
+That is not a hypothetical. `v0.31.7.239`–`.244` spent six rounds and three 40-minute bakes trying,
+and the trap is worth knowing:
+
+- **A matching map COUNT is not a matching bake.** A re-run at the shipped `--min-area 3.0` selected
+  exactly 111 objects, same as shipped, which read as success. Every per-map `scale` was wrong.
+- **`scale` is the map's own maximum × 1.02** (with `--per-map-scale`), so it is a direct readout of
+  how much light that surface received. Diff `scale` per key between two indices — it is the
+  sharpest available signal that two bakes differ, and it needs no app and no GPU.
+- **Sky-visible maps agree trivially.** Any map whose brightest texel sees the sky through a window
+  has `pre_max` = the sky's own radiance, so 33 of 111 shared one value (3.031) across two different
+  bakes. Comparing only those proves nothing — pick keys whose maximum is interior-only.
+
+Measured parameter sensitivities on one ceiling key, useful for bisecting a level mismatch:
+
+| change | effect on that key's `scale` |
+| --- | --- |
+| `--diffuse-bounces` default → 12 | 1.309 → 1.769 (**+35 %**) |
+| → 32 | 1.964 (overshoots) |
+| `--keep-glazing` | 1.769 → 2.351 (**+33 %**) |
+| `--portals` | 1.309 → 1.402 (+7 %, convergence not level) |
+| `--with-sun-disc` | 3.03 → **56.4** — never for an irradiance pass |
+| lamp emissives lit in the export | 1.769 → 2.909 (+64 %) |
+
+Bisect with `--limit 10 --samples 256`: about 90 s per cell instead of 40 minutes, and enough to
+reach the interior keys. Do NOT substitute a whole-map mean for a patch texel when comparing
+distributions — it reads 2.3× out and inverts the sign of the effect, because a 3×2 atlas's slot
+occupancy differs per mesh (`v0.31.7.244`).
+
 ## Repo facts worth knowing before you start
 
 **The Poly Haven HDRIs are NOT bundled.** `src/scene/lighting/hdriCatalog.ts` serves them
