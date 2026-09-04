@@ -24,7 +24,7 @@ import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 18)
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const WINDOW = process.env.WINDOW || 'livingDining'
 const STANDOFF = Number(process.env.STANDOFF || 2.6)
 const PITCH = Number(process.env.PITCH || -0.3)

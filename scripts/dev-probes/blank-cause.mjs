@@ -13,7 +13,7 @@ import puppeteer from 'puppeteer'
 import { appUrl, centerBox, frameStats, isBlank } from './lib.mjs'
 
 const OUT = '/tmp/ssg-cause'
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const FRAMES = Number(process.env.FRAMES || 30)
 const REPS = Number(process.env.REPS || 3)
 fs.mkdirSync(OUT, { recursive: true })

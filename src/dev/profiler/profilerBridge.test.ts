@@ -50,7 +50,7 @@ describe('profilerBridge', () => {
   })
 
   it('reflects the tier set via setTier', () => {
-    profilerBridge.setTier('high')
-    expect(profilerBridge.getSnapshot().tier).toBe('high')
+    profilerBridge.setTier('realistic')
+    expect(profilerBridge.getSnapshot().tier).toBe('realistic')
   })
 })

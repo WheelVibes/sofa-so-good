@@ -16,14 +16,14 @@
  *    render pass), so it is **tier-gated**: only High / Maximum get true
  *    transmission; Performance / Medium keep the cheap transparent+opacity look.
  */
-import type { RenderTier } from '../scene/quality'
+import type { DeviceClass, RenderTier } from '../scene/quality'
 
 /** Render tiers that can afford real glass transmission (extra render pass).
  *  Performance + Medium stay on cheap transparency so the flat default and the
  *  mid tier never pay for it. Mirrors `mirrorReflectorConfig`'s High/Maximum
  *  gate. */
 export function transmissionTiers(tier: RenderTier): boolean {
-  return tier === 'high' || tier === 'maximum'
+  return tier === 'realistic'
 }
 
 /** Physical glass parameters for the transmission-capable tiers. `transmission`
@@ -168,8 +168,8 @@ export function windowTransmission(daylight: number): number {
  * full-wall window panes; Maximum keeps full res. Tiers without transmission
  * never render the pass, so the value is inert there — keep it 1.
  */
-export function transmissionResolutionScaleForTier(tier: RenderTier): number {
-  return tier === 'high' ? 0.75 : 1
+export function transmissionResolutionScaleForTier(tier: RenderTier, device: DeviceClass): number {
+  return tier === 'realistic' && device === 'weak' ? 0.75 : 1
 }
 
 /**
@@ -178,6 +178,54 @@ export function transmissionResolutionScaleForTier(tier: RenderTier): number {
  * Cheap (emissive only, no transmission pass) so it works on every tier —
  * including the flat Performance default where windows otherwise read as flat
  * dark panes. `daylight` is 0 (night) … 1 (full day).
+ *
+ * ## `d³ · 5.2` is item `(l)`'s fix — the magnitude and the CURVE are both measured
+ *
+ * **Why 5.2 (×13 the old 0.4).** `(l)` WINDOW-LUMINANCE: photographs blow their windows out,
+ * clipping **15–39 %** of the glazing, while the app clipped **0.0 % at every hour** — so a pane
+ * read as a panel, not an opening. The item's fix space pointed at `scene.background`, and
+ * `v0.31.7.152` proved that **cannot work**: a pane never reads the background, it reads this
+ * emissive. Four arms (analytic/Cycles sky × intensity 1/4) all measured 0.0 % above 240. Swept on
+ * the real lever, ×13 gives **33.0 %** at 13:00 and **27.5 %** at 18:00 — both in band.
+ *
+ * **Why cubed, and not linear.** At flat ×13 the 19:00 frame **blooms**: a glow spills onto the wall
+ * and ceiling and the grille bars lose definition (`v0.31.7.156`), while the statistics looked
+ * harmless — pane mean 231.6, `> 240` 0.0 %. `bloomIntensityForDay(d) = BLOOM.intensity · (1 − d)`
+ * is non-zero for every `d < 1`, so the overlap cannot be removed by reshaping this function; the
+ * cube **narrows** it, holding the pane under the old `< 1.05` threshold until `d ≈ 0.59`:
+ *
+ * | day level | bloom | linear `d·5.2` | **cubic `d³·5.2`** |
+ * | --- | --- | --- | --- |
+ * | 0.4 | 60 % | 2.08 | **0.33** |
+ * | 0.6 | 40 % | 3.12 | **1.12** |
+ * | 0.8 | 20 % | 4.16 | 2.66 |
+ * | 1.0 | **0 %** | 5.2 | 5.2 |
+ *
+ * **Night cannot regress, by construction rather than by guard** — `(l)`'s standing constraint. At
+ * `daylight = 0` this is exactly 0, so no coefficient has anything to scale; the test below pins it.
+ *
+ * `> 250` stays at 0.0 % for every multiplier tried, including ×16 at a mean of 240.6: that is AgX's
+ * shoulder. A clipping metric defined at `> 250` would call every setting a failure.
+ *
+ * **`d⁴ · 8.32`, raised from `d³ · 5.2` in v0.31.7.281, and the sweep that justified it had been
+ * misread twice.** `patch-read` reporting **p95** finally separated the glass from the grille bars
+ * that share the patch, and against the Cycles reference the glass was **243 where physics reads
+ * 254** — a real 11-count deficit that `.279` had written off as "the emissive saturates". That
+ * conclusion came from a MEAN (bar-dominated, so blind to the glass) and from a `SKYCATCH` sweep
+ * read as absolute intensities when the knob is a MULTIPLIER: "5.2, 9, 13" were ×5.2, ×9, ×13 on
+ * top of the default, i.e. ~27 to ~68, every one of them clipped at p95 255. Swept properly, the
+ * glass responds: ×1.25 → p95 246, **×1.6 → 248**, ×2.2 → 251.
+ *
+ * ×1.6 is taken, not ×2.2: at ×2.2 the bars' p05 falls 187 → 163, so pushing the glass further
+ * starts undoing `grilleGlareIntensity`'s match. And the EXPONENT rises with the coefficient for
+ * the reason `.156` went linear → cubic in the first place. The ratio to the old curve is exactly
+ * **`1.6 · d`**, so the two CROSS at `d = 0.625`: the new curve is brighter only from there to
+ * full daylight, and strictly lower through the deep-dusk band below it (0.520 against 0.650 at
+ * `d = 0.5`; 0.213 against 0.333 at 0.4). A curve that is higher at 1 and lower below has to cross
+ * somewhere — the point is WHERE, and 0.625 puts the extra brightness where `bloomIntensityForDay`
+ * has ramped down to 37 % and under, while both codified dusk guards gain margin rather than
+ * losing it. Note also that `daylightFromAltitude` is 1.0 for any sun above the horizon, so this
+ * entire ramp lives in the −8°..0° twilight window, not across the afternoon.
  *
  * **`backdropVisible` retires it (GLASS-SKYCATCH-VEIL, v0.31.8.50).** The
  * sky-catch is a *stand-in* for sky luminance, for the case where there is
@@ -200,8 +248,57 @@ export function transmissionResolutionScaleForTier(tier: RenderTier): number {
  * it for, and it is untouched.
  */
 export function glassSkyCatchIntensity(daylight: number, backdropVisible = false): number {
-  return backdropVisible ? 0 : clamp(daylight, 0, 1) * 0.4
+  // GLASS-SKYCATCH-VEIL takes precedence over the curve: when a real view is painted behind
+  // the pane there is nothing for a stand-in to stand in for, so no coefficient applies.
+  if (backdropVisible) return 0
+  const d = clamp(daylight, 0, 1)
+  // `v0.31.7.281`: `d⁴ · 8.32`, was `d³ · 5.2`. Brighter ONLY near full daylight and
+  // strictly SAFER through the deep-dusk band -- see the note above.
+  return d * d * d * d * 8.32
 }
+
+/**
+ * VEILING GLARE on the safety grille's bars, as an emissive keyed to daylight.
+ *
+ * **The measurement, and it is a PERCENTILE one (`(l)`, v0.31.7.280).** At the reference window
+ * pose, daylight-only and exposure-matched, the pane region splits into two populations that a
+ * mean cannot separate — thin bars and bright glass:
+ *
+ * | | mean | p05 (bars) | p95 (glass) |
+ * | --- | --- | --- | --- |
+ * | Cycles | 244.8 | **187** | **254** |
+ * | app, before | 217.4 | **91** | 243 |
+ *
+ * So the app's GLASS is nearly right (243 against 254) and the BARS are **96 counts too dark**.
+ * Physics puts a very bright aperture behind the grille and veiling glare washes the bars out;
+ * the app renders them crisp and dark. That is the whole of the 27-count mean gap.
+ *
+ * Two earlier conclusions were artefacts of reading the MEAN of those two populations:
+ * `v0.31.7.279`'s "the pane emissive saturates" (a 5.2 -> 13 sweep moved the mean 1.4 counts
+ * because bars dominate it, not because the glass failed to brighten), and this function's own
+ * first calibration, which hit the mean target and overshot the bars to p05 213.
+ *
+ * **Why not bloom, which is the physically honest answer.** `bloomIntensityForDay(d) =
+ * BLOOM.intensity * (1 - d)` is exactly 0 at full daylight and the pass is UNMOUNTED once it ramps
+ * to zero (BLOOM-MIP-FLASH: cheaper, and one less way to blank a frame on ANGLE/Metal). Re-keying
+ * it to aperture luminance collides with that and with `v0.31.7.156`, where a bright pane plus
+ * bloom spilled onto wall and ceiling and destroyed grille definition — and it would add a midday
+ * blur chain the daylight path does not pay for.
+ *
+ * So this is deliberately a LOCAL approximation: it lifts the bars, which is where the measured
+ * error is, and does not spill onto the surrounding wall. Calibrated on **p05**, not the mean.
+ *
+ * **Night cannot regress, by construction rather than by guard**, the same discipline as
+ * `glassSkyCatchIntensity`: cubed, so exactly 0 at `daylight = 0` and negligible through the dusk
+ * band where `.156`'s bloom overlap lives.
+ */
+export function grilleGlareIntensity(daylight: number): number {
+  const d = clamp(daylight, 0, 1)
+  return d * d * d * GRILLE_GLARE
+}
+
+/** Coefficient for {@link grilleGlareIntensity}, CALIBRATED on p05 against the Cycles reference. */
+const GRILLE_GLARE = 1.4
 
 /** Sheen layer for a soft-fabric finish kind. Velvet shows the strongest, most
  *  coloured sheen; satin / woven fabric a subtler one; leather a faint specular

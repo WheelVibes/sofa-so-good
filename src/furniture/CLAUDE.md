@@ -134,7 +134,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   two existing pieces rather than new art: the vertical rib layout comes from
   `primitives/slatLayout.ts` (`battenCount`/`battenStep`/`battenOffset`, same as `RoomDivider`), and
   the panes/ribs share ONE `getGlassMaterial(tier, …)` instance (tier read from `useStore`, cheap
-  transparent pane on Performance/Medium → real transmission on High/Max, like `GlassMaterial`). The
+  transparent pane in `performance` → real transmission in `realistic`, like `GlassMaterial`). The
   half-round ribs are cylinders (`thetaLength: Math.PI`) so they never trigger the coplanar detector,
   and collapse to **one `InstancedCylinders` draw call** (unit half-cylinder scaled `[ribR,innerH,ribR]`
   — `InstancedCylinders` takes optional `thetaStart`/`thetaLength` for the arc, AE=0-equivalent to the
@@ -632,7 +632,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     inline, so it inherits the no-IBL metalness cap: at 0.75 metalness with no environment to
     reflect, these ~1 m² frame panels rendered as **black slabs** on the default Performance tier
     (Chrome audit 2026-08)"*. Door faces additionally use a tier-aware `MirrorMaterial` (real
-    planar reflection on High/Maximum, a cheap fake-shiny fallback below).
+    planar reflection in `realistic`, a cheap fake-shiny fallback in `performance`).
   · **The frame confirms the fix holds.** `/tmp/ssg-chroma/walk-bedroom-medium-h13.png` shows satin
     metal with soft broad specular blooms and a correct vertical seam — not black slabs, not
     plastic. Featureless at nose distance (metal 0.75, rough 0.35, no maps), but a metal wardrobe

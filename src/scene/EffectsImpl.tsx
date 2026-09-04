@@ -10,7 +10,7 @@ import {
   ToneMapping,
   Vignette,
 } from '@react-three/postprocessing'
-import { KernelSize } from 'postprocessing'
+import { KernelSize, ToneMappingMode as PostToneMappingMode } from 'postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
@@ -18,6 +18,7 @@ import { useStore } from '../state/store'
 import { rasterDofParams } from './cameras/cameraLensSettings'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
+import { isLinearView } from './linearView'
 import {
   AO,
   BLOOM,
@@ -217,14 +218,34 @@ export default function EffectsImpl({
       />,
     )
   }
-  effects.push(<ToneMapping key="tone" mode={TONE_MAPPING_POST[toneMode]} />)
+  // `(z12)`: the DEV-only linear passthrough has to cover the POST stack too. three skips
+  // `renderer.toneMapping` when rendering to a render target (the reason TONE-POST exists), so
+  // bypassing only `Lighting`'s write would leave the AgX curve running here and produce a frame
+  // that looks linear-ish and measures wrong.
+  effects.push(
+    <ToneMapping
+      key="tone"
+      mode={isLinearView() ? PostToneMappingMode.LINEAR : TONE_MAPPING_POST[toneMode]}
+    />,
+  )
   effects.push(<HueSaturation key="hue" saturation={hueSatSaturation(sceneSaturation)} hue={0} />)
   if (full && cinematic) {
     effects.push(
       <ChromaticAberration key="ca" offset={caOffset} radialModulation modulationOffset={0.35} />,
     )
   }
-  if (full) effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)
+  // EVERY TIER, as of `v0.31.7.117` (`(z)`12). Its own header says the vignette exists "so the
+  // frame reads 'shot, not rendered'" — which is a claim about every frame, not about the frames
+  // that happen to be on the expensive tier. It was full-stack-only, and with `high`/`maximum`
+  // retired that meant `realistic` only, so the tier most people edit in looked the least
+  // photographic for no stated reason.
+  //
+  // **Free, and that is why it is safe here rather than a trade.** `postprocessing` merges simple
+  // `Effect`s into the single fragment pass the composer already runs — and a composer already
+  // mounts on every tier, because rendering straight into the `preserveDrawingBuffer` default
+  // framebuffer drops interior wall faces (WALL-NO-COMPOSER). So this adds fragment math to an
+  // existing pass, not a pass. Measured in `v0.31.7.117`.
+  effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)
   if (full && cinematic) effects.push(<Noise key="noise" premultiply opacity={0.035} />)
   else if (photographicLook)
     effects.push(<Noise key="photo-grain" premultiply opacity={PHOTO_GRAIN_OPACITY} />)

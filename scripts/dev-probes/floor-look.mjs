@@ -95,7 +95,7 @@ await page
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 /** Radians. Negative looks DOWN (floors, the original use); positive looks UP. */
 const PITCH = Number(process.env.PITCH ?? -0.75)
 

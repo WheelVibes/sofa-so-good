@@ -24,8 +24,12 @@ import { useQuality } from './useQuality'
  * animating (walk, turntable, tour, recording, shadow accumulation, a drag, a
  * spinning fan, boot, or asset streaming), and for a short "settle tail" after
  * any discrete store change (place/move/finish/time-scrub/etc.). When nothing
- * is happening the scene draws 0 frames — the idle battery/thermal win. While
+ * is happening the scene draws 0 frames — the idle win. While
  * the tab is hidden it never renders at all.
+ *
+ * While something IS happening the goal is the opposite: maximum performance, with
+ * power draw a non-constraint. See the `invalidate(2)` note in the loop — a bare
+ * `invalidate()` silently capped every pump-driven mode at half the display rate.
  *
  * The rAF loop itself is cheap (a few flag reads per frame); only `invalidate()`
  * triggers actual GPU work, and only when needed.
@@ -150,7 +154,43 @@ export function RenderPump() {
       setRenderingContinuously(!inputs.hidden && isContinuous(inputs))
       if (shouldRender(inputs)) {
         if (inputs.overlayBoot || inputs.overlayTransition) lastOverlayRenderMs.current = inputs.now
-        invalidate()
+        // `invalidate(2)`, not `invalidate()`, and the 2 is load-bearing.
+        //
+        // MEASURED (`v0.31.7.64`): with a bare `invalidate()` this pump drove walk
+        // mode at EXACTLY HALF the display rate at every tier -- 30.2 drawn/s
+        // against 60 rAF/s on performance and medium, a ratio of 1.99, while orbit
+        // ran 1:1. Orbit is 1:1 only because drei's OrbitControls contributes a
+        // SECOND invalidate from its own `change` event; any mode driven by this
+        // pump alone (walk, tour, turntable, recording) was capped at 30 fps.
+        //
+        // WHY. r3f's `invalidate(frames = 1)` *sets* `internal.frames = 1`, and its
+        // render loop *decrements* to 0 after drawing. Both loops re-register
+        // themselves with `requestAnimationFrame`, so whose callback runs first
+        // within one animation frame is not ours to control -- and in the losing
+        // order r3f checks `frames` before we have set it, skips, and the flag we
+        // then set is spent on the following frame. Every other frame renders.
+        //
+        // With `frames > 1` r3f INCREMENTS instead (`min(60, frames + frames)`), so
+        // a continuously-invalidating pump keeps the counter above zero regardless
+        // of callback order. Verified by simulating exactly this with a second
+        // invalidate source, then confirmed on the shipped change: every ratio
+        // became 1.00, performance 30.2 -> 60.0 and medium 30.2 -> 55.8, both stable
+        // across runs. `high` is unmoved at 25.1 (a separate ~40 ms/frame cost that
+        // is not in `gl.render`), and `maximum` is not reproducible at all in walk
+        // mode -- 10.9 / 41.7 / 26.7 / 40.8 back to back, independent of this change
+        // -- so no claim is made about it.
+        //
+        // COST, stated because it is real and PARTLY UNVERIFIED. The counter
+        // saturates at 60, so when the pump stops asking, up to 60 further frames
+        // (~1 s) are drawn before the scene settles. Whether it then reaches 0
+        // follows from `shouldRender` gating this call -- but I could not observe it:
+        // with every store flag idle (orbit, not touring/recording/dragging, load
+        // complete) the built-in plan STILL renders continuously, because
+        // `animatedSourceCount()` is non-zero. So the shipped default plan has no
+        // truly-idle state to measure, and this doubles its at-rest rate from ~30 to
+        // 60 fps as well. That is the deliberate trade -- maximum performance over
+        // power -- not an oversight.
+        invalidate(2)
       }
     }
     raf = requestAnimationFrame(loop)

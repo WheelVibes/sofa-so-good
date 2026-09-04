@@ -15,7 +15,7 @@
 import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const DSF = Number(process.env.DSF || 2)
 const SECONDS = Number(process.env.SECONDS || 25)
 const SPIKE_MS = Number(process.env.SPIKE_MS || 18)

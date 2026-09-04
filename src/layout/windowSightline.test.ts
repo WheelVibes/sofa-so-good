@@ -143,7 +143,8 @@ describe('tall furniture does not stand in front of a window', () => {
     // 82 from `.41`: `ex-bed2b` and `cp-master` gained the windows they never had
     // (item (h)), and neither is blocked.
     // 83 from `.42`: the penthouse dining room gets its own pane.
-    expect(windows).toBe(83)
+    // 84 on the feat/blender-render merge: `c4-b4win` gives condo-4bed's Bedroom 4 daylight.
+    expect(windows).toBe(84)
     // 67 → 69: one more window examined (`jb-b3-win`) and one fewer blocked
     // (`jb-b5-win`, cleared because the jumbo re-author divided bedrooms 4/5).
     // 69 → 71 in `.30`: `g3-b2-win` added and `g3-liv-win` cleared, the living
@@ -169,6 +170,10 @@ describe('tall furniture does not stand in front of a window', () => {
     // so the v0.31.8.71 trade is bought back at no cost to the appliance fixes.
     // 79 -> 80 in v0.31.9.28: one fewer BLOCKED window, because the phantom
     // cross-storey hit above is gone. No furniture moved.
-    expect(windows - hits.length).toBe(80)
+    // 81 on the feat/blender-render merge: +1 window (`c4-b4win`) and the same 3 blocked, so the
+    // clear count gains one. An earlier pass of this merge read 82 — that was with this branch's
+    // item-(f) bath partitions still in, which moved the exec wardrobe off `ex-m-win`. Those were
+    // dropped in favour of staging's enclosure work, and the block came back with them.
+    expect(windows - hits.length).toBe(81)
   })
 })

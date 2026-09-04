@@ -47,6 +47,15 @@ const KNOWN_DUPLICATE_VERSIONS: Readonly<Record<string, string>> = {
   // it belongs to were pruned from `main` with the C1-C250 history, so there is
   // nothing left to renumber against.
   '0.29.3.6': 'Pre-existing duplicate inherited with the pruned C1-C250 history.',
+  // The SECOND collision between the same two sessions, and the first this guard
+  // caught — it fired on the 0.31.7.2 merge, which is exactly the moment it was
+  // built for. The two sessions resumed numbering from the shared 0.31.6.0 base
+  // (PR #110) and each reached .1/.2/.3 before their histories met again.
+  '0.31.6.1':
+    'Parallel worktrees resumed from the shared 0.31.6.0 base: drawing-accuracy (staging-merge + duplicate audit) and the Blender/graphics-realism arc (bpy groundwork).',
+  '0.31.6.2':
+    'Same collision: floor build-ups / FFL derivation vs Blender HDRI resolution + render_still.py.',
+  '0.31.6.3': 'Same collision: this guard itself vs the docs/skills convention.',
 }
 
 const CHANGELOG = join(__dirname, '..', 'CHANGELOG.md')
@@ -100,6 +109,17 @@ describe('CHANGELOG version headings', () => {
     // subject, this one fails if the allowlist has no entries left to test. If
     // `0.29.3.6` is ever resolved, delete the allowlist AND this test rather
     // than leaving either as scaffolding.
-    expect(duplicates().map(([v]) => v)).toEqual(['0.29.3.6'])
+    // Sorted on both sides: the raw order follows CHANGELOG position, which changes whenever a
+    // branch merges and is not what this test is about.
+    //
+    // Four entries as of the feat/blender-render merge, not one. `0.31.6.1`-`.3` are the SECOND
+    // parallel-worktree collision (see `KNOWN_DUPLICATE_VERSIONS`), and they re-enter the file
+    // here because that branch's CHANGELOG half arrived with it — which is exactly the moment
+    // this guard exists to fire on, and it did.
+    expect(
+      duplicates()
+        .map(([v]) => v)
+        .sort(),
+    ).toEqual(['0.29.3.6', '0.31.6.1', '0.31.6.2', '0.31.6.3'].sort())
   })
 })

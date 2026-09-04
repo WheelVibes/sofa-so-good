@@ -54,7 +54,7 @@
  */
 
 import type { CostWindow } from './frameCost'
-import { RENDER_TIERS, type RenderTier } from './quality'
+import { DEVICE_CLASSES, type DeviceClass } from './quality'
 
 /**
  * Budget for one displayed frame at 60 Hz. Everything below is expressed as a
@@ -101,53 +101,81 @@ export const PROMOTE_WINDOWS = 4
 export const MIN_WINDOW_FRAMES = 20
 
 /**
- * Highest tier auto-adjust will ever reach on its own. `maximum` is cinematic
- * (full-res AO, film grain, 4096² shadows) and stays a deliberate user choice —
- * it measures 11.7 ms p90 here, i.e. it *would* pass the probe, which is exactly
- * why it needs an explicit ceiling rather than being left to the ladder.
+ * Wall-clock frame interval that counts as failing, ms.
+ *
+ * 33.3 ms is the 30 fps floor the tier ladder is documented against —
+ * `tier-fps.mjs`: "an auto-selected tier is only defensible if it holds the 30fps
+ * floor on the hardware it is selected for". Sustained frames at or past this are
+ * a demotion regardless of how cheaply they submitted.
  */
-export const AUTO_PROMOTE_CEILING: RenderTier = 'high'
+export const DEMOTE_INTERVAL_MS = 1000 / 30
 
-export interface AutoTierState {
-  /** The tier currently active. */
-  tier: RenderTier
+/**
+ * Wall-clock interval a window must beat to count as evidence for PROMOTION.
+ *
+ * 20 ms (50 fps) leaves a hysteresis band against {@link DEMOTE_INTERVAL_MS}, the
+ * same shape the submit-cost pair already has — without it the ladder could
+ * promote at 31 fps and demote at 29 fps forever.
+ */
+export const PROMOTE_INTERVAL_MS = 20
+
+export interface AutoDeviceState {
+  /** The device class currently active — which variant of the mode is rendering. */
+  device: DeviceClass
   /**
-   * The learned ceiling: the highest tier auto-adjust may reach on THIS device,
-   * set when a rung FAILS. `null` = nothing learned yet, so the ladder may probe
-   * up to {@link AUTO_PROMOTE_CEILING}.
+   * The learned ceiling: the highest device class auto-adjust may reach on THIS
+   * machine, set when one FAILS. `null` = nothing learned yet.
    *
-   * NOT "the highest tier reached" — see the promotion branch of
-   * {@link decideAutoTier} for why conflating the two breaks the ladder. Boot
-   * memory is the ordinary persisted `tier`.
+   * NOT "the highest class reached" — see the promotion branch of
+   * {@link decideAutoDevice} for why conflating the two breaks the ladder. Boot
+   * memory is the ordinary persisted value.
    */
-  autoMaxTier: RenderTier | null
+  autoMaxDevice: DeviceClass | null
+  /**
+   * THE LAST RUNG: halve the device pixel ratio to 1 when the class ladder has bottomed out and
+   * frames are still slow. `(z)`7.
+   *
+   * **Why it is needed at all.** `realistic` carries `dprMax: 2` at BOTH device classes, so
+   * demoting `capable -> weak` changes shadows and post but not one pixel of resolution — which is
+   * why `v0.31.7.86` measured the chain recovering to **29.6 fps** and stopping there, right on the
+   * 30 fps floor with nothing left to give. `dprMax` 2 -> 1 is the largest lever measured in this
+   * arc: **4.5x (10.9 -> 49.6 fps)**, more than shadows, post and transmission combined.
+   *
+   * **Last down, first up**, which the ordering in {@link decideAutoDevice} enforces: resolution is
+   * the most visible thing to sacrifice, so nothing else should still be available when it goes,
+   * and it should come back before the class ladder starts climbing again.
+   */
+  dprHalved: boolean
 }
 
-const index = (t: RenderTier): number => RENDER_TIERS.indexOf(t)
+const index = (d: DeviceClass): number => DEVICE_CLASSES.indexOf(d)
 
-/** The lower of two tiers (by the canonical `RENDER_TIERS` ordering). */
-export function minTier(a: RenderTier, b: RenderTier): RenderTier {
+/** The lower of two device classes (by the canonical `DEVICE_CLASSES` ordering). */
+export function minDevice(a: DeviceClass, b: DeviceClass): DeviceClass {
   return index(a) <= index(b) ? a : b
 }
 
-/** Step one tier up/down, clamped to the ends of the ladder. */
-function step(t: RenderTier, dir: 1 | -1): RenderTier {
-  const i = index(t)
-  if (i < 0) return t
-  return RENDER_TIERS[Math.min(RENDER_TIERS.length - 1, Math.max(0, i + dir))]
+/** Step one class up/down, clamped to the ends of the ladder. */
+function step(d: DeviceClass, dir: 1 | -1): DeviceClass {
+  const i = index(d)
+  if (i < 0) return d
+  return DEVICE_CLASSES[Math.min(DEVICE_CLASSES.length - 1, Math.max(0, i + dir))]
 }
 
 /**
- * The effective ceiling for a device: never above {@link AUTO_PROMOTE_CEILING},
- * never above what the capability guard allows, and never above a tier this
- * device has already failed at.
+ * The effective ceiling: never above what capability detection allows, and never
+ * above a class this machine has already failed at.
+ *
+ * The old third clamp — a hardcoded promote ceiling that kept the ladder out of
+ * `maximum` — is gone with the rung. Reaching the cinematic settings is now the
+ * user picking `realistic`, which is an explicit choice by construction, so there
+ * is nothing left for the ladder to withhold.
  */
 export function effectiveCeiling(
-  capabilityCeiling: RenderTier,
-  autoMaxTier: RenderTier | null,
-): RenderTier {
-  const hard = minTier(AUTO_PROMOTE_CEILING, capabilityCeiling)
-  return autoMaxTier ? minTier(hard, autoMaxTier) : hard
+  detected: DeviceClass,
+  autoMaxDevice: DeviceClass | null,
+): DeviceClass {
+  return autoMaxDevice ? minDevice(detected, autoMaxDevice) : detected
 }
 
 /**
@@ -160,31 +188,47 @@ export function effectiveCeiling(
  * Demotion is checked FIRST: a tier that is failing right now must come down
  * even if it also accumulated good windows earlier.
  */
-export function decideAutoTier(
-  state: AutoTierState,
-  capabilityCeiling: RenderTier,
+export function decideAutoDevice(
+  state: AutoDeviceState,
+  detected: DeviceClass,
   goodWindows: number,
   badWindows: number,
-): AutoTierState | null {
-  const { tier, autoMaxTier } = state
-  const lowest = RENDER_TIERS[0]
+  /** Has the sun-shadow fallback already been used? Gates the dpr rung — see below. */
+  shadowsShed = false,
+): AutoDeviceState | null {
+  const { device, autoMaxDevice } = state
+  const lowest = DEVICE_CLASSES[0]
 
-  if (badWindows >= DEMOTE_WINDOWS && tier !== lowest) {
-    const down = step(tier, -1)
+  if (badWindows >= DEMOTE_WINDOWS && device !== lowest) {
+    const down = step(device, -1)
     // Record the failure as the new ceiling so the ladder never climbs back into
     // it — this, not a bigger threshold, is what stops oscillation.
-    return { tier: down, autoMaxTier: down }
+    return { device: down, autoMaxDevice: down, dprHalved: state.dprHalved }
   }
 
-  const ceiling = effectiveCeiling(capabilityCeiling, autoMaxTier)
-  if (goodWindows >= PROMOTE_WINDOWS && index(tier) < index(ceiling)) {
-    // `autoMaxTier` is deliberately UNTOUCHED on the way up. It means "the rung
-    // that FAILED here", not "the highest rung reached" — conflating the two
-    // makes every successful promotion cap the ladder at the rung it just
-    // reached, so `performance` could climb to `medium` and then never to
-    // `high`. Boot memory is a separate concern: the settled tier is already
-    // persisted by `qualityPrefs` as the ordinary `tier` value.
-    return { tier: step(tier, 1), autoMaxTier }
+  // THE LAST RUNG, and it must genuinely be last. `shadowsShed` is required because halving the
+  // resolution is MORE visible than dropping the sun-shadow pass: without this gate the ladder
+  // would spend resolution first and only then try shadows, since a state change here returns
+  // early and the controller's shadow fallback never runs on that tick.
+  if (badWindows >= DEMOTE_WINDOWS && device === lowest && shadowsShed && !state.dprHalved) {
+    return { ...state, dprHalved: true }
+  }
+
+  // RESOLUTION RETURNS FIRST, before the class ladder climbs. A promotion that restored shadows
+  // and post while leaving the frame at half resolution would spend the recovered headroom on the
+  // least visible thing available.
+  if (goodWindows >= PROMOTE_WINDOWS && state.dprHalved) {
+    return { ...state, dprHalved: false }
+  }
+
+  const ceiling = effectiveCeiling(detected, autoMaxDevice)
+  if (goodWindows >= PROMOTE_WINDOWS && index(device) < index(ceiling)) {
+    // `autoMaxDevice` is deliberately UNTOUCHED on the way up. It means "the
+    // class that FAILED here", not "the highest class reached" — conflating the
+    // two makes every successful promotion cap the ladder where it just arrived.
+    // Boot memory is a separate concern: the settled value is persisted by
+    // `qualityPrefs`.
+    return { device: step(device, 1), autoMaxDevice, dprHalved: state.dprHalved }
   }
 
   return null
@@ -200,7 +244,19 @@ export function decideAutoTier(
 export function classifyWindow(window: CostWindow): 'good' | 'bad' | 'neutral' {
   if (window.n < MIN_WINDOW_FRAMES) return 'neutral'
   if (!Number.isFinite(window.p90) || window.p90 < 0) return 'neutral'
+  // WALL CLOCK FIRST. Submit time cannot see a GPU-bound frame: `v0.31.7.84`
+  // measured 10.9 fps (92 ms/frame) at a 6.9 ms submit p90, i.e. "cheap" by this
+  // function's original standard while missing the frame-rate floor by 3x. A
+  // window that is slow on the wall is bad however fast it submitted.
+  const wall = window.intervalP90
+  if (Number.isFinite(wall) && wall >= DEMOTE_INTERVAL_MS) return 'bad'
   if (window.p90 >= DEMOTE_COST_MS) return 'bad'
-  if (window.p90 <= PROMOTE_COST_MS) return 'good'
+  // Promotion still requires BOTH to be comfortable. Climbing on a cheap submit
+  // while the wall clock is mediocre is how the ladder would oscillate into the
+  // configuration it just left.
+  if (window.p90 <= PROMOTE_COST_MS) {
+    if (!Number.isFinite(wall) || wall < 0) return 'good'
+    return wall <= PROMOTE_INTERVAL_MS ? 'good' : 'neutral'
+  }
   return 'neutral'
 }

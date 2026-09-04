@@ -32,7 +32,7 @@ import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 /** Matched against opening ids; the boot flat's L/D window is `win-livingDining-*`. */
 const WINDOW = process.env.WINDOW || 'livingDining'
 /** Metres inside the glass to stand. Close, so the room recedes away from it. */

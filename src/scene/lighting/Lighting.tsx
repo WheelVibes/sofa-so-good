@@ -1,11 +1,18 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3D } from 'three'
+import {
+  type AmbientLight,
+  type DirectionalLight,
+  type HemisphereLight,
+  LinearToneMapping,
+  Object3D,
+} from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 
 import { registerAnimatedSource } from '../animatedSources'
+import { isLinearView } from '../linearView'
 import {
   grade,
   iblFillScale,
@@ -85,12 +92,13 @@ export function Lighting() {
   // radius/blurSamples); the renderer-level filter switch lives in
   // ShadowFilterController — here we only feed the matching per-light params.
   const qualityTier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   // PHOTO-FILL: the flag ships the control; this is the user's setting.
   const photoFlag = useFeature('photographicFill')
   const photographicLook = useStore((s) => s.photographicLook) && photoFlag
   // Publish for the material factories, which live outside React.
   useEffect(() => setPhotographicLook(photographicLook), [photographicLook])
-  const shadowFilter = shadowFilterForTier(qualityTier)
+  const shadowFilter = shadowFilterForTier(qualityTier, deviceClass)
   const shadowParams = shadowParamsForFilter(shadowFilter)
   // IBL is on for Medium+ tiers; when it is, the procedural environment provides
   // ambient bounce, so the analytical hemisphere+ambient fill is dialled down to
@@ -164,7 +172,9 @@ export function Lighting() {
     // colour), else the historical filmic look. The exposure bias tracks the
     // *resolved* operator so brightness stays steady across a context switch.
     const toneMode = resolveToneMapping(st.toneMapping, toneContextFromState(st))
-    gl.toneMapping = TONE_MAPPING_THREE[toneMode]
+    // `(z12)`: a DEV-only linear passthrough for MEASUREMENT. Exposure below is untouched, which
+    // is the point of `LinearToneMapping` over `NoToneMapping` — see `isLinearView`.
+    gl.toneMapping = isLinearView() ? LinearToneMapping : TONE_MAPPING_THREE[toneMode]
     // Orbit + the room editor run the full graded exterior-sun simulation, same
     // as walk mode (ORBIT-CEILING); the invisible ceiling occluder blocks the sun
     // from pouring in through the open top, so it's lit through windows/openings.

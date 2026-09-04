@@ -135,6 +135,16 @@ function FacePlane({
       rotation={[0, yRot, 0]}
       material={faded}
       geometry={geometry}
+      // This plane, not the wall body, is the surface the camera SEES: it sits
+      // `FACE_OFFSET` proud of the box and hides it entirely. Without
+      // `receiveShadow` it took full unshadowed direct sun at every hour while
+      // the body behind it — which does receive — was never visible. That is
+      // item `(z3)`: a wall the sun could reach but could never shade.
+      //
+      // `castShadow` stays FALSE deliberately: the plane is coincident with a
+      // body that already casts, so casting twice buys nothing and invites
+      // self-shadow acne across a large flat surface.
+      receiveShadow
       // Drop-target tag for the canvas finish drag (scene/finishDropTarget.ts),
       // plus the overlay mark so the reveal fade can hide this plane and leave
       // the body as the single composited layer (see `markWallOverlay`).

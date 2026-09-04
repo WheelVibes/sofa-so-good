@@ -3,19 +3,14 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { isProfilerBenchmarkActive } from '../dev/profiler/benchmarkSignal'
 import { setProceduralBaseSize } from '../materials/procedural/generators'
 import { useStore } from '../state/store'
-import { classifyWindow, DEMOTE_WINDOWS, decideAutoTier } from './adaptiveTier'
+import { classifyWindow, DEMOTE_WINDOWS, decideAutoDevice } from './adaptiveTier'
 import {
   closeFrameCostSample,
   installFrameCostMeter,
   takeCostWindow,
   uninstallFrameCostMeter,
 } from './frameCost'
-import {
-  detectCapabilityCeiling,
-  detectDefaultTier,
-  type RenderTier,
-  shouldSampleFps,
-} from './quality'
+import { type DeviceClass, detectDeviceClass, shouldSampleFps } from './quality'
 import { useQuality } from './useQuality'
 
 /**
@@ -40,7 +35,7 @@ export function QualityController() {
 
   // The capability CEILING for this device — a best-effort veto the adaptive
   // ladder may not climb past, captured once (TIER-AUTODETECT).
-  const ceiling = useRef<RenderTier>('performance')
+  const ceiling = useRef<DeviceClass>('weak')
 
   // One-time boot pick. Skipped when the user pinned a tier, AND when prefs
   // restored a SETTLED tier — otherwise every reload would stomp a device that
@@ -48,10 +43,11 @@ export function QualityController() {
   // re-probe from scratch.
   useEffect(() => {
     const ctx = gl.getContext() as WebGLRenderingContext | WebGL2RenderingContext
-    ceiling.current = detectCapabilityCeiling(ctx)
-    const st = useStore.getState()
-    if (st.qualityUserSet || st.qualityAutoSettled) return
-    st.autoSetQualityTier(detectDefaultTier(ctx))
+    ceiling.current = detectDeviceClass(ctx)
+    useStore.getState().setDeviceClass(ceiling.current)
+    // No boot MODE pick any more: `BOOT_TIER` is the store's initial value, so a
+    // first visit is already there, and a returning visitor's persisted mode must
+    // not be stomped. Detection now only chooses the variant, above.
   }, [gl])
 
   // Apply the effective device-pixel-ratio clamp. This controller is the SOLE
@@ -67,6 +63,11 @@ export function QualityController() {
   // demand-mode frame. A layout effect runs pre-composite (a plain useEffect
   // is one composite late); same rule as InteractiveDprController.
   useLayoutEffect(() => {
+    // DELIBERATELY IGNORES `dprHalved`. `viewport.dpr` must keep matching the Canvas `dpr` prop,
+    // or r3f's `configure()` re-applies the prop on every commit — a buffer-clearing resize with no
+    // same-task repaint, i.e. a white flash. `v0.31.7.144` measured an r3f `setDpr` for the rung
+    // being stomped straight back. The rung therefore lives at the raw GL level in
+    // `InteractiveDprController`, which owns that layer and heals stomps every frame.
     setDpr(Math.min(window.devicePixelRatio || 1, dprMax))
     if (!document.hidden && gl.domElement.isConnected) {
       try {
@@ -134,7 +135,22 @@ export function QualityController() {
     if (a.t < 1.5) return
     a.t = 0
     const costWindow = takeCostWindow()
-    if (useStore.getState().qualityUserSet) return
+    // `qualityUserSet` used to stop auto-adjust dead, and since `v0.31.7.68` that
+    // gates the WRONG AXIS. It records that the user chose a MODE — their intent,
+    // which the ladder must never overrule. But the ladder no longer touches the
+    // mode: it moves the DEVICE CLASS, a capability adaptation nobody expressed an
+    // opinion about.
+    //
+    // Left in place it made the guard unreachable exactly where it is needed:
+    // `realistic` is only ever entered through `setQualityTier`, which sets this
+    // flag, so a user opting into the expensive mode got NO adaptive protection at
+    // all. Measured: 28 s of continuous walking at ~11 fps with the device class
+    // pinned at `capable` and the learned ceiling still `null` (`v0.31.7.85`).
+    //
+    // Demotion is therefore no longer gated. Promotion still is — climbing back up
+    // under someone who has pinned a look is the behaviour the flag was written
+    // for, and `decideAutoDevice` is told the ceiling is what it currently has.
+    const userPinned = useStore.getState().qualityUserSet
 
     // Consecutive-window counters: a verdict resets the opposite streak, so one
     // good window can't cancel a genuine sustained failure and vice versa. A
@@ -153,15 +169,26 @@ export function QualityController() {
     }
 
     const st = useStore.getState()
-    const next = decideAutoTier(
-      { tier: st.qualityTier, autoMaxTier: st.autoMaxTier },
-      ceiling.current,
+    // The ladder now moves the DEVICE CLASS, not the mode: the mode is the user's
+    // intent and auto-adjust must not overrule it. A demotion here from
+    // `capable` to `weak` is exactly the old medium→performance step inside
+    // `performance`, and the old maximum→high step inside `realistic`.
+    const next = decideAutoDevice(
+      { device: st.deviceClass, autoMaxDevice: st.autoMaxDevice, dprHalved: st.dprHalved },
+      // A pinned user gets demotion but not promotion: capping the ceiling at the
+      // class already active makes `decideAutoDevice`'s promote branch a no-op
+      // without touching its demote branch.
+      userPinned ? st.deviceClass : ceiling.current,
       a.good,
       a.bad,
+      // `(z)`7's dpr rung only fires once the shadow fallback is already spent, so resolution is
+      // the last thing sacrificed rather than the first.
+      st.autoShadowsOff,
     )
     if (next) {
-      if (next.tier !== st.qualityTier) st.autoSetQualityTier(next.tier)
-      if (next.autoMaxTier !== st.autoMaxTier) st.setAutoMaxTier(next.autoMaxTier)
+      if (next.device !== st.deviceClass) st.setDeviceClass(next.device)
+      if (next.autoMaxDevice !== st.autoMaxDevice) st.setAutoMaxDevice(next.autoMaxDevice)
+      if (next.dprHalved !== st.dprHalved) st.setDprHalved(next.dprHalved)
       // The evidence has been spent on this decision.
       a.good = 0
       a.bad = 0

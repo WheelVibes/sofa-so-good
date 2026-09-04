@@ -86,6 +86,48 @@ function perez(c: PerezCoeff, cosTheta: number, gamma: number): number {
   return (1 + c.A * Math.exp(c.B / ct)) * (1 + c.C * Math.exp(c.D * gamma) + c.E * cosG * cosG)
 }
 
+/**
+ * Zenith luminance below the horizon, continuing the Preetham curve instead of
+ * letting it go NEGATIVE.
+ *
+ * **The bug this fixes.** Preetham's `Yz` is only valid for a sun well above the
+ * horizon. At the horizon the `tan` term vanishes and it degenerates to
+ * `2.4192 - 0.2155*T`, which (a) makes *hazier* air darker — backwards — and (b)
+ * crosses zero at **T = 11.2**. The shipped turbidity curve reaches T = 10 at
+ * −12°, and `Yz` is already negative at **−2°** (−0.129). That was being clamped
+ * by `Math.max(Y, 0)`, so for roughly six degrees of sun altitude the sky was not
+ * dim, it was **exactly (0,0,0)** — while the day/night fade still reported 25–75 %
+ * daylight and the lower hemisphere (a separate code path) stayed lit. The result
+ * was a pure black upper sky above a grey ground with a hard horizon cut, on every
+ * dawn and dusk the time slider passes through. Measured in `v0.31.7.80`: 0.00 mean
+ * AND 0 max at −3° and −5°, against Cycles' 39.9–99.6.
+ *
+ * **What this deliberately does NOT do.** It does not match physics. Cycles wants
+ * roughly **6× more light at 20° elevation and 20× at the horizon**
+ * (`v0.31.7.81`), which is a re-grade of golden hour and a look decision, not a bug
+ * fix. So the continuation is pinned to the app's OWN value at the horizon
+ * (`Yz(0°) ≈ 0.695`) and decays from there with the SHAPE Cycles measures — the
+ * reference twilight level falls about ten-fold every 2° of altitude. Above the
+ * horizon nothing changes at all: the floor is only consulted where Preetham has
+ * already gone invalid.
+ */
+const TWILIGHT_YZ_AT_HORIZON = 0.695
+/**
+ * Degrees of sun altitude per e-fold of twilight decay.
+ *
+ * **Corrected from 0.87 in `v0.31.7.116`, and the old comment's reason was wrong.** It said
+ * "Cycles: ~10x per 2°", which is neither the displayed nor the level ratio. Derived properly
+ * from `v0.31.7.81`'s required-`Yz` anchors — 14.0 at 0°, 4.89 at −2°, 0.112 at −6° — the level
+ * falls by `(0.112/14.0)^(1/3) = 0.20` per 2°, i.e. **~5× per 2°**, giving `2/ln(5) = 1.24`.
+ * The shipped 0.87 decayed ~40 % faster than the reference it cited.
+ */
+const TWILIGHT_YZ_SCALE_DEG = 1.24
+
+function twilightZenithY(sunAltDeg: number): number {
+  if (sunAltDeg >= 0) return 0
+  return TWILIGHT_YZ_AT_HORIZON * Math.exp(sunAltDeg / TWILIGHT_YZ_SCALE_DEG)
+}
+
 /** Zenith xyY for the given turbidity + solar zenith angle (Preetham). */
 function zenithxyY(T: number, thetaS: number): { Y: number; x: number; y: number } {
   const t2 = T * T
@@ -188,6 +230,24 @@ export function skyRadiance(view: Vec3, params: SkyParams, hazeSample?: Vec3): V
   // deep blue. Fully lit above ~0°, fully dark below ~ -8° altitude.
   const sunAltDeg = Math.asin(sunAlt) * (180 / Math.PI)
   const night = clamp((sunAltDeg + 8) / 8, 0, 1)
+  // SEPARATE FADE FOR THE SKY, and it is a bug fix rather than a look change.
+  //
+  // `night` reaches exactly 0 at −8°, and the sky's final line is `rgb * night` — so below −8°
+  // the sky was **identically (0,0,0)** whatever the zenith luminance said. `v0.31.7.80` fixed
+  // the negative `Yz` that made the sky black from −2°, and `v0.31.7.81` named this second cause;
+  // it was never addressed, so a black band survived from −8° down. Cycles measures 10.5 and 5.4
+  // displayed counts at −8° and −10°: dark, not absent.
+  //
+  // −18° is astronomical twilight, where the sky genuinely does reach zero. The GROUND keeps the
+  // −8° fade deliberately: an unlit ground under a faintly glowing sky is what deep twilight
+  // looks like, and it also narrows the `(y)`3 sky-under-ground seam rather than widening it.
+  //
+  // **What this does NOT do.** It does not reach Cycles' levels. Physical twilight at −2° wants
+  // `Yz` 4.89 against the app's own horizon value of 0.695 — 7× MORE than the sky directly
+  // overhead at sunset — so matching it is impossible while the horizon stays anchored to
+  // Preetham, which is the whole-day re-grade explicitly scoped out in `(z)`8. This removes an
+  // indefensible hard black cliff; it does not close a 20× gap.
+  const skyNight = clamp((sunAltDeg + 18) / 18, 0, 1)
 
   const groundAlbedo = params.groundAlbedo ?? [0.32, 0.3, 0.28]
 
@@ -244,9 +304,13 @@ export function skyRadiance(view: Vec3, params: SkyParams, hazeSample?: Vec3): V
 
   // Zenith luminance Yz is in kcd/m^2 (~tens at midday); normalise to a relative
   // LDR range. The divisor is chosen so a clear midday sky lands near ~0.5–1.0.
-  const rgb = xyYtoLinearRGB(x, y, Math.max(Y, 0) / 22)
+  // `Math.max(Y, 0)` alone produced a black sky wherever Preetham went negative;
+  // the floor continues the curve instead. Identical above the horizon, where
+  // `twilightZenithY` returns 0 and `Y` is positive.
+  const Yfloored = Math.max(Y, twilightZenithY(sunAltDeg), 0)
+  const rgb = xyYtoLinearRGB(x, y, Yfloored / 22)
 
-  return [rgb[0] * night, rgb[1] * night, rgb[2] * night]
+  return [rgb[0] * skyNight, rgb[1] * skyNight, rgb[2] * skyNight]
 }
 
 /** Linear → sRGB (gamma) for an 8-bit framebuffer byte. */

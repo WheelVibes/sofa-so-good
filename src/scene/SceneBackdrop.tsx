@@ -1,17 +1,25 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { CanvasTexture, EquirectangularReflectionMapping, SRGBColorSpace, Texture } from 'three'
+import {
+  CanvasTexture,
+  CubeTexture,
+  EquirectangularReflectionMapping,
+  SRGBColorSpace,
+  Texture,
+} from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { useFeature } from '../features/useFeature'
 import type { CameraMode } from '../state/slices/cameraSlice'
 import type { BackdropKind } from '../state/slices/uiSlice'
 import { useStore } from '../state/store'
 import { bakeBackdropEquirect, bakeSkyEquirect, type PhotoBackdropKind } from './backdropEquirect'
+import { equirectToCubeFaces } from './equirectToCube'
 import {
   daylightFromAltitude,
   lightingFromAltitude,
   skyFromAltitude,
 } from './lighting/altitudeCurve'
+import { bakeSkyFromKeys, preloadSkyKeys, skyKeysReady } from './lighting/skyKeyBake'
 import { type SkyState, shouldRebuildSky } from './lighting/skyRebuild'
 import { orientedSunDirection } from './lighting/sunPosition'
 import { useSunPosition } from './lighting/useSunPosition'
@@ -61,6 +69,48 @@ export function isPhotoBackdropActive(
   if (kind === 'custom') return hasCustomImage
   if (kind === 'sky') return skyAvailable
   return true
+}
+
+/**
+ * Rehost an equirect texture's pixels as a `CubeTexture`. DEV measurement seam for `(r)`.
+ *
+ * Returns `null` rather than throwing if the source has no readable image -- a backdrop that fails
+ * to convert must fall back to the shipped equirect path, not blank the sky.
+ */
+function asCube(tex: Texture): CubeTexture | null {
+  const img = tex.image as (HTMLCanvasElement | HTMLImageElement) | undefined
+  const w = (img as HTMLCanvasElement | undefined)?.width ?? 0
+  const h = (img as HTMLCanvasElement | undefined)?.height ?? 0
+  if (!img || w < 8 || h < 4) return null
+  const read = document.createElement('canvas')
+  read.width = w
+  read.height = h
+  const rctx = read.getContext('2d')
+  if (!rctx) return null
+  rctx.drawImage(img, 0, 0)
+  // A cube face spans 90 degrees where the equirect spans 360, so `w / 4` is the matched
+  // resolution: larger would invent detail, smaller would throw away what `(r)` is about.
+  const size = Math.max(16, Math.min(1024, Math.round(w / 4)))
+  const faces = equirectToCubeFaces(rctx.getImageData(0, 0, w, h), size)
+  const canvases = faces.map((f) => {
+    const c = document.createElement('canvas')
+    c.width = size
+    c.height = size
+    const cctx = c.getContext('2d')
+    if (cctx) {
+      // `createImageData` + `set` rather than `new ImageData(data, w, h)`: the constructor's
+      // overload rejects a plain `Uint8ClampedArray` under this TS lib, and going through the
+      // context also guarantees the buffer matches the canvas it is written to.
+      const id = cctx.createImageData(size, size)
+      id.data.set(f.data)
+      cctx.putImageData(id, 0, 0)
+    }
+    return c
+  })
+  const cube = new CubeTexture(canvases)
+  cube.colorSpace = SRGBColorSpace
+  cube.needsUpdate = true
+  return cube
 }
 
 /**
@@ -132,7 +182,20 @@ export function SceneBackdrop() {
         tex.dispose()
         return
       }
-      texture = asEquirect(tex)
+      // `?bgCube=1` (DEV) hosts the SAME asset as a CUBE texture instead of an equirect.
+      //
+      // A measurement seam for item `(r)`, not a feature. `v0.31.5.263`/`.265` established that
+      // three converts an equirect `scene.background` into a pre-filtered CubeUV/PMREM, so a crisp
+      // 2048x1024 skyline arrives at the window as faint blobs -- and that the content survives to
+      // the GPU intact, since rehosting the same canvas with `UVMapping` shows a legible city.
+      // `UVMapping` is not shippable (no parallax, not projectively correct through a window); a
+      // cube texture is the candidate that keeps `scene.background`'s structure. The premise --
+      // that a cube background is NOT PMREM-converted the way an equirect is -- is a claim about
+      // three's internals worth testing on the existing presets before re-authoring four of them.
+      const wantCube =
+        import.meta.env.DEV && new URLSearchParams(window.location.search).get('bgCube') === '1'
+      const cube = wantCube ? asCube(tex) : null
+      texture = cube ?? asEquirect(tex)
       scene.background = texture
       invalidate()
     }
@@ -203,6 +266,14 @@ function SkyBackdrop() {
   const prevBgRef = useRef<Texture | null>(null)
   const savedPrev = useRef(false)
 
+  // Kick the key-set fetch on mount (DEV seam only). `preloadSkyKeys` is idempotent and resolves
+  // even on failure, so a missing asset degrades to the analytic sky instead of hanging.
+  useEffect(() => {
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('skyKeys') === '1') {
+      void preloadSkyKeys().then(() => invalidate())
+    }
+  }, [invalidate])
+
   // Mount/unmount: remember + restore the prior background, dispose on exit.
   useEffect(() => {
     if (!savedPrev.current) {
@@ -230,7 +301,33 @@ function SkyBackdrop() {
     const candidate: SkyState = { sunDir, turbidity, orientationDeg }
     if (!shouldRebuildSky(lastBaked.current, candidate)) return
     const handle = setTimeout(() => {
-      const tex = asEquirect(new CanvasTexture(bakeSkyEquirect(sunDir, turbidity)))
+      // `?skyKeys=1` (DEV) swaps the analytic Preetham paint for the baked CYCLES key set.
+      //
+      // The runtime half of `(z)`4 / item `(l)`: the app's window reads as a panel rather than an
+      // opening, and `v0.31.7.77` measured that the fix needs the PHYSICAL sky —
+      // `backgroundIntensity ~= 4` alone raises a 4x-oversaturated gradient. `.148`–`.150` priced
+      // the key set: 30° of altitude holds Cycles to <=1.4 % (<=0.67 % in the brightest decile),
+      // the error is independent of resolution and sample count, and four keys are 500 kB.
+      //
+      // A DEV seam first, not a default, following `?bgCube=1` in `.132`: a new default sky is
+      // user-visible at every hour of the day and wants frames at several of them before it ships.
+      const keyed =
+        import.meta.env.DEV &&
+        new URLSearchParams(window.location.search).get('skyKeys') === '1' &&
+        skyKeysReady()
+          ? bakeSkyFromKeys(sunDir)
+          : null
+      const tex = asEquirect(new CanvasTexture(keyed ?? bakeSkyEquirect(sunDir, turbidity)))
+      // `?bgIntensity=<n>` (DEV) — the OTHER half of `(l)`'s fix, and it is measured useless alone
+      // in both directions: `v0.31.7.77` found the intensity without the physical sky raises a
+      // 4x-oversaturated gradient, and `v0.31.7.152` found the physical sky without the intensity
+      // moves the interior frame by ~1-2 counts. `scene.backgroundIntensity` scales what is SEEN,
+      // not what LIGHTS (that is `environmentIntensity`), which is why `.77` could verify the
+      // interior median unchanged at intensity 1, 4 and 12.
+      if (import.meta.env.DEV) {
+        const bg = Number(new URLSearchParams(window.location.search).get('bgIntensity'))
+        if (Number.isFinite(bg) && bg > 0) scene.backgroundIntensity = bg
+      }
       const old = textureRef.current
       textureRef.current = tex
       lastBaked.current = candidate

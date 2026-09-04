@@ -25,6 +25,8 @@ import { appUrl, assertSceneAlive } from './lib.mjs'
 const HOUR = Number(process.env.HOUR || 13)
 const OUT = process.env.OUT || '/tmp/ssg-walk'
 fs.mkdirSync(OUT, { recursive: true })
+/** Per-frame camera transforms, written to `cams.json` for Cycles view parity. */
+const cams = []
 
 const browser = await puppeteer.launch({
   headless: true,
@@ -121,7 +123,7 @@ const LEVEL = process.env.LEVEL || ''
 /** FURNISH=1 — clear the old furniture and auto-furnish the template instead. */
 const FURNISH = process.env.FURNISH === '1'
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const TIER_AUTO = TIER === 'auto'
 /** Look direction, radians. YXZ Euler Y: forward is (-sin, 0, -cos), so 0 looks -Z. */
 const YAW = Number(process.env.YAW || 0)
@@ -133,6 +135,31 @@ const YAW = Number(process.env.YAW || 0)
 const LIGHTS = process.env.LIGHTS || ''
 
 if (!TIER_AUTO) await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
+
+// LIGHTS=off switches every placed light off, so a DAYLIGHT-ONLY frame can be compared against a
+// Cycles reference — which has no lamps, because three's fixture intensities are artistic and
+// inventing a wattage would make the physical reference agree with the thing under test.
+//
+// Added in `v0.31.7.179` because the largest app-vs-reference gap this arc has measured is in the
+// KITCHEN (app 204.5 against Cycles 48.3), and that room has no window opening, so
+// `light-distribution.mjs` — which derives its pose from a window — cannot be aimed there at all.
+// Without this the comparison could not be made lamps-off, and the gap could not be attributed.
+// Same mechanism as that probe's block, and it likewise REPORTS what it flipped rather than
+// assuming the toggle took.
+if (process.env.LIGHTS === 'off') {
+  const flipped = await page.evaluate(() => {
+    const s = window.__store.getState()
+    const on = s.items.filter((it) => it.props?.lightOn !== 'no').map((it) => it.id)
+    let k = 0
+    for (const id of on) {
+      s.toggleLightPower(id)
+      if (window.__store.getState().items.find((it) => it.id === id)?.props?.lightOn === 'no') k++
+    }
+    return { candidates: on.length, flipped: k }
+  })
+  console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidate items`)
+  await new Promise((r) => setTimeout(r, 1200))
+}
 if (LIGHTS) {
   await page.evaluate((v) => window.__store.getState().setLightsMode?.(v), LIGHTS)
   await new Promise((r) => setTimeout(r, 2000))
@@ -321,6 +348,34 @@ for (const p of poses) {
       })
       return { vis, tris: Math.round(tris) }
     })
+    // CAMERA DUMP, so a Cycles render can reproduce this exact view.
+    // Every app-vs-traced round in this arc has had to re-establish view parity by hand, and
+    // `render_still.py --cam-space three` takes these numbers directly. Written per frame because
+    // walk mode's yaw comes from `FirstPersonCamera`'s own refs, so the only trustworthy source
+    // for where the camera actually ended up is the camera itself, after the fact.
+    const cam = await page.evaluate(() => {
+      const c = window.__three?.camera
+      if (!c) return null
+      c.updateMatrixWorld(true)
+      const p0 = [
+        c.matrixWorld.elements[12],
+        c.matrixWorld.elements[13],
+        c.matrixWorld.elements[14],
+      ]
+      // three cameras look down LOCAL -Z; column 2 of the world matrix is +Z.
+      const fwd = [
+        -c.matrixWorld.elements[8],
+        -c.matrixWorld.elements[9],
+        -c.matrixWorld.elements[10],
+      ]
+      return {
+        pos: p0.map((v) => Number(v.toFixed(4))),
+        target: p0.map((v, k) => Number((v + fwd[k] * 3).toFixed(4))),
+        fovDeg: Number((c.fov ?? 0).toFixed(3)),
+        aspect: Number((c.aspect ?? 0).toFixed(4)),
+      }
+    })
+    if (cam) cams.push({ id: `${p.id}-y${i}`, ...cam })
     const shot = await page.screenshot({ type: 'png' })
     fs.writeFileSync(`${OUT}/${p.id}-y${i}.png`, shot)
     // EMPTY-FRAME GUARD (meta-rule lvii). ~180 frames have been judged in this
@@ -413,3 +468,5 @@ if (empties.length) {
 }
 console.log(`\nframes -> ${OUT}`)
 await browser.close()
+fs.writeFileSync(`${OUT}/cams.json`, JSON.stringify(cams, null, 1))
+console.log(`camera transforms -> ${OUT}/cams.json (${cams.length})`)

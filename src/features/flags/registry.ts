@@ -27,6 +27,57 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Baked aperture-visibility maps modulating indirect light (item (w)). Measured against a
+  // Cycles reference it takes the spatial lighting mismatch from 4.76x to 1.36x, and it is the
+  // largest single fidelity defect the graphics arc found -- a ~3x error on a wall that can
+  // barely see a window, because the analytical fill gives every surface the same skylight
+  // whether or not it can see the sky.
+  //
+  // `default: false` because it needs BAKED ASSETS, which exist for one plan so far: with no
+  // maps the render is byte-identical to today's, so shipping it on would do nothing for most
+  // plans while adding ~19 shader variants. Turn it on when the shipped starter plans are baked.
+  //
+  // `tier: 'simple'` deliberately -- this is fidelity, not a professional tool, and Simple mode
+  // is where the move-in default lives. Frame cost measured at nil for both auto-selected tiers
+  // (v0.31.7.15), so it does not need to be gated on quality either.
+  visibilityLightmap: {
+    label: 'Baked global illumination',
+    // Copy updated with the artefact: the shipped set is a Cycles `irradiance` bake that
+    // REPLACES the ambient term, not the `visibility` occlusion map the old label described.
+    // `v0.31.7.102` measured multiplying by sky visibility as the wrong operator outright.
+    description: 'Cycles-baked bounced daylight on walls, floors and ceilings (realistic mode)',
+    // ON as of `v0.31.7.176`. Shipped in `.169`, reverted in `.174` for crushing the floor, cause
+    // found and fixed in `.175`, and re-enabled here on a survey sized to the mistake that caused
+    // the revert.
+    //
+    // **Why it broke.** The injection patches a MATERIAL while `uv1` is built per GEOMETRY, so a
+    // material shared by N meshes carried one texture for all of them — and a sharer that was
+    // never keyed had no `uv1`, sampled undefined coordinates, and in `'replace'` mode was
+    // ASSIGNED that. A cliff to black, not a dim surface. 2 materials carried 18 of the 52 mapped
+    // meshes. Now a material is patched only when every mesh rendering it receives a map and they
+    // all agree on which one; the rest are skipped and reported. Regression-tested both ways in
+    // `applyVisibilityLightmaps.test.ts`.
+    //
+    // **The survey, which is the part `.169` got wrong.** A 44-frame / 11-room tour, GI on vs off,
+    // ranked by whole-frame delta. Only ONE frame darkens by more than 1.7 counts:
+    // `kitchen-y2` at −5.2. A Cycles reference at that camera puts the tiled wall at **48.3 /
+    // 78.1** counts where the app renders **204.5 / 209.8**, so the darkening is correct in
+    // direction and far too small — not a defect. (The app tour has lamps on and Cycles has none,
+    // so that magnitude is overstated; the direction is not.)
+    //
+    // **Verified after the fix:** floor 99.8 -> 99.8 (byte-identical, collapse gone), left wall
+    // 79.9 -> 141.2 and ceiling 66.8 -> 89.9 against Cycles 196.4 / 212.4. Applied to 34/385
+    // meshes; 6 skipped as unsafely shared.
+    //
+    // Cost at `realistic`: p50 5.9/6.1 -> 6.6/6.2 ms, drawn fps 42.8/42.5 -> 42.0/42.3, p90
+    // unchanged; worst frame 143 -> 293 ms is materials compiling at attach, during load.
+    //
+    // Known and accepted: a ~5.5-count step at mapped/unmapped silhouettes, because `--limit`
+    // (default 24) caps coverage at 10 % of meshes (`.173`). Raising it is a bake-time cost, not
+    // a byte cost, and is the next improvement rather than a blocker.
+    default: true,
+    tier: 'simple',
+  },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
   measure: {
     label: 'Measure',

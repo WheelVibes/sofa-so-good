@@ -26,7 +26,7 @@ import fs from 'node:fs'
 import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 const HOUR = Number(process.env.HOUR || 13)
 const SECONDS = Number(process.env.SECONDS || 6)
 const OUT = process.env.OUT || '/tmp/ssg-plans'

@@ -39,7 +39,7 @@ describe('summariseCosts', () => {
   })
 
   it('returns the empty summary for no samples', () => {
-    expect(summariseCosts([])).toEqual({ n: 0, p50: -1, p90: -1 })
+    expect(summariseCosts([])).toEqual({ n: 0, p50: -1, p90: -1, intervalP50: -1, intervalP90: -1 })
   })
 
   it('drops non-finite and negative samples rather than poisoning percentiles', () => {
@@ -115,7 +115,7 @@ describe('the live meter', () => {
     installFrameCostMeter(gl)
     closeFrameCostSample()
     closeFrameCostSample()
-    expect(takeCostWindow()).toEqual({ n: 0, p50: -1, p90: -1 })
+    expect(takeCostWindow()).toEqual({ n: 0, p50: -1, p90: -1, intervalP50: -1, intervalP90: -1 })
   })
 
   it('separates frames', () => {

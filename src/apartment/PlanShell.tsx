@@ -13,6 +13,7 @@ import {
   Vector3,
 } from 'three'
 import { useFeature } from '../features/useFeature'
+import { ceilingGapRects } from '../floorplan/ceilingGaps'
 import {
   buildThresholdRisers,
   roomAndOffsetAtPoint,
@@ -918,8 +919,42 @@ function PlanLevelShell({
         )
       })}
 
+      {/* GAP CEILINGS — the footprint no room covers (item `(y)`, `v0.31.7.234`).
+          Ceilings are per ROOM, so any area no room rect covers had a floor (the plan slab spans
+          the whole footprint) and NO ceiling: a raycast up from such a point left the scene. It is
+          not a rare corner — 16 of 19 templates have some, up to 45.9 m2 in `tpl-hdb-jumbo`, and it
+          comes in two shapes: unassigned BLOCKS of 4-5 m2, and thin SLITS where a room rect stops
+          short of a wall face (`h4-svc-s`'s south face is z = 2.95 while `h4-bed2` starts at 3.2).
+
+          Filled here rather than by editing 19 templates' room rects, because room rects are what
+          the furniture arranger and the area reports measure — moving them ripples into ratchets
+          counting 1506 chairs and 897 mounts. This adds no room and moves nothing.
+
+          GROUND LEVEL ONLY, and that restriction is item `(w)`'s lesson. A double-height room is a
+          DECLARED room carrying a taller `ceilingHeight`, so it excludes itself from the gap set —
+          but an UPPER storey's gap sits directly over that void, where the ground room's 5.5 m
+          ceiling already is, and filling it would put a second lid in the same plane. The loft's
+          entire upper-level gap is 0.6 m2, so skipping upper levels costs almost nothing. */}
+      {level.elevation === 0
+        ? ceilingGapRects(lp).map((r) => (
+            <PlanRoomCeiling
+              key={`gap-${r.x}-${r.z}-${r.width}-${r.depth}`}
+              origin={[r.x, r.z]}
+              width={r.width}
+              depth={r.depth}
+              height={lp.ceilingHeight}
+              materialId={null}
+            />
+          ))
+        : null}
+
       {/* Per-room ceilings (downward-facing — seen in walk, culled in orbit).
-          Honour a per-room override, falling back to the level/plan height. */}
+          Honour a per-room override, falling back to the level/plan height.
+          A room on a storey being OVERLOOKED from above (item `(g)`) drops its
+          ceiling when that ceiling sits BELOW the walked floor — from up there
+          the lid is what you would see instead of the room. A double-height
+          room whose ceiling rises past the walked floor keeps it: that surface
+          is the roof over the void you are looking into. */}
       {lp.rooms.map((r) => {
         const h = r.ceilingHeight ?? lp.ceilingHeight
         const ceilMat = resolvePlanRoomCeiling(finishes, r)

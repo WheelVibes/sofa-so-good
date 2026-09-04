@@ -5,7 +5,7 @@ describe('roomEditor state', () => {
   beforeEach(() => {
     useStore.setState({
       roomEditor: { active: false, roomId: null },
-      qualityTier: 'high',
+      qualityTier: 'realistic',
       qualityUserSet: true,
       assetTier: null,
       cameraMode: 'firstPerson',
@@ -18,7 +18,7 @@ describe('roomEditor state', () => {
     useStore.getState().enterRoomEditor('bedroom2')
     const s = useStore.getState()
     expect(s.roomEditor).toEqual({ active: true, roomId: 'bedroom2' })
-    expect(s.qualityTier).toBe('high')
+    expect(s.qualityTier).toBe('realistic')
     expect(s.assetTier).toBe(null)
     expect(s.cameraMode).toBe('orbit')
   })
@@ -28,7 +28,7 @@ describe('roomEditor state', () => {
     useStore.getState().exitRoomEditor()
     const s = useStore.getState()
     expect(s.roomEditor.active).toBe(false)
-    expect(s.qualityTier).toBe('high')
+    expect(s.qualityTier).toBe('realistic')
     expect(s.assetTier).toBe(null)
   })
 })

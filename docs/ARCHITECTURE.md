@@ -60,7 +60,8 @@ same change that reshapes a system.
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
   (IKEA/Courts/HipVan/Castlery).
-- `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build).
+- `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build), plus
+  `python/scripts/blender/` — the bpy layer (references, bakes, QA). See the Blender section.
 - **Performance profiler (dev-only)**: `src/dev/profiler/` — detached-window
   (`window.open`) live metrics dashboard + on-demand effect-cost sweep + per-object
   GPU breakdown; ⌘K → "Open profiler (dev)" (`profiler` flag, `devOnly`+`pro`, plus
@@ -995,17 +996,36 @@ same change that reshapes a system.
   styling pass: up to 2 `noClip` decor props per host surface (sofa→cushions, coffee
   table→bowl/magazines, bed→cushions, nightstand→plant/candle, desk→plant/books,
   sideboard/console→frames/sculpture). Skip via `withDecor=false`.
-- **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
-  Maximum. **The boot tier is capability-detected** (TIER-AUTODETECT, `tierForCapabilities`,
-  pure + unit-tested) is now only a best-effort **veto** — software rasteriser / phone-tablet /
-  no-WebGL2 / <4 cores → Performance, everything else → High meaning "no opinion". The tier is
-  actually chosen by MEASURING frames (`scene/adaptiveTier.ts` + `scene/frameCost.ts`,
-  TIER-ADAPTIVE): first visit boots `initialAutoTier` (conservative Medium), then the ladder steps
-  both ways on p90 render COST per displayed frame (never frame rate — under `frameloop="demand"`
-  rate measures demand, not capability, and vsync clamps it). Promotion is a probe; oscillation is
-  prevented by a persisted learned ceiling (`autoMaxTier` = the rung that failed). **Maximum is
-  never auto-selected.** Measured p90 cost at 2560x1600: performance 4.7ms / medium 6.0 / high 8.9
-  / maximum 11.7, budget 16.7ms (`scripts/dev-probes/frame-time.mjs`).
+- **Quality: two modes × two device classes** (`quality.ts`, `v0.31.7.68`). `RenderTier` =
+  **Performance | Realistic** — what the user wants — and `DeviceClass` = **weak | capable** —
+  what the machine can take. The mode is *intent*; the class *scales* it. This replaced the four
+  rungs Performance/Medium/High/Maximum, which conflated the two questions and had stopped
+  ordering correctly (measured in walk mode, `high` held 25.1 fps while `maximum` swung 10.9–41.7,
+  so a lower rung was sometimes slower than a higher one).
+  - **The four reachable settings objects ARE the four retired presets, byte-identical**:
+    `performance`/weak = old Performance, `performance`/capable = old **Medium**,
+    `realistic`/weak = old High, `realistic`/capable = old Maximum. Pinned in `quality.test.ts`
+    against hardcoded copies (not regenerated from the table, which would be tautological), plus
+    an assertion that exactly four *distinct* objects are reachable. Verified end-to-end too:
+    re-rendering one pose across the change gave 0.008 counts of mean difference against old
+    Medium and 0.159 against old Maximum.
+  - **Boot** is `BOOT_TIER` = Performance on every device — a constant, because Realistic costs
+    more per frame and is never assumed on a user's behalf. Capability detection
+    (`deviceClassFor`, pure + unit-tested) picks the *class*: software rasteriser / phone-tablet /
+    no-WebGL2 / <4 cores → weak, everything else → capable. A capable machine therefore still
+    boots with sun shadows and the IBL probe, exactly as the old Medium boot did.
+  - **The adaptive ladder moves the CLASS, never the mode** (`scene/adaptiveTier.ts` +
+    `scene/frameCost.ts`, TIER-ADAPTIVE), on p90 render COST per displayed frame — never frame
+    rate, since under `frameloop="demand"` rate measures demand, not capability, and vsync clamps
+    it. Promotion is a probe; oscillation is prevented by a persisted learned ceiling
+    (`autoMaxDevice` = the class that failed). Each demotion maps onto an old one:
+    `performance`/capable→weak *is* the old Medium→Performance step.
+  - **Gate on the SETTING, not the mode name.** `medium` became a device variant of
+    `performance`, so `tier === 'performance'` now catches what used to be Medium — which nearly
+    cost most users their soft shadows via `shadowFilterForTier`. It keys on `shadowMapSize > 0`.
+  - Measured p90 cost at 2560x1600 on the retired rungs, still the four reachable variants:
+    performance 4.7ms / medium 6.0 / high 8.9 / maximum 11.7, budget 16.7ms
+    (`scripts/dev-probes/frame-time.mjs`).
   Performance is flat (no shadows/IBL/post, DPR 1);
   Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+**ToneMapping**+HueSat+Vignette+SMAA);
   Maximum=+cinematic
@@ -1128,7 +1148,7 @@ same change that reshapes a system.
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
-  transmission (High/Maximum) vs cheap transparency (Performance/Medium). `GLOSSY_ENV_INTENSITY`
+  transmission (`realistic`) vs cheap transparency (`performance`). `GLOSSY_ENV_INTENSITY`
   boosts IBL on glossy finishes (free on Performance — no IBL there).
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
@@ -2959,3 +2979,130 @@ same change that reshapes a system.
   `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call
   `evictGltfAsset(url)` to clear + dispose those (base + all tier-variant urls) so GPU
   memory is reclaimed instead of leaking toward WebGL context loss.
+
+
+## Blender/Cycles rendering (optional local layer)
+
+An **optional** photoreal layer requiring a local Blender install. The three.js real-time
+tiers and the `three-gpu-pathtracer` HQ still remain the default for everyone without it —
+nothing here is on the app's critical path, and the app must never block or crash when
+Blender is absent.
+
+- **`python/scripts/blender/sofa_scene.py`** — the single shared module every bpy entry
+  point goes through: scene reset, GLB import, Cycles setup, HDRI world, sun, camera,
+  render, bounds. Encodes the installed build's verified socket names and engine quirks so
+  callers never hardcode a 3.x `bpy` name.
+- **`python/scripts/blender/inspect_asset.py`** — turntable QA for one GLB, framed from the
+  asset's own bounds.
+- **`python/scripts/blender/render_still.py`** — photoreal still; also the module the render
+  service calls. `--sky` places the *physical* atmospheric sky from the app's own sun vector,
+  which is what makes a render an absolute reference rather than something calibrated to the app.
+- **`python/scripts/blender/render_from_manifest.py`** — the **matched-pose** reference, in one
+  command, from a `BLENDREF` directory. The pose is *read* from the manifest, never retyped:
+  camera position, look-at, vertical FOV and sun vector are four flags and four chances to
+  mis-transcribe, and a mis-transcribed pose is the most expensive error class in this area.
+- **`python/scripts/blender/render_visibility.py`** — renders **aperture visibility** itself
+  (white Lambertian everything, *constant* white world, no sun, glazing deleted so the aperture
+  is open). The ground truth item (w) is validated against.
+- **`python/scripts/blender/bake_material.py`** — bakes visibility/AO/diffuse to per-object
+  textures keyed by geometry. See the lightmap pipeline below.
+- **`python/scripts/blender/cli_argv.py`** — `normalise(parser, argv)`, which re-attaches a
+  negative numeric value to its flag (`--sun-dir -0.5,…` → `--sun-dir=-0.5,…`) before argparse
+  can mistake it for an option. Every entry point routes its argv through it. Deliberately
+  **bpy-free** so `test_cli_argv.py` runs in a plain interpreter: `python3
+  python/scripts/blender/test_cli_argv.py` (11 tests, no Blender).
+- **`python/scripts/blender/glb_fix.py`** — works around the 5.2.1 importer aborting on
+  `KHR_materials_dispersion: {}`; 4 glass materials out of 897 otherwise block a whole import.
+- **`docs/skills/blender.md`** — **read first.** Verified `bpy` facts for the installed build
+  (Blender 5.2.1 LTS), the gotchas that cost time if assumed, invocation examples from this
+  repo, and a living lessons log each session appends to.
+
+Interchange is the existing `.sofa.json` + GLB export (`src/export/sceneGltf.ts`) — no new
+format. Note the Poly Haven HDRIs are **CDN-hosted, not bundled**
+(`src/scene/lighting/hdriCatalog.ts`), so any Blender path wanting them must fetch and cache
+locally rather than globbing the repo.
+
+### Baked visibility lightmaps (item (w)) — the one thing Blender feeds back into the app
+
+Everything above is *offline*. This is the exception: a Blender bake that ships as an asset and
+changes the real-time render. It exists because the app's `HemisphereLight` + `AmbientLight` are
+**visibility-blind** — every surface receives the same skylight whether or not it can see the sky
+— which measures as a ~3× error on a wall in a normal living room, the largest single fidelity
+defect found in the graphics arc. Applied, it takes the spatial mismatch against a Cycles
+reference from **4.76× to 1.36×** in walk view, at **no measurable frame cost** at either
+auto-selected tier.
+
+Behind `visibilityLightmap` (off by default: only the move-in default plan is baked, and with no
+maps the render is byte-identical).
+
+**Baking a plan** — two commands, ~35 min for a whole flat:
+
+    # 1. export the pose + GLB from the running app (dev server on :5200)
+    SSG_URL=http://localhost:5200/ OUT=/tmp/ref VH=720 LIGHTS=off BLENDREF=/tmp/ref \
+      node scripts/dev-probes/light-distribution.mjs
+
+    # 2. bake every shell mesh, keyed by geometry
+    blender --background --factory-startup \
+      --python python/scripts/blender/bake_material.py -- \
+      --dir /tmp/ref --out-dir public/assets/lightmaps \
+      --pass visibility --min-area 3.0 --res 256 --samples 4096 --adaptive-threshold 0.001
+
+`LIGHTS=off` is not optional: the reference is daylight-only, and a lamp-lit raster compared
+against it inflates the error it is measuring.
+
+**The `irradiance` pass needs TWO passes, because PNG cannot hold it.** `visibility` is a
+dimensionless ratio already inside `0..1`, so it saves cleanly. Irradiance is not: Blender clips a
+float buffer at **1.0** on save, and a sky-lit interior bakes well above that. Measured on the
+production selection at `--scale 1`: global max **3.197**, and **22 of 40 maps clipped** — with the
+v99 set reaching a max of **56** against a whole-map *mean* of **9.4**, i.e. the typical texel
+saturated, not just the highlights. A clipped map is unrecoverable downstream, and it does not look
+broken: it looks like a plausible bright map that no gain can fit. That cost `v0.31.7.98`–`.102` four
+refuted correspondence hypotheses before anyone read the `max` the index had been reporting all along.
+
+So:
+
+    # pass 1 -- cheap, only to learn the maximum. Stats are PRE-scale, so this is the
+    # number you scale by; res and samples barely move it.
+    blender --background --factory-startup \
+      --python python/scripts/blender/bake_material.py -- \
+      --dir /tmp/ref --out-dir /tmp/irr-probe --pass irradiance \
+      --min-area 3.0 --res 64 --samples 64 --scale 1
+    # read the largest "max" across the reported maps, and add ~25 % headroom
+
+    # pass 2 -- production, at that scale. `--scale` also forces a float buffer and a
+    # 16-bit PNG, because packing a ~56x range into 0..1 at 8 bits quantises to ~0.22 in
+    # irradiance units -- ruinous in the dark corners this pass exists to describe.
+    blender --background --factory-startup \
+      --python python/scripts/blender/bake_material.py -- \
+      --dir /tmp/ref --out-dir public/assets/lightmaps-irr --pass irradiance \
+      --min-area 3.0 --res 256 --samples 4096 --adaptive-threshold 0.001 --scale 4
+
+Check `"clipped": false` on every map in pass 2 — it is reported per map precisely because the
+failure is invisible in the file. The divisor is written into `index.json` as `scale`, and
+`applyVisibilityLightmaps` multiplies it back in **separately from `gain`**: one is a measured unit
+conversion owned by the producer, the other a fitted look constant, and collapsing them is how a
+clipped set came to be "explained" by a gain of 14.
+
+**One global scale, never per map.** Per-map normalisation would destroy the between-mesh ratios that
+are the entire point of a GI bake.
+
+**Runtime**, all four modules in `src/scene/`:
+
+| module | job |
+| --- | --- |
+| `lightmapKey.ts` | names a map by **world-space** geometry, so one shared index serves every baked plan and a wall in plan A cannot collide with one in plan B |
+| `lightmapUv.ts` | the `uv1` 3×2 box atlas, derived from local geometry so the runtime regenerates Blender's layout without shipping a UV table |
+| `lightmapIndex.ts` | parses `index.json`, resolves keys, and **counts the hit rate** — a map that never loads and a working subtle term are indistinguishable in a screenshot |
+| `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection |
+
+**Two things that will bite anyone touching this.** The injection **owns its own sampler,
+uniform and `uv1` varying** rather than using three's `aoMap` slot — routed through that slot the
+materials compiled without `USE_AOMAP` and the attenuation silently never ran. And it must be
+applied **at material construction, never to a live material**: attaching mid-session compiles
+~19 shader variants and cost a measured 216 ms frame, so a flag toggled at runtime will hitch.
+
+**Measurement instruments** (`scripts/dev-probes/`): `frame-compare.mjs` (exposure-invariant
+tonality), `spatial-profile.mjs` (where the error is, and `--explain` to test a candidate cause),
+`chroma-locate.mjs` (WB-invariant chroma), `highlight-locate.mjs`, `bake-noise.mjs` (seed-pair
+noise, dark-texel error), `bake-gain.mjs`. Each exists because an earlier aggregate metric hid a
+real defect; the headers say which.

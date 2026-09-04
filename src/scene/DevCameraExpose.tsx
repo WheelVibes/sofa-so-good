@@ -9,7 +9,7 @@ import { useEffect } from 'react'
  * mount site.
  */
 export function DevCameraExpose() {
-  const { camera, gl, controls, scene, raycaster, advance } = useThree()
+  const { camera, gl, controls, scene, raycaster, advance, invalidate } = useThree()
   useEffect(() => {
     ;(window as unknown as { __three?: unknown }).__three = {
       camera,
@@ -22,7 +22,13 @@ export function DevCameraExpose() {
       // skips the composer and under-reports anything the post stack re-renders
       // the geometry for.
       advance,
+      // r3f's demand-mode request. Exposed so a harness can measure the
+      // INVALIDATION CADENCE rather than only the cost of a frame: walk mode
+      // draws at exactly half the rAF rate at every tier while `RenderPump`
+      // invalidates every rAF, and distinguishing "the pump asks too late" from
+      // "the renderer is saturated" needs a second invalidate source to test with.
+      invalidate,
     }
-  }, [camera, gl, controls, scene, raycaster, advance])
+  }, [camera, gl, controls, scene, raycaster, advance, invalidate])
   return null
 }

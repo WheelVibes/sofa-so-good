@@ -43,7 +43,10 @@ await page.evaluate((h) => {
   s.setTimeMode('manual')
   s.setManualHour(h)
 }, 13)
-await page.evaluate((t) => window.__store.getState().setQualityTier(t), process.env.TIER || 'high')
+await page.evaluate(
+  (t) => window.__store.getState().setQualityTier(t),
+  process.env.TIER || 'realistic',
+)
 await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})

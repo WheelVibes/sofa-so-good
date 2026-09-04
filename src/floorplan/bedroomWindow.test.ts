@@ -19,21 +19,16 @@ import { pointInRoom } from './types'
  */
 const KNOWN_WINDOWLESS_BEDROOMS = [
   'tpl-hdb-4room/h4-bed3',
-  // h4-master FIXED in v0.31.5.115 — `h4-m-win`'s offset was mirrored and put the
-  // master's window in the KITCHEN. Corrected to the exact mirror (7.4 -> 0.6).
   'tpl-hdb-5room/h5-bed3',
-  // h5-master FIXED in v0.31.5.116 — `h5-m-win`'s offset was mirrored and put the
-  // master's window in the KITCHEN. Corrected to the exact mirror (8.2 -> 1.0).
   'tpl-hdb-exec/ex-bed3',
   // ex-master FIXED in v0.31.5.118 — `ex-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (9.8 -> 0.4).
-  // c4-bed4 is NOT an interior room — it fronts `c4-n`, and offsets 6.1-8.7 of
-  // that wall are clear. A window was added and REVERTED: at every offset in that
-  // span the room's wardrobe stands in front of the glass, because `c4-n` is the
-  // only wall it can take. Giving this room daylight needs its layout changed,
-  // not a window added, so it stays here rather than trading one ratchet for the
-  // other (measured v0.31.8.41).
-  'tpl-condo-4bed/c4-bed4',
+  // c4-bed4 FIXED on the feat/blender-render merge. `v0.31.8.41` added a window here and REVERTED
+  // it, because at every offset in `c4-n`'s clear span the room's wardrobe stood in front of the
+  // glass — trading this ratchet for `windowSightline`'s. That reason no longer holds: under the
+  // arranger as it stands after `v0.31.9.26`'s `reserveRetry: false` and ROUTE-UNSEAL, `c4-b4win`
+  // does NOT appear in `windowSightline`'s blocked list, so the trade the revert was avoiding does
+  // not happen. Re-measured on the merge, both ratchets improve together.
 ]
 
 /** Does this room own `win`? Probe 0.3 m either side of the glass centre — the
@@ -102,6 +97,8 @@ describe('template bedrooms have daylight', () => {
     // grandparent suite a window on the south wall it owns; 38 from `.31`, the
     // 3-room re-author — `h3-b2-win` had been at z=2.0, in the KITCHEN, and
     // bedroom 2 does not reach that wall at all.
-    expect(owning).toBe(40)
+    // 41 on the feat/blender-render merge: `c4-b4win` (see the list above) gives Bedroom 4 its
+    // own window, which the revert at `v0.31.8.41` had left off.
+    expect(owning).toBe(41)
   })
 })

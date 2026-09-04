@@ -132,6 +132,7 @@ export function oneBed(): FloorPlan {
  *  the loft level stacks a sleeping deck + landing over the rear band, with a
  *  parapet guard rail along the open mezzanine edge. */
 export function loft(): FloorPlan {
+  const VOID_TOP = 5.5
   const W = 8.2
   const D = 6.0
   // Mezzanine floor sits above the ground volume (ceiling 3.0 m + 0.3 m slab).
@@ -172,7 +173,52 @@ export function loft(): FloorPlan {
     ceilingHeight: 3.0,
     extent: [W, D],
     walls: [
-      ...perimeter('lf', W, D),
+      // DOUBLE-HEIGHT-WALL-BAND (item `(w)`, v0.31.7.208). `perimeter()` builds every wall at
+      // `wall.topHeight ?? plan.ceilingHeight` (`planGeometry.ts:85`), so the plain perimeter
+      // stopped at **3.0 m** while the loft above reaches **5.5 m** — and the 2.5 m band between
+      // them had NO exterior wall at all. Standing on the mezzanine and looking across the void,
+      // a raycast through the frame centre hit nothing: the "double-height living" was open to the
+      // sky. Fixing it needs the void-side spans SPLIT out, because above the mezzanine the loft's
+      // own `lfu-e`/`lfu-w` already occupy that plane from 3.3 m up and a full-height ground wall
+      // would render coplanar with them.
+      //
+      // North borders only the void, so it rises whole. East and west are cut at the mezzanine
+      // edge (z = 3.4); the void-side halves keep the original `lf-e`/`lf-w` ids so `lf-e1`
+      // (offset 1.2 from [W-T, T], i.e. z = 1.3) stays on the wall it was authored against.
+      // South is untouched — it lines the rooms UNDER the mezzanine, where `lfu-s` covers above.
+      { id: 'lf-n', start: [T, T], end: [W - T, T], thickness: 'external', topHeight: VOID_TOP },
+      {
+        id: 'lf-e',
+        start: [W - T, T],
+        end: [W - T, 3.4],
+        thickness: 'external',
+        topHeight: VOID_TOP,
+      },
+      // The rear halves and the south wall stop at the MEZZANINE FLOOR (3.3), not the ground
+      // ceiling (3.0): above 3.3 the loft's own `lfu-*` walls take over, and the 0.3 m slab band
+      // between the two was unwalled envelope (v0.31.7.209).
+      {
+        id: 'lf-e-rear',
+        start: [W - T, 3.4],
+        end: [W - T, D - T],
+        thickness: 'external',
+        topHeight: loftLevel.elevation,
+      },
+      {
+        id: 'lf-s',
+        start: [W - T, D - T],
+        end: [T, D - T],
+        thickness: 'external',
+        topHeight: loftLevel.elevation,
+      },
+      {
+        id: 'lf-w-rear',
+        start: [T, D - T],
+        end: [T, 3.4],
+        thickness: 'external',
+        topHeight: loftLevel.elevation,
+      },
+      { id: 'lf-w', start: [T, 3.4], end: [T, T], thickness: 'external', topHeight: VOID_TOP },
       iwall('lf-bath-w', [6.2, 3.6], [6.2, D - T]),
       iwall('lf-bath-n', [6.2, 3.6], [W - T, 3.6]),
       // Stair run edge (open to the living side — no wall on its north).
@@ -200,6 +246,8 @@ export function loft(): FloorPlan {
         width: 7.8,
         depth: 3.3,
         floor: 'floor-concrete',
+        // The void rises to the loft's underside, not the ground ceiling (item `(w)`).
+        ceilingHeight: VOID_TOP,
       },
       {
         id: 'lf-sleep',
@@ -583,7 +631,7 @@ export function condoTerrace(): FloorPlan {
     ceilingHeight: 3.0,
     extent: [W, D],
     walls: [
-      ...perimeter('ct', W, D),
+      ...perimeter('ct', W, D, upper.elevation),
       // Car-porch parapet at the south (front).
       parapet('ct-porch-n', [T, 2.6], [W - T, 2.6]),
       // Living / dining mid-block, kitchen + yard at the rear (north).
@@ -709,6 +757,9 @@ export function condo4Bed(): FloorPlan {
       door('c4-master', 'c4-bednorth', 9.5, 1.0),
       window('c4-b2win', 'c4-n', 0.8, 1.6),
       window('c4-b3win', 'c4-n', 3.6, 1.6),
+      // (h): `c4-bed4` owned no window. `c4-n` is external; centred in its clear span
+      // (5.5-7.7), between `c4-b3win` (3.6-5.2) and `c4-mwin` (9.4-11.2).
+      window('c4-b4win', 'c4-n', 6.6, 1.5),
       window('c4-mwin', 'c4-n', 9.4, 1.8),
       window('c4-livwin', 'c4-w', 1.0, 2.4),
       window('c4-balwin', 'c4-e', 9.2, 1.6),

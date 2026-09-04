@@ -33,7 +33,7 @@ import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const ROOM = process.env.ROOM || 'livingDining'
 const OUT = process.env.OUT || '/tmp/shadow-attrib'
 fs.mkdirSync(OUT, { recursive: true })

@@ -62,6 +62,7 @@ import { TiltGizmo } from './selection/TiltGizmo'
 import { TapeMeasure } from './TapeMeasure'
 import { TONE_MAPPING_THREE } from './toneMappingThree'
 import { useQuality } from './useQuality'
+import { VisibilityLightmaps } from './VisibilityLightmaps'
 import { WalkMeasureOverlay } from './WalkMeasureOverlay'
 import { MaybeXr } from './xr/MaybeXr'
 
@@ -125,7 +126,13 @@ export function Scene() {
   // in r3f state — see InteractiveDprController.tsx / QualityController.tsx.
   const dprMax = useQuality().dprMax
   const dprRange = useMemo<[number, number]>(() => [1, dprMax], [dprMax])
-  const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
+  const shadowMapType =
+    SHADOW_FILTER_THREE[
+      shadowFilterForTier(
+        useStore((s) => s.qualityTier),
+        useStore((s) => s.deviceClass),
+      )
+    ]
   const cameraMode = useStore((s) => s.cameraMode)
   return (
     <Canvas
@@ -174,6 +181,10 @@ export function Scene() {
         <SceneBackdrop />
         <SceneEnvironment />
         <Lighting />
+        {/* Baked skylight-visibility maps (item (w)), flag-gated and off by default. Mounted
+            beside the rig it corrects, and inside the scene so its one-time shader compiles
+            happen behind the loader rather than mid-session. Renders nothing. */}
+        <VisibilityLightmaps />
         <CurtainLightController />
         <FurnitureLights />
         {customPlan ? <PlanShell /> : <Apartment />}

@@ -13,7 +13,7 @@ import { appUrl, centerBox, frameStats, isBlank } from './lib.mjs'
 const OUT = process.env.OUT || '/tmp/ssg-shots'
 const URL_ = appUrl()
 const REPS = Number(process.env.REPS || 1)
-const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
+const TIERS = (process.env.TIERS || 'performance,realistic').split(',')
 const FRAMES = Number(process.env.FRAMES || 26)
 fs.mkdirSync(OUT, { recursive: true })
 

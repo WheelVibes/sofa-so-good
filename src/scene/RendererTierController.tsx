@@ -37,13 +37,14 @@ export const SHADOW_FILTER_THREE: Record<ShadowFilter, ShadowMapType> = {
  */
 export function RendererTierController() {
   const tier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
   const invalidate = useThree((s) => s.invalidate)
   const lastFilter = useRef<ShadowFilter | null>(null)
   useEffect(() => {
-    gl.transmissionResolutionScale = transmissionResolutionScaleForTier(tier)
-    const filter = shadowFilterForTier(tier)
+    gl.transmissionResolutionScale = transmissionResolutionScaleForTier(tier, deviceClass)
+    const filter = shadowFilterForTier(tier, deviceClass)
     // Belt-and-braces: the Canvas `shadows` prop normally applied this already
     // during render; setting the same value again is a no-op.
     gl.shadowMap.type = SHADOW_FILTER_THREE[filter]
@@ -60,6 +61,9 @@ export function RendererTierController() {
     }
     lastFilter.current = filter
     invalidate()
-  }, [tier, gl, scene, invalidate])
+    // `deviceClass` belongs here: it now drives both the transmission scale and
+    // the shadow filter, so an adaptive step from capable to weak has to re-run
+    // this or the renderer keeps the old filter until the mode changes.
+  }, [tier, deviceClass, gl, scene, invalidate])
   return null
 }

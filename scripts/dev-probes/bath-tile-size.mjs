@@ -98,7 +98,7 @@ await page
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
 await page

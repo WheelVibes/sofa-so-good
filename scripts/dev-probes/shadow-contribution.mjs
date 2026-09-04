@@ -15,7 +15,7 @@ import { appUrl, centerBox } from './lib.mjs'
 
 const OUT = '/tmp/ssg-shadow'
 fs.mkdirSync(OUT, { recursive: true })
-const TIER = process.env.TIER || 'maximum'
+const TIER = process.env.TIER || 'realistic'
 const HOURS = (process.env.HOURS || '9,13,17').split(',').map(Number)
 
 async function raw(buf, box) {

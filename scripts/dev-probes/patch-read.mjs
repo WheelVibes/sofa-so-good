@@ -23,6 +23,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 
+/** `LINEAR=1` decodes sRGB per pixel before averaging — see the note in the stat function. */
+const LINEAR = process.env.LINEAR === '1'
+
 const argv = process.argv.slice(2)
 const sep = argv.indexOf('--')
 if (sep < 2) {
@@ -63,22 +66,47 @@ async function readPatch(file, meta, p) {
   let sumSq = 0
   let rb = 0
   const n = data.length / 3
+  // Every luma, so PERCENTILES are available alongside the mean. A mean is the wrong statistic
+  // for a patch containing two populations: at the window, thin grille bars and bright glass. Both
+  // `v0.31.7.279`'s "the pane emissive saturates" and `.280`'s bar-brightening were conclusions
+  // about a BAR-DOMINATED mean that could not see the glass move at all. p95 reads the glass, p05
+  // reads the bars, and the two together say which one a change actually touched.
+  const lumas = new Float64Array(n)
   for (let i = 0; i < data.length; i += 3) {
     const r = data[i]
     const g = data[i + 1]
     const b = data[i + 2]
     // Rec.601 luma, matching sharp's own greyscale so figures compare with the
     // probe's band means.
-    const l = 0.299 * r + 0.587 * g + 0.114 * b
+    //
+    // LINEAR=1 sRGB-DECODES each channel first, so the mean is a mean of LIGHT rather than of
+    // display code values. Needed to compare a GRADIENT against a bake: a lightmap holds linear
+    // irradiance, and a ratio of tone-mapped bytes is not a ratio of light — near the AgX shoulder
+    // a linear ratio of 0.82 shows up as about 0.86 in bytes (`(z11)`). Decoding per PIXEL and
+    // then averaging is the point: `sRGB_to_linear(mean)` is not `mean(sRGB_to_linear)` on a
+    // patch that spans a gradient, which is exactly the case this exists for. Only valid on a
+    // render whose transform IS the sRGB OETF -- Blender's `Standard`, not AgX.
+    const dec = (v) => {
+      const c = v / 255
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }
+    const l = LINEAR
+      ? 255 * (0.299 * dec(r) + 0.587 * dec(g) + 0.114 * dec(b))
+      : 0.299 * r + 0.587 * g + 0.114 * b
     sum += l
     sumSq += l * l
     rb += r - b
+    lumas[i / 3] = l
   }
   const mean = sum / n
+  lumas.sort()
+  const q = (f) => lumas[Math.min(n - 1, Math.max(0, Math.round(f * (n - 1))))]
   return {
     mean,
     sd: Math.sqrt(Math.max(0, sumSq / n - mean * mean)),
     rb: rb / n,
+    p05: q(0.05),
+    p95: q(0.95),
     px: `${width}x${height}`,
   }
 }
@@ -109,12 +137,12 @@ for (const img of images) {
 
 const w = Math.max(...rows.map((r) => r.patch.length), 8)
 console.log(
-  `\n${'patch'.padEnd(w)}  ${'image'.padEnd(12)}  ${'mean'.padStart(7)}  ${'R-B'.padStart(7)}  ${'sd'.padStart(6)}  px`,
+  `\n${'patch'.padEnd(w)}  ${'image'.padEnd(12)}  ${'mean'.padStart(7)}  ${'p05'.padStart(6)}  ${'p95'.padStart(6)}  ${'R-B'.padStart(7)}  ${'sd'.padStart(6)}  px`,
 )
 for (const p of patches) {
   for (const r of rows.filter((x) => x.patch === p.name)) {
     console.log(
-      `${r.patch.padEnd(w)}  ${r.image.padEnd(12)}  ${r.mean.toFixed(1).padStart(7)}  ${r.rb.toFixed(1).padStart(7)}  ${r.sd.toFixed(1).padStart(6)}  ${r.px}`,
+      `${r.patch.padEnd(w)}  ${r.image.padEnd(12)}  ${r.mean.toFixed(1).padStart(7)}  ${r.p05.toFixed(0).padStart(6)}  ${r.p95.toFixed(0).padStart(6)}  ${r.rb.toFixed(1).padStart(7)}  ${r.sd.toFixed(1).padStart(6)}  ${r.px}`,
     )
   }
   // Two images → print the delta, which is the figure every (p) round wants.

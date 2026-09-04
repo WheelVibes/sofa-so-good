@@ -15,9 +15,11 @@ import { QUALITY_PRESETS } from './quality'
  * every optional pass, but it may never drop the composer.
  */
 describe('composer plan', () => {
-  it('mounts a composer for every shipped tier', () => {
-    for (const [tier, q] of Object.entries(QUALITY_PRESETS)) {
-      expect(composerPlan(q).mount, `${tier} must mount a composer`).toBe(true)
+  it('mounts a composer for every shipped mode and device class', () => {
+    for (const [tier, byDevice] of Object.entries(QUALITY_PRESETS)) {
+      for (const [device, q] of Object.entries(byDevice)) {
+        expect(composerPlan(q).mount, `${tier}/${device} must mount a composer`).toBe(true)
+      }
     }
   })
 

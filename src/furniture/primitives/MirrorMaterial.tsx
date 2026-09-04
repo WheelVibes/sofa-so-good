@@ -1,5 +1,5 @@
 import { MeshReflectorMaterial } from '@react-three/drei'
-import type { RenderTier } from '../../scene/quality'
+import type { DeviceClass, RenderTier } from '../../scene/quality'
 import { useStore } from '../../state/store'
 import { MetalMaterial } from './MetalMaterial'
 import { useMirrorRelevance } from './useMirrorRelevance'
@@ -17,15 +17,21 @@ import { useMirrorRelevance } from './useMirrorRelevance'
 
 /** Tier → reflector settings. `real` gates the planar reflector; resolution
  *  scales the reflection render-target cost with the tier. Pure for testing. */
-export function mirrorReflectorConfig(tier: RenderTier): { real: boolean; resolution: number } {
-  if (tier === 'maximum') return { real: true, resolution: 1024 }
-  if (tier === 'high') return { real: true, resolution: 512 }
-  return { real: false, resolution: 0 }
+export function mirrorReflectorConfig(
+  tier: RenderTier,
+  device: DeviceClass,
+): { real: boolean; resolution: number } {
+  // Same three outcomes as the old four rungs gave: `realistic` is where the old
+  // High/Maximum gate was, and the resolution split that used to distinguish
+  // those two rungs is now the device class.
+  if (tier !== 'realistic') return { real: false, resolution: 0 }
+  return device === 'capable' ? { real: true, resolution: 1024 } : { real: true, resolution: 512 }
 }
 
 export function MirrorMaterial({ tint = '#dfe8ee' }: { tint?: string }) {
   const tier = useStore((s) => s.qualityTier)
-  const { real: tierAllowsReal, resolution } = mirrorReflectorConfig(tier)
+  const deviceClass = useStore((s) => s.deviceClass)
+  const { real: tierAllowsReal, resolution } = mirrorReflectorConfig(tier, deviceClass)
   // MIRROR-RELEVANCE: the tier only says the reflection is PERMITTED. Whether it
   // is worth an entire extra scene pass right now depends on how big the pane is
   // on screen and on the global reflection budget — see `mirrorRelevance.ts`.

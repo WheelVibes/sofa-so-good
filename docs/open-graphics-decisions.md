@@ -262,7 +262,23 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
-## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ OPEN, needs a content call (measured v0.31.5.109)
+## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **1 of 20 remains** (`.194` 4-room, `.195` 5-room, `.196` exec, `.197` jumbo, `.199` condo-4bed, `.200` 3gen, `.201` 3-room's master bath, `.203` maisonette)
+
+> **The two left are different in kind.** `tpl-hdb-3room`'s north strip and
+> `tpl-hdb-maisonette/em-up` are not missing partitions — subdividing them asks how rooms are
+> ENTERED, and a wrong answer produces a kitchen reachable only through the service yard. The two
+> bisection entries are ✅ **FIXED in `.202`** by shortening both corridor walls to the master's
+> north wall — no rectangle resize was needed once the baths had partitions of their own.
+
+> **Note for the remaining six:** closing a column can SEAL a bathroom — `tpl-hdb-exec` had no door
+> on either bounding wall, and the enclosure ratchet passes happily on two sealed boxes. Check the
+> doors, not just the ratchet.
+
+> **`v0.31.7.194`:** `h4-cbath`/`h4-mbath` owned no walls at all. Three partitions close the bath
+> column (x 3.6-5.7, z 6.5-D) and two doors reach it, which separates all five rooms the ratchet
+> listed together. Item `(j)` improved as a side effect: `h4-m-win` is no longer blocked.
+
+Original write-up (measured v0.31.5.109):
 
 **What you would see.** Load `tpl-hdb-jumbo`, walk into the Master Bedroom, and look west: **two
 toilets and a washbasin are standing in the same open volume as the bed**, with no wall or door
@@ -661,6 +677,17 @@ up as a required edit to the list.
 
 ## (g) LEVEL-ISOLATION-IN-WALK — ✅ FIXED v0.31.8.47, VERIFIED v0.31.8.49
 
+> **SUPERSEDED ON MERGE (feat/blender-render).** This branch also fixed `(g)`, at
+> `v0.31.7.207`-`.208`, with `visibleLevelsForWalk` (walked storey plus ALL below) and a
+> per-room `ceilingCullBelowY` suppression. Staging's fix landed later, is bounded to the
+> storey immediately below, carries a cost invariant in `renderedLevels.test.ts` and a measured
+> frame diff (57.2 %, overlook luma 112.7 -> 174.4), and needs NO ceiling work because room
+> ceilings are already `side: BackSide`. So staging's is what ships and this branch's
+> `visibleLevelsForWalk` plus the ceiling plumbing were removed in the merge. The branch's own
+> measurement stands as corroboration: below the walked storey, orbit rendered 0 meshes and
+> walk 359.
+
+
 **Decided and shipped** (the three open questions, answered): walk mode renders the storey
 **immediately below** the walked one — not all storeys, because that is what an overlook can see and
 it bounds the cost. The overlooked ceiling needed **no** work: room ceilings already render with
@@ -682,7 +709,6 @@ After, the room below is there: walls, a lit interior, windows in the far wall. 
 instrument this item used for its original evidence. Scenario: `scripts/scenarios/loft-walk-level.json`.
 
 ### Original write-up (measured v0.31.5.110)
-
 **What you would see.** Open `tpl-loft`, pick View → Levels → "Loft" (the ONLY way to walk the
 mezzanine), and walk to the guard rail. Over the rail there is **no floor, no far wall and no room
 below — just a pale sky gradient**. Beside the wardrobe, two **black holes** open in the floor where
@@ -734,7 +760,26 @@ measured cost there is small. Benchmark on the Performance tier before committin
 
 ---
 
-## (h) BEDROOM-WINDOW — ⏳ OPEN, needs a content call (measured v0.31.5.113)
+## (h) BEDROOM-WINDOW — ⏳ **3 of 44 remain** (`v0.31.7.192` fixed three, `.193` six more) and none is offset-fixable (measured v0.31.5.113)
+
+> **`v0.31.7.192`:** `ex-bed2b`, `g3-bed3` and `jb-bed3` fixed by ADDING a window, not moving one.
+> The mirrored offset is a position FINDER: flipping the existing glass swaps it between two rooms
+> and leaves the count at 12 (measured), so "none is offset-fixable" stands. All three new windows
+> are clear of furniture, so item `(j)` is unchanged.
+>
+> **`v0.31.7.193`:** six more, found by scanning every wall marked `thickness: 'external'` for a
+> span where 1.5 m of glass opens outdoors, centred in that span. The three left — `h4-bed3`,
+> `h5-bed3`, `ex-bed3` — have NO external span of their own and need a restructure. Item `(j)`
+> improved as a side effect (`g3-liv-win` is no longer blocked).
+
+> **⚠️ I CLOSED THIS IN ERROR ON 2026-09-04, and `v0.31.7.145` reopens it.** I read the three
+> "PLAN FIXED" notes below (`.115` `tpl-hdb-4room`, `.116` `tpl-hdb-5room`, `.118` `tpl-hdb-exec`)
+> and concluded the item was done. The summary table at the foot of this file says otherwise and is
+> right: it was **15 of 44** windowless master bedrooms, **12 remain**, and `.120` proved **none of
+> the twelve is fixable by moving an offset** — each needs a *new opening cut into a wall*.
+>
+> Three of fifteen is not fifteen. I generalised from the three worked examples I happened to read
+> and did not check the count, then told the user it could close.
 
 **What you would see.** Load `tpl-hdb-4room`, walk into the Master Bedroom and turn through all
 four yaws: **four blank walls, no window.** Walk into the Kitchen and there are **two**. Confirmed
@@ -804,6 +849,29 @@ the windows authored on them:
 **Every remaining entry needs a new window opening — a content decision.** The 12 stay **ratcheted
 by name** in `src/floorplan/bedroomWindow.test.ts`.
 
+> ### ⚠️ STATUS `v0.31.7.204`: the window-treatment blocker below is now MOSTLY CLEARED
+>
+> That paragraph says "Fix (h) first" because `snapToNearestWindow` picks the nearest window on the
+> whole LEVEL, so a windowless bedroom would have its curtain snapped onto another room's glass.
+> `(h)` has gone **15 → 3** (`.192`, `.193`), so only three bedrooms could still mis-snap, and they
+> are known by name in `bedroomWindow.test.ts`.
+>
+> **Scoped, from reading the code rather than guessing.** `furnishPlan.ts` has **no** window
+> handling at all — no `windowBound`, no `snapToNearestWindow`, no `windowFixtureProps` — so this is
+> not a `KITS` one-liner. The def exists (`curtains` in `furniture/defs/textiles.ts`, the only
+> `windowBound: true` def) and the placement machinery exists in `placement/windowSnap.ts`; what is
+> missing is the wiring between them in the furnish pipeline, plus:
+>
+> 1. a guard so a curtain is only seeded for a room that OWNS a window — otherwise the three
+>    remaining `(h)` bedrooms steal another room's glass, which is the exact failure this warning
+>    was written about;
+> 2. `drawAmount: 0` set explicitly, because the def defaults to **1 (CLOSED)** and that contradicts
+>    the curtains-open decision shipped in `.88`/`.92`.
+>
+> ✅ **SHIPPED in `v0.31.7.205`**: 42 curtains across 17 templates, one per window a bedroom OWNS,
+> `drawAmount: 0` on all of them, and **0** outside an owning bedroom — the seeder passes the snap
+> only the room's own windows, so the mis-snap this warning describes cannot occur.
+
 **This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
 treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`
 is a curtain or blind — the default flat's curtains are hand-authored in
@@ -819,7 +887,7 @@ curtain must set `drawAmount: 0` explicitly.
 
 ---
 
-## (i) MAIN-DOOR-ROOM — ⏳ OPEN, needs a content call (measured v0.31.5.114)
+## (i) MAIN-DOOR-ROOM — ✅ DECIDED 2026-09-04, see (z)16: fix (5room needs a restructure) (measured v0.31.5.114)
 
 **What you would see.** Stand in `tpl-hdb-4room`'s Master Bedroom and there are **two doors** — the
 internal one on its north wall, and a second on the **south EXTERNAL wall**. That second one is
@@ -897,7 +965,7 @@ unfixable by offset:**
 
 ---
 
-## (j) WINDOW-SIGHTLINE — ⏳ OPEN, needs an arranger strategy (measured v0.31.5.117)
+## (j) WINDOW-SIGHTLINE — ✅ DECIDED 2026-09-04, see (z)16: fix via an arranger strategy (measured v0.31.5.117)
 
 **What you would see.** Walk into `tpl-hdb-4room`'s or `tpl-hdb-5room`'s master bedroom after
 `.115`/`.116` gave each of them a window, and the glass is **not visible from the room centre in any
@@ -1275,8 +1343,253 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261; **a third veil found and PARTLY FIXED in v0.31.8.50**)
+## (l) WINDOW-LUMINANCE — ✅ **FIXED v0.31.7.157, refined to v0.31.7.281** — not by the route
+this item proposed, and with a third veil retired independently in v0.31.8.50
 
+> **Merged from staging: GLASS-SKYCATCH-VEIL (`v0.31.8.50`).** The sky-catch is a STAND-IN for
+> sky luminance, so when a photo backdrop paints a real view behind the pane it double-counts —
+> a constant emissive added to every pane pixel, compressing whatever the backdrop carries.
+> Measured at the living-room window, 13:00, `medium`: dropping it took pane `sd` 15.9 → 20.1
+> and spread 47 → 63 on `sky`, 10.5 → 11.5 and 31 → 38 on `city` — the stand-in was costing
+> 23-34 % of the window's luminance RANGE. `glassSkyCatchIntensity` therefore takes
+> `backdropVisible` and returns 0 for that case, which takes precedence over the curve below;
+> orbit and every backdrop-less path keep it. The two fixes are orthogonal: this one decides
+> WHETHER the stand-in applies, the curve below decides how bright it is when it does.
+
+> **The fix is `glassSkyCatchIntensity(d) = d³ · 5.2`**, a single coefficient and curve on the pane's
+> emissive. Verified by frame at 13:00 (bright opening, crisp mullions, `> 240` **21.5 %**), 18:00
+> (**15.0 %**), 19:00 (bright, defined, no bloom, 0.8 %) and 21:00 (zero by construction).
+> Photographs clip **15–39 %**; the app clipped **0.0 % at every hour** before this.
+>
+> **Everything this item proposed about the background was the wrong lever.** `v0.31.7.152` measured
+> four arms — analytic/Cycles sky × `backgroundIntensity` 1/4 — all at **0.0 % above 240**, because a
+> pane's brightness never reads `scene.background`; it reads this emissive. `(z)`4 was decided on
+> that premise and could not have worked.
+>
+> The curve is cubic because flat ×13 **bloomed at dusk** (`v0.31.7.156`: glow on the wall, mullions
+> washed out) while its statistics looked clean. See `materialRealism.ts` for the full derivation.
+
+> **Read `(y)` below before acting on anything in this section.** The mechanism is now known
+> and it is not what this write-up spent five rounds assuming. The window was never "27 % too
+> dark": `scene.background` is an **LDR sRGB texture**, max ≈ 1.0 linear, and AgX has a
+> shoulder — so the pane was **clipped at the wrong end of the curve**, with **0.0 % of glazing
+> pixels able to exceed 219 counts** against the reference's 49.6 %. The escalated `BGMUL ≈ 12`
+> was fitted to **p99**, a statistic later shown to be pinned by a fixed bright feature the sky
+> never touches. Fitted to the pane *distribution* with a Blender-generated glazing mask, the
+> answer is **4**, and it matches physics to 0.1 of a percentage point.
+
+### ⚠️ (l)/(z)4 — THE PREMISE IS WRONG: the pane is an EMISSIVE CONSTANT, `v0.31.7.152`
+
+`(z)`4 is "ship the Cycles sky **and** `backgroundIntensity ≈ 4`". Both halves are now built behind
+DEV seams (`?skyKeys=1`, `?bgIntensity=<n>`) and measured on the world-verified glazing population
+(n = 367), 13:00, `realistic`:
+
+| arm | glazing mean | **> 240** |
+| --- | --- | --- |
+| analytic sky, intensity 1 | 174.6 | **0.0 %** |
+| Cycles keys, intensity 1 | 179.2 | **0.0 %** |
+| Cycles keys, intensity 4 | 179.1 | **0.0 %** |
+| analytic sky, intensity 4 | 171.1 | **0.0 %** |
+| *photographs* | | *15–39 %* |
+
+**Nothing moves.** And the reason is in the source: `GLASS_SKYCATCH_COLOR = '#cfe4f5'` is a
+**constant**, and a pane's brightness is an **emissive** driven by `glassSkyCatchIntensity(daylight)`
+(`materialRealism.ts`). It never reads `scene.background`. So no change to the background or its
+intensity can reach the pane — which is also why the probe already carries a `SKYCATCH` knob, built
+by an earlier round that suspected exactly this and measured a 1.4× brighter background moving the
+window mean by only ~8 %.
+
+**So `(z)`4 as decided cannot close `(l)`.** The sky-catch emissive is the gate. The Cycles sky and
+the intensity are still worth having for the sky *seen past the window frame* — and `.77`'s
+"matched the pane distribution to 0.1 pt" was presumably measured on that region rather than on the
+glazing material, which is a different quantity and not a contradiction.
+
+**Revised shape of the fix:** the pane must derive its brightness from the sky it is supposed to be
+showing, rather than from a constant. That is a `materialRealism` change, not a background change,
+and it is what `(l)` has actually needed all along.
+
+**And the magnitude is now measured, `v0.31.7.153`.** Sweeping the probe's `SKYCATCH` multiplier
+(applied with interception and read-back, so the intervention is verified — `0.4 → 6.4` emissive
+across the sweep), 13:00, `realistic`, world-verified glazing (n = 367):
+
+| `SKYCATCH` | glazing mean | **> 240** | > 250 |
+| --- | --- | --- | --- |
+| 1 (shipped) | 174.6 | 0.0 % | 0.0 % |
+| 4 | 211.3 | 0.0 % | 0.0 % |
+| 8 | 228.1 | 0.0 % | 0.0 % |
+| 10 | 229.9 | 0.0 % | 0.0 % |
+| **12** | 233.2 | **7.9 %** | 0.0 % |
+| **14** | 238.5 | **43.1 %** | 0.0 % |
+| 16 | 240.6 | 56.4 % | 0.0 % |
+| *photographs* | | *15–39 %* | |
+
+**≈×13 lands in the photographic band.** Two further observations:
+
+- **`> 250` stays 0.0 % at every multiplier**, even with the mean at 240.6. That is AgX's shoulder —
+  the same mechanism this item recorded for the background. So the app can approach the photographic
+  band at `> 240` but cannot reach a hard clip; a metric defined at `> 250` would call every setting
+  a failure.
+- **≈13 is suspiciously close to the `BGMUL ≈ 12` this item escalated and then corrected down to 4.**
+  Since the background provably cannot reach the pane, the discarded ~12 may have been the right
+  *magnitude* measured on the wrong *lever*. Offered as an observation, not a conclusion.
+
+**Across the day at ×13, and the night constraint is satisfied by construction:**
+
+| hour | ×1 mean | ×13 mean | ×13 `> 240` |
+| --- | --- | --- | --- |
+| 08:00 | 154.8 | 233.7 | 1.9 % |
+| 13:00 | 174.6 | 237.3 | **33.0 %** |
+| 18:00 | 175.0 | 236.5 | **27.5 %** |
+| 21:00 | — | — | **0 by construction** |
+
+This item's standing constraint is *"Night (21:00) is already correct and must not regress"*, and it
+is met without a guard: `glassSkyCatchIntensity(d) = clamp(d, 0, 1) * 0.4`, so at zero daylight the
+sky-catch is **exactly 0** and any multiplier has nothing to scale. `materialRealism.test.ts` already
+pins `glassSkyCatchIntensity(0) === 0`. (The probe emits no glazing population at 21:00 — `.127`
+keyed the glass off sun altitude, so the night pane has a different material signature — so this is
+established from the source and its test rather than from the metric.)
+
+The daylight ramp also means the effect **self-scales with time of day**: in-band at midday and
+evening, well under it at 08:00, zero at night. That is the right shape for a window, and it comes
+free from the existing function.
+
+### ⚠️ (l) — ×13 BLOCKED by a bloom guard, and the frame is right, `v0.31.7.155`
+
+Implemented `glassSkyCatchIntensity` at ×13 (0.4 → 5.2) and **the suite caught it**:
+`materialRealism.test.ts` asserts `glassSkyCatchIntensity(1) < 1.05` — *"stays below the bloom
+threshold so windows do not bloom"*.
+
+**The frame at ×13 is exactly what `(l)` asks for.** 13:00, `realistic`: the panes read as a bright,
+blown-out opening with the grille silhouetted against them, edges crisp, no visible halo — the first
+time in this arc a window has looked like an opening rather than a panel.
+
+**But the guard is not obviously stale, and the interaction is subtle.**
+`bloomIntensityForDay(d) = BLOOM.intensity · (1 − d)`, so bloom is **full at night and zero at full
+day**, while the sky-catch is `d · 5.2`, **zero at night**. They are anti-correlated, so:
+
+| day level | bloom | sky-catch at ×13 | risk |
+| --- | --- | --- | --- |
+| 0 (night) | full | **0** | none — nothing to bloom |
+| ~0.3–0.6 (dusk) | 40–70 % | **1.6 – 3.1** | **above the 1.05 guard, unexamined** |
+| 1 (full day) | **0** | 5.2 | none — pass is not even mounted |
+
+So the guard protects a **dusk band** that neither the 13:00 frame nor the >240 sweep touches.
+**Both settling questions are now answered, `v0.31.7.156`:**
+
+**1. The guard predates the ramp — its daylight premise IS inverted.** `git log -S`:
+`materialRealism.test.ts`'s `< 1.05` assertion landed **2026-06-13** (`RZ2: window glass sky-catch`);
+the bloom day-ramp landed **2026-06-27** (`v0.5.0.0`). So when the guard was written bloom was active
+in daylight and "a bright pane will bloom" was true. The ramp later made bloom **zero at full day**,
+which is why the 13:00 frame at ×13 has crisp grille bars and no halo.
+
+**2. But dusk DOES bloom, visibly.** 19:00 at ×13: pane mean 231.6, `> 240` 0.0 % — and the frame
+shows a **soft glow spilling onto the wall and ceiling, with the grille bars losing definition**.
+Compare 13:00, where they are sharp. The guard still protects a real case.
+
+**And no smooth curve avoids it**, because bloom is non-zero for every `d < 1`:
+
+| day level | bloom | `d·5.2` | `d³·5.2` |
+| --- | --- | --- | --- |
+| 0.4 | 60 % | 2.08 | 0.33 |
+| 0.6 | 40 % | 3.12 | 1.12 |
+| 0.8 | 20 % | 4.16 | 2.66 |
+| 1.0 | **0 %** | 5.2 | 5.2 |
+
+A cubic ramp keeps the pane under the guard until `d ≈ 0.59` — where bloom is still 41 % on. So the
+overlap can be *narrowed* but not removed by reshaping the sky-catch alone.
+
+**Three real options, and it is a look call:**
+
+- **Accept the dusk glow.** A glowing window at dusk is photographically normal; the cost is the
+  grille losing definition for an hour or so either side.
+- **Ramp the boost as `d³`** — full effect at midday, and the overlap pushed into a narrower,
+  higher-daylight band where bloom is weak.
+- **Narrow bloom's own ramp** so it reaches zero earlier than full daylight, freeing the whole
+  daylight range for the pane. Touches a separate shipped look.
+
+
+### ⚠️ (z)4's OTHER half is also moot once (l) is fixed — `v0.31.7.158`
+
+With `glassSkyCatchIntensity` shipped at `d³ · 5.2` (`.157`), the pane is correctly bright — and the
+sky behind it is therefore almost invisible. Measured at 13:00, `realistic`, both paths confirmed
+engaged by `BACKDROPCHECK` (1024×512 analytic vs 512×256 keyed):
+
+| | mean abs diff | channels > 2 |
+| --- | --- | --- |
+| before `(l)`'s fix (`v0.31.7.152`) | 0.938 counts | 7.5 % |
+| **after `(l)`'s fix** | **0.339 counts** | **1.49 %** |
+
+**So the whole `(z)`4 asset route buys 0.34 counts in the shipped interior view.** Both halves of that
+decision turn out not to matter for `(l)`: the intensity provably cannot reach the pane, and the
+physical sky is hidden behind a pane that is now correctly blown out.
+
+**Kept, not shipped.** `skyKeys.ts`, `skyKeyBake.ts`, the 500 kB key set and the `?skyKeys=1` seam are
+all correct and tested, and the sky would matter for a **direct** view of it — a balcony, an open
+door, looking up — which this pose does not contain. Making it the default on 0.34 counts would be
+paying 500 kB for nothing measurable.
+
+### (l)/(z)4 — the baked-key-set route is MEASURED VIABLE, `v0.31.7.148`
+
+`(z)`4 was decided ("ship the Cycles sky **and** `backgroundIntensity ≈ 4`") but not scoped: the sun
+moves, so one equirect will not do, and the choice was between a **baked key set with
+interpolation** and an in-app Nishita implementation. Measured instead of argued.
+
+Eight Cycles equirects at fixed sun altitudes (0–75°, 512×256, 32 samples) took **17 seconds** on the
+GPU. Linear interpolation of two neighbouring keys against a directly-baked midpoint:
+
+| key spacing | MAE (display counts) | as % of frame mean |
+| --- | --- | --- |
+| **15°** | 0.38 – 0.44 | **0.2 – 0.3 %** |
+| **30°** | 1.09 – 2.17 | **0.6 – 1.4 %** |
+| 60° | 3.66 | 2.2 % |
+
+**30° keys hold the sky to ≤1.4 %**, and 15° to ≤0.3 %.
+
+**And azimuth is free.** A multiple-scattering sky is azimuthally symmetric about the sun, so moving
+the sun in azimuth is a **u-offset on the equirect**, not another key. Only *altitude* needs keys —
+which is why the set is small.
+
+So the route is: **~4–6 keys over the daylight range plus a couple below the horizon, interpolated by
+altitude and rotated by azimuth.** At 512×256 the eight test renders total under 1 MB, so the whole
+set is well inside a sensible asset budget, and an in-app Nishita implementation is unnecessary.
+
+**The caveat was checked and resolves the SAFE way, `v0.31.7.149`.** I expected the
+window-relevant region to be *more* sensitive than the whole frame. It is less:
+
+| case | all | horizon band | brightest decile |
+| --- | --- | --- | --- |
+| 15° keys | 0.23 – 0.26 % | **0.12 – 0.13 %** | 0.16 – 0.21 % |
+| 30° keys | 0.65 – 1.40 % | 0.24 – 1.36 % | **0.39 – 0.67 %** |
+| 60° keys | 2.21 % | 1.31 % | 0.83 % |
+
+The bright, high-valued parts of the sky are smooth and interpolate well; what changes fastest is the
+sun's immediate surroundings and the sky/ground boundary, which occupy little area. So **30° keys
+hold the pane-relevant regions to ≤1.4 %, and the brightest decile to ≤0.67 %** — the key count is
+settled at 30° spacing, i.e. **4–6 keys**, with no need to refine it for the window case.
+
+**And the error is RESOLUTION- AND SAMPLE-INDEPENDENT, `v0.31.7.150`.** Re-run at 1024×512 with 128
+samples, every figure is identical to two decimals (0.26 / 0.12 / 0.22 against 0.26 / 0.12 / 0.21,
+and so on). The interpolation error is a property of how the sky model varies with **altitude**, not
+of how finely it is sampled — so the key count can be fixed independently of the asset resolution.
+
+**Asset budget, measured:**
+
+| resolution | 8 keys | ⇒ a 4-key set | bake time (8 keys) |
+| --- | --- | --- | --- |
+| 512×256 | 1.0 MB | **~0.5 MB** | 17 s |
+| 1024×512 | 3.7 MB | **~1.9 MB** | 30 s |
+
+**The resolution choice is therefore about gradient sharpness, not fidelity to Cycles** — and a
+clear sky is a smooth gradient with the sun disc excluded, so it has little high-frequency content to
+lose. That is reasoning rather than measurement: item `(r)` is the standing warning that a backdrop's
+legibility through a window can only be judged by looking, so the resolution should be picked from a
+frame, not from this table.
+
+Measured at 512×256/32 and 1024×512/128; the horizon band is rows 40–60 % of height, and the decile
+is taken wherever it falls because a pane can face the sun.
+
+### Original write-up (the framing is superseded; the measurements are not)
+~~⏳ OPEN, needs a product call~~ — ✅ ANSWERED by (z)4. (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
 actually is, so the call can be made on numbers.
@@ -1301,6 +1614,277 @@ The mean ratio is not the tell — the app's 1.32 at noon is *higher* than the p
 tell is the **distribution**: a real daylit pane is a clipped white hole with detail only at its
 edges, while the app's is an evenly-lit grey field. That is why the app's window reads as a panel
 rather than an opening, and it is measurable in one number that needs no crop matching.
+
+> **v0.31.6.10 — the call is now TWO numbers, and one of them is not the pane.** Measured against the
+> Cycles reference at matched framing (both 16:9) on a crop that excludes the app's UI and the
+> reference's unlit edge band. Both frames put **100 % of their top percentile in the same two tiles**
+> — the window — so this is a level/shape question at a fixed location, not a placement one.
+>
+> | `BGMUL` (`scene.backgroundIntensity`) | median | p95 / median | p99 / median |
+> | --- | --- | --- | --- |
+> | ×1 (shipping) | 126.4 | 1.320 | 1.436 |
+> | ×2 | 126.7 | 1.412 | 1.608 |
+> | ×4 | 126.8 | **1.584** | 1.759 |
+> | ×8 | 126.9 | 1.741 | 1.870 |
+> | ×32 | 127.0 | 1.938 | **1.993** |
+> | **Cycles (physics)** | **111.1** | **1.624** | **2.194** |
+>
+> Three things follow.
+>
+> **It is a nearly pure highlight lever.** The median moves **+0.5 % across a 32× range**, so it cannot
+> disturb the shadows and mid-tones that `v0.31.6.9` found already match physics. That is the ideal
+> shape for a lever here.
+>
+> **It saturates at the encoding ceiling, so the pane alone cannot get there.** 255 ÷ 127.0 = **2.008**,
+> and ×32 measures 1.993 — within 0.7 % of the hard limit. Physics fits its 2.194 tail only because it is
+> exposed lower (median 111.1 → headroom 2.30). **So matching the highlight tail requires ~13 % less
+> overall exposure as well as a brighter pane.** Exposure is a look call in its own right, which is why
+> this item now needs two numbers rather than one.
+>
+> **No single multiplier matches both percentiles — the highlight SHAPE is wrong.** ×4 nails p95
+> (1.584 vs 1.624) but leaves p99 20 % short; ×32 overshoots p95 by 19 % while still 9 % short on p99.
+> Looking at the pane crops says why, and it is specific: **the Cycles pane has a bright narrow horizon
+> band under blue sky — structure — while the app's pane is a uniform slab at every multiplier.** This is
+> `.263`'s PMREM low-pass again, but for the first time with a physical target: what is missing is a
+> **horizon-band gradient**, not pane brightness. `.261` judged the luminance route insufficient against
+> *photographs* (which need 55–60 % blown); the Cycles target is far more modest (0.0 % clipped on both
+> sides), so the route is not hopeless — it is just capped where the structure should take over.
+>
+> **FPS is not a constraint on any of this.** `backgroundIntensity` and `toneMappingExposure` are
+> per-frame scalars, and a horizon band is a one-time backdrop paint. Zero per-frame cost.
+
+> **v0.31.7.4 — the structural half is now settled, and it rules out the lever.** `BGHORIZON`
+> paints a bright narrow band at the equirect horizon on a fresh `CanvasTexture` (the only route
+> that reaches the render, `.263`). The band **arrives** — read back live at `[255,255,250]`
+> against sky `[183,205,227]`, and plainly visible in the pane — but it arrives about **ten
+> times wider and correspondingly dimmer**, so it adds mid-level brightness over most of the
+> pane instead of a tail. Every percentile lands within 1.5 % of the no-band run at the same
+> multiplier (p95 1.562 vs 1.584; p99 1.748 vs 1.759 at `×4`).
+>
+> **So `scene.background` cannot produce a highlight tail at any luminance or band width.** The
+> PMREM pre-filter is the mechanism, not a parameter. `×4` stays the best available compromise
+> on this lever (p95 within 4 % of physics, p99 20 % short).
+>
+> **The decision this item now needs is therefore bigger than a number:** whether the window
+> gets **real geometry behind it** — a textured/emissive quad sampled directly, bypassing the
+> environment path — which is what the tail requires. One quad per window, no per-frame work, so
+> the fps floor is unaffected; but it is a visual-design call about what the view *is* (sky
+> gradient? a neighbouring block? a photograph?), which is exactly the call that has been open
+> since `.209`.
+
+> **v0.31.7.5 — the pane is also where the last chroma error lives, and it is ~16 counts.**
+> Absolute R−B cannot be compared across pipelines (`.315`: white-balance dependent, no
+> photographic anchor), so the app's +8.6 against Cycles' −31.6 is mostly a difference of white.
+> On the **WB-invariant** residual — each frame de-meaned before differencing — the whole-frame
+> disagreement collapses from 40 counts to **7.0 counts rms**, within **±4.2** everywhere except
+> two features, and the two worst tiles (**−15.2, −18.4**) are the **window tiles** — the same
+> two that hold 100 % of both frames' top percentile. The app's pane is ~16 counts too **cool
+> relative to its own room**: physics' pane is the least-blue thing in its frame (a bright
+> near-white sky glow), the app's is a cool grey slab against a warmer interior.
+>
+> **So the tonal tail and the chroma residual — measured differently, normalised differently,
+> sensitive to different things — both land on this one object.** The rest of the render agrees
+> with physics on both axes. That is the strongest argument yet for giving the window real
+> geometry, and it means this item is now the single open decision carrying *both* remaining
+> measured errors.
+
+> **★ RE-MEASURED AGAINST A PHYSICAL REFERENCE, ON A REPAIRED HARNESS — v0.31.7.278.** Every
+> earlier number in this item predates `(z5)` (references built with no interior lights) and
+> `(z10)` (frames captured before the baked GI attached), so the item needed re-measuring rather
+> than re-arguing. Daylight-only on BOTH sides, `light-distribution`'s own `win-livingDining-N`
+> pose (cam 10.87, 1.6, 6.475 → 10.87, 1.42, 3.480, fov 50 vertical, aspect 1.6), exposure-matched
+> AgX, Cycles at 128 samples with the physical sky:
+>
+> | patch | Cycles | app | delta |
+> | --- | --- | --- | --- |
+> | window | **244.8** (sd 20.0) | **217.5** (sd 52.7) | −27.4 |
+> | wall left | 131.0 | 135.1 | +4.0 |
+> | ceiling | 193.0 | 199.7 | +6.7 |
+> | wall right | 183.9 | 193.6 | +9.7 |
+>
+> **The room is fine; the APERTURE is the whole defect.** Every interior surface is within 10
+> counts and the app is slightly BRIGHTER than physics on all three — so this is not a daylight
+> or GI shortfall. The window alone is 27 counts short of a reference that is essentially clipped
+> (244.8 of 255), and the `sd` says what that costs: **20.0 in Cycles against 52.7 in the app**.
+> Physics blows the aperture out and the safety grille washes into the glare; the app renders a
+> patterned light-grey panel with the bars still fully legible. That is the difference between a
+> photograph and a render, and it is the single largest remaining VISUAL gap in the arc.
+>
+> `light-distribution` reaches the same verdict independently and refuses the pose for
+> dynamic-range work: *"p05 18 vs median 138, aperture 0.00 % — no bright aperture in view"*,
+> on a pose where 31 % of its near bucket IS window glazing. The glazing is in view and simply is
+> not an aperture.
+>
+> **Recommended approach, and it is a look call.** `.4` established that `scene.background` cannot
+> produce the tail at any luminance or band width, because the PMREM pre-filter is the mechanism.
+> So the pane needs a term of its own. The cheapest bounded version is a DAYLIGHT-SCALED EMISSIVE
+> on the glazing material, calibrated so its rendered value matches this reference's 244.8 — one
+> material, no new geometry, no per-frame cost, and it must be tied to sky luminance or the panes
+> glow at night. It changes no interior lighting, since the room is lit by the analytic sun plus
+> the baked GI rather than by the pane. Not yet implemented: it is a visible design change to
+> every window in the app and deserves its own round with a multi-hour look check.
+
+> **★ TWO CANDIDATE FIXES KILLED, AND THE MECHANISM FOUND — v0.31.7.279.** `.278` recommended a
+> daylight-scaled emissive on the pane. That was wrong, and the lever it named already exists.
+>
+> **1. The pane emissive SATURATES.** `glassSkyCatchIntensity` is already `d³ · 5.2`, already
+> daylight-scaled, and `light-distribution` already has a `SKYCATCH` override for it. Swept at the
+> reference pose: **5.2 → 228.9, 9 → 230.2, 13 → 230.3**. Raising it 2.5x moves the pane **1.4
+> counts** against a 27-count gap. The function's own docstring said as much (×16 tops out at
+> 240.6) and I proposed it anyway.
+>
+> **2. It is NOT the AgX shoulder.** The obvious next suspect was three's AgX diverging from
+> Blender's at the top end. Rendered BOTH sides under `Khronos PBR Neutral`, a low-shoulder
+> transform: the ceiling agrees to **1.2 counts** (217.4 vs 216.2) while the window gap **WIDENS to
+> 33.1** (241.6 vs 208.5). A shoulder artefact would shrink, not grow.
+>
+> **3. The mechanism: the app's pane mean is GRILLE-BAR-dominated, and the app has no glare to
+> wash them out.** Spread at the same patch is **sd 13.6 in Cycles against 62.0 in the app**.
+> Physics puts a very bright aperture behind the safety grille and veiling glare overwhelms the
+> bars; the app renders crisp dark bars against bright glass, so the patch MEAN is dragged down by
+> the bars — which is also why brightening the glass between them barely moves it.
+>
+> And the app cannot produce that glare at midday **by construction**: `bloomIntensityForDay(d) =
+> BLOOM.intensity · (1 − d)` is exactly **0 at `d = 1`**, and `EffectsImpl` DROPS the bloom pass
+> entirely once it ramps to zero (BLOOM-MIP-FLASH — cheaper, and one less way to blank a frame on
+> ANGLE/Metal). So bloom is keyed INVERSELY to the one variable that should drive it: an aperture
+> needs glare most at full daylight, and that is precisely when there is none.
+>
+> **Fix direction, not attempted.** Bloom keyed to APERTURE LUMINANCE rather than to `1 − day`.
+> That collides with two recorded decisions — the BLOOM-MIP-FLASH unmount and `.156`'s finding that
+> a bright pane plus dusk bloom spills onto wall and ceiling and destroys the grille definition —
+> so it is a real design change, not a coefficient. It also has an fps cost the current design
+> deliberately avoids: mounting bloom at midday is a blur chain the daylight path does not
+> currently pay for.
+
+> **★ PARTLY FIXED, AND THE MEAN WAS THE WHOLE PROBLEM — v0.31.7.280.** `patch-read` now reports
+> **p05/p95** alongside the mean, and that single instrument change dissolved two of my own wrong
+> conclusions. A pane region holds TWO populations — thin grille bars and bright glass — and a mean
+> cannot separate them:
+>
+> | | mean | p05 (bars) | p95 (glass) |
+> | --- | --- | --- | --- |
+> | Cycles | 244.8 | **187** | **254** |
+> | app, before | 217.4 | **91** | 243 |
+> | app, after | 230.5 | **187** | 243 |
+>
+> **The glass was nearly right all along (243 vs 254); the BARS were 96 counts too dark.** So
+> `.279`'s "the pane emissive saturates" was an artefact — a 5.2 → 13 sweep moved the MEAN 1.4
+> counts because bars dominate it, not because the glass failed to brighten. And the AgX-shoulder
+> theory it replaced was also wrong (`.279` refuted it by measurement). The defect was never
+> brightness or tone curve; it was that physics washes the bars out with veiling glare and the app
+> renders them crisp.
+>
+> **Fix: `grilleGlareIntensity(daylight) = d³ · 1.4`**, a daylight-keyed emissive on the bars,
+> calibrated on **p05** — which now lands exactly on the reference's 187. `sd` 52.8 → 29.9 against
+> Cycles' 20.0. Deliberately a LOCAL approximation of veiling glare: it lifts the bars, where the
+> error is, and does not spill. Verified not to spill — the ceiling patch is byte-identical before
+> and after (199.7 / p05 189 / p95 211).
+>
+> **The first calibration was wrong and the FRAME caught it.** At `3.0` it hit a mean target and
+> drove p05 to 213 — brighter than the glass — which the numbers called an improvement and the
+> image showed as light streaks with the polarity inverted. Reverted, re-derived on p05. A test now
+> pins `grilleGlareIntensity(1) < glassSkyCatchIntensity(1)` so bars can never out-shine glass again.
+>
+> **Night cannot regress, by construction**: cubed, exactly 0 at `daylight = 0`, and measured —
+> 22:00 reads pane p05 45. Dusk checked against `.156`'s bloom-spill failure: at 19:00 the wall
+> moves 1.2 counts against night, and the frame shows no halo. Note `daylightFromAltitude` is
+> effectively a day/night switch (1.0 for any sun above the horizon, ramping only across −8°..0°),
+> so the cube's protection lives in that narrow twilight band rather than across the afternoon.
+>
+> **Residual: p95 243 vs 254, mean 230.5 vs 244.8.** The GLASS is now the remaining 11 counts, and
+> `scene.background` cannot supply it (`.4`: the PMREM pre-filter is the mechanism). Frame cost
+> unchanged — no new pass, and `useSunPosition` re-renders only on hour change.
+
+> **★ THE GLASS TOO — v0.31.7.281, and the sweep that dismissed it had been misread twice.**
+> With p95 separating glass from bars, the glass was **243 against physics' 254** — a real deficit
+> `.279` had written off as "the emissive saturates". That came from a MEAN (bar-dominated, blind
+> to the glass) and from reading `SKYCATCH` as an absolute intensity when it is a **multiplier**:
+> "5.2, 9, 13" were ×5.2/×9/×13 on top of the default, ~27 to ~68, every one clipped at p95 255.
+> Swept properly the glass responds — ×1.25 → 246, **×1.6 → 248**, ×2.2 → 251.
+>
+> `glassSkyCatchIntensity` is now **`d⁴ · 8.32`** (was `d³ · 5.2`). ×1.6 and not ×2.2, because at
+> ×2.2 the bars' p05 falls 187 → 163 and pushing the glass further undoes `grilleGlareIntensity`.
+> The exponent rose WITH the coefficient for `.156`'s reason: the ratio to the old curve is exactly
+> `1.6 · d`, so they cross at **d = 0.625** — brighter only from there to full daylight, and
+> strictly lower through the deep-dusk band below (0.520 vs 0.650 at 0.5; 0.213 vs 0.333 at 0.4),
+> so both codified dusk guards gain margin. A curve higher at 1 and lower below must cross
+> somewhere; the point is where.
+>
+> | | mean | p05 (bars) | p95 (glass) | sd |
+> | --- | --- | --- | --- | --- |
+> | Cycles | 244.8 | 187 | 254 | 20.0 |
+> | app, original | 217.4 | 91 | 243 | 52.8 |
+> | + bar glare | 230.5 | 187 | 243 | 29.9 |
+> | **+ glass** | **235.2** | **188** | **248** | **31.4** |
+>
+> Closed: mean 27.4 → 9.6, p05 96 → 1, p95 11 → 6, sd 32.8 → 11.4. Ceiling moves 1.0 count, so
+> still no spill. Dusk verified in the ramp band (19:40): dim pane, no halo, bars catching the
+> lamps — which is the lamps on metal, not this term, since glass stays above bars throughout the
+> ramp. **60 fps on both tiers**, max 12.5-13.8 ms. Residual is 6 counts of glass and 11 of `sd`.
+
+> **★ VALIDATED IN A SECOND ROOM — v0.31.7.282.** Every number in `.280`/`.281` came from ONE
+> pose in `livingDining`, and this arc's own rule is that one room is not a validation. Re-run in
+> `mainBedroom` (`win-mainBedroom-N`, standoff 3.6, daylight-only, its own Cycles reference at 128
+> samples):
+>
+> | | mean | p05 (bars) | p95 (glass) |
+> | --- | --- | --- | --- |
+> | Cycles | 251.0 | 221 | 254 |
+> | app | 241.1 | 207 | 248 |
+> | **gap** | **9.9** | 14 | **6** |
+>
+> Against `livingDining`'s **9.6 mean / 6 p95**, the window fix reproduces almost exactly in a
+> different room with a different window, standoff and furniture. The `p05` gap is 14 here against
+> 1 there, so the bar term is slightly under in this room — but against the 96 it started from,
+> both rooms are now in the same small band. **The fix generalises.**
+>
+> **A separate room-level finding, and it is NOT the window's:** this room's surfaces run DARKER
+> than physics where `livingDining`'s ran slightly brighter. The left wall reads **198.0 against
+> Cycles' 213.8 (0.926)**, where the L/D walls measured 1.02-1.05. So the daylight/GI balance is
+> room-dependent at roughly the ±8 % level, which is larger than anything else currently open.
+> Filed as a lead, not a conclusion — one patch, one pose.
+>
+> **Two ceiling patches are deliberately NOT quoted.** The first landed on the HUD toolbar (the
+> `Scene` button) — the exact failure `patch-read`'s docstring records from `.316` and `.323`, and
+> caught by looking at the overlay rather than by the numbers, which were plausible. Re-placed
+> clear of the chrome they read 72-101 counts dark, but the visible ceiling here is a band about
+> 8 % of frame height, where a small framing difference moves a patch from ceiling to downstand
+> beam. That magnitude is not trustworthy and the wall figure above is the safe version of the same
+> signal.
+
+> **★ FOUR VIEWS, TWO PLANS, cv 0.62 % — v0.31.7.57.** app p99 ÷ physics p99 = 0.7265, 0.7388,
+> 0.7287, **0.7306** (the last measured after the constant was published). Mean **0.7312** ⇒
+> correction **1.368×**.
+>
+> **★ THE LEVEL IS ONE CONSTANT, MEASURED ON THREE VIEWS — v0.31.7.54.** Decomposing
+> `p99/median` into its parts separates the window's *level* from the room's:
+>
+> | view | app p99 | physics p99 | ratio |
+> | --- | --- | --- | --- |
+> | 4-Room livingDining | 178 | 245 | **0.725** |
+> | 4-Room bedroom3 | 181 | 245 | **0.740** |
+> | 5-Room kitchen | 180 | 247 | **0.731** |
+>
+> Physics pins its highlight at **245–247 (cv 0.4 %)** — the window shows the sky, whose luminance
+> is the same in every room. The app pins its own at **178–181 (cv 0.8 %)**, at **0.73×**, in all
+> three views across two plans.
+>
+> **✅ VERIFIED REACHABLE — v0.31.7.55: `BGMUL ≈ 12`.** app p99 goes 178 → **242** (livingDining),
+> 181 → **244** (bedroom3), 179 → **243** (5-Room kitchen) against physics' 245/245/247, with the
+> median unchanged to the count in every case. ×20 overshoots. This also retires `v0.31.6.10`'s
+> "BGMUL saturates below physics" — that was the *ratio* `p99/median` hitting `255/median`; the
+> absolute p99 reaches 248 and the target is 245.
+>
+> **So the call is one multiplier: ~1.37× on the window's luminance.** Not a curve, not a
+> per-plan value, not a structure change — everything above about the pane reading "as a panel
+> rather than an opening" concerns its *structure*, which is a separate and still-open question
+> (`v0.31.7.4`: the PMREM path cannot carry a horizon band). The level is scene-independent and
+> off by a single factor.
+>
+> Earlier ratio-based readings of this item (51 % short, 32 % short, 10 % over) were a compound of
+> this constant and the app's under-responsive median (`cv 8.2 %` against physics' `26.7 %`), and
+> should not be used.
 
 **The 21:00 case is already right** (glazing 0.39 of wall, interior warm at R−B 23.4 against a
 neutral pane) — whatever ships must not regress it.
@@ -1591,7 +2175,7 @@ the **21:00 case `.236` recorded as already correct must not regress** (glazing 
 at R−B 23.4 against a neutral pane). Root `CLAUDE.md` reserves calls like this. What has changed is that the
 call is now a physical-correctness question with a number, not a look-versus-AgX trade.
 
-## (m) PHOTO-VIGNETTE — ⏳ OPEN, needs a look call (built and measured v0.31.5.244; its counter-metric retired in v0.31.5.249)
+## (m) PHOTO-VIGNETTE — ✅ DECIDED 2026-09-04, see (z)12: ship on all tiers (built and measured v0.31.5.244; its counter-metric retired in v0.31.5.249)
 
 `EffectsImpl.tsx` mounts `Vignette` — its own header calls it *"subtle edge darkening so the frame reads
 'shot, not rendered'"* — **only on the full post stack** (`high`/`maximum`). `medium` runs the AO-only
@@ -1646,7 +2230,7 @@ photographic look is **opt-in** (`ui.photographicLook` defaults off), so blast r
 who chose it; and **every `medium` + photographic figure in this arc was measured without the vignette**,
 so adopting it re-bases those numbers.
 
-## (n) HQ-LAMBERT-CEILING — ✅ FIX 1 SHIPPED v0.31.5.253; fix 2 still open (and now nearly moot)
+## (n) HQ-LAMBERT-CEILING — ✅ FIX 1 SHIPPED v0.31.5.253; fix 2 ✅ DECIDED 2026-09-04, see (z)13: fix
 
 **The shipped HQ path-traced still renders the ceiling as a mirror.** It reflects the window, the AC
 unit, the curtain rail and the ceiling fan. The rasterised viewport over the identical crop is clean
@@ -1836,7 +2420,7 @@ it is the one place where the absence of inter-reflection is now demonstrated to
 12 % on one surface, against a look this arc has spent ~70 rounds tuning, and the cheap lever has been
 priced and rejected.
 
-## (p) HQ-FILL-RIG — ⏳ OPEN (found v0.31.5.255, proven v0.31.5.256, fix built + measured + reverted v0.31.5.257)
+## (p) HQ-FILL-RIG — ✅ DECIDED 2026-09-04, see (z)13: fix (found v0.31.5.255, proven v0.31.5.256, fix built + measured + reverted v0.31.5.257)
 
 **The shipped HQ path-traced still is not a higher-quality version of what the user sees. It is a
 different lighting setup.**
@@ -2295,7 +2879,7 @@ photographically anchor it (`.320`). The honest position is that (p) has **one**
 plaster-wide deficit, fixable by converting the scene's own sky (`.326`) — and that the second apparent fault
 is a raster limitation showing up in a raster-referenced comparison.
 
-## (q) HQ-GLAZING-OPAQUE — ⏳ OPEN; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
+## (q) HQ-GLAZING-OPAQUE — ✅ DECIDED 2026-09-04, see (z)13: fix; fix works but is INCOMPLETE ALONE (found v0.31.5.256, built + reverted v0.31.5.257)
 
 **The HQ path-traced still renders the window glazing as an opaque panel.** Compared at native resolution,
 21:00, same pose:
@@ -2360,7 +2944,7 @@ explicitly when it is not.
   **Hypothesis, not isolated.** *Excluding `transparent && depthWrite === false` was implemented in
   `.257` and skipped 61 planes cleanly; also reverted only because it shipped with the rest.*
 
-## (r) BACKDROP-LOWPASS — ⏳ OPEN, a real defect needing a render call (found .264; proven RECOVERABLE .265)
+## (r) BACKDROP-LOWPASS — ✅ DECIDED 2026-09-04, see (z)10: ship (found .264; proven RECOVERABLE .265)
 
 **The app ships four exterior backdrops — `city`, `dusk`, `park`, `hills` — and almost none of their
 content reaches the window.**
@@ -2440,16 +3024,22 @@ Not a tuning change, which is why it is filed rather than taken:
 - **Render the backdrop as geometry** — a large textured shell (or a screen-facing quad at distance) sampled
   directly rather than via `scene.background`, bypassing the CubeUV conversion. Correct parallax, full
   sharpness; costs a draw call and needs care with the sky dome and the HQ snapshot.
-- **Keep `scene.background` but supply a cube texture**, which is not PMREM-converted for background
-  rendering the way an equirect is. Preserves the current structure; needs the presets re-authored as cube
-  maps.
+- ~~**Keep `scene.background` but supply a cube texture**~~ — **❌ REFUTED, `v0.31.7.132`.** Tested on
+  the existing `city` preset without re-authoring anything: `equirectToCube.ts` resamples the same
+  canvas into six 512 px faces (matched resolution — a face spans 90° where the equirect spans 360°,
+  so both are 5.7 px/degree) and `?bgCube=1` hosts it as a `CubeTexture`. The glazing definitely
+  changes (window-crop mean |diff| **7.34**, 57.2 % of channels), so the path is live — and the view
+  is **equally blobby**. Judged by looking, as this item requires. The premise that a cube background
+  escapes the pre-filter does not hold, so the route is closed and the presets never needed
+  re-authoring to find that out.
 - **Accept it and document it** — the presets become mood tinting rather than views, which is arguably what
   they are today.
 
-**The call needed:** whether a legible exterior is wanted, and by which of those routes. It touches the
+**The call needed:** whether a legible exterior is wanted, and — with the cube route refuted — whether
+to pay for **backdrop-as-geometry** or accept the presets as mood tinting. It touches the
 render path and shipped appearance for every backdrop user.
 
-## (s) ALBEDO-FILL — ⏳ OPEN, narrowed to LUMINANCE ONLY (built .271, falsified on hue .272)
+## (s) ALBEDO-FILL — ✅ DECIDED 2026-09-04, see (z)11: ship luminance-only (built .271, falsified on hue .272)
 
 **The app has no colour bleed at all**, established across three rounds with one-variable A/B designs:
 
@@ -2708,7 +3298,7 @@ value, and reads it back after the capture (`.254`'s lesson). Same room, pose, a
 runs that happened to be in different states of the nondeterminism now filed as (u). This also verifies the
 `.284` stage label in both directions.
 
-## (u) HQ-TRACE-NONDETERMINISM — 🐞 REAL, found v0.31.5.285; a CONTINUUM not two classes (v0.31.5.348); cause NOT yet identified
+## (u) HQ-TRACE-NONDETERMINISM — 🐞 REAL; ✅ DECIDED 2026-09-04, see (z)13: keep hunting. Found v0.31.5.285; a CONTINUUM not two classes (v0.31.5.348); cause NOT yet identified
 
 **The HQ tracer produces one of two discrete outputs from identical inputs.** Same room, pose, hour, tier,
 sample count, exposure and denoise setting; the run lands in one state or the other, and they are ~45 % apart
@@ -3198,7 +3788,52 @@ the two are ~45 % apart. `.284` restored `.269`–`.276` as valid raw-trace meas
 now be **qualified** — they are valid only if they were taken in state B, which was never recorded and is
 roughly a coin flip. Every traced figure in the arc needs re-measurement with the discriminator on.
 
-## (v) HQ-CEILING-ALBEDO-IGNORED — 🐞 REAL DEFECT, found v0.31.5.301; verification named
+### (u) — TWO MORE MECHANISMS ELIMINATED by source inspection, `v0.31.7.145`
+
+Both at zero runtime cost, and both were worth checking because class A's symptom — *the ceiling
+shows the environment, with zero variance, immune to its own albedo* — is exactly what a **missing or
+empty BVH** would produce.
+
+1. **An unawaited BVH build — REFUTED.** `hqRenderSession` calls `tracer.setScene(snapshot, camera)`
+   and ignores the return value, which would be a race if the build were async. It is not:
+   `WebGLPathTracer.setScene` takes the synchronous branch unless `_buildAsync` is set (only
+   `setSceneAsync` sets it), calling `generator.generate()` and then `_updateFromResults`, and
+   `_updateFromResults` contains no awaits. The accumulation cannot start before the BVH exists.
+
+2. **A stale BVH from a reused tracer — REFUTED.** `_updateFromResults` gates
+   `material.bvh.updateFrom(bvh)` on `bvhChanged`, which is `result.changeType !== NO_CHANGE`, and
+   `StaticGeometryGenerator` leaves `changeType` at `NO_CHANGE` unless `forceUpdate` fires. A tracer
+   reused across renders could therefore keep an old BVH — and the constructor seeds it with
+   `setScene(new Scene(), ...)`, i.e. **empty**, which would give precisely class A. But
+   `hqRenderSession` does `const tracer = new WebGLPathTracer(renderer)` **per render**, so the mesh
+   set goes 0 → ~1100 every time, `forceUpdate` fires, and `bvhChanged` is true.
+
+**And a third, `v0.31.7.147`: renderer state carried between renders — REFUTED, along with my own
+claim that the renderer is shared.** I wrote above that "the `renderer` itself is shared across
+sessions"; it is not. `hqRenderSession` line 381 constructs
+`new WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true })` on a **fresh offscreen
+canvas**, per render. I inferred "shared" from `new WebGLPathTracer(renderer)` without reading where
+`renderer` came from — the same partial-read error this session has made repeatedly. Neither
+`postprocessing` nor `three-gpu-pathtracer` assigns `renderer.outputColorSpace` either, so the
+colour-space variant of the idea is out too.
+
+**So the whole "state leaks between renders" family is closed.** Renderer, tracer, generator and BVH
+are all constructed per render. `(u)`'s two classes cannot come from anything carried over.
+
+**Which reframes what is left.** The remaining possibilities are:
+
+1. **Input non-determinism** — the snapshot is taken from the *live* scene, which is animated (sun,
+   curtains, `RenderPump`) and whose textures load asynchronously. Two runs may legitimately snapshot
+   different scenes. `.302`'s census confirmed the ceiling *present* in one run; it did not establish
+   that every run snapshots the same thing.
+2. **Uninitialised GPU resource** inside a single render.
+3. **Driver/GPU non-determinism.**
+
+(1) is the cheapest to test and has never been checked: census the snapshot on *both* classes and
+diff, rather than censusing it once. That is a different experiment from every one tried so far,
+which have all looked for a mechanism *downstream* of a snapshot assumed constant.
+
+## (v) HQ-CEILING-ALBEDO-IGNORED — 🐞 REAL DEFECT; ✅ DECIDED 2026-09-04, see (z)13: fix. Found v0.31.5.301; verification named
 
 **The path tracer's ceiling is completely insensitive to the ceiling material.** Recolour the ceiling from
 `#fafafa` to `#141414` (confirmed applied to 14 ceiling planes by `RECOLORCHECK`, and applied at probe line 494,
@@ -3282,13 +3917,30 @@ alone would produce (u)'s two classes.
 | d | wall-reveal POSE | design parameter | ❌ **CLOSED v0.31.5.89** — no defect; premise retracted |
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
-| g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
+| g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ✅ **SHIPPED v0.31.7.207** — walk mode renders the walked storey plus everything below (0 → 359 meshes below on `tpl-loft`), ceilings of overlooked storeys suppressed, furniture filter moved with it; `performance` 60 fps unchanged, `realistic` 52.7–53.4 vs a 54.1–57.6 control. **Uncovered `(w)`:** the sky over the rail is a missing wall band, not a visibility bug |
+| w | DOUBLE-HEIGHT-WALL-BAND | content / template geometry | ✅ **SHIPPED v0.31.7.208** — `lf-open` now carries `ceilingHeight: 5.5` and the void-side perimeter spans (split from east/west at z = 3.4) carry `topHeight: 5.5`. Eye-level raycast over the rail went from **NOTHING (sky)** to the north wall at y = 4.27; looking up from the ground floor went from y = 3.0 to **y = 5.5** at two points. `performance` 59.9/60 fps unchanged; `realistic` **44.7 fps mean (41.4–48.2)** against a same-server control of **50.1/50.9/50.5** — a real ~11 %, with p50 and worst frame unchanged, so the loss is CPU-side per frame, not raster |
+| z3 | LOW-SUN-DIRECT-LEAK | render | ✅ **FIXED v0.31.7.263** (history below) — originally measured v0.31.7.254 — on the east wall of the default flat's `livingDining`, the app GAINS 0.222 linear from 13:00 to 17:00 where Cycles LOSES 0.029, taking app/reference from 0.974 to **1.445**. Isolated by differencing two hours with GI ON, which cancels the hour-independent bake; the ceiling and floor at the same poses stay at 1.05, so it is wall-specific. Not the day grade — `grade()` returns only `{exposure, warmth}` and exposure is 1.38 at 09:00/13:00/17:00 alike. Not grille shadowing — see `(z2)`. The brightening is UNIFORM across the patch with no sun patch visible, which is the signature of an unshadowed Lambert term rather than admitted sunlight. **CAUSE FOUND v0.31.7.255: the sun has no ATMOSPHERIC EXTINCTION.** `dirLight.intensity` measured **0.9913 at 09:00 (elevation 28.8°), 1.000 at 13:00 (83.9°), 1.000 at 17:00 (31.0°)** — flat across the day. Physically the direct beam falls with air mass: 1.94 air masses at 31° against 1.01 at 84°, so at a clear-sky optical depth of 0.25 the low sun should be **~21 % weaker**. Cycles' MULTIPLE_SCATTERING sky models that; the app does not. The 09:00 asymmetry is geometric, not a counter-example: that hour the sun is EAST, behind this west-facing interior face, so the same over-strong beam lands on it at a poor angle and adds only 0.040. Eliminated on the way: the shadow frustum (both probe points inside, 1024 map), `castShadow` on the walls (present; the 84 large shell meshes lacking it are floors at y=0), `shadowMap.enabled` (true), `CeilingOccluder` (explicitly `castShadow` so the sun cannot enter through the open top), the day grade (`grade()` returns only `{exposure, warmth}`, and exposure is 1.38 at all three hours), and **environment specular** — zeroing `envMapIntensity` on 931 materials moved the patch 0.0 counts. **PARTLY FIXED v0.31.7.257** — the curve now carries a Kasten-Young beam (85° 1.0, 45° 0.903, 30° 0.781, 10° 0.318, 0° 0.10 as a flagged look call), 13:00 held to within 0.1 counts, and the 17:00 wall improves **1.445 → 1.368**; mean error over nine measurements 13.4 % → 12.3 %, worst 44.5 % → 36.8 %. But it accounts for only about a QUARTER of the excess, and the arithmetic says why: a 21 % cut to a direct term that is 29 % of that surface's total is a 6 % total change. **DECOMPOSED v0.31.7.258** by hiding the directional light (`visible = false`, since `Lighting` rewrites `intensity` every frame): at 17:00 the wall reads **0.7285 with the sun and 0.5478 without**, and 0.5478 is EXACTLY its 13:00 reading — so the sun contributes **0.1807** and the rest is an hour-independent floor. Meanwhile the Cycles wall FALLS 0.5622 → 0.5327 (−5.2 %). Of the 0.1958 excess, only **0.0151 is the static floor failing to dim**; **0.1807 is direct sun the reference does not have**. And it is NOT a missing occluder: the `livingDining` ceiling occluder at (10.45, 2.60, 4.72), 4.16 × 6.84, is `visible`, `castShadow`, `shadowSide: DoubleSide`, and DOES cover (10.77, 3.88) where the sun's ray exits the ceiling. So the sun is reaching a surface its own occluder covers — **NARROWED v0.31.7.260**: shadows WORK and that wall is simply never in shadow. With the sun's `castShadow` forced false at SOURCE (verified by the probe's own state line reading `cast0`), the wall moves **0.0 counts** while the floor moves **+8.4** — the shadow pass functions, and nothing in the app's scene casts onto the sun's path to that wall. Resolution is eliminated too: `mapSize 4096` — the one in-page mutation that persists, since `Lighting.tsx:224` rewrites `castShadow` and `normalBias` every frame — also reads 203.2. So the ceiling occluder covers the ray's exit point and is `castShadow`, yet contributes no occlusion for this light path, while Cycles simply blocks the ray with the ceiling geometry and gets no sun there. **v0.31.7.262**: the wall mesh has **`receiveShadow` unset** (`RoomShell.tsx:191`, which also sets `castShadow={false}`) while `WallSegment.tsx` — the CUSTOM-plan wall — sets both. A real inconsistency, and NOT the cause: adding `receiveShadow`, adding `castShadow` to all three ceiling components (`RoomCeiling`, `RoomCeilingTile`, `Ceiling`'s plain mesh), and both together each moved the wall **0.0 counts** at 13:00 and 17:00. The ray's own casters are confirmed present — traced with `ALL=1`, which keeps transparent hits, the path is blocked at 1.94 m by the `[T]` occluder AND a non-transparent ceiling mesh at (10.75, 2.60, 3.88), while the FLOOR's path hits an opaque wall at 2.38 m and the floor IS shadowed. So the surface takes full unshadowed Lambert and nothing available makes it shadowable. That is where `(z3)` sits **FIXED v0.31.7.263, and `.262`'s attribution was WRONG.** `RoomShell.tsx:191` is the ISOLATED ROOM EDITOR's wall and `PlanWallFace` is the CUSTOM-plan wall; neither renders the default flat. The surface the camera actually sees is `WallSegment.tsx`'s `FacePlane` (mesh at :133), a world-UV plane drawn `FACE_OFFSET` proud of the wall body — and it set **neither** `castShadow` nor `receiveShadow`, both of which default to false. The body behind it (`:194-195`) sets both and is never visible. So the visible wall could not receive a shadow at any hour. Adding `receiveShadow` to `FacePlane` (and to `PlanWallFace` for parity) takes the 17:00 wall **222.2 -> 217.7 counts** while 13:00 moves 0.1 — the excess was low-sun-only, which is `(z3)`'s whole signature. **Why `.262` read a null result: the flag never reached the mesh.** `ray-probe` now prints each hit's `recv`/`cast`, and the patched `PlanWallFace` still measured `recv0`; only after patching `FacePlane` did it read `recv1`. Every previous null in this item was an unverified edit. **Cycles confirms the shape** — at the same pose, hour and exposure-matched AgX, the reference wall is likewise UNIFORM and fully shadowed with no sun patch (sd 3.1 vs the app's 3.3). It should be: the wall's ray to a 31 deg western sun exits through the solid ceiling slab, not a window, so shadowed is the physical answer. The occluder is the caster that supplies it (`4.16x6.83`, `cast1`); the room ceiling plane beside it is `cast0`. Frame cost is unchanged, p50 7.5->7.6 ms performance and 10.1->10.2 ms realistic. Residual brightness now lives in `(z4)`. |
+| z4 | SHADOWED-SURFACES-WARM | render | ✅ **FIXED v0.31.7.264** — measured v0.31.7.263, exposure-matched — a shadowed interior wall is lit WARM by the app and COOL by Cycles. At the `livingDining` east wall, 17:00, same pose, same AgX, and Cycles exposure derived from the manifest (`toneMappingExposure` 1.38 linear -> 0.4647 stops), the reference reads **185.8 mean / R-B -14.9** against the app's **217.7 / +12.4**. That is 31.9 counts too bright and **27.3 counts of colour disagreement in the opposite direction**, and the sign is not an exposure artefact because both sides now agree about exposure — the unmatched render read -16.8, the matched one -14.9, so matching moved R-B by 1.9 while the app differs by 27. **Hypothesis, tied to `.223`:** the `replace`-mode injection sets `reflectedLight.indirectDiffuse` and thereby REPLACES ambient, hemisphere and IBL. A shadowed surface therefore has no cool-sky term at all — its entire illumination is one warm sun-derived baked irradiance, where Cycles gives it multiple-scattering sky bounce. If that is right, the fix is not a gain change but restoring a sky-coloured component to the injection, and `IRRADIANCE_GAIN` cannot express it because the defect is chromatic. Untested. **CAUSE CONFIRMED IN SOURCE, and the `.263` hypothesis was only half right.** The injection was achromatic in BOTH factors: `uniform float visGain` times the map's `.r` channel, so `indirectDiffuse = grey * BRDF_Lambert( albedo )` and indirect light in this renderer had no colour at all — every shadowed surface rendered at its own albedo hue. Proof the LIGHT RIG had no authority: setting the hemisphere's warm `groundColor [0.42,0.38,0.34]` to its blue `skyColor [0.55,0.66,0.92]` at all three daytime keys moved the patch **0.0 counts**, because `replace` mode discards ambient, hemisphere and IBL alike. The `.263` guess that a cool-sky term was being DISCARDED was wrong in an instructive way — `GI=off` measured **warmer** (+20.5) not cooler, so there was no cool term to lose; the baked GI was already the cooler of the two. **FIX:** `visGain` is now a `vec3`, tinted by `daytimeSkyTint()` — the 30/45/85 keys' shared `skyColor`, normalised by Rec. 709 luminance so it carries CHROMA ONLY and cannot disturb `IRRADIANCE_GAIN`. Strength CALIBRATED, not chosen: lights-off endpoints measured R−B **+1.8 at 0 and −17.4 at 1**, a −19.2 span, so `SKY_TINT_STRENGTH = 0.87` lands the target. **Result, n=2 and exposure-matched:** app −15.1 against Cycles **−14.8 at 13:00 and −14.9 at 17:00** — colour error on this surface 16.7 counts → 0.25. Mean stays +2.9 %/+3.9 % high. Cycles' own R−B being CONSTANT across the two hours independently vindicates a constant tint, which is required anyway: the tint sits in `customProgramCacheKey`, so an hour-varying one would recompile every baked material on every hour change (`.15` measured 216 ms for that). Frame cost +0.3 ms performance / +0.2 ms realistic. Look: the wall gains a real cool-to-warm gradient — sky-cool away from the cove LED, warm toward it — where it was previously flat uniform yellow-white. |
+| z5 | CYCLES-REF-HAS-NO-INTERIOR-LIGHTS | method | ✅ **FIXED v0.31.7.265** — measured v0.31.7.264 — `scene-glb.mjs` writes only `lights.directional` into the manifest, so `render_from_manifest.py` builds a reference lit by sun and sky ALONE. Every app-vs-Cycles comparison taken at the default `lightsMode: on` has therefore been measuring a LIT interior against an UNLIT reference. Magnitude at the `livingDining` east wall, 17:00: turning the app's interior lights off (19 of 87 candidates flipped) moved that patch from **218.2 / R−B +4.0** to **193.2 / −17.4**, i.e. **25 counts of brightness and 21 counts of warmth** — larger than most defects this arc has chased, and in the direction that makes the app look over-warm and over-bright against the reference. `(z4)`'s calibration was done lights-OFF on both sides for exactly this reason, and that is the only reason its residual came out at 0.25 counts. **Consequence:** any earlier absolute app-vs-Cycles number taken with lights on is inflated by an unknown share of this. **Fix would be** exporting the interior lights (`FurnitureLights`/`fixtureLights`) into the manifest and placing them in `render_still.py`; until then a lights-off arm is MANDATORY for any absolute comparison. Not yet built. **FIXED v0.31.7.265.** `scene-glb.mjs` now exports `lights.point` / `lights.spot` with WORLD positions (fixture lights hang off furniture groups, so the local one is meaningless), `sofa_scene.add_point_lights_from_three` places them, and `render_still.py --point-lights` takes them as a JSON file — 19 fittings is past a comfortable argv, and the count is plan-dependent. The render's JSON now REPORTS `point_lights`, because `(z5)` survived this long precisely because nothing in the output said how many lamps were in the scene. **The candela→watt derivation needed no fudge factor.** three takes `intensity / d²` as illuminance and a Blender point lamp of `P` watts gives `P / (4πd²)`, so `P = 4πI` with no 683 lm/W anywhere — neither renderer applies luminous efficacy. At `scale = 1.0` the lit wall reads **217.9 Cycles against 218.1 app, 0.2 counts apart**, which both validates the conversion and says the app's absolute brightness on that surface was right all along. `--point-light-scale` is kept as a dial, unused. **Residual: R−B +10.1 Cycles vs +5.0 app, so lights-on the app is 5.1 counts too COOL** — see `(z6)`. Two divergences are deliberate: three's `distance` is a windowed cutoff with no Blender equivalent and is DROPPED (Blender stays pure inverse-square, making it the physical one), and `shadow.radius` is DROPPED because it is a shadow-map blur in TEXELS, not an emitter size — mapping it would be a unit error. A small physical `emitter_radius` 0.04 m is used instead, so the lamps cast soft-edged shadows. **RECONCILED with `v0.31.7.8`, v0.31.7.268.** `light-distribution.mjs` had already met this problem and deliberately declined to convert placed lights, on the grounds that inventing a wattage would make the physical reference agree with the artistic choice under test. That reasoning stands and the fix here does NOT overturn it. Two things reconcile them: the conversion is DERIVED from both renderers' falloff laws rather than fitted, and it agreed to 0.2 counts at the derivation's own value with no tuning — but a lit comparison still INHERITS the app's lamp intensities and therefore cannot test them. So the two arms answer different questions: **daylight-only for calibrating the GI chain** (and `(z4)`'s tint was calibrated there, correctly), **lit for comparing the composite the user actually sees**. `light-distribution.mjs` stays daylight-only by design. |
+| z6 | LED-DISTANCE-CUTOFF-DIMS | render | 🐞 **REAL, measured v0.31.7.265** — lights-on, the app's wall is **5.1 counts cooler** than Cycles (R−B +5.0 vs +10.1) while agreeing on brightness to 0.2 counts. Lights-OFF the same surface matches to 0.25 counts, so the disagreement is carried entirely by the interior lamps, and it is the WARM term that is short. **Hypothesis with the arithmetic:** three applies a windowed falloff that forces intensity to zero at `PointLight.distance`, roughly `clamp(1-(d/distance)⁴,0,1)²`, whereas Cycles is pure inverse-square. The `livingDining` LEDs carry `distance` 3.2–6.5 m and this patch sits a few metres out, so at `d/distance ≈ 0.6` the app dims its own warm lamps by **~24 %** — the right magnitude and the right direction. Not yet tested; the test is to drop the cutoff (`distance = 0`) and re-measure, which is a real behaviour change and needs its own look call, since the cutoff is also what stops distant fittings lighting the whole flat. |
+| z8 | SKY-TINT-IS-ORIENTATION-BLIND | render | ✅ **FIXED v0.31.7.269** — measured v0.31.7.268 — a limitation of `(z4)`'s own fix.** `SKY_TINT_STRENGTH = 0.87` was calibrated on ONE surface, a vertical wall, and it is applied to every baked surface regardless of which way it faces. Daylight-only residuals now read **wall 0.2 counts, floor 2.0, ceiling 7.0** (app R−B −18.0 against Cycles −11.0): the ceiling is over-cooled. Physically that is expected and the fix was always going to hit it — a ceiling faces DOWN, so its indirect arrives from the floor as WARM bounce, not from the sky, and tinting it with sky chroma is the wrong illuminant. A single global tint cannot express this. **Fix would be** a per-orientation tint (sky for up-facing, floor-bounce for down-facing, a blend for vertical), which is affordable because baked materials are already cloned per mesh and axis-aligned surfaces have a known dominant normal — it costs about three program variants rather than one. Worth measuring against Cycles per orientation before picking the values, and NOT worth guessing: `(z4)` is only trustworthy because its strength was measured from two endpoints rather than chosen. **FIXED v0.31.7.269.** `SKY_TINT_STRENGTH` is now a per-orientation record and `surfaceOrientation()` classifies each baked mesh by its world-space mean normal (0.7 on y, a little over 45°, so a surface must be meaningfully horizontal to count; ambiguous takes the middle value). Every strength MEASURED daylight-only from its own two endpoints, not chosen: ceiling **0.539**, wall **0.866**, floor **0.773**. Residual R−B against Cycles: ceiling **7.0 → 0.5**, floor **2.0 → 0.1**, wall unchanged at 0.2 — mean chroma error **3.07 → 0.27 counts**, with brightness untouched (181.5 → 181.3, 195.7, 104.7). Classification is verified by the measurement itself: misclassifying the ceiling as `side` would have read ≈ −17.7, and it reads −11.5. Frame cost NIL — realistic p50 10.6/10.4/9.8 ms against a 10.1–10.3 baseline, performance 7.7 ms at 60 fps. An earlier 12.2–13.1 ms reading was noise from running straight after heavy Blender renders, which is worth remembering: three repeats separated a real regression from an imagined one. Limit: n = 1 room, so the values are measured-but-provisional. **FLOOR VALUE CORRECTED v0.31.7.276.** The 0.773 was fitted on frames where the floor's lightmap had not attached (`(z10)`), so it was calibrated against the wrong surface. Re-measured with the GI settled, the floor's endpoints are **38.1 at strength 0 and 25.2 at 1** — a span of only 12.9 against a target of 19.5, so the lever **SATURATES**: even fully sky-coloured the floor stays 5.7 counts too warm. `up` is set to **1.0**, the lever's maximum rather than a solved value, which improves the floor 2.8 counts and restores the ordering physics expects (`up 1.0 > side 0.866 > down 0.539` — a floor sees sky through the glazing most directly). The residual cannot be closed by this dial: the floor's R−B is dominated by its warm wood albedo (0.527/0.361/0.216), which both renderers share. Ceiling and wall values are untouched and were never affected, being byte-identical with and without the settle wait. **FLOOR VALUE CORRECTED v0.31.7.276.** The 0.773 was fitted on frames where the floor's lightmap had not attached (`(z10)`), so it was calibrated against the wrong surface. Re-measured with the GI settled, the floor's endpoints are **38.1 at strength 0 and 25.2 at 1** — a span of only 12.9 against a target of 19.5, so the lever **SATURATES**: even fully sky-coloured the floor stays 5.7 counts too warm. `up` is set to **1.0**, the lever's maximum rather than a solved value, which improves the floor 2.8 counts and restores the ordering physics expects (`up 1.0 > side 0.866 > down 0.539` — a floor sees sky through the glazing most directly). The residual cannot be closed by this dial: the floor's R-B is dominated by its warm wood albedo (0.527/0.361/0.216), which both renderers share. Ceiling and wall values are untouched and were never affected, being byte-identical with and without the settle wait. |
+| z9 | ONE-PROGRAM-FOR-ALL-BAKED-MATERIALS | perf | ✅ **SHIPPED v0.31.7.270** — found as a lead in v0.31.7.269. `customProgramCacheKey` encodes the per-map gain, so a plan compiles **~195 distinct programs** for the baked materials. Collapsing the key to a constant took the worst frame from **1130–1224 ms to 13–344 ms across 3/3 runs** — that is the `(z)`6 load hitch, and `.15`'s 216 ms-per-compile figure accounts for it. Renders correctly too: ceiling, wall and floor kept their own gains and tints to within 0.7 counts, because `materialProperties.programs` is a Map on the MATERIAL, so a key only dedupes variants within one material and cross-material uniform bleed is impossible. **Why it is not shipped.** `v0.31.7.44`'s hazard is real but narrower than its wording: on a key HIT three's `getProgram` returns early, skipping both `onBeforeCompile` and the `materialProperties.uniforms` assignment, so RE-APPLYING the injection to the SAME material with a new gain would silently keep the old one. Materials outlive a plan change here (`visClonedFrom`), so that path is live. **Prerequisite:** hold the uniforms object (e.g. `userData.visUniforms`) and update `visGain`/`visMap` in place on re-apply, instead of relying on a recompile. Worth doing — it is the largest smoothness win currently identified — but it is a correctness change to the attach path and deserves its own round rather than riding along with a look fix. **SHIPPED v0.31.7.270 via a per-material GENERATION, which satisfies the prerequisite rather than working around it.** Every attach bumps `userData.visGeneration` and the key is `visLightmap:${generation}`, so an attach ALWAYS misses for that material and `onBeforeCompile` always re-runs with the new values — exactly `.44`'s guarantee, and STRONGER than keying on the gain, which silently missed a changed MAP at an unchanged gain. Materials attached once all share generation 1, so a plan compiles ONE program. Deliberately NOT reset by detach: after a detach the material recompiles to its stock program with a fresh uniforms object holding no `visMap`/`visGain`, so a re-attach reusing an earlier generation would hit that generation's injected program and find those uniforms absent — an indirect term of zero, which reads as a bake fault rather than a cache one. Both properties are now tested. **PAIRED A/B, same machine, 2/2 each — and it is a TRADE, not a free win:** p50 **10.3 → 11.9 ms**, but worst frame **1162/1107 → 24/27 ms** and achieved **49.7 → 58.8 drawnFrames/s**. The hitch is gone and 11.9 ms is still comfortably inside the 16.7 ms 60 fps budget, so the trade is worth taking; the p50 rise is UNEXPLAINED, since fewer programs should mean fewer state changes. One hypothesis, untested: the old 1.1 s stall blocked rAF and so shifted WHICH part of the 12 s orbit was sampled, meaning the two p50s are not measured over the same frames. Render output is byte-identical across the change (0.0 counts on all three surfaces). **HYPOTHESIS REFUTED, v0.31.7.271 — the p50 cost is REAL.** `frame-time.mjs` gains `WARMUP`, which discards the first N seconds of samples so both arms are measured in the same steady state; `.270` guessed that the old 1.1 s stall had shifted which frames were sampled. It had not. Warmed up (5 s discarded, 12 s measured), realistic: **gain key p50 10.0/10.5 ms, max 60.8/43.1, 58.3 fps** against **generation key p50 11.2/11.4/12.2 ms, max 12.7/13.6/14.8, 59–60 fps**. So one program costs about **+1.2 ms per frame** in steady state and that is not a measurement artefact — it is also still UNEXPLAINED, since three's `setProgram` skips its program-level uniform refresh when the program does not change, which should make FEWER programs cheaper, not dearer. **The trade stands and the decision is unchanged:** worst frame 43–61 ms → 13–15 ms (the gain key keeps stalling even after a 5 s warm-up, because materials enter view lazily through the orbit), achieved 58.3 → 59–60 fps, and 12.2 ms is still well inside the 16.7 ms budget. Smoothness is what the goal asks for and smoothness is what this buys. |
+| z10 | GI-NOT-SETTLED-AT-CAPTURE | method | ✅ **FIXED v0.31.7.276** — measured v0.31.7.275, and it invalidated `(z7)` and part of `(z8)`. The same committed tree, same probe, same state line (`realistic/on/manual13/exp1.3800/sun[i0.998/cast1/map1024]`, `LIGHTS=off` flipping 19 of 87 on both) renders the FLOOR at **126.6 / R−B +28.0** on a freshly started dev server and **104.7 / +19.4** on the long-running one. Ceiling and wall are BYTE-IDENTICAL across the same pair (181.3 / −11.5 and 195.8 / −14.6), so this is not exposure, tone mapping or the sun — it is specific to the floor. Lightmaps are attached in both (`ray-probe MAT=1` reports `visLightmap: true`). **A second observation that should not be possible:** on the fresh server, contact shadows ON reads 126.6 and OFF reads 104.6, i.e. removing a `rgba(0,0,0,0.55)` darkening blob makes the floor 22 counts BRIGHTER and 9 counts warmer. `Furniture.tsx` gates that blob with nothing but `if (!contactShadow) return null`, so the prop cannot legitimately do this. **Suspects, none tested:** `surfaceOrientation()` (added `(z8)`) reads a world normal via `updateWorldMatrix` at material-attach time, so a floor could be classified `up` or `down` depending on whether parent transforms are settled when lightmaps are applied — and the measured chroma sits between the `up` (0.773) and `down` (0.539) strengths, at an implied ~0.34. **Consequence:** `(z8)`'s FLOOR strength was calibrated on the long-running server and is not verified on a fresh one; its ceiling and wall values are unaffected, being byte-identical. Any app-side floor number in this arc taken before this is suspect. **CAUSE FOUND v0.31.7.276: `aim-look` captured frames BEFORE the baked GI had attached, and `store.loading.active` going false does not mean ready.** `applyLightmapsFromIndex` runs after that flag clears and its textures load asynchronously, so a frame taken in between renders the same geometry with a different indirect term. The probe now polls the count of materials carrying `userData.visLightmap` until it stops changing (6 polls x 750 ms) and PRINTS it — 179 on the default flat. With the wait the floor reads **126.6 / R-B 28.0** in two successive runs; without it, **104.7**. Ceiling and wall are unaffected either way, so their lightmaps attach early — which is why only the floor moved. **The trap worth remembering: repeatability is not validity.** Four identical unwaited runs returned 104.7, 104.7, 104.7, 105.8 — stable to 1.1 counts — and that stability was read as confirmation. This item's original framing (a fresh-versus-long-running server difference) was wrong: both regimes are deterministic, they just settle differently under machine load, and the 126.6 readings happened to follow heavy Blender runs. The 'contact shadows BRIGHTEN the floor by 22 counts' result in v0.31.7.275 was an unattached frame compared against an attached one. **PROPAGATED v0.31.7.277.** The wait is now `waitForBakedGi()` in `lib.mjs` and is used by `aim-look` (frames), `gi-point` (it resolves a mesh to its map through the DEV pairing handle that the lightmap pass writes, so it can answer for some surfaces and not others while attaching) and `scene-glb` — the last for a second and separate reason: **`uv1` is COMPUTED by `applyLightmapsFromIndex`**, so a GLB exported too early carries no `UVMap.001`, which is the layer `--uv-layer` needs to compare a fresh bake against a shipped map. All three now PRINT the count (179 on the default flat) rather than checking silently, which is what failed before. 73 probes share the older `loading?.active` assumption; the three that measure or export GI-dependent state are done, and the rest are unaudited — a probe that reads a GI-lit surface and does not print a GI count should be treated as suspect. |
+| z11 | GI-EDGE-FALLOFF-TOO-STRONG | render | ❌ **RETRACTED v0.31.7.286 — the app's falloff is if anything too GENTLE. History below; opened v0.31.7.283.** `mainBedroom`, pitched up 0.22 rad for real ceiling area, daylight-only, own Cycles reference at 128 samples. App ÷ Cycles on clean patches: **ceiling CENTRE 209.9/215.1 = 0.976**, ceiling LEFT EDGE 180.2/207.2 = **0.869**, left wall 200.0/212.9 = **0.939**. So the ceiling is nearly right in the middle of the room and falls away toward the walls **faster than physics does** — this is a GRADIENT error, not a level one, and `.282`'s single wall patch read the gradient rather than the room. The app's own spread says the same: ceiling-edge sd 10.7 against Cycles' 1.1, where the centre patches agree at 3.7 vs 3.0. **Consistent with `.266`'s first floor observation** — three floor patches read 0.811 / 0.948 / 0.877 and the worst sat beside the ottoman, i.e. against an occluder. **Suspects, untested:** the bake is `res 256` with `dilate 4` and `bake_margin 2`, so an atlas slot's edge texels are dilated outward from whatever borders them; and Cycles' own corner darkening is real but softer. A texel-scale check at a wall/ceiling junction against the map would separate dilation from genuine occlusion. **Two patches were discarded, both caught by the overlay** rather than by their numbers: one clipped the wardrobe's dark edge (app sd 36.0 against Cycles' 5.2), and `.282`'s 72-101-count ceiling reading is now formally RETRACTED — that pose's visible ceiling was a band about 8 % of frame height, and with real ceiling area the centre is 0.976. **v0.31.7.284: sun-bounce REFUTED, tone-curve position REFUTED, and the crux is now that the BAKE and a RENDER of the same Cycles scene disagree about the gradient.** The falloff is in the MAP, and the app renders it faithfully: at the two patch centres `gi-point` reads `E_baked` **0.6307 centre / 0.5622 edge = 0.891 linear**, against the app's 0.859 in bytes and Cycles' render at 0.963. **Sun-bounce is not the cause** — two `--indirect-only` bakes of this ceiling with and without the sun disc give edge/centre **0.7608 and 0.7609**, i.e. identical to four figures, so the sunlit-floor-brightens-the-wall mechanism does nothing to the profile. **Nor is it staleness** — a fresh bake from the CURRENT export falls off *more* steeply (0.808) than the shipped map (0.891). **Nor is it the AgX shoulder**, which was the strongest objection: byte gradients at 215/255 sit where the curve compresses hard, and the app's ceiling sat 5 counts lower where it compresses less, so the two byte ratios were not comparable. Matched by raising the app's exposure, the app reads ceilC 219.7 / ratio 0.874 and 223.8 / 0.882 against its default 209.9 / 0.859 — the ratio does flatten with level, but at a MATCHED ~215 it is still about 0.87 against Cycles' 0.963. The discrepancy survives level matching. **So the open question is why a Cycles BAKE of a scene produces a steeper irradiance gradient across a ceiling than a Cycles RENDER of the same scene**, with the sun disc, staleness and the view transform all eliminated. Remaining suspects: the box-atlas texel footprint at `res 256` (a ceiling face 10.68 m² across roughly a third of a 256 px atlas is ~4 cm per texel, so a texel adjacent to the junction integrates a hemisphere partly below the ceiling plane), and the `bake_margin 2` / `dilate 4` padding interacting with the face boundary. A resolution sweep (256 vs 512 vs 1024 on this one object) would separate texel footprint from physics, and is the next measurement. **v0.31.7.285: TEXEL FOOTPRINT REFUTED, and the refutation carries a practical warning.** Same object, same scene, same seed and samples, `--uv existing --uv-layer UVMap.001` so the atlas layout is identical and only texel COUNT changes: edge/centre **0.8667 at res 256** and **0.7471 at res 512**. Doubling resolution makes the falloff STEEPER, not flatter — the opposite of a texel-integration artefact. So a coarse texel was AVERAGING AWAY a genuinely sharp near-junction darkening, and finer texels resolve it. **Practical consequence: do NOT raise lightmap resolution to address this item** — the shipped 256 maps are flatter than a finer bake would be, so more texels would worsen the visible artefact while costing memory. **What remains established** is the render-to-render comparison, which is apples to apples: over IDENTICAL image regions and level-matched, the app falls off at **0.859-0.87 against Cycles' 0.963**. **What is NOT established** is the framing 'the bake is steeper than the render': that compared `gi-point`'s single-texel sample against a patch AREA average, and near a steep gradient those are different quantities. Settling it needs the map sampled at a grid of points across the patch footprint and averaged, which is the honest next measurement. Four hypotheses are now eliminated (sun-bounce, staleness, AgX shoulder, texel footprint) and the item is better bounded than it is explained. **RETRACTED v0.31.7.286, measured in LINEAR light.** Every version of this item compared gradients in tone-mapped BYTES, and that is not a comparison of light. Cycles rendered under `Standard` (the sRGB OETF alone, so exactly invertible) at `--exposure -2.0` to avoid clipping (p95 170 and 141), decoded PER PIXEL by `patch-read LINEAR=1`, gives ceiling centre **85.5** and edge **64.1** — a true linear gradient of **0.750**. The shipped map, area-averaged over the same two footprints with a 3x3 `gi-point` grid each, gives **0.8216**. **So the bake is FLATTER than physics, not steeper**, and the app renders that faithfully. What made the app's frame look steeper is entirely curve position: its ceiling sits at 209.9 against Cycles' 215.1, and the AgX shoulder compresses Cycles' brighter ceiling harder — 0.963 in bytes for a 0.750 linear gradient, against the app's 0.859 in bytes for a 0.8216 linear one. `.284` tested that objection and wrongly cleared it, because raising the app's exposure moved BOTH patches up the curve together and could not separate level from gradient; only a linear measurement can. **What survives:** the app's ceiling is **0.976** of physics in level (the centre patch), which is small and is the only real residual here. Area-averaging also mattered on its own — the map's ratio is 0.891 point-sampled and 0.8216 area-averaged, because the gradient is steep even WITHIN a patch (0.802 to 0.877 to 0.507 across the centre patch's own 9 samples). The four eliminations recorded above (sun-bounce, staleness, AgX shoulder, texel footprint) all stand as measurements; they were just eliminating causes of something that was not happening. |
+| z12 | NO-LINEAR-VIEW-FOR-MEASUREMENT | method | ✅ **FIXED v0.31.7.288** — opened v0.31.7.287. `(z11)`'s retraction showed that gradient comparisons must be made in linear light, and the same argument applies to LEVELS: near the AgX shoulder a byte ratio UNDERSTATES a linear difference, so `v0.31.7.276`'s headline 'every surface within 3.4 %' is a byte-space figure of unknown linear size. Blender can be measured linearly (`--view-transform Standard` is the sRGB OETF alone, exactly invertible, and `patch-read LINEAR=1` decodes it per pixel). **The app cannot.** `aim-look TONEMAP=linear` sets `gl.toneMapping = LinearToneMapping` and reads it back as **6 (AgX) within 1.2 s**: `Lighting.tsx:168` assigns `TONE_MAPPING_THREE[toneMode]` every frame and the mode vocabulary is `filmic | agx | neutral` with no linear member; on Medium+ tiers the curve additionally runs through the post `<ToneMapping>` effect (TONE-POST), so a renderer-level bypass alone would not suffice. The probe now EXITS rather than rendering, because an AgX frame measured as linear is invisible in the output and is the error class that mis-framed `(z11)`, `(l)`'s shoulder theory and `.280`'s bar/glass conflation. **Fix:** a dev-only linear passthrough — a fourth tone mode or a debug flag that sets `NoToneMapping`/`LinearToneMapping` AND disables the post curve together. Small, but it touches the render path, so it wants its own round. Until then, every app-side LEVEL comparison in this arc should be read as byte-space and probably conservative. **FIXED v0.31.7.288 with a DEV-only linear passthrough, and it immediately corrected the arc's headline.** `isLinearView()` (`src/scene/linearView.ts`) reads `ssg_linear_view` from localStorage, DEV-only and cached; `Lighting` swaps `LinearToneMapping` for the mode's curve and `EffectsImpl` swaps `PostToneMappingMode.LINEAR` into the post stack. **Both sites or neither** — three skips `renderer.toneMapping` when rendering to a render target, which is why TONE-POST exists, so bypassing one would leave a plausible-looking frame that measures wrong. Deliberately NOT a fourth `ToneMappingMode`: that vocabulary is user-facing and a linear passthrough is not a look. `aim-look TONEMAP=linear` sets the key via `evaluateOnNewDocument` (before the first frame, since the read is cached) and READS BACK `gl.toneMapping`, exiting if it is not 1. **THE RESULT: byte-space ratios were understating the errors, badly for the floor.** Same pose, same hour, daylight-only, Cycles under `Standard` at the manifest-derived 0.4647 stops so both sides carry the same x1.38 scaling, decoded per pixel by `patch-read LINEAR=1` — **ceiling 1.040, wall 0.985, floor 0.877** in LINEAR light, against the byte-space AgX figures of 1.034 / 1.026 / 0.981 from `v0.31.7.276`. The ceiling barely moves, the wall flips sign, and **the floor's error is six times larger: 12.3 %, not 1.9 %**. So `.276`'s 'every surface within 3.4 %' was a byte-space artefact and `(z7)` is reopened at 12.3 %. Caveat kept: the wall patch reaches p95 244-248 of 255 under a linear transform, close enough to clipping that 0.985 is the least trustworthy of the three; ceiling (p95 165-178) and floor (82-87) are safely in range. **KNOWN LIMIT, v0.31.7.290: the linear pair only works at the DEFAULT exposure.** A brighter room clips under a linear transform — the `mainBedroom` ceiling and wall both read **255 / p05 255 / p95 255** on BOTH sides at the manifest's x1.38, so no ratio is recoverable there. The obvious remedy, lowering both sides together (`aim-look EXPOSURE=0.3` against `render_still --exposure -1.2721`, which are the same 0.414 scaling on paper), does NOT hold the relationship: the app comes out **28.8 counts brighter** (224.5 against 195.7), a linear ratio of about **1.37** — close enough to 1.38 to look like the day grade being applied twice somewhere in the `EXPOSURE` + `TONEMAP=linear` combination, but that is a guess and it is NOT measured. Until it is, linear comparisons are only trustworthy at the default exposure, on surfaces that do not clip there. `livingDining`'s tri pose qualifies (p95 165-250); the bedroom's pitched-up pose does not. So `(z7)`'s 12.3 % stands at **n = 1**. |
+| z14 | EXPORT-DEPENDENT-BAKE | method | ✅ **EXPLAINED v0.31.7.294 — it was my own `.281` edit, not the pose.** Measured v0.31.7.293. Two `scene-glb` exports of the SAME flat at the SAME hour bake to systematically different irradiance: maps baked from the `mainBedroom`-pose export read about **1.5x** those baked from the `livingDining`-pose export, on identical keys at identical bake settings (res 256, 1024 samples, `--keep-glazing`, `--per-map-scale`, `--uv-layer UVMap.001`). Measured via `lightmap-audit.mjs`: the shipped set matches the livingDining export to median **0.987** and the bedroom export to **0.648-0.725** on the same maps. **Eliminated:** mesh count is nearly identical (1288 against 1295, so no missing walls from walk-mode reveal culling) and the sun differs only trivially (elevation 83.907 against 84.28, one calendar day apart). **Prime suspect, untested:** the bedroom export was taken with `LIGHTS=off`, which flips `lightOn` on 19 items and may change EMISSIVE lamp materials — emissive surfaces are real emitters in a Cycles bake. But the direction is wrong for that (removing emitters should make the bake DARKER, and it is brighter), so the mechanism is not yet identified. **Consequence:** a BLENDREF or `scene-glb` export is not a neutral snapshot of the flat, and any bake or reference compared across two exports is suspect. Fix starts with diffing the two GLBs' materials rather than guessing. **CAUSE: the exported GLB carries the app's pane EMISSIVE, and I changed it between the two exports.** Reading the glTF material blocks directly: the `livingDining` export has 24 emissive materials at `emissiveStrength` **5.2**, the `mainBedroom` export 27 at **8.32** — exactly `glassSkyCatchIntensity`'s coefficient before and after `v0.31.7.281`, with `emissiveFactor [0.624, 0.776, 0.914]`, which is `GLASS_SKYCATCH_COLOR` `#cfe4f5` sRGB-decoded. So the 1.5x was not pose dependence and not staleness: it was a look change of mine propagating into the bake through the export. Cross-export comparisons ARE still unsafe, but for a knowable reason — see `(z15)`, which is the much larger problem this uncovered. |
+| z15 | PANE-EMISSIVE-LIGHTS-THE-REFERENCE | method | 🐞 **REAL, measured v0.31.7.294 — the arc's Cycles references are NOT physically lit, and this is the most consequential methodology finding in the arc.** The app gives its window panes an emissive sky-catch (`GLASS_SKYCATCH_COLOR` at `glassSkyCatchIntensity`) as a LOOK device, because a rasteriser cannot otherwise make a window read as a bright aperture. That emissive is EXPORTED into the GLB, and in Cycles an emissive surface is a real emitter. New `render_still.py --no-glazing-emissive` (built on `find_glazing`'s predicate, so a mask, an aperture and this can never disagree about what a window is) zeroes it and measures the contribution. In `mainBedroom`, same exposure, LINEAR: ceiling **141.6 → 16.4**, wall **129.8 → 18.6**. **The pane emissive was supplying roughly 88-99 % of the interior light in the reference.** It zeroed 6 sockets totalling strength 49.92. **This explains a standing anomaly and retracts its conclusion.** `v0.31.7.181` measured that REMOVING the glazing made the bake DARKER (wall −25, ceiling −71) and concluded 'the glass is not sealing the room' — which is backwards. Removing the glazing removed the EMISSIVE PANES that were supplying the light. That wrong inference is why the shipped set carries `keep_glazing: true`, so the shipped lightmaps are lit predominantly by the app's own artistic emissive rather than by sky through an aperture. **Consequences.** (1) `(l)`'s window calibration was circular: the app's pane was tuned against a reference lit by that same pane. (2) Every absolute app-vs-Cycles number in this arc inherits it. (3) `(z13)`'s room-dependent GI is a likely artefact of pane-emissive area per room volume rather than a renderer defect. **The honest configuration — open apertures AND no pane emissive — has never been run.** The pipeline's own docstring already says sealed glazing makes an interior nearly black, and with the emissive gone this render confirms it (0.004-0.005 linear), so `--keep-glazing` and `--no-glazing-emissive` together are not a valid reference either: the sky has to get in through an opening. Next: render with apertures opened and emissive zeroed, and re-derive the comparison set from that. |
+| z13 | ROOM-GI-LEVEL-VARIES | render | 🐞 **REAL, measured v0.31.7.291 in LINEAR light — the LARGEST error this arc has measured, and byte space hid it completely.** Same hour, same transform on both sides, both frames verified UNCLIPPED, Cycles scaled analytically onto the app's exposure (exact, since `LinearToneMapping` and Blender `Standard` are both a multiply then the sRGB OETF). `mainBedroom`: ceiling centre **0.678**, wall left **0.631**. Against `livingDining`: ceiling 1.040, wall 0.985, floor 0.877. **So the bedroom's baked GI sits ~35 % below physics while the living/dining room sits at ~1.0** — a room-to-room spread far larger than any surface- or orientation-dependent effect found so far. In tone-mapped bytes the same bedroom patches read **0.976 and 0.939**, which is why this went unseen for the whole arc: AgX's shoulder compressed a 35 % deficit into 3-6 %. **It also retires the orientation hypothesis** from `v0.31.7.290`: ceiling (down-facing) and wall (side) are dark by nearly the same factor here, so the dominant variable is the ROOM, not the surface normal. **Consequence for the calibration:** `IRRADIANCE_GAIN` is global and every calibration of it in this arc was done in `livingDining`, the room that happens to agree. A single gain cannot serve a 35 % spread, so the fix is per-room or per-map rather than a constant — and `--per-map-scale` already gives the bake a per-map channel to carry it. **Method notes.** The comparison needs care: at the manifest's x1.38 both sides clip (bedroom ceiling reads 255/255/255 on BOTH), the app's user exposure is CLAMPED at `EXPOSURE_MIN = 0.6` so it cannot be dimmed past x0.828, and at 0.828 Cycles still clips — hence rendering Cycles at 0.414 and doubling its decoded linear values. That resolves `(z12)`'s 1.37x puzzle too: it was the clamp, not a double-applied grade. Patches with app `sd` far above Cycles' were discarded (`wallR`, sd 56.2, clips the wardrobe edge). Next: a third room, and whether the deficit tracks anything in the bake index (per-map `scale`, area, or sky visibility). **CAUSE FOUND v0.31.7.292: PER-MAP STALENESS in the shipped set.** The bedroom ceiling's shipped map is **0.562x a fresh bake of the current scene** at matched settings (res 256, 1024 samples, `--keep-glazing`, `--per-map-scale`, 8-bit, and `--uv-layer UVMap.001` so both write into the SAME app-side atlas and one uv addresses one surface point): shipped E **0.6307** against fresh **1.1216** at the ceiling-centre uv1, with `scale` 1.7482 against 2.8890. Meanwhile the `livingDining` floor map matched a fresh bake to **0.1 %** (`int_mean` 0.1648 against 0.1650, `v0.31.7.274`). So the set is not uniformly stale — some maps are exact and others are ~44 % low, which is precisely the shape of `(z13)`'s room dependence, and it means no global gain can correct it. The rendered bedroom deficit (0.678) is smaller than the map deficit (0.562) because a render patch averages over an area and over several maps, so the two are consistent in direction and magnitude without being identical. **Fix: re-bake the set** from a current export, at the settings the index's `bake` block records (min_area 1.5, limit 400, res 256, samples 1024, per_map_scale, dilate 4, keep_glazing, 8-bit). 195 maps, so it is its own round — and worth a staleness AUDIT first, comparing every shipped map against a fresh bake to learn how many are affected rather than re-baking blind. **`.292`'s STALENESS CAUSE IS RETRACTED, v0.31.7.293 — the shipped set is fine.** New `lightmap-audit.mjs` compares every shipped map against a fresh bake by the mean over OCCUPIED texels x `scale`, reporting an occupancy ratio alongside so a packing difference cannot pass as a value difference. Audited against a fresh bake from the **livingDining** export, the shipped maps match to within about 1.3 %: **4b1218e6 0.981, ce497848 1.000, 70e55d20 1.000, 114cf680 0.997, b04c03d3 0.998**, median 0.987 over 10 comparable maps. Audited against a bake from the **mainBedroom** export, the SAME maps read 0.648 / 0.662 / 0.725. So the shipped set is not stale; the bedroom export bakes roughly **1.5x brighter** and `.292`'s 0.562 was measuring that, not staleness. Two exports of the same flat at the same hour therefore disagree — see `(z14)` — and until that is understood no cross-export bake comparison is trustworthy. **`(z13)` itself still stands as a measurement** (bedroom 0.678/0.631 against livingDining ~1.0, in linear light) but is once again WITHOUT a cause. Also worth keeping from the audit: the first version used a whole-map mean, which is invariant to the glTF/Blender v-flip but NOT to atlas packing, and it produced a plausible bidirectional 0.64-1.77 spread that was partly packing artefact. |
+| z7 | FLOOR-20PCT-DARK | render | 🐞 **REOPENED v0.31.7.288 at 12.3 % in LINEAR light.** Was marked largely dissolved in v0.31.7.276 on a byte-space figure. Originally measured v0.31.7.266. Re-running the three-surface sweep against LIT references (`(z5)`) in `livingDining`, one pose, exposure-matched AgX, app ÷ Cycles on byte means: **ceiling 1.050 / 1.053 / 1.059, wall 0.990 / 0.998 / 1.000, floor 0.783 / 0.804 / 0.806** at 09:00 / 13:00 / 17:00. The floor is ~20 % DARK at every hour while its chroma AGREES (R−B 44.6 vs 45.4 at 09:00), so it is a level error, not a colour one. Contrast disagrees too: patch sd **23.3 app against 12.9 Cycles**, i.e. the app's plank grain is twice as contrasty and the reference's floor is flatter and paler. **Do not fix this in the app until export fidelity is ruled out.** The reference is built from a three-exported GLB, so a floor material that survives the export imperfectly — texture colour space, a missing roughness/normal map, a tiling or UV-transform difference — would produce exactly this signature, and then the REFERENCE is wrong rather than the app. The 40-count gap is large enough that assuming the app is at fault is the expensive guess. First step is a material census on the floor mesh either side of the export, not a gain change. **EXPORT FIDELITY RULED OUT, v0.31.7.267 — so this is app-side.** New `material_census.py` imports the exported GLB and dumps what Blender actually received for the mesh at a THREE-space point. For the floor (`Mesh_4`, 4 verts, surface distance 0.001 m) the export is FAITHFUL on every axis that could have caused this: base colour **512² sRGB** feeding `Base Color`, roughness/metallic **512² Non-Color** feeding `Roughness`+`Metallic`, normal **512² Non-Color** feeding `Normal`, and a mapping scale of **[0.83333, 0.92593]** against the app's `repeat [0.8333, 0.9259]`. Both UV sets survive (`UVMap`, `UVMap.001` = `uv1`). Nothing is dropped and nothing is mis-tagged, so the sRGB-decode-skipped theory that would have made the REFERENCE too bright is dead. **The surface IS lightmapped** — `ray-probe MAT=1` now reports `visLightmap`/`hasUv1`, and floor and wall are both `true`. So the deficit is in the INJECTED IRRADIANCE for that surface. **And it is not missing sun bounce:** 0.783 / 0.804 / 0.806 across three hours is essentially constant, whereas an absent sun-dependent bounce term would vary with the sun. That leaves a constant, orientation- or map-specific level error — note `IRRADIANCE_GAIN` is GLOBAL at 4.2, so a value that puts walls at 1.000 leaves floors needing about **1.25×**. Next test is `gi-point` on the floor against Cycles' own irradiance at the same point, to separate the baked map's value from the gain applied to it. Two probe bugs were fixed getting here, both of which returned plausible answers rather than errors: nearest- VERTEX search picked a 2148-vertex furniture mesh over the 4-vertex plane the ray actually hit (now `closest_point_on_mesh`, and runners-up are printed), and bpy returns a FRESH wrapper on every `link.from_node` access, so `is` identity comparison reported `feeds: []` for textures that were plainly connected. **CONFIRMED DAYLIGHT-ONLY, v0.31.7.268 — so it is not an artefact of the lamp assumption.** `.266`/`.267` measured this in the LIT arm, which inherits the app's LED intensities (see the reconciliation in `(z5)`), so it was re-run with lights off on both sides: app ÷ Cycles **ceiling 1.035, wall 1.025, floor 0.811**, against 0.804 for the floor lit. The deficit is ~19 % in both arms and therefore belongs to the daylight/GI chain, which is the arm `v0.31.7.8`'s decision endorses for exactly this kind of calibration. **`gi-point` adds a suggestive number:** at the measured floor point `E_baked = 0.4338` (texel 0.4863 x scale 0.8921) against the wall's **0.5242** (texel 0.2980 x scale 1.7587), and `visGain` threads correctly at 3.7468 = 0.8921 x 4.2. A floor carrying LESS baked irradiance than a mid-height interior wall is backwards for a daylit room, where the floor sees sky through the glazing directly — which points at the bake rather than the gain, though it is not yet proof: the comparison still needs Cycles' own INDIRECT-only value at that point, which is what `bake_material.py --pass irradiance` produces and what a re-bake would settle. **SUN-BOUNCE ELIMINATED as the explanation, v0.31.7.272 — measured, not argued.** The shipped decomposition removes the sun as a SOURCE (`with_sun_disc: false`), which necessarily removes the sun's BOUNCES from the indirect slot as well; nothing could previously say how much that cost. `bake_material.py --indirect-only` is the instrument: bake twice with `use_pass_direct` OFF, once with the sun disc and once without, and the difference is pure sun-bounce with the direct double-count excluded from BOTH sides. At 13:00, same seed, per-map means over the three largest interior surfaces: Mesh_116 **0.0719 → 0.1015** (x1.41), Mesh_37 **0.1565 → 0.2331** (x1.49), Mesh_95 **0.0146 → 0.0507** (x3.47). Against the same objects' shipped-configuration means (1.1363 / 0.8662 / 0.8457) that is **2.6 % / 8.8 % / 4.3 %** of the baked indirect. Real, and worth knowing — but far short of the floor's 19 %, so it is NOT this. Two caveats on the number: 13:00 puts the sun at 83.9°, nearly overhead, so little enters the glazing and the term should be larger at 09:00/17:00; and none of the three is the measured floor, which at 5.6 m² does not reach a `--limit 6` bake. Also noted for any future map-to-map comparison: a fresh export of this scene bakes to `plan_context` **ac2d3655** while the shipped set is **5487e7de**, so shipped and fresh maps cannot be matched by key. **v0.31.7.273: the shipped map is now readable, and the mapping is NOT at fault.** New `map-stats.mjs` reports a shipped map's `mean`/`int_mean`/`max` in irradiance units (x`scale`), the same three `bake_material.py` prints, so shipped and fresh maps are finally comparable on the same statistics. Floor `4b1218e6` (Mesh_11, 19.3 m²): **int_mean 0.1648, max 0.8746**. Wall `6f5a1254` (Mesh_96, 9.23 m²): **int_mean 0.3002, max 1.7243**. Sampling is confirmed sound: the index declares `slots [[2,0]]` for the floor and `gi-point`'s uv1 (0.857, 0.273) lands in exactly that slot, so the 19 % is not a UV or atlas-slot error. **NOT decisive, and deliberately not called:** these are two different objects of different extent — Mesh_11 spans much of the flat including corridor far from any glazing, which drags its mean down — so comparing their means is the mesh-mean-versus-patch conflation `v0.31.7.180` already named as the reason four rounds failed. The measured point reads 0.4338, well ABOVE its own map's mean, so the point is on a bright part of the map. **The test that would settle it:** bake this same object fresh and read it at the SAME uv1. Blocked on tooling, not physics — a fresh bake gets its own `plan_context`, so the app's index cannot resolve it; `--uv existing` might reuse the GLB's `UVMap.001` (the app's own atlas) and make the two directly comparable, but it may bind uv0 instead and that needs checking before it is trusted. **THE BAKE IS EXONERATED, v0.31.7.274 — the shipped map reproduces to 0.1 %.** `bake_material.py --uv-layer` lets a fresh bake write into `UVMap.001`, which IS the app's own runtime `uv1` carried through the export, so a fresh map can be read at the SAME uv1 a probe samples the shipped map with — the comparison that was blocked on tooling. Baked from the same GLB at the shipped settings (res 256, **1024 samples, `--keep-glazing`**), the floor's interior slot mean is **0.1650 against the shipped 0.1648**, and max 0.8536 against 0.8746 (2.4 %, and max is the noise-sensitive statistic). So the map is right, reproducible, and NOT the 19 %. `(z7)` is downstream of the bake: in the shading that consumes the map — gain, albedo, the Lambert term, or the direct light the app adds itself. **`--keep-glazing` is load-bearing and nearly cost this conclusion:** omitting it (the DEFAULT) made the fresh map **2.6x darker** (scale 0.342 against 0.892), matching `v0.31.7.181`'s measurement that removal darkens THIS pass — which is precisely why the index's `bake` block records `keep_glazing: true`. **And a convention trap worth naming:** the fresh map's energy lands in the MIRROR row, `[2,1]` where the shipped map fills `[2,0]`, because glTF puts the UV origin at top-left and Blender's importer flips v. Read at the un-flipped uv1 the fresh map returns **0.0000**, which reads exactly like 'the bake produced nothing'. `map-stats.mjs`'s 3x2 slot grid is what caught it; sample a Blender-baked map at `1 - v`. **v0.31.7.275: sun-bounce eliminated ON THIS SURFACE, contact shadows eliminated, and then the BASELINE turned out to be unstable — see `(z10)`, which blocks this item.** Sun-bounce measured on the floor object itself (`--indirect-only`, seed 11, glazing kept, with and without the sun disc): interior slot mean **0.1402 → 0.1429**, a difference of 0.0027 = **1.6 %** of the shipped map's 0.1648. Smaller than the 2.6-8.8 % found on other meshes, so sun-bounce is definitively not the 19 %. The floor deficit also VARIES across the surface (0.811 / 0.948 / 0.877 at three patches), which a uniform gain error cannot produce — but those ratios are now void, because `(z10)` shows the app-side floor value is not reproducible between dev-server instances. Nothing further on this item is worth measuring until `(z10)` is resolved. **RESOLVED v0.31.7.276: the 19 % was `(z10)` — the floor was being measured before its own lightmap attached.** With the GI settled the floor reads **126.5 against Cycles' 129.0, a ratio of 0.981**, alongside ceiling 1.034 and wall 1.026 — every surface now within 3.4 %. Everything eliminated along the way stands and was worth eliminating (the bake reproduces to 0.1 %, sun-bounce is 1.6 % on this surface, contact shadows 0.1 counts, sampling and atlas slots correct), but the headline deficit itself was never real. Residual: **1.9 % dark and 5.6 counts too warm**, the latter tracked in `(z8)`. **REOPENED v0.31.7.288.** `.276`'s 0.981 was a ratio of tone-mapped BYTES. Measured in linear light with `(z12)`'s passthrough — Cycles under `Standard` at matched exposure, decoded per pixel — the floor reads **52.6 against 60.0, a ratio of 0.877**. The floor really is ~12 % dark; it was the 19-20 % that was an artefact, not the deficit. Everything eliminated in `.267`-`.275` still stands (bake reproduces to 0.1 %, sun-bounce 1.6 %, contact shadows 0.1 counts, sampling correct), so the cause remains open — but now against a magnitude worth chasing rather than a rounding error. **n = 1, and the second room is BLOCKED, v0.31.7.290** — see `(z12)`'s known limit: the bedroom clips at the matched exposure and the lowered-exposure pair does not preserve scaling. One further observation from the linear L/D set, worth keeping because it is cheap and points somewhere: the error is ORIENTATION-ordered — ceiling (down-facing) **1.040**, wall (side) 0.985, floor (up-facing) **0.877**. If that survives a second room it is a per-orientation gain error and fixable the way `(z8)`'s tint was. One contributor is already identified and is small: `(z8)`'s tint is luminance-preserving only on a NEUTRAL surface. On the floor's warm wood albedo (0.527/0.361/0.216) the blue-heavy `up` tint costs **2.6 %** of reflected luminance (albedo luma 0.386 → 0.376), because the surface reflects little of what the tint adds. Real, but a fifth of the deficit. |
+| z2 | GRILLE-NO-SHADOW | render, UNVERIFIED-BENEFIT | 🐞 **REAL but not worth fixing blind, v0.31.7.253** — `Window.tsx:Grille` is the ONLY window element without `castShadow`; the louvre slats and sash members both have it. Coverage is ~10 % of the glazed opening (11-15 bars, 0.16-0.32 m² projected on 1.6-3.1 m² windows), so a Cycles render of the same geometry blocks ~10 % of the sun the app admits. Adding `castShadow` was built and REVERTED: the 17:00 east-wall patch read 205.4 both with and without it, and the frame shows no sun patch on that wall at all — so the pose could not test it, and the change would have added every window's bars to the shadow pass for no measured benefit. Needs a pose with a visible sun patch on an interior surface before it is worth the shadow cost |
+| y | ROOM-SET-FOOTPRINT-GAP | content + render | ✅ **SHIPPED v0.31.7.234, verified `.235`** — ceilings render per ROOM, so footprint area no room rect covers had a floor (the plan slab spans everything) and NO ceiling: a raycast up left the scene. **16 of 19 templates**, up to 45.9 m² in `tpl-hdb-jumbo`, in two shapes — unassigned BLOCKS of 4-5 m² and thin SLITS where a rect stops short of a wall face (`h4-svc-s`'s face at z = 2.95 against `h4-bed2` at 3.2). Fixed by filling footprint-minus-rooms with `ceilingGaps.ts` (ground level only, so a double-height void keeps its own lid), NOT by editing 19 templates' room rects, which the furniture ratchets measure. Cost 8-60 meshes per plan. It also closed a daylight LEAK: `h4-shelter` dropped 148.2 → 131.8 counts, since a windowless bunker was being lit through the hole. `ceilingHole.test.ts` still ratchets the AUTHORING gap, which the fill only backstops |
+| x | ENVELOPE-SLAB-BAND | content / template geometry | ✅ **SHIPPED v0.31.7.209, magnitude corrected and VERIFIED in `.210`** — found by generalising `(w)`: a storey's exterior wall was built at its OWN ceiling, so the floor-slab band above it had no wall. `perimeter()` takes an optional `topHeight`; all three ground envelopes now reach the next storey's floor. The open band is **0.05 m, not the 0.3 m `.209` published** — `LevelSlab` is a 0.25 m box hung under the storey above and fills the rest. Still a real see-through: at 2.62 m a ray crosses the whole maisonette to the sky at 226 m pre-fix and stops at the envelope post-fix; terrace identical at 3.02 m, and both arms agree at 2.9 m, which validates the aim |
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |
 | k1 | WINDOW-SKY-DARK | render bug | ❌ **CLOSED v0.31.5.128** — mis-attributed. The `auto` tier ends at `high`, so the transmissive pane was correct; the dark pane was (k2) rendered by two tiers. Both tiers now read ~195 |
 | m | PHOTO-VIGNETTE | look call | ⏳ **OPEN v0.31.5.244** — built, measured and reverted. Extending the lens vignette to the photographic look on the AO-only composer matches the PHOTO-GRAIN precedent and the tier that already ships it, but costs wall falloff 0.74 → 0.66 against a 0.85–0.86 photographic reference |
-| l | WINDOW-LUMINANCE | render + product look | ⏳ **OPEN v0.31.5.236**, figures corrected in `.237` — photographs clip 15–39 % of their glazing; the app clips **0.0 %** at every hour, so the pane reads as a panel not an opening. Night (21:00) is already correct and must not regress |
+| l | WINDOW-LUMINANCE | render + product look | ⏳ **OPEN v0.31.5.236**, figures corrected in `.237`, **re-measured `v0.31.7.247`** — photographs clip 15–39 % of their glazing; the app clips **0.33 %** (≥254) looking level through the north window at 13:00 and **3.61 %** pitched up, so still an order of magnitude short. But the premise needs widening: that opening is crossed by the **approved SAFETY GRILLE** (`Window.tsx:Grille`, the SNV GRID design in `assets/guidelines/approved_grille_design.png` — vertical bars plus horizontal rails, one `InstancedBoxes` draw), not a bare pane. `v0.31.7.247` called these "vertical blind slats", which is wrong and misleading: a blind is a furnishing a user could open, a grille is approved architecture that stays — rays 1 cm apart alternate between hitting the slat plane at z ≈ 1.25 and passing to the sky. So a large share of what a walker sees at a window is grille bar, permanently, and making the PANE clip like a photograph changes only the glass between the bars — which is the honest scope of any fix here. Night (21:00) is already correct and must not regress |
 | t | HQ-DENOISE-SHIFT | render bug | ❌ **REFUTED v0.31.5.285** — one-variable A/B with the flag asserted and read back: denoise off 119.3/117.6 vs on 118.0/115.7, i.e. **1.1–1.6 %**. The pass is radiometrically neutral; `.283`'s ~30 % gap was two runs in different states of (u) |
 | u | HQ-TRACE-NONDETERMINISM | render bug | 🐞 **REAL v0.31.5.285, cause UNIDENTIFIED** — identical inputs give one of two discrete outputs ~45 % apart at the anchors, opposite colour temperature. Sample count, denoise stage and exposure all ruled out. Discriminator shipped in the probe; every traced figure in the arc needs re-measurement |
 | v | HQ-CEILING-ALBEDO-IGNORED | render bug | 🔗 **FOLDED INTO (u) v0.31.5.303** — not independent. A black-ceiling A/B with byte-identical rasters gives traced ceiling **1.0** in class B (raster 0.9) and **181.5** in class A, so the albedo immunity is a class-A symptom. (u)'s unified statement: in ~half of HQ renders the ceiling is not rendered as a surface, it shows the environment |
@@ -3302,7 +3954,255 @@ weak-device tier before it lands. (k) is the only open item that is a genuine RE
 than a content or policy call — it is the strongest candidate for the next round, once the loss has
 been attributed to the glass or to the background tone-mapping path.
 
-## (w) RASTER-INTERREFLECTION — 🐞 REAL, in the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
+## (x) SCENE-RESPONSE — ⛔ CLOSED as not-correctable (v0.31.7.59)
+
+The app's rendered median is nearly scene-independent: **121, 123, 122, 96, 116** across five
+matched-pose views where Cycles gives **83, 110, 112, 160, 187** (cv 8.7 % against 28.9 %, range
+1.28× against 2.25×). So the app is too bright in dark rooms and too dark in bright ones, and this
+is the entire remaining tonal error once item (l)'s constant is applied.
+
+**Four predictors tested and refuted on five views:** in-view aperture visibility, glazing area per
+unit surface, room floor area, and room depth perpendicular to the window. None is monotone with
+the physics median. The decisive case was the Executive living room — 38.6 m² of floor but only
+4.2 m deep — where the area and depth hypotheses predicted opposite results (below 83 against
+95–105) and the truth was **187**, outside both.
+
+**And the app's own output carries no signal:** ordering the five views by the app's median gives
+physics medians 160, 187, 83, 112, 110 — no relation. So a correction driven by the app's own
+histogram has nothing to drive it either.
+
+**Conclusion: this is not a tuning problem.** How bright a view should be depends on light being
+transported through the room, which is what the renderer does not do. It needs a real indirect
+term — not a scalar, a curve or a baked map — and item (w) is where that work would live.
+
+## ⚠️ MEASUREMENT BOUNDARY — `(l)`'s fix (v0.31.7.157) shifted EVERY region ratio by ~4 %
+
+**Any region ratio in this document measured before `v0.31.7.157` cannot be compared with one
+measured after it.** Not because the surfaces changed, but because the normaliser did.
+
+The geometric-mask ratios are reported "normalised by their own combined mean", and **the glazing is
+10 % of the `wall` sample population** (`BoxGeometry#bcd4e6`). `(l)`'s fix raises the pane from a mean
+of 174.6 to 234.6, so the combined mean rises with it. Same tier, same pose, GI off in both:
+
+| | pre-fix (`v0.31.7.114`) | post-fix (`v0.31.7.159`) |
+| --- | --- | --- |
+| combined mean | 98.2 | **104.0** (+5.9 %) |
+| ceiling | 0.69 | **0.66** |
+| wall | 1.05 | 1.06 |
+| floor | 0.75 | **0.72** |
+
+The ceiling and floor did not change; their *ratios* fell ~4 % because the denominator rose.
+
+**What this specifically invalidates:**
+
+- ~~**The GI's headline `ceiling 0.69 → 0.92`** (`v0.31.7.114`)~~ — **re-measured in `v0.31.7.160`:
+  `ceiling 0.66 → 0.87`** post-fix, i.e. **+0.21** against the pre-fix **+0.23**. The GI's benefit
+  survives the renormalisation; quote the new pair.
+- `(w)`'s ceiling/wall figures and the photographic-band comparisons, all taken pre-fix.
+- Any cross-session comparison of these ratios that straddles `.157`.
+
+**It does not invalidate** the absolute glazing statistics (`> 240` shares), the frame means, or
+anything measured on a crop that excludes glazing.
+
+## (w) RASTER-INTERREFLECTION — 🐞 REAL; ✅ DECIDED 2026-09-04, see (z)9 — and `v0.31.7.131` finds it is THE SAME FIX AS THE GI, needing no separate mechanism.
+
+> **`v0.31.7.131`: the GI path measurably reduces (w)'s spatial error, so (w) is not separate work.**
+> (w)'s verified requirement is "modulate indirect irradiance PER FRAGMENT by aperture visibility,
+> allowing values above 1" — which is exactly `visibilityLightmap.ts`'s shader injection, and the
+> Cycles **irradiance** bake is a superset of visibility (it carries the real bounced light rather
+> than the fraction of sky seen). Measured against one fresh 256-sample Cycles reference at the
+> current default pose, GI the only variable: **column spread 1.48x → 1.37x, row spread 1.98x →
+> 1.46x (−26 %)**.
+>
+> Not the 80 % the visibility candidate predicted at γ=1, and **the absolute spreads here are not
+> comparable to the 4.76x/6.36x below** — different pose, different reference. What the comparison
+> does establish is direction and mechanism: enabling the GI moves (w)'s own quantity the right way,
+> so building a second visibility path would be fixing the same physics twice. **(w) is therefore
+> blocked on the same thing the GI is** — the edge artefact parked in `v0.31.7.130`.
+>
+> This also resolves a tension between the decisions: `(z)`5 retires the `visibility` pass entirely
+> while `(z)`9 ships (w), whose named mechanism *was* aperture visibility. They are consistent only
+> because irradiance subsumes visibility — which was worth checking rather than assuming.
+
+In the DEFAULT render path. In the DEFAULT render path; PRICED ~21 % on the ceiling, LEVER + CONSTANT VERIFIED (found v0.31.5.329, priced v0.31.5.330, lever v0.31.5.331)
+
+> **⚠️ RE-PRICED, v0.31.7.7, CORRECTED v0.31.7.8 — a ~3× error on a whole wall, and it is
+> APERTURE VISIBILITY.** *(The figures below are `v0.31.7.7`'s, taken against a reference that
+> had no lamps while the raster did; the corrected, light-set-matched numbers are wall
+> **2.99×** and spread **4.76×** against `bedroom3`'s 1.74×. The diagnosis is unchanged.)* Everything below prices (w) as surface *ratios* in one small room
+> (`bedroom3`): ~21–25 % on the ceiling, ~14 % on the floor. Measured against a Cycles reference
+> in a normal living room it is far larger. Column profile, mean luminance ÷ own median:
+>
+> | `livingDining` left → right | | | | | | | | | | |
+> | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+> | app | **1.417** | 1.332 | 1.178 | 0.901 | 0.764 | 0.898 | 0.933 | 0.788 | 0.831 | 0.910 |
+> | physics | **0.359** | 0.496 | 0.665 | 1.114 | 1.085 | 1.446 | 1.445 | 1.150 | 1.247 | 1.255 |
+> | **ratio** | **3.95** | **2.69** | 1.77 | 0.81 | 0.70 | 0.62 | 0.65 | 0.69 | 0.67 | 0.73 |
+>
+> Spread **6.36×** and monotone (`bedroom3`: 1.65×). Confirmed by eye — the app's near-left wall
+> is bright cream where physics is nearly black, same geometry and camera.
+>
+> **Three consequences.**
+>
+> 1. **No scalar can fix it.** The error is a gradient, so a uniform fill multiplier trades one
+>    room against another — the measured reason `FILLSCALE` failed (`v0.31.6.9`), not a guess.
+> 2. **AO cannot reach it.** N8AO is already on from `medium` up, at `aoRadius: 1.0` m. A
+>    contact-scale kernel cannot produce a 4–6 m gradient.
+> 3. **The right quantity is aperture visibility** — what fraction of the window each point
+>    sees. The app's `HemisphereLight` + `AmbientLight` give every surface the same skylight
+>    whether or not it can see the sky.
+> 4. **It must modulate indirect irradiance PER FRAGMENT** (`v0.31.7.8`). Scaling the IBL probe
+>    alone (`ENVSCALE`) or the analytical fill alone (`FILLSCALE`) each makes the spatial shape
+>    *worse* (spread 6.97× and 10.06× against 6.36×), so both terms are equally visibility-blind.
+>    A per-material `envMapIntensity` cannot reach the analytical lights, which are per-*light*.
+> 5. **⚠️ But NOT via `aoMap` — corrected in `v0.31.7.17`.** The app's fill stands in for the
+>    room's *average* irradiance, so the shader needs `V / mean(V)`, which **exceeds 1** wherever
+>    a surface sees more sky than average. `aoMap` is capped at 1 and can only darken. Measured:
+>    raw visibility gives spread 4.76× → **6.27×** (worse); normalising and clamping gives 5.71–
+>    6.02× (all worse); and compensating with a global fill gain over-brightens the **267 unmapped
+>    meshes** (maps cover 118 of 385). The analysis that predicted 80 % multiplied by a
+>    *median-normalised* profile — mean 1 by construction — which a ≤1 multiplier was never able
+>    to supply. **The mechanism must be a shader injection** (`onBeforeCompile` or a custom
+>    material) allowing values above 1. Still one texture fetch and no extra pass, so
+>    `v0.31.7.15`'s frame-cost measurement stands.
+>
+> **✅ CONFIRMED AND QUANTIFIED, v0.31.7.9 — visibility explains 80 % of the error, and a naive
+> multiply regresses small rooms.** `render_visibility.py` renders the term itself (white
+> Lambertian everything, **constant** white world, no sun, glazing deleted so the aperture is
+> open — without that deletion the room is a sealed box and the render maxes out at 2/255).
+> `spatial-profile.mjs --explain=` then tests it: multiply `app ÷ physics` by the candidate's
+> profile and a correct candidate flattens the product.
+>
+> | | spread |
+> | --- | --- |
+> | `livingDining`, `app ÷ physics` | 4.76× |
+> | `livingDining` × visibility, columns | **1.37× → explains 80 %** |
+> | `livingDining` × visibility, rows | 1.22× → explains 69 % |
+> | `bedroom3`, `app ÷ physics` | 1.74× |
+> | `bedroom3` × visibility | **2.10× → explains −34 %** |
+>
+> The sky-lit reference's own column profile tracks the constant-world visibility render to
+> ~10 % across 8 of 10 columns, from two unrelated world setups — so the reference's structure
+> *is* visibility.
+>
+> **⚠️ SUPERSEDED by `v0.31.7.40` — there is no trade, so full strength is correct.** Measured
+> through the shipped path against each room's own Cycles reference: `bedroom3` **1.74× → 1.48×**
+> and `livingDining` **4.76× → 1.36×**. Both improve. The predicted `bedroom3` regression below
+> was computed from the *median-normalised profile of the 64 px unconverged bake*; the shipped
+> path uses the converged adaptive bake with a fitted gain, and behaves differently. The γ = 0.7
+> compromise and the ≤4 % regression bound are no longer needed.
+>
+> **✅ STRENGTH DECIDED, v0.31.7.10 — γ ≈ 0.7.** `--gamma-sweep` on `(app ÷ physics) ×
+> visibility^γ` (γ = 0 is the untouched baseline, so any γ above it is a regression):
+>
+> | γ | 0.0 | 0.5 | **0.7** | 0.9 | 1.0 |
+> | --- | --- | --- | --- | --- | --- |
+> | `livingDining` columns | 4.76 | 2.39 | **1.88** | 1.49 | 1.37 |
+> | `livingDining` rows | 1.91 | 1.42 | **1.27** | 1.19 | 1.22 |
+> | `bedroom3` columns | 1.74 | 1.79 | **1.81** | 2.00 | 2.10 |
+> | `bedroom3` rows | 1.32 | 1.34 | **1.34** | 1.35 | 1.35 |
+>
+> The trade is asymmetric: the deep room improves steeply, the small room degrades shallowly
+> until γ ≈ 0.8. **γ = 0.7 removes 68 % of the deep room's spatial error for a ≤4 % regression
+> in the room that was already right.** A two-room fit, so a justified starting value rather
+> than a settled constant — and each extra room now costs ~60 s, so widen it before trusting it.
+>
+> **Ship path:** bake the *starter plans* (a fixed, finite set, and the move-in default is one
+> of them) offline with Blender into the `aoMap` slot; user-edited plans fall back to γ = 0,
+> i.e. today's render. That dissolves the invalidation question rather than answering it, since
+> a starter plan's shell never changes.
+>
+> **But `bedroom3` gets worse at full strength.** The direction is right and the magnitude is
+> not: it lifts the app's too-dark columns past parity. So the shippable form needs a strength
+> below 1, a per-room normalisation, or a blend weighted by the structure a room already has.
+> **That is a tuning surface with regression risk on walk, orbit and the room editor at once**,
+> which is what makes this a designed feature rather than a patch — and what the product call
+> should cover.
+>
+> **And it must be a FULL-GI bake, not AO.** At albedo 1.0 the visibility render matches
+> physics; at albedo 0.05 (near first-bounce only) it explodes to 59.7 at the window column and
+> matches nothing. Short-range AO is the wrong quantity, independently re-confirming why N8AO at
+> 1 m cannot substitute.
+>
+> **⏱ PRICED IN FRAMES, v0.31.7.15.** `tier-fps.mjs AOSTRESS=` attaches 331 distinct 64 px
+> `aoMap`s + `uv1` to every shell-sized mesh and measures orbit at 1280×800 dpr 2:
+>
+> | tier | baseline | with maps |
+> | --- | --- | --- |
+> | `performance` | 60 fps / 16.8 ms | **60 fps / 16.8 ms** |
+> | `medium` | 60 fps / 16.8 ms | **60 fps / 16.8 ms** |
+> | `high` | 58.8 fps / 50 ms | 57.9 fps / **66.6 ms** |
+>
+> Free at both auto-selected tiers, so the ≥30 fps floor is not at risk. **Not free at `high`**,
+> whose worst frame grows 33 % — opt-in only, so a note rather than a blocker, but "zero cost"
+> was too strong.
+>
+> **Design constraint, found by measuring:** an `aoMap` adds **+18–19 shader programs**, and
+> attaching one mid-session cost a **216 ms** compile hitch. Attach at material creation; a flag
+> that toggles `aoMap` live will stutter. Read the flag where the material is built.
+>
+> **⛔ CONFIRMED ON PROPERLY-FRAMED EVIDENCE — v0.31.7.53.** Re-tested on a 5-Room pose that
+> passes the new aperture preflight (kitchen, 3.01 % aperture, better framed than either 4-Room
+> view): flag off **1.57×**, flag on **3.69×**, visibility explains **−119 %**. Across the three
+> valid views the term explains +80 % / −34 % / −119 % — one in three, with failures on *both*
+> plans, so it is not a plan-level property. Also measured there: the app's highlight ratio is
+> **higher** than physics (1.775 vs 1.542) where in the 4-Room views it was 32–51 % *short*, so
+> the sign of the error flips between views and no fixed-direction correction can serve all of
+> them.
+>
+> **⛔ THE PREMISE HOLDS IN ONE VIEW OF FOUR — v0.31.7.48.** Running `--explain` on every view
+> with a reference: aperture visibility explains **+80 %** of the 4-Room `livingDining` error
+> (baseline 4.76×) and **−34 % / −153 % / −270 %** in 4-Room `bedroom3` (1.74×), 5-Room bedroom 2
+> (1.55×) and 5-Room living (1.20×). Monotone in the baseline: the worse the render already is,
+> the more visibility accounts for it, crossing from useful to harmful between **1.74× and 4.76×**.
+>
+> Measured at the *analysis* level — profile arithmetic on rendered frames, no shader involved —
+> so no implementation detail explains it. A correction that only helps where the baseline is bad
+> would need the reference at runtime, and gating per plan fails because the 4-Room plan contains
+> both a +80 % view and a −34 % view. **So the term cannot be applied uniformly and the flag stays
+> off.** The mechanical work (bake chain, keying, UV atlas, shader injection, nil frame cost) is
+> verified and reusable for any future indirect-light term.
+>
+> **⚠️ IN-SAMPLE ONLY — v0.31.7.47.** The improvement below was measured on the same plan the
+> gain was fitted against. Out of sample the term **degrades**: the 5-Room plan goes 1.20× → 2.34×
+> in one pose and 1.55× → 1.69× in another, consistently in both, while the 4-Room plan improves in
+> both of its poses. Per-plan gain scaling (means differ 1.71×) does not fix it, and the plans'
+> visibility *spread* barely differs (cv 0.981 vs 0.914), so neither level nor structure explains
+> it. `bedroom3` in `v0.31.7.40` looked like generalisation and was a different **pose of the same
+> plan**.
+>
+> **So the flag stays off**, and the open question is well-posed: what property of a plan predicts
+> how much visibility-blindness its render actually suffers? Everything mechanical is verified —
+> bake, keys, contexts, shader injection, per-plan resolution, nil frame cost, all three views.
+>
+> **✅ DEMONSTRATED IN THE RENDERER, v0.31.7.19 — spread 4.76× → 1.46×.** With baked visibility
+> applied through a patched `aomap_fragment` (a plain `texel × gain`, so the multiplier may exceed
+> 1) and `Texture.channel = 1`, the app's spatial match to physics beats the analysis' own
+> prediction:
+>
+> | gain | frame mean R | spread vs physics |
+> | --- | --- | --- |
+> | baseline | 115.6 | 4.76× |
+> | 5 | 67.4 | 1.93× |
+> | **15** | **95.0** | **1.46×** |
+> | 22 | 106.0 | 1.70× |
+>
+> **The root cause of five rounds of failure was `Texture.channel`, which defaults to 0 (`uv`)** —
+> setting `uv1` on the geometry is necessary and not sufficient, and with tiling shell UVs the map
+> was read as wrapped noise.
+>
+> **Blocked on bake QUALITY, not on mechanism.** The render is visibly blotchy: 64 px across a 3×2
+> atlas is ~0.2 m per texel on a 5.8 m wall, and gain 15 amplifies Cycles' noise 15×. Fixing it is
+> offline cost only (resolution, samples, denoise) but pushes the asset from 480 KB toward ~29 MB
+> uncompressed, forcing a compression/packing decision. Runtime cost is unchanged.
+>
+> **Which makes the fix a bake, at zero per-frame cost.** Aperture visibility is static per room
+> geometry, so Blender can bake it (`bake_material.py`, Part B) and the fill can be modulated by
+> it; the room shell is low-poly enough that vertex colours may carry it. Nothing per frame, so
+> the ≥30 fps floor is unaffected and it reaches walk, orbit and the room editor at once. The
+> open call is the **pipeline** shape — when to bake, where to store it, how to invalidate it
+> when a wall moves — not whether the error is real.
+
 
 **Repainting a room's walls from white to near-black changes the rest of the room's render by exactly zero.**
 This is the real-time walk render — the render every user actually sees — not the HQ still. It is independent of
@@ -3910,3 +4810,295 @@ without eliminating it.
 
 **Still open: tile vs geometry edge.** A single cell has no shape, so the finer grid could not distinguish them
 here. Needs livingDining (graded extents) at 12×5 or finer.
+
+### ⚠️ (w) RE-MEASURED AGAINST PHYSICS — bigger, and NOT ceiling-only (v0.31.6.6)
+
+First measurement against a **physically-motivated reference** rather than against the app
+itself: Blender Cycles with the `MULTIPLE_SCATTERING` atmospheric sky, placed by the app's
+own sun vector, lighting the app's own exported geometry at the app's own camera. Derived
+sun elevation 83.53° — correctly near-overhead for Singapore at 13:00.
+
+bedroom3, white → `wall-paint-ink`, identical camera and sun for both arms:
+
+| surface | raster (app) | HQ tracer (`.330`) | **Cycles (physical)** |
+| --- | --- | --- | --- |
+| ceiling | 0.0 % | −20.8 % | **−25.3 %** |
+| floor | 0.0 % | **+0.2 %** | **−13.6 %** |
+| wall-L (landing check) | −84 % | — | **−84 %** ✓ |
+
+**Three corrections to this document:**
+
+1. **(w)'s magnitude was understated ~22 % relative.** The ceiling target is **−25.3 %**.
+2. **`.330`'s "the floor has no defect" is wrong.** Physics says the floor responds
+   **−13.6 %**; the raster is ~14 % off there too. (w) is **not** a ceiling-only defect, and
+   the framing that made it one came from the HQ tracer, whose environment is hardcoded and
+   hour-blind (`.334`).
+3. **`.331`'s lever choice inverts.** Scaled to the corrected ceiling target, the hemisphere
+   **ground term** moves the floor **0.1 %** and the **uniform fill** moves it **4.7 %**,
+   against a physical **13.6 %**. `.331` picked the ground term *because* it left the floor
+   alone and rejected the uniform fill *for* darkening it — reasoning that rested on the
+   tracer's +0.2 %. **Neither lever is sufficient**; the ground term's selectivity is now a
+   defect rather than a feature.
+
+**So (w)'s implementation is reopened.** The five-point table (`.339`) and the two-line
+ground-bounce change (`.338`) were both derived against the HQ tracer and are ceiling-only by
+construction. A fix that satisfies physics has to move the floor too.
+
+**New, and a look call rather than a bug: the app is far warmer than physics.** Ceiling R−B
+is **+11.5** in the raster against **−39.4** in Cycles — a 51-count swing. Under a
+near-overhead sun with a north-facing window the room is lit by cool skylight. Part of the
+gap is a deliberate white-balance tint (`look.ts`), but it is much larger than any tint this
+arc has priced, and colour cast reads as "not photographic" before any luminance error does.
+
+Caveats: one pose, one room, one hour; only ratios compared (Cycles' absolute exposure is not
+matched, and need not be — a response ratio is exposure-invariant); the sky/sun balance uses
+the atmosphere model's own defaults rather than anything fitted.
+
+
+---
+
+## (z) DECIDED — sixteen calls made 2026-09-04, in one sitting
+
+Every open decision in this document was put to the user as a question and answered. Recorded here
+because a decision that lives only in a chat log is not actionable, and because several of these
+**reverse or supersede** the framing the items above were written under.
+
+**Standing note on the two that changed shape.** `(y)6` asked whether the visibility-lightmap flag
+should come on; its blocker — "the runtime path that **replaces** the ambient term rather than
+multiplying it" — now exists and is measured (`v0.31.7.106`). And `(l)`'s remaining look call is
+decision 4 below.
+
+### ⏱ STATUS after the 2026-09-04 overnight run (`v0.31.7.114`–`.141`)
+
+Written because the sixteen decisions below were answered before ~30 commits of work on them, and
+several turned out to mean something different once implemented. **Read this before the tables.**
+
+| # | decision | where it actually stands |
+| --- | --- | --- |
+| 1 | GI on `realistic` | ✅ **ON, and re-baked `.183`** — the bake was deleting the window glass, so it lit a room whose windows were holes (`.181`). With `--keep-glazing` one gain fits a wall AND a ceiling (3.20 vs 4.01, was 7.3 vs 32.0), which is what `.170`'s "no single gain" actually meant. Wall 69 %, ceiling 27 %, floor 58 % of their Cycles deficits closed. Earlier: ✅ **ON as of `.176`** — cause of the black floor found (`.175`: the injection patches a MATERIAL, `uv1` is per GEOMETRY) and guarded; re-enabled on a 44-frame/11-room sweep whose only darkening (`kitchen-y2`, −5.2) a Cycles reference shows is correct in direction (app 204.5 vs Cycles 48.3). Floor 99.8 → 99.8, wall 79.9 → 141.2, ceiling 66.8 → 89.9. Earlier: ⚠️ **SHIPPED `.169`, REVERTED `.174`** — the GI crushes the FLOOR (wood 126.7 → **24.4**, warm cast lost, R−B +26.9 → −4.5), which was never measured before shipping. Worse than the 40-95-count deficits it fixes. Prior detail: **SHIPPED `v0.31.7.169`** — flag ON, validated against Cycles at two poses (acLedge wall lands 2.1 counts from the reference; bedroom3 wall/ceiling close 53 %/17 % of a 70/94-count deficit; the app is 40-95 counts too DARK indoors). Accepts a 5.5-count seam to fix a 40-95-count deficit. Cost: p50 +0.4 ms, fps −0.5. Prior detail: **Infrastructure shipped and verified.** Seam **diagnosed** `.164` (coverage by class: 52 of 1122 meshes mapped) and **sized** `.165` at a **5.5-count step (~3 %)**; two mitigations built and rejected (shader lift hit the target but stalled **2100 ms** compiling; fill scale was free and provably targeted but moved **≤1 count**). **`.166`: the seam was never the blocker.** An 11-room tour found a mapped exterior wall over-brightening **163.7 → 229.3 (+65.6 counts)** while its neighbours in the same frame move +0.4 and 0.0 — a per-surface reconstruction error, worst in rooms open to the sky. **⚠️ `.168` CORRECTS `.166`/`.167`: a Cycles reference at that pose says the GI is RIGHT.** extWall — app GI-off **163.7**, app gain 6 **229.3**, **Cycles 231.4**; far-wall control 210.5 vs 214.5 in every arm. The shipped gain matches the reference to **2.1 counts** and GI-off is **67.7 too dark**, so `.166`'s "defect" was the fix. `.167`'s gain sweep used GI-off as its target, which is the thing being corrected, so the interior gain is unvalidated rather than fitted at 2.8-3. Its measurements stand; the inference does not. **`.167` separated them.** The maps are clean (all 40 peak at exactly 250, zero saturated texels; the 22 near-identical scales each just contain a texel seeing full sky). The reconstruction is not: `(250/255) x 2.919 x VISIBILITY_GAIN 6` = **17.17**, an indirect diffuse of ~4.4 linear, ~4x a white surface in full sun. `VISIBILITY_GAIN = 6` was fitted for a `multiply`-mode VISIBILITY map and has no derivation in `replace` mode. Interior rooms are level-neutral at gain **2.8–3**; sky-exposed rooms are still +10 at gain 1, so that is a second, separable question needing a reference at that pose. |
+| 2 | 40 maps, 1.2 MB | **Superseded.** You re-decided for 333 maps after `.114` showed my "no seam at this coverage" was measured at the wrong tier. Baked (10 MB, 0 clipped, 50 % coverage) — **and the seam persists at both**, so coverage was not the cause. |
+| 3 | Commit maps to the repo | **Done** — the 40-map set is `public/assets/lightmaps`. |
+| 4 | Cycles sky + `backgroundIntensity ≈ 4` | ❌ **MEASURED AND DECLINED `v0.31.7.163`** — its premise was spent by `(l)`'s fix. See the block below. |
+| 5 | Delete the `visibility` pass | ✅ **DONE `v0.31.7.185`.** Operator, mode type, cache-key half, `VISIBILITY_GAIN`/`gainForPlanMean` all removed; a non-irradiance index is now REFUSED rather than given an operator. Verified byte-identical (0.000 counts). The bake's `--pass visibility` is kept as a measurement tool. |
+| 6 | Reproduce the 1459 ms load hitch | **Not started** (n=1). |
+| 7 | `dprMax` 2 → 1 as last rung | **Not started.** Largest unused perf lever (4.5×). |
+| 8 | Twilight fully physical | **Re-scoped by you to below-horizon, then shipped** (`.116`). Black-band onset moved −4° → −8°; **cannot go further in that scope** — physical twilight at −2° wants 7× the app's own horizon sky. |
+| 9 | Ship `(w)` | **Not separate work.** `(w)` and the GI are one fix (measured: GI cuts `(w)`'s row spread 1.98× → 1.46×), so it is **blocked on the same seam**. Also resolves a contradiction between this and decision 5. |
+| 10 | Ship `(r)` | **Cube route REFUTED** on the shipped asset without re-authoring. Needs a route call: backdrop-as-geometry, or accept. |
+| 11 | `(s)` luminance-only | **Architecture validated** — buckets reconstruct ρ to **1.1 % out of sample**, reference re-derived in Cycles (−17.4 % traced). **Not wired**; it is a *within-room delta*, not a between-room level, and the wall classifier is parked at 42 %. |
+| 12 | `(m)` vignette on all tiers | ✅ **SHIPPED AND VERIFIED** — centre byte-identical, corners 133 → 107, no measurable fps cost. |
+| 13 | Fix all five HQ defects | **Not started.** |
+| 14–16 | `(f)`, `(g)`, `(i)`, `(j)` plan fixes | **Not started.** Scope, from the summary table: `(f)` **9 templates** with unenclosed bathrooms, `(i)` **3 left** and none offset-fixable, `(j)` **11 of 78**. |
+| — | `(h)` — I closed it in error | **REOPENED `v0.31.7.145`.** 12 of 44 remain and `.120` proved none is offset-fixable; I generalised from three worked examples without checking the count. |
+
+### ❌ `(z)`4 is CLOSED as declined — measured `v0.31.7.163`, and it is a premise failure
+
+Decision 4 (ship the Cycles sky keys **and** `backgroundIntensity ≈ 4`) was answered to close `(l)`:
+the window read as a panel rather than an opening because the pane was too DARK. **`(l)` was then
+fixed by a different lever** — the `d³ · 5.2` glass sky-catch ramp in `v0.31.7.157` — which raised
+the daytime pane on its own. Applying decision 4 on top of that fix overshoots in both directions.
+
+**First, the bound nobody had stated.** `scene.background` is painted **in walk mode only, and is
+seen exclusively through a window aperture** (`SceneBackdrop.tsx`). There is no view in this app
+where the sky fills the frame. That caps what any sky improvement can be worth, and it explains the
+daytime null below rather than being explained by it.
+
+Measured on clean glass (patch sd ≤ 0.6, placement confirmed on the written overlay — the first
+patch set straddled mullions and a sconce reflection and gave sd 48, which is why the overlay is
+not optional):
+
+| 21:00, clean glass | base | `bgIntensity 4` | + Cycles keys |
+| --- | --- | --- | --- |
+| upper pane (above horizon) | 27.3 | 27.3 | **197.4** |
+| lower pane (below horizon) | 79.2 | 84.4 | **155.4** |
+| lamp-lit wall | 210.2 | 210.2 | 210.2 |
+
+| 13:00, clean glass | base | `bgIntensity 4` | + Cycles keys |
+| --- | --- | --- | --- |
+| upper pane | 227.9 | 238.4 | **243.4** |
+| lamp-lit wall | 224.8 | 224.8 | 224.8 |
+
+Three findings, in order of how much they matter:
+
+1. **At night the keys are a REGRESSION, and a large one.** `skyKeyBlend` clamps below its lowest
+   key rather than extrapolating (deliberately — twilight is the analytic continuation's job), so
+   at 21:00 the sky is the **sun-at-horizon** key: the upper pane goes 27.3 → 197.4, which is
+   *brighter than the lamp-lit wall it sits in* (210.2). A sunset sky at 9pm.
+2. **By day there is nothing to win.** The pane is ALREADY 227.9 of 255 after `(l)`'s fix. The
+   decided configuration takes it to 243.4, i.e. further toward clipping, destroying what sky
+   structure the aperture still resolves. Whole-frame at `bgIntensity 1` the two arms differ by
+   **0.27–0.46 counts** (max 5–8) at 09:00 and 13:00 — the aperture is too small and too
+   attenuated for a radiometrically better sky to register.
+3. **The sky provably cannot light the room**, which is the one thing that held: the wall patch is
+   unchanged to the count in every arm at both hours (224.8, 210.2). `skyRadiance` reaches only
+   `paintSkyEquirect` and `skySurround`, both background; `backgroundIntensity` scales what is
+   SEEN, never what LIGHTS. Verified, not assumed.
+
+**Kept, not deleted:** the four keys (500 kB), `skyKeys.ts`, `skyKeyBake.ts`, `equirectToCube.ts`
+and the `?skyKeys=1` / `?bgIntensity=<n>` seams. None is fetched by default, and they are a
+*validated* Cycles reference for the sky — `.148`–`.150` priced their accuracy (≤1.4 % whole-frame,
+≤0.67 % in the brightest decile, error independent of resolution and sample count). Throwing away a
+calibrated instrument because this particular application of it lost is the wrong trade.
+
+### ❌ A night-sky "urban skyglow" floor — BUILT, MEASURED, REVERTED `v0.31.7.163`
+
+Worth recording because the reasoning was sound and the premise was still wrong, and because the
+error was one this arc has made before: **reading a screenshot instead of measuring it.**
+
+The night frame *looks* like a black rectangle punched in a lit wall, and night-render practice is
+explicit that it should not be — "real night skies and city glow never reach pure black, so a dim
+sky map keeps dark regions readable and prevents the crushed, noisy look"
+(`archfine.com/rendering-techniques/night-architectural-renders`), with the sky as a low-intensity
+gradient pushed deep blue against warm interiors. That last part also has a physical reading rather
+than a stylistic one: a sensor balanced for the 2700 K interior renders a 6500 K exterior blue.
+
+So I built an additive skyglow term — physical in SHAPE (aerosol-scattered ground light, brightest
+at the horizon, `SKYGLOW_ZENITH_FRACTION` toward the zenith), fading in from −6° to −18° as
+`skyNight` fades out, so no altitude has both strong or both absent. It is graded, not derived, and
+Blender cannot supply the level either: neither Preetham nor Cycles' Nishita sky has a
+light-pollution term, so a −20° reference render returns black for exactly the same reason.
+
+**Then the measurement killed it.** The pane is not crushed. Clean glass at 21:00 spans **27.3
+counts** (above the horizon) to **79.2** (below) against a 210.2 wall — ratios of 0.13 to 0.38,
+inside the range the practice above recommends. The dark-top/brighter-bottom split is not an
+artefact either: it is what a city night window actually looks like, dark sky over lit ground. And
+the glass carries warm interior reflection (R−B +14) rather than being a dead surface.
+
+The term's effect was **~4 counts** at 4× the amplitude I first guessed (0.008 → 45.7, 0.030 → 50.1
+on the aperture mean), because most of the aperture at eye height is the GROUND hemisphere, which
+the sky term does not touch. A 4-count change fixing a defect that measurement says is absent is
+not worth a permanent look constant, so it is reverted rather than tuned.
+
+**Two threads are parked with hypotheses eliminated and fallbacks identified**, not abandoned:
+
+- **The ceiling deficit** — ⏸ **PARKED `v0.31.7.187`** with the blocker named. ⚠️ those equality gains (~6.5 / ~15 / ~41) are **RETRACTED in `.189`** — interpolated in a compressed display curve. `visGain` and rho are now both measured and correct, leaving one free term (the albedo the SHADER uses); splitting that into a bake error needs a per-surface albedo measurement, the quantity that has contaminated three fits (`.170`, `.180`, `.183`). Bounce depth and the app's direct term are both eliminated. Unblock with an albedo-only render or by reading the base-colour texture through `gi-point.mjs`'s uv path.
+- **The GI seam** — ✅ **DIAGNOSED `v0.31.7.164`, no longer parked.** All six earlier refutations
+  were about the UV/atlas/bake machinery and all six hold: the machinery is clean (`mapped=52`,
+  `unmapped=1070`, and **zero** meshes carry `uv1` without a map). The cause is *eligibility*: the
+  bake's `--min-area 3.0` takes only shell-sized meshes, so ~1000 curtain/furniture/trim meshes are
+  never baked, and the shell itself is only ~50 % covered by the 40-map budget. What reads as a
+  dotted seam on a narrow mesh is the silhouette of an UNMAPPED mesh beside a darkened wall — in
+  the difference image it is the region where the difference is **zero**. `.114`'s coverage test
+  (10 % → 50 %) could not have refuted this: it varies the budget layer, never the class layer.
+  Two look-alikes were excluded by control — the curtain rod's dashes are its own faceting and are
+  present with the feature OFF.
+- **`(s)`'s wall classifier** — four attempts (perimeter, inward-facing, exporter tag, tag+side) all
+  plateau at 42 % of the bucket actually repainting. **The fallback works**: an empirical two-export
+  face diff is an exact classifier by definition, and `.139` proved those buckets reconstruct ρ.
+
+**What shipped tonight and needs no further decision:** `(m)`; the twilight continuation; the GI
+infrastructure and its gate; `--scale` / `--per-map-scale` / `--bit-depth` / `--texels-per-metre` /
+`--fill-holes` / `--room-albedo` / `--portals` in the bake; `equirectToCube`; and six probe fixes,
+four of which were instruments that had been reporting confidently wrong numbers.
+
+### Blender GI
+
+| # | decision | answer |
+| --- | --- | --- |
+| 1 | Ship the irradiance GI, and on which tier? | **`realistic` only.** Matches the two-mode split: `performance` stays the fast editing path. Costs ~1.4 ms p50 there, nothing measurable on `performance` (`.110`). |
+| 2 | Coverage / download budget | **40 maps, 1.2 MB.** The only configuration whose frame is verified clean (`.111`). |
+| 3 | Where the maps live | **Committed to the repo.** Reproducible from a clean checkout with no bake step, as the current set already is. |
+| 4 | Window: Cycles sky **and** `backgroundIntensity ≈ 4` | **Ship both.** Neither works alone; together the pane lands within 0.1 pt of reference, and it is verified not to touch the interior. **This closes `(l)`.** |
+| 5 | The superseded `visibility` pass | **Delete the pass, the assets and the `multiply` path entirely.** `.102` measured the operator as wrong (52–80 % of slots dark by design). Removal, not deprecation. |
+| 6 | The 1459 ms load hitch (n=1) | **Reproduce first, then fix.** One observation is not enough to design against; confirm it is upload cost before hiding or pre-warming. |
+
+### Look and render
+
+| # | decision | answer |
+| --- | --- | --- |
+| 7 | `dprMax` 2 → 1 in the demotion chain | **Yes, as the LAST rung only** — it fires only once the chain has bottomed out at 29.6 fps and is still short. Worth 4.5×. |
+| 8 | Twilight (three linked findings) | **Go fully physical.** Lift the sky 6–20× below 20°, close the sky/ground seam, and move the ~90-count warm cast to blue hour. This re-grades every dawn and dusk. |
+| 9 | `(w)` raster interreflection, ~21 % on the ceiling | **Ship it.** Verify no double-count against the GI path first — both add interreflection. |
+| 10 | `(r)` backdrops reaching the window | **Ship.** |
+| 11 | `(s)` luminance-only colour fill | **Ship.** The hue variant stays falsified. |
+| 12 | `(m)` vignette on all tiers | **Ship.** Needed re-deciding anyway now that tiers are `performance`/`realistic`. |
+
+### The HQ path-traced still
+
+| # | decision | answer |
+| --- | --- | --- |
+| 13 | Five open findings — `(n)`, `(p)`, `(q)`, `(u)`, `(v)` | **Invest and fix all five.** Explicitly including `(u)`, whose cause is unidentified after many rounds — this is an open-ended commitment, made with that known. `(p)`'s fix was previously built and reverted, so it starts from a measured position. |
+
+### Plans and content
+
+| # | decision | answer |
+| --- | --- | --- |
+| 14 | `(f)` `tpl-hdb-jumbo` toilets sharing the bedroom volume | **Fix.** |
+| 15 | `(g)` void over the loft mezzanine rail | **Fix.** Design + cost call taken. |
+| 16 | `(i)` front door opening into the Master Bedroom, `(j)` windows hidden by wardrobes | **Fix both.** `(i)` on `tpl-hdb-5room` provably cannot be done by an offset, so it is a restructure; `(j)` needs an arranger strategy, not a nudge. |
+
+### ~~`(h)` closes without a decision~~ — ❌ **THAT WAS WRONG, see `v0.31.7.145`**
+
+I wrote that `(h)` could close because `tpl-hdb-4room` (`.115`), `tpl-hdb-5room` (`.116`) and
+`tpl-hdb-exec` (`.118`) were each fixed. **Three of fifteen is not fifteen.** The summary table at
+the foot of this file records **12 of 44 still windowless**, with `.120` proving none of the twelve
+is offset-fixable — each needs a new opening cut. `(h)` is open and is the largest content item on
+the list.
+
+## (y) SESSION REGISTER — six decisions from the 2026-09-03 Blender/graphics arc — ✅ ALL ANSWERED, see (z)
+
+Every open call this session produced, with the number that decides it and where the working is.
+Written because the findings are spread across ~25 CHANGELOG entries and a decision is not
+actionable if you have to reconstruct it.
+
+**None of these is a bug awaiting a fix.** Each is a trade only you can price. The bugs this session
+found were fixed and shipped (`.82` the black twilight sky, `.85` the adaptive guard, `.83` 63 stale
+probe defaults).
+
+### 1. Window: ship the Cycles sky **and** `backgroundIntensity ≈ 4` — ⏳ needs a yes/no
+
+Neither works alone. The intensity without the physical sky raises a 4×-oversaturated gradient; the
+sky without the intensity stays capped at 0.0 % of glazing above 219 counts. Together the pane
+distribution lands within **0.1 percentage points** of the Cycles reference (54.9 % vs 55.0 % above
+219). **Verified not to touch the interior**: interior median 107.1 and mean 103.5 are identical at
+intensity 1, 4 and 12, because `backgroundIntensity` scales what is *seen*, not what *lights*
+(`environmentIntensity` does that). Working: `.73`, `.74`, `.76`, `.77`.
+
+### 2. Golden hour: the sky is 6–20× short below 20° elevation — ⏳ needs a look call
+
+Measured against ten Cycles equirects at fixed sun altitudes: ~1.2× short near overhead, **~6× at
+20°**, **~20× at the horizon**. Preetham's zenith luminance is only valid for a sun well above the
+horizon, and this is the model's own falloff, not a tuning error. Fixing it re-grades every dawn and
+dusk in the app, and it needs **both** the zenith luminance and the `night` fade to move (at −8° the
+fade is exactly 0 and forces black whatever the luminance says). Working: `.80`, `.81`.
+
+### 3. Twilight seam: sky ~5 counts under a ground band at ~60 — ⏳ needs a look call
+
+`.82` removed the *black* (a negative luminance silently clamped), but not the **visible hard
+horizon cut**, and reading the code says why: the lower hemisphere has its own level term,
+`lvl = 0.12 + 0.88 * night`, which at −3° is **0.666**. The ground holds two-thirds brightness while
+the sky collapses to ~2 % of its horizon value. Closing it means lifting the sky (decision 2) or
+dropping the ground (a different look change). Working: `.82`.
+
+### 4. Twilight warmth: the app paints a sunset where physics models blue hour — ⏳ needs a look call
+
+At elev ≈ 0 the app's horizon is **R−B +71…+76** against Cycles' **−18…+10** — a ~90-count swing. At
+−1° the sun is below the horizon, so the direct path that makes a real sunset orange is blocked and
+Blender gives blue hour. A stylised warm sunset may be deliberate art direction; "physics says blue
+hour" is not the same as "users want blue hour". Working: `.78` (numbers), `.79` (corrected).
+
+### 5. `dprMax` in the demotion chain — ⏳ needs a look call, and it is the biggest lever left
+
+`.86` verified the guard now recovers `realistic` from **10.9 → 29.6 fps** automatically. That lands
+*on* the 30 fps floor with nothing left in the chain. The unused lever is the largest one measured:
+**`dprMax` 2 → 1 is worth 4.5× (10.9 → 49.6 fps)** — more than shadows, post and transmission
+combined. It trades resolution for frame rate, which is a look decision. Working: `.84`, `.86`.
+
+### 6. Visibility lightmaps: the flag stays off — ⏳ unchanged, and superseded in prospect
+
+Baked aperture visibility helps one view of five and hurts four (+79 % / −64 % / … measured with the
+HUD mask in `.76`). The replacement candidate now exists: **`--pass irradiance`** bakes real Cycles
+direct+indirect with the scene's own materials, **23 s on the GPU**, within **5.2 %** of a
+1024-sample reference, carrying **171× spatial variation between shell surfaces** (cv 139 %) against
+the app's cv 8.7 %. What is missing is the runtime path that **replaces** the ambient/hemisphere term
+rather than multiplying it — `.67` measured that multiplying by irradiance is *worse* than
+multiplying by visibility, which is what double-counting looks like. Working: `.67`, `.71`, `.72`.
+
+### Still genuinely open as engineering, no decision needed
+
+- **(w)/(x) interior indirect light.** Interior sits at **107.1** against physics' **124.2** — 1.16×
+  short — and is **unmoved by any background change**, which is what finally separated it from (l).
+  The irradiance bake is the candidate; the shader replacement path is the work.
+- **`realistic`/weak at 25.1 fps** in walk, and the whole chain bottoming out at 29.6. Decision 5 is
+  the lever.
+

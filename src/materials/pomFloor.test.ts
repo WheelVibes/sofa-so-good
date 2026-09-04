@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS } from '../features/flags/registry'
 import { resolveFlags } from '../features/flags/resolve'
-import type { RenderTier } from '../scene/quality'
-import { RENDER_TIERS } from '../scene/quality'
+import { DEVICE_CLASSES, RENDER_TIERS } from '../scene/quality'
 import {
   POM_ELIGIBLE_PATTERNS,
   pomEligiblePattern,
@@ -38,47 +37,52 @@ describe('pomFloor eligibility', () => {
 describe('pomFloor tier gating (Performance/Medium byte-identical)', () => {
   it('enables POM on High and Maximum only', () => {
     expect(pomFloorTierEnabled('performance')).toBe(false)
-    expect(pomFloorTierEnabled('medium')).toBe(false)
-    expect(pomFloorTierEnabled('high')).toBe(true)
-    expect(pomFloorTierEnabled('maximum')).toBe(true)
+    expect(pomFloorTierEnabled('performance')).toBe(false)
+    expect(pomFloorTierEnabled('realistic')).toBe(true)
+    expect(pomFloorTierEnabled('realistic')).toBe(true)
   })
 
-  it('gives 0 steps on Performance/Medium and scales up High→Max', () => {
-    expect(pomStepsForTier('performance')).toBe(0)
-    expect(pomStepsForTier('medium')).toBe(0)
-    expect(pomStepsForTier('high')).toBe(16)
-    expect(pomStepsForTier('maximum')).toBe(32)
-    // Max ray-marches finer than High.
-    expect(pomStepsForTier('maximum')).toBeGreaterThan(pomStepsForTier('high'))
+  it('gives 0 steps in performance and scales with the device class in realistic', () => {
+    // Parity: old performance/medium → 0, old high → 16, old maximum → 32.
+    expect(pomStepsForTier('performance', 'weak')).toBe(0)
+    expect(pomStepsForTier('performance', 'capable')).toBe(0)
+    expect(pomStepsForTier('realistic', 'weak')).toBe(16)
+    expect(pomStepsForTier('realistic', 'capable')).toBe(32)
+    // A capable device ray-marches finer.
+    expect(pomStepsForTier('realistic', 'capable')).toBeGreaterThan(
+      pomStepsForTier('realistic', 'weak'),
+    )
   })
 
-  it('every tier has a defined, finite step budget', () => {
+  it('every mode and device class has a defined, finite step budget', () => {
     for (const t of RENDER_TIERS) {
-      const s = pomStepsForTier(t as RenderTier)
-      expect(Number.isFinite(s)).toBe(true)
-      expect(s).toBeGreaterThanOrEqual(0)
+      for (const d of DEVICE_CLASSES) {
+        const s = pomStepsForTier(t, d)
+        expect(Number.isFinite(s)).toBe(true)
+        expect(s).toBeGreaterThanOrEqual(0)
+      }
     }
   })
 })
 
 describe('pomFloorEligible (flag × tier × pattern)', () => {
   it('is true only for an eligible pattern on High/Max with the flag on', () => {
-    expect(pomFloorEligible('tile', 'high', true)).toBe(true)
-    expect(pomFloorEligible('parquet', 'maximum', true)).toBe(true)
+    expect(pomFloorEligible('tile', 'realistic', true)).toBe(true)
+    expect(pomFloorEligible('parquet', 'realistic', true)).toBe(true)
   })
 
   it('is false when the flag is off (even on Max with an eligible pattern)', () => {
-    expect(pomFloorEligible('tile', 'maximum', false)).toBe(false)
+    expect(pomFloorEligible('tile', 'realistic', false)).toBe(false)
   })
 
   it('is false on Performance/Medium regardless of pattern/flag', () => {
     expect(pomFloorEligible('tile', 'performance', true)).toBe(false)
-    expect(pomFloorEligible('brick', 'medium', true)).toBe(false)
+    expect(pomFloorEligible('brick', 'performance', true)).toBe(false)
   })
 
   it('is false for an ineligible (smooth) pattern even on Max', () => {
-    expect(pomFloorEligible('carpet', 'maximum', true)).toBe(false)
-    expect(pomFloorEligible('wood', 'maximum', true)).toBe(false)
+    expect(pomFloorEligible('carpet', 'realistic', true)).toBe(false)
+    expect(pomFloorEligible('wood', 'realistic', true)).toBe(false)
   })
 })
 

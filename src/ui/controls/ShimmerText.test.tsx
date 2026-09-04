@@ -24,7 +24,7 @@ describe('ShimmerText gate (UIUX-22)', () => {
   })
 
   it('shimmers on a heavier tier with the flag on, and stops when inactive', () => {
-    useStore.setState({ qualityTier: 'high' })
+    useStore.setState({ qualityTier: 'realistic' })
     const { rerender } = render(<ShimmerText>Denoising…</ShimmerText>)
     expect(screen.getByText('Denoising…').className).toContain('shimmer-text')
     rerender(<ShimmerText active={false}>Denoising…</ShimmerText>)

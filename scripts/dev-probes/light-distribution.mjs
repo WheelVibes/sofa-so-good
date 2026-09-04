@@ -43,10 +43,56 @@
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
 import sharp from 'sharp'
-import { appUrl, assertSceneAlive } from './lib.mjs'
+import { isHud } from './hud.mjs'
+import { appUrl, assertSceneAlive, waitForBakedGi } from './lib.mjs'
+import { resolvePlanSpec } from './resolve-plan.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
+// `DEVICE=weak|capable` pins the device class, which is otherwise detected from
+// the live GL context. Needed because a mode now has TWO looks and a capable
+// machine can only render one of them by itself — so without this knob the `weak`
+// variants are unverifiable on the development machine, which is exactly where
+// they would go unnoticed. `v0.31.7.68` mapped them onto the retired rungs:
+// performance/weak = old performance, performance/capable = old medium,
+// realistic/weak = old high, realistic/capable = old maximum.
+const DEVICE = process.env.DEVICE || null
+// `BACKDROP_IMG=<path>` loads an image file into the app's CUSTOM backdrop slot.
+//
+// The slot already exists for a user-uploaded panorama, and `backdropEquirect.ts`
+// says it was "shaped to be swapped for real CC0 equirectangular photos later
+// (same background slot)". So a Cycles-rendered equirect (`render_equirect.py`)
+// can be tested end-to-end against a physical reference with no app change at
+// all — which is the difference between "the sky is 1.4x too dark" as a property
+// of two PNGs and as a property of the shipped window.
+const BACKDROP_IMG = process.env.BACKDROP_IMG || null
+// `REQUIRE_LIGHTMAPS=1` refuses to produce a frame unless the app reports that it
+// actually applied baked lightmaps.
+//
+// **Why this is not optional.** `v0.31.7.90`-`.92` compared several irradiance
+// bakes through this probe and got statistics identical TO THE DECIMAL from three
+// different frame files and from map PNGs with different md5s. The maps had not
+// loaded; `replace` mode was assigning zero into the indirect term, so every
+// "comparison" was a measurement of a failed fetch. A silent no-op is the worst
+// possible failure for a difference measurement, because it looks like a result.
+const REQUIRE_LIGHTMAPS = process.env.REQUIRE_LIGHTMAPS === '1'
+// How many times the gate actually executed. A guard on a code path the run never takes is
+// indistinguishable from a guard that passed -- the same defect `v0.31.7.103` found in
+// `slotsFor`, where a field that was never populated reported "nothing to relocate". Checked at
+// the end of the run, because a flag the user set and the probe silently ignored is worse than
+// no flag: they will trust the numbers more, not less.
+let lightmapGateRan = 0
+// `SKYCATCH=<mult>` scales every window pane's EMISSIVE sky-catch (RZ2).
+//
+// `glassSkyCatchIntensity(daylight) = daylight * 0.4`, with a fixed colour
+// `GLASS_SKYCATCH_COLOR = '#cfe4f5'` — so a pane's brightness is a CONSTANT that
+// never reads `scene.background`. That is the hypothesis this knob exists to
+// test: swapping a 1.4x brighter, 4x less saturated sky into the background moved
+// the window mean only ~8 % and left the share of the crop above 219 pinned at
+// 1.11 %, against 49.6 % in the physical reference. `SKYCATCH=0` ablates the term:
+// if the pane barely changes, the emissive was not the limiter and the hypothesis
+// is wrong.
+const SKYCATCH = process.env.SKYCATCH == null ? null : Number(process.env.SKYCATCH)
 const WINDOW = process.env.WINDOW || 'livingDining'
 // ROOM scopes the finish setters, the albedo census and the exposure census
 // (`.277`). Everything downstream of `.271` hardcoded `livingDining`, which made
@@ -145,7 +191,14 @@ page.on('console', (m) => {
   // behind `import.meta.env.DEV` -- all of which this arc has been blind to for
   // forty rounds because the probe never listened. Skip the Vite/HMR chatter.
   const noise = /\[vite]|HMR|Download the React DevTools|WebGL context/i
-  if (/^\[PROBE]/.test(t) || ((type === 'warning' || type === 'error') && !noise.test(t))) {
+  // `lightmaps:` too: the visibility-lightmap wiring reports its hit rate through
+  // `console.info`, and that report is the one diagnostic that distinguishes "maps never
+  // loaded" from "maps loaded and the term is subtle" (`v0.31.7.32`).
+  if (
+    /^\[PROBE]/.test(t) ||
+    /lightmaps:/i.test(t) ||
+    ((type === 'warning' || type === 'error') && !noise.test(t))
+  ) {
     console.log(`  PAGE ${type}: ${t}`)
   }
 })
@@ -174,15 +227,78 @@ page.on('pageerror', (e) => console.log(`  PAGE ERROR ${e.message}`))
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
+
+// PLAN=<n> loads starter plan `n` from `PLAN_TEMPLATES`.
+//
+// **POSITION IS LOAD-BEARING: this must run before the frame is captured.** It first sat
+// beside BLENDREF, 85 lines AFTER `shotFor(PITCH)`, so every `PLAN=` run exported the
+// selected plan's GLB while capturing the DEFAULT plan's frame -- and comparing that frame
+// against the selected plan's reference produced a stable, meaningless 2.25x that survived
+// five unrelated code changes (`v0.31.7.46`). The BLENDREF export was correct throughout,
+// which is what made the mismatch so hard to see.
+//
+// Baked visibility maps are keyed by world-space geometry, so ONE index serves every plan --
+// but each plan has to be exported and baked separately, and that means the probe needs to be
+// able to sit in a plan other than the move-in default. There are ~25 templates and a full flat
+// bakes in ~35 min, so this is the knob that makes the asset set fillable incrementally.
+//
+// The templates module is imported dynamically FROM THE PAGE, which works because Vite serves
+// source in dev. That avoids exposing the whole plan library on `window` in production just to
+// let a probe reach it.
+const PLAN = process.env.PLAN
+// The resolved plan, recorded so a reference directory can say which flat it is.
+// It could not before: the two surviving manifests of this arc's five-view set
+// identify a room and a window but no PLAN, so the only way to tell a `PLAN=3`
+// run from a default run was to recognise the camera position.
+let planInfo = null
+if (PLAN !== undefined && PLAN !== '') {
+  // Resolution happens HERE rather than in the page so `resolvePlanSpec` is a
+  // plain module with tests (`resolve-plan.test.mjs`); the page only supplies the
+  // list and applies an index. `PLAN=` now takes a NAME as well as an index --
+  // an index into a hand-ordered array is not a durable identifier for a result
+  // that outlives the ordering.
+  const list = await page.evaluate(async () => {
+    const mod = await import('/src/floorplan/templates.ts')
+    const l = mod.PLAN_TEMPLATES
+    if (!Array.isArray(l)) return { error: 'PLAN_TEMPLATES is not an array' }
+    return { list: l.map((p) => ({ id: p.id ?? null, name: p.name ?? null })) }
+  })
+  if (list.error) throw new Error(`PLAN: ${list.error}`)
+  const hit = resolvePlanSpec(list.list, PLAN)
+  if (hit.error) throw new Error(`PLAN: ${hit.error}`)
+  const picked = await page.evaluate(async (n) => {
+    const mod = await import('/src/floorplan/templates.ts')
+    const list = mod.PLAN_TEMPLATES
+    if (!list[n]) return { error: `no template ${n} of ${list?.length}` }
+    window.__store.getState().setFloorPlan(list[n])
+    return { count: list.length, id: list[n].id ?? null, name: list[n].name ?? null }
+  }, hit.index)
+  if (picked.error) throw new Error(`PLAN: ${picked.error}`)
+  planInfo = { spec: PLAN, index: hit.index, id: picked.id, name: picked.name }
+  await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
+  await new Promise((r) => setTimeout(r, 4000))
+  console.log(
+    `PLAN=${PLAN} -> [${hit.index}] ${JSON.stringify(picked.name)} (${picked.id}) of ${picked.count} templates`,
+  )
+} else {
+  // Also record the DEFAULT plan. A manifest that only names a plan when one was
+  // explicitly chosen leaves the common case unidentifiable, which is the case
+  // both surviving reference dirs are in.
+  planInfo = await page.evaluate(() => {
+    const fp = window.__store.getState().floorPlan
+    return fp ? { spec: null, index: null, id: fp.id ?? null, name: fp.name ?? null } : null
+  })
+}
 await page.evaluate((r) => {
   window.__probeRoom = r
 }, ROOM)
 await page.evaluate(
-  ({ h, t, fov, photo, floor, wall, tone, backdrop, room }) => {
+  ({ h, t, device, fov, photo, floor, wall, tone, backdrop, room }) => {
     const s = window.__store.getState()
     s.setTimeMode('manual')
     s.setManualHour(h)
     s.setQualityTier(t)
+    if (device) s.setDeviceClass(device)
     s.setCameraMode('firstPerson')
     s.dismissCallout?.('walk-mode')
     s.setWalkFov?.(fov)
@@ -201,6 +317,7 @@ await page.evaluate(
   {
     h: HOUR,
     t: TIER,
+    device: DEVICE,
     fov: WALKFOV,
     photo: PHOTO,
     floor: FLOOR,
@@ -284,6 +401,17 @@ if (process.env.CEIL_STD === '1') {
 }
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
+// The baked GI attaches AFTER `sceneReady`, and its textures load asynchronously (`(z10)`). This
+// probe is the one that measures the WINDOW, where the whole question is a top-end level, so a
+// frame captured mid-attach is exactly the kind of plausible-but-wrong number that cost
+// `v0.31.7.266`-`.275`. Two nominally identical runs here read the pane at 217.5 and 228.9 before
+// this was added, which is that signature.
+{
+  const gi = await waitForBakedGi(page)
+  console.log(
+    `baked GI: ${gi.count} materials attached${gi.settled ? ' (stable)' : ' (DID NOT SETTLE)'}`,
+  )
+}
 await assertSceneAlive(page, 'after setup')
 
 const pose = await page.evaluate(
@@ -364,7 +492,21 @@ const pose = await page.evaluate(
   },
   { win: WINDOW, standoff: STANDOFF },
 )
-if (!pose) throw new Error(`no window opening matching /${WINDOW}/i`)
+if (!pose) {
+  // List what IS available. The default `WINDOW=livingDining` exists in the 4-Room plan and not
+  // in every other, so with `PLAN=` the first thing a caller needs is the openings of the plan
+  // they just loaded -- guessing costs a 90-second run each time.
+  const available = await page.evaluate(() => {
+    const out = []
+    const p = window.__store.getState().floorPlan
+    const levels = p?.levels ?? [p]
+    for (const l of levels) for (const o of l?.openings ?? []) if (o?.id) out.push(o.id)
+    return out
+  })
+  throw new Error(
+    `no window opening matching /${WINDOW}/i — available: ${available.join(', ') || '(none)'}`,
+  )
+}
 /**
  * Teleport, then CHECK, then step closer and retry.
  *
@@ -564,6 +706,163 @@ const applyGBounce =
         if (res.error) throw new Error(`GBOUNCE: ${res.error}`)
         await new Promise((r) => setTimeout(r, 700))
       }
+// DEVICE has to be RE-ASSERTED after boot, not just set once.
+//
+// `QualityController` detects the class from the live GL context in an effect and
+// calls `setDeviceClass` itself, so a value written during setup is overwritten
+// on mount — which made `DEVICE=weak` silently render the `capable` look. The
+// numeric parity table did not catch it (two of four rows still matched); the
+// cross-check "do the two variants of a mode differ from each other?" did, at
+// 0.014 counts where 24.3 was expected. Same lesson as GBOUNCE below: never set a
+// value before a state change that recomputes it.
+const applyDevice = !DEVICE
+  ? null
+  : async () => {
+      const res = await page.evaluate((d) => {
+        window.__store.getState().setDeviceClass(d)
+        return { got: window.__store.getState().deviceClass }
+      }, DEVICE)
+      if (res.got !== DEVICE) throw new Error(`DEVICE: asked ${DEVICE}, store has ${res.got}`)
+      await new Promise((r) => setTimeout(r, 700))
+    }
+
+const applyBackdropImg = !BACKDROP_IMG
+  ? null
+  : async () => {
+      const b64 = fs.readFileSync(BACKDROP_IMG).toString('base64')
+      const res = await page.evaluate((url) => {
+        const s = window.__store.getState()
+        s.setCustomBackdropUrl(url)
+        s.setBackdrop('custom')
+        return { backdrop: window.__store.getState().backdrop }
+      }, `data:image/png;base64,${b64}`)
+      if (res.backdrop !== 'custom') throw new Error(`BACKDROP_IMG: store says ${res.backdrop}`)
+      // The texture is loaded from the data URL by an <img> onload inside
+      // SceneBackdrop, so the frame must not be taken until that has landed.
+      await new Promise((r) => setTimeout(r, 1500))
+    }
+
+const applySkyCatch =
+  SKYCATCH == null
+    ? null
+    : async () => {
+        const res = await page.evaluate((k) => {
+          let n = 0
+          const seen = []
+          window.__three.scene.traverse((o) => {
+            const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
+            for (const m of mats) {
+              // A window pane is the emissive+transparent glass: identify by the
+              // sky-catch colour it is authored with rather than by name, since
+              // names come from the exporter.
+              if (!m.emissive || m.emissiveIntensity === undefined) continue
+              const hex = `#${m.emissive.getHexString()}`
+              if (hex !== '#cfe4f5') continue
+              // INTERCEPT, do not assign. The first version of this ablation set
+              // `m.emissiveIntensity` and was silently reverted before the shot
+              // (read-back returned 0.4 on all six), because the value is
+              // recomputed from `glassSkyCatchIntensity(daylight)` on the material
+              // whenever the light state is re-derived. A no-op setter pins it
+              // exactly the way BGMUL pins `backgroundIntensity`.
+              if (m.__skyCatchPinned === undefined) {
+                const base = m.emissiveIntensity
+                m.__skyCatch0 = base
+                Object.defineProperty(m, 'emissiveIntensity', {
+                  get: () => base * k,
+                  set: () => {},
+                  configurable: true,
+                })
+                m.__skyCatchPinned = k
+              }
+              m.needsUpdate = true
+              n += 1
+              if (seen.length < 3) seen.push({ hex, was: m.__skyCatch0, now: m.emissiveIntensity })
+            }
+          })
+          return { n, seen }
+        }, SKYCATCH)
+        console.log(
+          `  SKYCATCH=${SKYCATCH}: scaled ${res.n} pane material(s) ${JSON.stringify(res.seen)}`,
+        )
+        if (res.n === 0) throw new Error('SKYCATCH: no pane material matched #cfe4f5')
+        await new Promise((r) => setTimeout(r, 600))
+        // POST-CAPTURE READ-BACK, non-negotiable. The first run of this ablation
+        // produced BYTE-IDENTICAL frames, which reads as "the term does not
+        // matter" and is far more often "the write did not stick" — `.254` lost a
+        // whole GBOUNCE sweep to exactly that, because `Lighting.tsx` recomputes
+        // the value every frame. Without this check the two conclusions are
+        // indistinguishable.
+        const back = await page.evaluate(() => {
+          const out = []
+          window.__three.scene.traverse((o) => {
+            const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
+            for (const m of mats) {
+              if (!m.emissive || m.emissiveIntensity === undefined) continue
+              if (`#${m.emissive.getHexString()}` !== '#cfe4f5') continue
+              out.push(m.emissiveIntensity)
+            }
+          })
+          return out
+        })
+        console.log(`  SKYCATCH read-back after settle: ${JSON.stringify(back)}`)
+      }
+
+const assertLightmapsApplied = !REQUIRE_LIGHTMAPS
+  ? null
+  : async () => {
+      // Count the materials the injection actually marked, and confirm at least
+      // one of their sampler uniforms holds a texture with real image data.
+      const readLightmapState = () =>
+        page.evaluate(() => {
+          let patched = 0
+          let withImage = 0
+          window.__three.scene.traverse((o) => {
+            const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
+            for (const m of mats) {
+              if (!m.userData?.visLightmap) continue
+              patched += 1
+              const t = m.__visMapForProbe
+              const img = t?.image
+              if (img && (img.width ?? 0) > 0) withImage += 1
+            }
+          })
+          return { patched, withImage }
+        })
+      let r = await readLightmapState()
+      lightmapGateRan += 1
+      // BOUNDED WAIT, because texture fetches are async and the injection is not. The
+      // materials are patched synchronously during the traversal; `texture.image` only appears
+      // once the fetch resolves, so checking once immediately conflates "the maps are broken"
+      // with "the maps are still in flight". Bounded and loud on timeout -- an unbounded wait
+      // would turn a real load failure into a hang, and a silent give-up is the whole defect
+      // this flag exists to prevent.
+      for (let i = 0; i < 40 && r.patched > 0 && r.withImage === 0; i += 1) {
+        await new Promise((res) => setTimeout(res, 250))
+        r = await readLightmapState()
+      }
+      if (r.patched === 0) {
+        throw new Error(
+          'REQUIRE_LIGHTMAPS: no material carries the lightmap injection. The flag, the ' +
+            'index or the plan context did not line up, and any frame taken now measures ' +
+            'the unmapped app.',
+        )
+      }
+      // A PATCHED MATERIAL WITH NO TEXTURE IS THE FAILURE THIS FLAG EXISTS FOR, and the first
+      // version of this check let it through: it threw only on `patched === 0`, so a run where
+      // every injection was in place but every fetch had failed reported success. In `replace`
+      // mode that assigns ZERO into the indirect term, which is not a subtle difference -- it is
+      // a black shell that looks like a result. `withImage` was already being counted and
+      // printed; nothing acted on it.
+      if (r.withImage === 0) {
+        throw new Error(
+          `REQUIRE_LIGHTMAPS: ${r.patched} material(s) carry the injection but NONE holds a ` +
+            'texture with image data. The maps did not load (404, wrong `aoDir`, or a stale ' +
+            'index), and in `replace` mode the shader is now multiplying by zero.',
+        )
+      }
+      console.log(`  lightmaps: ${r.patched} patched material(s), ${r.withImage} with image data`)
+    }
+
 const shotFor = async (pitch) => {
   await page.evaluate((v) => window.__walkLook?.setPitch(v), pitch)
   await new Promise((r) => setTimeout(r, 900))
@@ -573,9 +872,16 @@ const shotFor = async (pitch) => {
   // any earlier patch. `.254`'s first sweep was applied before the pitch and read
   // dead flat across GBOUNCE 1..8 -- a completely false negative that only the
   // post-capture read-back caught. Never patch a light before a state change.
+  if (typeof applyDevice === 'function') await applyDevice()
+  if (typeof applyBackdropImg === 'function') await applyBackdropImg()
+  if (typeof applySkyCatch === 'function') await applySkyCatch()
+  if (typeof assertLightmapsApplied === 'function') await assertLightmapsApplied()
   if (typeof applyGBounce === 'function') await applyGBounce()
   if (typeof applyFillOff === 'function') await applyFillOff()
   if (typeof applyFillScale === 'function') await applyFillScale()
+  if (typeof applyAmbScale === 'function') await applyAmbScale()
+  if (typeof applyHemiScale === 'function') await applyHemiScale()
+  if (typeof applyEnvScale === 'function') await applyEnvScale()
   if (typeof applyLinear === 'function') await applyLinear()
   if (typeof applyFillTint === 'function') await applyFillTint()
   if (typeof applyRecolor === 'function') await applyRecolor()
@@ -584,12 +890,15 @@ const shotFor = async (pitch) => {
   if (typeof applyHideGrille === 'function') await applyHideGrille()
   if (typeof applyBgSharp === 'function') await applyBgSharp()
   if (typeof applyBgBlock === 'function') await applyBgBlock()
+  if (typeof applyBgHorizon === 'function') await applyBgHorizon()
   if (typeof applyBgMul === 'function') await applyBgMul()
+  if (typeof applyAoMap === 'function') await applyAoMap()
   if (typeof applyFloorDye === 'function') await applyFloorDye()
   if (typeof applyDyeExcept === 'function') await applyDyeExcept()
   if (typeof applyEnvDump === 'function') await applyEnvDump()
   if (typeof applyRoomH === 'function') await applyRoomH()
   if (typeof applyRoomDims === 'function') await applyRoomDims()
+  if (typeof applyRoomLight === 'function') await applyRoomLight()
   return canvas.screenshot({ type: 'png' })
 }
 // Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
@@ -648,6 +957,76 @@ const applyFillOff =
 // rewrites `intensity` every frame, so a plain assignment is overwritten. The
 // per-frame writes are routed into `__fillRaw` and the renderer reads raw x f, so
 // the scale survives every subsequent frame.
+// AMBSCALE / HEMISCALE=<f> -- scale the AmbientLight or the HemisphereLight ALONE.
+//
+// `.331` picked the hemisphere ground term as (w)'s single lever because it moved the
+// ceiling and left the floor alone. `v0.31.6.6` re-measured (w) against a physical
+// Cycles reference and found the floor SHOULD move (-13.6 %, not the HQ tracer's
+// +0.2 %), so that selectivity is now a defect rather than a feature -- and no single
+// lever can hit two targets with a fixed ratio.
+//
+// Physics wants ceiling -25.3 % and floor -13.6 %, a 1.86:1 ratio. The ground term
+// delivers roughly 370:1 (ceiling-only) and the uniform fill ~5.4:1. So the fix needs
+// TWO levers with different spatial signatures, solved as a 2x2 -- which is still just
+// two scalars per frame, i.e. no new passes and no FPS cost.
+//
+// Separate knobs rather than one combined one because they must be measured
+// independently to build the response matrix; and they touch different objects, so
+// applying both at once cannot conflict. Same getter interception as FILLOFF/FILLSCALE
+// (`.254`): Lighting.tsx rewrites `intensity` every frame, so a plain assignment is
+// silently overwritten.
+const mkOneLightScale = (envName, label) => {
+  const raw = process.env[envName]
+  if (raw === undefined || raw === '') return null
+  const factor = Number(raw)
+  if (!Number.isFinite(factor)) throw new Error(`${envName}: expected a number, got ${raw}`)
+  return async () => {
+    const res = await page.evaluate(
+      ({ f, kind }) => {
+        const hit = []
+        window.__three.scene.traverse((o) => {
+          const isAmb = kind === 'ambient' && o.isAmbientLight
+          const isHemi = kind === 'hemisphere' && o.isHemisphereLight
+          if (!isAmb && !isHemi) return
+          const key = `__scale_${kind}`
+          if (!o[key]) {
+            o[`${key}_raw`] = o.intensity
+            Object.defineProperty(o, 'intensity', {
+              get() {
+                return this[`${key}_raw`] * this[`${key}_factor`]
+              },
+              set(v) {
+                this[`${key}_raw`] = v
+              },
+              configurable: true,
+            })
+            o[key] = true
+          }
+          o[`${key}_factor`] = f
+          hit.push({ type: o.type, raw: o[`${key}_raw`], eff: o.intensity })
+        })
+        return hit
+      },
+      { f: factor, kind: label },
+    )
+    if (!res.length) throw new Error(`${envName}: no ${label} light found`)
+    await new Promise((r) => setTimeout(r, 900))
+    // Read back AFTER the settle -- `.254`: an intervention that silently reverts looks
+    // exactly like one with no effect.
+    const after = await page.evaluate((kind) => {
+      const out = []
+      window.__three.scene.traverse((o) => {
+        if (kind === 'ambient' ? o.isAmbientLight : o.isHemisphereLight)
+          out.push({ type: o.type, eff: +o.intensity.toFixed(6) })
+      })
+      return out
+    }, label)
+    console.log(`${envName}CHECK f=${factor} ${JSON.stringify(after)}`)
+  }
+}
+const applyAmbScale = mkOneLightScale('AMBSCALE', 'ambient')
+const applyHemiScale = mkOneLightScale('HEMISCALE', 'hemisphere')
+
 const FILLSCALE = process.env.FILLSCALE
 const applyFillScale =
   FILLSCALE === undefined || FILLSCALE === ''
@@ -689,6 +1068,87 @@ const applyFillScale =
           return out
         })
         console.log(`FILLSCALECHECK f=${FILLSCALE} ${JSON.stringify(after)}`)
+      }
+// ENVSCALE=<f> scales the IBL PROBE's contribution alone (`v0.31.7.8`).
+//
+// `v0.31.7.7` measured (w) as a ~4x error on a wall that can barely see the window,
+// and named the missing quantity: APERTURE VISIBILITY. That result says nothing
+// about which of the app's two indirect terms is delivering the excess, and the
+// answer decides the implementation:
+//
+//   - if the IBL probe dominates, a per-material `envMapIntensity` carries the fix.
+//     That is a number on a material -- no new texture, no extra UV channel, no
+//     per-frame work at all.
+//   - if the ANALYTICAL fill (Hemisphere + Ambient) dominates, no per-material
+//     scalar can help, because those are per-LIGHT. The fix then has to be an
+//     `aoMap`, which is the only slot three multiplies into indirect irradiance
+//     per fragment -- a bake, a UV channel, and an asset pipeline.
+//
+// So this is FILLSCALE's counterpart: FILLSCALE=0 leaves IBL + sun, ENVSCALE=0
+// leaves analytical fill + sun, and the two together isolate each term's share.
+//
+// **Counts must not be added or subtracted between these arms.** AgX is not a
+// linear encoding, so a tone-mapped count is not energy and an additive
+// decomposition of the arms is illegitimate (the arc's standing rule). What IS
+// legitimate is comparing each arm's own NORMALISED spatial profile against
+// physics' -- which is the comparison this is for.
+//
+// `scene.environmentIntensity` is three's own scalar for exactly this and is
+// intercepted rather than assigned, since anything that recomputes the environment
+// per frame would otherwise silently revert it (`.254`). Per-material
+// `envMapIntensity` is scaled too, because a material that sets its own value
+// overrides the scene-level one.
+const ENVSCALE = process.env.ENVSCALE
+const applyEnvScale =
+  ENVSCALE === undefined || ENVSCALE === ''
+    ? null
+    : async () => {
+        const f = Number(ENVSCALE)
+        if (!Number.isFinite(f)) throw new Error(`ENVSCALE: expected a number, got ${ENVSCALE}`)
+        const res = await page.evaluate((k) => {
+          const sc = window.__three.scene
+          if (!sc.__envPatched) {
+            sc.__envRaw = sc.environmentIntensity ?? 1
+            Object.defineProperty(sc, 'environmentIntensity', {
+              get() {
+                return this.__envRaw * this.__envFactor
+              },
+              set(v) {
+                this.__envRaw = v
+              },
+              configurable: true,
+            })
+            sc.__envPatched = true
+          }
+          sc.__envFactor = k
+          let mats = 0
+          sc.traverse((o) => {
+            const m = o.material
+            if (!m) return
+            for (const mm of Array.isArray(m) ? m : [m]) {
+              if (typeof mm.envMapIntensity !== 'number') continue
+              if (mm.__envRaw === undefined) mm.__envRaw = mm.envMapIntensity
+              mm.envMapIntensity = mm.__envRaw * k
+              mats++
+            }
+          })
+          return { sceneEff: sc.environmentIntensity, sceneRaw: sc.__envRaw, mats }
+        }, f)
+        await new Promise((r) => setTimeout(r, 900))
+        // Read back AFTER the settle: a patch that gets reverted looks exactly like
+        // one that had no effect (`.254`).
+        const after = await page.evaluate(() => {
+          const sc = window.__three.scene
+          let sample = null
+          sc.traverse((o) => {
+            const m = o.material
+            if (sample || !m || Array.isArray(m)) return
+            if (typeof m.envMapIntensity === 'number' && m.__envRaw !== undefined)
+              sample = { raw: m.__envRaw, eff: m.envMapIntensity }
+          })
+          return { sceneEff: sc.environmentIntensity, sample }
+        })
+        console.log(`ENVSCALECHECK f=${f} ${JSON.stringify({ ...res, after })}`)
       }
 // LINEAR=1 bypasses the tone curve so the SCENE's own luminance range can be read
 // rather than the graded picture's (`.258`).
@@ -1182,6 +1642,100 @@ const applyFloorDye = !FLOORDYE
         throw new Error('FLOORDYE: no upward-facing mesh found -- intervention did NOT land')
       await new Promise((r) => setTimeout(r, 900))
     }
+// ROOMLIGHT=1 -- glazing area per unit of room surface, for the POSED room (`v0.31.7.56`).
+//
+// This is the candidate predictor for error (B). `v0.31.7.54`/`.55` split the tonal error into a
+// scene-INDEPENDENT window level (fixed by one constant) and a scene-DEPENDENT room level: the
+// app's median spans 96-122 across three views where physics spans 83-160, so the app is too
+// bright in dark rooms and too dark in bright ones. Something about the room has to drive that,
+// and the obvious physical candidate is how much aperture it has for its size -- a small kitchen
+// with a normal window is genuinely brighter than a deep living room with one distant one.
+//
+// Computed from the PLAN rather than from pixels, so it is available at runtime with no
+// reference and no render: opening dimensions and room polygons are already in the store.
+//
+// Openings are attributed to a room by the walls they sit on, and a wall can be shared between
+// two rooms -- so an opening counts for both, which is correct: a window in a shared wall lights
+// both sides.
+const applyRoomLight =
+  process.env.ROOMLIGHT !== '1'
+    ? null
+    : async () => {
+        const res = await page.evaluate(
+          ({ roomId, winId }) => {
+            const plan = window.__store.getState().floorPlan
+            const levelsOf = (p) => p.levels ?? [p, ...(p.upperLevels ?? [])]
+            const allOf = (p, k) => levelsOf(p).flatMap((l) => l[k] ?? [])
+            const globalH = plan.wallHeight ?? plan.ceilingHeight ?? 2.6
+            // Rooms are RECTANGLES here, not polygons: {origin,width,depth,extension?}.
+            // The first version of this knob assumed polygons and reported one room and zero
+            // glazing -- read the schema, do not infer it from a sibling probe.
+            const room = allOf(plan, 'rooms').find((r) => r.id === roomId)
+            if (!room) return { error: `no room ${roomId}` }
+            const rect = (w, d) => ({ area: w * d, perim: 2 * (w + d) })
+            const base = rect(room.width, room.depth)
+            const ext = room.extension
+              ? rect(room.extension.width, room.extension.depth)
+              : { area: 0, perim: 0 }
+            const floor = base.area + ext.area
+            const h = room.ceilingHeight ?? globalH
+            // Perimeter of a base rect plus an extension, less the shared edge counted twice.
+            // Approximate: an L-shape's true perimeter is base+ext minus 2x the join width.
+            const join = room.extension ? 2 * Math.min(room.width, room.extension.width) : 0
+            const perim = base.perim + ext.perim - join
+            const surface = 2 * floor + perim * h
+
+            // Extent PERPENDICULAR to the window wall -- the distance light has to travel to
+            // reach the far end. `v0.31.7.57` found floor AREA predicts only the rank of a
+            // room's rendered median, and the mechanism it implies is distance, not area: for a
+            // given window, light falls off with range, so what should matter is how deep the
+            // room is from its aperture rather than how much floor it has.
+            //
+            // Opening height is head - sill; there is no `height` field.
+            const win = allOf(plan, 'openings').find((o) => o.id === winId)
+            const glazing = win ? win.width * Math.max(0, (win.head ?? 0) - (win.sill ?? 0)) : 0
+            // Orientation comes from the WALL's own endpoints, not from the opening's id. The
+            // 4-Room plan happens to encode a compass letter (`win-livingDining-N`) and most
+            // plans do not (`ex-liv-win`, `lf-e1`), so an id-based rule silently fell back to
+            // `max(width, depth)` outside one plan -- which is the wrong axis half the time.
+            // Walls carry `start`/`end` as [x, z], so a wall running mostly along x faces
+            // north/south and the room's depth is the perpendicular extent.
+            const wall = allOf(plan, 'walls').find((w) => w.id === win?.wallId)
+            let axis = null
+            if (wall?.start && wall?.end) {
+              const dx = Math.abs(wall.end[0] - wall.start[0])
+              const dz = Math.abs(wall.end[1] - wall.start[1])
+              axis = dx >= dz ? 'NS' : 'EW'
+            }
+            const perpendicular =
+              axis === 'NS'
+                ? room.depth
+                : axis === 'EW'
+                  ? room.width
+                  : Math.max(room.width, room.depth)
+            return {
+              room: room.id,
+              floor: +floor.toFixed(1),
+              surface: +surface.toFixed(1),
+              ceilingH: h,
+              width: room.width,
+              depth: room.depth,
+              axis,
+              perpendicular: +perpendicular.toFixed(2),
+              window: winId,
+              glazing: +glazing.toFixed(2),
+              pct: +((100 * glazing) / Math.max(1e-6, surface)).toFixed(3),
+            }
+          },
+          { roomId: pose.roomId ?? ROOM, winId: pose.id },
+        )
+        if (res.error) throw new Error(`ROOMLIGHT: ${res.error}`)
+        console.log(
+          `ROOMLIGHT ${res.room} floor ${res.floor} m2  ${res.width}x${res.depth} m  ` +
+            `wall ${res.axis ?? '?'}  perpendicular ${res.perpendicular} m  ` +
+            `glazing ${res.glazing} m2  glazing/surface ${res.pct} %`,
+        )
+      }
 // ROOMDIMS=1 -- report every room's footprint and its wall/ceiling area ratio.
 //
 // `.342` refuted the fixture explanation for (w)'s room-dependence and left a geometric
@@ -1422,6 +1976,555 @@ const applyBgBlock = !BGBLOCK
       console.log(`BGBLOCK=1 painted a facade into the backdrop: ${JSON.stringify(res)}`)
       await new Promise((r) => setTimeout(r, 900))
     }
+// BGHORIZON=<h>:<lvl> — a BRIGHT NARROW HORIZON BAND in the backdrop (`v0.31.7.4`).
+//
+// `v0.31.6.10` swept BGMUL and found no multiplier can match both highlight
+// percentiles at once: x4 nails p95 (1.584 against physics' 1.624) but leaves p99
+// 20 % short, while x32 overshoots p95 by 19 % and is STILL 9 % short on p99. Then
+// looking at the pane crops said why. The Cycles pane shows a bright narrow band at
+// the horizon under blue sky; the app's pane is a uniform slab at every multiplier.
+// A uniform slab cannot produce a tail -- raising it moves p95 and p99 together, by
+// construction.
+//
+// So this paints the missing structure and asks whether the two percentiles then
+// separate. `h` is the band's height as a fraction of the equirect (default 0.03,
+// i.e. a couple of degrees of elevation) and `lvl` its peak level 0..255 (default
+// 255). The band is drawn with a soft falloff, because a hard-edged rectangle would
+// ring through the PMREM and read as a defect rather than a horizon.
+//
+// It rides BGBLOCK=3's mechanism, and must: three converts an equirect
+// `scene.background` into a CubeUV/PMREM cached on the TEXTURE OBJECT, and
+// `needsUpdate` does not invalidate it, so mutating the bound canvas is inert
+// (`.263`, proven twice). A fresh CanvasTexture cannot hit the stale entry.
+//
+// Read back after capture from the LIVE texture rather than the canvas we painted:
+// a fresh texture that failed to reach the scene looks exactly like one whose
+// content had no effect (`.254`).
+const BGHORIZON = process.env.BGHORIZON || ''
+const applyBgHorizon = !BGHORIZON
+  ? null
+  : async () => {
+      const [hRaw, lvlRaw] = BGHORIZON.split(':')
+      const h = hRaw === undefined || hRaw === '' ? 0.03 : Number(hRaw)
+      const lvl = lvlRaw === undefined || lvlRaw === '' ? 255 : Number(lvlRaw)
+      if (!Number.isFinite(h) || !Number.isFinite(lvl))
+        throw new Error(`BGHORIZON: expected <h>:<lvl> numbers, got ${BGHORIZON}`)
+      const res = await page.evaluate(
+        ({ hh, ll }) => {
+          const sc = window.__three.scene
+          const oldTex = sc.background
+          const src = oldTex?.image
+          if (!src || typeof src.getContext !== 'function')
+            return { error: 'background is not a canvas texture' }
+          const cv = document.createElement('canvas')
+          cv.width = src.width
+          cv.height = src.height
+          const ctx = cv.getContext('2d')
+          ctx.drawImage(src, 0, 0)
+          const W = cv.width
+          const H = cv.height
+          const half = Math.max(1, Math.round((hh * H) / 2))
+          const mid = Math.round(H * 0.5)
+          // Soft falloff from the horizon row outwards, so the band has no hard edge.
+          for (let dy = -half; dy <= half; dy++) {
+            const t = 1 - Math.abs(dy) / (half + 1)
+            const v = Math.round(ll * t * t)
+            ctx.fillStyle = `rgba(${v},${v},${Math.round(v * 0.98)},${t.toFixed(3)})`
+            ctx.fillRect(0, mid + dy, W, 1)
+          }
+          const Tex = oldTex.constructor
+          const fresh = new Tex(cv)
+          fresh.mapping = oldTex.mapping
+          fresh.colorSpace = oldTex.colorSpace
+          fresh.needsUpdate = true
+          // Do NOT dispose oldTex -- SceneBackdrop owns it and restores it on unmount.
+          sc.background = fresh
+          const at = (fy) =>
+            [...ctx.getImageData(Math.round(W * 0.5), Math.round(H * fy), 1, 1).data].slice(0, 3)
+          return { half, mid, row48: at(0.48), row50: at(0.5), row52: at(0.52) }
+        },
+        { hh: h, ll: lvl },
+      )
+      if (res.error) throw new Error(`BGHORIZON: ${res.error}`)
+      await new Promise((r) => setTimeout(r, 900))
+      console.log(`BGHORIZON=${BGHORIZON} painted: ${JSON.stringify(res)}`)
+    }
+// AOMAP=<bakeDir> — apply REAL baked visibility maps to the live scene (`v0.31.7.16`).
+//
+// This is the verification step item (w) has been building toward, and it tests two links at
+// once that nothing else can:
+//
+//   1. **Do live meshes key to the baked maps at all?** The keys were computed by Blender from
+//      an EXPORTED GLB. If the exporter merges, splits or transforms geometry, the live scene's
+//      world-space vertices differ and every lookup misses -- and a miss looks exactly like a
+//      feature that does nothing. The hit rate is therefore reported, and a zero hit rate is a
+//      hard error rather than a quiet no-op.
+//   2. **Does the predicted 80 % survive contact with the renderer?** `v0.31.7.9` measured that
+//      in analysis, by multiplying profiles. Multiplying two images is not the same as three
+//      sampling an `aoMap` into `irradiance`, and only this can tell them apart.
+//
+// AOGAMMA=<g> sets the strength (default 0.7, the value `v0.31.7.10` measured as buying 68 % of
+// a deep room's error for a <=4 % regression in a small one). Applied by raising the texel
+// values to `g` on the CPU rather than via `aoMapIntensity`, because three's intensity
+// parameter lerps toward white linearly and is NOT the same curve as an exponent.
+// AOSYNTH replaces the baked texel values with a KNOWN pattern, so the wiring can be
+// separated from the data (`v0.31.7.17`). `v0.31.7.16` ended with two entangled failures --
+// the room went dark AND the UVs might be wrong -- and no way to tell which. Each mode has an
+// exactly predictable result, so a disagreement localises the fault instead of hinting at it:
+//
+//   white  -- every texel 255. aoMap = 1 everywhere, so the render must be IDENTICAL to
+//             baseline. Any difference at all means the wiring itself is broken, before any
+//             question of UVs or levels.
+//   grey   -- every texel 128. A uniform ~50 % of indirect, so the frame must darken smoothly
+//             and evenly, with no structure. Structure here means the UVs sample somewhere
+//             they should not (edges, empty slots).
+//   slots  -- a distinct constant per atlas slot. Each face should read as ONE flat shade; a
+//             face showing two shades means its UVs straddle a slot boundary.
+//
+// A uniform value cannot be affected by UV error, which is what makes `white` and `grey`
+// controls rather than tests.
+const AOMAP = process.env.AOMAP || ''
+const AOSYNTH = process.env.AOSYNTH || ''
+// AONORM=<v> divides texels by `v` before clamping to 1 (`v0.31.7.17`).
+//
+// Baked visibility is ABSOLUTE: a surface deep in the flat sees ~11 % of the sky, so applying
+// it raw multiplies indirect light by 0.11 and the room goes black -- measured, frame mean
+// 115.6 -> 34.1. The app's fill is not sky radiance though; it is a calibrated stand-in for the
+// AVERAGE interior irradiance, so the quantity that belongs in an `aoMap` is visibility
+// RELATIVE to that average, not visibility itself.
+//
+// The exact form would be `V_i / mean(V)` with the fill scaled by `mean(V)` to compensate --
+// but that gain is global while the maps cover only the shell (118 of 385 meshes), so every
+// unmapped piece of furniture would be lit by a fill 3-9x too strong. Normalising by a high
+// percentile instead keeps the multiplier at or below 1, needs no global gain, and leaves
+// unmapped meshes exactly as they are. It is the ordinary ambient-occlusion idiom, and it is
+// what a <=1 multiplier can honestly express.
+// AOGAIN=<g> replaces three's `aomap_fragment` so the multiplier can EXCEED 1 (`v0.31.7.18`).
+//
+// `v0.31.7.17` proved the delivery path correct (a uniform 1.0 map reproduces the baseline
+// render exactly) and the OPERATOR wrong. three's chunk is
+//
+//     ambientOcclusion = ( texture2D( aoMap, vAoMapUv ).r - 1.0 ) * aoMapIntensity + 1.0
+//
+// which lerps from 1 toward the texel and is therefore capped at 1: it can only darken. The
+// app's fill stands in for the room's AVERAGE irradiance, so the correction it needs is
+// `V / mean(V)`, which is greater than 1 wherever a surface sees more sky than average.
+//
+// So the slot stays -- it already delivers the map and the `uv1` channel correctly -- and only
+// the arithmetic is replaced with a plain multiply by `texel * gain`. That is still one texture
+// fetch in a shader that already runs, so `v0.31.7.15`'s frame-cost measurement continues to
+// apply.
+//
+// `customProgramCacheKey` is set alongside, or three reuses a cached program compiled from the
+// unpatched chunk and the patch silently does nothing -- the same class of failure as `.254`.
+// AOSPEC=1 also attenuates indirect SPECULAR (`v0.31.7.23`).
+//
+// The derived gain -- `1 / mean(V)` computed from the maps themselves, area-weighted -- is
+// **5.97**, while sweeping puts the best spatial match near **10**. A factor of 1.7 is too large
+// to shrug at, and one candidate is physical: the patch attenuates only
+// `reflectedLight.indirectDiffuse`, so the environment's specular contribution survives
+// unattenuated and dilutes the term, which a larger gain then has to compensate for. Aperture
+// visibility should attenuate specular IBL too -- a surface that cannot see the sky cannot
+// reflect it either.
+// AOMIPS=1 restores three's default mipmap generation, as the control for the no-mip fix.
+const AOMIPS = process.env.AOMIPS === '1'
+const AOSPEC = process.env.AOSPEC === '1'
+const AOGAIN = process.env.AOGAIN ? Number(process.env.AOGAIN) : 0
+const AONORM = process.env.AONORM ? Number(process.env.AONORM) : 0
+const AOGAMMA = process.env.AOGAMMA ? Number(process.env.AOGAMMA) : 0.7
+const applyAoMap = !AOMAP
+  ? null
+  : async () => {
+      const indexPath = `${AOMAP}/index.json`
+      if (!fs.existsSync(indexPath)) throw new Error(`AOMAP: no index.json in ${AOMAP}`)
+      const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'))
+      const byKey = new Map(index.maps.map((m) => [m.key, m.file]))
+
+      // Pass 1: key every candidate mesh in the LIVE scene, using the same canonical form as
+      // `src/scene/lightmapKey.ts` and `bake_material.py:geometry_key`.
+      const keys = await page.evaluate((minArea) => {
+        const canon = (v) => {
+          const r = Number(v.toFixed(3))
+          return (r === 0 ? 0 : r).toFixed(3)
+        }
+        const fnv = (t) => {
+          let h = 0x811c9dc5
+          for (let i = 0; i < t.length; i++) {
+            h ^= t.charCodeAt(i)
+            h = Math.imul(h, 0x01000193)
+          }
+          return (h >>> 0).toString(16).padStart(8, '0')
+        }
+        const out = []
+        window.__three.scene.updateMatrixWorld(true)
+        window.__three.scene.traverse((o) => {
+          const g = o.geometry
+          const m = o.material
+          if (!g?.attributes?.position || !m || Array.isArray(m) || !('aoMap' in m)) return
+          if (!g.boundingBox) g.computeBoundingBox()
+          const bb = g.boundingBox
+          const span = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z)
+          if (span < minArea) return
+          const pos = g.attributes.position
+          const triples = []
+          // Borrow a Vector3 from the live camera rather than reaching for a constructor:
+          // three is not a global in the page.
+          const v = window.__three.camera.position.clone()
+          for (let i = 0; i < pos.count; i++) {
+            v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld)
+            triples.push(`${canon(v.x)},${canon(v.y)},${canon(v.z)}`)
+          }
+          triples.sort()
+          o.userData.__lmKey = fnv(triples.join(';'))
+          out.push(o.userData.__lmKey)
+        })
+        return out
+      }, 1.5)
+
+      const hits = keys.filter((k) => byKey.has(k))
+      console.log(
+        `AOMAP keyed ${keys.length} live meshes, ${hits.length} matched the bake ` +
+          `(${((100 * hits.length) / Math.max(1, keys.length)).toFixed(0)} % hit rate)`,
+      )
+      if (!hits.length)
+        throw new Error(
+          'AOMAP: 0 live meshes matched a baked key -- the export transforms geometry, so the ' +
+            'key is not an identity across the export boundary. Nothing was applied.',
+        )
+
+      // Pass 2: hand the page the matched PNGs as data URLs, plus the gamma.
+      const payload = {}
+      for (const k of new Set(hits)) {
+        payload[k] =
+          `data:image/png;base64,${fs.readFileSync(`${AOMAP}/${byKey.get(k)}`).toString('base64')}`
+      }
+      const applied = await page.evaluate(
+        async ({ maps, gamma, synth, norm, gain, spec, mips }) => {
+          const load = (url) =>
+            new Promise((resolve, reject) => {
+              const img = new Image()
+              img.onload = () => resolve(img)
+              img.onerror = reject
+              img.src = url
+            })
+          const texFor = async (url) => {
+            const img = await load(url)
+            const cv = document.createElement('canvas')
+            cv.width = img.width
+            cv.height = img.height
+            const ctx = cv.getContext('2d')
+            ctx.drawImage(img, 0, 0)
+            if (synth) {
+              const W = cv.width
+              const H = cv.height
+              const d0 = ctx.getImageData(0, 0, W, H)
+              for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                  const i = (y * W + x) * 4
+                  let v = 255
+                  if (synth === 'grey') v = 128
+                  else if (synth === 'slots') {
+                    const slot = Math.floor((y * 2) / H) * 3 + Math.floor((x * 3) / W)
+                    v = 40 + slot * 35
+                  }
+                  d0.data[i] = v
+                  d0.data[i + 1] = v
+                  d0.data[i + 2] = v
+                  d0.data[i + 3] = 255
+                }
+              }
+              ctx.putImageData(d0, 0, 0)
+              return cv
+            }
+            // Gamma on the CPU: three's `aoMapIntensity` lerps toward white, a different curve.
+            const d = ctx.getImageData(0, 0, cv.width, cv.height)
+            for (let i = 0; i < d.data.length; i += 4) {
+              const raw = norm > 0 ? Math.min(1, d.data[i] / 255 / norm) : d.data[i] / 255
+              const g = Math.round(255 * raw ** gamma)
+              d.data[i] = g
+              d.data[i + 1] = g
+              d.data[i + 2] = g
+            }
+            ctx.putImageData(d, 0, 0)
+            return cv
+          }
+          // The box-atlas layout, inlined to mirror `src/scene/lightmapUv.ts` and
+          // `bake_material.py:make_box_uvs`. It must agree with the layout the maps were
+          // baked in, or every lookup lands on the wrong texel and the result is noise that
+          // still LOOKS like a working feature.
+          const boxAtlasUv = (g) => {
+            const M = 0.04
+            const pos = g.attributes.position
+            const idx = g.index
+            const n = pos.count
+            const uv = new Float32Array(n * 2)
+            const mn = [Infinity, Infinity, Infinity]
+            const mx = [-Infinity, -Infinity, -Infinity]
+            for (let i = 0; i < n; i++) {
+              const c = [pos.getX(i), pos.getY(i), pos.getZ(i)]
+              for (let k = 0; k < 3; k++) {
+                if (c[k] < mn[k]) mn[k] = c[k]
+                if (c[k] > mx[k]) mx[k] = c[k]
+              }
+            }
+            const size = [0, 1, 2].map((k) => Math.max(mx[k] - mn[k], 1e-6))
+            const triCount = idx ? idx.count / 3 : n / 3
+            const at = (i) => [pos.getX(i), pos.getY(i), pos.getZ(i)]
+            for (let t = 0; t < triCount; t++) {
+              const ia = idx ? idx.getX(t * 3) : t * 3
+              const ib = idx ? idx.getX(t * 3 + 1) : t * 3 + 1
+              const ic = idx ? idx.getX(t * 3 + 2) : t * 3 + 2
+              const a = at(ia)
+              const b = at(ib)
+              const c = at(ic)
+              const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+              const e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
+              const nr = [
+                e1[1] * e2[2] - e1[2] * e2[1],
+                e1[2] * e2[0] - e1[0] * e2[2],
+                e1[0] * e2[1] - e1[1] * e2[0],
+              ]
+              let ax = 0
+              for (let k = 1; k < 3; k++) if (Math.abs(nr[k]) > Math.abs(nr[ax])) ax = k
+              const row = nr[ax] >= 0 ? 0 : 1
+              const others = ax === 0 ? [1, 2] : ax === 1 ? [0, 2] : [0, 1]
+              for (const vi of [ia, ib, ic]) {
+                const co = at(vi)
+                const pa = (co[others[0]] - mn[others[0]]) / size[others[0]]
+                const pb = (co[others[1]] - mn[others[1]]) / size[others[1]]
+                uv[vi * 2] = (ax + M + pa * (1 - 2 * M)) / 3
+                uv[vi * 2 + 1] = (row + M + pb * (1 - 2 * M)) / 2
+              }
+            }
+            const AttrCtor = g.attributes.uv?.constructor ?? pos.constructor
+            return new AttrCtor(uv, 2)
+          }
+          const canvases = {}
+          for (const [k, url] of Object.entries(maps)) canvases[k] = await texFor(url)
+          window.__aoCanvases = canvases
+          let TextureCtor = null
+          window.__three.scene.traverse((o) => {
+            if (TextureCtor) return
+            const m = o.material
+            if (m && !Array.isArray(m) && m.map?.isTexture) TextureCtor = m.map.constructor
+          })
+          if (!TextureCtor) return { error: 'no Texture instance to borrow from' }
+          let n = 0
+          window.__three.scene.traverse((o) => {
+            const key = o.userData.__lmKey
+            if (!key || !canvases[key]) return
+            const m = o.material
+            const g = o.geometry
+            const t = new TextureCtor(canvases[key])
+            // CHANNEL 1. three selects a texture's UV set per-texture via `Texture.channel`,
+            // and it defaults to 0 -- the `uv` attribute. The shell's `uv` is a TILING
+            // coordinate running -2.9..+2.9, so an aoMap left on channel 0 samples the atlas
+            // with wrapping and reads essentially noise, mostly dark. That is what made the
+            // frame insensitive to the gain in `v0.31.7.18`: a 15x gain moved the frame mean
+            // 1.2x, because the values being multiplied were not the baked ones at all.
+            // Setting `uv1` on the geometry is necessary and NOT sufficient.
+            t.channel = 1
+            if (!mips) {
+              // NO MIPMAPS on an atlas. three generates them by default, and each level
+              // averages neighbouring texels -- which on a 3x2 packed atlas averages ACROSS
+              // SLOT BOUNDARIES, mixing one face's visibility into another's. At mip 4 a
+              // 256 px atlas has 5x8-texel slots, so the bleed is total. The 0.04 UV margin
+              // protects against bilinear filtering at mip 0 and is nowhere near enough for
+              // the mip chain. This is the standing candidate for the coarse blotching seen
+              // in `v0.31.7.20`-`.23`: at 1024 px the MAP itself is smooth, so the artefact is
+              // introduced after the bake, not in it.
+              t.generateMipmaps = false
+              t.minFilter = 1006 // LinearFilter -- no mip chain to select from
+            }
+            t.needsUpdate = true
+            m.aoMap = t
+            m.aoMapIntensity = 1
+            if (gain > 0) {
+              m.onBeforeCompile = (shader) => {
+                shader.uniforms.aoGain = { value: gain }
+                shader.fragmentShader = shader.fragmentShader
+                  .replace('void main() {', 'uniform float aoGain;\nvoid main() {')
+                  .replace(
+                    '#include <aomap_fragment>',
+                    'float ambientOcclusion = texture2D( aoMap, vAoMapUv ).r * aoGain;\n' +
+                      'reflectedLight.indirectDiffuse *= ambientOcclusion;' +
+                      (spec ? '\nreflectedLight.indirectSpecular *= ambientOcclusion;' : ''),
+                  )
+              }
+              m.customProgramCacheKey = () => `aoGain${gain}${spec ? 's' : ''}`
+            }
+            if (!g.attributes.uv1) g.setAttribute('uv1', boxAtlasUv(g))
+            m.needsUpdate = true
+            n++
+          })
+          return { n }
+        },
+        {
+          maps: payload,
+          gamma: AOGAMMA,
+          synth: AOSYNTH,
+          norm: AONORM,
+          gain: AOGAIN,
+          spec: AOSPEC,
+          mips: AOMIPS,
+        },
+      )
+      if (applied.error) throw new Error(`AOMAP: ${applied.error}`)
+      await new Promise((r) => setTimeout(r, 1500))
+      const after = await page.evaluate(() => {
+        let withAo = 0
+        window.__three.scene.traverse((o) => {
+          const m = o.material
+          if (m && !Array.isArray(m) && m.aoMap) withAo++
+        })
+        return withAo
+      })
+      if (!after) throw new Error('AOMAP: no material kept an aoMap after settling')
+
+      // AOPROBE=1 -- read the texels each mesh's OWN uv1 actually covers (`v0.31.7.19`).
+      //
+      // `v0.31.7.18` ended on an inconsistency it could not resolve: a 3x gain moved the frame
+      // mean 9 %, when the maps' aggregate statistics (interior median texel 0.034) said it
+      // should have restored the level outright. The `white` control proves the sampling PATH
+      // works, because it replaces every texel with 255 -- but it cannot show that the texels a
+      // given wall samples are ones the bake FILLED. Those are different claims, and the
+      // aggregate cannot tell them apart: a map can have a healthy overall mean while every
+      // texel a visible face reaches is zero.
+      //
+      // So this samples per mesh, at the mesh's own UVs, and reports the biggest ones by area.
+      if (process.env.AOPROBE === '1') {
+        const rows = await page.evaluate(() => {
+          const out = []
+          window.__three.scene.traverse((o) => {
+            const g = o.geometry
+            const m = o.material
+            const key = o.userData.__lmKey
+            if (!g?.attributes?.uv1 || !m?.aoMap || !key) return
+            const cv = window.__aoCanvases?.[key]
+            if (!cv) return
+            const ctx = cv.getContext('2d')
+            const px = ctx.getImageData(0, 0, cv.width, cv.height).data
+            const uv = g.attributes.uv1
+            // Sample at the vertices' own UVs -- exactly where the shader will look.
+            const vals = []
+            for (let i = 0; i < uv.count; i++) {
+              const u = uv.getX(i)
+              const v = uv.getY(i)
+              const x = Math.min(cv.width - 1, Math.max(0, Math.round(u * cv.width)))
+              // Canvas rows run top-down; three samples bottom-up.
+              const y = Math.min(cv.height - 1, Math.max(0, Math.round((1 - v) * cv.height)))
+              vals.push(px[(y * cv.width + x) * 4] / 255)
+            }
+            if (!g.boundingBox) g.computeBoundingBox()
+            const bb = g.boundingBox
+            const span = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z)
+            // WHICH SLOTS the mesh's uv1 actually lands in (`v0.31.7.25`). `v0.31.7.24` left an
+            // inconsistency: a 1024 px slot inspected by hand was smooth, while the maps carry
+            // 13.6 % high-frequency residual overall -- so the variation must live in
+            // particular slots. Without knowing which slot a visible wall reads, the wrong one
+            // gets inspected, which is exactly what happened.
+            const slots = new Set()
+            for (let i = 0; i < uv.count; i++) {
+              const cx = Math.min(2, Math.max(0, Math.floor(uv.getX(i) * 3)))
+              const cy = Math.min(1, Math.max(0, Math.floor(uv.getY(i) * 2)))
+              slots.add(`${cx},${cy}`)
+            }
+            // The map's own overall mean, for contrast with what this mesh reaches.
+            let all = 0
+            for (let i = 0; i < px.length; i += 4) all += px[i] / 255
+            out.push({
+              key,
+              span: +span.toFixed(2),
+              atUv: {
+                min: +Math.min(...vals).toFixed(4),
+                max: +Math.max(...vals).toFixed(4),
+                mean: +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(4),
+              },
+              mapMean: +(all / (px.length / 4)).toFixed(4),
+              slots: [...slots].sort(),
+            })
+          })
+          return out.sort((a, b) => b.span - a.span).slice(0, 8)
+        })
+        // The ROOM-SCOPED derived gain (`v0.31.7.27`). `bake-gain.mjs` averages over every map
+        // in the plan -- corridors, bathrooms, other bedrooms -- but the quantity the app's
+        // fill stands in for is the average irradiance of THE ROOM BEING LIT. If those differ,
+        // the flat-wide gain is simply the wrong constant for any given room, which is a
+        // candidate for the 1.25x gap between the derived gain (4.81) and the metric's optimum
+        // (6). Frustum-tested and area-weighted, so it is the average of what the camera sees.
+        const scoped = await page.evaluate(() => {
+          const { scene, camera } = window.__three
+          camera.updateMatrixWorld(true)
+          scene.updateMatrixWorld(true)
+          let areaSum = 0
+          let weighted = 0
+          let n = 0
+          scene.traverse((o) => {
+            const g = o.geometry
+            const m = o.material
+            const key = o.userData.__lmKey
+            if (!g?.attributes?.uv1 || !m?.aoMap || !key) return
+            const cv = window.__aoCanvases?.[key]
+            if (!cv) return
+            // In view? Project the geometry's bounding-box centre and corners; count the mesh
+            // if any corner lands inside the clip volume. Cheaper and more robust than
+            // building a Frustum without a three global.
+            if (!g.boundingBox) g.computeBoundingBox()
+            const bb = g.boundingBox
+            const v = camera.position.clone()
+            let visible = false
+            for (const cx of [bb.min.x, bb.max.x]) {
+              for (const cy of [bb.min.y, bb.max.y]) {
+                for (const cz of [bb.min.z, bb.max.z]) {
+                  v.set(cx, cy, cz).applyMatrix4(o.matrixWorld).project(camera)
+                  if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1 && v.z >= -1 && v.z <= 1)
+                    visible = true
+                }
+              }
+            }
+            if (!visible) return
+            // Area from the bounding box's two largest extents -- adequate for a weight.
+            const e = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z].sort(
+              (a, b) => b - a,
+            )
+            const area = e[0] * e[1]
+            const ctx = cv.getContext('2d')
+            const px = ctx.getImageData(0, 0, cv.width, cv.height).data
+            const uv = g.attributes.uv1
+            let sum = 0
+            for (let i = 0; i < uv.count; i++) {
+              const x = Math.min(cv.width - 1, Math.max(0, Math.round(uv.getX(i) * cv.width)))
+              const y = Math.min(
+                cv.height - 1,
+                Math.max(0, Math.round((1 - uv.getY(i)) * cv.height)),
+              )
+              sum += px[(y * cv.width + x) * 4] / 255
+            }
+            weighted += (sum / uv.count) * area
+            areaSum += area
+            n += 1
+          })
+          return { n, mean: areaSum ? weighted / areaSum : null, areaSum }
+        })
+        if (scoped.mean) {
+          console.log(
+            `AOPROBE  IN-VIEW scope: ${scoped.n} mapped meshes, ${scoped.areaSum.toFixed(1)} m2,` +
+              ` mean visibility ${scoped.mean.toFixed(4)} => room-scoped gain ${(1 / scoped.mean).toFixed(2)}`,
+          )
+        }
+        console.log('AOPROBE  what each mesh SAMPLES vs what its map CONTAINS:')
+        for (const r of rows) {
+          console.log(
+            `  span ${String(r.span).padStart(5)}m  key ${r.key}  at-uv mean ${String(r.atUv.mean).padEnd(6)}` +
+              ` (min ${r.atUv.min} max ${r.atUv.max})   whole-map mean ${r.mapMean}` +
+              `   slots ${r.slots.join(' ')}`,
+          )
+        }
+      }
+      console.log(
+        `AOMAP applied to ${applied.n} meshes, ${after} still carry one; gamma=${AOGAMMA}`,
+      )
+    }
 const BGMUL = process.env.BGMUL ? Number(process.env.BGMUL) : null
 const readBg = () =>
   page.evaluate(() => {
@@ -1608,6 +2711,21 @@ if (BACKDROP)
       }),
     )}`,
   )
+if (BGHORIZON)
+  console.log(
+    `BGHORIZON held at capture: ${JSON.stringify(
+      await page.evaluate(() => {
+        const cv = window.__three.scene.background?.image
+        if (!cv?.getContext) return null
+        const ctx = cv.getContext('2d')
+        const at = (fy) =>
+          [
+            ...ctx.getImageData(Math.round(cv.width * 0.5), Math.round(cv.height * fy), 1, 1).data,
+          ].slice(0, 3)
+        return { row40: at(0.4), row50: at(0.5), row60: at(0.6) }
+      }),
+    )}`,
+  )
 if (BGMUL != null) console.log(`BGMUL=${BGMUL} held at capture: ${JSON.stringify(await readBg())}`)
 if (BGBLOCK)
   console.log(
@@ -1651,6 +2769,289 @@ if (GBOUNCE != null) console.log(`GBOUNCE held at capture: ${JSON.stringify(awai
 // and the guard then reports drift on every run -- which is what the first `.251`
 // run did (q.x -0.272 vs -0.030, i.e. -0.55 rad against -0.06).
 const camAtRaster = await camState()
+// BLENDREF=<dir> -- export everything an offline renderer needs to reproduce THIS
+// pose: the GLB the app itself exports, the camera, and the real light directions.
+//
+// The graphics arc's central limitation (`.320`) was that no physically-motivated
+// reference existed -- photographs could not be anchored, the raster has no
+// interreflection term at all (`.328`), and the HQ tracer's own environment is
+// hardcoded and hour-blind (`.334`). So "the app against itself at a matched pose" was
+// the only valid construction. Cycles breaks that, but ONLY if the comparison is
+// genuinely matched -- which is why this writes the manifest from the SAME camera
+// snapshot `frame.png` was taken at, and reads the lights out of the live scene rather
+// than re-deriving them from the store.
+//
+// Lights are exported as TRAVEL DIRECTION VECTORS, not angles: this bridge has already
+// produced three implicit-frame bugs (radians vs degrees on the sun, vertical vs
+// horizontal on the FOV, Y-up vs Z-up on positions), and a vector in a named frame has
+// no convention left to get wrong.
+/**
+ * Every knob this probe reads that was actually SET, plus argv.
+ *
+ * **Why it is derived from the source rather than listed.** Three of this arc's
+ * five reference pairs were lost when `/tmp` was cleared, and their exact
+ * invocations turned out not to be recoverable: the CHANGELOG names a plan and a
+ * room in prose, but the probe needs a `WINDOW` opening id (`h5-kit-win`, not
+ * `kitchen`), a `PITCH`, and `LIGHTS=off` to reproduce a pose, and none of that
+ * was written down anywhere durable. A hand-maintained list of knobs would drift
+ * the first time one was added; scanning this file for `process.env.X` cannot.
+ *
+ * Boundary: knobs read by sibling modules (`SSG_URL` in `lib.mjs`) are absent on
+ * purpose — they select which server to point at, not what the scene is.
+ */
+function probeInvocation() {
+  const src = fs.readFileSync(new URL(import.meta.url), 'utf8')
+  const keys = [...new Set([...src.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]))]
+  const env = {}
+  for (const k of keys.sort()) if (process.env[k] !== undefined) env[k] = process.env[k]
+  return { env, argv: process.argv.slice(2) }
+}
+
+if (process.env.BLENDREF) {
+  const dir = process.env.BLENDREF
+  fs.mkdirSync(dir, { recursive: true })
+  const rig = await page.evaluate(() => {
+    const sc = window.__three.scene
+    // `placed` exists because its ABSENCE published a wrong number (`v0.31.7.8`).
+    // The manifest carried only directional/hemisphere/ambient, so a reference
+    // rendered from it is DAYLIGHT-ONLY -- while the raster it is compared against
+    // still had the room's floor lamp and ceiling light burning. In livingDining that
+    // lamp stands against the very wall under measurement and inflated a reported
+    // error from 2.8x to 3.9x.
+    //
+    // Placed lights are NOT converted and sent to Blender on purpose. three's
+    // intensities are artistic (`v0.31.6.6`), so inventing a wattage for them would
+    // make the physical reference agree with the artistic choice under test -- the
+    // exact failure the physical-sky decision was taken to avoid. The right
+    // comparison is daylight-only on BOTH sides, so this records what was burning
+    // and the run warns when anything was, instead of silently mismatching.
+    //
+    // `v0.31.7.268`: a LIT arm now exists in the other harness -- `scene-glb.mjs` exports
+    // `lights.point` and `render_still.py --point-lights` places them, converting candela to
+    // watts by `P = 4*pi*I`, which follows from the two renderers' own falloff laws rather than
+    // being fitted (it agreed to 0.2 counts at the derivation's value, untuned). That does NOT
+    // overturn the decision above, and the reasoning above is still right about what it warns
+    // of: a lit comparison INHERITS the app's lamp intensities and therefore cannot test them.
+    // The two arms answer different questions -- daylight-only for calibrating the GI chain,
+    // lit for comparing the composite the user actually sees -- so this exporter deliberately
+    // stays daylight-only, and anything calibrated here should be too.
+    const out = {
+      directional: [],
+      hemisphere: null,
+      ambient: null,
+      background: null,
+      placed: { on: 0, off: 0, kinds: {} },
+    }
+    sc.traverse((o) => {
+      if (o.isPointLight || o.isSpotLight || o.isRectAreaLight) {
+        const lit = o.visible && o.intensity > 0
+        out.placed[lit ? 'on' : 'off'] += 1
+        if (lit) out.placed.kinds[o.type] = (out.placed.kinds[o.type] ?? 0) + 1
+        return
+      }
+      if (o.isDirectionalLight) {
+        const p = o.getWorldPosition(o.position.clone())
+        const t = o.target
+          ? o.target.getWorldPosition(o.target.position.clone())
+          : { x: 0, y: 0, z: 0 }
+        out.directional.push({
+          // Travel direction: from the light toward its target.
+          travel: [t.x - p.x, t.y - p.y, t.z - p.z].map((v) => +v.toFixed(5)),
+          intensity: +o.intensity.toFixed(5),
+          color: [o.color.r, o.color.g, o.color.b].map((v) => +v.toFixed(4)),
+        })
+      } else if (o.isHemisphereLight) {
+        out.hemisphere = {
+          intensity: +o.intensity.toFixed(5),
+          sky: [o.color.r, o.color.g, o.color.b].map((v) => +v.toFixed(4)),
+          ground: [o.groundColor.r, o.groundColor.g, o.groundColor.b].map((v) => +v.toFixed(4)),
+        }
+      } else if (o.isAmbientLight) {
+        out.ambient = {
+          intensity: +o.intensity.toFixed(5),
+          color: [o.color.r, o.color.g, o.color.b].map((v) => +v.toFixed(4)),
+        }
+      }
+    })
+    const bg = sc.background
+    if (bg) out.background = { ctor: bg.constructor?.name ?? '?', mapping: bg.mapping ?? null }
+    return out
+  })
+  const fwd = await page.evaluate(() => {
+    const c = window.__three.camera
+    const v = c.position.clone()
+    c.getWorldDirection(v)
+    return [v.x, v.y, v.z].map((n) => +n.toFixed(5))
+  })
+  // `null` used to mean three different things -- seam absent, no scene root, or an
+  // export that returned a string -- and the failure message asked the reader to
+  // guess which ("is this a DEV build with the seam?"). Without a GLB there is no
+  // physical reference at all, so this is the last place to be vague.
+  const glbB64 = await page.evaluate(async () => {
+    if (typeof window.__exportSceneGlbBase64 !== 'function') {
+      // Install it. The seam is a module side effect of openSceneExport.ts, so
+      // whether it exists depended on whether a menu happened to be mounted --
+      // and in walk mode none is, which is precisely the mode a reference pose is
+      // captured in. Importing it directly is the same trick PLAN= uses for
+      // templates.ts and works for the same reason: Vite serves source in dev.
+      try {
+        await import('/src/ui/openSceneExport.ts')
+      } catch (e) {
+        return { error: `could not import openSceneExport.ts to install the seam: ${String(e)}` }
+      }
+    }
+    const f = window.__exportSceneGlbBase64
+    if (typeof f !== 'function') {
+      return {
+        error:
+          'window.__exportSceneGlbBase64 is absent. It is installed as a module side effect of ' +
+          'src/ui/openSceneExport.ts under import.meta.env.DEV, so it only exists once something ' +
+          'imports that module (CommandPalette / FileMenu / ShareModal). A dev server alone is ' +
+          'not enough if none of them has mounted.',
+      }
+    }
+    try {
+      const out = await f()
+      if (typeof out === 'string' && out.length > 0) return out
+      return {
+        error: `the seam ran and returned ${out === null ? 'null (no scene root, or the exporter handed back a string)' : typeof out}`,
+      }
+    } catch (e) {
+      return { error: String(e) }
+    }
+  })
+  let glbPath = null
+  if (typeof glbB64 === 'string' && glbB64.length > 0) {
+    glbPath = `${dir}/scene.glb`
+    fs.writeFileSync(glbPath, Buffer.from(glbB64, 'base64'))
+  } else {
+    console.log(
+      `  ** BLENDREF: NO scene.glb -- ${glbB64?.error ?? JSON.stringify(glbB64)}\n` +
+        '     Without it this directory cannot produce a physical reference; it is a raster and a pose only.',
+    )
+  }
+  const manifest = {
+    // Camera in THREE space (Y-up). fov is three's VERTICAL fov in degrees.
+    camera: {
+      space: 'three',
+      position: camAtRaster.p,
+      forward: fwd,
+      target: camAtRaster.p.map((v, i) => +(v + fwd[i] * 3).toFixed(5)),
+      fovVerticalDeg: camAtRaster.fov,
+      aspect: camAtRaster.aspect,
+      quaternion: camAtRaster.q,
+    },
+    lights: rig,
+    scene: {
+      ...state,
+      plan: planInfo,
+      invocation: probeInvocation(),
+      room: ROOM,
+      window: pose.id,
+      standoff: +pose.standoff.toFixed(2),
+      pitch: PITCH,
+    },
+    // ROOM RECTANGLES, so Blender can compute per-room quantities the app cannot afford.
+    //
+    // `v0.31.7.122` established that a room-albedo census has to weight by EXPOSED area -- a rug
+    // and furniture cover 44 % of this room's floor -- and that exposure is a visibility
+    // computation the raster path cannot pay for: `src/scene/CLAUDE.md` records an irradiance
+    // volume rejected at 6.19 ms for 420 probes, while a useful exposure sample is tens of
+    // thousands of rays. Blender is already tracing visibility, so the census belongs there and
+    // ships as one number per room. It needs the rectangles, and the manifest carried camera,
+    // lights and scene state but no geometry of the plan itself.
+    rooms: await page.evaluate(() => {
+      const fp = window.__store.getState().floorPlan
+      const rs = fp?.rooms ?? fp?.levels?.flatMap((l) => l.rooms ?? []) ?? []
+      return rs.map((r) => ({
+        id: r.id,
+        name: r.name,
+        origin: r.origin,
+        width: r.width,
+        depth: r.depth,
+        ceilingHeight: r.ceilingHeight ?? null,
+      }))
+    }),
+    glb: glbPath ? 'scene.glb' : null,
+    // The truth, not the intention. This said 'frame.png' unconditionally while the
+    // raster is actually written to OUT -- so a run with BLENDREF but no OUT left a
+    // manifest naming a file that was not there, and the app half of the pair went to
+    // OUT's default `/tmp/light-distribution`, which EVERY subsequent probe run
+    // overwrites. A reference whose two halves are one shared directory apart is a
+    // reference with a countdown on it.
+    raster: OUT === dir ? 'frame.png' : `${OUT}/frame.png`,
+    note: 'Camera/lights are in THREE (Y-up) space. Convert with sofa_scene.three_to_blender().',
+  }
+  fs.writeFileSync(`${dir}/manifest.json`, `${JSON.stringify(manifest, null, 2)}\n`)
+  console.log(
+    `  BLENDREF -> ${dir}/manifest.json${glbPath ? ` + scene.glb (${(fs.statSync(glbPath).size / 1e6).toFixed(2)} MB)` : ''}`,
+  )
+  // Loud, because quiet was expensive. A daylight-only reference compared against a
+  // lamp-lit raster is not a wrong measurement of the app -- it is a measurement of a
+  // different scene, and it reads as an app defect (`v0.31.7.8`).
+  if (OUT !== dir) {
+    console.log(
+      `  ** BLENDREF WARNING: the app raster goes to ${OUT}/frame.png, NOT into ${dir}. ` +
+        `OUT defaults to /tmp/light-distribution and is overwritten by the next probe run, so ` +
+        `this reference pair will come apart. Re-run with OUT=${dir} to keep both halves together.`,
+    )
+  }
+  if (rig.placed?.on) {
+    console.log(
+      `  ** BLENDREF WARNING: ${rig.placed.on} placed light(s) are ON ` +
+        `(${JSON.stringify(rig.placed.kinds)}). The reference this manifest produces is ` +
+        `DAYLIGHT-ONLY -- placed lights are deliberately not converted, since three's ` +
+        `intensities are artistic and inventing a wattage would make the physical reference ` +
+        `agree with the thing under test. Re-run with LIGHTS=off for a matched comparison.`,
+    )
+  } else {
+    console.log(`  BLENDREF: no placed lights on -- light sets match the daylight-only reference`)
+  }
+
+  // POSE QUALITY. A matched pose is necessary and not sufficient: a view dominated by one flat
+  // near surface has little tonal range BY CONSTRUCTION, in physics and in the app alike, so
+  // comparing them there measures the framing rather than the renderer. `v0.31.7.47`-`.51` drew
+  // four conclusions from two such poses -- the 5-Room references' darkest 5 % sat at 107 and 154
+  // against 22 and 42 for the informative ones -- and every one had to be downgraded.
+  //
+  // Judged on the RASTER, which is available here and needs no reference: if the app's own frame
+  // has no dark end and no bright aperture, neither will the reference, and the pair cannot say
+  // anything about dynamic range.
+  const poseQuality = await sharp(shot)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+    .then(({ data, info }) => {
+      const n = info.width * info.height
+      const lum = new Float64Array(n)
+      for (let i = 0; i < n; i += 1) {
+        lum[i] = 0.2126 * data[i * 3] + 0.7152 * data[i * 3 + 1] + 0.0722 * data[i * 3 + 2]
+      }
+      const sorted = Float64Array.from(lum).sort()
+      const q = (f) => sorted[Math.floor(f * (n - 1))]
+      const median = q(0.5)
+      let bright = 0
+      for (const v of lum) if (v >= 2 * median) bright += 1
+      return { p05: q(0.05), median, aperture: bright / n }
+    })
+  const shallow = poseQuality.p05 > 0.6 * poseQuality.median
+  const noAperture = poseQuality.aperture < 0.005
+  if (shallow || noAperture) {
+    console.log(
+      `  ** BLENDREF POSE WARNING: p05 ${poseQuality.p05.toFixed(0)} vs median ` +
+        `${poseQuality.median.toFixed(0)}, aperture ${(100 * poseQuality.aperture).toFixed(2)} % ` +
+        `-- ${shallow ? 'no dark end' : ''}${shallow && noAperture ? ' and ' : ''}` +
+        `${noAperture ? 'no bright aperture in view' : ''}. This pose cannot support a ` +
+        `dynamic-range comparison: it is dominated by mid-lit surfaces, so both renderers will ` +
+        `look flat regardless of fidelity. Pick a pose facing a window with some room depth.`,
+    )
+  } else {
+    console.log(
+      `  BLENDREF pose ok: p05 ${poseQuality.p05.toFixed(0)} / median ` +
+        `${poseQuality.median.toFixed(0)}, aperture ${(100 * poseQuality.aperture).toFixed(2)} %`,
+    )
+  }
+}
 const shotDown = await shotFor(FLOOR_PITCH)
 fs.writeFileSync(`${OUT}/frame.png`, shot)
 fs.writeFileSync(`${OUT}/frame-down.png`, shotDown)
@@ -2363,27 +3764,16 @@ const rgb = await sharp(shot).removeAlpha().raw().toBuffer()
 const down = await grey(shotDown)
 const W = info.width
 const H = info.height
-// HUD cut-outs are REQUIRED. v0.31.5.182 removed them believing an element
-// screenshot excludes overlaying DOM; it does not — Puppeteer clips the COMPOSITED
-// page to the element's box, so the toolbar, the Measure button and the minimap
-// are still in a "canvas" capture (verified by sampling: 235,232,227 in both a
-// page shot and an element shot). Hiding the DOM instead blanks the canvas too,
-// because the canvas is not a direct child of the app root. So: cut the rectangles.
-const TOOLBAR = { x0: 0.24 * W, x1: 0.76 * W, y1: 0.1 * H }
-const MEASURE = { x0: 0.9 * W, y1: 0.06 * H }
-const MINIMAP = { x0: 0.76 * W, y0: 0.76 * H }
-// v0.31.5.229: the walk-mode PILL ("Turn off ceiling light") and the HINT BAR
-// sit in the lower middle of the frame and were never excluded -- they land
-// squarely inside the FLOOR band, so the floor ratio was being measured partly
-// over DOM chrome.
-const PILL = { x0: 0.4 * W, x1: 0.61 * W, y0: 0.81 * H, y1: 0.89 * H }
-const HINTS = { x0: 0.28 * W, x1: 0.72 * W, y0: 0.9 * H, y1: 0.98 * H }
-const hud = (x, y) =>
-  (x >= TOOLBAR.x0 && x < TOOLBAR.x1 && y < TOOLBAR.y1) ||
-  (x >= MEASURE.x0 && y < MEASURE.y1) ||
-  (x >= MINIMAP.x0 && y >= MINIMAP.y0) ||
-  (x >= PILL.x0 && x <= PILL.x1 && y >= PILL.y0 && y <= PILL.y1) ||
-  (x >= HINTS.x0 && x <= HINTS.x1 && y >= HINTS.y0 && y <= HINTS.y1)
+// HUD cut-outs are REQUIRED, and the rectangles now live in `hud.mjs` so this
+// probe and every downstream consumer of the raster it SAVES share one list.
+// v0.31.5.182 removed them believing an element screenshot excludes overlaying
+// DOM; it does not -- Puppeteer clips the COMPOSITED page to the element's box, so
+// the toolbar, the Measure button and the minimap are still in a "canvas" capture
+// (verified by sampling: 235,232,227 in both a page shot and an element shot).
+// Hiding the DOM instead blanks the canvas too, because the canvas is not a direct
+// child of the app root. So: cut the rectangles. v0.31.5.229 added the walk-mode
+// pill and hint bar, which land inside the FLOOR band.
+const hud = (x, y) => isHud(x / W, y / H)
 const BANDS = {
   ceiling: { y0: 0.02, y1: 0.16, x0: 0.05, x1: 0.95 },
   wall: { y0: 0.3, y1: 0.6, x0: 0.82, x1: 0.98 },
@@ -3499,4 +4889,17 @@ console.log('  floor     NOT a target — four photographs span 0.87–1.30. The
 console.log('            tracks floor ALBEDO (pale stone vs dark parquet), not light')
 console.log('            transport (see the .181 and .188 entries in the research doc)')
 console.log('  wall      NOT a target — four photographs span 0.53–1.43')
+// The flag has to have DONE something. `REQUIRE_LIGHTMAPS=1` on a run that never reaches
+// `shotFor` would otherwise exit 0 having checked nothing, which is how it behaved on a run
+// where the maps demonstrably did not apply -- it printed no `lightmaps:` line at all, and I
+// read the silence as a pass.
+if (REQUIRE_LIGHTMAPS && lightmapGateRan === 0) {
+  await browser.close()
+  throw new Error(
+    'REQUIRE_LIGHTMAPS=1 was set but the check never ran: this invocation takes no code path ' +
+      'that captures a frame through `shotFor`, so nothing was verified. Exiting non-zero ' +
+      'rather than reporting a clean run.',
+  )
+}
+if (REQUIRE_LIGHTMAPS) console.log(`  REQUIRE_LIGHTMAPS: gate ran ${lightmapGateRan}x`)
 await browser.close()

@@ -46,17 +46,16 @@ below it dials the overall brightness up or down (like a camera's exposure
 compensation), on top of the automatic day/night exposure. Two more dials sit
 beside it: **Warmth** shifts the whole scene's white balance cooler (greyer,
 bluer) or warmer (more golden) on every tier, and **Saturation** dials the
-overall colour intensity down toward monochrome or up toward vivid (applies on
-High/Maximum quality). All three are remembered per device; to tone a *single*
+overall colour intensity down toward monochrome or up toward vivid (applies in
+**Realistic** quality). All three are remembered per device; to tone a *single*
 floor or wall instead, use the **Saturation**/**Brightness** sliders in the
 finish picker's **Compose your own…**.
 
 **Do mirrors actually reflect the room?**
-Yes, on the **High** and **Maximum** graphics tiers — wall, bathroom and floor
-mirrors render a true reflection of the room, so you can see how a mirror opens
-up and enlarges a space. On Performance/Medium they use a lightweight shiny
-finish instead (real reflections are GPU‑intensive). Raise **Graphics** to High
-to turn them on.
+Yes, in **Realistic** graphics mode — wall, bathroom and floor mirrors render a
+true reflection of the room, so you can see how a mirror opens up and enlarges a
+space. In **Performance** mode they use a lightweight shiny finish instead (real
+reflections are GPU‑intensive). Switch **Graphics** to Realistic to turn them on.
 
 **Can I use my own models and textures?**
 Yes — see [Importing models](/importing-models) and

@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { BackSide, MeshStandardMaterial } from 'three'
 import type { CeilingConfig } from '../../floorplan/types'
 import { worldUvShapeGeometry } from '../../materials/worldUv'
-import { RENDER_TIERS } from '../../scene/quality'
 import { useStore } from '../../state/store'
 import { buildCeiling, type CeilingPart } from './ceilingModel'
 
@@ -32,7 +31,8 @@ export function RoomCeiling({
   config: CeilingConfig
 }) {
   const tier = useStore((s) => s.qualityTier)
-  const highPlus = RENDER_TIERS.indexOf(tier) >= RENDER_TIERS.indexOf('high')
+  // Was `>= indexOf('high')`, i.e. High or Maximum — which is exactly `realistic`.
+  const highPlus = tier === 'realistic'
   const model = useMemo(() => buildCeiling(polygon, height, config), [polygon, height, config])
 
   // Fallback (non-rect / too small / flat) → a single flat polygon plane.

@@ -9,7 +9,7 @@ import {
   DEFAULT_SCENE_SATURATION,
   DEFAULT_SCENE_WARMTH,
 } from '../../scene/look'
-import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
+import type { AssetTier, DeviceClass, QualitySettings, RenderTier } from '../../scene/quality'
 import { QUALITY_LABEL, RENDER_TIERS, resolveQuality } from '../../scene/quality'
 
 /**
@@ -22,8 +22,12 @@ import { QUALITY_LABEL, RENDER_TIERS, resolveQuality } from '../../scene/quality
  * `SceneEnvironment`'s effect could set it. Pushing it from the store — at
  * module init below and on every tier change — closes that window.
  */
-function syncIblFromTier(tier: RenderTier, overrides: Partial<QualitySettings> | undefined): void {
-  setIblActive(resolveQuality(tier, overrides).ibl)
+function syncIblFromTier(
+  tier: RenderTier,
+  overrides: Partial<QualitySettings> | undefined,
+  device: DeviceClass,
+): void {
+  setIblActive(resolveQuality(tier, overrides, device).ibl)
 }
 
 // Seed it at module load, because the shell builds its materials before any React
@@ -34,7 +38,10 @@ function syncIblFromTier(tier: RenderTier, overrides: Partial<QualitySettings> |
 // capped and is then un-capped by `SceneEnvironment`'s effect looks right either
 // way, whereas the reverse renders black. Correctness across later tier changes
 // does NOT rely on this seed — see IBL-CAP-LIVE in `materials/iblSignal.ts`.
-syncIblFromTier('performance', undefined)
+// `weak` for the seed: the conservative end, matching the store's own initial
+// `deviceClass`. The comment above explains why an under-capped seed is the safe
+// direction here.
+syncIblFromTier('performance', undefined, 'weak')
 
 import { DEFAULT_TONE_MAPPING_SETTING, type ToneMappingSetting } from '../../scene/toneContext'
 import type { DrawingLayer, DrawingLayerVisibility } from '../../ui/drawingLayers'
@@ -88,8 +95,13 @@ export interface UiSlice {
   /** True once the user picks a tier manually — stops the adaptive monitor
    *  from overriding their choice. */
   qualityUserSet: boolean
-  /** Per-setting overrides layered on top of the active tier preset. */
+  /** Per-setting overrides layered on top of the active mode preset. */
   qualityOverrides: Partial<QualitySettings>
+  /** Which variant of the active mode to render. Detected on boot and moved by
+   *  the adaptive monitor; it scales a mode rather than replacing it, so a
+   *  struggling machine drops resolution and effects without changing the mode
+   *  the user chose. */
+  deviceClass: DeviceClass
   /** GLB asset detail (mesh/texture LOD), decoupled from the render tier.
    *  `null` = Auto (follow `qualityTier`); an explicit tier pins asset detail
    *  independently and is immune to the FPS auto-downgrade. */
@@ -204,8 +216,40 @@ export interface UiSlice {
    *  reach on THIS device, recorded when a tier FAILS. `null` = nothing learned
    *  yet. Persisted per-device by `qualityPrefs` so a device that already proved
    *  it can't hold a tier never probes it again. */
-  autoMaxTier: RenderTier | null
-  /** True once a SETTLED tier has been restored from persisted prefs, so the
+  autoMaxDevice: DeviceClass | null
+  /**
+   * The adaptive ladder's LAST RUNG: cap the device pixel ratio at 1. `(z)`7.
+   *
+   * Separate from `deviceClass` because `realistic` carries `dprMax: 2` at BOTH classes, so the
+   * class ladder cannot reach resolution at all — which is why `v0.31.7.86` measured the chain
+   * bottoming out at 29.6 fps. Worth 4.5x (10.9 -> 49.6 fps), the largest lever in this arc, and
+   * engaged only after the class ladder AND the shadow fallback are both spent.
+   *
+   * ## ✅ ACTUATED in `v0.31.7.162`, via `InteractiveDprController`
+   *
+   * `v0.31.7.144` measured two failed attempts — flipping this left the canvas at 2560x1600. An r3f
+   * `setDpr` is **stomped** by `configure()` on every Canvas commit (that controller's docstring
+   * records it from a July stack-trace), and clamping the Canvas `dpr` prop did not take either.
+   *
+   * It works now because the rung is folded into `InteractiveDprController.effectiveDpr()`, which
+   * already owns the **raw `gl.setPixelRatio`** level, keeps `viewport.dpr` at the full clamp so
+   * `configure()` has nothing to disagree with, and whose rAF loop **heals external stomps** every
+   * frame. Verified: `glRatio 2 → 1`, canvas `2560x1600 → 1280x800`, and clean restoration.
+   *
+   * Measured value, `realistic` walk, two runs each — the win is in **drawn frames and long-frame
+   * latency**, not in CPU submit time, which is what a fill-rate lever should look like:
+   *
+   * | | dpr 2 | dpr 1 |
+   * | --- | --- | --- |
+   * | drawn fps | 38.6 / 43.8 | **59.8 / 59.8** (vsync cap) |
+   * | max frame | 182.9 / 153.4 ms | **16.9 / 12.7 ms** |
+   * | p50 | 7.5 / 6.1 ms | 9.8 / 6.5 ms |
+   *
+   * One coupling to know: the rung rides `interactiveDegrade` (default **on**). With that flag off
+   * the app has opted out of resolution degradation entirely, so the rung not firing is consistent.
+   */
+  dprHalved: boolean
+  /** True once a SETTLED value has been restored from persisted prefs, so the
    *  one-time capability boot pick must not overwrite it (TIER-ADAPTIVE). */
   qualityAutoSettled: boolean
   /** Bumped whenever a DLC/catalog furniture material finishes building into
@@ -261,12 +305,15 @@ export interface UiSlice {
   toggleShowFps: () => void
   /** Manual tier change — clears overrides and marks qualityUserSet. */
   setQualityTier: (t: RenderTier) => void
-  /** Cycle Performance → Medium → High → Maximum → Performance (manual). */
+  /** Cycle Performance → Realistic → Performance (manual). */
   cycleQuality: () => void
   /** Adaptive auto-adjust (does not set qualityUserSet). */
   autoSetQualityTier: (t: RenderTier) => void
+  /** Adaptive device-class adjust (does not set qualityUserSet). */
+  setDeviceClass: (d: DeviceClass) => void
   /** Record the TIER-ADAPTIVE learned ceiling (does not set qualityUserSet). */
-  setAutoMaxTier: (t: RenderTier | null) => void
+  setDprHalved: (v: boolean) => void
+  setAutoMaxDevice: (d: DeviceClass | null) => void
   /** Override a single quality setting (marks qualityUserSet). */
   setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void
   /** Drop all overrides so settings follow the tier preset again. */
@@ -323,7 +370,9 @@ export const UI_INITIAL: Pick<
   | 'wallRevealScope'
   | 'drawingLayers'
   | 'autoShadowsOff'
-  | 'autoMaxTier'
+  | 'autoMaxDevice'
+  | 'dprHalved'
+  | 'deviceClass'
   | 'qualityAutoSettled'
   | 'backdrop'
   | 'hdriId'
@@ -358,6 +407,9 @@ export const UI_INITIAL: Pick<
   qualityTier: 'performance',
   qualityUserSet: false,
   qualityOverrides: {},
+  // `weak` until a live GL context is inspected: the safe floor, and the same
+  // choice the retired `detectCapabilityCeiling` made with no context.
+  deviceClass: 'weak' as DeviceClass,
   assetTier: null,
   toneMapping: DEFAULT_TONE_MAPPING_SETTING,
   exposure: DEFAULT_EXPOSURE,
@@ -371,7 +423,8 @@ export const UI_INITIAL: Pick<
   wallRevealScope: 'exterior' as const,
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
-  autoMaxTier: null,
+  autoMaxDevice: null,
+  dprHalved: false,
   qualityAutoSettled: false,
   snapEnabled: false,
   gridSize: 0.5,
@@ -438,6 +491,9 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       selectedItemIds: [],
     })
   },
+  setDprHalved: (v: boolean) => {
+    set({ dprHalved: v })
+  },
   exitRoomEditor: () => {
     // Orbit/walk over the whole flat are view-only, so any selection made in
     // the editor must clear — otherwise a stale Inspector/Finish picker would
@@ -457,13 +513,28 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   bumpMaterialEpoch: () => set((s) => ({ materialEpoch: s.materialEpoch + 1 })),
   setShowcaseAccumulating: (v) => set({ showcaseAccumulating: v }),
   setQualityTier: (t) => {
+    // Loud in DEV on an unknown mode. `resolveQuality` falls back to the FLATTEST
+    // preset for a tier it does not recognise -- correct for a value persisted by
+    // an older build, silent and wrong for a caller that simply passed the wrong
+    // string. The two-mode collapse turned 63 dev probes' `TIER=medium` /
+    // `TIER=maximum` defaults into exactly that: they kept running and quietly
+    // measured flat shading. A persisted legacy value never reaches here (it is
+    // mapped at load by `qualityPrefs`'s LEGACY_TIERS), so anything invalid at this
+    // point is a bug in the caller.
+    if (import.meta.env.DEV && !RENDER_TIERS.includes(t)) {
+      console.error(
+        `setQualityTier: unknown mode ${JSON.stringify(t)}. Valid: ${RENDER_TIERS.join(' | ')}. ` +
+          'Rendering will fall back to the flattest preset, which silently invalidates any ' +
+          'measurement taken from it.',
+      )
+    }
     const changed = get().qualityTier !== t
     // Keep the material layer's IBL flag in step. Metals with no environment to
     // reflect render black, so `getMetalMaterial`/`getSolidMaterial` cap
     // metalness while this is false — and they must see the right value at the
     // moment a material is BUILT, which for the shell (door leaves, 0.8 × 2.1 m)
     // is during the first mount, well before SceneEnvironment's effect runs.
-    syncIblFromTier(t, get().qualityOverrides)
+    syncIblFromTier(t, get().qualityOverrides, get().deviceClass)
     set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false })
     // Rebuilding the renderer under a new tier (new shadow maps, post effects,
     // asset swaps…) can visibly freeze the frame for a beat, especially
@@ -482,7 +553,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       autoShadowsOff: false,
     })),
   autoSetQualityTier: (t) => {
-    syncIblFromTier(t, get().qualityOverrides)
+    syncIblFromTier(t, get().qualityOverrides, get().deviceClass)
     set((s) => (s.qualityUserSet || s.qualityTier === t ? {} : { qualityTier: t }))
   },
   setQualityOverride: (key, value) =>
@@ -511,7 +582,16 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
-  setAutoMaxTier: (t) => set({ autoMaxTier: t }),
+  setAutoMaxDevice: (d) => set({ autoMaxDevice: d }),
+  setDeviceClass: (d) => {
+    // Must resync IBL like a mode change does: `ibl` is false in
+    // performance/weak and true in performance/capable, so a class step changes
+    // it. Without this the flag goes stale in exactly the way the
+    // `syncIblFromTier` note above describes — materials read the wrong value at
+    // BUILD time and there is no effect that comes back to fix them.
+    syncIblFromTier(get().qualityTier, get().qualityOverrides, d)
+    set({ deviceClass: d })
+  },
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),

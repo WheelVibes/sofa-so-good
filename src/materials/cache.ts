@@ -209,6 +209,34 @@ async function scheduleWorkerUpgrade(
 /** Constructs and caches a new material for the given def. The caller
  *  is responsible for passing already-loaded textures (or none for a
  *  solid material). */
+/**
+ * Record the catalogue albedo on the material, for the fill census.
+ *
+ * The catalogue's `swatch` IS this material's albedo, and for a TEXTURED finish it is the only
+ * place that survives: `v0.31.5.273` measured the living/dining floor as
+ * `color: #ffffff, map: true`, so a census reading `material.color` sees pure white where the real
+ * surface is mid-brown oak (`#b88f5d`) and inflates the room's rho by ~0.046. `v0.31.7.119` then
+ * sized why that matters -- the shell is only 21.4 % of a room's census area, so the census has to
+ * read the SCENE GRAPH (furniture included) and needs a per-material albedo it can trust.
+ *
+ * Stamped in `buildMaterial` because it is the one place holding both the def and the material.
+ */
+function stampAlbedo(m: MeshStandardMaterial, def: MaterialDef): void {
+  m.userData.albedoSwatch = def.swatch
+  // WHETHER THE SWATCH IS THE RENDERED ALBEDO, which `v0.31.7.120` assumed and `v0.31.7.136`
+  // disproved. Two paths make it false:
+  //
+  //   - `recolorAlbedo` (FINISH-RECOLOR) anchors the texture's MEAN to the swatch in sRGB byte
+  //     space (`f = pixelLuma / mean`, output `target * f`). A radiometric consumer wants the LINEAR
+  //     mean, which convexity puts above `linearise(swatch)` -- measured at +0.01 to +0.06 for
+  //     plausible texture contrast, so small but real.
+  //   - a bound `map` supplies the albedo while `color` stays white, which is `v0.31.5.273`.
+  //
+  // A consumer that needs the real reflectance must read the texture, not this. The swatch is still
+  // exact for procedural bases that re-bake to it -- which is why testing `.120` on oak passed.
+  m.userData.albedoSwatchIsEffective = !def.recolorAlbedo && !m.map
+}
+
 export function buildMaterial(
   def: MaterialDef,
   textures?: {
@@ -265,6 +293,7 @@ export function buildMaterial(
     if (roughnessMap) m.roughnessMap = roughnessMap
     if (roughOverride != null) m.roughness = roughOverride
     CACHE.set(cacheKey, m)
+    stampAlbedo(m, def)
     return m
   }
   if (def.kind === 'procedural') {
@@ -317,6 +346,7 @@ export function buildMaterial(
       )
     }
 
+    stampAlbedo(m, def)
     return m
   }
   if (def.kind === 'textured' && textures) {
@@ -415,6 +445,7 @@ export function buildMaterial(
   }
   if (roughOverride != null) m.roughness = roughOverride
   CACHE.set(cacheKey, m)
+  stampAlbedo(m, def)
   return m
 }
 

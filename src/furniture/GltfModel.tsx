@@ -221,8 +221,9 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides, reflective }:
   // Asset detail (mesh/texture LOD) is decoupled from render effects: it
   // follows `assetTier` when explicitly set, else the render `qualityTier`.
   const renderTier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   const assetTier = useStore((s) => s.assetTier)
-  const qualityTier = effectiveAssetTier(assetTier, renderTier)
+  const qualityTier = effectiveAssetTier(assetTier, renderTier, deviceClass)
   // Kick the existence probe outside render so a future render upgrades to the
   // variant url; harmless/no-op if already cached or on 'high'.
   useEffect(() => {
@@ -251,8 +252,8 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides, reflective }:
   const tintMatsRef = useRef<Material[]>([])
   const finishMatsRef = useRef<Material[]>([])
   const [mirrorPlane, setMirrorPlane] = useState<MirrorPlane | null>(null)
-  // Real reflections only on High/Maximum (mirrorReflectorConfig gates this).
-  const reflectorCfg = mirrorReflectorConfig(renderTier)
+  // Real reflections only in `realistic` (mirrorReflectorConfig gates this).
+  const reflectorCfg = mirrorReflectorConfig(renderTier, deviceClass)
   const wantMirror = !!reflective && reflectorCfg.real
 
   // Cache footprint, keyed by the base (high-tier) url so collision is

@@ -10,7 +10,7 @@
 import puppeteer from 'puppeteer'
 import { appUrl } from './lib.mjs'
 
-const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
+const TIERS = (process.env.TIERS || 'performance,realistic').split(',')
 const DSF = Number(process.env.DSF || 2)
 
 const browser = await puppeteer.launch({

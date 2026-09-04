@@ -667,7 +667,9 @@ export function hdbMaisonette(): FloorPlan {
     ceilingHeight: 2.6,
     extent: [W, D],
     walls: [
-      ...perimeter('em', W, D),
+      // Envelope continuity across the slab band (v0.31.7.209): a ground storey walled to its
+      // own ceiling leaves the floor-slab zone open, measured at 0.3 m on this template.
+      ...perimeter('em', W, D, upper.elevation),
       // North service band: kitchen / yard / shelter / WC.
       iwall('em-svc-s', [T, 2.8], [6.6, 2.8]),
       iwall('em-kit-e', [3.3, T], [3.3, 2.8]),

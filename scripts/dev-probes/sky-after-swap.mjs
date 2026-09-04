@@ -28,7 +28,7 @@ import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
-const TIER = process.env.TIER || 'medium'
+const TIER = process.env.TIER || 'performance'
 /** Empty = do NOT swap; measure the boot flat through the identical code path. */
 const PLAN = process.env.PLAN ?? 'tpl-condo-4bed'
 /** Comma-separated: visited IN ORDER, one frame each — a `walk-tour` order replay. */

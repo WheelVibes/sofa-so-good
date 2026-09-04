@@ -16,7 +16,22 @@
  *    `-medium`/original variants on. Decoupled from the render tier (see
  *    `effectiveAssetTier`). `high` == the original, un-suffixed asset.
  */
-export type RenderTier = 'performance' | 'medium' | 'high' | 'maximum'
+export type RenderTier = 'performance' | 'realistic'
+
+/**
+ * How much the device can take. Detected once at boot and adjustable by the
+ * adaptive guard; it scales a mode rather than replacing it.
+ *
+ * **This is the axis the old four-rung ladder was conflating with intent.** A
+ * tier was simultaneously answering "how good should this look?" (a user
+ * question) and "what can this machine do?" (a hardware question), which is why
+ * the rungs stopped ordering correctly: measured in walk mode, `high` ran at
+ * 25.1 fps while `maximum` swung 10.9-41.7, so a *lower* rung was sometimes
+ * slower than a higher one (`v0.31.7.66`).
+ */
+export type DeviceClass = 'weak' | 'capable'
+
+export const DEVICE_CLASSES: DeviceClass[] = ['weak', 'capable']
 
 /** GLB asset-LOD tier. `high` = original (no suffix). NOT the render tier. */
 export type AssetTier = 'low' | 'medium' | 'high'
@@ -26,7 +41,7 @@ export type AssetTier = 'low' | 'medium' | 'high'
 export type QualityTier = AssetTier
 
 /** All render tiers, lowest → highest. Source of truth for ordering. */
-export const RENDER_TIERS: RenderTier[] = ['performance', 'medium', 'high', 'maximum']
+export const RENDER_TIERS: RenderTier[] = ['performance', 'realistic']
 
 export interface QualitySettings {
   /** Sun shadow map resolution (px). 0 disables sun shadows. */
@@ -107,116 +122,143 @@ export interface QualitySettings {
   envResolution: number
 }
 
-export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
-  // Flat, IKEA-style: ambient + sun light only, no shadows / IBL / post. The
-  // single biggest cost on a GPU-less laptop is real-time shadow mapping — this
-  // tier renders without it and stays fluid.
+/**
+ * The settings for each mode, per device class.
+ *
+ * **Every leaf here is byte-identical to one of the four presets this replaced**
+ * — `performance/weak` is the old `performance`, `performance/capable` is the old
+ * `medium`, `realistic/weak` is the old `high`, `realistic/capable` is the old
+ * `maximum`. That is not a coincidence, it is the parity contract, and
+ * `quality.test.ts` asserts it against hardcoded copies of the old values. The
+ * set of pictures the app can produce is therefore unchanged; only the way one
+ * is chosen changed.
+ *
+ * **Why this pairing and not some other.** Measured on one pose (mainBedroom,
+ * `img-diff.mjs`, `v0.31.7.68`): `performance` → `medium` is **24.3 counts** of
+ * mean difference, `medium` → `high` is **17.6**, and `high` → `maximum` is
+ * **2.5**. So the old top two rungs were nearly the same picture — which is what
+ * made retiring one of them safe — while `medium` is a long way from both
+ * neighbours, and it is documented as the rung "the adaptive ladder auto-selects
+ * for most browsers". Folding `medium` into either single mode would therefore
+ * have changed what MOST users see by 17-24 counts. Keeping it as
+ * `performance/capable` is what makes the collapse invisible.
+ */
+export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySettings>> = {
   performance: {
-    mergeCoincidentLights: true,
-    shadowMapSize: 0,
-    ibl: false,
-    postprocessing: false,
-    // The flat tier stays flat: its grounding cue is the cheap ContactShadow
-    // blob decal, not a composer.
-    ao: false,
-    dprMax: 1,
-    wallReveal: true,
-    // Cheap blob grounding (no shadow map) — the only contact cue on the flat
-    // tier, so furniture doesn't look like it floats. RZ1.
-    contactShadows: true,
-    geometryDetail: 0.7,
-    showcase: false,
-    aoFullRes: false,
-    cinematic: false,
-    // No post stack on the flat tier → DoF structurally impossible.
-    dof: false,
-    envResolution: 64,
+    // Flat, IKEA-style: ambient + sun light only, no shadows / IBL / post. The
+    // single biggest cost on a GPU-less laptop is real-time shadow mapping — this
+    // renders without it and stays fluid. Software rasterisers, phones and
+    // tablets land here.
+    weak: {
+      mergeCoincidentLights: true,
+      shadowMapSize: 0,
+      ibl: false,
+      postprocessing: false,
+      // The flat variant stays flat: its grounding cue is the cheap ContactShadow
+      // blob decal, not a composer.
+      ao: false,
+      dprMax: 1,
+      wallReveal: true,
+      // Cheap blob grounding (no shadow map) — the only contact cue here, so
+      // furniture doesn't look like it floats. RZ1.
+      contactShadows: true,
+      geometryDetail: 0.7,
+      showcase: false,
+      aoFullRes: false,
+      cinematic: false,
+      // No post stack → DoF structurally impossible.
+      dof: false,
+      envResolution: 64,
+    },
+    // TIER-AO: AO without the rest of the stack. This is what most browsers get,
+    // and it is the difference between a room that has corners and one that reads
+    // as flat shading. Measurably free on capable hardware (vsync-capped, same as
+    // the flat variant) while adding the two things that matter most for
+    // materials — sun shadows and the IBL probe — and it mounts no composer, so
+    // there is no post watchdog exposure.
+    capable: {
+      mergeCoincidentLights: true,
+      shadowMapSize: 1024,
+      ibl: true,
+      postprocessing: false,
+      ao: true,
+      dprMax: 1.5,
+      wallReveal: true,
+      contactShadows: true,
+      geometryDetail: 1,
+      showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
+      aoFullRes: false,
+      cinematic: false,
+      dof: false,
+      envResolution: 96,
+    },
   },
-  medium: {
-    mergeCoincidentLights: true,
-    shadowMapSize: 1024,
-    ibl: true,
-    postprocessing: false,
-    // TIER-AO: AO without the rest of the stack. This is the tier most browsers
-    // land on, and it is the difference between a room that has corners and one
-    // that reads as flat shading.
-    ao: true,
-    dprMax: 1.5,
-    wallReveal: true,
-    contactShadows: true,
-    geometryDetail: 1,
-    showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
-    aoFullRes: false,
-    cinematic: false,
-    // Medium has no post-processing → no DoF.
-    dof: false,
-    envResolution: 96,
+  realistic: {
+    // The full post stack at a resolution a mid device can hold: AO, bloom, SMAA,
+    // filmic tone mapping, DoF available. 2.5 counts from `capable` on the pose
+    // measured, so this is the same LOOK at a lower price, not a lesser look.
+    weak: {
+      mergeCoincidentLights: true,
+      shadowMapSize: 2048,
+      ibl: true,
+      postprocessing: true,
+      ao: true,
+      dprMax: 2,
+      wallReveal: true,
+      contactShadows: true,
+      geometryDetail: 1.4,
+      showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
+      aoFullRes: false,
+      cinematic: false,
+      // Post stack runs → DoF available (gated by flag + user f-stop).
+      dof: true,
+      envResolution: 192,
+    },
+    // Cinematic: sharpest shadows, full-res AO, film grain, optional lens DoF.
+    capable: {
+      mergeCoincidentLights: true,
+      shadowMapSize: 4096,
+      ibl: true,
+      postprocessing: true,
+      ao: true,
+      dprMax: 2,
+      wallReveal: true,
+      contactShadows: true,
+      geometryDetail: 1.8,
+      showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
+      aoFullRes: true,
+      cinematic: true,
+      dof: true,
+      envResolution: 256,
+    },
   },
-  high: {
-    mergeCoincidentLights: true,
-    shadowMapSize: 2048,
-    ibl: true,
-    postprocessing: true,
-    ao: true,
-    dprMax: 2,
-    wallReveal: true,
-    contactShadows: true,
-    geometryDetail: 1.4,
-    showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
-    aoFullRes: false,
-    cinematic: false,
-    // High runs the post stack → DoF available (gated by flag + user f-stop).
-    dof: true,
-    envResolution: 192,
-  },
-  maximum: {
-    mergeCoincidentLights: true,
-    shadowMapSize: 4096,
-    ibl: true,
-    postprocessing: true,
-    ao: true,
-    dprMax: 2,
-    wallReveal: true,
-    contactShadows: true,
-    geometryDetail: 1.8,
-    showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
-    aoFullRes: true,
-    cinematic: true,
-    // Full post stack → DoF available (gated by flag + user f-stop).
-    dof: true,
-    envResolution: 256,
-  },
+}
+
+/** The settings a mode resolves to on a given device. */
+export function presetFor(tier: RenderTier, device: DeviceClass): QualitySettings {
+  return QUALITY_PRESETS[tier]?.[device] ?? QUALITY_PRESETS.performance.weak
 }
 
 export const QUALITY_LABEL: Record<RenderTier, string> = {
   performance: 'Performance',
-  medium: 'Medium',
-  high: 'High',
-  maximum: 'Maximum',
+  realistic: 'Realistic',
 }
 
-/** One-line description per tier for the Graphics panel. */
+/** One-line description per mode for the Graphics panel. */
 export const QUALITY_DESCRIPTION: Record<RenderTier, string> = {
   performance:
-    'Flat & fast — soft contact grounding only, no real-time shadows or effects. Best for laptops/phones without a GPU.',
-  medium: 'Sun shadows + soft reflections from a lighting probe. Good all-round default.',
-  high: 'Adds ambient occlusion, filmic tone mapping & antialiasing — the most realistic everyday look. Auto-selected on Apple silicon and discrete GPUs.',
-  maximum:
-    'Cinematic — sharpest shadows, full-res ambient occlusion, film grain & optional lens depth-of-field. Never auto-selected; opt in on a strong GPU.',
+    'Fast and responsive — the mode to build in. Scales itself down to flat shading with soft contact grounding on machines without a GPU.',
+  realistic:
+    'Photoreal — full ambient occlusion, filmic tone mapping, antialiasing, film grain and optional lens depth-of-field. Costs more per frame.',
 }
 
 /** Map a render tier to the asset-LOD tier it implies when asset quality is on
  *  "Auto". performance→low, medium→medium, high & maximum→original. */
-export function renderToAssetTier(render: RenderTier): AssetTier {
-  switch (render) {
-    case 'performance':
-      return 'low'
-    case 'medium':
-      return 'medium'
-    case 'high':
-    case 'maximum':
-      return 'high'
-  }
+export function renderToAssetTier(render: RenderTier, device: DeviceClass): AssetTier {
+  // Same four outcomes as before the collapse: the old performance/medium/high/
+  // maximum mapped to low/medium/high/high, and these pairs ARE those four.
+  if (render === 'performance') return device === 'weak' ? 'low' : 'medium'
+  return 'high'
 }
 
 /** Resolve the effective GLB asset tier (mesh/texture LOD), which is decoupled
@@ -224,8 +266,12 @@ export function renderToAssetTier(render: RenderTier): AssetTier {
  *  (via {@link renderToAssetTier}); an explicit tier pins asset detail
  *  independently (and is immune to the FPS auto-downgrade, which only mutates
  *  the render tier). */
-export function effectiveAssetTier(assetTier: AssetTier | null, renderTier: RenderTier): AssetTier {
-  return assetTier ?? renderToAssetTier(renderTier)
+export function effectiveAssetTier(
+  assetTier: AssetTier | null,
+  renderTier: RenderTier,
+  device: DeviceClass,
+): AssetTier {
+  return assetTier ?? renderToAssetTier(renderTier, device)
 }
 
 /** Effective settings = the tier preset with any per-setting user overrides
@@ -233,6 +279,15 @@ export function effectiveAssetTier(assetTier: AssetTier | null, renderTier: Rend
 export function resolveQuality(
   tier: RenderTier,
   overrides: Partial<QualitySettings> | undefined,
+  // REQUIRED, deliberately. It was defaulted to `capable` for one round and every
+  // one of the four call sites silently took the default — so the class was
+  // detected, persisted and stepped by the adaptive ladder while the renderer
+  // ignored it, meaning a phone or software rasteriser would have rendered the
+  // CAPABLE preset. Numeric parity checks did not catch it; "do the two variants
+  // of a mode differ from each other?" did, at 0.002 counts where 24.3 was
+  // expected. A default here buys nothing and costs the type system's ability to
+  // find the omission.
+  device: DeviceClass,
 ): QualitySettings {
   // Fall back rather than spreading `undefined`. `qualityTier` is PERSISTED, so
   // a value written by an older build (or any tier since renamed/retired) would
@@ -241,7 +296,7 @@ export function resolveQuality(
   // `Math.round(NaN)` → NaN, and a geometry built with NaN segments renders
   // nothing at all. A lamp keeps its pole and loses its shade, with no error
   // anywhere. Diagnosed while auditing (Chrome audit 2026-08).
-  const preset = QUALITY_PRESETS[tier] ?? QUALITY_PRESETS[detectDefaultTier()]
+  const preset = presetFor(tier, device)
   // Drop `undefined` override VALUES rather than spreading them (QUALITY-OVERRIDE-UNDEF).
   // `Partial<QualitySettings>` makes `{ shadowMapSize: undefined }` type-legal, and
   // spreading it OVERWRITES the preset with `undefined` instead of falling back to
@@ -333,31 +388,32 @@ const SOFTWARE_RENDERERS = ['swiftshader', 'llvmpipe', 'softpipe', 'software', '
  * Returning `high` is NOT a claim that the device can run High — it is the
  * absence of a veto. The ladder still has to earn each rung.
  */
-export function capabilityCeilingTier(caps: DeviceCapabilities): RenderTier {
+export function deviceClassFor(caps: DeviceCapabilities): DeviceClass {
   const r = caps.renderer.toLowerCase()
-  if (SOFTWARE_RENDERERS.some((name) => r.includes(name))) return 'performance'
-  if (caps.coarsePointer) return 'performance'
-  if (!caps.webgl2) return 'performance'
+  if (SOFTWARE_RENDERERS.some((name) => r.includes(name))) return 'weak'
+  if (caps.coarsePointer) return 'weak'
+  if (!caps.webgl2) return 'weak'
   // `hardwareConcurrency` is 0/undefined on some privacy-hardened browsers —
   // only treat a POSITIVE, genuinely small value as weak.
-  if (caps.cores > 0 && caps.cores < 4) return 'performance'
-  return 'high'
+  if (caps.cores > 0 && caps.cores < 4) return 'weak'
+  return 'capable'
 }
 
 /**
- * The tier to boot at on a FIRST visit, before anything has been measured.
+ * The mode a first visit boots into — on every device.
  *
- * Conservative on purpose: `medium` is measurably free on capable hardware
- * (vsync-capped 60 fps, same as the flat tier) while already adding the two
- * things that matter most for materials — sun shadows and the IBL probe — and it
- * mounts no post stack, so there is no composer and no watchdog exposure. The
- * ladder probes upward from here; a repeat visitor skips this entirely and boots
- * at their persisted `autoMaxTier`.
+ * A constant, not a detection: `realistic` costs more per frame and is a look the
+ * user asks for, so it is never assumed on their behalf. Capability detection
+ * still runs, but it picks the *variant* ({@link deviceClassFor}), which is why
+ * this is no longer the branchy `initialAutoTier`/`detectDefaultTier` pair that
+ * preceded it — those took `DeviceCapabilities` and, after the collapse, ignored
+ * it. A function that ignores its only argument is a constant wearing a costume.
+ *
+ * Boot parity: the old code booted `medium` on capable hardware, and the old
+ * `medium` preset is exactly `performance`/`capable`, so a capable machine still
+ * starts with sun shadows and the IBL probe.
  */
-export function initialAutoTier(caps: DeviceCapabilities): RenderTier {
-  const ceiling = capabilityCeilingTier(caps)
-  return ceiling === 'performance' ? 'performance' : 'medium'
-}
+export const BOOT_TIER: RenderTier = 'performance'
 
 /** Read {@link DeviceCapabilities} from a live WebGL context + the browser.
  *  Every lookup is defensive: a blocked debug-renderer extension or a missing
@@ -389,22 +445,12 @@ function readDeviceCapabilities(
   }
 }
 
-/**
- * The starting render tier on boot for a device with no measured history
- * (TIER-AUTODETECT + TIER-ADAPTIVE). Called with no `gl` — the `resolveQuality`
- * fallback for an unrecognised persisted tier — it resolves to `'performance'`,
- * the safe floor.
- */
-export function detectDefaultTier(gl?: WebGLRenderingContext | WebGL2RenderingContext): RenderTier {
-  if (!gl) return 'performance'
-  return initialAutoTier(readDeviceCapabilities(gl))
-}
-
-/** The capability ceiling for a live context — what the adaptive ladder may not
- *  climb past, regardless of measured frame rate. */
-export function detectCapabilityCeiling(
+/** The device class for a live context — which variant of a mode to render. */
+export function detectDeviceClass(
   gl?: WebGLRenderingContext | WebGL2RenderingContext,
-): RenderTier {
-  if (!gl) return 'performance'
-  return capabilityCeilingTier(readDeviceCapabilities(gl))
+): DeviceClass {
+  // No context to inspect resolves to `weak`, the safe floor: the same choice
+  // `detectCapabilityCeiling` made when it returned `performance`.
+  if (!gl) return 'weak'
+  return deviceClassFor(readDeviceCapabilities(gl))
 }

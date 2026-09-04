@@ -80,11 +80,16 @@ describe('dining chairs are tucked to their table', () => {
       // wardrobe (it had none) now that its second, misplaced window is gone.
       // 48 -> 49 in v0.31.9.29: `h2-kit`'s counter no longer overflows its rect
       // (a 0.34 m `roomOverhang` entry), which frees the wall for one more piece.
-      'tpl-hdb-2room': 49,
+      // EVERY template gains 2-6 pieces on the feat/blender-render merge: `furnishPlan` now appends
+      // `seedWindowTreatments` — curtains, one per eligible window — AFTER the drop passes, because a
+      // curtain sits IN the wall plane and `dropWallClippers` would delete it. The spread tracks window
+      // count, which is why the maisonette (+6) moves most and the studio (+1) least.
+
+      'tpl-hdb-2room': 51,
       // 67 → 66 in v0.31.8.31: Bedroom 2 trades its wardrobe for its first
       // window (item (h)); its 2.0 m south wall cannot take both.
       // 67 -> 68, same release.
-      'tpl-hdb-3room': 68,
+      'tpl-hdb-3room': 71,
       // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
@@ -93,7 +98,7 @@ describe('dining chairs are tucked to their table', () => {
       // `h4-svc-door`'s keep-out takes the floor the desk stood on. A flat whose
       // bedroom half you cannot reach is worse than a bedroom with no desk.
       // 76 -> 78, same release.
-      'tpl-hdb-4room': 78,
+      'tpl-hdb-4room': 81,
       // 82 until v0.31.5.116: same story as the 4-room a version earlier —
       // moving the misplaced window OUT of the kitchen freed the wall the range
       // hood needs. Dumped per-def first; the +1 is `range-hood`.
@@ -107,14 +112,14 @@ describe('dining chairs are tucked to their table', () => {
       // `bed-single` into the living room, so the bed stays in `h5-bed3` and the
       // styling pass dresses it — the exact two cushions v0.31.8.86 had cost.
       // 83 -> 84, same release.
-      'tpl-hdb-5room': 84,
+      'tpl-hdb-5room': 87,
       // 91 until v0.31.5.118. Dumped per-def first: the +2 are a `range-hood`
       // (the stray kitchen window had been blocking the extractor's wall, the
       // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
       // master's wardrobe had been dropped and now places.
       // 93 → 95 in v0.31.8.41: `ex-bed2b` gains the window it never had, and two
       // pieces then fit in that room.
-      'tpl-hdb-exec': 96,
+      'tpl-hdb-exec': 100,
       // 95 → 86 in v0.31.8.30, the 3Gen re-author. Verified by per-def diff, not
       // inferred: the east wing lost its bathroom (4 pieces) — it cannot hold a
       // furnishable bedroom AND an ensuite, see the template comment — and a
@@ -134,7 +139,7 @@ describe('dining chairs are tucked to their table', () => {
       // 97 -> 101 in v0.31.9.33 (WET-AREA BATHROOM): a narrow bathroom
       // (short side < 1.6 m) gets a `shower-screen` (0.9 x 0.06) instead of a
       // 0.9 x 0.9 cubicle, which frees the floor its WC and basin needed.
-      'tpl-hdb-3gen': 101,
+      'tpl-hdb-3gen': 106,
       // 120 → 116 in v0.31.8.29: the jumbo re-author divided bedrooms 4 and 5
       // (one undivided volume before) and shrank the master from a rectangle
       // that overran the corridor wall and both baths, 11.5 → 6.9 m². Fewer,
@@ -143,7 +148,7 @@ describe('dining chairs are tucked to their table', () => {
       // 116 → 121 in v0.31.8.45: the central hall is a declared room now, so it
       // is furnished at all. It had been 55 m² — 31% of the flat — belonging to
       // no room.
-      'tpl-hdb-jumbo': 125,
+      'tpl-hdb-jumbo': 131,
       // UNCHANGED at 141 through v0.31.8.33, which gave its kitchen, service yard
       // and STAIR HALL their first doors — on a maisonette the stair hall is the
       // only way to the upper storey. Putting the yard's door on the service
@@ -159,7 +164,7 @@ describe('dining chairs are tucked to their table', () => {
       // armchair. Net +1, and the drop is the honest consequence of the
       // clearance now existing.
       // 141 -> 143, same release — and `emu-cbath` gets its BASIN back.
-      'tpl-hdb-maisonette': 143,
+      'tpl-hdb-maisonette': 149,
       // 24 -> 27 in v0.31.9.22 (ALONG-WALL SWEEP + CLEAR-RUN COUNTER): `st-kit`
       // gains its `kitchen-counter-l`, `refrigerator` and `stove`. A door swings
       // into the galley with a 0.9 x 0.9 keep-out at x 1.10-2.00, dead centre of
@@ -167,7 +172,7 @@ describe('dining chairs are tucked to their table', () => {
       // along-wall position per edge — so the whole kitchen was refused while
       // 1.88 m of that wall stood clear.
       // 27 -> 28, same release.
-      'tpl-studio': 28,
+      'tpl-studio': 29,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
       // chair alive by refusing it a slot outside the room (it had been placed
       // out there and then dropped).
@@ -180,22 +185,22 @@ describe('dining chairs are tucked to their table', () => {
       // `relocateCeilingMounts`.
       // Per-def diff: `kitchen-counter-l` 0 -> 1, `refrigerator` 0 -> 1,
       // `stove` 0 -> 1, and `ceiling-light` 5 -> 4 -> 5 across the two releases.
-      'tpl-1bed': 51,
+      'tpl-1bed': 53,
       // 44 → 49 in v0.31.8.44: "Stairs" now infers `foyer` rather than `other`,
       // so the room is furnished at all. It carries no authored category, which
       // is exactly the case a user-drawn room is in.
-      'tpl-loft': 49,
+      'tpl-loft': 53,
       // 44 -> 45 in v0.31.9.23 (CEILING-MOUNT-RELOCATE): `c1-kit` gets the
       // ceiling light it had been missing for many releases — `dropOverlaps` was
       // deleting it instead of nudging it clear.
-      'tpl-condo-1bed': 45,
+      'tpl-condo-1bed': 47,
       // 53 -> 52 in v0.31.9.22: one `trailing-plant`. The sweep changes which
       // spots earlier pieces take, so the styling pass finds one fewer host
       // surface free. Decor only — no fixture moved.
       // 52 -> 53 in v0.31.9.29: `cs-kit` gains its hob and counter (and the
       // reshuffle costs a decor prop). Priced — the ranked defect score went
       // 61,012,173,703 -> 60,813,173,903 (`analysis/layoutDefects.ts`).
-      'tpl-condo-1study': 53,
+      'tpl-condo-1study': 55,
       // 68 → 67 in `.34`: bedroom 2's new door costs it a wardrobe. Its master
       // KEEPS its queen bed and the kitchen its counter and stove — mid-wall
       // doors lost all three, so they moved to the wall ends and the "Open
@@ -210,20 +215,20 @@ describe('dining chairs are tucked to their table', () => {
       // 64 -> 67 in v0.31.9.29: `c2-bed2`'s `desk` and `book-set` come BACK,
       // with a `desk-plant`. v0.31.9.22 cost them when the swept wardrobe took
       // the east end; the wall-ENDS candidates let it take a corner instead.
-      'tpl-condo-2bed': 67,
+      'tpl-condo-2bed': 70,
       // 80 → 81 in v0.31.8.33: the balcony parapet now MEETS the walls at both
       // ends (it stopped 0.1 m short, a stray-wall warning), so the balcony is a
       // real enclosure and furnishes properly.
       // 82 -> 83 in v0.31.9.29, from the same reshuffle.
-      'tpl-condo-3bed': 83,
-      'tpl-condo-4bed': 97,
+      'tpl-condo-3bed': 87,
+      'tpl-condo-4bed': 102,
       // 26 -> 27 in v0.31.9.23 (CEILING-MOUNT-RELOCATE): `su-kit` gets its
       // long-missing ceiling light. See `roomLighting.test.ts`.
       // 25 -> 26 in v0.31.9.19 (FITTED-COUNTER): its `kitchen-counter-l` is
       // parametric (length 1.2-4.0) but was always seeded at the 2.4 m default,
       // and `su-kit` is 2.0 x 1.6 m — no wall long enough, so the counter
       // OVERFLOWED the room and was dropped. Sized to the room it fits.
-      'tpl-condo-studio': 27,
+      'tpl-condo-studio': 28,
       // 118 → 117 in v0.31.8.42: `cp-liv-win` was a 3.0 m pane at offset 5.0 that
       // overran the living room and landed in the DINING room. Pulled back onto
       // the living's own 3.7-6.3 span (2.4 m) and the dining given its own; one
@@ -237,7 +242,7 @@ describe('dining chairs are tucked to their table', () => {
       // DROP needs one: `ceramic-vase-slim` 2 -> 1 and `fruit-bowl` 2 -> 1, both
       // decor set-dressing that lost a host surface when the piece under them
       // moved to the wall. No furniture lost here.
-      'tpl-condo-penthouse': 117,
+      'tpl-condo-penthouse': 121,
       // 122 → 120 in `.34`, mostly redistribution once the car porch, dining and
       // kitchen got doors: dining and kitchen each gain one, the living and
       // service yard each lose one, and one piece that had been standing outside
@@ -250,7 +255,7 @@ describe('dining chairs are tucked to their table', () => {
       // (see TODO.md).
       // 119 -> 121, same release — and `ctu-mbath` gets its BASIN back, after
       // being basin-less since v0.31.8.9.8.
-      'tpl-terrace-ground': 121,
+      'tpl-terrace-ground': 126,
     })
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
@@ -346,7 +351,10 @@ describe('dining chairs are tucked to their table', () => {
     // fixtures that now fit. Both basin-less bathrooms are recovered, so
     // `bathroomFixtures.test.ts`'s known-offenders list is EMPTY for the first
     // time.
-    expect(total).toBe(1482)
+    // 1482 -> 1547 on the feat/blender-render merge: +65, all of it `seedWindowTreatments`
+    // curtains appended after the drop passes. One per eligible window across the 19 templates,
+    // which is why it tracks the per-template spread above rather than any placer change.
+    expect(total).toBe(1547)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

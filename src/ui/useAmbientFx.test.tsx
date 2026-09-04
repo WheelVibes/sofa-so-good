@@ -43,7 +43,7 @@ describe('useAmbientFx', () => {
   })
 
   it('is true when the flag is on, tier is non-performance, and no reduced-motion', () => {
-    seed({ on: true, tier: 'high', reduce: false })
+    seed({ on: true, tier: 'realistic', reduce: false })
     const { result } = renderHook(() => useAmbientFx())
     expect(result.current).toBe(true)
   })
@@ -55,13 +55,13 @@ describe('useAmbientFx', () => {
   })
 
   it('is false under prefers-reduced-motion', () => {
-    seed({ on: true, tier: 'high', reduce: true })
+    seed({ on: true, tier: 'realistic', reduce: true })
     const { result } = renderHook(() => useAmbientFx())
     expect(result.current).toBe(false)
   })
 
   it('is false when the ambientFx flag is off', () => {
-    seed({ on: false, tier: 'high', reduce: false })
+    seed({ on: false, tier: 'realistic', reduce: false })
     const { result } = renderHook(() => useAmbientFx())
     expect(result.current).toBe(false)
   })

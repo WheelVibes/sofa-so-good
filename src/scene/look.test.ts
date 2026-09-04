@@ -141,13 +141,15 @@ describe('tone mapping look', () => {
 
 describe('shadowFilterForTier (PHOTO-SOFTSHADOW)', () => {
   it('keeps the flat Performance tier on PCF (it renders shadowless anyway)', () => {
-    expect(shadowFilterForTier('performance')).toBe('pcf')
+    expect(shadowFilterForTier('performance', 'weak')).toBe('pcf')
   })
 
-  it('gives every shadowed tier (Medium+) VSM soft shadows', () => {
-    expect(shadowFilterForTier('medium')).toBe('vsm')
-    expect(shadowFilterForTier('high')).toBe('vsm')
-    expect(shadowFilterForTier('maximum')).toBe('vsm')
+  it('gives every variant that HAS a shadow map VSM soft shadows', () => {
+    // Parity with the retired ladder: old medium/high/maximum all rendered VSM,
+    // and those are these three.
+    expect(shadowFilterForTier('performance', 'capable')).toBe('vsm')
+    expect(shadowFilterForTier('realistic', 'weak')).toBe('vsm')
+    expect(shadowFilterForTier('realistic', 'capable')).toBe('vsm')
   })
 })
 
