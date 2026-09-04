@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.252 — the shipped map set also HALVES the sun-dependent error, which was not part of the case for shipping it
+
+`.251` shipped the 195-map set on 13:00 evidence: three surfaces at 1.001 / 0.974 / 1.010 of the
+Cycles reference. `.220`/`.221` had measured the same comparison at 09:00 and 17:00 with the OLD set
+and found the error swinging 1.20-1.87, so the honest thing was to re-take those two hours before
+claiming anything about them.
+
+Ratio to Cycles, `gain 4.2` in both columns:
+
+| hour | surface | 111-map set | 195-map set |
+| --- | --- | --- | --- |
+| 09:00 | ceiling | 1.204 | 0.836 |
+| 09:00 | wall | 1.182 | 0.807 |
+| 09:00 | floor | 1.038 | 0.738 |
+| 13:00 | ceiling | 0.986 | **1.001** |
+| 13:00 | wall | 0.977 | **0.974** |
+| 13:00 | floor | 1.010 | **1.010** |
+| 17:00 | ceiling | 1.505 | **1.051** |
+| 17:00 | wall | 1.868 | 1.445 |
+| 17:00 | floor | 1.455 | **1.055** |
+
+Over the nine measurements, mean absolute error **25.5 % → 13.4 %** and worst **86.8 % → 44.5 %**.
+Both roughly halve, and 17:00 in particular goes from 1.51/1.87/1.46 to 1.05/1.45/1.06.
+
+**This was not anticipated.** `.221` refuted a sun-dependent gain by showing the distribution drifts
+with the sun, and `.222` located the cause as the static bake's inability to carry sun bounce. Neither
+predicted that a bake which KEEPS the glazing would track the sun better — but it does, and in
+hindsight the mechanism is plain: glass in the room is part of how daylight redistributes, so a bake
+that deletes it gets the direction of the light wrong as well as the level.
+
+The residual is the one `.222` predicted and no gain can reach: 09:00 now **under** by 16-26 %, where
+the sun's share of interior indirect is 17-23 % against 0.2-2.7 % at the other hours, and the 17:00
+wall **over** by 44 %, which is direct sun the app renders itself rather than anything the map set
+supplies.
+
+Also in this commit: the `.238` staleness guard's floor goes **95 → 130** to match the new coverage.
+It sits deliberately below the 141 SHELL maps, because the 38 furniture maps are fragile by
+construction (`.233`) and a floor above the shell count would fail on a layout change instead of a
+regression. Verified: 179 applied, floor 130, guard green.
+
+Recorded in `visibilityLightmap.ts` beside the fit, since the headline is that **4.2 survived a map-set
+replacement without re-fitting** — the strongest evidence yet that it is right rather than tuned.
+
+Suite 10219 green.
+
+
 ## v0.31.7.251 — SHIPPED: 195 lightmaps at `--min-area 1.5 --keep-glazing`. Coverage 107 → 179 applied, accuracy equal or better, gain UNCHANGED
 
 The thread that started at `.227` lands. `--keep-glazing` was the missing piece, exactly as `.182`'s

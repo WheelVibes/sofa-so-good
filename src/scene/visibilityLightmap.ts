@@ -70,6 +70,28 @@ import { LinearFilter } from 'three'
  *
  * Frame cost: none. This is one float in a uniform that already exists, and the program cache key
  * already includes the gain, so the compiled-program count is unchanged.
+ *
+ * ### The 4.2 SURVIVED a map-set replacement (`v0.31.7.251`/`.252`)
+ *
+ * `v0.31.7.251` shipped 195 maps baked at `--min-area 1.5 --keep-glazing`, replacing 111, and this
+ * constant did NOT need re-fitting — which is the strongest evidence yet that it is right rather
+ * than merely tuned. At 4.2, against the same Cycles reference at the same raycast-verified
+ * surfaces:
+ *
+ * | hour | surface | 111-map set | 195-map set |
+ * | --- | --- | --- | --- |
+ * | 09:00 | ceiling / wall / floor | 1.204 / 1.182 / 1.038 | 0.836 / 0.807 / 0.738 |
+ * | 13:00 | ceiling / wall / floor | 0.986 / 0.977 / 1.010 | **1.001 / 0.974 / 1.010** |
+ * | 17:00 | ceiling / wall / floor | 1.505 / 1.868 / 1.455 | 1.051 / 1.445 / 1.055 |
+ *
+ * Over those nine measurements the mean absolute error falls **25.5 % → 13.4 %** and the worst
+ * **86.8 % → 44.5 %**. The set was chosen on 13:00 evidence alone, so the improvement at the other
+ * two hours was not part of the case for shipping it.
+ *
+ * What is left is the residual `.222` predicted and no gain can reach: 09:00 now UNDER by 16-26 %,
+ * because a static bake cannot carry the sun's bounce (17-23 % of the interior indirect at that
+ * hour against 0.2-2.7 % at 13:00 and 17:00), and the 17:00 wall over by 44 %, which is direct sun
+ * the app renders itself rather than anything this map set supplies.
  * Gain for an **irradiance** set in `'replace'` mode — a different quantity from
  * {@link VISIBILITY_GAIN}, kept separate even though it currently holds the same number.
  *

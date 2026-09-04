@@ -25,8 +25,14 @@ import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 /**
- * Measured `v0.31.7.238`: **107 mapped — 98 shell + 9 furniture**, matching the `applied to
- * 107/386 candidates` the app logs itself.
+ * Measured `v0.31.7.252` on the 195-map set: **179 mapped — 141 shell + 38 furniture**, matching
+ * the `applied to 179/386 candidates` the app logs itself. Was 107 (98 + 9) on the 111-map set.
+ *
+ * The floor is **130**, raised from 95 with the set. It sits below the 141 SHELL maps on purpose:
+ * the 38 furniture maps are fragile by construction (`v0.31.7.233` — dragging an item stops its key
+ * matching), so a floor above the shell count would fail on a layout change instead of on a
+ * regression. 130 is tight enough to catch a real loss of shell coverage and loose enough to ignore
+ * furniture churn.
  *
  * That is deliberately a different number from `gi-material-census.mjs`'s 101, and the difference
  * is not a discrepancy: this walks EVERY mesh, while the census counts only VISIBLE ones. Six maps
@@ -34,7 +40,7 @@ import { appUrl, assertSceneAlive } from './lib.mjs'
  * A staleness guard wants the full count, because a hidden mesh's key going stale is the same
  * regression as a visible one's — it just has not been looked at yet.
  */
-const MIN_APPLIED = Number(process.env.MIN_APPLIED || 95)
+const MIN_APPLIED = Number(process.env.MIN_APPLIED || 130)
 const TIER = process.env.TIER || 'realistic'
 
 const browser = await puppeteer.launch({
