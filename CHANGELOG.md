@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.229 — SIXTEEN of nineteen templates have walkable floor with NO CEILING over it, up to 45.9 m². Found while waiting for a bake
+
+Ceilings are rendered PER ROOM (`PlanShell` maps `lp.rooms` to `PlanRoomCeiling`), so any area
+inside the perimeter that no room rect covers gets a floor — the plan slab spans the whole footprint
+— and **no ceiling**. Every existing plan guard reasons about rooms, walls, openings and sightlines;
+none asks whether the ROOM SET covers the FOOTPRINT, so this was invisible to all of them.
+
+**Confirmed in the running app, not just in arithmetic** (`ray-probe.mjs`):
+
+| plan / point | ray up | ray down |
+| --- | --- | --- |
+| `tpl-hdb-4room` (7.75, 1.3) | **NOTHING — the ray leaves the scene** | floor at y = −0.01 |
+| `tpl-hdb-jumbo` (4.5, 4.0) | **NOTHING — the ray leaves the scene** | floor at y = −0.01 |
+| `tpl-hdb-4room` living room (7.4, 5.0) — control | ceiling at y = 2.6 | — |
+
+Walkable, and open to the sky. Same defect class as items `(w)` and `(x)`: geometry the templates
+imply but never build.
+
+Measured across every template, with wall footprints excluded (half-thickness plus a 3 cm margin) so
+the figure is walkable floor rather than the gaps walls legitimately occupy:
+
+| template | ceiling-less | template | ceiling-less |
+| --- | --- | --- | --- |
+| `tpl-hdb-jumbo` | **45.9 m² (26 %)** | `tpl-hdb-maisonette` | 8.5 m² |
+| `tpl-condo-penthouse` | 16.8 m² | `tpl-hdb-3room` | 8.4 m² |
+| `tpl-hdb-exec` | 14.2 m² | `tpl-condo-1bed` | 5.0 m² |
+| `tpl-condo-4bed` | 13.1 m² | `tpl-condo-2bed` | 4.0 m² |
+| `tpl-hdb-3gen` | 12.6 m² | `tpl-hdb-2room` | 2.9 m² |
+| `tpl-hdb-4room` | 10.7 m² | `tpl-studio` | 0.9 m² |
+| `tpl-condo-3bed` | 9.3 m² | `tpl-condo-1study` | 0.8 m² |
+| `tpl-hdb-5room` | 8.6 m² | `tpl-loft` / `tpl-terrace-ground` | 0.6 / 0.5 m² |
+
+`ceilingHole.test.ts` ratchets all nineteen. The numbers are today's measurements, so a plan edit
+that makes any of them worse fails, and a fix means lowering an entry. It carries a non-vacuity
+check too: the loft at 0.6 m² and the jumbo at 45.9 m² in the same run is what shows the measure
+discriminates rather than flagging everything. The per-template assertion also caught
+`tpl-terrace-ground` at 0.48 m², which my survey had printed nothing for because I cut the listing
+at 0.5.
+
+Not fixed here: covering 45.9 m² of the jumbo means deciding what those spaces ARE — corridor,
+foyer, undeclared circulation — which is plan design per template, the same reason item `(f)`'s last
+entry is still open. The ratchet means it cannot get worse while that is decided.
+
+Suite: my 20 tests pass and the run is otherwise green. Two tests in
+`scripts/asset-pipeline/__tests__/ktx2-encode.test.ts` failed on `ECONNREFUSED :3000` during the
+full run and pass 11/11 in isolation — CPU starvation from the concurrent Blender bake, unrelated to
+this change.
+
+
 ## v0.31.7.228 — `scene-glb.mjs` writes the manifest shape Blender already reads, and the coverage re-bake is running
 
 Groundwork for `.227`'s bake, plus the bug that groundwork exposed.
