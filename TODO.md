@@ -2138,13 +2138,30 @@ entry (2room is currently connected) and costs a furniture piece (48 -> 47). So 
 three still open — `-2room`, `-4room`, `-5room` — are exactly the ones where enclosing
 the shelter disconnects it, and they all wait on the same question.
 
-**What the .66 results narrow that question to.** `-exec` IS in the connectivity ratchet
-at 2 groups and enclosing its shelter changed nothing; `-maisonette` likewise. So
-"enclosing a shelter disconnects it" is NOT general — it depends on whether the shelter
-already had a door into a connected region. `-exec`'s did (`ex-hs-door` on `ex-yard-e`).
-The three that fail are the ones whose shelter had no door at all, so enclosing gives it
-its first one and that door has to reach somewhere connected. **That is the thing to
-check first next time: does this shelter already have a door, and where does it lead?**
+**ANSWERED in v0.31.8.67, and the answer changes what this entry is about.** Enclosing
+`tpl-hdb-4room`'s shelter and dumping the raster component of every room:
+
+```
+Kitchen            comp 1        Household Shelter  comp 2
+Service Yard       comp 1        Living / Dining    comp 2
+Bedroom 2/3, Common Bath, Master Bedroom/Bath   comp 3
+```
+
+The shelter is connected to the living room exactly as intended. The count goes 2 -> 3
+because **the shelter's own unwalled floor was the bridge between the kitchen band and
+the living room** — in `tpl-hdb-4room` the only route from the kitchen to the rest of
+the flat runs THROUGH the household shelter. Walling it does not create a defect; it
+UNMASKS one, and the connectivity test is right to report it.
+
+So the remaining three are not a shelter problem. They are the "bedroom/service zone
+with no corridor" problem — the same one `docs/open-graphics-decisions.md` item (f)
+defers and `templateConnectivity`'s remaining entries describe. **Enclosing those
+shelters is correct and should ship together with a corridor for the band the shelter is
+currently standing in for**, not before it.
+
+Worth stating plainly for whoever does that re-plan: a plan where you walk through the
+bomb shelter to reach the kitchen is not one a contractor should be handed, and the app
+could not previously see it because the shelter had no walls to see.
 
 Also still open: whether `templateEnclosure.test.ts` should have caught any of this — it
 passed on a shelter missing three walls, so its criterion is weaker than its name

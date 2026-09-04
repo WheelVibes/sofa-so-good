@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.67 — you walk through the bomb shelter to reach the kitchen
+
+Last release narrowed the shelter question to *"where can this shelter's first door lead?"*.
+Answered — and the answer is that the question was aimed at the wrong thing.
+
+Enclosing `tpl-hdb-4room`'s household shelter and dumping the raster component of every room:
+
+| rooms | component |
+| --- | --- |
+| Kitchen, Service Yard | 1 |
+| **Household Shelter, Living / Dining** | **2** |
+| Bedroom 2, Bedroom 3, Common Bath, Master Bedroom, Master Bath | 3 |
+
+**The shelter connects to the living room exactly as intended.** The group count goes 2 → 3 for
+a different reason entirely: the shelter's own *unwalled floor was the bridge* between the
+kitchen band and the living room. In `tpl-hdb-4room`, the only route from the kitchen to the rest
+of the flat runs **through the household shelter**.
+
+Walling the shelter does not create a defect. It **unmasks** one, and `templateConnectivity` is
+right to report it — the plan has no corridor there and never did. The app could not see it
+before because the shelter had no walls to see.
+
+### What this changes
+
+`-2room`, `-4room` and `-5room` are not a shelter problem. They are the same
+"zone with no corridor" content problem that `docs/open-graphics-decisions.md` item (f) defers
+and that `templateConnectivity`'s remaining entries describe. Their shelters should be enclosed
+**together with a corridor for the band the shelter is currently standing in for** — not before
+it, which is what the last two releases kept discovering the hard way.
+
+`-3room`, `-maisonette` and `-exec` shipped cleanly (v0.31.8.63, .66) precisely because their
+shelters were not load-bearing for circulation.
+
+### No code ships
+
+The three walls were authored, measured, and reverted; the finding is in `TODO.md` with the
+component table. I would rather this release be one paragraph of fact than a fourth attempt at
+the same wall.
+
+A plan where you walk through the bomb shelter to reach the kitchen is not one a contractor
+should be handed. That is now written down where the re-plan will find it.
+
+Verified: 10191 tests pass on the reverted tree; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.66 — two more shelters closed, and the rule for which ones can be
 
 `tpl-hdb-maisonette` and `tpl-hdb-exec` each had **three** of their household shelter's four
