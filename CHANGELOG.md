@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.279 — the window is a GLARE problem, not a brightness one; my own last-round fix was wrong
+
+`.278` recommended adding a daylight-scaled emissive to the pane. Two measurements killed that and a
+third found the actual mechanism.
+
+**1. The pane emissive saturates — and it already existed.** `glassSkyCatchIntensity` is already
+`d³ · 5.2`, already daylight-scaled, and `light-distribution` already ships a `SKYCATCH` override
+for it. Swept at the reference pose: **5.2 → 228.9, 9 → 230.2, 13 → 230.3**. Raising it 2.5× moves
+the pane **1.4 counts** against a 27-count gap. The function's own docstring records that ×16 tops
+out at 240.6, and I recommended the lever anyway without reading it.
+
+**2. It is not the AgX shoulder.** The obvious next suspect was three's AgX diverging from Blender's
+at the top end. Rendered both sides under `Khronos PBR Neutral`:
+
+| patch | Cycles | app | gap |
+| --- | --- | --- | --- |
+| ceiling | 217.4 | 216.2 | **1.2** |
+| window | 241.6 | 208.5 | **33.1** |
+
+A shoulder artefact would shrink under a low-shoulder transform. It grew, while the ceiling agreed
+to 1.2 counts.
+
+**3. The mechanism: the pane mean is grille-bar-dominated, and the app has no glare to wash them
+out.** Spread at the same patch is **sd 13.6 in Cycles against 62.0 in the app**. Physics puts a
+very bright aperture behind the safety grille and veiling glare overwhelms the bars; the app renders
+crisp dark bars against bright glass, so the mean is dragged down by the bars — which is also
+exactly why brightening the glass between them barely moves the number.
+
+And the app cannot produce that glare at midday **by construction**: `bloomIntensityForDay(d) =
+BLOOM.intensity · (1 − d)` is exactly **0 at `d = 1`**, and the bloom pass is DROPPED once it ramps
+to zero (BLOOM-MIP-FLASH — cheaper, and one less way to blank a frame on ANGLE/Metal). Bloom is
+keyed inversely to the one variable that should drive it: an aperture needs glare most at full
+daylight, and that is when there is none.
+
+**Fix direction, not attempted.** Bloom keyed to aperture luminance rather than `1 − day`. That
+collides with two recorded decisions — the BLOOM-MIP-FLASH unmount, and `.156`'s finding that a
+bright pane plus dusk bloom spills onto wall and ceiling and destroys grille definition — so it is a
+design change, not a coefficient. It also carries an fps cost the current design deliberately
+avoids: mounting bloom at midday is a blur chain the daylight path does not pay for today, and this
+goal asks for smooth as well as cinematic.
+
+
 ## v0.31.7.278 — the window, re-measured on a repaired harness: the room is right, the aperture is not
 
 With the measurement floor repaired, item `(l)` was worth re-measuring rather than re-arguing —
