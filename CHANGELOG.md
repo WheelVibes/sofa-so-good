@@ -27,6 +27,83 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.22 — a door swung into two kitchens, and one along-wall position per edge lost them
+
+v0.31.9.21 established the cause and specified the fix as needing BOTH levers together. Built
+both, and the four-release hunt closes: **`tpl-studio/st-kit` and `tpl-1bed/ob-kit` now have a
+hob, a fridge and a counter.**
+
+### `snapToWall` offered exactly one along-wall position per edge
+
+The along-wall coordinate was `clamp(item.position[…], lo, hi)` — the seed point, which is the
+ROOM CENTRE. Four candidate spots per room, one per edge, and anything sitting mid-wall refused
+that whole wall. `st-kit`'s door keep-out is x 1.10-2.00, dead centre of its only long wall,
+with **1.88 m of that wall standing clear.**
+
+`snapToWall` now sweeps the along-wall coordinate in `max(0.1, w/2)` steps, 16 either way —
+the shape `placeSeededMounts`' rescue has used since v0.31.5.107. Three details are
+load-bearing, each learned by measurement:
+
+- **Strictness sits OUTSIDE the wall loop.** Sweeping inside the edge loop lets a swept spot on
+  the first wall beat the CLAMPED spot on a later one. Measured, that variant cost
+  `tpl-condo-1bed` its counter AND stove — a kitchen that had only wanted a fridge —
+  `tpl-hdb-2room` its fridge, and `tpl-condo-2bed` its desk. As an outer pass, everything that
+  placed before places IDENTICALLY and the sweep is purely additive. Same lesson as v0.31.8.75.
+- **Swept candidates are contained; clamped ones are not.** `perp` adds `edgeShortfall`, which
+  deliberately pushes a piece past the rect edge to meet the real wall face — legal on a real
+  wall, and a footprint in the next room when the nearest parallel wall belongs to someone
+  else. One position per edge made that unreachable; the sweep is what finds it.
+- **The counter sizing and the sweep are ONE fix.** `fittedCounter` now sizes to the longest
+  CLEAR run (per-wall intervals minus door keep-outs) rather than the longest wall. v0.31.9.21
+  shipped the sizing alone and measured ZERO deltas, because the clamp kept the shorter counter
+  in the same straddling spot.
+
+### Room containment is about the FOOTPRINT, not the centre
+
+Chasing the sweep's collateral turned up a bed 0.49 m out through the side of a bedroom, and
+three separate places that test a POINT where they mean a BOX:
+
+| | overhangs > 0.2 m |
+|---|---|
+| before | 12 |
+| + along-wall sweep | 11 |
+| + `settleInRect` containment (held back) | 7 |
+| + `unsealRoutes` footprint containment | 6 |
+| **as shipped** | **10** |
+
+`unsealRoutes`' ROOM-CONTAINMENT (v0.31.9.16) compared trial CENTRES, which stops the eviction
+it was written for and still allowed the disc to slide `c2-bed2`'s `bed-single` by
+(-0.60, +0.45) until 0.49 m of it sat over the corridor floor — buying the `c2-cbath` route
+with a bed half out of the bedroom. It now tests the trial OBB's corners, inset by the same
+0.2 m slack the chair-slot guard uses. `c2-cbath` goes back to severed, which is honest.
+
+`settleInRect`'s guard is **built and deliberately not enabled**: worth 11 -> 7 overhangs, but
+it strands two of `tpl-hdb-maisonette`'s dining chairs 1.62 m and 4.21 m from their table, and
+nearest-first ordering does not fix that (a chair reaching the settle can start outside the rect
+being searched, so "nearest" is measured from the wrong place). Written up on the function.
+
+New `roomOverhang.test.ts` ratchets the remaining 10. Its second assertion pins the corpus size,
+because the first cut of that measurement read a clean ZERO for the wrong reason — it imported
+`GROUND_LEVEL_ID` from `floorplan/types`, where only the TYPE lives, so the value was `undefined`
+and the level filter rejected every item on every storey. A metric that passes because its loop
+body never runs is the third distinct instance of that failure on this thread.
+
+### Ledger
+
+Every ratchet moves in the improvement direction, and the two losses are named per-def:
+
+- `roomCompleteness` **5 -> 3** incomplete rooms (`ob-kit`, `st-kit` complete)
+- `applianceWall` orphan hoods **4 -> 2** — and the guessed cause there was wrong: the stove was
+  not dropped with its mount surviving, it was never PLACED
+- `windowSightline` blocked **5 -> 4**; the penthouse wardrobe v0.31.8.71 traded away comes back
+  at no cost to the nine appliance fixes it was traded for
+- `roomOverhang` **12 -> 10**; `routeAccess` unchanged; overlaps still 0
+- Corpus 1459 -> 1460 items. **Costs:** `c2-bed2` loses its desk + book-set (a 7.35 m² room
+  carrying a single bed, wardrobe, nightstand AND desk — the kit is over-stuffed, so the fix is
+  a size-aware kit, not placement), `ob-kit` loses its ceiling light (MOUNT-HEIGHT-CLASH: a
+  1.8 m fridge now stands where the light hangs and `dropOverlaps` deletes the mount rather than
+  relocating it), and one `trailing-plant`. Both named in `TODO.md`.
+
 ## v0.31.9.21 — a door swings into the galley, and shrinking the counter without moving it is inert
 
 v0.31.9.20 left a named hypothesis with instructions to check it before publishing. **Checked, and

@@ -246,6 +246,79 @@ It also needed `placeSeededMounts` to stop giving a mount its wall unconditional
 MOUNT-HEIGHT-CLASH there. A wardrobe now against the wall reaches a mount's height, and
 `dropOverlaps` was deleting the mount.
 
+## `snapToWall` offered ONE along-wall position per edge (v0.31.9.22)
+
+The along-wall coordinate was `clamp(item.position[…], lo, hi)` — the seed point, which is the
+ROOM CENTRE. So a piece got exactly four candidate spots in a room, one per edge, and anything
+sitting at the middle of a wall refused that whole wall.
+
+**A door swinging into a galley kitchen was enough to lose the entire kitchen.**
+`tpl-studio/st-kit` and `tpl-1bed/ob-kit` shipped with no hob, no fridge and no counter; the
+cause was a 0.9 x 0.9 door keep-out at x 1.10-2.00, dead centre of the only wall long enough
+to take a counter, while **1.88 m of that same wall stood clear**. Neither room was too small
+— the four releases before this one each published a different wrong cause for it (a walkway
+minimum that does not exist, the room's longest wall, `ROOM_INSET`, the door's depth), so
+instrument `tryPlace`'s gates before theorising about this room.
+
+`snapToWall` now sweeps the along-wall coordinate in `max(0.1, w/2)` steps out to 16 either
+way, the same shape `placeSeededMounts`' rescue has used since v0.31.5.107. Three things about
+it are load-bearing:
+
+- **STRICTNESS SITS OUTSIDE THE WALL LOOP** — the clamped position is tried on all four edges
+  FIRST, and only then does the sweep run. Nesting it the other way (sweep inside the edge
+  loop) lets a swept spot on the first wall beat the CLAMPED spot on a later one, which
+  reshuffles pieces that were placing fine: measured over the 19 templates it cost
+  `tpl-condo-1bed` its counter AND stove — a kitchen that had only wanted a fridge —
+  `tpl-hdb-2room` its fridge, and `tpl-condo-2bed` its desk. As an outer pass, anything that
+  placed before places IDENTICALLY and the sweep is purely additive. This is the same lesson
+  v0.31.8.75 had to learn for the window relaxation.
+- **Swept candidates are CONTAINED, clamped ones are not.** `perp` adds `edgeShortfall`, which
+  deliberately pushes a piece OUT past the rect edge to meet the real wall face (v0.31.8.71) —
+  so an edge can be legal and still leave the footprint in the room next door. With one
+  position per edge that was unreachable, because the overshooting edge was blocked; the sweep
+  is what finds a free spot on it. Leaving the clamped pass unguarded is what preserves
+  "places identically".
+- **Sizing and sweeping are ONE fix, and either alone is inert.** `fittedCounter` sizes the
+  counter to the longest CLEAR run (per-wall intervals minus door keep-outs) rather than the
+  longest wall, because a 2.4 m run cannot fit a 1.88 m gap however it is moved. v0.31.9.21
+  shipped the sizing on its own and measured ZERO deltas across the whole suite: `snapToWall`
+  CLAMPED the piece to the centre, so a shorter counter still straddled the keep-out.
+
+Result: `roomCompleteness` 5 -> 3 incomplete rooms, `applianceWall`'s orphan hoods 4 -> 2,
+`windowSightline`'s blocked list 5 -> 4 (the penthouse wardrobe v0.31.8.71 traded away comes
+back, at no cost to the nine appliance fixes it was traded for). Cost: `tpl-condo-2bed/c2-bed2`
+loses its desk and book-set, and `tpl-1bed/ob-kit` its ceiling light — both recorded per-def in
+`diningChairTuck.test.ts` and named in `TODO.md`.
+
+## Room containment is about the FOOTPRINT, not the centre (v0.31.9.22)
+
+Three separate places let a piece stand outside the room it was arranged into, and all three
+had been written to test a POINT:
+
+- **`unsealRoutes`' ROOM-CONTAINMENT** (v0.31.9.16) compared `roomAt(trial.cx, trial.cz)` with
+  the origin room. That stops the eviction it was written for — a bed slid 2.25 m into the
+  living room — and still allows a slide that leaves the piece hanging out through a side.
+  Measured: the disc slid `tpl-condo-2bed/c2-bed2`'s `bed-single` by (-0.60, +0.45) to open
+  `c2-cbath`, and 0.49 m of a 1.90 m bed ended up over the corridor floor with its centre
+  still legally inside the bedroom. It now tests the four corners of the trial OBB inset by
+  `CONTAIN_TOL` (0.2, the same slack as the chair-slot guard, because rects sit 0.1-0.2 m
+  inside their wall centrelines). Cost: `c2-cbath` stays severed — that route was being bought
+  with a bed half in the corridor.
+- **`settleInRect` bounds the CENTRE to `rect` inset 0.3** and never asks how big the piece is,
+  which is where most of the remaining overhang lives. Guarding it is BUILT (`settleContained`
+  + a two-pass `settlePass`) and **deliberately not enabled** — measured at 11 -> 7 overhangs,
+  but it strands dining chairs (two of `tpl-hdb-maisonette`'s settle 1.62 m and 4.21 m from
+  their table). Nearest-first candidate ordering instead of the NW-first scan does NOT fix
+  that; a chair reaching the settle can start OUTSIDE the rect being searched, so "nearest" is
+  measured from the wrong place. See the comment on `settleInRect` before re-attempting.
+- **`placeFlush`/`snapToWall`'s `edgeShortfall`**, above.
+
+`roomOverhang.test.ts` ratchets what is left: **10 pieces**, worst 0.60 m of
+`tpl-condo-penthouse`'s TV console. Its second assertion pins the corpus size, because the
+first cut of that measurement read a clean ZERO for the wrong reason — it imported
+`GROUND_LEVEL_ID` from `floorplan/types`, where only the TYPE lives, so the value was
+`undefined` and the level filter rejected every item on every storey.
+
 ## A rect edge is not necessarily a wall (v0.31.8.75)
 
 `snapToWall` used to choose its edge from the piece's SEEDED position, which says nothing about

@@ -459,22 +459,73 @@ function snapToWall(
   // it comes first. Preference only, so nothing can go unplaced.
   const backed = (e: Edge) => edgeHasWall(rect, e, ctx.walls)
   const byWall = [...byWindow.filter(backed), ...byWindow.filter((e) => !backed(e))]
-  for (const edge of byWall) {
-    const rot = inward(edge)
-    // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
-    const along = w / 2
-    const out = edgeShortfall(rect, edge, ctx.walls)
-    let pos: [number, number]
-    if (edge === 'N')
-      pos = [clamp(item.position[0], rect.x0 + along, rect.x1 - along), rect.z0 + d / 2 + gap - out]
-    else if (edge === 'S')
-      pos = [clamp(item.position[0], rect.x0 + along, rect.x1 - along), rect.z1 - d / 2 - gap + out]
-    else if (edge === 'W')
-      pos = [rect.x0 + d / 2 + gap - out, clamp(item.position[1], rect.z0 + along, rect.z1 - along)]
-    else
-      pos = [rect.x1 - d / 2 - gap + out, clamp(item.position[1], rect.z0 + along, rect.z1 - along)]
-    const placed = tryPlace(item, pos, rot, world, ctx)
-    if (placed !== item) return placed
+  for (const sweep of [false, true]) {
+    for (const edge of byWall) {
+      const rot = inward(edge)
+      // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
+      const along = w / 2
+      const out = edgeShortfall(rect, edge, ctx.walls)
+      // ALONG-WALL SWEEP (v0.31.9.22). The along-wall coordinate used to be just
+      // `clamp(item.position[…])` — the seed point, i.e. the ROOM CENTRE — so a
+      // piece was offered exactly one spot per wall and refused the wall outright
+      // if anything sat there. `tpl-studio/st-kit` is the case that forced this: a
+      // door swings into the galley with a 0.9 x 0.9 keep-out dead centre of its
+      // only long wall, and the counter was refused on every edge while 1.88 m of
+      // that wall stood clear (v0.31.9.20/.21). Shrinking the counter to fit was
+      // measured and found INERT for exactly this reason — it stayed centred.
+      //
+      // The clamped position is still tried FIRST, so any piece that placed before
+      // places identically; the sweep only reaches spots that were previously
+      // unreachable. Same shape as `placeSeededMounts`' rescue sweep, which has
+      // done this since v0.31.5.107 — this brings the primary path in line with it.
+      const sideways = edge === 'W' || edge === 'E'
+      const lo = (sideways ? rect.z0 : rect.x0) + along
+      const hi = (sideways ? rect.z1 : rect.x1) - along
+      const start = clamp(item.position[sideways ? 1 : 0], lo, hi)
+      const perp = sideways
+        ? edge === 'W'
+          ? rect.x0 + d / 2 + gap - out
+          : rect.x1 - d / 2 - gap + out
+        : edge === 'N'
+          ? rect.z0 + d / 2 + gap - out
+          : rect.z1 - d / 2 - gap + out
+      const step = Math.max(0.1, along)
+      // STRICTNESS SITS OUTSIDE THE WALL LOOP — the same rule v0.31.8.75 had to
+      // learn for the window relaxation, and for the same reason. Sweeping INSIDE
+      // the edge loop lets a swept spot on the first wall beat the CLAMPED spot on
+      // a later one, which reshuffles pieces that were placing fine: measured over
+      // the 19 templates, that variant cost `tpl-condo-1bed` its counter AND stove
+      // (a kitchen that only wanted a fridge), `tpl-hdb-2room` its fridge, and
+      // `tpl-condo-2bed` its desk. With `sweep` as an outer pass every piece is
+      // offered all four clamped positions first, so anything that placed before
+      // places IDENTICALLY and the sweep is purely additive.
+      if (!sweep) {
+        const pos: [number, number] = sideways ? [perp, start] : [start, perp]
+        const placed = tryPlace(item, pos, rot, world, ctx)
+        if (placed !== item) return placed
+        continue
+      }
+      for (let k = 1; k <= 16; k++) {
+        for (const dir of [1, -1]) {
+          const t = start + dir * k * step
+          if (t < lo - 1e-9 || t > hi + 1e-9) continue
+          const pos: [number, number] = sideways ? [perp, t] : [t, perp]
+          // Contain the SWEPT candidates only. `perp` adds `edgeShortfall`,
+          // which pushes a piece OUT past the rect edge to meet the real wall
+          // face — so an edge can be geometrically legal and still leave the
+          // footprint half a metre into the room next door. That used to be
+          // unreachable: with one clamped along-position per edge the
+          // overshooting edge was simply blocked, and the sweep is what finds a
+          // free spot on it. Measured on `tpl-condo-2bed/c2-bed2`, whose
+          // `bed-single` came out 0.49 m through the south side of the bedroom.
+          // The clamped pass is left unguarded on purpose, so anything that
+          // placed before places identically.
+          if (!settleContained(item, pos, rot, rect, ctx)) continue
+          const placed = tryPlace(item, pos, rot, world, ctx)
+          if (placed !== item) return placed
+        }
+      }
+    }
   }
   return item
 }
@@ -551,15 +602,87 @@ function placeFlush(
 /** Last-resort placement within ONE rect: corners, then a coarse grid sweep,
  *  then a finer sweep, each across a few rotations. Returns `true` once
  *  placed. */
+/**
+ * SETTLE-CONTAINMENT (v0.31.9.22) — does this candidate keep the piece's
+ * FOOTPRINT inside the room?
+ *
+ * `settleInRect` bounds the item's CENTRE to `rect` inset 0.3 and never looked
+ * at its extent, which is the v0.31.5.112 defect ("`tryPlace` has no notion of
+ * the room rectangle") in the one place that never got the guard. A 1.90 m deep
+ * `bed-single` centred at z 5.62 in a rect ending at 6.08 passes the centre
+ * test and puts 0.49 m of bed out through the south side of the bedroom.
+ *
+ * Measured over the 19 templates, **12 pieces overhang their room by more than
+ * `TOL`** — up to 0.60 m of `tpl-condo-penthouse`'s TV console.
+ *
+ * `TOL` is 0.2 for the reason the chair-slot guard uses the same number: room
+ * rects sit 0.1-0.2 m inside their wall centrelines, so a few centimetres past
+ * an edge is still within the room's own walls, while half a metre is
+ * demonstrably on the floor next door.
+ */
+const SETTLE_TOL = 0.2
+
+function settleContained(
+  item: FurnitureItem,
+  pos: [number, number],
+  rot: number,
+  rect: Rect,
+  ctx: Ctx,
+): boolean {
+  const def = ctx.catalog[item.defId]
+  if (!def) return true
+  const { w, d } = baseFootprint(item, def)
+  // Axis-aligned rotations only (the settle tries exactly those four), so the
+  // half-extents just swap on the quarter turns.
+  const quarter = Math.abs(Math.cos(rot)) < 0.5
+  const hx = (quarter ? d : w) / 2
+  const hz = (quarter ? w : d) / 2
+  return (
+    pos[0] - hx >= rect.x0 - SETTLE_TOL &&
+    pos[0] + hx <= rect.x1 + SETTLE_TOL &&
+    pos[1] - hz >= rect.z0 - SETTLE_TOL &&
+    pos[1] + hz <= rect.z1 + SETTLE_TOL
+  )
+}
+
 function settleInRect(item: FurnitureItem, rect: Rect, world: FurnitureItem[], ctx: Ctx): boolean {
+  // CONTAINMENT IS DELIBERATELY *NOT* APPLIED HERE YET (v0.31.9.22).
+  //
+  // `settleContained` above is the right predicate for this function too — the
+  // settle bounds the item's CENTRE to `rect` inset 0.3 and never looks at its
+  // extent, which is where 5 of the corpus's 12 room overhangs come from,
+  // including 0.60 m of `tpl-condo-penthouse`'s TV console. Applying it here was
+  // built and measured: **overhang 12 -> 7**, with the same two-pass shape used
+  // elsewhere so nothing can be left unplaced.
+  //
+  // It is held back because it strands dining chairs. Skipping the
+  // previously-first candidate makes the scan land on a different cell, and two
+  // of `tpl-hdb-maisonette`'s chairs settled 1.62 m and **4.21 m** from their
+  // table — precisely what `diningChairTuck.test.ts` exists to catch, and a
+  // defect a user SEES against overhangs a check reports. Ordering the grid
+  // NEAREST-FIRST instead of from the rect's north-west corner was tried in the
+  // same session and does not fix it (one chair still settles 4.88 m out), so
+  // the cause is upstream of the scan order: a chair that reaches the settle can
+  // start OUTSIDE the rect being searched, and "nearest" is then measured from
+  // the wrong place. That needs its own release.
+  return settlePass(item, rect, world, ctx, () => true)
+}
+
+function settlePass(
+  item: FurnitureItem,
+  rect: Rect,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  ok: (pos: [number, number], rot: number) => boolean,
+): boolean {
   for (const c of cornersOf(rect))
-    if (tryPlace(item, c, item.rotation, world, ctx) !== item) return true
+    if (ok(c, item.rotation) && tryPlace(item, c, item.rotation, world, ctx) !== item) return true
   const rots = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
   for (const rot of rots) {
     const step = 0.3
     for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += step) {
       for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += step) {
-        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return true
+        if (ok([x, z], rot) && tryPlace(item, [x, z], rot, world, ctx) !== item) return true
       }
     }
   }
@@ -572,7 +695,7 @@ function settleInRect(item: FurnitureItem, rect: Rect, world: FurnitureItem[], c
   for (const rot of rots) {
     for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += fineStep) {
       for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += fineStep) {
-        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return true
+        if (ok([x, z], rot) && tryPlace(item, [x, z], rot, world, ctx) !== item) return true
       }
     }
   }

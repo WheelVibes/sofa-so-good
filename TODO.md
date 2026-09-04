@@ -55,11 +55,34 @@ suite. `snapToWall` CLAMPS the along-wall position to the seed = the room centre
 counter centred at x 2.10 still spans 1.16-3.04 and still crosses the keep-out. **Shrinking without
 sweeping does nothing**, and only the rescue pass sweeps — but its sweep needs a run of the
 counter's full seeded 2.4 m, which 1.88 m of clear rect cannot give.
-**Next step, as its own release:** make `snapToWall` sweep along the wall the way
-`placeSeededMounts` already does, so a piece can move past a keep-out instead of only shrinking.
-That touches every room type, and every arranger change on this thread has produced collateral
-(v0.31.9.19's inset variant marooned a fridge and cost a route), so budget for a full per-def sweep
-and expect ratchet movement.
+**FIXED in v0.31.9.22 — both levers together.** `snapToWall` now SWEEPS the along-wall
+coordinate (16 steps either way, the shape `placeSeededMounts`' rescue already used) and
+`fittedCounter` sizes to the longest CLEAR run rather than the longest wall. `st-kit` and
+`ob-kit` each gained a counter, a fridge and a stove; `roomCompleteness` 5 -> 3, orphan hoods
+4 -> 2, `windowSightline` blocked 5 -> 4.
+
+Two details cost a measurement each and are worth not re-learning: the sweep must be an OUTER
+pass over the edge loop (inside it, a swept spot on wall 1 beats a clamped spot on wall 4 and
+costs `tpl-condo-1bed` its counter and stove), and swept candidates need footprint containment
+because `edgeShortfall` deliberately pushes a piece past the rect edge.
+
+**What is LEFT here, in priority order:**
+- **Three kitchens still need the counter run WRAPPED AROUND A CORNER** — `su-kit`/`c1-kit`
+  (2.00 m) and `cs-kit` (2.20 m) against a 2.5 m one-wall minimum. `arrangeKitchen` cannot do
+  this, and no amount of sweeping will help; it needs an L-run primitive.
+- **`ob-kit` has no ceiling light** (`ceiling-light` 5 -> 4 in `tpl-1bed`). MOUNT-HEIGHT-CLASH:
+  the 1.8 m fridge that now places stands where the light hangs, and `dropOverlaps` deletes the
+  MOUNT instead of relocating it. A mount whose host arrives should move, not die.
+- **`tpl-condo-2bed/c2-bed2` loses its desk and book-set.** 3.5 x 2.1 m = 7.35 m² carrying a
+  single bed, a wardrobe, a nightstand AND a desk. The kit is over-stuffed for the room, so the
+  fix is a room-SIZE-aware kit (drop the desk below some area), not another placement change.
+- **`settleInRect` containment is BUILT AND HELD BACK.** Worth 11 -> 7 room overhangs (see
+  `roomOverhang.test.ts`), blocked because it strands two of `tpl-hdb-maisonette`'s dining
+  chairs 1.62 m and 4.21 m from their table. Nearest-first candidate ordering does NOT fix it —
+  a chair that reaches the settle can start outside the rect being searched, so "nearest" is
+  measured from the wrong point. Fix that first, then enable the guard.
+- **10 pieces still stand >0.2 m outside their room**, worst 0.60 m of `tpl-condo-penthouse`'s
+  TV console. Ratcheted.
 
 **Superseded:** `su-kit`, `cs-kit` and `ob-kit` all lack one, and `st-kit` recovers
 nothing at all. A hob is 0.6 m — the easiest piece in the kit to fit — so its loss is more likely

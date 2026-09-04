@@ -50,7 +50,13 @@ const KNOWN_BLOCKED = [
 
   'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
   'tpl-condo-studio/su-bath-win: bathroom-sink',
-  'tpl-condo-penthouse/cp-m-win: wardrobe-3door',
+  // `tpl-condo-penthouse/cp-m-win: wardrobe-3door` CLEARED in v0.31.9.22 by the
+  // ALONG-WALL SWEEP in `snapToWall`. It was added in v0.31.8.71 as the accepted
+  // cost of nine appliance fixes, and the cause was the same single-position
+  // limitation: the wardrobe's windowless walls were preferred but each offered
+  // only ONE along-wall spot (the room centre), all taken, so it fell through to
+  // the glass wall. With the wall swept it finds a windowless spot, and the
+  // v0.31.8.71 trade is bought back without giving up the appliance fixes.
 ]
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')!
@@ -148,6 +154,8 @@ describe('tall furniture does not stand in front of a window', () => {
     // 79 -> 78 in v0.31.8.71: one more window is blocked
     // (`tpl-condo-penthouse/cp-m-win`), so one fewer is clear. Accepted at nine
     // appliance fixes for one blockage — see KNOWN_BLOCKED above.
-    expect(windows - hits.length).toBe(78)
+    // 78 -> 79 in v0.31.9.22: that blockage is CLEARED by the along-wall sweep,
+    // so the v0.31.8.71 trade is bought back at no cost to the appliance fixes.
+    expect(windows - hits.length).toBe(79)
   })
 })

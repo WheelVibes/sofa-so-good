@@ -59,7 +59,7 @@
  * Pure logic — no React, no three — so the raster maths is unit-testable.
  */
 
-import type { OBB } from '../collision/obb'
+import { type OBB, obbCorners } from '../collision/obb'
 import { findWallClips, itemFootprint, itemHeightAwareClash } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
@@ -885,6 +885,16 @@ export function findFurnitureSeveredRooms(
  * `diningChairTuck.test.ts`'s `TUCKED`, which is the invariant this protects.
  */
 const SATELLITE_REACH_M = 1.2
+
+/**
+ * Slack allowed when testing that a slid piece's FOOTPRINT stays in its room.
+ *
+ * Matches the chair-slot guard's `TOL` (v0.31.5.112) and `snapToWall`'s
+ * `SETTLE_TOL`, and for the same geometric reason: room rectangles sit
+ * 0.1-0.2 m inside their wall centrelines, so a piece correctly flush to a wall
+ * has corners a few centimetres beyond the room polygon.
+ */
+const CONTAIN_TOL = 0.2
 const UNSEAL_STEP_M = 0.15
 const UNSEAL_REACH_M = 2.4
 
@@ -1183,8 +1193,31 @@ export function unsealRoutes(
           // ROOM-CONTAINMENT: never slide a piece out of the room it was
           // arranged into. A piece that started in no declared room (undeclared
           // circulation) is unconstrained, as before.
+          //
+          // FOOTPRINT, not centre (v0.31.9.22). v0.31.9.16 tested the trial
+          // CENTRE only, which stops the eviction it was written for (a bed
+          // 2.25 m away in the living room) but still allows a slide that leaves
+          // the piece hanging out through a side of the room. Measured on
+          // `tpl-condo-2bed`: the disc slid `c2-bed2`'s `bed-single` by
+          // (-0.60, +0.45) to open `c2-cbath`, and 0.49 m of a 1.90 m bed ended
+          // up south of the bedroom, over the corridor floor. The centre never
+          // left the room, so the old check passed it.
+          //
+          // Corners are tested on the OBB INSET by `CONTAIN_TOL` rather than the
+          // raw one, for the reason the chair-slot guard uses the same number:
+          // room rects sit 0.1-0.2 m inside their wall centrelines, so a piece
+          // correctly flush to a wall has corners a few centimetres outside the
+          // room's own polygon and must not be refused for it.
           const from = roomAt(obb.cx, obb.cz)
-          if (from && roomAt(trial.cx, trial.cz)?.id !== from.id) continue
+          if (from) {
+            if (roomAt(trial.cx, trial.cz)?.id !== from.id) continue
+            const inset: OBB = {
+              ...trial,
+              hx: Math.max(0.01, trial.hx - CONTAIN_TOL),
+              hz: Math.max(0.01, trial.hz - CONTAIN_TOL),
+            }
+            if (obbCorners(inset).some(([px, pz]) => !pointInRoom(from, px, pz))) continue
+          }
           const next = solveGrid(g, bodyWidthM, o, trial)
           if ((next.reachable[ri] as number) === 0) continue
           // Must not sever anything that is currently fine.

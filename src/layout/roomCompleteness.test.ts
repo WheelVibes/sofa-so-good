@@ -73,12 +73,19 @@ const KNOWN_INCOMPLETE = [
   // The four hood-without-hob kitchens are already in `applianceWall.test.ts`'s
   // KNOWN_ORPHAN_HOODS; what that ratchet cannot see is that they are missing
   // the rest of the kitchen too.
-  'tpl-1bed/ground/ob-kit: missing a hob, a fridge, a counter',
+  // `tpl-1bed/ground/ob-kit` and `tpl-studio/ground/st-kit` were here until
+  // v0.31.9.22 (ALONG-WALL SWEEP + CLEAR-RUN COUNTER). Both were missing the
+  // WHOLE kitchen — hob, fridge and counter — and neither room was too small.
+  // `snapToWall` offered each piece exactly ONE along-wall position per edge (a
+  // clamp to the room centre), so a door swinging into the galley refused the
+  // entire wall while 1.88 m of it stood clear. Two levers were needed together
+  // and either alone is inert: size the counter to the longest CLEAR run, AND
+  // sweep along the wall so it can stand somewhere other than the centre.
+  // v0.31.9.21 measured the sizing alone at ZERO deltas for exactly this reason.
   'tpl-condo-1study/ground/cs-kit: missing a hob, a counter',
   // Counter recovered in v0.31.9.19 (FITTED-COUNTER) — it had been a 2.4 m run
   // in a room whose longest wall is 2.0 m, so it overflowed and was dropped.
   'tpl-condo-studio/ground/su-kit: missing a hob, a fridge',
-  'tpl-studio/ground/st-kit: missing a hob, a fridge, a counter',
   // NOT in the hood ratchet — this one HAS a stove, so only the fridge is gone.
   'tpl-condo-1bed/ground/c1-kit: missing a fridge',
 ]

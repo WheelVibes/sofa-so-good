@@ -145,23 +145,48 @@ describe('dining chairs are tucked to their table', () => {
       // armchair. Net +1, and the drop is the honest consequence of the
       // clearance now existing.
       'tpl-hdb-maisonette': 141,
-      'tpl-studio': 24,
+      // 24 -> 27 in v0.31.9.22 (ALONG-WALL SWEEP + CLEAR-RUN COUNTER): `st-kit`
+      // gains its `kitchen-counter-l`, `refrigerator` and `stove`. A door swings
+      // into the galley with a 0.9 x 0.9 keep-out at x 1.10-2.00, dead centre of
+      // the only wall long enough, and `snapToWall` offered exactly one
+      // along-wall position per edge — so the whole kitchen was refused while
+      // 1.88 m of that wall stood clear.
+      'tpl-studio': 27,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
       // chair alive by refusing it a slot outside the room (it had been placed
       // out there and then dropped).
       // 47 → 48 in v0.31.8.34: the bedroom/kitchen group gained its first door.
-      'tpl-1bed': 48,
+      // 48 -> 50 in v0.31.9.22: `ob-kit` gains a counter, a fridge and a stove
+      // (same cause as `tpl-studio` above), and LOSES its `ceiling-light`.
+      // Per-def diff, because the total hides the swap: `kitchen-counter-l`
+      // 0 -> 1, `refrigerator` 0 -> 1, `stove` 0 -> 1, `ceiling-light` 5 -> 4.
+      // The light is MOUNT-HEIGHT-CLASH (see `furnishPlan`'s
+      // `placeSeededMounts`): a 1.8 m fridge now stands where the kitchen's
+      // ceiling light hangs, and `dropOverlaps` deletes the mount rather than
+      // relocating it. A furnished-but-unlit kitchen is the better half of that
+      // trade and the light is a named follow-up in `TODO.md`.
+      'tpl-1bed': 50,
       // 44 → 49 in v0.31.8.44: "Stairs" now infers `foyer` rather than `other`,
       // so the room is furnished at all. It carries no authored category, which
       // is exactly the case a user-drawn room is in.
       'tpl-loft': 49,
       'tpl-condo-1bed': 44,
-      'tpl-condo-1study': 53,
+      // 53 -> 52 in v0.31.9.22: one `trailing-plant`. The sweep changes which
+      // spots earlier pieces take, so the styling pass finds one fewer host
+      // surface free. Decor only — no fixture moved.
+      'tpl-condo-1study': 52,
       // 68 → 67 in `.34`: bedroom 2's new door costs it a wardrobe. Its master
       // KEEPS its queen bed and the kitchen its counter and stove — mid-wall
       // doors lost all three, so they moved to the wall ends and the "Open
       // Kitchen" got a 1.1 m pass-through instead of a door.
-      'tpl-condo-2bed': 67,
+      // 67 -> 64 in v0.31.9.22, and the one real content cost of that release:
+      // `c2-bed2` loses its `desk` and `book-set` (plus one `desk-plant`). The
+      // 3.5 x 2.1 m second bedroom holds a single bed, a wardrobe, a nightstand
+      // AND a desk; once the swept wardrobe takes the east end — which is where
+      // the desk used to stand — the desk has nowhere legal left. Recorded in
+      // `TODO.md`: the room's kit is over-stuffed for 7.35 m², so the fix is a
+      // room-size-aware kit rather than a placement change.
+      'tpl-condo-2bed': 64,
       // 80 → 81 in v0.31.8.33: the balcony parapet now MEETS the walls at both
       // ends (it stopped 0.1 m short, a stray-wall warning), so the balcony is a
       // real enclosure and furnishes properly.
@@ -278,7 +303,12 @@ describe('dining chairs are tucked to their table', () => {
     // diffed per def above. No other template moves and nothing is lost.
     // 1458 -> 1459 in v0.31.9.19 (FITTED-COUNTER): +1 on `tpl-condo-studio`, the
     // counter it had been overflowing with. No other template moves.
-    expect(total).toBe(1459)
+    // 1459 -> 1460 in v0.31.9.22 (ALONG-WALL SWEEP + CLEAR-RUN COUNTER). The net
+    // is +1 and the gross is much larger, so read the per-template entries
+    // above: +6 real kitchen fixtures across `tpl-studio` and `tpl-1bed`, +1
+    // `shower` in `tpl-condo-4bed` (for a `towel-rail`), against -1
+    // `ceiling-light`, -1 `trailing-plant` and -3 in `tpl-condo-2bed/c2-bed2`.
+    expect(total).toBe(1460)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

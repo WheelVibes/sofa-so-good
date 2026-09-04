@@ -28,7 +28,7 @@ import { planRoomArea } from '../floorplan/types'
 import { rectsOverlap } from '../layout/arrangeGeometry'
 import { roleOf } from '../layout/arrangeRoles'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
-import { doorKeepOutRects, footprintAabb, windowFrontRects } from '../layout/clearance'
+import { doorKeepOutRects, footprintAabb, type Rect, windowFrontRects } from '../layout/clearance'
 import { flushToWall, nearestWallEdge, rotationForEdge, type WallEdge } from '../layout/faceWall'
 import { unsealRoutes } from '../layout/reachability'
 import { mergeGeneratedCatalog } from './generatedCatalog'
@@ -254,7 +254,58 @@ const MIN_COUNTER_M = 1.2
  * Sizing to the wall is also what a real fitted kitchen does; a 2.4 m run is a
  * default, not a requirement. Rooms with a long enough wall are untouched.
  */
-function fittedCounter(defId: string, room: PlanRoom): ParamProps {
+/**
+ * The longest stretch of one wall that no DOOR KEEP-OUT interrupts.
+ *
+ * Measured cause of the galley-kitchen failures (v0.31.9.21): `tpl-studio`'s
+ * `st-kit` is refused a counter on every edge not by a wall, a window or a
+ * collision but by a 0.9 x 0.9 door swing sitting at x 1.10-2.00 — dead centre
+ * of its only wall long enough to take one. The room measures 3.8 m and the
+ * longest CLEAR run on it is 2.00 m, so sizing to `max(width, depth)` asks for
+ * a length the room cannot give however the piece is moved.
+ *
+ * Each wall is projected to an interval, the keep-outs overlapping that wall's
+ * BAND are subtracted, and the longest surviving sub-interval wins. `BAND` is
+ * the depth of floor a counter-deep piece occupies against a wall — a keep-out
+ * further into the room than that does not block the run.
+ */
+const CLEAR_RUN_BAND_M = 0.7
+
+function longestClearRun(room: PlanRoom, keepOut: readonly Rect[]): number {
+  const [x0, z0] = room.origin
+  const x1 = x0 + room.width
+  const z1 = z0 + room.depth
+  const walls: Array<{ lo: number; hi: number; near: number; far: number; horiz: boolean }> = [
+    { lo: x0, hi: x1, near: z0, far: z0 + CLEAR_RUN_BAND_M, horiz: true },
+    { lo: x0, hi: x1, near: z1 - CLEAR_RUN_BAND_M, far: z1, horiz: true },
+    { lo: z0, hi: z1, near: x0, far: x0 + CLEAR_RUN_BAND_M, horiz: false },
+    { lo: z0, hi: z1, near: x1 - CLEAR_RUN_BAND_M, far: x1, horiz: false },
+  ]
+  let best = 0
+  for (const w of walls) {
+    // Cut points along the wall, from every keep-out that reaches into its band.
+    let free: Array<[number, number]> = [[w.lo, w.hi]]
+    for (const k of keepOut) {
+      const across = w.horiz ? [k.z0, k.z1] : [k.x0, k.x1]
+      if (across[1] <= w.near || across[0] >= w.far) continue
+      const along = w.horiz ? [k.x0, k.x1] : [k.z0, k.z1]
+      const next: Array<[number, number]> = []
+      for (const [a, b] of free) {
+        if (along[1] <= a || along[0] >= b) {
+          next.push([a, b])
+          continue
+        }
+        if (along[0] > a) next.push([a, along[0]])
+        if (along[1] < b) next.push([along[1], b])
+      }
+      free = next
+    }
+    for (const [a, b] of free) best = Math.max(best, b - a)
+  }
+  return best
+}
+
+function fittedCounter(defId: string, room: PlanRoom, keepOut: readonly Rect[]): ParamProps {
   if (defId !== 'kitchen-counter-l') return {}
   // Shrink only enough to stop the run OVERFLOWING THE ROOM. Sizing to the inset
   // rect instead was tried in v0.31.9.19 and shrank more than necessary: it also
@@ -262,7 +313,15 @@ function fittedCounter(defId: string, room: PlanRoom): ParamProps {
   // reshuffle marooned its fridge 0.67 m off the wall and cost
   // `tpl-condo-1study` a route. The room boundary is the constraint that matters
   // — a counter is fitted joinery and sits against the wall itself.
-  const longest = Math.max(room.width, room.depth)
+  //
+  // CLEAR-RUN SIZING (v0.31.9.22). This used to be `max(width, depth)` alone,
+  // which asks for a length no position on the wall can supply when a door
+  // swings into the run. Sizing to the clear run was measured as INERT on its
+  // own in v0.31.9.21 — `snapToWall` CLAMPED the along-wall coordinate to the
+  // room centre, so a shorter counter stayed straddling the keep-out. It works
+  // only in combination with that function's along-wall SWEEP, added in the
+  // same release as this. Neither lever moves anything without the other.
+  const longest = Math.min(Math.max(room.width, room.depth), longestClearRun(room, keepOut))
   if (longest >= 2.4) return {}
   return { length: Math.max(MIN_COUNTER_M, Math.round(longest * 10) / 10) }
 }
@@ -297,6 +356,7 @@ function seedRoom(
   style: Record<string, ParamProps>,
   categoryStyle: Record<string, ParamProps> | undefined,
   levelId: string = GROUND_LEVEL_ID,
+  keepOut: readonly Rect[] = [],
 ): FurnitureItem[] {
   const [cx, cz] = roomCentre(room)
   const out: FurnitureItem[] = []
@@ -310,7 +370,7 @@ function seedRoom(
       ...(style[piece.defId] ?? {}),
       ...(categoryStyle?.[piece.defId] ?? {}),
       ...narrowWardrobe(piece.defId, room),
-      ...fittedCounter(piece.defId, room),
+      ...fittedCounter(piece.defId, room, keepOut),
     }
     const n = piece.count ?? 1
     for (let i = 0; i < n; i++) {
@@ -753,6 +813,9 @@ export function furnishPlanItems(
   // levels and seed each room tagged with its storey. Single-storey plans yield
   // only the ground level (no levelId tag) → identical to the old loop.
   for (const level of planLevels(plan)) {
+    // Once per storey, not per room: `doorKeepOutRects` rasterises every door
+    // on the level and `fittedCounter` needs it for each kitchen it sizes.
+    const levelKeepOut = doorKeepOutRects(levelAsPlan(plan, level))
     for (const room of level.rooms) {
       const category = roomCategory(room)
       const base = kitForRoom(room)
@@ -763,7 +826,15 @@ export function furnishPlanItems(
       const kit = base || extra ? [...(base ?? []), ...(extra ?? [])] : null
       if (kit)
         seeded.push(
-          ...seedRoom(room, kit, defs, preset.style, preset.categoryStyle?.[category], level.id),
+          ...seedRoom(
+            room,
+            kit,
+            defs,
+            preset.style,
+            preset.categoryStyle?.[category],
+            level.id,
+            levelKeepOut,
+          ),
         )
     }
   }

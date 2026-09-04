@@ -188,8 +188,23 @@ describe('kitchen appliances stand against a wall', () => {
  */
 const HOOD_OVER_STOVE_M = 0.15
 
-/** Templates whose hood has no stove to hang over. */
-const KNOWN_ORPHAN_HOODS = ['tpl-1bed', 'tpl-condo-1study', 'tpl-condo-studio', 'tpl-studio']
+/**
+ * Templates whose hood has no stove to hang over.
+ *
+ * **4 -> 2 in v0.31.9.22 (ALONG-WALL SWEEP + CLEAR-RUN COUNTER).** The diagnosis
+ * guessed above was WRONG in an interesting way: the stove was not removed by a
+ * drop pass with its mount surviving — it was never PLACED. `snapToWall` offered
+ * each piece exactly one along-wall position per edge (the room centre), so a
+ * door swinging into a galley kitchen refused the whole wall, and `tpl-studio`
+ * and `tpl-1bed` had no hob, no fridge and no counter at all while 1.88 m of
+ * their only long wall stood clear. Sweeping along the wall places all three,
+ * and the two hoods now hang over real stoves.
+ *
+ * The two that remain (`tpl-condo-1study`, `tpl-condo-studio`) need the counter
+ * run WRAPPED AROUND A CORNER, which `arrangeKitchen` cannot do — recorded in
+ * `TODO.md`.
+ */
+const KNOWN_ORPHAN_HOODS = ['tpl-condo-1study', 'tpl-condo-studio']
 
 /** Templates whose hood is too far from the nearest stove, `id/metres`. */
 /**
