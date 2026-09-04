@@ -27,6 +27,61 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.12 — the room is too small; three of my own diagnoses were wrong
+
+`ctu-mbath` has now had three explanations from me in three releases. **All three were wrong**, and
+the fourth answer is that the room cannot hold what is seeded into it.
+
+| release | my diagnosis | refuted by |
+|---|---|---|
+| v0.31.9.8 | the door swing overlaps the basin | it is `dropOverlaps` that deletes it, not `dropDoorBlockers` |
+| v0.31.9.10 | centre the shower into a corner and it fits | arithmetic was on the raw room, not the inset rect |
+| v0.31.9.11 | the 0.12 m `ROOM_INSET` is what binds | **`ROOM_INSET = 0` still loses the basin** |
+
+The third refutation is the one worth having, because it was a **one-line experiment I could have
+run before publishing the claim.** Setting the inset to 0 recovers 0.24 m of width and **the basin
+is still deleted** — the room has `bathroom-mirror`, `ceiling-light`, `shower`, `toilet` exactly as
+before. (It does move 30 pieces corpus-wide: total 1448 -> 1478. The inset costs real furniture,
+just not this piece.)
+
+And the combination — inset 0 **plus** cornering the largest fixture — does not fix it either. It
+**relocates the loss**: the basin survives, and the SHOWER is dropped instead
+(`toilet@5.90,0.80`, no shower). Whichever fixture claims the wall first, one of the other two has
+nowhere to go.
+
+### What actually binds
+
+| | |
+|---|---|
+| room | 1.5 x 2.4 m = **3.60 m²** |
+| shower on the 1.5 m wall | leaves **0.60 m** of that wall |
+| basin ALONG a N/S wall | needs 0.62 m run — **short by 0.02 m** |
+| basin against an E/W wall | needs 0.50 m depth — leaves **0.10 m** of circulation |
+| door swing keep-out | 0.64 m², **18%** of the floor |
+| fixtures + swing | 2.02 m² of 3.60 m², **56%** |
+
+A 0.9 m shower in a 1.5 m room leaves 0.60 m, and a 0.62 m basin misses it by 20 mm along the wall
+or leaves 100 mm of standing room across it. **This is a content limit, not an arranger bug** — SG
+master baths run ~1.7-1.8 m wide for precisely this reason.
+
+So the honest options are all content calls: widen `ctu-mbath` by ~0.2 m (from the adjacent Common
+Bath or the hall), specify a 0.75 m quadrant shower, or accept a two-fixture master bath with the
+basin outside. None is mine to pick, and each re-draws a shipped Singapore starter layout — the
+same category as `templateEnclosure`'s `KNOWN_SHARED_ENCLOSURES` and open-graphics item (f).
+
+### And the room-rect item goes back down
+
+v0.31.9.11 upgraded the room-rectangle fix on the strength of this bathroom. That justification is
+withdrawn: the inset is not what loses the basin. What the experiment DID establish is separate and
+still useful — **`ROOM_INSET` costs the corpus 30 pieces** (1448 -> 1478), which is a real number
+for that item to be argued on, unlike the bathroom.
+
+Three wrong calls in a row on one room is worth naming as a pattern: each was geometry reasoned on
+paper and published without the cheap experiment that would have refuted it. The experiment here
+was one `sed` and one probe.
+
+No code change — all three experiments reverted.
+
 ## v0.31.9.11 — my own recommendation was measured on the wrong rectangle
 
 Implemented v0.31.9.10's "corner the shower" fix. It does not work, and the reason is the item this
@@ -61,6 +116,11 @@ fixing it inside `planRoomRect` flung `tpl-hdb-3room`'s dining chairs, re-argued
 basin under it.** That is a user-visible defect in a plan a contractor would be handed, and it is
 worth more than the "0.15 m of furniture placement" the item was first raised for or the six rooms
 of connectivity coverage .87 costed it at.
+
+**[WRONG — corrected in v0.31.9.12. Setting `ROOM_INSET` to 0 does NOT recover the basin. The room
+is simply too small for three fixtures; the inset is not what binds. This entry attributed the
+defect to the room-rect issue on reasoning alone, without running the one-line experiment that
+would have refuted it.]**
 
 The v0.31.9.10 entry is annotated inline rather than left standing, since it published arithmetic
 that does not survive contact with the code it recommends changing.

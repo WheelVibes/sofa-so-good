@@ -42,7 +42,17 @@ usable width is **1.26 m, not 1.50 m**, and a cornered shower leaves **0.36 m** 
 of the basin. Implemented and measured: the bias does not fire for `ctu-mbath` at all, and where it
 does fire it costs `tpl-hdb-exec` an item (96 -> 95). Reverted.
 
-**This is the ROOM-RECTANGLE issue, and it finally has a user-visible cost.** The inset removes
+**CORRECTED AGAIN v0.31.9.12 — and this is the last word on the room.** `ROOM_INSET = 0` still
+loses the basin, so the inset is NOT what binds. inset 0 PLUS cornering merely relocates the loss
+(the basin survives, the shower is dropped). The room is 1.5 x 2.4 m = 3.60 m²; a 0.9 m shower
+leaves 0.60 m of the 1.5 m wall, a 0.62 m basin misses that by 0.02 m along the wall or leaves
+0.10 m of circulation across it, and the door swing alone takes 18% of the floor. **Content limit,
+not an arranger bug** — options are widen the room ~0.2 m, a 0.75 m quadrant shower, or a
+two-fixture master bath. All three re-draw a shipped layout, so none is mine to pick.
+**The inset experiment did establish one real number for the room-rect item: `ROOM_INSET` costs the
+corpus 30 pieces (1448 -> 1478).** Argue it on that, not on this bathroom.
+
+~~**This is the ROOM-RECTANGLE issue, and it finally has a user-visible cost.**~~ The inset removes
 0.24 m of a 1.50 m room — 16% of its width — and the result is a shipped master bathroom that
 renders with a mirror and NO BASIN under it. That is a stronger case than the 0.15 m of furniture
 placement the item was first raised for (v0.31.8.60) or the six connectivity rooms v0.31.8.87
