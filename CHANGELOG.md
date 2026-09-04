@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.208 — `tpl-loft`'s double-height volume is actually double height (item `(w)`)
+
+The template's whole reason to exist — "double-height living with a real sleeping mezzanine" — was
+not built. `lf-open` carried no `ceilingHeight` override, so it took the plan's 3.0 m while the loft
+above reaches 5.5 m (3.3 elevation + 2.2 ceiling). `planGeometry.ts:85` builds walls at
+`wall.topHeight ?? plan.ceilingHeight`, so the ground perimeter stopped at 3.0 m and **the 2.5 m
+band between the two storeys had no exterior wall at all.** From the mezzanine the volume was open
+to the sky; from the ground floor a ceiling lid closed it off at head height.
+
+The fix is geometry, not rendering:
+
+- `lf-open` gets `ceilingHeight: 5.5`.
+- The east and west perimeter walls are **split at the mezzanine edge** (z = 3.4). The void-side
+  halves keep the `lf-e`/`lf-w` ids — so `lf-e1`, authored at offset 1.2, stays on its own wall —
+  and carry `topHeight: 5.5`. The rear halves (`lf-e-rear`, `lf-w-rear`) stay at the storey height,
+  because above the mezzanine the loft's own `lfu-e`/`lfu-w` already occupy those planes and a
+  full-height ground wall would render coplanar with them. `lf-n` borders only the void, so it
+  rises whole; `lf-s` lines the rooms under the mezzanine and is untouched.
+
+Verified by aimed raycast, not by eye. Eye level over the parapet: **NOTHING (sky) → the north wall
+at y = 4.27, z = 0.2**. Looking up from inside the volume on the GROUND floor: **y = 3.0 → y = 5.5**,
+at two separate points.
+
+**This also corrected `v0.31.7.207`'s ceiling rule, which was at the wrong granularity.** That
+commit suppressed an overlooked storey's ceilings per STOREY; with `lf-open` now genuinely 5.5 m
+tall, that deleted the roof over the void and put the sky band straight back (measured: top-band
+luma 187.4 sky vs 163.8 ceiling). `withCeiling` is replaced by `ceilingCullBelowY`, which drops a
+ceiling only when it sits below the floor being walked — a ceiling under your feet is a lid over the
+void, one above them roofs a room you are standing beside.
+
+Cost, same server, control taken by putting `git show HEAD:` in place and restoring with a verified
+`cp`: `performance` **59.9 / 60.0 fps** — unchanged, still at the cap. `realistic` **41.4 / 44.1 /
+44.2 / 45.8 / 48.2** (mean 44.7) against a control of **50.1 / 50.9 / 50.5** (spread 0.8), so ~11 %
+is real and not the instrument. p50 (2.0–2.7 ms) and worst frame (100–144 ms vs the control's
+116–120) are unchanged, so the loss is CPU-side per frame rather than raster — noted, not chased.
+
+`doubleHeightVolume.test.ts` is new and ratchets the geometry, because **nothing else in the repo
+would notice**: every enclosure, sightline and window guard works in plan and asks which walls
+bound a room, never how tall they are. Its first version passed vacuously — an overlap test
+requiring both axes can never match an axis-aligned wall, since one span is always degenerate, so it
+examined zero walls and reported green. It now asserts the set of walls it examined, and all three
+cases were checked to FAIL against the pre-fix template.
+
+
 ## v0.31.7.207 — walking an upper storey now shows the one below it (item `(g)`), and the sky over the rail turns out to be a different defect
 
 `visibleLevelsForWalk(plan, viewLevelId)` returns the walked storey plus every storey BELOW it, and

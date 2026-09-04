@@ -369,6 +369,13 @@ up as a required edit to the list.
 >
 > Looking DOWN over the rail now works and is the part this fix earns: the ground floor and its
 > furniture are there instead of a hole.
+>
+> **`v0.31.7.208` corrected the ceiling rule this commit introduced.** Suppressing an overlooked
+> storey's ceilings PER STOREY was the wrong granularity: once `(w)` gave `lf-open` its real 5.5 m
+> ceiling, that blanket suppression deleted the roof over the double-height volume and put the sky
+> band straight back. The cut is per ROOM and by height — `ceilingCullBelowY` drops a ceiling only
+> when it sits below the floor being walked. A ceiling under your feet is a lid over the void; one
+> above them roofs a room you are standing beside.
 
 
 **What you would see.** Open `tpl-loft`, pick View → Levels → "Loft" (the ONLY way to walk the
@@ -3315,7 +3322,7 @@ alone would produce (u)'s two classes.
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ✅ **SHIPPED v0.31.7.207** — walk mode renders the walked storey plus everything below (0 → 359 meshes below on `tpl-loft`), ceilings of overlooked storeys suppressed, furniture filter moved with it; `performance` 60 fps unchanged, `realistic` 52.7–53.4 vs a 54.1–57.6 control. **Uncovered `(w)`:** the sky over the rail is a missing wall band, not a visibility bug |
-| w | DOUBLE-HEIGHT-WALL-BAND | content / template geometry | 🐞 **REAL v0.31.7.207** — `lf-open` is authored as a 3.0 m room, so `tpl-loft`'s double-height volume has NO exterior wall between 3.0 m and the loft's 5.5 m and a ceiling lid at 3.0 m. Centre raycast over the rail hits nothing. Levers: per-wall `topHeight` on void-side spans + `ceilingHeight: 5.5` on `lf-open` |
+| w | DOUBLE-HEIGHT-WALL-BAND | content / template geometry | ✅ **SHIPPED v0.31.7.208** — `lf-open` now carries `ceilingHeight: 5.5` and the void-side perimeter spans (split from east/west at z = 3.4) carry `topHeight: 5.5`. Eye-level raycast over the rail went from **NOTHING (sky)** to the north wall at y = 4.27; looking up from the ground floor went from y = 3.0 to **y = 5.5** at two points. `performance` 59.9/60 fps unchanged; `realistic` **44.7 fps mean (41.4–48.2)** against a same-server control of **50.1/50.9/50.5** — a real ~11 %, with p50 and worst frame unchanged, so the loss is CPU-side per frame, not raster |
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |

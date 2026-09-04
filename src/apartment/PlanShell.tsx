@@ -587,6 +587,14 @@ export function PlanShell() {
   const levels = walking
     ? visibleLevelsForWalk(plan, viewLevelId)
     : visibleLevels(plan, viewLevelId)
+  // The height of the floor you are standing on, or null when nothing is being overlooked. A
+  // ceiling BELOW your feet is a lid over the void and must go; a ceiling ABOVE them belongs to a
+  // DOUBLE-HEIGHT room you are standing beside, and is the roof over that volume — suppressing it
+  // put the sky band straight back (measured on `tpl-loft`, v0.31.7.208). Per-storey was the wrong
+  // granularity; the cut is per ROOM, by height.
+  const walkedElevation = walking
+    ? (levels.find((l) => l.id === viewLevelId)?.elevation ?? null)
+    : null
 
   return (
     <group>
@@ -602,7 +610,7 @@ export function PlanShell() {
             wallColor={wallColor}
             cx={ew / 2}
             cz={ed / 2}
-            withCeiling={!walking || viewLevelId === 'all' || level.id === viewLevelId}
+            ceilingCullBelowY={level.id === viewLevelId ? null : walkedElevation}
           />
         </group>
       ))}
@@ -639,16 +647,18 @@ function PlanLevelShell({
   wallColor,
   cx,
   cz,
-  withCeiling = true,
+  ceilingCullBelowY = null,
 }: {
   plan: FloorPlan
   level: PlanLevel
   wallColor: string
   cx: number
   cz: number
-  /** False for a storey being OVERLOOKED from the one above (item `(g)`): its ceiling would
-   *  otherwise be seen from above as a slab lid over the void. */
-  withCeiling?: boolean
+  /** World Y below which this storey's room ceilings are dropped — the elevation of the floor
+   *  being walked, when this storey is being OVERLOOKED from above (item `(g)`). A ceiling under
+   *  your feet reads as a slab lid over the void; one above them roofs a double-height room and
+   *  stays. Null renders every ceiling. */
+  ceilingCullBelowY?: number | null
 }) {
   const finishes = useStore((s) => s.finishes)
   const crownMolding = useFeature('crownMolding')
@@ -931,50 +941,61 @@ function PlanLevelShell({
 
       {/* Per-room ceilings (downward-facing — seen in walk, culled in orbit).
           Honour a per-room override, falling back to the level/plan height.
-          Skipped entirely for a storey being OVERLOOKED from the one above
-          (`withCeiling` false, item `(g)`) — from up there the lid is what you
-          would see instead of the room. */}
-      {(withCeiling ? lp.rooms : []).map((r) => {
-        const h = r.ceilingHeight ?? lp.ceilingHeight
-        const ceilMat = resolvePlanRoomCeiling(finishes, r)
-        if (r.polygon && r.polygon.length >= 3) {
-          return (
-            <PlanRoomCeiling
-              key={r.id}
-              origin={r.origin}
-              width={r.width}
-              depth={r.depth}
-              height={h}
-              polygon={r.polygon}
-              ceiling={r.ceiling}
-              materialId={ceilMat}
-            />
-          )
-        }
-        return (
-          <group key={r.id}>
-            <PlanRoomCeiling
-              origin={r.origin}
-              width={r.width}
-              depth={r.depth}
-              height={h}
-              ceiling={r.ceiling}
-              materialId={ceilMat}
-            />
-            {/* An L-extension keeps a plain flat ceiling — the treatment applies
-                to the main rectangle only. The finish covers it too. */}
-            {r.extension && (
+          A room on a storey being OVERLOOKED from above (item `(g)`) drops its
+          ceiling when that ceiling sits BELOW the walked floor — from up there
+          the lid is what you would see instead of the room. A double-height
+          room whose ceiling rises past the walked floor keeps it: that surface
+          is the roof over the void you are looking into. */}
+      {lp.rooms
+        .filter(
+          (r) =>
+            ceilingCullBelowY == null ||
+            level.elevation + (r.ceilingHeight ?? lp.ceilingHeight) > ceilingCullBelowY + 0.05,
+        )
+        .map((r) => {
+          const h = r.ceilingHeight ?? lp.ceilingHeight
+          const ceilMat = resolvePlanRoomCeiling(finishes, r)
+          if (r.polygon && r.polygon.length >= 3) {
+            return (
               <PlanRoomCeiling
-                origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
-                width={r.extension.width}
-                depth={r.extension.depth}
+                key={r.id}
+                origin={r.origin}
+                width={r.width}
+                depth={r.depth}
                 height={h}
+                polygon={r.polygon}
+                ceiling={r.ceiling}
                 materialId={ceilMat}
               />
-            )}
-          </group>
-        )
-      })}
+            )
+          }
+          return (
+            <group key={r.id}>
+              <PlanRoomCeiling
+                origin={r.origin}
+                width={r.width}
+                depth={r.depth}
+                height={h}
+                ceiling={r.ceiling}
+                materialId={ceilMat}
+              />
+              {/* An L-extension keeps a plain flat ceiling — the treatment applies
+                to the main rectangle only. The finish covers it too. */}
+              {r.extension && (
+                <PlanRoomCeiling
+                  origin={[
+                    r.origin[0] + r.extension.offset[0],
+                    r.origin[1] + r.extension.offset[1],
+                  ]}
+                  width={r.extension.width}
+                  depth={r.extension.depth}
+                  height={h}
+                  materialId={ceilMat}
+                />
+              )}
+            </group>
+          )
+        })}
 
       {/* Walls — external walls fade when between the orbit camera and the plan
           centre; internal partitions stay solid. */}

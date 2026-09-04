@@ -130,6 +130,9 @@ export function oneBed(): FloorPlan {
 export function loft(): FloorPlan {
   const W = 8.2
   const D = 6.0
+  /** Top of the building: the loft's elevation (3.3) plus its ceiling (2.2). The double-height
+   *  volume's exterior walls and its ceiling both reach this, not the plan's 3.0 m. */
+  const VOID_TOP = 5.5
   // Mezzanine floor sits above the ground volume (ceiling 3.0 m + 0.3 m slab).
   const loftLevel: PlanUpperLevel = {
     id: 'lf-up',
@@ -159,7 +162,31 @@ export function loft(): FloorPlan {
     ceilingHeight: 3.0,
     extent: [W, D],
     walls: [
-      ...perimeter('lf', W, D),
+      // DOUBLE-HEIGHT-WALL-BAND (item `(w)`, v0.31.7.208). `perimeter()` builds every wall at
+      // `wall.topHeight ?? plan.ceilingHeight` (`planGeometry.ts:85`), so the plain perimeter
+      // stopped at **3.0 m** while the loft above reaches **5.5 m** — and the 2.5 m band between
+      // them had NO exterior wall at all. Standing on the mezzanine and looking across the void,
+      // a raycast through the frame centre hit nothing: the "double-height living" was open to the
+      // sky. Fixing it needs the void-side spans SPLIT out, because above the mezzanine the loft's
+      // own `lfu-e`/`lfu-w` already occupy that plane from 3.3 m up and a full-height ground wall
+      // would render coplanar with them.
+      //
+      // North borders only the void, so it rises whole. East and west are cut at the mezzanine
+      // edge (z = 3.4); the void-side halves keep the original `lf-e`/`lf-w` ids so `lf-e1`
+      // (offset 1.2 from [W-T, T], i.e. z = 1.3) stays on the wall it was authored against.
+      // South is untouched — it lines the rooms UNDER the mezzanine, where `lfu-s` covers above.
+      { id: 'lf-n', start: [T, T], end: [W - T, T], thickness: 'external', topHeight: VOID_TOP },
+      {
+        id: 'lf-e',
+        start: [W - T, T],
+        end: [W - T, 3.4],
+        thickness: 'external',
+        topHeight: VOID_TOP,
+      },
+      { id: 'lf-e-rear', start: [W - T, 3.4], end: [W - T, D - T], thickness: 'external' },
+      { id: 'lf-s', start: [W - T, D - T], end: [T, D - T], thickness: 'external' },
+      { id: 'lf-w-rear', start: [T, D - T], end: [T, 3.4], thickness: 'external' },
+      { id: 'lf-w', start: [T, 3.4], end: [T, T], thickness: 'external', topHeight: VOID_TOP },
       iwall('lf-bath-w', [6.2, 3.6], [6.2, D - T]),
       iwall('lf-bath-n', [6.2, 3.6], [W - T, 3.6]),
       // Stair run edge (open to the living side — no wall on its north).
@@ -184,6 +211,9 @@ export function loft(): FloorPlan {
         width: 7.8,
         depth: 3.3,
         floor: 'floor-concrete',
+        // The whole point of this template, and it was missing: without the override this room
+        // took the plan's 3.0 m and a ceiling lid closed the void off at head height.
+        ceilingHeight: VOID_TOP,
       },
       {
         id: 'lf-sleep',
