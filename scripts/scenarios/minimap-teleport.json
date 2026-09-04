@@ -3,7 +3,14 @@
   "description": "MINIMAP-JUMP: walk-mode minimap tap-to-teleport. Flag-gating (simple tier, default on), then a real click on the minimap SVG at the room farthest from the walker jumps them there, clamped inside the room's walls.",
   "url": "http://localhost:5231/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     {
       "name": "dismiss-overlays",
       "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setLightsMode?.('on')"
@@ -15,15 +22,56 @@
       },
       "failMessage": "minimapTeleport should be ON in the default Simple mode (simple tier, default true)"
     },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" } },
-    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      }
+    },
+    {
+      "name": "hide-loading",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
     {
       "name": "dismiss-walk-callout",
       "eval": "window.__store.getState().dismissCallout?.('walk-mode')"
     },
-    { "name": "settle-walk", "wait": 1500 },
-    { "name": "minimap-visible", "waitFor": { "css": ".minimap svg" } },
+    {
+      "name": "settle-walk",
+      "wait": 1500
+    },
+    {
+      "name": "minimap-visible",
+      "waitFor": {
+        "css": ".minimap svg"
+      }
+    },
     {
       "name": "aria-label-present",
       "eval": "const svg = document.querySelector('.minimap svg'); const label = svg.getAttribute('aria-label') || ''; if (!/tap/i.test(label)) throw new Error('minimap svg missing a tap-to-teleport aria-label, got: ' + JSON.stringify(label)); if (!svg.classList.contains('mm-tap')) throw new Error('minimap svg missing the mm-tap cursor-affordance class')"
@@ -32,21 +80,35 @@
       "name": "record-spawn-pos",
       "eval": "window.__campBefore = { x: window.__three.camera.position.x, z: window.__three.camera.position.z }"
     },
-    { "name": "shot-minimap-before", "screenshot": "01-minimap-before-tap" },
+    {
+      "name": "shot-minimap-before",
+      "screenshot": "01-minimap-before-tap"
+    },
     {
       "name": "tap-far-room-on-minimap",
-      "eval": { "file": "scripts/scenarios/evals/minimap-teleport-tap.mjs" }
+      "eval": {
+        "file": "scripts/scenarios/evals/minimap-teleport-tap.mjs"
+      }
     },
-    { "name": "settle-teleport", "wait": 600 },
+    {
+      "name": "settle-teleport",
+      "wait": 600
+    },
     {
       "name": "assert-walker-jumped-to-target-room",
-      "eval": "(() => { const t = window.__minimapJumpTarget; if (!t) throw new Error('tap step did not set __minimapJumpTarget'); const cam = window.__three.camera.position; const before = window.__campBefore; const travelled = Math.hypot(cam.x - before.x, cam.z - before.z); if (travelled < 2) throw new Error('walker barely moved (' + travelled.toFixed(2) + 'm) — tap-to-teleport did not fire'); const landedDist = Math.hypot(cam.x - t.worldX, cam.z - t.worldZ); if (landedDist > 1.2) throw new Error('walker landed ' + landedDist.toFixed(2) + 'm from the tapped room centre (' + t.roomName + ') — expected inside/near it, clamp margin ~0.25m'); window.__minimapJumpResult = { travelled, landedDist, roomName: t.roomName } })()"
+      "eval": "(() => { const t = window.__minimapJumpTarget; if (!t) throw new Error('tap step did not set __minimapJumpTarget'); const cam = window.__three.camera.position; const before = window.__campBefore; const travelled = Math.hypot(cam.x - before.x, cam.z - before.z); if (travelled < 2) throw new Error('walker barely moved (' + travelled.toFixed(2) + 'm) \u2014 tap-to-teleport did not fire'); const landedDist = Math.hypot(cam.x - t.worldX, cam.z - t.worldZ); if (landedDist > 1.2) throw new Error('walker landed ' + landedDist.toFixed(2) + 'm from the tapped room centre (' + t.roomName + ') \u2014 expected inside/near it, clamp margin ~0.25m'); window.__minimapJumpResult = { travelled, landedDist, roomName: t.roomName } })()"
     },
     {
       "name": "assert-walker-inside-target-room-bounds",
       "eval": "(() => { const t = window.__minimapJumpTarget; const st = window.__store.getState(); const room = st.floorPlan.rooms.find(r => r.id === t.roomId); if (!room) throw new Error('target room vanished'); const cam = window.__three.camera.position; const margin = 0.5; const inX = cam.x >= room.origin[0] - margin && cam.x <= room.origin[0] + room.width + margin; const inZ = cam.z >= room.origin[1] - margin && cam.z <= room.origin[1] + room.depth + margin; if (!room.polygon && !(inX && inZ) && !room.extension) throw new Error('walker (' + cam.x.toFixed(2) + ',' + cam.z.toFixed(2) + ') landed outside the target room bounds') })()"
     },
-    { "name": "shot-minimap-after", "screenshot": "02-minimap-after-tap" },
-    { "name": "shot-walker-view-after-tap", "screenshot": "03-walker-view-after-tap" }
+    {
+      "name": "shot-minimap-after",
+      "screenshot": "02-minimap-after-tap"
+    },
+    {
+      "name": "shot-walker-view-after-tap",
+      "screenshot": "03-walker-view-after-tap"
+    }
   ]
 }

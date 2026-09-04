@@ -144,7 +144,9 @@ describe('MINIMAP-LEVEL: the minimap draws the storey being walked', () => {
     const { container } = render(<Minimap />)
     const d = drawn(container)
     expect(d.rooms).toBe(7)
-    expect(d.walls).toBe(13)
+    // 13 -> 14 in v0.31.8.66: `em-hs-s`, the household shelter's missing fourth
+    // RC wall. A wall count, not a rendering change.
+    expect(d.walls).toBe(14)
     expect(d.dots).toBe(1)
   })
 

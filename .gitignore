@@ -79,3 +79,8 @@ assets/ocs/
 
 # Downloaded upstream asset corpora (ambientCG zips, IKEA R2 pulls) — multi-GB, never commit
 resources/
+
+# Scratch measurement probes. These are written and deleted many times a
+# release; v0.31.9.30 committed one by accident through `git add -A`.
+src/dbg.test.ts
+src/measTmp.test.ts

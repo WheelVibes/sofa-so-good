@@ -21,22 +21,33 @@ const BOX: FurnitureDef = {
 // must be excluded from circulation pinch checks.
 const MOUNTED: FurnitureDef = { ...BOX, id: 'mounted' as never, mounted: true }
 const RUG: FurnitureDef = { ...BOX, id: 'rug' as never, noClip: true }
+// A 0.6 m x 0.6 m piece — 0.36 m², BELOW `OBSTACLE_AREA_M2` (0.5), so it is
+// something you step around rather than a piece that defines a walkway. This is
+// the coffee-table / stool / plant class, and it is what makes the arm's-reach
+// exemption meaningful (BLOCKED-ROUTE-VISIBLE).
+const SMALL: FurnitureDef = {
+  ...BOX,
+  id: 'small' as never,
+  defaultFootprint: { w: 0.6, d: 0.6, h: 0.5 },
+}
 
 const defs: Record<string, FurnitureDef> = {
   box: BOX,
   mounted: MOUNTED,
   rug: RUG,
+  small: SMALL,
 }
 
 let seq = 0
 function mk(defId: string, x: number, z: number, levelId?: string): FurnitureItem {
+  const fp = defs[defId]?.defaultFootprint ?? { w: 1, d: 1 }
   return {
     id: `i-${defId}-${seq++}`,
     defId: defId as never,
     position: [x, z],
     rotation: 0,
     levelId,
-    props: { width: 1, depth: 1 },
+    props: { width: fp.w, depth: fp.d },
   }
 }
 
@@ -75,9 +86,41 @@ describe('findNarrowGaps', () => {
     expect(findNarrowGaps([a, b], defs, customPlan)).toHaveLength(0)
   })
 
+  // ARM'S-REACH-FLOOR (v0.31.8.51) — the blanket `sofaToCoffee` floor stays, and
+  // this is the measurement that settled it. `TODO.md` carried a queued fix:
+  // make the skip conditional on the pair NOT being two circulation obstacles,
+  // "`CIRCULATION.obstacleArea` already draws that line — a coffee table is
+  // below it". **That premise is false in this catalog.** `coffee-table` is
+  // 0.605 m² against a 0.5 m² bar, and so are `tv-console` (0.720),
+  // `armchair` (0.722), `desk` (0.840) and `dresser` (0.600). Built and measured
+  // over the 19 templates, the "fix" added 105 sub-0.40 m findings led by
+  // `sofa-3seat ↔ coffee-table`, `sofa-3seat ↔ armchair` and
+  // `bed-queen ↔ dresser` — the exact arm's-reach pairs the floor exists for —
+  // and drove median circulation 68 → 28 with two templates back at 0, which is
+  // the saturation v0.31.8.3 was written to remove. Reverted.
   it('does NOT flag an intentional close gap (0.3 m ≤ sofaToCoffee)', () => {
     const a = mk('box', 0, 0)
     const b = mk('box', 1.3, 0) // gap = 0.3 — arm's reach, not a walkway
+    expect(findNarrowGaps([a, b], defs, customPlan)).toHaveLength(0)
+  })
+
+  it('is blind below the floor even for two large pieces — a KNOWN limitation', () => {
+    // 0.05 m between two 1 m² pieces reports nothing. That is not a route anyone
+    // walks, so the finder is not wrong to be quiet; what it cannot do is tell
+    // "jammed together, walk around" from "this pair seals the only way
+    // through". Distinguishing those needs a ROUTE model (does removing this
+    // pair reconnect the room?), not a smaller gap threshold — see `TODO.md`.
+    const a = mk('box', 0, 0)
+    const b = mk('box', 1.05, 0) // gap = 0.05
+    expect(findNarrowGaps([a, b], defs, customPlan)).toHaveLength(0)
+  })
+
+  it('a piece below the obstacle bar is still subject to the same floor', () => {
+    // Pinning the catalog fact the rejected fix got wrong: the bar does not
+    // separate "walkway-defining" from "arm's reach". SMALL (0.36 m²) is below
+    // it and BOX (1 m²) is above it, and both are treated identically here.
+    const a = mk('box', 0, 0)
+    const b = mk('small', 1.1, 0) // gap = 0.3
     expect(findNarrowGaps([a, b], defs, customPlan)).toHaveLength(0)
   })
 
@@ -235,5 +278,54 @@ describe('custom-plan + per-level wall pinches (F13 remnant)', () => {
     expect(
       findNarrowGaps([mk('box', 4.7, 2.45, 'lvl-2')], defs, pinchPlan).some((g) => g.wall),
     ).toBe(false)
+  })
+})
+
+/**
+ * A wall between two pieces means there is no route between them to pinch
+ * (v0.31.8.6). Measured over a 62-layout corpus: 22 of 59 reported pinches
+ * (37%) had a wall between the two items, 18 of those in different rooms, and
+ * every one of them was costing the design score real points for a gap nobody
+ * can walk through.
+ */
+describe('findNarrowGaps — a wall between the pair', () => {
+  /** Two boxes 0.45 m apart across x=0, optionally split by a wall on that line. */
+  const fixture = (opts: { wall: boolean; door: boolean }): FloorPlan => {
+    const walls: FloorPlan['walls'] = opts.wall
+      ? [{ id: 'mid', start: [0, -3], end: [0, 3], thickness: 'internal' }]
+      : []
+    const openings: FloorPlan['openings'] = opts.door
+      ? [{ id: 'd1', kind: 'door', wallId: 'mid', offset: 2.2, width: 0.9, sill: 0, head: 2.1 }]
+      : []
+    return { ...buildDefaultPlan(), id: 'custom-wall-between', walls, openings }
+  }
+  // Edge-to-edge gap 0.45 m, centred on the wall line at x=0, at z=0 — level
+  // with the doorway when one exists (offset 2.2 of a 6 m wall spans z∈[-0.8,0.1]).
+  const pair = () => {
+    seq = 0
+    return [mk('box', -0.725, 0), mk('box', 0.725, 0)]
+  }
+  const itemPinches = (plan: FloorPlan) => findNarrowGaps(pair(), defs, plan).filter((g) => !g.wall)
+
+  it('reports the pinch when nothing is between them (control)', () => {
+    const found = itemPinches(fixture({ wall: false, door: false }))
+    expect(found).toHaveLength(1)
+    expect(found[0]!.gap).toBeCloseTo(0.45, 3)
+  })
+
+  it('does NOT report it through a solid wall', () => {
+    expect(itemPinches(fixture({ wall: true, door: false }))).toHaveLength(0)
+  })
+
+  it('DOES report it across a doorway — a doorway is a route', () => {
+    // This is the arm that makes the door handling falsifiable rather than
+    // assumed. The corpus cannot distinguish the two door states (0 pinches are
+    // blocked only by a doorway), so without this fixture the choice to treat
+    // doors as open would be untested. Same geometry as the arm above, one
+    // opening added, and the two MUST disagree.
+    const withDoor = itemPinches(fixture({ wall: true, door: true }))
+    const withoutDoor = itemPinches(fixture({ wall: true, door: false }))
+    expect(withDoor).toHaveLength(1)
+    expect(withoutDoor).toHaveLength(0)
   })
 })

@@ -194,6 +194,7 @@ export const ROOM_CATEGORIES = [
   'study',
   'serviceYard',
   'storeroom',
+  'shelter',
   'balcony',
   'foyer',
   'other',
@@ -480,6 +481,21 @@ export interface FloorPlan {
    * reconciliation sheet says explicitly rather than implying agreement.
    */
   siteMeasurements?: SiteMeasurement[]
+  /**
+   * The user's OWN measurements of the delivery route — lift door, lift cabin,
+   * main door — in metres, overriding `deliveryAccess.ts`'s published Singapore
+   * typicals.
+   *
+   * On the PLAN, not per-device, because the route is a property of the block
+   * this design is for: a shared or reopened design must carry it. Additive and
+   * optional (no version bump), exactly like `siteMeasurements` above; absent
+   * means the check is running on typicals, which is what it already says.
+   *
+   * Sparse by design — `{ 'lift-door': { widthM: 0.75 } }` overrides one
+   * dimension of one aperture and leaves the rest on the published figure, which
+   * is how someone measuring on site actually accumulates numbers.
+   */
+  deliveryRoute?: Record<string, { widthM?: number; heightM?: number }>
   /** Optional parametric roof over the top storey (UX research round 3,
    *  `parametricRoof` pro flag). Additive + optional — absent = no roof (the
    *  prior behaviour). Rendered by `apartment/Roof.tsx` from the pure
@@ -748,8 +764,46 @@ export function pointInRoom(r: PlanRoom, x: number, z: number): boolean {
   return false
 }
 
-/** Total interior area of a plan (sum of room areas), m². */
-export function planTotalArea(plan: FloorPlan): number {
+/**
+ * ONE STOREY's geometry, in the shape a plan-consuming helper reads it.
+ *
+ * ## Why this alias exists (F13 stage 1, user-authorised 2026-09-03)
+ *
+ * `FloorPlan.rooms` / `.walls` / `.openings` are the GROUND FLOOR ONLY; storeys
+ * above live in `upperLevels`. That invariant produced **eight silent bugs in
+ * one arc**, every one of which misbehaved only on a landed or maisonette plan
+ * and none of which raised an error. Two attempts at a lint guard failed,
+ * because "is this identifier a whole home or one storey?" is a TYPE question —
+ * `planTotalArea` is the proof: the plan editor calls it per storey (correct)
+ * while three other sites once passed the whole plan (wrong). Same function,
+ * opposite verdicts, nothing textual to match on.
+ *
+ * **Today this is an ALIAS of `FloorPlan`, so annotating a signature with it
+ * changes no behaviour and cannot break the suite.** That is deliberate: the
+ * measured blast radius of splitting the types outright is ~1279 `tsc` errors
+ * across 205 files, dominated not by bugs but by legitimate single-level
+ * consumers that merely declare `plan: FloorPlan`. Migrating those signatures
+ * first — mechanically, in small green commits — leaves a final stage that is
+ * small enough to land at once.
+ *
+ * **So: annotate every helper that reads one storey with this type.** When the
+ * alias is later replaced by
+ * `Omit<FloorPlan, 'upperLevels'> & LevelGeometry`, passing a whole `FloorPlan`
+ * where one storey is expected becomes a compile error, and the entire bug class
+ * stops being representable. Whole-home consumers keep `FloorPlan` and must go
+ * through `planLevels` / `allPlanRooms` / `allPlanWalls` / `allPlanOpenings`.
+ */
+export type SingleLevelPlan = FloorPlan
+
+/**
+ * Total interior area of ONE STOREY (sum of its room areas), m².
+ *
+ * Single-level by design — `FloorPlanEditor` calls it per storey. For the whole
+ * home use `levels.ts:planTotalAreaAllLevels`, which sums this across
+ * `planLevels`; passing a multi-storey plan here reports the ground floor only,
+ * which understates `tpl-hdb-maisonette` by 59.9 m² (v0.31.8.99).
+ */
+export function planTotalArea(plan: SingleLevelPlan): number {
   return plan.rooms.reduce((sum, r) => sum + planRoomArea(r), 0)
 }
 
@@ -799,6 +853,23 @@ export function clampOpeningOffset(
  * declared `extent` and the bounding box of all walls and rooms. Used for the
  * floor slab / grid / editor viewport so drawing beyond the initial extent
  * still renders fully.
+ */
+/**
+ * The plan's overall extent (site width/depth), m.
+ *
+ * **Deliberately takes a whole `FloorPlan` and NOT `SingleLevelPlan`** (audited
+ * v0.31.9.3, after 18 of its bare-plan call sites were flagged as F13
+ * candidates). It reads the SITE extent — what camera framing, grid overlay,
+ * viewport fitting and drawing sheets need — and the ground floor's extent is
+ * the site extent: measured across all three shipped two-storey templates
+ * (`tpl-hdb-maisonette` 8.40 x 9.40, `tpl-loft` 8.20 x 6.00,
+ * `tpl-terrace-ground` 6.40 x 14.00) every upper storey is IDENTICAL to its
+ * ground floor and none exceeds it. Annotating this single-level would
+ * manufacture 18 future compile errors that are not bugs.
+ *
+ * Known limit, not worth building for yet: a USER-drawn upper storey that
+ * overhangs the ground floor would frame short here. No shipped plan does, and
+ * a cantilever is not expressible in the 2D editor today.
  */
 export function planBounds(plan: FloorPlan): PlanVec2 {
   let mx = plan.extent[0]

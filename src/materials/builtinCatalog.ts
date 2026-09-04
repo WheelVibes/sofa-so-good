@@ -133,6 +133,24 @@ const TILE_PATTERNS: readonly ProceduralPattern[] = [
   'checker',
   'peranakan',
 ]
+/**
+ * Whether a finish is a TILE product — the authored `pattern` decides, never the
+ * name and never the presence of `moduleMm`.
+ *
+ * Added v0.31.8.15 because the Specification sheet was deciding "is there tiling
+ * work" from whether tile SETTING-OUT could be computed, which needs a specified
+ * `moduleMm`. 12 floor and 4 wall tile finishes carry no module
+ * (`floor-tile-marble`, `floor-tile-hex`, `floor-checker-*`, `wall-subway-*`,
+ * `wall-peranakan-*`), so a home tiled entirely in any of them printed "Not
+ * covered by this specification: tiler — no such work appears in the design".
+ * Those are two different questions: the tiling TRADE is present because a tile
+ * finish is specified; the setting-out CLAUSE needs the module.
+ */
+export function isTiledFinish(material: MaterialDef | undefined): boolean {
+  if (material?.kind !== 'procedural') return false
+  return TILE_PATTERNS.includes(material.pattern)
+}
+
 /** Patterns that are timber-board products. */
 const WOOD_PATTERNS: readonly ProceduralPattern[] = ['wood', 'parquet', 'herringbone']
 
@@ -237,7 +255,18 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     undefined,
     PORCELAIN_600,
   ),
-  'floor-tile-marble': floor('floor-tile-marble', 'Marble', '#dcd6c8', 'marble', [1.6, 1.6]),
+  // 600x600 is the standard marble floor format — "2x2 feet or 24x24 inches",
+  // the size that "can reduce grout lines and improve visual flow". A PRODUCT
+  // dimension, researched; NOT read off `uvScale` (see `MaterialDef.moduleMm`).
+  'floor-tile-marble': floor(
+    'floor-tile-marble',
+    'Marble',
+    '#dcd6c8',
+    'marble',
+    [1.6, 1.6],
+    undefined,
+    [600, 600],
+  ),
   'floor-carpet-grey': floor('floor-carpet-grey', 'Grey carpet', '#7a7c7e', 'carpet', [1.5, 1.5]),
   'floor-vinyl-light': floor(
     'floor-vinyl-light',
@@ -250,6 +279,33 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   ),
   'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
   // Honeycomb hex tile — a kitchen/bath staple (Coohom/Planner-5D parity).
+  //
+  // **`moduleMm` is deliberately ABSENT on both hex finishes (v0.31.8.16).**
+  // Every other tile family here got its researched product size so the
+  // setting-out sheet could stop omitting it. A hexagon cannot have one, and
+  // this is measured rather than argued.
+  //
+  // Published hex practice: "hexagonal grids do NOT align with room walls the
+  // way square tiles do, so perimeter cuts will be irregular"; the field is set
+  // out from the CENTRE of the most visible area outward; each perimeter cut is
+  // measured individually against the wall from the last full tile; the
+  // flat-top vs point-top orientation changes how those cuts fall; and the trade
+  // allows ~15% waste against ~10% for square tile "due to the complexity of
+  // angled perimeter cuts". None of that is expressible as one `[w, h]`
+  // rectangle, which is all `moduleMm` is.
+  //
+  // Measured what a rectangular module would actually print, on a 2.4 x 2.0 m
+  // room with a 200 mm across-flats hex (point height 230.9 mm): the true count
+  // by area is 138.6 tiles (160 at the 15% hex waste allowance), while
+  // `roomTileCoursing` reports **120** — 13.4% short before waste, 25% short of
+  // the figure a tiler would order — plus a uniform 76.2 mm end cut that does
+  // not exist on a hex perimeter.
+  //
+  // So absence is the honest answer: `planTileCoursing` counts these rooms as
+  // OMITTED and the sheet says how many it could not set out, rather than
+  // printing a field that is both under-counted and wrongly shaped. Setting hex
+  // out properly needs its own model (centre origin, row offset, per-tile
+  // angled perimeter cuts) — logged in `TODO.md`.
   'floor-tile-hex': floor('floor-tile-hex', 'Hexagon tiles', '#e4e0d6', 'hexagon', [0.5, 0.5]),
   'floor-tile-hex-charcoal': floor(
     'floor-tile-hex-charcoal',
@@ -316,12 +372,18 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     'herringbone',
     [2.0, 2.0],
   ),
+  // Generic checkerboard: 300x300, the classic 12"x12" checker format (the
+  // compact standard size, "1x1 feet or 12x12 inches"). The HERITAGE colourways
+  // below take the smaller Peranakan 200 mm instead — same pattern, different
+  // product.
   'floor-checker-mono': floor(
     'floor-checker-mono',
     'Checkerboard',
     '#e8e6e0',
     'checker',
     [1.2, 1.2],
+    undefined,
+    [300, 300],
   ),
   'floor-checker-terracotta': floor(
     'floor-checker-terracotta',
@@ -329,6 +391,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#c79a78',
     'checker',
     [1.2, 1.2],
+    undefined,
+    [300, 300],
   ),
   'floor-terrazzo-dark': floor(
     'floor-terrazzo-dark',
@@ -338,13 +402,22 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     [1.0, 1.0],
   ),
   // Heritage checkerboard colourways (jade / cobalt) — the classic Peranakan
-  // shophouse floor. Two tiles ≈ 0.6 m each at this uvScale.
+  // shophouse floor, so they take the Peranakan product size (200 mm; "the
+  // traditional 200mm (20cm) size is the standard for Peranakan tiles") rather
+  // than the generic 300 mm checker above.
+  //
+  // The old comment here read "Two tiles ≈ 0.6 m each at this uvScale", which
+  // describes the TEXTURE, not a product — deriving `moduleMm` from it would be
+  // exactly what that field's docs forbid, and would have specified a 600 mm
+  // heritage checker.
   'floor-checker-jade': floor(
     'floor-checker-jade',
     'Heritage checker (jade)',
     '#3f7d6a',
     'checker',
     [1.2, 1.2],
+    undefined,
+    [200, 200],
   ),
   'floor-checker-cobalt': floor(
     'floor-checker-cobalt',
@@ -352,15 +425,22 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#2f4d8a',
     'checker',
     [1.2, 1.2],
+    undefined,
+    [200, 200],
   ),
   // Peranakan / Nyonya majolica encaustic tiles — the named 2026 heritage trend.
-  // Small cement tiles (~0.2 m each; 2 tiles per texture → 0.4 m uvScale).
+  // 200x200 is the researched product size: "Peranakan tiles commonly exist in
+  // sizes such as 20cm x 20cm", and "the traditional 200mm (20cm) size is the
+  // standard". It coincides with what this uvScale renders, but the figure comes
+  // from the sources — `moduleMm` must never be read off `uvScale`.
   'floor-peranakan-jade': floor(
     'floor-peranakan-jade',
     'Peranakan tile (jade)',
     '#3f7d6a',
     'peranakan',
     [0.4, 0.4],
+    undefined,
+    [200, 200],
   ),
   'floor-peranakan-cobalt': floor(
     'floor-peranakan-cobalt',
@@ -368,6 +448,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#2f4d8a',
     'peranakan',
     [0.4, 0.4],
+    undefined,
+    [200, 200],
   ),
   'floor-peranakan-rose': floor(
     'floor-peranakan-rose',
@@ -375,6 +457,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#c56b6b',
     'peranakan',
     [0.4, 0.4],
+    undefined,
+    [200, 200],
   ),
   'floor-carpet-blue': floor('floor-carpet-blue', 'Navy carpet', '#3f4a63', 'carpet', [1.5, 1.5]),
   'floor-carpet-greige': floor(
@@ -595,6 +679,10 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'wall-brick-charcoal': wallpaper('wall-brick-charcoal', 'Charcoal brick', '#55504c', 'brick'),
   // Glossy subway/metro tile — the classic kitchen-backsplash + bathroom finish.
   // Smaller uvScale than wallpaper so the running-bond tiles read at metro size.
+  // Subway tile: 75x150 mm, i.e. the original 3"x6" — "the standard subway tile
+  // size ... has been a benchmark in design for over a century", "the original
+  // dimension used in New York's subways". A researched PRODUCT dimension, not
+  // read off `uvScale`.
   'wall-subway-white': {
     id: 'wall-subway-white',
     name: 'Subway tile (white)',
@@ -603,6 +691,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'subway',
     swatch: '#eceae4',
     uvScale: [0.7, 0.7],
+    moduleMm: [75, 150],
   },
   'wall-subway-sage': {
     id: 'wall-subway-sage',
@@ -612,6 +701,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'subway',
     swatch: '#b3bca9',
     uvScale: [0.7, 0.7],
+    moduleMm: [75, 150],
   },
   // ── SNV 4-room HDB wall tiles (assets/guidelines/specs.png) ────────────────
   // Glazed porcelain wall tile, 300×600 — same `porcelain` painter/uvScale
@@ -733,6 +823,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   },
   // Peranakan majolica as a backsplash / feature-wall accent (same painter as
   // the floor tiles; tighter tiling for a wall).
+  // 200x200, the same researched Peranakan product size as the floor colourways.
   'wall-peranakan-jade': {
     id: 'wall-peranakan-jade',
     name: 'Peranakan tile (jade)',
@@ -741,6 +832,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'peranakan',
     swatch: '#3f7d6a',
     uvScale: [0.4, 0.4],
+    moduleMm: [200, 200],
   },
   'wall-peranakan-cobalt': {
     id: 'wall-peranakan-cobalt',
@@ -750,6 +842,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'peranakan',
     swatch: '#2f4d8a',
     uvScale: [0.4, 0.4],
+    moduleMm: [200, 200],
   },
   // Board-and-batten panelling (vertical raised battens), tiles ~1.2 m wide.
   'wall-batten-white': wallpaper(

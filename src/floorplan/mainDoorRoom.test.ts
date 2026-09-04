@@ -22,14 +22,22 @@ import { pointInRoom } from './types'
  * **Do NOT add an entry to silence a failure.** A new entry means a plan ships a
  * front door opening into somebody's bedroom.
  */
-const KNOWN_MISPLACED_MAIN_DOORS = [
-  'tpl-hdb-2room/h2-main -> h2-bath',
+// EMPTY of live entries since v0.31.8.37 — every shipped front door now opens
+// into an entrance space. Keep the list and the sweep: a new template, or an
+// edited offset, can still introduce one, and every fix below is recorded so the
+// next reader can see WHY each offset is what it is.
+const KNOWN_MISPLACED_MAIN_DOORS: string[] = [
+  // tpl-hdb-2room FIXED in v0.31.8.36 — `h2-main` 1.2 -> 2.6, out of the
+  // BATHROOM and into the living room. 3.5 read better on paper but lost the
+  // flat's dining TABLE; 2.6 costs only its TV console.
   // tpl-hdb-4room FIXED in v0.31.5.115 — `h4-main`'s offset was mirrored and put
   // the front door inside the master bedroom. Corrected (6.4 -> 1.7).
-  'tpl-hdb-5room/h5-main -> h5-master',
+  // tpl-hdb-5room FIXED in v0.31.8.37 — `h5-main` moved off `h5-s` entirely.
+  // That wall is lined only by the master, the master bath and the balcony, so
+  // no offset on it is correct; the door now fronts `h5-n` beside the service
+  // band, at offset 7.0, inside the Living / Dining room.
   // tpl-hdb-exec FIXED in v0.31.5.118 — `ex-main` 8.4 -> 2.1, out of the master
   // and into ex-living, which lines offsets 0.1-4.3 of that wall.
-  'tpl-hdb-3gen/g3-main -> g3-master',
   // tpl-hdb-jumbo FIXED in v0.31.5.119 — `jb-main` 9.2 -> 4.1, out of the master
   // and into jb-family. The Living / Dining never touches this wall (it fronts
   // jb-n and jb-e), so the Family Room is the correct target, not the living room.

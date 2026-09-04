@@ -1,4 +1,7 @@
-import type { PlanWall } from './types'
+import { levelAsPlan, planLevels } from './levels'
+import { roomCategory } from './roomCategory'
+import { roomBoundaryWalls } from './roomWallNames'
+import type { FloorPlan, PlanWall } from './types'
 
 /**
  * R4-7 — wall demolition ("hackability") classification.
@@ -119,9 +122,11 @@ export function hackClassDescription(c: HackClass): string {
  * laziness.** For a generic flat-TYPE archetype there is no single correct
  * answer: the structural layout of a 4-room flat differs by block and by
  * construction era, so an official per-block plan cannot classify a template,
- * because a template is not a block. Household-shelter walls ARE universally RC
- * (post-1997 flats), but the app has no `'shelter'` room category to recognise
- * one without guessing from its name. Both are recorded in `TODO.md`.
+ * because a template is not a block. That case is still recorded in `TODO.md`.
+ *
+ * **The household-shelter exception is now handled** — see `shelterWallIds` and
+ * `establishedWallStructureInPlan`, which need room context this wall-only
+ * function does not have. Prefer those whenever a plan is available.
  */
 export function establishedWallStructure(
   wall: Pick<PlanWall, 'structure' | 'thickness'>,
@@ -140,4 +145,64 @@ export function establishedWallStructure(
  */
 export function isDemolitionRestricted(structure?: PlanWall['structure']): boolean {
   return wallHackability(structure) === 'no'
+}
+
+/**
+ * Wall ids bounding a household shelter, on any storey.
+ *
+ * A household shelter is the one internal partition an archetype CAN classify.
+ * It is compulsory in HDB flats built from **1996** onwards; its walls, floor
+ * and ceiling are cast as blast-resistant reinforced concrete, and SCDF's
+ * permitted-works schedule forbids hacking, drilling or removing any part of
+ * them — the prohibition is listed alongside load-bearing walls, columns and
+ * beams, and unlike those it cannot be lifted by a permit or a PE endorsement.
+ * (Sources cited in the v0.31.8.26 CHANGELOG entry.)
+ *
+ * So this stays within the module's rule that structure is only ever filled in
+ * from a DECLARATION plus a documented regulation, never from geometry: the
+ * declaration here is `PlanRoom.category === 'shelter'`, exactly as
+ * `thickness: 'external'` is the declaration behind the envelope rule.
+ *
+ * Level-aware (F13): each storey's rooms are matched against ITS OWN walls, so a
+ * ground-floor shelter cannot classify a wall on the storey above it.
+ *
+ * `roomBoundaryWalls` matches a wall within 0.25 m of a boundary edge, so a wall
+ * running just outside the shelter can be caught. That over-classifies towards
+ * NOT PERMITTED, which is the safe direction for demolition advice — the failure
+ * it prevents (telling someone they may remove a blast-shelter wall) is not
+ * comparable to the failure it risks (an over-cautious label on an adjacent
+ * partition).
+ */
+export function shelterWallIds(plan: FloorPlan): ReadonlySet<string> {
+  const ids = new Set<string>()
+  for (const level of planLevels(plan)) {
+    const lp = levelAsPlan(plan, level)
+    const walls = Array.isArray(lp.walls) ? lp.walls : []
+    if (walls.length === 0) continue
+    for (const room of Array.isArray(lp.rooms) ? lp.rooms : []) {
+      if (roomCategory(room) !== 'shelter') continue
+      for (const w of roomBoundaryWalls(walls, room)) ids.add(w.id)
+    }
+  }
+  return ids
+}
+
+/**
+ * `establishedWallStructure` plus the household-shelter rule, which needs room
+ * context. Pass `shelterWallIds(plan)` (compute it ONCE per plan — it walks
+ * every room's boundary).
+ *
+ * Precedence: a user declaration always wins; then the shelter rule; then the
+ * envelope rule. Shelter is checked before `thickness` because it is the more
+ * specific fact — a shelter wall that is also on the façade is RC either way,
+ * and both classify as `'no'`, so nothing is under-reported by the order.
+ */
+export function establishedWallStructureInPlan(
+  wall: Pick<PlanWall, 'id' | 'structure' | 'thickness'>,
+  shelterWalls: ReadonlySet<string>,
+): PlanWall['structure'] {
+  if (wall.structure) return wall.structure
+  if (shelterWalls.has(wall.id)) return 'rc-partition'
+  if (wall.thickness === 'external') return 'load-bearing'
+  return undefined
 }

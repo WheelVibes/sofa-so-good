@@ -21,9 +21,10 @@ import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { isItemEmitter } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
-import { CLEARANCE } from '../layout/designRules'
+import { CLEARANCE, OBSTACLE_AREA_M2 } from '../layout/designRules'
 import { findNarrowGaps } from '../layout/walkway'
-import { buildDaylightReport, isExternalRoom } from './daylight'
+
+import { buildDaylightReport, isDaylightExempt, isExternalRoom } from './daylight'
 
 type ScoreCategoryId = 'clearance' | 'circulation' | 'daylight' | 'furnishing' | 'lighting'
 
@@ -129,7 +130,7 @@ const CIRCULATION = {
   /** Footprint area (m²) for a piece to count as a circulation OBSTACLE — matches
    *  `layoutPresets.test`'s "large piece" bar. Below it (lamps, plants, stools,
    *  a monitor) you step around; it never defines a walkway. */
-  obstacleArea: 0.5,
+  obstacleArea: OBSTACLE_AREA_M2,
   /** Penalty for the tightest reportable route pinch. Charged in full at
    *  `gradedFloor` and tapering linearly to zero at `squeezeGap`, so a 0.49 m
    *  near-miss costs ~2 points where it used to cost the same 20 as a 0.41 m
@@ -361,17 +362,68 @@ function daylightCategory(plan: FloorPlan): ScoreCategory {
   if (total === 0) {
     issues.push({ severity: 'info', message: 'No interior rooms to assess for daylight.' })
   } else {
-    // Average of the two pass-ratios (daylight + ventilation).
-    const ratio = (report.daylightPassCount + report.ventPassCount) / (total * 2)
-    score = clamp(Math.round(ratio * 100))
-    const failing = report.rooms.filter((r) => !r.daylightPass || !r.ventPass)
-    if (failing.length > 0)
+    // A room with no façade wall (`noFacade` — the HDB household shelter is the
+    // canonical case) can never pass and can never be remedied: there is no
+    // external wall to put a window in. Both the SCORE and the ADVICE therefore
+    // exclude it — charging a flat for a windowless blast shelter scores the user
+    // on something they cannot change, and "add or widen windows" is advice that
+    // cannot be followed there.
+    // `isDaylightExempt` is the shared predicate — the panel and the printed
+    // report use the same one, so the three cannot disagree about which rooms
+    // are being counted. An interior room in a HABITABLE category is NOT exempt:
+    // it keeps counting against the score, and gets its own stronger finding.
+    const assessable = report.rooms.filter((r) => !isDaylightExempt(r))
+    // The two exemption reasons get their own notes — a shelter on the façade
+    // genuinely has an external wall, so lumping it in with the interior rooms
+    // would state something false about the plan.
+    const shelters = report.rooms.filter((r) => r.blastShelter)
+    const sealed = report.rooms.filter((r) => isDaylightExempt(r) && !r.blastShelter)
+    const sealedHabitable = report.rooms.filter((r) => r.noFacade && r.habitable)
+    if (assessable.length === 0) {
+      issues.push({
+        severity: 'info',
+        message: 'No room with an alterable wall to assess for daylight.',
+      })
+    } else {
+      // Average of the two pass-ratios (daylight + ventilation).
+      const passes =
+        assessable.filter((r) => r.daylightPass).length +
+        assessable.filter((r) => r.ventPass).length
+      score = clamp(Math.round((passes / (assessable.length * 2)) * 100))
+      // Counting against the score and being told to add a window are different
+      // things. An interior habitable room stays in `assessable` (it keeps
+      // costing the plan points — a bedroom with no daylight is a real defect)
+      // but is kept OUT of this advisory, because it has no façade to open onto
+      // and gets its own stronger message below. Without this split,
+      // `tpl-condo-penthouse`'s interior `Lounge` was both told to "add or widen
+      // windows" and told no window was possible.
+      const failing = assessable.filter((r) => (!r.daylightPass || !r.ventPass) && !r.noFacade)
+      if (failing.length > 0)
+        issues.push({
+          severity: 'warning',
+          message: `${failing.length} ${plural(failing.length, 'room')} below the daylight/airflow rule of thumb — add or widen windows.`,
+        })
+      else if (assessable.every((r) => r.daylightPass && r.ventPass))
+        issues.push({
+          severity: 'info',
+          message: `Every ${sealed.length > 0 ? 'assessed ' : ''}room meets the daylight & airflow guide.`,
+        })
+    }
+    if (sealedHabitable.length > 0)
       issues.push({
         severity: 'warning',
-        message: `${failing.length} ${plural(failing.length, 'room')} below the daylight/airflow rule of thumb — add or widen windows.`,
+        message: `${sealedHabitable.map((r) => r.roomName).join(', ')} ${sealedHabitable.length === 1 ? 'is a habitable room' : 'are habitable rooms'} with no external wall — no daylight is possible at all; the layout needs an opening onto the façade.`,
       })
-    else
-      issues.push({ severity: 'info', message: 'Every room meets the daylight & airflow guide.' })
+    if (sealed.length > 0)
+      issues.push({
+        severity: 'info',
+        message: `${sealed.map((r) => r.roomName).join(', ')} ${sealed.length === 1 ? 'is an interior room' : 'are interior rooms'} with no external wall — no window is possible, so not assessed.`,
+      })
+    if (shelters.length > 0)
+      issues.push({
+        severity: 'info',
+        message: `${shelters.map((r) => r.roomName).join(', ')} ${shelters.length === 1 ? 'is a household shelter' : 'are household shelters'} — reinforced-concrete walls that may not be opened, windowless by design, so not assessed.`,
+      })
   }
   return {
     id: 'daylight',

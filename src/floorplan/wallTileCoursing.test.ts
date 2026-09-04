@@ -223,3 +223,91 @@ describe('planWallTileCoursing — per storey', () => {
     expect(() => planWallTileCoursing(null as unknown as FloorPlan, {}, {})).not.toThrow()
   })
 })
+
+/**
+ * **Corner course alignment (v0.31.8.14).** `TODO.md` recorded that "faces are
+ * set out independently, so courses do not generally align around a corner",
+ * and called fixing it a larger job needing a design decision about which
+ * face's balance to sacrifice. **That premise is wrong**, and these tests pin
+ * why: courses are struck from the TOP of each face down, and every face of a
+ * room shares the room's ceiling height and its single per-room wall finish, so
+ * the course grid is identical on all four faces BY CONSTRUCTION.
+ *
+ * Measured on the shipped flat: Bath/WC 1, Bath/WC 2 and the Kitchen each have
+ * all four faces at one `(fullCourses, bottomCut)` pair, and
+ * `cornerCourseSteps` is empty for all three.
+ *
+ * The point of pinning it is that the alignment is a CONSEQUENCE of the
+ * ceiling-down rule rather than something anyone asked for — so a change to
+ * that rule (striking from the floor up, say, or per-face heights) would break
+ * it silently.
+ */
+describe('planWallTileCoursing — corner course alignment', () => {
+  const materials = { 'wall-tile-white': TILE_300_600 }
+
+  /** A 2.4 x 2 m wet room, all four faces tiled. */
+  const wetRoom = (over: Partial<PlanWall> = {}, targetId = ''): FloorPlan =>
+    ({
+      id: 'p',
+      name: 'p',
+      extent: [6, 4],
+      ceilingHeight: 2.4,
+      walls: [
+        wall('n', 0, 0, 2.4, 0),
+        wall('e', 2.4, 0, 2.4, 2),
+        wall('s', 0, 2, 2.4, 2),
+        wall('w', 0, 0, 0, 2),
+      ].map((w) => (w.id === targetId ? { ...w, ...over } : w)),
+      openings: [],
+      rooms: [room('bath', 'Bath', 0, 0, 2.4, 2)],
+    }) as unknown as FloorPlan
+
+  it('aligns every face by construction — no corner steps', () => {
+    const res = planWallTileCoursing(wetRoom(), { bath: 'wall-tile-white' }, materials)
+    expect(res.rows).toHaveLength(4)
+    // One distinct course grid across all four faces.
+    const grids = new Set(res.rows.map((r) => `${r.fullCourses}/${r.bottomCutMm}`))
+    expect(grids.size).toBe(1)
+    expect(res.cornerCourseSteps).toEqual([])
+  })
+
+  it('still aligns when a half-height face is a WHOLE number of courses', () => {
+    // 1.2 m on a 600 mm module: joints at 600 mm either side of the corner.
+    // This is the arm that stops the check firing on a benign knee wall.
+    const res = planWallTileCoursing(
+      wetRoom({ topHeight: 1.2 }, 'e'),
+      { bath: 'wall-tile-white' },
+      materials,
+    )
+    expect(res.cornerCourseSteps).toEqual([])
+  })
+
+  it('reports the step when a half-height face is OUT of phase', () => {
+    // 1.1 m: that face's joint lands at 500 mm against 600 mm on its
+    // neighbours — a 100 mm step, exactly (2400 - 1100) mod 600.
+    const res = planWallTileCoursing(
+      wetRoom({ topHeight: 1.1 }, 'e'),
+      { bath: 'wall-tile-white' },
+      materials,
+    )
+    expect(res.cornerCourseSteps).toHaveLength(1)
+    expect(res.cornerCourseSteps[0]!.wallId).toBe('e')
+    expect(res.cornerCourseSteps[0]!.stepMm).toBeCloseTo(100, 3)
+    expect(res.cornerCourseSteps[0]!.roomName).toBe('Bath')
+  })
+
+  it('blames the MINORITY face even when it is the FIRST one', () => {
+    // The arm that makes the majority rule falsifiable. With the odd face at
+    // 'e' (as above) a reference of "whichever face comes first" gives the same
+    // answer, so that fixture cannot tell the two rules apart. Putting the odd
+    // face FIRST separates them: a first-face reference would report the three
+    // AGREEING faces as stepped and let the real offender pass.
+    const res = planWallTileCoursing(
+      wetRoom({ topHeight: 1.1 }, 'n'),
+      { bath: 'wall-tile-white' },
+      materials,
+    )
+    expect(res.cornerCourseSteps.map((s) => s.wallId)).toEqual(['n'])
+    expect(res.cornerCourseSteps[0]!.stepMm).toBeCloseTo(100, 3)
+  })
+})

@@ -1,7 +1,7 @@
 import { ROOMS } from '../apartment/constants'
 import { roomContains, roomParts } from '../apartment/roomGeometry'
 import type { RoomId } from '../apartment/types'
-import { broadphaseNeighbours, canPlace } from '../collision/placement'
+import { broadphaseNeighbours, canPlace, itemHeightAwareClash } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { GROUND_LEVEL_ID, levelAsPlan, levelOfRoom, planLevels } from '../floorplan/levels'
@@ -18,9 +18,10 @@ import {
   opposite,
   planRoomRect,
   type Rect,
+  ROOM_INSET,
   rectsOverlap,
 } from './arrangeGeometry'
-import { type ArrangeRole, roleForCategory, roleOf } from './arrangeRoles'
+import { type ArrangeRole, roleForCategory, roleOf, WALL_BOUND_CATEGORIES } from './arrangeRoles'
 import {
   doorApproachRects,
   doorSwingRects,
@@ -196,9 +197,40 @@ function tryPlace(
   // equivalence sweep in arrangeBroadphase.test.ts. The wall arm of canPlace
   // is unaffected (it never reads `others`).
   const near = broadphaseNeighbours(candidate, def, others, ctx.catalog)
+  /**
+   * MOUNT-HEIGHT-IN-ARRANGER (v0.31.9.30) — a MOUNTED obstacle only blocks this
+   * candidate if their vertical spans actually overlap.
+   *
+   * `arrangeCore` seeds `world` with the room's fixed pieces "so floor furniture
+   * isn't parked under them", and the flaw in that is timing: mounts are still on
+   * their SEED at this point — the room CENTRE — because `placeSeededMounts`
+   * moves them to their walls afterwards, in `furnishPlan`. So every room
+   * arranged its floor around a phantom obstacle in the middle of the room.
+   *
+   * Measured on `tpl-hdb-maisonette/emu-cbath`: its `toilet` was refused every
+   * position on every wall — `wallsOk=true`, no keep-out, no window — by a
+   * `towel-rail@7.50,1.30`, which is a 1.1 m-high rail and cannot conflict with a
+   * toilet. Both the toilet and the basin then sat on the seed, `dropOverlaps`
+   * kept the toilet and deleted the basin AND the shower the arranger HAD
+   * placed. That is the basin `bathroomFixtures.test.ts` records.
+   *
+   * The rest of the pipeline was already height-aware and this was the outlier:
+   * `dropOverlaps` uses `findItemOverlaps`, and `placeSeededMounts`'
+   * MOUNT-HEIGHT-CLASH note says in as many words that "a mirror above a basin is
+   * not a clash and must neither reserve floor nor be blocked by it". The
+   * arranger reserved that floor anyway, and then the drop pass disagreed.
+   *
+   * Non-mounted obstacles are untouched — a floor piece still blocks a floor
+   * piece outright, whatever their heights.
+   */
+  const relevant = near.filter((o) => {
+    const od = ctx.catalog[o.defId]
+    if (!od?.mounted) return true
+    return itemHeightAwareClash(candidate, def, [o], ctx.catalog)
+  })
   if (
     canPlace(candidate, def, {
-      others: near,
+      others: relevant,
       defs: ctx.catalog,
       doors: ctx.doors,
       walls: ctx.walls,
@@ -293,8 +325,143 @@ const KEEPOUT: Partial<Record<RoomId, Rect[]>> = {
   bedroom3: [{ x0: 6.05, z0: 2.7, x1: 7.05, z1: 3.65 }], // bedroom-3 door swing
 }
 
+/** Beyond this the edge is open-plan and there is no wall to be flush with. */
+const SHORTFALL_SEARCH_M = 0.3
+
+/**
+ * Does this rect edge have a wall behind it at all?
+ *
+ * **WALL-BACKED-EDGE (v0.31.8.75).** `snapToWall` chose its edge from the piece's
+ * SEEDED position, which says nothing about whether that edge is a wall. Measured
+ * on `tpl-hdb-3room`'s Service Yard — flush to a wall on its NORTH edge, no wall
+ * within **0.80 m** on the other three — the washing machine took the west one
+ * and stood 0.50 m from any wall. A washing machine needs a wall for its
+ * plumbing, a fridge for its coils; standing one against a rect edge that is not
+ * a wall is wrong in the render and unbuildable as a drawing.
+ *
+ * A PREFERENCE, exactly like the `windowed(edge)` reordering below and for the
+ * same reason: every edge is still attempted, so it can never leave a piece
+ * unplaced.
+ */
+function edgeHasWall(rect: Rect, edge: Edge, walls: CollisionWall[] | undefined): boolean {
+  if (!walls || walls.length === 0) return true
+  const seg =
+    edge === 'N'
+      ? [rect.x0, rect.z0, rect.x1, rect.z0]
+      : edge === 'S'
+        ? [rect.x0, rect.z1, rect.x1, rect.z1]
+        : edge === 'W'
+          ? [rect.x0, rect.z0, rect.x0, rect.z1]
+          : [rect.x1, rect.z0, rect.x1, rect.z1]
+  const ax = seg[0] as number
+  const az = seg[1] as number
+  const bx = seg[2] as number
+  const bz = seg[3] as number
+  const elen = Math.hypot(bx - ax, bz - az)
+  if (elen <= 0) return true
+  const eux = (bx - ax) / elen
+  const euz = (bz - az) / elen
+  for (let k = 1; k <= 5; k++) {
+    const t = k / 6
+    const px = ax + (bx - ax) * t
+    const pz = az + (bz - az) * t
+    for (const w of walls) {
+      const wl = Math.hypot(w.bx - w.ax, w.bz - w.az)
+      if (wl <= 0) continue
+      if (Math.abs(((w.bx - w.ax) / wl) * eux + ((w.bz - w.az) / wl) * euz) <= 0.966) continue
+      const vx = w.bx - w.ax
+      const vz = w.bz - w.az
+      const l2 = vx * vx + vz * vz
+      const u = l2 > 0 ? Math.max(0, Math.min(1, ((px - w.ax) * vx + (pz - w.az) * vz) / l2)) : 0
+      const d = Math.hypot(px - (w.ax + u * vx), pz - (w.az + u * vz)) - w.thickness / 2
+      if (d - ROOM_INSET <= SHORTFALL_SEARCH_M) return true
+    }
+  }
+  return false
+}
+
+/**
+ * How far a rect edge falls short of its wall FACE (0 when there is no wall
+ * within {@link SHORTFALL_SEARCH_M}, or when the rect already overlaps the wall
+ * body — 58 shipped edges do, and pulling a piece further in would take floor
+ * away for no gain).
+ *
+ * **WALL-SNAP-SHORTFALL (v0.31.8.71).** Room rectangles are authored against the
+ * wall CENTRELINE with a constant offset while a wall's half-thickness varies
+ * (internal 0.05, external 0.10), so one constant cannot be flush against both.
+ * Over the 570 shipped rect edges with a wall within 0.3 m: 226 flush, **186
+ * short by 0.05, 86 short by 0.15** (`floorplan/roomRectWalls.test.ts`).
+ * Everything snapped inherits that error — eight kitchen appliances stood 0.32 m
+ * from their wall, 0.18 m of intended gap plus 0.15 m of rect shortfall.
+ *
+ * This corrects the DISTANCE, not the rect. v0.31.8.61 fixed `planRoomRect`
+ * instead, which moves the rect's CENTRE — the arranger centres dining groups on
+ * it, so a table slid onto the rect edge and its chairs were flung to the room's
+ * ends. Only wall-snapped pieces move here, and only outward.
+ *
+ * Only walls roughly PARALLEL to the edge count: the nearest wall to a short edge
+ * is often a perpendicular one near its end, and using it pushes the piece
+ * straight through the real wall.
+ */
+function edgeShortfall(rect: Rect, edge: Edge, walls: CollisionWall[] | undefined): number {
+  if (!walls || walls.length === 0) return 0
+  const seg =
+    edge === 'N'
+      ? [rect.x0, rect.z0, rect.x1, rect.z0]
+      : edge === 'S'
+        ? [rect.x0, rect.z1, rect.x1, rect.z1]
+        : edge === 'W'
+          ? [rect.x0, rect.z0, rect.x0, rect.z1]
+          : [rect.x1, rect.z0, rect.x1, rect.z1]
+  const ax = seg[0] as number
+  const az = seg[1] as number
+  const bx = seg[2] as number
+  const bz = seg[3] as number
+  const elen = Math.hypot(bx - ax, bz - az)
+  if (elen <= 0) return 0
+  const eux = (bx - ax) / elen
+  const euz = (bz - az) / elen
+  const parallel = walls.filter((w) => {
+    const wl = Math.hypot(w.bx - w.ax, w.bz - w.az)
+    if (wl <= 0) return false
+    return Math.abs(((w.bx - w.ax) / wl) * eux + ((w.bz - w.az) / wl) * euz) > 0.966
+  })
+  if (parallel.length === 0) return 0
+  // Median of five samples so a doorway or a stub cannot swing it.
+  const ds: number[] = []
+  for (let k = 1; k <= 5; k++) {
+    const t = k / 6
+    const px = ax + (bx - ax) * t
+    const pz = az + (bz - az) * t
+    let best = Number.POSITIVE_INFINITY
+    for (const w of parallel) {
+      const vx = w.bx - w.ax
+      const vz = w.bz - w.az
+      const l2 = vx * vx + vz * vz
+      const u = l2 > 0 ? Math.max(0, Math.min(1, ((px - w.ax) * vx + (pz - w.az) * vz) / l2)) : 0
+      const d = Math.hypot(px - (w.ax + u * vx), pz - (w.az + u * vz)) - w.thickness / 2
+      if (d < best) best = d
+    }
+    ds.push(best)
+  }
+  ds.sort((a, b) => a - b)
+  const short = (ds[2] as number) - ROOM_INSET
+  return short <= 0.01 || short > SHORTFALL_SEARCH_M ? 0 : short
+}
+
 /** Snap an item flush against `edge`, keeping its along-wall coordinate
  *  (clamped), facing inward. Tries the given edge then falls back to others. */
+/**
+ * Along-wall sweep granularity and reach (v0.31.9.29).
+ *
+ * The step was `max(0.1, w/2)` — HALF THE PIECE'S WIDTH — which for anything
+ * wide samples a lattice coarse enough to step over the only position that
+ * works. A fixed 0.15 m matches `unsealRoutes`' disc; 32 steps covers 4.8 m
+ * either way, longer than any wall in the corpus.
+ */
+const SWEEP_STEP_M = 0.15
+const SWEEP_MAX_STEPS = 32
+
 function snapToWall(
   item: FurnitureItem,
   rect: Rect,
@@ -330,20 +497,94 @@ function snapToWall(
     return ctx.windowKeepOut.some((k) => rectsOverlap(band, k))
   }
   const byWindow = [...ordered.filter((e) => !windowed(e)), ...ordered.filter(windowed)]
-  for (const edge of byWindow) {
-    const rot = inward(edge)
-    // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
-    const along = w / 2
-    let pos: [number, number]
-    if (edge === 'N')
-      pos = [clamp(item.position[0], rect.x0 + along, rect.x1 - along), rect.z0 + d / 2 + gap]
-    else if (edge === 'S')
-      pos = [clamp(item.position[0], rect.x0 + along, rect.x1 - along), rect.z1 - d / 2 - gap]
-    else if (edge === 'W')
-      pos = [rect.x0 + d / 2 + gap, clamp(item.position[1], rect.z0 + along, rect.z1 - along)]
-    else pos = [rect.x1 - d / 2 - gap, clamp(item.position[1], rect.z0 + along, rect.z1 - along)]
-    const placed = tryPlace(item, pos, rot, world, ctx)
-    if (placed !== item) return placed
+  // WALL-BACKED-EDGE: within the window ordering, an edge with a real wall behind
+  // it comes first. Preference only, so nothing can go unplaced.
+  const backed = (e: Edge) => edgeHasWall(rect, e, ctx.walls)
+  const byWall = [...byWindow.filter(backed), ...byWindow.filter((e) => !backed(e))]
+  for (const sweep of [false, true]) {
+    for (const edge of byWall) {
+      const rot = inward(edge)
+      // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
+      const along = w / 2
+      const out = edgeShortfall(rect, edge, ctx.walls)
+      // ALONG-WALL SWEEP (v0.31.9.22). The along-wall coordinate used to be just
+      // `clamp(item.position[…])` — the seed point, i.e. the ROOM CENTRE — so a
+      // piece was offered exactly one spot per wall and refused the wall outright
+      // if anything sat there. `tpl-studio/st-kit` is the case that forced this: a
+      // door swings into the galley with a 0.9 x 0.9 keep-out dead centre of its
+      // only long wall, and the counter was refused on every edge while 1.88 m of
+      // that wall stood clear (v0.31.9.20/.21). Shrinking the counter to fit was
+      // measured and found INERT for exactly this reason — it stayed centred.
+      //
+      // The clamped position is still tried FIRST, so any piece that placed before
+      // places identically; the sweep only reaches spots that were previously
+      // unreachable. Same shape as `placeSeededMounts`' rescue sweep, which has
+      // done this since v0.31.5.107 — this brings the primary path in line with it.
+      const sideways = edge === 'W' || edge === 'E'
+      const lo = (sideways ? rect.z0 : rect.x0) + along
+      const hi = (sideways ? rect.z1 : rect.x1) - along
+      const start = clamp(item.position[sideways ? 1 : 0], lo, hi)
+      const perp = sideways
+        ? edge === 'W'
+          ? rect.x0 + d / 2 + gap - out
+          : rect.x1 - d / 2 - gap + out
+        : edge === 'N'
+          ? rect.z0 + d / 2 + gap - out
+          : rect.z1 - d / 2 - gap + out
+      const step = SWEEP_STEP_M
+      // STRICTNESS SITS OUTSIDE THE WALL LOOP — the same rule v0.31.8.75 had to
+      // learn for the window relaxation, and for the same reason. Sweeping INSIDE
+      // the edge loop lets a swept spot on the first wall beat the CLAMPED spot on
+      // a later one, which reshuffles pieces that were placing fine: measured over
+      // the 19 templates, that variant cost `tpl-condo-1bed` its counter AND stove
+      // (a kitchen that only wanted a fridge), `tpl-hdb-2room` its fridge, and
+      // `tpl-condo-2bed` its desk. With `sweep` as an outer pass every piece is
+      // offered all four clamped positions first, so anything that placed before
+      // places IDENTICALLY and the sweep is purely additive.
+      if (!sweep) {
+        const pos: [number, number] = sideways ? [perp, start] : [start, perp]
+        const placed = tryPlace(item, pos, rot, world, ctx)
+        if (placed !== item) return placed
+        continue
+      }
+      // The two ENDS of the wall, offered alongside the lattice. A fixed step
+      // samples a grid, and the position that works can be NARROWER than the
+      // step: in `tpl-studio/st-kit` the only along-positions clear of the door
+      // keep-out are x 2.90-2.98 — a 0.08 m window — and neither `w/2` (1.20,
+      // 3.00, 0.30, 3.90 from a start of 2.10) nor a 0.15 m lattice (2.85, then
+      // 3.00) ever samples it. `hi` IS 2.98.
+      //
+      // They are also the designer-correct candidates in their own right: a
+      // counter run, a wardrobe and a fridge belong in the corner rather than
+      // part-way along a wall.
+      //
+      // Ordering them before vs after the lattice was measured and makes no
+      // difference to what breaks — their EXISTENCE rebalances placement, not
+      // their priority (v0.31.9.24).
+      const ends: number[] = lo === hi ? [lo] : [hi, lo]
+      for (let k = 1; k <= SWEEP_MAX_STEPS + ends.length; k++) {
+        for (const dir of [1, -1]) {
+          const end = k <= ends.length ? ends[k - 1] : undefined
+          if (end !== undefined && dir === -1) continue
+          const t = end ?? start + dir * (k - ends.length) * step
+          if (t < lo - 1e-9 || t > hi + 1e-9) continue
+          const pos: [number, number] = sideways ? [perp, t] : [t, perp]
+          // Contain the SWEPT candidates only. `perp` adds `edgeShortfall`,
+          // which pushes a piece OUT past the rect edge to meet the real wall
+          // face — so an edge can be geometrically legal and still leave the
+          // footprint half a metre into the room next door. That used to be
+          // unreachable: with one clamped along-position per edge the
+          // overshooting edge was simply blocked, and the sweep is what finds a
+          // free spot on it. Measured on `tpl-condo-2bed/c2-bed2`, whose
+          // `bed-single` came out 0.49 m through the south side of the bedroom.
+          // The clamped pass is left unguarded on purpose, so anything that
+          // placed before places identically.
+          if (!settleContained(item, pos, rot, rect, ctx)) continue
+          const placed = tryPlace(item, pos, rot, world, ctx)
+          if (placed !== item) return placed
+        }
+      }
+    }
   }
   return item
 }
@@ -404,11 +645,15 @@ function placeFlush(
   if (!def) return item
   const { d } = baseFootprint(item, def)
   const perpHalf = d / 2
+  // Same correction as `snapToWall`. BOTH paths need it: the kitchen
+  // work-triangle comes through here (`arrangeKitchen`'s `toEnd`), and all eight
+  // of the 0.32 m fridges and stoves take this path, not that one.
+  const out = edgeShortfall(rect, edge, ctx.walls)
   let pos: [number, number]
-  if (edge === 'N') pos = [along, rect.z0 + perpHalf + gap]
-  else if (edge === 'S') pos = [along, rect.z1 - perpHalf - gap]
-  else if (edge === 'W') pos = [rect.x0 + perpHalf + gap, along]
-  else pos = [rect.x1 - perpHalf - gap, along]
+  if (edge === 'N') pos = [along, rect.z0 + perpHalf + gap - out]
+  else if (edge === 'S') pos = [along, rect.z1 - perpHalf - gap + out]
+  else if (edge === 'W') pos = [rect.x0 + perpHalf + gap - out, along]
+  else pos = [rect.x1 - perpHalf - gap + out, along]
   return tryPlace(item, pos, inward(edge), world, ctx)
 }
 
@@ -416,16 +661,117 @@ function placeFlush(
 /** Last-resort placement within ONE rect: corners, then a coarse grid sweep,
  *  then a finer sweep, each across a few rotations. Returns `true` once
  *  placed. */
+/**
+ * SETTLE-CONTAINMENT (v0.31.9.22) — does this candidate keep the piece's
+ * FOOTPRINT inside the room?
+ *
+ * `settleInRect` bounds the item's CENTRE to `rect` inset 0.3 and never looked
+ * at its extent, which is the v0.31.5.112 defect ("`tryPlace` has no notion of
+ * the room rectangle") in the one place that never got the guard. A 1.90 m deep
+ * `bed-single` centred at z 5.62 in a rect ending at 6.08 passes the centre
+ * test and puts 0.49 m of bed out through the south side of the bedroom.
+ *
+ * Measured over the 19 templates, **12 pieces overhang their room by more than
+ * `TOL`** — up to 0.60 m of `tpl-condo-penthouse`'s TV console.
+ *
+ * `TOL` is 0.2 for the reason the chair-slot guard uses the same number: room
+ * rects sit 0.1-0.2 m inside their wall centrelines, so a few centimetres past
+ * an edge is still within the room's own walls, while half a metre is
+ * demonstrably on the floor next door.
+ */
+const SETTLE_TOL = 0.2
+
+function settleContained(
+  item: FurnitureItem,
+  pos: [number, number],
+  rot: number,
+  rect: Rect,
+  ctx: Ctx,
+): boolean {
+  const def = ctx.catalog[item.defId]
+  if (!def) return true
+  const { w, d } = baseFootprint(item, def)
+  // Axis-aligned rotations only (the settle tries exactly those four), so the
+  // half-extents just swap on the quarter turns.
+  const quarter = Math.abs(Math.cos(rot)) < 0.5
+  const hx = (quarter ? d : w) / 2
+  const hz = (quarter ? w : d) / 2
+  return (
+    pos[0] - hx >= rect.x0 - SETTLE_TOL &&
+    pos[0] + hx <= rect.x1 + SETTLE_TOL &&
+    pos[1] - hz >= rect.z0 - SETTLE_TOL &&
+    pos[1] + hz <= rect.z1 + SETTLE_TOL
+  )
+}
+
 function settleInRect(item: FurnitureItem, rect: Rect, world: FurnitureItem[], ctx: Ctx): boolean {
+  // CONTAINMENT IS DELIBERATELY *NOT* APPLIED HERE YET (v0.31.9.22).
+  //
+  // `settleContained` above is the right predicate for this function too — the
+  // settle bounds the item's CENTRE to `rect` inset 0.3 and never looks at its
+  // extent, which is where 5 of the corpus's 12 room overhangs come from,
+  // including 0.60 m of `tpl-condo-penthouse`'s TV console. Applying it here was
+  // built and measured: **overhang 12 -> 7**, with the same two-pass shape used
+  // elsewhere so nothing can be left unplaced.
+  //
+  // It is held back because it strands dining chairs. Skipping the
+  // previously-first candidate makes the scan land on a different cell, and two
+  // of `tpl-hdb-maisonette`'s chairs settled 1.62 m and **4.21 m** from their
+  // table — precisely what `diningChairTuck.test.ts` exists to catch, and a
+  // defect a user SEES against overhangs a check reports. Ordering the grid
+  // NEAREST-FIRST instead of from the rect's north-west corner was tried in the
+  // same session and does not fix it (one chair still settles 4.88 m out), so
+  // the cause is upstream of the scan order: a chair that reaches the settle can
+  // start OUTSIDE the rect being searched, and "nearest" is then measured from
+  // the wrong place. That needs its own release.
+  return settlePass(item, rect, world, ctx, () => true)
+}
+
+function settlePass(
+  item: FurnitureItem,
+  rect: Rect,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  ok: (pos: [number, number], rot: number) => boolean,
+): boolean {
   for (const c of cornersOf(rect))
-    if (tryPlace(item, c, item.rotation, world, ctx) !== item) return true
+    if (ok(c, item.rotation) && tryPlace(item, c, item.rotation, world, ctx) !== item) return true
   const rots = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
+  /**
+   * WALL-FIRST (v0.31.9.32) — the coarse grid is tried nearest-the-WALL first,
+   * instead of scanning from the rect's north-west corner.
+   *
+   * `docs/interior-design-guidelines.md` puts "storage/appliances/beds flush to
+   * walls" first among the placement rules, and `snapToWall` honours it for
+   * everything that goes through it — but a piece that falls through to the
+   * settle got an arbitrary scan order and could land in the middle of the room.
+   *
+   * This is the EXPLICIT preference v0.31.9.31 named as the prerequisite for
+   * anything else here. That release found the arranger has been getting the rule
+   * for free from an accident: a mount still parked on the room-centre seed acts
+   * as an obstacle for the whole of arranging, and removing it or relocating it
+   * early both cost five severity-1 fixtures because floor furniture drifted
+   * inward (`marooned-wall-hugger` 39 -> 46, centrality 0.311 -> 0.327). A
+   * preference that is actually stated does not depend on that accident.
+   *
+   * Ordering only — every candidate the old scan reached is still reached, so
+   * nothing can go unplaced by it.
+   */
+  const grid: Array<[number, number]> = []
+  for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += 0.3)
+    for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += 0.3) grid.push([x, z])
+  /**
+   * Only `WALL_BOUND_CATEGORIES` pieces are ordered wall-first — see that set for
+   * why it is narrower than `furnishPlan`'s, and for the two measurements that
+   * ruled out the alternatives (everything wall-first, and an area gate).
+   */
+  const wallFirst = WALL_BOUND_CATEGORIES.has(String(ctx.catalog[item.defId]?.category))
+  const toWall = (p: [number, number]) =>
+    Math.min(p[0] - rect.x0, rect.x1 - p[0], p[1] - rect.z0, rect.z1 - p[1])
+  if (wallFirst) grid.sort((a, b) => toWall(a) - toWall(b))
   for (const rot of rots) {
-    const step = 0.3
-    for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += step) {
-      for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += step) {
-        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return true
-      }
+    for (const cell of grid) {
+      if (ok(cell, rot) && tryPlace(item, cell, rot, world, ctx) !== item) return true
     }
   }
   // Finer last-resort pass (RM3): the coarse 0.3 m grid can straddle a real
@@ -437,7 +783,7 @@ function settleInRect(item: FurnitureItem, rect: Rect, world: FurnitureItem[], c
   for (const rot of rots) {
     for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += fineStep) {
       for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += fineStep) {
-        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return true
+        if (ok([x, z], rot) && tryPlace(item, [x, z], rot, world, ctx) !== item) return true
       }
     }
   }
@@ -539,6 +885,8 @@ export function arrangeRoom(
 
 /** Shared arranger core: place every item matching `inRoom` within `rect`
  *  using the strategy for `kind`, against the other items as obstacles. */
+const EMPTY_RESERVED: ReadonlySet<string> = new Set()
+
 function arrangeCore(opts: {
   rect: Rect
   /** The room's L-shape extension, inset (see `extensionRectOf`) — widens the
@@ -568,6 +916,12 @@ function arrangeCore(opts: {
   walls?: CollisionWall[]
   /** Layout-variant seed (LAYOUT-REROLL); default 0 = today's exact output. */
   seed?: number
+  /** RESERVE-RETRY (v0.31.9.26) — see the note at the end of this function.
+   *  TRUE for the TIDY paths, where the items' starting positions are real and a
+   *  piece must not be buried by one placed earlier. FALSE for FURNISH, where
+   *  every piece in a room starts on the same seed point (the room centre), so
+   *  reserving one parks an obstacle mid-room and strands the rest. */
+  reserveRetry?: boolean
 }): FurnitureItem[] {
   const {
     rect,
@@ -586,45 +940,156 @@ function arrangeCore(opts: {
     doors,
     walls,
     seed = 0,
+    reserveRetry = true,
   } = opts
   const ctx: Ctx = { catalog, doors, keepOut, windowKeepOut, windows, doorPoints, walls, seed }
   const isFixed = (i: FurnitureItem) => {
     const r = roleOf(i.defId, catalog)
     return r === 'mounted' || r === 'ceiling' || i.locked === true
   }
-  // `world` starts with the OTHER rooms' items + this room's FIXED pieces
-  // (wall/ceiling mounts — aircon, range hood, sconces… — AND any user-LOCKED
-  // item, which must stay exactly where the user left it), all kept at their
-  // current transform as obstacles so floor furniture isn't parked under them.
-  const world: FurnitureItem[] = allItems
-    .filter((i) => !inRoom(i) || isFixed(i))
-    .map((i) => ({ ...i }))
-  // Movable room items are placed one-by-one so pending ones can't block.
-  const roomItems = allItems.filter((i) => inRoom(i) && !isFixed(i)).map((i) => ({ ...i }))
-  const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId, catalog)))
+  /**
+   * One arrangement attempt.
+   *
+   * `reserved` holds ids a PREVIOUS attempt could not place. They are seeded
+   * into `world` at their current transform, so nothing else can take their
+   * spot — see RESERVE-RETRY below. `tryPlace` replaces a pre-seeded entry in
+   * place rather than pushing a duplicate, and filters the candidate against
+   * itself, so a reserved piece can still be moved if the room routine finds it
+   * somewhere better.
+   */
+  const attempt = (reserved: ReadonlySet<string>) => {
+    // `world` starts with the OTHER rooms' items + this room's FIXED pieces
+    // (wall/ceiling mounts — aircon, range hood, sconces… — AND any user-LOCKED
+    // item, which must stay exactly where the user left it), all kept at their
+    // current transform as obstacles so floor furniture isn't parked under them.
+    // `world` starts with the OTHER rooms' items + this room's FIXED pieces
+    // (wall/ceiling mounts — aircon, range hood, sconces… — AND any user-LOCKED
+    // item, which must stay exactly where the user left it), all kept at their
+    // current transform as obstacles so floor furniture isn't parked under them.
+    //
+    // SEED-MOUNT, REJECTED (v0.31.9.30). On the furnish path these mounts are
+    // still on their SEED — the room CENTRE — because `placeSeededMounts` moves
+    // them to their walls only AFTER this runs, so the floor is arranged around
+    // a phantom obstacle mid-room. That is the measured cause of
+    // `tpl-hdb-maisonette/emu-cbath`'s missing basin: its `toilet` was refused
+    // every position on every wall by a `towel-rail@7.50,1.30` that later ends up
+    // at 8.13,1.30.
+    //
+    // Excluding a fixed piece still within `placeSeededMounts`' own seed epsilon
+    // was built and measured, and it is FAR worse: `missing-fixture` 6 -> 11 and
+    // the ranked score 60,813,173,903 -> 110,913,174,303. Without the mounts
+    // holding the centre, floor pieces take it and then the mounts have no wall
+    // left to be rescued to. The phantom is load-bearing.
+    //
+    // The fix has to be ORDERING — place mounts on their walls BEFORE the floor
+    // arranging, not after — which means splitting `placeSeededMounts`, whose
+    // other half is a rescue that by construction runs afterwards.
+    const world: FurnitureItem[] = allItems
+      .filter((i) => !inRoom(i) || isFixed(i))
+      .map((i) => ({ ...i }))
+    // Movable room items are placed one-by-one so pending ones can't block.
+    const roomItems = allItems.filter((i) => inRoom(i) && !isFixed(i)).map((i) => ({ ...i }))
+    for (const it of roomItems) if (reserved.has(it.id)) world.push({ ...it })
+    const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId, catalog)))
 
-  if (kind === 'living') {
-    if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog, kitchenEdge)
-    else arrangeLiving(rect, focal, get, world, ctx, catalog)
-  } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog)
-  else if (kind === 'kitchen') arrangeKitchen(rect, get, world, ctx, catalog)
-  else if (kind === 'bath') arrangeFixtures(rect, get, world, ctx, catalog)
-  else arrangeGeneric(rect, get, world, ctx)
+    if (kind === 'living') {
+      if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog, kitchenEdge)
+      else arrangeLiving(rect, focal, get, world, ctx, catalog)
+    } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog)
+    else if (kind === 'kitchen') arrangeKitchen(rect, get, world, ctx, catalog)
+    else if (kind === 'bath') arrangeFixtures(rect, get, world, ctx, catalog)
+    else arrangeGeneric(rect, get, world, ctx)
 
-  // Safety settle: any room item not yet placed (unhandled role or no slot)
-  // gets a valid spot — original first, then corners, then a coarse grid —
-  // so the result stays collision-free for floor items.
-  const inWorld = new Set(world.map((w) => w.id))
-  for (const it of roomItems) {
-    if (inWorld.has(it.id)) continue
-    if (roleOf(it.defId, catalog) === 'mounted' || roleOf(it.defId, catalog) === 'ceiling') continue
-    settle(it, rect, world, ctx, extensionRect)
+    // Safety settle: any room item not yet placed (unhandled role or no slot)
+    // gets a valid spot — original first, then corners, then a coarse grid —
+    // so the result stays collision-free for floor items.
+    const inWorld = new Set(world.map((w) => w.id))
+    for (const it of roomItems) {
+      if (inWorld.has(it.id)) continue
+      if (roleOf(it.defId, catalog) === 'mounted' || roleOf(it.defId, catalog) === 'ceiling')
+        continue
+      settle(it, rect, world, ctx, extensionRect)
+    }
+
+    // Rebuild the full list in original order: a placed item takes its new
+    // transform from `world`; an unplaced room item keeps its original transform.
+    const byId = new Map(world.map((w) => [w.id, w]))
+    const out = allItems.map((orig) => byId.get(orig.id) ?? orig)
+    const unplaced = roomItems.filter((it) => !byId.has(it.id)).map((it) => it.id)
+    return { out, unplaced, roomIds: new Set(roomItems.map((it) => it.id)) }
   }
 
-  // Rebuild the full list in original order: a placed item takes its new
-  // transform from `world`; an unplaced room item keeps its original transform.
-  const byId = new Map(world.map((w) => [w.id, w]))
-  return allItems.map((orig) => byId.get(orig.id) ?? orig)
+  /**
+   * How many of THIS room's pieces are left standing in something.
+   *
+   * Scoped to the room because only its pieces move, and judged in list order
+   * against everything ahead of them, mirroring `autoArrange.test.ts`'s own
+   * validity sweep so the two agree on what "invalid" means.
+   */
+  const invalidCount = (r: ReturnType<typeof attempt>) => {
+    let n = 0
+    const ahead: FurnitureItem[] = []
+    for (const it of r.out) {
+      const def = catalog[it.defId]
+      if (!def) continue
+      if (def.mounted || def.noClip) {
+        ahead.push(it)
+        continue
+      }
+      if (r.roomIds.has(it.id)) {
+        const near = broadphaseNeighbours(it, def, ahead, catalog)
+        if (!canPlace(it, def, { others: near, defs: catalog, doors, walls })) n++
+      }
+      ahead.push(it)
+    }
+    return n
+  }
+
+  /**
+   * RESERVE-RETRY (v0.31.9.26) — one more go, with the pieces that lost their
+   * spot held back.
+   *
+   * `world` deliberately excludes items still PENDING placement, "so a messy
+   * starting layout can't block the tidy target" — which is right, and has the
+   * consequence that a piece can be placed on top of one that has not had its
+   * turn yet. When that buried piece then finds nowhere else to go, it keeps its
+   * original transform and the room comes out INVALID.
+   *
+   * Measured on the default flat: `default-sy-rack` was valid at (5.30, 7.20),
+   * never moved, and ended up invalid because `default-sy-washer` was placed on
+   * top of it (v0.31.9.25). No amount of extra searching in `settle` can fix
+   * that — by the time it runs, the spot is gone.
+   *
+   * So: if an attempt leaves anything unplaced, retry ONCE with those pieces
+   * reserved as obstacles from the start. The other pieces then route around
+   * them instead of over them. The retry is kept only if it leaves strictly
+   * fewer of the room's pieces invalid, so reserving can never make a room
+   * worse — and the common case pays nothing, because `unplaced` is empty and
+   * the retry never runs.
+   */
+  let result = attempt(EMPTY_RESERVED)
+  if (reserveRetry && result.unplaced.length > 0) {
+    const retry = attempt(new Set(result.unplaced))
+    // Kept only if it leaves strictly fewer of the room's pieces invalid, so a
+    // reserve can never make a room worse.
+    //
+    // Two cheaper gates were tried FIRST and both failed, which is why the
+    // furnish/tidy split is an explicit flag rather than a metric:
+    //   - `invalidCount` alone moved EIGHT ratchets. On furnish, reserving a
+    //     seed-parked piece really does reduce invalid overlaps — it just does
+    //     it by stranding other pieces, which is an item-COUNT change that a
+    //     validity metric cannot see.
+    //   - adding `retry.unplaced.length <= result.unplaced.length` did nothing,
+    //     because a RESERVED piece sits in `world` from the start and therefore
+    //     always reads as placed: the comparison is biased toward the retry by
+    //     construction.
+    // Counting pieces that never MOVED fixed that bias and still left nine
+    // ratchets moving, because on furnish the trade is real and simply not the
+    // one the corpus wants. The two callers want different things, so they say
+    // so.
+    if (invalidCount(retry) < invalidCount(result)) result = retry
+  }
+  return result.out
 }
 
 /**
@@ -1287,7 +1752,17 @@ function arrangeKitchen(
   // 2. Work triangle: push the fridge to one end of the longest run and the
   //    stove to the other, on a long wall.
   const horizontal = rect.x1 - rect.x0 >= rect.z1 - rect.z0
-  const longWalls: Edge[] = horizontal ? ['S', 'N'] : ['W', 'E']
+  // WALL-BACKED-EDGE, kitchen half (v0.31.8.76). The work triangle picked its
+  // two candidate walls from the rect's ASPECT alone, so a fridge or stove could
+  // take the long edge that has no wall behind it while a walled one went spare:
+  // `tpl-condo-1bed`'s Open Kitchen is flush on S and W and 0.49-0.67 m from any
+  // wall on N and E, and its stove sat on N; `tpl-hdb-2room`'s is flush on N and
+  // E and its stove sat on S, 0.77 m from anything. A stove needs a wall for its
+  // hood and flue. Wall-backed first, aspect preserved as the tie-break — a
+  // preference, and both edges are still tried.
+  const aspect: Edge[] = horizontal ? ['S', 'N'] : ['W', 'E']
+  const backedEdge = (e: Edge) => edgeHasWall(rect, e, ctx.walls)
+  const longWalls: Edge[] = [...aspect.filter(backedEdge), ...aspect.filter((e) => !backedEdge(e))]
   const M = 0.4 // end margin
   const toEnd = (it: FurnitureItem | undefined, low: boolean) => {
     if (!it) return
@@ -1520,6 +1995,7 @@ function arrangeOnePlanRoom(
   windowKeepOut: WindowFrontRect[] = [],
   doorPoints: Array<[number, number]> = [],
   siblingRooms: PlanRoom[] = [],
+  reserveRetry = true,
 ): FurnitureItem[] {
   const inRoom = (i: FurnitureItem) =>
     (i.levelId ?? GROUND_LEVEL_ID) === levelId &&
@@ -1546,6 +2022,7 @@ function arrangeOnePlanRoom(
     doors,
     walls,
     seed,
+    reserveRetry,
   })
 }
 
@@ -1603,6 +2080,9 @@ export function arrangeAllRoomsForPlan(
    *  different walls. This is what lets a caller generate genuinely different
    *  LAYOUTS of one plan rather than restyled copies of one layout. */
   seed = 0,
+  /** `reserveRetry` defaults TRUE here: every caller of this function except
+   *  `furnishPlan` is a TIDY of a real layout. `furnishPlan` passes false. */
+  { reserveRetry = true }: { reserveRetry?: boolean } = {},
 ): FurnitureItem[] {
   let items = allItems
   // Iterate EVERY storey (F13): `plan.rooms`/`walls`/`openings` are ground-only,
@@ -1631,6 +2111,7 @@ export function arrangeAllRoomsForPlan(
         windowKeepOut,
         doorPoints,
         level.rooms,
+        reserveRetry,
       )
     }
   }

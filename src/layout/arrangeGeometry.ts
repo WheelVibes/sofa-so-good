@@ -60,10 +60,16 @@ export function opposite(e: Edge): Edge {
   return e === 'N' ? 'S' : e === 'S' ? 'N' : e === 'E' ? 'W' : 'E'
 }
 
-/** Usable interior rectangle for a plan room — the footprint inset 0.12 m from
- *  the walls. */
+/** Inset (m) from a room's boundary to the arranger's rectangle. `snapToWall`
+ *  leaves a further 0.06, so a wall-snapped piece sits 0.18 m from the boundary.
+ *  Exported because `autoArrange`'s shortfall correction subtracts it to recover
+ *  the true distance to the wall FACE (WALL-SNAP-SHORTFALL). */
+export const ROOM_INSET = 0.12
+
+/** Usable interior rectangle for a plan room — the footprint inset
+ *  {@link ROOM_INSET} from the walls. */
 export function planRoomRect(r: PlanRoom): Rect {
-  const inset = 0.12
+  const inset = ROOM_INSET
   return {
     x0: r.origin[0] + inset,
     z0: r.origin[1] + inset,

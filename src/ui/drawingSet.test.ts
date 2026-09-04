@@ -1562,8 +1562,14 @@ describe('wall tile setting-out table', () => {
     // ON the sheet, since a tiler reads the sheet and not the source.
     expect(html).toContain('at least half a tile')
     expect(html).toContain('from the CEILING down')
-    // And the honest limitation, rather than implying corner alignment.
-    expect(html).toContain('not generally align around a corner')
+    // Corner alignment, stated CORRECTLY (v0.31.8.14). This assertion used to
+    // require the sheet to say courses "not generally align around a corner",
+    // which is false: courses run from the top down and every face of a room
+    // shares its ceiling height, so the grid is identical on all four faces by
+    // construction — measured empty on every tiled room the app ships. The test
+    // was pinning a wrong statement onto a contractor document.
+    expect(html).toContain('DO align around each corner')
+    expect(html).not.toContain('not generally align around a corner')
   })
 
   it('is absent when every room is painted (no modular wall finish)', () => {
@@ -1578,5 +1584,69 @@ describe('wall tile setting-out table', () => {
       { floor: { bath1: 'floor-tile-white' }, walls: { bath1: 'wall-paint-white' } },
     )
     expect(html).not.toContain('Wall tile setting-out')
+  })
+})
+
+/**
+ * **The Specification sheet must not assert the absence of work that exists
+ * (v0.31.8.15).** `hasTiling` was driven solely by tile COURSING, which needs a
+ * specified `moduleMm` — and 12 floor plus 4 wall tile finishes carry none. So a
+ * home floored entirely in `floor-tile-marble` printed "Not covered by this
+ * specification: tiler … — no such work appears in the design".
+ *
+ * Claiming a trade is uninvolved is the dangerous direction for a contractor
+ * document to drift: a reader has no prompt to question it, and the trade simply
+ * does not get priced.
+ */
+describe('Specification sheet — tiling trade on a module-less tile finish', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  const tiledEverywhere = () => {
+    const floor: Record<string, string> = {}
+    for (const r of plan.rooms ?? []) floor[r.id] = 'floor-tile-marble'
+    return { floor, walls: {} }
+  }
+
+  it('does not list the tiler as uncovered on a fully tiled home', () => {
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      tiledEverywhere(),
+    )
+    expect(html).toContain('>Specification<')
+    const uncovered = html.match(/Not covered by this specification: ([^<]*)/)?.[1] ?? ''
+    expect(uncovered).not.toMatch(/tiler/)
+  })
+
+  it('still lists the tiler as uncovered when nothing is tiled', () => {
+    // The gate must keep working — a vinyl-floored, painted home should not be
+    // handed a tiling clause just because the check was loosened.
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const floor: Record<string, string> = {}
+    for (const r of plan.rooms ?? []) floor[r.id] = 'floor-vinyl-oak'
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      { floor, walls: {} },
+    )
+    const uncovered = html.match(/Not covered by this specification: ([^<]*)/)?.[1] ?? ''
+    expect(uncovered).toMatch(/tiler/)
   })
 })

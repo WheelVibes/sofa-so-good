@@ -122,6 +122,13 @@ export const BATHROOM_DEFS = {
     category: 'bathroom',
     primitive: 'Shower',
     defaultFootprint: { w: 0.9, d: 0.9, h: 2.0 },
+    // The `size` param drove the RENDERED tray, screen and rail
+    // (`primitives/Shower.tsx` reads it for every dimension) but not the
+    // collision footprint, which stayed 0.9 x 0.9 whatever the user chose — so a
+    // 1.2 m shower collided as 0.9 and a 0.8 m one reserved floor it did not
+    // occupy. Both directions are wrong and neither was visible in the corpus,
+    // because every shipped shower took the default (v0.31.9.30).
+    footprintParams: { w: 'size', d: 'size' },
     paramSchema: [
       {
         kind: 'number',

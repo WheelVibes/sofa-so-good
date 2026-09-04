@@ -5,23 +5,53 @@
   "steps": [
     {
       "name": "store-ready",
-      "waitFor": { "storeExists": true },
+      "waitFor": {
+        "storeExists": true
+      },
       "timeout": 60000
     },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     {
       "name": "dismiss-overlays",
       "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const st = window.__store.getState(); st.endTour?.(); st.setOnboardingOpen?.(false); st.dismissLocationPrompt?.(); st.setManualHour?.(13); st.setLightsMode?.('on'); st.hideLoading?.() })()"
     },
     {
       "name": "three-ready",
-      "waitFor": { "store": "!!window.__three" },
+      "waitFor": {
+        "store": "!!window.__three"
+      },
       "timeout": 30000
     },
     {
       "name": "enter-walk",
-      "store": { "action": "setCameraMode", "args": ["firstPerson"] }
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
     },
-    { "name": "settle-walk", "wait": 1500 },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "settle-walk",
+      "wait": 1500
+    },
     {
       "name": "probe-desktop-camera",
       "eval": "(() => { const c = window.__three.camera; const h = 2 * Math.atan(Math.tan((c.fov * Math.PI) / 360) * c.aspect) * 180 / Math.PI; console.log('[probe] desktop', JSON.stringify({ pos: c.position.toArray().map(n => +n.toFixed(2)), vFov: +c.fov.toFixed(1), hFov: +h.toFixed(1), aspect: +c.aspect.toFixed(3) })) })()"
@@ -30,16 +60,29 @@
       "name": "probe-spawn-clear",
       "eval": "(() => { const c = window.__three.camera; const down = window.__three.raycaster; down.set(c.position, { x: 0, y: -1, z: 0 }); const hits = down.intersectObjects(window.__three.scene.children, true).filter(h => h.object.visible); console.log('[probe] spawn', JSON.stringify({ floorDistance: hits.length ? +hits[0].distance.toFixed(2) : null })) })()"
     },
-    { "name": "shot-desktop-walkin", "screenshot": "01-walk-in-desktop" },
+    {
+      "name": "shot-desktop-walkin",
+      "screenshot": "01-walk-in-desktop"
+    },
     {
       "name": "phone-portrait",
-      "viewport": { "width": 390, "height": 800, "deviceScaleFactor": 2 }
+      "viewport": {
+        "width": 390,
+        "height": 800,
+        "deviceScaleFactor": 2
+      }
     },
-    { "name": "settle-phone", "wait": 1500 },
+    {
+      "name": "settle-phone",
+      "wait": 1500
+    },
     {
       "name": "probe-phone-camera",
       "eval": "(() => { const c = window.__three.camera; const h = 2 * Math.atan(Math.tan((c.fov * Math.PI) / 360) * c.aspect) * 180 / Math.PI; console.log('[probe] phone', JSON.stringify({ vFov: +c.fov.toFixed(1), hFov: +h.toFixed(1), aspect: +c.aspect.toFixed(3) })) })()"
     },
-    { "name": "shot-phone-walkin", "screenshot": "02-walk-in-phone-portrait" }
+    {
+      "name": "shot-phone-walkin",
+      "screenshot": "02-walk-in-phone-portrait"
+    }
   ]
 }

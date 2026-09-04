@@ -1,0 +1,94 @@
+{
+  "name": "hackability-shelter",
+  "description": "SHELTER-WALLS: the 2D Hackability overlay must tint a household shelter's RC walls NOT PERMITTED (red), not 'unclassified'. Loads tpl-hdb-4room, whose shelter walls are undeclared internal partitions, opens the plan editor and turns on the overlay. Pro-tier (hackabilityOverlay flag).",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "assert-flag-on",
+      "waitFor": {
+        "store": "state.featureFlags.hackabilityOverlay === true"
+      },
+      "timeout": 5000,
+      "failMessage": "hackabilityOverlay should be ON in Pro"
+    },
+    {
+      "name": "load-4room",
+      "eval": "import('/src/floorplan/templates.ts').then(m=>{const t=m.PLAN_TEMPLATES.find(p=>p.id==='tpl-hdb-4room'); window.__store.getState().replaceFloorPlan(JSON.parse(JSON.stringify(t)), {furniture:'rehome'})}); 'started'"
+    },
+    {
+      "name": "plan-loaded",
+      "waitFor": {
+        "store": "state.floorPlan.rooms.some(r => r.name === 'Household Shelter')"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "open-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "editor-swap-settled",
+      "waitFor": {
+        "store": "state.floorPlanEditing === true && state.loading.active === false"
+      },
+      "timeout": 30000,
+      "failMessage": "the deferred scene swap never settled \u2014 FloorPlanEditor mounts on visualScene.floorPlan, which waits for the loading overlay to clear"
+    },
+    {
+      "name": "editor-ready",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle",
+      "wait": 800
+    },
+    {
+      "name": "open-view-menu",
+      "eval": "(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent.trim()==='View \u25be'); if(!b) throw new Error('no View menu button'); b.click(); return 'opened'})()"
+    },
+    {
+      "name": "menu-open",
+      "wait": 400
+    },
+    {
+      "name": "toggle-hackability",
+      "eval": "(()=>{const all=[...document.querySelectorAll('button')]; const b=all.find(x=>x.textContent.trim()==='Hackability'); if(!b) throw new Error('buttons on page: '+all.map(x=>x.textContent.trim()).filter(Boolean).slice(0,60).join(' | ')); b.click(); return b.getAttribute('aria-pressed')})()"
+    },
+    {
+      "name": "overlay-on",
+      "wait": 600
+    },
+    {
+      "name": "assert-shelter-walls-red",
+      "eval": "(()=>{const s=window.__store.getState(); return import('/src/floorplan/wallHackability.ts').then(m=>{const plan=s.floorPlan; const ids=[...m.shelterWallIds(plan)]; if(ids.length===0) throw new Error('no shelter walls found'); const bad=ids.filter(id=>{const w=plan.walls.find(x=>x.id===id); return m.wallHackability(m.establishedWallStructureInPlan(w, new Set(ids)))!=='no'}); if(bad.length) throw new Error('not classified: '+bad.join(',')); return ids.length+' shelter walls classified not-permitted'})})()"
+    },
+    {
+      "name": "shot",
+      "screenshot": "hackability-shelter"
+    }
+  ]
+}

@@ -75,6 +75,50 @@ export const SG_DEFAULT_ROUTE: AccessConstraint[] = [
   { id: 'main-door', label: 'Main entrance door', widthM: 0.8, heightM: 2.1 },
 ]
 
+/**
+ * The route to check: published Singapore typicals, with the user's own
+ * measurements applied where they have recorded any (`plan.deliveryRoute`).
+ *
+ * Overrides are applied per DIMENSION, not per aperture, so recording just the
+ * lift door's width leaves its height — and every other aperture — on the
+ * published figure. That matters because the sources are emphatic that a 5-10 cm
+ * difference decides whether a large piece fits, and someone measuring on site
+ * arrives at numbers one at a time.
+ *
+ * An override of a non-positive or non-finite value is IGNORED rather than
+ * trusted: a route dimension of 0 would silently block every piece and read as a
+ * catalogue-wide fault rather than as bad input. The zod schema rejects those on
+ * load, so this only guards a live edit.
+ */
+export function resolveDeliveryRoute(
+  overrides: Record<string, { widthM?: number; heightM?: number }> | undefined,
+  base: AccessConstraint[] = SG_DEFAULT_ROUTE,
+): AccessConstraint[] {
+  if (!overrides) return base
+  const usable = (v: number | undefined): v is number => Number.isFinite(v) && (v as number) > 0
+  let changed = false
+  const next = base.map((c) => {
+    const o = overrides[c.id]
+    if (!o) return c
+    const widthM = usable(o.widthM) ? o.widthM : c.widthM
+    const heightM = usable(o.heightM) ? o.heightM : c.heightM
+    if (widthM === c.widthM && heightM === c.heightM) return c
+    changed = true
+    return { ...c, widthM, heightM }
+  })
+  // Return `base` ITSELF when nothing moved, so reference identity answers "is
+  // this route measured or typical?" — see `hasMeasuredRoute`. An override map
+  // that exists but matches the typicals is not a measured route.
+  return changed ? next : base
+}
+
+/** True when any aperture is running on the user's own figure rather than a typical. */
+export function hasMeasuredRoute(
+  overrides: Record<string, { widthM?: number; heightM?: number }> | undefined,
+): boolean {
+  return resolveDeliveryRoute(overrides) !== SG_DEFAULT_ROUTE
+}
+
 export const ACCESS_SCOPE_NOTE =
   'Route dimensions default to published Singapore typicals. HDB lift and corridor sizes vary by block and a 5-10 cm difference decides whether a large piece fits, so measure your actual lift, corridor turn and doorways and adjust these before ordering. The check assumes a piece is carried on its smallest face and does not model tilting it diagonally, so it errs toward warning.'
 

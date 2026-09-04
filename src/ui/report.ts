@@ -6,8 +6,18 @@
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildCoordinationClashes } from '../analysis/coordinationClashes'
-import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
-import { buildDeliveryAccess } from '../analysis/deliveryAccess'
+import {
+  buildDaylightReport,
+  DAYLIGHT_MIN_RATIO,
+  isDaylightExempt,
+  VENT_MIN_RATIO,
+} from '../analysis/daylight'
+import {
+  buildDeliveryAccess,
+  hasMeasuredRoute,
+  resolveDeliveryRoute,
+  SG_DEFAULT_ROUTE,
+} from '../analysis/deliveryAccess'
 import { buildDesignScore } from '../analysis/designScore'
 import {
   buildDesignedElectricalSchedule,
@@ -56,6 +66,7 @@ import { buildSection, conventionalSectionCuts } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
+import { shelterWallIds } from '../floorplan/wallHackability'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
 import { LIGHT_EMITTERS, resolveLampSpec } from '../furniture/lightEmitters'
@@ -510,7 +521,7 @@ export function buildReportHtml(
   // findings first — a list that opens with four passes buries the one problem.
   const critique =
     hasItems && isFeatureEnabled('layoutCritiqueReport')
-      ? buildLayoutCritique(plan, items, catalog)
+      ? buildLayoutCritique(plan, items, catalog, { routeAccess: true })
       : null
   // Floor build-up + the HDB thickness limits (v0.31.6.2). The wet-room fall and
   // the declared-vs-derived mismatch lead, because both are errors; the per-room
@@ -615,7 +626,13 @@ export function buildReportHtml(
   // for an unfurnished shell; skipped when the plan has no doors or rooms.
   const a11y = buildAccessibilityReport(plan)
   const a11yFailDoors = a11y.doors.filter((d) => !d.pass)
-  const a11yFailRooms = a11y.rooms.filter((r) => !r.pass)
+  // Listed ABOVE the turn-circle failures and worded distinctly: below HDB's
+  // 900 mm internal-corridor minimum the space is not walkable at all, which is
+  // a different (and more serious) statement than "no room for a wheelchair to
+  // turn". A room that fails this necessarily fails the turn circle too, so it
+  // would otherwise be buried in that list under the milder wording.
+  const a11yUnwalkable = a11y.rooms.filter((r) => !r.walkable)
+  const a11yFailRooms = a11y.rooms.filter((r) => !r.pass && r.walkable)
   const doorName = (id: string) => {
     const it = plan.openings?.find((o) => o.id === id)
     return it ? `Door (${formatLength(it.width, units)})` : id
@@ -623,7 +640,15 @@ export function buildReportHtml(
   // Delivery access — can each piece physically reach the room? A designer
   // checks this before anything is ordered; a sofa that fits the room and not
   // the lift door is a real and common failure.
-  const access = isFeatureEnabled('deliveryAccess') ? buildDeliveryAccess(items, catalog) : null
+  // The route is the user's own figures where they have recorded any
+  // (`plan.deliveryRoute`), else the published SG typicals — the scope note
+  // below has told people to measure and adjust since v0.31.5.374, so the check
+  // has to honour it once they have.
+  const route = resolveDeliveryRoute(plan.deliveryRoute)
+  const access = isFeatureEnabled('deliveryAccess')
+    ? buildDeliveryAccess(items, catalog, route)
+    : null
+  const routeIsMeasured = hasMeasuredRoute(plan.deliveryRoute)
   const accessSection =
     !access || access.checked === 0
       ? ''
@@ -632,7 +657,9 @@ export function buildReportHtml(
       <div class="${access.allClear ? 'ok' : 'warn'}">
         ${
           access.allClear
-            ? `All ${access.checked} distinct pieces can be carried in assembled on the assumed route.`
+            ? `All ${access.checked} distinct pieces can be carried in assembled on ${
+                routeIsMeasured ? 'your measured route' : 'the assumed route'
+              }.`
             : `${access.findings.length} of ${access.checked} pieces cannot be carried in assembled.`
         }
       </div>
@@ -643,7 +670,26 @@ export function buildReportHtml(
               .map((f) => `<tr><td>${esc(f.label)}</td><td>${esc(f.action)}</td></tr>`)
               .join('')}</table>`
       }
-      <div class="note">${esc(access.scopeNote)}</div>
+      ${
+        // Say WHICH figures produced this. Once the user has measured, the
+        // default scope note ("dimensions default to published typicals ...
+        // adjust these") is no longer true of their report, and a contractor
+        // reading it needs to know whether a warning came from a typical or
+        // from the site.
+        routeIsMeasured
+          ? `<div class="note">Measured on site: ${esc(
+              route
+                .filter((c, i) => c !== SG_DEFAULT_ROUTE[i])
+                .map(
+                  (c) =>
+                    `${c.label} ${formatLength(c.widthM, units)} wide${
+                      Number.isFinite(c.heightM) ? ` x ${formatLength(c.heightM, units)}` : ''
+                    }`,
+                )
+                .join('; '),
+            )}. Remaining figures are published Singapore typicals.</div>`
+          : `<div class="note">${esc(access.scopeNote)}</div>`
+      }
     </div>`
 
   // Cross-discipline coordination (G9) — the one check that compares the
@@ -703,6 +749,15 @@ export function buildReportHtml(
               .join('')}</table>`
           : ''
       }${
+        a11yUnwalkable.length > 0
+          ? `<div class="warn">Rooms below HDB's ${esc(formatLength(a11y.thresholds.walkable, units))} internal-corridor minimum — too narrow to walk through, not just to turn in:</div><table>${a11yUnwalkable
+              .map(
+                (r) =>
+                  `<tr><td class="indent">${esc(r.roomName)} — ${esc(formatLength(r.minDim, units))} min span, widen to ≥ ${esc(formatLength(a11y.thresholds.walkable, units))}</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
         a11yFailRooms.length > 0
           ? `<div class="warn">Rooms too tight for a wheelchair turn:</div><table>${a11yFailRooms
               .map(
@@ -723,28 +778,41 @@ export function buildReportHtml(
   // uses); rides the existing `report` flag (additive section). Skipped when no
   // analysed room actually has a window (a bare shell / windowless plan), so an
   // all-zero table never shows.
+  // Wall ids bounding a household shelter — computed once for the hacking-plan
+  // sections below, which MUST mark them NOT PERMITTED (SCDF forbids hacking any
+  // part of a shelter's RC walls, and no permit or PE endorsement lifts that).
+  const demoShelterWalls = shelterWallIds(plan)
   const daylight = buildDaylightReport(plan)
   const daylightRoomsWithGlazing = daylight.rooms.filter((r) => r.glazingArea > 0)
   const daylightPct = (f: number) => `${Math.round(f * 100)}%`
+  // An interior room with no façade wall (the HDB household shelter) has nowhere
+  // to put a window — so it is reported neutrally rather than as a red failure,
+  // and is left out of the pass ratios (matching `designScore` and the panel).
+  const daylightAssessable = daylight.rooms.filter((r) => !isDaylightExempt(r))
+  const daylightSealed = daylight.rooms.filter((r) => isDaylightExempt(r))
+  const daylightDayPass = daylightAssessable.filter((r) => r.daylightPass).length
+  const daylightVentPass = daylightAssessable.filter((r) => r.ventPass).length
+  const daylightAllPass =
+    daylightDayPass === daylightAssessable.length && daylightVentPass === daylightAssessable.length
   const daylightSection =
     daylightRoomsWithGlazing.length === 0
       ? ''
       : `<div class="room-cost">
       <h2>Daylight &amp; ventilation</h2>
-      <div class="${daylight.allPass ? 'ok' : 'warn'}">
-        ${daylight.daylightPassCount}/${daylight.rooms.length} rooms meet daylight ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} glazing ·
-        ${daylight.ventPassCount}/${daylight.rooms.length} meet ventilation ≥ ${daylightPct(VENT_MIN_RATIO)} openable
+      <div class="${daylightAllPass ? 'ok' : 'warn'}">
+        ${daylightDayPass}/${daylightAssessable.length} rooms meet daylight ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} glazing ·
+        ${daylightVentPass}/${daylightAssessable.length} meet ventilation ≥ ${daylightPct(VENT_MIN_RATIO)} openable
       </div>
       <table style="margin-top:6px">
         <tr class="cat"><td>Room</td><td class="num">Floor</td><td class="num">Glazing</td><td class="num">Openable</td></tr>
         ${daylight.rooms
           .map(
             (r) =>
-              `<tr><td>${esc(r.roomName)}</td><td class="num">${esc(formatArea(r.floorArea, units))}</td><td class="num" style="color:${r.daylightPass ? '#047857' : '#b91c1c'}">${esc(formatArea(r.glazingArea, units))} · ${daylightPct(r.glazingPct)}</td><td class="num" style="color:${r.ventPass ? '#047857' : '#b91c1c'}">${daylightPct(r.ventPct)}</td></tr>`,
+              `<tr><td>${esc(r.roomName)}${isDaylightExempt(r) ? ` <span style="color:#6b7280">(${r.blastShelter ? 'shelter, no opening permitted' : 'no external wall'})</span>` : ''}</td><td class="num">${esc(formatArea(r.floorArea, units))}</td><td class="num" style="color:${isDaylightExempt(r) ? '#6b7280' : r.daylightPass ? '#047857' : '#b91c1c'}">${esc(formatArea(r.glazingArea, units))} · ${daylightPct(r.glazingPct)}</td><td class="num" style="color:${isDaylightExempt(r) ? '#6b7280' : r.ventPass ? '#047857' : '#b91c1c'}">${daylightPct(r.ventPct)}</td></tr>`,
           )
           .join('')}
       </table>
-      <div class="foot" style="margin-top:6px">Rule-of-thumb check (glazing ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} of floor area for daylight, openable ≥ ${daylightPct(VENT_MIN_RATIO)} for ventilation) — indicative, not a certified BCA/HDB calculation; openable ≈ half the window area for sliding windows.</div>
+      <div class="foot" style="margin-top:6px">Rule-of-thumb check (glazing ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} of floor area for daylight, openable ≥ ${daylightPct(VENT_MIN_RATIO)} for ventilation) — indicative, not a certified BCA/HDB calculation; openable ≈ half the window area for sliding windows.${daylightSealed.length > 0 ? ` ${esc(daylightSealed.map((r) => r.roomName).join(', '))} ${daylightSealed.length === 1 ? 'cannot hold a window' : 'cannot hold windows'} — an interior room with no external wall, or a household shelter whose RC walls may not be opened — and ${daylightSealed.length === 1 ? 'is' : 'are'} excluded from the ratios above.` : ''}</div>
     </div>`
 
   // Openings schedule (PARITY-OPENING-SCHED) — the door & window schedule an
@@ -895,7 +963,7 @@ export function buildReportHtml(
                       : 'Entire storey removed — it existed only in the original layout.'
                   }</div>`
                 : ''
-            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700, housingType: plan.category?.housingType })}</div>`,
+            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700, housingType: plan.category?.housingType, shelterWalls: demoShelterWalls })}</div>`,
         )
         .join('')}</div>`
       : ''
@@ -906,6 +974,7 @@ export function buildReportHtml(
         palette: DEMO_PALETTE,
         widthPx: 700,
         housingType: plan.category?.housingType,
+        shelterWalls: demoShelterWalls,
       })}</div></div>`
       : ''
 

@@ -421,3 +421,64 @@ describe('granular footprint — flip mirrors an asymmetric footprint (BUG: sofa
     expect(sumHx(flipped)).toBeCloseTo(sumHx(base), 6)
   })
 })
+
+/**
+ * **Collision and the drawn overlay must place an asymmetric footprint in the
+ * SAME world position (v0.31.8.10).** They did not: `itemFootprintParts`
+ * rotated part offsets with the opposite sense to the render, so for any
+ * asymmetric footprint at a rotation with `sin θ ≠ 0` the collision shape was
+ * the MIRROR IMAGE of the drawn one. Measured on `sofa-lshape` at π/2, the two
+ * were **1.82 m apart** — the chaise blocked on the wrong side.
+ *
+ * Nothing caught it because nothing tested an asymmetric footprint at a
+ * non-axis rotation: at rotation 0 (and π) the two senses agree exactly, and
+ * every other `footprintParts` def in the catalogue is mirror-symmetric (the
+ * ellipse approximations), so a sign flip is invisible there.
+ *
+ * The render is the authority: `Furniture.tsx` mounts the mesh in a group at
+ * `rotation={itemRotation(item)}` = `[pitch, yaw, roll]`, i.e. plain three.js,
+ * where local `+Z` maps to world `(sin θ, cos θ)`. `SelectionOutline` and
+ * `PlacementGhost` drop `itemFootprintPartsLocal` into a group rotated the same
+ * way, so the overlay was always right and collision was always the odd one out.
+ */
+describe('granular footprint — collision agrees with the drawn overlay', () => {
+  /** Where the overlay actually puts a local part: a child at `(ox, oz)` inside
+   *  a three.js group rotated `rot` about +Y lands at
+   *  `(ox·cos + oz·sin, −ox·sin + oz·cos)`. */
+  const overlayWorld = (item: FurnitureItem, def: FurnitureDef) => {
+    const cos = Math.cos(item.rotation)
+    const sin = Math.sin(item.rotation)
+    return itemFootprintPartsLocal(item, def).map((p) => ({
+      cx: item.position[0] + p.ox * cos + p.oz * sin,
+      cz: item.position[1] - p.ox * sin + p.oz * cos,
+    }))
+  }
+
+  // Includes a NON-AXIS angle: the axis-aligned cases alone cannot discriminate,
+  // since π/2 flips only x and 0/π agree under either sense.
+  for (const rot of [0, Math.PI / 2, -Math.PI / 2, Math.PI, Math.PI / 3, 2.4]) {
+    it(`places the L-sofa's parts identically at rotation ${rot.toFixed(3)}`, () => {
+      const def = BUILTIN_CATALOG['sofa-lshape'] as FurnitureDef
+      const item = { ...lsofa(), position: [5, 5] as [number, number], rotation: rot }
+      const collision = itemFootprintParts(item, def)
+      const overlay = overlayWorld(item, def)
+      expect(collision).toHaveLength(overlay.length)
+      // Guard against a vacuous pass: the L-sofa must actually decompose into
+      // more than one part, and they must be genuinely offset from each other.
+      expect(collision.length).toBeGreaterThan(1)
+      for (const [i, c] of collision.entries()) {
+        expect(c.cx, `part ${i} cx`).toBeCloseTo(overlay[i]!.cx, 6)
+        expect(c.cz, `part ${i} cz`).toBeCloseTo(overlay[i]!.cz, 6)
+      }
+    })
+  }
+
+  it('would have caught the mirror: the parts are NOT symmetric about the centre', () => {
+    // The invariant above only bites for a shape a mirror actually moves. If the
+    // L-sofa's parts were ever made symmetric, the tests above would pass under
+    // either rotation sense and silently stop protecting anything.
+    const local = itemFootprintPartsLocal(lsofa(), BUILTIN_CATALOG['sofa-lshape'] as FurnitureDef)
+    const mirrored = local.map((p) => ({ ...p, ox: -p.ox }))
+    expect(mirrored).not.toEqual(local)
+  })
+})

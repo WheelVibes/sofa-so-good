@@ -439,8 +439,8 @@ same change that reshapes a system.
   DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
   unchanged. Flag off → today's behaviour exactly.
   **Room categories (RM1, 2026-07-19 SG-presets plan):** `PlanRoom.category?: RoomCategory`
-  (`floorplan/types.ts` — 13 values: living/dining/bedroom/masterBedroom/kitchen/bath/powder/
-  study/serviceYard/storeroom/balcony/foyer/other; `PlanRoomZ` additive enum) is the persisted,
+  (`floorplan/types.ts` — 14 values: living/dining/bedroom/masterBedroom/kitchen/bath/powder/
+  study/serviceYard/storeroom/**shelter**/balcony/foyer/other; `PlanRoomZ` additive enum) is the persisted,
   USER-declared room type, edited via the `RoomInspector`'s "Room type" `Select` right under Name
   (first option "Auto — ‹inferred›" clears it back to undefined; `updateRoom` persists, undoable).
   `floorplan/roomCategory.ts` is the ONE resolver: `roomCategory(room)` (explicit `category` wins,
@@ -450,8 +450,26 @@ same change that reshapes a system.
   so every existing coarse consumer keeps working unchanged when a room has no explicit category.
   This module owns its OWN regex set rather than delegating to `roomKindFromName` — `RoomCategory`
   is a strict refinement (splits `bath`→`bath`/`powder`, `bedroom`→`bedroom`/`masterBedroom`, the
-  catch-all `balcony` bucket→`serviceYard`/`storeroom`/`foyer`/`balcony`) that the coarser
-  classifiers' regexes can't recover once collapsed. RM1 migrated: `CatalogDrawer`'s room-aware
+  catch-all `balcony` bucket→`serviceYard`/`storeroom`/`shelter`/`foyer`/`balcony`) that the coarser
+  classifiers' regexes can't recover once collapsed.
+  **`'shelter'`** (v0.31.8.25) splits the HDB household shelter out of `storeroom`: it is a
+  reinforced-concrete civil-defence enclosure whose walls may not be altered and which is
+  windowless by design, so the daylight check must never advise a window there (see the Daylight
+  entry). It differs only in its WALLS and daylight obligations, not its contents — `furnishPlan`
+  gives it `KITS.storeroom` and `suggestions.ts` puts it in the same `'utility'` bucket, and both
+  `toRoomKind`/`toArrangeKind` map it exactly where `storeroom` maps (verified: recategorising
+  the 8 authored template shelters produced ZERO drift in either downmap). It also drives the
+  household-shelter WALL rule — `wallHackability.ts:shelterWallIds(plan)` +
+  `establishedWallStructureInPlan(wall, shelterWalls)` fill an undeclared shelter wall as
+  `'rc-partition'` → NOT PERMITTED (SCDF forbids hacking any part of a shelter's RC walls, and
+  unlike a load-bearing wall no permit or PE endorsement lifts it). Level-aware per F13, and
+  wired through EVERY consumer so the 2D `HackabilityLayer`, the 3D `PlanShell`/`RoomShell`
+  tints, both hacking plans (`demolitionSvg` takes `shelterWalls`), the report plan SVG and the
+  `WallInspector` delete guard cannot disagree about the same wall. Adding it touched only
+  `roomCategory.ts` (label + name rule ordered BEFORE the storeroom rule + `toRoomKind`) and
+  `state/schema.ts`'s enum — but the type-checker does NOT flag consumers that `switch` on the
+  category directly, and `furnishPlan.ts`/`suggestions.ts` both did, so a green `tsc` was not
+  proof of coverage (the shelter silently lost its shelving until the test suite caught it). RM1 migrated: `CatalogDrawer`'s room-aware
   landing (explicit category resolved from `floorPlan.rooms` before falling back to
   `roomDisplayName`), `EmptyRoomHint`'s starter chips, `furnishPlan.ts`'s `kitForRoom` (switches on
   `roomCategory(room)` — `serviceYard`/`storeroom`/`foyer`/`other` still get no kit; those kits are
@@ -662,6 +680,17 @@ same change that reshapes a system.
   SketchUp/Blender/Figma "zoom to selection". Pure bounds→camera math in
   `scene/cameras/frameSelection.ts` (unit-tested): `resolveSelectionExtents` turns each selected
   item into a world-space `itemFootprint` OBB + vertical span (`def.verticalSpan ?? [0, h]`),
+  *(**Rotation convention — one authority, and it is the render.** `Furniture.tsx` mounts the mesh
+  at `rotation={itemRotation(item)}` = `[pitch, yaw, roll]`, i.e. plain three.js, where local `+Z`
+  maps to world `(sin θ, cos θ)` — the convention `layout/faceWall.ts` documents and every
+  forward-direction derivation in `layout/` and `analysis/` follows. Until v0.31.8.10
+  `collision/placement.ts` rotated part/GLB offsets with the OPPOSITE sense, so an asymmetric
+  footprint at any rotation with `sin θ ≠ 0` collided as its own MIRROR IMAGE — 1.82 m off for
+  `sofa-lshape` at π/2, and wrong in 3 of the 4 natural orientations of `cabinet-corner`, which
+  exists to be rotated into a corner. Invisible for a centred rectangle and for the symmetric
+  ellipse approximations, which is why it survived; `granularFootprint.test.ts` now pins
+  collision against the drawn overlay at non-axis rotations. **Never derive a facing direction
+  from a transform that happens to be nearby — look it up.**)*
   `selectionBounds` unions them (via `layout/alignDistribute.ts` `obbAxisHalf`) into one bounding
   sphere, and `fitDistanceForFov` (the same formula `OrbitCamera`'s whole-plan `fitDistance` uses)
   turns the radius into a camera distance, clamped to the `<OrbitControls>` min/max
@@ -1953,10 +1982,55 @@ same change that reshapes a system.
   `CIRCULATION.gradedFloor` is 0.40 m because that is the INSTRUMENT's floor, not a human dimension:
   `findNarrowGaps` skips any item↔item gap `≤ CLEARANCE.sofaToCoffee`, so **a genuinely blocked
   route is invisible to this category** — a measured, test-pinned limitation, logged in `TODO.md`.
+  **The finder is wall-aware (v0.31.8.6).** An item↔item pair with a wall between it is rejected —
+  no route, so no pinch. Measured: 22 of 59 corpus pinches (37%) were wall-separated, 18 of them
+  in different rooms; removing them moved median corpus circulation 55.5 → 68.5 and the shipped
+  flat 56 → 65. Doors are treated as OPEN for this test only (a doorway IS a route, so a pinch
+  across one survives), while the item↔wall pass keeps its closed-door walls.
 - **Layout critique** (`analysis/layoutCritique.ts` pure → `buildLayoutCritique(plan,items,catalog)`:
   cited comfort bands — TV viewing distance, conversation distance, coffee-table reach, SG sofa
-  proportion, and rug size against the sofa / dining table / bed it anchors, with a bedside
-  RUNNER recognised as its own published layout and judged on length rather than overhang).
+  proportion, rug size against the sofa / dining table / bed it anchors, with a bedside
+  RUNNER recognised as its own published layout and judged on length rather than overhang, and
+  **storage access** — `CLEARANCE.storageFront` (0.75 m) clear in FRONT of a piece you open, which
+  until v0.31.8.8 was tabulated in `docs/interior-design-guidelines.md` as a rule the app follows
+  while having no consumer anywhere. Front direction comes from the item's rotation
+  (`faceWall.ts`'s `(sin θ, cos θ)`), and obstacles must both sit in front AND overlap the piece's
+  own width — a wardrobe is not blocked by something beside or behind it. Subject is the openable
+  cabinet PRIMITIVE family, not `category === 'storage'` (which dragged in nightstands) and not a
+  footprint cut (which excluded a real utility-cabinet hit). Reported, never enforced: making the
+  arranger honour it was measured worse in v0.31.8.7), and **bed access** —
+  `CLEARANCE.bedSurround` (0.6 m, published as 24") on at least ONE long side, since the rule is
+  about the side you get in and out on, so a single bed in a corner is a normal small-room answer.
+  Sides come from the bed's rotation. Only pieces ≥ 0.5 m² count as blocking: a NIGHTSTAND is part
+  of the bedside arrangement, not an obstruction — without that filter the authored default flat
+  warned at 0.24 m, the gap to its own nightstand. Note this is the OPPOSITE call to storage
+  access, deliberately: "is there a walkway" is what the area bar is for, "can you open this door"
+  is not), and **route access** (v0.31.8.52) — the one check that is not a distance. `walkway.ts`
+  measures GAPS, and no gap threshold can tell "jammed together, walk around" from "this pair
+  seals the only way through" (v0.31.8.51 built the threshold fix, measured it over the 19
+  templates and reverted it — see `src/layout/CLAUDE.md`). `layout/reachability.ts` answers the
+  connectivity question instead: rasterise the storey at 0.05 m, find the interior by flooding
+  INWARD from outside with the doors closed (room rectangles are not the floor — corridors here
+  are undeclared), erode by half a body width, flood-fill what survives, and report rooms whose
+  walkable floor is no longer connected to the main region. Only circulation OBSTACLES
+  (`OBSTACLE_AREA_M2`, 0.5 m² — now a single constant in `layout/designRules.ts` shared with
+  `designScore` and `bed-access`, three separate literals until v0.31.8.53) can seal a room: a
+  floor lamp does not close a doorway. The empty-plan baseline is subtracted so a template that
+  was never connected is not blamed on its furniture. "Reachable" means **from the front door**
+  (the component holding a cell just inside an external-wall door), not "in the largest region"
+  — a heuristic that reported the wrong SIDE of a seal. Each finding names the piece whose
+  removal alone reopens the room (`sealedBy`), found by re-solving the same raster with that
+  footprint freed. It found 43 rooms beyond a break across 10 of 19 templates, and
+  `layout/reachability.ts:unsealRoutes` — called by `furnishPlanItems` after the drop passes —
+  now FIXES most of them, sliding a sealing piece up to 2.4 m in 0.15 m steps and taking the
+  first position that opens the route without severing anything new: **43 -> 3 rooms, 10 -> 3
+  templates, 12 items moved, none deleted** (median move 0.45 m, max 1.95 m — the reach is a
+  ceiling, not a step, because candidates are tried nearest-first). It writes only `position`, and places against a
+  stricter mask than it routes with (doors CLOSED, inflated one cell) so a piece cannot be parked
+  in the doorway it just opened. `routeAccess.test.ts` ratchets what is left. Two rasters per storey (63 ms on `tpl-hdb-jumbo`), so it is OPT-IN
+  (`{ routeAccess: true }`) and only the report asks for it — running it inside `schemeOptions`,
+  which critiques a dozen candidates, pushed the Scheme Compare modal past a 15 s harness
+  timeout.
   Each finding carries the measured figure + the band so a user can judge the call; `skipped`
   where the design lacks the pieces. Consumed by `schemeOptions` (compare modal) **and**, since
   v0.31.5.415, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed
@@ -2073,6 +2147,25 @@ same change that reshapes a system.
   `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`
   for sliding windows; level-gated for multi-storey). `ui/DaylightPanel.tsx` + the report's
   "Daylight & ventilation" section (PARITY-DAYLIGHT-DIGEST; skipped when no room has a window).
+  **A room that can never hold a window is exempted, not failed** — `isDaylightExempt(row)` is the
+  ONE predicate the score, the panel and the printed report share (so the three cannot disagree on
+  what is being counted): `noFacade` (zero glazing AND no bounding wall with `thickness ===
+  'external'`, via the shared `roomWallNames.ts:roomBoundaryWalls`) AND NOT `habitable`
+  (`roomCategory.ts:HABITABLE_CATEGORIES`). The HDB **household shelter** is the case it exists
+  for — a windowless RC blast shelter was being told to "add or widen windows". An interior room
+  in a habitable category is deliberately NOT exempt: it keeps counting against the score and gets
+  its own stronger warning (an interior bedroom has no daylight at all — a layout defect).
+  NOTE the test is the FAÇADE, not `wallHackability`: an external wall maps to `load-bearing` →
+  NOT PERMITTED, but "cannot be demolished" is not "cannot hold a window", and keying on
+  hackability suppressed a genuine windowless-bedroom finding in `tpl-hdb-jumbo`.
+  A **household shelter** (`RoomCategory` `'shelter'`, `row.blastShelter`) is exempt
+  UNCONDITIONALLY — façade or not — because an opening in its RC walls is not permitted; 7
+  templates author it against an external wall, so the façade test alone left them advising one.
+  `exemptReason(row)` supplies the display wording, and the two reasons are NOT interchangeable
+  (calling a façade-side shelter an "interior room" would be false).
+  Counting against the score and being ADVISED to add a window are separate: an interior
+  habitable room stays in the score's denominator but is kept out of the "add or widen windows"
+  advisory, since it has no façade to open onto.
 - **Aircon cooling-load (BTU) advisory** (`analysis/airconSizing.ts` pure → `buildAirconSizing(plan,
   orientationDeg)`: per-room recommended BTU = floor area × `BTU_PER_SQM` (600, the ~50–60 BTU/ft²
   SG rule-of-thumb mid) × modifiers — `+15%` for an exterior window facing W/E (room-side compass ⊕

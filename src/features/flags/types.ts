@@ -18,6 +18,7 @@ export type FeatureFlag =
   | 'schemeOptions'
   | 'siteMeasurements'
   | 'deliveryAccess'
+  | 'deliveryRouteMeasure'
   | 'versions'
   | 'history'
   | 'shareExport'

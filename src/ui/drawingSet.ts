@@ -63,6 +63,7 @@ import { planTileCoursing } from '../floorplan/tileCoursing'
 import { tileLayoutSvg } from '../floorplan/tileLayoutSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
+import { shelterWallIds } from '../floorplan/wallHackability'
 import { planWallTileCoursing, type WallTileCoursing } from '../floorplan/wallTileCoursing'
 import { buildWaterproofingZones } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -70,7 +71,7 @@ import { iesShapeFactor } from '../lighting/ies/iesShape'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { buildRoomUniformity } from '../lighting2d/luxGrid'
 import { estimateRoomLux } from '../lighting2d/roomLux'
-import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
+import { BUILTIN_MATERIALS, isTiledFinish } from '../materials/builtinCatalog'
 import type { CalloutSheet, DrawingCallout } from '../state/slices/drawingCalloutsSlice'
 import {
   drawingUnitsNote,
@@ -328,7 +329,11 @@ function wallCoursingTable(
     const w = resolvePlanRoomWall(finishes, room)
     if (w) wallByRoom[room.id] = w
   }
-  const { rows, omittedFaces } = planWallTileCoursing(levelPlan, wallByRoom, BUILTIN_MATERIALS)
+  const { rows, omittedFaces, cornerCourseSteps } = planWallTileCoursing(
+    levelPlan,
+    wallByRoom,
+    BUILTIN_MATERIALS,
+  )
   if (rows.length === 0) return ''
   const mm = (v: number) => esc(formatDrawingLength(v / 1000, units))
   const body = rows
@@ -356,7 +361,25 @@ function wallCoursingTable(
     `Courses run from the CEILING down, so the cut course lands at the bottom. ` +
     `A bottom cut under half a course is a design decision (drop the tiled height, change module, or accept) — it is flagged, not adjusted. ` +
     `Openings are cut around the set-out field; verify on site. ` +
-    `Faces are set out independently, so courses will not generally align around a corner. ` +
+    // CORRECTED v0.31.8.14. This note used to read "Faces are set out
+    // independently, so courses will not generally align around a corner",
+    // which is false and was printed on a contractor sheet — it could prompt a
+    // tiler to intervene where nothing is wrong. Courses are struck from the
+    // top of each face and every face of a room shares the room's ceiling
+    // height and its single wall finish, so the grid is identical on all four
+    // faces by construction; measured empty on every tiled room the app ships.
+    // The one real exception is reported per face instead of asserted globally.
+    `Because courses run from the top down and every face of a room shares its ceiling height, ` +
+    `the course lines DO align around each corner — the end cuts differ per face, but those are ` +
+    `vertical joints on perpendicular faces and are not meant to continue. ` +
+    (cornerCourseSteps.length > 0
+      ? `EXCEPT: ${cornerCourseSteps
+          .map(
+            (s) =>
+              `${esc(s.wallName)} steps ${mm(s.stepMm)} against the rest of ${esc(s.roomName)}`,
+          )
+          .join('; ')} — a face tiled to its own height that is not a whole number of courses. `
+      : '') +
     `Tile counts EXCLUDE wastage. ` +
     (omittedFaces > 0
       ? `${omittedFaces} face${omittedFaces === 1 ? '' : 's'} omitted — finish has no specified module.`
@@ -394,6 +417,17 @@ function specificationSheetBody(
     }
   }
   const coursing = finishes ? planTileCoursing(plan, floorByRoom, BUILTIN_MATERIALS).rows : []
+  // Tiling work is present when a TILE FINISH is specified — not when its
+  // coursing happens to be computable (v0.31.8.15). Reads both floors and the
+  // per-room wall finish, since a painted floor with subway-tiled walls is still
+  // a tiling job.
+  const hasTiledFinish = finishes
+    ? allPlanRooms(plan).some(
+        (room) =>
+          isTiledFinish(BUILTIN_MATERIALS[resolvePlanRoomFloor(finishes, room)]) ||
+          isTiledFinish(BUILTIN_MATERIALS[finishes.walls[room.id] ?? '']),
+      )
+    : false
   const wetRoomNames = isFeatureEnabled('waterproofing')
     ? buildWaterproofingZones(plan, items).map((z) => z.roomName)
     : []
@@ -405,6 +439,7 @@ function specificationSheetBody(
       ceiling: [...ceilNames],
     },
     coursing,
+    hasTiledFinish,
     wetRoomNames,
     carpentryNames,
     mep: {
@@ -462,10 +497,22 @@ function detailSheetBody(plan: FloorPlan, units: UnitSystem): string {
     .join('')
   return (
     `<h3>Construction details</h3>${blocks}` +
-    `<div class="note">Dimensions are derived from the design and exact.
-    Skirting, cornice, shower-kerb, worktop-edge and architrave details are NOT included: the model
-    stores trim heights but no profiles or specified projections, so drawing them would mean
-    inventing dimensions. Detail those separately with your contractor.</div>`
+    // CORRECTED v0.31.8.15. This claimed "Dimensions are derived from the design
+    // and exact" of EVERY dimension on the sheet, which is false: the two
+    // waterproofing upturns are STANDARD figures the app supplies
+    // (`waterproofing.ts` — BCA Good Industry Practices, 300 mm general and
+    // 1800 mm at showers), not anything the user drew. A contractor reading
+    // "derived from the design" has no reason to verify them against current
+    // guidance, which is the dangerous direction for a note to drift.
+    `<div class="note">Dimensions taken from the DESIGN — drops, finished clearances, floor-level ` +
+    `steps, sill and head heights, opening heights and reveal depths — are derived and exact. ` +
+    `The waterproofing UPTURN heights are not: 300 mm generally and 1800 mm at shower walls are ` +
+    `standard figures (BCA Good Industry Practices for internal wet areas, under SS 637:2018), ` +
+    `applied by this app rather than drawn by you — confirm them against current guidance and your ` +
+    `membrane manufacturer's requirements.` +
+    `<br>Skirting, cornice, shower-kerb, worktop-edge and architrave details are NOT included: the ` +
+    `model stores trim heights but no profiles or specified projections, so drawing them would mean ` +
+    `inventing dimensions. Detail those separately with your contractor.</div>`
   )
 }
 
@@ -711,6 +758,10 @@ export function buildDrawingSheets(
     day: 'numeric',
   })
   const sheets: Sheet[] = []
+  // Wall ids bounding a household shelter — computed once for the demolition
+  // sheets, which MUST mark them NOT PERMITTED (SCDF forbids hacking any part of
+  // a shelter's RC walls; no permit or PE endorsement lifts that).
+  const drawShelterWalls = shelterWallIds(plan)
 
   // Per-storey fan-out (F13): on a multi-level plan every plan-derived sheet
   // renders once per storey ("… — Ground floor", "… — Upper storey"), with the
@@ -1179,6 +1230,7 @@ export function buildDrawingSheets(
         sheets.push({
           name: `Demolition & new walls — ${row.levelName}`,
           body: `${note}<div class="draw">${demolitionSvg(row.diff, {
+            shelterWalls: drawShelterWalls,
             palette: {
               kept: '#9ca3af',
               demolished: '#dc2626',
@@ -1203,6 +1255,7 @@ export function buildDrawingSheets(
         sheets.push({
           name: 'Demolition & new walls',
           body: `<div class="draw">${demolitionSvg(wallDiff, {
+            shelterWalls: drawShelterWalls,
             palette: {
               kept: '#9ca3af',
               demolished: '#dc2626',

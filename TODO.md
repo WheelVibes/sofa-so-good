@@ -4,6 +4,495 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Seven shipped rooms furnish without the fixture that defines them (v0.31.9.15)
+
+Ratcheted in `src/layout/roomCompleteness.test.ts`. Surveyed: 44 bedrooms, 18 kitchens (plus 35
+bathrooms in `bathroomFixtures.test.ts`).
+
+**Two bedrooms contain NO BED, and neither is too small for one:**
+- `tpl-hdb-5room/ground/h5-bed3` (9.0 m²) — furnished as a study: desk, book set, nightstand,
+  wardrobe, two plants.
+- `tpl-hdb-3gen/ground/g3-gen` (8.7 m²) — **two nightstands and a wardrobe**, flanking nothing.
+
+**PARTLY DIAGNOSED v0.31.9.18 — the rescue never considered appliances wall-hugging.**
+`WALL_HUGGING_CATEGORIES` was `{bathroom, storage, seating}`, excluding `appliances`, `kitchen` and
+`laundry` — so a stranded fridge/hob/counter/washing machine was never pulled to a wall and simply
+died on the seed point. Fixed: marooned appliances 2 -> 1, snapped 37 -> 38. Fixing it also exposed
+that the "hood follows the cooktop" rule could never fire (hoods rescued in list order, reading the
+STALE stove position), so misaligned hoods went 1 -> 0 as well.
+**`c1-kit` is still incomplete and it is a CAPACITY limit**, like `ctu-mbath`: 2.0 x 1.6 m, the
+L-counter takes z 5.62-6.22 across the full width, leaving a 0.70 m north strip, and a 0.70 m
+fridge plus the 0.06 m wall gap needs 0.76 m. The rescue now tries and correctly finds nowhere.
+**PARTLY FIXED v0.31.9.19 (FITTED-COUNTER).** `kitchen-counter-l` is parametric (length 1.2-4.0 m)
+but was always seeded at 2.4 m, and these kitchens' longest walls are 1.76-2.86 m — so in the
+smallest it could not stand on ANY wall and OVERFLOWED the room, leaving the fridge and hob nowhere
+to go. Now sized to the room. Recovered `su-kit`'s counter; `tpl-condo-studio` 25 -> 26 items with
+no collateral.
+**A bigger version was measured and rejected:** sizing to the arranger's INSET rect recovers TWO
+counters (+3 items) but fires on `tpl-hdb-2room`, whose kitchen was already complete — marooning its
+fridge 0.67 m off the wall, taking appliances-snapped 38 -> 37, and costing `tpl-condo-1study` a
+severed room. One clean counter beat two plus that collateral.
+**DIAGNOSED v0.31.9.20 — it is the COUNTER, not the hob.** In all four failing kitchens the overlap
+pairs are `kitchen-counter-l x refrigerator` and `kitchen-counter-l x stove`; `dropOverlaps` deletes
+the appliances. Minimum one-wall run is counter(1.2) + hob(0.6) + fridge(0.7) = **2.5 m**, so
+`su-kit`/`c1-kit` (2.00 m) and `cs-kit` (2.20 m) are 0.30-0.50 m short and genuinely need the run
+WRAPPED AROUND A CORNER, which `arrangeKitchen` does not do. **But `ob-kit` (3.10 m) and `st-kit`
+(3.80 m) have ample wall and fail anyway** — those two are placement bugs, and the tractable ones.
+In `st-kit` the counter is **never placed at all**: its rect is z 3.12-4.28, a 0.6 m piece sits at
+z 3.48 (flush N) or 3.92 (flush S), and the counter is at z **3.70** — the room centre. It spans
+z 3.40-4.00, over half the 1.16 m depth, straight down the middle, so everything else overlaps it.
+The fridge is also still on the seed. Only the stove gets a wall, and it dies overlapping a counter
+that should not be there. The v0.31.9.18 rescue DOES consider it now and still fails.
+**CAUSE ESTABLISHED v0.31.9.21 — a DOOR swings into the galley.** The walkway hypothesis was
+refuted (there is no walkway rule in `placement.ts` or `autoArrange.ts` at all). Instrumenting
+`tryPlace`'s pre-`canPlace` gates: `st-kit`'s door keep-out is x 1.10-2.00, z 3.60-4.50 — a
+0.9 x 0.9 swing dead centre of the only wall long enough for the counter. No window, no wall, no
+item collision is involved. Free runs: 0.90/2.00 m on the raw room, **0.78/1.88 m on the inset
+rect**.
+**The obvious fix is INERT, measured.** Sizing the counter to the longest CLEAR run (per-wall
+intervals minus door keep-outs, threaded through `seedRoom`) produced ZERO deltas across the whole
+suite. `snapToWall` CLAMPS the along-wall position to the seed = the room centre, so a 1.88 m
+counter centred at x 2.10 still spans 1.16-3.04 and still crosses the keep-out. **Shrinking without
+sweeping does nothing**, and only the rescue pass sweeps — but its sweep needs a run of the
+counter's full seeded 2.4 m, which 1.88 m of clear rect cannot give.
+**FIXED in v0.31.9.22 — both levers together.** `snapToWall` now SWEEPS the along-wall
+coordinate (16 steps either way, the shape `placeSeededMounts`' rescue already used) and
+`fittedCounter` sizes to the longest CLEAR run rather than the longest wall. `st-kit` and
+`ob-kit` each gained a counter, a fridge and a stove; `roomCompleteness` 5 -> 3, orphan hoods
+4 -> 2, `windowSightline` blocked 5 -> 4.
+
+Two details cost a measurement each and are worth not re-learning: the sweep must be an OUTER
+pass over the edge loop (inside it, a swept spot on wall 1 beats a clamped spot on wall 4 and
+costs `tpl-condo-1bed` its counter and stove), and swept candidates need footprint containment
+because `edgeShortfall` deliberately pushes a piece past the rect edge.
+
+**What is LEFT here, in priority order:**
+- **PREREQUISITE, and it blocks everything else here: the arranger can place a piece ONTO an
+  item it has not placed yet.** `world` holds only what is already placed, so a piece still
+  awaiting its turn is invisible to `canPlace`. Measured on the default flat with v0.31.9.24's
+  ends lever applied: `default-sy-rack` was VALID at (5.30, 7.20), **never moved**, and ended up
+  invalid because `default-sy-washer` was placed on top of it. The ordering follows — had the
+  rack been in `world`, `canPlace` would have refused the washer that spot, so the washer went
+  first.
+  This corrects v0.31.9.24, which called it "settle surrenders on a starved piece". No
+  last-resort search can fix a piece whose own legal spot was taken by a piece placed earlier.
+  **The obvious repair is wrong for the furnish path:** seeding `world` with the room's unplaced
+  items would work for tidy but not for furnish, where every piece in a room starts at the SAME
+  seed point (the room centre), so everything would block everything and nothing would place. A
+  real fix must distinguish "an item sitting where it belongs" from "an item parked on a seed".
+  **FIXED in v0.31.9.26 (RESERVE-RETRY)** — an attempt that leaves a piece unplaced is retried
+  once with that piece reserved as an obstacle, so the others route around it. Verified to
+  unblock: with v0.31.9.24's wall-ENDS candidate re-applied, `autoArrange.test.ts`'s "tidies a
+  custom plan validly" PASSES. The furnish/tidy difference is an explicit `reserveRetry` flag,
+  because two attempts to infer it from metrics both failed (see the changelog).
+  **v0.31.9.27 re-applied all four and REJECTED all of them.** Every subset was measured; the hard
+  validity assertion passes in each, so the blocker really is gone, but there is no subset that is
+  a net content win. Even lever A alone (counter sizing) trades `cs-kit`'s fixtures and two
+  overhangs for a 0.60 m `st-kit` overhang — the worst in the corpus — plus a severed
+  `cs-balcony` and two marooned appliances. Full per-subset table in `CHANGELOG.md` v0.31.9.27.
+  **The ranking now EXISTS** (`analysis/layoutDefects.ts`, v0.31.9.28) and it **overturns that
+  rejection.** Scored: baseline 61,012,173,703 -> 60,813,173,903 with levers A+C+D, i.e. a net
+  improvement. Severity 1 is a 1-for-1 swap (gains `cs-kit`'s hob + counter, loses `emu-cbath`'s
+  basin) and `stranded-satellite` is unchanged corpus-wide; the verdict rests on two
+  `outside-room` fixes outweighing one severed room and two marooned appliances.
+  **LANDED in v0.31.9.29** at a price written into every ratchet it moved. Lever B (settle
+  containment) stays out — it adds two stranded chairs and the score does not pay for them.
+  **What the trade left open, in severity order:**
+  - ~~`emu-cbath` / `ctu-mbath` basins~~ **BOTH FIXED in v0.31.9.33 (WET-AREA BATHROOM).** It was
+    the wrong FITTING, not a bad placement: below 1.6 m of room width a 0.9 x 0.9 m shower cubicle
+    leaves under the 0.6 m walkway to reach the WC and basin, and an HDB bathroom of 2-3 m² is
+    built as an open wet area with a fixed glass panel anyway. `KITS.bathWetArea` uses the
+    0.9 x 0.06 m `shower-screen` there. Score 60,813,163,803 -> **40,813,163,803**,
+    `missing-fixture` 6 -> 4, nothing else moved, and `bathroomFixtures`' known-offenders list is
+    EMPTY for the first time. `ctu-mbath` had been broken since v0.31.8.9.8.
+    Five arranger routes were measured and rejected first (v0.31.9.30-.32) — the lesson is that
+    when a room cannot hold its kit, check whether the KIT is right for the room before making the
+    placer cleverer.
+  - `tpl-condo-1study/cs-balcony` is severed (severity 3).
+  - `tpl-hdb-jumbo` dropped out of `diningChairTuck`'s clean list — one chair settles 4.54 m from
+    its table (severity 4). Corpus-wide the count is unchanged at 17.
+  - `tpl-studio/stove` 0.80 m and `tpl-hdb-2room/refrigerator` 0.67 m off any wall (severity 5).
+  `dropUnplaceable` (v0.31.9.25) closes the FURNISH half — it is a measured no-op today, and it
+  means this class can only ever show up as an item-count delta there, never as an invalid item.
+- **`fittedCounter` measures against the wrong box** — `max(room.width, room.depth)` where the
+  counter must fit `planRoomRect`, which insets 0.12 from EACH side. Every sized counter is
+  0.24 m too long, and the rounding must be `floor` (round turns 1.76 into 1.8). Fix is written
+  and measured; it is part of the reverted bundle above.
+- **`su-kit`'s counter is floating in the middle of the kitchen** and `roomCompleteness.test.ts`
+  counts it as present, because that metric only asks whether the fixture EXISTS. Blind spot in
+  the measurement, not only in the arranger.
+- **The sweep's viable window can be narrower than any step.** `st-kit`'s only along-positions
+  clear of the door keep-out span 0.08 m; neither `w/2` nor a fixed 0.15 m lattice samples it.
+  The wall ENDS do, and they are where a counter run belongs. Also part of the reverted bundle.
+- **37 wall-hugging pieces stand >0.28 m off every wall** (categories `bathroom`, `storage`,
+  `appliances`, `kitchen`, `laundry`; `applianceWall.test.ts` sees 1 of them because its regex
+  covers five appliance ids). Worst: a `drying-rack` 1.07 m out and five toilets 0.85-1.00 m out.
+  NOT ratcheted yet on purpose — the class mixes real defects with correct placements (a
+  nightstand belongs against the BED), so the threshold and category list need deriving the way
+  0.28 m was.
+- **The three remaining kitchenettes need an UNDER-COUNTER FRIDGE (measured v0.31.9.34).** All four
+  remaining severity-1 findings live here: `su-kit` and `c1-kit` (3.2 m²) and `cs-kit` (4.4 m²).
+  Instrumented per position, **no spot in any of them is simultaneously clear of the door keep-out
+  and of the counter** — `cs-kit`'s eight item-free positions are all inside the keep-out. The
+  `range-hood` contributes (a 1.78 m fridge really does overlap its 1.4-2.3 m span) but is NOT
+  decisive: shortening the fridge's collision span to 1.4 m moved only `marooned-wall-hugger`
+  38 -> 37 and left all three fridges missing.
+  No placement lever can fix it — `c1-kit`'s best wall is 1.76 m and a minimum 1.2 m counter plus a
+  0.7 m fridge is 1.9 m, and on perpendicular walls the two compete for the same corner, so
+  v0.31.9.27's three-wall spread does not apply. **A studio kitchenette has an under-counter fridge
+  integrated into the run, not a 1.78 m free-standing one** — so the fix is a content model change
+  (an appliance that occupies part of the counter's footprint rather than its own floor), plus
+  adding its id to `ROOM_REQUIREMENTS.kitchen`'s `anyOf` for "a fridge". Same shape as v0.31.9.33's
+  wet-area bathroom.
+- **Two kitchens need their fixtures on THREE WALLS — no new primitive (measured v0.31.9.27;
+  `cs-kit` recovered in v0.31.9.29 via the counter sizing alone).** NOTE v0.31.9.34: this does not
+  help the fridge problem above, for the corner-competition reason.
+- **HIGHEST PRIORITY — the visual scenarios disagree with the corpus, and the cause is UNKNOWN.**
+  Both fixture-asserting scenarios fail against the running app with a clean tree:
+  `wet-area-bathroom` reports `st-bath missing bathroom-sink` and `galley-kitchen-sweep` reports
+  `st-kit missing kitchen-counter-l, refrigerator, stove` — while `bathroomFixtures`' basin-less
+  list is EMPTY, `st-kit` is absent from `roomCompleteness`, and the app reports
+  `plan id=tpl-studio rooms=3` with **28 items, exactly the count the ratchet records**.
+  Ruled out: stale `localStorage` (cleared every key and reloaded — still fails), the v0.31.9.34
+  `verticalSpan` change (reverted — still fails, and `galley-kitchen-sweep` passed earlier in the
+  same session), height props differing from defaults (all match), door state (`doors={}` in both),
+  and plan normalisation on load (`doors=2 withSwing=2 rooms=3` in both).
+  **It could be the app, my scenarios' room-membership filter, or the harness — I did not
+  determine which.** Next probe: diff the app's furnished item list piece by piece against
+  `furnishPlanItems(tpl, movein, BUILTIN_CATALOG, {})`. My attempt at that dump was TRUNCATED by
+  the harness's error formatting, so write it to a file via an `eval` step instead of throwing.
+  **This outranks every other item here**, because if the app can diverge from the corpus then
+  every ratchet and the whole ranked defect score are measuring something other than what ships.
+  Until it is resolved, treat corpus-only evidence as provisional.
+- **`refrigerator` has no `width`/`depth` param**, only `height`, so a slim 0.55-0.6 m fridge —
+  common in SG condos — cannot be expressed at all. Worth adding alongside the under-counter unit.
+  And the `height` param does NOT reach the collision span (see the item above).
+  This item used to say they need an L-run primitive or two seeded counters. Measured per-wall
+  free runs on the inset rect after door keep-outs, against counter 1.2 + hob 0.6 + fridge 0.7:
+
+  | kitchen | rect | free runs | verdict |
+  |---|---|---|---|
+  | `su-kit` | 1.76 x 1.36 | S 1.76, W 1.13, E 1.13, N 0.43+0.43 | fits across S+W+E |
+  | `c1-kit` | 1.76 x 1.36 | S 1.76, E 1.36, N 1.08, W 0.78 | fits across S+E+N |
+  | `cs-kit` | 1.76 x 1.96 | E 1.96, N 1.08, S 1.08, W 0.68+0.38 | fits across E+N+S |
+
+  All three fit with existing geometry. `arrangeKitchen` confines its work triangle to the two
+  LONG walls (`aspect = horizontal ? ['S','N'] : ['W','E']`) — two walls where a near-square
+  kitchen needs three. `cs-kit` needs the counter SIZING too (its 2.4 m default cannot fit a
+  1.96 m run, so it sits at the room centre, `dropOverlaps` takes the stove and
+  `dropDoorBlockers` then takes the counter). `kitchen-counter-l` is a straight run despite the
+  `-l` in its id (`footprintParams: { w: 'length' }`, no return leg) — and does not need to
+  change.
+- **The over-stuffed-kit theory is REFUTED (v0.31.9.27).** Intended kit footprint over floor area
+  peaks at 52% corpus-wide and is 14-27% in every room the arranger struggles with. Do not
+  re-open it. Density measured by item POSITION is meaningless while open-graphics item (f) is
+  unresolved — a first cut read `em-study` at 103% because it counted adjacent open-plan rooms'
+  furniture inside its rect.
+- ~~**`ob-kit` has no ceiling light**~~ **FIXED in v0.31.9.23**, and the cause named here was
+  wrong: the clash is with the **`range-hood`**, not the fridge — v0.31.9.22 placed the stove, so
+  the hood moved over it and covered the centre of the room. `relocateCeilingMounts` nudges the
+  light instead of letting `dropOverlaps` delete it. **Dark rooms 3 -> 0 of 156** — the same pass
+  also lit `c1-kit` and `su-kit`, dark since long before. Asserted at zero in
+  `roomLighting.test.ts`.
+- **`tpl-condo-2bed/c2-bed2` loses its desk and book-set.** 3.5 x 2.1 m = 7.35 m² carrying a
+  single bed, a wardrobe, a nightstand AND a desk. The kit is over-stuffed for the room, so the
+  fix is a room-SIZE-aware kit (drop the desk below some area), not another placement change.
+- **`settleInRect` containment is BUILT AND HELD BACK.** Worth 11 -> 7 room overhangs (see
+  `roomOverhang.test.ts`), blocked because it strands two of `tpl-hdb-maisonette`'s dining
+  chairs 1.62 m and 4.21 m from their table. Nearest-first candidate ordering does NOT fix it —
+  a chair that reaches the settle can start outside the rect being searched, so "nearest" is
+  measured from the wrong point. Fix that first, then enable the guard.
+- **10 pieces still stand >0.2 m outside their room**, worst 0.60 m of `tpl-condo-penthouse`'s
+  TV console. Ratcheted.
+
+**Superseded:** `su-kit`, `cs-kit` and `ob-kit` all lack one, and `st-kit` recovers
+nothing at all. A hob is 0.6 m — the easiest piece in the kit to fit — so its loss is more likely
+an ordering or keep-out problem than capacity. That is the next thread.
+
+**Five kitchens are incomplete:**
+- `tpl-studio/st-kit` (5.3 m²) and `tpl-1bed/ob-kit` (5.9 m²) — a ceiling light and a range hood,
+  nothing else.
+- `tpl-condo-studio/su-kit` (3.2 m²) — a range hood only.
+- `tpl-condo-1study/cs-kit` (4.4 m²) — fridge + hood, no hob or counter.
+- `tpl-condo-1bed/c1-kit` (3.2 m²) — has a counter and stove, **missing only the fridge**. Note
+  this one is invisible to `applianceWall`'s `KNOWN_ORPHAN_HOODS` because it HAS a stove.
+
+**`h5-bed3` is FIXED (v0.31.9.16) and my hypothesis was wrong.** Its category is correct; the bed
+was never missing — `unsealRoutes` slid it 2.25 m out of the room into `h5-living`, which no
+item-count ratchet could see because eviction conserves pieces. The pass now refuses to leave a
+piece's room. That gave back v0.31.8.86's four `tpl-hdb-5room` rooms plus `c4-bed4`, because those
+had been "opened" BY the eviction — `routeAccess` 6 -> 11, a correction.
+**`g3-gen` is FIXED (v0.31.9.17) — and it was the DOOR, not the room.** Its door sat at offset 1.6,
+the middle of the 3.56 m north wall; the 0.90 m swing keep-out split that into 1.28 m and 1.38 m
+runs against a 1.52 m `bed-queen` — short by exactly 0.14 m in EVERY orientation. Moved to offset
+0.3 (west jamb): 2.68 m clear run, `tpl-hdb-3gen` 89 -> 97 items (+8, nothing lost), overlaps still
+0, no route change. **Every bedroom in the corpus now has a bed**, and
+`roomCompleteness.test.ts` asserts that as `toEqual([])`.
+My earlier guess that the 2.3 m depth was the constraint (wardrobe + storageFront + bed) was wrong:
+the depth was never binding, the door position was.
+
+**Superseded note:** its queen bed is deleted by `dropDoorBlockers`
+for sitting in a door keep-out. The room is 3.8 x 2.3 m, and 2.3 m of depth cannot take a
+wardrobe (0.6) + its `storageFront` clearance (~0.75) + a 2.0 m bed — see the built-in-wardrobe
+entry, which measured the same constraint on `tpl-condo-3bed`. Measure before publishing a cause.
+
+**Original note follows.** A 9 m² room that receives a desk instead of a bed points at the SEEDING
+(which kit a room is given), not the geometry — unlike `ctu-mbath`, which really was too small.
+Take them one at a time and measure before publishing a cause: `ctu-mbath` cost four releases and
+three wrong explanations.
+
+## Upstairs layouts are weaker than the ground floor's — exposed by v0.31.9.8
+
+Giving upper-storey doors their default swings (they had NONE — `withInwardDoorSwings` read the
+ground floor only) immediately cost real furniture, because the upstairs arrangements had been
+placed through door swings that did not exist:
+- `tpl-terrace-ground` loses a `bathroom-sink` (3 -> 2) — its upstairs bathroom door swing now
+  overlaps where the sink sat.
+- `tpl-hdb-maisonette` loses a `wardrobe-3door` (3 -> 2) and gains a severed room,
+  `emu-landing` 4.0 m².
+- `tpl-hdb-maisonette/emu-fam`'s rug and coffee table no longer settle on the room centre.
+
+The ground floor got several rescue passes over this arc (WALL-SNAP-SHORTFALL, MOUNT-HEIGHT-CLASH,
+the unseal disc, satellite carry). **None of that work was ever exercised upstairs**, because
+upstairs had no door keep-outs to conflict with. The drops are honest, but a dropped bathroom sink
+is poor output.
+
+### DIAGNOSED v0.31.9.10 — corner the shower in narrow bathrooms
+
+`tpl-terrace-ground/ctu-mbath` traced end to end. **It is the shower, not the door.** The sink is
+deleted by `dropOverlaps` (not `dropDoorBlockers`), because at `arranged` every fixture is stacked
+on the room centre and `placeSeededMounts` rescues the toilet, mirror and rail but not the sink —
+**32 candidate spots, all 32 refused** (11 by furniture, 5 by the door keep-out, x2 strictness
+passes). The pass is behaving correctly; the room has no free wall.
+
+| room 1.5 x 2.4 | shower 0.9 x 0.9 | clear strip east | basin needs | verdict |
+|---|---|---|---|---|
+| CENTRED at x 5.45 | spans 5.00-5.90 | **0.30 m** | 0.50 m | short by **0.20 m** |
+| CORNERED at x 5.15 | spans 4.70-5.60 | **0.60 m** | 0.50 m | **fits** |
+
+With the shower flushed west, a basin at (5.95, 1.45) (box x 5.70-6.20, z 1.14-1.76) clears both
+the shower and the door swing (x 5.00-5.80, z 1.80-2.60) — checked arithmetically.
+
+**CORRECTED v0.31.9.11 — cornering does NOT fix it, and the numbers above are on the wrong
+rectangle.** The arranger works on `planRoomRect`, inset `ROOM_INSET` = 0.12 m per side, so the
+usable width is **1.26 m, not 1.50 m**, and a cornered shower leaves **0.36 m** — still 0.14 m short
+of the basin. Implemented and measured: the bias does not fire for `ctu-mbath` at all, and where it
+does fire it costs `tpl-hdb-exec` an item (96 -> 95). Reverted.
+
+**CORRECTED AGAIN v0.31.9.12 — and this is the last word on the room.** `ROOM_INSET = 0` still
+loses the basin, so the inset is NOT what binds. inset 0 PLUS cornering merely relocates the loss
+(the basin survives, the shower is dropped). The room is 1.5 x 2.4 m = 3.60 m²; a 0.9 m shower
+leaves 0.60 m of the 1.5 m wall, a 0.62 m basin misses that by 0.02 m along the wall or leaves
+0.10 m of circulation across it, and the door swing alone takes 18% of the floor. **Content limit,
+not an arranger bug** — options are widen the room ~0.2 m, a 0.75 m quadrant shower, or a
+two-fixture master bath. All three re-draw a shipped layout, so none is mine to pick.
+**RATCHETED v0.31.9.14** in `src/layout/bathroomFixtures.test.ts`: 35 bathrooms in the corpus,
+0 without a WC, exactly 1 without a basin (this room). So it is ISOLATED, not a class — 34 of 35
+are fully fitted. A future regression now FAILS instead of moving an item count that cancels out.
+The `ROOM_INSET = 0` state additionally loses `emu-cbath` and `ctu-cbath`, both upper-storey common
+baths — the detail v0.31.9.13's per-def `bathroom-sink -2` could not name.
+**The inset experiment did establish one real number for the room-rect item: `ROOM_INSET` costs the
+corpus 30 pieces (1448 -> 1478).** Argue it on that, not on this bathroom.
+**COSTED PROPERLY v0.31.9.13, and it is a REDISTRIBUTION not a win.** At `ROOM_INSET = 0` the +30
+are physically sound (overlaps 0 and wall clips 0, same as shipped), but the mix matters:
+gains `towel-rail` +5, `photo-frame-cluster` +3, then +2 each for `shower` `stove` `dresser` `desk`
+`outdoor-chair` `book-set` `throw-blanket` `throw-cushion`; **losses `bathroom-sink` -2**,
+`utility-cabinet` -1, `fruit-bowl` -1, `ceramic-vase-slim` -1. Less margin lets big pieces claim
+more wall and basins get squeezed out — which is also why `ctu-mbath` did not recover at inset 0.
+Trading two basins for five towel rails is not obviously an improvement.
+**Also refuted (v0.31.9.13):** widening `snapToWall`'s ALONG-WALL span to the room boundary — the
+obvious centre-preserving fix — changes nothing at all (1448 -> 1448). The 30 are lost to the
+PERPENDICULAR margin, so any recovery has to touch the margin the inset exists to provide.
+
+~~**This is the ROOM-RECTANGLE issue, and it finally has a user-visible cost.**~~ The inset removes
+0.24 m of a 1.50 m room — 16% of its width — and the result is a shipped master bathroom that
+renders with a mirror and NO BASIN under it. That is a stronger case than the 0.15 m of furniture
+placement the item was first raised for (v0.31.8.60) or the six connectivity rooms v0.31.8.87
+costed it at. See the room-rectangle entry; the constraint from the v0.31.8.61 revert still holds
+(fixing it inside `planRoomRect` moves the rect CENTRE and flung `tpl-hdb-3room`'s dining chairs),
+so any attempt must preserve rect-centred placement.
+
+**Process note for whoever picks this up:** the TODO edit that was supposed to add this entry in
+v0.31.9.8 FAILED (its anchor had been renamed by the v0.31.9.6 sweep) while the commit went
+through, so the changelog referenced a `TODO.md` note that did not exist until v0.31.9.9. Assert on
+the anchor AND check the file changed before committing a docs edit.
+
+## ~~A door into a bedroom should be checkable~~ — the check is ILL-FORMED (v0.31.8.85)
+
+v0.31.8.84 proposed it after having to correct a claim that two new service-band doors did not
+open into a bedroom. Built the sweep: resolve the room 0.5 m either side of every interior door
+and flag any that lands in a `bedroom` / `masterBedroom`, skipping doors whose other side is also
+a bedroom or a bath (ensuite / between-bedrooms are a different question).
+
+**It returns 20+ doors and almost all of them are CORRECT.** `jb-bed2 -> jb-bed2`,
+`emu-master-door -> emu-master`, `h3-master -> h3-master` — these are bedrooms' own doors off a
+corridor, which is exactly what a bedroom door should be. "A door opens into a bedroom" is the
+normal case, not a defect.
+
+**Nothing structurally distinguishes `h4-svc-door` from `jb-bed2`**: both are circulation into a
+bedroom. What makes the service-band door objectionable is that the bedroom then sits on the ONLY
+route between two halves of the flat — and that is precisely what
+`src/floorplan/throughRooms.test.ts` measures. No new check is needed.
+
+**Why `throughRooms` does not catch these two.** Its `rectIsTheRoom` gate requires all four edges
+of a room's rectangle to have a wall within 0.15 m, and `tpl-hdb-4room`/`-5room`'s Bedroom 3 does
+not qualify.
+
+**CORRECTED in v0.31.8.87 — this does NOT land on the room-rectangle fix.** Classifying all 46
+terminal rooms by why `rectIsTheRoom` rejects them: of the 22 rejected, only **6 fail by 0.20 m**
+(a real rect shortfall the fix would recover), 1 by 0.40, and **15 have NO wall on the failing
+side at all** (0.60-1.60 m). `tpl-hdb-4room/h4-cbath`'s rect is bounded by exactly one authored
+wall. Those 15 are already recorded, from the other end, as
+`templateEnclosure.test.ts`'s `KNOWN_SHARED_ENCLOSURES`, and its docstring already attributes them
+to open-graphics item **(f)**. Snapping a rect edge to a wall face cannot help a rect with no face
+to snap to. **The blocker here is (f), not the rects** — and (f) is not mine to decide.
+
+## ~~The walk -> orbit return holds its "Switching to overview..." splash past any settle~~ — FIXED (v0.31.8.88)
+
+**Resolved.** Not a stuck overlay and not a missing frame: exactly one `showLoading`/`hideLoading`
+fires per transition, and the orbit hide lands 3483 ms after the show. **The scene swap blocks the
+main thread for 3-6 s**, which delays `transitionHide.ts`'s 2000 ms safety timeout as surely as it
+delays frames — so the fixed `wait 2000` was just shorter than the transition. `LoadingOverlay`
+now carries `data-transition-overlay` and the three scenarios that return to orbit wait for it to
+APPEAR and then to GO. `backdrop-walk-simple`'s final assert works again. Three selectors that do
+NOT work (`loading.active`, label text, text-appear-then-disappear) are written up in
+`docs/visual-verification-playbook.md` — read that before touching this.
+
+## ~~The walk HUD's hint bar is clipped on a phone, and shows KEYBOARD hints there~~ — CORRECTED + FIXED (v0.31.8.91)
+
+**The "keyboard hints on touch" half was WRONG.** `WalkHud` has an `IS_COARSE_POINTER` branch and
+renders "Joystick to move · Drag to look" on a real phone. The `viewport` step added in
+v0.31.8.90 sets width but NOT pointer type, so I was reading the desktop branch and reported it as
+a product defect. `walk-mobile-hud.json` now carries a `require-touch-emulation` step so it cannot
+audit the wrong branch silently — `SHOT_TOUCH` is launch-time env, not a scenario key.
+
+**The clipping half was real, and is fixed.** The desktop bar was 446 px with `white-space: nowrap`
+and no cap, so it overhung both edges below ~446 px — reachable on a narrowed DESKTOP window,
+since content branches on pointer while layout branches on width. `flex-wrap` + a `100vw` cap, with
+`nowrap` moved to the groups. 1600 px unchanged at 446x37; 320 px wraps to 160x104 and fits.
+
+## ~~The transition overlay can stay MOUNTED at `opacity: 0` after it hides~~ — RETRACTED (v0.31.8.94)
+
+**There is no such bug, and the `useOverlayLifecycle` stale-`mounted` mechanism I wrote here was
+speculation stated as fact.** Measured properly by wrapping `showLoading`/`hideLoading` across a
+room-editor enter/exit: `hideLoading` fires **exactly once**, as designed. Its LATENCY is the
+whole story — nominal `MAX_WAIT_MS` is 2000 ms, observed **50.4 s**, because `setTimeout` cannot
+run while the scene build blocks the main thread. Same cause as every other slow transition on
+this thread; a 150 ms `setInterval` armed across one fires at 800-2000 ms intervals.
+
+The single observation that suggested a leak (a 68 s unmount-wait failing while the screenshot
+showed a normal orbit scene) remains UNEXPLAINED, and one unexplained frame is not a mechanism.
+If it recurs, measure `loading.active` and the element's computed opacity together over time
+before writing down a cause — that is what I skipped.
+
+Also seen while measuring, and worth knowing: `THREE.WebGLRenderer: Context Lost.` appears in the
+console under this load, so a long harness session can lose the GPU context outright. That is a
+harness hazard, not an app defect, but it will confound any timing measurement taken near it.
+
+## The walk HUD banner's 5 s timer can expire behind the transition splash
+
+Found in v0.31.8.91. `WalkHud`'s `visible` is a flat `setTimeout(..., 5000)` started when
+`walking` turns true — but `setCameraMode` raises the transition splash over the top of it, and
+that splash lasts 3-6 s on real hardware-ish timings and up to 15 s headless. So the hints can be
+most of the way faded by the time the user can see the scene they annotate.
+
+Harmless where the transition is sub-second, and it is why both narrow-viewport screenshots in
+v0.31.8.91 needed `is-hidden` removed by hand to capture the bar at all. If it is worth fixing,
+the timer should start when the overlay CLEARS (`loading.active` going false is the store-visible
+edge), not when `walking` flips. Low priority — but do not re-measure the HUD without knowing
+about it, or you will screenshot an empty pill and think the bar is gone.
+
+Surfaced in v0.31.8.90, the moment `walk-mobile-hud.json` got the `viewport` step it had always
+been missing (it had been screenshotting the "mobile" HUD at desktop width, so it had never
+rendered a phone). At **390x844** the bottom hint bar is horizontally clipped at BOTH ends —
+it reads `alk mode | Click to look | W A S D move | Esc show curs`, losing a character each side —
+and the content itself is wrong for the device: `Click to look`, W/A/S/D and `Esc` are keyboard
+affordances on a machine with no keyboard.
+
+Two things to decide together, so don't fix only the clipping:
+1. the bar needs to fit 390 px (and 320 px — the playbook's narrow tier);
+2. on a coarse pointer it should presumably show the TOUCH grammar (drag to look, the on-screen
+   move control) rather than keys. Check what walk mode actually binds on touch before writing
+   copy — do not invent affordances that do not exist.
+
+Obligations: it is user-facing, so Simple AND Pro both need testing, no colour literals, and the
+44 px tap floor is gated on `max-width: 960px` (width, not pointer). Verify with
+`scripts/scenarios/walk-mobile-hud.json`, which now renders a real phone.
+
+## ~~`walkcam.json` fails at `verify-controls-show`~~ — FIXED (v0.31.8.92)
+
+**Resolved, and my recorded hypothesis was wrong.** It does NOT fail for want of Pro mode — step 4
+sets it and `walkCameraControls` resolves true. It waited on `.walk-cam-controls`, **a class that
+exists nowhere in `src/`**, so it had failed at its third assertion since it was written and
+produced none of its five screenshots. The component is `WalkSettings`, rendered inside the
+Appearance popover, which the scenario never opened; it now opens it, asserts the "Walk settings"
+section and the FOV slider by `aria-label`, and closes it before the scene shots. FOV 50 vs 100
+differ by 20.2/255 mean luma, so the scenario's actual claim is verified.
+
+Also raised the v0.31.8.90 splash-guard timeout 25s -> 45s across all 27 files: this scenario's
+splash measured 11.4 / 15.6 / 17.7 / 26.4 / 50.4 s across runs and false-failed at 25s once.
+
+## `walkcam.json` — superseded original note
+
+Found in v0.31.8.90 while spot-checking the transition-guard sweep, and confirmed NOT caused by
+it — the failure is identical with the guard stashed:
+
+```
+STEP 8/21 verify-controls-show … FAILED
+  reason: WalkCameraControls should be visible in firstPerson + Pro mode
+```
+
+So `walkcam.json` has not been reaching its FOV/scale assertions. Likely the scenario never
+switches to Pro (the control is pro-tier and Simple is the boot default), but that is a guess —
+check the flag's tier and the scenario's mode setup before changing either.
+
+## ~~`backdrop-upload-simple.json` fails at step 14~~ — FIXED (v0.31.8.89)
+
+**Resolved.** FOUR stacked breaks, so the scenario reached none of its own backdrop assertions:
+(1) it clicked the backdrop `Select` by its VALUE text, which is the current backdrop and is now
+`sky`, not `city` — both call sites use `button[aria-label="Backdrop"]` now; (2) my first fix
+assumed walk mode closes the Scene menu, which it does not, so the re-open click toggled it shut;
+(3) step 46 asserted a revert to `'city'` where `clearWalkBackdrop` deliberately falls back to
+`UI_INITIAL.backdrop` (WINDOW-SKY-DEFAULT) — the APP was right and the assertion stale; (4) the
+WALK-direction copy of v0.31.8.88's splash bug, so `02-walk-default-city` was the "Entering
+walkthrough" splash. Also pinned the backdrop the shot is named for, and added a toolbar-mount
+`waitFor` for a 1-in-3 boot flake. **Lesson worth keeping, and ACTED ON in v0.31.8.90 (34 more sites across 28 files, now
+ratcheted by `src/scenarioTransitionGuard.test.ts`): the splash bug was never
+orbit-specific** — any scenario that changes `cameraMode` and then screenshots needs the
+appear-then-gone wait, in either direction.
+
+## Superseded original note on backdrop-upload-simple
+
+Found while fixing the splash (v0.31.8.88), pre-existing and NOT caused by it:
+
+```
+STEP 14/49 open-backdrop-select … FAILED (16.1s)
+  reason: click-by-text: could not find visible element containing text "City — Daytime HDB skyline"
+```
+
+So this scenario has not been reaching its own backdrop assertions at all, and the splash fix
+(steps 34+) is downstream of the break. Worth checking whether the option label was renamed and
+the scenario not updated with it — the docs rule is that scenario labels are exact and must be
+verified against source.
+
+## Superseded original note on the splash
+
+Found while adding `scripts/scenarios/window-backdrop-veil.json` (v0.31.8.50). Setting
+`cameraMode` back to `orbit` from walk leaves the full-screen "Sofa So Good / Switching
+to overview..." transition splash up for longer than the harness will wait — 6000 ms was
+not enough.
+
+**This is pre-existing and it is silently costing coverage.** The SHIPPED
+`scripts/scenarios/backdrop-walk-simple.json` ends on `back-orbit` + 2000 ms +
+`shot-orbit-again`, and that frame is the splash — so its last screenshot has been
+verifying nothing. Reproduced on an unmodified build, so it is not the v0.31.8.50 glass
+change.
+
+Worth finding out whether the splash is waiting on a frame the headless harness never
+delivers (invalidate-driven render loop + no rAF pressure) or genuinely takes that long
+for a user. If the former, a `waitFor` on the splash clearing is the fix and
+`backdrop-walk-simple`'s final assert comes back for free.
+
 ## Interior walls dropped at `performance` — ✅ FIXED (WALL-NO-COMPOSER, v0.31.5.67)
 
 **Resolved 2026-08-29.** `Effects.tsx` no longer returns `null`: a composer mounts at every tier,
@@ -226,6 +715,88 @@ Passing a `FloorPlan` where one storey is expected becomes a compile error.
 `FloorPlan` yields 1368 `tsc` errors across 212 files** (149 non-test + 98 test). So this is
 multi-tick and MUST be staged — a big bang would leave the repo uncompilable across tick boundaries.
 
+**STAGE 1 STARTED v0.31.9.1.** `SingleLevelPlan` now exists in `floorplan/types.ts` as an alias of
+`FloorPlan`, with the rationale in its docstring, and five helpers are annotated onto it:
+`planTotalArea`, `planWindowSources`, `doorProbePoints`, `doorKeepOutRects`, `doorSwingRects` /
+`doorApproachRects`. Each was verified by READING every caller — not pattern-matched, which is what
+both failed lint guards did. `windowFrontRects` and `planCollisionWalls` followed in v0.31.9.2 (see the worklist below).
+`planBounds` was reviewed in v0.31.9.3 and is deliberately EXEMPT: it reads the SITE extent, and
+the ground floor's extent is the site extent — measured, every upper storey in the three shipped
+two-storey templates is identical to its ground floor. Annotating it would manufacture 18 future
+compile errors that are not defects.
+`buildDaylightReport` stays `FloorPlan` — it correctly takes a whole plan and recurses per level.
+**Annotating a whole-home function with the single-level type records the WRONG intent and is worse
+than leaving it**, so the rule for continuing is: read the callers, or skip it.
+
+**STAGE 1 WORKLIST — 7 `planCollisionWalls` call sites that take GROUND-FLOOR walls with no level
+awareness (audited v0.31.9.2).** Each will become a compile error when `SingleLevelPlan` stops
+being an alias. NOT fixed yet, because each needs its own answer to "which storey?" and the answers
+differ:
+- ~~`scene/TapeMeasure.tsx:79`~~ — **FIXED v0.31.9.3.** Both inputs now come from
+  `walkLevel(plan, viewLevelId)` + `itemsOnLevel`, the same levers `FirstPersonCamera` and the
+  minimap use, so the tape agrees with them by construction. `tapeMeasureLevel.test.ts` pins the
+  storey selection (and asserts the premise: the maisonette's two storeys really do have different
+  wall sets). No scenario measures upstairs — the snap is a click-driven closure — so the screenshot
+  only covers the ground floor.
+- ~~`ui/FinishPicker.tsx:228` and `:273`~~ — **FIXED v0.31.9.5, and the walls were the least of it.**
+  `cloneRoom.ts`/`swapRooms.ts` had NO `levelId` reference: both spread `...it` and moved only
+  `position`, while "Copy layout to…" lists targets from `allPlanRooms` (every storey) and plan XZ
+  is shared across storeys. So a cross-storey copy put furniture at the target room's XZ on the
+  SOURCE floor. Both helpers now take the destination storey (ground clears `levelId` rather than
+  storing `'ground'`); `FinishPicker` validates each piece against the storey it lands on.
+- **CORRECTED v0.31.9.5: three of the seven flagged sites are CORRECT.** `ClearancePanel`,
+  `DesignScorePanel` and `analysis/designScore` pass the ground SET into `findWallClipsByLevel`,
+  which resolves upper storeys itself, and each says so in a comment. I flagged them because their
+  FILES had no level-aware references — but the level-awareness is in the CALLEE. That is the same
+  pattern-matching error as the two failed lint guards, one release after writing it down. **Read
+  the data flow, not the file.**
+
+## ~~Scenario screenshots taken before the BOOT LOADER clears~~ — SWEPT v0.31.9.6
+
+**489 of 495 screenshot-taking scenarios were missing the wait; all swept, one line each, and
+ratcheted in `scenarioTransitionGuard.test.ts`.** The loader is unbounded, not merely slow:
+`booting` depends on `sceneReady`, and the same scenario cleared in **751 ms and 36604 ms** on two
+runs (spot-runs during the sweep: 18.1 s, 19.7 s, 38.9 s) against a corpus maximum fixed wait of
+5 s. `finish-picker-audit` frame detail went 0.31-0.36 -> 6.9-9.96.
+**Two process notes worth keeping:** a `json.dump(indent=2)` round-trip reformatted all 489 files
+on the first attempt, hiding the one real line per file in thousands of reformatted ones (biome
+accepts both styles, so nothing complained) — redone textually. And `bath-sidewall.json` already
+force-removed the loader in an eval, so the wait had to go BEFORE that step or it would have passed
+vacuously forever.
+
+## Superseded note on the boot loader
+
+Found in v0.31.9.5 while trying to regression-check `FinishPicker`. `finish-picker-audit.json` runs
+10 frames, passes green, and **every frame is the boot loader**. Measured detail 0.31-1.27 across
+all ten, i.e. near-blank.
+
+**Mechanism:** its first step is `waitFor {storeExists: true}`, which is satisfied while
+`#boot-loader` is still covering the screen; the later `waitFor {css: '.panel.inspector'}` then
+matched a panel mounted BEHIND the loader. Nothing fails, and the frames look like a plausible
+loading screen.
+
+**Only 7 of 503 scenarios wait for `#boot-loader` to leave the DOM.** Same shape as the
+transition-splash sweep (v0.31.8.90) at a different moment. Audit the corpus the same way: find
+every scenario that screenshots without a boot-loader-gone wait, add one, and ratchet it in
+`scenarioTransitionGuard.test.ts` (which already owns the sibling rule). Expect the detail metric
+above to be the cheap discriminator for "did this frame render anything".
+
+## Superseded worklist notes
+- `ui/ClearancePanel.tsx:73`, `ui/DesignScorePanel.tsx:65`, `analysis/designScore.ts:562` — analysis
+  surfaces; probably want whole-home (sum per level), not ground only.
+- ~~`state/slices/resetSlice.ts:361`~~ — **FIXED v0.31.9.4, and it was the sharpest of the list.**
+  `planAirconPlacements` is level-aware (stamps `levelId` per placement) and `freeCondenserSpot`
+  filters obstacles by level with a comment saying "collision is level-gated" — while `ctx.walls`
+  ten lines below was the single ground-floor set, so a condenser on an UPPER ledge was slid clear
+  of downstairs walls. The ledge's enclosing function has `plan` and `level`, so it now resolves
+  its own storey's walls and keeps `ctx.walls` for ground (preserving the default-flat fallback).
+  **Pattern worth remembering: two of the three F13 defects fixed so far had a comment or sibling
+  line asserting level-awareness within ten lines of the code ignoring it.** Both halves read as
+  correct in isolation, which is why review does not catch them and the type split does.
+**Correct and NOT to be "fixed":** `collision/placementWalls.ts:40` (the ground branch, upper
+levels handled above it) and `ui/report.ts:393` (the ground SET, upper storeys resolved by
+`findWallClipsByLevel` — the comment says so).
+
 **Staging, each stage its own green commit:**
 1. `levels` becomes canonical; the legacy trio stays as a mirror of `levels[0]`, kept in sync at
    every plan constructor, plus a drift guard asserting reference equality. `planLevels` reads
@@ -275,13 +846,82 @@ matched", which reads as a scene bug rather than a schema change. `allPlanWalls`
 (added in .276) are the replacements. Either migrate them in the final commit or tell dev-09 the
 exact commit so it can — do not leave it to be discovered.
 
+- **[coverage gap I CREATED in v0.31.8.21] Wall-mounted load is checked by nothing.** `.21` stopped
+  `floorLoading` counting `mounted` items as FLOOR load — correct, a wall shelf hangs off the wall —
+  but it removed a wrong finding without leaving a right one. Measured: a `wall-shelf` now produces
+  zero load findings from `floorLoading`, `designScore` (its only issues are daylight/lighting) and
+  the layout critique. Before `.21` the user at least got a finding that was wrong in KIND but right
+  in OBJECT; now there is silence.
+  Researched figures if this is taken up: a 12 mm gypsum drywall partition with metal studs holds
+  **~10 kg** using a toggle anchor through the board INTO a stud; a screw into bare gypsum holds
+  only **2.2-4.5 kg**; solid walls "hold a TV almost anywhere", and HDB walls are concrete
+  100-150 mm or drywall partitions 75-100 mm. A 200 kg loaded bookcase is two orders of magnitude
+  past the drywall figure.
+  **Why it is not built yet:** the check needs to know whether the wall behind the item is drywall
+  or concrete, and `establishedWallStructure` resolves only EXTERNAL walls — internal partitions,
+  exactly the ones shelves hang on, stay `'unknown'` (v0.31.8.4, deliberately). So the check would
+  either fire unconditionally ("confirm the fixing", low value, and it cannot distinguish 200 kg
+  from 2 kg usefully) or fire almost never. The honest version is probably a mounted-item SCHEDULE
+  with estimated weights and the drywall figure quoted, like the lamp-spec IP advisory: state the
+  limit, ask for confirmation, grant no approval. Needs a feature flag.
+- **[tidy] The HDB 50 mm rule exists as TWO constants for one regulation.**
+  `analysis/floorBuildUp.ts:HDB_MAX_BUILD_UP_MM` (50) and
+  `analysis/floorLoading.ts:CONCRETE_RAISE_LIMIT_M` (0.05) are the same rule —
+  "HDB does not permit raising of floor level exceeding 50mm (inclusive of floor
+  finishes) using concrete" — reached from two directions (finish thickness vs
+  added dead load; the sources give both justifications for the one limit).
+  Verified 2026-09-04, not a discrepancy today, but two constants for one
+  regulation can drift and a future change to HDB's figure would need both
+  edited. Worth one shared constant with both rationales recorded on it.
+- **[layout critique] A desk MONITOR has its own viewing-distance standard, and is currently
+  unchecked.** The TV check selects screens by the authored `screenContent` capability, which is
+  `{tv-wall, flatscreen-tv, monitor}`, and then deliberately excludes `monitor`: a 28" desk monitor
+  is viewed at roughly arm's length, not at 1.2-1.6x its diagonal, so applying the TV band would
+  replace one category error with another (it was NOT in scope before either — the old `/^tv/`
+  regex never matched it). Adding it properly means researching the monitor figure (viewing
+  distance and the ~15-20 degree vertical angle guidance) and giving it its own band. Small and
+  well-defined; just not the same rule.
+
+## Hexagon tile setting-out — NOT MODELLED, and deliberately not faked (v0.31.8.16)
+
+Every other tile family now carries its researched product `moduleMm`, so the
+setting-out sheet covers them. Hexagons carry none, because `moduleMm` is a
+`[w, h]` RECTANGLE and hex does not work that way. Researched: "hexagonal grids
+do NOT align with room walls the way square tiles do, so perimeter cuts will be
+irregular"; the field is set out from the CENTRE of the most visible area
+outward; each perimeter cut is measured individually from the last full tile; the
+flat-top vs point-top orientation changes how those cuts fall; and the trade
+allows ~15% waste against ~10% for square tile.
+
+Measured the cost of faking it — a 200 mm across-flats hex on a 2.4 x 2.0 m room:
+true count by area 138.6 tiles (160 with the 15% allowance), rectangular model
+**120** (13.4% short before waste, 25% short of what a tiler would order), plus a
+uniform 76.2 mm end cut that no hex perimeter has.
+
+Doing it properly needs its own model: centre origin, half-tile row offset,
+per-tile angled perimeter cuts, and its own waste factor. Until then the sheet
+counts these rooms as OMITTED and says so, which is the honest state.
+
 ## Wall-tile setting-out — ✅ SHIPPED v0.31.5.391 (table). Two follow-ups remain:
 - **Opening-aware field.** Openings are currently cut around a field set out over the full face.
   A genuinely opening-aware setting-out (where a balanced centre may sit elsewhere, and the
   courses above a door differ from those beside it) is a larger model.
-- **Corner coursing consistency.** Faces are set out independently, so courses do not generally
-  align around a corner. Enforcing it means solving all four faces of a wet room together with a
-  shared origin and choosing which face's balance to sacrifice — a design decision.
+- ~~**Corner coursing consistency.**~~ **RESOLVED v0.31.8.14 — the premise was wrong.** This said
+  "faces are set out independently, so courses do not generally align around a corner" and called
+  the fix a larger job needing a design decision about which face's balance to sacrifice. Measured:
+  courses are struck from the TOP of each face down, and every face of a room shares the room's
+  ceiling height and its single per-room wall finish, so **the course grid is identical on all four
+  faces by construction.** Bath/WC 1, Bath/WC 2 and the Kitchen each have all four faces at one
+  `(fullCourses, bottomCut)` pair. What varies per face is the END CUT (175-300 mm across those
+  twelve faces) — vertical joints on perpendicular faces, which are not meant to continue round a
+  corner anyway.
+  The one real exception is a face with its own `topHeight` (a shower knee wall) whose tiled height
+  is not a whole number of courses: verified that 1.2 m on a 600 mm module still aligns, while
+  1.1 m puts that face's joint at 500 mm against 600 mm — a 100 mm step, exactly
+  `(2400 - 1100) mod 600`. That case is now REPORTED (`cornerCourseSteps`) instead of asserted
+  globally, and the sheet note — which used to print the false claim to contractors — states the
+  truth. Four tests pin it, including one that fails if the reference face is picked by order
+  rather than by majority.
 - ~~**A drawn wall-tile elevation**~~ DONE v0.31.5.392 — the course grid is overlaid on the
   existing elevation sheets (no new sheet), joints struck from the end-cut offset and from the
   ceiling down, cut bands tinted, drawn under the furniture.
@@ -594,22 +1234,96 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
       every exhaustive `Record<RoomCategory,…>` consumer (see the root `CLAUDE.md` rule);
   (b) let a user IMPORT their own block's official plan and classify against it, which is the only
       thing that can honestly resolve internal partitions for a real address.
-- **[MEASURED, NOT FIXED] `findNarrowGaps` is BLIND to genuinely blocked routes, so the design
-  score cannot see the worst case.** `layout/walkway.ts` skips any item-item gap
-  `<= CLEARANCE.sofaToCoffee` (0.40 m) as "intentional close spacing". That is right for a sofa and
-  its coffee table, but it is applied to EVERY pair, so **two large obstacles jammed 0.05 m apart
-  produce no circulation finding at all** — measured directly at 0.05 / 0.25 / 0.32 / 0.40 m, all
-  silent, with 0.45 m reporting normally (pinned in `designScore.test.ts`, which SHOULD fail once
-  this is fixed). Two consequences worth keeping straight:
-  - it is why `CIRCULATION.gradedFloor` is 0.40 and not an anthropometric figure. An earlier cut of
-    the recalibration anchored the band at 0.30 m on chest-depth grounds (200-250 mm) and was
-    unreachable dead code — tests written against it would have passed anyway;
-  - it means the corpus finding "every impassable gap measured 0.400-0.500 m" describes the
-    FINDER's range, not the layouts' quality. Do not quote it as evidence that nothing is blocked.
-  The fix is to make the skip conditional on the pair NOT being two circulation obstacles
-  (`CIRCULATION.obstacleArea` already draws that line — a coffee table is below it). Not taken here
-  because `findNarrowGaps` also feeds the Checks panel and the clearance advisories, so it needs
-  its own verification pass rather than riding along with a scoring change.
+- **[ATTEMPTED AND REVERTED v0.31.8.7 — read this before trying again] Reducing the arranger's
+  bed-vs-storage pinches with a clearance-preferring placement does NOT work.** Four things were
+  established; the first two are gaps worth fixing on their own terms, the last two are why the
+  obvious fix fails.
+  1. **`CLEARANCE.storageFront` (0.75 m) had ZERO consumers — now REPORTED (v0.31.8.8).** The
+     Layout critique's new `storage-access` check measures the clear floor in front of each
+     openable piece; the authored default flat passes and 17 of 20 auto-furnished templates warn,
+     wardrobes at 0.00-0.37 m. Reported, not enforced — see item 4 for why enforcement fails.
+     `bedSurround` is still only a soft scoring penalty and remains unenforced.
+     ORIGINAL NOTE: `designRules.ts`'s header calls
+     these constants "the single source of truth for furniture spacing" that the arranger "should
+     reference rather than hard-coding gaps", and
+     `docs/interior-design-guidelines.md` tabulates `storageFront` as a rule the app follows.
+     Nothing enforces it anywhere. `bedSurround` fares slightly better — it appears only as a soft
+     scoring penalty in `scoreBedroomEdges`, never as a constraint.
+  2. **`snapToWall` tries exactly ONE along-wall position per edge** — the piece's seeded position
+     clamped to fit — so a wall with room somewhere ELSE along it reads as full. The comment at the
+     bedroom storage loop claims "Collision enforces door-swing gaps"; it does not. `canPlace`
+     tests OVERLAP plus the ROOM's door keep-outs, and nothing reserves floor for a wardrobe's own
+     doors.
+  3. **Adding along-wall candidates clears 3 blocked windows and COSTS 3 pinches.** Measured over
+     62 auto-furnished layouts: blocked windows 11 -> 8 (`g3-liv-win`, `jb-b4-win`, `jb-b5-win`),
+     large-piece pinches 39 -> 42, bed-vs-storage 18 -> 20. **Item count is IDENTICAL** (4584
+     items / 845 large pieces), so the extra pinches are NOT the side effect of placing more
+     furniture — that confound was measured and excluded. A window blocked by a wardrobe is
+     arguably worse than a 0.46 m gap, but that is a product trade, not a fix, so it was reverted
+     rather than shipped. **The numbers are here if the maintainer wants the trade.**
+     Worth keeping regardless: `windowSightline.test.ts` records that "the 11 that remain have no
+     windowless wall with room", and that is WRONG for those 3 — there is room, just not at the
+     seeded along-position.
+  4. **A local per-item clearance objective cannot fix pairwise pinches in a greedy sequential
+     placer.** Storage is placed after the bed, so buying clearance from the bed pushes it into the
+     desk placed later. Scoring against every floor item made it worse still (18 -> 22) because the
+     objective disagreed with the metric: a route pinch needs BOTH sides to be a large piece, so
+     nightstands and plants were dragging the wardrobe around while contributing nothing.
+     Restricting the objective to large pieces recovered 22 -> 20, still short of the 18 baseline.
+     A real fix needs joint placement with backtracking, or deciding the bed's along-position with
+     storage in mind, or a post-pass that nudges large pairs apart (the Checks panel's "Nudge
+     apart" fix already does this interactively, so the mechanism exists).
+- **[AUDITED v0.31.8.13] F13 whole-home sweep of `state/schema.ts` and `apartment/*` — 2 gaps, rest
+  clean.** Checked all 163 direct readers of `plan.rooms`/`walls`/`openings`; a function called with
+  `levelAsPlan` is correctly reading them, so only whole-plan callers matter. Clean:
+  `accessibility`, `ffeSchedule`, `openingSchedule`, `daylight`, `rcp`, `plumbingPlan`,
+  `state/schema.ts`, and `hdbCompliance`'s rules. Fixed: (a) `hdbCompliance`'s emptiness GATE read
+  the raw plan, so a home with an empty ground floor and populated upper storeys had its whole
+  compliance section silently skipped — the rules were F13-correct and the guard in front of them
+  was not, which is the worse half; (b) `occluderRectsForPlan` gave upper storeys no shadow
+  occluder while `PlanShell` rendered their ceilings, so sun poured through 18 rooms across three
+  templates. The occluder `y` needed the level ELEVATION, not just all-levels iteration.
+- **[FIXED v0.31.8.6] `findNarrowGaps` reported pinches THROUGH walls.** The item-item pass
+  measured an edge-to-edge distance and never asked whether anything stood between the pair, so 22
+  of 59 corpus pinches (37%) were gaps nobody can walk through — 18 in different rooms, 4 in the
+  same room (L-shaped rooms and stub walls). Now rejected via `isLineOfSightBlocked` on per-storey
+  walls: 59 -> 39 pinches, median corpus circulation 55.5 -> 68.5, shipped flat 56 -> 65. Doors are
+  treated as OPEN for that test only (a doorway is a route, so a pinch across one is real); the
+  item-wall pass keeps its closed-door walls. The corpus cannot distinguish the two door states, so
+  a constructed fixture in `walkway.test.ts` pins it instead.
+  **What is left is genuinely the arranger, and now visible:** of the 39 real pinches, **18 are a
+  bed against storage** (`bed <-> wardrobe` 8, `bed-queen <-> dresser` 5, `bed-single <-> desk` 5)
+  and bedrooms hold 19. That is a placement fix, not a scoring one, and it is the next piece of
+  work on this thread.
+- **[MEASURED; THE PROPOSED FIX IS REJECTED WITH NUMBERS — v0.31.8.51] `findNarrowGaps` is BLIND
+  below `CLEARANCE.sofaToCoffee`, and the obvious fix makes the app worse.** `layout/walkway.ts`
+  skips any item-item gap `<= 0.40 m` as "intentional close spacing", so two large obstacles jammed
+  0.05 m apart produce no circulation finding (measured at 0.05 / 0.25 / 0.32 / 0.40, all silent;
+  0.45 reports normally — pinned in `designScore.test.ts`).
+  **This entry used to propose: make the skip conditional on the pair NOT being two circulation
+  obstacles, "`CIRCULATION.obstacleArea` already draws that line — a coffee table is below it".
+  That premise is FALSE in this catalog, and the fix was built, measured and reverted.**
+  - `coffee-table` is **0.605 m²** against a 0.5 m² bar. So are `tv-console` (0.720),
+    `armchair` (0.722), `desk` (0.840) and `dresser` (0.600). The bar separates
+    lamps/plants/nightstands (0.18-0.20 m²) from everything else — it does **not** separate
+    "defines a walkway" from "arm's reach", which is the distinction the fix needed.
+  - Built and measured over the 19 templates: **259 item-item findings -> 364 (+105 below 0.40 m)**,
+    led by `bed-single<->desk` (14), **`sofa-3seat<->armchair` (12)**, `bed-single<->wardrobe` (12),
+    `bed-queen<->dresser` (7), **`sofa-3seat<->coffee-table` (6)** — i.e. the canonical arm's-reach
+    pairs the floor exists for.
+  - Circulation **median 68 -> 28, sum 1251 -> 600, min 32 -> 0**. Two templates back at a floored
+    zero, which is precisely the saturation v0.31.8.3 was written to remove.
+  **What is actually true.** Two pieces 0.05 m apart are not a route anyone walks, so silence is not
+  obviously wrong. What the finder cannot do is tell *"jammed together, walk around"* from *"this
+  pair seals the only way through"*. That is a **route/connectivity** question — does removing this
+  pair reconnect the room? — and no gap threshold can answer it. A real fix needs a reachability
+  pass over the room's free floor (the flood-fill the `circulation` overlay already implies), not a
+  smaller number. **Do not re-propose the threshold change**; `walkway.test.ts` now pins the
+  rejection with the catalog areas that kill it.
+  Also still true and worth keeping: `CIRCULATION.gradedFloor` is 0.40 rather than an anthropometric
+  figure because of this floor, and the corpus finding "every impassable gap measured 0.400-0.500 m"
+  describes the FINDER's range, not the layouts' quality. Do not quote it as evidence that nothing
+  is blocked.
 - **[G8 — DONE, one open content call] Theme grounding audit complete: 17/17.** Full record with
   citations in `docs/research/2026-09-02-scheme-theme-grounding.md`. Ten style themes audited (nine
   accurate; Modern Luxe corrected), seven `layout`-group presets are researched by construction.
@@ -622,11 +1336,80 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   sources that call fluted panelling the most-specified local feature-wall treatment and say these
   shades "work best on a single feature wall". Sources added to
   `docs/research/2026-09-02-scheme-theme-grounding.md`.
-  **Follow-up worth taking, found while verifying it:** a `painted` `FeatureWall` renders its flutes
-  INVISIBLY — `getPaintedMaterial` has no map or normal map, and at a 3.0 m width the batten radius
-  is ~25 mm, which gives no shading cue face-on in diffuse light. Both new panels use a tinted
-  `wood` finish for that reason. A painted fluted panel is a legitimate real-world spec, so the def
-  arguably needs a normal map or a deeper default flute to be honest about what it renders.
+  **Follow-up, and its claim is UNVERIFIED (v0.31.8.79).** The note said a `painted` `FeatureWall`
+  renders its flutes INVISIBLY — `getPaintedMaterial` has no map or normal map, and at a 3.0 m
+  width the batten radius is ~25 mm, giving no shading cue face-on in diffuse light. `painted` is
+  a user-selectable option on the def (`wood` / `painted` / `gloss`), so it is reachable even
+  though both shipped presets use tinted `wood`.
+  **VERIFIED and REFINED in v0.31.8.80, with a fixture kept as
+  `scripts/scenarios/feature-wall-finishes.json`.** Coastal preset's panel at (12.53, 2.45)
+  rot -pi/2, camera at (11.0, 2.45) yaw -pi/2, crop the panel interior.
+  **The claim holds, and it is specifically a FACE-ON failure.** In one frame the painted panel
+  reads as flat wallpaper stripes across the head-on two-thirds and as properly rounded ribs
+  across the oblique third — which is the physics: a diffuse material on a shallow curve lit
+  frontally has no gradient to show.
+  **The mechanism is the material, not the geometry.** The flutes are real half-round cylinders
+  (`FeatureWall.tsx`) sitting at `backT + battenR*0.5`, so they already protrude ~1.5x their
+  radius — deepening them would overshoot a real half-round dowel. `wood` reads face-on only
+  because `getWoodMaterial`'s GRAIN varies per rib and gives the eye something; painted has no
+  map at all.
+  **Caveat on the numbers** (ripple/px: wood 4.817, painted 0.770, gloss 1.875): they conflate
+  grain with form, precisely because wood's advantage is texture. Quote them as a proxy, not as a
+  measure of how well the flutes read.
+  **So the fix is a normal map (or a subtle per-rib roughness variation) on the painted finish**,
+  not a geometry change and not a lighting change.
+  **AO was never tested until v0.31.8.95, and it is NOT the answer.** Every prior measurement ran
+  at the boot tier — `performance`, the only tier with `ao: false` — so the most reasonable
+  "surely this was tried" hypothesis was in fact untouched. Swept `performance`/`medium`/`high`:
+  at `high` the head-on ribs read WORSE, collapsing to pinstripes. The gap between adjacent rib
+  surfaces is 0.16 x step, about **10 mm** at the 60 mm pitch, below what screen-space AO can
+  resolve at this distance, so it darkens the panel rather than the grooves.
+  **Lighting direction is NOT the answer either (v0.31.8.95).** A vertical cylinder's side normals
+  have no vertical component, so an overhead cove LED can produce no horizontal variation — which
+  predicted that killing the fixtures would help. With all 16 fixtures off, and again at a low
+  hour-8 sun, the head-on region is unchanged. The interior is environment-dominated in every
+  configuration, and near-uniform irradiance flattens a curve wherever the lamps are.
+  **A baked `aoMap` cross-section is the FIFTH refutation (v0.31.8.96) — built and thrown away.**
+  Rationale was that the ribs' normals are already correct (real cylinders), so a normal map has no
+  form to add, while `aoMap` attenuates the INDIRECT term that .95 showed was doing the flattening;
+  `CylinderGeometry`'s `u` runs around the circumference with `u=0` at +Z, so one 64x1 strip is the
+  rib cross-section for all 50 ribs. Measured with the new folded-profile metric, head-on:
+  **no map amp 26.60 / roundness +0.041; aoMap crown-bright 9.01 / -0.023; inverted 15.25 /
+  -0.025.** Both phases are WORSE than shipping nothing and both turn the profile from
+  marginally-cosine to marginally-square. Mipmapping was blamed mid-run and cleared
+  (`generateMipmaps=false` changed nothing). The mechanism is PHASE: a fixed profile multiplying a
+  uniform term partially cancels a pattern whose phase depends on light position.
+  **`ripple/px` is ANTI-CORRELATED with roundness — do not quote it again.** It rewards hard-edged
+  stripes and penalises smooth gradients. Use `scripts/measure-flute-roundness.mjs`, which reports
+  rib contrast (`amp`) and profile shape (`roundness`) separately.
+  **SHIPPED (v0.31.8.97): a normal map DOES work, and my argument against it was wrong.** A
+  tangent-space profile tilting the normal by `sin(2*pi*u)` (steeper than the real cylinder),
+  `normalScale` 8, on PAINTED and GLOSS only — a material has one `normalMap` slot and wood must
+  keep its grain. Like-for-like: painted contrast **8.95 -> 41.09**, gloss **14.44 -> 47.26**,
+  profile shape flipping from square-like (-0.024) to cosine-like (+0.050) in both, which puts
+  painted ahead of wood (0.035). The premise I violated was "the lighting is uniform" — it is not
+  quite, which is why the oblique third always read.
+  **Also corrected: v0.31.8.96's aoMap verdict was a cross-fixture artefact.** That entry's "no map
+  = 26.60" baseline came from `feature-wall-painted-cues` (different hour); the like-for-like
+  `feature-wall-finishes` baseline is 8.95, so the aoMap was neutral, not a 3x regression. **Always
+  measure both arms in the SAME fixture.**
+  **Still not a cure:** face-on the ribs read as crisply incised grooves, not rounded dowels, and
+  the oblique third still reads better. Remaining idea if anyone returns to it: the flanks are
+  mutually occluded by neighbouring ribs at ~0.16 x step, which no per-rib map can express.
+  **Historic note: I did not test a normal map before .97.** My argument that it
+  cannot help — the cylinder normals are already correct, so there is no form to add — is an
+  argument, not a measurement, and it is the last standing lever on this thread.
+  **Four refutations in, the mechanism is simply that face-on there is nothing to differentiate:**
+  every rib presents the same crown orientation to the same near-uniform environment. Only a MAP
+  can paint in variation that the lighting cannot produce. Fixture:
+  `scripts/scenarios/feature-wall-painted-cues.json` keeps both sweeps measurable.
+  **`sheen` is NOT the answer — tested and refuted in v0.31.8.81.** The def carries a `sheen`
+  param defaulting to 0, and a specular crown is what makes a real painted flute read, so it was
+  the cheap hypothesis. Swept 0 / 0.3 / 0.6 / 1 from the same fixture: ripple/px
+  **0.770 / 0.743 / 0.884 / 1.157** against wood's 4.817. Even at sheen 1 — a value no one would
+  choose — the head-on region still reads as flat stripes; the highlights appear only where the
+  reflection angle happens to line up, which is off to the side, not face-on. No default worth
+  changing. It needs a MAP, not a parameter.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
 - **[site measurements — recording UI COMPLETE v0.31.5.373]** `SiteMeasuredField` is on the wall,
@@ -634,13 +1417,22 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   390px phone viewport. **Optional follow-up, not a gap:** wire the plan editor's existing measure
   tool so a tap-and-type records directly rather than going via the inspector — faster on site, but
   the inspector path is complete and usable as-is.
-- **[F13] Three `planTotalArea` call sites pass the WHOLE plan and understate a two-storey home.**
-  `planTotalArea` is a legitimate single-level helper — `FloorPlanEditor` calls it per storey, which
-  is the correct deliberate use, and it lives in `types.ts` so it cannot import `levels.ts` without a
-  cycle. But `ui/shareSummary.ts`, `ui/shareCard.ts` and `ui/floorplan/ScalePlanModal.tsx` pass the
-  whole plan, so a maisonette's stated area is ground-floor only. Fix at the call sites by summing
-  `planTotalArea(levelAsPlan(plan, l))` across `planLevels(plan)`, as `analysis/renoTimeline.ts` now
-  does. The share ones are cosmetic; the scale modal shows an area the user may act on.
+- **[F13] ~~Three `planTotalArea` call sites pass the WHOLE plan~~ — FIXED v0.31.5.276, entry was
+  STALE for ~500 builds (found v0.31.8.99).** All three (`ui/shareSummary.ts`, `ui/shareCard.ts`,
+  `ui/floorplan/ScalePlanModal.tsx`) call `planTotalAreaAllLevels` and have since
+  `42c4ee36` "Whole-home accessors, and three more ground-only fixes". I went to fix this and found
+  nothing to fix, which is a worse failure mode than an open bug: a stale entry actively misdirects
+  work.
+  **Why nothing caught the staleness:** `allLevelAccessors.test.ts` covered the helper with
+  SYNTHETIC plans only, so no test tied the fix to a shipped template. It now asserts the real
+  corpus — the three two-storey plans and the area each would lose:
+  `tpl-hdb-maisonette` 58.7 -> 118.7, `tpl-terrace-ground` 79.1 -> 149.2, `tpl-loft` 41.8 -> 58.3,
+  i.e. **roughly half the home** in two of the three. It also asserts the SET of two-storey
+  templates, so gaining or losing a storey forces the list to be revisited.
+  **Spot-checked four other numeric TODO claims against the ratchets that own them and all are
+  CURRENT:** `applianceWall` 2 marooned (condo-3bed + condo-1bed stoves), `throughRooms` 3,
+  `templateConnectivity` empty, `bedroomPrivacy` 4 walk-through. So this file is trustworthy apart
+  from the entry above.
 - **[F13] A grep guard for ground-only reads does NOT work AT ANY SCOPE — do not re-propose it.**
   Attempted twice. First over `src/floorplan`: flags ~20 legitimate single-level helpers whose callers
   pass `levelAsPlan`, because the correct/incorrect distinction lives at the CALL SITE.
@@ -658,20 +1450,250 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   rectangular apertures (lift door, cabin, main door) against published SG typicals. Not done:
   (a) the CORRIDOR TURN from lift lobby to front door — the sources say measure it before ordering
   anything over 1.5 m, but a turn is not a rectangular aperture and modelling it needs lobby geometry
-  the app does not have; (b) a UI to enter the user's ACTUAL measured route, which the sources are
-  emphatic matters ("even a difference of 5 to 10 centimeters"). The core already takes a `route`
-  argument, so (b) is a form plus a persisted field — and it should reuse the `SiteMeasuredField`
-  pattern from v0.31.5.372/.272 rather than inventing a second measurement surface.
-- **[layout critique] Add a walkway-width check using the SG figure, not the generic one.** The two
-  standards disagree: 91 cm generic vs "at least 70-80 cm" in SG guidance
-  (`docs/research/2026-09-02-layout-critique-standards.md` records both). `designScore`'s circulation
-  category covers gaps between items but not the width of the MAIN route through a room. If added,
-  use the SG figure for this app.
-- **[G8] Add a Peranakan encaustic floor tile material.** The audit found the one real fidelity gap
-  in an otherwise-accurate theme: geometric encaustic floor tiles are "among the most recognisable
-  elements" of Peranakan interiors, and the preset approximates them with a patterned RUG over dark
-  wood because no such material exists in the catalog. Adding one (with a specified `moduleMm`, per
-  v0.31.5.358) would be the highest-fidelity single improvement to any theme.
+  the app does not have; ~~(b) a UI to enter the user's ACTUAL measured route~~ — **DONE v0.31.9.0.**
+  `plan.deliveryRoute` (optional/additive like `siteMeasurements`, so no version bump), sparse and
+  per-DIMENSION via `resolveDeliveryRoute`, edited in the Accessibility panel's new Delivery route
+  section behind the `deliveryRouteMeasure` flag (pro). The report now names which figures it used.
+  The `SiteMeasuredField` GRAMMAR was reused — placeholder = the figure in force — but not the
+  component, which is bound to `siteMeasurements` keyed by (kind, targetId) in mm against a model
+  dimension; a route aperture has no model value to deviate from.
+  **(a) the CORRIDOR TURN is still not checked and now says so in the UI.** A turn is not a
+  rectangular aperture, so `AccessConstraint` cannot express it; a field the check ignored would be
+  worse than the note. Still needs lobby geometry the app does not have.
+- ~~**[layout critique] Add a walkway-width check using the SG figure, not the generic one.**~~
+  **DONE v0.31.8.18 — and this entry's premise was WRONG.** It said the standards "disagree: 91 cm
+  generic vs 'at least 70-80 cm' in SG guidance" and instructed a future check to "use the SG figure
+  for this app". Re-researched: HDB's own renovation guidance is a **900 mm** minimum internal
+  corridor width "to ensure free and safe movement" — the same bar as the generic 36". The 70–80 cm
+  figure came from generic decor copy, not HDB, and following this entry as written would have made
+  the app **more permissive than HDB's own guideline**. `CLEARANCE.walkwayIdeal` was already 0.9, so
+  the constant was right and the note was wrong.
+  Implemented as `accessibility.ts:MIN_WALKABLE_WIDTH` (0.9), a stricter tier than the 1.5 m turning
+  circle, reported above it and worded distinctly ("too narrow to walk through, not just to turn
+  in"). Applied to every habitable room's min span rather than to "corridors" — a room under 900 mm
+  is unwalkable whatever it is called, and there is no `corridor` `RoomCategory` to key on.
+  **It fires on no shipped plan** (168 rooms across 19 templates + the default flat, narrowest
+  1.00 m), which is the honest reason it exists: a user-drawn corridor is the only place it can
+  occur. **The route model now EXISTS** (`layout/reachability.ts`, v0.31.8.52/.53) — see the entry
+  below.
+- **[ROUTE ACCESS — MEASURED .52, RECALIBRATED .53, ANCHORED .54, FIXED .55, WIDENED .56,
+  DISC + CLASH GATE + SATELLITES .86] 6 rooms across 3 of 19 templates still cannot be reached from
+  the front door once the arranger has placed the furniture — down from 43 across 10 — and the corpus now
+  carries ZERO overlapping pairs, down from 5.**
+  **v0.31.8.86 made the search a DISC instead of a cross.** `±X`/`±Z` offsets cannot move a piece
+  out of a CORNER, which is why `tpl-hdb-5room`'s four stranded rooms survived a pass whose own
+  culprit attribution said either of two pieces would reconnect them: of 64 axis-aligned offsets,
+  53 had nowhere to land and 11 landed still inside the pinch. Disc, nearest-first, is also
+  FASTER (maisonette 1115 -> 856 ms) because `trialFits` rejects most offsets without a
+  `solveGrid` and an early commit beats exhausting 64 misses.
+  **The same release found the pass had been buying routes with OVERLAPS.** `trialFits` reads only
+  the route raster, which excludes anything under `OBSTACLE_AREA_M2` — so a slide could park a
+  sofa through a side table legally, and all 5 of the corpus's overlapping pairs came from here.
+  Adding `itemHeightAwareClash` took that to 0 and took `tpl-hdb-2room` 1 -> 4 severed, which is a
+  CORRECTION: those three were only reachable through an overlapping piece.
+  **The disc also stranded three of `tpl-hdb-maisonette`'s dining chairs** (~1.5 m table move, the
+  `diningChairTuck` defect), because a chair is under `OBSTACLE_AREA_M2` and so invisible to the
+  raster. The pass now CARRIES a piece's satellites — nearest obstacle within 1.2 m — and
+  clash-checks the riders against pieces and walls. That costs `tpl-1bed`'s Dining back.
+  **WHAT IS LEFT, and why none of it is about the search:** `tpl-hdb-2room`'s four (a flat too
+  small to hold the move-in layout and walk between it — this is a LAYOUT-PRESET question, not a
+  route one), `tpl-1bed`'s Dining (traded for tucked satellites) and `tpl-condo-2bed`'s Common
+  Bath (no single culprit, so a one-piece-at-a-time pass cannot open it by construction). **Do not spend another release on the search shape or the reach** —
+  both are measured out.
+  Superseded pre-.86 note follows.
+  `unsealRoutes` runs in `furnishPlanItems` and slides the sealing piece; it moved 12 items and
+  deleted none. **The reach lever is now MEASURED and spent** (.56): 1.2 m left 18 rooms,
+  1.8 m left 11, 2.4 m leaves 10, 3.0 m gains nothing, so the reach is not where the remaining
+  work is.
+  **`tpl-condo-2bed`'s 8 were a TEMPLATE defect and are FIXED (.57)** — its front
+  door opened into the Open Kitchen, whose only other exit the counter and fridge fill; moving
+  the door into Living / Dining took it 8 -> 1 and broke nothing else in the suite.
+  **What WAS left before .86:** `tpl-hdb-2room` Master Bedroom 0.9 m² (`dining-table-4`),
+  `tpl-1bed` Dining 0.6 m² (`coffee-table`, FIXED by the disc), `tpl-condo-2bed` Common Bath
+  1.5 m² (no single culprit).
+  **A lever that was tried and is NOT worth re-trying: letting the pass ROTATE as well as slide.**
+  Built in .57 with quarter-turns only (180° excluded, since it reverses facing on pieces whose
+  rotation encodes it). Measured: used **zero times** across all 19 templates, identical 12 moves.
+  It tripled the trial budget and fixed nothing, so it was reverted.
+  **Superseded note: `tpl-condo-2bed` holds 8 of the 10, all behind one `kitchen-counter-l`.** Every position that would open the route puts the counter across a
+  doorway, and the pass refuses that (rightly — it is the same rule `dropDoorBlockers` deletes
+  on). Two honest ways forward, neither taken: (a) let the pass ROTATE a piece as well as slide
+  it, which for an L-counter against a wall run is the move a designer would actually make;
+  (b) treat this as a TEMPLATE defect — an L-counter that spans the only route between the front
+  door and the living room is arguably mis-authored for the room, and re-authoring
+  `tpl-condo-2bed`'s open kitchen would fix it at the source. (b) is probably right, since the
+  counter is fitted joinery and sliding fitted joinery to open a walkway is not a design a
+  contractor could build from. Plus one room each in `tpl-hdb-2room` and `tpl-1bed`.
+  Original note follows. They are walkable on
+  the empty template and unreachable once the move-in layout is placed: you cannot get in.
+  `layout/reachability.ts` erodes the storey's free floor by half a body width
+  (`CLEARANCE.walkwayMin`, 0.6 m) and flood-fills what survives, so the ruler is the body rather
+  than a threshold — which is what v0.31.8.51 established was needed after the gap-threshold fix
+  was built, measured and reverted (see `src/layout/CLAUDE.md`). Wired into `layoutCritique` as
+  the `route-access` check, opt-in (`{ routeAccess: true }`) because it costs two rasters per
+  storey, and surfaced in the report. Ratcheted in `routeAccess.test.ts`; 10 templates clean.
+  Worst: **`tpl-hdb-jumbo` leaves a 5.7 m² pocket by the front door reachable and ~55 m² not**
+  (8 rooms behind one break), `tpl-condo-2bed` 8 rooms / 25.7 m², `tpl-condo-penthouse` 6 /
+  23.3 m². Read the counts as rooms BEYOND a break, not as a number of breaks.
+  **The MOVER shipped in v0.31.8.55 and the cost worry was misplaced** — the 60-120 ms figure is
+  `buildLevelGrid`, which is furniture-independent, so a trial placement is one `solveGrid` at
+  ~2 ms. Build the grid once and hundreds of candidates cost less than one rebuild. Original
+  note follows.
+  **The MOVER is the next step and its cost is the constraint.** `sealedBy` (v0.31.8.54) names
+  the piece to move — 39 of 43 have one — so a post-pass has a candidate and a discrete goal.
+  What it does not have is a budget: each trial placement needs a re-solve, and a full
+  `findFurnitureSeveredRooms` is 60-120 ms, so ~8 candidate positions x a few culprits is
+  seconds per plan. That is far too slow for `furnishPlanItems`, which runs on every template
+  load and a dozen times inside `schemeOptions`. Two ways out, both unmeasured: re-solve
+  INCREMENTALLY (only the moved footprint's old and new cells change in `itemAt`, so the grid
+  need not be rebuilt), or make the fix a user-triggered action in the Checks panel where
+  seconds are acceptable. Decide that before writing the mover.
+  **Where to start, from the culprit sweep (which single item's removal reconnects the room):**
+  19 of the 22 have an identifiable single-piece culprit, and four defs account for 25 of the 29
+  attributions — **`tv-console` 9, `sofa-3seat` 6, `dining-table-4` 5, `wardrobe-3door` 5**. So
+  this is overwhelmingly the LOUNGE/DINING group parked across the circulation spine of an
+  open-plan template, not a diffuse problem. A post-pass that re-places a piece which SEALS a
+  room is the obvious shape, and unlike v0.31.8.7's rejected clearance objective it has a
+  discrete, checkable goal (the room reconnects) rather than a continuous one that trades
+  pinches around. 3 of the 22 have NO single culprit (`tpl-condo-2bed` Common Bath,
+  `tpl-condo-penthouse` Master Bath + Master Bedroom) — those need two pieces moved and should
+  not be expected to fall to a single-piece pass.
+  **Only circulation obstacles (>= 0.5 m²) can seal a room**, added in `.53`: the first cut
+  counted every floor-standing piece and so named `potted-plant`, `nightstand` and `floor-lamp`
+  as things that walled a room off. That took the list 32 -> 22 and the clean templates 5 -> 10,
+  and it RETRACTS v0.31.8.52's headline finding — `tpl-terrace-ground`'s master bedroom, whose
+  culprit was a 0.32 m² shoe cabinet, is clean.
+- **[APPLIANCE PLACEMENT — FIXED v0.31.8.71] 15 marooned appliances -> 6.** WALL-SNAP-SHORTFALL
+  (`autoArrange.ts:edgeShortfall`, applied in BOTH `snapToWall` and `placeFlush`) pushes a
+  wall-snapped piece out by however far its rect edge falls short of the wall face, so "flush"
+  means the same distance on every edge of every room. That cleared the whole 0.32 m cluster —
+  0.18 m of intended gap plus 0.15 m of rect shortfall — plus `tpl-hdb-jumbo`'s washing machine.
+  Needed MOUNT-HEIGHT-CLASH alongside it (`placeSeededMounts` now tries every wall, height-aware,
+  and falls back to the nearest rather than stranding). Cost: one blocked window, two decor props
+  and one drying rack, against +7 items elsewhere — net +4. Full history in the v0.31.8.61/.69/.70
+  changelog entries.
+  **The three SERVICE-YARD washing machines are FIXED (v0.31.8.75), and it took three changes
+  that only work together:**
+  (a) **WALL-BACKED-EDGE** — `snapToWall` prefers an edge that actually has a wall. It chose from
+  the piece's SEEDED position before, so `tpl-hdb-3room`'s washing machine took the yard's west
+  edge (no wall within 0.80 m) over its north edge (flush to one).
+  (b) **WINDOW-KEEPOUT-IN-RESCUE** — `placeSeededMounts` checked `doorKeepOutRects` but not
+  `windowFrontRects`, so a piece the arranger could not place was rescued straight into a window
+  front. Pre-existing; (a) merely changed which pieces get stranded and exposed it.
+  (c) **All four walls, strictness outside the wall loop** — a stranded FLOOR piece used to try
+  only its nearest wall, so it had to relax the window rule whenever that one wall carried glass.
+  Trying every wall strictly first, and only then allowing a windowed spot, is what lets
+  `tpl-hdb-5room`'s `utility-cabinet` take the yard's clear north wall AND
+  `tpl-hdb-maisonette`'s 2 m shower keep its windowed wall in a 1.6 x 1.3 m bathroom with no
+  window-free option.
+  Net **+5 items with no losses anywhere** (3room +1, 4room +2, jumbo +1, studio +1) — trying
+  more walls rescues pieces that previously had nowhere to go.
+  **What is LEFT (3):** `tpl-condo-3bed/stove 1.05` (never placed at all — still at its room-centre
+  seed, see the ALONG-WALL entry, which is measured and declined), `tpl-condo-3bed/stove 1.05` (never placed at all) and
+  `tpl-condo-1bed/stove 0.59`.
+  **`tpl-hdb-2room`'s stove is FIXED (v0.31.8.76)**: `arrangeKitchen`'s work triangle picked its
+  two candidate walls from the rect's ASPECT alone, so the stove took the long edge with no wall
+  behind it (0.77 m from anything) while a flush one went spare. Wall-backed first now, aspect as
+  the tie-break. Zero collateral — no item counts moved, no new blockage.
+  **`tpl-condo-1bed`'s stove is DIAGNOSED, not fixed.** Its Open Kitchen is flush on S and W and
+  0.49-0.67 m from any wall on N and E. Aspect gives long walls ['S','N']; S is wall-backed and
+  tried first, but the counter run is already there, so `placeFlush` falls to N — which is
+  wall-less and FREE, so it succeeds and `toEnd` never reaches its `snapToWall` fallback (which
+  would have found the flush WEST wall via WALL-BACKED-EDGE).
+  **That plan was BUILT in v0.31.8.77 and has ZERO corpus effect** — wall-backed long walls, then
+  `snapToWall` across all edges, then unbacked long walls. Full suite green with nothing moved:
+  the stove stays at (1.38, 5.27) rot 0.00, snapped to the N rect edge. Reverted rather than
+  shipped as dead branches.
+  **So the reasoning above is wrong somewhere, and two candidates are eliminated:** the room
+  DOES resolve to `kitchen` (`authored=kitchen resolved=kitchen`), so `arrangeKitchen` is the
+  routine; and the W edge IS wall-backed by `edgeHasWall` (rect edge sits ~0.12 m off the face,
+  so `d - ROOM_INSET` is ~0, well inside the 0.3 m bar). Either `toEnd` is not the code path that
+  places this stove, or `snapToWall`'s W candidate is rejected by something — the counter run
+  spans x 0.32-2.72 at z 5.62-6.22 and the stove wants z 4.97-5.57, which should not collide.
+  **TRACED in v0.31.8.78, and it closes this thread.** `toEnd`'s three stages for
+  `tpl-condo-1bed`'s Open Kitchen (rect x 0.32-2.08, z 4.92-6.28):
+  ```
+  toEnd refrigerator low=true  along=1.07  longWalls=S,N
+    placeFlush S -> fail    placeFlush N -> fail    snapToWall -> fail
+  toEnd stove       low=false along=1.38  longWalls=S,N
+    placeFlush S -> fail    placeFlush N -> OK 1.38,5.27
+  ```
+  **`snapToWall` fails in this room** — it fails outright for the fridge, so reordering
+  `toEnd` to reach it earlier cannot help the stove either. That is why v0.31.8.77 had zero
+  effect.
+  **Why `snapToWall` fails:** the W edge is wall-backed and free at its low end, but `snapToWall`
+  tries exactly ONE along-wall position — the seeded z clamped — which puts the stove at
+  z 5.30-5.90, overlapping the counter run at z 5.62-6.22. At the clamp's low end (z 5.22) it
+  would be z 4.92-5.52 and clear.
+  **So both remaining marooned appliances trace to the ALONG-WALL lever above, which is measured
+  and declined twice** (v0.31.8.7 and v0.31.8.62, on cost). There is nothing further to do here
+  without reopening that decision, and the prize is two stoves. **Treat the appliance thread as
+  closed at 15 -> 2.**
+
+- **[ALONG-WALL SWEEP — MEASURED AND DECLINED TWICE (v0.31.8.7, v0.31.8.62). Do not re-attempt
+  without a new idea.]** `snapToWall` tries exactly ONE along-wall position per edge — the
+  piece's seeded position clamped to fit — so a wall with room somewhere ELSE along it reads as
+  full.
+  **The defect it causes is real and traced end to end.** `tpl-condo-3bed`'s stove is marooned at
+  its kitchen's exact centre, 1.05 m from any wall, because all four edges reject it and every
+  rejection is at that single position: W is under the 2.4 m counter run, N under the fridge, E
+  overlaps the kitchen door's keep-out (z 5.57-6.47 vs the stove's 6.38-6.98), and S overlaps the
+  service-yard door's (x 1.10-2.00 vs the stove's 1.25-1.85). **The south wall is clear from
+  x 0.20 to 1.10 and the stove never asks for it.**
+  **Implemented as a nearest-first sweep in 0.25 m steps.** It works: the condo-3bed stove places
+  against a wall AND its range hood follows it (`placeSeededMounts` only makes a hood follow a
+  stove that has MOVED off the seed), clearing two separately-ratcheted findings with one change.
+  **It costs more than it buys.** Unbounded, it also stranded a `tpl-hdb-jumbo` dining chair
+  **4.54 m** from its table and added 2 window blockages. Capping the travel at **1.2 m** (still
+  clears a 0.9 m door keep-out) fixed the dining regression completely — but blocked windows went
+  **4 -> 7**: `tpl-loft/lfu-win: bookshelf`, `tpl-loft/lfu-e-win: shower`,
+  `tpl-terrace-ground/ct-kit-win: bathroom-sink`. **Two appliances fixed for three windows
+  blocked** is the wrong direction, and a window blocked by a shower is worse than an appliance a
+  metre off its wall.
+  **Two orderings were tried to recover the windows and NEITHER worked**: preferring along-wall
+  candidates that clear `ctx.windowKeepOut`, first for `tall` storage only (the three new
+  blockers are a shower, a sink and a bookshelf — none are `storage`, so it missed all three) and
+  then for every piece (no change at all, so `windowSightline` is measuring something the
+  keep-out rects do not capture — find out what before trying a third ordering).
+  v0.31.8.7 measured the same lever on the pre-route codebase and got a different trade in the
+  same shape (3 blocked windows cleared for 3 new pinches). **Two independent measurements, two
+  declines.**
+- **[THROUGH-ROOMS — MEASURED v0.31.8.68, NOT FIXED] 3 rooms are corridors in disguise.**
+  `src/floorplan/throughRooms.test.ts` blocks one room's floor and asks whether the REMAINING
+  rooms fall into more groups than before. Found: `tpl-condo-3bed/c3-bed2`, `c3-bed3` and
+  `tpl-condo-penthouse/cp-bed2` — bedroom columns with no corridor, the shape item (f) defers.
+  This corroborates `bedroomPrivacy.test.ts` from the other side: that test names the bedroom
+  you cannot reach without crossing another, this one names the bedroom you cross.
+  **Two refinements were needed and both are load-bearing — do not remove either.**
+  (a) **Suites are not defects.** Reaching an ensuite through its bedroom is normal, and it
+  splits off a group of exactly ONE room, so only splits whose smaller side holds 2+ rooms
+  count. Without this the check flagged `jb-master`, which `bedroomPrivacy`'s docstring records
+  as the exact false positive that killed its own room-graph attempt.
+  (b) **The room's rectangle has to BE the room.** All four edges must have a wall within
+  0.15 m. Unscoped, the check reported 26 rooms, because where a rect covers undeclared
+  circulation (v0.31.8.60: fewer than half the shipped rect edges sit on their own wall)
+  blocking it blocks a corridor.
+  **Consequence worth acting on:** (b) is why this check does NOT catch `tpl-hdb-4room`'s
+  household shelter, which v0.31.8.67 PROVED is a through-room — its rect is rejected because
+  the shelter has one wall of four.
+  **CORRECTED in v0.31.8.87: "one wall of four" is the point, and it is NOT a rect problem.**
+  Classifying all 46 terminal rooms by why (b) rejects them — 22 rejected, of which 6 fail by
+  0.20 m (a real shortfall), 1 by 0.40, and **15 have no wall on the failing side at all**
+  (0.60-1.60 m; `h4-shelter` is S=0.30 W=0.78 E=0.87). Those 15 ARE
+  `templateEnclosure.test.ts`'s `KNOWN_SHARED_ENCLOSURES`, already attributed to open-graphics
+  item **(f)**. So this check is gated on (f), and the room-rect fix would unblock 6 rooms here,
+  not 22.
+- ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
+  half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
+  researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus
+  a patterned rug, so the theme was still approximating its most recognisable element. Peranakan
+  Accent now lays the real tile.
+  **Only in the living/dining, and that is researched rather than cautious:** encaustic tiles "line
+  the five-foot ways and prestigious interior spaces" of a shophouse, whose plan "transitions from
+  public to private" — the front hall and courtyard, not the bedrooms. Tiling every dry floor would
+  repeat Coastal's all-walls mistake (fixed v0.31.8.2). Needed a new `LayoutPreset`
+  `dryFloorByCategory` field, since `dryFloor` is one finish for the whole home; it is keyed on
+  `RoomCategory` so it works on custom plans and templates too, and no other preset sets it.
 - **[G8] Give a few themes real `kits`, informed by the grounding audit.** No preset defines `kits`,
   so themes differ in finish/styling but place identical furniture (v0.31.5.363). The audit says
   what belongs: rattan/bamboo + handmade ceramics for Japandi, wool/linen textiles for Scandi Calm,
@@ -1716,3 +2738,302 @@ wall-mounted lighting should refuse a wall opening outright. Fix belongs in
 `layout/designRules.ts` + `layout/autoArrange.ts`, not in the look.
 
 Not touched in `.232`, which was a measurement round.
+
+## Daylight: no model of mechanical ventilation — PARTLY ADDRESSED v0.31.8.65
+
+The check measures openable WINDOW area only. An interior bathroom or WC is legally
+ventilated mechanically, so `noFacade` reports it as "not assessed" rather than failing.
+
+**v0.31.8.65 turns that into an instruction**: such a room now reads "interior WC — no
+external wall, so mechanical ventilation ducted to outdoor is required" instead of the
+generic interior-room wording. Live on **7 rooms across 7 templates**, ratcheted in
+`daylight.test.ts` so the wording cannot go inert.
+
+**No RATE is stated, and that is deliberate.** Searching returned three figures for
+three different scopes and none of them a primary residential source: 40 ACH attributed
+to SS 553; 15 ACH (2017) rising to 20 ACH (2024) from NEA's Code of Practice on
+Environmental Health, which governs the premises NEA regulates rather than private
+homes; and trade guidance for HDB flats quoted in CFM (150-200 CFM for a 4-6 m²
+bathroom, 100/150 mm duct). Putting one of them in a contractor-facing tool would
+repeat exactly what v0.31.8.64 had to correct.
+
+**v0.31.8.98: this is NOT a search problem, it is a paywall — and the target is now exact.**
+- **Edition:** the current standard is **SS 553:2026**, published 2026-02-06, superseding the
+  SS 553:2016 (+A1:2017, Amd 2) line. The code cited "SS 553" undated; it now names the edition,
+  because an undated code citation is its own defect in a contractor reference.
+- **Clause:** if a rate exists it is in **Table 5, "Outdoor air supply for mechanical ventilation
+  in non-air-conditioned buildings or parts of buildings with no natural ventilation"** —
+  confirmed present by name in the official contents listing.
+- **Why it stays blocked:** the publisher's free preview is FRONT MATTER ONLY. Extracting the
+  preview PDF's text stream directly yields no occurrence of "toilet", "bathroom", "air change",
+  "residential" or "domestic", and the product page does not render the scope either. So neither
+  the figure nor how the scope treats dwellings is readable without purchasing the standard.
+
+**So the next step is a purchase decision, not more searching.** Do not re-run the search; it has
+now been run three times (v0.31.8.64, .65, .98) and returns the same three out-of-scope figures.
+With the clause in hand this becomes a real sizing line rather than a requirement flag, and the
+room could be ASSESSED instead of skipped, which is what the rest of this entry asks for.
+
+## ~~Daylight: the 10% glazing figure is not sourced to Singapore~~ — RESOLVED v0.31.8.64
+
+**Searched again, same answer, and the app now says so.** Two fresh searches returned
+only Australian (NCC Part 10.5 / F4 — 10% of floor area for windows, 3% for roof
+lights), UK HMO and US IRC/IBC sources for the 10% figure; no Singapore instrument
+carrying it was findable. The 5% ventilation figure IS corroborated for SG.
+
+So the two thresholds are now documented SEPARATELY in `analysis/daylight.ts` rather
+than jointly as "a rule of thumb", and `ui/DaylightPanel.tsx` prints
+"Glazing ≥ 10% (indicative) · openable ≥ 5% of floor" instead of both percentages bare
+— the report already carried an equivalent qualifier, the panel did not. If anyone
+finds a Singapore source, cite it on the constant and the qualifier can be dropped.
+
+Original note follows.
+
+`DAYLIGHT_MIN_RATIO = 0.1` is documented as a rule of thumb, which is honest, but a
+web search for a Singapore/BCA habitable-room definition returned only Australian
+(NCC), UK and US codes carrying the 10% figure. The **5% ventilation** figure IS
+corroborated for SG (a BCA circular requires residential developments to be designed
+for natural ventilation with a minimum opening area of 5% of room space). If the
+daylight ratio is ever presented as more than indicative, source it first — no
+official SG habitable-room exclusion list was findable either, which is why the
+façade test above is derived from the plan's own geometry instead of a rule list.
+
+## Template household shelters are drawn without three of their four walls
+
+Measured on `tpl-hdb-4room`: the shelter is authored as a room rectangle at
+`origin [5, 0.2]`, `1.5 × 2.0 m`, but the plan contains a wall along only ONE of its
+four boundary edges (the external north wall). For the other three, the nearest wall
+is 0.70–0.80 m away and belongs to a different room — so there is no wall to
+classify, not a matching failure. `shelterWallIds` correctly returns 1 wall there.
+
+Consequences: the hackability overlay can only mark the one wall NOT PERMITTED, the
+3D shell renders the shelter unenclosed on three sides, and a drawing set cannot show
+the RC enclosure a contractor needs. Corpus counts of shelter-bounding walls:
+DEFAULT 4, `-exec` 3, `-3gen` 3, `-maisonette` 3, `-2room` 2, `-jumbo` 2, and
+`-3room`/`-4room`/`-5room` just **1** each.
+
+Fixing this is a template DATA change (author the missing RC partitions), not a logic
+change.
+
+**DONE so far: `tpl-hdb-3room` (v0.31.8.63, 2 walls -> 4) and `tpl-hdb-maisonette` +
+`tpl-hdb-exec` (v0.31.8.66, 3 -> 4 each, one south wall apiece).** Five of the eight
+HDB templates now enclose their shelter fully, matching `-3gen` and `-jumbo`. New walls are authored with the centreline offset half a thickness OUTWARD
+from the room rect (4.5 -> 4.45, 2.2 -> 2.25) so the FACES land on the room edge —
+otherwise the rect overlaps the wall body, which is one of the four populations
+`roomRectWalls.test.ts` measures. Full suite green.
+
+**`-4room` and `-5room` were authored the same way, measured, and REVERTED.** Both take
+`templateConnectivity`'s ratchet from 2 disconnected groups to 3, and it stays at 3
+wherever the shelter door is placed (tried south into the living band and east into the
+living room, on both templates). The shelter becomes its own group because, once
+properly enclosed, it shares a wall-free volume with no other DECLARED room — the space
+its door opens onto is undeclared circulation. Whether that is the enclosure being
+wrong or the room-graph test being coarse in the presence of undeclared floor was not
+resolved, and shipping template geometry whose connectivity effect is not understood is
+the wrong trade. **Resolve that question first**; the wall coordinates are in the
+v0.31.8.63 changelog entry, so re-authoring is copy-paste once it is answered.
+
+**`-2room` was authored and REVERTED (v0.31.8.66), for the same reason as `-4room`/
+`-5room` plus one more.** `shelterWallIds` matched `h2-bed-e` (x=3.3) and `h2-bath-n`
+(z=4.0), but both are the NEIGHBOUR's wall 0.2 m away — this shelter has no wall of its
+own on any side, so it needs all four. Enclosing it adds a NEW `templateConnectivity`
+entry (2room is currently connected) and costs a furniture piece (48 -> 47). So the
+three still open — `-2room`, `-4room`, `-5room` — are exactly the ones where enclosing
+the shelter disconnects it, and they all wait on the same question.
+
+**ANSWERED in v0.31.8.67, and the answer changes what this entry is about.** Enclosing
+`tpl-hdb-4room`'s shelter and dumping the raster component of every room:
+
+```
+Kitchen            comp 1        Household Shelter  comp 2
+Service Yard       comp 1        Living / Dining    comp 2
+Bedroom 2/3, Common Bath, Master Bedroom/Bath   comp 3
+```
+
+The shelter is connected to the living room exactly as intended. The count goes 2 -> 3
+because **the shelter's own unwalled floor was the bridge between the kitchen band and
+the living room** — in `tpl-hdb-4room` the only route from the kitchen to the rest of
+the flat runs THROUGH the household shelter. Walling it does not create a defect; it
+UNMASKS one, and the connectivity test is right to report it.
+
+So the remaining three are not a shelter problem. They are the "bedroom/service zone
+with no corridor" problem — the same one `docs/open-graphics-decisions.md` item (f)
+defers and `templateConnectivity`'s remaining entries describe. **Enclosing those
+shelters is correct and should ship together with a corridor for the band the shelter is
+currently standing in for**, not before it.
+
+Worth stating plainly for whoever does that re-plan: a plan where you walk through the
+bomb shelter to reach the kitchen is not one a contractor should be handed, and the app
+could not previously see it because the shelter had no walls to see.
+
+Also still open: whether `templateEnclosure.test.ts` should have caught any of this — it
+passed on a shelter missing three walls, so its criterion is weaker than its name
+suggests.
+
+## (j) WINDOW-SIGHTLINE: the beside-the-glass option is measured impossible
+
+Recorded in `docs/open-graphics-decisions.md` (j) under v0.31.8.27. Implemented and
+instrumented: the blocking gate fires 15 times across the 19 templates and accepts
+**zero** moves — in 9 cases the usable wall span is narrower than the item itself
+(1.26 m vs 1.50 m; one span is **−0.04 m**), and in the other 6 a pane-clearing
+candidate is rejected by collision / door swing / the window front keep-out.
+
+The change was reverted (it was a bit-identical no-op). **(f) TEMPLATE-ROOM-ENCLOSURE
+is a precondition**: those 0.86–1.26 m bedroom wall spans are the same mis-sized
+template rectangles (f) measures, so re-measure (j) only after (f) lands.
+
+## (f) is wider than recorded: 16 of 22 template levels are internally disconnected
+
+Measured with every door treated as OPEN (`src/floorplan/templateConnectivity.test.ts`,
+new ratchet, 16 entries). `templateEnclosure.test.ts` flood-fills with openings
+IGNORED, so it measures too few WALLS; this measures too few DOORS. `tpl-hdb-jumbo`
+splits into **7** sealed groups — its kitchen, service yard, household shelter,
+living/dining and family room are each unreachable, and the west bedroom stack has
+no opening in `jb-wb-corr` at all.
+
+Consequence for the authorised (f) work: re-authoring jumbo is not just partitions +
+moving the Common Bath, it also needs corridor doors, and 15 other levels share the
+defect. Details and the two wrong instruments are in
+`docs/open-graphics-decisions.md` (f) under v0.31.8.28.
+
+## tpl-hdb-jumbo: the central corridor is ~43 m² of undeclared space
+
+Pre-existing (jumbo never had a corridor room), surfaced by the v0.31.8.29
+re-author. The strip x 4.0-8.4 × z 3.2-13.1 is the flat's circulation spine and is
+covered by no declared room, so the app accounts no floor finish, no area and no
+sockets for roughly a third of a 119.7 m² plan. Declaring it as a hall would fix
+that, but it has to avoid the Common Bath now sitting in it (x 6.4-8.3, z 9.7-11.7),
+so it needs either an L-shaped room or the bath moved to one end — a content call.
+
+Check the other 15 levels for the same thing as they are re-authored.
+
+## tpl-hdb-4room re-author is blocked on a content call
+
+Four layouts built and measured, all reverted — see `docs/open-graphics-decisions.md`
+(f) under v0.31.8.32. The template's bedroom zone has no corridor (so any door from
+the living opens into a bedroom) and `h4-bed3` touches no external wall at all, so
+item (h) needs a re-plan rather than a window offset. But the zone's only façades
+are west and south, and the living owns the whole east side — so giving bedroom 3
+daylight starves the living: measured 1.32 m, 3.69 m and 4-chairs-stranded for
+living areas of 12.8, 14.4 and 14.8 m². The original 23 m² living passes.
+
+Three options are written up in the decisions doc; the call is the maintainer's.
+
+## Small combined living/dining rooms should get a 2-chair dining set
+
+`furnishPlan.ts` gives every combined living/dining `KITS.living + KITS.dining` — a
+`dining-table-4` plus 4 chairs — regardless of area. In a 13-15 m² room that does not
+fit, and the 4th chair falls through to the room-wide safety settle, which parks it
+metres from its table. This is what blocks (f)'s remaining 8 levels: carving a
+bedroom corridor costs living area, and that area is what seats the set.
+
+Do this as its own change: measure which template rooms fall under the threshold
+first, then reduce the kit. It removes 2 items per affected room, so it will move
+`placeSeededMounts.test.ts`'s `total >= 899` — legitimately, as a content trade with
+a per-def diff, which is the only reason that guard has ever moved.
+
+Measured and REJECTED already (see `docs/open-graphics-decisions.md` (f), v0.31.8.35):
+committing the chair to its own slot as a last resort. Ignoring all checks costs
+899 -> 875 items; relaxing only the keep-outs costs 899 -> 897. Both are the exact
+pattern that guard was written to catch.
+
+## tpl-hdb-5room ships a stray-wall warning that must NOT be closed on its own
+
+`h5-b2-e` (x=3.2, z 3.6-6.9) stops 0.4 m short of `h5-svc-s` and 0.3 m short of
+`h5-m-n`, so the plan shows "⚠ 1 stray" in the editor. Do not just extend it: those
+gaps are the only way bedrooms 2 and 3 reach the master band, so sealing the wall
+splits the bedroom zone further (2 groups -> 3) instead of fixing anything.
+
+Closing it properly means adding doors inside the zone AND connecting the zone to
+the living — i.e. the corridor re-plan that is blocked on the 4-room/5-room/exec
+content call (`docs/open-graphics-decisions.md` (f)). Fix them together.
+
+## A built-in wardrobe variant would unlock the narrow-bedroom corridors
+
+`wardrobe-3door` is a freestanding 1.5 m × 0.6 m piece that needs
+`CLEARANCE.storageFront` of clear floor to open into. That total (~1.35 m) plus a
+2.0 m bed exceeds a 2.3 m deep bedroom, which is why carving a corridor out of
+`tpl-condo-3bed`'s column costs all three wardrobes — measured in v0.31.8.39, and
+NOT fixed by narrowing the piece (v0.31.8.40 proved width is not the constraint).
+
+A real 2.7 m condo bedroom has a BUILT-IN wardrobe: shallower, and its doors slide
+rather than swing, so it needs far less clear floor.
+
+**CORRECTED v0.31.8.41 — do not build this expecting it to unlock the corridors.**
+Measured: only FOUR wardrobes are missing library-wide (`tpl-hdb-3room` ×2,
+`tpl-hdb-jumbo` ×2), and `tpl-condo-3bed`'s corridor is blocked by the COLUMN's
+depth, not the wardrobe's: three bedrooms plus a bath in a 9.3 m column leaves each
+bedroom ~2.4 m deep, and a 2.0 m bed leaves 0.4 m — less than a wardrobe's depth at
+any width. A shallower piece would still not fit. The two rooms that could take a
+recovered wardrobe (`h3-master` and `jb-bed5`) are both 2.6 m across, so no
+threshold separates them, and recovering `jb-bed5`'s parks it in front of a window.
+A built-in variant is still worth having for realism, but its value is NOT here.
+
+## ~~tpl-condo-penthouse: `cp-liv-win` is in the dining room~~ — FIXED v0.31.8.42
+
+Fixed along with three more of the same kind, found by a sweep rather than by hand.
+`src/floorplan/windowNaming.test.ts` now ratchets the whole library at zero known
+misnamed windows.
+
+## ~~264 m²~~ 75 m² of template floor belongs to no room — CORRECTED v0.31.8.46
+
+Measured v0.31.8.45 by flood-filling each level's interior and subtracting the
+declared room rectangles. The hand-authored default flat is **4%** undeclared; the
+templates run 4–31%.
+
+**The 264 m² figure OVERSTATED it about threefold.** Splitting those cells by
+distance to the nearest declared room (v0.31.8.46): **156 m² is margin** — the 0.1-0.2 m
+band left because room rectangles are inset from wall centrelines, which is
+structural to the model and not a defect — and only **75 m² is real space**, about
+3 m² per level. The split is sound: a 1 m corridor's centre cells sit 0.5 m from any
+room and count as real; only its outer band counts as margin.
+
+Jumbo was the one template where the real space was substantial, and it is fixed.
+For the rest, 4-11 m² of real corridor each does not justify re-authoring room
+rectangles — revisit only if a template is being re-planned for another reason. Undeclared floor is invisible to the area readout, the floor
+finish, the socket counts and the circulation statistic, so a plan that is 15–30%
+unaccounted is not contractor-grade.
+
+`tpl-hdb-jumbo` is fixed (31% → 12%, by declaring its central Hall). Remaining, worst
+first: `tpl-condo-penthouse` 22.3 m² (16%), `tpl-hdb-exec` 19.9 (15%),
+`tpl-condo-4bed` 19.9 (16%), `tpl-hdb-3gen` 19.0 (17%), `tpl-hdb-4room` 15.0 (18%),
+`tpl-condo-3bed` 14.7 (15%), `tpl-hdb-5room` 14.5 (14%), `tpl-hdb-maisonette` 13.0 +
+12.0 across two storeys, `tpl-hdb-3room` 9.7 (17%), `tpl-condo-1bed` 7.3 (16%).
+
+Each needs its own read: the space is usually a corridor, and declaring it means
+choosing a category (`foyer` for circulation) and an L-shape where a bath or store
+sits in the strip. Jumbo's entry is the worked example. Declaring a room also gets it
+FURNISHED, which is a gain (+5 pieces there) but changes the per-template counts.
+
+## Template wall structure is 50% unclassified — and that is CORRECT
+
+Measured v0.31.8.45: across the library, 127 walls resolve to NOT PERMITTED, 10 to
+permit-required and **139 to unclassified**. Every one of the 10 `permit` walls is in
+the hand-authored default flat; no template declares a single one.
+
+Do NOT "fix" this by inferring structure from wall thickness in mm —
+`wallHackability.ts` records why that is forbidden (a non-structural precast
+partition and a load-bearing wall are identical on plan, a documented HDB
+hacking-plan failure mode). For a generic flat-TYPE archetype there is no correct
+answer, and the app already says so: `Unclassified — confirm structure with HDB/PE
+before hacking`, plus a ⚠ per wall on the hacking sheet. Recorded so the 50% is not
+mistaken for a gap by a future reader.
+
+## ~~(g) LEVEL-ISOLATION-IN-WALK is implemented but VISUALLY UNVERIFIED~~ — VERIFIED v0.31.8.49
+
+v0.31.8.47 makes walk mode render the storey below the walked one. Unit-tested and
+bounded (it can never render more levels than the default `'all'` view), but nobody
+has seen it: the headless harness cannot turn a first-person camera — look is driven
+by pointer-lock `movementX`, and a synthetic drag does not move it — and the walker
+spawns facing a wall, so before/after frames are identical.
+
+Verify by hand: `tpl-loft` → View → Levels → Loft → walk → turn to the guard rail.
+Expect a floor and the room below, not the pale sky gradient and two black holes the
+(g) write-up describes. If it is wrong, the suspect is the wiring in
+`apartment/PlanShell.tsx`, not `renderedLevels`, which has tests.
+
+**DONE v0.31.8.49.** `window.__walkLook` now carries `setPitch`, `setYaw` AND
+`setPosition`, so a scenario can place and aim the walker anywhere — every future
+walk-mode change is verifiable headlessly. (g) is verified: standing at the
+mezzanine edge, 57.2% of the frame differs with the fix disabled versus applied, and
+the overlook band's mean luma goes 112.7 -> 174.4.

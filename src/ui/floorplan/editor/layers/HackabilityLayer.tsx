@@ -1,7 +1,7 @@
 import type { PlanWall } from '../../../../floorplan/types'
 import { wallSvgPath } from '../../../../floorplan/wallArc'
 import {
-  establishedWallStructure,
+  establishedWallStructureInPlan,
   type HackClass,
   hackClassDescription,
   hackClassLabel,
@@ -27,6 +27,9 @@ const LEGEND_ORDER: HackClass[] = ['no', 'permit', 'unknown']
 interface HackabilityLayerProps {
   /** Walls of the CURRENT edited storey (pre-filtered by level by the caller). */
   walls: PlanWall[]
+  /** Ids of walls bounding a household shelter — `shelterWallIds(levelPlan)`,
+   *  computed by the caller so the boundary walk happens once per plan. */
+  shelterWalls: ReadonlySet<string>
   toPx: (m: number) => number
 }
 
@@ -38,7 +41,7 @@ interface HackabilityLayerProps {
  * `pointer-events: none` so the underlying `WallsLayer` still owns selection/drag.
  * A small legend (three swatches + labels, RCP/MEP-style) sits above the plan.
  */
-export function HackabilityLayer({ walls, toPx }: HackabilityLayerProps) {
+export function HackabilityLayer({ walls, shelterWalls, toPx }: HackabilityLayerProps) {
   // Anchor the legend at the plan's top-left corner (min world x/z), lifted
   // above the walls into the grid margin so it never overlaps the drawing.
   let minX = Number.POSITIVE_INFINITY
@@ -56,7 +59,7 @@ export function HackabilityLayer({ walls, toPx }: HackabilityLayerProps) {
   return (
     <g style={{ pointerEvents: 'none' }}>
       {walls.map((w) => {
-        const cls = wallHackability(establishedWallStructure(w))
+        const cls = wallHackability(establishedWallStructureInPlan(w, shelterWalls))
         const d = wallSvgPath(w, toPx)
         const bodyW = w.thickness === 'external' ? 7 : 4
         return (

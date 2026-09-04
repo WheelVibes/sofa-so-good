@@ -3,7 +3,14 @@
   "description": "Simple ladder for the walk-mode window backdrop (backdrops + customBackdrop flags): confirms both are simple-tier (visible by default in Simple mode), opens the Scene menu's 'Window view (walk mode)' section, enters walk mode, cycles a preset (dusk), uploads a custom photo through the REAL file-input change handler (applyWalkBackdropFile), verifies it is selected + shows through the window, then asserts the guard rejects an oversize file and a non-image file via the same path.",
   "url": "http://localhost:5231/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     {
       "name": "dismiss-overlays",
       "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
@@ -11,109 +18,316 @@
     {
       "name": "open-curtains",
       "eval": "(() => { const s = window.__store.getState(); s.items.filter((i) => i.defId === 'curtains').forEach((i) => s.updateItemProps(i.id, { drawAmount: 0 })); })()",
-      "failMessage": "This opens the living/dining curtains (drawAmount:0) so the backdrop is actually visible through the glass — they default to drawAmount:1 (closed), which otherwise hides the backdrop entirely in every walk-mode shot below."
+      "failMessage": "This opens the living/dining curtains (drawAmount:0) so the backdrop is actually visible through the glass \u2014 they default to drawAmount:1 (closed), which otherwise hides the backdrop entirely in every walk-mode shot below."
     },
     {
       "name": "verify-simple-mode",
-      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
       "timeout": 5000,
       "failMessage": "App did not boot in Simple mode"
     },
     {
       "name": "verify-flags-simple-tier",
-      "waitFor": { "store": "state.featureFlags.backdrops === true && state.featureFlags.customBackdrop === true" },
+      "waitFor": {
+        "store": "state.featureFlags.backdrops === true && state.featureFlags.customBackdrop === true"
+      },
       "timeout": 5000,
-      "failMessage": "backdrops/customBackdrop are supposed to be tier:'simple' and on by default — expected both true in Simple mode"
+      "failMessage": "backdrops/customBackdrop are supposed to be tier:'simple' and on by default \u2014 expected both true in Simple mode"
     },
-    { "name": "open-scene-menu", "click": { "text": "Scene" } },
+    {
+      "name": "toolbar-interactive",
+      "waitFor": {
+        "css": "button[aria-label=\"Scene\"]"
+      },
+      "timeout": 20000,
+      "failMessage": "toolbar not mounted yet \u2014 clicking 'Scene' before this raced boot and made step 7 flaky (seen 1 run in 3)"
+    },
+    {
+      "name": "open-scene-menu",
+      "click": {
+        "text": "Scene"
+      }
+    },
     {
       "name": "backdrop-select-visible",
-      "waitFor": { "css": "button[aria-label=\"Backdrop\"]" },
+      "waitFor": {
+        "css": "button[aria-label=\"Backdrop\"]"
+      },
       "timeout": 10000,
-      "failMessage": "Backdrop combobox did not render — backdrops flag should show it in Simple mode"
+      "failMessage": "Backdrop combobox did not render \u2014 backdrops flag should show it in Simple mode"
     },
     {
       "name": "upload-entry-visible",
-      "waitFor": { "text": "Upload photo…" },
+      "waitFor": {
+        "text": "Upload photo\u2026"
+      },
       "timeout": 5000,
-      "failMessage": "'Upload photo…' entry missing — customBackdrop flag should show it in Simple mode"
+      "failMessage": "'Upload photo\u2026' entry missing \u2014 customBackdrop flag should show it in Simple mode"
     },
-    { "name": "shot-scene-menu", "screenshot": "01-scene-menu-backdrop-section" },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "walk-loading-done", "waitFor": { "store": "state.loading.active === false" }, "timeout": 10000 },
-    { "name": "settle-walk", "wait": 1000 },
-    { "name": "shot-walk-default", "screenshot": "02-walk-default-city" },
-    { "name": "open-backdrop-select", "click": { "text": "City — Daytime HDB skyline" } },
+    {
+      "name": "shot-scene-menu",
+      "screenshot": "01-scene-menu-backdrop-section"
+    },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 10000,
+      "failMessage": "walk transition splash never appeared \u2014 the gone-wait below would pass vacuously"
+    },
+    {
+      "name": "walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000,
+      "failMessage": "'Entering walkthrough' splash still up: shot-walk-default would capture the splash, not the scene"
+    },
+    {
+      "name": "settle-walk",
+      "wait": 1000
+    },
+    {
+      "name": "set-city-explicitly",
+      "store": {
+        "action": "setBackdrop",
+        "args": [
+          "city"
+        ]
+      },
+      "failMessage": "the shot below is named ...-city, so pin the backdrop rather than trusting the store default (which is now `sky`)"
+    },
+    {
+      "name": "settle-city",
+      "wait": 1200
+    },
+    {
+      "name": "shot-walk-default",
+      "screenshot": "02-walk-default-city"
+    },
+    {
+      "name": "open-backdrop-select",
+      "click": "button[aria-label=\"Backdrop\"]"
+    },
     {
       "name": "backdrop-options-open",
-      "waitFor": { "text": "Dusk — Evening city lights" },
+      "waitFor": {
+        "text": "Dusk \u2014 Evening city lights"
+      },
       "timeout": 5000
     },
-    { "name": "shot-backdrop-options", "screenshot": "02b-backdrop-options-open" },
-    { "name": "close-backdrop-select-via-trigger", "click": { "text": "City — Daytime HDB skyline" } },
-    { "name": "cycle-preset-dusk", "store": { "action": "setBackdrop", "args": ["dusk"] } },
+    {
+      "name": "shot-backdrop-options",
+      "screenshot": "02b-backdrop-options-open"
+    },
+    {
+      "name": "close-backdrop-select-via-trigger",
+      "click": "button[aria-label=\"Backdrop\"]"
+    },
+    {
+      "name": "cycle-preset-dusk",
+      "store": {
+        "action": "setBackdrop",
+        "args": [
+          "dusk"
+        ]
+      }
+    },
     {
       "name": "backdrop-is-dusk",
-      "waitFor": { "store": "state.backdrop === 'dusk'" },
+      "waitFor": {
+        "store": "state.backdrop === 'dusk'"
+      },
       "timeout": 5000,
       "failMessage": "setBackdrop('dusk') did not commit state.backdrop='dusk'"
     },
-    { "name": "settle-dusk", "wait": 1500 },
-    { "name": "shot-walk-dusk-preset", "screenshot": "03-walk-dusk-preset" },
+    {
+      "name": "settle-dusk",
+      "wait": 1500
+    },
+    {
+      "name": "shot-walk-dusk-preset",
+      "screenshot": "03-walk-dusk-preset"
+    },
     {
       "name": "reject-non-image",
       "eval": "(async () => { const label = [...document.querySelectorAll('.scene-field')].find((el) => el.textContent.includes('Your photo')); const input = label.querySelector('input[type=file]'); const file = new File(['not an image'], 'notes.txt', { type: 'text/plain' }); const dt = new DataTransfer(); dt.items.add(file); const setFiles = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files'); Object.defineProperty(input, 'files', { value: dt.files, configurable: true }); input.dispatchEvent(new Event('change', { bubbles: true })); await new Promise((r) => setTimeout(r, 300)); })()"
     },
     {
       "name": "reject-non-image-toast",
-      "waitFor": { "store": "(state.notifications || []).some((t) => /image file/i.test(t.message || '') || /image file/i.test(t.title || ''))" },
+      "waitFor": {
+        "store": "(state.notifications || []).some((t) => /image file/i.test(t.message || '') || /image file/i.test(t.title || ''))"
+      },
       "timeout": 5000,
       "failMessage": "Non-image upload should surface an error toast per applyWalkBackdropFile's 'Please choose an image file.' guard"
     },
-    { "name": "backdrop-unchanged-after-reject", "waitFor": { "store": "state.backdrop === 'dusk'" }, "timeout": 3000 },
-    { "name": "shot-reject-non-image-toast", "screenshot": "04-reject-non-image-toast" },
+    {
+      "name": "backdrop-unchanged-after-reject",
+      "waitFor": {
+        "store": "state.backdrop === 'dusk'"
+      },
+      "timeout": 3000
+    },
+    {
+      "name": "shot-reject-non-image-toast",
+      "screenshot": "04-reject-non-image-toast"
+    },
     {
       "name": "reject-oversize",
       "eval": "(async () => { const label = [...document.querySelectorAll('.scene-field')].find((el) => el.textContent.includes('Your photo')); const input = label.querySelector('input[type=file]'); const big = new Uint8Array(26 * 1024 * 1024); const file = new File([big], 'huge.jpg', { type: 'image/jpeg' }); const dt = new DataTransfer(); dt.items.add(file); Object.defineProperty(input, 'files', { value: dt.files, configurable: true }); input.dispatchEvent(new Event('change', { bubbles: true })); await new Promise((r) => setTimeout(r, 300)); })()"
     },
     {
       "name": "reject-oversize-toast",
-      "waitFor": { "store": "(state.notifications || []).some((t) => /too large/i.test(t.message || '') || /too large/i.test(t.title || ''))" },
+      "waitFor": {
+        "store": "(state.notifications || []).some((t) => /too large/i.test(t.message || '') || /too large/i.test(t.title || ''))"
+      },
       "timeout": 5000,
       "failMessage": "Oversize upload (>25MB) should surface an error toast per applyWalkBackdropFile's 'too large' guard"
     },
-    { "name": "backdrop-unchanged-after-oversize-reject", "waitFor": { "store": "state.backdrop === 'dusk'" }, "timeout": 3000 },
-    { "name": "shot-reject-oversize-toast", "screenshot": "05-reject-oversize-toast" },
+    {
+      "name": "backdrop-unchanged-after-oversize-reject",
+      "waitFor": {
+        "store": "state.backdrop === 'dusk'"
+      },
+      "timeout": 3000
+    },
+    {
+      "name": "shot-reject-oversize-toast",
+      "screenshot": "05-reject-oversize-toast"
+    },
     {
       "name": "upload-real-photo",
       "eval": "(async () => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d'); const bands = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#5856d6']; const bw = c.width / bands.length; bands.forEach((clr, i) => { g.fillStyle = clr; g.fillRect(i * bw, 0, bw, c.height); }); g.fillStyle = '#ffffff'; g.font = 'bold 40px sans-serif'; g.fillText('CUSTOM BACKDROP', 40, 140); const blob = await new Promise((r) => c.toBlob(r, 'image/png')); const file = new File([blob], 'my-view.png', { type: 'image/png' }); const label = [...document.querySelectorAll('.scene-field')].find((el) => el.textContent.includes('Your photo')); const input = label.querySelector('input[type=file]'); const dt = new DataTransfer(); dt.items.add(file); Object.defineProperty(input, 'files', { value: dt.files, configurable: true }); input.dispatchEvent(new Event('change', { bubbles: true })); })()"
     },
     {
       "name": "custom-backdrop-selected",
-      "waitFor": { "store": "state.backdrop === 'custom' && !!state.customBackdropUrl" },
+      "waitFor": {
+        "store": "state.backdrop === 'custom' && !!state.customBackdropUrl"
+      },
       "timeout": 8000,
       "failMessage": "Uploading a valid image should call setCustomBackdropUrl + setBackdrop('custom')"
     },
-    { "name": "settle-custom-load", "wait": 2000 },
-    { "name": "shot-custom-menu-state", "screenshot": "06-custom-selected-in-menu" },
-    { "name": "close-menu", "key": "Escape" },
-    { "name": "settle-close", "wait": 500 },
-    { "name": "shot-walk-custom-through-window", "screenshot": "07-walk-custom-through-window" },
-    { "name": "look-around", "drag": { "from": [400, 400], "to": [1000, 400] } },
-    { "name": "settle-look", "wait": 1200 },
-    { "name": "shot-walk-custom-look-2", "screenshot": "08-walk-custom-look-2" },
-    { "name": "reopen-scene-menu", "click": { "text": "Scene" } },
-    { "name": "remove-button-visible", "waitFor": { "text": "Remove" }, "timeout": 5000 },
-    { "name": "remove-custom", "click": { "text": "Remove" } },
+    {
+      "name": "settle-custom-load",
+      "wait": 2000
+    },
+    {
+      "name": "shot-custom-menu-state",
+      "screenshot": "06-custom-selected-in-menu"
+    },
+    {
+      "name": "close-menu",
+      "key": "Escape"
+    },
+    {
+      "name": "settle-close",
+      "wait": 500
+    },
+    {
+      "name": "shot-walk-custom-through-window",
+      "screenshot": "07-walk-custom-through-window"
+    },
+    {
+      "name": "look-around",
+      "drag": {
+        "from": [
+          400,
+          400
+        ],
+        "to": [
+          1000,
+          400
+        ]
+      }
+    },
+    {
+      "name": "settle-look",
+      "wait": 1200
+    },
+    {
+      "name": "shot-walk-custom-look-2",
+      "screenshot": "08-walk-custom-look-2"
+    },
+    {
+      "name": "reopen-scene-menu",
+      "click": {
+        "text": "Scene"
+      }
+    },
+    {
+      "name": "remove-button-visible",
+      "waitFor": {
+        "text": "Remove"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "remove-custom",
+      "click": {
+        "text": "Remove"
+      }
+    },
     {
       "name": "custom-removed",
-      "waitFor": { "store": "state.backdrop === 'city' && !state.customBackdropUrl" },
+      "waitFor": {
+        "store": "state.backdrop === 'sky' && !state.customBackdropUrl"
+      },
       "timeout": 5000,
-      "failMessage": "clearWalkBackdrop should null customBackdropUrl and revert backdrop to 'city'"
+      "failMessage": "clearWalkBackdrop must null customBackdropUrl and fall back to the APP DEFAULT backdrop (UI_INITIAL.backdrop === 'sky', WINDOW-SKY-DEFAULT) \u2014 NOT a hardcoded 'city'. This assertion said 'city' until v0.31.8.89 and was stale, not the app being wrong."
     },
-    { "name": "back-orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
-    { "name": "orbit-loading-done", "waitFor": { "store": "state.loading.active === false" }, "timeout": 10000 },
-    { "name": "settle-back", "wait": 1000 },
-    { "name": "shot-orbit-final", "screenshot": "09-orbit-final" }
+    {
+      "name": "back-orbit",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "orbit"
+        ]
+      }
+    },
+    {
+      "name": "orbit-loading-done",
+      "waitFor": {
+        "store": "state.loading.active === false"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "orbit-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 10000,
+      "failMessage": "orbit transition splash never appeared \u2014 the gone-wait below would pass vacuously"
+    },
+    {
+      "name": "orbit-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000,
+      "failMessage": "walk->orbit transition splash still up: the next screenshot would capture the splash, not the scene"
+    },
+    {
+      "name": "settle-back",
+      "wait": 1000
+    },
+    {
+      "name": "shot-orbit-final",
+      "screenshot": "09-orbit-final"
+    }
   ]
 }

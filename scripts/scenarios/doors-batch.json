@@ -1,0 +1,73 @@
+{
+  "name": "doors-batch",
+  "description": "TEMPLATE (f) v0.31.8.33: rooms that had NO door at all. Loads tpl-condo-3bed (7 sealed groups -> 2) and asserts every room now carries a door, then screenshots the plan.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "load-c3",
+      "eval": "import('/src/floorplan/templates.ts').then(m=>{const t=m.PLAN_TEMPLATES.find(p=>p.id==='tpl-condo-3bed'); window.__store.getState().replaceFloorPlan(JSON.parse(JSON.stringify(t)), {furniture:'rehome'})}); 'started'"
+    },
+    {
+      "name": "plan-loaded",
+      "waitFor": {
+        "store": "state.floorPlan.rooms.some(r => r.id === 'c3-mbath')"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-every-room-reachable",
+      "eval": "(()=>{const s=window.__store.getState().floorPlan; const doors=s.openings.filter(o=>o.kind==='door'); const need=['c3-kit-door','c3-yard-door','c3-cbath-door','c3-mbath-door','c3-bal-door']; const missing=need.filter(id=>!doors.find(o=>o.id===id)); if(missing.length) throw new Error('missing doors: '+missing); return doors.length+' doors, '+s.rooms.length+' rooms'})()"
+    },
+    {
+      "name": "open-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "editor-settled",
+      "waitFor": {
+        "store": "state.floorPlanEditing === true && state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "editor-ready",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-plan",
+      "wait": 1200
+    },
+    {
+      "name": "shot-plan",
+      "screenshot": "c3-plan"
+    }
+  ]
+}

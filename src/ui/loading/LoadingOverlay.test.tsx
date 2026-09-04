@@ -26,6 +26,21 @@ describe('LoadingOverlay', () => {
     }
   })
 
+  /**
+   * The visual harness waits on this attribute to know the transition splash has
+   * cleared, so it is a contract, not decoration. Two selectors that looked
+   * adequate are not: `role="status"` is shared with the notification region and
+   * the FPS HUD, and matching the label TEXT both ignores `opacity` (so a
+   * scenario passes while the splash is still painted) and passes VACUOUSLY when
+   * it runs before React has rendered the new label. `backdrop-walk-simple`'s
+   * final screenshot had been capturing the splash instead of the scene for that
+   * reason — see v0.31.8.88.
+   */
+  it('exposes the data-transition-overlay automation hook while mounted', () => {
+    render(<LoadingOverlay active label="Switching to overview…" />)
+    expect(document.body.querySelectorAll('[data-transition-overlay]').length).toBe(1)
+  })
+
   it('still renders the line-art SVG content inside the animated layers', () => {
     render(<LoadingOverlay active label="" />)
     const overlay = document.body.querySelector('[role="status"]') as Element

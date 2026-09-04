@@ -21,7 +21,7 @@ import {
   wallBaseExtensionM,
 } from '../floorplan/floorLevels3d'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
-import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
+import { levelAsPlan, type PlanLevel, renderedLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { planRoomRects } from '../floorplan/planRoomShell'
 import { railingMemberInstances } from '../floorplan/railingLayout'
@@ -39,7 +39,7 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
-import { establishedWallStructure } from '../floorplan/wallHackability'
+import { establishedWallStructureInPlan, shelterWallIds } from '../floorplan/wallHackability'
 import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import {
   type GrilleMemberInstance,
@@ -64,6 +64,7 @@ import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
 import { useSunPosition } from '../scene/lighting/useSunPosition'
+import { backdropVisibleNow } from '../scene/SceneBackdrop'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
@@ -567,14 +568,18 @@ function FadeCrown({
  * non-default plan is active, so custom apartments are furnishable in 3D.
  * Multi-storey plans (F13) render one `PlanLevelShell` per visible level,
  * each offset by its elevation; the View menu's level control filters via
- * `visibleLevels` (storeys unmount when hidden, so picking can't hit them).
+ * `renderedLevels` (storeys unmount when hidden, so picking can't hit them —
+ * except the one storey below a WALKED level, which is deliberately present).
  */
 export function PlanShell() {
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
   const wallColor = plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR
   const [ew, ed] = planBounds(plan)
-  const levels = visibleLevels(plan, viewLevelId)
+  // Walk mode also renders the storey immediately BELOW the walked one, so an
+  // overlook has a floor under it instead of bare sky — see `renderedLevels`.
+  const cameraMode = useStore((s) => s.cameraMode)
+  const levels = renderedLevels(plan, viewLevelId, cameraMode === 'firstPerson')
 
   return (
     <group>
@@ -651,6 +656,9 @@ function PlanLevelShell({
   // (WALL-REVEAL-CORNER-SPREAD) — the same static map WallSegment/useWallReveal
   // build; plan geometry only changes with the plan itself.
   const neighbors = useMemo(() => cornerNeighbors(lp.walls), [lp])
+  // Wall ids bounding a household shelter on THIS storey — resolved once per
+  // level plan (the boundary walk is per-room) and reused by the wall boxes.
+  const shelterWalls = useMemo(() => shelterWallIds(lp), [lp])
 
   // Pair each render box with whether its source wall is an external/perimeter
   // wall: only those fade for the camera reveal (internal partitions stay solid
@@ -670,11 +678,13 @@ function PlanLevelShell({
             // Wall-types 3D overlay tint (`wallTypes3d` flag) — null when
             // unclassified; resolved once here rather than in the render loop.
             // Resolved (v0.31.8.4), so the 3D Wall-types tint cannot disagree with the
-            // 2D Hackability overlay about the same facade.
-            overlayColor: wallTypeOverlayColor(establishedWallStructure(w)),
+            // 2D Hackability overlay about the same facade — which is why this
+            // takes the plan-aware resolver, matching `HackabilityLayer`: a
+            // household shelter's RC walls must tint the same in both views.
+            overlayColor: wallTypeOverlayColor(establishedWallStructureInPlan(w, shelterWalls)),
           })),
         ),
-    [lp, wallColor],
+    [lp, wallColor, shelterWalls],
   )
 
   // Walls with `railing` set: render an open metal railing (top rail + posts
@@ -1181,7 +1191,10 @@ function FadeWindow({
     } else {
       mat.color.set(glassParams.color)
     }
-    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
+    // GLASS-SKYCATCH-VEIL: the emissive sky-catch stands in for sky luminance,
+    // so it retires when a backdrop paints a real view behind the pane —
+    // otherwise it adds a constant that flattens whatever the view carries.
+    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d, backdropVisibleNow())
     // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
     // compose) and blend day/night through transmission instead (PHOTO-GLASS).
     // Scaled by the glass kind's own transmission cap relative to the clear

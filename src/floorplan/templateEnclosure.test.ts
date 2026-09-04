@@ -22,22 +22,19 @@ import { pointInRoom } from './types'
 /** Rooms that share one wall-free volume with another declared room, where at
  *  least one of them is a bath/powder. `plan/level: room + room + …`. */
 const KNOWN_SHARED_ENCLOSURES = [
-  'tpl-hdb-3room/ground: h3-kit + h3-yard + h3-shelter + h3-cbath + h3-living',
-  'tpl-hdb-3room/ground: h3-mbath + h3-bed2',
   'tpl-hdb-4room/ground: h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath',
   'tpl-hdb-5room/ground: h5-kit + h5-yard + h5-shelter + h5-living + h5-balcony + h5-bed2 + h5-bed3 + h5-master + h5-cbath + h5-mbath',
   'tpl-hdb-exec/ground: ex-bed2 + ex-bed3 + ex-cbath + ex-mbath',
-  'tpl-hdb-3gen/ground: g3-gbath + g3-bed2 + g3-master + g3-mbath',
-  'tpl-hdb-jumbo/ground: jb-cbath + jb-master + jb-mbath',
   'tpl-hdb-maisonette/em-up: emu-bed3 + emu-landing + emu-hall + emu-mbath + emu-fam',
   'tpl-condo-4bed/ground: c4-cbath + c4-bath2 + c4-mbath',
 ]
 
 /** Walls that run through a room's interior rather than along its boundary. */
-const KNOWN_BISECTED_ROOMS = [
-  'tpl-hdb-3gen/ground: g3-b-corr through g3-master',
-  'tpl-hdb-jumbo/ground: jb-wb-corr through jb-master',
-]
+// EMPTY since v0.31.8.30 — both offenders are fixed. `jb-wb-corr through
+// jb-master` went in `.29` and `g3-b-corr through g3-master` here, in each case
+// because the master rectangle had overrun the bedroom-corridor wall. Keep the
+// list (and the sweep) so a new template cannot reintroduce one.
+const KNOWN_BISECTED_ROOMS: string[] = []
 
 const STEP = 0.05
 

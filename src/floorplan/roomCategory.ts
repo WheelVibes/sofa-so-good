@@ -57,15 +57,34 @@ export const ROOM_CATEGORY_LABELS: Record<RoomCategory, string> = {
   storeroom: 'Storeroom',
   balcony: 'Balcony',
   foyer: 'Foyer / entrance',
+  shelter: 'Household shelter',
   other: 'Other',
 }
+
+/**
+ * Room categories that need natural light to be usable as designed — the rooms a
+ * daylight shortfall is a real defect in. Wet/utility/circulation rooms (bath,
+ * powder, kitchen, service yard, store, foyer, balcony, other) are legitimately
+ * windowless in an HDB flat.
+ *
+ * Lives here, with the category vocabulary, so the daylight check and the design
+ * score cannot drift apart on which rooms count.
+ */
+export const HABITABLE_CATEGORIES: ReadonlySet<RoomCategory> = new Set<RoomCategory>([
+  'living',
+  'dining',
+  'bedroom',
+  'masterBedroom',
+  'study',
+])
 
 /**
  * Infer a room's category from its name. Order matters — more specific
  * patterns are checked first so, e.g., a "Master Bedroom" resolves to
  * `masterBedroom` (not the generic `bedroom` a plain "bed" match would give)
- * and a "Household Shelter" resolves to `storeroom` (not the old, coarser
- * "balcony" bucket). `hall` deliberately stays `living` (HDB parlance for a
+ * and a "Household Shelter" resolves to `shelter` (not
+ * `storeroom`, which it shared until v0.31.8.25 — the app could not tell a
+ * blast shelter from a store room). `hall` deliberately stays `living` (HDB parlance for a
  * living/dining hall — NOT a corridor), matching `roomKindFromName`.
  * Returns `'other'` when nothing matches (never `null` — every room needs
  * SOME category once inferred, unlike the nullable coarse classifiers).
@@ -77,6 +96,17 @@ export function roomCategoryFromName(name: string | undefined): RoomCategory {
   // bare "master"/"main"/"primary" with no bed/room context is too
   // ambiguous and falls through instead of guessing.
   if (/(master|main|primary)\s*(bed\s?room|bed\b)/.test(n)) return 'masterBedroom'
+  // An explicit "bedroom" wins over EVERY rule below, including the `hall` arm
+  // of the living check: `tpl-hdb-exec`'s "Bedroom 2 Hall" resolved to `living`
+  // because `hall` matched first (measured v0.31.8.44). A `suite` is a bedroom
+  // too — "Grandparent Suite" had been falling through to `other`.
+  if (/bed\s?room/.test(n)) return 'bedroom'
+  if (/\bsuite\b/.test(n)) return 'masterBedroom'
+  // "Sleeping Loft" is a bedroom, but the rule has to be narrow: a bare `loft` is
+  // often the whole unit, and a bare `sleep` swallows `tpl-condo-studio`'s
+  // "Living / Sleeping", which is a living space and lost three pieces of
+  // furniture when it was miscategorised (measured v0.31.8.44).
+  if (/\bsleeping\s+(loft|area|nook|zone)\b/.test(n)) return 'bedroom'
   if (/\b(kitchen|kitchenette|pantry)\b/.test(n)) return 'kitchen'
   // Powder / WC (half-bath) before the general bath check.
   if (/(powder|\bwc\b)/.test(n)) return 'powder'
@@ -84,15 +114,26 @@ export function roomCategoryFromName(name: string | undefined): RoomCategory {
   if (/(stud(y|io\b)|home\s?office|\boffice\b|\bden\b|library)/.test(n)) return 'study'
   // Foyer / entrance / corridor — before the generic living check (a "Hall"
   // still reads as living per HDB parlance, per module doc).
-  if (/(foyer|\bentry\b|entrance|corridor|hallway)/.test(n)) return 'foyer'
+  // A STAIR hall or landing is circulation, not a living hall — the `hall` arm
+  // of the living check below is HDB parlance for a living/dining hall and must
+  // not swallow these.
+  if (/(foyer|\bentry\b|entrance|corridor|hallway|stair|landing)/.test(n)) return 'foyer'
   // Service yard / utility (washer, drying rack) before storeroom.
   if (/(\byard\b|service|utility|laundry)/.test(n)) return 'serviceYard'
-  // Storeroom / bomb shelter.
-  if (/(\bstore\b|storeroom|shelter)/.test(n)) return 'storeroom'
+  // Household shelter (the HDB civil-defence blast shelter) BEFORE the
+  // storeroom check — it is a reinforced-concrete enclosure whose walls may not
+  // be altered and which is windowless by design, not a store room you may
+  // re-line or open up. `hs` is the standard abbreviation on HDB plans.
+  if (/(household\s*shelter|\bshelter\b|\bhs\b)/.test(n)) return 'shelter'
+  // Storeroom.
+  if (/(\bstore\b|storeroom)/.test(n)) return 'storeroom'
   if (/(balcony|ledge|patio|\bbin\b)/.test(n)) return 'balcony'
   // 'living' is checked before 'dining' so a combined "Living / Dining" room
   // reads as living (the superset use) rather than dining-only.
-  if (/(living|lounge|family\s?room|great\s?room|hall)/.test(n)) return 'living'
+  // `family` alone, not just `family room`: "Family Area" is the name three
+  // templates use. `loft` covers "Sleeping Loft", which the bedroom rule above
+  // already catches when the name says bed — this is the bare form.
+  if (/(living|lounge|family|great\s?room|hall)/.test(n)) return 'living'
   if (/(dining|\bdine\b)/.test(n)) return 'dining'
   if (/(bed\s?room|\bbed\b|nursery|guest)/.test(n)) return 'bedroom'
   return 'other'
@@ -108,7 +149,7 @@ export function roomCategory(room: Pick<PlanRoom, 'name' | 'category'>): RoomCat
 /** Downmap a `RoomCategory` to the coarser `analysis/suggestions.ts`
  *  `RoomKind` every suggestion/catalog/starter consumer already reads.
  *  `masterBedroom`→`bedroom`, `powder`→`bath`, `serviceYard`/`storeroom`/
- *  `foyer`→`balcony` (the classifier's existing non-habitable/utility
+ *  `shelter`/`foyer`→`balcony` (the classifier's existing non-habitable/utility
  *  bucket — see `roomAwareCategories.ts`'s module doc for why `balcony`
  *  already doubles as that bucket). Every other category maps 1:1. */
 export function toRoomKind(category: RoomCategory): RoomKind {
@@ -119,6 +160,7 @@ export function toRoomKind(category: RoomCategory): RoomKind {
       return 'bath'
     case 'serviceYard':
     case 'storeroom':
+    case 'shelter':
     case 'foyer':
       return 'balcony'
     default:

@@ -77,13 +77,18 @@ const NON_HABITABLE: ReadonlySet<SuggestionKind> = new Set<SuggestionKind>(['bal
  */
 function resolveSuggestionKind(room: SuggestionRoom): SuggestionKind {
   if (room.category) {
-    if (room.category === 'serviceYard' || room.category === 'storeroom') return 'utility'
+    if (
+      room.category === 'serviceYard' ||
+      room.category === 'storeroom' ||
+      room.category === 'shelter'
+    )
+      return 'utility'
     return toRoomKind(room.category)
   }
   const legacy = roomKindFromName(room.name)
   if (legacy === 'balcony') {
     const cat = roomCategoryFromName(room.name)
-    if (cat === 'serviceYard' || cat === 'storeroom') return 'utility'
+    if (cat === 'serviceYard' || cat === 'storeroom' || cat === 'shelter') return 'utility'
   }
   return legacy
 }

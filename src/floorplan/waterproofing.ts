@@ -50,9 +50,38 @@ export const WATERPROOF_CATEGORIES: ReadonlySet<RoomCategory> = new Set<RoomCate
   'balcony',
 ])
 
-/** General wall-upturn height on every wet-area wall (mm). */
+/**
+ * General wall-upturn height on every wet-area wall (mm).
+ *
+ * **BCA Good Industry Practices** (waterproofing for internal wet areas, under
+ * Code of Practice SS 637:2018): the membrane "should have an upturn of at least
+ * 300mm to create minimum tanking protection against migration of water to
+ * spaces adjacent or below the wet area", and walls "should be rendered to a
+ * smooth minimum height of 300 mm from floor level to receive waterproofing
+ * treatment upturn".
+ *
+ * Some practice notes give 150 mm as an absolute floor with ~300 mm "ideally" on
+ * splash walls. 300 mm is taken because it is the figure BCA's own guidance
+ * states, and because the direction of error matters here: under-specifying
+ * waterproofing is discovered as a leak into the room below, which is far more
+ * expensive than an extra 150 mm of membrane.
+ *
+ * A STANDARD, not a derived dimension — sourced v0.31.8.15, when the
+ * construction-details sheet was found claiming every dimension on it was
+ * "derived from the design and exact".
+ */
 export const GENERAL_UPTURN_MM = 300
-/** Wall-upturn height at shower walls (mm). */
+/**
+ * Wall-upturn height at shower walls (mm).
+ *
+ * **BCA Good Industry Practices**: the membrane "should be applied to at least
+ * 1800mm height and 1500mm width of the wall or the entire enclosure at bath and
+ * shower areas". Also a STANDARD rather than a derived dimension.
+ *
+ * Only the HEIGHT is reported as a detail dimension; the 1500 mm width bound is
+ * covered by `SHOWER_RUN_PER_ITEM_M` (2.4 m nominal per shower, comfortably
+ * above 1.5 m) which drives the membrane QUANTITY rather than the detail.
+ */
 export const SHOWER_UPTURN_MM = 1800
 /** Nominal two-wall run (m) taken at the shower upturn per detected shower item
  *  (a corner enclosure ≈ two 1.2 m returns). Conservative when a bath has no

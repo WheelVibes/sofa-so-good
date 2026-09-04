@@ -131,6 +131,38 @@ export function visibleLevels(plan: FloorPlan, viewLevelId: string): PlanLevel[]
   return match.length > 0 ? match : levels
 }
 
+/**
+ * Storeys to RENDER for a View→Levels selection.
+ *
+ * Identical to {@link visibleLevels} everywhere except FIRST-PERSON, where the
+ * storey immediately below the walked one is added (ML/G-LEVEL-ISOLATION).
+ * Isolating a floor is the point of the dollhouse and the 2D editor; in walk mode
+ * you are standing inside the building and the world should be continuous. The
+ * defect this fixes: `walkLevel(plan, 'all')` walks the GROUND floor, so the only
+ * way to walk an upper storey is to select it — which is exactly what hides the
+ * storey beneath, and `tpl-loft`'s mezzanine overlooks a 25.7 m² double-height
+ * void that then reads as bare sky.
+ *
+ * The immediate storey below only, not all of them: it is what the overlook can
+ * actually see, and it bounds the cost on the weak-device tier.
+ *
+ * No ceiling work is needed to make this look right — room ceilings render with
+ * `side: BackSide` so they read from below and are invisible from above, which is
+ * exactly what an overlook wants. (The (g) write-up assumed otherwise and priced
+ * an occluder change for it.)
+ */
+export function renderedLevels(
+  plan: FloorPlan,
+  viewLevelId: string,
+  firstPerson: boolean,
+): PlanLevel[] {
+  const shown = visibleLevels(plan, viewLevelId)
+  if (!firstPerson || viewLevelId === 'all' || shown.length !== 1) return shown
+  const all = planLevels(plan)
+  const i = all.findIndex((l) => l.id === shown[0]?.id)
+  return i > 0 ? [all[i - 1] as PlanLevel, shown[0] as PlanLevel] : shown
+}
+
 /** The storey a first-person walker stands on for a View→Levels selection
  *  (ML6c): 'all' (or an unknown/stale id) walks the ground floor; a level id
  *  walks that storey — the walker teleports there and collides with ITS

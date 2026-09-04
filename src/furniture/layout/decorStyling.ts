@@ -340,9 +340,22 @@ function slotPositions(
     // Map local (long, short) → local (du = X, dv = Z) before world rotation.
     const du = longAlongW ? local : lateral
     const dv = longAlongW ? lateral : local
-    // Rotate local offset by host yaw into world X/Z.
-    const x = host.position[0] + du * cos - dv * sin
-    const z = host.position[1] + du * sin + dv * cos
+    // Rotate local offset by host yaw into world X/Z — three.js sense, matching
+    // the render and the wall-art pass below (`(sin, cos)` forward). Corrected
+    // v0.31.8.12: this used the opposite sense, so local +Z (the host's front)
+    // mapped to its back.
+    //
+    // **Not a no-op: 249 of 538 decor props (46%) move**, every one on a host
+    // whose yaw has `sin θ ≠ 0`. An earlier draft of this comment called the
+    // fix harmless because `local` and `lateral` are symmetric about 0, so a
+    // mirrored scatter is still a valid scatter — that is true of the PATTERN
+    // but not of the individual props, and the difference was measured rather
+    // than assumed. What it buys is that a prop placed toward the host's front
+    // now lands there; before, the file held two conventions at once, which is
+    // how the same mistake reached `collision/placement.ts` and
+    // `ikea/stacking.ts`.
+    const x = host.position[0] + du * cos + dv * sin
+    const z = host.position[1] - du * sin + dv * cos
     out.push([x, z])
   }
   return out

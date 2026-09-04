@@ -1,4 +1,5 @@
-import { type FloorPlan, roomPolygon } from '../../floorplan/types'
+import { planLevels } from '../../floorplan/levels'
+import { type FloorPlan, type PlanRoom, roomPolygon } from '../../floorplan/types'
 import { ROOMS } from '../constants'
 import type { RoomId } from '../types'
 
@@ -27,10 +28,28 @@ export interface OccluderRect {
  */
 export function occluderRectsForPlan(plan: FloorPlan): OccluderRect[] {
   const out: OccluderRect[] = []
-  for (const r of plan.rooms) {
+  // EVERY storey (F13, v0.31.8.13). `plan.rooms` is ground-only, and `Scene.tsx`
+  // calls this with the WHOLE plan — so an upper storey's rooms had a ceiling
+  // rendered (`PlanShell` iterates a per-level `lp.rooms`) but no shadow
+  // occluder, and the sun poured through it as if the room were unroofed.
+  // Measured on the shipped templates: 8 rooms on `tpl-hdb-maisonette`, 7 on
+  // `tpl-terrace-ground`, 3 on `tpl-loft` — 18 in all.
+  //
+  // `y` must carry the level ELEVATION, not just the ceiling height: a plane at
+  // the ground storey's 2.6 m does not roof a room whose floor starts at 2.9 m.
+  for (const level of planLevels(plan)) {
+    for (const r of level.rooms) {
+      pushRect(out, r, level.elevation, plan)
+    }
+  }
+  return out
+}
+
+function pushRect(out: OccluderRect[], r: PlanRoom, elevation: number, plan: FloorPlan): void {
+  {
     const def = ROOMS[r.id as RoomId]
     // External rooms are open to the sky (matches Ceiling.tsx's !external).
-    if (def?.external) continue
+    if (def?.external) return
     const poly = roomPolygon(r)
     let minX = Number.POSITIVE_INFINITY
     let minZ = Number.POSITIVE_INFINITY
@@ -42,8 +61,8 @@ export function occluderRectsForPlan(plan: FloorPlan): OccluderRect[] {
       if (x > maxX) maxX = x
       if (z > maxZ) maxZ = z
     }
-    if (!Number.isFinite(minX)) continue
-    const y = r.ceilingHeight ?? def?.ceilingHeight ?? plan.ceilingHeight
+    if (!Number.isFinite(minX)) return
+    const y = (r.ceilingHeight ?? def?.ceilingHeight ?? plan.ceilingHeight) + elevation
     out.push({
       id: r.id,
       cx: (minX + maxX) / 2,
@@ -53,5 +72,4 @@ export function occluderRectsForPlan(plan: FloorPlan): OccluderRect[] {
       y,
     })
   }
-  return out
 }

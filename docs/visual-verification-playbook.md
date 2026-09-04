@@ -879,6 +879,62 @@ and **typed** (useful for programmatic generation):
 ```
 Each `waitFor` accepts `timeout` (ms) and `failMessage` overrides.
 
+### Check your frames actually rendered: `measure-frame-detail.mjs`
+
+```
+node scripts/measure-frame-detail.mjs /tmp/out          # a dir or individual pngs
+```
+
+Mean absolute difference between horizontally adjacent greyscale pixels, downsampled to 80x50 so
+it reads STRUCTURE, not texture. It is a **cover detector** — the thing that catches a green
+scenario photographing a loader instead of its subject.
+
+| detail | what it is |
+|---|---|
+| 0.3 - 1.3 | boot loader / transition splash / blank |
+| 2.2 - 4.9 | a rendered panel or UI-heavy frame |
+| 6.9 - 10.0 | a rendered 3D scene, or a panel full of swatches |
+
+Exits non-zero under `--fail-under` (default 1.5), so a sweep can gate on it. **Read a flag as
+"look at this frame", not "this frame is wrong"** — a deliberately plain empty-state panel on a
+flat background can score low legitimately.
+
+Worth running after ANY corpus-wide scenario change. It is how v0.31.9.5 discovered that
+`finish-picker-audit.json` had been photographing the boot loader in all ten frames while passing
+green, and how v0.31.9.6 confirmed the fix (0.31-0.36 -> 6.9-9.96).
+
+### Returning to orbit: wait for the transition splash, in BOTH directions
+
+`setCameraMode('orbit')` from walk raises the full-screen "Switching to overview…" splash, and
+the scene swap **blocks the main thread for 3-6 s** in the headless harness — long enough that
+even `transitionHide.ts`'s 2000 ms safety timeout fires late. A fixed `wait` after `back-orbit`
+therefore screenshots the SPLASH, not the scene. `backdrop-walk-simple.json` shipped that way
+and its final assert verified nothing until v0.31.8.88.
+
+```json
+{"name": "back-orbit", "store": {"action": "setCameraMode", "args": ["orbit"]}},
+{"name": "orbit-overlay-shown", "waitFor": {"css": "[data-transition-overlay]"}, "timeout": 10000},
+{"name": "orbit-overlay-gone",  "waitFor": {"css": "[data-transition-overlay]", "visible": false}, "timeout": 25000},
+{"name": "settle-back", "wait": 600},
+{"name": "shot", "screenshot": "orbit-again"}
+```
+
+Three ways to get this wrong, all of them tried:
+
+- **`{"store": "state.loading.active === false"}` is NOT enough.** `hideLoading` only flips the
+  flag; `useOverlayLifecycle` then holds the overlay for `MIN_VISIBLE_MS` (600) and fades it for
+  `FADE_MS` (250). Measured ~1.6 s of overlay still painted after the flag cleared.
+- **Matching the label TEXT is unreliable.** `visible: false` does not consider `opacity`, so it
+  can be satisfied while the splash is fully painted — and worse, it passes VACUOUSLY when the
+  step runs before React has rendered the new label, which is the common case since
+  `showLoading` is synchronous inside `setCameraMode`.
+- **Budget 45 s, not 25 s.** Measured on `walkcam` (Pro mode, so a heavier scene swap) across
+  five runs: 11.4 / 15.6 / 17.7 / 26.4 / 50.4 s. A 25 s timeout false-failed once. The guard only
+  spends its full timeout when something is genuinely wrong, so err high.
+- **Waiting only for it to GO is not enough** — that is the vacuous pass above. Wait for it to
+  APPEAR first, then to go. `[data-transition-overlay]` exists exactly while the overlay is in
+  the DOM and is not shared with the notification region or the FPS HUD (both `role="status"`).
+
 ### Store-injected fixtures must match the real types
 
 `eval` strings bypass TypeScript — `setItems([...])` with the wrong shape

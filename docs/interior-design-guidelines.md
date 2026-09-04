@@ -36,9 +36,9 @@ placement stays consistent. Keep this doc and that module in sync.
 | Through-passage / doorway route | 0.75 (`passage`) | — | single-file |
 | Sofa front ↔ coffee table | 0.40 (`sofaToCoffee`) | — | 14–18″, within reach |
 | Door / drawer / cabinet swing | 0.85 (`doorSwing`) | — | ≈ the leaf width |
-| Walk-around at a bed | 0.60 (`bedSurround`) | — | ≥1 long side + foot |
+| Walk-around at a bed | 0.60 (`bedSurround`) | 24" published minimum | ≥1 long side · **checked** by the Layout critique's *Bed access* (v0.31.8.11). The FOOT is measured but deliberately NOT part of the verdict: across 47 beds in shipped content 66% meet it on a side and only 23% meet side AND foot, and the curated default flat's own Main Bedroom has 0.00 m at the foot — a foot-to-wall bed is a normal HDB answer, not a defect |
 | Flush-to-wall gap | 0.05 (`wallGap`) | — | skirting / AC trunking |
-| Clear floor in front of storage | 0.75 (`storageFront`) | — | open + pass |
+| Clear floor in front of storage | 0.75 (`storageFront`) | — | open + pass · **checked** by the Layout critique's *Storage access* (v0.31.8.8); reported, not enforced |
 
 ## TV viewing distance — `tvViewingDistance(diagonalInches)`
 

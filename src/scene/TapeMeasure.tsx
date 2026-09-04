@@ -5,6 +5,7 @@ import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { noExportUserData } from '../export/sceneGltf'
+import { itemsOnLevel, levelAsPlan, walkLevel } from '../floorplan/levels'
 import { planExtent } from '../floorplan/planExtent'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { useCatalogGetter } from '../furniture/catalog'
@@ -68,15 +69,24 @@ export function TapeMeasure() {
   // are gathered lazily on click (rare) to avoid extra subscriptions.
   const snapClick = (px: number, pz: number): [number, number] => {
     const st = useStore.getState()
+    // TAPE-LEVEL (F13, v0.31.9.3). Snap to the storey being VIEWED, on both
+    // sides of the candidate set. This previously took furniture corners from
+    // `st.items` — every storey — and wall endpoints from `st.floorPlan`, whose
+    // `walls` are the GROUND FLOOR, so measuring upstairs on a maisonette
+    // snapped to furniture that is there and walls that are not. `walkLevel` is
+    // the same lever `FirstPersonCamera` picks its collision walls with and the
+    // minimap draws with (MINIMAP-LEVEL), so the tape agrees with both by
+    // construction rather than by re-deriving the storey here.
+    const level = walkLevel(st.floorPlan, st.viewLevelId)
     const cands: [number, number][] = []
-    for (const it of st.items) {
+    for (const it of itemsOnLevel(st.items, level.id)) {
       const def = catalogRef.current[it.defId]
       if (!def) continue
       for (const c of obbCorners(itemFootprint(it, def))) cands.push(c)
     }
     const walls = isDefaultPlan(st.floorPlan)
       ? buildCollisionWalls(st.doors)
-      : planCollisionWalls(st.floorPlan, st.doors)
+      : planCollisionWalls(levelAsPlan(st.floorPlan, level), st.doors)
     for (const w of walls) {
       cands.push([w.ax, w.az], [w.bx, w.bz])
     }

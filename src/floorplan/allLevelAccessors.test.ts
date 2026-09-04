@@ -5,8 +5,16 @@
  * is how the ground-only reads spread in the first place.
  */
 import { describe, expect, it } from 'vitest'
-import { allPlanOpenings, allPlanRooms, allPlanWalls, planTotalAreaAllLevels } from './levels'
+import {
+  allPlanOpenings,
+  allPlanRooms,
+  allPlanWalls,
+  planLevels,
+  planTotalAreaAllLevels,
+} from './levels'
+import { PLAN_TEMPLATES } from './templates'
 import type { FloorPlan } from './types'
+import { planTotalArea } from './types'
 
 /** Ground: one 6x5 room, one wall, one door. Upper: one 4x3 room, one wall. */
 function twoStorey(): FloorPlan {
@@ -79,5 +87,30 @@ describe('planTotalAreaAllLevels', () => {
     // plan to the SINGLE-LEVEL `planTotalArea` and so advertised a maisonette's
     // ground floor as the whole home.
     expect(planTotalAreaAllLevels(twoStorey())).toBeGreaterThan(planTotalAreaAllLevels(single()))
+  })
+
+  /**
+   * The cases above are synthetic, which left the SHIPPED corpus unguarded — and
+   * v0.31.8.99 found the `TODO` still listing this bug as open ~500 builds after
+   * v0.31.5.276 fixed it, because nothing tied the fix to a real template. These
+   * are the three two-storey plans in the library and the area each would lose.
+   */
+  it('sums the shipped two-storey templates, not their ground floors', () => {
+    const EXPECTED: Record<string, { ground: number; all: number }> = {
+      'tpl-hdb-maisonette': { ground: 58.7, all: 118.7 },
+      'tpl-loft': { ground: 41.8, all: 58.3 },
+      'tpl-terrace-ground': { ground: 79.1, all: 149.2 },
+    }
+    const twoStoreyTemplates = PLAN_TEMPLATES.filter((t) => planLevels(t).length > 1)
+    // If a template gains or loses a storey this list must be revisited, so the
+    // set is asserted rather than just iterated.
+    expect(twoStoreyTemplates.map((t) => t.id).sort()).toEqual(Object.keys(EXPECTED).sort())
+    for (const tpl of twoStoreyTemplates) {
+      const want = EXPECTED[tpl.id] as { ground: number; all: number }
+      expect(planTotalArea(tpl), `${tpl.id} ground`).toBeCloseTo(want.ground, 1)
+      expect(planTotalAreaAllLevels(tpl), `${tpl.id} all levels`).toBeCloseTo(want.all, 1)
+      // The whole point: the upper storey is not a rounding difference.
+      expect(want.all - want.ground).toBeGreaterThan(10)
+    }
   })
 })

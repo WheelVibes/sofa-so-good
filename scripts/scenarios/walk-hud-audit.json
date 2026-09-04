@@ -2,27 +2,85 @@
   "name": "walk-hud-audit",
   "url": "http://localhost:5230/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     {
       "name": "dismiss-overlays",
       "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
     },
-    { "name": "set-day", "eval": "window.__store.getState().setManualHour?.(13)" },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" } },
-    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
-    { "name": "settle-walk", "wait": 1500 },
+    {
+      "name": "set-day",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      }
+    },
+    {
+      "name": "hide-loading",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
+    {
+      "name": "settle-walk",
+      "wait": 1500
+    },
     {
       "name": "teleport-near-curtain",
       "eval": "window.__three.camera.position.x = 11; window.__three.camera.position.z = 3.2"
     },
     {
       "name": "aim-loop-detects-curtain",
-      "waitFor": { "store": "state.nearbyFixtureId === 'default-ld-curtain'" },
+      "waitFor": {
+        "store": "state.nearbyFixtureId === 'default-ld-curtain'"
+      },
       "timeout": 20000
     },
-    { "name": "prompt-visible", "waitFor": { "css": ".hud-pill" } },
-    { "name": "callout-visible", "waitFor": { "css": ".info-callout" } },
+    {
+      "name": "prompt-visible",
+      "waitFor": {
+        "css": ".hud-pill"
+      }
+    },
+    {
+      "name": "callout-visible",
+      "waitFor": {
+        "css": ".info-callout"
+      }
+    },
     {
       "name": "shot-desktop-day-banner-plus-prompt",
       "screenshot": "01-desktop-day-banner-plus-prompt"
@@ -35,25 +93,83 @@
       "name": "shot-desktop-day-hud",
       "screenshot": "02-desktop-day-hud-only"
     },
-    { "name": "dismiss-walk-callout", "eval": "window.__store.getState().dismissCallout?.('walk-mode')" },
-    { "name": "settle-dismiss", "wait": 300 },
-    { "name": "shot-desktop-day-prompt-clean", "screenshot": "03-desktop-day-prompt-clean" },
-    { "name": "set-night", "eval": "window.__store.getState().setManualHour?.(20)" },
-    { "name": "settle-night", "wait": 1200 },
-    { "name": "shot-desktop-night-prompt", "screenshot": "04-desktop-night-prompt" },
-
-    { "name": "viewport-mobile-portrait", "viewport": { "width": 390, "height": 844 } },
-    { "name": "settle-portrait", "wait": 500 },
-    { "name": "shot-mobile-portrait-night", "screenshot": "05-mobile-portrait-night" },
-    { "name": "set-day-2", "eval": "window.__store.getState().setManualHour?.(13)" },
-    { "name": "settle-day-2", "wait": 800 },
-    { "name": "shot-mobile-portrait-day", "screenshot": "06-mobile-portrait-day" },
-
-    { "name": "viewport-mobile-landscape", "viewport": { "width": 844, "height": 390 } },
-    { "name": "settle-landscape", "wait": 500 },
-    { "name": "shot-mobile-landscape-day", "screenshot": "07-mobile-landscape-day" },
-    { "name": "set-night-2", "eval": "window.__store.getState().setManualHour?.(20)" },
-    { "name": "settle-night-2", "wait": 800 },
-    { "name": "shot-mobile-landscape-night", "screenshot": "08-mobile-landscape-night" }
+    {
+      "name": "dismiss-walk-callout",
+      "eval": "window.__store.getState().dismissCallout?.('walk-mode')"
+    },
+    {
+      "name": "settle-dismiss",
+      "wait": 300
+    },
+    {
+      "name": "shot-desktop-day-prompt-clean",
+      "screenshot": "03-desktop-day-prompt-clean"
+    },
+    {
+      "name": "set-night",
+      "eval": "window.__store.getState().setManualHour?.(20)"
+    },
+    {
+      "name": "settle-night",
+      "wait": 1200
+    },
+    {
+      "name": "shot-desktop-night-prompt",
+      "screenshot": "04-desktop-night-prompt"
+    },
+    {
+      "name": "viewport-mobile-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-portrait",
+      "wait": 500
+    },
+    {
+      "name": "shot-mobile-portrait-night",
+      "screenshot": "05-mobile-portrait-night"
+    },
+    {
+      "name": "set-day-2",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "settle-day-2",
+      "wait": 800
+    },
+    {
+      "name": "shot-mobile-portrait-day",
+      "screenshot": "06-mobile-portrait-day"
+    },
+    {
+      "name": "viewport-mobile-landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "name": "settle-landscape",
+      "wait": 500
+    },
+    {
+      "name": "shot-mobile-landscape-day",
+      "screenshot": "07-mobile-landscape-day"
+    },
+    {
+      "name": "set-night-2",
+      "eval": "window.__store.getState().setManualHour?.(20)"
+    },
+    {
+      "name": "settle-night-2",
+      "wait": 800
+    },
+    {
+      "name": "shot-mobile-landscape-night",
+      "screenshot": "08-mobile-landscape-night"
+    }
   ]
 }

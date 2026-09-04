@@ -3,24 +3,132 @@
   "description": "CUSTOMIZE-CEILING: paint every room's ceiling a bold finish, enter walk mode, pitch the camera up, and screenshot to confirm the ceiling renders the finish from below (and a white-default baseline shot for comparison).",
   "url": "http://localhost:5173/",
   "steps": [
-    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
-    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
-    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
-    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
-    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
-    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 5000 },
-    { "name": "settle", "wait": 1500 },
-    { "name": "look-up-baseline", "drag": { "from": [640, 650], "to": [640, 120] } },
-    { "name": "wait-base", "wait": 1000 },
-    { "name": "shot-white", "screenshot": "ceiling-white-default" },
-    { "name": "paint-ceilings", "eval": "window.__store.getState().setAllCeilingFinish('wall-brick-red')" },
-    { "name": "wait-paint", "wait": 1500 },
-    { "name": "shot-painted", "screenshot": "ceiling-brick-red" },
-    { "name": "paint-wood", "eval": "window.__store.getState().setAllCeilingFinish('wall-fluted-walnut')" },
-    { "name": "wait-wood", "wait": 1500 },
-    { "name": "shot-wood", "screenshot": "ceiling-walnut" }
+    {
+      "name": "viewport",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      }
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "scene-ready",
+      "store": {
+        "action": "setSceneReady",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "pro-mode",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "reresolve-flags",
+      "eval": "window.__store.getState().reresolveFeatureFlags()"
+    },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "look-up-baseline",
+      "drag": {
+        "from": [
+          640,
+          650
+        ],
+        "to": [
+          640,
+          120
+        ]
+      }
+    },
+    {
+      "name": "wait-base",
+      "wait": 1000
+    },
+    {
+      "name": "shot-white",
+      "screenshot": "ceiling-white-default"
+    },
+    {
+      "name": "paint-ceilings",
+      "eval": "window.__store.getState().setAllCeilingFinish('wall-brick-red')"
+    },
+    {
+      "name": "wait-paint",
+      "wait": 1500
+    },
+    {
+      "name": "shot-painted",
+      "screenshot": "ceiling-brick-red"
+    },
+    {
+      "name": "paint-wood",
+      "eval": "window.__store.getState().setAllCeilingFinish('wall-fluted-walnut')"
+    },
+    {
+      "name": "wait-wood",
+      "wait": 1500
+    },
+    {
+      "name": "shot-wood",
+      "screenshot": "ceiling-walnut"
+    }
   ]
 }

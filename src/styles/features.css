@@ -313,9 +313,16 @@
 .clr-item.warn { border-left-color: oklch(0.7 0.14 72); }
 .clr-item .ci-head { display: flex; align-items: flex-start; gap: var(--s-2); }
 .clr-item .ci-head .badge { margin-top: 1px; }
-.clr-item .ci-title { font-size: var(--t-sm); font-weight: 700; color: var(--text); line-height: 1.35; }
-.clr-item .ci-detail { font-size: var(--t-xs); color: var(--text-2); line-height: var(--lh-body); margin-top: 5px; }
-.clr-item .ci-fix { display: flex; align-items: center; gap: 5px; font-size: var(--t-2xs); color: var(--accent-soft-text); font-weight: 600; margin-top: 6px; }
+/* UNSCOPED from `.clr-item` in v0.31.9.0. These three were `.clr-item .ci-*`,
+   so every use OUTSIDE a `.clr-item` row silently got no styling at all — the
+   phantom-class hazard in `src/ui/CLAUDE.md`, in its "the class exists but is
+   scoped elsewhere" form, which a screenshot is the only way to notice.
+   `AccessibilityPanel`'s closing `.ci-fix` summary ("Widen flagged doors …")
+   had been rendering at inherited size with a bare tick since it was written.
+   The declarations are unchanged, so nothing inside `.clr-item` moves. */
+.ci-title { font-size: var(--t-sm); font-weight: 700; color: var(--text); line-height: 1.35; }
+.ci-detail { font-size: var(--t-xs); color: var(--text-2); line-height: var(--lh-body); margin-top: 5px; }
+.ci-fix { display: flex; align-items: center; gap: 5px; font-size: var(--t-2xs); color: var(--accent-soft-text); font-weight: 600; margin-top: 6px; }
 .clr-allclear { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 12px; text-align: center; }
 .clr-allclear .ring { width: 46px; height: 46px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-soft-text); display: grid; place-items: center; }
 

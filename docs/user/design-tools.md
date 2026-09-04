@@ -178,6 +178,15 @@ furniture needed).
 
 ## Cooling load — aircon sizing (Pro)
 
+Rooms that **cannot** have a window are shown as **N/A** rather than failed, and
+are left out of the pass counts — adding a window there is not possible, so the
+check does not ask you to. That covers an interior room with no external wall (a
+store, an internal bathroom, a corridor) and the **household shelter**, whose
+reinforced-concrete walls may not be opened even where it sits on an outside
+wall. Each N/A row says which of the two reasons applies. A **bedroom, living,
+dining or study** room with no external wall is still flagged, because a room you
+live in does need daylight.
+
 The **Daylight & ventilation** check panel also carries a **Cooling load**
 section: a per‑room aircon **BTU** recommendation, using the Singapore rule of
 thumb (~50–60 BTU/ft² of floor area) with the uplifts installers add — **+15%**
@@ -360,7 +369,15 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   distance, conversation distance, coffee-table reach, sofa proportion for an HDB
   living room, and rug size against the sofa, dining table or bed it sits under
   (a **bedside runner** is recognised as its own layout and judged on length, not
-  overhang). Failures and warnings sort above passes, each row shows the measured
+  overhang), and **storage access** — whether a wardrobe, cabinet, sideboard or
+  chest of drawers has the recommended 0.75 m of clear floor **in front of** it to
+  open a door or drawer and still get past. It reads the direction each piece
+  faces, so something standing beside or behind it doesn't count; on a warning it
+  names the tightest piece, its room and the clearance it actually has, and
+  **bed access** — whether at least one long side of each bed has the recommended
+  0.6 m to walk down and make it up. Only one side needs it, so a single bed
+  tucked into a corner isn't marked down, and a bedside table doesn't count as
+  blocking the side it sits on. Failures and warnings sort above passes, each row shows the measured
   figure and the band so you can judge the call yourself, and checks your home
   has no pieces for are left out rather than listed as blanks — an **accessibility**
   check (doorway clear widths + a 1.5 m wheelchair turning circle per room),

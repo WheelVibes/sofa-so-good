@@ -153,3 +153,29 @@ export function roleOf(defId: string, catalog: Record<string, FurnitureDef>): Ar
   if (def.noClip) return 'rug'
   return roleForCategory(def.category)
 }
+
+/**
+ * Categories whose pieces belong AGAINST A WALL — the first rule in
+ * `docs/interior-design-guidelines.md` ("storage/appliances/beds flush to
+ * walls").
+ *
+ * Deliberately NARROWER than `furnishPlan`'s `WALL_HUGGING_CATEGORIES`, which
+ * also carries `seating`: that set drives the SEED RESCUE, where pulling a
+ * stranded sofa to a wall is right, and a dining chair is `seating` too. And
+ * deliberately without `tables`/`textiles`, because a rug, coffee table or
+ * dining table belongs in the MIDDLE of the room.
+ *
+ * Both exclusions were measured, not assumed (v0.31.9.32). Ordering the settle
+ * wall-first for everything cost score 60,813,173,903 -> 60,913,193,803 by
+ * pulling two of `tpl-1bed/ob-dining`'s chairs to a wall, 0.21 m out of the room
+ * and away from their table. Gating on footprint area instead (>= 0.5 m²) scored
+ * the same, because the piece that actually moved was the dining TABLE, whose
+ * chairs then tucked around its new wall position and followed it out.
+ */
+export const WALL_BOUND_CATEGORIES: ReadonlySet<string> = new Set([
+  'bathroom',
+  'storage',
+  'appliances',
+  'kitchen',
+  'laundry',
+])

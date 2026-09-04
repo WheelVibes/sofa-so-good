@@ -3,6 +3,7 @@
   "url": "http://localhost:5231/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     { "name": "dismiss-overlays", "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setQualityTier?.('performance'); })()" },
     { "name": "place-items", "eval": "(() => { const s = window.__store.getState(); s.setItems([ { id: 'rack1', defId: 'drying-rack', position: [2, 2], rotation: 0, props: { width: 0.9, color: '#c9ccd1' } }, { id: 'blind1', defId: 'roller-blind', position: [2, 2.7], rotation: 0, props: { kind: 'venetian', lower: 1, width: 1.3, drop: 1.7, color: '#d8d2c4' } } ]); })()" },
     { "name": "items-placed", "waitFor": { "store": "window.__store.getState().items.length === 2" } },

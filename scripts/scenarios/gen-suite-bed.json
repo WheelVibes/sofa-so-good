@@ -1,0 +1,19 @@
+{
+  "name": "gen-suite-bed",
+  "description": "GEN-DOOR-OFFSET (v0.31.9.17): tpl-hdb-3gen's Grandparent Suite ships with a bed. Its door was centred on the 3.56 m north wall, so the 0.90 m swing keep-out split that wall into 1.28 m and 1.38 m runs — both 0.14 m short of a 1.52 m bed-queen in every orientation — and dropDoorBlockers deleted the bed, leaving two nightstands flanking nothing. Door moved to the west jamb: 2.68 m clear run, +8 pieces.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "dismiss", "eval": "(()=>{const s=window.__store.getState();localStorage.setItem('hdb_onboarded','1');s.endTour?.();s.setOnboardingOpen?.(false);s.dismissLocationPrompt?.();s.setManualHour?.(13)})()" },
+    { "name": "load-3gen", "eval": "window.__loadTemplate('tpl-hdb-3gen')" },
+    { "name": "plan-ready", "waitFor": { "store": "state.floorPlan.rooms.some(r => r.id === 'g3-gen')" }, "timeout": 20000 },
+    { "name": "furnish", "eval": "window.__store.getState().applyLayoutPreset('move-in')" },
+    { "name": "furnished", "waitFor": { "store": "state.items.length > 0" }, "timeout": 20000 },
+    { "name": "assert-suite-has-a-bed", "eval": "(()=>{const s=window.__store.getState();const r=s.floorPlan.rooms.find(x=>x.id==='g3-gen');const inRoom=s.items.filter(i=>i.position[0]>=r.origin[0]&&i.position[0]<=r.origin[0]+r.width&&i.position[1]>=r.origin[1]&&i.position[1]<=r.origin[1]+r.depth);const beds=inRoom.filter(i=>String(i.defId).startsWith('bed-'));if(beds.length===0)throw new Error('Grandparent Suite has no bed; contains: '+inRoom.map(i=>i.defId).sort().join(', '))})()", "failMessage": "the Grandparent Suite must ship with a bed (v0.31.9.17)" },
+    { "name": "settle", "wait": 3000 },
+    { "name": "camera-suite", "eval": "(()=>{const t=window.__three,cam=t?.camera,c=t?.controls;if(!cam)return;cam.position.set(8.3,7.2,14.5);if(c){c.target.set(8.3,0.4,10.0);c.update();}cam.lookAt(8.3,0.4,10.0);})()" },
+    { "name": "settle-cam", "wait": 2000 },
+    { "name": "shot-suite", "screenshot": "01-grandparent-suite-with-bed" }
+  ]
+}

@@ -38,17 +38,38 @@ export const CONCRETE_RAISE_LIMIT_M = 0.05
  * weight and is never flagged.
  */
 const HEAVY_KG_BY_DEF: Record<string, number> = {
-  // A standard bathtub holds ~230 L; with the tub + a bather ≈ 300 kg.
-  bathtub: 300,
-  // A large glass aquarium: water + rock + glass + stand, ~250–350 kg.
+  // A standard bathtub holds ~230 L. 230 kg of water + ~30 kg acrylic tub +
+  // a ~70 kg bather = ~330 kg. Corrected from 300 in v0.31.8.22: the old
+  // comment stated the same three components and then rounded DOWN, which is
+  // the wrong direction for this module's stated conservative policy. It does
+  // not change any verdict — over its 1.20 m² footprint that is 275 vs 250
+  // kg/m², both far past the 150 limit — but the arithmetic should be right.
+  bathtub: 330,
+  // A large glass aquarium: water + rock + glass + stand. The def is
+  // 0.90 × 0.42 m and 1.12 m tall including its stand, so the tank itself is
+  // ~170 L → ~220 kg realistically; 320 kg is the conservative end, matching
+  // published totals for a 200 L tank (~275 kg all-in).
   aquarium: 320,
+  // "Aquarium stand + tank" — a tank INCLUDING its stand, so the same figure.
+  // Placing an `aquarium` on top of one would double-count to 640 kg; unlikely
+  // (the stand def already has a tank) and left alone rather than special-cased.
   'aquarium-stand': 320,
-  'fish-tank': 320,
-  // Upright / grand piano.
+  // Upright piano: published ranges put uprights at 227–363 kg, so 300 is
+  // mid-range rather than conservative — deliberate, because an upright is the
+  // realistic HDB case and the density check flags it comfortably anyway
+  // (0.87 m² footprint → 345 kg/m²).
   piano: 300,
+  // **DEAD ENTRIES, kept deliberately (v0.31.8.22).** `fish-tank`,
+  // `upright-piano`, `grand-piano` and `safe` are not defs in the catalogue —
+  // 4 of the 8 keys this table had, including its heaviest figure (a 420 kg
+  // grand piano applying to nothing). Kept because each is a plausible future
+  // def and the figures are researched (grand pianos run 227–590 kg; a home
+  // safe 50–500 kg), and pinned by a test that records WHICH keys are live, so
+  // adding one of these defs surfaces the pre-set weight instead of it quietly
+  // starting to apply.
+  'fish-tank': 320,
   'upright-piano': 300,
   'grand-piano': 420,
-  // A safe / gun cabinet.
   safe: 250,
 }
 
@@ -56,13 +77,39 @@ const HEAVY_KG_BY_DEF: Record<string, number> = {
 const STONE_MATERIALS = new Set(['marble', 'stone', 'granite', 'terrazzo', 'quartz', 'concrete'])
 /** Estimated weight of a stone/marble-topped table (kg) — a 20–30 mm slab top. */
 const STONE_TABLE_KG = 160
-/** Def ids that are tables (a stone top makes them heavy). */
+/**
+ * Def ids that are tables (a stone top makes them heavy).
+ *
+ * **Audited v0.31.8.21.** This matches 16 defs, including `table-lamp`,
+ * `desk-plant` and `tabletop-decor` — a lamp, a plant and a decor object. Those
+ * are LATENT rather than live: none of them declares a stone-capable finish
+ * option, so `hasStoneMaterial` cannot be satisfied from a builtin def's own
+ * enum and the 160 kg branch never fires for them. Checked before claiming
+ * otherwise.
+ *
+ * `CATEGORY_EXCLUDE` closes them anyway, because "latent" only holds until
+ * someone adds a marble base to a table lamp, and because an imported def can
+ * carry an arbitrary material string. It also removes the one REACHABLE false
+ * positive found: `changing-table` (category `kids`) declares
+ * `finish=concrete`, so a baby changing table was being estimated at 160 kg.
+ */
 const TABLE_RE = /table|desk|island|console/
+/** Categories that are never a stone-topped SURFACE, whatever the id says. */
+const CATEGORY_EXCLUDE: ReadonlySet<string> = new Set(['lighting', 'decor', 'kids', 'pets'])
 /** Def ids that are open shelving / bookcases (loaded with books ≈ heavy). */
 const BOOKCASE_RE = /bookshelf|bookcase|shelf|shelving/
 /** Estimated loaded weight of a full-height bookcase packed with books (kg). */
 const LOADED_BOOKCASE_KG = 200
-/** Def ids that model a raised floor platform. */
+/**
+ * Def ids that model a raised floor platform.
+ *
+ * **Matches NOTHING in the catalogue (measured v0.31.8.21)** — there is no
+ * platform/dais/riser/podium/tatami def, so this branch and `RAISE_KEYS` are
+ * unreachable today. Kept rather than deleted because the HDB raise limit it
+ * guards is real and a platform-bed or tatami dais is a plausible future def;
+ * `floorLoading.test.ts` pins that it currently matches nothing, so the day one
+ * is added the test says so instead of the branch quietly starting to fire.
+ */
 const PLATFORM_RE = /platform|dais|riser|podium|tatami/
 
 /** Prop keys a raised-platform height might be stored under (metres). */
@@ -131,9 +178,23 @@ function hasStoneMaterial(props: ParamProps | undefined): boolean {
 }
 
 /** Estimate an item's in-use weight (kg), or 0 when it is not a heavy suspect. */
-export function estimateItemWeightKg(defId: string, props: ParamProps | undefined): number {
+export function estimateItemWeightKg(
+  defId: string,
+  props: ParamProps | undefined,
+  /** The def's category, when the caller has it — lets the stone-table branch
+   *  reject a lamp/plant/decor/kids piece whose ID merely contains "table". */
+  category?: string,
+): number {
   const id = defId.toLowerCase()
+  // **ORDER MATTERS, and it is not obvious.** The explicit heavy-item table must
+  // be consulted BEFORE `CATEGORY_EXCLUDE`, because two of its entries sit in
+  // excluded categories: `aquarium` is `decor` and `aquarium-stand` is `pets`.
+  // Reversing these two lines would silently return 0 for a 320 kg aquarium —
+  // the exclusion exists only to stop an ID regex catching a lamp, never to
+  // override a figure someone put in the table on purpose.
+  // `floorLoading.test.ts` pins this ordering.
   if (HEAVY_KG_BY_DEF[id] != null) return HEAVY_KG_BY_DEF[id]
+  if (category != null && CATEGORY_EXCLUDE.has(category)) return 0
   if (TABLE_RE.test(id) && hasStoneMaterial(props)) return STONE_TABLE_KG
   if (BOOKCASE_RE.test(id)) return LOADED_BOOKCASE_KG
   return 0
@@ -154,6 +215,14 @@ export function buildFloorLoadingReport(
   for (const item of Array.isArray(items) ? items : []) {
     const def = catalog?.[item?.defId]
     if (!def) continue
+    // A wall/ceiling fixture does not load the SLAB, and a rug has no weight
+    // worth counting (v0.31.8.21). Without this, `BOOKCASE_RE` matched
+    // `wall-shelf` and `cat-wall-shelf` — both `mounted: true` — and
+    // `estimateItemWeightKg` returned `LOADED_BOOKCASE_KG` (200 kg)
+    // unconditionally for them, so a pair of wall shelves added 400 kg of
+    // floor loading that physically hangs off the wall. Every other check in
+    // the app already exempts mounted/noClip items; this one did not.
+    if (def.mounted || def.noClip) continue
     const id = def.id.toLowerCase()
 
     // Raised-platform check.
@@ -171,7 +240,7 @@ export function buildFloorLoadingReport(
     }
 
     // Heavy-item density check.
-    const weight = estimateItemWeightKg(def.id, item.props)
+    const weight = estimateItemWeightKg(def.id, item.props, def.category)
     if (weight <= 0) continue
     const area = footprintArea(def, item)
     const density = weight / area

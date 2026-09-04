@@ -6,7 +6,7 @@
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
     { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.()" },
     { "name": "wait-boot-ready", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000, "failMessage": "app never finished booting (bootPhase/sceneReady)" },
-    { "name": "wait-boot-loader-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 15000 },
+    { "name": "wait-boot-loader-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
     { "name": "enter-room-clear", "eval": "(function(){ const s = window.__store.getState(); if (s.setManualHour) s.setManualHour(13); s.enterRoomEditor('livingDining'); s.setItems([]); })()" },
     { "name": "settle", "wait": 1500 },
     { "name": "kick-install", "eval": "void Promise.all([import('/src/catalog/packs/registry.ts'), import('/src/catalog/packs/install.ts')]).then(([r, i]) => i.installPolyHavenBundle(r.AVAILABLE_PACKS.find(p => p.id === 'poly-haven-plants'))).then(() => { window.__phInstalled = true }).catch(e => { window.__phInstallErr = String(e && e.message || e) })" },

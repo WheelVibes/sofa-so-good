@@ -60,6 +60,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  deliveryRouteMeasure: {
+    label: 'Measured delivery route',
+    description: "Enter your block's real lift and door sizes for the access check",
+    default: true,
+    tier: 'pro',
+  },
   schemeOptions: {
     label: 'Scheme options',
     description: 'Generate and compare alternative design schemes',

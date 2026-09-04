@@ -125,3 +125,42 @@ describe('applyLayoutPreset', () => {
     expect(useStore.getState().items.length).toBe(0)
   })
 })
+
+/**
+ * **`dryFloorByCategory` (v0.31.8.17)** — a per-room-category floor override on
+ * top of `dryFloor`. Added for Peranakan Accent, whose encaustic tile belongs in
+ * the "prestigious interior spaces" and five-foot way of a shophouse, not in the
+ * bedrooms; a single whole-home `dryFloor` could not express that.
+ */
+describe('applyLayoutPreset — dryFloorByCategory', () => {
+  beforeEach(() => {
+    // These assertions read `finishes.floor`, which is the DEFAULT-FLAT branch of
+    // `applyLayoutPreset`; a custom plan writes `plan.rooms[].floor` instead. An
+    // earlier test in this file replaces the plan, so restore it explicitly
+    // rather than depending on file order.
+    useStore.getState().resetFloorPlan()
+  })
+
+  it('overrides the living floor but leaves bedrooms on dryFloor', () => {
+    const preset = LAYOUT_PRESETS.find((p) => p.id === 'peranakan-accent')!
+    expect(preset.dryFloorByCategory?.living, 'preset should override living').toBeTruthy()
+    useStore.getState().applyLayoutPreset('peranakan-accent')
+    const finishes = useStore.getState().finishes
+    // The public zone takes the override...
+    expect(finishes.floor.livingDining).toBe(preset.dryFloorByCategory!.living)
+    // ...and the private rooms keep the base timber. Both arms matter: a bug
+    // that applied the override everywhere would pass the first alone.
+    expect(finishes.floor.mainBedroom).toBe(preset.dryFloor)
+    expect(finishes.floor.bedroom2).toBe(preset.dryFloor)
+  })
+
+  it('leaves every room on dryFloor for a preset with no override', () => {
+    const preset = LAYOUT_PRESETS.find(
+      (p) => p.group === 'theme' && !p.dryFloorByCategory && p.dryFloor,
+    )!
+    useStore.getState().applyLayoutPreset(preset.id)
+    const finishes = useStore.getState().finishes
+    expect(finishes.floor.livingDining).toBe(preset.dryFloor)
+    expect(finishes.floor.mainBedroom).toBe(preset.dryFloor)
+  })
+})

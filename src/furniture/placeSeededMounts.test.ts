@@ -219,7 +219,28 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
   it('loses NO furniture — the criterion two reverted attempts failed', () => {
     // 893 and 895 on the earlier tries. This is the assertion that caught them;
     // "stranded = 0" alone reported success while items were being deleted.
-    expect(sweep().total).toBeGreaterThanOrEqual(900)
+    //
+    // 900 → 899 in v0.31.8.31, and ONLY because a content change legitimately
+    // costs exactly one piece: giving `tpl-hdb-3room`'s Bedroom 2 its first
+    // window (item (h) — it had none, and its "own" window sat in the kitchen)
+    // leaves its 2.0 m south wall unable to take a wardrobe as well. An HDB
+    // habitable room needs natural light, which outranks a wardrobe in a 5.6 m²
+    // bedroom. Verified by per-def diff that this is the only loss, and three
+    // alternatives were measured first: a narrower 1.0 m window, a deeper master
+    // bath, and leaving the window out — none recovered the piece.
+    //
+    // 899 → 898 in v0.31.8.36, again a content trade with a per-def diff behind
+    // it: `tpl-hdb-2room`'s front door moves out of the BATHROOM into the living
+    // room, and its living/dining gets its first window (`h2-liv-win` had been
+    // sitting at z=2.1, inside the master, which already had one). The door's
+    // keep-out costs the living its TV console. Two other offsets were measured:
+    // 3.5 loses the flat's dining TABLE entirely, 4.6 costs three items.
+    //
+    // Do NOT lower this for a PLACEMENT change. That was tried in v0.31.8.35 — a
+    // last-resort dining-chair commit — and cost 24 items ignoring checks, or 2
+    // relaxing only keep-outs. Both were reverted, which is what this guard is
+    // for. It moves only for a content change whose per-def diff is recorded.
+    expect(sweep().total).toBeGreaterThanOrEqual(898)
   }, 30_000)
 
   it('cuts wall-hugging pieces stranded on the seed point from 20 to a handful', () => {
@@ -248,6 +269,55 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // `ex-master: rug` settle exactly on their room centres. All three are in
     // CENTRE_IS_RIGHT and `stranded` is still 3 (the same three pieces named in
     // `.108`), so nothing was displaced. Dumped before this number was touched.
-    expect(sweep().centred).toBe(24)
+    //
+    // 24 → 26 in v0.31.8.29, same shape again: the jumbo re-author added the
+    // `jb-corr` and `jb-lobby` doors on `jb-liv-w`, changing that room's door
+    // keep-outs, and `jb-living: rug` + `jb-living: coffee-table` now settle on
+    // its centre. Both are in CENTRE_IS_RIGHT; `stranded` is unchanged and the
+    // item total stayed at 904 (≥ 900). Dumped before this number was touched.
+    //
+    // 26 → 29 in v0.31.8.30, the 3Gen re-author: `g3-living: rug`,
+    // `g3-living: coffee-table` and `g3-master: rug` now settle on their room
+    // centres. All three are in CENTRE_IS_RIGHT and `stranded` is unchanged.
+    // The item total is 900 — exactly the floor the sibling assertion guards,
+    // because this plan trades a bathroom in the east wing for one in the
+    // corridor. Dumped before this number was touched.
+    //
+    // 29 → 27 in v0.31.8.33, and both losses are improvements: `c3-balcony:
+    // outdoor-table` and `su-balcony: outdoor-table` were sitting at their room
+    // centre because those balconies had NO DOOR, so the table had no wall to
+    // relate to. With a door they place properly. Dumped before this was touched.
+    //
+    // 27 → 28 in v0.31.8.34, the second doors batch: `c2-living: rug` +
+    // `c2-living: coffee-table` and `ob-living: rug` now settle on their room
+    // centres (both living rooms gained a door on a wall they front), while
+    // `c2-balcony: outdoor-table` and `ob-dining: dining-table-4` stop being
+    // centred because those rooms finally have a door to relate to. All five are
+    // in CENTRE_IS_RIGHT. Dumped before this number was touched.
+    //
+    // 28 → 30 in v0.31.8.36: `h2-living: rug` + `h2-living: coffee-table` settle
+    // on their room centre now that the 2-room's front door opens into the living
+    // instead of the bathroom. Both are in CENTRE_IS_RIGHT.
+    //
+    // 30 → 32 in v0.31.8.37: `h5-living: rug` + `h5-living: coffee-table` settle
+    // on their room centre now the 5-room's front door fronts the living instead
+    // of the master bedroom. Both are in CENTRE_IS_RIGHT.
+    //
+    // 32 → 34 in v0.31.8.39: `c3-living: rug` + `c3-living: coffee-table` settle
+    // on their room centre now the condo 3-bed's living room has a door into the
+    // bedroom column. Both are in CENTRE_IS_RIGHT.
+    //
+    // 34 -> 36 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH). `centred` counts only
+    // CENTRE_IS_RIGHT defIds — rugs and tables — so this can never be a stranded
+    // appliance: two more settle on their room centre now the wall-snapped
+    // pieces around them sit against the wall instead of 0.15 m proud.
+    // 36 -> 34 in v0.31.9.8 (DOOR-SWING-LEVELS). Dumped before touching the
+    // number, per this test's own convention: the two are
+    // `tpl-hdb-maisonette/emu-fam: coffee-table` and `: rug`. Upper-storey doors
+    // gained a swing keep-out that both pieces had been overlapping, so they no
+    // longer settle EXACTLY on the room centre. They are not lost — the
+    // maisonette's total went UP — and a rug laid through a door swing is not a
+    // placement to defend.
+    expect(sweep().centred).toBe(34)
   }, 30_000)
 })

@@ -18,7 +18,6 @@ import { pointInRoom } from './types'
  * bedroom with no daylight.
  */
 const KNOWN_WINDOWLESS_BEDROOMS = [
-  'tpl-hdb-3room/h3-bed2',
   'tpl-hdb-4room/h4-bed3',
   // h4-master FIXED in v0.31.5.115 — `h4-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (7.4 -> 0.6).
@@ -26,16 +25,15 @@ const KNOWN_WINDOWLESS_BEDROOMS = [
   // h5-master FIXED in v0.31.5.116 — `h5-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (8.2 -> 1.0).
   'tpl-hdb-exec/ex-bed3',
-  'tpl-hdb-exec/ex-bed2b',
   // ex-master FIXED in v0.31.5.118 — `ex-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (9.8 -> 0.4).
-  'tpl-hdb-3gen/g3-gen',
-  'tpl-hdb-3gen/g3-bed3',
-  'tpl-hdb-3gen/g3-master',
-  'tpl-hdb-jumbo/jb-bed3',
-  'tpl-hdb-jumbo/jb-master',
+  // c4-bed4 is NOT an interior room — it fronts `c4-n`, and offsets 6.1-8.7 of
+  // that wall are clear. A window was added and REVERTED: at every offset in that
+  // span the room's wardrobe stands in front of the glass, because `c4-n` is the
+  // only wall it can take. Giving this room daylight needs its layout changed,
+  // not a window added, so it stays here rather than trading one ratchet for the
+  // other (measured v0.31.8.41).
   'tpl-condo-4bed/c4-bed4',
-  'tpl-condo-penthouse/cp-master',
 ]
 
 /** Does this room own `win`? Probe 0.3 m either side of the glass centre — the
@@ -96,7 +94,14 @@ describe('template bedrooms have daylight', () => {
         }
       }
     // 29 until v0.31.5.115 (4-room), 30 until `.116` (5-room), 31 until `.118`
-    // (exec) gave their masters their windows back.
-    expect(owning).toBe(32)
+    // (exec) gave their masters their windows back; 34 from v0.31.8.29, when the
+    // jumbo re-author gave jb-master and jb-bed3 windows on their OWN walls —
+    // `jb-m-win` had been at z=2.9, inside the kitchen; 37 from `.30`, the 3Gen
+    // re-author, which fixed the SAME class of bug (`g3-m-win` at z=1.7, also in
+    // the kitchen, and `g3-b3-win` at z=4.3, inside bedroom 2) and gave the
+    // grandparent suite a window on the south wall it owns; 38 from `.31`, the
+    // 3-room re-author — `h3-b2-win` had been at z=2.0, in the KITCHEN, and
+    // bedroom 2 does not reach that wall at all.
+    expect(owning).toBe(40)
   })
 })

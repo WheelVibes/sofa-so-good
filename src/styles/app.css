@@ -284,10 +284,26 @@
 }
 
 /* Walk-mode controls banner (auto-fading, themed). */
+/* Walk-mode controls banner.
+   The DESKTOP variant is the wide one ("Click to look · WASD move · Esc show
+   cursor") and measured 446px with `white-space: nowrap` and no cap, so on any
+   viewport narrower than that the centred pill overhung BOTH edges and clipped
+   a character off each end — "alk mode … show curs" (v0.31.8.91). That is
+   reachable without a phone: `WalkHud` picks its content by POINTER type, while
+   the shell switches to mobile layout by WIDTH, so a narrowed desktop window
+   gets mobile layout with the keyboard hints (which is right — a narrow window
+   still has a keyboard; the bar just has to fit).
+   Wrapping + a viewport cap needs no breakpoint: on a wide window `max-width`
+   never binds and there is nothing to wrap, so desktop is untouched. `nowrap`
+   moves to the GROUPS so the bar breaks between hints, never mid-phrase. */
 .walk-hud {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  row-gap: var(--s-1);
+  max-width: calc(100vw - 2 * var(--s-4));
   padding: 8px 16px;
   border-radius: var(--r-pill);
   background: var(--surface);
@@ -298,7 +314,6 @@
   font-size: var(--t-xs);
   font-weight: 600;
   color: var(--text-2);
-  white-space: nowrap;
   opacity: 1;
   transition: opacity var(--dur-3) var(--ease-out);
 }
@@ -310,14 +325,19 @@
   font-weight: 700;
 }
 .walk-hud-sep {
-  align-self: stretch;
+  /* A fixed height, not `align-self: stretch`: once the pill can wrap, a
+     stretching rule would span every row it lands beside. */
+  height: 1em;
   width: 1px;
+  flex: none;
   background: var(--border);
 }
 .walk-hud-grp {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  /* Each hint is atomic: the pill wraps BETWEEN groups, never inside one. */
+  white-space: nowrap;
 }
 .walk-hud-grp kbd {
   margin-right: 2px;

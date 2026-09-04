@@ -113,8 +113,8 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
   const sz = (item.flipZ ? -oz : oz) * scaleZ
 
   return {
-    cx: item.position[0] + cos * sx - sin * sz,
-    cz: item.position[1] + sin * sx + cos * sz,
+    cx: item.position[0] + cos * sx + sin * sz,
+    cz: item.position[1] - sin * sx + cos * sz,
     hx: (w * scaleX) / 2,
     hz: (d * scaleZ) / 2,
     rot: item.rotation,
@@ -145,8 +145,8 @@ export function itemFootprintParts(item: FurnitureItem, def: FurnitureDef): OBB[
     const sdx = p.dx * scaleX
     const sdz = p.dz * scaleZ
     return {
-      cx: base.cx + cos * sdx - sin * sdz,
-      cz: base.cz + sin * sdx + cos * sdz,
+      cx: base.cx + cos * sdx + sin * sdz,
+      cz: base.cz - sin * sdx + cos * sdz,
       hx: (p.w * scaleX) / 2,
       hz: (p.d * scaleZ) / 2,
       rot: item.rotation + (p.rot ?? 0),
@@ -472,6 +472,32 @@ function invalidateOverlapMemo(): void {
  * the cached result array (see the memo note above); a new array/record —
  * which is how the store publishes any item-set change — recomputes.
  */
+/**
+ * Would `probe` physically intersect any of `others`, HEIGHT included?
+ *
+ * Exported so `furniture/furnishPlan.ts` can ask it for a mount it is about to
+ * flush to a wall (MOUNT-HEIGHT-CLASH). That pass used to give a mount its wall
+ * unconditionally — "it hangs above the floor, so nothing down there can block
+ * it" — which is true of a basin and false of a wardrobe. Keeping the question
+ * here means it is answered by the same narrowphase `findItemOverlaps` uses, so
+ * the placer and `dropOverlaps` cannot disagree about what a clash is.
+ */
+export function itemHeightAwareClash(
+  probe: FurnitureItem,
+  probeDef: FurnitureDef,
+  others: readonly FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+): boolean {
+  const span = verticalSpan(probe, probeDef)
+  for (const other of others) {
+    if (other.id === probe.id) continue
+    const od = defs[other.defId]
+    if (!od || od.noClip) continue
+    if (itemsCollide(probe, probeDef, span, other, od)) return true
+  }
+  return false
+}
+
 export function findItemOverlaps(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,

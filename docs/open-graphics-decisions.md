@@ -303,6 +303,353 @@ Singapore starter layouts that carry real project names.
 interior-design decisions about content the product ships as accurate reference plans. Picking them
 unilaterally would be inventing a floor plan, not fixing a defect.
 
+### v0.31.8.39 — condo 3-bed: the door, not the corridor — and a ratchet so the chain stays visible
+
+`tpl-condo-3bed` was the last level not blocked on the content call. Both fixes were built and
+measured: a **1.0 m corridor** is the correct architecture and costs **all three wardrobes and a
+dresser** (a 2.7 m wide bedroom cannot take a 1.5 m freestanding wardrobe beside a bed; all three
+beds survive), while **one door from the living** connects the column at **zero** furniture cost
+and leaves the chain bedroom 2 → bedroom 3 → master.
+
+Took the door. The measured defect is "rooms nobody can reach"; the corridor's extra benefit is
+real but unmeasured, and its cost is an artefact of the app modelling a wardrobe as a freestanding
+1.5 m piece rather than the built-in a real 2.7 m condo bedroom has. Connectivity: **16 → 3**.
+
+**The honest problem with that choice is that the door hides the chain**, so this adds
+`src/floorplan/bedroomPrivacy.test.ts` — bedrooms reachable only by crossing another bedroom. Four
+across the library. If the wardrobe kit ever gains a built-in variant, revisit the corridor.
+
+### v0.31.8.38 — every room in the library now has a door; (f) is down to 4 levels, all one shape
+
+Re-triaged the 8 remaining levels instead of assuming they were all the hard case, and **half of
+them were not**: four held a single room that still had no door — `tpl-loft/lf-up`'s Dressing,
+`tpl-condo-4bed`'s Balcony, `tpl-condo-penthouse`'s Master Bath and `tpl-terrace-ground`'s Service
+Yard. Earlier scans returned no suggestion for these because they touched no wall shared with the
+main component *at the time*; the component has since grown, so the same scan now answers cleanly.
+`tpl-hdb-exec` held four more (living, kitchen, service yard, shelter).
+
+Eight doors later: **`tpl-loft`, `tpl-condo-4bed`, `tpl-condo-penthouse` and `tpl-terrace-ground`
+are fully connected**, and `tpl-hdb-exec` goes **6 groups → 2**. The ratchet is **16 levels →
+4**, and every one of those four is now the SAME shape: a bedroom zone with no corridor, reachable
+only by opening a door straight into a bedroom. `tpl-hdb-4room`, `-5room` and `-exec` additionally
+hold a bedroom with no external wall, so the fix there is a re-plan and it is blocked on the
+content call above. `tpl-condo-3bed`'s column has no interior bedroom — it is purely the
+door-into-a-bedroom question.
+
+**Two offsets had to be measured, both for the same reason as every earlier batch:** the exec's
+kitchen door at the near end of its run took the stove wall and the room lost its **RANGE HOOD**;
+the loft's dressing door cost the ground-floor stairs a bench until it moved. Both were fixed by
+moving the door, not by adjusting a guard — and this batch needed no guard change at all, which is
+the first time a doors batch has been free.
+
+Also cleared as a side effect: `ex-b2-win` no longer has a wardrobe in front of it. **Item (j) is
+now 11 → 7, entirely from (f) and (i) work.**
+
+### v0.31.8.36 — an area threshold for the dining kit is the WRONG instrument; (i) 2-room fixed instead
+
+Last entry proposed reducing the dining kit for small combined living/dining rooms. **Measured
+first, and it does not hold up.** Every room that receives a dining set, smallest first:
+
+| area | room | kit |
+| --- | --- | --- |
+| 3.1 m² | `tpl-1bed/ob-dining` | diningRoom |
+| 5.8 m² | `tpl-condo-penthouse/cp-dining` | diningRoom |
+| 7.3 m² | `tpl-terrace-ground/ct-dining` | diningRoom |
+| **9.2 m²** | **`tpl-hdb-2room/h2-living`** | **living+dining** |
+| 11.1 m² | `tpl-1bed/ob-living` | living+dining |
+| 17.9 m² | `tpl-hdb-3room/h3-living`, `tpl-condo-1bed/c1-living` | living+dining |
+| … up to 38.6 m² | `tpl-hdb-exec/ex-living` | living+dining |
+
+**`h2-living` seats four chairs at 9.2 m² today, with no strand.** So area does not predict fit —
+geometry does. An area threshold set high enough to help a 13 m² re-plan (≥15 m²) would strip
+chairs from two rooms where they demonstrably work, to fix a room that does not exist yet. Dropped.
+
+That closes both routes to (f)'s option 1 for the tight HDB plans: the placement fallback costs
+items (v0.31.8.35) and the kit threshold is the wrong instrument. The 8 remaining levels stay as
+they are, and the 4-room/5-room/exec entry above stands as written.
+
+**Spent the tick on (i) instead, where two entries were still open.** `tpl-hdb-2room`'s front door
+opened into the **BATHROOM** (offset 1.2 on `h2-s` = x 4.7-3.8), and its living/dining had **no
+window at all** — `h2-liv-win` sat at offset 4.2 on `h2-w`, which runs south→north from z=6.3, so
+it was at z 2.1-0.7, inside the MASTER, which already had one. Both fixed. `KNOWN_MISPLACED_MAIN_DOORS`
+is down to one entry (`tpl-hdb-5room/h5-main -> h5-master`).
+
+Three door offsets were measured on the living's frontage, and the readable-on-paper one is wrong:
+**3.5 loses the flat's dining TABLE altogether** (4 chairs, no table — the exact regression
+`diningChairTuck` was written for), 4.6 costs three items, 2.6 costs one (the TV console). Removing
+the master's second window also left its wardrobe in front of the remaining one until that window
+moved to the west end of its frontage.
+
+### v0.31.8.35 — the last 8 levels need a smaller dining set, and the naive fallback is measured worse
+
+Having decided to take (f)'s option 1 myself (shrink the living, accept a smaller dining set,
+rather than ship windowless habitable bedrooms), I went after the thing that actually blocks it: a
+4-seat dining set does not fit a 13-15 m² living/dining, and the 4th chair falls through to
+`arrangeCore`'s room-wide safety settle, which parks it metres from its table.
+
+**The obvious fix is a last-resort commit at the table, and it fails the furniture guard.**
+`arrangeLivingAnyEdge` already offers the table's two ENDS as spare slots; when those are rejected
+too the chair is simply left unplaced. Committing it to its own slot anyway was built and measured
+twice:
+
+- **Ignoring all checks: 899 → 875 items.** An overlapping chair becomes an obstacle for
+  everything placed after it, so the loss cascades far beyond the chair.
+- **Relaxing only the door/window keep-outs, still enforcing item and wall collisions:
+  899 → 897.** `tpl-1bed` goes 48 → 46: the chair legitimately claims table-side floor that two
+  accents used to get, because dining chairs are placed before accents while the safety settle
+  runs last.
+
+Both are exactly what `placeSeededMounts.test.ts`'s `total >= 899` exists to catch — its own
+docstring records two earlier attempts that scored 893 and 895 while reporting a stranding win.
+**Reverted.** I am not lowering that guard for a placement change; the one time it moved
+(900 → 899, v0.31.8.31) it was for a content trade with a per-def diff behind it.
+
+**So option 1 needs the dining KIT to change, not the placement.** `furnishPlan.ts` gives every
+combined living/dining `KITS.living + KITS.dining` — a `dining-table-4` and 4 chairs — with no
+reference to the room's area. A small combined room wants a 2-chair set. That is a deliberate
+content change with a visible rationale (a 13 m² living/dining genuinely does not seat four), it
+PREVENTS the strand rather than papering over it, and it costs 2 items per affected room, which
+will move the same guard. Worth doing, but as its own change with the affected rooms measured
+first — not folded into a template re-plan.
+
+**State of the (f) programme:** 16 disconnected levels → **8**. Every level fixed so far was fixed
+without touching a guard. The 8 that remain are all the same shape: a bedroom column with no
+corridor, where carving one costs living-room area, and that area is what seats the dining set.
+
+### v0.31.8.33 — 12 rooms across 3 templates had NO DOOR; and a triage of what remains
+
+Rather than keep discovering each template's blocker one at a time, I triaged all 13 remaining
+levels first: per sealed group, how much SPARE floor it holds (circulation available to open a
+door onto) and whether it contains a bedroom with no external wall. That splits the work cleanly.
+
+**Blocked by the same tension as (f)'s 4-room entry** — a bedroom with no façade at all:
+`tpl-hdb-5room` (`h5-bed3`) and `tpl-hdb-exec` (`ex-bed3`). The decision written up for
+`tpl-hdb-4room` covers all three; attempting them individually just repeats that dead end.
+
+**Cheap, and done here:** groups that are a single room with ~0 spare are rooms that simply have
+no door. A wall-by-wall scan for the longest span where a sealed room and the main circulation
+face each other gives the wall and offset directly. Fixed 12 such rooms:
+
+- `tpl-condo-3bed` **7 groups → 2**: kitchen, service yard, common bath, master ensuite and
+  balcony all had no door.
+- `tpl-condo-studio` **3 → 1**: kitchenette and balcony.
+- `tpl-hdb-maisonette` **4 → 1**: kitchen, service yard and the **stair hall** — on a maisonette
+  that hall is the only route to the upper storey, so the plan shipped a two-storey home whose
+  second storey could not be reached.
+
+**Two door positions had to be measured, not guessed.** At its first offset the condo master's
+ensuite door pushed the wardrobe onto the east wall in front of `c3-m-win`, and the maisonette's
+yard door (on the yard's east wall) crowded that room's own window and put a utility cabinet in
+front of it — caught by `windowSightline` and `placementSoundness`. Moving the ensuite door to the
+west end and the yard door onto the service band's south wall cleared both.
+
+Also closed a pre-existing stray-wall warning: `c3-bal-n`, the balcony parapet, stopped 0.1 m
+short of the walls at both ends. Closing it makes the balcony a real enclosure and it furnishes
+one piece better — the item total went UP, 1430 → 1431.
+
+**What still remains, and why:** `tpl-condo-3bed`'s bedroom column keeps 2 groups because it has
+no corridor — its three bedrooms fill it, so any door from the living opens straight into bedroom
+2. Same class as 4-room. `tpl-condo-2bed`, `-4bed`, `-penthouse`, `tpl-1bed`, `tpl-loft/lf-up` and
+both `tpl-terrace-ground` levels have suggested doors ready from the same scan and are next.
+
+### v0.31.8.32 — `tpl-hdb-4room` NEEDS A CONTENT CALL: its defects are in direct tension
+
+Fourth template attempted, and the first that cannot be fixed without a decision. Four layouts
+were built and measured; **all four are reverted.** The plan file is unchanged.
+
+**Why it is not a "one door short" case like the 3-room.** `tpl-hdb-4room`'s bedroom zone
+(x 0.1-5.7, z 2.9-9.7) contains bedrooms 2 and 3, both baths and the master as ONE open volume
+with no corridor. Nothing pierces `h4-liv-w`, so none of them is reachable. But a door anywhere on
+that wall opens straight into a bedroom, because the rooms fill the zone — there is no circulation
+to open onto. And `h4-bed3` (x 3.2-5.6, z 3.2-6.2) touches **no external wall at all**, which is
+why it ships windowless: fixing item (h) for it is not a window offset, it is a re-plan.
+
+**The tension.** The zone's only façades are west (`h4-w`) and south (`h4-s`). The living column
+occupies the whole east side. So giving bedroom 3 a façade means taking frontage from the living —
+and every version of that starves the living room:
+
+| living | result |
+| --- | --- |
+| 3.2 × 4.0 m (12.8 m²) | 1 chair stranded **1.32 m** from its table (threshold 1.2) |
+| 3.2 × 4.5 m (14.4 m²) | 1 chair at **3.69 m** — worse |
+| 3.7 × 4.0 m (14.8 m²) | **4** chairs stranded, worst 2.90 m |
+
+Door and window positions on the living's east wall were swept too (main door at offsets 2.3 / 3.0
+/ 5.0, window 1.4-2.0 m wide at three offsets): best case 1.32 m, none under the threshold. The
+original 23 m² living passes the tuck test; a 4-seat dining set plus a lounge does not fit in
+13-15 m².
+
+So the plan can have **either** a bedroom 3 with daylight **or** a living room that seats its
+dining set, not both, unless the envelope or the room programme changes. That is a content
+decision, not a defect fix:
+
+1. **Shrink the living and accept a smaller dining set** (a 2-seat table, or drop the dining zone
+   and let the kitchen take it). Clears every ratchet entry.
+2. **Leave bedroom 3 interior and windowless**, fixing only connectivity by carving a corridor out
+   of the bedrooms. An HDB habitable room needs natural light, so this ships a known compliance
+   defect — but it is what the plan does today.
+3. **Re-cut the whole flat** so the bedrooms wrap the west and south façades and the living sits
+   inland. Biggest change, closest to a real 4-room, and it stops being the shipped layout.
+
+Recorded rather than chosen. The three ratchet entries stay as they are.
+
+### v0.31.8.31 — `tpl-hdb-3room` re-authored (3 of 16); the living room sets a hard door budget
+
+Third template, and the smallest change of the three so far: **the plan was one door short.**
+Nothing pierced `h3-liv-w`, so the whole bedroom wing (master + ensuite + bedroom 2) had no way in
+from the rest of the flat. Its original topology — `h3-m-e` fencing the master behind a narrow
+strip that also serves bedroom 2 — is fine; it just needed a door onto the living.
+
+Four entries cleared: connectivity 2 groups → 1; **`h3-kit + h3-yard + h3-shelter + h3-cbath +
+h3-living`** (the Common Bath was open to the kitchen and the living room); **`h3-mbath +
+h3-bed2`** (no wall between the Master Bath and Bedroom 2); and `h3-bed2` in the windowless-bedroom
+list — `h3-b2-win` had been at offset 6.4 on `h3-w`, i.e. z=2.0, **in the kitchen**, and bedroom 2
+does not reach that wall at all. Item (j) gained too: the refrigerator that had been standing in
+front of that kitchen-bound window is no longer blocking it.
+
+**A hard constraint worth recording: this living room affords exactly ONE door on `h3-liv-w`.**
+It is 3.2 m wide, and a second door's swing keep-out strands the 4th dining chair 2.2 m from its
+table. Measured directly — one door passes the tuck test, two fail — and neither narrowing both to
+0.8 m nor moving them to the ends of the wall changed the outcome. So bedroom 2 is reached across
+the strip rather than by its own door off the living. Any future re-plan of a narrow living room
+should budget door swings the same way.
+
+**Enclosing a small bath costs fixtures.** Walling the two baths at their original sizes
+(2.2 m² and 2.7 m²) cost **both a toilet and a basin** — the door swing covers most of such a
+room. They were enlarged to 2.7 and 3.0 m² rather than ratcheted, which restored every fixture.
+
+The global furniture floor moved 900 → **899**, the first time it has been lowered, for exactly one
+piece: bedroom 2's 2.0 m south wall cannot take both its new window and a wardrobe. An HDB
+habitable room needs natural light, which outranks a wardrobe in a 5.6 m² bedroom. Three
+alternatives were measured first (a 1.0 m window, a deeper master bath, no window at all) and none
+recovered it. Also closed a pre-existing stray-wall warning: `h3-m-e` stopped 0.1 m short of the
+walls at both ends.
+
+### v0.31.8.30 — `tpl-hdb-3gen` re-authored (2 of 16), and one researched target proved impossible
+
+Second template. All of 3Gen's ratchet entries are gone — connectivity 7 groups → 1, the shared
+enclosure `g3-gbath + g3-bed2 + g3-master + g3-mbath`, the bisected `g3-b-corr through g3-master`,
+and its front door (item (i)) which had opened **into the master bedroom**. With jumbo's, the
+`KNOWN_BISECTED_ROOMS` list is now **empty**.
+
+Grounded in `docs/research/hdb-floor-plans.md`: 3Gen is ~115 m², **4 bedrooms and 3 baths, two of
+them en-suite**, bedrooms on opposite sides of the shared living. The template's room SET already
+matched; its geometry contradicted it — the "Grandparent Bath" sat 6 m from the grandparent suite
+at the far end of the flat, and the "Master Bath" floated in the corridor with no walls of its own.
+
+**The "two en-suite" target is not achievable in this envelope, and that is measured, not assumed.**
+The west wing is 6.1 m wide and takes a bedroom plus ensuite comfortably (master 10.3 m², bath
+5.4 m²). The east wing is 4.1 m. A `masterBedroom`-kit room needs roughly 9–10 m² before the kit
+starts dropping pieces: at 6.2 m² the grandparent suite lost its **queen bed** and five other
+items, and at 4.6 m² it lost seven. A furnishable bedroom there leaves ≤1.1 m for a bath, below any
+usable width. So the suite takes the whole east wing (8.7 m²) and the third bath moved to dead
+corridor floor as "Bathroom 2" — 4 bedrooms, 3 baths, **one** ensuite. Ship-blocking alternatives
+were built and measured before choosing.
+
+**Item (h): the same window bug as jumbo, twice over.** `g3-w` runs south→north, so `g3-m-win` at
+offset 9.6 sat at z=1.7 — **in the kitchen** — and `g3-b3-win` at 7.0 sat at z=4.3, **inside
+bedroom 2**. Three bedrooms (`g3-master`, `g3-bed3`, `g3-gen`) gained windows on walls they own;
+template bedrooms owning a window 34 → 37. **Item (j):** `g3-liv-win` cleared, 10 → 9 blocked.
+
+**Six geometry iterations, each corrected by measurement rather than reasoning:**
+
+1. Carving both ensuites lost **both** queen beds (`bed-queen` 2 → 0).
+2. Deepening the south wing recovered the master's bed but not the suite's.
+3. Swapping the suite to the east wall so its window ran along the long side was a **no-op** —
+   identical output, because the blocker is kit-vs-area, not headboard geometry.
+4. Giving the suite the whole wing recovered its bed but dropped the plan under the global
+   ≥900-item furniture floor (899).
+5. Moving the corridor door to offset 3.4 made it **open into the common-bath box** — measurably
+   costing furniture. Restored clear of both bath boxes.
+6. A dining chair stranded 7.2 m from its table: I had shortened the living room to 8.1 m so the
+   4th chair no longer fit. Restoring the east wing wall to z=8.8 took it to 2.1 m, and routing
+   the service band off the CORRIDOR instead of the living's west wall (where the door sat beside
+   the dining zone) cleared it entirely.
+
+The item total is now **exactly 900**, the floor that assertion guards. That is tight by
+construction — this plan trades a bathroom in the wing for one in the corridor.
+
+### v0.31.8.29 — `tpl-hdb-jumbo` re-authored (1 of 16), all three ratchets improved
+
+Directed to re-author all 16 disconnected levels, starting with the two frame-proven worst.
+`tpl-hdb-jumbo` is done and every ratchet entry it held is GONE:
+
+- **connectivity 7 groups → 1.** Added the doors the plan simply did not have: a service line
+  (living → utility lobby → service yard → kitchen, shelter off the lobby) and a bedroom corridor
+  off the living hall with one door per room. Before this, the kitchen, service yard and shelter
+  had NO doors at all, and the west stack chained bed2 → bed3 → master with no way in.
+- **shared enclosure `jb-cbath + jb-master + jb-mbath` → gone.** Per the recorded decision, the
+  Common Bath moved OUT to the corridor (its name says common, so it must be reachable without
+  crossing the master) and the ensuite is walled off as a full-depth strip.
+- **bisected room `jb-wb-corr through jb-master` → gone.** The master rectangle had overrun the
+  corridor wall at x=4.0 *and* both baths, claiming 11.5 m²; it is now an honest 6.9 m².
+- **item (h), two bedrooms fixed.** `jb-m-win` sat at offset 10.2 on `jb-w`, which runs
+  south→north — so it was at z=2.9, **inside the kitchen**, giving that room a second window and
+  the master none. It moved to the master's own external wall (`jb-s`), and `jb-bed3` got its
+  first window. Template bedrooms owning a window: 32 → 34.
+- **item (j), one window cleared.** Dividing bedrooms 4 and 5 (previously one undivided volume)
+  cleared `jb-b5-win`. Blocked windows 11 → 10.
+
+**This hit item (f)'s own prediction exactly.** The write-up warned that "any correct partition
+makes the master bedroom roughly 2.1 m wide" — the master is now 2.1 × 3.3 m. That is the cost the
+decision accepted, not a slip.
+
+**An L-shaped master was tried first and lost the bed.** Wrapping the master round a corner-placed
+ensuite gave no leg deeper than 1.8 m, and a queen bed is 2.0 m long, so it could not be placed at
+all — measured as `bed-queen` 2 → 1 across the template, i.e. a master shipping with no bed. The
+shape was changed rather than the ratchet. Total pieces 1444 → 1440 is a genuine
+room-geometry consequence (verified by per-def diff: a wardrobe and a desk in the now-smaller
+bedrooms, plus one piece that had been standing outside every room; the ensuite GAINED a shower
+and a second basin).
+
+**Still open on this template:** the central corridor is ~43 m² of UNDECLARED space (pre-existing —
+jumbo never had a corridor room), so the app accounts no floor finish or area for a third of the
+flat. Worth declaring as a hall, but it is a separate content call.
+
+### v0.31.8.28 — (f) is WIDER than measured: 16 of 22 template levels are internally disconnected
+
+Starting the authorised re-authoring of `tpl-hdb-jumbo`, I read its west wing before moving
+anything and found the wing has **no door to the corridor at all**: `jb-wb-corr` (x=4.0,
+z 3.2→13.1) carries no opening, and the only doors in that wing are `jb-b2` and `jb-master`, on
+INTERNAL walls. So bedroom 2, bedroom 3 and the master form a chain with no way in.
+
+`.109`'s sweep could not see this: it flood-fills with **every wall solid, openings ignored** —
+deliberately, because a door still separates two rooms. That measures too few WALLS. Treating
+doors as OPEN measures a different defect: too few DOORS.
+
+Measured with doors open, over all 22 template levels — **16 are internally disconnected**, i.e.
+their declared rooms fall into two or more mutually sealed groups:
+
+| level | groups |
+| --- | --- |
+| `tpl-hdb-jumbo/ground` | **7** — Kitchen · Service Yard · Household Shelter · Living/Dining · Family Room · Bed4+Bed5 · the west stack |
+| `tpl-hdb-3gen/ground` | 7 |
+| `tpl-condo-3bed/ground` | 7 |
+| `tpl-condo-4bed/ground` | 7 |
+| `tpl-hdb-exec/ground` | 6 |
+| `tpl-condo-2bed`, `tpl-condo-penthouse`, `tpl-terrace-ground` (ground) | 5 |
+| `tpl-hdb-maisonette/ground` | 4 |
+| `tpl-loft/lf-up`, `tpl-condo-studio/ground`, `tpl-terrace-ground/ct-up` | 3 |
+| `tpl-hdb-3room`, `-4room`, `-5room`, `tpl-1bed` (ground) | 2 |
+
+Ratcheted in **`src/floorplan/templateConnectivity.test.ts`** (16 entries, by group COUNT so a
+merge shows up as a required edit), with a second case asserting at least one level IS connected —
+so the instrument cannot pass by calling everything broken.
+
+**This changes the shape of the (f) decision.** Re-authoring `tpl-hdb-jumbo` is not "add partitions
+and move the Common Bath" — the wing also needs door openings onto the corridor, and the same is
+true of 15 other levels. It is still a content call, but a larger one, and worth re-scoping before
+committing to "one template per change".
+
+**Two wrong instruments, recorded so they are not repeated.** A flood fill needs a seed, and
+seeding from the main door was wrong twice. The exterior is free space too, so seeding on the wrong
+side floods OUTSIDE the flat and every interior room reads unreachable — that produced a
+"13 of 20 templates have unreachable rooms" result I nearly reported. Requiring the seed to land
+inside a declared room did not fix it, because template room rectangles overrun the perimeter walls
+(itself one of this item's own findings), so a point outside the flat can still test as inside a
+room. The shipped instrument picks NO seed: it labels every free-space component and counts how
+many the declared rooms occupy.
+
 **Recommendation — re-author the bedroom/bath wings, worst first, one template per change.** Start
 with `tpl-hdb-jumbo` (the only one whose damage is frame-proven) and `tpl-hdb-3gen`, which share
 the same shape: a bath wing with no partitions and a master rectangle overrunning the corridor
@@ -312,7 +659,29 @@ up as a required edit to the list.
 
 ---
 
-## (g) LEVEL-ISOLATION-IN-WALK — ⏳ OPEN, needs a design + cost call (measured v0.31.5.110)
+## (g) LEVEL-ISOLATION-IN-WALK — ✅ FIXED v0.31.8.47, VERIFIED v0.31.8.49
+
+**Decided and shipped** (the three open questions, answered): walk mode renders the storey
+**immediately below** the walked one — not all storeys, because that is what an overlook can see and
+it bounds the cost. The overlooked ceiling needed **no** work: room ceilings already render with
+`side: BackSide` so they read from below and are invisible from above, which is exactly what an
+overlook wants. **This write-up assumed otherwise and priced an occluder change that is not needed.**
+
+**The cost question answers itself.** `viewLevelId` DEFAULTS to `'all'`, so every user already
+renders every storey in orbit. `renderedLevels` can never return more levels than `'all'` — there is
+a test asserting exactly that across every template and storey — so walking a storey now costs the
+same as the default view, never more. No new tier benchmark is required.
+
+**VERIFIED v0.31.8.49, and the fix is visible.** The headless harness could not turn OR move a
+first-person camera (both are gated on Pointer Lock), so the dev-only `window.__walkLook` lever —
+which already carried `setPitch` — gained `setYaw` and `setPosition`. Standing at the mezzanine's
+north edge (2.4, 3.9) looking over the rail, with the change disabled versus applied at the SAME
+framing: **57.2% of the frame differs**, and the overlook band's mean luma goes **112.7 → 174.4**.
+Before, beyond the rail there is nothing but a pale gradient — exactly what this write-up describes.
+After, the room below is there: walls, a lit interior, windows in the far wall. Luma is the same
+instrument this item used for its original evidence. Scenario: `scripts/scenarios/loft-walk-level.json`.
+
+### Original write-up (measured v0.31.5.110)
 
 **What you would see.** Open `tpl-loft`, pick View → Levels → "Loft" (the ONLY way to walk the
 mezzanine), and walk to the guard rail. Over the rail there is **no floor, no far wall and no room
@@ -558,6 +927,41 @@ furniture (1445 items, nothing lost) and still fixed 7 of the 11 — **but it pu
 offenders, the very masters that motivated the round, straight back**, because for them the relaxed
 position is the only position. It also still lost one wardrobe and added a stray dining chair. Both
 attempts are reverted; the tree is unchanged.
+
+### v0.31.8.27 — the "wall segment beside the glass" route is MEASURED IMPOSSIBLE, not merely hard
+
+Directed to try the beside-the-glass option, I implemented it in `snapToWall`: on a windowed
+edge, offer along-wall coordinates that stand clear of the pane BEFORE the piece's own
+coordinate, always keeping today's coordinate as the last candidate so nothing can go unplaced
+(the shape that made `.121`'s windowless preference safe). Result on the ratchet: **11 → 11,
+bit-identical.** Exact equality is evidence of a no-op, so I instrumented it rather than
+believing it.
+
+Instrumented over all 19 templates (`SL_DEBUG`, since removed):
+
+- 116 `snapToWall` calls for `storage` pieces, 67 with `tall` true, `ctx.windowKeepOut` populated
+  every time, 40 seeing a windowed edge — **the branch is live, not dead code.**
+- The blocking gate (`the piece's own coordinate covers a pane`) fires **15 times**.
+- **Accepted beside-moves: 0.** Every candidate fails, and the split says why:
+  - **9 of 15 — no candidate exists at all.** The usable wall span is SMALLER THAN THE ITEM:
+    `wallSpan 1.26 m` vs `itemW 1.50 m`, `0.86` vs `1.50`, and one case at **`wallSpan −0.04 m`**
+    (the span is negative — the wall is narrower than the wardrobe, so the clamp range is empty).
+    A 1.5 m wardrobe on a 0.86–1.26 m wall has nowhere to be except across the glass.
+  - **6 of 15 — a candidate clears the pane but `tryPlace` rejects it** (collision, door swing,
+    or the window's own front keep-out).
+
+So this option is closed on geometry, and closed for the same underlying reason the item already
+records ("the room is simply too small"). It is not a tuning problem.
+
+**This also links (j) to (f).** Bedroom wall spans of 0.86–1.26 m are not plausible room
+dimensions; they are the same mis-sized template rectangles item (f) measures. **(f) looks like a
+precondition for (j)**: re-authoring those bedroom/bath wings changes the wall spans this option
+depends on, so (j) is worth re-measuring only AFTER (f) lands, not before.
+
+Levers now measured and rejected: deeper keep-out (`.117`, dropped 5 wardrobes), narrower wardrobe
+(`.121`, net zero), windowless-wall preference (`.121`, shipped, 12 → 11), beside-the-glass segment
+(`.27`, no-op — no geometric room). Remaining untried: content changes to room size (= (f)), or
+accept.
 
 **What needs a human / a different approach.** More clearance is not the answer — the room is simply
 too small for a 1.8 m wide, 2.1 m tall wardrobe plus a queen bed plus a window. The options are an
@@ -871,7 +1275,7 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
+## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261; **a third veil found and PARTLY FIXED in v0.31.8.50**)
 
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
@@ -1124,6 +1528,61 @@ the derived result.
 The backdrop today is `paintSkySurround`, a procedural sky gradient with nothing in it, so **no luminance
 multiplier can reach the structural target.** For an HDB flat the diagnosis is fortunate: the real view from
 most windows *is* another block, which is exactly the near-object content that would supply the range.
+
+### v0.31.8.50 — a THIRD veil, in the pane itself. Two corrections and one shipped fix.
+
+Everything above tries to put range *behind* the glass — more exterior radiance (`.259`), more
+backdrop content (`.261`, `.263`). Nobody looked at the glass. The pane carries a **constant emissive
+sky-catch** (`glassSkyCatchIntensity`, RZ2: `emissiveIntensity = daylight × 0.4`), added to every pane
+pixel regardless of what is behind it. A constant added to a signal raises its floor and **compresses
+its contrast by construction** — which is exactly the signature this item has been describing since
+`.236`: *"an evenly-lit grey field"*, 2.2–3.3 : 1 against the wall, and 0.0 % clipping.
+
+Measured at the default 4-room flat's living-room window, walk mode, 13:00, `medium`, the pane
+rectangle inside the glazing, dropping the sky-catch to 0:
+
+| backdrop | pane sd | pane spread (p95−p05) |
+| --- | --- | --- |
+| `sky` (the default) | 15.9 → **20.1** | 47 → **63** |
+| `city` | 10.5 → **11.5** | 31 → **38** |
+| `park` | 12.5 → **14.7** | 37 → **44** |
+| `dusk` | 17.0 → **23.2** | 53 → **74** |
+
+**The stand-in was costing 19–40 % of the window's luminance range**, at the exact hour and pose this
+item is measured at, on every backdrop, for free.
+
+**Shipped, narrowly.** The sky-catch is a *stand-in* for sky luminance where nothing is painted behind
+the pane, so it now **retires whenever a backdrop is painted** (`backdropVisibleNow()` — walk mode,
+backdrop with imagery). Orbit / dollhouse, the `none` backdrop and `custom` with no upload keep it
+byte-identical; those are the cases RZ2 added it for. **The 21:00 case cannot regress**: at night
+`daylight` → 0 and the sky-catch is already 0 there, which is now a test.
+
+**Correction 1 — `.263`'s "the backdrop path is LOW-PASS" is wrong.** three only runs PMREM on the
+background when `scene.backgroundBlurriness > 0` (`WebGLBackground.getBackground`), and this app never
+sets it. The real path is `WebGLEnvironments.getCube` → `new WebGLCubeRenderTarget(image.height)`,
+i.e. **1024 px per cube face** from the 2048×1024 equirect — sharp. The WeakMap cache keyed on the
+texture object, which `.262`/`.263` correctly measured, lives in `getCube`, not in the PMREM branch;
+same observable behaviour, different converter, and **no resolution loss**. What `.263` read as a
+smear was the pane veil above, not the delivery path.
+
+**Correction 2 — the structural content already ships.** `.261` says the backdrop is *"`paintSkySurround`,
+a procedural sky gradient with nothing in it"*. That is true of the **default** (`sky`), and only of it.
+The `city` preset paints a full HDB skyline with lit windows, and looked at through the window it is
+plainly legible — individual window squares, a roofline, depth layers. `dusk` likewise. So the
+structural route does not need building; it needs the pane to stop veiling it, and — separately — a
+default that has something in it.
+
+**What is left of this item.** Even with the veil gone the pane reads sd 20.1 / spread 63 against a
+photograph pane's ~35 / 90–95, so roughly half the gap remains, and `.259`'s ≈×30 aggregate lever is
+untouched. But two of the three things this item blamed turn out not to be the constraint (the tone
+curve, `.258`; the delivery path, above), and the third is now partly paid without any look trade.
+
+> **A caveat on the spread numbers, stated because it matters.** sd / p95−p05 over a large rectangle
+> conflate a smooth vertical *ramp* with actual *detail* — which is why `city` measures LOWER spread
+> than the empty `sky` gradient (31 vs 47) despite plainly carrying more structure. The comparisons in
+> the table are paired (same crop, same backdrop, one variable), so they price the veil correctly; they
+> are **not** a ranking of the backdrops. Separating ramp from detail needs a local/high-frequency
+> metric, which this round did not build.
 
 **Why this is still not being decided here:** the fix space is unchanged in kind — brighter backdrop, a
 bloom-carrying emissive pane, or a separate exposure for the backdrop — but it now has a **target**: roughly

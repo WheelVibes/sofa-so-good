@@ -37,10 +37,11 @@
  * callers should gate it behind an open panel / report build.
  */
 
+import { DOORS } from '../apartment/constants'
 import { type AabbItem, buildGrid, candidatePairs } from '../collision/broadphase'
 import { type OBB, obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
-import type { CollisionWall } from '../collision/walls'
+import { type CollisionWall, isLineOfSightBlocked } from '../collision/walls'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { GROUND_LEVEL_ID, levelAsPlan, levelById } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
@@ -213,6 +214,53 @@ export function findNarrowGaps(
     parts.push({ id: it.id, obb: itemFootprint(it, def), level: it.levelId ?? GROUND_LEVEL_ID })
   }
 
+  // Walls a ROUTE could pass through, per storey — used to reject item↔item
+  // pairs that a wall stands between (v0.31.8.6). Measured over a 62-layout
+  // corpus: 22 of 59 reported pinches (37%) had a wall between the two items,
+  // 18 of them in different rooms. A gap you cannot walk through is not a
+  // circulation pinch, and it was costing the design score real points.
+  //
+  // **Doors are treated as OPEN here, and that is the whole point.** A doorway
+  // IS a route, so two pieces pinching either side of one is a real finding and
+  // must survive this test; only a solid wall rejects the pair. The item↔wall
+  // pass below deliberately keeps its closed-door walls — flagging an item that
+  // crowds a doorway is a separate, conservative check.
+  //
+  // The current corpus cannot tell the two door states apart (0 pinches are
+  // blocked only by a doorway), so this choice rests on the semantics rather
+  // than on the measurement; `walkway.test.ts` pins it with a constructed
+  // fixture where the two arms MUST disagree.
+  const routeWallCache = new Map<string, CollisionWall[]>()
+  const routeWallsForLevel = (levelId: string): CollisionWall[] => {
+    const hit = routeWallCache.get(levelId)
+    if (hit) return hit
+    let walls: CollisionWall[]
+    if (isDefaultPlan(plan)) {
+      walls =
+        levelId === GROUND_LEVEL_ID
+          ? buildCollisionWalls(
+              Object.fromEntries(DOORS.map((d) => [d.id, { open: true }] as const)),
+            )
+          : []
+    } else {
+      const level = levelById(plan, levelId)
+      const lp =
+        level.id === levelId || levelId === GROUND_LEVEL_ID ? levelAsPlan(plan, level) : null
+      walls = lp
+        ? planCollisionWalls(
+            lp,
+            Object.fromEntries(
+              (Array.isArray(lp.openings) ? lp.openings : [])
+                .filter((o) => o.kind === 'door')
+                .map((o) => [o.id, { open: true }] as const),
+            ),
+          )
+        : []
+    }
+    routeWallCache.set(levelId, walls)
+    return walls
+  }
+
   // Item ↔ item — broadphase to near pairs (within PROXIMITY) instead of O(n²);
   // the exact centre-distance + gap test below reproduces the same result.
   const byId = new Map(parts.map((p) => [p.id, p] as const))
@@ -227,6 +275,13 @@ export function findNarrowGaps(
     const gap = obbGap(a.obb, b.obb)
     // Skip overlaps (gap ~0, handled elsewhere) and intentional close spacing.
     if (gap <= CLEARANCE.sofaToCoffee) continue
+    // A wall between them means there is no route between them to pinch.
+    const routeWalls = routeWallsForLevel(a.level)
+    if (
+      routeWalls.length > 0 &&
+      isLineOfSightBlocked(a.obb.cx, a.obb.cz, b.obb.cx, b.obb.cz, routeWalls)
+    )
+      continue
     const severity = classify(gap)
     if (severity) out.push({ a: a.id, b: b.id, gap, severity, wall: false })
   }

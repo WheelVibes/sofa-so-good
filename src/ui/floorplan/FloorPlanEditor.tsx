@@ -20,6 +20,7 @@ import { snapToGuides } from '../../floorplan/snapToGuides'
 import type { ElectricalKind, PlumbingKind } from '../../floorplan/types'
 import { planBounds, planTotalArea, pointInRoom, wallLength } from '../../floorplan/types'
 import { arcFromMidpoint, isCurvedWall, wallArcLength } from '../../floorplan/wallArc'
+import { shelterWallIds } from '../../floorplan/wallHackability'
 import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureItem } from '../../furniture/types'
 import { beginDrop } from '../../scene/placementDrop'
@@ -229,6 +230,10 @@ export function FloorPlanEditor() {
   // Stray-element flags (Pro): walls joined to nothing, rooms touching no other
   // room, openings off any wall — drawn in red so the apartment can be made whole.
   const fIntegrity = useFeature('planIntegrity')
+  // R4-7/SHELTER: wall ids bounding a household shelter on the edited storey.
+  // Computed ONCE here (it walks every room's boundary) and handed to both the
+  // wall renderer and the hackability overlay, the same way `strays` is.
+  const shelterWalls = useMemo(() => shelterWallIds(levelPlan), [levelPlan])
   const strays = useMemo(
     () =>
       fIntegrity
@@ -2910,6 +2915,7 @@ export function FloorPlanEditor() {
                 sel={sel}
                 selectedWalls={selectedWalls}
                 strayWalls={strays.walls}
+                shelterWalls={shelterWalls}
                 toPx={toPx}
                 skeleton={skeleton}
                 planWallMultiAdd={planWallMultiAdd}
@@ -2930,7 +2936,7 @@ export function FloorPlanEditor() {
                 none so WallsLayer still owns selection. Off by default, shown
                 via the "Hackability" View toggle. */}
               {fHackability && showHackability && (
-                <HackabilityLayer walls={levelPlan.walls} toPx={toPx} />
+                <HackabilityLayer walls={levelPlan.walls} shelterWalls={shelterWalls} toPx={toPx} />
               )}
 
               {/* Persistent wall-length + opening-width dimensions (a staple of

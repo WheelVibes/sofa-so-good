@@ -1,4 +1,4 @@
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getFlutedRibMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
@@ -19,6 +19,7 @@ export function FeatureWall({ props }: { props: ParamProps }) {
   const style = readStr(props, 'style', 'fluted')
 
   const mat = getSurfaceMaterial(finish, color, 2, sheen)
+  const ribMat = getFlutedRibMaterial(finish, color, 2, sheen)
   const backT = 0.02
   // Batten pitch ~6 cm; at least 6 across the panel.
   const pitch = style === 'slat' ? 0.09 : 0.06
@@ -52,7 +53,12 @@ export function FeatureWall({ props }: { props: ParamProps }) {
       {/* Fluted: half-round dowels (cylinders along Y) proud of the board. */}
       {style !== 'slat' &&
         offsets.map((x, i) => (
-          <mesh key={i} castShadow position={[x, height / 2, backT + battenR * 0.5]} material={mat}>
+          <mesh
+            key={i}
+            castShadow
+            position={[x, height / 2, backT + battenR * 0.5]}
+            material={ribMat}
+          >
             <cylinderGeometry args={[battenR, battenR, height - 0.02, 12]} />
           </mesh>
         ))}
