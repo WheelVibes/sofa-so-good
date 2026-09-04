@@ -2814,6 +2814,16 @@ if (process.env.BLENDREF) {
     // exact failure the physical-sky decision was taken to avoid. The right
     // comparison is daylight-only on BOTH sides, so this records what was burning
     // and the run warns when anything was, instead of silently mismatching.
+    //
+    // `v0.31.7.268`: a LIT arm now exists in the other harness -- `scene-glb.mjs` exports
+    // `lights.point` and `render_still.py --point-lights` places them, converting candela to
+    // watts by `P = 4*pi*I`, which follows from the two renderers' own falloff laws rather than
+    // being fitted (it agreed to 0.2 counts at the derivation's value, untuned). That does NOT
+    // overturn the decision above, and the reasoning above is still right about what it warns
+    // of: a lit comparison INHERITS the app's lamp intensities and therefore cannot test them.
+    // The two arms answer different questions -- daylight-only for calibrating the GI chain,
+    // lit for comparing the composite the user actually sees -- so this exporter deliberately
+    // stays daylight-only, and anything calibrated here should be too.
     const out = {
       directional: [],
       hemisphere: null,

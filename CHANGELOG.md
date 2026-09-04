@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.268 — the floor deficit survives daylight-only, and `(z4)`'s tint is orientation-blind
+
+**A prior decision I had walked past.** `light-distribution.mjs` met the interior-lights problem in
+`v0.31.7.8` and deliberately declined to convert placed lights into the reference, on the grounds
+that inventing a wattage would make the physical reference agree with the artistic choice under
+test. That reasoning stands, and `(z5)` does not overturn it. Two things reconcile them: the
+conversion is DERIVED from both renderers' falloff laws rather than fitted, and it agreed to 0.2
+counts at the derivation's own value with no tuning — but a lit comparison still **inherits** the
+app's lamp intensities and therefore cannot test them. So the arms answer different questions:
+daylight-only for calibrating the GI chain, lit for comparing the composite the user actually sees.
+`light-distribution.mjs` stays daylight-only by design, and now says so with a pointer to the lit
+arm.
+
+**Which matters, because `(z7)` was measured lit.** Re-run with lights off on both sides:
+
+| surface | app ÷ Cycles (daylight-only) | lit |
+| --- | --- | --- |
+| ceiling | 1.035 | 1.053 |
+| wall | 1.025 | 0.998 |
+| floor | **0.811** | 0.804 |
+
+The floor is ~19 % dark in BOTH arms, so it belongs to the daylight/GI chain and not to the lamp
+assumption — and it now sits in the arm `.8`'s decision endorses for this kind of calibration.
+
+**`gi-point` adds a suggestive number, not yet a proof.** At the measured floor point
+`E_baked = 0.4338` (texel 0.4863 × scale 0.8921) against the wall's **0.5242** (texel 0.2980 ×
+scale 1.7587). A floor carrying LESS baked irradiance than a mid-height interior wall is backwards
+for a daylit room, where the floor sees sky through the glazing directly. That points at the bake
+rather than the gain, but settling it needs Cycles' own INDIRECT-only value at that point — a
+re-bake — and I am not going to call it before then. `visGain` threads correctly at 3.7468 =
+0.8921 × 4.2, and the probe now prints it as a luminance instead of `[object Object]`, which is
+what it had degraded to since `visGain` became a vec3.
+
+**And the daylight-only run exposes a limitation of my own `(z4)` fix — new item `(z8)`.**
+`SKY_TINT_STRENGTH = 0.87` was calibrated on ONE surface, a vertical wall, and is applied to every
+baked surface whatever its orientation. Daylight-only residuals: **wall 0.2 counts, floor 2.0,
+ceiling 7.0** — the ceiling is over-cooled (R−B −18.0 against Cycles' −11.0). Physically that is
+exactly what should happen: a ceiling faces DOWN, so its indirect arrives from the floor as warm
+bounce, not from the sky, and sky chroma is the wrong illuminant for it. A single global tint cannot
+express that. The fix is a per-orientation tint, affordable because baked materials are already
+cloned per mesh and axis-aligned surfaces have a known dominant normal — about three program
+variants rather than one. It wants measuring per orientation first: `(z4)` is only trustworthy
+because its strength came from two measured endpoints rather than from taste.
+
+
 ## v0.31.7.267 — the floor's 20 % is app-side: the export is faithful, and the surface is lightmapped
 
 `.266` left `(z7)` deliberately unattributed, because a floor 20 % darker than a GLB-derived

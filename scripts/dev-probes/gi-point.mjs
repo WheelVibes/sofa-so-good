@@ -156,7 +156,15 @@ const hits = await page.evaluate(
             'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
         }
         m?.onBeforeCompile?.(stub, null)
-        visGain = stub.uniforms?.visGain?.value ?? null
+        // `visGain` became a vec3 in `v0.31.7.264` so the injected irradiance could carry
+        // illuminant chroma. Printed as its Rec. 709 LUMINANCE, which is the scalar gain that
+        // went in (the tint is luminance-preserving) -- otherwise this line reads
+        // `[object Object]` and the one value the probe exists to expose is unreadable.
+        const g = stub.uniforms?.visGain?.value ?? null
+        visGain =
+          g && typeof g === 'object' && 'x' in g
+            ? +(0.2126 * g.x + 0.7152 * g.y + 0.0722 * g.z).toFixed(4)
+            : g
       } catch (e) {
         visGain = `ERR:${e.message}`
       }
