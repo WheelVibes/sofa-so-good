@@ -27,6 +27,58 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.10 — the upstairs master bath loses its basin because the shower is CENTRED
+
+`TODO.md`'s next item after v0.31.9.8: `tpl-terrace-ground`'s upper bathroom, "one piece and one
+door". It is one piece, and the door turns out not to be the cause.
+
+**Which pass, and which room.** Tracing each pass in the furnish chain: the sink at
+`ct-up@5.45,1.40` survives `placeSeededMounts` and is deleted by **`dropOverlaps`** — not
+`dropDoorBlockers`, which is what "the door swing overlaps the sink" would have predicted. The room
+is `ctu-mbath`, the upper Master Bath, and it ends up with a mirror, a light, a shower and a WC
+**but no basin** — a mirror with nothing under it.
+
+**Why it is stranded.** At the `arranged` stage the toilet, sink, mirror, towel rail and ceiling
+light are ALL stacked at (5.45, 1.40) — the room centre, i.e. the arranger placed none of them.
+`placeSeededMounts` rescues the toilet to (5.03, 1.60), the mirror to (4.73, 1.40) and the rail to
+(4.77, 1.40); the sink is the one it cannot move. Instrumenting the rescue's rejections: **32
+candidates, every one refused** — 11 by existing furniture and 5 by the door keep-out, on each of
+the two strictness passes. So the pass is working as designed and the room has no free wall.
+
+**The room is short by 0.20 m, and it is the SHOWER's fault, not the door's.**
+
+| | | |
+|---|---|---|
+| room | 1.5 x 2.4 m | x 4.70-6.20, z 0.20-2.60 |
+| shower | 0.9 x 0.9 | centred at x 5.45 -> spans 5.00-5.90 |
+| clear strip east of shower | **0.30 m** | |
+| basin depth needed against that wall | 0.50 m | **short by 0.20 m** |
+
+Centring a 0.9 m shower in a 1.5 m room leaves 0.30 m on each side — two useless strips.
+**Corner it instead** and the same room fits everything:
+
+| | | |
+|---|---|---|
+| shower flushed west | x 5.15 | spans 4.70-5.60 |
+| clear strip east | **0.60 m** | |
+| basin at (5.95, 1.45) | box x 5.70-6.20, z 1.14-1.76 | clears the shower AND the door swing |
+
+Verified arithmetically against both keep-outs: no overlap with the cornered shower, no overlap
+with the door swing at x 5.00-5.80, z 1.80-2.60.
+
+**So the recommendation is an ARRANGER change, not a content one:** in a room narrower than
+shower + basin, flush the shower into a corner rather than centring it on the room's axis. That
+keeps the shipped layout and the inward door, and it generalises — every narrow SG bathroom has
+this shape.
+
+**Not implemented this release, deliberately.** Shower placement touches every bathroom in the
+corpus, and the last change of this kind (v0.31.9.8's door swings) cost a sink and a wardrobe
+before the numbers were in. It needs its own release with a per-def diff across all 19 templates,
+the ratchet updates, and visual verification. Specified in `TODO.md` with these numbers so that
+release starts from evidence.
+
+Diagnosis only — no code change.
+
 ## v0.31.9.9 — the TODO note v0.31.9.8 promised, which had silently failed to apply
 
 v0.31.9.8's changelog said the upstairs-layout weakness was "now in `TODO.md`". It was not. The

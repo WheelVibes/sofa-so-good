@@ -18,8 +18,32 @@ placed through door swings that did not exist:
 The ground floor got several rescue passes over this arc (WALL-SNAP-SHORTFALL, MOUNT-HEIGHT-CLASH,
 the unseal disc, satellite carry). **None of that work was ever exercised upstairs**, because
 upstairs had no door keep-outs to conflict with. The drops are honest, but a dropped bathroom sink
-is poor output — the upstairs cases now need the same treatment. Start with
-`tpl-terrace-ground`'s upper bathroom: it is one piece and one door.
+is poor output.
+
+### DIAGNOSED v0.31.9.10 — corner the shower in narrow bathrooms
+
+`tpl-terrace-ground/ctu-mbath` traced end to end. **It is the shower, not the door.** The sink is
+deleted by `dropOverlaps` (not `dropDoorBlockers`), because at `arranged` every fixture is stacked
+on the room centre and `placeSeededMounts` rescues the toilet, mirror and rail but not the sink —
+**32 candidate spots, all 32 refused** (11 by furniture, 5 by the door keep-out, x2 strictness
+passes). The pass is behaving correctly; the room has no free wall.
+
+| room 1.5 x 2.4 | shower 0.9 x 0.9 | clear strip east | basin needs | verdict |
+|---|---|---|---|---|
+| CENTRED at x 5.45 | spans 5.00-5.90 | **0.30 m** | 0.50 m | short by **0.20 m** |
+| CORNERED at x 5.15 | spans 4.70-5.60 | **0.60 m** | 0.50 m | **fits** |
+
+With the shower flushed west, a basin at (5.95, 1.45) (box x 5.70-6.20, z 1.14-1.76) clears both
+the shower and the door swing (x 5.00-5.80, z 1.80-2.60) — checked arithmetically.
+
+**The fix: in a room narrower than shower + basin, flush the shower into a corner instead of
+centring it on the room axis.** Centring wastes 0.30 m on each side; cornering consolidates it into
+one usable strip. Keeps the shipped layout and the inward door, and generalises to every narrow SG
+bathroom.
+
+**Do it as its own release**, with a per-def diff across all 19 templates, the ratchet updates and
+visual verification — shower placement touches every bathroom, and v0.31.9.8 showed what an
+unmeasured placement change costs.
 
 **Process note for whoever picks this up:** the TODO edit that was supposed to add this entry in
 v0.31.9.8 FAILED (its anchor had been renamed by the v0.31.9.6 sweep) while the commit went
