@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.242 — the shipped maps predate the bake's OWN glazing fix, so `.239`'s regression was a GAIN mismatch, not a bad bake
+
+A 2x2 over the two candidate parameters, ten maps per cell, ~90 s each. Ratios to the shipped scale:
+
+| key | shipped | glaze DELETED + default | DELETED + 12 bounces | KEPT + 12 | **KEPT + default** |
+| --- | --- | --- | --- | --- | --- |
+| `8d4c1497` (sky-visible) | 3.031 | 1.005 | 1.005 | 1.005 | **1.005** |
+| `70e55d20` | 5.215 | 0.580 | 0.584 | 1.070 | **1.029** |
+| `ce497848` (ceiling) | 1.760 | 0.744 | **1.005** | 1.336 | **1.073** |
+| `4b1218e6` (floor) | 0.877 | 0.334 | 0.492 | 1.514 | 1.367 |
+
+`--keep-glazing` at the DEFAULT bounce depth is the closest single configuration — three of four keys
+within 7 %. `.241`'s 12-bounce finding nailed the ceiling alone and left the other two 0.58x and
+0.49x, so it was fitting one key rather than the set.
+
+**And the reason is in the changelog, six hundred lines up.** `v0.31.7.181` found that
+`bake_material.py` DELETES the window glass before an irradiance bake, "so the baked indirect light
+describes a room whose windows are holes while the app renders one with glass", and `.182` added
+`--keep-glazing` to fix it. **The shipped maps are from `.177` — they predate that discovery.** So
+they were baked with glass in the room, and today's default deletes it. My bakes were not
+misconfigured; they are the CORRECTED bake, and the shipped maps are the pre-fix ones.
+
+**Which reframes `.239` entirely.** Installing the 189-map set dropped the three verified surfaces to
+0.28-0.45x of the Cycles reference, and I called the coverage bake "confounded". It is not: those
+maps are the corrected bake, and `IRRADIANCE_GAIN = 4.2` was fitted in `.223` against the PRE-FIX
+maps. A corrected map set with a gain fitted to the old one must come out dark. The regression is a
+gain mismatch.
+
+So the path is clear and all the tooling exists: install the 189-map set, re-fit the gain against the
+Cycles references at the three raycast-verified surfaces, and the result carries BOTH the corrected
+glazing treatment and 45 % coverage instead of 28 %. `.223`'s fit machinery — exposure-matched
+curve, verified surfaces, matched-pose Cycles from the app's own export — applies unchanged; only the
+map set under it moves.
+
+Also refuted this round: **lamp emissives**, `.241`'s remaining suspicion. Exporting with lamps lit
+takes `ce497848` to 2.909 against shipped's 1.760 (1.65x, badly over) and moves neither outlier, so
+the shipped bake was not lit by lamps and `.241`'s double-count worry does not arise.
+
+Nothing shipped. Suite 10219 green.
+
+
 ## v0.31.7.241 — the missing bake parameter is `--diffuse-bounces ≈ 12`, and the "clamp" was the SKY's own radiance
 
 Reading the code instead of guessing settled the mechanism. With `--per-map-scale`,
