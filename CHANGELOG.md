@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.294 — the Cycles references were lit by the app's own window glow, not by the sky
+
+`(z14)`'s 1.5× export difference has a cause, and chasing it uncovered something much larger.
+
+**`(z14)`: it was my own `.281` edit.** Reading the glTF material blocks directly, the
+`livingDining` export carries 24 emissive materials at `emissiveStrength` **5.2** and the
+`mainBedroom` export 27 at **8.32** — exactly `glassSkyCatchIntensity`'s coefficient before and
+after `.281`, with `emissiveFactor [0.624, 0.776, 0.914]`, which is `GLASS_SKYCATCH_COLOR`
+`#cfe4f5` decoded. Not pose dependence, not staleness: a look change of mine propagating into the
+bake through the export.
+
+**`(z15)`: and that is because the app's pane emissive lights the entire reference.** The panes
+carry an artistic sky-catch emissive so a rasteriser can make a window read as a bright aperture.
+It is exported, and in Cycles an emissive surface is a real emitter. New
+`render_still.py --no-glazing-emissive` zeroes it — built on `find_glazing`'s predicate, so a mask,
+an aperture and this can never disagree about what a window is. Same exposure, LINEAR, `mainBedroom`:
+
+| patch | pane emissive ON | OFF |
+| --- | --- | --- |
+| ceiling centre | 141.6 | **16.4** |
+| wall left | 129.8 | **18.6** |
+
+It zeroed 6 sockets totalling strength 49.92. **The pane emissive was supplying roughly 88-99 % of
+the interior light in what this arc has been calling a physical reference.**
+
+**It also retracts a standing conclusion.** `v0.31.7.181` measured that removing the glazing made
+the bake DARKER (wall −25, ceiling −71) and concluded "the glass is not sealing the room". That is
+backwards: removal deleted the emissive panes that were supplying the light. That wrong inference is
+why the shipped set carries `keep_glazing: true` — so the shipped lightmaps are lit predominantly by
+an artistic look device rather than by sky through an aperture. The note in `bake_material.py` now
+records the retraction next to the code it explains.
+
+**What this costs.** `(l)`'s window calibration was circular — the app's pane tuned against a
+reference lit by that same pane. Every absolute app-vs-Cycles number in the arc inherits it. And
+`(z13)`'s room-dependent GI is now a likely artefact of pane-emissive area per room volume rather
+than a renderer defect, which is the third cause proposed for that item and the first that explains
+the room dependence naturally.
+
+**What the right configuration is, and that nobody has run it.** With the emissive gone the interior
+sits at 0.004-0.005 linear — nearly black — which is the pipeline's own long-standing note that
+sealed glazing makes an interior nearly black, now confirmed. So `--keep-glazing` plus
+`--no-glazing-emissive` is not a valid reference either: the sky has to get in through an opening.
+The honest configuration is apertures OPEN and pane emissive ZEROED, and that combination has never
+been rendered. That is the next measurement, and the comparison set should be re-derived from it.
+
+
 ## v0.31.7.293 — `.292` retracted: the shipped maps are fine, the EXPORT is what differs
 
 `.292` concluded the shipped lightmap set was partly stale, from one map measured against one fresh

@@ -63,6 +63,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--exposure", type=float, default=None,
                    help="scene exposure in STOPS; omit to derive it from the manifest's "
                         "toneMappingExposure (a linear multiplier, so log2 of it)")
+    p.add_argument("--no-glazing-emissive", action="store_true", dest="no_glazing_emissive",
+                   help="passthrough to render_still.py: zero the panes' artistic sky-catch "
+                        "emissive, which is exported into the GLB and acts as a real emitter in "
+                        "Cycles (item (z15))")
     p.add_argument("--point-light-scale", type=float, default=None,
                    help="passthrough to render_still.py, for calibrating the candela->watt factor")
     p.add_argument("--json", action="store_true")
@@ -139,6 +143,8 @@ def flags_for(manifest: dict, d: str, args: argparse.Namespace) -> list[str]:
         print("  NOTE: manifest has no interior point lights -- reference is sun+sky only ((z5))")
     if args.view_transform:
         flags += ["--view-transform", args.view_transform]
+    if args.no_glazing_emissive:
+        flags += ["--no-glazing-emissive"]
 
     # EXPOSURE, derived from the manifest rather than retyped -- the same rule this script
     # applies to the pose. `toneMappingExposure` is a LINEAR multiplier in three; Blender's

@@ -1399,6 +1399,16 @@ def main(argv: list[str] | None = None) -> int:
             # DEFAULT deletes the glazing. `v0.31.7.181` measured the stated reason backwards for
             # THIS pass, which does not whiten: rendering the same scene with the glazing removed
             # came out DARKER (wall -25 counts, ceiling -71), so the glass is not sealing the room.
+            #
+            # `v0.31.7.294` RETRACTS that inference. Removal came out darker because it removed the
+            # app's EMISSIVE PANES, not because the glass was letting light in: the panes carry
+            # `GLASS_SKYCATCH_COLOR` at `glassSkyCatchIntensity`, that emissive is exported into the
+            # GLB, and Cycles treats an emissive surface as a real emitter. Zeroing it alone
+            # (`render_still --no-glazing-emissive`) drops a bedroom reference from 141.6 to 16.4
+            # linear on the ceiling -- the panes were supplying ~88-99 % of the interior light. So
+            # the shipped set's `keep_glazing: true` rests on a wrong reading, and those maps are
+            # lit predominantly by an artistic look device. See item `(z15)`; the honest
+            # configuration is apertures OPEN and pane emissive ZEROED, which has not yet been run.
             removed, _ = RV.open_apertures()
         portals = add_portals(pbounds) if a.portals else 0
         if a.diffuse_bounces is not None:

@@ -76,6 +76,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--sun-elevation", type=float, default=None, help="degrees; omit for no sun")
     p.add_argument("--sun-azimuth", type=float, default=0.0, help="degrees")
     p.add_argument("--sun-energy", type=float, default=3.0)
+    p.add_argument("--no-glazing-emissive", action="store_true", dest="no_glazing_emissive",
+                   help="zero the EMISSIVE on window glazing before rendering. The app's panes "
+                        "carry an artistic sky-catch emissive that is exported into the GLB, and in "
+                        "Cycles an emissive surface is a real emitter — so a reference built from a "
+                        "scene-glb export is partly lit by the app's own look device, at a strength "
+                        "comparable to the sky. Item (z15).")
     p.add_argument("--point-lights", default=None,
                    help="path to a JSON list of the app's interior POINT lights (as written by "
                         "scene-glb.mjs into the manifest's lights.point). Omit and the reference "
@@ -169,6 +175,12 @@ def render(a: argparse.Namespace) -> dict:
             S.add_sun_from_three_direction(_vec(a.sun_dir), energy=a.sun_energy)
         elif a.sun_elevation is not None:
             S.add_sun(a.sun_elevation, a.sun_azimuth, energy=a.sun_energy)
+
+    # `(z15)`: the app's panes carry an artistic emissive that Cycles treats as a real emitter.
+    # Zeroed BEFORE the lamps are placed, so the printed counts read in the order they apply.
+    if a.no_glazing_emissive:
+        killed, tot = RV.kill_glazing_emissive()
+        print(f"  no-glazing-emissive: zeroed {killed} emission socket(s), total strength {tot:.2f}")
 
     # Interior lamps, item `(z5)`. Placed for BOTH sky and non-sky routes: they are indoor
     # fittings and have nothing to do with which outdoor model is in use.
@@ -265,6 +277,7 @@ def render(a: argparse.Namespace) -> dict:
         # Reported so a reference cannot silently be the unlit one -- `(z5)` went unnoticed
         # precisely because nothing in the output said how many lamps were in the scene.
         "point_lights": n_point,
+        "glazing_emissive_killed": bool(a.no_glazing_emissive),
         "radius": round(radius, 4),
         "samples": a.samples,
         "res": [w, h],

@@ -390,3 +390,46 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main() or 0)
+
+
+def kill_glazing_emissive() -> tuple[int, float]:
+    """Zero the EMISSIVE on glazing materials, and report what was removed.
+
+    **Why this exists (item `(z15)`).** The app gives its window panes an emissive "sky catch"
+    (`GLASS_SKYCATCH_COLOR` at `glassSkyCatchIntensity`) as a LOOK device -- it makes a window read
+    as a bright aperture on a rasteriser that cannot produce the highlight any other way. That
+    emissive is exported into the GLB, and in Cycles an emissive surface is a real light source. So
+    every reference render and every bake built from a `scene-glb` export has been partly lit by the
+    app's own artistic choice, at a strength comparable to the sky itself: `v0.31.7.294` measured
+    `emissiveStrength` **8.32** with factor `[0.624, 0.776, 0.914]`, against a sky whose baked
+    radiance is about 2.97 in the same units.
+
+    That matters most where it is most circular: `(l)`'s window calibration tuned the app's pane
+    against a reference whose window was lit by that same pane.
+
+    Uses `find_glazing()`'s predicate rather than a new one, so a mask, an aperture and this can
+    never disagree about what a window is.
+    """
+    removed = 0
+    total = 0.0
+    seen = set()
+    for obj in find_glazing():
+        for mat in obj.data.materials:
+            if mat is None or not mat.node_tree or mat.name in seen:
+                continue
+            seen.add(mat.name)
+            for node in mat.node_tree.nodes:
+                if not hasattr(node, "inputs"):
+                    continue
+                for sock_name in ("Emission Strength", "Emission Color"):
+                    sock = node.inputs.get(sock_name)
+                    if sock is None or sock.is_linked:
+                        continue
+                    if sock_name == "Emission Strength":
+                        if sock.default_value > 0:
+                            total += float(sock.default_value)
+                            sock.default_value = 0.0
+                            removed += 1
+                    else:
+                        sock.default_value = (0.0, 0.0, 0.0, 1.0)
+    return removed, total
