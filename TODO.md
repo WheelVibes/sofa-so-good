@@ -49,6 +49,11 @@ leaves 0.60 m of the 1.5 m wall, a 0.62 m basin misses that by 0.02 m along the 
 0.10 m of circulation across it, and the door swing alone takes 18% of the floor. **Content limit,
 not an arranger bug** — options are widen the room ~0.2 m, a 0.75 m quadrant shower, or a
 two-fixture master bath. All three re-draw a shipped layout, so none is mine to pick.
+**RATCHETED v0.31.9.14** in `src/layout/bathroomFixtures.test.ts`: 35 bathrooms in the corpus,
+0 without a WC, exactly 1 without a basin (this room). So it is ISOLATED, not a class — 34 of 35
+are fully fitted. A future regression now FAILS instead of moving an item count that cancels out.
+The `ROOM_INSET = 0` state additionally loses `emu-cbath` and `ctu-cbath`, both upper-storey common
+baths — the detail v0.31.9.13's per-def `bathroom-sink -2` could not name.
 **The inset experiment did establish one real number for the room-rect item: `ROOM_INSET` costs the
 corpus 30 pieces (1448 -> 1478).** Argue it on that, not on this bathroom.
 **COSTED PROPERLY v0.31.9.13, and it is a REDISTRIBUTION not a win.** At `ROOM_INSET = 0` the +30

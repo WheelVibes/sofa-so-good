@@ -27,6 +27,39 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.14 — a bathroom with no basin should fail a test, not move a count
+
+`ctu-mbath` lost its basin in v0.31.9.8 and **nothing failed.** The loss surfaced only as
+`diningChairTuck`'s per-template count moving 120 -> 119, which needed a per-def diff to interpret
+— and the corpus GRAND TOTAL was unchanged, because a maisonette gain cancelled it exactly. Four
+releases of diagnosis followed a number that had to be decoded.
+
+So the anecdote is now a corpus measurement. Surveying every `bath`/`powder` room on every storey
+of all 19 templates, furnished with `move-in`:
+
+| | |
+|---|---|
+| bathrooms | **35** |
+| without a WC | **0** |
+| without a basin | **1** — `tpl-terrace-ground/ct-up/ctu-mbath` |
+
+**It is isolated, not a class**, which is worth knowing after four releases spent on it: 34 of 35
+bathrooms are fully fitted.
+
+`src/layout/bathroomFixtures.test.ts` ratchets all three numbers. The WC assertion is deliberately
+an empty expectation rather than omitted — a WC is the one fixture a room cannot be a bathroom
+without, so "no known offenders" should be stated. The survey count is asserted too, because a
+survey that silently found nothing would make both other assertions pass vacuously.
+
+**Verified it catches a regression rather than trusting it.** Re-run with `ROOM_INSET = 0` — the
+v0.31.9.13 experiment — it fails and names the two additional basins that state loses:
+`tpl-hdb-maisonette/em-up/emu-cbath` and `tpl-terrace-ground/ct-up/ctu-cbath`. Both upper-storey
+common baths, which is a detail v0.31.9.13's per-def diff could not give (it saw
+`bathroom-sink -2` without saying which rooms).
+
+The known offender carries its own diagnosis, including all three of my wrong explanations, so the
+next reader does not repeat them.
+
 ## v0.31.9.13 — costing `ROOM_INSET` properly: +30 pieces, but a redistribution
 
 v0.31.9.12 left the room-rectangle item one number — `ROOM_INSET` costs the corpus 30 pieces — and
