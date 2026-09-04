@@ -4,6 +4,7 @@
   "description": "IXT-SUITES batch 9 simple rung for the `infoCallouts` flag (simple tier — on in both modes). Enters the room editor and asserts the 'Designing one room' `.info-callout` (id=room-editor) is mounted, screenshots it, dismisses it via its close button and asserts it never re-mounts on a fresh enterRoomEditor call (persisted dismissal), then enters the floor-plan editor and asserts its DIFFERENT `.info-callout` (id=floor-plan) still shows (per-id dismissal, not a global switch), then flips the flag off directly and asserts the floor-plan callout unmounts even though it was never dismissed, and restores it back on to confirm it reappears (still dismissed by id where applicable — a fresh id 'floor-plan' was never dismissed so it comes straight back).",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     {
       "name": "dismiss-overlays",
       "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"

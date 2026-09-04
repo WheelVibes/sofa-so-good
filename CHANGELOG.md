@@ -27,6 +27,51 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.6 — 489 scenarios were screenshotting the boot loader
+
+v0.31.9.5 found `finish-picker-audit.json` capturing the boot loader in all ten of its frames while
+passing green. This is the corpus sweep.
+
+**The loader is not slow, it is unbounded.** `App.tsx` removes `#boot-loader` when `booting`
+clears, and `booting = bootPhase !== 'ready' || !sceneReady` — so it waits on the SCENE. Timed
+across two runs of the same scenario: **751 ms and 36604 ms** after `storeExists`. Spot-runs during
+this sweep took 18.1 s, 19.7 s and 38.9 s. The largest fixed `wait` preceding a first screenshot
+anywhere in the corpus was 5 s, and 275 of the 489 had under 2 s.
+
+**It is a worse failure than the transition splash**, for a specific reason: a `waitFor {css}` on a
+panel MATCHES while that panel sits mounted behind the loader. `finish-picker-audit` waited for
+`.panel.inspector`, found it, and photographed the loader — so the scenario had every appearance of
+verifying the thing it was named for.
+
+**489 of 495 screenshot-taking scenarios** were missing the wait. Only 6 had it. Swept, one line
+each, inserted after the leading setup block.
+
+`finish-picker-audit` before and after, greyscale detail per frame:
+
+| | frames 1-6 |
+|---|---|
+| before | 0.31 / 0.32 / 0.32 / 0.34 / 0.34 / 0.36 |
+| after | 9.05 / 8.68 / 6.93 / 6.92 / 9.95 / 9.96 |
+
+~25x, and the panel now shows its finishes, composer, and the "Copy layout to…" control changed in
+v0.31.9.5 — the first time that scenario has rendered what it audits.
+
+### Two things worth recording about doing it
+
+**I reformatted all 489 files on the first attempt.** A `json.load` / `json.dump(indent=2)`
+round-trip expanded every step from one line to eight, producing a diff where the inserted step was
+invisible among thousands of reformatted lines. Biome accepts both forms, so nothing complained.
+Reverted and redone as a textual insertion: **489 files, 489 insertions, 1 deletion.** A sweep whose
+diff cannot be read is not reviewable, whatever the tests say.
+
+**One scenario was already handling it, badly.** `bath-sidewall.json` has a `hide-loading` eval that
+calls `el.remove()` on the loader outright. That was why the sweep skipped it — and had I inserted
+the wait AFTER that step it would have passed vacuously forever. The wait goes BEFORE it, so the
+scenario now waits for readiness and the manual removal is belt-and-braces.
+
+Ratcheted as a fourth assertion in `scenarioTransitionGuard.test.ts`, which already owns the
+camera-transition and text-disappearance rules.
+
 ## v0.31.9.5 — the walls were a symptom: cross-storey room copy put furniture on the wrong floor
 
 ### First, a correction to my own v0.31.9.2 framing

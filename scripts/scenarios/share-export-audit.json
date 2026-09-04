@@ -4,6 +4,7 @@
   "url": "http://localhost:5301/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
     { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
     { "name": "place-a-sofa", "eval": "window.__store.getState().setItems([{id:'aud-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}}])" },

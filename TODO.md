@@ -438,7 +438,20 @@ differ:
   pattern-matching error as the two failed lint guards, one release after writing it down. **Read
   the data flow, not the file.**
 
-## Scenario screenshots taken before the BOOT LOADER clears — corpus audit needed
+## ~~Scenario screenshots taken before the BOOT LOADER clears~~ — SWEPT v0.31.9.6
+
+**489 of 495 screenshot-taking scenarios were missing the wait; all swept, one line each, and
+ratcheted in `scenarioTransitionGuard.test.ts`.** The loader is unbounded, not merely slow:
+`booting` depends on `sceneReady`, and the same scenario cleared in **751 ms and 36604 ms** on two
+runs (spot-runs during the sweep: 18.1 s, 19.7 s, 38.9 s) against a corpus maximum fixed wait of
+5 s. `finish-picker-audit` frame detail went 0.31-0.36 -> 6.9-9.96.
+**Two process notes worth keeping:** a `json.dump(indent=2)` round-trip reformatted all 489 files
+on the first attempt, hiding the one real line per file in thousands of reformatted ones (biome
+accepts both styles, so nothing complained) — redone textually. And `bath-sidewall.json` already
+force-removed the loader in an eval, so the wait had to go BEFORE that step or it would have passed
+vacuously forever.
+
+## Superseded note on the boot loader
 
 Found in v0.31.9.5 while trying to regression-check `FinishPicker`. `finish-picker-audit.json` runs
 10 frames, passes green, and **every frame is the boot loader**. Measured detail 0.31-1.27 across

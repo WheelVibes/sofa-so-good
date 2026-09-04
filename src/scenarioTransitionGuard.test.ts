@@ -130,6 +130,38 @@ describe('scenario camera-mode transitions wait for the splash', () => {
    * that text APPEARS is fine and is not flagged — that direction is a true
    * positive.
    */
+  /**
+   * BOOT-SPLASH (v0.31.9.6) — screenshot only after `#boot-loader` has left the
+   * DOM.
+   *
+   * `App.tsx` removes the loader when `booting` clears, and
+   * `booting = bootPhase !== 'ready' || !sceneReady` — so it waits on the SCENE,
+   * which in the headless software renderer is wildly variable. Measured across
+   * two runs of the same scenario: **751 ms and 36604 ms** after `storeExists`.
+   * No fixed `wait` in the corpus came close, and `waitFor {storeExists: true}`
+   * is satisfied while the loader is still covering everything.
+   *
+   * The failure is silent and worse than the transition splash, because a
+   * `waitFor {css}` on a panel MATCHES while the panel sits behind the loader.
+   * `finish-picker-audit.json` — ten frames, green — was capturing the loader in
+   * every one: greyscale detail 0.31-1.27 before, 6.9-9.96 after.
+   *
+   * 489 of 495 screenshot-taking scenarios were missing this.
+   */
+  it('never screenshots before the boot loader has gone', () => {
+    const offenders: string[] = []
+    for (const file of files) {
+      const steps = (JSON.parse(readFileSync(join(DIR, file), 'utf8')).steps ?? []) as Step[]
+      const firstShot = steps.findIndex((s) => s.screenshot !== undefined)
+      if (firstShot === -1) continue
+      const guarded = steps
+        .slice(0, firstShot)
+        .some((s) => typeof s.waitFor?.css === 'string' && s.waitFor.css.includes('boot-loader'))
+      if (!guarded) offenders.push(`${file}: first screenshot at step ${firstShot}`)
+    }
+    expect(offenders).toEqual([])
+  })
+
   it('never waits for TEXT to disappear', () => {
     const offenders: string[] = []
     for (const file of files) {

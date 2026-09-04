@@ -8,6 +8,7 @@
     { "name": "enter-bath", "store": { "action": "enterRoomEditor", "args": ["bath1"] } },
     { "name": "room-active", "waitFor": { "store": "window.__store.getState().roomEditor.active === true" } },
     { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.controls" }, "timeout": 30000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "Wait for the loader to leave on its own BEFORE the `hide-loading` step force-removes it. That eval predates this guard (v0.31.9.6) and rips the element out regardless of whether the scene is ready, so on its own it converts a blank frame into a blank frame with no loader on top." },
     { "name": "hide-loading", "eval": "const st1=window.__store.getState(); st1.hideLoading&&st1.hideLoading(); const el1=document.getElementById('boot-loader'); if(el1) el1.remove(); 'ok'" },
     { "name": "boot-settle", "wait": 2500 },
     { "name": "near-axis-view", "eval": "const c=window.__three.controls;const cam=window.__three.camera;const t=[c.target.x,c.target.y,c.target.z];const r=Math.hypot(cam.position.x-t[0],cam.position.z-t[2]);const rr=r*0.95;cam.position.set(t[0]+rr*Math.cos(1.35),t[1]+r*0.55,t[2]+rr*Math.sin(1.35));c.target.set(t[0],t[1],t[2]);c.update();'ok'" },
