@@ -43,10 +43,23 @@ z 3.48 (flush N) or 3.92 (flush S), and the counter is at z **3.70** — the roo
 z 3.40-4.00, over half the 1.16 m depth, straight down the middle, so everything else overlaps it.
 The fridge is also still on the seed. Only the stove gets a wall, and it dies overlapping a counter
 that should not be there. The v0.31.9.18 rescue DOES consider it now and still fails.
-**Untested leading hypothesis:** flush north leaves 0.50 m of floor, under `CLEARANCE.walkwayMin`
-(0.6) — check whether `canPlace`/`tryPlace` refuses placements that pinch circulation. If so a
-1.16 m galley can never take a 0.6 m counter. **Verify before publishing it**; this room has had one
-wrong diagnosis from me per release for four releases.
+**CAUSE ESTABLISHED v0.31.9.21 — a DOOR swings into the galley.** The walkway hypothesis was
+refuted (there is no walkway rule in `placement.ts` or `autoArrange.ts` at all). Instrumenting
+`tryPlace`'s pre-`canPlace` gates: `st-kit`'s door keep-out is x 1.10-2.00, z 3.60-4.50 — a
+0.9 x 0.9 swing dead centre of the only wall long enough for the counter. No window, no wall, no
+item collision is involved. Free runs: 0.90/2.00 m on the raw room, **0.78/1.88 m on the inset
+rect**.
+**The obvious fix is INERT, measured.** Sizing the counter to the longest CLEAR run (per-wall
+intervals minus door keep-outs, threaded through `seedRoom`) produced ZERO deltas across the whole
+suite. `snapToWall` CLAMPS the along-wall position to the seed = the room centre, so a 1.88 m
+counter centred at x 2.10 still spans 1.16-3.04 and still crosses the keep-out. **Shrinking without
+sweeping does nothing**, and only the rescue pass sweeps — but its sweep needs a run of the
+counter's full seeded 2.4 m, which 1.88 m of clear rect cannot give.
+**Next step, as its own release:** make `snapToWall` sweep along the wall the way
+`placeSeededMounts` already does, so a piece can move past a keep-out instead of only shrinking.
+That touches every room type, and every arranger change on this thread has produced collateral
+(v0.31.9.19's inset variant marooned a fridge and cost a route), so budget for a full per-def sweep
+and expect ratchet movement.
 
 **Superseded:** `su-kit`, `cs-kit` and `ob-kit` all lack one, and `st-kit` recovers
 nothing at all. A hob is 0.6 m — the easiest piece in the kit to fit — so its loss is more likely

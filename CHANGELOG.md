@@ -27,6 +27,53 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.21 — a door swings into the galley, and shrinking the counter without moving it is inert
+
+v0.31.9.20 left a named hypothesis with instructions to check it before publishing. **Checked, and
+refuted:** there is no walkway rule in `placement.ts` or `autoArrange.ts` at all, so a 0.50 m pinch
+was never the reason.
+
+Instrumenting `tryPlace`'s gates instead — it runs a door keep-out and a window keep-out check
+BEFORE `canPlace`, which my v0.31.9.20 probe tested neither of:
+
+```
+tpl-studio/st-kit  S pos=2.10,3.92  doorKeepOutHits=2  windowHits=0
+                   N pos=2.10,3.48  doorKeepOutHits=1  windowHits=0
+tpl-1bed/ob-kit    N pos=1.75,3.73  doorKeepOutHits=2  windowHits=0
+```
+
+**A door swings into the galley.** `st-kit`'s keep-out is x 1.10-2.00, z 3.60-4.50 — a 0.9 x 0.9
+swing landing dead centre of the only wall long enough for the counter. Windows are not involved,
+walls are not involved, and no item collision is involved: the counter is refused on every edge by
+the door gate.
+
+| | free runs | longest |
+|---|---|---|
+| raw room (x 0.20-4.00) | 0.90 m , 2.00 m | 2.00 m |
+| inset rect (x 0.32-3.88) | 0.78 m , 1.88 m | 1.88 m |
+
+### And the obvious fix does nothing, measured
+
+I extended v0.31.9.19's `fittedCounter` to size the run to the longest CLEAR run rather than the
+longest wall — computing per-wall free intervals after subtracting door keep-outs, threaded through
+`seedRoom`. **The full suite showed zero deltas.** Reverted.
+
+The reason is worth writing down: **`snapToWall` CLAMPS the along-wall position to the seed point**,
+which is the room centre. A counter shortened to 1.88 m and still centred at x 2.10 spans 1.16-3.04
+— still straddling the keep-out at 1.10-2.00. Shrinking without sweeping is inert, and only the
+RESCUE pass sweeps along a wall. The rescue does now consider counters (v0.31.9.18) but its own
+sweep needs a run of the counter's full length, and 1.88 m of clear rect cannot take the 2.4 m it
+is still seeded at.
+
+**So the two levers only work together, and neither exists in the right place yet:** the counter
+must be shortened AND moved past the keep-out. `snapToWall` sweeping along the wall the way
+`placeSeededMounts` already does is the obvious shape, but that touches every room type in the
+corpus, and this thread has produced a collateral regression from every arranger change so far
+(v0.31.9.19's inset variant marooned a fridge and cost a route; v0.31.9.16's containment gave back
+four rooms). It needs its own release with the full per-def sweep.
+
+No code change — both experiments reverted, and the cause is now established rather than guessed.
+
 ## v0.31.9.20 — the counter is never placed at all, and two of the five kitchens have room
 
 Chasing the missing hobs. In **all four** failing kitchens the overlap pairs are the same shape:
@@ -77,8 +124,9 @@ piece that gets a wall, and it is deleted for overlapping a counter that should 
 (v0.31.9.18 added `kitchen` to the wall-hugging set) and still fails, so this is not the
 eligibility gap that release fixed.
 
-**Leading hypothesis, explicitly untested:** flush north leaves z 3.78-4.28 = **0.50 m** of floor,
-under `CLEARANCE.walkwayMin` (0.6). If `canPlace` or `tryPlace` refuses a placement that pinches
+**[REFUTED in v0.31.9.21 — there is no walkway check anywhere in `placement.ts` or
+`autoArrange.ts`. The real gate is the DOOR keep-out.]** Leading hypothesis, explicitly untested:
+flush north leaves z 3.78-4.28 = **0.50 m** of floor, under `CLEARANCE.walkwayMin` (0.6). If `canPlace` or `tryPlace` refuses a placement that pinches
 circulation below that, then a 1.16 m deep galley can never take a 0.6 m counter, and the studio
 kitchens are unfixable without a shallower counter run. I am NOT publishing that as the cause —
 this room has already had one wrong diagnosis from me per release for four releases, and the check
