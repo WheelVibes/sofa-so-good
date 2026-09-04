@@ -27,6 +27,54 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.3 — fixed the confirmed F13 bug, and exempted `planBounds` with a measurement
+
+Two things from the v0.31.9.2 worklist: the one confirmed defect, and the one helper still
+unreviewed.
+
+### `TapeMeasure` snapped to two different storeys at once
+
+`snapClick` gathered furniture corners from `st.items` — **every** storey — and wall endpoints from
+`st.floorPlan`, whose `walls` are the GROUND FLOOR. So measuring upstairs on a maisonette snapped
+to furniture that is there and walls that are not. No `viewLevelId`, no `levelAsPlan`, no
+`walkLevel` anywhere in the file.
+
+Both inputs now come from `walkLevel(plan, viewLevelId)` — deliberately the same lever
+`FirstPersonCamera` picks its collision walls with and the minimap draws with (MINIMAP-LEVEL), so
+the tape agrees with the camera and the map **by construction** rather than by re-deriving the
+storey. Items narrow through `itemsOnLevel(items, level.id)`.
+
+`tapeMeasureLevel.test.ts` tests the LEVERS, not the component: `snapClick` is a closure over a
+pointer event inside an r3f tree, and the defect was never in the snap maths — it was in which
+storey the two inputs came from. It also asserts the PREMISE (the maisonette's two storeys really
+do have different wall sets, so this was a genuine inconsistency) and that `'all'` resolves to the
+ground floor, matching the camera.
+
+Verified no ground-floor regression via `walk-measure.json` — the tape draws and reads 5.28 m.
+**Coverage limit, stated plainly:** no scenario measures upstairs, because the snap is a
+click-driven closure and the harness would have to enter walk on an upper storey and click. The
+unit test covers the storey selection; the screenshot covers the ground floor.
+
+### `planBounds` is deliberately NOT single-level
+
+18 of its bare-plan call sites were flagged as F13 candidates. They are not bugs. It reads the SITE
+extent — camera framing, grid overlay, viewport fitting, drawing sheets — and the ground floor's
+extent IS the site extent. Measured on all three shipped two-storey templates:
+
+| template | whole plan | ground | upper |
+|---|---|---|---|
+| `tpl-hdb-maisonette` | 8.40 x 9.40 | 8.40 x 9.40 | 8.40 x 9.40 |
+| `tpl-loft` | 8.20 x 6.00 | 8.20 x 6.00 | 8.20 x 6.00 |
+| `tpl-terrace-ground` | 6.40 x 14.00 | 6.40 x 14.00 | 6.40 x 14.00 |
+
+Every upper storey is identical to its ground floor and none exceeds it. Annotating this
+single-level would manufacture 18 future compile errors that are not defects — which would make
+the migration's error count a worse progress metric, not a better one. Recorded in the docstring
+with the known limit: a user-drawn overhanging upper storey would frame short, no shipped plan does
+one, and a cantilever is not expressible in the 2D editor today.
+
+Six sites remain on the worklist, each still needing its own answer to "which storey?".
+
 ## v0.31.9.2 — F13 stage 1 continued, and the audit found seven candidate bugs
 
 Picked up the three helpers v0.31.9.1 deliberately left alone because they needed their callers

@@ -854,6 +854,23 @@ export function clampOpeningOffset(
  * floor slab / grid / editor viewport so drawing beyond the initial extent
  * still renders fully.
  */
+/**
+ * The plan's overall extent (site width/depth), m.
+ *
+ * **Deliberately takes a whole `FloorPlan` and NOT `SingleLevelPlan`** (audited
+ * v0.31.9.3, after 18 of its bare-plan call sites were flagged as F13
+ * candidates). It reads the SITE extent — what camera framing, grid overlay,
+ * viewport fitting and drawing sheets need — and the ground floor's extent is
+ * the site extent: measured across all three shipped two-storey templates
+ * (`tpl-hdb-maisonette` 8.40 x 9.40, `tpl-loft` 8.20 x 6.00,
+ * `tpl-terrace-ground` 6.40 x 14.00) every upper storey is IDENTICAL to its
+ * ground floor and none exceeds it. Annotating this single-level would
+ * manufacture 18 future compile errors that are not bugs.
+ *
+ * Known limit, not worth building for yet: a USER-drawn upper storey that
+ * overhangs the ground floor would frame short here. No shipped plan does, and
+ * a cantilever is not expressible in the 2D editor today.
+ */
 export function planBounds(plan: FloorPlan): PlanVec2 {
   let mx = plan.extent[0]
   let mz = plan.extent[1]
