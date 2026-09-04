@@ -27,6 +27,43 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.72 — the washing machines are on edges that are not walls
+
+v0.31.8.71 left six marooned appliances and named three service-yard washing machines as the
+next cluster. Diagnosed, fix built, fix blocked.
+
+**They stand on rect edges that are not walls.** `tpl-hdb-3room`'s Service Yard is flush to a
+wall on its NORTH edge and has **no wall within 0.80 m** on the other three — and the machine
+takes the west one. `snapToWall` chooses its edge from the piece's SEEDED position, which says
+nothing about whether that edge is a wall. A washing machine needs a wall for its plumbing; a
+rect edge is not a wall.
+
+`edgeHasWall` plus a preference for wall-backed edges **fixes all three** — 6 marooned → 3, net
++1 item, and the preference cannot leave a piece unplaced because every edge is still tried
+(the same property the existing `windowed(edge)` reordering relies on).
+
+### Why it is not shipped
+
+It also puts `tpl-hdb-5room`'s `utility-cabinet` **in front of a window**, and
+`placementSoundness.test.ts` catches it. That test asserts `[]` — zero tolerance, not a ratchet
+— so this is not a number to bump for three appliances.
+
+**Two attempts to protect the window, both fail, and the second fails informatively:**
+
+1. **Rank `windowed(edge)` above wall-backing.** No effect. `windowed` is gated on *tall
+   storage*, and a `utility-cabinet` is not covered by it.
+2. **Withhold the wall preference on any windowed edge, for every piece.** Fixes the cabinet —
+   and breaks `autoArrange.test.ts`'s *"lines bathroom fixtures along the walls (not parked
+   mid-room)"*, which is the exact regression the `tall` gate was narrowed to prevent in the
+   first place.
+
+So the ordering is not the problem. **The real question is what `windowed`'s subject should be**
+— a test that covers a utility cabinet without covering a bathroom fixture. That is a question
+about the catalog's taxonomy, not about edge preference, and it wants answering before another
+ordering is tried. `TODO.md` says so, with both failures.
+
+No code ships. Verified: 10193 tests pass on the reverted tree; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.71 — flush means flush. 15 marooned appliances → 6
 
 Four releases of narrowing, and the last blocker was one sentence: *a mount that clashes needs a

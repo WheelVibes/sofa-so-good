@@ -915,6 +915,24 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   and falls back to the nearest rather than stranding). Cost: one blocked window, two decor props
   and one drying rack, against +7 items elsewhere — net +4. Full history in the v0.31.8.61/.69/.70
   changelog entries.
+  **The three SERVICE-YARD washing machines are diagnosed, and the fix is blocked
+  (v0.31.8.72).** They stand on rect edges that are not walls: `tpl-hdb-3room`'s Service Yard is
+  flush to a wall on its NORTH edge and has no wall within **0.80 m** on the other three, and the
+  machine takes the west one — because `snapToWall` chooses its edge from the piece's SEEDED
+  position, which says nothing about whether that edge is a wall.
+  **`edgeHasWall` + preferring wall-backed edges fixes all three** (6 marooned -> 3, net +1 item).
+  It also puts `tpl-hdb-5room`'s `utility-cabinet` in front of a window, which
+  `placementSoundness.test.ts` catches — and that test is ZERO-TOLERANCE, not a ratchet, so this
+  is not a number to bump.
+  **Two attempts to protect the window, both fail:**
+  (a) rank `windowed(edge)` above wall-backing — no effect, because `windowed` is gated on TALL
+  STORAGE and a `utility-cabinet` is not covered;
+  (b) withhold the wall preference on ANY windowed edge, for every piece — fixes the cabinet and
+  breaks `autoArrange.test.ts`'s "lines bathroom fixtures along the walls (not parked mid-room)",
+  which is the exact regression the `tall` gate was narrowed to prevent.
+  So this needs a window test that covers a `utility-cabinet` without covering a bathroom
+  fixture — i.e. the real question is what `windowed`'s subject should be, not how to order the
+  edges. Answer that first.
   **What is LEFT (6):** `tpl-condo-3bed/stove 1.05` (never placed at all — still at its room-centre
   seed, see the ALONG-WALL entry, which is measured and declined), `tpl-hdb-5room/washing-machine
   0.60`, `tpl-condo-1bed/stove 0.59`, `tpl-hdb-2room/stove 0.52`, `tpl-hdb-3room` and
