@@ -27,6 +27,61 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.51 — a queued fix, built and measured and thrown away
+
+`TODO.md` has carried this for a while: `findNarrowGaps` skips any item↔item gap
+`<= CLEARANCE.sofaToCoffee` (0.40 m) as "intentional close spacing", so **two large
+obstacles jammed 0.05 m apart produce no circulation finding at all** — the design
+score's circulation category is blind to the worst case it exists to catch. The entry
+proposed a fix and named the mechanism: make the skip conditional on the pair not being
+two circulation obstacles, *"`CIRCULATION.obstacleArea` already draws that line — a
+coffee table is below it"*.
+
+**That premise is false in this catalog, and I only found out by building it.**
+
+`coffee-table` is **0.605 m²** against a 0.5 m² bar. So are `tv-console` (0.720),
+`armchair` (0.722), `desk` (0.840) and `dresser` (0.600). The bar separates lamps,
+plants and nightstands (0.18–0.20 m²) from everything else. It does **not** separate
+"defines a walkway" from "arm's reach", which is the only distinction the fix needed it
+to make.
+
+Built and measured over the 19 templates:
+
+| | before | after |
+| --- | --- | --- |
+| item↔item findings | 259 | **364** (+105, all below 0.40 m) |
+| circulation median | 68 | **28** |
+| circulation sum | 1251 | **600** |
+| circulation min | 32 | **0** |
+
+The 105 new findings are led by `bed-single ↔ desk` (14), **`sofa-3seat ↔ armchair`
+(12)**, `bed-single ↔ wardrobe-3door` (12), `bed-queen ↔ dresser` (7) and
+**`sofa-3seat ↔ coffee-table` (6)** — the canonical arm's-reach pairs the floor exists
+for. Two templates land back at a floored zero, which is exactly the saturation
+v0.31.8.3 was written to remove.
+
+**Reverted.** No production code ships in this release.
+
+### What is actually true, which is a better question than the one the entry asked
+
+Two pieces 0.05 m apart are not a route anyone walks, so the finder being quiet is not
+obviously wrong. What it genuinely cannot do is tell *"jammed together, walk around"*
+from *"this pair seals the only way through"* — and that is a **route/connectivity**
+question (does removing this pair reconnect the room?), not a threshold question. No
+smaller number answers it. A real fix wants a reachability pass over the room's free
+floor.
+
+What ships instead is the evidence, so this cannot be re-proposed blind:
+`walkway.test.ts` now pins the rejection with the catalog areas that kill it — including
+an explicit test that a piece *below* the obstacle bar is subject to the same floor, so
+nobody re-reads the bar as the arm's-reach line — and the `TODO.md` entry carries the
+corpus numbers and says **do not re-propose the threshold change**.
+
+I would rather spend a release proving a queued task wrong than ship it and find out from
+the score. The measurement was the deliverable.
+
+Verified: 10153 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.50 — WINDOW-LUMINANCE: there was a third veil, and it was in the glass
 
 Thirty-odd rounds of `(l)` have tried to put range *behind* the window — more exterior

@@ -742,22 +742,35 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   bed against storage** (`bed <-> wardrobe` 8, `bed-queen <-> dresser` 5, `bed-single <-> desk` 5)
   and bedrooms hold 19. That is a placement fix, not a scoring one, and it is the next piece of
   work on this thread.
-- **[MEASURED, NOT FIXED] `findNarrowGaps` is BLIND to genuinely blocked routes, so the design
-  score cannot see the worst case.** `layout/walkway.ts` skips any item-item gap
-  `<= CLEARANCE.sofaToCoffee` (0.40 m) as "intentional close spacing". That is right for a sofa and
-  its coffee table, but it is applied to EVERY pair, so **two large obstacles jammed 0.05 m apart
-  produce no circulation finding at all** — measured directly at 0.05 / 0.25 / 0.32 / 0.40 m, all
-  silent, with 0.45 m reporting normally (pinned in `designScore.test.ts`, which SHOULD fail once
-  this is fixed). Two consequences worth keeping straight:
-  - it is why `CIRCULATION.gradedFloor` is 0.40 and not an anthropometric figure. An earlier cut of
-    the recalibration anchored the band at 0.30 m on chest-depth grounds (200-250 mm) and was
-    unreachable dead code — tests written against it would have passed anyway;
-  - it means the corpus finding "every impassable gap measured 0.400-0.500 m" describes the
-    FINDER's range, not the layouts' quality. Do not quote it as evidence that nothing is blocked.
-  The fix is to make the skip conditional on the pair NOT being two circulation obstacles
-  (`CIRCULATION.obstacleArea` already draws that line — a coffee table is below it). Not taken here
-  because `findNarrowGaps` also feeds the Checks panel and the clearance advisories, so it needs
-  its own verification pass rather than riding along with a scoring change.
+- **[MEASURED; THE PROPOSED FIX IS REJECTED WITH NUMBERS — v0.31.8.51] `findNarrowGaps` is BLIND
+  below `CLEARANCE.sofaToCoffee`, and the obvious fix makes the app worse.** `layout/walkway.ts`
+  skips any item-item gap `<= 0.40 m` as "intentional close spacing", so two large obstacles jammed
+  0.05 m apart produce no circulation finding (measured at 0.05 / 0.25 / 0.32 / 0.40, all silent;
+  0.45 reports normally — pinned in `designScore.test.ts`).
+  **This entry used to propose: make the skip conditional on the pair NOT being two circulation
+  obstacles, "`CIRCULATION.obstacleArea` already draws that line — a coffee table is below it".
+  That premise is FALSE in this catalog, and the fix was built, measured and reverted.**
+  - `coffee-table` is **0.605 m²** against a 0.5 m² bar. So are `tv-console` (0.720),
+    `armchair` (0.722), `desk` (0.840) and `dresser` (0.600). The bar separates
+    lamps/plants/nightstands (0.18-0.20 m²) from everything else — it does **not** separate
+    "defines a walkway" from "arm's reach", which is the distinction the fix needed.
+  - Built and measured over the 19 templates: **259 item-item findings -> 364 (+105 below 0.40 m)**,
+    led by `bed-single<->desk` (14), **`sofa-3seat<->armchair` (12)**, `bed-single<->wardrobe` (12),
+    `bed-queen<->dresser` (7), **`sofa-3seat<->coffee-table` (6)** — i.e. the canonical arm's-reach
+    pairs the floor exists for.
+  - Circulation **median 68 -> 28, sum 1251 -> 600, min 32 -> 0**. Two templates back at a floored
+    zero, which is precisely the saturation v0.31.8.3 was written to remove.
+  **What is actually true.** Two pieces 0.05 m apart are not a route anyone walks, so silence is not
+  obviously wrong. What the finder cannot do is tell *"jammed together, walk around"* from *"this
+  pair seals the only way through"*. That is a **route/connectivity** question — does removing this
+  pair reconnect the room? — and no gap threshold can answer it. A real fix needs a reachability
+  pass over the room's free floor (the flood-fill the `circulation` overlay already implies), not a
+  smaller number. **Do not re-propose the threshold change**; `walkway.test.ts` now pins the
+  rejection with the catalog areas that kill it.
+  Also still true and worth keeping: `CIRCULATION.gradedFloor` is 0.40 rather than an anthropometric
+  figure because of this floor, and the corpus finding "every impassable gap measured 0.400-0.500 m"
+  describes the FINDER's range, not the layouts' quality. Do not quote it as evidence that nothing
+  is blocked.
 - **[G8 — DONE, one open content call] Theme grounding audit complete: 17/17.** Full record with
   citations in `docs/research/2026-09-02-scheme-theme-grounding.md`. Ten style themes audited (nine
   accurate; Modern Luxe corrected), seven `layout`-group presets are researched by construction.

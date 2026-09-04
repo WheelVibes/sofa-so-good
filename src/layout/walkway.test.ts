@@ -21,22 +21,33 @@ const BOX: FurnitureDef = {
 // must be excluded from circulation pinch checks.
 const MOUNTED: FurnitureDef = { ...BOX, id: 'mounted' as never, mounted: true }
 const RUG: FurnitureDef = { ...BOX, id: 'rug' as never, noClip: true }
+// A 0.6 m x 0.6 m piece — 0.36 m², BELOW `OBSTACLE_AREA_M2` (0.5), so it is
+// something you step around rather than a piece that defines a walkway. This is
+// the coffee-table / stool / plant class, and it is what makes the arm's-reach
+// exemption meaningful (BLOCKED-ROUTE-VISIBLE).
+const SMALL: FurnitureDef = {
+  ...BOX,
+  id: 'small' as never,
+  defaultFootprint: { w: 0.6, d: 0.6, h: 0.5 },
+}
 
 const defs: Record<string, FurnitureDef> = {
   box: BOX,
   mounted: MOUNTED,
   rug: RUG,
+  small: SMALL,
 }
 
 let seq = 0
 function mk(defId: string, x: number, z: number, levelId?: string): FurnitureItem {
+  const fp = defs[defId]?.defaultFootprint ?? { w: 1, d: 1 }
   return {
     id: `i-${defId}-${seq++}`,
     defId: defId as never,
     position: [x, z],
     rotation: 0,
     levelId,
-    props: { width: 1, depth: 1 },
+    props: { width: fp.w, depth: fp.d },
   }
 }
 
@@ -75,9 +86,41 @@ describe('findNarrowGaps', () => {
     expect(findNarrowGaps([a, b], defs, customPlan)).toHaveLength(0)
   })
 
+  // ARM'S-REACH-FLOOR (v0.31.8.51) — the blanket `sofaToCoffee` floor stays, and
+  // this is the measurement that settled it. `TODO.md` carried a queued fix:
+  // make the skip conditional on the pair NOT being two circulation obstacles,
+  // "`CIRCULATION.obstacleArea` already draws that line — a coffee table is
+  // below it". **That premise is false in this catalog.** `coffee-table` is
+  // 0.605 m² against a 0.5 m² bar, and so are `tv-console` (0.720),
+  // `armchair` (0.722), `desk` (0.840) and `dresser` (0.600). Built and measured
+  // over the 19 templates, the "fix" added 105 sub-0.40 m findings led by
+  // `sofa-3seat ↔ coffee-table`, `sofa-3seat ↔ armchair` and
+  // `bed-queen ↔ dresser` — the exact arm's-reach pairs the floor exists for —
+  // and drove median circulation 68 → 28 with two templates back at 0, which is
+  // the saturation v0.31.8.3 was written to remove. Reverted.
   it('does NOT flag an intentional close gap (0.3 m ≤ sofaToCoffee)', () => {
     const a = mk('box', 0, 0)
     const b = mk('box', 1.3, 0) // gap = 0.3 — arm's reach, not a walkway
+    expect(findNarrowGaps([a, b], defs, customPlan)).toHaveLength(0)
+  })
+
+  it('is blind below the floor even for two large pieces — a KNOWN limitation', () => {
+    // 0.05 m between two 1 m² pieces reports nothing. That is not a route anyone
+    // walks, so the finder is not wrong to be quiet; what it cannot do is tell
+    // "jammed together, walk around" from "this pair seals the only way
+    // through". Distinguishing those needs a ROUTE model (does removing this
+    // pair reconnect the room?), not a smaller gap threshold — see `TODO.md`.
+    const a = mk('box', 0, 0)
+    const b = mk('box', 1.05, 0) // gap = 0.05
+    expect(findNarrowGaps([a, b], defs, customPlan)).toHaveLength(0)
+  })
+
+  it('a piece below the obstacle bar is still subject to the same floor', () => {
+    // Pinning the catalog fact the rejected fix got wrong: the bar does not
+    // separate "walkway-defining" from "arm's reach". SMALL (0.36 m²) is below
+    // it and BOX (1 m²) is above it, and both are treated identically here.
+    const a = mk('box', 0, 0)
+    const b = mk('small', 1.1, 0) // gap = 0.3
     expect(findNarrowGaps([a, b], defs, customPlan)).toHaveLength(0)
   })
 
