@@ -27,6 +27,47 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.4 — the aircon planner asserted the invariant its own walls broke
+
+Next off the v0.31.9.2 worklist: `resetSlice.ts:361`, which passes the whole plan to
+`planCollisionWalls` when planning condenser positions. It looked like the weakest candidate on the
+list. It is the sharpest.
+
+`planAirconPlacements` **is** level-aware — it resolves each ledge's storey via `levelOfRoom` and
+stamps `levelId` onto every placement, so condensers really do land on upper ledges. And
+`freeCondenserSpot` filters its obstacle list by level, with a comment saying so:
+
+```
+// Same-level obstacles only (collision is level-gated).
+const others = [...ctx.items.filter((it) => (it.levelId ?? GROUND) === (levelId ?? GROUND)), ...placed]
+```
+
+Ten lines below, `walls: ctx.walls` — the single ground-floor set `resetSlice` passed once. **So a
+condenser on an upper ledge was slid clear of downstairs walls**, while the code immediately above
+it declared that collision is level-gated. The comment was true of items and false of walls.
+
+Fixed where the storey is already known: the ledge's enclosing function has both `plan` and
+`level`, so it resolves `planCollisionWalls(levelAsPlan(plan, level), {})` for a non-ground ledge
+and keeps `ctx.walls` for the ground floor — which also preserves the default-flat path, where
+`ctx.walls` is deliberately absent and `canPlace` falls back. Same shape as
+`collision/placementWalls.ts`, which v0.31.9.2 confirmed as the correct precedent.
+
+`airconPlacementLevel.test.ts` asserts the PREMISE before the fix — that every shipped two-storey
+template really does have a different wall set per storey, so passing the ground set upstairs is a
+genuine error and not theatre — then that `levelOfRoom` resolves an upper room to its own level,
+which is the lever the fix keys on. Same approach as `tapeMeasureLevel.test.ts`: test the levers,
+because the defect was never in the sliding maths.
+
+**Worth noting about this bug class.** Two of the three F13 defects now fixed had a comment or a
+sibling line asserting level-awareness a few lines from the code that ignored it — `TapeMeasure`
+filtered nothing while iterating every storey's items, this one filtered items and not walls. The
+inconsistency is local and still invisible to review, because both halves read as correct in
+isolation. That is the strongest argument yet for finishing the type split rather than auditing by
+eye.
+
+Five worklist sites remain: `FinishPicker` (x2), `ClearancePanel`, `DesignScorePanel`,
+`analysis/designScore`.
+
 ## v0.31.9.3 — fixed the confirmed F13 bug, and exempted `planBounds` with a measurement
 
 Two things from the v0.31.9.2 worklist: the one confirmed defect, and the one helper still

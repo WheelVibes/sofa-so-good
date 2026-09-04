@@ -428,7 +428,15 @@ differ:
 - `ui/FinishPicker.tsx:228` and `:273` — wall picking; presumably wants the storey being edited.
 - `ui/ClearancePanel.tsx:73`, `ui/DesignScorePanel.tsx:65`, `analysis/designScore.ts:562` — analysis
   surfaces; probably want whole-home (sum per level), not ground only.
-- `state/slices/resetSlice.ts:361`.
+- ~~`state/slices/resetSlice.ts:361`~~ — **FIXED v0.31.9.4, and it was the sharpest of the list.**
+  `planAirconPlacements` is level-aware (stamps `levelId` per placement) and `freeCondenserSpot`
+  filters obstacles by level with a comment saying "collision is level-gated" — while `ctx.walls`
+  ten lines below was the single ground-floor set, so a condenser on an UPPER ledge was slid clear
+  of downstairs walls. The ledge's enclosing function has `plan` and `level`, so it now resolves
+  its own storey's walls and keeps `ctx.walls` for ground (preserving the default-flat fallback).
+  **Pattern worth remembering: two of the three F13 defects fixed so far had a comment or sibling
+  line asserting level-awareness within ten lines of the code ignoring it.** Both halves read as
+  correct in isolation, which is why review does not catch them and the type split does.
 **Correct and NOT to be "fixed":** `collision/placementWalls.ts:40` (the ground branch, upper
 levels handled above it) and `ui/report.ts:393` (the ground SET, upper storeys resolved by
 `findWallClipsByLevel` — the comment says so).
