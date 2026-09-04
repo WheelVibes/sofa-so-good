@@ -97,3 +97,49 @@ export async function assertSceneAlive(page, label = '') {
     )
   }
 }
+
+/**
+ * Wait until the BAKED GI has finished attaching, and report how much of it there is.
+ *
+ * **Why this is not `loading.active`.** That flag clearing means the plan is loaded;
+ * `applyLightmapsFromIndex` runs AFTER it and its textures load asynchronously. A frame or an
+ * export taken in between sees the same geometry with a different indirect term — and it looks
+ * entirely plausible. `v0.31.7.276` traced item `(z7)`, a "floor is 20 % darker than Cycles"
+ * result that survived four versions of investigation, to exactly this: with the wait the floor
+ * reads 126.6 against Cycles' 129.0 (ratio 0.981), without it 104.7 (0.811). Ceiling and wall are
+ * unaffected because their lightmaps attach early, which is what made the artefact so selective.
+ *
+ * **Repeatability is not validity**, which is the trap that cost those versions: four unwaited
+ * runs returned 104.7, 104.7, 104.7, 105.8 — stable to 1.1 counts — and the stability read as
+ * confirmation. So this returns the COUNT and callers print it: a readiness check that says
+ * nothing is the thing that failed.
+ *
+ * Also required before `scene-glb.mjs` exports, for a different reason: `uv1` is COMPUTED by
+ * `applyLightmapsFromIndex`, so a GLB exported too early carries no `UVMap.001` — and that is the
+ * layer `bake_material.py --uv-layer` needs to make a fresh bake comparable to a shipped map.
+ */
+export async function waitForBakedGi(page, { polls = 6, intervalMs = 750, maxTries = 80 } = {}) {
+  const count = () =>
+    page.evaluate(() => {
+      let n = 0
+      window.__three?.scene?.traverse?.((o) => {
+        const m = Array.isArray(o.material) ? o.material[0] : o.material
+        if (m?.userData?.visLightmap === true) n += 1
+      })
+      return n
+    })
+  let last = -1
+  let stable = 0
+  for (let i = 0; i < maxTries; i += 1) {
+    const n = await count()
+    if (n > 0 && n === last) {
+      stable += 1
+      if (stable >= polls) return { count: n, settled: true }
+    } else {
+      stable = 0
+    }
+    last = n
+    await new Promise((r) => setTimeout(r, intervalMs))
+  }
+  return { count: last, settled: false }
+}

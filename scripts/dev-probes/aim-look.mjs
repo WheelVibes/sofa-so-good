@@ -11,7 +11,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import puppeteer from 'puppeteer'
-import { appUrl, assertSceneAlive } from './lib.mjs'
+import { appUrl, assertSceneAlive, waitForBakedGi } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/aim-look'
 const PLAN = process.env.PLAN || ''
@@ -68,51 +68,18 @@ await page.evaluate((h) => {
   s.setTimeMode('manual')
   s.setManualHour(h)
 }, HOUR)
-// WAIT FOR THE BAKED GI TO BE ATTACHED, and say how much of it there is.
-//
-// `store.loading.active` going false is NOT the same as the scene being ready to measure:
-// `applyLightmapsFromIndex` runs after, and its textures load asynchronously. A frame captured in
-// between renders the same geometry with a DIFFERENT indirect term, and it looks entirely
-// plausible -- `v0.31.7.276` chased one such frame as far as a "contact shadows brighten the
-// floor" result before four repeat runs showed the settled value was 22 counts away and stable to
-// 1.1 counts. The count is printed because a silent readiness check is the thing that failed here.
-async function waitForBakedGi() {
-  const count = () =>
-    page.evaluate(() => {
-      let n = 0
-      window.__three.scene.traverse((o) => {
-        const m = Array.isArray(o.material) ? o.material[0] : o.material
-        if (m?.userData?.visLightmap === true) n += 1
-      })
-      return n
-    })
-  let last = -1
-  let stable = 0
-  for (let i = 0; i < 80; i += 1) {
-    const n = await count()
-    if (n > 0 && n === last) {
-      stable += 1
-      if (stable >= 6) {
-        console.log(`baked GI: ${n} materials attached (stable)`)
-        return n
-      }
-    } else {
-      stable = 0
-    }
-    last = n
-    await new Promise((r) => setTimeout(r, 750))
-  }
-  console.log(`baked GI: ${last} materials attached (did NOT settle in 60s)`)
-  return last
-}
-
 // `LocationPrompt` surfaces once onboarding is gone and blurs the scene just as thoroughly.
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})
 await new Promise((r) => setTimeout(r, 2500))
-await waitForBakedGi()
+{
+  const gi = await waitForBakedGi(page)
+  console.log(
+    `baked GI: ${gi.count} materials attached${gi.settled ? ' (stable)' : ' (DID NOT SETTLE)'}`,
+  )
+}
 
 if (PLAN) {
   const swapped = await page.evaluate(

@@ -29,6 +29,30 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.277 — the GI-readiness wait becomes shared, because three probes needed it
+
+`.276` fixed `aim-look` and I flagged that other probes carried the same assumption. They do, so the
+wait is now `waitForBakedGi()` in `lib.mjs`, used by three probes for two different reasons:
+
+- **`aim-look`** — frames. The original case.
+- **`gi-point`** — it resolves a mesh to its map through the DEV pairing handle that
+  `applyLightmapsFromIndex` writes, so mid-attach it can answer for some surfaces and not others.
+  Its numbers are unchanged (texel 0.4863, `E_baked` 0.4338), because it already waited on
+  `sceneReady` plus 5 s — it was correct by luck of timing, not by construction.
+- **`scene-glb`** — and this one matters for a separate reason: **`uv1` is COMPUTED by
+  `applyLightmapsFromIndex`**, so a GLB exported too early carries no `UVMap.001`. That is the
+  layer `bake_material.py --uv-layer` needs to compare a fresh bake against a shipped one, which
+  is how `(z7)` was finally settled. Exporting early would have broken that silently.
+
+All three now **print** the count — 179 on the default flat — rather than checking silently. A
+readiness check that says nothing is exactly what failed for four versions.
+
+**Scope, stated honestly:** 73 probes share the older `loading?.active` assumption. The three that
+measure or export GI-dependent state are fixed; the rest are unaudited. The rule of thumb worth
+carrying: a probe that reads a GI-lit surface and does not print a GI count should be treated as
+suspect until it does.
+
+
 ## v0.31.7.276 — `(z7)` was never real: the probe measured the floor before its lightmap attached
 
 **The cause of `(z10)`, and it retracts a lot.** `aim-look` waited for `store.loading.active` to go

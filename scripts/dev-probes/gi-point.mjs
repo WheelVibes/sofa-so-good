@@ -32,7 +32,7 @@
 import { readFileSync } from 'node:fs'
 import puppeteer from 'puppeteer'
 import sharp from 'sharp'
-import { appUrl, assertSceneAlive } from './lib.mjs'
+import { appUrl, assertSceneAlive, waitForBakedGi } from './lib.mjs'
 
 const argOf = (k, d) => {
   const a = process.argv.find((s) => s.startsWith(`--${k}=`))
@@ -115,6 +115,15 @@ if (process.env.WALK === '1') {
     st.dismissCallout?.('walk-mode')
   })
   await new Promise((r) => setTimeout(r, 2500))
+}
+// This probe resolves a mesh to its MAP through the DEV pairing handle that
+// `applyLightmapsFromIndex` writes, so it cannot read anything until that has run -- and a
+// partially-attached scene would silently answer for some surfaces and not others.
+{
+  const gi = await waitForBakedGi(page)
+  console.log(
+    `baked GI: ${gi.count} materials attached${gi.settled ? ' (stable)' : ' (DID NOT SETTLE)'}`,
+  )
 }
 await assertSceneAlive(page, 'after tier')
 

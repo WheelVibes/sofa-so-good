@@ -18,7 +18,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import puppeteer from 'puppeteer'
-import { appUrl, assertSceneAlive } from './lib.mjs'
+import { appUrl, assertSceneAlive, waitForBakedGi } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-glb'
 const TIER = process.env.TIER || 'realistic'
@@ -61,6 +61,16 @@ await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})
 await new Promise((r) => setTimeout(r, 4000))
+// Before the export, not just before a render: `uv1` is COMPUTED by `applyLightmapsFromIndex`, so
+// a GLB written too early carries no `UVMap.001` -- and that is the layer
+// `bake_material.py --uv-layer` needs to make a fresh bake comparable to a shipped map
+// (`v0.31.7.274`). It also fixes the `(z10)` class of error for anything measured off this export.
+{
+  const gi = await waitForBakedGi(page)
+  console.log(
+    `baked GI: ${gi.count} materials attached${gi.settled ? ' (stable)' : ' (DID NOT SETTLE)'}`,
+  )
+}
 
 // DROP_DEFIDS=<a,b,c> deletes items by catalog id before exporting — a targeted control for
 // "does THIS furniture change the bake". Added to test whether the 66 curtains this session seeded
