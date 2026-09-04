@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.284 — `(z11)` survives three eliminations: a Cycles BAKE and a Cycles RENDER disagree
+
+`(z11)` said the app's baked GI falls off toward room edges faster than physics. Three candidate
+explanations, including the one I thought would kill it:
+
+**The falloff is in the MAP, and the app renders it faithfully.** `gi-point` at the two patch
+centres reads `E_baked` **0.6307 centre / 0.5622 edge = 0.891 linear**, against the app's 0.859 in
+bytes.
+
+**Sun-bounce: refuted.** The mechanism was appealing — a sunlit floor brightens the walls, which
+brightens the ceiling EDGE more than its centre, so a bake with `sun_disc: false` would fall off too
+fast. Two `--indirect-only` bakes of this ceiling with and without the sun disc give edge/centre
+**0.7608 and 0.7609**. Identical to four figures. It does nothing to the profile.
+
+**Staleness: refuted.** A fresh bake from the CURRENT export falls off *more* steeply (0.808) than
+the shipped map (0.891), so the shipped maps are not simply out of date with the furniture.
+
+**The AgX shoulder: refuted, and this was the strong objection.** Byte gradients at 215/255 sit where
+the curve compresses hard, and the app's ceiling sat 5 counts LOWER, where it compresses less — so
+the two byte ratios were not comparable and `(z11)`'s magnitude looked like an artefact of curve
+position. Matched by raising the app's exposure: ratio 0.859 at default (ceilC 209.9), 0.874 at
+×1.38 (219.7), 0.882 at ×1.62 (223.8). It does flatten with level, but at a matched ~215 it is still
+about **0.87 against Cycles' 0.963**. The discrepancy survives level matching.
+
+**So the crux is sharper and stranger than the item started as: a Cycles BAKE of this scene produces
+a steeper irradiance gradient across the ceiling than a Cycles RENDER of the same scene**, with the
+sun disc, staleness and the view transform all eliminated. The remaining suspects are geometric
+rather than physical: at `res 256` a 10.68 m² ceiling face across about a third of the atlas is
+roughly 4 cm per texel, so a texel adjacent to the wall junction integrates a hemisphere partly
+below the ceiling plane; and `bake_margin 2` / `dilate 4` interact with the face boundary. A
+resolution sweep on this one object (256 / 512 / 1024) separates texel footprint from physics, and
+is the next measurement.
+
+**Also: `EXPOSURE` is a multiplier.** `setExposure` feeds `st.exposure` in
+`grade(altitude).exposure * toneExposureBias(mode) * st.exposure`, so `EXPOSURE=1.38` is 1.38× the
+default rather than the default's own 1.38 — it measured 10 counts brighter than an unset run. Same
+trap as `SKYCATCH`, which cost a whole round of `(l)` conclusions in `.279`. Now documented at the
+call site.
+
+
 ## v0.31.7.283 — not room-level darkness: the baked GI falls off toward room EDGES too fast
 
 `.282` found the main bedroom's wall at 0.926 and filed "room-level darkness" as a lead, on one

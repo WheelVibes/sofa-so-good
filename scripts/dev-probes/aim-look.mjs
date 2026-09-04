@@ -131,6 +131,11 @@ await new Promise((r) => setTimeout(r, 3000))
 // If exposure is purely a display transform, then inverting a byte with a curve measured at the
 // SAME exposure must give the same scene radiance whatever the exposure is. If the inverted value
 // moves with it, the grade is being applied twice.
+// EXPOSURE is a MULTIPLIER, not an absolute. `setExposure` feeds `st.exposure` in
+// `gl.toneMappingExposure = grade(altitude).exposure * toneExposureBias(mode) * st.exposure`, so
+// `EXPOSURE=1.38` is 1.38x the default rather than the default's own 1.38 — it measured 10 counts
+// brighter than an unset run (`v0.31.7.284`). Same trap as `SKYCATCH`, which scales the pane
+// emissive rather than setting it, and which made a whole round of `(l)` conclusions wrong.
 if (process.env.EXPOSURE) {
   await page.evaluate((e) => window.__store.getState().setExposure(e), Number(process.env.EXPOSURE))
   await new Promise((r) => setTimeout(r, 1500))
