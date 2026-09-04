@@ -29,6 +29,37 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.292 — `(z13)` has a cause: the shipped lightmap set is PARTLY stale
+
+The bedroom's 35 % GI deficit tracks the map, not the shader. At matched settings — res 256, 1024
+samples, `--keep-glazing`, `--per-map-scale`, 8-bit, and `--uv-layer UVMap.001` so both the shipped
+and the fresh bake write into the SAME app-side atlas and one uv coordinate addresses one surface
+point:
+
+| bedroom ceiling, ceiling-centre uv1 | texel | scale | E |
+| --- | --- | --- | --- |
+| shipped | 0.3608 | 1.7482 | **0.6307** |
+| fresh | 0.3882 | 2.8890 | **1.1216** |
+| ratio | | | **0.562** |
+
+**The shipped map is 0.56× a fresh bake of the current scene.** And the `livingDining` floor map
+matched a fresh bake to **0.1 %** back in `.274` (`int_mean` 0.1648 against 0.1650).
+
+So the set is not uniformly stale: some maps are exact, others about 44 % low. That is exactly the
+shape of `(z13)`'s room dependence, and it means no global `IRRADIANCE_GAIN` can correct it — the
+error is per-map data, not a constant.
+
+The rendered bedroom deficit (0.678) is smaller than the map deficit (0.562), which is what should
+happen: a render patch averages over an area and over several maps. Consistent in direction and
+magnitude without being identical, and I would rather note that than present them as the same number.
+
+**Fix: re-bake the set** from a current export at the settings the index's own `bake` block records
+(min_area 1.5, limit 400, res 256, samples 1024, per_map_scale, dilate 4, keep_glazing, 8-bit). That
+is 195 maps, so it is its own round — and it deserves a staleness AUDIT first, comparing every
+shipped map against a fresh bake, so the scale of the problem is known rather than assumed. `(z12)`'s
+linear view is what made any of this visible: in bytes these same surfaces read 0.976 and 0.939.
+
+
 ## v0.31.7.291 — the biggest error in the arc, hidden by the tone curve: the bedroom's GI is 35 % dark
 
 Measured in linear light, same hour, same transform on both sides, both frames verified unclipped,
