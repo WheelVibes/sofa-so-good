@@ -17,6 +17,7 @@
  */
 import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
 import { BufferAttribute } from 'three'
+import { daytimeSkyTint } from './lighting/altitudeCurve'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { computeBoxAtlasUv } from './lightmapUv'
@@ -30,6 +31,24 @@ import {
  *  Not exported: it is the default for `baseUrl` below, and an export nothing imports fails
  *  `npm run deadcode`. */
 const LIGHTMAP_BASE = `${import.meta.env.BASE_URL}assets/lightmaps`
+
+/**
+ * How much of the daytime sky's chroma the injected irradiance carries — see `(z4)` and
+ * `daytimeSkyTint`. 0 reproduces the old achromatic term exactly; 1 is the full
+ * luminance-preserving sky tint.
+ *
+ * A dial rather than a hard-coded vector because the physical answer is not 1: an interior
+ * surface's indirect light is sky through the glazing PLUS bounce off warm floors and walls, so
+ * full sky chroma is an over-correction. The value is CALIBRATED against an exposure-matched
+ * Cycles reference rather than chosen, and the calibration is recorded in the CHANGELOG.
+ */
+export const SKY_TINT_STRENGTH = 0.87
+
+const SKY_TINT: [number, number, number] = (() => {
+  const t = daytimeSkyTint()
+  const s = SKY_TINT_STRENGTH
+  return [1 + (t[0] - 1) * s, 1 + (t[1] - 1) * s, 1 + (t[2] - 1) * s]
+})()
 
 export interface ApplyOptions {
   baseUrl?: string
@@ -306,7 +325,7 @@ export function applyLightmapsFromIndex(
       cloned += 1
     }
     const mapGain = (resolver.scaleFor(key, ctx ?? '') ?? scale) * baseGain
-    applyVisibilityLightmap(target as never, loadTexture(url), mapGain, debug)
+    applyVisibilityLightmap(target as never, loadTexture(url), mapGain, debug, SKY_TINT)
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
       // handed to compare its `uv1` against that map's texels, and the texture

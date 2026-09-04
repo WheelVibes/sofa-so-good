@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.264 — indirect light had no colour; `(z4)` fixed, and the reference was missing 19 lamps
+
+**Indirect light in this renderer was achromatic, in both factors.** `uniform float visGain` times
+the map's `.r` channel, so `indirectDiffuse = grey * BRDF_Lambert( albedo )`. Every shadowed
+surface therefore rendered at its own albedo hue and nothing else — never sky-blue, never
+bounce-tinted. Against an exposure-matched Cycles reference the `livingDining` east wall read
+**R−B +12.4** where the reference read **−14.9**.
+
+**The light rig had no authority over it at all,** which is the measurement that pinned the cause:
+setting the hemisphere's warm `groundColor [0.42, 0.38, 0.34]` to its blue `skyColor
+[0.55, 0.66, 0.92]` at all three daytime keys moved the patch **0.0 counts**. `replace` mode
+discards ambient, hemisphere and IBL alike, so no amount of tuning those could ever have reached it.
+
+**`.263`'s hypothesis was half wrong, and the way it failed was the useful part.** I predicted the
+injection was DISCARDING a cool-sky term. `GI=off` measured **warmer** (+20.5), not cooler — there
+was no cool term to lose, and the baked GI was already the cooler of the two paths. The defect was
+an absence of colour, not the loss of a particular colour.
+
+**Fix:** `visGain` becomes a `vec3`, tinted by `daytimeSkyTint()` — the shared `skyColor` of the
+30°/45°/85° keys, normalised by Rec. 709 luminance so it carries **chroma only** and cannot
+disturb the nine-measurement `IRRADIANCE_GAIN` calibration. The strength is CALIBRATED, not
+chosen: lights-off endpoints measured R−B **+1.8 at strength 0 and −17.4 at 1**, a −19.2 span,
+putting the target at **0.87**.
+
+**Result, n = 2, exposure-matched:** app **−15.1** against Cycles **−14.8 at 13:00** and **−14.9 at
+17:00**. Colour error on that surface goes 16.7 counts → **0.25**. Cycles' own R−B being constant
+across the two hours independently vindicates using a constant tint — which is required anyway,
+since the tint sits in `customProgramCacheKey` and an hour-varying one would recompile every baked
+material on every hour change (`.15` measured 216 ms for exactly that).
+
+**And the reference was missing 19 lamps — new item `(z5)`.** `scene-glb.mjs` writes only
+`lights.directional`, so `render_from_manifest.py` builds a scene lit by sun and sky alone. Every
+app-vs-Cycles comparison taken at the default `lightsMode: on` has been measuring a LIT interior
+against an UNLIT reference. Turning the app's interior lights off moved this patch **218.2 / +4.0 →
+193.2 / −17.4**: 25 counts of brightness and 21 of warmth, larger than most defects this arc has
+chased. `(z4)`'s calibration was run lights-off on both sides for that reason, and it is the only
+reason the residual came out at 0.25 counts. Any earlier absolute number taken with lights on is
+inflated by some unknown share of this.
+
+`visGainLuminance()` is exported and the scale-threading tests now assert through it, which is a
+STRONGER check than reading a bare float: it fails if a tint ever smuggles in a brightness change.
+
+Frame cost +0.3 ms performance, +0.2 ms realistic. One realistic run showed a 5.3 s stall that did
+not reproduce — a Blender render was competing for the CPU. Suite 10219 green.
+
+
 ## v0.31.7.263 — `(z3)` FIXED: the wall the camera sees was never able to receive a shadow
 
 **The mechanism.** `WallSegment.tsx`'s `FacePlane` — a world-UV plane drawn `FACE_OFFSET` proud of

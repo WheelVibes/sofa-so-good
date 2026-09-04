@@ -262,3 +262,30 @@ export function daylightFromAltitude(altRad: number): number {
   const altDeg = (altRad * 180) / Math.PI
   return Math.max(0, Math.min(1, (altDeg + 8) / 8))
 }
+
+/**
+ * Chroma of the DAYTIME sky, luminance-preserving, for the baked-irradiance injection (`(z4)`).
+ *
+ * The injected indirect term was achromatic — a `float` gain times the map's `.r` — so every
+ * shadowed surface rendered at its own albedo hue and shadow fill in this renderer had no colour
+ * at all. Real shadow fill is sky-lit and therefore blue: an exposure-matched Cycles reference put
+ * the `livingDining` east wall at **R−B −14.9** against the app's **+12.4**.
+ *
+ * **Constant, not interpolated per hour, and that is deliberate.** The tint is folded into the
+ * `visGain` uniform and appears in `customProgramCacheKey`, so a value that tracked the sun would
+ * recompile every baked material on every hour change — `v0.31.7.15` measured a **216 ms** frame
+ * for exactly that. It costs nothing here: `LIGHTING_KEYS` carries the SAME `skyColor`
+ * `[0.55, 0.66, 0.92]` at 30°, 45° and 85°, so a daylight constant is not an approximation across
+ * the hours this matters for. Only the ≤10° keys differ, and there the direct beam has collapsed
+ * to 0.318 and below anyway.
+ *
+ * Normalised by Rec. 709 luminance so the tint carries **chroma only**. Adding colour must not
+ * smuggle in a brightness change, or it would silently re-open the `IRRADIANCE_GAIN` calibration
+ * that nine measurements went into.
+ */
+export function daytimeSkyTint(): [number, number, number] {
+  const sky = LIGHTING_KEYS[0]?.values.skyColor ?? [1, 1, 1]
+  const luma = 0.2126 * sky[0] + 0.7152 * sky[1] + 0.0722 * sky[2]
+  if (luma <= 0) return [1, 1, 1]
+  return [sky[0] / luma, sky[1] / luma, sky[2] / luma]
+}

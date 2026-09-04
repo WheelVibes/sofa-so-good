@@ -32,7 +32,7 @@
  * `medium` with 331 distinct maps attached.
  */
 import type { MeshStandardMaterial, Texture } from 'three'
-import { LinearFilter } from 'three'
+import { LinearFilter, Vector3 } from 'three'
 
 /**
  *
@@ -311,6 +311,19 @@ export function prepareVisibilityTexture(texture: Texture): Texture {
  * --pass irradiance` bakes it that way by default, because the app computes
  * direct sun itself and a baked direct term would be double-counted in turn.
  */
+/**
+ * Rec. 709 luminance of the `visGain` uniform.
+ *
+ * `visGain` became a `vec3` so the injected irradiance could carry illuminant chroma (`(z4)`).
+ * The tint that colours it is luminance-preserving by construction, so this returns the SCALAR
+ * gain that went in — which makes it the natural assertion for the scale-threading tests, and a
+ * stronger one than reading a bare float was: it fails if a tint ever smuggles in a brightness
+ * change, which is the one way this feature could silently invalidate `IRRADIANCE_GAIN`.
+ */
+export function visGainLuminance(v: { x: number; y: number; z: number }): number {
+  return 0.2126 * v.x + 0.7152 * v.y + 0.0722 * v.z
+}
+
 export function applyVisibilityLightmap(
   material: MeshStandardMaterial,
   texture: Texture,
@@ -321,18 +334,42 @@ export function applyVisibilityLightmap(
    * it existed, and it found the fault in one frame. Not a feature: unusable by design.
    */
   debug = false,
+  /**
+   * Illuminant CHROMA for the injected irradiance, as a linear RGB multiplier.
+   *
+   * **Why this exists (`(z4)`, measured v0.31.7.264).** Both factors below were scalar — a
+   * `float` gain and the map's `.r` channel — so `indirectDiffuse` came out as
+   * `grey * BRDF_Lambert( albedo )`. That makes every shadowed surface render at its OWN
+   * albedo hue and nothing else: indirect light in this renderer had no colour. Measured
+   * against an exposure-matched Cycles reference at the `livingDining` east wall, 17:00, the
+   * app's shadowed wall read **R−B +12.4** against the reference's **−14.9** — 27 counts, in
+   * the wrong direction. Real shadow fill is sky-coloured and therefore blue.
+   *
+   * Proof it was the injection and not the light rig: setting the hemisphere's warm
+   * `groundColor` to its blue `skyColor` at all three daytime keys moved that patch **0.0
+   * counts**, because `replace` mode discards ambient, hemisphere and IBL alike. The light
+   * rig had no authority over the surface at all.
+   *
+   * Defaults to white, so an unset call is byte-identical to the scalar version and the
+   * `IRRADIANCE_GAIN` calibration behind it is untouched. Pass a LUMINANCE-PRESERVING tint
+   * (`skyTintForAltitude`) so adding chroma cannot smuggle in a brightness change — that
+   * separation is what keeps this measurable against the nine-measurement error record.
+   */
+  tint: readonly [number, number, number] = [1, 1, 1],
 ): void {
   const map = prepareVisibilityTexture(texture)
   material.onBeforeCompile = (shader) => {
     shader.uniforms.visMap = { value: map }
-    shader.uniforms.visGain = { value: gain }
+    shader.uniforms.visGain = {
+      value: new Vector3(gain * tint[0], gain * tint[1], gain * tint[2]),
+    }
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'attribute vec2 uv1;\nvarying vec2 vVisUv;\nvoid main() {')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvVisUv = uv1;')
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'void main() {',
-        'uniform sampler2D visMap;\nuniform float visGain;\nvarying vec2 vVisUv;\n' +
+        'uniform sampler2D visMap;\nuniform vec3 visGain;\nvarying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
       .replace(
@@ -378,7 +415,7 @@ export function applyVisibilityLightmap(
   // Encodes the gain and the debug mode, so two variants cannot share one cached program.
   // Mode is in the key: `replace` and `multiply` are different programs, and a
   // constant key already collapsed two variants once (`v0.31.7.44`).
-  material.customProgramCacheKey = () => `visGain${gain}${debug ? ':dbg' : ''}`
+  material.customProgramCacheKey = () => `visGain${gain}:${tint.join(',')}${debug ? ':dbg' : ''}`
   // Marked so it can be found and DETACHED again. Materials outlive a plan change -- they are
   // shared/cached across plans -- so a re-run that only adds maps leaves the previous plan's
   // visibility on any material the new plan reuses (`v0.31.7.45`).

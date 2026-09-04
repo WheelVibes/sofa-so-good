@@ -1,9 +1,14 @@
 // @vitest-environment node
 import { BufferAttribute, BufferGeometry, Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { describe, expect, it } from 'vitest'
+
+/** Shape of the `visGain` vec3 uniform, which the shader stubs type loosely. */
+type Vec3 = { x: number; y: number; z: number }
+
 import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
 import { type LightmapIndex, parseLightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
+import { visGainLuminance } from './visibilityLightmap'
 
 /**
  * These run in the node environment against real three objects but no renderer: the shader patch
@@ -123,13 +128,13 @@ describe('applyLightmapsFromIndex', () => {
     root.add(w)
     applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, { gain: 42 })
     const shader = {
-      uniforms: {} as Record<string, { value: number }>,
+      uniforms: {} as Record<string, { value: unknown }>,
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',
       fragmentShader:
         'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
     }
     ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
-    expect(shader.uniforms.visGain.value).toBe(42)
+    expect(visGainLuminance(shader.uniforms.visGain.value as Vec3)).toBeCloseTo(42, 6)
   })
 
   it('MULTIPLIES the bake scale into the gain, so the map returns to its baked units', () => {
@@ -150,13 +155,13 @@ describe('applyLightmapsFromIndex', () => {
     if (!('index' in parsed)) throw new Error('bad fixture')
     applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 5 })
     const shader = {
-      uniforms: {} as Record<string, { value: number }>,
+      uniforms: {} as Record<string, { value: unknown }>,
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',
       fragmentShader:
         'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
     }
     ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
-    expect(shader.uniforms.visGain.value).toBe(15)
+    expect(visGainLuminance(shader.uniforms.visGain.value as Vec3)).toBeCloseTo(15, 6)
   })
 
   it('leaves the gain alone when the index declares no scale', () => {
@@ -165,13 +170,13 @@ describe('applyLightmapsFromIndex', () => {
     root.add(w)
     applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, { gain: 7 })
     const shader = {
-      uniforms: {} as Record<string, { value: number }>,
+      uniforms: {} as Record<string, { value: unknown }>,
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',
       fragmentShader:
         'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
     }
     ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
-    expect(shader.uniforms.visGain.value).toBe(7)
+    expect(visGainLuminance(shader.uniforms.visGain.value as Vec3)).toBeCloseTo(7, 6)
   })
 
   it('applies only ONE plan’s maps when a key exists in two', () => {
@@ -262,14 +267,14 @@ describe('per-map scale', () => {
     if (!('index' in parsed)) throw new Error('bad fixture')
     applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 2 })
     const shader = {
-      uniforms: {} as Record<string, { value: number }>,
+      uniforms: {} as Record<string, { value: unknown }>,
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',
       fragmentShader:
         'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
     }
     ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
     // 3 (the map's own) x 2 (gain) -- NOT 100 x 2.
-    expect(shader.uniforms.visGain.value).toBe(6)
+    expect(visGainLuminance(shader.uniforms.visGain.value as Vec3)).toBeCloseTo(6, 6)
   })
 
   it('falls back to the index-level scale when the entry has none', () => {
@@ -286,13 +291,13 @@ describe('per-map scale', () => {
     if (!('index' in parsed)) throw new Error('bad fixture')
     applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 2 })
     const shader = {
-      uniforms: {} as Record<string, { value: number }>,
+      uniforms: {} as Record<string, { value: unknown }>,
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',
       fragmentShader:
         'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
     }
     ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
-    expect(shader.uniforms.visGain.value).toBe(10)
+    expect(visGainLuminance(shader.uniforms.visGain.value as Vec3)).toBeCloseTo(10, 6)
   })
 
   it('REFUSES an unusable per-map scale rather than treating it as 1', () => {

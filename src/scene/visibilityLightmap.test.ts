@@ -3,11 +3,16 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { LinearFilter } from 'three'
 import { describe, expect, it } from 'vitest'
+
+/** Shape of the `visGain` vec3 uniform, which the shader stubs type loosely. */
+type Vec3 = { x: number; y: number; z: number }
+
 import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
   IRRADIANCE_GAIN,
   prepareVisibilityTexture,
+  visGainLuminance,
 } from './visibilityLightmap'
 
 /**
@@ -66,7 +71,7 @@ describe('applyVisibilityLightmap', () => {
     // The whole point of the rewrite: no `#ifdef` that three can compile out.
     const { s } = compile(6)
     expect(s.fragmentShader).toContain('uniform sampler2D visMap')
-    expect(s.fragmentShader).toContain('uniform float visGain')
+    expect(s.fragmentShader).toContain('uniform vec3 visGain')
     expect(s.fragmentShader).toContain('varying vec2 vVisUv')
     expect(s.fragmentShader).not.toContain('#ifdef')
   })
@@ -88,7 +93,7 @@ describe('applyVisibilityLightmap', () => {
 
   it('binds the map and the gain as uniforms', () => {
     const { s } = compile(42)
-    expect(s.uniforms.visGain.value).toBe(42)
+    expect(visGainLuminance(s.uniforms.visGain.value as Vec3)).toBeCloseTo(42, 6)
     expect(s.uniforms.visMap.value).toBeTruthy()
   })
 
@@ -105,7 +110,10 @@ describe('applyVisibilityLightmap', () => {
     // old 6 was 1.38-1.49x too bright; 4.2 lands at 0.98-1.03x in two rooms whose baked irradiance
     // differs by 2x.
     expect(IRRADIANCE_GAIN).toBe(4.2)
-    expect(compile().s.uniforms.visGain.value).toBe(IRRADIANCE_GAIN)
+    expect(visGainLuminance(compile().s.uniforms.visGain.value as Vec3)).toBeCloseTo(
+      IRRADIANCE_GAIN,
+      6,
+    )
   })
 
   it('keys the program cache by gain and debug mode, so variants cannot collapse', () => {
