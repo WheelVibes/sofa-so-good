@@ -29,6 +29,36 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.290 — the linear pair has a range limit, so `(z7)`'s 12.3 % stays at n = 1
+
+Trying to reproduce `.288`'s linear floor deficit in a second room found a limit in the new
+measurement path, and I would rather bound it than measure through it.
+
+**A brighter room clips under a linear transform.** The `mainBedroom` ceiling and wall both read
+**255 / p05 255 / p95 255** on BOTH sides at the manifest's ×1.38 — no ratio is recoverable. AgX's
+shoulder is what normally hides that, which is exactly why it flatters comparisons.
+
+**Lowering both sides together does not preserve the scaling.** `aim-look EXPOSURE=0.3` against
+`render_still --exposure -1.2721` are the same 0.414 factor on paper. Measured, the app comes out
+**28.8 counts brighter** (224.5 against 195.7) — a linear ratio of about **1.37**, close enough to
+1.38 to look like the day grade being applied twice somewhere in the `EXPOSURE` + `TONEMAP=linear`
+combination. That is a guess, it is not measured, and `EXPOSURE` has already been established as a
+multiplier once this session, so I am not going to assume the second thing about it.
+
+**Consequence:** linear comparisons are trustworthy only at the DEFAULT exposure, on surfaces that
+do not clip there. `livingDining`'s tri pose qualifies; the bedroom's pitched-up pose does not. So
+`(z7)`'s 12.3 % stands at **n = 1** rather than being quietly generalised.
+
+**One cheap observation kept, because it points somewhere.** In the linear L/D set the error is
+ORIENTATION-ordered: ceiling (down-facing) **1.040**, wall (side) 0.985, floor (up-facing)
+**0.877**. If that survives a second room it is a per-orientation gain error, fixable the way
+`(z8)`'s tint was — measured per orientation rather than chosen. And one contributor is already
+identified and small: `(z8)`'s tint is luminance-preserving only on a NEUTRAL surface. On the floor's
+warm wood albedo (0.527/0.361/0.216) the blue-heavy `up` tint costs **2.6 %** of reflected luminance
+(albedo luma 0.386 → 0.376), because the surface reflects little of what the tint adds. Real, but a
+fifth of the deficit — so it is a contributor, not the cause.
+
+
 ## v0.31.7.289 — fixing a guard I broke, and admitting `.288` was committed with it red
 
 `.288` shipped with `postStackGuard.test.ts` failing, and I committed anyway: my verification
