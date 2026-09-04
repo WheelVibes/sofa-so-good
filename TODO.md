@@ -51,6 +51,16 @@ not an arranger bug** — options are widen the room ~0.2 m, a 0.75 m quadrant s
 two-fixture master bath. All three re-draw a shipped layout, so none is mine to pick.
 **The inset experiment did establish one real number for the room-rect item: `ROOM_INSET` costs the
 corpus 30 pieces (1448 -> 1478).** Argue it on that, not on this bathroom.
+**COSTED PROPERLY v0.31.9.13, and it is a REDISTRIBUTION not a win.** At `ROOM_INSET = 0` the +30
+are physically sound (overlaps 0 and wall clips 0, same as shipped), but the mix matters:
+gains `towel-rail` +5, `photo-frame-cluster` +3, then +2 each for `shower` `stove` `dresser` `desk`
+`outdoor-chair` `book-set` `throw-blanket` `throw-cushion`; **losses `bathroom-sink` -2**,
+`utility-cabinet` -1, `fruit-bowl` -1, `ceramic-vase-slim` -1. Less margin lets big pieces claim
+more wall and basins get squeezed out — which is also why `ctu-mbath` did not recover at inset 0.
+Trading two basins for five towel rails is not obviously an improvement.
+**Also refuted (v0.31.9.13):** widening `snapToWall`'s ALONG-WALL span to the room boundary — the
+obvious centre-preserving fix — changes nothing at all (1448 -> 1448). The 30 are lost to the
+PERPENDICULAR margin, so any recovery has to touch the margin the inset exists to provide.
 
 ~~**This is the ROOM-RECTANGLE issue, and it finally has a user-visible cost.**~~ The inset removes
 0.24 m of a 1.50 m room — 16% of its width — and the result is a shipped master bathroom that

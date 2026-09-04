@@ -27,6 +27,49 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.13 — costing `ROOM_INSET` properly: +30 pieces, but a redistribution
+
+v0.31.9.12 left the room-rectangle item one number — `ROOM_INSET` costs the corpus 30 pieces — and
+said to argue it on that. So I costed it properly, and tested the obvious cheap fix first.
+
+**The cheap fix is inert.** `snapToWall` computes its along-wall span from the INSET rect, so a
+piece can be judged not to fit a wall it would clear by 0.12 m at each end. Widening that span to
+the room boundary — perpendicular margin and `edgeShortfall` untouched, rect CENTRE untouched,
+which is what v0.31.8.61 broke — changes **nothing**: total 1448 -> 1448, no per-template
+difference, 0 overlaps either way. So the 30 pieces are lost to the PERPENDICULAR margin, not to
+the along-wall run. Reverted. **Measured before publishing this time**, which is the discipline
+v0.31.9.12 named after three wrong calls in a row.
+
+**What the inset actually costs**, with `ROOM_INSET = 0` across all 19 templates:
+
+| | total | overlaps | wall clips |
+|---|---|---|---|
+| 0.12 (shipped) | 1448 | 0 | 0 |
+| 0 | **1478** | **0** | **0** |
+
+The +30 are physically SOUND — the narrowphase and the wall-clip check both still report zero, so
+this is not junk furniture squeezed into walls.
+
+**But it is a redistribution, not a win:**
+
+| gains | losses |
+|---|---|
+| `towel-rail` +5, `photo-frame-cluster` +3 | `bathroom-sink` **-2** |
+| `shower` `stove` `dresser` `desk` `outdoor-chair` `book-set` `throw-blanket` `throw-cushion` +2 each | `utility-cabinet` -1 |
+| 11 more at +1 | `fruit-bowl` -1, `ceramic-vase-slim` -1 |
+
+Less margin lets the big pieces claim more wall, and **basins are what get squeezed out** — which
+is also why `ctu-mbath` did not recover its basin at inset 0 (v0.31.9.12). A net +30 that trades two
+bathroom sinks for five towel rails is not obviously an improvement: a basin is a fixture, a towel
+rail is a nicety.
+
+So the honest statement of the room-rect item's value is narrower than "30 pieces": **the inset
+costs 30 placements, of which some are worth more than others, and removing it wholesale is a
+trade rather than a fix.** Recorded that way in `TODO.md` so the item is not argued on a headline
+number that flatters it.
+
+No code change — the along-wall widening is reverted and the inset is untouched.
+
 ## v0.31.9.12 — the room is too small; three of my own diagnoses were wrong
 
 `ctu-mbath` has now had three explanations from me in three releases. **All three were wrong**, and
