@@ -18,6 +18,10 @@ import { appUrl } from './lib.mjs'
 const TIERS = (process.env.TIERS || 'performance,realistic').split(',')
 const DSF = Number(process.env.DSF || 2)
 const SECONDS = Number(process.env.SECONDS || 12)
+// Seconds of motion to DISCARD before sampling, so shader compiles are not counted as frame cost
+// and both arms of a comparison are measured in the same steady state. See the note at the
+// warm-up timer. 0 keeps the historic behaviour, which is what every earlier number used.
+const WARMUP = Number(process.env.WARMUP || 0)
 // `MODE=walk` measures FIRST-PERSON WALK MODE WITH MOTION, not the orbit drag.
 //
 // **Why this knob exists.** Every frame-cost figure in this arc was taken in
@@ -144,7 +148,7 @@ if (MODE === 'walk') {
 
 console.log(
   `viewport 1280x800 @ dpr ${DSF} (${((1280 * DSF * 800 * DSF) / 1e6).toFixed(1)}M px), ` +
-    `${SECONDS}s ${IDLE ? 'IDLE (no input at all -- expect ~0 drawn frames)' : MODE === 'walk' ? `WALK (translate${WALKPITCH ? ' + pitch' : ', pitch OFF = instrument control'}; no yaw)` : 'orbit drag'} per tier`,
+    `${WARMUP ? `${WARMUP}s warm-up DISCARDED + ` : ''}${SECONDS}s ${IDLE ? 'IDLE (no input at all -- expect ~0 drawn frames)' : MODE === 'walk' ? `WALK (translate${WALKPITCH ? ' + pitch' : ', pitch OFF = instrument control'}; no yaw)` : 'orbit drag'} per tier`,
 )
 
 /** Drive motion for SECONDS, in whichever mode was asked for. */
@@ -262,7 +266,7 @@ for (const tier of TIERS) {
     if (got !== TRANSSCALE) throw new Error(`TRANSSCALE: asked ${TRANSSCALE}, gl has ${got}`)
     await new Promise((r) => setTimeout(r, 800))
   }
-  await page.evaluate(() => {
+  await page.evaluate((warmupMs) => {
     const gl = window.__three.gl
     if (gl.__ftRestore) gl.__ftRestore()
     const orig = gl.render.bind(gl)
@@ -293,7 +297,25 @@ for (const tier of TIERS) {
       window.__ft.rafId = requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
-  })
+
+    // WARMUP: throw away the first N seconds of samples.
+    //
+    // `v0.31.7.271`. Sampling starts the instant the drag does, so a run that compiles shaders
+    // during it measures the COMPILES as frame cost -- and, worse, the stall blocks rAF and so
+    // shifts WHICH part of the orbit the remaining samples cover. That is not a hypothetical: the
+    // `(z9)` A/B showed p50 10.3 ms with a 1.1 s stall against 11.9 ms with none, which is the
+    // wrong way round for a change that REMOVES ~194 program compiles, and the two p50s covering
+    // different frames is the obvious suspect. With a warm-up both arms are measured in the same
+    // steady state, so the comparison is of frame cost rather than of when the stall landed.
+    if (warmupMs > 0) {
+      setTimeout(() => {
+        window.__ft.ms.length = 0
+        window.__ft.raf = 0
+        window.__ft.t0 = performance.now()
+        window.__ft.warmedUp = true
+      }, warmupMs)
+    }
+  }, WARMUP * 1000)
   await drive()
   const r = await page.evaluate(() => {
     const f = window.__ft

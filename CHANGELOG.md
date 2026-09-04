@@ -29,6 +29,36 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.271 — `.270`'s excuse was wrong: the one-program p50 cost is real
+
+`.270` shipped `(z9)` with a loose end and a guess attached: p50 rose 10.3 → 11.9 ms, which is the
+wrong direction for a change that removes ~194 shader compiles, and I suggested the old 1.1 s stall
+had blocked rAF and shifted which frames were sampled. That was worth testing before anyone
+believed it.
+
+**`frame-time.mjs` gains `WARMUP`**, which discards the first N seconds of samples so both arms of
+a comparison are measured in the same steady state instead of one of them measuring its own compiles.
+The header prints when a warm-up was discarded — a number that does not say how it was measured is
+how this session produced three separate phantom frame-time readings already.
+
+**The guess was wrong.** Warmed up (5 s discarded, 12 s measured), realistic tier:
+
+| | p50 | p90 | worst | achieved fps |
+| --- | --- | --- | --- | --- |
+| gain key (~195 programs) | **10.0 / 10.5 ms** | 10.7 / 11.3 | 60.8 / 43.1 ms | 58.3 / 58.3 |
+| generation key (1 program) | 11.2 / 11.4 / 12.2 ms | 11.7 / 12.6 / 13.1 | **12.7 / 13.6 / 14.8 ms** | **59 – 60** |
+
+One program really does cost about **+1.2 ms per frame** in steady state. It remains **unexplained**:
+three's `setProgram` skips its program-level uniform refresh when the program is unchanged, so fewer
+programs should be cheaper, not dearer. Recorded as an open oddity rather than dressed up again.
+
+**The decision is unchanged, on the evidence that actually matters here.** Worst frame goes 43–61 ms
+→ 13–15 ms — note the gain key still stalls after a 5 s warm-up, because materials enter view lazily
+through the orbit, so its hitching is not confined to load — and achieved frame rate goes 58.3 →
+59–60. At 12.2 ms the steady-state cost is still well inside the 16.7 ms budget for 60 fps. The goal
+asks for smooth, and this is the arm that is smooth.
+
+
 ## v0.31.7.270 — the load hitch is gone: ~195 shader programs per plan become one
 
 `(z9)` shipped, and via the prerequisite rather than around it.
