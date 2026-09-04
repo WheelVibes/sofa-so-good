@@ -60,6 +60,79 @@ console.log(
           metal: m.metalness,
         })
       })
+      // WHAT IS NOT MAPPED, and why. 28 % coverage bounds what this feature can be worth
+      // (`v0.31.7.224`: a 30 % change to the baked term moved the whole-frame mean ~1 %), so the
+      // question "is coverage a lever or a structural ceiling" decides whether it is worth chasing.
+      // Classify every visible mesh: shell geometry versus a tagged furniture item, mapped or not.
+      const cls = { shellMapped: 0, shellUnmapped: 0, itemMapped: 0, itemUnmapped: 0 }
+      const unmappedItems = new Map()
+      const unmappedShell = []
+      const bigUnmapped = []
+      window.__three.scene.traverse((o) => {
+        if (!o.isMesh || !o.visible) return
+        let p = o.parent
+        while (p) {
+          if (p.visible === false) return
+          p = p.parent
+        }
+        const m = Array.isArray(o.material) ? o.material[0] : o.material
+        if (!m) return
+        const mapped = !!m.userData?.visMapUrl
+        let itemId = null
+        let q = o
+        while (q && !itemId) {
+          itemId = q.userData?.itemId ?? null
+          q = q.parent
+        }
+        if (itemId) {
+          cls[mapped ? 'itemMapped' : 'itemUnmapped'] += 1
+          if (!mapped) {
+            const it = window.__store.getState().items.find((i) => i.id === itemId)
+            const k = it?.defId ?? '(unknown)'
+            unmappedItems.set(k, (unmappedItems.get(k) ?? 0) + 1)
+          }
+        } else {
+          cls[mapped ? 'shellMapped' : 'shellUnmapped'] += 1
+          if (!mapped) {
+            // Bucket by MATERIAL TYPE and FOOTPRINT. The injection is written against
+            // MeshStandardMaterial's lighting chunks, so a Basic or Lambert mesh cannot carry it
+            // at all — a structural exclusion, not a coverage gap. Footprint separates real
+            // surfaces from the trim/reveal slivers a lightmap texel could never resolve.
+            const g = o.geometry
+            if (g && !g.boundingBox) g.computeBoundingBox()
+            const bb = g?.boundingBox
+            const d = bb
+              ? [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z].sort(
+                  (a, b) => b - a,
+                )
+              : [0, 0, 0]
+            const area = d[0] * d[1]
+            const bucket = area >= 1 ? 'ge1m2' : area >= 0.1 ? '0.1to1m2' : 'lt0.1m2'
+            unmappedShell.push(`${m.type}|${bucket}`)
+            // The ge1m2 Standard bucket is the only real coverage headroom, so name its members:
+            // world-space centre and size, which is enough to say WHAT they are.
+            if (
+              bucket === 'ge1m2' &&
+              m.type === 'MeshStandardMaterial' &&
+              bigUnmapped.length < 45
+            ) {
+              o.updateWorldMatrix(true, false)
+              const c = bb
+                ? {
+                    x: (bb.min.x + bb.max.x) / 2,
+                    y: (bb.min.y + bb.max.y) / 2,
+                    z: (bb.min.z + bb.max.z) / 2,
+                  }
+                : { x: 0, y: 0, z: 0 }
+              const w = o.matrixWorld.elements
+              const wy = w[1] * c.x + w[5] * c.y + w[9] * c.z + w[13]
+              bigUnmapped.push(
+                `y=${wy.toFixed(2)} size=${d[0].toFixed(2)}x${d[1].toFixed(2)}x${d[2].toFixed(2)} uv1=${o.geometry?.attributes?.uv1 ? 'yes' : 'NO'}`,
+              )
+            }
+          }
+        }
+      })
       const byGain = new Map()
       for (const r of out) {
         const g = Number(String(r.key).slice(7))
@@ -67,6 +140,17 @@ console.log(
       }
       const gains = [...byGain].sort((a, b) => a[0] - b[0])
       return {
+        coverage: cls,
+        unmappedItemDefs: [...unmappedItems]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 12)
+          .map(([k, n]) => `${k} x${n}`),
+        bigUnmapped,
+        unmappedShellByKind: (() => {
+          const t = new Map()
+          for (const k of unmappedShell) t.set(k, (t.get(k) ?? 0) + 1)
+          return [...t].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} x${n}`)
+        })(),
         total: out.length,
         anyAoMap: out.some((r) => r.aoMap),
         distinct: gains.length,

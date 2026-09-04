@@ -29,6 +29,57 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.225 — the coverage ceiling, measured: my "coverage is the bigger lever" was half right, and the real headroom is 38 meshes with no `uv1`
+
+`.224` closed by claiming coverage is a bigger lever on the look than any further gain re-fit. That
+was asserted from a 28 % figure I had not re-derived. Measured properly it is both smaller and more
+specific than I said, and one number in it was simply wrong.
+
+`gi-material-census.mjs` now classifies every VISIBLE mesh as shell or tagged furniture, mapped or
+not:
+
+| class | count | share |
+| --- | --- | --- |
+| shell, mapped | 92 | 8.6 % |
+| shell, unmapped | 473 | 44.1 % |
+| furniture, mapped | 9 | 0.8 % |
+| furniture, unmapped | 498 | 46.5 % |
+
+**Coverage is 9.4 % of 1072 visible meshes, not 28 %.** The old figure (108/385) used a denominator
+this probe does not reproduce; the numerator is consistent (101 here against 107 maps detached by
+`GI=off`), so it is the mesh count that differed, not the map count.
+
+**But 473 unmapped SHELL meshes is not 473 opportunities.** Breaking them down by material type and
+footprint:
+
+| kind | count | verdict |
+| --- | --- | --- |
+| MeshStandardMaterial, < 0.1 m² | 236 | trim and reveal slivers — a lightmap texel could not resolve them |
+| MeshStandardMaterial, 0.1-1 m² | 185 | marginal |
+| **MeshStandardMaterial, ≥ 1 m²** | **38** | **the real headroom** |
+| MeshPhysicalMaterial, 0.1-1 m² | 6 | glazing |
+| MeshBasicMaterial / MeshLambertMaterial | 8 | STRUCTURALLY excluded — the injection is written against `MeshStandardMaterial`'s lighting chunks, and a Basic mesh has no indirect term at all |
+
+So on large static surfaces coverage is already **92 of 130, i.e. 71 %**, and the headroom is 38
+meshes rather than hundreds. Furniture (498) is movable and cannot be baked into a plan-keyed static
+map at all — that needs a different technique, not more coverage.
+
+**The mechanism for those 38, and it is exact: NONE of them has a `uv1` attribute.** The injection
+samples the box-atlas lightmap through `uv1`, so a mesh without it cannot carry a map however the
+resolver is keyed. Their shapes identify them: about twenty are zero-thickness planes **2.60 m tall
+centred at y = 1.30**, i.e. full-height WALL FACES; three are floor planes at y = 0; three are unit
+cubes at the origin. Wall faces are the surfaces a first-person walk looks at most, which is
+consistent with `.224`'s finding that a 30 % change to the baked term moved the whole-frame tour mean
+by only ~1 %.
+
+So the corrected recommendation: the lever is not "raise coverage" broadly, it is **give `uv1` to
+those 38 large static surfaces**, which is a bake-pipeline question with a bounded target and a
+measurable outcome. And the 236 slivers plus 498 furniture meshes are not part of it, so the memory
+cost is nothing like proportional to the unmapped count.
+
+Nothing shipped; suite 10174 green.
+
+
 ## v0.31.7.224 — gloom regression check on the shipped gain change: 44 frames x 2 hours, no cliff anywhere
 
 `.223` cut the baked indirect by ~30 % on the strength of patch measurements. That is exactly the
