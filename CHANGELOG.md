@@ -29,6 +29,31 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.206 — window treatments extended to the LIVING room: 42 → 66 curtains
+
+`.205` seeded bedrooms. The living room is the most-viewed room in the app and carries the largest
+glazing, so leaving it bare was the more visible half of the gap.
+
+**66 curtains across 19 templates**, up from 42 across 17 — and the two studios appear for the first
+time, having no bedroom of their own but a living room with glazing.
+
+**The category list is deliberately short**, and the exclusions are the interesting part:
+`bedroom`, `masterBedroom`, `living` and no further. A kitchen window or a shower window is not
+something a curtain belongs on, and a **balcony's** glazing is the thing you look THROUGH from
+inside — curtaining it would hide the view the balcony exists for. The set is named
+`CURTAINED_CATEGORIES` with that reasoning attached, so the next person adding a category has to
+argue with it.
+
+Re-verified after the change, not assumed from `.205`: **66 curtains, 0 outside an owning room of an
+allowed category**, `drawAmount` a single distinct value of **0**. The by-construction property
+holds — the seeder still passes the snap only the windows the room itself owns.
+
+**Verified in the frame**: `tpl-hdb-5room`'s living room shows a floor-to-ceiling pleated panel with
+its rod and finial beside the glazing, hanging open.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.205 — 🎉 the furnish pipeline places WINDOW TREATMENTS: 42 curtains across 17 templates
 
 `applyLayoutPreset('move-in')` has placed **zero** window treatments on all 19 templates for as long

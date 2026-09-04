@@ -261,6 +261,17 @@ function seedRoom(
  * `drawAmount: 0` is set explicitly: the def defaults to **1 (CLOSED)**, which would contradict the
  * curtains-open default shipped in `v0.31.5.88`/`.92`.
  */
+/**
+ * Room categories that get a curtain per owned window.
+ *
+ * Bedrooms and the living room, and no further. `living` is the most-viewed room in the app and
+ * carries the largest glazing, so leaving it bare was the most visible half of the gap. Kitchens,
+ * baths, service yards and balconies are deliberately excluded: a curtain over a kitchen window or
+ * a shower window is not what those rooms have, and a balcony's glazing is the thing you look
+ * THROUGH from inside.
+ */
+const CURTAINED_CATEGORIES = new Set(['bedroom', 'masterBedroom', 'living'])
+
 function seedWindowTreatments(
   plan: FloorPlan,
   defs: Record<string, FurnitureDef>,
@@ -274,7 +285,7 @@ function seedWindowTreatments(
     if (windows.length === 0) continue
     for (const room of level.rooms) {
       const category = roomCategory(room)
-      if (category !== 'bedroom' && category !== 'masterBedroom') continue
+      if (!CURTAINED_CATEGORIES.has(category)) continue
       const [cx, cz] = roomCentre(room)
       let i = 0
       for (const win of windows) {
