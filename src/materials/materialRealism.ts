@@ -207,6 +207,49 @@ export function transmissionResolutionScaleForTier(tier: RenderTier, device: Dev
  * `> 250` stays at 0.0 % for every multiplier tried, including ×16 at a mean of 240.6: that is AgX's
  * shoulder. A clipping metric defined at `> 250` would call every setting a failure.
  */
+/**
+ * VEILING GLARE on the safety grille's bars, as an emissive keyed to daylight.
+ *
+ * **The measurement, and it is a PERCENTILE one (`(l)`, v0.31.7.280).** At the reference window
+ * pose, daylight-only and exposure-matched, the pane region splits into two populations that a
+ * mean cannot separate — thin bars and bright glass:
+ *
+ * | | mean | p05 (bars) | p95 (glass) |
+ * | --- | --- | --- | --- |
+ * | Cycles | 244.8 | **187** | **254** |
+ * | app, before | 217.4 | **91** | 243 |
+ *
+ * So the app's GLASS is nearly right (243 against 254) and the BARS are **96 counts too dark**.
+ * Physics puts a very bright aperture behind the grille and veiling glare washes the bars out;
+ * the app renders them crisp and dark. That is the whole of the 27-count mean gap.
+ *
+ * Two earlier conclusions were artefacts of reading the MEAN of those two populations:
+ * `v0.31.7.279`'s "the pane emissive saturates" (a 5.2 -> 13 sweep moved the mean 1.4 counts
+ * because bars dominate it, not because the glass failed to brighten), and this function's own
+ * first calibration, which hit the mean target and overshot the bars to p05 213.
+ *
+ * **Why not bloom, which is the physically honest answer.** `bloomIntensityForDay(d) =
+ * BLOOM.intensity * (1 - d)` is exactly 0 at full daylight and the pass is UNMOUNTED once it ramps
+ * to zero (BLOOM-MIP-FLASH: cheaper, and one less way to blank a frame on ANGLE/Metal). Re-keying
+ * it to aperture luminance collides with that and with `v0.31.7.156`, where a bright pane plus
+ * bloom spilled onto wall and ceiling and destroyed grille definition — and it would add a midday
+ * blur chain the daylight path does not pay for.
+ *
+ * So this is deliberately a LOCAL approximation: it lifts the bars, which is where the measured
+ * error is, and does not spill onto the surrounding wall. Calibrated on **p05**, not the mean.
+ *
+ * **Night cannot regress, by construction rather than by guard**, the same discipline as
+ * `glassSkyCatchIntensity`: cubed, so exactly 0 at `daylight = 0` and negligible through the dusk
+ * band where `.156`'s bloom overlap lives.
+ */
+export function grilleGlareIntensity(daylight: number): number {
+  const d = clamp(daylight, 0, 1)
+  return d * d * d * GRILLE_GLARE
+}
+
+/** Coefficient for {@link grilleGlareIntensity}, CALIBRATED on p05 against the Cycles reference. */
+const GRILLE_GLARE = 1.4
+
 export function glassSkyCatchIntensity(daylight: number): number {
   const d = clamp(daylight, 0, 1)
   return d * d * d * 5.2

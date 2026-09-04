@@ -1381,6 +1381,45 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > deliberately avoids: mounting bloom at midday is a blur chain the daylight path does not
 > currently pay for.
 
+> **★ PARTLY FIXED, AND THE MEAN WAS THE WHOLE PROBLEM — v0.31.7.280.** `patch-read` now reports
+> **p05/p95** alongside the mean, and that single instrument change dissolved two of my own wrong
+> conclusions. A pane region holds TWO populations — thin grille bars and bright glass — and a mean
+> cannot separate them:
+>
+> | | mean | p05 (bars) | p95 (glass) |
+> | --- | --- | --- | --- |
+> | Cycles | 244.8 | **187** | **254** |
+> | app, before | 217.4 | **91** | 243 |
+> | app, after | 230.5 | **187** | 243 |
+>
+> **The glass was nearly right all along (243 vs 254); the BARS were 96 counts too dark.** So
+> `.279`'s "the pane emissive saturates" was an artefact — a 5.2 → 13 sweep moved the MEAN 1.4
+> counts because bars dominate it, not because the glass failed to brighten. And the AgX-shoulder
+> theory it replaced was also wrong (`.279` refuted it by measurement). The defect was never
+> brightness or tone curve; it was that physics washes the bars out with veiling glare and the app
+> renders them crisp.
+>
+> **Fix: `grilleGlareIntensity(daylight) = d³ · 1.4`**, a daylight-keyed emissive on the bars,
+> calibrated on **p05** — which now lands exactly on the reference's 187. `sd` 52.8 → 29.9 against
+> Cycles' 20.0. Deliberately a LOCAL approximation of veiling glare: it lifts the bars, where the
+> error is, and does not spill. Verified not to spill — the ceiling patch is byte-identical before
+> and after (199.7 / p05 189 / p95 211).
+>
+> **The first calibration was wrong and the FRAME caught it.** At `3.0` it hit a mean target and
+> drove p05 to 213 — brighter than the glass — which the numbers called an improvement and the
+> image showed as light streaks with the polarity inverted. Reverted, re-derived on p05. A test now
+> pins `grilleGlareIntensity(1) < glassSkyCatchIntensity(1)` so bars can never out-shine glass again.
+>
+> **Night cannot regress, by construction**: cubed, exactly 0 at `daylight = 0`, and measured —
+> 22:00 reads pane p05 45. Dusk checked against `.156`'s bloom-spill failure: at 19:00 the wall
+> moves 1.2 counts against night, and the frame shows no halo. Note `daylightFromAltitude` is
+> effectively a day/night switch (1.0 for any sun above the horizon, ramping only across −8°..0°),
+> so the cube's protection lives in that narrow twilight band rather than across the afternoon.
+>
+> **Residual: p95 243 vs 254, mean 230.5 vs 244.8.** The GLASS is now the remaining 11 counts, and
+> `scene.background` cannot supply it (`.4`: the PMREM pre-filter is the mechanism). Frame cost
+> unchanged — no new pass, and `useSunPosition` re-renders only on hour change.
+
 > **★ FOUR VIEWS, TWO PLANS, cv 0.62 % — v0.31.7.57.** app p99 ÷ physics p99 = 0.7265, 0.7388,
 > 0.7287, **0.7306** (the last measured after the constant was published). Mean **0.7312** ⇒
 > correction **1.368×**.

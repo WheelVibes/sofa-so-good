@@ -63,6 +63,12 @@ async function readPatch(file, meta, p) {
   let sumSq = 0
   let rb = 0
   const n = data.length / 3
+  // Every luma, so PERCENTILES are available alongside the mean. A mean is the wrong statistic
+  // for a patch containing two populations: at the window, thin grille bars and bright glass. Both
+  // `v0.31.7.279`'s "the pane emissive saturates" and `.280`'s bar-brightening were conclusions
+  // about a BAR-DOMINATED mean that could not see the glass move at all. p95 reads the glass, p05
+  // reads the bars, and the two together say which one a change actually touched.
+  const lumas = new Float64Array(n)
   for (let i = 0; i < data.length; i += 3) {
     const r = data[i]
     const g = data[i + 1]
@@ -73,12 +79,17 @@ async function readPatch(file, meta, p) {
     sum += l
     sumSq += l * l
     rb += r - b
+    lumas[i / 3] = l
   }
   const mean = sum / n
+  lumas.sort()
+  const q = (f) => lumas[Math.min(n - 1, Math.max(0, Math.round(f * (n - 1))))]
   return {
     mean,
     sd: Math.sqrt(Math.max(0, sumSq / n - mean * mean)),
     rb: rb / n,
+    p05: q(0.05),
+    p95: q(0.95),
     px: `${width}x${height}`,
   }
 }
@@ -109,12 +120,12 @@ for (const img of images) {
 
 const w = Math.max(...rows.map((r) => r.patch.length), 8)
 console.log(
-  `\n${'patch'.padEnd(w)}  ${'image'.padEnd(12)}  ${'mean'.padStart(7)}  ${'R-B'.padStart(7)}  ${'sd'.padStart(6)}  px`,
+  `\n${'patch'.padEnd(w)}  ${'image'.padEnd(12)}  ${'mean'.padStart(7)}  ${'p05'.padStart(6)}  ${'p95'.padStart(6)}  ${'R-B'.padStart(7)}  ${'sd'.padStart(6)}  px`,
 )
 for (const p of patches) {
   for (const r of rows.filter((x) => x.patch === p.name)) {
     console.log(
-      `${r.patch.padEnd(w)}  ${r.image.padEnd(12)}  ${r.mean.toFixed(1).padStart(7)}  ${r.rb.toFixed(1).padStart(7)}  ${r.sd.toFixed(1).padStart(6)}  ${r.px}`,
+      `${r.patch.padEnd(w)}  ${r.image.padEnd(12)}  ${r.mean.toFixed(1).padStart(7)}  ${r.p05.toFixed(0).padStart(6)}  ${r.p95.toFixed(0).padStart(6)}  ${r.rb.toFixed(1).padStart(7)}  ${r.sd.toFixed(1).padStart(6)}  ${r.px}`,
     )
   }
   // Two images → print the delta, which is the figure every (p) round wants.

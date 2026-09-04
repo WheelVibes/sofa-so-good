@@ -44,7 +44,7 @@ import fs from 'node:fs'
 import puppeteer from 'puppeteer'
 import sharp from 'sharp'
 import { isHud } from './hud.mjs'
-import { appUrl, assertSceneAlive } from './lib.mjs'
+import { appUrl, assertSceneAlive, waitForBakedGi } from './lib.mjs'
 import { resolvePlanSpec } from './resolve-plan.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
@@ -401,6 +401,17 @@ if (process.env.CEIL_STD === '1') {
 }
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
+// The baked GI attaches AFTER `sceneReady`, and its textures load asynchronously (`(z10)`). This
+// probe is the one that measures the WINDOW, where the whole question is a top-end level, so a
+// frame captured mid-attach is exactly the kind of plausible-but-wrong number that cost
+// `v0.31.7.266`-`.275`. Two nominally identical runs here read the pane at 217.5 and 228.9 before
+// this was added, which is that signature.
+{
+  const gi = await waitForBakedGi(page)
+  console.log(
+    `baked GI: ${gi.count} materials attached${gi.settled ? ' (stable)' : ' (DID NOT SETTLE)'}`,
+  )
+}
 await assertSceneAlive(page, 'after setup')
 
 const pose = await page.evaluate(

@@ -29,6 +29,52 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.280 — the window's bars, not its glass: percentiles dissolved two of my own conclusions
+
+**`patch-read` now reports p05/p95 alongside the mean**, and that one instrument change overturned
+two rounds of my own reasoning. A pane region holds TWO populations — thin grille bars and bright
+glass — and a mean cannot separate them:
+
+| | mean | p05 (bars) | p95 (glass) |
+| --- | --- | --- | --- |
+| Cycles | 244.8 | **187** | **254** |
+| app, before | 217.4 | **91** | 243 |
+| app, after | 230.5 | **187** | 243 |
+
+**The glass was nearly right all along (243 against 254); the bars were 96 counts too dark.** So
+`.279`'s "the pane emissive saturates" was an artefact of the same conflation: a 5.2 → 13 sweep
+moved the MEAN 1.4 counts because bars dominate it, not because the glass failed to brighten. The
+AgX-shoulder theory before it was wrong too, and `.278`'s recommended fix — add an emissive that
+already existed — was wrong three ways.
+
+**Fix: `grilleGlareIntensity(daylight) = d³ · 1.4`**, a daylight-keyed emissive on the bars,
+calibrated on **p05**, which lands exactly on the reference's 187. `sd` goes 52.8 → 29.9 against
+Cycles' 20.0. It is deliberately a LOCAL approximation of veiling glare — it lifts the bars, where
+the error is, and does not spill; verified, since the ceiling patch is byte-identical before and
+after (199.7 / p05 189 / p95 211).
+
+**The first calibration was wrong and the FRAME caught it, not the numbers.** At `3.0` it hit a mean
+target and drove p05 to 213 — brighter than the glass. Every statistic said improvement; the image
+showed light streaks with the polarity inverted, where the reference keeps bars *darker* than glass.
+Reverted and re-derived on p05. A test now pins `grilleGlareIntensity(1) < glassSkyCatchIntensity(1)`
+so bars can never out-shine glass again.
+
+**Night cannot regress, by construction and by measurement.** Cubed, so exactly 0 at `daylight = 0`;
+22:00 reads pane p05 45. Dusk checked against `.156`'s bloom-spill failure: at 19:00 the wall moves
+1.2 counts against night and the frame shows no halo. Worth recording that
+`daylightFromAltitude` is effectively a day/night switch — 1.0 for any sun above the horizon,
+ramping only across −8°..0° — so the cube's protection lives in that narrow twilight band, not
+across the afternoon as its docstring's table implies.
+
+**Residual: p95 243 vs 254.** The glass is now the remaining 11 counts, and `scene.background`
+cannot supply it — `.4` established the PMREM pre-filter is the mechanism. Frame cost unchanged: no
+new pass, and `useSunPosition` re-renders only on hour change, which is why this is a prop rather
+than a per-frame mutation.
+
+Also: `light-distribution` gained the `(z10)` GI-settle wait. It is the probe that measures the
+window, and two nominally identical runs read the pane at 217.5 and 228.9 before it was added.
+
+
 ## v0.31.7.279 — the window is a GLARE problem, not a brightness one; my own last-round fix was wrong
 
 `.278` recommended adding a daylight-scaled emissive to the pane. Two measurements killed that and a

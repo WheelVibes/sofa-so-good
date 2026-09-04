@@ -4,6 +4,7 @@ import {
   clearcoatLayer,
   glassConfig,
   glassSkyCatchIntensity,
+  grilleGlareIntensity,
   sheenLayer,
   transmissionResolutionScaleForTier,
   transmissionTiers,
@@ -150,6 +151,37 @@ describe('tier coverage', () => {
     for (const tier of ALL_TIERS) {
       expect(() => glassConfig(tier)).not.toThrow()
     }
+  })
+})
+
+describe('grilleGlareIntensity (item (l))', () => {
+  it('NIGHT CANNOT REGRESS — exactly zero, by construction rather than by guard', () => {
+    // `(l)`'s standing constraint. Cubed, so there is nothing for a coefficient to scale at
+    // daylight 0: a grille that glowed at night would be a worse artefact than the dark bars this
+    // replaces. `daylightFromAltitude` reaches 0 at a sun 8 deg below the horizon.
+    expect(grilleGlareIntensity(0)).toBe(0)
+    expect(grilleGlareIntensity(-1)).toBe(0)
+  })
+
+  it('lifts the bars by day and clamps out-of-range daylight', () => {
+    expect(grilleGlareIntensity(1)).toBeGreaterThan(1)
+    expect(grilleGlareIntensity(2)).toBe(grilleGlareIntensity(1))
+  })
+
+  it('stays negligible through the twilight band where bloom overlaps', () => {
+    // `v0.31.7.156` measured a bright pane plus dusk bloom spilling onto wall and ceiling. The
+    // cube is what keeps this term out of that band: `daylightFromAltitude` only ramps between
+    // -8 deg and 0 deg, so half-twilight is daylight 0.5, and 0.5^3 is an eighth of the day value.
+    expect(grilleGlareIntensity(0.5)).toBeLessThan(grilleGlareIntensity(1) / 7)
+  })
+
+  it('keeps the bars DARKER than the glass, which is what the reference does', () => {
+    // Calibrated on p05 (the bars), not on the region mean: at the reference pose Cycles reads
+    // p05 187 against p95 254, and the app now reads 187 against 243. An earlier calibration hit
+    // the MEAN target and drove p05 to 213, which inverted the polarity -- bars brighter than
+    // glass -- and the frame showed it as light streaks. So this pins the ordering the fix exists
+    // to reproduce, not just a magnitude.
+    expect(grilleGlareIntensity(1)).toBeLessThan(glassSkyCatchIntensity(1))
   })
 })
 

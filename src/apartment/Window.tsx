@@ -22,6 +22,7 @@ import { MetalMaterial } from '../furniture/primitives/MetalMaterial'
 import {
   GLASS_SKYCATCH_COLOR,
   glassSkyCatchIntensity,
+  grilleGlareIntensity,
   windowGlassPhysical,
   windowTransmission,
 } from '../materials/materialRealism'
@@ -71,6 +72,8 @@ function Bar({
 
 const GRILLE_Z = 0.05 // interior offset, in front of the glass
 const grilleMat = { color: '#d9dadc', roughness: 0.45, metalness: 0.5 } as const
+/** Glare colour for the bars: the sky's own near-white, not the frame's grey. */
+const GRILLE_GLARE_COLOR = '#eef4ff'
 
 /** Safety grille sized to the glazed opening — the approved SNV GRID design
  *  (vertical bars + evenly spaced horizontal rails,
@@ -82,6 +85,11 @@ const grilleMat = { color: '#d9dadc', roughness: 0.45, metalness: 0.5 } as const
  *  (same remap the louvre/cable helpers below use). Bars sit just inside the
  *  glass so they read from the room and through the window from outside. */
 function Grille({ w, h }: { w: number; h: number }) {
+  // Daylight-keyed glare on the bars — see `grilleGlareIntensity`. `useSunPosition` re-renders
+  // only when the HOUR changes (60 s in system mode, on demand in manual) and returns a cached
+  // stable object, so this costs nothing per frame; that is why it is a prop rather than a
+  // per-frame material mutation like the glass.
+  const daylight = daylightFromAltitude(useSunPosition().altitude)
   const members: GrilleMemberInstance[] = grilleBarInstances(w, h).map((m) => ({
     position: [m.position[2], m.position[1], m.position[0]],
     size: [m.size[2], m.size[1], m.size[0]],
@@ -89,7 +97,11 @@ function Grille({ w, h }: { w: number; h: number }) {
   return (
     <group position={[0, 0, GRILLE_Z]}>
       <InstancedBoxes instances={members} userData={markWallOverlay()}>
-        <MetalMaterial {...grilleMat} />
+        <MetalMaterial
+          {...grilleMat}
+          emissive={GRILLE_GLARE_COLOR}
+          emissiveIntensity={grilleGlareIntensity(daylight)}
+        />
       </InstancedBoxes>
     </group>
   )
