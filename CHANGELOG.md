@@ -29,6 +29,63 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.239 — the coverage bake is CONFOUNDED: my invocation is not the shipped bake, and `.228`'s "reconstructed" was wrong
+
+The `--min-area 1.5` bake finished — **189 maps in 43 minutes**, 8.5 MB — and installing it raises
+coverage exactly as `.227` predicted:
+
+| | shipped (111 maps) | new (189 maps) |
+| --- | --- | --- |
+| applied / candidates | 107 / 386 (28 %) | **173 / 386 (45 %)** |
+| visible mapped | 101 / 1072 (9.4 %) | **163 / 1072 (15.2 %)** |
+| of which shell | 92 | **127** |
+| size | 5.14 MB | 8.5 MB |
+
+**And it makes the render much WORSE.** The three raycast-verified surfaces, against the same Cycles
+reference at the same pose:
+
+| surface | 111 maps | 189 maps | vs Cycles |
+| --- | --- | --- | --- |
+| ceiling | 0.5755 | 0.1638 | 0.986 → **0.281** |
+| wall | 0.5492 | 0.2496 | 0.977 → **0.444** |
+| floor | 0.2289 | 0.1013 | 1.010 → **0.447** |
+
+**The cause is not coverage, and the control proves it.** Per-map `scale` for the same three keys,
+same areas, across three index files:
+
+| set | maps | `ce497848` | `6f5a1254` | `4b1218e6` | median scale |
+| --- | --- | --- | --- | --- | --- |
+| shipped | 111 | 1.760 | 1.755 | 0.877 | 1.340 |
+| my `--min-area 3.0` | 111 | **1.309** | **1.684** | **0.293** | 0.485 |
+| my `--min-area 1.5` | 189 | **1.309** | **1.684** | **0.293** | 0.543 |
+
+My two bakes agree with each other exactly and BOTH disagree with the shipped set. So `--min-area`
+changed nothing about the level — **my invocation is simply not the invocation that produced the
+shipped maps**, and the difference is in absolute baked irradiance, which is what `gain 4.2` was
+fitted against.
+
+**So `.228` was wrong to say the parameters were "reconstructed from the shipped index".** The index
+records `version, pass, albedo, uv, uv_margin, encode, scale` — and not the sun vector, `--samples`,
+`--res`, `--diffuse-bounces`, `--with-sun-disc` or `--dilate`, any of which moves the level. What
+made the reconstruction look successful was the control bake matching the shipped **count** exactly
+(111 = 111), and a matching count is not a matching bake. `.232` read that agreement as proof the
+enumeration was reproducible; it only proved the selection rule was.
+
+Ruled out by inspection: `--with-sun-disc` is off by default and correctly so (the app renders sun
+and lamps as direct light), so it is not a stray flag on my side. Remaining candidates each cost a
+40-minute bake to test: the sun elevation baked in (my manifest is 13:00, elevation 83.9°),
+`--diffuse-bounces`, and `--samples`/`--dilate` interacting with the per-map normalisation.
+
+**Reverted** — 111 maps, 5.2 MB, `git status` clean, and the staleness guard from `.238` re-run to
+confirm 107 applied. Coverage stays at 28 % of candidates.
+
+The lever is real: 45 % of candidates and +35 shell surfaces is what a 1.5 m² threshold buys. It just
+cannot ship until a bake reproduces the shipped level, and the first step is recording the
+invocation, which no commit ever did.
+
+Suite 10219 green.
+
+
 ## v0.31.7.238 — a guard for the silent degradation `.232` found: the shipped index going stale against its own scene
 
 `.232` found 14 of the shipped set's 111 keys no longer matching, caused by this session's own
