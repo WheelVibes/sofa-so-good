@@ -27,6 +27,40 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.47 — (g) level isolation in walk mode: implemented, and one claim in its write-up was wrong
+
+Walking an upper storey hid the storey beneath it, so `tpl-loft`'s mezzanine
+overlooked a 25.7 m² double-height void that rendered as bare sky. Walk mode now
+renders the storey immediately BELOW the walked one (`renderedLevels` in
+`floorplan/levels.ts`); orbit and the 2D editor are untouched, where isolating a
+floor is the point.
+
+The (g) write-up left three questions for a human. Answering them:
+
+- **All storeys below, or the immediate one?** The immediate one. It is what an
+  overlook can see, and it bounds the cost.
+- **Does the overlooked ceiling cull or fade?** **Neither — it needed no work.** Room
+  ceilings already render with `side: BackSide` so they read from below and are
+  invisible from above, which is exactly what an overlook wants. The write-up
+  assumed a ceiling slab would appear and priced an occluder change for it; reading
+  `ceiling/RoomCeiling.tsx` shows that is not so.
+- **Is the added cost acceptable on the Performance tier?** The question answers
+  itself: `viewLevelId` DEFAULTS to `'all'`, so every user already renders every
+  storey in orbit, and `renderedLevels` can never return more levels than `'all'` —
+  asserted over every template and storey. Walking a storey now costs the same as
+  the default view, never more.
+
+**Visual verification is owed and I could not complete it.** The headless harness
+cannot turn a first-person camera — look is driven by pointer-lock `movementX` and a
+synthetic drag does not move it — and the walker spawns facing a wall, so
+before/after frames captured with the change reverted are IDENTICAL. That shows the
+change breaks nothing from that viewpoint; it does not show the overlook is fixed.
+Recorded in `TODO.md` with the by-hand steps, and flagged in the decisions doc, which
+now reads 🟡 rather than done.
+
+Verified: 10145 tests pass; `tsc`, `biome`, `knip` clean. 5 new tests cover
+`renderedLevels`, including the cost bound and that orbit is unchanged.
+
 ## v0.31.8.46 — my own undeclared-floor number was 3× too big; and two more windows unblocked
 
 **Correcting last release.** I reported 264 m² of template floor belonging to no

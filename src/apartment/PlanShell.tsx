@@ -21,7 +21,7 @@ import {
   wallBaseExtensionM,
 } from '../floorplan/floorLevels3d'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
-import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
+import { levelAsPlan, type PlanLevel, renderedLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { planRoomRects } from '../floorplan/planRoomShell'
 import { railingMemberInstances } from '../floorplan/railingLayout'
@@ -567,14 +567,18 @@ function FadeCrown({
  * non-default plan is active, so custom apartments are furnishable in 3D.
  * Multi-storey plans (F13) render one `PlanLevelShell` per visible level,
  * each offset by its elevation; the View menu's level control filters via
- * `visibleLevels` (storeys unmount when hidden, so picking can't hit them).
+ * `renderedLevels` (storeys unmount when hidden, so picking can't hit them —
+ * except the one storey below a WALKED level, which is deliberately present).
  */
 export function PlanShell() {
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
   const wallColor = plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR
   const [ew, ed] = planBounds(plan)
-  const levels = visibleLevels(plan, viewLevelId)
+  // Walk mode also renders the storey immediately BELOW the walked one, so an
+  // overlook has a floor under it instead of bare sky — see `renderedLevels`.
+  const cameraMode = useStore((s) => s.cameraMode)
+  const levels = renderedLevels(plan, viewLevelId, cameraMode === 'firstPerson')
 
   return (
     <group>

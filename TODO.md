@@ -2050,3 +2050,19 @@ hacking-plan failure mode). For a generic flat-TYPE archetype there is no correc
 answer, and the app already says so: `Unclassified — confirm structure with HDB/PE
 before hacking`, plus a ⚠ per wall on the hacking sheet. Recorded so the 50% is not
 mistaken for a gap by a future reader.
+
+## (g) LEVEL-ISOLATION-IN-WALK is implemented but VISUALLY UNVERIFIED
+
+v0.31.8.47 makes walk mode render the storey below the walked one. Unit-tested and
+bounded (it can never render more levels than the default `'all'` view), but nobody
+has seen it: the headless harness cannot turn a first-person camera — look is driven
+by pointer-lock `movementX`, and a synthetic drag does not move it — and the walker
+spawns facing a wall, so before/after frames are identical.
+
+Verify by hand: `tpl-loft` → View → Levels → Loft → walk → turn to the guard rail.
+Expect a floor and the room below, not the pale sky gradient and two black holes the
+(g) write-up describes. If it is wrong, the suspect is the wiring in
+`apartment/PlanShell.tsx`, not `renderedLevels`, which has tests.
+
+Worth fixing the harness for its own sake: a scenario step that sets first-person
+yaw/pitch directly would make every future walk-mode change verifiable.

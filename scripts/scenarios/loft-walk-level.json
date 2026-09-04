@@ -1,0 +1,126 @@
+{
+  "name": "loft-walk-level",
+  "description": "(g) LEVEL-ISOLATION-IN-WALK: walking tpl-loft's mezzanine used to hide the storey beneath it, so the overlook read as bare sky. Walk mode now renders the immediate storey below. Screenshots the overlook and reports scene mesh/tri cost for the Performance-tier budget.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "load-loft",
+      "eval": "(function(){var go=function(){import('/src/floorplan/templates.ts').then(function(m){var t=m.PLAN_TEMPLATES.find(function(p){return p.id==='tpl-loft'}); window.__store.getState().replaceFloorPlan(JSON.parse(JSON.stringify(t)), {furniture:'rehome'})})}; go(); setTimeout(go, 1500); return 'started'})()"
+    },
+    {
+      "name": "plan-loaded",
+      "waitFor": {
+        "store": "state.floorPlan.upperLevels && state.floorPlan.upperLevels.length > 0"
+      },
+      "timeout": 40000
+    },
+    {
+      "name": "select-loft-level",
+      "eval": "(()=>{const s=window.__store.getState(); const up=s.floorPlan.upperLevels[0]; s.setViewLevel(up.id); return up.id})()"
+    },
+    {
+      "name": "walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson'); 'walking'"
+    },
+    {
+      "name": "settled",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson' && state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle-render",
+      "wait": 2500
+    },
+    {
+      "name": "shot-0",
+      "screenshot": "loft-yaw-0"
+    },
+    {
+      "name": "turn-1",
+      "drag": {
+        "from": [
+          800,
+          500
+        ],
+        "to": [
+          480,
+          500
+        ],
+        "steps": 8
+      }
+    },
+    {
+      "name": "settle-1",
+      "wait": 700
+    },
+    {
+      "name": "shot-1",
+      "screenshot": "loft-yaw-1"
+    },
+    {
+      "name": "turn-2",
+      "drag": {
+        "from": [
+          800,
+          500
+        ],
+        "to": [
+          480,
+          500
+        ],
+        "steps": 8
+      }
+    },
+    {
+      "name": "settle-2",
+      "wait": 700
+    },
+    {
+      "name": "shot-2",
+      "screenshot": "loft-yaw-2"
+    },
+    {
+      "name": "turn-3",
+      "drag": {
+        "from": [
+          800,
+          500
+        ],
+        "to": [
+          480,
+          500
+        ],
+        "steps": 8
+      }
+    },
+    {
+      "name": "settle-3",
+      "wait": 700
+    },
+    {
+      "name": "shot-3",
+      "screenshot": "loft-yaw-3"
+    }
+  ]
+}

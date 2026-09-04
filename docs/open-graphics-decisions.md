@@ -659,7 +659,26 @@ up as a required edit to the list.
 
 ---
 
-## (g) LEVEL-ISOLATION-IN-WALK — ⏳ OPEN, needs a design + cost call (measured v0.31.5.110)
+## (g) LEVEL-ISOLATION-IN-WALK — 🟡 IMPLEMENTED v0.31.8.47, visual proof still owed
+
+**Decided and shipped** (the three open questions, answered): walk mode renders the storey
+**immediately below** the walked one — not all storeys, because that is what an overlook can see and
+it bounds the cost. The overlooked ceiling needed **no** work: room ceilings already render with
+`side: BackSide` so they read from below and are invisible from above, which is exactly what an
+overlook wants. **This write-up assumed otherwise and priced an occluder change that is not needed.**
+
+**The cost question answers itself.** `viewLevelId` DEFAULTS to `'all'`, so every user already
+renders every storey in orbit. `renderedLevels` can never return more levels than `'all'` — there is
+a test asserting exactly that across every template and storey — so walking a storey now costs the
+same as the default view, never more. No new tier benchmark is required.
+
+**What is still owed: a screenshot of the fixed overlook.** The headless harness cannot turn a
+first-person camera (look is driven by pointer-lock `movementX`, and a synthetic drag does not move
+it), and the walker spawns facing a wall, so before/after frames from the spawn are identical. The
+mechanism is covered by unit tests and by reading the source, but nobody has SEEN the fix. Verify it
+by hand: `tpl-loft` → View → Levels → Loft → walk → turn to the rail.
+
+### Original write-up (measured v0.31.5.110)
 
 **What you would see.** Open `tpl-loft`, pick View → Levels → "Loft" (the ONLY way to walk the
 mezzanine), and walk to the guard rail. Over the rail there is **no floor, no far wall and no room
