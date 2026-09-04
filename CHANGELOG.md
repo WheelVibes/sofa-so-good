@@ -29,6 +29,25 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.289 — fixing a guard I broke, and admitting `.288` was committed with it red
+
+`.288` shipped with `postStackGuard.test.ts` failing, and I committed anyway: my verification
+command piped `npm test` into `grep -E "Test Files|Tests "`, which matched the summary line whether
+or not it said "failed", so the `&&` chain proceeded. The rule I work to is `npm test` green before
+each commit; the chain gave me a green-looking string instead of a green suite. Recorded rather than
+quietly amended — the commit is in the history and this is the fix.
+
+**The failure was formatting, not behaviour.** `(z12)` gave the post tone mapper a conditional mode,
+biome wrapped the call across lines, and the source-text guard
+`/effects\.push\(<ToneMapping/` stopped matching. The invariant it protects — a `ToneMapping`
+effect mounted in the AO-only stack too, NOT gated on `full`, because mounting any composer disables
+three's own view transform — was intact throughout. Both `ToneMapping` patterns now allow `\s*`
+after `push(`, which is the same correction the neighbouring vignette clause already documents from
+`v0.31.7.117`: a code-shape guard should pin the shape that matters, not the line breaks.
+
+Suite 10229 green.
+
+
 ## v0.31.7.288 — a linear view for measurement, and it corrects the arc's headline immediately
 
 `(z12)` fixed. `isLinearView()` reads `ssg_linear_view` from localStorage — DEV-only and cached —
