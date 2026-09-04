@@ -298,6 +298,58 @@ const KEEPOUT: Partial<Record<RoomId, Rect[]>> = {
 const SHORTFALL_SEARCH_M = 0.3
 
 /**
+ * Does this rect edge have a wall behind it at all?
+ *
+ * **WALL-BACKED-EDGE (v0.31.8.75).** `snapToWall` chose its edge from the piece's
+ * SEEDED position, which says nothing about whether that edge is a wall. Measured
+ * on `tpl-hdb-3room`'s Service Yard — flush to a wall on its NORTH edge, no wall
+ * within **0.80 m** on the other three — the washing machine took the west one
+ * and stood 0.50 m from any wall. A washing machine needs a wall for its
+ * plumbing, a fridge for its coils; standing one against a rect edge that is not
+ * a wall is wrong in the render and unbuildable as a drawing.
+ *
+ * A PREFERENCE, exactly like the `windowed(edge)` reordering below and for the
+ * same reason: every edge is still attempted, so it can never leave a piece
+ * unplaced.
+ */
+function edgeHasWall(rect: Rect, edge: Edge, walls: CollisionWall[] | undefined): boolean {
+  if (!walls || walls.length === 0) return true
+  const seg =
+    edge === 'N'
+      ? [rect.x0, rect.z0, rect.x1, rect.z0]
+      : edge === 'S'
+        ? [rect.x0, rect.z1, rect.x1, rect.z1]
+        : edge === 'W'
+          ? [rect.x0, rect.z0, rect.x0, rect.z1]
+          : [rect.x1, rect.z0, rect.x1, rect.z1]
+  const ax = seg[0] as number
+  const az = seg[1] as number
+  const bx = seg[2] as number
+  const bz = seg[3] as number
+  const elen = Math.hypot(bx - ax, bz - az)
+  if (elen <= 0) return true
+  const eux = (bx - ax) / elen
+  const euz = (bz - az) / elen
+  for (let k = 1; k <= 5; k++) {
+    const t = k / 6
+    const px = ax + (bx - ax) * t
+    const pz = az + (bz - az) * t
+    for (const w of walls) {
+      const wl = Math.hypot(w.bx - w.ax, w.bz - w.az)
+      if (wl <= 0) continue
+      if (Math.abs(((w.bx - w.ax) / wl) * eux + ((w.bz - w.az) / wl) * euz) <= 0.966) continue
+      const vx = w.bx - w.ax
+      const vz = w.bz - w.az
+      const l2 = vx * vx + vz * vz
+      const u = l2 > 0 ? Math.max(0, Math.min(1, ((px - w.ax) * vx + (pz - w.az) * vz) / l2)) : 0
+      const d = Math.hypot(px - (w.ax + u * vx), pz - (w.az + u * vz)) - w.thickness / 2
+      if (d - ROOM_INSET <= SHORTFALL_SEARCH_M) return true
+    }
+  }
+  return false
+}
+
+/**
  * How far a rect edge falls short of its wall FACE (0 when there is no wall
  * within {@link SHORTFALL_SEARCH_M}, or when the rect already overlaps the wall
  * body — 58 shipped edges do, and pulling a piece further in would take floor
@@ -403,7 +455,11 @@ function snapToWall(
     return ctx.windowKeepOut.some((k) => rectsOverlap(band, k))
   }
   const byWindow = [...ordered.filter((e) => !windowed(e)), ...ordered.filter(windowed)]
-  for (const edge of byWindow) {
+  // WALL-BACKED-EDGE: within the window ordering, an edge with a real wall behind
+  // it comes first. Preference only, so nothing can go unplaced.
+  const backed = (e: Edge) => edgeHasWall(rect, e, ctx.walls)
+  const byWall = [...byWindow.filter(backed), ...byWindow.filter((e) => !backed(e))]
+  for (const edge of byWall) {
     const rot = inward(edge)
     // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
     const along = w / 2

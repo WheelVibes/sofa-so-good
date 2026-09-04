@@ -28,7 +28,7 @@ import { planRoomArea } from '../floorplan/types'
 import { rectsOverlap } from '../layout/arrangeGeometry'
 import { roleOf } from '../layout/arrangeRoles'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
-import { doorKeepOutRects, footprintAabb } from '../layout/clearance'
+import { doorKeepOutRects, footprintAabb, windowFrontRects } from '../layout/clearance'
 import { flushToWall, nearestWallEdge, rotationForEdge, type WallEdge } from '../layout/faceWall'
 import { unsealRoutes } from '../layout/reachability'
 import { mergeGeneratedCatalog } from './generatedCatalog'
@@ -445,6 +445,17 @@ export function placeSeededMounts(
     // moves (3 bathroom-sink, 2 nightstand, 1 bench). Flushing a fixture to the
     // only wall it fits against is worthless if that wall is behind a door.
     const doorKeepOut = doorKeepOutRects(levelAsPlan(plan, level))
+    // WINDOW-KEEPOUT-IN-RESCUE (v0.31.8.75). This pass already refuses to park a
+    // rescued piece in a door's keep-out, "because `dropDoorBlockers` runs after
+    // this pass and deletes any floor piece left in one". The identical argument
+    // applies to WINDOWS: `placementSoundness.test.ts` asserts ZERO items in a
+    // `windowFrontRects` keep-out and `tryPlace` enforces it for everything the
+    // ARRANGER places — but this pass did not know about them, so a piece the
+    // arranger could not place was rescued straight into a window front.
+    // Measured on `tpl-hdb-5room`: `utility-cabinet` at (3.50, 0.85) rot 1.57
+    // spans x 3.30-3.70, z 0.60-1.10 against the kitchen window's rect at
+    // x 1.70-3.50, z 0.10-0.75 — a 0.20 x 0.15 m overlap.
+    const windowKeepOut = windowFrontRects(levelAsPlan(plan, level))
     const claimable = (it: FurnitureItem) => {
       const d = defs[it.defId]
       return !!d && !d.noClip && !d.mounted && roleOf(it.defId, defs) !== 'ceiling'
@@ -528,53 +539,88 @@ export function placeSeededMounts(
         // behaviour and takes the nearest anyway: misplaced on a wall beats
         // marooned mid-room, and `dropOverlaps` then makes the same trade it
         // always did.
-        const edges: WallEdge[] = isMount
-          ? [nearest, ...(['N', 'S', 'W', 'E'] as WallEdge[]).filter((e) => e !== nearest)]
-          : [nearest]
+        // EVERY stranded piece considers all four walls, nearest first — not just
+        // mounts (v0.31.8.75). A floor piece limited to its nearest wall had to
+        // fall back to the RELAXED window pass whenever that one wall carried
+        // glass, which put `tpl-hdb-5room`'s `utility-cabinet` in front of the
+        // kitchen window even though the yard's north wall was clear. More walls
+        // tried is strictly more options; nothing can go unplaced by it.
+        const edges: WallEdge[] = [
+          nearest,
+          ...(['N', 'S', 'W', 'E'] as WallEdge[]).filter((e) => e !== nearest),
+        ]
         let chosen: { pos: [number, number]; rot: number } | null = null
-        for (const edge of edges) {
-          const sideways = edge === 'W' || edge === 'E'
-          const halfX = sideways ? fp.hz : fp.hx
-          const halfZ = sideways ? fp.hx : fp.hz
-          const rot = rotationForEdge(edge)
-          const base = flushToWall(it.position, rect, edge, halfX, halfZ)
-          // A mount asks only whether it would INTERSECT something at its own
-          // height. A FLOOR piece slides along the wall until its box is clear of
-          // everything already placed, measured with the SAME `itemAabbBox` the
-          // real broadphase uses so the two cannot disagree.
-          const clashes = (p: [number, number]) =>
-            itemHeightAwareClash({ ...it, position: p, rotation: rot }, def, onLevel, defs)
-          let spot: [number, number] | null = isMount && !clashes(base) ? base : null
-          if (!spot) {
-            const along = sideways ? halfZ : halfX
-            const lo = (sideways ? rect.minZ : rect.minX) + along
-            const hi = (sideways ? rect.maxZ : rect.maxX) - along
-            const step = Math.max(0.1, along)
-            for (let k = 0; k <= 16 && !spot; k++) {
-              for (const dir of k === 0 ? [0] : [1, -1]) {
-                const t = (sideways ? base[1] : base[0]) + dir * k * step
-                if (t < lo - 1e-9 || t > hi + 1e-9) continue
-                const p: [number, number] = sideways ? [base[0], t] : [t, base[1]]
-                if (isMount) {
-                  // A mount reserves no floor and is blocked by none, so it skips
-                  // the floor claims and the door keep-out entirely.
-                  if (clashes(p)) continue
-                } else {
-                  const box = itemAabbBox({ ...it, position: p, rotation: rot }, def)
-                  if (floorClaims.some((c) => aabbHit(box, c))) continue
-                  const fb = { x0: box.minX, x1: box.maxX, z0: box.minZ, z1: box.maxZ }
-                  if (doorKeepOut.some((k) => rectsOverlap(fb, k))) continue
+        // Strictness outside the WALL loop, not inside it: try every wall while
+        // still respecting windows, and only then allow a windowed spot. Nesting
+        // it the other way relaxes on the first wall and never looks at the rest,
+        // which is how the cabinet ended up in front of glass with a clear wall
+        // going spare.
+        for (const strict of [true, false] as const) {
+          if (chosen) break
+          for (const edge of edges) {
+            const sideways = edge === 'W' || edge === 'E'
+            const halfX = sideways ? fp.hz : fp.hx
+            const halfZ = sideways ? fp.hx : fp.hz
+            const rot = rotationForEdge(edge)
+            const base = flushToWall(it.position, rect, edge, halfX, halfZ)
+            // A mount asks only whether it would INTERSECT something at its own
+            // height. A FLOOR piece slides along the wall until its box is clear of
+            // everything already placed, measured with the SAME `itemAabbBox` the
+            // real broadphase uses so the two cannot disagree.
+            const clashes = (p: [number, number]) =>
+              itemHeightAwareClash({ ...it, position: p, rotation: rot }, def, onLevel, defs)
+            let spot: [number, number] | null = isMount && !clashes(base) ? base : null
+            // WINDOWS ARE A PREFERENCE HERE, DOORS ARE NOT. The sweep runs twice:
+            // first demanding both keep-outs, then doors only. Making the window
+            // check hard on a single pass cost `tpl-hdb-maisonette` its SHOWER — a
+            // 2 m shower in a 1.6 x 1.3 m bathroom whose walls all carry glass has
+            // nowhere window-free to stand, so refusing every spot stranded it and
+            // it was dropped. A blocked door is a safety problem; a blocked window
+            // is a quality one, and a bathroom with no shower is worse than a
+            // shower in front of the glass. `windowSightline.test.ts` ratchets
+            // whatever does land there.
+            {
+              const along = sideways ? halfZ : halfX
+              const lo = (sideways ? rect.minZ : rect.minX) + along
+              const hi = (sideways ? rect.maxZ : rect.maxX) - along
+              const step = Math.max(0.1, along)
+              for (let k = 0; k <= 16 && !spot; k++) {
+                for (const dir of k === 0 ? [0] : [1, -1]) {
+                  const t = (sideways ? base[1] : base[0]) + dir * k * step
+                  if (t < lo - 1e-9 || t > hi + 1e-9) continue
+                  const p: [number, number] = sideways ? [base[0], t] : [t, base[1]]
+                  if (isMount) {
+                    // A mount reserves no floor and is blocked by none, so it skips
+                    // the floor claims and the door keep-out entirely.
+                    if (clashes(p)) continue
+                  } else {
+                    const box = itemAabbBox({ ...it, position: p, rotation: rot }, def)
+                    if (floorClaims.some((c) => aabbHit(box, c))) continue
+                    const fb = { x0: box.minX, x1: box.maxX, z0: box.minZ, z1: box.maxZ }
+                    if (doorKeepOut.some((k) => rectsOverlap(fb, k))) continue
+                    // A window rejects only a piece TALLER than its sill; a
+                    // near-zero sill (a balcony slider) rejects every floor piece.
+                    if (
+                      strict &&
+                      windowKeepOut.some(
+                        (k) =>
+                          (k.sill <= 0.05 || def.defaultFootprint.h > k.sill) &&
+                          rectsOverlap(fb, k),
+                      )
+                    )
+                      continue
+                  }
+                  spot = p
+                  break
                 }
-                spot = p
-                break
               }
             }
+            if (spot) chosen = { pos: spot, rot }
+            // A mount that found nothing on this wall tries the next one; a floor
+            // piece has only its nearest wall to try (walls are its own edge choice,
+            // made upstream by the arranger), so the loop ends either way.
+            if (chosen) break
           }
-          if (spot) chosen = { pos: spot, rot }
-          // A mount that found nothing on this wall tries the next one; a floor
-          // piece has only its nearest wall to try (walls are its own edge choice,
-          // made upstream by the arranger), so the loop ends either way.
-          if (chosen || !isMount) break
         }
         // Nowhere clear on any wall. Keep the historical behaviour and take the
         // NEAREST wall anyway: misplaced on a wall beats marooned on the room

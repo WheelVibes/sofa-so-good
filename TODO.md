@@ -915,64 +915,25 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   and falls back to the nearest rather than stranding). Cost: one blocked window, two decor props
   and one drying rack, against +7 items elsewhere — net +4. Full history in the v0.31.8.61/.69/.70
   changelog entries.
-  **The three SERVICE-YARD washing machines are diagnosed, and the fix is blocked
-  (v0.31.8.72).** They stand on rect edges that are not walls: `tpl-hdb-3room`'s Service Yard is
-  flush to a wall on its NORTH edge and has no wall within **0.80 m** on the other three, and the
-  machine takes the west one — because `snapToWall` chooses its edge from the piece's SEEDED
-  position, which says nothing about whether that edge is a wall.
-  **`edgeHasWall` + preferring wall-backed edges fixes all three** (6 marooned -> 3, net +1 item).
-  It also puts `tpl-hdb-5room`'s `utility-cabinet` in front of a window, which
-  `placementSoundness.test.ts` catches — and that test is ZERO-TOLERANCE, not a ratchet, so this
-  is not a number to bump.
-  **Two attempts to protect the window, both fail:**
-  (a) rank `windowed(edge)` above wall-backing — no effect, because `windowed` is gated on TALL
-  STORAGE and a `utility-cabinet` is not covered;
-  (b) withhold the wall preference on ANY windowed edge, for every piece — fixes the cabinet and
-  breaks `autoArrange.test.ts`'s "lines bathroom fixtures along the walls (not parked mid-room)",
-  which is the exact regression the `tall` gate was narrowed to prevent.
-  **That framing was WRONG, corrected in v0.31.8.73.** `windowed`'s subject is fine:
-  `utility-cabinet` is `role=storage, h=2.0` against `windowSillTall` 0.95, so `tall` is true and
-  `windowed(edge)` DOES cover it. Measured roles/heights:
-  ```
-  utility-cabinet   storage  2.00      bathroom-sink  other  0.98
-  wardrobe-3door    storage  2.10      toilet         other  0.78
-  bookshelf         storage  1.80      shower         other  2.00
-  washing-machine   storage  0.85      stove          other  0.92
-  ```
-  So attempt (1) failing means **`windowed()` and `placementSoundness` disagree about which
-  edges carry a window** — `windowed()` tests a +/-0.3 m band around the RECT edge against
-  `windowFrontRects` (0.65 m deep), and the rect edge is itself up to 0.15 m short of the wall.
-  Two window tests, two answers.
-  **THE ACTUAL BUG IS FOUND (v0.31.8.74), and it is not a disagreement between window tests.**
-  `windowFrontRects(levelAsPlan(...))` and `windowFrontRects(plan)` are IDENTICAL on
-  `tpl-hdb-5room` — verified rect by rect — and `tryPlace` already rejects them with the same
-  criterion `placementSoundness` asserts. The cabinet escapes because it is **not placed by the
-  arranger at all**: it fails placement, stays at its room-centre seed, and
-  `placeSeededMounts` rescues it — and **that pass checks `doorKeepOutRects` but NOT
-  `windowFrontRects`.** Measured: cabinet at (3.50, 0.85) rot 1.57 spans x 3.30-3.70, z
-  0.60-1.10; the kitchen window's rect is x 1.70-3.50, z 0.10-0.75 — a 0.20 x 0.15 m overlap.
-  The pass's own comment explains the door check ("`dropDoorBlockers` runs after this pass and
-  deletes any floor piece left in one") and the same argument applies verbatim to windows.
-  **Adding the window check symmetrically WORKS**: `placementSoundness` passes, the 5-room
-  cabinet is clear, and all three washing machines are fixed with WALL-BACKED-EDGE (6 marooned
-  -> 3).
-  **But making it HARD costs `tpl-hdb-maisonette` its SHOWER** — exactly the constraint
-  v0.31.8.73 predicted: a 2 m shower in a 1.6 x 1.3 m bathroom whose walls all carry glass has
-  nowhere window-free to stand, so refusing every spot strands it and it is dropped.
-  **The remaining step is one refinement:** run the rescue sweep TWICE — first demanding both
-  keep-outs, then doors only. A blocked door is a safety problem, a blocked window is a quality
-  one, and a bathroom with no shower is worse than a shower in front of glass;
-  `windowSightline.test.ts` already ratchets whatever lands in front of glass. Then update the
-  three measurements (applianceWall -3, item counts 3room +1 / 4room +1 / 5room -1) with the
-  per-def diff.
-  Note also `shower` is `role=other, h=2.0` — it is NOT covered by `tall`, which is why widening
-  the gate pushed bathroom fixtures mid-room. Any reconciliation has to keep a 2 m shower in a
-  1.6 x 1.3 m bathroom against a windowed wall, because it has nowhere else to go.
-  **What is LEFT (6):** `tpl-condo-3bed/stove 1.05` (never placed at all — still at its room-centre
-  seed, see the ALONG-WALL entry, which is measured and declined), `tpl-hdb-5room/washing-machine
-  0.60`, `tpl-condo-1bed/stove 0.59`, `tpl-hdb-2room/stove 0.52`, `tpl-hdb-3room` and
-  `tpl-hdb-4room` washing machines at 0.50. The three service-yard washing machines are the next
-  cluster and have not been diagnosed.
+  **The three SERVICE-YARD washing machines are FIXED (v0.31.8.75), and it took three changes
+  that only work together:**
+  (a) **WALL-BACKED-EDGE** — `snapToWall` prefers an edge that actually has a wall. It chose from
+  the piece's SEEDED position before, so `tpl-hdb-3room`'s washing machine took the yard's west
+  edge (no wall within 0.80 m) over its north edge (flush to one).
+  (b) **WINDOW-KEEPOUT-IN-RESCUE** — `placeSeededMounts` checked `doorKeepOutRects` but not
+  `windowFrontRects`, so a piece the arranger could not place was rescued straight into a window
+  front. Pre-existing; (a) merely changed which pieces get stranded and exposed it.
+  (c) **All four walls, strictness outside the wall loop** — a stranded FLOOR piece used to try
+  only its nearest wall, so it had to relax the window rule whenever that one wall carried glass.
+  Trying every wall strictly first, and only then allowing a windowed spot, is what lets
+  `tpl-hdb-5room`'s `utility-cabinet` take the yard's clear north wall AND
+  `tpl-hdb-maisonette`'s 2 m shower keep its windowed wall in a 1.6 x 1.3 m bathroom with no
+  window-free option.
+  Net **+5 items with no losses anywhere** (3room +1, 4room +2, jumbo +1, studio +1) — trying
+  more walls rescues pieces that previously had nowhere to go.
+  **What is LEFT (3):** `tpl-condo-3bed/stove 1.05` (never placed at all — still at its room-centre
+  seed, see the ALONG-WALL entry, which is measured and declined), `tpl-condo-1bed/stove 0.59` and
+  `tpl-hdb-2room/stove 0.52`. Both are stoves, neither diagnosed.
 
 - **[ALONG-WALL SWEEP — MEASURED AND DECLINED TWICE (v0.31.8.7, v0.31.8.62). Do not re-attempt
   without a new idea.]** `snapToWall` tries exactly ONE along-wall position per edge — the

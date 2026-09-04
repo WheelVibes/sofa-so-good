@@ -195,3 +195,26 @@ DISTANCE, not the rectangle.
 It also needed `placeSeededMounts` to stop giving a mount its wall unconditionally — see
 MOUNT-HEIGHT-CLASH there. A wardrobe now against the wall reaches a mount's height, and
 `dropOverlaps` was deleting the mount.
+
+## A rect edge is not necessarily a wall (v0.31.8.75)
+
+`snapToWall` used to choose its edge from the piece's SEEDED position, which says nothing about
+whether that edge has a wall behind it. `tpl-hdb-3room`'s Service Yard is flush to a wall on its
+NORTH edge and has no wall within **0.80 m** on the other three; its washing machine took the
+west one. `edgeHasWall` now makes wall-backed edges preferred (a preference, like
+`windowed(edge)` — every edge is still tried, so nothing can go unplaced).
+
+Two things had to change with it, and none of the three works alone:
+
+- **`placeSeededMounts` checked door keep-outs but not WINDOW keep-outs.** A piece the arranger
+  could not place was rescued straight into a window front, which `placementSoundness` asserts at
+  zero tolerance. Pre-existing gap; the edge preference just changed which pieces get stranded.
+- **A stranded FLOOR piece used to try only its nearest wall.** So it had to relax the window
+  rule whenever that wall carried glass. Every piece now tries all four, and STRICTNESS SITS
+  OUTSIDE THE WALL LOOP: all walls window-free first, then all walls allowing a windowed spot.
+  Nesting it the other way relaxes on the first wall and never looks at the rest.
+
+The relaxed pass is not optional. A 2 m `shower` in `tpl-hdb-maisonette`'s 1.6 x 1.3 m bathroom
+has no window-free wall, and refusing every spot strands it and `dropOverlaps` deletes it. A
+blocked door is a safety problem; a blocked window is a quality one that
+`windowSightline.test.ts` already ratchets.

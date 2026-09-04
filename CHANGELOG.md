@@ -27,6 +27,65 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.75 — a rect edge is not a wall. Three changes, none works alone
+
+Four releases on this thread, three of them no-code. This one lands, and the reason it took four
+is that the fix is three changes that only work together.
+
+**(a) WALL-BACKED-EDGE.** `snapToWall` chose its edge from the piece's SEEDED position, which
+says nothing about whether that edge has a wall. `tpl-hdb-3room`'s Service Yard is flush to a
+wall on its NORTH edge and has **no wall within 0.80 m** on the other three — and its washing
+machine took the west one. A washing machine needs a wall for its plumbing.
+
+**(b) WINDOW-KEEPOUT-IN-RESCUE.** `placeSeededMounts` checked `doorKeepOutRects` but not
+`windowFrontRects`, so a piece the arranger could not place was rescued straight into a window
+front — which `placementSoundness` asserts at zero tolerance. Pre-existing; (a) merely changed
+which pieces get stranded and walked into it.
+
+**(c) All four walls, strictness OUTSIDE the wall loop.** A stranded floor piece used to try only
+its nearest wall, so it had to relax the window rule whenever that wall carried glass. Now every
+piece tries all four walls window-free first, and only then all four allowing a windowed spot.
+
+### Why (c) is the load-bearing one
+
+With (b) alone, `tpl-hdb-maisonette` loses its **shower** — a 2 m shower in a 1.6 × 1.3 m
+bathroom whose walls all carry glass has nowhere window-free to stand, so refusing every spot
+strands it and `dropOverlaps` deletes it. With (b) relaxed on a single wall,
+`tpl-hdb-5room`'s `utility-cabinet` sits in front of the kitchen window **with the yard's north
+wall going spare**.
+
+Strictness outside the wall loop gives both: the cabinet takes the clear wall, the shower keeps
+its windowed one. A blocked door is a safety problem; a blocked window is a quality one that
+`windowSightline.test.ts` already ratchets.
+
+### Measured
+
+| | before | after |
+| --- | --- | --- |
+| marooned appliances | 6 | **3** |
+| service-yard washing machines | 3 | **0** |
+| items across the library | 1448 | **1453** |
+| item losses anywhere | — | **none** |
+
+**+5 items and nothing lost**: 3room +1, 4room +2, jumbo +1, studio +1. Trying more walls rescues
+pieces that previously had nowhere to go — the opposite of the trade I kept expecting.
+
+The three that remain are `tpl-condo-3bed/stove 1.05` (never placed at all — see the ALONG-WALL
+entry, measured and declined twice), `tpl-condo-1bed/stove 0.59` and `tpl-hdb-2room/stove 0.52`.
+
+### On the four releases
+
+`.72` built (a) and found it blocked. `.73` blamed the catalog taxonomy — wrong, no such
+question. `.74` blamed two window tests disagreeing — also wrong, they agree; the bug was a
+missing check in a third place. Twice I reasoned about *which rule applies* when I should have
+asked *which code path ran*. `src/layout/CLAUDE.md` now records all three changes and why none
+works alone.
+
+Looked at `tpl-hdb-5room` and `tpl-hdb-maisonette` furnished — yard pieces against their walls,
+shower present, nothing floating or clipping.
+
+Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.74 — the rescue pass never learned about windows
 
 v0.31.8.73 said the blocker was two window tests disagreeing. Checked that, and it is not:

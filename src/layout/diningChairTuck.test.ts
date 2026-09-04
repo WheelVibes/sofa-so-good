@@ -75,11 +75,11 @@ describe('dining chairs are tucked to their table', () => {
       'tpl-hdb-2room': 48,
       // 67 → 66 in v0.31.8.31: Bedroom 2 trades its wardrobe for its first
       // window (item (h)); its 2.0 m south wall cannot take both.
-      'tpl-hdb-3room': 66,
+      'tpl-hdb-3room': 67,
       // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
-      'tpl-hdb-4room': 77,
+      'tpl-hdb-4room': 79,
       // 82 until v0.31.5.116: same story as the 4-room a version earlier —
       // moving the misplaced window OUT of the kitchen freed the wall the range
       // hood needs. Dumped per-def first; the +1 is `range-hood`.
@@ -109,7 +109,7 @@ describe('dining chairs are tucked to their table', () => {
       // 116 → 121 in v0.31.8.45: the central hall is a declared room now, so it
       // is furnished at all. It had been 55 m² — 31% of the flat — belonging to
       // no room.
-      'tpl-hdb-jumbo': 124,
+      'tpl-hdb-jumbo': 125,
       // UNCHANGED at 141 through v0.31.8.33, which gave its kitchen, service yard
       // and STAIR HALL their first doors — on a maisonette the stair hall is the
       // only way to the upper storey. Putting the yard's door on the service
@@ -118,7 +118,7 @@ describe('dining chairs are tucked to their table', () => {
       // 141 -> 140 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH): one `drying-rack`. The only
       // real piece lost anywhere in the library, against +7 gained elsewhere.
       'tpl-hdb-maisonette': 140,
-      'tpl-studio': 23,
+      'tpl-studio': 24,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
       // chair alive by refusing it a slot outside the room (it had been placed
       // out there and then dropped).
@@ -221,7 +221,11 @@ describe('dining chairs are tucked to their table', () => {
     // templates move: +1 condo-3bed, +2 condo-4bed, +1 exec, +3 jumbo against
     // -2 penthouse (two decor props) and -1 maisonette (a drying rack). Every
     // drop is diffed per def above.
-    expect(total).toBe(1448)
+    // 1448 -> 1453 in v0.31.8.75 (WALL-BACKED-EDGE + WINDOW-KEEPOUT-IN-RESCUE), a net GAIN of 5
+    // with NO losses anywhere: +1 3room, +2 4room, +1 jumbo, +1 studio. Letting
+    // every stranded piece try all four walls (not just its nearest) rescues
+    // pieces that previously had nowhere to go.
+    expect(total).toBe(1453)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal
