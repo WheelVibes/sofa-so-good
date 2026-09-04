@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.273 — shipped lightmaps are readable at last, and a row flip that lied convincingly
+
+**`map-stats.mjs`** reports a shipped map's `mean`, `int_mean` and `max` in irradiance units
+(x `scale`) — the same three statistics `bake_material.py` prints for its own output. Until now the
+index kept only `scale`, so a shipped map and a fresh bake could not be compared on anything.
+
+| map | int_mean | max |
+| --- | --- | --- |
+| floor `4b1218e6` (Mesh_11, 19.3 m²) | **0.1648** | 0.8746 |
+| wall `6f5a1254` (Mesh_96, 9.23 m²) | **0.3002** | 1.7243 |
+
+**Sampling is confirmed sound**, which removes a whole class of suspect from `(z7)`: the index
+declares `slots [[2,0]]` for the floor and `gi-point`'s uv1 (0.857, 0.273) lands in exactly that
+slot, so the 19 % deficit is not a UV or atlas-slot error.
+
+**The row flip is the lesson.** My first version indexed slot rows in PNG order and reported the
+floor's `int_mean` as **0.0006** — a beautifully plausible "the map is empty, that's your 19 %".
+It was reading the empty mirror slot. `lightmapUv.ts` sets `uv.y = (row + ...) / ATLAS_ROWS`, so
+slot row 0 occupies uv.y in [0, 0.5) — and UV y = 0 is the BOTTOM of the texture while PNG row 0 is
+the top, which `gi-point` already resolves as `py = (1 - v) * h`. Slot row 0 is therefore PNG rows
+[h/2, h). What caught it was a cross-check rather than review: a point probe reads 0.4863 in the
+slot the mean said was empty. Derivation now recorded in the file.
+
+**And the comparison is NOT decisive, so I am not calling it.** Those two maps are different
+objects of different extent — Mesh_11 spans much of the flat including corridor far from any
+glazing, which drags its mean down — so comparing their means is exactly the mesh-mean-versus-patch
+conflation `v0.31.7.180` identified as the reason four earlier rounds failed. The measured point
+reads 0.4338, well above its own map's mean, so it sits on a bright part of the map.
+
+**What would settle it:** bake this same object fresh and read it at the SAME uv1. That is blocked
+on tooling rather than physics — a fresh bake gets its own `plan_context`, so the app's index cannot
+resolve it. `--uv existing` might reuse the GLB's `UVMap.001`, which IS the app's own runtime atlas,
+and make the two directly comparable; it may equally bind uv0, and that needs checking before it is
+trusted.
+
+
 ## v0.31.7.272 — the bake's missing sun-bounce, finally measured: 2.6-8.8 %, so not `(z7)`
 
 **The gap the decomposition never quantified.** `bake_material.py`'s irradiance pass removes the
