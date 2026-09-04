@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.233 — the stale index costs NO shell coverage: all 14 dead maps were furniture. Not shipped, and `.232`'s phrasing was too strong
+
+`.232` found 14 of the shipped index's 111 keys no longer match the scene and called them "dead
+weight, and the surfaces they were baked for now render unmapped". Both halves are true and the
+second is more alarming than it should be, because it does not say WHICH surfaces. Installing the
+fresh index and measuring says exactly which:
+
+| | shipped index | fresh index |
+| --- | --- | --- |
+| mapped meshes | 101 / 1072 (9.4 %) | **112 / 1072 (10.4 %)** |
+| **shell** mapped | **92** | **92** |
+| furniture mapped | 9 | **20** |
+
+**Shell coverage is identical — 92 either way.** The entire recovery is furniture, 9 items to 20,
+which fits the cause `.232` inferred: this session added 66 curtains, and a curtain is a mesh whose
+geometry did not exist when the shipped set was baked. So the staleness costs ~1 % of total coverage
+and **nothing at all on the architectural surfaces**, which are the ones the look depends on and the
+ones every measurement in this arc has been about.
+
+**Not shipped**, and the reasoning matters more than the decision. Swapping 111 asset files to gain
+11 furniture maps is a poor trade on its own, but the deeper point is that baked light on FURNITURE
+is fragile by construction: the key hashes world-space geometry, so the moment a user drags a sofa
+its key stops matching and the map silently drops off. That degrades gracefully — the item falls
+back to ambient — but it means furniture maps are lit-until-touched, and adding eleven more of them
+buys a fidelity that disappears on the first interaction. The shell does not move, which is why the
+shell is the right target.
+
+Reverted with a verified `cp` restore from a full directory backup; `git status` on
+`public/assets/lightmaps` is clean.
+
+**The real lever is still the threshold**, and `.227` priced it: `--min-area` 3.0 → 1.5 adds **52
+shell meshes** for about +2.2 MB. That bake is running now with the parameters the control run proved
+(256 px, 8-bit, 1024 samples, `--per-map-scale`, `--limit 400` so it cannot truncate), at ~8 s per
+map. Suite 10219 green.
+
+
 ## v0.31.7.232 — the re-bake answers `.227`: 111 maps, same as shipped, but **14 of 111 keys no longer match the scene**. Plus the gap-ceiling module
 
 **The bake finished: 111 maps in 24 minutes** (256 px, 8-bit, 1024 samples, `--min-area 3.0`,
