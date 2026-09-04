@@ -27,6 +27,63 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.63 — a household shelter with two of its four walls
+
+A household shelter is a reinforced-concrete box. `tpl-hdb-3room` authored the room
+rectangle and **two** of its four boundary walls, so `shelterWallIds` returned two, the
+hackability overlay could mark only those NOT PERMITTED, the 3D shell rendered the shelter open
+on two sides, and a drawing set could not show the RC enclosure a contractor has to build.
+
+`h3-hs-w` and `h3-hs-s` now close it, with a 0.7 m shelter door — the pattern `tpl-hdb-3gen` and
+`tpl-hdb-jumbo` already use. **2 walls → 4.**
+
+**The new walls are authored FLUSH, and that is a deliberate departure from most of the
+library.** Their centrelines sit half a thickness outward from the room rectangle (4.5 → 4.45,
+2.2 → 2.25) so the wall FACES land exactly on the room edge. Authoring the centreline *on* the
+edge — which is what most of the library does — leaves the rect overlapping the wall body by
+0.05 m, one of the four populations v0.31.8.60 measured. `roomRectWalls.test.ts` records the
+result: flush 226 → **229**, overlapping unchanged at 58.
+
+Full suite green: connectivity, enclosure, dining tuck, route access, appliances, window
+sightlines and item counts all unmoved.
+
+### `-4room` and `-5room` were authored too, measured, and reverted
+
+Both take `templateConnectivity`'s ratchet from **2 disconnected groups to 3** — and it stays at
+3 wherever the shelter door goes. I tried south into the living band and east into the living
+room, on both templates.
+
+The reason is structural: once properly enclosed, the shelter shares a wall-free volume with no
+other **declared** room, because the space its door opens onto is undeclared circulation — the
+same undeclared-floor fact that has shaped the route work for the last dozen releases. So the
+shelter reads as its own group.
+
+**Whether that means the enclosure is wrong or the room-graph test is coarse, I could not settle
+in this release**, and shipping template geometry whose connectivity effect I do not understand
+is exactly the trade I have declined twice in the last two releases. So those two are reverted
+and the question is written down. The wall coordinates are here for whoever answers it:
+
+```
+tpl-hdb-4room   iwall('h4-hs-w', [5.0, T], [5.0, 2.2])
+                iwall('h4-hs-s', [5.0, 2.2], [6.5, 2.2])
+                iwall('h4-hs-e', [6.5, T], [6.5, 2.2])
+tpl-hdb-5room   iwall('h5-hs-w', [4.9, T], [4.9, 2.2])
+                iwall('h5-hs-s', [4.9, 2.2], [6.2, 2.2])
+                iwall('h5-hs-e', [6.2, T], [6.2, 2.2])
+```
+
+(Offset those centrelines by half a thickness before re-authoring, per the flush note above.)
+
+One thing worth recording on the way past: enclosing `tpl-hdb-5room`'s shelter also **shrank its
+shared-enclosure offender from 10 rooms to 7** in `templateEnclosure.test.ts` — so the walls do
+improve the thing item (f) tracks, which is an argument for answering the connectivity question
+rather than dropping this.
+
+Looked at: `tpl-hdb-3room` furnished in the dollhouse — the shelter reads as an enclosed room,
+walls meet cleanly, door in place, nothing floating or clipping.
+
+Verified: 10187 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.62 — the along-wall sweep: built, works, costs more than it buys
 
 v0.31.8.61 said the appliance fix needed pairing with along-wall placement, and that they were

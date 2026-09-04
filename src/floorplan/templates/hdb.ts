@@ -87,6 +87,22 @@ export function hdb3Room(): FloorPlan {
       // Master Bath was sharing one volume with Bedroom 2 — no wall between.
       iwall('h3-mb-e', [1.9, 5.6], [1.9, D - T]),
       // Common Bath was open to the kitchen and living room.
+      // SHELTER-ENCLOSURE (v0.31.8.63). A household shelter is a reinforced-concrete
+      // box, and a drawing set has to show its enclosure — but this template
+      // authored the room rectangle and only the ONE boundary wall it happened to
+      // share with the facade, so `shelterWallIds` returned 1 of 4, the hackability
+      // overlay could mark only that one NOT PERMITTED, and the 3D shell rendered
+      // the shelter open on three sides. The pattern here is `tpl-hdb-3gen`'s and
+      // `tpl-hdb-jumbo`'s, which were already enclosed: side walls plus a south
+      // wall carrying the 0.7 m shelter door.
+      // Centrelines are offset half a wall thickness OUTWARD from the shelter's
+      // room rectangle (4.5 -> 4.45, 2.2 -> 2.25) so the wall FACES land exactly
+      // on the room edge. Authoring the centreline on the edge instead — which
+      // most of the library does — leaves the rect overlapping the wall body by
+      // 0.05 m, which is one of the four populations `roomRectWalls.test.ts`
+      // measures. New walls should be flush.
+      iwall('h3-hs-w', [4.45, T], [4.45, 2.25]),
+      iwall('h3-hs-s', [4.45, 2.25], [6.0, 2.25]),
       iwall('h3-cb-w', [6.0, T], [6.0, 2.4]),
       iwall('h3-cb-s', [6.0, 2.4], [W - T, 2.4]),
     ],
@@ -97,6 +113,7 @@ export function hdb3Room(): FloorPlan {
       // The Master Bath opens off the master, making it a real ensuite.
       door('h3-mbath', 'h3-b2-n', 0.5, 0.7),
       door('h3-cbath', 'h3-cb-s', 0.6, 0.7),
+      door('h3-hs', 'h3-hs-s', 0.45, 0.7),
       window('h3-kit-win', 'h3-n', 1.2, 1.6),
       window('h3-m-win', 'h3-w', 3.6, 1.5),
       // BEDROOM-WINDOW (h): offset 6.4 on `h3-w` (which runs south→north from

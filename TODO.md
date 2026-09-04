@@ -2083,10 +2083,29 @@ the RC enclosure a contractor needs. Corpus counts of shelter-bounding walls:
 DEFAULT 4, `-exec` 3, `-3gen` 3, `-maisonette` 3, `-2room` 2, `-jumbo` 2, and
 `-3room`/`-4room`/`-5room` just **1** each.
 
-Fixing this is a template DATA change (author the missing RC partitions, 300 mm per
-the default flat's `apartment/constants.ts` derivation), not a logic change. Check
-whether `templateEnclosure.test.ts` should have caught it — if that test passes on a
-room missing three walls, its enclosure criterion is weaker than its name suggests.
+Fixing this is a template DATA change (author the missing RC partitions), not a logic
+change.
+
+**`tpl-hdb-3room` is DONE (v0.31.8.63): 2 shelter walls -> 4**, matching `-3gen` and
+`-jumbo`. New walls are authored with the centreline offset half a thickness OUTWARD
+from the room rect (4.5 -> 4.45, 2.2 -> 2.25) so the FACES land on the room edge —
+otherwise the rect overlaps the wall body, which is one of the four populations
+`roomRectWalls.test.ts` measures. Full suite green.
+
+**`-4room` and `-5room` were authored the same way, measured, and REVERTED.** Both take
+`templateConnectivity`'s ratchet from 2 disconnected groups to 3, and it stays at 3
+wherever the shelter door is placed (tried south into the living band and east into the
+living room, on both templates). The shelter becomes its own group because, once
+properly enclosed, it shares a wall-free volume with no other DECLARED room — the space
+its door opens onto is undeclared circulation. Whether that is the enclosure being
+wrong or the room-graph test being coarse in the presence of undeclared floor was not
+resolved, and shipping template geometry whose connectivity effect is not understood is
+the wrong trade. **Resolve that question first**; the wall coordinates are in the
+v0.31.8.63 changelog entry, so re-authoring is copy-paste once it is answered.
+
+Also still open: `-2room` (2 walls) and `-exec`/`-3gen`/`-maisonette` (3 each), and
+whether `templateEnclosure.test.ts` should have caught any of this — it passed on a
+shelter missing three walls, so its criterion is weaker than its name suggests.
 
 ## (j) WINDOW-SIGHTLINE: the beside-the-glass option is measured impossible
 
