@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.275 — two `(z7)` suspects eliminated, then the baseline itself failed to reproduce
+
+**Sun-bounce, measured on the floor object itself: 1.6 %.** `.272` bounded the mechanism on other
+meshes and said so; this measures the surface in question. Two `--indirect-only` bakes of `Mesh_11`,
+same seed, glazing kept, with and without the sun disc: interior slot mean **0.1402 → 0.1429**. That
+is 1.6 % of the shipped map's 0.1648 — smaller than the 2.6-8.8 % elsewhere, so sun-bounce is
+definitively not the 19 %.
+
+**Contact shadows: 0.1 counts.** The idea was decent — the bake's GLB contains the furniture, so
+real occlusion is baked in, while `ContactShadow` paints an additional fake blob that is
+`noExport` and therefore absent from the reference, which would double-darken near furniture and
+matched a suggestive pattern (three floor patches at 0.811 / 0.948 / 0.877, worst beside the
+ottoman). Disabling it moved those patches 0.1 counts on a like-for-like server. Not it.
+
+**Then the baseline stopped reproducing, which is the real result — new item `(z10)`, and it blocks
+`(z7)`.** Same committed tree, same probe, same state line, `LIGHTS=off` flipping 19 of 87 in both:
+the FLOOR renders **126.6 / R−B +28.0** on a freshly started dev server and **104.7 / +19.4** on the
+long-running one. Ceiling and wall are BYTE-IDENTICAL across the same pair, so it is not exposure,
+tone mapping or the sun — it is the floor specifically. And on the fresh server, contact shadows ON
+reads 126.6 against OFF at 104.6: removing a `rgba(0,0,0,0.55)` darkening blob apparently makes the
+floor 22 counts BRIGHTER, which the code cannot do — `Furniture.tsx` gates it with nothing but
+`if (!contactShadow) return null`.
+
+The leading suspect is my own `(z8)` work: `surfaceOrientation()` reads a world normal via
+`updateWorldMatrix` at material-attach time, so a floor could classify `up` or `down` depending on
+whether parent transforms are settled when lightmaps are applied — and the measured chroma sits
+between the `up` (0.773) and `down` (0.539) strengths, at an implied ~0.34. Untested. `(z8)`'s
+ceiling and wall values are unaffected, being byte-identical; its FLOOR strength is not verified on
+a fresh server, and every app-side floor number in this arc predates this discovery.
+
+**`aim-look` now refuses a partial `LIGHTS=off`.** Run against a just-started server whose scene had
+not finished loading, `toggleLightPower` flipped only some lamps and produced a frame 22 counts
+brighter and 9 warmer than a true lights-off one — sitting BETWEEN the two arms, so it read as a
+plausible measurement rather than a broken run, and it briefly became a contact-shadow "finding".
+Below `LIGHTS_MIN` (default 10) the probe now errors out instead of rendering a half-lit frame.
+
+Also noted: the dev server on :5200 had exited, so probes now run against :5173.
+
+
 ## v0.31.7.274 — the bake is exonerated: the shipped floor map reproduces to 0.1 %
 
 `(z7)` has been "the floor is 19 % dark and I don't know whose fault it is" for four versions. It is

@@ -141,6 +141,20 @@ if (process.env.LIGHTS === 'off') {
     return { candidates: on.length, flipped: k }
   })
   console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidates`)
+  // A PARTIAL flip is the dangerous outcome, and it is silent. `v0.31.7.275`: run against a
+  // just-started dev server whose scene had not finished loading, this flipped only some lamps and
+  // produced a frame 22 counts brighter and 9 counts warmer than a true lights-off one -- sitting
+  // between the two arms, so it looked like a plausible measurement rather than a broken run. It
+  // was nearly published as a contact-shadow finding. The default flat carries 19 of 87.
+  const MIN_FLIPPED = Number(process.env.LIGHTS_MIN || 10)
+  if (flipped.flipped < MIN_FLIPPED) {
+    console.error(
+      `LIGHTS=off flipped only ${flipped.flipped} (< ${MIN_FLIPPED}). The scene was probably still ` +
+        `loading. Refusing to render a half-lit frame -- raise LIGHTS_MIN if this plan really has fewer.`,
+    )
+    await browser.close()
+    process.exit(1)
+  }
   await new Promise((r) => setTimeout(r, 1500))
 }
 // SHADOW=<nocast|nb0|map4096> mutates the sun's shadow so a leak can be tested. Applied HERE, in
