@@ -27,6 +27,65 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.59 — I guessed the mechanism and I was wrong for 14 of 15
+
+Last release ratcheted 15 marooned kitchen appliances and wrote down a guess: the kitchen routine
+places the counter and fridge first, leaves no wall edge, and the stove falls through to
+`arrangeCore`'s room-wide grid settle. It said *"that is the mechanism to confirm first"*. This
+release confirms it, and it is right for **1 of the 15**.
+
+### What is confirmed
+
+**`tpl-condo-3bed`'s stove was never placed at all.** It sits at (1.55, 6.00) — its kitchen's
+EXACT centre, i.e. still on `seedRoom`'s placeholder — 1.05 m from any wall, while the counter
+run and the fridge are both correctly snapped at 0.18 m.
+
+**And that explains its range hood for free.** `placeSeededMounts` makes a hood follow the stove
+only when the stove has *moved off the seed point*:
+
+```ts
+const stove = inRoom.find((o) => o.defId === 'stove' &&
+  (Math.abs(o.position[0] - cx) > EPS || Math.abs(o.position[1] - cz) > EPS))
+```
+
+A stove still at the seed fails that test, so the hood is wall-flushed instead — which is exactly
+where it is, 1.13 m away over the counter. **Two of last release's three findings are one bug.**
+
+### What is refuted
+
+**The other 14 were placed by the arranger.** They are not at their seed point; they were put
+somewhere and that somewhere is not against a wall. The grid-settle story is wrong for all of
+them.
+
+**And the mechanism is still unknown.** Eight of the 14 read exactly **0.32 m** — a cluster as
+tight as the 0.18 m snap cluster, so it is systematic, not incidental. 0.32 is not explained by
+the snap arithmetic in rooms whose relevant edges *do* sit on walls: `tpl-hdb-3room`'s kitchen N
+and W edges measure **0.000 m** from the wall face, and its fridge and stove still stand at 0.32.
+I do not know what the 0.14 m difference is, and `TODO.md` says so rather than offering a second
+guess.
+
+### A finding I am deliberately NOT reporting
+
+Chasing that, I swept all **668 room-rect edges** across the library and found **196 (29%) with
+no wall behind them** — `tpl-hdb-3room`'s Service Yard has no wall within 0.8 m on three sides.
+That looks like a major structural discovery. It is mostly a **restatement of an
+already-tracked content decision**: `templateEnclosure.test.ts` records five shared-enclosure
+offenders and `docs/open-graphics-decisions.md` item (f) defers re-drawing them, and
+`tpl-hdb-4room/ground: h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath` is the same fact seen
+through a looser ruler.
+
+Publishing 196 next to (f)'s 5 would have manufactured a new crisis out of a known deferral, and
+comparing two different rulers is a mistake this repo has made before. `TODO.md` now carries an
+explicit "do not re-open this as *room rects are not walls*" so the next reader — most likely me
+— does not spend a release rediscovering it.
+
+### No code changed
+
+This release is a correction to the record: one mechanism confirmed and its second symptom
+explained, one guess refuted, one duplicate headed off.
+
+Verified: 10185 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.58 — the stove is in the middle of the kitchen, and its hood is over the counter
 
 Last release I measured kitchen appliances against the nearest wall, got "38 of 53 more than

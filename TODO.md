@@ -917,15 +917,30 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   snapped piece sits at exactly **0.18 m**, and the corpus clusters there. The sweep reports only
   beyond 0.28 m. A first cut at 0.15 m said "38 of 53", which was measuring the threshold rather
   than the layouts (v0.31.8.57 recorded that and declined to publish it).
-  **Worst case, and the one to start from:** `tpl-condo-3bed` puts its stove at (1.55, 6.00),
-  dead centre of a 2.7 x 3.0 m kitchen — **1.05 m from any wall** — while the counter run and the
-  fridge are both correctly snapped, and the hood hangs over the COUNTER. So the kitchen routine
-  placed the counter and fridge and then had no wall edge left for the stove, which fell through
-  to `arrangeCore`'s room-wide grid settle. That is the mechanism to confirm first.
-  **The orphan hoods are probably a different bug**: a mounted hood placed by
-  `placeSeededMounts` outliving a stove that one of the drop passes removed. Unconfirmed.
-  Both are plausible post-pass fixes in the shape of `unsealRoutes` — snap a marooned appliance
-  back to a wall, drop a mount whose host is gone — but confirm the mechanisms first.
+  **MECHANISMS, after v0.31.8.59's sweep. The guess in the first draft of this entry was wrong
+  for 14 of the 15.**
+  - **1 of 15 was never placed at all.** `tpl-condo-3bed`'s stove sits at (1.55, 6.00) — its
+    kitchen's EXACT centre, i.e. still on `seedRoom`'s placeholder — 1.05 m from any wall, while
+    the counter run and fridge are both correctly snapped at 0.18 m. **That also explains its
+    hood**: `placeSeededMounts` only makes a hood follow a stove that has MOVED off the seed
+    point, so a stove still at the seed leaves the hood to be wall-flushed instead, 1.13 m away.
+    Fix the stove and the hood follows for free.
+  - **14 of 15 WERE placed by the arranger and are simply not against a wall.** The first draft
+    of this entry said they fell through to `arrangeCore`'s room-wide grid settle; they did not.
+    **The mechanism for these is still UNKNOWN.** Eight of them read exactly **0.32 m**, a cluster
+    as tight as the 0.18 m snap cluster, so it is systematic rather than incidental — and 0.32 is
+    NOT explained by the snap arithmetic (0.18) in rooms whose relevant edges do sit on walls
+    (`tpl-hdb-3room`'s kitchen N and W edges measure 0.000 m from the wall face). Find what the
+    0.14 m difference is before writing any fix.
+  - **The orphan hoods** (4 templates with a hood and no stove) remain unconfirmed — the
+    `placeSeededMounts` path above makes "a mount outliving a dropped host" plausible, but it has
+    not been traced.
+  **Do NOT re-open this as "room rects are not walls".** A sweep of all 668 room-rect edges finds
+  196 (29%) with no wall behind them, which looks like a big new finding and is mostly the
+  ALREADY-TRACKED content decision: `templateEnclosure.test.ts` records 5 shared-enclosure
+  offenders and `docs/open-graphics-decisions.md` item (f) defers re-drawing them as content.
+  `tpl-hdb-4room/ground: h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath` is the same fact
+  seen through a looser ruler.
 - ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
   half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
   researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus
