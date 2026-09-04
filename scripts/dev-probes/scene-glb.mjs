@@ -186,7 +186,29 @@ if (process.env.SKIP_GLB === '1') {
     await new Promise((r) => setTimeout(r, 500))
   }
 }
-writeFileSync(`${OUT}/manifest.json`, JSON.stringify({ state, cams }, null, 2))
+// The manifest is written in the shape the BLENDER scripts already consume, not a shape of this
+// probe's own invention: `bake_material.py --pass irradiance` reads `lights.directional` to place
+// the sun and raises without it, and `render_from_manifest.py` reads `camera` + `lights`. Emitting
+// a private shape cost a launched bake that died on `--pass irradiance needs --dir`.
+const manifest = {
+  glb: 'scene.glb',
+  camera: cams[0]
+    ? {
+        space: 'three',
+        position: cams[0].position,
+        forward: cams[0].forward,
+        target: cams[0].target,
+        fovVerticalDeg: cams[0].fovVerticalDeg,
+        aspect: cams[0].aspect,
+      }
+    : null,
+  lights: { directional: state.sun },
+  // Everything this probe adds on top, kept under its own keys so it cannot collide with a field
+  // the Blender side expects.
+  state,
+  cams,
+}
+writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 2))
 console.log(
   `state: tier ${state.tier} hour ${state.hour} lights ${state.lightsMode} exposure ${state.toneMappingExposure}`,
 )

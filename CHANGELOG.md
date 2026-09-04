@@ -29,6 +29,37 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.228 — `scene-glb.mjs` writes the manifest shape Blender already reads, and the coverage re-bake is running
+
+Groundwork for `.227`'s bake, plus the bug that groundwork exposed.
+
+**The probe was inventing its own manifest shape.** `scene-glb.mjs` wrote `{ state, cams }`, but
+`bake_material.py --pass irradiance` reads `manifest.lights.directional` to place the sun and raises
+outright without it, and `render_from_manifest.py` reads `camera` + `lights`. So the first launched
+bake died on *"--pass irradiance needs --dir (it reads the sun from the manifest)"* — it had the
+directory, it just had no `lights` key in it. The manifest now emits `glb`, `camera` and `lights` in
+the shape those scripts consume, with everything the probe adds kept under its own `state` and
+`cams` keys so it cannot collide with a field the Blender side expects. `/tmp/bref/manifest.json`,
+the ad-hoc file from before this probe existed, is the shape that was reverse-engineered.
+
+**Bake parameters reconstructed from the shipped index**, since no commit recorded the invocation:
+`version 2, pass irradiance, albedo 0.81, uv box-atlas-3x2, uv_margin 0.04, encode 1.0, scale 1.0`,
+per-map `scale` present (so `--per-map-scale`), maps 256 x 256 8-bit read from the PNG headers, and
+`--samples 1024` from `v0.31.7.177`'s entry. `--limit` had to be raised: `.173` established it
+defaults to 24 and that the shipped set used `--limit 111`, which is exactly the number of meshes
+clearing `--min-area 3.0` — so any lower threshold needs a higher cap or it silently truncates,
+largest-first.
+
+**The control bake is the experiment, not the coverage bake.** It re-runs the SHIPPED threshold
+(`--min-area 3.0`) against a freshly exported scene. If it produces ~111 maps, then `.227`'s 17
+meshes that clear 3 m² with no map are a genuine enumeration gap; if it produces ~128, they were
+bake-time scene drift and there was never anything to fix. Either answer is worth having before
+spending 35 minutes on a lower threshold, and it costs the same run.
+
+In flight at the time of this commit: ~10 s per map on CPU, so 111 maps is about 18 minutes.
+Suite 10175 green.
+
+
 ## v0.31.7.227 — coverage priced: 17 meshes already meet the bake's own threshold and have no map, and lowering it to 1.5 m² buys 52 more for +2.2 MB
 
 The bake selects by SURFACE AREA — `bake_material.py --min-area`, default **3.0 m²** — and the
