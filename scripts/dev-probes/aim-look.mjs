@@ -108,6 +108,20 @@ if (MODE === 'orbit') {
 }
 await new Promise((r) => setTimeout(r, 3000))
 
+// GI=off DETACHES every visibility lightmap from the live scene — a true one-variable control on
+// the SAME frame, rather than a second boot with a flag flipped. `detachAllVisibilityLightmaps`
+// also restores the shared original where a clone stood in, so the arm differs in the GI term and
+// nothing else. It REPORTS the count it detached, because "GI off" that detached zero maps is a
+// broken control that looks like a null result.
+if (process.env.GI === 'off') {
+  const n = await page.evaluate(async () => {
+    const { detachAllVisibilityLightmaps } = await import('/src/scene/applyVisibilityLightmaps.ts')
+    return detachAllVisibilityLightmaps(window.__three.scene)
+  })
+  console.log(`GI=off  detached ${n} visibility lightmaps`)
+  await new Promise((r) => setTimeout(r, 1500))
+}
+
 const resolved = await page.evaluate(() => {
   const st = window.__store.getState()
   return `${st.qualityTier}/${st.lightsMode}/${st.timeMode}${st.manualHour}`

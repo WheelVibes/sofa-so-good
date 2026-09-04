@@ -29,6 +29,63 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.214 — the GI ceiling deficit was never real: the injected term is present at the predicted magnitude, and the 85.7 was the wrong patch
+
+The thread's whole premise falls. With a calibrated curve in hand from `.211`-`.213`, the last step
+was to re-derive the prediction's terms — and the first one checked, the measurement location,
+turned out to be the error.
+
+**A ceiling confirmed three ways.** `gi-point.mjs` aimed into `livingDining` (x = [9.125, 12.525],
+z = [1.3, 6.975]) reports a MAPPED surface at the y = 2.6 ceiling plane, with `uv1`, a map file,
+texel **0.2627**, scale **1.7603**, `visGain` **10.5617** and rho **0.956** — so the prediction
+reproduces exactly: `0.2627 * 10.5617 * 0.956 / pi` = **0.844**. `aim-look.mjs`'s centre raycast
+lands on that same surface at 1.1 m, and the patch is flat.
+
+**The app renders it at 229.2 counts at 13:00.** Not 85.7. Inverted through the full-pipeline curve
+(now extended above linear 1.0, since the ceiling saturates past the old top sample) that is
+**1.777 scene linear**.
+
+**One-variable control**, by detaching every visibility lightmap from the live scene rather than
+rebooting with a flag flipped — same pose, same frame, `GI=off` in `aim-look.mjs`, which reports the
+count it detached so a control that detached nothing cannot masquerade as a null result (**107**):
+
+| arm | counts | scene linear |
+| --- | --- | --- |
+| 13:00, GI on | 229.2 | 1.777 |
+| 13:00, GI off | 212.0 | 0.950 |
+| 21:00 lamps off, GI on | 227.7 | 1.657 |
+| 21:00 lamps off, GI off | 195.1 | 0.588 |
+
+The GI term therefore contributes **0.83 (day) to 1.07 (night)** against a predicted **0.844**. The
+injection is delivering what the arithmetic says it should. There is no 13x, no 17.8x, and no
+shortfall to explain.
+
+**What the 85.7 actually was.** It is the "ceiling" column of the gain-sweep table in
+`visibilityLightmap.ts`, measured at a patch never confirmed to be a room ceiling. `.181` caught
+this identical error once already — a patch used as "ceiling" since `.170` was the TOP OF A WALL —
+and the table was never re-derived afterwards. Every round since then, the gain sweeps, the ten
+eliminations, the Khronos-as-sRGB diagnosis, and the two calibration commits, refined a number read
+from the wrong pixel. The calibration work stands on its own and was worth doing, but it was never
+going to close a gap that did not exist.
+
+**Read the error bars, because they are wide.** Both GI-on arms land in AgX's shoulder, where the
+curve is 0.08 linear per count, so those figures carry ±0.14 to ±0.51. A gain-halving test
+(`IRRADIANCE_GAIN` 6 -> 3 via a `cp`-backed edit, restored and verified) gave a GI delta of 0.299 at
+gain 3 against 1.069 at gain 6 — **3.57x for a 2x gain**, consistent with linear only because the
+uncertainty is that large. So this is a statement about ORDER, not a 2 % agreement: the term is
+there at roughly the right size. Tightening it needs a measurement out of the shoulder, which means
+removing the direct/ambient pedestal (0.588 at night with lamps off is already 4x the per-unit-gain
+GI signal) or reading linear back before tone mapping.
+
+**And the sign of the residual may be inverted.** 229.2 counts is ABOVE the table's own 192.6
+ceiling target, so once re-derived against verified surfaces the ceiling may prove OVER-bright
+rather than 55 % short. The gain table wants re-deriving wholesale; the docstring now carries that
+warning next to the table so it cannot be read at face value again.
+
+Shipped gain 6 is unaffected: it was fitted on the FLOOR, which the table itself calls the binding
+constraint, and the floor patch was never in question.
+
+
 ## v0.31.7.213 — full-pipeline transfer curve, and `.212`'s "unexplained 0.5" explained: my quad covered half the frame
 
 `.212` closed with the right complaint about itself — it measured the RENDERER's tone mapping with

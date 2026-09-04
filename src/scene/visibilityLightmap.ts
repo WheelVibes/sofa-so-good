@@ -68,6 +68,45 @@ import { LinearFilter } from 'three'
  * reference, so a residual spatial error remains after the glazing fix (`.182` closed the bake's
  * ceiling/wall ratio from 0.92 to 1.48 against a reference 2.18 — most of the way, not all). That
  * is the next thing to chase, and it is a bake-side question, not a gain.
+ *
+ * ---
+ *
+ * ## ⚠️ THE "CEILING" COLUMN ABOVE DOES NOT DESCRIBE A MAPPED CEILING (`v0.31.7.214`)
+ *
+ * The 85.7 in the gain-6 row is the number the whole ceiling-deficit thread was built on, and it
+ * was measured at a patch that was never confirmed to be a room ceiling. `.181` already caught this
+ * exact error once — a patch used as "ceiling" since `.170` turned out to be the TOP OF A WALL —
+ * and the table was not re-derived afterwards.
+ *
+ * Measured at a ceiling confirmed three ways (`gi-point.mjs` reports a mapped surface with `uv1`
+ * and a map file at the y = 2.6 ceiling plane; `aim-look.mjs`'s centre raycast lands on it at
+ * 1.1 m; the patch is flat): the app renders that ceiling at **229.2 counts at 13:00**, i.e. ABOVE
+ * this table's 192.6 target, not 55 % short of it.
+ *
+ * And the injected term is PRESENT at the predicted magnitude. One-variable control by detaching
+ * every map from the live scene (`GI=off`, 107 detached, same pose, same frame):
+ *
+ * | arm | counts | scene linear |
+ * | --- | --- | --- |
+ * | 13:00 GI on | 229.2 | 1.777 |
+ * | 13:00 GI off | 212.0 | 0.950 |
+ * | 21:00 lights off, GI on | 227.7 | 1.657 |
+ * | 21:00 lights off, GI off | 195.1 | 0.588 |
+ *
+ * so GI contributes **0.83–1.07** against `texel * scale * rho / pi * gain` = **0.844** at that
+ * point (texel 0.2627, scale 1.7603, rho 0.956). Not the 13–18x shortfall the thread chased.
+ *
+ * **Read the error bars.** Both GI-on arms land in AgX's shoulder, where the transfer curve is
+ * 0.08 linear per count, so these figures carry ±0.14 to ±0.51 and a gain-halving test came back
+ * 3.57x for a 2x gain — consistent with linear only because the uncertainty is that wide. What is
+ * robust is the ORDER: the term is there at roughly the right size. Tightening it needs a
+ * measurement out of the shoulder, which means removing the direct/ambient pedestal (0.588 at
+ * night with lamps off, already 4x the per-unit-gain GI signal) or reading linear values back
+ * before tone mapping.
+ *
+ * **So this whole gain table wants re-deriving against verified surfaces**, and the ceiling may
+ * turn out to be over-bright rather than short. The shipped gain 6 is unaffected in the meantime:
+ * it was fitted on the FLOOR, which is the binding constraint and was never in doubt.
  */
 export const IRRADIANCE_GAIN = 6
 
