@@ -27,6 +27,48 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.94 — retracting v0.31.8.93's overlay leak: it is a starved timer, not a leak
+
+Last release I wrote that the transition overlay "stays mounted at `opacity: 0`" and attributed it
+to a stale-`mounted` read in `useOverlayLifecycle`, complete with a mechanism. **I had not
+measured any of that.** One 68 s wait failure plus one screenshot, and I wrote down a cause.
+
+Measured properly this time — wrapping `showLoading`/`hideLoading` with a timestamped recorder
+across a room-editor enter and exit:
+
+```
+final loading.active=false  calls=1
+50435 | hideLoading | []
+```
+
+**One call, no `showLoading` at all.** So the overlay that was still up did not belong to the exit
+— it belonged to the room-editor ENTER, whose hide had simply not fired yet. And it fires exactly
+once, as designed. `MAX_WAIT_MS` is 2000 ms; the observed latency was **50.4 s**, because
+`setTimeout` cannot run while the scene build blocks the main thread. That is the same cause as
+every other slow transition on this thread — a 150 ms `setInterval` armed across one fires at
+800-2000 ms intervals.
+
+So there is no leak, no stale-`mounted` bug, and nothing to fix in `useOverlayLifecycle`. The
+`TODO.md` entry is retracted with the measurement in its place.
+
+Two things I got right by accident and one I did not:
+
+- the ASSERTION change in v0.31.8.93 was still correct — for a scenario testing hide LOGIC,
+  `loading.active === false` is the right predicate, and the appears-guards genuinely fixed five
+  vacuous passes. That part stands.
+- the DIAGNOSIS was wrong, and the one observation that suggested it (a 68 s unmount-wait failing
+  while the screenshot showed a normal orbit scene) is still unexplained. One unexplained frame is
+  not a mechanism; I have said so in `TODO.md` rather than leave a plausible story attached to it.
+
+Two operational consequences:
+
+- **Guard timeouts raised 45 s -> 60 s** in the 31 files that carry them. v0.31.8.92 raised 25 -> 45
+  on a 50.4 s observation that I then measured again at 50.4 s here; 45 s is still under the
+  observed worst case.
+- **`THREE.WebGLRenderer: Context Lost.` appears under sustained harness load** — reproduced in
+  both probe runs. A long session can lose the GPU context outright. Recorded in `TODO.md` as a
+  harness hazard, and as something that will confound any timing measurement taken near it.
+
 ## v0.31.8.93 — auditing all 503 scenarios instead of finding them one at a time
 
 Four releases running, I found a silently-broken scenario by accident while doing something else
@@ -76,6 +118,8 @@ pass; the exit-room hide genuinely takes ~38 s headless.
 
 The leaked mount is recorded in `TODO.md`: a full-screen `position: fixed`, `z-index: 99999`
 element carrying `backdrop-filter: blur()` that never unmounts is not free, even invisible.
+**[RETRACTED in v0.31.8.94 — there is no leak. `hideLoading` fires exactly once; it is 50 s LATE
+because `setTimeout` cannot run while the scene build blocks the main thread.]**
 
 ### Ratcheted
 

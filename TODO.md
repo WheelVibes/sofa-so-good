@@ -58,7 +58,25 @@ and no cap, so it overhung both edges below ~446 px — reachable on a narrowed 
 since content branches on pointer while layout branches on width. `flex-wrap` + a `100vw` cap, with
 `nowrap` moved to the groups. 1600 px unchanged at 446x37; 320 px wraps to 160x104 and fits.
 
-## The transition overlay can stay MOUNTED at `opacity: 0` after it hides
+## ~~The transition overlay can stay MOUNTED at `opacity: 0` after it hides~~ — RETRACTED (v0.31.8.94)
+
+**There is no such bug, and the `useOverlayLifecycle` stale-`mounted` mechanism I wrote here was
+speculation stated as fact.** Measured properly by wrapping `showLoading`/`hideLoading` across a
+room-editor enter/exit: `hideLoading` fires **exactly once**, as designed. Its LATENCY is the
+whole story — nominal `MAX_WAIT_MS` is 2000 ms, observed **50.4 s**, because `setTimeout` cannot
+run while the scene build blocks the main thread. Same cause as every other slow transition on
+this thread; a 150 ms `setInterval` armed across one fires at 800-2000 ms intervals.
+
+The single observation that suggested a leak (a 68 s unmount-wait failing while the screenshot
+showed a normal orbit scene) remains UNEXPLAINED, and one unexplained frame is not a mechanism.
+If it recurs, measure `loading.active` and the element's computed opacity together over time
+before writing down a cause — that is what I skipped.
+
+Also seen while measuring, and worth knowing: `THREE.WebGLRenderer: Context Lost.` appears in the
+console under this load, so a long harness session can lose the GPU context outright. That is a
+harness hazard, not an app defect, but it will confound any timing measurement taken near it.
+
+## The walk HUD banner's 5 s timer can expire behind the transition splash
 
 Found in v0.31.8.93. Asserting that `[data-transition-overlay]` unmounts made
 `transition-overlay-readiness`'s exit-room step fail after 68 s — and the failure screenshot shows

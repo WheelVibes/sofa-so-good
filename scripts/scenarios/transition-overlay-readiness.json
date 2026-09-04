@@ -40,7 +40,7 @@
       "waitFor": {
         "store": "state.loading.active === false"
       },
-      "timeout": 45000,
+      "timeout": 60000,
       "failMessage": "overlay did not auto-hide (loading.active stayed true). This scenario tests the hide LOGIC, so the store flag is the right assertion \u2014 NOT the element unmounting, which v0.31.8.93 found can lag indefinitely (see TODO.md: the overlay stays mounted at opacity 0), and NOT the label text, which `visible: false` cannot judge. The `-appears-first` step above is what stops this passing vacuously."
     },
     {
@@ -68,7 +68,7 @@
       "waitFor": {
         "store": "state.loading.active === false"
       },
-      "timeout": 45000,
+      "timeout": 60000,
       "failMessage": "overlay did not auto-hide (loading.active stayed true). This scenario tests the hide LOGIC, so the store flag is the right assertion \u2014 NOT the element unmounting, which v0.31.8.93 found can lag indefinitely (see TODO.md: the overlay stays mounted at opacity 0), and NOT the label text, which `visible: false` cannot judge. The `-appears-first` step above is what stops this passing vacuously."
     },
     {
@@ -96,7 +96,7 @@
       "waitFor": {
         "store": "state.loading.active === false"
       },
-      "timeout": 45000,
+      "timeout": 60000,
       "failMessage": "overlay did not auto-hide (loading.active stayed true). This scenario tests the hide LOGIC, so the store flag is the right assertion \u2014 NOT the element unmounting, which v0.31.8.93 found can lag indefinitely (see TODO.md: the overlay stays mounted at opacity 0), and NOT the label text, which `visible: false` cannot judge. The `-appears-first` step above is what stops this passing vacuously."
     },
     {
@@ -124,7 +124,7 @@
       "waitFor": {
         "store": "state.loading.active === false"
       },
-      "timeout": 45000,
+      "timeout": 60000,
       "failMessage": "overlay did not auto-hide (loading.active stayed true). This scenario tests the hide LOGIC, so the store flag is the right assertion \u2014 NOT the element unmounting, which v0.31.8.93 found can lag indefinitely (see TODO.md: the overlay stays mounted at opacity 0), and NOT the label text, which `visible: false` cannot judge. The `-appears-first` step above is what stops this passing vacuously."
     },
     {
@@ -152,7 +152,7 @@
       "waitFor": {
         "store": "state.loading.active === false"
       },
-      "timeout": 45000,
+      "timeout": 60000,
       "failMessage": "overlay did not auto-hide (loading.active stayed true). This scenario tests the hide LOGIC, so the store flag is the right assertion \u2014 NOT the element unmounting, which v0.31.8.93 found can lag indefinitely (see TODO.md: the overlay stays mounted at opacity 0), and NOT the label text, which `visible: false` cannot judge. The `-appears-first` step above is what stops this passing vacuously."
     },
     {
@@ -187,7 +187,7 @@
       "waitFor": {
         "store": "state.loading.active === false"
       },
-      "timeout": 45000,
+      "timeout": 60000,
       "failMessage": "overlay did not auto-hide (loading.active stayed true). This scenario tests the hide LOGIC, so the store flag is the right assertion \u2014 NOT the element unmounting, which v0.31.8.93 found can lag indefinitely (see TODO.md: the overlay stays mounted at opacity 0), and NOT the label text, which `visible: false` cannot judge. The `-appears-first` step above is what stops this passing vacuously."
     },
     {

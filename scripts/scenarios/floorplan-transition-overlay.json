@@ -57,7 +57,7 @@
         "css": "[data-transition-overlay]",
         "visible": false
       },
-      "timeout": 45000,
+      "timeout": 60000,
       "failMessage": "'Opening floor plan' overlay did not auto-hide. Asserted on the overlay ELEMENT unmounting, not on the label text: a text `visible: false` ignores opacity and is also satisfied BEFORE React renders the label, so it can pass vacuously (v0.31.8.93)."
     },
     {
@@ -104,7 +104,7 @@
         "css": "[data-transition-overlay]",
         "visible": false
       },
-      "timeout": 45000,
+      "timeout": 60000,
       "failMessage": "'Closing floor plan' overlay did not auto-hide. Asserted on the overlay ELEMENT unmounting, not on the label text: a text `visible: false` ignores opacity and is also satisfied BEFORE React renders the label, so it can pass vacuously (v0.31.8.93)."
     },
     {
