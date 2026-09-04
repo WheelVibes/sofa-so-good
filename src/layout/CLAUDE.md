@@ -114,10 +114,24 @@ apart from an `itemAt` lookup, so each candidate is one `solveGrid` with that fo
 storey at once.
 
 **`unsealRoutes` FIXES most of them, and it runs in the default furnish path** (v0.31.8.55).
-`furnishPlanItems` calls it after the drop passes: it slides a sealing piece along X or Z in
-0.15 m steps up to **2.4 m**, nearest first, and takes the first position that opens the route
+`furnishPlanItems` calls it after the drop passes: it slides a sealing piece across a **disc** of
+0.15 m steps out to **2.4 m**, nearest first, and takes the first position that opens the route
 without severing anything new. **43 unreachable rooms -> 3, 10 affected templates -> 3, by
 moving 12 items and deleting none** (plus one template door re-authored, below).
+
+**The search is a DISC, not a cross** (v0.31.8.86). It was ±X and ±Z only — 16 distances x 4
+directions = 64 candidates — which cannot move a piece out of a CORNER. `tpl-hdb-5room` was
+exactly that: a `bed-single` and a `wardrobe-3door` pinching the corridor into the bedroom half
+and stranding four rooms, each piece individually sufficient to reconnect all four, yet no
+translation was found. Instrumenting the gates showed why — of the 64 offsets, **53 failed
+`trialFits`** (the bedroom is packed, so a pure slide has nowhere to land) and the other **11 fit
+but stayed inside the pinch**; not one was rejected by the don't-sever-anything-new guard. The
+search had simply never looked diagonally, where the free floor was. The disc is **faster
+despite ~17x the candidates** (maisonette 1115 -> 856 ms, jumbo 616 -> 473 ms), because the cost
+is `solveGrid`, not the candidate list: `trialFits` rejects most offsets without solving, and
+nearest-first ordering commits a fixable room early instead of exhausting 64 misses and re-running
+the culprit sweep. One cost trap worth knowing: with a disc, the clash pass's candidate list gets
+rebuilt hundreds of times per piece — caching it per OBSTACLE was worth ~350 ms on maisonette.
 
 **The reach was measured, not chosen** (v0.31.8.56): 1.2 m leaves 18 rooms, 1.8 m leaves 11,
 2.4 m leaves 10, 3.0 m gains nothing. A bigger ceiling does not mean bigger moves, because
@@ -129,6 +143,28 @@ earlier attempt on this thread failed:
   removing the sofa is not a fix; deletion belongs to the drop passes.
 - **It rejects any move that severs a room which was fine.** That is the guard v0.31.8.7's
   clearance objective lacked when it traded one pinch for another.
+- **A trial must also pass the NARROWPHASE, not just the raster** (v0.31.8.86). `trialFits`
+  reads `LevelGrid`, which holds only the pieces `participates()` admits — floor-standing,
+  clipping, at least `OBSTACLE_AREA_M2`. Everything smaller is INVISIBLE to it, so a slide could
+  park a sofa through a side table with every grid gate satisfied, and the pass was doing exactly
+  that: the 19-template corpus carried **5 overlapping pairs, all five created here**. Trials now
+  also ask `itemHeightAwareClash` — the same predicate `findItemOverlaps` uses — which took the
+  corpus to **0 overlapping pairs**. It also made `tpl-hdb-2room` report 1 -> 4 severed rooms,
+  which is a CORRECTION: those three were only ever "reachable" through an overlapping piece, and
+  a route you can only walk by standing inside the furniture is not a route. `routeAccess.test.ts`
+  asserts the zero-overlap invariant alongside the counts so re-allowing that trade cannot read
+  as progress.
+- **A moved piece takes its SATELLITES** (v0.31.8.86). A dining chair is ~0.2 m², under
+  `OBSTACLE_AREA_M2`, so it is invisible to the raster — and the disc slid
+  `tpl-hdb-maisonette`'s dining table ~1.5 m and left three chairs 2.38 m behind it, the exact
+  defect `diningChairTuck.test.ts` was built for. Small pieces are now assigned to their NEAREST
+  obstacle within `SATELLITE_REACH_M` (1.2 m, matching that test's `TUCKED`, so a lamp beside a
+  sofa follows the sofa rather than a table across the room) and translate with it. Riders are
+  clash-checked against the other pieces AND against the walls — `trialFits` only ever rasterised
+  the obstacle itself, so without the wall check a carried chair goes through one
+  (`tpl-condo-1study`). This costs `tpl-1bed`'s Dining, which no offset can clear while carrying
+  the coffee table's satellites; that trade is deliberate, because chairs stranded around nothing
+  are a defect a user SEES and a 0.6 m² sliver is one a check reports.
 - **Placement uses a STRICTER mask than routing** (`LevelGrid.standable`, doors CLOSED, inflated
   one cell, minus `clearance.ts:doorProbePoints`). `openFloor` gaps a wall at every open door
   because a doorway is a route — it is not a parking space, and the first cut used it and slid
@@ -144,8 +180,10 @@ runs and fails — 883 ms on top of a 434 ms furnish; sweeping once brings the w
 +40..160 ms depending on template.
 
 Coverage: `reachability.test.ts` (unit + culprit + unseal invariants), `routeAccess.test.ts`
-(ratchet of what is LEFT: **3 slivers of 0.6-1.5 m², none of them a whole room**, one with no
-single culprit).
+(ratchet of what is LEFT after v0.31.8.86: **6 rooms across 3 templates** — `tpl-hdb-2room`'s
+four, in a flat too small to hold the move-in layout and walk between it; `tpl-1bed`'s Dining,
+traded for keeping its satellites tucked; and `tpl-condo-2bed`'s Common Bath, which has NO single
+culprit and so cannot be opened by a one-piece-at-a-time pass — plus the zero-overlap invariant).
 
 **Not every seal is the arranger's fault.** `tpl-condo-2bed` held 8 of them behind one
 `kitchen-counter-l` that had nowhere legal to go — and the reason was upstream: its front door

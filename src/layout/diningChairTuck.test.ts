@@ -87,7 +87,12 @@ describe('dining chairs are tucked to their table', () => {
       // 82 until v0.31.5.116: same story as the 4-room a version earlier —
       // moving the misplaced window OUT of the kitchen freed the wall the range
       // hood needs. Dumped per-def first; the +1 is `range-hood`.
-      'tpl-hdb-5room': 83,
+      // 83 -> 81 in v0.31.8.86 (unseal disc). Per-def diff, because a DROP needs
+      // one: both are `throw-cushion` (9 -> 7). No furniture is lost — the
+      // styling pass runs AFTER `unsealRoutes`, so moving the bed out of the
+      // corridor pinch changed the host surface it dresses. Two cushions is the
+      // price of the flat's whole bedroom half becoming reachable.
+      'tpl-hdb-5room': 81,
       // 91 until v0.31.5.118. Dumped per-def first: the +2 are a `range-hood`
       // (the stray kitchen window had been blocking the extractor's wall, the
       // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
@@ -231,7 +236,11 @@ describe('dining chairs are tucked to their table', () => {
     // pieces that previously had nowhere to go.
     // 1453 -> 1450 in v0.31.8.83 (SERVICE-BAND-ACCESS): -3 on `tpl-hdb-4room`,
     // diffed per def above. No other template moves.
-    expect(total).toBe(1450)
+    // 1450 -> 1448 in v0.31.8.86 (unseal disc + satellite carry): -2 on
+    // `tpl-hdb-5room`, both `throw-cushion`, diffed per def above. No other
+    // template moves — the disc opens 5room's four stranded rooms and gives
+    // `tpl-1bed`'s Dining back to keep its coffee table's satellites tucked.
+    expect(total).toBe(1448)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { findItemOverlaps } from '../collision/placement'
 import { PLAN_TEMPLATES } from '../floorplan/templates'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { furnishPlanItems } from '../furniture/furnishPlan'
@@ -69,23 +70,50 @@ import { findFurnitureSeveredRooms } from './reachability'
  * against the layout.
  */
 const KNOWN_SEVERED: Record<string, number> = {
-  // Master Bedroom 0.9 m², sealed by `dining-table-4`.
-  'tpl-hdb-2room': 1,
-  // ADDED in v0.31.8.83 (SERVICE-BAND-ACCESS), and NOT a regression — these four
-  // were always true and were MASKED. `tpl-hdb-5room`'s bedroom half used to be
-  // a separate `templateConnectivity` group, so the empty-plan baseline counted
-  // those rooms as unreachable and this check excluded them by construction.
-  // Connecting the flat makes the baseline say they ARE reachable when empty,
-  // which is what lets the furnished failure show. Culprits are a `bed-single`
-  // and a `wardrobe-3door` blocking the corridor strip: Master Bedroom 3.8 m2,
-  // Common Bath 3.0, Master Bath 2.6, Bedroom 2 2.5.
-  'tpl-hdb-5room': 4,
-  // Dining 0.6 m², sealed by `coffee-table`.
+  /**
+   * Bath 2.5 m², Kitchen 2.2, Shelter 1.4, Master Bedroom 0.9.
+   *
+   * This read `1` before v0.31.8.86 and the other three are a **correction, not
+   * a regression**: `unsealRoutes` had been opening them by sliding a piece ON
+   * TOP of another one. Its `trialFits` gate reads only the route raster, which
+   * holds just the pieces big enough to obstruct, so anything under
+   * `OBSTACLE_AREA_M2` was invisible to it — and a route that exists only
+   * because a sofa is parked through a side table is not a route. Adding the
+   * narrowphase clash gate took the whole corpus from **5 overlapping pairs to
+   * 0** and made these three admit they were never reachable.
+   */
+  'tpl-hdb-2room': 4,
+  /**
+   * Dining 0.6 m², sealed by `coffee-table`.
+   *
+   * v0.31.8.86's disc DID open this one, and then gave it back: the coffee table
+   * has to carry its satellites, and there is no offset where they all land
+   * clear. Keeping it severed is the deliberate half of that trade — see the
+   * satellite note below.
+   */
   'tpl-1bed': 1,
-  // Common Bath 1.5 m², and NO single culprit — it needs two pieces moved, so
-  // the single-piece unseal pass cannot open it by construction.
+  /**
+   * Common Bath 1.5 m², and NO single culprit — it needs two pieces moved, so
+   * the single-piece unseal pass cannot open it by construction. v0.31.8.86's
+   * disc does not help: the limit is one-piece-at-a-time, not the search shape.
+   */
   'tpl-condo-2bed': 1,
 }
+
+/**
+ * `tpl-hdb-5room`'s four rooms were FIXED in v0.31.8.86 by making the unseal
+ * search a DISC instead of a cross. They needed a diagonal move out of a packed
+ * corner, which ±X/±Z offsets can never find: of the 64 axis-aligned candidates,
+ * 53 had nowhere to land and the other 11 landed still inside the pinch.
+ *
+ * The same release made the pass carry a moved piece's SATELLITES — the chairs of
+ * a dining table. The disc had slid `tpl-hdb-maisonette`'s table ~1.5 m and left
+ * three chairs 2.38 m behind it, which is precisely the defect
+ * `diningChairTuck.test.ts` exists to catch. Carrying them costs `tpl-1bed`'s
+ * Dining (no offset clears the table AND its satellites), and that trade is
+ * deliberate: three chairs stranded around a spot the table no longer occupies is
+ * a defect a user SEES, while a 0.6 m² unreachable sliver is one a check reports.
+ */
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')
 
@@ -93,12 +121,30 @@ describe('route access — rooms the arranger walls off', () => {
   it('matches the recorded offenders exactly', () => {
     expect(movein).toBeDefined()
     const actual: Record<string, number> = {}
+    const overlapping: string[] = []
     for (const tpl of PLAN_TEMPLATES) {
       const items = furnishPlanItems(tpl, movein!, BUILTIN_CATALOG, {})
       const n = findFurnitureSeveredRooms(items, BUILTIN_CATALOG, tpl).length
       if (n > 0) actual[tpl.id] = n
+      for (const pair of findItemOverlaps(items, BUILTIN_CATALOG)) {
+        const name = (id: string) => items.find((it) => it.id === id)?.defId ?? id
+        overlapping.push(`${tpl.id}: ${name(pair.a)} x ${name(pair.b)}`)
+      }
     }
     expect(actual).toEqual(KNOWN_SEVERED)
+    /**
+     * ZERO overlapping pairs, asserted HERE rather than in its own test because
+     * this loop already furnishes all 19 templates and a second pass would
+     * double the slowest test in the suite.
+     *
+     * This is the invariant that keeps the ratchet honest. Until v0.31.8.86 the
+     * corpus carried 5 overlapping pairs, every one of them created by
+     * `unsealRoutes` buying a route with a piece parked on top of another — so
+     * "reachable" and "walkable" had quietly come apart. A future change that
+     * improves the counts above by re-allowing that trade fails here instead of
+     * looking like progress.
+     */
+    expect(overlapping).toEqual([])
     // 60 s, not the 10 s default: this furnishes all 19 templates AND runs two
     // rasters per template (empty baseline + furnished). It took ~10 s under
     // full-suite parallel load, which is exactly the boundary the default sits

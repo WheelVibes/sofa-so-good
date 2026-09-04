@@ -886,10 +886,31 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   1.00 m), which is the honest reason it exists: a user-drawn corridor is the only place it can
   occur. **The route model now EXISTS** (`layout/reachability.ts`, v0.31.8.52/.53) — see the entry
   below.
-- **[ROUTE ACCESS — MEASURED .52, RECALIBRATED .53, ANCHORED .54, FIXED .55, WIDENED .56]
-  3 rooms across 3 of 19 templates still cannot be reached from the front door once the
-  arranger has placed the furniture — down from 43 across 10. All three are SLIVERS of
-  0.6-1.5 m², not whole rooms.**
+- **[ROUTE ACCESS — MEASURED .52, RECALIBRATED .53, ANCHORED .54, FIXED .55, WIDENED .56,
+  DISC + CLASH GATE + SATELLITES .86] 6 rooms across 3 of 19 templates still cannot be reached from
+  the front door once the arranger has placed the furniture — down from 43 across 10 — and the corpus now
+  carries ZERO overlapping pairs, down from 5.**
+  **v0.31.8.86 made the search a DISC instead of a cross.** `±X`/`±Z` offsets cannot move a piece
+  out of a CORNER, which is why `tpl-hdb-5room`'s four stranded rooms survived a pass whose own
+  culprit attribution said either of two pieces would reconnect them: of 64 axis-aligned offsets,
+  53 had nowhere to land and 11 landed still inside the pinch. Disc, nearest-first, is also
+  FASTER (maisonette 1115 -> 856 ms) because `trialFits` rejects most offsets without a
+  `solveGrid` and an early commit beats exhausting 64 misses.
+  **The same release found the pass had been buying routes with OVERLAPS.** `trialFits` reads only
+  the route raster, which excludes anything under `OBSTACLE_AREA_M2` — so a slide could park a
+  sofa through a side table legally, and all 5 of the corpus's overlapping pairs came from here.
+  Adding `itemHeightAwareClash` took that to 0 and took `tpl-hdb-2room` 1 -> 4 severed, which is a
+  CORRECTION: those three were only reachable through an overlapping piece.
+  **The disc also stranded three of `tpl-hdb-maisonette`'s dining chairs** (~1.5 m table move, the
+  `diningChairTuck` defect), because a chair is under `OBSTACLE_AREA_M2` and so invisible to the
+  raster. The pass now CARRIES a piece's satellites — nearest obstacle within 1.2 m — and
+  clash-checks the riders against pieces and walls. That costs `tpl-1bed`'s Dining back.
+  **WHAT IS LEFT, and why none of it is about the search:** `tpl-hdb-2room`'s four (a flat too
+  small to hold the move-in layout and walk between it — this is a LAYOUT-PRESET question, not a
+  route one), `tpl-1bed`'s Dining (traded for tucked satellites) and `tpl-condo-2bed`'s Common
+  Bath (no single culprit, so a one-piece-at-a-time pass cannot open it by construction). **Do not spend another release on the search shape or the reach** —
+  both are measured out.
+  Superseded pre-.86 note follows.
   `unsealRoutes` runs in `furnishPlanItems` and slides the sealing piece; it moved 12 items and
   deleted none. **The reach lever is now MEASURED and spent** (.56): 1.2 m left 18 rooms,
   1.8 m left 11, 2.4 m leaves 10, 3.0 m gains nothing, so the reach is not where the remaining
@@ -897,10 +918,9 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   **`tpl-condo-2bed`'s 8 were a TEMPLATE defect and are FIXED (.57)** — its front
   door opened into the Open Kitchen, whose only other exit the counter and fridge fill; moving
   the door into Living / Dining took it 8 -> 1 and broke nothing else in the suite.
-  **What is LEFT:** `tpl-hdb-2room` Master Bedroom 0.9 m² (`dining-table-4`), `tpl-1bed` Dining
-  0.6 m² (`coffee-table`), `tpl-condo-2bed` Common Bath 1.5 m² (no single culprit, so a
-  single-piece pass cannot open it by construction). All three are slivers of a room rather than
-  a room, so the remaining value here is low — say so before spending another release on it.
+  **What WAS left before .86:** `tpl-hdb-2room` Master Bedroom 0.9 m² (`dining-table-4`),
+  `tpl-1bed` Dining 0.6 m² (`coffee-table`, FIXED by the disc), `tpl-condo-2bed` Common Bath
+  1.5 m² (no single culprit).
   **A lever that was tried and is NOT worth re-trying: letting the pass ROTATE as well as slide.**
   Built in .57 with quarter-turns only (180° excluded, since it reverses facing on pieces whose
   rotation encodes it). Measured: used **zero times** across all 19 templates, identical 12 moves.

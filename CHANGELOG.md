@@ -27,6 +27,101 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.86 — the unseal search was a cross, so it could not leave a corner
+
+`tpl-hdb-5room` has stranded four rooms since v0.31.8.83 — Master Bedroom 3.8 m², Common Bath
+3.0, Master Bath 2.6, Bedroom 2 2.5, the whole bedroom half behind one corridor pinch. The
+recorded culprits were a `bed-single` and a `wardrobe-3door`, and `sealedBy`'s contract is
+"removing any ONE of them, on its own, reconnects it" — so a translation should have opened it.
+`unsealRoutes` tries 64 translations per piece and found none.
+
+**Instrumenting the three gates said why.** Of the 64 offsets, **53 failed `trialFits`** and the
+other **11 fit but did not reconnect the room**. Zero were rejected by the don't-sever-anything-new
+guard — the guard I would have suspected never even fired. The offsets were `±X` and `±Z` at
+increasing distance: **a cross, never a diagonal.** Both pieces sit in a packed bedroom where a
+pure slide has nowhere to land, and the free floor was diagonally behind them.
+
+Making it a disc, nearest-first, took the corpus **7 severed rooms -> 2** and was **faster on
+every heavy template** despite ~17x the candidates: the cost is `solveGrid`, `trialFits` rejects
+most offsets without solving, and nearest-first commits early instead of exhausting 64 misses and
+re-running the culprit sweep.
+
+### Then the visual check found the disc had bought a route with an overlap
+
+`tpl-1bed`'s newly-opened Dining came with a new overlapping pair. Chasing it found something
+worse than the thing I was fixing: **`trialFits` reads only the route raster**, and the raster
+holds just the pieces `participates()` admits — floor-standing, clipping, at least
+`OBSTACLE_AREA_M2`. Anything smaller is invisible to it, so a slide can park a sofa through a side
+table with every grid gate satisfied. Measured across the 19 templates, the corpus was carrying
+**5 overlapping pairs and `unsealRoutes` had created all five** — before this release, in the
+cross version. "Reachable" and "walkable" had quietly come apart and nothing was watching.
+
+Trials now also pass `itemHeightAwareClash`, the same narrowphase `findItemOverlaps` uses (the
+gate `placeSeededMounts` already adopted in v0.31.8.75). Corpus **5 overlapping pairs -> 0**.
+
+**That costs three of the route "fixes", and reporting them is the point.** `tpl-hdb-2room` goes
+**1 -> 4** severed rooms, because its Bath, Kitchen and Shelter were only ever reachable *through*
+an overlapping piece. A route you can only walk by standing inside the furniture is not a route,
+so this is a correction, not a regression — the same shape as v0.31.8.53's front-door anchoring,
+which moved the corpus 22 -> 43 by starting to measure the right thing.
+
+### And then the FULL suite found the disc stranding three dining chairs
+
+`tpl-hdb-maisonette`: the disc slid the dining table ~1.5 m and left three chairs 2.38 m behind
+it, around a spot the table no longer occupied — which is precisely the defect
+`diningChairTuck.test.ts` exists to catch (v0.31.5.111, 50 stray chairs across 15 templates). The
+cause is the same blind spot as the overlaps: a dining chair is ~0.2 m², under
+`OBSTACLE_AREA_M2`, so it is invisible to the raster and the pass never knew the chairs were
+there. Neither of the two gates I had just added could see it either; the corpus check caught it.
+
+**A designer clearing a route with a table takes the chairs.** So does the pass now: small pieces
+are assigned to their NEAREST obstacle within 1.2 m (matching the test's `TUCKED`, so a lamp
+beside a sofa follows the sofa rather than a table across the room) and travel with it. Riders
+are clash-checked against the other pieces AND — after this cost a `tpl-condo-1study` wall clip
+— against the walls, since `trialFits` only ever rasterised the obstacle itself.
+
+**Carrying them costs `tpl-1bed`'s Dining back**, because no offset clears the coffee table and
+its satellites together. That trade is deliberate: three chairs stranded around nothing is a
+defect a user SEES, a 0.6 m² unreachable sliver is one a check reports.
+
+### Net
+
+| | severed rooms | overlapping pairs | wall clips | maisonette furnish |
+|---|---|---|---|---|
+| cross (before) | 7 | 5 | 0 | 1115 ms |
+| disc, no gates | 2 | 6 | 0 | 917 ms |
+| **disc + clash + satellites** | **6** | **0** | **0** | **896 ms** |
+
+Better on every axis at once, and jumbo 616 -> 506 ms, penthouse 565 -> 552, 2room 547 -> 494.
+One cost note: caching the clash pass's candidate list per obstacle instead of rebuilding it per
+CANDIDATE was worth ~350 ms on maisonette on its own — with a disc that list was being rebuilt
+hundreds of times per piece.
+
+`routeAccess.test.ts` now asserts the zero-overlap invariant in the same loop that checks the
+counts — it already furnishes all 19 templates, so it is free, and it means a future change that
+"improves" the counts by re-allowing the overlap trade fails instead of looking like progress.
+
+What is left is 6 rooms across 3 templates, and none is a search-shape problem:
+`tpl-hdb-2room`'s four (a flat too small to hold the move-in layout and walk between it — a
+layout-preset question, not a route one), `tpl-1bed`'s Dining (traded above) and
+`tpl-condo-2bed`'s Common Bath (no single culprit, so a one-piece-at-a-time pass cannot open it
+by construction).
+
+Also fixed while in here: a piece that was a culprit for two rooms had its second move computed
+from the raster but written from its ORIGINAL position, so the emitted position and the routing
+state could diverge. Translations now accumulate per obstacle.
+
+Item counts: `tpl-hdb-5room` 83 -> 81, diffed per def as the rule requires — both are
+`throw-cushion`. No furniture is lost; the styling pass runs after `unsealRoutes`, so moving the
+bed changed the host surface it dresses.
+
+Verified visually on `tpl-hdb-5room` (`scripts/scenarios/unseal-disc-5room.json`, kept): both
+storeys read correctly, the moved pieces sit on the floor inside their rooms, `findWallClips` is 0
+and the pass is idempotent. One thing the shot made me re-check: `h5-master`'s wardrobe spans
+z 10.02-10.62 while the room RECT ends at 10.5, which reads as a piece through the south wall.
+It is flush to the wall FACE — the rect is short by `ROOM_INSET` (0.12 m). That is the
+room-rectangle issue again, from a fourth direction.
+
 ## v0.31.8.85 — the check I proposed last release is ill-formed
 
 v0.31.8.84 had to correct a claim that two new service-band doors did not open into a bedroom,

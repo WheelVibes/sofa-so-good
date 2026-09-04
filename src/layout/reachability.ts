@@ -60,7 +60,7 @@
  */
 
 import type { OBB } from '../collision/obb'
-import { itemFootprint } from '../collision/placement'
+import { findWallClips, itemFootprint, itemHeightAwareClash } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
@@ -877,17 +877,57 @@ export function findFurnitureSeveredRooms(
  * most movable object in the room, and it opens 8 rooms / 55 m².
  *
  * 0.15 m steps are fine enough to find a 0.6 m gap and coarse enough to keep
- * the trial count bounded (16 steps × 4 directions = 64 candidates per piece).
+ * the trial count bounded.
  */
+/**
+ * How far a small piece can sit from a big one and still count as ITS satellite
+ * — a dining chair tucked at ~0.90 m, an end slot at ~1.02 m. Matches
+ * `diningChairTuck.test.ts`'s `TUCKED`, which is the invariant this protects.
+ */
+const SATELLITE_REACH_M = 1.2
 const UNSEAL_STEP_M = 0.15
 const UNSEAL_REACH_M = 2.4
 
-/** Candidate translations, nearest first: ±X and ±Z at increasing distance. */
+/**
+ * Candidate translations, nearest first — a DISC, not a cross (v0.31.8.86).
+ *
+ * This was ±X and ±Z only (16 distances × 4 directions = 64 candidates), which
+ * cannot move a piece out of a corner. `tpl-hdb-5room` is exactly that case:
+ * a `bed-single` and a `wardrobe-3door` pinch the corridor into the bedroom
+ * half, stranding FOUR rooms (master 3.8 m², common bath 3.0, master bath 2.6,
+ * bedroom 2 2.5), and each piece on its own reconnects all four if removed — so
+ * a translation should have opened it. Instrumenting the gates showed why it
+ * didn't: of the 64 axis-aligned offsets, **53 failed `trialFits`** (the
+ * bedroom is packed, so a pure slide has nowhere to land) and the other **11
+ * fitted but did not reconnect** (still inside the pinch). Not one was rejected
+ * by the don't-sever-anything-new guard — the search simply never looked
+ * diagonally, where the free floor was.
+ *
+ * The disc is **strictly better on both axes**, which is why it needs no flag:
+ *   - severed rooms across the 19 templates **7 -> 2** (5room's four and
+ *     `tpl-1bed`'s Dining now open);
+ *   - and it is FASTER on the worst cases — `tpl-hdb-maisonette` 1115 -> 917 ms,
+ *     `tpl-hdb-jumbo` 616 -> 533 ms, `tpl-hdb-2room` 547 -> 498 ms.
+ *
+ * Faster despite ~17x the candidates because the cost is `solveGrid`, not the
+ * candidate list: `trialFits` is a cheap raster test that rejects most offsets
+ * without solving, and nearest-first ordering means a fixable room commits early
+ * instead of exhausting all 64 misses and re-running the culprit sweep. The
+ * cross paid full price for every room it then failed to open.
+ */
 function unsealOffsets(): [number, number][] {
   const out: [number, number][] = []
-  for (let d = UNSEAL_STEP_M; d <= UNSEAL_REACH_M + 1e-9; d += UNSEAL_STEP_M) {
-    out.push([d, 0], [-d, 0], [0, d], [0, -d])
+  const n = Math.round(UNSEAL_REACH_M / UNSEAL_STEP_M)
+  for (let i = -n; i <= n; i++) {
+    for (let j = -n; j <= n; j++) {
+      if (i === 0 && j === 0) continue
+      const dx = i * UNSEAL_STEP_M
+      const dz = j * UNSEAL_STEP_M
+      if (Math.hypot(dx, dz) > UNSEAL_REACH_M + 1e-9) continue
+      out.push([dx, dz])
+    }
   }
+  out.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))
   return out
 }
 
@@ -963,6 +1003,12 @@ export function unsealRoutes(
   const moved = new Map<string, [number, number]>()
   const offsets = unsealOffsets()
 
+  /** Positions as the pieces currently stand, so a clash test sees committed moves. */
+  const livePos = (it: FurnitureItem): FurnitureItem => {
+    const at = moved.get(it.id)
+    return at ? { ...it, position: at } : it
+  }
+
   for (const li of levelInputs(items, defs, plan)) {
     const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries, li.doorPoints)
     // Rooms the PLAN never connected are not this pass's business.
@@ -970,6 +1016,110 @@ export function unsealRoutes(
     li.rooms.forEach((r, i) => {
       if (baseline.has(`${li.level}/${r.id}`)) skip.add(i)
     })
+
+    const levelItems = items.filter((it) => (it.levelId ?? GROUND_LEVEL_ID) === li.level)
+
+    /**
+     * Small pieces that travel WITH an obstacle — the chairs of a dining table.
+     *
+     * A piece under `OBSTACLE_AREA_M2` is not in the raster, so it can neither
+     * seal a route nor be seen by `trialFits`, and v0.31.8.86's disc slid
+     * `tpl-hdb-maisonette`'s dining table ~1.5 m and left three chairs around a
+     * spot the table no longer occupied — the exact defect `diningChairTuck`
+     * was built for in v0.31.5.111. A designer clearing a route with a table
+     * takes the chairs; so does this pass.
+     *
+     * Assigned to the NEAREST obstacle within `SATELLITE_REACH_M`, so a lamp
+     * beside a sofa follows the sofa rather than a table on the other side.
+     */
+    const satellites = new Map<number, FurnitureItem[]>()
+    for (const it of levelItems) {
+      const def = defs[it.defId]
+      if (!def || def.mounted || def.noClip || participates(def)) continue
+      let best = -1
+      let bestD = SATELLITE_REACH_M
+      for (let o = 0; o < li.obbs.length; o++) {
+        const obb = li.obbs[o] as OBB
+        const d = Math.hypot(obb.cx - it.position[0], obb.cz - it.position[1])
+        if (d <= bestD) {
+          bestD = d
+          best = o
+        }
+      }
+      if (best >= 0) {
+        const list = satellites.get(best)
+        if (list) list.push(it)
+        else satellites.set(best, [it])
+      }
+    }
+    /** Accumulated translation per obstacle — a piece can be a culprit twice. */
+    const shifted = new Map<number, [number, number]>()
+
+    /**
+     * Would this trial land the piece ON another one?
+     *
+     * `trialFits` only reads the route raster, and the raster holds just the
+     * pieces `participates()` admits — big, floor-standing, clipping. Anything
+     * under `OBSTACLE_AREA_M2` is invisible to it, so a slide could park a sofa
+     * on a side table with every grid gate satisfied. This asks the SAME
+     * narrowphase `findItemOverlaps` uses, which is why `tpl-1bed` gains a route
+     * without gaining an overlapping pair.
+     */
+    const clashesAt = (
+      o: number,
+      src: FurnitureItem,
+      dx: number,
+      dz: number,
+      prev: [number, number] | undefined,
+    ): boolean => {
+      const def = defs[src.defId]
+      if (!def) return false
+      const base = prev ?? [0, 0]
+      const probe: FurnitureItem = {
+        ...src,
+        position: [src.position[0] + base[0] + dx, src.position[1] + base[1] + dz],
+      }
+      const riders = satellites.get(o) ?? []
+      const others = othersFor(o)
+      if (itemHeightAwareClash(probe, def, others, defs)) return true
+      // The riders come too, so they must land clear of the other pieces AND of
+      // the walls. `trialFits` only rasterises the OBSTACLE, so without this a
+      // carried chair goes through a wall — measured on `tpl-condo-1study`.
+      const shiftedRiders: FurnitureItem[] = []
+      for (const r of riders) {
+        const rdef = defs[r.defId]
+        if (!rdef) continue
+        const at: FurnitureItem = {
+          ...r,
+          position: [r.position[0] + base[0] + dx, r.position[1] + base[1] + dz],
+        }
+        if (itemHeightAwareClash(at, rdef, others, defs)) return true
+        shiftedRiders.push(at)
+      }
+      if (shiftedRiders.length > 0 && findWallClips(shiftedRiders, defs, li.walls).length > 0) {
+        return true
+      }
+      return false
+    }
+
+    /**
+     * The pieces a trial must clear, cached per obstacle.
+     *
+     * This list depends only on which piece is moving and on the moves already
+     * committed, so rebuilding it per CANDIDATE — hundreds of times per
+     * obstacle now the search is a disc — cost `tpl-hdb-maisonette` ~350 ms in
+     * list allocation alone. Invalidated on every commit.
+     */
+    let othersCacheKey = -1
+    let othersCache: FurnitureItem[] = []
+    const othersFor = (o: number): FurnitureItem[] => {
+      if (othersCacheKey === o) return othersCache
+      const riders = satellites.get(o) ?? []
+      const movingIds = new Set([(li.sources[o] as FurnitureItem).id, ...riders.map((r) => r.id)])
+      othersCache = levelItems.filter((it) => !movingIds.has(it.id)).map(livePos)
+      othersCacheKey = o
+      return othersCache
+    }
 
     let sol = solveGrid(g, bodyWidthM)
     let targets = severedIndices(sol, skip)
@@ -1013,6 +1163,7 @@ export function unsealRoutes(
         for (const [dx, dz] of offsets) {
           const trial: OBB = { ...obb, cx: obb.cx + dx, cz: obb.cz + dz }
           if (!trialFits(g, trial, o)) continue
+          if (clashesAt(o, li.sources[o] as FurnitureItem, dx, dz, shifted.get(o))) continue
           const next = solveGrid(g, bodyWidthM, o, trial)
           if ((next.reachable[ri] as number) === 0) continue
           // Must not sever anything that is currently fine.
@@ -1031,7 +1182,14 @@ export function unsealRoutes(
           for (const i of cellsUnder(g, trial)) g.itemAt[i] = o
           li.obbs[o] = trial
           const src = li.sources[o] as FurnitureItem
-          moved.set(src.id, [src.position[0] + dx, src.position[1] + dz])
+          const prev = shifted.get(o) ?? [0, 0]
+          const total: [number, number] = [prev[0] + dx, prev[1] + dz]
+          shifted.set(o, total)
+          othersCacheKey = -1
+          moved.set(src.id, [src.position[0] + total[0], src.position[1] + total[1]])
+          for (const r of satellites.get(o) ?? []) {
+            moved.set(r.id, [r.position[0] + total[0], r.position[1] + total[1]])
+          }
           sol = next
           targets = after
           culpritsByRoom = targets.size > 0 ? sweep() : new Map()
