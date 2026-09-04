@@ -23,9 +23,16 @@ route between two halves of the flat — and that is precisely what
 
 **Why `throughRooms` does not catch these two.** Its `rectIsTheRoom` gate requires all four edges
 of a room's rectangle to have a wall within 0.15 m, and `tpl-hdb-4room`/`-5room`'s Bedroom 3 does
-not qualify. So this lands back on the ROOM-RECTANGLE fix (v0.31.8.60/.61/.69/.71) — the third
-distinct thing now blocked behind trustworthy room rects, after furniture placement and
-room-scoped connectivity analysis.
+not qualify.
+
+**CORRECTED in v0.31.8.87 — this does NOT land on the room-rectangle fix.** Classifying all 46
+terminal rooms by why `rectIsTheRoom` rejects them: of the 22 rejected, only **6 fail by 0.20 m**
+(a real rect shortfall the fix would recover), 1 by 0.40, and **15 have NO wall on the failing
+side at all** (0.60-1.60 m). `tpl-hdb-4room/h4-cbath`'s rect is bounded by exactly one authored
+wall. Those 15 are already recorded, from the other end, as
+`templateEnclosure.test.ts`'s `KNOWN_SHARED_ENCLOSURES`, and its docstring already attributes them
+to open-graphics item **(f)**. Snapping a rect edge to a wall face cannot help a rect with no face
+to snap to. **The blocker here is (f), not the rects** — and (f) is not mine to decide.
 
 ## The walk -> orbit return holds its "Switching to overview..." splash past any settle
 
@@ -1085,8 +1092,14 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   blocking it blocks a corridor.
   **Consequence worth acting on:** (b) is why this check does NOT catch `tpl-hdb-4room`'s
   household shelter, which v0.31.8.67 PROVED is a through-room — its rect is rejected because
-  the shelter has one wall of four. So the room-rectangle fix is not cosmetic: it gates a whole
-  class of room-scoped analysis, not just 0.15 m of furniture placement.
+  the shelter has one wall of four.
+  **CORRECTED in v0.31.8.87: "one wall of four" is the point, and it is NOT a rect problem.**
+  Classifying all 46 terminal rooms by why (b) rejects them — 22 rejected, of which 6 fail by
+  0.20 m (a real shortfall), 1 by 0.40, and **15 have no wall on the failing side at all**
+  (0.60-1.60 m; `h4-shelter` is S=0.30 W=0.78 E=0.87). Those 15 ARE
+  `templateEnclosure.test.ts`'s `KNOWN_SHARED_ENCLOSURES`, already attributed to open-graphics
+  item **(f)**. So this check is gated on (f), and the room-rect fix would unblock 6 rooms here,
+  not 22.
 - ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
   half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
   researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus

@@ -27,6 +27,62 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.87 — the room-rectangle fix is not the third blocker; decision (f) is
+
+v0.31.8.85 closed with a call to go and finish the room-rectangle work, on the strength of it
+blocking **three** independent consumers. Before spending a release on a 19-template re-author I
+measured what each consumer would actually get back. **The headline was wrong.**
+
+The claim to check was consumer 2: that `throughRooms.test.ts` misses `tpl-hdb-4room`/`-5room`'s
+Bedroom 3 because its `rectIsTheRoom` gate needs every edge within 0.15 m of a wall, and the
+authored rects stop short. So I classified every terminal room in the library by WHY the gate
+rejects it — 46 rooms, 22 rejected:
+
+| worst failing edge | rooms | what it is |
+|---|---|---|
+| 0.20 m | 6 | a genuine rect shortfall — the rect fix WOULD recover these |
+| 0.40 m | 1 | `tpl-hdb-2room/h2-bath` |
+| **0.60–1.60 m** | **15** | **no wall on that side at all** |
+
+Fifteen of the 22 are not a precision problem. `tpl-hdb-4room/h4-cbath` is the clearest case: its
+rect is x 3.70–5.30, z 6.60–7.90, and the only authored wall bounding it is `h4-liv-w` on the
+east at 0.40 m. Three of its four sides have no wall within 0.67–1.20 m. Snapping rect edges to
+wall faces cannot help a rect with no face to snap to.
+
+**And the library already says so.** `templateEnclosure.test.ts`'s `KNOWN_SHARED_ENCLOSURES` lists
+exactly these rooms — 4room, 5room, exec, maisonette upper, condo-4bed — and its docstring already
+attributes them to `docs/open-graphics-decisions.md` item **(f)**, because closing them means
+re-drawing shipped Singapore starter layouts. I rediscovered a recorded list from the other end
+without recognising it, which is the cost of measuring a consumer's symptom instead of reading
+what already explains it.
+
+### What the room-rect fix is actually worth now
+
+- **Consumer 1, furniture placement** — mostly SHIPPED already (v0.31.8.71/.75). `edgeShortfall`
+  corrects the snap DISTANCE in both placement paths without moving the rect, which was the whole
+  point of that route: v0.31.8.61 proved fixing it inside `planRoomRect` moves the rect CENTRE and
+  flings `tpl-hdb-3room`'s dining chairs.
+- **Consumer 2, room-scoped connectivity** — buys **6 rooms**, not 22: `ex-shelter`, `ex-study`,
+  `jb-shelter`, `em-wc`, `ctu-cbath`, `ctu-mbath`, every one failing by exactly 0.20 m (centreline
+  + 0.2 authoring against a 0.05 internal face — the same population `roomRectWalls.test.ts`
+  records as `short15`). The other 15 are (f).
+- **Consumer 3, the door-into-bedroom check** — deleted in v0.31.8.85 as ill-formed. It was never
+  a consumer.
+
+So "three independent consumers" was one mostly-shipped, one worth 6 rooms, and one that does not
+exist. That is a much weaker case than the one I closed the last release with, and the item is
+downgraded in `TODO.md` accordingly rather than left looking like the top of the queue.
+
+**The real blocker underneath all of this is (f)**, and it is explicitly not mine to decide
+(root `CLAUDE.md`: do NOT decide the open-graphics items unilaterally). It now has a number
+attached that it did not have before: **15 of the library's 46 terminal rooms sit in a wall-free
+volume shared with another declared room**, which is what blocks room-scoped connectivity
+analysis, `bedroomPrivacy`'s four walk-through bedrooms, the `-2room`/`-4room`/`-5room` shelters
+and window-sightline item (j). Every remaining thread on this branch that is not already measured
+out leads here.
+
+No code change — measurement and docs only, so no visual verification applies.
+
 ## v0.31.8.86 — the unseal search was a cross, so it could not leave a corner
 
 `tpl-hdb-5room` has stranded four rooms since v0.31.8.83 — Master Bedroom 3.8 m², Common Bath

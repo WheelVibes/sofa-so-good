@@ -165,6 +165,19 @@ function throughRooms(
    * killed its own room-graph attempt, since that master demonstrably has its own
    * door off a corridor.
    */
+  /**
+   * v0.31.8.87 measured what this gate actually costs in coverage. Of the
+   * library's 46 terminal rooms it rejects 22, and they split three ways by the
+   * worst failing edge: **6 fail by 0.20 m** (a genuine rect shortfall — the
+   * `roomRectWalls.test.ts` `short15` population, recoverable by snapping rect
+   * edges to wall faces), 1 by 0.40, and **15 have no wall on that side at all**
+   * (0.60-1.60 m). Those 15 are `templateEnclosure.test.ts`'s
+   * `KNOWN_SHARED_ENCLOSURES`, i.e. open-graphics item (f).
+   *
+   * So this gate's blind spot is mostly NOT precision, and a room-rectangle fix
+   * would widen coverage by 6 rooms rather than 22. Do not go looking for the
+   * missing through-rooms in the rect maths.
+   */
   const rectIsTheRoom = (r: (typeof level.rooms)[number]): boolean => {
     const x0 = r.origin[0]
     const z0 = r.origin[1]
