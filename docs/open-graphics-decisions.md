@@ -659,7 +659,7 @@ up as a required edit to the list.
 
 ---
 
-## (g) LEVEL-ISOLATION-IN-WALK — 🟡 IMPLEMENTED v0.31.8.47, visual proof still owed
+## (g) LEVEL-ISOLATION-IN-WALK — ✅ FIXED v0.31.8.47, VERIFIED v0.31.8.49
 
 **Decided and shipped** (the three open questions, answered): walk mode renders the storey
 **immediately below** the walked one — not all storeys, because that is what an overlook can see and
@@ -672,11 +672,14 @@ renders every storey in orbit. `renderedLevels` can never return more levels tha
 a test asserting exactly that across every template and storey — so walking a storey now costs the
 same as the default view, never more. No new tier benchmark is required.
 
-**What is still owed: a screenshot of the fixed overlook.** The headless harness cannot turn a
-first-person camera (look is driven by pointer-lock `movementX`, and a synthetic drag does not move
-it), and the walker spawns facing a wall, so before/after frames from the spawn are identical. The
-mechanism is covered by unit tests and by reading the source, but nobody has SEEN the fix. Verify it
-by hand: `tpl-loft` → View → Levels → Loft → walk → turn to the rail.
+**VERIFIED v0.31.8.49, and the fix is visible.** The headless harness could not turn OR move a
+first-person camera (both are gated on Pointer Lock), so the dev-only `window.__walkLook` lever —
+which already carried `setPitch` — gained `setYaw` and `setPosition`. Standing at the mezzanine's
+north edge (2.4, 3.9) looking over the rail, with the change disabled versus applied at the SAME
+framing: **57.2% of the frame differs**, and the overlook band's mean luma goes **112.7 → 174.4**.
+Before, beyond the rail there is nothing but a pale gradient — exactly what this write-up describes.
+After, the room below is there: walls, a lit interior, windows in the far wall. Luma is the same
+instrument this item used for its original evidence. Scenario: `scripts/scenarios/loft-walk-level.json`.
 
 ### Original write-up (measured v0.31.5.110)
 

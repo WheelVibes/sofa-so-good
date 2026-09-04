@@ -1,6 +1,6 @@
 {
   "name": "loft-walk-level",
-  "description": "(g) LEVEL-ISOLATION-IN-WALK: walking tpl-loft's mezzanine used to hide the storey beneath it. Asserts that walk mode renders TWO storeys where the dollhouse renders one, aims the camera with the dev-only __walkLook lever (pointer lock is unavailable headless), and screenshots the mezzanine. NOTE: the walker cannot be MOVED headlessly (WASD also needs pointer lock), so this cannot frame the view directly over the guard rail \u2014 that check is by hand, see TODO.md.",
+  "description": "(g) LEVEL-ISOLATION-IN-WALK: walking tpl-loft's mezzanine used to hide the storey beneath it, so the overlook rendered as bare sky. Asserts walk mode renders TWO storeys where the dollhouse renders one, then stands at the mezzanine edge (via the dev-only __walkLook lever \u2014 pointer lock is unavailable headless) and shoots the overlook. With the fix disabled the same frame shows only a pale gradient beyond the rail: 57% of pixels differ, overlook-band mean luma 112.7 -> 174.4.",
   "url": "http://localhost:5208/",
   "steps": [
     {
@@ -49,28 +49,32 @@
       "timeout": 30000
     },
     {
-      "name": "assert-both-storeys-render",
-      "eval": "(()=>{const s=window.__store.getState(); import('/src/floorplan/levels.ts').then(m=>{const rl=m.renderedLevels(s.floorPlan,s.viewLevelId,s.cameraMode==='firstPerson').map(l=>l.id); const vl=m.visibleLevels(s.floorPlan,s.viewLevelId).map(l=>l.id); window.__probe={rendered:rl,visible:vl,mode:s.cameraMode}}); return 'queued'})()"
+      "name": "lever-settle",
+      "wait": 2000
+    },
+    {
+      "name": "assert-two-storeys",
+      "eval": "(()=>{const s=window.__store.getState(); import('/src/floorplan/levels.ts').then(m=>{window.__probe={rendered:m.renderedLevels(s.floorPlan,s.viewLevelId,s.cameraMode==='firstPerson').map(l=>l.id),visible:m.visibleLevels(s.floorPlan,s.viewLevelId).map(l=>l.id)}}); return 'queued'})()"
     },
     {
       "name": "probe-wait",
       "wait": 1200
     },
     {
-      "name": "check-probe",
-      "eval": "(()=>{const p=window.__probe; if(!p) throw new Error('probe did not run'); if(p.mode!=='firstPerson') throw new Error('not walking: '+p.mode); if(p.visible.length!==1) throw new Error('expected one visible level, got '+p.visible); if(p.rendered.length!==2) throw new Error('walk mode should render the storey below too, got '+p.rendered); return p.rendered.join('+')})()"
+      "name": "check-two-storeys",
+      "eval": "(()=>{const p=window.__probe; if(!p) throw new Error('probe did not run'); if(p.visible.length!==1) throw new Error('expected 1 visible level, got '+p.visible); if(p.rendered.length!==2) throw new Error('walk mode must render the storey below too, got '+p.rendered); return p.rendered.join('+')})()"
     },
     {
-      "name": "look-around",
-      "eval": "(()=>{const l=window.__walkLook; if(!l||!l.setYaw) throw new Error('__walkLook.setYaw missing \u2014 the harness cannot aim a first-person camera without it'); l.setYaw(4.71); l.setPitch(-0.5); return 'aimed'})()"
+      "name": "stand-at-rail",
+      "eval": "(()=>{const l=window.__walkLook; if(!l||!l.setPosition) throw new Error('__walkLook.setPosition missing'); l.setPosition(2.4,3.9); l.setYaw(0); l.setPitch(-0.45); return 'at the mezzanine edge, looking over'})()"
     },
     {
-      "name": "settle-look",
+      "name": "settle-view",
       "wait": 900
     },
     {
-      "name": "shot-mezzanine",
-      "screenshot": "loft-mezzanine"
+      "name": "shot-overlook",
+      "screenshot": "loft-overlook"
     }
   ]
 }

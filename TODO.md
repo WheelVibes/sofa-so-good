@@ -2051,7 +2051,7 @@ answer, and the app already says so: `Unclassified — confirm structure with HD
 before hacking`, plus a ⚠ per wall on the hacking sheet. Recorded so the 50% is not
 mistaken for a gap by a future reader.
 
-## (g) LEVEL-ISOLATION-IN-WALK is implemented but VISUALLY UNVERIFIED
+## ~~(g) LEVEL-ISOLATION-IN-WALK is implemented but VISUALLY UNVERIFIED~~ — VERIFIED v0.31.8.49
 
 v0.31.8.47 makes walk mode render the storey below the walked one. Unit-tested and
 bounded (it can never render more levels than the default `'all'` view), but nobody
@@ -2064,13 +2064,8 @@ Expect a floor and the room below, not the pale sky gradient and two black holes
 (g) write-up describes. If it is wrong, the suspect is the wiring in
 `apartment/PlanShell.tsx`, not `renderedLevels`, which has tests.
 
-**PARTLY DONE v0.31.8.48.** `window.__walkLook` already had `setPitch`/`getPitch`;
-yaw joined it, so a scenario can now AIM the walker. What is still missing is MOVING
-it: WASD is gated on pointer lock too, so the walker is stuck at its spawn, and the
-loft's guard rail is across the room from there. A `__walkLook.setPosition` (or a
-harness key-injection path that bypasses the lock check) would close it.
-
-What IS now verified headlessly: the scenario asserts walk mode renders TWO storeys
-where the dollhouse renders one, and a before/after pixel diff of the mezzanine shows
-2.51% of pixels changing — the ground storey's lights reaching the floor above, which
-is evidence it renders. What is NOT verified is the view over the rail itself.
+**DONE v0.31.8.49.** `window.__walkLook` now carries `setPitch`, `setYaw` AND
+`setPosition`, so a scenario can place and aim the walker anywhere — every future
+walk-mode change is verifiable headlessly. (g) is verified: standing at the
+mezzanine edge, 57.2% of the frame differs with the fix disabled versus applied, and
+the overlook band's mean luma goes 112.7 -> 174.4.

@@ -340,12 +340,24 @@ export function FirstPersonCamera() {
         yaw.current = y
       },
       getYaw: () => yaw.current,
+      // Position joined yaw in v0.31.8.49. Aiming alone was not enough to verify
+      // (g): WASD is gated on Pointer Lock too, so the walker was stuck at its
+      // spawn, and `tpl-loft`'s guard rail is across the room from there. The
+      // frame loop resolves movement FROM the current position each tick, so
+      // writing x/z with no key held simply relocates the walker; collision and
+      // the floor-height solve then apply from the new spot exactly as if it had
+      // been walked to.
+      setPosition: (x: number, z: number) => {
+        camera.position.x = x
+        camera.position.z = z
+      },
+      getPosition: () => [camera.position.x, camera.position.z] as [number, number],
     }
     ;(window as unknown as { __walkLook?: typeof lever }).__walkLook = lever
     return () => {
       delete (window as unknown as { __walkLook?: typeof lever }).__walkLook
     }
-  }, [])
+  }, [camera])
 
   useEffect(() => {
     // Each branch picks a nominal standing point + a point to face; the spawn is

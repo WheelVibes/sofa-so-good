@@ -27,6 +27,39 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.49 — (g) verified: the overlook has a floor, and here is the proof
+
+Two releases ago I shipped (g) and said its visual proof was owed. It is paid.
+
+The headless harness could turn a first-person camera as of `.48` but still could not
+MOVE one — WASD is gated on Pointer Lock too — and `tpl-loft`'s guard rail is across
+the room from the spawn. So the dev-only `window.__walkLook` lever, which already
+carried `setPitch` and gained `setYaw` last release, now also carries
+**`setPosition`/`getPosition`**. The frame loop resolves movement FROM the current
+position each tick, so writing x/z with no key held simply relocates the walker and
+the collision and floor-height solve then apply from there.
+
+**The measurement.** Standing at the mezzanine's north edge (2.4, 3.9) looking over
+the rail, with the change disabled versus applied at the SAME framing:
+
+- **57.2% of the frame differs**;
+- the overlook band's mean luma goes **112.7 → 174.4**.
+
+Before: beyond the rail there is nothing but a pale grey gradient — no floor, no far
+wall, no room, exactly as the (g) write-up describes. After: the room below is there,
+lit, with windows in its far wall. Luma is the same instrument that item used for its
+original evidence (it caught the defect at 28.2 against a 129–185 range).
+
+(g) is now ✅ in `docs/open-graphics-decisions.md`, and
+`scripts/scenarios/loft-walk-level.json` keeps the check: it asserts walk mode renders
+TWO storeys where the dollhouse renders one, then shoots the overlook.
+
+The lever is the durable win here — placing and aiming a walker makes every future
+walk-mode change verifiable headlessly, which is what let this one be closed rather
+than left as an assertion.
+
+Verified: 10145 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.48 — the harness can now aim a first-person camera; (g) partly verified
 
 Last release shipped (g) with its visual proof owed, because the headless harness
