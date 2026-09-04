@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.291 — the biggest error in the arc, hidden by the tone curve: the bedroom's GI is 35 % dark
+
+Measured in linear light, same hour, same transform on both sides, both frames verified unclipped,
+Cycles scaled analytically onto the app's exposure — exact, because `LinearToneMapping` and Blender
+`Standard` are each a multiply followed by the sRGB OETF:
+
+| room | surface | app ÷ Cycles (LINEAR) | same patch in BYTES |
+| --- | --- | --- | --- |
+| mainBedroom | ceiling centre | **0.678** | 0.976 |
+| mainBedroom | wall left | **0.631** | 0.939 |
+| livingDining | ceiling | 1.040 | 1.034 |
+| livingDining | wall | 0.985 | 1.026 |
+| livingDining | floor | 0.877 | 0.981 |
+
+**The bedroom's baked GI sits about 35 % below physics while the living/dining room sits at ~1.0.**
+That room-to-room spread is far larger than any surface- or orientation-dependent effect this arc has
+found, and in tone-mapped bytes the same bedroom patches read 0.976 and 0.939 — AgX's shoulder
+compressed a 35 % deficit into 3-6 %. That is why it went unseen for the whole arc, and it is the
+clearest argument yet for `(z12)`'s linear view having been worth building.
+
+**It retires `.290`'s orientation hypothesis.** Ceiling (down-facing) and wall (side) are dark here
+by nearly the same factor, so the dominant variable is the ROOM, not the surface normal. My earlier
+visual read of these frames — "the bedroom looks darker and cooler" — was right, and the byte
+measurements talked me out of it twice.
+
+**Consequence for the calibration.** `IRRADIANCE_GAIN` is a single global constant, and every
+calibration of it in this arc was performed in `livingDining` — the room that happens to agree. One
+constant cannot serve a 35 % spread, so the fix is per-room or per-map rather than a global number,
+and `--per-map-scale` already gives the bake a per-map channel that could carry it.
+
+**Method notes, because this comparison is easy to get wrong.** At the manifest's ×1.38 both sides
+clip (the bedroom ceiling reads 255 / p05 255 / p95 255 on BOTH). The app's user exposure is CLAMPED
+at `EXPOSURE_MIN = 0.6`, so it cannot be dimmed past ×0.828 — and at 0.828 Cycles still clips. Hence
+rendering Cycles at 0.414 and doubling its decoded linear values. That also resolves `.290`'s
+unexplained 1.37×: it was the clamp, not a double-applied day grade, and it is now read out of
+`look.ts` rather than guessed. Patches whose app `sd` ran far above Cycles' were discarded — `wallR`
+at sd 56.2 clips the wardrobe edge.
+
+Next: a third room, and whether the deficit tracks anything already in the bake index — per-map
+`scale`, object area, or sky visibility.
+
+
 ## v0.31.7.290 — the linear pair has a range limit, so `(z7)`'s 12.3 % stays at n = 1
 
 Trying to reproduce `.288`'s linear floor deficit in a second room found a limit in the new
