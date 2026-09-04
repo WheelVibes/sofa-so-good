@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.247 — item `(l)` re-measured: the app clips 0.33 %, not 0.0 % — and the window it clips is mostly BLINDS
+
+`(l)` has stood since `v0.31.5.236` on the finding that photographs clip 15-39 % of their glazing
+while the app clips **0.0 %** at every hour, so a pane reads as a panel rather than an opening. This
+session changed the interior level twice (`gain 4.2` in `.223`, gap ceilings in `.234`), so the
+number was worth re-taking before anyone acts on it.
+
+Measured at 13:00, looking through the north window of `livingDining`:
+
+| pose | patch mean | ≥ 254 | ≥ 250 |
+| --- | --- | --- | --- |
+| level through the window | 220.5 | **0.33 %** | 0.59 % |
+| pitched up 0.25 rad | 177.1 | **3.61 %** | 4.15 % |
+
+So the app is no longer at literally zero, and it remains an order of magnitude short of the
+photographic 15-39 %. The item stands.
+
+**But the premise needs widening, and this is the part worth having.** That window is not a bare
+pane: it is covered by **vertical blind slats, rendered as shell geometry rather than as a furniture
+item**. Rays cast 1 cm apart alternate between striking the slat plane at z ≈ 1.25 and passing
+straight through to the sky, and the frame shows the slats across the full opening. So the visible
+"window" a walker sees is mostly slats, and making the PANE clip like a photograph would not by
+itself change the frame. Any fix has to decide what the blinds do first.
+
+Two caveats on my own numbers, since the original measurement presumably segmented glazing properly:
+the patch is a fixed rectangle over the opening and therefore includes slats, frame and a little
+wall, and the two poses disagree by 11x, which says the figure is strongly pose-dependent — the same
+lesson `.214` learned the hard way about patches. Recorded as a proxy, not as a replacement for a
+segmented measurement.
+
+`(l)`'s row in `docs/open-graphics-decisions.md` now carries both the new figures and the blinds
+observation. Suite 10219 green; the `--keep-glazing` bake is at 75 maps of ~189.
+
+
 ## v0.31.7.246 — the bake-reproduction workflow written into the skill doc, with the measured parameter sensitivities
 
 `.245` made new bakes self-describing. This puts the knowledge that cost six rounds where the next
