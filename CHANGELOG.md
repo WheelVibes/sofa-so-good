@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.286 — `(z11)` RETRACTED: measured in linear light, the app's falloff is too GENTLE
+
+Every version of this item compared gradients in tone-mapped bytes. That is not a comparison of
+light, and measuring it properly reverses the conclusion.
+
+`patch-read` gains `LINEAR=1`, which sRGB-decodes each pixel before averaging — decoding per pixel
+and then averaging, because `sRGB_to_linear(mean)` is not `mean(sRGB_to_linear)` across a gradient,
+which is precisely the case here. Cycles rendered under `Standard` (the sRGB OETF alone, so exactly
+invertible) at `--exposure -2.0` to avoid clipping, p95 170 and 141:
+
+| | linear ratio | byte ratio |
+| --- | --- | --- |
+| Cycles, `Standard` | **0.750** | 0.878 |
+| Cycles, AgX | — | 0.963 |
+| the shipped map, area-averaged | **0.8216** | — |
+| app, AgX | — | 0.859 |
+
+**Cycles' true linear gradient across those two footprints is 0.750; the bake's is 0.8216. The bake
+is FLATTER than physics, not steeper** — and the app renders it faithfully.
+
+What made the app's frame look steeper is entirely curve position. Its ceiling sits at 209.9 against
+Cycles' 215.1, and the AgX shoulder compresses Cycles' brighter ceiling harder: 0.963 in bytes for a
+0.750 linear gradient, against the app's 0.859 in bytes for a 0.8216 linear one. `.284` raised
+exactly this objection and I wrongly cleared it — raising the app's exposure moves BOTH patches up
+the curve together, so it cannot separate level from gradient. Only a linear measurement can, and I
+should have reached for one there rather than accepting the exposure sweep as decisive.
+
+**What survives:** the app's ceiling is **0.976** of physics in level, which is small and is the only
+real residual. Area-averaging mattered on its own too — the map reads 0.891 point-sampled and 0.8216
+area-averaged, because the gradient is steep even WITHIN a patch: the centre patch's own nine samples
+run 0.802 / 0.877 / 0.809 / 0.713 / 0.631 / 0.692 / 0.590 / 0.507 / 0.603.
+
+The four eliminations in `.284` and `.285` (sun-bounce, staleness, AgX shoulder, texel footprint) all
+stand as measurements. They were eliminating causes of something that was not happening — which is
+the cost of having framed the item in the wrong units for three rounds. The `.285` warning not to
+raise lightmap resolution stands on its own evidence and is now doubly right: a finer bake would move
+the map's 0.8216 toward 0.75, but the visible artefact was never the gradient.
+
+
 ## v0.31.7.285 — resolution makes `(z11)` WORSE: a fourth hypothesis dies, with a practical warning
 
 The texel-footprint hypothesis was the last physical-sounding one: at `res 256` a 10.68 m² ceiling

@@ -23,6 +23,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 
+/** `LINEAR=1` decodes sRGB per pixel before averaging — see the note in the stat function. */
+const LINEAR = process.env.LINEAR === '1'
+
 const argv = process.argv.slice(2)
 const sep = argv.indexOf('--')
 if (sep < 2) {
@@ -75,7 +78,21 @@ async function readPatch(file, meta, p) {
     const b = data[i + 2]
     // Rec.601 luma, matching sharp's own greyscale so figures compare with the
     // probe's band means.
-    const l = 0.299 * r + 0.587 * g + 0.114 * b
+    //
+    // LINEAR=1 sRGB-DECODES each channel first, so the mean is a mean of LIGHT rather than of
+    // display code values. Needed to compare a GRADIENT against a bake: a lightmap holds linear
+    // irradiance, and a ratio of tone-mapped bytes is not a ratio of light — near the AgX shoulder
+    // a linear ratio of 0.82 shows up as about 0.86 in bytes (`(z11)`). Decoding per PIXEL and
+    // then averaging is the point: `sRGB_to_linear(mean)` is not `mean(sRGB_to_linear)` on a
+    // patch that spans a gradient, which is exactly the case this exists for. Only valid on a
+    // render whose transform IS the sRGB OETF -- Blender's `Standard`, not AgX.
+    const dec = (v) => {
+      const c = v / 255
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }
+    const l = LINEAR
+      ? 255 * (0.299 * dec(r) + 0.587 * dec(g) + 0.114 * dec(b))
+      : 0.299 * r + 0.587 * g + 0.114 * b
     sum += l
     sumSq += l * l
     rb += r - b
