@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.77 — built the plan I wrote down, and it changed nothing
+
+v0.31.8.76 diagnosed the last non-seed marooned stove and wrote down the fix: make
+`arrangeKitchen`'s `toEnd` prefer its all-edges fallback over a long wall that has no wall behind
+it. Built exactly that — wall-backed long walls, then `snapToWall`, then unbacked long walls.
+
+**Zero corpus effect.** Full suite green with nothing moved: `tpl-condo-1bed`'s stove sits at
+(1.38, 5.27) rot 0.00, still snapped to the N rect edge, still 0.59 m from any wall. Reverted,
+because shipping branches that change nothing is the same dead complexity I rejected in
+v0.31.8.57 when the rotation lever turned out to be used zero times.
+
+### Two candidates eliminated, which is the useful part
+
+- **The room does resolve as a kitchen.** `"Open Kitchen"` reads
+  `authored=kitchen resolved=kitchen`, so `arrangeKitchen` is the routine and the "maybe a
+  different routine runs" theory is dead.
+- **The west edge IS wall-backed** by `edgeHasWall`: the rect edge sits ~0.12 m off the wall
+  face, so `d − ROOM_INSET` is about zero, well inside the 0.3 m bar.
+
+So either `toEnd` is not the path that places this stove, or `snapToWall`'s west candidate is
+rejected by something I have not accounted for — the counter run spans x 0.32–2.72 at z 5.62–6.22
+and the stove wants z 4.97–5.57, which should not collide.
+
+### The lesson I wrote down last release and did not apply
+
+v0.31.8.74 ended with: *"twice I reasoned about which rule applies when I should have asked which
+code path ran."* I then spent this release reasoning about which rule applies. **The next step is
+to instrument `arrangeKitchen`'s three stages for this one room** — a trace, not an argument.
+`TODO.md` says so.
+
+For scale: this is the last of fifteen marooned appliances bar the never-placed condo-3bed stove,
+so the remaining prize is small. Worth one trace, not another round of inference.
+
+No code ships. Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.76 — the kitchen picked its walls by shape, not by whether they were walls
 
 Three marooned appliances left after v0.31.8.75, all stoves, two undiagnosed. Both turned out to

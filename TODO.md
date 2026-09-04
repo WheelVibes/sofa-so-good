@@ -943,10 +943,20 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   tried first, but the counter run is already there, so `placeFlush` falls to N — which is
   wall-less and FREE, so it succeeds and `toEnd` never reaches its `snapToWall` fallback (which
   would have found the flush WEST wall via WALL-BACKED-EDGE).
-  **The fix is to make `toEnd` prefer the fallback over an unbacked long wall**: try wall-backed
-  long walls, then `snapToWall` across all edges, and only then an unbacked long wall. Not taken
-  because it reorders the work-triangle intent (fridge one end, stove the other) and that wants
-  its own measurement.
+  **That plan was BUILT in v0.31.8.77 and has ZERO corpus effect** — wall-backed long walls, then
+  `snapToWall` across all edges, then unbacked long walls. Full suite green with nothing moved:
+  the stove stays at (1.38, 5.27) rot 0.00, snapped to the N rect edge. Reverted rather than
+  shipped as dead branches.
+  **So the reasoning above is wrong somewhere, and two candidates are eliminated:** the room
+  DOES resolve to `kitchen` (`authored=kitchen resolved=kitchen`), so `arrangeKitchen` is the
+  routine; and the W edge IS wall-backed by `edgeHasWall` (rect edge sits ~0.12 m off the face,
+  so `d - ROOM_INSET` is ~0, well inside the 0.3 m bar). Either `toEnd` is not the code path that
+  places this stove, or `snapToWall`'s W candidate is rejected by something — the counter run
+  spans x 0.32-2.72 at z 5.62-6.22 and the stove wants z 4.97-5.57, which should not collide.
+  **Next step is to INSTRUMENT `arrangeKitchen` for this room, not to reason about it.** That is
+  the lesson v0.31.8.74 recorded and I did not apply here: ask which code PATH ran before
+  reasoning about which rule applies. One `console`-free trace of `toEnd`'s three stages would
+  settle it.
 
 - **[ALONG-WALL SWEEP — MEASURED AND DECLINED TWICE (v0.31.8.7, v0.31.8.62). Do not re-attempt
   without a new idea.]** `snapToWall` tries exactly ONE along-wall position per edge — the
