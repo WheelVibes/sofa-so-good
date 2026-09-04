@@ -29,6 +29,56 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.255 — `(z3)` cause found: the sun has NO ATMOSPHERIC EXTINCTION — intensity is flat from 29° to 84° elevation
+
+`.254` located the 17:00 wall overshoot as a direct-light term and offered "the directional light
+reaches interior faces that intervening walls should shadow" as the hypothesis. That was wrong. The
+shadowing is fine; the sun is simply too strong when it is low.
+
+**Measured `dirLight.intensity` across the day:**
+
+| hour | sun elevation | intensity |
+| --- | --- | --- |
+| 09:00 | 28.84° | 0.9913 |
+| 13:00 | 83.91° | 1.000 |
+| 17:00 | 30.97° | 1.000 |
+
+Flat. Physically the direct beam attenuates with air mass — **1.94 air masses at 31° against 1.01 at
+84°**, so at a clear-sky optical depth of 0.25 the low sun should be **~21 % weaker**. Cycles'
+`MULTIPLE_SCATTERING` sky models that dimming and reddening; the app applies none, so every low-sun
+hour gets a full-strength beam.
+
+That is the right size for the defect: the wall runs 1.445 of reference at 17:00 and 0.974 at 13:00.
+
+**The 09:00 asymmetry is geometric, not a counter-example.** At 09:00 the sun is in the EAST, behind
+this west-facing interior face, so the same over-strong beam lands at a poor angle and adds only
+0.040 instead of 0.222. The error is in the beam either way; only one hour presents a surface to it.
+
+**Eliminated on the way there, each by measurement rather than argument:**
+
+| candidate | how it died |
+| --- | --- |
+| shadow frustum coverage | both probe points inside, 1024 map, `castShadow` true on the light |
+| walls not casting | walls do cast; the 84 large shell meshes without it are floors at y = 0 |
+| `shadowMap.enabled` | true |
+| sun entering through the ceiling | `CeilingOccluder` is explicitly `castShadow` "so they still render into the sun's shadow map" |
+| the day grade | `grade()` returns only `{exposure, warmth}` — no ambient — and exposure is 1.38 at all three hours |
+| **environment specular** | zeroing `envMapIntensity` on **931** materials moved the patch **0.0 counts** |
+| grille shadowing | `.253` |
+
+The env-specular test is the one I expected to succeed: the injection replaces `indirectDiffuse` but
+not specular, and a west-facing wall at 17:00 should reflect a bright western sky. It changed nothing,
+and the run had to be repeated because my first two attempts crashed on a bad `console.log` AFTER
+writing their screenshots — so the patches read identical for the honest reason, not because the kill
+had failed. I only trusted it once the probe printed `zeroed envMapIntensity on 931 materials`.
+
+Not fixed here. An extinction curve on the sun's intensity changes every daylight hour's look at once,
+so it needs its own round with a before/after tour and the three verified surfaces re-measured — the
+same treatment `.223` and `.251` got. Recorded in `(z3)` with the numbers.
+
+Suite 10219 green.
+
+
 ## v0.31.7.254 — the 17:00 wall overshoot located: the app GAINS 0.222 where the reference LOSES 0.029, and it is direct light, not the bake
 
 `.253` left the 17:00 east wall 44 % over the Cycles reference with the cause unknown and grille
