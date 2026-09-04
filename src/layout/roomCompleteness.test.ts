@@ -75,7 +75,9 @@ const KNOWN_INCOMPLETE = [
   // the rest of the kitchen too.
   'tpl-1bed/ground/ob-kit: missing a hob, a fridge, a counter',
   'tpl-condo-1study/ground/cs-kit: missing a hob, a counter',
-  'tpl-condo-studio/ground/su-kit: missing a hob, a fridge, a counter',
+  // Counter recovered in v0.31.9.19 (FITTED-COUNTER) — it had been a 2.4 m run
+  // in a room whose longest wall is 2.0 m, so it overflowed and was dropped.
+  'tpl-condo-studio/ground/su-kit: missing a hob, a fridge',
   'tpl-studio/ground/st-kit: missing a hob, a fridge, a counter',
   // NOT in the hood ratchet — this one HAS a stove, so only the fridge is gone.
   'tpl-condo-1bed/ground/c1-kit: missing a fridge',

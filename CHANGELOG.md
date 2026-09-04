@@ -27,6 +27,54 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.19 — a 2.4 m counter in a 2.0 m kitchen, and the narrower fix beat the bigger one
+
+The four hood-without-hob kitchens. Tracing `tpl-studio` and `tpl-condo-studio` through the passes:
+the counter, fridge and hob are all seeded, `dropOverlaps` kills the fridge and hob, and then
+`dropDoorBlockers` or `dropWallClippers` kills the counter — leaving a room with a range hood and a
+ceiling light in it. (My v0.31.9.18 hood fix is visible working here: the hood correctly follows the
+stove to its wall before the stove is deleted.)
+
+**The kit needs 3.70 m of wall run and these kitchens do not have it.** Counter 2.4 + fridge 0.7 +
+hob 0.6, against the longest wall of the arranger's rect:
+
+| kitchen | room | longest wall | walls needed |
+|---|---|---|---|
+| `tpl-condo-studio/su-kit` | 2.0 x 1.6 | 1.76 m | 3 |
+| `tpl-condo-1bed/c1-kit` | 2.0 x 1.6 | 1.76 m | 3 |
+| `tpl-condo-1study/cs-kit` | 2.0 x 2.2 | 1.96 m | 2 |
+| `tpl-1bed/ob-kit` | 3.1 x 1.9 | 2.86 m | 2 |
+| `tpl-studio/st-kit` | 3.8 x 1.4 | 3.56 m | 2 |
+
+And `kitchen-counter-l` is **2.4 m**, so in the 1.76 m rooms it cannot stand on ANY wall — it
+overflowed the room instead (`c1-kit`'s spanned x 0.32-2.72 against a room ending at 2.20), which is
+why everything else then had nowhere to go.
+
+**The counter is parametric** — `length` 1.2-4.0 m, footprint following it — and was simply always
+seeded at its 2.4 m default. So it is now sized to the room, following `narrowWardrobe`'s existing
+room-aware pattern in `seedRoom`.
+
+### The bigger version of the fix was worse, measured
+
+First cut sized the counter to the arranger's INSET rect, which is the run actually available:
+
+| | counters recovered | items | collateral |
+|---|---|---|---|
+| size to inset rect | **2** (`su-kit`, `cs-kit`) | +3 | `tpl-hdb-2room`'s fridge marooned 0.67 m off its wall; appliances snapped 38 -> 37; `tpl-condo-1study` gains a severed room |
+| **size to the room** | **1** (`su-kit`) | +1 | **none** |
+
+The aggressive version fires on `tpl-hdb-2room` too, whose kitchen was already complete, and the
+reshuffle costs a fridge and a route. **One clean counter beats two counters plus a marooned fridge
+and an unreachable room**, so the shipped rule shrinks only enough to stop the run overflowing the
+room. The rejected variant is recorded in the code with its numbers.
+
+`tpl-condo-studio` 25 -> 26 items, no other template moves, no appliance or route changes.
+
+**Three kitchens remain incomplete and the hobs are the common thread** — `su-kit`, `cs-kit` and
+`ob-kit` all still lack one, and `st-kit` is now the only kitchen recovering nothing. Those want
+their own release: the hob is 0.6 m and should be the easiest piece to fit, so its loss is more
+likely an ordering or keep-out problem than capacity.
+
 ## v0.31.9.18 — the seed-point rescue never considered appliances wall-hugging
 
 `tpl-condo-1bed/c1-kit` is missing only its fridge, so it was the narrowest of the five incomplete

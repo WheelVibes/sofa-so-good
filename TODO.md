@@ -23,8 +23,18 @@ STALE stove position), so misaligned hoods went 1 -> 0 as well.
 **`c1-kit` is still incomplete and it is a CAPACITY limit**, like `ctu-mbath`: 2.0 x 1.6 m, the
 L-counter takes z 5.62-6.22 across the full width, leaving a 0.70 m north strip, and a 0.70 m
 fridge plus the 0.06 m wall gap needs 0.76 m. The rescue now tries and correctly finds nowhere.
-The remaining four kitchens are the hood-without-hob templates already in
-`applianceWall`'s `KNOWN_ORPHAN_HOODS`; they need their own look.
+**PARTLY FIXED v0.31.9.19 (FITTED-COUNTER).** `kitchen-counter-l` is parametric (length 1.2-4.0 m)
+but was always seeded at 2.4 m, and these kitchens' longest walls are 1.76-2.86 m — so in the
+smallest it could not stand on ANY wall and OVERFLOWED the room, leaving the fridge and hob nowhere
+to go. Now sized to the room. Recovered `su-kit`'s counter; `tpl-condo-studio` 25 -> 26 items with
+no collateral.
+**A bigger version was measured and rejected:** sizing to the arranger's INSET rect recovers TWO
+counters (+3 items) but fires on `tpl-hdb-2room`, whose kitchen was already complete — marooning its
+fridge 0.67 m off the wall, taking appliances-snapped 38 -> 37, and costing `tpl-condo-1study` a
+severed room. One clean counter beat two plus that collateral.
+**Still missing: the HOBS.** `su-kit`, `cs-kit` and `ob-kit` all lack one, and `st-kit` recovers
+nothing at all. A hob is 0.6 m — the easiest piece in the kit to fit — so its loss is more likely
+an ordering or keep-out problem than capacity. That is the next thread.
 
 **Five kitchens are incomplete:**
 - `tpl-studio/st-kit` (5.3 m²) and `tpl-1bed/ob-kit` (5.9 m²) — a ceiling light and a range hood,

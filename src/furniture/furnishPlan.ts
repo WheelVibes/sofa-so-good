@@ -226,6 +226,47 @@ function narrowWardrobe(defId: string, room: PlanRoom): ParamProps {
   return shortest < NARROW_BEDROOM_M ? { width: 1.0 } : {}
 }
 
+/** Shortest `kitchen-counter-l` the def allows, and the shortest worth building. */
+const MIN_COUNTER_M = 1.2
+
+/**
+ * A counter run sized to the wall it stands against — the same idea as
+ * {@link narrowWardrobe}, for the piece that was breaking small kitchens.
+ *
+ * `kitchen-counter-l` is parametric (`length` 1.2-4.0 m) but was always seeded at
+ * its 2.4 m default, and five shipped kitchens have no wall that long. Measured
+ * (v0.31.9.19) — longest wall of the arranger's rect vs the 3.70 m the kit needs
+ * (counter 2.4 + fridge 0.7 + hob 0.6):
+ *
+ * | kitchen | room | longest wall |
+ * | --- | --- | --- |
+ * | `tpl-condo-studio/su-kit` | 2.0 x 1.6 | **1.76 m** |
+ * | `tpl-condo-1bed/c1-kit` | 2.0 x 1.6 | **1.76 m** |
+ * | `tpl-condo-1study/cs-kit` | 2.0 x 2.2 | 1.96 m |
+ * | `tpl-1bed/ob-kit` | 3.1 x 1.9 | 2.86 m |
+ * | `tpl-studio/st-kit` | 3.8 x 1.4 | 3.56 m |
+ *
+ * A 2.4 m counter cannot stand on a 1.76 m wall at all, so it OVERFLOWED the room
+ * — `c1-kit`'s spanned x 0.32-2.72 against a room ending at 2.20 — and the fridge
+ * and hob then had nowhere to go and were deleted by `dropOverlaps`. Three of the
+ * five kitchens ended up holding a range hood and nothing else.
+ *
+ * Sizing to the wall is also what a real fitted kitchen does; a 2.4 m run is a
+ * default, not a requirement. Rooms with a long enough wall are untouched.
+ */
+function fittedCounter(defId: string, room: PlanRoom): ParamProps {
+  if (defId !== 'kitchen-counter-l') return {}
+  // Shrink only enough to stop the run OVERFLOWING THE ROOM. Sizing to the inset
+  // rect instead was tried in v0.31.9.19 and shrank more than necessary: it also
+  // fired on `tpl-hdb-2room`, whose kitchen was already complete, and the
+  // reshuffle marooned its fridge 0.67 m off the wall and cost
+  // `tpl-condo-1study` a route. The room boundary is the constraint that matters
+  // — a counter is fitted joinery and sits against the wall itself.
+  const longest = Math.max(room.width, room.depth)
+  if (longest >= 2.4) return {}
+  return { length: Math.max(MIN_COUNTER_M, Math.round(longest * 10) / 10) }
+}
+
 /**
  * A bedroom this narrow (m, shorter side) cannot seat a bed and a full-width
  * wardrobe along the same wall.
@@ -269,6 +310,7 @@ function seedRoom(
       ...(style[piece.defId] ?? {}),
       ...(categoryStyle?.[piece.defId] ?? {}),
       ...narrowWardrobe(piece.defId, room),
+      ...fittedCounter(piece.defId, room),
     }
     const n = piece.count ?? 1
     for (let i = 0; i < n; i++) {
