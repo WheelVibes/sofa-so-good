@@ -104,7 +104,13 @@ export function DaylightPanel() {
         title="Daylight & ventilation"
         sub={
           <>
-            Glazing ≥ {Math.round(DAYLIGHT_MIN_RATIO * 100)}% · openable ≥{' '}
+            {/* The two thresholds do NOT have the same standing: the 5% openable
+                figure is corroborated for SG (BCA natural-ventilation guidance),
+                the 10% glazing figure is an Australian/UK/US rule of thumb with
+                no findable Singapore source. The report already carried this
+                qualifier; the panel used to print both percentages bare, which
+                read like a local requirement. See `analysis/daylight.ts`. */}
+            Glazing ≥ {Math.round(DAYLIGHT_MIN_RATIO * 100)}% (indicative) · openable ≥{' '}
             {Math.round(VENT_MIN_RATIO * 100)}% of floor
           </>
         }

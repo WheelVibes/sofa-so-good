@@ -17,9 +17,35 @@ import { roomBoundaryWalls } from '../floorplan/roomWallNames'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 
-/** Glazing area as a fraction of floor area required to pass the daylight check. */
+/**
+ * Glazing area as a fraction of floor area required to pass the daylight check.
+ *
+ * **This figure is NOT sourced to Singapore, and the two thresholds here do not
+ * have the same standing (v0.31.8.64).** Searched twice: the 10% habitable-room
+ * daylight ratio is carried by the Australian NCC (Part 10.5 / F4, 10% of floor
+ * area for windows, 3% for roof lights), UK HMO standards and US IRC/IBC
+ * equivalents — and no Singapore instrument carrying it was findable. It is a
+ * widely-used rule of thumb, so it is a reasonable INDICATIVE bar; it is not a
+ * local requirement and must never be presented as one.
+ *
+ * {@link VENT_MIN_RATIO} is different — see its own note.
+ *
+ * Consequence for the UI: the report already says "indicative, not a certified
+ * BCA/HDB calculation", and `ui/DaylightPanel.tsx` now says the same rather than
+ * printing the two percentages bare. If anyone later finds a Singapore source,
+ * cite it here and the qualifier can be narrowed to the daylight half only.
+ */
 export const DAYLIGHT_MIN_RATIO = 0.1
-/** Openable area as a fraction of floor area required to pass the ventilation check. */
+/**
+ * Openable area as a fraction of floor area required to pass the ventilation
+ * check.
+ *
+ * **This one IS corroborated for Singapore**: BCA guidance requires residential
+ * developments to be designed for natural ventilation with a minimum opening
+ * area of 5% of the room's floor area. So of the two thresholds this module
+ * applies, only the ventilation half has a local basis — which is why they are
+ * documented separately rather than as one "rule of thumb".
+ */
 export const VENT_MIN_RATIO = 0.05
 /** Fraction of a sliding window's glazing that actually opens (the openable half). */
 export const OPENABLE_FRACTION = 0.5

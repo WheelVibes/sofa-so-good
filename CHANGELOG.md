@@ -27,6 +27,43 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.64 — the app was quoting an Australian code as if it were Singapore's
+
+`TODO.md` has carried this: `DAYLIGHT_MIN_RATIO = 0.1` could not be sourced to Singapore.
+Searched again, twice, and the answer is unchanged — so the app now says so where a user can
+see it.
+
+**The two thresholds this check applies do not have the same standing.**
+
+| | figure | source |
+| --- | --- | --- |
+| ventilation, openable area | 5% of floor | **corroborated for SG** — BCA guidance requires residential developments to be designed for natural ventilation with a minimum 5% opening area |
+| daylight, glazing area | 10% of floor | Australian NCC (Part 10.5 / F4 — 10% for windows, 3% for roof lights), UK HMO standards, US IRC/IBC. **No Singapore instrument carrying it was findable.** |
+
+They were documented jointly as "a rule of thumb", which is honest about confidence and silent
+about provenance — and provenance is the thing that matters when the app's whole claim is to be
+a reference a contractor can work from. They are now documented separately, each with its own
+note, so nobody has to re-derive which half is local.
+
+**And the panel now shows it.** `ui/report.ts` already said "indicative, not a certified BCA/HDB
+calculation". `ui/DaylightPanel.tsx` printed **"Glazing ≥ 10% · openable ≥ 5% of floor"** bare,
+which reads exactly like a local requirement. It now reads:
+
+> Glazing ≥ 10% **(indicative)** · openable ≥ 5% of floor
+
+Only the daylight half is qualified, because only the daylight half needs it.
+
+If anyone later finds a Singapore source, cite it on the constant and the word comes out.
+
+Verified: 10187 tests pass; `tsc`, `biome`, `knip` clean. Looked at the Daylight & ventilation
+panel — the qualifier wraps to a second line and the header stays inside the panel.
+
+Sources:
+- [NCC Part 10.5 Light](https://ncc.abcb.gov.au/editions/ncc-2022/adopted/housing-provisions/10-health-and-amenity/part-105-light)
+- [NCC Part F4 Light and ventilation](https://ncc.abcb.gov.au/editions/2019/ncc-2019-volume-one/section-f-health-and-amenity/part-f4-light-and-ventilation-dts)
+- [Lambeth HMO lighting/ventilation standards](https://www.lambeth.gov.uk/housing/landlords-licensing/hmo-standards/lighting-ventilation-heating)
+- [Natural ventilation in residential developments (SG)](https://www.scribd.com/document/340954090/Ventilation-in-Residential-Developments)
+
 ## v0.31.8.63 — a household shelter with two of its four walls
 
 A household shelter is a reinforced-concrete box. `tpl-hdb-3room` authored the room

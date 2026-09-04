@@ -2058,7 +2058,20 @@ failing — honest, but the app still cannot say whether such a room is adequate
 ventilated. Modelling extract fans / ducted vents would let those rooms be assessed
 properly instead of skipped.
 
-## Daylight: the 10% glazing figure is not sourced to Singapore
+## ~~Daylight: the 10% glazing figure is not sourced to Singapore~~ — RESOLVED v0.31.8.64
+
+**Searched again, same answer, and the app now says so.** Two fresh searches returned
+only Australian (NCC Part 10.5 / F4 — 10% of floor area for windows, 3% for roof
+lights), UK HMO and US IRC/IBC sources for the 10% figure; no Singapore instrument
+carrying it was findable. The 5% ventilation figure IS corroborated for SG.
+
+So the two thresholds are now documented SEPARATELY in `analysis/daylight.ts` rather
+than jointly as "a rule of thumb", and `ui/DaylightPanel.tsx` prints
+"Glazing ≥ 10% (indicative) · openable ≥ 5% of floor" instead of both percentages bare
+— the report already carried an equivalent qualifier, the panel did not. If anyone
+finds a Singapore source, cite it on the constant and the qualifier can be dropped.
+
+Original note follows.
 
 `DAYLIGHT_MIN_RATIO = 0.1` is documented as a rule of thumb, which is honest, but a
 web search for a Singapore/BCA habitable-room definition returned only Australian
