@@ -588,6 +588,12 @@ export function condo4Bed(): FloorPlan {
       iwall('c4-bednorth', [T, 4.0], [W - T, 4.0]),
       // North/south split, living/kitchen/yard dividers, balcony parapet.
       iwall('c4-mid', [T, 6.1], [W - T, 6.1]),
+      // (f): `c4-cbath` + `c4-bath2` + `c4-mbath` were one component. The strip z 4.0-6.1 is
+      // already closed north (`c4-bednorth`) and south (`c4-mid`), but the three baths inside it
+      // have NO walls between them — cbath x 0.2-2.2, bath2 x 2.4-4.4, mbath x 9.0-11.8.
+      iwall('c4-cb-e', [2.3, 4.0], [2.3, 6.1]),
+      iwall('c4-b2-e', [4.5, 4.0], [4.5, 6.1]),
+      iwall('c4-mb-w', [8.9, 4.0], [8.9, 6.1]),
       iwall('c4-livk', [6.3, 6.1], [6.3, D - T]),
       iwall('c4-ky', [9.5, 6.1], [9.5, 7.9]),
       parapet('c4-bal', [6.3, 9.3], [W - T, 9.3]),
@@ -595,6 +601,12 @@ export function condo4Bed(): FloorPlan {
     openings: [
       door('c4-main', 'c4-s', 5.0, 1.1),
       door('c4-master', 'c4-bednorth', 9.5, 1.0),
+      // (f): with the strip divided, `c4-cbath` and `c4-bath2` would be sealed — the exec trap
+      // from `v0.31.7.196`. Both open south onto the living side through `c4-mid` (starts x 0.1),
+      // centred on their rooms. `c4-mbath` is already reached from the master by `c4-master`
+      // above, whose span x 9.6-10.6 sits over the master bath, not the corridor.
+      door('c4-cbath-door', 'c4-mid', 0.65),
+      door('c4-bath2-door', 'c4-mid', 2.85),
       window('c4-b2win', 'c4-n', 0.8, 1.6),
       window('c4-b3win', 'c4-n', 3.6, 1.6),
       // (h): `c4-bed4` owned no window. `c4-n` is external; centred in its clear span

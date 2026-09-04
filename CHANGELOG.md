@@ -29,6 +29,35 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.199 — `(f)`: `tpl-condo-4bed`'s three baths divided, with access verified in the frame
+
+Fifth template. `c4-cbath + c4-bath2 + c4-mbath` were one component — and unusually, the strip they
+sit in was **already closed**: `c4-bednorth` (z 4.0) above and `c4-mid` (z 6.1) below run the full
+width. What was missing is any wall BETWEEN the three baths inside it.
+
+| wall | span | divides |
+| --- | --- | --- |
+| `c4-cb-e` | [2.3, 4.0] → [2.3, 6.1] | common bath ∣ bathroom 2 |
+| `c4-b2-e` | [4.5, 4.0] → [4.5, 6.1] | bathroom 2 ∣ the corridor run |
+| `c4-mb-w` | [8.9, 4.0] → [8.9, 6.1] | corridor ∣ master bath |
+
+**The `.196` trap was checked for, not rediscovered.** Dividing the strip would seal `c4-cbath` and
+`c4-bath2`, so both get a door on `c4-mid` onto the living side, centred on their rooms.
+`c4-mbath` needed none: the existing `c4-master` door on `c4-bednorth` spans x 9.6–10.6, which sits
+over the master bath — the same "door named for one room, serving another" pattern `.197` found in
+jumbo, and here it happens to be exactly what a master ensuite wants.
+
+**Verified in the frame rather than inferred**: the common bath renders as an enclosed room with a
+working **"Open door"** prompt and a shower screen, drawn as its own room on the minimap. A green
+enclosure ratchet cannot tell a room from a sealed box, which is the whole reason `.196` needed
+fixing after it went green.
+
+**5 → 4 of 20 remain**, and this one cost nothing: no furnishing count moved, unlike the three HDB
+templates where enclosure took floor area.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.198 — closing the loop `.197` left open: the jumbo sky region is PRE-EXISTING, controlled
 
 `.197` reported an unceilinged region showing sky above the master's wall in `tpl-hdb-jumbo` and was

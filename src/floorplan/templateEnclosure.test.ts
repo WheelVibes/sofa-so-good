@@ -39,7 +39,9 @@ const KNOWN_SHARED_ENCLOSURES = [
   // baths from the master and a divider splits them; the existing `jb-master` door turned out to
   // sit over the COMMON BATH, so it serves that and the master got one of its own.
   'tpl-hdb-maisonette/em-up: emu-bed3 + emu-landing + emu-hall + emu-mbath + emu-fam',
-  'tpl-condo-4bed/ground: c4-cbath + c4-bath2 + c4-mbath',
+  // tpl-condo-4bed FIXED in v0.31.7.199 — the strip z 4.0-6.1 was already closed north and
+  // south; the three baths inside it had no walls between them. Three verticals divide them and
+  // two doors on `c4-mid` keep cbath/bath2 reachable (mbath is reached from the master).
 ]
 
 /** Walls that run through a room's interior rather than along its boundary. */
