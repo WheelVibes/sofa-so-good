@@ -67,7 +67,21 @@ const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')
  * rests on the lower classes. It is a trade, not progress, at this level.
  * Recovering the basin without giving `cs-kit` back is the open item.
  */
-const KNOWN_NO_BASIN = ['tpl-hdb-maisonette/em-up/emu-cbath', 'tpl-terrace-ground/ct-up/ctu-mbath']
+/**
+ * **EMPTY as of v0.31.9.33, for the first time since this file was written.**
+ *
+ * Both entries were narrow bathrooms in which a 0.9 x 0.9 m shower CUBICLE could
+ * not coexist with a WC and a basin — `ctu-mbath` had been basin-less since
+ * v0.31.8.9.8 and survived several wrong diagnoses of mine (the door swing,
+ * cornering the shower, `ROOM_INSET`). The fix was not in the arranger at all:
+ * below 1.6 m of room width the fitting is wrong, because an HDB bathroom of
+ * 2-3 m² is built as an open WET AREA with a fixed glass panel, and
+ * `KITS.bathWetArea` now uses the 0.9 x 0.06 m `shower-screen` there.
+ *
+ * Stated as an empty expectation rather than deleted: a WC and a basin are what
+ * make a room a bathroom, and a future regression should read as one.
+ */
+const KNOWN_NO_BASIN: string[] = []
 
 interface Found {
   id: string

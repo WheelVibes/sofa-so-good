@@ -98,6 +98,14 @@ const KITS = {
     { defId: 'towel-rail', props: { mountHeight: 1.1 } },
     flushCeilingLight,
   ],
+  bathWetArea: [
+    { defId: 'toilet' },
+    { defId: 'bathroom-sink' },
+    { defId: 'shower-screen' },
+    { defId: 'bathroom-mirror', props: { mountHeight: 1.4 } },
+    { defId: 'towel-rail', props: { mountHeight: 1.1 } },
+    flushCeilingLight,
+  ],
   // A powder room / WC is a half-bath: no shower.
   powder: [
     { defId: 'toilet' },
@@ -163,6 +171,40 @@ function isMasterName(name: string): boolean {
  *  `foyer`/`other` have no kit yet (their dedicated kits are RM2 — out of
  *  scope here), matching the old name-classifier's behaviour of leaving
  *  those rooms unfurnished. */
+/**
+ * WET-AREA BATHROOM (v0.31.9.33) — a narrow bathroom gets a shower SCREEN, not a
+ * 900 mm cubicle.
+ *
+ * The criterion is the room's SHORT side, and it is circulation arithmetic: a
+ * 0.9 m cubicle against one wall of a 1.4 m room leaves 0.5 m to reach the WC
+ * and the basin, under `CLEARANCE.walkwayMin` (0.6). So below
+ * `WET_AREA_SHORT_M` a cubicle cannot coexist with the rest of the fitout, and
+ * the corpus shows exactly that: `emu-cbath`, `st-bath`, `h4-cbath`, `h2-bath`
+ * and `ctu-cbath` lose a WC or a basin to it.
+ *
+ * **This is a CONTENT fix, and it was reached by exhausting the alternatives.**
+ * Five arranger routes were measured and rejected across v0.31.9.30-.32
+ * (height-aware mounted obstacles, excluding seed-parked mounts, an 800 mm tray,
+ * mounts-first ordering, and a wall preference plus seed exclusion); the last of
+ * them named the mechanism as a PACKING problem in a 1.16 x 1.96 m rect, which
+ * no ordering or preference can reach.
+ *
+ * It is also what these bathrooms actually are. An HDB bathroom of ~2-3 m² is
+ * built as an open wet area — floor drain, graded screed, a fixed glass panel —
+ * not as a tray-and-door cubicle, so a 0.9 x 0.9 m box was the wrong fitting for
+ * the room rather than a fitting the arranger placed badly. `shower-screen` is
+ * 0.9 x 0.06 m and already in the catalog.
+ *
+ * The alternative was widening the templates 0.1 m, which is rejected on
+ * principle: these are meant to be accurate HDB and condo plans and "fully to
+ * scale" is the point, so the plan does not move to suit the arranger.
+ */
+const WET_AREA_SHORT_M = 1.6
+
+function narrowBath(room: PlanRoom): boolean {
+  return Math.min(room.width, room.depth) < WET_AREA_SHORT_M
+}
+
 function kitForRoom(room: PlanRoom): KitPiece[] | null {
   const name = room.name.toLowerCase()
   const category = roomCategory(room)
@@ -176,7 +218,7 @@ function kitForRoom(room: PlanRoom): KitPiece[] | null {
     case 'kitchen':
       return KITS.kitchen
     case 'bath':
-      return KITS.bath
+      return narrowBath(room) ? KITS.bathWetArea : KITS.bath
     case 'serviceYard':
       return KITS.serviceYard
     // A household shelter is furnished exactly like a store room — shelving

@@ -342,7 +342,18 @@ still not recovered. In a room that tight the phantom is a SPACER that happens t
 workable interlock, and these fixtures reach their walls through `arrangeFixtures`/`snapToWall`
 rather than the settle, so no ordering preference can touch them.
 
-**STOPPING RULE — five routes measured and rejected** (height-aware obstacles: inert; seed
+**RESOLVED in v0.31.9.33, and not in the arranger.** Below 1.6 m of room width a 0.9 x 0.9 m
+shower CUBICLE leaves under `CLEARANCE.walkwayMin` to reach the WC and basin, so
+`KITS.bathWetArea` gives those rooms the 0.9 x 0.06 m `shower-screen` instead — which is how an
+HDB bathroom of 2-3 m² is actually built. Score **60,813,163,803 -> 40,813,163,803**,
+`missing-fixture` 6 -> 4, nothing else moved, and both basin-less bathrooms are recovered
+including `ctu-mbath`, broken since v0.31.8.9.8.
+
+**The lesson is the ordering of the two questions.** Five arranger routes were built and measured
+before anyone asked whether the FITTING was right for the room: when a room cannot hold its kit,
+check the kit against the room before making the placer cleverer.
+
+**The rejected routes, kept because they are still true** — five measured and rejected (height-aware obstacles: inert; seed
 exclusion: 110.9 G; 800 mm shower tray: 70.8 G; mounts-first ordering: 110.9 G; wall preference +
 seed exclusion: 110.9 G). **This is a PACKING problem in a 1.16 x 1.96 m room, not an ordering or
 preference problem.** The next move is CONTENT and is a product call: a kit that fits (a combined

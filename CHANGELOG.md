@@ -27,6 +27,55 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.33 — it was the wrong fitting, not a bad placement: both basin-less bathrooms recovered
+
+Five arranger routes were measured and rejected across v0.31.9.30-.32, and the last of them named
+the mechanism: a PACKING problem in a 1.16 x 1.96 m rect that no ordering or preference can reach.
+The stopping rule said the next move was content and a product call. **Taken, and it fixes both.**
+
+```
+score  60,813,163,803 -> 40,813,163,803
+missing-fixture  6 -> 4        every other class unchanged
+bathroomFixtures KNOWN_NO_BASIN: 2 entries -> EMPTY, for the first time
+```
+
+`tpl-terrace-ground/ctu-mbath` had been basin-less since **v0.31.8.9.8** and survived three wrong
+diagnoses of mine — the door swing, cornering the shower, `ROOM_INSET`. It is fixed, along with
+`emu-cbath`.
+
+### A 900 mm cubicle is the wrong fitting for a 2 m² bathroom
+
+The criterion is circulation arithmetic: a 0.9 m cubicle against one wall of a 1.4 m room leaves
+0.5 m to reach the WC and basin, under `CLEARANCE.walkwayMin` (0.6). So below 1.6 m of room width
+a cubicle cannot coexist with the rest of the fitout — and the corpus showed exactly that, with
+`emu-cbath`, `st-bath`, `h4-cbath`, `h2-bath` and `ctu-cbath` each losing a WC or a basin to it.
+
+It is also not what these rooms are. **An HDB bathroom of 2-3 m² is built as an open WET AREA** —
+floor drain, graded screed, a fixed glass panel — not as a tray-and-door cubicle. So the 0.9 x
+0.9 m box was the wrong fitting for the room rather than a fitting the arranger placed badly, and
+`shower-screen` (0.9 x 0.06, already in the catalog) is the right one. `KITS.bathWetArea` uses it
+below `WET_AREA_SHORT_M`, chosen the same way `kitForRoom` already picks a master-bedroom kit by
+area.
+
+**The alternative was widening the templates 0.1 m, and that is rejected on principle:** these are
+meant to be accurate HDB and condo plans, "fully to scale" is the point, and the plan does not move
+to suit the arranger.
+
+### Ledger
+
++13 items, all of them bathroom fixtures that now fit: `tpl-hdb-3gen` 97 -> 101, `tpl-hdb-4room`
+76 -> 78, `tpl-terrace-ground` 119 -> 121, `tpl-hdb-maisonette` 141 -> 143, `tpl-hdb-3room`
+67 -> 68, `tpl-hdb-5room` 83 -> 84, `tpl-studio` 27 -> 28. Corpus 1469 -> 1482. **No class other
+than `missing-fixture` moved and nothing regressed** — the first change on this thread that is
+purely positive at severity 1.
+
+`bathroomFixtures.test.ts`'s known-offenders list is now stated as an EMPTY expectation rather
+than deleted: a WC and a basin are what make a room a bathroom, and a future regression should
+read as one.
+
+New `wet-area-bathroom.json` scenario asserts the fitout per room (a WC, a basin, a screen, and
+explicitly NOT a cubicle) so this cannot silently revert.
+
 ## v0.31.9.32 — an explicit wall preference, and the phantom still is not safe to remove
 
 v0.31.9.31 found that the arranger has been getting "storage/appliances/beds flush to walls" for

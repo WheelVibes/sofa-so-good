@@ -83,7 +83,8 @@ describe('dining chairs are tucked to their table', () => {
       'tpl-hdb-2room': 49,
       // 67 → 66 in v0.31.8.31: Bedroom 2 trades its wardrobe for its first
       // window (item (h)); its 2.0 m south wall cannot take both.
-      'tpl-hdb-3room': 67,
+      // 67 -> 68, same release.
+      'tpl-hdb-3room': 68,
       // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
@@ -91,7 +92,8 @@ describe('dining chairs are tucked to their table', () => {
       // needs one: one `desk`, one `book-set`, one `desk-plant`. The new
       // `h4-svc-door`'s keep-out takes the floor the desk stood on. A flat whose
       // bedroom half you cannot reach is worse than a bedroom with no desk.
-      'tpl-hdb-4room': 76,
+      // 76 -> 78, same release.
+      'tpl-hdb-4room': 78,
       // 82 until v0.31.5.116: same story as the 4-room a version earlier —
       // moving the misplaced window OUT of the kitchen freed the wall the range
       // hood needs. Dumped per-def first; the +1 is `range-hood`.
@@ -104,7 +106,8 @@ describe('dining chairs are tucked to their table', () => {
       // `throw-cushion` (7 -> 9). `unsealRoutes` no longer evicts this flat's
       // `bed-single` into the living room, so the bed stays in `h5-bed3` and the
       // styling pass dresses it — the exact two cushions v0.31.8.86 had cost.
-      'tpl-hdb-5room': 83,
+      // 83 -> 84, same release.
+      'tpl-hdb-5room': 84,
       // 91 until v0.31.5.118. Dumped per-def first: the +2 are a `range-hood`
       // (the stray kitchen window had been blocking the extractor's wall, the
       // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
@@ -128,7 +131,10 @@ describe('dining chairs are tucked to their table', () => {
       // its 3.56 m north wall, splitting it into 1.28 m and 1.38 m runs against
       // a 1.52 m `bed-queen`; moving it to the west jamb gives a 2.68 m run.
       // Overlaps stay 0 and no route changes.
-      'tpl-hdb-3gen': 97,
+      // 97 -> 101 in v0.31.9.33 (WET-AREA BATHROOM): a narrow bathroom
+      // (short side < 1.6 m) gets a `shower-screen` (0.9 x 0.06) instead of a
+      // 0.9 x 0.9 cubicle, which frees the floor its WC and basin needed.
+      'tpl-hdb-3gen': 101,
       // 120 → 116 in v0.31.8.29: the jumbo re-author divided bedrooms 4 and 5
       // (one undivided volume before) and shrank the master from a rectangle
       // that overran the corridor wall and both baths, 11.5 → 6.9 m². Fewer,
@@ -152,14 +158,16 @@ describe('dining chairs are tucked to their table', () => {
       // costs a wardrobe in the upper bedroom and the arranger fills with an
       // armchair. Net +1, and the drop is the honest consequence of the
       // clearance now existing.
-      'tpl-hdb-maisonette': 141,
+      // 141 -> 143, same release — and `emu-cbath` gets its BASIN back.
+      'tpl-hdb-maisonette': 143,
       // 24 -> 27 in v0.31.9.22 (ALONG-WALL SWEEP + CLEAR-RUN COUNTER): `st-kit`
       // gains its `kitchen-counter-l`, `refrigerator` and `stove`. A door swings
       // into the galley with a 0.9 x 0.9 keep-out at x 1.10-2.00, dead centre of
       // the only wall long enough, and `snapToWall` offered exactly one
       // along-wall position per edge — so the whole kitchen was refused while
       // 1.88 m of that wall stood clear.
-      'tpl-studio': 27,
+      // 27 -> 28, same release.
+      'tpl-studio': 28,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
       // chair alive by refusing it a slot outside the room (it had been placed
       // out there and then dropped).
@@ -240,7 +248,9 @@ describe('dining chairs are tucked to their table', () => {
       // layout anyone would build, so surfacing it as a drop is right — but it
       // does mean the upstairs rescue passes are weaker than the ground floor's
       // (see TODO.md).
-      'tpl-terrace-ground': 119,
+      // 119 -> 121, same release — and `ctu-mbath` gets its BASIN back, after
+      // being basin-less since v0.31.8.9.8.
+      'tpl-terrace-ground': 121,
     })
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
@@ -332,7 +342,11 @@ describe('dining chairs are tucked to their table', () => {
     // 1463 -> 1469 in v0.31.9.29 (COUNTER-INSET + WALL-ENDS): +6, and read the
     // per-template entries above rather than the total — `c2-bed2` gets its desk
     // and book-set back, `cs-kit` its hob and counter.
-    expect(total).toBe(1469)
+    // 1469 -> 1482 in v0.31.9.33 (WET-AREA BATHROOM): +13, all of it bathroom
+    // fixtures that now fit. Both basin-less bathrooms are recovered, so
+    // `bathroomFixtures.test.ts`'s known-offenders list is EMPTY for the first
+    // time.
+    expect(total).toBe(1482)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

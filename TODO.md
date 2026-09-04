@@ -98,38 +98,16 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   **LANDED in v0.31.9.29** at a price written into every ratchet it moved. Lever B (settle
   containment) stays out — it adds two stranded chairs and the score does not pay for them.
   **What the trade left open, in severity order:**
-  - `tpl-hdb-maisonette/em-up/emu-cbath` lost its basin (severity 1) — **CAUSE ESTABLISHED
-    v0.31.9.30, and the fix is an ORDERING change.** A `towel-rail@7.50,1.30` — a wall mount still
-    sitting on the room-centre seed — refuses the toilet every position on every wall (walls fine,
-    no keep-out, no window; instrumented gate by gate). Both the toilet and basin then stay on the
-    seed and `dropOverlaps` deletes the basin and the shower. The rail ends up at 8.13,1.30 once
-    `placeSeededMounts` runs, which is AFTER the arranger — so the floor is arranged around a
-    phantom.
-    Three fixes were built and measured, all rejected: height-aware mounted obstacles (inert — the
-    rail spans 0.70-1.20 m and a toilet reaches 0.78, so the clash is real); excluding seed-parked
-    mounts from `world` (`missing-fixture` 6 -> 11, score 60.8 G -> 110.9 G — the phantom is
-    load-bearing, because without it floor pieces take the centre and the mounts have no wall left
-    to be rescued to); and a compact 800 mm shower tray (score -> 70.8 G, cost `ctu-cbath` its
-    basin and `emu-cbath` its shower).
-    **MOUNTS-FIRST was built in v0.31.9.31 and FAILS IDENTICALLY** (score -> 110,913,174,603,
-    within 300 of the seed-exclusion result) — because both changes do the same thing: they free
-    the room CENTRE. `marooned-wall-hugger` goes 39 -> 46 and the continuous measure of how far
-    wall-hugging pieces sit from their walls goes 0.311 -> 0.327 of the half-width. **The
-    seed-parked mount was doing the job of keeping the middle of the room clear**, which is a real
-    design rule the arranger has been getting for free from an accident of pass ordering.
-    **The explicit wall preference now EXISTS** (WALL-FIRST, v0.31.9.32: the settle's grid is
-    ordered nearest-the-wall for `WALL_BOUND_CATEGORIES`) **and removing the phantom is still not
-    safe.** Retested with it in place: `missing-fixture` 6 -> 11, score 110,913,164,203. Naming the
-    five losses shows why they are untouchable by any preference — `h2-bath`, `h4-cbath`,
-    `st-bath` (WC and basin) and `ctu-cbath` all lose a fixture, they are ALL bathrooms of
-    1.06-1.36 m rect, and `emu-cbath`'s basin is still not recovered. The phantom is acting as a
-    SPACER that happens to produce a workable interlock; take it away and the first fixture placed
-    starves the rest. These pieces reach walls via `arrangeFixtures`/`snapToWall` already, never
-    through the settle, so the preference cannot reach them.
-    **STOPPING RULE (five routes now measured and rejected): this is a PACKING problem in a
-    1.16 x 1.96 m room, not an ordering or preference problem.** The honest next move is CONTENT,
-    and it is a product call: either those bathrooms get a kit that fits — a combined basin-and-WC
-    unit, or no shower in a 2.3 m² room — or the templates get 0.1 m wider.
+  - ~~`emu-cbath` / `ctu-mbath` basins~~ **BOTH FIXED in v0.31.9.33 (WET-AREA BATHROOM).** It was
+    the wrong FITTING, not a bad placement: below 1.6 m of room width a 0.9 x 0.9 m shower cubicle
+    leaves under the 0.6 m walkway to reach the WC and basin, and an HDB bathroom of 2-3 m² is
+    built as an open wet area with a fixed glass panel anyway. `KITS.bathWetArea` uses the
+    0.9 x 0.06 m `shower-screen` there. Score 60,813,163,803 -> **40,813,163,803**,
+    `missing-fixture` 6 -> 4, nothing else moved, and `bathroomFixtures`' known-offenders list is
+    EMPTY for the first time. `ctu-mbath` had been broken since v0.31.8.9.8.
+    Five arranger routes were measured and rejected first (v0.31.9.30-.32) — the lesson is that
+    when a room cannot hold its kit, check whether the KIT is right for the room before making the
+    placer cleverer.
   - `tpl-condo-1study/cs-balcony` is severed (severity 3).
   - `tpl-hdb-jumbo` dropped out of `diningChairTuck`'s clean list — one chair settles 4.54 m from
     its table (severity 4). Corpus-wide the count is unchanged at 17.

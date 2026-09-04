@@ -48,6 +48,11 @@ import {
  * visible in a per-class count, which is the clearest illustration of why this
  * survey reports classes AND the ratchets keep their per-finding lists.
  *
+ * **v0.31.9.33 (WET-AREA BATHROOM)**: `missing-fixture` 6 -> 4 and the score
+ * 60,813,163,803 -> **40,813,163,803** — two severity-1 findings gone and no
+ * other class touched. Both of `bathroomFixtures.test.ts`'s basin-less
+ * bathrooms are recovered.
+ *
  * **v0.31.9.32 (WALL-FIRST)**: `marooned-wall-hugger` 39 -> 38 and
  * `stranded-satellite` 17 -> 16, nothing worse, score 60,813,173,903 ->
  * 60,813,163,803. Note that NO per-class ratchet moved — the improved appliance
@@ -62,7 +67,7 @@ import {
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')!
 
 const BASELINE = {
-  'missing-fixture': 6,
+  'missing-fixture': 4,
   'outside-room': 8,
   'unreachable-room': 13,
   'stranded-satellite': 16,
