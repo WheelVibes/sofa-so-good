@@ -69,38 +69,38 @@ describe('dining chairs are tucked to their table', () => {
       PLAN_TEMPLATES.map((t) => [t.id, furnishPlanItems(t, movein, BUILTIN_CATALOG, {}).length]),
     )
     expect(counts).toEqual({
-      'tpl-hdb-2room': 49,
-      'tpl-hdb-3room': 64,
+      'tpl-hdb-2room': 51,
+      'tpl-hdb-3room': 66,
       // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
-      'tpl-hdb-4room': 77,
+      'tpl-hdb-4room': 79,
       // 82 until v0.31.5.116: same story as the 4-room a version earlier —
       // moving the misplaced window OUT of the kitchen freed the wall the range
       // hood needs. Dumped per-def first; the +1 is `range-hood`.
-      'tpl-hdb-5room': 83,
+      'tpl-hdb-5room': 85,
       // 91 until v0.31.5.118. Dumped per-def first: the +2 are a `range-hood`
       // (the stray kitchen window had been blocking the extractor's wall, the
       // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
       // master's wardrobe had been dropped and now places.
-      'tpl-hdb-exec': 93,
-      'tpl-hdb-3gen': 96,
-      'tpl-hdb-jumbo': 120,
-      'tpl-hdb-maisonette': 139,
+      'tpl-hdb-exec': 96,
+      'tpl-hdb-3gen': 100,
+      'tpl-hdb-jumbo': 125,
+      'tpl-hdb-maisonette': 142,
       'tpl-studio': 23,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
       // chair alive by refusing it a slot outside the room (it had been placed
       // out there and then dropped).
-      'tpl-1bed': 47,
-      'tpl-loft': 44,
-      'tpl-condo-1bed': 44,
-      'tpl-condo-1study': 53,
-      'tpl-condo-2bed': 68,
-      'tpl-condo-3bed': 80,
-      'tpl-condo-4bed': 95,
+      'tpl-1bed': 48,
+      'tpl-loft': 45,
+      'tpl-condo-1bed': 45,
+      'tpl-condo-1study': 54,
+      'tpl-condo-2bed': 70,
+      'tpl-condo-3bed': 83,
+      'tpl-condo-4bed': 99,
       'tpl-condo-studio': 25,
-      'tpl-condo-penthouse': 118,
-      'tpl-terrace-ground': 122,
+      'tpl-condo-penthouse': 121,
+      'tpl-terrace-ground': 125,
     })
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
@@ -119,7 +119,7 @@ describe('dining chairs are tucked to their table', () => {
     // wall space and the arranger drops one wall-hugging piece. That is the trade item (h) is
     // asking for: a bedroom with daylight and one fewer accessory. Every other template gained or
     // held.
-    expect(total).toBe(1440)
+    expect(total).toBe(1482)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

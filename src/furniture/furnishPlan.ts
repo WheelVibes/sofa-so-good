@@ -18,7 +18,7 @@ import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
-import { planRoomArea } from '../floorplan/types'
+import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { rectsOverlap } from '../layout/arrangeGeometry'
 import { roleOf } from '../layout/arrangeRoles'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
@@ -27,6 +27,7 @@ import { flushToWall, nearestWallEdge, rotationForEdge } from '../layout/faceWal
 import { mergeGeneratedCatalog } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
+import { snapToNearestWindow, windowFixtureProps } from './placement/windowSnap'
 import type { FurnitureDef, FurnitureItem, ParamProps } from './types'
 import { defaultParamProps } from './types'
 
@@ -233,6 +234,81 @@ function seedRoom(
         ...(levelId !== GROUND_LEVEL_ID ? { levelId } : {}),
         props: { ...props },
       })
+    }
+  }
+  return out
+}
+
+/**
+ * Seed a curtain on every window a bedroom OWNS.
+ *
+ * **Why this exists.** `applyLayoutPreset('move-in')` placed **zero** window treatments on all 19
+ * templates — no `KITS` entry is a curtain, and the default flat's curtains are hand-authored in
+ * `furniture/defaults/mainBedroom.ts` rather than produced here. Curtains are among the most
+ * visible things in an interior, so a furnished template read as an unfinished one.
+ *
+ * **It runs AFTER the drop passes, on purpose.** A curtain sits in the wall plane, which is exactly
+ * what `dropWallClippers` exists to remove, and the arranger has no reason to respect a fixture
+ * whose position is dictated by an opening. Appending here keeps it out of both.
+ *
+ * **The mis-snap is impossible by construction, not by a guard.** `snapToNearestWindow` picks the
+ * nearest window on the whole LEVEL, so seeding a curtain for a room with no window of its own
+ * would hang it on a neighbour's glass — the failure item `(h)` warns about. Rather than test for
+ * that, this passes the snap **only the windows the room owns**, so there is nothing else for it to
+ * find. The three bedrooms still windowless after `v0.31.7.192`/`.193` therefore get no curtain,
+ * which is correct rather than merely safe.
+ *
+ * `drawAmount: 0` is set explicitly: the def defaults to **1 (CLOSED)**, which would contradict the
+ * curtains-open default shipped in `v0.31.5.88`/`.92`.
+ */
+function seedWindowTreatments(
+  plan: FloorPlan,
+  defs: Record<string, FurnitureDef>,
+): FurnitureItem[] {
+  const def = defs.curtains
+  if (!def) return []
+  const ceiling = plan.ceilingHeight ?? 2.6
+  const out: FurnitureItem[] = []
+  for (const level of planLevels(plan)) {
+    const windows = level.openings.filter((o) => o.kind === 'window')
+    if (windows.length === 0) continue
+    for (const room of level.rooms) {
+      const category = roomCategory(room)
+      if (category !== 'bedroom' && category !== 'masterBedroom') continue
+      const [cx, cz] = roomCentre(room)
+      let i = 0
+      for (const win of windows) {
+        const wall = level.walls.find((w) => w.id === win.wallId)
+        if (!wall) continue
+        // Ownership: probe 0.3 m either side of the glass centre. Room rects are inset from wall
+        // centrelines, so a point ON the wall is outside every room — the same test
+        // `bedroomWindow.test.ts` ratchets against.
+        const [ax, az] = wall.start
+        const [bx, bz] = wall.end
+        const len = Math.hypot(bx - ax, bz - az)
+        if (len === 0) continue
+        const t = (win.offset + win.width / 2) / len
+        const wx = ax + (bx - ax) * t
+        const wz = az + (bz - az) * t
+        const nx = -(bz - az) / len
+        const nz = (bx - ax) / len
+        if (![0.3, -0.3].some((d) => pointInRoom(room, wx + nx * d, wz + nz * d))) continue
+        const snap = snapToNearestWindow(level.walls, [win], [cx, cz])
+        if (!snap) continue
+        out.push({
+          id: `furnish-${room.id}-curtains-${i}`,
+          defId: 'curtains' as FurnitureItem['defId'],
+          position: snap.position,
+          rotation: snap.rotation,
+          ...(level.id !== GROUND_LEVEL_ID ? { levelId: level.id } : {}),
+          props: {
+            ...(def.kind === 'parametric' ? defaultParamProps(def) : {}),
+            ...windowFixtureProps('curtains', snap.window, ceiling),
+            drawAmount: 0,
+          },
+        })
+        i += 1
+      }
     }
   }
   return out
@@ -547,12 +623,17 @@ export function furnishPlanItems(
   }
   if (seeded.length === 0) return []
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, seed)
-  const furniture = dropWallClippers(
-    dropDoorBlockers(dropOverlaps(placeSeededMounts(plan, arranged, defs), defs), defs, plan),
-    defs,
-    plan,
-    doors,
-  )
+  const furniture = [
+    ...dropWallClippers(
+      dropDoorBlockers(dropOverlaps(placeSeededMounts(plan, arranged, defs), defs), defs, plan),
+      defs,
+      plan,
+      doors,
+    ),
+    // AFTER the drop passes: a curtain sits in the wall plane, which is what `dropWallClippers`
+    // removes. See `seedWindowTreatments`.
+    ...seedWindowTreatments(plan, defs),
+  ]
   if (!withDecor) return furniture
   // Styling pass: add set-dressing props on host surfaces. The pass may reach for
   // bundled CC0 GLB set-dressing props (vases, books, plants, a tea set) that

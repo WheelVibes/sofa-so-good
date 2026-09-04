@@ -489,8 +489,9 @@ by name** in `src/floorplan/bedroomWindow.test.ts`.
 > 2. `drawAmount: 0` set explicitly, because the def defaults to **1 (CLOSED)** and that contradicts
 >    the curtains-open decision shipped in `.88`/`.92`.
 >
-> Worth doing: zero window treatments are placed on any of the 19 templates today, and curtains are
-> among the most visible elements in an interior render.
+> ✅ **SHIPPED in `v0.31.7.205`**: 42 curtains across 17 templates, one per window a bedroom OWNS,
+> `drawAmount: 0` on all of them, and **0** outside an owning bedroom — the seeder passes the snap
+> only the room's own windows, so the mis-snap this warning describes cannot occur.
 
 **This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
 treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`

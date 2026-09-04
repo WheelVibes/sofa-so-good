@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.205 — 🎉 the furnish pipeline places WINDOW TREATMENTS: 42 curtains across 17 templates
+
+`applyLayoutPreset('move-in')` has placed **zero** window treatments on all 19 templates for as long
+as it has existed — no `KITS` entry is a curtain, and the default flat's are hand-authored in
+`furniture/defaults/mainBedroom.ts`. `(h)`'s write-up blocked this on "fix (h) first"; `.192`/`.193`
+took `(h)` from 15 to 3, and `.204` scoped it. This ships it.
+
+**42 curtains across 17 templates** — one per window a bedroom OWNS, so the count tracks bedroom
+windows rather than floor area: `tpl-hdb-jumbo` 5, `tpl-hdb-3gen` 4, `tpl-condo-4bed` 4,
+`tpl-hdb-exec`/`maisonette`/`condo-3bed`/`condo-penthouse`/`terrace-ground` 3 each, down to 1 for
+the studios.
+
+**The mis-snap is impossible by construction, not prevented by a guard.** `snapToNearestWindow`
+picks the nearest window on the whole LEVEL, which is exactly why `(h)` warned that a windowless
+bedroom would have its curtain hung on a neighbour's glass. Rather than test for that, the seeder
+passes the snap **only the windows the room owns** — there is nothing else for it to find. Measured:
+**42 curtains, 0 outside an owning bedroom.** The three bedrooms still windowless get none, which is
+correct rather than merely safe.
+
+**It runs after the drop passes**, deliberately: a curtain sits in the wall plane, which is what
+`dropWallClippers` exists to remove, and the arranger has no business relocating a fixture whose
+position an opening dictates.
+
+`drawAmount` is **0 on all 42** (verified, single distinct value) — the def defaults to 1 (CLOSED),
+which would have contradicted the curtains-open default from `v0.31.5.88`/`.92`. Widths land
+1.76–2.16 m for 1.4–1.8 m windows, i.e. the overhang is being applied.
+
+**Verified in the frame** — and the first attempt showed a bare window, which was the probe, not the
+feature: `walk-tour`'s `PLAN=` swap defaults to `'rehome'`, which keeps the DEFAULT flat's furniture
+rather than furnishing the template. `FURNISH=1` is required to judge a template at all. With it, the
+master shows a pleated panel bunched at the window edge with its rod above — an open curtain.
+
+**That also retracts an observation from `.197`.** I noted "kitchen cabinetry stands in the master"
+in `tpl-hdb-jumbo` and hedged it as unattributed. It was rehomed default-flat furniture, an artefact
+of touring without `FURNISH=1`, and nothing to do with the template.
+
+No cost at boot: the app boots `defaultPlan.ts`, whose curtains are hand-authored, so nothing here
+runs until a template is furnished.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.204 — `(h)`'s progress has unblocked window treatments; scoped, not started
 
 Recording a state change rather than a code change, because it is easy to lose: item `(h)`'s
