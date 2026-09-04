@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.258 — `(z3)` decomposed: 0.1807 of the 0.1958 excess is direct sun the reference does not have, and the occluder that should block it is present and correct
+
+Hiding the directional light splits the 17:00 wall cleanly. `visible = false` rather than
+`intensity = 0`, because `Lighting` rewrites the intensity every frame from the day ramp and a
+zeroed value is restored on the next tick — the probe reads the light back afterwards and printed
+`false/0.789`, which also confirms `.257`'s new curve is live (0.789 at 31°, against the 0.792 the
+beam column predicts).
+
+| 17:00 east wall | linear |
+| --- | --- |
+| sun visible | 0.7285 |
+| sun hidden | **0.5478** |
+| sun's whole contribution | **0.1807** |
+
+**0.5478 is exactly the 13:00 reading.** So the app's hour-independent floor is 0.5478, and at 13:00
+the sun contributes essentially nothing to that face — which is right, a near-vertical sun and a
+west-facing surface.
+
+Against Cycles, which FALLS 0.5622 → 0.5327 (−5.2 %) over the same hours:
+
+| part of the 0.1958 excess | linear | share |
+| --- | --- | --- |
+| static floor failing to dim as the sun lowers | 0.0151 | 8 % |
+| **direct sun the reference does not have** | **0.1807** | **92 %** |
+
+So this is overwhelmingly a light that should not be there, not a bake that cannot dim — and the
+static-bake limitation, which `.222` correctly identified as structural, is only a twelfth of it.
+
+**And it is not a missing occluder.** The `livingDining` ceiling occluder sits at (10.45, 2.60, 4.72),
+4.16 × 6.84, `visible: true`, `castShadow: true`, `shadowSide: DoubleSide`, and it DOES cover
+(10.77, 3.88) — the point where the sun's ray exits the ceiling on its way to that wall. So the sun
+is reaching a surface whose own occluder covers the path. What remains is shadow-map precision
+(1024 over a 19 m frustum is 1.9 cm/texel, with `bias −0.0002` and `normalBias 0.02`) or something
+subtler in how a `colorWrite: false, opacity: 0` material renders into the depth pass.
+
+**A test of mine that lied, caught before it was published.** My first coverage check reported "no
+occluder covers the exit point", which would have been a clean and completely wrong story. The
+occluders are `PlaneGeometry` — local XY — rotated flat, so their local bounding box is `[w, d, 0]`
+and the world z-extent is `size[1]`. I compared against `size[2]`, which is zero, so nothing could
+ever cover anything. The same class of error as `.244`'s whole-map mean: a statistic that cannot
+return the answer, returning a plausible one.
+
+Suite 10219 green.
+
+
 ## v0.31.7.257 — SHIPPED: the sun's beam now falls with altitude. 17:00 wall 1.445 → 1.368, and it explains only a QUARTER of the excess
 
 `.256` specified the fix and flagged its trade-off. Built, measured, shipped — and it is a smaller
