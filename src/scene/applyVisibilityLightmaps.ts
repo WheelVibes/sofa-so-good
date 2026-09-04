@@ -24,6 +24,7 @@ import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
   gainForPlanMean,
+  IRRADIANCE_GAIN,
   type LightmapMode,
 } from './visibilityLightmap'
 
@@ -189,7 +190,15 @@ export function applyLightmapsFromIndex(
   // conversion recorded by the producer, the other is a fitted look constant, and collapsing them
   // is how `v0.31.7.104`'s clipped set came to be "explained" by a gain of ~14.
   const scale = index.scale ?? 1
-  const baseGain = gain ?? gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined)
+  // Mode picks the base gain, because the two modes consume DIFFERENT QUANTITIES: `multiply` takes
+  // a dimensionless visibility ratio and scales the app's fill by it, `replace` takes irradiance
+  // and stands in for the fill. `VISIBILITY_GAIN`'s fit only describes the former, and reusing it
+  // for the latter is the error `v0.31.7.167` recorded. See `IRRADIANCE_GAIN` for its own fit.
+  const baseGain =
+    gain ??
+    (mode === 'replace'
+      ? IRRADIANCE_GAIN
+      : gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined))
   // HOW MANY MESHES RIDE EACH MATERIAL, counted over the WHOLE root rather than the candidate set.
   // `applyVisibilityLightmap` patches a MATERIAL while `uv1` is built per GEOMETRY, so a material
   // shared by N meshes gets one map and one gain for all of them — and any sharer that was never

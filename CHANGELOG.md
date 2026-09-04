@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.183 — 🎉 the glazing-intact bake SHIPS with a re-fitted gain, and one constant now fits a wall AND a ceiling
+
+`.181` found the bake deletes the window glass; `.182` added `--keep-glazing` and measured it
+correcting the ceiling more than the wall. This bakes the production set that way, re-fits the gain
+by co-located sampling, and ships both together — they cannot ship apart, because the new maps carry
+1.8–4.3x more light and the old gain of 6 would over-brighten them by 50–87 %.
+
+**The result that ends the `.170` thread.** Required gain, measured at the same two physical points:
+
+| | glazing DELETED (old maps) | **glazing KEPT (new maps)** |
+| --- | --- | --- |
+| bedroom3 wall (y 1.115) | 7.3 | **3.20** |
+| bedroom3 ceiling (y 2.6) | 32.0 | **4.01** |
+| spread | **4.4x apart** | **1.25x apart** |
+
+`.170` concluded "no single gain can fit both" and treated that as a property of the scene. It was a
+property of the **bake**: with the aperture modelled, one constant fits both to about ±11 %.
+`IRRADIANCE_GAIN = 3.59` is the balancing value, `sqrt((2.317 * 5.044) / (0.7234 * 1.2573))`, and it
+is a **separate constant from `VISIBILITY_GAIN`** because the two modes consume different quantities
+— `multiply` scales the app's fill by an occlusion ratio, `replace` stands in for it with irradiance.
+Reusing 6 for the latter was the misapplied derivation `.167` recorded.
+
+**Every surface class improves and none overshoots**, each against a Cycles reference at its own
+pose, with the ceiling patch **placed by `gi-point.mjs`** rather than by eye — the patch used before
+was the top of a wall (`.181`):
+
+| surface | GI off | old maps | **new** | Cycles | closed |
+| --- | --- | --- | --- | --- | --- |
+| bedroom3 wall | 79.9 | 141.3 | **160.3** | 196.4 | 53 % → **69 %** |
+| bedroom3 ceiling | 9.0 | 22.3 | **59.4** | 192.6 | 7 % → **27 %** |
+| bedroom3 floor | 99.8 | 99.8 | **135.0** | 160.3 | 0 % → **58 %** |
+
+The ceiling reading of **9.0 counts with the GI off** is worth stating plainly: an unlit down-facing
+surface gets almost nothing from a hemisphere fill, so the app's ceilings were nearly black and this
+is the term that was missing. It is still 133 counts short, so the ceiling remains the largest gap —
+but it is now the largest gap in a feature that helps it, rather than one it barely touched.
+
+**Nothing regressed.** The 44-frame / 11-room sweep's negatives are unchanged and all previously
+explained (`kitchen-y2` −5.2, `householdShelter` −4.8/−4.5/−3.9, `corridor` −3.5); no new negative
+appeared. Floor does not collapse — the `.174` check, run before shipping.
+
+**Cost:** p50 5.9 → 7.7 ms and p90 7.8 → 9.8, but **drawn fps is unchanged at 42.6 → 42.7**, which
+is the user-facing number. Worst frame 544 ms is materials compiling at attach, during load. Assets
+5.2 MB against 4.8.
+
+Suite 10170 green, `tsc` and biome clean.
+
+
 ## v0.31.7.182 — `--keep-glazing`: the fix is a flag, and it corrects the ceiling MORE than the wall
 
 `.181` found that `bake_material.py` deletes the window glass before an irradiance bake, so the

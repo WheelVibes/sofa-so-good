@@ -47,6 +47,40 @@ import { LinearFilter } from 'three'
 export const VISIBILITY_GAIN = 6
 
 /**
+ * Gain for an **irradiance** set in `'replace'` mode — a different quantity from
+ * {@link VISIBILITY_GAIN}, and fitted separately.
+ *
+ * **Why it cannot reuse 6.** That number was fitted against a Cycles reference for a *visibility*
+ * map: a dimensionless [0,1] occlusion ratio that MULTIPLIES the app's own fill. An irradiance map
+ * IS the light, so its factor is a unit conversion, and `v0.31.7.167` recorded that reusing 6 here
+ * was applying a derivation where it does not hold.
+ *
+ * **Fitted by co-located sampling, which is what made it possible.** `gi-point.mjs` casts a ray
+ * from the same camera a Cycles reference used, reads the map PNG at the hit's interpolated `uv1`
+ * (`E = texel * scale`), and `render_still.py --view-transform Standard --exposure` gives a
+ * reference that inverts exactly. Both sides then describe the same physical point — which four
+ * earlier rounds did not have, and is why they produced 17x and 32x figures from mismatched
+ * quantities (`.180`).
+ *
+ * Measured on the `--keep-glazing` set (`.182`):
+ *
+ * | surface | E baked | E from Cycles | gain needed |
+ * | --- | --- | --- | --- |
+ * | bedroom3 wall (y 1.115) | 0.7234 | 2.317 | 3.20 |
+ * | bedroom3 ceiling (y 2.6) | 1.2573 | 5.044 | 4.01 |
+ *
+ * **That the two nearly agree is the load-bearing result.** On the glazing-deleted maps the same
+ * two points wanted **7.3** and **32.0** — 4.4x apart, which is why `.170` found no single gain
+ * could fit a wall and a ceiling. Baking with the glazing intact removed that spatial bias and the
+ * requirement collapsed to 1.25x apart, so one constant is now defensible where before it was not.
+ *
+ * 3.59 is the value that balances the two residuals — `sqrt((2.317 * 5.044) / (0.7234 * 1.2573))` —
+ * leaving each about 11 % out rather than favouring one surface. The shipped 6 would over-brighten
+ * these maps by 87 % on the wall and 50 % on the ceiling.
+ */
+export const IRRADIANCE_GAIN = 3.59
+
+/**
  * The mean visibility of the plan `VISIBILITY_GAIN` was fitted against (the 4-Room default).
  *
  * Only the *ratio* to another plan's mean is used, so this is a unit-carrying reference rather
