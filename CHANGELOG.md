@@ -29,6 +29,38 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.238 — a guard for the silent degradation `.232` found: the shipped index going stale against its own scene
+
+`.232` found 14 of the shipped set's 111 keys no longer matching, caused by this session's own
+template edits, and the only reason anyone noticed was a re-bake run for an unrelated purpose. That
+is the shape of failure worth building a guard for: no error, no warning, the maps still download,
+and the surfaces just quietly render unmapped.
+
+`scripts/dev-probes/lightmap-staleness.mjs` boots the app, waits for the maps to attach, counts what
+actually carries one, and **exits non-zero below a floor**. Today: **107 mapped — 98 shell + 9
+furniture** against a floor of 95.
+
+Three decisions in it worth stating, each from something this arc got wrong earlier:
+
+- **It counts from the SCENE rather than parsing the app's log line.** That line reported key
+  LOOKUPS while calling them meshes, at exactly twice the mesh count, for forty commits until
+  `.226` relabelled it. A guard should not rest on a figure that was mislabelled that long.
+- **The floor is 95, not 107.** `.233` showed the furniture half of coverage is fragile by
+  construction — dragging a sofa stops its key matching — so a tight floor would fail on a layout
+  change rather than on a regression. The SHELL half is the stable part and what the floor really
+  protects.
+- **It is a probe, not a unit test, and that is forced.** The keys hash the LIVE scene's world
+  positions, so reproducing them needs the render graph, three.js and a GPU context. There is no
+  way to assert this in `vitest`.
+
+Its 107 is deliberately a different number from `gi-material-census.mjs`'s 101, and the docstring
+says why so the two are not read as a contradiction: this walks EVERY mesh, the census only VISIBLE
+ones, so six maps sit on meshes hidden at the moment of measurement. A staleness guard wants the
+full count — a hidden mesh's key going stale is the same regression, just not looked at yet.
+
+Suite 10219 green. The 1.5 bake is at 131 maps.
+
+
 ## v0.31.7.237 — the FLOOR half of item `(y)` was already solved, and `UnroomedFloor` is exact prior art for the ceiling fill
 
 Floors render per ROOM just as ceilings do, so I went looking for the floor counterpart of `(y)`.
