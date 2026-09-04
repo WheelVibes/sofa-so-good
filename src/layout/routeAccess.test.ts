@@ -31,7 +31,7 @@ import { findFurnitureSeveredRooms } from './reachability'
  *
  * **`unsealRoutes` FIXES most of these (v0.31.8.55, widened .56).**
  * `furnishPlanItems` slides a sealing piece until the route opens, so this list
- * records what is LEFT: **43 rooms -> 10, across 10 templates -> 3.**
+ * records what is LEFT: **43 rooms -> 3, across 10 templates -> 3.**
  *
  * The reach was the whole lever, and it was measured rather than guessed:
  * 1.2 m left 18 rooms, 1.8 m left 11, **2.4 m leaves 10**, and 3.0 m gains
@@ -39,10 +39,18 @@ import { findFurnitureSeveredRooms } from './reachability'
  * nearest-first — the reach only decides how far the pass may go when nothing
  * closer works.
  *
- * What resists is **`tpl-condo-2bed` (8 rooms behind one `kitchen-counter-l`)**:
- * every position that would open the route puts the counter across a doorway,
- * and the pass refuses that. Plus one room each in `tpl-hdb-2room` and
- * `tpl-1bed`.
+ * **`tpl-condo-2bed`'s 8 were a TEMPLATE defect, fixed at the source in
+ * v0.31.8.57.** Its front door sat at offset 1.0 on a wall that winds
+ * south-to-north, which put it inside the 2.4 x 2.8 m Open Kitchen — whose only
+ * other exit is a 1.1 m pass-through that the counter run and the fridge fill
+ * once furnished. So the entry pocket WAS the kitchen and the other eight rooms
+ * were unreachable. The unseal pass could not fix it: the counter's only clear
+ * space is the kitchen's west strip, which is exactly where the front door's own
+ * keep-out sits. Moving the door to offset 4.0 (z 3.85, inside Living / Dining)
+ * took that template 8 -> 1 and broke nothing else in the suite.
+ *
+ * **What is left is three slivers, none of them a whole room** (0.6-1.5 m²), and
+ * one of the three has no single culprit at all.
  *
  * **"Unreachable" means unreachable FROM THE FRONT DOOR (v0.31.8.54).** It used
  * to mean "not in the largest walkable region", which flips which SIDE of a seal
@@ -61,9 +69,13 @@ import { findFurnitureSeveredRooms } from './reachability'
  * against the layout.
  */
 const KNOWN_SEVERED: Record<string, number> = {
+  // Master Bedroom 0.9 m², sealed by `dining-table-4`.
   'tpl-hdb-2room': 1,
+  // Dining 0.6 m², sealed by `coffee-table`.
   'tpl-1bed': 1,
-  'tpl-condo-2bed': 8,
+  // Common Bath 1.5 m², and NO single culprit — it needs two pieces moved, so
+  // the single-piece unseal pass cannot open it by construction.
+  'tpl-condo-2bed': 1,
 }
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')

@@ -335,7 +335,21 @@ export function condo2Bed(): FloorPlan {
       parapet('c2-bal-n', [2.7, 6.4], [5.4, 6.4]),
     ],
     openings: [
-      door('c2-main', 'c2-w', 1.0),
+      // v0.31.8.57: 1.0 -> 4.0. `c2-w` winds SOUTH-to-NORTH ((0.1,8.3) -> (0.1,0.1)),
+      // so offset 1.0 put the front door at z 6.85 — inside the OPEN KITCHEN,
+      // whose only other exit is the 1.1 m pass-through at its north-east corner.
+      // Once furnished, the counter run plus the fridge fill that gap, so the
+      // entry pocket WAS the kitchen and the other EIGHT rooms of this flat could
+      // not be reached from the front door (`routeAccess.test.ts`). The unseal
+      // pass cannot fix it: the counter's only clear space is the kitchen's west
+      // strip, which is where the door's own keep-out sits.
+      //
+      // MAIN-DOOR-ROOM's category check passes a kitchen entry on purpose —
+      // `tpl-studio`'s door is deliberately at "the kitchen end … the sole
+      // non-bath option on that wall" — so this was never a category defect. It
+      // is a CIRCULATION one, and 4.0 puts the door at z 3.85, inside
+      // Living / Dining (z 0.2-5.4), which is what item (i) asks for anyway.
+      door('c2-main', 'c2-w', 4.0),
       // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
       // for the longest span where the sealed room and the main circulation face
       // each other; positions then checked against the sightline/soundness tests.

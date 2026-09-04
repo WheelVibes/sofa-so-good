@@ -2023,7 +2023,7 @@ same change that reshapes a system.
   footprint freed. It found 43 rooms beyond a break across 10 of 19 templates, and
   `layout/reachability.ts:unsealRoutes` — called by `furnishPlanItems` after the drop passes —
   now FIXES most of them, sliding a sealing piece up to 2.4 m in 0.15 m steps and taking the
-  first position that opens the route without severing anything new: **43 -> 10 rooms, 10 -> 3
+  first position that opens the route without severing anything new: **43 -> 3 rooms, 10 -> 3
   templates, 12 items moved, none deleted** (median move 0.45 m, max 1.95 m — the reach is a
   ceiling, not a step, because candidates are tried nearest-first). It writes only `position`, and places against a
   stricter mask than it routes with (doors CLOSED, inflated one cell) so a piece cannot be parked

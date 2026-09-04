@@ -27,6 +27,73 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.57 — the front door was in the kitchen. 10 → 3
+
+`tpl-condo-2bed` held 8 of the 10 remaining unreachable rooms, all behind one
+`kitchen-counter-l` that the unseal pass could not move. Last release I guessed at two ways
+forward. I tried the first, measured it, threw it away, and found the answer was upstream of
+both.
+
+### The rotation lever: built, measured, reverted
+
+Letting the pass **rotate** as well as slide, quarter-turns only — 180° excluded on purpose,
+because on a piece whose rotation encodes FACING (a sofa, a TV console, a desk) it reverses the
+facing on the same wall, which is visibly wrong and which nothing downstream checks.
+
+**It was used zero times.** Identical 12 moves across all 19 templates, every one `turn 0°`. It
+tripled the trial budget and fixed nothing, so it is gone. `TODO.md` records it as a lever not
+worth re-trying.
+
+The reason it could not help is worth stating: the kitchen is **2.4 m** wide and the counter is
+**2.4 m** long, so a quarter turn does not fit even before the one-cell placement margin — and
+the south wall it would turn onto is occupied by the stove.
+
+### The actual defect was the front door
+
+`c2-w` winds **south-to-north** — `(0.1, 8.3) → (0.1, 0.1)` — so `door('c2-main', 'c2-w', 1.0)`
+put the front door at **z 6.85, inside the Open Kitchen**. That room is 2.4 × 2.8 m and its only
+other exit is a 1.1 m pass-through at its north-east corner, which the counter run and the fridge
+fill once furnished. **The entry pocket WAS the kitchen**, and the other eight rooms of the flat
+could not be reached from the front door.
+
+And that is precisely why the counter could not move: its only clear space is the kitchen's west
+strip, which is where the front door's own keep-out sits. The mover was refusing the one position
+that would have worked, correctly, for a reason created by the door.
+
+`door('c2-main', 'c2-w', 4.0)` puts it at z 3.85, inside Living / Dining. **8 → 1**, and the full
+suite has no other change: no window sightline, item count, dining tuck, placement soundness or
+main-door-room movement.
+
+**MAIN-DOOR-ROOM did not miss this.** Its category check passes a kitchen entry deliberately —
+`tpl-studio`'s door is at "the kitchen end … the sole non-bath option on that wall". This was
+never a category defect; it is a circulation one, and the route check is the thing that could see
+it.
+
+### Where the campaign stands
+
+| | start | **now** |
+| --- | --- | --- |
+| rooms unreachable from the front door | 43 | **3** |
+| templates affected | 10 of 19 | **3 of 19** |
+
+What is left is three **slivers** — `tpl-hdb-2room` Master Bedroom 0.9 m², `tpl-1bed` Dining
+0.6 m², `tpl-condo-2bed` Common Bath 1.5 m² — not whole rooms, and the last has no single culprit
+so a single-piece pass cannot open it by construction. The remaining value here is low, and
+`TODO.md` says so rather than leaving the next reader to discover it.
+
+### One thing I measured and am NOT reporting as a finding
+
+Chasing the counter, I swept kitchen appliances for distance to the nearest wall and got "38 of
+53 more than 0.15 m off every wall", which looked like a large class-level defect. It is not
+trustworthy: the readings cluster hard at 0.18–0.23 m, which is the arranger's own snap inset
+(room rects are already inset 0.12 from the wall face, plus `CLEARANCE.wallGap`), so the
+threshold — not the layouts — decides the number. Only the ≥0.32 m tail is clearly real. I have
+no principled threshold for that measurement yet, so it is not a finding, and quoting the 38
+would be quoting my ruler.
+
+Verified: 10180 tests pass; `tsc`, `biome`, `knip` clean. Looked at `tpl-condo-2bed` furnished in
+the dollhouse — kitchen run reads normally, nothing floating, in a doorway, or clipping a wall.
+
 ## v0.31.8.56 — the reach lever, measured and spent. 18 → 10
 
 Last release left one obvious next move and said it was unmeasured: raise `UNSEAL_REACH_M`.

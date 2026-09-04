@@ -840,14 +840,25 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   occur. **The route model now EXISTS** (`layout/reachability.ts`, v0.31.8.52/.53) — see the entry
   below.
 - **[ROUTE ACCESS — MEASURED .52, RECALIBRATED .53, ANCHORED .54, FIXED .55, WIDENED .56]
-  10 rooms across 3 of 19 templates still cannot be reached from the front door once the
-  arranger has placed the furniture — down from 43 across 10.**
+  3 rooms across 3 of 19 templates still cannot be reached from the front door once the
+  arranger has placed the furniture — down from 43 across 10. All three are SLIVERS of
+  0.6-1.5 m², not whole rooms.**
   `unsealRoutes` runs in `furnishPlanItems` and slides the sealing piece; it moved 12 items and
   deleted none. **The reach lever is now MEASURED and spent** (.56): 1.2 m left 18 rooms,
   1.8 m left 11, 2.4 m leaves 10, 3.0 m gains nothing, so the reach is not where the remaining
   work is.
-  **What is LEFT and why: `tpl-condo-2bed` holds 8 of the 10, all behind one
-  `kitchen-counter-l`.** Every position that would open the route puts the counter across a
+  **`tpl-condo-2bed`'s 8 were a TEMPLATE defect and are FIXED (.57)** — its front
+  door opened into the Open Kitchen, whose only other exit the counter and fridge fill; moving
+  the door into Living / Dining took it 8 -> 1 and broke nothing else in the suite.
+  **What is LEFT:** `tpl-hdb-2room` Master Bedroom 0.9 m² (`dining-table-4`), `tpl-1bed` Dining
+  0.6 m² (`coffee-table`), `tpl-condo-2bed` Common Bath 1.5 m² (no single culprit, so a
+  single-piece pass cannot open it by construction). All three are slivers of a room rather than
+  a room, so the remaining value here is low — say so before spending another release on it.
+  **A lever that was tried and is NOT worth re-trying: letting the pass ROTATE as well as slide.**
+  Built in .57 with quarter-turns only (180° excluded, since it reverses facing on pieces whose
+  rotation encodes it). Measured: used **zero times** across all 19 templates, identical 12 moves.
+  It tripled the trial budget and fixed nothing, so it was reverted.
+  **Superseded note: `tpl-condo-2bed` holds 8 of the 10, all behind one `kitchen-counter-l`.** Every position that would open the route puts the counter across a
   doorway, and the pass refuses that (rightly — it is the same rule `dropDoorBlockers` deletes
   on). Two honest ways forward, neither taken: (a) let the pass ROTATE a piece as well as slide
   it, which for an L-counter against a wall run is the move a designer would actually make;

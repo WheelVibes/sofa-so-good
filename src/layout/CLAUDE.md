@@ -116,8 +116,8 @@ storey at once.
 **`unsealRoutes` FIXES most of them, and it runs in the default furnish path** (v0.31.8.55).
 `furnishPlanItems` calls it after the drop passes: it slides a sealing piece along X or Z in
 0.15 m steps up to **2.4 m**, nearest first, and takes the first position that opens the route
-without severing anything new. **43 unreachable rooms -> 10, 10 affected templates -> 3, by
-moving 12 items and deleting none.**
+without severing anything new. **43 unreachable rooms -> 3, 10 affected templates -> 3, by
+moving 12 items and deleting none** (plus one template door re-authored, below).
 
 **The reach was measured, not chosen** (v0.31.8.56): 1.2 m leaves 18 rooms, 1.8 m leaves 11,
 2.4 m leaves 10, 3.0 m gains nothing. A bigger ceiling does not mean bigger moves, because
@@ -144,9 +144,16 @@ runs and fails — 883 ms on top of a 434 ms furnish; sweeping once brings the w
 +40..160 ms depending on template.
 
 Coverage: `reachability.test.ts` (unit + culprit + unseal invariants), `routeAccess.test.ts`
-(ratchet of what is LEFT: 10 rooms across 3 templates — `tpl-condo-2bed` holds 8 of them behind
-one `kitchen-counter-l` whose every route-opening position would put it across a doorway, which
-the pass refuses). The pass is IDEMPOTENT, which matters because the report runs the route check
+(ratchet of what is LEFT: **3 slivers of 0.6-1.5 m², none of them a whole room**, one with no
+single culprit).
+
+**Not every seal is the arranger's fault.** `tpl-condo-2bed` held 8 of them behind one
+`kitchen-counter-l` that had nowhere legal to go — and the reason was upstream: its front door
+sat inside the 2.4 x 2.8 m Open Kitchen, whose only other exit is a 1.1 m pass-through that the
+counter and fridge fill once furnished. The unseal pass could not fix it, because the counter's
+only clear space is the strip the front door's own keep-out occupies. Moving the door into the
+living room (v0.31.8.57) took that template 8 -> 1. When a single piece seals many rooms and has
+nowhere to go, check where the front door is before making the mover cleverer. The pass is IDEMPOTENT, which matters because the report runs the route check
 over its output. It costs two rasters per storey, so `buildLayoutCritique` runs it only when
 asked (`{ routeAccess: true }`, which only `ui/report.ts` passes) — enabling it inside
 `schemeOptions`, which critiques a dozen candidates, pushed the Scheme Compare modal past a
