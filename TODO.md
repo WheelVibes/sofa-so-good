@@ -936,11 +936,27 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
     cannot be flush against both. Surveyed over 570 edges that have a wall within 0.3 m:
     **226 flush, 186 short by 0.05, 86 short by 0.15, 58 OVERLAPPING the wall body.** Ratcheted
     in `src/floorplan/roomRectWalls.test.ts` with the arithmetic table.
-    **The fix is one function**: make the arranger snap against the wall FACE rather than the
-    room rect (or make `planRoomRect` resolve its edges to the walls). Blast radius is
-    library-wide — every template's furniture shifts up to 0.15 m — so expect heavy guard churn
-    in `diningChairTuck`, `placeSeededMounts`, `windowSightline` and the route ratchets, and
-    budget a release for it rather than folding it into something else.
+    **The fix IS one function, it WORKS, and it was reverted in v0.31.8.61 — read this before
+    re-attempting.** `planRoomRect(room, walls)` resolving each edge to its wall face (median of
+    5 samples, edges with no wall within 0.3 m left alone, degenerate results falling back)
+    **fixed exactly the predicted population: all eight 0.32 m appliances, 15 marooned -> 7.**
+    That is the diagnosis confirmed end to end.
+    It was reverted because it also **reintroduced stranded dining chairs in 5 templates**
+    (`tpl-hdb-3room`/`-4room`/`-exec`/`-3gen`/`-jumbo`), 1.53-1.79 m from their table — the
+    DINING-PHANTOM class. Traced on `tpl-hdb-3room`: the resolution moves the dining table 0.15 m
+    west (4.92 -> 4.77) because that room's W edge was short by 0.15, which puts the table's west
+    face exactly ON the rect edge, and the two west-side chair slots stop fitting. The room is
+    3.2 m wide and the group had no slack; the shift only exposed that.
+    **Two things NOT to retry:** the chair-slot `TOL` guard (`autoArrange.ts:830`) is NOT the
+    cause — raising it 0.2 -> 0.35 changes nothing. And the rect asymmetry is not a bug to be
+    smoothed away: a room authored lopsided relative to its walls genuinely HAS a lopsided usable
+    rect, and re-centring would discard the whole point.
+    **What it needs:** pairing with along-wall chair placement, i.e. item 2 of the
+    bed-vs-storage thread above (`snapToWall` tries exactly ONE along-wall position per edge, so
+    a wall with room somewhere ELSE along it reads as full). Do them together or not at all.
+    Other churn seen in the same run, all expected and none blocking: `placeSeededMounts`'
+    room-centre CONTROL (34 -> 12, because pieces centre on the RECT and the rect is no longer
+    symmetric about the room), `windowSightline`, item counts, and the route ratchets.
   - **The orphan hoods** (4 templates with a hood and no stove) remain unconfirmed — the
     `placeSeededMounts` path above makes "a mount outliving a dropped host" plausible, but it has
     not been traced.

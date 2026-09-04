@@ -27,6 +27,58 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.61 — the fix works, fixes exactly what it should, and I reverted it
+
+Last release identified the mechanism behind eight appliances stranded at 0.32 m from their wall
+and said the fix was one function. It is, and it does exactly what the diagnosis predicted.
+
+`planRoomRect(room, walls)` now resolves each of the four edges to its actual wall face — median
+of five samples so a doorway cannot swing it, edges with no wall within 0.3 m left on the plain
+inset because they are open-plan, and a degenerate result falling back rather than inverting the
+rect. One production call site (`autoArrange.ts:1528`), where `walls` was already in scope.
+
+**Result: all eight 0.32 m cases fixed. 15 marooned appliances → 7.** Not "some improvement" —
+precisely the population the arithmetic said would move, which is the end-to-end confirmation
+that v0.31.8.60's diagnosis was right.
+
+### And then it stranded dining chairs in five templates
+
+`tpl-hdb-3room`, `-4room`, `-exec`, `-3gen`, `-jumbo`: chairs **1.53–1.79 m from their table**.
+That is the DINING-PHANTOM class the repo spent v0.31.5.111 killing, and it is not a count
+change I can record and move past.
+
+Traced on `tpl-hdb-3room`:
+
+| | table | west-side chairs |
+| --- | --- | --- |
+| before | 4.92 | 4.42, 4.42 (tucked under the table's edge) |
+| **after** | **4.77** | **4.47 @ z 7.98 and z 4.72** — flung to the room's ends |
+
+That room's west edge was short by 0.15 m, so resolving it moves the whole dining group 0.15 m
+west, which puts the table's west face exactly ON the rect edge and leaves the two west chair
+slots nowhere to sit. The room is 3.2 m wide and the group had no slack — the shift only exposed
+that.
+
+**So the change is reverted.** No production code ships in this release.
+
+### What I checked so the next attempt does not repeat it
+
+- **The chair-slot `TOL` guard is NOT the cause.** `autoArrange.ts:830` skips slots more than
+  0.2 m outside the rect, which was my first hypothesis; raising it to 0.35 changes nothing.
+- **The rect asymmetry is not a bug to smooth away.** A room authored lopsided relative to its
+  walls genuinely has a lopsided usable rect. Re-centring it would discard the entire point of
+  resolving. (This is also why `placeSeededMounts`' room-centre CONTROL goes 34 → 12 — pieces
+  centre on the RECT, and the rect is no longer symmetric about the room.)
+- **What it actually needs**: pairing with along-wall chair placement. `TODO.md` already carries
+  it as item 2 of the bed-vs-storage thread — *"`snapToWall` tries exactly ONE along-wall
+  position per edge, so a wall with room somewhere ELSE along it reads as full"*. These two are
+  one piece of work, and doing the rect half alone is what produced today's regression.
+
+Everything above is written into `TODO.md` under the appliance entry, including the numbers, so
+the implementation is not re-derived from scratch.
+
+Verified: 10187 tests pass on the reverted tree; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.60 — the 0.14 m was the room, not the furniture
 
 Last release left one number unexplained: eight marooned appliances reading exactly **0.32 m**
