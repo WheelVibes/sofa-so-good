@@ -165,6 +165,18 @@ earlier attempt on this thread failed:
   (`tpl-condo-1study`). This costs `tpl-1bed`'s Dining, which no offset can clear while carrying
   the coffee table's satellites; that trade is deliberate, because chairs stranded around nothing
   are a defect a user SEES and a 0.6 m² sliver is one a check reports.
+- **It never slides a piece OUT OF ITS ROOM** (ROOM-CONTAINMENT, v0.31.9.16). The disc searches
+  2.4 m in every direction and nothing kept that inside the piece's own room. Measured on
+  `tpl-hdb-5room`: a `bed-single` moved (5.08, 5.00) -> (7.33, 5.30) — 2.25 m, across a wall, out of
+  `h5-bed3` and into `h5-living`. **The item count never changed, so no ratchet saw it**; it
+  surfaced only as "a bedroom with no bed" once `roomCompleteness.test.ts` existed (v0.31.9.15).
+  A route bought by putting the bed in the living room is not a fix, for exactly the reason
+  v0.31.8.55 refused to buy one by deleting the sofa. A piece that started in no declared room
+  (undeclared circulation) stays unconstrained.
+  **This gave back v0.31.8.86's headline.** Those four `tpl-hdb-5room` rooms, and
+  `tpl-condo-4bed/c4-bed4`, were opened BY the eviction — so `routeAccess` goes 6 -> 11 and that is
+  a correction, not a regression. Item count +2 (`throw-cushion`, the styling pass dressing the bed
+  that now stays put), overlaps still 0.
 - **Placement uses a STRICTER mask than routing** (`LevelGrid.standable`, doors CLOSED, inflated
   one cell, minus `clearance.ts:doorProbePoints`). `openFloor` gaps a wall at every open door
   because a doorway is a route — it is not a parking space, and the first cut used it and slid

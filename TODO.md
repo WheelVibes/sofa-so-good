@@ -22,7 +22,17 @@ bathrooms in `bathroomFixtures.test.ts`).
 - `tpl-condo-1bed/c1-kit` (3.2 m²) — has a counter and stove, **missing only the fridge**. Note
   this one is invisible to `applianceWall`'s `KNOWN_ORPHAN_HOODS` because it HAS a stove.
 
-**Start with `h5-bed3`.** A 9 m² room that receives a desk instead of a bed points at the SEEDING
+**`h5-bed3` is FIXED (v0.31.9.16) and my hypothesis was wrong.** Its category is correct; the bed
+was never missing — `unsealRoutes` slid it 2.25 m out of the room into `h5-living`, which no
+item-count ratchet could see because eviction conserves pieces. The pass now refuses to leave a
+piece's room. That gave back v0.31.8.86's four `tpl-hdb-5room` rooms plus `c4-bed4`, because those
+had been "opened" BY the eviction — `routeAccess` 6 -> 11, a correction.
+**`g3-gen` is a DIFFERENT cause and still open:** its queen bed is deleted by `dropDoorBlockers`
+for sitting in a door keep-out. The room is 3.8 x 2.3 m, and 2.3 m of depth cannot take a
+wardrobe (0.6) + its `storageFront` clearance (~0.75) + a 2.0 m bed — see the built-in-wardrobe
+entry, which measured the same constraint on `tpl-condo-3bed`. Measure before publishing a cause.
+
+**Original note follows.** A 9 m² room that receives a desk instead of a bed points at the SEEDING
 (which kit a room is given), not the geometry — unlike `ctu-mbath`, which really was too small.
 Take them one at a time and measure before publishing a cause: `ctu-mbath` cost four releases and
 three wrong explanations.

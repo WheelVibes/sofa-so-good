@@ -112,6 +112,20 @@ const KNOWN_SEVERED: Record<string, number> = {
    * space, which is why no other template moved.
    */
   'tpl-hdb-maisonette': 1,
+  /**
+   * Master 3.8 m², Common Bath 3.0, Master Bath 2.6, Bedroom 2 2.5 — the four
+   * v0.31.8.86's disc claimed to open, RETURNED in v0.31.9.16 and a correction.
+   *
+   * That release opened them by sliding a `bed-single` (5.08, 5.00) ->
+   * (7.33, 5.30): 2.25 m, out of `h5-bed3` and into `h5-living`. The item count
+   * never moved, so nothing here saw it; it surfaced as "a bedroom with no bed"
+   * in `roomCompleteness.test.ts`. `unsealRoutes` now refuses to slide a piece
+   * out of the room it was arranged into, so these four are reported honestly
+   * instead of being bought with a bed in the living room.
+   */
+  'tpl-hdb-5room': 4,
+  /** Bedroom 4, 1.6 m² — same cause, same release. */
+  'tpl-condo-4bed': 1,
 }
 
 /**
@@ -165,7 +179,7 @@ describe('route access — rooms the arranger walls off', () => {
     // on, so it is raised rather than left to flake.
   }, 60_000)
 
-  it('leaves fifteen templates completely clean', () => {
+  it('leaves thirteen templates completely clean', () => {
     // Stated as its own assertion so a fix that "improves" the ratchet by
     // breaking a clean template cannot pass by trading one for another.
     const clean = PLAN_TEMPLATES.filter((t) => !(t.id in KNOWN_SEVERED)).map((t) => t.id)

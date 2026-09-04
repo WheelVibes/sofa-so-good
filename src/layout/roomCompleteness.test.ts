@@ -62,9 +62,9 @@ const REQUIREMENTS: Partial<Record<RoomCategory, Requirement[]>> = {
  * assumed.
  */
 const KNOWN_INCOMPLETE = [
-  // 9.0 m² and furnished as a STUDY — desk, nightstand, wardrobe, no bed. Room
-  // for a bed; the arranger simply does not place one.
-  'tpl-hdb-5room/ground/h5-bed3: missing a bed',
+  // `tpl-hdb-5room/ground/h5-bed3` was here until v0.31.9.16. Its bed was never
+  // missing — `unsealRoutes` had SLID it 2.25 m into `h5-living` to open a
+  // route, which no item-count ratchet could see. Room containment fixed it.
   // 8.7 m², with TWO nightstands and a wardrobe. Nightstands flanking nothing.
   'tpl-hdb-3gen/ground/g3-gen: missing a bed',
   // The four hood-without-hob kitchens are already in `applianceWall.test.ts`'s
@@ -124,11 +124,11 @@ describe('a room contains the fixture that makes it that room', () => {
     expect(survey().incomplete.sort()).toEqual([...KNOWN_INCOMPLETE].sort())
   }, 180_000)
 
-  it('leaves at most two bedrooms without a bed', () => {
+  it('leaves at most one bedroom without a bed', () => {
     // Stated separately and as an inequality: a bedroom with no bed is the worst
     // of these, so it gets an assertion that cannot be satisfied by trading a
     // kitchen fault for a bedroom one.
     const bedless = survey().incomplete.filter((r) => r.includes('missing a bed'))
-    expect(bedless.length).toBeLessThanOrEqual(2)
+    expect(bedless.length).toBeLessThanOrEqual(1)
   }, 180_000)
 })

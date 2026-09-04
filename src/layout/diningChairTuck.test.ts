@@ -92,7 +92,11 @@ describe('dining chairs are tucked to their table', () => {
       // styling pass runs AFTER `unsealRoutes`, so moving the bed out of the
       // corridor pinch changed the host surface it dresses. Two cushions is the
       // price of the flat's whole bedroom half becoming reachable.
-      'tpl-hdb-5room': 81,
+      // 81 -> 83 in v0.31.9.16 (ROOM-CONTAINMENT). Per-def: both are
+      // `throw-cushion` (7 -> 9). `unsealRoutes` no longer evicts this flat's
+      // `bed-single` into the living room, so the bed stays in `h5-bed3` and the
+      // styling pass dresses it — the exact two cushions v0.31.8.86 had cost.
+      'tpl-hdb-5room': 83,
       // 91 until v0.31.5.118. Dumped per-def first: the +2 are a `range-hood`
       // (the stray kitchen window had been blocking the extractor's wall, the
       // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
@@ -257,7 +261,9 @@ describe('dining chairs are tucked to their table', () => {
     // -1 `tpl-terrace-ground`, both diffed per def above. The two cancel, so the
     // GRAND TOTAL is unchanged — which is exactly why it must not be the only
     // number checked: a per-template regression can hide inside a stable total.
-    expect(total).toBe(1448)
+    // 1448 -> 1450 in v0.31.9.16 (ROOM-CONTAINMENT): +2 `tpl-hdb-5room`, diffed per
+    // def above, no other template moves.
+    expect(total).toBe(1450)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

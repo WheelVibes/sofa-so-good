@@ -64,7 +64,7 @@ import { findWallClips, itemFootprint, itemHeightAwareClash } from '../collision
 import type { CollisionWall } from '../collision/walls'
 import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
-import type { FloorPlan, PlanRoom } from '../floorplan/types'
+import { type FloorPlan, type PlanRoom, pointInRoom } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { doorProbePoints } from './clearance'
 import { CLEARANCE, OBSTACLE_AREA_M2 } from './designRules'
@@ -1065,6 +1065,22 @@ export function unsealRoutes(
      * narrowphase `findItemOverlaps` uses, which is why `tpl-1bed` gains a route
      * without gaining an overlapping pair.
      */
+    /**
+     * The room a piece was arranged INTO, so a route fix cannot evict it.
+     *
+     * `unsealRoutes` slides a sealing piece up to 2.4 m across a disc, and
+     * nothing kept that slide inside the piece's own room. Measured on
+     * `tpl-hdb-5room`: a `bed-single` moved (5.08, 5.00) -> (7.33, 5.30), out of
+     * `h5-bed3` and into `h5-living` — 2.25 m, across a wall, into the living
+     * room. The item count never changed, so no ratchet saw it; it surfaced as
+     * "a bedroom with no bed" in `roomCompleteness.test.ts` (v0.31.9.15).
+     *
+     * A route bought by putting the bed in the living room is not a fix, for the
+     * same reason v0.31.8.55 refused to buy one by deleting the sofa.
+     */
+    const roomAt = (x: number, z: number): PlanRoom | undefined =>
+      li.rooms.find((r) => pointInRoom(r, x, z))
+
     const clashesAt = (
       o: number,
       src: FurnitureItem,
@@ -1164,6 +1180,11 @@ export function unsealRoutes(
           const trial: OBB = { ...obb, cx: obb.cx + dx, cz: obb.cz + dz }
           if (!trialFits(g, trial, o)) continue
           if (clashesAt(o, li.sources[o] as FurnitureItem, dx, dz, shifted.get(o))) continue
+          // ROOM-CONTAINMENT: never slide a piece out of the room it was
+          // arranged into. A piece that started in no declared room (undeclared
+          // circulation) is unconstrained, as before.
+          const from = roomAt(obb.cx, obb.cz)
+          if (from && roomAt(trial.cx, trial.cz)?.id !== from.id) continue
           const next = solveGrid(g, bodyWidthM, o, trial)
           if ((next.reachable[ri] as number) === 0) continue
           // Must not sever anything that is currently fine.

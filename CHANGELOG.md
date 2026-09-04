@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.16 — v0.31.8.86 opened four rooms by putting a bed in the living room
+
+v0.31.9.15's next step was `h5-bed3`, a 9 m² bedroom with no bed, and my recorded hypothesis was
+that the SEEDING was at fault. **Wrong** — its category resolves correctly to `bedroom`. Tracing
+the passes instead found two different causes for the two bedless bedrooms, neither of them
+seeding:
+
+- **`tpl-hdb-3gen/g3-gen`**: the queen bed is deleted by `dropDoorBlockers` — it sits in a door
+  keep-out. Still open.
+- **`tpl-hdb-5room/h5-bed3`**: **no bed is lost at all.** `unsealRoutes` MOVES `bed-single` from
+  (5.08, 5.00) to (7.33, 5.30) — 2.25 m, across a wall, out of `h5-bed3` and into `h5-living`.
+
+So the bed was never missing from the flat. It was in the living room.
+
+**The item count never changed**, which is why nothing caught it for eight releases: every ratchet
+on this thread counts pieces, and eviction conserves them. It surfaced only because v0.31.9.15
+started asking whether each room contains the fixture that defines it.
+
+`unsealRoutes` now refuses a trial that moves a piece's centre out of the room it was arranged
+into. A piece that started in no declared room stays unconstrained, as before. The principle is
+v0.31.8.55's own: a route bought by deleting the sofa is not a fix, and neither is one bought by
+rehoming the bed.
+
+### It gives back v0.31.8.86's headline, and that is the honest part
+
+| | before | after |
+|---|---|---|
+| `routeAccess` severed rooms | 6 | **11** |
+| `tpl-hdb-5room` | clean | `h5-master` 3.8, `h5-cbath` 3.0, `h5-mbath` 2.6, `h5-bed2` 2.5 |
+| `tpl-condo-4bed` | clean | `c4-bed4` 1.6 |
+| items | 1448 | 1450 (+2 `throw-cushion`) |
+| overlaps | 0 | 0 |
+
+Those four `tpl-hdb-5room` rooms are **exactly** the ones v0.31.8.86's disc was celebrated for
+opening. It opened them by evicting the bed. `tpl-condo-4bed` was clean for the same reason. So
+that release's headline — "7 severed rooms -> 2" — was partly bought with a move no designer would
+make, and the +2 items are the two cushions the styling pass adds now the bed stays where it
+belongs.
+
+This is the same shape as v0.31.8.86's own `tpl-hdb-2room` 1 -> 4: a ratchet moving the wrong way
+because the instrument got honest. Recorded in `src/layout/CLAUDE.md` beside the pass's other
+guarantees, since "never moves a piece out of its room" belongs with "never deletes" and "never
+rotates".
+
 ## v0.31.9.15 — two shipped bedrooms contain no bed
 
 v0.31.9.14 ratcheted bathrooms because `ctu-mbath` lost its basin and nothing failed. Surveying the
