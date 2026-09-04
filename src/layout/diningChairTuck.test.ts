@@ -79,7 +79,11 @@ describe('dining chairs are tucked to their table', () => {
       // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
-      'tpl-hdb-4room': 79,
+      // 79 -> 76 in v0.31.8.83 (SERVICE-BAND-ACCESS). Per-def diff, because a DROP
+      // needs one: one `desk`, one `book-set`, one `desk-plant`. The new
+      // `h4-svc-door`'s keep-out takes the floor the desk stood on. A flat whose
+      // bedroom half you cannot reach is worse than a bedroom with no desk.
+      'tpl-hdb-4room': 76,
       // 82 until v0.31.5.116: same story as the 4-room a version earlier —
       // moving the misplaced window OUT of the kitchen freed the wall the range
       // hood needs. Dumped per-def first; the +1 is `range-hood`.
@@ -225,7 +229,9 @@ describe('dining chairs are tucked to their table', () => {
     // with NO losses anywhere: +1 3room, +2 4room, +1 jumbo, +1 studio. Letting
     // every stranded piece try all four walls (not just its nearest) rescues
     // pieces that previously had nowhere to go.
-    expect(total).toBe(1453)
+    // 1453 -> 1450 in v0.31.8.83 (SERVICE-BAND-ACCESS): -3 on `tpl-hdb-4room`,
+    // diffed per def above. No other template moves.
+    expect(total).toBe(1450)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

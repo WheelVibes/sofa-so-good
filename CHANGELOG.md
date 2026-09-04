@@ -27,6 +27,51 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.83 — every shipped template is now fully connected
+
+`templateConnectivity`'s ratchet is **empty**. It held 16 levels when first measured in
+v0.31.8.28 and three entries at the start of this session; `tpl-hdb-exec` went last release and
+`tpl-hdb-4room` and `tpl-hdb-5room` go here.
+
+**Both had the same defect as exec: a wall with no opening in it.** `h4-svc-s` (z = 2.9) and
+`h5-svc-s` (z = 3.2) each sealed the kitchen/yard/shelter band and the living room off from the
+entire bedroom half.
+
+One door each. **Placement is the whole craft:** the only other candidate wall in the 4-room is
+`h4-liv-w`, and every offset on it opens straight into a bedroom or a bath — which is precisely
+what item (f) exists to remove. The chosen offsets land on **undeclared circulation on both
+sides**: north, the strip between the service yard and the wall; south, the strip above bedroom
+3. The halves join without a door into anybody's room.
+
+### The two costs, both stated plainly
+
+**`tpl-hdb-4room` loses 3 items**, diffed per def because a drop needs it: one `desk`, one
+`book-set`, one `desk-plant`. The new door's keep-out takes the floor the desk stood on. A flat
+whose bedroom half you cannot reach is worse than a bedroom with no desk.
+
+**`tpl-hdb-5room` gains 4 `routeAccess` findings — and they are not a regression.** Those rooms
+were always unreachable once furnished; they were **masked**. While the bedroom half was a
+separate connectivity group, the empty-plan baseline counted them unreachable and the route check
+excluded them by construction. Connecting the flat makes the baseline say they *are* reachable
+when empty, which is what lets the furnished failure show. Culprits are a `bed-single` and a
+`wardrobe-3door` in the corridor strip: Master Bedroom 3.8 m², Common Bath 3.0, Master Bath 2.6,
+Bedroom 2 2.5.
+
+That is the second time this session that closing a connectivity gap has revealed a defect the
+gap was hiding — the first was v0.31.8.67's shelter. Worth expecting from here on.
+
+### What is still open under (f)
+
+`bedroomPrivacy`'s four walk-through bedrooms, including `ex-master`. Connectivity asks whether a
+room can be reached at all; privacy asks whether you cross someone's bedroom to do it. **The
+second is the real corridor problem and no door solves it** — it needs floor taken from rooms,
+which is the content decision (f) actually defers.
+
+Looked at both templates furnished — each new doorway reads correctly in its wall, walls meet,
+furniture otherwise unchanged.
+
+Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.82 — one door takes `tpl-hdb-exec` from two sealed groups to one
 
 I said last release that the remaining `TODO.md` work routes through decision (f)'s corridor

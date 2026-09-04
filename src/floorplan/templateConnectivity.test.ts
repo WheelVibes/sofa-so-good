@@ -148,10 +148,15 @@ function roomGroups(
 // One door mid-wall joins study to living, and because the study already touches
 // the service band it becomes the bridge that connects both. A study you reach
 // through the kitchen was also simply wrong for the room. Down to TWO entries.
-const KNOWN_DISCONNECTED: Record<string, number> = {
-  'tpl-hdb-4room/ground': 2,
-  'tpl-hdb-5room/ground': 2,
-}
+// EMPTY as of v0.31.8.83 (SERVICE-BAND-ACCESS) — every shipped template is now
+// fully connected. `h4-svc-s` and `h5-svc-s` each carried NO opening, sealing
+// the kitchen/yard/shelter band and the living room off from the whole bedroom
+// half. One door each, placed where it lands on undeclared circulation on BOTH
+// sides (so it does not open into anybody's bedroom), joins the halves.
+//
+// Keep the list and the sweep: a new template, or an edited offset, can still
+// introduce one. 16 levels when first measured in v0.31.8.28.
+const KNOWN_DISCONNECTED: Record<string, number> = {}
 
 describe('template connectivity (doors open)', () => {
   it('matches the known-disconnected ratchet exactly', { timeout: 180_000 }, () => {

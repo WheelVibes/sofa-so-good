@@ -158,6 +158,16 @@ export function hdb4Room(): FloorPlan {
       // lands the door at x=6.95, in the Living / Dining room.
       door('h4-main', 'h4-s', 1.7),
       door('h4-master', 'h4-m-n', 1.0),
+      // SERVICE-BAND-ACCESS (v0.31.8.83). `h4-svc-s` (z=2.9) carried NO opening,
+      // so the kitchen/yard/shelter band and the living room were sealed from the
+      // whole bedroom half: `templateConnectivity` counted two groups. The only
+      // other candidate wall is `h4-liv-w`, and every offset on it opens straight
+      // into a BEDROOM or a BATH, which is the thing item (f) is trying to remove.
+      // This offset lands on undeclared circulation on BOTH sides — the strip
+      // between the service yard and z=2.9 to the north, and the strip above
+      // bedroom 3 to the south — so it joins the two halves without putting a
+      // door into anybody's room.
+      door('h4-svc-door', 'h4-svc-s', 4.0),
       window('h4-kit-win', 'h4-n', 1.4, 1.6),
       window('h4-b2-win', 'h4-w', 4.0, 1.4),
       // BEDROOM-WINDOW (v0.31.5.115): was 7.4, which put the master's window at
@@ -207,6 +217,13 @@ export function hdb5Room(): FloorPlan {
       // corridor-facing entry. `h5-e` at offset 1.0 measured equally well.
       door('h5-main', 'h5-n', 7.0),
       door('h5-master', 'h5-m-n', 1.0),
+      // SERVICE-BAND-ACCESS (v0.31.8.83), same shape as `h4-svc-door`.
+      // `h5-svc-s` (z=3.2) carried no opening, sealing the kitchen/yard/shelter
+      // band and the living room off from the whole bedroom half. This offset
+      // lands on undeclared circulation on BOTH sides — the strip between the
+      // shelter and z=3.2 to the north, and the strip above bedroom 3 to the
+      // south — so it joins the halves without putting a door into a bedroom.
+      door('h5-svc-door', 'h5-svc-s', 4.2),
       window('h5-kit-win', 'h5-n', 1.6, 1.8),
       window('h5-b2-win', 'h5-w', 4.4, 1.5),
       // BEDROOM-WINDOW (v0.31.5.116): was 8.2, which put the master's window at

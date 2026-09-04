@@ -71,6 +71,15 @@ import { findFurnitureSeveredRooms } from './reachability'
 const KNOWN_SEVERED: Record<string, number> = {
   // Master Bedroom 0.9 m², sealed by `dining-table-4`.
   'tpl-hdb-2room': 1,
+  // ADDED in v0.31.8.83 (SERVICE-BAND-ACCESS), and NOT a regression — these four
+  // were always true and were MASKED. `tpl-hdb-5room`'s bedroom half used to be
+  // a separate `templateConnectivity` group, so the empty-plan baseline counted
+  // those rooms as unreachable and this check excluded them by construction.
+  // Connecting the flat makes the baseline say they ARE reachable when empty,
+  // which is what lets the furnished failure show. Culprits are a `bed-single`
+  // and a `wardrobe-3door` blocking the corridor strip: Master Bedroom 3.8 m2,
+  // Common Bath 3.0, Master Bath 2.6, Bedroom 2 2.5.
+  'tpl-hdb-5room': 4,
   // Dining 0.6 m², sealed by `coffee-table`.
   'tpl-1bed': 1,
   // Common Bath 1.5 m², and NO single culprit — it needs two pieces moved, so
