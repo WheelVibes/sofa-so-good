@@ -7,6 +7,24 @@
  *   - ventilation: openable area (≈ 50% of window area for sliding windows)
  *     ≥ 5% of floor area
  *
+ * **What this check still cannot do (MECH-VENT-REQUIRED, v0.31.8.65).** It
+ * measures openable WINDOW area only, so an interior WC — which is legally
+ * ventilated by a duct, not a window — is reported as "not assessed" rather than
+ * failing. That is honest but unhelpful, so such a room now says what it NEEDS:
+ * mechanical ventilation ducted to outdoor. SS 553 states the qualitative rule
+ * plainly — a bathroom or toilet without natural ventilation shall be
+ * mechanically ventilated through a duct direct to the outdoor.
+ *
+ * **No RATE is stated, deliberately.** Searching for one returned 40 ACH
+ * attributed to SS 553, 15 ACH (2017) rising to 20 ACH (2024) from NEA's Code of
+ * Practice on Environmental Health — which governs the premises NEA regulates,
+ * not private homes — and trade guidance for HDB flats quoted in CFM (150-200
+ * CFM for a 4-6 m² bathroom) rather than air changes. Three different numbers for
+ * three different scopes, none of them a primary residential source. Putting one
+ * of them in a contractor-facing tool would repeat exactly the mistake
+ * v0.31.8.64 corrected two releases ago. The requirement is stated; the sizing
+ * is left to the M&E engineer until a residential figure can be cited.
+ *
  * Pure logic only — no React, no three — so it stays fully unit-testable. The
  * panel (`ui/DaylightPanel.tsx`) is presentation over the rows this returns.
  */
@@ -76,6 +94,12 @@ interface DaylightRow {
    * `hasNoFacade`.
    */
   noFacade: boolean
+  /**
+   * True for a bath / powder / WC — a category that stays usable without a
+   * window but, with no natural ventilation, must be mechanically ventilated
+   * (MECH-VENT-REQUIRED, v0.31.8.65).
+   */
+  wetRoom: boolean
   /**
    * True for a room category that needs natural light to be usable as designed
    * (`HABITABLE_CATEGORIES`). An interior HABITABLE room is a layout defect, not
@@ -248,6 +272,7 @@ export function buildDaylightReport(plan: FloorPlan, _items?: unknown): Daylight
       // Zero glazing is required as well as no façade wall — see `hasNoFacade`.
       noFacade: glazingArea === 0 && hasNoFacade(r, planWalls),
       habitable: HABITABLE_CATEGORIES.has(category),
+      wetRoom: category === 'bath' || category === 'powder',
       blastShelter: category === 'shelter',
     }
   })
@@ -297,9 +322,11 @@ export function buildDaylightReport(plan: FloorPlan, _items?: unknown): Daylight
  * walls is not permitted. Checked in the same order as `isDaylightExempt`.
  */
 export function exemptReason(
-  row: Pick<DaylightRow, 'noFacade' | 'habitable' | 'blastShelter'>,
+  row: Pick<DaylightRow, 'noFacade' | 'habitable' | 'blastShelter' | 'wetRoom'>,
 ): string {
   if (row.blastShelter) return 'household shelter — RC walls, no opening permitted'
+  if (row.wetRoom)
+    return 'interior WC — no external wall, so mechanical ventilation ducted to outdoor is required'
   return 'interior room, no external wall for a window'
 }
 

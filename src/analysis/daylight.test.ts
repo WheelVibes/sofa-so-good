@@ -368,18 +368,74 @@ describe('buildDaylightReport — a household shelter on the façade', () => {
 })
 
 describe('exemptReason', () => {
+  const row = (o: Partial<Parameters<typeof exemptReason>[0]>) => ({
+    noFacade: false,
+    habitable: false,
+    blastShelter: false,
+    wetRoom: false,
+    ...o,
+  })
+
   it('does not call a façade-side shelter an interior room', () => {
     // The two reasons are not interchangeable: a shelter on the façade HAS an
     // external wall, so the interior-room wording would state something false.
-    expect(exemptReason({ noFacade: false, habitable: false, blastShelter: true })).toContain(
+    expect(exemptReason(row({ blastShelter: true }))).toContain('household shelter')
+    expect(exemptReason(row({ blastShelter: true }))).not.toContain('interior room')
+    expect(exemptReason(row({ noFacade: true }))).toContain('interior room')
+  })
+
+  // MECH-VENT-REQUIRED (v0.31.8.65). "Not assessed" is honest and unhelpful: an
+  // interior WC is legally ventilated by a duct, not a window, so the row should
+  // say what the room NEEDS rather than that the check gave up on it.
+  it('tells an interior WC it needs mechanical ventilation', () => {
+    const r = exemptReason(row({ noFacade: true, wetRoom: true }))
+    expect(r).toContain('mechanical ventilation')
+    expect(r).toContain('outdoor')
+    // It must NOT fall through to the generic wording, which offers no action.
+    expect(r).not.toContain('no external wall for a window')
+  })
+
+  it('states no RATE, because no residential figure could be sourced', () => {
+    // Searching returned 40 ACH attributed to SS 553, 15->20 ACH from NEA's Code
+    // of Practice (which governs the premises NEA regulates, not homes), and
+    // trade guidance in CFM. Three numbers, three scopes, no primary residential
+    // source — and v0.31.8.64 exists because this app quoted an Australian code
+    // as Singapore's. State the requirement, leave the sizing to the M&E engineer.
+    const r = exemptReason(row({ noFacade: true, wetRoom: true }))
+    expect(r).not.toMatch(/\d/)
+  })
+
+  it('a shelter stays a shelter even if it is also a wet room', () => {
+    // Order matters: an RC shelter may not be opened at all, so that reason
+    // outranks the ventilation one.
+    expect(exemptReason(row({ noFacade: true, wetRoom: true, blastShelter: true }))).toContain(
       'household shelter',
     )
-    expect(exemptReason({ noFacade: false, habitable: false, blastShelter: true })).not.toContain(
-      'interior room',
-    )
-    expect(exemptReason({ noFacade: true, habitable: false, blastShelter: false })).toContain(
-      'interior room',
-    )
+  })
+})
+
+describe('shipped templates — the mechanical-ventilation line is exercised', () => {
+  it('names the interior WCs that need mechanical ventilation', () => {
+    // Guards the wording from going inert. If every shipped bath had a window
+    // the new reason would be dead code, and a reader would have no way to tell
+    // — the same failure the shelter-façade guard below exists to prevent.
+    const found: string[] = []
+    for (const tpl of PLAN_TEMPLATES) {
+      for (const r of buildDaylightReport(tpl).rooms) {
+        if (!isDaylightExempt(r)) continue
+        if (exemptReason(r).includes('mechanical ventilation'))
+          found.push(`${tpl.id}/${r.roomName}`)
+      }
+    }
+    expect(found.sort()).toEqual([
+      'tpl-condo-4bed/Bathroom 2',
+      'tpl-condo-penthouse/Common Bath',
+      'tpl-hdb-3gen/Bathroom 2',
+      'tpl-hdb-3gen/Common Bath',
+      'tpl-hdb-exec/Common Bath',
+      'tpl-hdb-jumbo/Common Bath',
+      'tpl-hdb-maisonette/Master Bath',
+    ])
   })
 })
 

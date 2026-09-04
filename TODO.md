@@ -2050,13 +2050,26 @@ wall-mounted lighting should refuse a wall opening outright. Fix belongs in
 
 Not touched in `.232`, which was a measurement round.
 
-## Daylight: no model of mechanical ventilation
+## Daylight: no model of mechanical ventilation — PARTLY ADDRESSED v0.31.8.65
 
 The check measures openable WINDOW area only. An interior bathroom or WC is legally
-ventilated mechanically, so `noFacade` now reports it as "not assessed" rather than
-failing — honest, but the app still cannot say whether such a room is adequately
-ventilated. Modelling extract fans / ducted vents would let those rooms be assessed
-properly instead of skipped.
+ventilated mechanically, so `noFacade` reports it as "not assessed" rather than failing.
+
+**v0.31.8.65 turns that into an instruction**: such a room now reads "interior WC — no
+external wall, so mechanical ventilation ducted to outdoor is required" instead of the
+generic interior-room wording. Live on **7 rooms across 7 templates**, ratcheted in
+`daylight.test.ts` so the wording cannot go inert.
+
+**No RATE is stated, and that is deliberate.** Searching returned three figures for
+three different scopes and none of them a primary residential source: 40 ACH attributed
+to SS 553; 15 ACH (2017) rising to 20 ACH (2024) from NEA's Code of Practice on
+Environmental Health, which governs the premises NEA regulates rather than private
+homes; and trade guidance for HDB flats quoted in CFM (150-200 CFM for a 4-6 m²
+bathroom, 100/150 mm duct). Putting one of them in a contractor-facing tool would
+repeat exactly what v0.31.8.64 had to correct. **Find a residential SG source before
+adding a rate** — with one, this becomes a real sizing line rather than a requirement
+flag, and the room could be ASSESSED instead of skipped, which is what the rest of this
+entry asks for.
 
 ## ~~Daylight: the 10% glazing figure is not sourced to Singapore~~ — RESOLVED v0.31.8.64
 

@@ -27,6 +27,56 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.65 — "not assessed" becomes "here is what this room needs"
+
+The daylight check measures openable WINDOW area, so an interior WC — which is legally
+ventilated by a duct, not a window — came back **N/A · "interior room, no external wall for a
+window"**. True, and useless: it describes what the check could not do rather than what the room
+requires.
+
+It now reads:
+
+> **interior WC — no external wall, so mechanical ventilation ducted to outdoor is required**
+
+SS 553 states that rule qualitatively — a bathroom or toilet without natural ventilation shall
+be mechanically ventilated through a duct direct to the outdoor — and the geometry already
+proves the premise, since `noFacade` means no window can ever be added.
+
+Live on **7 rooms across 7 templates** (`tpl-hdb-exec`, `-3gen` ×2, `-jumbo`, `-maisonette`,
+`tpl-condo-4bed`, `tpl-condo-penthouse`), ratcheted in `daylight.test.ts` so the wording cannot
+go inert the way it would if every shipped bath happened to have a window.
+
+### No rate, on purpose
+
+The obvious next step is to state the extract rate. I searched for one and got **three figures
+for three different scopes, none a primary residential source**:
+
+| figure | scope |
+| --- | --- |
+| 40 ACH | attributed to SS 553 for toilets/bathrooms with no natural ventilation |
+| 15 ACH (2017) → 20 ACH (2024) | NEA Code of Practice on Environmental Health — the premises **NEA regulates**, not private homes |
+| 150–200 CFM, 100/150 mm duct | trade guidance for a 4–6 m² HDB bathroom, not a code |
+
+Two releases ago this app was quoting an Australian code as if it were Singapore's, and
+v0.31.8.64 exists to correct that. Picking one of these three and printing it into a
+contractor-facing tool would be the same mistake with a different number. **The requirement is
+stated; the sizing is left to the M&E engineer**, and a test asserts the string contains no
+digits so a rate cannot creep in unsourced.
+
+`TODO.md` records all three figures and what would unblock the real model: a residential SG
+source. With one, these rooms could be *assessed* rather than skipped, which is what that entry
+has always been asking for.
+
+Looked at: `tpl-hdb-exec`'s Daylight & ventilation panel — the Common Bath row shows the new
+wording, wrapping to two lines in the same slot the shelter reason uses.
+
+Verified: 10191 tests pass; `tsc`, `biome`, `knip` clean.
+
+Sources:
+- [SS 553 (Singapore Standard, ACMV) preview](http://www.singaporestandardseshop.sg/data/ECopyFileStore/091117110542Preview%20-%20SS%20553-2009.pdf)
+- [SS 553:2016 incl. Amd 2](https://www.singaporestandardseshop.sg/Product/SSPdtDetail/112b67fc-8c96-4dd4-8d8a-e71a5b4d4df8)
+- [Toilet exhaust ventilation guide (SG trade guidance)](https://repair.sg/toilet-exhaust-ventilation-fan-guide-singapore/)
+
 ## v0.31.8.64 — the app was quoting an Australian code as if it were Singapore's
 
 `TODO.md` has carried this: `DAYLIGHT_MIN_RATIO = 0.1` could not be sourced to Singapore.
