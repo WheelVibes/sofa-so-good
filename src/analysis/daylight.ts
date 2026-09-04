@@ -15,6 +15,10 @@
  * plainly — a bathroom or toilet without natural ventilation shall be
  * mechanically ventilated through a duct direct to the outdoor.
  *
+ * **Edition, checked v0.31.8.98: the current one is SS 553:2026**, published
+ * 2026-02-06, superseding the SS 553:2016 (+A1:2017, Amd 2) line. Worth naming
+ * in a contractor-facing tool rather than citing "SS 553" undated.
+ *
  * **No RATE is stated, deliberately.** Searching for one returned 40 ACH
  * attributed to SS 553, 15 ACH (2017) rising to 20 ACH (2024) from NEA's Code of
  * Practice on Environmental Health — which governs the premises NEA regulates,
@@ -24,6 +28,16 @@
  * of them in a contractor-facing tool would repeat exactly the mistake
  * v0.31.8.64 corrected two releases ago. The requirement is stated; the sizing
  * is left to the M&E engineer until a residential figure can be cited.
+ *
+ * **v0.31.8.98 narrowed the gap from "find a source" to "buy one clause".** The
+ * rate, if the standard states one, is in **SS 553:2026 Table 5 — "Outdoor air
+ * supply for mechanical ventilation in non-air-conditioned buildings or parts of
+ * buildings with no natural ventilation"**, confirmed present by name in the
+ * official contents listing. The publisher's free preview is front matter ONLY:
+ * extracting its text yields no occurrence of "toilet", "bathroom", "air
+ * change", "residential" or "domestic" anywhere, so neither the figure nor the
+ * scope's treatment of dwellings can be read without purchasing the standard.
+ * That is the whole remaining blocker — not a search problem.
  *
  * Pure logic only — no React, no three — so it stays fully unit-testable. The
  * panel (`ui/DaylightPanel.tsx`) is presentation over the rows this returns.

@@ -2368,10 +2368,24 @@ to SS 553; 15 ACH (2017) rising to 20 ACH (2024) from NEA's Code of Practice on
 Environmental Health, which governs the premises NEA regulates rather than private
 homes; and trade guidance for HDB flats quoted in CFM (150-200 CFM for a 4-6 m²
 bathroom, 100/150 mm duct). Putting one of them in a contractor-facing tool would
-repeat exactly what v0.31.8.64 had to correct. **Find a residential SG source before
-adding a rate** — with one, this becomes a real sizing line rather than a requirement
-flag, and the room could be ASSESSED instead of skipped, which is what the rest of this
-entry asks for.
+repeat exactly what v0.31.8.64 had to correct.
+
+**v0.31.8.98: this is NOT a search problem, it is a paywall — and the target is now exact.**
+- **Edition:** the current standard is **SS 553:2026**, published 2026-02-06, superseding the
+  SS 553:2016 (+A1:2017, Amd 2) line. The code cited "SS 553" undated; it now names the edition,
+  because an undated code citation is its own defect in a contractor reference.
+- **Clause:** if a rate exists it is in **Table 5, "Outdoor air supply for mechanical ventilation
+  in non-air-conditioned buildings or parts of buildings with no natural ventilation"** —
+  confirmed present by name in the official contents listing.
+- **Why it stays blocked:** the publisher's free preview is FRONT MATTER ONLY. Extracting the
+  preview PDF's text stream directly yields no occurrence of "toilet", "bathroom", "air change",
+  "residential" or "domestic", and the product page does not render the scope either. So neither
+  the figure nor how the scope treats dwellings is readable without purchasing the standard.
+
+**So the next step is a purchase decision, not more searching.** Do not re-run the search; it has
+now been run three times (v0.31.8.64, .65, .98) and returns the same three out-of-scope figures.
+With the clause in hand this becomes a real sizing line rather than a requirement flag, and the
+room could be ASSESSED instead of skipped, which is what the rest of this entry asks for.
 
 ## ~~Daylight: the 10% glazing figure is not sourced to Singapore~~ — RESOLVED v0.31.8.64
 

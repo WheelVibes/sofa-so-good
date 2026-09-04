@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.98 — the ventilation rate is not a search problem, it is a paywall
+
+`MECH-VENT-REQUIRED` has sat blocked on "until a residential figure can be cited" since
+v0.31.8.65, with the note recording that searching returned three numbers for three different
+scopes (40 ACH attributed to SS 553; NEA's 15 -> 20 ACH, which governs NEA-regulated premises and
+not private homes; trade guidance in CFM). Went to find the primary source rather than re-run the
+same search.
+
+**Two concrete outcomes, neither of them the number.**
+
+**1. The edition was stale, and that matters here.** The current standard is **SS 553:2026**,
+published 2026-02-06, superseding the SS 553:2016 (+A1:2017, Amd 2) line. The docstring cited
+"SS 553" undated. In a tool whose whole claim is being usable as a contractor reference, an
+undated code citation is a defect on its own, so it now names the edition.
+
+**2. The clause is identified by name and number.** If SS 553 states a rate for an unventilated
+toilet, it is in **Table 5 — "Outdoor air supply for mechanical ventilation in non-air-conditioned
+buildings or parts of buildings with no natural ventilation"**, confirmed present in the official
+contents listing. That is a far more useful pointer than "three numbers, no primary source".
+
+**And the reason it stays blocked is now definite.** The publisher's free preview is front matter
+only. I extracted the preview PDF's text stream directly and it contains **no occurrence** of
+"toilet", "bathroom", "air change", "residential" or "domestic" — so neither the figure nor how
+the scope treats dwellings can be read without buying the standard. The product page abstract does
+not render the scope either.
+
+So the item changes character: it was "keep looking for a source", it is now "purchase one
+identified clause of one identified edition". That is a decision for whoever owns the budget, not
+a research task, and the code says so.
+
+The decline itself stands unchanged — no rate ships. Stating one of the three circulating figures
+in a contractor-facing tool would repeat exactly the sourcing mistake v0.31.8.64 corrected.
+
+Docs only; no behaviour change.
+
 ## v0.31.8.97 — the normal map works, and my argument against it was wrong
 
 v0.31.8.96 closed by recording that a normal map was the last untried lever, that I had not tested
