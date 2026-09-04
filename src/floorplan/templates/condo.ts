@@ -183,9 +183,30 @@ export function loft(): FloorPlan {
         thickness: 'external',
         topHeight: VOID_TOP,
       },
-      { id: 'lf-e-rear', start: [W - T, 3.4], end: [W - T, D - T], thickness: 'external' },
-      { id: 'lf-s', start: [W - T, D - T], end: [T, D - T], thickness: 'external' },
-      { id: 'lf-w-rear', start: [T, D - T], end: [T, 3.4], thickness: 'external' },
+      // The rear halves and the south wall stop at the MEZZANINE FLOOR (3.3), not the ground
+      // ceiling (3.0): above 3.3 the loft's own `lfu-*` walls take over, and the 0.3 m slab band
+      // between the two was unwalled envelope (v0.31.7.209).
+      {
+        id: 'lf-e-rear',
+        start: [W - T, 3.4],
+        end: [W - T, D - T],
+        thickness: 'external',
+        topHeight: loftLevel.elevation,
+      },
+      {
+        id: 'lf-s',
+        start: [W - T, D - T],
+        end: [T, D - T],
+        thickness: 'external',
+        topHeight: loftLevel.elevation,
+      },
+      {
+        id: 'lf-w-rear',
+        start: [T, D - T],
+        end: [T, 3.4],
+        thickness: 'external',
+        topHeight: loftLevel.elevation,
+      },
       { id: 'lf-w', start: [T, 3.4], end: [T, T], thickness: 'external', topHeight: VOID_TOP },
       iwall('lf-bath-w', [6.2, 3.6], [6.2, D - T]),
       iwall('lf-bath-n', [6.2, 3.6], [W - T, 3.6]),
@@ -531,7 +552,8 @@ export function condoTerrace(): FloorPlan {
     ceilingHeight: 3.0,
     extent: [W, D],
     walls: [
-      ...perimeter('ct', W, D),
+      // Up to the UPPER STOREY'S FLOOR (see `perimeter`): the 0.3 m slab band was unwalled.
+      ...perimeter('ct', W, D, upper.elevation),
       // Car-porch parapet at the south (front).
       parapet('ct-porch-n', [T, 2.6], [W - T, 2.6]),
       // Living / dining mid-block, kitchen + yard at the rear (north).

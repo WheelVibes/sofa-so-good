@@ -29,6 +29,36 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.209 — the same defect, generalised: every multi-storey envelope had an unwalled slab band (item `(x)`)
+
+`(w)` was fixed on `tpl-loft` by reading one template. The mechanism is not template-specific, so I
+scanned all three multi-storey plans for the same thing: a storey's exterior wall is built at
+`wall.topHeight ?? plan.ceilingHeight`, i.e. at its OWN ceiling, while the storey above starts at
+its elevation — and the floor slab sits between them with **no wall in it**.
+
+Measured, all three: `tpl-hdb-maisonette` ground walls top out at **2.6 m** under an upper storey
+whose walls start at **2.9 m**; `tpl-terrace-ground` at **3.0** under **3.3**; `tpl-loft`'s rear band
+at **3.0** under **3.3**. A 0.3 m ring of open envelope on each. No probe was needed to confirm it —
+a horizontal ray at 2.75 m hits nothing by construction, since the wall boxes span 0–2.6 and
+2.9–5.5. `LevelSlab` spans only the bounding box of the storey above's own rooms, so it hides part
+of the band and not all of it.
+
+`perimeter()` takes an optional `topHeight`, documented with the measurement. Both ground envelopes
+pass `upper.elevation`; `tpl-loft`'s rear halves and `lf-s` pass `loftLevel.elevation` — the
+mezzanine FLOOR, not the void ceiling, because above 3.3 m the loft's own `lfu-*` walls occupy
+those planes and a taller ground wall would render coplanar with them. Single-storey plans pass
+nothing and are byte-identical.
+
+`doubleHeightVolume.test.ts` gains an envelope-continuity case per multi-storey template, plus a
+count assertion so a filter that matched no templates could not report green. Both new cases were
+checked to FAIL against the pre-fix `perimeter()`.
+
+**Not verified in a frame, and worth saying plainly.** The band is 0.3 m at 2.6–3.3 m on an exterior
+wall, so seeing it needs an orbit pose from outside the building, and no probe here can take one —
+`aim-look.mjs` is first-person only. The fix rests on the geometry and the ratchet. Cost was not
+re-measured either: four wall boxes per template grow by 0.3 m with no change in count.
+
+
 ## v0.31.7.208 — `tpl-loft`'s double-height volume is actually double height (item `(w)`)
 
 The template's whole reason to exist — "double-height living with a real sleeping mezzanine" — was

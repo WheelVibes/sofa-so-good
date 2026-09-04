@@ -95,12 +95,46 @@ describe('double-height volumes are enclosed to their own height', () => {
     ).toEqual([])
   })
 
-  it('walls NOT bounding the void are left at the storey height', () => {
-    // The complement matters: raising every wall would put ground geometry coplanar with the
-    // loft's own external walls, which occupy the same planes from 3.3 m up.
+  it('walls NOT bounding the void stop at the MEZZANINE FLOOR, not the void ceiling', () => {
+    // The complement matters: raising every wall to 5.5 would put ground geometry coplanar with
+    // the loft's own external walls, which occupy the same planes from 3.3 m up. They still must
+    // not stop at the ground CEILING either — see the envelope-continuity test below.
     const plan = PLAN_TEMPLATES.find((t) => t.id === 'tpl-loft') as FloorPlan
     const rear = plan.walls.filter((w) => w.id === 'lf-s' || w.id.endsWith('-rear'))
     expect(rear.length).toBeGreaterThanOrEqual(3)
-    for (const w of rear) expect(w.topHeight).toBeUndefined()
+    const loftFloor = Math.min(...(plan.upperLevels ?? []).map((l) => l.elevation))
+    for (const w of rear) expect(w.topHeight).toBe(loftFloor)
+  })
+})
+
+describe('a multi-storey envelope has no unwalled slab band', () => {
+  /**
+   * A storey's exterior wall must reach the NEXT storey's floor, not its own ceiling.
+   *
+   * Measured `v0.31.7.209`: `tpl-hdb-maisonette` ground walls topped out at 2.6 m under an upper
+   * storey whose walls start at 2.9 m, and `tpl-terrace-ground` at 3.0 m under 3.3 m — a 0.3 m
+   * ring of envelope with no wall in it on both, so a horizontal ray at 2.75 m left the building
+   * without hitting anything, by construction. `LevelSlab` covers only the bounding box of the
+   * storey above's own rooms, so it hides some of the band and not all of it.
+   */
+  const multi = PLAN_TEMPLATES.filter((t) => (t.upperLevels ?? []).length > 0)
+
+  it('finds the multi-storey templates at all', () => {
+    // Three today. A filter that matched none would make every check below vacuous.
+    expect(multi.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it.each(
+    multi.map((t) => [t.id, t] as const),
+  )('%s: every external ground wall reaches the storey above', (_id, plan) => {
+    const lowestUpper = Math.min(...(plan.upperLevels ?? []).map((l) => l.elevation))
+    const short = plan.walls
+      .filter((w) => w.thickness === 'external')
+      .filter((w) => (w.topHeight ?? plan.ceilingHeight) < lowestUpper - 0.01)
+      .map((w) => `${w.id} (top ${w.topHeight ?? plan.ceilingHeight} < ${lowestUpper})`)
+    expect(
+      short,
+      'these external walls stop below the floor of the storey above — the slab band between them is open envelope',
+    ).toEqual([])
   })
 })

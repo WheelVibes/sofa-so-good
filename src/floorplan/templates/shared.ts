@@ -6,17 +6,29 @@ import type { FloorPlan, HousingType, PlanOpening, PlanWall, RoomCategory } from
 export const T = 0.1 // inset of walls from the nominal footprint edge
 
 /** Four external perimeter walls around a W×D footprint (inset by T). */
-export function perimeter(prefix: string, W: number, D: number): PlanWall[] {
+/**
+ * The four external walls of a storey, N and E laid out forwards, S and W backwards.
+ *
+ * `topHeight` exists for MULTI-STOREY plans. A wall is built at
+ * `wall.topHeight ?? plan.ceilingHeight` (`planGeometry.ts`), so a ground storey with a 2.6 m
+ * ceiling under an upper storey whose floor sits at 2.9 m leaves a **0.3 m band of envelope with
+ * no wall in it** — the floor-slab zone. Measured on every multi-storey template
+ * (`v0.31.7.209`): `tpl-hdb-maisonette` and `tpl-terrace-ground` both had exactly 0.3 m open,
+ * and a horizontal ray at 2.75 m hit nothing by construction. Pass the NEXT storey's elevation
+ * and the envelope is continuous. Single-storey plans pass nothing and are unchanged.
+ */
+export function perimeter(prefix: string, W: number, D: number, topHeight?: number): PlanWall[] {
   const a: [number, number] = [T, T]
   const b: [number, number] = [W - T, T]
   const c: [number, number] = [W - T, D - T]
   const d: [number, number] = [T, D - T]
   const ext: PlanWall['thickness'] = 'external'
+  const top = topHeight === undefined ? {} : { topHeight }
   return [
-    { id: `${prefix}-n`, start: a, end: b, thickness: ext },
-    { id: `${prefix}-e`, start: b, end: c, thickness: ext },
-    { id: `${prefix}-s`, start: c, end: d, thickness: ext },
-    { id: `${prefix}-w`, start: d, end: a, thickness: ext },
+    { id: `${prefix}-n`, start: a, end: b, thickness: ext, ...top },
+    { id: `${prefix}-e`, start: b, end: c, thickness: ext, ...top },
+    { id: `${prefix}-s`, start: c, end: d, thickness: ext, ...top },
+    { id: `${prefix}-w`, start: d, end: a, thickness: ext, ...top },
   ]
 }
 
