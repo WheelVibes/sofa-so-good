@@ -29,6 +29,38 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.283 — not room-level darkness: the baked GI falls off toward room EDGES too fast
+
+`.282` found the main bedroom's wall at 0.926 and filed "room-level darkness" as a lead, on one
+patch. A pose with real ceiling area says the shape is different. `mainBedroom` pitched up 0.22 rad,
+daylight-only, its own Cycles reference at 128 samples, app ÷ Cycles on clean patches:
+
+| patch | Cycles | app | ratio |
+| --- | --- | --- | --- |
+| ceiling CENTRE | 215.1 | 209.9 | **0.976** |
+| ceiling LEFT EDGE | 207.2 | 180.2 | **0.869** |
+| wall left | 212.9 | 200.0 | **0.939** |
+
+**The ceiling is nearly right in the middle of the room and falls away toward the walls faster than
+physics does.** That is a gradient error, not a level one, and `.282`'s single wall patch was
+reading the gradient rather than the room. The spreads agree: ceiling-edge sd 10.7 against Cycles'
+1.1, where the two centre patches match at 3.7 vs 3.0.
+
+It also re-reads `.266`'s very first floor observation, which I had set aside: three floor patches
+at 0.811 / 0.948 / 0.877, worst beside the ottoman — against an occluder. Same signature.
+
+**Filed as `(z11)` with suspects, untested.** The bake runs `res 256` with `dilate 4` and
+`bake_margin 2`, so an atlas slot's edge texels are dilated outward from whatever borders them;
+Cycles' own corner darkening is real but softer. A texel-scale comparison at a wall/ceiling junction
+against the map would separate dilation from genuine occlusion, and that is the next measurement.
+
+**Two retractions, both caught by the overlay rather than by their numbers.** One patch clipped the
+wardrobe's dark edge (app sd 36.0 against Cycles' 5.2). And `.282`'s 72-101-count ceiling reading is
+formally retracted: that pose's visible ceiling was a band about 8 % of frame height where a small
+framing difference lands a patch on a downstand beam, which is why I declined to quote it as a
+magnitude then — with real ceiling area the centre reads 0.976.
+
+
 ## v0.31.7.282 — the window fix validated in a second room; a room-level darkness lead alongside it
 
 `.280` and `.281` were both measured at ONE pose in `livingDining`. This arc's own rule is that one
