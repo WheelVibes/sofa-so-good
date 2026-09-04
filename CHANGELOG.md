@@ -27,6 +27,24 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.9 — the TODO note v0.31.9.8 promised, which had silently failed to apply
+
+v0.31.9.8's changelog said the upstairs-layout weakness was "now in `TODO.md`". It was not. The
+scripted edit asserted on an anchor that the v0.31.9.6 sweep had already renamed, so it raised and
+wrote nothing — and because the assertion fired in a separate here-doc from the commit, the commit
+went through anyway. The changelog referenced a note that did not exist.
+
+Added now, with the four measured consequences of giving upstairs doors their swings, and why they
+are honest but not acceptable output: the ground floor received four rescue passes over this arc
+(WALL-SNAP-SHORTFALL, MOUNT-HEIGHT-CLASH, the unseal disc, satellite carry) and **none of them was
+ever exercised upstairs**, because upstairs had no door keep-outs to conflict with. A dropped
+bathroom sink is the visible cost. `tpl-terrace-ground`'s upper bathroom is the place to start: one
+piece, one door.
+
+The process lesson is in the entry itself — **assert on the anchor AND verify the file changed
+before committing a docs edit.** A docs edit that fails silently is worse than one that fails
+loudly, because the prose that depends on it still ships.
+
 ## v0.31.9.8 — every upstairs door was exempt from swing arcs and clearance checks
 
 Continuing F13 stage 1 by classifying the remaining `plan: FloorPlan` helpers. The classifier

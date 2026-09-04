@@ -4,6 +4,28 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Upstairs layouts are weaker than the ground floor's — exposed by v0.31.9.8
+
+Giving upper-storey doors their default swings (they had NONE — `withInwardDoorSwings` read the
+ground floor only) immediately cost real furniture, because the upstairs arrangements had been
+placed through door swings that did not exist:
+- `tpl-terrace-ground` loses a `bathroom-sink` (3 -> 2) — its upstairs bathroom door swing now
+  overlaps where the sink sat.
+- `tpl-hdb-maisonette` loses a `wardrobe-3door` (3 -> 2) and gains a severed room,
+  `emu-landing` 4.0 m².
+- `tpl-hdb-maisonette/emu-fam`'s rug and coffee table no longer settle on the room centre.
+
+The ground floor got several rescue passes over this arc (WALL-SNAP-SHORTFALL, MOUNT-HEIGHT-CLASH,
+the unseal disc, satellite carry). **None of that work was ever exercised upstairs**, because
+upstairs had no door keep-outs to conflict with. The drops are honest, but a dropped bathroom sink
+is poor output — the upstairs cases now need the same treatment. Start with
+`tpl-terrace-ground`'s upper bathroom: it is one piece and one door.
+
+**Process note for whoever picks this up:** the TODO edit that was supposed to add this entry in
+v0.31.9.8 FAILED (its anchor had been renamed by the v0.31.9.6 sweep) while the commit went
+through, so the changelog referenced a `TODO.md` note that did not exist until v0.31.9.9. Assert on
+the anchor AND check the file changed before committing a docs edit.
+
 ## ~~A door into a bedroom should be checkable~~ — the check is ILL-FORMED (v0.31.8.85)
 
 v0.31.8.84 proposed it after having to correct a claim that two new service-band doors did not
