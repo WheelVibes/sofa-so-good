@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.236 — the export drops NO real geometry, so `--min-area` is the only coverage lever left. Item `(y)` registered
+
+`.232` narrowed `.227`'s 17 unmapped ≥3 m² meshes to "a correspondence problem between the runtime
+scene and the GLB export". This closes that, and the answer is that there is no problem to fix.
+
+Counting meshes on both sides of `buildExportRoot` in the live app:
+
+| | meshes | of which ≥ 3 m² |
+| --- | --- | --- |
+| live, visible | 1072 | **136** |
+| exported | 1060 | **126** |
+
+So the export drops 12 meshes, 10 of them large — a tenth of the bake-eligible surfaces, which
+looked like the cause. It is not. Every dropped large mesh identifies as render-only: several
+`MeshBasicMaterial` with `colorWrite: false, opacity: 0, transparent: true` (the virtual ceiling
+occluders), and one carrying an explicit `noExport` tag. **No real architecture is pruned**, which is
+exactly what `export-helpers.mjs` was written to guard and what it still reports.
+
+That leaves the gap between 126 exported large meshes and 111 baked maps, and the bake explains it
+itself: `--pass irradiance` calls `open_apertures()`, which **DELETES the glazing** before baking
+(`--keep-glazing` exists to defeat it, added in `.181` after that deletion was measured backwards).
+Window panes are `MeshPhysicalMaterial`, which my census counts as Standard-family because Physical
+extends Standard and carries `aoMap` — so a pane large enough to qualify is counted as unmapped
+headroom while being deliberately excluded by the bake. Several of the 17 are panes.
+
+**So every candidate cause of the coverage gap is now closed except the threshold.** Not the
+`--limit` cap (`.232`: a re-bake at the shipped threshold selects the same 111), not the export (this
+commit), not the runtime keying, not `uv1` (`.226`: built at runtime, so its absence is a consequence
+of no map, not a cause). What remains is `--min-area 3.0`, and the 1.5 bake is at 96 maps.
+
+Also: **item `(y)` ROOM-SET-FOOTPRINT-GAP is registered** in `docs/open-graphics-decisions.md`. I
+referenced `(y)` in `PlanShell`'s comment when shipping `.234` without ever adding it to the table
+the rest of the arc is tracked in, which is how an item becomes invisible to the next reader. The row
+records the 16-of-19 spread, both defect shapes, the ground-level restriction and its reason, the
+8-60 mesh cost, and the daylight leak it closed.
+
+Suite 10219 green.
+
+
 ## v0.31.7.235 — verifying `.234`: the dollhouse is not lidded, and closing the holes removes a DAYLIGHT LEAK worth 16 counts in the worst room
 
 Three checks on the gap ceilings, one of which I had not thought to make until the frames prompted
