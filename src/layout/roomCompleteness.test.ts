@@ -65,8 +65,11 @@ const KNOWN_INCOMPLETE = [
   // `tpl-hdb-5room/ground/h5-bed3` was here until v0.31.9.16. Its bed was never
   // missing — `unsealRoutes` had SLID it 2.25 m into `h5-living` to open a
   // route, which no item-count ratchet could see. Room containment fixed it.
-  // 8.7 m², with TWO nightstands and a wardrobe. Nightstands flanking nothing.
-  'tpl-hdb-3gen/ground/g3-gen: missing a bed',
+  // `tpl-hdb-3gen/ground/g3-gen` was here until v0.31.9.17. Its door was centred
+  // on the 3.56 m north wall, so the 0.90 m swing keep-out split it into 1.28 m
+  // and 1.38 m runs — both 0.14 m short of a 1.52 m `bed-queen`, in every
+  // orientation. Moving the door to the west jamb gave a 2.68 m run and the room
+  // gained 8 pieces. The room was never too small.
   // The four hood-without-hob kitchens are already in `applianceWall.test.ts`'s
   // KNOWN_ORPHAN_HOODS; what that ratchet cannot see is that they are missing
   // the rest of the kitchen too.
@@ -124,11 +127,16 @@ describe('a room contains the fixture that makes it that room', () => {
     expect(survey().incomplete.sort()).toEqual([...KNOWN_INCOMPLETE].sort())
   }, 180_000)
 
-  it('leaves at most one bedroom without a bed', () => {
+  it('leaves NO bedroom without a bed', () => {
     // Stated separately and as an inequality: a bedroom with no bed is the worst
     // of these, so it gets an assertion that cannot be satisfied by trading a
     // kitchen fault for a bedroom one.
     const bedless = survey().incomplete.filter((r) => r.includes('missing a bed'))
-    expect(bedless.length).toBeLessThanOrEqual(1)
+    // ZERO since v0.31.9.17. Both offenders turned out to be defects rather than
+    // capacity limits: `h5-bed3`'s bed was being evicted into the living room by
+    // `unsealRoutes` (v0.31.9.16), and `g3-gen`'s door was centred on the only
+    // wall long enough to take a bed. Keep this at zero — a bedroom with no bed
+    // is the least defensible output this app can produce.
+    expect(bedless).toEqual([])
   }, 180_000)
 })

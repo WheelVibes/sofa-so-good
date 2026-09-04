@@ -27,7 +27,16 @@ was never missing — `unsealRoutes` slid it 2.25 m out of the room into `h5-liv
 item-count ratchet could see because eviction conserves pieces. The pass now refuses to leave a
 piece's room. That gave back v0.31.8.86's four `tpl-hdb-5room` rooms plus `c4-bed4`, because those
 had been "opened" BY the eviction — `routeAccess` 6 -> 11, a correction.
-**`g3-gen` is a DIFFERENT cause and still open:** its queen bed is deleted by `dropDoorBlockers`
+**`g3-gen` is FIXED (v0.31.9.17) — and it was the DOOR, not the room.** Its door sat at offset 1.6,
+the middle of the 3.56 m north wall; the 0.90 m swing keep-out split that into 1.28 m and 1.38 m
+runs against a 1.52 m `bed-queen` — short by exactly 0.14 m in EVERY orientation. Moved to offset
+0.3 (west jamb): 2.68 m clear run, `tpl-hdb-3gen` 89 -> 97 items (+8, nothing lost), overlaps still
+0, no route change. **Every bedroom in the corpus now has a bed**, and
+`roomCompleteness.test.ts` asserts that as `toEqual([])`.
+My earlier guess that the 2.3 m depth was the constraint (wardrobe + storageFront + bed) was wrong:
+the depth was never binding, the door position was.
+
+**Superseded note:** its queen bed is deleted by `dropDoorBlockers`
 for sitting in a door keep-out. The room is 3.8 x 2.3 m, and 2.3 m of depth cannot take a
 wardrobe (0.6) + its `storageFront` clearance (~0.75) + a 2.0 m bed — see the built-in-wardrobe
 entry, which measured the same constraint on `tpl-condo-3bed`. Measure before publishing a cause.

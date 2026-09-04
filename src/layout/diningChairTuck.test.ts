@@ -113,7 +113,14 @@ describe('dining chairs are tucked to their table', () => {
       // 86 → 89 in v0.31.8.40: `furnishPlan` now sizes a wardrobe to its room, so
       // the grandparent suite (3.8 x 2.3) picks up the wardrobe it had been
       // losing, plus two more pieces that then fit.
-      'tpl-hdb-3gen': 89,
+      // 89 -> 97 in v0.31.9.17 (GEN-DOOR-OFFSET), a GAIN of 8 with no losses.
+      // Per-def: `bed-queen` +1, `dresser` +1, then the styling pass dressing
+      // what now exists — `throw-blanket` +2, `throw-cushion` +2, `wall-art` +1,
+      // `photo-frame-cluster` +1. The Grandparent Suite's door was centred on
+      // its 3.56 m north wall, splitting it into 1.28 m and 1.38 m runs against
+      // a 1.52 m `bed-queen`; moving it to the west jamb gives a 2.68 m run.
+      // Overlaps stay 0 and no route changes.
+      'tpl-hdb-3gen': 97,
       // 120 → 116 in v0.31.8.29: the jumbo re-author divided bedrooms 4 and 5
       // (one undivided volume before) and shrank the master from a rectangle
       // that overran the corridor wall and both baths, 11.5 → 6.9 m². Fewer,
@@ -263,7 +270,9 @@ describe('dining chairs are tucked to their table', () => {
     // number checked: a per-template regression can hide inside a stable total.
     // 1448 -> 1450 in v0.31.9.16 (ROOM-CONTAINMENT): +2 `tpl-hdb-5room`, diffed per
     // def above, no other template moves.
-    expect(total).toBe(1450)
+    // 1450 -> 1458 in v0.31.9.17 (GEN-DOOR-OFFSET): +8 on `tpl-hdb-3gen` alone,
+    // diffed per def above. No other template moves and nothing is lost.
+    expect(total).toBe(1458)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

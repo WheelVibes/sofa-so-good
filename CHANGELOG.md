@@ -27,6 +27,51 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.17 — the Grandparent Suite's door was centred, so its bed was 0.14 m short
+
+The second bedless bedroom from v0.31.9.15, and unlike `ctu-mbath` this one is a clean fix with no
+trade.
+
+`tpl-hdb-3gen/g3-gen` is 3.8 x 2.3 m — 8.7 m², ample for a queen bed. Its door sat at offset 1.6,
+which puts it at x 7.80-8.70: **the middle of the 3.56 m north wall.** The 0.90 m swing keep-out
+then splits that wall into runs of **1.28 m and 1.38 m**, and a `bed-queen` is **1.52 m** wide:
+
+| | available | needed | short by |
+|---|---|---|---|
+| west run along the N wall | 1.28 m | 1.52 m | 0.14 m |
+| east run along the N wall | 1.38 m | 1.52 m | 0.14 m |
+| depth clear of the keep-out, bed unrotated | 1.38 m | 1.90 m | 0.52 m |
+| depth clear of the keep-out, bed rotated | 1.38 m | 1.52 m | 0.14 m |
+
+**Short by exactly 0.14 m in every orientation**, so `dropDoorBlockers` deleted the bed and an
+8.7 m² suite shipped with two nightstands flanking nothing.
+
+Moved the door to offset 0.3 — near the west jamb — which gives a **2.68 m** clear run. Same defect
+and same remedy as v0.31.8.57's `tpl-condo-2bed` front door, which opened into the kitchen.
+
+### A pure gain, which is rare on this thread
+
+| | |
+|---|---|
+| `tpl-hdb-3gen` items | 89 -> **97** |
+| corpus | 1450 -> 1458 |
+| overlaps | 0 -> 0 |
+| severed rooms | none -> none |
+
+Per def: `bed-queen` +1, `dresser` +1 — and then the styling pass dressing what now exists,
+`throw-blanket` +2, `throw-cushion` +2, `wall-art` +1, `photo-frame-cluster` +1. **Nothing is
+lost.** The door was costing eight pieces, not one.
+
+### Every bedroom in the corpus now has a bed
+
+Both offenders v0.31.9.15 found turned out to be defects rather than capacity limits — `h5-bed3`'s
+bed was being evicted into the living room (v0.31.9.16), and this door was centred on the only wall
+long enough to take one. `roomCompleteness.test.ts`'s bedless assertion is now `toEqual([])` rather
+than an inequality, with a note to keep it there.
+
+Verified visually (`scripts/scenarios/gen-suite-bed.json`, kept): the suite renders with a queen
+bed, pillows and blanket, nightstands either side, a wardrobe, a dresser and the door on the west.
+
 ## v0.31.9.16 — v0.31.8.86 opened four rooms by putting a bed in the living room
 
 v0.31.9.15's next step was `h5-bed3`, a 9 m² bedroom with no bed, and my recorded hypothesis was

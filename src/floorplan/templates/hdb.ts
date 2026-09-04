@@ -436,7 +436,17 @@ export function hdb3Gen(): FloorPlan {
       door('g3-master', 'g3-s-wing-n', 4.2),
       door('g3-mbath', 'g3-mb-e', 0.5, 0.8),
       // Grandparent suite: entered from the living, its ensuite from the room.
-      door('g3-gen', 'g3-gen-n', 1.6),
+      // 1.6 until v0.31.9.17, which put the door at x 7.80-8.70 — the MIDDLE of
+      // the Grandparent Suite's 3.56 m north wall. Its 0.90 m swing keep-out
+      // split that wall into runs of 1.28 m and 1.38 m, and a `bed-queen` is
+      // 1.52 m wide: BOTH short by exactly 0.14 m, in every orientation (the
+      // depth clear of the keep-out is 1.38 m against a 1.90 m bed, or 1.52 m
+      // rotated — the same 0.14 m). So `dropDoorBlockers` deleted the bed and an
+      // 8.7 m² suite shipped with two nightstands flanking nothing.
+      // At 0.3 the door sits near the west jamb and the clear run is 2.68 m.
+      // The room was never too small; the door was centred. Same defect and same
+      // remedy as v0.31.8.57's `tpl-condo-2bed` front door.
+      door('g3-gen', 'g3-gen-n', 0.3),
       window('g3-kit-win', 'g3-n', 1.2, 1.6),
       // BEDROOM-WINDOW (h): `g3-w` runs SOUTH→NORTH from [0.1, 11.3], so an
       // offset o sits at z = 11.3 − o. `g3-m-win` was at offset 9.6, i.e.
