@@ -1,7 +1,7 @@
 import { ROOMS } from '../apartment/constants'
 import { roomContains, roomParts } from '../apartment/roomGeometry'
 import type { RoomId } from '../apartment/types'
-import { broadphaseNeighbours, canPlace } from '../collision/placement'
+import { broadphaseNeighbours, canPlace, itemHeightAwareClash } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { GROUND_LEVEL_ID, levelAsPlan, levelOfRoom, planLevels } from '../floorplan/levels'
@@ -197,9 +197,40 @@ function tryPlace(
   // equivalence sweep in arrangeBroadphase.test.ts. The wall arm of canPlace
   // is unaffected (it never reads `others`).
   const near = broadphaseNeighbours(candidate, def, others, ctx.catalog)
+  /**
+   * MOUNT-HEIGHT-IN-ARRANGER (v0.31.9.30) — a MOUNTED obstacle only blocks this
+   * candidate if their vertical spans actually overlap.
+   *
+   * `arrangeCore` seeds `world` with the room's fixed pieces "so floor furniture
+   * isn't parked under them", and the flaw in that is timing: mounts are still on
+   * their SEED at this point — the room CENTRE — because `placeSeededMounts`
+   * moves them to their walls afterwards, in `furnishPlan`. So every room
+   * arranged its floor around a phantom obstacle in the middle of the room.
+   *
+   * Measured on `tpl-hdb-maisonette/emu-cbath`: its `toilet` was refused every
+   * position on every wall — `wallsOk=true`, no keep-out, no window — by a
+   * `towel-rail@7.50,1.30`, which is a 1.1 m-high rail and cannot conflict with a
+   * toilet. Both the toilet and the basin then sat on the seed, `dropOverlaps`
+   * kept the toilet and deleted the basin AND the shower the arranger HAD
+   * placed. That is the basin `bathroomFixtures.test.ts` records.
+   *
+   * The rest of the pipeline was already height-aware and this was the outlier:
+   * `dropOverlaps` uses `findItemOverlaps`, and `placeSeededMounts`'
+   * MOUNT-HEIGHT-CLASH note says in as many words that "a mirror above a basin is
+   * not a clash and must neither reserve floor nor be blocked by it". The
+   * arranger reserved that floor anyway, and then the drop pass disagreed.
+   *
+   * Non-mounted obstacles are untouched — a floor piece still blocks a floor
+   * piece outright, whatever their heights.
+   */
+  const relevant = near.filter((o) => {
+    const od = ctx.catalog[o.defId]
+    if (!od?.mounted) return true
+    return itemHeightAwareClash(candidate, def, [o], ctx.catalog)
+  })
   if (
     canPlace(candidate, def, {
-      others: near,
+      others: relevant,
       defs: ctx.catalog,
       doors: ctx.doors,
       walls: ctx.walls,
@@ -902,6 +933,28 @@ function arrangeCore(opts: {
     // (wall/ceiling mounts — aircon, range hood, sconces… — AND any user-LOCKED
     // item, which must stay exactly where the user left it), all kept at their
     // current transform as obstacles so floor furniture isn't parked under them.
+    // `world` starts with the OTHER rooms' items + this room's FIXED pieces
+    // (wall/ceiling mounts — aircon, range hood, sconces… — AND any user-LOCKED
+    // item, which must stay exactly where the user left it), all kept at their
+    // current transform as obstacles so floor furniture isn't parked under them.
+    //
+    // SEED-MOUNT, REJECTED (v0.31.9.30). On the furnish path these mounts are
+    // still on their SEED — the room CENTRE — because `placeSeededMounts` moves
+    // them to their walls only AFTER this runs, so the floor is arranged around
+    // a phantom obstacle mid-room. That is the measured cause of
+    // `tpl-hdb-maisonette/emu-cbath`'s missing basin: its `toilet` was refused
+    // every position on every wall by a `towel-rail@7.50,1.30` that later ends up
+    // at 8.13,1.30.
+    //
+    // Excluding a fixed piece still within `placeSeededMounts`' own seed epsilon
+    // was built and measured, and it is FAR worse: `missing-fixture` 6 -> 11 and
+    // the ranked score 60,813,173,903 -> 110,913,174,303. Without the mounts
+    // holding the centre, floor pieces take it and then the mounts have no wall
+    // left to be rescued to. The phantom is load-bearing.
+    //
+    // The fix has to be ORDERING — place mounts on their walls BEFORE the floor
+    // arranging, not after — which means splitting `placeSeededMounts`, whose
+    // other half is a rescue that by construction runs afterwards.
     const world: FurnitureItem[] = allItems
       .filter((i) => !inRoom(i) || isFixed(i))
       .map((i) => ({ ...i }))

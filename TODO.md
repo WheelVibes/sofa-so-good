@@ -98,9 +98,22 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   **LANDED in v0.31.9.29** at a price written into every ratchet it moved. Lever B (settle
   containment) stays out — it adds two stranded chairs and the score does not pay for them.
   **What the trade left open, in severity order:**
-  - `tpl-hdb-maisonette/em-up/emu-cbath` lost its basin (severity 1). This is the half of a
-    1-for-1 swap with `cs-kit`'s hob and counter; recovering it WITHOUT giving `cs-kit` back is
-    the highest-value item on this thread.
+  - `tpl-hdb-maisonette/em-up/emu-cbath` lost its basin (severity 1) — **CAUSE ESTABLISHED
+    v0.31.9.30, and the fix is an ORDERING change.** A `towel-rail@7.50,1.30` — a wall mount still
+    sitting on the room-centre seed — refuses the toilet every position on every wall (walls fine,
+    no keep-out, no window; instrumented gate by gate). Both the toilet and basin then stay on the
+    seed and `dropOverlaps` deletes the basin and the shower. The rail ends up at 8.13,1.30 once
+    `placeSeededMounts` runs, which is AFTER the arranger — so the floor is arranged around a
+    phantom.
+    Three fixes were built and measured, all rejected: height-aware mounted obstacles (inert — the
+    rail spans 0.70-1.20 m and a toilet reaches 0.78, so the clash is real); excluding seed-parked
+    mounts from `world` (`missing-fixture` 6 -> 11, score 60.8 G -> 110.9 G — the phantom is
+    load-bearing, because without it floor pieces take the centre and the mounts have no wall left
+    to be rescued to); and a compact 800 mm shower tray (score -> 70.8 G, cost `ctu-cbath` its
+    basin and `emu-cbath` its shower).
+    **NEXT: split `placeSeededMounts`** so mounts reach their walls BEFORE the floor arranging and
+    act as real obstacles rather than phantoms. Its other half — the stranded-floor-piece rescue —
+    has to keep running afterwards.
   - `tpl-condo-1study/cs-balcony` is severed (severity 3).
   - `tpl-hdb-jumbo` dropped out of `diningChairTuck`'s clean list — one chair settles 4.54 m from
     its table (severity 4). Corpus-wide the count is unchanged at 17.

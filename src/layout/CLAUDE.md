@@ -290,6 +290,47 @@ back, at no cost to the nine appliance fixes it was traded for). Cost: `tpl-cond
 loses its desk and book-set, and `tpl-1bed/ob-kit` its ceiling light — both recorded per-def in
 `diningChairTuck.test.ts` and named in `TODO.md`.
 
+## Mounts are PHANTOM obstacles at the room centre until `placeSeededMounts` runs (v0.31.9.30)
+
+`arrangeCore` seeds `world` with the room's fixed pieces "so floor furniture isn't parked under
+them". On the furnish path those mounts are still on their SEED — the room CENTRE — because
+`placeSeededMounts` moves them to their walls AFTER the arranger. So every room's floor is
+arranged around an obstacle that is not where it will end up.
+
+Measured on `tpl-hdb-maisonette/emu-cbath` (rect 1.16 x 1.96), instrumenting `snapToWall` gate by
+gate for its toilet:
+
+```
+W t=1.45 box 6.93-7.59 x 1.25-1.65  contained=true inKeepOut=false wallsOk=true
+                                     winHit=0 itemsOk=false
+                                     blockers=[towel-rail@7.50,1.30(mounted=true)]
+```
+
+A **towel rail in the middle of the bathroom** refuses the toilet every position on every wall.
+The toilet and basin both stay on the seed, and `dropOverlaps` then keeps the toilet and deletes
+the basin AND the shower the arranger had placed — that is the basin `bathroomFixtures.test.ts`
+records. The rail ends up at 8.13, 1.30.
+
+**Do not try to fix this by ignoring the phantom.** Excluding a fixed piece still within
+`placeSeededMounts`' own seed epsilon was measured at **`missing-fixture` 6 -> 11 and the ranked
+score 60,813,173,903 -> 110,913,174,303**: without the mounts holding the centre, floor pieces
+take it and the mounts then have no wall left to be rescued to. The phantom is load-bearing.
+
+**Nor by height.** `tryPlace` now skips a MOUNTED obstacle whose vertical span misses the
+candidate's, which aligns it with `dropOverlaps` and with `placeSeededMounts`' own doctrine that a
+mount "must neither reserve floor nor be blocked by it" — but it is INERT on today's corpus,
+because a towel rail spans 0.70-1.20 m and a toilet reaches 0.78. The clash is real.
+
+**The fix is ORDERING:** place mounts on their walls before the floor arranging, so they are real
+obstacles instead of phantoms. That means splitting `placeSeededMounts`, whose other half detects
+"still exactly at the seed point = never placed by the arranger" and therefore has to keep running
+afterwards.
+
+Related: the `shower` def's `size` param drove every rendered dimension and NOT the collision
+footprint (no `footprintParams`), so a 1.2 m shower collided as 0.9 and a 0.8 m one reserved floor
+it did not occupy. Fixed in the same release; inert, because every shipped shower takes the
+default.
+
 ## COUNTER-INSET and WALL-ENDS, and the price they were bought at (v0.31.9.29)
 
 Two changes, landed together because either alone is a regression, and judged by the ranked score

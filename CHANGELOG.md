@@ -27,6 +27,79 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.30 — a towel rail in the middle of the bathroom, and the phantom turns out to be load-bearing
+
+The highest-value item after v0.31.9.29 was recovering `emu-cbath`'s basin without giving
+`cs-kit` back. Traced it to a definitive cause, built two fixes for it, and **measured both as
+worse than the defect.** Two smaller findings ship; the basin does not.
+
+### Why `emu-cbath` has no basin
+
+Traced through the pass chain rather than reasoned about. In `arranged`, the room's toilet, basin,
+mirror, towel rail and light are **all still on the room-centre seed (7.50, 1.30)** — only the
+shower was placed. `dropOverlaps` then keeps the first-seeded toilet and deletes the basin AND the
+shower the arranger had placed.
+
+So the question was why the toilet never places in a 1.16 x 1.96 m rect. Instrumenting
+`snapToWall`'s gates for it, position by position:
+
+```
+W t=1.45 box 6.93-7.59 x 1.25-1.65  contained=true inKeepOut=false wallsOk=true
+                                     winHit=0 itemsOk=false
+                                     blockers=[towel-rail@7.50,1.30(mounted=true)]
+```
+
+**A towel rail, sitting in the middle of the bathroom, refuses the toilet every position on every
+wall.** Not the walls, not the door swing, not a window — a wall-mounted rail that has not been
+moved to its wall yet. `arrangeCore` seeds `world` with the room's fixed pieces "so floor
+furniture isn't parked under them", and `placeSeededMounts` relocates them AFTER the arranger
+runs, so until then every mount is a phantom obstacle at the room centre. This rail ends up at
+8.13, 1.30.
+
+### Fix 1, rejected: make mounted obstacles height-aware. Inert.
+
+`dropOverlaps` and `placeSeededMounts` are both height-aware — the latter's own note says a mount
+"must neither reserve floor nor be blocked by it" — and `tryPlace` was the outlier, reserving
+floor under a mount that the drop pass would then say was fine. Aligning it changes nothing here,
+because **the clash is real by height**: the rail spans 0.70-1.20 m and a toilet reaches 0.78.
+
+**Shipped anyway**, because the inconsistency is real and this removes it; it is inert on today's
+corpus (score and every ratchet unchanged) and the docstring says so.
+
+### Fix 2, rejected: don't treat a seed-parked mount as an obstacle. Much worse.
+
+Using `placeSeededMounts`' own predicate for it — "still exactly at the seed point = never placed
+by the arranger", `EPS = 1e-6` — so not a new heuristic:
+
+```
+missing-fixture   6 -> 11        outside-room  8 -> 9
+marooned-wall-hugger 39 -> 43    score  60,813,173,903 -> 110,913,174,303
+```
+
+**The phantom is load-bearing.** Without the mounts holding the centre, floor pieces take it and
+then the mounts have no wall left to be rescued to. Reverted, and written up on the line it would
+have changed.
+
+**The fix has to be ORDERING** — place mounts on their walls BEFORE the floor arranging rather
+than after — which means splitting `placeSeededMounts`, whose other half is a rescue that by
+construction has to run afterwards. That is the next release.
+
+### Fix 3, rejected: a compact shower tray. Worse.
+
+A 900 mm tray in a 1.4 m wide bathroom is not what a designer specifies, and the def already
+allows 800 mm. Sizing it to the room by the rect's short side took `missing-fixture` 6 -> 7 and
+the score to 70,813,173,903 — it cost `ctu-cbath` its basin and `emu-cbath` its shower, and the
+toilet still never placed, because the toilet was never the shower's problem. My packing
+arithmetic was paper geometry; the gate instrumentation above is what actually answered it.
+
+### What does ship, besides the aligned collision check
+
+**The shower's `size` param never drove its collision footprint.** `primitives/Shower.tsx` reads
+`size` for the tray, screen, rail and glass, and the def had no `footprintParams` — so a 1.2 m
+shower collided as 0.9 m and a 0.8 m one reserved floor it did not occupy. Both directions are
+wrong. Invisible in the corpus because every shipped shower takes the default, which is also why
+the fix is inert: `footprintParams: { w: 'size', d: 'size' }`.
+
 ## v0.31.9.29 — the levers land, at a stated price
 
 v0.31.9.28 built the ranked defect score and it overturned v0.31.9.27's rejection of these
