@@ -804,7 +804,14 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   grain with form, precisely because wood's advantage is texture. Quote them as a proxy, not as a
   measure of how well the flutes read.
   **So the fix is a normal map (or a subtle per-rib roughness variation) on the painted finish**,
-  not a geometry change and not a lighting change. Not attempted — it is texture work.
+  not a geometry change and not a lighting change.
+  **`sheen` is NOT the answer — tested and refuted in v0.31.8.81.** The def carries a `sheen`
+  param defaulting to 0, and a specular crown is what makes a real painted flute read, so it was
+  the cheap hypothesis. Swept 0 / 0.3 / 0.6 / 1 from the same fixture: ripple/px
+  **0.770 / 0.743 / 0.884 / 1.157** against wood's 4.817. Even at sheen 1 — a value no one would
+  choose — the head-on region still reads as flat stripes; the highlights appear only where the
+  reflection angle happens to line up, which is off to the side, not face-on. No default worth
+  changing. It needs a MAP, not a parameter.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
 - **[site measurements — recording UI COMPLETE v0.31.5.373]** `SiteMeasuredField` is on the wall,

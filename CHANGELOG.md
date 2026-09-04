@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.81 — sheen was the cheap hypothesis, and it is wrong
+
+v0.31.8.80 concluded the painted flutes need a map. Before accepting that, there was one cheap
+thing to try: the def already carries a `sheen` param defaulting to **0**, and a specular crown
+running down each rib is exactly what makes a real painted flute read. If a non-zero default
+fixed it, that would be a content change rather than texture work.
+
+Swept it from the fixture built last release — same pose, same crop, only `sheen` varying:
+
+| sheen | ripple/px |
+| --- | --- |
+| 0 (default) | 0.770 |
+| 0.3 | 0.743 |
+| 0.6 | 0.884 |
+| 1.0 | 1.157 |
+| *(wood, for scale)* | *4.817* |
+
+**Refuted.** Even at sheen 1 — a value nobody would choose for a matte painted panel — the
+head-on region still reads as flat stripes. Looking at the frame shows why: the highlights that
+do appear sit where the reflection angle happens to line up, which is off to the side, not
+face-on. Sheen adds a glint at a grazing angle; it cannot add a gradient across a curve lit
+frontally.
+
+So v0.31.8.80's conclusion stands unweakened: **it needs a map, not a parameter**, and there is
+no default worth changing in the meantime.
+
+### Why this is a whole release
+
+It is one hypothesis, eliminated in one run, using the fixture from the previous release — which
+is what that fixture was for. Two releases ago this question could not be measured at all; the
+marginal cost of settling `sheen` was a single scenario run, and leaving it unsettled would have
+meant the next reader trying it.
+
+No code ships. Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.80 — the painted flutes really are flat, face-on only
 
 v0.31.8.79 measured curtains and said what a valid fixture needs. Built it, and the claim holds.
