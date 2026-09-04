@@ -29,6 +29,68 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.213 — full-pipeline transfer curve, and `.212`'s "unexplained 0.5" explained: my quad covered half the frame
+
+`.212` closed with the right complaint about itself — it measured the RENDERER's tone mapping with
+`gl.render`, while Medium and up tone map in the post composer. Two things came out of chasing that.
+
+**First, the scope worry is smaller than I published.** `toneMappingPost.ts` records that
+`postprocessing`'s tone-mapping shader `#include`s three's OWN `<tonemapping_pars_fragment>` chunk
+and reads the same `toneMappingExposure` uniform, so the composer is not a second implementation of
+AgX — it is the same source. Measurement agrees: above linear 0.05 the two paths differ by 1-2
+counts. What the composer adds is an additive pedestal in the TOE, from bloom and grain (3 counts at
+emissive 0), decaying to nothing by 0.08.
+
+**Second, `.212` reported a cause that was wrong.** It found the tone-mapping-OFF arm reading exactly
+half the sRGB encoding of its input, could not explain it, and calibrated it out with a fitted 0.5033
+scale — blaming `readPixels` on a 4x-MSAA framebuffer. The real cause is a bug in my own probe.
+`donor.geometry.constructor` is whatever SUBCLASS the donor mesh used, and `new` on those builds
+their own INDEX. Replacing only the attributes left that index pointing at vertices that no longer
+existed, so **exactly one triangle of the quad survived**, and being oversized its hypotenuse cut a
+diagonal across the frame — the read pixel was a 50/50 blend of quad and background. Stripping the
+index and every inherited attribute fixes it, and the fitted scale goes **0.5033 -> 0.9996**, with
+the OFF arm now reproducing the sRGB OETF directly (0.01 -> 25 counts against 25.5, 1.0 -> 255).
+
+The published `.212` NUMBERS survive to within a count (2.00 vs 1.99, 26.00 vs 25.83, 83.99 vs
+83.45, 213.09 vs 212.59) because the artefact was a clean 50 % blend in display space and the
+calibration removed it correctly. The reasoning did not survive. A calibration that works for a
+reason you have guessed wrong is still luck, and this one only looked rigorous because its residual
+was small.
+
+`scripts/dev-probes/tonemap-frame.mjs` is new and measures what the thread actually needs: known
+linear radiance in, **screenshot byte out**, through `advance()` so the whole composer runs. Every
+figure in the GI ceiling thread came from a screenshot, including the 85.7, so instrument and
+quantity now share a path. Three guards, each earned: emissive 0 must read near 0 (it read 127.55
+first — the quad was drawn BEHIND the opaque scene with `depthTest` off, so the patch was measuring
+sky; depth occlusion at 0.15 m fixed it), the in-patch spread must be ~0 for a flat emitter (this is
+the guard that would have caught the half-quad immediately — it now reads **0 counts** at every
+sample), and the curve must be monotonic.
+
+| linear | renderer AgX | full pipeline (realistic) |
+| --- | --- | --- |
+| 0.002 | 2 | 9 |
+| 0.005 | 10 | 19 |
+| 0.010 | 26 | 33 |
+| 0.020 | 47 | 52 |
+| 0.030 | 62 | 66 |
+| 0.050 | 84 | 86 |
+| 0.080 | 105 | 106 |
+| 0.100 | 115 | 116 |
+| 0.150 | 134 | 135 |
+| 1.000 | 213 | 213 |
+
+**The ceiling number, best-instrumented.** Screenshot byte 85.7 inverts to **0.0497** scene linear,
+so the 0.885 prediction overshoots by **17.8x**. The full history of that one quantity: sRGB
+approximation 0.065 (13.6x), Blender's Khronos 0.0969 (9.1x), renderer AgX 0.0528 (16.8x), full
+pipeline 0.0497 (17.8x). Every improvement in the instrument moved it the SAME direction — away
+from the prediction. The inversion is eliminated: it was never the explanation, and the thread's
+recorded "most likely" cause is disproved. What remains is the prediction itself
+(`0.3210 * 9.3836 * 0.956 / pi`) or the reference-side conversion, neither of which has been
+re-derived with a calibrated curve.
+
+Nothing shipped. The GI's shipped state still depends on none of this.
+
+
 ## v0.31.7.212 — ramp calibration, app half: the impasse was inverting the WRONG CURVE, and correcting it makes the gap bigger, not smaller
 
 `.211` measured Blender's transforms. This measures the app's, and the first thing it printed

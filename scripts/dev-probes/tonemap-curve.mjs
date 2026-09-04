@@ -94,6 +94,10 @@ const result = await page.evaluate((values) => {
   mat.lightMap = null
   mat.envMap = null
   mat.color.setRGB(0, 0, 0)
+  // DoubleSide (2): with a hand-built two-triangle quad only HALF the frame was covered — see
+  // the note where the coverage is asserted. Cheaper to render both faces than to reason about
+  // winding for geometry this probe builds itself.
+  mat.side = 2
   mat.metalness = 0
   mat.roughness = 1
   mat.emissiveIntensity = 1
@@ -106,6 +110,14 @@ const result = await page.evaluate((values) => {
   // A quad in clip space is not available without a shader material, so use a plain quad 1 m in
   // front of a fresh camera — no lights are added to this scene, so nothing but emissive lands.
   const g = new Geometry()
+  // `donor.geometry.constructor` is whatever SUBCLASS the donor used — BoxGeometry, PlaneGeometry,
+  // an extrusion — and `new` on those builds their own INDEX and attributes. Replacing only the
+  // attributes left that index in place, pointing at vertices that no longer exist: exactly one
+  // valid triangle survived, and being oversized its hypotenuse cut a diagonal across the frame.
+  // That is what produced the "exactly 0.5" reading `v0.31.7.212` reported as an unexplained
+  // readout scale. Strip the index and every inherited attribute first.
+  g.setIndex(null)
+  for (const k of Object.keys(g.attributes)) g.deleteAttribute(k)
   const s = 100
   g.setAttribute(
     'position',
