@@ -29,6 +29,37 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.282 — the window fix validated in a second room; a room-level darkness lead alongside it
+
+`.280` and `.281` were both measured at ONE pose in `livingDining`. This arc's own rule is that one
+room is not a validation, so: `mainBedroom`, its own window (`win-mainBedroom-N`, standoff 3.6),
+daylight-only, its own Cycles reference at 128 samples.
+
+| | mean | p05 (bars) | p95 (glass) |
+| --- | --- | --- | --- |
+| Cycles | 251.0 | 221 | 254 |
+| app | 241.1 | 207 | 248 |
+| **gap** | **9.9** | 14 | **6** |
+
+Against `livingDining`'s **9.6 mean / 6 p95**, the fix reproduces almost exactly in a different room
+with a different window, standoff and furniture. The `p05` gap is 14 here against 1 there, so the
+bar term is a little under in this room — but from a starting point of 96, both rooms now sit in the
+same small band. **It generalises**, which is the thing a single pose could not tell me.
+
+**A separate finding, and it belongs to the room rather than the window.** This room's surfaces run
+DARKER than physics where `livingDining`'s ran slightly brighter: the left wall reads **198.0
+against Cycles' 213.8, a ratio of 0.926**, where the L/D walls measured 1.02-1.05. So the
+daylight/GI balance is room-dependent at roughly the ±8 % level — larger than anything else
+currently open on the interior surfaces. Filed as a lead, not a conclusion: one patch, one pose.
+
+**Two ceiling patches are deliberately not quoted.** The first landed on the HUD toolbar — the exact
+failure `patch-read`'s own docstring records from `.316` and `.323`, and caught by looking at the
+overlay, because the numbers it produced (237.5, sd 36) were perfectly plausible. Re-placed clear of
+the chrome they read 72-101 counts dark, but the visible ceiling in this pose is a band about 8 % of
+frame height, where a small framing difference moves a patch from ceiling onto a downstand beam. I
+do not trust that magnitude, and the wall figure is the safe version of the same signal.
+
+
 ## v0.31.7.281 — the glass as well: `SKYCATCH` is a MULTIPLIER, and I had read the sweep as absolute
 
 `.280` fixed the bars and left 11 counts of glass, citing `.279`'s finding that the pane emissive

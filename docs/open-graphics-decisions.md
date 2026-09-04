@@ -1447,6 +1447,36 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > lamps — which is the lamps on metal, not this term, since glass stays above bars throughout the
 > ramp. **60 fps on both tiers**, max 12.5-13.8 ms. Residual is 6 counts of glass and 11 of `sd`.
 
+> **★ VALIDATED IN A SECOND ROOM — v0.31.7.282.** Every number in `.280`/`.281` came from ONE
+> pose in `livingDining`, and this arc's own rule is that one room is not a validation. Re-run in
+> `mainBedroom` (`win-mainBedroom-N`, standoff 3.6, daylight-only, its own Cycles reference at 128
+> samples):
+>
+> | | mean | p05 (bars) | p95 (glass) |
+> | --- | --- | --- | --- |
+> | Cycles | 251.0 | 221 | 254 |
+> | app | 241.1 | 207 | 248 |
+> | **gap** | **9.9** | 14 | **6** |
+>
+> Against `livingDining`'s **9.6 mean / 6 p95**, the window fix reproduces almost exactly in a
+> different room with a different window, standoff and furniture. The `p05` gap is 14 here against
+> 1 there, so the bar term is slightly under in this room — but against the 96 it started from,
+> both rooms are now in the same small band. **The fix generalises.**
+>
+> **A separate room-level finding, and it is NOT the window's:** this room's surfaces run DARKER
+> than physics where `livingDining`'s ran slightly brighter. The left wall reads **198.0 against
+> Cycles' 213.8 (0.926)**, where the L/D walls measured 1.02-1.05. So the daylight/GI balance is
+> room-dependent at roughly the ±8 % level, which is larger than anything else currently open.
+> Filed as a lead, not a conclusion — one patch, one pose.
+>
+> **Two ceiling patches are deliberately NOT quoted.** The first landed on the HUD toolbar (the
+> `Scene` button) — the exact failure `patch-read`'s docstring records from `.316` and `.323`, and
+> caught by looking at the overlay rather than by the numbers, which were plausible. Re-placed
+> clear of the chrome they read 72-101 counts dark, but the visible ceiling here is a band about
+> 8 % of frame height, where a small framing difference moves a patch from ceiling to downstand
+> beam. That magnitude is not trustworthy and the wall figure above is the safe version of the same
+> signal.
+
 > **★ FOUR VIEWS, TWO PLANS, cv 0.62 % — v0.31.7.57.** app p99 ÷ physics p99 = 0.7265, 0.7388,
 > 0.7287, **0.7306** (the last measured after the constant was published). Mean **0.7312** ⇒
 > correction **1.368×**.
