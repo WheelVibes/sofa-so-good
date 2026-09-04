@@ -27,6 +27,112 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.0 — PHOTOREAL-HERO: Realistic mode draws the hero furniture as photo-scanned models
+
+Minor bump — opens the cinematic-photorealism arc (walk, orbit and the room editor), cut from
+`staging` at `v0.32.0.2`.
+
+**The finding that ordered the work.** A real-GPU baseline of the boot flat at `realistic`
+(`scripts/scenarios/photoreal-baseline.json`, Apple M4 / Metal) reads as a render before it reads
+as a room, and the cue is not the light — the graphics arc has measured that against Cycles for
+three hundred builds — it is the FURNITURE. A sofa built from bevelled boxes with a plaid
+texture, dining chairs that are four sticks and a plank, a TV console that is a box: these are CAD
+however the fill is balanced. Every current photoreal reference (Coohom's cloud renders, Enscape,
+D5) is lit no better than this app's Realistic tier; they look like photographs because the models
+in them are.
+
+**What ships.** In `realistic` mode a mapped parametric piece renders as a Poly Haven CC0
+photo-scanned GLB instead of its primitive (`furniture/photorealProxies.ts`, flag `photorealModels`,
+simple tier, default on):
+
+| parametric def | hero GLB (Poly Haven) | tris | MB |
+| --- | --- | --- | --- |
+| `sofa-3seat` | `sofa_02` | 2.7k | 0.16 |
+| `armchair` | `modern_arm_chair_01` | 8.9k | 0.29 |
+| `dining-chair` | `dining_chair_02` | 22k | 0.22 |
+| `ottoman` | `Ottoman_01` | 4.2k | 0.30 |
+| `coffee-table` | `modern_coffee_table_01` | 4.5k | 0.15 |
+| `side-table`, `nightstand` | `side_table_01` | 2.8k | 0.17 |
+| `tv-console` | `modern_wooden_cabinet` | 25k | 0.28 |
+| *(catalog only)* | `wooden_display_shelves_01` | 3.2k | 0.16 |
+
+1.74 MB for the set (1k textures → WebP, Draco), with `-low`/`-medium` LOD siblings from
+`optimize:glb`. Beds, the dining table, desks and lamps stay parametric: Poly Haven's 85 furniture
+models hold no modern example of any of them (its beds are Gothic and Victorian), and a wrong-style
+scan reads worse than a clean primitive. `sideboard`, `bookshelf` and `cube-shelf` were mapped in
+the first cut and UNMAPPED after the arithmetic: the sideboard needs a 1.75× vertical stretch of the
+0.68 m cabinet, and the shelves would shrink to 0.63–0.83× and leave the trailing plant on top
+floating half a metre. The display shelves stay in the catalog as a placeable piece.
+
+**How it stays safe — a RENDER swap, nothing else moves.**
+
+- The item keeps its parametric `defId`. Collision, the arranger, prices, the plan export and
+  every corpus ratchet read the parametric def exactly as before; `Furniture.tsx` is the only
+  consumer of the proxy. Zero test churn outside the new file.
+- The GLB is drawn in the primitive's frame. `fetch-hero-models.mjs` re-roots each model under a
+  wrapper node that bakes the facing (+Z, like every primitive) and floor-centring, and writes a
+  sidecar footprint measured from the FINAL geometry — so the runtime does one thing: a UNIFORM
+  scale, width-matched to the live `width` param and clamped so depth/height never exceed the
+  parametric footprint by more than 15 % (chairs 20 %: a real dining chair is 0.58 m deep and its
+  back leans past the 0.48 m the primitive reserves). Non-uniform stretch was rejected because a
+  stretched scan reads worse than a slightly small one; the bound exists because a proxy past its
+  own collision box clips walls.
+- **Surface hosts additionally stretch VERTICALLY (`fitHeight`, bounded to 1.25×) so their top
+  lands exactly at the parametric height.** Caught on the first real-GPU frame: every decor prop
+  (`fruit-bowl`, `magazine-stack`, `tabletop-decor`) self-lifts to `surfaceHeight` = the parametric
+  `h`, and the stone coffee table width-matched to 0.915× has its top at 0.357 m, so the bowl hovered
+  6 cm in the air. Table legs 18 % taller are invisible; a floating bowl is not.
+- **The default flat's sofa decor moved onto the seat.** The throw blanket was authored "draped
+  over the sofa arm" and the end cushions 0.1 m from the ends — against the box sofa's geometry. On
+  the chesterfield (tall rolled arms over the outer ~0.25 m, seat set back from the front) the
+  blanket protruded as a slab out of the front of the arm, and both cushions — authored at
+  x 11.275, the box sofa's front edge — overhung the seat and poked through the arms. Took two
+  rounds to read correctly: the first re-verify moved the blanket and left the cushions, and the
+  crop still showed a slab, which I misattributed to the blanket until the beige herringbone fold
+  sitting correctly mid-seat identified itself. A second move (against the back, 0.35 m inboard)
+  then poked the near cushion out through the chesterfield's BOWED back — its back curves forward
+  toward the arms. Mid-seat, 0.45 m inboard, is the one placement both shapes share, verified on
+  both arms with crops. Content, not code; `performance` mode sees the same pieces a hand's width
+  further in.
+- The primitive is the Suspense fallback AND the error-boundary fallback (`GltfErrorBoundary`
+  gained an optional `fallback`), so a piece sharpens from box to scan and a 404 degrades to the
+  ordinary render rather than a placeholder box.
+- Gated on the MODE, never the device class. The adaptive ladder moves the class; the mode is user
+  intent, and `performance` — the editing path — is byte-identical.
+
+**Facing was measured, not assumed.** The Poly Haven `/info` API's `dimensions` array reported
+`modern_coffee_table_01` as 1.2 × 0.6 m while the GLB's bbox is 0.6 × 1.2 — axis order is not
+reliable. Each model went through `inspect_asset.py` (Cycles turntable, view_00 = the glTF +Z
+face): six faced +Z already, the display shelves faced +X (yaw −90° baked), the coffee table's long
+axis ran along Z (yaw 90°). The baked GLBs were re-rendered to confirm; all show the front at
+view_00. Lesson recorded in `docs/skills/blender.md`.
+
+**Also in this build.** `docs/user/room-editor.md` claimed the editor pins the Performance tier;
+`enterRoomEditor` stopped doing that in the bugs-#13/#16 fix, and the swap reaches the editor
+through the same global tier. Corrected.
+
+**Priced, and it is free at steady state.** `frame-time.mjs` gained a `FLAGS_OFF=<flag,…>` A/B
+hook for exactly this. Walk mode, `realistic`, 1280×800 @ dpr 2, 10 s translate + pitch, Apple M4 /
+Metal, same pose and hour:
+
+| | p50 | p90 | max | drawn/s |
+| --- | --- | --- | --- | --- |
+| hero models ON | **6.9 ms** | **9.1 ms** | 303 ms | 42.6 |
+| primitives (flag off) | 6.9 ms | 9.5 ms | 177 ms | 39.2 |
+
+p50 identical, p90 inside run-to-run noise (the ON arm reads lower). The one real cost is the
+**max**: a single ~300 ms frame when the first hero GLB's textures upload — the load hitch, once
+per session, which is why the primitive stays on screen as the Suspense fallback rather than a
+blank. The 12 hero instances in the boot flat total ~75k triangles, less than the 4 dining chairs'
+parametric bevels alone.
+
+**Deliberately not done here, queued for the arc:** a Cycles reference of the walk pose with the
+hero set in place (the export path carries GLB items, so `render_from_manifest.py` will take it
+unchanged); the window's estate view; per-part recolour of the hero pieces through the existing
+`finish:<material>` mechanism; the `armchair` seat height (the throw cushion decorStyling drops on
+it self-lifts to 0.52 m — the scan's seat is lower, so the cushion may float on a styled armchair;
+the boot flat has none).
+
 ## v0.32.0.2 — knip: three exports that were never imported, and one dead test seam
 
 CI's dead-code scan was the only failing check on the merge (both test shards passed). Four unused

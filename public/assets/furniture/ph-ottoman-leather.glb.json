@@ -1,0 +1,15 @@
+{
+  "id": "ph-ottoman-leather",
+  "name": "Leather ottoman",
+  "category": "seating",
+  "footprint": {
+    "w": 0.885,
+    "d": 0.621,
+    "h": 0.624
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Ottoman 01 by Caspian Fortune (CC0) — Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/Ottoman_01"
+}

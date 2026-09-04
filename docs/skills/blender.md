@@ -200,6 +200,18 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-05 — `inspect_asset.py` view_00 is the glTF +Z face; the azimuth step is
+  360°/`--views`.** The camera for view *i* sits at Blender `(cx + d·sin az, cy − d·cos az)`,
+  so view_00 looks along +Y at the model's −Y face, which the glTF importer maps to **+Z** —
+  the direction every furniture primitive faces. With `--views 4` the sequence is +Z, +X, −Z,
+  −X; with `--views 2` it is +Z then −Z (NOT a side view — misread once). Used this to read the
+  facing of the eight Poly Haven hero models before baking a yaw into each GLB
+  (`scripts/asset-pipeline/fetch-hero-models.mjs`): six already faced +Z,
+  `wooden_display_shelves_01` faced +X (yaw −90°), `modern_coffee_table_01`'s long axis ran
+  along Z (yaw 90°). The Poly Haven `/info` API's `dimensions` array is NOT reliable for axis
+  order (it reported the coffee table as 1.2 × 0.6 while the GLB bbox was 0.6 × 1.2) — measure
+  the GLB, don't trust the metadata. Verified by re-rendering the baked GLBs: all four checked
+  show the front at view_00. 8 turntables at 480×360/16 samples take ~2 min total on CPU.
 - **2026-09-03 — there is no `NISHITA` sky on this build.** `sky_type` is
   `HOSEK_WILKIE` / `MULTIPLE_SCATTERING` / `PREETHAM` / `SINGLE_SCATTERING`, defaulting to
   **`MULTIPLE_SCATTERING`** (the Nishita successor). Code written against 4.x's `NISHITA`

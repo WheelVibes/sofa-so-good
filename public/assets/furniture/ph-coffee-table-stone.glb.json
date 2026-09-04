@@ -1,0 +1,15 @@
+{
+  "id": "ph-coffee-table-stone",
+  "name": "Stone-top coffee table",
+  "category": "tables",
+  "footprint": {
+    "w": 1.202,
+    "d": 0.6,
+    "h": 0.39
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Modern Coffee Table 01 by Amin (CC0) — Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/modern_coffee_table_01"
+}

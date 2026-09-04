@@ -1,0 +1,213 @@
+{
+  "name": "photoreal-hero-verify",
+  "description": "PHOTOREAL-HERO: Realistic mode draws hero GLBs in place of primitives — walk (living + dining), orbit, room editor, plus a flag-OFF A/B at the same walk pose. Re-pins deviceClass before each shot because the headless ladder demotes. Run with SHOT_GPU=1.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "flag-on",
+      "waitFor": {
+        "store": "state.featureFlags.photorealModels === true"
+      },
+      "timeout": 5000,
+      "failMessage": "photorealModels must default ON"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-living",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.6); l.setYaw(0); l.setPitch(-0.12) })()"
+    },
+    {
+      "name": "let-glbs-load",
+      "wait": 6000
+    },
+    {
+      "name": "repin-1",
+      "eval": "(() => { const s = window.__store.getState(); s.setDeviceClass('capable'); s.setDprHalved?.(false) })()"
+    },
+    {
+      "name": "settle-1",
+      "wait": 2500
+    },
+    {
+      "name": "probe-1",
+      "eval": "(() => { const s = window.__store.getState(); const glbs = []; window.__three.scene.traverse(o => { if (o.name === 'hero-root') glbs.push(1) }); console.log('[probe] living', JSON.stringify({ dpr: window.__three.gl.getPixelRatio(), deviceClass: s.deviceClass, tier: s.qualityTier, heroRoots: glbs.length, cam: window.__three.camera.position.toArray().map(n=>+n.toFixed(2)) })) })()"
+    },
+    {
+      "name": "shot-living-on",
+      "screenshot": "01-walk-living-hero-on"
+    },
+    {
+      "name": "flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('photorealModels', false)"
+    },
+    {
+      "name": "flag-off-applied",
+      "waitFor": {
+        "store": "state.featureFlags.photorealModels === false"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-off",
+      "wait": 2500
+    },
+    {
+      "name": "repin-2",
+      "eval": "(() => { const s = window.__store.getState(); s.setDeviceClass('capable'); s.setDprHalved?.(false) })()"
+    },
+    {
+      "name": "settle-2",
+      "wait": 2000
+    },
+    {
+      "name": "probe-2",
+      "eval": "(() => { const s = window.__store.getState(); const glbs = []; window.__three.scene.traverse(o => { if (o.name === 'hero-root') glbs.push(1) }); console.log('[probe] living-off', JSON.stringify({ dpr: window.__three.gl.getPixelRatio(), deviceClass: s.deviceClass, heroRoots: glbs.length })) })()"
+    },
+    {
+      "name": "shot-living-off",
+      "screenshot": "02-walk-living-hero-off"
+    },
+    {
+      "name": "flag-on-again",
+      "eval": "window.__store.getState().setFeatureFlag('photorealModels', true)"
+    },
+    {
+      "name": "pose-dining",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(9.6, 4.9); l.setYaw(Math.atan2(-1.6, -1.1)); l.setPitch(-0.2) })()"
+    },
+    {
+      "name": "let-glbs-load-2",
+      "wait": 4000
+    },
+    {
+      "name": "repin-3",
+      "eval": "(() => { const s = window.__store.getState(); s.setDeviceClass('capable'); s.setDprHalved?.(false) })()"
+    },
+    {
+      "name": "settle-3",
+      "wait": 2500
+    },
+    {
+      "name": "probe-3",
+      "eval": "(() => { const s = window.__store.getState(); console.log('[probe] dining', JSON.stringify({ dpr: window.__three.gl.getPixelRatio(), deviceClass: s.deviceClass })) })()"
+    },
+    {
+      "name": "shot-dining",
+      "screenshot": "03-walk-dining-hero-on"
+    },
+    {
+      "name": "exit-walk",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "exit-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "exit-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "orbit-settle",
+      "wait": 4000
+    },
+    {
+      "name": "repin-4",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.setDeviceClass('capable'); s.setDprHalved?.(false) })()"
+    },
+    {
+      "name": "settle-4",
+      "wait": 2500
+    },
+    {
+      "name": "shot-orbit",
+      "screenshot": "04-orbit-hero-on"
+    },
+    {
+      "name": "enter-editor",
+      "eval": "window.__store.getState().enterRoomEditor('livingDining')"
+    },
+    {
+      "name": "editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "editor-settle",
+      "wait": 4000
+    },
+    {
+      "name": "repin-5",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.setDeviceClass('capable'); s.setDprHalved?.(false) })()"
+    },
+    {
+      "name": "settle-5",
+      "wait": 2500
+    },
+    {
+      "name": "probe-5",
+      "eval": "(() => { const s = window.__store.getState(); const glbs = []; window.__three.scene.traverse(o => { if (o.name === 'hero-root') glbs.push(1) }); console.log('[probe] editor', JSON.stringify({ dpr: window.__three.gl.getPixelRatio(), deviceClass: s.deviceClass, heroRoots: glbs.length })) })()"
+    },
+    {
+      "name": "shot-editor",
+      "screenshot": "05-editor-hero-on"
+    }
+  ]
+}

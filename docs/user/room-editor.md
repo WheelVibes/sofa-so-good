@@ -34,9 +34,9 @@ Open it in any of these ways:
 - **Bounded walk** — in walk mode you're confined to the room (an open door is
   still a gap), and walk stays view‑only.
 
-For a fast, fluid editing experience the room editor pins the **Performance**
-render tier and **Original**‑quality assets while it's active, restoring your
-previous settings on exit.
+The room editor uses the same **Graphics** settings as the rest of the app (they
+are global and remembered), so a room edited in **Realistic** mode shows the same
+photo‑scanned furniture and lighting you see in the walkthrough.
 
 ## Room layout shortcuts
 

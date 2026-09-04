@@ -229,6 +229,11 @@ failure modes that all produce confident-looking wrong data:
 scripts/dev-probes/with-server.sh frame-time.mjs DSF=2 SECONDS=10
 ```
 
+`frame-time.mjs` also takes **`FLAGS_OFF=<flag,…>`** (dev builds only) to price a feature against
+its absence at the same pose and tier — added for PHOTOREAL-HERO (`FLAGS_OFF=photorealModels`
+walk/realistic read p50 6.9 ms in both arms, p90 9.1 vs 9.5). Two runs, one variable, same
+session shape; never compare a figure from this probe against one from `light-distribution.mjs`.
+
 - A backgrounded dev server does not reliably survive between shell invocations,
   so a probe in a later call hits `ERR_CONNECTION_REFUSED` — or, worse, connects
   to an orphaned server from the sibling checkout on 5173 and measures the wrong

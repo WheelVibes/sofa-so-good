@@ -2969,6 +2969,12 @@ same change that reshapes a system.
   `local-assets/<category>/` (gitignored) for the Part-1 local-asset dev DB; pure selection
   helpers in `polyhaven-select.mjs` (unit-tested); idempotent, rate-limited,
   `--limit/--category/--ids/--res`.
+  **Hero models** (`scripts/asset-pipeline/fetch-hero-models.mjs`, PROD): the curated Poly Haven
+  set that stands in for boxy primitives in Realistic mode (PHOTOREAL-HERO,
+  `furniture/photorealProxies.ts`). Re-roots each GLB under a wrapper node that bakes the facing
+  (+Z) and floor-centring, re-encodes textures to WebP ≤1k, Dracos, and writes the pipeline
+  sidecar with the footprint measured from the FINAL geometry; then `optimize:glb` + `index-assets`
+  as for any bundled GLB. 8 models, 1.7 MB total, 2.7k–25k tris each.
   **Build-time KTX2** (`scripts/asset-pipeline/ktx2-encode.ts`, opt-in): an optional
   UASTC-encode `@gltf-transform` transform for GLB textures via the same Basis-Universal WASM
   encoder as the browser (`ktx2-encoder` + `sharp`, no native `toktx`), registering

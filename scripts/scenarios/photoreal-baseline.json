@@ -1,0 +1,121 @@
+{
+  "name": "photoreal-baseline",
+  "description": "Cinematic-photorealism arc baseline: orbit, walk and room editor at realistic/capable, 13:00, lights on. Run with SHOT_GPU=1.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setDeviceClass?.('capable'); s.setQualityTier?.('realistic'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false)"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "tier-applied",
+      "waitFor": {
+        "store": "state.qualityTier === 'realistic' && state.deviceClass === 'capable'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-orbit",
+      "wait": 4000
+    },
+    {
+      "name": "shot-orbit",
+      "screenshot": "01-orbit"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-loading",
+      "eval": "window.__store.getState().hideLoading?.(); window.__store.getState().dismissCallout?.('walk-mode')"
+    },
+    {
+      "name": "settle-walk",
+      "wait": 4000
+    },
+    {
+      "name": "shot-walk",
+      "screenshot": "02-walk"
+    },
+    {
+      "name": "probe-walk-cam",
+      "eval": "(() => { const c = window.__three.camera; console.log('[probe] walk-cam', JSON.stringify({ pos: c.position.toArray().map(n=>+n.toFixed(2)), fov: c.fov, dpr: window.__three.gl.getPixelRatio(), renderer: window.__three.gl.getContext().getParameter(window.__three.gl.getContext().getExtension('WEBGL_debug_renderer_info').UNMASKED_RENDERER_WEBGL) })) })()"
+    },
+    {
+      "name": "exit-walk",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "exit-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "exit-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "enter-editor",
+      "eval": "window.__store.getState().hideLoading?.(); window.__store.getState().enterRoomEditor('livingDining')"
+    },
+    {
+      "name": "editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-editor",
+      "wait": 4000
+    },
+    {
+      "name": "shot-editor",
+      "screenshot": "03-editor"
+    }
+  ]
+}

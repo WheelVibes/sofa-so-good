@@ -74,6 +74,7 @@ export type FeatureFlag =
   | 'ceilingDesign'
   | 'presentation'
   | 'pbrSurfaces'
+  | 'photorealModels'
   | 'photographicFill'
   | 'comments'
   | 'finishDnd'

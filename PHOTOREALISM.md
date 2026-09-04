@@ -47,7 +47,10 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   library `DenoiseMaterial` (edge-blur), interior-tuned bounces/MIS (`hqTracerConfig.ts`,
   PHOTO-PT-TUNE), env = the active HDRI (PHOTO-HDRI-PT) or the gradient fallback. **No OIDN.**
 - **Geometry**: `geometryDetail` segment multiplier; `RoundedBox` corners on some primitives; contact
-  shadow blobs Medium+. **No edge bevels on hard primitives; few set-dressing props.**
+  shadow blobs Medium+. **Realistic mode draws the hero furniture (sofa, armchair, dining chairs,
+  coffee/side tables, TV console/sideboard, ottoman, shelves) as photo-scanned Poly Haven CC0 GLBs
+  in place of the primitives** (PHOTOREAL-HERO, v0.33.0.0, `furniture/photorealProxies.ts`); beds,
+  dining table, desks and lamps remain primitives (no CC0 modern source yet).
 - **Backdrops**: walk-mode equirectangular photo as `scene.background` (procedural `city/dusk/park/hills`
   presets + user upload; orbit dollhouse stays clean) — the instanced 3D estates were removed. **No HDRI
   sky/IBL image yet.**

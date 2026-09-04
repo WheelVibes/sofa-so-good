@@ -95,6 +95,16 @@ await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
+// FLAGS_OFF=a,b turns feature flags off for an A/B (dev builds only — `setFeatureFlag`
+// is inert in prod). Added for PHOTOREAL-HERO so the hero-model cost can be priced
+// against the primitives it replaces at the same pose and tier.
+const FLAGS_OFF = (process.env.FLAGS_OFF || '').split(',').filter(Boolean)
+if (FLAGS_OFF.length) {
+  await page.evaluate((flags) => {
+    for (const f of flags) window.__store.getState().setFeatureFlag?.(f, false)
+  }, FLAGS_OFF)
+  console.log(`flags off: ${FLAGS_OFF.join(', ')}`)
+}
 await page.evaluate(
   (h) => {
     const s = window.__store.getState()

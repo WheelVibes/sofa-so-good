@@ -51,6 +51,15 @@ overall colour intensity down toward monochrome or up toward vivid (applies in
 floor or wall instead, use the **Saturation**/**Brightness** sliders in the
 finish picker's **Compose your own…**.
 
+**Why does the furniture look different in Realistic mode?**
+In **Realistic** graphics mode the main pieces — sofa, armchair, dining chairs,
+coffee and side tables, TV console, ottoman and open shelves — render as
+photo‑scanned models (CC0, from Poly Haven) instead of the simplified shapes used
+for fast editing. Nothing about the piece changes except how it is drawn: it keeps
+its size, position, price and collision box, so a layout that works in
+**Performance** works identically in Realistic. Each model is a small download
+(under half a megabyte) that appears once loaded; the simple shape shows until then.
+
 **Do mirrors actually reflect the room?**
 Yes, in **Realistic** graphics mode — wall, bathroom and floor mirrors render a
 true reflection of the room, so you can see how a mirror opens up and enlarges a

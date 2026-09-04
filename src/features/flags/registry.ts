@@ -609,6 +609,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  photorealModels: {
+    label: 'Photoreal furniture',
+    description:
+      'In Realistic mode, hero pieces (sofa, armchair, dining chairs, coffee/side tables, cabinets, shelves) render as photo-scanned CC0 models instead of parametric primitives',
+    // Prod-safe: the GLBs are bundled Poly Haven CC0 (PHOTOREAL-HERO). Simple-tier
+    // because it is part of the core VIEW loop, not an authoring tool. The tier gate
+    // (Realistic only) lives in `furniture/photorealProxies.ts`, not here.
+    default: true,
+    tier: 'simple',
+  },
   comments: {
     label: 'Comments',
     description: 'Pinned design comments — notes anchored in the 3D scene',

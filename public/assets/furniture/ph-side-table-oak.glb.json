@@ -1,0 +1,15 @@
+{
+  "id": "ph-side-table-oak",
+  "name": "Oak side table",
+  "category": "tables",
+  "footprint": {
+    "w": 0.55,
+    "d": 0.45,
+    "h": 0.551
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Side Table 01 by James Ray Cock (CC0) — Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/side_table_01"
+}
