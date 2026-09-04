@@ -127,8 +127,28 @@ const hits = await page.evaluate(
         continue
       }
       const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material
+      // THE GAIN THE MATERIAL WILL ACTUALLY USE, read rather than recomputed.
+      // `onBeforeCompile` is where the injection binds `visGain`, so invoking it with a stub
+      // shader reports the value the draw call will see. `v0.31.7.188` left two candidates for a
+      // 4-9x shortfall in the app's map application and this is the one that is directly
+      // readable: if `visGain` is not `scaleFor * IRRADIANCE_GAIN`, nothing downstream can be
+      // right. Same technique the unit tests use.
+      let visGain = null
+      try {
+        const stub = {
+          uniforms: {},
+          vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+          fragmentShader:
+            'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+        }
+        m?.onBeforeCompile?.(stub, null)
+        visGain = stub.uniforms?.visGain?.value ?? null
+      } catch (e) {
+        visGain = `ERR:${e.message}`
+      }
       out.push({
         label: r.label,
+        visGain,
         name: h.object.name || '(anon)',
         dist: Number(h.distance.toFixed(3)),
         point: [h.point.x, h.point.y, h.point.z].map((v) => Number(v.toFixed(3))),
@@ -177,6 +197,7 @@ for (const h of hits) {
     `  ${h.label.padEnd(10)} ${h.name.padEnd(12)} d=${String(h.dist).padStart(6)} at=${h.point.join(',')}  ` +
       `uv1=${h.uv1 ? h.uv1.join(',') : '(none)'}  map=${h.url ? h.url.split('/').pop() : '(none)'}\n` +
       `             texel=${texel === null ? '?' : texel.toFixed(4)}  scale=${scale === null ? '?' : scale.toFixed(4)}` +
+      `  visGain=${h.visGain === null ? '?' : h.visGain}  expect=${scale === null ? '?' : (scale * 6).toFixed(4)}` +
       `  E_baked=${E === null ? '?' : E.toFixed(4)}  rho=${rho === null ? '?' : rho.toFixed(3)}`,
   )
 }

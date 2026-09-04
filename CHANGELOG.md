@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.189 — `visGain` verified correct, and `.186`'s equality gains are RETRACTED: I interpolated in a compressed curve
+
+`.188` left two directly-readable candidates for the app-side shortfall. This reads one and, in
+doing so, finds the flaw in my own measurement of the other.
+
+**`visGain` is exactly right, and is now read rather than recomputed.** `gi-point.mjs` invokes the
+material's `onBeforeCompile` with a stub shader — the technique the unit tests use — so it reports
+the value the draw call will actually see:
+
+| surface | `visGain` at draw | `scaleFor * IRRADIANCE_GAIN` |
+| --- | --- | --- |
+| wall | 5.825082 | 5.8251 |
+| ceiling | 9.383592 | 9.3836 |
+
+Eliminated. The gain reaching the shader is the gain the index and the constant imply.
+
+**⚠️ RETRACTING `.186`'s per-surface equality gains (~6.5 floor / ~15 wall / ~41 ceiling).** The
+*method* is sound — equality in display space does imply equality in linear light, because it
+survives any monotonic curve. The **execution** was not: I did not have samples AT equality, so I
+**linearly interpolated the gain in DISPLAY space** (ceiling: 178.1 at g25, 209.5 at g60, target
+192.6 → "41"). Display is a nonlinear function of gain and those samples sit high on the curve where
+it is heavily compressed, so interpolating there overstates the gain badly. The three numbers are
+withdrawn, and with them the "~6x spread" that `.186` and `.187` both reasoned from.
+
+What survives from `.186` is only what was measured at a *fixed* gain, not interpolated: bounce
+depth does not move the ceiling/wall ratio (1.415 → 1.383), and the app's ceiling reads 85.7 against
+a 192.6 reference at the shipped gain.
+
+**Where that leaves the arithmetic, stated as an open contradiction rather than resolved.** With rho
+measured (`.188`) and `visGain` verified here, the predicted app radiance at the ceiling point is
+`texel * visGain * rho / pi = 0.3098 * 9.3836 * 0.871 / pi = 0.806`, against a reference radiance of
+**0.589** — the app should be BRIGHTER. Under one transform a lower display value implies a lower
+linear value, and the app reads 85.7 against 192.6, so it is darker. That contradiction is real and
+is not an interpolation artefact, because it is a direct comparison at one gain.
+
+Every term in that prediction is now measured except one: the albedo the SHADER uses. `--albedo`
+measures rho from the exported GLB, and the app's live material could differ from what it exported.
+That is the next readable thing — sample `material.map` through the same `uv` the probe already
+resolves — and it is the last term before the prediction has no free variables.
+
+**A note on the pattern, since it has now happened four times.** Every wrong number in this thread
+came from a quantity I assumed instead of read: albedo from `material.color` (`.183`), irradiance
+from an inverted filmic byte (`.180`), a ceiling patch placed by eye (`.181`), and now a gain
+interpolated through a curve (`.186`). The measurements that held were the ones taken directly —
+`visGain` from the compile hook, rho from a data pass, hit points from a raycast.
+
+Nothing shipped. Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.188 — the albedo pass: rho MEASURED, bake and albedo both exonerated, and two methods that now DISAGREE
 
 `.187` parked the ceiling thread on a missing measurement — per-surface albedo — and said it needed
