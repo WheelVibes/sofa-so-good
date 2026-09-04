@@ -27,7 +27,47 @@ interface SkyKey {
   values: SkyValues
 }
 
-/** Sorted by altitude descending. */
+/**
+ * Sorted by altitude descending.
+ *
+ * ## ⚠️ The TOP KEY IS 30°, so the sun is FLAT from 30° to 90° (item `(z3)`, measured `v0.31.7.256`)
+ *
+ * `bracket()` returns `keys[0]` unchanged for any `altDeg >= keys[0].altDeg` (line ~142), so every
+ * altitude above 30° gets `sun: 1.0`. Measured in the running app: `dirLight.intensity` is 1.000 at
+ * 13:00 (elevation 83.9°) and 1.000 at 17:00 (31.0°), and 0.9913 at 09:00 (28.8°).
+ *
+ * That is not what a direct beam does. Air mass — Kasten-Young — falls from 1.99 at 30° to 1.00 at
+ * 85°, so at a clear-sky optical depth of 0.25 the beam should span a **21 % range** across exactly
+ * the region this table flattens:
+ *
+ * | elevation | air mass | beam, normalised to 85° |
+ * | --- | --- | --- |
+ * | 85° | 1.00 | 1.000 |
+ * | 60° | 1.15 | 0.963 |
+ * | 45° | 1.41 | 0.903 |
+ * | 31° | 1.94 | **0.792** |
+ * | 30° | 1.99 | 0.781 |
+ * | 10° | 5.59 | 0.318 |
+ * | 0° | 37.92 | ~0.000 |
+ *
+ * **Measured consequence**: the east wall of the default flat's `livingDining` renders at **1.445 of
+ * a Cycles reference at 17:00** against 0.974 at 13:00, with the ceiling and floor at 1.05 — the sun
+ * is ~21 % too strong whenever it is low, and 17:00 is simply the hour that presents a surface to it
+ * (at 09:00 the sun is EAST, behind that west-facing face, so the same error adds 0.040 instead of
+ * 0.222). Everything else was eliminated by measurement first: shadow frustum, `castShadow` on the
+ * walls, `shadowMap.enabled`, the ceiling occluder, `grade()`, environment specular (zeroing
+ * `envMapIntensity` on 931 materials moved the patch 0.0 counts) and the window grille.
+ *
+ * **Why this is not simply fixed here, and what it would cost.** 13:00 is VALIDATED against Cycles at
+ * 0.974, so the high-sun end must not move; the correction has to come out of the low end. But
+ * dropping the 30° key to 0.781 puts it BELOW the 10° key's 0.85, which inverts the curve — the sun
+ * would brighten as it set. A consistent fix therefore has to rescale the whole `>= 0°` chain to the
+ * beam column above, and that column says 0° should be ~0.000 where this table deliberately holds
+ * **0.4** with a warm `sunColor` of `[1.0, 0.72, 0.42]`. That 0.4 is an artistic sunset, not an
+ * oversight, so a physically pure curve would delete a look somebody chose. It needs the same
+ * treatment `.223` and `.251` got — before/after tour, the three verified surfaces re-measured at
+ * several hours — rather than a quiet edit here.
+ */
 const LIGHTING_KEYS: ReadonlyArray<LightingKey> = [
   {
     altDeg: 30,

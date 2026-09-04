@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.256 — the exact mechanism for `(z3)`: `LIGHTING_KEYS`' top key is 30°, so the sun is FLAT from 30° to 90°
+
+`.255` said the sun "has no atmospheric extinction", which is true but vague. The mechanism is one
+line: `altitudeCurve.ts`'s `bracket()` returns `keys[0]` unchanged for any `altDeg >= keys[0].altDeg`,
+and `keys[0]` is **`altDeg: 30, sun: 1.0`**. So every altitude from 30° to 90° gets the identical
+value — which is exactly what the app reported (1.000 at 83.9°, 1.000 at 31.0°, 0.9913 at 28.8°).
+
+Air mass across that flattened region, Kasten-Young, normalised to 85° at optical depth 0.25:
+
+| elevation | air mass | beam |
+| --- | --- | --- |
+| 85° | 1.00 | 1.000 |
+| 60° | 1.15 | 0.963 |
+| 45° | 1.41 | 0.903 |
+| 31° | 1.94 | **0.792** |
+| 30° | 1.99 | 0.781 |
+| 10° | 5.59 | 0.318 |
+| 0° | 37.92 | ~0.000 |
+
+A 21 % span, collapsed to a constant.
+
+**And the fix is genuinely blocked on a look decision, which is worth stating rather than picking
+quietly.** 13:00 is validated against Cycles at 0.974, so the high-sun end must not move and the
+correction has to come out of the low end. But dropping the 30° key to 0.781 puts it BELOW the 10°
+key's 0.85 — the curve inverts, and the sun would brighten as it set. A consistent fix has to rescale
+the whole `>= 0°` chain onto the beam column, and that column puts 0° at ~0.000 where the table
+deliberately holds **0.4** with a warm `sunColor` `[1.0, 0.72, 0.42]`. That 0.4 is somebody's sunset,
+not an oversight.
+
+So the honest position: the defect is real and measured (east wall 1.445 of reference at 17:00 against
+0.974 at 13:00), the mechanism is a single clamped keyframe, and the correction trades a physically
+right daytime beam against a deliberately warm sunset. It wants the treatment `.223` and `.251` got —
+before/after tour plus the three verified surfaces at several hours — not a quiet edit at the end of
+a round.
+
+Recorded in `altitudeCurve.ts` itself, next to the table, with the beam column a fix would need.
+Suite 10219 green.
+
+
 ## v0.31.7.255 — `(z3)` cause found: the sun has NO ATMOSPHERIC EXTINCTION — intensity is flat from 29° to 84° elevation
 
 `.254` located the 17:00 wall overshoot as a direct-light term and offered "the directional light
