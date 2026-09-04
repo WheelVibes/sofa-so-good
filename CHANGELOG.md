@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.220 — the 1.38x is NOT a constant (1.20-1.50 across daylight), and the cause is that a STATIC bake cannot track the sun
+
+`.219` left one question open about the 1.38x: is it a constant? If so it is a single calibration
+number; if it drifts with sun position it is a model mismatch. It drifts, and the mechanism is
+structural rather than a tuning error.
+
+Same room, same camera pose, same exported GLB, lamps off, only the sun moved. `scene-glb.mjs` gains
+`SKIP_GLB=1` so a sun sweep costs one 70 MB export and N manifests instead of re-exporting per hour.
+
+| hour | sun elevation | app byte | app linear | Cycles byte | Cycles linear | app / Cycles |
+| --- | --- | --- | --- | --- | --- | --- |
+| 09:00 | 28.84° | 208.7 | 0.8466 | 218.3 | 0.7033 | **1.204** |
+| 13:00 | 83.91° | 207.1 | 0.8027 | 200.9 | 0.5834 | **1.376** |
+| 17:00 | 30.97° | 208.6 | 0.8439 | 197.4 | 0.5609 | **1.505** |
+
+**The app's ceiling is essentially invariant to the sun: 1.055x across the whole day, a spread of
+1.6 counts.** Cycles moves 1.254x over the same three positions. So the offset is not a constant to
+be divided out — it runs from 1.20 to 1.50 — and a global rescale would trade one hour's error for
+another's.
+
+**Why, and it is by design rather than a bug.** The interior indirect term is a STATIC baked
+irradiance map. A ceiling is lit almost entirely by indirect light — measured directly: at 13:00
+lamps off the ceiling's total inverts to 0.803, and the GI-only contribution measured at 21:00 was
+0.830, i.e. the daytime ceiling is very nearly all bake and almost no direct. A static map cannot
+respond to sun altitude, so the app renders the same ceiling at 09:00, 13:00 and 17:00 while the
+physical reference does not.
+
+Note also that 09:00 and 17:00 sit at nearly the SAME elevation (28.84° vs 30.97°) yet Cycles differs
+by 25 % (0.7033 vs 0.5609). That difference is pure AZIMUTH — sun east versus west of this room's
+glazing — and a single static bake is blind to it too. So the residual is not one number in the wrong
+place; it is a missing degree of freedom.
+
+Also validated in passing: one calibration curve serves every daylight hour at exposure 1.38.
+Measured at hour 9 against the hour-13 curve: 167.41 vs 167.34, 189.09 vs 189.15, 207.01 vs 207.00,
+214.30 vs 214.29 — under 0.1 counts. `grade(altitude).exposure` is flat across daylight, so the same
+inversion is valid at 09:00, 13:00 and 17:00 and no per-hour recalibration is needed.
+
+Nothing shipped. What this changes is the shape of the remaining problem: the GI's spatial
+distribution is right to ~1 % (`.218`) and its absolute level is wrong by a factor that varies with
+sun position, so the honest options are multiple bakes blended by sun position, or a runtime term
+that carries the sun's contribution — not a re-fit of `IRRADIANCE_GAIN`, which has no degree of
+freedom to fix this with.
+
+
 ## v0.31.7.219 — the 1.38x is NOT a double-applied exposure: one-variable test, and the coincidence is just a coincidence
 
 `.218` found the app 1.38x brighter than a Cycles reference at three verified surfaces and noticed

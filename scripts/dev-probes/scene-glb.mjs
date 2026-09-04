@@ -147,37 +147,44 @@ const state = await page.evaluate(() => {
   }
 })
 
-// The GLB comes back over CDP as a download rather than a serialised array: a whole home is tens of
-// megabytes and JSON-encoding that through `evaluate` is minutes of overhead.
-const client = await page.createCDPSession()
-await client.send('Browser.setDownloadBehavior', {
-  behavior: 'allow',
-  downloadPath: OUT,
-  eventsEnabled: true,
-})
-const bytes = await page.evaluate(async () => {
-  const [{ buildExportRoot }, { exportGlb }] = await Promise.all([
-    import('/src/export/sceneGltf.ts'),
-    import('/src/furniture/convert/toGlb.ts'),
-  ])
-  const root = buildExportRoot(window.__three.scene)
-  const buf = await exportGlb(root)
-  const blob = new Blob([buf], { type: 'model/gltf-binary' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = 'scene.glb'
-  document.body.appendChild(a)
-  a.click()
-  return buf.byteLength
-})
-console.log(`export: ${(bytes / 1e6).toFixed(1)} MB -> ${OUT}/scene.glb`)
-// Poll for the file rather than a fixed sleep: a 40 MB blob write is not instant.
-const { statSync } = await import('node:fs')
-for (let i = 0; i < 120; i++) {
-  try {
-    if (statSync(`${OUT}/scene.glb`).size >= bytes) break
-  } catch {}
-  await new Promise((r) => setTimeout(r, 500))
+// SKIP_GLB=1 emits the manifest ONLY. The geometry and materials do not depend on the hour, so a
+// sun-altitude sweep needs one export and N manifests — re-exporting 70 MB per hour is pure waste.
+let bytes = 0
+if (process.env.SKIP_GLB === '1') {
+  console.log('SKIP_GLB=1 — manifest only, reusing an existing scene.glb')
+} else {
+  // The GLB comes back over CDP as a download rather than a serialised array: a whole home is tens of
+  // megabytes and JSON-encoding that through `evaluate` is minutes of overhead.
+  const client = await page.createCDPSession()
+  await client.send('Browser.setDownloadBehavior', {
+    behavior: 'allow',
+    downloadPath: OUT,
+    eventsEnabled: true,
+  })
+  bytes = await page.evaluate(async () => {
+    const [{ buildExportRoot }, { exportGlb }] = await Promise.all([
+      import('/src/export/sceneGltf.ts'),
+      import('/src/furniture/convert/toGlb.ts'),
+    ])
+    const root = buildExportRoot(window.__three.scene)
+    const buf = await exportGlb(root)
+    const blob = new Blob([buf], { type: 'model/gltf-binary' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'scene.glb'
+    document.body.appendChild(a)
+    a.click()
+    return buf.byteLength
+  })
+  console.log(`export: ${(bytes / 1e6).toFixed(1)} MB -> ${OUT}/scene.glb`)
+  // Poll for the file rather than a fixed sleep: a 40 MB blob write is not instant.
+  const { statSync } = await import('node:fs')
+  for (let i = 0; i < 120; i++) {
+    try {
+      if (statSync(`${OUT}/scene.glb`).size >= bytes) break
+    } catch {}
+    await new Promise((r) => setTimeout(r, 500))
+  }
 }
 writeFileSync(`${OUT}/manifest.json`, JSON.stringify({ state, cams }, null, 2))
 console.log(
