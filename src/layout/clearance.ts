@@ -235,11 +235,19 @@ function contains(r: Rect, x: number, z: number): boolean {
  * sides). An item whose footprint covers one is squarely in the doorway path
  * — a real blocker — unlike an item merely beside the door.
  */
-function doorProbePoints(plan: FloorPlan): Array<[number, number]> {
+/** Exported so `layout/reachability.ts` can constrain the unseal pass with the
+ *  SAME predicate `dropDoorBlockers` deletes on — "legal to stand here" and
+ *  "survives the drop pass" must be one rule, or the mover re-creates work the
+ *  drop pass already did (v0.31.8.56). */
+export function doorProbePoints(plan: FloorPlan): Array<[number, number]> {
   const pts: Array<[number, number]> = []
-  for (const o of plan.openings) {
+  // Guard partial plans: a level projection or a hand-built fixture may omit
+  // these arrays entirely, and `reachability.ts` calls this on every furnish.
+  const openings = Array.isArray(plan.openings) ? plan.openings : []
+  const walls = Array.isArray(plan.walls) ? plan.walls : []
+  for (const o of openings) {
     if (o.kind !== 'door') continue
-    const wall = plan.walls.find((w) => w.id === o.wallId)
+    const wall = walls.find((w) => w.id === o.wallId)
     if (!wall) continue
     const len = wallLength(wall)
     if (len === 0) continue

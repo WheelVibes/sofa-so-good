@@ -2022,9 +2022,10 @@ same change that reshapes a system.
   removal alone reopens the room (`sealedBy`), found by re-solving the same raster with that
   footprint freed. It found 43 rooms beyond a break across 10 of 19 templates, and
   `layout/reachability.ts:unsealRoutes` — called by `furnishPlanItems` after the drop passes —
-  now FIXES most of them, sliding a sealing piece up to 1.2 m in 0.15 m steps and taking the
-  first position that opens the route without severing anything new: **43 -> 18 rooms, 10 -> 4
-  templates, 12 items moved, none deleted**. It writes only `position`, and places against a
+  now FIXES most of them, sliding a sealing piece up to 2.4 m in 0.15 m steps and taking the
+  first position that opens the route without severing anything new: **43 -> 10 rooms, 10 -> 3
+  templates, 12 items moved, none deleted** (median move 0.45 m, max 1.95 m — the reach is a
+  ceiling, not a step, because candidates are tried nearest-first). It writes only `position`, and places against a
   stricter mask than it routes with (doors CLOSED, inflated one cell) so a piece cannot be parked
   in the doorway it just opened. `routeAccess.test.ts` ratchets what is left. Two rasters per storey (63 ms on `tpl-hdb-jumbo`), so it is OPT-IN
   (`{ routeAccess: true }`) and only the report asks for it — running it inside `schemeOptions`,

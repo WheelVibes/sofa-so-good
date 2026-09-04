@@ -66,6 +66,7 @@ import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { doorProbePoints } from './clearance'
 import { CLEARANCE, OBSTACLE_AREA_M2 } from './designRules'
 
 /**
@@ -336,6 +337,22 @@ function buildLevelGrid(
   envelopeWalls: CollisionWall[],
   /** World-space points just inside the home's entry doors. */
   entryPoints: readonly [number, number][] = [],
+  /**
+   * Points no piece may STAND on — `clearance.ts:doorProbePoints`, the four
+   * samples either side of each doorway. They constrain PLACEMENT only; routes
+   * are meant to pass straight through a doorway.
+   *
+   * **This is deliberately the same predicate `dropDoorBlockers` deletes on,**
+   * so "legal to stand here" and "survives the drop pass" are one rule. The
+   * unseal pass shipped without any door test and slid `tpl-condo-2bed`'s
+   * kitchen counter into a doorway once its reach grew to 2.4 m, which
+   * `placementSoundness.test.ts` caught; `dropDoorBlockers` runs BEFORE the
+   * unseal pass, so nothing downstream re-checks. Using the full
+   * `doorKeepOutRects` (swing arc + 0.45 m approach) instead was measured and
+   * rejected: it is far stricter than the deletion rule and cost 19 of the
+   * fixes (3 rooms left -> 22).
+   */
+  doorPoints: readonly [number, number][] = [],
 ): LevelGrid {
   const rects = rooms.map(roomRect)
   const xs = [...rects.map((r) => r.x0), ...rects.map((r) => r.x1)]
@@ -445,6 +462,12 @@ function buildLevelGrid(
     if (outside[i]) continue
     if (!solidOpen[i]) openFloor[i] = 1
     if (!solidClosed[i]) standable[i] = 1
+  }
+  for (const [px, pz] of doorPoints) {
+    const gx = Math.round((px - minX) / CELL_M - 0.5)
+    const gz = Math.round((pz - minZ) / CELL_M - 0.5)
+    if (gx < 0 || gx >= w || gz < 0 || gz >= h) continue
+    standable[gz * w + gx] = 0
   }
 
   // Entry cells: the grid cell nearest each entry point that is inside the
@@ -658,6 +681,8 @@ interface LevelInputs {
   sources: FurnitureItem[]
   /** Midpoints of doors on EXTERNAL walls — where you come in. */
   entries: [number, number][]
+  /** Door probe points: placement keep-outs, not route blockers. */
+  doorPoints: [number, number][]
 }
 
 /**
@@ -713,6 +738,7 @@ function levelInputs(
       obbs,
       sources,
       entries,
+      doorPoints: doorProbePoints(lp),
     })
   }
   return out
@@ -727,7 +753,7 @@ function analyseReachability(
 ): RoomReachability[] {
   const out: RoomReachability[] = []
   for (const li of levelInputs(items, defs, plan)) {
-    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries)
+    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries, li.doorPoints)
     out.push(...rowsFrom(li.rooms, li.level, solveGrid(g, bodyWidthM)))
   }
   return out
@@ -794,7 +820,7 @@ export function findFurnitureSeveredRooms(
   const out: SeveredRoom[] = []
 
   for (const li of levelInputs(items, defs, plan)) {
-    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries)
+    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries, li.doorPoints)
     const rows = rowsFrom(li.rooms, li.level, solveGrid(g, bodyWidthM))
     const targets = rows
       .map((r, i) => ({ r, i }))
@@ -840,14 +866,21 @@ export function findFurnitureSeveredRooms(
 /**
  * How far (m) a sealing piece may be slid to open a route, and in what steps.
  *
- * A route fix should read as *"the sofa is a bit further over"*, not as a
- * different layout. 1.2 m is about the width of the walkway being recovered, so
- * anything past it is no longer a nudge; 0.15 m steps are fine enough to find a
- * 0.6 m gap and coarse enough to keep the trial count bounded (8 steps × 4
- * directions = 32 candidates per piece, tried nearest-first).
+ * **The reach was measured, not chosen (v0.31.8.56).** Over the 19 templates:
+ * 1.2 m leaves 18 rooms unreachable, 1.8 m leaves 11, **2.4 m leaves 10**, and
+ * 3.0 m gains nothing further, so 2.4 is where the curve flattens.
+ *
+ * A bigger ceiling does NOT mean bigger moves, because candidates are tried
+ * nearest-first — the reach only says how far the pass may go when nothing
+ * closer works. Measured at 2.4: **12 moves, median 0.45 m, max 1.95 m, 11 of
+ * 12 within 1.2 m.** The one long move is `tpl-hdb-jumbo`'s COFFEE TABLE, the
+ * most movable object in the room, and it opens 8 rooms / 55 m².
+ *
+ * 0.15 m steps are fine enough to find a 0.6 m gap and coarse enough to keep
+ * the trial count bounded (16 steps × 4 directions = 64 candidates per piece).
  */
 const UNSEAL_STEP_M = 0.15
-const UNSEAL_REACH_M = 1.2
+const UNSEAL_REACH_M = 2.4
 
 /** Candidate translations, nearest first: ±X and ±Z at increasing distance. */
 function unsealOffsets(): [number, number][] {
@@ -931,7 +964,7 @@ export function unsealRoutes(
   const offsets = unsealOffsets()
 
   for (const li of levelInputs(items, defs, plan)) {
-    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries)
+    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries, li.doorPoints)
     // Rooms the PLAN never connected are not this pass's business.
     const skip = new Set<number>()
     li.rooms.forEach((r, i) => {

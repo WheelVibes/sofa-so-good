@@ -27,6 +27,76 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.56 — the reach lever, measured and spent. 18 → 10
+
+Last release left one obvious next move and said it was unmeasured: raise `UNSEAL_REACH_M`.
+Measured over the 19 templates:
+
+| reach | rooms still unreachable |
+| --- | --- |
+| 1.2 m (shipped in `.55`) | 18 |
+| 1.8 m | 11 |
+| **2.4 m** | **10** |
+| 3.0 m | 10 |
+
+So 2.4 m is where the curve flattens, and the lever is now spent — the remaining work is
+elsewhere.
+
+**A bigger ceiling does not mean bigger moves**, because candidates are tried nearest-first. At
+2.4 m the actual moves are **median 0.45 m, max 1.95 m, 11 of 12 within 1.2 m**. The one long
+move is `tpl-hdb-jumbo`'s **coffee table** — the most movable object in the room — and it opens
+**8 rooms / 55 m²**. I measured that rather than asserting it, because "the reach is a ceiling,
+not a step" is exactly the kind of claim that is true by construction and still worth checking.
+
+### The widening exposed a missing constraint
+
+At 2.4 m the pass slid `tpl-condo-2bed`'s kitchen counter **across a doorway**, which
+`placementSoundness.test.ts` caught. `trialFits` knew about walls and other items but nothing
+about doors, and `dropDoorBlockers` runs BEFORE the unseal pass, so nothing downstream re-checked
+— the same shape as the in-wall bug in `.55`.
+
+**The fix is to use the predicate that would have deleted it.** `clearance.ts:doorProbePoints`
+(now exported) is exactly what `dropDoorBlockers` tests, so "legal to stand here" and "survives
+the drop pass" are one rule rather than two that can drift.
+
+**I tried the stricter thing first and it was wrong.** Folding the full `doorKeepOutRects` —
+swing arc plus a 0.45 m approach zone — into the placement mask is far stricter than the
+deletion rule, and it cost **19 of the fixes: 3 rooms left → 22**, i.e. worse than not widening
+the reach at all. Measured, rejected, recorded.
+
+Also fixed on the way: `doorProbePoints` assumed `plan.openings` and `plan.walls` are always
+arrays. They are not on a level projection or a hand-built fixture, and now that the unseal pass
+calls it on every furnish, that crashed a report test. Guarded — which also protects the five
+callers that already existed.
+
+### What is left, and why the reach is not the answer to it
+
+**`tpl-condo-2bed` holds 8 of the 10, all behind one `kitchen-counter-l`.** Every position that
+would open the route puts the counter across a doorway, and the pass refuses. Two ways forward,
+in `TODO.md`, neither taken here:
+
+- let the pass **rotate** as well as slide — for an L-counter on a wall run, that is the move a
+  designer would actually make;
+- treat it as a **template defect** — an L-counter spanning the only route from the front door to
+  the living room is mis-authored for that room.
+
+The second is probably right, and it is worth saying why: the counter is **fitted joinery**, and
+sliding fitted joinery sideways to open a walkway is not a design a contractor could build from.
+That is a limit of what a furniture-mover should be allowed to do, not a bug in it.
+
+### Verified
+
+- 10180 tests pass; `tsc`, `biome`, `knip` clean. `placementSoundness.test.ts` clean, including
+  both "no furniture embedded in a wall" and "no window-blocking or door-blocking furniture".
+- **The pass is idempotent** — running it on its own output moves nothing, across all 19
+  templates. That matters because the report runs the route check over that output; if a second
+  pass could still find moves, the two would disagree about whether the home is walkable. Now a
+  test.
+- Nothing else moved: no change to window sightlines, TV distance, dining-chair tucking, seeded
+  mount counts or item counts at 2.4 m.
+- Looked at `tpl-hdb-jumbo` furnished in the dollhouse — the lounge group reads normally, nothing
+  floating, in a doorway, or clipping a wall.
+
 ## v0.31.8.55 — it moves the furniture now. 43 unreachable rooms → 18
 
 Three releases measured this and said "moves no furniture" each time. This one moves it.

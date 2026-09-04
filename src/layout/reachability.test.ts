@@ -417,6 +417,16 @@ describe('unsealRoutes', () => {
     expect(inDoorway).toBe(false)
   })
 
+  it('is IDEMPOTENT — running it on its own output moves nothing', () => {
+    // The pass runs inside `furnishPlanItems`, and the report runs the route
+    // check over that output. If a second pass could still find moves, the two
+    // would disagree about whether the home is walkable. Verified across all 19
+    // templates too (v0.31.8.56).
+    const once = unsealRoutes([place('w1', 4.35, 1.95)], defs2, plan2())
+    const twice = unsealRoutes(once, defs2, plan2())
+    expect(twice).toBe(once)
+  })
+
   it('leaves an unfixable seal alone rather than moving something uselessly', () => {
     // Two wardrobes filling the whole bedroom side of the doorway, with no
     // clear floor within reach for either to move to. The pass must be a no-op,

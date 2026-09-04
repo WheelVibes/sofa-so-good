@@ -29,14 +29,20 @@ import { findFurnitureSeveredRooms } from './reachability'
  * and it retracted v0.31.8.52's headline (`tpl-terrace-ground`'s master bedroom,
  * whose culprit was a 0.32 m² shoe cabinet).
  *
- * **`unsealRoutes` now FIXES most of these (v0.31.8.55).** `furnishPlanItems`
- * slides a sealing piece until the route opens, so this list records what is
- * LEFT: **43 rooms -> 18, across 10 templates -> 4**, by moving 12 items and
- * deleting none. Fully cleared: `tpl-condo-1study` (5), `tpl-condo-penthouse`
- * (6), `tpl-hdb-maisonette` (4), `tpl-hdb-exec` (2), `tpl-condo-4bed` (2),
- * `tpl-condo-3bed` (1). What resists is `tpl-hdb-jumbo` (8) and
- * `tpl-condo-2bed` (8) — both are cases where the culprit has nowhere within
- * 1.2 m to go, or the room has no single culprit at all.
+ * **`unsealRoutes` FIXES most of these (v0.31.8.55, widened .56).**
+ * `furnishPlanItems` slides a sealing piece until the route opens, so this list
+ * records what is LEFT: **43 rooms -> 10, across 10 templates -> 3.**
+ *
+ * The reach was the whole lever, and it was measured rather than guessed:
+ * 1.2 m left 18 rooms, 1.8 m left 11, **2.4 m leaves 10**, and 3.0 m gains
+ * nothing further. Moves stay small in practice because candidates are tried
+ * nearest-first — the reach only decides how far the pass may go when nothing
+ * closer works.
+ *
+ * What resists is **`tpl-condo-2bed` (8 rooms behind one `kitchen-counter-l`)**:
+ * every position that would open the route puts the counter across a doorway,
+ * and the pass refuses that. Plus one room each in `tpl-hdb-2room` and
+ * `tpl-1bed`.
  *
  * **"Unreachable" means unreachable FROM THE FRONT DOOR (v0.31.8.54).** It used
  * to mean "not in the largest walkable region", which flips which SIDE of a seal
@@ -56,7 +62,6 @@ import { findFurnitureSeveredRooms } from './reachability'
  */
 const KNOWN_SEVERED: Record<string, number> = {
   'tpl-hdb-2room': 1,
-  'tpl-hdb-jumbo': 8,
   'tpl-1bed': 1,
   'tpl-condo-2bed': 8,
 }
@@ -79,7 +84,7 @@ describe('route access — rooms the arranger walls off', () => {
     // on, so it is raised rather than left to flake.
   }, 60_000)
 
-  it('leaves fifteen templates completely clean', () => {
+  it('leaves sixteen templates completely clean', () => {
     // Stated as its own assertion so a fix that "improves" the ratchet by
     // breaking a clean template cannot pass by trading one for another.
     const clean = PLAN_TEMPLATES.filter((t) => !(t.id in KNOWN_SEVERED)).map((t) => t.id)

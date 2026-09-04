@@ -115,9 +115,14 @@ storey at once.
 
 **`unsealRoutes` FIXES most of them, and it runs in the default furnish path** (v0.31.8.55).
 `furnishPlanItems` calls it after the drop passes: it slides a sealing piece along X or Z in
-0.15 m steps up to 1.2 m, nearest first, and takes the first position that opens the route
-without severing anything new. **43 unreachable rooms -> 18, 10 affected templates -> 4, by
-moving 12 items and deleting none.** Three things make it safe, and each corresponds to a way an
+0.15 m steps up to **2.4 m**, nearest first, and takes the first position that opens the route
+without severing anything new. **43 unreachable rooms -> 10, 10 affected templates -> 3, by
+moving 12 items and deleting none.**
+
+**The reach was measured, not chosen** (v0.31.8.56): 1.2 m leaves 18 rooms, 1.8 m leaves 11,
+2.4 m leaves 10, 3.0 m gains nothing. A bigger ceiling does not mean bigger moves, because
+candidates are tried nearest-first — measured at 2.4 the moves are **median 0.45 m, max 1.95 m,
+11 of 12 within 1.2 m**, and the one long move is jumbo's COFFEE TABLE, opening 8 rooms. Three things make it safe, and each corresponds to a way an
 earlier attempt on this thread failed:
 
 - **It only writes `position`.** Never deletes, never resizes, never rotates. A route bought by
@@ -125,8 +130,12 @@ earlier attempt on this thread failed:
 - **It rejects any move that severs a room which was fine.** That is the guard v0.31.8.7's
   clearance objective lacked when it traded one pinch for another.
 - **Placement uses a STRICTER mask than routing** (`LevelGrid.standable`, doors CLOSED, inflated
-  one cell). `openFloor` gaps a wall at every open door because a doorway is a route — it is not
-  a parking space, and the first cut used it and slid the penthouse's TV console into a doorway.
+  one cell, minus `clearance.ts:doorProbePoints`). `openFloor` gaps a wall at every open door
+  because a doorway is a route — it is not a parking space, and the first cut used it and slid
+  the penthouse's TV console into a doorway. The door constraint is deliberately the SAME
+  predicate `dropDoorBlockers` deletes on, so "legal to stand here" and "survives the drop pass"
+  are one rule; using the full `doorKeepOutRects` (swing arc + 0.45 m approach) instead was
+  measured and rejected — far stricter than the deletion rule, and it cost 19 of the fixes.
 
 Cost is bounded by sweeping culprits ONCE per state: one `solveGrid` with an obstacle excluded
 answers "does this seal it?" for every room at once, so the sweep is O(obstacles), not
@@ -135,9 +144,10 @@ runs and fails — 883 ms on top of a 434 ms furnish; sweeping once brings the w
 +40..160 ms depending on template.
 
 Coverage: `reachability.test.ts` (unit + culprit + unseal invariants), `routeAccess.test.ts`
-(ratchet of what is LEFT: 18 rooms across 4 templates — `tpl-hdb-jumbo` 8 and `tpl-condo-2bed` 8
-resist, being cases where the culprit has nowhere within 1.2 m to go or the room has no single
-culprit at all). It costs two rasters per storey, so `buildLayoutCritique` runs it only when
+(ratchet of what is LEFT: 10 rooms across 3 templates — `tpl-condo-2bed` holds 8 of them behind
+one `kitchen-counter-l` whose every route-opening position would put it across a doorway, which
+the pass refuses). The pass is IDEMPOTENT, which matters because the report runs the route check
+over its output. It costs two rasters per storey, so `buildLayoutCritique` runs it only when
 asked (`{ routeAccess: true }`, which only `ui/report.ts` passes) — enabling it inside
 `schemeOptions`, which critiques a dozen candidates, pushed the Scheme Compare modal past a
 15 s harness timeout the same scenario clears without it.

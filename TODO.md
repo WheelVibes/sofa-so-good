@@ -839,15 +839,24 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   1.00 m), which is the honest reason it exists: a user-drawn corridor is the only place it can
   occur. **The route model now EXISTS** (`layout/reachability.ts`, v0.31.8.52/.53) — see the entry
   below.
-- **[ROUTE ACCESS — MEASURED v0.31.8.52, RECALIBRATED .53, ANCHORED .54, MOSTLY FIXED in .55]
-  18 rooms across 4 of 19 templates still cannot be reached from the front door once the
+- **[ROUTE ACCESS — MEASURED .52, RECALIBRATED .53, ANCHORED .54, FIXED .55, WIDENED .56]
+  10 rooms across 3 of 19 templates still cannot be reached from the front door once the
   arranger has placed the furniture — down from 43 across 10.**
   `unsealRoutes` runs in `furnishPlanItems` and slides the sealing piece; it moved 12 items and
-  deleted none. **What is LEFT and why:** `tpl-hdb-jumbo` (8 rooms) and `tpl-condo-2bed` (8) —
-  either the culprit has nowhere within the 1.2 m reach to go, or the room has no single culprit
-  so no one move opens it. Raising `UNSEAL_REACH_M` is the obvious next lever and is UNMEASURED;
-  the honest alternative is a two-piece search, which is combinatorially bigger and should be
-  priced before it is written. Original note follows. They are walkable on
+  deleted none. **The reach lever is now MEASURED and spent** (.56): 1.2 m left 18 rooms,
+  1.8 m left 11, 2.4 m leaves 10, 3.0 m gains nothing, so the reach is not where the remaining
+  work is.
+  **What is LEFT and why: `tpl-condo-2bed` holds 8 of the 10, all behind one
+  `kitchen-counter-l`.** Every position that would open the route puts the counter across a
+  doorway, and the pass refuses that (rightly — it is the same rule `dropDoorBlockers` deletes
+  on). Two honest ways forward, neither taken: (a) let the pass ROTATE a piece as well as slide
+  it, which for an L-counter against a wall run is the move a designer would actually make;
+  (b) treat this as a TEMPLATE defect — an L-counter that spans the only route between the front
+  door and the living room is arguably mis-authored for the room, and re-authoring
+  `tpl-condo-2bed`'s open kitchen would fix it at the source. (b) is probably right, since the
+  counter is fitted joinery and sliding fitted joinery to open a walkway is not a design a
+  contractor could build from. Plus one room each in `tpl-hdb-2room` and `tpl-1bed`.
+  Original note follows. They are walkable on
   the empty template and unreachable once the move-in layout is placed: you cannot get in.
   `layout/reachability.ts` erodes the storey's free floor by half a body width
   (`CLEARANCE.walkwayMin`, 0.6 m) and flood-fills what survives, so the ruler is the body rather
