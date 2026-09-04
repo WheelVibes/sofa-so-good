@@ -994,6 +994,25 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   v0.31.8.7 measured the same lever on the pre-route codebase and got a different trade in the
   same shape (3 blocked windows cleared for 3 new pinches). **Two independent measurements, two
   declines.**
+- **[THROUGH-ROOMS — MEASURED v0.31.8.68, NOT FIXED] 3 rooms are corridors in disguise.**
+  `src/floorplan/throughRooms.test.ts` blocks one room's floor and asks whether the REMAINING
+  rooms fall into more groups than before. Found: `tpl-condo-3bed/c3-bed2`, `c3-bed3` and
+  `tpl-condo-penthouse/cp-bed2` — bedroom columns with no corridor, the shape item (f) defers.
+  This corroborates `bedroomPrivacy.test.ts` from the other side: that test names the bedroom
+  you cannot reach without crossing another, this one names the bedroom you cross.
+  **Two refinements were needed and both are load-bearing — do not remove either.**
+  (a) **Suites are not defects.** Reaching an ensuite through its bedroom is normal, and it
+  splits off a group of exactly ONE room, so only splits whose smaller side holds 2+ rooms
+  count. Without this the check flagged `jb-master`, which `bedroomPrivacy`'s docstring records
+  as the exact false positive that killed its own room-graph attempt.
+  (b) **The room's rectangle has to BE the room.** All four edges must have a wall within
+  0.15 m. Unscoped, the check reported 26 rooms, because where a rect covers undeclared
+  circulation (v0.31.8.60: fewer than half the shipped rect edges sit on their own wall)
+  blocking it blocks a corridor.
+  **Consequence worth acting on:** (b) is why this check does NOT catch `tpl-hdb-4room`'s
+  household shelter, which v0.31.8.67 PROVED is a through-room — its rect is rejected because
+  the shelter has one wall of four. So the room-rectangle fix is not cosmetic: it gates a whole
+  class of room-scoped analysis, not just 0.15 m of furniture placement.
 - ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
   half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
   researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus

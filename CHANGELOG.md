@@ -27,6 +27,54 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.68 — a check for rooms that are corridors in disguise
+
+v0.31.8.67 proved that `tpl-hdb-4room`'s household shelter is the only route from the kitchen to
+the rest of the flat. Nothing in the suite could have found that; it fell out of a debugging
+session. This is the check that would have.
+
+`src/floorplan/throughRooms.test.ts` blocks one room's floor and asks whether the **remaining**
+rooms fall into more groups than they did with it open. Three offenders:
+`tpl-condo-3bed/c3-bed2`, `c3-bed3`, `tpl-condo-penthouse/cp-bed2` — bedroom columns with no
+corridor, the shape item (f) defers.
+
+**It corroborates `bedroomPrivacy.test.ts` from the other side.** That test names the bedroom you
+cannot reach without crossing another; this one names the bedroom you cross. `tpl-condo-3bed`'s
+column is documented there as a chain (bedroom 2 → bedroom 3 → master) and both instruments now
+land on it independently.
+
+### Getting from 26 to 3, and why both steps matter
+
+The first cut reported **26 rooms**, including `jb-master` — which `bedroomPrivacy`'s own
+docstring records as the exact false positive that killed its room-graph predecessor. Reproducing
+a known-wrong answer is a good reason to stop and look.
+
+**(a) A suite is not a defect.** Reaching an ensuite through its bedroom is the normal
+arrangement, and it splits off a group of exactly ONE room. Only a split whose smaller side still
+holds two or more rooms counts — which is precisely the `tpl-hdb-4room` shape, {Kitchen, Service
+Yard} against {Living / Dining, …}. That removed `jb-master` and every other master.
+
+**(b) The rectangle has to BE the room.** All four edges must have a wall within 0.15 m.
+v0.31.8.60 measured that fewer than half the shipped rect edges sit on their own wall and 196 of
+668 have no wall at all — where that is true, the rect covers undeclared circulation, so blocking
+it blocks a corridor and everything beyond reads as cut off.
+
+### The limitation is the interesting part
+
+**(b) is why this check does not catch the case that motivated it.** `tpl-hdb-4room`'s shelter is
+skipped, because a shelter with one wall of four has no trustworthy rectangle. Same for
+`-5room`'s.
+
+So the room-rectangle fix — built and reverted in v0.31.8.61 over a dining-chair regression, and
+easy to file as a cosmetic 0.15 m of furniture placement — **gates a whole class of room-scoped
+analysis**. That is a materially better argument for doing it than the one I had, and `TODO.md`
+now carries it.
+
+Both refinements and the limitation are in the test's docstring, and a second assertion pins that
+80+ rooms are actually examined, so a three-entry list cannot quietly become a vacuous one.
+
+Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean. Test-only change.
+
 ## v0.31.8.67 — you walk through the bomb shelter to reach the kitchen
 
 Last release narrowed the shelter question to *"where can this shelter's first door lead?"*.
