@@ -27,6 +27,62 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.93 — auditing all 503 scenarios instead of finding them one at a time
+
+Four releases running, I found a silently-broken scenario by accident while doing something else
+(v0.31.8.88, .89, .90, .92). The corpus is **503 scenarios** — far too many to run — but all
+three bug classes I had hit by hand are statically detectable, so I audited every one of them.
+
+### Dead selectors: 1 more, and it is a whole dead scenario
+
+Extracted all 236 distinct CSS selectors used by `waitFor`/`click` and checked each class token
+against `src/`. Exactly one is absent: `.variant-pop-list`, used by
+`catalog-variant-simple.json`. That scenario also asserts `featureFlags.catalogVariantPick` and
+clicks `.variant-btn` — **none of which exist**. It is a 60-step test of CATALOG-VARIANT, the
+per-card finish-picker popover that `src/ui/CLAUDE.md` records as deliberately REMOVED ("Do not
+re-add card action buttons; changing the finish and duplicating are inspector jobs"). It fails at
+step 5 and can never pass, so it is deleted rather than left looking like coverage.
+
+That the audit found only one more is the reassuring half: `.walk-cam-controls` was not the tip of
+an iceberg.
+
+### The broken disappear-predicate: 9 uses, and it was hiding a real hole
+
+`waitFor {text: …, visible: false}` cannot tell "painted" from "gone" (`visible` ignores
+`opacity`) and passes VACUOUSLY before the text renders. Nine uses across three files, every one a
+transition-overlay wait — **including five of the six auto-hide assertions in
+`transition-overlay-readiness`, the scenario whose entire purpose is proving those overlays
+auto-hide.** Only its first transition had an appears-assert; the other five went straight to
+`visible: false`.
+
+They were indeed passing vacuously, and the fix proves it: with an `-appears-first` guard added
+before each, those guards take **0.9 s to 23.7 s** to satisfy. Every one of those intervals was
+time the old assert had been sailing through with nothing rendered.
+
+`floorplan-transition-overlay` was already correctly paired (appears → gone), so its two only
+needed the gone side swapped; my first patch added redundant appears-guards there and they were
+removed.
+
+### And the assertion I reached for first was wrong too
+
+I initially made every auto-hide assert wait for `[data-transition-overlay]` to UNMOUNT, and
+`exit-overlay-auto-hides` then failed after 68 s — with the failure screenshot showing a
+perfectly normal orbit scene and no overlay painted at all. **The element stays mounted at
+`opacity: 0`**, and puppeteer's `visible` check ignores opacity, so it waits forever.
+
+For a scenario testing hide LOGIC the right assertion is the store flag, so those six now wait on
+`state.loading.active === false` — with the appears-guard above keeping it honest. All 35 steps
+pass; the exit-room hide genuinely takes ~38 s headless.
+
+The leaked mount is recorded in `TODO.md`: a full-screen `position: fixed`, `z-index: 99999`
+element carrying `backdrop-filter: blur()` that never unmounts is not free, even invisible.
+
+### Ratcheted
+
+`scenarioTransitionGuard.test.ts` gains a third assertion banning
+`waitFor {text: …, visible: false}` outright. Worth the guard specifically because the idiom reads
+so naturally: I wrote it again in v0.31.8.92, four releases after documenting why it fails.
+
 ## v0.31.8.92 — `walkcam` waited on a class that exists nowhere in the codebase
 
 Recorded as found-not-fixed in v0.31.8.90. Step 10 was

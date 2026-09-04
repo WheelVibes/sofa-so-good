@@ -46,7 +46,7 @@ interface Step {
   wait?: number
   screenshot?: unknown
   store?: { action?: string; args?: unknown[] }
-  waitFor?: { css?: string; visible?: boolean }
+  waitFor?: { css?: string; text?: string; visible?: boolean }
   eval?: unknown
 }
 
@@ -103,6 +103,42 @@ describe('scenario camera-mode transitions wait for the splash', () => {
             return
           }
           if (modeSetBy(next)) return
+        }
+      })
+    }
+    expect(offenders).toEqual([])
+  })
+
+  /**
+   * `waitFor {text: …, visible: false}` is a BROKEN way to wait for something to
+   * go away, and it reads so naturally that it keeps getting written — I reached
+   * for it again in v0.31.8.92, four releases after documenting why it fails.
+   *
+   * Two independent failure modes:
+   *   1. `visible` does not consider `opacity`, so it is satisfied while the
+   *      element is still fully painted (v0.31.8.88: a scenario reported OK and
+   *      screenshotted the splash anyway);
+   *   2. it passes VACUOUSLY when the text has not rendered yet — which is the
+   *      normal case right after a synchronous store change.
+   *
+   * A corpus audit in v0.31.8.93 found 9 uses across 3 files, every one of them a
+   * transition-overlay wait, including **five of the six** auto-hide assertions in
+   * `transition-overlay-readiness` — the scenario whose entire purpose is proving
+   * those overlays auto-hide.
+   *
+   * Wait on an ELEMENT going away instead (`{css: …, visible: false}`). Asserting
+   * that text APPEARS is fine and is not flagged — that direction is a true
+   * positive.
+   */
+  it('never waits for TEXT to disappear', () => {
+    const offenders: string[] = []
+    for (const file of files) {
+      const steps = (JSON.parse(readFileSync(join(DIR, file), 'utf8')).steps ?? []) as Step[]
+      steps.forEach((step, i) => {
+        if (typeof step.waitFor?.text === 'string' && step.waitFor.visible === false) {
+          offenders.push(
+            `${file}: ${step.name ?? `step ${i}`} waits for text "${step.waitFor.text}" to vanish`,
+          )
         }
       })
     }
