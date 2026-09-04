@@ -158,3 +158,17 @@ over its output. It costs two rasters per storey, so `buildLayoutCritique` runs 
 asked (`{ routeAccess: true }`, which only `ui/report.ts` passes) — enabling it inside
 `schemeOptions`, which critiques a dozen candidates, pushed the Scheme Compare modal past a
 15 s harness timeout the same scenario clears without it.
+
+## Appliances are not free-standing furniture (v0.31.8.58)
+
+A stove needs a wall for its hood and flue, a fridge for its coils and door swing, a washing
+machine for plumbing. `applianceWall.test.ts` ratchets three classes the corpus shows:
+**15 appliances more than 0.28 m off every wall**, **4 templates with a range hood and no stove
+at all**, and **1 hood 1.13 m from its stove**.
+
+**The 0.28 m threshold is derived, not chosen.** `snapToWall` places at `gap = 0.06` from the
+room rect, and `planRoomRect` insets 0.12 from the room origin — which in these templates is the
+wall FACE. So a correctly snapped piece sits at exactly **0.18 m**, and the readings cluster
+there. 0.28 is a full 10 cm beyond that, which no inset artefact explains. A first cut used
+0.15 m, reported "38 of 53", and was measuring the threshold rather than the layouts — if you
+change this constant, re-derive it from `snapToWall` rather than picking a rounder number.

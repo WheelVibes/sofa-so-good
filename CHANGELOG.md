@@ -27,6 +27,60 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.58 — the stove is in the middle of the kitchen, and its hood is over the counter
+
+Last release I measured kitchen appliances against the nearest wall, got "38 of 53 more than
+0.15 m off every wall", and refused to publish it because the threshold rather than the layouts
+was deciding the number. This release derives the threshold and publishes what survives.
+
+**`snapToWall` places at `gap = 0.06` from the room rect; `planRoomRect` insets 0.12 from the
+room origin, which in these templates is the wall FACE. So a correctly snapped piece sits at
+exactly 0.18 m** — and the corpus clusters hard on 0.18, which is the confirmation. Reporting
+beyond **0.28 m**, a full 10 cm past the snap distance that no inset artefact can explain:
+
+**15 appliances are marooned**, across 9 templates. Worst first:
+
+| template | piece | from any wall |
+| --- | --- | --- |
+| `tpl-condo-3bed` | stove | **1.05 m** |
+| `tpl-hdb-5room` | washing machine | 0.60 m |
+| `tpl-condo-1bed` | stove | 0.59 m |
+| `tpl-hdb-2room` | stove | 0.52 m |
+| `tpl-hdb-3room`, `-4room` | washing machine | 0.50 m |
+| `tpl-hdb-3room`, `-exec`, `-3gen`, `-jumbo` | fridge + stove | 0.32 m |
+
+These are not free-standing furniture. A stove needs a wall for its hood and flue, a fridge for
+its coils and door swing, a washing machine for plumbing. Marooned mid-floor it is wrong in the
+render **and** wrong as a contractor reference, which is the harder of the two to argue away.
+
+### And a second defect, found by looking at the worst case
+
+`tpl-condo-3bed` puts its stove at (1.55, 6.00) — dead centre of a 2.7 × 3.0 m kitchen — while
+the counter run and the fridge are both correctly snapped at 0.18 m. **Its range hood hangs over
+the counter, 1.13 m from the stove.** A hood is ducted extract over a specific appliance; a
+drawing that shows it somewhere else is a drawing built wrong.
+
+Sweeping for that turned up a worse variant: **four templates ship a range hood with no stove in
+the home at all** — `tpl-studio`, `tpl-1bed`, `tpl-condo-1study`, `tpl-condo-studio`. 13 of the
+18 hoods are correctly over their stove, so the check measures something.
+
+### What this release does not do
+
+**It fixes none of them.** All three classes are ratcheted in `src/layout/applianceWall.test.ts`
+with "do NOT add an entry to silence a failure", and `TODO.md` carries the mechanisms I could
+infer and marks them unconfirmed:
+
+- the marooned stove looks like the kitchen routine placing the counter and fridge first and
+  leaving no wall edge, so the stove falls through to `arrangeCore`'s room-wide grid settle;
+- the orphan hoods look like a mounted piece (`placeSeededMounts`) outliving a host that one of
+  the drop passes removed.
+
+Both are plausible post-passes in the shape of `unsealRoutes`. Confirming the mechanism comes
+first — the last three releases on the route thread each turned on a mechanism I had assumed and
+had to correct.
+
+Verified: 10185 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.57 — the front door was in the kitchen. 10 → 3
 
 `tpl-condo-2bed` held 8 of the 10 remaining unreachable rooms, all behind one

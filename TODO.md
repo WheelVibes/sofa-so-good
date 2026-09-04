@@ -906,6 +906,26 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   as things that walled a room off. That took the list 32 -> 22 and the clean templates 5 -> 10,
   and it RETRACTS v0.31.8.52's headline finding — `tpl-terrace-ground`'s master bedroom, whose
   culprit was a 0.32 m² shoe cabinet, is clean.
+- **[APPLIANCE PLACEMENT — MEASURED v0.31.8.58, NOT FIXED] 15 kitchen/utility appliances stand
+  in the middle of the room, 4 templates ship a range hood with no stove, and 1 hangs its hood
+  1.13 m from its stove.** Ratcheted in `src/layout/applianceWall.test.ts`.
+  These are not free-standing furniture: a stove needs a wall for its hood and flue, a fridge for
+  its coils and door swing, a washing machine for plumbing. An appliance marooned mid-floor is
+  wrong in the render AND wrong as a contractor reference.
+  **The threshold is DERIVED, which matters** — `snapToWall` places at `gap = 0.06` from the room
+  rect and `planRoomRect` insets 0.12 from the room origin (the wall face), so a correctly
+  snapped piece sits at exactly **0.18 m**, and the corpus clusters there. The sweep reports only
+  beyond 0.28 m. A first cut at 0.15 m said "38 of 53", which was measuring the threshold rather
+  than the layouts (v0.31.8.57 recorded that and declined to publish it).
+  **Worst case, and the one to start from:** `tpl-condo-3bed` puts its stove at (1.55, 6.00),
+  dead centre of a 2.7 x 3.0 m kitchen — **1.05 m from any wall** — while the counter run and the
+  fridge are both correctly snapped, and the hood hangs over the COUNTER. So the kitchen routine
+  placed the counter and fridge and then had no wall edge left for the stove, which fell through
+  to `arrangeCore`'s room-wide grid settle. That is the mechanism to confirm first.
+  **The orphan hoods are probably a different bug**: a mounted hood placed by
+  `placeSeededMounts` outliving a stove that one of the drop passes removed. Unconfirmed.
+  Both are plausible post-pass fixes in the shape of `unsealRoutes` — snap a marooned appliance
+  back to a wall, drop a mount whose host is gone — but confirm the mechanisms first.
 - ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
   half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
   researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus
