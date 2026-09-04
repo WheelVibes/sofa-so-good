@@ -27,6 +27,66 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.96 — built the recommended painted-flute fix, measured it, threw it away
+
+Five releases of refutations had left one lever standing: "the fix is a normal map (or a subtle
+per-rib roughness variation) on the painted finish". I built it. It is worse than shipping nothing,
+and finding that out required fixing the metric first.
+
+### Why I built an `aoMap` and not the recommended normal map
+
+The ribs are real `cylinderGeometry`, so their normals are ALREADY correct — a normal map has no
+form to add. v0.31.8.95 established the flatness comes from environment-dominated lighting, where
+near-uniform irradiance over a curve produces no gradient however right the normals are. In
+three.js `aoMap` attenuates **indirect** light specifically, which is exactly that uniform term.
+And `CylinderGeometry` maps `u = theta/thetaLength` with `theta = 0` at +Z, so on a +Z-facing panel
+`u = 0` is the rib crown: a 64x1 strip in `u` IS the rib cross-section, one texture for all 50 ribs,
+`channel = 0` so no second UV set is needed.
+
+That reasoning was clean and it was wrong.
+
+### The metric was anti-correlated with the thing being measured
+
+The thread's `ripple/px` figure is the mean absolute difference between horizontally adjacent
+pixels. It **rewards hard-edged stripes and penalises smooth gradients** — the exact opposite of
+"reads as a round rib". My first measurement came back 2.048 -> 1.031 and would have been reported
+as a 2x regression; what actually happened was a 3x loss of rib CONTRAST, a different fault the
+number cannot distinguish. The `TODO` already warned it conflated grain with form. It is worse
+than that: for this question it is anti-correlated.
+
+Replaced with a folded per-rib profile — average every scanline, find the rib pitch by maximising
+folded variance, fold onto it, then report **`amp`** (peak-to-trough, i.e. are the ribs
+distinguishable) and **`roundness`** (`corr(profile, cosine) - corr(profile, square)`, i.e. is the
+profile shaped like a shaded cylinder or a printed stripe). Independent axes: a change can raise
+contrast while making the profile more square, which is what a single number hides.
+
+### The result
+
+| painted panel, head-on | amp | roundness |
+|---|---|---|
+| **no map (shipped)** | **26.60** | **+0.041** |
+| aoMap, crown bright | 9.01 | -0.023 |
+| aoMap, crown dark (inverted) | 15.25 | -0.025 |
+
+Both phases are worse than no map at all, and both turn the profile from marginally-cosine to
+marginally-square. Mid-run I blamed mipmapping — a 64x1 strip's mip chain ends at 1x1, i.e. its own
+mean, so minification would average the gradient away. Plausible, and false: `generateMipmaps =
+false` + `LinearFilter` changed the numbers **not at all** (9.01 either way).
+
+The mechanism is phase. `aoMap` multiplies a roughly uniform term by a FIXED profile, while the
+real shading's phase depends on where the light is — so it partially cancels the existing pattern
+instead of reinforcing it, and its sub-1 mean compresses the range on top. Inverting recovers some
+contrast (9.01 -> 15.25) without ever reaching the baseline, which is the signature of a fixed
+profile fighting a variable one rather than a sign error.
+
+**Reverted.** No app change ships. `scripts/measure-flute-roundness.mjs` does, with the metric
+critique in its docstring, because the next person to try the map will otherwise re-derive the
+wrong number.
+
+Recorded honestly in `TODO.md`: a normal map is now the only untried variant, I did NOT test one,
+and my argument that it cannot help (the normals are already correct) is an argument, not a
+measurement.
+
 ## v0.31.8.95 — two more painted-flute hypotheses refuted, one of them never tested before
 
 Back to product work: the painted fluted feature wall, whose flutes read as flat wallpaper stripes

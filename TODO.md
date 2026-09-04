@@ -997,6 +997,22 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   predicted that killing the fixtures would help. With all 16 fixtures off, and again at a low
   hour-8 sun, the head-on region is unchanged. The interior is environment-dominated in every
   configuration, and near-uniform irradiance flattens a curve wherever the lamps are.
+  **A baked `aoMap` cross-section is the FIFTH refutation (v0.31.8.96) — built and thrown away.**
+  Rationale was that the ribs' normals are already correct (real cylinders), so a normal map has no
+  form to add, while `aoMap` attenuates the INDIRECT term that .95 showed was doing the flattening;
+  `CylinderGeometry`'s `u` runs around the circumference with `u=0` at +Z, so one 64x1 strip is the
+  rib cross-section for all 50 ribs. Measured with the new folded-profile metric, head-on:
+  **no map amp 26.60 / roundness +0.041; aoMap crown-bright 9.01 / -0.023; inverted 15.25 /
+  -0.025.** Both phases are WORSE than shipping nothing and both turn the profile from
+  marginally-cosine to marginally-square. Mipmapping was blamed mid-run and cleared
+  (`generateMipmaps=false` changed nothing). The mechanism is PHASE: a fixed profile multiplying a
+  uniform term partially cancels a pattern whose phase depends on light position.
+  **`ripple/px` is ANTI-CORRELATED with roundness — do not quote it again.** It rewards hard-edged
+  stripes and penalises smooth gradients. Use `scripts/measure-flute-roundness.mjs`, which reports
+  rib contrast (`amp`) and profile shape (`roundness`) separately.
+  **What is genuinely untried: an actual NORMAL map.** I did not test one. My argument that it
+  cannot help — the cylinder normals are already correct, so there is no form to add — is an
+  argument, not a measurement, and it is the last standing lever on this thread.
   **Four refutations in, the mechanism is simply that face-on there is nothing to differentiate:**
   every rib presents the same crown orientation to the same near-uniform environment. Only a MAP
   can paint in variation that the lighting cannot produce. Fixture:
