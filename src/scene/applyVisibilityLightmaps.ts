@@ -15,7 +15,7 @@
  * index, an unbaked plan — all of them must leave a working scene, because the alternative is
  * trading a fidelity improvement for a blank canvas.
  */
-import type { BufferGeometry, Mesh, Object3D, Texture } from 'three'
+import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
 import { BufferAttribute } from 'three'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
@@ -66,6 +66,13 @@ export function detachAllVisibilityLightmaps(root: Object3D): number {
     const m = (o as Mesh).material
     if (!m || Array.isArray(m)) return
     if (detachVisibilityLightmap(m as never)) detached += 1
+    // Put the shared original back where a clone stood in, so turning the feature off leaves the
+    // scene as it was rather than with private copies of shared materials.
+    const from = (m as { userData?: Record<string, unknown> }).userData?.visClonedFrom
+    if (from) {
+      ;(o as Mesh).material = from as never
+      ;(m as { dispose?: () => void }).dispose?.()
+    }
   })
   return detached
 }
@@ -220,8 +227,8 @@ export function applyLightmapsFromIndex(
   }
 
   let applied = 0
-  /** Meshes skipped because their material is shared in a way that cannot be represented. */
-  let sharedSkipped = 0
+  /** Meshes given a private clone because their material is shared with an unmapped mesh. */
+  let cloned = 0
   // Faces relocated to the mirror atlas row because the bake put the data there.
   let flippedFaces = 0
   let conflictMeshes = 0
@@ -286,15 +293,28 @@ export function applyLightmapsFromIndex(
     const mat = o.material
     const sharers = meshesPerMaterial.get(mat) ?? 1
     const share = urlByMaterial.get(mat)
-    // Safe only when every mesh rendering this material receives a map AND they all agree on
-    // which one. `withMap`, not the keyed count: a mesh can be keyed and still resolve to no map,
-    // and that mesh is exactly the one that renders the patch with no `uv1`.
+    // Safe to patch IN PLACE only when every mesh rendering this material receives a map AND they
+    // all agree on which one. `withMap`, not the keyed count: a mesh can be keyed and still resolve
+    // to no map, and that mesh is exactly the one that renders the patch with no `uv1`.
+    //
+    // Otherwise CLONE for this mesh. `v0.31.7.175` skipped instead — the safe move while the cause
+    // was fresh, but it cost the GI on 21 meshes including every floor in the flat, which is why
+    // floors were the one shell class the feature never reached. Cloning is viable because nothing
+    // here keys state on material identity, and a finish change re-selects the material through the
+    // store on re-render rather than mutating it in place, so a clone cannot silently stop taking
+    // finishes — the reason `.175` gave for not doing this.
+    let target = mat as MeshStandardMaterial
     if (sharers > 1 && (share?.urls.size !== 1 || share.withMap !== sharers)) {
-      sharedSkipped += 1
-      continue
+      target = (mat as MeshStandardMaterial).clone()
+      // Remembered so `detachAllVisibilityLightmaps` can put the shared original back: turning the
+      // feature off has to leave the scene as it found it, and a mesh quietly keeping a private
+      // copy of a shared material is a difference that would outlive the flag.
+      target.userData = { ...target.userData, visClonedFrom: mat }
+      o.material = target
+      cloned += 1
     }
     const mapGain = (resolver.scaleFor(key, ctx ?? '') ?? scale) * baseGain
-    applyVisibilityLightmap(o.material as never, loadTexture(url), mapGain, debug, mode)
+    applyVisibilityLightmap(target as never, loadTexture(url), mapGain, debug, mode)
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
       // handed to compare its `uv1` against that map's texels, and the texture
@@ -307,7 +327,7 @@ export function applyLightmapsFromIndex(
   const extras = [
     flippedFaces > 0 ? `${flippedFaces} face(s) mirrored` : null,
     conflictMeshes > 0 ? `${conflictMeshes} mesh(es) SKIPPED on uv1 conflict` : null,
-    sharedSkipped > 0 ? `${sharedSkipped} mesh(es) SKIPPED on a shared material` : null,
+    cloned > 0 ? `${cloned} material(s) CLONED off a shared one` : null,
   ].filter(Boolean)
   const report = extras.length ? `${message}, ${extras.join(', ')}` : message
   return { candidates, applied, detached, conflicts: conflictMeshes, context: ctx, report, suspect }

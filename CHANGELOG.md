@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.178 — floors get GI at last: CLONE the shared material instead of skipping it
+
+`.177` shipped 28 % coverage and named the honest remaining gap — **floors receive no GI at all**,
+because 8 floor meshes share one material and `.175`'s guard skips rather than patches. 21 meshes
+were being skipped that way. This recovers them.
+
+**`.175`'s stated reason for not cloning was wrong, and checking it took two greps.** It said these
+materials come from the shared cache that finish changes are applied through, so a clone would
+quietly stop taking a re-finish. In fact `setFloorFinish` writes **store state** and the material is
+re-selected on re-render rather than mutated in place, and there is no `Map`/`WeakMap` keyed on
+material identity and no traversal that mutates materials after build. So a clone cannot diverge the
+way that comment claimed. It was a reasonable caution while the black floor was fresh; it was not a
+measured constraint, and it should have been labelled as such.
+
+**Result:** 21 materials cloned, coverage **87 → 108/385** applied, and the floor now takes light:
+
+| patch | GI off | GI on | |
+| --- | --- | --- | --- |
+| wood floor | 99.8 | **104.8** | +5.0, and R−B **+18.2 → +30.3** — warmer and richer, not darker |
+| rug (unmapped) | 86.6 | 86.6 | untouched |
+
+The direction is the reassuring part: the failure mode this feature has is surfaces collapsing to
+black, and the floor gets *brighter*. A floor receives strong bounce, so that is what it should do.
+
+**Nothing regressed.** The 44-frame sweep's negatives are unchanged and are the same already-explained
+ones — `kitchen-y2` −5.3 (validated against a Cycles reference in `.176` as correct in direction),
+`householdShelter` −4.8/−4.5/−3.9 and the baths/corridor (corner darkening arriving on walls that
+were uniform). Cloning introduced no new negative.
+
+**And it is nearly free.** p50 **6.0 → 6.7 ms**, drawn fps 42.9 → 41.3, worst frame 472.9 ms — all
+within noise of `.177`'s 111-map numbers (6.8 ms, 41.9 fps, 487 ms). Recovering 21 meshes including
+every floor cost no measurable frame time beyond the coverage already shipped.
+
+**Detach restores the original**, so turning the feature off leaves the scene as it was rather than
+with private copies of shared materials — pinned by a test, along with the invariant that actually
+matters: *the unmapped sharer keeps a clean, unpatched material*. That is the assertion that would
+have caught `.174`'s black floor.
+
+Suite **10170 green**, `tsc` and biome clean.
+
+
 ## v0.31.7.177 — coverage 10 % → 28 %: the 111-map set ships, and windowless rooms get form for the first time
 
 `.173` found the coverage cap (`--limit`, default 24) and `.176` named raising it as the next

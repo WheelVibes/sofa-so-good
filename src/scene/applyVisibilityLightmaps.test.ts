@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { BufferAttribute, BufferGeometry, Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { describe, expect, it } from 'vitest'
-import { applyLightmapsFromIndex } from './applyVisibilityLightmaps'
+import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
 import { type LightmapIndex, parseLightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 
@@ -342,11 +342,34 @@ describe('conflict reporting (v0.31.7.130)', () => {
     root.add(mapped)
     root.add(shared)
     // Only `mapped`'s key is in the index, so `shared` would ride the patch with no `uv1`.
+    const original = mapped.material
     const res = applyLightmapsFromIndex(root, indexFor([keyOf(mapped)]), stubTexture)
-    expect(res.applied).toBe(0)
-    expect(res.report).toContain('SKIPPED on a shared material')
-    // And the material is left alone entirely — a half-patched material is the failure itself.
-    expect((mapped.material as MeshStandardMaterial).userData.visLightmap).toBeUndefined()
+    // The mapped mesh still gets its map — via a private CLONE (`v0.31.7.178`); skipping was
+    // `.175`'s safe first move and cost the GI on every floor in the flat.
+    expect(res.applied).toBe(1)
+    expect(res.report).toContain('CLONED off a shared one')
+    // THE INVARIANT: the unmapped sharer keeps a clean, unpatched material. This is the assertion
+    // that would have caught the black floor — it renders the original, which must never carry a
+    // map it has no `uv1` for.
+    expect(shared.material).toBe(original)
+    expect((original as MeshStandardMaterial).userData.visLightmap).toBeUndefined()
+    // ...and the mapped mesh is no longer sharing it.
+    expect(mapped.material).not.toBe(original)
+    expect((mapped.material as MeshStandardMaterial).userData.visLightmap).toBe(true)
+  })
+
+  it('restores the shared original on detach, so turning the feature off leaves no private copy', () => {
+    const root = new Object3D()
+    const mapped = wall()
+    const shared = wall(10)
+    shared.material = mapped.material
+    const original = mapped.material
+    root.add(mapped)
+    root.add(shared)
+    applyLightmapsFromIndex(root, indexFor([keyOf(mapped)]), stubTexture)
+    expect(mapped.material).not.toBe(original)
+    detachAllVisibilityLightmaps(root)
+    expect(mapped.material).toBe(original)
   })
 
   it('still patches a material that only ONE mesh renders', () => {
