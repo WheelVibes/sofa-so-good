@@ -35,18 +35,6 @@ import type { MeshStandardMaterial, Texture } from 'three'
 import { LinearFilter } from 'three'
 
 /**
- * The gain relating the app's artistic fill to physical visibility.
- *
- * **Fitted, not derived.** `1 / mean(V)` looks principled and is scope-dependent by 2.7× —
- * averaging over a whole plan gives 4.81, over just the in-view surfaces 13.12 (`v0.31.7.27`).
- * It is only well-defined if you know which surfaces the fill was calibrated against, and a fill
- * chosen to look right has no such definition. So this is measured against the Cycles reference:
- * 6 minimises the spatial mismatch, and the fit is stable across very different crops (1.36× and
- * 1.39×).
- */
-export const VISIBILITY_GAIN = 6
-
-/**
  * Gain for an **irradiance** set in `'replace'` mode — a different quantity from
  * {@link VISIBILITY_GAIN}, kept separate even though it currently holds the same number.
  *
@@ -82,22 +70,6 @@ export const VISIBILITY_GAIN = 6
  * is the next thing to chase, and it is a bake-side question, not a gain.
  */
 export const IRRADIANCE_GAIN = 6
-
-/**
- * The mean visibility of the plan `VISIBILITY_GAIN` was fitted against (the 4-Room default).
- *
- * Only the *ratio* to another plan's mean is used, so this is a unit-carrying reference rather
- * than a tuned number: a plan whose surfaces see more sky needs proportionally less gain. The
- * 5-Room plan measures 0.355 against this 0.208, and applying the unscaled gain to it made its
- * spatial match worse (1.53× → 2.25×, `v0.31.7.44`).
- */
-const VISIBILITY_REFERENCE_MEAN = 0.20809
-
-/** The gain to use for a plan whose area-weighted mean visibility is `mean`. */
-export function gainForPlanMean(mean: number | undefined): number {
-  if (!mean || mean <= 0) return VISIBILITY_GAIN
-  return VISIBILITY_GAIN * (VISIBILITY_REFERENCE_MEAN / mean)
-}
 
 /** three's chunk that writes the final colour. Replaced only by the DEV visualiser. */
 const OUTPUT_INCLUDE = '#include <opaque_fragment>'
@@ -161,19 +133,16 @@ export function prepareVisibilityTexture(texture: Texture): Texture {
  * --pass irradiance` bakes it that way by default, because the app computes
  * direct sun itself and a baked direct term would be double-counted in turn.
  */
-export type LightmapMode = 'multiply' | 'replace'
-
 export function applyVisibilityLightmap(
   material: MeshStandardMaterial,
   texture: Texture,
-  gain: number = VISIBILITY_GAIN,
+  gain: number = IRRADIANCE_GAIN,
   /**
    * DEV visualiser: write the sampled value out as the fragment colour instead of shading, with
    * magenta for "never sampled". Every *indirect* measurement of this term was exhausted before
    * it existed, and it found the fault in one frame. Not a feature: unusable by design.
    */
   debug = false,
-  mode: LightmapMode = 'multiply',
 ): void {
   const map = prepareVisibilityTexture(texture)
   material.onBeforeCompile = (shader) => {
@@ -191,34 +160,32 @@ export function applyVisibilityLightmap(
       .replace(
         LIGHTS_END,
         `${LIGHTS_END}\n\tfloat visOcclusion = texture2D( visMap, vVisUv ).r;\n` +
-          (mode === 'replace'
-            ? // The map IS the incoming light, so it stands in for the fill rather
-              // than scaling it -- anything already accumulated into
-              // `indirectDiffuse` (ambient + hemisphere + IBL) is discarded on
-              // purpose, because keeping it is the double-count `.67` measured.
-              //
-              // But `indirectDiffuse` is NOT irradiance. Read from three's own
-              // source: `RE_IndirectDiffuse_Physical` computes
-              // `irradiance * BRDF_Lambert( material.diffuseContribution )`, i.e.
-              // irradiance x albedo/PI. Assigning a bare grey value therefore
-              // ERASES ALBEDO on every mapped surface -- a dark floor and a white
-              // wall get the same number. So the map goes through the same Lambert
-              // BRDF three would have applied.
-              //
-              // `material.diffuseColor`, NOT `diffuseContribution`. Only
-              // `PhysicalMaterial` declares the latter -- `BlinnPhongMaterial` and
-              // `ToonMaterial` do not -- and this injection is applied to whatever
-              // material a baked mesh happens to carry. Referencing a
-              // physical-only field made the program fail to compile
-              // (`VALIDATE_STATUS false`), and a failed program renders as if the
-              // term were zero, which is indistinguishable from a real result:
-              // `v0.31.7.90`-`.92`'s app-side numbers were all that failure.
-              // `diffuseColor` exists in every struct. For physical materials
-              // three's own path uses `diffuseContribution`, which additionally
-              // accounts for transmission/sheen energy, so this is a slight
-              // simplification -- and a compiling one.
-              '\treflectedLight.indirectDiffuse = visOcclusion * visGain * BRDF_Lambert( material.diffuseColor );'
-            : '\treflectedLight.indirectDiffuse *= visOcclusion * visGain;') +
+          // The map IS the incoming light, so it stands in for the fill rather
+          // than scaling it -- anything already accumulated into
+          // `indirectDiffuse` (ambient + hemisphere + IBL) is discarded on
+          // purpose, because keeping it is the double-count `.67` measured.
+          //
+          // But `indirectDiffuse` is NOT irradiance. Read from three's own
+          // source: `RE_IndirectDiffuse_Physical` computes
+          // `irradiance * BRDF_Lambert( material.diffuseContribution )`, i.e.
+          // irradiance x albedo/PI. Assigning a bare grey value therefore
+          // ERASES ALBEDO on every mapped surface -- a dark floor and a white
+          // wall get the same number. So the map goes through the same Lambert
+          // BRDF three would have applied.
+          //
+          // `material.diffuseColor`, NOT `diffuseContribution`. Only
+          // `PhysicalMaterial` declares the latter -- `BlinnPhongMaterial` and
+          // `ToonMaterial` do not -- and this injection is applied to whatever
+          // material a baked mesh happens to carry. Referencing a
+          // physical-only field made the program fail to compile
+          // (`VALIDATE_STATUS false`), and a failed program renders as if the
+          // term were zero, which is indistinguishable from a real result:
+          // `v0.31.7.90`-`.92`'s app-side numbers were all that failure.
+          // `diffuseColor` exists in every struct. For physical materials
+          // three's own path uses `diffuseContribution`, which additionally
+          // accounts for transmission/sheen energy, so this is a slight
+          // simplification -- and a compiling one.
+          '\treflectedLight.indirectDiffuse = visOcclusion * visGain * BRDF_Lambert( material.diffuseColor );' +
           (debug ? '\n\tvisDebug = visOcclusion;' : ''),
       )
     if (debug) {
@@ -233,7 +200,7 @@ export function applyVisibilityLightmap(
   // Encodes the gain and the debug mode, so two variants cannot share one cached program.
   // Mode is in the key: `replace` and `multiply` are different programs, and a
   // constant key already collapsed two variants once (`v0.31.7.44`).
-  material.customProgramCacheKey = () => `visGain${gain}:${mode}${debug ? ':dbg' : ''}`
+  material.customProgramCacheKey = () => `visGain${gain}${debug ? ':dbg' : ''}`
   // Marked so it can be found and DETACHED again. Materials outlive a plan change -- they are
   // shared/cached across plans -- so a re-run that only adds maps leaves the previous plan's
   // visibility on any material the new plan reuses (`v0.31.7.45`).

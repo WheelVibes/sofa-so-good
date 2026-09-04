@@ -4169,7 +4169,7 @@ several turned out to mean something different once implemented. **Read this bef
 | 2 | 40 maps, 1.2 MB | **Superseded.** You re-decided for 333 maps after `.114` showed my "no seam at this coverage" was measured at the wrong tier. Baked (10 MB, 0 clipped, 50 % coverage) — **and the seam persists at both**, so coverage was not the cause. |
 | 3 | Commit maps to the repo | **Done** — the 40-map set is `public/assets/lightmaps`. |
 | 4 | Cycles sky + `backgroundIntensity ≈ 4` | ❌ **MEASURED AND DECLINED `v0.31.7.163`** — its premise was spent by `(l)`'s fix. See the block below. |
-| 5 | Delete the `visibility` pass | **Partly.** Assets replaced; the pass and `multiply` operator are still in the code. |
+| 5 | Delete the `visibility` pass | ✅ **DONE `v0.31.7.185`.** Operator, mode type, cache-key half, `VISIBILITY_GAIN`/`gainForPlanMean` all removed; a non-irradiance index is now REFUSED rather than given an operator. Verified byte-identical (0.000 counts). The bake's `--pass visibility` is kept as a measurement tool. |
 | 6 | Reproduce the 1459 ms load hitch | **Not started** (n=1). |
 | 7 | `dprMax` 2 → 1 as last rung | **Not started.** Largest unused perf lever (4.5×). |
 | 8 | Twilight fully physical | **Re-scoped by you to below-horizon, then shipped** (`.116`). Black-band onset moved −4° → −8°; **cannot go further in that scope** — physical twilight at −2° wants 7× the app's own horizon sky. |

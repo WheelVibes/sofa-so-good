@@ -148,7 +148,7 @@ describe('applyLightmapsFromIndex', () => {
       maps: [{ key: keyOf(w), file: 'a.png', ctx: CTX }],
     })
     if (!('index' in parsed)) throw new Error('bad fixture')
-    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 5, mode: 'replace' })
+    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 5 })
     const shader = {
       uniforms: {} as Record<string, { value: number }>,
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',
@@ -227,26 +227,21 @@ describe('applyLightmapsFromIndex', () => {
   })
 })
 
-describe('mode threading (v0.31.7.89)', () => {
-  it('defaults to multiply, so an index cannot silently REPLACE the fill', () => {
-    // A `visibility` map is a [0,1] occlusion ratio. Applied as a replacement it
-    // would stand in for the ENTIRE fill at map*gain, a different and much darker
-    // picture than the one it was baked for. The default has to be the safe one.
+describe('the single operator (v0.31.7.185)', () => {
+  it('keys the program on the gain alone — there is no mode left to thread', () => {
+    // This suite used to assert that `multiply` was the DEFAULT, so a `visibility` index could
+    // not silently be applied as a replacement. `(z)`5 removed that operator outright, so the
+    // protection moved upstream: `VisibilityLightmaps` now REFUSES a non-irradiance index rather
+    // than choosing an operator for it. What remains to pin here is that the gain still keys the
+    // program, which is the collapse `v0.31.7.44` paid for once.
     const root = new Object3D()
     const w = wall()
     root.add(w)
     applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
-    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).toContain(':multiply')
-  })
-
-  it('threads an explicit replace mode into the program cache key', () => {
-    // The key must differ, or three serves `replace` from `multiply`'s compiled
-    // program -- the collapse `v0.31.7.44` already paid for once.
-    const root = new Object3D()
-    const w = wall()
-    root.add(w)
-    applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, { mode: 'replace' })
-    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).toContain(':replace')
+    const key = (w.material as MeshStandardMaterial).customProgramCacheKey()
+    expect(key).toContain('visGain')
+    expect(key).not.toContain('multiply')
+    expect(key).not.toContain('replace')
   })
 })
 
@@ -265,7 +260,7 @@ describe('per-map scale', () => {
       maps: [{ key: keyOf(w), file: 'a.png', ctx: CTX, scale: 3 }],
     })
     if (!('index' in parsed)) throw new Error('bad fixture')
-    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 2, mode: 'replace' })
+    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 2 })
     const shader = {
       uniforms: {} as Record<string, { value: number }>,
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',
@@ -289,7 +284,7 @@ describe('per-map scale', () => {
       maps: [{ key: keyOf(w), file: 'a.png', ctx: CTX }],
     })
     if (!('index' in parsed)) throw new Error('bad fixture')
-    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 2, mode: 'replace' })
+    applyLightmapsFromIndex(root, parsed.index, stubTexture, { gain: 2 })
     const shader = {
       uniforms: {} as Record<string, { value: number }>,
       vertexShader: 'void main() {\n#include <begin_vertex>\n}',

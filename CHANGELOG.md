@@ -29,6 +29,41 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.185 — `(z)`5 done: the `multiply` operator is REMOVED, not defaulted away
+
+Your `(z)`5 call was "delete the pass, the assets and the `multiply` path entirely — **removal, not
+deprecation**". The assets went months ago; the operator survived as a default. It is gone.
+
+**What went.** `LightmapMode`, the `mode` parameter and option, the multiply branch in the shader
+injection, the `:multiply`/`:replace` half of the program cache key, and — because they only ever
+served that operator — `VISIBILITY_GAIN`, `VISIBILITY_REFERENCE_MEAN` and `gainForPlanMean` with its
+per-plan calibration. `IRRADIANCE_GAIN` is now the only gain, which is also the constant `.184`
+refitted.
+
+**The safety it used to provide moved UPSTREAM, which is the part worth stating.** That default
+existed so a `visibility` index could not be silently applied as a replacement — a [0,1] occlusion
+ratio standing in for the entire fill, which `.102` measured as the wrong operator outright (52–80 %
+of slots dark by design). With the operator gone, choosing it is no longer possible, so
+`VisibilityLightmaps` now **refuses** a non-irradiance index with a warning instead of picking an
+operator for it. Refusing is better than falling back: a wrong-asset failure that renders looks like
+a tuning problem, and this arc has lost several rounds to exactly that.
+
+**Verified behaviour-neutral, not assumed.** The same pose before and after the refactor:
+**mean |diff| 0.000 counts, max 0** — the identical frame, 107/385 meshes applied. Suite **10166
+green** (four fewer tests: the `gainForPlanMean` suite described a deleted function, and the two
+mode-threading tests collapsed into one that pins what remains — the gain still keys the program,
+which is the collapse `.44` paid for once).
+
+**Why this was worth doing beyond the tidy-up.** The two-mode split is what let `.183` fit a gain
+against `VISIBILITY_GAIN`'s derivation, a number fitted for a quantity the shipped path no longer
+consumes. One operator and one gain removes that whole class of mistake rather than documenting it.
+
+`bake_material.py --pass visibility` is deliberately **kept**: it is a measurement tool paired with
+`render_visibility.py`, not a shipped rendering path, and the app now says so by refusing its output.
+
+`tsc` and biome clean.
+
+
 ## v0.31.7.184 — ⚠️ CORRECTING `.183`'s gain: 3.59 was fitted with the wrong albedo; it is **6**
 
 `.183` shipped `IRRADIANCE_GAIN = 3.59`, derived by inverting a rendered radiance to irradiance as

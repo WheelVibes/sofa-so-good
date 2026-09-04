@@ -23,9 +23,7 @@ import { computeBoxAtlasUv } from './lightmapUv'
 import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
-  gainForPlanMean,
   IRRADIANCE_GAIN,
-  type LightmapMode,
 } from './visibilityLightmap'
 
 /** Where the baked set lives, base-path aware so it survives a non-root deployment.
@@ -49,7 +47,6 @@ export interface ApplyOptions {
    * by visibility, because the app's ambient/hemisphere fill stays in place and
    * gets scaled instead of stood in for.
    */
-  mode?: LightmapMode
 }
 
 /**
@@ -154,13 +151,7 @@ export function applyLightmapsFromIndex(
   root: Object3D,
   index: LightmapIndex,
   loadTexture: (url: string) => Texture,
-  {
-    baseUrl = LIGHTMAP_BASE,
-    expectCoverage = false,
-    gain,
-    debug = false,
-    mode = 'multiply',
-  }: ApplyOptions = {},
+  { baseUrl = LIGHTMAP_BASE, expectCoverage = false, gain, debug = false }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
   // DETACH FIRST. Materials survive a plan change, so anything patched for the previous plan is
@@ -190,15 +181,7 @@ export function applyLightmapsFromIndex(
   // conversion recorded by the producer, the other is a fitted look constant, and collapsing them
   // is how `v0.31.7.104`'s clipped set came to be "explained" by a gain of ~14.
   const scale = index.scale ?? 1
-  // Mode picks the base gain, because the two modes consume DIFFERENT QUANTITIES: `multiply` takes
-  // a dimensionless visibility ratio and scales the app's fill by it, `replace` takes irradiance
-  // and stands in for the fill. `VISIBILITY_GAIN`'s fit only describes the former, and reusing it
-  // for the latter is the error `v0.31.7.167` recorded. See `IRRADIANCE_GAIN` for its own fit.
-  const baseGain =
-    gain ??
-    (mode === 'replace'
-      ? IRRADIANCE_GAIN
-      : gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined))
+  const baseGain = gain ?? IRRADIANCE_GAIN
   // HOW MANY MESHES RIDE EACH MATERIAL, counted over the WHOLE root rather than the candidate set.
   // `applyVisibilityLightmap` patches a MATERIAL while `uv1` is built per GEOMETRY, so a material
   // shared by N meshes gets one map and one gain for all of them — and any sharer that was never
@@ -323,7 +306,7 @@ export function applyLightmapsFromIndex(
       cloned += 1
     }
     const mapGain = (resolver.scaleFor(key, ctx ?? '') ?? scale) * baseGain
-    applyVisibilityLightmap(target as never, loadTexture(url), mapGain, debug, mode)
+    applyVisibilityLightmap(target as never, loadTexture(url), mapGain, debug)
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
       // handed to compare its `uv1` against that map's texels, and the texture

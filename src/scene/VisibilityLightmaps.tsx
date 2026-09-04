@@ -120,7 +120,21 @@ export function VisibilityLightmaps() {
       // is the light itself and REPLACES it. `v0.31.7.67` measured getting that
       // backwards as worse than not applying a map at all. Deriving it here means
       // a mismatched pair cannot be configured into existence.
-      const mode = parsed.index.pass === 'irradiance' ? 'replace' : 'multiply'
+      // REFUSE a set this path can no longer render, rather than falling back.
+      //
+      // `v0.31.7.185` deleted the `multiply` operator, which is what a non-irradiance set needs:
+      // `.102` measured it as the wrong operator outright (52-80 % of slots dark by design) and
+      // your `(z)`5 call was "delete the pass, the assets and the `multiply` path entirely --
+      // removal, not deprecation". With it gone, an occlusion set fed to `replace` would be
+      // ASSIGNED as though it were irradiance, which is a room lit by an occlusion ratio: very
+      // dark, and dark in a way that looks like a tuning problem rather than a wrong asset.
+      if (parsed.index.pass !== 'irradiance') {
+        console.warn(
+          `visibility lightmaps: index pass is '${parsed.index.pass}', but only 'irradiance' is ` +
+            'supported since v0.31.7.185 (the multiply operator was removed). Skipping.',
+        )
+        return
+      }
       const result = applyLightmapsFromIndex(scene, parsed.index, load, {
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
@@ -136,7 +150,6 @@ export function VisibilityLightmaps() {
         gain: Number.isFinite(gainOverride) && gainOverride > 0 ? gainOverride : undefined,
         // `?aoDebug=1` paints the sampled map instead of shading. Unusable by design.
         debug: import.meta.env.DEV && params.get('aoDebug') === '1',
-        mode,
       })
       if (import.meta.env.DEV || result.suspect) {
         const log = result.suspect ? console.warn : console.info

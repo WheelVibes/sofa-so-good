@@ -6,9 +6,8 @@ import { describe, expect, it } from 'vitest'
 import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
-  gainForPlanMean,
+  IRRADIANCE_GAIN,
   prepareVisibilityTexture,
-  VISIBILITY_GAIN,
 } from './visibilityLightmap'
 
 /**
@@ -78,10 +77,11 @@ describe('applyVisibilityLightmap', () => {
     expect(s.vertexShader).toContain('vVisUv = uv1')
   })
 
-  it('multiplies indirect diffuse after lights_fragment_end, and not specular', () => {
+  it('ASSIGNS indirect diffuse after lights_fragment_end, and never touches specular', () => {
     // Specular attenuation is physically tempting and measured worse (1.51x vs 1.36x).
+    // Assignment rather than multiplication since `v0.31.7.185` removed the other operator.
     const { s } = compile(6)
-    expect(s.fragmentShader).toContain('reflectedLight.indirectDiffuse *= visOcclusion * visGain')
+    expect(s.fragmentShader).toContain('reflectedLight.indirectDiffuse = visOcclusion * visGain')
     expect(s.fragmentShader).not.toContain('indirectSpecular')
     expect(s.fragmentShader).toContain('#include <lights_fragment_end>')
   })
@@ -92,9 +92,12 @@ describe('applyVisibilityLightmap', () => {
     expect(s.uniforms.visMap.value).toBeTruthy()
   })
 
-  it('defaults to the fitted gain rather than a derived one', () => {
-    expect(VISIBILITY_GAIN).toBe(6)
-    expect(compile().s.uniforms.visGain.value).toBe(VISIBILITY_GAIN)
+  it('defaults to the fitted IRRADIANCE gain', () => {
+    // `v0.31.7.185` removed the `multiply` operator, so the only default that can be right here
+    // is the irradiance fit. `v0.31.7.184` refitted it in display space against Cycles
+    // references after `.183` derived it with the wrong albedo.
+    expect(IRRADIANCE_GAIN).toBe(6)
+    expect(compile().s.uniforms.visGain.value).toBe(IRRADIANCE_GAIN)
   })
 
   it('keys the program cache by gain and debug mode, so variants cannot collapse', () => {
@@ -156,28 +159,6 @@ describe('detachVisibilityLightmap', () => {
   })
 })
 
-describe('gainForPlanMean', () => {
-  it('returns the fitted gain for the plan it was fitted on', () => {
-    // 0.20809 is the 4-Room default's measured mean; the ratio is 1, so nothing is scaled.
-    expect(gainForPlanMean(0.20809)).toBeCloseTo(VISIBILITY_GAIN, 4)
-  })
-
-  it('scales DOWN for a plan whose surfaces see more sky', () => {
-    // The 5-Room plan measures 0.355 -- a 1.71x brighter mean -- so it needs proportionally
-    // less gain. Applying the unscaled gain there made its spatial match worse (1.53x -> 2.25x).
-    const g = gainForPlanMean(0.35545)
-    expect(g).toBeLessThan(VISIBILITY_GAIN)
-    expect(g).toBeCloseTo(VISIBILITY_GAIN * (0.20809 / 0.35545), 4)
-  })
-
-  it('falls back to the fitted gain for a set with no recorded mean', () => {
-    // A set baked before the index carried per-plan means must still load, unscaled, rather
-    // than dividing by zero or refusing.
-    expect(gainForPlanMean(undefined)).toBe(VISIBILITY_GAIN)
-    expect(gainForPlanMean(0)).toBe(VISIBILITY_GAIN)
-  })
-})
-
 describe('runtime-attachment hazard', () => {
   it('is documented as construction-time only (216 ms compile hitch if toggled live)', () => {
     // A tripwire, not a behavioural test. If the warning is deleted, the reason goes with it
@@ -189,9 +170,9 @@ describe('runtime-attachment hazard', () => {
 })
 
 describe('replace mode (v0.31.7.88)', () => {
-  const frag = (mode?: 'multiply' | 'replace') => {
+  const frag = () => {
     const m = fakeMaterial() as unknown as { onBeforeCompile: (s: unknown) => void }
-    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, mode)
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false)
     const s = shaderStub()
     m.onBeforeCompile(s)
     return s.fragmentShader
@@ -202,25 +183,26 @@ describe('replace mode (v0.31.7.88)', () => {
     // multiplying leaves the app's ambient/hemisphere fill in place and scales it
     // -- the double-count `v0.31.7.67` measured as WORSE than the crude proxy
     // (+58 % against visibility's +79 % on the one view where either helps).
-    const f = frag('replace')
+    const f = frag()
     expect(f).toContain('reflectedLight.indirectDiffuse = visOcclusion * visGain')
     expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
   })
 
-  it('still MULTIPLIES by default, so the shipped visibility path is unchanged', () => {
-    const f = frag()
-    expect(f).toContain('reflectedLight.indirectDiffuse *=')
-    expect(f).not.toContain('reflectedLight.indirectDiffuse = visOcclusion')
+  it('emits NO multiply form at all — the operator was removed, not defaulted away', () => {
+    // `(z)`5 was "delete the pass, the assets and the `multiply` path entirely -- removal, not
+    // deprecation", and `.102` measured that operator as wrong outright (52-80 % of slots dark by
+    // design). A default is not a removal: this asserts the form cannot be produced.
+    expect(frag()).not.toContain('reflectedLight.indirectDiffuse *=')
   })
 
-  it('gives the two modes different program cache keys', () => {
-    // A constant key collapsed two variants into one program once already
-    // (v0.31.7.44); mode must be part of it or `replace` would silently render
-    // with `multiply`'s compiled shader.
+  it('keys the program on the GAIN, so two gains cannot share one cached program', () => {
+    // `v0.31.7.44`: a constant key collapsed two variants into one program, and the second
+    // material silently rendered with the first's gain. The MODE is no longer part of the key
+    // because `v0.31.7.185` removed the `multiply` operator -- there is one operator now.
     const a = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
     const b = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
-    applyVisibilityLightmap(a as never, fakeTexture(), 6, false, 'multiply')
-    applyVisibilityLightmap(b as never, fakeTexture(), 6, false, 'replace')
+    applyVisibilityLightmap(a as never, fakeTexture(), 6, false)
+    applyVisibilityLightmap(b as never, fakeTexture(), 9, false)
     expect(a.customProgramCacheKey?.()).not.toBe(b.customProgramCacheKey?.())
   })
 
@@ -229,7 +211,7 @@ describe('replace mode (v0.31.7.88)', () => {
     // three's `RE_IndirectDiffuse_Physical`. Assigning a bare value erases albedo
     // on every mapped surface, which `v0.31.7.90` measured as interior p90/p10
     // 3.03 -> 59.40 against physics' 2.72. A ratio no gain can correct.
-    const f = frag('replace')
+    const f = frag()
     // , not : only PhysicalMaterial declares
     // the latter, and referencing it made the program fail to compile on any
     // Lambert/Phong material the bake happened to cover (v0.31.7.94).
