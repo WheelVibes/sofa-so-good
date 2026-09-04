@@ -4,22 +4,28 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## A door into a bedroom should be checkable
+## ~~A door into a bedroom should be checkable~~ — the check is ILL-FORMED (v0.31.8.85)
 
-v0.31.8.83 added two service-band doors and v0.31.8.84 had to correct the claim that neither
-opened into a bedroom — both open into Bedroom 3 on their south side. Nothing in the suite asks
-"what is on the other side of this door", so nothing caught it; `MAIN-DOOR-ROOM` only checks
-`*-main` doors, and `bedroomPrivacy` asks a different question (do you CROSS a bedroom).
+v0.31.8.84 proposed it after having to correct a claim that two new service-band doors did not
+open into a bedroom. Built the sweep: resolve the room 0.5 m either side of every interior door
+and flag any that lands in a `bedroom` / `masterBedroom`, skipping doors whose other side is also
+a bedroom or a bath (ensuite / between-bedrooms are a different question).
 
-**The check:** for every interior door, resolve the room on each side (the probe in
-`mainDoorRoom.test.ts` already does this) and flag a door opening into a `bedroom` /
-`masterBedroom`.
+**It returns 20+ doors and almost all of them are CORRECT.** `jb-bed2 -> jb-bed2`,
+`emu-master-door -> emu-master`, `h3-master -> h3-master` — these are bedrooms' own doors off a
+corridor, which is exactly what a bedroom door should be. "A door opens into a bedroom" is the
+normal case, not a defect.
 
-**The hard half is the exemption.** A corridorless bedroom zone leaves nothing else to open onto,
-so a blanket rule would ban exactly the doors that make `tpl-hdb-4room` and `tpl-hdb-5room`
-reachable at all. It needs to be "…unless that bedroom would otherwise be unreachable", which
-means composing with the connectivity raster rather than the room graph. Worth doing once item
-(f)'s corridor re-plans land, since those are what would let the exemptions go away.
+**Nothing structurally distinguishes `h4-svc-door` from `jb-bed2`**: both are circulation into a
+bedroom. What makes the service-band door objectionable is that the bedroom then sits on the ONLY
+route between two halves of the flat — and that is precisely what
+`src/floorplan/throughRooms.test.ts` measures. No new check is needed.
+
+**Why `throughRooms` does not catch these two.** Its `rectIsTheRoom` gate requires all four edges
+of a room's rectangle to have a wall within 0.15 m, and `tpl-hdb-4room`/`-5room`'s Bedroom 3 does
+not qualify. So this lands back on the ROOM-RECTANGLE fix (v0.31.8.60/.61/.69/.71) — the third
+distinct thing now blocked behind trustworthy room rects, after furniture placement and
+room-scoped connectivity analysis.
 
 ## The walk -> orbit return holds its "Switching to overview..." splash past any settle
 

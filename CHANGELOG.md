@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.85 — the check I proposed last release is ill-formed
+
+v0.31.8.84 had to correct a claim that two new service-band doors did not open into a bedroom,
+and proposed a check so it could not happen again: resolve the room either side of every interior
+door and flag one landing in a bedroom. Built it.
+
+**It returns 20+ doors and almost all of them are correct.**
+
+```
+tpl-hdb-jumbo/ground:      jb-bed2       -> jb-bed2
+tpl-hdb-maisonette/em-up:  emu-master-door -> emu-master
+tpl-hdb-3room/ground:      h3-master     -> h3-master
+...
+```
+
+Those are bedrooms' own doors off a corridor — exactly what a bedroom door should be. **"A door
+opens into a bedroom" is the normal case, not a defect**, and I proposed the check without
+asking what a clean plan would score on it.
+
+### The distinction I was actually after already has a test
+
+Nothing structurally separates `h4-svc-door` from `jb-bed2`: both are circulation into a bedroom.
+What makes the service-band door objectionable is that the bedroom then sits on the **only route
+between two halves of the flat** — which is what `throughRooms.test.ts` measures, built in
+v0.31.8.68 for exactly this shape.
+
+So no new check is needed, and the file is deleted rather than kept with twenty exemptions.
+
+### Why `throughRooms` misses these two, which is the useful part
+
+Its `rectIsTheRoom` gate requires all four edges of a room's rectangle to have a wall within
+0.15 m, and `tpl-hdb-4room`/`-5room`'s Bedroom 3 does not qualify. So this lands back on the
+**room-rectangle fix** — and that is now the **third** distinct thing blocked behind trustworthy
+room rects:
+
+1. furniture placement (v0.31.8.60 → .71, partly shipped);
+2. room-scoped connectivity analysis (v0.31.8.68);
+3. this.
+
+`TODO.md` records all three against that item. Three independent consumers is a much stronger
+case for finishing the rect work than the 0.15 m of furniture placement it was first noticed for.
+
+No code ships. Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.84 — correcting v0.31.8.83: those doors open into Bedroom 3
 
 Last release I wrote that the two new service-band doors *"land on undeclared circulation on
