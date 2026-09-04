@@ -1045,13 +1045,22 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   390px phone viewport. **Optional follow-up, not a gap:** wire the plan editor's existing measure
   tool so a tap-and-type records directly rather than going via the inspector — faster on site, but
   the inspector path is complete and usable as-is.
-- **[F13] Three `planTotalArea` call sites pass the WHOLE plan and understate a two-storey home.**
-  `planTotalArea` is a legitimate single-level helper — `FloorPlanEditor` calls it per storey, which
-  is the correct deliberate use, and it lives in `types.ts` so it cannot import `levels.ts` without a
-  cycle. But `ui/shareSummary.ts`, `ui/shareCard.ts` and `ui/floorplan/ScalePlanModal.tsx` pass the
-  whole plan, so a maisonette's stated area is ground-floor only. Fix at the call sites by summing
-  `planTotalArea(levelAsPlan(plan, l))` across `planLevels(plan)`, as `analysis/renoTimeline.ts` now
-  does. The share ones are cosmetic; the scale modal shows an area the user may act on.
+- **[F13] ~~Three `planTotalArea` call sites pass the WHOLE plan~~ — FIXED v0.31.5.276, entry was
+  STALE for ~500 builds (found v0.31.8.99).** All three (`ui/shareSummary.ts`, `ui/shareCard.ts`,
+  `ui/floorplan/ScalePlanModal.tsx`) call `planTotalAreaAllLevels` and have since
+  `42c4ee36` "Whole-home accessors, and three more ground-only fixes". I went to fix this and found
+  nothing to fix, which is a worse failure mode than an open bug: a stale entry actively misdirects
+  work.
+  **Why nothing caught the staleness:** `allLevelAccessors.test.ts` covered the helper with
+  SYNTHETIC plans only, so no test tied the fix to a shipped template. It now asserts the real
+  corpus — the three two-storey plans and the area each would lose:
+  `tpl-hdb-maisonette` 58.7 -> 118.7, `tpl-terrace-ground` 79.1 -> 149.2, `tpl-loft` 41.8 -> 58.3,
+  i.e. **roughly half the home** in two of the three. It also asserts the SET of two-storey
+  templates, so gaining or losing a storey forces the list to be revisited.
+  **Spot-checked four other numeric TODO claims against the ratchets that own them and all are
+  CURRENT:** `applianceWall` 2 marooned (condo-3bed + condo-1bed stoves), `throughRooms` 3,
+  `templateConnectivity` empty, `bedroomPrivacy` 4 walk-through. So this file is trustworthy apart
+  from the entry above.
 - **[F13] A grep guard for ground-only reads does NOT work AT ANY SCOPE — do not re-propose it.**
   Attempted twice. First over `src/floorplan`: flags ~20 legitimate single-level helpers whose callers
   pass `levelAsPlan`, because the correct/incorrect distinction lives at the CALL SITE.

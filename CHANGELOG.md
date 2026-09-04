@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.99 — went to fix an F13 bug, found it fixed 500 builds ago
+
+`TODO.md` listed three `planTotalArea` call sites passing the WHOLE plan to a single-level helper,
+so a maisonette advertised its ground floor as the whole home. Picked it up because it is concrete,
+unblocked and about measurement accuracy — the goal's own terms.
+
+**All three were already correct.** `ui/shareSummary.ts`, `ui/shareCard.ts` and
+`ui/floorplan/ScalePlanModal.tsx` call `planTotalAreaAllLevels`, and have since `42c4ee36`
+"Whole-home accessors, and three more ground-only fixes" (v0.31.5.276) — about **500 builds** ago.
+
+**A stale entry is a worse failure mode than an open bug**, because it spends someone's attention
+and returns nothing. So the useful work was finding out why nothing flagged it.
+
+**Nothing tied the fix to a shipped template.** `allLevelAccessors.test.ts` covered
+`planTotalAreaAllLevels` with synthetic 6x5-and-4x3 plans, which proves the arithmetic and says
+nothing about the library. Measured what the bug would actually have cost on the real corpus:
+
+| template | ground floor | all storeys | understated by |
+|---|---|---|---|
+| `tpl-hdb-maisonette` | 58.7 m² | 118.7 m² | **59.9 m²** |
+| `tpl-terrace-ground` | 79.1 m² | 149.2 m² | **70.1 m²** |
+| `tpl-loft` | 41.8 m² | 58.3 m² | 16.5 m² |
+
+Roughly HALF the home in two of the three. That is now a test over the shipped templates, and it
+asserts the SET of two-storey plans too — so a template gaining or losing a storey forces the list
+to be revisited rather than silently passing.
+
+**Then I checked whether the rest of the file could be trusted.** Cross-checked four other numeric
+`TODO` claims against the ratchet tests that own those numbers: `applianceWall` 2 marooned
+(condo-3bed + condo-1bed stoves), `throughRooms` 3, `templateConnectivity` empty,
+`bedroomPrivacy` 4 walk-through. **All current.** So the staleness looks isolated rather than
+systemic, which is worth knowing before anyone treats the whole backlog as suspect.
+
+No behaviour change — one test and the backlog corrected.
+
 ## v0.31.8.98 — the ventilation rate is not a search problem, it is a paywall
 
 `MECH-VENT-REQUIRED` has sat blocked on "until a residential figure can be cited" since
