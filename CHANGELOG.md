@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.224 — gloom regression check on the shipped gain change: 44 frames x 2 hours, no cliff anywhere
+
+`.223` cut the baked indirect by ~30 % on the strength of patch measurements. That is exactly the
+kind of change that reads as correct on a patch and as GLOOM in the product — this repo already
+carries a DEFAULT-GLOOM item from a near-black night frame — so it gets a whole-tour before/after
+rather than a claim that it should be fine.
+
+New `scripts/dev-probes/tour-diff.mjs` pairs two `walk-tour.mjs` runs by filename and reports
+ABSOLUTE per-frame brightness. It is deliberately not `frame-compare.mjs`, which normalises both
+frames to a common median to compare tonal shape exposure-invariantly — the right tool for
+app-versus-reference and precisely the wrong one here, since normalising the level away would report
+"no change" by construction. It sorts by the darkest frame, prints per-frame deltas, and counts
+frames under 40 counts, because a mean hides a cliff.
+
+Control taken by reverting the constant with a `cp`-backed edit and re-running the same tour.
+
+| tour | gain 4.2 mean | gain 6 mean | delta | darkest frame | frames < 40 counts |
+| --- | --- | --- | --- | --- | --- |
+| 21:00, lamps default | 157.6 | 160.2 | **−2.6 (1.6 %)** | acLedge-y2 7.8 (was 8.0) | 1 / 1 |
+| 13:00 | 188.9 | 190.7 | **−1.7 (0.9 %)** | livingDining-y2 137.7 (was 140.7) | 0 / 0 |
+
+**No gloom regression at either hour.** The single sub-40 frame at night is `acLedge`, an OUTDOOR
+utility ledge that is already dark in both arms and unchanged by the gain (7.8 vs 8.0). The worst
+per-frame deltas are −10.8 (`bedroom3-y1`, night) and −5.1 (`bedroom3-y1`, day).
+
+**And a result worth stating plainly, because it cuts both ways.** A 30 % cut to the baked term
+moves the whole-frame mean by ~1 %. The reason is coverage: only **107 of ~385 meshes** carry a map,
+and the tour's eye-level poses look mostly at furniture and unmapped surfaces. So the correction
+lands where physical accuracy is checkable — the architectural surfaces, where the measured ceiling
+patch moved 207.1 → 194.6 — and is nearly invisible in the average frame. That is reassuring for
+this change, and it also bounds how much the GI feature can be worth at 28 % coverage: raising
+coverage is a bigger lever on the look than any further re-fit of the gain.
+
+Suite 10174 green.
+
+
 ## v0.31.7.223 — SHIPPED: `IRRADIANCE_GAIN` 6 → 4.2, the first fit with a validated measurement chain. And `.222`'s central claim was wrong
 
 **First, the correction.** `.222` claimed the runtime ambient OVERLAPS the baked indirect, a 1.61x
