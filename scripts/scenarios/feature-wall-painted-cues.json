@@ -1,0 +1,158 @@
+{
+  "name": "feature-wall-painted-cues",
+  "description": "FEATURE-WALL-PAINTED (v0.31.8.95). Fixture for the standing question: why do a PAINTED fluted panel's flutes read as flat wallpaper stripes head-on while reading as round obliquely? Keeps the two hypotheses refuted in v0.31.8.95 measurable: (1) ambient occlusion - sweeps performance (ao:false) / medium / high (ao:true); at `high` the head-on ribs read WORSE, collapsing to pinstripes, because the ~10mm rib valleys are below the screen-space AO radius at this distance. (2) lighting direction - kills all 16 fixtures, then drops to a low sun; neither changes the head-on region, because the interior is environment-dominated in every configuration. Geometry (v0.31.8.80) and `sheen` (v0.31.8.81) were refuted earlier. Camera (11.0, 2.45) yaw -pi/2.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss",
+      "eval": "(()=>{const s=window.__store.getState();localStorage.setItem('hdb_onboarded','1');s.endTour?.();s.setOnboardingOpen?.(false);s.dismissLocationPrompt?.();s.setManualHour?.(13)})()"
+    },
+    {
+      "name": "preset",
+      "eval": "(()=>{window.__store.getState().applyLayoutPreset('coastal')})()"
+    },
+    {
+      "name": "w1",
+      "wait": 7000
+    },
+    {
+      "name": "toPainted",
+      "eval": "(()=>{const s=window.__store.getState();const fw=(s.items||[]).find(i=>i.defId==='feature-wall');if(!fw)throw new Error('no feature-wall in coastal preset');s.updateItemProps(fw.id,{finish:'painted'})})()"
+    },
+    {
+      "name": "walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000
+    },
+    {
+      "name": "walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "settle",
+      "wait": 6000
+    },
+    {
+      "name": "aim",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s1",
+      "wait": 2500
+    },
+    {
+      "name": "shot-performance",
+      "screenshot": "painted-performance-noAO"
+    },
+    {
+      "name": "toMedium",
+      "eval": "(()=>{window.__store.getState().setQualityTier('medium')})()"
+    },
+    {
+      "name": "reaim1",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s2",
+      "wait": 6000
+    },
+    {
+      "name": "shot-medium",
+      "screenshot": "painted-medium-AO"
+    },
+    {
+      "name": "toHigh",
+      "eval": "(()=>{window.__store.getState().setQualityTier('high')})()"
+    },
+    {
+      "name": "reaim2",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s3",
+      "wait": 6000
+    },
+    {
+      "name": "shot-high",
+      "screenshot": "painted-high-AO"
+    },
+    {
+      "name": "back-to-performance",
+      "eval": "(()=>{window.__store.getState().setQualityTier('performance')})()"
+    },
+    {
+      "name": "settle-perf",
+      "wait": 4000
+    },
+    {
+      "name": "noon",
+      "eval": "(()=>{window.__store.getState().setManualHour(13)})()"
+    },
+    {
+      "name": "aim1",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s1",
+      "wait": 2500
+    },
+    {
+      "name": "shot-noon",
+      "screenshot": "A-hour13-overhead"
+    },
+    {
+      "name": "lights-off",
+      "eval": "(()=>{const s=window.__store.getState();const n=(s.items||[]).filter(i=>/light|lamp|cove|led/i.test(String(i.defId)));n.forEach(i=>s.updateItemProps(i.id,{on:false}));window.__killed=n.length})()"
+    },
+    {
+      "name": "aim2",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s2",
+      "wait": 3000
+    },
+    {
+      "name": "shot-nolights",
+      "screenshot": "B-hour13-fixtures-off"
+    },
+    {
+      "name": "low-sun",
+      "eval": "(()=>{window.__store.getState().setManualHour(8)})()"
+    },
+    {
+      "name": "aim3",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s3",
+      "wait": 3000
+    },
+    {
+      "name": "shot-lowsun",
+      "screenshot": "C-hour8-low-sun"
+    }
+  ]
+}

@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.95 — two more painted-flute hypotheses refuted, one of them never tested before
+
+Back to product work: the painted fluted feature wall, whose flutes read as flat wallpaper stripes
+head-on while reading as properly round obliquely (v0.31.8.79/.80). The recorded conclusion was
+"the fix is a normal map, not geometry and not lighting", with geometry refuted in .80 and `sheen`
+refuted in .81.
+
+**Reading the fixture, I found a gap: ambient occlusion had never been in the picture.**
+`feature-wall-finishes.json` never sets a quality tier, so it boots at the capability-detected
+tier — `performance`, the ONLY tier with `ao: false`. Every measurement behind
+"it needs a normal map" was taken with AO off, and the rib valleys are exactly where a real
+painted flute gets its cue.
+
+**AO does not fix it — it makes the head-on region WORSE.** Swept `performance` / `medium` /
+`high` from the same camera. At `high` the head-on ribs collapse from alternating stripes to thin
+pinstripes on a flat cream field, and the whole frame darkens. The reason is scale: the gap
+between adjacent rib surfaces is `step - 2 x 0.42 x step` = 0.16 x step, about **10 mm** at the
+60 mm pitch, which is below the screen-space AO radius can resolve at this viewing distance. So
+the AO lands on the panel as a whole rather than in the grooves.
+
+**Lighting direction does not fix it either.** These ribs are vertical cylinders, and a vertical
+cylinder's side normals have no vertical component — so an overhead source (the coastal preset's
+cove LED, at hour 13) can produce no horizontal shading variation at all. That predicted that
+killing the fixtures would help. It does not: with **all 16 fixtures off**, and again at a low
+hour-8 sun, the head-on region is unchanged (marginally flatter). The interior is
+environment-dominated in every configuration tested, and near-uniform irradiance is what flattens
+a curve regardless of where the lamps are.
+
+So the standing conclusion survives a third and fourth independent refutation, and is now much
+better supported than when it was a single observation: **only a MAP can differentiate pixels
+across a rib face-on**, because face-on every rib presents the same crown orientation to the same
+near-uniform environment, and no lighting model or material parameter has anything to work with.
+
+Kept as `scripts/scenarios/feature-wall-painted-cues.json` — 34 steps, both sweeps in one session,
+6 frames — so neither hypothesis has to be re-litigated from scratch. The AO half is the valuable
+part: it is the one a reader would most reasonably assume had already been tried.
+
+No app change. `feature-wall-finishes.json` is left alone; the new fixture is additive.
+
 ## v0.31.8.94 — retracting v0.31.8.93's overlay leak: it is a starved timer, not a leak
 
 Last release I wrote that the transition overlay "stays mounted at `opacity: 0`" and attributed it

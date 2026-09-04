@@ -986,6 +986,21 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   measure of how well the flutes read.
   **So the fix is a normal map (or a subtle per-rib roughness variation) on the painted finish**,
   not a geometry change and not a lighting change.
+  **AO was never tested until v0.31.8.95, and it is NOT the answer.** Every prior measurement ran
+  at the boot tier — `performance`, the only tier with `ao: false` — so the most reasonable
+  "surely this was tried" hypothesis was in fact untouched. Swept `performance`/`medium`/`high`:
+  at `high` the head-on ribs read WORSE, collapsing to pinstripes. The gap between adjacent rib
+  surfaces is 0.16 x step, about **10 mm** at the 60 mm pitch, below what screen-space AO can
+  resolve at this distance, so it darkens the panel rather than the grooves.
+  **Lighting direction is NOT the answer either (v0.31.8.95).** A vertical cylinder's side normals
+  have no vertical component, so an overhead cove LED can produce no horizontal variation — which
+  predicted that killing the fixtures would help. With all 16 fixtures off, and again at a low
+  hour-8 sun, the head-on region is unchanged. The interior is environment-dominated in every
+  configuration, and near-uniform irradiance flattens a curve wherever the lamps are.
+  **Four refutations in, the mechanism is simply that face-on there is nothing to differentiate:**
+  every rib presents the same crown orientation to the same near-uniform environment. Only a MAP
+  can paint in variation that the lighting cannot produce. Fixture:
+  `scripts/scenarios/feature-wall-painted-cues.json` keeps both sweeps measurable.
   **`sheen` is NOT the answer — tested and refuted in v0.31.8.81.** The def carries a `sheen`
   param defaulting to 0, and a specular crown is what makes a real painted flute read, so it was
   the cheap hypothesis. Swept 0 / 0.3 / 0.6 / 1 from the same fixture: ripple/px
