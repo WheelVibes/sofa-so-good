@@ -27,6 +27,65 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.20 — the counter is never placed at all, and two of the five kitchens have room
+
+Chasing the missing hobs. In **all four** failing kitchens the overlap pairs are the same shape:
+
+```
+tpl-studio        kitchen-counter-l x refrigerator ; kitchen-counter-l x stove
+tpl-condo-studio  kitchen-counter-l x refrigerator ; kitchen-counter-l x stove
+tpl-condo-1study  kitchen-counter-l x stove
+tpl-1bed          kitchen-counter-l x refrigerator ; kitchen-counter-l x stove
+```
+
+The counter overlaps both appliances every time, and `dropOverlaps` resolves it by deleting them.
+So the hob was never the problem — **the counter is**.
+
+### Two of the five are NOT capacity-limited
+
+Minimum one-wall run for the kit at its smallest: counter (min 1.2) + hob 0.6 + fridge 0.7 =
+**2.5 m**.
+
+| kitchen | longest wall | verdict |
+|---|---|---|
+| `tpl-condo-studio/su-kit` | 2.00 m | short 0.50 — must wrap a corner |
+| `tpl-condo-1bed/c1-kit` | 2.00 m | short 0.50 — must wrap a corner |
+| `tpl-condo-1study/cs-kit` | 2.20 m | short 0.30 — must wrap a corner |
+| **`tpl-1bed/ob-kit`** | **3.10 m** | **one wall can hold all three** |
+| **`tpl-studio/st-kit`** | **3.80 m** | **one wall can hold all three** |
+
+So three genuinely need the run wrapped around a corner, which `arrangeKitchen` does not do — but
+two have ample wall and fail anyway. Those two are placement bugs.
+
+### And in `st-kit` the counter never leaves the seed point
+
+`st-kit`'s rect is x 0.32-3.88, z 3.12-4.28 — so a 0.6 m deep piece sits at z **3.48** flush north
+or z **3.92** flush south. The traced positions after arranging AND after the rescue:
+
+| piece | position | reading |
+|---|---|---|
+| `kitchen-counter-l` | 2.10, **3.70** | the room centre — **never placed** |
+| `refrigerator` | 0.73, **3.70** | room-centre z — **never placed** |
+| `stove` | 3.18, **3.93** | flush south, correctly placed |
+
+A 2.4 x 0.6 counter parked at the centre of a 1.16 m deep rect spans z 3.40-4.00 — over half the
+depth, straight down the middle — so everything else overlaps it and dies. The stove is the only
+piece that gets a wall, and it is deleted for overlapping a counter that should not be there.
+
+**Neither the arranger nor the rescue can find that counter a wall**, even though the north wall is
+3.56 m long and flush placement at z 3.48 is inside the rect. Note the rescue now DOES consider it
+(v0.31.9.18 added `kitchen` to the wall-hugging set) and still fails, so this is not the
+eligibility gap that release fixed.
+
+**Leading hypothesis, explicitly untested:** flush north leaves z 3.78-4.28 = **0.50 m** of floor,
+under `CLEARANCE.walkwayMin` (0.6). If `canPlace` or `tryPlace` refuses a placement that pinches
+circulation below that, then a 1.16 m deep galley can never take a 0.6 m counter, and the studio
+kitchens are unfixable without a shallower counter run. I am NOT publishing that as the cause —
+this room has already had one wrong diagnosis from me per release for four releases, and the check
+is a single grep away for whoever picks it up.
+
+Diagnosis only, no code change.
+
 ## v0.31.9.19 — a 2.4 m counter in a 2.0 m kitchen, and the narrower fix beat the bigger one
 
 The four hood-without-hob kitchens. Tracing `tpl-studio` and `tpl-condo-studio` through the passes:

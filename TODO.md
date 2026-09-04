@@ -32,7 +32,23 @@ no collateral.
 counters (+3 items) but fires on `tpl-hdb-2room`, whose kitchen was already complete — marooning its
 fridge 0.67 m off the wall, taking appliances-snapped 38 -> 37, and costing `tpl-condo-1study` a
 severed room. One clean counter beat two plus that collateral.
-**Still missing: the HOBS.** `su-kit`, `cs-kit` and `ob-kit` all lack one, and `st-kit` recovers
+**DIAGNOSED v0.31.9.20 — it is the COUNTER, not the hob.** In all four failing kitchens the overlap
+pairs are `kitchen-counter-l x refrigerator` and `kitchen-counter-l x stove`; `dropOverlaps` deletes
+the appliances. Minimum one-wall run is counter(1.2) + hob(0.6) + fridge(0.7) = **2.5 m**, so
+`su-kit`/`c1-kit` (2.00 m) and `cs-kit` (2.20 m) are 0.30-0.50 m short and genuinely need the run
+WRAPPED AROUND A CORNER, which `arrangeKitchen` does not do. **But `ob-kit` (3.10 m) and `st-kit`
+(3.80 m) have ample wall and fail anyway** — those two are placement bugs, and the tractable ones.
+In `st-kit` the counter is **never placed at all**: its rect is z 3.12-4.28, a 0.6 m piece sits at
+z 3.48 (flush N) or 3.92 (flush S), and the counter is at z **3.70** — the room centre. It spans
+z 3.40-4.00, over half the 1.16 m depth, straight down the middle, so everything else overlaps it.
+The fridge is also still on the seed. Only the stove gets a wall, and it dies overlapping a counter
+that should not be there. The v0.31.9.18 rescue DOES consider it now and still fails.
+**Untested leading hypothesis:** flush north leaves 0.50 m of floor, under `CLEARANCE.walkwayMin`
+(0.6) — check whether `canPlace`/`tryPlace` refuses placements that pinch circulation. If so a
+1.16 m galley can never take a 0.6 m counter. **Verify before publishing it**; this room has had one
+wrong diagnosis from me per release for four releases.
+
+**Superseded:** `su-kit`, `cs-kit` and `ob-kit` all lack one, and `st-kit` recovers
 nothing at all. A hob is 0.6 m — the easiest piece in the kit to fit — so its loss is more likely
 an ordering or keep-out problem than capacity. That is the next thread.
 
