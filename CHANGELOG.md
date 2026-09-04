@@ -29,6 +29,58 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.175 — the black floor's CAUSE: the injection patches a MATERIAL, `uv1` lives on the GEOMETRY
+
+`.174` reverted the GI for crushing the floor and named a hypothesis (an up-facing floor sampling
+the wrong atlas row). That was wrong, and the real cause is simpler and worse.
+
+**`applyVisibilityLightmap` patches a material; `uv1` is built per geometry.** So a material shared
+by N meshes carries ONE texture and ONE gain for all of them — and any sharer that was never keyed
+has no `uv1` at all, samples undefined coordinates, and in `'replace'` mode is *assigned* that
+result. The failure is a cliff, not a slope: the surface loses all of its indirect light.
+
+**Measured in the app:** 52 mapped meshes ride only **36 materials**, and **2 materials are shared
+by 18 meshes**. The worst is one material on **10 meshes of which only 2 carry `uv1`**; the second is
+the floors — 8 meshes, 4 with `uv1`. That is the black floor, exactly.
+
+It also explains a false lead: `lightmap-census.mjs` reported all 8 floors with `scale` 0.2385, and
+only ONE map in the index has that scale. The census reads `visMapUrl` off the material, so it was
+faithfully reporting that 8 meshes share one patched material — the symptom, mistaken for a
+coincidence.
+
+**Why the earlier elimination missed it.** `v0.31.7.130` ruled out "per-map scale colliding on a
+shared material — 0 of 175 materials". That asked whether two maps disagreed about a material's
+SCALE. The collision is not in the scale; it is in the texture and the UVs, and nobody asked how
+many meshes ride each patched material until now.
+
+**The fix, and the alternative deliberately not taken.** A material is now patched only when every
+mesh rendering it agrees on the same map; otherwise the mesh is skipped and reported
+(`N mesh(es) SKIPPED on a shared material` — 6 on the shipped set). Cloning the material per mesh
+would preserve GI on those surfaces and was rejected: these materials come from the shared cache
+that finish changes are applied through, so a clone would quietly stop responding to a floor or wall
+re-finish. **Losing GI on a shared surface is recoverable; a surface that stops taking finishes is
+not.**
+
+**Verified, both directions:**
+
+| patch | GI off | GI on | |
+| --- | --- | --- | --- |
+| wood floor (floor-pitched pose) | 99.8 | **99.8** | the collapse is gone — byte-identical |
+| rug | 86.6 | **86.6** | identical |
+| left wall (eye-level) | 79.9 | **141.2** | benefit preserved (141.3 before the fix) |
+| ceiling | 66.8 | **89.9** | preserved (89.8 before) |
+
+So the black-surface class is removed at no measured cost to the benefit.
+
+**The flag stays OFF.** The evidence above is four patches in one room, which is the *same* size of
+survey that produced `.174`'s regression — re-shipping on it would repeat the exact mistake one
+build after recording it. What re-enabling needs is a systematic sweep: the 11-room tour with the
+fix, flagging **any** surface that darkens, since a darkening beyond noise is this bug class's
+signature. The pre-fix tour already had one (`kitchen-y2`, −5.2) that is now worth re-reading.
+
+Suite 10167 green, `tsc` and biome clean.
+
+
 ## v0.31.7.174 — ⚠️ REVERTING `.169`: the GI crushes the FLOOR, and I shipped it without ever measuring one
 
 `.173` closed by admitting that whether the floor moves toward or away from the reference was

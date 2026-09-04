@@ -120,6 +120,13 @@ function worldPositions(mesh: Mesh): Float64Array | null {
   return out
 }
 
+/** How many KEYED meshes render `mat` — the sharers that would receive a `uv1`. */
+function countKeyedOn(keyed: { mesh: Mesh; key: string }[], mat: unknown): number {
+  let n = 0
+  for (const { mesh } of keyed) if (mesh.material === mat) n += 1
+  return n
+}
+
 /** A mesh worth keying: big enough, and with a material that has an `aoMap` slot. */
 function isCandidate(o: Object3D): o is Mesh {
   const mesh = o as Mesh
@@ -183,7 +190,41 @@ export function applyLightmapsFromIndex(
   // is how `v0.31.7.104`'s clipped set came to be "explained" by a gain of ~14.
   const scale = index.scale ?? 1
   const baseGain = gain ?? gainForPlanMean(ctx ? index.contexts?.[ctx]?.mean : undefined)
+  // HOW MANY MESHES RIDE EACH MATERIAL, counted over the WHOLE root rather than the candidate set.
+  // `applyVisibilityLightmap` patches a MATERIAL while `uv1` is built per GEOMETRY, so a material
+  // shared by N meshes gets one map and one gain for all of them — and any sharer that was never
+  // keyed has no `uv1`, samples undefined coordinates, and in `'replace'` mode is ASSIGNED that,
+  // which is a cliff to black rather than a dim surface. Measured in `v0.31.7.174`: the bedroom3
+  // wood floor read 126.7 counts with the feature off and 24.4 with it on, warm cast gone. 18 of
+  // 52 mapped meshes rode just 2 shared materials, one of them 10 meshes with only 2 `uv1`s.
+  //
+  // Counted over every mesh, not just candidates, because the sharers that break are exactly the
+  // ones the candidate filter EXCLUDED — a mesh too small to key still renders the material it
+  // shares with a big one.
+  const meshesPerMaterial = new Map<unknown, number>()
+  root.traverse((o) => {
+    const mesh = o as Mesh
+    if (!mesh.isMesh) return
+    const m = mesh.material
+    if (Array.isArray(m) || !m) return
+    meshesPerMaterial.set(m, (meshesPerMaterial.get(m) ?? 0) + 1)
+  })
+  // Which map each keyed mesh WOULD get, so a shared material can be checked for agreement before
+  // anything is patched.
+  const urlByMaterial = new Map<unknown, Set<string>>()
+  for (const { mesh: o, key } of keyed) {
+    const u = ctx ? resolver.urlFor(key, ctx) : null
+    if (!u) continue
+    const m = o.material
+    if (Array.isArray(m) || !m) continue
+    const set = urlByMaterial.get(m) ?? new Set<string>()
+    set.add(u)
+    urlByMaterial.set(m, set)
+  }
+
   let applied = 0
+  /** Meshes skipped because their material is shared in a way that cannot be represented. */
+  let sharedSkipped = 0
   // Faces relocated to the mirror atlas row because the bake put the data there.
   let flippedFaces = 0
   let conflictMeshes = 0
@@ -237,6 +278,21 @@ export function applyLightmapsFromIndex(
     // maximum, so a single factor would rescale every mesh by the wrong amount and flatten the
     // between-mesh ratios a GI bake exists to carry. The entry's own divisor wins; the
     // index-level one is the fallback for a globally scaled set.
+    // A material may only be patched when every mesh that renders it agrees on the map. One
+    // texture and one gain live on the material, so a disagreement cannot be represented — and the
+    // failure is silent and severe (see the count above).
+    //
+    // CLONING per mesh was the obvious alternative and is not taken: materials here come from the
+    // shared cache that finish changes are applied through, so a clone would quietly stop
+    // responding to a floor or wall re-finish. Losing GI on a shared surface is recoverable;
+    // a surface that stops taking finishes is not.
+    const mat = o.material
+    const sharers = meshesPerMaterial.get(mat) ?? 1
+    const urls = urlByMaterial.get(mat)
+    if (sharers > 1 && (urls?.size !== 1 || sharers > (urls ? countKeyedOn(keyed, mat) : 0))) {
+      sharedSkipped += 1
+      continue
+    }
     const mapGain = (resolver.scaleFor(key, ctx ?? '') ?? scale) * baseGain
     applyVisibilityLightmap(o.material as never, loadTexture(url), mapGain, debug, mode)
     if (import.meta.env.DEV) {
@@ -251,6 +307,7 @@ export function applyLightmapsFromIndex(
   const extras = [
     flippedFaces > 0 ? `${flippedFaces} face(s) mirrored` : null,
     conflictMeshes > 0 ? `${conflictMeshes} mesh(es) SKIPPED on uv1 conflict` : null,
+    sharedSkipped > 0 ? `${sharedSkipped} mesh(es) SKIPPED on a shared material` : null,
   ].filter(Boolean)
   const report = extras.length ? `${message}, ${extras.join(', ')}` : message
   return { candidates, applied, detached, conflicts: conflictMeshes, context: ctx, report, suspect }
