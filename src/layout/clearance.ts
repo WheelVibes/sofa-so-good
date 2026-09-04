@@ -103,7 +103,7 @@ export function doorApproachRects(plan: SingleLevelPlan, depth = 0.45): Rect[] {
  * rejecting a tall one, and treat a near-zero sill (a full-height window or
  * balcony sliding door) as a hard keep-out for every floor item.
  */
-export function windowFrontRects(plan: FloorPlan, depth = 0.65): WindowFrontRect[] {
+export function windowFrontRects(plan: SingleLevelPlan, depth = 0.65): WindowFrontRect[] {
   const rects: WindowFrontRect[] = []
   for (const o of plan.openings) {
     if (o.kind !== 'window') continue

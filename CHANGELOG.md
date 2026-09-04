@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.2 — F13 stage 1 continued, and the audit found seven candidate bugs
+
+Picked up the three helpers v0.31.9.1 deliberately left alone because they needed their callers
+read one at a time. Reading them was the work, and it turned up more than an annotation.
+
+**`windowFrontRects` is single-level** — all four callers pass `DEFAULT_FLOOR_PLAN` (single-storey),
+`lp` twice inside `autoArrange`'s per-level loop, or `levelAsPlan`. Annotated.
+
+**`planCollisionWalls` is single-level too, and that is the interesting one.** It reads
+`plan.walls`/`.openings`, which on a whole `FloorPlan` are the GROUND FLOOR. Of its 15 non-test
+call sites, 8 pass a level plan and **7 pass a whole plan** — and only two of those seven are
+right:
+
+- `placementWalls.ts:40` — the ground-floor branch, with an upper-level branch above it that uses
+  `levelAsPlan`. Deliberate and correct.
+- `report.ts:393` — the ground SET, handed to `findWallClipsByLevel`, which resolves upper storeys
+  itself. The comment says exactly that.
+
+**The other seven sites have ZERO level-aware references in their files** —
+`FinishPicker.tsx` (x2), `ClearancePanel.tsx`, `DesignScorePanel.tsx`, `analysis/designScore.ts`,
+`resetSlice.ts`, `scene/TapeMeasure.tsx`. That is the F13 signature: no error, no symptom on the
+default flat, wrong only on a maisonette or landed plan.
+
+**One is confirmed inconsistent rather than merely suspicious.** `TapeMeasure` gathers snap
+candidates from `st.items` — EVERY storey's furniture — but wall endpoints from the ground floor
+only. So measuring upstairs on a maisonette snaps to furniture that is there and to walls that are
+not. It has no `viewLevelId`, no `levelAsPlan`, no `walkLevel`.
+
+Both helpers are now annotated `SingleLevelPlan`, which is still an alias — so the suite is green
+and nothing changed. The seven sites are enumerated in `TODO.md` as the pre-identified worklist:
+when the alias becomes a distinct type they become compile errors, which is precisely what the
+migration is for. Finding them by reading callers, rather than by grep, is also the third
+demonstration that the type split is the only instrument that works here.
+
+Not fixed in this commit, deliberately: each of the seven needs its own decision about what the
+right storey IS (the viewed one? the walked one? all of them?), and `TapeMeasure`'s answer differs
+from `designScore`'s. Bundling seven behaviour changes into a signature commit would make the
+green suite meaningless.
+
 ## v0.31.9.1 — F13 stage 1 opened: `SingleLevelPlan` lands as an alias
 
 The F13 schema migration is the one item in `TODO.md` marked **user-authorised** ("I don't have

@@ -5,7 +5,7 @@
  */
 import type { CollisionWall } from '../collision/walls'
 import { isSlopedWall, slopedWallHeights } from './slopedWall'
-import type { FloorPlan, PlanOpening, PlanWall } from './types'
+import type { FloorPlan, PlanOpening, PlanWall, SingleLevelPlan } from './types'
 import { wallLength } from './types'
 import { isCurvedWall, wallChords } from './wallArc'
 
@@ -183,12 +183,22 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
 }
 
 /**
- * Door-aware collision segments for the plan (floor-level footprint).
+ * Door-aware collision segments for ONE STOREY (floor-level footprint).
  * Mirrors collision/wallsFromState: solid wall spans, with open doors leaving
  * gaps. Windows are solid at floor level (you can't walk through them).
+ *
+ * **Single-level (F13).** It reads `plan.walls`/`.openings`, which are the
+ * GROUND FLOOR on a whole `FloorPlan`. Audited v0.31.9.2 — 7 of its 15
+ * non-test call sites pass a whole plan, and only TWO of those are correct:
+ * `placementWalls.ts` (its ground-floor branch, the upper-level branch above it
+ * uses `levelAsPlan`) and `report.ts` (the ground SET, with upper storeys
+ * resolved downstream by `findWallClipsByLevel`; the code says so). The other
+ * seven have no level awareness at all and are listed in `TODO.md` — they will
+ * surface as compile errors when `SingleLevelPlan` stops being an alias, which
+ * is the entire point of annotating this now.
  */
 export function planCollisionWalls(
-  plan: FloorPlan,
+  plan: SingleLevelPlan,
   doorState: Record<string, { open: boolean }>,
 ): CollisionWall[] {
   const segs: CollisionWall[] = []

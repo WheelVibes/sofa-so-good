@@ -406,11 +406,27 @@ multi-tick and MUST be staged — a big bang would leave the repo uncompilable a
 `FloorPlan`, with the rationale in its docstring, and five helpers are annotated onto it:
 `planTotalArea`, `planWindowSources`, `doorProbePoints`, `doorKeepOutRects`, `doorSwingRects` /
 `doorApproachRects`. Each was verified by READING every caller — not pattern-matched, which is what
-both failed lint guards did. Deliberately left alone for now because they need per-caller review:
-`planCollisionWalls` (20 callers, 4 level-fed), `planBounds` (26/1), `windowFrontRects` (4/1).
+both failed lint guards did. `windowFrontRects` and `planCollisionWalls` followed in v0.31.9.2 (see the worklist below).
+Still needing per-caller review: `planBounds` (26 callers, 1 level-fed).
 `buildDaylightReport` stays `FloorPlan` — it correctly takes a whole plan and recurses per level.
 **Annotating a whole-home function with the single-level type records the WRONG intent and is worse
 than leaving it**, so the rule for continuing is: read the callers, or skip it.
+
+**STAGE 1 WORKLIST — 7 `planCollisionWalls` call sites that take GROUND-FLOOR walls with no level
+awareness (audited v0.31.9.2).** Each will become a compile error when `SingleLevelPlan` stops
+being an alias. NOT fixed yet, because each needs its own answer to "which storey?" and the answers
+differ:
+- `scene/TapeMeasure.tsx:79` — **confirmed inconsistent**: snap candidates come from `st.items`
+  (every storey) but wall endpoints from the ground floor, so measuring upstairs on a maisonette
+  snaps to furniture that is there and walls that are not. No `viewLevelId`/`levelAsPlan`/`walkLevel`
+  anywhere in the file.
+- `ui/FinishPicker.tsx:228` and `:273` — wall picking; presumably wants the storey being edited.
+- `ui/ClearancePanel.tsx:73`, `ui/DesignScorePanel.tsx:65`, `analysis/designScore.ts:562` — analysis
+  surfaces; probably want whole-home (sum per level), not ground only.
+- `state/slices/resetSlice.ts:361`.
+**Correct and NOT to be "fixed":** `collision/placementWalls.ts:40` (the ground branch, upper
+levels handled above it) and `ui/report.ts:393` (the ground SET, upper storeys resolved by
+`findWallClipsByLevel` — the comment says so).
 
 **Staging, each stage its own green commit:**
 1. `levels` becomes canonical; the legacy trio stays as a mirror of `levels[0]`, kept in sync at
