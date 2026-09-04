@@ -29,6 +29,44 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.281 — the glass as well: `SKYCATCH` is a MULTIPLIER, and I had read the sweep as absolute
+
+`.280` fixed the bars and left 11 counts of glass, citing `.279`'s finding that the pane emissive
+saturates. That finding was wrong for a second reason on top of the bar-dominated mean:
+**`SKYCATCH` scales the existing emissive.** The "5.2, 9, 13" sweep was ×5.2, ×9, ×13 on top of the
+default 5.2 — intensities of roughly 27 to 68, every one of them clipped at p95 255. The lever had
+never been tested at a sane value. Swept properly: ×1.25 → p95 246, **×1.6 → 248**, ×2.2 → 251.
+
+`glassSkyCatchIntensity` becomes **`d⁴ · 8.32`**, from `d³ · 5.2`.
+
+×1.6 and not ×2.2, because at ×2.2 the bars' p05 falls 187 → 163: pushing the glass further starts
+undoing `.280`'s bar match, and the two have to be calibrated together.
+
+The exponent rose with the coefficient for the reason `.156` went linear → cubic. The ratio to the
+old curve is exactly `1.6 · d`, so the two cross at **d = 0.625** — brighter only from there to full
+daylight, strictly lower through the deep-dusk band below (0.520 against 0.650 at 0.5; 0.213 against
+0.333 at 0.4), so both codified dusk guards gain margin rather than losing it. I first wrote this up
+as "brighter at `d = 1` alone", which the new test immediately falsified at `d = 0.8`: a curve higher
+at 1 and lower below has to cross somewhere, and the honest question is where. The claim and the test
+now both state 0.625.
+
+| | mean | p05 (bars) | p95 (glass) | sd |
+| --- | --- | --- | --- | --- |
+| Cycles | 244.8 | 187 | 254 | 20.0 |
+| app, original | 217.4 | 91 | 243 | 52.8 |
+| + bar glare (`.280`) | 230.5 | 187 | 243 | 29.9 |
+| **+ glass (this)** | **235.2** | **188** | **248** | **31.4** |
+
+Closed across the two rounds: mean 27.4 → 9.6, p05 96 → 1, p95 11 → 6, sd 32.8 → 11.4. The ceiling
+moves 1.0 count, so there is still no spill onto surrounding surfaces.
+
+Dusk verified in the ramp band (19:40, lamps on): dim pane, no halo, no spill, bars catching the
+interior lamps — and that last is the lamps on metal rather than this term, since the glass stays
+above the bars throughout the ramp (3.41 against 0.72 at `d = 0.8`).
+
+**60 fps on both tiers**, p50 7.7 ms performance and 11.3-11.8 ms realistic, max 12.5-13.8 ms.
+
+
 ## v0.31.7.280 — the window's bars, not its glass: percentiles dissolved two of my own conclusions
 
 **`patch-read` now reports p05/p95 alongside the mean**, and that one instrument change overturned

@@ -206,6 +206,26 @@ export function transmissionResolutionScaleForTier(tier: RenderTier, device: Dev
  *
  * `> 250` stays at 0.0 % for every multiplier tried, including ×16 at a mean of 240.6: that is AgX's
  * shoulder. A clipping metric defined at `> 250` would call every setting a failure.
+ *
+ * **`d⁴ · 8.32`, raised from `d³ · 5.2` in v0.31.7.281, and the sweep that justified it had been
+ * misread twice.** `patch-read` reporting **p95** finally separated the glass from the grille bars
+ * that share the patch, and against the Cycles reference the glass was **243 where physics reads
+ * 254** — a real 11-count deficit that `.279` had written off as "the emissive saturates". That
+ * conclusion came from a MEAN (bar-dominated, so blind to the glass) and from a `SKYCATCH` sweep
+ * read as absolute intensities when the knob is a MULTIPLIER: "5.2, 9, 13" were ×5.2, ×9, ×13 on
+ * top of the default, i.e. ~27 to ~68, every one of them clipped at p95 255. Swept properly, the
+ * glass responds: ×1.25 → p95 246, **×1.6 → 248**, ×2.2 → 251.
+ *
+ * ×1.6 is taken, not ×2.2: at ×2.2 the bars' p05 falls 187 → 163, so pushing the glass further
+ * starts undoing `grilleGlareIntensity`'s match. And the EXPONENT rises with the coefficient for
+ * the reason `.156` went linear → cubic in the first place. The ratio to the old curve is exactly
+ * **`1.6 · d`**, so the two CROSS at `d = 0.625`: the new curve is brighter only from there to
+ * full daylight, and strictly lower through the deep-dusk band below it (0.520 against 0.650 at
+ * `d = 0.5`; 0.213 against 0.333 at 0.4). A curve that is higher at 1 and lower below has to cross
+ * somewhere — the point is WHERE, and 0.625 puts the extra brightness where `bloomIntensityForDay`
+ * has ramped down to 37 % and under, while both codified dusk guards gain margin rather than
+ * losing it. Note also that `daylightFromAltitude` is 1.0 for any sun above the horizon, so this
+ * entire ramp lives in the −8°..0° twilight window, not across the afternoon.
  */
 /**
  * VEILING GLARE on the safety grille's bars, as an emissive keyed to daylight.
@@ -252,7 +272,9 @@ const GRILLE_GLARE = 1.4
 
 export function glassSkyCatchIntensity(daylight: number): number {
   const d = clamp(daylight, 0, 1)
-  return d * d * d * 5.2
+  // `v0.31.7.281`: `d⁴ · 8.32`, was `d³ · 5.2`. Brighter ONLY at full daylight and strictly
+  // SAFER everywhere below it -- see the note above.
+  return d * d * d * d * 8.32
 }
 
 /** Sheen layer for a soft-fabric finish kind. Velvet shows the strongest, most

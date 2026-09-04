@@ -1420,6 +1420,33 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > `scene.background` cannot supply it (`.4`: the PMREM pre-filter is the mechanism). Frame cost
 > unchanged — no new pass, and `useSunPosition` re-renders only on hour change.
 
+> **★ THE GLASS TOO — v0.31.7.281, and the sweep that dismissed it had been misread twice.**
+> With p95 separating glass from bars, the glass was **243 against physics' 254** — a real deficit
+> `.279` had written off as "the emissive saturates". That came from a MEAN (bar-dominated, blind
+> to the glass) and from reading `SKYCATCH` as an absolute intensity when it is a **multiplier**:
+> "5.2, 9, 13" were ×5.2/×9/×13 on top of the default, ~27 to ~68, every one clipped at p95 255.
+> Swept properly the glass responds — ×1.25 → 246, **×1.6 → 248**, ×2.2 → 251.
+>
+> `glassSkyCatchIntensity` is now **`d⁴ · 8.32`** (was `d³ · 5.2`). ×1.6 and not ×2.2, because at
+> ×2.2 the bars' p05 falls 187 → 163 and pushing the glass further undoes `grilleGlareIntensity`.
+> The exponent rose WITH the coefficient for `.156`'s reason: the ratio to the old curve is exactly
+> `1.6 · d`, so they cross at **d = 0.625** — brighter only from there to full daylight, and
+> strictly lower through the deep-dusk band below (0.520 vs 0.650 at 0.5; 0.213 vs 0.333 at 0.4),
+> so both codified dusk guards gain margin. A curve higher at 1 and lower below must cross
+> somewhere; the point is where.
+>
+> | | mean | p05 (bars) | p95 (glass) | sd |
+> | --- | --- | --- | --- | --- |
+> | Cycles | 244.8 | 187 | 254 | 20.0 |
+> | app, original | 217.4 | 91 | 243 | 52.8 |
+> | + bar glare | 230.5 | 187 | 243 | 29.9 |
+> | **+ glass** | **235.2** | **188** | **248** | **31.4** |
+>
+> Closed: mean 27.4 → 9.6, p05 96 → 1, p95 11 → 6, sd 32.8 → 11.4. Ceiling moves 1.0 count, so
+> still no spill. Dusk verified in the ramp band (19:40): dim pane, no halo, bars catching the
+> lamps — which is the lamps on metal, not this term, since glass stays above bars throughout the
+> ramp. **60 fps on both tiers**, max 12.5-13.8 ms. Residual is 6 counts of glass and 11 of `sd`.
+
 > **★ FOUR VIEWS, TWO PLANS, cv 0.62 % — v0.31.7.57.** app p99 ÷ physics p99 = 0.7265, 0.7388,
 > 0.7287, **0.7306** (the last measured after the constant was published). Mean **0.7312** ⇒
 > correction **1.368×**.

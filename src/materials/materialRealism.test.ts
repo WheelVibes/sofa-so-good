@@ -212,7 +212,20 @@ describe('glassSkyCatchIntensity (RZ2)', () => {
   })
 
   it('reaches the (l) magnitude at full daylight, where bloom is off', () => {
-    expect(glassSkyCatchIntensity(1)).toBeCloseTo(5.2, 6)
+    expect(glassSkyCatchIntensity(1)).toBeCloseTo(8.32, 6)
+  })
+
+  it('is dimmer than the old cubic curve through the DEEP-DUSK band, brighter near full day', () => {
+    // `v0.31.7.281` raised the coefficient 5.2 -> 8.32 and the exponent 3 -> 4 together, so the
+    // extra brightness is concentrated near `d = 1` where bloom is off. The ratio is exactly
+    // `1.6 · d`, so the curves CROSS at `d = 0.625` — a curve that is higher at 1 and lower below
+    // has to cross somewhere, and pretending otherwise is how the dusk guard gets weakened by
+    // accident. Below the crossing, where bloom is strongest, the new curve is strictly lower.
+    for (const d of [0.2, 0.4, 0.5, 0.6]) {
+      expect(glassSkyCatchIntensity(d)).toBeLessThan(d * d * d * 5.2)
+    }
+    expect(glassSkyCatchIntensity(0.625)).toBeCloseTo(0.625 ** 3 * 5.2, 6)
+    expect(glassSkyCatchIntensity(1)).toBeGreaterThan(5.2)
   })
 
   it('is EXACTLY ZERO at night, so the (l) fix cannot regress it', () => {
