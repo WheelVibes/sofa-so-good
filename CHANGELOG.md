@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.259 — a shadow sweep that reported an impossible state, and the instrument fix it earned
+
+Testing `(z3)`'s remaining 0.1807 as a shadow-precision problem produced a result I could not
+believe and then could not reproduce — so the round's output is an instrument change rather than a
+finding.
+
+**The sweep.** At 17:00, four variations on the sun's shadow — `normalBias 0`, `normalBias 0 +
+bias 0`, `mapSize 4096`, and `castShadow` off entirely — plus an untouched baseline. Every arm
+measured the wall at **203.2 counts**, identical to four significant figures. That alone is
+suspicious: turning the sun's shadows OFF should change something somewhere.
+
+**And every arm, including the untouched baseline, self-reported `castShadow: false`.** If true,
+that would have been the whole answer: no sun shadows in walk mode, so unshadowed direct light
+everywhere, and every shadow parameter irrelevant because there are no shadows to tune.
+
+**It is not reproducible.** A second probe read the sun's `castShadow` as TRUE in orbit, TRUE in
+walk, TRUE at seven time slices from 300 ms to 4 s after a walk teleport, and TRUE after
+`LIGHTS=off` flipped 87 items. So the `false` came from something about that throwaway probe I
+cannot account for, and I am not going to publish a conclusion resting on it.
+
+**What the round leaves.** `aim-look.mjs`'s resolved line now records the sun's state with every
+measurement: `realistic/on/manual17/exp1.3800/sun[i0.789/cast1/map1024]/shadowMap1`. So at the
+moment the shipped numbers were taken, the sun was casting shadows, the renderer's shadow map was
+enabled, and the intensity was 0.789 — which independently confirms `.257`'s curve is live. Every
+walk measurement in this session was made in that state.
+
+That is `.217`'s lesson applied again, and it is the third time this arc has paid for it: a byte
+means nothing without the state it was rendered under. Exposure went into that line in `.240` after
+a mismatched curve manufactured a 0.65x error; lamps went in at `.215` after an ignored `LIGHTS=off`
+mislabelled two arms; the sun goes in now.
+
+**`(z3)` is unchanged**, and the shadow-parameter sweep has to be redone with the state recorded
+before its null result means anything.
+
+Suite 10219 green.
+
+
 ## v0.31.7.258 — `(z3)` decomposed: 0.1807 of the 0.1958 excess is direct sun the reference does not have, and the occluder that should block it is present and correct
 
 Hiding the directional light splits the 17:00 wall cleanly. `visible = false` rather than

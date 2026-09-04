@@ -158,7 +158,20 @@ const resolved = await page.evaluate(() => {
   // frame from the day ramp, so two runs at the same hour can still be graded differently. A
   // calibration curve measured under one exposure cannot invert a byte measured under another.
   const e = window.__three?.gl?.toneMappingExposure
-  return `${st.qualityTier}/${st.lightsMode}/${st.timeMode}${st.manualHour}/exp${e?.toFixed?.(4) ?? e}`
+  // SUN STATE too. `v0.31.7.259`: a sweep of shadow parameters at 17:00 moved the measured wall by
+  // 0.0 counts in every arm AND reported the sun's `castShadow` as FALSE — including the untouched
+  // baseline. A follow-up read it as TRUE in orbit, in walk, through a teleport and after
+  // `LIGHTS=off`, so that false could not be reproduced. Either way the lesson is `.217`'s: a byte
+  // means nothing without the state it was rendered under, and "were the sun's shadows even on"
+  // is exactly the kind of state that was being inferred rather than recorded.
+  let sun = 'none'
+  window.__three?.scene?.traverse?.((o) => {
+    if (o.isDirectionalLight) {
+      sun = `i${o.intensity.toFixed(3)}/cast${o.castShadow ? 1 : 0}/map${o.shadow?.mapSize?.x ?? '?'}`
+    }
+  })
+  const shadowsOn = window.__three?.gl?.shadowMap?.enabled ? 1 : 0
+  return `${st.qualityTier}/${st.lightsMode}/${st.timeMode}${st.manualHour}/exp${e?.toFixed?.(4) ?? e}/sun[${sun}]/shadowMap${shadowsOn}`
 })
 console.log(`resolved ${resolved}   level ${LEVEL || '(ground)'}`)
 
