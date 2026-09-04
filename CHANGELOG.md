@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.174 — ⚠️ REVERTING `.169`: the GI crushes the FLOOR, and I shipped it without ever measuring one
+
+`.173` closed by admitting that whether the floor moves toward or away from the reference was
+"genuinely unmeasured". Measuring it took one pose, and the answer reverses the ship decision.
+
+**Measured at the shipped tone mapping, `LIGHTS=off`, bedroom3, a floor-pitched pose:**
+
+| patch | GI off | GI on | delta |
+| --- | --- | --- | --- |
+| wood floor | 126.7 | **24.4** | **−102.3** |
+| rug | 110.6 | 86.6 | −24.0 |
+
+R−B on the wood flips **+26.9 → −4.5**: it does not merely darken, it loses the warm cast entirely.
+Side by side the boards go from warm and legible to near-black with the grain gone. The same pose at
+`TONE=neutral` gives the same verdict (96.0 → 11.0), so it is not a tone-mapping artefact.
+
+**This is worse than everything the feature fixes.** The deficits `.169` corrected are 40–95 counts
+on walls and ceilings; this is 102 counts the other way on a surface that fills the lower half of
+most walk frames. **The flag is off again.**
+
+**What went wrong in my process, precisely.** `.169`'s measurements are not withdrawn — walls and
+ceilings really do move toward the Cycles reference, and the acLedge wall really does land 2.1 counts
+from it. The error was the **survey**: four patches across three surface classes, presented as
+"every mapped surface moves toward the reference; none moves away". `.173` already had to soften
+that sentence; the honest version is that floors were never in the sample at all, and the one class
+left out is the one that broke. A four-patch sample is not a room, and shipping a scene-wide look
+change on it was the mistake — not any individual number.
+
+**The likely mechanism, explicitly NOT confirmed.** `'replace'` mode *assigns* `indirectDiffuse`, so
+a mesh whose map samples near zero loses all of its indirect light rather than being merely
+under-lit — the failure is a cliff, not a slope. An up-facing floor is exactly the case the applier
+already has to correct for (`26 face(s) mirrored` on the shipped set, `66` on the 111-map set), so a
+floor sampling the wrong atlas row would go precisely this dark. Testing that is the next step, and
+`?aoDebug=1` on a floor-pitched pose reads the sampled value directly.
+
+**Unaffected by the revert**, and still true: `--limit` is why coverage is 10 % (`.173`), 111 maps at
+512 samples is close to shippable smoothness, and the ceiling deficit is spatial (`.170`–`.172`).
+None of that work is invalidated; it is now gated behind fixing the floor.
+
+Suite 10167 green, `tsc` and biome clean.
+
+
 ## v0.31.7.173 — the coverage cap is `--limit`, default **24**; lifting it to 111 works and costs bake TIME, not bytes
 
 `.172` left "something drops 87 meshes between the area filter and the bake" as the cheapest lead.

@@ -46,34 +46,32 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     // REPLACES the ambient term, not the `visibility` occlusion map the old label described.
     // `v0.31.7.102` measured multiplying by sky visibility as the wrong operator outright.
     description: 'Cycles-baked bounced daylight on walls, floors and ceilings (realistic mode)',
-    // ON as of `v0.31.7.169`, after the seam that held it back was measured against a PHYSICAL
-    // reference rather than judged by eye. Three things that looked like defects were not: the
-    // curtain rod's dashes are its own faceting and are present with the flag OFF (`.164`), the
-    // curtain-top "comb" is the region where the difference is ZERO (`.164`), and the acLedge
-    // wall's +65.6-count jump is the FIX (`.168`).
+    // ⚠️ REVERTED TO OFF in `v0.31.7.174`, one build after shipping. `v0.31.7.169` turned this on
+    // against Cycles references at two poses and the evidence was real — but it was three wall and
+    // ceiling patches plus one exterior wall, and **no floor was ever measured**.
     //
-    // Cycles references at two poses, via `render_from_manifest.py` on a matched BLENDREF pair
-    // (`LIGHTS=off` on both sides, so the comparison is daylight-only):
+    // A floor-pitched pose says the GI crushes the floor. Measured at the shipped tone mapping,
+    // `LIGHTS=off`, bedroom3:
     //
-    //   surface        GI off    GI on    Cycles
-    //   acLedge wall    163.7    229.3     231.4   <- lands 2.1 counts from the reference
-    //   bedroom3 wall   108.2    145.2     177.9   <- closes 53 % of a 70-count deficit
-    //   bedroom3 ceil    92.8    108.5     187.2   <- closes 17 % of a 94-count deficit
+    //   patch   GI off   GI on    delta
+    //   wood     126.7    24.4   -102.3   <- warm legible boards -> near-black, grain gone
+    //   rug      110.6    86.6    -24.0
     //
-    // The app is 40-95 counts too DARK indoors, not too bright, and every mapped surface moves
-    // toward the reference; none moves away. The far-wall control (Cycles 214.5 vs 210.5 in every
-    // arm) rules out a global exposure offset, so this is the GI correcting specific surfaces.
+    // R−B on the wood flips +26.9 -> −4.5, i.e. it loses the warm cast entirely, not just level.
+    // That is far worse than anything this feature corrects: the deficits it fixes are 40-95 counts
+    // on walls and ceilings, and this is 102 counts the other way on a surface that fills the lower
+    // half of most walk frames.
     //
-    // What is knowingly accepted: a **5.5-count** step at mapped/unmapped silhouettes, because
-    // only 52 of 1122 meshes are eligible (`--min-area 3.0` bakes the shell only, `.164`). Two
-    // mitigations were built and rejected on measurement (`.165`) -- a shader lift hit the target
-    // but stalled 2100 ms compiling, a fill scale was free but moved <=1 count. A 5.5-count seam
-    // is the smaller error by an order of magnitude, and lowering `--min-area` is the real fix.
+    // The likely mechanism, NOT yet confirmed: `replace` mode assigns `indirectDiffuse` outright,
+    // so a mesh whose map samples near zero loses all its indirect light rather than merely being
+    // under-lit. An up-facing floor's box-atlas slot is the one the applier already has to relocate
+    // ("66 face(s) mirrored" on the 111-map set, 26 on the shipped 40), so a floor sampling the
+    // wrong row would go exactly this dark. That is the next thing to test.
     //
-    // Cost at `realistic`, two runs per arm: p50 5.9/6.1 -> 6.6/6.2 ms, drawn fps 42.8/42.5 ->
-    // 42.0/42.3, p90 unchanged. Worst frame 143 -> 293 ms is 52 materials compiling at attach,
-    // which lands during load because this mounts inside the scene.
-    default: true,
+    // Everything `.169` measured still stands and is not withdrawn — walls and ceilings do move
+    // toward the reference. The error was the SURVEY, not the measurements: four patches on three
+    // surface classes is not a room, and the one class left out is the one that broke.
+    default: false,
     tier: 'simple',
   },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },

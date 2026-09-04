@@ -10,23 +10,21 @@ import { resolveFlags } from './resolve'
  * where the fidelity gain matters most.
  */
 describe('visibilityLightmap flag', () => {
-  it('is registered, simple-tier and ON by default', () => {
+  it('is registered, simple-tier and OFF by default', () => {
     const def = FEATURE_FLAGS.visibilityLightmap
     expect(def.tier).toBe('simple')
-    // ON as of `v0.31.7.169`. Held off for many rounds by a seam that turned out to be three
-    // separate non-defects; settled by Cycles references at two poses, which measured the app
-    // 40-95 counts too DARK indoors and every mapped surface moving toward the reference.
-    expect(def.default).toBe(true)
+    // Shipped ON in `v0.31.7.169` and REVERTED in `v0.31.7.174`: a floor-pitched pose measured
+    // the wood floor collapsing 126.7 -> 24.4 counts with the warm cast lost (R−B +26.9 -> −4.5).
+    // `.169`'s wall/ceiling evidence stands; the survey behind it never included a floor.
+    expect(def.default).toBe(false)
     // NOT devOnly -- the maps are CC0-irrelevant generated assets with no licensing or sidecar
     // dependency, so there is nothing to keep out of production.
     expect(def.devOnly).toBeUndefined()
   })
 
-  it('is ON in BOTH modes now that its default is true', () => {
-    // The tier assertion above is what makes this pass in Simple: a `pro` tier would be stripped
-    // there, silencing the flag in the mode the move-in default lives in.
-    expect(resolveFlags(false, {}, false, 'simple').visibilityLightmap).toBe(true)
-    expect(resolveFlags(false, {}, false, 'pro').visibilityLightmap).toBe(true)
+  it('is OFF in BOTH modes while its default is false', () => {
+    expect(resolveFlags(false, {}, false, 'simple').visibilityLightmap).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').visibilityLightmap).toBe(false)
   })
 
   it('can be enabled in BOTH modes — a simple-tier flag is not stripped by Simple', () => {
@@ -39,11 +37,11 @@ describe('visibilityLightmap flag', () => {
   })
 
   it('ignores an override for an unprivileged user, like every other flag', () => {
-    // Overrides need dev or admin. Tested in the OFF direction now that the default is true --
-    // with an `on` override this assertion would pass on the default alone and prove nothing,
-    // which is how a permission test quietly stops testing permissions.
-    const off = { visibilityLightmap: false }
-    expect(resolveFlags(false, off, false, 'simple').visibilityLightmap).toBe(true)
-    expect(resolveFlags(false, off, true, 'simple').visibilityLightmap).toBe(false)
+    // Overrides need dev or admin. Back to the ON direction now that the default is false again:
+    // the assertion must not be satisfiable by the default alone, or the permission test quietly
+    // stops testing permissions.
+    const on = { visibilityLightmap: true }
+    expect(resolveFlags(false, on, false, 'simple').visibilityLightmap).toBe(false)
+    expect(resolveFlags(false, on, true, 'simple').visibilityLightmap).toBe(true)
   })
 })
