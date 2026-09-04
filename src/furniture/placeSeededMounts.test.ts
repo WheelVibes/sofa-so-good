@@ -311,6 +311,13 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // CENTRE_IS_RIGHT defIds — rugs and tables — so this can never be a stranded
     // appliance: two more settle on their room centre now the wall-snapped
     // pieces around them sit against the wall instead of 0.15 m proud.
-    expect(sweep().centred).toBe(36)
+    // 36 -> 34 in v0.31.9.8 (DOOR-SWING-LEVELS). Dumped before touching the
+    // number, per this test's own convention: the two are
+    // `tpl-hdb-maisonette/emu-fam: coffee-table` and `: rug`. Upper-storey doors
+    // gained a swing keep-out that both pieces had been overlapping, so they no
+    // longer settle EXACTLY on the room centre. They are not lost — the
+    // maisonette's total went UP — and a rug laid through a door swing is not a
+    // placement to defend.
+    expect(sweep().centred).toBe(34)
   }, 30_000)
 })

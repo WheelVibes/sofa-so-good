@@ -10,6 +10,7 @@
  *   tangent `(ux, uz)`; 'left' = the opposite side.
  */
 
+import { planLevels, withLevelGeometry } from './levels'
 import { roomCategory } from './roomCategory'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 import { planRoomArea, pointInRoom, wallLength } from './types'
@@ -223,17 +224,41 @@ export function swingForPhysicalSide(side: DoorSwing, hinge: DoorHinge): DoorSwi
  * nothing needed filling.
  */
 export function withInwardDoorSwings(plan: FloorPlan): FloorPlan {
-  const byId = new Map(plan.walls.map((w) => [w.id, w]))
-  let changed = false
-  const openings = plan.openings.map((o) => {
-    if (o.kind !== 'door' || o.swing) return o
-    const wall = byId.get(o.wallId)
-    if (!wall) return o
-    const side = defaultDoorSwing(plan, wall, o.offset, o.width)
-    changed = true
-    return { ...o, swing: swingForPhysicalSide(side, doorHinge(o)) }
-  })
-  return changed ? { ...plan, openings } : plan
+  // EVERY STOREY (F13, v0.31.9.8). This used to read `plan.walls`/`.openings`
+  // only — the GROUND FLOOR — and templates/shared.ts applies it to whole
+  // template plans, so upper-storey doors never received a default swing at all.
+  // Measured before the fix, a perfectly clean split: ground floors 0 doors
+  // without a swing, upper storeys ALL of them —
+  // `tpl-hdb-maisonette` 5/5, `tpl-loft` 2/2, `tpl-terrace-ground` 6/6.
+  //
+  // A door with no `swing` has no swing arc on the drawings and no swing rect for
+  // the clearance/keep-out checks, so this was silently exempting every upstairs
+  // door from both.
+  let next = plan
+  for (const level of planLevels(plan)) {
+    const byId = new Map(level.walls.map((w) => [w.id, w]))
+    let changed = false
+    const openings = level.openings.map((o) => {
+      if (o.kind !== 'door' || o.swing) return o
+      const wall = byId.get(o.wallId)
+      if (!wall) return o
+      // `defaultDoorSwing` needs the ROOMS of the SAME storey to decide which
+      // side is inward, so it is handed this level's geometry, not the plan's.
+      const side = defaultDoorSwing(
+        { ...plan, walls: level.walls, openings: level.openings, rooms: level.rooms },
+        wall,
+        o.offset,
+        o.width,
+      )
+      changed = true
+      return { ...o, swing: swingForPhysicalSide(side, doorHinge(o)) }
+    })
+    // Only touch a storey that gained a swing, so a plan with nothing to fill
+    // comes back as the SAME object — callers rely on that identity and two
+    // tests assert it.
+    if (changed) next = withLevelGeometry(next, level.id, () => ({ openings }))
+  }
+  return next
 }
 
 /** SVG short-way (exactly 90°) arc sweep flag from `freeJamb` to `leafTip`

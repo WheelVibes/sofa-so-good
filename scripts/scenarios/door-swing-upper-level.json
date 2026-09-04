@@ -1,0 +1,88 @@
+{
+  "name": "door-swing-upper-level",
+  "description": "DOOR-SWING-LEVELS (v0.31.9.8): upper-storey doors get a default inward swing. Until this release `withInwardDoorSwings` read the ground floor only, so every upstairs door on tpl-hdb-maisonette / tpl-loft / tpl-terrace-ground had no swing at all \u2014 no arc on the drawings and no keep-out for the clearance checks. Shoots the maisonette's UPPER storey in the 2D plan editor, where a door's swing arc is drawn.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss",
+      "eval": "(()=>{const s=window.__store.getState();localStorage.setItem('hdb_onboarded','1');s.endTour?.();s.setOnboardingOpen?.(false);s.dismissLocationPrompt?.()})()"
+    },
+    {
+      "name": "load-maisonette",
+      "eval": "window.__loadTemplate('tpl-hdb-maisonette')"
+    },
+    {
+      "name": "plan-ready",
+      "waitFor": {
+        "store": "(state.floorPlan.upperLevels||[]).length > 0"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "assert-upper-doors-have-swing",
+      "eval": "(()=>{const p=window.__store.getState().floorPlan;const up=(p.upperLevels||[])[0];const doors=(up.openings||[]).filter(o=>o.kind==='door');const missing=doors.filter(o=>!o.swing);if(doors.length===0)throw new Error('no upper-storey doors to check');if(missing.length>0)throw new Error(missing.length+' of '+doors.length+' upper doors still have no swing: '+missing.map(o=>o.id).join(','))})()",
+      "failMessage": "upper-storey doors must carry a default inward swing (v0.31.9.8)"
+    },
+    {
+      "name": "open-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "plan-screen",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "open-level-picker",
+      "click": {
+        "text": "Ground floor"
+      },
+      "failMessage": "the plan editor's storey is COMPONENT-LOCAL state, not `viewLevelId` \u2014 probed in v0.31.9.8, `setViewLevel` does not move it \u2014 so the footer picker is the only way in"
+    },
+    {
+      "name": "picker-open",
+      "wait": 800
+    },
+    {
+      "name": "pick-upper",
+      "click": {
+        "text": "Upper storey"
+      },
+      "failMessage": "upper storey option not found in the level picker; check its label against the level's `name`"
+    },
+    {
+      "name": "upper-drawn",
+      "wait": 2500
+    },
+    {
+      "name": "settle-upper",
+      "wait": 2500
+    },
+    {
+      "name": "shot-upper",
+      "screenshot": "01-maisonette-upper-door-swings"
+    }
+  ]
+}

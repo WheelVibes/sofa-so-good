@@ -126,7 +126,14 @@ describe('dining chairs are tucked to their table', () => {
       // east-wall version cost one AND pushed a cabinet in front of the window.
       // 141 -> 140 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH): one `drying-rack`. The only
       // real piece lost anywhere in the library, against +7 gained elsewhere.
-      'tpl-hdb-maisonette': 140,
+      // 140 -> 141 in v0.31.9.8 (DOOR-SWING-LEVELS). Per-def diff, because the
+      // total moved: `wardrobe-3door` 3 -> 2, `armchair` 2 -> 3,
+      // `throw-cushion` 18 -> 19. Upper-storey doors had NO swing until that
+      // release, so nothing upstairs respected a door keep-out; giving them one
+      // costs a wardrobe in the upper bedroom and the arranger fills with an
+      // armchair. Net +1, and the drop is the honest consequence of the
+      // clearance now existing.
+      'tpl-hdb-maisonette': 141,
       'tpl-studio': 24,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
       // chair alive by refusing it a slot outside the room (it had been placed
@@ -168,7 +175,13 @@ describe('dining chairs are tucked to their table', () => {
       // kitchen got doors: dining and kitchen each gain one, the living and
       // service yard each lose one, and one piece that had been standing outside
       // every room is gone.
-      'tpl-terrace-ground': 120,
+      // 120 -> 119 in v0.31.9.8 (DOOR-SWING-LEVELS). Per-def diff for the DROP:
+      // one `bathroom-sink` (3 -> 2). Its upstairs bathroom door now has a swing
+      // keep-out that the sink sat in. A sink inside a door swing is not a
+      // layout anyone would build, so surfacing it as a drop is right — but it
+      // does mean the upstairs rescue passes are weaker than the ground floor's
+      // (see TODO.md).
+      'tpl-terrace-ground': 119,
     })
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
@@ -240,6 +253,10 @@ describe('dining chairs are tucked to their table', () => {
     // `tpl-hdb-5room`, both `throw-cushion`, diffed per def above. No other
     // template moves — the disc opens 5room's four stranded rooms and gives
     // `tpl-1bed`'s Dining back to keep its coffee table's satellites tucked.
+    // 1448 -> 1448 in v0.31.9.8 (DOOR-SWING-LEVELS): +1 `tpl-hdb-maisonette`,
+    // -1 `tpl-terrace-ground`, both diffed per def above. The two cancel, so the
+    // GRAND TOTAL is unchanged — which is exactly why it must not be the only
+    // number checked: a per-template regression can hide inside a stable total.
     expect(total).toBe(1448)
   })
 

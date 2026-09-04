@@ -27,6 +27,72 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.8 — every upstairs door was exempt from swing arcs and clearance checks
+
+Continuing F13 stage 1 by classifying the remaining `plan: FloorPlan` helpers. The classifier
+itself misled me first, which is now a pattern worth naming.
+
+**My heuristic missed three whole-home MUTATORS.** Scoring "reads `plan.rooms/walls/openings`" vs
+"uses `planLevels`/`allPlan*`" marked `rescalePlan`, `snapPlanToGrid` and `mirrorPlanRegion` as
+single-level — they all handle `plan.upperLevels` **directly**, which my pattern did not look for.
+Counting `upperLevels` too took the candidate list 25 -> 19. **That is the fourth time a
+pattern-match has misled me on precisely this question** (two failed lint guards, the
+caller's-file check in v0.31.9.2, now this). Reading the code is the only thing that has worked.
+
+### The real defect: `withInwardDoorSwings` was ground-floor only
+
+It reads `plan.walls` / `plan.openings` and returns `{...plan, openings}` — never touching
+`upperLevels` — while `templates/shared.ts` applies it to whole template plans. Measured before the
+fix, and the split is perfectly clean, which is the signature:
+
+| template | ground doors without swing | upper doors without swing |
+|---|---|---|
+| `tpl-hdb-maisonette` | 0 of 7 | **5 of 5** |
+| `tpl-loft` | 0 of 2 | **2 of 2** |
+| `tpl-terrace-ground` | 0 of 6 | **6 of 6** |
+
+A door with no `swing` has no arc on the drawings and **no swing rect for the clearance and
+keep-out checks** — so every upstairs door was silently exempt from both. Now applied per storey
+via `planLevels` + `withLevelGeometry`, with `defaultDoorSwing` handed that level's own rooms so
+"inward" means inward on the right floor.
+
+One subtlety cost two test failures: `withLevelGeometry` returns a new object unconditionally, so
+the first cut broke the "returns the SAME plan when nothing to fill" identity two tests assert.
+Only storeys that actually gained a swing are now rewritten.
+
+### What correct swings revealed, diffed per def as the rule requires
+
+| | change | per-def |
+|---|---|---|
+| `tpl-hdb-maisonette` | 140 -> 141 | `wardrobe-3door` 3->2, `armchair` 2->3, `throw-cushion` 18->19 |
+| `tpl-terrace-ground` | 120 -> 119 | `bathroom-sink` 3 -> 2 |
+| route access | +1 severed | `emu-landing` 4.0 m² |
+| centred pieces | 36 -> 34 | `tpl-hdb-maisonette/emu-fam`: `coffee-table` and `rug` |
+
+All four are corrections. The upstairs layouts were only working because door swings were missing:
+a sink and a wardrobe sat inside door swings, a rug and coffee table were centred through one, and
+the landing looked reachable because the furniture around it was allowed into the swings. **A sink
+inside a door swing is not a layout to defend**, so surfacing it as a drop is right — though it
+does show the upstairs rescue passes are weaker than the ground floor's, which is now in `TODO.md`.
+
+The GRAND TOTAL is unchanged at 1448 (+1 and −1 cancel), which is exactly why it must not be the
+only number checked — a per-template regression can hide inside a stable total.
+
+`tpl-hdb-maisonette` was one of two sentinels in the "completely clean" route-access assertion;
+replaced with `tpl-hdb-jumbo`, the hardest-won clean template on this thread.
+
+### Verified
+
+`scripts/scenarios/door-swing-upper-level.json` asserts programmatically that no upper door lacks a
+swing, then draws the maisonette's UPPER storey in the plan editor: all five arcs present —
+Bedroom 2, Bedroom 3, Common Bath, Master Bath, Master Bedroom.
+
+Getting there took two dead ends worth recording. `setViewLevel` does NOT move the plan editor's
+storey — probed the store and `viewLevelId` is the only level state, yet the editor's own footer
+picker is component-local, so it can only be driven by CLICKING it. And my first attempt used
+`s.setEditingLevelId?.(…)`, a function that does not exist, which the optional-call operator turned
+into a silent no-op — **the same trap I recorded in v0.31.9.1 and walked into again**.
+
 ## v0.31.9.7 — validated the sweep on other scenarios, and made the blankness check a tool
 
 Two follow-ups to v0.31.9.6, one confirmatory and one to stop me re-deriving the same script.
