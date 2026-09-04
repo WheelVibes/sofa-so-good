@@ -29,6 +29,61 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.211 — the ramp calibration the GI ceiling thread asked for, Blender half: `Khronos PBR Neutral` is 12x darker than sRGB in the shadows
+
+The ceiling impasse was stopped with one named unvalidated assumption: *"I approximated Khronos PBR
+Neutral as sRGB"*, with the recorded next step being to render a known linear ramp through both
+pipelines. This is the Blender half, and the approximation was badly wrong exactly where the ceiling
+lives.
+
+`python/scripts/blender/calibrate_transfer.py` measures a view transform's linear -> display curve
+directly. Each sample is a FULL-FRAME flat emission at a known linear radiance rendered on its own:
+no geometry to aim at, no patch rectangle to place, no falloff, bounce or albedo, so the image mean
+IS the transferred value. Emission is noiseless, so 8 samples suffice.
+
+Measured on Blender 5.2.1, `look = None`, exposure 0, in display counts (0-255):
+
+| linear | Standard (sRGB) | AgX | Khronos PBR Neutral |
+| --- | --- | --- | --- |
+| 0.002 | 6.61 | 2.57 | **0.09** |
+| 0.005 | 15.57 | 8.83 | **0.54** |
+| 0.010 | 25.44 | 18.47 | **2.11** |
+| 0.020 | 38.68 | 31.85 | 8.37 |
+| 0.030 | 48.35 | 41.98 | 17.41 |
+| 0.050 | 63.15 | 57.89 | 33.86 |
+| 0.065 | 72.07 | 67.64 | 45.33 |
+| 0.080 | 79.86 | 76.39 | 56.70 |
+| 0.100 | 88.99 | 86.68 | 69.49 |
+| 0.150 | 107.93 | 107.48 | 93.52 |
+
+**Khronos is 12x darker than sRGB at linear 0.01 and 73x darker at 0.002.** Treating it as sRGB in
+the shadows is not a small approximation; it is an order of magnitude. Its highlight behaviour is
+mild by comparison (1.0 -> 238.6 vs sRGB's 254.7), which is roughly what the published Khronos
+tone mapper describes — the spec compresses highlights and leaves the shadow region alone, so this
+toe is worth confirming against a second implementation before it is called a Blender defect.
+
+**Two guards, both of which earned their place.** `Standard` is plain sRGB and exactly invertible,
+so it doubles as a harness check: worst deviation from the sRGB OETF **0.08 counts**. That check
+then FIRED on the first 16-bit run at **50.46 counts** and refused to publish the other transforms —
+correctly, because the read-back path depends on bit depth. On Blender 5.2.1 an 8-bit PNG comes back
+through `img.pixels` display-referred, while a 16-bit PNG comes back scene-linear (Standard's ratio
+is exactly 1.000, i.e. counts = linear x 255). Encoding the 16-bit read to display makes the paths
+comparable, and they then agree to **<=0.05 counts** on every sample of every transform — so the toe
+is a measurement of the curve, not of 8-bit quantisation.
+
+**What it does to the impasse: narrows it, does not close it.** The app byte 85.7 inverts through the
+measured Khronos curve to 0.1337 post-exposure, i.e. **0.0969** linear against the sRGB
+approximation's 0.065. The prediction of 0.885 therefore overshoots by **9.1x** rather than 13.6x.
+
+**And the half that actually matters is still missing.** The byte being inverted is the APP's,
+produced by three.js's `NeutralToneMapping` — not by Blender's OCIO config. Nothing here shows the
+two implementations agree, and the whole point of this thread is that assuming they do is what went
+wrong. Measuring the app-side curve through the real `WebGLRenderer` is the next step; until then
+the 9.1x is a better number resting on the same class of assumption, and the shipped state still
+depends on none of it (gain 6 remains an empirical display-space fit against three Cycles
+references).
+
+
 ## v0.31.7.210 — item `(x)` verified with a one-variable control, and its published magnitude corrected 0.3 m → 0.05 m
 
 `.209` shipped the envelope fix with two things wrong with the *claim* — the fix itself stands and is
