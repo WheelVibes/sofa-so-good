@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.1 — F13 stage 1 opened: `SingleLevelPlan` lands as an alias
+
+The F13 schema migration is the one item in `TODO.md` marked **user-authorised** ("I don't have
+any users, so we can migrate the schema fully"), and it is the answer to the problem two failed
+lint guards proved: "is this identifier a whole home or one storey?" is a TYPE question that grep
+can never answer. `planTotalArea` is the proof — the plan editor calls it per storey (correct),
+three other sites once passed the whole plan (wrong). Same function, opposite verdicts, nothing
+textual to match on.
+
+The recorded staging says to land `SingleLevelPlan` as an ALIAS of `FloorPlan` first and migrate
+single-level signatures onto it in small green commits, because the measured cost of splitting the
+types outright is **~1279 `tsc` errors across 205 files** — dominated not by bugs but by
+legitimate single-level consumers that merely declare `plan: FloorPlan`. This is that first commit.
+
+**The alias changes nothing and cannot break the suite**, which is the point: annotating a
+signature is a statement of intent that the compiler will start enforcing later, when the alias
+becomes `Omit<FloorPlan, 'upperLevels'> & LevelGeometry` and passing a whole plan where one storey
+is expected turns into a compile error.
+
+**Five helpers annotated, each VERIFIED against every caller rather than pattern-matched** — the
+mistake both lint attempts made:
+
+| helper | evidence |
+|---|---|
+| `planTotalArea` | the canonical case; whole-home is `planTotalAreaAllLevels` |
+| `planWindowSources` | one caller, via `levelAsPlan` |
+| `doorProbePoints` | `levelAsPlan` + `lp` inside `reachability`'s per-level loop |
+| `doorKeepOutRects` | `levelAsPlan` + `lp` in `furnishPlan` |
+| `doorSwingRects` / `doorApproachRects` | `lp` twice in `autoArrange`, `levelAsPlan` in the overlay, and the third site is INSIDE `doorKeepOutRects`, itself single-level |
+
+Candidates deliberately NOT annotated: `planCollisionWalls` (20 callers, 4 level-fed), `planBounds`
+(26 / 1), `windowFrontRects` (4 / 1) — each needs its callers read one at a time, and annotating a
+whole-home function with a single-level type records the WRONG intent, which is worse than no
+annotation. `buildDaylightReport` correctly takes a whole plan and recurses per level, so it stays
+`FloorPlan`.
+
+Also fixed: `TODO.md` carried the walk-HUD-timer heading **twice** — I duplicated it in v0.31.8.91
+when inserting the retraction above it. The shorter copy is gone.
+
 ## v0.31.9.0 — the delivery-route check can finally take your own measurements
 
 `ACCESS_SCOPE_NOTE` has told users to "measure your actual lift, corridor turn and doorways and

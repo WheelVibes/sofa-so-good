@@ -78,29 +78,6 @@ harness hazard, not an app defect, but it will confound any timing measurement t
 
 ## The walk HUD banner's 5 s timer can expire behind the transition splash
 
-Found in v0.31.8.93. Asserting that `[data-transition-overlay]` unmounts made
-`transition-overlay-readiness`'s exit-room step fail after 68 s — and the failure screenshot shows
-a normal orbit scene with no overlay painted. So `loading.active` had cleared, the overlay had
-faded, and the ELEMENT was still in the DOM. (Puppeteer's `visible` check ignores `opacity`, which
-is why the wait never resolved.)
-
-`useOverlayLifecycle` schedules `setMounted(false)` only from the `active === false` branch, and
-that branch starts `if (!mounted) return clear` — with effect deps of `[active]` only, `mounted`
-is read from the render that ran when `active` last CHANGED. A flicker (active true -> false ->
-true -> false) can therefore land in the branch with a stale `mounted === false` and never
-schedule the unmount, while `clear()` cancels whatever was pending.
-
-**Why it matters even though it is invisible:** the element is `position: fixed`, `inset: 0`,
-`z-index: 99999` and carries `backdrop-filter: blur(var(--blur))`. A full-screen backdrop-filter
-layer costs GPU per frame whether or not it is opaque. `pointerEvents` is correctly `'none'` when
-inactive, so it does not block input.
-
-Reproduce with the exit-room-editor transition. A fix probably means deriving `mounted` from a
-`useRef` (or adding it to the deps with the hold-timer keyed separately) — the existing
-`biome-ignore` comment explains why it was left out, so read that first.
-
-## The walk HUD banner's 5 s timer can expire behind the transition splash
-
 Found in v0.31.8.91. `WalkHud`'s `visible` is a flat `setTimeout(..., 5000)` started when
 `walking` turns true — but `setCameraMode` raises the transition splash over the top of it, and
 that splash lasts 3-6 s on real hardware-ish timings and up to 15 s headless. So the hints can be
@@ -424,6 +401,16 @@ Passing a `FloorPlan` where one storey is expected becomes a compile error.
 **Measured blast radius (experiment run 2026-09-03, then reverted): removing the three fields from
 `FloorPlan` yields 1368 `tsc` errors across 212 files** (149 non-test + 98 test). So this is
 multi-tick and MUST be staged — a big bang would leave the repo uncompilable across tick boundaries.
+
+**STAGE 1 STARTED v0.31.9.1.** `SingleLevelPlan` now exists in `floorplan/types.ts` as an alias of
+`FloorPlan`, with the rationale in its docstring, and five helpers are annotated onto it:
+`planTotalArea`, `planWindowSources`, `doorProbePoints`, `doorKeepOutRects`, `doorSwingRects` /
+`doorApproachRects`. Each was verified by READING every caller — not pattern-matched, which is what
+both failed lint guards did. Deliberately left alone for now because they need per-caller review:
+`planCollisionWalls` (20 callers, 4 level-fed), `planBounds` (26/1), `windowFrontRects` (4/1).
+`buildDaylightReport` stays `FloorPlan` — it correctly takes a whole plan and recurses per level.
+**Annotating a whole-home function with the single-level type records the WRONG intent and is worse
+than leaving it**, so the rule for continuing is: read the callers, or skip it.
 
 **Staging, each stage its own green commit:**
 1. `levels` becomes canonical; the legacy trio stays as a mirror of `levels[0]`, kept in sync at

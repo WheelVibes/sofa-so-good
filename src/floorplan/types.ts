@@ -764,8 +764,46 @@ export function pointInRoom(r: PlanRoom, x: number, z: number): boolean {
   return false
 }
 
-/** Total interior area of a plan (sum of room areas), m². */
-export function planTotalArea(plan: FloorPlan): number {
+/**
+ * ONE STOREY's geometry, in the shape a plan-consuming helper reads it.
+ *
+ * ## Why this alias exists (F13 stage 1, user-authorised 2026-09-03)
+ *
+ * `FloorPlan.rooms` / `.walls` / `.openings` are the GROUND FLOOR ONLY; storeys
+ * above live in `upperLevels`. That invariant produced **eight silent bugs in
+ * one arc**, every one of which misbehaved only on a landed or maisonette plan
+ * and none of which raised an error. Two attempts at a lint guard failed,
+ * because "is this identifier a whole home or one storey?" is a TYPE question —
+ * `planTotalArea` is the proof: the plan editor calls it per storey (correct)
+ * while three other sites once passed the whole plan (wrong). Same function,
+ * opposite verdicts, nothing textual to match on.
+ *
+ * **Today this is an ALIAS of `FloorPlan`, so annotating a signature with it
+ * changes no behaviour and cannot break the suite.** That is deliberate: the
+ * measured blast radius of splitting the types outright is ~1279 `tsc` errors
+ * across 205 files, dominated not by bugs but by legitimate single-level
+ * consumers that merely declare `plan: FloorPlan`. Migrating those signatures
+ * first — mechanically, in small green commits — leaves a final stage that is
+ * small enough to land at once.
+ *
+ * **So: annotate every helper that reads one storey with this type.** When the
+ * alias is later replaced by
+ * `Omit<FloorPlan, 'upperLevels'> & LevelGeometry`, passing a whole `FloorPlan`
+ * where one storey is expected becomes a compile error, and the entire bug class
+ * stops being representable. Whole-home consumers keep `FloorPlan` and must go
+ * through `planLevels` / `allPlanRooms` / `allPlanWalls` / `allPlanOpenings`.
+ */
+export type SingleLevelPlan = FloorPlan
+
+/**
+ * Total interior area of ONE STOREY (sum of its room areas), m².
+ *
+ * Single-level by design — `FloorPlanEditor` calls it per storey. For the whole
+ * home use `levels.ts:planTotalAreaAllLevels`, which sums this across
+ * `planLevels`; passing a multi-storey plan here reports the ground floor only,
+ * which understates `tpl-hdb-maisonette` by 59.9 m² (v0.31.8.99).
+ */
+export function planTotalArea(plan: SingleLevelPlan): number {
   return plan.rooms.reduce((sum, r) => sum + planRoomArea(r), 0)
 }
 

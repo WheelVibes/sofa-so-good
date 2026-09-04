@@ -44,6 +44,7 @@ import {
   planRoomArea,
   pointInRoom,
   roomPolygon,
+  type SingleLevelPlan,
 } from '../floorplan/types'
 import {
   bleedMeanLux,
@@ -194,7 +195,7 @@ export interface RoomBleedSource {
 }
 
 /** Every window of a (single-level pseudo-)plan as a daylight source. */
-export function planWindowSources(plan: FloorPlan): WindowSource[] {
+export function planWindowSources(plan: SingleLevelPlan): WindowSource[] {
   const out: WindowSource[] = []
   for (const o of plan.openings) {
     if (o.kind !== 'window') continue

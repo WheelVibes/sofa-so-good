@@ -6,7 +6,7 @@
  */
 import { doorSwingClearRect } from '../floorplan/doorSwing'
 import { itemsOnLevel, levelAsPlan, planLevels } from '../floorplan/levels'
-import type { FloorPlan } from '../floorplan/types'
+import type { FloorPlan, SingleLevelPlan } from '../floorplan/types'
 import { pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { CLEARANCE } from './designRules'
@@ -31,7 +31,7 @@ export interface WindowFrontRect extends Rect {
  * via `doorSwingClearRect`). Side-correct, so furniture flush against the wall
  * on the door's push side is no longer flagged.
  */
-export function doorSwingRects(plan: FloorPlan): Rect[] {
+export function doorSwingRects(plan: SingleLevelPlan): Rect[] {
   const rects: Rect[] = []
   for (const o of plan.openings) {
     if (o.kind !== 'door') continue
@@ -55,7 +55,7 @@ export function doorSwingRects(plan: FloorPlan): Rect[] {
  * through the opening from the non-swing side too), so — unlike
  * `windowFrontRects` — no room-side resolution is needed.
  */
-export function doorApproachRects(plan: FloorPlan, depth = 0.45): Rect[] {
+export function doorApproachRects(plan: SingleLevelPlan, depth = 0.45): Rect[] {
   const rects: Rect[] = []
   for (const o of plan.openings) {
     if (o.kind !== 'door') continue
@@ -150,7 +150,7 @@ export function windowFrontRects(plan: FloorPlan, depth = 0.65): WindowFrontRect
  *  auto-arranger avoids and `blockedDoorItems` probes for. A convenience for
  *  callers (e.g. `furnishPlan.ts`'s post-arrange safety filter) that want
  *  "every door keep-out" without importing + merging both themselves. */
-export function doorKeepOutRects(plan: FloorPlan): Rect[] {
+export function doorKeepOutRects(plan: SingleLevelPlan): Rect[] {
   return [...doorSwingRects(plan), ...doorApproachRects(plan)]
 }
 
@@ -239,7 +239,7 @@ function contains(r: Rect, x: number, z: number): boolean {
  *  SAME predicate `dropDoorBlockers` deletes on — "legal to stand here" and
  *  "survives the drop pass" must be one rule, or the mover re-creates work the
  *  drop pass already did (v0.31.8.56). */
-export function doorProbePoints(plan: FloorPlan): Array<[number, number]> {
+export function doorProbePoints(plan: SingleLevelPlan): Array<[number, number]> {
   const pts: Array<[number, number]> = []
   // Guard partial plans: a level projection or a hand-built fixture may omit
   // these arrays entirely, and `reachability.ts` calls this on every furnish.
