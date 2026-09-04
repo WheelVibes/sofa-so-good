@@ -54,7 +54,7 @@
 import type { FloorPlan, PlanRoom } from './types'
 
 /** Rasteriser pitch. 0.1 m resolves the 0.25 m slits with margin and keeps the grid small. */
-export const GAP_STEP = 0.1
+const GAP_STEP = 0.1
 
 /** Axis-aligned rect in plan metres. */
 export interface GapRect {

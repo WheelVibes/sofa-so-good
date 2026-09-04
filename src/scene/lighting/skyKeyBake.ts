@@ -87,9 +87,3 @@ export function bakeSkyFromKeys(sunTravel: Vec3): HTMLCanvasElement | null {
   ctx.globalAlpha = 1
   return canvas
 }
-
-/** Test seam: forget the loaded set. */
-export function resetSkyKeysForTest(): void {
-  images = null
-  loading = null
-}

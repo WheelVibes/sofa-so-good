@@ -27,6 +27,33 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.32.0.2 — knip: three exports that were never imported, and one dead test seam
+
+CI's dead-code scan was the only failing check on the merge (both test shards passed). Four unused
+exports, all from this branch, and none of them wanted the same fix:
+
+- **`resetSkyKeysForTest`** (`skyKeyBake.ts`) — DELETED. A test seam I wrote and never wired to a
+  test; `skyKeyBake.ts` is entirely this branch's, so nothing else could have used it.
+- **`GAP_STEP`** (`ceilingGaps.ts`) — un-exported. The rasteriser's step size is an implementation
+  detail; the tests assert rect areas, not the grid it walked.
+- **`SKY_TINT_STRENGTH`** and **`surfaceOrientation`** (`applyVisibilityLightmaps.ts`) — kept
+  exported and given the tests they should have had. Un-exporting would have satisfied knip while
+  leaving `(z8)`'s load-bearing logic uncovered.
+
+`surfaceOrientation` decides which of the three sky-tint strengths a surface gets, and `(z10)`
+spent a round suspecting it of reading an unsettled matrix. Five new assertions: a floor and a
+ceiling built from the SAME local +Z normal must classify `up` and `down` (reading the local
+attribute alone would call both `side`, which is why it goes through the world matrix); a floor
+parented under a rotated group must still classify `up`, which is the case that breaks if
+`updateWorldMatrix(true, false)` ever loses its `true`; and a mesh with no normal falls back to
+`side` — the MIDDLE tint, so an unreadable surface is un-tuned rather than visibly wrong.
+
+`SKY_TINT_STRENGTH` gets the ordering pinned: `up > side > down`, which is the physical claim (a
+floor sees sky through the glazing most directly, a ceiling faces down onto a warm floor), plus a
+range check that no strength extrapolates past the sky's own chroma.
+
+Suite 10491 green, `knip` clean, `tsc` clean.
+
 ## v0.32.0.1 — merge staging (v0.32.0.0) into the graphics-realism arc
 
 Staging gained 139 commits while this branch ran, including the whole arranger-correctness thread.

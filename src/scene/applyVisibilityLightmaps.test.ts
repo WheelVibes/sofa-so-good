@@ -5,7 +5,12 @@ import { describe, expect, it } from 'vitest'
 /** Shape of the `visGain` vec3 uniform, which the shader stubs type loosely. */
 type Vec3 = { x: number; y: number; z: number }
 
-import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
+import {
+  applyLightmapsFromIndex,
+  detachAllVisibilityLightmaps,
+  SKY_TINT_STRENGTH,
+  surfaceOrientation,
+} from './applyVisibilityLightmaps'
 import { type LightmapIndex, parseLightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { visGainLuminance } from './visibilityLightmap'
@@ -388,5 +393,69 @@ describe('conflict reporting (v0.31.7.130)', () => {
     const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
     expect(res.applied).toBe(1)
     expect(res.report).not.toContain('shared material')
+  })
+})
+
+describe('surfaceOrientation (item (z8))', () => {
+  /** A one-quad mesh whose LOCAL normal is +Z, like `PlaneGeometry`. */
+  const quad = () => {
+    const g = new BufferGeometry()
+    g.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
+    g.setAttribute('normal', new BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3))
+    return new Mesh(g, new MeshStandardMaterial())
+  }
+
+  it('classifies a floor UP and a ceiling DOWN from the WORLD normal', () => {
+    // The local normal is +Z on both: a floor is that quad rotated -pi/2 about X and a ceiling is
+    // the same quad rotated +pi/2. Reading the local attribute alone would call both of them
+    // `side`, which is the whole reason this goes through the world matrix.
+    const floor = quad()
+    floor.rotation.x = -Math.PI / 2
+    expect(surfaceOrientation(floor)).toBe('up')
+
+    const ceiling = quad()
+    ceiling.rotation.x = Math.PI / 2
+    expect(surfaceOrientation(ceiling)).toBe('down')
+
+    expect(surfaceOrientation(quad())).toBe('side')
+  })
+
+  it('honours a PARENT transform, not just the mesh own rotation', () => {
+    // `(z10)` suspected this classifier of reading an unsettled matrix, and the suspicion was
+    // wrong — but only because it calls `updateWorldMatrix(true, false)`. A floor parented under
+    // a rotated group is the case that would break if that `true` were ever dropped.
+    const group = new Object3D()
+    group.rotation.x = -Math.PI / 2
+    const flat = quad()
+    group.add(flat)
+    expect(surfaceOrientation(flat)).toBe('up')
+  })
+
+  it('falls back to `side` when there is no normal to read', () => {
+    // Ambiguity takes the MIDDLE tint rather than an extreme, so a mesh the classifier cannot
+    // read is merely un-tuned instead of visibly wrong.
+    const g = new BufferGeometry()
+    g.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
+    expect(surfaceOrientation(new Mesh(g, new MeshStandardMaterial()))).toBe('side')
+  })
+})
+
+describe('SKY_TINT_STRENGTH (item (z8))', () => {
+  it('orders the three orientations the way the physics does', () => {
+    // Measured per orientation against Cycles, not chosen: a floor sees sky through the glazing
+    // most directly so it carries the MOST sky chroma, and a ceiling faces down onto a warm floor
+    // so it carries the least. If a future re-calibration inverts this ordering, something has
+    // gone wrong upstream of the numbers.
+    expect(SKY_TINT_STRENGTH.up).toBeGreaterThan(SKY_TINT_STRENGTH.side)
+    expect(SKY_TINT_STRENGTH.side).toBeGreaterThan(SKY_TINT_STRENGTH.down)
+  })
+
+  it('keeps every strength within the lever range', () => {
+    // 0 reproduces the old achromatic term and 1 is the full luminance-preserving sky tint;
+    // outside that the tint is extrapolating past the sky's own chroma.
+    for (const v of Object.values(SKY_TINT_STRENGTH)) {
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThanOrEqual(1)
+    }
   })
 })
