@@ -326,4 +326,37 @@ describe('conflict reporting (v0.31.7.130)', () => {
     expect(res.conflicts).toBe(0)
     expect(res.report).not.toContain('SKIPPED')
   })
+
+  it('REFUSES to patch a material shared with a mesh that has no map — the black-floor guard', () => {
+    // `v0.31.7.174` shipped and reverted the feature over this. The injection patches a MATERIAL
+    // while `uv1` is built per GEOMETRY, so a material shared by N meshes carries one texture for
+    // all of them — and a sharer that was never keyed has no `uv1`, samples undefined coordinates,
+    // and in `'replace'` mode is ASSIGNED that. Not a dim surface: a cliff to black. Measured in
+    // the app as the bedroom3 wood floor going 126.7 -> 24.4 counts with the warm cast lost, on
+    // 2 materials that carried 18 of the 52 mapped meshes.
+    const root = new Object3D()
+    const mapped = wall()
+    const shared = wall(10) // far away, so it keys differently and gets no map below
+    // THE thing under test: one material object on both meshes.
+    shared.material = mapped.material
+    root.add(mapped)
+    root.add(shared)
+    // Only `mapped`'s key is in the index, so `shared` would ride the patch with no `uv1`.
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(mapped)]), stubTexture)
+    expect(res.applied).toBe(0)
+    expect(res.report).toContain('SKIPPED on a shared material')
+    // And the material is left alone entirely — a half-patched material is the failure itself.
+    expect((mapped.material as MeshStandardMaterial).userData.visLightmap).toBeUndefined()
+  })
+
+  it('still patches a material that only ONE mesh renders', () => {
+    // The guard must not be a blanket refusal: the common case is one mesh per material, and
+    // turning that off would silently disable the feature rather than fix it.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
+    expect(res.applied).toBe(1)
+    expect(res.report).not.toContain('shared material')
+  })
 })

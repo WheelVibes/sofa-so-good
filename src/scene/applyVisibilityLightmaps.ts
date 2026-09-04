@@ -120,13 +120,6 @@ function worldPositions(mesh: Mesh): Float64Array | null {
   return out
 }
 
-/** How many KEYED meshes render `mat` — the sharers that would receive a `uv1`. */
-function countKeyedOn(keyed: { mesh: Mesh; key: string }[], mat: unknown): number {
-  let n = 0
-  for (const { mesh } of keyed) if (mesh.material === mat) n += 1
-  return n
-}
-
 /** A mesh worth keying: big enough, and with a material that has an `aoMap` slot. */
 function isCandidate(o: Object3D): o is Mesh {
   const mesh = o as Mesh
@@ -211,15 +204,19 @@ export function applyLightmapsFromIndex(
   })
   // Which map each keyed mesh WOULD get, so a shared material can be checked for agreement before
   // anything is patched.
-  const urlByMaterial = new Map<unknown, Set<string>>()
+  // Per material: which maps its meshes want, and HOW MANY of its meshes will actually receive
+  // one. The count is the load-bearing half — a mesh can be keyed and still get no map, and that
+  // is precisely the mesh that breaks: it renders the patched material with no `uv1` of its own.
+  const urlByMaterial = new Map<unknown, { urls: Set<string>; withMap: number }>()
   for (const { mesh: o, key } of keyed) {
     const u = ctx ? resolver.urlFor(key, ctx) : null
     if (!u) continue
     const m = o.material
     if (Array.isArray(m) || !m) continue
-    const set = urlByMaterial.get(m) ?? new Set<string>()
-    set.add(u)
-    urlByMaterial.set(m, set)
+    const e = urlByMaterial.get(m) ?? { urls: new Set<string>(), withMap: 0 }
+    e.urls.add(u)
+    e.withMap += 1
+    urlByMaterial.set(m, e)
   }
 
   let applied = 0
@@ -288,8 +285,11 @@ export function applyLightmapsFromIndex(
     // a surface that stops taking finishes is not.
     const mat = o.material
     const sharers = meshesPerMaterial.get(mat) ?? 1
-    const urls = urlByMaterial.get(mat)
-    if (sharers > 1 && (urls?.size !== 1 || sharers > (urls ? countKeyedOn(keyed, mat) : 0))) {
+    const share = urlByMaterial.get(mat)
+    // Safe only when every mesh rendering this material receives a map AND they all agree on
+    // which one. `withMap`, not the keyed count: a mesh can be keyed and still resolve to no map,
+    // and that mesh is exactly the one that renders the patch with no `uv1`.
+    if (sharers > 1 && (share?.urls.size !== 1 || share.withMap !== sharers)) {
       sharedSkipped += 1
       continue
     }

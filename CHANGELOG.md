@@ -29,6 +29,57 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.176 — 🎉 the GI is ON again, on a survey sized to the mistake that took it off
+
+`.175` fixed the shared-material cause of `.174`'s black floor and deliberately left the flag OFF,
+because the evidence was four patches in one room — the same size survey that produced the
+regression. This does the sweep that re-enabling actually needed.
+
+**The sweep: 44 frames, 11 rooms, GI on vs off, ranked by whole-frame delta.** Exactly one frame
+darkens by more than 1.7 counts — `kitchen-y2` at **−5.2**, and it is unchanged by the fix, so it is
+a different question rather than a leftover.
+
+**A Cycles reference at that camera answers it**, and in the direction that matters:
+
+| kitchen tiled wall | app GI off | app GI on | **Cycles** |
+| --- | --- | --- | --- |
+| mid | 204.5 | 200.0 | **48.3** |
+| upper | 209.8 | 208.4 | **78.1** |
+
+The app is enormously too BRIGHT in the kitchen, and the GI's −5 moves it the right way and nowhere
+near far enough. So the only darkening in the sweep is the feature working, not a defect. Stated
+with its caveat: the tour frames have lamps on and the Cycles render has none, so the *magnitude* of
+that gap is overstated — the direction is not, and the direction is the question.
+
+**Verified after the guard fix:**
+
+| patch | GI off | GI on | reference |
+| --- | --- | --- | --- |
+| wood floor (floor-pitched) | 99.8 | **99.8** | collapse gone, byte-identical |
+| left wall (eye-level) | 79.9 | **141.2** | Cycles 196.4 |
+| ceiling | 66.8 | **89.9** | Cycles 212.4 |
+
+Applied to 34/385 meshes with **6 skipped** as unsafely shared — those are the meshes that were
+going black, so losing GI on them is the fix rather than a cost.
+
+**The guard's condition needed correcting before it worked**, and the unit test caught it. My first
+version counted *keyed* meshes per material; a mesh can be keyed and still resolve to no map, and
+that is precisely the mesh that renders the patch with no `uv1`. It now requires that every mesh on
+the material actually **receives** a map and that they all agree on which. Two regression tests pin
+both directions — refusal when shared unsafely, and that a single-mesh material is still patched, so
+the guard cannot degrade into a blanket refusal that silently disables the feature.
+
+**Cost unchanged** at `realistic`: p50 5.9/6.1 → 6.6/6.2 ms, drawn fps 42.8/42.5 → 42.0/42.3, p90
+unchanged. Worst frame 143 → 293 ms is materials compiling at attach, during load.
+
+**Known and accepted:** the ~5.5-count step at mapped/unmapped silhouettes, because `--limit`
+(default 24) caps coverage at 10 % of meshes (`.173`). `.173` also showed 111 maps at 1024 samples
+is 4.8 MB and 23 minutes of bake — a bake-time cost, not a byte cost — so raising coverage is the
+next improvement rather than a blocker.
+
+Suite **10169 green**, `tsc` and biome clean.
+
+
 ## v0.31.7.175 — the black floor's CAUSE: the injection patches a MATERIAL, `uv1` lives on the GEOMETRY
 
 `.174` reverted the GI for crushing the floor and named a hypothesis (an up-facing floor sampling

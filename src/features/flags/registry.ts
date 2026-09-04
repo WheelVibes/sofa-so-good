@@ -46,32 +46,36 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     // REPLACES the ambient term, not the `visibility` occlusion map the old label described.
     // `v0.31.7.102` measured multiplying by sky visibility as the wrong operator outright.
     description: 'Cycles-baked bounced daylight on walls, floors and ceilings (realistic mode)',
-    // ⚠️ REVERTED TO OFF in `v0.31.7.174`, one build after shipping. `v0.31.7.169` turned this on
-    // against Cycles references at two poses and the evidence was real — but it was three wall and
-    // ceiling patches plus one exterior wall, and **no floor was ever measured**.
+    // ON as of `v0.31.7.176`. Shipped in `.169`, reverted in `.174` for crushing the floor, cause
+    // found and fixed in `.175`, and re-enabled here on a survey sized to the mistake that caused
+    // the revert.
     //
-    // A floor-pitched pose says the GI crushes the floor. Measured at the shipped tone mapping,
-    // `LIGHTS=off`, bedroom3:
+    // **Why it broke.** The injection patches a MATERIAL while `uv1` is built per GEOMETRY, so a
+    // material shared by N meshes carried one texture for all of them — and a sharer that was
+    // never keyed had no `uv1`, sampled undefined coordinates, and in `'replace'` mode was
+    // ASSIGNED that. A cliff to black, not a dim surface. 2 materials carried 18 of the 52 mapped
+    // meshes. Now a material is patched only when every mesh rendering it receives a map and they
+    // all agree on which one; the rest are skipped and reported. Regression-tested both ways in
+    // `applyVisibilityLightmaps.test.ts`.
     //
-    //   patch   GI off   GI on    delta
-    //   wood     126.7    24.4   -102.3   <- warm legible boards -> near-black, grain gone
-    //   rug      110.6    86.6    -24.0
+    // **The survey, which is the part `.169` got wrong.** A 44-frame / 11-room tour, GI on vs off,
+    // ranked by whole-frame delta. Only ONE frame darkens by more than 1.7 counts:
+    // `kitchen-y2` at −5.2. A Cycles reference at that camera puts the tiled wall at **48.3 /
+    // 78.1** counts where the app renders **204.5 / 209.8**, so the darkening is correct in
+    // direction and far too small — not a defect. (The app tour has lamps on and Cycles has none,
+    // so that magnitude is overstated; the direction is not.)
     //
-    // R−B on the wood flips +26.9 -> −4.5, i.e. it loses the warm cast entirely, not just level.
-    // That is far worse than anything this feature corrects: the deficits it fixes are 40-95 counts
-    // on walls and ceilings, and this is 102 counts the other way on a surface that fills the lower
-    // half of most walk frames.
+    // **Verified after the fix:** floor 99.8 -> 99.8 (byte-identical, collapse gone), left wall
+    // 79.9 -> 141.2 and ceiling 66.8 -> 89.9 against Cycles 196.4 / 212.4. Applied to 34/385
+    // meshes; 6 skipped as unsafely shared.
     //
-    // The likely mechanism, NOT yet confirmed: `replace` mode assigns `indirectDiffuse` outright,
-    // so a mesh whose map samples near zero loses all its indirect light rather than merely being
-    // under-lit. An up-facing floor's box-atlas slot is the one the applier already has to relocate
-    // ("66 face(s) mirrored" on the 111-map set, 26 on the shipped 40), so a floor sampling the
-    // wrong row would go exactly this dark. That is the next thing to test.
+    // Cost at `realistic`: p50 5.9/6.1 -> 6.6/6.2 ms, drawn fps 42.8/42.5 -> 42.0/42.3, p90
+    // unchanged; worst frame 143 -> 293 ms is materials compiling at attach, during load.
     //
-    // Everything `.169` measured still stands and is not withdrawn — walls and ceilings do move
-    // toward the reference. The error was the SURVEY, not the measurements: four patches on three
-    // surface classes is not a room, and the one class left out is the one that broke.
-    default: false,
+    // Known and accepted: a ~5.5-count step at mapped/unmapped silhouettes, because `--limit`
+    // (default 24) caps coverage at 10 % of meshes (`.173`). Raising it is a bake-time cost, not
+    // a byte cost, and is the next improvement rather than a blocker.
+    default: true,
     tier: 'simple',
   },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
