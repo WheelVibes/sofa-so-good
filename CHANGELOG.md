@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.230 — how much of that ceiling-less floor a walker can actually REACH: `.229` called all of it walkable on two raycasts, and that was too broad
+
+`.229` measured 16 templates with ceiling-less floor and described it as walkable on the strength of
+two raycasts. Two points do not license a claim about nineteen plans, and flood-filling each one
+splits them sharply.
+
+Seeded from the largest room's centre, door and window spans treated as passable, counting only
+cells that are outside every room AND outside every wall footprint (so it is comparable with
+`.229`'s figure rather than a different quantity — an earlier version counted wall cells and
+reported jumbo at 47.6 against `.229`'s 45.9, which cannot both be right):
+
+| template | ceiling-less | REACHABLE | share |
+| --- | --- | --- | --- |
+| `tpl-hdb-jumbo` | 45.9 | **42.3** | 92 % |
+| `tpl-condo-penthouse` | 16.8 | **15.9** | 95 % |
+| `tpl-condo-3bed` | 9.3 | **9.3** | 100 % |
+| `tpl-hdb-5room` | 8.6 | **7.9** | 92 % |
+| `tpl-hdb-4room` | 10.7 | **7.8** | 73 % |
+| `tpl-hdb-maisonette` | 8.5 | **7.4** | 87 % |
+| `tpl-hdb-exec` | 14.2 | 4.1 | **29 %** |
+| `tpl-hdb-3gen` | 12.6 | 1.1 | **9 %** |
+| `tpl-condo-4bed` | 13.1 | 0.4 | **3 %** |
+
+So `.229`'s "walkable" holds for the jumbo, the penthouse and `tpl-condo-3bed`, and does NOT hold
+for `tpl-hdb-exec`, `tpl-hdb-3gen` or `tpl-condo-4bed` — theirs are sealed voids behind walls that a
+walker never sees. That reorders the work: by total area `tpl-condo-4bed` looked like the fourth
+worst plan and by reachable area it is the least affected of the large ones.
+
+Both measures are now ratcheted per template in `ceilingHole.test.ts` (39 cases). The reachable one
+is the priority signal, because reachable area is what renders as sky in a frame; the total one still
+matters, because a sealed void is real geometry that a later plan edit could open into.
+
+The per-template assertions again caught two entries my survey had printed nothing for, having cut
+its listing at 0.5 m²: `tpl-terrace-ground` at 0.48 and `tpl-condo-4bed` at 0.4. That is twice now
+that the exhaustive assertion found what the eyeballed survey dropped, which is the argument for
+asserting per template rather than over a threshold.
+
+Nothing shipped; the re-bake is still running (69 maps).
+
+
 ## v0.31.7.229 — SIXTEEN of nineteen templates have walkable floor with NO CEILING over it, up to 45.9 m². Found while waiting for a bake
 
 Ceilings are rendered PER ROOM (`PlanShell` maps `lp.rooms` to `PlanRoomCeiling`), so any area
