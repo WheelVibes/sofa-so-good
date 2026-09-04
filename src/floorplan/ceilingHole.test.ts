@@ -18,6 +18,23 @@
  * So it is walkable, it is open to the sky, and it is the same defect class as items `(w)` and
  * `(x)`: geometry the templates imply but never build.
  *
+ * **TWO FLAVOURS, and the second is the surprise** (`v0.31.7.231`). Clustering the uncovered cells
+ * into connected blobs separates them:
+ *
+ *  - **Unassigned BLOCKS.** `tpl-hdb-4room` x 5.8-8.9, z 0.5-2.4 is 4.9 m² of nothing;
+ *    `tpl-condo-3bed` x 3.2-4.8, z 5.0-7.4 is 4.5 m². Real rooms could go there.
+ *  - **SLITS along room boundaries**, where a room rect stops short of the wall face. In the
+ *    4-room, `h4-svc-s` runs at z = 2.9 and is 0.1 m thick, so its south face is at z = 2.95 —
+ *    but `h4-bed2` starts at z = 3.2. The 0.25 m band between them has neither room nor wall, and
+ *    a ray up from (2.0, 3.0) **leaves the scene** while controls 1 m away hit the ceiling at
+ *    y = 2.6. That is a thin sky line along a room edge, and the blob boxes show the same shape
+ *    repeatedly: 1.0 m² spread across a 4.2 m span is a 0.24 m slit, not a room.
+ *
+ * The two want different fixes: a block wants a ROOM (a corridor room is precedent —
+ * `jb-wb-corr`, `g3-b-corr`), while a slit wants the room rect extended to the wall face, or a
+ * gap-filling ceiling. Extending rects moves room AREA, which several furniture and area ratchets
+ * measure, so the rendering fix is the lower-risk one.
+ *
  * **The numbers are a RATCHET, not a target.** Each entry is what the template measures today, so
  * the guard fails if a plan edit makes any of them worse, and a fix means lowering a number here.
  * Wall footprints are excluded (half-thickness plus a 3 cm margin) so the figure is walkable floor

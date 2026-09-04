@@ -29,6 +29,43 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.231 — the ceiling holes are TWO defects, and the second is a thin sky SLIT along room edges
+
+Clustering the uncovered cells into connected blobs, rather than totalling them, splits `.229`'s
+finding into two problems with different fixes.
+
+**Unassigned BLOCKS.** `tpl-hdb-4room` x 5.8-8.9, z 0.5-2.4 is **4.9 m²** of floor belonging to no
+room; `tpl-condo-3bed` x 3.2-4.8, z 5.0-7.4 is **4.5 m²**. These are room-sized and a room could
+occupy them.
+
+**SLITS along room boundaries**, which the totals hid. The blob boxes give them away: 1.0 m² spread
+across a 4.2 m span is a 0.24 m strip, not a space. Traced in the 4-room: the wall `h4-svc-s` runs
+east-west at z = 2.9 and is 0.1 m thick, so its south face is at **z = 2.95** — but `h4-bed2`'s rect
+starts at **z = 3.2**. The 0.25 m band between them has neither room nor wall. A ray up from
+(2.0, 3.0) **leaves the scene**, while controls at (2.0, 4.9) and (1.5, 4.5) hit the ceiling at
+y = 2.6. So there is a thin line of sky running along the room edge.
+
+My first guess was wrong and worth recording: I read the gap as a missing WALL, since the nearest
+wall my first filter found was `h4-b2-e` running north-south. The wall is there — it is the room rect
+that stops 0.25 m short of its face.
+
+**The two want different fixes.** A block wants a room, and a corridor room is precedent
+(`jb-wb-corr`, `g3-b-corr`). A slit wants either the rect extended to the wall face or a gap-filling
+ceiling — and extending rects moves room AREA, which the furniture and area ratchets measure
+(`diningChairTuck` totals 1506 chairs, `placeSeededMounts` 897), so touching 19 templates' room
+geometry would ripple through those. The rendering fix is lower risk: compute footprint-minus-rooms
+per level and render ceiling planes over it, which closes both flavours in every template without
+moving a single room.
+
+One restriction that fix will need, from item `(w)`'s lesson: a double-height room is a DECLARED
+room with a taller `ceilingHeight`, so it is excluded automatically — but an upper level's gap sits
+directly over the void, where the ground room's 5.5 m ceiling already is. Filling gaps on upper
+levels would put a second lid in the same plane. The loft's entire upper-level gap is 0.6 m², so
+restricting the fill to the ground level costs almost nothing and avoids that.
+
+Suite 10214 green. The re-bake is at 92 maps and still running.
+
+
 ## v0.31.7.230 — how much of that ceiling-less floor a walker can actually REACH: `.229` called all of it walkable on two raycasts, and that was too broad
 
 `.229` measured 16 templates with ceiling-less floor and described it as walkable on the strength of
