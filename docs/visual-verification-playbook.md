@@ -879,6 +879,30 @@ and **typed** (useful for programmatic generation):
 ```
 Each `waitFor` accepts `timeout` (ms) and `failMessage` overrides.
 
+### Check your frames actually rendered: `measure-frame-detail.mjs`
+
+```
+node scripts/measure-frame-detail.mjs /tmp/out          # a dir or individual pngs
+```
+
+Mean absolute difference between horizontally adjacent greyscale pixels, downsampled to 80x50 so
+it reads STRUCTURE, not texture. It is a **cover detector** — the thing that catches a green
+scenario photographing a loader instead of its subject.
+
+| detail | what it is |
+|---|---|
+| 0.3 - 1.3 | boot loader / transition splash / blank |
+| 2.2 - 4.9 | a rendered panel or UI-heavy frame |
+| 6.9 - 10.0 | a rendered 3D scene, or a panel full of swatches |
+
+Exits non-zero under `--fail-under` (default 1.5), so a sweep can gate on it. **Read a flag as
+"look at this frame", not "this frame is wrong"** — a deliberately plain empty-state panel on a
+flat background can score low legitimately.
+
+Worth running after ANY corpus-wide scenario change. It is how v0.31.9.5 discovered that
+`finish-picker-audit.json` had been photographing the boot loader in all ten frames while passing
+green, and how v0.31.9.6 confirmed the fix (0.31-0.36 -> 6.9-9.96).
+
 ### Returning to orbit: wait for the transition splash, in BOTH directions
 
 `setCameraMode('orbit')` from walk raises the full-screen "Switching to overview…" splash, and

@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.7 — validated the sweep on other scenarios, and made the blankness check a tool
+
+Two follow-ups to v0.31.9.6, one confirmatory and one to stop me re-deriving the same script.
+
+**The sweep holds beyond the scenario that motivated it.** Ran four unrelated swept scenarios —
+`aircon-btu-r4b1`, `asset-sets-simple`, `assetcredits-simple`, `camera-dof-simple` — and measured
+all 15 frames: **2.26 to 3.84**, no near-blanks, all four green. Their boot waits were real work,
+not no-ops. That matters because the sweep was verified on one scenario; a one-line insertion into
+489 files deserved a check that it helps generally rather than only where it was found.
+
+**`scripts/measure-frame-detail.mjs`** now does what I had been pasting inline for three releases:
+mean absolute difference between horizontally adjacent greyscale pixels, downsampled to 80x50 so it
+reads structure rather than texture. Calibrated on this repo:
+
+| detail | what it is |
+|---|---|
+| 0.3 - 1.3 | boot loader / transition splash / blank |
+| 2.2 - 4.9 | a rendered panel or UI-heavy frame |
+| 6.9 - 10.0 | a rendered 3D scene, or a panel full of swatches |
+
+It exits non-zero under `--fail-under` (default 1.5) so a sweep can gate on it, and it is validated
+in **both** directions: exit 0 on the four scenarios above, exit 1 flagging all ten of
+`finish-picker-audit`'s pre-fix frames. Documented in the playbook with the honest caveat that it
+is a COVER detector — a deliberately plain empty-state panel can score low legitimately, so a flag
+means "look at this frame", not "this frame is wrong".
+
+This is the second such tool this arc (`measure-flute-roundness.mjs` was the first), and both exist
+for the same reason: the measurement I reached for by hand turned out to be worth keeping, and the
+one I reached for by hand WITHOUT keeping (`ripple/px`) got quoted wrongly for five releases.
+
+No behaviour change.
+
 ## v0.31.9.6 — 489 scenarios were screenshotting the boot loader
 
 v0.31.9.5 found `finish-picker-audit.json` capturing the boot loader in all ten of its frames while
