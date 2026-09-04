@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.241 — the missing bake parameter is `--diffuse-bounces ≈ 12`, and the "clamp" was the SKY's own radiance
+
+Reading the code instead of guessing settled the mechanism. With `--per-map-scale`,
+`scale = pre_max * 1.02` where `pre_max` is **that map's own maximum baked value**. So the 33 maps
+that `.240` called clamped at 3.031 are not clamped at all: their brightest texel has a direct view
+of the sky, so their maximum IS the sky's radiance (3.031 / 1.02 = **2.972**). Two bakes agree there
+because the sky is the same, which is exactly why that agreement proved nothing — and it is a better
+explanation than the clamp I inferred, since the group moved to 3.061 together when portals were
+added, which a clamp would not do.
+
+That also says where to look: **sky-visible maxima match, interior-only maxima are low**, which is
+the signature of bounce depth rather than of light level.
+
+**Bracketed with three 10-map bakes (~90 s each), on `ce497848`, the `livingDining` ceiling:**
+
+| bounces | mine | shipped | ratio |
+| --- | --- | --- | --- |
+| Cycles default | 1.309 | 1.760 | 0.744 |
+| **12** | **1.769** | **1.760** | **1.005** |
+| 32 | 1.964 | 1.760 | 1.116 |
+
+So the shipped set was baked at roughly **12 diffuse bounces**, and my runs used the engine default.
+`--diffuse-bounces` was only added to `bake_material.py` during this session, which is consistent
+with the original bake having set the depth some other way. `--portals` was also tested and moves the
+same key 1.309 → 1.402: it helps convergence, but it is not the missing parameter.
+
+**Two keys still do not converge, and both point somewhere specific.** `70e55d20` sits at 5.215 in
+the shipped set and `4b1218e6` at 0.877, against 3.045 and 0.455 in mine at any bounce depth. 5.215
+is a maximum ABOVE the sky's own 2.972, so that surface saw something brighter than the sky — and
+with the sun disc off (proved off in `.240`: enabling it gives 56.4) the only remaining emitter is a
+LAMP's emissive geometry. My exports all used `LIGHTS=off`, which zeroes fixture emission; the
+original export evidently did not.
+
+**Which raises a question worth flagging rather than answering here.** `bake_material.py`'s own
+docstring says the app "renders sun and lamps itself as DIRECT light, so those must not be baked". If
+the shipped maps were baked with lamp emissives lit, they carry a lamp bounce the app also renders —
+a double-count, and `IRRADIANCE_GAIN` has been fitted against them twice (`.184`, and `.223`). That
+is a bigger claim than one commit should make on two keys, so it is recorded as the next thing to
+test, not concluded.
+
+Nothing shipped. Suite 10219 green.
+
+
 ## v0.31.7.240 — bisecting the bake difference, and a trap I walked into for two minutes: the "agreeing" maps were the CLAMPED ones
 
 Chasing `.239`'s confound with 3-map bakes (≈90 s each) rather than 40-minute runs.
