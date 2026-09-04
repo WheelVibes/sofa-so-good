@@ -783,11 +783,21 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   sources that call fluted panelling the most-specified local feature-wall treatment and say these
   shades "work best on a single feature wall". Sources added to
   `docs/research/2026-09-02-scheme-theme-grounding.md`.
-  **Follow-up worth taking, found while verifying it:** a `painted` `FeatureWall` renders its flutes
-  INVISIBLY — `getPaintedMaterial` has no map or normal map, and at a 3.0 m width the batten radius
-  is ~25 mm, which gives no shading cue face-on in diffuse light. Both new panels use a tinted
-  `wood` finish for that reason. A painted fluted panel is a legitimate real-world spec, so the def
-  arguably needs a normal map or a deeper default flute to be honest about what it renders.
+  **Follow-up, and its claim is UNVERIFIED (v0.31.8.79).** The note said a `painted` `FeatureWall`
+  renders its flutes INVISIBLY — `getPaintedMaterial` has no map or normal map, and at a 3.0 m
+  width the batten radius is ~25 mm, giving no shading cue face-on in diffuse light. `painted` is
+  a user-selectable option on the def (`wood` / `painted` / `gloss`), so it is reachable even
+  though both shipped presets use tinted `wood`.
+  **I tried to measure it and the fixture was wrong.** Adding two `feature-wall` items via
+  `addItem` at (6.0, 2.5) and (8.2, 2.5) in the default flat and aiming the walk camera at each,
+  the panels were NOT IN FRAME — the crop landed on the living room's CURTAINS, which have their
+  own vertical ripple, and reported the painted panel at ripple 0.472 against the wood one at
+  0.091. That reads as "the note is backwards" and is simply a measurement of curtains.
+  **A valid fixture needs:** a camera pose known to face the panel (the flutes are real geometry —
+  half-round cylinders in `FeatureWall.tsx` — so they must be seen head-on), ideally by loading a
+  preset that authors one (Coastal / Tropical Biophilia place a fluted feature wall) rather than
+  hand-placing into the default flat, plus a crop verified against the frame before any number is
+  quoted. The claim may well be right; it is not yet measured.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
 - **[site measurements — recording UI COMPLETE v0.31.5.373]** `SiteMeasuredField` is on the wall,

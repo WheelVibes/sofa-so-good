@@ -27,6 +27,44 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.79 — I measured curtains
+
+With the appliance thread closed, I picked a small self-contained item: `TODO.md` records that a
+`painted` `FeatureWall` renders its flutes invisibly, because `getPaintedMaterial` carries no map
+or normal map and a ~25 mm batten radius gives no shading cue face-on. `painted` is a
+user-selectable finish on that def, so it is reachable even though both shipped presets use
+tinted `wood`.
+
+I placed two panels — one `painted`, one `wood` — aimed the walk camera at each, and measured the
+horizontal luma ripple across a strip. Result: **painted 0.472, wood 0.091.** The note appeared
+to be backwards.
+
+**It was a measurement of curtains.** The panels were not in frame at all; the crop
+(x 520–1080) fell on the living room's curtains, which have their own vertical ripple. Looking at
+the screenshot took ten seconds and showed a wall of curtain either side of a blank plaster wall,
+with no feature panel anywhere in view.
+
+So: **the claim is unverified, not refuted.** Nothing about it has changed.
+
+### What a valid fixture needs, recorded so the next attempt has one
+
+- a camera pose known to face the panel — the flutes are real geometry (half-round cylinders in
+  `FeatureWall.tsx`), so they only read head-on;
+- loading a preset that authors one (Coastal / Tropical Biophilia both place a fluted feature
+  wall) rather than hand-placing into the default flat, where a `mounted` `noClip` item at an
+  arbitrary XZ may end up anywhere;
+- the crop checked against the frame **before** any number is quoted.
+
+### Why this is the whole release
+
+I was one step from publishing "the TODO note is backwards, painted flutes read fine" off a
+number measured on the wrong pixels. This session has now hit that failure three times — the
+appliance-wall threshold in v0.31.8.57, the through-room rects in v0.31.8.68, and this — and in
+all three the thing that caught it was looking at the artefact rather than the aggregate. The
+release is worth more as that record than as a silent revert.
+
+No code ships. Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.78 — one trace closes the appliance thread at 15 → 2
 
 v0.31.8.77 ended by saying the next step was a trace, not another argument. Traced
