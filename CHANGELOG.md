@@ -27,6 +27,68 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.60 — the 0.14 m was the room, not the furniture
+
+Last release left one number unexplained: eight marooned appliances reading exactly **0.32 m**
+from any wall, when the snap arithmetic says 0.18. I said find the 0.14 before writing a fix.
+Found.
+
+**The furniture is snapped correctly. The room rectangle is not on the wall.**
+
+`tpl-hdb-3room`'s kitchen fridge sits with its back face at z 2.430. The room rect (inset 0.12)
+ends at 2.48, and `snapToWall`'s `gap = 0.06` puts the piece at 2.42 — so it is exactly where the
+arranger meant it. But the room's own south edge is **0.15 m short of the wall face**, so the
+piece lands at 0.18 + 0.15 = 0.33 m from the wall. Measured: 0.32.
+
+### Why the rect is short, and why it is 0.05 or 0.15 and never anything else
+
+Room rectangles are authored against the wall **centreline** with a constant offset. A wall's
+half-thickness varies — internal 0.05 m, external 0.10 m — so one authored constant cannot be
+flush against both:
+
+| rect authored at | vs INTERNAL wall | vs EXTERNAL wall |
+| --- | --- | --- |
+| centreline | −0.05 (rect eats into the wall body) | −0.10 |
+| centreline + 0.1 | **+0.05 short** | 0.00 flush |
+| centreline + 0.2 | **+0.15 short** | +0.10 |
+
+Surveyed over the 570 rect edges that have a wall within 0.3 m, the histogram lands on exactly
+those values and nowhere else:
+
+| | edges |
+| --- | --- |
+| flush | 226 |
+| short by 0.05 | **186** |
+| short by 0.15 | **86** |
+| overlapping the wall body | **58** |
+| other | 14 |
+
+**Fewer than half the room edges in the shipped library sit on their own wall.** Ratcheted in
+`src/floorplan/roomRectWalls.test.ts`, with the arithmetic table in the docstring so the next
+reader does not have to re-derive it.
+
+### What this is not
+
+It is **not** `docs/open-graphics-decisions.md` item (f). That is about whole MISSING partitions
+— 0.7–1.0 m gaps where a room has no wall at all — and it is a content decision the maintainer
+already deferred. This is rooms that HAVE their wall and stop 5–15 cm short of it, which is
+arithmetic, not content. v0.31.8.59 nearly published the two as one finding; the new test's
+docstring says which is which.
+
+### The fix, and why it is not in this release
+
+**One function.** Make the arranger snap against the wall FACE rather than the room rect, or make
+`planRoomRect` resolve its edges to the walls. Either collapses all four populations into
+`flush`, which is what the second assertion in the new test is for — it fails if most edges
+become flush, so the fix cannot land silently.
+
+The blast radius is library-wide: every template's furniture shifts by up to 0.15 m, so
+`diningChairTuck`, `placeSeededMounts`, `windowSightline` and the route ratchets will all move.
+That deserves its own release with its own before/after, not a footnote in this one. `TODO.md`
+says so and says to budget for it.
+
+Verified: 10187 tests pass; `tsc`, `biome`, `knip` clean. No production code changed.
+
 ## v0.31.8.59 — I guessed the mechanism and I was wrong for 14 of 15
 
 Last release ratcheted 15 marooned kitchen appliances and wrote down a guess: the kitchen routine

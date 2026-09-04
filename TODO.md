@@ -927,17 +927,26 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
     Fix the stove and the hood follows for free.
   - **14 of 15 WERE placed by the arranger and are simply not against a wall.** The first draft
     of this entry said they fell through to `arrangeCore`'s room-wide grid settle; they did not.
-    **The mechanism for these is still UNKNOWN.** Eight of them read exactly **0.32 m**, a cluster
-    as tight as the 0.18 m snap cluster, so it is systematic rather than incidental — and 0.32 is
-    NOT explained by the snap arithmetic (0.18) in rooms whose relevant edges do sit on walls
-    (`tpl-hdb-3room`'s kitchen N and W edges measure 0.000 m from the wall face). Find what the
-    0.14 m difference is before writing any fix.
+    **SOLVED in v0.31.8.60: the room RECTANGLE stops short of the wall.** The arranger snaps to
+    `planRoomRect` (inset 0.12) plus `snapToWall`'s 0.06 = 0.18 m from the RECT edge; if the rect
+    edge is 0.15 m short of the wall face, the piece lands at 0.33. `tpl-hdb-3room`'s kitchen
+    fridge is exactly that: its rect S edge is short by 0.15, and it measures 0.32.
+    **Why the rect is short:** rectangles are authored against the wall CENTRELINE with a
+    constant offset, but half-thickness VARIES (internal 0.05, external 0.10), so one constant
+    cannot be flush against both. Surveyed over 570 edges that have a wall within 0.3 m:
+    **226 flush, 186 short by 0.05, 86 short by 0.15, 58 OVERLAPPING the wall body.** Ratcheted
+    in `src/floorplan/roomRectWalls.test.ts` with the arithmetic table.
+    **The fix is one function**: make the arranger snap against the wall FACE rather than the
+    room rect (or make `planRoomRect` resolve its edges to the walls). Blast radius is
+    library-wide — every template's furniture shifts up to 0.15 m — so expect heavy guard churn
+    in `diningChairTuck`, `placeSeededMounts`, `windowSightline` and the route ratchets, and
+    budget a release for it rather than folding it into something else.
   - **The orphan hoods** (4 templates with a hood and no stove) remain unconfirmed — the
     `placeSeededMounts` path above makes "a mount outliving a dropped host" plausible, but it has
     not been traced.
-  **Do NOT re-open this as "room rects are not walls".** A sweep of all 668 room-rect edges finds
-  196 (29%) with no wall behind them, which looks like a big new finding and is mostly the
-  ALREADY-TRACKED content decision: `templateEnclosure.test.ts` records 5 shared-enclosure
+  **Do NOT re-open the WHOLE-MISSING-PARTITION version of this.** A sweep of all 668 room-rect
+  edges finds 196 (29%) with NO wall behind them at all, which looks like a big new finding and
+  is mostly the ALREADY-TRACKED content decision: `templateEnclosure.test.ts` records 5 shared-enclosure
   offenders and `docs/open-graphics-decisions.md` item (f) defers re-drawing them as content.
   `tpl-hdb-4room/ground: h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath` is the same fact
   seen through a looser ruler.
