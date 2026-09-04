@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.180 — the ceiling question is NOT resolved, and the blocker is now named: co-located sampling
+
+Four attempts across `.170`–`.172` and this one have failed to settle whether the ceiling deficit is
+the bake under-measuring or the app mis-rendering a correct map. This records what was eliminated
+and, more usefully, **why the question keeps escaping** — because I have re-derived the same broken
+comparison four times without naming it.
+
+**What this round eliminated.**
+
+1. *The bake is not handicapped relative to the render.* Reading the pass setup: the irradiance bake
+   deliberately does **not** whiten materials ("real materials governing every bounce, no invented
+   albedo") and it **opens the apertures**, deleting the glazing. So it receives MORE light than the
+   reference render, which has glass in place. A bake that under-measures cannot be explained by its
+   own setup being darker, because it is brighter.
+2. *The identical floor scales were an artefact, not a finding.* `.170` flagged 8 floors all reading
+   `scale` 0.2385 as suspicious. That was the shared-material collision (`.175`), not the index. The
+   shipped 111-map set shows exactly the per-room variation you would expect: ceilings **0.08–1.03**,
+   floors **0.004–0.83**, walls ~3.03.
+3. *A tone-mapped reference cannot be inverted.* Every irradiance figure I computed from a rendered
+   frame inverted an AgX or Khronos-Neutral byte as if it were gamma 2.2. Neither is a gamma curve.
+   `render_still.py --view-transform Standard` is plain sRGB and inverts exactly — wall radiance
+   **0.660**, ceiling **0.758**, i.e. the ceiling receives ~15 % MORE than the shaded wall patch.
+
+**The blocker, stated so the next attempt does not repeat it.** The bake reports statistics **per
+MESH** while every frame measurement is **per PATCH**, and the two are not comparable for a wall: a
+wall mesh's mean is inflated by texels beside the window, while the patch I measure is a shaded
+region metres away. Comparing the bake's wall mean (0.65–1.20) to a shaded wall patch, or its
+ceiling mean to a ceiling patch, mixes two different quantities — and every "N× discrepancy" I have
+quoted in this thread, including the 17× in `.170` and the ~6× implied here, rests on that mix.
+
+`?aoDebug=1` cannot close it either: it writes the sampled value to `gl_FragColor`, but three's
+`tonemapping_fragment` still runs afterwards, so the byte is tone-mapped and not invertible.
+
+**What would actually settle it**, and it is a small piece of work rather than another inference: a
+debug path that outputs the sampled map value with tone mapping DISABLED, or a probe that resolves a
+screen point to its mesh, reads that mesh's `uv1` at the hit, and samples the map PNG at those
+texels. Either gives the baked irradiance **at the same place** the reference is measured, which is
+the one thing four rounds of arithmetic have not had.
+
+Not shipped, nothing changed in the app. The ceiling remains the largest measured gap: 89.9 against
+a Cycles 212.4, ~17 % closed.
+
+Suite 10170 green, `tsc` and biome clean.
+
+
 ## v0.31.7.179 — `walk-tour` gets `LIGHTS=off`, and the kitchen's 152-count gap resolves to **35**
 
 `.176` compared the kitchen against a Cycles reference and had to publish the number with a caveat:
