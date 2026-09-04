@@ -29,6 +29,30 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.261 — `.260` claimed a doc row it did not write, for the second time, by the same `;`-chained mechanism I documented in `.248`
+
+`.260`'s entry says `(z3)`'s row "now sits on one question". The row was not updated: the script
+editing it threw an `AssertionError` because the anchor text had already been rewritten by `.258`,
+and the `git commit` that followed in the same `;`-chained command ran regardless.
+
+**This is exactly the failure `.248` recorded, thirteen commits ago, including the diagnosis:** *"the
+chain used `;` between steps rather than `&&`, so the commit ran anyway and the traceback scrolled
+past above a successful-looking commit line."* I wrote that, and then did it again — the note was
+not a mechanism, only a description, and a description does not prevent anything.
+
+So this time the chain uses `&&`, and the doc row is written: `(z3)` records that shadows work, that
+the wall moves 0.0 counts with the sun's `castShadow` forced false at source while the floor moves
++8.4, that `mapSize 4096` is eliminated, and that the open question is why a `colorWrite: false,
+opacity: 0` plane which IS `castShadow` fails to occlude that one ray.
+
+The lesson generalises past this one habit. Three times now — `.247`, and now `.260` — I have
+verified my work by reading back the changelog, which is the file most likely to have been written
+successfully, because it is the last edit before the commit. Reading back the thing I changed is not
+verification if I only read back the part that always succeeds.
+
+Suite 10219 green; `git status` clean.
+
+
 ## v0.31.7.260 — shadows WORK; that wall is simply never in shadow. And `.259`'s mystery explained: `Lighting` rewrites `castShadow` every frame
 
 `.259` could not reproduce a sweep that reported `castShadow: false` and shipped an instrument fix
