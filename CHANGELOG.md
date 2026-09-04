@@ -27,6 +27,59 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.88 — a shipped scenario's final screenshot was the splash, not the scene
+
+`TODO.md` had carried this since v0.31.8.50: returning to orbit from walk leaves the
+"Switching to overview…" splash up past any settle, and `scripts/scenarios/backdrop-walk-simple.json`
+ends on `back-orbit` + `wait 2000` + `shot-orbit-again` — so **its last screenshot had been
+verifying nothing**. The note guessed the cause: either the splash waits on a frame the headless
+harness never delivers, or it genuinely takes that long.
+
+**Neither.** Wrapping `showLoading`/`hideLoading` with a stack recorder shows exactly ONE of each
+per transition — there is no re-show — and the orbit hide lands **3483 ms** after the show, via
+the rendered-frame path. `transitionHide.ts` has a `MAX_WAIT_MS` of 2000 that should have beaten
+that, and the reason it didn't is the same reason the splash lingers: **the scene swap blocks the
+main thread for 3-6 s**, which delays `setTimeout` as surely as it delays frames. A 150 ms
+`setInterval` armed across the transition fired at 800-2000 ms intervals. So the overlay is not
+stuck and the timeout is not wrong — the fixed 2000 ms wait was simply shorter than the
+transition.
+
+### Three wrong fixes, in the order I shipped them into the working tree
+
+1. **`waitFor {store: "state.loading.active === false"}`** — already used by two other scenarios,
+   and insufficient. `hideLoading` only flips the flag; `useOverlayLifecycle` then holds
+   `MIN_VISIBLE_MS` (600) and fades `FADE_MS` (250). Measured ~1.6 s of splash still painted
+   after the flag cleared.
+2. **`waitFor {text: "Switching to overview", visible: false}`** — copied from
+   `transition-overlay-readiness.json`, where it has been passing. It reported OK in 3.4 s and
+   **the screenshot was still the splash.** `visible: false` does not consider `opacity`, and
+   worse it passes VACUOUSLY: `showLoading` is synchronous inside `setCameraMode`, so at the
+   moment the step runs React has not rendered the new label and the text is genuinely absent.
+3. **Text, but appear-then-disappear** — fixed the vacuous pass on `backdrop-walk-simple` and
+   then failed `furnlight-simple` after a 20 s timeout, because the text predicate cannot tell
+   "painted at opacity 0" from "gone".
+
+### What actually works
+
+`LoadingOverlay` now carries `data-transition-overlay`, and scenarios wait for it to APPEAR and
+then to GO. The attribute exists exactly while the overlay is in the DOM, and unlike
+`role="status"` it is not shared with the notification region or the FPS HUD. Applied to the
+three scenarios that return to orbit and then screenshot or assert:
+`backdrop-walk-simple` (shown 2.4 s, gone 3.7 s — against the 2000 ms it used to wait),
+`furnlight-simple`, `backdrop-upload-simple`.
+
+`backdrop-walk-simple`'s final frame is now the doll's-house orbit view of the furnished 4-room
+flat. That assert is doing work again for the first time since it was written.
+
+The whole gotcha is written up in `docs/visual-verification-playbook.md`, including all three
+failed selectors, since the next person to sync on this splash will reach for exactly them. A
+unit test pins the attribute as a contract rather than decoration.
+
+**Found and NOT fixed:** `backdrop-upload-simple.json` fails at step 14 on
+`click-by-text: could not find visible element containing text "City — Daytime HDB skyline"`,
+which is upstream of anything here and pre-dates it. Recorded in `TODO.md` rather than folded
+into this change.
+
 ## v0.31.8.87 — the room-rectangle fix is not the third blocker; decision (f) is
 
 v0.31.8.85 closed with a call to go and finish the room-rectangle work, on the strength of it

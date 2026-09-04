@@ -1,6 +1,6 @@
 {
   "name": "furnlight-simple",
-  "description": "Simple ladder for the item-as-light-source feature (PARITY-FURNLIGHT, itemAsLight flag, simple tier): confirms it's on by default in Simple mode, places a plain non-fixture item (a dresser — not in LIGHT_EMITTERS), flips the REAL inspector 'Make a light source' icon-button (only reachable inside the per-room editor), then EXITS the room editor to verify it actually emits in the real Scene (store props.lightOn + a live scene-graph PointLight probe, since the per-room editor's own Canvas — RoomEditorScene.tsx — has a fixed flat hemisphere+ambient rig and does not render FurnitureLights at all, so the light is invisible while still inside the editor) — screenshots lit vs unlit in both orbit and walk mode. NOTE: at the time this was written there is no shipped walk-mode E-key light-toggle interaction and no 'walkLights' flag — TASKS.md queues 'Interactable lights' as future work (see report) — so this rung exercises the inspector toggle, the only shipped light-source-toggle UI. The 'Turn off light source' path clicks the REAL button (regression guard for the fixed merge-can't-clear updateItemProps bug).",
+  "description": "Simple ladder for the item-as-light-source feature (PARITY-FURNLIGHT, itemAsLight flag, simple tier): confirms it's on by default in Simple mode, places a plain non-fixture item (a dresser \u2014 not in LIGHT_EMITTERS), flips the REAL inspector 'Make a light source' icon-button (only reachable inside the per-room editor), then EXITS the room editor to verify it actually emits in the real Scene (store props.lightOn + a live scene-graph PointLight probe, since the per-room editor's own Canvas \u2014 RoomEditorScene.tsx \u2014 has a fixed flat hemisphere+ambient rig and does not render FurnitureLights at all, so the light is invisible while still inside the editor) \u2014 screenshots lit vs unlit in both orbit and walk mode. NOTE: at the time this was written there is no shipped walk-mode E-key light-toggle interaction and no 'walkLights' flag \u2014 TASKS.md queues 'Interactable lights' as future work (see report) \u2014 so this rung exercises the inspector toggle, the only shipped light-source-toggle UI. The 'Turn off light source' path clicks the REAL button (regression guard for the fixed merge-can't-clear updateItemProps bug).",
   "url": "http://localhost:5231/",
   "steps": [
     {
@@ -28,7 +28,7 @@
         "store": "state.featureFlags.itemAsLight === true"
       },
       "timeout": 5000,
-      "failMessage": "itemAsLight is tier:'simple' and default:true — expected true in Simple mode"
+      "failMessage": "itemAsLight is tier:'simple' and default:true \u2014 expected true in Simple mode"
     },
     {
       "name": "enter-room-editor",
@@ -81,7 +81,7 @@
         "css": "button[aria-label=\"Make a light source\"]"
       },
       "timeout": 5000,
-      "failMessage": "itemAsLight toggle missing — expected on a non-fixture def (dresser is not in LIGHT_EMITTERS) with the flag on in Simple mode"
+      "failMessage": "itemAsLight toggle missing \u2014 expected on a non-fixture def (dresser is not in LIGHT_EMITTERS) with the flag on in Simple mode"
     },
     {
       "name": "focus-dresser",
@@ -204,6 +204,23 @@
         "store": "state.loading.active === false"
       },
       "timeout": 10000
+    },
+    {
+      "name": "orbit-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 10000,
+      "failMessage": "orbit transition splash never appeared \u2014 the gone-wait below would pass vacuously"
+    },
+    {
+      "name": "orbit-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "walk->orbit transition splash still up: the next screenshot would capture the splash, not the scene"
     },
     {
       "name": "settle-back-orbit",

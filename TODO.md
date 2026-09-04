@@ -34,7 +34,32 @@ wall. Those 15 are already recorded, from the other end, as
 to open-graphics item **(f)**. Snapping a rect edge to a wall face cannot help a rect with no face
 to snap to. **The blocker here is (f), not the rects** — and (f) is not mine to decide.
 
-## The walk -> orbit return holds its "Switching to overview..." splash past any settle
+## ~~The walk -> orbit return holds its "Switching to overview..." splash past any settle~~ — FIXED (v0.31.8.88)
+
+**Resolved.** Not a stuck overlay and not a missing frame: exactly one `showLoading`/`hideLoading`
+fires per transition, and the orbit hide lands 3483 ms after the show. **The scene swap blocks the
+main thread for 3-6 s**, which delays `transitionHide.ts`'s 2000 ms safety timeout as surely as it
+delays frames — so the fixed `wait 2000` was just shorter than the transition. `LoadingOverlay`
+now carries `data-transition-overlay` and the three scenarios that return to orbit wait for it to
+APPEAR and then to GO. `backdrop-walk-simple`'s final assert works again. Three selectors that do
+NOT work (`loading.active`, label text, text-appear-then-disappear) are written up in
+`docs/visual-verification-playbook.md` — read that before touching this.
+
+## `backdrop-upload-simple.json` fails at step 14, upstream of anything to do with the splash
+
+Found while fixing the splash (v0.31.8.88), pre-existing and NOT caused by it:
+
+```
+STEP 14/49 open-backdrop-select … FAILED (16.1s)
+  reason: click-by-text: could not find visible element containing text "City — Daytime HDB skyline"
+```
+
+So this scenario has not been reaching its own backdrop assertions at all, and the splash fix
+(steps 34+) is downstream of the break. Worth checking whether the option label was renamed and
+the scenario not updated with it — the docs rule is that scenario labels are exact and must be
+verified against source.
+
+## Superseded original note on the splash
 
 Found while adding `scripts/scenarios/window-backdrop-veil.json` (v0.31.8.50). Setting
 `cameraMode` back to `orbit` from walk leaves the full-screen "Sofa So Good / Switching

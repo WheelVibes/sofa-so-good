@@ -879,6 +879,35 @@ and **typed** (useful for programmatic generation):
 ```
 Each `waitFor` accepts `timeout` (ms) and `failMessage` overrides.
 
+### Returning to orbit: wait for the transition splash, in BOTH directions
+
+`setCameraMode('orbit')` from walk raises the full-screen "Switching to overview…" splash, and
+the scene swap **blocks the main thread for 3-6 s** in the headless harness — long enough that
+even `transitionHide.ts`'s 2000 ms safety timeout fires late. A fixed `wait` after `back-orbit`
+therefore screenshots the SPLASH, not the scene. `backdrop-walk-simple.json` shipped that way
+and its final assert verified nothing until v0.31.8.88.
+
+```json
+{"name": "back-orbit", "store": {"action": "setCameraMode", "args": ["orbit"]}},
+{"name": "orbit-overlay-shown", "waitFor": {"css": "[data-transition-overlay]"}, "timeout": 10000},
+{"name": "orbit-overlay-gone",  "waitFor": {"css": "[data-transition-overlay]", "visible": false}, "timeout": 25000},
+{"name": "settle-back", "wait": 600},
+{"name": "shot", "screenshot": "orbit-again"}
+```
+
+Three ways to get this wrong, all of them tried:
+
+- **`{"store": "state.loading.active === false"}` is NOT enough.** `hideLoading` only flips the
+  flag; `useOverlayLifecycle` then holds the overlay for `MIN_VISIBLE_MS` (600) and fades it for
+  `FADE_MS` (250). Measured ~1.6 s of overlay still painted after the flag cleared.
+- **Matching the label TEXT is unreliable.** `visible: false` does not consider `opacity`, so it
+  can be satisfied while the splash is fully painted — and worse, it passes VACUOUSLY when the
+  step runs before React has rendered the new label, which is the common case since
+  `showLoading` is synchronous inside `setCameraMode`.
+- **Waiting only for it to GO is not enough** — that is the vacuous pass above. Wait for it to
+  APPEAR first, then to go. `[data-transition-overlay]` exists exactly while the overlay is in
+  the DOM and is not shared with the notification region or the FPS HUD (both `role="status"`).
+
 ### Store-injected fixtures must match the real types
 
 `eval` strings bypass TypeScript — `setItems([...])` with the wrong shape
