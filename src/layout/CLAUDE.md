@@ -290,7 +290,35 @@ back, at no cost to the nine appliance fixes it was traded for). Cost: `tpl-cond
 loses its desk and book-set, and `tpl-1bed/ob-kit` its ceiling light — both recorded per-def in
 `diningChairTuck.test.ts` and named in `TODO.md`.
 
-## `settle` can leave a piece INVALID, and that blocks every placement change (v0.31.9.24)
+## The arranger can place a piece ONTO an item it has not placed yet (v0.31.9.24/.25)
+
+`world` holds only what is already placed, so a room item still awaiting its turn is invisible to
+`canPlace` — and once its own spot is gone, no amount of last-resort searching gets it back.
+
+Measured on the default flat: `default-sy-rack` was VALID at (5.30, 7.20), **never moved**, and
+came out of `arrangeAllRoomsForPlan` invalid because `default-sy-washer` was placed on top of it.
+The ordering follows without further instrumentation — had the rack been in `world`, `canPlace`
+would have refused the washer that spot, so the washer was placed first.
+
+**This corrects the first version of this note, which blamed a "starved" piece and a settle that
+surrenders.** The rack was not starved; it was buried. A cleverer settle would not have helped.
+
+**The obvious repair is wrong for the furnish path.** Seeding `world` with the room's unplaced
+items and removing each as it is placed is right for TIDY, where items start spread out, and
+catastrophic for FURNISH, where every piece in a room starts at the SAME seed point (the room
+centre) — everything would block everything and nothing would place. A real fix has to
+distinguish "an item sitting where it belongs" from "an item parked on a seed".
+
+`furnishPlan`'s `dropUnplaceable` (v0.31.9.25) closes the FURNISH half: the arranger still never
+deletes (the interactive tidy must not eat a user's furniture —
+`autoArrange.test.ts` pins `expect(out.length).toBe(hydrate().length)`), so the drop sits on the
+furnish path beside the drops for clashes, door swings and wall clips. It is a measured **no-op**
+today, which is the point: it converts a class that used to surface as an INVALID item — a state
+no ratchet here measures, because every per-def count sees a piece that is still "there" — into an
+item-count delta that `diningChairTuck.test.ts` already reads. `furnishValidity.test.ts` asserts
+it at zero.
+
+### The older framing, kept because the levers are still blocked on it
 
 `settleInRect` is the last-resort placement, and when nothing fits it leaves the item at its
 ORIGINAL transform — standing in a wall, if that is where it was seeded. Nothing downstream drops

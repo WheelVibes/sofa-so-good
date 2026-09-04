@@ -14,6 +14,7 @@
  */
 import type { AabbItem } from '../collision/broadphase'
 import {
+  canPlace,
   findItemOverlaps,
   findWallClips,
   itemAabbBox,
@@ -548,6 +549,68 @@ function dropDoorBlockers(
  * noClip items are exempt (they never clip — `findWallClips` skips them); scoped
  * per storey against that storey's own resolved collision walls.
  */
+/**
+ * DROP-UNPLACEABLE (v0.31.9.25) — the furnish path must never emit an item that
+ * is geometrically invalid.
+ *
+ * `arrangeCore` finishes with
+ * `allItems.map((orig) => byId.get(orig.id) ?? orig)`: an item the room routine
+ * and then the safety `settle` both failed to place keeps its ORIGINAL
+ * transform, which is the seed point — the room centre, or wherever a stale
+ * default left it. Nothing downstream removed it, so the arranger could hand
+ * back a piece standing in a wall.
+ *
+ * **The arranger itself must not delete**, and that is deliberate: the same
+ * `arrangeAllRoomsForPlan` powers the interactive "tidy" action, where making a
+ * user's furniture vanish is far worse than leaving it where they put it —
+ * `autoArrange.test.ts` pins the no-delete contract with
+ * `expect(out.length).toBe(hydrate().length)`. So the drop belongs HERE, on the
+ * furnish path, alongside the three drops that already run for clashes, door
+ * swings and wall clips.
+ *
+ * **It is a no-op on today's corpus: 0 of 1409 items across the 19 templates.**
+ * That is the point — it is a guard, not a fix. v0.31.9.24 built four placement
+ * levers worth room overhangs 10 -> 4 and had to revert all four because one of
+ * them starved the default plan's `drying-rack`, and the failure surfaced as an
+ * invalid item rather than as a missing one. With this pass in place the FURNISH
+ * half of that class can only ever show up as an item-count delta, which the
+ * per-def ratchets already measure and read honestly.
+ *
+ * It uses the same `canPlace` the arranger's own `tryPlace` uses, with the
+ * storey's collision walls, so "survives the furnish" and "would have been legal
+ * to place" are one rule.
+ */
+function dropUnplaceable(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  plan: FloorPlan,
+  doors: Record<string, { open: boolean }>,
+): FurnitureItem[] {
+  const dropIds = new Set<string>()
+  for (const level of planLevels(plan)) {
+    const walls = planCollisionWalls(levelAsPlan(plan, level), doors)
+    if (walls.length === 0) continue
+    // Accumulated in list order, mirroring `autoArrange.test.ts`'s own validity
+    // sweep: an item is judged against what precedes it, so one bad piece cannot
+    // condemn every later one.
+    const kept: FurnitureItem[] = []
+    for (const it of items) {
+      if ((it.levelId ?? GROUND_LEVEL_ID) !== level.id) continue
+      const def = defs[it.defId]
+      if (!def) continue
+      // Mounts and rugs are exempt for the same reason every other pass exempts
+      // them: they do not occupy floor, and `canPlace` is a floor predicate.
+      if (def.mounted || def.noClip) {
+        kept.push(it)
+        continue
+      }
+      if (canPlace(it, def, { others: kept, defs, doors, walls })) kept.push(it)
+      else dropIds.add(it.id)
+    }
+  }
+  return dropIds.size === 0 ? items : items.filter((it) => !dropIds.has(it.id))
+}
+
 function dropWallClippers(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
@@ -937,22 +1000,27 @@ export function furnishPlanItems(
   // strategically disastrous — one that seals a room off from the front door.
   // Measured over the 19 templates: 43 unreachable rooms -> 18, by moving 12
   // items and deleting none. See `layout/reachability.ts`.
-  const furniture = unsealRoutes(
-    dropWallClippers(
-      dropDoorBlockers(
-        dropOverlaps(
-          relocateCeilingMounts(placeSeededMounts(plan, arranged, defs), defs, plan),
+  const furniture = dropUnplaceable(
+    unsealRoutes(
+      dropWallClippers(
+        dropDoorBlockers(
+          dropOverlaps(
+            relocateCeilingMounts(placeSeededMounts(plan, arranged, defs), defs, plan),
+            defs,
+          ),
           defs,
+          plan,
         ),
         defs,
         plan,
+        doors,
       ),
       defs,
       plan,
-      doors,
     ),
     defs,
     plan,
+    doors,
   )
   if (!withDecor) return furniture
   // Styling pass: add set-dressing props on host surfaces. The pass may reach for

@@ -67,15 +67,23 @@ costs `tpl-condo-1bed` its counter and stove), and swept candidates need footpri
 because `edgeShortfall` deliberately pushes a piece past the rect edge.
 
 **What is LEFT here, in priority order:**
-- **PREREQUISITE, and it blocks everything else here: `settle` must never surrender.**
-  `settleInRect` leaves an item at its original transform when nothing fits, so a starved piece
-  stays geometrically INVALID rather than being dropped. v0.31.9.24 built four placement levers
-  that together take room overhangs **10 -> 4** and give `tpl-condo-2bed` its desk back, and had
-  to revert all four because one of them starved the default plan's `drying-rack` and broke
-  `autoArrange.test.ts`'s "tidies a custom plan validly" — a hard assertion that cannot be
-  ratcheted. Make invalid-and-unplaceable an explicit DROP (as `dropOverlaps` is), then
-  re-apply the four levers and judge them on content deltas alone. They are written up with
-  per-lever attribution in `CHANGELOG.md` v0.31.9.24.
+- **PREREQUISITE, and it blocks everything else here: the arranger can place a piece ONTO an
+  item it has not placed yet.** `world` holds only what is already placed, so a piece still
+  awaiting its turn is invisible to `canPlace`. Measured on the default flat with v0.31.9.24's
+  ends lever applied: `default-sy-rack` was VALID at (5.30, 7.20), **never moved**, and ended up
+  invalid because `default-sy-washer` was placed on top of it. The ordering follows — had the
+  rack been in `world`, `canPlace` would have refused the washer that spot, so the washer went
+  first.
+  This corrects v0.31.9.24, which called it "settle surrenders on a starved piece". No
+  last-resort search can fix a piece whose own legal spot was taken by a piece placed earlier.
+  **The obvious repair is wrong for the furnish path:** seeding `world` with the room's unplaced
+  items would work for tidy but not for furnish, where every piece in a room starts at the SAME
+  seed point (the room centre), so everything would block everything and nothing would place. A
+  real fix must distinguish "an item sitting where it belongs" from "an item parked on a seed".
+  Until it exists, v0.31.9.24's four levers (room overhangs **10 -> 4**, `tpl-condo-2bed`'s desk
+  back) stay reverted; per-lever attribution is in `CHANGELOG.md` v0.31.9.24.
+  `dropUnplaceable` (v0.31.9.25) closes the FURNISH half — it is a measured no-op today, and it
+  means this class can only ever show up as an item-count delta there, never as an invalid item.
 - **`fittedCounter` measures against the wrong box** — `max(room.width, room.depth)` where the
   counter must fit `planRoomRect`, which insets 0.12 from EACH side. Every sized counter is
   0.24 m too long, and the rounding must be `floor` (round turns 1.76 into 1.8). Fix is written

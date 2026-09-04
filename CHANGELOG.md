@@ -27,6 +27,61 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.25 — the rack never moved; a washing machine was put on top of it
+
+v0.31.9.24 named its own blocker as "`settle` surrenders and leaves a starved piece invalid", and
+specified the fix as an explicit drop. Both halves turned out to be wrong in ways worth writing
+down, because the implied fix would not have worked.
+
+### What actually happens
+
+Probing the default flat directly, before and after `arrangeAllRoomsForPlan`:
+
+```
+BEFORE: 0 invalid
+AFTER:  1 invalid  default-sy-rack @5.30,7.20
+rack before @5.3,7.2   after @5.3,7.2   moved=false
+HITS on rack: default-sy-washer (washing-machine) @5.65,7.29
+```
+
+**The rack never moved, and its position was VALID before the tidy.** It was not starved of
+anywhere to go — it was buried. And the ordering follows without further instrumentation: had the
+rack been in `world`, `canPlace` would have refused the washer that spot, so the washer was
+placed FIRST, onto a position that was the rack's and was legal.
+
+So the real prerequisite is not a cleverer settle, and no last-resort search can fix it: **within
+a single room, the arranger can place a piece onto an item it has not placed yet.** `world` holds
+only what is already placed, so a piece still awaiting its turn is invisible to `canPlace`, and
+once its own spot is gone the settle has nothing left to find.
+
+The obvious repair — seed `world` with the room's unplaced items and remove each as it is placed
+— is **wrong for the furnish path**, where every piece in a room starts life at the SAME seed
+point (the room centre). Every item would block every other and nothing would place at all. Any
+real fix has to distinguish "an item sitting where it belongs" from "an item parked on a seed",
+and that is its own release.
+
+### What does ship: an explicit drop, measured as a no-op
+
+`dropUnplaceable` joins the three drops that already run for clashes, door swings and wall clips,
+using the same `canPlace` the arranger's `tryPlace` uses. `arrangeCore` ends with
+`allItems.map((orig) => byId.get(orig.id) ?? orig)`, so an unplaced item keeps its seed transform
+and nothing removed it; now the FURNISH path cannot emit one.
+
+The arranger itself still never deletes, deliberately — the same code powers the interactive
+"tidy", where making a user's furniture vanish is worse than leaving it put, and
+`autoArrange.test.ts` pins that with `expect(out.length).toBe(hydrate().length)`.
+
+**It changes nothing today: item counts across all 19 templates are byte-identical.** It is a
+guard, and it is worth having for how v0.31.9.24 failed — that breakage surfaced as an INVALID
+item, a state no ratchet on this thread measures, because every per-def count saw a piece that was
+still "there". With the drop in place, the furnish half of that class can only appear as an
+item-count delta, which `diningChairTuck.test.ts` already reads honestly.
+
+`furnishValidity.test.ts` asserts it at **zero**, no allowlist. Its corpus-size assertion caught
+its own first draft: I guessed `> 1000` from the ~1460 item total, and the real figure is **636**
+once mounts and rugs are exempted (`canPlace` is a floor predicate, and most of the remainder are
+decor mounts on host surfaces).
+
 ## v0.31.9.24 — the counter run was measured against the wrong box, and the fix needs a settle that never gives up
 
 Four levers built, measured per-def, and **reverted**: together they fix six room overhangs and
@@ -80,14 +135,21 @@ against 3 stranded dining chairs, a new basin-less bathroom (`emu-cbath`), a new
 
 **The last one is the blocker and it names the prerequisite.** `settle` leaves an item at its
 original transform when nothing fits, so it can leave a piece geometrically invalid — and every
-lever here rebalances the corpus, so somewhere a piece gets starved. Gating the ratchets is not
+lever here rebalances the corpus, so somewhere a piece gets starved.
+**[Correction, v0.31.9.25: "starved" was the wrong mechanism, and the fix it implied would not
+have worked. The rack NEVER MOVED — 5.30, 7.20 before and after — and its position was VALID
+before tidying. A `washing-machine` was placed on top of it. Making the settle cleverer cannot
+help a piece whose own spot was taken by a piece placed earlier; see v0.31.9.25.]** Gating the ratchets is not
 an option: a hard validity assertion cannot be ratcheted, and adding `emu-cbath` to
 `bathroomFixtures` would be exactly the "entry to silence a failure" those files forbid.
 
 **So the next release is not another placement lever — it is making the settle never surrender.**
 A piece with nowhere valid should be dropped by an explicit pass (as `dropOverlaps` does) rather
 than left standing in a wall, and then the four levers above can be re-applied and judged on
-their content deltas alone.
+their content deltas alone. **[Half-right, per v0.31.9.25: the explicit drop is worth having and
+now exists as `dropUnplaceable`, but it is a no-op and does NOT unblock these levers — it runs on
+the furnish path while the failing assertion calls the arranger directly. The real prerequisite
+is stated in v0.31.9.25.]**
 
 Ordering ends before vs after the lattice was also measured: it makes no difference to the
 breakage. Their mere existence rebalances placement, not their priority.
