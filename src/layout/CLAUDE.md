@@ -290,6 +290,40 @@ back, at no cost to the nine appliance fixes it was traded for). Cost: `tpl-cond
 loses its desk and book-set, and `tpl-1bed/ob-kit` its ceiling light — both recorded per-def in
 `diningChairTuck.test.ts` and named in `TODO.md`.
 
+## `dropOverlaps` DELETES; a ceiling mount should MOVE (v0.31.9.23)
+
+Every clash in `furnishPlan` was resolved by deleting the later-seeded piece. That is right for
+two floor pieces competing for the same floor and wrong for a ceiling light, which has the whole
+ceiling to choose from and whose room needs one.
+
+**Three of the corpus's 156 habitable rooms had no light at all**, all kitchens, and only one of
+them was recent. `tpl-1bed/ob-kit` is the case that made it visible: v0.31.9.22 finally gave that
+kitchen a stove, the `range-hood` moved to hang over it as `applianceWall.test.ts` requires, the
+hood's box then covered the room centre where the light sat, and `dropOverlaps` deleted the
+light. The other two (`c1-kit`, `su-kit`) had been dark for many releases and nothing measured
+it — no ratchet counted lights, and an unlit room looks lit in a screenshot taken at noon.
+
+`relocateCeilingMounts` runs immediately before `dropOverlaps` and nudges a clashing ceiling
+light on a nearest-first disc (0.15 m steps to 1.35 m). Two constraints, both inherited from
+lessons on this thread rather than invented here:
+
+- **The trial must clear `itemHeightAwareClash`, not a footprint test** — the same predicate
+  `findItemOverlaps` uses, because a mount above a counter is not a clash and must not be
+  treated as one.
+- **The trial's FOOTPRINT must stay in the room**, with the same 0.2 m slack as
+  `roomOverhang.test.ts`. This is the release after the one that learned containment cannot be a
+  point test, so it is applied at the point it was learned.
+
+The HOOD is never the piece that moves. A hood drawn away from its stove is a hood a contractor
+ducts to the wrong place.
+
+A light with nowhere clear still falls through to `dropOverlaps` and is deleted, so no room gains
+a light it has no space for. Result: **3 dark rooms -> 0**, +3 `ceiling-light` and **nothing else
+in the corpus changed** — no other def, no route, no overlap.
+
+`roomLighting.test.ts` asserts this at ZERO rather than ratcheting a known-offenders list, since
+no furnished room has a defensible reason to be dark.
+
 ## Room containment is about the FOOTPRINT, not the centre (v0.31.9.22)
 
 Three separate places let a piece stand outside the room it was arranged into, and all three

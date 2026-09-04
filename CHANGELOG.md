@@ -27,6 +27,40 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.23 — the release that furnished a kitchen un-lit it, and two more kitchens were already dark
+
+v0.31.9.22 cost `tpl-1bed/ob-kit` its ceiling light and named the fridge as the cause. Traced
+through the pass chain rather than reasoned about, and **the named cause was wrong**: the light
+sits at the room centre (1.75, 4.25), survives `placeSeededMounts`, and is deleted by
+`dropOverlaps` against the **`range-hood`**. Last release finally gave that kitchen a stove, the
+hood duly moved to hang over it, and the hood's box then covered the middle of the room. So the
+release that furnished the kitchen un-lit it.
+
+The hood is not the piece to move — `applianceWall.test.ts` requires it within
+`HOOD_OVER_STOVE_M` of its stove, and a hood drawn somewhere else is a hood a contractor ducts
+to the wrong place. **The light is**, and it has the whole ceiling to choose from.
+
+`dropOverlaps` resolves every clash by DELETING the later-seeded piece. That is right for two
+floor pieces competing for the same floor and wrong for a ceiling mount. The new
+`relocateCeilingMounts` pass runs just before it and nudges a clashing ceiling light on a
+nearest-first disc (0.15 m steps to 1.35 m), taking the first spot that clears every
+height-aware clash AND keeps the light's own FOOTPRINT inside the room — the containment lesson
+from v0.31.9.22, applied at the point it was learned. A light with nowhere clear still falls
+through and is deleted, so no room gains a light it has no space for.
+
+**It fixes more than it was written for. Dark rooms: 3 -> 0 of 156.** `tpl-condo-1bed/c1-kit`
+and `tpl-condo-studio/su-kit` had been dark since long before v0.31.9.22 and nothing measured
+it, because no ratchet counted lights and an unlit room looks like a lit one in a screenshot
+taken at noon.
+
+`roomLighting.test.ts` asserts this at **zero**, not as a ratchet with a known-offenders list:
+there is no defensible reason for a furnished room to have no light. Its second assertion pins
+the corpus size, because an emptiness assertion passes just as happily when the loop body never
+runs — that has now happened three times on this thread.
+
+Per-def diff, and it is as clean as it gets: **+3 `ceiling-light`, nothing else changed at all.**
+Overlaps still 0, `routeAccess` unchanged, every other ratchet untouched.
+
 ## v0.31.9.22 — a door swung into two kitchens, and one along-wall position per edge lost them
 
 v0.31.9.21 established the cause and specified the fix as needing BOTH levers together. Built
@@ -100,9 +134,11 @@ Every ratchet moves in the improvement direction, and the two losses are named p
 - `roomOverhang` **12 -> 10**; `routeAccess` unchanged; overlaps still 0
 - Corpus 1459 -> 1460 items. **Costs:** `c2-bed2` loses its desk + book-set (a 7.35 m² room
   carrying a single bed, wardrobe, nightstand AND desk — the kit is over-stuffed, so the fix is
-  a size-aware kit, not placement), `ob-kit` loses its ceiling light (MOUNT-HEIGHT-CLASH: a
-  1.8 m fridge now stands where the light hangs and `dropOverlaps` deletes the mount rather than
-  relocating it), and one `trailing-plant`. Both named in `TODO.md`.
+  a size-aware kit, not placement), `ob-kit` loses its ceiling light (`dropOverlaps` deletes the
+  mount rather than relocating it), and one `trailing-plant`. Both named in `TODO.md`.
+  **[Correction, v0.31.9.23: the clash partner named here was wrong. Traced through the pass
+  chain, the light is deleted against the `range-hood`, not against the fridge — the stove this
+  release finally placed pulled the hood over the centre of the room. Fixed there.]**
 
 ## v0.31.9.21 — a door swings into the galley, and shrinking the counter without moving it is inert
 

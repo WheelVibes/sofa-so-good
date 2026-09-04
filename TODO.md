@@ -70,9 +70,12 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
 - **Three kitchens still need the counter run WRAPPED AROUND A CORNER** — `su-kit`/`c1-kit`
   (2.00 m) and `cs-kit` (2.20 m) against a 2.5 m one-wall minimum. `arrangeKitchen` cannot do
   this, and no amount of sweeping will help; it needs an L-run primitive.
-- **`ob-kit` has no ceiling light** (`ceiling-light` 5 -> 4 in `tpl-1bed`). MOUNT-HEIGHT-CLASH:
-  the 1.8 m fridge that now places stands where the light hangs, and `dropOverlaps` deletes the
-  MOUNT instead of relocating it. A mount whose host arrives should move, not die.
+- ~~**`ob-kit` has no ceiling light**~~ **FIXED in v0.31.9.23**, and the cause named here was
+  wrong: the clash is with the **`range-hood`**, not the fridge — v0.31.9.22 placed the stove, so
+  the hood moved over it and covered the centre of the room. `relocateCeilingMounts` nudges the
+  light instead of letting `dropOverlaps` delete it. **Dark rooms 3 -> 0 of 156** — the same pass
+  also lit `c1-kit` and `su-kit`, dark since long before. Asserted at zero in
+  `roomLighting.test.ts`.
 - **`tpl-condo-2bed/c2-bed2` loses its desk and book-set.** 3.5 x 2.1 m = 7.35 m² carrying a
   single bed, a wardrobe, a nightstand AND a desk. The kit is over-stuffed for the room, so the
   fix is a room-SIZE-aware kit (drop the desk below some area), not another placement change.

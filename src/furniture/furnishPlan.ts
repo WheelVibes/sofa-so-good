@@ -24,8 +24,8 @@ import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
-import { planRoomArea } from '../floorplan/types'
-import { rectsOverlap } from '../layout/arrangeGeometry'
+import { planRoomArea, pointInRoom } from '../floorplan/types'
+import { planRoomRect, rectsOverlap } from '../layout/arrangeGeometry'
 import { roleOf } from '../layout/arrangeRoles'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
 import { doorKeepOutRects, footprintAabb, type Rect, windowFrontRects } from '../layout/clearance'
@@ -395,6 +395,98 @@ function seedRoom(
 /** Drop items that still overlap after arranging (an over-tight room couldn't
  *  fit the whole kit). The seed order is priority order, so we always drop the
  *  later (less essential) piece of an overlapping pair. */
+/**
+ * CEILING-MOUNT-RELOCATE (v0.31.9.23) — nudge a clashing ceiling light instead
+ * of deleting it.
+ *
+ * `dropOverlaps` resolves every clash by DELETING the later-seeded piece, which
+ * is right for two floor pieces competing for the same floor and wrong for a
+ * ceiling light: a light has the whole ceiling to choose from, and the room
+ * needs one.
+ *
+ * Measured cause, traced through the pass chain rather than guessed:
+ * `tpl-1bed/ob-kit`'s light sat at the room centre (1.75, 4.25), survived
+ * `placeSeededMounts`, and was deleted by `dropOverlaps` — against the
+ * **`range-hood`**, not against any floor piece. v0.31.9.22 gave that kitchen
+ * its stove, the hood duly moved to hang over it, and the hood's box then
+ * covered the centre of the room. So the release that furnished the kitchen
+ * un-lit it, and `ob-kit` joined `c1-kit` and `su-kit` as the corpus's only
+ * rooms with no light at all.
+ *
+ * The hood is not the piece to move — `applianceWall.test.ts` requires it to
+ * stay within `HOOD_OVER_STOVE_M` of its stove, and a hood somewhere else is a
+ * drawing a contractor would build wrong. The light is.
+ *
+ * Nearest-first over a disc, like `unsealRoutes`, and the trial must stay inside
+ * the room: this is the release that learned containment has to test the
+ * FOOTPRINT and not the centre, so the light's own box is checked against the
+ * room rect with the same 0.2 m slack. A light with nowhere clear falls through
+ * to `dropOverlaps` and is deleted as before — no room gains a light it has no
+ * space for.
+ */
+const CEILING_MOUNT_DEFS = new Set(['ceiling-light'])
+const RELOCATE_STEP_M = 0.15
+const RELOCATE_REACH_M = 1.35
+
+function relocateCeilingMounts(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  plan: FloorPlan,
+): FurnitureItem[] {
+  const clashing = new Set(findItemOverlaps(items, defs).flatMap(({ a, b }) => [a, b]))
+  if (clashing.size === 0) return items
+  const targets = items.filter((it) => clashing.has(it.id) && CEILING_MOUNT_DEFS.has(it.defId))
+  if (targets.length === 0) return items
+
+  // Nearest-first offsets on a disc — a light should move as little as possible,
+  // and the reach only bounds how far the pass MAY go.
+  const offsets: Array<[number, number]> = []
+  const k = Math.ceil(RELOCATE_REACH_M / RELOCATE_STEP_M)
+  for (let i = -k; i <= k; i++)
+    for (let j = -k; j <= k; j++) {
+      if (i === 0 && j === 0) continue
+      const dx = i * RELOCATE_STEP_M
+      const dz = j * RELOCATE_STEP_M
+      if (Math.hypot(dx, dz) > RELOCATE_REACH_M) continue
+      offsets.push([dx, dz])
+    }
+  offsets.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))
+
+  let current = items
+  for (const target of targets) {
+    const def = defs[target.defId]
+    if (!def) continue
+    const levelId = target.levelId ?? GROUND_LEVEL_ID
+    const level = planLevels(plan).find((l) => l.id === levelId)
+    const room = level?.rooms.find((r) => pointInRoom(r, target.position[0], target.position[1]))
+    if (!room) continue
+    const rect = planRoomRect(room)
+    const others = current.filter((it) => it.id !== target.id)
+    for (const [dx, dz] of offsets) {
+      const moved: FurnitureItem = {
+        ...target,
+        position: [target.position[0] + dx, target.position[1] + dz],
+      }
+      const box = footprintAabb(moved, def)
+      if (
+        box.x0 < rect.x0 - CEILING_CONTAIN_TOL ||
+        box.x1 > rect.x1 + CEILING_CONTAIN_TOL ||
+        box.z0 < rect.z0 - CEILING_CONTAIN_TOL ||
+        box.z1 > rect.z1 + CEILING_CONTAIN_TOL
+      )
+        continue
+      if (itemHeightAwareClash(moved, def, others, defs)) continue
+      current = current.map((it) => (it.id === target.id ? moved : it))
+      break
+    }
+  }
+  return current
+}
+
+/** Same 0.2 m slack as `roomOverhang.test.ts`'s `TOL` and `snapToWall`'s
+ *  `SETTLE_TOL` — room rects sit 0.1-0.2 m inside their wall centrelines. */
+const CEILING_CONTAIN_TOL = 0.2
+
 function dropOverlaps(items: FurnitureItem[], defs: Record<string, FurnitureDef>): FurnitureItem[] {
   let current = items
   // Bounded: each pass removes ≥1 item, so at most items.length passes.
@@ -847,7 +939,14 @@ export function furnishPlanItems(
   // items and deleting none. See `layout/reachability.ts`.
   const furniture = unsealRoutes(
     dropWallClippers(
-      dropDoorBlockers(dropOverlaps(placeSeededMounts(plan, arranged, defs), defs), defs, plan),
+      dropDoorBlockers(
+        dropOverlaps(
+          relocateCeilingMounts(placeSeededMounts(plan, arranged, defs), defs, plan),
+          defs,
+        ),
+        defs,
+        plan,
+      ),
       defs,
       plan,
       doors,

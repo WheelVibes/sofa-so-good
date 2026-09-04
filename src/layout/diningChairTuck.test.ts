@@ -156,21 +156,23 @@ describe('dining chairs are tucked to their table', () => {
       // chair alive by refusing it a slot outside the room (it had been placed
       // out there and then dropped).
       // 47 → 48 in v0.31.8.34: the bedroom/kitchen group gained its first door.
-      // 48 -> 50 in v0.31.9.22: `ob-kit` gains a counter, a fridge and a stove
-      // (same cause as `tpl-studio` above), and LOSES its `ceiling-light`.
-      // Per-def diff, because the total hides the swap: `kitchen-counter-l`
-      // 0 -> 1, `refrigerator` 0 -> 1, `stove` 0 -> 1, `ceiling-light` 5 -> 4.
-      // The light is MOUNT-HEIGHT-CLASH (see `furnishPlan`'s
-      // `placeSeededMounts`): a 1.8 m fridge now stands where the kitchen's
-      // ceiling light hangs, and `dropOverlaps` deletes the mount rather than
-      // relocating it. A furnished-but-unlit kitchen is the better half of that
-      // trade and the light is a named follow-up in `TODO.md`.
-      'tpl-1bed': 50,
+      // 48 -> 50 in v0.31.9.22, then -> 51 in v0.31.9.23: `ob-kit` gains a
+      // counter, a fridge and a stove (same cause as `tpl-studio` above), and the
+      // `ceiling-light` v0.31.9.22 cost it comes BACK. The clash partner named in
+      // that release was wrong — it is the `range-hood`, pulled over the room
+      // centre by the stove that finally placed, not the fridge. See
+      // `relocateCeilingMounts`.
+      // Per-def diff: `kitchen-counter-l` 0 -> 1, `refrigerator` 0 -> 1,
+      // `stove` 0 -> 1, and `ceiling-light` 5 -> 4 -> 5 across the two releases.
+      'tpl-1bed': 51,
       // 44 → 49 in v0.31.8.44: "Stairs" now infers `foyer` rather than `other`,
       // so the room is furnished at all. It carries no authored category, which
       // is exactly the case a user-drawn room is in.
       'tpl-loft': 49,
-      'tpl-condo-1bed': 44,
+      // 44 -> 45 in v0.31.9.23 (CEILING-MOUNT-RELOCATE): `c1-kit` gets the
+      // ceiling light it had been missing for many releases — `dropOverlaps` was
+      // deleting it instead of nudging it clear.
+      'tpl-condo-1bed': 45,
       // 53 -> 52 in v0.31.9.22: one `trailing-plant`. The sweep changes which
       // spots earlier pieces take, so the styling pass finds one fewer host
       // surface free. Decor only — no fixture moved.
@@ -192,11 +194,13 @@ describe('dining chairs are tucked to their table', () => {
       // real enclosure and furnishes properly.
       'tpl-condo-3bed': 82,
       'tpl-condo-4bed': 97,
+      // 26 -> 27 in v0.31.9.23 (CEILING-MOUNT-RELOCATE): `su-kit` gets its
+      // long-missing ceiling light. See `roomLighting.test.ts`.
       // 25 -> 26 in v0.31.9.19 (FITTED-COUNTER): its `kitchen-counter-l` is
       // parametric (length 1.2-4.0) but was always seeded at the 2.4 m default,
       // and `su-kit` is 2.0 x 1.6 m — no wall long enough, so the counter
       // OVERFLOWED the room and was dropped. Sized to the room it fits.
-      'tpl-condo-studio': 26,
+      'tpl-condo-studio': 27,
       // 118 → 117 in v0.31.8.42: `cp-liv-win` was a 3.0 m pane at offset 5.0 that
       // overran the living room and landed in the DINING room. Pulled back onto
       // the living's own 3.7-6.3 span (2.4 m) and the dining given its own; one
@@ -308,7 +312,9 @@ describe('dining chairs are tucked to their table', () => {
     // above: +6 real kitchen fixtures across `tpl-studio` and `tpl-1bed`, +1
     // `shower` in `tpl-condo-4bed` (for a `towel-rail`), against -1
     // `ceiling-light`, -1 `trailing-plant` and -3 in `tpl-condo-2bed/c2-bed2`.
-    expect(total).toBe(1460)
+    // 1460 -> 1463 in v0.31.9.23: +3 `ceiling-light` and NOTHING else — the
+    // cleanest per-def diff on this thread.
+    expect(total).toBe(1463)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal
