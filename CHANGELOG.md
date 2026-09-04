@@ -27,6 +27,55 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.74 — the rescue pass never learned about windows
+
+v0.31.8.73 said the blocker was two window tests disagreeing. Checked that, and it is not:
+`windowFrontRects(levelAsPlan(...))` and `windowFrontRects(plan)` are **identical** on
+`tpl-hdb-5room`, rect for rect, and `tryPlace` already rejects them with the very criterion
+`placementSoundness` asserts.
+
+**The cabinet escapes because the arranger never places it.** It fails placement, stays on its
+room-centre seed, and `placeSeededMounts` rescues it — and that pass checks
+`doorKeepOutRects` but **not** `windowFrontRects`.
+
+```
+utility-cabinet   (3.50, 0.85) rot 1.57   →  x 3.30–3.70,  z 0.60–1.10
+kitchen window rect                          x 1.70–3.50,  z 0.10–0.75
+                                              overlap 0.20 × 0.15 m
+```
+
+The pass's own comment justifies the door check — *"`dropDoorBlockers` runs after this pass and
+deletes any floor piece left in one"* — and the argument applies verbatim to windows, which
+`placementSoundness` asserts at zero tolerance. It is a pre-existing gap; WALL-BACKED-EDGE
+merely changed which pieces get stranded and walked into it.
+
+### Adding it works, and then costs a shower
+
+With the window check in the rescue: `placementSoundness` passes, the 5-room cabinet is clear,
+and **all three service-yard washing machines are fixed** (6 marooned → 3).
+
+And `tpl-hdb-maisonette` loses its **shower**. Which is exactly what v0.31.8.73 wrote down as
+the constraint: *"a 2 m shower in a 1.6 × 1.3 m bathroom has nowhere but a windowed wall to
+stand, and any unified test has to let it."* Making the window check hard strands it, and it is
+dropped.
+
+### The remaining step is one refinement
+
+**Run the rescue sweep twice — first demanding both keep-outs, then doors only.** A blocked door
+is a safety problem; a blocked window is a quality one; a bathroom with no shower is worse than a
+shower in front of glass, and `windowSightline.test.ts` already ratchets whatever lands there.
+
+I got the two-pass version most of the way and ran out of room to land it safely, so the tree is
+clean and `TODO.md` carries the arithmetic, the working single-pass version, and the three
+measurements it will move (applianceWall −3; item counts 3room +1, 4room +1, 5room −1, with the
+per-def diff: one `utility-cabinet`).
+
+Two releases of wrong framing before this — "what should `windowed`'s subject be" (.73, no such
+question) and "reconcile the window tests" (this one, they already agree). The bug was a missing
+check in a third place neither framing was looking at.
+
+No code ships. Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.73 — I asked the wrong question last release. Two window tests, not one taxonomy
 
 v0.31.8.72 ended by saying *"the real question is what `windowed`'s subject should be — a test

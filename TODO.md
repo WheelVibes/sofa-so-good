@@ -943,10 +943,28 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   edges carry a window** — `windowed()` tests a +/-0.3 m band around the RECT edge against
   `windowFrontRects` (0.65 m deep), and the rect edge is itself up to 0.15 m short of the wall.
   Two window tests, two answers.
-  **That is the thing to reconcile**, and it is worth more than these three appliances: the same
-  disagreement is why v0.31.8.62's along-wall sweep could not be rescued by any window ordering
-  either ("no change at all, so `windowSightline` is measuring something the keep-out rects do
-  not capture"). One window test, used by the placer AND the guards, would unblock both.
+  **THE ACTUAL BUG IS FOUND (v0.31.8.74), and it is not a disagreement between window tests.**
+  `windowFrontRects(levelAsPlan(...))` and `windowFrontRects(plan)` are IDENTICAL on
+  `tpl-hdb-5room` — verified rect by rect — and `tryPlace` already rejects them with the same
+  criterion `placementSoundness` asserts. The cabinet escapes because it is **not placed by the
+  arranger at all**: it fails placement, stays at its room-centre seed, and
+  `placeSeededMounts` rescues it — and **that pass checks `doorKeepOutRects` but NOT
+  `windowFrontRects`.** Measured: cabinet at (3.50, 0.85) rot 1.57 spans x 3.30-3.70, z
+  0.60-1.10; the kitchen window's rect is x 1.70-3.50, z 0.10-0.75 — a 0.20 x 0.15 m overlap.
+  The pass's own comment explains the door check ("`dropDoorBlockers` runs after this pass and
+  deletes any floor piece left in one") and the same argument applies verbatim to windows.
+  **Adding the window check symmetrically WORKS**: `placementSoundness` passes, the 5-room
+  cabinet is clear, and all three washing machines are fixed with WALL-BACKED-EDGE (6 marooned
+  -> 3).
+  **But making it HARD costs `tpl-hdb-maisonette` its SHOWER** — exactly the constraint
+  v0.31.8.73 predicted: a 2 m shower in a 1.6 x 1.3 m bathroom whose walls all carry glass has
+  nowhere window-free to stand, so refusing every spot strands it and it is dropped.
+  **The remaining step is one refinement:** run the rescue sweep TWICE — first demanding both
+  keep-outs, then doors only. A blocked door is a safety problem, a blocked window is a quality
+  one, and a bathroom with no shower is worse than a shower in front of glass;
+  `windowSightline.test.ts` already ratchets whatever lands in front of glass. Then update the
+  three measurements (applianceWall -3, item counts 3room +1 / 4room +1 / 5room -1) with the
+  per-def diff.
   Note also `shower` is `role=other, h=2.0` — it is NOT covered by `tall`, which is why widening
   the gate pushed bathroom fixtures mid-room. Any reconciliation has to keep a 2 m shower in a
   1.6 x 1.3 m bathroom against a windowed wall, because it has nowhere else to go.
