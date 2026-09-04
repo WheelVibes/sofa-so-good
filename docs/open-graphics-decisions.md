@@ -262,7 +262,7 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
-## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **2 of 20 remain** (`.194` 4-room, `.195` 5-room, `.196` exec, `.197` jumbo, `.199` condo-4bed, `.200` 3gen, `.201` 3-room's master bath)
+## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **1 of 20 remains** (`.194` 4-room, `.195` 5-room, `.196` exec, `.197` jumbo, `.199` condo-4bed, `.200` 3gen, `.201` 3-room's master bath, `.203` maisonette)
 
 > **The two left are different in kind.** `tpl-hdb-3room`'s north strip and
 > `tpl-hdb-maisonette/em-up` are not missing partitions — subdividing them asks how rooms are

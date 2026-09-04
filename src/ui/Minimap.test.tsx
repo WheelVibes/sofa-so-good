@@ -129,10 +129,13 @@ describe('MINIMAP-LEVEL: the minimap draws the storey being walked', () => {
       setUpMaisonette('em-up')
       const { container } = render(<Minimap />)
       const d = drawn(container)
-      // Upper storey: 8 rooms / 11 walls. The ground storey's 7 / 13 is what
-      // the old code drew, so these two numbers ARE the regression.
+      // Upper storey: 8 rooms / 12 walls (11 until `v0.31.7.203` added `emu-fam-n` for item (f)).
+      // The ground storey's 7 / 13 is what the old code drew, so these two numbers ARE the
+      // regression — and note the wall margin is now 12 vs 13, i.e. ONE. The room count (8 vs 7)
+      // is the sturdier half of this check; if another storey wall is ever added here, assert on
+      // something with more separation rather than letting the two counts converge.
       expect(d.rooms).toBe(8)
-      expect(d.walls).toBe(11)
+      expect(d.walls).toBe(12)
       // Only the item tagged onto `em-up` — the ground item must not be plotted.
       expect(d.dots).toBe(1)
     })

@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.203 — `(f)`: the maisonette's upper storey — three gaps, not one
+
+Seventh template, and it turned out to be a missing-partition case rather than the design judgement
+the remaining entries were assumed to need. `emu-bed3 + emu-landing + emu-hall + emu-mbath + emu-fam`
+were one component through **three** separate gaps:
+
+| gap | fix |
+| --- | --- |
+| `emu-bed-s` stopped at x 6.6, short of the east wall | extended to `W − T` |
+| `emu-m-w` started at z 3.6, **0.8 m below** `emu-bed-s`, leaving the master bath open to the hall | extended up to 2.8 |
+| nothing separated `emu-hall`/`emu-landing` (z 3.0–6.6) from `emu-fam` (z 6.8–9.2) | new `emu-fam-n` |
+
+Plus `emu-fam-door`, since the third wall would otherwise seal the family area — the `.196` trap,
+checked for rather than rediscovered. **1 of 20 remains** (`tpl-hdb-3room`'s north strip, which is
+genuinely a circulation-design question), from **9**.
+
+**A test I had to weaken, flagged rather than quietly bumped.** `Minimap.test.tsx` asserts the upper
+storey draws 8 rooms / 11 walls, the point being that the ground storey's 7 / 13 is what the old
+buggy code drew — the two numbers ARE the regression. Adding `emu-fam-n` makes it **12**, so the
+wall margin against the ground is now **one**. I updated the number and wrote the risk into the
+test: the room count (8 vs 7) is the sturdier half, and if another storey wall is ever added here,
+the assertion should move to something with more separation rather than letting the counts converge.
+
+**Also a false alarm worth recording:** running `Minimap.test.tsx` *alone* fails with
+`localStorage is undefined under happy-dom` — an environment artefact of isolation, not a real
+failure. The real assertion is only visible in the full-suite run. Reading the isolated error would
+have sent me chasing a Node/happy-dom interaction that has nothing to do with this change.
+
+The trade again: `tpl-hdb-maisonette` 141 → **139**, and the placer floor 899 → **897** on the same
+geometric grounds recorded in `.202`.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.202 — `(f)`: BOTH bisected masters fixed — a corridor wall no longer runs through a bedroom
 
 The other half of item `(f)`. Two corridor walls ran the **full depth** of their plans and so passed

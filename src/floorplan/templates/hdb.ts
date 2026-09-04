@@ -481,15 +481,20 @@ export function hdbMaisonette(): FloorPlan {
     walls: [
       ...perimeter('emu', W, D),
       // North bedroom band (bedrooms 2/3 + common bath).
-      iwall('emu-bed-s', [T, 2.8], [6.6, 2.8]),
+      // (f): stopped at x 6.6, leaving a gap to the east wall that connected the whole bedroom
+      // strip to everything south of it.
+      iwall('emu-bed-s', [T, 2.8], [W - T, 2.8]),
       iwall('emu-b23', [3.5, T], [3.5, 2.8]),
       iwall('emu-cbath-w', [6.7, T], [6.7, 2.4]),
       iwall('emu-cbath-s', [6.7, 2.4], [W - T, 2.4]),
       // Master suite on the south-east; ensuite bath north of the bedroom.
-      iwall('emu-m-w', [4.5, 3.6], [4.5, D - T]),
+      // (f): started at z 3.6, 0.8 m below `emu-bed-s`, leaving `emu-mbath` open to the hall.
+      iwall('emu-m-w', [4.5, 2.8], [4.5, D - T]),
       iwall('emu-mb-s', [4.5, 5.7], [W - T, 5.7]),
       // Stair void east edge (landing stacked over the ground stair hall).
       iwall('emu-land-e', [1.9, 3.0], [1.9, 6.6]),
+      // (f): nothing separated `emu-hall`/`emu-landing` (z 3.0-6.6) from `emu-fam` (z 6.8-9.2).
+      iwall('emu-fam-n', [T, 6.7], [4.5, 6.7]),
     ],
     openings: [
       door('emu-bed2-door', 'emu-bed-s', 2.2),
@@ -497,6 +502,8 @@ export function hdbMaisonette(): FloorPlan {
       door('emu-cbath-door', 'emu-cbath-s', 0.4, 0.7),
       door('emu-master-door', 'emu-m-w', 2.6),
       door('emu-mbath-door', 'emu-mb-s', 1.2, 0.8),
+      // (f): the family area would otherwise be sealed behind `emu-fam-n`.
+      door('emu-fam-door', 'emu-fam-n', 1.75),
       window('emu-b2-win', 'emu-n', 1.0, 1.6),
       window('emu-b3-win', 'emu-n', 4.2, 1.6),
       window('emu-m-win', 'emu-e', 6.4, 1.8),

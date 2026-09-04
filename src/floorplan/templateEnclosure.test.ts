@@ -43,7 +43,9 @@ const KNOWN_SHARED_ENCLOSURES = [
   // tpl-hdb-jumbo FIXED in v0.31.7.197 — the doc's headline case. A wall at x 2.1 separates the
   // baths from the master and a divider splits them; the existing `jb-master` door turned out to
   // sit over the COMMON BATH, so it serves that and the master got one of its own.
-  'tpl-hdb-maisonette/em-up: emu-bed3 + emu-landing + emu-hall + emu-mbath + emu-fam',
+  // tpl-hdb-maisonette/em-up FIXED in v0.31.7.203 — three gaps, not one: `emu-bed-s` stopped at
+  // x 6.6 short of the east wall, `emu-m-w` started 0.8 m below it, and nothing separated the
+  // hall/landing from the family area. Plus a door so the family area is not sealed.
   // tpl-condo-4bed FIXED in v0.31.7.199 — the strip z 4.0-6.1 was already closed north and
   // south; the three baths inside it had no walls between them. Three verticals divide them and
   // two doors on `c4-mid` keep cbath/bath2 reachable (mbath is reached from the master).
