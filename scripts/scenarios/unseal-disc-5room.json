@@ -1,0 +1,81 @@
+{
+  "name": "unseal-disc-5room",
+  "description": "ROUTE-ACCESS/v0.31.8.86: the unseal search is a disc, not a cross, and its trial placements now pass the narrowphase clash gate. Frees tpl-hdb-5room's four stranded bedroom-half rooms. Verifies the pieces the pass MOVED (a bed-single and a wardrobe-3door out of the corridor pinch) still sit on the floor inside a room, unclipped and not overlapping another piece.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "load-5room",
+      "eval": "window.__loadTemplate('tpl-hdb-5room')"
+    },
+    {
+      "name": "plan-ready",
+      "waitFor": {
+        "store": "state.floorPlan.rooms.some(r => r.id === 'h5-master')"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "furnish",
+      "eval": "window.__store.getState().applyLayoutPreset('move-in')"
+    },
+    {
+      "name": "assert-furnished",
+      "waitFor": {
+        "store": "state.items.length > 0"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-bedroom-half-furnished",
+      "waitFor": {
+        "store": "state.items.filter(i => i.defId === 'wardrobe-3door').length >= 2 && state.items.some(i => i.defId === 'bed-single')"
+      },
+      "timeout": 8000,
+      "failMessage": "5room bedroom-half pieces missing \u2014 the unseal pass must MOVE, never delete"
+    },
+    {
+      "name": "settle-furnish",
+      "wait": 2500
+    },
+    {
+      "name": "camera-topdown-bedroom-half",
+      "eval": "(()=>{const t=window.__three,cam=t?.camera,c=t?.controls;if(!cam)return;cam.position.set(3.0,9.5,5.2);if(c){c.target.set(3.0,0,5.2);c.update();}cam.lookAt(3.0,0,5.2);})()"
+    },
+    {
+      "name": "settle-top",
+      "wait": 1800
+    },
+    {
+      "name": "shot-topdown",
+      "screenshot": "unseal-5room-topdown"
+    },
+    {
+      "name": "camera-whole-flat",
+      "eval": "(()=>{const t=window.__three,cam=t?.camera,c=t?.controls;if(!cam)return;cam.position.set(5.5,16.0,6.0);if(c){c.target.set(5.5,0,6.0);c.update();}cam.lookAt(5.5,0,6.0);})()"
+    },
+    {
+      "name": "settle-whole",
+      "wait": 1800
+    },
+    {
+      "name": "shot-whole",
+      "screenshot": "unseal-5room-whole"
+    }
+  ]
+}

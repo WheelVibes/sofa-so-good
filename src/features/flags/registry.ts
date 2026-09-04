@@ -111,6 +111,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  deliveryRouteMeasure: {
+    label: 'Measured delivery route',
+    description: "Enter your block's real lift and door sizes for the access check",
+    default: true,
+    tier: 'pro',
+  },
   schemeOptions: {
     label: 'Scheme options',
     description: 'Generate and compare alternative design schemes',
@@ -1938,7 +1944,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
-  // Layout critique in the report (v0.31.5.314). `analysis/layoutCritique.ts`
+  // Layout critique in the report (v0.31.5.415). `analysis/layoutCritique.ts`
   // has shipped for a while with cited thresholds — TV viewing distance,
   // conversation distance, coffee-table gap, sofa proportion, and now rug size
   // — and was consumed by NOTHING except `schemeOptions`, so it was visible
@@ -1950,7 +1956,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
-  // Material-palette restraint (v0.31.5.312): one whole-home observation when
+  // Material-palette restraint (v0.31.5.413): one whole-home observation when
   // a design exceeds the rule-of-three flooring/wall palette, naming the
   // smallest-area finishes as consolidation candidates. Printed with the
   // finishes schedule in the report — NOT a `designScore` criterion, because
@@ -1961,7 +1967,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
-  // Lighting-layer coverage (v0.31.5.311): does each habitable room have
+  // Lighting-layer coverage (v0.31.5.412): does each habitable room have
   // ambient + task + accent light? Average illuminance (`roomLux`) answers
   // "is there enough light"; it cannot answer "is the light any good" — a
   // living room hitting its recommended lux from one pendant passes on lux and
@@ -1974,7 +1980,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
-  // Variation register (v0.31.5.307): a per-trade cost diff between the design
+  // Variation register (v0.31.5.408): a per-trade cost diff between the design
   // marked AS TENDERED and the design as it stands. In SG renovation the delta
   // between what was priced and what is built is where disputes land, and the
   // app had the whole cost model with no way to compare two states of it.
@@ -1987,7 +1993,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
-  // Lamp-specification checks (v0.31.5.297): a wet-room ingress-protection
+  // Lamp-specification checks (v0.31.5.398): a wet-room ingress-protection
   // advisory (bathroom zones 1-2 need IP44; every shipped emitter is IP20) and
   // a colour-temperature-vs-room-use advisory (3000 K warm in a task space).
   // The first is a COMPLIANCE matter, not a style preference, which is why it

@@ -82,7 +82,7 @@ export interface ElevationSvgOptions {
    * computed end-cut offset and from the CEILING down, with the perimeter cut
    * bands tinted.
    *
-   * This is to the wall elevations what v0.31.5.288's tiling layout plan is to
+   * This is to the wall elevations what v0.31.5.389's tiling layout plan is to
    * the floor — the numbers already existed in a table, and a tiler works from
    * a drawing. Drawn UNDER the furniture silhouettes, so a piece standing
    * against the wall still reads on top.

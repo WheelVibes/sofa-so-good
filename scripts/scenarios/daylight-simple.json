@@ -1,24 +1,130 @@
 {
   "name": "daylight-simple",
-  "description": "IXT-SUITES: daylight & ventilation check (pro). Hidden in Simple, present in Pro; the panel (#daylightPanel) mounts with the per-room glazing/ventilation breakdown. Mobile bottom-sheet; back-to-Simple hides it.",
+  "description": "IXT-SUITES: daylight & ventilation check (pro). Hidden in Simple, present in Pro; the panel (#daylightPanel) mounts with the per-room glazing/ventilation breakdown. Mobile bottom-sheet; back-to-Simple hides it. Also asserts an interior room with no facade wall (Household Shelter) renders as a neutral N/A row citing the shelter reason, not a red failure.",
   "url": "http://localhost:5208/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
-    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
-    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
-    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.daylight === false" }, "timeout": 5000, "failMessage": "daylight should be OFF in Simple mode" },
-    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
-    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.daylight === true" }, "timeout": 5000, "failMessage": "daylight should be ON in Pro mode" },
-    { "name": "open-panel", "store": { "action": "setDaylightOpen", "args": [true] } },
-    { "name": "panel-visible", "waitFor": { "css": "#daylightPanel" }, "timeout": 8000, "failMessage": "Daylight panel did not mount" },
-    { "name": "assert-title", "waitFor": { "text": "Daylight & ventilation" }, "timeout": 5000 },
-    { "name": "shot-panel", "screenshot": "daylight-panel" },
-    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
-    { "name": "settle-mobile", "wait": 1000 },
-    { "name": "shot-mobile", "screenshot": "daylight-mobile" },
-    { "name": "close-panel", "store": { "action": "setDaylightOpen", "args": [false] } },
-    { "name": "panel-gone", "waitFor": { "css": "#daylightPanel", "visible": false }, "timeout": 5000 },
-    { "name": "back-to-simple", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()" },
-    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.daylight === false" }, "timeout": 5000 }
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "assert-simple-hidden",
+      "waitFor": {
+        "store": "state.uiMode === 'simple' && state.featureFlags.daylight === false"
+      },
+      "timeout": 5000,
+      "failMessage": "daylight should be OFF in Simple mode"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "assert-pro-on",
+      "waitFor": {
+        "store": "state.featureFlags.daylight === true"
+      },
+      "timeout": 5000,
+      "failMessage": "daylight should be ON in Pro mode"
+    },
+    {
+      "name": "open-panel",
+      "store": {
+        "action": "setDaylightOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "panel-visible",
+      "waitFor": {
+        "css": "#daylightPanel"
+      },
+      "timeout": 8000,
+      "failMessage": "Daylight panel did not mount"
+    },
+    {
+      "name": "assert-title",
+      "waitFor": {
+        "text": "Daylight & ventilation"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "scroll-to-shelter",
+      "eval": "(()=>{const t=[...document.querySelectorAll('#daylightPanel .ci-title')].find(e=>e.textContent.includes('Household Shelter')); if(!t) throw new Error('no Household Shelter row'); t.closest('.clr-item').scrollIntoView({block:'center'}); return t.closest('.clr-item').className})()"
+    },
+    {
+      "name": "assert-shelter-not-error",
+      "eval": "(()=>{const t=[...document.querySelectorAll('#daylightPanel .ci-title')].find(e=>e.textContent.includes('Household Shelter')); const row=t.closest('.clr-item'); if(row.classList.contains('err')) throw new Error('shelter row still styled as an error'); const b=row.querySelector('.badge'); if(b.textContent.trim()!=='N/A') throw new Error('shelter badge is '+b.textContent); if(!row.textContent.includes('no opening permitted')) throw new Error('missing shelter reason, got: '+row.textContent); return 'ok'})()"
+    },
+    {
+      "name": "assert-kitchen-still-fails",
+      "eval": "(()=>{const t=[...document.querySelectorAll('#daylightPanel .ci-title')].find(e=>e.textContent.trim()==='Kitchen'); if(!t) throw new Error('no Kitchen row'); const row=t.closest('.clr-item'); if(!row.classList.contains('err')) throw new Error('Kitchen should still read as a failure - over-suppression'); return 'ok'})()"
+    },
+    {
+      "name": "shot-shelter-row",
+      "screenshot": "daylight-shelter-na"
+    },
+    {
+      "name": "shot-panel",
+      "screenshot": "daylight-panel"
+    },
+    {
+      "name": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-mobile",
+      "wait": 1000
+    },
+    {
+      "name": "shot-mobile",
+      "screenshot": "daylight-mobile"
+    },
+    {
+      "name": "close-panel",
+      "store": {
+        "action": "setDaylightOpen",
+        "args": [
+          false
+        ]
+      }
+    },
+    {
+      "name": "panel-gone",
+      "waitFor": {
+        "css": "#daylightPanel",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "back-to-simple",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "assert-simple-again",
+      "waitFor": {
+        "store": "state.featureFlags.daylight === false"
+      },
+      "timeout": 5000
+    }
   ]
 }

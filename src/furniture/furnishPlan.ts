@@ -13,17 +13,25 @@
  * Pure + deterministic (no store, no GPU) → unit-testable.
  */
 import type { AabbItem } from '../collision/broadphase'
-import { findItemOverlaps, findWallClips, itemAabbBox, itemFootprint } from '../collision/placement'
+import {
+  canPlace,
+  findItemOverlaps,
+  findWallClips,
+  itemAabbBox,
+  itemFootprint,
+  itemHeightAwareClash,
+} from '../collision/placement'
 import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
-import { rectsOverlap } from '../layout/arrangeGeometry'
+import { planRoomRect, rectsOverlap } from '../layout/arrangeGeometry'
 import { roleOf } from '../layout/arrangeRoles'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
-import { doorKeepOutRects, footprintAabb } from '../layout/clearance'
-import { flushToWall, nearestWallEdge, rotationForEdge } from '../layout/faceWall'
+import { doorKeepOutRects, footprintAabb, type Rect, windowFrontRects } from '../layout/clearance'
+import { flushToWall, nearestWallEdge, rotationForEdge, type WallEdge } from '../layout/faceWall'
+import { unsealRoutes } from '../layout/reachability'
 import { mergeGeneratedCatalog } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
@@ -87,6 +95,14 @@ const KITS = {
     { defId: 'toilet' },
     { defId: 'bathroom-sink' },
     { defId: 'shower' },
+    { defId: 'bathroom-mirror', props: { mountHeight: 1.4 } },
+    { defId: 'towel-rail', props: { mountHeight: 1.1 } },
+    flushCeilingLight,
+  ],
+  bathWetArea: [
+    { defId: 'toilet' },
+    { defId: 'bathroom-sink' },
+    { defId: 'shower-screen' },
     { defId: 'bathroom-mirror', props: { mountHeight: 1.4 } },
     { defId: 'towel-rail', props: { mountHeight: 1.1 } },
     flushCeilingLight,
@@ -156,6 +172,40 @@ function isMasterName(name: string): boolean {
  *  `foyer`/`other` have no kit yet (their dedicated kits are RM2 — out of
  *  scope here), matching the old name-classifier's behaviour of leaving
  *  those rooms unfurnished. */
+/**
+ * WET-AREA BATHROOM (v0.31.9.33) — a narrow bathroom gets a shower SCREEN, not a
+ * 900 mm cubicle.
+ *
+ * The criterion is the room's SHORT side, and it is circulation arithmetic: a
+ * 0.9 m cubicle against one wall of a 1.4 m room leaves 0.5 m to reach the WC
+ * and the basin, under `CLEARANCE.walkwayMin` (0.6). So below
+ * `WET_AREA_SHORT_M` a cubicle cannot coexist with the rest of the fitout, and
+ * the corpus shows exactly that: `emu-cbath`, `st-bath`, `h4-cbath`, `h2-bath`
+ * and `ctu-cbath` lose a WC or a basin to it.
+ *
+ * **This is a CONTENT fix, and it was reached by exhausting the alternatives.**
+ * Five arranger routes were measured and rejected across v0.31.9.30-.32
+ * (height-aware mounted obstacles, excluding seed-parked mounts, an 800 mm tray,
+ * mounts-first ordering, and a wall preference plus seed exclusion); the last of
+ * them named the mechanism as a PACKING problem in a 1.16 x 1.96 m rect, which
+ * no ordering or preference can reach.
+ *
+ * It is also what these bathrooms actually are. An HDB bathroom of ~2-3 m² is
+ * built as an open wet area — floor drain, graded screed, a fixed glass panel —
+ * not as a tray-and-door cubicle, so a 0.9 x 0.9 m box was the wrong fitting for
+ * the room rather than a fitting the arranger placed badly. `shower-screen` is
+ * 0.9 x 0.06 m and already in the catalog.
+ *
+ * The alternative was widening the templates 0.1 m, which is rejected on
+ * principle: these are meant to be accurate HDB and condo plans and "fully to
+ * scale" is the point, so the plan does not move to suit the arranger.
+ */
+const WET_AREA_SHORT_M = 1.6
+
+function narrowBath(room: PlanRoom): boolean {
+  return Math.min(room.width, room.depth) < WET_AREA_SHORT_M
+}
+
 function kitForRoom(room: PlanRoom): KitPiece[] | null {
   const name = room.name.toLowerCase()
   const category = roomCategory(room)
@@ -169,10 +219,15 @@ function kitForRoom(room: PlanRoom): KitPiece[] | null {
     case 'kitchen':
       return KITS.kitchen
     case 'bath':
-      return KITS.bath
+      return narrowBath(room) ? KITS.bathWetArea : KITS.bath
     case 'serviceYard':
       return KITS.serviceYard
+    // A household shelter is furnished exactly like a store room — shelving
+    // only. `'shelter'` is a distinct category because its WALLS and its
+    // daylight obligations differ (RC, unalterable, windowless by design), not
+    // because it holds different things.
     case 'storeroom':
+    case 'shelter':
       return KITS.storeroom
     case 'foyer':
       return KITS.foyer
@@ -194,6 +249,159 @@ function kitForRoom(room: PlanRoom): KitPiece[] | null {
   }
 }
 
+/**
+ * A wardrobe sized to the room it stands in.
+ *
+ * `wardrobe-3door` defaults to 1.5 m wide, and in a narrow bedroom that leaves no
+ * wall run beside the bed: a 2.7 m wide room takes a 1.5 m bed plus 1.5 m of
+ * wardrobe only if they never share a wall, so the wardrobe is dropped instead.
+ * Measured on `tpl-condo-3bed`: carving a 1.0 m corridor out of its bedroom column
+ * cost ALL THREE wardrobes and a dresser for exactly this reason.
+ *
+ * The def's own `width` param already goes down to 1.0, which is what a real HDB or
+ * condo second bedroom fits. This is deliberately NOT the global narrowing measured
+ * and rejected in v0.31.5.121 — that resized every wardrobe in every template for a
+ * net-zero sightline gain. This keys on the ROOM, so a generous bedroom keeps its
+ * 1.5 m wardrobe.
+ */
+function narrowWardrobe(defId: string, room: PlanRoom): ParamProps {
+  if (defId !== 'wardrobe-3door') return {}
+  const shortest = Math.min(room.width, room.depth)
+  return shortest < NARROW_BEDROOM_M ? { width: 1.0 } : {}
+}
+
+/** Shortest `kitchen-counter-l` the def allows, and the shortest worth building. */
+const MIN_COUNTER_M = 1.2
+
+/**
+ * A counter run sized to the wall it stands against — the same idea as
+ * {@link narrowWardrobe}, for the piece that was breaking small kitchens.
+ *
+ * `kitchen-counter-l` is parametric (`length` 1.2-4.0 m) but was always seeded at
+ * its 2.4 m default, and five shipped kitchens have no wall that long. Measured
+ * (v0.31.9.19) — longest wall of the arranger's rect vs the 3.70 m the kit needs
+ * (counter 2.4 + fridge 0.7 + hob 0.6):
+ *
+ * | kitchen | room | longest wall |
+ * | --- | --- | --- |
+ * | `tpl-condo-studio/su-kit` | 2.0 x 1.6 | **1.76 m** |
+ * | `tpl-condo-1bed/c1-kit` | 2.0 x 1.6 | **1.76 m** |
+ * | `tpl-condo-1study/cs-kit` | 2.0 x 2.2 | 1.96 m |
+ * | `tpl-1bed/ob-kit` | 3.1 x 1.9 | 2.86 m |
+ * | `tpl-studio/st-kit` | 3.8 x 1.4 | 3.56 m |
+ *
+ * A 2.4 m counter cannot stand on a 1.76 m wall at all, so it OVERFLOWED the room
+ * — `c1-kit`'s spanned x 0.32-2.72 against a room ending at 2.20 — and the fridge
+ * and hob then had nowhere to go and were deleted by `dropOverlaps`. Three of the
+ * five kitchens ended up holding a range hood and nothing else.
+ *
+ * Sizing to the wall is also what a real fitted kitchen does; a 2.4 m run is a
+ * default, not a requirement. Rooms with a long enough wall are untouched.
+ */
+/**
+ * The longest stretch of one wall that no DOOR KEEP-OUT interrupts.
+ *
+ * Measured cause of the galley-kitchen failures (v0.31.9.21): `tpl-studio`'s
+ * `st-kit` is refused a counter on every edge not by a wall, a window or a
+ * collision but by a 0.9 x 0.9 door swing sitting at x 1.10-2.00 — dead centre
+ * of its only wall long enough to take one. The room measures 3.8 m and the
+ * longest CLEAR run on it is 2.00 m, so sizing to `max(width, depth)` asks for
+ * a length the room cannot give however the piece is moved.
+ *
+ * Each wall is projected to an interval, the keep-outs overlapping that wall's
+ * BAND are subtracted, and the longest surviving sub-interval wins. `BAND` is
+ * the depth of floor a counter-deep piece occupies against a wall — a keep-out
+ * further into the room than that does not block the run.
+ */
+const CLEAR_RUN_BAND_M = 0.7
+
+function longestClearRun(rect: Rect, keepOut: readonly Rect[]): number {
+  const { x0, z0, x1, z1 } = rect
+  const walls: Array<{ lo: number; hi: number; near: number; far: number; horiz: boolean }> = [
+    { lo: x0, hi: x1, near: z0, far: z0 + CLEAR_RUN_BAND_M, horiz: true },
+    { lo: x0, hi: x1, near: z1 - CLEAR_RUN_BAND_M, far: z1, horiz: true },
+    { lo: z0, hi: z1, near: x0, far: x0 + CLEAR_RUN_BAND_M, horiz: false },
+    { lo: z0, hi: z1, near: x1 - CLEAR_RUN_BAND_M, far: x1, horiz: false },
+  ]
+  let best = 0
+  for (const w of walls) {
+    // Cut points along the wall, from every keep-out that reaches into its band.
+    let free: Array<[number, number]> = [[w.lo, w.hi]]
+    for (const k of keepOut) {
+      const across = w.horiz ? [k.z0, k.z1] : [k.x0, k.x1]
+      if (across[1] <= w.near || across[0] >= w.far) continue
+      const along = w.horiz ? [k.x0, k.x1] : [k.z0, k.z1]
+      const next: Array<[number, number]> = []
+      for (const [a, b] of free) {
+        if (along[1] <= a || along[0] >= b) {
+          next.push([a, b])
+          continue
+        }
+        if (along[0] > a) next.push([a, along[0]])
+        if (along[1] < b) next.push([along[1], b])
+      }
+      free = next
+    }
+    for (const [a, b] of free) best = Math.max(best, b - a)
+  }
+  return best
+}
+
+function fittedCounter(defId: string, room: PlanRoom, keepOut: readonly Rect[]): ParamProps {
+  if (defId !== 'kitchen-counter-l') return {}
+  // Shrink only enough to stop the run OVERFLOWING THE ROOM. Sizing to the inset
+  // rect instead was tried in v0.31.9.19 and shrank more than necessary: it also
+  // fired on `tpl-hdb-2room`, whose kitchen was already complete, and the
+  // reshuffle marooned its fridge 0.67 m off the wall and cost
+  // `tpl-condo-1study` a route. The room boundary is the constraint that matters
+  // — a counter is fitted joinery and sits against the wall itself.
+  //
+  // CLEAR-RUN SIZING (v0.31.9.22). This used to be `max(width, depth)` alone,
+  // which asks for a length no position on the wall can supply when a door
+  // swings into the run. Sizing to the clear run was measured as INERT on its
+  // own in v0.31.9.21 — `snapToWall` CLAMPED the along-wall coordinate to the
+  // room centre, so a shorter counter stayed straddling the keep-out. It works
+  // only in combination with that function's along-wall SWEEP, added in the
+  // same release as this. Neither lever moves anything without the other.
+  // INSET RECT, not the room (v0.31.9.29). v0.31.9.19 used
+  // `max(room.width, room.depth)` and v0.31.9.22 intersected that with the clear
+  // run; both measured the wrong box. A counter must fit the rect the arranger
+  // places into, and `planRoomRect` insets `ROOM_INSET` (0.12) from EACH side —
+  // so the run was systematically 0.24 m too long wherever this fires:
+  //
+  // | room | raw | rect | old length | outcome |
+  // |---|---|---|---|---|
+  // | `su-kit` | 2.00 | 1.76 | 2.0 | never placed — sat at the room centre |
+  // | `c1-kit` | 2.00 | 1.76 | 2.0 | placed, and the fridge had no wall left |
+  // | `h2-kit` | 2.30 | 2.06 | 2.3 | a 0.34 m `roomOverhang` entry |
+  //
+  // `Math.floor`, not `Math.round`: rounding 1.76 to 0.1 m gives 1.8, still
+  // longer than the space just measured. Every rounding here goes DOWN.
+  const insetRect = planRoomRect(room)
+  const span = Math.max(insetRect.x1 - insetRect.x0, insetRect.z1 - insetRect.z0)
+  const longest = Math.min(span, longestClearRun(insetRect, keepOut))
+  if (longest >= 2.4) return {}
+  return { length: Math.max(MIN_COUNTER_M, Math.floor(longest * 10) / 10) }
+}
+
+/**
+ * A bedroom this narrow (m, shorter side) cannot seat a bed and a full-width
+ * wardrobe along the same wall.
+ *
+ * 2.5 is measured, not chosen: at 2.7 the rule also fires on rooms that DO have
+ * space for the narrower piece but no windowless wall to put it on, and three
+ * restored wardrobes then stand in front of glass (`jb-b5-win` among them). At 2.5
+ * the gain is clean — `tpl-hdb-3gen`'s grandparent suite (3.8 x 2.3) picks up the
+ * wardrobe it had been losing, and no window is newly blocked.
+ *
+ * NOTE this cannot rescue a room that is too SHALLOW. A wardrobe needs its ~0.6 m
+ * depth plus `CLEARANCE.storageFront` of clear floor to open into, which alongside
+ * a 2.0 m bed exceeds a 2.3 m room depth however narrow the piece is — measured
+ * when this rule failed to save `tpl-condo-3bed`'s corridor, which still cost all
+ * three of its wardrobes.
+ */
+const NARROW_BEDROOM_M = 2.5
+
 /** Expand a kit + the preset's cosmetic style into seeded items at the room
  *  centre. Each piece's props = schema defaults < kit-fixed props < preset
  *  style override < the preset's per-room-CATEGORY `categoryStyle` override
@@ -206,6 +414,7 @@ function seedRoom(
   style: Record<string, ParamProps>,
   categoryStyle: Record<string, ParamProps> | undefined,
   levelId: string = GROUND_LEVEL_ID,
+  keepOut: readonly Rect[] = [],
 ): FurnitureItem[] {
   const [cx, cz] = roomCentre(room)
   const out: FurnitureItem[] = []
@@ -218,6 +427,8 @@ function seedRoom(
       ...(piece.props ?? {}),
       ...(style[piece.defId] ?? {}),
       ...(categoryStyle?.[piece.defId] ?? {}),
+      ...narrowWardrobe(piece.defId, room),
+      ...fittedCounter(piece.defId, room, keepOut),
     }
     const n = piece.count ?? 1
     for (let i = 0; i < n; i++) {
@@ -328,6 +539,98 @@ function seedWindowTreatments(
 /** Drop items that still overlap after arranging (an over-tight room couldn't
  *  fit the whole kit). The seed order is priority order, so we always drop the
  *  later (less essential) piece of an overlapping pair. */
+/**
+ * CEILING-MOUNT-RELOCATE (v0.31.9.23) — nudge a clashing ceiling light instead
+ * of deleting it.
+ *
+ * `dropOverlaps` resolves every clash by DELETING the later-seeded piece, which
+ * is right for two floor pieces competing for the same floor and wrong for a
+ * ceiling light: a light has the whole ceiling to choose from, and the room
+ * needs one.
+ *
+ * Measured cause, traced through the pass chain rather than guessed:
+ * `tpl-1bed/ob-kit`'s light sat at the room centre (1.75, 4.25), survived
+ * `placeSeededMounts`, and was deleted by `dropOverlaps` — against the
+ * **`range-hood`**, not against any floor piece. v0.31.9.22 gave that kitchen
+ * its stove, the hood duly moved to hang over it, and the hood's box then
+ * covered the centre of the room. So the release that furnished the kitchen
+ * un-lit it, and `ob-kit` joined `c1-kit` and `su-kit` as the corpus's only
+ * rooms with no light at all.
+ *
+ * The hood is not the piece to move — `applianceWall.test.ts` requires it to
+ * stay within `HOOD_OVER_STOVE_M` of its stove, and a hood somewhere else is a
+ * drawing a contractor would build wrong. The light is.
+ *
+ * Nearest-first over a disc, like `unsealRoutes`, and the trial must stay inside
+ * the room: this is the release that learned containment has to test the
+ * FOOTPRINT and not the centre, so the light's own box is checked against the
+ * room rect with the same 0.2 m slack. A light with nowhere clear falls through
+ * to `dropOverlaps` and is deleted as before — no room gains a light it has no
+ * space for.
+ */
+const CEILING_MOUNT_DEFS = new Set(['ceiling-light'])
+const RELOCATE_STEP_M = 0.15
+const RELOCATE_REACH_M = 1.35
+
+function relocateCeilingMounts(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  plan: FloorPlan,
+): FurnitureItem[] {
+  const clashing = new Set(findItemOverlaps(items, defs).flatMap(({ a, b }) => [a, b]))
+  if (clashing.size === 0) return items
+  const targets = items.filter((it) => clashing.has(it.id) && CEILING_MOUNT_DEFS.has(it.defId))
+  if (targets.length === 0) return items
+
+  // Nearest-first offsets on a disc — a light should move as little as possible,
+  // and the reach only bounds how far the pass MAY go.
+  const offsets: Array<[number, number]> = []
+  const k = Math.ceil(RELOCATE_REACH_M / RELOCATE_STEP_M)
+  for (let i = -k; i <= k; i++)
+    for (let j = -k; j <= k; j++) {
+      if (i === 0 && j === 0) continue
+      const dx = i * RELOCATE_STEP_M
+      const dz = j * RELOCATE_STEP_M
+      if (Math.hypot(dx, dz) > RELOCATE_REACH_M) continue
+      offsets.push([dx, dz])
+    }
+  offsets.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))
+
+  let current = items
+  for (const target of targets) {
+    const def = defs[target.defId]
+    if (!def) continue
+    const levelId = target.levelId ?? GROUND_LEVEL_ID
+    const level = planLevels(plan).find((l) => l.id === levelId)
+    const room = level?.rooms.find((r) => pointInRoom(r, target.position[0], target.position[1]))
+    if (!room) continue
+    const rect = planRoomRect(room)
+    const others = current.filter((it) => it.id !== target.id)
+    for (const [dx, dz] of offsets) {
+      const moved: FurnitureItem = {
+        ...target,
+        position: [target.position[0] + dx, target.position[1] + dz],
+      }
+      const box = footprintAabb(moved, def)
+      if (
+        box.x0 < rect.x0 - CEILING_CONTAIN_TOL ||
+        box.x1 > rect.x1 + CEILING_CONTAIN_TOL ||
+        box.z0 < rect.z0 - CEILING_CONTAIN_TOL ||
+        box.z1 > rect.z1 + CEILING_CONTAIN_TOL
+      )
+        continue
+      if (itemHeightAwareClash(moved, def, others, defs)) continue
+      current = current.map((it) => (it.id === target.id ? moved : it))
+      break
+    }
+  }
+  return current
+}
+
+/** Same 0.2 m slack as `roomOverhang.test.ts`'s `TOL` and `snapToWall`'s
+ *  `SETTLE_TOL` — room rects sit 0.1-0.2 m inside their wall centrelines. */
+const CEILING_CONTAIN_TOL = 0.2
+
 function dropOverlaps(items: FurnitureItem[], defs: Record<string, FurnitureDef>): FurnitureItem[] {
   let current = items
   // Bounded: each pass removes ≥1 item, so at most items.length passes.
@@ -389,6 +692,68 @@ function dropDoorBlockers(
  * noClip items are exempt (they never clip — `findWallClips` skips them); scoped
  * per storey against that storey's own resolved collision walls.
  */
+/**
+ * DROP-UNPLACEABLE (v0.31.9.25) — the furnish path must never emit an item that
+ * is geometrically invalid.
+ *
+ * `arrangeCore` finishes with
+ * `allItems.map((orig) => byId.get(orig.id) ?? orig)`: an item the room routine
+ * and then the safety `settle` both failed to place keeps its ORIGINAL
+ * transform, which is the seed point — the room centre, or wherever a stale
+ * default left it. Nothing downstream removed it, so the arranger could hand
+ * back a piece standing in a wall.
+ *
+ * **The arranger itself must not delete**, and that is deliberate: the same
+ * `arrangeAllRoomsForPlan` powers the interactive "tidy" action, where making a
+ * user's furniture vanish is far worse than leaving it where they put it —
+ * `autoArrange.test.ts` pins the no-delete contract with
+ * `expect(out.length).toBe(hydrate().length)`. So the drop belongs HERE, on the
+ * furnish path, alongside the three drops that already run for clashes, door
+ * swings and wall clips.
+ *
+ * **It is a no-op on today's corpus: 0 of 1409 items across the 19 templates.**
+ * That is the point — it is a guard, not a fix. v0.31.9.24 built four placement
+ * levers worth room overhangs 10 -> 4 and had to revert all four because one of
+ * them starved the default plan's `drying-rack`, and the failure surfaced as an
+ * invalid item rather than as a missing one. With this pass in place the FURNISH
+ * half of that class can only ever show up as an item-count delta, which the
+ * per-def ratchets already measure and read honestly.
+ *
+ * It uses the same `canPlace` the arranger's own `tryPlace` uses, with the
+ * storey's collision walls, so "survives the furnish" and "would have been legal
+ * to place" are one rule.
+ */
+function dropUnplaceable(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  plan: FloorPlan,
+  doors: Record<string, { open: boolean }>,
+): FurnitureItem[] {
+  const dropIds = new Set<string>()
+  for (const level of planLevels(plan)) {
+    const walls = planCollisionWalls(levelAsPlan(plan, level), doors)
+    if (walls.length === 0) continue
+    // Accumulated in list order, mirroring `autoArrange.test.ts`'s own validity
+    // sweep: an item is judged against what precedes it, so one bad piece cannot
+    // condemn every later one.
+    const kept: FurnitureItem[] = []
+    for (const it of items) {
+      if ((it.levelId ?? GROUND_LEVEL_ID) !== level.id) continue
+      const def = defs[it.defId]
+      if (!def) continue
+      // Mounts and rugs are exempt for the same reason every other pass exempts
+      // them: they do not occupy floor, and `canPlace` is a floor predicate.
+      if (def.mounted || def.noClip) {
+        kept.push(it)
+        continue
+      }
+      if (canPlace(it, def, { others: kept, defs, doors, walls })) kept.push(it)
+      else dropIds.add(it.id)
+    }
+  }
+  return dropIds.size === 0 ? items : items.filter((it) => !dropIds.has(it.id))
+}
+
 function dropWallClippers(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
@@ -417,7 +782,32 @@ function dropWallClippers(
  * rug, coffee table or dining table belongs in the middle of the room, and the
  * sweep found 17 of those correctly centred.
  */
-const WALL_HUGGING_CATEGORIES = new Set(['bathroom', 'storage', 'seating'])
+/**
+ * Categories whose pieces belong against a wall, so one still sitting on the
+ * seed point should be pulled to one.
+ *
+ * `appliances`, `kitchen` and `laundry` were MISSING until v0.31.9.18, which
+ * meant a fridge, hob, counter run or washing machine stranded on the seed point
+ * was never rescued — it just stayed at the room centre and `dropOverlaps`
+ * deleted it. That is the direct cause of the incomplete kitchens
+ * `roomCompleteness.test.ts` records: `tpl-condo-1bed/c1-kit`'s fridge sat at
+ * (1.20, 5.60), which IS the room centre, overlapping both the hob and the
+ * counter, while a 0.76 x 0.70 m gap stood free in the north-west corner.
+ *
+ * `docs/interior-design-guidelines.md` puts "storage/appliances/beds flush to
+ * walls" in the same breath, so excluding appliances was never deliberate — and
+ * the categories are easy to miss because `roleOf('refrigerator')` already says
+ * `storage` while its CATEGORY says `appliances`, and this check reads the
+ * category.
+ */
+const WALL_HUGGING_CATEGORIES = new Set([
+  'bathroom',
+  'storage',
+  'seating',
+  'appliances',
+  'kitchen',
+  'laundry',
+])
 
 /** Whether a piece found on the seed point should be pulled to a wall. */
 function wantsWall(item: FurnitureItem, defs: Record<string, FurnitureDef>): boolean {
@@ -480,6 +870,17 @@ export function placeSeededMounts(
     // moves (3 bathroom-sink, 2 nightstand, 1 bench). Flushing a fixture to the
     // only wall it fits against is worthless if that wall is behind a door.
     const doorKeepOut = doorKeepOutRects(levelAsPlan(plan, level))
+    // WINDOW-KEEPOUT-IN-RESCUE (v0.31.8.75). This pass already refuses to park a
+    // rescued piece in a door's keep-out, "because `dropDoorBlockers` runs after
+    // this pass and deletes any floor piece left in one". The identical argument
+    // applies to WINDOWS: `placementSoundness.test.ts` asserts ZERO items in a
+    // `windowFrontRects` keep-out and `tryPlace` enforces it for everything the
+    // ARRANGER places — but this pass did not know about them, so a piece the
+    // arranger could not place was rescued straight into a window front.
+    // Measured on `tpl-hdb-5room`: `utility-cabinet` at (3.50, 0.85) rot 1.57
+    // spans x 3.30-3.70, z 0.60-1.10 against the kitchen window's rect at
+    // x 1.70-3.50, z 0.10-0.75 — a 0.20 x 0.15 m overlap.
+    const windowKeepOut = windowFrontRects(levelAsPlan(plan, level))
     const claimable = (it: FurnitureItem) => {
       const d = defs[it.defId]
       return !!d && !d.noClip && !d.mounted && roleOf(it.defId, defs) !== 'ceiling'
@@ -518,15 +919,24 @@ export function placeSeededMounts(
         maxX: room.origin[0] + room.width,
         maxZ: room.origin[1] + room.depth,
       }
-      for (const it of stranded) {
+      // HOOD-AFTER-STOVE (v0.31.9.18). A hood follows the cooktop, so it has to
+      // be rescued AFTER it — and it has to read the stove's RESCUED position,
+      // not the stale one in `inRoom`. Neither held before: hoods were processed
+      // in list order and the lookup only ever saw pre-move coordinates, so
+      // adding `kitchen` to the wall-hugging set (which finally lets a stranded
+      // stove reach a wall) pushed `tpl-condo-3bed`'s hood from 1.13 m to 2.35 m
+      // away from its own stove. The rule existed; it just could not fire.
+      const stovesLast = [...stranded].sort(
+        (a, b) => Number(a.defId === 'range-hood') - Number(b.defId === 'range-hood'),
+      )
+      for (const it of stovesLast) {
         // A hood follows the cooktop. Only a stove that itself moved off the
         // seed point is a real placement to follow.
         if (it.defId === 'range-hood') {
-          const stove = inRoom.find(
-            (o) =>
-              o.defId === 'stove' &&
-              (Math.abs(o.position[0] - cx) > EPS || Math.abs(o.position[1] - cz) > EPS),
-          )
+          const stove = inRoom
+            .filter((o) => o.defId === 'stove')
+            .map((o) => moved.get(o.id) ?? o)
+            .find((o) => Math.abs(o.position[0] - cx) > EPS || Math.abs(o.position[1] - cz) > EPS)
           if (stove) {
             moved.set(it.id, {
               ...it,
@@ -539,48 +949,131 @@ export function placeSeededMounts(
         const def = defs[it.defId]
         if (!def) continue
         const fp = itemFootprint(it, def)
-        const edge = nearestWallEdge(it.position, rect)
+        const nearest = nearestWallEdge(it.position, rect)
         // `rotationForEdge` turns the piece to face away from the wall, which for
         // a W/E wall is a 90-degree turn — so its WORLD half-extents swap. Using
         // the unrotated pair leaves a mount too far off the wall: a 0.6 x 0.06 m
         // `wall-mirror` flushed by its 0.3 m half-WIDTH sat 0.27 m proud of the
         // wall (measured 5.05 against a room edge at 4.70; now 4.73).
-        const sideways = edge === 'W' || edge === 'E'
-        const halfX = sideways ? fp.hz : fp.hx
-        const halfZ = sideways ? fp.hx : fp.hz
-        const rot = rotationForEdge(edge)
-        const base = flushToWall(it.position, rect, edge, halfX, halfZ)
         const isMount = roleOf(it.defId, defs) === 'mounted'
-        // A mount takes the wall unconditionally — it hangs above the floor, so
-        // nothing down there can block it. A FLOOR piece slides along the wall
-        // until its box is clear of everything already placed, measured with the
-        // SAME `itemAabbBox` the real broadphase uses so the two cannot disagree.
-        let spot: [number, number] | null = isMount ? base : null
-        if (!isMount) {
-          const along = sideways ? halfZ : halfX
-          const lo = (sideways ? rect.minZ : rect.minX) + along
-          const hi = (sideways ? rect.maxZ : rect.maxX) - along
-          const step = Math.max(0.1, along)
-          for (let k = 0; k <= 16 && !spot; k++) {
-            for (const dir of k === 0 ? [0] : [1, -1]) {
-              const t = (sideways ? base[1] : base[0]) + dir * k * step
-              if (t < lo - 1e-9 || t > hi + 1e-9) continue
-              const p: [number, number] = sideways ? [base[0], t] : [t, base[1]]
-              const box = itemAabbBox({ ...it, position: p, rotation: rot }, def)
-              if (floorClaims.some((c) => aabbHit(box, c))) continue
-              const fb = { x0: box.minX, x1: box.maxX, z0: box.minZ, z1: box.maxZ }
-              if (doorKeepOut.some((k) => rectsOverlap(fb, k))) continue
-              spot = p
-              break
+        // MOUNT-HEIGHT-CLASH (v0.31.8.71). A mount used to take its nearest wall
+        // UNCONDITIONALLY — "it hangs above the floor, so nothing down there can
+        // block it". True of a basin, FALSE of a wardrobe, which reaches the
+        // mount's height. Once WALL-SNAP-SHORTFALL puts that wardrobe against the
+        // wall instead of 0.15 m proud of it, the mount lands on the wardrobe and
+        // `dropOverlaps` deletes one of the pair — measured as a lost
+        // `wall-mirror` in `tpl-terrace-ground`'s upper landing, which is exactly
+        // what the comment further down warns about.
+        //
+        // So a mount now tries EVERY wall, nearest first, and takes the first that
+        // is clear at its own height. Trying only the nearest and then giving up
+        // strands it on the room centre instead — measured on
+        // `tpl-condo-4bed/c4-cbath/towel-rail`, which is the failure this whole
+        // pass exists to prevent. If no wall is clear it keeps the historical
+        // behaviour and takes the nearest anyway: misplaced on a wall beats
+        // marooned mid-room, and `dropOverlaps` then makes the same trade it
+        // always did.
+        // EVERY stranded piece considers all four walls, nearest first — not just
+        // mounts (v0.31.8.75). A floor piece limited to its nearest wall had to
+        // fall back to the RELAXED window pass whenever that one wall carried
+        // glass, which put `tpl-hdb-5room`'s `utility-cabinet` in front of the
+        // kitchen window even though the yard's north wall was clear. More walls
+        // tried is strictly more options; nothing can go unplaced by it.
+        const edges: WallEdge[] = [
+          nearest,
+          ...(['N', 'S', 'W', 'E'] as WallEdge[]).filter((e) => e !== nearest),
+        ]
+        let chosen: { pos: [number, number]; rot: number } | null = null
+        // Strictness outside the WALL loop, not inside it: try every wall while
+        // still respecting windows, and only then allow a windowed spot. Nesting
+        // it the other way relaxes on the first wall and never looks at the rest,
+        // which is how the cabinet ended up in front of glass with a clear wall
+        // going spare.
+        for (const strict of [true, false] as const) {
+          if (chosen) break
+          for (const edge of edges) {
+            const sideways = edge === 'W' || edge === 'E'
+            const halfX = sideways ? fp.hz : fp.hx
+            const halfZ = sideways ? fp.hx : fp.hz
+            const rot = rotationForEdge(edge)
+            const base = flushToWall(it.position, rect, edge, halfX, halfZ)
+            // A mount asks only whether it would INTERSECT something at its own
+            // height. A FLOOR piece slides along the wall until its box is clear of
+            // everything already placed, measured with the SAME `itemAabbBox` the
+            // real broadphase uses so the two cannot disagree.
+            const clashes = (p: [number, number]) =>
+              itemHeightAwareClash({ ...it, position: p, rotation: rot }, def, onLevel, defs)
+            let spot: [number, number] | null = isMount && !clashes(base) ? base : null
+            // WINDOWS ARE A PREFERENCE HERE, DOORS ARE NOT. The sweep runs twice:
+            // first demanding both keep-outs, then doors only. Making the window
+            // check hard on a single pass cost `tpl-hdb-maisonette` its SHOWER — a
+            // 2 m shower in a 1.6 x 1.3 m bathroom whose walls all carry glass has
+            // nowhere window-free to stand, so refusing every spot stranded it and
+            // it was dropped. A blocked door is a safety problem; a blocked window
+            // is a quality one, and a bathroom with no shower is worse than a
+            // shower in front of the glass. `windowSightline.test.ts` ratchets
+            // whatever does land there.
+            {
+              const along = sideways ? halfZ : halfX
+              const lo = (sideways ? rect.minZ : rect.minX) + along
+              const hi = (sideways ? rect.maxZ : rect.maxX) - along
+              const step = Math.max(0.1, along)
+              for (let k = 0; k <= 16 && !spot; k++) {
+                for (const dir of k === 0 ? [0] : [1, -1]) {
+                  const t = (sideways ? base[1] : base[0]) + dir * k * step
+                  if (t < lo - 1e-9 || t > hi + 1e-9) continue
+                  const p: [number, number] = sideways ? [base[0], t] : [t, base[1]]
+                  if (isMount) {
+                    // A mount reserves no floor and is blocked by none, so it skips
+                    // the floor claims and the door keep-out entirely.
+                    if (clashes(p)) continue
+                  } else {
+                    const box = itemAabbBox({ ...it, position: p, rotation: rot }, def)
+                    if (floorClaims.some((c) => aabbHit(box, c))) continue
+                    const fb = { x0: box.minX, x1: box.maxX, z0: box.minZ, z1: box.maxZ }
+                    if (doorKeepOut.some((k) => rectsOverlap(fb, k))) continue
+                    // A window rejects only a piece TALLER than its sill; a
+                    // near-zero sill (a balcony slider) rejects every floor piece.
+                    if (
+                      strict &&
+                      windowKeepOut.some(
+                        (k) =>
+                          (k.sill <= 0.05 || def.defaultFootprint.h > k.sill) &&
+                          rectsOverlap(fb, k),
+                      )
+                    )
+                      continue
+                  }
+                  spot = p
+                  break
+                }
+              }
             }
+            if (spot) chosen = { pos: spot, rot }
+            // A mount that found nothing on this wall tries the next one; a floor
+            // piece has only its nearest wall to try (walls are its own edge choice,
+            // made upstream by the arranger), so the loop ends either way.
+            if (chosen) break
           }
         }
-        // Nowhere clear along that wall: leave it untouched. Stacking it on
-        // another piece would let `dropOverlaps` DELETE one of them, and losing
-        // furniture is worse than leaving it misplaced (measured 900 -> 893).
-        if (!spot) continue
-        if (!isMount) floorClaims.push(itemAabbBox({ ...it, position: spot, rotation: rot }, def))
-        moved.set(it.id, { ...it, position: spot, rotation: rot })
+        // Nowhere clear on any wall. Keep the historical behaviour and take the
+        // NEAREST wall anyway: misplaced on a wall beats marooned on the room
+        // centre, which is the failure this whole pass exists to prevent
+        // (measured on `tpl-condo-4bed/c4-cbath/towel-rail`). `dropOverlaps` then
+        // makes the same trade it always did.
+        if (!chosen && isMount) {
+          const sw = nearest === 'W' || nearest === 'E'
+          chosen = {
+            pos: flushToWall(it.position, rect, nearest, sw ? fp.hz : fp.hx, sw ? fp.hx : fp.hz),
+            rot: rotationForEdge(nearest),
+          }
+        }
+        if (!chosen) continue
+        const spotFinal = chosen.pos
+        const rotFinal = chosen.rot
+        if (!isMount)
+          floorClaims.push(itemAabbBox({ ...it, position: spotFinal, rotation: rotFinal }, def))
+        moved.set(it.id, { ...it, position: spotFinal, rotation: rotFinal })
       }
     }
   }
@@ -618,6 +1111,9 @@ export function furnishPlanItems(
   // levels and seed each room tagged with its storey. Single-storey plans yield
   // only the ground level (no levelId tag) → identical to the old loop.
   for (const level of planLevels(plan)) {
+    // Once per storey, not per room: `doorKeepOutRects` rasterises every door
+    // on the level and `fittedCounter` needs it for each kitchen it sizes.
+    const levelKeepOut = doorKeepOutRects(levelAsPlan(plan, level))
     for (const room of level.rooms) {
       const category = roomCategory(room)
       const base = kitForRoom(room)
@@ -628,23 +1124,60 @@ export function furnishPlanItems(
       const kit = base || extra ? [...(base ?? []), ...(extra ?? [])] : null
       if (kit)
         seeded.push(
-          ...seedRoom(room, kit, defs, preset.style, preset.categoryStyle?.[category], level.id),
+          ...seedRoom(
+            room,
+            kit,
+            defs,
+            preset.style,
+            preset.categoryStyle?.[category],
+            level.id,
+            levelKeepOut,
+          ),
         )
     }
   }
   if (seeded.length === 0) return []
-  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, seed)
-  const furniture = [
-    ...dropWallClippers(
-      dropDoorBlockers(dropOverlaps(placeSeededMounts(plan, arranged, defs), defs), defs, plan),
+  // reserveRetry OFF for furnish (v0.31.9.26). Every piece in a room is seeded
+  // at the SAME point — the room centre — so reserving one that could not be
+  // placed parks an obstacle in the middle of the room and strands the rest.
+  // Measured: leaving it on moved nine ratchets, trading item COUNT for a
+  // validity number that `dropUnplaceable` already guarantees on this path.
+  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, seed, {
+    reserveRetry: false,
+  })
+  // ROUTE-UNSEAL (v0.31.8.55). The drop passes above delete pieces that are
+  // physically wrong; this one MOVES a piece that is physically fine and
+  // strategically disastrous — one that seals a room off from the front door.
+  // Measured over the 19 templates: 43 unreachable rooms -> 18, by moving 12
+  // items and deleting none. See `layout/reachability.ts`.
+  const placed = dropUnplaceable(
+    unsealRoutes(
+      dropWallClippers(
+        dropDoorBlockers(
+          dropOverlaps(
+            relocateCeilingMounts(placeSeededMounts(plan, arranged, defs), defs, plan),
+            defs,
+          ),
+          defs,
+          plan,
+        ),
+        defs,
+        plan,
+        doors,
+      ),
       defs,
       plan,
-      doors,
     ),
-    // AFTER the drop passes: a curtain sits in the wall plane, which is what `dropWallClippers`
-    // removes. See `seedWindowTreatments`.
-    ...seedWindowTreatments(plan, defs),
-  ]
+    defs,
+    plan,
+    doors,
+  )
+
+  // AFTER every drop pass: a curtain sits IN the wall plane, which is exactly what
+  // `dropWallClippers` deletes, and `dropUnplaceable` would judge it unplaceable for the same
+  // reason. Appended rather than piped through, so the passes that police real furniture cannot
+  // reach it. See `seedWindowTreatments`.
+  const furniture = [...placed, ...seedWindowTreatments(plan, defs)]
   if (!withDecor) return furniture
   // Styling pass: add set-dressing props on host surfaces. The pass may reach for
   // bundled CC0 GLB set-dressing props (vases, books, plants, a tea set) that
@@ -681,7 +1214,9 @@ export function furnishOcsItems(
     }
   }
   if (seeded.length === 0) return []
-  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
+  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, 0, {
+    reserveRetry: false,
+  })
   return dropWallClippers(
     dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan),
     defs,

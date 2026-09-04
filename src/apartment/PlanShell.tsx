@@ -22,12 +22,7 @@ import {
   wallBaseExtensionM,
 } from '../floorplan/floorLevels3d'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
-import {
-  levelAsPlan,
-  type PlanLevel,
-  visibleLevels,
-  visibleLevelsForWalk,
-} from '../floorplan/levels'
+import { levelAsPlan, type PlanLevel, renderedLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { planRoomRects } from '../floorplan/planRoomShell'
 import { railingMemberInstances } from '../floorplan/railingLayout'
@@ -45,6 +40,7 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import { establishedWallStructureInPlan, shelterWallIds } from '../floorplan/wallHackability'
 import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import {
   type GrilleMemberInstance,
@@ -69,6 +65,7 @@ import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
 import { useSunPosition } from '../scene/lighting/useSunPosition'
+import { backdropVisibleNow } from '../scene/SceneBackdrop'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
@@ -572,30 +569,18 @@ function FadeCrown({
  * non-default plan is active, so custom apartments are furnishable in 3D.
  * Multi-storey plans (F13) render one `PlanLevelShell` per visible level,
  * each offset by its elevation; the View menu's level control filters via
- * `visibleLevels` (storeys unmount when hidden, so picking can't hit them).
+ * `renderedLevels` (storeys unmount when hidden, so picking can't hit them —
+ * except the one storey below a WALKED level, which is deliberately present).
  */
 export function PlanShell() {
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
   const wallColor = plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR
   const [ew, ed] = planBounds(plan)
-  // WALK MODE renders the storeys BELOW the walked one too (item `(g)`): isolation is right for
-  // the dollhouse and the 2D editor, and wrong when you are standing inside the building — over
-  // `tpl-loft`'s mezzanine rail there was no floor below, just sky. Their CEILINGS are suppressed
-  // below, or the sky hole becomes the top of a ceiling slab seen from above.
+  // Walk mode also renders the storey immediately BELOW the walked one, so an
+  // overlook has a floor under it instead of bare sky — see `renderedLevels`.
   const cameraMode = useStore((s) => s.cameraMode)
-  const walking = cameraMode === 'firstPerson'
-  const levels = walking
-    ? visibleLevelsForWalk(plan, viewLevelId)
-    : visibleLevels(plan, viewLevelId)
-  // The height of the floor you are standing on, or null when nothing is being overlooked. A
-  // ceiling BELOW your feet is a lid over the void and must go; a ceiling ABOVE them belongs to a
-  // DOUBLE-HEIGHT room you are standing beside, and is the roof over that volume — suppressing it
-  // put the sky band straight back (measured on `tpl-loft`, v0.31.7.208). Per-storey was the wrong
-  // granularity; the cut is per ROOM, by height.
-  const walkedElevation = walking
-    ? (levels.find((l) => l.id === viewLevelId)?.elevation ?? null)
-    : null
+  const levels = renderedLevels(plan, viewLevelId, cameraMode === 'firstPerson')
 
   return (
     <group>
@@ -605,14 +590,7 @@ export function PlanShell() {
       {levels.map((level) => (
         <group key={level.id} position={[0, level.elevation, 0]}>
           {level.elevation > 0 ? <LevelSlab level={level} /> : null}
-          <PlanLevelShell
-            plan={plan}
-            level={level}
-            wallColor={wallColor}
-            cx={ew / 2}
-            cz={ed / 2}
-            ceilingCullBelowY={level.id === viewLevelId ? null : walkedElevation}
-          />
+          <PlanLevelShell plan={plan} level={level} wallColor={wallColor} cx={ew / 2} cz={ed / 2} />
         </group>
       ))}
       {/* Parametric roof over the top storey (world-space; fades in orbit so the
@@ -648,18 +626,12 @@ function PlanLevelShell({
   wallColor,
   cx,
   cz,
-  ceilingCullBelowY = null,
 }: {
   plan: FloorPlan
   level: PlanLevel
   wallColor: string
   cx: number
   cz: number
-  /** World Y below which this storey's room ceilings are dropped — the elevation of the floor
-   *  being walked, when this storey is being OVERLOOKED from above (item `(g)`). A ceiling under
-   *  your feet reads as a slab lid over the void; one above them roofs a double-height room and
-   *  stays. Null renders every ceiling. */
-  ceilingCullBelowY?: number | null
 }) {
   const finishes = useStore((s) => s.finishes)
   const crownMolding = useFeature('crownMolding')
@@ -685,6 +657,9 @@ function PlanLevelShell({
   // (WALL-REVEAL-CORNER-SPREAD) — the same static map WallSegment/useWallReveal
   // build; plan geometry only changes with the plan itself.
   const neighbors = useMemo(() => cornerNeighbors(lp.walls), [lp])
+  // Wall ids bounding a household shelter on THIS storey — resolved once per
+  // level plan (the boundary walk is per-room) and reused by the wall boxes.
+  const shelterWalls = useMemo(() => shelterWallIds(lp), [lp])
 
   // Pair each render box with whether its source wall is an external/perimeter
   // wall: only those fade for the camera reveal (internal partitions stay solid
@@ -703,10 +678,14 @@ function PlanLevelShell({
             color: w.color ?? wallColor,
             // Wall-types 3D overlay tint (`wallTypes3d` flag) — null when
             // unclassified; resolved once here rather than in the render loop.
-            overlayColor: wallTypeOverlayColor(w.structure),
+            // Resolved (v0.31.8.4), so the 3D Wall-types tint cannot disagree with the
+            // 2D Hackability overlay about the same facade — which is why this
+            // takes the plan-aware resolver, matching `HackabilityLayer`: a
+            // household shelter's RC walls must tint the same in both views.
+            overlayColor: wallTypeOverlayColor(establishedWallStructureInPlan(w, shelterWalls)),
           })),
         ),
-    [lp, wallColor],
+    [lp, wallColor, shelterWalls],
   )
 
   // Walls with `railing` set: render an open metal railing (top rail + posts
@@ -976,56 +955,47 @@ function PlanLevelShell({
           the lid is what you would see instead of the room. A double-height
           room whose ceiling rises past the walked floor keeps it: that surface
           is the roof over the void you are looking into. */}
-      {lp.rooms
-        .filter(
-          (r) =>
-            ceilingCullBelowY == null ||
-            level.elevation + (r.ceilingHeight ?? lp.ceilingHeight) > ceilingCullBelowY + 0.05,
-        )
-        .map((r) => {
-          const h = r.ceilingHeight ?? lp.ceilingHeight
-          const ceilMat = resolvePlanRoomCeiling(finishes, r)
-          if (r.polygon && r.polygon.length >= 3) {
-            return (
-              <PlanRoomCeiling
-                key={r.id}
-                origin={r.origin}
-                width={r.width}
-                depth={r.depth}
-                height={h}
-                polygon={r.polygon}
-                ceiling={r.ceiling}
-                materialId={ceilMat}
-              />
-            )
-          }
+      {lp.rooms.map((r) => {
+        const h = r.ceilingHeight ?? lp.ceilingHeight
+        const ceilMat = resolvePlanRoomCeiling(finishes, r)
+        if (r.polygon && r.polygon.length >= 3) {
           return (
-            <group key={r.id}>
+            <PlanRoomCeiling
+              key={r.id}
+              origin={r.origin}
+              width={r.width}
+              depth={r.depth}
+              height={h}
+              polygon={r.polygon}
+              ceiling={r.ceiling}
+              materialId={ceilMat}
+            />
+          )
+        }
+        return (
+          <group key={r.id}>
+            <PlanRoomCeiling
+              origin={r.origin}
+              width={r.width}
+              depth={r.depth}
+              height={h}
+              ceiling={r.ceiling}
+              materialId={ceilMat}
+            />
+            {/* An L-extension keeps a plain flat ceiling — the treatment applies
+                to the main rectangle only. The finish covers it too. */}
+            {r.extension && (
               <PlanRoomCeiling
-                origin={r.origin}
-                width={r.width}
-                depth={r.depth}
+                origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
+                width={r.extension.width}
+                depth={r.extension.depth}
                 height={h}
-                ceiling={r.ceiling}
                 materialId={ceilMat}
               />
-              {/* An L-extension keeps a plain flat ceiling — the treatment applies
-                to the main rectangle only. The finish covers it too. */}
-              {r.extension && (
-                <PlanRoomCeiling
-                  origin={[
-                    r.origin[0] + r.extension.offset[0],
-                    r.origin[1] + r.extension.offset[1],
-                  ]}
-                  width={r.extension.width}
-                  depth={r.extension.depth}
-                  height={h}
-                  materialId={ceilMat}
-                />
-              )}
-            </group>
-          )
-        })}
+            )}
+          </group>
+        )
+      })}
 
       {/* Walls — external walls fade when between the orbit camera and the plan
           centre; internal partitions stay solid. */}
@@ -1256,7 +1226,10 @@ function FadeWindow({
     } else {
       mat.color.set(glassParams.color)
     }
-    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
+    // GLASS-SKYCATCH-VEIL: the emissive sky-catch stands in for sky luminance,
+    // so it retires when a backdrop paints a real view behind the pane —
+    // otherwise it adds a constant that flattens whatever the view carries.
+    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d, backdropVisibleNow())
     // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
     // compose) and blend day/night through transmission instead (PHOTO-GLASS).
     // Scaled by the glass kind's own transmission cap relative to the clear

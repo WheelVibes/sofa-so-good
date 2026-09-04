@@ -136,7 +136,7 @@ describe('tradePacks — composition (all systems present)', () => {
   it('painter bundles a walls-only finish schedule + paint LITRES', () => {
     const pack = buildTradePack('painter', fullInput)
     expect(pack.includedSheets).toEqual([expect.objectContaining({ name: 'Finishes schedule' })])
-    // v0.31.5.292: this used to print an area and tell the painter to "add
+    // v0.31.5.393: this used to print an area and tell the painter to "add
     // ceilings + a coverage/coats factor per the paint spec" — the arithmetic
     // the app has every input for. Now it prints litres and what to buy.
     expect(pack.html).toContain('Paint quantities')
@@ -214,7 +214,7 @@ describe('tradePacks — honest exclusions when data is missing', () => {
 describe('curtains pack carries a SPECIFICATION, not just footprints', () => {
   it('prints per-window drops and fabric widths', () => {
     const pack = buildTradePack('curtains', fullInput)
-    // v0.31.5.303: the placed list gives each fixture's rendered footprint,
+    // v0.31.5.404: the placed list gives each fixture's rendered footprint,
     // which its own caveat admitted is not an order dimension. A maker needs
     // the drop and the fabric width.
     expect(pack.html).toContain('Curtain specification')

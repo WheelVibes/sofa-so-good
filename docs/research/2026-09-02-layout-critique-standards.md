@@ -21,15 +21,17 @@ published spacing standards)" instead of "the cheaper of the two".
 
 | Check | Band | Source wording |
 |---|---|---|
-| TV viewing distance | 2.4–3.7 m | "Position seating around 8 to 12 feet (2.4 to 3.7 meters) from the television for an optimal viewing experience." |
-| Conversation, ideal | 1.8–2.4 m | "6–8 feet between facing seats." |
+| TV viewing distance | **1.2–1.6 × screen diagonal** | **CORRECTED 2026-09-04.** Was a flat 2.4–3.7 m from "position seating around 8 to 12 feet from the television" — size-blind, though the app knows every screen's width. The industry figures are angular diagonal multipliers: ~1.2× (THX/immersive, ~40°) to ~1.6× (SMPTE/relaxed, ~30°); for 4K "roughly 1.2 times the screen diagonal … without seeing pixels". Cross-checked: a 55″ 4K is published at 5.5 ft THX / 7.3 ft SMPTE = 1.68–2.23 m vs 1.68–2.24 m computed. The old band suited the shipped 75″ TV and would have called an ideal 2.0 m for a 55″ too close. |
+| Lounge seating (subject) | arrange ROLE, not a name regex | **CORRECTED 2026-09-04.** `SEATING_RE = /^(sofa\|armchair)/` missed `recliner`, `chaise-lounge`, `banquette`, `bay-daybed` and `ottoman`; a lounge with a recliner and a TV and no sofa reported "No TV and seating pair in one room to measure" — a silent SKIP of an ordinary room. Now `roleOf() ∈ {seating, armchair}`, which also keeps `dining-chair`/`bar-stool`/`office-chair`/`bench` out. `ottoman` is excluded: it sits BETWEEN sofa and TV, and counting it turned a correct 2.60 m into a 1.60 m warn. |
+| Conversation, ideal | 1.8–2.4 m | "6–8 feet between facing seats." Reported as the ideal; **no longer the warning bound** (see the row below). |
+| Conversation, warn below | **1.2 m (Hall)** | Added 2026-09-04. Edward T. Hall's proxemics: "social space for casual and professional relationships is 4 to 10 feet", personal space 2–4 feet. So 1.22 m is where facing seats stop being sociable, and 3.05 m (= 10 ft) is where social space ends — the SAME source already behind the breakdown row, so both bounds now come from one place. Warning below the 6 ft IDEAL was firing on distances Hall calls normal social distance: measured across the templates, 4 of 6 "too close" warnings were at 1.33/1.37/1.63/1.79 m, all in a studio, 1-bed, condo studio or terrace — small homes where that spacing is the right answer. Only 1.08 m and 1.16 m sat in personal space. Same failure the first sofa check had: a bar that described the housing stock rather than the design. Effect: warns 8 → 4, passes 7 → 11, all 6 fails unchanged. |
 | Conversation, breakdown | > 3.05 m | "Beyond 10 feet (305 cm), conversation becomes difficult — voices must be raised, and the intimacy of connection is lost." |
 | Coffee-table reach | 0.36–0.46 m | "Your coffee table should be about 14 to 18 inches away from your sofa… close enough to easily reach for a drink or book, but far enough to allow comfortable legroom." |
-| Main walkway (context) | 0.91 m generic / **0.70–0.80 m SG** | Generic: "maintain a minimum of 36 inches (91 cm) for walkways". **But SG sources differ**: "the non-negotiable is keeping your main walkway at least 70-80 cm clear". Not implemented as a check — and good thing, since the two standards disagree by ~20 cm and the SG figure is the applicable one for this app. Recorded so a future check uses the right number. |
+| Main walkway | **0.90 m (HDB)** | **CORRECTED 2026-09-04 — the two standards do NOT disagree.** This row previously read "0.91 m generic / 0.70–0.80 m SG", called them ~20 cm apart, and said "the SG figure is the applicable one for this app". Re-researched: HDB's own renovation guidance is that "the internal corridor within an HDB flat should maintain a minimum width of **900mm (90cm)** to ensure free and safe movement", "designed to allow a single person to walk comfortably through the corridor without obstruction". That is the same bar as the generic 36" (0.91 m). The "70–80 cm" figure came from generic decor copy, not HDB, and acting on the old instruction would have made the app **more permissive than HDB's own guideline**. `CLEARANCE.walkwayIdeal` was already 0.9 — the constant was right and the note was wrong. Implemented v0.31.8.18 as `accessibility.ts:MIN_WALKABLE_WIDTH`, applied to every habitable room's min span (a room under 900 mm cannot be walked through whatever it is called, and there is no `corridor` RoomCategory to key on). Related SG figures found: galley kitchen 0.9–1.0 m for one cook and 1.2–1.5 m for two; SCDF requires 1.2 m on the COMMON corridor outside the flat, which is not an interior-design figure. |
 | Sofa-to-coffee-table, SG | 0.30–0.45 m | SG sources give "30-45 cm between the sofa and the coffee table" vs the generic 0.36–0.46 m. Close enough that the current band passes either way, but noted. |
 | Sofa width | 1.75–2.20 m | "Three-seaters are typically 175cm to 220cm wide"; for a 4-room HDB, "a 3-seater straight sofa between 190 and 210 cm wide fits comfortably". |
 
-## The sofa check was derived, then replaced with a cited figure (v0.31.5.269)
+## The sofa check was derived, then replaced with a cited figure (v0.31.5.370)
 
 The first version used a **derived** bar — sofa width ≤ 60% of the room's shorter
 span — because the generic sources give room dimensions but no ratio. It warned
@@ -80,7 +82,7 @@ because the wrong number was *plausible* — it would have read as a real findin
 about the layouts rather than a bug in the ruler, and it was only caught by
 noticing that both schemes reported the identical suspicious value.
 
-## Rug sizing (added v0.31.5.314) — and four false alarms on the way
+## Rug sizing (added v0.31.5.415) — and four false alarms on the way
 
 The most-cited amateur error in interior design, and the app could place a rug
 via `autoArrange` without ever checking it: `suggestions.ts` only prompted when a
@@ -142,6 +144,46 @@ Layout quality on the default flat went 33 → 58 across these fixes. The two
 findings that survive are real: Bedroom 2's rug is neither a proper runner nor a
 proper under-bed rug, and the living-room rug is narrower than the sofa it sits
 under.
+
+## The head-direction convention, and how it was wrong for 46% of beds
+
+**Corrected v0.31.8.9.** `headDir` derived the headboard direction as
+`(sin, -cos)`, citing "the SAME transform `itemFootprint` applies". The
+arithmetic matched that transform, but the transform is the wrong authority: it
+rotates a GLB's off-origin OFFSET (`ox`/`oz`), which is 0 for every parametric
+bed, and its sense is opposite to the render's. three.js turns local +Z to
+`(sin, cos)` — the convention `layout/faceWall.ts` documents — so local -Z goes to
+`(-sin, -cos)`.
+
+Settled against the app's own bed placer rather than by re-deriving the algebra:
+`placeFlush(edge:'W')` puts a bed against the WEST wall at `inward('W') = π/2`,
+so at rotation π/2 the headboard points west, `(-1, 0)`. The old formula gave
+`(+1, 0)` — the foot.
+
+| | old | corrected |
+|---|---|---|
+| rotation 0 / π | head correct | head correct (the two agree when `sin r = 0`) |
+| rotation ±π/2 | returns the FOOT | returns the head |
+
+Both directions of error followed: for a quarter-turned bed the check excluded the
+FOOT (missing real shortfalls, since the convention requires coverage there) and
+measured the HEAD (reporting false shortfalls, since it is deliberately bare).
+
+**Why the tests did not catch it.** Both rotated-bed arms asserted the head points
++X at rotation π/2 — copied from the formula they were checking. A test that
+shares the product's error cannot detect it. Same lesson as the radian/degree pair
+recorded above, but harder to spot: a wrong CONVENTION looks like geometry on both
+sides, where a wrong UNIT eventually reads as an absurd number. The fix was to
+derive the expectations from `inward()` — a different, independently-verified part
+of the codebase — and to confirm each arm fails against the old formula.
+
+**Measured impact:** 64 of 138 beds in shipped/auto-furnished content are
+quarter-turned, and 26 of 137 rug findings (19%) changed their reported
+measurement. No verdict flipped in the corpus, because every auto-arranged rug
+already fails on size — worth stating rather than glossing, since it is the reason
+the defect survived a full corpus sweep. The shipped default flat could not have
+caught it either: all three of its beds sit at rotation 0, where the two
+conventions agree exactly.
 
 ## Sources
 

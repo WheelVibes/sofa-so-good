@@ -336,6 +336,7 @@ const PlanRoomZ = z.object({
       'study',
       'serviceYard',
       'storeroom',
+      'shelter',
       'balcony',
       'foyer',
       'other',
@@ -502,6 +503,18 @@ export const FloorPlanZ = z.object({
   // Optional explicit setting-out datum (TODO G3). Optional + additive — no
   // schema-version bump; absent → the computed default corner.
   datum: z.object({ x: z.number(), z: z.number() }).optional(),
+  // The user's own delivery-route measurements, overriding the published SG
+  // typicals (`analysis/deliveryAccess.ts`). Optional + additive — no version
+  // bump; absent = the check runs on typicals, which it already states.
+  deliveryRoute: z
+    .record(
+      z.string(),
+      z.object({
+        widthM: z.number().positive().optional(),
+        heightM: z.number().positive().optional(),
+      }),
+    )
+    .optional(),
   // Site measurements recorded against the model (`siteMeasurements.ts`).
   // Optional + additive — no version bump; absent = the model is unverified,
   // which the reconciliation sheet states rather than implying agreement.
@@ -600,7 +613,7 @@ const RawSerializedStateZ = z.object({
   version: z.literal(2),
   apartmentId: z.literal('serangoon-north-vista-4r'),
   items: z.array(FurnitureItemZ),
-  // The design as marked AS TENDERED (v0.31.5.308) — what a contractor priced,
+  // The design as marked AS TENDERED (v0.31.5.409) — what a contractor priced,
   // diffed by `analysis/variationRegister.ts`. Persisted because the whole
   // point is surviving the weeks between pricing and building; session-only
   // (as it shipped in .307) undercut it. Additive + optional: a save without

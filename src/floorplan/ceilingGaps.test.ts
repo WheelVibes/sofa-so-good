@@ -57,7 +57,11 @@ describe('ceilingGapRects', () => {
     // area is LARGER than the walkable figure — the ordering is what must agree.
     const jumbo = ceilingGapArea(byId('tpl-hdb-jumbo'))
     const loft = ceilingGapArea(byId('tpl-loft'))
-    expect(jumbo).toBeGreaterThan(45)
+    // Was 45 before the feat/blender-render merge: staging's enclosure walls (SHELTER-ENCLOSURE
+    // `v0.31.8.63` and the bathroom partitions) roofed part of the jumbo's open strip, taking its
+    // gap area to 37.2 m2. The point of this assertion is the RANKING — the jumbo still dominates
+    // the loft by more than 5x, which is what the next line checks.
+    expect(jumbo).toBeGreaterThan(30)
     expect(loft).toBeLessThan(jumbo / 5)
   })
 

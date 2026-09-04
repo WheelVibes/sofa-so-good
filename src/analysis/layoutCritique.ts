@@ -40,18 +40,79 @@
 
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
-import { allPlanRooms, roomAtItem } from '../floorplan/levels'
-import { type FloorPlan, type PlanRoom, planRoomArea } from '../floorplan/types'
+import { allPlanRooms, allPlanWalls, roomAtItem } from '../floorplan/levels'
+import { type FloorPlan, type PlanRoom, type PlanWall, planRoomArea } from '../floorplan/types'
+import { OPENABLE_CABINET_PRIMITIVES } from '../furniture/cabinetOpen'
+import { resolveFootprintDims } from '../furniture/footprintDims'
+import { isInteractableScreen } from '../furniture/screenInteract'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { roleOf } from '../layout/arrangeRoles'
+import { CLEARANCE, OBSTACLE_AREA_M2 } from '../layout/designRules'
+import { findFurnitureSeveredRooms, type SeveredRoom } from '../layout/reachability'
+
+/**
+ * Footprint area (m²) at which a piece DEFINES a walkway rather than being
+ * something you step past. Mirrors `analysis/designScore.ts`'s
+ * `CIRCULATION.obstacleArea`, whose docstring is the rationale: below it —
+ * "lamps, plants, stools, a monitor" — "you step around; it never defines a
+ * walkway". Duplicated as a literal rather than imported to keep this module
+ * free of a dependency on the score that consumes it.
+ */
+const WALKWAY_OBSTACLE_AREA = OBSTACLE_AREA_M2
 
 /** Published thresholds, all metres. See the module header for sources. */
 export const CRITIQUE = {
   /** Screen-to-seat comfortable band. */
-  tvMin: 2.4,
-  tvMax: 3.7,
-  /** Facing-seat conversation band. */
+  /**
+   * TV viewing distance as a multiple of the screen's DIAGONAL — the modern
+   * standard, and size-dependent (corrected v0.31.8.19).
+   *
+   * This was a flat 2.4-3.7 m band from "position seating around 8 to 12 feet
+   * from the television", which ignores screen size entirely even though the app
+   * knows every screen's width. The industry figures are angular, expressed as
+   * diagonal multipliers: "immersive (THX-style, ~40 degrees): sit about 1.2
+   * times the screen diagonal away; balanced: about 1.4 times; relaxed
+   * (SMPTE-style, ~30 degrees): about 1.6 times". For 4K "you can sit at roughly
+   * 1.2 times the screen diagonal ... without seeing pixels".
+   *
+   * Cross-checked against the published per-size figures: a 55" 4K "sits best at
+   * 5.5 feet (THX) or 7.3 feet (SMPTE)" = 1.68-2.23 m, and 1.2-1.6x a 55"
+   * diagonal (1.397 m) gives 1.68-2.24 m. A 65" is quoted at 8.1 ft THX / 9.4 ft
+   * SMPTE = 2.47-2.87 m against 1.98-2.64 m computed — the multipliers land a
+   * little tighter than that source's THX figure, so the band is if anything
+   * generous at the near end rather than falsely strict.
+   *
+   * The old flat band happened to suit the shipped 75" TV (2.29-3.05 m computed)
+   * and would have warned a user with a 55" TV sitting at an ideal 2.0 m.
+   */
+  tvDiagonalMin: 1.2,
+  tvDiagonalMax: 1.6,
+  /** Facing-seat conversation band — the IDEAL, quoted in the detail. */
   convMin: 1.8,
   convIdealMax: 2.4,
+  /**
+   * Lower bound for a WARNING (m) — Hall's social-space floor, not the ideal.
+   *
+   * Edward T. Hall's proxemics puts "social space for casual and professional
+   * relationships" at **4 to 10 feet**, with personal space at 2-4 feet. So
+   * 1.22 m is where facing seats stop being social and become intimate, and
+   * 3.05 m (= 10 ft, `convBreakdown`) is where social space ends — the two
+   * bounds come from the same source.
+   *
+   * **Corrected v0.31.8.20.** The warning used to fire below the 6 ft IDEAL
+   * (`convMin`), which meant warning at distances Hall calls normal social
+   * distance. Measured across the shipped templates: of six "too close"
+   * warnings, four were at 1.33 / 1.37 / 1.63 / 1.79 m — all inside Hall's
+   * social range — and they were all in a studio, a 1-bed, a condo studio or a
+   * terrace, i.e. small homes where that spacing IS the right answer. Only
+   * 1.08 m and 1.16 m sat in personal space and are genuine findings.
+   *
+   * That is the same failure this file's own history records for the first sofa
+   * check: a bar that "described the housing stock rather than the design". The
+   * ideal is still reported; it just no longer produces a warning on a correctly
+   * furnished small SG living room.
+   */
+  convSocialMin: 1.2,
   /** Past this, conversation across the group stops working. */
   convBreakdown: 3.05,
   /**
@@ -70,7 +131,7 @@ export const CRITIQUE = {
    * deliberately excluded, see `HEAD_EXCLUDED` below. Published as a band of
    * 18-24 inches; the check takes the LOWER bound, 18" = 0.46 m, so it only
    * speaks up below what every source treats as the floor rather than nagging
-   * anyone inside the band. Corrected v0.31.5.314: this was 0.61 m applied to
+   * anyone inside the band. Corrected v0.31.5.415: this was 0.61 m applied to
    * all four sides, which failed every correctly-placed bedroom rug in the
    * shipped default flat.
    */
@@ -102,9 +163,60 @@ export const CRITIQUE = {
    */
   sofaWidthMin: 1.75,
   sofaWidthMax: 2.2,
+  /**
+   * Clear floor a STORAGE piece needs in front of it to open and pass (m).
+   *
+   * Not a new number — it is `layout/designRules.ts`'s `CLEARANCE.storageFront`,
+   * re-exported here as the critique's own threshold so the two cannot drift.
+   * `designRules.ts`'s header calls those constants "the single source of truth
+   * for furniture spacing" and `docs/interior-design-guidelines.md` tabulates
+   * this one as a rule the app follows — but until v0.31.8.8 it had **no
+   * consumer anywhere in the codebase**. A documented rule nothing implements is
+   * indistinguishable from no rule.
+   *
+   * It is REPORTED rather than enforced, deliberately. Making the auto-arranger
+   * honour it was tried in v0.31.8.7 and measured worse (see that entry and the
+   * `TODO.md` note): a local per-item clearance objective cannot fix pairwise
+   * spacing in a greedy sequential placer. Telling the user their wardrobe has
+   * 0.45 m to open into is useful even when the app cannot fix it for them.
+   */
+  storageFront: CLEARANCE.storageFront,
+  /**
+   * Walking access alongside a bed (m) — `layout/designRules.ts`'s
+   * `CLEARANCE.bedSurround`, re-exported so the two cannot drift.
+   *
+   * Published as **24 inches ≈ 0.61 m**: "the minimum recommended walking
+   * clearance alongside a bed is 24 inches (about 61 cm)", with 30-36" the
+   * comfortable figure. The constant's 0.6 m is that minimum, so the check
+   * speaks up only below what the sources treat as the floor.
+   *
+   * Like `bedSurround` itself this is about ONE side: "for walking space on any
+   * side you use to get in and out, aim for 18 to 24 inches". A single bed
+   * pushed into a corner with three sides against walls is a normal small-room
+   * answer, not a defect — the same reason the rug check judges a bedside runner
+   * on length rather than condemning it for not framing the bed.
+   *
+   * **The FOOT is deliberately not part of the verdict, and that is measured.**
+   * Sources do give 24" at the foot too, and `docs/interior-design-guidelines.md`
+   * described the intended rule as "≥1 long side + foot". Across the 47 beds in
+   * the authored flat and all 19 templates: 66% meet 0.6 m on a side, 45% at the
+   * foot, and only **23% meet both** — and the curated default flat's own Main
+   * Bedroom measures **0.00 m at the foot**. Requiring it would fail the app's
+   * own hand-authored master bedroom, which is the clearest possible signal that
+   * a foot-to-wall bed is a normal HDB answer rather than a defect.
+   */
+  bedSurround: CLEARANCE.bedSurround,
 } as const
 
-type CritiqueId = 'tv-distance' | 'conversation' | 'coffee-table' | 'sofa-proportion' | 'rug-size'
+type CritiqueId =
+  | 'bed-access'
+  | 'tv-distance'
+  | 'conversation'
+  | 'coffee-table'
+  | 'sofa-proportion'
+  | 'rug-size'
+  | 'storage-access'
+  | 'route-access'
 
 type CritiqueVerdict = 'pass' | 'warn' | 'fail' | 'skipped'
 
@@ -130,8 +242,32 @@ export interface LayoutCritique {
   applied: number
 }
 
-const SEATING_RE = /^(sofa|armchair)/
-const TV_RE = /^tv/
+/**
+ * Lounge seating, for the TV-distance and conversation checks.
+ *
+ * **Was `SEATING_RE = /^(sofa|armchair)/` (corrected v0.31.8.20).** That caught 5
+ * defs and MISSED 5 genuine lounge seats — `recliner`, `chaise-lounge`,
+ * `banquette`, `bay-daybed`, `ottoman` — because their ids do not begin "sofa"
+ * or "armchair". Measured consequence: a living room furnished with a recliner
+ * and a TV and no sofa reported "No TV and seating pair in one room to measure",
+ * i.e. the check SKIPPED an ordinary lounge. A silent skip is worse than a wrong
+ * number, because nothing prompts the reader to look.
+ *
+ * Selection now uses the authored arrange ROLE (`layout/arrangeRoles.ts`), which
+ * puts exactly those 9 lounge pieces under `seating` and `armchair` while
+ * keeping `dining-chair`, `bar-stool`, `office-chair` and `bench` out — the cut
+ * these checks want, already made by someone who was thinking about it. Third
+ * name-regex-as-taxonomy fixed in this module after the rug anchor and the TV
+ * selector.
+ *
+ * **`ottoman` is then excluded, and that is measured rather than assumed.** It is
+ * a footstool that sits BETWEEN the sofa and the TV, so counting it as the
+ * "nearest seat" understates the viewing distance: on a fixture with a sofa at a
+ * correct 2.60 m (pass for a 75" screen) and an ottoman at 1.60 m, including it
+ * flips the room to a warn. Same reasoning for the conversation spread, where an
+ * extra point can only widen the furthest pair and so only add warnings.
+ */
+const LOUNGE_ROLES: ReadonlySet<string> = new Set(['seating', 'armchair'])
 const TABLE_RE = /^coffee-table/
 /** Pieces a rug is sized against. */
 /**
@@ -170,13 +306,27 @@ const RUG_DIRS: readonly RugDir[] = ['-x', '+x', '-z', '+z']
  */
 function headDir(bed: FurnitureItem): RugDir {
   const rad = bed.rotation ?? 0
-  // Local (0, -1) through the SAME transform `itemFootprint` applies:
-  // world = (cos*lx - sin*lz, sin*lx + cos*lz), so (0, -1) maps to (sin, -cos).
-  // Getting the x sign backwards here silently excludes the FOOT instead of the
-  // head on a quarter-turned bed — caught by the rotated-bed test, which is the
-  // only reason a direction-derived exclusion is worth more than dropping the
-  // worst side.
-  const x = Math.sin(rad)
+  // Local (0, -1) under the RENDER rotation, which is what decides where the
+  // headboard physically points: three.js turns local +Z to world
+  // `(sin, cos)` (the convention `layout/faceWall.ts` documents), so local -Z
+  // goes to `(-sin, -cos)`.
+  //
+  // **Corrected v0.31.8.9 — this returned the FOOT for any bed rotated ±90°.**
+  // The previous version used `(sin, -cos)`, justified as "the SAME transform
+  // `itemFootprint` applies". That transform is real but it is the wrong
+  // authority twice over: it rotates a GLB's off-origin OFFSET (`ox`/`oz`),
+  // which is 0 for every parametric bed so it never even runs, and its sense is
+  // opposite to the render's. Ground truth is the app's own bed placer:
+  // `placeFlush(edge:'W')` puts a bed against the WEST wall at
+  // `inward('W') = π/2`, so at rotation π/2 the head points WEST — `(-1, 0)`,
+  // which is what this returns and the old version did not.
+  //
+  // The rotated-bed tests encoded the same wrong convention, so they passed on
+  // the bug: a test that shares the product's error cannot detect it, and this
+  // time the shared error was a CONVENTION rather than a unit. Their
+  // expectations are now derived from `inward()` instead of from the formula
+  // they are checking.
+  const x = -Math.sin(rad)
   const z = -Math.cos(rad)
   if (Math.abs(x) > Math.abs(z)) return x > 0 ? '+x' : '-x'
   return z > 0 ? '+z' : '-z'
@@ -334,10 +484,165 @@ function itemWidth(item: FurnitureItem, def: FurnitureDef): number {
  * design; checks are scoped per room so a two-living-space plan is judged room
  * by room rather than across the home.
  */
+/**
+ * Clear distance (m) straight out from a piece's FRONT face until something
+ * blocks it — another floor item, or a wall — or `max` if nothing does.
+ *
+ * Furniture faces local **+Z**, and a three.js Y-rotation θ turns that front to
+ * world `(sin θ, cos θ)` (`layout/faceWall.ts` derives it; cross-checked against
+ * two shipped placements — `default-bath1-basin` at rotation π sits on the south
+ * wall facing north, and `bath2-basin` at π/2 sits on the west wall facing
+ * east). Getting this sign wrong is exactly how the bed-head rug check went
+ * wrong in v0.31.5.415, so it is verified rather than derived.
+ *
+ * Obstacles are projected onto the front axis and the perpendicular one; only
+ * those whose perpendicular span overlaps the piece's own width count, so a
+ * wardrobe is not "blocked" by something standing beside it. Mounted and noClip
+ * pieces are skipped — they do not occupy floor.
+ */
+function clearanceToward(
+  item: FurnitureItem,
+  def: FurnitureDef,
+  /** Unit direction in the plan, world-space. */
+  fx: number,
+  fz: number,
+  others: Array<{ it: FurnitureItem; def: FurnitureDef }>,
+  walls: PlanWall[],
+  max: number,
+): number {
+  // Perpendicular (right-hand) axis in the plan.
+  const px = fz
+  const pz = -fx
+  const corners = obbCorners(itemFootprint(item, def))
+  let frontAlong = Number.NEGATIVE_INFINITY
+  let halfLo = Number.POSITIVE_INFINITY
+  let halfHi = Number.NEGATIVE_INFINITY
+  const cx = item.position[0]
+  const cz = item.position[1]
+  for (const [x, z] of corners) {
+    const a = (x - cx) * fx + (z - cz) * fz
+    const p = (x - cx) * px + (z - cz) * pz
+    frontAlong = Math.max(frontAlong, a)
+    halfLo = Math.min(halfLo, p)
+    halfHi = Math.max(halfHi, p)
+  }
+  let clear = max
+  const consider = (pts: Array<readonly [number, number]>) => {
+    let minA = Number.POSITIVE_INFINITY
+    let lo = Number.POSITIVE_INFINITY
+    let hi = Number.NEGATIVE_INFINITY
+    for (const [x, z] of pts) {
+      const a = (x - cx) * fx + (z - cz) * fz
+      const p = (x - cx) * px + (z - cz) * pz
+      minA = Math.min(minA, a)
+      lo = Math.min(lo, p)
+      hi = Math.max(hi, p)
+    }
+    // Must sit IN FRONT and overlap the piece's own width to block it.
+    if (minA <= frontAlong) return
+    if (Math.min(hi, halfHi) - Math.max(lo, halfLo) <= 0) return
+    clear = Math.min(clear, minA - frontAlong)
+  }
+  for (const o of others) {
+    if (o.def.mounted || o.def.noClip) continue
+    consider(obbCorners(itemFootprint(o.it, o.def)) as Array<readonly [number, number]>)
+  }
+  for (const w of walls) {
+    consider([
+      [w.start[0], w.start[1]],
+      [w.end[0], w.end[1]],
+    ])
+  }
+  return clear
+}
+
+/** Local axes of an item in world space, under the RENDER rotation (three.js:
+ *  local `+Z` -> `(sin θ, cos θ)`; see `headDir` for why that is the authority
+ *  and `docs/ARCHITECTURE.md` for the v0.31.8.10 mirror bug that came of using a
+ *  different one). `forward` is local +Z, `right` is local +X. */
+function localAxes(item: FurnitureItem): {
+  forward: [number, number]
+  right: [number, number]
+} {
+  const rot = item.rotation ?? 0
+  const s = Math.sin(rot)
+  const c = Math.cos(rot)
+  return { forward: [s, c], right: [c, -s] }
+}
+
+/** Clear floor straight out from a piece's FRONT face (local +Z). */
+function frontClearance(
+  item: FurnitureItem,
+  def: FurnitureDef,
+  others: Array<{ it: FurnitureItem; def: FurnitureDef }>,
+  walls: PlanWall[],
+  max: number,
+): number {
+  const [fx, fz] = localAxes(item).forward
+  return clearanceToward(item, def, fx, fz, others, walls, max)
+}
+
+/**
+ * A screen's rendered width (m) — the item's live resolved footprint width, so a
+ * user who resizes a TV gets a band that follows it.
+ */
+function screenWidth(item: FurnitureItem, def: FurnitureDef): number {
+  if (def.kind === 'parametric') {
+    return resolveFootprintDims(def, item.props, {
+      w: def.defaultFootprint.w,
+      d: def.defaultFootprint.d,
+    }).w
+  }
+  return def.defaultFootprint.w
+}
+
+/**
+ * Is this def a TV, for the viewing-distance check?
+ *
+ * **Was `TV_RE = /^tv/`, which was wrong in BOTH directions (v0.31.8.19).** It
+ * matched `tv-console` — a media console with no screen at all, so the check
+ * reported a "TV viewing distance" to a piece of furniture — and it MISSED
+ * `flatscreen-tv`, an actual TV whose id does not start with "tv". One name regex
+ * measured the wrong thing and ignored the right one; the same class of mistake
+ * as the rug anchor matching `rug-bedroom`.
+ *
+ * Selection now uses the authored screen capability (`isInteractableScreen` —
+ * true for a def whose `paramSchema` carries a `screenContent` enum), which is
+ * exactly {`tv-wall`, `flatscreen-tv`, `monitor`} and excludes the console by
+ * construction.
+ *
+ * `monitor` is then excluded deliberately: a desk monitor is viewed at roughly
+ * arm's length, which is a different published standard, and it is not in this
+ * check's scope today. Applying a TV band to a 28" desk monitor would replace
+ * one category error with another. Logged in `TODO.md`.
+ */
+function isTvScreen(def: FurnitureDef): boolean {
+  return isInteractableScreen(def) && def.id !== 'monitor'
+}
+
+export interface CritiqueOptions {
+  /**
+   * Run the `route-access` check (default **false**).
+   *
+   * It rasterises the whole storey twice — measured at 63 ms on
+   * `tpl-hdb-jumbo` even with the empty-plan baseline memoised — which is fine
+   * for a report built once on demand and NOT fine for `schemeOptions`, which
+   * calls this once per candidate layout. Turning it on there took the Scheme
+   * Compare modal past a 15 s harness timeout that the same scenario clears on
+   * the build without it. So the expensive check is opt-in, and only
+   * `ui/report.ts` opts in.
+   *
+   * `score` excludes skipped checks, so it stays internally comparable on both
+   * paths; it is simply computed over one more check where this is on.
+   */
+  routeAccess?: boolean
+}
+
 export function buildLayoutCritique(
   plan: FloorPlan,
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
+  options: CritiqueOptions = {},
 ): LayoutCritique {
   const rooms = allPlanRooms(plan).filter((r) => planRoomArea(r) > 0)
   const findings: CritiqueFinding[] = []
@@ -346,11 +651,15 @@ export function buildLayoutCritique(
     const def = defs[it.defId]
     return def?.defaultFootprint ? [{ it, def }] : []
   })
-  const seating = resolved.filter((r) => SEATING_RE.test(r.it.defId))
-  const tvs = resolved.filter((r) => TV_RE.test(r.it.defId))
+  const seating = resolved.filter(
+    (r) => LOUNGE_ROLES.has(roleOf(r.it.defId, defs)) && r.it.defId !== 'ottoman',
+  )
+  const tvs = resolved.filter((r) => isTvScreen(r.def))
   const tables = resolved.filter((r) => TABLE_RE.test(r.it.defId))
 
   // 1 — TV viewing distance, per TV, to its NEAREST seat in the same room.
+  //     The band is derived from THIS screen's diagonal (see `CRITIQUE`), so a
+  //     55" and a 75" are not judged against one number.
   if (tvs.length === 0 || seating.length === 0) {
     findings.push({
       id: 'tv-distance',
@@ -367,12 +676,18 @@ export function buildLayoutCritique(
         dist(centre(s.it), centre(tv.it)) < dist(centre(best.it), centre(tv.it)) ? s : best,
       )
       const d = dist(centre(nearest.it), centre(tv.it))
-      const verdict = d >= CRITIQUE.tvMin && d <= CRITIQUE.tvMax ? 'pass' : 'warn'
+      // 16:9 screen: diagonal = width x sqrt(1 + (9/16)^2). The width is the
+      // item's own resolved footprint width, so a resized TV re-bands itself.
+      const diagonal = screenWidth(tv.it, tv.def) * Math.sqrt(1 + (9 / 16) ** 2)
+      const near = diagonal * CRITIQUE.tvDiagonalMin
+      const far = diagonal * CRITIQUE.tvDiagonalMax
+      const verdict = d >= near && d <= far ? 'pass' : 'warn'
+      const inches = Math.round(diagonal / 0.0254)
       findings.push({
         id: 'tv-distance',
         label: 'TV viewing distance',
         verdict,
-        detail: `${d.toFixed(2)} m from the nearest seat (comfortable band ${CRITIQUE.tvMin}–${CRITIQUE.tvMax} m).`,
+        detail: `${d.toFixed(2)} m from the nearest seat — a ${inches}" screen wants ${near.toFixed(2)}–${far.toFixed(2)} m (1.2x diagonal immersive to 1.6x relaxed).`,
         roomName: room?.name,
       })
     }
@@ -405,10 +720,13 @@ export function buildLayoutCritique(
         }
       }
       const room = rooms.find((r) => r.id === roomId)
+      // Warn OUTSIDE Hall's social space, not outside the ideal — see
+      // `CRITIQUE.convSocialMin`. Above `convIdealMax` still warns (further
+      // apart than ideal, though still social) and above `convBreakdown` fails.
       const verdict =
         widest > CRITIQUE.convBreakdown
           ? 'fail'
-          : widest >= CRITIQUE.convMin && widest <= CRITIQUE.convIdealMax
+          : widest >= CRITIQUE.convSocialMin && widest <= CRITIQUE.convIdealMax
             ? 'pass'
             : 'warn'
       findings.push({
@@ -418,7 +736,9 @@ export function buildLayoutCritique(
         detail:
           verdict === 'fail'
             ? `Seats ${widest.toFixed(2)} m apart — past ${CRITIQUE.convBreakdown} m a group cannot hold one conversation.`
-            : `Widest seat spacing ${widest.toFixed(2)} m (ideal ${CRITIQUE.convMin}–${CRITIQUE.convIdealMax} m).`,
+            : widest < CRITIQUE.convSocialMin
+              ? `Seats only ${widest.toFixed(2)} m apart — closer than the ${CRITIQUE.convSocialMin} m social minimum, which reads as intimate rather than sociable.`
+              : `Widest seat spacing ${widest.toFixed(2)} m (ideal ${CRITIQUE.convMin}–${CRITIQUE.convIdealMax} m; sociable from ${CRITIQUE.convSocialMin} m).`,
         roomName: room?.name,
       })
     }
@@ -608,6 +928,205 @@ export function buildLayoutCritique(
         label: 'Rug size',
         verdict: 'skipped',
         detail: `${skewed} rug${skewed === 1 ? '' : 's'} not square to its anchor — overhang is not measured on a rotated pair, because a bounding box would overstate the rug's coverage.`,
+      })
+    }
+  }
+
+  // 6 — Storage access: `storageFront` clear in front of a piece you open and
+  // stand at. Selected by the existing OPENABLE-CABINET PRIMITIVE FAMILY, never
+  // by a name regex (a regex is a guess about a taxonomy that already exists —
+  // how the rug check once matched `rug-bedroom` as its own anchor, v0.31.5.415)
+  // and not by `category === 'storage'` either, which was the first cut and was
+  // too wide: it dragged in NIGHTSTANDS (0.18 m², reached from the bed, where
+  // 0.75 m of standing room in front is not a published requirement) and cube
+  // shelving. That is the same error as applying the dining-rug threshold to a
+  // bed — a cited number aimed at the wrong subject.
+  //
+  // A footprint-area cut was measured and rejected: the 0.5 m² obstacle bar
+  // excludes nightstands correctly but also excludes a `utility-cabinet`
+  // (0.20 m²) that genuinely had a washing machine 0.14 m in front of its door.
+  // Size answers "do you walk around it"; this rule is about "do you open it".
+  //
+  // The FAMILY is used rather than `supportsCabinetOpen(def, props)` because
+  // that helper asks whether there is something to ANIMATE, and answers no for a
+  // SLIDING wardrobe — which still needs somewhere to stand and pass, even with
+  // nothing to swing.
+  {
+    const storage = resolved.filter(
+      (r) =>
+        !r.def.mounted &&
+        r.def.kind === 'parametric' &&
+        OPENABLE_CABINET_PRIMITIVES.has(r.def.primitive),
+    )
+    if (storage.length === 0) {
+      findings.push({
+        id: 'storage-access',
+        label: 'Storage access',
+        verdict: 'skipped',
+        detail: 'No floor-standing storage to measure.',
+      })
+    } else {
+      const walls = allPlanWalls(plan)
+      // Report the TIGHTEST piece, and say how many were measured — a single
+      // worst case with a count is honest, where a bare "1 issue" hides scope.
+      let worst: { name: string; clear: number; roomName?: string } | null = null
+      for (const s of storage) {
+        const others = resolved.filter((r) => r.it.id !== s.it.id)
+        // Measured only up to the target: anything roomier is a pass and the
+        // exact figure past 0.75 m carries no information for this check.
+        const clear = frontClearance(s.it, s.def, others, walls, CRITIQUE.storageFront)
+        if (!worst || clear < worst.clear)
+          worst = { name: s.def.name, clear, roomName: roomAtItem(plan, s.it)?.name }
+      }
+      const tightest = worst as { name: string; clear: number; roomName?: string }
+      const ok = tightest.clear >= CRITIQUE.storageFront - 1e-6
+      findings.push({
+        id: 'storage-access',
+        label: 'Storage access',
+        verdict: ok ? 'pass' : 'warn',
+        // Named only on a WARN: the pass line is a statement about the whole
+        // home, so attributing it to the tightest piece's room would imply the
+        // check only looked there.
+        ...(ok ? {} : { roomName: tightest.roomName }),
+        detail: ok
+          ? `All ${storage.length} storage ${storage.length === 1 ? 'piece has' : 'pieces have'} the recommended ${CRITIQUE.storageFront} m clear in front to open and pass.`
+          : `${tightest.name} has ${tightest.clear.toFixed(2)} m clear in front — ${CRITIQUE.storageFront} m is recommended so a door or drawer opens and you can still pass (tightest of ${storage.length} measured).`,
+      })
+    }
+  }
+
+  // 7 — Bed access: at least ONE long side walkable. Selected by CATEGORY,
+  // which for beds is a real taxonomy (`category === 'beds'`) — the same cut the
+  // rug check uses for its anchor after a name regex matched `rug-bedroom`.
+  {
+    const beds = resolved.filter((r) => r.def.category === 'beds' && !r.def.mounted)
+    if (beds.length === 0) {
+      findings.push({
+        id: 'bed-access',
+        label: 'Bed access',
+        verdict: 'skipped',
+        detail: 'No bed to measure.',
+      })
+    } else {
+      const walls = allPlanWalls(plan)
+      let worst: { clear: number; roomName?: string } | null = null
+      for (const b of beds) {
+        // Only pieces that DEFINE a walkway block a bedside. A nightstand is part
+        // of the bedside arrangement, not an obstruction to it — you step past
+        // it, which is exactly what `CIRCULATION.obstacleArea`'s own docstring
+        // says of anything under 0.5 m² ("lamps, plants, stools — you step
+        // around; it never defines a walkway").
+        //
+        // Measured: without this the AUTHORED default flat warned at 0.24 m,
+        // which is the gap from the bed's side face to its own nightstand. A
+        // check that condemns a bed for having a bedside table is worse than no
+        // check.
+        //
+        // Note this is the OPPOSITE call to `storage-access` above, and
+        // deliberately so: there the question is "can you open this door", where
+        // a small piece in the way still blocks it, and an area cut wrongly
+        // excused a washing machine parked 0.14 m from a cabinet front. Here the
+        // question is "is there a walkway", which is what the area bar is for.
+        const others = resolved.filter(
+          (r) =>
+            r.it.id !== b.it.id &&
+            r.def.defaultFootprint.w * r.def.defaultFootprint.d >= WALKWAY_OBSTACLE_AREA,
+        )
+        const { right } = localAxes(b.it)
+        // The BETTER of the two long sides: the published rule is about the side
+        // you get in and out on, so a bed against a wall on one side is fine.
+        const sides = [
+          clearanceToward(b.it, b.def, right[0], right[1], others, walls, CRITIQUE.bedSurround),
+          clearanceToward(b.it, b.def, -right[0], -right[1], others, walls, CRITIQUE.bedSurround),
+        ]
+        const best = Math.max(...sides)
+        if (!worst || best < worst.clear)
+          worst = { clear: best, roomName: roomAtItem(plan, b.it)?.name }
+      }
+      const tightest = worst as { clear: number; roomName?: string }
+      const ok = tightest.clear >= CRITIQUE.bedSurround - 1e-6
+      findings.push({
+        id: 'bed-access',
+        label: 'Bed access',
+        verdict: ok ? 'pass' : 'warn',
+        ...(ok ? {} : { roomName: tightest.roomName }),
+        detail: ok
+          ? `Every bed has at least one long side with the recommended ${CRITIQUE.bedSurround} m to walk and make it up (${beds.length} measured).`
+          : `The roomiest side of this bed is ${tightest.clear.toFixed(2)} m — ${CRITIQUE.bedSurround} m is the published minimum for getting in and out and making the bed (tightest of ${beds.length} measured).`,
+      })
+    }
+  }
+
+  // 8 — Route access: is every room you could walk into on the EMPTY plan still
+  //     one you can walk into once this layout is placed?
+  //
+  // This is the only check here that is not a distance. v0.31.8.51 established
+  // why it has to exist: `walkway.ts` measures GAPS, and dropping its 0.40 m
+  // floor to catch blocked routes turned every `sofa ↔ coffee-table` adjacency
+  // into a finding and halved the corpus's circulation score. Two pieces 0.05 m
+  // apart are not a route anyone walks — what matters is whether they SEAL one,
+  // which is a connectivity question. `layout/reachability.ts` answers it by
+  // eroding the free floor by half a body and flood-filling what is left.
+  //
+  // The empty-plan baseline is subtracted, so a template that was never
+  // connected (`tpl-hdb-4room`'s bedroom half has no interior door — see
+  // `templateConnectivity.test.ts`) is not blamed on the furniture in it.
+  {
+    // Nothing on the floor can seal nothing, so an empty design SKIPS rather
+    // than passing vacuously — and skipping also avoids the two raster passes.
+    const onFloor = resolved.filter((r) => !r.def.mounted && !r.def.noClip)
+    const skip = !options.routeAccess || rooms.length === 0 || onFloor.length === 0
+    const severed = skip ? [] : findFurnitureSeveredRooms(items, defs, plan)
+    if (skip) {
+      findings.push({
+        id: 'route-access',
+        label: 'Route access',
+        verdict: 'skipped',
+        detail: !options.routeAccess
+          ? 'Route access is measured in the report, not in this comparison.'
+          : rooms.length === 0
+            ? 'No rooms to measure.'
+            : 'No floor-standing furniture to measure.',
+      })
+    } else if (severed.length === 0) {
+      findings.push({
+        id: 'route-access',
+        label: 'Route access',
+        verdict: 'pass',
+        detail: `Every room you can walk into on the empty plan is still reachable with this layout (${rooms.length} measured).`,
+      })
+    } else {
+      const worst = severed[0] as SeveredRoom
+      // Name the piece when ONE move opens the room. That is the difference
+      // between a finding and an instruction, and 19 of the 22 corpus cases
+      // have one (v0.31.8.54). Where several pieces would each do it alone, the
+      // first is named and the count follows — "move any one of these".
+      const culprits = worst.sealedBy
+      const names = culprits
+        .map((c) => defs[c.defId]?.name ?? c.defId)
+        .filter((n, i, a) => a.indexOf(n) === i)
+      const blame =
+        names.length === 0
+          ? ' No single piece opens it — at least two need to move.'
+          : names.length === 1
+            ? ` Moving the ${names[0]} opens it.`
+            : ` Moving any one of the ${names.slice(0, 3).join(', ')} opens it.`
+      // Lead with the TOTAL area, not the room count. Since v0.31.8.54 anchored
+      // the main region on the front door, ONE seal across a home can report
+      // many rooms — on `tpl-hdb-jumbo` a single break leaves 8 rooms and 55 m²
+      // beyond it. "8 rooms" reads like eight problems; the area and the piece
+      // that opens it are what a reader can act on.
+      const totalM2 = severed.reduce((sum, r) => sum + r.areaM2, 0)
+      findings.push({
+        id: 'route-access',
+        label: 'Route access',
+        verdict: 'warn',
+        roomName: worst.roomName,
+        detail:
+          (severed.length === 1
+            ? `${worst.roomName} is walled off by the furniture — ${worst.areaM2.toFixed(1)} m² of floor you cannot reach from the front door.`
+            : `${totalM2.toFixed(1)} m² across ${severed.length} rooms cannot be reached from the front door; the largest is ${worst.roomName} at ${worst.areaM2.toFixed(1)} m².`) +
+          blame,
       })
     }
   }

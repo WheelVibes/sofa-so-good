@@ -1,9 +1,10 @@
 {
   "name": "layout-critique-report",
-  "description": "v0.31.5.314 — the layout critique is applied to the USER'S OWN design, not just to generated schemes. Captures the printable report via the same window.open intercept the drawing-set scenarios use, asserts the Layout critique section exists with measured verdicts, asserts failures/warnings sort above passes, asserts the bedroom runners are NOT flagged (the four false alarms this ships to fix), then renders the captured HTML into the page to screenshot the real table.",
+  "description": "v0.31.5.415 — the layout critique is applied to the USER'S OWN design, not just to generated schemes. Captures the printable report via the same window.open intercept the drawing-set scenarios use, asserts the Layout critique section exists with measured verdicts, asserts failures/warnings sort above passes, asserts the bedroom runners are NOT flagged (the four false alarms this ships to fix), then renders the captured HTML into the page to screenshot the real table.",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     {
       "name": "dismiss-overlays",
       "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"

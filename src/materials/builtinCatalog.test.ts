@@ -76,3 +76,72 @@ describe('default wall finishes are near-neutral (WARM-WALL-CAST)', () => {
     }
   })
 })
+
+/**
+ * **Every tile finish carries its real product `moduleMm` — except hexagons, on
+ * purpose (v0.31.8.16).**
+ *
+ * Before this, 14 tile-pattern finishes had no module, so `tileCoursing` /
+ * `wallTileCoursing` omitted them and the setting-out a tiler works from simply
+ * did not exist for marble, checkerboard, Peranakan or subway. Sizes are
+ * researched product dimensions, never read off `uvScale` (see
+ * `MaterialDef.moduleMm` for why that separation exists).
+ *
+ * The hexagon exclusion is the load-bearing half of this test, and it is measured
+ * rather than argued. Published hex practice: "hexagonal grids do NOT align with
+ * room walls the way square tiles do, so perimeter cuts will be irregular", the
+ * field is set out centre-outward, each perimeter cut is measured individually,
+ * and the trade allows ~15% waste against ~10% for square tile. Feeding hex a
+ * rectangular module on a 2.4 x 2.0 m room (200 mm across-flats) makes
+ * `roomTileCoursing` report 120 tiles against a true 138.6 by area — 13.4% short
+ * before waste, 25% short of the 160 a tiler would order — plus a uniform
+ * 76.2 mm end cut that no hex perimeter has. If someone ever "completes" the
+ * coverage by giving hex a module, this fails.
+ */
+describe('tile finishes carry a specified module', () => {
+  const TILE_PATTERNS = new Set([
+    'tile',
+    'porcelain',
+    'stoneTile',
+    'porcelainStone',
+    'marble',
+    'hexagon',
+    'subway',
+    'checker',
+    'peranakan',
+  ])
+  const tiles = Object.values(BUILTIN_MATERIALS).filter(
+    (m) => m.kind === 'procedural' && TILE_PATTERNS.has(m.pattern),
+  )
+
+  it('finds tile finishes at all, so the checks below are not vacuous', () => {
+    expect(tiles.length).toBeGreaterThanOrEqual(20)
+  })
+
+  it('specifies a module for every NON-hexagon tile finish', () => {
+    const missing = tiles
+      .filter((m) => m.kind === 'procedural' && m.pattern !== 'hexagon' && !m.moduleMm)
+      .map((m) => m.id)
+    expect(missing).toEqual([])
+  })
+
+  it('leaves HEXAGON tiles without one — a rectangle cannot set out a hex field', () => {
+    const hexes = tiles.filter((m) => m.kind === 'procedural' && m.pattern === 'hexagon')
+    expect(hexes.length).toBeGreaterThan(0)
+    for (const h of hexes) expect(h.moduleMm, h.id).toBeUndefined()
+  })
+
+  it('uses plausible product sizes, not texture scales', () => {
+    // A spot-check against the researched figures, so a later edit that silently
+    // swaps in a uvScale-derived number is visible.
+    const mod = (id: string) => {
+      const m = BUILTIN_MATERIALS[id]
+      return m?.kind === 'procedural' ? m.moduleMm : undefined
+    }
+    expect(mod('wall-subway-white')).toEqual([75, 150]) // 3"x6", the original
+    expect(mod('floor-peranakan-jade')).toEqual([200, 200]) // 20cm x 20cm
+    expect(mod('floor-checker-jade')).toEqual([200, 200]) // Peranakan shophouse
+    expect(mod('floor-checker-mono')).toEqual([300, 300]) // generic 12" checker
+    expect(mod('floor-tile-marble')).toEqual([600, 600]) // 24" marble standard
+  })
+})

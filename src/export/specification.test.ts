@@ -136,3 +136,37 @@ describe('buildSpecification', () => {
     expect(spec.clauses[0]!.product).toBe('Emulsion')
   })
 })
+
+/**
+ * **A tile FINISH means there is tiling work (v0.31.8.15).** `hasTiling` used to
+ * be driven solely by `coursing`, which requires a specified `moduleMm` — and 12
+ * floor plus 4 wall tile finishes in the catalogue carry none
+ * (`floor-tile-marble`, `floor-tile-hex`, `floor-checker-*`, `wall-subway-*`,
+ * `wall-peranakan-*`). A home tiled entirely in any of them therefore printed
+ * "Not covered by this specification: tiler — no such work appears in the
+ * design", asserting the ABSENCE of work that exists. That is the dangerous
+ * direction for a contractor document to drift, which is why it is pinned.
+ */
+describe('buildSpecification — tiling trade vs setting-out', () => {
+  it('covers the tiler when a tile finish has NO computable coursing', () => {
+    const spec = buildSpecification(input({ coursing: [], hasTiledFinish: true }))
+    expect(spec.tradesNotCovered).not.toContain('tiler')
+    expect(spec.clauses.some((c) => c.trade === 'tiler')).toBe(true)
+  })
+
+  it('still omits the tiler when the design has no tile finish at all', () => {
+    // The gate must keep working: a fully painted/vinyl home should not be
+    // handed a tiling clause.
+    const spec = buildSpecification(input({ coursing: [], hasTiledFinish: false }))
+    expect(spec.tradesNotCovered).toContain('tiler')
+    expect(spec.clauses.some((c) => c.trade === 'tiler')).toBe(false)
+  })
+
+  it('covers the tiler from coursing alone, for a caller that passes no flag', () => {
+    // Back-compatible: the old signal still works on its own.
+    const spec = buildSpecification(
+      input({ coursing: [{ roomName: 'Bath' }] as never, hasTiledFinish: undefined }),
+    )
+    expect(spec.tradesNotCovered).not.toContain('tiler')
+  })
+})

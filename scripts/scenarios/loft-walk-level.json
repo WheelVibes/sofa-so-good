@@ -1,0 +1,98 @@
+{
+  "name": "loft-walk-level",
+  "description": "(g) LEVEL-ISOLATION-IN-WALK: walking tpl-loft's mezzanine used to hide the storey beneath it, so the overlook rendered as bare sky. Asserts walk mode renders TWO storeys where the dollhouse renders one, then stands at the mezzanine edge (via the dev-only __walkLook lever \u2014 pointer lock is unavailable headless) and shoots the overlook. With the fix disabled the same frame shows only a pale gradient beyond the rail: 57% of pixels differ, overlook-band mean luma 112.7 -> 174.4.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "load-loft",
+      "eval": "(function(){var go=function(){import('/src/floorplan/templates.ts').then(function(m){var t=m.PLAN_TEMPLATES.find(function(p){return p.id==='tpl-loft'}); window.__store.getState().replaceFloorPlan(JSON.parse(JSON.stringify(t)), {furniture:'rehome'})})}; go(); setTimeout(go, 1500); return 'started'})()"
+    },
+    {
+      "name": "plan-loaded",
+      "waitFor": {
+        "store": "state.floorPlan.upperLevels && state.floorPlan.upperLevels.length > 0"
+      },
+      "timeout": 40000
+    },
+    {
+      "name": "select-loft-level",
+      "eval": "(()=>{const s=window.__store.getState(); const up=s.floorPlan.upperLevels[0]; s.setViewLevel(up.id); return up.id})()"
+    },
+    {
+      "name": "walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson'); 'walking'"
+    },
+    {
+      "name": "walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "settled",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson' && state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "lever-settle",
+      "wait": 2000
+    },
+    {
+      "name": "assert-two-storeys",
+      "eval": "(()=>{const s=window.__store.getState(); import('/src/floorplan/levels.ts').then(m=>{window.__probe={rendered:m.renderedLevels(s.floorPlan,s.viewLevelId,s.cameraMode==='firstPerson').map(l=>l.id),visible:m.visibleLevels(s.floorPlan,s.viewLevelId).map(l=>l.id)}}); return 'queued'})()"
+    },
+    {
+      "name": "probe-wait",
+      "wait": 1200
+    },
+    {
+      "name": "check-two-storeys",
+      "eval": "(()=>{const p=window.__probe; if(!p) throw new Error('probe did not run'); if(p.visible.length!==1) throw new Error('expected 1 visible level, got '+p.visible); if(p.rendered.length!==2) throw new Error('walk mode must render the storey below too, got '+p.rendered); return p.rendered.join('+')})()"
+    },
+    {
+      "name": "stand-at-rail",
+      "eval": "(()=>{const l=window.__walkLook; if(!l||!l.setPosition) throw new Error('__walkLook.setPosition missing'); l.setPosition(2.4,3.9); l.setYaw(0); l.setPitch(-0.45); return 'at the mezzanine edge, looking over'})()"
+    },
+    {
+      "name": "settle-view",
+      "wait": 900
+    },
+    {
+      "name": "shot-overlook",
+      "screenshot": "loft-overlook"
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import {
   SRGBColorSpace,
   Texture,
 } from 'three'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { useFeature } from '../features/useFeature'
 import type { CameraMode } from '../state/slices/cameraSlice'
 import type { BackdropKind } from '../state/slices/uiSlice'
@@ -110,6 +111,22 @@ function asCube(tex: Texture): CubeTexture | null {
   cube.colorSpace = SRGBColorSpace
   cube.needsUpdate = true
   return cube
+}
+
+/**
+ * Live read of `isPhotoBackdropActive` straight from the store + feature flags —
+ * safe to call inside a `useFrame` loop (no hooks). Used by the window panes to
+ * retire their emissive sky-catch when a real view is painted behind the glass
+ * (GLASS-SKYCATCH-VEIL); see `glassSkyCatchIntensity`.
+ */
+export function backdropVisibleNow(): boolean {
+  const s = useStore.getState()
+  return isPhotoBackdropActive(
+    s.backdrop,
+    s.cameraMode,
+    !!s.customBackdropUrl,
+    isFeatureEnabled('proceduralSky'),
+  )
 }
 
 /** Configure a texture as an LDR equirectangular `scene.background`. */

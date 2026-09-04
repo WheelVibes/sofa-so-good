@@ -6,7 +6,15 @@ import { canPlace } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { useFeature } from '../features/useFeature'
-import { allPlanRooms, itemsInRoom } from '../floorplan/levels'
+import {
+  allPlanRooms,
+  GROUND_LEVEL_ID,
+  itemsInRoom,
+  itemsOnLevel,
+  levelAsPlan,
+  levelOfRoom,
+  planLevels,
+} from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import {
   resolvePlanRoomCeiling,
@@ -223,12 +231,22 @@ export function FinishPicker() {
       typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
         : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    // F13 (v0.31.9.5): the copy lands on the TARGET room's storey, and is
+    // validated against that storey's walls and items. Targets come from
+    // `allPlanRooms`, so an upstairs room is offerable — and plan XZ is shared
+    // across storeys, which is why copying there used to look right and put the
+    // furniture on the floor below.
+    const targetLevel = levelOfRoom(st.floorPlan, targetId)
+    const targetLevelId = targetLevel?.id ?? GROUND_LEVEL_ID
     const walls = isDefaultPlan(st.floorPlan)
       ? buildCollisionWalls(st.doors)
-      : planCollisionWalls(st.floorPlan, st.doors)
-    let others = st.items
+      : planCollisionWalls(
+          targetLevel ? levelAsPlan(st.floorPlan, targetLevel) : st.floorPlan,
+          st.doors,
+        )
+    let others: typeof st.items = itemsOnLevel(st.items, targetLevelId)
     const placed: typeof srcItems = []
-    for (const c of cloneRoomItems(srcItems, dx, dz, makeId)) {
+    for (const c of cloneRoomItems(srcItems, dx, dz, makeId, targetLevelId)) {
       const def = furnitureCatalog[c.defId]
       if (!def) continue
       if (canPlace(c, def, { others, defs: furnitureCatalog, doors: st.doors, walls })) {
@@ -267,19 +285,40 @@ export function FinishPicker() {
       st.notify.start({ title: 'Nothing to swap between these rooms', kind: 'info' })
       return
     }
-    const swapped = swapRoomLayouts(st.items, aIds, bIds, dx, dz)
-    const walls = isDefaultPlan(st.floorPlan)
-      ? buildCollisionWalls(st.doors)
-      : planCollisionWalls(st.floorPlan, st.doors)
+    // F13 (v0.31.9.5): each arrangement moves to the OTHER room's storey, so the
+    // level ids swap with the positions — and every moved piece is then validated
+    // against the storey it actually lands on, not the ground floor.
+    const aLevelId = levelOfRoom(st.floorPlan, planRoom.id)?.id ?? GROUND_LEVEL_ID
+    const bLevelId = levelOfRoom(st.floorPlan, target.id)?.id ?? GROUND_LEVEL_ID
+    const swapped = swapRoomLayouts(st.items, aIds, bIds, dx, dz, aLevelId, bLevelId)
+    const wallCache = new Map<string, ReturnType<typeof planCollisionWalls>>()
+    const wallsFor = (levelId: string) => {
+      const hit = wallCache.get(levelId)
+      if (hit) return hit
+      const level = planLevels(st.floorPlan).find((l) => l.id === levelId)
+      const walls = isDefaultPlan(st.floorPlan)
+        ? buildCollisionWalls(st.doors)
+        : planCollisionWalls(level ? levelAsPlan(st.floorPlan, level) : st.floorPlan, st.doors)
+      wallCache.set(levelId, walls)
+      return walls
+    }
     const moved = new Set([...aIds, ...bIds])
-    const others = swapped.filter((it) => !moved.has(it.id))
+    // Unchanged semantics: the two arrangements are known-good relative to each
+    // other, so moved pieces are tested against the pieces STAYING put — just
+    // narrowed to the storey each one lands on.
+    const staying = swapped.filter((it) => !moved.has(it.id))
     const allFit = swapped
       .filter((it) => moved.has(it.id))
       .every((it) => {
         const def = furnitureCatalog[it.defId]
-        return def
-          ? canPlace(it, def, { others, defs: furnitureCatalog, doors: st.doors, walls })
-          : true
+        if (!def) return true
+        const levelId = it.levelId ?? GROUND_LEVEL_ID
+        return canPlace(it, def, {
+          others: itemsOnLevel(staying, levelId),
+          defs: furnitureCatalog,
+          doors: st.doors,
+          walls: wallsFor(levelId),
+        })
       })
     if (!allFit) {
       st.notify.start({

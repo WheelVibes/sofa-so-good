@@ -1,7 +1,10 @@
 import type React from 'react'
 import type { PlanWall } from '../../../../floorplan/types'
 import { wallCurveMidpoint, wallSvgPath } from '../../../../floorplan/wallArc'
-import { isDemolitionRestricted } from '../../../../floorplan/wallHackability'
+import {
+  establishedWallStructureInPlan,
+  isDemolitionRestricted,
+} from '../../../../floorplan/wallHackability'
 import type { PlanSelection } from '../../../../state/slices/floorPlanSlice'
 import type { Tool } from '../planConstants'
 
@@ -18,6 +21,8 @@ interface WallsLayerProps {
   sel: PlanSelection
   selectedWalls: Set<string>
   strayWalls: Set<string>
+  /** Ids of walls bounding a household shelter — see `shelterWallIds`. */
+  shelterWalls: ReadonlySet<string>
   toPx: (m: number) => number
   skeleton: boolean
   planWallMultiAdd: boolean
@@ -45,6 +50,7 @@ export function WallsLayer({
   sel,
   selectedWalls,
   strayWalls,
+  shelterWalls,
   toPx,
   skeleton,
   planWallMultiAdd,
@@ -72,7 +78,8 @@ export function WallsLayer({
         // not a toggle, since it's how these plans are always read. Skeleton
         // mode stays a uniform thin stroke (its whole point is exposing
         // corner gaps/overlaps regardless of wall type).
-        const structural = !skeleton && isDemolitionRestricted(w.structure)
+        const structural =
+          !skeleton && isDemolitionRestricted(establishedWallStructureInPlan(w, shelterWalls))
         const gableEnd = !skeleton && w.structure === 'gable-end'
         const stroke = inSel
           ? 'var(--accent)'

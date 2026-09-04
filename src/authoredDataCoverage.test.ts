@@ -1,5 +1,5 @@
 /**
- * Guards on AUTHORED-DATA coverage — the failure mode v0.31.5.288 found.
+ * Guards on AUTHORED-DATA coverage — the failure mode v0.31.5.389 found.
  *
  * The tile setting-out table rendered empty from the day it shipped, because
  * `planTileCoursing` reads FLOOR finishes and no floor material carried a
@@ -43,13 +43,25 @@ describe('modular finishes carry a specified module', () => {
     // A fabricated module on a contractor's drawing is worse than an
     // acknowledged gap. Hex is the sharpest case: the coursing model is
     // rectangular, so a hex "module" would be silently WRONG, not imprecise.
+    //
+    // **`floor-tile-marble` was REMOVED from this list in v0.31.8.16**, and the
+    // reason is a contradiction inside the app rather than a change of taste.
+    // It sat here among concrete, screed and carpet — genuinely continuous
+    // finishes — while `builtinCatalog`'s `TILE_PATTERNS` already counted
+    // `marble` as a tile, and `docs/research/2026-09-03-floor-build-up.md`
+    // researched it AS a tile: "10 mm tile body on a 5 mm adhesive bed". A 10 mm
+    // body is a tile; a marble SLAB is 20 mm+ and cut to size. So the app was
+    // treating one finish as a tile for build-up and as a slab for setting-out.
+    // Resolved toward the tile reading, with the researched 600x600 standard
+    // ("2x2 feet or 24x24 inches"). If the intent was a continuous slab floor,
+    // the fix is to drop `marble` from `TILE_PATTERNS` too — not to keep the two
+    // halves disagreeing.
     for (const id of [
       'floor-tile-hex',
       'floor-tile-hex-charcoal',
       'floor-concrete',
       'floor-screed',
       'floor-carpet-grey',
-      'floor-tile-marble',
     ]) {
       expect(BUILTIN_MATERIALS[id]?.moduleMm, `${id} gained an invented module`).toBeUndefined()
     }
@@ -104,7 +116,7 @@ describe('template wall structure is unauthored, deliberately', () => {
  * Two lessons converge here, both learned the hard way in this arc:
  *
  * **1. A regex over source is a sample, not an enumeration, and its coverage is
- * invisible in the result.** v0.31.5.296 reported "0 of 6 emitters carry a lamp
+ * invisible in the result.** v0.31.5.397 reported "0 of 6 emitters carry a lamp
  * spec". There are EIGHT — `vanity` and `aquarium` use unquoted keys the pattern
  * skipped — and lumens were already derived, so both the numerator and the
  * denominator were wrong from one bad pattern. The wrong denominator is what

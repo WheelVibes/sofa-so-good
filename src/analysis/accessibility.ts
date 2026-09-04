@@ -23,6 +23,28 @@ import { isExternalRoom } from './daylight'
 export const MIN_DOOR_CLEAR = 0.85
 /** Wheelchair turning-circle diameter (m). */
 export const TURN_CIRCLE = 1.5
+/**
+ * HDB's minimum internal corridor width (m) — the bar for a space to be walkable
+ * at all, well below the 1.5 m turning circle.
+ *
+ * "The internal corridor within an HDB flat should maintain a minimum width of
+ * 900mm (90cm) to ensure free and safe movement", "designed to allow a single
+ * person to walk comfortably through the corridor without obstruction".
+ *
+ * **This corrects a figure the repo had recorded wrongly (v0.31.8.18).**
+ * `docs/research/2026-09-02-layout-critique-standards.md` and `TODO.md` both said
+ * the generic 0.91 m (36") and the SG figure "disagree by ~20 cm", giving
+ * "at least 70-80 cm" as the SG number and instructing that a future check
+ * "use the SG figure for this app". They do not disagree: HDB's own renovation
+ * guidance is 900 mm, which is the same bar as the generic 36". Implementing the
+ * TODO as written would have made the app MORE PERMISSIVE than HDB.
+ *
+ * Applied to every habitable room rather than to "corridors", deliberately: a
+ * room narrower than 900 mm cannot be walked through whatever it is called, and
+ * there is no `corridor` `RoomCategory` to key on — recognising one by NAME
+ * would be a guess about a taxonomy, the mistake the rug-anchor regex made.
+ */
+const MIN_WALKABLE_WIDTH = 0.9
 /** A main entrance is at least this wide — used to label the entry door. */
 const ENTRY_WIDTH = 1.0
 
@@ -48,6 +70,9 @@ interface RoomAccessRow {
   /** Smaller plan dimension (m) — the limiting span for a turning circle. */
   minDim: number
   pass: boolean
+  /** `false` when the room is narrower than HDB's 900 mm movement minimum —
+   *  a stricter failure than `pass`, which only rules out a wheelchair turn. */
+  walkable: boolean
 }
 
 export interface AccessibilityReport {
@@ -59,7 +84,7 @@ export interface AccessibilityReport {
   turnPassCount: number
   /** True when every door + room passes (vacuously true with none). */
   allPass: boolean
-  thresholds: { door: number; turn: number }
+  thresholds: { door: number; turn: number; walkable: number }
 }
 
 /** Smaller plan dimension of a room (origin/width/depth are kept as the bbox
@@ -106,7 +131,18 @@ export function buildAccessibilityReport(plan: FloorPlan): AccessibilityReport {
     .filter((r) => !isExternalRoom(r) && r.width > 0 && r.depth > 0)
     .map((r) => {
       const minDim = roomMinDim(r)
-      return { roomId: r.id, roomName: r.name, minDim, pass: minDim >= TURN_CIRCLE }
+      return {
+        roomId: r.id,
+        roomName: r.name,
+        minDim,
+        pass: minDim >= TURN_CIRCLE,
+        // A separate, more serious tier: below HDB's 900 mm the space is not
+        // walkable at all, where failing the turn circle only rules out a
+        // wheelchair. Fires on NO shipped plan — measured across all 19
+        // templates plus the default flat, 168 rooms, narrowest 1.00 m — so it
+        // exists for a user-drawn plan, which is the only place it can occur.
+        walkable: minDim >= MIN_WALKABLE_WIDTH,
+      }
     })
 
   const doorPassCount = doors.filter((d) => d.pass).length
@@ -117,7 +153,7 @@ export function buildAccessibilityReport(plan: FloorPlan): AccessibilityReport {
     doorPassCount,
     turnPassCount,
     allPass: doorPassCount === doors.length && turnPassCount === rooms.length,
-    thresholds: { door: MIN_DOOR_CLEAR, turn: TURN_CIRCLE },
+    thresholds: { door: MIN_DOOR_CLEAR, turn: TURN_CIRCLE, walkable: MIN_WALKABLE_WIDTH },
   }
 }
 

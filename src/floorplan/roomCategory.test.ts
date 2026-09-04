@@ -28,8 +28,26 @@ describe('roomCategoryFromName', () => {
     ['Service Yard', 'serviceYard'],
     ['Utility', 'serviceYard'],
     ['Laundry', 'serviceYard'],
-    ['Household Shelter', 'storeroom'],
+    // A household shelter is its OWN category, not a store room (v0.31.8.25):
+    // its RC walls may not be altered and it is windowless by design, so the
+    // daylight check must never advise a window there.
+    // v0.31.8.44 — names the templates actually use that used to fall through.
+    // "Bedroom 2 Hall" is the ordering case: `hall` matched the living rule
+    // before the bedroom rule ran, so an exec bedroom read as a living room.
+    ['Bedroom 2 Hall', 'bedroom'],
+    ['Grandparent Suite', 'masterBedroom'],
+    ['Sleeping Loft', 'bedroom'],
+    ['Stair Hall', 'foyer'],
+    ['Stair Landing', 'foyer'],
+    ['Stairs', 'foyer'],
+    ['Family Area', 'living'],
+    // ...and the ones the narrow rules must NOT swallow.
+    ['Living / Sleeping', 'living'],
+    ['Hall', 'living'],
+    ['Household Shelter', 'shelter'],
+    ['HS', 'shelter'],
     ['Store Room', 'storeroom'],
+    ['Store', 'storeroom'],
     ['Balcony', 'balcony'],
     ['Foyer', 'foyer'],
     ['Entrance', 'foyer'],

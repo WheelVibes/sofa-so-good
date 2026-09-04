@@ -62,6 +62,13 @@ const ROOM_ID_CATEGORY: Partial<Record<RoomId, RoomCategory>> = {
   serviceYard: 'serviceYard',
 }
 
+/** The default flat's `RoomCategory` for one of its fixed room ids, so a caller
+ *  can resolve `preset.categoryStyle` / `preset.dryFloorByCategory` without
+ *  duplicating `ROOM_ID_CATEGORY` (v0.31.8.17). */
+export function presetRoomCategory(room: RoomId): RoomCategory | undefined {
+  return ROOM_ID_CATEGORY[room]
+}
+
 /** `[idPrefix, category]` pairs derived from the two maps above, used to
  *  resolve a hydrated default item's room category from its id prefix. */
 const PREFIX_CATEGORY: [string, RoomCategory][] = (Object.keys(ROOM_PREFIX) as RoomId[])

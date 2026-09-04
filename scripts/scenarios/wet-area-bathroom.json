@@ -1,0 +1,19 @@
+{
+  "name": "wet-area-bathroom",
+  "description": "WET-AREA BATHROOM (v0.31.9.33): a bathroom narrower than 1.6 m gets a shower SCREEN (0.9 x 0.06) instead of a 0.9 x 0.9 cubicle, which is how an HDB bathroom of 2-3 m2 is actually built and frees the floor its WC and basin needed. Asserts tpl-studio's st-bath carries a WC, a basin AND a screen, then shoots it.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen; every screenshot before this point is the loader (v0.31.9.6)." },
+    { "name": "dismiss", "eval": "(()=>{const s=window.__store.getState();localStorage.setItem('hdb_onboarded','1');s.endTour?.();s.setOnboardingOpen?.(false);s.dismissLocationPrompt?.()})()" },
+    { "name": "daylight", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "load-studio", "eval": "window.__loadTemplate('tpl-studio')" },
+    { "name": "plan-ready", "waitFor": { "store": "state.floorPlan.rooms.some(r => r.id === 'st-bath')" }, "timeout": 20000 },
+    { "name": "furnish", "eval": "window.__store.getState().applyLayoutPreset('move-in')" },
+    { "name": "furnished", "waitFor": { "store": "state.items.length > 10" }, "timeout": 30000 },
+    { "name": "assert-wet-area-fitout", "eval": "(()=>{const st=window.__store.getState();const r=st.floorPlan.rooms.find(x=>x.id==='st-bath');if(!r)throw new Error('no st-bath');const inRoom=st.items.filter(i=>i.position[0]>=r.origin[0]&&i.position[0]<=r.origin[0]+r.width&&i.position[1]>=r.origin[1]&&i.position[1]<=r.origin[1]+r.depth).map(i=>i.defId);for(const need of ['toilet','bathroom-sink','shower-screen']){if(!inRoom.includes(need))throw new Error('st-bath missing '+need+'; has '+inRoom.join(', '))}if(inRoom.includes('shower'))throw new Error('st-bath got a 0.9x0.9 cubicle, not a screen')})()", "failMessage": "a bathroom under 1.6 m wide must carry a WC, a basin and a shower SCREEN (v0.31.9.33)" },
+    { "name": "camera-bath", "eval": "(()=>{const t=window.__three,cam=t?.camera,c=t?.controls;if(!cam)throw new Error('no camera');const st=window.__store.getState();const r=st.floorPlan.rooms.find(x=>x.id==='st-bath');const cx=r.origin[0]+r.width/2,cz=r.origin[1]+r.depth/2;cam.position.set(cx,3.6,cz-0.02);if(c){c.target.set(cx,0,cz);c.update();}cam.lookAt(cx,0,cz)})()" },
+    { "name": "settle", "wait": 1800 },
+    { "name": "shot-bath", "screenshot": "studio-st-bath-wet-area" }
+  ]
+}

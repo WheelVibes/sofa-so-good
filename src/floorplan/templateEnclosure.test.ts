@@ -22,44 +22,18 @@ import { pointInRoom } from './types'
 /** Rooms that share one wall-free volume with another declared room, where at
  *  least one of them is a bath/powder. `plan/level: room + room + …`. */
 const KNOWN_SHARED_ENCLOSURES = [
-  'tpl-hdb-3room/ground: h3-kit + h3-yard + h3-shelter + h3-cbath + h3-living',
-  // h3-mbath + h3-bed2 FIXED in v0.31.7.201 — one partition at x 1.9 plus a door onto the master.
-  // The OTHER `tpl-hdb-3room` entry above is deliberately still open: subdividing the north strip
-  // (kitchen / yard / shelter / common bath, none of which have walls between them) is a layout
-  // design question about how the kitchen and yard are entered, not a missing-partition bug.
-  // tpl-hdb-4room FIXED in v0.31.7.194 — `h4-cbath`/`h4-mbath` owned no walls at all. Three
-  // partitions close the bath column (x 3.6-5.7, z 6.5-9.7) and two doors reach them, which also
-  // separates the master and both bedrooms: the whole five-room component is gone.
-  // tpl-hdb-5room FIXED in v0.31.7.195 — all TEN rooms were one component. Same shape as the
-  // 4-room fix: three partitions close the bath column (x 4.0-6.2, z 6.9-D) plus two doors, and
-  // `h5-m-n` was extended 3.8 -> 4.0 to meet it (the master's rect ends at 4.0, so the old end
-  // left a 0.2 m gap the flood fill walked through).
-  // tpl-hdb-exec FIXED in v0.31.7.196 — the column was already bounded by `ex-b-corr` and
-  // `ex-liv-w`; it needed a north wall east of x 3.6 and a divider between the two baths, plus
-  // doors, since closing it would otherwise leave both baths unreachable.
-  // tpl-hdb-3gen FIXED in v0.31.7.200 — `g3-g-bath-w` started 0.2 m below `g3-svc-s` (a leak),
-  // and `g3-mbath` had no wall north or south of it east of `g3-b-corr`. Both closed, with a door
-  // each so neither bath is sealed.
-  // tpl-hdb-jumbo FIXED in v0.31.7.197 — the doc's headline case. A wall at x 2.1 separates the
-  // baths from the master and a divider splits them; the existing `jb-master` door turned out to
-  // sit over the COMMON BATH, so it serves that and the master got one of its own.
-  // tpl-hdb-maisonette/em-up FIXED in v0.31.7.203 — three gaps, not one: `emu-bed-s` stopped at
-  // x 6.6 short of the east wall, `emu-m-w` started 0.8 m below it, and nothing separated the
-  // hall/landing from the family area. Plus a door so the family area is not sealed.
-  // tpl-condo-4bed FIXED in v0.31.7.199 — the strip z 4.0-6.1 was already closed north and
-  // south; the three baths inside it had no walls between them. Three verticals divide them and
-  // two doors on `c4-mid` keep cbath/bath2 reachable (mbath is reached from the master).
+  'tpl-hdb-4room/ground: h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath',
+  'tpl-hdb-5room/ground: h5-kit + h5-yard + h5-shelter + h5-living + h5-balcony + h5-bed2 + h5-bed3 + h5-master + h5-cbath + h5-mbath',
+  'tpl-hdb-exec/ground: ex-bed2 + ex-bed3 + ex-cbath + ex-mbath',
+  'tpl-hdb-maisonette/em-up: emu-bed3 + emu-landing + emu-hall + emu-mbath + emu-fam',
+  'tpl-condo-4bed/ground: c4-cbath + c4-bath2 + c4-mbath',
 ]
 
 /** Walls that run through a room's interior rather than along its boundary. */
-// EMPTY as of `v0.31.7.202` — both entries fixed, and the list stays here as a ratchet so a new
-// template cannot introduce a wall through the middle of a room.
-//
-// Both were corridor walls running the FULL depth of the plan and so passing through a master
-// bedroom (`jb-wb-corr` 3.20 m through `jb-master`, `g3-b-corr` 2.20 m through `g3-master`) — a
-// grey slab across the middle of a bedroom. Neither needed the span that did it: shortening each
-// to the master's north wall left every enclosure below intact, because by then the baths were
-// held by their own partitions.
+// EMPTY since v0.31.8.30 — both offenders are fixed. `jb-wb-corr through
+// jb-master` went in `.29` and `g3-b-corr through g3-master` here, in each case
+// because the master rectangle had overrun the bedroom-corridor wall. Keep the
+// list (and the sweep) so a new template cannot reintroduce one.
 const KNOWN_BISECTED_ROOMS: string[] = []
 
 const STEP = 0.05

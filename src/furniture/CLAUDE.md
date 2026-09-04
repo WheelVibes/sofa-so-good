@@ -721,3 +721,51 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     The sun-driven alternative is the `sky` backdrop, still gated on `proceduralSky` (false in
     Simple, the app default) by the user's own decision. **This is a live trade-off, not a solved
     problem** — see `docs/open-graphics-decisions.md` item (b).
+
+## A room that cannot hold its kit may have the WRONG KIT (v0.31.9.33)
+
+`kitForRoom` picks by category, and it already varied by SIZE in one place
+(`planRoomArea(room) >= 11` chooses the master-bedroom kit). v0.31.9.33 added the second case and
+the reasoning generalises.
+
+Two bathrooms shipped without a basin — `tpl-terrace-ground/ctu-mbath` since **v0.31.8.9.8**, and
+`tpl-hdb-maisonette/emu-cbath` since v0.31.9.29 — and **five arranger changes were built and
+measured against it before anyone asked whether the FITTING was right for the room**
+(v0.31.9.30-.32: height-aware mounted obstacles, excluding seed-parked mounts, an 800 mm tray,
+mounts-first ordering, a wall preference plus seed exclusion; the cheapest of them cost five other
+severity-1 fixtures).
+
+The arithmetic that settles it: a 0.9 x 0.9 m shower CUBICLE against one wall of a 1.4 m room
+leaves 0.5 m to reach the WC and the basin, under `CLEARANCE.walkwayMin` (0.6). And an HDB
+bathroom of 2-3 m² is not built with a tray-and-door cubicle — it is an open WET AREA with a floor
+drain, graded screed and a fixed glass panel. So `KITS.bathWetArea` uses `shower-screen`
+(0.9 x 0.06) below `WET_AREA_SHORT_M`, and both basins came back: ranked score
+**60,813,163,803 -> 40,813,163,803**, `missing-fixture` 6 -> 4, +13 items, no other class moved.
+
+**Widening the templates 0.1 m was the alternative and is rejected on principle.** These are
+accurate HDB and condo plans; "fully to scale" is the product, so the plan does not move to suit
+the arranger.
+
+**Check the kit against the room before making the placer cleverer.**
+
+## A param that changes the render must change the COLLISION too (v0.31.9.30/.34)
+
+Twice now, a def has exposed a size param that its primitive honoured and the collision did not:
+
+- **`shower`'s `size`** drove the tray, screen, rail and glass and the def had no
+  `footprintParams`, so a 1.2 m shower collided as 0.9 and a 0.8 m one reserved floor it did not
+  occupy (v0.31.9.30).
+- **any def's `height`** drives the rendered box while `verticalSpan` always takes
+  `defaultFootprint.h`, so a shortened piece reserves space it does not occupy and a raised one
+  under-reserves. **Twelve defs carry such a param** — `refrigerator`, `bookshelf`, `ottoman`,
+  `floor-mirror`, `floor-speaker`, `shower-screen`, `fluted-partition`, `aircon-condenser` and four
+  pet fittings. **STILL OPEN (v0.31.9.34): the one-line fix passes the whole suite but is
+  held back** behind the unresolved scenario/corpus discrepancy in `TODO.md`; do not re-apply it
+  before that is understood.
+
+Both were invisible in the corpus, because no kit sets either prop — they only bite a USER who
+resizes a piece in the inspector, which is why neither showed up as a test failure for months.
+
+**When adding a size param, wire it to the footprint (`footprintParams`) or the span, and add a
+test that asserts the collision changed.** A def with an explicit `verticalSpan` stays
+authoritative.

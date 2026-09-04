@@ -27,6 +27,15 @@ export const LoadingOverlay = memo(function LoadingOverlay({
       aria-live="polite"
       aria-busy={active}
       role="status"
+      /* Stable automation hook for the visual harness. `role="status"` is shared
+         with the notification region and the FPS HUD, and matching on the label
+         TEXT is unreliable — `visible: false` ignores `opacity`, so a scenario
+         can pass while the splash is still painted, and it passes VACUOUSLY if
+         it runs before React has rendered the new label. Both mistakes were made
+         in v0.31.8.88 before this attribute existed. Wait on
+         `[data-transition-overlay]` instead: it exists exactly while the overlay
+         is in the DOM. */
+      data-transition-overlay=""
       style={{
         position: 'fixed',
         inset: 0,

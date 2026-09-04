@@ -72,3 +72,58 @@ describe('buildAccessibilityReport', () => {
     expect(r.rooms).toHaveLength(0)
   })
 })
+
+/**
+ * **HDB's 900 mm internal-corridor minimum (v0.31.8.18)** — a stricter tier than
+ * the 1.5 m turning circle. "The internal corridor within an HDB flat should
+ * maintain a minimum width of 900mm (90cm) to ensure free and safe movement."
+ *
+ * This corrects a figure the repo had recorded wrongly: both the standards doc
+ * and `TODO.md` said the generic 0.91 m and the SG figure "disagree by ~20 cm",
+ * gave "at least 70-80 cm" as the SG number, and instructed a future check to
+ * "use the SG figure". They agree at ~900 mm, and following that instruction
+ * would have made the app MORE PERMISSIVE than HDB's own guidance.
+ *
+ * It fires on NO shipped plan — measured across all 19 templates plus the
+ * default flat, 168 rooms, narrowest 1.00 m — so these fixtures are constructed.
+ * That is the honest reason it exists: a user-drawn corridor is the only place a
+ * sub-900 mm room can occur.
+ */
+describe('buildAccessibilityReport — HDB walkable width', () => {
+  const roomPlan = (width: number, depth: number): FloorPlan =>
+    ({
+      id: 'p',
+      name: 'p',
+      ceilingHeight: 2.6,
+      extent: [10, 10],
+      walls: [],
+      openings: [],
+      rooms: [{ id: 'c', name: 'Corridor', origin: [0, 0], width, depth }],
+    }) as unknown as FloorPlan
+
+  it('flags a room narrower than 900 mm as not walkable', () => {
+    const rep = buildAccessibilityReport(roomPlan(0.7, 5))
+    expect(rep.rooms[0]!.walkable).toBe(false)
+    // It necessarily fails the turn circle too — the point is that `walkable`
+    // distinguishes "cannot walk through" from "cannot turn a wheelchair".
+    expect(rep.rooms[0]!.pass).toBe(false)
+  })
+
+  it('passes a 900 mm room, which still fails the turning circle', () => {
+    // The boundary that matters: exactly at HDB's figure is compliant for
+    // movement, and the two tiers must disagree here or the new one is redundant.
+    const rep = buildAccessibilityReport(roomPlan(0.9, 5))
+    expect(rep.rooms[0]!.walkable).toBe(true)
+    expect(rep.rooms[0]!.pass).toBe(false)
+  })
+
+  it('passes both tiers for a generous room', () => {
+    const rep = buildAccessibilityReport(roomPlan(2.4, 3))
+    expect(rep.rooms[0]!.walkable).toBe(true)
+    expect(rep.rooms[0]!.pass).toBe(true)
+  })
+
+  it('publishes the threshold so the report can quote it', () => {
+    expect(buildAccessibilityReport(roomPlan(2.4, 3)).thresholds.walkable).toBe(0.9)
+  })
+})

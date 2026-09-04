@@ -1,9 +1,10 @@
 {
   "name": "lamp-spec-checks",
-  "description": "v0.31.5.298 visual verification: the Lamp specification group in the Checks panel. The default flat already has ceiling lights in its bathrooms, so the IP44 and colour-temperature advisories fire out of the box. Pro mode.",
+  "description": "v0.31.8.0 visual verification: the Lamp specification group in the Checks panel, BOTH arms. The default flat used to ship IP20 ceiling lights in its bathrooms, so this scenario originally just asserted the advisory fired out of the box — which coupled it to the app's own content being non-compliant. That content is now specified wet-rated, so the scenario checks the clean state first and then constructs the failing arm by overriding one bath light back to IP20. Pro mode.",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
     { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
     { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
@@ -11,18 +12,30 @@
     { "name": "settle-post-boot", "wait": 600 },
 
     {
-      "name": "probe-bathroom-fixtures",
-      "eval": "(function(){ const s=window.__store.getState(); const baths=s.floorPlan.rooms.filter(r=>/bath|wc/i.test(r.name)); const lights=s.items.filter(i=>/light|lamp|sconce|vanity/i.test(i.defId)); window.__probe=JSON.stringify({baths:baths.map(b=>b.name), lightDefs:[...new Set(lights.map(l=>l.defId))]}); })()"
+      "name": "probe-shipped-spec",
+      "eval": "(function(){ const s=window.__store.getState(); const lights=s.items.filter(i=>/^default-bath\\d-light$|^default-k-pendant$/.test(i.id)); window.__probe=JSON.stringify(lights.map(l=>({id:l.id, ip:l.props&&l.props.lampIp, cct:l.props&&l.props.lampCct}))); })()"
     },
     { "name": "open-checks", "eval": "window.__store.getState().setClearancePanelOpen(true)" },
     { "name": "panel-open", "waitFor": { "css": ".clr-list" }, "timeout": 15000 },
     { "name": "settle-panel", "wait": 800 },
     {
-      "name": "assert-lamp-spec-group",
-      "eval": "(function(){ const heads=[...document.querySelectorAll('.sec-h')].map(e=>(e.textContent||'').trim()); if(!heads.includes('Lamp specification')) throw new Error('no Lamp specification group — the default flat may have no fixture in a wet room. Section heads: '+heads.join(' | ')); const badges=[...document.querySelectorAll('.badge')].map(e=>(e.textContent||'').trim()); if(!badges.includes('IP rating')) throw new Error('no IP rating finding. Badges: '+badges.join(' | ')); const h=[...document.querySelectorAll('.sec-h')].find(e=>/Lamp specification/.test(e.textContent||'')); h.scrollIntoView({block:'center'}); })()"
+      "name": "assert-shipped-content-is-clean",
+      "eval": "(function(){ const badges=[...document.querySelectorAll('.badge')].map(e=>(e.textContent||'').trim()); if(badges.includes('IP rating')) throw new Error('the shipped flat still raises an IP finding — its bathroom lights should be specified IP44. Badges: '+badges.join(' | ')); if(badges.includes('Colour temp.')) throw new Error('the shipped flat still raises a colour-temperature finding. Badges: '+badges.join(' | ')); })()"
+    },
+    { "name": "shot-clean", "screenshot": "checks-lamp-spec-clean" },
+
+    {
+      "name": "override-one-bath-light-to-ip20",
+      "eval": "(function(){ const s=window.__store.getState(); const light=s.items.find(i=>i.id==='default-bath1-light'); if(!light) throw new Error('default-bath1-light missing from the shipped flat'); s.updateItemProps('default-bath1-light', { lampIp: 20, lampCct: 3000 }); })()"
+    },
+    { "name": "settle-override", "wait": 800 },
+    {
+      "name": "assert-advisory-fires-on-the-failing-arm",
+      "eval": "(function(){ const heads=[...document.querySelectorAll('.sec-h')].map(e=>(e.textContent||'').trim()); if(!heads.includes('Lamp specification')) throw new Error('no Lamp specification group after forcing IP20 in a wet room. Section heads: '+heads.join(' | ')); const badges=[...document.querySelectorAll('.badge')].map(e=>(e.textContent||'').trim()); if(!badges.includes('IP rating')) throw new Error('no IP rating finding after forcing IP20 — the check may be unreachable rather than satisfied. Badges: '+badges.join(' | ')); const h=[...document.querySelectorAll('.sec-h')].find(e=>/Lamp specification/.test(e.textContent||'')); h.scrollIntoView({block:'center'}); })()"
     },
     { "name": "settle-scroll", "wait": 500 },
     { "name": "shot-lamp-spec", "screenshot": "checks-lamp-specification" },
+
     {
       "name": "assert-lighting-layers-group",
       "eval": "(function(){ const heads=[...document.querySelectorAll('.sec-h')].map(e=>(e.textContent||'').trim()); if(!heads.includes('Lighting layers')) throw new Error('no Lighting layers group. Heads: '+heads.join(' | ')); const h=[...document.querySelectorAll('.sec-h')].find(e=>/Lighting layers/.test(e.textContent||'')); const txt=h.parentElement.textContent||''; if(!/Missing/.test(txt)) throw new Error('group present but names no missing layer'); h.scrollIntoView({block:'center'}); })()"

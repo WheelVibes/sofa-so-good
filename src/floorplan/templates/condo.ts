@@ -73,6 +73,10 @@ export function oneBed(): FloorPlan {
     ],
     openings: [
       door('ob-main', 'ob-s', 5.6),
+      // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
+      // for the longest span where the sealed room and the main circulation face
+      // each other; positions then checked against the sightline/soundness tests.
+      door('ob-bed-door', 'ob-bed-e', 1.12),
       door('ob-bed', 'ob-bed-s', 1.2),
       door('ob-bath', 'ob-bath-n', 0.7, 0.7),
       window('ob-bed-win', 'ob-n', 1.2, 1.6),
@@ -128,11 +132,9 @@ export function oneBed(): FloorPlan {
  *  the loft level stacks a sleeping deck + landing over the rear band, with a
  *  parapet guard rail along the open mezzanine edge. */
 export function loft(): FloorPlan {
+  const VOID_TOP = 5.5
   const W = 8.2
   const D = 6.0
-  /** Top of the building: the loft's elevation (3.3) plus its ceiling (2.2). The double-height
-   *  volume's exterior walls and its ceiling both reach this, not the plan's 3.0 m. */
-  const VOID_TOP = 5.5
   // Mezzanine floor sits above the ground volume (ceiling 3.0 m + 0.3 m slab).
   const loftLevel: PlanUpperLevel = {
     id: 'lf-up',
@@ -148,7 +150,16 @@ export function loft(): FloorPlan {
       iwall('lfu-land-w', [4.8, 3.4], [4.8, D - T]),
       iwall('lfu-ward-w', [6.2, 3.4], [6.2, D - T]),
     ],
-    openings: [window('lfu-win', 'lfu-s', 3.6, 1.8), window('lfu-e-win', 'lfu-e', 0.6, 1.2)],
+    openings: [
+      // v0.31.8.34: the stair landing had no door, so the sleeping loft and
+      // dressing area could not be reached. Openings must live on the SAME level
+      // as their wall — this one belongs to `lf-up`, not the ground storey.
+      door('lfu-land-door', 'lfu-land-w', 0.82),
+      // The dressing area was the last room in the library with no door at all.
+      door('lfu-ward-door', 'lfu-ward-w', 0.8, 0.8),
+      window('lfu-win', 'lfu-s', 3.6, 1.8),
+      window('lfu-e-win', 'lfu-e', 0.6, 1.2),
+    ],
     rooms: [
       room('lfu-sleep', 'Sleeping Loft', 0.2, 3.6, 4.5, 2.2, 'floor-wood-ebony', 'bedroom'),
       // Stacked over the ground 'Stairs' room — the stair void / arrival point.
@@ -219,6 +230,9 @@ export function loft(): FloorPlan {
       // 2.0-3.1 and lf-sleep 3.4-7.9; 8.0 - 1.2 - 1.0 = 5.8 is the exact mirror
       // and lands in the Lounge / Study.
       door('lf-main', 'lf-s', 5.8, 1.0),
+      // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
+      // for the longest span where the sealed room and the main circulation face
+      // each other; positions then checked against the sightline/soundness tests.
       door('lf-bath', 'lf-bath-n', 0.7, 0.7),
       window('lf-w1', 'lf-n', 1.2, 2.2),
       window('lf-w2', 'lf-n', 4.4, 2.2),
@@ -232,8 +246,7 @@ export function loft(): FloorPlan {
         width: 7.8,
         depth: 3.3,
         floor: 'floor-concrete',
-        // The whole point of this template, and it was missing: without the override this room
-        // took the plan's 3.0 m and a ceiling lid closed the void off at head height.
+        // The void rises to the loft's underside, not the ground ceiling (item `(w)`).
         ceilingHeight: VOID_TOP,
       },
       {
@@ -363,11 +376,37 @@ export function condo2Bed(): FloorPlan {
       iwall('c2-cbath-n', [7.3, 6.4], [W - T, 6.4]),
       // Open kitchen run + balcony off the living.
       iwall('c2-kit-e', [2.6, 5.4], [2.6, D - T]),
-      iwall('c2-kit-n', [T, 5.4], [2.6, 5.4]),
+      // Stops at x=1.5, leaving a 1.1 m OPENING onto the living — this is the
+      // "Open Kitchen", so it wants a pass-through, not a door. A door here cost
+      // the room its counter run AND its stove whichever end it sat at.
+      iwall('c2-kit-n', [T, 5.4], [1.5, 5.4]),
       parapet('c2-bal-n', [2.7, 6.4], [5.4, 6.4]),
     ],
     openings: [
-      door('c2-main', 'c2-w', 1.0),
+      // v0.31.8.57: 1.0 -> 4.0. `c2-w` winds SOUTH-to-NORTH ((0.1,8.3) -> (0.1,0.1)),
+      // so offset 1.0 put the front door at z 6.85 — inside the OPEN KITCHEN,
+      // whose only other exit is the 1.1 m pass-through at its north-east corner.
+      // Once furnished, the counter run plus the fridge fill that gap, so the
+      // entry pocket WAS the kitchen and the other EIGHT rooms of this flat could
+      // not be reached from the front door (`routeAccess.test.ts`). The unseal
+      // pass cannot fix it: the counter's only clear space is the kitchen's west
+      // strip, which is where the door's own keep-out sits.
+      //
+      // MAIN-DOOR-ROOM's category check passes a kitchen entry on purpose —
+      // `tpl-studio`'s door is deliberately at "the kitchen end … the sole
+      // non-bath option on that wall" — so this was never a category defect. It
+      // is a CIRCULATION one, and 4.0 puts the door at z 3.85, inside
+      // Living / Dining (z 0.2-5.4), which is what item (i) asks for anyway.
+      door('c2-main', 'c2-w', 4.0),
+      // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
+      // for the longest span where the sealed room and the main circulation face
+      // each other; positions then checked against the sightline/soundness tests.
+      door('c2-bed-door', 'c2-bed-w', 5.2),
+      // SOUTH end of the master's west wall. Mid-wall (offset 1.52) put the
+      // door's keep-out exactly where the queen bed goes in a room only 1.7 m
+      // wide — measured as `bed-queen` 1 → 0.
+      door('c2-master-door', 'c2-bed-w', 3.0),
+      door('c2-bal-door', 'c2-bal-n', 0.87),
       door('c2-mbath', 'c2-mbath-s', 0.8),
       door('c2-cbath', 'c2-cbath-n', 0.8),
       window('c2-m-win', 'c2-n', 6.2, 1.8),
@@ -413,13 +452,30 @@ export function condo3Bed(): FloorPlan {
       iwall('c3-cbath-w', [5.2, 6.0], [5.2, D - T]),
       iwall('c3-cbath-n', [5.2, 6.0], [7.0, 6.0]),
       // Balcony off the living's south.
-      parapet('c3-bal-n', [3.1, 7.6], [5.1, 7.6]),
+      // Meets `c3-kit-e` (x=3.0) and `c3-cbath-w` (x=5.2): it used to stop 0.1 m
+      // short at both ends, so the plan shipped a stray-wall integrity warning.
+      parapet('c3-bal-n', [3.0, 7.6], [5.2, 7.6]),
     ],
     openings: [
       door('c3-main', 'c3-w', 1.0),
+      door('c3-bed-door', 'c3-bed-w', 1.0),
       door('c3-b2', 'c3-b2-s', 0.9),
       door('c3-b3', 'c3-b3-s', 0.9),
-      window('c3-kit-win', 'c3-w', 5.0, 1.4),
+      // v0.31.8.33: the kitchen, service yard, common bath, master ensuite and
+      // balcony had NO doors at all — five rooms nobody could walk into. Offsets
+      // come from a wall-by-wall scan for the longest span where the sealed room
+      // and the main circulation face each other.
+      door('c3-kit-door', 'c3-kit-e', 1.17),
+      door('c3-yard-door', 'c3-yard-n', 1.0),
+      door('c3-cbath-door', 'c3-cbath-n', 0.48, 0.7),
+      // Kept to the WEST end: at offset 1.0 its keep-out pushed the master's
+      // wardrobe onto the east wall, in front of `c3-m-win`.
+      door('c3-mbath-door', 'c3-mbath-n', 0.3, 0.8),
+      // The balcony is reached through its parapet line, as a slider would be.
+      door('c3-bal-door', 'c3-bal-n', 0.55),
+      // The kitchen lines offsets 2.0-5.0 of `c3-w`; at 5.0 the glass sat just
+      // past its edge and the probe landed it in the living room instead.
+      window('c3-kit-win', 'c3-w', 2.6, 1.4),
       window('c3-b2-win', 'c3-e', 0.8, 1.5),
       window('c3-b3-win', 'c3-e', 3.0, 1.5),
       window('c3-m-win', 'c3-e', 5.6, 1.8),
@@ -470,17 +526,37 @@ export function condoPenthouse(): FloorPlan {
     ],
     openings: [
       door('cp-main', 'cp-w', 6.0),
+      // v0.31.8.38: the last rooms in the library with NO door. Wall + offset
+      // from the same scan, placed at a wall END — mid-wall offsets cost a queen
+      // bed, a kitchen counter and a washing machine in earlier batches.
+      door('cp-mbath-door', 'cp-mbath-w', 0.2, 0.8),
+      // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
+      // for the longest span where the sealed room and the main circulation face
+      // each other; positions then checked against the sightline/soundness tests.
+      door('cp-bed-door', 'cp-bed-w', 1.22),
+      door('cp-kit-door', 'cp-kit-e', 1.22),
+      // West END of a 1.9 m wall: mid-wall it cost the service yard both its
+      // utility cabinet AND its washing machine.
+      door('cp-yard-door', 'cp-yard-s', 0.1),
       door('cp-b2', 'cp-b2-s', 0.9),
       door('cp-b3', 'cp-b3-s', 0.9),
       door('cp-cbath', 'cp-cbath-s', 0.8),
       window('cp-kit-win', 'cp-n', 1.4, 1.8),
       window('cp-b2-win', 'cp-e', 1.2, 1.6),
       window('cp-b3-win', 'cp-e', 4.4, 1.6),
-      window('cp-m-win', 'cp-e', 7.6, 2.0),
-      // (h): `cp-master` owned no window — `cp-m-win` is on `cp-e` but opens into another room.
-      // `cp-s` is external; centred in its clear span (1.7-3.6).
-      window('cp-m-s-win', 'cp-s', 2.7, 1.5),
-      window('cp-liv-win', 'cp-n', 5.0, 3.0),
+      // BEDROOM-WINDOW (h): this was called `cp-m-win` but its probe lands in the
+      // master BATHROOM, not the bedroom — renamed to say what it is. The master
+      // itself had no window at all; it lines offsets 2.4-4.4 of `cp-s`, which
+      // carries no other opening.
+      window('cp-mbath-win', 'cp-e', 7.6, 2.0),
+      window('cp-m-win', 'cp-s', 2.7, 1.4),
+      // The living room lines offsets 3.7-6.3 of `cp-n`; a 3.0 m pane at 5.0 ran
+      // past it and the probe landed in the DINING room.
+      window('cp-liv-win', 'cp-n', 3.9, 2.4),
+      // The dining room had been borrowing `cp-liv-win`, which overran into it.
+      // With that pane pulled back onto the living room's own span, the dining
+      // room gets its own on the 6.4-8.2 stretch it fronts.
+      window('cp-din-win', 'cp-n', 6.6, 1.4),
     ],
     rooms: [
       room('cp-kit', 'Kitchen', 0.2, 0.2, 3.4, 3.2, 'floor-tile-grey', 'kitchen'),
@@ -525,6 +601,9 @@ export function condoTerrace(): FloorPlan {
       iwall('ctu-b3-s', [T, 11.0], [4.5, 11.0]),
     ],
     openings: [
+      // v0.31.8.34: the family area had no door (same-level wall, so it belongs
+      // in this storey's openings, not the ground floor's).
+      door('ctu-fam-door', 'ctu-b3-s', 1.77),
       door('ctu-m-door', 'ctu-col', 3.0),
       door('ctu-b2-door', 'ctu-col', 5.4),
       door('ctu-b3-door', 'ctu-col', 8.2),
@@ -552,7 +631,6 @@ export function condoTerrace(): FloorPlan {
     ceilingHeight: 3.0,
     extent: [W, D],
     walls: [
-      // Up to the UPPER STOREY'S FLOOR (see `perimeter`): the 0.3 m slab band was unwalled.
       ...perimeter('ct', W, D, upper.elevation),
       // Car-porch parapet at the south (front).
       parapet('ct-porch-n', [T, 2.6], [W - T, 2.6]),
@@ -566,10 +644,25 @@ export function condoTerrace(): FloorPlan {
     ],
     openings: [
       door('ct-main', 'ct-s', 2.4),
+      // v0.31.8.38: the last rooms in the library with NO door. Wall + offset
+      // from the same scan, placed at a wall END — mid-wall offsets cost a queen
+      // bed, a kitchen counter and a washing machine in earlier batches.
+      door('ct-yard-door', 'ct-yard-n', 0.15),
+      // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
+      // for the longest span where the sealed room and the main circulation face
+      // each other; positions then checked against the sightline/soundness tests.
+      door('ct-porch-door', 'ct-porch-n', 1.82),
+      door('ct-din-door', 'ct-din-n', 2.2),
+      door('ct-kit-door', 'ct-din-n', 4.25),
       door('ct-pwd', 'ct-pwd-w', 0.8),
       window('ct-liv-win', 'ct-w', 4.0, 2.0),
-      window('ct-din-win', 'ct-e', 6.0, 2.0),
-      window('ct-kit-win', 'ct-n', 1.0, 1.6),
+      // These two were on each other's side of the house: `ct-din-win` sat on
+      // `ct-e` and landed in the CAR PORCH, `ct-kit-win` on `ct-n`. The dining
+      // room lines offsets 1.9-4.4 of `ct-w`, the kitchen 9.4-11.9 of `ct-e`.
+      window('ct-din-win', 'ct-w', 2.2, 1.6),
+      // 9.6, not further along: past ~10.5 the glass reaches the powder room's
+      // basin wall and the sink stands in front of it.
+      window('ct-kit-win', 'ct-e', 9.6, 1.6),
     ],
     rooms: [
       room('ct-porch', 'Car Porch', 0.2, 0.2, 6.0, 2.4, 'floor-terrazzo', 'other'),
@@ -608,6 +701,9 @@ export function condoStudio(): FloorPlan {
     openings: [
       door('su-main', 'su-w', 2.4),
       door('su-bath', 'su-col', 0.8, 0.7),
+      // v0.31.8.33: the kitchenette and balcony had no way in.
+      door('su-kit-door', 'su-bk', 0.65),
+      door('su-bal-door', 'su-col', 4.8),
       window('su-liv-win', 'su-n', 0.6, 2.0),
       window('su-bath-win', 'su-e', 0.4, 1.0),
     ],
@@ -640,25 +736,25 @@ export function condo4Bed(): FloorPlan {
       iwall('c4-bednorth', [T, 4.0], [W - T, 4.0]),
       // North/south split, living/kitchen/yard dividers, balcony parapet.
       iwall('c4-mid', [T, 6.1], [W - T, 6.1]),
-      // (f): `c4-cbath` + `c4-bath2` + `c4-mbath` were one component. The strip z 4.0-6.1 is
-      // already closed north (`c4-bednorth`) and south (`c4-mid`), but the three baths inside it
-      // have NO walls between them — cbath x 0.2-2.2, bath2 x 2.4-4.4, mbath x 9.0-11.8.
-      iwall('c4-cb-e', [2.3, 4.0], [2.3, 6.1]),
-      iwall('c4-b2-e', [4.5, 4.0], [4.5, 6.1]),
-      iwall('c4-mb-w', [8.9, 4.0], [8.9, 6.1]),
       iwall('c4-livk', [6.3, 6.1], [6.3, D - T]),
       iwall('c4-ky', [9.5, 6.1], [9.5, 7.9]),
       parapet('c4-bal', [6.3, 9.3], [W - T, 9.3]),
     ],
     openings: [
       door('c4-main', 'c4-s', 5.0, 1.1),
+      // v0.31.8.38: the last rooms in the library with NO door. Wall + offset
+      // from the same scan, placed at a wall END — mid-wall offsets cost a queen
+      // bed, a kitchen counter and a washing machine in earlier batches.
+      door('c4-bal-door', 'c4-bal', 0.2),
+      // v0.31.8.34: rooms that had NO door at all. Wall + offset from a scan
+      // for the longest span where the sealed room and the main circulation face
+      // each other; positions then checked against the sightline/soundness tests.
+      door('c4-liv-door', 'c4-mid', 2.67),
+      door('c4-kit-door', 'c4-mid', 7.4),
+      door('c4-bed2-door', 'c4-bednorth', 1.07),
+      door('c4-bed3-door', 'c4-bednorth', 3.2),
+      door('c4-bed4-door', 'c4-bm', 1.52),
       door('c4-master', 'c4-bednorth', 9.5, 1.0),
-      // (f): with the strip divided, `c4-cbath` and `c4-bath2` would be sealed — the exec trap
-      // from `v0.31.7.196`. Both open south onto the living side through `c4-mid` (starts x 0.1),
-      // centred on their rooms. `c4-mbath` is already reached from the master by `c4-master`
-      // above, whose span x 9.6-10.6 sits over the master bath, not the corridor.
-      door('c4-cbath-door', 'c4-mid', 0.65),
-      door('c4-bath2-door', 'c4-mid', 2.85),
       window('c4-b2win', 'c4-n', 0.8, 1.6),
       window('c4-b3win', 'c4-n', 3.6, 1.6),
       // (h): `c4-bed4` owned no window. `c4-n` is external; centred in its clear span

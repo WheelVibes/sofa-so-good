@@ -227,7 +227,9 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   were **removed** — both were broken on touch and duplicated the inspector (finish → inspector
   FinishPicker/QuickFinishes; duplicate → inspector Duplicate action + the minimized-header copy
   icon). Do **not** re-add card action buttons; changing the finish and duplicating are inspector
-  jobs. Stamp mode still exists behind `stampPlace` but is armed only from ⌘K. The favourite button
+  jobs. Its 60-step scenario (`catalog-variant-simple.json`) was DELETED in v0.31.8.93 — it
+  asserted a `catalogVariantPick` flag and `.variant-btn` / `.variant-pop-list` classes that no
+  longer exist anywhere in `src/`, so it failed at step 5 and could never pass. Stamp mode still exists behind `stampPlace` but is armed only from ⌘K. The favourite button
   (`.fav-btn`) shows a solid **red** heart (`Icon.HeartFilled`, `.fav-btn.on { color: var(--danger) }`)
   when saved and the outline `Icon.Heart` otherwise. The one card action besides ♥ is the
   removal **"×"** (`.coll-x`): shown for a `source:'user'` upload **or** a `source:'ikea'`

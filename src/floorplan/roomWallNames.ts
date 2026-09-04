@@ -72,6 +72,35 @@ function wallOnEdge(wall: PlanWall, [a, b]: Edge, tol: number): boolean {
   return overlap >= 0.5 * Math.min(elen, wlen)
 }
 
+/**
+ * The walls bounding `room`, in boundary order. Each wall is matched to at most
+ * one edge (first match wins); `tol` is the collinearity tolerance in metres
+ * (walls can sit slightly off the room's interior rectangle).
+ *
+ * The geometric core shared by the wall-naming pass below and any check that
+ * needs a room's ENCLOSURE rather than its wall names (e.g. the daylight check's
+ * structurally-sealed test) — so there is one room-to-walls resolver, not two.
+ */
+export function roomBoundaryWalls(
+  walls: readonly PlanWall[],
+  room: PlanRoom,
+  tol = 0.25,
+): PlanWall[] {
+  const edges = roomBoundaryEdges(room)
+  const used = new Set<string>()
+  const out: PlanWall[] = []
+  for (const edge of edges) {
+    for (const w of walls) {
+      if (used.has(w.id)) continue
+      if (wallOnEdge(w, edge, tol)) {
+        used.add(w.id)
+        out.push(w)
+      }
+    }
+  }
+  return out
+}
+
 export interface RoomWallNameAssignment {
   id: string
   name: string
@@ -88,21 +117,10 @@ export function assignRoomWallNames(
   room: PlanRoom,
   tol = 0.25,
 ): RoomWallNameAssignment[] {
-  const edges = roomBoundaryEdges(room)
-  const used = new Set<string>()
-  const out: RoomWallNameAssignment[] = []
-  let n = 1
-  for (const edge of edges) {
-    for (const w of walls) {
-      if (used.has(w.id)) continue
-      if (wallOnEdge(w, edge, tol)) {
-        used.add(w.id)
-        out.push({ id: w.id, name: `${room.name} wall ${String(n).padStart(2, '0')}` })
-        n++
-      }
-    }
-  }
-  return out
+  return roomBoundaryWalls(walls, room, tol).map((w, i) => ({
+    id: w.id,
+    name: `${room.name} wall ${String(i + 1).padStart(2, '0')}`,
+  }))
 }
 
 /** The first room whose boundary the wall lies along, or `null` when the wall

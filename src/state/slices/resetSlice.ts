@@ -2,7 +2,7 @@ import { planAirconPlacements } from '../../analysis/airconPlacement'
 import { buildAirconSystemPlan } from '../../analysis/airconSystem'
 import { mapPlanRooms } from '../../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
-import { toArrangeKind } from '../../floorplan/roomCategory'
+import { roomCategoryFromName, toArrangeKind } from '../../floorplan/roomCategory'
 import type { FloorPlan, IntakeStateId } from '../../floorplan/types'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { buildMergedCatalog } from '../../furniture/catalog'
@@ -14,7 +14,12 @@ import {
   isStripoutKeep,
   screedDryFloorFinishes,
 } from '../../furniture/intakeStates'
-import { buildPresetItems, LAYOUT_PRESETS, PRESET_ROOMS } from '../../furniture/layoutPresets'
+import {
+  buildPresetItems,
+  LAYOUT_PRESETS,
+  PRESET_ROOMS,
+  presetRoomCategory,
+} from '../../furniture/layoutPresets'
 import {
   buildOcsFloorFinishesForDefault,
   buildOcsFloorFinishesForPlan,
@@ -176,7 +181,14 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
         // RM1: an explicit, user-set category wins; else the legacy name
         // classifier — living/bedroom rooms get the preset's dry floor.
         const kind = r.category ? toArrangeKind(r.category) : roomKindFromName(r.name)
-        return kind === 'living' || kind === 'bedroom' ? { ...r, floor: preset.dryFloor } : r
+        if (kind !== 'living' && kind !== 'bedroom') return r
+        // A per-category override wins over `dryFloor` (v0.31.8.17) — see
+        // `LayoutPreset.dryFloorByCategory`. Uses the room's resolved category,
+        // so `masterBedroom` and `bedroom` can differ.
+        const category = r.category ?? roomCategoryFromName(r.name)
+        const floorId =
+          (category ? preset.dryFloorByCategory?.[category] : undefined) ?? preset.dryFloor
+        return { ...r, floor: floorId }
       })
       set({
         items: furnishPlanItems(plan, preset, BUILTIN_CATALOG, get().doors),
@@ -192,7 +204,11 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     const floor = { ...cur.floor }
     const walls = { ...cur.walls }
     for (const room of PRESET_ROOMS) {
-      floor[room] = preset.dryFloor
+      // Same per-category override on the fixed default flat, resolved through
+      // the existing per-room-id category map rather than a second table.
+      const category = presetRoomCategory(room)
+      floor[room] =
+        (category ? preset.dryFloorByCategory?.[category] : undefined) ?? preset.dryFloor
       walls[room] = preset.wall
     }
     set({
@@ -297,7 +313,7 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     // Keep only wet-area + kitchen FITTINGS; strip furniture + wardrobes + carpentry.
     const items = get().items.filter((it) => isStripoutKeep(it.defId))
     if (!isDefaultPlan(plan)) {
-      // EVERY storey (F13) via `mapPlanRooms`. MISSED in v0.31.5.281, which
+      // EVERY storey (F13) via `mapPlanRooms`. MISSED in v0.31.5.382, which
       // fixed the other three intake paths and said so — this fourth one kept
       // screeding the ground floor only, leaving a maisonette's upstairs on its
       // old finish. Found while reading this function for an unrelated reason.

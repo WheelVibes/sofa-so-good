@@ -132,30 +132,35 @@ export function visibleLevels(plan: FloorPlan, viewLevelId: string): PlanLevel[]
 }
 
 /**
- * Storeys to render while WALKING a selected level: the walked one plus everything below it.
+ * Storeys to RENDER for a View→Levels selection.
  *
- * **The defect this fixes (item `(g)`).** `visibleLevels` returns only the matching level, and
- * storeys unmount when hidden so picking cannot hit them — correct for the dollhouse and the 2D
- * editor, where isolating a floor is the point. It is wrong in first person, where you are standing
- * inside the building: `walkLevel(plan, 'all')` walks the GROUND floor, so the only way to walk an
- * upper storey is to select it, which is exactly what hides the storey beneath. Walk `tpl-loft`'s
- * mezzanine and there is **no floor, no far wall and no room below over the guard rail — just a
- * pale sky gradient**, measured at ceiling-band luma **28.2** against 129–185 for the rest of the
- * storey.
+ * Identical to {@link visibleLevels} everywhere except FIRST-PERSON, where the
+ * storey immediately below the walked one is added (ML/G-LEVEL-ISOLATION).
+ * Isolating a floor is the point of the dollhouse and the 2D editor; in walk mode
+ * you are standing inside the building and the world should be continuous. The
+ * defect this fixes: `walkLevel(plan, 'all')` walks the GROUND floor, so the only
+ * way to walk an upper storey is to select it — which is exactly what hides the
+ * storey beneath, and `tpl-loft`'s mezzanine overlooks a 25.7 m² double-height
+ * void that then reads as bare sky.
  *
- * Only storeys BELOW are added, never above: standing on the ground floor of a maisonette should
- * not render the upper storey's furniture hanging over your head, and the ceiling above you is the
- * thing that makes an interior read as enclosed.
+ * The immediate storey below only, not all of them: it is what the overlook can
+ * actually see, and it bounds the cost on the weak-device tier.
  *
- * The caller must also suppress the CEILING of every storey below the walked one, or the sky hole
- * is merely replaced by the top of a ceiling slab seen from above.
+ * No ceiling work is needed to make this look right — room ceilings render with
+ * `side: BackSide` so they read from below and are invisible from above, which is
+ * exactly what an overlook wants. (The (g) write-up assumed otherwise and priced
+ * an occluder change for it.)
  */
-export function visibleLevelsForWalk(plan: FloorPlan, viewLevelId: string): PlanLevel[] {
-  const levels = planLevels(plan)
-  if (viewLevelId === 'all') return levels
-  const walked = levels.find((l) => l.id === viewLevelId)
-  if (!walked) return levels
-  return levels.filter((l) => l.elevation <= walked.elevation)
+export function renderedLevels(
+  plan: FloorPlan,
+  viewLevelId: string,
+  firstPerson: boolean,
+): PlanLevel[] {
+  const shown = visibleLevels(plan, viewLevelId)
+  if (!firstPerson || viewLevelId === 'all' || shown.length !== 1) return shown
+  const all = planLevels(plan)
+  const i = all.findIndex((l) => l.id === shown[0]?.id)
+  return i > 0 ? [all[i - 1] as PlanLevel, shown[0] as PlanLevel] : shown
 }
 
 /** The storey a first-person walker stands on for a View→Levels selection
@@ -291,7 +296,7 @@ export function restackLevelElevations(
  * lives in `types.ts`, which cannot import this module without a cycle. This is
  * the whole-home counterpart, for callers that mean "the area of the home".
  * Passing a whole plan to `planTotalArea` silently reports the ground floor only
- * (F13); that was the bug at three call sites fixed in v0.31.5.276.
+ * (F13); that was the bug at three call sites fixed in v0.31.5.377.
  */
 export function planTotalAreaAllLevels(plan: FloorPlan): number {
   return planLevels(plan).reduce((sum, level) => sum + planTotalArea(levelAsPlan(plan, level)), 0)

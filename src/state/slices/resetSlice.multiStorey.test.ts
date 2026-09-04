@@ -89,7 +89,7 @@ describe('intake + preset actions rewrite EVERY storey', () => {
 
 describe('applyResaleStripout — the path .281 missed', () => {
   it('screeds an upstairs dry room too', () => {
-    // v0.31.5.281 fixed applyLayoutPreset / applyOcsStarter / applyBareBto and
+    // v0.31.5.382 fixed applyLayoutPreset / applyOcsStarter / applyBareBto and
     // reported "3 paths". There were four: this one kept mapping `plan.rooms`,
     // so a maisonette's upstairs stayed on its old finish while the ground
     // floor was screeded.

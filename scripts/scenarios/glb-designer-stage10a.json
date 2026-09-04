@@ -3,6 +3,7 @@
   "description": "Asset Studio Stage 10a — decomposed-part TEXTURE FIDELITY. Saves a two-box asset (LEFT box carries a mat:floor-wood-oak textured finish, RIGHT box is a flat-colour control) to the catalog, then re-opens the designer and 'Make parts editable' decomposes that saved GLB via the srcRef path. The decomposed LEFT part must still render the WOOD texture (proving the source map survives decomposition), visibly distinct from the flat-colour RIGHT control. Then tints the textured part (a colour multiply that KEEPS the map) and resets it back to the source look. Needs SHOT_GPU=1 (real WebGL to build/bake the procedural finish texture + decode the reimported GLB image).",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     {
       "name": "dismiss-overlays",
       "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"

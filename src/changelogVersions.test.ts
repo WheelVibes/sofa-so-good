@@ -15,12 +15,24 @@
  * touch, and it **fails on merge rather than on write** — exactly when the
  * collision comes into existence.
  *
- * **The allowlist is the load-bearing part.** Failing outright would force a
- * renumbering that was measured and declined (150 references across 46 source
- * files, to fix labels no tooling reads — `APP_VERSION` is the only version the
- * update flow compares). Silently ignoring duplicates restores the original
- * problem. Requiring *acknowledgement* means the next collision costs one line
- * and a sentence, and cannot happen unnoticed.
+ * **The 67 duplicates are gone (v0.31.8.1).** They were renumbered on the
+ * maintainer's decision: the drawing-accuracy branch's `.249`-`.314` became
+ * `.350`-`.415`, clear of the graphics arc's `.349` ceiling. I had measured the
+ * renumbering and advised against it (135 source references across 45 files, to
+ * fix labels no tooling reads — `APP_VERSION` is the only version the update
+ * flow compares); the call was the maintainer's to make, and it was made.
+ *
+ * A `KNOWN_DUPLICATE_RANGES` escape hatch used to live here, because
+ * acknowledging 67 collisions one line at a time is not reasonable. It was
+ * removed with the duplicates it described rather than left behind as an empty
+ * array with a test that iterated nothing — a suppression mechanism with no
+ * remaining subject is indistinguishable from an absent check, and knip would
+ * flag it besides. If a parallel-numbering collision ever happens at that scale
+ * again, reintroduce it; for one or two, the named allowlist below is enough.
+ *
+ * **The allowlist is still load-bearing.** Silently ignoring duplicates restores
+ * the original problem. Requiring *acknowledgement* means the next collision
+ * costs one line and a sentence, and cannot happen unnoticed.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -31,7 +43,9 @@ import { describe, expect, it } from 'vitest'
  * how you acknowledge a collision; it is not how you make one acceptable.
  */
 const KNOWN_DUPLICATE_VERSIONS: Readonly<Record<string, string>> = {
-  // Historic, predates the parallel-worktree era.
+  // Historic, predates the parallel-worktree era. Not renumberable: the entries
+  // it belongs to were pruned from `main` with the C1-C250 history, so there is
+  // nothing left to renumber against.
   '0.29.3.6': 'Pre-existing duplicate inherited with the pruned C1-C250 history.',
   // The SECOND collision between the same two sessions, and the first this guard
   // caught — it fired on the 0.31.7.2 merge, which is exactly the moment it was
@@ -44,20 +58,6 @@ const KNOWN_DUPLICATE_VERSIONS: Readonly<Record<string, string>> = {
   '0.31.6.3': 'Same collision: this guard itself vs the docs/skills convention.',
 }
 
-/** Ranges where every build number is a known parallel-numbering collision. */
-const KNOWN_DUPLICATE_RANGES: ReadonlyArray<{
-  from: string
-  to: string
-  reason: string
-}> = [
-  {
-    from: '0.31.5.249',
-    to: '0.31.5.349',
-    reason:
-      'Two sessions numbered from the same 0.31.5.248 base in separate worktrees — the drawing-accuracy branch (.249-.314) and the graphics-realism arc (.249-.349, shipped as 0.31.6.0 in PR #110). Renumbering measured and declined; see the note at the top of CHANGELOG.md.',
-  },
-]
-
 const CHANGELOG = join(__dirname, '..', 'CHANGELOG.md')
 
 /** Every `## vX.Y.Z.B` heading, in file order. */
@@ -66,26 +66,11 @@ function headingVersions(): string[] {
   return [...text.matchAll(/^## v(\d+\.\d+\.\d+\.\d+)/gm)].map((m) => m[1] as string)
 }
 
-/** `[major, minor, patch, build]`, for range comparison. */
-function parts(v: string): [number, number, number, number] {
-  const p = v.split('.').map(Number)
-  return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0, p[3] ?? 0]
-}
-
-function inRange(v: string, from: string, to: string): boolean {
-  const cmp = (a: string, b: string) => {
-    const [pa, pb] = [parts(a), parts(b)]
-    for (let i = 0; i < 4; i += 1) {
-      if (pa[i]! !== pb[i]!) return pa[i]! - pb[i]!
-    }
-    return 0
-  }
-  return cmp(v, from) >= 0 && cmp(v, to) <= 0
-}
-
-function acknowledged(v: string): boolean {
-  if (v in KNOWN_DUPLICATE_VERSIONS) return true
-  return KNOWN_DUPLICATE_RANGES.some((r) => inRange(v, r.from, r.to))
+/** Versions appearing more than once, with their count. */
+function duplicates(): Array<[string, number]> {
+  const seen = new Map<string, number>()
+  for (const v of headingVersions()) seen.set(v, (seen.get(v) ?? 0) + 1)
+  return [...seen].filter(([, n]) => n > 1)
 }
 
 describe('CHANGELOG version headings', () => {
@@ -99,34 +84,42 @@ describe('CHANGELOG version headings', () => {
   })
 
   it('has no UNACKNOWLEDGED duplicate version', () => {
-    const seen = new Map<string, number>()
-    for (const v of headingVersions()) seen.set(v, (seen.get(v) ?? 0) + 1)
-    const unacknowledged = [...seen]
-      .filter(([v, n]) => n > 1 && !acknowledged(v))
+    const unacknowledged = duplicates()
+      .filter(([v]) => !(v in KNOWN_DUPLICATE_VERSIONS))
       .map(([v, n]) => `${v} (x${n})`)
       .sort()
     expect(
       unacknowledged,
-      'Two commits claim the same version. If this is a parallel-worktree collision that should NOT be renumbered, add it to KNOWN_DUPLICATE_VERSIONS or KNOWN_DUPLICATE_RANGES with a reason — acknowledgement is cheap, an unnoticed collision is not.',
+      'Two commits claim the same version. Renumber the later range, or — if it genuinely cannot be renumbered — add it to KNOWN_DUPLICATE_VERSIONS with a reason. Acknowledgement is cheap; an unnoticed collision is not.',
     ).toEqual([])
   })
 
   it('does not carry a STALE allowlist entry', () => {
-    // An allowlist that outlives its duplicates quietly permits new ones in the
-    // same range. Every explicitly named version must still be duplicated.
-    const seen = new Map<string, number>()
-    for (const v of headingVersions()) seen.set(v, (seen.get(v) ?? 0) + 1)
-    const stale = Object.keys(KNOWN_DUPLICATE_VERSIONS).filter((v) => (seen.get(v) ?? 0) <= 1)
+    // An allowlist that outlives its duplicates quietly permits new ones under
+    // the same name. Every allowlisted version must still be duplicated.
+    // This is the test that caught the range entry going stale the moment the
+    // renumbering landed, which is the whole reason it is worth having.
+    const counts = new Map(duplicates())
+    const stale = Object.keys(KNOWN_DUPLICATE_VERSIONS).filter((v) => (counts.get(v) ?? 0) <= 1)
     expect(stale, 'these allowlisted versions are no longer duplicated — drop them').toEqual([])
   })
 
-  it('acknowledges the collision this test was written for', () => {
-    // A demonstration that the allowlist is doing real work rather than being
-    // an empty formality: the 0.31.5.249-.349 range IS duplicated today.
-    const seen = new Map<string, number>()
-    for (const v of headingVersions()) seen.set(v, (seen.get(v) ?? 0) + 1)
-    const dupes = [...seen].filter(([, n]) => n > 1).map(([v]) => v)
-    expect(dupes.length).toBeGreaterThan(50)
-    expect(dupes.every(acknowledged)).toBe(true)
+  it('still has a real duplicate to acknowledge, so the allowlist is not a formality', () => {
+    // Pairs with the stale check above: that one fails if an entry has no
+    // subject, this one fails if the allowlist has no entries left to test. If
+    // `0.29.3.6` is ever resolved, delete the allowlist AND this test rather
+    // than leaving either as scaffolding.
+    // Sorted on both sides: the raw order follows CHANGELOG position, which changes whenever a
+    // branch merges and is not what this test is about.
+    //
+    // Four entries as of the feat/blender-render merge, not one. `0.31.6.1`-`.3` are the SECOND
+    // parallel-worktree collision (see `KNOWN_DUPLICATE_VERSIONS`), and they re-enter the file
+    // here because that branch's CHANGELOG half arrived with it — which is exactly the moment
+    // this guard exists to fire on, and it did.
+    expect(
+      duplicates()
+        .map(([v]) => v)
+        .sort(),
+    ).toEqual(['0.29.3.6', '0.31.6.1', '0.31.6.2', '0.31.6.3'].sort())
   })
 })

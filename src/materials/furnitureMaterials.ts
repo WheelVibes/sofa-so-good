@@ -9,6 +9,7 @@ import {
   CanvasTexture,
   Color,
   DoubleSide,
+  LinearFilter,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   RepeatWrapping,
@@ -405,6 +406,102 @@ function getPaintNormal(): Texture {
   // Low strength — paint relief is subtle; just enough to break specular.
   paintNormal = canvasFrom(heightToNormalRGBA(height, N, 0.5))
   return paintNormal
+}
+
+const FLUTE_N_WIDTH = 128
+/** How far past the real cylinder normal the map tilts, as sin amplitude. */
+const FLUTE_N_GAIN = 1.0
+/**
+ * `normalScale` for the flute profile. Swept 0.5 / 1.5 / 3 / 6 / 8 / 12 / 20 with
+ * an internal control (v0.31.8.97); rib contrast rises monotonically the whole
+ * way (10.8 -> 54.1) but profile ROUNDNESS peaks at 8-12 (+0.050) and falls off
+ * by 20 (+0.043), i.e. past ~12 it buys contrast by making the profile squarer.
+ * 8 is the lower end of that plateau — the least exaggeration that reaches it.
+ */
+const FLUTE_N_SCALE = 8
+
+let fluteNormal: Texture | null = null
+/**
+ * FLUTE-NORMAL (v0.31.8.97): exaggerate a rib's curvature with a tangent-space
+ * normal map, so a PAINTED fluted panel's ribs read face-on.
+ *
+ * `CylinderGeometry`'s `u` runs around the circumference (`u = 0` at +Z, the
+ * crown of a +Z-facing panel), so tilting the normal along the tangent by
+ * `sin(2*pi*u)` points it further sideways than the geometry does at every point
+ * except the crown and the flanks — i.e. a steeper virtual cylinder. If the
+ * head-on flatness is a shading-gradient problem, a steeper gradient should show.
+ * It does — measured like-for-like on `feature-wall-finishes.json`, rib contrast
+ * `painted` **8.95 -> 41.09** and `gloss` **14.44 -> 47.26**, with the profile's
+ * shape flipping from square-like (-0.024) to cosine-like (+0.050) in both. That
+ * puts painted AHEAD of `wood` (0.035), the finish that already read correctly.
+ *
+ * This contradicts the argument recorded in v0.31.8.96 — that a normal map could
+ * not help because the cylinders' normals are already correct. The lighting is
+ * not perfectly uniform (the oblique third of the panel always read), so
+ * exaggerating the normal past the true geometry does amplify what directional
+ * content there is. The argument was sound and the premise was wrong.
+ *
+ * **It is an improvement, not a cure.** Face-on the ribs now read as crisply
+ * incised grooves rather than as rounded half-round dowels; the oblique third
+ * still reads better than the middle. Use
+ * `scripts/measure-flute-roundness.mjs` before claiming otherwise, and NOT
+ * `ripple/px`, which is anti-correlated with roundness.
+ */
+function getFluteNormalMap(): Texture {
+  if (fluteNormal) return fluteNormal
+  const c = document.createElement('canvas')
+  c.width = FLUTE_N_WIDTH
+  c.height = 1
+  const ctx = c.getContext('2d')!
+  const img = ctx.createImageData(FLUTE_N_WIDTH, 1)
+  for (let x = 0; x < FLUTE_N_WIDTH; x++) {
+    const u = (x + 0.5) / FLUTE_N_WIDTH
+    const tilt = FLUTE_N_GAIN * Math.sin(2 * Math.PI * u)
+    img.data[x * 4] = Math.round(255 * (0.5 + 0.5 * Math.max(-1, Math.min(1, tilt))))
+    img.data[x * 4 + 1] = 128
+    img.data[x * 4 + 2] = 255
+    img.data[x * 4 + 3] = 255
+  }
+  ctx.putImageData(img, 0, 0)
+  const t = new CanvasTexture(c)
+  t.wrapS = t.wrapT = RepeatWrapping
+  t.channel = 0
+  t.generateMipmaps = false
+  t.minFilter = LinearFilter
+  fluteNormal = t
+  return t
+}
+
+/**
+ * A fluted panel's RIB material: the base finish plus {@link getFluteNormalMap}.
+ *
+ * Ribs only — the backing board has box UVs, where a profile keyed to the
+ * circumferential `u` would band it. `FeatureWall` keeps the plain material on
+ * the board. Gated on `pbrSurfaces`, the same flag as the shared paint
+ * micro-normal, rather than adding a second flag to reason about.
+ */
+export function getFlutedRibMaterial(
+  kind: string,
+  color: string,
+  repeat = 1,
+  sheen = 0,
+): MeshStandardMaterial {
+  const base = getSurfaceMaterial(kind, color, repeat, sheen)
+  if (!isFeatureEnabled('pbrSurfaces')) return base
+  // PAINTED FINISHES ONLY. A material carries ONE `normalMap`, so attaching the
+  // flute profile REPLACES whatever the base had — for `wood` that is
+  // `getWoodMaterial`'s grain, which is the very thing that makes a wood flute
+  // read face-on already (v0.31.8.80). Trading grain for profile would be a
+  // regression on both shipped presets, which use tinted wood.
+  if (kind !== 'painted' && kind !== 'gloss') return base
+  const key = `flutedRibN:${kind}:${color}:${repeat}:${sheen}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const m = base.clone() as MeshStandardMaterial
+  m.normalMap = getFluteNormalMap()
+  m.normalScale.set(FLUTE_N_SCALE, FLUTE_N_SCALE)
+  cache.set(key, m)
+  return m
 }
 
 let leatherNormal: Texture | null = null

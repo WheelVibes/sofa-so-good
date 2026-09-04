@@ -61,7 +61,24 @@ export const bathrooms: LayoutEntry[] = [
     // unchanged (3.765) → new center x = (1.615+3.765)/2 = 2.69.
     position: [2.69, 5.85],
     rotation: 0,
-    props: { style: 'flush', mountHeight: 2.4 },
+    // WET-RATED, and NEUTRAL WHITE — a specification, not a render tweak
+    // (`props.lampIp` / `props.lampCct`, see `lightEmitters.ts`). The catalogue
+    // default is IP20 / 3000 K, which is right for a living room and wrong in a
+    // shower room, and `analysis/lampSpecAdvisory.ts` used to flag the app's OWN
+    // default flat for it. A default that fails its own compliance check teaches
+    // users the warnings are noise, so the curated flat specifies the fitting a
+    // designer would actually have specified.
+    //
+    // Whether this fitting is inside zone 1 or 2 is NOT asserted here: it is
+    // room-centred at [2.69,5.85], ~0.71 m from the shower centre, and the app
+    // models no shower envelope to measure the 0.6 m zone-2 boundary against —
+    // which is exactly why the advisory is room-level and conservative. IP44 is
+    // specified because it is a shower room, not because a zone was computed.
+    //
+    // The CATALOGUE default stays IP20 / 3000 K, so the advisory still fires for
+    // a user who drops a plain ceiling light in here. Fixing the content does
+    // not weaken the check.
+    props: { style: 'flush', mountHeight: 2.4, lampIp: 44, lampCct: 4000 },
   },
   // Bath 2 — WC + basin against the WEST wall (the bath1/bath2 partition),
   // clear of the door on the north wall (hard against the east wall).
@@ -101,6 +118,7 @@ export const bathrooms: LayoutEntry[] = [
     // (3.865+5.615)/2 = 4.74.
     position: [4.74, 5.85],
     rotation: 0,
-    props: { style: 'flush', mountHeight: 2.4 },
+    // Wet-rated and neutral white — see `default-bath1-light` above.
+    props: { style: 'flush', mountHeight: 2.4, lampIp: 44, lampCct: 4000 },
   },
 ]

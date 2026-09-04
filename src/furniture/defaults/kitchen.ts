@@ -45,7 +45,15 @@ export const kitchen: LayoutEntry[] = [
     defId: 'ceiling-light',
     position: [7.98, 8.0],
     rotation: 0,
-    props: { style: 'flush' },
+    // NEUTRAL WHITE (4000 K), not the catalogue's 3000 K warm default. Despite
+    // the id, this is a room-centred FLUSH fitting providing the kitchen's
+    // ambient light, not a warm feature pendant over a table — and a kitchen is
+    // a task space, where ~4000 K is what keeps the colour of meat, fish and
+    // produce true (`analysis/lampSpecAdvisory.ts`). Specifying it here answers
+    // the advisory's question for the CURATED flat, which is a designer's call
+    // to make; the catalogue default stays 3000 K so the advisory still asks it
+    // of a user's own kitchen.
+    props: { style: 'flush', lampCct: 4000 },
   },
   {
     id: 'default-k-stove',

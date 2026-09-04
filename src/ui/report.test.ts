@@ -235,7 +235,7 @@ describe('buildReportHtml', () => {
     expect(html).toContain('Lighting plan')
     expect(html).toContain('lighting plan,') // svg aria-label
     expect(html).toMatch(/×\d+/) // a fixture quantity in the schedule
-    // v0.31.5.297: the schedule quotes what a supplier needs — lumens, colour
+    // v0.31.5.398: the schedule quotes what a supplier needs — lumens, colour
     // temperature and ingress protection — not scene candela. `intensity` is a
     // render unit whose own registry header warns it must never be compared to
     // a real luminaire, so printing it on a professional schedule invited
@@ -814,14 +814,28 @@ describe('report lamp-specification advisories (F13 + compliance)', () => {
     return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
   })
 
+  // The non-compliant arm is CONSTRUCTED, not borrowed from the shipped flat.
+  // These tests used to use the default flat's own IP20 bathroom lights as the
+  // failing fixture. When v0.31.8.0 specified those fittings wet-rated (so the
+  // app's own content stops failing its own compliance check), two of these
+  // tests broke and a third — the Simple-mode one — started passing VACUOUSLY:
+  // it asserts the finding is absent, and the finding had become absent
+  // everywhere. A test that shares its fixture with shipped content silently
+  // changes meaning when that content is corrected, so each arm now owns its
+  // input.
+  const withIp = (ip: number) =>
+    items.map((it) =>
+      it.defId === 'ceiling-light' ? { ...it, props: { ...it.props, lampIp: ip } } : it,
+    )
+
   it('prints the wet-room IP finding, which the Checks panel alone cannot deliver', async () => {
     // A COMPLIANCE finding that lives only in the app never reaches the person
     // it is for — a contractor reads this document, not a panel in someone
-    // else's browser. The default flat has an IP20 ceiling light in a bathroom.
+    // else's browser.
     const { useStore } = await import('../state/store')
     useStore.getState().setUiMode('pro')
     useStore.getState().reresolveFeatureFlags()
-    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    const html = buildReportHtml(plan, withIp(20), BUILTIN_CATALOG, null)
     expect(html).toContain('IP rating')
     expect(html).toMatch(/need IP44 minimum/)
     // The escape hatch travels with it — zones are not modelled.
@@ -834,22 +848,36 @@ describe('report lamp-specification advisories (F13 + compliance)', () => {
     const { useStore } = await import('../state/store')
     useStore.getState().setUiMode('pro')
     useStore.getState().reresolveFeatureFlags()
-    const specified = items.map((it) =>
-      it.defId === 'ceiling-light' ? { ...it, props: { ...it.props, lampIp: 44 } } : it,
-    )
-    const before = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
-    const after = buildReportHtml(plan, specified, BUILTIN_CATALOG, null)
+    const before = buildReportHtml(plan, withIp(20), BUILTIN_CATALOG, null)
+    const after = buildReportHtml(plan, withIp(44), BUILTIN_CATALOG, null)
     expect(before).toMatch(/need IP44 minimum/)
     expect(after).not.toMatch(/need IP44 minimum/)
   })
 
-  it('is absent in Simple mode (pro-tier flag)', async () => {
+  it('raises nothing on the SHIPPED content, and would if that regressed', async () => {
+    // The default flat is compliant as shipped (`defaults/lampSpec.test.ts`
+    // pins the content itself). Asserted against the constructed IP20 arm in
+    // the same test so "clean" cannot mean "the section stopped rendering".
     const { useStore } = await import('../state/store')
-    useStore.getState().setUiMode('simple')
-    useStore.getState().reresolveFeatureFlags()
-    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toMatch(/need IP44 minimum/)
     useStore.getState().setUiMode('pro')
     useStore.getState().reresolveFeatureFlags()
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toMatch(/need IP44 minimum/)
+    expect(buildReportHtml(plan, withIp(20), BUILTIN_CATALOG, null)).toMatch(/need IP44 minimum/)
+  })
+
+  it('is absent in Simple mode (pro-tier flag)', async () => {
+    const { useStore } = await import('../state/store')
+    const nonCompliant = withIp(20)
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    expect(buildReportHtml(plan, nonCompliant, BUILTIN_CATALOG, null)).not.toMatch(
+      /need IP44 minimum/,
+    )
+    // And PRESENT in Pro on the same input — without this the assertion above
+    // would pass for any reason at all, including the advisory being gone.
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    expect(buildReportHtml(plan, nonCompliant, BUILTIN_CATALOG, null)).toMatch(/need IP44 minimum/)
   })
 })
 
@@ -915,7 +943,7 @@ describe('report palette-restraint note (F13-adjacent design review)', () => {
   })
 })
 
-describe('layout critique in the report (v0.31.5.314)', () => {
+describe('layout critique in the report (v0.31.5.415)', () => {
   const plan = buildDefaultPlan()
   const items = defaultLayout().map((e) => {
     const d = BUILTIN_CATALOG[e.defId]

@@ -43,7 +43,7 @@ designer's own judgment loop.
 
 ## Confirmed gaps
 
-### ✅ SHIPPED v0.31.5.254 — G1 — Exactly one section, hardcoded, with no cut marker on the plan
+### ✅ SHIPPED v0.31.5.355 — G1 — Exactly one section, hardcoded, with no cut marker on the plan
 **Status: CONFIRMED in source.** `src/floorplan/section.ts` `buildSection()`
 accepts an arbitrary `SectionCut { axis: 'x' | 'z', at: number }`, but
 `src/ui/drawingSet.ts:621` calls it once with a hardcoded
@@ -66,7 +66,7 @@ view, mark letter), draw the standard cut line + arrowed cut markers on the plan
 sheets, and emit one numbered sheet per cut (A–A, B–B, …). The core projector
 already supports this; the work is entity + UI + sheet iteration.
 
-### ✅ SHIPPED v0.31.5.255 — G2 — The setting-out plan silently omits diagonal and curved walls
+### ✅ SHIPPED v0.31.5.356 — G2 — The setting-out plan silently omits diagonal and curved walls
 **Status: CONFIRMED in source. Highest severity found so far — a correctness /
 credibility issue, not a missing feature.**
 
@@ -97,7 +97,7 @@ Approach, in two independent steps:
    by chord endpoints + radius (or rise). Both are standard practice and both
    need no new geometry — just a second dimension strategy per wall kind.
 
-### ◑ PARTLY SHIPPED v0.31.5.259 — G3 — Scale ladder stops at 1:20, so construction details are inexpressible
+### ◑ PARTLY SHIPPED v0.31.5.360 — G3 — Scale ladder stops at 1:20, so construction details are inexpressible
 **Status: CONFIRMED in source.** `src/floorplan/drawingScale.ts:15` —
 `STANDARD_SCALE_RATIOS = [20, 25, 50, 75, 100, 125, 150, 200]`, documented as
 "1:20 is the most detailed/largest drawing".
@@ -175,7 +175,7 @@ actual finish reflectances — the app knows every surface finish
 (`floorplan/roomFinishes.ts`, `finishSchedule.ts`) but `roomLux.ts` uses a single
 global `UTILISATION_FACTOR = 0.45` for every room.
 
-### ✅ SHIPPED v0.31.5.257 (with a CORRECTION) — G5 — Tile setting-out exists as a render, never as a drawing
+### ✅ SHIPPED v0.31.5.358 (with a CORRECTION) — G5 — Tile setting-out exists as a render, never as a drawing
 **Status: CONFIRMED in source.** True tile scale and coursing anchor are
 implemented — but entirely in `src/materials/` (`procedural/tileSurface.ts`,
 `procedural/patterns/tile.ts`, `worldUv.ts`, `tileSize.ts`, `pomFloor.ts`), i.e.
@@ -189,7 +189,7 @@ feature-wall coursing on the elevations. Tile setting-out is one of the most
 common sources of expensive on-site rework, and it is precisely what a designer's
 tiling layout drawing prevents.
 
-**CORRECTION (2026-09-02, v0.31.5.257).** The claim above that "the data already
+**CORRECTION (2026-09-02, v0.31.5.358).** The claim above that "the data already
 exists in the renderer" was OVERSTATED. What existed was a texture PERIOD plus each
 painter's internal grid count (`patterns/tile.ts` = 2×2 per period, `brick` = 5×6);
 the module is derivable as `period ÷ count`, but those counts are texture-authoring
@@ -197,12 +197,12 @@ constants that may be retuned for visual reasons, so a setting-out drawing deriv
 from them would silently change when someone tuned a texture. `src/floorplan/CLAUDE.md`
 had already recorded this honestly ("no base tile mm size stored anywhere in the model,
 so none is invented"). The prerequisite was therefore a SPECIFIED module
-(`MaterialDef.moduleMm`), not a drawing — shipped together in v0.31.5.257. The pattern
+(`MaterialDef.moduleMm`), not a drawing — shipped together in v0.31.5.358. The pattern
 claim "the renderer already knows" holds for G4 and G11 but did NOT hold here — draw the coursing the
 renderer is already computing onto the plan and the wall elevations, with the
 origin dimensioned from the datum.
 
-### ✅ SHIPPED v0.31.5.253 — G6 — The revision table holds exactly one row
+### ✅ SHIPPED v0.31.5.354 — G6 — The revision table holds exactly one row
 **Status: CONFIRMED in source.** `drawingSet.ts:1005` renders the cover sheet's
 Revisions table with a single hardcoded `<tr>` built from `template.revision` +
 `template.revisionNote`; `DrawingSetTemplate` carries one `revision` letter and
@@ -242,7 +242,7 @@ revision that touched it.
   trunking, ceiling drops, joinery, and lighting are clash-checked in 3D against
   each other and against beams.
 
-### ✅ SHIPPED v0.31.5.258 — G7 — No written specification, only schedules
+### ✅ SHIPPED v0.31.5.359 — G7 — No written specification, only schedules
 **Status: CONFIRMED in source.** The two documents that might have carried a
 spec do not: `floorplan/permitNotes.ts` is housing-type-conditional *regulatory
 approval* text (HDB permit vs MCST vs BCA-direct), and `export/quoteTemplate.ts`
@@ -262,7 +262,7 @@ header that it is "an INDICATIVE planning aid, not a certified electrical
 design… no notion of circuits, RCD/MCB sizing or cable runs." A spec module
 should carry the same explicit scope limits.
 
-### ◕ CORE SHIPPED v0.31.5.262 — G8 — Suggestions are a decorator wizard, not a designer's judgment loop
+### ◕ CORE SHIPPED v0.31.5.363 — G8 — Suggestions are a decorator wizard, not a designer's judgment loop
 **Status: CONFIRMED in source.** `analysis/suggestions.ts` is self-described as
 "Magic design suggestions (feature F16) — rule-based, no ML", producing
 "contextual 'what to add' hints" from a room's name, area, and the furniture
@@ -278,7 +278,7 @@ presence, and reconciliation against a stated budget and brief. Because
 categories are opaque tags, the current rules cannot reason about *this* sofa's
 size or style at all — only that "seating" exists.
 
-### ✅ SHIPPED v0.31.5.252 — G9 — No cross-discipline coordination check
+### ✅ SHIPPED v0.31.5.353 — G9 — No cross-discipline coordination check
 **Status: CONFIRMED in source.** `src/collision/` (`obb.ts`, `broadphase.ts`,
 `placement.ts`, `clearanceGap.ts`, `furnitureBlock.ts`) is furniture-vs-
 furniture/wall placement only. MEP points feed schedules, the RCP and trade packs
@@ -300,7 +300,7 @@ Each of these is cheap to detect — the geometry for both sides is already in t
 model, and `src/collision/obb.ts` already implements the intersection test. The
 gap is purely that no one runs it across disciplines.
 
-### ✅ SHIPPED v0.31.5.251 — G10 — Dimensions are labelled in decimal metres at 10 mm resolution, never in millimetres
+### ✅ SHIPPED v0.31.5.352 — G10 — Dimensions are labelled in decimal metres at 10 mm resolution, never in millimetres
 **Status: CONFIRMED in source.** This one goes directly at the user's "fully to
 scale, measured" requirement, and it affects *every* dimensioned sheet.
 
@@ -360,7 +360,7 @@ the standard convention, which also resolves the label-collision crowding. Keep
 the underlying model in metres; this is a presentation change, so it is low-risk
 and independently testable.
 
-### ✅ SHIPPED v0.31.5.250 — G11 — Plan sheets draw every item as a rectangle, using the coarse footprint resolver while collision uses the accurate one
+### ✅ SHIPPED v0.31.5.351 — G11 — Plan sheets draw every item as a rectangle, using the coarse footprint resolver while collision uses the accurate one
 **Status: CONFIRMED in source.** The app maintains **two** footprint resolvers in
 `src/collision/placement.ts`:
 - `itemFootprint(item, def): OBB` (line 74) — one coarse oriented bounding box;
@@ -416,19 +416,19 @@ first — details in `CHANGELOG.md`, deferred remainders in `TODO.md`:
 
 | Gap | Version | What shipped |
 |---|---|---|
-| C3 (the real remainder) | v0.31.5.270 | Site-measurement reconciliation: record tape dimensions against the model, deviation vs a length-banded tolerance, "As-built reconciliation" sheet. Closes the one item re-scoped in the first pass and never shipped. Recording UI pending. |
-| G8 (core) | v0.31.5.262 | `buildSchemeOptions` — N schemes scored/priced with derived per-category trade-offs. **Research correction**: preset-swapping alone does NOT vary layout (no preset defines `kits`); the arranger's unused LAYOUT-REROLL seed does, and is now threaded through. UI surface pending. |
-| G4 (rest) | v0.31.5.260 | IES distribution SHAPE into `pointIlluminance` (magnitude still registry-calibrated). Moves peaks/minima/U0; the lumen-method room AVERAGE is distribution-agnostic by construction and unchanged. |
-| G3 (part) | v0.31.5.259 | Audited what profile data exists; detailed the four junctions derivable exactly (ceiling drop, upturn, threshold, sill/head) + a separate `DETAIL_SCALE_RATIOS` ladder. Profile-dependent details deferred with a named prerequisite. |
-| G7 | v0.31.5.258 | Derived clauses (product/substrate/preparation/workmanship/tolerance/exclusions) per trade in scope, with `tradesNotCovered` named and NO asserted standard codes. |
-| G5 | v0.31.5.257 | **Research corrected**: no specified tile module existed (only a texture period + painter grid counts). Added `MaterialDef.moduleMm` as a product dimension, then `tileCoursing.ts` (centred field, sliver avoidance, cut widths) + a setting-out table on the finishes sheet. |
-| G4 (part) | v0.31.5.256 | Work-plane sampling (opt-in, per room kind) + Emin/Eavg uniformity on every grid. IES-into-lux, the calibration constant, reflectance-derived UF and sheet surfacing remain open. |
-| G2 | v0.31.5.255 | Skew/curved walls set out by datum-relative endpoint co-ordinates + angle (+ radius for arcs), disclosed on the plan and tabled on the sheet. |
-| G1 | v0.31.5.254 | Both conventional cuts (A cross / B longitudinal) at scored-informative positions, with view-direction cut marks on the plan. User-placed cuts deferred. |
-| G6 | v0.31.5.253 | Append-only revision history + `issueRevision`. Per-sheet letters and revision clouds deferred (nothing can populate them yet). |
-| G9 | v0.31.5.252 | MEP-behind-furniture and item-under-ceiling-drop checks, surfaced in the report. Trunking-vs-joinery deferred. |
-| G10 | v0.31.5.251 | `formatDrawingLength` — integer mm on every dimension line, imperial to 1/8". DXF deliberately stays in metres. |
-| G11 | v0.31.5.250 | Shared `planFootprints` using the shape-aware resolver; decomposed items draw as one silhouette. |
+| C3 (the real remainder) | v0.31.5.371 | Site-measurement reconciliation: record tape dimensions against the model, deviation vs a length-banded tolerance, "As-built reconciliation" sheet. Closes the one item re-scoped in the first pass and never shipped. Recording UI pending. |
+| G8 (core) | v0.31.5.363 | `buildSchemeOptions` — N schemes scored/priced with derived per-category trade-offs. **Research correction**: preset-swapping alone does NOT vary layout (no preset defines `kits`); the arranger's unused LAYOUT-REROLL seed does, and is now threaded through. UI surface pending. |
+| G4 (rest) | v0.31.5.361 | IES distribution SHAPE into `pointIlluminance` (magnitude still registry-calibrated). Moves peaks/minima/U0; the lumen-method room AVERAGE is distribution-agnostic by construction and unchanged. |
+| G3 (part) | v0.31.5.360 | Audited what profile data exists; detailed the four junctions derivable exactly (ceiling drop, upturn, threshold, sill/head) + a separate `DETAIL_SCALE_RATIOS` ladder. Profile-dependent details deferred with a named prerequisite. |
+| G7 | v0.31.5.359 | Derived clauses (product/substrate/preparation/workmanship/tolerance/exclusions) per trade in scope, with `tradesNotCovered` named and NO asserted standard codes. |
+| G5 | v0.31.5.358 | **Research corrected**: no specified tile module existed (only a texture period + painter grid counts). Added `MaterialDef.moduleMm` as a product dimension, then `tileCoursing.ts` (centred field, sliver avoidance, cut widths) + a setting-out table on the finishes sheet. |
+| G4 (part) | v0.31.5.357 | Work-plane sampling (opt-in, per room kind) + Emin/Eavg uniformity on every grid. IES-into-lux, the calibration constant, reflectance-derived UF and sheet surfacing remain open. |
+| G2 | v0.31.5.356 | Skew/curved walls set out by datum-relative endpoint co-ordinates + angle (+ radius for arcs), disclosed on the plan and tabled on the sheet. |
+| G1 | v0.31.5.355 | Both conventional cuts (A cross / B longitudinal) at scored-informative positions, with view-direction cut marks on the plan. User-placed cuts deferred. |
+| G6 | v0.31.5.354 | Append-only revision history + `issueRevision`. Per-sheet letters and revision clouds deferred (nothing can populate them yet). |
+| G9 | v0.31.5.353 | MEP-behind-furniture and item-under-ceiling-drop checks, surfaced in the report. Trunking-vs-joinery deferred. |
+| G10 | v0.31.5.352 | `formatDrawingLength` — integer mm on every dimension line, imperial to 1/8". DXF deliberately stays in metres. |
+| G11 | v0.31.5.351 | Shared `planFootprints` using the shape-aware resolver; decomposed items draw as one silhouette. |
 
 Still open: **G4 tail** (the calibration constant; a
 reflectance-derived utilisation factor; surfacing uniformity on the sheets),

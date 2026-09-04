@@ -17,7 +17,8 @@
 
 import { canPlace } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
-import { allPlanRooms, GROUND_LEVEL_ID, levelOfRoom } from '../floorplan/levels'
+import { allPlanRooms, GROUND_LEVEL_ID, levelAsPlan, levelOfRoom } from '../floorplan/levels'
+import { planCollisionWalls } from '../floorplan/planGeometry'
 import type { PlanClippedWall } from '../floorplan/planRoomShell'
 import { planRoomShell } from '../floorplan/planRoomShell'
 import { roomCategory } from '../floorplan/roomCategory'
@@ -181,6 +182,16 @@ function freeCondenserSpot(
   levelId: string | undefined,
   ctx: AirconPlacementContext,
   placed: FurnitureItem[],
+  /**
+   * Collision walls for THIS condenser's storey (F13, v0.31.9.4).
+   *
+   * Passed in rather than read off `ctx.walls`, which is the GROUND FLOOR set:
+   * the comment below already says "same-level obstacles only (collision is
+   * level-gated)" and filters `ctx.items` accordingly, while the walls it sat
+   * beside were unfiltered. A condenser on an upper ledge was therefore checked
+   * against downstairs walls.
+   */
+  walls: CollisionWall[] | undefined,
 ): [number, number] | null {
   const def = ctx.defs?.['aircon-condenser']
   if (!def || !ctx.items) return nominal // can't check → keep nominal (legacy)
@@ -204,7 +215,7 @@ function freeCondenserSpot(
       others,
       defs: ctx.defs!,
       doors: {},
-      walls: ctx.walls,
+      walls,
     })
   // Nominal first, then expand symmetrically outward, clamped into the rect.
   for (let k = 0; k * CONDENSER_SLIDE_STEP <= (span > 0 ? span : 0) + CONDENSER_SLIDE_STEP; k++) {
@@ -240,6 +251,13 @@ function placeCondensers(
   const alongX = spanX >= spanZ
   const level = levelOfRoom(plan, ledgeId)
   const levelId = level && level.id !== GROUND_LEVEL_ID ? level.id : undefined
+  // The ledge's OWN storey's walls. `ctx.walls` is the ground-floor set (and is
+  // deliberately absent for the default flat, where `canPlace` falls back), so an
+  // upper ledge resolves its own — the same shape as `collision/placementWalls.ts`.
+  const ledgeWalls =
+    level && level.id !== GROUND_LEVEL_ID
+      ? planCollisionWalls(levelAsPlan(plan, level), {})
+      : ctx.walls
   const out: PlannedAirconItem[] = []
   const advisories: string[] = []
   const placedCandidates: FurnitureItem[] = []
@@ -247,7 +265,15 @@ function placeCondensers(
   for (let i = 0; i < count; i++) {
     const off = (i - (count - 1) / 2) * CONDENSER_SPACING
     const nominal: [number, number] = alongX ? [cx + off, cz] : [cx, cz + off]
-    const spot = freeCondenserSpot(nominal, alongX, rect, levelId, ctx, placedCandidates)
+    const spot = freeCondenserSpot(
+      nominal,
+      alongX,
+      rect,
+      levelId,
+      ctx,
+      placedCandidates,
+      ledgeWalls,
+    )
     if (!spot) {
       dropped++
       continue

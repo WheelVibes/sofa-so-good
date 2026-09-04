@@ -314,7 +314,7 @@ export function FirstPersonCamera() {
     }
   }, [gl])
 
-  // Dev-only: scenario-harness lever to set/read the walk-mode look pitch
+  // Dev-only: scenario-harness lever to set/read the walk-mode look direction
   // directly (IXT-SUITES ceilingDesign rung — "look up to see the ceiling").
   // Real mouse-look needs OS-level Pointer Lock (unavailable headless) and
   // touch-look needs a synthetic multi-touch drag stream on a coarse-pointer
@@ -331,12 +331,33 @@ export function FirstPersonCamera() {
         pitch.current = clampPitch(p)
       },
       getPitch: () => pitch.current,
+      // Yaw joined pitch in v0.31.8.48, for the same reason and with the same
+      // scope: verifying (g) LEVEL-ISOLATION-IN-WALK needs the walker turned
+      // toward `tpl-loft`'s mezzanine rail, and the spawn faces a wall. Without
+      // it a walk-mode change can be unit-tested but never SEEN — that release
+      // shipped with its visual proof owed for exactly this reason.
+      setYaw: (y: number) => {
+        yaw.current = y
+      },
+      getYaw: () => yaw.current,
+      // Position joined yaw in v0.31.8.49. Aiming alone was not enough to verify
+      // (g): WASD is gated on Pointer Lock too, so the walker was stuck at its
+      // spawn, and `tpl-loft`'s guard rail is across the room from there. The
+      // frame loop resolves movement FROM the current position each tick, so
+      // writing x/z with no key held simply relocates the walker; collision and
+      // the floor-height solve then apply from the new spot exactly as if it had
+      // been walked to.
+      setPosition: (x: number, z: number) => {
+        camera.position.x = x
+        camera.position.z = z
+      },
+      getPosition: () => [camera.position.x, camera.position.z] as [number, number],
     }
     ;(window as unknown as { __walkLook?: typeof lever }).__walkLook = lever
     return () => {
       delete (window as unknown as { __walkLook?: typeof lever }).__walkLook
     }
-  }, [])
+  }, [camera])
 
   useEffect(() => {
     // Each branch picks a nominal standing point + a point to face; the spawn is

@@ -1,5 +1,5 @@
 /**
- * New partition walls are PRICED (v0.31.5.306).
+ * New partition walls are PRICED (v0.31.5.407).
  *
  * `WallDiff.addedLengthM` was computed, printed on the report and on the
  * demolition sheet's legend, and never costed — so a design that added

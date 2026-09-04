@@ -4,7 +4,11 @@ import { roomLabelPosition } from '../floorplan/roomCentroid'
 import { anyTileMarksOmitted, tileSettingOutPoints } from '../floorplan/settingOut'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea, wallLength } from '../floorplan/types'
-import { isDemolitionRestricted } from '../floorplan/wallHackability'
+import {
+  establishedWallStructureInPlan,
+  isDemolitionRestricted,
+  shelterWallIds,
+} from '../floorplan/wallHackability'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
 
@@ -354,6 +358,7 @@ export function reportPlanSvg(
     })
     .join('')
 
+  const shelterWalls = shelterWallIds(plan)
   const walls = plan.walls
     .filter((wl) => wallLength(wl) > 0.001)
     .map((wl) => {
@@ -361,7 +366,7 @@ export function reportPlanSvg(
       // line — the same convention the 2D editor's WallsLayer applies —
       // so the drawing-set floor plan reads the structural/normal
       // distinction too, not only the live editor.
-      const structural = isDemolitionRestricted(wl.structure)
+      const structural = isDemolitionRestricted(establishedWallStructureInPlan(wl, shelterWalls))
       const sw = wl.thickness === 'external' ? (structural ? 0.24 : 0.18) : structural ? 0.14 : 0.09
       return `<line x1="${wl.start[0].toFixed(3)}" y1="${wl.start[1].toFixed(3)}" x2="${wl.end[0].toFixed(3)}" y2="${wl.end[1].toFixed(3)}" stroke="#374151" stroke-width="${sw}" stroke-linecap="round"/>`
     })

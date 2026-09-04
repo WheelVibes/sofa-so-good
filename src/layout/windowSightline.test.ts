@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { itemAabbBox } from '../collision/placement'
-import { planLevels } from '../floorplan/levels'
+import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import { PLAN_TEMPLATES } from '../floorplan/templates'
 import { wallLength } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
@@ -36,19 +36,29 @@ import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
  * window with furniture parked in front of it.
  */
 const KNOWN_BLOCKED = [
-  'tpl-hdb-3room/h3-b2-win: refrigerator',
+  // +1 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH): `tpl-condo-penthouse/cp-m-win:
+  // wardrobe-3door`. Accepted at nine appliance fixes for one blockage — the
+  // standard v0.31.8.62 set when it REJECTED two fixes for three blockages.
+  'tpl-hdb-4room/h4-m-win: wardrobe-3door',
   // h5-b2-win CLEARED in v0.31.5.121 by preferring windowless walls for tall
   // storage — the wardrobe had a windowless alternative in that room.
-  'tpl-hdb-exec/ex-b2-win: wardrobe-3door',
   // ADDED by v0.31.5.118, and an honest trade rather than a regression: fixing
   // (h) gave `ex-master` a window it never had AND restored the wardrobe that
   // had been dropped, so the room went from NO glass to glass partly blocked by
   // its own wardrobe. Third instance of item (j)'s pattern.
-  'tpl-hdb-jumbo/jb-b4-win: wardrobe-3door',
-  'tpl-hdb-jumbo/jb-b5-win: wardrobe-3door',
-  'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
-  'tpl-1bed/ob-liv-win: potted-plant',
+  'tpl-hdb-exec/ex-m-win: wardrobe-3door',
+
+  // `tpl-hdb-maisonette/em-yard-win: wardrobe-3door` REMOVED in v0.31.9.28 — it
+  // was never real. This survey was not level-scoped, and that window is on the
+  // GROUND floor while both of the template's wardrobes are on `em-up`.
   'tpl-condo-studio/su-bath-win: bathroom-sink',
+  // `tpl-condo-penthouse/cp-m-win: wardrobe-3door` CLEARED in v0.31.9.22 by the
+  // ALONG-WALL SWEEP in `snapToWall`. It was added in v0.31.8.71 as the accepted
+  // cost of nine appliance fixes, and the cause was the same single-position
+  // limitation: the wardrobe's windowless walls were preferred but each offered
+  // only ONE along-wall spot (the room centre), all taken, so it fell through to
+  // the glass wall. With the wall swept it finds a windowless spot, and the
+  // v0.31.8.71 trade is bought back without giving up the appliance fixes.
 ]
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')!
@@ -68,6 +78,15 @@ function blockedWindows() {
         const len = wallLength(wall)
         if (!len) continue
         windows++
+        // LEVEL-SCOPED (v0.31.9.28, F13). This loop used to test EVERY item
+        // against every window on every storey, so a piece upstairs could be
+        // reported as blocking a window downstairs. That is exactly what
+        // happened: `tpl-hdb-maisonette/em-yard-win` is a GROUND-floor service
+        // yard window and both of that template's `wardrobe-3door`s are on
+        // `em-up`, so the finding was a phantom. Found by building
+        // `analysis/layoutDefects.ts`, whose survey is level-scoped and
+        // therefore disagreed by exactly one.
+        const onLevel = items.filter((it) => (it.levelId ?? GROUND_LEVEL_ID) === level.id)
         const ux = (wall.end[0] - wall.start[0]) / len
         const uz = (wall.end[1] - wall.start[1]) / len
         const nx = -uz
@@ -75,7 +94,7 @@ function blockedWindows() {
         const ox = wall.start[0] + ux * o.offset
         const oz = wall.start[1] + uz * o.offset
         const sill = o.sill ?? 0.95
-        for (const it of items) {
+        for (const it of onLevel) {
           const def = BUILTIN_CATALOG[it.defId]
           if (!def || def.mounted || def.noClip || def.windowBound) continue
           if (def.defaultFootprint.h <= sill) continue
@@ -113,19 +132,48 @@ describe('tall furniture does not stand in front of a window', () => {
     expect(blockedWindows().hits).toEqual(KNOWN_BLOCKED)
   })
 
-  // Without this the list could pass by measuring nothing: 81 windows are
-  // examined (78 before `v0.31.7.192` added three for item (h)) and most are clear.
+  // Without this the list could pass by measuring nothing: 83 windows are
+  // examined and 79 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
-    expect(windows).toBe(87)
-    // 80 since `v0.31.7.196` (`ex-m-win` freed), the FOURTH consecutive (h)/(f) fix to shorten item (j)'s list rather
-    // than lengthen it: enclosing `tpl-hdb-5room`'s baths freed `h5-m-win`, as `.194` freed
-    // `h4-m-win` and `.193` freed `g3-liv-win`. The three items were tracked as independent and
-    // are coupled through the arranger: give a master its walls and the wardrobe stops needing the
-    // window wall.
-    // 77 at `v0.31.7.193`. All NINE windows added for item (h) are clear, and the blocked list
-    // got SHORTER: `tpl-hdb-3gen/g3-liv-win` is no longer hidden by a `wardrobe-3door`, because
-    // the new glass changed where the arranger puts it. Item (j) improved as a side effect of (h).
-    expect(windows - hits.length).toBe(80)
+    // 79 from v0.31.8.29: the jumbo re-author added `jb-b3-win`, Bedroom 3's
+    // first window of its own (item (h)); 80 from `.30`, where the 3Gen
+    // re-author gave bedroom 2 its own window (`g3-b3-win` had been sitting in
+    // bedroom 2, and `g3-m-win` in the kitchen).
+    // 82 from `.41`: `ex-bed2b` and `cp-master` gained the windows they never had
+    // (item (h)), and neither is blocked.
+    // 83 from `.42`: the penthouse dining room gets its own pane.
+    // 84 on the feat/blender-render merge: `c4-b4win` gives condo-4bed's Bedroom 4 daylight.
+    expect(windows).toBe(84)
+    // 67 → 69: one more window examined (`jb-b3-win`) and one fewer blocked
+    // (`jb-b5-win`, cleared because the jumbo re-author divided bedrooms 4/5).
+    // 69 → 71 in `.30`: `g3-b2-win` added and `g3-liv-win` cleared, the living
+    // room having been reshaped so a wardrobe no longer parks in front of it.
+    // 71 → 72 in `.31`: `h3-b2-win` was sitting in the 3-room KITCHEN with the
+    // refrigerator in front of it; moving it onto Bedroom 2's own wall cleared
+    // the block as a side effect of fixing item (h).
+    // 72 → 73 in `.34`: `tpl-1bed`'s living-room window is no longer blocked by
+    // a potted plant, the room having gained a door for the arranger to work to.
+    // 73 → 74 in `.37`: moving the 5-room's front door off the master's wall
+    // freed that room's layout, and its wardrobe no longer stands in front of
+    // `h5-m-win`. Item (j) has now gone 11 → 8 purely as a side effect of (f)
+    // and (i) work — no arranger change has been needed for any of them.
+    // 74 → 76 in `.41`, both new windows clear.
+    // 77 → 79 in v0.31.8.46: `ex-b2-win` and `jb-b4-win` were sitting at the far
+    // end of their rooms' spans — `ex-b2-win` actually ran 0.1 m PAST bedroom 2's
+    // edge — which left each room's wardrobe no wall but the glass one. Moving
+    // each window within its own span cleared both, with no furniture moved.
+    // 79 -> 78 in v0.31.8.71: one more window is blocked
+    // (`tpl-condo-penthouse/cp-m-win`), so one fewer is clear. Accepted at nine
+    // appliance fixes for one blockage — see KNOWN_BLOCKED above.
+    // 78 -> 79 in v0.31.9.22: that blockage is CLEARED by the along-wall sweep,
+    // so the v0.31.8.71 trade is bought back at no cost to the appliance fixes.
+    // 79 -> 80 in v0.31.9.28: one fewer BLOCKED window, because the phantom
+    // cross-storey hit above is gone. No furniture moved.
+    // 81 on the feat/blender-render merge: +1 window (`c4-b4win`) and the same 3 blocked, so the
+    // clear count gains one. An earlier pass of this merge read 82 — that was with this branch's
+    // item-(f) bath partitions still in, which moved the exec wardrobe off `ex-m-win`. Those were
+    // dropped in favour of staging's enclosure work, and the block came back with them.
+    expect(windows - hits.length).toBe(81)
   })
 })

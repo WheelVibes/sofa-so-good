@@ -21,8 +21,10 @@ import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { isItemEmitter } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
+import { CLEARANCE, OBSTACLE_AREA_M2 } from '../layout/designRules'
 import { findNarrowGaps } from '../layout/walkway'
-import { buildDaylightReport, isExternalRoom } from './daylight'
+
+import { buildDaylightReport, isDaylightExempt, isExternalRoom } from './daylight'
 
 type ScoreCategoryId = 'clearance' | 'circulation' | 'daylight' | 'furnishing' | 'lighting'
 
@@ -82,20 +84,71 @@ const CLEARANCE_PENALTY = { overlap: 16, wallClip: 12, blockedDoor: 22 }
  * those advisory adjacencies: only the former can fail the category; the latter
  * erode it gently under a cap.
  */
+/**
+ * **Recalibrated v0.31.8.3 — both terms used to saturate.** Measured over a
+ * 62-layout corpus (19 templates x 3 arranger seeds, plus 4 presets on the
+ * default plan and the authored default flat):
+ *
+ *  - **53 of 62 layouts hit `advisoryCap`**, and for every one of those the
+ *    category score was EXACTLY `58 - 20 x impassable`. A 100-point score with
+ *    five inputs had collapsed to a 4-valued function of one integer; the
+ *    old formula reproduced all 62 rows with zero mismatches.
+ *  - **Every single "impassable" gap in the corpus was 0.400-0.500 m** (n=60,
+ *    modal 0.465-0.475). Nothing was remotely blocked, yet each cost a flat 20
+ *    points, so three near-misses zeroed the category.
+ *
+ * The fix is graded penalties, and the anchors come from ANTHROPOMETRY rather
+ * than from the corpus — calibrating the curve to the arranger's own habits
+ * would just encode its quirks as the definition of good. The corpus is used
+ * only to verify the spread improved: 13 distinct scores -> 44, eight
+ * floor-clamped layouts -> zero, median 58 -> 59 (deliberately unchanged, so
+ * this adds resolution without inflating anyone's score).
+ */
 const CIRCULATION = {
-  /** A gap this small (m) between two obstacles is a route you can't walk through. */
-  impassableGap: 0.5,
+  /** Below this (m) you must turn SIDEWAYS to pass between two obstacles. Not
+   *  "impassable" — the old field name claimed that and was wrong. ADA's 915 mm
+   *  route width is the figure for two adults passing *without* turning
+   *  sideways, and ~762 mm (30") is where a residential path starts to feel
+   *  cramped; 0.5 m is well below both, but a person still gets through. */
+  squeezeGap: 0.5,
+  /** Floor of the graded band — and it is set by the INSTRUMENT, not by human
+   *  dimensions, which is worth being explicit about.
+   *
+   *  `findNarrowGaps` skips any item-item gap `<= CLEARANCE.sofaToCoffee`
+   *  (0.40 m) as "intentional close spacing", so a tighter gap is never
+   *  reported at all and no penalty here could ever charge for one. An earlier
+   *  cut of this recalibration anchored the band at 0.30 m on anthropometric
+   *  grounds (adult chest depth is 200-250 mm) and was WRONG in a way tests
+   *  written against it would not have caught: the band was unreachable, and
+   *  its "blocked route" message could never fire.
+   *
+   *  It also means the corpus finding "every impassable gap measured
+   *  0.400-0.500 m" describes the FINDER's range, not the layouts' quality.
+   *  Anything genuinely blocked is invisible to this category — see the
+   *  `TODO.md` entry, which is a real defect and NOT fixed here. */
+  gradedFloor: 0.4,
   /** Footprint area (m²) for a piece to count as a circulation OBSTACLE — matches
    *  `layoutPresets.test`'s "large piece" bar. Below it (lamps, plants, stools,
    *  a monitor) you step around; it never defines a walkway. */
-  obstacleArea: 0.5,
-  /** Penalty per genuinely impassable pinch (a broken route). */
+  obstacleArea: OBSTACLE_AREA_M2,
+  /** Penalty for the tightest reportable route pinch. Charged in full at
+   *  `gradedFloor` and tapering linearly to zero at `squeezeGap`, so a 0.49 m
+   *  near-miss costs ~2 points where it used to cost the same 20 as a 0.41 m
+   *  one. That flat charge is what let three near-misses zero the category. */
   severe: 20,
-  /** Penalty per advisory snug-adjacency hint. */
-  advisory: 3,
+  /** Cap on the summed blocked-route penalty, so pinches alone cannot zero the
+   *  category — a flat can be tight everywhere and still be a home. */
+  severeCap: 45,
+  /** Points per unit of SHORTFALL below the 0.9 m ideal, summed over advisory
+   *  gaps. Weighting by shortfall rather than counting gaps flat is what stops
+   *  the cap binding: a 0.88 m gap now costs ~0.07 points where it used to cost
+   *  the same 3 as a 0.41 m one. */
+  advisoryPerGap: 3,
   /** Cap on the summed advisory penalty — snug adjacencies dent the score but,
-   *  unlike an impassable pinch, never zero a livable dense flat. */
-  advisoryCap: 42,
+   *  unlike a blocked route, never zero a livable dense flat. Raised 42 -> 55
+   *  because the shortfall weighting lowered the typical total; measured on the
+   *  corpus it now binds for only the worst handful instead of 53 of 62. */
+  advisoryCap: 55,
 }
 
 /** Furnishing coverage = furniture footprint area / room floor area. The bands
@@ -110,6 +163,11 @@ const FURNISH = {
   idealHigh: 0.45,
   /** Above this a room reads as cluttered. */
   crowded: 0.62,
+}
+
+/** Clamp to 0..1 — for the graded circulation penalties. */
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v))
 }
 
 function clamp(v: number, lo = 0, hi = 100): number {
@@ -221,28 +279,43 @@ function circulationCategory(
     if (def) areaById.set(it.id, def.defaultFootprint.w * def.defaultFootprint.d)
   }
   const isObstacle = (id: string) => (areaById.get(id) ?? 0) >= CIRCULATION.obstacleArea
-  // A genuinely impassable pinch: a tight item↔item gap under `impassableGap`
-  // between two real obstacles you must walk AROUND — a broken route, not a
-  // snug adjacency. Everything else the finder reports is an advisory hint.
-  const impassable = gaps.filter(
+  // A route pinch: a tight item↔item gap under `squeezeGap` between two real
+  // obstacles you must walk AROUND — not a snug adjacency. Everything else the
+  // finder reports is an advisory hint.
+  const pinches = gaps.filter(
     (g) =>
       !g.wall &&
       g.severity === 'tight' &&
-      g.gap < CIRCULATION.impassableGap &&
+      g.gap < CIRCULATION.squeezeGap &&
       isObstacle(g.a) &&
       isObstacle(g.b),
-  ).length
+  )
+  // Graded by DEPTH below the squeeze bar, not counted flat: full `severe` at
+  // `gradedFloor` (the tightest gap the finder reports at all) tapering to zero
+  // at `squeezeGap` (where a person must turn sideways but still gets through).
+  // Counting flat is what let three 0.47 m near-misses zero the category.
+  const pinchPenalty = (gap: number) =>
+    CIRCULATION.severe *
+    clamp01((CIRCULATION.squeezeGap - gap) / (CIRCULATION.squeezeGap - CIRCULATION.gradedFloor))
   const tight = gaps.filter((g) => g.severity === 'tight').length
   const sub = gaps.filter((g) => g.severity === 'sub-ideal').length
-  const advisory = gaps.length - impassable
+  const advisoryGaps = gaps.filter((g) => !pinches.includes(g))
+  // Advisory gaps charged by SHORTFALL below the 0.9 m ideal, so a nearly-ideal
+  // gap is nearly free. A flat count made every furnished flat hit the cap.
+  const advisoryShortfall = advisoryGaps.reduce(
+    (a, g) => a + clamp01((CLEARANCE.walkwayIdeal - g.gap) / CLEARANCE.walkwayIdeal),
+    0,
+  )
   const penalty =
-    impassable * CIRCULATION.severe +
-    Math.min(CIRCULATION.advisoryCap, advisory * CIRCULATION.advisory)
+    Math.min(
+      CIRCULATION.severeCap,
+      pinches.reduce((a, g) => a + pinchPenalty(g.gap), 0),
+    ) + Math.min(CIRCULATION.advisoryCap, advisoryShortfall * CIRCULATION.advisoryPerGap)
   const issues: ScoreIssue[] = []
-  if (impassable > 0)
+  if (pinches.length > 0)
     issues.push({
       severity: 'warning',
-      message: `${impassable} impassable ${plural(impassable, 'pinch-point')} under 0.5 m between large pieces — widen the route.`,
+      message: `${pinches.length} ${plural(pinches.length, 'pinch-point')} under ${Math.round(CIRCULATION.squeezeGap * 100)} cm between large pieces — passable only sideways. Widen the route.`,
     })
   if (tight > 0)
     issues.push({
@@ -261,7 +334,9 @@ function circulationCategory(
   return {
     id: 'circulation',
     label: 'Circulation',
-    score: clamp(100 - penalty),
+    // Rounded: the graded penalties are fractional, unlike the old integer
+    // count x weight, and a category score is rendered directly.
+    score: clamp(Math.round(100 - penalty)),
     weight: WEIGHTS.circulation,
     issues,
     offenders,
@@ -287,17 +362,68 @@ function daylightCategory(plan: FloorPlan): ScoreCategory {
   if (total === 0) {
     issues.push({ severity: 'info', message: 'No interior rooms to assess for daylight.' })
   } else {
-    // Average of the two pass-ratios (daylight + ventilation).
-    const ratio = (report.daylightPassCount + report.ventPassCount) / (total * 2)
-    score = clamp(Math.round(ratio * 100))
-    const failing = report.rooms.filter((r) => !r.daylightPass || !r.ventPass)
-    if (failing.length > 0)
+    // A room with no façade wall (`noFacade` — the HDB household shelter is the
+    // canonical case) can never pass and can never be remedied: there is no
+    // external wall to put a window in. Both the SCORE and the ADVICE therefore
+    // exclude it — charging a flat for a windowless blast shelter scores the user
+    // on something they cannot change, and "add or widen windows" is advice that
+    // cannot be followed there.
+    // `isDaylightExempt` is the shared predicate — the panel and the printed
+    // report use the same one, so the three cannot disagree about which rooms
+    // are being counted. An interior room in a HABITABLE category is NOT exempt:
+    // it keeps counting against the score, and gets its own stronger finding.
+    const assessable = report.rooms.filter((r) => !isDaylightExempt(r))
+    // The two exemption reasons get their own notes — a shelter on the façade
+    // genuinely has an external wall, so lumping it in with the interior rooms
+    // would state something false about the plan.
+    const shelters = report.rooms.filter((r) => r.blastShelter)
+    const sealed = report.rooms.filter((r) => isDaylightExempt(r) && !r.blastShelter)
+    const sealedHabitable = report.rooms.filter((r) => r.noFacade && r.habitable)
+    if (assessable.length === 0) {
+      issues.push({
+        severity: 'info',
+        message: 'No room with an alterable wall to assess for daylight.',
+      })
+    } else {
+      // Average of the two pass-ratios (daylight + ventilation).
+      const passes =
+        assessable.filter((r) => r.daylightPass).length +
+        assessable.filter((r) => r.ventPass).length
+      score = clamp(Math.round((passes / (assessable.length * 2)) * 100))
+      // Counting against the score and being told to add a window are different
+      // things. An interior habitable room stays in `assessable` (it keeps
+      // costing the plan points — a bedroom with no daylight is a real defect)
+      // but is kept OUT of this advisory, because it has no façade to open onto
+      // and gets its own stronger message below. Without this split,
+      // `tpl-condo-penthouse`'s interior `Lounge` was both told to "add or widen
+      // windows" and told no window was possible.
+      const failing = assessable.filter((r) => (!r.daylightPass || !r.ventPass) && !r.noFacade)
+      if (failing.length > 0)
+        issues.push({
+          severity: 'warning',
+          message: `${failing.length} ${plural(failing.length, 'room')} below the daylight/airflow rule of thumb — add or widen windows.`,
+        })
+      else if (assessable.every((r) => r.daylightPass && r.ventPass))
+        issues.push({
+          severity: 'info',
+          message: `Every ${sealed.length > 0 ? 'assessed ' : ''}room meets the daylight & airflow guide.`,
+        })
+    }
+    if (sealedHabitable.length > 0)
       issues.push({
         severity: 'warning',
-        message: `${failing.length} ${plural(failing.length, 'room')} below the daylight/airflow rule of thumb — add or widen windows.`,
+        message: `${sealedHabitable.map((r) => r.roomName).join(', ')} ${sealedHabitable.length === 1 ? 'is a habitable room' : 'are habitable rooms'} with no external wall — no daylight is possible at all; the layout needs an opening onto the façade.`,
       })
-    else
-      issues.push({ severity: 'info', message: 'Every room meets the daylight & airflow guide.' })
+    if (sealed.length > 0)
+      issues.push({
+        severity: 'info',
+        message: `${sealed.map((r) => r.roomName).join(', ')} ${sealed.length === 1 ? 'is an interior room' : 'are interior rooms'} with no external wall — no window is possible, so not assessed.`,
+      })
+    if (shelters.length > 0)
+      issues.push({
+        severity: 'info',
+        message: `${shelters.map((r) => r.roomName).join(', ')} ${shelters.length === 1 ? 'is a household shelter' : 'are household shelters'} — reinforced-concrete walls that may not be opened, windowless by design, so not assessed.`,
+      })
   }
   return {
     id: 'daylight',

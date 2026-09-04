@@ -18,19 +18,17 @@ import { pointInRoom } from './types'
  * bedroom with no daylight.
  */
 const KNOWN_WINDOWLESS_BEDROOMS = [
-  // Down from 15 to 3. `v0.31.5.115`/`.116`/`.118` corrected three MIRRORED offsets (the
-  // `perimeter()` bug: S and W walls are built backwards, so an offset written as an absolute
-  // coordinate lands in the wrong room). `v0.31.7.192` and `.193` added NINE new windows — the
-  // mirror is a position FINDER, not a fix, because flipping an existing window merely swaps it
-  // between two rooms and leaves the count unchanged (measured).
-  //
-  // These three are the genuine remainder: a scan of every EXTERNAL wall (`perimeter()` marks its
-  // four `thickness: 'external'`) finds no span on a wall of their own where 1.5 m of glass would
-  // open outdoors. They need the plan restructured, not a window moved — which is what item (h)
-  // said all along.
   'tpl-hdb-4room/h4-bed3',
   'tpl-hdb-5room/h5-bed3',
   'tpl-hdb-exec/ex-bed3',
+  // ex-master FIXED in v0.31.5.118 — `ex-m-win`'s offset was mirrored and put the
+  // master's window in the KITCHEN. Corrected to the exact mirror (9.8 -> 0.4).
+  // c4-bed4 FIXED on the feat/blender-render merge. `v0.31.8.41` added a window here and REVERTED
+  // it, because at every offset in `c4-n`'s clear span the room's wardrobe stood in front of the
+  // glass — trading this ratchet for `windowSightline`'s. That reason no longer holds: under the
+  // arranger as it stands after `v0.31.9.26`'s `reserveRetry: false` and ROUTE-UNSEAL, `c4-b4win`
+  // does NOT appear in `windowSightline`'s blocked list, so the trade the revert was avoiding does
+  // not happen. Re-measured on the merge, both ratchets improve together.
 ]
 
 /** Does this room own `win`? Probe 0.3 m either side of the glass centre — the
@@ -91,8 +89,16 @@ describe('template bedrooms have daylight', () => {
         }
       }
     // 29 until v0.31.5.115 (4-room), 30 until `.116` (5-room), 31 until `.118`
-    // (exec) gave their masters their windows back; 35 after `v0.31.7.192` and **41** after
-    // `.193`, which added six more on external walls. 41 of 44 template bedrooms now have daylight.
+    // (exec) gave their masters their windows back; 34 from v0.31.8.29, when the
+    // jumbo re-author gave jb-master and jb-bed3 windows on their OWN walls —
+    // `jb-m-win` had been at z=2.9, inside the kitchen; 37 from `.30`, the 3Gen
+    // re-author, which fixed the SAME class of bug (`g3-m-win` at z=1.7, also in
+    // the kitchen, and `g3-b3-win` at z=4.3, inside bedroom 2) and gave the
+    // grandparent suite a window on the south wall it owns; 38 from `.31`, the
+    // 3-room re-author — `h3-b2-win` had been at z=2.0, in the KITCHEN, and
+    // bedroom 2 does not reach that wall at all.
+    // 41 on the feat/blender-render merge: `c4-b4win` (see the list above) gives Bedroom 4 its
+    // own window, which the revert at `v0.31.8.41` had left off.
     expect(owning).toBe(41)
   })
 })

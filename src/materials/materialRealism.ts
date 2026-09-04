@@ -226,7 +226,37 @@ export function transmissionResolutionScaleForTier(tier: RenderTier, device: Dev
  * has ramped down to 37 % and under, while both codified dusk guards gain margin rather than
  * losing it. Note also that `daylightFromAltitude` is 1.0 for any sun above the horizon, so this
  * entire ramp lives in the −8°..0° twilight window, not across the afternoon.
+ *
+ * **`backdropVisible` retires it (GLASS-SKYCATCH-VEIL, v0.31.8.50).** The
+ * sky-catch is a *stand-in* for sky luminance, for the case where there is
+ * nothing behind the pane to see. In walk mode with a backdrop painted there IS
+ * something behind the pane, and the stand-in then double-counts: a CONSTANT
+ * emissive term added to every pane pixel, which raises the floor uniformly and
+ * so compresses whatever the backdrop carries. Measured at the living-room
+ * window of the default 4-room flat, 13:00, `medium`, dropping it to 0:
+ *
+ * | backdrop | pane sd | pane spread p95−p05 |
+ * | --- | --- | --- |
+ * | `sky` (default) | 15.9 → **20.1** | 47 → **63** |
+ * | `city` | 10.5 → **11.5** | 31 → **38** |
+ *
+ * i.e. the stand-in was costing **23–34 % of the window's luminance range** at
+ * exactly the hour and pose WINDOW-LUMINANCE `(l)` is measured at. It cannot
+ * regress the 21:00 case `(l)` records as already correct, because at night
+ * `daylight` → 0 and the sky-catch is already 0 there by construction. Orbit /
+ * dollhouse and every backdrop-less path keep it — that is the case RZ2 added
+ * it for, and it is untouched.
  */
+export function glassSkyCatchIntensity(daylight: number, backdropVisible = false): number {
+  // GLASS-SKYCATCH-VEIL takes precedence over the curve: when a real view is painted behind
+  // the pane there is nothing for a stand-in to stand in for, so no coefficient applies.
+  if (backdropVisible) return 0
+  const d = clamp(daylight, 0, 1)
+  // `v0.31.7.281`: `d⁴ · 8.32`, was `d³ · 5.2`. Brighter ONLY near full daylight and
+  // strictly SAFER through the deep-dusk band -- see the note above.
+  return d * d * d * d * 8.32
+}
+
 /**
  * VEILING GLARE on the safety grille's bars, as an emissive keyed to daylight.
  *
@@ -269,13 +299,6 @@ export function grilleGlareIntensity(daylight: number): number {
 
 /** Coefficient for {@link grilleGlareIntensity}, CALIBRATED on p05 against the Cycles reference. */
 const GRILLE_GLARE = 1.4
-
-export function glassSkyCatchIntensity(daylight: number): number {
-  const d = clamp(daylight, 0, 1)
-  // `v0.31.7.281`: `d⁴ · 8.32`, was `d³ · 5.2`. Brighter ONLY at full daylight and strictly
-  // SAFER everywhere below it -- see the note above.
-  return d * d * d * d * 8.32
-}
 
 /** Sheen layer for a soft-fabric finish kind. Velvet shows the strongest, most
  *  coloured sheen; satin / woven fabric a subtler one; leather a faint specular

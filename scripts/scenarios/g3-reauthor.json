@@ -1,0 +1,81 @@
+{
+  "name": "g3-reauthor",
+  "description": "TEMPLATE (f): tpl-hdb-3gen re-authored \u2014 every room reachable (was 7 sealed groups), the Grandparent Bath moved beside its suite's wing, Master Bath made a real ensuite, front door out of the master bedroom, three bedrooms given their own windows. Asserts geometry and screenshots the 2D plan.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "load-3gen",
+      "eval": "import('/src/floorplan/templates.ts').then(m=>{const t=m.PLAN_TEMPLATES.find(p=>p.id==='tpl-hdb-3gen'); window.__store.getState().replaceFloorPlan(JSON.parse(JSON.stringify(t)), {furniture:'rehome'})}); 'started'"
+    },
+    {
+      "name": "plan-loaded",
+      "waitFor": {
+        "store": "state.floorPlan.rooms.some(r => r.id === 'g3-master')"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-master-fits-a-bed",
+      "eval": "(()=>{const m=window.__store.getState().floorPlan.rooms.find(r=>r.id==='g3-master'); const shortest=Math.min(m.width,m.depth); const longest=Math.max(m.width,m.depth); if(longest<2.2) throw new Error('master longest side '+longest+' m cannot take a 2.0 m bed'); return m.width+' x '+m.depth})()"
+    },
+    {
+      "name": "assert-every-room-reachable",
+      "eval": "(()=>{const s=window.__store.getState().floorPlan; const need=['g3-kit','g3-yard','g3-shelter','g3-cbath','g3-bath2','g3-master','g3-mbath','g3-gen','g3-bed2','g3-bed3','g3-living']; const missing=need.filter(id=>!s.rooms.find(x=>x.id===id)); if(missing.length) throw new Error('missing rooms: '+missing); const doors=s.openings.filter(o=>o.kind==='door').length; if(doors<11) throw new Error('only '+doors+' doors'); return doors+' doors, '+s.rooms.length+' rooms'})()"
+    },
+    {
+      "name": "assert-cbath-outside-master",
+      "eval": "(()=>{const s=window.__store.getState().floorPlan; const m=s.rooms.find(r=>r.id==='g3-master'); const clash=['g3-cbath','g3-bath2','g3-gen'].filter(id=>{const r=s.rooms.find(x=>x.id===id); return r.origin[0]<m.origin[0]+m.width&&r.origin[0]+r.width>m.origin[0]&&r.origin[1]<m.origin[1]+m.depth&&r.origin[1]+r.depth>m.origin[1]}); if(clash.length) throw new Error('overlaps the master: '+clash); return 'master clear of '+['g3-cbath','g3-bath2','g3-gen'].join(', ')})()"
+    },
+    {
+      "name": "open-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "editor-settled",
+      "waitFor": {
+        "store": "state.floorPlanEditing === true && state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "editor-ready",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-plan",
+      "wait": 1200
+    },
+    {
+      "name": "shot-plan",
+      "screenshot": "g3-plan"
+    }
+  ]
+}

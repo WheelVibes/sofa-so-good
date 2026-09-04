@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
+import type { FloorPlan } from '../../floorplan/types'
 import { occluderRectsForPlan } from './occluderRects'
 
 describe('occluderRectsForPlan', () => {
@@ -61,5 +62,60 @@ describe('occluderRectsForPlan', () => {
     const rects = occluderRectsForPlan(plan)
     expect(rects).toHaveLength(1)
     expect(rects[0]).toMatchObject({ id: 'custom-room-xyz', cx: 1.5, cz: 2, w: 3, d: 4, y: 2.8 })
+  })
+})
+
+/**
+ * **Occluders must cover EVERY storey (F13, v0.31.8.13).** `plan.rooms` is
+ * ground-only and `Scene.tsx` calls `occluderRectsForPlan` with the WHOLE plan,
+ * so an upper storey's rooms had a ceiling rendered (`PlanShell` iterates a
+ * per-level `lp.rooms`) but no shadow occluder — the sun poured through as if
+ * the room were unroofed. Measured on shipped templates: 8 rooms on
+ * `tpl-hdb-maisonette`, 7 on `tpl-terrace-ground`, 3 on `tpl-loft`.
+ */
+describe('occluderRectsForPlan — every storey', () => {
+  const twoStorey = (): FloorPlan =>
+    ({
+      id: 'ms',
+      name: 'Two storey',
+      ceilingHeight: 2.6,
+      extent: [10, 10],
+      walls: [],
+      openings: [],
+      rooms: [{ id: 'g1', name: 'Living', origin: [0, 0], width: 4, depth: 4 }],
+      upperLevels: [
+        {
+          id: 'l2',
+          name: 'Upper',
+          elevation: 2.9,
+          walls: [],
+          openings: [],
+          rooms: [{ id: 'u1', name: 'Bedroom', origin: [0, 0], width: 4, depth: 4 }],
+        },
+      ],
+    }) as unknown as FloorPlan
+
+  it('emits an occluder for an UPPER-storey room', () => {
+    const rects = occluderRectsForPlan(twoStorey())
+    expect(rects.map((r) => r.id).sort()).toEqual(['g1', 'u1'])
+  })
+
+  it("puts the upper room's plane at its own storey height, not the ground's", () => {
+    // The load-bearing half: a plane at the ground storey's 2.6 m does not roof
+    // a room whose floor starts at 2.9 m. Without the elevation offset both
+    // rects would sit at 2.6 and the upper room would still be sunlit.
+    const rects = occluderRectsForPlan(twoStorey())
+    const ground = rects.find((r) => r.id === 'g1')!
+    const upper = rects.find((r) => r.id === 'u1')!
+    expect(ground.y).toBeCloseTo(2.6, 6)
+    expect(upper.y).toBeCloseTo(2.9 + 2.6, 6)
+    expect(upper.y).toBeGreaterThan(ground.y)
+  })
+
+  it('is unchanged for a single-storey plan', () => {
+    const single = { ...twoStorey(), upperLevels: undefined } as unknown as FloorPlan
+    const rects = occluderRectsForPlan(single)
+    expect(rects).toHaveLength(1)
+    expect(rects[0]!.y).toBeCloseTo(2.6, 6)
   })
 })

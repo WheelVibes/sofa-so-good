@@ -1,7 +1,7 @@
 /**
  * The RENDER side of the per-room texture transform (F13).
  *
- * v0.31.5.281 fixed the CONTROL (`ui/finish/DirectionRow.tsx`) to find an
+ * v0.31.5.382 fixed the CONTROL (`ui/finish/DirectionRow.tsx`) to find an
  * upstairs room, and left this half reading `plan.rooms` — so a user could set
  * an upstairs room's texture angle, see the control accept it, and see nothing
  * change in 3D. Half-fixing was worse than not fixing: a control that visibly

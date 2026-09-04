@@ -28,6 +28,7 @@ import {
 } from '../materials/materialRealism'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
 import { useSunPosition } from '../scene/lighting/useSunPosition'
+import { backdropVisibleNow } from '../scene/SceneBackdrop'
 import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
@@ -160,7 +161,8 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       } else {
         glass.color.set(glassParams.color)
       }
-      glass.emissiveIntensity = glassSkyCatchIntensity(1 - d)
+      // GLASS-SKYCATCH-VEIL — see `PlanShell`'s pane and `glassSkyCatchIntensity`.
+      glass.emissiveIntensity = glassSkyCatchIntensity(1 - d, backdropVisibleNow())
       if (glassPhysical) {
         ;(glass as MeshPhysicalMaterial).transmission =
           windowTransmission(1 - d) * (glassParams.transmission / 0.9)

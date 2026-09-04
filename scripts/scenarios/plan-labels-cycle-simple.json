@@ -4,6 +4,7 @@
   "description": "IXT-SUITES simple rung for `planLabels` (simple tier — the 2D plan editor's furniture-label cycle button in the 'View ▾' menu / mobile Tools sheet). Opens the floor-plan editor, turns on the 'Furniture' footprint layer, verifies NO item labels render pre-cycle (labels default 'off' and nothing is selected), cycles the button off→name (asserts one <text class=plan-item-label> per named item) then name→price (asserts a $-formatted price tspan appears), and re-verifies the cycle button is present after a Simple→Pro switch (planLabels is simple-tier, shown in both modes).",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
     {
       "name": "dismiss-overlays",
       "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"

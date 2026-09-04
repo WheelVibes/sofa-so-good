@@ -3,7 +3,7 @@
  * lighting schedule's numbers make possible.
  *
  * `lighting2d/lightingPlan.ts` builds a fixture schedule, but until
- * v0.31.5.297 its rows carried `intensity` in three.js candela: a RENDER unit,
+ * v0.31.5.398 its rows carried `intensity` in three.js candela: a RENDER unit,
  * on a register whose own header warns it must never be compared to a real
  * luminaire. With `EmitterSpec.cct` and `EmitterSpec.ip` authored as product
  * properties, two checks become possible that no amount of geometry could give:

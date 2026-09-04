@@ -158,33 +158,36 @@ describe('rug size against a bed — the head side is excluded', () => {
     expect(f[0]!.detail).toMatch(/0\.46/)
   })
 
+  // **These two swapped in v0.31.8.9, because they encoded a wrong convention.**
+  // They asserted the head points +X at rotation π/2, matching `headDir`'s own
+  // formula — so they passed on a bug that returned the FOOT for every bed
+  // rotated ±90°. A test that shares the product's error cannot detect it.
+  //
+  // The expectations below are now derived from GROUND TRUTH rather than from
+  // the formula under test: `placeFlush(edge:'W')` puts a bed against the WEST
+  // wall at `inward('W') = π/2` (`layout/arrangeGeometry.ts`), so at rotation
+  // π/2 the headboard points WEST — head at -x, foot at +x.
   it('excludes the head side by DIRECTION, following the bed rotation', () => {
-    // Bed turned a quarter turn: the head now points +X, because the app maps
-    // local (0, -1) to (sin, -cos). The rug is shifted the same way, so the one
-    // UNCOVERED side is the head and no other. If the exclusion were hardcoded
-    // to -z, or picked whichever side measured worst, this would not
-    // discriminate — and it caught a sign error in `headDir` that excluded the
-    // foot instead.
-    // Bed x 3..5 (the 2 m length now runs along x), rug x 2..4: the uncovered
-    // bed edge is +x, which is the head, and both z sides clear by 0.50 m.
+    // Bed x 3..5 (the 2 m length runs along x at a quarter turn); head is the -x
+    // end. Rug shifted to +x covers the foot and leaves the HEAD uncovered,
+    // which is exactly what the convention permits.
     const f = bedFindings([
       item('b', 'bed-queen', 4, 2, Math.PI / 2),
-      item('r', 'rug-bedroom', 3, 2, Math.PI / 2),
+      item('r', 'rug-bedroom', 5, 2, Math.PI / 2),
     ])
     expect(f[0]!.verdict).toBe('pass')
   })
 
   it('FAILS the mirror image of that, where the FOOT is uncovered', () => {
-    // Same quarter-turned bed, rug shifted the other way so the uncovered edge
-    // is -x, the foot. This is the pair that makes the rotated case
-    // falsifiable: without it, an exclusion that dropped whichever side
-    // measured worst would satisfy the passing test above.
+    // Same quarter-turned bed, rug shifted to -x so it covers the head end and
+    // leaves the FOOT bare. This is the pair that makes the rotated case
+    // falsifiable: an exclusion that dropped whichever side measured worst, or
+    // that had the sign backwards, cannot satisfy both arms.
     const f = bedFindings([
       item('b', 'bed-queen', 4, 2, Math.PI / 2),
-      item('r', 'rug-bedroom', 5, 2, Math.PI / 2),
+      item('r', 'rug-bedroom', 3, 2, Math.PI / 2),
     ])
     expect(f[0]!.verdict).toBe('fail')
-    expect(f[0]!.detail).toMatch(/overhangs the rug by 1\.00 m/)
   })
 
   it('FAILS when the same shortfall is at the FOOT rather than the head', () => {

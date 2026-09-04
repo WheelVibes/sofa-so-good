@@ -208,7 +208,7 @@ or editing a `LayoutPreset`'s finishes or description.
   [Goodrich](https://www.goodrichglobal.com/singapore/article/peranakan-inspired-interior-design/) ·
   [Garland Magazine on Peranakan tiles](https://garlandmag.com/article/peranakan-tiles/)
 - **Quiet luxury** — matte/semi-matte finishes and UNLACQUERED brass; the source
-  of the v0.31.5.265 Modern Luxe correction.
+  of the v0.31.5.366 Modern Luxe correction.
   [zeysey](https://www.zeysey.com/en/quiet-luxury-colors/blog/detail/2025-interior-color-trends-quiet-luxury-earthy-tones-soft-minimal-palettes) ·
   [Suave Vera](https://suavevera.com/quiet-luxury-color-palettes/)
 - **Singapore HDB / condo defaults** — confirms white walls + light/warm oak as

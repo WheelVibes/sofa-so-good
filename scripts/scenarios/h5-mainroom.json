@@ -1,0 +1,73 @@
+{
+  "name": "h5-mainroom",
+  "description": "TEMPLATE (i) v0.31.8.37: tpl-hdb-5room's front door opened into the MASTER BEDROOM, and its south wall is lined only by the master, master bath and balcony \u2014 so no offset there is correct. Asserts the door now fronts the living room and screenshots the plan.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "load-h5",
+      "eval": "import('/src/floorplan/templates.ts').then(m=>{const t=m.PLAN_TEMPLATES.find(p=>p.id==='tpl-hdb-5room'); window.__store.getState().replaceFloorPlan(JSON.parse(JSON.stringify(t)), {furniture:'rehome'})}); 'started'"
+    },
+    {
+      "name": "plan-loaded",
+      "waitFor": {
+        "store": "state.floorPlan.rooms.some(r => r.id === 'h5-master')"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-every-room-reachable",
+      "eval": "(()=>{const s=window.__store.getState().floorPlan; const m=s.openings.find(o=>o.id==='h5-main'); if(!m) throw new Error('no h5-main'); if(m.wallId!=='h5-n') throw new Error('h5-main is on '+m.wallId); const w=s.walls.find(x=>x.id==='h5-n'); const ux=(w.end[0]-w.start[0]), len=Math.hypot(ux, w.end[1]-w.start[1]); const x0=w.start[0]+ux/len*m.offset, x1=w.start[0]+ux/len*(m.offset+m.width); const liv=s.rooms.find(r=>r.id==='h5-living'); const inLiv=Math.min(x0,x1)>=liv.origin[0]&&Math.max(x0,x1)<=liv.origin[0]+liv.width; if(!inLiv) throw new Error('door x '+x0.toFixed(2)+'-'+x1.toFixed(2)+' not inside the living '+liv.origin[0]+'-'+(liv.origin[0]+liv.width)); return 'front door at x '+x0.toFixed(2)+'-'+x1.toFixed(2)+', inside Living / Dining'})()"
+    },
+    {
+      "name": "open-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "editor-settled",
+      "waitFor": {
+        "store": "state.floorPlanEditing === true && state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "editor-ready",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-plan",
+      "wait": 1200
+    },
+    {
+      "name": "shot-plan",
+      "screenshot": "h5-plan"
+    }
+  ]
+}

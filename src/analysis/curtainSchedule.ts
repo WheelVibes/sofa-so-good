@@ -7,7 +7,7 @@
  * quotes from. A maker needs the **drop** (which is the number most often got
  * wrong, and is derivable from the opening the curtain hangs on), the
  * **fullness ratio**, and the resulting **fabric width**. Same shape as the
- * paint gap in v0.31.5.292: the app was handing over dimensions where the trade
+ * paint gap in v0.31.5.393: the app was handing over dimensions where the trade
  * needs quantities.
  *
  * Computed from the real opening geometry (`PlanOpening.sill`/`head`/`width`)

@@ -463,7 +463,7 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
       )
       return ''
     }
-    // The SPECIFICATION a maker quotes from (v0.31.5.303), alongside the placed
+    // The SPECIFICATION a maker quotes from (v0.31.5.404), alongside the placed
     // list. The table above gives each fixture's rendered footprint — which the
     // caveat below it admits is not an order dimension. Drops and fabric widths
     // are derived from the real opening geometry per storey, so they move with
@@ -581,7 +581,7 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
     const byName: Record<string, (typeof BUILTIN_MATERIALS)[string] | undefined> = {}
     for (const m of Object.values(BUILTIN_MATERIALS)) byName[m.name] = m
     // Substrate DERIVED from the recorded intake where the plan has one
-    // (v0.31.5.293) — a BTO's bare skim coat needs a sealer coat and about half
+    // (v0.31.5.394) — a BTO's bare skim coat needs a sealer coat and about half
     // the coverage of a painted resale, a >2x difference in litres. Falls back
     // to the stated 'primed' assumption when no intake was recorded.
     const substrate = substrateForIntake(plan.intakeState) ?? 'primed'
