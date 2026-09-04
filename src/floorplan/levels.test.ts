@@ -14,6 +14,7 @@ import {
   levelSpawnPoint,
   planLevels,
   visibleLevels,
+  visibleLevelsForWalk,
   walkLevel,
   withLevelGeometry,
 } from './levels'
@@ -163,6 +164,22 @@ describe('levelAsPlan / visibleLevels', () => {
     expect(visibleLevels(multi, 'all').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
     expect(visibleLevels(multi, 'lvl-2').map((l) => l.id)).toEqual(['lvl-2'])
     expect(visibleLevels(multi, 'stale').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
+  })
+
+  it('WALKING a storey also renders everything below it, never above (item `(g)`)', () => {
+    // Isolation is right for the dollhouse and wrong in first person: selecting an upper
+    // storey is the only way to walk it, and that is exactly what used to hide the floor
+    // you are standing over — `tpl-loft`'s mezzanine looked out onto bare sky.
+    expect(visibleLevelsForWalk(multi, 'lvl-2').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
+    // Standing on the ground floor does NOT pull the storey above down on your head.
+    expect(visibleLevelsForWalk(multi, 'ground').map((l) => l.id)).toEqual(['ground'])
+    // 'all' and stale ids behave exactly as `visibleLevels` does.
+    expect(visibleLevelsForWalk(multi, 'all').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
+    expect(visibleLevelsForWalk(multi, 'stale').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
+    // A single-storey plan is unaffected either way.
+    expect(visibleLevelsForWalk(single, 'ground').map((l) => l.id)).toEqual(
+      visibleLevels(single, 'ground').map((l) => l.id),
+    )
   })
 
   it('scopes the plan notes to the storey (multi-level sheets stay per-level)', () => {

@@ -131,6 +131,33 @@ export function visibleLevels(plan: FloorPlan, viewLevelId: string): PlanLevel[]
   return match.length > 0 ? match : levels
 }
 
+/**
+ * Storeys to render while WALKING a selected level: the walked one plus everything below it.
+ *
+ * **The defect this fixes (item `(g)`).** `visibleLevels` returns only the matching level, and
+ * storeys unmount when hidden so picking cannot hit them — correct for the dollhouse and the 2D
+ * editor, where isolating a floor is the point. It is wrong in first person, where you are standing
+ * inside the building: `walkLevel(plan, 'all')` walks the GROUND floor, so the only way to walk an
+ * upper storey is to select it, which is exactly what hides the storey beneath. Walk `tpl-loft`'s
+ * mezzanine and there is **no floor, no far wall and no room below over the guard rail — just a
+ * pale sky gradient**, measured at ceiling-band luma **28.2** against 129–185 for the rest of the
+ * storey.
+ *
+ * Only storeys BELOW are added, never above: standing on the ground floor of a maisonette should
+ * not render the upper storey's furniture hanging over your head, and the ceiling above you is the
+ * thing that makes an interior read as enclosed.
+ *
+ * The caller must also suppress the CEILING of every storey below the walked one, or the sky hole
+ * is merely replaced by the top of a ceiling slab seen from above.
+ */
+export function visibleLevelsForWalk(plan: FloorPlan, viewLevelId: string): PlanLevel[] {
+  const levels = planLevels(plan)
+  if (viewLevelId === 'all') return levels
+  const walked = levels.find((l) => l.id === viewLevelId)
+  if (!walked) return levels
+  return levels.filter((l) => l.elevation <= walked.elevation)
+}
+
 /** The storey a first-person walker stands on for a View→Levels selection
  *  (ML6c): 'all' (or an unknown/stale id) walks the ground floor; a level id
  *  walks that storey — the walker teleports there and collides with ITS

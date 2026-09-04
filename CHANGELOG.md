@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.207 — walking an upper storey now shows the one below it (item `(g)`), and the sky over the rail turns out to be a different defect
+
+`visibleLevelsForWalk(plan, viewLevelId)` returns the walked storey plus every storey BELOW it, and
+`PlanShell` uses it in place of `visibleLevels` when `cameraMode === 'firstPerson'`. Level isolation
+is right for the dollhouse and the 2D editor — isolating a floor is the point there — and wrong when
+you are standing inside the building: `walkLevel(plan, 'all')` walks the GROUND floor, so the only
+way to walk an upper storey is to select it, which is exactly what hid the storey beneath.
+
+Two things had to move with it, because doing either alone produces a different wrong picture rather
+than a fix:
+
+- **The overlooked storeys' ceilings are suppressed** (`withCeiling` prop on `PlanLevelShell`).
+  Un-hiding the storey below without this replaces the sky hole with the top of a ceiling slab seen
+  from above.
+- **`FurnitureLayer` got the same rule.** It filters items by `levelId !== viewLevelId`
+  independently of the shell, so the room below would have rendered stripped and empty.
+
+Measured with a new `scripts/dev-probes/level-below.mjs`, which bins every rendered mesh by the world
+Y of its bounds against the walked elevation — a framing check could not settle this, because the
+mezzanine tour's yaw sweep never points over the rail and "sky" and "lit room below" both read
+bright. On `tpl-loft` at the 3.3 m storey, auto-furnished, `realistic`: **0 meshes below in orbit,
+359 in walk** (78 shell + furniture). Thin wide slabs below sit at y = −0.01…0.01 plus one at 0.4 —
+all floors and a table top, **no ceiling lid**.
+
+Cost, with `frame-time.mjs` extended with `PLAN=`/`LEVEL=` (there was no way to price an upper-storey
+walk before), two runs per arm: `performance` **60.1 / 59.9 fps**, p50 3.0 / 2.7 ms, worst frame
+5.2 ms — the weak-device tier stays at the cap. `realistic` **53.4 / 52.7 fps** against an isolated
+control of **57.6 / 54.1**, a control spread that is itself 3.5 fps wide. The first run's 45.7 fps and
+**1994 ms** worst frame did not reproduce: two more runs gave 112–119 ms against the control's 78–93,
+so it was the one-off shader compile as the storey's materials attach.
+
+**The sky over the rail is NOT this bug, and item `(g)`'s recorded diagnosis was incomplete.** A new
+`aim-look.mjs` takes explicit `label:x,z,yaw,pitch` poses, because `walk-tour`'s four cardinal yaws at
+−0.05 pitch never frame the void — three tours of `tpl-loft` came back with windows and walls. Aimed
+over the parapet, a raycast through the frame centre at eye level hits **nothing**. The cause is in the
+template: `lf-open`, the "double-height" volume, carries no `ceilingHeight` override, so it is authored
+as a 3.0 m room. `planGeometry.ts:85` builds walls at `wall.topHeight ?? plan.ceilingHeight`, so the
+ground perimeter stops at 3.0 m while the loft reaches 5.5 m, and the 2.5 m band between has no
+exterior wall at all. Filed as item `(w)`. Looking DOWN over the rail is what this commit earns, and
+that now shows the ground floor and its furniture instead of a hole.
+
+Two probe bugs found and recorded in the new probe rather than silently worked around: `setPitch`
+called in the same tick as `requestWalkTeleport` is discarded (two poses at −0.7 and −0.25 produced
+pixel-identical frames, so the probe reported a pose it had not shot — it now sets pitch after the
+teleport settles and reads it back), and both the onboarding modal and `LocationPrompt` blur the
+entire scene if not dismissed before load.
+
+
 ## v0.31.7.206 — window treatments extended to the LIVING room: 42 → 66 curtains
 
 `.205` seeded bedrooms. The living room is the most-viewed room in the app and carries the largest

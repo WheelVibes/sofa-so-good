@@ -73,6 +73,14 @@ export function FurnitureLayer({
   // unmount with a hidden level. Single-level plans skip all of this (null map).
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
+  // WALK MODE keeps the storeys BELOW the walked one (item `(g)`, matching `PlanShell`): the shell
+  // below is rendered there, and furniture filtered separately would leave a stripped empty room
+  // under the mezzanine rail — a different wrong picture from the sky hole, not a fix.
+  const walking = useStore((s) => s.cameraMode) === 'firstPerson'
+  const walkElevation = useMemo(() => {
+    if (!walking || viewLevelId === 'all' || room || !isMultiLevel(plan)) return null
+    return planLevels(plan).find((l) => l.id === viewLevelId)?.elevation ?? null
+  }, [walking, viewLevelId, plan, room])
   const levelElevations = useMemo(() => {
     // The isolated room editor renders its room at y=0 whatever the storey —
     // items there stay unoffset; level membership is the room filter's job.
@@ -116,7 +124,11 @@ export function FurnitureLayer({
         if (hiddenSet?.has(item.id)) return null
         if (room && !isItemInRoom(item, room)) return null
         const levelId = item.levelId && levelElevations?.has(item.levelId) ? item.levelId : 'ground'
-        if (levelElevations && viewLevelId !== 'all' && levelId !== viewLevelId) return null
+        if (levelElevations && viewLevelId !== 'all' && levelId !== viewLevelId) {
+          // Walking: keep it if its storey is at or below the one being walked.
+          const e = levelElevations.get(levelId)
+          if (walkElevation == null || e == null || e > walkElevation) return null
+        }
         const elevation = (levelElevations?.get(levelId) ?? 0) + findRoomOffset(item)
         const node = (
           <Furniture

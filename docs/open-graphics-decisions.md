@@ -328,7 +328,48 @@ up as a required edit to the list.
 
 ---
 
-## (g) LEVEL-ISOLATION-IN-WALK — ✅ DECIDED 2026-09-04, see (z)15: fix (measured v0.31.5.110)
+## (g) LEVEL-ISOLATION-IN-WALK — ✅ **SHIPPED v0.31.7.207**, and it uncovered a SECOND defect (see the box)
+
+> **`v0.31.7.207` — shipped, and the diagnosis below is INCOMPLETE.** Walk mode now renders the
+> walked storey plus everything BELOW it (`visibleLevelsForWalk`, gated on
+> `cameraMode === 'firstPerson'`), with the overlooked storeys' ceilings suppressed via a
+> `withCeiling` prop and the same rule extended to `FurnitureLayer` — filtering the shell and the
+> furniture separately would have left a stripped empty room under the rail, which is a different
+> wrong picture, not a fix.
+>
+> **Measured, not assumed** (`scripts/dev-probes/level-below.mjs`, new, 13:20 local, `tpl-loft`
+> auto-furnished, `realistic`): below the walked 3.3 m storey, orbit renders **0 meshes** and walk
+> renders **359** — 78 of them shell, the rest furniture, which is why the furniture filter had to
+> move too. Thin wide slabs below sit at y = −0.01…0.01 (plus one at 0.4, a table top): **all
+> floors, no ceiling lid**, so the suppression works.
+>
+> **Cost** (`frame-time.mjs`, now with `PLAN=`/`LEVEL=`, two runs per arm): `performance`
+> **60.1 / 59.9 fps**, p50 3.0 / 2.7 ms, worst frame 5.2 ms — the weak-device tier is untouched and
+> still at the cap. `realistic` **53.4 / 52.7 fps** p50 2.5 / 3.0 ms against an isolated control of
+> **57.6 / 54.1 fps** p50 2.3 / 1.1 ms, i.e. inside a control spread that is itself 3.5 fps wide.
+> The control was taken with `git show HEAD:` into place and restored with a verified `cp`. A first
+> run showed 45.7 fps and a **1994 ms** worst frame; two further runs put the worst frame at
+> 112–119 ms against the control's 78–93, so that was the one-off shader compile as the storey's
+> materials attach, not a steady-state cost.
+>
+> **⚠️ THE SKY OVER THE RAIL IS A DIFFERENT DEFECT, and this fix does not close it.** The
+> mechanism below is real and is now fixed, but it is NOT what produces the pale sky gradient. Aimed
+> deliberately over the parapet (`aim-look.mjs`, new — `walk-tour`'s four cardinal yaws at −0.05
+> pitch never frame the void, which is why three tours of `tpl-loft` came back with windows and
+> walls), a raycast through the frame centre at eye level hits **NOTHING — sky**. The cause is in the
+> template: `lf-open`, the "double-height" volume, carries **no `ceilingHeight` override**, so it is
+> authored as a 3.0 m room. `planGeometry.ts:85` builds walls at `wall.topHeight ?? plan.ceilingHeight`,
+> so the ground perimeter stops at **3.0 m** while the loft above reaches **5.5 m** (3.3 + 2.2) — and
+> the 2.5 m band between them has no exterior wall at all. It is open to the sky whatever the level
+> visibility does, and it is equally wrong walking the GROUND floor, where a 3.0 m ceiling lid sits
+> over a volume the template calls double-height. **The volume is not double height in geometry.**
+> Filed as item `(w)`; the levers are per-wall `topHeight` on the void-side spans (the east/west
+> perimeter walls need splitting at z = 3.4, since above the mezzanine the loft's own external walls
+> already occupy that plane) plus `ceilingHeight: 5.5` on `lf-open`.
+>
+> Looking DOWN over the rail now works and is the part this fix earns: the ground floor and its
+> furniture are there instead of a hole.
+
 
 **What you would see.** Open `tpl-loft`, pick View → Levels → "Loft" (the ONLY way to walk the
 mezzanine), and walk to the guard rail. Over the rail there is **no floor, no far wall and no room
@@ -3273,7 +3314,8 @@ alone would produce (u)'s two classes.
 | d | wall-reveal POSE | design parameter | ❌ **CLOSED v0.31.5.89** — no defect; premise retracted |
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
-| g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
+| g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ✅ **SHIPPED v0.31.7.207** — walk mode renders the walked storey plus everything below (0 → 359 meshes below on `tpl-loft`), ceilings of overlooked storeys suppressed, furniture filter moved with it; `performance` 60 fps unchanged, `realistic` 52.7–53.4 vs a 54.1–57.6 control. **Uncovered `(w)`:** the sky over the rail is a missing wall band, not a visibility bug |
+| w | DOUBLE-HEIGHT-WALL-BAND | content / template geometry | 🐞 **REAL v0.31.7.207** — `lf-open` is authored as a 3.0 m room, so `tpl-loft`'s double-height volume has NO exterior wall between 3.0 m and the loft's 5.5 m and a ceiling lid at 3.0 m. Centre raycast over the rail hits nothing. Levers: per-wall `topHeight` on void-side spans + `ceilingHeight: 5.5` on `lf-open` |
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |

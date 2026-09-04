@@ -100,6 +100,31 @@ await page.evaluate(
   Number(process.env.HOUR || 13),
 )
 
+// PLAN=<template id> swaps a shipped template in (auto-furnished) and LEVEL=<id> walks that
+// storey — the only way to price an UPPER-storey walk, which since item `(g)` also draws every
+// storey below it.
+const PLAN = process.env.PLAN || ''
+const LEVEL = process.env.LEVEL || ''
+if (PLAN) {
+  const swapped = await page.evaluate(async (id) => {
+    const { PLAN_TEMPLATES } = await import('/src/floorplan/templates.ts')
+    const tpl = PLAN_TEMPLATES.find((t) => t.id === id)
+    if (!tpl) return null
+    const st = window.__store.getState()
+    st.replaceFloorPlan(structuredClone(tpl), { furniture: 'clear' })
+    st.applyLayoutPreset('move-in')
+    return tpl.name
+  }, PLAN)
+  if (!swapped) throw new Error(`PLAN template not found: ${PLAN}`)
+  await new Promise((r) => setTimeout(r, 2500))
+  console.log(`plan swapped -> ${swapped} (${PLAN})`)
+}
+if (LEVEL) {
+  await page.evaluate((id) => window.__store.getState().setViewLevel(id), LEVEL)
+  await new Promise((r) => setTimeout(r, 1500))
+  console.log(`walked level -> ${LEVEL}`)
+}
+
 const box = await page.evaluate(() => {
   const r = document.querySelector('canvas').getBoundingClientRect()
   return { x: r.x, y: r.y, w: r.width, h: r.height }

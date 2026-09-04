@@ -21,7 +21,12 @@ import {
   wallBaseExtensionM,
 } from '../floorplan/floorLevels3d'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
-import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
+import {
+  levelAsPlan,
+  type PlanLevel,
+  visibleLevels,
+  visibleLevelsForWalk,
+} from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { planRoomRects } from '../floorplan/planRoomShell'
 import { railingMemberInstances } from '../floorplan/railingLayout'
@@ -573,7 +578,15 @@ export function PlanShell() {
   const viewLevelId = useStore((s) => s.viewLevelId)
   const wallColor = plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR
   const [ew, ed] = planBounds(plan)
-  const levels = visibleLevels(plan, viewLevelId)
+  // WALK MODE renders the storeys BELOW the walked one too (item `(g)`): isolation is right for
+  // the dollhouse and the 2D editor, and wrong when you are standing inside the building — over
+  // `tpl-loft`'s mezzanine rail there was no floor below, just sky. Their CEILINGS are suppressed
+  // below, or the sky hole becomes the top of a ceiling slab seen from above.
+  const cameraMode = useStore((s) => s.cameraMode)
+  const walking = cameraMode === 'firstPerson'
+  const levels = walking
+    ? visibleLevelsForWalk(plan, viewLevelId)
+    : visibleLevels(plan, viewLevelId)
 
   return (
     <group>
@@ -583,7 +596,14 @@ export function PlanShell() {
       {levels.map((level) => (
         <group key={level.id} position={[0, level.elevation, 0]}>
           {level.elevation > 0 ? <LevelSlab level={level} /> : null}
-          <PlanLevelShell plan={plan} level={level} wallColor={wallColor} cx={ew / 2} cz={ed / 2} />
+          <PlanLevelShell
+            plan={plan}
+            level={level}
+            wallColor={wallColor}
+            cx={ew / 2}
+            cz={ed / 2}
+            withCeiling={!walking || viewLevelId === 'all' || level.id === viewLevelId}
+          />
         </group>
       ))}
       {/* Parametric roof over the top storey (world-space; fades in orbit so the
@@ -619,12 +639,16 @@ function PlanLevelShell({
   wallColor,
   cx,
   cz,
+  withCeiling = true,
 }: {
   plan: FloorPlan
   level: PlanLevel
   wallColor: string
   cx: number
   cz: number
+  /** False for a storey being OVERLOOKED from the one above (item `(g)`): its ceiling would
+   *  otherwise be seen from above as a slab lid over the void. */
+  withCeiling?: boolean
 }) {
   const finishes = useStore((s) => s.finishes)
   const crownMolding = useFeature('crownMolding')
@@ -906,8 +930,11 @@ function PlanLevelShell({
       })}
 
       {/* Per-room ceilings (downward-facing — seen in walk, culled in orbit).
-          Honour a per-room override, falling back to the level/plan height. */}
-      {lp.rooms.map((r) => {
+          Honour a per-room override, falling back to the level/plan height.
+          Skipped entirely for a storey being OVERLOOKED from the one above
+          (`withCeiling` false, item `(g)`) — from up there the lid is what you
+          would see instead of the room. */}
+      {(withCeiling ? lp.rooms : []).map((r) => {
         const h = r.ceilingHeight ?? lp.ceilingHeight
         const ceilMat = resolvePlanRoomCeiling(finishes, r)
         if (r.polygon && r.polygon.length >= 3) {
