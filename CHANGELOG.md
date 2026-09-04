@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.266 — the sweep re-run against LIT references: the wall is fixed, the floor is now the worst
+
+No code this round. `(z5)` made an honest absolute comparison possible for the first time, so the
+three-surface sweep was re-run against references that have the lamps in them. One pose in
+`livingDining`, exposure-matched AgX, lights on BOTH sides, patches placed and then checked on the
+overlay in both frames before any number was read. app ÷ Cycles on byte means:
+
+| hour | ceiling | wall | floor |
+| --- | --- | --- | --- |
+| 09:00 | 1.050 | **0.990** | 0.783 |
+| 13:00 | 1.053 | **0.998** | 0.804 |
+| 17:00 | 1.059 | **1.000** | 0.806 |
+
+**The wall is done.** It entered this arc at **1.445**, went to 1.368 under `.257`'s beam curve,
+and now reads 0.990 / 0.998 / 1.000 — the combined effect of `(z3)`'s `receiveShadow`, `(z4)`'s
+sky-tinted injection and `(z5)`'s lit reference. Mean wall error across the three hours is **0.4 %**.
+
+**These are NOT comparable to the old "mean 12.3 %".** That figure came from linear region ratios
+out of a different harness; these are sRGB byte means, and a ratio of byte means is not a ratio of
+linear values. Quoting one against the other would manufacture a trend. On its own terms this set
+means 8.7 %, worst 21.7 %, and it is the new baseline.
+
+**The floor is now the worst error and it is NOT attributed — item `(z7)`.** ~20 % dark at every
+hour, while its chroma agrees (R−B 44.6 vs 45.4). So it is a level error, not a colour one. But the
+contrast disagrees as well — patch sd **23.3 app against 12.9 Cycles** — and the reference is built
+from a three-exported GLB, so a floor material that survives the export imperfectly (texture colour
+space, a missing roughness or normal map, a tiling/UV difference) would produce exactly this
+signature, and then the REFERENCE is wrong and the app is right. A 40-count gap is too large to
+guess at: the next step is a material census on the floor mesh either side of the export, not a gain
+change.
+
+**One residual worth naming.** The app's wall and floor patches are byte-IDENTICAL across all three
+hours while Cycles' wall drifts 220.8 → 218.4. That is the static bake being unable to track the
+sun, and post-`(z3)` it is down to about 2 counts on this surface — small enough to leave alone.
+
+
 ## v0.31.7.265 — the Cycles reference can finally turn the lights on, and it agrees to 0.2 counts
 
 **`(z5)` fixed.** `scene-glb.mjs` exports `lights.point` / `lights.spot` with WORLD positions —
