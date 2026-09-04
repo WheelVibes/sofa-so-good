@@ -27,6 +27,63 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.26 — reserve the piece that lost its spot, and the blocked lever unblocks
+
+v0.31.9.25 established that the arranger can place a piece ONTO an item it has not placed yet,
+and that no cleverer `settle` can fix it — by the time the settle runs, the spot is gone. This
+fixes it, and **verifies that the lever it was blocking now passes.**
+
+### RESERVE-RETRY
+
+`arrangeCore`'s body is now one `attempt(reserved)` function. If an attempt leaves anything
+unplaced, it runs ONCE more with those pieces seeded into `world` at their current transform, so
+the others route around them instead of over them. `tryPlace` already replaced a pre-seeded entry
+in place rather than pushing a duplicate, and already filtered the candidate against itself, so a
+reserved piece can still be moved if the room routine finds it somewhere better — no change was
+needed there.
+
+The retry is kept only if it leaves strictly fewer of the room's pieces invalid, so reserving can
+never make a room worse, and the common case pays nothing because `unplaced` is empty and the
+retry never runs.
+
+**Verified against the case that blocked v0.31.9.24:** with that release's wall-ENDS sweep
+candidate re-applied, `autoArrange.test.ts`'s "tidies a custom plan validly" now passes —
+`invalid at` count 0, all 37 assertions green. The ends lever itself is NOT shipped here; it
+belongs with the other three and their content deltas.
+
+### The furnish/tidy split is a flag, because two metrics failed first
+
+`reserveRetry` defaults TRUE and `furnishPlan` passes FALSE. That is a real difference between
+the callers, not a hedge — on furnish every piece in a room is seeded at the SAME point (the room
+centre), so reserving one parks an obstacle mid-room and strands the rest.
+
+Two attempts to infer it instead, both measured and both wrong:
+
+- **`invalidCount` alone: nine ratchets moved.** On furnish, reserving a seed-parked piece really
+  does reduce invalid overlaps — it does it by stranding other pieces, which is an item-COUNT
+  change that a validity metric cannot see.
+- **adding `retry.unplaced.length <= result.unplaced.length`: no effect at all.** A reserved piece
+  sits in `world` from the start and therefore always reads as placed; the comparison is biased
+  toward the retry by construction.
+- Counting pieces that never MOVED fixed that bias and still left nine ratchets moving, because on
+  furnish the trade is real and simply not the one the corpus wants.
+
+So the callers say which they want. `tidyHome.ts` and `state/storage/bootstrap.ts` — both real
+tidies of real layouts — get the retry by default; the two `furnishPlan` call sites opt out.
+
+**The furnish corpus is untouched: all 10,253 tests pass with no ratchet edits.**
+
+### `tidyValidity.test.ts`
+
+Asserts at zero that tidying a valid layout never makes an item invalid, over all 19 templates'
+furnished layouts and the default flat, and pins the arranger's no-delete contract.
+
+Honestly: **it passes with `reserveRetry` off too.** The corpus does not currently reproduce a
+burial — the case that does needs the unshipped ends candidate. It exists so that when a
+placement lever next rebalances the corpus, the breakage arrives as "tidying made something
+invalid" instead of a single opaque `invalid at [x,y]` inside a test about door swings, which is
+how v0.31.9.24 surfaced and cost a release to diagnose.
+
 ## v0.31.9.25 — the rack never moved; a washing machine was put on top of it
 
 v0.31.9.24 named its own blocker as "`settle` surrenders and leaves a starved piece invalid", and

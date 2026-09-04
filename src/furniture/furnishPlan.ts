@@ -994,7 +994,14 @@ export function furnishPlanItems(
     }
   }
   if (seeded.length === 0) return []
-  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, seed)
+  // reserveRetry OFF for furnish (v0.31.9.26). Every piece in a room is seeded
+  // at the SAME point — the room centre — so reserving one that could not be
+  // placed parks an obstacle in the middle of the room and strands the rest.
+  // Measured: leaving it on moved nine ratchets, trading item COUNT for a
+  // validity number that `dropUnplaceable` already guarantees on this path.
+  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, seed, {
+    reserveRetry: false,
+  })
   // ROUTE-UNSEAL (v0.31.8.55). The drop passes above delete pieces that are
   // physically wrong; this one MOVES a piece that is physically fine and
   // strategically disastrous — one that seals a room off from the front door.
@@ -1058,7 +1065,9 @@ export function furnishOcsItems(
     }
   }
   if (seeded.length === 0) return []
-  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
+  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, 0, {
+    reserveRetry: false,
+  })
   return dropWallClippers(
     dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan),
     defs,

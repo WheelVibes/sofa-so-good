@@ -309,6 +309,21 @@ catastrophic for FURNISH, where every piece in a room starts at the SAME seed po
 centre) — everything would block everything and nothing would place. A real fix has to
 distinguish "an item sitting where it belongs" from "an item parked on a seed".
 
+**FIXED in v0.31.9.26 by RESERVE-RETRY.** `arrangeCore`'s body is now one `attempt(reserved)`
+function; if an attempt leaves anything unplaced it runs ONCE more with those pieces seeded into
+`world` at their current transform, so the others route around them. `tryPlace` already replaced
+a pre-seeded entry in place and already filtered the candidate against itself, so a reserved piece
+can still move — nothing there needed changing. The retry is kept only if it leaves strictly fewer
+of the room's pieces invalid.
+
+**The furnish/tidy difference is an explicit `reserveRetry` flag** (default true;
+`furnishPlan` passes false), and it has to be, because two attempts to infer it were measured and
+failed: `invalidCount` alone moved nine ratchets (on furnish, reserving a seed-parked piece
+reduces invalid overlaps by STRANDING others — an item-count change a validity metric cannot see),
+and adding an `unplaced` comparison did nothing because a reserved piece sits in `world` from the
+start and always reads as placed. Verified unblocked: with v0.31.9.24's wall-ENDS candidate
+re-applied, `autoArrange.test.ts`'s "tidies a custom plan validly" passes.
+
 `furnishPlan`'s `dropUnplaceable` (v0.31.9.25) closes the FURNISH half: the arranger still never
 deletes (the interactive tidy must not eat a user's furniture —
 `autoArrange.test.ts` pins `expect(out.length).toBe(hydrate().length)`), so the drop sits on the

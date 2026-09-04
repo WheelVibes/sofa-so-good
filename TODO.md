@@ -80,8 +80,16 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   items would work for tidy but not for furnish, where every piece in a room starts at the SAME
   seed point (the room centre), so everything would block everything and nothing would place. A
   real fix must distinguish "an item sitting where it belongs" from "an item parked on a seed".
-  Until it exists, v0.31.9.24's four levers (room overhangs **10 -> 4**, `tpl-condo-2bed`'s desk
-  back) stay reverted; per-lever attribution is in `CHANGELOG.md` v0.31.9.24.
+  **FIXED in v0.31.9.26 (RESERVE-RETRY)** — an attempt that leaves a piece unplaced is retried
+  once with that piece reserved as an obstacle, so the others route around it. Verified to
+  unblock: with v0.31.9.24's wall-ENDS candidate re-applied, `autoArrange.test.ts`'s "tidies a
+  custom plan validly" PASSES. The furnish/tidy difference is an explicit `reserveRetry` flag,
+  because two attempts to infer it from metrics both failed (see the changelog).
+  **So v0.31.9.24's four levers are now unblocked and are the next release**: room overhangs
+  **10 -> 4** and `tpl-condo-2bed`'s desk back, against 3 stranded dining chairs, a basin-less
+  `emu-cbath`, a newly blocked `ct-kit-win` and one more severed room — those five remaining
+  deltas are content trades to be judged on their merits, not validity breaks. Per-lever
+  attribution is in `CHANGELOG.md` v0.31.9.24.
   `dropUnplaceable` (v0.31.9.25) closes the FURNISH half — it is a measured no-op today, and it
   means this class can only ever show up as an item-count delta there, never as an invalid item.
 - **`fittedCounter` measures against the wrong box** — `max(room.width, room.depth)` where the

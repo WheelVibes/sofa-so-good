@@ -797,6 +797,8 @@ export function arrangeRoom(
 
 /** Shared arranger core: place every item matching `inRoom` within `rect`
  *  using the strategy for `kind`, against the other items as obstacles. */
+const EMPTY_RESERVED: ReadonlySet<string> = new Set()
+
 function arrangeCore(opts: {
   rect: Rect
   /** The room's L-shape extension, inset (see `extensionRectOf`) — widens the
@@ -826,6 +828,12 @@ function arrangeCore(opts: {
   walls?: CollisionWall[]
   /** Layout-variant seed (LAYOUT-REROLL); default 0 = today's exact output. */
   seed?: number
+  /** RESERVE-RETRY (v0.31.9.26) — see the note at the end of this function.
+   *  TRUE for the TIDY paths, where the items' starting positions are real and a
+   *  piece must not be buried by one placed earlier. FALSE for FURNISH, where
+   *  every piece in a room starts on the same seed point (the room centre), so
+   *  reserving one parks an obstacle mid-room and strands the rest. */
+  reserveRetry?: boolean
 }): FurnitureItem[] {
   const {
     rect,
@@ -844,45 +852,134 @@ function arrangeCore(opts: {
     doors,
     walls,
     seed = 0,
+    reserveRetry = true,
   } = opts
   const ctx: Ctx = { catalog, doors, keepOut, windowKeepOut, windows, doorPoints, walls, seed }
   const isFixed = (i: FurnitureItem) => {
     const r = roleOf(i.defId, catalog)
     return r === 'mounted' || r === 'ceiling' || i.locked === true
   }
-  // `world` starts with the OTHER rooms' items + this room's FIXED pieces
-  // (wall/ceiling mounts — aircon, range hood, sconces… — AND any user-LOCKED
-  // item, which must stay exactly where the user left it), all kept at their
-  // current transform as obstacles so floor furniture isn't parked under them.
-  const world: FurnitureItem[] = allItems
-    .filter((i) => !inRoom(i) || isFixed(i))
-    .map((i) => ({ ...i }))
-  // Movable room items are placed one-by-one so pending ones can't block.
-  const roomItems = allItems.filter((i) => inRoom(i) && !isFixed(i)).map((i) => ({ ...i }))
-  const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId, catalog)))
+  /**
+   * One arrangement attempt.
+   *
+   * `reserved` holds ids a PREVIOUS attempt could not place. They are seeded
+   * into `world` at their current transform, so nothing else can take their
+   * spot — see RESERVE-RETRY below. `tryPlace` replaces a pre-seeded entry in
+   * place rather than pushing a duplicate, and filters the candidate against
+   * itself, so a reserved piece can still be moved if the room routine finds it
+   * somewhere better.
+   */
+  const attempt = (reserved: ReadonlySet<string>) => {
+    // `world` starts with the OTHER rooms' items + this room's FIXED pieces
+    // (wall/ceiling mounts — aircon, range hood, sconces… — AND any user-LOCKED
+    // item, which must stay exactly where the user left it), all kept at their
+    // current transform as obstacles so floor furniture isn't parked under them.
+    const world: FurnitureItem[] = allItems
+      .filter((i) => !inRoom(i) || isFixed(i))
+      .map((i) => ({ ...i }))
+    // Movable room items are placed one-by-one so pending ones can't block.
+    const roomItems = allItems.filter((i) => inRoom(i) && !isFixed(i)).map((i) => ({ ...i }))
+    for (const it of roomItems) if (reserved.has(it.id)) world.push({ ...it })
+    const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId, catalog)))
 
-  if (kind === 'living') {
-    if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog, kitchenEdge)
-    else arrangeLiving(rect, focal, get, world, ctx, catalog)
-  } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog)
-  else if (kind === 'kitchen') arrangeKitchen(rect, get, world, ctx, catalog)
-  else if (kind === 'bath') arrangeFixtures(rect, get, world, ctx, catalog)
-  else arrangeGeneric(rect, get, world, ctx)
+    if (kind === 'living') {
+      if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog, kitchenEdge)
+      else arrangeLiving(rect, focal, get, world, ctx, catalog)
+    } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog)
+    else if (kind === 'kitchen') arrangeKitchen(rect, get, world, ctx, catalog)
+    else if (kind === 'bath') arrangeFixtures(rect, get, world, ctx, catalog)
+    else arrangeGeneric(rect, get, world, ctx)
 
-  // Safety settle: any room item not yet placed (unhandled role or no slot)
-  // gets a valid spot — original first, then corners, then a coarse grid —
-  // so the result stays collision-free for floor items.
-  const inWorld = new Set(world.map((w) => w.id))
-  for (const it of roomItems) {
-    if (inWorld.has(it.id)) continue
-    if (roleOf(it.defId, catalog) === 'mounted' || roleOf(it.defId, catalog) === 'ceiling') continue
-    settle(it, rect, world, ctx, extensionRect)
+    // Safety settle: any room item not yet placed (unhandled role or no slot)
+    // gets a valid spot — original first, then corners, then a coarse grid —
+    // so the result stays collision-free for floor items.
+    const inWorld = new Set(world.map((w) => w.id))
+    for (const it of roomItems) {
+      if (inWorld.has(it.id)) continue
+      if (roleOf(it.defId, catalog) === 'mounted' || roleOf(it.defId, catalog) === 'ceiling')
+        continue
+      settle(it, rect, world, ctx, extensionRect)
+    }
+
+    // Rebuild the full list in original order: a placed item takes its new
+    // transform from `world`; an unplaced room item keeps its original transform.
+    const byId = new Map(world.map((w) => [w.id, w]))
+    const out = allItems.map((orig) => byId.get(orig.id) ?? orig)
+    const unplaced = roomItems.filter((it) => !byId.has(it.id)).map((it) => it.id)
+    return { out, unplaced, roomIds: new Set(roomItems.map((it) => it.id)) }
   }
 
-  // Rebuild the full list in original order: a placed item takes its new
-  // transform from `world`; an unplaced room item keeps its original transform.
-  const byId = new Map(world.map((w) => [w.id, w]))
-  return allItems.map((orig) => byId.get(orig.id) ?? orig)
+  /**
+   * How many of THIS room's pieces are left standing in something.
+   *
+   * Scoped to the room because only its pieces move, and judged in list order
+   * against everything ahead of them, mirroring `autoArrange.test.ts`'s own
+   * validity sweep so the two agree on what "invalid" means.
+   */
+  const invalidCount = (r: ReturnType<typeof attempt>) => {
+    let n = 0
+    const ahead: FurnitureItem[] = []
+    for (const it of r.out) {
+      const def = catalog[it.defId]
+      if (!def) continue
+      if (def.mounted || def.noClip) {
+        ahead.push(it)
+        continue
+      }
+      if (r.roomIds.has(it.id)) {
+        const near = broadphaseNeighbours(it, def, ahead, catalog)
+        if (!canPlace(it, def, { others: near, defs: catalog, doors, walls })) n++
+      }
+      ahead.push(it)
+    }
+    return n
+  }
+
+  /**
+   * RESERVE-RETRY (v0.31.9.26) — one more go, with the pieces that lost their
+   * spot held back.
+   *
+   * `world` deliberately excludes items still PENDING placement, "so a messy
+   * starting layout can't block the tidy target" — which is right, and has the
+   * consequence that a piece can be placed on top of one that has not had its
+   * turn yet. When that buried piece then finds nowhere else to go, it keeps its
+   * original transform and the room comes out INVALID.
+   *
+   * Measured on the default flat: `default-sy-rack` was valid at (5.30, 7.20),
+   * never moved, and ended up invalid because `default-sy-washer` was placed on
+   * top of it (v0.31.9.25). No amount of extra searching in `settle` can fix
+   * that — by the time it runs, the spot is gone.
+   *
+   * So: if an attempt leaves anything unplaced, retry ONCE with those pieces
+   * reserved as obstacles from the start. The other pieces then route around
+   * them instead of over them. The retry is kept only if it leaves strictly
+   * fewer of the room's pieces invalid, so reserving can never make a room
+   * worse — and the common case pays nothing, because `unplaced` is empty and
+   * the retry never runs.
+   */
+  let result = attempt(EMPTY_RESERVED)
+  if (reserveRetry && result.unplaced.length > 0) {
+    const retry = attempt(new Set(result.unplaced))
+    // Kept only if it leaves strictly fewer of the room's pieces invalid, so a
+    // reserve can never make a room worse.
+    //
+    // Two cheaper gates were tried FIRST and both failed, which is why the
+    // furnish/tidy split is an explicit flag rather than a metric:
+    //   - `invalidCount` alone moved EIGHT ratchets. On furnish, reserving a
+    //     seed-parked piece really does reduce invalid overlaps — it just does
+    //     it by stranding other pieces, which is an item-COUNT change that a
+    //     validity metric cannot see.
+    //   - adding `retry.unplaced.length <= result.unplaced.length` did nothing,
+    //     because a RESERVED piece sits in `world` from the start and therefore
+    //     always reads as placed: the comparison is biased toward the retry by
+    //     construction.
+    // Counting pieces that never MOVED fixed that bias and still left nine
+    // ratchets moving, because on furnish the trade is real and simply not the
+    // one the corpus wants. The two callers want different things, so they say
+    // so.
+    if (invalidCount(retry) < invalidCount(result)) result = retry
+  }
+  return result.out
 }
 
 /**
@@ -1788,6 +1885,7 @@ function arrangeOnePlanRoom(
   windowKeepOut: WindowFrontRect[] = [],
   doorPoints: Array<[number, number]> = [],
   siblingRooms: PlanRoom[] = [],
+  reserveRetry = true,
 ): FurnitureItem[] {
   const inRoom = (i: FurnitureItem) =>
     (i.levelId ?? GROUND_LEVEL_ID) === levelId &&
@@ -1814,6 +1912,7 @@ function arrangeOnePlanRoom(
     doors,
     walls,
     seed,
+    reserveRetry,
   })
 }
 
@@ -1871,6 +1970,9 @@ export function arrangeAllRoomsForPlan(
    *  different walls. This is what lets a caller generate genuinely different
    *  LAYOUTS of one plan rather than restyled copies of one layout. */
   seed = 0,
+  /** `reserveRetry` defaults TRUE here: every caller of this function except
+   *  `furnishPlan` is a TIDY of a real layout. `furnishPlan` passes false. */
+  { reserveRetry = true }: { reserveRetry?: boolean } = {},
 ): FurnitureItem[] {
   let items = allItems
   // Iterate EVERY storey (F13): `plan.rooms`/`walls`/`openings` are ground-only,
@@ -1899,6 +2001,7 @@ export function arrangeAllRoomsForPlan(
         windowKeepOut,
         doorPoints,
         level.rooms,
+        reserveRetry,
       )
     }
   }
