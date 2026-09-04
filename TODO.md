@@ -67,9 +67,37 @@ costs `tpl-condo-1bed` its counter and stove), and swept candidates need footpri
 because `edgeShortfall` deliberately pushes a piece past the rect edge.
 
 **What is LEFT here, in priority order:**
+- **PREREQUISITE, and it blocks everything else here: `settle` must never surrender.**
+  `settleInRect` leaves an item at its original transform when nothing fits, so a starved piece
+  stays geometrically INVALID rather than being dropped. v0.31.9.24 built four placement levers
+  that together take room overhangs **10 -> 4** and give `tpl-condo-2bed` its desk back, and had
+  to revert all four because one of them starved the default plan's `drying-rack` and broke
+  `autoArrange.test.ts`'s "tidies a custom plan validly" — a hard assertion that cannot be
+  ratcheted. Make invalid-and-unplaceable an explicit DROP (as `dropOverlaps` is), then
+  re-apply the four levers and judge them on content deltas alone. They are written up with
+  per-lever attribution in `CHANGELOG.md` v0.31.9.24.
+- **`fittedCounter` measures against the wrong box** — `max(room.width, room.depth)` where the
+  counter must fit `planRoomRect`, which insets 0.12 from EACH side. Every sized counter is
+  0.24 m too long, and the rounding must be `floor` (round turns 1.76 into 1.8). Fix is written
+  and measured; it is part of the reverted bundle above.
+- **`su-kit`'s counter is floating in the middle of the kitchen** and `roomCompleteness.test.ts`
+  counts it as present, because that metric only asks whether the fixture EXISTS. Blind spot in
+  the measurement, not only in the arranger.
+- **The sweep's viable window can be narrower than any step.** `st-kit`'s only along-positions
+  clear of the door keep-out span 0.08 m; neither `w/2` nor a fixed 0.15 m lattice samples it.
+  The wall ENDS do, and they are where a counter run belongs. Also part of the reverted bundle.
+- **37 wall-hugging pieces stand >0.28 m off every wall** (categories `bathroom`, `storage`,
+  `appliances`, `kitchen`, `laundry`; `applianceWall.test.ts` sees 1 of them because its regex
+  covers five appliance ids). Worst: a `drying-rack` 1.07 m out and five toilets 0.85-1.00 m out.
+  NOT ratcheted yet on purpose — the class mixes real defects with correct placements (a
+  nightstand belongs against the BED), so the threshold and category list need deriving the way
+  0.28 m was.
 - **Three kitchens still need the counter run WRAPPED AROUND A CORNER** — `su-kit`/`c1-kit`
   (2.00 m) and `cs-kit` (2.20 m) against a 2.5 m one-wall minimum. `arrangeKitchen` cannot do
-  this, and no amount of sweeping will help; it needs an L-run primitive.
+  this, and no amount of sweeping will help; it needs an L-run primitive. NOTE: `kitchen-counter-l`
+  is a STRAIGHT parametric run despite the `-l` in its id — `footprintParams: { w: 'length' }`,
+  no return leg — so this is either a new `returnLength` param on the `KitchenCounter` primitive
+  or two counter items seeded on adjacent walls.
 - ~~**`ob-kit` has no ceiling light**~~ **FIXED in v0.31.9.23**, and the cause named here was
   wrong: the clash is with the **`range-hood`**, not the fridge — v0.31.9.22 placed the stove, so
   the hood moved over it and covered the centre of the room. `relocateCeilingMounts` nudges the

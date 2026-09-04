@@ -290,6 +290,38 @@ back, at no cost to the nine appliance fixes it was traded for). Cost: `tpl-cond
 loses its desk and book-set, and `tpl-1bed/ob-kit` its ceiling light — both recorded per-def in
 `diningChairTuck.test.ts` and named in `TODO.md`.
 
+## `settle` can leave a piece INVALID, and that blocks every placement change (v0.31.9.24)
+
+`settleInRect` is the last-resort placement, and when nothing fits it leaves the item at its
+ORIGINAL transform — standing in a wall, if that is where it was seeded. Nothing downstream drops
+it. `autoArrange.test.ts`'s "tidies a custom plan validly, clearing door swings" asserts every
+item is valid, so **any change that rebalances placement can starve some piece and break a hard
+assertion that cannot be ratcheted.**
+
+v0.31.9.24 hit this with four levers that were otherwise a clear win — room overhangs **10 -> 4**,
+`tpl-condo-2bed`'s `desk` and `book-set` restored, `cs-kit` improved — and all four had to be
+reverted because one of them starved the default plan's `drying-rack`. Per-lever attribution is
+in `CHANGELOG.md` v0.31.9.24; the short version:
+
+- **size the counter to the INSET RECT, `floor` not `round`** — `fittedCounter` measures
+  `max(room.width, room.depth)`, but the counter must fit `planRoomRect`, which insets 0.12 from
+  EACH side, so every sized counter is **0.24 m too long**. `Math.round(1.76 * 10) / 10` is 1.8,
+  which still overflows.
+- **`settleInRect` containment gated at 0.5 m²** (`OBSTACLE_AREA_M2`'s bar) — fixes 5 overhangs;
+  the area gate is what keeps dining chairs out of it, and it is still not enough (2 strand).
+- **the sweep's viable window can be narrower than its step** — `st-kit`'s clear along-positions
+  span 0.08 m (x 2.90-2.98) and neither `w/2` nor a 0.15 m lattice samples it. The wall ENDS do,
+  and `hi` IS 2.98. Ordering ends before or after the lattice makes no difference to the
+  breakage: their EXISTENCE rebalances placement, not their priority.
+
+**So the prerequisite is a settle that never surrenders** — make invalid-and-unplaceable an
+explicit drop, the way `dropOverlaps` already handles a clash, and then these levers can be
+judged on their content deltas alone.
+
+Related measurement blind spot: `roomCompleteness.test.ts` asks only whether a fixture EXISTS, so
+`tpl-condo-studio/su-kit`'s counter counts as present while floating in the middle of the
+kitchen.
+
 ## `dropOverlaps` DELETES; a ceiling mount should MOVE (v0.31.9.23)
 
 Every clash in `furnishPlan` was resolved by deleting the later-seeded piece. That is right for

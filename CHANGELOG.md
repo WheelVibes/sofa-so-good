@@ -27,6 +27,86 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.24 — the counter run was measured against the wrong box, and the fix needs a settle that never gives up
+
+Four levers built, measured per-def, and **reverted**: together they fix six room overhangs and
+restore `tpl-condo-2bed`'s desk, and they also break a hard validity invariant that cannot be
+ratcheted. The findings are the deliverable; the code is not ready.
+
+### `fittedCounter` sizes against the room, and the counter has to fit the RECT
+
+`planRoomRect` insets `ROOM_INSET` (0.12) from **each** side, so every counter sized by
+v0.31.9.19/.22 was systematically **0.24 m too long**. It surfaced three different ways and none
+of them looked like a sizing bug:
+
+| room | raw | rect | length asked | outcome |
+|---|---|---|---|---|
+| `su-kit` | 2.00 | 1.76 | 2.0 | **never placed** — sat at the room centre |
+| `c1-kit` | 2.00 | 1.76 | 2.0 | placed, and the fridge had no wall left |
+| `h2-kit` | 2.30 | 2.06 | 2.3 | the 0.34 m entry in `roomOverhang.test.ts` |
+
+And the rounding has to go DOWN: `Math.round(1.76 * 10) / 10` is **1.8**, still longer than the
+space it was just measured against.
+
+**`su-kit`'s counter has been floating in the middle of the kitchen**, and
+`roomCompleteness.test.ts` counts it as present because it only asks whether the fixture EXISTS.
+That is a real blind spot in the metric, not just in the arranger.
+
+### The viable window can be narrower than any sweep step
+
+v0.31.9.22's along-wall sweep steps `max(0.1, w/2)` — half the piece's width, which for anything
+wide is coarse. In `tpl-studio/st-kit` the only along-positions clear of the door keep-out are
+**x 2.90-2.98, a window 0.08 m wide**; from a start of 2.10 the offsets are 1.20, 3.00, 0.30,
+3.90 and it is never sampled. Dropping to a fixed 0.15 m step does not help either — 2.85, then
+3.00. **`hi` is 2.98**: the ENDS of the wall are the candidates that catch this, and they are the
+designer-correct answer anyway, because a counter run belongs in the corner.
+
+With the ends offered, `st-kit`'s counter lands at (2.98, 3.92) — flush to the wall, east of the
+door, overhang 0.00.
+
+### Why it is reverted: attribution, measured per lever
+
+| lever | fixes | breaks |
+|---|---|---|
+| size to the inset rect (`floor`, not `round`) | `c1-kit` + `h2-kit` overhangs; `cs-kit` -> missing only a fridge; `su-kit` actually placed | 1 stranded dining chair; `cs-balcony` severed |
+| `settleInRect` containment, gated at 0.5 m² | 5 more overhangs (incl. 0.60 m of the penthouse TV console) | 2 stranded dining chairs |
+| fixed 0.15 m sweep step | nothing on its own | nothing |
+| wall ENDS as sweep candidates | `st-kit`'s counter, properly flush | **`autoArrange.test.ts`'s "tidies a custom plan validly"** |
+
+Together: **room overhangs 10 -> 4**, `tpl-condo-2bed` 64 -> 67 items (the `desk` and `book-set`
+v0.31.9.22 cost it come back), `cs-kit` improved, `tpl-hdb-2room` +1, `tpl-condo-3bed` +1 —
+against 3 stranded dining chairs, a new basin-less bathroom (`emu-cbath`), a newly blocked window
+(`ct-kit-win`), one more severed room, and a `drying-rack` left INVALID.
+
+**The last one is the blocker and it names the prerequisite.** `settle` leaves an item at its
+original transform when nothing fits, so it can leave a piece geometrically invalid — and every
+lever here rebalances the corpus, so somewhere a piece gets starved. Gating the ratchets is not
+an option: a hard validity assertion cannot be ratcheted, and adding `emu-cbath` to
+`bathroomFixtures` would be exactly the "entry to silence a failure" those files forbid.
+
+**So the next release is not another placement lever — it is making the settle never surrender.**
+A piece with nowhere valid should be dropped by an explicit pass (as `dropOverlaps` does) rather
+than left standing in a wall, and then the four levers above can be re-applied and judged on
+their content deltas alone.
+
+Ordering ends before vs after the lattice was also measured: it makes no difference to the
+breakage. Their mere existence rebalances placement, not their priority.
+
+### Also measured, deliberately NOT ratcheted
+
+**37 wall-hugging pieces stand more than 0.28 m off every wall** — the categories `furnishPlan`
+already declares wall-hugging (`bathroom`, `storage`, `appliances`, `kitchen`, `laundry`), at
+`applianceWall.test.ts`'s own derived threshold. Worst: a `drying-rack` 1.07 m out, five toilets
+0.85-1.00 m out. `applianceWall` sees only 1 of these because its regex covers five appliance
+ids.
+
+It is left unratcheted on purpose: the class mixes genuine defects (a toilet a metre from any
+wall) with placements that are correct (a nightstand sits against the BED, not a wall), so the
+threshold and the category list need deriving the way 0.28 m was, not adopting wholesale. Named
+in `TODO.md`.
+
+No functional change ships in this release.
+
 ## v0.31.9.23 — the release that furnished a kitchen un-lit it, and two more kitchens were already dark
 
 v0.31.9.22 cost `tpl-1bed/ob-kit` its ceiling light and named the fridge as the cause. Traced
