@@ -29,6 +29,61 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.216 — four candidates for the 0.73x eliminated by measurement, including one caveat I published last round
+
+`.215` measured a uniform 0.73x and offered two reasons not to trust it yet. One of them was wrong,
+and saying so is the first item here.
+
+**Retracted: bloom is not a systematic.** `.215` warned that the calibration curve was measured on a
+uniform full-frame emitter, so its bloom contribution might differ from a lit patch in a dark
+interior — plausibly a ~25 % error. It is not: `EffectsImpl` mounts `Bloom` only when
+`bloomActiveForDay(dayLevel)`, and **in daylight it is not mounted at all**, which is the condition
+`tonemap-frame.mjs` defaults to (`HOUR=13`). So the published curve was already bloom-free. Measuring
+it again at `HOUR=21`, with bloom mounted and a screen-filling emitter for it to work on, gives the
+same curve to 1–2 counts:
+
+| linear | 13:00 (no bloom pass) | 21:00 (bloom mounted) |
+| --- | --- | --- |
+| 0.01 | 33 | 31 |
+| 0.03 | 66 | 65 |
+| 0.10 | 116 | 116.13 |
+| 0.30 | 166 | 167.07 |
+| 0.60 | 196.28 | 196.30 |
+| 1.00 | 214.25 | 214.25 |
+
+The instrument is hour-independent. That caveat is void and the 0.73x is not the ruler.
+
+**Eliminated: the sampling path, and it is slightly GENEROUS rather than lossy.** The injection ships
+its own debug visualiser (`?aoDebug=1`, DEV only) which writes `visOcclusion` straight to
+`gl_FragColor`, bypassing the material's tone mapping. Read through the composer at the three
+surfaces of `.215`, the shader samples **0.274** at the ceiling where `gi-point` reads **0.2353** as
+the nearest texel — bilinear filtering, 17 % HIGHER, and flat to 0.0 counts across the patch (as
+expected when one low-res lightmap texel covers that much screen). So `uv1`, the atlas slot and the
+sampler are not losing anything. Using the shader's own sampled value the shortfall deepens to
+0.63x, which is the honest number for the remaining gap.
+
+**Eliminated: `aoMap`.** three's `aomap_fragment` does `reflectedLight.indirectDiffuse *=
+ambientOcclusion` and sits AFTER the injection point, so an `aoMap` would scale the term down
+invisibly. **0 of 107** injected materials carry one, so the chunk compiles out.
+
+**Eliminated: the N8AO post pass**, at least at these patches — the debug byte exceeds the nearest
+texel, and an occlusion multiply cannot be greater than 1.
+
+**And a 1821x number that is NOT a defect, recorded so it cannot start another wrong hypothesis.**
+The 107 injected materials carry **89 distinct `visGain` values from 0.0283 to 51.5**. `visGain` is
+`scaleFor(map) * IRRADIANCE_GAIN` and each map is normalised to its own maximum, so the absolute
+irradiance `texel * scale` comes back consistent — **0.4142 / 0.4061 / 0.4473** at the ceiling, wall
+and floor. The spread is the normalisation working as designed.
+
+New `scripts/dev-probes/gi-material-census.mjs` carries those two material-side answers. It sets
+`realistic` explicitly, because GI attaches on that tier ONLY — a first attempt to read the debug
+visualiser at `performance` came back looking like ordinary renders, which cost a run to notice.
+
+So after this round the gap is 0.63–0.73x with sampling, `aoMap`, post-AO and bloom all ruled out by
+measurement, and `visGain`, albedo and the injection's shader position already verified earlier. What
+is left is the step from `reflectedLight.indirectDiffuse` to the pixel. Nothing shipped.
+
+
 ## v0.31.7.215 — the GI term measured at three VERIFIED surfaces: a single uniform 0.73x, not a deficit; plus two probe bugs and one mislabelled arm from `.214`
 
 `.214` showed the ceiling deficit was a wrong-patch artefact. This re-derives the gain table's three
