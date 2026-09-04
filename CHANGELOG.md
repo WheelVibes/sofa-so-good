@@ -27,6 +27,65 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.29 — the levers land, at a stated price
+
+v0.31.9.28 built the ranked defect score and it overturned v0.31.9.27's rejection of these
+levers. Landing them, with the price written into every ratchet they move.
+
+```
+score   61,012,173,703 -> 60,813,173,903    (lower is better)
+
+missing-fixture       6 ->  6      outside-room         10 ->  8
+unreachable-room     12 -> 13      stranded-satellite   17 -> 17
+marooned-wall-hugger 37 -> 39      blocked-window        3 ->  3
+```
+
+### What changed
+
+**COUNTER-INSET.** `fittedCounter` sized the run against `max(room.width, room.depth)`, but a
+counter has to fit the rect the arranger places into, and `planRoomRect` insets 0.12 from EACH
+side — so every sized run was **0.24 m too long**, three different ways:
+
+| room | raw | rect | old length | outcome |
+|---|---|---|---|---|
+| `su-kit` | 2.00 | 1.76 | 2.0 | never placed — sat at the room centre |
+| `c1-kit` | 2.00 | 1.76 | 2.0 | placed, and the fridge had no wall left |
+| `h2-kit` | 2.30 | 2.06 | 2.3 | a 0.34 m `roomOverhang` entry |
+
+And `Math.floor`, not `Math.round`: rounding 1.76 to 0.1 m gives 1.8, which still overflows.
+
+**WALL-ENDS + a fixed sweep step.** The along-wall step was `max(0.1, w/2)` — half the piece's
+width — which for anything wide samples a lattice coarse enough to step over the only position
+that works. `tpl-studio/st-kit`'s only along-positions clear of the door keep-out are
+**x 2.90-2.98, a 0.08 m window**; the `w/2` offsets from x 2.10 are 1.20, 3.00, 0.30, 3.90 and a
+0.15 m lattice gives 2.85 then 3.00. Neither samples it. `hi` IS 2.98, so the two ENDS of the wall
+are now offered alongside the lattice — and they are the designer-correct candidates anyway,
+because a counter run belongs in the corner.
+
+### The price, stated per ratchet
+
+Gains: `cs-kit` recovers its **hob and counter** (severity 1); `c1-kit` and `h2-kit` stop
+overhanging their rooms; `tpl-condo-1study`'s range hood gets a stove under it (orphan hoods
+2 -> 1); `tpl-condo-2bed/c2-bed2` gets back the **desk and book-set** v0.31.9.22 cost it. Corpus
+1463 -> 1469 items.
+
+Costs: `emu-cbath` loses its basin, `cs-balcony` its route, two more appliances sit off their
+walls, and one `tpl-hdb-jumbo` dining chair settles 4.54 m from its table.
+
+**Two of those are 1-for-1 swaps and the ratchets say so.** Severity 1 gains `cs-kit`'s two
+fixtures and loses `emu-cbath`'s basin — a trade, not progress, at that level.
+`stranded-satellite` is unchanged corpus-wide at 17: one chair strands in jumbo while another
+tucks elsewhere, which is invisible in a per-template list and is the clearest illustration of why
+the score exists. The verdict therefore rests on the lower classes, where **two `outside-room`
+fixes outweigh one severed room and two marooned appliances.**
+
+Every edited ratchet carries the score delta and the reason. That is the difference between a
+priced trade and "an entry to silence a failure", which those files forbid — the precedent is
+`windowSightline`'s own v0.31.8.71 entry, accepted "at nine appliance fixes for one blockage".
+
+**Lever B (settle containment) stays out.** It adds two more stranded chairs and the score does
+not pay for them.
+
 ## v0.31.9.28 — a ranked defect score, and it overturns last release's verdict
 
 v0.31.9.27 rejected four placement levers and recorded the reason as a rule: **do not attempt

@@ -290,6 +290,39 @@ back, at no cost to the nine appliance fixes it was traded for). Cost: `tpl-cond
 loses its desk and book-set, and `tpl-1bed/ob-kit` its ceiling light — both recorded per-def in
 `diningChairTuck.test.ts` and named in `TODO.md`.
 
+## COUNTER-INSET and WALL-ENDS, and the price they were bought at (v0.31.9.29)
+
+Two changes, landed together because either alone is a regression, and judged by the ranked score
+rather than by ratchet counts: **61,012,173,703 -> 60,813,173,903.**
+
+- **`fittedCounter` sizes to the INSET RECT, and rounds DOWN.** It used
+  `max(room.width, room.depth)`, but the counter must fit the rect the arranger places into, and
+  `planRoomRect` insets `ROOM_INSET` (0.12) from EACH side — so every sized run was **0.24 m too
+  long**. `su-kit` was never placed at all (it sat at the room centre), `c1-kit` left its fridge
+  no wall, and `h2-kit` overflowed its room by 0.34 m. `Math.round(1.76 * 10) / 10` is 1.8, which
+  still overflows: every rounding here goes DOWN.
+- **`snapToWall` offers the two ENDS of the wall, and steps 0.15 m instead of `w/2`.** A fixed
+  step samples a lattice, and the position that works can be narrower than the step:
+  `tpl-studio/st-kit`'s only along-positions clear of the door keep-out span **0.08 m**
+  (x 2.90-2.98), and neither `w/2` nor a 0.15 m lattice ever samples it. `hi` IS 2.98. Ordering
+  the ends before or after the lattice makes no difference to what breaks — their EXISTENCE
+  rebalances placement, not their priority.
+
+**The price is real and is recorded in each ratchet it moved**, which is what distinguishes a
+priced trade from "an entry to silence a failure": `emu-cbath` loses its basin, `cs-balcony` its
+route, two appliances their walls, and one `tpl-hdb-jumbo` dining chair strands 4.54 m from its
+table. Against: `cs-kit`'s hob and counter, two room overhangs, one orphan hood, and
+`c2-bed2`'s desk and book-set back.
+
+**Severity 1 is a 1-for-1 swap and severity 4 is unchanged** — `cs-kit`'s fixtures for
+`emu-cbath`'s basin, and one chair stranding while another tucks. Neither is visible in a
+per-class count or a per-template list, which is why the score reports classes and the ratchets
+keep their per-finding lists. The verdict rests on two `outside-room` fixes against one severed
+room and two marooned appliances.
+
+Lever B from v0.31.9.24 (containment inside `settleInRect`) is still OUT: it adds two more
+stranded chairs and the score does not pay for them.
+
 ## Judge a placement change with the RANKED score, not the ratchet count (v0.31.9.28)
 
 `analysis/layoutDefects.ts` surveys the corpus once and returns findings tagged with a severity

@@ -39,6 +39,15 @@ import {
  * records. Leaving bathrooms out let the score bless a change that LOSES a
  * basin — exactly the trade v0.31.9.27 rejected the lever bundle for.
  *
+ * **Re-baselined in v0.31.9.29** when levers A+C+D landed: `outside-room`
+ * 10 -> 8, `unreachable-room` 12 -> 13, `marooned-wall-hugger` 37 -> 39, and the
+ * score 61,012,173,703 -> 60,813,173,903. `missing-fixture` and
+ * `stranded-satellite` are unchanged, and both are 1-for-1 SWAPS underneath —
+ * `cs-kit`'s hob and counter for `emu-cbath`'s basin, and one dining chair
+ * stranding in `tpl-hdb-jumbo` while another tucks elsewhere. Neither swap is
+ * visible in a per-class count, which is the clearest illustration of why this
+ * survey reports classes AND the ratchets keep their per-finding lists.
+ *
  * `stranded-satellite` at 17 is NOT a disagreement: `diningChairTuck.test.ts`
  * asserts zero strays on eight named clean templates and says nothing about the
  * rest of the corpus. This is the first corpus-wide count.
@@ -47,10 +56,10 @@ const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')!
 
 const BASELINE = {
   'missing-fixture': 6,
-  'outside-room': 10,
-  'unreachable-room': 12,
+  'outside-room': 8,
+  'unreachable-room': 13,
   'stranded-satellite': 17,
-  'marooned-wall-hugger': 37,
+  'marooned-wall-hugger': 39,
   'blocked-window': 3,
 } as const
 

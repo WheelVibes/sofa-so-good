@@ -115,7 +115,21 @@ function gapToNearestWall(
  * already claims the only wall long enough — the same room
  * `roomCompleteness.test.ts` records as unable to fit a fridge.
  */
-const KNOWN_MAROONED: string[] = ['tpl-condo-1bed/stove 0.59']
+/**
+ * **1 -> 3 in v0.31.9.29**, priced. That release's counter sizing and wall-ENDS
+ * sweep recover `cs-kit`'s hob and counter and two room overhangs, and shuffle
+ * two more appliances off their walls. Judged with the ranked defect score went
+ * **61,012,173,703 -> 60,813,173,903** (`analysis/layoutDefects.ts`; lower is better, and
+ * lexicographically weighted so a severity-1 loss cannot be bought with lesser fixes).
+ * At severity 5 these are the cheapest class in the order — a piece needing
+ * services, off its wall — which is why two of them do not outweigh a
+ * severity-2 fix.
+ */
+const KNOWN_MAROONED: string[] = [
+  'tpl-studio/stove 0.80',
+  'tpl-hdb-2room/refrigerator 0.67',
+  'tpl-condo-1bed/stove 0.59',
+]
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')
 
@@ -200,11 +214,16 @@ const HOOD_OVER_STOVE_M = 0.15
  * their only long wall stood clear. Sweeping along the wall places all three,
  * and the two hoods now hang over real stoves.
  *
- * The two that remain (`tpl-condo-1study`, `tpl-condo-studio`) need the counter
- * run WRAPPED AROUND A CORNER, which `arrangeKitchen` cannot do — recorded in
+ * **2 -> 1 in v0.31.9.29:** `tpl-condo-1study`'s hood gets its stove, because
+ * sizing the counter to the INSET RECT frees the wall its 0.24-m-too-long run had
+ * been overflowing.
+ *
+ * The one that remains (`tpl-condo-studio`) needs its three fixtures spread
+ * across THREE walls — measured feasible in v0.31.9.27 with no new geometry;
+ * `arrangeKitchen` confines the work triangle to the two LONG walls. Recorded in
  * `TODO.md`.
  */
-const KNOWN_ORPHAN_HOODS = ['tpl-condo-1study', 'tpl-condo-studio']
+const KNOWN_ORPHAN_HOODS = ['tpl-condo-studio']
 
 /** Templates whose hood is too far from the nearest stove, `id/metres`. */
 /**

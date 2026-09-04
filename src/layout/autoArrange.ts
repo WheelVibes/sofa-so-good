@@ -420,6 +420,17 @@ function edgeShortfall(rect: Rect, edge: Edge, walls: CollisionWall[] | undefine
 
 /** Snap an item flush against `edge`, keeping its along-wall coordinate
  *  (clamped), facing inward. Tries the given edge then falls back to others. */
+/**
+ * Along-wall sweep granularity and reach (v0.31.9.29).
+ *
+ * The step was `max(0.1, w/2)` — HALF THE PIECE'S WIDTH — which for anything
+ * wide samples a lattice coarse enough to step over the only position that
+ * works. A fixed 0.15 m matches `unsealRoutes`' disc; 32 steps covers 4.8 m
+ * either way, longer than any wall in the corpus.
+ */
+const SWEEP_STEP_M = 0.15
+const SWEEP_MAX_STEPS = 32
+
 function snapToWall(
   item: FurnitureItem,
   rect: Rect,
@@ -489,7 +500,7 @@ function snapToWall(
         : edge === 'N'
           ? rect.z0 + d / 2 + gap - out
           : rect.z1 - d / 2 - gap + out
-      const step = Math.max(0.1, along)
+      const step = SWEEP_STEP_M
       // STRICTNESS SITS OUTSIDE THE WALL LOOP — the same rule v0.31.8.75 had to
       // learn for the window relaxation, and for the same reason. Sweeping INSIDE
       // the edge loop lets a swept spot on the first wall beat the CLAMPED spot on
@@ -505,9 +516,26 @@ function snapToWall(
         if (placed !== item) return placed
         continue
       }
-      for (let k = 1; k <= 16; k++) {
+      // The two ENDS of the wall, offered alongside the lattice. A fixed step
+      // samples a grid, and the position that works can be NARROWER than the
+      // step: in `tpl-studio/st-kit` the only along-positions clear of the door
+      // keep-out are x 2.90-2.98 — a 0.08 m window — and neither `w/2` (1.20,
+      // 3.00, 0.30, 3.90 from a start of 2.10) nor a 0.15 m lattice (2.85, then
+      // 3.00) ever samples it. `hi` IS 2.98.
+      //
+      // They are also the designer-correct candidates in their own right: a
+      // counter run, a wardrobe and a fridge belong in the corner rather than
+      // part-way along a wall.
+      //
+      // Ordering them before vs after the lattice was measured and makes no
+      // difference to what breaks — their EXISTENCE rebalances placement, not
+      // their priority (v0.31.9.24).
+      const ends: number[] = lo === hi ? [lo] : [hi, lo]
+      for (let k = 1; k <= SWEEP_MAX_STEPS + ends.length; k++) {
         for (const dir of [1, -1]) {
-          const t = start + dir * k * step
+          const end = k <= ends.length ? ends[k - 1] : undefined
+          if (end !== undefined && dir === -1) continue
+          const t = end ?? start + dir * (k - ends.length) * step
           if (t < lo - 1e-9 || t > hi + 1e-9) continue
           const pos: [number, number] = sideways ? [perp, t] : [t, perp]
           // Contain the SWEPT candidates only. `perp` adds `edgeShortfall`,

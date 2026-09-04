@@ -272,10 +272,8 @@ const MIN_COUNTER_M = 1.2
  */
 const CLEAR_RUN_BAND_M = 0.7
 
-function longestClearRun(room: PlanRoom, keepOut: readonly Rect[]): number {
-  const [x0, z0] = room.origin
-  const x1 = x0 + room.width
-  const z1 = z0 + room.depth
+function longestClearRun(rect: Rect, keepOut: readonly Rect[]): number {
+  const { x0, z0, x1, z1 } = rect
   const walls: Array<{ lo: number; hi: number; near: number; far: number; horiz: boolean }> = [
     { lo: x0, hi: x1, near: z0, far: z0 + CLEAR_RUN_BAND_M, horiz: true },
     { lo: x0, hi: x1, near: z1 - CLEAR_RUN_BAND_M, far: z1, horiz: true },
@@ -322,9 +320,25 @@ function fittedCounter(defId: string, room: PlanRoom, keepOut: readonly Rect[]):
   // room centre, so a shorter counter stayed straddling the keep-out. It works
   // only in combination with that function's along-wall SWEEP, added in the
   // same release as this. Neither lever moves anything without the other.
-  const longest = Math.min(Math.max(room.width, room.depth), longestClearRun(room, keepOut))
+  // INSET RECT, not the room (v0.31.9.29). v0.31.9.19 used
+  // `max(room.width, room.depth)` and v0.31.9.22 intersected that with the clear
+  // run; both measured the wrong box. A counter must fit the rect the arranger
+  // places into, and `planRoomRect` insets `ROOM_INSET` (0.12) from EACH side —
+  // so the run was systematically 0.24 m too long wherever this fires:
+  //
+  // | room | raw | rect | old length | outcome |
+  // |---|---|---|---|---|
+  // | `su-kit` | 2.00 | 1.76 | 2.0 | never placed — sat at the room centre |
+  // | `c1-kit` | 2.00 | 1.76 | 2.0 | placed, and the fridge had no wall left |
+  // | `h2-kit` | 2.30 | 2.06 | 2.3 | a 0.34 m `roomOverhang` entry |
+  //
+  // `Math.floor`, not `Math.round`: rounding 1.76 to 0.1 m gives 1.8, still
+  // longer than the space just measured. Every rounding here goes DOWN.
+  const insetRect = planRoomRect(room)
+  const span = Math.max(insetRect.x1 - insetRect.x0, insetRect.z1 - insetRect.z0)
+  const longest = Math.min(span, longestClearRun(insetRect, keepOut))
   if (longest >= 2.4) return {}
-  return { length: Math.max(MIN_COUNTER_M, Math.round(longest * 10) / 10) }
+  return { length: Math.max(MIN_COUNTER_M, Math.floor(longest * 10) / 10) }
 }
 
 /**

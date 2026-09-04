@@ -62,14 +62,20 @@ import { footprintAabb } from './clearance'
  */
 const TOL = 0.2
 
+/**
+ * **10 -> 8 in v0.31.9.29.** `c1-kit` (0.24 m) and `h2-kit` (0.34 m) are gone:
+ * both were `kitchen-counter-l` runs sized against the raw room instead of the
+ * inset rect, so every one of them was 0.24 m too long. These two fixes are what
+ * PAYS for that release's regressions — see the ranked defect score
+ * (`analysis/layoutDefects.ts`) went **61,012,173,703 -> 60,813,173,903** — an improvement, and
+ * lexicographically weighted so this could not be bought with lesser fixes.
+ */
 const KNOWN_OVERHANG = [
   '0.22 tpl-hdb-jumbo/jb-bed5 nightstand',
-  '0.24 tpl-condo-1bed/c1-kit kitchen-counter-l',
   '0.24 tpl-hdb-5room/h5-master wardrobe-3door',
   '0.24 tpl-hdb-5room/h5-mbath bathroom-sink',
   '0.25 tpl-condo-penthouse/cp-living coffee-table',
   '0.29 tpl-1bed/ob-dining dining-table-4',
-  '0.34 tpl-hdb-2room/h2-kit kitchen-counter-l',
   '0.40 tpl-condo-penthouse/cp-dining dining-table-4',
   '0.40 tpl-hdb-5room/h5-living dining-table-4',
   '0.60 tpl-condo-penthouse/cp-living tv-console',

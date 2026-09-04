@@ -95,12 +95,16 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   improvement. Severity 1 is a 1-for-1 swap (gains `cs-kit`'s hob + counter, loses `emu-cbath`'s
   basin) and `stranded-satellite` is unchanged corpus-wide; the verdict rests on two
   `outside-room` fixes outweighing one severed room and two marooned appliances.
-  **NEXT RELEASE: land A+C+D**, with the score as the stated price. Ratchets to edit, all as
-  explicitly priced trades rather than silenced failures: `roomCompleteness` (`cs-kit` improves),
-  `bathroomFixtures` (+`emu-cbath`), `routeAccess` (+`cs-balcony`), `applianceWall` (+2 marooned,
-  snapped 42 -> 40), `roomOverhang` (-2), `diningChairTuck` (item counts + the jumbo chair).
-  Lever B (settle containment) stays out — it adds two stranded chairs and the score does not pay
-  for them.
+  **LANDED in v0.31.9.29** at a price written into every ratchet it moved. Lever B (settle
+  containment) stays out — it adds two stranded chairs and the score does not pay for them.
+  **What the trade left open, in severity order:**
+  - `tpl-hdb-maisonette/em-up/emu-cbath` lost its basin (severity 1). This is the half of a
+    1-for-1 swap with `cs-kit`'s hob and counter; recovering it WITHOUT giving `cs-kit` back is
+    the highest-value item on this thread.
+  - `tpl-condo-1study/cs-balcony` is severed (severity 3).
+  - `tpl-hdb-jumbo` dropped out of `diningChairTuck`'s clean list — one chair settles 4.54 m from
+    its table (severity 4). Corpus-wide the count is unchanged at 17.
+  - `tpl-studio/stove` 0.80 m and `tpl-hdb-2room/refrigerator` 0.67 m off any wall (severity 5).
   `dropUnplaceable` (v0.31.9.25) closes the FURNISH half — it is a measured no-op today, and it
   means this class can only ever show up as an item-count delta there, never as an invalid item.
 - **`fittedCounter` measures against the wrong box** — `max(room.width, room.depth)` where the
@@ -119,7 +123,8 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   NOT ratcheted yet on purpose — the class mixes real defects with correct placements (a
   nightstand belongs against the BED), so the threshold and category list need deriving the way
   0.28 m was.
-- **Three kitchens need their fixtures on THREE WALLS — no new primitive (measured v0.31.9.27).**
+- **Two kitchens need their fixtures on THREE WALLS — no new primitive (measured v0.31.9.27;
+  `cs-kit` recovered in v0.31.9.29 via the counter sizing alone).**
   This item used to say they need an L-run primitive or two seeded counters. Measured per-wall
   free runs on the inset rect after door keep-outs, against counter 1.2 + hob 0.6 + fridge 0.7:
 

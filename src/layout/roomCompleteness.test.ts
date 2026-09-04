@@ -83,7 +83,13 @@ const KNOWN_INCOMPLETE = [
   // and either alone is inert: size the counter to the longest CLEAR run, AND
   // sweep along the wall so it can stand somewhere other than the centre.
   // v0.31.9.21 measured the sizing alone at ZERO deltas for exactly this reason.
-  'tpl-condo-1study/ground/cs-kit: missing a hob, a counter',
+  // `missing a hob, a counter` -> `missing a fridge` in v0.31.9.29 (COUNTER-INSET
+  // + WALL-ENDS). Its 2.4 m default run could not fit a 1.96 m best wall, so it
+  // sat at the room centre, `dropOverlaps` took the stove and `dropDoorBlockers`
+  // then took the counter. Sizing to the inset rect fixes both. This is the
+  // severity-1 GAIN that pays for that release — the ranked defect score went
+  // 61,012,173,703 -> 60,813,173,903 (`analysis/layoutDefects.ts`).
+  'tpl-condo-1study/ground/cs-kit: missing a fridge',
   // Counter recovered in v0.31.9.19 (FITTED-COUNTER) — it had been a 2.4 m run
   // in a room whose longest wall is 2.0 m, so it overflowed and was dropped.
   'tpl-condo-studio/ground/su-kit: missing a hob, a fridge',

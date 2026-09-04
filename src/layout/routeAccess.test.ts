@@ -126,6 +126,22 @@ const KNOWN_SEVERED: Record<string, number> = {
   'tpl-hdb-5room': 4,
   /** Bedroom 4, 1.6 m² — same cause, same release. */
   'tpl-condo-4bed': 1,
+  /**
+   * `cs-balcony`, ADDED in v0.31.9.29 and an explicitly PRICED trade, not a
+   * silenced failure.
+   *
+   * That release sized the kitchen counter to the inset rect and gave
+   * `snapToWall` the wall ENDS as sweep candidates, which recovers `cs-kit`'s
+   * hob and counter — a severity-1 fix — and two room overhangs. The reshuffle
+   * costs this balcony its route. Judged with the ranked defect score
+   * (`analysis/layoutDefects.ts`) went **61,012,173,703 -> 60,813,173,903** — an improvement, and
+   * lexicographically weighted so this could not be bought with lesser fixes.
+   *
+   * The precedent is `windowSightline.test.ts`'s own v0.31.8.71 entry, accepted
+   * "at nine appliance fixes for one blockage". What is forbidden is adding an
+   * entry to make a failure go away; what is required is stating the price.
+   */
+  'tpl-condo-1study': 1,
 }
 
 /**
