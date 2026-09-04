@@ -48,37 +48,40 @@ export const VISIBILITY_GAIN = 6
 
 /**
  * Gain for an **irradiance** set in `'replace'` mode — a different quantity from
- * {@link VISIBILITY_GAIN}, and fitted separately.
+ * {@link VISIBILITY_GAIN}, kept separate even though it currently holds the same number.
  *
- * **Why it cannot reuse 6.** That number was fitted against a Cycles reference for a *visibility*
- * map: a dimensionless [0,1] occlusion ratio that MULTIPLIES the app's own fill. An irradiance map
- * IS the light, so its factor is a unit conversion, and `v0.31.7.167` recorded that reusing 6 here
- * was applying a derivation where it does not hold.
+ * **Why the separation is still right.** `VISIBILITY_GAIN`'s fit describes a dimensionless [0,1]
+ * occlusion ratio that MULTIPLIES the app's fill. An irradiance map IS the light and stands in for
+ * the fill, so its factor is a unit conversion. The two are independent and either may move.
  *
- * **Fitted by co-located sampling, which is what made it possible.** `gi-point.mjs` casts a ray
- * from the same camera a Cycles reference used, reads the map PNG at the hit's interpolated `uv1`
- * (`E = texel * scale`), and `render_still.py --view-transform Standard --exposure` gives a
- * reference that inverts exactly. Both sides then describe the same physical point — which four
- * earlier rounds did not have, and is why they produced 17x and 32x figures from mismatched
- * quantities (`.180`).
+ * **⚠️ `v0.31.7.183` set this to 3.59 and that was WRONG — corrected in `v0.31.7.184`.** The 3.59
+ * came from inverting a rendered radiance to irradiance as `E = R * pi / rho`, taking `rho` from
+ * `material.color`. But these materials carry a **base-colour map**, so the shader's
+ * `diffuseColor` is `color * texture(map)` and the true albedo is well below `material.color`.
+ * Dividing by the wrong albedo understated the required gain, and the same mistake produced
+ * `.183`'s claim that 6 "would over-brighten by 50–87 %". It does not.
  *
- * Measured on the `--keep-glazing` set (`.182`):
+ * **Fitted instead in DISPLAY space against Cycles references, which needs no albedo and no curve
+ * inversion** — the two assumptions that have gone wrong repeatedly in this thread. Three surfaces,
+ * each against a reference at its own pose, `TONE=neutral` on both sides:
  *
- * | surface | E baked | E from Cycles | gain needed |
+ * | gain | floor (target 160.3) | wall (196.4) | ceiling (192.6) |
  * | --- | --- | --- | --- |
- * | bedroom3 wall (y 1.115) | 0.7234 | 2.317 | 3.20 |
- * | bedroom3 ceiling (y 2.6) | 1.2573 | 5.044 | 4.01 |
+ * | 3.59 | 135.0 | 160.3 | 59.4 |
+ * | **6** | **156.5** | 184.0 | 85.7 |
+ * | 9 | 172.9 — over | 190.6 | 109.3 |
+ * | 14 | 189.4 — over | 194.0 | 138.4 |
  *
- * **That the two nearly agree is the load-bearing result.** On the glazing-deleted maps the same
- * two points wanted **7.3** and **32.0** — 4.4x apart, which is why `.170` found no single gain
- * could fit a wall and a ceiling. Baking with the glazing intact removed that spatial bias and the
- * requirement collapsed to 1.25x apart, so one constant is now defensible where before it was not.
+ * **The floor is the binding constraint**: it lands within 2 % at 6 and overshoots beyond it, while
+ * the wall is still 6 % short and the ceiling 55 % short. Nothing overshoots at 6, and a surface
+ * pushed past its reference is a worse error than one left short of it.
  *
- * 3.59 is the value that balances the two residuals — `sqrt((2.317 * 5.044) / (0.7234 * 1.2573))` —
- * leaving each about 11 % out rather than favouring one surface. The shipped 6 would over-brighten
- * these maps by 87 % on the wall and 50 % on the ceiling.
+ * **What that leaves.** The ceiling cannot be reached by ANY gain without blowing the floor past its
+ * reference, so a residual spatial error remains after the glazing fix (`.182` closed the bake's
+ * ceiling/wall ratio from 0.92 to 1.48 against a reference 2.18 — most of the way, not all). That
+ * is the next thing to chase, and it is a bake-side question, not a gain.
  */
-export const IRRADIANCE_GAIN = 3.59
+export const IRRADIANCE_GAIN = 6
 
 /**
  * The mean visibility of the plan `VISIBILITY_GAIN` was fitted against (the 4-Room default).

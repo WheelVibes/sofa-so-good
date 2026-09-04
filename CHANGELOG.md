@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.184 — ⚠️ CORRECTING `.183`'s gain: 3.59 was fitted with the wrong albedo; it is **6**
+
+`.183` shipped `IRRADIANCE_GAIN = 3.59`, derived by inverting a rendered radiance to irradiance as
+`E = R * pi / rho` with `rho` taken from `material.color`. **These materials carry a base-colour
+map**, so the shader's `diffuseColor` is `color * texture(map)` and the true albedo is well below
+`material.color`. Dividing by too high an albedo understated the required gain — and the same
+mistake produced `.183`'s confident claim that 6 "would over-brighten by 50–87 %". It does not.
+
+**Refitted in DISPLAY space, which needs neither an albedo nor a curve inversion** — the two
+assumptions that have gone wrong repeatedly in this thread. Three surfaces, each against a Cycles
+reference at its own pose, `TONE=neutral` on both sides:
+
+| gain | floor (target 160.3) | wall (196.4) | ceiling (192.6) |
+| --- | --- | --- | --- |
+| 3.59 (shipped by `.183`) | 135.0 | 160.3 | 59.4 |
+| **6** | **156.5** | 184.0 | 85.7 |
+| 9 | 172.9 — **over** | 190.6 | 109.3 |
+| 14 | 189.4 — **over** | 194.0 | 138.4 |
+
+**The floor is the binding constraint.** It lands within 2 % at 6 and overshoots beyond it, while at
+6 the wall is still 6 % short and the ceiling 55 % short. Nothing overshoots at 6, and a surface
+pushed *past* its reference is a worse error than one left short of it. So 6 it is — the same number
+`VISIBILITY_GAIN` has always held, arrived at independently and for a different quantity, which is
+why the two constants stay separate.
+
+**What `.183` got right and what it got wrong.** Right: the glazing was the spatial bias, and the
+`--keep-glazing` maps are a real improvement — that stands. Wrong: the *magnitude*, and the reason
+the two are separable is that `.182`'s A/B measured only RATIOS between two bakes, which needs no
+albedo, while `.183`'s gain fit needed an absolute albedo and used the wrong one.
+
+**What is left, stated precisely.** The ceiling cannot be reached by *any* gain without blowing the
+floor past its reference, so a residual spatial error survives the glazing fix — consistent with
+`.182` closing the bake's ceiling/wall ratio from 0.92 to 1.48 against a reference 2.18, most of the
+way and not all. That is bake-side and is the next thing to chase; it is **not** a gain.
+
+**Verified at 6:** the 44-frame sweep's negatives are unchanged and all previously explained
+(`householdShelter` −4.8/−4.3/−3.9, `kitchen-y2` −4.1 — improved from −5.2 as more light arrives,
+`corridor` −3.6), no new negative, and no surface overshoots. Cost p50 6.8 ms, p90 8.8, **drawn fps
+43.0** against the GI-off 42.6.
+
+Suite 10170 green, `tsc` and biome clean.
+
+
 ## v0.31.7.183 — 🎉 the glazing-intact bake SHIPS with a re-fitted gain, and one constant now fits a wall AND a ceiling
 
 `.181` found the bake deletes the window glass; `.182` added `--keep-glazing` and measured it
