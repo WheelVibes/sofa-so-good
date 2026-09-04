@@ -29,6 +29,31 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.204 — `(h)`'s progress has unblocked window treatments; scoped, not started
+
+Recording a state change rather than a code change, because it is easy to lose: item `(h)`'s
+write-up contains a warning that **blocks a separate feature**, and that warning is now mostly spent.
+
+`applyLayoutPreset('move-in')` places **zero window treatments on all 19 templates**. The doc says
+"fix (h) first", because `snapToNearestWindow` picks the nearest window on the whole LEVEL — so a
+windowless bedroom would have its curtain snapped onto some other room's glass. With `(h)` at
+**3 of 44** (from 15), only three bedrooms can still mis-snap and they are ratcheted by name.
+
+**Scoped by reading the code, so the next attempt starts from facts:** `furnishPlan.ts` has **no**
+window handling at all — no `windowBound`, no `snapToNearestWindow`, no `windowFixtureProps` — so
+this is *not* a `KITS` one-liner, which is what it looks like from the outside. The def exists
+(`curtains`, the only `windowBound: true` def in `furniture/defs/textiles.ts`) and the placement
+machinery exists in `placement/windowSnap.ts`; the wiring between them does not. Two constraints go
+with it: seed only for rooms that OWN a window, and set `drawAmount: 0` explicitly because the def
+defaults to **1 (CLOSED)**, contradicting the curtains-open decision from `.88`/`.92`.
+
+**Not started deliberately.** It is a feature with placement plumbing, and beginning one at the end
+of a long session is how a half-wired pipeline gets committed. The scoping is the deliverable here;
+the note lives in `(h)`'s own section where the warning is, so it cannot be read without the update.
+
+No app code changed. Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.203 — `(f)`: the maisonette's upper storey — three gaps, not one
 
 Seventh template, and it turned out to be a missing-partition case rather than the design judgement

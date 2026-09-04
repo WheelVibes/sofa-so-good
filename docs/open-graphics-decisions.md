@@ -470,6 +470,28 @@ the windows authored on them:
 **Every remaining entry needs a new window opening — a content decision.** The 12 stay **ratcheted
 by name** in `src/floorplan/bedroomWindow.test.ts`.
 
+> ### ⚠️ STATUS `v0.31.7.204`: the window-treatment blocker below is now MOSTLY CLEARED
+>
+> That paragraph says "Fix (h) first" because `snapToNearestWindow` picks the nearest window on the
+> whole LEVEL, so a windowless bedroom would have its curtain snapped onto another room's glass.
+> `(h)` has gone **15 → 3** (`.192`, `.193`), so only three bedrooms could still mis-snap, and they
+> are known by name in `bedroomWindow.test.ts`.
+>
+> **Scoped, from reading the code rather than guessing.** `furnishPlan.ts` has **no** window
+> handling at all — no `windowBound`, no `snapToNearestWindow`, no `windowFixtureProps` — so this is
+> not a `KITS` one-liner. The def exists (`curtains` in `furniture/defs/textiles.ts`, the only
+> `windowBound: true` def) and the placement machinery exists in `placement/windowSnap.ts`; what is
+> missing is the wiring between them in the furnish pipeline, plus:
+>
+> 1. a guard so a curtain is only seeded for a room that OWNS a window — otherwise the three
+>    remaining `(h)` bedrooms steal another room's glass, which is the exact failure this warning
+>    was written about;
+> 2. `drawAmount: 0` set explicitly, because the def defaults to **1 (CLOSED)** and that contradicts
+>    the curtains-open decision shipped in `.88`/`.92`.
+>
+> Worth doing: zero window treatments are placed on any of the 19 templates today, and curtains are
+> among the most visible elements in an interior render.
+
 **This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
 treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`
 is a curtain or blind — the default flat's curtains are hand-authored in
