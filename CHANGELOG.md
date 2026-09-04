@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.187 — the direct-only comparison REFUTES `.186`'s hypothesis, and the ceiling thread is PARKED with the blocker named
+
+`.186` proposed that the app's per-surface **direct** term was the remaining disparity, and named
+the test. Ran it: `render_still.py --diffuse-bounces 0` gives a direct-only reference, which is the
+right counterpart to the app's GI-off frame because `'replace'` discards the analytic fill anyway.
+
+| | app, GI off (no bounce) | Cycles, direct only | Cycles, full |
+| --- | --- | --- | --- |
+| left wall | 79.9 | **89.2** | 196.4 |
+| ceiling | 9.0 | **56.3** | 192.6 |
+
+**Refuted, and in the opposite direction.** The app does not over-light surfaces directly. On the
+wall its non-bounce light is close to Cycles' direct (79.9 against 89.2). On the ceiling it is
+**9.0 against 56.3** — deficient, not excessive. The mechanism is plain once seen: a hemisphere
+light gives a **down-facing** normal the GROUND colour, so the app's fill hands a ceiling almost
+nothing.
+
+**And that turns out to matter less than it looks**, which is worth stating so it is not chased
+later. In `'replace'` mode the fill is discarded on every mapped surface, and ceilings ARE mapped
+(they are shell geometry). The surfaces that keep the fill are the unmapped ones — furniture
+undersides and trim — and those *should* be dark, because they are genuinely occluded. Raising the
+hemisphere's ground term to fix ceilings would over-light exactly the surfaces the GI exists to
+darken. So it is a real finding about the fill and **not** a defect to fix there.
+
+**Why the thread is parked here rather than continued.** The remaining fact is `.186`'s: the gain
+that equalises the app with the reference is ~6.5 on the floor, ~15 on the wall and ~41 on the
+ceiling. That spread is albedo-free and real. But converting it into a statement about the BAKE
+requires the per-surface albedo — `gain_c / gain_w` folds in `rho_w / rho_c` — and per-surface
+albedo is precisely the quantity that has now contaminated three separate fits in this thread
+(`.170`'s 17x, `.180`'s ~6x, `.183`'s 4.01). Attempting a fourth attribution without measuring it
+would repeat the pattern.
+
+**What would unblock it**, stated concretely for whoever picks it up: an albedo-only measurement per
+surface — a Cycles render with the world set to a constant white environment and no bounces, which
+reads out `rho` directly at each point, or reading the base-colour texture through the same `uv`
+path `gi-point.mjs` already resolves for `uv1`. With `rho_w / rho_c` in hand the 2.73x gain ratio
+splits cleanly into an albedo part and a bake part, and only then is it clear whether anything is
+left to fix.
+
+**What is NOT in doubt**, and is shipped: the glazing fix was real (`.182`), the gain is 6 by a
+display-space fit against three references (`.184`), coverage is 28 % including floors, and the
+44-frame sweep shows no unexplained darkening. The ceiling is better than it has ever been (9.0 →
+85.7 against a 192.6 reference) and remains the largest known gap.
+
+Nothing shipped; `--diffuse-bounces` on `render_still.py` is diagnostic. Suite 10166 green, `tsc` and
+biome clean.
+
+
 ## v0.31.7.186 — bounce depth eliminated, and a CURVE-FREE fit says the disparity is in the app's DIRECT light
 
 Two direct experiments on the residual `.182`/`.184` left, plus a measurement method that removes

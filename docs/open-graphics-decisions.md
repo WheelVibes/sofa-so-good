@@ -4261,6 +4261,7 @@ not worth a permanent look constant, so it is reverted rather than tuned.
 
 **Two threads are parked with hypotheses eliminated and fallbacks identified**, not abandoned:
 
+- **The ceiling deficit** — ⏸ **PARKED `v0.31.7.187`** with the blocker named. Equality gains are ~6.5 (floor) / ~15 (wall) / ~41 (ceiling), which is albedo-free and real; splitting that into a bake error needs a per-surface albedo measurement, the quantity that has contaminated three fits (`.170`, `.180`, `.183`). Bounce depth and the app's direct term are both eliminated. Unblock with an albedo-only render or by reading the base-colour texture through `gi-point.mjs`'s uv path.
 - **The GI seam** — ✅ **DIAGNOSED `v0.31.7.164`, no longer parked.** All six earlier refutations
   were about the UV/atlas/bake machinery and all six hold: the machinery is clean (`mapped=52`,
   `unmapped=1070`, and **zero** meshes carry `uv1` without a map). The cause is *eligibility*: the

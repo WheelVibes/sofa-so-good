@@ -101,6 +101,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "black', so a reference WITH glass and a bake WITHOUT it are not measuring "
                         "the same room, and the difference is geometry-dependent: a wall that sees "
                         "the aperture gains more than a ceiling that does not.")
+    p.add_argument("--diffuse-bounces", type=int, default=None, dest="diffuse_bounces",
+                   help="override Cycles' diffuse bounce limit. `0` gives a DIRECT-ONLY render, "
+                        "which is the reference the app's GI-off frame should be compared against: "
+                        "with the feature on, `replace` discards the analytic fill, so the app's "
+                        "non-bounce light and Cycles' direct light are the same quantity. "
+                        "v0.31.7.186 found the per-surface gain spanning ~6x and implicated the "
+                        "app's direct term; this is how that is checked rather than argued.")
     p.add_argument("--no-network", action="store_true", help="never fetch an HDRI")
     p.add_argument("--json", action="store_true", help="emit a machine-readable result line")
     return p.parse_args(cli_argv.normalise(p, argv))
@@ -165,6 +172,13 @@ def render(a: argparse.Namespace) -> dict:
     else:
         S.place_camera(pos, look_at=target or centre, fov_deg=a.fov, fov_axis=a.fov_axis)
 
+    if a.diffuse_bounces is not None:
+        bpy.context.scene.cycles.diffuse_bounces = a.diffuse_bounces
+        # `max_bounces` gates every category, so raising diffuse alone is inert if the total is
+        # lower -- the trap that would make a bounce experiment report "no effect".
+        bpy.context.scene.cycles.max_bounces = max(
+            bpy.context.scene.cycles.max_bounces, a.diffuse_bounces
+        )
     if a.open_apertures:
         removed, _names = RV.open_apertures()
         print(f"  open_apertures: deleted {removed} glazing object(s)")
