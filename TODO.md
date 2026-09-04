@@ -4,6 +4,24 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## The walk -> orbit return holds its "Switching to overview..." splash past any settle
+
+Found while adding `scripts/scenarios/window-backdrop-veil.json` (v0.31.8.50). Setting
+`cameraMode` back to `orbit` from walk leaves the full-screen "Sofa So Good / Switching
+to overview..." transition splash up for longer than the harness will wait — 6000 ms was
+not enough.
+
+**This is pre-existing and it is silently costing coverage.** The SHIPPED
+`scripts/scenarios/backdrop-walk-simple.json` ends on `back-orbit` + 2000 ms +
+`shot-orbit-again`, and that frame is the splash — so its last screenshot has been
+verifying nothing. Reproduced on an unmodified build, so it is not the v0.31.8.50 glass
+change.
+
+Worth finding out whether the splash is waiting on a frame the headless harness never
+delivers (invalidate-driven render loop + no rAF pressure) or genuinely takes that long
+for a user. If the former, a `waitFor` on the splash clearing is the fix and
+`backdrop-walk-simple`'s final assert comes back for free.
+
 ## Interior walls dropped at `performance` — ✅ FIXED (WALL-NO-COMPOSER, v0.31.5.67)
 
 **Resolved 2026-08-29.** `Effects.tsx` no longer returns `null`: a composer mounts at every tier,

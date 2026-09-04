@@ -168,6 +168,31 @@ describe('glassSkyCatchIntensity (RZ2)', () => {
   it('stays below the bloom threshold so windows do not bloom', () => {
     expect(glassSkyCatchIntensity(1)).toBeLessThan(1.05)
   })
+
+  // GLASS-SKYCATCH-VEIL (v0.31.8.50). The sky-catch is a STAND-IN for sky
+  // luminance where nothing is painted behind the pane. When a backdrop IS
+  // painted it double-counts — a constant emissive on every pane pixel, which
+  // raises the floor uniformly and flattens whatever the view carries. Measured
+  // at the default flat's living-room window, 13:00, `medium`: dropping it took
+  // pane spread (p95−p05) 47 → 63 on the `sky` backdrop and 31 → 38 on `city`.
+  it('retires entirely when a backdrop paints a real view behind the pane', () => {
+    expect(glassSkyCatchIntensity(1, true)).toBe(0)
+    expect(glassSkyCatchIntensity(0.5, true)).toBe(0)
+  })
+
+  it('defaults to the RZ2 behaviour, so every backdrop-less path is unchanged', () => {
+    // Orbit / dollhouse and the `none` backdrop are exactly the case RZ2 added
+    // it for. The default argument keeps them byte-identical.
+    expect(glassSkyCatchIntensity(1, false)).toBe(glassSkyCatchIntensity(1))
+    expect(glassSkyCatchIntensity(0.37, false)).toBe(glassSkyCatchIntensity(0.37))
+  })
+
+  it('cannot regress the 21:00 case (l) records as already correct', () => {
+    // At night `daylight` → 0 and the sky-catch is already 0, so the backdrop
+    // argument has nothing left to remove. This is the guard (l) asks for.
+    expect(glassSkyCatchIntensity(0, true)).toBe(glassSkyCatchIntensity(0, false))
+    expect(glassSkyCatchIntensity(0, true)).toBe(0)
+  })
 })
 
 describe('windowGlassPhysical (PHOTO-GLASS)', () => {

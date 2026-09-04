@@ -64,6 +64,7 @@ import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
 import { useSunPosition } from '../scene/lighting/useSunPosition'
+import { backdropVisibleNow } from '../scene/SceneBackdrop'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
@@ -1190,7 +1191,10 @@ function FadeWindow({
     } else {
       mat.color.set(glassParams.color)
     }
-    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
+    // GLASS-SKYCATCH-VEIL: the emissive sky-catch stands in for sky luminance,
+    // so it retires when a backdrop paints a real view behind the pane —
+    // otherwise it adds a constant that flattens whatever the view carries.
+    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d, backdropVisibleNow())
     // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
     // compose) and blend day/night through transmission instead (PHOTO-GLASS).
     // Scaled by the glass kind's own transmission cap relative to the clear

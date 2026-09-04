@@ -1275,7 +1275,7 @@ discipline `.123` had to correct after `.122` claimed coverage it did not have.
 Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
 remains in any shipped plan.**
 
-## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261)
+## (l) WINDOW-LUMINANCE — ⏳ OPEN, needs a product call (measured .236; diagnosed .258; priced .259; qualified .260; TWO ROUTES SEPARATED .261; **a third veil found and PARTLY FIXED in v0.31.8.50**)
 
 `.209` recorded that the window backdrop reads flat and parked it as a product decision, partly
 because pushing the pane brighter fights the AgX view transform. `.236` measured what the gap
@@ -1528,6 +1528,61 @@ the derived result.
 The backdrop today is `paintSkySurround`, a procedural sky gradient with nothing in it, so **no luminance
 multiplier can reach the structural target.** For an HDB flat the diagnosis is fortunate: the real view from
 most windows *is* another block, which is exactly the near-object content that would supply the range.
+
+### v0.31.8.50 — a THIRD veil, in the pane itself. Two corrections and one shipped fix.
+
+Everything above tries to put range *behind* the glass — more exterior radiance (`.259`), more
+backdrop content (`.261`, `.263`). Nobody looked at the glass. The pane carries a **constant emissive
+sky-catch** (`glassSkyCatchIntensity`, RZ2: `emissiveIntensity = daylight × 0.4`), added to every pane
+pixel regardless of what is behind it. A constant added to a signal raises its floor and **compresses
+its contrast by construction** — which is exactly the signature this item has been describing since
+`.236`: *"an evenly-lit grey field"*, 2.2–3.3 : 1 against the wall, and 0.0 % clipping.
+
+Measured at the default 4-room flat's living-room window, walk mode, 13:00, `medium`, the pane
+rectangle inside the glazing, dropping the sky-catch to 0:
+
+| backdrop | pane sd | pane spread (p95−p05) |
+| --- | --- | --- |
+| `sky` (the default) | 15.9 → **20.1** | 47 → **63** |
+| `city` | 10.5 → **11.5** | 31 → **38** |
+| `park` | 12.5 → **14.7** | 37 → **44** |
+| `dusk` | 17.0 → **23.2** | 53 → **74** |
+
+**The stand-in was costing 19–40 % of the window's luminance range**, at the exact hour and pose this
+item is measured at, on every backdrop, for free.
+
+**Shipped, narrowly.** The sky-catch is a *stand-in* for sky luminance where nothing is painted behind
+the pane, so it now **retires whenever a backdrop is painted** (`backdropVisibleNow()` — walk mode,
+backdrop with imagery). Orbit / dollhouse, the `none` backdrop and `custom` with no upload keep it
+byte-identical; those are the cases RZ2 added it for. **The 21:00 case cannot regress**: at night
+`daylight` → 0 and the sky-catch is already 0 there, which is now a test.
+
+**Correction 1 — `.263`'s "the backdrop path is LOW-PASS" is wrong.** three only runs PMREM on the
+background when `scene.backgroundBlurriness > 0` (`WebGLBackground.getBackground`), and this app never
+sets it. The real path is `WebGLEnvironments.getCube` → `new WebGLCubeRenderTarget(image.height)`,
+i.e. **1024 px per cube face** from the 2048×1024 equirect — sharp. The WeakMap cache keyed on the
+texture object, which `.262`/`.263` correctly measured, lives in `getCube`, not in the PMREM branch;
+same observable behaviour, different converter, and **no resolution loss**. What `.263` read as a
+smear was the pane veil above, not the delivery path.
+
+**Correction 2 — the structural content already ships.** `.261` says the backdrop is *"`paintSkySurround`,
+a procedural sky gradient with nothing in it"*. That is true of the **default** (`sky`), and only of it.
+The `city` preset paints a full HDB skyline with lit windows, and looked at through the window it is
+plainly legible — individual window squares, a roofline, depth layers. `dusk` likewise. So the
+structural route does not need building; it needs the pane to stop veiling it, and — separately — a
+default that has something in it.
+
+**What is left of this item.** Even with the veil gone the pane reads sd 20.1 / spread 63 against a
+photograph pane's ~35 / 90–95, so roughly half the gap remains, and `.259`'s ≈×30 aggregate lever is
+untouched. But two of the three things this item blamed turn out not to be the constraint (the tone
+curve, `.258`; the delivery path, above), and the third is now partly paid without any look trade.
+
+> **A caveat on the spread numbers, stated because it matters.** sd / p95−p05 over a large rectangle
+> conflate a smooth vertical *ramp* with actual *detail* — which is why `city` measures LOWER spread
+> than the empty `sky` gradient (31 vs 47) despite plainly carrying more structure. The comparisons in
+> the table are paired (same crop, same backdrop, one variable), so they price the veil correctly; they
+> are **not** a ranking of the backdrops. Separating ramp from detail needs a local/high-frequency
+> metric, which this round did not build.
 
 **Why this is still not being decided here:** the fix space is unchanged in kind — brighter backdrop, a
 bloom-carrying emissive pane, or a separate exposure for the backdrop — but it now has a **target**: roughly

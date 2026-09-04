@@ -27,6 +27,80 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.50 — WINDOW-LUMINANCE: there was a third veil, and it was in the glass
+
+Thirty-odd rounds of `(l)` have tried to put range *behind* the window — more exterior
+radiance (`.259`'s ×30), more backdrop content (`.261`, `.263`). Nobody looked at the pane.
+
+**The pane carries a constant.** `glassSkyCatchIntensity` (RZ2) sets
+`emissiveIntensity = daylight × 0.4` on the glass, added to every pane pixel regardless of
+what is behind it. A constant added to a signal raises its floor and **compresses its
+contrast by construction** — which is precisely the signature `(l)` has been describing
+since `.236`: *"an evenly-lit grey field"*, 2.2–3.3 : 1 against the wall, 0.0 % clipping.
+
+Measured at the default 4-room flat's living/dining window, walk mode, 13:00, `medium`,
+over a fixed rectangle inside the glazing, dropping the sky-catch to 0:
+
+| backdrop | pane sd | pane spread (p95−p05) |
+| --- | --- | --- |
+| `sky` (the default) | 15.9 → **20.1** | 47 → **63** |
+| `city` | 10.5 → **11.5** | 31 → **38** |
+| `park` | 12.5 → **14.7** | 37 → **44** |
+| `dusk` | 17.0 → **23.2** | 53 → **74** |
+
+**19–40 % of the window's luminance range, on every backdrop, for free.**
+
+**Shipped narrowly.** The sky-catch is a *stand-in* for sky luminance where nothing is
+painted behind the pane. So it now retires whenever a backdrop IS painted
+(`backdropVisibleNow()` — walk mode + a backdrop with imagery). Orbit / dollhouse, the
+`none` backdrop and `custom` with no upload keep it byte-identical; those are the cases RZ2
+added it for. **The 21:00 case `(l)` records as already correct cannot regress** — at night
+`daylight` → 0 and the sky-catch is already 0 there. That is now a test rather than an
+argument.
+
+Looked at, on `dusk`: before, milky pale smudges where the lit tower windows should be and a
+washed blue-grey sky. After, a deeper sky, warm windows that separate from the blocks, the
+horizon glow band, and a dark ground band that reads as ground. It stops being a panel.
+
+### Two corrections to this item's own record
+
+**1. `.263`'s "the backdrop path is LOW-PASS" is wrong.** three only runs PMREM on the
+background when `scene.backgroundBlurriness > 0` (`WebGLBackground.getBackground`), and this
+app never sets it. The real path is `WebGLEnvironments.getCube` →
+`new WebGLCubeRenderTarget(image.height)` — **1024 px per cube face** from the 2048×1024
+equirect. Sharp. The WeakMap cache keyed on the texture object that `.262`/`.263` correctly
+measured lives in `getCube`, not in the PMREM branch: same observable behaviour, different
+converter, **and no resolution loss**. What `.263` read as a smear was the pane veil.
+
+**2. The structural content already ships.** `.261` calls the backdrop *"a procedural sky
+gradient with nothing in it"*. That is true of the DEFAULT (`sky`) and only of it — the
+`city` preset paints a full HDB skyline with lit windows, and through the window it is
+plainly legible: individual window squares, a roofline, depth layers. The structural route
+does not need building. It needs the pane to stop veiling it.
+
+### What is left, stated plainly
+
+Even with the veil gone the pane reads sd 20.1 / spread 63 against a photograph pane's ~35 /
+90–95, so roughly half the gap remains and `.259`'s ≈×30 lever is untouched. `(l)` stays
+open. But two of the three things it blamed are now ruled out (the tone curve, `.258`; the
+delivery path, above) and the third is partly paid with no look trade at all.
+
+**Caveat on the metric.** sd and p95−p05 over a large rectangle conflate a smooth vertical
+*ramp* with actual *detail* — which is why `city` measures LOWER spread than the empty `sky`
+gradient (31 vs 47) while plainly carrying more structure. Every comparison above is paired
+(same crop, same backdrop, one variable), so it prices the veil correctly; it is **not** a
+ranking of the backdrops. Separating ramp from detail wants a local high-frequency metric,
+which this round did not build.
+
+`scripts/scenarios/window-backdrop-veil.json` keeps the check, posed through the
+`window.__walkLook` lever finished in `.49` — which is what made this round measurable at all.
+
+Also logged in `TODO.md`: the walk → orbit return holds its "Switching to overview…" splash
+past any settle the harness will wait, so the shipped `backdrop-walk-simple` scenario's final
+orbit screenshot has been verifying nothing. Reproduced on an unmodified build.
+
+Verified: 10151 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.49 — (g) verified: the overlook has a floor, and here is the proof
 
 Two releases ago I shipped (g) and said its visual proof was owed. It is paid.

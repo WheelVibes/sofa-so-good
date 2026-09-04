@@ -1,0 +1,110 @@
+{
+  "name": "window-backdrop-veil",
+  "url": "http://localhost:5208/",
+  "note": "GLASS-SKYCATCH-VEIL (v0.31.8.50) \u2014 WINDOW-LUMINANCE (l). Stands the walker at the default 4-room flat's living/dining window (10.9, 3.4) looking north at the 2.45 m opening, and shoots the same framing across all four painted backdrops. The pane's emissive sky-catch retires whenever a backdrop is painted, so these frames are where that shows: measure the pane rectangle (left 395, top 340, 740x480) \u2014 sd and p95-p05 spread rise 19-40% against the veiled build. The pose is set through the dev-only window.__walkLook lever (setPosition/setYaw/setPitch), because Pointer Lock is unavailable headless so neither WASD nor mouse-look works. The orbit half is deliberately NOT shot here: the walk->orbit return holds a \"Switching to overview...\" splash for longer than any settle this harness will wait (reproduced on the SHIPPED backdrop-walk-simple scenario, whose own final orbit frame is that splash), so the frame would prove nothing. That the orbit path is unchanged is proven by construction instead \u2014 it passes backdropVisibleNow() === false, and glassSkyCatchIntensity(x, false) === glassSkyCatchIntensity(x) is a test.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "settle-walk",
+      "wait": 2500
+    },
+    {
+      "name": "aim-at-window",
+      "eval": "(() => { const L = window.__walkLook; if (!L) throw new Error('window.__walkLook missing \u2014 the dev-only camera lever is what makes this scenario possible'); L.setPosition(10.9, 3.4); L.setYaw(0); L.setPitch(0) })()"
+    },
+    {
+      "name": "settle-sky",
+      "wait": 1500
+    },
+    {
+      "name": "shot-sky",
+      "screenshot": "bd-sky"
+    },
+    {
+      "name": "set-city",
+      "store": {
+        "action": "setBackdrop",
+        "args": [
+          "city"
+        ]
+      }
+    },
+    {
+      "name": "reaim-city",
+      "eval": "(() => { const L = window.__walkLook; L.setPosition(10.9, 3.4); L.setYaw(0); L.setPitch(0) })()"
+    },
+    {
+      "name": "settle-city",
+      "wait": 2200
+    },
+    {
+      "name": "shot-city",
+      "screenshot": "bd-city"
+    },
+    {
+      "name": "set-park",
+      "store": {
+        "action": "setBackdrop",
+        "args": [
+          "park"
+        ]
+      }
+    },
+    {
+      "name": "reaim-park",
+      "eval": "(() => { const L = window.__walkLook; L.setPosition(10.9, 3.4); L.setYaw(0); L.setPitch(0) })()"
+    },
+    {
+      "name": "settle-park",
+      "wait": 2200
+    },
+    {
+      "name": "shot-park",
+      "screenshot": "bd-park"
+    },
+    {
+      "name": "set-dusk",
+      "store": {
+        "action": "setBackdrop",
+        "args": [
+          "dusk"
+        ]
+      }
+    },
+    {
+      "name": "reaim-dusk",
+      "eval": "(() => { const L = window.__walkLook; L.setPosition(10.9, 3.4); L.setYaw(0); L.setPitch(0) })()"
+    },
+    {
+      "name": "settle-dusk",
+      "wait": 2200
+    },
+    {
+      "name": "shot-dusk",
+      "screenshot": "bd-dusk"
+    },
+    {
+      "name": "assert-skycatch-retired",
+      "eval": "(() => { const s = window.__store.getState(); if (s.cameraMode !== 'firstPerson') throw new Error('expected walk mode'); if (s.backdrop !== 'dusk') throw new Error('expected the dusk backdrop'); })()"
+    }
+  ]
+}

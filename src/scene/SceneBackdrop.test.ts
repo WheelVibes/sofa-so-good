@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { resolveFlags } from '../features/featureFlags'
 import { UI_INITIAL } from '../state/slices/uiSlice'
+import { useStore } from '../state/store'
 import { BACKDROP_PRESETS } from './backdropEquirect'
-import { BACKDROPS, isPhotoBackdropActive } from './SceneBackdrop'
+import { BACKDROPS, backdropVisibleNow, isPhotoBackdropActive } from './SceneBackdrop'
 
 describe('isPhotoBackdropActive', () => {
   it('is active only in walk mode for a real photo preset', () => {
@@ -93,5 +94,42 @@ describe('backdrop flags tiering (both modes)', () => {
     expect(
       isPhotoBackdropActive(UI_INITIAL.backdrop, 'firstPerson', false, flags.proceduralSky),
     ).toBe(true)
+  })
+})
+
+describe('backdropVisibleNow (GLASS-SKYCATCH-VEIL)', () => {
+  // The window panes call this inside `useFrame`, so it must read the LIVE store
+  // with no hooks. It is the switch that retires the emissive sky-catch once a
+  // real view is painted behind the glass — see `glassSkyCatchIntensity`.
+  it('follows the camera mode for the default `sky` backdrop', () => {
+    const prev = useStore.getState().cameraMode
+    useStore.setState({ backdrop: 'sky', cameraMode: 'orbit' })
+    expect(backdropVisibleNow()).toBe(false)
+    useStore.setState({ cameraMode: 'firstPerson' })
+    expect(backdropVisibleNow()).toBe(true)
+    useStore.setState({ cameraMode: prev })
+  })
+
+  it('is false for `none` in walk mode, so the plain dome keeps its stand-in', () => {
+    // `none` paints nothing into the background slot — the DreiSky dome takes the
+    // view back, and that dome is exactly the washed near-white case RZ2's
+    // sky-catch was added for. Retiring it there would be a regression.
+    const prev = useStore.getState()
+    useStore.setState({ backdrop: 'none', cameraMode: 'firstPerson' })
+    expect(backdropVisibleNow()).toBe(false)
+    useStore.setState({ backdrop: prev.backdrop, cameraMode: prev.cameraMode })
+  })
+
+  it('needs an uploaded image before `custom` counts as painted', () => {
+    const prev = useStore.getState()
+    useStore.setState({ backdrop: 'custom', cameraMode: 'firstPerson', customBackdropUrl: null })
+    expect(backdropVisibleNow()).toBe(false)
+    useStore.setState({ customBackdropUrl: 'blob:x' })
+    expect(backdropVisibleNow()).toBe(true)
+    useStore.setState({
+      backdrop: prev.backdrop,
+      cameraMode: prev.cameraMode,
+      customBackdropUrl: prev.customBackdropUrl,
+    })
   })
 })

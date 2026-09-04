@@ -178,9 +178,29 @@ export function transmissionResolutionScaleForTier(tier: RenderTier): number {
  * Cheap (emissive only, no transmission pass) so it works on every tier —
  * including the flat Performance default where windows otherwise read as flat
  * dark panes. `daylight` is 0 (night) … 1 (full day).
+ *
+ * **`backdropVisible` retires it (GLASS-SKYCATCH-VEIL, v0.31.8.50).** The
+ * sky-catch is a *stand-in* for sky luminance, for the case where there is
+ * nothing behind the pane to see. In walk mode with a backdrop painted there IS
+ * something behind the pane, and the stand-in then double-counts: a CONSTANT
+ * emissive term added to every pane pixel, which raises the floor uniformly and
+ * so compresses whatever the backdrop carries. Measured at the living-room
+ * window of the default 4-room flat, 13:00, `medium`, dropping it to 0:
+ *
+ * | backdrop | pane sd | pane spread p95−p05 |
+ * | --- | --- | --- |
+ * | `sky` (default) | 15.9 → **20.1** | 47 → **63** |
+ * | `city` | 10.5 → **11.5** | 31 → **38** |
+ *
+ * i.e. the stand-in was costing **23–34 % of the window's luminance range** at
+ * exactly the hour and pose WINDOW-LUMINANCE `(l)` is measured at. It cannot
+ * regress the 21:00 case `(l)` records as already correct, because at night
+ * `daylight` → 0 and the sky-catch is already 0 there by construction. Orbit /
+ * dollhouse and every backdrop-less path keep it — that is the case RZ2 added
+ * it for, and it is untouched.
  */
-export function glassSkyCatchIntensity(daylight: number): number {
-  return clamp(daylight, 0, 1) * 0.4
+export function glassSkyCatchIntensity(daylight: number, backdropVisible = false): number {
+  return backdropVisible ? 0 : clamp(daylight, 0, 1) * 0.4
 }
 
 /** Sheen layer for a soft-fabric finish kind. Velvet shows the strongest, most
