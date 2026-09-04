@@ -29,6 +29,39 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.285 — resolution makes `(z11)` WORSE: a fourth hypothesis dies, with a practical warning
+
+The texel-footprint hypothesis was the last physical-sounding one: at `res 256` a 10.68 m² ceiling
+face across a third of the atlas is roughly 4 cm per texel, so a texel beside the wall junction
+integrates a hemisphere partly below the ceiling plane. A resolution sweep tests it directly — same
+object, same scene, same seed and samples, `--uv existing --uv-layer UVMap.001` so the atlas layout
+is identical and only texel COUNT changes:
+
+| res | centre | edge | ratio |
+| --- | --- | --- | --- |
+| 256 | 1.0450 | 0.9057 | **0.8667** |
+| 512 | 1.0115 | 0.7557 | **0.7471** |
+
+**Doubling resolution makes the falloff steeper, not flatter** — the opposite of an integration
+artefact. So a coarse texel was averaging away a genuinely sharp near-junction darkening, and finer
+texels resolve it.
+
+**That inverts the obvious remedy, which is worth recording before someone tries it: do NOT raise
+lightmap resolution to fix this item.** The shipped 256 maps are FLATTER than a finer bake would be,
+so more texels would worsen the visible artefact while costing memory and bake time.
+
+**What remains established** is the render-to-render comparison, which is apples to apples: over
+identical image regions and level-matched, the app falls off at **0.859-0.87 against Cycles' 0.963**.
+
+**What is NOT established** is the framing I used in `.284` — "the bake is steeper than the render".
+That compared `gi-point`'s single-texel sample against a patch AREA average, and near a steep
+gradient those are different quantities. Settling it needs the map sampled at a grid of points across
+the patch footprint and averaged. I would rather name that than leave the stronger claim standing.
+
+Four hypotheses eliminated now (sun-bounce, staleness, AgX shoulder, texel footprint). The item is
+better bounded than explained, which is where it should sit rather than in a guess.
+
+
 ## v0.31.7.284 — `(z11)` survives three eliminations: a Cycles BAKE and a Cycles RENDER disagree
 
 `(z11)` said the app's baked GI falls off toward room edges faster than physics. Three candidate
