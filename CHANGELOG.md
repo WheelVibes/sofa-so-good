@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.234 — SHIPPED: gap ceilings close the sky holes in 16 templates. Rays that left the scene now hit a ceiling
+
+`PlanShell` renders `ceilingGapRects(lp)` as ceiling planes over the footprint no room covers,
+closing both shapes `.231` identified — the unassigned BLOCKS and the thin SLITS along room edges.
+
+**Verified at the exact points that failed.** Same probe, same plan, same poses as `.229`/`.231`:
+
+| ray | before | after |
+| --- | --- | --- |
+| `tpl-hdb-4room` (2.0, 3.0) — the slit | **NOTHING, leaves the scene** | ceiling at y = 2.6 |
+| `tpl-hdb-4room` (7.75, 1.3) — the 4.9 m² block | **NOTHING, leaves the scene** | ceiling at y = 2.6 |
+| (1.5, 4.5) — in-room control | ceiling at 2.6 | ceiling at 2.6 |
+| (7.4, 5.0) — in-room control | ceiling at 2.6 | ceiling at 2.6 |
+
+Both controls unchanged, which is what shows the fill is not doubling up on ceilings that already
+exist — the `ceilingGaps` invariant test asserts the same thing structurally, on every template.
+
+**Ground level only, and that restriction is item `(w)`'s lesson repaid.** A double-height room is a
+DECLARED room with a taller `ceilingHeight`, so it drops out of the gap set by construction — but an
+upper storey's gap sits directly over that void, where the ground room's 5.5 m ceiling already is,
+and filling there would put a second lid in the same plane. `tpl-loft`'s entire upper-level gap is
+0.6 m², so the restriction costs almost nothing.
+
+**Scope, checked rather than assumed.** This is the PLAN path. The curated default flat renders
+through `Apartment`, not `PlanShell` (`AirconTrunking`'s docstring says so), so it gets no fill — and
+it needs none: nine rays spread across its interior all hit a ceiling, one at 2.4 m where a bulkhead
+sits. So the defect was specific to plan templates and the fix covers exactly them.
+
+**Cost:** 8 (`tpl-studio`) to 60 (`tpl-condo-penthouse`) extra meshes, mean 28, measured statically
+across all 19 templates, against ~1072 visible meshes in a furnished flat. A tier benchmark is
+deliberately NOT quoted here: the `--min-area 1.5` bake is saturating the CPU as I write, and
+`v0.31.7.224` established the before/after tour and `frame-time` protocol for exactly this kind of
+claim. It runs when the bake is done rather than being guessed at now.
+
+`ceilingHole.test.ts`'s numbers are left where they are and its docstring now says why: they measure
+an AUTHORING gap, not a visible hole. A non-zero entry no longer means a walker sees sky — it means a
+template's rooms do not cover its footprint, which still matters, because a real room carries a
+finish, a ceiling treatment and a lightmap that this backstop does not.
+
+Suite 10219 green.
+
+
 ## v0.31.7.233 — the stale index costs NO shell coverage: all 14 dead maps were furniture. Not shipped, and `.232`'s phrasing was too strong
 
 `.232` found 14 of the shipped index's 111 keys no longer match the scene and called them "dead

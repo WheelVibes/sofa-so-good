@@ -1,6 +1,19 @@
 /**
  * Walkable floor with NO CEILING above it — a hole to the sky, in shipped templates.
  *
+ * **⚠️ THE RENDERING IS FIXED as of `v0.31.7.234` — these numbers now measure an AUTHORING gap,
+ * not a visible hole.** `PlanShell` fills footprint-minus-rooms with gap ceilings
+ * (`ceilingGaps.ts`), verified by raycast: the (2.0, 3.0) slit and the (7.75, 1.3) block in
+ * `tpl-hdb-4room` both went from "the ray leaves the scene" to a ceiling at y = 2.6, with two
+ * in-room controls unchanged. So a non-zero entry below no longer means a walker sees sky; it means
+ * a template's room set does not cover its own footprint, which is still worth ratcheting because
+ * the fill is a backstop and a real room would carry a finish, a ceiling treatment and a lightmap
+ * that the backstop does not.
+ *
+ * Scope of the fix, worth knowing before reading these numbers as risk: it applies to PLAN
+ * templates only. The curated default flat renders through `Apartment`, not `PlanShell` — and it
+ * needs no fix, since nine rays spread across its interior all hit a ceiling.
+ *
  * **How this was found and why nothing else catches it.** Ceilings are rendered PER ROOM
  * (`PlanShell.tsx` maps `lp.rooms` to `PlanRoomCeiling`), so any area inside the perimeter that no
  * room rect covers has a floor — the plan slab spans the footprint — and no ceiling. Every existing
