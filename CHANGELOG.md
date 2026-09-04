@@ -27,6 +27,73 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.31 — the phantom mount is what pushes furniture against the walls
+
+v0.31.9.30 established that `emu-cbath`'s basin is lost because a `towel-rail` still on the
+room-centre seed refuses its toilet every position on every wall, and specced the fix as ORDERING:
+put mounts on their walls BEFORE the floor arranging. Built it. **It fails identically to removing
+the phantom, and the reason explains both.**
+
+### MOUNTS-FIRST, measured
+
+A `MountPhase` on `placeSeededMounts` — `'mounts'` running before the arranger and taking only the
+wall/ceiling mounts that do not depend on a floor piece (`range-hood` excluded, because
+HOOD-AFTER-STOVE needs the stove's rescued position), `'rescue'` keeping the historical behaviour
+afterwards:
+
+```
+missing-fixture   6 -> 11        outside-room          8 ->  9
+marooned-wall-hugger 39 -> 46    score  60,813,173,903 -> 110,913,174,603
+```
+
+Within 300 of v0.31.9.30's seed-exclusion result (110,913,174,303), which is the tell: **both
+changes do the same thing.** One removes the obstacle at the room centre; the other moves it to a
+wall. Either way the centre is free.
+
+### And that is what the arranger was relying on
+
+`marooned-wall-hugger` is the class that names it — pieces of the categories `furnishPlan` itself
+declares wall-bound, sitting more than 0.28 m off every wall. **It goes 39 -> 46.** Measuring the
+same thing continuously, as each wall-hugging piece's distance from its room's nearest edge over
+the room's half-short-side (0 = on the wall, 1 = dead centre):
+
+```
+baseline      0.311   over 323 pieces
+mounts-first  0.327   over 324 pieces
+```
+
+A modest aggregate shift, and seven more pieces crossing the threshold. So the seed-parked mount
+was not merely an obstacle in the way — **it was doing the job of keeping the middle of the room
+clear**, which is a real design rule (`docs/interior-design-guidelines.md`: storage, appliances and
+beds flush to walls) that the arranger has been getting for free from an accident of pass ordering.
+
+Take the accident away and floor furniture drifts inward, which costs five more severity-1 fixtures
+than `emu-cbath`'s basin is worth.
+
+### Four routes tried, all rejected
+
+| route | result |
+|---|---|
+| height-aware mounted obstacles (v0.31.9.30) | inert — the rail spans 0.70-1.20 m, a toilet reaches 0.78 |
+| exclude seed-parked mounts from `world` (.30) | score -> 110,913,174,303 |
+| 800 mm compact shower tray (.30) | score -> 70,813,173,903 |
+| **MOUNTS-FIRST ordering (this release)** | score -> 110,913,174,603 |
+
+**Stopping rule for this defect, the same shape as v0.31.9.27's for the levers:** do not attempt
+`emu-cbath`'s basin again through the mount pipeline. The next real move is to give the arranger an
+EXPLICIT preference for walls — a scoring term, not a phantom — so that removing the accidental
+obstacle becomes safe. Until that exists, every fix here trades one severity-1 finding for five.
+
+### Housekeeping
+
+**v0.31.9.30 committed `src/dbg.test.ts` by accident** — a scratch measurement probe, picked up by
+`git add -A` because I had not deleted it before committing. Harmless (it asserted nothing) but it
+should not be in the repo, and it is why the suite count moves 10,258 -> 10,257 here. Removed, and
+`src/dbg.test.ts` / `src/measTmp.test.ts` are now in `.gitignore`, since both filenames get
+written and deleted several times per release on this thread.
+
+No functional change: the experiment is reverted and the finding is the deliverable.
+
 ## v0.31.9.30 — a towel rail in the middle of the bathroom, and the phantom turns out to be load-bearing
 
 The highest-value item after v0.31.9.29 was recovering `emu-cbath`'s basin without giving

@@ -111,9 +111,17 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
     load-bearing, because without it floor pieces take the centre and the mounts have no wall left
     to be rescued to); and a compact 800 mm shower tray (score -> 70.8 G, cost `ctu-cbath` its
     basin and `emu-cbath` its shower).
-    **NEXT: split `placeSeededMounts`** so mounts reach their walls BEFORE the floor arranging and
-    act as real obstacles rather than phantoms. Its other half — the stranded-floor-piece rescue —
-    has to keep running afterwards.
+    **MOUNTS-FIRST was built in v0.31.9.31 and FAILS IDENTICALLY** (score -> 110,913,174,603,
+    within 300 of the seed-exclusion result) — because both changes do the same thing: they free
+    the room CENTRE. `marooned-wall-hugger` goes 39 -> 46 and the continuous measure of how far
+    wall-hugging pieces sit from their walls goes 0.311 -> 0.327 of the half-width. **The
+    seed-parked mount was doing the job of keeping the middle of the room clear**, which is a real
+    design rule the arranger has been getting for free from an accident of pass ordering.
+    **STOPPING RULE: do not attempt this basin again through the mount pipeline.** Four routes are
+    now measured and rejected (height-aware obstacles, seed exclusion, compact shower tray,
+    mounts-first ordering). The next real move is an EXPLICIT wall preference in the arranger — a
+    scoring term, not a phantom — after which removing the accidental obstacle becomes safe. Until
+    then every fix here trades one severity-1 finding for five.
   - `tpl-condo-1study/cs-balcony` is severed (severity 3).
   - `tpl-hdb-jumbo` dropped out of `diningChairTuck`'s clean list — one chair settles 4.54 m from
     its table (severity 4). Corpus-wide the count is unchanged at 17.

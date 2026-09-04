@@ -321,10 +321,23 @@ candidate's, which aligns it with `dropOverlaps` and with `placeSeededMounts`' o
 mount "must neither reserve floor nor be blocked by it" — but it is INERT on today's corpus,
 because a towel rail spans 0.70-1.20 m and a toilet reaches 0.78. The clash is real.
 
-**The fix is ORDERING:** place mounts on their walls before the floor arranging, so they are real
-obstacles instead of phantoms. That means splitting `placeSeededMounts`, whose other half detects
-"still exactly at the seed point = never placed by the arranger" and therefore has to keep running
-afterwards.
+**ORDERING WAS TRIED AND FAILS IDENTICALLY (v0.31.9.31).** A `MountPhase` on
+`placeSeededMounts` — mounts to their walls before arranging, the rescue still after — scores
+**110,913,174,603**, within 300 of the seed-exclusion result. That closeness is the tell: both
+changes free the room CENTRE, and the centre is what the arranger was leaning on.
+
+`marooned-wall-hugger` goes **39 -> 46**, and measured continuously as each wall-hugging piece's
+distance from its room's nearest edge over the half-short-side (0 = on the wall, 1 = dead centre),
+**0.311 -> 0.327**. So the seed-parked mount was not merely in the way — it was enforcing
+"storage, appliances and beds flush to walls" (`docs/interior-design-guidelines.md`) as a side
+effect of pass ordering. Remove it and floor furniture drifts inward, costing five more severity-1
+fixtures than the basin is worth.
+
+**STOPPING RULE: do not attempt this basin again through the mount pipeline.** Four routes are
+measured and rejected — height-aware obstacles (inert), seed exclusion (110.9 G), an 800 mm shower
+tray (70.8 G), mounts-first ordering (110.9 G). The next real move is an EXPLICIT wall preference
+in the arranger, a scoring term rather than a phantom, after which removing the accidental
+obstacle becomes safe.
 
 Related: the `shower` def's `size` param drove every rendered dimension and NOT the collision
 footprint (no `footprintParams`), so a 1.2 m shower collided as 0.9 and a 0.8 m one reserved floor
