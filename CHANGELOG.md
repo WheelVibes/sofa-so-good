@@ -29,6 +29,39 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.179 — `walk-tour` gets `LIGHTS=off`, and the kitchen's 152-count gap resolves to **35**
+
+`.176` compared the kitchen against a Cycles reference and had to publish the number with a caveat:
+the app tour runs with lamps ON and the reference has none, so the app's 204.5 against Cycles' 48.3
+was "overstated in magnitude, not in direction". That caveat was load-bearing and unquantified.
+
+**The blocker was instrumental, not analytical.** `light-distribution.mjs` has `LIGHTS=off`, but it
+derives its pose from a **window opening**, and the kitchen has none — the probe fails with
+`no window opening matching /kitchen/i`. `walk-tour.mjs` can stand anywhere and had no lights knob.
+It has one now, using the same mechanism and likewise **reporting what it flipped** (19 of 87) rather
+than assuming the toggle took.
+
+**With lamps off on both sides:**
+
+| kitchen tile | app, lamps ON | app, lamps OFF | **Cycles** | residual |
+| --- | --- | --- | --- | --- |
+| mid | 200.0 | **82.9** | 48.3 | **+34.6** |
+| upper | 208.4 | **115.8** | 78.1 | **+37.7** |
+
+So lamps account for **~117 of the 152 counts** and the caveat was doing most of the work. What
+survives is a real but moderate **~35-count over-brightness** in an enclosed, windowless-ish room —
+exactly the visibility-blind fill this feature exists to remove — and the GI currently removes only
+about 5 of it. That is a much more useful number than "the app is enormously too bright", which is
+what the uncontrolled comparison implied and what I reported at the time.
+
+**Also visible once lamps stop dominating:** R−B falls to 16.6 / 17.7 against the reference's
+0.3 / −2.3, so the app is ~18 counts warmer. Consistent with the white-balance difference recorded
+in `.171` and still not called a defect: Cycles applies no white balance and the app does, as a
+camera would.
+
+Suite 10170 green, `tsc` and biome clean. No app code changed.
+
+
 ## v0.31.7.178 — floors get GI at last: CLONE the shared material instead of skipping it
 
 `.177` shipped 28 % coverage and named the honest remaining gap — **floors receive no GI at all**,

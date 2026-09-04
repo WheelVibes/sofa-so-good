@@ -135,6 +135,31 @@ const YAW = Number(process.env.YAW || 0)
 const LIGHTS = process.env.LIGHTS || ''
 
 if (!TIER_AUTO) await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
+
+// LIGHTS=off switches every placed light off, so a DAYLIGHT-ONLY frame can be compared against a
+// Cycles reference — which has no lamps, because three's fixture intensities are artistic and
+// inventing a wattage would make the physical reference agree with the thing under test.
+//
+// Added in `v0.31.7.179` because the largest app-vs-reference gap this arc has measured is in the
+// KITCHEN (app 204.5 against Cycles 48.3), and that room has no window opening, so
+// `light-distribution.mjs` — which derives its pose from a window — cannot be aimed there at all.
+// Without this the comparison could not be made lamps-off, and the gap could not be attributed.
+// Same mechanism as that probe's block, and it likewise REPORTS what it flipped rather than
+// assuming the toggle took.
+if (process.env.LIGHTS === 'off') {
+  const flipped = await page.evaluate(() => {
+    const s = window.__store.getState()
+    const on = s.items.filter((it) => it.props?.lightOn !== 'no').map((it) => it.id)
+    let k = 0
+    for (const id of on) {
+      s.toggleLightPower(id)
+      if (window.__store.getState().items.find((it) => it.id === id)?.props?.lightOn === 'no') k++
+    }
+    return { candidates: on.length, flipped: k }
+  })
+  console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidate items`)
+  await new Promise((r) => setTimeout(r, 1200))
+}
 if (LIGHTS) {
   await page.evaluate((v) => window.__store.getState().setLightsMode?.(v), LIGHTS)
   await new Promise((r) => setTimeout(r, 2000))
