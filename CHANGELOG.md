@@ -27,6 +27,51 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.80 — the painted flutes really are flat, face-on only
+
+v0.31.8.79 measured curtains and said what a valid fixture needs. Built it, and the claim holds.
+
+**Fixture** (kept as `scripts/scenarios/feature-wall-finishes.json`): the coastal preset's fluted
+panel sits at (12.53, 2.45) rot −π/2, the camera belongs at (11.0, 2.45) with yaw **−π/2**, and
+the crop is the panel interior. Yaw +π/2 faces a plaster wall with a TV on it — which is how the
+first attempt went wrong.
+
+**The claim is confirmed and it is specifically a FACE-ON failure.** One frame shows both halves
+of the answer: across the head-on two-thirds the painted panel reads as **flat wallpaper
+stripes** — thin dark seams, no rounded shading — while across the oblique third the same ribs
+read as properly rounded half-dowels. That is the physics: a diffuse material on a shallow curve
+lit frontally has no gradient to show.
+
+| finish | ripple/px across the crop |
+| --- | --- |
+| wood | 4.817 |
+| **painted** | **0.770** |
+| gloss | 1.875 |
+
+### Two corrections to how this should be read
+
+**The mechanism is the material, not the geometry.** The flutes are real half-round cylinders
+sitting at `backT + battenR * 0.5`, so they already protrude about 1.5× their radius — more than
+a real half-round dowel, not less. Deepening them would overshoot.
+
+**And the numbers conflate grain with form.** `wood` reads face-on largely because
+`getWoodMaterial`'s grain varies per rib and gives the eye something to latch onto; `painted` has
+no map at all. So the ripple figures are a proxy, and the *visual* read is the evidence — which
+is why the fixture's note says to check the frame before quoting them. Having nearly published a
+number measured on curtains last release, I would rather label this one's limits than let it be
+quoted as "how well the flutes read".
+
+### The fix, and why it is not here
+
+**A normal map, or a subtle per-rib roughness variation, on the painted finish.** Not a geometry
+change and not a lighting change. That is texture work I am not equipped to do well in this
+setting, so it is written down rather than guessed at.
+
+What ships is the fixture and the diagnosis: a re-runnable scenario, the pose that works, the
+pose that fooled me, and the caveat on the metric.
+
+Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.79 — I measured curtains
 
 With the appliance thread closed, I picked a small self-contained item: `TODO.md` records that a

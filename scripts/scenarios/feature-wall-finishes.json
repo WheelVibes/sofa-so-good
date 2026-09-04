@@ -1,0 +1,83 @@
+{
+  "name": "feature-wall-finishes",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss",
+      "eval": "(()=>{const s=window.__store.getState();localStorage.setItem('hdb_onboarded','1');s.endTour?.();s.setOnboardingOpen?.(false);s.dismissLocationPrompt?.();s.setManualHour?.(13);})()"
+    },
+    {
+      "name": "preset",
+      "eval": "(()=>{window.__store.getState().applyLayoutPreset('coastal')})()"
+    },
+    {
+      "name": "w1",
+      "wait": 7000
+    },
+    {
+      "name": "walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "settle",
+      "wait": 6000
+    },
+    {
+      "name": "aim",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s1",
+      "wait": 1500
+    },
+    {
+      "name": "shotWood",
+      "screenshot": "fw-wood"
+    },
+    {
+      "name": "toPainted",
+      "eval": "(()=>{const s=window.__store.getState();const fw=(s.items||[]).find(i=>i.defId==='feature-wall');if(!fw)throw new Error('no panel');s.updateItemProps(fw.id,{finish:'painted'})})()"
+    },
+    {
+      "name": "reaim",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s2",
+      "wait": 2500
+    },
+    {
+      "name": "shotPainted",
+      "screenshot": "fw-painted"
+    },
+    {
+      "name": "toGloss",
+      "eval": "(()=>{const s=window.__store.getState();const fw=(s.items||[]).find(i=>i.defId==='feature-wall');s.updateItemProps(fw.id,{finish:'gloss'})})()"
+    },
+    {
+      "name": "reaim2",
+      "eval": "(()=>{const L=window.__walkLook;L.setPosition(11.0,2.45);L.setYaw(-Math.PI/2);L.setPitch(0)})()"
+    },
+    {
+      "name": "s3",
+      "wait": 2500
+    },
+    {
+      "name": "shotGloss",
+      "screenshot": "fw-gloss"
+    }
+  ],
+  "note": "FLUTED-PANEL-FACE-ON. Shoots the coastal preset's fluted feature wall head-on across all three finishes (wood / painted / gloss) from one fixed pose, so the FORM can be judged rather than the texture. The pose matters and was got wrong once: the panel sits at (12.53, 2.45) rot -pi/2, the camera belongs at (11.0, 2.45) with yaw -pi/2, and a first attempt that hand-placed panels into the default flat and aimed by guesswork measured the LIVING ROOM CURTAINS instead (v0.31.8.79). Crop the panel interior (left 400, top 300, 560x400) and check the frame before quoting a number. Measured ripple/px across that crop: wood 4.817, painted 0.770, gloss 1.875 \u2014 but note that wood's advantage is largely GRAIN varying per rib, not flute shading, so the number conflates texture with form; the visual read is the evidence."
+}

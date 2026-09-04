@@ -788,16 +788,23 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   width the batten radius is ~25 mm, giving no shading cue face-on in diffuse light. `painted` is
   a user-selectable option on the def (`wood` / `painted` / `gloss`), so it is reachable even
   though both shipped presets use tinted `wood`.
-  **I tried to measure it and the fixture was wrong.** Adding two `feature-wall` items via
-  `addItem` at (6.0, 2.5) and (8.2, 2.5) in the default flat and aiming the walk camera at each,
-  the panels were NOT IN FRAME — the crop landed on the living room's CURTAINS, which have their
-  own vertical ripple, and reported the painted panel at ripple 0.472 against the wood one at
-  0.091. That reads as "the note is backwards" and is simply a measurement of curtains.
-  **A valid fixture needs:** a camera pose known to face the panel (the flutes are real geometry —
-  half-round cylinders in `FeatureWall.tsx` — so they must be seen head-on), ideally by loading a
-  preset that authors one (Coastal / Tropical Biophilia place a fluted feature wall) rather than
-  hand-placing into the default flat, plus a crop verified against the frame before any number is
-  quoted. The claim may well be right; it is not yet measured.
+  **VERIFIED and REFINED in v0.31.8.80, with a fixture kept as
+  `scripts/scenarios/feature-wall-finishes.json`.** Coastal preset's panel at (12.53, 2.45)
+  rot -pi/2, camera at (11.0, 2.45) yaw -pi/2, crop the panel interior.
+  **The claim holds, and it is specifically a FACE-ON failure.** In one frame the painted panel
+  reads as flat wallpaper stripes across the head-on two-thirds and as properly rounded ribs
+  across the oblique third — which is the physics: a diffuse material on a shallow curve lit
+  frontally has no gradient to show.
+  **The mechanism is the material, not the geometry.** The flutes are real half-round cylinders
+  (`FeatureWall.tsx`) sitting at `backT + battenR*0.5`, so they already protrude ~1.5x their
+  radius — deepening them would overshoot a real half-round dowel. `wood` reads face-on only
+  because `getWoodMaterial`'s GRAIN varies per rib and gives the eye something; painted has no
+  map at all.
+  **Caveat on the numbers** (ripple/px: wood 4.817, painted 0.770, gloss 1.875): they conflate
+  grain with form, precisely because wood's advantage is texture. Quote them as a proxy, not as a
+  measure of how well the flutes read.
+  **So the fix is a normal map (or a subtle per-rib roughness variation) on the painted finish**,
+  not a geometry change and not a lighting change. Not attempted — it is texture work.
   **Peranakan Accent especially** — it is the one culturally specific theme, so getting its tiles
   and colours wrong is more than an aesthetic miss.
 - **[site measurements — recording UI COMPLETE v0.31.5.373]** `SiteMeasuredField` is on the wall,
