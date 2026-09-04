@@ -29,6 +29,26 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.248 — `.247` claimed a doc row it did not write
+
+`.247`'s last line says *"`(l)`'s row in `docs/open-graphics-decisions.md` now carries both the new
+figures and the blinds observation"*. It did not. The script that edited the doc died on a
+`SyntaxError` — an unescaped double quote inside a Python string literal, from the word "window" in
+the replacement text — while the changelog edit and the commit in the same command both succeeded.
+So the entry shipped describing a change that was not in it.
+
+The row is written now, with the 0.33 % / 3.61 % figures and the vertical-blind finding.
+
+Worth noting how it got through: the command chained a doc edit, a changelog edit, `git add` and
+`git commit`, and only the middle step failed. `python3 - <<'PY'` returns non-zero on a
+`SyntaxError`, but the chain used `;` between steps rather than `&&`, so the commit ran anyway and
+the traceback scrolled past above a successful-looking commit line. The changelog is the thing I
+read back to check my work, and it was the one part that had applied — which is exactly the
+combination that hides the failure.
+
+Suite 10219 green. The `--keep-glazing` bake is at 78 maps of ~189.
+
+
 ## v0.31.7.247 — item `(l)` re-measured: the app clips 0.33 %, not 0.0 % — and the window it clips is mostly BLINDS
 
 `(l)` has stood since `v0.31.5.236` on the finding that photographs clip 15-39 % of their glazing
