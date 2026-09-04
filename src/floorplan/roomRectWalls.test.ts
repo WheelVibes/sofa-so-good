@@ -116,14 +116,18 @@ function survey() {
 describe('room rectangles against their own walls', () => {
   it('records the shortfall populations, which are the authoring offsets', () => {
     const { withWall, buckets } = survey()
-    expect(withWall).toBe(573)
+    // 573 -> 575 in v0.31.8.66: `tpl-hdb-maisonette` and `tpl-hdb-exec` each
+    // gained their household shelter's missing fourth RC wall, so one more room
+    // edge on each now has a wall behind it.
+    expect(withWall).toBe(575)
     expect(buckets).toEqual({
       // Rect drawn ON the wall centreline, so it eats into the wall body.
       overlapping: 58,
-      // 226 -> 229 in v0.31.8.63: `tpl-hdb-3room`'s shelter gained its two
-      // missing RC walls, authored with the centrelines offset half a thickness
-      // so the FACES land on the room edge. New walls should be flush.
-      flush: 229,
+      // 226 -> 229 in v0.31.8.63 (`tpl-hdb-3room`'s shelter, two walls) and
+      // 229 -> 231 in v0.31.8.66 (`tpl-hdb-maisonette` and `tpl-hdb-exec`, one
+      // each). All authored with the centrelines offset half a thickness so the
+      // FACES land on the room edge. New walls should be flush.
+      flush: 231,
       // Rect at centreline + 0.1, against a 0.1 m INTERNAL wall.
       short05: 186,
       // Rect at centreline + 0.2, against a 0.1 m INTERNAL wall. These are the

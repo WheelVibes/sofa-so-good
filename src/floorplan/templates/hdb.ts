@@ -249,6 +249,8 @@ export function hdbExecutive(): FloorPlan {
       iwall('ex-kit-e', [3.4, T], [3.4, 3.2]),
       iwall('ex-yard-e', [5.2, T], [5.2, 3.2]),
       // Living / dining occupies the east side; partition from service+beds.
+      // SHELTER-ENCLOSURE (v0.31.8.66) — south wall, the fourth side.
+      iwall('ex-hs-s', [5.3, 2.25], [6.8, 2.25]),
       iwall('ex-liv-w', [7.0, T], [7.0, D - T]),
       // Bedroom column on the west, below the service band.
       iwall('ex-b-corr', [3.6, 6.6], [3.6, D - T]),
@@ -278,6 +280,7 @@ export function hdbExecutive(): FloorPlan {
       // 1.0, not lower down: the shelter ROOM ends at z=2.2 while the wall runs
       // to 3.2, so a door further south touches only the undeclared strip.
       door('ex-hs-door', 'ex-yard-e', 1.0),
+      door('ex-hs-s-door', 'ex-hs-s', 0.4, 0.7),
       door('ex-kit-door', 'ex-kit-e', 2.0),
       door('ex-master', 'ex-m-n', 1.0),
       door('ex-b2', 'ex-b2-s', 1.0),
@@ -626,6 +629,14 @@ export function hdbMaisonette(): FloorPlan {
       iwall('em-kit-e', [3.3, T], [3.3, 2.8]),
       iwall('em-yard-e', [5.0, T], [5.0, 2.8]),
       iwall('em-wc-w', [6.7, T], [6.7, 2.2]),
+      // SHELTER-ENCLOSURE (v0.31.8.66), same as `tpl-hdb-3room` in .63. This
+      // shelter had three of its four RC walls — `em-n`, `em-yard-e`, `em-wc-w`
+      // — and no south wall, so `shelterWallIds` returned 3, the hackability
+      // overlay could not mark the fourth side, and the shell rendered it open.
+      // The centreline sits 0.05 m south of the room's own edge (2.2 -> 2.25) so
+      // the wall FACE lands on the edge; authoring it ON the edge would leave the
+      // rect overlapping the wall body, which `roomRectWalls.test.ts` counts.
+      iwall('em-hs-s', [5.1, 2.25], [6.6, 2.25]),
       iwall('em-wc-s', [6.7, 2.2], [W - T, 2.2]),
       // Stair hall on the west wall, off the entry corridor.
       iwall('em-stair-n', [T, 3.0], [1.9, 3.0]),
@@ -637,6 +648,7 @@ export function hdbMaisonette(): FloorPlan {
     openings: [
       door('em-main', 'em-s', 0.6, 1.0),
       door('em-wc', 'em-wc-s', 0.4, 0.7),
+      door('em-hs', 'em-hs-s', 0.4, 0.7),
       door('em-study', 'em-study-n', 2.0),
       // v0.31.8.33: the kitchen, service yard and stair hall had no doors — on
       // the maisonette the stair hall is how you reach the upper storey at all,

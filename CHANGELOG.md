@@ -27,6 +27,49 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.66 — two more shelters closed, and the rule for which ones can be
+
+`tpl-hdb-maisonette` and `tpl-hdb-exec` each had **three** of their household shelter's four
+RC walls and no south wall. One `iwall` and one 0.7 m door each closes them: **3 → 4**.
+
+Five of the eight HDB templates now enclose their shelter fully. Centrelines are offset half a
+thickness outward from the room rect so the wall FACES land on the room edge — `flush` in
+`roomRectWalls.test.ts` goes 229 → **231**, `overlapping` unchanged.
+
+Full suite green apart from two wall COUNTS, both updated with reasons: the maisonette minimap's
+ground-storey walls (13 → 14) and the rect-edge survey (573 → 575).
+
+### `tpl-hdb-2room` was authored and reverted, and it sharpened the open question
+
+`shelterWallIds` reported 2 walls for `-2room`, but looked at properly both are the
+**neighbour's** wall 0.2 m away — `h2-bed-e` at x=3.3 against a room starting at 3.5, and
+`h2-bath-n` at z=4.0 against a room ending at 3.8. That shelter has no wall of its own on any
+side. Enclosing it adds a NEW `templateConnectivity` entry — 2room is currently fully connected
+— and costs a furniture piece (48 → 47). Reverted.
+
+**But `-exec` succeeded, and that is the useful part.** `-exec` is *in* the connectivity ratchet
+at 2 groups, and enclosing its shelter changed nothing. So "enclosing a shelter disconnects it"
+is not a general rule, which is what v0.31.8.63 left implied:
+
+| template | shelter had a door before? | enclosing it |
+| --- | --- | --- |
+| `-3room` | yes | clean (v0.31.8.63) |
+| `-maisonette`, `-exec` | yes (`ex-hs-door` on `ex-yard-e`) | **clean** |
+| `-2room`, `-4room`, `-5room` | **no** | disconnects |
+
+The three that fail are the ones whose shelter had **no door at all**, so enclosing gives it its
+first one — and that door then has to reach somewhere connected, which in these plans it cannot,
+because the space outside is undeclared circulation.
+
+That is a real narrowing: the question is no longer "why does enclosing disconnect" but "where
+can this shelter's first door lead". `TODO.md` records it as the thing to check before
+re-attempting the remaining three.
+
+Looked at: `tpl-hdb-exec` furnished in the dollhouse — the shelter reads as an enclosed room,
+walls meet, nothing floating or clipping.
+
+Verified: 10191 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.65 — "not assessed" becomes "here is what this room needs"
 
 The daylight check measures openable WINDOW area, so an interior WC — which is legally

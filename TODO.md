@@ -2112,8 +2112,9 @@ DEFAULT 4, `-exec` 3, `-3gen` 3, `-maisonette` 3, `-2room` 2, `-jumbo` 2, and
 Fixing this is a template DATA change (author the missing RC partitions), not a logic
 change.
 
-**`tpl-hdb-3room` is DONE (v0.31.8.63): 2 shelter walls -> 4**, matching `-3gen` and
-`-jumbo`. New walls are authored with the centreline offset half a thickness OUTWARD
+**DONE so far: `tpl-hdb-3room` (v0.31.8.63, 2 walls -> 4) and `tpl-hdb-maisonette` +
+`tpl-hdb-exec` (v0.31.8.66, 3 -> 4 each, one south wall apiece).** Five of the eight
+HDB templates now enclose their shelter fully, matching `-3gen` and `-jumbo`. New walls are authored with the centreline offset half a thickness OUTWARD
 from the room rect (4.5 -> 4.45, 2.2 -> 2.25) so the FACES land on the room edge —
 otherwise the rect overlaps the wall body, which is one of the four populations
 `roomRectWalls.test.ts` measures. Full suite green.
@@ -2129,9 +2130,25 @@ resolved, and shipping template geometry whose connectivity effect is not unders
 the wrong trade. **Resolve that question first**; the wall coordinates are in the
 v0.31.8.63 changelog entry, so re-authoring is copy-paste once it is answered.
 
-Also still open: `-2room` (2 walls) and `-exec`/`-3gen`/`-maisonette` (3 each), and
-whether `templateEnclosure.test.ts` should have caught any of this — it passed on a
-shelter missing three walls, so its criterion is weaker than its name suggests.
+**`-2room` was authored and REVERTED (v0.31.8.66), for the same reason as `-4room`/
+`-5room` plus one more.** `shelterWallIds` matched `h2-bed-e` (x=3.3) and `h2-bath-n`
+(z=4.0), but both are the NEIGHBOUR's wall 0.2 m away — this shelter has no wall of its
+own on any side, so it needs all four. Enclosing it adds a NEW `templateConnectivity`
+entry (2room is currently connected) and costs a furniture piece (48 -> 47). So the
+three still open — `-2room`, `-4room`, `-5room` — are exactly the ones where enclosing
+the shelter disconnects it, and they all wait on the same question.
+
+**What the .66 results narrow that question to.** `-exec` IS in the connectivity ratchet
+at 2 groups and enclosing its shelter changed nothing; `-maisonette` likewise. So
+"enclosing a shelter disconnects it" is NOT general — it depends on whether the shelter
+already had a door into a connected region. `-exec`'s did (`ex-hs-door` on `ex-yard-e`).
+The three that fail are the ones whose shelter had no door at all, so enclosing gives it
+its first one and that door has to reach somewhere connected. **That is the thing to
+check first next time: does this shelter already have a door, and where does it lead?**
+
+Also still open: whether `templateEnclosure.test.ts` should have caught any of this — it
+passed on a shelter missing three walls, so its criterion is weaker than its name
+suggests.
 
 ## (j) WINDOW-SIGHTLINE: the beside-the-glass option is measured impossible
 
