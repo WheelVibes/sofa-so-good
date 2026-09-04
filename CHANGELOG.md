@@ -29,6 +29,56 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.190 — every term in the prediction is now MEASURED, they all agree, and the app still renders ~10x darker
+
+`.189` said one free term remained. There were three; all are now read, none is the culprit, and the
+contradiction is sharper than before. Recording it as a closed set of eliminations rather than
+continuing to guess — this thread has had four wrong hypotheses and the next attempt should start
+from evidence, not from where I left off.
+
+**Read this round, at the grazing ceiling point:**
+
+| term | how it was read | value |
+| --- | --- | --- |
+| sampled texel | PNG off disk, **bilinear** as the sampler does | 0.3210 (nearest 0.3098) |
+| `visGain` | the material's `onBeforeCompile` with a stub shader | 9.383592 |
+| albedo the SHADER uses | `material.map` is **absent**, so it is `material.color` | 0.956 |
+| `toneMappingExposure` | the renderer | **1.38** |
+| tone mapping / output | the renderer | AgX (6) / srgb |
+
+**Two more eliminations.** *Bilinear blending with unwritten atlas texels* was a good hypothesis —
+the ceiling hit sits at `uv1.y = 0.066`, near a slot edge where this arc has found holes before —
+and it is wrong: the 5x5 neighbourhood is uniform (0.255–0.396) and bilinear/nearest is **1.036**.
+The wall's is **0.994**. And *exposure* is not it either: at 1.38 the app is brightening, so it
+makes the shortfall worse rather than explaining it.
+
+**The contradiction, with no free variables left.** Predicted app radiance at that point is
+`0.3210 * 9.383592 * 0.956 / pi = 0.917`. The reference radiance there is **0.589**, so the app
+should be visibly BRIGHTER. Under the same transform it reads **85.7 against 192.6** — roughly
+**10x darker** in linear terms. Every quantity in that product has now been measured directly rather
+than assumed, which is the rule `.189` drew from four earlier mistakes.
+
+**Cumulative eliminations for the ceiling deficit**, so the next attempt does not redo them: bake
+ratio (`.188`, one gain fits at 3.92/4.39 once rho is measured), albedo (`.188`, ratio 0.84 against a
+needed 2.73), bounce depth (`.186`, ratio unchanged), the app's direct term (`.187`, deficient not
+excessive), `visGain` (`.189`), bilinear/holes and exposure (here).
+
+**The one thing never checked, and it is the obvious one in hindsight:** whether the injected string
+replacement actually lands in the shader three compiles. The injection is
+`shader.fragmentShader.replace('#include <lights_fragment_end>', ...)`, and a `replace` whose needle
+is absent is a **silent no-op**. It cannot be entirely absent — the frames do change — but it could
+be landing somewhere that is later overwritten, or the surviving `reflectedLight.indirectDiffuse`
+could be consumed differently than assumed. Verifying it means reading the REAL compiled source
+(`gl.getShaderSource` on the program, or asserting on the shader three passes to
+`onBeforeCompile` in situ rather than on a stub), not reasoning about it.
+
+**Nothing about the shipped state is in question.** Gain 6 is an empirical display-space fit against
+three Cycles references, and the GI's measured benefit (wall 69 %, ceiling 27 %, floor 58 % of their
+deficits, no unexplained darkening across 44 frames) does not depend on this arithmetic resolving.
+
+Nothing shipped. Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.189 — `visGain` verified correct, and `.186`'s equality gains are RETRACTED: I interpolated in a compressed curve
 
 `.188` left two directly-readable candidates for the app-side shortfall. This reads one and, in

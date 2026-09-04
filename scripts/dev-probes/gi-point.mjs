@@ -146,9 +146,47 @@ const hits = await page.evaluate(
       } catch (e) {
         visGain = `ERR:${e.message}`
       }
+      // THE ALBEDO THE SHADER ACTUALLY USES — the last free term in `v0.31.7.188`'s prediction.
+      // `--albedo` measures rho from the EXPORTED glb, and the live material can differ from what
+      // it exported. `diffuseColor` in the shader is `color * texture(map)`, and a base-colour map
+      // is sRGB-encoded with three decoding it, so the texel is decoded here too — reading it raw
+      // would be the same class of error as inverting a filmic byte.
+      let mapAlbedo = null
+      try {
+        if (m?.map?.image) {
+          const img = m.map.image
+          const w = img.width ?? img.videoWidth ?? 0
+          const h = img.height ?? img.videoHeight ?? 0
+          if (w > 0 && h > 0) {
+            const cv = document.createElement('canvas')
+            cv.width = w
+            cv.height = h
+            const cx = cv.getContext('2d', { willReadFrequently: true })
+            cx.drawImage(img, 0, 0)
+            const uv = h.uv
+            // three's UV origin is bottom-left with `flipY` already applied to the texture, so the
+            // row has to be flipped back to address the drawn image.
+            const rep = m.map.repeat
+            const off = m.map.offset
+            const u = (((uv.x * (rep?.x ?? 1) + (off?.x ?? 0)) % 1) + 1) % 1
+            const v = (((uv.y * (rep?.y ?? 1) + (off?.y ?? 0)) % 1) + 1) % 1
+            const px = Math.min(w - 1, Math.max(0, Math.round(u * w - 0.5)))
+            const py = Math.min(h - 1, Math.max(0, Math.round((1 - v) * h - 0.5)))
+            const d = cx.getImageData(px, py, 1, 1).data
+            const dec = (b) => {
+              const c = b / 255
+              return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+            }
+            mapAlbedo = [dec(d[0]), dec(d[1]), dec(d[2])].map((x) => Number(x.toFixed(4)))
+          }
+        }
+      } catch (e) {
+        mapAlbedo = `ERR:${e.message}`
+      }
       out.push({
         label: r.label,
         visGain,
+        mapAlbedo,
         name: h.object.name || '(anon)',
         dist: Number(h.distance.toFixed(3)),
         point: [h.point.x, h.point.y, h.point.z].map((v) => Number(v.toFixed(3))),
@@ -197,7 +235,8 @@ for (const h of hits) {
     `  ${h.label.padEnd(10)} ${h.name.padEnd(12)} d=${String(h.dist).padStart(6)} at=${h.point.join(',')}  ` +
       `uv1=${h.uv1 ? h.uv1.join(',') : '(none)'}  map=${h.url ? h.url.split('/').pop() : '(none)'}\n` +
       `             texel=${texel === null ? '?' : texel.toFixed(4)}  scale=${scale === null ? '?' : scale.toFixed(4)}` +
-      `  visGain=${h.visGain === null ? '?' : h.visGain}  expect=${scale === null ? '?' : (scale * 6).toFixed(4)}` +
+      `  visGain=${h.visGain === null ? '?' : h.visGain}` +
+      `\n             mapAlbedo=${Array.isArray(h.mapAlbedo) ? h.mapAlbedo.join(',') : h.mapAlbedo}` +
       `  E_baked=${E === null ? '?' : E.toFixed(4)}  rho=${rho === null ? '?' : rho.toFixed(3)}`,
   )
 }
