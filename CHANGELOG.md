@@ -27,6 +27,51 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.78 — one trace closes the appliance thread at 15 → 2
+
+v0.31.8.77 ended by saying the next step was a trace, not another argument. Traced
+`arrangeKitchen`'s `toEnd` for `tpl-condo-1bed`'s Open Kitchen:
+
+```
+toEnd refrigerator low=true  along=1.07  longWalls=S,N   rect x 0.32–2.08 z 4.92–6.28
+  placeFlush S -> fail    placeFlush N -> fail    snapToWall -> fail
+toEnd stove       low=false along=1.38  longWalls=S,N
+  placeFlush S -> fail    placeFlush N -> OK 1.38,5.27
+```
+
+Two facts fall straight out.
+
+**`placeFlush N` succeeds, so `toEnd` returns and never reaches `snapToWall`** — which is what
+v0.31.8.76 inferred. But the line above it is the one that matters: **`snapToWall` fails in this
+room**, outright, for the fridge. So reordering `toEnd` to reach it sooner cannot help the stove
+either. That is why v0.31.8.77's reorder had zero effect, and I could have known it from this
+trace instead of from a full-suite run.
+
+**Why `snapToWall` fails.** The west edge is wall-backed and free at its low end — but
+`snapToWall` tries exactly ONE along-wall position, the seeded z clamped, which lands the stove
+at z 5.30–5.90 against the counter run at z 5.62–6.22. At the clamp's low end (z 5.22) it would
+sit at z 4.92–5.52 and be clear.
+
+### That is the ALONG-WALL lever, declined twice
+
+`snapToWall` trying one position per edge is the limitation measured and declined in v0.31.8.7
+(3 blocked windows cleared for 3 new pinches) and again in v0.31.8.62 (2 appliances fixed for 3
+windows blocked). **Both remaining marooned appliances now trace to it** — `tpl-condo-3bed`'s
+never-placed stove and this one.
+
+So there is nothing further to do here without reopening a decision that has been measured twice
+against, and the prize is two stoves. **The appliance thread is closed at 15 → 2**, and
+`TODO.md` says so rather than leaving a ninth release to rediscover the same wall.
+
+### Worth stating about the last three releases
+
+`.76` inferred the mechanism and was right about `placeFlush N`. `.77` built the fix that
+inference implied and it did nothing. `.78` traced it in one run and found the inference had
+missed the decisive line sitting immediately above. The trace cost less than either of the two
+releases that preceded it.
+
+No code ships. Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.77 — built the plan I wrote down, and it changed nothing
 
 v0.31.8.76 diagnosed the last non-seed marooned stove and wrote down the fix: make

@@ -953,10 +953,25 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   so `d - ROOM_INSET` is ~0, well inside the 0.3 m bar). Either `toEnd` is not the code path that
   places this stove, or `snapToWall`'s W candidate is rejected by something — the counter run
   spans x 0.32-2.72 at z 5.62-6.22 and the stove wants z 4.97-5.57, which should not collide.
-  **Next step is to INSTRUMENT `arrangeKitchen` for this room, not to reason about it.** That is
-  the lesson v0.31.8.74 recorded and I did not apply here: ask which code PATH ran before
-  reasoning about which rule applies. One `console`-free trace of `toEnd`'s three stages would
-  settle it.
+  **TRACED in v0.31.8.78, and it closes this thread.** `toEnd`'s three stages for
+  `tpl-condo-1bed`'s Open Kitchen (rect x 0.32-2.08, z 4.92-6.28):
+  ```
+  toEnd refrigerator low=true  along=1.07  longWalls=S,N
+    placeFlush S -> fail    placeFlush N -> fail    snapToWall -> fail
+  toEnd stove       low=false along=1.38  longWalls=S,N
+    placeFlush S -> fail    placeFlush N -> OK 1.38,5.27
+  ```
+  **`snapToWall` fails in this room** — it fails outright for the fridge, so reordering
+  `toEnd` to reach it earlier cannot help the stove either. That is why v0.31.8.77 had zero
+  effect.
+  **Why `snapToWall` fails:** the W edge is wall-backed and free at its low end, but `snapToWall`
+  tries exactly ONE along-wall position — the seeded z clamped — which puts the stove at
+  z 5.30-5.90, overlapping the counter run at z 5.62-6.22. At the clamp's low end (z 5.22) it
+  would be z 4.92-5.52 and clear.
+  **So both remaining marooned appliances trace to the ALONG-WALL lever above, which is measured
+  and declined twice** (v0.31.8.7 and v0.31.8.62, on cost). There is nothing further to do here
+  without reopening that decision, and the prize is two stoves. **Treat the appliance thread as
+  closed at 15 -> 2.**
 
 - **[ALONG-WALL SWEEP — MEASURED AND DECLINED TWICE (v0.31.8.7, v0.31.8.62). Do not re-attempt
   without a new idea.]** `snapToWall` tries exactly ONE along-wall position per edge — the
