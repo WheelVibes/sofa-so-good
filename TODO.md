@@ -425,7 +425,37 @@ differ:
   storey selection (and asserts the premise: the maisonette's two storeys really do have different
   wall sets). No scenario measures upstairs — the snap is a click-driven closure — so the screenshot
   only covers the ground floor.
-- `ui/FinishPicker.tsx:228` and `:273` — wall picking; presumably wants the storey being edited.
+- ~~`ui/FinishPicker.tsx:228` and `:273`~~ — **FIXED v0.31.9.5, and the walls were the least of it.**
+  `cloneRoom.ts`/`swapRooms.ts` had NO `levelId` reference: both spread `...it` and moved only
+  `position`, while "Copy layout to…" lists targets from `allPlanRooms` (every storey) and plan XZ
+  is shared across storeys. So a cross-storey copy put furniture at the target room's XZ on the
+  SOURCE floor. Both helpers now take the destination storey (ground clears `levelId` rather than
+  storing `'ground'`); `FinishPicker` validates each piece against the storey it lands on.
+- **CORRECTED v0.31.9.5: three of the seven flagged sites are CORRECT.** `ClearancePanel`,
+  `DesignScorePanel` and `analysis/designScore` pass the ground SET into `findWallClipsByLevel`,
+  which resolves upper storeys itself, and each says so in a comment. I flagged them because their
+  FILES had no level-aware references — but the level-awareness is in the CALLEE. That is the same
+  pattern-matching error as the two failed lint guards, one release after writing it down. **Read
+  the data flow, not the file.**
+
+## Scenario screenshots taken before the BOOT LOADER clears — corpus audit needed
+
+Found in v0.31.9.5 while trying to regression-check `FinishPicker`. `finish-picker-audit.json` runs
+10 frames, passes green, and **every frame is the boot loader**. Measured detail 0.31-1.27 across
+all ten, i.e. near-blank.
+
+**Mechanism:** its first step is `waitFor {storeExists: true}`, which is satisfied while
+`#boot-loader` is still covering the screen; the later `waitFor {css: '.panel.inspector'}` then
+matched a panel mounted BEHIND the loader. Nothing fails, and the frames look like a plausible
+loading screen.
+
+**Only 7 of 503 scenarios wait for `#boot-loader` to leave the DOM.** Same shape as the
+transition-splash sweep (v0.31.8.90) at a different moment. Audit the corpus the same way: find
+every scenario that screenshots without a boot-loader-gone wait, add one, and ratchet it in
+`scenarioTransitionGuard.test.ts` (which already owns the sibling rule). Expect the detail metric
+above to be the cheap discriminator for "did this frame render anything".
+
+## Superseded worklist notes
 - `ui/ClearancePanel.tsx:73`, `ui/DesignScorePanel.tsx:65`, `analysis/designScore.ts:562` — analysis
   surfaces; probably want whole-home (sum per level), not ground only.
 - ~~`state/slices/resetSlice.ts:361`~~ — **FIXED v0.31.9.4, and it was the sharpest of the list.**

@@ -27,6 +27,58 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.5 — the walls were a symptom: cross-storey room copy put furniture on the wrong floor
+
+### First, a correction to my own v0.31.9.2 framing
+
+I flagged **7** `planCollisionWalls` call sites as candidate defects on the grounds that their files
+contained "ZERO level-aware references". Reading them properly, **three of those seven are
+correct**: `ClearancePanel`, `DesignScorePanel` and `analysis/designScore` all pass the ground
+SET into `findWallClipsByLevel`, which resolves upper storeys itself — and each already says so in
+a comment. `blockedDoorItems`' own docstring goes further: *"PER STOREY (F13). Five callers pass the
+WHOLE plan"*, i.e. it was deliberately built to take one.
+
+**The level-awareness lives in the CALLEE, and I grepped the caller's file.** That is the same
+mistake the two failed lint guards made and that this whole migration exists to answer, made by me
+one release after writing that down. Corrected count: 2 correct (v0.31.9.2), 3 more correct here,
+2 real bugs fixed (v0.31.9.3/.4), 2 genuinely wrong — below.
+
+### `FinishPicker`'s room copy and swap moved furniture in XZ but not between storeys
+
+The two remaining sites are real, and the walls were the least of it. `cloneRoom.ts` and
+`swapRooms.ts` contain **no `levelId` reference at all** — both spread `...it` and touch only
+`position`. Plan coordinates are SHARED across storeys (elevation only offsets rendering), and
+"Copy layout to…" lists its targets with `allPlanRooms`, i.e. every storey. So copying a
+ground-floor bedroom into an upstairs bedroom produced furniture at the upstairs room's plan XZ and
+**still on the ground floor** — dropped into whatever room sits below. The ground-floor walls the
+audit flagged were *consistent* with that wrong placement, which is why nothing looked odd.
+
+Both helpers now take the destination storey: `cloneRoomItems(..., targetLevelId)` stamps it, and
+`swapRoomLayouts(..., aLevelId, bLevelId)` exchanges the two sides' storeys along with their
+positions. A ground-floor destination CLEARS `levelId` rather than storing `'ground'`, matching the
+convention that absent means ground. Omitting the arguments leaves behaviour untouched, which is
+the same-storey common case.
+
+`FinishPicker` resolves both storeys with `levelOfRoom` and validates against the storey each piece
+lands on — per-item for the swap, since the two sides can end up on different floors, with a small
+per-level wall cache.
+
+### Verification, and what it did NOT verify
+
+`roomCopyLevel.test.ts` (5 tests) covers the helpers: cross-storey copy, the ground-clearing rule,
+the no-argument no-op, and the swap exchanging storeys both ways.
+
+**My regression check on the panel proved nothing, and found a bigger problem doing so.** I ran
+`finish-picker-audit.json` — 10 frames, green — and every single frame is the **boot loader**.
+Its first step waits on `storeExists`, which is satisfied while `#boot-loader` still covers the
+screen; its `.panel.inspector` wait then matched the panel mounted BEHIND the loader. Measured
+detail across all ten frames: 0.31–1.27, i.e. near-blank. A 10-frame audit scenario has never once
+audited the thing it is named for.
+
+Only **7 of 503** scenarios wait for the boot loader to leave the DOM. This is the same shape as
+the transition-splash sweep (v0.31.8.90) at a different moment, and it is recorded in `TODO.md` as
+the next corpus audit rather than bolted onto this release.
+
 ## v0.31.9.4 — the aircon planner asserted the invariant its own walls broke
 
 Next off the v0.31.9.2 worklist: `resetSlice.ts:361`, which passes the whole plan to
