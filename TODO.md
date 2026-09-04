@@ -839,9 +839,15 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   1.00 m), which is the honest reason it exists: a user-drawn corridor is the only place it can
   occur. **The route model now EXISTS** (`layout/reachability.ts`, v0.31.8.52/.53) — see the entry
   below.
-- **[ROUTE ACCESS — MEASURED v0.31.8.52, RECALIBRATED .53, ANCHORED .54, NOT FIXED] 43 rooms
-  across 10 of 19 templates cannot be reached from the front door once the arranger has placed
-  the furniture.** They are walkable on
+- **[ROUTE ACCESS — MEASURED v0.31.8.52, RECALIBRATED .53, ANCHORED .54, MOSTLY FIXED in .55]
+  18 rooms across 4 of 19 templates still cannot be reached from the front door once the
+  arranger has placed the furniture — down from 43 across 10.**
+  `unsealRoutes` runs in `furnishPlanItems` and slides the sealing piece; it moved 12 items and
+  deleted none. **What is LEFT and why:** `tpl-hdb-jumbo` (8 rooms) and `tpl-condo-2bed` (8) —
+  either the culprit has nowhere within the 1.2 m reach to go, or the room has no single culprit
+  so no one move opens it. Raising `UNSEAL_REACH_M` is the obvious next lever and is UNMEASURED;
+  the honest alternative is a two-piece search, which is combinatorially bigger and should be
+  priced before it is written. Original note follows. They are walkable on
   the empty template and unreachable once the move-in layout is placed: you cannot get in.
   `layout/reachability.ts` erodes the storey's free floor by half a body width
   (`CLEARANCE.walkwayMin`, 0.6 m) and flood-fills what survives, so the ruler is the body rather
@@ -852,6 +858,10 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   Worst: **`tpl-hdb-jumbo` leaves a 5.7 m² pocket by the front door reachable and ~55 m² not**
   (8 rooms behind one break), `tpl-condo-2bed` 8 rooms / 25.7 m², `tpl-condo-penthouse` 6 /
   23.3 m². Read the counts as rooms BEYOND a break, not as a number of breaks.
+  **The MOVER shipped in v0.31.8.55 and the cost worry was misplaced** — the 60-120 ms figure is
+  `buildLevelGrid`, which is furniture-independent, so a trial placement is one `solveGrid` at
+  ~2 ms. Build the grid once and hundreds of candidates cost less than one rebuild. Original
+  note follows.
   **The MOVER is the next step and its cost is the constraint.** `sealedBy` (v0.31.8.54) names
   the piece to move — 39 of 43 have one — so a post-pass has a candidate and a discrete goal.
   What it does not have is a budget: each trial placement needs a re-solve, and a full

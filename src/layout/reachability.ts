@@ -282,8 +282,24 @@ function distanceToBlocked(free: Uint8Array, w: number, h: number): Float32Array
 interface LevelGrid {
   w: number
   h: number
+  /** World coordinate of cell (0,0)'s min corner — lets callers map a trial
+   *  footprint onto cells without rebuilding anything. */
+  minX: number
+  minZ: number
   /** Inside the envelope and not in a (doors-OPEN) wall. Furniture-independent. */
   openFloor: Uint8Array
+  /**
+   * Where a piece may legally STAND — inside the envelope and clear of every
+   * wall with the doors CLOSED.
+   *
+   * Deliberately stricter than `openFloor`, which gaps a wall at every open
+   * door because a doorway is a ROUTE. It is not a parking space: the first cut
+   * of the unseal pass used `openFloor` and slid `tpl-condo-penthouse`'s TV
+   * console into a doorway, which `placementSoundness.test.ts` caught as an
+   * in-wall item. Walking through a gap and standing furniture in it are
+   * different permissions.
+   */
+  standable: Uint8Array
   /** Index of the first obb covering each cell, or -1. */
   itemAt: Int32Array
   /** Index of the first room rect containing each cell, or -1. */
@@ -424,8 +440,11 @@ function buildLevelGrid(
   }
 
   const openFloor = new Uint8Array(w * h)
+  const standable = new Uint8Array(w * h)
   for (let i = 0; i < openFloor.length; i++) {
-    if (!outside[i] && !solidOpen[i]) openFloor[i] = 1
+    if (outside[i]) continue
+    if (!solidOpen[i]) openFloor[i] = 1
+    if (!solidClosed[i]) standable[i] = 1
   }
 
   // Entry cells: the grid cell nearest each entry point that is inside the
@@ -439,7 +458,36 @@ function buildLevelGrid(
     if (openFloor[i]) entries.push(i)
   }
 
-  return { w, h, openFloor, itemAt, roomOf, roomCount: rooms.length, entries }
+  return {
+    w,
+    h,
+    minX,
+    minZ,
+    openFloor,
+    standable,
+    itemAt,
+    roomOf,
+    roomCount: rooms.length,
+    entries,
+  }
+}
+
+/** Cell indices whose centre falls inside `o`, bounded by its AABB. */
+function cellsUnder(g: LevelGrid, o: OBB): number[] {
+  const b = obbBounds(o)
+  const x0 = Math.max(0, Math.floor((b.x0 - g.minX) / CELL_M))
+  const x1 = Math.min(g.w - 1, Math.ceil((b.x1 - g.minX) / CELL_M))
+  const z0 = Math.max(0, Math.floor((b.z0 - g.minZ) / CELL_M))
+  const z1 = Math.min(g.h - 1, Math.ceil((b.z1 - g.minZ) / CELL_M))
+  const out: number[] = []
+  for (let z = z0; z <= z1; z++) {
+    const pz = g.minZ + (z + 0.5) * CELL_M
+    for (let x = x0; x <= x1; x++) {
+      const px = g.minX + (x + 0.5) * CELL_M
+      if (pointInObb(px, pz, o)) out.push(z * g.w + x)
+    }
+  }
+  return out
 }
 
 /**
@@ -448,12 +496,21 @@ function buildLevelGrid(
  * culprit search asks "does the room reconnect without this piece?" without
  * rebuilding the grid.
  */
-function solveGrid(g: LevelGrid, bodyWidthM: number, exclude = -1): GridSolution {
+function solveGrid(
+  g: LevelGrid,
+  bodyWidthM: number,
+  exclude = -1,
+  /** Trial footprint to block INSTEAD of the excluded one — this is how the
+   *  mover asks "what if this piece stood here?" for ~2 ms, against ~60 ms to
+   *  rebuild the grid. */
+  placed: OBB | null = null,
+): GridSolution {
   const { w, h, openFloor, itemAt, roomOf } = g
   const free = new Uint8Array(w * h)
   for (let i = 0; i < free.length; i++) {
     if (openFloor[i] && (itemAt[i] === -1 || itemAt[i] === exclude)) free[i] = 1
   }
+  if (placed) for (const i of cellsUnder(g, placed)) free[i] = 0
 
   // Configuration space: a body of `bodyWidthM` can stand where the distance to
   // the nearest blocked cell is at least half its width.
@@ -774,4 +831,187 @@ export function findFurnitureSeveredRooms(
   }
 
   return out.sort((a, b) => b.areaM2 - a.areaM2)
+}
+
+// ---------------------------------------------------------------------------
+// UNSEAL — move the piece that seals a room, rather than only reporting it
+// ---------------------------------------------------------------------------
+
+/**
+ * How far (m) a sealing piece may be slid to open a route, and in what steps.
+ *
+ * A route fix should read as *"the sofa is a bit further over"*, not as a
+ * different layout. 1.2 m is about the width of the walkway being recovered, so
+ * anything past it is no longer a nudge; 0.15 m steps are fine enough to find a
+ * 0.6 m gap and coarse enough to keep the trial count bounded (8 steps × 4
+ * directions = 32 candidates per piece, tried nearest-first).
+ */
+const UNSEAL_STEP_M = 0.15
+const UNSEAL_REACH_M = 1.2
+
+/** Candidate translations, nearest first: ±X and ±Z at increasing distance. */
+function unsealOffsets(): [number, number][] {
+  const out: [number, number][] = []
+  for (let d = UNSEAL_STEP_M; d <= UNSEAL_REACH_M + 1e-9; d += UNSEAL_STEP_M) {
+    out.push([d, 0], [-d, 0], [0, d], [0, -d])
+  }
+  return out
+}
+
+/** Does this trial footprint stand on clear floor? Tested on the SAME raster
+ *  the route check uses, so "legal" cannot drift from "walkable": every cell it
+ *  covers must be inside the envelope, out of every wall, and not already held
+ *  by another piece. */
+function trialFits(g: LevelGrid, o: OBB, moving: number): boolean {
+  // Inflated by one cell: the raster samples CELL CENTRES, so a footprint can
+  // overlap a wall by up to half a cell without any centre landing in it. The
+  // margin costs 5 cm of reach and removes the whole class.
+  const grown: OBB = { ...o, hx: o.hx + CELL_M, hz: o.hz + CELL_M }
+  const cells = cellsUnder(g, grown)
+  if (cells.length === 0) return false
+  for (const i of cells) {
+    if (!g.standable[i]) return false
+  }
+  for (const i of cellsUnder(g, o)) {
+    const held = g.itemAt[i] as number
+    if (held !== -1 && held !== moving) return false
+  }
+  return true
+}
+
+/** Which rooms are severed in a given solution (indices into the level's rooms). */
+function severedIndices(sol: GridSolution, skip: ReadonlySet<number>): Set<number> {
+  const out = new Set<number>()
+  const cellArea = CELL_M * CELL_M
+  for (let i = 0; i < sol.walkable.length; i++) {
+    if (skip.has(i)) continue
+    const walk = (sol.walkable[i] as number) * cellArea
+    if (walk >= MIN_STRANDED_M2 && (sol.reachable[i] as number) === 0) out.add(i)
+  }
+  return out
+}
+
+/**
+ * Move the pieces that seal rooms off, so the home is walkable end to end.
+ *
+ * This is the fix for what v0.31.8.52–.54 measured: 43 rooms across 10 of 19
+ * templates that you cannot reach from the front door once the arranger has
+ * placed the furniture. It does not re-arrange anything — it slides a SEALING
+ * piece (`sealedBy`) along X or Z, nearest offset first, and takes the first
+ * position that opens the route without severing anything new.
+ *
+ * **It is cheap because the grid is built once.** The 60–120 ms figure that made
+ * this look unaffordable is `buildLevelGrid` — wall rasterisation, the outside
+ * fill, room attribution — and none of it depends on the furniture. A trial
+ * placement is one `solveGrid` at ~2 ms, so a few hundred candidates cost less
+ * than one rebuild.
+ *
+ * **It never deletes and never resizes.** The item count is invariant; only
+ * `position` changes. A route bought by removing the sofa is not a fix, and the
+ * surrounding pipeline (`dropOverlaps`, `dropDoorBlockers`, `dropWallClippers`)
+ * already owns deletion.
+ *
+ * Guarantees, in the order they are checked per candidate:
+ *   1. the footprint stands on clear floor (same raster as the check, so
+ *      "legal" cannot drift from "walkable");
+ *   2. the target room reconnects;
+ *   3. no room that was reachable becomes severed.
+ *
+ * (3) is what stops it trading one sealed room for another — the failure mode
+ * that killed v0.31.8.7's clearance objective and v0.31.8.51's threshold change.
+ */
+export function unsealRoutes(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  plan: FloorPlan,
+  bodyWidthM: number = BODY_WIDTH_M,
+): FurnitureItem[] {
+  const baseline = isolatedWhenEmpty(defs, plan, bodyWidthM)
+  const moved = new Map<string, [number, number]>()
+  const offsets = unsealOffsets()
+
+  for (const li of levelInputs(items, defs, plan)) {
+    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries)
+    // Rooms the PLAN never connected are not this pass's business.
+    const skip = new Set<number>()
+    li.rooms.forEach((r, i) => {
+      if (baseline.has(`${li.level}/${r.id}`)) skip.add(i)
+    })
+
+    let sol = solveGrid(g, bodyWidthM)
+    let targets = severedIndices(sol, skip)
+    if (targets.size === 0) continue
+
+    /**
+     * Culprits for EVERY target in one obstacle sweep.
+     *
+     * One `solveGrid` with an obstacle excluded answers "does this piece seal
+     * it?" for every room at once, so the sweep is O(obstacles), not
+     * O(rooms × obstacles). The first cut looped per room and cost
+     * `tpl-hdb-jumbo` — 8 unfixable rooms, so every trial runs and fails —
+     * **883 ms on top of a 434 ms furnish**. Sweeping once takes that back.
+     */
+    const sweep = () => {
+      const byRoom = new Map<number, number[]>()
+      for (const ri of targets) byRoom.set(ri, [])
+      for (let o = 0; o < li.obbs.length; o++) {
+        const without = solveGrid(g, bodyWidthM, o)
+        for (const ri of targets) {
+          if ((without.reachable[ri] as number) > 0) (byRoom.get(ri) as number[]).push(o)
+        }
+      }
+      return byRoom
+    }
+    let culpritsByRoom = sweep()
+
+    // Worst first — the biggest stranded room is the one most worth opening,
+    // and opening it often reconnects the rooms behind it in one move.
+    const order = [...targets].sort(
+      (a, b) => (sol.walkable[b] as number) - (sol.walkable[a] as number),
+    )
+
+    for (const ri of order) {
+      if (!targets.has(ri)) continue // already opened by an earlier move
+      const culprits = culpritsByRoom.get(ri) ?? []
+      let done = false
+      for (const o of culprits) {
+        if (done) break
+        const obb = li.obbs[o] as OBB
+        for (const [dx, dz] of offsets) {
+          const trial: OBB = { ...obb, cx: obb.cx + dx, cz: obb.cz + dz }
+          if (!trialFits(g, trial, o)) continue
+          const next = solveGrid(g, bodyWidthM, o, trial)
+          if ((next.reachable[ri] as number) === 0) continue
+          // Must not sever anything that is currently fine.
+          const before = severedIndices(sol, skip)
+          const after = severedIndices(next, skip)
+          let regressed = false
+          for (const i of after) {
+            if (!before.has(i)) {
+              regressed = true
+              break
+            }
+          }
+          if (regressed) continue
+          // Commit: update the raster in place so later rooms see the new state.
+          for (const i of cellsUnder(g, obb)) if (g.itemAt[i] === o) g.itemAt[i] = -1
+          for (const i of cellsUnder(g, trial)) g.itemAt[i] = o
+          li.obbs[o] = trial
+          const src = li.sources[o] as FurnitureItem
+          moved.set(src.id, [src.position[0] + dx, src.position[1] + dz])
+          sol = next
+          targets = after
+          culpritsByRoom = targets.size > 0 ? sweep() : new Map()
+          done = true
+          break
+        }
+      }
+    }
+  }
+
+  if (moved.size === 0) return items
+  return items.map((it) => {
+    const at = moved.get(it.id)
+    return at ? { ...it, position: at as [number, number] } : it
+  })
 }

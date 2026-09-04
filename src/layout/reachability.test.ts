@@ -3,7 +3,12 @@ import type { OBB } from '../collision/obb'
 import type { CollisionWall } from '../collision/walls'
 import { GROUND_LEVEL_ID } from '../floorplan/levels'
 import type { PlanRoom } from '../floorplan/types'
-import { analyseLevelReachability, BODY_WIDTH_M, findFurnitureSeveredRooms } from './reachability'
+import {
+  analyseLevelReachability,
+  BODY_WIDTH_M,
+  findFurnitureSeveredRooms,
+  unsealRoutes,
+} from './reachability'
 
 /**
  * BLOCKED-ROUTE-REACHABILITY (v0.31.8.52).
@@ -315,5 +320,115 @@ describe('findFurnitureSeveredRooms — sealedBy', () => {
       twoRoomPlan(),
     )
     expect(sev).toEqual([])
+  })
+})
+
+/**
+ * ROUTE-UNSEAL (v0.31.8.55) — move the sealing piece instead of only naming it.
+ *
+ * Over the 19 templates this takes unreachable rooms from 43 to 18 by moving 12
+ * items and deleting none. These tests pin the invariants that make that safe,
+ * because the two previous attempts on this thread both failed on exactly
+ * these: v0.31.8.7's clearance objective traded one pinch for another, and
+ * v0.31.8.51's threshold change bought a statistic at the cost of the picture.
+ */
+describe('unsealRoutes', () => {
+  const wallOf = (
+    ax: number,
+    az: number,
+    bx: number,
+    bz: number,
+    thickness: 'internal' | 'external' = 'internal',
+  ) => ({ id: `w-${ax}-${az}-${bx}-${bz}`, start: [ax, az], end: [bx, bz], thickness })
+
+  /** Living (with the front door) | Bedroom, joined by a 0.9 m doorway at z 1.5-2.4. */
+  const plan2 = () =>
+    ({
+      name: 'p',
+      extent: [7, 4],
+      ceilingHeight: 2.6,
+      walls: [
+        wallOf(0, 0, 7, 0, 'external'),
+        wallOf(7, 0, 7, 4, 'external'),
+        wallOf(7, 4, 0, 4, 'external'),
+        wallOf(0, 4, 0, 0, 'external'),
+        wallOf(4, 0, 4, 1.5),
+        wallOf(4, 2.4, 4, 4),
+      ],
+      openings: [{ id: 'main', wallId: 'w-0-4-0-0', kind: 'door', offset: 1.5, width: 0.9 }],
+      rooms: [
+        { id: 'a', name: 'Living', origin: [0, 0], width: 4, depth: 4 },
+        { id: 'b', name: 'Bedroom', origin: [4, 0], width: 3, depth: 4 },
+      ],
+    }) as unknown as import('../floorplan/types').FloorPlan
+
+  const wardrobeDef = {
+    id: 'wardrobe',
+    name: 'Wardrobe',
+    category: 'storage',
+    kind: 'primitive',
+    defaultFootprint: { w: 0.6, d: 1.8 },
+  } as unknown as import('../furniture/types').FurnitureDef
+  const defs2 = { wardrobe: wardrobeDef }
+  const place = (id: string, x: number, z: number) =>
+    ({
+      id,
+      defId: 'wardrobe',
+      position: [x, z],
+      rotation: 0,
+      props: {},
+    }) as unknown as import('../furniture/types').FurnitureItem
+
+  it('slides the sealing piece until the room reconnects', () => {
+    const items = [place('w1', 4.35, 1.95)]
+    expect(findFurnitureSeveredRooms(items, defs2, plan2())).toHaveLength(1)
+    const fixed = unsealRoutes(items, defs2, plan2())
+    expect(findFurnitureSeveredRooms(fixed, defs2, plan2())).toEqual([])
+  })
+
+  it('NEVER deletes and never resizes — only `position` changes', () => {
+    const items = [place('w1', 4.35, 1.95)]
+    const fixed = unsealRoutes(items, defs2, plan2())
+    expect(fixed).toHaveLength(items.length)
+    expect(fixed[0]?.id).toBe('w1')
+    expect(fixed[0]?.defId).toBe('wardrobe')
+    expect(fixed[0]?.rotation).toBe(0)
+    // A route bought by removing the sofa is not a fix — deletion belongs to
+    // `dropOverlaps` / `dropDoorBlockers` / `dropWallClippers`, not here.
+    expect(fixed[0]?.position).not.toEqual(items[0]?.position)
+  })
+
+  it('returns the SAME array when nothing is sealed, so a clean plan pays nothing', () => {
+    const items = [place('w1', 6.5, 3)]
+    const fixed = unsealRoutes(items, defs2, plan2())
+    expect(fixed).toBe(items)
+  })
+
+  it('does not park the piece in the doorway it just opened', () => {
+    // The route mask gaps a wall at every open door, because a doorway IS a
+    // route. It is not a parking space — the first cut used that mask for
+    // placement and slid `tpl-condo-penthouse`'s TV console into a doorway,
+    // which `placementSoundness.test.ts` caught as an in-wall item.
+    const fixed = unsealRoutes([place('w1', 4.35, 1.95)], defs2, plan2())
+    const [x, z] = fixed[0]?.position as [number, number]
+    // The doorway is the x = 4 wall between z 1.5 and 2.4; the piece is 0.6 wide
+    // and 1.8 deep, so its body must clear that band entirely.
+    const inDoorway = Math.abs(x - 4) < 0.3 + 0.05 && z - 0.9 < 2.4 && z + 0.9 > 1.5
+    expect(inDoorway).toBe(false)
+  })
+
+  it('leaves an unfixable seal alone rather than moving something uselessly', () => {
+    // Two wardrobes filling the whole bedroom side of the doorway, with no
+    // clear floor within reach for either to move to. The pass must be a no-op,
+    // not a shuffle.
+    const items = [place('w1', 4.35, 1.0), place('w2', 4.35, 2.9)]
+    const fixed = unsealRoutes(items, defs2, plan2())
+    expect(fixed).toHaveLength(2)
+    for (let i = 0; i < 2; i++) {
+      // Either untouched, or moved to somewhere that genuinely helped.
+      const before = findFurnitureSeveredRooms(items, defs2, plan2()).length
+      const after = findFurnitureSeveredRooms(fixed, defs2, plan2()).length
+      expect(after).toBeLessThanOrEqual(before)
+    }
   })
 })

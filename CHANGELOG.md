@@ -27,6 +27,70 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.55 — it moves the furniture now. 43 unreachable rooms → 18
+
+Three releases measured this and said "moves no furniture" each time. This one moves it.
+
+`unsealRoutes` runs inside `furnishPlanItems`, after the drop passes: it slides a **sealing**
+piece (the one `sealedBy` names) along X or Z in 0.15 m steps up to 1.2 m, nearest first, and
+takes the first position that opens the route without severing anything new.
+
+| | before | **after** |
+| --- | --- | --- |
+| rooms unreachable from the front door | 43 | **18** |
+| templates affected | 10 of 19 | **4 of 19** |
+| items moved | — | **12** |
+| items deleted | — | **0** |
+
+Fully cleared: `tpl-condo-penthouse` (6 rooms), `tpl-condo-1study` (5),
+`tpl-hdb-maisonette` (4), `tpl-hdb-exec` (2), `tpl-condo-4bed` (2), `tpl-condo-3bed` (1).
+`tpl-hdb-jumbo` (8) and `tpl-condo-2bed` (8) resist — either the culprit has nowhere within
+1.2 m to go, or the room has no single culprit so no one move opens it.
+
+### The cost worry in v0.31.8.54's notes was misplaced, and that is why this is affordable
+
+I wrote that each trial needs a re-solve at 60–120 ms, so a mover would cost seconds per plan.
+**That figure is `buildLevelGrid`** — wall rasterisation, the outside fill, room attribution —
+and none of it depends on the furniture. Build the grid once and a trial placement is one
+`solveGrid` at **~2 ms**, so hundreds of candidates cost less than one rebuild.
+
+### Three invariants, each one a way an earlier attempt on this thread failed
+
+- **It only writes `position`** — never deletes, resizes or rotates. A route bought by removing
+  the sofa is not a fix; deletion belongs to `dropOverlaps`/`dropDoorBlockers`/`dropWallClippers`.
+- **It rejects any move that severs a room which was fine.** This is the guard v0.31.8.7's
+  clearance objective lacked when it traded one pinch for another, and v0.31.8.51's threshold
+  change lacked when it bought a statistic at the cost of the picture.
+- **Placement uses a stricter mask than routing.** `openFloor` gaps a wall at every open door,
+  because a doorway *is* a route. It is not a parking space — the first cut used it and slid
+  `tpl-condo-penthouse`'s TV console into a doorway, which `placementSoundness.test.ts` caught
+  as an in-wall item. Placement now tests `standable` (doors CLOSED) against the footprint
+  inflated by one cell, because the raster samples cell CENTRES and a footprint can overlap a
+  wall by half a cell with no centre inside it.
+
+### Two mistakes worth recording
+
+**The culprit sweep was O(rooms × obstacles).** One `solveGrid` with an obstacle excluded
+answers "does this seal it?" for *every* room at once, so it should be O(obstacles). Looping per
+room cost `tpl-hdb-jumbo` — 8 unfixable rooms, so every trial runs and fails — **883 ms on top
+of a 434 ms furnish.** Sweeping once per state brings the whole pass to +40…160 ms.
+
+**I reverted the wiring with `git checkout` mid-measurement** while comparing furnish cost with
+and without the pass, read the resulting clean `git diff` as "no leftover hack", and then spent a
+round debugging why the mover had stopped fixing anything. It had not stopped; it was no longer
+being called.
+
+### Verified
+
+- 10179 tests pass; `tsc`, `biome`, `knip` clean. `placementSoundness.test.ts` (41 tests,
+  including "no furniture embedded in a wall" per template) passes.
+- `tpl-condo-penthouse`'s item count 117 → **119** — an increase, not a loss: the two pieces move
+  and the decor pass then finds two more host surfaces. It is the only template whose count
+  changes at all, and it is recorded in `diningChairTuck.test.ts` with that reason.
+- Looked at: `tpl-condo-penthouse` and `tpl-hdb-maisonette` furnished in the dollhouse. Nothing
+  floating, nothing in a doorway, nothing clipping a wall; storage and beds still read flush.
+- Scheme Compare and the layout-critique report scenarios both clear.
+
 ## v0.31.8.54 — reachable from the FRONT DOOR, and the piece to move
 
 Two changes to the route check, one of which corrects its foundation.

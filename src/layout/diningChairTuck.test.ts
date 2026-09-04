@@ -143,7 +143,12 @@ describe('dining chairs are tucked to their table', () => {
       // overran the living room and landed in the DINING room. Pulled back onto
       // the living's own 3.7-6.3 span (2.4 m) and the dining given its own; one
       // piece no longer fits beside the relocated glass.
-      'tpl-condo-penthouse': 117,
+      // 117 → 119 in v0.31.8.55: ROUTE-UNSEAL slides the two pieces that
+      // sealed six of this template's rooms off from the front door, and the
+      // decor pass then finds two more host surfaces than it could before. A
+      // GAIN, not a loss — the only template whose count moves at all, and no
+      // furniture is deleted (`unsealRoutes` only writes `position`).
+      'tpl-condo-penthouse': 119,
       // 122 → 120 in `.34`, mostly redistribution once the car porch, dining and
       // kitchen got doors: dining and kitchen each gain one, the living and
       // service yard each lose one, and one piece that had been standing outside
@@ -201,7 +206,12 @@ describe('dining chairs are tucked to their table', () => {
     // 1433 → 1432 in `.42`, the window-naming sweep: see the penthouse note above.
     // 1432 → 1437 in `.44`, an increase from one room: see the loft note above.
     // 1437 → 1442 in `.45`: jumbo's central hall, declared and therefore furnished.
-    expect(total).toBe(1442)
+    // 1442 → 1444 in `.55`, an INCREASE with no trade: ROUTE-UNSEAL slides the
+    // two pieces that sealed six of `tpl-condo-penthouse`'s rooms off from the
+    // front door, and the decor pass then finds two more host surfaces. It is
+    // the only template whose count moves, and `unsealRoutes` writes nothing
+    // but `position` — it cannot delete.
+    expect(total).toBe(1444)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

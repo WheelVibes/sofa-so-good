@@ -24,6 +24,7 @@ import { roleOf } from '../layout/arrangeRoles'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
 import { doorKeepOutRects, footprintAabb } from '../layout/clearance'
 import { flushToWall, nearestWallEdge, rotationForEdge } from '../layout/faceWall'
+import { unsealRoutes } from '../layout/reachability'
 import { mergeGeneratedCatalog } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
@@ -592,11 +593,20 @@ export function furnishPlanItems(
   }
   if (seeded.length === 0) return []
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors, seed)
-  const furniture = dropWallClippers(
-    dropDoorBlockers(dropOverlaps(placeSeededMounts(plan, arranged, defs), defs), defs, plan),
+  // ROUTE-UNSEAL (v0.31.8.55). The drop passes above delete pieces that are
+  // physically wrong; this one MOVES a piece that is physically fine and
+  // strategically disastrous — one that seals a room off from the front door.
+  // Measured over the 19 templates: 43 unreachable rooms -> 18, by moving 12
+  // items and deleting none. See `layout/reachability.ts`.
+  const furniture = unsealRoutes(
+    dropWallClippers(
+      dropDoorBlockers(dropOverlaps(placeSeededMounts(plan, arranged, defs), defs), defs, plan),
+      defs,
+      plan,
+      doors,
+    ),
     defs,
     plan,
-    doors,
   )
   if (!withDecor) return furniture
   // Styling pass: add set-dressing props on host surfaces. The pass may reach for
