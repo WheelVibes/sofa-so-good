@@ -85,7 +85,7 @@ describe('dining chairs are tucked to their table', () => {
       // master's wardrobe had been dropped and now places.
       'tpl-hdb-exec': 93,
       'tpl-hdb-3gen': 97,
-      'tpl-hdb-jumbo': 120,
+      'tpl-hdb-jumbo': 119,
       'tpl-hdb-maisonette': 141,
       'tpl-studio': 23,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
@@ -119,7 +119,7 @@ describe('dining chairs are tucked to their table', () => {
     // wall space and the arranger drops one wall-hugging piece. That is the trade item (h) is
     // asking for: a bedroom with daylight and one fewer accessory. Every other template gained or
     // held.
-    expect(total).toBe(1445)
+    expect(total).toBe(1444)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

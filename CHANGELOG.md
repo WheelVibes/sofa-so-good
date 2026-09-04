@@ -29,6 +29,41 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.197 — `(f)`: the HEADLINE case is fixed, and an existing door turned out to be mislabelled
+
+`tpl-hdb-jumbo` is the case item `(f)` opens with: *"walk into the Master Bedroom and look west:
+two toilets and a washbasin are standing in the same open volume as the bed."* `jb-cbath`,
+`jb-master` and `jb-mbath` were one component.
+
+The baths sit at x 0.2–2.0, west of the master (x 2.2–5.8), so they need a wall between them and a
+divider of their own:
+
+| wall | span |
+| --- | --- |
+| `jb-bath-e` | [2.1, 9.6] → [2.1, D−T] |
+| `jb-bath-mid` | [T, 11.7] → [2.1, 11.7] |
+
+**And the existing `jb-master` door is not the master's.** At offset 1.0 on `jb-m-n` it spans
+x 1.1–2.0 — which is over the **common bath** (0.2–2.0), not the master (2.2–5.8). Once the bath
+column is closed that is exactly the right door for a common bath, reached from the corridor north
+of z 9.6, so it stays as-is and the **master gets one of its own** at offset 2.6. The master bath
+gets `jb-mbath-door` on the new wall. Same class of authoring slip as the mirrored window offsets in
+`(h)`: a door named for one room that serves another. **6 → 5 of 20 remain.**
+
+The trade again: `tpl-hdb-jumbo` furnishing 120 → **119**.
+
+**Two things visible in the frame that are NOT this change**, recorded so they are not attributed to
+it later: kitchen cabinetry stands in the master, and a large region above the wall has no ceiling
+and shows sky. Both are consistent with the still-open bisection entry
+`tpl-hdb-jumbo/ground: jb-wb-corr through jb-master` — a corridor wall runs 3.20 m through the
+master and the room rect overruns it into the corridor beyond, which is a *different* sub-item of
+`(f)` and untouched here. `v0.31.7.195` established by control that this sky-above-wall appearance
+is pre-existing in `tpl-hdb-5room`; that control was **not** repeated for jumbo, so this is an
+observation rather than an attribution.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.196 — `(f)`: `tpl-hdb-exec` enclosed, and the enclosure nearly SEALED both bathrooms
 
 Third template in the series. `tpl-hdb-exec`'s bath column is already bounded west by `ex-b-corr`

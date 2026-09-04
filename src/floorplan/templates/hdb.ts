@@ -370,6 +370,12 @@ export function hdbJumbo(): FloorPlan {
       iwall('jb-wb-corr', [4.0, 3.2], [4.0, D - T]),
       iwall('jb-b2-s', [T, 6.8], [4.0, 6.8]),
       iwall('jb-m-n', [T, 9.6], [4.0, 9.6]),
+      // (f): `jb-cbath` + `jb-master` + `jb-mbath` were one component — the doc's headline case,
+      // "two toilets and a washbasin standing in the same open volume as the bed". The baths sit
+      // at x 0.2-2.0 west of the master (x 2.2-5.8), so they need a wall between them and a
+      // divider of their own (cbath z 9.6-11.6, mbath z 11.8-13.0).
+      iwall('jb-bath-e', [2.1, 9.6], [2.1, D - T]),
+      iwall('jb-bath-mid', [T, 11.7], [2.1, 11.7]),
       // East column: second living + two more bedrooms toward the south.
       iwall('jb-eliv-s', [8.4, 6.6], [W - T, 6.6]),
       iwall('jb-eb-mid', [11.4, 6.6], [11.4, D - T]),
@@ -382,7 +388,14 @@ export function hdbJumbo(): FloorPlan {
       // a living-category space. The Living / Dining never touches this wall —
       // it fronts jb-n and jb-e — so the Family Room is the correct target.
       door('jb-main', 'jb-s', 4.1),
+      // KEPT AS IS, and it does not open into the master: at offset 1.0 on `jb-m-n` this door
+      // spans x 1.1-2.0, which is over the COMMON BATH (x 0.2-2.0), not the master (x 2.2-5.8).
+      // With the bath column closed it is exactly the right door for the common bath — reached
+      // from the corridor north of z 9.6 — so it stays and the MASTER gets one of its own.
       door('jb-master', 'jb-m-n', 1.0),
+      door('jb-master-door', 'jb-m-n', 2.6),
+      // Master bath off the master, through the new wall (starts z 9.6); centred on mbath.
+      door('jb-mbath-door', 'jb-bath-e', 2.35),
       door('jb-b2', 'jb-b2-s', 1.0),
       window('jb-kit-win', 'jb-n', 1.6, 1.8),
       window('jb-b2-win', 'jb-w', 7.4, 1.6),

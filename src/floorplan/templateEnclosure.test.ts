@@ -35,7 +35,9 @@ const KNOWN_SHARED_ENCLOSURES = [
   // `ex-liv-w`; it needed a north wall east of x 3.6 and a divider between the two baths, plus
   // doors, since closing it would otherwise leave both baths unreachable.
   'tpl-hdb-3gen/ground: g3-gbath + g3-bed2 + g3-master + g3-mbath',
-  'tpl-hdb-jumbo/ground: jb-cbath + jb-master + jb-mbath',
+  // tpl-hdb-jumbo FIXED in v0.31.7.197 — the doc's headline case. A wall at x 2.1 separates the
+  // baths from the master and a divider splits them; the existing `jb-master` door turned out to
+  // sit over the COMMON BATH, so it serves that and the master got one of its own.
   'tpl-hdb-maisonette/em-up: emu-bed3 + emu-landing + emu-hall + emu-mbath + emu-fam',
   'tpl-condo-4bed/ground: c4-cbath + c4-bath2 + c4-mbath',
 ]
