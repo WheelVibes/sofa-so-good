@@ -29,6 +29,44 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.260 — shadows WORK; that wall is simply never in shadow. And `.259`'s mystery explained: `Lighting` rewrites `castShadow` every frame
+
+`.259` could not reproduce a sweep that reported `castShadow: false` and shipped an instrument fix
+instead. The instrument fix immediately explained the mystery.
+
+**In-page shadow mutations do not stick.** Running the sweep through `aim-look`, whose resolved line
+now prints the sun's state, the arm that set `castShadow = false` reported `cast0` at the moment of
+mutation and then `cast1` in the resolved line a moment later. `Lighting.tsx:224` writes
+`sunRef.current.castShadow = shadowMapSize > 0` every frame, and `normalBias` comes from a JSX prop
+reapplied on render — so both revert within a frame or two. `mapSize` is the one that persists, which
+is why it was the only arm whose state line changed. `.259`'s null result was measuring nothing, and
+now the reason is on the record rather than unexplained.
+
+**Redone properly, with the sun's shadow disabled at SOURCE** (`cp`-backed edit, restored and
+verified clean; the probe's own state line reads `cast0`):
+
+| surface | shadows on | shadows off | delta |
+| --- | --- | --- | --- |
+| east wall | 203.2 | **203.2** | **0.0** |
+| floor | 153.7 | **162.1** | **+8.4** |
+
+**So the shadow system works** — the floor brightens 8.4 counts the moment the sun stops casting —
+**and that wall is never in shadow at all.** Nothing in the app's scene casts onto the sun's path to
+it. Shadow-map resolution is eliminated as well: `mapSize 4096`, the one mutation that persisted,
+also reads 203.2.
+
+That is a much tighter statement than `.258` could make. The `livingDining` ceiling occluder covers
+(10.77, 3.88) where the sun's ray exits the ceiling, is `visible`, is `castShadow`, has
+`shadowSide: DoubleSide` — and contributes no occlusion for this light path. Cycles, which has no
+occluder concept and simply blocks light with the ceiling geometry, gets no sun on that wall at all.
+
+`(z3)` now sits on one question with a floor measurement to check any fix against: why does a
+`colorWrite: false, depthWrite: false, transparent: true, opacity: 0` plane that is `castShadow` not
+occlude this ray, when the shadow pass is demonstrably working on the floor 8 counts away?
+
+Suite 10219 green.
+
+
 ## v0.31.7.259 — a shadow sweep that reported an impossible state, and the instrument fix it earned
 
 Testing `(z3)`'s remaining 0.1807 as a shadow-precision problem produced a result I could not

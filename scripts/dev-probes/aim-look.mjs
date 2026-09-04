@@ -143,6 +143,32 @@ if (process.env.LIGHTS === 'off') {
   console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidates`)
   await new Promise((r) => setTimeout(r, 1500))
 }
+// SHADOW=<nocast|nb0|map4096> mutates the sun's shadow so a leak can be tested. Applied HERE, in
+// the probe whose resolved line reports `sun[...]` — `v0.31.7.259` ran this sweep in a throwaway
+// that self-reported `castShadow: false` in every arm including the baseline, which could not be
+// reproduced and made its null result worthless. Now the arm and the state it produced are printed
+// together, so an arm that failed to apply is visible instead of inferred.
+if (process.env.SHADOW) {
+  const applied = await page.evaluate((mode) => {
+    const out = []
+    window.__three.scene.traverse((o) => {
+      if (!o.isDirectionalLight) return
+      if (mode === 'nocast') o.castShadow = false
+      if (mode === 'nb0') o.shadow.normalBias = 0
+      if (mode === 'map4096') {
+        o.shadow.mapSize.set(4096, 4096)
+        o.shadow.map?.dispose()
+        o.shadow.map = null
+      }
+      o.shadow.needsUpdate = true
+      out.push(`cast${o.castShadow ? 1 : 0}/nb${o.shadow.normalBias}/map${o.shadow.mapSize.x}`)
+    })
+    window.__three.invalidate?.()
+    return out
+  }, process.env.SHADOW)
+  console.log(`SHADOW=${process.env.SHADOW}  -> ${applied.join(' | ')}`)
+  await new Promise((r) => setTimeout(r, 2000))
+}
 if (process.env.GI === 'off') {
   const n = await page.evaluate(async () => {
     const { detachAllVisibilityLightmaps } = await import('/src/scene/applyVisibilityLightmaps.ts')
