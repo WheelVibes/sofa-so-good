@@ -29,6 +29,65 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.217 — RESOLVED: there is no GI shortfall. The 0.73x was an EXPOSURE MISMATCH in my own calibration
+
+`Lighting` writes `gl.toneMappingExposure` every frame from the day ramp: **1.38** at the default
+hour, **0.8970** at 21:00. Every calibration curve in `.213`-`.216` was measured at 1.38. Every
+scene byte was measured at 21:00, i.e. at 0.8970. **0.8970 / 1.38 = 0.650**, and that is the
+"uniform 0.63-0.73x shortfall" those commits chased through eight eliminations.
+
+The cause is a probe bug of the worst kind — a knob that was DOCUMENTED and never implemented.
+`tonemap-frame.mjs`'s docstring said `HOUR` defaulted to 13; the variable did not exist, so every
+run silently used the app's default hour whatever was passed. Two consequences:
+
+1. The curve inverted scene bytes taken under a different grade than it was built under.
+2. **`.216`'s bloom retraction was measuring nothing.** Its "HOUR=13 vs HOUR=21" arms were the SAME
+   condition twice, which is exactly why they agreed to 1-2 counts. The code-reading half of that
+   argument stands (`EffectsImpl` mounts `Bloom` only when `bloomActiveForDay`), but the
+   measurement offered as proof did not test it.
+
+**The proof, and it needs no curve at all.** With the injection replaced by a hard-coded
+`reflectedLight.indirectDiffuse = vec3( 0.5 )` — no map, no gain, no albedo, no BRDF — all three
+surfaces read **170.0**. Replacing it instead with `totalEmissiveRadiance = vec3( 0.5 )` on the same
+materials in the same frame *also* reads **170.0**. Identical, so three's summation from
+`indirectDiffuse` to the pixel is faithful and the emissive path is a valid stand-in for it. And the
+exposure-matched curve says linear 0.5 -> byte **170.35**. Injecting exactly 0.5 yields exactly 0.5,
+to a third of a count.
+
+Re-derived at the three verified surfaces of `.215`, now with a curve measured in the SAME state
+(exposure 0.897, hour 21, lamps off):
+
+| surface | on | off | GI measured | GI predicted | ratio |
+| --- | --- | --- | --- | --- | --- |
+| ceiling | 192.7 | 35.9 | 0.830 | 0.756 | **1.10** |
+| wall | 189.6 | 48.1 | 0.755 | 0.697 | **1.08** |
+| floor | 148.3 | 43.0 | 0.283 | 0.272 | **1.04** |
+
+And using the visOcclusion the SHADER actually samples (0.274 bilinear, from `?aoDebug=1`) instead
+of the nearest texel, the ceiling lands at **0.94**. So the injection agrees with its own arithmetic
+to within ~6-10 %, and the residual is the sign and roughly the size of bilinear-vs-nearest
+sampling. `.215`'s published 0.735 decomposes exactly: **0.650 exposure ratio x 1.131 true ratio**.
+
+**So the whole ceiling-deficit thread is now fully accounted for**, and neither cause was in the
+renderer:
+
+- the original 13-18x came from a patch that was not a ceiling (`.214`);
+- the residual 0.63-0.73x came from a calibration graded differently than the measurement (here).
+
+`N8AO` was also eliminated properly along the way, by one-variable control rather than inference:
+disabling the pass moved the constant-injection bytes from 169.6 / 169.2 / 167.3 to a flat
+170.0 / 170.0 / 170.0 — under 3 counts, at `intensityPost: 7`.
+
+`tonemap-frame.mjs` now applies `HOUR`, supports `LIGHTS=off` on the same reporting mechanism as
+`walk-tour.mjs`, and prints **EXPOSURE, hour and lights with every curve**, so a state mismatch
+between calibration and measurement is visible in the output rather than inferable only after eight
+eliminations. `aim-look.mjs` prints exposure in its resolved line for the same reason.
+
+Nothing shipped: the injection was correct throughout, and gain 6 remains an empirical fit on the
+floor. What this does change is the standing of the gain table — `.214` showed its "ceiling" row was
+the wrong surface, and re-deriving it now has a trustworthy instrument to do it with.
+
+
 ## v0.31.7.216 — four candidates for the 0.73x eliminated by measurement, including one caveat I published last round
 
 `.215` measured a uniform 0.73x and offered two reasons not to trust it yet. One of them was wrong,

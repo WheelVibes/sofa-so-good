@@ -29,6 +29,21 @@ import sharp from 'sharp'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const TIER = process.env.TIER || 'realistic'
+/**
+ * HOUR and LIGHTS are LOAD-BEARING, and for one round they did not exist.
+ *
+ * `Lighting` writes `gl.toneMappingExposure` every frame from the day ramp: 1.38 at the default
+ * hour, **0.8970 at 21:00**. A curve measured under one exposure cannot invert a byte measured
+ * under another, and the ratio 0.897/1.38 = **0.650** is exactly the "uniform 0.63-0.73x GI
+ * shortfall" that `v0.31.7.215`/`.216` chased through four eliminations. There was no shortfall;
+ * the calibration and the measurement were graded differently.
+ *
+ * The probe's own docstring claimed `HOUR` defaulted to 13 and it was never implemented, so every
+ * run silently used the app's default hour. That also voided `.216`'s bloom comparison: its
+ * "HOUR=13 vs HOUR=21" arms were the SAME condition twice, which is why the curves agreed to 1-2
+ * counts. Exposure is now printed with every curve so a mismatch is visible in the output.
+ */
+const HOUR = Number(process.env.HOUR || 13)
 const VALUES = (
   process.env.VALUES || '0,0.002,0.005,0.01,0.02,0.03,0.05,0.065,0.08,0.1,0.15,0.3,0.6,1'
 )
@@ -61,6 +76,26 @@ await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})
 await new Promise((r) => setTimeout(r, 3000))
+await page.evaluate((h) => {
+  const st = window.__store.getState()
+  st.setTimeMode('manual')
+  st.setManualHour(h)
+}, HOUR)
+await new Promise((r) => setTimeout(r, 1500))
+if (process.env.LIGHTS === 'off') {
+  const flipped = await page.evaluate(() => {
+    const st = window.__store.getState()
+    const on = st.items.filter((it) => it.props?.lightOn !== 'no').map((it) => it.id)
+    let k = 0
+    for (const id of on) {
+      st.toggleLightPower(id)
+      if (window.__store.getState().items.find((it) => it.id === id)?.props?.lightOn === 'no') k++
+    }
+    return { candidates: on.length, flipped: k }
+  })
+  console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidates`)
+  await new Promise((r) => setTimeout(r, 1500))
+}
 await page.waitForFunction(() => !!window.__three?.advance, { timeout: 30000 })
 
 const setup = await page.evaluate(() => {
@@ -147,11 +182,13 @@ const setup = await page.evaluate(() => {
     toneMapping: window.__three.gl.toneMapping,
     exposure: window.__three.gl.toneMappingExposure,
     look: window.__store.getState().toneMappingMode ?? '(default)',
+    hour: window.__store.getState().manualHour,
+    lights: window.__store.getState().lightsMode,
   }
 })
 if (setup.error) throw new Error(setup.error)
 console.log(
-  `tier ${TIER}   gl.toneMapping ${setup.toneMapping}   exposure ${setup.exposure}   look ${setup.look}   donor ${setup.donor}`,
+  `tier ${TIER}   toneMapping ${setup.toneMapping}   EXPOSURE ${setup.exposure}   hour ${setup.hour}   lights ${setup.lights}   look ${setup.look}`,
 )
 
 const box = await page.evaluate(() => {

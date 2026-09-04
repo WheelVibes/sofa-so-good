@@ -144,7 +144,11 @@ if (process.env.GI === 'off') {
 
 const resolved = await page.evaluate(() => {
   const st = window.__store.getState()
-  return `${st.qualityTier}/${st.lightsMode}/${st.timeMode}${st.manualHour}`
+  // Exposure is part of the STATE a byte means: `Lighting` writes `gl.toneMappingExposure` every
+  // frame from the day ramp, so two runs at the same hour can still be graded differently. A
+  // calibration curve measured under one exposure cannot invert a byte measured under another.
+  const e = window.__three?.gl?.toneMappingExposure
+  return `${st.qualityTier}/${st.lightsMode}/${st.timeMode}${st.manualHour}/exp${e?.toFixed?.(4) ?? e}`
 })
 console.log(`resolved ${resolved}   level ${LEVEL || '(ground)'}`)
 
