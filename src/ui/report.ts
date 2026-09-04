@@ -12,7 +12,12 @@ import {
   isDaylightExempt,
   VENT_MIN_RATIO,
 } from '../analysis/daylight'
-import { buildDeliveryAccess } from '../analysis/deliveryAccess'
+import {
+  buildDeliveryAccess,
+  hasMeasuredRoute,
+  resolveDeliveryRoute,
+  SG_DEFAULT_ROUTE,
+} from '../analysis/deliveryAccess'
 import { buildDesignScore } from '../analysis/designScore'
 import {
   buildDesignedElectricalSchedule,
@@ -635,7 +640,15 @@ export function buildReportHtml(
   // Delivery access — can each piece physically reach the room? A designer
   // checks this before anything is ordered; a sofa that fits the room and not
   // the lift door is a real and common failure.
-  const access = isFeatureEnabled('deliveryAccess') ? buildDeliveryAccess(items, catalog) : null
+  // The route is the user's own figures where they have recorded any
+  // (`plan.deliveryRoute`), else the published SG typicals — the scope note
+  // below has told people to measure and adjust since v0.31.5.374, so the check
+  // has to honour it once they have.
+  const route = resolveDeliveryRoute(plan.deliveryRoute)
+  const access = isFeatureEnabled('deliveryAccess')
+    ? buildDeliveryAccess(items, catalog, route)
+    : null
+  const routeIsMeasured = hasMeasuredRoute(plan.deliveryRoute)
   const accessSection =
     !access || access.checked === 0
       ? ''
@@ -644,7 +657,9 @@ export function buildReportHtml(
       <div class="${access.allClear ? 'ok' : 'warn'}">
         ${
           access.allClear
-            ? `All ${access.checked} distinct pieces can be carried in assembled on the assumed route.`
+            ? `All ${access.checked} distinct pieces can be carried in assembled on ${
+                routeIsMeasured ? 'your measured route' : 'the assumed route'
+              }.`
             : `${access.findings.length} of ${access.checked} pieces cannot be carried in assembled.`
         }
       </div>
@@ -655,7 +670,26 @@ export function buildReportHtml(
               .map((f) => `<tr><td>${esc(f.label)}</td><td>${esc(f.action)}</td></tr>`)
               .join('')}</table>`
       }
-      <div class="note">${esc(access.scopeNote)}</div>
+      ${
+        // Say WHICH figures produced this. Once the user has measured, the
+        // default scope note ("dimensions default to published typicals ...
+        // adjust these") is no longer true of their report, and a contractor
+        // reading it needs to know whether a warning came from a typical or
+        // from the site.
+        routeIsMeasured
+          ? `<div class="note">Measured on site: ${esc(
+              route
+                .filter((c, i) => c !== SG_DEFAULT_ROUTE[i])
+                .map(
+                  (c) =>
+                    `${c.label} ${formatLength(c.widthM, units)} wide${
+                      Number.isFinite(c.heightM) ? ` x ${formatLength(c.heightM, units)}` : ''
+                    }`,
+                )
+                .join('; '),
+            )}. Remaining figures are published Singapore typicals.</div>`
+          : `<div class="note">${esc(access.scopeNote)}</div>`
+      }
     </div>`
 
   // Cross-discipline coordination (G9) — the one check that compares the

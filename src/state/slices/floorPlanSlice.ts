@@ -453,6 +453,20 @@ export interface FloorPlanSlice {
   /** Drop a recorded measurement for a target (the field cleared). */
   clearSiteMeasurement: (kind: MeasuredTargetKind, targetId: string) => void
 
+  /**
+   * Record what a tape actually read for ONE dimension of ONE delivery-route
+   * aperture (lift door / lift cabin / main door), in metres — overriding the
+   * published Singapore typical in `analysis/deliveryAccess.ts`.
+   *
+   * Per-dimension because measuring is incremental: recording the lift door's
+   * width leaves its height, and every other aperture, on the published figure.
+   * `undefined` clears just that dimension. Undoable + forks the default plan,
+   * like every plan mutation.
+   */
+  setDeliveryRouteDim: (id: string, dim: 'widthM' | 'heightM', valueM: number | undefined) => void
+  /** Drop every measured route figure, back to the published typicals. */
+  clearDeliveryRoute: () => void
+
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
   /** Duplicate a storey (walls/rooms/openings + its furniture + per-room/-wall
@@ -1568,6 +1582,40 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       return {
         floorPlan: next.length > 0 ? { ...plan, siteMeasurements: next } : plan,
       }
+    })
+  },
+  /**
+   * Record (or clear) one measured DIMENSION of one delivery-route aperture.
+   *
+   * Sparse and per-dimension, mirroring `resolveDeliveryRoute`: passing
+   * `undefined` for a dimension clears just that figure back to the published
+   * typical. When an aperture has no measured dimensions left its key is
+   * dropped, and when no aperture has any the whole `deliveryRoute` key is
+   * dropped — so an untouched plan stays byte-identical in the save file, the
+   * same discipline as `clearSiteMeasurement` above.
+   */
+  setDeliveryRouteDim: (id, dim, valueM) => {
+    if (valueM !== undefined && (!Number.isFinite(valueM) || valueM <= 0)) return
+    get().pushHistory()
+    set((s) => {
+      const existing = s.floorPlan.deliveryRoute ?? {}
+      const current = { ...(existing[id] ?? {}) }
+      if (valueM === undefined) delete current[dim]
+      else current[dim] = valueM
+      const next: Record<string, { widthM?: number; heightM?: number }> = { ...existing }
+      if (Object.keys(current).length > 0) next[id] = current
+      else delete next[id]
+      const { deliveryRoute: _drop, ...plan } = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: Object.keys(next).length > 0 ? { ...plan, deliveryRoute: next } : plan,
+      }
+    })
+  },
+  clearDeliveryRoute: () => {
+    get().pushHistory()
+    set((s) => {
+      const { deliveryRoute: _drop, ...plan } = forkIfDefault(s.floorPlan)
+      return { floorPlan: plan }
     })
   },
   addPlanGuide: (guide) => {

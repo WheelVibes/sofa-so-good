@@ -27,6 +27,70 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.0 — the delivery-route check can finally take your own measurements
+
+`ACCESS_SCOPE_NOTE` has told users to "measure your actual lift, corridor turn and doorways and
+**adjust these** before ordering" since v0.31.5.374 — and the app had nowhere to put the answer.
+The copy asked for an action it could not accept. The sources behind it are emphatic that this
+matters: HDB lift and corridor sizes vary by block and "even a difference of 5 to 10 centimetres"
+decides whether a large piece fits.
+
+**On the plan, not per-device.** `plan.deliveryRoute` follows `siteMeasurements` exactly — optional
+and additive, so no schema version bump and every older save still loads. The route is a property
+of the block this design is for, so a shared or reopened design has to carry it.
+
+**Sparse, per DIMENSION.** `resolveDeliveryRoute` overrides one dimension of one aperture and
+leaves everything else on the published typical, because someone measuring on site arrives at
+numbers one at a time. It returns `SG_DEFAULT_ROUTE` *by reference* when nothing actually differs,
+so identity answers "is this route measured or typical?" — an override map that exists but matches
+the typicals is not a measured route.
+
+**A non-positive figure is refused twice**, at the zod boundary and again in the resolver: a stored
+0 would block every piece in the catalogue and read as a catalogue-wide fault rather than as bad
+input.
+
+**The report says which figures it used.** Once anything is measured it prints "Measured on site:
+Lift door opening 750 mm wide …. Remaining figures are published Singapore typicals" in place of
+the default scope note, and the all-clear line reads "your measured route". A contractor needs to
+know whether a warning came from a typical or from the site.
+
+### In the Accessibility panel, not a 16th aux panel
+
+"Can a wheelchair turn in here" and "can the sofa get through the lift door" are the same question
+about the same home, and that panel is already pro-gated and open-state managed. New flag
+`deliveryRouteMeasure` (pro, default on), following the `catalogFits`/`catalogFitsFilter`
+precedent. The empty field's PLACEHOLDER is the figure in force ("2090 typical"), so an untouched
+field always reads as "using the typical" — the `SiteMeasuredField` grammar, reimplemented rather
+than reused because that component is bound to `siteMeasurements` keyed by (kind, targetId) in mm
+against a model dimension, and a route aperture has no model value to deviate from.
+
+**The corridor turn is deliberately absent**, and says so. A turn is not a rectangular aperture so
+`AccessConstraint` cannot express it, and a field the check ignores would be worse than a note
+naming the gap. A test asserts the note exists AND that no such field does.
+
+### Three defects found by the verification, two of them mine
+
+- **Duplicate accessible names.** My first cut labelled all three width inputs "Width measured on
+  site, millimetres" — unusable on a screen reader. The unit test caught it; the aperture name is
+  now part of every label, and a test asserts the set of `aria-label`s is unique.
+- **My own banned predicate.** I wrote the reset assertion as
+  `waitFor {text: "Reset to typicals", visible: false}` — the exact idiom v0.31.8.93 banned and
+  ratcheted. `scenarioTransitionGuard.test.ts` failed and named the step. It asserts the store now.
+  Third time I have reached for that idiom; the ratchet earned itself again.
+- **A pre-existing phantom-class bug, exposed by the screenshot.** `.ci-title`, `.ci-detail` and
+  `.ci-fix` were scoped `.clr-item .ci-*`, so every use outside a `.clr-item` row got NO styling.
+  `AccessibilityPanel`'s own closing summary ("Widen flagged doors …") had been rendering at
+  inherited size with a bare tick since it was written. Unscoped — declarations unchanged, so
+  nothing inside `.clr-item` moves — which fixes that line and my section together.
+
+Also: a `setThemeMode?.()` in my scenario silently did nothing (the action is `setModePref`), so
+the first "dark" screenshot was identical to the light one. The optional-call operator turned a
+typo into a vacuous step. There is now a `waitFor html[data-mode="dark"]` proving the mode applied.
+
+21 new tests: resolver (8), store + save-file absence discipline (5), schema round-trip and
+rejection (2), panel in both UI modes (6). Verified visually in Pro, light and dark, with the
+panel scrolled to the section — it sits below a long list, so an unscrolled shot proves nothing.
+
 ## v0.31.8.99 — went to fix an F13 bug, found it fixed 500 builds ago
 
 `TODO.md` listed three `planTotalArea` call sites passing the WHOLE plan to a single-level helper,

@@ -1,0 +1,148 @@
+{
+  "name": "delivery-route-measure",
+  "description": "DELIVERY-ROUTE-OVERRIDE (v0.31.9.0): the Accessibility panel's Delivery route section lets the user replace the published SG typicals with their block's real lift/door figures. Shot in Pro, which is the only mode where it is reachable \u2014 the HOST panel's `accessibility` flag is pro-tier too, so Simple cannot open the panel at all and the Simple case is covered by DeliveryRouteFields.test.tsx instead of a screenshot that would only prove the panel is shut.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss",
+      "eval": "(()=>{const s=window.__store.getState();localStorage.setItem('hdb_onboarded','1');s.endTour?.();s.setOnboardingOpen?.(false);s.dismissLocationPrompt?.();s.setManualHour?.(13)})()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4000
+    },
+    {
+      "name": "pro-mode-first",
+      "eval": "(()=>{const s=window.__store.getState();s.setUiMode('pro');s.reresolveFeatureFlags()})()"
+    },
+    {
+      "name": "settle-pro-mode",
+      "wait": 1200
+    },
+    {
+      "name": "open-panel",
+      "store": {
+        "action": "setAccessibilityOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "panel-visible",
+      "waitFor": {
+        "css": "#accessibilityPanel"
+      },
+      "timeout": 60000,
+      "failMessage": "Accessibility panel did not mount. It is lazy-loaded behind Suspense and the chunk fetch competes with the scene build, which took 14.6s and >22.7s across two runs \u2014 hence 60s, matching the transition guards raised in v0.31.8.94."
+    },
+    {
+      "name": "route-section-appears",
+      "waitFor": {
+        "text": "Delivery route"
+      },
+      "timeout": 8000,
+      "failMessage": "Delivery route section missing in Pro \u2014 deliveryRouteMeasure defaults on at pro tier"
+    },
+    {
+      "name": "scroll-to-route",
+      "eval": "(()=>{const els=[...document.querySelectorAll('#accessibilityPanel .sec-h')];const h=els.find(e=>e.textContent.trim()==='Delivery route');if(!h)throw new Error('Delivery route heading not found in the panel');h.scrollIntoView({block:'start'});})()",
+      "failMessage": "the section is at the BOTTOM of a long panel, so a screenshot without scrolling proves nothing"
+    },
+    {
+      "name": "settle-pro",
+      "wait": 900
+    },
+    {
+      "name": "shot-pro-typicals",
+      "screenshot": "02-pro-typicals-as-placeholders"
+    },
+    {
+      "name": "enter-measurements",
+      "eval": "(()=>{const s=window.__store.getState();s.setDeliveryRouteDim('lift-door','widthM',0.75);s.setDeliveryRouteDim('lift-cabin','widthM',1.05);s.setDeliveryRouteDim('main-door','widthM',0.82)})()"
+    },
+    {
+      "name": "reset-offered",
+      "waitFor": {
+        "text": "Reset to typicals"
+      },
+      "timeout": 6000,
+      "failMessage": "the reset control should appear once a figure is measured"
+    },
+    {
+      "name": "scroll-to-route-settle-measured",
+      "eval": "(()=>{const els=[...document.querySelectorAll('#accessibilityPanel .sec-h')];const h=els.find(e=>e.textContent.trim()==='Delivery route');if(!h)throw new Error('Delivery route heading not found in the panel');h.scrollIntoView({block:'start'});})()",
+      "failMessage": "the section is at the BOTTOM of a long panel, so a screenshot without scrolling proves nothing"
+    },
+    {
+      "name": "settle-measured",
+      "wait": 900
+    },
+    {
+      "name": "shot-pro-measured",
+      "screenshot": "03-pro-measured"
+    },
+    {
+      "name": "dark",
+      "store": {
+        "action": "setModePref",
+        "args": [
+          "dark"
+        ]
+      }
+    },
+    {
+      "name": "dark-applied",
+      "waitFor": {
+        "css": "html[data-mode=\"dark\"]"
+      },
+      "timeout": 8000,
+      "failMessage": "dark mode did not apply \u2014 the first cut called a non-existent `setThemeMode` through `?.()` and shot a 'dark' frame that was identical to light"
+    },
+    {
+      "name": "scroll-to-route-settle-dark",
+      "eval": "(()=>{const els=[...document.querySelectorAll('#accessibilityPanel .sec-h')];const h=els.find(e=>e.textContent.trim()==='Delivery route');if(!h)throw new Error('Delivery route heading not found in the panel');h.scrollIntoView({block:'start'});})()",
+      "failMessage": "the section is at the BOTTOM of a long panel, so a screenshot without scrolling proves nothing"
+    },
+    {
+      "name": "settle-dark",
+      "wait": 1200
+    },
+    {
+      "name": "shot-dark",
+      "screenshot": "04-pro-measured-dark"
+    },
+    {
+      "name": "back-light",
+      "store": {
+        "action": "setModePref",
+        "args": [
+          "light"
+        ]
+      }
+    },
+    {
+      "name": "settle-light",
+      "wait": 800
+    },
+    {
+      "name": "clear-route",
+      "eval": "(()=>{window.__store.getState().clearDeliveryRoute()})()"
+    },
+    {
+      "name": "reset-gone",
+      "waitFor": {
+        "store": "state.floorPlan.deliveryRoute === undefined"
+      },
+      "timeout": 8000,
+      "failMessage": "clearDeliveryRoute must drop the key entirely, so an untouched plan stays byte-identical in the save file. Asserted on the STORE, not on the button's text disappearing \u2014 `{text, visible: false}` is banned by scenarioTransitionGuard.test.ts because it ignores opacity and can pass vacuously (v0.31.8.93)."
+    }
+  ]
+}

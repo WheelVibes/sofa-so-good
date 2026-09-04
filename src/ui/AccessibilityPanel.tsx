@@ -8,6 +8,7 @@ import {
 import { useStore } from '../state/store'
 import { formatLength } from '../utils/measurement'
 import { AuxPanelHead } from './AuxPanelHead'
+import { DeliveryRouteFields } from './DeliveryRouteFields'
 import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 
@@ -112,6 +113,8 @@ export function AccessibilityPanel() {
             ))}
           </div>
         )}
+
+        <DeliveryRouteFields />
 
         {(doors.length > 0 || rooms.length > 0) && (
           <div className="ci-fix" style={{ marginTop: 'var(--s-3)' }}>

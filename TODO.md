@@ -1078,10 +1078,16 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   rectangular apertures (lift door, cabin, main door) against published SG typicals. Not done:
   (a) the CORRIDOR TURN from lift lobby to front door — the sources say measure it before ordering
   anything over 1.5 m, but a turn is not a rectangular aperture and modelling it needs lobby geometry
-  the app does not have; (b) a UI to enter the user's ACTUAL measured route, which the sources are
-  emphatic matters ("even a difference of 5 to 10 centimeters"). The core already takes a `route`
-  argument, so (b) is a form plus a persisted field — and it should reuse the `SiteMeasuredField`
-  pattern from v0.31.5.372/.272 rather than inventing a second measurement surface.
+  the app does not have; ~~(b) a UI to enter the user's ACTUAL measured route~~ — **DONE v0.31.9.0.**
+  `plan.deliveryRoute` (optional/additive like `siteMeasurements`, so no version bump), sparse and
+  per-DIMENSION via `resolveDeliveryRoute`, edited in the Accessibility panel's new Delivery route
+  section behind the `deliveryRouteMeasure` flag (pro). The report now names which figures it used.
+  The `SiteMeasuredField` GRAMMAR was reused — placeholder = the figure in force — but not the
+  component, which is bound to `siteMeasurements` keyed by (kind, targetId) in mm against a model
+  dimension; a route aperture has no model value to deviate from.
+  **(a) the CORRIDOR TURN is still not checked and now says so in the UI.** A turn is not a
+  rectangular aperture, so `AccessConstraint` cannot express it; a field the check ignored would be
+  worse than the note. Still needs lobby geometry the app does not have.
 - ~~**[layout critique] Add a walkway-width check using the SG figure, not the generic one.**~~
   **DONE v0.31.8.18 — and this entry's premise was WRONG.** It said the standards "disagree: 91 cm
   generic vs 'at least 70-80 cm' in SG guidance" and instructed a future check to "use the SG figure

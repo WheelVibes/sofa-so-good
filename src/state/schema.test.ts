@@ -477,6 +477,56 @@ describe('schema', () => {
     expect(patch.floorPlan?.roof).toEqual(roof)
   })
 
+  /**
+   * DELIVERY-ROUTE-OVERRIDE (v0.31.9.0). Additive + optional like `datum` and
+   * `siteMeasurements`, so this is a back-compat check as much as a round-trip:
+   * every plan saved before the field existed must still load.
+   */
+  it('round-trips measured delivery-route figures, and loads plans without them', () => {
+    const parsed = FloorPlanZ.parse({
+      id: 'route',
+      name: 'Measured',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [],
+      openings: [],
+      rooms: [],
+      deliveryRoute: { 'lift-door': { widthM: 0.75 }, 'main-door': { widthM: 0.82, heightM: 2.0 } },
+    })
+    expect(parsed.deliveryRoute).toEqual({
+      'lift-door': { widthM: 0.75 },
+      'main-door': { widthM: 0.82, heightM: 2.0 },
+    })
+    // Absent is the normal case and must stay valid.
+    const bare = FloorPlanZ.parse({
+      id: 'bare',
+      name: 'Typicals',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [],
+      openings: [],
+      rooms: [],
+    })
+    expect(bare.deliveryRoute).toBeUndefined()
+  })
+
+  it('rejects a non-positive delivery-route figure on load', () => {
+    // A stored 0 would block every piece in the catalogue and read as a
+    // catalogue-wide fault rather than as corrupt input, so it is refused at the
+    // boundary as well as ignored by `resolveDeliveryRoute`.
+    const bad = FloorPlanZ.safeParse({
+      id: 'bad',
+      name: 'Bad',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [],
+      openings: [],
+      rooms: [],
+      deliveryRoute: { 'lift-door': { widthM: 0 } },
+    })
+    expect(bad.success).toBe(false)
+  })
+
   it('loads a plan with no roof field fine (back-compat)', () => {
     const parsed = FloorPlanZ.parse({
       id: 'no-roof',

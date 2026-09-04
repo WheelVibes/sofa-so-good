@@ -481,6 +481,21 @@ export interface FloorPlan {
    * reconciliation sheet says explicitly rather than implying agreement.
    */
   siteMeasurements?: SiteMeasurement[]
+  /**
+   * The user's OWN measurements of the delivery route — lift door, lift cabin,
+   * main door — in metres, overriding `deliveryAccess.ts`'s published Singapore
+   * typicals.
+   *
+   * On the PLAN, not per-device, because the route is a property of the block
+   * this design is for: a shared or reopened design must carry it. Additive and
+   * optional (no version bump), exactly like `siteMeasurements` above; absent
+   * means the check is running on typicals, which is what it already says.
+   *
+   * Sparse by design — `{ 'lift-door': { widthM: 0.75 } }` overrides one
+   * dimension of one aperture and leaves the rest on the published figure, which
+   * is how someone measuring on site actually accumulates numbers.
+   */
+  deliveryRoute?: Record<string, { widthM?: number; heightM?: number }>
   /** Optional parametric roof over the top storey (UX research round 3,
    *  `parametricRoof` pro flag). Additive + optional — absent = no roof (the
    *  prior behaviour). Rendered by `apartment/Roof.tsx` from the pure
