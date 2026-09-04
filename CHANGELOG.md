@@ -29,6 +29,56 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.191 — the injection is VERIFIED in the compiled shader, metalness is 0, patches confirmed: an IMPASSE, and the likely error is mine
+
+`.190` named one unchecked thing: whether the injected `.replace` actually lands in the shader three
+compiles, since a `replace` with an absent needle is a silent no-op. Read it in situ — wrap the
+material's `onBeforeCompile` and force a recompile, so the captured shader is the one three passes,
+not a stub. 95 compiles captured, all identical in structure:
+
+| check | result |
+| --- | --- |
+| `#include <lights_fragment_end>` present before injection | **true** |
+| `reflectedLight.indirectDiffuse = visOcclusion …` present after | **true** |
+| assignment index vs `opaque_fragment` index | **3119 < 3973** — before the pixel is formed |
+| other writes to `indirectDiffuse` | **1** (only its own — nothing overwrites it) |
+| `visGain` | matches `scaleFor * 6` |
+
+**And `metalness` is 0** on every mapped material (`roughness` 0.92), which was the last term inside
+`BRDF_Lambert(material.diffuseColor)` — three computes
+`material.diffuseColor = diffuseColor.rgb * (1.0 - metalnessFactor)`, so a metallic material would
+have had almost no diffuse left for the map to multiply. It is not that.
+
+**Patch placement confirmed visually in BOTH frames**, which `.181` showed is not optional: the app's
+`ceil` patch and the reference's sit on the same ceiling region near the wall junction, each clipping
+the curtain rod at the same right edge.
+
+**So the impasse, stated plainly.** Every term is measured and the code is verified correct at every
+readable point, and the prediction still disagrees with the frame by **~13x**: predicted radiance
+`0.3210 * 9.3836 * 0.956 / pi = 0.885`, measured app radiance ≈ **0.065** (from 85.7 under Khronos
+with exposure 1.38), against a reference **0.589**.
+
+**The honest conclusion is that the error is most likely in MY measurement chain, not the code.**
+Every code-side quantity has now been read directly and each is right. What has *not* been validated
+end-to-end is the inversion of the app's Khronos-tone-mapped byte back to linear — I approximated
+Khronos PBR Neutral as sRGB, which is exactly the class of assumption that produced four wrong
+numbers in this thread (`.180`, `.183`, `.186`, and `.189`'s retraction). A 13x error in that
+inversion is entirely possible and I have no independent check on it.
+
+**What would settle it, and it is cheap:** render a known linear ramp through both pipelines. Feed
+the app a synthetic material of known linear value and read its byte; do the same in Blender under
+`Khronos PBR Neutral`. That calibrates the curve empirically and either resolves the 13x or converts
+it into a real code defect. Until then the arithmetic is not evidence either way.
+
+**Stopping this thread here for real.** It has consumed many rounds; the eliminations are recorded
+(bake ratio, albedo, bounce depth, direct term, `visGain`, bilinear/holes, exposure, shader
+injection, metalness, patch placement) and the next step is a curve calibration rather than another
+hypothesis. **Nothing about the shipped state depends on it**: gain 6 is an empirical display-space
+fit against three Cycles references, and the GI's measured benefit stands independently.
+
+Nothing shipped. Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.190 — every term in the prediction is now MEASURED, they all agree, and the app still renders ~10x darker
 
 `.189` said one free term remained. There were three; all are now read, none is the culprit, and the
