@@ -27,6 +27,44 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.76 — the kitchen picked its walls by shape, not by whether they were walls
+
+Three marooned appliances left after v0.31.8.75, all stoves, two undiagnosed. Both turned out to
+be in kitchens that **do** have flush walls — the stove just wasn't offered them.
+
+`arrangeKitchen`'s work triangle chooses its two candidate walls from the rect's **aspect**:
+`horizontal ? ['S','N'] : ['W','E']`. Nothing in that asks whether either edge has a wall behind
+it. So:
+
+| template | flush edges | stove sat on | distance |
+| --- | --- | --- | --- |
+| `tpl-hdb-2room` | N, E | **S** | 0.77 m from anything |
+| `tpl-condo-1bed` | S, W | **N** | 0.49–0.67 m |
+
+A stove needs a wall for its hood and flue. Ordering the two aspect edges **wall-backed first**,
+with aspect preserved as the tie-break, fixes `tpl-hdb-2room` — **3 marooned → 2, with zero
+collateral**: no item count moved, no new window or door blockage, nothing else in the suite
+shifted.
+
+### The last one is diagnosed, not fixed
+
+`tpl-condo-1bed`'s Open Kitchen is flush on S and W. Aspect gives `['S','N']`; S *is* preferred
+now, but the counter run already occupies it, so `placeFlush` falls through to **N — which is
+wall-less and free, so it succeeds**, and `toEnd` never reaches its `snapToWall` fallback. That
+fallback would have found the flush **west** wall via WALL-BACKED-EDGE.
+
+The fix is to make `toEnd` prefer its fallback over an unbacked long wall: wall-backed long walls,
+then `snapToWall` across all four edges, then an unbacked long wall. I have not taken it because
+it reorders the work-triangle's intent — fridge at one end, stove at the other — and that
+deserves its own measurement rather than being tacked onto this.
+
+`TODO.md` carries the trace and that plan.
+
+Looked at `tpl-hdb-2room` furnished: fridge, stove and range hood now line up flush along the east
+wall with the hood over the stove.
+
+Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.75 — a rect edge is not a wall. Three changes, none works alone
 
 Four releases on this thread, three of them no-code. This one lands, and the reason it took four

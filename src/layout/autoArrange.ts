@@ -1422,7 +1422,17 @@ function arrangeKitchen(
   // 2. Work triangle: push the fridge to one end of the longest run and the
   //    stove to the other, on a long wall.
   const horizontal = rect.x1 - rect.x0 >= rect.z1 - rect.z0
-  const longWalls: Edge[] = horizontal ? ['S', 'N'] : ['W', 'E']
+  // WALL-BACKED-EDGE, kitchen half (v0.31.8.76). The work triangle picked its
+  // two candidate walls from the rect's ASPECT alone, so a fridge or stove could
+  // take the long edge that has no wall behind it while a walled one went spare:
+  // `tpl-condo-1bed`'s Open Kitchen is flush on S and W and 0.49-0.67 m from any
+  // wall on N and E, and its stove sat on N; `tpl-hdb-2room`'s is flush on N and
+  // E and its stove sat on S, 0.77 m from anything. A stove needs a wall for its
+  // hood and flue. Wall-backed first, aspect preserved as the tie-break — a
+  // preference, and both edges are still tried.
+  const aspect: Edge[] = horizontal ? ['S', 'N'] : ['W', 'E']
+  const backedEdge = (e: Edge) => edgeHasWall(rect, e, ctx.walls)
+  const longWalls: Edge[] = [...aspect.filter(backedEdge), ...aspect.filter((e) => !backedEdge(e))]
   const M = 0.4 // end margin
   const toEnd = (it: FurnitureItem | undefined, low: boolean) => {
     if (!it) return

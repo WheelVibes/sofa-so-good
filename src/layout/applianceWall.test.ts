@@ -95,11 +95,11 @@ function gapToNearestWall(
 // `tpl-hdb-3room`'s Service Yard has a wall on its NORTH edge and none within
 // 0.80 m on the other three — because `snapToWall` chose its edge from the
 // piece's SEEDED position. A washing machine needs a wall for its plumbing.
-const KNOWN_MAROONED: string[] = [
-  'tpl-condo-3bed/stove 1.05',
-  'tpl-condo-1bed/stove 0.59',
-  'tpl-hdb-2room/stove 0.52',
-]
+// 3 -> 2 in v0.31.8.76: `tpl-hdb-2room`'s stove. `arrangeKitchen`'s work
+// triangle picked its two candidate walls from the rect's ASPECT alone, so the
+// stove took the long edge with no wall behind it (0.77 m from anything) while a
+// flush one went spare. Wall-backed first now, aspect as the tie-break.
+const KNOWN_MAROONED: string[] = ['tpl-condo-3bed/stove 1.05', 'tpl-condo-1bed/stove 0.59']
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')
 

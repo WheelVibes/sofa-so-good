@@ -932,8 +932,21 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   Net **+5 items with no losses anywhere** (3room +1, 4room +2, jumbo +1, studio +1) — trying
   more walls rescues pieces that previously had nowhere to go.
   **What is LEFT (3):** `tpl-condo-3bed/stove 1.05` (never placed at all — still at its room-centre
-  seed, see the ALONG-WALL entry, which is measured and declined), `tpl-condo-1bed/stove 0.59` and
-  `tpl-hdb-2room/stove 0.52`. Both are stoves, neither diagnosed.
+  seed, see the ALONG-WALL entry, which is measured and declined), `tpl-condo-3bed/stove 1.05` (never placed at all) and
+  `tpl-condo-1bed/stove 0.59`.
+  **`tpl-hdb-2room`'s stove is FIXED (v0.31.8.76)**: `arrangeKitchen`'s work triangle picked its
+  two candidate walls from the rect's ASPECT alone, so the stove took the long edge with no wall
+  behind it (0.77 m from anything) while a flush one went spare. Wall-backed first now, aspect as
+  the tie-break. Zero collateral — no item counts moved, no new blockage.
+  **`tpl-condo-1bed`'s stove is DIAGNOSED, not fixed.** Its Open Kitchen is flush on S and W and
+  0.49-0.67 m from any wall on N and E. Aspect gives long walls ['S','N']; S is wall-backed and
+  tried first, but the counter run is already there, so `placeFlush` falls to N — which is
+  wall-less and FREE, so it succeeds and `toEnd` never reaches its `snapToWall` fallback (which
+  would have found the flush WEST wall via WALL-BACKED-EDGE).
+  **The fix is to make `toEnd` prefer the fallback over an unbacked long wall**: try wall-backed
+  long walls, then `snapToWall` across all edges, and only then an unbacked long wall. Not taken
+  because it reorders the work-triangle intent (fridge one end, stove the other) and that wants
+  its own measurement.
 
 - **[ALONG-WALL SWEEP — MEASURED AND DECLINED TWICE (v0.31.8.7, v0.31.8.62). Do not re-attempt
   without a new idea.]** `snapToWall` tries exactly ONE along-wall position per edge — the
