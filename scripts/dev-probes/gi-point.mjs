@@ -102,6 +102,20 @@ await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
 await new Promise((r) => setTimeout(r, 5000))
+// WALK=1 puts the app in first person BEFORE the raycast. This matters and it silently changed a
+// result: in the default dollhouse view the wall-reveal path culls walls between the camera and
+// the room, so a ray aimed at the east wall of `livingDining` passed straight through and reported
+// a MISS at 208 m against the sky, while the same aim in walk mode hit that wall at 1.72 m. The
+// raycast uses its own synthetic camera either way — what changes is which meshes are VISIBLE, and
+// this probe filters on exactly that.
+if (process.env.WALK === '1') {
+  await page.evaluate(() => {
+    const st = window.__store.getState()
+    st.setCameraMode('firstPerson')
+    st.dismissCallout?.('walk-mode')
+  })
+  await new Promise((r) => setTimeout(r, 2500))
+}
 await assertSceneAlive(page, 'after tier')
 
 const hits = await page.evaluate(
@@ -155,12 +169,18 @@ const hits = await page.evaluate(
       try {
         if (m?.map?.image) {
           const img = m.map.image
-          const w = img.width ?? img.videoWidth ?? 0
-          const h = img.height ?? img.videoHeight ?? 0
-          if (w > 0 && h > 0) {
+          // `iw`/`ih`, NOT `w`/`h`: `const h = img.height` SHADOWED the hit object `h`, so the
+          // next line read `h.uv` off a number and threw "Cannot read properties of undefined
+          // (reading 'x')". Every surface carrying a base-colour map reported `mapAlbedo=ERR` and
+          // fell back to `material.color`, i.e. rho 1.000 — which is exactly the albedo error
+          // `v0.31.7.183` made when it fitted IRRADIANCE_GAIN to 3.59 and had to be corrected.
+          // The instrument had been unable to answer the question ever since.
+          const iw = img.width ?? img.videoWidth ?? 0
+          const ih = img.height ?? img.videoHeight ?? 0
+          if (iw > 0 && ih > 0) {
             const cv = document.createElement('canvas')
-            cv.width = w
-            cv.height = h
+            cv.width = iw
+            cv.height = ih
             const cx = cv.getContext('2d', { willReadFrequently: true })
             cx.drawImage(img, 0, 0)
             const uv = h.uv
@@ -170,8 +190,8 @@ const hits = await page.evaluate(
             const off = m.map.offset
             const u = (((uv.x * (rep?.x ?? 1) + (off?.x ?? 0)) % 1) + 1) % 1
             const v = (((uv.y * (rep?.y ?? 1) + (off?.y ?? 0)) % 1) + 1) % 1
-            const px = Math.min(w - 1, Math.max(0, Math.round(u * w - 0.5)))
-            const py = Math.min(h - 1, Math.max(0, Math.round((1 - v) * h - 0.5)))
+            const px = Math.min(iw - 1, Math.max(0, Math.round(u * iw - 0.5)))
+            const py = Math.min(ih - 1, Math.max(0, Math.round((1 - v) * ih - 0.5)))
             const d = cx.getImageData(px, py, 1, 1).data
             const dec = (b) => {
               const c = b / 255

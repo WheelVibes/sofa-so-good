@@ -113,6 +113,26 @@ await new Promise((r) => setTimeout(r, 3000))
 // also restores the shared original where a clone stood in, so the arm differs in the GI term and
 // nothing else. It REPORTS the count it detached, because "GI off" that detached zero maps is a
 // broken control that looks like a null result.
+// LIGHTS=off switches every placed lamp off, so a DAYLIGHT-ONLY frame can be compared with a
+// Cycles reference (which has no lamps). Same mechanism as `walk-tour.mjs`, and it likewise
+// REPORTS what it flipped: this probe previously ACCEPTED `LIGHTS=off` and silently ignored it,
+// so `v0.31.7.214` published two arms labelled "21:00 lamps off" that were rendered with the
+// lamps ON. The resolved line printed `realistic/on/manual21` at the time and I read it as a
+// label rather than as the state it is.
+if (process.env.LIGHTS === 'off') {
+  const flipped = await page.evaluate(() => {
+    const st = window.__store.getState()
+    const on = st.items.filter((it) => it.props?.lightOn !== 'no').map((it) => it.id)
+    let k = 0
+    for (const id of on) {
+      st.toggleLightPower(id)
+      if (window.__store.getState().items.find((it) => it.id === id)?.props?.lightOn === 'no') k++
+    }
+    return { candidates: on.length, flipped: k }
+  })
+  console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidates`)
+  await new Promise((r) => setTimeout(r, 1500))
+}
 if (process.env.GI === 'off') {
   const n = await page.evaluate(async () => {
     const { detachAllVisibilityLightmaps } = await import('/src/scene/applyVisibilityLightmaps.ts')

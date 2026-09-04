@@ -29,6 +29,61 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.215 — the GI term measured at three VERIFIED surfaces: a single uniform 0.73x, not a deficit; plus two probe bugs and one mislabelled arm from `.214`
+
+`.214` showed the ceiling deficit was a wrong-patch artefact. This re-derives the gain table's three
+surfaces properly — each one raycast-confirmed and confirmed GI-mapped — in ONE room from ONE camera
+position (`livingDining`, eye 10.8, 1.6, 4.1), at 21:00 with the lamps genuinely off so the
+measurement lands in the sensitive part of the transfer curve instead of AgX's shoulder.
+
+| surface | hit | texel | visGain | albedo | GI on | GI off | GI measured | GI predicted | ratio |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ceiling | y = 2.6 @ 1.10 m | 0.2353 | 10.562 | 0.956 | 192.7 | 35.9 | 0.553 | 0.756 | **0.73 ± 0.06** |
+| wall | x = 12.524 @ 1.72 m | 0.2314 | 10.532 | 0.899 | 189.6 | 48.1 | 0.516 | 0.697 | **0.74 ± 0.07** |
+| floor | y = 0.001 @ 1.75 m | 0.5098 | 5.264 | 0.318 | 148.3 | 43.0 | 0.199 | 0.272 | **0.73 ± 0.13** |
+
+Spread across the three: **0.008**. One uniform multiplicative factor, not a per-surface fault. And
+the measured values track ALBEDO across a 3x range (0.553 / 0.516 / 0.199 against 0.956 / 0.899 /
+0.318), which confirms the `BRDF_Lambert(material.diffuseColor)` term is doing its job.
+
+**Two reasons not to call this a 27 % shortfall yet, stated because they are the honest limits.**
+
+1. *The three surfaces are not three independent probes of the irradiance axis.* `texel * visGain`
+   comes out at 2.48 / 2.44 / 2.68 — nearly equal, by design, since the bake is an irradiance map
+   scaled per map. What varies genuinely here is albedo. An irradiance-axis test needs surfaces
+   whose `texel * visGain` actually differ.
+2. *The calibration curve was measured on a UNIFORM full-frame emitter.* The full-pipeline curve
+   includes bloom, and bloom on a screen-filling emitter contributes differently than on a lit patch
+   surrounded by a dark night interior. A systematic of roughly this size is plausible from that
+   alone, so 0.73 may be the instrument rather than the renderer. A bloom-free calibration would
+   separate them.
+
+**A probe bug that had been suppressing the albedo since `.183`.** In `gi-point.mjs`,
+`const h = img.height` SHADOWED the hit object `h`, so the next line read `h.uv` off a number and
+threw. Every surface carrying a base-colour map reported `mapAlbedo=ERR` and silently fell back to
+`material.color`, i.e. rho **1.000**. That is exactly the albedo error `.183` made when it fitted
+`IRRADIANCE_GAIN` to 3.59 and had to be corrected in `.184` — the instrument has been unable to
+answer that question ever since, and nobody noticed because it answered `ERR` rather than failing.
+Fixed, and the floor's real albedo reads **0.4564, 0.3095, 0.1878** (mean 0.318), which is what makes
+the floor row above meaningful at all.
+
+**A second probe trap, found by two probes disagreeing.** `gi-point` reported the `livingDining` east
+wall as a MISS at 208 m against the sky, while `aim-look` hit it at 1.72 m from the same aim. Cause:
+`gi-point` ran in the default DOLLHOUSE view, where the wall-reveal path culls walls between camera
+and room, and the probe filters on exactly that visibility. It now takes `WALK=1`.
+
+**And a correction to `.214`.** Its two arms labelled "21:00 lamps off" were rendered with the lamps
+**ON**: `aim-look.mjs` accepted `LIGHTS=off` and silently ignored it. The resolved line printed
+`realistic/on/manual21` at the time and I read it as a label rather than as the state it reports.
+The GI on/off comparison there is unaffected — both arms shared the same lamp state — but the
+numbers are not lamps-off numbers and the ratio derived from them (0.83-1.07 vs 0.844) was
+shoulder-limited anyway. The properly-lamps-off figures are the table above. `LIGHTS=off` is now
+implemented on the same mechanism as `walk-tour.mjs` and REPORTS what it flipped (19 of 87
+candidates), so a silently-ignored knob cannot happen again here.
+
+Nothing shipped. Gain 6 remains fitted on the floor.
+
+
 ## v0.31.7.214 — the GI ceiling deficit was never real: the injected term is present at the predicted magnitude, and the 85.7 was the wrong patch
 
 The thread's whole premise falls. With a calibrated curve in hand from `.211`-`.213`, the last step
