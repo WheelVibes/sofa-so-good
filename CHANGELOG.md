@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.192 — `(h)` moves for the first time since `.118`: three bedrooms get windows, 12 → 9
+
+`(h)` has been the largest open content item and untouched all session. `(z)`16 decided to fix it.
+Three of the twelve are done.
+
+**I nearly recorded a wrong finding, and the check that stopped it is worth stating.** A mirror
+analysis showed four of the twelve reachable by reading a window's offset from the other end — the
+documented `perimeter()` bug where S and W walls are built backwards. That looked like the doc's
+"none of the twelve is offset-fixable" being wrong, and I said so. It is not: **flipping
+`ex-b2-win` fixes `ex-bed2b` and breaks `ex-bed2`** — the windowless list swaps rather than shrinks
+and the count stays at 12. The doc was right and I checked before believing myself.
+
+**But the mirror was still useful — as a POSITION FINDER rather than a fix.** The mirrored offset
+names a spot on the same wall that lies inside the starved bedroom. So the fix is to **add** a
+window there, not move the existing one:
+
+| room | new window | wall | offset | clear of |
+| --- | --- | --- | --- | --- |
+| `tpl-hdb-exec/ex-bed2b` | `ex-b2b-win` | `ex-w` | 3.2 | `ex-m-win` 0.4–2.2, `ex-b2-win` 7.2–8.8 |
+| `tpl-hdb-3gen/g3-bed3` | `g3-b3b-win` | `g3-w` | 2.7 | `g3-b3-win` 7.0–8.5, `g3-m-win` 9.6–11.2 |
+| `tpl-hdb-jumbo/jb-bed3` | `jb-b3-win` | `jb-w` | 4.0 | `jb-b2-win` 7.4–9.0, `jb-m-win` 10.2–12.0 |
+
+All three are perimeter walls, so exterior along their length, and each offset was checked against
+the wall's existing openings. **The ratchet goes 12 → 9 with no new entry**, which is the property
+that matters: no room lost a window to gain another.
+
+**Four ratchets moved and each was read, not bumped.** Bedrooms owning a window 32 → **35**. Windows
+examined by the sightline test 78 → **81**, and clear windows 67 → **70** — *all three new windows
+are clear*, so item `(j)`'s blocked list is unchanged and this adds no sightline problem. Furnished
+items 1444 → **1448**.
+
+**An asymmetry recorded rather than chased:** `tpl-hdb-exec` and `tpl-hdb-3gen` each gained 2 items
+(the arranger dressed the new glass) and **`tpl-hdb-jumbo` gained none** — 120 either way — although
+its window is real and owned. That is an arranger question, not a plan one.
+
+**Honest limit on the verification.** The geometric ownership test is the authoritative check and it
+passes. The visual check did **not** land: `walk-tour`'s derived pose for `ex-bed2b` is placed by the
+walk collision solver into the adjoining hall (the minimap reads "BEDROOM 2 HALL"), so both captured
+yaws face a door. That is the pose-drift `light-distribution.mjs` retries around and `walk-tour` does
+not, so it is a probe limitation rather than evidence against the fix.
+
+Nine remain, including four masters (`g3-master`, `jb-master`, `cp-master`, plus `g3-gen`). Suite
+10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.191 — the injection is VERIFIED in the compiled shader, metalness is 0, patches confirmed: an IMPASSE, and the likely error is mine
 
 `.190` named one unchecked thing: whether the injected `.replace` actually lands in the shader three

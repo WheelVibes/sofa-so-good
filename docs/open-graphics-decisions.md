@@ -365,7 +365,12 @@ measured cost there is small. Benchmark on the Performance tier before committin
 
 ---
 
-## (h) BEDROOM-WINDOW — ⏳ STILL OPEN: **12 of 44 remain** and none is offset-fixable (measured v0.31.5.113)
+## (h) BEDROOM-WINDOW — ⏳ **9 of 44 remain** (`v0.31.7.192` fixed three) and none is offset-fixable (measured v0.31.5.113)
+
+> **`v0.31.7.192`:** `ex-bed2b`, `g3-bed3` and `jb-bed3` fixed by ADDING a window, not moving one.
+> The mirrored offset is a position FINDER: flipping the existing glass swaps it between two rooms
+> and leaves the count at 12 (measured), so "none is offset-fixable" stands. All three new windows
+> are clear of furniture, so item `(j)` is unchanged.
 
 > **⚠️ I CLOSED THIS IN ERROR ON 2026-09-04, and `v0.31.7.145` reopens it.** I read the three
 > "PLAN FIXED" notes below (`.115` `tpl-hdb-4room`, `.116` `tpl-hdb-5room`, `.118` `tpl-hdb-exec`)

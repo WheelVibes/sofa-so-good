@@ -26,13 +26,15 @@ const KNOWN_WINDOWLESS_BEDROOMS = [
   // h5-master FIXED in v0.31.5.116 — `h5-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (8.2 -> 1.0).
   'tpl-hdb-exec/ex-bed3',
-  'tpl-hdb-exec/ex-bed2b',
+  // ex-bed2b FIXED in v0.31.7.192 — a window ADDED at `ex-b2-win`'s mirrored offset (3.2). The
+  // mirror only IDENTIFIED the spot: flipping the existing window swaps the glass from `ex-bed2`
+  // to `ex-bed2b` and leaves the count at 12, so the fix is a new opening, not a moved one.
   // ex-master FIXED in v0.31.5.118 — `ex-m-win`'s offset was mirrored and put the
   // master's window in the KITCHEN. Corrected to the exact mirror (9.8 -> 0.4).
   'tpl-hdb-3gen/g3-gen',
-  'tpl-hdb-3gen/g3-bed3',
+  // g3-bed3 FIXED in v0.31.7.192 — window added at 2.7 on `g3-w`.
   'tpl-hdb-3gen/g3-master',
-  'tpl-hdb-jumbo/jb-bed3',
+  // jb-bed3 FIXED in v0.31.7.192 — window added at 4.0 on `jb-w`.
   'tpl-hdb-jumbo/jb-master',
   'tpl-condo-4bed/c4-bed4',
   'tpl-condo-penthouse/cp-master',
@@ -96,7 +98,8 @@ describe('template bedrooms have daylight', () => {
         }
       }
     // 29 until v0.31.5.115 (4-room), 30 until `.116` (5-room), 31 until `.118`
-    // (exec) gave their masters their windows back.
-    expect(owning).toBe(32)
+    // (exec) gave their masters their windows back, and 35 since `v0.31.7.192` added windows for
+    // `ex-bed2b`, `g3-bed3` and `jb-bed3`.
+    expect(owning).toBe(35)
   })
 })

@@ -117,11 +117,13 @@ describe('tall furniture does not stand in front of a window', () => {
     expect(blockedWindows().hits).toEqual(KNOWN_BLOCKED)
   })
 
-  // Without this the list could pass by measuring nothing: 78 windows are
-  // examined and 67 of them are clear.
+  // Without this the list could pass by measuring nothing: 81 windows are
+  // examined (78 before `v0.31.7.192` added three for item (h)) and most are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
-    expect(windows).toBe(78)
-    expect(windows - hits.length).toBe(67)
+    expect(windows).toBe(81)
+    // 70 since `v0.31.7.192`: all three windows added for item (h) are CLEAR, so the blocked list
+    // (item (j)) is unchanged and the new glass adds no sightline problem.
+    expect(windows - hits.length).toBe(70)
   })
 })

@@ -83,8 +83,8 @@ describe('dining chairs are tucked to their table', () => {
       // (the stray kitchen window had been blocking the extractor's wall, the
       // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
       // master's wardrobe had been dropped and now places.
-      'tpl-hdb-exec': 93,
-      'tpl-hdb-3gen': 95,
+      'tpl-hdb-exec': 95,
+      'tpl-hdb-3gen': 97,
       'tpl-hdb-jumbo': 120,
       'tpl-hdb-maisonette': 141,
       'tpl-studio': 23,
@@ -106,9 +106,15 @@ describe('dining chairs are tucked to their table', () => {
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
     // 1441 after `.115` restored the 4-room kitchen's range hood; 1442 after
     // `.116` restored the 5-room's; 1444 after `.118` restored the exec's hood
-    // AND its master wardrobe.
+    // AND its master wardrobe; 1448 after `v0.31.7.192` added windows for item (h) and the
+    // arranger dressed them (+2 in `tpl-hdb-exec`, +2 in `tpl-hdb-3gen`).
+    //
+    // `tpl-hdb-jumbo` gained a window too and its count did NOT move (120 either way), so the
+    // arranger does not dress every new window. Recorded rather than chased: it is an arranger
+    // question, not a plan one, and the window itself is owned (the ratchet in
+    // `bedroomWindow.test.ts` no longer lists `jb-bed3`).
     // Every step ADDED pieces — none of this deletes furniture.
-    expect(total).toBe(1444)
+    expect(total).toBe(1448)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

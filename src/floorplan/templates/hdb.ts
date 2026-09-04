@@ -206,6 +206,13 @@ export function hdbExecutive(): FloorPlan {
       door('ex-b2', 'ex-b2-s', 1.0),
       window('ex-kit-win', 'ex-n', 1.2, 1.8),
       window('ex-b2-win', 'ex-w', 7.2, 1.6),
+      // (h) BEDROOM-WINDOW: `ex-bed2b` shipped with no window on any of its own walls.
+      // ADDED rather than moved: `ex-b2-win`'s MIRRORED offset (7.2 -> 3.2) lands inside
+      // `ex-bed2b`, which is what identified the position -- but flipping it merely swaps the
+      // glass from `ex-bed2` to `ex-bed2b` and the windowless count stays at 12 (measured).
+      // `ex-w` is a perimeter wall, so it is exterior along its length, and 3.2-4.8 is clear
+      // of `ex-m-win` (0.4-2.2) and `ex-b2-win` (7.2-8.8).
+      window('ex-b2b-win', 'ex-w', 3.2, 1.6),
       // BEDROOM-WINDOW (v0.31.5.118): was 9.8, which put the master's window at
       // offsets 9.8-11.6 — in the KITCHEN (9.2-12.0 of this wall). `ex-w` runs
       // north→south (len 12.0); 12.0 - 9.8 - 1.8 = 0.4 mirrors it into
@@ -261,6 +268,9 @@ export function hdb3Gen(): FloorPlan {
       door('g3-b3', 'g3-b3-s', 1.0),
       window('g3-kit-win', 'g3-n', 1.2, 1.6),
       window('g3-b3-win', 'g3-w', 7.0, 1.5),
+      // (h): `g3-bed3` owned no window. Position from `g3-b3-win`'s mirrored offset
+      // (7.0 -> 2.7); clear of `g3-m-win` (9.6-11.2).
+      window('g3-b3b-win', 'g3-w', 2.7, 1.5),
       window('g3-m-win', 'g3-w', 9.6, 1.6),
       window('g3-gen-win', 'g3-e', 3.8, 1.6),
       window('g3-liv-win', 'g3-e', 7.4, 2.0),
@@ -319,6 +329,9 @@ export function hdbJumbo(): FloorPlan {
       door('jb-b2', 'jb-b2-s', 1.0),
       window('jb-kit-win', 'jb-n', 1.6, 1.8),
       window('jb-b2-win', 'jb-w', 7.4, 1.6),
+      // (h): `jb-bed3` owned no window. Position from `jb-b2-win`'s mirrored offset
+      // (7.4 -> 4.0); clear of `jb-m-win` (10.2-12.0).
+      window('jb-b3-win', 'jb-w', 4.0, 1.6),
       window('jb-m-win', 'jb-w', 10.2, 1.8),
       window('jb-liv-win', 'jb-e', 2.0, 2.2),
       window('jb-b4-win', 'jb-e', 8.0, 1.6),
