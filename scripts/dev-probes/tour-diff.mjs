@@ -24,6 +24,11 @@ import { readdirSync } from 'node:fs'
 import sharp from 'sharp'
 
 const [a, b] = [process.argv[2], process.argv[3]]
+// Labels from the DIRECTORY NAMES. They were hardcoded as `gain4.2`/`gain6` for the change this
+// probe was written for, and printed those headings for an unrelated gap-ceiling comparison — a
+// caption that names the wrong variable is how a correct measurement gets filed under the wrong
+// conclusion.
+const [la, lb] = [a, b].map((d) => d.replace(/\/+$/, '').split('/').pop().slice(0, 12))
 const files = readdirSync(a)
   .filter((f) => f.endsWith('.png'))
   .sort()
@@ -42,9 +47,7 @@ for (const f of files) {
   rows.push({ f: f.replace('.png', ''), A: await stat(a), B: await stat(b) })
 }
 rows.sort((x, y) => x.A - y.A)
-console.log(
-  `${'frame'.padEnd(20)} ${'gain4.2'.padStart(8)} ${'gain6'.padStart(8)} ${'delta'.padStart(7)}`,
-)
+console.log(`${'frame'.padEnd(20)} ${la.padStart(8)} ${lb.padStart(8)} ${'delta'.padStart(7)}`)
 for (const r of rows)
   console.log(
     `${r.f.padEnd(20)} ${r.A.toFixed(1).padStart(8)} ${r.B.toFixed(1).padStart(8)} ${(r.A - r.B).toFixed(1).padStart(7)}`,
@@ -52,9 +55,9 @@ for (const r of rows)
 const mA = rows.reduce((s, r) => s + r.A, 0) / rows.length
 const mB = rows.reduce((s, r) => s + r.B, 0) / rows.length
 console.log(
-  `\nMEAN over ${rows.length} frames: gain4.2 ${mA.toFixed(1)}  gain6 ${mB.toFixed(1)}  delta ${(mA - mB).toFixed(1)}`,
+  `\nMEAN over ${rows.length} frames: ${la} ${mA.toFixed(1)}  ${lb} ${mB.toFixed(1)}  delta ${(mA - mB).toFixed(1)}`,
 )
 console.log(`darkest frame: ${rows[0].f} at ${rows[0].A.toFixed(1)} (was ${rows[0].B.toFixed(1)})`)
 console.log(
-  `frames under 40 counts: gain4.2 ${rows.filter((r) => r.A < 40).length}  gain6 ${rows.filter((r) => r.B < 40).length}`,
+  `frames under 40 counts: ${la} ${rows.filter((r) => r.A < 40).length}  ${lb} ${rows.filter((r) => r.B < 40).length}`,
 )

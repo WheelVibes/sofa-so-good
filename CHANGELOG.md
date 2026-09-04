@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.235 — verifying `.234`: the dollhouse is not lidded, and closing the holes removes a DAYLIGHT LEAK worth 16 counts in the worst room
+
+Three checks on the gap ceilings, one of which I had not thought to make until the frames prompted
+it.
+
+**The dollhouse is not lidded.** Room ceilings are described as "downward-facing — seen in walk,
+culled in orbit", and the gap fill reuses `PlanRoomCeiling`, so it inherits that. Confirmed rather
+than assumed: an isometric orbit frame of `tpl-hdb-4room` shows rooms, walls and furniture from
+above with no lid. Had this been wrong it would have been a severe regression — the dollhouse is the
+view the product leads with.
+
+**The walk view is clean.** Looking up at the former slit shows a continuous ceiling: no z-fighting
+stripes at the room/gap boundary, which is the artefact the "include wall footprints so the fill
+abuts exactly" decision was meant to prevent.
+
+**And the fix removes an unintended light leak, which I had not anticipated.** Those holes were open
+to the sky, so daylight was pouring through them. Closing them must darken the affected rooms — and
+that is more correct, not less, but it needed measuring rather than discovering later. Whole-tour
+before/after on `tpl-hdb-4room` at 13:00, control by reverting `PlanShell` with a `cp`-backed edit
+and re-running the same 36-frame tour:
+
+| | with gap ceilings | without | delta |
+| --- | --- | --- | --- |
+| mean over 36 frames | 182.5 | 183.8 | **−1.3 (0.7 %)** |
+| darkest frame (`h4-shelter-y3`) | **131.8** | 148.2 | **−16.4 (11 %)** |
+| frames under 40 counts | 0 | 0 | — |
+
+So the leak was worth 11 % in the worst room — the household shelter, which sits against unassigned
+area — and under a percent overall. No gloom cliff, and the direction is right: a windowless bunker
+should not be lit by a hole in its ceiling.
+
+**A probe honesty fix in the same commit.** `tour-diff.mjs` had its column headings hardcoded as
+`gain4.2`/`gain6` from the change it was written for, and it printed those over this gap-ceiling
+comparison. A caption naming the wrong variable is how a correct measurement gets filed under the
+wrong conclusion, so the labels now come from the directory names.
+
+Still deferred: the tier benchmark, because the `--min-area 1.5` bake is still saturating the CPU
+(73 maps). Suite 10219 green.
+
+
 ## v0.31.7.234 — SHIPPED: gap ceilings close the sky holes in 16 templates. Rays that left the scene now hit a ceiling
 
 `PlanShell` renders `ceilingGapRects(lp)` as ceiling planes over the footprint no room covers,
