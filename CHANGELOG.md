@@ -29,6 +29,62 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.218 — app vs Cycles at verified surfaces: the GI's DISTRIBUTION is right to ~1 %, the absolute level is 1.38x high
+
+With a trustworthy instrument at last, the gain table gets the comparison it was always missing: the
+app against a Cycles render of **its own exported scene**, at the same pose, the same sun vector and
+the same lamp state, read at the same three raycast-verified surfaces.
+
+**The missing infrastructure, now a probe.** `scripts/dev-probes/scene-glb.mjs` exports the live
+scene through the app's own `buildExportRoot` + `exportGlb` (so it cannot drift from what the
+product exports) and writes a Blender-ready manifest beside it: the sun's direction of travel, and
+each camera pose resolved by the APP rather than recomputed — teleport, then read the real camera
+basis back out of its matrix. Deriving a forward vector by hand from yaw/pitch is how a pose gets
+quietly mis-stated, which `aim-look.mjs` did with `setPitch` earlier in this arc. It also records
+tier, hour, lights and **exposure**, because `.217` showed a reference render is only comparable if
+that state is known. Previously this step was ad hoc: `/tmp/bref/scene.glb` exists with no probe
+that made it, at a pose unrelated to any current measurement.
+
+Method: 69.6 MB GLB exported at 13:00 with the lamps off (daylight only, since Cycles has no lamps).
+Cycles at 48 samples, `--cam-space three`, `--fov 70 --fov-axis vertical`, `--sky`, the manifest's
+own `--sun-dir`, and `--view-transform Standard` so the reference bytes invert exactly through the
+sRGB OETF. App bytes inverted with a curve measured in the SAME state (exposure 1.38).
+
+| surface | app byte | app linear | Cycles byte | Cycles linear | app / Cycles |
+| --- | --- | --- | --- | --- | --- |
+| ceiling | 207.1 | 0.8027 | 200.9 | 0.5834 | 1.376 |
+| wall | 205.7 | 0.7755 | 197.6 | 0.5622 | 1.379 |
+| floor | 169.3 | 0.3157 | 130.9 | 0.2266 | 1.393 |
+
+**The distribution — which is what the gain table was actually about — matches to about a percent:**
+
+| pair | app | Cycles | agreement |
+| --- | --- | --- | --- |
+| ceiling / floor | 2.543 | 2.575 | **1.2 % off** |
+| wall / floor | 2.456 | 2.481 | **1.0 % off** |
+| ceiling / wall | 1.035 | 1.038 | **0.3 % off** |
+
+So the bake's spatial distribution reproduces a physically-based render of the same room to within
+a percent, and **the docstring's "the ceiling is 55 % short" is refuted** — that line came from the
+wrong patch (`.214`). There is nothing for a per-surface correction to fix.
+
+**What is off is the absolute level: uniformly ~1.38x brighter than the reference.** Uniform across
+three surfaces means a global lighting-level offset rather than a GI distribution error, so this
+gain cannot address it and should not be re-fitted for it. Two caveats before anyone acts on the
+number: the absolute comparison inherits `render_still.py`'s physical-sky calibration
+(`MULTIPLE_SCATTERING`, sun intensity 3.0), and the app's exposure is a deliberate artistic choice
+(`grade(altitude).exposure * toneExposureBias(mode) * st.exposure`). The coincidence between the
+measured ratio and `toneMappingExposure` = 1.38 is striking and **untested** — it is recorded as a
+coincidence, not diagnosed as a double-application, because nothing here isolates it.
+
+On precision: the quoted patch sigmas (2.6-7.3 counts, and 21-35 on the grainy floor) are SPATIAL
+variation within the patch, not noise on its mean — the means are over 410x256 and 128x80 pixels, so
+their standard error is well under a count. The relative figures cancel most of the remaining
+systematics, which is why they are the ones worth trusting.
+
+Nothing shipped. Gain 6 stands, and this is the first evidence that it stands for the right reason.
+
+
 ## v0.31.7.217 — RESOLVED: there is no GI shortfall. The 0.73x was an EXPOSURE MISMATCH in my own calibration
 
 `Lighting` writes `gl.toneMappingExposure` every frame from the day ramp: **1.38** at the default

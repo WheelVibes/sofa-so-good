@@ -107,6 +107,33 @@ import { LinearFilter } from 'three'
  * **So this whole gain table wants re-deriving against verified surfaces**, and the ceiling may
  * turn out to be over-bright rather than short. The shipped gain 6 is unaffected in the meantime:
  * it was fitted on the FLOOR, which is the binding constraint and was never in doubt.
+ *
+ * ### RE-DERIVED against Cycles at verified surfaces (`v0.31.7.218`)
+ *
+ * Same three surfaces, same camera position, 13:00 with the lamps off (daylight only), against a
+ * Cycles render of the app's OWN exported scene at the same pose and the same sun vector, through
+ * the `Standard` view transform so its bytes invert exactly. App bytes inverted with a curve
+ * measured in the SAME state (exposure 1.38), which is the step `.217` showed everything hinges on.
+ *
+ * | surface | app linear | Cycles linear | app / Cycles |
+ * | --- | --- | --- | --- |
+ * | ceiling | 0.8027 | 0.5834 | 1.376 |
+ * | wall | 0.7755 | 0.5622 | 1.379 |
+ * | floor | 0.3157 | 0.2266 | 1.393 |
+ *
+ * **The DISTRIBUTION is right to about a percent** — ceiling/floor 2.543 against 2.575 (1.2 %),
+ * wall/floor 2.456 against 2.481 (1.0 %), ceiling/wall 1.035 against 1.038 (0.3 %). That is what
+ * the table above was really trying to fix, and it needs no fixing: the bake's spatial
+ * distribution matches a physically-based render of the same room. **The "ceiling 55 % short" line
+ * is refuted** — it was the wrong patch (`.214`).
+ *
+ * What IS off is the absolute level: uniformly **~1.38x brighter than the physical reference**.
+ * Uniform across three surfaces means a global lighting-level offset, not a GI distribution error,
+ * so it is not addressable by this gain at all. Note two things before acting on it: the absolute
+ * comparison inherits `render_still.py`'s physical-sky calibration, and the app's exposure is an
+ * artistic choice (`grade(altitude).exposure * toneExposureBias * st.exposure`). The numerical
+ * coincidence between the ratio and `toneMappingExposure` = 1.38 is striking and UNTESTED — do not
+ * read it as a double-application without an experiment that isolates it.
  */
 export const IRRADIANCE_GAIN = 6
 
