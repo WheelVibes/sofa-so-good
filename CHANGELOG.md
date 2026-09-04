@@ -29,6 +29,60 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.181 — the ceiling thread RESOLVES: the bake deletes the glazing, so it and the reference were never the same room
+
+`.180` named the blocker — bake statistics are per-MESH, frame measurements are per-PATCH — and said
+the fix was co-located sampling. Built it (`gi-point.mjs`), and it produced two findings, the second
+of which ends the thread.
+
+**First: my "ceiling" patch was the top of a WALL.** `gi-point.mjs` casts a ray from a stated camera
+and reports the world hit point. The `ceilL` patch used since `.170` hits **(6.241, 2.38, 1.148)** —
+the x = 6.241 wall plane at 2.38 m, not the ceiling. The true ceiling is at y = 2.6 on a different
+mesh with a different map. So four rounds of "ceiling deficit" were measured on a wall, and the
+screen-space overlay could not show it because the top-left of a room frame looks like ceiling.
+
+**Second, with genuinely co-located numbers.** The probe reads the map PNG off disk at the hit's
+interpolated `uv1` (`E = texel * scale`), and `render_still.py` gains `--exposure` so a `Standard`
+reference can be stopped down out of clipping and inverted exactly. The inversion cross-checks: a
+wall reads 0.663 stopped-down against 0.660 unstopped.
+
+| | wall E | ceiling E | ceiling / wall |
+| --- | --- | --- | --- |
+| render **with glass** — what the app shows | 2.317 | 5.044 | **2.18** |
+| render **without glass** — what the bake does | 1.111 | 0.828 | **0.75** |
+| the **bake** | 0.3155 | 0.1575 | **0.50** |
+
+**`bake_material.py` calls `open_apertures()`, which DELETES the glazing**, on the stated grounds
+that "whitened or not, sealed glazing makes the interior nearly black". Measured here, that premise
+is backwards for the unwhitened irradiance pass: deleting the glazing makes the room **darker** —
+wall −25 counts, ceiling −71 — so the glazing contributes light rather than sealing it in.
+
+Once the reference is put in the bake's own scenario the disagreement mostly evaporates: the bake's
+ceiling/wall ratio of 0.50 sits near that scenario's 0.75, not the app's 2.18, and the gain each
+would need falls from **7.3 / 32.0** to **3.5 / 5.3** — both near the shipped 6. So the bake is
+broadly consistent with Cycles *for the room it actually models*. It models a room whose windows are
+holes; the app renders one with glass in them.
+
+**That is the defect, and it is upstream of everything this thread chased.** Coverage, gain,
+per-map scale and atlas slots were all fine. The baked indirect is computed for a different lighting
+scenario than the one it is applied to, and the error is geometry-dependent — surfaces that see the
+aperture are affected differently from those that do not, which is exactly why no single gain could
+fit both a wall and a ceiling (`.170`).
+
+**Two eliminations that now stand on the right patch.** Sun-bounce is genuinely dead: with the sun
+disc off, the TRUE ceiling moves **−0.1 counts** (the earlier refutation used the mis-placed patch,
+so it needed redoing, and it holds). And the app's own gain of 6 is not obviously wrong — it is close
+to what the bake's scenario wants.
+
+**Next**: bake the irradiance pass with the glazing INTACT and re-measure. If the premise in that
+comment is wrong for this pass, the fix is a flag, not a redesign — and it should move the ceiling,
+which is where the largest remaining deficit is.
+
+Nothing shipped. `render_still.py` gains `--exposure` and `--open-apertures`; `gi-point.mjs` is new.
+
+Suite 10170 green, `tsc` and biome clean.
+
+
 ## v0.31.7.180 — the ceiling question is NOT resolved, and the blocker is now named: co-located sampling
 
 Four attempts across `.170`–`.172` and this one have failed to settle whether the ceiling deficit is

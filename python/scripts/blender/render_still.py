@@ -30,6 +30,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy  # noqa: E402
 import cli_argv  # noqa: E402
+import render_visibility as RV  # noqa: E402
 import hdri  # noqa: E402
 import sofa_scene as S  # noqa: E402
 
@@ -85,6 +86,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "(v0.31.7.170 had to qualify exactly that). `Standard` is plain sRGB with "
                         "no shoulder, so ratios survive. The enum reads only NONE under "
                         "--factory-startup and is still assignable, like `engine`.")
+    p.add_argument("--exposure", type=float, default=None,
+                   help="scene exposure in STOPS, applied before the view transform. Pair with "
+                        "`--view-transform Standard` to get an exactly invertible reference: "
+                        "Standard is plain sRGB with no shoulder, so linear = sRGB_EOTF(byte/255) "
+                        "* 2**-exposure. Needed because a bright interior CLIPS under Standard — "
+                        "v0.31.7.181 measured a ceiling at 255.0 with sd 0.0, which carries no "
+                        "information at all. Stops down, measure, multiply back.")
+    p.add_argument("--open-apertures", action="store_true", dest="open_apertures",
+                   help="delete the glazing before rendering, exactly as the irradiance BAKE does. "
+                        "Not a rendering preference — it makes the reference and the bake the same "
+                        "lighting scenario. bake_material.py calls `open_apertures()` on the "
+                        "grounds that 'whitened or not, sealed glazing makes the interior nearly "
+                        "black', so a reference WITH glass and a bake WITHOUT it are not measuring "
+                        "the same room, and the difference is geometry-dependent: a wall that sees "
+                        "the aperture gains more than a ceiling that does not.")
     p.add_argument("--no-network", action="store_true", help="never fetch an HDRI")
     p.add_argument("--json", action="store_true", help="emit a machine-readable result line")
     return p.parse_args(cli_argv.normalise(p, argv))
@@ -149,6 +165,11 @@ def render(a: argparse.Namespace) -> dict:
     else:
         S.place_camera(pos, look_at=target or centre, fov_deg=a.fov, fov_axis=a.fov_axis)
 
+    if a.open_apertures:
+        removed, _names = RV.open_apertures()
+        print(f"  open_apertures: deleted {removed} glazing object(s)")
+    if a.exposure is not None:
+        bpy.context.scene.view_settings.exposure = a.exposure
     if a.view_transform:
         # Set on `view_settings`, not `image_settings`: the latter is the FILE encoding and
         # silently ignores a view transform, which is the same class of trap as `Image.save()`
