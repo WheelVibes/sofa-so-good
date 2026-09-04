@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.182 — `--keep-glazing`: the fix is a flag, and it corrects the ceiling MORE than the wall
+
+`.181` found that `bake_material.py` deletes the window glass before an irradiance bake, so the
+baked indirect light describes a room whose windows are holes while the app renders one with glass.
+This adds `--keep-glazing` and measures what it changes.
+
+**A/B at identical settings, one global `--scale` so every object is comparable, 107 objects in
+both:**
+
+| | glazing deleted (default) | **glazing kept** | ratio |
+| --- | --- | --- | --- |
+| bedroom3 wall, interior mean | 0.1424 | 0.3860 | **×2.71** |
+| bedroom3 ceiling, interior mean | 0.1316 | 0.5710 | **×4.34** |
+| median across 107 objects | — | — | ×1.83 |
+
+**The correction is geometry-dependent, which is the whole point.** Everything gets brighter, but
+the ceiling gains 4.34x against the wall's 2.71x, moving the bake's ceiling/wall ratio from
+**0.92 → 1.48** toward the reference's **2.18**. That is the signature `.170` was chasing when it
+found no single gain could fit both a wall and a ceiling: the error was never a level, it was a
+spatial bias, and a bias with an aperture in it corrects most where the aperture is least visible.
+
+It does not close the gap entirely (1.48 against 2.18), so glazing is a large part of the story and
+not all of it.
+
+**Note the consequence for the gain.** Baked values rise by 1.8–4.3x, so the shipped
+`VISIBILITY_GAIN = 6` would now over-brighten and has to be re-fitted against the same co-located
+references — `.181`'s point samples put the required gain at 7.3 (wall) and 32.0 (ceiling) for the
+old maps, and both should fall sharply. Shipping the new maps without re-fitting would be a
+regression, so a production bake is running and the fit comes with it.
+
+**A note on the edit itself.** The two-line `open_apertures()` call appears **twice** in the file —
+once in the irradiance branch and once in the visibility branch, which also whitens. A
+text-substitution guard caught it (`count == 2`) before the wrong one was changed; the visibility
+pass genuinely does need the glazing gone, because whitening turns glass into a solid white wall and
+its first run produced an image whose maximum pixel was 2 of 255.
+
+Nothing shipped. `bake_material.py` gains `--keep-glazing`, default off, so existing behaviour and
+the visibility pass are untouched.
+
+Suite 10170 green, `tsc` and biome clean.
+
+
 ## v0.31.7.181 — the ceiling thread RESOLVES: the bake deletes the glazing, so it and the reference were never the same room
 
 `.180` named the blocker — bake statistics are per-MESH, frame measurements are per-PATCH — and said

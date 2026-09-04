@@ -207,6 +207,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--min-area", type=float, default=3.0,
                    help="only bake meshes with at least this much surface area (m2), which "
                         "selects the room shell without depending on mesh names")
+    p.add_argument("--keep-glazing", action="store_true", dest="keep_glazing",
+                   help="do NOT delete the window glass before an irradiance bake. The default "
+                        "deletes it on the grounds that 'whitened or not, sealed glazing makes the "
+                        "interior nearly black' -- and v0.31.7.181 measured that backwards for this "
+                        "pass, which does not whiten. It matters because the app renders WITH "
+                        "glass, so a bake without it computes indirect light for a different room, "
+                        "and the error is geometry-dependent: surfaces that see the aperture are "
+                        "affected differently from those that do not, which is why no single gain "
+                        "ever fit both a wall and a ceiling.")
     p.add_argument("--limit", type=int, default=24, help="cap on objects baked, largest first")
     p.add_argument("--albedo", type=float, default=0.81,
                    help="white-diffuse albedo for a visibility bake. 0.81 is MEASURED, not "
@@ -1353,7 +1362,12 @@ def main(argv: list[str] | None = None) -> int:
         # Captured BEFORE the apertures are opened -- `open_apertures()` deletes these objects,
         # and the portal has to sit in the hole they leave.
         pbounds = glazing_bounds(RV.find_glazing()) if a.portals else []
-        removed, _ = RV.open_apertures()
+        removed = 0
+        if not a.keep_glazing:
+            # DEFAULT deletes the glazing. `v0.31.7.181` measured the stated reason backwards for
+            # THIS pass, which does not whiten: rendering the same scene with the glazing removed
+            # came out DARKER (wall -25 counts, ceiling -71), so the glass is not sealing the room.
+            removed, _ = RV.open_apertures()
         portals = add_portals(pbounds) if a.portals else 0
         sky_info = S.setup_world_sky_from_three_direction(
             tuple(directional[0]["travel"]), sun_disc=a.with_sun_disc
