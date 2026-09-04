@@ -27,6 +27,56 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.91 — correcting v0.31.8.90: the app was NOT showing keyboard hints on touch
+
+I claimed last release that the walk HUD "is showing KEYBOARD hints (Click to look, W/A/S/D, Esc)
+on a touch device that has none". **It is not.** `WalkHud` has had an `IS_COARSE_POINTER` branch
+all along and renders "Walk mode · Joystick to move · Drag to look" on a phone, joystick and all —
+confirmed by re-running the same scenario with `SHOT_TOUCH=1`.
+
+What I was actually looking at was the DESKTOP branch at 390 px, because the `viewport` step I
+had just added sets width but **not pointer type**, and `IS_COARSE_POINTER` reads
+`matchMedia('(pointer: coarse)')`. I added an instrument, read its output as a product defect,
+and wrote it up without checking the branch it had selected.
+
+### There IS a real bug underneath, and it is narrower than the claim
+
+The desktop hint bar measures **446 px** with `white-space: nowrap` and no `max-width`, so on any
+viewport narrower than that the centred pill overhangs BOTH edges and clips a character off each
+end. That is reachable without a phone: `WalkHud` picks CONTENT by pointer type while the shell
+switches LAYOUT by width, so a narrowed desktop window gets mobile layout with keyboard hints —
+and the hints are *correct* there (a narrow window still has a keyboard), the bar just has to fit.
+
+Fixed in CSS with no breakpoint: `flex-wrap: wrap` + `max-width: calc(100vw - 2 * var(--s-4))`,
+`white-space: nowrap` moved from the container to the GROUPS so it breaks between hints and never
+mid-phrase, and `.walk-hud-sep` given a fixed `1em` height instead of `align-self: stretch` (which
+would have spanned every row it landed beside once wrapping was possible). No breakpoint is needed
+because on a wide window the cap never binds and there is nothing to wrap.
+
+Measured:
+
+| viewport | before | after |
+|---|---|---|
+| 1600 | 446 x 37, one row | **446 x 37, one row — unchanged** |
+| 390 | 446 wide, overhangs 28 px each side | fits |
+| 320 | 446 wide, overhangs 63 px each side | 160 x 104, four centred rows |
+
+Verified visually at 1600 (single row, separator and all four hints intact), 390 and 320 (wrapped,
+nothing clipped), plus a geometry assert that the pill never overhangs the viewport.
+
+### The scenario can no longer audit the wrong branch silently
+
+`SHOT_TOUCH` is a launch-time env var, so a scenario cannot request it. `walk-mobile-hud.json`
+now says so in its description AND carries a `require-touch-emulation` step that throws when
+`(pointer: coarse)` does not match. Verified both ways: it fails with that message without
+`SHOT_TOUCH=1`, and passes with it.
+
+**Noted, not fixed:** the HUD banner's visibility is a flat 5 s timer started on walk entry, and
+the transition splash can cover 3-6 s of it (15 s headless) — so the hints can be most of the way
+faded before the user sees the scene they annotate. Harmless on real hardware where the
+transition is sub-second; it is why both narrow screenshots needed the class removed to capture
+the bar at all. In `TODO.md`.
+
 ## v0.31.8.90 — 34 more scenarios were screenshotting the transition splash
 
 v0.31.8.89 closed with the transferable half of that fix: *the splash bug was never
@@ -81,7 +131,9 @@ come from a `viewport` step. Added 390x844.
 **That immediately surfaced the defect the scenario was built for.** The walk HUD's bottom hint
 bar is horizontally CLIPPED at 390 px — it reads "alk mode … show curs", losing a character at
 each end — and it is showing KEYBOARD hints ("Click to look", W/A/S/D, "Esc") on a touch device
-that has none. Recorded in `TODO.md` rather than folded in here: it is a real UI fix with
+that has none. **[The second half of that sentence is WRONG — corrected in v0.31.8.91.
+`WalkHud` has a coarse-pointer branch and renders "Joystick to move · Drag to look" on a real
+phone. A `viewport` step sets width, not pointer type, so I was looking at the desktop branch.]** Recorded in `TODO.md` rather than folded in here: it is a real UI fix with
 Simple/Pro and token obligations, and this release is about the harness lying.
 
 **Also found, pre-existing, NOT caused by the sweep:** `walkcam.json` fails at

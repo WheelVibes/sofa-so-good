@@ -1,6 +1,6 @@
 {
   "name": "walk-mobile-hud",
-  "description": "Mobile walk mode: 'Walking through' callout sits top-centre (below home/menu buttons, clear of the bottom-left joystick) and the controls banner + joystick clear the bottom safe-area.",
+  "description": "Walk-mode HUD on a real phone viewport. MUST be run with SHOT_TOUCH=1 \u2014 `(pointer: coarse)` is what `WalkHud` branches on, and without it the app renders the DESKTOP hint bar at phone width, which is not what this scenario audits. The guard step below fails loudly rather than let that happen silently again (v0.31.8.91).",
   "url": "http://localhost:5173/",
   "viewport": {
     "width": 390,
@@ -25,6 +25,10 @@
         "deviceScaleFactor": 2
       },
       "failMessage": "this scenario is named for the MOBILE walk HUD but had no viewport step, so it screenshotted at desktop width and never audited the mobile HUD at all (v0.31.8.90). `resize_window` clamps at ~606px, so a true phone width needs a `viewport` step."
+    },
+    {
+      "name": "require-touch-emulation",
+      "eval": "(()=>{ if (!window.matchMedia('(pointer: coarse)').matches) throw new Error('run with SHOT_TOUCH=1: without it WalkHud renders the DESKTOP hint bar and this scenario audits the wrong branch') })()"
     },
     {
       "name": "dismiss-overlays",

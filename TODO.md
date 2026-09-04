@@ -45,7 +45,31 @@ APPEAR and then to GO. `backdrop-walk-simple`'s final assert works again. Three 
 NOT work (`loading.active`, label text, text-appear-then-disappear) are written up in
 `docs/visual-verification-playbook.md` — read that before touching this.
 
-## The walk HUD's hint bar is clipped on a phone, and shows KEYBOARD hints there
+## ~~The walk HUD's hint bar is clipped on a phone, and shows KEYBOARD hints there~~ — CORRECTED + FIXED (v0.31.8.91)
+
+**The "keyboard hints on touch" half was WRONG.** `WalkHud` has an `IS_COARSE_POINTER` branch and
+renders "Joystick to move · Drag to look" on a real phone. The `viewport` step added in
+v0.31.8.90 sets width but NOT pointer type, so I was reading the desktop branch and reported it as
+a product defect. `walk-mobile-hud.json` now carries a `require-touch-emulation` step so it cannot
+audit the wrong branch silently — `SHOT_TOUCH` is launch-time env, not a scenario key.
+
+**The clipping half was real, and is fixed.** The desktop bar was 446 px with `white-space: nowrap`
+and no cap, so it overhung both edges below ~446 px — reachable on a narrowed DESKTOP window,
+since content branches on pointer while layout branches on width. `flex-wrap` + a `100vw` cap, with
+`nowrap` moved to the groups. 1600 px unchanged at 446x37; 320 px wraps to 160x104 and fits.
+
+## The walk HUD banner's 5 s timer can expire behind the transition splash
+
+Found in v0.31.8.91. `WalkHud`'s `visible` is a flat `setTimeout(..., 5000)` started when
+`walking` turns true — but `setCameraMode` raises the transition splash over the top of it, and
+that splash lasts 3-6 s on real hardware-ish timings and up to 15 s headless. So the hints can be
+most of the way faded by the time the user can see the scene they annotate.
+
+Harmless where the transition is sub-second, and it is why both narrow-viewport screenshots in
+v0.31.8.91 needed `is-hidden` removed by hand to capture the bar at all. If it is worth fixing,
+the timer should start when the overlay CLEARS (`loading.active` going false is the store-visible
+edge), not when `walking` flips. Low priority — but do not re-measure the HUD without knowing
+about it, or you will screenshot an empty pill and think the bar is gone.
 
 Surfaced in v0.31.8.90, the moment `walk-mobile-hud.json` got the `viewport` step it had always
 been missing (it had been screenshotting the "mobile" HUD at desktop width, so it had never
