@@ -4,6 +4,23 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## A door into a bedroom should be checkable
+
+v0.31.8.83 added two service-band doors and v0.31.8.84 had to correct the claim that neither
+opened into a bedroom — both open into Bedroom 3 on their south side. Nothing in the suite asks
+"what is on the other side of this door", so nothing caught it; `MAIN-DOOR-ROOM` only checks
+`*-main` doors, and `bedroomPrivacy` asks a different question (do you CROSS a bedroom).
+
+**The check:** for every interior door, resolve the room on each side (the probe in
+`mainDoorRoom.test.ts` already does this) and flag a door opening into a `bedroom` /
+`masterBedroom`.
+
+**The hard half is the exemption.** A corridorless bedroom zone leaves nothing else to open onto,
+so a blanket rule would ban exactly the doors that make `tpl-hdb-4room` and `tpl-hdb-5room`
+reachable at all. It needs to be "…unless that bedroom would otherwise be unreachable", which
+means composing with the connectivity raster rather than the room graph. Worth doing once item
+(f)'s corridor re-plans land, since those are what would let the exemptions go away.
+
 ## The walk -> orbit return holds its "Switching to overview..." splash past any settle
 
 Found while adding `scripts/scenarios/window-backdrop-veil.json` (v0.31.8.50). Setting

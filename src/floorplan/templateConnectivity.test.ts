@@ -151,8 +151,12 @@ function roomGroups(
 // EMPTY as of v0.31.8.83 (SERVICE-BAND-ACCESS) — every shipped template is now
 // fully connected. `h4-svc-s` and `h5-svc-s` each carried NO opening, sealing
 // the kitchen/yard/shelter band and the living room off from the whole bedroom
-// half. One door each, placed where it lands on undeclared circulation on BOTH
-// sides (so it does not open into anybody's bedroom), joins the halves.
+// half. One door each joins the halves — but each opens into BEDROOM 3 on its
+// south side (v0.31.8.84 corrected an earlier claim that both sides were
+// undeclared circulation; only the north side is). A corridorless bedroom zone
+// leaves nothing else to open onto. CONNECTED IS NOT PRIVATE, which is why
+// `bedroomPrivacy.test.ts` exists alongside this one and still records four
+// walk-through bedrooms.
 //
 // Keep the list and the sweep: a new template, or an edited offset, can still
 // introduce one. 16 levels when first measured in v0.31.8.28.

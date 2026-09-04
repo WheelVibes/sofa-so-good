@@ -163,10 +163,17 @@ export function hdb4Room(): FloorPlan {
       // whole bedroom half: `templateConnectivity` counted two groups. The only
       // other candidate wall is `h4-liv-w`, and every offset on it opens straight
       // into a BEDROOM or a BATH, which is the thing item (f) is trying to remove.
-      // This offset lands on undeclared circulation on BOTH sides — the strip
-      // between the service yard and z=2.9 to the north, and the strip above
-      // bedroom 3 to the south — so it joins the two halves without putting a
-      // door into anybody's room.
+      // CORRECTION (v0.31.8.84): the offset lands on undeclared circulation to the
+      // NORTH only. To the south it opens into BEDROOM 3 — measured 0.5 m past
+      // the leaf. The strip between z=2.9 and bedroom 3's edge at z=3.4 is 0.5 m
+      // and is not a corridor.
+      //
+      // It is kept anyway, and the trade is explicit: before this door the whole
+      // bedroom half of the flat could not be reached at all. A corridorless
+      // bedroom zone leaves nothing else to open onto — which is exactly the
+      // content problem `docs/open-graphics-decisions.md` item (f) defers, and
+      // exactly why `bedroomPrivacy.test.ts` exists alongside
+      // `templateConnectivity.test.ts`: connected is not the same as private.
       door('h4-svc-door', 'h4-svc-s', 4.0),
       window('h4-kit-win', 'h4-n', 1.4, 1.6),
       window('h4-b2-win', 'h4-w', 4.0, 1.4),
@@ -219,10 +226,10 @@ export function hdb5Room(): FloorPlan {
       door('h5-master', 'h5-m-n', 1.0),
       // SERVICE-BAND-ACCESS (v0.31.8.83), same shape as `h4-svc-door`.
       // `h5-svc-s` (z=3.2) carried no opening, sealing the kitchen/yard/shelter
-      // band and the living room off from the whole bedroom half. This offset
-      // lands on undeclared circulation on BOTH sides — the strip between the
-      // shelter and z=3.2 to the north, and the strip above bedroom 3 to the
-      // south — so it joins the halves without putting a door into a bedroom.
+      // band and the living room off from the whole bedroom half.
+      //
+      // CORRECTION (v0.31.8.84): undeclared circulation to the NORTH only; to the
+      // south this opens into BEDROOM 3. See the `h4-svc-door` note for the trade.
       door('h5-svc-door', 'h5-svc-s', 4.2),
       window('h5-kit-win', 'h5-n', 1.6, 1.8),
       window('h5-b2-win', 'h5-w', 4.4, 1.5),

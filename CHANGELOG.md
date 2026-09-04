@@ -27,6 +27,52 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.84 — correcting v0.31.8.83: those doors open into Bedroom 3
+
+Last release I wrote that the two new service-band doors *"land on undeclared circulation on
+BOTH sides — so they join the halves without putting a door into anybody's room."*
+
+**The south side opens into Bedroom 3.** Measured 0.5 m past each leaf:
+
+```
+tpl-hdb-4room  h4-svc-door  world (4.10,2.90)..(5.00,2.90)
+  z 2.00  UNDECLARED     z 2.40  UNDECLARED
+  z 3.40  Bedroom 3      z 3.80  Bedroom 3
+tpl-hdb-5room  h5-svc-door  world (4.30,3.20)..(5.20,3.20)
+  z 2.30  UNDECLARED     z 2.70  UNDECLARED
+  z 3.70  Bedroom 3      z 4.10  Bedroom 3
+```
+
+Undeclared to the north, a bedroom to the south. The strip between the wall and bedroom 3's edge
+is 0.5 m — not a corridor. I asserted the opposite in the release notes and in the code comment,
+and it was the one thing about that change most worth getting right, since **not putting doors
+into bedrooms is precisely what item (f) is about.**
+
+### The doors stay, with the trade stated instead of hidden
+
+Before them the whole bedroom half of both flats could not be reached at all. A corridorless
+bedroom zone leaves nothing else to open onto — which is the content problem (f) defers, and
+exactly why `bedroomPrivacy.test.ts` exists alongside `templateConnectivity.test.ts`:
+**connected is not private.** Privacy still records four walk-through bedrooms and has not moved.
+
+The correction is in the two template comments and in `templateConnectivity`'s docstring, where
+the next reader will actually meet it.
+
+### How I found it, and what that says
+
+Not from a test — everything passes, and nothing in the suite asks "what is on the other side of
+this door". I found it while investigating the four `routeAccess` findings the same change
+unmasked, by printing what lies 0.5 m either side of each leaf. **The claim was checkable in one
+run and I shipped it on inference instead.** That is the same failure as v0.31.8.77, one release
+after I wrote the lesson down.
+
+A check worth having: *no new door may open into a bedroom unless that bedroom is otherwise
+unreachable.* Recorded in `TODO.md` rather than built here, because it needs the "otherwise
+unreachable" half to avoid banning exactly the doors this release is defending.
+
+Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean. No behaviour change — comments and
+records only.
+
 ## v0.31.8.83 — every shipped template is now fully connected
 
 `templateConnectivity`'s ratchet is **empty**. It held 16 levels when first measured in
