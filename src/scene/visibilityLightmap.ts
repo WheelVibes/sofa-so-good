@@ -161,6 +161,34 @@ import { LinearFilter } from 'three'
  * 214.1 at 17:00) because direct sun reaches it at runtime, while the CEILING does not (207.1 vs
  * 208.6) because it is lit almost entirely by the static bake. What is missing is the
  * sun-dependent INDIRECT term, and that has a spatial shape, not just a level.
+ *
+ * ### The BAKE's own distribution is off 1.61x, and the runtime ambient hides it (`v0.31.7.222`)
+ *
+ * Decomposing BOTH sides at 13:00 with the lamps off — the app by detaching every map (`GI=off`),
+ * Cycles by zeroing the sky's sun disc (`--sun-energy 0`). For these two patches that leaves a
+ * pure-indirect reference, since neither receives direct sun: the sun's share is 0.0155 on the
+ * ceiling and 0.0048 on the floor.
+ *
+ * | surface | app runtime only | bake adds | app total | physical indirect | bake / physical |
+ * | --- | --- | --- | --- | --- | --- |
+ * | ceiling | 0.0913 | 0.7114 | 0.8027 | 0.5679 | **1.25x too strong** |
+ * | floor | 0.1431 | 0.1726 | 0.3157 | 0.2217 | **0.78x too weak** |
+ *
+ * So the bake's own ceiling/floor distribution is wrong by **1.61x**, and in the OPPOSITE direction
+ * to the table at the top of this docstring: the ceiling is too STRONG relative to the floor, not
+ * 55 % short.
+ *
+ * It is hidden because the app's runtime ambient/IBL already delivers a large share of the floor's
+ * total — 0.1431 against a physical total of 0.2266, i.e. **63 %** — and only 16 % of the
+ * ceiling's. The bake then adds a full indirect term on top, so the runtime term and the bake
+ * OVERLAP, and at this hour the overlap compensates the bake's distribution error almost exactly.
+ * `v0.31.7.218` measured the TOTAL distribution as right to ~1 %, and that reading stands, but it
+ * is two errors cancelling rather than a bake that is right.
+ *
+ * Any correction has to address the overlap first. Re-fitting this gain against the TOTALS would
+ * preserve the cancellation and stay wrong per-term; re-fitting against the physical INDIRECT would
+ * fix the ceiling and break the floor, because the floor's runtime share is four times the
+ * ceiling's.
  */
 export const IRRADIANCE_GAIN = 6
 

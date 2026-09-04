@@ -29,6 +29,66 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.222 — the deciding measurement: interior indirect is 78-100 % SKY-driven, and the bake's own distribution is off 1.61x with the runtime ambient hiding it
+
+`.221` named the measurement that would choose between the two expensive fixes: a Cycles sky-only
+versus sun-only decomposition. It chose — and it also overturned two of my own earlier readings.
+
+**Sun versus sky.** Same poses, `--sun-energy 0` to zero the sky's sun disc:
+
+| hour | surface | full | sky only | sun's share |
+| --- | --- | --- | --- | --- |
+| 09:00 | ceiling | 0.7033 | 0.5802 | 17.5 % |
+| 09:00 | floor | 0.3095 | 0.2372 | 23.3 % |
+| 13:00 | ceiling | 0.5834 | 0.5679 | 2.7 % |
+| 13:00 | floor | 0.2266 | 0.2217 | 2.1 % |
+| 17:00 | ceiling | 0.5609 | 0.5596 | 0.2 % |
+| 17:00 | floor | 0.2170 | 0.2162 | 0.3 % |
+
+**Interior indirect is overwhelmingly sky-driven**, and the sky-only reference is nearly
+hour-stable: ceiling 0.5802 / 0.5679 / 0.5596 (spread **1.037x**), floor spread 1.097x. So a STATIC
+bake is a sound approximation after all, and `.220`'s framing needs correcting: the app's
+hour-invariance (1.055x) is not the defect — it is close to the right behaviour for the term the
+bake represents. Multi-bake-by-sun-position would buy at most the 0.2-23 % sun share, at 3x memory
+and 3x bake time. That option is now the *low*-value one.
+
+**What is actually wrong, found by decomposing BOTH sides at 13:00 lamps off** — the app by
+detaching every map (`GI=off`), Cycles by zeroing the sun disc, which for these two patches leaves a
+pure-indirect reference since neither receives direct sun:
+
+| surface | app runtime only | bake adds | app total | physical indirect | bake / physical |
+| --- | --- | --- | --- | --- | --- |
+| ceiling | 0.0913 | 0.7114 | 0.8027 | 0.5679 | **1.25x too strong** |
+| floor | 0.1431 | 0.1726 | 0.3157 | 0.2217 | **0.78x too weak** |
+
+The bake's own ceiling/floor distribution is wrong by **1.61x** — and in the OPPOSITE direction to
+the gain table this feature was fitted with. The ceiling is too STRONG relative to the floor, not
+55 % short. `.214` suspected the sign might invert; it does.
+
+**Why nobody could see it: the runtime ambient overlaps the bake.** The app's runtime lighting alone
+already delivers **63 %** of the floor's physical total (0.1431 of 0.2266) but only **16 %** of the
+ceiling's. The bake then adds a full indirect term on top of that, and at this hour the overlap
+compensates the bake's distribution error almost exactly. **So `.218`'s "distribution right to ~1 %"
+was two errors cancelling, not a bake that is right.** That reading of the TOTAL stands; my
+interpretation of it does not.
+
+This also explains `.221`'s refutation more precisely. A sun-dependent gain fails not only because
+the distribution drifts with the sun, but because the quantity it multiplies is already
+double-counted against a runtime term whose share differs four-fold between surfaces.
+
+So the ordered conclusion, replacing the two options `.221` left open:
+
+1. **Fix the overlap first.** The runtime ambient/IBL and the baked indirect are both accounting for
+   sky bounce. Until one of them stops, no gain fit can be right per-term — fitting the totals
+   preserves the cancellation, and fitting the physical indirect fixes the ceiling and breaks the
+   floor.
+2. **Then re-derive the gain** against the physical indirect, per surface class, with the 1.61x now
+   measured rather than inferred.
+3. **Multi-bake by sun position is worth 0.2-23 %** and should be last, not first.
+
+Nothing shipped. This is a diagnosis round, and the shipped gain 6 is untouched.
+
+
 ## v0.31.7.221 — the cheap fix REFUTED before building it: a sun-dependent gain cannot work, because the distribution is only right at one hour
 
 `.220` left two honest options for the sun-dependent brightness error. Before reaching for the
