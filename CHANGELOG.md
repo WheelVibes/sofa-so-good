@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.240 — bisecting the bake difference, and a trap I walked into for two minutes: the "agreeing" maps were the CLAMPED ones
+
+Chasing `.239`'s confound with 3-map bakes (≈90 s each) rather than 40-minute runs.
+
+**First, a correction I nearly published.** I compared the three largest-area maps between my bake
+and the shipped set and got **3.045 against 3.031 — 0.45 %** — and read that as "the invocation is
+essentially right". Then I compared all 97 shared keys:
+
+| | count | detail |
+| --- | --- | --- |
+| agree within 5 % | **33** | **every one has scale exactly 3.031** |
+| differ | **64** | mine LOWER in every case, ratios 0.206-0.80 |
+
+3.031 is a clamp. The maps I happened to check were precisely the clamped ones, so their agreement
+proves nothing about the invocation — two different bakes both hitting a ceiling value agree
+trivially. `.239`'s conclusion stands; my "0.45 %" reading of it did not survive ten more minutes.
+
+**Ruled out empirically this round:**
+
+- **`--with-sun-disc`** — a 3-map bake with it on gives scale **56.4** against shipped's 3.03, so the
+  shipped set was certainly baked without it. (Off is also the documented intent: the app renders
+  sun and lamps as direct light, so they must not be baked.)
+- **Resolution** — every PNG in all three sets is 256 x 256, so no `--texels-per-metre` variation.
+- **`--min-area` and `--limit`** — my 3.0 and 1.5 bakes give byte-identical scales for shared keys
+  (`.239`).
+- **Curtains** — the leading suspect, and wrong. The DEFAULT flat has only **4** curtains, not the 66
+  this session seeded into templates, so they cannot dim 64 maps. `scene-glb.mjs` gains
+  `DROP_DEFIDS=<ids>` for the test, which is worth keeping as a targeted "does THIS furniture change
+  the bake" control.
+
+**And the strongest constraint, from the keys themselves: the geometry is IDENTICAL.** A key hashes
+world-space positions, and 97 keys match — including all 64 that disagree on scale. So the same
+surfaces, at the same coordinates, under the same sun direction, the same resolution, the same
+albedo and the same sun-disc setting, bake to different levels. That narrows it to a parameter that
+changes light transport without changing geometry.
+
+Next candidate, and the reason it is next: **`--portals`**. It places Cycles light portals over the
+glazing, and its own docstring says portals "accelerate environment lighting only" — exactly the
+irradiance pass's case. A bake that finds its way out of the windows converges brighter than one
+that does not, and 0.21-0.80x is the shape of a sampling-efficiency difference rather than a
+physical one. Testable with one 8-map bake, which is the next step.
+
+Nothing shipped; the shipped index is still installed and verified at 107 applied. Suite 10219 green.
+
+
 ## v0.31.7.239 — the coverage bake is CONFOUNDED: my invocation is not the shipped bake, and `.228`'s "reconstructed" was wrong
 
 The `--min-area 1.5` bake finished — **189 maps in 43 minutes**, 8.5 MB — and installing it raises

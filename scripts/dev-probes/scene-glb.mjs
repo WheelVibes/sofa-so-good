@@ -62,6 +62,23 @@ await page
   .catch(() => {})
 await new Promise((r) => setTimeout(r, 4000))
 
+// DROP_DEFIDS=<a,b,c> deletes items by catalog id before exporting — a targeted control for
+// "does THIS furniture change the bake". Added to test whether the 66 curtains this session seeded
+// are what dropped 64 of 97 baked scales below the shipped set's (`v0.31.7.239`/`.240`): a curtain
+// exported as a panel across its window blocks the bake regardless of `drawAmount`.
+if (process.env.DROP_DEFIDS) {
+  const dropped = await page.evaluate((csv) => {
+    const ids = new Set(csv.split(',').map((s) => s.trim()))
+    const st = window.__store.getState()
+    const hit = st.items.filter((it) => ids.has(it.defId)).map((it) => it.id)
+    for (const id of hit) st.removeItem?.(id)
+    return { asked: [...ids], removed: hit.length, left: window.__store.getState().items.length }
+  }, process.env.DROP_DEFIDS)
+  console.log(
+    `DROP_DEFIDS=${process.env.DROP_DEFIDS}  removed ${dropped.removed}, ${dropped.left} items left`,
+  )
+  await new Promise((r) => setTimeout(r, 2000))
+}
 if (process.env.LIGHTS === 'off') {
   const flipped = await page.evaluate(() => {
     const st = window.__store.getState()
