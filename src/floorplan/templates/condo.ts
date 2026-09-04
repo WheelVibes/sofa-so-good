@@ -426,6 +426,9 @@ export function condoPenthouse(): FloorPlan {
       window('cp-b2-win', 'cp-e', 1.2, 1.6),
       window('cp-b3-win', 'cp-e', 4.4, 1.6),
       window('cp-m-win', 'cp-e', 7.6, 2.0),
+      // (h): `cp-master` owned no window — `cp-m-win` is on `cp-e` but opens into another room.
+      // `cp-s` is external; centred in its clear span (1.7-3.6).
+      window('cp-m-s-win', 'cp-s', 2.7, 1.5),
       window('cp-liv-win', 'cp-n', 5.0, 3.0),
     ],
     rooms: [
@@ -594,6 +597,9 @@ export function condo4Bed(): FloorPlan {
       door('c4-master', 'c4-bednorth', 9.5, 1.0),
       window('c4-b2win', 'c4-n', 0.8, 1.6),
       window('c4-b3win', 'c4-n', 3.6, 1.6),
+      // (h): `c4-bed4` owned no window. `c4-n` is external; centred in its clear span
+      // (5.5-7.7), between `c4-b3win` (3.6-5.2) and `c4-mwin` (9.4-11.2).
+      window('c4-b4win', 'c4-n', 6.6, 1.5),
       window('c4-mwin', 'c4-n', 9.4, 1.8),
       window('c4-livwin', 'c4-w', 1.0, 2.4),
       window('c4-balwin', 'c4-e', 9.2, 1.6),

@@ -70,7 +70,7 @@ describe('dining chairs are tucked to their table', () => {
     )
     expect(counts).toEqual({
       'tpl-hdb-2room': 49,
-      'tpl-hdb-3room': 67,
+      'tpl-hdb-3room': 66,
       // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
@@ -111,10 +111,15 @@ describe('dining chairs are tucked to their table', () => {
     //
     // `tpl-hdb-jumbo` gained a window too and its count did NOT move (120 either way), so the
     // arranger does not dress every new window. Recorded rather than chased: it is an arranger
-    // question, not a plan one, and the window itself is owned (the ratchet in
-    // `bedroomWindow.test.ts` no longer lists `jb-bed3`).
-    // Every step ADDED pieces — none of this deletes furniture.
-    expect(total).toBe(1448)
+    // question, not a plan one, and the window itself is owned.
+    //
+    // ⚠️ `v0.31.7.193` BREAKS the "every step only adds" pattern, deliberately and in one place:
+    // `tpl-hdb-3room` goes **67 → 66**. `h3-bed2`'s only viable span on an external wall is
+    // 2.8–3.4 m — 0.6 m of freedom on a crowded wall in the smallest flat — so the new glass takes
+    // wall space and the arranger drops one wall-hugging piece. That is the trade item (h) is
+    // asking for: a bedroom with daylight and one fewer accessory. Every other template gained or
+    // held.
+    expect(total).toBe(1447)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

@@ -29,6 +29,49 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.193 — `(h)` goes 9 → **3**: six more bedrooms get daylight, and item `(j)` improves as a side effect
+
+`.192` fixed three by using the mirrored offset as a position finder. The other nine had no mirror
+candidate, so this finds positions properly: for each starved bedroom, scan every wall for a span
+where 1.5 m of glass opens **outdoors**.
+
+**The exterior test is data, not naming.** `perimeter()` marks its four walls
+`thickness: 'external'`, so that is the authoritative filter. It matters: without it the scan
+happily proposed `g3-b-corr`, `jb-wb-corr`, `cp-bed-w` and `c4-bednorth` — internal partitions where
+glass would look into a corridor. Six of the nine then have a genuine external span, and the offset
+is **centred** in it rather than first-fit, because a window 0.2 m off a corner is geometrically
+valid and architecturally wrong.
+
+| room | window | wall | offset | valid span |
+| --- | --- | --- | --- | --- |
+| `h3-bed2` | `h3-b2s-win` | `h3-s` | 3.1 | 2.8–3.4 |
+| `g3-gen` | `g3-gen-s-win` | `g3-s` | 1.8 | 0.2–3.3 |
+| `g3-master` | `g3-m-s-win` | `g3-s` | 4.8 | 3.7–5.9 |
+| `jb-master` | `jb-m-s-win` | `jb-s` | 9.6 | 7.8–11.3 |
+| `c4-bed4` | `c4-b4win` | `c4-n` | 6.6 | 5.5–7.7 |
+| `cp-master` | `cp-m-s-win` | `cp-s` | 2.7 | 1.7–3.6 |
+
+**Three remain, and they are the real remainder**: `h4-bed3`, `h5-bed3` and `ex-bed3` have **no span
+on any external wall of their own**. They need the plan restructured, which is what item (h) said
+from the start. **12 → 3 across `.192` and `.193`; 41 of 44 template bedrooms now have daylight.**
+
+**Item `(j)` got BETTER, not worse.** The sightline ratchet dropped an entry: `tpl-hdb-3gen/g3-liv-win`
+is no longer hidden by a `wardrobe-3door`, because the new glass changed where the arranger puts it.
+87 windows examined, 77 clear, and none of the nine new ones is blocked.
+
+**One trade, stated rather than buried.** `tpl-hdb-3room` goes **67 → 66 items** — the first step in
+this series to REMOVE a piece, against a test whose comment said "every step ADDED pieces".
+`h3-bed2`'s only viable external span is 2.8–3.4 m, i.e. 0.6 m of freedom on a crowded wall in the
+smallest flat, so the glass takes wall space and the arranger drops one wall-hugging piece. That is
+the trade item (h) asks for: a bedroom with daylight and one fewer accessory. The comment now says
+so instead of claiming an invariant that no longer holds.
+
+Four other ratchets moved and each was read: bedrooms owning a window 35 → **41**; windows examined
+81 → **87**; clear 70 → **77**; `centred` pieces 24 → **25** with `stranded` unchanged.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.192 — `(h)` moves for the first time since `.118`: three bedrooms get windows, 12 → 9
 
 `(h)` has been the largest open content item and untouched all session. `(z)`16 decided to fix it.

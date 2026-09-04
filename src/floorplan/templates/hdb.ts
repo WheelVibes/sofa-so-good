@@ -66,6 +66,9 @@ export function hdb3Room(): FloorPlan {
       window('h3-kit-win', 'h3-n', 1.2, 1.6),
       window('h3-m-win', 'h3-w', 3.6, 1.5),
       window('h3-b2-win', 'h3-w', 6.4, 1.4),
+      // (h): `h3-bed2` owned no window. `h3-s` is external and 2.8-3.4 is its only clear span
+      // wide enough for 1.5 m of glass, so this is centred in it.
+      window('h3-b2s-win', 'h3-s', 3.1, 1.5),
       window('h3-liv-win', 'h3-e', 5.0, 1.8),
     ],
     rooms: [
@@ -273,6 +276,10 @@ export function hdb3Gen(): FloorPlan {
       window('g3-b3b-win', 'g3-w', 2.7, 1.5),
       window('g3-m-win', 'g3-w', 9.6, 1.6),
       window('g3-gen-win', 'g3-e', 3.8, 1.6),
+      // (h): `g3-gen` and `g3-master` both owned no window. `g3-s` is external and has room for
+      // both, centred in their own clear spans (0.2-3.3 and 3.7-5.9) and 1.5 m apart.
+      window('g3-gen-s-win', 'g3-s', 1.8, 1.5),
+      window('g3-m-s-win', 'g3-s', 4.8, 1.5),
       window('g3-liv-win', 'g3-e', 7.4, 2.0),
     ],
     rooms: [
@@ -329,6 +336,9 @@ export function hdbJumbo(): FloorPlan {
       door('jb-b2', 'jb-b2-s', 1.0),
       window('jb-kit-win', 'jb-n', 1.6, 1.8),
       window('jb-b2-win', 'jb-w', 7.4, 1.6),
+      // (h): `jb-master` owned no window. `jb-s` is external; centred in its clear span
+      // (7.8-11.3).
+      window('jb-m-s-win', 'jb-s', 9.6, 1.5),
       // (h): `jb-bed3` owned no window. Position from `jb-b2-win`'s mirrored offset
       // (7.4 -> 4.0); clear of `jb-m-win` (10.2-12.0).
       window('jb-b3-win', 'jb-w', 4.0, 1.6),

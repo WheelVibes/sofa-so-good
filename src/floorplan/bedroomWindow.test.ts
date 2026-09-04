@@ -18,26 +18,19 @@ import { pointInRoom } from './types'
  * bedroom with no daylight.
  */
 const KNOWN_WINDOWLESS_BEDROOMS = [
-  'tpl-hdb-3room/h3-bed2',
+  // Down from 15 to 3. `v0.31.5.115`/`.116`/`.118` corrected three MIRRORED offsets (the
+  // `perimeter()` bug: S and W walls are built backwards, so an offset written as an absolute
+  // coordinate lands in the wrong room). `v0.31.7.192` and `.193` added NINE new windows — the
+  // mirror is a position FINDER, not a fix, because flipping an existing window merely swaps it
+  // between two rooms and leaves the count unchanged (measured).
+  //
+  // These three are the genuine remainder: a scan of every EXTERNAL wall (`perimeter()` marks its
+  // four `thickness: 'external'`) finds no span on a wall of their own where 1.5 m of glass would
+  // open outdoors. They need the plan restructured, not a window moved — which is what item (h)
+  // said all along.
   'tpl-hdb-4room/h4-bed3',
-  // h4-master FIXED in v0.31.5.115 — `h4-m-win`'s offset was mirrored and put the
-  // master's window in the KITCHEN. Corrected to the exact mirror (7.4 -> 0.6).
   'tpl-hdb-5room/h5-bed3',
-  // h5-master FIXED in v0.31.5.116 — `h5-m-win`'s offset was mirrored and put the
-  // master's window in the KITCHEN. Corrected to the exact mirror (8.2 -> 1.0).
   'tpl-hdb-exec/ex-bed3',
-  // ex-bed2b FIXED in v0.31.7.192 — a window ADDED at `ex-b2-win`'s mirrored offset (3.2). The
-  // mirror only IDENTIFIED the spot: flipping the existing window swaps the glass from `ex-bed2`
-  // to `ex-bed2b` and leaves the count at 12, so the fix is a new opening, not a moved one.
-  // ex-master FIXED in v0.31.5.118 — `ex-m-win`'s offset was mirrored and put the
-  // master's window in the KITCHEN. Corrected to the exact mirror (9.8 -> 0.4).
-  'tpl-hdb-3gen/g3-gen',
-  // g3-bed3 FIXED in v0.31.7.192 — window added at 2.7 on `g3-w`.
-  'tpl-hdb-3gen/g3-master',
-  // jb-bed3 FIXED in v0.31.7.192 — window added at 4.0 on `jb-w`.
-  'tpl-hdb-jumbo/jb-master',
-  'tpl-condo-4bed/c4-bed4',
-  'tpl-condo-penthouse/cp-master',
 ]
 
 /** Does this room own `win`? Probe 0.3 m either side of the glass centre — the
@@ -98,8 +91,8 @@ describe('template bedrooms have daylight', () => {
         }
       }
     // 29 until v0.31.5.115 (4-room), 30 until `.116` (5-room), 31 until `.118`
-    // (exec) gave their masters their windows back, and 35 since `v0.31.7.192` added windows for
-    // `ex-bed2b`, `g3-bed3` and `jb-bed3`.
-    expect(owning).toBe(35)
+    // (exec) gave their masters their windows back; 35 after `v0.31.7.192` and **41** after
+    // `.193`, which added six more on external walls. 41 of 44 template bedrooms now have daylight.
+    expect(owning).toBe(41)
   })
 })

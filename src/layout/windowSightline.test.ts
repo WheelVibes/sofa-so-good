@@ -47,7 +47,6 @@ const KNOWN_BLOCKED = [
   // had been dropped, so the room went from NO glass to glass partly blocked by
   // its own wardrobe. Third instance of item (j)'s pattern.
   'tpl-hdb-exec/ex-m-win: wardrobe-3door',
-  'tpl-hdb-3gen/g3-liv-win: wardrobe-3door',
   'tpl-hdb-jumbo/jb-b4-win: wardrobe-3door',
   'tpl-hdb-jumbo/jb-b5-win: wardrobe-3door',
   'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
@@ -121,9 +120,10 @@ describe('tall furniture does not stand in front of a window', () => {
   // examined (78 before `v0.31.7.192` added three for item (h)) and most are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
-    expect(windows).toBe(81)
-    // 70 since `v0.31.7.192`: all three windows added for item (h) are CLEAR, so the blocked list
-    // (item (j)) is unchanged and the new glass adds no sightline problem.
-    expect(windows - hits.length).toBe(70)
+    expect(windows).toBe(87)
+    // 77 since `v0.31.7.193`. All NINE windows added for item (h) are clear, and the blocked list
+    // got SHORTER: `tpl-hdb-3gen/g3-liv-win` is no longer hidden by a `wardrobe-3door`, because
+    // the new glass changed where the arranger puts it. Item (j) improved as a side effect of (h).
+    expect(windows - hits.length).toBe(77)
   })
 })
