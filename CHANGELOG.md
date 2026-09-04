@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.237 — the FLOOR half of item `(y)` was already solved, and `UnroomedFloor` is exact prior art for the ceiling fill
+
+Floors render per ROOM just as ceilings do, so I went looking for the floor counterpart of `(y)`.
+There is one, and the codebase already handles it.
+
+**Measured first.** In `tpl-hdb-4room`, a downward ray inside an uncovered area hits **y = −0.01**,
+while one inside a room hits **y = +0.01** — two different meshes. A patch straight down reads
+**169.6 counts, σ 6.2** on the uncovered surface against **91.1, σ 69.9** on the room floor: pale and
+untextured against dark and grained. So there IS a visible finish discontinuity.
+
+**But it is deliberate, and it is not a hole.** `PlanShell`'s `UnroomedFloor` traces the
+wall-enclosed footprint and renders it at −0.01, "1 cm below room floors → they cover it",
+documenting itself as a "neutral fallback ground ... so it shows ONLY where no room covers it —
+filling the void left by removing the grounding slab (no hole)". Confirmed footprint-bounded rather
+than an infinite ground plane: a downward ray at (−4, −4) and at (20, 20) hits **nothing**.
+
+**So the floor half of `(y)` was solved and the ceiling half was never done** — and `UnroomedFloor`
+is this module's own design one axis away, which is the strongest argument the `.234` fix could have
+had. I shipped it without knowing the precedent existed; the docstring now records it, because a
+future reader finding two similar mechanisms should know they are deliberate siblings rather than a
+duplication to collapse.
+
+One difference is deliberate and now written down: `UnroomedFloor` is a single traced outline mesh,
+while `ceilingGapRects` emits rects. A ceiling cannot use one footprint-wide plane, because a
+double-height room needs its own lid at its own height (item `(w)`), so the ceiling side has to
+compute the actual difference region rather than covering the whole outline.
+
+Two corrections to my own reasoning this round, both caught by checking: my first patch comparison
+aimed past the gap block entirely — the ray landed at z ≈ 3.6 against the block's z ≤ 2.4 edge — and
+gave a 105-vs-174 reading in the WRONG direction, which I discarded rather than published. And I
+briefly took the −0.01 surface for a site ground plane visible through a hole in the floor; the two
+outside rays are what ruled that out.
+
+No fix needed on the floor side. Suite 10219 green; the 1.5 bake is at 119 maps.
+
+
 ## v0.31.7.236 — the export drops NO real geometry, so `--min-area` is the only coverage lever left. Item `(y)` registered
 
 `.232` narrowed `.227`'s 17 unmapped ≥3 m² meshes to "a correspondence problem between the runtime

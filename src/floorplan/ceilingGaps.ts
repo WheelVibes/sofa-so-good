@@ -12,6 +12,21 @@
  *  - **slits** where a room rect stops short of a wall face — `h4-svc-s`'s south face is at
  *    z = 2.95 while `h4-bed2` starts at z = 3.2, leaving a 0.25 m line of sky along the edge.
  *
+ * **There is PRIOR ART for exactly this, on the floor side.** `PlanShell`'s `UnroomedFloor` traces
+ * the wall-enclosed footprint and renders it at y = −0.01, "1 cm below room floors → they cover
+ * it", describing itself as a "neutral fallback ground ... so it shows ONLY where no room covers
+ * it — filling the void left by removing the grounding slab (no hole)". That is this module's
+ * design, one axis away, and it was already in the codebase: the FLOOR half of the problem was
+ * solved and the CEILING half was simply never done. Measured in `v0.31.7.237`: a downward ray in
+ * an uncovered area hits −0.01 (the fallback) while one inside a room hits +0.01 (the room floor),
+ * and outside the building a downward ray hits nothing at all, which is what shows the fallback is
+ * footprint-bounded rather than an infinite ground plane.
+ *
+ * The one difference is deliberate. `UnroomedFloor` is a single traced outline mesh; this emits
+ * rects. A ceiling cannot use one footprint-wide plane, because a double-height room needs its own
+ * lid at its own height (item `(w)`), so the region has to be the actual difference rather than
+ * the whole outline.
+ *
  * **Why here and not in the templates.** The alternative is extending every room rect to its wall
  * faces, across 19 templates. Room rects are what the furniture arranger and the area reports
  * measure, so that ripples into ratchets counting 1506 chairs and 897 mounts. This changes no room.
