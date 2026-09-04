@@ -27,6 +27,75 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.32.0.0 — arranger correctness: a ranked defect score, and the corpus measured rather than guessed
+
+Minor bump for the PR into `staging`. This branch is one long thread on the auto-arranger, and its
+through-line is that **almost every hypothesis I published about it was wrong until it was
+measured** — so the durable output is the instrumentation, the ratchets, and a score that can tell
+a real improvement from a reshuffle.
+
+### The headline fixes
+
+- **Two galley kitchens gained a hob, a fridge and a counter** (`tpl-studio/st-kit`,
+  `tpl-1bed/ob-kit`). A door swings into the middle of the only long wall, and `snapToWall` offered
+  exactly ONE along-wall position per edge — the room centre — so the whole kitchen was refused
+  while 1.88 m of that wall stood clear. Fixed by sizing the counter to the INSET RECT (every run
+  was systematically 0.24 m too long) and by offering the wall's two ENDS as sweep candidates,
+  because the viable window can be narrower than any lattice step: `st-kit`'s is **0.08 m wide**.
+- **Both basin-less bathrooms recovered**, including `tpl-terrace-ground/ctu-mbath`, broken since
+  v0.31.8.9.8 and the subject of three wrong diagnoses. It was not the arranger: a 900 mm shower
+  CUBICLE is the wrong fitting for a 2 m² room — below 1.6 m of width it leaves under the 0.6 m
+  walkway to reach the WC and basin — and an HDB bathroom of that size is built as an open WET AREA
+  with a fixed glass panel. `KITS.bathWetArea` uses the 0.9 x 0.06 m `shower-screen` there.
+- **Every habitable room now has a light**, 3 dark rooms -> 0 of 156. `dropOverlaps` resolved every
+  clash by DELETION, which is right for two floor pieces and wrong for a ceiling mount that has the
+  whole ceiling to choose from; `relocateCeilingMounts` nudges it instead. Two of the three had been
+  dark for many releases with nothing measuring it.
+- **A verification harness that was lying in three distinct ways**, all now swept and ratcheted: the
+  transition splash (34 sites), the boot loader (489 of 495 scenarios), and a
+  `waitFor {text, visible:false}` predicate that passes vacuously.
+
+### The instrument that made the rest possible
+
+`analysis/layoutDefects.ts` surveys the corpus once and ranks findings by what the product goal
+cares about — a plan a contractor can build from — weighting them lexicographically so a
+severity-1 regression cannot be bought with any number of lesser fixes.
+
+It was built because four consecutive releases of placement levers each traded one defect class for
+another, and one-line-per-finding ratchets cannot tell that from progress. **The first thing it did
+was overturn my own rejection of those levers**, showing severity 1 was a 1-for-1 swap and the
+verdict rested on classes I had been reading separately. Corpus score **61,012,173,703 ->
+40,813,163,803** over the branch.
+
+It also caught a phantom in `windowSightline.test.ts`, which was not level-scoped and reported an
+upstairs wardrobe as blocking a ground-floor window (an F13 violation in a test).
+
+### New ratchets and invariants
+
+`roomOverhang` (furniture standing outside its room), `roomLighting` (asserted at ZERO),
+`furnishValidity` (nothing left standing in a wall), `tidyValidity` (tidying never buries a piece),
+`layoutDefects` (the ranked baseline), `scenarioTransitionGuard`, `roomCompleteness`,
+`bathroomFixtures` — whose known-offenders list is now EMPTY for the first time.
+
+### Two collision bugs where a param changed the render and not the physics
+
+`shower`'s `size` drove the tray, screen and glass while the collision box stayed 0.9 x 0.9. The
+same class exists for `height` across twelve defs and is **deliberately unfixed**, held behind the
+open item below. Neither was visible in the corpus, because no kit sets either prop — they bite a
+USER who resizes a piece.
+
+### Known open, and stated as questions
+
+- **The visual scenarios disagree with the corpus** and I did not find the cause. Top item in
+  `TODO.md`, with five explanations ruled out; until it is resolved, corpus-only evidence is
+  provisional.
+- **Three condo kitchenettes cannot hold a fridge** — measured position by position, no spot is
+  clear of both the door keep-out and the counter, and the arithmetic rules out any placement
+  lever. Needs an under-counter fridge, a content model change.
+- Stopping rules are recorded for the two defects where I exhausted the approach space, so the
+  rejected routes are not re-attempted: `emu-cbath`'s basin through the mount pipeline (five
+  routes, all measured) and further placement levers without a ranking.
+
 ## v0.31.9.34 — three kitchenettes that cannot hold a fridge, and a height prop that must not be fixed yet
 
 All four remaining severity-1 findings are in condo kitchenettes — three missing fridges and one
