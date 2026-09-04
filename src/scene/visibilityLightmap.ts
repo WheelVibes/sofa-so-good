@@ -132,8 +132,13 @@ import { LinearFilter } from 'three'
  * so it is not addressable by this gain at all. Note two things before acting on it: the absolute
  * comparison inherits `render_still.py`'s physical-sky calibration, and the app's exposure is an
  * artistic choice (`grade(altitude).exposure * toneExposureBias * st.exposure`). The numerical
- * coincidence between the ratio and `toneMappingExposure` = 1.38 is striking and UNTESTED — do not
- * read it as a double-application without an experiment that isolates it.
+ * coincidence between the ratio and `toneMappingExposure` = 1.38 is striking, and `v0.31.7.219`
+ * TESTED it: it is a coincidence. Dropping the user exposure to its 0.6 floor takes
+ * `gl.toneMappingExposure` to 0.828, and each byte inverted with a curve measured at its OWN
+ * exposure gives the same scene radiance — ceiling 0.8027 -> 0.8507, wall 0.7755 -> 0.8060, i.e.
+ * ratios 1.06 and 1.04 while the exposure itself moved by 0.600. A grade applied twice would have
+ * moved them by 0.6. So exposure is a display transform applied exactly once, and the 1.38x is a
+ * genuine global lighting-level offset against the reference.
  */
 export const IRRADIANCE_GAIN = 6
 

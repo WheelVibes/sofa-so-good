@@ -82,6 +82,16 @@ await page.evaluate((h) => {
   st.setManualHour(h)
 }, HOUR)
 await new Promise((r) => setTimeout(r, 1500))
+// EXPOSURE=<n> sets the USER exposure (`st.exposure`), which `Lighting` folds into
+// `gl.toneMappingExposure` alongside the day grade. Added to isolate one question: the app reads
+// 1.38x brighter than a Cycles reference (`v0.31.7.218`) and `toneMappingExposure` is also 1.38.
+// If exposure is purely a display transform, then inverting a byte with a curve measured at the
+// SAME exposure must give the same scene radiance whatever the exposure is. If the inverted value
+// moves with it, the grade is being applied twice.
+if (process.env.EXPOSURE) {
+  await page.evaluate((e) => window.__store.getState().setExposure(e), Number(process.env.EXPOSURE))
+  await new Promise((r) => setTimeout(r, 1500))
+}
 if (process.env.LIGHTS === 'off') {
   const flipped = await page.evaluate(() => {
     const st = window.__store.getState()

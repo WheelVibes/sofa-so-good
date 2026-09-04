@@ -29,6 +29,38 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.219 — the 1.38x is NOT a double-applied exposure: one-variable test, and the coincidence is just a coincidence
+
+`.218` found the app 1.38x brighter than a Cycles reference at three verified surfaces and noticed
+that `gl.toneMappingExposure` is also 1.38. It recorded that as a striking coincidence rather than a
+diagnosis, on the grounds that nothing isolated it. This isolates it.
+
+Both probes gain an `EXPOSURE=<n>` knob that sets the USER exposure (`st.exposure`), which `Lighting`
+folds into `gl.toneMappingExposure` alongside the day grade. The test rests on one property: if
+exposure is purely a display transform, then a byte inverted with a curve measured at the SAME
+exposure must give the same scene radiance whatever the exposure is. If the grade is applied twice —
+once to the lights and once to the tone mapper — the inverted value moves with it.
+
+Same scene, same hour, same lamps, only the user exposure differs (its floor is 0.6, so
+`gl.toneMappingExposure` goes 1.380 -> 0.828, a factor of **0.600**):
+
+| surface | at exposure 1.380 | at exposure 0.828 | inverted ratio |
+| --- | --- | --- | --- |
+| ceiling | byte 207.1 -> 0.8027 | byte 189.6 -> 0.8507 | **1.060** |
+| wall | byte 205.7 -> 0.7755 | byte 187.6 -> 0.8060 | **1.039** |
+
+The bytes move a lot; the recovered radiance does not. A double application would have moved it by
+0.600. **So exposure is a display transform applied exactly once, and the 1.38x is a genuine global
+lighting-level offset against the physical reference** — not an artefact of the grade. The 4-6 %
+residual drift is curve-interpolation precision, and it is far from the 40 % the alternative
+hypothesis required.
+
+That closes the caveat `.218` published. What remains open about the 1.38x is whether it is a
+constant: it has been measured at ONE hour, in ONE room, against one sky calibration. If it holds
+across sun altitudes it is a single calibration constant; if it varies with altitude it is a
+sun/sky model mismatch, and the two want different fixes. Nothing shipped.
+
+
 ## v0.31.7.218 — app vs Cycles at verified surfaces: the GI's DISTRIBUTION is right to ~1 %, the absolute level is 1.38x high
 
 With a trustworthy instrument at last, the gain table gets the comparison it was always missing: the
