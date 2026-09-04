@@ -27,6 +27,46 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.11 — my own recommendation was measured on the wrong rectangle
+
+Implemented v0.31.9.10's "corner the shower" fix. It does not work, and the reason is the item this
+repo has deferred four times.
+
+**The arithmetic was on the RAW room.** I computed a 1.5 m wide bathroom leaving a 0.60 m clear run
+once the shower is cornered — comfortably over the 0.50 m a basin needs. But the arranger does not
+work on the room; it works on `planRoomRect`, **inset `ROOM_INSET` = 0.12 m per side**:
+
+| | usable width | cornered leftover | basin needs | verdict |
+|---|---|---|---|---|
+| raw room (what v0.31.9.10 published) | 1.50 m | 0.60 m | 0.50 m | fits |
+| **arranger rect** | **1.26 m** | **0.36 m** | 0.50 m | **short by 0.14 m** |
+
+The inset removes **0.24 m of a 1.50 m room — 16% of its width.**
+
+**Built it anyway, to check.** A `cornerBias` on `snapToWall` flushing the largest bathroom fixture
+to whichever end leaves the larger run, gated on "both leftovers too small to be useful but their
+sum large enough to matter". Measured: it does not fire for `ctu-mbath` at all (correctly — 0.36 m
+is under the threshold, so there is nothing to consolidate), and where it DOES fire it costs
+`tpl-hdb-exec` an item (96 -> 95). A change that misses its target and loses a piece elsewhere is a
+regression. **Reverted.**
+
+### What this actually establishes
+
+`ctu-mbath` cannot hold a shower, a WC and a basin **because the arranger stands 0.12 m inside
+every wall.** That is the room-rectangle issue — first noticed in v0.31.8.60, deferred in .61 when
+fixing it inside `planRoomRect` flung `tpl-hdb-3room`'s dining chairs, re-argued in .85 as blocking
+"three consumers", and then downgraded in .87 when two of those three turned out not to need it.
+
+**It now has the justification it never had: a shipped master bathroom renders with a mirror and no
+basin under it.** That is a user-visible defect in a plan a contractor would be handed, and it is
+worth more than the "0.15 m of furniture placement" the item was first raised for or the six rooms
+of connectivity coverage .87 costed it at.
+
+The v0.31.9.10 entry is annotated inline rather than left standing, since it published arithmetic
+that does not survive contact with the code it recommends changing.
+
+No code change ships — the corner bias is reverted and the diagnosis is corrected.
+
 ## v0.31.9.10 — the upstairs master bath loses its basin because the shower is CENTRED
 
 `TODO.md`'s next item after v0.31.9.8: `tpl-terrace-ground`'s upper bathroom, "one piece and one
@@ -70,6 +110,11 @@ with the door swing at x 5.00-5.80, z 1.80-2.60.
 shower + basin, flush the shower into a corner rather than centring it on the room's axis. That
 keeps the shipped layout and the inward door, and it generalises — every narrow SG bathroom has
 this shape.
+
+**[WRONG — corrected in v0.31.9.11. This arithmetic is on the RAW room rect; the arranger works on
+a rect inset `ROOM_INSET` (0.12 m) per side, so the usable width is 1.26 m not 1.50 m and the
+cornered leftover is 0.36 m, still 0.14 m short of the basin. Implemented, the change costs
+`tpl-hdb-exec` an item and fixes nothing.]**
 
 **Not implemented this release, deliberately.** Shower placement touches every bathroom in the
 corpus, and the last change of this kind (v0.31.9.8's door swings) cost a sink and a wardrobe

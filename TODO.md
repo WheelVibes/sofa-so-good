@@ -36,14 +36,19 @@ passes). The pass is behaving correctly; the room has no free wall.
 With the shower flushed west, a basin at (5.95, 1.45) (box x 5.70-6.20, z 1.14-1.76) clears both
 the shower and the door swing (x 5.00-5.80, z 1.80-2.60) — checked arithmetically.
 
-**The fix: in a room narrower than shower + basin, flush the shower into a corner instead of
-centring it on the room axis.** Centring wastes 0.30 m on each side; cornering consolidates it into
-one usable strip. Keeps the shipped layout and the inward door, and generalises to every narrow SG
-bathroom.
+**CORRECTED v0.31.9.11 — cornering does NOT fix it, and the numbers above are on the wrong
+rectangle.** The arranger works on `planRoomRect`, inset `ROOM_INSET` = 0.12 m per side, so the
+usable width is **1.26 m, not 1.50 m**, and a cornered shower leaves **0.36 m** — still 0.14 m short
+of the basin. Implemented and measured: the bias does not fire for `ctu-mbath` at all, and where it
+does fire it costs `tpl-hdb-exec` an item (96 -> 95). Reverted.
 
-**Do it as its own release**, with a per-def diff across all 19 templates, the ratchet updates and
-visual verification — shower placement touches every bathroom, and v0.31.9.8 showed what an
-unmeasured placement change costs.
+**This is the ROOM-RECTANGLE issue, and it finally has a user-visible cost.** The inset removes
+0.24 m of a 1.50 m room — 16% of its width — and the result is a shipped master bathroom that
+renders with a mirror and NO BASIN under it. That is a stronger case than the 0.15 m of furniture
+placement the item was first raised for (v0.31.8.60) or the six connectivity rooms v0.31.8.87
+costed it at. See the room-rectangle entry; the constraint from the v0.31.8.61 revert still holds
+(fixing it inside `planRoomRect` moves the rect CENTRE and flung `tpl-hdb-3room`'s dining chairs),
+so any attempt must preserve rect-centred placement.
 
 **Process note for whoever picks this up:** the TODO edit that was supposed to add this entry in
 v0.31.9.8 FAILED (its anchor had been renamed by the v0.31.9.6 sweep) while the commit went
