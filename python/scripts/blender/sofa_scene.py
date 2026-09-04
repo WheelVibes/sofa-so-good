@@ -459,3 +459,53 @@ def scene_bounds() -> tuple[tuple[float, float, float], float]:
     centre = ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, (min(zs) + max(zs)) / 2)
     span = max(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs))
     return (centre, max(span / 2, 1e-3))
+
+
+def add_point_lights_from_three(lights: list[dict],
+                                scale: float = 1.0,
+                                emitter_radius: float = 0.04
+                                ) -> list[bpy.types.Object]:
+    """Place the app's interior POINT lights, from `scene-glb.mjs`'s manifest records.
+
+    **Why this exists (item `(z5)`).** The manifest carried only `lights.directional`, so every
+    Cycles reference was lit by sun and sky alone while the app had its lamps on. On the one patch
+    it was measured at (`v0.31.7.264`, `livingDining` east wall, 17:00) that was worth **25 counts
+    of brightness and 21 counts of warmth** -- the app's LEDs are `[1, 0.69, 0.35]`, about 2700 K,
+    so an unlit reference makes the app look both too bright and far too warm for reasons that have
+    nothing to do with the renderer being wrong.
+
+    **Unit conversion.** three r155+ point lights carry CANDELA and the shader takes
+    `intensity / distance**2` as the illuminance. A Blender point lamp of power `P` watts spreads
+    it over the full sphere, giving `P / (4*pi*r**2)`. Matching the two at equal `r` gives
+    `P = 4*pi*I`, with no 683 lm/W anywhere: neither renderer applies luminous efficacy, both end
+    up in linear RGB, and three's "candela" is nominal. `scale` exists because that derivation is
+    worth distrusting until measured -- pass a factor and the CHANGELOG records what it came out as.
+
+    **Two known divergences, both deliberate.**
+
+    * `distance` is DROPPED. In three it is a windowed cutoff that forces the falloff to reach zero
+      at that radius, which is not inverse-square and has no Blender equivalent. Keeping pure
+      inverse-square makes Blender the physical one; the app is the approximation here.
+    * `radius` is DROPPED, and mapping it would be a unit error: three's `shadow.radius` is a
+      shadow-map blur in TEXELS, not an emitter size. `emitter_radius` is a small physical default
+      instead, so the lamps cast the soft-edged shadows a real fitting would rather than the hard
+      point-source edges a 0 m emitter gives.
+    """
+    made: list[bpy.types.Object] = []
+    for i, rec in enumerate(lights):
+        pos = rec.get("position")
+        if not pos or len(pos) != 3:
+            continue
+        candela = float(rec.get("intensityCandela", 0.0))
+        if candela <= 0:
+            continue
+        data = bpy.data.lights.new(f"app_point_{i}", type="POINT")
+        data.energy = 4.0 * math.pi * candela * scale
+        col = rec.get("color") or [1.0, 1.0, 1.0]
+        data.color = (float(col[0]), float(col[1]), float(col[2]))
+        data.shadow_soft_size = emitter_radius
+        obj = bpy.data.objects.new(f"app_point_{i}", data)
+        bpy.context.collection.objects.link(obj)
+        obj.location = three_to_blender((float(pos[0]), float(pos[1]), float(pos[2])))
+        made.append(obj)
+    return made

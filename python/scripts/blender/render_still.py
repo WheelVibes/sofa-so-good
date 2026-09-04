@@ -76,6 +76,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--sun-elevation", type=float, default=None, help="degrees; omit for no sun")
     p.add_argument("--sun-azimuth", type=float, default=0.0, help="degrees")
     p.add_argument("--sun-energy", type=float, default=3.0)
+    p.add_argument("--point-lights", default=None,
+                   help="path to a JSON list of the app's interior POINT lights (as written by "
+                        "scene-glb.mjs into the manifest's lights.point). Omit and the reference "
+                        "is lit by sun and sky ALONE, which is item (z5): every comparison taken "
+                        "at the app's default lightsMode:on was then measuring a lit interior "
+                        "against an unlit reference")
+    p.add_argument("--point-light-scale", type=float, default=1.0,
+                   help="multiplier on the candela->watt conversion, for calibrating it")
     p.add_argument("--view-transform", default=None,
                    help="OCIO view transform, e.g. 'Standard' or 'AgX'. OMIT to keep Blender's "
                         "default, which is AgX and is what the app's three.js tiers also use -- "
@@ -162,6 +170,17 @@ def render(a: argparse.Namespace) -> dict:
         elif a.sun_elevation is not None:
             S.add_sun(a.sun_elevation, a.sun_azimuth, energy=a.sun_energy)
 
+    # Interior lamps, item `(z5)`. Placed for BOTH sky and non-sky routes: they are indoor
+    # fittings and have nothing to do with which outdoor model is in use.
+    n_point = 0
+    if a.point_lights:
+        with open(a.point_lights, encoding="utf-8") as fh:
+            recs = json.load(fh)
+        if isinstance(recs, dict):
+            recs = recs.get("point") or []
+        n_point = len(S.add_point_lights_from_three(recs, scale=a.point_light_scale))
+        print(f"  point lights: placed {n_point} of {len(recs)}")
+
     pos = _vec(a.cam_pos)
     target = _vec(a.cam_target)
     if pos is not None and a.cam_space is None:
@@ -243,6 +262,9 @@ def render(a: argparse.Namespace) -> dict:
         "bpy": list(S.blender_version()),
         "device": S.device_report(),
         "meshes": len(meshes),
+        # Reported so a reference cannot silently be the unlit one -- `(z5)` went unnoticed
+        # precisely because nothing in the output said how many lamps were in the scene.
+        "point_lights": n_point,
         "radius": round(radius, 4),
         "samples": a.samples,
         "res": [w, h],

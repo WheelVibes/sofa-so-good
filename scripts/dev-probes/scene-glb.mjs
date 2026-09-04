@@ -137,7 +137,36 @@ const state = await page.evaluate(() => {
   const st = window.__store.getState()
   const gl = window.__three.gl
   const sun = []
+  // INTERIOR lights, item `(z5)`. Only `directional` was ever exported, so every Cycles
+  // reference was lit by sun and sky alone while the app had its lamps on -- worth 25 counts of
+  // brightness and 21 of warmth on the one patch it was measured at (`v0.31.7.264`).
+  const point = []
+  const spot = []
   window.__three.scene.traverse((o) => {
+    if (o.isPointLight || o.isSpotLight) {
+      o.updateMatrixWorld()
+      const V3 = window.__three.camera.position.constructor
+      const wp = o.getWorldPosition(new V3())
+      const rec = {
+        // WORLD position: fixture lights hang off furniture groups, so the local one is meaningless.
+        position: [wp.x, wp.y, wp.z].map((v) => +v.toFixed(4)),
+        // three r155+ is physically based: this is CANDELA (lm/sr), not a 0..1 dial.
+        intensityCandela: +o.intensity.toFixed(4),
+        color: [o.color.r, o.color.g, o.color.b].map((v) => +v.toFixed(4)),
+        distance: +(o.distance ?? 0).toFixed(3),
+        decay: +(o.decay ?? 2).toFixed(3),
+        radius: +(o.shadow?.radius ?? 0).toFixed(3),
+      }
+      if (o.isSpotLight) {
+        const t = o.target.getWorldPosition(new V3())
+        rec.target = [t.x, t.y, t.z].map((v) => +v.toFixed(4))
+        rec.angle = +o.angle.toFixed(5)
+        rec.penumbra = +o.penumbra.toFixed(4)
+        spot.push(rec)
+      } else {
+        point.push(rec)
+      }
+    }
     if (o.isDirectionalLight) {
       o.updateMatrixWorld()
       sun.push({
@@ -161,6 +190,8 @@ const state = await page.evaluate(() => {
     toneMapping: gl.toneMapping,
     toneMappingExposure: gl.toneMappingExposure,
     sun,
+    point,
+    spot,
   }
 })
 
@@ -219,7 +250,7 @@ const manifest = {
         aspect: cams[0].aspect,
       }
     : null,
-  lights: { directional: state.sun },
+  lights: { directional: state.sun, point: state.point, spot: state.spot },
   // Everything this probe adds on top, kept under its own keys so it cannot collide with a field
   // the Blender side expects.
   state,
@@ -227,7 +258,8 @@ const manifest = {
 }
 writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 2))
 console.log(
-  `state: tier ${state.tier} hour ${state.hour} lights ${state.lightsMode} exposure ${state.toneMappingExposure}`,
+  `state: tier ${state.tier} hour ${state.hour} lights ${state.lightsMode} exposure ${state.toneMappingExposure}` +
+    `  |  ${state.point.length} point + ${state.spot.length} spot`,
 )
 for (const c of cams) {
   console.log(

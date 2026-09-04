@@ -63,6 +63,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--exposure", type=float, default=None,
                    help="scene exposure in STOPS; omit to derive it from the manifest's "
                         "toneMappingExposure (a linear multiplier, so log2 of it)")
+    p.add_argument("--point-light-scale", type=float, default=None,
+                   help="passthrough to render_still.py, for calibrating the candela->watt factor")
     p.add_argument("--json", action="store_true")
     return p.parse_args(cli_argv.normalise(p, argv))
 
@@ -120,6 +122,21 @@ def flags_for(manifest: dict, d: str, args: argparse.Namespace) -> list[str]:
         print("  NOTE: manifest has no directional light -- rendering without a sun")
     if args.sun_energy is not None:
         flags += ["--sun-energy", str(args.sun_energy)]
+
+    # INTERIOR lamps (`(z5)`). Written beside the manifest as its own file rather than passed on
+    # argv: 19 fittings is already far past a comfortable command line, and the count is
+    # plan-dependent. No lamps in the manifest means an older export, so say so rather than
+    # rendering an unlit reference that looks perfectly plausible.
+    pts = lights.get("point") or []
+    if pts:
+        pl_path = os.path.join(d, "point-lights.json")
+        with open(pl_path, "w", encoding="utf-8") as fh:
+            json.dump(pts, fh)
+        flags += ["--point-lights", pl_path]
+        if args.point_light_scale is not None:
+            flags += ["--point-light-scale", str(args.point_light_scale)]
+    else:
+        print("  NOTE: manifest has no interior point lights -- reference is sun+sky only ((z5))")
     if args.view_transform:
         flags += ["--view-transform", args.view_transform]
 

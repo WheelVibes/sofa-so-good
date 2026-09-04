@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.265 — the Cycles reference can finally turn the lights on, and it agrees to 0.2 counts
+
+**`(z5)` fixed.** `scene-glb.mjs` exports `lights.point` / `lights.spot` with WORLD positions —
+fixture lights hang off furniture groups, so the local position is meaningless —
+`sofa_scene.add_point_lights_from_three` places them, and `render_still.py --point-lights` takes
+them as a JSON file rather than argv, because 19 fittings is already past a comfortable command
+line and the count is plan-dependent. The render's JSON now **reports `point_lights`**, since this
+defect survived so long precisely because nothing in the output ever said how many lamps were in
+the scene.
+
+**The unit conversion needed no fudge factor, which I did not expect.** three takes
+`intensity / d²` as illuminance and a Blender point lamp of `P` watts gives `P / (4πd²)`, so
+`P = 4πI` — with no 683 lm/W anywhere, because neither renderer applies luminous efficacy and
+three's "candela" is nominal. At `scale = 1.0`:
+
+| | mean | R−B |
+|---|---|---|
+| Cycles, lit | 217.9 | +10.1 |
+| app, lit | **218.1** | +5.0 |
+| Cycles, unlit | 185.8 | −14.9 |
+| app, unlit | 193.1 | −15.1 |
+
+**0.2 counts apart on brightness.** That validates the derivation and says the app's absolute
+brightness on this surface was right all along — the +32-count gap `.264` was left holding was
+entirely the missing lamps. `--point-light-scale` is kept as a calibration dial and is unused.
+
+**Two divergences are deliberate.** three's `distance` is a windowed cutoff with no Blender
+equivalent and is dropped, leaving Blender pure inverse-square and therefore the physical one.
+`shadow.radius` is dropped too, and mapping it would have been a unit error: it is a shadow-map
+blur in TEXELS, not an emitter size. A small physical `emitter_radius` of 0.04 m stands in, so the
+lamps cast soft-edged shadows instead of hard point-source ones.
+
+**The residual is now a new item, `(z6)`.** Lights-on the app is **5.1 counts too cool** while
+lights-off it matches to 0.25, so the disagreement is carried entirely by the lamps and it is the
+warm term that is short. The arithmetic fits the dropped cutoff: at `d/distance ≈ 0.6` three's
+windowing dims its own warm LEDs by ~24 %, which is the right magnitude and direction. Testing it
+means setting `distance = 0`, a real behaviour change — the cutoff is also what stops distant
+fittings lighting the whole flat — so it needs its own look call rather than a quiet fix.
+
+Suite 10219 green.
+
+
 ## v0.31.7.264 — indirect light had no colour; `(z4)` fixed, and the reference was missing 19 lamps
 
 **Indirect light in this renderer was achromatic, in both factors.** `uniform float visGain` times
