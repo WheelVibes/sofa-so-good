@@ -90,7 +90,7 @@ describe('dining chairs are tucked to their table', () => {
       // master's wardrobe had been dropped and now places.
       // 93 → 95 in v0.31.8.41: `ex-bed2b` gains the window it never had, and two
       // pieces then fit in that room.
-      'tpl-hdb-exec': 95,
+      'tpl-hdb-exec': 96,
       // 95 → 86 in v0.31.8.30, the 3Gen re-author. Verified by per-def diff, not
       // inferred: the east wing lost its bathroom (4 pieces) — it cannot hold a
       // furnishable bedroom AND an ensuite, see the template comment — and a
@@ -109,13 +109,15 @@ describe('dining chairs are tucked to their table', () => {
       // 116 → 121 in v0.31.8.45: the central hall is a declared room now, so it
       // is furnished at all. It had been 55 m² — 31% of the flat — belonging to
       // no room.
-      'tpl-hdb-jumbo': 121,
+      'tpl-hdb-jumbo': 124,
       // UNCHANGED at 141 through v0.31.8.33, which gave its kitchen, service yard
       // and STAIR HALL their first doors — on a maisonette the stair hall is the
       // only way to the upper storey. Putting the yard's door on the service
       // band's south wall rather than the yard's east wall kept every piece; the
       // east-wall version cost one AND pushed a cabinet in front of the window.
-      'tpl-hdb-maisonette': 141,
+      // 141 -> 140 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH): one `drying-rack`. The only
+      // real piece lost anywhere in the library, against +7 gained elsewhere.
+      'tpl-hdb-maisonette': 140,
       'tpl-studio': 23,
       // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
       // chair alive by refusing it a slot outside the room (it had been placed
@@ -136,8 +138,8 @@ describe('dining chairs are tucked to their table', () => {
       // 80 → 81 in v0.31.8.33: the balcony parapet now MEETS the walls at both
       // ends (it stopped 0.1 m short, a stray-wall warning), so the balcony is a
       // real enclosure and furnishes properly.
-      'tpl-condo-3bed': 81,
-      'tpl-condo-4bed': 95,
+      'tpl-condo-3bed': 82,
+      'tpl-condo-4bed': 97,
       'tpl-condo-studio': 25,
       // 118 → 117 in v0.31.8.42: `cp-liv-win` was a 3.0 m pane at offset 5.0 that
       // overran the living room and landed in the DINING room. Pulled back onto
@@ -148,7 +150,11 @@ describe('dining chairs are tucked to their table', () => {
       // decor pass then finds two more host surfaces than it could before. A
       // GAIN, not a loss — the only template whose count moves at all, and no
       // furniture is deleted (`unsealRoutes` only writes `position`).
-      'tpl-condo-penthouse': 119,
+      // 119 -> 117 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH). Per-def diff, because a
+      // DROP needs one: `ceramic-vase-slim` 2 -> 1 and `fruit-bowl` 2 -> 1, both
+      // decor set-dressing that lost a host surface when the piece under them
+      // moved to the wall. No furniture lost here.
+      'tpl-condo-penthouse': 117,
       // 122 → 120 in `.34`, mostly redistribution once the car porch, dining and
       // kitchen got doors: dining and kitchen each gain one, the living and
       // service yard each lose one, and one piece that had been standing outside
@@ -211,7 +217,11 @@ describe('dining chairs are tucked to their table', () => {
     // front door, and the decor pass then finds two more host surfaces. It is
     // the only template whose count moves, and `unsealRoutes` writes nothing
     // but `position` — it cannot delete.
-    expect(total).toBe(1444)
+    // 1444 -> 1448 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH), a NET GAIN of 4. Six
+    // templates move: +1 condo-3bed, +2 condo-4bed, +1 exec, +3 jumbo against
+    // -2 penthouse (two decor props) and -1 maisonette (a drying rack). Every
+    // drop is diffed per def above.
+    expect(total).toBe(1448)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

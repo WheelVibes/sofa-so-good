@@ -306,6 +306,11 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // 32 → 34 in v0.31.8.39: `c3-living: rug` + `c3-living: coffee-table` settle
     // on their room centre now the condo 3-bed's living room has a door into the
     // bedroom column. Both are in CENTRE_IS_RIGHT.
-    expect(sweep().centred).toBe(34)
+    //
+    // 34 -> 36 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH). `centred` counts only
+    // CENTRE_IS_RIGHT defIds — rugs and tables — so this can never be a stranded
+    // appliance: two more settle on their room centre now the wall-snapped
+    // pieces around them sit against the wall instead of 0.15 m proud.
+    expect(sweep().centred).toBe(36)
   }, 30_000)
 })

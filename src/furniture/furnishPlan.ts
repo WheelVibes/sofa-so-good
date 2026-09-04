@@ -13,7 +13,13 @@
  * Pure + deterministic (no store, no GPU) → unit-testable.
  */
 import type { AabbItem } from '../collision/broadphase'
-import { findItemOverlaps, findWallClips, itemAabbBox, itemFootprint } from '../collision/placement'
+import {
+  findItemOverlaps,
+  findWallClips,
+  itemAabbBox,
+  itemFootprint,
+  itemHeightAwareClash,
+} from '../collision/placement'
 import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { roomCategory } from '../floorplan/roomCategory'
@@ -23,7 +29,7 @@ import { rectsOverlap } from '../layout/arrangeGeometry'
 import { roleOf } from '../layout/arrangeRoles'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
 import { doorKeepOutRects, footprintAabb } from '../layout/clearance'
-import { flushToWall, nearestWallEdge, rotationForEdge } from '../layout/faceWall'
+import { flushToWall, nearestWallEdge, rotationForEdge, type WallEdge } from '../layout/faceWall'
 import { unsealRoutes } from '../layout/reachability'
 import { mergeGeneratedCatalog } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
@@ -498,48 +504,96 @@ export function placeSeededMounts(
         const def = defs[it.defId]
         if (!def) continue
         const fp = itemFootprint(it, def)
-        const edge = nearestWallEdge(it.position, rect)
+        const nearest = nearestWallEdge(it.position, rect)
         // `rotationForEdge` turns the piece to face away from the wall, which for
         // a W/E wall is a 90-degree turn — so its WORLD half-extents swap. Using
         // the unrotated pair leaves a mount too far off the wall: a 0.6 x 0.06 m
         // `wall-mirror` flushed by its 0.3 m half-WIDTH sat 0.27 m proud of the
         // wall (measured 5.05 against a room edge at 4.70; now 4.73).
-        const sideways = edge === 'W' || edge === 'E'
-        const halfX = sideways ? fp.hz : fp.hx
-        const halfZ = sideways ? fp.hx : fp.hz
-        const rot = rotationForEdge(edge)
-        const base = flushToWall(it.position, rect, edge, halfX, halfZ)
         const isMount = roleOf(it.defId, defs) === 'mounted'
-        // A mount takes the wall unconditionally — it hangs above the floor, so
-        // nothing down there can block it. A FLOOR piece slides along the wall
-        // until its box is clear of everything already placed, measured with the
-        // SAME `itemAabbBox` the real broadphase uses so the two cannot disagree.
-        let spot: [number, number] | null = isMount ? base : null
-        if (!isMount) {
-          const along = sideways ? halfZ : halfX
-          const lo = (sideways ? rect.minZ : rect.minX) + along
-          const hi = (sideways ? rect.maxZ : rect.maxX) - along
-          const step = Math.max(0.1, along)
-          for (let k = 0; k <= 16 && !spot; k++) {
-            for (const dir of k === 0 ? [0] : [1, -1]) {
-              const t = (sideways ? base[1] : base[0]) + dir * k * step
-              if (t < lo - 1e-9 || t > hi + 1e-9) continue
-              const p: [number, number] = sideways ? [base[0], t] : [t, base[1]]
-              const box = itemAabbBox({ ...it, position: p, rotation: rot }, def)
-              if (floorClaims.some((c) => aabbHit(box, c))) continue
-              const fb = { x0: box.minX, x1: box.maxX, z0: box.minZ, z1: box.maxZ }
-              if (doorKeepOut.some((k) => rectsOverlap(fb, k))) continue
-              spot = p
-              break
+        // MOUNT-HEIGHT-CLASH (v0.31.8.71). A mount used to take its nearest wall
+        // UNCONDITIONALLY — "it hangs above the floor, so nothing down there can
+        // block it". True of a basin, FALSE of a wardrobe, which reaches the
+        // mount's height. Once WALL-SNAP-SHORTFALL puts that wardrobe against the
+        // wall instead of 0.15 m proud of it, the mount lands on the wardrobe and
+        // `dropOverlaps` deletes one of the pair — measured as a lost
+        // `wall-mirror` in `tpl-terrace-ground`'s upper landing, which is exactly
+        // what the comment further down warns about.
+        //
+        // So a mount now tries EVERY wall, nearest first, and takes the first that
+        // is clear at its own height. Trying only the nearest and then giving up
+        // strands it on the room centre instead — measured on
+        // `tpl-condo-4bed/c4-cbath/towel-rail`, which is the failure this whole
+        // pass exists to prevent. If no wall is clear it keeps the historical
+        // behaviour and takes the nearest anyway: misplaced on a wall beats
+        // marooned mid-room, and `dropOverlaps` then makes the same trade it
+        // always did.
+        const edges: WallEdge[] = isMount
+          ? [nearest, ...(['N', 'S', 'W', 'E'] as WallEdge[]).filter((e) => e !== nearest)]
+          : [nearest]
+        let chosen: { pos: [number, number]; rot: number } | null = null
+        for (const edge of edges) {
+          const sideways = edge === 'W' || edge === 'E'
+          const halfX = sideways ? fp.hz : fp.hx
+          const halfZ = sideways ? fp.hx : fp.hz
+          const rot = rotationForEdge(edge)
+          const base = flushToWall(it.position, rect, edge, halfX, halfZ)
+          // A mount asks only whether it would INTERSECT something at its own
+          // height. A FLOOR piece slides along the wall until its box is clear of
+          // everything already placed, measured with the SAME `itemAabbBox` the
+          // real broadphase uses so the two cannot disagree.
+          const clashes = (p: [number, number]) =>
+            itemHeightAwareClash({ ...it, position: p, rotation: rot }, def, onLevel, defs)
+          let spot: [number, number] | null = isMount && !clashes(base) ? base : null
+          if (!spot) {
+            const along = sideways ? halfZ : halfX
+            const lo = (sideways ? rect.minZ : rect.minX) + along
+            const hi = (sideways ? rect.maxZ : rect.maxX) - along
+            const step = Math.max(0.1, along)
+            for (let k = 0; k <= 16 && !spot; k++) {
+              for (const dir of k === 0 ? [0] : [1, -1]) {
+                const t = (sideways ? base[1] : base[0]) + dir * k * step
+                if (t < lo - 1e-9 || t > hi + 1e-9) continue
+                const p: [number, number] = sideways ? [base[0], t] : [t, base[1]]
+                if (isMount) {
+                  // A mount reserves no floor and is blocked by none, so it skips
+                  // the floor claims and the door keep-out entirely.
+                  if (clashes(p)) continue
+                } else {
+                  const box = itemAabbBox({ ...it, position: p, rotation: rot }, def)
+                  if (floorClaims.some((c) => aabbHit(box, c))) continue
+                  const fb = { x0: box.minX, x1: box.maxX, z0: box.minZ, z1: box.maxZ }
+                  if (doorKeepOut.some((k) => rectsOverlap(fb, k))) continue
+                }
+                spot = p
+                break
+              }
             }
           }
+          if (spot) chosen = { pos: spot, rot }
+          // A mount that found nothing on this wall tries the next one; a floor
+          // piece has only its nearest wall to try (walls are its own edge choice,
+          // made upstream by the arranger), so the loop ends either way.
+          if (chosen || !isMount) break
         }
-        // Nowhere clear along that wall: leave it untouched. Stacking it on
-        // another piece would let `dropOverlaps` DELETE one of them, and losing
-        // furniture is worse than leaving it misplaced (measured 900 -> 893).
-        if (!spot) continue
-        if (!isMount) floorClaims.push(itemAabbBox({ ...it, position: spot, rotation: rot }, def))
-        moved.set(it.id, { ...it, position: spot, rotation: rot })
+        // Nowhere clear on any wall. Keep the historical behaviour and take the
+        // NEAREST wall anyway: misplaced on a wall beats marooned on the room
+        // centre, which is the failure this whole pass exists to prevent
+        // (measured on `tpl-condo-4bed/c4-cbath/towel-rail`). `dropOverlaps` then
+        // makes the same trade it always did.
+        if (!chosen && isMount) {
+          const sw = nearest === 'W' || nearest === 'E'
+          chosen = {
+            pos: flushToWall(it.position, rect, nearest, sw ? fp.hz : fp.hx, sw ? fp.hx : fp.hz),
+            rot: rotationForEdge(nearest),
+          }
+        }
+        if (!chosen) continue
+        const spotFinal = chosen.pos
+        const rotFinal = chosen.rot
+        if (!isMount)
+          floorClaims.push(itemAabbBox({ ...it, position: spotFinal, rotation: rotFinal }, def))
+        moved.set(it.id, { ...it, position: spotFinal, rotation: rotFinal })
       }
     }
   }

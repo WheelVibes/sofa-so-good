@@ -18,6 +18,7 @@ import {
   opposite,
   planRoomRect,
   type Rect,
+  ROOM_INSET,
   rectsOverlap,
 } from './arrangeGeometry'
 import { type ArrangeRole, roleForCategory, roleOf } from './arrangeRoles'
@@ -293,6 +294,78 @@ const KEEPOUT: Partial<Record<RoomId, Rect[]>> = {
   bedroom3: [{ x0: 6.05, z0: 2.7, x1: 7.05, z1: 3.65 }], // bedroom-3 door swing
 }
 
+/** Beyond this the edge is open-plan and there is no wall to be flush with. */
+const SHORTFALL_SEARCH_M = 0.3
+
+/**
+ * How far a rect edge falls short of its wall FACE (0 when there is no wall
+ * within {@link SHORTFALL_SEARCH_M}, or when the rect already overlaps the wall
+ * body — 58 shipped edges do, and pulling a piece further in would take floor
+ * away for no gain).
+ *
+ * **WALL-SNAP-SHORTFALL (v0.31.8.71).** Room rectangles are authored against the
+ * wall CENTRELINE with a constant offset while a wall's half-thickness varies
+ * (internal 0.05, external 0.10), so one constant cannot be flush against both.
+ * Over the 570 shipped rect edges with a wall within 0.3 m: 226 flush, **186
+ * short by 0.05, 86 short by 0.15** (`floorplan/roomRectWalls.test.ts`).
+ * Everything snapped inherits that error — eight kitchen appliances stood 0.32 m
+ * from their wall, 0.18 m of intended gap plus 0.15 m of rect shortfall.
+ *
+ * This corrects the DISTANCE, not the rect. v0.31.8.61 fixed `planRoomRect`
+ * instead, which moves the rect's CENTRE — the arranger centres dining groups on
+ * it, so a table slid onto the rect edge and its chairs were flung to the room's
+ * ends. Only wall-snapped pieces move here, and only outward.
+ *
+ * Only walls roughly PARALLEL to the edge count: the nearest wall to a short edge
+ * is often a perpendicular one near its end, and using it pushes the piece
+ * straight through the real wall.
+ */
+function edgeShortfall(rect: Rect, edge: Edge, walls: CollisionWall[] | undefined): number {
+  if (!walls || walls.length === 0) return 0
+  const seg =
+    edge === 'N'
+      ? [rect.x0, rect.z0, rect.x1, rect.z0]
+      : edge === 'S'
+        ? [rect.x0, rect.z1, rect.x1, rect.z1]
+        : edge === 'W'
+          ? [rect.x0, rect.z0, rect.x0, rect.z1]
+          : [rect.x1, rect.z0, rect.x1, rect.z1]
+  const ax = seg[0] as number
+  const az = seg[1] as number
+  const bx = seg[2] as number
+  const bz = seg[3] as number
+  const elen = Math.hypot(bx - ax, bz - az)
+  if (elen <= 0) return 0
+  const eux = (bx - ax) / elen
+  const euz = (bz - az) / elen
+  const parallel = walls.filter((w) => {
+    const wl = Math.hypot(w.bx - w.ax, w.bz - w.az)
+    if (wl <= 0) return false
+    return Math.abs(((w.bx - w.ax) / wl) * eux + ((w.bz - w.az) / wl) * euz) > 0.966
+  })
+  if (parallel.length === 0) return 0
+  // Median of five samples so a doorway or a stub cannot swing it.
+  const ds: number[] = []
+  for (let k = 1; k <= 5; k++) {
+    const t = k / 6
+    const px = ax + (bx - ax) * t
+    const pz = az + (bz - az) * t
+    let best = Number.POSITIVE_INFINITY
+    for (const w of parallel) {
+      const vx = w.bx - w.ax
+      const vz = w.bz - w.az
+      const l2 = vx * vx + vz * vz
+      const u = l2 > 0 ? Math.max(0, Math.min(1, ((px - w.ax) * vx + (pz - w.az) * vz) / l2)) : 0
+      const d = Math.hypot(px - (w.ax + u * vx), pz - (w.az + u * vz)) - w.thickness / 2
+      if (d < best) best = d
+    }
+    ds.push(best)
+  }
+  ds.sort((a, b) => a - b)
+  const short = (ds[2] as number) - ROOM_INSET
+  return short <= 0.01 || short > SHORTFALL_SEARCH_M ? 0 : short
+}
+
 /** Snap an item flush against `edge`, keeping its along-wall coordinate
  *  (clamped), facing inward. Tries the given edge then falls back to others. */
 function snapToWall(
@@ -334,14 +407,16 @@ function snapToWall(
     const rot = inward(edge)
     // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
     const along = w / 2
+    const out = edgeShortfall(rect, edge, ctx.walls)
     let pos: [number, number]
     if (edge === 'N')
-      pos = [clamp(item.position[0], rect.x0 + along, rect.x1 - along), rect.z0 + d / 2 + gap]
+      pos = [clamp(item.position[0], rect.x0 + along, rect.x1 - along), rect.z0 + d / 2 + gap - out]
     else if (edge === 'S')
-      pos = [clamp(item.position[0], rect.x0 + along, rect.x1 - along), rect.z1 - d / 2 - gap]
+      pos = [clamp(item.position[0], rect.x0 + along, rect.x1 - along), rect.z1 - d / 2 - gap + out]
     else if (edge === 'W')
-      pos = [rect.x0 + d / 2 + gap, clamp(item.position[1], rect.z0 + along, rect.z1 - along)]
-    else pos = [rect.x1 - d / 2 - gap, clamp(item.position[1], rect.z0 + along, rect.z1 - along)]
+      pos = [rect.x0 + d / 2 + gap - out, clamp(item.position[1], rect.z0 + along, rect.z1 - along)]
+    else
+      pos = [rect.x1 - d / 2 - gap + out, clamp(item.position[1], rect.z0 + along, rect.z1 - along)]
     const placed = tryPlace(item, pos, rot, world, ctx)
     if (placed !== item) return placed
   }
@@ -404,11 +479,15 @@ function placeFlush(
   if (!def) return item
   const { d } = baseFootprint(item, def)
   const perpHalf = d / 2
+  // Same correction as `snapToWall`. BOTH paths need it: the kitchen
+  // work-triangle comes through here (`arrangeKitchen`'s `toEnd`), and all eight
+  // of the 0.32 m fridges and stoves take this path, not that one.
+  const out = edgeShortfall(rect, edge, ctx.walls)
   let pos: [number, number]
-  if (edge === 'N') pos = [along, rect.z0 + perpHalf + gap]
-  else if (edge === 'S') pos = [along, rect.z1 - perpHalf - gap]
-  else if (edge === 'W') pos = [rect.x0 + perpHalf + gap, along]
-  else pos = [rect.x1 - perpHalf - gap, along]
+  if (edge === 'N') pos = [along, rect.z0 + perpHalf + gap - out]
+  else if (edge === 'S') pos = [along, rect.z1 - perpHalf - gap + out]
+  else if (edge === 'W') pos = [rect.x0 + perpHalf + gap - out, along]
+  else pos = [rect.x1 - perpHalf - gap + out, along]
   return tryPlace(item, pos, inward(edge), world, ctx)
 }
 

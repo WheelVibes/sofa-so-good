@@ -86,6 +86,10 @@ function gapToNearestWall(
 }
 
 /** `template/def`, worst first. */
+// 15 -> 6 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH): every appliance whose distance was
+// 0.18 m of intended gap plus a 0.15 m rect shortfall now sits where the
+// arranger meant it. The nine removed were the whole 0.32 m cluster plus
+// `tpl-hdb-jumbo`'s washing machine at 0.33.
 const KNOWN_MAROONED: string[] = [
   'tpl-condo-3bed/stove 1.05',
   'tpl-hdb-5room/washing-machine 0.60',
@@ -93,15 +97,6 @@ const KNOWN_MAROONED: string[] = [
   'tpl-hdb-2room/stove 0.52',
   'tpl-hdb-3room/washing-machine 0.50',
   'tpl-hdb-4room/washing-machine 0.50',
-  'tpl-hdb-jumbo/washing-machine 0.33',
-  'tpl-hdb-3gen/refrigerator 0.32',
-  'tpl-hdb-3gen/stove 0.32',
-  'tpl-hdb-3room/refrigerator 0.32',
-  'tpl-hdb-3room/stove 0.32',
-  'tpl-hdb-exec/refrigerator 0.32',
-  'tpl-hdb-exec/stove 0.32',
-  'tpl-hdb-jumbo/refrigerator 0.32',
-  'tpl-hdb-jumbo/stove 0.32',
 ]
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')

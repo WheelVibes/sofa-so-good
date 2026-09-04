@@ -906,105 +906,21 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   as things that walled a room off. That took the list 32 -> 22 and the clean templates 5 -> 10,
   and it RETRACTS v0.31.8.52's headline finding — `tpl-terrace-ground`'s master bedroom, whose
   culprit was a 0.32 m² shoe cabinet, is clean.
-- **[APPLIANCE PLACEMENT — MEASURED v0.31.8.58, NOT FIXED] 15 kitchen/utility appliances stand
-  in the middle of the room, 4 templates ship a range hood with no stove, and 1 hangs its hood
-  1.13 m from its stove.** Ratcheted in `src/layout/applianceWall.test.ts`.
-  These are not free-standing furniture: a stove needs a wall for its hood and flue, a fridge for
-  its coils and door swing, a washing machine for plumbing. An appliance marooned mid-floor is
-  wrong in the render AND wrong as a contractor reference.
-  **The threshold is DERIVED, which matters** — `snapToWall` places at `gap = 0.06` from the room
-  rect and `planRoomRect` insets 0.12 from the room origin (the wall face), so a correctly
-  snapped piece sits at exactly **0.18 m**, and the corpus clusters there. The sweep reports only
-  beyond 0.28 m. A first cut at 0.15 m said "38 of 53", which was measuring the threshold rather
-  than the layouts (v0.31.8.57 recorded that and declined to publish it).
-  **MECHANISMS, after v0.31.8.59's sweep. The guess in the first draft of this entry was wrong
-  for 14 of the 15.**
-  - **1 of 15 was never placed at all.** `tpl-condo-3bed`'s stove sits at (1.55, 6.00) — its
-    kitchen's EXACT centre, i.e. still on `seedRoom`'s placeholder — 1.05 m from any wall, while
-    the counter run and fridge are both correctly snapped at 0.18 m. **That also explains its
-    hood**: `placeSeededMounts` only makes a hood follow a stove that has MOVED off the seed
-    point, so a stove still at the seed leaves the hood to be wall-flushed instead, 1.13 m away.
-    Fix the stove and the hood follows for free.
-  - **14 of 15 WERE placed by the arranger and are simply not against a wall.** The first draft
-    of this entry said they fell through to `arrangeCore`'s room-wide grid settle; they did not.
-    **SOLVED in v0.31.8.60: the room RECTANGLE stops short of the wall.** The arranger snaps to
-    `planRoomRect` (inset 0.12) plus `snapToWall`'s 0.06 = 0.18 m from the RECT edge; if the rect
-    edge is 0.15 m short of the wall face, the piece lands at 0.33. `tpl-hdb-3room`'s kitchen
-    fridge is exactly that: its rect S edge is short by 0.15, and it measures 0.32.
-    **Why the rect is short:** rectangles are authored against the wall CENTRELINE with a
-    constant offset, but half-thickness VARIES (internal 0.05, external 0.10), so one constant
-    cannot be flush against both. Surveyed over 570 edges that have a wall within 0.3 m:
-    **226 flush, 186 short by 0.05, 86 short by 0.15, 58 OVERLAPPING the wall body.** Ratcheted
-    in `src/floorplan/roomRectWalls.test.ts` with the arithmetic table.
-    **v0.31.8.69 got much closer with a SURGICAL form — read this before re-attempting.**
-    Instead of resolving `planRoomRect` (which moves the rect's CENTRE and so moved dining
-    groups), offset only the SNAP DISTANCE per edge: `snapToWall` and `placeFlush` push the piece
-    out by however far that rect edge falls short of its wall face. The rect is untouched, so
-    centring, chair slots and the `TOL` guard cannot be disturbed.
-    **Result: 15 marooned appliances -> 6, all nine of the 0.32 m cluster fixed, and the dining
-    chairs stayed put** — the regression that killed the .61 attempt did not occur.
-    **Two things must be patched, not one.** Patching `snapToWall` alone fixed exactly ONE
-    appliance: the kitchen work-triangle goes through `placeFlush` (`arrangeKitchen`'s `toEnd`),
-    and all eight of the 0.32 m fridges and stoves take that path.
-    **Only PARALLEL walls count.** The nearest wall to a short edge is often a PERPENDICULAR one
-    near its end; using it yields a bogus shortfall that pushes the piece through the real wall.
-    Filter to walls within ~15 degrees of the edge direction.
-    **The mirror is DIAGNOSED (v0.31.8.70). Traced through the pipeline:**
-    ```
-    seeded           1  5.45,6.95
-    arranged         1  5.45,6.95
-    mounts           1  4.73,6.95   <- flushed correctly to the wall at 4.70
-    dropOverlaps     0               <- deleted here
-    ```
-    `placeSeededMounts` gives a mount its wall **unconditionally** — its own comment says "it
-    hangs above the floor, so nothing down there can block it", which is true of a basin and
-    FALSE of a wardrobe. With the shortfall correction the wardrobe sits against the wall instead
-    of 0.15 m proud, the mirror lands on it, and `dropOverlaps` deletes one of the pair — exactly
-    what the comment ten lines below already warns about ("losing furniture is worse than leaving
-    it misplaced").
-    **The obvious fix was tried and is NOT free.** Making a mount slide along its wall like a
-    floor piece, tested with the height-aware narrowphase (exported as
-    `collision/placement.ts:itemHeightAwareClash`), **fixes the mirror** — and strands a different
-    one: `tpl-condo-4bed/c4-cbath/towel-rail` ends up on its room centre, which is the failure
-    `placeSeededMounts` exists to prevent.
-    **So the remaining problem is one sentence:** a mount that genuinely clashes needs a better
-    fallback than "stay at the room centre" — another wall, or a different height. Solve that and
-    the whole shortfall correction ships.
-    Still also outstanding: one new blocked window (`tpl-condo-penthouse/cp-m-win:
-    wardrobe-3door`), which by the .62 standard (2 fixes for 3 blockages: bad) is acceptable at
-    9 for 1.
-    Two benign measurements move with it and are not defects: `placeSeededMounts`' room-centre
-    CONTROL 34 -> 36 (that counter only tallies `CENTRE_IS_RIGHT` defIds, i.e. rugs and tables,
-    so it can never be a stranded appliance) and the per-template item counts.
-    **Superseded note: the fix IS one function, it WORKS, and it was reverted in v0.31.8.61.** `planRoomRect(room, walls)` resolving each edge to its wall face (median of
-    5 samples, edges with no wall within 0.3 m left alone, degenerate results falling back)
-    **fixed exactly the predicted population: all eight 0.32 m appliances, 15 marooned -> 7.**
-    That is the diagnosis confirmed end to end.
-    It was reverted because it also **reintroduced stranded dining chairs in 5 templates**
-    (`tpl-hdb-3room`/`-4room`/`-exec`/`-3gen`/`-jumbo`), 1.53-1.79 m from their table — the
-    DINING-PHANTOM class. Traced on `tpl-hdb-3room`: the resolution moves the dining table 0.15 m
-    west (4.92 -> 4.77) because that room's W edge was short by 0.15, which puts the table's west
-    face exactly ON the rect edge, and the two west-side chair slots stop fitting. The room is
-    3.2 m wide and the group had no slack; the shift only exposed that.
-    **Two things NOT to retry:** the chair-slot `TOL` guard (`autoArrange.ts:830`) is NOT the
-    cause — raising it 0.2 -> 0.35 changes nothing. And the rect asymmetry is not a bug to be
-    smoothed away: a room authored lopsided relative to its walls genuinely HAS a lopsided usable
-    rect, and re-centring would discard the whole point.
-    **What it needs was thought to be along-wall placement. That was tried in v0.31.8.62 and it
-    is a WORSE trade than the rect fix — see the ALONG-WALL entry below.** Both halves of the
-    pairing are now measured and declined; do not re-attempt either without a new idea.
-    Other churn seen in the same run, all expected and none blocking: `placeSeededMounts`'
-    room-centre CONTROL (34 -> 12, because pieces centre on the RECT and the rect is no longer
-    symmetric about the room), `windowSightline`, item counts, and the route ratchets.
-  - **The orphan hoods** (4 templates with a hood and no stove) remain unconfirmed — the
-    `placeSeededMounts` path above makes "a mount outliving a dropped host" plausible, but it has
-    not been traced.
-  **Do NOT re-open the WHOLE-MISSING-PARTITION version of this.** A sweep of all 668 room-rect
-  edges finds 196 (29%) with NO wall behind them at all, which looks like a big new finding and
-  is mostly the ALREADY-TRACKED content decision: `templateEnclosure.test.ts` records 5 shared-enclosure
-  offenders and `docs/open-graphics-decisions.md` item (f) defers re-drawing them as content.
-  `tpl-hdb-4room/ground: h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath` is the same fact
-  seen through a looser ruler.
+- **[APPLIANCE PLACEMENT — FIXED v0.31.8.71] 15 marooned appliances -> 6.** WALL-SNAP-SHORTFALL
+  (`autoArrange.ts:edgeShortfall`, applied in BOTH `snapToWall` and `placeFlush`) pushes a
+  wall-snapped piece out by however far its rect edge falls short of the wall face, so "flush"
+  means the same distance on every edge of every room. That cleared the whole 0.32 m cluster —
+  0.18 m of intended gap plus 0.15 m of rect shortfall — plus `tpl-hdb-jumbo`'s washing machine.
+  Needed MOUNT-HEIGHT-CLASH alongside it (`placeSeededMounts` now tries every wall, height-aware,
+  and falls back to the nearest rather than stranding). Cost: one blocked window, two decor props
+  and one drying rack, against +7 items elsewhere — net +4. Full history in the v0.31.8.61/.69/.70
+  changelog entries.
+  **What is LEFT (6):** `tpl-condo-3bed/stove 1.05` (never placed at all — still at its room-centre
+  seed, see the ALONG-WALL entry, which is measured and declined), `tpl-hdb-5room/washing-machine
+  0.60`, `tpl-condo-1bed/stove 0.59`, `tpl-hdb-2room/stove 0.52`, `tpl-hdb-3room` and
+  `tpl-hdb-4room` washing machines at 0.50. The three service-yard washing machines are the next
+  cluster and have not been diagnosed.
+
 - **[ALONG-WALL SWEEP — MEASURED AND DECLINED TWICE (v0.31.8.7, v0.31.8.62). Do not re-attempt
   without a new idea.]** `snapToWall` tries exactly ONE along-wall position per edge — the
   piece's seeded position clamped to fit — so a wall with room somewhere ELSE along it reads as

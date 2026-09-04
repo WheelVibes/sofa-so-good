@@ -172,3 +172,26 @@ wall FACE. So a correctly snapped piece sits at exactly **0.18 m**, and the read
 there. 0.28 is a full 10 cm beyond that, which no inset artefact explains. A first cut used
 0.15 m, reported "38 of 53", and was measuring the threshold rather than the layouts — if you
 change this constant, re-derive it from `snapToWall` rather than picking a rounder number.
+
+## "Flush to the wall" means the same distance on every edge (v0.31.8.71)
+
+`planRoomRect` insets `ROOM_INSET` (0.12) from the room boundary and `snapToWall` leaves a
+further 0.06, so a wall-snapped piece sits 0.18 m from the boundary. But room rectangles are
+authored against the wall CENTRELINE with a constant offset, and half-thickness varies (internal
+0.05, external 0.10) — so of the 570 shipped rect edges with a wall within 0.3 m, only 226 are
+flush: **186 are short by 0.05 and 86 by 0.15** (`floorplan/roomRectWalls.test.ts`).
+
+`edgeShortfall` measures that per edge and both `snapToWall` and `placeFlush` push the piece out
+by it. **Patch both or neither** — the kitchen work-triangle goes through `placeFlush`
+(`arrangeKitchen`'s `toEnd`), and patching only `snapToWall` fixed exactly one appliance out of
+nine. And only walls roughly PARALLEL to the edge count: the nearest wall to a short edge is
+often a perpendicular one near its end, and using it pushes the piece through the real wall.
+
+**Do NOT fix this in `planRoomRect` instead.** That was tried in v0.31.8.61: resolving the rect
+also moves its CENTRE, the arranger centres dining groups on the rect, and `tpl-hdb-3room`'s
+table slid onto the rect edge with its two west chairs flung to the room's ends. Correct the
+DISTANCE, not the rectangle.
+
+It also needed `placeSeededMounts` to stop giving a mount its wall unconditionally — see
+MOUNT-HEIGHT-CLASH there. A wardrobe now against the wall reaches a mount's height, and
+`dropOverlaps` was deleting the mount.

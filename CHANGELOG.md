@@ -27,6 +27,64 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.71 — flush means flush. 15 marooned appliances → 6
+
+Four releases of narrowing, and the last blocker was one sentence: *a mount that clashes needs a
+better fallback than "stay at the room centre"*. It does now, and the whole thing ships.
+
+### The fix, in three parts
+
+**WALL-SNAP-SHORTFALL.** `edgeShortfall` measures how far a rect edge falls short of its wall
+face and both `snapToWall` and `placeFlush` push the piece out by it. Room rectangles are
+authored against the wall CENTRELINE with a constant offset while half-thickness varies, so of
+570 shipped edges only 226 are flush — 186 short by 0.05, 86 by 0.15. Everything snapped
+inherited that error.
+
+**Both paths, not one.** Patching `snapToWall` alone fixed exactly ONE appliance: the kitchen
+work-triangle comes through `placeFlush`, and all eight of the 0.32 m fridges and stoves take
+that path.
+
+**MOUNT-HEIGHT-CLASH.** `placeSeededMounts` gave a mount its wall unconditionally — *"nothing
+down there can block it"*, true of a basin, false of a wardrobe. With the wardrobe now against
+the wall, `dropOverlaps` deleted a `wall-mirror`. A mount now tries **every** wall, nearest
+first, tested height-aware, and falls back to the nearest anyway rather than stranding — which
+is what a first cut did to `tpl-condo-4bed`'s towel rail.
+
+### Measured
+
+| | before | after |
+| --- | --- | --- |
+| marooned appliances | 15 | **6** |
+| the 0.32 m cluster | 8 | **0** |
+| dining chairs stranded | 0 | **0** |
+| stranded mounts | 0 | **0** |
+| items across the library | 1444 | **1448** |
+
+**Every count that dropped is diffed per def**, because that is the standard here: `-2`
+`tpl-condo-penthouse` is `ceramic-vase-slim` and `fruit-bowl`, both decor that lost a host
+surface; `-1` `tpl-hdb-maisonette` is one `drying-rack`. That rack is the only real piece lost
+anywhere, against +7 gained.
+
+**One new blocked window** — `tpl-condo-penthouse/cp-m-win: wardrobe-3door`. Accepted at nine
+appliance fixes for one blockage, which is the standard v0.31.8.62 set when it *rejected* two
+fixes for three blockages.
+
+### Why it took five releases
+
+Each attempt failed differently and each failure was worth the release: v0.31.8.61 fixed the
+wrong thing (`planRoomRect`, which moves the rect's centre and flung five templates' dining
+chairs); .69 fixed the right thing and lost a mirror; .70 found `dropOverlaps` eating it and that
+the obvious fix stranded a towel rail. The narrowing is the reason this one is a clean ship
+rather than a sixth revert.
+
+`src/layout/CLAUDE.md` now carries the rule, both gotchas, and an explicit "do NOT fix this in
+`planRoomRect` instead".
+
+Looked at `tpl-hdb-3room` and `tpl-terrace-ground` furnished — kitchen and yard appliances sit
+against their walls, nothing floating or clipping.
+
+Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.70 — found what eats the mirror, and the obvious fix eats a towel rail
 
 v0.31.8.69 left one question: what drops `tpl-terrace-ground`'s wall mirror? Traced it through

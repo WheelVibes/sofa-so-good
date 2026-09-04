@@ -36,6 +36,9 @@ import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
  * window with furniture parked in front of it.
  */
 const KNOWN_BLOCKED = [
+  // +1 in v0.31.8.71 (WALL-SNAP-SHORTFALL + MOUNT-HEIGHT-CLASH): `tpl-condo-penthouse/cp-m-win:
+  // wardrobe-3door`. Accepted at nine appliance fixes for one blockage — the
+  // standard v0.31.8.62 set when it REJECTED two fixes for three blockages.
   'tpl-hdb-4room/h4-m-win: wardrobe-3door',
   // h5-b2-win CLEARED in v0.31.5.121 by preferring windowless walls for tall
   // storage — the wardrobe had a windowless alternative in that room.
@@ -47,6 +50,7 @@ const KNOWN_BLOCKED = [
 
   'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
   'tpl-condo-studio/su-bath-win: bathroom-sink',
+  'tpl-condo-penthouse/cp-m-win: wardrobe-3door',
 ]
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')!
@@ -141,6 +145,9 @@ describe('tall furniture does not stand in front of a window', () => {
     // end of their rooms' spans — `ex-b2-win` actually ran 0.1 m PAST bedroom 2's
     // edge — which left each room's wardrobe no wall but the glass one. Moving
     // each window within its own span cleared both, with no furniture moved.
-    expect(windows - hits.length).toBe(79)
+    // 79 -> 78 in v0.31.8.71: one more window is blocked
+    // (`tpl-condo-penthouse/cp-m-win`), so one fewer is clear. Accepted at nine
+    // appliance fixes for one blockage — see KNOWN_BLOCKED above.
+    expect(windows - hits.length).toBe(78)
   })
 })
