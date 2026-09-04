@@ -29,6 +29,30 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.249 — those were not blinds, they were the approved SAFETY GRILLE
+
+`.247` reported that the north window is "covered by vertical blind slats rendered as shell
+geometry". The observation was right — rays 1 cm apart do alternate between a plane at z ≈ 1.25 and
+the sky — and the name was wrong. It is `Window.tsx:Grille`: the **approved SNV GRID safety grille**,
+vertical bars plus evenly spaced horizontal rails, drawn from
+`assets/guidelines/approved_grille_design.png` through the one shared layout builder
+(`windowGrilleLayout.ts:grilleBarInstances`) as a single `InstancedBoxes` call, deliberately sitting
+just inside the glass "so they read from the room and through the window from outside".
+
+The distinction is not pedantry, it changes what a fix may do. **A blind is a furnishing a user could
+open; a grille is approved architecture that stays.** Read as blinds, item `(l)`'s next step looks
+like "open them and the window becomes an opening". Read correctly, a large share of every window is
+grille bar permanently, and making the pane clip like a photograph changes only the glass BETWEEN the
+bars — which is the honest scope.
+
+I should have identified it before naming it: the ray hits carried no `defId` and no object name,
+which told me they were not furniture, and I then guessed a furnishing anyway. One `grep` for
+`slat|grille` in `src/apartment/Window.tsx` would have answered it, and that is what I did this
+round.
+
+`(l)`'s row is corrected. Suite 10219 green; the `--keep-glazing` bake is at 102 maps of ~189.
+
+
 ## v0.31.7.248 — `.247` claimed a doc row it did not write
 
 `.247`'s last line says *"`(l)`'s row in `docs/open-graphics-decisions.md` now carries both the new
