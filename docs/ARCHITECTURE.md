@@ -2005,7 +2005,20 @@ same change that reshapes a system.
   of the bedside arrangement, not an obstruction — without that filter the authored default flat
   warned at 0.24 m, the gap to its own nightstand. Note this is the OPPOSITE call to storage
   access, deliberately: "is there a walkway" is what the area bar is for, "can you open this door"
-  is not).
+  is not), and **route access** (v0.31.8.52) — the one check that is not a distance. `walkway.ts`
+  measures GAPS, and no gap threshold can tell "jammed together, walk around" from "this pair
+  seals the only way through" (v0.31.8.51 built the threshold fix, measured it over the 19
+  templates and reverted it — see `src/layout/CLAUDE.md`). `layout/reachability.ts` answers the
+  connectivity question instead: rasterise the storey at 0.05 m, find the interior by flooding
+  INWARD from outside with the doors closed (room rectangles are not the floor — corridors here
+  are undeclared), erode by half a body width, flood-fill what survives, and report rooms whose
+  walkable floor is no longer connected to the main region. The empty-plan baseline is
+  subtracted so a template that was never connected is not blamed on its furniture. It found 32
+  rooms across 14 of 19 templates that the arranger walls off (`routeAccess.test.ts` ratchets
+  them). Two rasters per storey (63 ms on `tpl-hdb-jumbo`), so it is OPT-IN
+  (`{ routeAccess: true }`) and only the report asks for it — running it inside `schemeOptions`,
+  which critiques a dozen candidates, pushed the Scheme Compare modal past a 15 s harness
+  timeout.
   Each finding carries the measured figure + the band so a user can judge the call; `skipped`
   where the design lacks the pieces. Consumed by `schemeOptions` (compare modal) **and**, since
   v0.31.5.415, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed

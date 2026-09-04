@@ -66,3 +66,35 @@ the only visually wrong chair.
 
 If you add another slot-based placement, apply the same guard. A physically valid position is not
 automatically a position in the right room.
+
+## Gaps and ROUTES are different questions (v0.31.8.51 / .52)
+
+`walkway.ts` measures **gaps** — how much clear floor sits between two pieces. It skips any
+item-item gap `<= CLEARANCE.sofaToCoffee` (0.40 m) as intentional close spacing.
+
+**Do not "fix" that floor by exempting large pairs.** It was built and measured over the 19
+templates in v0.31.8.51 and reverted: `coffee-table` is 0.605 m² against the 0.5 m²
+`OBSTACLE_AREA` bar, and so are `tv-console`, `armchair`, `desk` and `dresser`, so the
+exemption reclassified the canonical arm's-reach pairs as blocked routes — +105 findings,
+circulation median 68 -> 28, two templates back at a floored zero. `walkway.test.ts` pins the
+rejection with the catalog areas that kill it.
+
+`reachability.ts` answers the other question: does a pair **seal** a route? It erodes the
+storey's free floor by half a body width and flood-fills what is left, so the ruler is the
+body, not a threshold — a 0.05 m slot has no cell that survives erosion and a 1.2 m one does.
+Two things about it are load-bearing:
+
+- **The interior comes from the ENVELOPE, not from room rectangles.** Corridors in these
+  templates are UNDECLARED floor (there is no `corridor` `RoomCategory`), so a mask built from
+  room rects gives every room its own component and calls the whole flat severed — the first
+  cut reported 74-98 isolated rooms. The fill starts outside the grid with the doors CLOSED;
+  whatever it cannot reach is inside.
+- **The empty-plan baseline is subtracted.** 21 of the 67 isolated rooms are isolated with no
+  furniture at all (`tpl-hdb-4room`'s bedroom half has no interior door — see
+  `templateConnectivity.test.ts`). Only the remaining ones are the arranger's doing.
+
+Coverage: `reachability.test.ts` (unit), `routeAccess.test.ts` (ratchet, 32 offenders across
+14 templates). It costs two rasters per storey, so `buildLayoutCritique` runs it only when
+asked (`{ routeAccess: true }`, which only `ui/report.ts` passes) — enabling it inside
+`schemeOptions`, which critiques a dozen candidates, pushed the Scheme Compare modal past a
+15 s harness timeout the same scenario clears without it.

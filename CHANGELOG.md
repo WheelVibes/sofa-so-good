@@ -27,6 +27,74 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.52 — the route model. 32 rooms the arranger walls off
+
+v0.31.8.51 threw away a queued fix and left a better question in its place:
+
+> Two pieces 0.05 m apart are not a route anyone walks. What no gap threshold can tell is
+> *"jammed together, walk around"* from *"this pair seals the only way through"* — a
+> **route/connectivity** question. A real fix wants a reachability pass over the free floor.
+
+`src/layout/reachability.ts` is that pass, and **the ruler is the body, not a number**:
+rasterise the storey at 0.05 m, erode the free floor by half a body width
+(`CLEARANCE.walkwayMin`, 0.6 m), flood-fill what survives. A 0.05 m slot has no cell that
+survives erosion; a 1.2 m one does. No threshold to argue about.
+
+**It found 32 rooms across 14 of 19 templates that the arranger walls off** — walkable on the
+empty plan, unreachable once the move-in layout is placed:
+
+| template | rooms sealed |
+| --- | --- |
+| `tpl-condo-penthouse` | **6** — Master Bath 4.5 m², Kitchen 3.8, Bedroom 2 3.6, Bedroom 3 3.3, … |
+| `tpl-terrace-ground` | Master Bedroom **5.0 m²**, Service Yard 4.8 |
+| `tpl-hdb-maisonette` | Stair Hall 2.8, Stair Landing 2.6, Kitchen 2.0 |
+| `tpl-hdb-5room` | Kitchen 2.9, Balcony 2.5, Household Shelter 1.0 |
+
+You cannot walk into `tpl-terrace-ground`'s master bedroom. `routeAccess.test.ts` ratchets the
+list; five templates are clean.
+
+### Two things I got wrong first, both caught by the corpus
+
+**1. Room rectangles are not the floor.** The first cut rasterised room rects and reported
+**98 isolated rooms**, including `tpl-hdb-jumbo`'s 17 m² living room. Corridors in these
+templates are **undeclared floor** — there is no `corridor` `RoomCategory` and templates do not
+author one — so adjacent rooms never touch and every room became its own component. Bridging
+the wall band with a 0.25 m join got it to 74, which was still nonsense. The interior is now
+found the way it is actually defined: flood **inward from outside the grid with the doors
+CLOSED**, and whatever that fill cannot reach is inside the home. Room rectangles are used only
+to attribute area.
+
+**2. Some rooms were never reachable, furniture or not.** Of 67 isolated rooms, **21 are
+isolated with nothing in them** — `tpl-hdb-4room`'s entire bedroom half has no interior door,
+which `templateConnectivity.test.ts` independently records as `'tpl-hdb-4room/ground': 2`. That
+agreement is the best evidence this check is right; it is also why the empty-plan baseline is
+subtracted before anything is reported. Blaming a layout for a plan that was never connected
+would be both wrong and unactionable.
+
+### A performance regression I shipped and then caught
+
+Wired into `layoutCritique` as a `route-access` check, it cost 100 ms per call on
+`tpl-hdb-jumbo`. Memoising the empty-plan baseline on the plan object (it depends only on the
+plan, and `schemeOptions` critiques a dozen candidates against one) halved that to 63 ms.
+
+**That was still too much.** The `scheme-compare` scenario **timed out at 15 s** on my build and
+**completed on the same scenario without my change** — so the check is now OPT-IN
+(`buildLayoutCritique(..., { routeAccess: true })`) and only `ui/report.ts` asks for it. The
+comparison modal, which critiques a dozen candidates, skips it. `score` already excludes
+skipped checks, so it stays internally comparable on both paths.
+
+Verified visually in the report: **Route access · Kitchen · warn — "2 rooms are walled off by
+the furniture; the largest is Kitchen at 2.3 m² of floor you can no longer walk to."** And the
+Scheme Compare modal renders exactly as before.
+
+### What this release does not do
+
+**It moves no furniture.** 32 sealed rooms are now measured, ratcheted and reported; fixing them
+is the open work, and `TODO.md` says so. Given v0.31.8.51 shipped a change to this same area and
+had to be reverted, measuring first and shipping the fix second is the order I want.
+
+Verified: 10171 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.51 — a queued fix, built and measured and thrown away
 
 `TODO.md` has carried this for a while: `findNarrowGaps` skips any item↔item gap

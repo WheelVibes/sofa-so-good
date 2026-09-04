@@ -48,6 +48,7 @@ import { isInteractableScreen } from '../furniture/screenInteract'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { roleOf } from '../layout/arrangeRoles'
 import { CLEARANCE } from '../layout/designRules'
+import { findFurnitureSeveredRooms, type SeveredRoom } from '../layout/reachability'
 
 /**
  * Footprint area (m²) at which a piece DEFINES a walkway rather than being
@@ -215,6 +216,7 @@ type CritiqueId =
   | 'sofa-proportion'
   | 'rug-size'
   | 'storage-access'
+  | 'route-access'
 
 type CritiqueVerdict = 'pass' | 'warn' | 'fail' | 'skipped'
 
@@ -618,10 +620,29 @@ function isTvScreen(def: FurnitureDef): boolean {
   return isInteractableScreen(def) && def.id !== 'monitor'
 }
 
+export interface CritiqueOptions {
+  /**
+   * Run the `route-access` check (default **false**).
+   *
+   * It rasterises the whole storey twice — measured at 63 ms on
+   * `tpl-hdb-jumbo` even with the empty-plan baseline memoised — which is fine
+   * for a report built once on demand and NOT fine for `schemeOptions`, which
+   * calls this once per candidate layout. Turning it on there took the Scheme
+   * Compare modal past a 15 s harness timeout that the same scenario clears on
+   * the build without it. So the expensive check is opt-in, and only
+   * `ui/report.ts` opts in.
+   *
+   * `score` excludes skipped checks, so it stays internally comparable on both
+   * paths; it is simply computed over one more check where this is on.
+   */
+  routeAccess?: boolean
+}
+
 export function buildLayoutCritique(
   plan: FloorPlan,
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
+  options: CritiqueOptions = {},
 ): LayoutCritique {
   const rooms = allPlanRooms(plan).filter((r) => planRoomArea(r) > 0)
   const findings: CritiqueFinding[] = []
@@ -1032,6 +1053,59 @@ export function buildLayoutCritique(
         detail: ok
           ? `Every bed has at least one long side with the recommended ${CRITIQUE.bedSurround} m to walk and make it up (${beds.length} measured).`
           : `The roomiest side of this bed is ${tightest.clear.toFixed(2)} m — ${CRITIQUE.bedSurround} m is the published minimum for getting in and out and making the bed (tightest of ${beds.length} measured).`,
+      })
+    }
+  }
+
+  // 8 — Route access: is every room you could walk into on the EMPTY plan still
+  //     one you can walk into once this layout is placed?
+  //
+  // This is the only check here that is not a distance. v0.31.8.51 established
+  // why it has to exist: `walkway.ts` measures GAPS, and dropping its 0.40 m
+  // floor to catch blocked routes turned every `sofa ↔ coffee-table` adjacency
+  // into a finding and halved the corpus's circulation score. Two pieces 0.05 m
+  // apart are not a route anyone walks — what matters is whether they SEAL one,
+  // which is a connectivity question. `layout/reachability.ts` answers it by
+  // eroding the free floor by half a body and flood-filling what is left.
+  //
+  // The empty-plan baseline is subtracted, so a template that was never
+  // connected (`tpl-hdb-4room`'s bedroom half has no interior door — see
+  // `templateConnectivity.test.ts`) is not blamed on the furniture in it.
+  {
+    // Nothing on the floor can seal nothing, so an empty design SKIPS rather
+    // than passing vacuously — and skipping also avoids the two raster passes.
+    const onFloor = resolved.filter((r) => !r.def.mounted && !r.def.noClip)
+    const skip = !options.routeAccess || rooms.length === 0 || onFloor.length === 0
+    const severed = skip ? [] : findFurnitureSeveredRooms(items, defs, plan)
+    if (skip) {
+      findings.push({
+        id: 'route-access',
+        label: 'Route access',
+        verdict: 'skipped',
+        detail: !options.routeAccess
+          ? 'Route access is measured in the report, not in this comparison.'
+          : rooms.length === 0
+            ? 'No rooms to measure.'
+            : 'No floor-standing furniture to measure.',
+      })
+    } else if (severed.length === 0) {
+      findings.push({
+        id: 'route-access',
+        label: 'Route access',
+        verdict: 'pass',
+        detail: `Every room you can walk into on the empty plan is still reachable with this layout (${rooms.length} measured).`,
+      })
+    } else {
+      const worst = severed[0] as SeveredRoom
+      findings.push({
+        id: 'route-access',
+        label: 'Route access',
+        verdict: 'warn',
+        roomName: worst.roomName,
+        detail:
+          severed.length === 1
+            ? `${worst.roomName} is walled off by the furniture — ${worst.areaM2.toFixed(1)} m² of floor you can no longer walk to.`
+            : `${severed.length} rooms are walled off by the furniture; the largest is ${worst.roomName} at ${worst.areaM2.toFixed(1)} m² of floor you can no longer walk to.`,
       })
     }
   }

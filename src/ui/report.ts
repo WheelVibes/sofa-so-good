@@ -516,7 +516,7 @@ export function buildReportHtml(
   // findings first — a list that opens with four passes buries the one problem.
   const critique =
     hasItems && isFeatureEnabled('layoutCritiqueReport')
-      ? buildLayoutCritique(plan, items, catalog)
+      ? buildLayoutCritique(plan, items, catalog, { routeAccess: true })
       : null
   // Floor build-up + the HDB thickness limits (v0.31.6.2). The wet-room fall and
   // the declared-vs-derived mismatch lead, because both are errors; the per-room

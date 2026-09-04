@@ -657,3 +657,104 @@ describe('buildLayoutCritique — conversation uses social space, not the ideal'
     expect(f.detail).toMatch(/cannot hold one conversation/)
   })
 })
+
+/**
+ * ROUTE-ACCESS (v0.31.8.52) — the one check here that is not a distance.
+ *
+ * `walkway.ts` measures GAPS, and v0.31.8.51 measured why no gap threshold can
+ * do this job: dropping its 0.40 m floor for large pairs turned every
+ * `sofa ↔ coffee-table` adjacency into a "blocked route" and took the corpus's
+ * median circulation from 68 to 28. Whether a pair SEALS a route is a
+ * connectivity question, answered in `layout/reachability.ts`.
+ *
+ * These fixtures need real WALLS, unlike the rest of this file: the check finds
+ * the interior by flooding inward from outside the plan, so a wall-less fixture
+ * has no interior and the check has nothing to say.
+ */
+describe('buildLayoutCritique — route access', () => {
+  /** Two rooms, 4 x 4 and 3 x 4, with a 0.9 m doorway between them. */
+  function twoRoomPlan(): FloorPlan {
+    const w = (ax: number, az: number, bx: number, bz: number) => ({
+      id: `w-${ax}-${az}-${bx}-${bz}`,
+      start: [ax, az],
+      end: [bx, bz],
+      thickness: 'internal',
+    })
+    return {
+      name: 'p',
+      extent: [7, 4],
+      ceilingHeight: 2.6,
+      walls: [
+        w(0, 0, 7, 0),
+        w(7, 0, 7, 4),
+        w(7, 4, 0, 4),
+        w(0, 4, 0, 0),
+        w(4, 0, 4, 1.5),
+        w(4, 2.4, 4, 4),
+      ],
+      openings: [],
+      rooms: [
+        { id: 'a', name: 'Living', origin: [0, 0], width: 4, depth: 4 },
+        { id: 'b', name: 'Bedroom', origin: [4, 0], width: 3, depth: 4 },
+      ],
+    } as unknown as FloorPlan
+  }
+
+  const wardrobe = (id: string, x: number, z: number) =>
+    ({
+      id,
+      defId: 'wardrobe',
+      position: [x, z],
+      rotation: 0,
+      props: {},
+    }) as unknown as FurnitureItem
+  const localDefs: Record<string, FurnitureDef> = {
+    ...defs,
+    wardrobe: def('wardrobe', 0.6, 1.8),
+  }
+  const routeOf = (items: FurnitureItem[]) =>
+    buildLayoutCritique(twoRoomPlan(), items, localDefs, { routeAccess: true }).findings.find(
+      (f) => f.id === 'route-access',
+    )
+
+  it('SKIPS when there is no floor-standing furniture — nothing can seal nothing', () => {
+    const f = routeOf([])
+    expect(f?.verdict).toBe('skipped')
+  })
+
+  it('SKIPS unless asked for, because it costs two rasters per storey', () => {
+    // `schemeOptions` calls the critique once per candidate layout; running this
+    // there took the Scheme Compare modal past a 15 s harness timeout the same
+    // scenario clears without it. Only the report opts in.
+    const f = buildLayoutCritique(
+      twoRoomPlan(),
+      [wardrobe('w1', 4.35, 1.95)],
+      localDefs,
+    ).findings.find((x) => x.id === 'route-access')
+    expect(f?.verdict).toBe('skipped')
+    expect(f?.detail).toMatch(/report/)
+  })
+
+  it('PASSES when the furniture leaves the doorway open', () => {
+    // A wardrobe against the far wall of the bedroom, nowhere near the doorway.
+    const f = routeOf([wardrobe('w1', 6.5, 3)])
+    expect(f?.verdict).toBe('pass')
+  })
+
+  it('WARNS, and names the room, when the furniture seals the only doorway', () => {
+    const f = routeOf([wardrobe('w1', 4.35, 1.95)])
+    expect(f?.verdict).toBe('warn')
+    expect(f?.roomName).toBe('Bedroom')
+    expect(f?.detail).toMatch(/walled off/)
+  })
+
+  it('is silent about an arm’s-reach pair that seals nothing', () => {
+    // A sofa and a coffee table 0.3 m apart in the middle of the living room —
+    // exactly the pair v0.31.8.51's rejected fix reported as a blocked route.
+    const f = routeOf([
+      { id: 's', defId: 'sofa-3seat', position: [2, 1.5], rotation: 0, props: {} },
+      { id: 'c', defId: 'coffee-table', position: [2, 2.5], rotation: 0, props: {} },
+    ] as unknown as FurnitureItem[])
+    expect(f?.verdict).toBe('pass')
+  })
+})
