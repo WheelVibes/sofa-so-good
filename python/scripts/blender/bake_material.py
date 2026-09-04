@@ -216,6 +216,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "and the error is geometry-dependent: surfaces that see the aperture are "
                         "affected differently from those that do not, which is why no single gain "
                         "ever fit both a wall and a ceiling.")
+    p.add_argument("--diffuse-bounces", type=int, default=None, dest="diffuse_bounces",
+                   help="override Cycles' diffuse bounce limit (default 4). A DIRECT test of "
+                        "whether the bake truncates light that reaches a surface late: sky enters "
+                        "a window and hits a WALL with no bounce, but reaches a CEILING only after "
+                        "one or more, so a truncated budget starves ceilings disproportionately. "
+                        "v0.31.7.182 left the bake's ceiling/wall ratio at 1.48 against a "
+                        "reference 2.18, and this says whether bounce depth is the remainder.")
     p.add_argument("--limit", type=int, default=24, help="cap on objects baked, largest first")
     p.add_argument("--albedo", type=float, default=0.81,
                    help="white-diffuse albedo for a visibility bake. 0.81 is MEASURED, not "
@@ -1369,6 +1376,13 @@ def main(argv: list[str] | None = None) -> int:
             # came out DARKER (wall -25 counts, ceiling -71), so the glass is not sealing the room.
             removed, _ = RV.open_apertures()
         portals = add_portals(pbounds) if a.portals else 0
+        if a.diffuse_bounces is not None:
+            bpy.context.scene.cycles.diffuse_bounces = a.diffuse_bounces
+            # `max_bounces` gates every category, so raising diffuse alone does nothing if the
+            # total is lower -- a trap that would make this experiment report "no effect".
+            bpy.context.scene.cycles.max_bounces = max(
+                bpy.context.scene.cycles.max_bounces, a.diffuse_bounces
+            )
         sky_info = S.setup_world_sky_from_three_direction(
             tuple(directional[0]["travel"]), sun_disc=a.with_sun_disc
         )

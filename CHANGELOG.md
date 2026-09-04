@@ -29,6 +29,61 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.186 — bounce depth eliminated, and a CURVE-FREE fit says the disparity is in the app's DIRECT light
+
+Two direct experiments on the residual `.182`/`.184` left, plus a measurement method that removes
+the assumption which has gone wrong three times in this thread.
+
+**1. Bounce depth is eliminated.** A ceiling is lit at higher bounce order than a wall — sky enters
+the window and strikes a wall with no bounce but reaches a ceiling only after one — so a truncated
+budget would starve ceilings disproportionately. Added `--diffuse-bounces` and A/B'd 4 (Cycles
+default) against 16:
+
+| | 4 bounces | 16 bounces | |
+| --- | --- | --- | --- |
+| wall, interior mean | 0.4009 | 0.5170 | ×1.290 |
+| ceiling, interior mean | 0.5672 | 0.7151 | ×1.261 |
+| **ceiling / wall** | **1.415** | **1.383** | unchanged (reference 2.18) |
+
+Everything rises ~24 % and the ratio does not move. Worth knowing separately: the default 4 bounces
+under-measures the whole set by about a quarter — but the reference render truncates identically, so
+the gain fit absorbs it and re-baking deeper buys nothing visible.
+
+**2. Nothing caps the ceiling.** At high gain it reaches and passes the reference (g25 → 178.1,
+g60 → 209.5 against 192.6), so its albedo is not the limit.
+
+**3. The method that removes the bad assumption.** Three fits in this thread inverted a tone-mapped
+byte or divided by `material.color`, and `.184` showed the latter is wrong because these materials
+carry a base-colour map. Both are avoidable: **if the app and the reference agree on the displayed
+value at the same point under the same transform, they agree in linear light** — equality survives
+any monotonic curve. So fit the gain that achieves EQUALITY per surface and no inversion or albedo
+is needed at all:
+
+| surface | reference | gain for equality |
+| --- | --- | --- |
+| floor | 160.3 | **~6.5** |
+| wall | 196.4 | **~15** |
+| ceiling | 192.6 | **~41** |
+
+**That ~6x spread is real, and it reframes the problem.** It also retires `.183`'s co-located
+figure of 4.01 for the ceiling, which was albedo-contaminated in the same way `.184` corrected.
+
+**The leading explanation is now the app's DIRECT term, not the bake.** In `'replace'` mode
+`total = direct + baked * gain`. The app's ceiling has essentially **no** direct term — it reads
+**9.0 counts** with the GI off — so its baked contribution must supply everything, and its
+equality gain is the true unit conversion. The floor has a large direct term, so it needs far less
+indirect to reach its reference. One gain cannot serve both unless the app's per-surface direct
+light already agrees with physics, and a 6x spread says it does not.
+
+**The test that would confirm it**, and it is a comparison rather than a hypothesis: measure the
+app's direct-only contribution per surface (feature off *and* the analytic fill suppressed) against
+a Cycles render restricted to direct light. If the app's floor is over-lit directly while its
+ceiling is correctly near zero, that is the disparity, and it is not fixable by any lightmap gain.
+
+Nothing shipped; `--diffuse-bounces` is a diagnostic flag, default off. Suite 10166 green, `tsc` and
+biome clean.
+
+
 ## v0.31.7.185 — `(z)`5 done: the `multiply` operator is REMOVED, not defaulted away
 
 Your `(z)`5 call was "delete the pass, the assets and the `multiply` path entirely — **removal, not
