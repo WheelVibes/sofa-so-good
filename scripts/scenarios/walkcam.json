@@ -3,37 +3,121 @@
   "description": "PARITY-WALKCAM: enter walk mode (Pro), verify FOV + eye-height sliders show, screenshot at low/high FOV and low/high eye-height to confirm the view visibly changes.",
   "url": "http://localhost:5217/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
     {
       "name": "dismiss-overlays",
       "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
     },
-    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
     {
       "name": "go-pro",
       "eval": "const st=window.__store.getState(); st.setUiMode?.('pro'); st.reresolveFeatureFlags?.()"
     },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 5000 },
-    { "name": "wait-render", "wait": 1500 },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-render",
+      "wait": 1500
+    },
     {
       "name": "verify-controls-show",
-      "waitFor": { "css": ".walk-cam-controls" },
+      "waitFor": {
+        "css": ".walk-cam-controls"
+      },
       "timeout": 5000,
       "failMessage": "WalkCameraControls should be visible in firstPerson + Pro mode"
     },
-    { "name": "set-fov-50", "eval": "window.__store.getState().setWalkFov(50)" },
-    { "name": "wait-fov-low", "wait": 900 },
-    { "name": "shot-fov-low", "screenshot": "01-fov-50" },
-    { "name": "set-fov-100", "eval": "window.__store.getState().setWalkFov(100)" },
-    { "name": "wait-fov-high", "wait": 900 },
-    { "name": "shot-fov-high", "screenshot": "02-fov-100" },
-    { "name": "reset-fov", "eval": "window.__store.getState().setWalkFov(70)" },
-    { "name": "set-eye-low", "eval": "window.__store.getState().setWalkEyeHeight(1.2)" },
-    { "name": "wait-eye-low", "wait": 1200 },
-    { "name": "shot-eye-low", "screenshot": "03-eye-1p2" },
-    { "name": "set-eye-high", "eval": "window.__store.getState().setWalkEyeHeight(1.9)" },
-    { "name": "wait-eye-high", "wait": 1200 },
-    { "name": "shot-eye-high", "screenshot": "04-eye-1p9" }
+    {
+      "name": "set-fov-50",
+      "eval": "window.__store.getState().setWalkFov(50)"
+    },
+    {
+      "name": "wait-fov-low",
+      "wait": 900
+    },
+    {
+      "name": "shot-fov-low",
+      "screenshot": "01-fov-50"
+    },
+    {
+      "name": "set-fov-100",
+      "eval": "window.__store.getState().setWalkFov(100)"
+    },
+    {
+      "name": "wait-fov-high",
+      "wait": 900
+    },
+    {
+      "name": "shot-fov-high",
+      "screenshot": "02-fov-100"
+    },
+    {
+      "name": "reset-fov",
+      "eval": "window.__store.getState().setWalkFov(70)"
+    },
+    {
+      "name": "set-eye-low",
+      "eval": "window.__store.getState().setWalkEyeHeight(1.2)"
+    },
+    {
+      "name": "wait-eye-low",
+      "wait": 1200
+    },
+    {
+      "name": "shot-eye-low",
+      "screenshot": "03-eye-1p2"
+    },
+    {
+      "name": "set-eye-high",
+      "eval": "window.__store.getState().setWalkEyeHeight(1.9)"
+    },
+    {
+      "name": "wait-eye-high",
+      "wait": 1200
+    },
+    {
+      "name": "shot-eye-high",
+      "screenshot": "04-eye-1p9"
+    }
   ]
 }

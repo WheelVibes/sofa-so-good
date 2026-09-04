@@ -2,17 +2,78 @@
   "name": "walk-mobile-hud",
   "description": "Mobile walk mode: 'Walking through' callout sits top-centre (below home/menu buttons, clear of the bottom-left joystick) and the controls banner + joystick clear the bottom safe-area.",
   "url": "http://localhost:5173/",
-  "viewport": { "width": 390, "height": 844, "isMobile": true, "hasTouch": true, "deviceScaleFactor": 2 },
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "isMobile": true,
+    "hasTouch": true,
+    "deviceScaleFactor": 2
+  },
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "phone-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2
+      },
+      "failMessage": "this scenario is named for the MOBILE walk HUD but had no viewport step, so it screenshotted at desktop width and never audited the mobile HUD at all (v0.31.8.90). `resize_window` clamps at ~606px, so a true phone width needs a `viewport` step."
+    },
     {
       "name": "dismiss-overlays",
       "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
     },
-    { "name": "wait-scene", "wait": 1500 },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "walk-loading-done", "waitFor": { "store": "state.loading.active === false" }, "timeout": 10000 },
-    { "name": "settle-walk", "wait": 1200 },
-    { "name": "shot-walk", "screenshot": "01-walk-mobile-hud" }
+    {
+      "name": "wait-scene",
+      "wait": 1500
+    },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "walk-loading-done",
+      "waitFor": {
+        "store": "state.loading.active === false"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-walk",
+      "wait": 1200
+    },
+    {
+      "name": "shot-walk",
+      "screenshot": "01-walk-mobile-hud"
+    }
   ]
 }

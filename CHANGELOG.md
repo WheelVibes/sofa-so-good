@@ -27,6 +27,71 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.90 — 34 more scenarios were screenshotting the transition splash
+
+v0.31.8.89 closed with the transferable half of that fix: *the splash bug was never
+orbit-specific.* So I audited the whole corpus for it. Every scenario that changes
+`cameraMode` and then screenshots, with no wait for the overlay to clear, bucketed by how much
+fixed `wait` sat in between:
+
+| intervening slack | sites |
+|---|---|
+| under 3 s | 30 |
+| 3-6 s | 9 |
+| over 6 s | 2 |
+
+**41 sites. And the slack buckets turned out not to predict anything.** `feature-wall-finishes`
+had the most slack of all (7500 ms) and still needed **13.8 s** for the splash to appear, plus
+4.7 s to clear — 18.5 s total. `walkcam` needed **15.6 s** against the 2400 ms it allowed. So
+"probably fine, it waits ages" was not a safe read anywhere; the only safe thing is to wait on
+the overlay.
+
+Two refinements took 41 down to the 34 that are real bugs:
+
+- `setCameraMode` to the mode ALREADY active raises no splash — `cameraSlice` gates on
+  `changed` — so 5 sites drop out once the audit tracks mode statically instead of pattern-matching
+  the call.
+- a transition taken while the ROOM EDITOR is active raises no splash either (the editor owns the
+  overlay). `view-modes-journey` is the only scenario in that state, worth 2 more.
+
+Guarded all 34, across 28 files. `backdrop-walk-simple`'s walk ENTRY was among them — last
+release I fixed only its orbit return and did not think to check the other direction of the
+scenario I was already editing.
+
+### The guard needed a real exemption, and the run found it
+
+`transition-overlay-readiness.json` is the one scenario whose SUBJECT is the overlay lifecycle. Adding
+the standard guard made its own `walk-overlay-appears` step time out, because the guard consumed
+the very appearance the scenario exists to observe. Reverted and exempted with that reason
+recorded, rather than left to look like an oversight.
+
+### A ratchet, because nobody will remember this
+
+`src/scenarioTransitionGuard.test.ts` scans the scenario JSON and fails on any camera switch that
+reaches a `screenshot` without an intervening `[data-transition-overlay]` gone-wait. It models
+both exemptions above. Verified it FAILS against the unfixed state by removing one guard
+(`walkcam.json: enter-walk -> shot-fov-low`) before trusting it.
+
+### `walk-mobile-hud` was auditing the mobile HUD at DESKTOP width
+
+Spotted while spot-checking the sweep: the scenario has no `viewport` step, so it has never
+rendered a phone at all — and `resize_window` clamps at ~606 px, so a true phone width can only
+come from a `viewport` step. Added 390x844.
+
+**That immediately surfaced the defect the scenario was built for.** The walk HUD's bottom hint
+bar is horizontally CLIPPED at 390 px — it reads "alk mode … show curs", losing a character at
+each end — and it is showing KEYBOARD hints ("Click to look", W/A/S/D, "Esc") on a touch device
+that has none. Recorded in `TODO.md` rather than folded in here: it is a real UI fix with
+Simple/Pro and token obligations, and this release is about the harness lying.
+
+**Also found, pre-existing, NOT caused by the sweep:** `walkcam.json` fails at
+`verify-controls-show` ("WalkCameraControls should be visible in firstPerson + Pro mode").
+Confirmed identical with the guard stashed, so it is upstream of this. In `TODO.md`.
+
+Spot-ran 6 scenarios across the risky shapes (walk entry, orbit return, phone viewport, the
+overlay-lifecycle scenario, and the two largest-slack files); `view-modes-simple`,
+`fixture-lights-all-on`, `feature-wall-finishes` and `walk-mobile-hud` complete clean.
+
 ## v0.31.8.89 — `backdrop-upload-simple` had been failing at step 14 of 52
 
 Recorded as found-not-fixed in v0.31.8.88. It turned out to be **four** separate breaks stacked

@@ -3,61 +3,172 @@
   "description": "Lights are one switch for the whole home: ON lights every fixture and the live count does not change as the camera moves (the old nearest-N budget lit 2 of 19 in walk mode and swapped them as you walked); OFF lights none. A per-light switch still wins.",
   "url": "http://localhost:5173/",
   "steps": [
-    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
-    { "name": "reload", "eval": "location.reload()" },
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
-    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
-    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
-    { "name": "perf-tier", "eval": "window.__store.getState().setQualityTier('performance')" },
-    { "name": "night", "eval": "window.__store.getState().setManualHour(21)" },
-    { "name": "lights-on", "eval": "window.__store.getState().setLightsMode ? window.__store.getState().setLightsMode('on') : window.__store.setState({ lightsMode: 'on' })" },
-    { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.scene" }, "timeout": 30000 },
-    { "name": "settle", "wait": 2500 },
+    {
+      "name": "skip-onboarding",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}"
+    },
+    {
+      "name": "reload",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": {
+        "store": "state.bootPhase === 'ready'"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-location",
+      "eval": "window.__store.getState().dismissLocationPrompt()"
+    },
+    {
+      "name": "perf-tier",
+      "eval": "window.__store.getState().setQualityTier('performance')"
+    },
+    {
+      "name": "night",
+      "eval": "window.__store.getState().setManualHour(21)"
+    },
+    {
+      "name": "lights-on",
+      "eval": "window.__store.getState().setLightsMode ? window.__store.getState().setLightsMode('on') : window.__store.setState({ lightsMode: 'on' })"
+    },
+    {
+      "name": "three-ready",
+      "waitFor": {
+        "store": "!!window.__three && !!window.__three.scene"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle",
+      "wait": 2500
+    },
     {
       "name": "count-emitters",
       "eval": "(function(){var n=0;window.__three.scene.traverse(function(o){if(o.isPointLight||o.isSpotLight)n++});window.__lit0=n;console.log('LIGHTPROBE orbit-lit='+n);return 'lit='+n})()"
     },
-    { "name": "shot-orbit-on", "screenshot": "01-orbit-lights-on" },
+    {
+      "name": "shot-orbit-on",
+      "screenshot": "01-orbit-lights-on"
+    },
     {
       "name": "assert-all-19-lit",
       "eval": "(function(){var n=window.__lit0;if(n<19)throw new Error('expected all 19 default-flat emitters lit, got '+n);return 'ok '+n})()"
     },
-
-    { "name": "walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
-    { "name": "walk-settle", "wait": 2500 },
+    {
+      "name": "walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "walk-settle",
+      "wait": 2500
+    },
     {
       "name": "count-walk",
       "eval": "(function(){var n=0;window.__three.scene.traverse(function(o){if(o.isPointLight||o.isSpotLight)n++});window.__lit1=n;console.log('LIGHTPROBE walk-lit='+n);return 'lit='+n})()"
     },
-    { "name": "shot-walk-on", "screenshot": "02-walk-lights-on" },
+    {
+      "name": "shot-walk-on",
+      "screenshot": "02-walk-lights-on"
+    },
     {
       "name": "assert-walk-same",
       "eval": "(function(){if(window.__lit1!==window.__lit0)throw new Error('walk mode changed the live light count: '+window.__lit0+' -> '+window.__lit1);return 'ok'})()"
     },
-
-    { "name": "move-camera", "eval": "(function(){var c=window.__three.camera;c.position.set(2.0,1.6,2.0);c.updateMatrixWorld();return 'moved'})()" },
-    { "name": "move-settle", "wait": 1500 },
+    {
+      "name": "move-camera",
+      "eval": "(function(){var c=window.__three.camera;c.position.set(2.0,1.6,2.0);c.updateMatrixWorld();return 'moved'})()"
+    },
+    {
+      "name": "move-settle",
+      "wait": 1500
+    },
     {
       "name": "count-after-move",
       "eval": "(function(){var n=0;window.__three.scene.traverse(function(o){if(o.isPointLight||o.isSpotLight)n++});console.log('LIGHTPROBE moved-lit='+n);if(n!==window.__lit0)throw new Error('moving the camera changed the live light count: '+window.__lit0+' -> '+n);return 'ok '+n})()"
     },
-    { "name": "shot-walk-moved", "screenshot": "03-walk-after-moving" },
-
-    { "name": "back-to-orbit", "eval": "window.__store.getState().setCameraMode('orbit')" },
-    { "name": "orbit-settle", "wait": 2000 },
-    { "name": "one-light-off", "eval": "(function(){var s=window.__store.getState();var it=s.items.find(function(i){return i.defId==='floor-lamp'});s.setItems(s.items.map(function(i){return i.id===it.id?Object.assign({},i,{props:Object.assign({},i.props,{lightOn:'no'})}):i}));window.__offId=it.id;return it.id})()" },
-    { "name": "one-off-settle", "wait": 1500 },
+    {
+      "name": "shot-walk-moved",
+      "screenshot": "03-walk-after-moving"
+    },
+    {
+      "name": "back-to-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "back-to-orbit-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Switching to overview' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "back-to-orbit-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Switching to overview' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "orbit-settle",
+      "wait": 2000
+    },
+    {
+      "name": "one-light-off",
+      "eval": "(function(){var s=window.__store.getState();var it=s.items.find(function(i){return i.defId==='floor-lamp'});s.setItems(s.items.map(function(i){return i.id===it.id?Object.assign({},i,{props:Object.assign({},i.props,{lightOn:'no'})}):i}));window.__offId=it.id;return it.id})()"
+    },
+    {
+      "name": "one-off-settle",
+      "wait": 1500
+    },
     {
       "name": "assert-per-light-switch-wins",
       "eval": "(function(){var n=0;window.__three.scene.traverse(function(o){if(o.isPointLight||o.isSpotLight)n++});if(n!==window.__lit0-1)throw new Error('per-light switch should remove exactly one: '+window.__lit0+' -> '+n);return 'ok '+n})()"
     },
-
-    { "name": "lights-off", "eval": "window.__store.getState().setLightsMode ? window.__store.getState().setLightsMode('off') : window.__store.setState({ lightsMode: 'off' })" },
-    { "name": "off-settle", "wait": 2000 },
+    {
+      "name": "lights-off",
+      "eval": "window.__store.getState().setLightsMode ? window.__store.getState().setLightsMode('off') : window.__store.setState({ lightsMode: 'off' })"
+    },
+    {
+      "name": "off-settle",
+      "wait": 2000
+    },
     {
       "name": "assert-none-lit",
       "eval": "(function(){var n=0;window.__three.scene.traverse(function(o){if(o.isPointLight||o.isSpotLight)n++});console.log('LIGHTPROBE off-lit='+n);if(n!==0)throw new Error('lights off should render no fixture lights, got '+n);return 'ok'})()"
     },
-    { "name": "shot-orbit-off", "screenshot": "04-orbit-lights-off" }
+    {
+      "name": "shot-orbit-off",
+      "screenshot": "04-orbit-lights-off"
+    }
   ]
 }

@@ -45,6 +45,39 @@ APPEAR and then to GO. `backdrop-walk-simple`'s final assert works again. Three 
 NOT work (`loading.active`, label text, text-appear-then-disappear) are written up in
 `docs/visual-verification-playbook.md` — read that before touching this.
 
+## The walk HUD's hint bar is clipped on a phone, and shows KEYBOARD hints there
+
+Surfaced in v0.31.8.90, the moment `walk-mobile-hud.json` got the `viewport` step it had always
+been missing (it had been screenshotting the "mobile" HUD at desktop width, so it had never
+rendered a phone). At **390x844** the bottom hint bar is horizontally clipped at BOTH ends —
+it reads `alk mode | Click to look | W A S D move | Esc show curs`, losing a character each side —
+and the content itself is wrong for the device: `Click to look`, W/A/S/D and `Esc` are keyboard
+affordances on a machine with no keyboard.
+
+Two things to decide together, so don't fix only the clipping:
+1. the bar needs to fit 390 px (and 320 px — the playbook's narrow tier);
+2. on a coarse pointer it should presumably show the TOUCH grammar (drag to look, the on-screen
+   move control) rather than keys. Check what walk mode actually binds on touch before writing
+   copy — do not invent affordances that do not exist.
+
+Obligations: it is user-facing, so Simple AND Pro both need testing, no colour literals, and the
+44 px tap floor is gated on `max-width: 960px` (width, not pointer). Verify with
+`scripts/scenarios/walk-mobile-hud.json`, which now renders a real phone.
+
+## `walkcam.json` fails at `verify-controls-show`, pre-existing
+
+Found in v0.31.8.90 while spot-checking the transition-guard sweep, and confirmed NOT caused by
+it — the failure is identical with the guard stashed:
+
+```
+STEP 8/21 verify-controls-show … FAILED
+  reason: WalkCameraControls should be visible in firstPerson + Pro mode
+```
+
+So `walkcam.json` has not been reaching its FOV/scale assertions. Likely the scenario never
+switches to Pro (the control is pro-tier and Simple is the boot default), but that is a guess —
+check the flag's tier and the scenario's mode setup before changing either.
+
 ## ~~`backdrop-upload-simple.json` fails at step 14~~ — FIXED (v0.31.8.89)
 
 **Resolved.** FOUR stacked breaks, so the scenario reached none of its own backdrop assertions:
@@ -55,7 +88,8 @@ assumed walk mode closes the Scene menu, which it does not, so the re-open click
 `UI_INITIAL.backdrop` (WINDOW-SKY-DEFAULT) — the APP was right and the assertion stale; (4) the
 WALK-direction copy of v0.31.8.88's splash bug, so `02-walk-default-city` was the "Entering
 walkthrough" splash. Also pinned the backdrop the shot is named for, and added a toolbar-mount
-`waitFor` for a 1-in-3 boot flake. **Lesson worth keeping: the splash bug was never
+`waitFor` for a 1-in-3 boot flake. **Lesson worth keeping, and ACTED ON in v0.31.8.90 (34 more sites across 28 files, now
+ratcheted by `src/scenarioTransitionGuard.test.ts`): the splash bug was never
 orbit-specific** — any scenario that changes `cameraMode` and then screenshots needs the
 appear-then-gone wait, in either direction.
 

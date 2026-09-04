@@ -3,22 +3,114 @@
   "description": "PHOTO-POM control at Medium tier: pomStepsForTier returns 0, so the floor keeps the plain shared procedural material (no POM, byte-identical). Confirms the no-POM path renders cleanly. Same grazing walk pose over grey-porcelain tile. SHOT_GPU=1.",
   "url": "http://localhost:5199/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
-    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
-    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
-    { "name": "pro-mode", "eval": "(function(){ const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()" },
-    { "name": "clear-furniture", "eval": "window.__store.getState().setItems([])" },
-    { "name": "tile-floor", "eval": "window.__store.getState().setAllFloorFinish('floor-tile-grey')" },
-    { "name": "pom-on-flag", "eval": "window.__store.getState().setFeatureFlag('pomFloors', true)" },
-    { "name": "daylight", "eval": "(function(){ const s=window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13); })()" },
-    { "name": "open-curtains", "eval": "(function(){ const s=window.__store.getState(); s.items.filter(i=>/curtain|blind/.test(i.defId)).forEach(i=>s.updateItemProps(i.id,{drawAmount:0})); })()" },
-    { "name": "tier", "store": { "action": "setQualityTier", "args": ["medium"] } },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "walk-settle", "waitFor": { "store": "!!window.__walkLook" }, "timeout": 20000 },
-    { "name": "low-eye", "store": { "action": "setWalkEyeHeight", "args": [1.2] } },
-    { "name": "teleport-and-pitch", "eval": "(function(){ const c=window.__three.camera; c.position.x=10.5; c.position.z=6.0; window.__walkLook.setPitch(-0.4); })()" },
-    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
-    { "name": "settle-pose", "wait": 2500 },
-    { "name": "shot-medium", "screenshot": "medium-noPOM" }
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pro-mode",
+      "eval": "(function(){ const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()"
+    },
+    {
+      "name": "clear-furniture",
+      "eval": "window.__store.getState().setItems([])"
+    },
+    {
+      "name": "tile-floor",
+      "eval": "window.__store.getState().setAllFloorFinish('floor-tile-grey')"
+    },
+    {
+      "name": "pom-on-flag",
+      "eval": "window.__store.getState().setFeatureFlag('pomFloors', true)"
+    },
+    {
+      "name": "daylight",
+      "eval": "(function(){ const s=window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13); })()"
+    },
+    {
+      "name": "open-curtains",
+      "eval": "(function(){ const s=window.__store.getState(); s.items.filter(i=>/curtain|blind/.test(i.defId)).forEach(i=>s.updateItemProps(i.id,{drawAmount:0})); })()"
+    },
+    {
+      "name": "tier",
+      "store": {
+        "action": "setQualityTier",
+        "args": [
+          "medium"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "walk-settle",
+      "waitFor": {
+        "store": "!!window.__walkLook"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "low-eye",
+      "store": {
+        "action": "setWalkEyeHeight",
+        "args": [
+          1.2
+        ]
+      }
+    },
+    {
+      "name": "teleport-and-pitch",
+      "eval": "(function(){ const c=window.__three.camera; c.position.x=10.5; c.position.z=6.0; window.__walkLook.setPitch(-0.4); })()"
+    },
+    {
+      "name": "hide-loading",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
+    {
+      "name": "settle-pose",
+      "wait": 2500
+    },
+    {
+      "name": "shot-medium",
+      "screenshot": "medium-noPOM"
+    }
   ]
 }

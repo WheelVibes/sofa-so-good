@@ -2,31 +2,183 @@
   "name": "procedural-sky-simple",
   "url": "http://localhost:5186/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
     {
       "name": "dismiss-overlays",
       "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
     },
-    { "name": "go-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
-    { "name": "noon", "store": { "action": "setManualHour", "args": [13] } },
-    { "name": "select-sky", "store": { "action": "setBackdrop", "args": ["sky"] } },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "settle-walk", "wait": 2500 },
-    { "name": "shot-walk-noon", "screenshot": "walk-sky-noon" },
-    { "name": "look-around", "drag": { "from": [400, 400], "to": [1000, 400] } },
-    { "name": "settle-look", "wait": 1500 },
-    { "name": "shot-walk-noon-2", "screenshot": "walk-sky-noon-2" },
-    { "name": "morning", "store": { "action": "setManualHour", "args": [7] } },
-    { "name": "settle-morning", "wait": 1800 },
-    { "name": "shot-walk-morning", "screenshot": "walk-sky-morning" },
-    { "name": "sunset", "store": { "action": "setManualHour", "args": [18.7] } },
-    { "name": "settle-sunset", "wait": 1800 },
-    { "name": "shot-walk-sunset", "screenshot": "walk-sky-sunset" },
-    { "name": "night", "store": { "action": "setManualHour", "args": [22] } },
-    { "name": "settle-night", "wait": 1800 },
-    { "name": "shot-walk-night", "screenshot": "walk-sky-night" },
-    { "name": "back-orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
-    { "name": "settle-back", "wait": 2000 },
-    { "name": "shot-orbit", "screenshot": "orbit-after" }
+    {
+      "name": "go-pro",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "noon",
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          13
+        ]
+      }
+    },
+    {
+      "name": "select-sky",
+      "store": {
+        "action": "setBackdrop",
+        "args": [
+          "sky"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "settle-walk",
+      "wait": 2500
+    },
+    {
+      "name": "shot-walk-noon",
+      "screenshot": "walk-sky-noon"
+    },
+    {
+      "name": "look-around",
+      "drag": {
+        "from": [
+          400,
+          400
+        ],
+        "to": [
+          1000,
+          400
+        ]
+      }
+    },
+    {
+      "name": "settle-look",
+      "wait": 1500
+    },
+    {
+      "name": "shot-walk-noon-2",
+      "screenshot": "walk-sky-noon-2"
+    },
+    {
+      "name": "morning",
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          7
+        ]
+      }
+    },
+    {
+      "name": "settle-morning",
+      "wait": 1800
+    },
+    {
+      "name": "shot-walk-morning",
+      "screenshot": "walk-sky-morning"
+    },
+    {
+      "name": "sunset",
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          18.7
+        ]
+      }
+    },
+    {
+      "name": "settle-sunset",
+      "wait": 1800
+    },
+    {
+      "name": "shot-walk-sunset",
+      "screenshot": "walk-sky-sunset"
+    },
+    {
+      "name": "night",
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          22
+        ]
+      }
+    },
+    {
+      "name": "settle-night",
+      "wait": 1800
+    },
+    {
+      "name": "shot-walk-night",
+      "screenshot": "walk-sky-night"
+    },
+    {
+      "name": "back-orbit",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "orbit"
+        ]
+      }
+    },
+    {
+      "name": "back-orbit-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Switching to overview' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "back-orbit-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Switching to overview' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "settle-back",
+      "wait": 2000
+    },
+    {
+      "name": "shot-orbit",
+      "screenshot": "orbit-after"
+    }
   ]
 }

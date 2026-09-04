@@ -2,184 +2,527 @@
   "name": "ui-polish-batch3b",
   "url": "http://localhost:5273/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
-    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "app-loaded",
+      "waitFor": {
+        "css": ".toolbar"
+      },
+      "timeout": 60000
+    },
     {
       "name": "dismiss-overlays",
       "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_dismissed_callouts') })()"
     },
-    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
-    { "name": "settle", "wait": 2500 },
-    { "name": "daytime", "eval": "window.__store.getState().setManualHour(13)" },
-    { "name": "regress-toolbar", "screenshot": "regress-toolbar" },
-    { "name": "regress-open-menu", "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()" },
-    { "name": "regress-menu-settle", "wait": 500 },
-    { "name": "regress-shot-menu", "screenshot": "regress-menu-open" },
-    { "name": "regress-close-menu", "key": "Escape" },
-
-    { "name": "P18-enter-room", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
-    { "name": "P18-room-settle", "wait": 1200 },
-    { "name": "P18-select-room", "eval": "window.__store.getState().selectRoom('livingDining')" },
-    { "name": "P18-picker-mounted", "waitFor": { "css": ".panel.inspector" }, "timeout": 20000 },
-    { "name": "P18-disclosure-present", "waitFor": { "css": ".panel.inspector .compose-summary" }, "timeout": 15000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "settle",
+      "wait": 2500
+    },
+    {
+      "name": "daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "regress-toolbar",
+      "screenshot": "regress-toolbar"
+    },
+    {
+      "name": "regress-open-menu",
+      "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()"
+    },
+    {
+      "name": "regress-menu-settle",
+      "wait": 500
+    },
+    {
+      "name": "regress-shot-menu",
+      "screenshot": "regress-menu-open"
+    },
+    {
+      "name": "regress-close-menu",
+      "key": "Escape"
+    },
+    {
+      "name": "P18-enter-room",
+      "eval": "window.__store.getState().enterRoomEditor('livingDining')"
+    },
+    {
+      "name": "P18-room-settle",
+      "wait": 1200
+    },
+    {
+      "name": "P18-select-room",
+      "eval": "window.__store.getState().selectRoom('livingDining')"
+    },
+    {
+      "name": "P18-picker-mounted",
+      "waitFor": {
+        "css": ".panel.inspector"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "P18-disclosure-present",
+      "waitFor": {
+        "css": ".panel.inspector .compose-summary"
+      },
+      "timeout": 15000
+    },
     {
       "name": "P18-probe-collapsed",
       "eval": "(() => { const d=document.querySelector('.panel.inspector details.compose'); console.log('PROBE disclosure open(before)', d && d.open) })()"
     },
-    { "name": "P18-shot-disclosure-collapsed", "screenshot": "p18-disclosure-collapsed" },
+    {
+      "name": "P18-shot-disclosure-collapsed",
+      "screenshot": "p18-disclosure-collapsed"
+    },
     {
       "name": "P18-expand-disclosure",
       "eval": "(() => { const s=[...document.querySelectorAll('.panel.inspector .compose-summary')].find(el => /Apartment colour palette/.test(el.textContent||'')); if(!s) throw new Error('palette summary not found'); s.click() })()"
     },
-    { "name": "P18-expand-settle", "wait": 500 },
+    {
+      "name": "P18-expand-settle",
+      "wait": 500
+    },
     {
       "name": "P18-probe-expanded",
       "eval": "(() => { const d=document.querySelector('.panel.inspector details.compose'); console.log('PROBE disclosure open(after)', d && d.open) })()"
     },
-    { "name": "P18-shot-disclosure-expanded", "screenshot": "p18-disclosure-expanded" },
-    { "name": "P18-deselect", "eval": "window.__store.getState().selectRoom(null)" },
-    { "name": "P18-exit-room", "eval": "window.__store.getState().exitRoomEditor()" },
-    { "name": "P18-exit-settle", "wait": 800 },
-
-    { "name": "P18b-walk-mode", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
-    { "name": "P18b-walk-settle", "wait": 900 },
-    { "name": "P18b-set-fov-a", "eval": "window.__store.getState().setWalkFov(60)" },
-    { "name": "P18b-open-appearance", "eval": "window.__store.getState().setAppearanceOpen(true)" },
-    { "name": "P18b-walk-settings", "waitFor": { "text": "Walk settings" }, "timeout": 15000 },
-    { "name": "P18b-fld-present", "waitFor": { "css": ".fld .val" }, "timeout": 10000 },
+    {
+      "name": "P18-shot-disclosure-expanded",
+      "screenshot": "p18-disclosure-expanded"
+    },
+    {
+      "name": "P18-deselect",
+      "eval": "window.__store.getState().selectRoom(null)"
+    },
+    {
+      "name": "P18-exit-room",
+      "eval": "window.__store.getState().exitRoomEditor()"
+    },
+    {
+      "name": "P18-exit-settle",
+      "wait": 800
+    },
+    {
+      "name": "P18b-walk-mode",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "P18b-walk-mode-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "P18b-walk-mode-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "P18b-walk-settle",
+      "wait": 900
+    },
+    {
+      "name": "P18b-set-fov-a",
+      "eval": "window.__store.getState().setWalkFov(60)"
+    },
+    {
+      "name": "P18b-open-appearance",
+      "eval": "window.__store.getState().setAppearanceOpen(true)"
+    },
+    {
+      "name": "P18b-walk-settings",
+      "waitFor": {
+        "text": "Walk settings"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "P18b-fld-present",
+      "waitFor": {
+        "css": ".fld .val"
+      },
+      "timeout": 10000
+    },
     {
       "name": "P18b-probe-readout-a",
       "eval": "(() => { const r=[...document.querySelectorAll('.fld')].find(f => /Field of view/.test(f.textContent||'')); const val=r && r.querySelector('.val'); console.log('PROBE fov readout A', val && val.textContent) })()"
     },
-    { "name": "P18b-shot-slider-a", "screenshot": "p18-sliderfield-fov-60" },
-    { "name": "P18b-set-fov-b", "eval": "window.__store.getState().setWalkFov(95)" },
-    { "name": "P18b-readout-settle", "wait": 400 },
+    {
+      "name": "P18b-shot-slider-a",
+      "screenshot": "p18-sliderfield-fov-60"
+    },
+    {
+      "name": "P18b-set-fov-b",
+      "eval": "window.__store.getState().setWalkFov(95)"
+    },
+    {
+      "name": "P18b-readout-settle",
+      "wait": 400
+    },
     {
       "name": "P18b-probe-readout-b",
       "eval": "(() => { const r=[...document.querySelectorAll('.fld')].find(f => /Field of view/.test(f.textContent||'')); const val=r && r.querySelector('.val'); console.log('PROBE fov readout B', val && val.textContent) })()"
     },
-    { "name": "P18b-shot-slider-b", "screenshot": "p18-sliderfield-fov-95" },
-    { "name": "P18b-close-appearance", "eval": "window.__store.getState().setAppearanceOpen(false)" },
-    { "name": "P18b-back-orbit", "eval": "window.__store.getState().setCameraMode('orbit')" },
-    { "name": "P18b-orbit-settle", "wait": 800 },
-
+    {
+      "name": "P18b-shot-slider-b",
+      "screenshot": "p18-sliderfield-fov-95"
+    },
+    {
+      "name": "P18b-close-appearance",
+      "eval": "window.__store.getState().setAppearanceOpen(false)"
+    },
+    {
+      "name": "P18b-back-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "P18b-back-orbit-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Switching to overview' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "P18b-back-orbit-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Switching to overview' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
+    {
+      "name": "P18b-orbit-settle",
+      "wait": 800
+    },
     {
       "name": "P32-progress-start",
-      "eval": "(() => { window.__b3bToastId = window.__store.getState().notify.start({ kind:'progress', title:'Rendering…', message:'Path-tracing your view', progress: 0.15, onActivate: () => { window.__b3bJumped = true } }) })()"
+      "eval": "(() => { window.__b3bToastId = window.__store.getState().notify.start({ kind:'progress', title:'Rendering\u2026', message:'Path-tracing your view', progress: 0.15, onActivate: () => { window.__b3bJumped = true } }) })()"
     },
-    { "name": "P32-toast-visible", "waitFor": { "css": ".toast-host .toast" }, "timeout": 10000 },
+    {
+      "name": "P32-toast-visible",
+      "waitFor": {
+        "css": ".toast-host .toast"
+      },
+      "timeout": 10000
+    },
     {
       "name": "P32-progress-update",
       "eval": "(() => { window.__store.getState().notify.update(window.__b3bToastId, { progress: 0.62, message: 'Path-tracing your view' }) })()"
     },
-    { "name": "P32-jump-hint", "waitFor": { "text": "Jump to result" }, "timeout": 10000 },
-    { "name": "P32-jump-settle", "wait": 300 },
-    { "name": "P32-shot-progress", "screenshot": "p32-progress-jump-hint" },
+    {
+      "name": "P32-jump-hint",
+      "waitFor": {
+        "text": "Jump to result"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "P32-jump-settle",
+      "wait": 300
+    },
+    {
+      "name": "P32-shot-progress",
+      "screenshot": "p32-progress-jump-hint"
+    },
     {
       "name": "P32-error-retry",
       "eval": "(() => { window.__store.getState().notify.error(window.__b3bToastId, 'Render failed', undefined, () => { window.__b3bRetried = true }) })()"
     },
-    { "name": "P32-retry-present", "waitFor": { "text": "Retry" }, "timeout": 10000 },
+    {
+      "name": "P32-retry-present",
+      "waitFor": {
+        "text": "Retry"
+      },
+      "timeout": 10000
+    },
     {
       "name": "P32-probe-retry",
       "eval": "(() => { const act=document.querySelector('.toast-host .toast-act'); console.log('PROBE retry action', act && act.textContent) })()"
     },
-    { "name": "P32-shot-error", "screenshot": "p32-error-retry" },
-    { "name": "P32-dismiss", "eval": "(() => { const s=window.__store.getState(); (s.notifications||[]).forEach(n => s.notify.dismiss(n.id)) })()" },
-    { "name": "P32-dismiss-settle", "wait": 400 },
-
-    { "name": "P38-pro-mode", "eval": "(() => { const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags() })()" },
-    { "name": "P38-pro-settle", "wait": 500 },
-    { "name": "P38-open-appearance", "eval": "window.__store.getState().setAppearanceOpen(true)" },
-    { "name": "P38-density-seg", "waitFor": { "text": "Density" }, "timeout": 10000 },
-    { "name": "P38-shot-density-seg", "screenshot": "p38-density-seg-pro" },
-    { "name": "P38-set-compact", "eval": "window.__store.getState().setDensity('compact')" },
-    { "name": "P38-compact-settle", "wait": 400 },
+    {
+      "name": "P32-shot-error",
+      "screenshot": "p32-error-retry"
+    },
+    {
+      "name": "P32-dismiss",
+      "eval": "(() => { const s=window.__store.getState(); (s.notifications||[]).forEach(n => s.notify.dismiss(n.id)) })()"
+    },
+    {
+      "name": "P32-dismiss-settle",
+      "wait": 400
+    },
+    {
+      "name": "P38-pro-mode",
+      "eval": "(() => { const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags() })()"
+    },
+    {
+      "name": "P38-pro-settle",
+      "wait": 500
+    },
+    {
+      "name": "P38-open-appearance",
+      "eval": "window.__store.getState().setAppearanceOpen(true)"
+    },
+    {
+      "name": "P38-density-seg",
+      "waitFor": {
+        "text": "Density"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "P38-shot-density-seg",
+      "screenshot": "p38-density-seg-pro"
+    },
+    {
+      "name": "P38-set-compact",
+      "eval": "window.__store.getState().setDensity('compact')"
+    },
+    {
+      "name": "P38-compact-settle",
+      "wait": 400
+    },
     {
       "name": "P38-probe-dataset",
       "eval": "(() => { const d=document.documentElement.dataset.density; if(d!=='compact') throw new Error('dataset.density not compact: '+d); console.log('PROBE dataset.density', d) })()"
     },
-    { "name": "P38-shot-appearance-compact", "screenshot": "p38-density-compact-seg" },
-    { "name": "P38-close-appearance", "eval": "window.__store.getState().setAppearanceOpen(false)" },
-    { "name": "P38-open-menu-compact", "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()" },
-    { "name": "P38-menu-settle", "wait": 500 },
+    {
+      "name": "P38-shot-appearance-compact",
+      "screenshot": "p38-density-compact-seg"
+    },
+    {
+      "name": "P38-close-appearance",
+      "eval": "window.__store.getState().setAppearanceOpen(false)"
+    },
+    {
+      "name": "P38-open-menu-compact",
+      "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()"
+    },
+    {
+      "name": "P38-menu-settle",
+      "wait": 500
+    },
     {
       "name": "P38-probe-rowpad-compact",
       "eval": "(() => { const mi=document.querySelector('.menu-item'); const cs=mi&&getComputedStyle(mi); console.log('PROBE compact .menu-item padding', cs && cs.padding) })()"
     },
-    { "name": "P38-shot-menu-compact", "screenshot": "p38-menu-compact" },
-    { "name": "P38-close-menu", "key": "Escape" },
-    { "name": "P38-set-comfortable", "eval": "window.__store.getState().setDensity('comfortable')" },
-    { "name": "P38-comfort-settle", "wait": 300 },
-    { "name": "P38-open-menu-comfort", "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()" },
-    { "name": "P38-menu-comfort-settle", "wait": 500 },
+    {
+      "name": "P38-shot-menu-compact",
+      "screenshot": "p38-menu-compact"
+    },
+    {
+      "name": "P38-close-menu",
+      "key": "Escape"
+    },
+    {
+      "name": "P38-set-comfortable",
+      "eval": "window.__store.getState().setDensity('comfortable')"
+    },
+    {
+      "name": "P38-comfort-settle",
+      "wait": 300
+    },
+    {
+      "name": "P38-open-menu-comfort",
+      "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()"
+    },
+    {
+      "name": "P38-menu-comfort-settle",
+      "wait": 500
+    },
     {
       "name": "P38-probe-rowpad-comfort",
       "eval": "(() => { const mi=document.querySelector('.menu-item'); const cs=mi&&getComputedStyle(mi); console.log('PROBE comfortable .menu-item padding', cs && cs.padding) })()"
     },
-    { "name": "P38-shot-menu-comfort", "screenshot": "p38-menu-comfortable" },
-    { "name": "P38-close-menu-comfort", "key": "Escape" },
-    { "name": "P38-simple-mode", "eval": "(() => { const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags() })()" },
-    { "name": "P38-simple-settle", "wait": 500 },
-    { "name": "P38-open-appearance-simple", "eval": "window.__store.getState().setAppearanceOpen(true)" },
-    { "name": "P38-appearance-simple-settle", "wait": 600 },
+    {
+      "name": "P38-shot-menu-comfort",
+      "screenshot": "p38-menu-comfortable"
+    },
+    {
+      "name": "P38-close-menu-comfort",
+      "key": "Escape"
+    },
+    {
+      "name": "P38-simple-mode",
+      "eval": "(() => { const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags() })()"
+    },
+    {
+      "name": "P38-simple-settle",
+      "wait": 500
+    },
+    {
+      "name": "P38-open-appearance-simple",
+      "eval": "window.__store.getState().setAppearanceOpen(true)"
+    },
+    {
+      "name": "P38-appearance-simple-settle",
+      "wait": 600
+    },
     {
       "name": "P38-probe-density-absent",
       "eval": "(() => { const labels=[...document.querySelectorAll('.pop-label')].map(e => e.textContent.trim()); if(labels.includes('Density')) throw new Error('Density seg present in Simple mode'); console.log('PROBE simple pop-labels', JSON.stringify(labels)) })()"
     },
-    { "name": "P38-shot-appearance-simple", "screenshot": "p38-density-absent-simple" },
-    { "name": "P38-close-appearance-simple", "eval": "window.__store.getState().setAppearanceOpen(false)" },
-
-    { "name": "P26-simple-mode", "eval": "(() => { const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags() })()" },
-    { "name": "P26-open-cmdk", "eval": "window.__store.getState().setCmdkOpen(true)" },
-    { "name": "P26-upsell-present", "waitFor": { "css": ".cmdk-upsell" }, "timeout": 10000 },
+    {
+      "name": "P38-shot-appearance-simple",
+      "screenshot": "p38-density-absent-simple"
+    },
+    {
+      "name": "P38-close-appearance-simple",
+      "eval": "window.__store.getState().setAppearanceOpen(false)"
+    },
+    {
+      "name": "P26-simple-mode",
+      "eval": "(() => { const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags() })()"
+    },
+    {
+      "name": "P26-open-cmdk",
+      "eval": "window.__store.getState().setCmdkOpen(true)"
+    },
+    {
+      "name": "P26-upsell-present",
+      "waitFor": {
+        "css": ".cmdk-upsell"
+      },
+      "timeout": 10000
+    },
     {
       "name": "P26-probe-upsell",
       "eval": "(() => { const u=document.querySelector('.cmdk-upsell'); const chip=u&&u.querySelector('.badge.neutral'); console.log('PROBE upsell text', u && u.textContent.replace(/\\s+/g,' ').trim(), '| chip', chip && chip.textContent) })()"
     },
-    { "name": "P26-shot-upsell", "screenshot": "p26-cmdk-upsell-simple" },
-    { "name": "P26-close-cmdk", "eval": "window.__store.getState().setCmdkOpen(false)" },
-    { "name": "P26-close-settle", "wait": 300 },
-    { "name": "P26-pro-mode", "eval": "(() => { const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags() })()" },
-    { "name": "P26-open-cmdk-pro", "eval": "window.__store.getState().setCmdkOpen(true)" },
-    { "name": "P26-cmdk-pro-settle", "wait": 700 },
+    {
+      "name": "P26-shot-upsell",
+      "screenshot": "p26-cmdk-upsell-simple"
+    },
+    {
+      "name": "P26-close-cmdk",
+      "eval": "window.__store.getState().setCmdkOpen(false)"
+    },
+    {
+      "name": "P26-close-settle",
+      "wait": 300
+    },
+    {
+      "name": "P26-pro-mode",
+      "eval": "(() => { const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags() })()"
+    },
+    {
+      "name": "P26-open-cmdk-pro",
+      "eval": "window.__store.getState().setCmdkOpen(true)"
+    },
+    {
+      "name": "P26-cmdk-pro-settle",
+      "wait": 700
+    },
     {
       "name": "P26-probe-upsell-absent",
       "eval": "(() => { const u=document.querySelector('.cmdk-upsell'); if(u) throw new Error('upsell present in Pro mode'); console.log('PROBE upsell absent in Pro', u===null) })()"
     },
-    { "name": "P26-shot-cmdk-pro", "screenshot": "p26-cmdk-no-upsell-pro" },
-    { "name": "P26-close-cmdk-pro", "eval": "window.__store.getState().setCmdkOpen(false)" },
-
-    { "name": "P7-flag-on", "eval": "(() => { const s=window.__store.getState(); s.setFeatureFlag('ambientFx', true); s.setQualityTier('high') })()" },
-    { "name": "P7-high-settle", "wait": 500 },
+    {
+      "name": "P26-shot-cmdk-pro",
+      "screenshot": "p26-cmdk-no-upsell-pro"
+    },
+    {
+      "name": "P26-close-cmdk-pro",
+      "eval": "window.__store.getState().setCmdkOpen(false)"
+    },
+    {
+      "name": "P7-flag-on",
+      "eval": "(() => { const s=window.__store.getState(); s.setFeatureFlag('ambientFx', true); s.setQualityTier('high') })()"
+    },
+    {
+      "name": "P7-high-settle",
+      "wait": 500
+    },
     {
       "name": "P7-probe-gate-high",
       "eval": "(() => { const s=window.__store.getState(); const gate = !!s.featureFlags.ambientFx && s.qualityTier !== 'performance'; console.log('PROBE ambientFx gate @high', gate, 'flag', s.featureFlags.ambientFx, 'tier', s.qualityTier) })()"
     },
-    { "name": "P7-enter-room", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
-    { "name": "P7-room-settle", "wait": 1000 },
-    { "name": "P7-open-catalog", "eval": "window.__store.getState().setCatalogOpen(true)" },
-    { "name": "P7-catalog-mounted", "waitFor": { "css": ".panel.catalog" }, "timeout": 20000 },
-    { "name": "P7-card-present", "waitFor": { "css": ".card-grid .cat-card" }, "timeout": 15000 },
+    {
+      "name": "P7-enter-room",
+      "eval": "window.__store.getState().enterRoomEditor('livingDining')"
+    },
+    {
+      "name": "P7-room-settle",
+      "wait": 1000
+    },
+    {
+      "name": "P7-open-catalog",
+      "eval": "window.__store.getState().setCatalogOpen(true)"
+    },
+    {
+      "name": "P7-catalog-mounted",
+      "waitFor": {
+        "css": ".panel.catalog"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "P7-card-present",
+      "waitFor": {
+        "css": ".card-grid .cat-card"
+      },
+      "timeout": 15000
+    },
     {
       "name": "P7-gradient-high",
       "eval": "(() => { const card=document.querySelector('.card-grid .cat-card'); if(!card) throw new Error('no cat-card'); const bg=getComputedStyle(card).backgroundImage; if(!/radial-gradient/.test(bg)) throw new Error('gradient CSS not applied: '+bg); const r=card.getBoundingClientRect(); card.style.setProperty('--mx', Math.round(r.width*0.30)+'px'); card.style.setProperty('--my', Math.round(r.height*0.28)+'px'); console.log('PROBE high-tier gradient bg', bg.slice(0,58), '| accent-oklch', /oklch/.test(bg), '| offset --mx', card.style.getPropertyValue('--mx')) })()"
     },
-    { "name": "P7-gradient-settle", "wait": 300 },
-    { "name": "P7-shot-gradient-high", "screenshot": "p7-catalog-gradient-high" },
+    {
+      "name": "P7-gradient-settle",
+      "wait": 300
+    },
+    {
+      "name": "P7-shot-gradient-high",
+      "screenshot": "p7-catalog-gradient-high"
+    },
     {
       "name": "P7-inject-beam-high",
       "eval": "(() => { const host=document.querySelector('.card-grid .cat-card') || document.querySelector('.panel.catalog'); host.style.position='relative'; host.insertAdjacentHTML('beforeend','<span class=\"beam\" aria-hidden=\"true\"></span>'); const beam=host.querySelector('.beam'); const cs=getComputedStyle(beam,'::before'); console.log('PROBE beam ::before anim', cs.animationName, 'offsetPath', cs.offsetPath, 'dur', cs.animationDuration, 'playState', cs.animationPlayState) })()"
     },
-    { "name": "P7-beam-settle", "wait": 400 },
-    { "name": "P7-shot-beam-high", "screenshot": "p7-border-beam-high" },
+    {
+      "name": "P7-beam-settle",
+      "wait": 400
+    },
+    {
+      "name": "P7-shot-beam-high",
+      "screenshot": "p7-border-beam-high"
+    },
     {
       "name": "P7-remove-beam",
       "eval": "(() => { const b=document.querySelector('.beam'); if(b) b.remove() })()"
     },
-
-    { "name": "P7-degrade-performance", "eval": "window.__store.getState().setQualityTier('performance')" },
-    { "name": "P7-perf-settle", "wait": 500 },
+    {
+      "name": "P7-degrade-performance",
+      "eval": "window.__store.getState().setQualityTier('performance')"
+    },
+    {
+      "name": "P7-perf-settle",
+      "wait": 500
+    },
     {
       "name": "P7-probe-gate-perf",
       "eval": "(() => { const s=window.__store.getState(); const gate = !!s.featureFlags.ambientFx && s.qualityTier !== 'performance'; if(gate) throw new Error('ambientFx gate still true at performance tier'); console.log('PROBE ambientFx gate @performance', gate, 'tier', s.qualityTier) })()"
@@ -188,41 +531,103 @@
       "name": "P7-clear-gradient-perf",
       "eval": "(() => { const card=document.querySelector('.card-grid .cat-card'); if(!card) throw new Error('no cat-card'); card.style.removeProperty('--mx'); card.style.removeProperty('--my'); console.log('PROBE performance-tier gradient inert (vars cleared) --mx', JSON.stringify(card.style.getPropertyValue('--mx'))) })()"
     },
-    { "name": "P7-perf-gradient-settle", "wait": 300 },
-    { "name": "P7-shot-gradient-perf", "screenshot": "p7-catalog-no-gradient-performance" },
-    { "name": "P7-close-catalog", "eval": "window.__store.getState().setCatalogOpen(false)" },
-    { "name": "P7-exit-room", "eval": "window.__store.getState().exitRoomEditor()" },
-    { "name": "P7-exit-settle", "wait": 800 },
-
+    {
+      "name": "P7-perf-gradient-settle",
+      "wait": 300
+    },
+    {
+      "name": "P7-shot-gradient-perf",
+      "screenshot": "p7-catalog-no-gradient-performance"
+    },
+    {
+      "name": "P7-close-catalog",
+      "eval": "window.__store.getState().setCatalogOpen(false)"
+    },
+    {
+      "name": "P7-exit-room",
+      "eval": "window.__store.getState().exitRoomEditor()"
+    },
+    {
+      "name": "P7-exit-settle",
+      "wait": 800
+    },
     {
       "name": "RM-emulate-reduced-motion",
       "eval": "(() => { const st=document.createElement('style'); st.id='rm-emulate'; st.textContent='*,*::before,*::after{animation-duration:0.01ms !important;animation-delay:0ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;transition-delay:0ms !important;}'; document.head.appendChild(st) })()"
     },
-    { "name": "RM-high-tier", "eval": "window.__store.getState().setQualityTier('high')" },
-    { "name": "RM-settle", "wait": 400 },
+    {
+      "name": "RM-high-tier",
+      "eval": "window.__store.getState().setQualityTier('high')"
+    },
+    {
+      "name": "RM-settle",
+      "wait": 400
+    },
     {
       "name": "RM-probe-beam-static",
       "eval": "(() => { const host=document.querySelector('.toolbar')||document.body; host.insertAdjacentHTML('beforeend','<span class=\"beam\" id=\"rm-beam\" aria-hidden=\"true\"></span>'); const beam=document.getElementById('rm-beam'); const cs=getComputedStyle(beam,'::before'); console.log('PROBE RM beam ::before dur', cs.animationDuration, 'iter', cs.animationIterationCount); beam.remove() })()"
     },
-    { "name": "RM-open-menu", "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()" },
-    { "name": "RM-menu-settle", "wait": 400 },
+    {
+      "name": "RM-open-menu",
+      "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()"
+    },
+    {
+      "name": "RM-menu-settle",
+      "wait": 400
+    },
     {
       "name": "RM-inject-dot",
       "eval": "(() => { const mi=document.querySelector('.menu-item')||document.querySelector('.toolbar button'); mi.style.position='relative'; mi.insertAdjacentHTML('beforeend','<span class=\"new-dot\"></span>'); const dot=mi.querySelector('.new-dot'); const cs=getComputedStyle(dot); console.log('PROBE RM new-dot dur', cs.animationDuration, 'iter', cs.animationIterationCount, 'opacity', cs.opacity) })()"
     },
-    { "name": "RM-dot-settle", "wait": 300 },
-    { "name": "RM-shot-static", "screenshot": "rm-new-dot-beam-static" },
-    { "name": "RM-close-menu", "key": "Escape" },
-    { "name": "RM-open-plan", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
-    { "name": "RM-plan-flag", "waitFor": { "store": "window.__store.getState().floorPlanEditing === true" }, "timeout": 10000 },
-    { "name": "RM-plan-pre-settle", "wait": 1500 },
-    { "name": "RM-plan-mounted", "waitFor": { "css": ".plan-screen" }, "timeout": 45000 },
-    { "name": "RM-plan-settle", "wait": 500 },
+    {
+      "name": "RM-dot-settle",
+      "wait": 300
+    },
+    {
+      "name": "RM-shot-static",
+      "screenshot": "rm-new-dot-beam-static"
+    },
+    {
+      "name": "RM-close-menu",
+      "key": "Escape"
+    },
+    {
+      "name": "RM-open-plan",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    {
+      "name": "RM-plan-flag",
+      "waitFor": {
+        "store": "window.__store.getState().floorPlanEditing === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "RM-plan-pre-settle",
+      "wait": 1500
+    },
+    {
+      "name": "RM-plan-mounted",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 45000
+    },
+    {
+      "name": "RM-plan-settle",
+      "wait": 500
+    },
     {
       "name": "RM-probe-crossfade",
       "eval": "(() => { const el=document.querySelector('.plan-screen'); const cs=el&&getComputedStyle(el); console.log('PROBE RM plan-screen opacity', cs && cs.opacity, 'animDur', cs && cs.animationDuration) })()"
     },
-    { "name": "RM-shot-plan-static", "screenshot": "rm-plan-crossfade-static" },
-    { "name": "RM-close-plan", "eval": "window.__store.getState().setFloorPlanEditing(false)" }
+    {
+      "name": "RM-shot-plan-static",
+      "screenshot": "rm-plan-crossfade-static"
+    },
+    {
+      "name": "RM-close-plan",
+      "eval": "window.__store.getState().setFloorPlanEditing(false)"
+    }
   ]
 }

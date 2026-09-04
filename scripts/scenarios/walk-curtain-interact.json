@@ -2,23 +2,40 @@
   "name": "walk-curtain-interact",
   "url": "http://localhost:5226/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
     {
       "name": "dismiss-overlays",
       "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)"
     },
     {
       "name": "assert-flag-on-simple",
-      "waitFor": { "store": "state.featureFlags.walkWindowFixtures === true" },
+      "waitFor": {
+        "store": "state.featureFlags.walkWindowFixtures === true"
+      },
       "failMessage": "walkWindowFixtures should be ON in default Simple mode (simple tier, default true)"
     },
-    { "name": "shot-orbit-curtains-drawn", "screenshot": "orbit-curtains-drawn" },
+    {
+      "name": "shot-orbit-curtains-drawn",
+      "screenshot": "orbit-curtains-drawn"
+    },
     {
       "name": "orbit-e-key-is-inert",
       "eval": "window.__store.getState().setNearbyFixture('default-ld-curtain')"
     },
-    { "name": "orbit-press-e", "key": "KeyE" },
-    { "name": "orbit-inert-settle", "wait": 800 },
+    {
+      "name": "orbit-press-e",
+      "key": "KeyE"
+    },
+    {
+      "name": "orbit-inert-settle",
+      "wait": 800
+    },
     {
       "name": "assert-orbit-inert",
       "waitFor": {
@@ -27,35 +44,83 @@
       },
       "failMessage": "Pressing E in ORBIT mode must NOT toggle the curtain (walk-only interact gate; toggle is synchronous so drawAmount would already be 0)"
     },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "enter-walk-overlay-shown",
+      "waitFor": {
+        "css": "[data-transition-overlay]"
+      },
+      "timeout": 12000,
+      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+    },
+    {
+      "name": "enter-walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
+    },
     {
       "name": "walk-active",
-      "waitFor": { "store": "state.cameraMode === 'firstPerson'" }
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      }
     },
-    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    {
+      "name": "hide-loading",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
     {
       "name": "dismiss-walk-callout",
       "eval": "window.__store.getState().dismissCallout?.('walk-mode')"
     },
-    { "name": "settle-walk", "wait": 1500 },
+    {
+      "name": "settle-walk",
+      "wait": 1500
+    },
     {
       "name": "teleport-near-curtain",
       "eval": "window.__three.camera.position.x = 11; window.__three.camera.position.z = 3.2"
     },
     {
       "name": "aim-loop-detects-curtain",
-      "waitFor": { "store": "state.nearbyFixtureId === 'default-ld-curtain'" },
+      "waitFor": {
+        "store": "state.nearbyFixtureId === 'default-ld-curtain'"
+      },
       "timeout": 20000,
       "failMessage": "FirstPersonCamera's real aim loop should set nearbyFixtureId to the living/dining curtain"
     },
-    { "name": "prompt-visible", "waitFor": { "css": ".hud-pill" } },
+    {
+      "name": "prompt-visible",
+      "waitFor": {
+        "css": ".hud-pill"
+      }
+    },
     {
       "name": "prompt-says-open",
-      "waitFor": { "text": "Open curtains" },
+      "waitFor": {
+        "text": "Open curtains"
+      },
       "failMessage": "FixturePrompt should read 'Open curtains' while the curtain is drawn"
     },
-    { "name": "shot-walk-before-drawn", "screenshot": "walk-curtain-drawn" },
-    { "name": "press-e-open", "key": "KeyE" },
+    {
+      "name": "shot-walk-before-drawn",
+      "screenshot": "walk-curtain-drawn"
+    },
+    {
+      "name": "press-e-open",
+      "key": "KeyE"
+    },
     {
       "name": "curtain-toggled-open",
       "waitFor": {
@@ -63,16 +128,29 @@
       },
       "failMessage": "The real E-key handler should flip the aimed curtain's drawAmount to 0"
     },
-    { "name": "animation-settle", "wait": 2000 },
+    {
+      "name": "animation-settle",
+      "wait": 2000
+    },
     {
       "name": "prompt-says-close",
-      "waitFor": { "text": "Close curtains" },
+      "waitFor": {
+        "text": "Close curtains"
+      },
       "failMessage": "FixturePrompt should flip to 'Close curtains' once open"
     },
-    { "name": "shot-walk-after-open", "screenshot": "walk-curtain-open" },
+    {
+      "name": "shot-walk-after-open",
+      "screenshot": "walk-curtain-open"
+    },
     {
       "name": "toggle-back-via-action",
-      "store": { "action": "toggleWindowFixture", "args": ["default-ld-curtain"] }
+      "store": {
+        "action": "toggleWindowFixture",
+        "args": [
+          "default-ld-curtain"
+        ]
+      }
     },
     {
       "name": "curtain-toggled-closed",
@@ -80,7 +158,13 @@
         "store": "(() => { const it = state.items.find(i => i.id === 'default-ld-curtain'); return it && it.props.drawAmount === 1 })()"
       }
     },
-    { "name": "animation-settle-2", "wait": 2000 },
-    { "name": "shot-walk-re-drawn", "screenshot": "walk-curtain-re-drawn" }
+    {
+      "name": "animation-settle-2",
+      "wait": 2000
+    },
+    {
+      "name": "shot-walk-re-drawn",
+      "screenshot": "walk-curtain-re-drawn"
+    }
   ]
 }
