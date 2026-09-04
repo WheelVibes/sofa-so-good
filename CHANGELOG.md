@@ -29,6 +29,60 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.173 — the coverage cap is `--limit`, default **24**; lifting it to 111 works and costs bake TIME, not bytes
+
+`.172` left "something drops 87 meshes between the area filter and the bake" as the cheapest lead.
+It is not a filter. `bake_material.py` has `--limit`, **defaulting to 24**, and the line is
+`selected = candidates[: a.limit]` — a hard cap on objects baked, largest first. The shipped set was
+baked at ~40. **That single number is why only 52 of 1122 meshes carry a map**, and therefore why
+`.169` had to ship accepting a 5.5-count mapped/unmapped seam.
+
+**Lifting it works.** Re-baked the same export with `--limit 111` (every mesh that clears
+`--min-area 3.0`): **108/385 meshes matched, 28 %**, against the shipped 40/385 = 10 %. 111 maps at
+256 px / 8-bit is **5.3 MB** against the current 1.2 MB — well inside the 10 MB already accepted for
+the 333-map set, so bytes are not the constraint.
+
+**But at 64 samples the result is unusable**, and the frame says so immediately: heavy blotching
+across walls and ceiling where the shipped set is smooth.
+
+**Two candidates, separated by one cheap experiment.** Either Monte-Carlo noise, or the 8-bit
+quantisation cost `.167` recorded (per-map normalisation squeezes a mixed-exposure mesh's interior
+range into ~26 of 250 levels). Re-baking the same 111 at **`--bit-depth 16`, same samples** produced
+a frame **identically blotchy** — so quantisation is eliminated and it is in the baked data.
+
+The clinching observation is that the left wall is mapped in **both** sets: the same mesh, same
+resolution, same 8-bit, same per-map scale, is smooth at the shipped settings and blotchy at mine.
+Only `--samples` differs. So the real price of coverage is **bake time**, not download size or
+precision.
+
+**Confirmed at 512 samples**: 111 maps in **12.5 minutes**, 4.9 MB, and the blotching all but goes.
+Measured as the standard deviation of a flat wall patch, which is the direct read on smoothness:
+
+| arm | mean | sd |
+| --- | --- | --- |
+| GI off (the surface's own variation) | 93.5 | 5.0 |
+| shipped 40-map set | 158.3 | **8.2** |
+| 111 maps @ 64 samples | 158.6 | **29.3** |
+| 111 maps @ 512 samples | 159.0 | **10.8** |
+
+The means agree to within 0.7 counts, so the extra samples are buying smoothness and nothing else.
+10.8 against the shipped 8.2 is close but not equal, so a production run wants ~1024 (~25 min).
+**Not shipped yet**: 108 mapped meshes roughly doubles the 52 that cost a 293 ms compile at attach,
+and that plus a multi-room look pass has to be measured before this replaces the shipped set.
+
+**A retraction, caught by the instrument that exists for it.** I read a patch as "the floor collapses
+to 21.8 counts" and it was on the **bed**, not the floor. `patch-read.mjs` writes an overlay on every
+run precisely because this arc keeps mis-placing patches, and looking at it took one image.
+
+**A correction to `.169`'s wording.** It said "every mapped surface moves toward the reference; none
+moves away". That was three patches — wall, ceiling, sill — not a survey, and it should have been
+stated as such. The decision to ship still rests on those three plus the acLedge reference; but
+whether the floor moves toward or away from the reference is genuinely **unmeasured**, and the bed
+patch is not evidence either way.
+
+Suite 10167 green, `tsc` and biome clean. Nothing shipped; the 5.3 MB test set is not committed.
+
+
 ## v0.31.7.172 — a global-scale diagnostic bake: the bake itself gives ceilings 4-8x less than walls
 
 `.171` localised the ceiling deficit to the bake. Per-map normalisation makes cross-mesh comparison
