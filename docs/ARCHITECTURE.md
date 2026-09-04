@@ -2016,8 +2016,12 @@ same change that reshapes a system.
   (`OBSTACLE_AREA_M2`, 0.5 m² — now a single constant in `layout/designRules.ts` shared with
   `designScore` and `bed-access`, three separate literals until v0.31.8.53) can seal a room: a
   floor lamp does not close a doorway. The empty-plan baseline is subtracted so a template that
-  was never connected is not blamed on its furniture. It found 22 rooms across 9 of 19
-  templates that the arranger walls off, 10 clean (`routeAccess.test.ts` ratchets them). Two rasters per storey (63 ms on `tpl-hdb-jumbo`), so it is OPT-IN
+  was never connected is not blamed on its furniture. "Reachable" means **from the front door**
+  (the component holding a cell just inside an external-wall door), not "in the largest region"
+  — a heuristic that reported the wrong SIDE of a seal. Each finding names the piece whose
+  removal alone reopens the room (`sealedBy`), found by re-solving the same raster with that
+  footprint freed. It found 43 rooms beyond a break across 10 of 19 templates, 9 clean
+  (`routeAccess.test.ts` ratchets them). Two rasters per storey (63 ms on `tpl-hdb-jumbo`), so it is OPT-IN
   (`{ routeAccess: true }`) and only the report asks for it — running it inside `schemeOptions`,
   which critiques a dozen candidates, pushed the Scheme Compare modal past a 15 s harness
   timeout.

@@ -27,6 +27,73 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.54 — reachable from the FRONT DOOR, and the piece to move
+
+Two changes to the route check, one of which corrects its foundation.
+
+### 1. It now names the piece that seals the room
+
+A finding that says *"the Kitchen is walled off"* is a fact. *"Moving the TV console opens it"*
+is an instruction. `SeveredRoom.sealedBy` lists the pieces whose removal, **alone**, reconnects
+the room — **39 of 43 corpus cases have at least one.**
+
+It reuses the raster rather than re-running the pipeline per item. `buildLevelGrid` is
+furniture-independent apart from an `itemAt` lookup, so asking "does the room reconnect without
+this piece?" is one `solveGrid` call with that footprint's cells freed — **~1 ms against ~60 ms**
+for a full pass — and one solve answers it for every severed room on the storey at once, so the
+cost is linear in obstacles rather than obstacles × rooms. `tpl-hdb-jumbo`'s report line now
+reads:
+
+> Bedroom 5 is walled off by the furniture — 1.7 m² of floor you cannot reach from the front
+> door. Moving any one of the 3-seat sofa, Coffee table, TV console opens it.
+
+Where no single piece does it, it says so rather than guessing: *"No single piece opens it — at
+least two need to move."*
+
+### 2. "Reachable" now means reachable from the front door
+
+The main region used to be the **largest** walkable component. That was a heuristic, and the
+culprit search is what exposed it: **removing a piece can flip which region is largest**, so a
+room reads as reconnected when in truth the rest of the home just got cut off instead. A
+three-room chain fixture — Living → Hall → Bath, each doorway sealed by its own wardrobe —
+reported the Bath as reconnected by removing the *second* wardrobe, which is nonsense.
+
+The main region is now the component holding a cell just inside a door on an **external wall**.
+A storey with no external door (an upper floor) still falls back to largest.
+
+**This is why the corpus count went UP, 22 → 43, and the increase is a correction rather than a
+regression.** The anchor decides which SIDE of a seal is reported. On `tpl-hdb-jumbo` the old
+reading said only Bedroom 5 was cut off; measured from the front door, the auto-furnished layout
+leaves **a 5.7 m² pocket by the door reachable and the other ~55 m² not** — 8 rooms behind one
+break. The seals were always there. The old anchor was reporting the small side.
+
+Consequence for reading the numbers: **one break can account for many rooms** (jumbo 8,
+`tpl-condo-2bed` 8), so 43 is a count of rooms beyond a break, not a count of breaks. The report
+line leads with the total area for that reason — "8 rooms" reads like eight problems.
+
+I checked this before shipping it rather than accepting the new number: on the EMPTY jumbo every
+one of those rooms is reachable from the same door, so the plan supports 0.6 m routes and it is
+the furniture that breaks them. That is the test that distinguishes "my entry cell is wrong"
+from "the layout really is severed", and it is the check I did not do in v0.31.8.52.
+
+### Cost
+
+`buildLayoutCritique` with `routeAccess` on: 15 ms on `tpl-hdb-4room` (clean, so no culprit
+sweep), 75 ms on `tpl-condo-penthouse`, 123 ms on `tpl-hdb-jumbo`. Still opt-in, still only
+`ui/report.ts`. The Scheme Compare scenario clears as before.
+
+### Still no furniture moved
+
+`TODO.md` now records the constraint the mover has to solve rather than leaving it to be
+rediscovered: `sealedBy` gives it a candidate and a discrete goal, but each trial placement
+needs a re-solve at 60–120 ms, so a few candidates × a few culprits is seconds per plan — far
+too slow for `furnishPlanItems`, which runs on every template load and a dozen times inside
+`schemeOptions`. Either re-solve incrementally (only the moved footprint's cells change in
+`itemAt`) or make it a user-triggered fix. That decision comes before the code.
+
+Verified: 10174 tests pass; `tsc`, `biome`, `knip` clean. Report and Scheme Compare both
+verified visually.
+
 ## v0.31.8.53 — a floor lamp does not wall off a room. Retracting last release's headline
 
 The culprit sweep I should have run before shipping `.52`: for each of its 32 severed rooms,

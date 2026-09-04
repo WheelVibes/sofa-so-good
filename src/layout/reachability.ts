@@ -42,9 +42,16 @@
  *
  * ## What it deliberately does NOT do
  *
- * - It does not know where the front door is, so "reachable" means *connected to
- *   the largest walkable region of this storey*, not *reachable from the entrance*.
- *   On a normal plan those coincide; on a pathological one they need not.
+ * - **"Reachable" means reachable FROM THE FRONT DOOR** (v0.31.8.54) — the main
+ *   region is the component containing a cell just inside a door on an external
+ *   wall. It used to be the LARGEST component, which was a heuristic with a real
+ *   failure mode that the culprit search exposed: removing a piece can flip
+ *   which region is largest, so a room reads as reconnected when in truth the
+ *   rest of the home got cut off instead. Anchoring also changes which SIDE of a
+ *   seal is reported — on `tpl-hdb-jumbo` the largest-component reading said
+ *   "Bedroom 5 is cut off" where the truth is that only a 5.7 m² pocket by the
+ *   front door is reachable and the other 80 m² is not. A storey with no
+ *   external door (an upper floor) still falls back to the largest component.
  * - It does not cross storeys. Stairs are `stairConnectivity.ts`'s job.
  * - Doors are treated as **open**, matching `walkway.ts`'s route pass: a doorway is
  *   a route, so a closed leaf must not read as a severed home.
@@ -109,6 +116,24 @@ export interface SeveredRoom {
   level: string
   /** Walkable floor now stranded behind the furniture (m²). */
   areaM2: number
+  /**
+   * Pieces that SEAL this room: removing any ONE of them, on its own,
+   * reconnects it. Empty when no single piece does — the room then needs two or
+   * more moved, and a single-piece fix should not be expected to open it.
+   *
+   * Measured over the 19 templates: 19 of 22 severed rooms have at least one,
+   * and four defs account for 25 of the 29 attributions (`tv-console` 9,
+   * `sofa-3seat` 6, `dining-table-4` 5, `wardrobe-3door` 5) — this is the
+   * lounge/dining group parked across an open plan's circulation spine, not a
+   * diffuse problem.
+   */
+  sealedBy: SealingItem[]
+}
+
+/** One piece whose removal reconnects a severed room. */
+interface SealingItem {
+  itemId: string
+  defId: string
 }
 
 /**
@@ -246,24 +271,56 @@ function distanceToBlocked(free: Uint8Array, w: number, h: number): Float32Array
 }
 
 /**
- * Analyse one storey's walkable floor. Exported for tests; callers normally want
- * the per-level sweep, which sweeps every storey.
+ * One storey rasterised, WITHOUT furniture composed in yet.
+ *
+ * Split out from the solve so the culprit search can reuse it: finding which
+ * piece seals a room means re-solving with one item's cells freed, and the
+ * expensive part (wall rasterisation + the outside fill) does not depend on the
+ * furniture at all. `itemAt` records which obb covers each cell so an item can
+ * be excluded without rebuilding anything.
  */
-export function analyseLevelReachability(
+interface LevelGrid {
+  w: number
+  h: number
+  /** Inside the envelope and not in a (doors-OPEN) wall. Furniture-independent. */
+  openFloor: Uint8Array
+  /** Index of the first obb covering each cell, or -1. */
+  itemAt: Int32Array
+  /** Index of the first room rect containing each cell, or -1. */
+  roomOf: Int16Array
+  roomCount: number
+  /**
+   * Cell indices just inside the home's ENTRY doors — doors on external walls.
+   *
+   * The main region is the component containing one of these, not the largest
+   * component (v0.31.8.54). "Largest" was a heuristic with a real failure mode,
+   * and it showed up in the culprit search: removing a piece can flip WHICH
+   * region is largest, so a room reads as reconnected when in truth the rest of
+   * the home got cut off instead. Anchoring on the front door is what the
+   * question actually means — "can you get here from the entrance" — and it is
+   * stable under removing any one piece.
+   *
+   * Empty when the storey has no external door (an upper floor, a fixture with
+   * no openings). The largest component is then the only available answer, and
+   * that fallback is what the tests with hand-built walls exercise.
+   */
+  entries: number[]
+}
+
+/** Per-room cell counts from one solve. */
+interface GridSolution {
+  walkable: number[]
+  reachable: number[]
+}
+
+function buildLevelGrid(
   rooms: PlanRoom[],
   walls: CollisionWall[],
   obbs: OBB[],
-  level: string,
-  bodyWidthM: number = BODY_WIDTH_M,
-  /** Walls with every door CLOSED, used to find the storey's envelope. Defaults
-   *  to `walls`, which is right for a fixture with no doors; real plans must
-   *  pass both sets (see {@link analyseReachability}). */
-  envelopeWalls: CollisionWall[] = walls,
-): RoomReachability[] {
-  if (rooms.length === 0) return []
-
-  // Grid bounds: the union of the storey's room rectangles, padded one cell so a
-  // room edge never lands exactly on the border.
+  envelopeWalls: CollisionWall[],
+  /** World-space points just inside the home's entry doors. */
+  entryPoints: readonly [number, number][] = [],
+): LevelGrid {
   const rects = rooms.map(roomRect)
   const xs = [...rects.map((r) => r.x0), ...rects.map((r) => r.x1)]
   const zs = [...rects.map((r) => r.z0), ...rects.map((r) => r.z1)]
@@ -308,6 +365,7 @@ export function analyseLevelReachability(
   const solidClosed = new Uint8Array(w * h)
   const solidOpen = new Uint8Array(w * h)
   const roomOf = new Int16Array(w * h).fill(-1)
+  const itemAt = new Int32Array(w * h).fill(-1)
   const bounds = obbs.map(obbBounds)
 
   for (let z = 0; z < h; z++) {
@@ -321,6 +379,14 @@ export function analyseLevelReachability(
         const q = rects[r] as { x0: number; z0: number; x1: number; z1: number }
         if (px >= q.x0 && px <= q.x1 && pz >= q.z0 && pz <= q.z1) {
           roomOf[i] = r
+          break
+        }
+      }
+      for (let o = 0; o < obbs.length; o++) {
+        const b = bounds[o] as { x0: number; z0: number; x1: number; z1: number }
+        if (px < b.x0 || px > b.x1 || pz < b.z0 || pz > b.z1) continue
+        if (pointInObb(px, pz, obbs[o] as OBB)) {
+          itemAt[i] = o
           break
         }
       }
@@ -357,26 +423,36 @@ export function analyseLevelReachability(
     }
   }
 
-  // Free floor: inside the envelope, not in a wall (doors OPEN now), not under
-  // a piece of furniture.
+  const openFloor = new Uint8Array(w * h)
+  for (let i = 0; i < openFloor.length; i++) {
+    if (!outside[i] && !solidOpen[i]) openFloor[i] = 1
+  }
+
+  // Entry cells: the grid cell nearest each entry point that is inside the
+  // envelope. A door's own cell sits in the wall gap, which IS open floor.
+  const entries: number[] = []
+  for (const [ex, ez] of entryPoints) {
+    const gx = Math.round((ex - minX) / CELL_M - 0.5)
+    const gz = Math.round((ez - minZ) / CELL_M - 0.5)
+    if (gx < 0 || gx >= w || gz < 0 || gz >= h) continue
+    const i = gz * w + gx
+    if (openFloor[i]) entries.push(i)
+  }
+
+  return { w, h, openFloor, itemAt, roomOf, roomCount: rooms.length, entries }
+}
+
+/**
+ * Erode by half a body width, flood-fill, and count each room's walkable and
+ * main-region-connected cells. `exclude` frees one obb's cells, which is how the
+ * culprit search asks "does the room reconnect without this piece?" without
+ * rebuilding the grid.
+ */
+function solveGrid(g: LevelGrid, bodyWidthM: number, exclude = -1): GridSolution {
+  const { w, h, openFloor, itemAt, roomOf } = g
   const free = new Uint8Array(w * h)
-  for (let z = 0; z < h; z++) {
-    const pz = cz(z)
-    for (let x = 0; x < w; x++) {
-      const i = z * w + x
-      if (outside[i] || solidOpen[i]) continue
-      const px = cx(x)
-      let blocked = false
-      for (let o = 0; o < obbs.length; o++) {
-        const b = bounds[o] as { x0: number; z0: number; x1: number; z1: number }
-        if (px < b.x0 || px > b.x1 || pz < b.z0 || pz > b.z1) continue
-        if (pointInObb(px, pz, obbs[o] as OBB)) {
-          blocked = true
-          break
-        }
-      }
-      if (!blocked) free[i] = 1
-    }
+  for (let i = 0; i < free.length; i++) {
+    if (openFloor[i] && (itemAt[i] === -1 || itemAt[i] === exclude)) free[i] = 1
   }
 
   // Configuration space: a body of `bodyWidthM` can stand where the distance to
@@ -423,21 +499,50 @@ export function analyseLevelReachability(
     compArea.push(n)
   }
 
-  // The storey's MAIN region is its largest component. See the module docs for
-  // why this stands in for "reachable from the front door".
+  // The MAIN region is the one you enter the home into. `g.entries` are cells
+  // just inside the external doors; a door cell itself may not be standable
+  // (a 0.9 m opening is exactly at the body-width bar), so the search widens to
+  // the nearest standable cell around it. Falls back to the largest component
+  // when the storey has no external door at all — see `LevelGrid.entries`.
   let main = -1
-  let best = 0
-  for (let c = 0; c < compArea.length; c++) {
-    const a = compArea[c] as number
-    if (a > best) {
-      best = a
-      main = c
+  for (const e of g.entries) {
+    if (comp[e] >= 0) {
+      main = comp[e] as number
+      break
+    }
+    const ex = e % w
+    const ez = (e / w) | 0
+    const R = Math.ceil(1.0 / CELL_M)
+    let bestD = Infinity
+    for (let dz = -R; dz <= R && main < 0; dz++) {
+      for (let dx = -R; dx <= R; dx++) {
+        const nx = ex + dx
+        const nz = ez + dz
+        if (nx < 0 || nx >= w || nz < 0 || nz >= h) continue
+        const j = nz * w + nx
+        if (comp[j] < 0) continue
+        const d = dx * dx + dz * dz
+        if (d < bestD) {
+          bestD = d
+          main = comp[j] as number
+        }
+      }
+    }
+    if (main >= 0) break
+  }
+  if (main < 0) {
+    let best = 0
+    for (let c = 0; c < compArea.length; c++) {
+      const a = compArea[c] as number
+      if (a > best) {
+        best = a
+        main = c
+      }
     }
   }
 
-  const cellArea = CELL_M * CELL_M
-  const walkable = new Array(rooms.length).fill(0)
-  const reachable = new Array(rooms.length).fill(0)
+  const walkable = new Array(g.roomCount).fill(0)
+  const reachable = new Array(g.roomCount).fill(0)
   for (let i = 0; i < stand.length; i++) {
     if (!stand[i]) continue
     const ri = roomOf[i] as number
@@ -445,10 +550,14 @@ export function analyseLevelReachability(
     walkable[ri]++
     if (comp[i] === main) reachable[ri]++
   }
+  return { walkable, reachable }
+}
 
+function rowsFrom(rooms: PlanRoom[], level: string, sol: GridSolution): RoomReachability[] {
+  const cellArea = CELL_M * CELL_M
   return rooms.map((r, i) => {
-    const walkableAreaM2 = (walkable[i] as number) * cellArea
-    const reachableAreaM2 = (reachable[i] as number) * cellArea
+    const walkableAreaM2 = (sol.walkable[i] as number) * cellArea
+    const reachableAreaM2 = (sol.reachable[i] as number) * cellArea
     return {
       roomId: r.id,
       roomName: r.name ?? r.id,
@@ -462,16 +571,48 @@ export function analyseLevelReachability(
 }
 
 /**
- * Every storey's walkable floor, furniture included. Doors are treated as OPEN
- * (a doorway is a route — see the module docs).
+ * Analyse one storey's walkable floor. Exported for tests; callers normally want
+ * the per-level sweep, which sweeps every storey.
  */
-function analyseReachability(
+export function analyseLevelReachability(
+  rooms: PlanRoom[],
+  walls: CollisionWall[],
+  obbs: OBB[],
+  level: string,
+  bodyWidthM: number = BODY_WIDTH_M,
+  /** Walls with every door CLOSED, used to find the storey's envelope. Defaults
+   *  to `walls`, which is right for a fixture with no doors; real plans must
+   *  pass both sets (see the per-level sweep). */
+  envelopeWalls: CollisionWall[] = walls,
+): RoomReachability[] {
+  if (rooms.length === 0) return []
+  const g = buildLevelGrid(rooms, walls, obbs, envelopeWalls)
+  return rowsFrom(rooms, level, solveGrid(g, bodyWidthM))
+}
+
+/** One storey's rasterisable inputs, resolved from the plan + items. */
+interface LevelInputs {
+  level: string
+  rooms: PlanRoom[]
+  walls: CollisionWall[]
+  envelope: CollisionWall[]
+  obbs: OBB[]
+  /** The item behind each obb, index-aligned with `obbs`. */
+  sources: FurnitureItem[]
+  /** Midpoints of doors on EXTERNAL walls — where you come in. */
+  entries: [number, number][]
+}
+
+/**
+ * Resolve every storey's rooms, walls and blocking footprints. Doors are treated
+ * as OPEN for routes and CLOSED for the envelope (see the module docs).
+ */
+function levelInputs(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
   plan: FloorPlan,
-  bodyWidthM: number = BODY_WIDTH_M,
-): RoomReachability[] {
-  const out: RoomReachability[] = []
+): LevelInputs[] {
+  const out: LevelInputs[] = []
   for (const level of planLevels(plan)) {
     const lp = levelAsPlan(plan, level)
     const rooms = Array.isArray(lp.rooms) ? lp.rooms : []
@@ -485,36 +626,56 @@ function analyseReachability(
       ),
     )
     const obbs: OBB[] = []
+    const sources: FurnitureItem[] = []
     for (const it of items) {
       if ((it.levelId ?? GROUND_LEVEL_ID) !== level.id) continue
       const def = defs[it.defId]
       if (!participates(def)) continue
       obbs.push(itemFootprint(it, def))
+      sources.push(it)
     }
-    // Doors CLOSED for the envelope, OPEN for the routes — see the module docs.
-    const envelope = planCollisionWalls(lp, {})
-    out.push(...analyseLevelReachability(rooms, walls, obbs, level.id, bodyWidthM, envelope))
+    // Entry doors: a door opening on an EXTERNAL wall. Its world midpoint is
+    // the wall's start plus its direction times (offset + width/2).
+    const entries: [number, number][] = []
+    for (const o of Array.isArray(lp.openings) ? lp.openings : []) {
+      if (o.kind !== 'door') continue
+      const wl = (Array.isArray(lp.walls) ? lp.walls : []).find((x) => x.id === o.wallId)
+      if (wl?.thickness !== 'external') continue
+      const [ax, az] = wl.start
+      const [bx, bz] = wl.end
+      const len = Math.hypot(bx - ax, bz - az)
+      if (len < 1e-6) continue
+      const t = (o.offset + o.width / 2) / len
+      entries.push([ax + (bx - ax) * t, az + (bz - az) * t])
+    }
+    out.push({
+      level: level.id,
+      rooms,
+      walls,
+      envelope: planCollisionWalls(lp, {}),
+      obbs,
+      sources,
+      entries,
+    })
   }
   return out
 }
 
-/**
- * Rooms the FURNITURE severed — walkable on the empty plan, unreachable once the
- * layout is placed. Sorted worst first.
- *
- * **The empty-plan baseline is the load-bearing part.** Measured over the 19
- * templates, 67 rooms come back isolated when furnished, but **21 of those are
- * already isolated with no furniture in them at all** — `tpl-hdb-4room`'s entire
- * bedroom half has no interior door, which `templateConnectivity.test.ts`
- * independently records as `'tpl-hdb-4room/ground': 2`. Blaming a layout for a
- * plan that was never connected would be wrong and unactionable, so the baseline
- * is subtracted. The remaining **46 are genuinely the arranger's** — including
- * `tpl-terrace-ground`'s master bedroom (5.05 m² walled off by its own
- * furniture) and `tpl-condo-penthouse`'s master bath (4.54 m²).
- *
- * Costs two raster passes per storey. Callers should treat it like the rest of
- * `layoutCritique` — on demand, behind an open panel or a report build.
- */
+/** Every storey's walkable floor, furniture included. */
+function analyseReachability(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  plan: FloorPlan,
+  bodyWidthM: number = BODY_WIDTH_M,
+): RoomReachability[] {
+  const out: RoomReachability[] = []
+  for (const li of levelInputs(items, defs, plan)) {
+    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries)
+    out.push(...rowsFrom(li.rooms, li.level, solveGrid(g, bodyWidthM)))
+  }
+  return out
+}
+
 const baselineCache = new WeakMap<FloorPlan, Map<number, Set<string>>>()
 
 /**
@@ -547,6 +708,25 @@ function isolatedWhenEmpty(
   return set
 }
 
+/**
+ * Rooms the FURNITURE severed — walkable on the empty plan, unreachable once the
+ * layout is placed — each with the pieces that seal it. Sorted worst first.
+ *
+ * **The empty-plan baseline is the load-bearing part.** Measured over the 19
+ * templates, 21 rooms come back isolated *with nothing in them at all* —
+ * `tpl-hdb-4room`'s entire bedroom half has no interior door, which
+ * `templateConnectivity.test.ts` independently records as
+ * `'tpl-hdb-4room/ground': 2`. Blaming a layout for a plan that was never
+ * connected would be wrong and unactionable, so the baseline is subtracted.
+ *
+ * **Culprit attribution reuses the raster** rather than re-running the whole
+ * pipeline per item: `buildLevelGrid` is furniture-independent apart from an
+ * `itemAt` lookup, so asking "does the room reconnect without this piece?" is
+ * one `solveGrid` call with that obb's cells freed — about 1 ms, against ~60 ms
+ * for a full pass. One solve per candidate answers it for EVERY severed room on
+ * that storey at once, so the cost is linear in obstacles, not in
+ * obstacles × rooms.
+ */
 export function findFurnitureSeveredRooms(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
@@ -554,18 +734,44 @@ export function findFurnitureSeveredRooms(
   bodyWidthM: number = BODY_WIDTH_M,
 ): SeveredRoom[] {
   const baseline = isolatedWhenEmpty(defs, plan, bodyWidthM)
-  return analyseReachability(items, defs, plan, bodyWidthM)
-    .filter((r) => {
-      if (!r.isolated || r.walkableAreaM2 < MIN_STRANDED_M2) return false
-      // Already unreachable with nothing in the room → a plan defect, not this
-      // layout's doing. `templateConnectivity.test.ts` owns that case.
-      return !baseline.has(`${r.level}/${r.roomId}`)
+  const out: SeveredRoom[] = []
+
+  for (const li of levelInputs(items, defs, plan)) {
+    const g = buildLevelGrid(li.rooms, li.walls, li.obbs, li.envelope, li.entries)
+    const rows = rowsFrom(li.rooms, li.level, solveGrid(g, bodyWidthM))
+    const targets = rows
+      .map((r, i) => ({ r, i }))
+      .filter(
+        ({ r }) =>
+          r.isolated &&
+          r.walkableAreaM2 >= MIN_STRANDED_M2 &&
+          !baseline.has(`${r.level}/${r.roomId}`),
+      )
+    if (targets.length === 0) continue
+
+    // One solve per obstacle, read off for every target room.
+    const sealedBy = targets.map(() => [] as SealingItem[])
+    for (let o = 0; o < li.obbs.length; o++) {
+      const without = solveGrid(g, bodyWidthM, o)
+      for (let t = 0; t < targets.length; t++) {
+        const ri = (targets[t] as { i: number }).i
+        if ((without.reachable[ri] as number) > 0) {
+          const src = li.sources[o] as FurnitureItem
+          ;(sealedBy[t] as SealingItem[]).push({ itemId: src.id, defId: String(src.defId) })
+        }
+      }
+    }
+
+    targets.forEach(({ r }, t) => {
+      out.push({
+        roomId: r.roomId,
+        roomName: r.roomName,
+        level: r.level,
+        areaM2: r.walkableAreaM2,
+        sealedBy: sealedBy[t] as SealingItem[],
+      })
     })
-    .map((r) => ({
-      roomId: r.roomId,
-      roomName: r.roomName,
-      level: r.level,
-      areaM2: r.walkableAreaM2,
-    }))
-    .sort((a, b) => b.areaM2 - a.areaM2)
+  }
+
+  return out.sort((a, b) => b.areaM2 - a.areaM2)
 }

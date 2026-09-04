@@ -3,7 +3,7 @@ import type { OBB } from '../collision/obb'
 import type { CollisionWall } from '../collision/walls'
 import { GROUND_LEVEL_ID } from '../floorplan/levels'
 import type { PlanRoom } from '../floorplan/types'
-import { analyseLevelReachability, BODY_WIDTH_M } from './reachability'
+import { analyseLevelReachability, BODY_WIDTH_M, findFurnitureSeveredRooms } from './reachability'
 
 /**
  * BLOCKED-ROUTE-REACHABILITY (v0.31.8.52).
@@ -173,5 +173,147 @@ describe('analyseLevelReachability', () => {
     const narrow = analyseLevelReachability(rooms, all, obbs, GROUND_LEVEL_ID, 0.4, all)
     const wide = analyseLevelReachability(rooms, all, obbs, GROUND_LEVEL_ID, 0.9, all)
     expect(narrow[0]?.strandedAreaM2 ?? 0).toBeLessThan(wide[0]?.strandedAreaM2 ?? 0)
+  })
+})
+
+/**
+ * Culprit attribution (v0.31.8.54) — which piece SEALS the room?
+ *
+ * This is what turns a finding into an instruction. It reuses the raster rather
+ * than re-running the pipeline per item: the grid is furniture-independent
+ * apart from an `itemAt` lookup, so "does the room reconnect without this
+ * piece?" is one solve with that footprint's cells freed.
+ */
+describe('findFurnitureSeveredRooms — sealedBy', () => {
+  const wallOf = (
+    ax: number,
+    az: number,
+    bx: number,
+    bz: number,
+    thickness: 'internal' | 'external' = 'internal',
+  ) => ({ id: `w-${ax}-${az}-${bx}-${bz}`, start: [ax, az], end: [bx, bz], thickness })
+  /** The front door, on the west EXTERNAL wall — what anchors the main region.
+   *  Without it these fixtures fall back to "largest component", which is the
+   *  heuristic v0.31.8.54 replaced precisely because removing a piece can flip
+   *  which region is largest. */
+  const mainDoor = (wallId: string, offset: number) => ({
+    id: 'main',
+    wallId,
+    kind: 'door',
+    offset,
+    width: 0.9,
+  })
+  /** Two rooms, 4 x 4 and 3 x 4, with a 0.9 m doorway between them. */
+  const twoRoomPlan = () =>
+    ({
+      name: 'p',
+      extent: [7, 4],
+      ceilingHeight: 2.6,
+      walls: [
+        wallOf(0, 0, 7, 0, 'external'),
+        wallOf(7, 0, 7, 4, 'external'),
+        wallOf(7, 4, 0, 4, 'external'),
+        wallOf(0, 4, 0, 0, 'external'),
+        wallOf(4, 0, 4, 1.5),
+        wallOf(4, 2.4, 4, 4),
+      ],
+      openings: [mainDoor('w-0-4-0-0', 1.5)],
+      rooms: [
+        { id: 'a', name: 'Living', origin: [0, 0], width: 4, depth: 4 },
+        { id: 'b', name: 'Bedroom', origin: [4, 0], width: 3, depth: 4 },
+      ],
+    }) as unknown as import('../floorplan/types').FloorPlan
+
+  const bigDef = {
+    id: 'wardrobe',
+    name: 'Wardrobe',
+    category: 'storage',
+    kind: 'primitive',
+    defaultFootprint: { w: 0.6, d: 1.8 },
+  } as unknown as import('../furniture/types').FurnitureDef
+  const lampDef = {
+    id: 'floor-lamp',
+    name: 'Floor lamp',
+    category: 'lighting',
+    kind: 'primitive',
+    defaultFootprint: { w: 0.42, d: 0.42 },
+  } as unknown as import('../furniture/types').FurnitureDef
+  const planDefs = { wardrobe: bigDef, 'floor-lamp': lampDef }
+  const place = (id: string, defId: string, x: number, z: number) =>
+    ({
+      id,
+      defId,
+      position: [x, z],
+      rotation: 0,
+      props: {},
+    }) as unknown as import('../furniture/types').FurnitureItem
+
+  it('names the single piece that seals the room', () => {
+    const sev = findFurnitureSeveredRooms(
+      [place('w1', 'wardrobe', 4.35, 1.95)],
+      planDefs,
+      twoRoomPlan(),
+    )
+    expect(sev).toHaveLength(1)
+    expect(sev[0]?.roomName).toBe('Bedroom')
+    expect(sev[0]?.sealedBy.map((c) => c.defId)).toEqual(['wardrobe'])
+    expect(sev[0]?.sealedBy[0]?.itemId).toBe('w1')
+  })
+
+  it('reports NO culprit when the blockage is a CHAIN of two pieces', () => {
+    // Living -> Hall -> Bath, each doorway sealed by its own wardrobe. Removing
+    // the first makes the HALL reachable but not the bath; removing the second
+    // opens the bath from the hall, which is itself still cut off. So no single
+    // piece opens the bath, and saying "move the wardrobe" would be wrong.
+    //
+    // This is the real shape of the 3 corpus cases with no culprit — a room
+    // behind a room, e.g. `tpl-condo-penthouse`'s master bath behind its master
+    // bedroom.
+    const chainPlan = {
+      name: 'p',
+      extent: [10, 4],
+      ceilingHeight: 2.6,
+      walls: [
+        wallOf(0, 0, 10, 0, 'external'),
+        wallOf(10, 0, 10, 4, 'external'),
+        wallOf(10, 4, 0, 4, 'external'),
+        wallOf(0, 4, 0, 0, 'external'),
+        // x = 4 partition, doorway z 1.5-2.4
+        wallOf(4, 0, 4, 1.5),
+        wallOf(4, 2.4, 4, 4),
+        // x = 7 partition, doorway z 1.5-2.4
+        wallOf(7, 0, 7, 1.5),
+        wallOf(7, 2.4, 7, 4),
+      ],
+      openings: [mainDoor('w-0-4-0-0', 1.5)],
+      rooms: [
+        { id: 'a', name: 'Living', origin: [0, 0], width: 4, depth: 4 },
+        { id: 'h', name: 'Hall', origin: [4, 0], width: 3, depth: 4 },
+        { id: 'b', name: 'Bath', origin: [7, 0], width: 3, depth: 4 },
+      ],
+    } as unknown as import('../floorplan/types').FloorPlan
+
+    const sev = findFurnitureSeveredRooms(
+      [place('w1', 'wardrobe', 4.35, 1.95), place('w2', 'wardrobe', 7.35, 1.95)],
+      planDefs,
+      chainPlan,
+    )
+    const bath = sev.find((r) => r.roomName === 'Bath')
+    expect(bath).toBeDefined()
+    expect(bath?.sealedBy).toEqual([])
+    // The hall, one link closer, DOES have a single culprit — so this fixture
+    // is distinguishing the chain from "nothing is attributable at all".
+    expect(sev.find((r) => r.roomName === 'Hall')?.sealedBy.map((c) => c.itemId)).toEqual(['w1'])
+  })
+
+  it('a piece below the obstacle bar is never a culprit, because it never seals', () => {
+    // A 0.18 m² floor lamp in the doorway. You step past it — see
+    // `participates`, and v0.31.8.53's retraction.
+    const sev = findFurnitureSeveredRooms(
+      [place('l1', 'floor-lamp', 4.35, 1.95)],
+      planDefs,
+      twoRoomPlan(),
+    )
+    expect(sev).toEqual([])
   })
 })

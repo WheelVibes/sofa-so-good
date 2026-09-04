@@ -1097,15 +1097,36 @@ export function buildLayoutCritique(
       })
     } else {
       const worst = severed[0] as SeveredRoom
+      // Name the piece when ONE move opens the room. That is the difference
+      // between a finding and an instruction, and 19 of the 22 corpus cases
+      // have one (v0.31.8.54). Where several pieces would each do it alone, the
+      // first is named and the count follows — "move any one of these".
+      const culprits = worst.sealedBy
+      const names = culprits
+        .map((c) => defs[c.defId]?.name ?? c.defId)
+        .filter((n, i, a) => a.indexOf(n) === i)
+      const blame =
+        names.length === 0
+          ? ' No single piece opens it — at least two need to move.'
+          : names.length === 1
+            ? ` Moving the ${names[0]} opens it.`
+            : ` Moving any one of the ${names.slice(0, 3).join(', ')} opens it.`
+      // Lead with the TOTAL area, not the room count. Since v0.31.8.54 anchored
+      // the main region on the front door, ONE seal across a home can report
+      // many rooms — on `tpl-hdb-jumbo` a single break leaves 8 rooms and 55 m²
+      // beyond it. "8 rooms" reads like eight problems; the area and the piece
+      // that opens it are what a reader can act on.
+      const totalM2 = severed.reduce((sum, r) => sum + r.areaM2, 0)
       findings.push({
         id: 'route-access',
         label: 'Route access',
         verdict: 'warn',
         roomName: worst.roomName,
         detail:
-          severed.length === 1
-            ? `${worst.roomName} is walled off by the furniture — ${worst.areaM2.toFixed(1)} m² of floor you can no longer walk to.`
-            : `${severed.length} rooms are walled off by the furniture; the largest is ${worst.roomName} at ${worst.areaM2.toFixed(1)} m² of floor you can no longer walk to.`,
+          (severed.length === 1
+            ? `${worst.roomName} is walled off by the furniture — ${worst.areaM2.toFixed(1)} m² of floor you cannot reach from the front door.`
+            : `${totalM2.toFixed(1)} m² across ${severed.length} rooms cannot be reached from the front door; the largest is ${worst.roomName} at ${worst.areaM2.toFixed(1)} m².`) +
+          blame,
       })
     }
   }

@@ -99,8 +99,23 @@ Two things about it are load-bearing:
   to the .51 rejection above, and both are right: the bar answers "does this define a walkway",
   which is this question and was not that one.
 
-Coverage: `reachability.test.ts` (unit), `routeAccess.test.ts` (ratchet, 22 offenders across
-9 templates, 10 clean). It costs two rasters per storey, so `buildLayoutCritique` runs it only when
+**"Reachable" means reachable FROM THE FRONT DOOR** (v0.31.8.54) — the main region is the
+component holding a cell just inside an external-wall door, not the largest component. Largest
+was a heuristic with a real failure mode the culprit search exposed: removing a piece can flip
+which region is largest, so a room reads as reconnected when the rest of the home got cut off
+instead. It also reports the wrong SIDE of a seal — on `tpl-hdb-jumbo` the old reading said
+"Bedroom 5 is cut off" where the truth is that only a 5.7 m² pocket by the front door is
+reachable and the other ~55 m² is not. A storey with no external door falls back to largest.
+
+`SeveredRoom.sealedBy` names the pieces whose removal ALONE reconnects the room, which is what
+turns a finding into an instruction. It reuses the raster: the grid is furniture-independent
+apart from an `itemAt` lookup, so each candidate is one `solveGrid` with that footprint freed
+(~1 ms against ~60 ms for a full pass), and one solve answers it for every severed room on the
+storey at once.
+
+Coverage: `reachability.test.ts` (unit + culprit), `routeAccess.test.ts` (ratchet, 43 rooms
+beyond a break across 10 templates, 9 clean — read it as rooms BEYOND a break, not a count of
+breaks: one seal accounts for 8 of them on jumbo). It costs two rasters per storey, so `buildLayoutCritique` runs it only when
 asked (`{ routeAccess: true }`, which only `ui/report.ts` passes) — enabling it inside
 `schemeOptions`, which critiques a dozen candidates, pushed the Scheme Compare modal past a
 15 s harness timeout the same scenario clears without it.

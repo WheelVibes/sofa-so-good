@@ -29,6 +29,16 @@ import { findFurnitureSeveredRooms } from './reachability'
  * and it retracted v0.31.8.52's headline (`tpl-terrace-ground`'s master bedroom,
  * whose culprit was a 0.32 m² shoe cabinet).
  *
+ * **"Unreachable" means unreachable FROM THE FRONT DOOR (v0.31.8.54).** It used
+ * to mean "not in the largest walkable region", which flips which SIDE of a seal
+ * is reported: the old reading said `tpl-hdb-jumbo` lost only Bedroom 5, where
+ * the truth is that its auto-furnished layout leaves a 5.7 m² pocket by the
+ * front door reachable and the other ~55 m² not. That correction is why this
+ * list went 22 -> 43 — the seals were always there, the anchor now reports the
+ * side you actually cannot get to. ONE seal can therefore account for many rooms
+ * (jumbo's 8, `tpl-condo-2bed`'s 8), so read this as a count of ROOMS BEYOND a
+ * break, not a count of breaks.
+ *
  * Rooms already unreachable on the EMPTY plan are excluded by construction — the
  * baseline is subtracted — so template-connectivity defects
  * (`tpl-hdb-4room`'s bedroom half has no interior door, recorded in
@@ -36,12 +46,13 @@ import { findFurnitureSeveredRooms } from './reachability'
  * against the layout.
  */
 const KNOWN_SEVERED: Record<string, number> = {
-  'tpl-hdb-2room': 2, // Living / Dining 1.7, Master Bedroom 0.9
+  'tpl-hdb-2room': 4, // Bathroom 2.5, Kitchen 2.0, Household Shelter 1.3, Master Bedroom 0.9
   'tpl-hdb-exec': 2, // Bedroom 2 Hall 1.6, Master Bedroom 0.7
-  'tpl-hdb-jumbo': 1, // Bedroom 5 1.7
+  'tpl-hdb-jumbo': 8, // Hall 22.6, Living / Dining 21.2, Bedroom 2 2.9, Common Bath 2.5, Master Bedroom 2.1, Master Bath 1.8, Bedroom 3 1.8, Bedroom 4 1.4
   'tpl-hdb-maisonette': 4, // Stair Landing 4.0, Stair Hall 3.8, Kitchen 3.3, Family Area 0.9
-  'tpl-1bed': 2, // Kitchen 4.0, Dining 0.6
-  'tpl-condo-2bed': 2, // Open Kitchen 2.6, Common Bath 1.5
+  'tpl-1bed': 3, // Bathroom 2.1, Living / Dining 1.6, Dining 0.6
+  'tpl-condo-1study': 5, // Balcony 4.7, Open Kitchen 3.5, Bathroom 2.5, Bedroom 2.1, Study 1.5
+  'tpl-condo-2bed': 8, // Living / Dining 14.3, Balcony 2.8, Master Closet 2.2, Hall 1.9, Common Bath 1.5, Master Bath 1.3, Master Bedroom 0.9, Bedroom 2 0.8
   'tpl-condo-3bed': 1, // Master Bath 2.1
   'tpl-condo-4bed': 2, // Service Yard 2.5, Bedroom 4 1.6
   'tpl-condo-penthouse': 6, // Master Bath 5.6, Kitchen 5.4, Bedroom 2 4.2, Bedroom 3 3.6, Dining 2.8, Master Bedroom 1.7
@@ -65,14 +76,13 @@ describe('route access — rooms the arranger walls off', () => {
     // on, so it is raised rather than left to flake.
   }, 60_000)
 
-  it('leaves ten templates completely clean', () => {
+  it('leaves nine templates completely clean', () => {
     // Stated as its own assertion so a fix that "improves" the ratchet by
     // breaking a clean template cannot pass by trading one for another.
     const clean = PLAN_TEMPLATES.filter((t) => !(t.id in KNOWN_SEVERED)).map((t) => t.id)
     expect(clean.sort()).toEqual(
       [
         'tpl-condo-1bed',
-        'tpl-condo-1study',
         'tpl-condo-studio',
         'tpl-hdb-3gen',
         'tpl-hdb-3room',

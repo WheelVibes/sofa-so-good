@@ -839,8 +839,9 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   1.00 m), which is the honest reason it exists: a user-drawn corridor is the only place it can
   occur. **The route model now EXISTS** (`layout/reachability.ts`, v0.31.8.52/.53) — see the entry
   below.
-- **[ROUTE ACCESS — MEASURED v0.31.8.52, RECALIBRATED v0.31.8.53, NOT FIXED] 22 rooms across 9
-  of 19 templates are walled off by the furniture the arranger places.** They are walkable on
+- **[ROUTE ACCESS — MEASURED v0.31.8.52, RECALIBRATED .53, ANCHORED .54, NOT FIXED] 43 rooms
+  across 10 of 19 templates cannot be reached from the front door once the arranger has placed
+  the furniture.** They are walkable on
   the empty template and unreachable once the move-in layout is placed: you cannot get in.
   `layout/reachability.ts` erodes the storey's free floor by half a body width
   (`CLEARANCE.walkwayMin`, 0.6 m) and flood-fills what survives, so the ruler is the body rather
@@ -848,7 +849,18 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   was built, measured and reverted (see `src/layout/CLAUDE.md`). Wired into `layoutCritique` as
   the `route-access` check, opt-in (`{ routeAccess: true }`) because it costs two rasters per
   storey, and surfaced in the report. Ratcheted in `routeAccess.test.ts`; 10 templates clean.
-  Worst: `tpl-condo-penthouse` loses **6 rooms / 22.9 m²**, `tpl-hdb-maisonette` **4 / 12 m²**.
+  Worst: **`tpl-hdb-jumbo` leaves a 5.7 m² pocket by the front door reachable and ~55 m² not**
+  (8 rooms behind one break), `tpl-condo-2bed` 8 rooms / 25.7 m², `tpl-condo-penthouse` 6 /
+  23.3 m². Read the counts as rooms BEYOND a break, not as a number of breaks.
+  **The MOVER is the next step and its cost is the constraint.** `sealedBy` (v0.31.8.54) names
+  the piece to move — 39 of 43 have one — so a post-pass has a candidate and a discrete goal.
+  What it does not have is a budget: each trial placement needs a re-solve, and a full
+  `findFurnitureSeveredRooms` is 60-120 ms, so ~8 candidate positions x a few culprits is
+  seconds per plan. That is far too slow for `furnishPlanItems`, which runs on every template
+  load and a dozen times inside `schemeOptions`. Two ways out, both unmeasured: re-solve
+  INCREMENTALLY (only the moved footprint's old and new cells change in `itemAt`, so the grid
+  need not be rebuilt), or make the fix a user-triggered action in the Checks panel where
+  seconds are acceptable. Decide that before writing the mover.
   **Where to start, from the culprit sweep (which single item's removal reconnects the room):**
   19 of the 22 have an identifiable single-piece culprit, and four defs account for 25 of the 29
   attributions — **`tv-console` 9, `sofa-3seat` 6, `dining-table-4` 5, `wardrobe-3door` 5**. So
