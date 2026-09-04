@@ -94,7 +94,7 @@ const resolved = await page.evaluate(() => {
 console.log(`resolved ${resolved}`)
 
 const hits = await page.evaluate(
-  ({ rays, process_env_all }) => {
+  ({ rays, process_env_all, process_env_mat }) => {
     const scene = window.__three.scene
     const rc = new window.__three.raycaster.constructor()
     const V3 = window.__three.camera.position.constructor
@@ -162,13 +162,64 @@ const hits = await page.evaluate(
                 : `${n(p2.width)}x${n(p2.height)}x${n(p2.depth)}`
             })(),
             col: h.object.material?.color?.getHexString?.() ?? '?',
+            // MAT=1: the full material record for the mesh hit. Added for `(z7)`, where the app's
+            // floor reads 20 % darker than a Cycles reference built from a three-EXPORTED GLB.
+            // That signature is equally consistent with the app being wrong and with the export
+            // dropping a map, and the two have opposite fixes — so the census has to be taken on
+            // both sides of the export rather than assumed on either.
+            mat:
+              process_env_mat !== '1'
+                ? null
+                : (() => {
+                    const mm = Array.isArray(h.object.material)
+                      ? h.object.material[0]
+                      : h.object.material
+                    if (!mm) return null
+                    const tex = (t) =>
+                      !t
+                        ? null
+                        : {
+                            w: t.image?.width ?? null,
+                            h: t.image?.height ?? null,
+                            // Repeat is where a tiling difference would hide: the app tiles by
+                            // world-metre UVs, and a GLB carries baked UVs instead.
+                            repeat: t.repeat
+                              ? [+t.repeat.x.toFixed(4), +t.repeat.y.toFixed(4)]
+                              : null,
+                            colorSpace: t.colorSpace ?? null,
+                          }
+                    return {
+                      type: mm.type,
+                      name: mm.name || null,
+                      // Whether the baked-irradiance injection is attached. `(z7)` turns on this:
+                      // if the surface IS lightmapped, a level error is the injection's, and if it
+                      // is not, the same error means something entirely different.
+                      visLightmap: h.object.material?.userData?.visLightmap === true,
+                      hasUv1: !!h.object.geometry?.attributes?.uv1,
+                      color: mm.color?.getHexString?.() ?? null,
+                      roughness: mm.roughness ?? null,
+                      metalness: mm.metalness ?? null,
+                      envMapIntensity: mm.envMapIntensity ?? null,
+                      map: tex(mm.map),
+                      normalMap: tex(mm.normalMap),
+                      roughnessMap: tex(mm.roughnessMap),
+                      aoMap: tex(mm.aoMap),
+                      normalScale: mm.normalScale
+                        ? [+mm.normalScale.x.toFixed(3), +mm.normalScale.y.toFixed(3)]
+                        : null,
+                    }
+                  })(),
           }
         })
       out.push({ label: r.label, all })
     }
     return out
   },
-  { rays: RAYS, process_env_all: process.env.ALL ?? '0' },
+  {
+    rays: RAYS,
+    process_env_all: process.env.ALL ?? '0',
+    process_env_mat: process.env.MAT ?? '0',
+  },
 )
 
 // The sun's ACTUAL world direction, read from the light rather than re-derived. Reconstructing it
@@ -200,6 +251,14 @@ if (sun) {
   )
 } else {
   console.log('  sun  NO DirectionalLight in the scene')
+}
+
+if (process.env.MAT === '1') {
+  for (const h of hits) {
+    for (const a of h.all) {
+      console.log(`  MAT ${h.label}/${a.what}@${a.d}m  ${JSON.stringify(a.mat)}`)
+    }
+  }
 }
 
 for (const h of hits) {

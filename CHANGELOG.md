@@ -29,6 +29,47 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.267 — the floor's 20 % is app-side: the export is faithful, and the surface is lightmapped
+
+`.266` left `(z7)` deliberately unattributed, because a floor 20 % darker than a GLB-derived
+reference is equally consistent with the app under-lighting it and with the export dropping a map —
+opposite faults with opposite fixes. This settles it by censusing both sides.
+
+**New `material_census.py`** imports the exported GLB and dumps what Blender actually received for
+the mesh at a given THREE-space point. For the floor (`Mesh_4`, 4 verts, surface distance 0.001 m):
+
+| | app (three) | Blender received |
+| --- | --- | --- |
+| base colour | 512², sRGB | 512², **sRGB** → `Base Color` |
+| roughness/metal | 512² | 512², Non-Color → `Roughness`+`Metallic` |
+| normal | 512² | 512², Non-Color → `Normal` |
+| texture transform | `repeat [0.8333, 0.9259]` | `mapping_scale [0.83333, 0.92593]` |
+
+Both UV sets survive (`UVMap`, `UVMap.001` = `uv1`). Nothing dropped, nothing mis-tagged. So the
+sRGB-decode-skipped theory — which would have made the REFERENCE too bright and the app correct —
+is dead, and the error is app-side.
+
+**The surface is lightmapped.** `ray-probe MAT=1` now reports `visLightmap` and `hasUv1`, and floor
+and wall are both `true`. The deficit therefore sits in the injected irradiance for that surface.
+
+**It is not missing sun bounce.** 0.783 / 0.804 / 0.806 across three hours is essentially constant,
+where an absent sun-dependent term would track the sun. What is left is a constant,
+orientation-or-map-specific level error — and `IRRADIANCE_GAIN` is GLOBAL at 4.2, so the value that
+puts walls at 1.000 leaves floors needing about **1.25×**. The next test is `gi-point` on the floor
+against Cycles' irradiance at the same point, which separates the baked map's value from the gain
+applied to it. That distinction decides whether this is a bake problem or a shading problem, and I
+am not guessing between them.
+
+**Two probe bugs fixed on the way, both of which returned plausible answers rather than errors** —
+the failure mode this arc keeps paying for. Nearest-VERTEX search picked a 2148-vertex furniture
+mesh over the 4-vertex plane the ray actually hit, so the first census described the wrong material
+entirely; it now uses `closest_point_on_mesh` and prints the runners-up, since "which mesh is at
+this point" is precisely what it got wrong silently. And bpy returns a FRESH Python wrapper on every
+`link.from_node` access, so `is` identity comparison is always false and the link walk reported
+`feeds: []` for textures that were plainly connected — a census that cannot see a connection reads
+as "map missing", which is the exact wrong answer here.
+
+
 ## v0.31.7.266 — the sweep re-run against LIT references: the wall is fixed, the floor is now the worst
 
 No code this round. `(z5)` made an honest absolute comparison possible for the first time, so the
