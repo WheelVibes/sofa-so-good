@@ -133,6 +133,65 @@ console.log(
           }
         }
       })
+      // SURFACE AREA as the BAKE measures it (`bake_material.py --min-area`, default 3.0 m2):
+      // the sum of world-space triangle areas, NOT a footprint. This is the quantity that decides
+      // coverage, and confusing it with a bounding-box footprint is what made `v0.31.7.225` call
+      // 38 meshes "headroom" when most are under the threshold on purpose — a 2.60 x 0.55 m wall
+      // face is 1.43 m2 of surface, not 1.43 m2 of "big".
+      const triArea = (o) => {
+        const g = o.geometry
+        const pos = g?.getAttribute?.('position')
+        if (!pos) return 0
+        o.updateWorldMatrix(true, false)
+        const e = o.matrixWorld.elements
+        const tx = (x, y, z) => [
+          e[0] * x + e[4] * y + e[8] * z + e[12],
+          e[1] * x + e[5] * y + e[9] * z + e[13],
+          e[2] * x + e[6] * y + e[10] * z + e[14],
+        ]
+        const idx = g.index
+        const n = idx ? idx.count : pos.count
+        let sum = 0
+        for (let i = 0; i + 2 < n; i += 3) {
+          const [a, b, c] = [0, 1, 2].map((k) => (idx ? idx.getX(i + k) : i + k))
+          const P = [a, b, c].map((j) => tx(pos.getX(j), pos.getY(j), pos.getZ(j)))
+          const u = [P[1][0] - P[0][0], P[1][1] - P[0][1], P[1][2] - P[0][2]]
+          const v = [P[2][0] - P[0][0], P[2][1] - P[0][1], P[2][2] - P[0][2]]
+          const cx = u[1] * v[2] - u[2] * v[1]
+          const cy = u[2] * v[0] - u[0] * v[2]
+          const cz = u[0] * v[1] - u[1] * v[0]
+          sum += 0.5 * Math.hypot(cx, cy, cz)
+        }
+        return sum
+      }
+      // For every UNMAPPED shell mesh with a Standard-family material, how many would qualify at
+      // each candidate `--min-area`? This is the cost/benefit of lowering the bake threshold.
+      const thresholds = [3.0, 2.5, 2.0, 1.5, 1.0, 0.5]
+      const gained = thresholds.map(() => 0)
+      let unmappedStdShell = 0
+      window.__three.scene.traverse((o) => {
+        if (!o.isMesh || !o.visible) return
+        let q = o.parent
+        while (q) {
+          if (q.visible === false) return
+          q = q.parent
+        }
+        const m = Array.isArray(o.material) ? o.material[0] : o.material
+        if (!m || !('aoMap' in m)) return
+        if (m.userData?.visMapUrl) return
+        let itemId = null
+        let r = o
+        while (r && !itemId) {
+          itemId = r.userData?.itemId ?? null
+          r = r.parent
+        }
+        if (itemId) return
+        unmappedStdShell += 1
+        const a = triArea(o)
+        thresholds.forEach((t, i) => {
+          if (a >= t) gained[i] += 1
+        })
+      })
       const byGain = new Map()
       for (const r of out) {
         const g = Number(String(r.key).slice(7))
@@ -141,6 +200,8 @@ console.log(
       const gains = [...byGain].sort((a, b) => a[0] - b[0])
       return {
         coverage: cls,
+        unmappedStdShell,
+        gainedByThreshold: thresholds.map((t, i) => `>=${t}m2: +${gained[i]}`),
         unmappedItemDefs: [...unmappedItems]
           .sort((a, b) => b[1] - a[1])
           .slice(0, 12)

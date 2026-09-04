@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.227 — coverage priced: 17 meshes already meet the bake's own threshold and have no map, and lowering it to 1.5 m² buys 52 more for +2.2 MB
+
+The bake selects by SURFACE AREA — `bake_material.py --min-area`, default **3.0 m²** — and the
+smallest map in the shipped index is 3.17 m², so the rule is being applied exactly. That also
+corrects `.225`: it bucketed by bounding-box FOOTPRINT and called 38 meshes "headroom", but a
+2.60 x 0.55 m wall face is **1.43 m² of surface**, comfortably under the threshold and excluded on
+purpose. Footprint and surface area are not the same quantity, and only one of them decides
+coverage.
+
+`gi-material-census.mjs` now computes area the way the bake does — the sum of world-space triangle
+areas — for every unmapped Standard-family shell mesh, and reports how many would qualify at each
+candidate threshold:
+
+| threshold | additional meshes | maps | est. size |
+| --- | --- | --- | --- |
+| **≥ 3.0 m² (today's rule)** | **+17 already qualify and have NO map** | 124 | 5.7 MB |
+| ≥ 2.0 m² | +30 | 137 | 6.3 MB |
+| ≥ 1.5 m² | +52 | 159 | 7.4 MB |
+| ≥ 1.0 m² | +68 | 175 | 8.1 MB |
+
+(111 maps are 5.14 MB today, mean 45.2 KB each, so the estimates scale that mean.)
+
+**Two separate findings, and the first needs no policy decision.** 17 meshes meet the bake's own
+≥3 m² rule and carry no map. Either the bake ran against a scene that did not contain them — the
+index names objects `Mesh_116`, i.e. a GLB export, so a drift between bake time and now is entirely
+possible — or something else excludes them. That is a gap to close, not a threshold to argue about,
+and re-running the bake against the current scene would distinguish the two causes.
+
+**The second is a real trade.** Dropping to 1.5 m² adds 52 meshes for about +2.2 MB. What makes it
+worth pricing is `.224`: a 30 % change to the baked term moved the whole-frame tour mean by only
+~1 %, and `.225` identified the reason — the unmapped large surfaces are predominantly **full-height
+wall faces**, 2.60 m tall and 0.46-1.15 m wide, which is exactly what a first-person walk spends its
+time looking at. Those faces sit at 1.2-3.0 m², i.e. precisely in the band a lower threshold would
+capture. So this is the change most likely to make the GI visible rather than merely correct.
+
+Not shipped, because it is a bake run rather than a constant: it needs Blender over 159 surfaces,
+a re-issued index, and then the same before/after tour and tier benchmark `.224` established.
+Suite 10175 green.
+
+
 ## v0.31.7.226 — the coverage diagnostic was reporting LOOKUPS as meshes, at exactly 2x. Fixed, tested, and the 38-mesh headroom traced to the bake
 
 Chasing `.225`'s 38-mesh headroom to its cause turned up the reason this arc has quoted three
