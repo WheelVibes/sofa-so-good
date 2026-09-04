@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.232 — the re-bake answers `.227`: 111 maps, same as shipped, but **14 of 111 keys no longer match the scene**. Plus the gap-ceiling module
+
+**The bake finished: 111 maps in 24 minutes** (256 px, 8-bit, 1024 samples, `--min-area 3.0`,
+`--per-map-scale`), against the shipped set's 111. Meta identical: `version 2, pass irradiance,
+albedo 0.81, uv box-atlas-3x2, uv_margin 0.04, encode 1.0, scale 1.0`.
+
+**So `.227`'s 17 unmapped meshes that clear 3 m² are NOT a bake enumeration gap.** Re-running the
+shipped threshold against a freshly exported scene selects the same number of objects, so the bake
+is not skipping surfaces it should take. The 17 are runtime meshes with no baked counterpart, which
+is a correspondence problem between the runtime scene and the GLB export, not a threshold or a
+`--limit`. That closes the cheaper of `.227`'s two leads and leaves lowering `--min-area` as the
+real one.
+
+**But the comparison turned up something better.** Only **97 of 111 keys are shared**: 14 exist only
+in the new bake and 14 only in the shipped set. Keys hash world-space geometry, so a key that no
+longer matches means that surface's geometry has CHANGED since the shipped bake — and this session
+changed a great deal of it, adding 66 curtains (`.205`/`.206`), windows, walls and doors to
+templates, and altering wall heights via `perimeter()`'s `topHeight` (`.209`). The areas line up with
+that reading: the new-only maps include six at 3.1-3.3 m² that the shipped set has no equivalent for,
+while the shipped-only set has a 5.3, a 6.4 and an 8.8 m² map with no current counterpart.
+
+**So the shipped index is STALE against its own scene: 14 of its 111 maps are dead weight, and the
+surfaces they were baked for now render unmapped.** That is a coverage loss nobody was tracking, and
+it is separate from the threshold question — it will recur every time geometry changes, because
+nothing checks that the shipped index still matches the scene it ships with. Worth a guard.
+
+**Also in this commit: `ceilingGaps.ts`**, the fix decided in `.231`. `ceilingGapRects(plan)`
+rasterises footprint-minus-rooms at 0.1 m and merges it into rects — maximal runs along x, then
+fused vertically where consecutive rows agree. Measured across all 19 templates: **531 rects, 8
+(`tpl-studio`) to 60 (`tpl-condo-penthouse`), mean 28**, which is the per-plan mesh cost against
+~1072 visible meshes in a furnished flat. Wall footprints are deliberately included, so the fill
+abuts each room's ceiling exactly and cannot leave a hairline; a ceiling plane over a wall is
+invisible anyway. Five tests, including the invariant that no rect's centre lands inside a room on
+ANY template, and a check that it covers both the (2.0, 3.0) slit and the (7.75, 1.3) block the
+raycasts found while leaving the two room centres that already have ceilings alone.
+
+Not yet wired into `PlanShell` — that is the render change, and it wants the ray checks and a tier
+benchmark. Suite 10219 green.
+
+
 ## v0.31.7.231 — the ceiling holes are TWO defects, and the second is a thin sky SLIT along room edges
 
 Clustering the uncovered cells into connected blobs, rather than totalling them, splits `.229`'s
