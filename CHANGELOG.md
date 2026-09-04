@@ -27,6 +27,92 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.34 — three kitchenettes that cannot hold a fridge, and a height prop that must not be fixed yet
+
+All four remaining severity-1 findings are in condo kitchenettes — three missing fridges and one
+missing hob, in `su-kit` (3.2 m²), `c1-kit` (3.2 m²) and `cs-kit` (4.4 m²). Measured them, found a
+real bug next door, and **did not ship the bug fix**, because it costs a basin in the running app
+for a reason I cannot yet explain.
+
+### Why the kitchenettes lose their fridge
+
+Instrumented `snapToWall` position by position for the fridge in each room, recording the door
+keep-out and the item hits:
+
+```
+su-kit   20 x keep=true  hits=[range-hood]
+         14 x keep=false hits=[range-hood, kitchen-counter-l]
+c1-kit   21 x keep=false hits=[range-hood, kitchen-counter-l]
+         13 x keep=true  hits=[range-hood, kitchen-counter-l]
+cs-kit   20 x keep=true  hits=[range-hood]
+          8 x keep=true  hits=[]
+          4 x keep=false hits=[kitchen-counter-l]
+```
+
+**No position in any of the three is simultaneously clear of the door keep-out and of the
+counter.** `cs-kit` comes closest — eight positions with nothing in the way at all — and every one
+of them is inside the door's keep-out.
+
+**The hood contributes but is NOT decisive, tested rather than assumed.** A 1.78 m fridge does
+overlap a `range-hood`'s 1.4-2.3 m span, so that clash is real; shortening the fridge's collision
+span to 1.4 was measured and moved only `marooned-wall-hugger` 38 -> 37, leaving all three fridges
+missing. Every position the hood alone blocked was already inside the keep-out or taken by the
+counter.
+
+And no placement lever can fix it: `c1-kit`'s best wall is 1.76 m, and a minimum 1.2 m counter plus
+a 0.7 m fridge is **1.9 m**. On perpendicular walls the two compete for the same corner, so
+v0.31.9.27's "spread the fixtures across three walls" does not apply. **This is the wet-area lesson
+again** — a studio kitchenette has an under-counter fridge integrated into the run, not a 1.78 m
+free-standing one, and that is a content model change specced in `TODO.md`.
+
+### A `height` prop never reaches the collision — found, and NOT shipped
+
+`verticalSpan` always takes `defaultFootprint.h`. Every parametric def with a `height` param reads
+it in its primitive — `Refrigerator.tsx` sizes the whole box from it — so a user who shortens a
+piece has it reserve vertical space it does not occupy, and one who raises it under-reserves.
+**Twelve defs carry such a param**: `refrigerator`, `bookshelf`, `ottoman`, `floor-mirror`,
+`floor-speaker`, `shower-screen`, `fluted-partition`, `aircon-condenser` and four pet fittings.
+Same family as the `shower` def's `size` driving the render and not the FOOTPRINT (v0.31.9.30).
+
+The one-line fix passes the whole suite. It is **not shipped**, because it is entangled with the
+open discrepancy below and I will not add a collision change on top of a measurement I do not
+trust.
+
+### OPEN, and it outranks everything else: the visual scenarios disagree with the corpus
+
+Both fixture-asserting scenarios now FAIL against the running app, with a clean working tree:
+
+```
+wet-area-bathroom     st-bath missing bathroom-sink; has toilet, bathroom-mirror, ceiling-light
+galley-kitchen-sweep  st-kit missing kitchen-counter-l, refrigerator, stove
+```
+
+The corpus says otherwise — `bathroomFixtures.test.ts`'s basin-less list is EMPTY, `st-kit` is
+absent from `roomCompleteness`'s incomplete list, and the app reports `plan id=tpl-studio rooms=3`
+with **28 items, exactly the count `diningChairTuck.test.ts` records for that template.**
+
+**I have not determined where the fault is**, and it could be the app, my scenarios'
+room-membership filter, or the harness. What is ruled out:
+
+- **stale persisted state** — cleared every `localStorage` key and reloaded; both still fail.
+- **the `height` prop fix** — reverted; both still fail. `galley-kitchen-sweep` passed earlier in
+  the same session, so something else moved.
+- **height props differing from defaults** — dumped from the running store, all match
+  (`bathroom-mirror=0.9`, `refrigerator=1.78`, `shower-screen=2`, `wall-art=0.7`).
+- **door state** — `doors={}` in the app, as the tests pass.
+- **plan normalisation on load** — `doors=2 withSwing=2 rooms=3` in both the app and the raw
+  template.
+
+**This is the top priority and it is stated as a question, not a conclusion**, because if the app
+can diverge from the corpus then every ratchet and the whole ranked defect score are measuring
+something other than what ships. The next probe is a piece-by-piece diff of the app's furnished
+item list against `furnishPlanItems(tpl, movein, BUILTIN_CATALOG, {})` — the item-list dump I tried
+was truncated by the harness's error formatting, which is why this is unresolved rather than
+answered.
+
+No functional change in this release: the kitchenette measurement above, and this discrepancy
+written down.
+
 ## v0.31.9.33 — it was the wrong fitting, not a bad placement: both basin-less bathrooms recovered
 
 Five arranger routes were measured and rejected across v0.31.9.30-.32, and the last of them named

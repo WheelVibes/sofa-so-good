@@ -747,3 +747,25 @@ accurate HDB and condo plans; "fully to scale" is the product, so the plan does 
 the arranger.
 
 **Check the kit against the room before making the placer cleverer.**
+
+## A param that changes the render must change the COLLISION too (v0.31.9.30/.34)
+
+Twice now, a def has exposed a size param that its primitive honoured and the collision did not:
+
+- **`shower`'s `size`** drove the tray, screen, rail and glass and the def had no
+  `footprintParams`, so a 1.2 m shower collided as 0.9 and a 0.8 m one reserved floor it did not
+  occupy (v0.31.9.30).
+- **any def's `height`** drives the rendered box while `verticalSpan` always takes
+  `defaultFootprint.h`, so a shortened piece reserves space it does not occupy and a raised one
+  under-reserves. **Twelve defs carry such a param** — `refrigerator`, `bookshelf`, `ottoman`,
+  `floor-mirror`, `floor-speaker`, `shower-screen`, `fluted-partition`, `aircon-condenser` and four
+  pet fittings. **STILL OPEN (v0.31.9.34): the one-line fix passes the whole suite but is
+  held back** behind the unresolved scenario/corpus discrepancy in `TODO.md`; do not re-apply it
+  before that is understood.
+
+Both were invisible in the corpus, because no kit sets either prop — they only bite a USER who
+resizes a piece in the inspector, which is why neither showed up as a test failure for months.
+
+**When adding a size param, wire it to the footprint (`footprintParams`) or the span, and add a
+test that asserts the collision changed.** A def with an explicit `verticalSpan` stays
+authoritative.

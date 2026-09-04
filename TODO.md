@@ -130,8 +130,43 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   NOT ratcheted yet on purpose — the class mixes real defects with correct placements (a
   nightstand belongs against the BED), so the threshold and category list need deriving the way
   0.28 m was.
+- **The three remaining kitchenettes need an UNDER-COUNTER FRIDGE (measured v0.31.9.34).** All four
+  remaining severity-1 findings live here: `su-kit` and `c1-kit` (3.2 m²) and `cs-kit` (4.4 m²).
+  Instrumented per position, **no spot in any of them is simultaneously clear of the door keep-out
+  and of the counter** — `cs-kit`'s eight item-free positions are all inside the keep-out. The
+  `range-hood` contributes (a 1.78 m fridge really does overlap its 1.4-2.3 m span) but is NOT
+  decisive: shortening the fridge's collision span to 1.4 m moved only `marooned-wall-hugger`
+  38 -> 37 and left all three fridges missing.
+  No placement lever can fix it — `c1-kit`'s best wall is 1.76 m and a minimum 1.2 m counter plus a
+  0.7 m fridge is 1.9 m, and on perpendicular walls the two compete for the same corner, so
+  v0.31.9.27's three-wall spread does not apply. **A studio kitchenette has an under-counter fridge
+  integrated into the run, not a 1.78 m free-standing one** — so the fix is a content model change
+  (an appliance that occupies part of the counter's footprint rather than its own floor), plus
+  adding its id to `ROOM_REQUIREMENTS.kitchen`'s `anyOf` for "a fridge". Same shape as v0.31.9.33's
+  wet-area bathroom.
 - **Two kitchens need their fixtures on THREE WALLS — no new primitive (measured v0.31.9.27;
-  `cs-kit` recovered in v0.31.9.29 via the counter sizing alone).**
+  `cs-kit` recovered in v0.31.9.29 via the counter sizing alone).** NOTE v0.31.9.34: this does not
+  help the fridge problem above, for the corner-competition reason.
+- **HIGHEST PRIORITY — the visual scenarios disagree with the corpus, and the cause is UNKNOWN.**
+  Both fixture-asserting scenarios fail against the running app with a clean tree:
+  `wet-area-bathroom` reports `st-bath missing bathroom-sink` and `galley-kitchen-sweep` reports
+  `st-kit missing kitchen-counter-l, refrigerator, stove` — while `bathroomFixtures`' basin-less
+  list is EMPTY, `st-kit` is absent from `roomCompleteness`, and the app reports
+  `plan id=tpl-studio rooms=3` with **28 items, exactly the count the ratchet records**.
+  Ruled out: stale `localStorage` (cleared every key and reloaded — still fails), the v0.31.9.34
+  `verticalSpan` change (reverted — still fails, and `galley-kitchen-sweep` passed earlier in the
+  same session), height props differing from defaults (all match), door state (`doors={}` in both),
+  and plan normalisation on load (`doors=2 withSwing=2 rooms=3` in both).
+  **It could be the app, my scenarios' room-membership filter, or the harness — I did not
+  determine which.** Next probe: diff the app's furnished item list piece by piece against
+  `furnishPlanItems(tpl, movein, BUILTIN_CATALOG, {})`. My attempt at that dump was TRUNCATED by
+  the harness's error formatting, so write it to a file via an `eval` step instead of throwing.
+  **This outranks every other item here**, because if the app can diverge from the corpus then
+  every ratchet and the whole ranked defect score are measuring something other than what ships.
+  Until it is resolved, treat corpus-only evidence as provisional.
+- **`refrigerator` has no `width`/`depth` param**, only `height`, so a slim 0.55-0.6 m fridge —
+  common in SG condos — cannot be expressed at all. Worth adding alongside the under-counter unit.
+  And the `height` param does NOT reach the collision span (see the item above).
   This item used to say they need an L-run primitive or two seeded counters. Measured per-wall
   free runs on the inset rect after door keep-outs, against counter 1.2 + hob 0.6 + fridge 0.7:
 
