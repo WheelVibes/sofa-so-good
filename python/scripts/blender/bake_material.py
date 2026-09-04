@@ -80,6 +80,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "(the world is visible along the ray), so an indirect-only bake discards "
                         "it: v0.31.7.92 measured 74.5 % of the shell sampling ~0 for exactly that "
                         "reason. Sky-dome-only with BOTH passes on is the app's indirect slot.")
+    p.add_argument("--indirect-only", action="store_true", dest="indirect_only",
+                   help="force use_pass_direct OFF, leaving only BOUNCED light. Not a shipping "
+                        "configuration -- v0.31.7.88 tried it and v0.31.7.92 measured the "
+                        "consequence, 74.5 %% of the shell sampling ~0, because Cycles files "
+                        "unbounced skylight under DIFFUSE_DIRECT. It is a MEASURING instrument: "
+                        "the shipped decomposition removes the sun as a SOURCE, which necessarily "
+                        "removes the sun's BOUNCES from the indirect slot too, and nothing until "
+                        "now could say how much that costs. Bake twice indirect-only, once with "
+                        "the sun disc and once without, and the difference is the sun-bounce term "
+                        "with the direct double-count excluded from BOTH sides.")
     p.add_argument("--seed", type=int, default=None,
                    help="Cycles sampling seed. Two bakes at the same settings with DIFFERENT "
                         "seeds let you estimate noise without a converged reference: their "
@@ -1434,6 +1444,11 @@ def main(argv: list[str] | None = None) -> int:
         bpy.context.scene.render.bake.use_pass_direct = True
         bpy.context.scene.render.bake.use_pass_indirect = True
 
+    if a.indirect_only:
+        # Measuring instrument, applied LAST so it overrides whatever the pass chose.
+        bpy.context.scene.render.bake.use_pass_direct = False
+        print("  --indirect-only: use_pass_direct OFF (bounced light only)")
+
     # Before the bake mutates materials (visibility whitens them), so the census reads the real
     # albedos rather than the whitened stand-ins.
     room_rho = []
@@ -1639,6 +1654,7 @@ def main(argv: list[str] | None = None) -> int:
             "keep_glazing": a.keep_glazing,
             "portals": a.portals,
             "with_sun_disc": a.with_sun_disc,
+            "indirect_only": a.indirect_only,
             "diffuse_bounces": a.diffuse_bounces,
             # The sun the sky was built from: `setup_world_sky_from_three_direction` takes only
             # this vector, so it is the entire lighting input for an irradiance pass.

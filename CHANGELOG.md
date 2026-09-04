@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.272 — the bake's missing sun-bounce, finally measured: 2.6-8.8 %, so not `(z7)`
+
+**The gap the decomposition never quantified.** `bake_material.py`'s irradiance pass removes the
+sun as a SOURCE rather than removing the indirect PASS, and the reasoning is sound and hard-won —
+`.71` found 90 % of a sun-disc bake was sun the app already renders, then `.88` went indirect-only
+and `.92` measured 74.5 % of the shell sampling ~0, because Cycles files unbounced skylight under
+`DIFFUSE_DIRECT`. But removing the source also removes the sun's BOUNCES from the app's indirect
+slot, and nothing could say how much that costs.
+
+**`--indirect-only` is the instrument for it.** It forces `use_pass_direct` off — explicitly not a
+shipping configuration, `.92` settled that — so two bakes, with and without the sun disc, differ by
+pure sun-bounce with the direct double-count excluded from both sides. At 13:00, same seed:
+
+| mesh (area) | sun off | sun on | × | as % of shipped map |
+| --- | --- | --- | --- | --- |
+| Mesh_116 (34.2 m²) | 0.0719 | 0.1015 | 1.41 | **2.6 %** |
+| Mesh_37 (24.0 m²) | 0.1565 | 0.2331 | 1.49 | **8.8 %** |
+| Mesh_95 (21.8 m²) | 0.0146 | 0.0507 | 3.47 | **4.3 %** |
+
+So the app's indirect really is missing sun-bounce, and on one surface it is nearly half the bounced
+light — but as a share of the map that ships, it is 2.6-8.8 %. **`(z7)`'s floor deficit is 19 %, so
+this is not the cause.** A negative result, and the useful kind: the sun-bounce gap has been an
+implied cost of the decomposition for dozens of versions and is now a number instead of a worry.
+
+Two caveats kept with it. 13:00 puts the sun at 83.9°, nearly overhead, so little enters the glazing
+and the term should be LARGER at 09:00/17:00 — this is a lower bound, not a general figure. And none
+of the three meshes is the measured floor: at 5.6 m² it does not reach a `--limit 6` bake, so this
+bounds the mechanism rather than the surface.
+
+Also recorded, because it would have wasted a round: a fresh export of this scene bakes to
+`plan_context` **ac2d3655** while the shipped set is **5487e7de**, so shipped and fresh maps cannot
+be matched by key.
+
+
 ## v0.31.7.271 — `.270`'s excuse was wrong: the one-program p50 cost is real
 
 `.270` shipped `(z9)` with a loose end and a guess attached: p50 rose 10.3 → 11.9 ms, which is the
