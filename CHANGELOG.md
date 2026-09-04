@@ -27,6 +27,53 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.70 — found what eats the mirror, and the obvious fix eats a towel rail
+
+v0.31.8.69 left one question: what drops `tpl-terrace-ground`'s wall mirror? Traced it through
+the pipeline stage by stage:
+
+```
+seeded            1   5.45,6.95
+arranged          1   5.45,6.95
+mounts            1   4.73,6.95    ← flushed correctly to the wall at 4.70
+dropOverlaps      0                ← deleted here
+```
+
+**`placeSeededMounts` gives a mount its wall unconditionally.** Its own comment says why: *"it
+hangs above the floor, so nothing down there can block it"*. That is true of a basin or a
+console and **false of a wardrobe**, which reaches the mount's height.
+
+With the shortfall correction the wardrobe sits against the wall instead of 0.15 m proud of it,
+the mirror is flushed onto the same wall, and `dropOverlaps` deletes one of the pair — precisely
+what the comment ten lines further down already warns about: *"Stacking it on another piece would
+let `dropOverlaps` DELETE one of them, and losing furniture is worse than leaving it misplaced."*
+
+The premise was correct when written. The shortfall correction is what makes it false.
+
+### The obvious fix works, and costs a different mount
+
+Make a mount slide along its wall like a floor piece, tested with the height-aware narrowphase
+rather than the floor claims — so a mirror above a basin still takes its spot immediately and
+only a real intersection makes it move. Exported as
+`collision/placement.ts:itemHeightAwareClash`, so the placer and `dropOverlaps` cannot disagree
+about what a clash is.
+
+**The mirror survives.** And `tpl-condo-4bed/c4-cbath/towel-rail` ends up stranded on its room
+centre — which is the exact failure `placeSeededMounts` exists to prevent.
+
+### What is left is one sentence
+
+**A mount that genuinely clashes needs a better fallback than "stay at the room centre"** —
+another wall, or a different mount height. Solve that and the whole shortfall correction ships:
+15 marooned appliances → 6, all nine of the 0.32 m cluster, no dining regression, at a cost of
+one blocked window (acceptable at 9-for-1 by the standard v0.31.8.62 set).
+
+`TODO.md` carries the pipeline trace, the working implementation of both halves, and that one
+sentence. Three releases of narrowing have taken this from "a five-template dining regression"
+to a single missing fallback.
+
+No code ships. Verified: 10193 tests pass on the reverted tree; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.69 — nine of fifteen, no dining regression, and one mirror too many
 
 v0.31.8.68 argued the room-rectangle fix gates a whole class of analysis, so it was worth

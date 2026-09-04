@@ -949,12 +949,30 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
     **Only PARALLEL walls count.** The nearest wall to a short edge is often a PERPENDICULAR one
     near its end; using it yields a bogus shortfall that pushes the piece through the real wall.
     Filter to walls within ~15 degrees of the edge direction.
-    **What is LEFT to solve, and it is now only two items:** one new blocked window
-    (`tpl-condo-penthouse/cp-m-win: wardrobe-3door`) and **one DROPPED `wall-mirror`** in
-    `tpl-terrace-ground`'s upper landing — absent from the output entirely, not merely displaced
-    (verified by widening the test's room-rect finder by 0.2 m; still gone). Deleting furniture
-    is not an acceptable price, which is why .69 reverted. Find what drops the mirror — most
-    likely it now overlaps a piece that moved outward — and this ships.
+    **The mirror is DIAGNOSED (v0.31.8.70). Traced through the pipeline:**
+    ```
+    seeded           1  5.45,6.95
+    arranged         1  5.45,6.95
+    mounts           1  4.73,6.95   <- flushed correctly to the wall at 4.70
+    dropOverlaps     0               <- deleted here
+    ```
+    `placeSeededMounts` gives a mount its wall **unconditionally** — its own comment says "it
+    hangs above the floor, so nothing down there can block it", which is true of a basin and
+    FALSE of a wardrobe. With the shortfall correction the wardrobe sits against the wall instead
+    of 0.15 m proud, the mirror lands on it, and `dropOverlaps` deletes one of the pair — exactly
+    what the comment ten lines below already warns about ("losing furniture is worse than leaving
+    it misplaced").
+    **The obvious fix was tried and is NOT free.** Making a mount slide along its wall like a
+    floor piece, tested with the height-aware narrowphase (exported as
+    `collision/placement.ts:itemHeightAwareClash`), **fixes the mirror** — and strands a different
+    one: `tpl-condo-4bed/c4-cbath/towel-rail` ends up on its room centre, which is the failure
+    `placeSeededMounts` exists to prevent.
+    **So the remaining problem is one sentence:** a mount that genuinely clashes needs a better
+    fallback than "stay at the room centre" — another wall, or a different height. Solve that and
+    the whole shortfall correction ships.
+    Still also outstanding: one new blocked window (`tpl-condo-penthouse/cp-m-win:
+    wardrobe-3door`), which by the .62 standard (2 fixes for 3 blockages: bad) is acceptable at
+    9 for 1.
     Two benign measurements move with it and are not defects: `placeSeededMounts`' room-centre
     CONTROL 34 -> 36 (that counter only tallies `CENTRE_IS_RIGHT` defIds, i.e. rugs and tables,
     so it can never be a stranded appliance) and the per-template item counts.
