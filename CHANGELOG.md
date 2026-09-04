@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.278 — the window, re-measured on a repaired harness: the room is right, the aperture is not
+
+With the measurement floor repaired, item `(l)` was worth re-measuring rather than re-arguing —
+every number in it predates `(z5)` (references built with no interior lights) and `(z10)` (frames
+captured before the baked GI attached). Daylight-only on both sides, `light-distribution`'s own
+`win-livingDining-N` pose, exposure-matched AgX, Cycles with the physical sky:
+
+| patch | Cycles | app | delta |
+| --- | --- | --- | --- |
+| window | **244.8** (sd 20.0) | **217.5** (sd 52.7) | −27.4 |
+| wall left | 131.0 | 135.1 | +4.0 |
+| ceiling | 193.0 | 199.7 | +6.7 |
+| wall right | 183.9 | 193.6 | +9.7 |
+
+**The room is fine; the aperture is the whole defect.** Every interior surface is within 10 counts,
+and the app is slightly BRIGHTER than physics on all three — so this is not a daylight or GI
+shortfall, which is worth stating plainly because for most of this arc it was assumed to be one.
+The window alone is 27 counts short of a reference that is essentially clipped (244.8 of 255), and
+the spread says what that costs: **sd 20.0 in Cycles against 52.7 in the app**. Physics blows the
+aperture out and the safety grille washes into the glare; the app renders a patterned light-grey
+panel with every bar still legible.
+
+My visual read of the two frames was wrong in an instructive way: the app's room *looks* dimmer, and
+it is not — it is cooler and its bars are heavier, and I would have reported "the app's daylight is
+short" from the images alone. The patches say the opposite.
+
+`light-distribution` reaches the same verdict independently and refuses the pose for dynamic-range
+work — *"p05 18 vs median 138, aperture 0.00 % — no bright aperture in view"* — on a pose where 31 %
+of its near bucket IS window glazing.
+
+**Recommended approach, not implemented.** `.4` established that `scene.background` cannot produce
+the tail at any luminance or band width, because the PMREM pre-filter is the mechanism, so the pane
+needs a term of its own. The cheapest bounded version is a daylight-scaled EMISSIVE on the glazing,
+calibrated to this reference's 244.8: one material, no new geometry, no per-frame cost, tied to sky
+luminance so the panes do not glow at night. It changes no interior lighting, since the room is lit
+by the analytic sun plus the baked GI rather than by the pane. It is a visible change to every
+window in the app and wants its own round with a multi-hour look check, so it is filed rather than
+rushed.
+
+
 ## v0.31.7.277 — the GI-readiness wait becomes shared, because three probes needed it
 
 `.276` fixed `aim-look` and I flagged that other probes carried the same assumption. They do, so the

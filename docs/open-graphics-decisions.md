@@ -1312,6 +1312,42 @@ rather than an opening, and it is measurable in one number that needs no crop ma
 > geometry, and it means this item is now the single open decision carrying *both* remaining
 > measured errors.
 
+> **★ RE-MEASURED AGAINST A PHYSICAL REFERENCE, ON A REPAIRED HARNESS — v0.31.7.278.** Every
+> earlier number in this item predates `(z5)` (references built with no interior lights) and
+> `(z10)` (frames captured before the baked GI attached), so the item needed re-measuring rather
+> than re-arguing. Daylight-only on BOTH sides, `light-distribution`'s own `win-livingDining-N`
+> pose (cam 10.87, 1.6, 6.475 → 10.87, 1.42, 3.480, fov 50 vertical, aspect 1.6), exposure-matched
+> AgX, Cycles at 128 samples with the physical sky:
+>
+> | patch | Cycles | app | delta |
+> | --- | --- | --- | --- |
+> | window | **244.8** (sd 20.0) | **217.5** (sd 52.7) | −27.4 |
+> | wall left | 131.0 | 135.1 | +4.0 |
+> | ceiling | 193.0 | 199.7 | +6.7 |
+> | wall right | 183.9 | 193.6 | +9.7 |
+>
+> **The room is fine; the APERTURE is the whole defect.** Every interior surface is within 10
+> counts and the app is slightly BRIGHTER than physics on all three — so this is not a daylight
+> or GI shortfall. The window alone is 27 counts short of a reference that is essentially clipped
+> (244.8 of 255), and the `sd` says what that costs: **20.0 in Cycles against 52.7 in the app**.
+> Physics blows the aperture out and the safety grille washes into the glare; the app renders a
+> patterned light-grey panel with the bars still fully legible. That is the difference between a
+> photograph and a render, and it is the single largest remaining VISUAL gap in the arc.
+>
+> `light-distribution` reaches the same verdict independently and refuses the pose for
+> dynamic-range work: *"p05 18 vs median 138, aperture 0.00 % — no bright aperture in view"*,
+> on a pose where 31 % of its near bucket IS window glazing. The glazing is in view and simply is
+> not an aperture.
+>
+> **Recommended approach, and it is a look call.** `.4` established that `scene.background` cannot
+> produce the tail at any luminance or band width, because the PMREM pre-filter is the mechanism.
+> So the pane needs a term of its own. The cheapest bounded version is a DAYLIGHT-SCALED EMISSIVE
+> on the glazing material, calibrated so its rendered value matches this reference's 244.8 — one
+> material, no new geometry, no per-frame cost, and it must be tied to sky luminance or the panes
+> glow at night. It changes no interior lighting, since the room is lit by the analytic sun plus
+> the baked GI rather than by the pane. Not yet implemented: it is a visible design change to
+> every window in the app and deserves its own round with a multi-hour look check.
+
 > **★ FOUR VIEWS, TWO PLANS, cv 0.62 % — v0.31.7.57.** app p99 ÷ physics p99 = 0.7265, 0.7388,
 > 0.7287, **0.7306** (the last measured after the constant was published). Mean **0.7312** ⇒
 > correction **1.368×**.
