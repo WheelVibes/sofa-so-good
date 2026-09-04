@@ -55,11 +55,14 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage()
 // BEFORE load, or the welcome modal blurs the whole scene and every frame is a survey of
 // the onboarding card (it did exactly that on the first run).
-await page.evaluateOnNewDocument(() => {
+await page.evaluateOnNewDocument((linearView) => {
   try {
     localStorage.setItem('hdb_onboarded', '1')
+    // `(z12)` linear view: must be set BEFORE the first frame, because `isLinearView` caches on
+    // first read and `Lighting` reads it on the frame after mount.
+    if (linearView) localStorage.setItem('ssg_linear_view', '1')
   } catch {}
-})
+}, process.env.TONEMAP === 'linear')
 await page.goto(appUrl(), { waitUntil: 'networkidle2', timeout: 120000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 60000 })
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
@@ -136,47 +139,28 @@ await new Promise((r) => setTimeout(r, 3000))
 // `EXPOSURE=1.38` is 1.38x the default rather than the default's own 1.38 — it measured 10 counts
 // brighter than an unset run (`v0.31.7.284`). Same trap as `SKYCATCH`, which scales the pane
 // emissive rather than setting it, and which made a whole round of `(l)` conclusions wrong.
-// TONEMAP=linear swaps AgX for three's `LinearToneMapping`, which is `color * exposure` with NO
-// curve — so the frame is linear light behind the sRGB output encoding and `patch-read LINEAR=1`
-// can invert it exactly. This is what makes an apples-to-apples comparison against Blender's
-// `Standard` possible at all.
+// TONEMAP=linear swaps AgX for a LINEAR passthrough (`(z12)`), so the frame is linear light behind
+// the sRGB encode and `patch-read LINEAR=1` can invert it exactly. That is what makes an
+// apples-to-apples comparison against Blender's `Standard` possible.
 //
-// `LinearToneMapping` and not `NoToneMapping`: three's `NoToneMapping` skips the exposure multiply
-// entirely, so the frame would silently lose the day grade and every level would be wrong by
-// `grade(altitude).exposure`.
+// Set via localStorage BEFORE load rather than mutated in-page: `Lighting` rewrites
+// `gl.toneMapping` every frame, so an in-page write reverted within 1.2 s — measured in
+// `v0.31.7.287`, and the reason this is a flag the app honours rather than a probe poke.
 //
-// Read back and PRINTED, because `Lighting` rewrites renderer state every frame and
-// `v0.31.7.259` lost a round to an in-page mutation that reverted without saying so.
+// Verified by READ-BACK and printed. `v0.31.7.259` lost a round to a mutation that reverted
+// silently, and an AgX frame measured as linear is invisible in the output.
 if (process.env.TONEMAP === 'linear') {
-  const applied = await page.evaluate(() => {
-    const gl = window.__three.gl
-    gl.toneMapping = 1 // THREE.LinearToneMapping
-    window.__store.getState().invalidate?.()
-    return { toneMapping: gl.toneMapping, exposure: gl.toneMappingExposure }
-  })
-  await new Promise((r) => setTimeout(r, 1200))
-  const after = await page.evaluate(() => ({
+  const st = await page.evaluate(() => ({
     toneMapping: window.__three.gl.toneMapping,
     exposure: +window.__three.gl.toneMappingExposure.toFixed(4),
   }))
   console.log(
-    `TONEMAP=linear  set ${applied.toneMapping} -> resolved ${after.toneMapping} ` +
-      `(1 = LinearToneMapping)  exposure ${after.exposure}`,
+    `TONEMAP=linear  gl.toneMapping=${st.toneMapping} (1 = LinearToneMapping)  exposure ${st.exposure}`,
   )
-  if (after.toneMapping !== 1) {
-    // MEASURED v0.31.7.287: it does not stick, and cannot from here. `Lighting.tsx:168` assigns
-    // `gl.toneMapping = TONE_MAPPING_THREE[toneMode]` every frame, and the mode vocabulary is
-    // `filmic | agx | neutral` with no linear member. On Medium+ tiers the curve ALSO runs through
-    // the post `<ToneMapping>` effect (TONE-POST), so even a renderer-level bypass would leave the
-    // post chain applying one. A linear app frame needs a dev-only bypass in the APP -- item
-    // `(z12)` -- not a mutation from a probe.
-    //
-    // Exits rather than rendering, because the failure is invisible in the output: an AgX frame
-    // measured as though it were linear is the error class that mis-framed `(z11)`, `(l)`'s
-    // shoulder theory and `.280`'s bar-versus-glass conflation.
+  if (st.toneMapping !== 1) {
     console.error(
-      'TONEMAP=linear did NOT stick — `Lighting` rewrites gl.toneMapping every frame and Medium+ ' +
-        'applies the curve in the post chain. Refusing to render in the wrong transform; see (z12).',
+      `TONEMAP=linear did NOT take: gl.toneMapping is ${st.toneMapping}. Refusing to render in the ` +
+        'wrong transform — see (z12).',
     )
     await browser.close()
     process.exit(1)

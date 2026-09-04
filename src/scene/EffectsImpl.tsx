@@ -10,7 +10,7 @@ import {
   ToneMapping,
   Vignette,
 } from '@react-three/postprocessing'
-import { KernelSize } from 'postprocessing'
+import { KernelSize, ToneMappingMode as PostToneMappingMode } from 'postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
@@ -18,6 +18,7 @@ import { useStore } from '../state/store'
 import { rasterDofParams } from './cameras/cameraLensSettings'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
+import { isLinearView } from './linearView'
 import {
   AO,
   BLOOM,
@@ -217,7 +218,16 @@ export default function EffectsImpl({
       />,
     )
   }
-  effects.push(<ToneMapping key="tone" mode={TONE_MAPPING_POST[toneMode]} />)
+  // `(z12)`: the DEV-only linear passthrough has to cover the POST stack too. three skips
+  // `renderer.toneMapping` when rendering to a render target (the reason TONE-POST exists), so
+  // bypassing only `Lighting`'s write would leave the AgX curve running here and produce a frame
+  // that looks linear-ish and measures wrong.
+  effects.push(
+    <ToneMapping
+      key="tone"
+      mode={isLinearView() ? PostToneMappingMode.LINEAR : TONE_MAPPING_POST[toneMode]}
+    />,
+  )
   effects.push(<HueSaturation key="hue" saturation={hueSatSaturation(sceneSaturation)} hue={0} />)
   if (full && cinematic) {
     effects.push(

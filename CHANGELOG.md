@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.288 — a linear view for measurement, and it corrects the arc's headline immediately
+
+`(z12)` fixed. `isLinearView()` reads `ssg_linear_view` from localStorage — DEV-only and cached —
+and both tone-mapping sites honour it: `Lighting` swaps in `LinearToneMapping`, `EffectsImpl` swaps
+`PostToneMappingMode.LINEAR` into the post stack. **Both or neither**, because three skips
+`renderer.toneMapping` when rendering to a render target (the reason TONE-POST exists), so bypassing
+one would produce a frame that looks linear-ish and measures wrong.
+
+Deliberately not a fourth `ToneMappingMode`: that vocabulary is user-facing and a linear passthrough
+is not a look — over-1.0 values clip flat. `LinearToneMapping` rather than `NoToneMapping`, because
+three's `NoToneMapping` skips the exposure multiply and would silently drop the day grade.
+`aim-look TONEMAP=linear` sets the key via `evaluateOnNewDocument` (before the first frame, since the
+read is cached) and READS BACK `gl.toneMapping`, exiting if it is not 1.
+
+**Then it corrected the headline.** Same pose, same hour, daylight-only, Cycles under `Standard` at
+the manifest-derived 0.4647 stops so both sides carry the same ×1.38 scaling, decoded per pixel:
+
+| surface | byte-space (AgX, `.276`) | **linear** |
+| --- | --- | --- |
+| ceiling | 1.034 | **1.040** |
+| wall | 1.026 | 0.985 |
+| floor | 0.981 | **0.877** |
+
+The ceiling barely moves, the wall flips sign, and **the floor's error is six times larger — 12.3 %,
+not 1.9 %**. So `.276`'s "every surface within 3.4 %" was a byte-space artefact, and **`(z7)` is
+reopened at 12.3 %**: the floor really is about 12 % dark, and it was the 19-20 % figure that was
+the artefact, not the deficit itself. Everything eliminated in `.267`-`.275` still stands — the bake
+reproduces to 0.1 %, sun-bounce is 1.6 %, contact shadows 0.1 counts, sampling correct — so the
+cause is open again, but now against a magnitude worth chasing.
+
+Caveat kept with the numbers: under a linear transform the wall patch reaches p95 244-248 of 255,
+close enough to clipping that 0.985 is the least trustworthy of the three. Ceiling (p95 165-178) and
+floor (82-87) are safely in range.
+
+Three tests pin the flag OFF by default, on only for the exact `'1'`, and CACHING — a linear
+passthrough shipped by accident would look badly broken, and the caching is why a probe must set the
+key before the first frame rather than later.
+
+
 ## v0.31.7.287 — the app cannot be measured in linear light, and the guard caught me trying
 
 `(z11)`'s retraction established that gradient comparisons must be made in linear light. The same
