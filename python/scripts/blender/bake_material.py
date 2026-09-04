@@ -1317,6 +1317,10 @@ def bake_object(
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Initialised HERE, not at module level: it is assigned inside the irradiance branch below,
+    # which makes it a LOCAL of this function, so a module-level default would be shadowed and a
+    # visibility pass would reach the index writer with the name unbound.
+    sun_travel_used: list[float] | None = None
     a = parse_args(argv)
     if a.dir:
         d = os.path.abspath(a.dir)
@@ -1383,6 +1387,7 @@ def main(argv: list[str] | None = None) -> int:
             bpy.context.scene.cycles.max_bounces = max(
                 bpy.context.scene.cycles.max_bounces, a.diffuse_bounces
             )
+        sun_travel_used = list(directional[0]["travel"])
         sky_info = S.setup_world_sky_from_three_direction(
             tuple(directional[0]["travel"]), sun_disc=a.with_sun_disc
         )
@@ -1602,6 +1607,44 @@ def main(argv: list[str] | None = None) -> int:
         # (`v0.31.7.103`). A transform applied to the data must travel WITH the data.
         "encode": a.encode,
         "scale": a.scale,
+        # THE INVOCATION, recorded so a set can be reproduced. `v0.31.7.239`-`.244` spent six
+        # rounds and three 40-minute bakes failing to reproduce the shipped set, because the index
+        # recorded `version/pass/albedo/uv/uv_margin/encode/scale` and NOT the settings that move
+        # the RESULT: the sun vector, sample count, resolution, bounce depth, whether the glazing
+        # was deleted, whether portals were placed. The map COUNT matched (111 = 111), which made
+        # the reconstruction look successful while every per-map `scale` was wrong.
+        #
+        # A nested object so two sets can be diffed field by field, and deliberately NOT
+        # `sys.argv`: an argv string records what was TYPED, leaving defaults implicit, and the
+        # whole failure above was a default that had moved underneath.
+        "bake": {
+            "min_area": a.min_area,
+            "limit": a.limit,
+            "res": a.res,
+            "res_min": a.res_min,
+            "tpm": a.tpm,
+            "samples": a.samples,
+            "bit_depth": a.bit_depth,
+            "per_map_scale": a.per_map_scale,
+            "dilate": a.dilate,
+            "bake_margin": a.bake_margin,
+            "fill_holes": a.fill_holes,
+            "denoise": a.denoise,
+            "float_buffer": a.float_buffer,
+            "adaptive_threshold": a.adaptive_threshold,
+            "seed": a.seed,
+            "uv_mode": a.uv,
+            "device": a.device,
+            # The four that decide light transport, and whose absence cost those rounds.
+            "keep_glazing": a.keep_glazing,
+            "portals": a.portals,
+            "with_sun_disc": a.with_sun_disc,
+            "diffuse_bounces": a.diffuse_bounces,
+            # The sun the sky was built from: `setup_world_sky_from_three_direction` takes only
+            # this vector, so it is the entire lighting input for an irradiance pass.
+            "sun_travel": sun_travel_used,
+            "blender": list(bpy.app.version),
+        },
         # One exposure-weighted rho per room, when asked for. The app's fill can multiply by this
         # without doing any visibility work of its own -- see `src/scene/lighting/albedoFill.ts`.
         **({"rooms": room_rho} if room_rho else {}),

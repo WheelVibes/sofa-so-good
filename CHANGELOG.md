@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.245 — the bake now records its own invocation, so `.239`-`.244`'s archaeology cannot repeat
+
+Six rounds and three 40-minute bakes went into failing to reproduce the shipped map set, and the
+reason was structural: `index.json` recorded `version, pass, albedo, uv, uv_margin, encode, scale`
+and **none of the settings that move the result**. The map COUNT matched exactly (111 = 111), which
+made the reconstruction look successful while every per-map `scale` was wrong.
+
+`bake_material.py` now writes a `bake` object into the index with everything needed to run it again:
+`min_area, limit, res, res_min, tpm, samples, bit_depth, per_map_scale, dilate, bake_margin,
+fill_holes, denoise, float_buffer, adaptive_threshold, seed, uv_mode, device`, the four that decide
+light transport — `keep_glazing, portals, with_sun_disc, diffuse_bounces` — plus **`sun_travel`**,
+which for an irradiance pass is the entire lighting input (`setup_world_sky_from_three_direction`
+takes only that vector), and the Blender version.
+
+Verified by running it: a 1-map bake with `--keep-glazing --diffuse-bounces 7` writes exactly those
+back, including `"sun_travel": [-0.46379, -24.85875, 2.6129]` and `"blender": [5, 2, 1]`.
+
+Two decisions worth stating:
+
+- **Not `sys.argv`.** An argv string records what was TYPED, leaving every default implicit — and the
+  whole failure above was a default that had moved underneath (`.242`: the glazing deletion `.181`
+  discovered, `.241`: bounce depth). Recording the RESOLVED values is what makes two sets diffable.
+- **A nested object rather than flat keys**, so a reader can diff two indices field by field without
+  the bake settings colliding with the map schema.
+
+And a bug caught before shipping it: I first declared `sun_travel_used` at module level, but it is
+assigned inside `main`'s irradiance branch, which makes it a LOCAL — so the module-level default was
+shadowed and a `--pass visibility` run would have reached the index writer with the name unbound.
+Initialised inside `main` instead, with the reason recorded at the site.
+
+Nothing else shipped. The `--min-area 1.5 --keep-glazing` bake is at 40 maps of ~189 and will be the
+first set to carry its own invocation. Suite 10219 green.
+
+
 ## v0.31.7.244 — a shortcut attempted and INVALIDATED by its own control: whole-map means cannot stand in for patch texels
 
 The `--keep-glazing` bake needs ~57 minutes, so I tried to answer its question early from files I
