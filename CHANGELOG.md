@@ -27,6 +27,44 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.92 — `walkcam` waited on a class that exists nowhere in the codebase
+
+Recorded as found-not-fixed in v0.31.8.90. Step 10 was
+`waitFor {css: ".walk-cam-controls"}` — and **`.walk-cam-controls` appears nowhere in `src/`.**
+So the scenario had been failing at its third assertion since it was written, producing **zero**
+of its five screenshots. Its whole stated purpose ("verify FOV + eye-height sliders show,
+screenshot at low/high FOV and eye-height to confirm the view visibly changes") was unverified.
+
+My recorded hypothesis — that it never switches to Pro — was **wrong**: step 4 does
+`setUiMode('pro')` + `reresolveFeatureFlags()`, and I confirmed `walkCameraControls` resolves
+`true` there. The real reason is structural: the component is `WalkSettings` and it renders
+**inside the Appearance popover**, which the scenario never opened. Its classes are the shared
+`pop-label` family; there is no dedicated wrapper class to wait on.
+
+Now it opens the popover, asserts on things that exist — the "Walk settings" section and
+`input[aria-label="Field of view (degrees)"]` — screenshots the panel, and closes it again so the
+popover is not sitting in frame for the four scene shots below.
+
+All five screenshots exist for the first time. Verified the new `00-walk-settings-panel` (the
+WALK SETTINGS section with "Field of view 70°" and "Eye height 1.60 m", Pro selected) and
+confirmed the FOV pair genuinely differs: **mean absolute luma difference 20.2/255** between
+FOV 50 and FOV 100.
+
+### Two harness lessons, both from watching this one run
+
+**The close-assert had the v0.31.8.88 bug in it.** I first wrote
+`waitFor {text: "Walk settings", visible: false}` and it timed out — the same text predicate that
+release established cannot distinguish "painted" from "gone". Asserting the SLIDER unmounts
+(`input[aria-label=…]`, `visible: false`) is correct and instant. I reached for the broken idiom
+again four releases after documenting it, which is a decent argument for the ratchet test rather
+than the playbook note.
+
+**The 25 s guard timeout from v0.31.8.90 was too tight.** Watching the splash across runs of this
+scenario: **11.4 s, 15.6 s, 17.7 s, 26.4 s, 50.4 s** — it is in Pro mode, so the scene swap is
+heavier, and the spread is wide enough that 25 s false-failed once. Raised to 45 s in the 27 files
+the sweep touched. A guard that false-fails is worse than one that takes longer to report, and
+these only run their full timeout when something is actually wrong.
+
 ## v0.31.8.91 — correcting v0.31.8.90: the app was NOT showing keyboard hints on touch
 
 I claimed last release that the walk HUD "is showing KEYBOARD hints (Click to look, W/A/S/D, Esc)

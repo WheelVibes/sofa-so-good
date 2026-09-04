@@ -99,7 +99,7 @@
         "css": "[data-transition-overlay]",
         "visible": false
       },
-      "timeout": 25000,
+      "timeout": 45000,
       "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
     },
     {

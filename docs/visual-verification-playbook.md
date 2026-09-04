@@ -904,6 +904,9 @@ Three ways to get this wrong, all of them tried:
   can be satisfied while the splash is fully painted — and worse, it passes VACUOUSLY when the
   step runs before React has rendered the new label, which is the common case since
   `showLoading` is synchronous inside `setCameraMode`.
+- **Budget 45 s, not 25 s.** Measured on `walkcam` (Pro mode, so a heavier scene swap) across
+  five runs: 11.4 / 15.6 / 17.7 / 26.4 / 50.4 s. A 25 s timeout false-failed once. The guard only
+  spends its full timeout when something is genuinely wrong, so err high.
 - **Waiting only for it to GO is not enough** — that is the vacuous pass above. Wait for it to
   APPEAR first, then to go. `[data-transition-overlay]` exists exactly while the overlay is in
   the DOM and is not shared with the notification region or the FPS HUD (both `role="status"`).

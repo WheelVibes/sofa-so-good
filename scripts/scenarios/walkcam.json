@@ -45,7 +45,7 @@
         "css": "[data-transition-overlay]",
         "visible": false
       },
-      "timeout": 25000,
+      "timeout": 45000,
       "failMessage": "'Entering walkthrough' splash still up; the next screenshot would capture the splash, not the scene. See docs/visual-verification-playbook.md."
     },
     {
@@ -60,12 +60,43 @@
       "wait": 1500
     },
     {
-      "name": "verify-controls-show",
+      "name": "open-appearance",
+      "click": "button[aria-label=\"Appearance\"]",
+      "failMessage": "WalkSettings renders INSIDE the Appearance popover (AppearancePopover.tsx), so it has to be opened before the sliders exist."
+    },
+    {
+      "name": "verify-walk-settings-section",
       "waitFor": {
-        "css": ".walk-cam-controls"
+        "text": "Walk settings"
+      },
+      "timeout": 8000,
+      "failMessage": "'Walk settings' section missing \u2014 WalkSettings gates on the `walkCameraControls` flag AND cameraMode==='firstPerson'."
+    },
+    {
+      "name": "verify-fov-slider",
+      "waitFor": {
+        "css": "input[aria-label=\"Field of view (degrees)\"]"
       },
       "timeout": 5000,
-      "failMessage": "WalkCameraControls should be visible in firstPerson + Pro mode"
+      "failMessage": "Field-of-view slider missing in firstPerson + Pro. This assertion used to wait on `.walk-cam-controls`, a class that exists NOWHERE in src \u2014 so it had been failing since it was written and the scenario never reached its own FOV/eye-height shots (fixed v0.31.8.92)."
+    },
+    {
+      "name": "shot-walk-settings",
+      "screenshot": "00-walk-settings-panel"
+    },
+    {
+      "name": "close-appearance",
+      "click": "button[aria-label=\"Appearance\"]",
+      "failMessage": "the popover must close again, or it sits in frame for every scene screenshot below"
+    },
+    {
+      "name": "appearance-closed",
+      "waitFor": {
+        "css": "input[aria-label=\"Field of view (degrees)\"]",
+        "visible": false
+      },
+      "timeout": 10000,
+      "failMessage": "Appearance popover did not close. Asserted on the SLIDER unmounting, not on the 'Walk settings' label text \u2014 a text `visible: false` ignores opacity and can be satisfied while the panel is still painted (v0.31.8.88)."
     },
     {
       "name": "set-fov-50",

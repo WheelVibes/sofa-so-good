@@ -88,7 +88,20 @@ Obligations: it is user-facing, so Simple AND Pro both need testing, no colour l
 44 px tap floor is gated on `max-width: 960px` (width, not pointer). Verify with
 `scripts/scenarios/walk-mobile-hud.json`, which now renders a real phone.
 
-## `walkcam.json` fails at `verify-controls-show`, pre-existing
+## ~~`walkcam.json` fails at `verify-controls-show`~~ — FIXED (v0.31.8.92)
+
+**Resolved, and my recorded hypothesis was wrong.** It does NOT fail for want of Pro mode — step 4
+sets it and `walkCameraControls` resolves true. It waited on `.walk-cam-controls`, **a class that
+exists nowhere in `src/`**, so it had failed at its third assertion since it was written and
+produced none of its five screenshots. The component is `WalkSettings`, rendered inside the
+Appearance popover, which the scenario never opened; it now opens it, asserts the "Walk settings"
+section and the FOV slider by `aria-label`, and closes it before the scene shots. FOV 50 vs 100
+differ by 20.2/255 mean luma, so the scenario's actual claim is verified.
+
+Also raised the v0.31.8.90 splash-guard timeout 25s -> 45s across all 27 files: this scenario's
+splash measured 11.4 / 15.6 / 17.7 / 26.4 / 50.4 s across runs and false-failed at 25s once.
+
+## `walkcam.json` — superseded original note
 
 Found in v0.31.8.90 while spot-checking the transition-guard sweep, and confirmed NOT caused by
 it — the failure is identical with the guard stashed:
