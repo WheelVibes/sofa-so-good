@@ -27,6 +27,62 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.97 — the normal map works, and my argument against it was wrong
+
+v0.31.8.96 closed by recording that a normal map was the last untried lever, that I had not tested
+one, and that my argument against it — the cylinders' normals are already correct, so there is no
+form to add — was "an argument, not a measurement". Tested it. **The argument was wrong.**
+
+A tangent-space profile that tilts the normal along the tangent by `sin(2*pi*u)` points it further
+sideways than the real cylinder everywhere except crown and flanks — a steeper virtual rib. The
+premise it violates is "the lighting is uniform": it is not quite, which is exactly why the
+oblique third of the panel always read. Exaggerating the normal amplifies what directional content
+there is.
+
+Measured like-for-like on `feature-wall-finishes.json`:
+
+| finish | rib contrast | profile shape |
+|---|---|---|
+| wood (untouched) | 40.95 -> 41.12 | 0.035 -> 0.035 |
+| **painted** | **8.95 -> 41.09** | **-0.024 -> +0.050** |
+| **gloss** | **14.44 -> 47.26** | **-0.024 -> +0.049** |
+
+The shape figure flips SIGN in both — from square-like (a printed stripe) to cosine-like (a shaded
+cylinder) — and painted now scores ahead of `wood` (0.035), the finish that already read correctly.
+
+### Two mistakes on the way, one of them last release's headline
+
+**I had been comparing against the wrong baseline.** v0.31.8.96 quoted "no map (shipped) amp
+26.60" — a frame from `feature-wall-painted-cues`, which sets its own hour. The like-for-like
+`feature-wall-finishes` baseline is **8.95**. So the aoMap I threw away was actually NEUTRAL
+(9.01 vs 8.95) and its inverted phase was an IMPROVEMENT (15.25). Last release's headline finding
+was an artefact of measuring across two fixtures, and the v0.31.8.96 entry is annotated inline to
+say so.
+
+**A strength sweep looked like noise until it was settled properly.** The first sweep returned
+10.82 / 38.12 / 21.68 / 34.64 for gain 0.5 / 1.5 / 3 / 6 — non-monotonic response to a monotonic
+input, which normally means the instrument is the problem. It was not: re-running the fixture three
+times gave **14.78 exactly three times**, so the metric is deterministic. The sweep had simply
+under-settled after each finish toggle. Re-run with 8 s settles and a repeat of gain 1.5 as an
+internal control, the response is clean and monotonic and the control matches to the digit.
+
+`normalScale` is **8** on that evidence: contrast rises monotonically all the way to gain 20
+(54.13) but shape peaks at 8-12 (+0.050) and falls off by 20 (+0.043) — past ~12 it buys contrast
+by making the profile squarer. 8 is the least exaggeration that reaches the plateau.
+
+### Scope, and what it is not
+
+**Painted and gloss only.** A material has one `normalMap` slot, so attaching the profile REPLACES
+what the base had — for `wood` that is `getWoodMaterial`'s grain, which is the whole reason a wood
+flute already reads (v0.31.8.80), and both shipped presets use tinted wood. The scoping is
+load-bearing, so `src/materials/flutedRibMaterial.test.ts` pins it: painted and gloss get the map,
+wood keeps the shared material, 50 ribs share one cached material, and the `pbrSurfaces` gate is
+exercised in both UI modes.
+
+**It is an improvement, not a cure.** Face-on the ribs now read as crisply incised grooves rather
+than rounded half-round dowels, and the oblique third still reads better than the middle. Said so
+in the code, because the metrics alone would oversell it.
+
 ## v0.31.8.96 — built the recommended painted-flute fix, measured it, threw it away
 
 Five releases of refutations had left one lever standing: "the fix is a normal map (or a subtle
@@ -67,6 +123,12 @@ contrast while making the profile more square, which is what a single number hid
 | **no map (shipped)** | **26.60** | **+0.041** |
 | aoMap, crown bright | 9.01 | -0.023 |
 | aoMap, crown dark (inverted) | 15.25 | -0.025 |
+
+**[CORRECTED in v0.31.8.97 — the 26.60 baseline is from a DIFFERENT fixture.** It came from
+`feature-wall-painted-cues`, which sets its own hour; the like-for-like `feature-wall-finishes`
+baseline is **8.95**. So the aoMap was neutral (9.01 vs 8.95), not a 3x regression, and the
+inverted phase was an improvement. The conclusion "worse than shipping nothing" was an artefact
+of comparing across fixtures.]**
 
 Both phases are worse than no map at all, and both turn the profile from marginally-cosine to
 marginally-square. Mid-run I blamed mipmapping — a 64x1 strip's mip chain ends at 1x1, i.e. its own

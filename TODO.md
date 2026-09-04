@@ -1010,7 +1010,21 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   **`ripple/px` is ANTI-CORRELATED with roundness — do not quote it again.** It rewards hard-edged
   stripes and penalises smooth gradients. Use `scripts/measure-flute-roundness.mjs`, which reports
   rib contrast (`amp`) and profile shape (`roundness`) separately.
-  **What is genuinely untried: an actual NORMAL map.** I did not test one. My argument that it
+  **SHIPPED (v0.31.8.97): a normal map DOES work, and my argument against it was wrong.** A
+  tangent-space profile tilting the normal by `sin(2*pi*u)` (steeper than the real cylinder),
+  `normalScale` 8, on PAINTED and GLOSS only — a material has one `normalMap` slot and wood must
+  keep its grain. Like-for-like: painted contrast **8.95 -> 41.09**, gloss **14.44 -> 47.26**,
+  profile shape flipping from square-like (-0.024) to cosine-like (+0.050) in both, which puts
+  painted ahead of wood (0.035). The premise I violated was "the lighting is uniform" — it is not
+  quite, which is why the oblique third always read.
+  **Also corrected: v0.31.8.96's aoMap verdict was a cross-fixture artefact.** That entry's "no map
+  = 26.60" baseline came from `feature-wall-painted-cues` (different hour); the like-for-like
+  `feature-wall-finishes` baseline is 8.95, so the aoMap was neutral, not a 3x regression. **Always
+  measure both arms in the SAME fixture.**
+  **Still not a cure:** face-on the ribs read as crisply incised grooves, not rounded dowels, and
+  the oblique third still reads better. Remaining idea if anyone returns to it: the flanks are
+  mutually occluded by neighbouring ribs at ~0.16 x step, which no per-rib map can express.
+  **Historic note: I did not test a normal map before .97.** My argument that it
   cannot help — the cylinder normals are already correct, so there is no form to add — is an
   argument, not a measurement, and it is the last standing lever on this thread.
   **Four refutations in, the mechanism is simply that face-on there is nothing to differentiate:**
