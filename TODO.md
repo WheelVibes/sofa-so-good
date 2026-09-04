@@ -4,6 +4,29 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Seven shipped rooms furnish without the fixture that defines them (v0.31.9.15)
+
+Ratcheted in `src/layout/roomCompleteness.test.ts`. Surveyed: 44 bedrooms, 18 kitchens (plus 35
+bathrooms in `bathroomFixtures.test.ts`).
+
+**Two bedrooms contain NO BED, and neither is too small for one:**
+- `tpl-hdb-5room/ground/h5-bed3` (9.0 m²) — furnished as a study: desk, book set, nightstand,
+  wardrobe, two plants.
+- `tpl-hdb-3gen/ground/g3-gen` (8.7 m²) — **two nightstands and a wardrobe**, flanking nothing.
+
+**Five kitchens are incomplete:**
+- `tpl-studio/st-kit` (5.3 m²) and `tpl-1bed/ob-kit` (5.9 m²) — a ceiling light and a range hood,
+  nothing else.
+- `tpl-condo-studio/su-kit` (3.2 m²) — a range hood only.
+- `tpl-condo-1study/cs-kit` (4.4 m²) — fridge + hood, no hob or counter.
+- `tpl-condo-1bed/c1-kit` (3.2 m²) — has a counter and stove, **missing only the fridge**. Note
+  this one is invisible to `applianceWall`'s `KNOWN_ORPHAN_HOODS` because it HAS a stove.
+
+**Start with `h5-bed3`.** A 9 m² room that receives a desk instead of a bed points at the SEEDING
+(which kit a room is given), not the geometry — unlike `ctu-mbath`, which really was too small.
+Take them one at a time and measure before publishing a cause: `ctu-mbath` cost four releases and
+three wrong explanations.
+
 ## Upstairs layouts are weaker than the ground floor's — exposed by v0.31.9.8
 
 Giving upper-storey doors their default swings (they had NONE — `withInwardDoorSwings` read the

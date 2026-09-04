@@ -27,6 +27,44 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.15 — two shipped bedrooms contain no bed
+
+v0.31.9.14 ratcheted bathrooms because `ctu-mbath` lost its basin and nothing failed. Surveying the
+other room types the same way shows the failure mode was never confined to bathrooms.
+
+| room type | surveyed | incomplete |
+|---|---|---|
+| bedrooms (incl. master) | 44 | **2 with no bed** |
+| kitchens | 18 | **5 missing a hob, fridge or counter** |
+| bathrooms (v0.31.9.14) | 35 | 1 with no basin |
+
+**The two bedless bedrooms are the finding.** Both are big enough — 9.0 m² and 8.7 m² — so this is
+a placement failure, not a capacity limit like `ctu-mbath`:
+
+- `tpl-hdb-5room/h5-bed3` is furnished as a STUDY: desk, book set, nightstand, wardrobe, two
+  plants. No bed.
+- `tpl-hdb-3gen/g3-gen` has **two nightstands and a wardrobe** — nightstands flanking a bed that is
+  not there.
+
+"A bedroom with no bed" is the least defensible output an interior-design tool can produce, and
+until now nothing in the suite said so.
+
+**What this catches that the existing ratchet cannot.** `applianceWall.test.ts` already tracks the
+four templates whose range hood has no stove under it (`KNOWN_ORPHAN_HOODS`). It cannot see that
+those same kitchens are missing **fridges and counters** as well — `tpl-studio/st-kit` (5.3 m²)
+contains a ceiling light and a range hood and nothing else — and it structurally cannot see
+`tpl-condo-1bed/c1-kit`, which HAS a stove and is missing only the fridge, so it never appears in a
+hood/stove comparison at all.
+
+`src/layout/roomCompleteness.test.ts` records all seven offenders with their areas, so a capacity
+excuse can be checked rather than assumed. The bedless count gets its own inequality assertion, so
+a change cannot satisfy the ratchet by trading a kitchen fault for a bedroom one.
+
+Diagnosis of the seven is deliberately NOT attempted here. `ctu-mbath` took four releases and three
+wrong explanations of mine; these deserve the same measure-first treatment one at a time, and
+`h5-bed3` is the place to start — a 9 m² room that gets a desk instead of a bed is the clearest
+signal that the seeding, not the geometry, is at fault.
+
 ## v0.31.9.14 — a bathroom with no basin should fail a test, not move a count
 
 `ctu-mbath` lost its basin in v0.31.9.8 and **nothing failed.** The loss surfaced only as
