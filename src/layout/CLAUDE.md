@@ -290,6 +290,49 @@ back, at no cost to the nine appliance fixes it was traded for). Cost: `tpl-cond
 loses its desk and book-set, and `tpl-1bed/ob-kit` its ceiling light — both recorded per-def in
 `diningChairTuck.test.ts` and named in `TODO.md`.
 
+## Four placement levers, all rejected — and what the corpus is actually short of (v0.31.9.27)
+
+v0.31.9.24 built four levers, v0.31.9.26 unblocked them, and v0.31.9.27 measured every subset and
+rejected all four. `autoArrange.test.ts`'s hard validity assertion passes in every configuration,
+so the blocker is gone; what remains is content, and no subset is a net win. Even the arithmetic
+one alone — sizing the counter to the inset rect — trades `cs-kit`'s fixtures and two overhangs
+for the worst overhang in the corpus (0.60 m of `st-kit`'s counter), a severed `cs-balcony` and
+two marooned appliances. Per-subset table in `CHANGELOG.md` v0.31.9.27.
+
+**Do not attempt another placement lever until defect classes can be RANKED.** Four attempts in a
+row traded one class for another, and every ratchet here reads one line per finding — a stranded
+chair, a missing counter and a blocked window are indistinguishable. Without an order, a reshuffle
+cannot be told apart from progress. A proposed order is in that changelog entry.
+
+### The over-stuffed-kit theory is refuted — do not re-open it
+
+Intended kit footprint over floor area, per room, before any drop pass: **peaks at 52%** corpus-wide
+(`h4-cbath`, 2.1 m²), **zero rooms at 60% or more**, and 14-27% in every room the arranger
+struggles with (`c2-bed2` 14%, `su-kit` 27%, `st-kit` 16%, `em-study` 10%). Nothing is
+over-stuffed. **The constraint is WALL RUN, not floor area** — a 2.0 m wall cannot take
+counter + hob + fridge in a line however much floor is free.
+
+**Density measured by item POSITION is meaningless while open-graphics item (f) is open.** A first
+cut of that measurement read `em-study` at 103% and nearly became the headline; it was counting
+SURVIVORS by position, so it swept in the furniture of adjacent open-plan rooms whose rects
+overlap. 15 terminal rooms share a wall-free volume with another declared room.
+
+### The kitchens need three WALLS, not a new primitive
+
+Per-wall free runs on the inset rect after door keep-outs, against counter 1.2 + hob 0.6 +
+fridge 0.7:
+
+| kitchen | rect | free runs | verdict |
+|---|---|---|---|
+| `su-kit` | 1.76 x 1.36 | S 1.76, W 1.13, E 1.13, N 0.43+0.43 | fits across S+W+E |
+| `c1-kit` | 1.76 x 1.36 | S 1.76, E 1.36, N 1.08, W 0.78 | fits across S+E+N |
+| `cs-kit` | 1.76 x 1.96 | E 1.96, N 1.08, S 1.08, W 0.68+0.38 | fits across E+N+S |
+
+All three fit with existing geometry. `arrangeKitchen` confines its work triangle to the two LONG
+walls — `aspect = horizontal ? ['S','N'] : ['W','E']` — which is two walls where a near-square
+kitchen needs three. `kitchen-counter-l` is a straight run despite the `-l` in its id and does not
+need to change.
+
 ## The arranger can place a piece ONTO an item it has not placed yet (v0.31.9.24/.25)
 
 `world` holds only what is already placed, so a room item still awaiting its turn is invisible to

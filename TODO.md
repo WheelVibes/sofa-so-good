@@ -85,11 +85,14 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   unblock: with v0.31.9.24's wall-ENDS candidate re-applied, `autoArrange.test.ts`'s "tidies a
   custom plan validly" PASSES. The furnish/tidy difference is an explicit `reserveRetry` flag,
   because two attempts to infer it from metrics both failed (see the changelog).
-  **So v0.31.9.24's four levers are now unblocked and are the next release**: room overhangs
-  **10 -> 4** and `tpl-condo-2bed`'s desk back, against 3 stranded dining chairs, a basin-less
-  `emu-cbath`, a newly blocked `ct-kit-win` and one more severed room — those five remaining
-  deltas are content trades to be judged on their merits, not validity breaks. Per-lever
-  attribution is in `CHANGELOG.md` v0.31.9.24.
+  **v0.31.9.27 re-applied all four and REJECTED all of them.** Every subset was measured; the hard
+  validity assertion passes in each, so the blocker really is gone, but there is no subset that is
+  a net content win. Even lever A alone (counter sizing) trades `cs-kit`'s fixtures and two
+  overhangs for a 0.60 m `st-kit` overhang — the worst in the corpus — plus a severed
+  `cs-balcony` and two marooned appliances. Full per-subset table in `CHANGELOG.md` v0.31.9.27.
+  **Do not re-attempt a placement lever until defect classes can be RANKED** (proposed order in
+  that entry): four attempts in a row have traded one class for another, and the ratchets read
+  every class as one line, so a reshuffle is indistinguishable from progress.
   `dropUnplaceable` (v0.31.9.25) closes the FURNISH half — it is a measured no-op today, and it
   means this class can only ever show up as an item-count delta there, never as an invalid item.
 - **`fittedCounter` measures against the wrong box** — `max(room.width, room.depth)` where the
@@ -108,12 +111,28 @@ because `edgeShortfall` deliberately pushes a piece past the rect edge.
   NOT ratcheted yet on purpose — the class mixes real defects with correct placements (a
   nightstand belongs against the BED), so the threshold and category list need deriving the way
   0.28 m was.
-- **Three kitchens still need the counter run WRAPPED AROUND A CORNER** — `su-kit`/`c1-kit`
-  (2.00 m) and `cs-kit` (2.20 m) against a 2.5 m one-wall minimum. `arrangeKitchen` cannot do
-  this, and no amount of sweeping will help; it needs an L-run primitive. NOTE: `kitchen-counter-l`
-  is a STRAIGHT parametric run despite the `-l` in its id — `footprintParams: { w: 'length' }`,
-  no return leg — so this is either a new `returnLength` param on the `KitchenCounter` primitive
-  or two counter items seeded on adjacent walls.
+- **Three kitchens need their fixtures on THREE WALLS — no new primitive (measured v0.31.9.27).**
+  This item used to say they need an L-run primitive or two seeded counters. Measured per-wall
+  free runs on the inset rect after door keep-outs, against counter 1.2 + hob 0.6 + fridge 0.7:
+
+  | kitchen | rect | free runs | verdict |
+  |---|---|---|---|
+  | `su-kit` | 1.76 x 1.36 | S 1.76, W 1.13, E 1.13, N 0.43+0.43 | fits across S+W+E |
+  | `c1-kit` | 1.76 x 1.36 | S 1.76, E 1.36, N 1.08, W 0.78 | fits across S+E+N |
+  | `cs-kit` | 1.76 x 1.96 | E 1.96, N 1.08, S 1.08, W 0.68+0.38 | fits across E+N+S |
+
+  All three fit with existing geometry. `arrangeKitchen` confines its work triangle to the two
+  LONG walls (`aspect = horizontal ? ['S','N'] : ['W','E']`) — two walls where a near-square
+  kitchen needs three. `cs-kit` needs the counter SIZING too (its 2.4 m default cannot fit a
+  1.96 m run, so it sits at the room centre, `dropOverlaps` takes the stove and
+  `dropDoorBlockers` then takes the counter). `kitchen-counter-l` is a straight run despite the
+  `-l` in its id (`footprintParams: { w: 'length' }`, no return leg) — and does not need to
+  change.
+- **The over-stuffed-kit theory is REFUTED (v0.31.9.27).** Intended kit footprint over floor area
+  peaks at 52% corpus-wide and is 14-27% in every room the arranger struggles with. Do not
+  re-open it. Density measured by item POSITION is meaningless while open-graphics item (f) is
+  unresolved — a first cut read `em-study` at 103% because it counted adjacent open-plan rooms'
+  furniture inside its rect.
 - ~~**`ob-kit` has no ceiling light**~~ **FIXED in v0.31.9.23**, and the cause named here was
   wrong: the clash is with the **`range-hood`**, not the fridge — v0.31.9.22 placed the stove, so
   the hood moved over it and covered the centre of the room. `relocateCeilingMounts` nudges the

@@ -27,6 +27,95 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.27 — the four levers are a wash, the over-stuffed-kit theory is dead, and the kitchens need three walls not a new primitive
+
+v0.31.9.26 unblocked v0.31.9.24's four placement levers. Re-applied them, measured every subset,
+and **all of them are rejected on the evidence.** Three findings came out of it, and they matter
+more than the levers did.
+
+### The levers, measured per subset, with RESERVE-RETRY in place
+
+`autoArrange.test.ts`'s hard validity assertion passes in every configuration now — that blocker
+is genuinely gone. What is left is content, and it is a wash:
+
+| config | gains | losses |
+|---|---|---|
+| A+B+C+D | `cs-kit` fixtures, 2 overhangs, 1 orphan hood, +7 items (incl. `c2-bed2`'s desk) | 3 stranded chairs, `emu-cbath` basin, `ct-kit-win` blocked, 2 marooned appliances, `cs-balcony` severed, 1 centred piece moved |
+| A+C+D (no settle containment) | same gains | 1 stranded chair (jumbo 4.54 m) and the rest of the above |
+| C+D (no counter sizing) | — | chair, basin, window, appliances, mount; `routeAccess` and `roomOverhang` recover |
+| **A alone** | `cs-kit` -> missing only a fridge; `-0.24 c1-kit`, `-0.34 h2-kit`; 1 orphan hood | **+0.60 `st-kit`** (worst in the corpus), `cs-balcony` severed, 2 marooned appliances, snapped 42 -> 40 |
+
+A's `st-kit` overhang is fixed only by D, and D drags in the chair, the basin and the window. There
+is no subset that is a net improvement. **A, B, C and D are all rejected.**
+
+### The over-stuffed-kit theory is refuted
+
+The obvious explanation for four releases of "fix one thing, break another" was that these rooms
+carry more furniture than they can hold. Measured — intended kit footprint over floor area, per
+room, before any drop pass:
+
+```
+corpus max        52%  (tpl-hdb-4room/h4-cbath, 2.1 m²)
+>= 60%            0 of 134 rooms
+defect rooms      c2-bed2 14%   su-kit 27%   c1-kit 27%   cs-kit 19%
+                  st-kit 16%    ob-kit 14%   h2-kit 17%   em-study 10%
+```
+
+**Nothing is over-stuffed.** Every room the arranger struggles with is carrying 14-27% of its
+floor in furniture. The constraint is not area, it is WALL RUN — a 2.0 m wall cannot take
+counter + hob + fridge in a line however much floor is free.
+
+A first cut of that measurement said `tpl-hdb-maisonette/em-study` was at **103%** and nearly
+became this release's headline. It was measuring SURVIVORS by position, so it counted the
+furniture of adjacent OPEN-PLAN rooms whose rects overlap `em-study`'s — which is open-graphics
+item (f), the 15 terminal rooms sharing a wall-free volume, still awaiting a product call. Density
+by position is meaningless wherever that item is unresolved.
+
+### The three remaining kitchens need three WALLS, not a new primitive
+
+`TODO.md` has said since v0.31.9.19 that these need the counter run "wrapped around a corner",
+i.e. a `returnLength` param on the `KitchenCounter` primitive or two seeded counters. Measured
+per-wall free runs on the inset rect, after door keep-outs, against counter 1.2 + hob 0.6 +
+fridge 0.7:
+
+| kitchen | rect | free runs | verdict |
+|---|---|---|---|
+| `su-kit` | 1.76 x 1.36 | S 1.76, W 1.13, E 1.13, N 0.43+0.43 | fits across S+W+E |
+| `c1-kit` | 1.76 x 1.36 | S 1.76, E 1.36, N 1.08, W 0.78 | fits across S+E+N |
+| `cs-kit` | 1.76 x 1.96 | E 1.96, N 1.08, S 1.08, W 0.68+0.38 | fits across E+N+S |
+
+**All three fit with no new geometry** — the three fixtures simply have to go on three DIFFERENT
+walls. `arrangeKitchen` confines its work triangle to the two LONG walls
+(`aspect = horizontal ? ['S','N'] : ['W','E']`), which in a near-square kitchen is two walls when
+it needs three. That is the specced next lever, and it is much smaller than the primitive change
+the TODO assumed.
+
+`cs-kit` also needs A's counter sizing, because its 2.4 m default cannot fit a 1.96 m best run —
+so it is placed at the room centre, overlaps the stove (`dropOverlaps` takes the stove), and is
+then deleted by `dropDoorBlockers`. Sizing and wall-spread are one fix for that room.
+
+### Why nothing ships, stated as a rule
+
+Four consecutive attempts have each traded one defect class for another, and **the ratchets cannot
+rank defect classes** — a stranded chair, a missing counter and a blocked window all read as one
+line. Without an order, every reshuffle looks like a wash and I have no basis to accept a trade.
+
+Proposed severity order, from the goal (a plan a contractor can build from), to be applied when
+the wall-spread lever lands:
+
+1. a missing fixture that DEFINES the room — no counter/hob/fridge, no bed, no WC or basin
+2. an item standing outside its room or in a wall
+3. an unreachable room
+4. a stranded satellite (a chair metres from its table)
+5. a wall-hugger marooned off its wall (services)
+6. a blocked window
+7. a missing decor prop
+
+On that order the rejected bundle is still a wash at level 1 — it gains `cs-kit`'s fixtures and
+loses `emu-cbath`'s basin — which is the clearest statement of why it should not ship.
+
+No functional change in this release.
+
 ## v0.31.9.26 — reserve the piece that lost its spot, and the blocked lever unblocks
 
 v0.31.9.25 established that the arranger can place a piece ONTO an item it has not placed yet,
