@@ -29,6 +29,44 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.226 — the coverage diagnostic was reporting LOOKUPS as meshes, at exactly 2x. Fixed, tested, and the 38-mesh headroom traced to the bake
+
+Chasing `.225`'s 38-mesh headroom to its cause turned up the reason this arc has quoted three
+different coverage numbers.
+
+**The app's own line reads `214/772 meshes matched (28 %) … applied to 107/386 candidates`.** 214 is
+exactly 2 x 107 and 772 exactly 2 x 386, which is not a coincidence: `looked` increments inside
+`resolver.urlFor`, and `applyLightmapsFromIndex` calls `urlFor` **twice per keyed mesh** — once in
+the shared-material pre-pass that checks whether a material's meshes agree, and once in the apply
+loop. So the counter measures LOOKUPS and the label said meshes.
+
+The ratio was unaffected, both halves doubling, which is exactly why it survived: the percentage was
+always right. The absolute numbers were not, and they were read as meshes twice — `v0.31.7.184`
+recorded "108/385 meshes" as coverage, and `.225` spent a round reconciling 28 % against a census
+that counted 1072 visible meshes. Relabelled to `key lookups matched`, with the reason recorded at
+the site, and a test that fails if the wording drifts back. The mesh-level figure was always in the
+same line: `applied to 107/386 candidates`.
+
+**Reconciled, all three numbers now mean something:**
+
+| figure | value | what it is |
+| --- | --- | --- |
+| 107/386 | 27.7 % | meshes carrying a map, of CANDIDATES (Standard-ish material, span ≥ minimum) |
+| 214/772 | 27.7 % | the same thing counted in lookups — the old mislabelled line |
+| 101/1072 | 9.4 % | mapped share of every VISIBLE mesh, furniture included (`.225`'s census) |
+
+**And the 38-mesh headroom is a BAKE-side gap, not a runtime one.** Those meshes pass `isCandidate`
+(Standard material, span over the minimum) and so are keyed, and `uv1` is built at runtime by
+`computeBoxAtlasUv` rather than authored — so their lacking `uv1` is a CONSEQUENCE, not the cause.
+The apply loop `continue`s before the UV step when `resolver.urlFor(key, ctx)` returns null, which
+means the baked set simply has no map for their key. 279 of 386 candidates are in that state; only
+38 of them are ≥ 1 m², the rest being the trim slivers `.225` measured.
+
+So closing that gap is a Blender-side job — extending what the bake enumerates so those ~20
+full-height wall faces, 3 floor planes and 3 unit cubes get maps — and the runtime needs no change
+to consume them. Nothing shipped beyond the diagnostic fix; suite 10175 green.
+
+
 ## v0.31.7.225 — the coverage ceiling, measured: my "coverage is the bigger lever" was half right, and the real headroom is 38 meshes with no `uv1`
 
 `.224` closed by claiming coverage is a bigger lever on the look than any further gain re-fit. That

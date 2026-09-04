@@ -326,7 +326,16 @@ export function createLightmapResolver(
       const suspect = expectCoverage && judged && rate === 0
       return {
         message:
-          `lightmaps: ${hit}/${looked} meshes matched (${pct} %), ${index.maps.length} maps in set` +
+          // "key lookups", NOT "meshes". `looked` counts calls to `urlFor`, and
+          // `applyLightmapsFromIndex` calls it TWICE per keyed mesh — once in the shared-material
+          // pre-pass, once in the apply loop — so this figure is exactly 2x the mesh count. The
+          // RATIO is unaffected (both halves double), which is why the mislabel survived: the
+          // percentage was always right. The absolute numbers were not, and they were read as
+          // meshes twice — the graphics arc recorded "108/385 meshes" as coverage in
+          // `v0.31.7.184`, and `v0.31.7.225` spent a round reconciling 28 % against a census that
+          // counted 1072 visible meshes. The `applied to N/M candidates` half of this line, which
+          // `VisibilityLightmaps` appends, is the mesh-level number.
+          `lightmaps: ${hit}/${looked} key lookups matched (${pct} %), ${index.maps.length} maps in set` +
           (suspect
             ? ' — ZERO matched on a plan expected to be covered, so something is wrong (stale' +
               ' asset, or keys hashed in a different coordinate frame)'

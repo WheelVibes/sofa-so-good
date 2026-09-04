@@ -100,6 +100,22 @@ describe('createLightmapResolver', () => {
     expect(d.message).toContain('coordinate frame')
   })
 
+  it('calls its counter LOOKUPS, not meshes — it double-counts every mesh', () => {
+    // `looked` increments inside `urlFor`, and `applyLightmapsFromIndex` calls `urlFor` TWICE per
+    // keyed mesh: once in the shared-material pre-pass, once in the apply loop. So the figure is
+    // exactly 2x the mesh count while the RATIO is unaffected, which is why the old "meshes
+    // matched" label survived — the percentage was always right.
+    //
+    // It cost two rounds of the graphics arc. `v0.31.7.184` recorded "108/385 meshes" as coverage
+    // and `v0.31.7.225` spent a round reconciling that 28 % against a census counting 1072 visible
+    // meshes. The live app prints `214/772` beside `applied to 107/386 candidates` — the same
+    // ratio, twice the count. This test exists so the wording cannot drift back.
+    const r = createLightmapResolver(index(), '/lm', 5)
+    for (let i = 0; i < 6; i += 1) r.urlFor('miss', CTX)
+    expect(r.describeHitRate().message).toContain('key lookups matched')
+    expect(r.describeHitRate().message).not.toContain('meshes matched')
+  })
+
   it('stays quiet on zero hits when coverage was NOT expected', () => {
     // With one shared index across all baked plans, an unbaked or user-edited layout matching
     // nothing is the normal state -- warning there would cry wolf on the common case.
