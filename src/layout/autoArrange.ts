@@ -21,7 +21,7 @@ import {
   ROOM_INSET,
   rectsOverlap,
 } from './arrangeGeometry'
-import { type ArrangeRole, roleForCategory, roleOf } from './arrangeRoles'
+import { type ArrangeRole, roleForCategory, roleOf, WALL_BOUND_CATEGORIES } from './arrangeRoles'
 import {
   doorApproachRects,
   doorSwingRects,
@@ -737,12 +737,41 @@ function settlePass(
   for (const c of cornersOf(rect))
     if (ok(c, item.rotation) && tryPlace(item, c, item.rotation, world, ctx) !== item) return true
   const rots = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
+  /**
+   * WALL-FIRST (v0.31.9.32) — the coarse grid is tried nearest-the-WALL first,
+   * instead of scanning from the rect's north-west corner.
+   *
+   * `docs/interior-design-guidelines.md` puts "storage/appliances/beds flush to
+   * walls" first among the placement rules, and `snapToWall` honours it for
+   * everything that goes through it — but a piece that falls through to the
+   * settle got an arbitrary scan order and could land in the middle of the room.
+   *
+   * This is the EXPLICIT preference v0.31.9.31 named as the prerequisite for
+   * anything else here. That release found the arranger has been getting the rule
+   * for free from an accident: a mount still parked on the room-centre seed acts
+   * as an obstacle for the whole of arranging, and removing it or relocating it
+   * early both cost five severity-1 fixtures because floor furniture drifted
+   * inward (`marooned-wall-hugger` 39 -> 46, centrality 0.311 -> 0.327). A
+   * preference that is actually stated does not depend on that accident.
+   *
+   * Ordering only — every candidate the old scan reached is still reached, so
+   * nothing can go unplaced by it.
+   */
+  const grid: Array<[number, number]> = []
+  for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += 0.3)
+    for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += 0.3) grid.push([x, z])
+  /**
+   * Only `WALL_BOUND_CATEGORIES` pieces are ordered wall-first — see that set for
+   * why it is narrower than `furnishPlan`'s, and for the two measurements that
+   * ruled out the alternatives (everything wall-first, and an area gate).
+   */
+  const wallFirst = WALL_BOUND_CATEGORIES.has(String(ctx.catalog[item.defId]?.category))
+  const toWall = (p: [number, number]) =>
+    Math.min(p[0] - rect.x0, rect.x1 - p[0], p[1] - rect.z0, rect.z1 - p[1])
+  if (wallFirst) grid.sort((a, b) => toWall(a) - toWall(b))
   for (const rot of rots) {
-    const step = 0.3
-    for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += step) {
-      for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += step) {
-        if (ok([x, z], rot) && tryPlace(item, [x, z], rot, world, ctx) !== item) return true
-      }
+    for (const cell of grid) {
+      if (ok(cell, rot) && tryPlace(item, cell, rot, world, ctx) !== item) return true
     }
   }
   // Finer last-resort pass (RM3): the coarse 0.3 m grid can straddle a real

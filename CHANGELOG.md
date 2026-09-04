@@ -27,6 +27,71 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.32 — an explicit wall preference, and the phantom still is not safe to remove
+
+v0.31.9.31 found that the arranger has been getting "storage/appliances/beds flush to walls" for
+free from an accident — a mount parked on the room-centre seed acting as an obstacle — and named
+the prerequisite: state the preference explicitly, then removing the accident becomes safe. Half
+of that is now true.
+
+### WALL-FIRST
+
+`settlePass`'s coarse grid was scanned from the rect's north-west corner, which is an arbitrary
+order for a last-resort placement. It is now sorted by distance to the nearest wall for pieces of
+`WALL_BOUND_CATEGORIES`. Ordering only — every candidate the old scan reached is still reached.
+
+```
+score  60,813,173,903 -> 60,813,163,803
+marooned-wall-hugger  39 -> 38      stranded-satellite  17 -> 16
+```
+
+Modest, and clean: two fewer findings and nothing worse. **No per-class ratchet moved** — the
+improved appliance falls outside `applianceWall`'s five-id regex and the improved chair is in a
+template `diningChairTuck` does not list as clean — which is exactly the case the ranked survey
+exists for.
+
+**The set took two measurements to get right, and both wrong versions scored identically
+(60,913,193,80x):**
+
+- **Everything wall-first** pulled two of `tpl-1bed/ob-dining`'s chairs to a wall, 0.21 m out of
+  the room and away from their table (`outside-room` 8 -> 9, `stranded-satellite` 17 -> 19). A
+  dining chair belongs at its table.
+- **Gating on footprint area >= 0.5 m²** scored the same, because the piece that actually moved was
+  the dining TABLE — its chairs then tucked around its new wall position and followed it out.
+
+So the gate is by CATEGORY, in a new `WALL_BOUND_CATEGORIES` in `arrangeRoles.ts`. It is
+deliberately narrower than `furnishPlan`'s `WALL_HUGGING_CATEGORIES`, which also carries `seating`
+because the SEED RESCUE should pull a stranded sofa to a wall — and a dining chair is `seating`
+too. It also omits `tables` and `textiles`, because a rug, coffee table or dining table belongs in
+the middle of the room, which `furnishPlan`'s own comment already said.
+
+### Retested: removing the phantom is still not safe
+
+With the preference in place, excluding seed-parked mounts from `world` still costs
+**`missing-fixture` 6 -> 11** and scores 110,913,164,203. `marooned-wall-hugger` improves relative
+to v0.31.9.31's attempt (46 -> 42), so the preference does help — it just does not cover the real
+mechanism, and naming the five losses shows why:
+
+```
++ tpl-hdb-2room/h2-bath      missing a basin
++ tpl-hdb-4room/h4-cbath     missing a basin
++ tpl-studio/st-bath         missing a WC
++ tpl-studio/st-bath         missing a basin
++ tpl-terrace-ground/ct-up/ctu-cbath  missing a basin
+```
+
+**All five are bathrooms, and `emu-cbath`'s basin is still not recovered.** These are 1.06-1.36 m
+rects where three fixtures and a shower have to interlock, and the phantom is acting as a SPACER
+that happens to produce a workable packing: take it away and the first fixture placed starves the
+rest. A wall preference cannot help, because these pieces reach walls through `arrangeFixtures` and
+`snapToWall` already, not through the settle.
+
+**The stopping rule from v0.31.9.31 stands, now with the mechanism named.** Five routes are
+measured and rejected. The target defect is a PACKING problem in a 1.16 x 1.96 m room, not an
+ordering or preference problem, and the honest next move is content: either those bathrooms get a
+kit that fits (a basin-and-WC combined unit, or no shower in a 2.3 m² room) or the templates get
+0.1 m wider.
+
 ## v0.31.9.31 — the phantom mount is what pushes furniture against the walls
 
 v0.31.9.30 established that `emu-cbath`'s basin is lost because a `towel-rail` still on the

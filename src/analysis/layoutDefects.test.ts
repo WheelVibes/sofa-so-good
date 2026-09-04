@@ -48,7 +48,14 @@ import {
  * visible in a per-class count, which is the clearest illustration of why this
  * survey reports classes AND the ratchets keep their per-finding lists.
  *
- * `stranded-satellite` at 17 is NOT a disagreement: `diningChairTuck.test.ts`
+ * **v0.31.9.32 (WALL-FIRST)**: `marooned-wall-hugger` 39 -> 38 and
+ * `stranded-satellite` 17 -> 16, nothing worse, score 60,813,173,903 ->
+ * 60,813,163,803. Note that NO per-class ratchet moved — the improved appliance
+ * is outside `applianceWall`'s five-id regex and the improved chair is in a
+ * template `diningChairTuck` does not list as clean. That is the case this
+ * survey exists for: a real gain the per-finding lists cannot see.
+ *
+ * `stranded-satellite` was 17 and is NOT a disagreement: `diningChairTuck.test.ts`
  * asserts zero strays on eight named clean templates and says nothing about the
  * rest of the corpus. This is the first corpus-wide count.
  */
@@ -58,8 +65,8 @@ const BASELINE = {
   'missing-fixture': 6,
   'outside-room': 8,
   'unreachable-room': 13,
-  'stranded-satellite': 17,
-  'marooned-wall-hugger': 39,
+  'stranded-satellite': 16,
+  'marooned-wall-hugger': 38,
   'blocked-window': 3,
 } as const
 

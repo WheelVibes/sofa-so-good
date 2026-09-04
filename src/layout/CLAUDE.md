@@ -333,11 +333,20 @@ distance from its room's nearest edge over the half-short-side (0 = on the wall,
 effect of pass ordering. Remove it and floor furniture drifts inward, costing five more severity-1
 fixtures than the basin is worth.
 
-**STOPPING RULE: do not attempt this basin again through the mount pipeline.** Four routes are
-measured and rejected — height-aware obstacles (inert), seed exclusion (110.9 G), an 800 mm shower
-tray (70.8 G), mounts-first ordering (110.9 G). The next real move is an EXPLICIT wall preference
-in the arranger, a scoring term rather than a phantom, after which removing the accidental
-obstacle becomes safe.
+**The explicit wall preference exists now (WALL-FIRST, v0.31.9.32) and it is NOT enough.**
+`settlePass` orders its grid nearest-the-wall for `WALL_BOUND_CATEGORIES` — worth score
+60,813,173,903 -> 60,813,163,803 on its own — and with it in place the seed exclusion still costs
+`missing-fixture` 6 -> 11. The five losses name the mechanism: `h2-bath`, `h4-cbath`, `st-bath`
+(WC *and* basin) and `ctu-cbath`, **all bathrooms of 1.06-1.36 m rect**, with `emu-cbath`'s basin
+still not recovered. In a room that tight the phantom is a SPACER that happens to produce a
+workable interlock, and these fixtures reach their walls through `arrangeFixtures`/`snapToWall`
+rather than the settle, so no ordering preference can touch them.
+
+**STOPPING RULE — five routes measured and rejected** (height-aware obstacles: inert; seed
+exclusion: 110.9 G; 800 mm shower tray: 70.8 G; mounts-first ordering: 110.9 G; wall preference +
+seed exclusion: 110.9 G). **This is a PACKING problem in a 1.16 x 1.96 m room, not an ordering or
+preference problem.** The next move is CONTENT and is a product call: a kit that fits (a combined
+basin-and-WC unit, or no shower in a 2.3 m² room) or 0.1 m wider templates.
 
 Related: the `shower` def's `size` param drove every rendered dimension and NOT the collision
 footprint (no `footprintParams`), so a 1.2 m shower collided as 0.9 and a 0.8 m one reserved floor
