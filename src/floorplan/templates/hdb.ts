@@ -99,6 +99,17 @@ export function hdb4Room(): FloorPlan {
       iwall('h4-svc-s', [T, 2.9], [5.6, 2.9]),
       iwall('h4-b2-e', [3.0, 3.2], [3.0, 6.2]),
       iwall('h4-m-n', [T, 6.5], [3.6, 6.5]),
+      // (f) TEMPLATE-ROOM-ENCLOSURE: `h4-cbath` and `h4-mbath` owned NO walls of their own — a
+      // flood fill with every wall solid put them in the same component as the master bedroom, so
+      // two toilets and a basin stood in the open with the bed. `h4-m-n` stopped at x=3.6, just
+      // short of where they begin.
+      //
+      // The baths occupy the column x 3.6-5.7 (master's east edge to the existing `h4-liv-w`),
+      // z 6.5-9.7, so three partitions close it: a north wall continuing `h4-m-n` east, a west
+      // wall splitting master from baths, and a divider between the two baths at z 7.95.
+      iwall('h4-bath-n', [3.6, 6.5], [5.7, 6.5]),
+      iwall('h4-bath-w', [3.6, 6.5], [3.6, D - T]),
+      iwall('h4-bath-mid', [3.6, 7.95], [5.7, 7.95]),
     ],
     openings: [
       // MAIN-DOOR-ROOM (v0.31.5.115): was 6.4, which put the front door at
@@ -107,6 +118,12 @@ export function hdb4Room(): FloorPlan {
       // lands the door at x=6.95, in the Living / Dining room.
       door('h4-main', 'h4-s', 1.7),
       door('h4-master', 'h4-m-n', 1.0),
+      // Access follows the conventional HDB arrangement the room NAMES already imply: the common
+      // bath opens off the living side, the master bath off the master bedroom. Offsets are
+      // measured from each wall's own start — `h4-liv-w` starts at z 2.2, `h4-bath-w` at z 6.5 —
+      // and centre the door on its room (cbath z 6.6-7.9, mbath z 8.0-9.6).
+      door('h4-cbath-door', 'h4-liv-w', 4.6),
+      door('h4-mbath-door', 'h4-bath-w', 1.85),
       window('h4-kit-win', 'h4-n', 1.4, 1.6),
       window('h4-b2-win', 'h4-w', 4.0, 1.4),
       // BEDROOM-WINDOW (v0.31.5.115): was 7.4, which put the master's window at

@@ -250,8 +250,12 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // `.108`), so nothing was displaced. Dumped before this number was touched.
     //
     // 24 → 25 in v0.31.7.193, same shape again: item (h)'s nine new bedroom windows changed what
-    // the arranger does in those rooms and one more piece settles on its centre. `stranded` is
-    // unchanged (its assertions still pass), so nothing was displaced to get it.
-    expect(sweep().centred).toBe(25)
+    // the arranger does in those rooms and one more piece settles on its centre.
+    //
+    // 25 → 24 in `v0.31.7.194`, the other direction and for the same reason: enclosing
+    // `tpl-hdb-4room`'s baths for item (f) reshapes the master, so a piece that happened to centre
+    // there no longer does. `stranded` is unchanged in both directions (its assertions still
+    // pass), so nothing was displaced either way.
+    expect(sweep().centred).toBe(24)
   }, 30_000)
 })

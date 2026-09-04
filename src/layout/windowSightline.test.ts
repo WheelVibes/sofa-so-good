@@ -37,7 +37,6 @@ import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
  */
 const KNOWN_BLOCKED = [
   'tpl-hdb-3room/h3-b2-win: refrigerator',
-  'tpl-hdb-4room/h4-m-win: wardrobe-3door',
   // h5-b2-win CLEARED in v0.31.5.121 by preferring windowless walls for tall
   // storage — the wardrobe had a windowless alternative in that room.
   'tpl-hdb-5room/h5-m-win: wardrobe-3door',
@@ -121,9 +120,12 @@ describe('tall furniture does not stand in front of a window', () => {
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     expect(windows).toBe(87)
-    // 77 since `v0.31.7.193`. All NINE windows added for item (h) are clear, and the blocked list
+    // 78 since `v0.31.7.194`: enclosing `tpl-hdb-4room`'s baths for item (f) also freed
+    // `h4-m-win` from a `wardrobe-3door`, the SECOND time an (h)/(f) fix has shortened item (j)'s
+    // list rather than lengthened it.
+    // 77 at `v0.31.7.193`. All NINE windows added for item (h) are clear, and the blocked list
     // got SHORTER: `tpl-hdb-3gen/g3-liv-win` is no longer hidden by a `wardrobe-3door`, because
     // the new glass changed where the arranger puts it. Item (j) improved as a side effect of (h).
-    expect(windows - hits.length).toBe(77)
+    expect(windows - hits.length).toBe(78)
   })
 })

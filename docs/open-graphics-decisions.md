@@ -262,7 +262,13 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
-## (f) TEMPLATE-ROOM-ENCLOSURE — ✅ DECIDED 2026-09-04, see (z)14: fix (measured v0.31.5.109)
+## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **8 of 20 remain** (`v0.31.7.194` enclosed `tpl-hdb-4room`)
+
+> **`v0.31.7.194`:** `h4-cbath`/`h4-mbath` owned no walls at all. Three partitions close the bath
+> column (x 3.6-5.7, z 6.5-D) and two doors reach it, which separates all five rooms the ratchet
+> listed together. Item `(j)` improved as a side effect: `h4-m-win` is no longer blocked.
+
+Original write-up (measured v0.31.5.109):
 
 **What you would see.** Load `tpl-hdb-jumbo`, walk into the Master Bedroom, and look west: **two
 toilets and a washbasin are standing in the same open volume as the bed**, with no wall or door

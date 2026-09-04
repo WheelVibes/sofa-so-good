@@ -29,6 +29,45 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.194 — `(f)` starts: `tpl-hdb-4room`'s bathrooms are enclosed, and item `(j)` improves again
+
+`(z)`14 decided to fix `(f)`, and `.109` measured the worst of it: flood-filling with every wall
+solid put a bath in the same component as other rooms in **9 of 20 templates**. `tpl-hdb-4room` was
+the clearest case — the plan has 9 walls and `h4-cbath`/`h4-mbath` own **none of their own**, so two
+toilets and a basin stand in the open volume with the master bed.
+
+**The enclosure, which the existing geometry almost hands you.** The baths occupy the column
+x 3.6–5.7 — the master's east edge to the existing `h4-liv-w` — from z 6.5 to the south wall. Three
+partitions close it and two doors reach it:
+
+| wall / door | span | purpose |
+| --- | --- | --- |
+| `h4-bath-n` | [3.6, 6.5] → [5.7, 6.5] | continues `h4-m-n` east; it stopped at 3.6, just short of where the baths begin |
+| `h4-bath-w` | [3.6, 6.5] → [3.6, D−T] | separates master from baths |
+| `h4-bath-mid` | [3.6, 7.95] → [5.7, 7.95] | divides common bath from master bath |
+| `h4-cbath-door` on `h4-liv-w` @ 4.6 | | common bath opens off the living side |
+| `h4-mbath-door` on `h4-bath-w` @ 1.85 | | master bath opens off the master |
+
+Access follows what the room NAMES already imply, and each offset is measured from its own wall's
+start (`h4-liv-w` begins at z 2.2, `h4-bath-w` at z 6.5) and centred on its room.
+
+**The ratchet entry disappears entirely.** It read
+`h4-bed2 + h4-bed3 + h4-cbath + h4-master + h4-mbath` — five rooms in one component — and closing
+the bath column separates all five, not just the baths. **8 of 20 templates remain.**
+
+**Item `(j)` improved for the second time in a row.** `tpl-hdb-4room/h4-m-win` is no longer hidden by
+a `wardrobe-3door`, because enclosing the master changed where the arranger puts it. Clear windows
+77 → **78**. Both `(h)` and `(f)` fixes have now *shortened* `(j)`'s list rather than lengthening it.
+
+**Verified in the frame**, which is what this item is about: the master now shows a solid wall with
+its window and no sanitaryware sharing the volume, and the minimap draws it as a distinct room.
+
+`centred` pieces 25 → **24**, the opposite direction from `.193` and for the same reason — reshaping
+the master moves what happens to land on its centre. `stranded` is unchanged in both directions.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.193 — `(h)` goes 9 → **3**: six more bedrooms get daylight, and item `(j)` improves as a side effect
 
 `.192` fixed three by using the mirrored offset as a position finder. The other nine had no mirror
