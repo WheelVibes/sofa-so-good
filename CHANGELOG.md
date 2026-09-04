@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.73 — I asked the wrong question last release. Two window tests, not one taxonomy
+
+v0.31.8.72 ended by saying *"the real question is what `windowed`'s subject should be — a test
+that covers a utility cabinet without covering a bathroom fixture"*. Measured the catalog, and
+that question does not exist.
+
+| def | role | height |
+| --- | --- | --- |
+| `utility-cabinet` | **storage** | **2.00** |
+| `wardrobe-3door` | storage | 2.10 |
+| `washing-machine` | storage | 0.85 |
+| `bathroom-sink` | other | 0.98 |
+| `shower` | other | 2.00 |
+
+`windowSillTall` is 0.95, so `utility-cabinet` is storage AND taller than the sill: **`tall` is
+already true for it and `windowed(edge)` already covers it.** The subject is fine.
+
+### So what actually failed
+
+Attempt (1) last release ranked `windowed(edge)` above wall-backing and changed nothing. If
+`windowed` covers the cabinet, the only way that happens is that **`windowed()` does not think
+the edge carries a window, while `placementSoundness` does.**
+
+`windowed()` tests a ±0.3 m band around the **rect** edge against `windowFrontRects` (0.65 m
+deep) — and the rect edge is itself up to 0.15 m short of the wall (v0.31.8.60). Two window
+tests, two answers.
+
+### Why that is worth more than three washing machines
+
+**The same disagreement is why v0.31.8.62's along-wall sweep could not be rescued.** Its notes
+record trying the identical ordering and getting *"no change at all, so `windowSightline` is
+measuring something the keep-out rects do not capture"*. I filed that as a loose end and have now
+walked into it from the other side.
+
+**One window test, used by the placer and the guards alike, unblocks both threads.** That is a
+materially better target than either.
+
+One constraint for whoever reconciles them: `shower` is `role=other, h=2.0`, so it is *not*
+covered by `tall` — which is exactly why widening that gate pushed bathroom fixtures mid-room. A
+2 m shower in a 1.6 × 1.3 m bathroom has nowhere but a windowed wall to stand, and any unified
+test has to let it.
+
+No code ships. Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.72 — the washing machines are on edges that are not walls
 
 v0.31.8.71 left six marooned appliances and named three service-yard washing machines as the

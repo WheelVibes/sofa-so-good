@@ -930,9 +930,26 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   (b) withhold the wall preference on ANY windowed edge, for every piece — fixes the cabinet and
   breaks `autoArrange.test.ts`'s "lines bathroom fixtures along the walls (not parked mid-room)",
   which is the exact regression the `tall` gate was narrowed to prevent.
-  So this needs a window test that covers a `utility-cabinet` without covering a bathroom
-  fixture — i.e. the real question is what `windowed`'s subject should be, not how to order the
-  edges. Answer that first.
+  **That framing was WRONG, corrected in v0.31.8.73.** `windowed`'s subject is fine:
+  `utility-cabinet` is `role=storage, h=2.0` against `windowSillTall` 0.95, so `tall` is true and
+  `windowed(edge)` DOES cover it. Measured roles/heights:
+  ```
+  utility-cabinet   storage  2.00      bathroom-sink  other  0.98
+  wardrobe-3door    storage  2.10      toilet         other  0.78
+  bookshelf         storage  1.80      shower         other  2.00
+  washing-machine   storage  0.85      stove          other  0.92
+  ```
+  So attempt (1) failing means **`windowed()` and `placementSoundness` disagree about which
+  edges carry a window** — `windowed()` tests a +/-0.3 m band around the RECT edge against
+  `windowFrontRects` (0.65 m deep), and the rect edge is itself up to 0.15 m short of the wall.
+  Two window tests, two answers.
+  **That is the thing to reconcile**, and it is worth more than these three appliances: the same
+  disagreement is why v0.31.8.62's along-wall sweep could not be rescued by any window ordering
+  either ("no change at all, so `windowSightline` is measuring something the keep-out rects do
+  not capture"). One window test, used by the placer AND the guards, would unblock both.
+  Note also `shower` is `role=other, h=2.0` — it is NOT covered by `tall`, which is why widening
+  the gate pushed bathroom fixtures mid-room. Any reconciliation has to keep a 2 m shower in a
+  1.6 x 1.3 m bathroom against a windowed wall, because it has nowhere else to go.
   **What is LEFT (6):** `tpl-condo-3bed/stove 1.05` (never placed at all — still at its room-centre
   seed, see the ALONG-WALL entry, which is measured and declined), `tpl-hdb-5room/washing-machine
   0.60`, `tpl-condo-1bed/stove 0.59`, `tpl-hdb-2room/stove 0.52`, `tpl-hdb-3room` and
