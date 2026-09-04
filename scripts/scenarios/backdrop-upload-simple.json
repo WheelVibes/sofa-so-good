@@ -36,6 +36,14 @@
       "failMessage": "backdrops/customBackdrop are supposed to be tier:'simple' and on by default \u2014 expected both true in Simple mode"
     },
     {
+      "name": "toolbar-interactive",
+      "waitFor": {
+        "css": "button[aria-label=\"Scene\"]"
+      },
+      "timeout": 20000,
+      "failMessage": "toolbar not mounted yet \u2014 clicking 'Scene' before this raced boot and made step 7 flaky (seen 1 run in 3)"
+    },
+    {
       "name": "open-scene-menu",
       "click": {
         "text": "Scene"
@@ -71,15 +79,39 @@
       }
     },
     {
-      "name": "walk-loading-done",
+      "name": "walk-overlay-shown",
       "waitFor": {
-        "store": "state.loading.active === false"
+        "css": "[data-transition-overlay]"
       },
-      "timeout": 10000
+      "timeout": 10000,
+      "failMessage": "walk transition splash never appeared \u2014 the gone-wait below would pass vacuously"
+    },
+    {
+      "name": "walk-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000,
+      "failMessage": "'Entering walkthrough' splash still up: shot-walk-default would capture the splash, not the scene"
     },
     {
       "name": "settle-walk",
       "wait": 1000
+    },
+    {
+      "name": "set-city-explicitly",
+      "store": {
+        "action": "setBackdrop",
+        "args": [
+          "city"
+        ]
+      },
+      "failMessage": "the shot below is named ...-city, so pin the backdrop rather than trusting the store default (which is now `sky`)"
+    },
+    {
+      "name": "settle-city",
+      "wait": 1200
     },
     {
       "name": "shot-walk-default",
@@ -87,9 +119,7 @@
     },
     {
       "name": "open-backdrop-select",
-      "click": {
-        "text": "City \u2014 Daytime HDB skyline"
-      }
+      "click": "button[aria-label=\"Backdrop\"]"
     },
     {
       "name": "backdrop-options-open",
@@ -104,9 +134,7 @@
     },
     {
       "name": "close-backdrop-select-via-trigger",
-      "click": {
-        "text": "City \u2014 Daytime HDB skyline"
-      }
+      "click": "button[aria-label=\"Backdrop\"]"
     },
     {
       "name": "cycle-preset-dusk",
@@ -254,10 +282,10 @@
     {
       "name": "custom-removed",
       "waitFor": {
-        "store": "state.backdrop === 'city' && !state.customBackdropUrl"
+        "store": "state.backdrop === 'sky' && !state.customBackdropUrl"
       },
       "timeout": 5000,
-      "failMessage": "clearWalkBackdrop should null customBackdropUrl and revert backdrop to 'city'"
+      "failMessage": "clearWalkBackdrop must null customBackdropUrl and fall back to the APP DEFAULT backdrop (UI_INITIAL.backdrop === 'sky', WINDOW-SKY-DEFAULT) \u2014 NOT a hardcoded 'city'. This assertion said 'city' until v0.31.8.89 and was stale, not the app being wrong."
     },
     {
       "name": "back-orbit",

@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.89 — `backdrop-upload-simple` had been failing at step 14 of 52
+
+Recorded as found-not-fixed in v0.31.8.88. It turned out to be **four** separate breaks stacked
+up, and the scenario had been reaching none of its own backdrop assertions.
+
+**1. A stale label.** Step 14 clicked `{"text": "City — Daytime HDB skyline"}` to open the
+backdrop `Select`. That string is built in `SceneMenu.tsx` as `` `${b.label} — ${b.sub}` `` and is
+correct — but a `Select` TRIGGER displays the CURRENT value, and `UI_INITIAL.backdrop` is now
+`'sky'`, so the trigger reads "Sky — Sun-driven procedural sky". Clicking a combobox by its value
+text breaks on every default change; both call sites now click
+`button[aria-label="Backdrop"]`, which is stable.
+
+**2. A wrong fix of my own, caught by the run.** I assumed entering walk mode closed the Scene
+menu and inserted a re-open. It does not close — so the re-open click TOGGLED IT SHUT and moved
+the failure from step 14 to step 16. Removed.
+
+**3. A stale assertion, where the APP was right.** Step 46 asserted
+`state.backdrop === 'city'` after Remove. `walkBackdrop.ts:clearWalkBackdrop` deliberately falls
+back to `UI_INITIAL.backdrop`, with a comment saying "not a hardcoded 'city'
+(WINDOW-SKY-DEFAULT)". The assertion predates that decision and now expects `'sky'`, with the
+invariant named in its `failMessage` so it is not "fixed" back.
+
+**4. The walk-direction copy of the v0.31.8.88 splash bug.** Step 11 waited on
+`state.loading.active === false` and then screenshotted, so `02-walk-default-city` was the
+"Entering walkthrough…" splash. The same appear-then-gone wait on
+`[data-transition-overlay]` fixes it — measured 4.8 s for the splash to clear, against the
+~1 s the scenario had allowed. The splash bug was never orbit-specific; only the orbit side
+had been noticed.
+
+Two smaller things while making it green:
+
+- `02-walk-default-city` was named for a default that no longer holds, so the backdrop is now
+  pinned with an explicit `setBackdrop('city')` rather than trusting the store.
+- Step 7 failed on 1 run in 3, because step 6 clicks "Scene" as soon as the store exists and
+  races the toolbar mount. A `waitFor` on `button[aria-label="Scene"]` precedes it now. Two
+  consecutive clean 52-step runs after that.
+
+All 10 screenshots are real frames again. Verified `02-walk-default-city` (walk-mode living /
+dining with the Scene menu open on "City — Daytime HDB skyline") and
+`07-walk-custom-through-window` (the uploaded panorama visible through the window mullions, with
+the scenario's two deliberate rejection toasts).
+
+Scenario JSON only — no app code changed.
+
 ## v0.31.8.88 — a shipped scenario's final screenshot was the splash, not the scene
 
 `TODO.md` had carried this since v0.31.8.50: returning to orbit from walk leaves the

@@ -45,7 +45,21 @@ APPEAR and then to GO. `backdrop-walk-simple`'s final assert works again. Three 
 NOT work (`loading.active`, label text, text-appear-then-disappear) are written up in
 `docs/visual-verification-playbook.md` — read that before touching this.
 
-## `backdrop-upload-simple.json` fails at step 14, upstream of anything to do with the splash
+## ~~`backdrop-upload-simple.json` fails at step 14~~ — FIXED (v0.31.8.89)
+
+**Resolved.** FOUR stacked breaks, so the scenario reached none of its own backdrop assertions:
+(1) it clicked the backdrop `Select` by its VALUE text, which is the current backdrop and is now
+`sky`, not `city` — both call sites use `button[aria-label="Backdrop"]` now; (2) my first fix
+assumed walk mode closes the Scene menu, which it does not, so the re-open click toggled it shut;
+(3) step 46 asserted a revert to `'city'` where `clearWalkBackdrop` deliberately falls back to
+`UI_INITIAL.backdrop` (WINDOW-SKY-DEFAULT) — the APP was right and the assertion stale; (4) the
+WALK-direction copy of v0.31.8.88's splash bug, so `02-walk-default-city` was the "Entering
+walkthrough" splash. Also pinned the backdrop the shot is named for, and added a toolbar-mount
+`waitFor` for a 1-in-3 boot flake. **Lesson worth keeping: the splash bug was never
+orbit-specific** — any scenario that changes `cameraMode` and then screenshots needs the
+appear-then-gone wait, in either direction.
+
+## Superseded original note on backdrop-upload-simple
 
 Found while fixing the splash (v0.31.8.88), pre-existing and NOT caused by it:
 
