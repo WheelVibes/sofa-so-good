@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.254 — the 17:00 wall overshoot located: the app GAINS 0.222 where the reference LOSES 0.029, and it is direct light, not the bake
+
+`.253` left the 17:00 east wall 44 % over the Cycles reference with the cause unknown and grille
+shadowing eliminated. Located now.
+
+**Isolated by differencing two hours with GI ON.** The bake is hour-independent, so the difference
+between two hours cancels it exactly and leaves the direct term — and unlike `.222`'s approach this
+compares like with like, because both arms carry the same replaced `indirectDiffuse`:
+
+| hour | app linear | Cycles linear | app / cyc |
+| --- | --- | --- | --- |
+| 09:00 | 0.5880 | 0.6767 | 0.869 |
+| 13:00 | 0.5478 | 0.5622 | 0.974 |
+| 17:00 | **0.7699** | 0.5327 | **1.445** |
+
+From 13:00 to 17:00 the app **gains 0.2221** on that face while the reference **loses 0.0295**. From
+13:00 to 09:00 the app gains only 0.0402 — and 09:00 is the control that makes the story
+geometric: at 09:00 the sun is in the EAST, behind this west-facing interior face, so almost nothing
+arrives; at 17:00 it is in the WEST, in front of it.
+
+**What it is not.** Not the day grade: `grade()` returns only `{exposure, warmth}`, carries no
+ambient or intensity term, and the exposure it produces is 1.38 at 09:00, 13:00 and 17:00 alike. Not
+grille shadowing, eliminated in `.253`. Not the bake, which cannot vary by hour. And not a
+distribution error in the map set, because the ceiling and floor at the same poses sit at 1.05 while
+only the wall moves.
+
+**Leading hypothesis: at low sun altitude the directional light reaches interior faces that
+intervening walls should shadow.** The brightening is UNIFORM across the patch and there is no sun
+patch anywhere in the frame (`.253`), which is the signature of an unshadowed Lambert term rather
+than of admitted sunlight — real sun through a window makes a bright shape with edges.
+
+Filed as `(z3)` LOW-SUN-DIRECT-LEAK. Not fixed here: the next step is to test whether the
+directional light's shadow actually occludes that face, which means a shadow-only measurement rather
+than another whole-frame patch, and `(z2)` already showed that a shadow change tested at the wrong
+pose reports nothing.
+
+**One trap avoided.** My first decomposition measured the wall with GI OFF at each hour and treated
+the result as the app's "non-bake term". It is not: the injection REPLACES `reflectedLight.
+indirectDiffuse`, so the GI-off reading contains an unoccluded IBL contribution that GI-on discards.
+That is exactly the error `.222` made and `.223` corrected, and I had it half-written before catching
+it. The hour-difference above needs no such assumption.
+
+Suite 10219 green.
+
+
 ## v0.31.7.253 — the grille really is the only window element without `castShadow`, and enabling it changed nothing. Built, measured, REVERTED
 
 `.252` left the 17:00 wall 44 % over the Cycles reference and I attributed it to direct sun the app
