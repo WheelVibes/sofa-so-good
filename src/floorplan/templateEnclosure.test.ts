@@ -50,10 +50,15 @@ const KNOWN_SHARED_ENCLOSURES = [
 ]
 
 /** Walls that run through a room's interior rather than along its boundary. */
-const KNOWN_BISECTED_ROOMS = [
-  'tpl-hdb-3gen/ground: g3-b-corr through g3-master',
-  'tpl-hdb-jumbo/ground: jb-wb-corr through jb-master',
-]
+// EMPTY as of `v0.31.7.202` — both entries fixed, and the list stays here as a ratchet so a new
+// template cannot introduce a wall through the middle of a room.
+//
+// Both were corridor walls running the FULL depth of the plan and so passing through a master
+// bedroom (`jb-wb-corr` 3.20 m through `jb-master`, `g3-b-corr` 2.20 m through `g3-master`) — a
+// grey slab across the middle of a bedroom. Neither needed the span that did it: shortening each
+// to the master's north wall left every enclosure below intact, because by then the baths were
+// held by their own partitions.
+const KNOWN_BISECTED_ROOMS: string[] = []
 
 const STEP = 0.05
 

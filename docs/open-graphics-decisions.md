@@ -267,7 +267,8 @@ the demo apartment and leaves the placement rules untouched.
 > **The two left are different in kind.** `tpl-hdb-3room`'s north strip and
 > `tpl-hdb-maisonette/em-up` are not missing partitions — subdividing them asks how rooms are
 > ENTERED, and a wrong answer produces a kitchen reachable only through the service yard. The two
-> bisection entries need room rectangles resized, not walls added.
+> bisection entries are ✅ **FIXED in `.202`** by shortening both corridor walls to the master's
+> north wall — no rectangle resize was needed once the baths had partitions of their own.
 
 > **Note for the remaining six:** closing a column can SEAL a bathroom — `tpl-hdb-exec` had no door
 > on either bounding wall, and the enclosure ratchet passes happily on two sealed boxes. Check the

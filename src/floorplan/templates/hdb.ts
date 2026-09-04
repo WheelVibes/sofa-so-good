@@ -314,11 +314,18 @@ export function hdb3Gen(): FloorPlan {
       // Living on the east.
       iwall('g3-liv-w', [6.2, T], [6.2, D - T]),
       // West bedroom column.
-      iwall('g3-b-corr', [3.4, 3.2], [3.4, D - T]),
+      // (f) BISECTION: ran 2.20 m through `g3-master` (x 1.9-6.1, z 9.0-11.2). Stopped at z 8.8,
+      // which is as far as it can be shortened — `g3-mbath` (z 6.8-8.8) still needs it as its
+      // west wall.
+      iwall('g3-b-corr', [3.4, 3.2], [3.4, 8.8]),
       iwall('g3-b3-s', [T, 6.0], [3.4, 6.0]),
       iwall('g3-m-n', [T, 8.8], [3.4, 8.8]),
       // (f): `g3-mbath` (x 3.6-6.0, z 6.8-8.8) is bounded west by `g3-b-corr` and east by
       // `g3-liv-w`, but had nothing north or south of it east of x 3.4.
+      // (f): `g3-cbath` (x 0.2-1.8) and `g3-master` (x 1.9-6.1) are adjacent below `g3-m-n` with
+      // nothing between them. It was masked while `g3-b-corr` bisected the master; shortening that
+      // wall in `v0.31.7.202` exposed it.
+      iwall('g3-cb-e', [1.85, 8.8], [1.85, D - T]),
       iwall('g3-mbath-n', [3.4, 6.8], [6.2, 6.8]),
       iwall('g3-mbath-s', [3.4, 8.8], [6.2, 8.8]),
       // Grandparent ensuite at the SE of the living column.
@@ -329,7 +336,13 @@ export function hdb3Gen(): FloorPlan {
     ],
     openings: [
       door('g3-main', 'g3-s', 7.6),
+      // KEPT, and like `jb-master` in `.197` it does not open into the master: at offset 1.0 on
+      // `g3-m-n` this spans x 1.1-2.0, which is over the COMMON BATH (0.2-1.8). With `g3-cb-e` in
+      // place it is the right door for that bath, and the MASTER gets one of its own at 2.3
+      // (x 2.4-3.3, inside 1.9-6.1). Third template where a door is named for one room and serves
+      // another — the same authoring slip `(h)`'s mirrored window offsets came from.
       door('g3-master', 'g3-m-n', 1.0),
+      door('g3-master-door', 'g3-m-n', 2.3),
       door('g3-b3', 'g3-b3-s', 1.0),
       // (f): closing the leaks would SEAL both baths (the `.196` trap). The grandparent bath opens
       // west onto the corridor through `g3-g-bath-w` (now starts z 3.0); the master bath opens
@@ -384,7 +397,12 @@ export function hdbJumbo(): FloorPlan {
       // Central living spine divides the two former units.
       iwall('jb-liv-w', [8.4, T], [8.4, D - T]),
       // West bedroom stack.
-      iwall('jb-wb-corr', [4.0, 3.2], [4.0, D - T]),
+      // (f) BISECTION: ran the full depth and so passed 3.20 m THROUGH `jb-master` (x 2.2-5.8,
+      // z 9.8-13.0), 1.80 m from its nearest parallel edge — a grey slab across the middle of a
+      // bedroom. Stopped at `jb-m-n` (z 9.6). Nothing below that needed it: west of x 4.0 the
+      // baths are held by `jb-bath-e` (`v0.31.7.197`), and east of it is the master itself, so the
+      // removed span only ever bisected one room.
+      iwall('jb-wb-corr', [4.0, 3.2], [4.0, 9.6]),
       iwall('jb-b2-s', [T, 6.8], [4.0, 6.8]),
       iwall('jb-m-n', [T, 9.6], [4.0, 9.6]),
       // (f): `jb-cbath` + `jb-master` + `jb-mbath` were one component — the doc's headline case,

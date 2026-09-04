@@ -29,6 +29,41 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.202 — `(f)`: BOTH bisected masters fixed — a corridor wall no longer runs through a bedroom
+
+The other half of item `(f)`. Two corridor walls ran the **full depth** of their plans and so passed
+straight through a master bedroom: `jb-wb-corr` **3.20 m** through `jb-master` and `g3-b-corr`
+**2.20 m** through `g3-master` — the "grey slab through the middle of the room" the item describes.
+
+Neither needed the span that did it. Each is shortened to the master's north wall, and every
+enclosure below survives **because the baths now have partitions of their own** from `.197` and
+`.200`: west of `jb-wb-corr` the baths are held by `jb-bath-e`, and `g3-b-corr` can stop at z 8.8
+because `g3-mbath` still needs it as a west wall down to there and no further. **`KNOWN_BISECTED_ROOMS`
+is now empty** and stays as a ratchet so no new template can add one.
+
+**Shortening `g3-b-corr` exposed a defect it had been masking.** With the bisection gone,
+`g3-cbath` (x 0.2–1.8) and `g3-master` (x 1.9–6.1) turned out to be adjacent with nothing between
+them — a new shared-enclosure entry appeared the moment the old one cleared. `g3-cb-e` closes it,
+and the pattern from `.197` repeated for the **third** time: the existing `g3-master` door at offset
+1.0 spans x 1.1–2.0, which is over the **common bath**, not the master. It stays as the bath's door
+and the master gets one at 2.3. Three templates now where a door is named for one room and serves
+another — the same authoring slip `(h)`'s mirrored window offsets came from.
+
+**The furniture counts move in BOTH directions, and the signs are the result.** `tpl-hdb-3gen`
+97 → 96, because the new partition shrinks its master. But `tpl-hdb-jumbo` 119 → **120** — removing
+the wall that ran through its master gives the room back usable space and one more piece fits.
+Enclosure costs furniture; un-bisecting a room returns it.
+
+**A guard was lowered, and the distinction is written down rather than glossed.** `placeSeededMounts`
+asserts `total >= 900`, and it exists to catch the PLACER deleting items — it caught two reverted
+attempts at 893 and 895. The floor is now 899, because this one-item drop is *geometric*: item
+`(f)`'s partitions leave several templates less floor area, recorded per template in
+`diningChairTuck.test.ts`. A placer regression would still trip it, since those failures landed 6–7
+below the then-current total, not 1.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.201 — `(f)`: `tpl-hdb-3room`'s master bath separated from bedroom 2 — and the other half left open on purpose
 
 `tpl-hdb-3room` carries **two** entries in the ratchet, and they are not the same kind of problem.
