@@ -29,6 +29,56 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.188 — the albedo pass: rho MEASURED, bake and albedo both exonerated, and two methods that now DISAGREE
+
+`.187` parked the ceiling thread on a missing measurement — per-surface albedo — and said it needed
+either an albedo-only render or reading the base texture. Cycles has the measurement built in: the
+**diffuse-colour pass** is rho. `render_still.py --albedo` renders it, forcing `Standard` because
+the pass is DATA and a filmic curve would remap the values being read.
+
+**Two API traps on the way, both caught loudly rather than silently producing a plausible image.**
+Blender 5 removed `scene.node_tree` (`AttributeError`) — the compositor is now a node GROUP on
+`scene.compositing_node_group`. And the socket is called **"Diffuse Color"** here, not 4.x's
+`DiffCol`, so the named lookup falls back and otherwise **raises**: an "albedo render" that quietly
+wired the beauty pass would be indistinguishable from a real one.
+
+**Measured rho, at the same two points the rest of this thread uses:**
+
+| surface | albedo byte | rho (sRGB-decoded) |
+| --- | --- | --- |
+| ceiling | 239.9 | **0.871** |
+| left wall | 222.4 | **0.734** |
+
+**Albedo is eliminated.** `rho_w / rho_c = 0.84`, nowhere near the **2.73x** the gain spread needs.
+It cannot be the explanation, which is what three earlier fits assumed it might be.
+
+**And the bake is exonerated.** With rho measured rather than assumed, the co-located arithmetic
+closes: `gain = R_ref * pi / (E_baked * rho)` gives **3.92** at the wall and **4.39** at the ceiling
+— agreeing within 12 %, i.e. one gain fits and the bake's spatial distribution is fine.
+
+**But that now DISAGREES with the display-equality fit, and I cannot reconcile them.** `.186`
+measured the gain that makes the app equal the reference at ~15 (wall) and ~41 (ceiling) — a fit
+that needs no albedo and no curve inversion, and is therefore hard to dismiss. Physics says ~4 for
+both. At the shipped gain 6 the app *should* already exceed the reference on the ceiling and it
+reads 85.7 against 192.6.
+
+Both cannot be right, so something in the app's application of the map is not
+`E_baked * gain * rho / pi`. The shortfall is not a single constant either — 3.8x at the wall and
+9.3x at the ceiling — so it is not a missing `pi` or `2pi`.
+
+**What this changes about where to look.** The remaining suspects were bake / albedo / app-shader;
+two are now eliminated by measurement, leaving the **app's map application**. Concretely worth
+checking next: whether the shader samples the texel `gi-point.mjs` reads (bilinear versus nearest,
+and whether `uv1` at the hit matches what the vertex shader passes), and whether `visGain` at draw
+time really is `scaleFor * IRRADIANCE_GAIN`. Both are readable directly rather than inferable.
+
+**Nothing about the shipped state changes.** Gain 6 remains the display-space fit against three
+references, which is an empirical calibration and does not depend on the arithmetic above being
+resolved.
+
+Nothing shipped; `--albedo` is diagnostic. Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.187 — the direct-only comparison REFUTES `.186`'s hypothesis, and the ceiling thread is PARKED with the blocker named
 
 `.186` proposed that the app's per-surface **direct** term was the remaining disparity, and named

@@ -108,6 +108,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "non-bounce light and Cycles' direct light are the same quantity. "
                         "v0.31.7.186 found the per-surface gain spanning ~6x and implicated the "
                         "app's direct term; this is how that is checked rather than argued.")
+    p.add_argument("--albedo", action="store_true",
+                   help="render Cycles' DIFFUSE COLOUR pass instead of shaded light, so the output "
+                        "pixel IS the surface albedo. Forces the `Standard` view transform, because "
+                        "the pass is DATA and a filmic curve would make it unreadable. "
+                        "Exists to unblock v0.31.7.187: the per-surface equality gains span ~6x, "
+                        "and splitting that into an albedo part and a bake part needs rho per "
+                        "surface -- the quantity that contaminated three earlier fits because it "
+                        "was assumed from `material.color` while these materials carry a "
+                        "base-colour MAP.")
     p.add_argument("--no-network", action="store_true", help="never fetch an HDRI")
     p.add_argument("--json", action="store_true", help="emit a machine-readable result line")
     return p.parse_args(cli_argv.normalise(p, argv))
@@ -172,6 +181,40 @@ def render(a: argparse.Namespace) -> dict:
     else:
         S.place_camera(pos, look_at=target or centre, fov_deg=a.fov, fov_axis=a.fov_axis)
 
+    if a.albedo:
+        # The pass has to be ENABLED on the view layer and then ROUTED to the composite output;
+        # enabling it alone changes nothing about the saved file, which is the same trap as
+        # `Image.save()` ignoring `scene.render.image_settings` in the bake path.
+        vl = bpy.context.scene.view_layers[0]
+        vl.use_pass_diffuse_color = True
+        # BLENDER 5 MOVED THE COMPOSITOR. `scene.node_tree` no longer exists (it raised
+        # `AttributeError: 'Scene' object has no attribute 'node_tree'`); the tree is now a node
+        # GROUP on `scene.compositing_node_group`, which has to be created and assigned. Same
+        # class of API drift as `sofa_scene`'s note that Cycles is assignable while absent from
+        # the engine enum -- check the attribute, never assume the 3.x/4.x shape.
+        bpy.context.scene.use_nodes = True
+        tree = bpy.data.node_groups.new("albedo_pass", "CompositorNodeTree")
+        bpy.context.scene.compositing_node_group = tree
+        rl = tree.nodes.new("CompositorNodeRLayers")
+        out = tree.nodes.new("NodeGroupOutput")
+        tree.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+        # The socket is "Diffuse Color" on this build; 4.x called it "DiffCol". Named lookup with
+        # a fallback, and a loud failure rather than silently wiring the beauty pass -- an albedo
+        # render that is actually shaded light would be indistinguishable from a plausible result.
+        src = None
+        for name in ("Diffuse Color", "DiffCol"):
+            if name in rl.outputs:
+                src = rl.outputs[name]
+                break
+        if src is None:
+            raise KeyError(
+                f"no diffuse-colour output on the render-layers node; have "
+                f"{[o.name for o in rl.outputs]}"
+            )
+        tree.links.new(src, out.inputs[0])
+        # DATA, not a look: a filmic transform would remap the very values being read.
+        bpy.context.scene.view_settings.view_transform = "Standard"
+        bpy.context.scene.view_settings.exposure = 0.0
     if a.diffuse_bounces is not None:
         bpy.context.scene.cycles.diffuse_bounces = a.diffuse_bounces
         # `max_bounces` gates every category, so raising diffuse alone is inert if the total is
