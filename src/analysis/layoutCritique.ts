@@ -47,7 +47,7 @@ import { resolveFootprintDims } from '../furniture/footprintDims'
 import { isInteractableScreen } from '../furniture/screenInteract'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { roleOf } from '../layout/arrangeRoles'
-import { CLEARANCE } from '../layout/designRules'
+import { CLEARANCE, OBSTACLE_AREA_M2 } from '../layout/designRules'
 import { findFurnitureSeveredRooms, type SeveredRoom } from '../layout/reachability'
 
 /**
@@ -58,7 +58,7 @@ import { findFurnitureSeveredRooms, type SeveredRoom } from '../layout/reachabil
  * walkway". Duplicated as a literal rather than imported to keep this module
  * free of a dependency on the score that consumes it.
  */
-const WALKWAY_OBSTACLE_AREA = 0.5
+const WALKWAY_OBSTACLE_AREA = OBSTACLE_AREA_M2
 
 /** Published thresholds, all metres. See the module header for sources. */
 export const CRITIQUE = {

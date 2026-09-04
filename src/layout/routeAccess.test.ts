@@ -21,6 +21,14 @@ import { findFurnitureSeveredRooms } from './reachability'
  * thing this file exists to measure. Fixing one shows up here as a required
  * edit, which is the point.
  *
+ * **Only CIRCULATION OBSTACLES (>= `OBSTACLE_AREA_M2`, 0.5 m²) can seal a room
+ * (v0.31.8.53).** The first cut of this list counted every floor-standing piece
+ * and so named `potted-plant`, `nightstand` and `floor-lamp` as things that
+ * walled a room off. They are not — you step past a floor lamp. That correction
+ * took the list from 32 findings to 22 and the clean templates from 5 to 10,
+ * and it retracted v0.31.8.52's headline (`tpl-terrace-ground`'s master bedroom,
+ * whose culprit was a 0.32 m² shoe cabinet).
+ *
  * Rooms already unreachable on the EMPTY plan are excluded by construction — the
  * baseline is subtracted — so template-connectivity defects
  * (`tpl-hdb-4room`'s bedroom half has no interior door, recorded in
@@ -28,20 +36,15 @@ import { findFurnitureSeveredRooms } from './reachability'
  * against the layout.
  */
 const KNOWN_SEVERED: Record<string, number> = {
-  'tpl-hdb-2room': 1, // Living / Dining 0.6
-  'tpl-hdb-3room': 3, // Kitchen 1.0, Household Shelter 0.9, Common Bath 0.5
-  'tpl-hdb-4room': 2, // Kitchen 1.9, Household Shelter 1.3
-  'tpl-hdb-5room': 3, // Kitchen 2.9, Balcony 2.5, Household Shelter 1.0
-  'tpl-hdb-exec': 2, // Bedroom 2 Hall 1.6, Master Bedroom 0.6
-  'tpl-hdb-jumbo': 2, // Bedroom 5 1.7, Master Bath 0.7
-  'tpl-hdb-maisonette': 3, // Stair Hall 2.8, Stair Landing 2.6, Kitchen 2.0
-  'tpl-1bed': 1, // Bathroom 0.9
-  'tpl-condo-1bed': 1, // Living / Dining 4.0
-  'tpl-condo-2bed': 3, // Master Closet 2.2, Open Kitchen 1.4, Master Bath 0.6
-  'tpl-condo-3bed': 1, // Master Bath 1.0
-  'tpl-condo-4bed': 2, // Balcony 3.4, Bedroom 4 1.4
-  'tpl-condo-penthouse': 6, // Master Bath 4.5, Kitchen 3.8, Bedroom 2 3.6, Bedroom 3 3.3, Dining 1.3, Master Bedroom 1.3
-  'tpl-terrace-ground': 2, // Master Bedroom 5.0, Service Yard 4.8
+  'tpl-hdb-2room': 2, // Living / Dining 1.7, Master Bedroom 0.9
+  'tpl-hdb-exec': 2, // Bedroom 2 Hall 1.6, Master Bedroom 0.7
+  'tpl-hdb-jumbo': 1, // Bedroom 5 1.7
+  'tpl-hdb-maisonette': 4, // Stair Landing 4.0, Stair Hall 3.8, Kitchen 3.3, Family Area 0.9
+  'tpl-1bed': 2, // Kitchen 4.0, Dining 0.6
+  'tpl-condo-2bed': 2, // Open Kitchen 2.6, Common Bath 1.5
+  'tpl-condo-3bed': 1, // Master Bath 2.1
+  'tpl-condo-4bed': 2, // Service Yard 2.5, Bedroom 4 1.6
+  'tpl-condo-penthouse': 6, // Master Bath 5.6, Kitchen 5.4, Bedroom 2 4.2, Bedroom 3 3.6, Dining 2.8, Master Bedroom 1.7
 }
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')
@@ -62,12 +65,23 @@ describe('route access — rooms the arranger walls off', () => {
     // on, so it is raised rather than left to flake.
   }, 60_000)
 
-  it('leaves five templates completely clean', () => {
+  it('leaves ten templates completely clean', () => {
     // Stated as its own assertion so a fix that "improves" the ratchet by
     // breaking a clean template cannot pass by trading one for another.
     const clean = PLAN_TEMPLATES.filter((t) => !(t.id in KNOWN_SEVERED)).map((t) => t.id)
     expect(clean.sort()).toEqual(
-      ['tpl-condo-1study', 'tpl-condo-studio', 'tpl-hdb-3gen', 'tpl-loft', 'tpl-studio'].sort(),
+      [
+        'tpl-condo-1bed',
+        'tpl-condo-1study',
+        'tpl-condo-studio',
+        'tpl-hdb-3gen',
+        'tpl-hdb-3room',
+        'tpl-hdb-4room',
+        'tpl-hdb-5room',
+        'tpl-loft',
+        'tpl-studio',
+        'tpl-terrace-ground',
+      ].sort(),
     )
   })
 })

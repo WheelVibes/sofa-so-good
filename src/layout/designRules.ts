@@ -44,3 +44,22 @@ export const STACK = {
   /** Seat height for a sofa accepting seat cushions. */
   seatDefault: 0.42,
 } as const
+
+/**
+ * Footprint area (m²) at or above which a piece is a **circulation obstacle** —
+ * something you walk AROUND rather than step past. Below it (lamps, plants,
+ * stools, a nightstand at 0.18 m²) a piece never defines a walkway.
+ *
+ * Lives here because three modules need the same bar and they cannot import each
+ * other: `analysis/designScore` (`CIRCULATION.obstacleArea`, which route pinches
+ * are charged), `analysis/layoutCritique` (which pieces can block a bedside),
+ * and `layout/reachability` (which pieces can seal a room). It was three
+ * separate `0.5` literals until v0.31.8.53.
+ *
+ * **It is the right bar for "does this define a walkway" and the WRONG bar for
+ * "is this an arm's-reach pair".** v0.31.8.51 measured that distinction the hard
+ * way: `coffee-table` is 0.605 m², so using this to exempt pairs from
+ * `walkway.ts`'s 0.40 m floor reclassified every `sofa ↔ coffee-table` adjacency
+ * as a blocked route. See `src/layout/CLAUDE.md`.
+ */
+export const OBSTACLE_AREA_M2 = 0.5

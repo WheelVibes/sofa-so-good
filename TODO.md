@@ -837,8 +837,33 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
   is unwalkable whatever it is called, and there is no `corridor` `RoomCategory` to key on.
   **It fires on no shipped plan** (168 rooms across 19 templates + the default flat, narrowest
   1.00 m), which is the honest reason it exists: a user-drawn corridor is the only place it can
-  occur. Still open, and genuinely harder: the width of the main ROUTE through a room, which needs a
-  route model the app does not have.
+  occur. **The route model now EXISTS** (`layout/reachability.ts`, v0.31.8.52/.53) — see the entry
+  below.
+- **[ROUTE ACCESS — MEASURED v0.31.8.52, RECALIBRATED v0.31.8.53, NOT FIXED] 22 rooms across 9
+  of 19 templates are walled off by the furniture the arranger places.** They are walkable on
+  the empty template and unreachable once the move-in layout is placed: you cannot get in.
+  `layout/reachability.ts` erodes the storey's free floor by half a body width
+  (`CLEARANCE.walkwayMin`, 0.6 m) and flood-fills what survives, so the ruler is the body rather
+  than a threshold — which is what v0.31.8.51 established was needed after the gap-threshold fix
+  was built, measured and reverted (see `src/layout/CLAUDE.md`). Wired into `layoutCritique` as
+  the `route-access` check, opt-in (`{ routeAccess: true }`) because it costs two rasters per
+  storey, and surfaced in the report. Ratcheted in `routeAccess.test.ts`; 10 templates clean.
+  Worst: `tpl-condo-penthouse` loses **6 rooms / 22.9 m²**, `tpl-hdb-maisonette` **4 / 12 m²**.
+  **Where to start, from the culprit sweep (which single item's removal reconnects the room):**
+  19 of the 22 have an identifiable single-piece culprit, and four defs account for 25 of the 29
+  attributions — **`tv-console` 9, `sofa-3seat` 6, `dining-table-4` 5, `wardrobe-3door` 5**. So
+  this is overwhelmingly the LOUNGE/DINING group parked across the circulation spine of an
+  open-plan template, not a diffuse problem. A post-pass that re-places a piece which SEALS a
+  room is the obvious shape, and unlike v0.31.8.7's rejected clearance objective it has a
+  discrete, checkable goal (the room reconnects) rather than a continuous one that trades
+  pinches around. 3 of the 22 have NO single culprit (`tpl-condo-2bed` Common Bath,
+  `tpl-condo-penthouse` Master Bath + Master Bedroom) — those need two pieces moved and should
+  not be expected to fall to a single-piece pass.
+  **Only circulation obstacles (>= 0.5 m²) can seal a room**, added in `.53`: the first cut
+  counted every floor-standing piece and so named `potted-plant`, `nightstand` and `floor-lamp`
+  as things that walled a room off. That took the list 32 -> 22 and the clean templates 5 -> 10,
+  and it RETRACTS v0.31.8.52's headline finding — `tpl-terrace-ground`'s master bedroom, whose
+  culprit was a 0.32 m² shoe cabinet, is clean.
 - ~~**[G8] Add a Peranakan encaustic floor tile material.**~~ **DONE v0.31.8.17.** This entry was
   half-stale: `floor-peranakan-jade`/`-cobalt`/`-rose` had been added since it was written (with the
   researched 200 mm `moduleMm` as of v0.31.8.16), but the PRESET still used `floor-wood-ebony` plus

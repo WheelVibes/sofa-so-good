@@ -92,9 +92,15 @@ Two things about it are load-bearing:
 - **The empty-plan baseline is subtracted.** 21 of the 67 isolated rooms are isolated with no
   furniture at all (`tpl-hdb-4room`'s bedroom half has no interior door — see
   `templateConnectivity.test.ts`). Only the remaining ones are the arranger's doing.
+- **Only circulation OBSTACLES can seal a room** (`OBSTACLE_AREA_M2`, 0.5 m², v0.31.8.53).
+  Counting every floor-standing piece named `potted-plant`, `nightstand` and `floor-lamp` as
+  things that walled a room off; you step past a floor lamp. `layoutCritique`'s `bed-access`
+  draws the same line with the same constant for the same reason. This is the OPPOSITE direction
+  to the .51 rejection above, and both are right: the bar answers "does this define a walkway",
+  which is this question and was not that one.
 
-Coverage: `reachability.test.ts` (unit), `routeAccess.test.ts` (ratchet, 32 offenders across
-14 templates). It costs two rasters per storey, so `buildLayoutCritique` runs it only when
+Coverage: `reachability.test.ts` (unit), `routeAccess.test.ts` (ratchet, 22 offenders across
+9 templates, 10 clean). It costs two rasters per storey, so `buildLayoutCritique` runs it only when
 asked (`{ routeAccess: true }`, which only `ui/report.ts` passes) — enabling it inside
 `schemeOptions`, which critiques a dozen candidates, pushed the Scheme Compare modal past a
 15 s harness timeout the same scenario clears without it.

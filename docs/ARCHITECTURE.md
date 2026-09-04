@@ -2012,10 +2012,12 @@ same change that reshapes a system.
   connectivity question instead: rasterise the storey at 0.05 m, find the interior by flooding
   INWARD from outside with the doors closed (room rectangles are not the floor — corridors here
   are undeclared), erode by half a body width, flood-fill what survives, and report rooms whose
-  walkable floor is no longer connected to the main region. The empty-plan baseline is
-  subtracted so a template that was never connected is not blamed on its furniture. It found 32
-  rooms across 14 of 19 templates that the arranger walls off (`routeAccess.test.ts` ratchets
-  them). Two rasters per storey (63 ms on `tpl-hdb-jumbo`), so it is OPT-IN
+  walkable floor is no longer connected to the main region. Only circulation OBSTACLES
+  (`OBSTACLE_AREA_M2`, 0.5 m² — now a single constant in `layout/designRules.ts` shared with
+  `designScore` and `bed-access`, three separate literals until v0.31.8.53) can seal a room: a
+  floor lamp does not close a doorway. The empty-plan baseline is subtracted so a template that
+  was never connected is not blamed on its furniture. It found 22 rooms across 9 of 19
+  templates that the arranger walls off, 10 clean (`routeAccess.test.ts` ratchets them). Two rasters per storey (63 ms on `tpl-hdb-jumbo`), so it is OPT-IN
   (`{ routeAccess: true }`) and only the report asks for it — running it inside `schemeOptions`,
   which critiques a dozen candidates, pushed the Scheme Compare modal past a 15 s harness
   timeout.

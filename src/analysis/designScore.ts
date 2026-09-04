@@ -21,7 +21,7 @@ import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { isItemEmitter } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
-import { CLEARANCE } from '../layout/designRules'
+import { CLEARANCE, OBSTACLE_AREA_M2 } from '../layout/designRules'
 import { findNarrowGaps } from '../layout/walkway'
 
 import { buildDaylightReport, isDaylightExempt, isExternalRoom } from './daylight'
@@ -130,7 +130,7 @@ const CIRCULATION = {
   /** Footprint area (m²) for a piece to count as a circulation OBSTACLE — matches
    *  `layoutPresets.test`'s "large piece" bar. Below it (lamps, plants, stools,
    *  a monitor) you step around; it never defines a walkway. */
-  obstacleArea: 0.5,
+  obstacleArea: OBSTACLE_AREA_M2,
   /** Penalty for the tightest reportable route pinch. Charged in full at
    *  `gradedFloor` and tapering linearly to zero at `squeezeGap`, so a 0.49 m
    *  near-miss costs ~2 points where it used to cost the same 20 as a 0.41 m

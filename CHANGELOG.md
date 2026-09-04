@@ -27,6 +27,78 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.53 — a floor lamp does not wall off a room. Retracting last release's headline
+
+The culprit sweep I should have run before shipping `.52`: for each of its 32 severed rooms,
+which single item's removal reconnects it? The answer named **`potted-plant` (3 rooms),
+`nightstand` (3) and `floor-lamp` (1)** as pieces that walled a room off.
+
+They do not. You step past a floor lamp, or you move it.
+
+**So only circulation obstacles can seal a room** — `OBSTACLE_AREA_M2` (0.5 m²), the app's own
+bar for "walk around" versus "step past". `layoutCritique`'s `bed-access` check already drew
+exactly this line with exactly this constant, and its docstring says why: without it the
+authored default flat warned at 0.24 m, *the gap from the bed's side face to its own
+nightstand*.
+
+| | v0.31.8.52 | **v0.31.8.53** |
+| --- | --- | --- |
+| rooms severed | 32 | **22** |
+| templates affected | 14 of 19 | **9 of 19** |
+| templates clean | 5 | **10** |
+| rooms with a named single culprit | 7 of 19 | **19 of 22** |
+
+**This retracts `.52`'s headline.** I led with *"you cannot walk into `tpl-terrace-ground`'s
+master bedroom"* — its culprit was a **0.32 m² shoe cabinet**, and under the correct bar that
+template is clean. `tpl-hdb-3room`, `-4room`, `-5room` and `tpl-condo-1bed` are clean for the
+same reason.
+
+Note this is the OPPOSITE direction to v0.31.8.51, which measured the same bar as WRONG for
+`walkway.ts`'s arm's-reach floor (`coffee-table` is 0.605 m², so it exempted the canonical
+close pair). Both readings hold: the bar answers *"does this define a walkway"*, which is this
+check's question and was not that one. The constant was three separate `0.5` literals across
+`designScore`, `layoutCritique` and `reachability`; it is now one export in
+`layout/designRules.ts`.
+
+### What the sweep found, which is the useful part
+
+**19 of the 22 have an identifiable single-piece culprit, and four defs account for 25 of the
+29 attributions:**
+
+| def | rooms it seals |
+| --- | --- |
+| `tv-console` | **9** |
+| `sofa-3seat` | **6** |
+| `dining-table-4` | **5** |
+| `wardrobe-3door` | **5** |
+
+So this is not a diffuse problem. It is overwhelmingly the **lounge/dining group parked across
+the circulation spine of an open-plan template**: `tpl-condo-penthouse` loses 6 rooms
+(22.9 m²) to a sofa + TV console pair, `tpl-hdb-maisonette` loses 4 (12 m²) to a dining table +
+TV console. A post-pass that re-places a piece which SEALS a room has a discrete, checkable
+goal — the room reconnects — which is exactly what v0.31.8.7's rejected clearance objective
+lacked when it traded pinches around instead.
+
+3 of the 22 have **no** single culprit (`tpl-condo-2bed` Common Bath, `tpl-condo-penthouse`
+Master Bath and Master Bedroom); those need two pieces moved and should not be expected to fall
+to a single-piece pass.
+
+### A correction about last release
+
+`.52`'s notes said the finding was logged in `TODO.md`. **It was not** — the edit sat after a
+failed assertion in the same script and never applied, and I reported it as done without
+checking. The entry is written now, covering both releases, with the culprit table above as the
+starting point.
+
+Verified visually: the report's `route-access` row on the scenario plan goes from *"2 rooms are
+walled off by the furniture"* to *"Every room you can walk into on the empty plan is still
+reachable with this layout (11 measured)"* — those two were the plant-and-nightstand false
+positives. Layout quality 67 → 71.
+
+Still moves no furniture. 22 rooms are measured and ratcheted; fixing them is the open work.
+
+Verified: 10171 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.52 — the route model. 32 rooms the arranger walls off
 
 v0.31.8.51 threw away a queued fix and left a better question in its place:

@@ -59,7 +59,7 @@ import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
-import { CLEARANCE } from './designRules'
+import { CLEARANCE, OBSTACLE_AREA_M2 } from './designRules'
 
 /**
  * Raster cell size (m). 0.05 m resolves a 0.6 m walkway into 12 cells, which is
@@ -169,10 +169,31 @@ function pointSegDist(px: number, pz: number, ax: number, az: number, bx: number
   return Math.hypot(dx, dz)
 }
 
-/** Pieces that stand on the floor and therefore obstruct a route. Mirrors
- *  `walkway.ts`'s `participates` so the two checks see the same furniture. */
+/**
+ * Pieces that can SEAL a route.
+ *
+ * Floor-standing (not mounted, not `noClip`) **and** a circulation obstacle —
+ * `OBSTACLE_AREA_M2` (0.5 m²), the app's own bar for something you walk around
+ * rather than step past.
+ *
+ * **The area bar is a correction to v0.31.8.52's first cut (v0.31.8.53).**
+ * Without it, the culprit sweep over the 19 templates named `potted-plant`
+ * (3 rooms), `nightstand` (3) and `floor-lamp` (1) as pieces that walled a room
+ * off. They do not: a floor lamp does not seal a doorway, you step past it or
+ * move it. `layoutCritique`'s `bed-access` check draws the identical line for
+ * the identical reason, with the identical constant, and its docstring is worth
+ * reading — a nightstand is part of the bedside arrangement, not an obstruction
+ * to it.
+ *
+ * Note this is the OPPOSITE direction to v0.31.8.51, where the same bar was
+ * measured as WRONG for `walkway.ts`'s arm's-reach floor because `coffee-table`
+ * (0.605 m²) sits above it. Both readings are right: the bar answers "does this
+ * define a walkway", which is this check's question and was not that one's.
+ */
 function participates(def: FurnitureDef | undefined): def is FurnitureDef {
-  return !!def && !def.mounted && !def.noClip
+  if (!def || def.mounted || def.noClip) return false
+  const fp = def.defaultFootprint
+  return !!fp && fp.w * fp.d >= OBSTACLE_AREA_M2
 }
 
 /** Room rectangle in plan metres (rooms are axis-aligned). */
