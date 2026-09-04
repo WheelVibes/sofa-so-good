@@ -29,6 +29,42 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.210 — item `(x)` verified with a one-variable control, and its published magnitude corrected 0.3 m → 0.05 m
+
+`.209` shipped the envelope fix with two things wrong with the *claim* — the fix itself stands and is
+unchanged. It said the open band was **0.3 m**, and argued no probe was needed because a horizontal
+ray at 2.75 m "hits nothing by construction" given wall boxes spanning 0–2.6 and 2.9–5.5. Both are
+wrong for the same reason: **`LevelSlab` was never read.** It is a 0.25 m box hung under the storey
+above (`PlanShell.tsx` positions it at level-local −0.125, height 0.25), so it occupies 2.65–2.9
+across the entire footprint on both these templates. At 2.75 m the ray hits the slab. The gap in the
+WALLS is 0.3 m; the actually-open band is **2.60–2.65, i.e. 0.05 m**.
+
+That is this arc's recurring error — a quantity assumed instead of read — and it is the second time
+`LevelSlab` has been the thing assumed: `.207` read its XZ extent to establish the loft void is not
+floored over, and then `.209` quoted a Y-extent it had never looked at.
+
+**The defect is real, and now measured rather than argued.** New `ray-probe.mjs` casts explicit
+origin/direction rays at the live scene and reports every opaque hit along each — no camera, no
+screenshot, because a geometry question deserves a geometry instrument. One variable (`perimeter()`
+with and without `topHeight`, via `git show` and `git checkout`):
+
+| ray | pre-fix first hit | post-fix first hit |
+| --- | --- | --- |
+| maisonette, y = 2.62 | **sky at 226 m** — straight through the building | envelope at z = 0 |
+| maisonette, y = 2.70 / 2.75 | slab at z = 0.05 | slab at z = 0.05 |
+| terrace, y = 3.02 | **sky at 225.93 m** | envelope at z = 0 |
+| terrace, y = 2.90 | wall at z = 0 | wall at z = 0 |
+
+The rows that do NOT change are the ones that make the aim trustworthy: 2.90 m is below the wall top
+and 2.75 m is inside the slab, so both arms must agree there, and they do. Only the 5 cm band moves.
+
+Also in this commit: `aim-look.mjs` gains `MODE=orbit` (`label:x,y,z,tx,ty,tz`), since both envelope
+items are only visible from outside the building and every other still probe here either walks or
+frames a room interior. It is recorded as **not sufficient** for this measurement — the orbit
+controls adjust the requested eye height (asked 2.50, got 2.71), which tilts the ray and moves the
+hit. That is what prompted `ray-probe.mjs`.
+
+
 ## v0.31.7.209 — the same defect, generalised: every multi-storey envelope had an unwalled slab band (item `(x)`)
 
 `(w)` was fixed on `tpl-loft` by reading one template. The mechanism is not template-specific, so I

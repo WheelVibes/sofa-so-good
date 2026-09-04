@@ -19,11 +19,25 @@ const LEVEL = process.env.LEVEL || ''
 const FURNISH = process.env.FURNISH === '1'
 const TIER = process.env.TIER || 'realistic'
 const HOUR = Number(process.env.HOUR || 13)
-const POSES = (process.env.POSES || 'rail:5.55,4.7,0,-0.6').split(';').map((s) => {
-  const [label, rest] = s.split(':')
-  const [x, z, yaw, pitch] = rest.split(',').map(Number)
-  return { label, x, z, yaw, pitch }
-})
+/**
+ * MODE=orbit takes `label:x,y,z,tx,ty,tz` — camera position and orbit target — instead of the
+ * first-person `label:x,z,yaw,pitch`. Added because two shipped envelope fixes (`(w)`, `(x)`) are
+ * only visible from OUTSIDE the building, and there was no probe here that could stand outside it:
+ * every still probe in this arc either walks or frames a room interior. The dollhouse is also the
+ * view the product leads with, so "it looks right in walk" is not the whole claim.
+ */
+const MODE = process.env.MODE || 'walk'
+const POSES = (
+  process.env.POSES || (MODE === 'orbit' ? 'iso:14,10,16,4,1.5,3' : 'rail:5.55,4.7,0,-0.6')
+)
+  .split(';')
+  .map((s) => {
+    const [label, rest] = s.split(':')
+    const n = rest.split(',').map(Number)
+    return MODE === 'orbit'
+      ? { label, pos: n.slice(0, 3), target: n.slice(3, 6) }
+      : { label, x: n[0], z: n[1], yaw: n[2], pitch: n[3] }
+  })
 
 mkdirSync(OUT, { recursive: true })
 const browser = await puppeteer.launch({
@@ -82,12 +96,16 @@ if (LEVEL) {
   await page.evaluate((id) => window.__store.getState().setViewLevel(id), LEVEL)
   await new Promise((r) => setTimeout(r, 1200))
 }
-await page.evaluate(() => {
-  const st = window.__store.getState()
-  st.setCameraMode('firstPerson')
-  st.dismissCallout?.('walk-mode')
-})
-await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
+if (MODE === 'orbit') {
+  await page.evaluate(() => window.__store.getState().setCameraMode('orbit'))
+} else {
+  await page.evaluate(() => {
+    const st = window.__store.getState()
+    st.setCameraMode('firstPerson')
+    st.dismissCallout?.('walk-mode')
+  })
+  await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
+}
 await new Promise((r) => setTimeout(r, 3000))
 
 const resolved = await page.evaluate(() => {
@@ -97,19 +115,37 @@ const resolved = await page.evaluate(() => {
 console.log(`resolved ${resolved}   level ${LEVEL || '(ground)'}`)
 
 for (const p of POSES) {
-  await page.evaluate(async (q) => {
-    const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
-    requestWalkTeleport(q.x, q.z, q.yaw)
-  }, p)
-  await new Promise((r) => setTimeout(r, 1500))
-  // Pitch AFTER the teleport settles, and READ IT BACK. Setting it in the same tick gave two
-  // frames that were pixel-identical at -0.7 and -0.25 — the teleport resets the look, so the
-  // requested pitch never reached the camera and the probe reported a pose it did not shoot.
-  const pitch = await page.evaluate((q) => {
-    window.__walkLook?.setPitch(q.pitch)
-    return window.__walkLook?.getPitch?.() ?? null
-  }, p)
-  await new Promise((r) => setTimeout(r, 1200))
+  if (MODE === 'orbit') {
+    // Set the camera AND the orbit target, then `controls.update()` — dragging headless is
+    // unreliable, which is why `DevCameraExpose` exists at all. `invalidate()` because the
+    // renderer is on `frameloop="demand"` and would otherwise screenshot a stale composite.
+    await page.evaluate((q) => {
+      const { camera, controls, invalidate } = window.__three
+      camera.position.set(q.pos[0], q.pos[1], q.pos[2])
+      controls?.target?.set(q.target[0], q.target[1], q.target[2])
+      camera.lookAt(q.target[0], q.target[1], q.target[2])
+      controls?.update?.()
+      invalidate?.()
+    }, p)
+    await new Promise((r) => setTimeout(r, 1800))
+  } else {
+    await page.evaluate(async (q) => {
+      const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
+      requestWalkTeleport(q.x, q.z, q.yaw)
+    }, p)
+    await new Promise((r) => setTimeout(r, 1500))
+    // Pitch AFTER the teleport settles, and READ IT BACK. Setting it in the same tick gave two
+    // frames that were pixel-identical at -0.7 and -0.25 — the teleport resets the look, so the
+    // requested pitch never reached the camera and the probe reported a pose it did not shoot.
+  }
+  let pitch = null
+  if (MODE !== 'orbit') {
+    pitch = await page.evaluate((q) => {
+      window.__walkLook?.setPitch(q.pitch)
+      return window.__walkLook?.getPitch?.() ?? null
+    }, p)
+    await new Promise((r) => setTimeout(r, 1200))
+  }
   await assertSceneAlive(page, p.label)
   const where = await page.evaluate(() => {
     const c = window.__three.camera
@@ -159,7 +195,7 @@ for (const p of POSES) {
   const file = `${OUT}/${p.label}.png`
   writeFileSync(file, await page.screenshot({ type: 'png' }))
   console.log(
-    `  ${p.label.padEnd(14)} eye [${where.join(', ')}]  pitch req ${p.pitch} got ${pitch ?? '?'}  -> ${file}`,
+    `  ${p.label.padEnd(14)} eye [${where.join(', ')}]  ${MODE === 'orbit' ? 'orbit' : `pitch req ${p.pitch} got ${pitch}`}  -> ${file}`,
   )
 }
 await browser.close()

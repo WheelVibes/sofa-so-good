@@ -111,11 +111,18 @@ describe('a multi-storey envelope has no unwalled slab band', () => {
   /**
    * A storey's exterior wall must reach the NEXT storey's floor, not its own ceiling.
    *
-   * Measured `v0.31.7.209`: `tpl-hdb-maisonette` ground walls topped out at 2.6 m under an upper
-   * storey whose walls start at 2.9 m, and `tpl-terrace-ground` at 3.0 m under 3.3 m — a 0.3 m
-   * ring of envelope with no wall in it on both, so a horizontal ray at 2.75 m left the building
-   * without hitting anything, by construction. `LevelSlab` covers only the bounding box of the
-   * storey above's own rooms, so it hides some of the band and not all of it.
+   * Measured `v0.31.7.209`, **magnitude corrected in `.210`**: `tpl-hdb-maisonette` ground walls
+   * topped out at 2.6 m under an upper storey whose walls start at 2.9 m, and
+   * `tpl-terrace-ground` at 3.0 m under 3.3 m. The gap in the WALLS is 0.3 m, but the open band is
+   * **0.05 m**: `LevelSlab` is a 0.25 m box hung under the storey above (`PlanShell.tsx` positions
+   * it at level-local -0.125 with height 0.25), so it fills 2.65-2.9 across the whole footprint on
+   * both these templates, and only 2.60-2.65 is actually open.
+   *
+   * Read that constant before quoting a number here. `.209` published "a 0.3 m ring" and argued a
+   * horizontal ray at 2.75 m "hits nothing by construction" - at 2.75 m the slab is there, and the
+   * ray hits it in BOTH arms. The slit is real: at **2.62 m** a ray crosses the whole building to
+   * the sky pre-fix and stops at the envelope post-fix, confirmed one-variable on both templates
+   * with `ray-probe.mjs`.
    */
   const multi = PLAN_TEMPLATES.filter((t) => (t.upperLevels ?? []).length > 0)
 
