@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.269 — colour temperature now depends on which way a surface faces
+
+**`(z8)` fixed.** `SKY_TINT_STRENGTH` is a per-orientation record and `surfaceOrientation()`
+classifies each baked mesh by its world-space mean normal — the local normal is useless on its own,
+since a floor is a `PlaneGeometry` whose local normal is +Z rotated flat. Every strength MEASURED
+daylight-only from its own two endpoints rather than chosen:
+
+| surface | s=0 | s=1 | Cycles | solved |
+| --- | --- | --- | --- | --- |
+| ceiling | 0.0 | −20.4 | −11.0 | **0.539** |
+| wall | 1.8 | −16.9 | −14.4 | **0.866** |
+| floor | 34.8 | 15.0 | 19.5 | **0.773** |
+
+The wall's 0.866 independently reproduces `(z4)`'s 0.87 — fitted lights-ON at 17:00 against this
+run's lights-OFF at 13:00. Two different arms agreeing on one surface is the reason to trust the
+mechanism and not just the number.
+
+**Result.** Residual R−B against Cycles: ceiling **7.0 → 0.5**, floor **2.0 → 0.1**, wall unchanged
+at 0.2. Mean chroma error **3.07 → 0.27 counts**, brightness untouched. Classification is verified
+by the measurement itself: a ceiling misclassified as `side` would read ≈ −17.7, and it reads −11.5.
+The frame gains proper interior colour-temperature layering — warm ceiling off the floor bounce,
+cool walls, warm floor — where before every surface took one sky-cool tint.
+
+**Frame cost nil**, and the way that was established matters. A first reading said realistic p50
+had gone 10.3 → 12.2 ms, which would have been a real regression against the fps constraint. Three
+repeats put it at **10.6 / 10.4 / 9.8 ms** against a 10.1–10.3 baseline; the high reading came from
+measuring straight after heavy Blender renders. Performance tier 7.7 ms at 60 fps.
+
+**A large smoothness lead found and deliberately NOT taken — `(z9)`.** Chasing that phantom
+regression, I collapsed `customProgramCacheKey` to a constant and the worst frame went from
+**1130–1224 ms to 13–344 ms across 3/3 runs**: a plan compiles ~195 distinct programs for its baked
+materials, and `.15` measured 216 ms per compile. That is the `(z)`6 load hitch. It also rendered
+correctly, because `materialProperties.programs` is a Map on the MATERIAL, so a key only dedupes
+variants within one material and cross-material uniform bleed is impossible — measured: ceiling,
+wall and floor kept their own gains to within 0.7 counts.
+
+But `v0.31.7.44`'s hazard is real, just narrower than its wording. On a key HIT three's
+`getProgram` returns early, skipping both `onBeforeCompile` and the `materialProperties.uniforms`
+assignment — so re-applying the injection to the SAME material with a new gain would silently keep
+the old one, and materials outlive a plan change here. The prerequisite is to hold the uniforms
+object and update `visGain`/`visMap` in place on re-apply. Worth doing, but that is a correctness
+change to the attach path and should not ride along with a look fix, so the key is restored and the
+lead is filed. The test comment now records the mechanism precisely rather than the broader claim.
+
+
 ## v0.31.7.268 — the floor deficit survives daylight-only, and `(z4)`'s tint is orientation-blind
 
 **A prior decision I had walked past.** `light-distribution.mjs` met the interior-lights problem in

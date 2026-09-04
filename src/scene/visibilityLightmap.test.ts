@@ -213,7 +213,18 @@ describe('replace mode (v0.31.7.88)', () => {
 
   it('keys the program on the GAIN, so two gains cannot share one cached program', () => {
     // `v0.31.7.44`: a constant key collapsed two variants into one program, and the second
-    // material silently rendered with the first's gain. The MODE is no longer part of the key
+    // material silently rendered with the first's gain.
+    //
+    // `v0.31.7.269` pinned down the MECHANISM, which is narrower than "two gains cannot share a
+    // program" and worth stating exactly. Read three's `getProgram`: `materialProperties.programs`
+    // is a Map held on the MATERIAL, so a cache key only dedupes variants WITHIN one material --
+    // two separate materials cannot bleed uniforms into each other, and the measured proof is that
+    // ceiling, wall and floor rendered with their own distinct gains under a deliberately constant
+    // key. The real hazard is RE-APPLICATION to the SAME material: on a key hit `getProgram`
+    // returns early, skipping both `onBeforeCompile` and the `materialProperties.uniforms`
+    // assignment, so a changed gain never reaches the GPU. Materials outlive a plan change here
+    // (`visClonedFrom`), so that path is live -- which is why the gain stays in the key, and why
+    // collapsing it is filed as `(z9)` behind a correctness prerequisite rather than done. The MODE is no longer part of the key
     // because `v0.31.7.185` removed the `multiply` operator -- there is one operator now.
     const a = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
     const b = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }

@@ -16,7 +16,7 @@
  * trading a fidelity improvement for a blank canvas.
  */
 import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
-import { BufferAttribute } from 'three'
+import { BufferAttribute, Matrix3, Vector3 } from 'three'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
@@ -33,22 +33,89 @@ import {
 const LIGHTMAP_BASE = `${import.meta.env.BASE_URL}assets/lightmaps`
 
 /**
- * How much of the daytime sky's chroma the injected irradiance carries — see `(z4)` and
- * `daytimeSkyTint`. 0 reproduces the old achromatic term exactly; 1 is the full
- * luminance-preserving sky tint.
+ * How much of the daytime sky's chroma the injected irradiance carries, PER SURFACE ORIENTATION
+ * — see `(z4)` for the mechanism and `(z8)` for why one number could not do the job.
  *
- * A dial rather than a hard-coded vector because the physical answer is not 1: an interior
- * surface's indirect light is sky through the glazing PLUS bounce off warm floors and walls, so
- * full sky chroma is an over-correction. The value is CALIBRATED against an exposure-matched
- * Cycles reference rather than chosen, and the calibration is recorded in the CHANGELOG.
+ * 0 reproduces the old achromatic term exactly; 1 is the full luminance-preserving sky tint.
+ *
+ * **Why three values.** `(z4)` shipped a single strength calibrated on ONE vertical wall and
+ * applied it to every baked surface. That over-cooled ceilings by **7 counts** of R−B, and it had
+ * to: a ceiling faces DOWN, so its indirect arrives off the floor as WARM bounce, not from the
+ * sky. Sky chroma is simply the wrong illuminant for a downward-facing surface, and no single
+ * scalar can be right for both.
+ *
+ * **Every value is MEASURED, not chosen.** Daylight-only (lights off on both sides, which is the
+ * arm `v0.31.7.8`'s decision endorses for calibration), one pose in `livingDining` at 13:00, each
+ * surface's R−B read at strength 0 and 1 and the target solved from the Cycles reference:
+ *
+ * | surface   | s=0  | s=1   | Cycles | solved |
+ * | --------- | ---- | ----- | ------ | ------ |
+ * | ceiling   |  0.0 | −20.4 | −11.0  | 0.539  |
+ * | wall      |  1.8 | −16.9 | −14.4  | 0.866  |
+ * | floor     | 34.8 |  15.0 |  19.5  | 0.773  |
+ *
+ * The wall's 0.866 independently reproduces `(z4)`'s 0.87, which was fitted lights-ON at 17:00
+ * against this run's lights-OFF at 13:00 — two different arms agreeing on the same surface is the
+ * reason to trust the mechanism rather than just the number.
+ *
+ * **Known limit: n = 1 room.** One pose in one room set all three. The ORDERING is physical
+ * (a ceiling needs least sky chroma) but the exact values are not yet corroborated elsewhere, and
+ * the floor coming out below the wall is mildly against expectation for a surface that sees sky
+ * through the glazing directly. Treat as measured-but-provisional.
  */
-export const SKY_TINT_STRENGTH = 0.87
+export const SKY_TINT_STRENGTH: Readonly<Record<'up' | 'down' | 'side', number>> = {
+  /** Floors. Faces up, so it sees sky and upper-wall bounce. */
+  up: 0.773,
+  /** Ceilings. Faces down onto a warm floor, so it needs the LEAST sky chroma. */
+  down: 0.539,
+  /** Walls and everything else. */
+  side: 0.866,
+}
 
-const SKY_TINT: [number, number, number] = (() => {
+/**
+ * Which way a baked mesh predominantly faces, in WORLD space.
+ *
+ * Averaged over the normal attribute and pushed through the world matrix, because the local
+ * normal is meaningless on its own: a floor is a `PlaneGeometry` whose local normal is +Z and
+ * which is rotated −π/2 about X to lie flat. Read through the accessor rather than
+ * `attribute.array` for the same reason the `uv1` builder below does — an interleaved buffer would
+ * otherwise yield garbage that looks like a tuning problem instead of a data one.
+ *
+ * The 0.7 threshold is a little over 45°, so a surface has to be meaningfully horizontal to count
+ * as a floor or ceiling; anything ambiguous takes the wall value, which is the middle of the three.
+ */
+export function surfaceOrientation(mesh: Mesh): 'up' | 'down' | 'side' {
+  const nrm = (mesh.geometry as BufferGeometry).getAttribute('normal')
+  if (!nrm || nrm.count === 0) return 'side'
+  let x = 0
+  let y = 0
+  let z = 0
+  for (let i = 0; i < nrm.count; i += 1) {
+    x += nrm.getX(i)
+    y += nrm.getY(i)
+    z += nrm.getZ(i)
+  }
+  const v = new Vector3(x / nrm.count, y / nrm.count, z / nrm.count)
+  if (v.lengthSq() < 1e-8) return 'side'
+  mesh.updateWorldMatrix(true, false)
+  v.applyMatrix3(new Matrix3().getNormalMatrix(mesh.matrixWorld)).normalize()
+  if (v.y > 0.7) return 'up'
+  if (v.y < -0.7) return 'down'
+  return 'side'
+}
+
+/** Luminance-preserving sky chroma at a given strength; 0 is white. */
+function skyTintAt(strength: number): [number, number, number] {
   const t = daytimeSkyTint()
-  const s = SKY_TINT_STRENGTH
-  return [1 + (t[0] - 1) * s, 1 + (t[1] - 1) * s, 1 + (t[2] - 1) * s]
-})()
+  return [1 + (t[0] - 1) * strength, 1 + (t[1] - 1) * strength, 1 + (t[2] - 1) * strength]
+}
+
+const SKY_TINT_BY_ORIENTATION: Readonly<Record<'up' | 'down' | 'side', [number, number, number]>> =
+  {
+    up: skyTintAt(SKY_TINT_STRENGTH.up),
+    down: skyTintAt(SKY_TINT_STRENGTH.down),
+    side: skyTintAt(SKY_TINT_STRENGTH.side),
+  }
 
 export interface ApplyOptions {
   baseUrl?: string
@@ -325,7 +392,13 @@ export function applyLightmapsFromIndex(
       cloned += 1
     }
     const mapGain = (resolver.scaleFor(key, ctx ?? '') ?? scale) * baseGain
-    applyVisibilityLightmap(target as never, loadTexture(url), mapGain, debug, SKY_TINT)
+    applyVisibilityLightmap(
+      target as never,
+      loadTexture(url),
+      mapGain,
+      debug,
+      SKY_TINT_BY_ORIENTATION[surfaceOrientation(o)],
+    )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
       // handed to compare its `uv1` against that map's texels, and the texture
