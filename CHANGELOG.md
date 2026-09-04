@@ -29,6 +29,34 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.200 — `(f)`: `tpl-hdb-3gen` — a 0.2 m leak and a bath with no walls east of the corridor
+
+Sixth template. `g3-gbath + g3-bed2 + g3-master + g3-mbath` were one component, from two separate
+causes:
+
+- **A 0.2 m leak.** `g3-g-bath-w` started at z 3.2 while `g3-svc-s` sits at z 3.0, so the grandparent
+  bath — otherwise fully walled — was open to the corridor through a 20 cm gap. Same class of
+  near-miss as `h5-m-n` ending 0.2 m short in `.195`; a wall that *looks* closed on the plan and is
+  not, which is exactly what a flood fill is for and what an eye is not.
+- **A bath with no walls.** `g3-mbath` (x 3.6–6.0, z 6.8–8.8) is bounded west by `g3-b-corr` and east
+  by `g3-liv-w`, and had nothing north or south of it east of x 3.4. `g3-mbath-n` and `g3-mbath-s`
+  close it.
+
+Both baths would then have been **sealed** — the `.196` trap, checked for rather than rediscovered —
+so each gets a door: the grandparent bath west onto the corridor, the master bath south onto the
+master. **4 → 3 of 20 remain.**
+
+Verified in the frame: the master bath renders as an enclosed room, walls both sides, drawn as its
+own room on the minimap.
+
+**`centred` goes 23 → 24, back up.** It has now moved 25 → 24 → 23 → 24 across this series, in both
+directions, because enclosing baths reshapes the rooms around them and changes which pieces land on
+a room centre. The comment now says so: `stranded` is the guard and is unchanged throughout, and
+this number is a description rather than a target.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.199 — `(f)`: `tpl-condo-4bed`'s three baths divided, with access verified in the frame
 
 Fifth template. `c4-cbath + c4-bath2 + c4-mbath` were one component — and unusually, the strip they

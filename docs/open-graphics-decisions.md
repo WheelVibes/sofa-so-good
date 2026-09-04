@@ -262,7 +262,7 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
-## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **4 of 20 remain** (`.194` 4-room, `.195` 5-room, `.196` exec, `.197` jumbo, `.199` condo-4bed)
+## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **3 of 20 remain** (`.194` 4-room, `.195` 5-room, `.196` exec, `.197` jumbo, `.199` condo-4bed, `.200` 3gen)
 
 > **Note for the remaining six:** closing a column can SEAL a bathroom — `tpl-hdb-exec` had no door
 > on either bounding wall, and the enclosure ratchet passes happily on two sealed boxes. Check the

@@ -34,7 +34,9 @@ const KNOWN_SHARED_ENCLOSURES = [
   // tpl-hdb-exec FIXED in v0.31.7.196 — the column was already bounded by `ex-b-corr` and
   // `ex-liv-w`; it needed a north wall east of x 3.6 and a divider between the two baths, plus
   // doors, since closing it would otherwise leave both baths unreachable.
-  'tpl-hdb-3gen/ground: g3-gbath + g3-bed2 + g3-master + g3-mbath',
+  // tpl-hdb-3gen FIXED in v0.31.7.200 — `g3-g-bath-w` started 0.2 m below `g3-svc-s` (a leak),
+  // and `g3-mbath` had no wall north or south of it east of `g3-b-corr`. Both closed, with a door
+  // each so neither bath is sealed.
   // tpl-hdb-jumbo FIXED in v0.31.7.197 — the doc's headline case. A wall at x 2.1 separates the
   // baths from the master and a divider splits them; the existing `jb-master` door turned out to
   // sit over the COMMON BATH, so it serves that and the master got one of its own.

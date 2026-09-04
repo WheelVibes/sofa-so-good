@@ -311,14 +311,25 @@ export function hdb3Gen(): FloorPlan {
       iwall('g3-b-corr', [3.4, 3.2], [3.4, D - T]),
       iwall('g3-b3-s', [T, 6.0], [3.4, 6.0]),
       iwall('g3-m-n', [T, 8.8], [3.4, 8.8]),
+      // (f): `g3-mbath` (x 3.6-6.0, z 6.8-8.8) is bounded west by `g3-b-corr` and east by
+      // `g3-liv-w`, but had nothing north or south of it east of x 3.4.
+      iwall('g3-mbath-n', [3.4, 6.8], [6.2, 6.8]),
+      iwall('g3-mbath-s', [3.4, 8.8], [6.2, 8.8]),
       // Grandparent ensuite at the SE of the living column.
-      iwall('g3-g-bath-w', [4.6, 3.2], [4.6, 5.0]),
+      // (f): started at z 3.2 while `g3-svc-s` sits at z 3.0, leaving a 0.2 m leak the flood fill
+      // walks through — the same class of near-miss as `h5-m-n` ending 0.2 m short in `.195`.
+      iwall('g3-g-bath-w', [4.6, 3.0], [4.6, 5.0]),
       iwall('g3-g-bath-s', [4.6, 5.0], [6.2, 5.0]),
     ],
     openings: [
       door('g3-main', 'g3-s', 7.6),
       door('g3-master', 'g3-m-n', 1.0),
       door('g3-b3', 'g3-b3-s', 1.0),
+      // (f): closing the leaks would SEAL both baths (the `.196` trap). The grandparent bath opens
+      // west onto the corridor through `g3-g-bath-w` (now starts z 3.0); the master bath opens
+      // south onto the master through `g3-mbath-s` (starts x 3.4). Offsets centre each on its room.
+      door('g3-gbath-door', 'g3-g-bath-w', 0.6),
+      door('g3-mbath-door', 'g3-mbath-s', 0.95),
       window('g3-kit-win', 'g3-n', 1.2, 1.6),
       window('g3-b3-win', 'g3-w', 7.0, 1.5),
       // (h): `g3-bed3` owned no window. Position from `g3-b3-win`'s mirrored offset
