@@ -29,6 +29,71 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.212 — ramp calibration, app half: the impasse was inverting the WRONG CURVE, and correcting it makes the gap bigger, not smaller
+
+`.211` measured Blender's transforms. This measures the app's, and the first thing it printed
+settles a question the thread never asked: **the app renders with `AgXToneMapping`, not Khronos PBR
+Neutral.** `look.ts` says so in prose — AgX is the default view transform, and Khronos Neutral is
+used only while PREVIEWING FINISHES, for catalogue colour. The impasse inverted a main-scene byte
+through the finish-preview curve. Given `.211`'s finding that those two differ by 12x at linear 0.01,
+that was not a detail.
+
+`scripts/dev-probes/tonemap-curve.mjs` measures it end to end: a quad filling the frame, its
+material a clone of a real scene material with `color` black, no lights, and `emissive` set through
+`Color.setRGB` (which lands in three's working space, i.e. linear). `totalEmissiveRadiance` is then
+the only radiance in the pixel, so the output byte is the transfer function and nothing else.
+
+**Three harness faults were found and each is recorded rather than papered over.**
+
+1. *Emissive 0 read 98 counts.* The app leaves `autoClear` off for its composer, so `gl.render`
+   drew over the previous COMPOSITE. Forcing a clear fixed it; the guard is now "emissive 0 must be
+   0 counts".
+2. *With tone mapping OFF the bytes came back at exactly half the sRGB encoding of the input* — 0.50,
+   0.51, 0.50 at three decades, later 7 points under a count. Not MSAA coverage (reading off the
+   quad's shared triangle diagonal changed nothing), not premultiplied alpha (alpha reads 255), not
+   the composer (identical at all three tiers). **Cause still unexplained**; a plausible candidate
+   is `readPixels` on this ANGLE/Metal context's 4x-multisampled default framebuffer. It does not
+   need explaining to be removed: `NoToneMapping` has a known answer, so the OFF arm calibrates the
+   readout exactly as `Standard` does in the Blender script. The scale is FITTED (**0.5033**) and
+   its residual REPORTED (**0.68 counts**), so the calibration can be judged rather than trusted.
+3. *An earlier version of this changelog would have quoted the nominal emissive as the linear input.*
+   It is not — see fault 2 — which is why every row prints both arms.
+
+Measured, renderer AgX at the app's own exposure 1.38, so these bytes convert to SCENE linear
+directly with no separate exposure step (another place the old arithmetic could divide by 1.38 or by
+2^1.38 and never know which was right):
+
+| linear | app counts | Blender AgX at 1.38x linear |
+| --- | --- | --- |
+| 0.002 | 1.99 | 4.16 |
+| 0.010 | 25.83 | 23.6 |
+| 0.050 | 83.45 | 70.0 |
+| 0.100 | 115.24 | 102.5 |
+| 0.150 | 133.12 | — |
+
+So three's AgX and Blender's AgX are the same family and agree to ~10-20% in the midrange, and both
+are nothing like Khronos (2.11 counts at linear 0.01 against the app's 25.83).
+
+**The result, and it is a negative.** The app ceiling byte 85.7 inverts through the app's own
+measured curve to **0.0528** scene linear — against 0.065 from the sRGB approximation and 0.0969
+from Blender's Khronos. The prediction of 0.885 therefore overshoots by **16.8x**, not 13.6x.
+Correcting the inversion did not resolve the impasse; it made the gap slightly larger and **eliminated
+the inversion as the explanation**. The recorded "most likely" cause — *"the error is most likely in
+MY measurement chain"*, specifically the Khronos-as-sRGB approximation — is now disproved by
+measurement. Whatever is wrong is in the prediction or in the reference-side conversion.
+
+**Scope limit, stated because it bites.** This measures the RENDERER's tone mapping, which is the
+Performance path. `look.ts` records that Medium and up apply tone mapping in the POST COMPOSER via
+`TONE_MAPPING_POST`, and calling `gl.render` bypasses it — so on those tiers this is a different
+implementation of the same nominal transform. The probe reporting identical numbers at
+`performance`, `high` and `realistic` is an artefact of that bypass, not evidence the tiers agree.
+The 85.7 byte was read on a Medium+ tier, so the 16.8x rests on the renderer curve standing in for
+the composer's. Measuring the composer path needs a different instrument and is the next step.
+
+Nothing shipped; the GI's shipped state still depends on none of this (gain 6 remains an empirical
+display-space fit against three Cycles references).
+
+
 ## v0.31.7.211 — the ramp calibration the GI ceiling thread asked for, Blender half: `Khronos PBR Neutral` is 12x darker than sRGB in the shadows
 
 The ceiling impasse was stopped with one named unvalidated assumption: *"I approximated Khronos PBR
