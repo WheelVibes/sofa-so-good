@@ -140,9 +140,16 @@ export function hdb4Room(): FloorPlan {
       room('h4-living', 'Living / Dining', 5.8, 2.4, 3.2, 7.2, 'floor-wood-oak', 'living'),
       room('h4-bed2', 'Bedroom 2', 0.2, 3.2, 2.8, 3.0, 'floor-wood-walnut', 'bedroom'),
       room('h4-bed3', 'Bedroom 3', 3.2, 3.2, 2.4, 3.0, 'floor-wood-walnut', 'bedroom'),
-      room('h4-cbath', 'Common Bath', 3.7, 6.6, 1.6, 1.3, 'floor-tile-white', 'bath'),
+      // (f): widened so the rect FILLS its enclosure (x 3.6-5.7, z 6.5-7.95). The new walls bound
+      // more space than the old rect covered, which would leave floor strips inside a bathroom
+      // carrying no room finish.
+      //
+      // NOT for the reason first written here: a blue band at the top of the master's frame looked
+      // like sky through an unceilinged strip, and a control tour with these walls REMOVED shows
+      // the identical band (R−B −25.5, sd 3.6, byte-for-byte), so it is pre-existing and unrelated.
+      room('h4-cbath', 'Common Bath', 3.6, 6.5, 2.1, 1.45, 'floor-tile-white', 'bath'),
       room('h4-master', 'Master Bedroom', 0.2, 6.6, 3.4, 3.0, 'floor-wood-oak', 'masterBedroom'),
-      room('h4-mbath', 'Master Bath', 3.7, 8.0, 1.6, 1.6, 'floor-tile-marble', 'bath'),
+      room('h4-mbath', 'Master Bath', 3.6, 7.95, 2.1, 1.75, 'floor-tile-marble', 'bath'),
     ],
   }
 }
@@ -161,11 +168,24 @@ export function hdb5Room(): FloorPlan {
       iwall('h5-liv-w', [6.2, 2.2], [6.2, D - T]),
       iwall('h5-svc-s', [T, 3.2], [6.0, 3.2]),
       iwall('h5-b2-e', [3.2, 3.6], [3.2, 6.9]),
-      iwall('h5-m-n', [T, 7.2], [3.8, 7.2]),
+      // (f): extended 3.8 -> 4.0 to meet `h5-bath-w`. The master's rect ends at x 4.0, so the old
+      // end left a 0.2 m gap the flood fill walks through. The door on this wall is unaffected —
+      // its offset is measured from the START, which has not moved.
+      iwall('h5-m-n', [T, 7.2], [4.0, 7.2]),
+      // (f) TEMPLATE-ROOM-ENCLOSURE, same shape as `tpl-hdb-4room` in `v0.31.7.194`: `h5-cbath`
+      // and `h5-mbath` own no walls of their own. The baths occupy the column x 4.0-6.2 (master's
+      // east edge to the existing `h5-liv-w`), z 6.9 down.
+      iwall('h5-bath-w', [4.0, 6.9], [4.0, D - T]),
+      iwall('h5-bath-n', [4.0, 6.9], [6.2, 6.9]),
+      iwall('h5-bath-mid', [4.0, 8.9], [6.2, 8.9]),
     ],
     openings: [
       door('h5-main', 'h5-s', 7.2),
       door('h5-master', 'h5-m-n', 1.0),
+      // Common bath off the living side, master bath off the master — offsets from each wall's own
+      // start (`h5-liv-w` at z 2.2, `h5-bath-w` at z 6.9), centred on the room.
+      door('h5-cbath-door', 'h5-liv-w', 5.2),
+      door('h5-mbath-door', 'h5-bath-w', 2.4),
       window('h5-kit-win', 'h5-n', 1.6, 1.8),
       window('h5-b2-win', 'h5-w', 4.4, 1.5),
       // BEDROOM-WINDOW (v0.31.5.116): was 8.2, which put the master's window at
@@ -185,8 +205,9 @@ export function hdb5Room(): FloorPlan {
       room('h5-bed2', 'Bedroom 2', 0.2, 3.4, 3.0, 3.3, 'floor-wood-walnut', 'bedroom'),
       room('h5-bed3', 'Bedroom 3', 3.4, 3.4, 2.8, 3.2, 'floor-wood-walnut', 'bedroom'),
       room('h5-master', 'Master Bedroom', 0.2, 7.0, 3.8, 3.5, 'floor-wood-oak', 'masterBedroom'),
-      room('h5-cbath', 'Common Bath', 4.2, 6.9, 1.6, 1.9, 'floor-tile-white', 'bath'),
-      room('h5-mbath', 'Master Bath', 4.2, 9.0, 1.7, 1.5, 'floor-tile-marble', 'bath'),
+      // (f): widened to fill its enclosure (x 4.0-6.2, z 6.9-D−T), same reason as h4.
+      room('h5-cbath', 'Common Bath', 4.0, 6.9, 2.2, 2.0, 'floor-tile-white', 'bath'),
+      room('h5-mbath', 'Master Bath', 4.0, 8.9, 2.2, 2.0, 'floor-tile-marble', 'bath'),
     ],
   }
 }

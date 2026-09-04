@@ -39,7 +39,6 @@ const KNOWN_BLOCKED = [
   'tpl-hdb-3room/h3-b2-win: refrigerator',
   // h5-b2-win CLEARED in v0.31.5.121 by preferring windowless walls for tall
   // storage — the wardrobe had a windowless alternative in that room.
-  'tpl-hdb-5room/h5-m-win: wardrobe-3door',
   'tpl-hdb-exec/ex-b2-win: wardrobe-3door',
   // ADDED by v0.31.5.118, and an honest trade rather than a regression: fixing
   // (h) gave `ex-master` a window it never had AND restored the wardrobe that
@@ -120,12 +119,14 @@ describe('tall furniture does not stand in front of a window', () => {
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     expect(windows).toBe(87)
-    // 78 since `v0.31.7.194`: enclosing `tpl-hdb-4room`'s baths for item (f) also freed
-    // `h4-m-win` from a `wardrobe-3door`, the SECOND time an (h)/(f) fix has shortened item (j)'s
-    // list rather than lengthened it.
+    // 79 since `v0.31.7.195`, the THIRD consecutive (h)/(f) fix to shorten item (j)'s list rather
+    // than lengthen it: enclosing `tpl-hdb-5room`'s baths freed `h5-m-win`, as `.194` freed
+    // `h4-m-win` and `.193` freed `g3-liv-win`. The three items were tracked as independent and
+    // are coupled through the arranger: give a master its walls and the wardrobe stops needing the
+    // window wall.
     // 77 at `v0.31.7.193`. All NINE windows added for item (h) are clear, and the blocked list
     // got SHORTER: `tpl-hdb-3gen/g3-liv-win` is no longer hidden by a `wardrobe-3door`, because
     // the new glass changed where the arranger puts it. Item (j) improved as a side effect of (h).
-    expect(windows - hits.length).toBe(78)
+    expect(windows - hits.length).toBe(79)
   })
 })

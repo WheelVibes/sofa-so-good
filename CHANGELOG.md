@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.195 — `(f)`: `tpl-hdb-5room`'s ten-room component is gone, and a false alarm caught by a control
+
+`.194` enclosed `tpl-hdb-4room`. `tpl-hdb-5room` is the same authoring pattern and had the worst
+entry in the ratchet: **all ten rooms in one component**.
+
+Same shape as the 4-room fix — the baths occupy the column x 4.0–6.2 (master's east edge to the
+existing `h5-liv-w`), z 6.9 down:
+
+| wall / door | span |
+| --- | --- |
+| `h5-bath-w` | [4.0, 6.9] → [4.0, D−T] |
+| `h5-bath-n` | [4.0, 6.9] → [6.2, 6.9] |
+| `h5-bath-mid` | [4.0, 8.9] → [6.2, 8.9] |
+| `h5-cbath-door` on `h5-liv-w` @ 5.2, `h5-mbath-door` on `h5-bath-w` @ 2.4 | |
+
+`h5-m-n` also had to be extended **3.8 → 4.0** to meet the new wall: the master's rect ends at 4.0,
+so the old end left a 0.2 m gap the flood fill walked straight through. Its door offset is measured
+from the wall's START, which has not moved. **8 → 7 of 20 templates remain.**
+
+**Item `(j)` improved for the THIRD consecutive time**: `h5-m-win` is no longer hidden by a
+`wardrobe-3door`, as `.194` freed `h4-m-win` and `.193` freed `g3-liv-win`. Clear windows 78 → **79**.
+These three items were tracked as independent and are coupled through the arranger — give a master
+its walls and the wardrobe stops needing the window wall.
+
+### A false alarm, and the control that caught it
+
+The 5-room master's frame shows a pale blue band across the top. Measured, it is unmistakably sky:
+**R−B −25.5, sd 3.6**, where the same region in `h5-bed2` reads **+27.5** (a warm ceiling). The
+obvious explanation was that my new walls enclose a column wider than the bath ROOM rectangles, and
+a strip inside walls but outside every room would have no ceiling.
+
+**That was wrong.** Widening the rects changed the band not at all — byte-for-byte identical — and a
+control tour with the new walls **removed entirely** shows the same band, also byte-for-byte. It is
+pre-existing for this plan and pose and has nothing to do with this change. The comment in the
+template now says so rather than asserting the diagnosis I started with.
+
+The rect widening is **kept**, on its real merit rather than the invented one: the walls bound more
+space than the old rects covered, so without it a bathroom has floor strips carrying no room finish.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.194 — `(f)` starts: `tpl-hdb-4room`'s bathrooms are enclosed, and item `(j)` improves again
 
 `(z)`14 decided to fix `(f)`, and `.109` measured the worst of it: flood-filling with every wall

@@ -262,7 +262,7 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
-## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **8 of 20 remain** (`v0.31.7.194` enclosed `tpl-hdb-4room`)
+## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **7 of 20 remain** (`.194` enclosed `tpl-hdb-4room`, `.195` `tpl-hdb-5room`)
 
 > **`v0.31.7.194`:** `h4-cbath`/`h4-mbath` owned no walls at all. Three partitions close the bath
 > column (x 3.6-5.7, z 6.5-D) and two doors reach it, which separates all five rooms the ratchet

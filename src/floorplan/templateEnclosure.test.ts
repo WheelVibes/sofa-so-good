@@ -27,7 +27,10 @@ const KNOWN_SHARED_ENCLOSURES = [
   // tpl-hdb-4room FIXED in v0.31.7.194 — `h4-cbath`/`h4-mbath` owned no walls at all. Three
   // partitions close the bath column (x 3.6-5.7, z 6.5-9.7) and two doors reach them, which also
   // separates the master and both bedrooms: the whole five-room component is gone.
-  'tpl-hdb-5room/ground: h5-kit + h5-yard + h5-shelter + h5-living + h5-balcony + h5-bed2 + h5-bed3 + h5-master + h5-cbath + h5-mbath',
+  // tpl-hdb-5room FIXED in v0.31.7.195 — all TEN rooms were one component. Same shape as the
+  // 4-room fix: three partitions close the bath column (x 4.0-6.2, z 6.9-D) plus two doors, and
+  // `h5-m-n` was extended 3.8 -> 4.0 to meet it (the master's rect ends at 4.0, so the old end
+  // left a 0.2 m gap the flood fill walked through).
   'tpl-hdb-exec/ground: ex-bed2 + ex-bed3 + ex-cbath + ex-mbath',
   'tpl-hdb-3gen/ground: g3-gbath + g3-bed2 + g3-master + g3-mbath',
   'tpl-hdb-jumbo/ground: jb-cbath + jb-master + jb-mbath',
