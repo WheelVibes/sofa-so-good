@@ -27,6 +27,36 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.48 — the harness can now aim a first-person camera; (g) partly verified
+
+Last release shipped (g) with its visual proof owed, because the headless harness
+could not turn the walker. Fixing the harness rather than shrugging: the dev-only
+`window.__walkLook` lever already exposed `setPitch`/`getPitch` for the ceiling
+scenario — **yaw joined it**, so a scenario can now aim the camera. Pointer lock is
+unavailable headless, which is exactly why that lever exists.
+
+**What that bought, and what it did not.**
+
+- The loft scenario now asserts the mechanism live: in walk mode `renderedLevels`
+  returns **two** storeys where `visibleLevels` returns one. Probed in the running
+  app, not just unit-tested.
+- A before/after pixel diff of the mezzanine (change reverted vs applied, same
+  framing) shows **2.51% of pixels differ**, in the floor region — the storey below
+  contributing light to the floor above, which is evidence it renders.
+- **The view over the guard rail is still unverified.** Aiming is not enough: the
+  walker also cannot MOVE headlessly (WASD is gated on pointer lock as well), and it
+  spawns across the room from the rail. Recorded in `TODO.md` with what would close
+  it — a `setPosition` on the same lever.
+
+I would rather say this plainly than call (g) done: the mechanism is proven, the
+pixels moved, and nobody has yet seen the overlook itself.
+
+Also fixed a mess I made while capturing those frames: a `git stash pop` during the
+before/after comparison left `package-lock.json` in a conflicted state, which I
+restored from HEAD.
+
+Verified: 10145 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.47 — (g) level isolation in walk mode: implemented, and one claim in its write-up was wrong
 
 Walking an upper storey hid the storey beneath it, so `tpl-loft`'s mezzanine

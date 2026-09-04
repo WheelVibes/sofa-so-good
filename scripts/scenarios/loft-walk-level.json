@@ -1,6 +1,6 @@
 {
   "name": "loft-walk-level",
-  "description": "(g) LEVEL-ISOLATION-IN-WALK: walking tpl-loft's mezzanine used to hide the storey beneath it, so the overlook read as bare sky. Walk mode now renders the immediate storey below. Screenshots the overlook and reports scene mesh/tri cost for the Performance-tier budget.",
+  "description": "(g) LEVEL-ISOLATION-IN-WALK: walking tpl-loft's mezzanine used to hide the storey beneath it. Asserts that walk mode renders TWO storeys where the dollhouse renders one, aims the camera with the dev-only __walkLook lever (pointer lock is unavailable headless), and screenshots the mezzanine. NOTE: the walker cannot be MOVED headlessly (WASD also needs pointer lock), so this cannot frame the view directly over the guard rail \u2014 that check is by hand, see TODO.md.",
   "url": "http://localhost:5208/",
   "steps": [
     {
@@ -49,78 +49,28 @@
       "timeout": 30000
     },
     {
-      "name": "settle-render",
-      "wait": 2500
+      "name": "assert-both-storeys-render",
+      "eval": "(()=>{const s=window.__store.getState(); import('/src/floorplan/levels.ts').then(m=>{const rl=m.renderedLevels(s.floorPlan,s.viewLevelId,s.cameraMode==='firstPerson').map(l=>l.id); const vl=m.visibleLevels(s.floorPlan,s.viewLevelId).map(l=>l.id); window.__probe={rendered:rl,visible:vl,mode:s.cameraMode}}); return 'queued'})()"
     },
     {
-      "name": "shot-0",
-      "screenshot": "loft-yaw-0"
+      "name": "probe-wait",
+      "wait": 1200
     },
     {
-      "name": "turn-1",
-      "drag": {
-        "from": [
-          800,
-          500
-        ],
-        "to": [
-          480,
-          500
-        ],
-        "steps": 8
-      }
+      "name": "check-probe",
+      "eval": "(()=>{const p=window.__probe; if(!p) throw new Error('probe did not run'); if(p.mode!=='firstPerson') throw new Error('not walking: '+p.mode); if(p.visible.length!==1) throw new Error('expected one visible level, got '+p.visible); if(p.rendered.length!==2) throw new Error('walk mode should render the storey below too, got '+p.rendered); return p.rendered.join('+')})()"
     },
     {
-      "name": "settle-1",
-      "wait": 700
+      "name": "look-around",
+      "eval": "(()=>{const l=window.__walkLook; if(!l||!l.setYaw) throw new Error('__walkLook.setYaw missing \u2014 the harness cannot aim a first-person camera without it'); l.setYaw(4.71); l.setPitch(-0.5); return 'aimed'})()"
     },
     {
-      "name": "shot-1",
-      "screenshot": "loft-yaw-1"
+      "name": "settle-look",
+      "wait": 900
     },
     {
-      "name": "turn-2",
-      "drag": {
-        "from": [
-          800,
-          500
-        ],
-        "to": [
-          480,
-          500
-        ],
-        "steps": 8
-      }
-    },
-    {
-      "name": "settle-2",
-      "wait": 700
-    },
-    {
-      "name": "shot-2",
-      "screenshot": "loft-yaw-2"
-    },
-    {
-      "name": "turn-3",
-      "drag": {
-        "from": [
-          800,
-          500
-        ],
-        "to": [
-          480,
-          500
-        ],
-        "steps": 8
-      }
-    },
-    {
-      "name": "settle-3",
-      "wait": 700
-    },
-    {
-      "name": "shot-3",
-      "screenshot": "loft-yaw-3"
+      "name": "shot-mezzanine",
+      "screenshot": "loft-mezzanine"
     }
   ]
 }

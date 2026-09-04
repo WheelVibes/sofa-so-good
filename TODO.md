@@ -2064,5 +2064,13 @@ Expect a floor and the room below, not the pale sky gradient and two black holes
 (g) write-up describes. If it is wrong, the suspect is the wiring in
 `apartment/PlanShell.tsx`, not `renderedLevels`, which has tests.
 
-Worth fixing the harness for its own sake: a scenario step that sets first-person
-yaw/pitch directly would make every future walk-mode change verifiable.
+**PARTLY DONE v0.31.8.48.** `window.__walkLook` already had `setPitch`/`getPitch`;
+yaw joined it, so a scenario can now AIM the walker. What is still missing is MOVING
+it: WASD is gated on pointer lock too, so the walker is stuck at its spawn, and the
+loft's guard rail is across the room from there. A `__walkLook.setPosition` (or a
+harness key-injection path that bypasses the lock check) would close it.
+
+What IS now verified headlessly: the scenario asserts walk mode renders TWO storeys
+where the dollhouse renders one, and a before/after pixel diff of the mezzanine shows
+2.51% of pixels changing — the ground storey's lights reaching the floor above, which
+is evidence it renders. What is NOT verified is the view over the rail itself.

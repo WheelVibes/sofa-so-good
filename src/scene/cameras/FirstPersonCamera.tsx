@@ -314,7 +314,7 @@ export function FirstPersonCamera() {
     }
   }, [gl])
 
-  // Dev-only: scenario-harness lever to set/read the walk-mode look pitch
+  // Dev-only: scenario-harness lever to set/read the walk-mode look direction
   // directly (IXT-SUITES ceilingDesign rung — "look up to see the ceiling").
   // Real mouse-look needs OS-level Pointer Lock (unavailable headless) and
   // touch-look needs a synthetic multi-touch drag stream on a coarse-pointer
@@ -331,6 +331,15 @@ export function FirstPersonCamera() {
         pitch.current = clampPitch(p)
       },
       getPitch: () => pitch.current,
+      // Yaw joined pitch in v0.31.8.48, for the same reason and with the same
+      // scope: verifying (g) LEVEL-ISOLATION-IN-WALK needs the walker turned
+      // toward `tpl-loft`'s mezzanine rail, and the spawn faces a wall. Without
+      // it a walk-mode change can be unit-tested but never SEEN — that release
+      // shipped with its visual proof owed for exactly this reason.
+      setYaw: (y: number) => {
+        yaw.current = y
+      },
+      getYaw: () => yaw.current,
     }
     ;(window as unknown as { __walkLook?: typeof lever }).__walkLook = lever
     return () => {
