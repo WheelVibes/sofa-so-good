@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.293 — `.292` retracted: the shipped maps are fine, the EXPORT is what differs
+
+`.292` concluded the shipped lightmap set was partly stale, from one map measured against one fresh
+bake. Auditing properly reverses it.
+
+**New `lightmap-audit.mjs`** compares every shipped map against a fresh bake using the mean over
+OCCUPIED texels × `scale`, and reports an occupancy ratio beside each value so a packing difference
+cannot pass as a value difference. Against a fresh bake from the **livingDining** export:
+
+| key | ship/fresh | occupancy |
+| --- | --- | --- |
+| 4b1218e6 | **0.981** | 1.02 |
+| 114cf680 | 0.997 | 1.00 |
+| b04c03d3 | 0.998 | 1.00 |
+| 70e55d20 | **1.000** | 1.00 |
+| ce497848 | **1.000** | 1.00 |
+
+Median **0.987** over 10 comparable maps. **The shipped set is not stale.**
+
+Against a bake from the **mainBedroom** export, those same maps read 0.648 / 0.725 / 0.662. So the
+bedroom export bakes about **1.5× brighter**, and `.292`'s 0.562 was measuring that rather than
+staleness. Filed as `(z14)`: two exports of the same flat at the same hour disagree, and until that
+is understood no cross-export bake comparison is trustworthy.
+
+Eliminated already: mesh count is nearly identical (1288 against 1295, so walk-mode reveal culling
+is not dropping walls) and the sun differs only trivially (elevation 83.907 against 84.28, one
+calendar day apart). Prime suspect is that the bedroom export was taken with `LIGHTS=off`, which
+flips `lightOn` on 19 items and may change emissive lamp materials — emissive surfaces are genuine
+emitters in a Cycles bake. But the direction is wrong for that: removing emitters should make the
+bake darker and it is brighter. So I am recording the suspect, not the conclusion, and the next step
+is diffing the two GLBs' materials rather than reasoning about them.
+
+**`(z13)` still stands as a measurement** — the bedroom's GI is 0.678/0.631 against physics in linear
+light where livingDining is ~1.0 — but it is once again without a cause.
+
+**One more instrument lesson.** The audit's first version used a whole-map mean. That is invariant to
+the glTF/Blender v-flip, which is why I chose it, but NOT to atlas packing: `--uv box` fills the slots
+the bake's own face classification picks while `--uv existing` fills whatever the app's `uv1` says. It
+produced a tidy bidirectional 0.64-1.77 spread that read as real staleness in both directions and was
+partly packing. The occupancy column exists so that cannot happen silently again.
+
+
 ## v0.31.7.292 — `(z13)` has a cause: the shipped lightmap set is PARTLY stale
 
 The bedroom's 35 % GI deficit tracks the map, not the shader. At matched settings — res 256, 1024
