@@ -234,6 +234,12 @@ export function hdbExecutive(): FloorPlan {
       iwall('ex-b-corr', [3.6, 6.6], [3.6, D - T]),
       iwall('ex-b2-s', [T, 6.6], [3.6, 6.6]),
       iwall('ex-m-n', [T, 9.2], [3.6, 9.2]),
+      // (f): `ex-cbath`/`ex-mbath` shared a component with `ex-bed2`/`ex-bed3`. The column is
+      // already bounded west by `ex-b-corr` (x 3.6) and east by `ex-liv-w` (x 7.0); what was
+      // missing is a north wall east of 3.6 (`ex-b2-s` stops there) and a divider between the two
+      // baths, which sit at z 6.6-9.0 and 9.2-12.0.
+      iwall('ex-bath-n', [3.6, 6.6], [7.0, 6.6]),
+      iwall('ex-bath-mid', [3.6, 9.1], [7.0, 9.1]),
       // Study nook off the living's north-east.
       iwall('ex-study-s', [7.0, 2.6], [W - T, 2.6]),
     ],
@@ -245,6 +251,12 @@ export function hdbExecutive(): FloorPlan {
       door('ex-main', 'ex-s', 2.1),
       door('ex-master', 'ex-m-n', 1.0),
       door('ex-b2', 'ex-b2-s', 1.0),
+      // (f): the new walls SEAL the bath column, so both baths need access or the enclosure is a
+      // worse defect than the one it fixes. Common bath off the living side through `ex-liv-w`
+      // (starts z 0.1), master bath off the master through `ex-b-corr` (starts z 6.6); each offset
+      // centres the door on its room (cbath z 6.6-9.0, mbath z 9.2-12.0).
+      door('ex-cbath-door', 'ex-liv-w', 7.25),
+      door('ex-mbath-door', 'ex-b-corr', 3.55),
       window('ex-kit-win', 'ex-n', 1.2, 1.8),
       window('ex-b2-win', 'ex-w', 7.2, 1.6),
       // (h) BEDROOM-WINDOW: `ex-bed2b` shipped with no window on any of its own walls.

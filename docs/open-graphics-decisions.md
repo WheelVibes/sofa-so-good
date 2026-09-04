@@ -262,7 +262,11 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
-## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **7 of 20 remain** (`.194` enclosed `tpl-hdb-4room`, `.195` `tpl-hdb-5room`)
+## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ **6 of 20 remain** (`.194` 4-room, `.195` 5-room, `.196` exec)
+
+> **Note for the remaining six:** closing a column can SEAL a bathroom — `tpl-hdb-exec` had no door
+> on either bounding wall, and the enclosure ratchet passes happily on two sealed boxes. Check the
+> doors, not just the ratchet.
 
 > **`v0.31.7.194`:** `h4-cbath`/`h4-mbath` owned no walls at all. Three partitions close the bath
 > column (x 3.6-5.7, z 6.5-D) and two doors reach it, which separates all five rooms the ratchet

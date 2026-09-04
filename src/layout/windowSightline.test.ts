@@ -44,7 +44,6 @@ const KNOWN_BLOCKED = [
   // (h) gave `ex-master` a window it never had AND restored the wardrobe that
   // had been dropped, so the room went from NO glass to glass partly blocked by
   // its own wardrobe. Third instance of item (j)'s pattern.
-  'tpl-hdb-exec/ex-m-win: wardrobe-3door',
   'tpl-hdb-jumbo/jb-b4-win: wardrobe-3door',
   'tpl-hdb-jumbo/jb-b5-win: wardrobe-3door',
   'tpl-hdb-maisonette/em-yard-win: wardrobe-3door',
@@ -119,7 +118,7 @@ describe('tall furniture does not stand in front of a window', () => {
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     expect(windows).toBe(87)
-    // 79 since `v0.31.7.195`, the THIRD consecutive (h)/(f) fix to shorten item (j)'s list rather
+    // 80 since `v0.31.7.196` (`ex-m-win` freed), the FOURTH consecutive (h)/(f) fix to shorten item (j)'s list rather
     // than lengthen it: enclosing `tpl-hdb-5room`'s baths freed `h5-m-win`, as `.194` freed
     // `h4-m-win` and `.193` freed `g3-liv-win`. The three items were tracked as independent and
     // are coupled through the arranger: give a master its walls and the wardrobe stops needing the
@@ -127,6 +126,6 @@ describe('tall furniture does not stand in front of a window', () => {
     // 77 at `v0.31.7.193`. All NINE windows added for item (h) are clear, and the blocked list
     // got SHORTER: `tpl-hdb-3gen/g3-liv-win` is no longer hidden by a `wardrobe-3door`, because
     // the new glass changed where the arranger puts it. Item (j) improved as a side effect of (h).
-    expect(windows - hits.length).toBe(79)
+    expect(windows - hits.length).toBe(80)
   })
 })

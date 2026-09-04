@@ -29,6 +29,40 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.196 — `(f)`: `tpl-hdb-exec` enclosed, and the enclosure nearly SEALED both bathrooms
+
+Third template in the series. `tpl-hdb-exec`'s bath column is already bounded west by `ex-b-corr`
+(x 3.6) and east by `ex-liv-w` (x 7.0), so it needed only a north wall east of 3.6 — `ex-b2-s` stops
+exactly there — and a divider between the two baths:
+
+| wall | span |
+| --- | --- |
+| `ex-bath-n` | [3.6, 6.6] → [7.0, 6.6] |
+| `ex-bath-mid` | [3.6, 9.1] → [7.0, 9.1] |
+
+**And that alone would have been a worse defect than the one it fixes.** The ratchet went green
+immediately, but `tpl-hdb-exec` has only three doors — `ex-main`, `ex-master`, `ex-b2` — and none of
+them is on `ex-b-corr` or `ex-liv-w`. Closing the column left **both bathrooms unreachable**. A
+green ratchet is not a correct plan: the enclosure test asks whether rooms share a component, and
+two sealed boxes pass it perfectly. Doors added: `ex-cbath-door` on `ex-liv-w` @ 7.25 (common bath
+off the living side) and `ex-mbath-door` on `ex-b-corr` @ 3.55 (master bath off the master).
+**7 → 6 of 20 remain.**
+
+**Item `(j)` improved for the FOURTH consecutive time**: `ex-m-win` is no longer hidden by a
+`wardrobe-3door`. Clear windows 79 → **80**. Every `(h)` and `(f)` fix in this series has shortened
+`(j)`'s list.
+
+**The trade, for the second time and consistent with the first.** `tpl-hdb-exec` furnishing
+95 → **93**: enclosing baths takes floor area, so two pieces no longer fit — the same shape as
+`tpl-hdb-3room` losing one to a window in `.193`. `centred` 24 → **23** for the same reason, with
+`stranded` unchanged throughout.
+
+**Verified in the frame:** the common bath is an enclosed room with plain walls and no sightline
+into the bedrooms, drawn as its own room on the minimap.
+
+Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.195 — `(f)`: `tpl-hdb-5room`'s ten-room component is gone, and a false alarm caught by a control
 
 `.194` enclosed `tpl-hdb-4room`. `tpl-hdb-5room` is the same authoring pattern and had the worst

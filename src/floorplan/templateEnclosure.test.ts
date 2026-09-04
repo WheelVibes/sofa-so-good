@@ -31,7 +31,9 @@ const KNOWN_SHARED_ENCLOSURES = [
   // 4-room fix: three partitions close the bath column (x 4.0-6.2, z 6.9-D) plus two doors, and
   // `h5-m-n` was extended 3.8 -> 4.0 to meet it (the master's rect ends at 4.0, so the old end
   // left a 0.2 m gap the flood fill walked through).
-  'tpl-hdb-exec/ground: ex-bed2 + ex-bed3 + ex-cbath + ex-mbath',
+  // tpl-hdb-exec FIXED in v0.31.7.196 — the column was already bounded by `ex-b-corr` and
+  // `ex-liv-w`; it needed a north wall east of x 3.6 and a divider between the two baths, plus
+  // doors, since closing it would otherwise leave both baths unreachable.
   'tpl-hdb-3gen/ground: g3-gbath + g3-bed2 + g3-master + g3-mbath',
   'tpl-hdb-jumbo/ground: jb-cbath + jb-master + jb-mbath',
   'tpl-hdb-maisonette/em-up: emu-bed3 + emu-landing + emu-hall + emu-mbath + emu-fam',
