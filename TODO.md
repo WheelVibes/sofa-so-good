@@ -936,8 +936,29 @@ answer it. Two guard attempts were abandoned on this basis (see the entry above)
     cannot be flush against both. Surveyed over 570 edges that have a wall within 0.3 m:
     **226 flush, 186 short by 0.05, 86 short by 0.15, 58 OVERLAPPING the wall body.** Ratcheted
     in `src/floorplan/roomRectWalls.test.ts` with the arithmetic table.
-    **The fix IS one function, it WORKS, and it was reverted in v0.31.8.61 — read this before
-    re-attempting.** `planRoomRect(room, walls)` resolving each edge to its wall face (median of
+    **v0.31.8.69 got much closer with a SURGICAL form — read this before re-attempting.**
+    Instead of resolving `planRoomRect` (which moves the rect's CENTRE and so moved dining
+    groups), offset only the SNAP DISTANCE per edge: `snapToWall` and `placeFlush` push the piece
+    out by however far that rect edge falls short of its wall face. The rect is untouched, so
+    centring, chair slots and the `TOL` guard cannot be disturbed.
+    **Result: 15 marooned appliances -> 6, all nine of the 0.32 m cluster fixed, and the dining
+    chairs stayed put** — the regression that killed the .61 attempt did not occur.
+    **Two things must be patched, not one.** Patching `snapToWall` alone fixed exactly ONE
+    appliance: the kitchen work-triangle goes through `placeFlush` (`arrangeKitchen`'s `toEnd`),
+    and all eight of the 0.32 m fridges and stoves take that path.
+    **Only PARALLEL walls count.** The nearest wall to a short edge is often a PERPENDICULAR one
+    near its end; using it yields a bogus shortfall that pushes the piece through the real wall.
+    Filter to walls within ~15 degrees of the edge direction.
+    **What is LEFT to solve, and it is now only two items:** one new blocked window
+    (`tpl-condo-penthouse/cp-m-win: wardrobe-3door`) and **one DROPPED `wall-mirror`** in
+    `tpl-terrace-ground`'s upper landing — absent from the output entirely, not merely displaced
+    (verified by widening the test's room-rect finder by 0.2 m; still gone). Deleting furniture
+    is not an acceptable price, which is why .69 reverted. Find what drops the mirror — most
+    likely it now overlaps a piece that moved outward — and this ships.
+    Two benign measurements move with it and are not defects: `placeSeededMounts`' room-centre
+    CONTROL 34 -> 36 (that counter only tallies `CENTRE_IS_RIGHT` defIds, i.e. rugs and tables,
+    so it can never be a stranded appliance) and the per-template item counts.
+    **Superseded note: the fix IS one function, it WORKS, and it was reverted in v0.31.8.61.** `planRoomRect(room, walls)` resolving each edge to its wall face (median of
     5 samples, edges with no wall within 0.3 m left alone, degenerate results falling back)
     **fixed exactly the predicted population: all eight 0.32 m appliances, 15 marooned -> 7.**
     That is the diagnosis confirmed end to end.

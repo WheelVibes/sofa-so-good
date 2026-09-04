@@ -27,6 +27,65 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.69 — nine of fifteen, no dining regression, and one mirror too many
+
+v0.31.8.68 argued the room-rectangle fix gates a whole class of analysis, so it was worth
+another attempt. This one is much closer, and still reverted — but the remaining cost is now
+**two specific items** instead of a five-template regression.
+
+### The surgical form
+
+v0.31.8.61 fixed it in `planRoomRect`, which also moves the rect's CENTRE — the arranger centres
+dining groups on the rect, so `tpl-hdb-3room`'s table slid 0.15 m west and its two west chairs
+were flung to the room's ends.
+
+This time the rect is untouched. Only the **snap distance** changes: `snapToWall` and
+`placeFlush` push a piece out by however far that rect edge falls short of its wall face. Nothing
+that is not against a wall can move, so centring, chair slots and the `TOL` guard are all out of
+reach.
+
+| | before | after |
+| --- | --- | --- |
+| marooned appliances | 15 | **6** |
+| the 0.32 m cluster | 8 | **0** |
+| dining chairs stranded | 0 | **0** |
+
+All nine of the appliances whose distance was 0.18 m of intended gap plus 0.15 m of rect
+shortfall now sit where they were meant to.
+
+### Two implementation facts worth keeping
+
+**Patch both paths, not one.** Patching `snapToWall` alone fixed exactly ONE appliance. The
+kitchen work-triangle goes through `placeFlush` (`arrangeKitchen`'s `toEnd`), and all eight of
+the 0.32 m fridges and stoves take that path.
+
+**Only PARALLEL walls count.** The nearest wall to a short edge is often a *perpendicular* one
+near its end. Using it produces a bogus shortfall that pushes the piece straight through the real
+wall. Filter to walls within ~15° of the edge direction.
+
+### Why it is still reverted
+
+Two items:
+
+1. **One new blocked window** — `tpl-condo-penthouse/cp-m-win: wardrobe-3door`. By the standard
+   I applied in v0.31.8.62 (2 fixes for 3 blockages: bad) this one is fine — 9 for 1.
+2. **One dropped `wall-mirror`**, in `tpl-terrace-ground`'s upper landing. Absent from the output
+   entirely, not merely displaced: I widened the test's room-rect finder by 0.2 m on the theory
+   that the mirror had simply moved past the rect, and it is still gone.
+
+**Deleting furniture is not an acceptable price**, and it has been the line all through the route
+work — *a route bought by removing the sofa is not a fix*. So this waits.
+
+Two other measurements move and are NOT defects, recorded so they are not mistaken for one:
+`placeSeededMounts`' room-centre CONTROL goes 34 → 36 (that counter tallies only
+`CENTRE_IS_RIGHT` defIds — rugs and tables — so it can never be a stranded appliance), and the
+per-template item counts.
+
+`TODO.md` now carries the working implementation, both gotchas, and the two-item list. Whoever
+finds what drops that mirror ships this.
+
+Verified: 10193 tests pass on the reverted tree; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.68 — a check for rooms that are corridors in disguise
 
 v0.31.8.67 proved that `tpl-hdb-4room`'s household shelter is the only route from the kitchen to
