@@ -35,6 +35,41 @@ import type { MeshStandardMaterial, Texture } from 'three'
 import { LinearFilter } from 'three'
 
 /**
+ *
+ * ## CURRENT VALUE: 4.2, refitted in `v0.31.7.223` against a validated chain
+ *
+ * Everything below this section is the HISTORY of earlier fits and their corrections; read it for
+ * the traps, not for the number. The 4.2 comes from the first measurement chain in this thread
+ * that is validated end to end:
+ *
+ * - surfaces confirmed by raycast to be the surface claimed (`.214` found the old fit's "ceiling"
+ *   was not a ceiling — the defect `.181` had already caught once);
+ * - an EXPOSURE-MATCHED byte->linear curve (`.217` found a mismatched one manufactured a 0.65x
+ *   error and eight rounds of false leads);
+ * - a Cycles reference rendered from the app's OWN exported scene at the same camera pose and sun
+ *   vector, through `Standard` so the reference inverts exactly (`scene-glb.mjs`, `.218`).
+ *
+ * Measured app total against that reference, 13:00 with the lamps off:
+ *
+ * | room / surface | gain 6 | gain 4.2 |
+ * | --- | --- | --- |
+ * | livingDining ceiling | 1.376 | **0.986** |
+ * | livingDining wall | 1.380 | **0.977** |
+ * | livingDining floor | 1.393 | **1.010** |
+ * | bedroom2 ceiling | 1.486 | **1.031** |
+ *
+ * `bedroom2` is an independent point on the irradiance axis: its `E_baked` is 0.7985 against
+ * livingDining's 0.4142. Across 09:00 / 13:00 / 17:00 the mean absolute error falls from **32.9 %
+ * to 9.1 %** and the worst from 50.5 % to 27.6 %.
+ *
+ * **The residual is structural, not a gain error.** The worst case is 09:00, where the app is now
+ * ~20-28 % DARK because a static bake cannot carry the sun's bounce (17-23 % of the interior
+ * indirect at that hour, against 0.2-2.7 % at 13:00 and 17:00 — measured with `--sun-energy 0` in
+ * `.222`). Undershooting there is the preferable direction by this file's own long-standing
+ * principle: a surface pushed past its reference is a worse error than one left short of it.
+ *
+ * Frame cost: none. This is one float in a uniform that already exists, and the program cache key
+ * already includes the gain, so the compiled-program count is unchanged.
  * Gain for an **irradiance** set in `'replace'` mode — a different quantity from
  * {@link VISIBILITY_GAIN}, kept separate even though it currently holds the same number.
  *
@@ -190,7 +225,7 @@ import { LinearFilter } from 'three'
  * fix the ceiling and break the floor, because the floor's runtime share is four times the
  * ceiling's.
  */
-export const IRRADIANCE_GAIN = 6
+export const IRRADIANCE_GAIN = 4.2
 
 /** three's chunk that writes the final colour. Replaced only by the DEV visualiser. */
 const OUTPUT_INCLUDE = '#include <opaque_fragment>'

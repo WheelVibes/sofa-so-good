@@ -96,7 +96,15 @@ describe('applyVisibilityLightmap', () => {
     // `v0.31.7.185` removed the `multiply` operator, so the only default that can be right here
     // is the irradiance fit. `v0.31.7.184` refitted it in display space against Cycles
     // references after `.183` derived it with the wrong albedo.
-    expect(IRRADIANCE_GAIN).toBe(6)
+    //
+    // `v0.31.7.223` refitted it AGAIN, to **4.2**, and this is the first fit whose measurement
+    // chain is validated end to end: raycast-verified surfaces (`.214` showed the old fit's
+    // "ceiling" was not a ceiling), an exposure-matched byte->linear curve (`.217` showed a
+    // mismatched one manufactured a 0.65x error), and a Cycles reference rendered from the app's
+    // OWN exported scene at the same pose through `Standard`. Measured against that reference the
+    // old 6 was 1.38-1.49x too bright; 4.2 lands at 0.98-1.03x in two rooms whose baked irradiance
+    // differs by 2x.
+    expect(IRRADIANCE_GAIN).toBe(4.2)
     expect(compile().s.uniforms.visGain.value).toBe(IRRADIANCE_GAIN)
   })
 

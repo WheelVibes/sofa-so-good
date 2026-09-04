@@ -29,6 +29,65 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.223 — SHIPPED: `IRRADIANCE_GAIN` 6 → 4.2, the first fit with a validated measurement chain. And `.222`'s central claim was wrong
+
+**First, the correction.** `.222` claimed the runtime ambient OVERLAPS the baked indirect, a 1.61x
+distribution error, and that `.218`'s 1 % agreement was "two errors cancelling". All of that is
+wrong, and the source says so in a comment I should have read before publishing: the injection
+**REPLACES** `reflectedLight.indirectDiffuse` — *"anything already accumulated into
+`indirectDiffuse` (ambient + hemisphere + IBL) is discarded on purpose, because keeping it is the
+double-count `.67` measured."* The double-count was fixed two hundred commits ago.
+
+So `total_on − total_off` is NOT the bake's contribution; it is `bake − ibl_indirect`. The ibl share
+differs four-fold between the ceiling (16 %) and the floor (63 %), and subtracting it as though the
+bake were additive is precisely what manufactured the 1.61x. `.218`'s reading stands after all.
+
+**Isolating the bake properly** — at 21:00 with the lamps off, where direct and specular are ~0, so
+the total IS the bake (bounded above by a GI-off reading of 0.02-0.03):
+
+| surface | bake term | physical indirect (Cycles, `--sun-energy 0`) | ratio |
+| --- | --- | --- | --- |
+| ceiling | 0.8527 | 0.5679 | 1.50 |
+| wall | 0.7862 | 0.5407 | 1.45 |
+| floor | 0.3103 | 0.2217 | 1.40 |
+
+The bake's distribution is consistent to **7 %**, and its level is uniformly **~1.42x too strong**.
+Which is exactly the case for a constant correction — the thing `.221` refuted. That refutation was
+about fixing the TOTAL across hours with a sun-dependent gain, and it stands on its own terms; it
+does not block a constant that fixes the bake's level.
+
+**So: `IRRADIANCE_GAIN` 6 → 4.2**, predicted from 1/1.42 and then measured:
+
+| room / surface | gain 6 | gain 4.2 |
+| --- | --- | --- |
+| livingDining ceiling | 1.376 | **0.986** |
+| livingDining wall | 1.380 | **0.977** |
+| livingDining floor | 1.393 | **1.010** |
+| bedroom2 ceiling | 1.486 | **1.031** |
+
+`bedroom2` is a genuinely independent point: its `E_baked` is 0.7985 against livingDining's 0.4142,
+so the fit is not one room's coincidence. Across 09:00 / 13:00 / 17:00 the mean absolute error
+against Cycles falls **32.9 % → 9.1 %**, worst 50.5 % → 27.6 %.
+
+**Why this fit deserves more confidence than the one it replaces.** The old 6 was fitted in display
+space against targets measured at a patch that `.214` proved was not a ceiling, using an inversion
+`.217` proved was exposure-mismatched. This one uses raycast-verified surfaces, an exposure-matched
+curve, and a Cycles reference rendered from the app's own exported scene at the same pose. Every
+link is checked.
+
+**The residual is structural.** The worst remaining case is 09:00, where the app is now ~20-28 %
+DARK because a static bake cannot carry the sun's bounce — 17-23 % of the interior indirect at that
+hour against 0.2-2.7 % at 13:00 and 17:00 (`.222`'s `--sun-energy 0` decomposition, which is the one
+part of that commit that holds). Undershooting is the preferable direction by this file's own
+long-standing principle: a surface pushed past its reference is a worse error than one left short.
+
+**Cost: none.** A gain is one float in a uniform that already exists, and the program cache key
+already includes it, so the compiled-program count is unchanged. Default-plan walk after the change:
+`performance` 57.7 / 57.6 fps, `realistic` 43.4 / 39.2 — in line with the recorded ~43 fps baseline.
+
+Suite 10174 green, `tsc` clean, biome clean on every file touched.
+
+
 ## v0.31.7.222 — the deciding measurement: interior indirect is 78-100 % SKY-driven, and the bake's own distribution is off 1.61x with the runtime ambient hiding it
 
 `.221` named the measurement that would choose between the two expensive fixes: a Cycles sky-only
