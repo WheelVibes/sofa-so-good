@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.270 — the load hitch is gone: ~195 shader programs per plan become one
+
+`(z9)` shipped, and via the prerequisite rather than around it.
+
+**The mechanism.** `customProgramCacheKey` encoded the per-map gain, so a plan compiled **~195
+distinct programs** for its baked materials — at `.15`'s measured 216 ms per compile, that is the
+`(z)`6 load hitch. But the gain is a uniform VALUE and changes no shader source. It was in the key
+to stop a re-application silently keeping the old value (`v0.31.7.44`), and that hazard is real:
+read three's `getProgram`, and on a key HIT it returns early, skipping both `onBeforeCompile` and
+the `materialProperties.uniforms` assignment. Materials outlive a plan change here, so the path is
+live.
+
+**A per-material generation satisfies both at once.** Every attach bumps
+`userData.visGeneration`, and the key is `visLightmap:${generation}`. An attach therefore always
+misses for *that* material and `onBeforeCompile` always re-runs with the new values — exactly
+`.44`'s guarantee, and **stronger** than keying on the gain, which silently missed a changed MAP at
+an unchanged gain. Meanwhile every material attached once shares generation 1, so the plan compiles
+one program.
+
+It is deliberately NOT reset by detach, and that subtlety is the whole reason this needed its own
+round: after a detach the material recompiles to its stock program with a fresh uniforms object
+holding no `visMap`/`visGain`, so a re-attach reusing an earlier generation would hit that
+generation's injected program and find those uniforms absent — an indirect term of zero, which
+reads as a bake fault rather than a cache one. Monotonic means a re-attach can never land on a
+stale entry. Both properties are now tested, and the cross-material safety is stated where it was
+previously mis-stated: `materialProperties.programs` is a Map on the MATERIAL, so a shared key
+dedupes nothing across materials and uniform bleed between two materials is impossible.
+
+**Paired A/B, same machine, 2/2 each — and this is a TRADE, not a free win:**
+
+| | p50 | worst frame | achieved fps |
+| --- | --- | --- | --- |
+| gain key (~195 programs) | **10.3 ms** | 1162 / 1107 ms | 49.6 / 49.7 |
+| generation key (1 program) | 11.9 ms | **24 / 27 ms** | **58.4 / 59.2** |
+
+Worth taking: a 1.1 s stall disappears, achieved frame rate goes 49.7 → 58.8, and 11.9 ms is still
+comfortably inside the 16.7 ms budget for 60 fps. But the p50 rise is **unexplained** — fewer
+programs should mean fewer state changes, not more cost. One untested hypothesis: the old stall
+blocked rAF and shifted which part of the 12 s orbit got sampled, so the two p50s may not be
+measured over the same frames. Recorded rather than explained away.
+
+Render output is byte-identical across the change: 0.0 counts on ceiling, wall and floor.
+
+
 ## v0.31.7.269 — colour temperature now depends on which way a surface faces
 
 **`(z8)` fixed.** `SKY_TINT_STRENGTH` is a per-orientation record and `surfaceOrientation()`

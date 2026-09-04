@@ -70,7 +70,7 @@ describe('applyLightmapsFromIndex', () => {
     expect(w.geometry.getAttribute('uv1')).toBeTruthy()
     // The map is bound by a shader injection, not by `material.aoMap` -- that slot compiled
     // the attenuation out entirely (v0.31.7.36/.37), so its absence here is correct.
-    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).toContain('visGain')
+    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).toContain('visLightmap')
   })
 
   it('leaves a mesh untouched when the set has no map for it', () => {
@@ -83,7 +83,9 @@ describe('applyLightmapsFromIndex', () => {
     // "recognised the plan but matched nothing", which would be a bug.
     expect(res).toMatchObject({ candidates: 1, applied: 0, context: null })
     expect(w.geometry.getAttribute('uv1')).toBeUndefined()
-    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).not.toContain('visGain')
+    expect((w.material as MeshStandardMaterial).customProgramCacheKey()).not.toContain(
+      'visLightmap',
+    )
   })
 
   it('never keys sub-1.5 m meshes, so furniture costs nothing', () => {
@@ -237,14 +239,19 @@ describe('the single operator (v0.31.7.185)', () => {
     // This suite used to assert that `multiply` was the DEFAULT, so a `visibility` index could
     // not silently be applied as a replacement. `(z)`5 removed that operator outright, so the
     // protection moved upstream: `VisibilityLightmaps` now REFUSES a non-irradiance index rather
-    // than choosing an operator for it. What remains to pin here is that the gain still keys the
-    // program, which is the collapse `v0.31.7.44` paid for once.
+    // than choosing an operator for it. What remains to pin here is that the key marks the
+    // injection at all -- an un-injected material keeps three's default key and must not collide.
+    //
+    // The GAIN is no longer in the key (`(z9)`): it is a uniform value that changes no shader
+    // source, and keying on it cost ~195 programs per plan and a 1130-1224 ms load hitch.
+    // `v0.31.7.44`'s collapse is instead prevented by a per-material GENERATION, asserted in
+    // `visibilityLightmap.test.ts`.
     const root = new Object3D()
     const w = wall()
     root.add(w)
     applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
     const key = (w.material as MeshStandardMaterial).customProgramCacheKey()
-    expect(key).toContain('visGain')
+    expect(key).toContain('visLightmap')
     expect(key).not.toContain('multiply')
     expect(key).not.toContain('replace')
   })

@@ -116,12 +116,29 @@ describe('applyVisibilityLightmap', () => {
     )
   })
 
-  it('keys the program cache by gain and debug mode, so variants cannot collapse', () => {
-    // A constant key let a with-map and a without-map program share one entry (v0.31.7.35).
-    expect(compile(6).m.customProgramCacheKey()).not.toBe(compile(4).m.customProgramCacheKey())
+  it('keys the program cache by DEBUG mode, which is the only source difference left', () => {
+    // A constant key let a with-map and a without-map program share one entry (v0.31.7.35). That
+    // is still guarded: an un-injected material never overrides `customProgramCacheKey` at all,
+    // so it keeps three's default and cannot collide with `visLightmap:*`.
+    //
+    // The GAIN is no longer in the key -- see `(z9)`. It is a uniform VALUE and changes no shader
+    // source, so keying on it bought ~195 programs per plan and a 1130-1224 ms load hitch. Debug
+    // genuinely rewrites the output chunk, so it stays.
     expect(compile(6).m.customProgramCacheKey()).not.toBe(
       compile(6, true).m.customProgramCacheKey(),
     )
+  })
+
+  it('gives two SEPARATE materials the same key, so a plan compiles one program', () => {
+    // The `(z9)` win, and it is safe for a reason worth naming: three's
+    // `materialProperties.programs` is a Map held on the MATERIAL, so a shared key dedupes nothing
+    // ACROSS materials and two materials cannot bleed uniforms into each other. Measured: ceiling,
+    // wall and floor render with their own distinct gains and tints under this shared key.
+    const a = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
+    const b = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
+    applyVisibilityLightmap(a as never, fakeTexture(), 6, false)
+    applyVisibilityLightmap(b as never, fakeTexture(), 9, false)
+    expect(a.customProgramCacheKey?.()).toBe(b.customProgramCacheKey?.())
   })
 
   it('flags the material for recompilation', () => {
@@ -211,26 +228,35 @@ describe('replace mode (v0.31.7.88)', () => {
     expect(frag()).not.toContain('reflectedLight.indirectDiffuse *=')
   })
 
-  it('keys the program on the GAIN, so two gains cannot share one cached program', () => {
-    // `v0.31.7.44`: a constant key collapsed two variants into one program, and the second
-    // material silently rendered with the first's gain.
+  it('RE-ATTACHING the same material changes the key, so a new gain cannot be swallowed', () => {
+    // `v0.31.7.44`'s hazard, restated as what it actually is. On a key HIT three's `getProgram`
+    // returns early, skipping BOTH `onBeforeCompile` and the `materialProperties.uniforms`
+    // assignment -- so a re-attach that reused its key would never get the new gain to the GPU.
+    // Materials outlive a plan change here (`visClonedFrom`), so this path is live.
     //
-    // `v0.31.7.269` pinned down the MECHANISM, which is narrower than "two gains cannot share a
-    // program" and worth stating exactly. Read three's `getProgram`: `materialProperties.programs`
-    // is a Map held on the MATERIAL, so a cache key only dedupes variants WITHIN one material --
-    // two separate materials cannot bleed uniforms into each other, and the measured proof is that
-    // ceiling, wall and floor rendered with their own distinct gains under a deliberately constant
-    // key. The real hazard is RE-APPLICATION to the SAME material: on a key hit `getProgram`
-    // returns early, skipping both `onBeforeCompile` and the `materialProperties.uniforms`
-    // assignment, so a changed gain never reaches the GPU. Materials outlive a plan change here
-    // (`visClonedFrom`), so that path is live -- which is why the gain stays in the key, and why
-    // collapsing it is filed as `(z9)` behind a correctness prerequisite rather than done. The MODE is no longer part of the key
-    // because `v0.31.7.185` removed the `multiply` operator -- there is one operator now.
-    const a = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
-    const b = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
-    applyVisibilityLightmap(a as never, fakeTexture(), 6, false)
-    applyVisibilityLightmap(b as never, fakeTexture(), 9, false)
-    expect(a.customProgramCacheKey?.()).not.toBe(b.customProgramCacheKey?.())
+    // A per-material GENERATION covers it, and covers more than keying on the gain did: this also
+    // catches a changed MAP at an unchanged gain, which the old key silently missed.
+    const m = fakeMaterial() as unknown as { customProgramCacheKey?: () => string }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false)
+    const first = m.customProgramCacheKey?.()
+    applyVisibilityLightmap(m as never, fakeTexture(), 9, false)
+    expect(m.customProgramCacheKey?.()).not.toBe(first)
+  })
+
+  it('keeps the generation MONOTONIC across a detach, so a re-attach cannot hit a stale program', () => {
+    // After a detach the material recompiles to its stock program with a FRESH uniforms object
+    // that has no `visMap`/`visGain`. If a re-attach reused an earlier generation it would hit
+    // that generation's injected program and find those uniforms absent -- an indirect term of
+    // zero, which reads as a bake fault rather than a cache one. So detach must NOT reset it.
+    const m = fakeMaterial() as unknown as {
+      customProgramCacheKey?: () => string
+      userData: { visGeneration?: number }
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false)
+    const g1 = m.userData.visGeneration
+    detachVisibilityLightmap(m as never)
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false)
+    expect(m.userData.visGeneration).toBeGreaterThan(g1 as number)
   })
 
   it('puts the map through the SAME Lambert BRDF three would have', () => {

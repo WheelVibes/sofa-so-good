@@ -415,7 +415,34 @@ export function applyVisibilityLightmap(
   // Encodes the gain and the debug mode, so two variants cannot share one cached program.
   // Mode is in the key: `replace` and `multiply` are different programs, and a
   // constant key already collapsed two variants once (`v0.31.7.44`).
-  material.customProgramCacheKey = () => `visGain${gain}:${tint.join(',')}${debug ? ':dbg' : ''}`
+  // PER-MATERIAL GENERATION, not the gain. `(z9)`.
+  //
+  // The key used to encode the gain, which made a plan compile **~195 distinct programs** for its
+  // baked materials -- and at `.15`'s measured 216 ms per compile that is the `(z)`6 load hitch:
+  // the worst frame ran **1130-1224 ms**, against 13-344 ms with a single program.
+  //
+  // The gain was in the key to stop a re-application silently keeping the old value
+  // (`v0.31.7.44`), and that hazard is real, though narrower than it was once stated. Read three's
+  // `getProgram`: `materialProperties.programs` is a Map on the MATERIAL, so a key only dedupes
+  // variants WITHIN one material -- two materials can never bleed uniforms into each other. But on
+  // a key HIT it returns early, skipping `onBeforeCompile` AND the `materialProperties.uniforms`
+  // assignment, so re-attaching with a new gain would never reach the GPU. Materials outlive a plan
+  // change here (see `visClonedFrom`), so that path is live.
+  //
+  // A generation satisfies both. Every attach bumps it, so an attach ALWAYS misses for that
+  // material and `onBeforeCompile` always re-runs with the new values -- exactly `.44`'s guarantee,
+  // and stronger than keying on the gain, which missed a change of MAP at an unchanged gain.
+  // Meanwhile every material attached once shares generation 1, so the whole plan compiles ONE
+  // program instead of one per distinct gain.
+  //
+  // Deliberately NOT reset by `detachVisibilityLightmap`: after a detach the material recompiles
+  // to its stock program with a FRESH uniforms object that has no `visMap`/`visGain`, so a
+  // re-attach that reused an earlier generation would hit that generation's injected program and
+  // find those uniforms missing -- an indirect term of zero, which looks like a bake problem
+  // rather than a cache one. Monotonic means a re-attach can never land on a stale entry.
+  const generation = ((material.userData.visGeneration as number | undefined) ?? 0) + 1
+  material.userData.visGeneration = generation
+  material.customProgramCacheKey = () => `visLightmap:${generation}${debug ? ':dbg' : ''}`
   // Marked so it can be found and DETACHED again. Materials outlive a plan change -- they are
   // shared/cached across plans -- so a re-run that only adds maps leaves the previous plan's
   // visibility on any material the new plan reuses (`v0.31.7.45`).
