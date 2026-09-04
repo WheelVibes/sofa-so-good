@@ -29,6 +29,46 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.243 — re-fitting the gain on the 189-map set: wall and floor land at 1.02/0.99, the ceiling at 0.64. And `.242`'s archaeology does not survive
+
+`.242` predicted the 189-map set only needed a gain re-fit. Half right.
+
+Installed it and swept the gain. At **gain 10**, against the same Cycles reference at the same three
+raycast-verified surfaces, 13:00 lamps off:
+
+| surface | gain 4.2 | **gain 10** | Cycles | 4.2 / cyc | **10 / cyc** |
+| --- | --- | --- | --- | --- | --- |
+| ceiling | 0.1638 | 0.3735 | 0.5834 | 0.281 | **0.640** |
+| wall | 0.2496 | 0.5741 | 0.5622 | 0.444 | **1.021** |
+| floor | 0.1013 | 0.2240 | 0.2266 | 0.447 | **0.989** |
+
+So a single gain DOES fit two of the three — wall 1.021 and floor 0.989 is as good as `.223`
+achieved — and the ceiling is left **36 % short**. That is a distribution error of ~1.6x between the
+ceiling and the other two, which no scalar can fix, and it is the same shape as the "ceiling deficit"
+this arc chased for twenty commits before `.214` showed that particular measurement was taken at the
+wrong patch.
+
+**The lever is named in the changelog and I now have a reason to believe it.** `v0.31.7.182`'s title
+is *"`--keep-glazing`: the fix is a flag, and it corrects the ceiling MORE than the wall"*. A bake
+that deletes the window glass gives the ceiling too little relative to the floor, which is exactly
+the residual above. So the next bake is `--min-area 1.5 --keep-glazing`, running now.
+
+**And `.242`'s archaeology has to be withdrawn.** It concluded the shipped maps "predate the glazing
+fix" and were therefore baked WITH glass. That cannot be right: `.181` DISCOVERED that the bake
+deletes glazing, so the pre-`.181` behaviour — which produced the shipped maps — deleted it too. Yet
+my glazing-deleted cell does not match the shipped scales (0.744 / 0.334 / 0.580) while the
+glazing-kept cell nearly does (1.073 / 1.367 / 1.029). Both cannot hold, so **the shipped set's exact
+configuration remains unidentified**; `keep + default` is merely the closest of four cells, and the
+floor at 1.367 says it is not the answer either.
+
+That archaeology also no longer matters much, which is why I am not spending more bakes on it. The
+question worth answering is not "what produced the 2024 maps" but "what configuration matches
+CYCLES at verified surfaces" — and that is measured directly, with the shipped set as neither the
+target nor the control.
+
+Reverted to the shipped 111-map set and `gain 4.2`; `git status` clean. Suite 10219 green.
+
+
 ## v0.31.7.242 — the shipped maps predate the bake's OWN glazing fix, so `.239`'s regression was a GAIN mismatch, not a bad bake
 
 A 2x2 over the two candidate parameters, ten maps per cell, ~90 s each. Ratios to the shipped scale:
