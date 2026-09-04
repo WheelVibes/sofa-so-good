@@ -29,6 +29,51 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.177 — coverage 10 % → 28 %: the 111-map set ships, and windowless rooms get form for the first time
+
+`.173` found the coverage cap (`--limit`, default 24) and `.176` named raising it as the next
+improvement. The bake is done and it ships: **111 maps at 1024 samples, 4.8 MB**, replacing the
+40-map / 1.2 MB set.
+
+| | shipped before | now |
+| --- | --- | --- |
+| maps | 40 | **111** |
+| meshes matched | 40/385 (10 %) | **108/385 (28 %)** |
+| materials patched | 34 | **87** |
+| bytes | 1.2 MB | 4.8 MB |
+
+**Where the new coverage actually shows.** Not on the surfaces that were already mapped — the
+bedroom3 wall reads 140.6 against the old set's 141.2, i.e. unchanged. It shows in the rooms that
+had **no maps at all**, and the household shelter is the clearest: with the GI off its wall is a
+flat, featureless cream field; with it on the same wall has corner darkening and a soft gradient.
+That is the whole point of the feature arriving in a room that previously had none.
+
+That also explains the sweep's shape. The 44-frame tour's new negatives are all small windowless
+spaces — `householdShelter` −4.8/−4.5/−3.9, `bath1` −3.5, `corridor` −3.3, `bath2` −3.0 — and the
+mean falls precisely *because* corners darken on walls that were uniform. The largest positives are
+unchanged (`acLedge` +25.3, `serviceYard` +16.7, `bedroom3` +9.6).
+
+**Cost, measured on three arms rather than two:**
+
+| | p50 | p90 | worst | drawn fps |
+| --- | --- | --- | --- | --- |
+| GI off | 5.6 ms | 7.3 ms | 169 ms | 43.6 |
+| 40 maps | 5.8 ms | 7.3 ms | 318 ms | 42.4 |
+| **111 maps** | **6.8 ms** | **9.2 ms** | **487 ms** | **41.9** |
+
+This is a real steady-state cost where the 40-map set was nearly free: **+1.2 ms p50 and −1.7 fps**
+against the GI off. At 6.8 ms of a 16.7 ms budget it is affordable, and 2.5x the coverage is worth
+it — but it is a trade, not a freebie, and the worst frame (materials compiling at attach, during
+load) grows with it.
+
+**The `.174` check, run before shipping rather than after.** Floor with the new set: **99.8 → 99.8**,
+byte-identical. The floors are still skipped by the shared-material guard, so they receive no GI at
+all — a known gap now rather than a regression, and the honest statement is that floors remain the
+one shell class this feature does not reach.
+
+Suite 10169 green, `tsc` and biome clean.
+
+
 ## v0.31.7.176 — 🎉 the GI is ON again, on a survey sized to the mistake that took it off
 
 `.175` fixed the shared-material cause of `.174`'s black floor and deliberately left the flag OFF,
