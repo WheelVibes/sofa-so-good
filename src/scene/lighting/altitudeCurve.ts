@@ -70,7 +70,12 @@ interface SkyKey {
  */
 const LIGHTING_KEYS: ReadonlyArray<LightingKey> = [
   {
-    altDeg: 30,
+    // NEW TOP KEY (`v0.31.7.257`). The table used to stop at 30°, so `bracket()` clamped every
+    // altitude from 30° to 90° to one value and the beam was constant across a range where air
+    // mass halves. Anchoring at 85° = 1.0 keeps the HIGH-sun end exactly where it was, which
+    // matters because 13:00 (elevation 83.9°) is the hour validated against Cycles at 0.974 —
+    // the correction has to come out of the low end, and it does.
+    altDeg: 85,
     values: {
       sun: 1.0,
       ambient: 0.6,
@@ -80,9 +85,33 @@ const LIGHTING_KEYS: ReadonlyArray<LightingKey> = [
     },
   },
   {
+    // 45° and 30° now follow the Kasten-Young beam, normalised to 85°: 0.903 and 0.781. The
+    // sunColor/ambient/sky keys are UNCHANGED — this corrects the beam's strength, not its warmth.
+    altDeg: 45,
+    values: {
+      sun: 0.903,
+      ambient: 0.6,
+      sunColor: [1.0, 0.96, 0.88],
+      skyColor: [0.55, 0.66, 0.92],
+      groundColor: [0.42, 0.38, 0.34],
+    },
+  },
+  {
+    altDeg: 30,
+    values: {
+      sun: 0.781,
+      ambient: 0.6,
+      sunColor: [1.0, 0.96, 0.88],
+      skyColor: [0.55, 0.66, 0.92],
+      groundColor: [0.42, 0.38, 0.34],
+    },
+  },
+  {
     altDeg: 10,
     values: {
-      sun: 0.85,
+      // 0.318 from the same beam column (air mass 5.59). Was 0.85, which sat ABOVE the corrected
+      // 30° value and would have inverted the curve — the sun brightening as it set.
+      sun: 0.318,
       ambient: 0.55,
       sunColor: [1.0, 0.92, 0.78],
       skyColor: [0.62, 0.62, 0.78],
@@ -92,7 +121,11 @@ const LIGHTING_KEYS: ReadonlyArray<LightingKey> = [
   {
     altDeg: 0,
     values: {
-      sun: 0.4,
+      // The one DELIBERATE departure from physics in this chain. Air mass at the horizon is 37.9,
+      // so the beam column says ~0.000 — but the warm `sunColor` below is a chosen sunset, and
+      // deleting the beam that carries it would delete the look. 0.10 keeps a dim warm beam and
+      // stays monotonic under the 10° value; it is a look call, flagged as one.
+      sun: 0.1,
       ambient: 0.4,
       sunColor: [1.0, 0.72, 0.42],
       skyColor: [0.72, 0.56, 0.46],

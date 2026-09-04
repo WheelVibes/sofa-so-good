@@ -29,6 +29,54 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.257 — SHIPPED: the sun's beam now falls with altitude. 17:00 wall 1.445 → 1.368, and it explains only a QUARTER of the excess
+
+`.256` specified the fix and flagged its trade-off. Built, measured, shipped — and it is a smaller
+win than the mechanism suggested.
+
+**The curve.** `LIGHTING_KEYS` gains a top key at **85°** carrying `sun: 1.0`, so the high-sun end
+does not move — 13:00 is the hour validated against Cycles and had to stay put. Below it, the beam
+follows Kasten-Young normalised to 85°: **45° → 0.903, 30° → 0.781, 10° → 0.318**. The 10° key had to
+come down from 0.85 or the curve would have inverted, with the sun brightening as it set.
+
+**0° is 0.10, and that is a look call rather than a measurement.** Air mass at the horizon is 37.9,
+so the beam column says ~0.000, but the golden `sunColor` `[1.0, 0.72, 0.42]` at that key is a chosen
+sunset and deleting the beam that carries it would delete the look. Flagged as a departure where the
+key is defined. Every `sunColor`, `ambient`, `skyColor` and `groundColor` is untouched: this changes
+the beam's STRENGTH, not its warmth.
+
+**Measured, three surfaces × three hours against the same Cycles references:**
+
+| hour | surface | before | after |
+| --- | --- | --- | --- |
+| 09:00 | ceiling / wall / floor | 0.836 / 0.807 / 0.738 | 0.838 / 0.807 / 0.727 |
+| 13:00 | ceiling / wall / floor | 1.001 / 0.974 / 1.010 | **0.998 / 0.974 / 1.008** |
+| 17:00 | ceiling / wall / floor | 1.051 / **1.445** / 1.055 | 1.038 / **1.368** / 1.040 |
+
+Mean absolute error **13.4 % → 12.3 %**, worst **44.5 % → 36.8 %**. 13:00 holds to within 0.1 counts
+on all three surfaces, which is what the 85° anchor was for.
+
+**And it explains only about a quarter of the defect, which the arithmetic predicts exactly.** The
+beam at 31° drops 21 %, but direct light is only ~29 % of that wall's total (0.222 of 0.7699), so
+0.21 × 0.222 = 0.047 comes off a 0.77 total — a 6 % change, and 1.445 → 1.368 is 5.3 %. So **~0.175
+linear of the 0.222 gain is still unexplained**, and `(z3)` stays open on that residue rather than
+being closed by this.
+
+**Sunset was the gating risk and it is clear.** A 44-frame tour at 18:00, control by reverting the
+curve: mean **186.5 against 186.3**, darkest frame 131.1 against 131.2, none under 40 counts. The
+beam falls 45 % at that altitude and the tour barely moves, which is itself informative — the
+interior at 18:00 is carried by the bake and the ambient fill, not by the direct beam.
+
+Cost: none. Five numbers in a keyframe table.
+
+Four tests updated rather than deleted, because they encoded the defect: one asserted literally that
+"alt ≥ 30° returns full bright values". They now assert the beam FALLS with altitude, that the curve
+is monotonic across every adjacent pair, that the clamp sits at 85° rather than 30°, and that 60° is
+no longer equal to 30° — which was the whole bug.
+
+Suite 10219 green.
+
+
 ## v0.31.7.256 — the exact mechanism for `(z3)`: `LIGHTING_KEYS`' top key is 30°, so the sun is FLAT from 30° to 90°
 
 `.255` said the sun "has no atmospheric extinction", which is true but vague. The mechanism is one
