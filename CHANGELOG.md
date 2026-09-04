@@ -27,6 +27,46 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.8.82 — one door takes `tpl-hdb-exec` from two sealed groups to one
+
+I said last release that the remaining `TODO.md` work routes through decision (f)'s corridor
+re-plans, and that I would take one template and see it through. `tpl-hdb-exec` was the pick
+because it sat in two ratchets at once. It turned out not to need a re-plan at all.
+
+**`ex-study-s` carried no opening.** So the study's only way in was `ex-liv-w`'s z 1.1–2.0 door
+— and that door opens **west into the kitchen/yard band**, not into the living room. The study
+was therefore grouped with the service band, and the flat read as two sealed groups:
+
+```
+{ kitchen, yard, shelter, study }     { living / dining, bedrooms }
+```
+
+A study you reach through the kitchen is also simply wrong for the room.
+
+**One door mid-wall joins study to living — and because the study already touches the service
+band, it becomes the bridge that connects both groups.** `tpl-hdb-exec/ground` is out of
+`templateConnectivity`'s ratchet, which is down to **two entries** (`tpl-hdb-4room`,
+`tpl-hdb-5room`).
+
+**Zero collateral.** The only failing test in the suite was the ratchet itself, failing because
+an entry had been *removed*: no item counts moved, no window or door blockage, no dining tuck,
+no route access, no appliance change.
+
+### Why the re-plan was not needed
+
+I mapped exec's whole floor first — every room rect, every wall, every opening — expecting to
+have to carve a bedroom corridor out of Bedroom 3 and re-draw half the flat. Reading the map
+instead showed a single missing opening doing all the damage. Mapping before cutting is what
+turned a multi-tick content job into a one-line change.
+
+`bedroomPrivacy`'s `ex-master` entry is untouched: reaching the master still crosses Bedroom 2's
+zone, and *that* is the corridor problem. It is a separate, real re-plan and it is still open.
+
+Looked at `tpl-hdb-exec` furnished — the new door reads correctly in the wall between study and
+living, walls meet, furniture unchanged.
+
+Verified: 10193 tests pass; `tsc`, `biome`, `knip` clean.
+
 ## v0.31.8.81 — sheen was the cheap hypothesis, and it is wrong
 
 v0.31.8.80 concluded the painted flutes need a map. Before accepting that, there was one cheap

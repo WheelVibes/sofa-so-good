@@ -269,6 +269,16 @@ export function hdbExecutive(): FloorPlan {
       // from the same scan, placed at a wall END — mid-wall offsets cost a queen
       // bed, a kitchen counter and a washing machine in earlier batches.
       door('ex-liv-door', 'ex-liv-w', 3.3),
+      // STUDY-ACCESS (v0.31.8.82). `ex-study-s` carried NO opening, so the study's
+      // only way in was `ex-liv-w`'s z 1.1-2.0 door — which opens WEST into the
+      // kitchen/yard band, not into the living room. So the study was grouped with
+      // the service band and `templateConnectivity` counted two sealed groups for
+      // this flat: {kitchen, yard, shelter, study} and {living, bedrooms}. A study
+      // you reach through the kitchen is also just wrong for the room.
+      //
+      // One door mid-wall connects study to living, and because the study already
+      // touches the service band, it becomes the bridge that joins both groups.
+      door('ex-study-door', 'ex-study-s', 1.8),
       // EAST end of the kitchen's run: at 0.15 the door's keep-out took the
       // stove wall and the room lost its RANGE HOOD.
       // Service band reached from the LIVING column, not through a bedroom.

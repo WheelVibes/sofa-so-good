@@ -140,10 +140,17 @@ function roomGroups(
  * bedroom. `tpl-hdb-4room`, `-5room` and `-exec` additionally hold a bedroom
  * with NO external wall, so the fix there is a re-plan, not a door. Everything
  * that was a room simply missing a door has been fixed. */
+// `tpl-hdb-exec/ground` REMOVED in v0.31.8.82 (STUDY-ACCESS). `ex-study-s`
+// carried no opening, so the study's only way in was `ex-liv-w`'s z 1.1-2.0
+// door — which opens WEST into the kitchen/yard band, not into the living room.
+// The study was therefore grouped with the service band, and the flat read as
+// two sealed groups: {kitchen, yard, shelter, study} and {living, bedrooms}.
+// One door mid-wall joins study to living, and because the study already touches
+// the service band it becomes the bridge that connects both. A study you reach
+// through the kitchen was also simply wrong for the room. Down to TWO entries.
 const KNOWN_DISCONNECTED: Record<string, number> = {
   'tpl-hdb-4room/ground': 2,
   'tpl-hdb-5room/ground': 2,
-  'tpl-hdb-exec/ground': 2,
 }
 
 describe('template connectivity (doors open)', () => {
