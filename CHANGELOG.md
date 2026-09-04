@@ -29,6 +29,48 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.221 — the cheap fix REFUTED before building it: a sun-dependent gain cannot work, because the distribution is only right at one hour
+
+`.220` left two honest options for the sun-dependent brightness error. Before reaching for the
+expensive one I tested the cheap one, because it looked very attractive: make `IRRADIANCE_GAIN` a
+function of sun position. The uniform already exists, so it would cost **no frame time, no memory
+and no extra texture fetch** — and `.218` had measured the spatial distribution as right to ~1 %,
+which is exactly the precondition a scalar needs.
+
+That precondition holds at ONE hour. Extending `.218`'s three-surface comparison to 09:00 and 17:00:
+
+| hour | app/Cycles ceiling | wall | floor | ceiling/floor error | wall/floor error |
+| --- | --- | --- | --- | --- | --- |
+| 09:00 | 1.204 | 1.182 | 1.038 | **15.9 %** | **13.9 %** |
+| 13:00 | 1.376 | 1.380 | 1.393 | 1.3 % | 1.0 % |
+| 17:00 | 1.505 | 1.868 | 1.455 | 3.4 % | **28.3 %** |
+
+At 13:00 all three surfaces share one ratio, which is what made a scalar look sufficient — and had I
+only ever measured at 13:00, I would have shipped it. At 09:00 the floor is nearly correct (1.038)
+while the ceiling is 1.204; at 17:00 the wall is 1.868 against a floor of 1.455. **A single
+multiplier cannot correct a distribution error**; a sun-dependent gain would just move the error
+between surfaces, and would look like an improvement at whichever hour it was fitted on.
+
+**The mechanism is legible in the same numbers.** The WALL responds to the sun — byte 205.7 at 13:00
+against 214.1 at 17:00 — because direct sun reaches it at runtime. The CEILING does not (207.1 vs
+208.6) because it is lit almost entirely by the static bake. So what is missing is specifically the
+**sun-dependent indirect** term, and it has a spatial shape rather than just a level. That is why no
+scalar can stand in for it.
+
+Method notes: same exported GLB for every arm (geometry and materials do not depend on the hour),
+same camera position, lamps off, Cycles at 48 samples through `Standard` so the reference inverts
+exactly, and app bytes inverted with a curve validated as hour-independent at exposure 1.38
+(`.220`, under 0.1 counts). Six Cycles renders and four app arms added here.
+
+So the remaining options are the expensive ones, and this round's contribution is that the cheap
+one is now closed with evidence rather than left as an attractive maybe: multiple bakes blended by
+sun position (3x lightmap memory on a 5.2 MB budget, 3x bake time, one extra fetch and a lerp in
+the injected shader), or splitting the bake so the SKY contribution stays static while the sun's
+bounce becomes a runtime term. The next measurement that would choose between them is a Cycles
+sky-only versus sun-only decomposition at these same poses, to see how much of the interior indirect
+is actually sun-driven. Nothing shipped.
+
+
 ## v0.31.7.220 — the 1.38x is NOT a constant (1.20-1.50 across daylight), and the cause is that a STATIC bake cannot track the sun
 
 `.219` left one question open about the 1.38x: is it a constant? If so it is a single calibration

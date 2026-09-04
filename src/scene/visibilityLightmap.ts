@@ -139,6 +139,28 @@ import { LinearFilter } from 'three'
  * ratios 1.06 and 1.04 while the exposure itself moved by 0.600. A grade applied twice would have
  * moved them by 0.6. So exposure is a display transform applied exactly once, and the 1.38x is a
  * genuine global lighting-level offset against the reference.
+ *
+ * ### DO NOT try to fix this with a sun-dependent gain (`v0.31.7.221`)
+ *
+ * The obvious cheap fix — make this constant a function of sun position, since a uniform already
+ * exists and it would cost no frame time — was measured and REFUTED before being built. It needs
+ * the app's spatial distribution to be right at every hour, and it is only right at ONE:
+ *
+ * | hour | app/Cycles ceiling | wall | floor | ceiling/floor error | wall/floor error |
+ * | --- | --- | --- | --- | --- | --- |
+ * | 09:00 | 1.204 | 1.182 | 1.038 | **15.9 %** | **13.9 %** |
+ * | 13:00 | 1.376 | 1.380 | 1.393 | 1.3 % | 1.0 % |
+ * | 17:00 | 1.505 | 1.868 | 1.455 | 3.4 % | **28.3 %** |
+ *
+ * At 13:00 the three surfaces share one ratio, which is what makes a scalar look sufficient. At
+ * 09:00 the floor is nearly correct (1.038) while the ceiling is 1.204, and at 17:00 the wall is
+ * 1.868 against a floor of 1.455. No single multiplier can fix a distribution error, so a
+ * sun-dependent gain would only move the error between surfaces.
+ *
+ * The mechanism is visible in the same table: the WALL responds to the sun (byte 205.7 at 13:00,
+ * 214.1 at 17:00) because direct sun reaches it at runtime, while the CEILING does not (207.1 vs
+ * 208.6) because it is lit almost entirely by the static bake. What is missing is the
+ * sun-dependent INDIRECT term, and that has a spatial shape, not just a level.
  */
 export const IRRADIANCE_GAIN = 6
 
