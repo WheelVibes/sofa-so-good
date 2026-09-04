@@ -29,6 +29,36 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.253 — the grille really is the only window element without `castShadow`, and enabling it changed nothing. Built, measured, REVERTED
+
+`.252` left the 17:00 wall 44 % over the Cycles reference and I attributed it to direct sun the app
+renders itself. Chasing that turned up a real inconsistency and refuted my attribution.
+
+**The inconsistency is real.** In `Window.tsx`, the louvre slats (line 282) and the sash members
+(line 302) both carry `castShadow`; the safety grille does not. So its bars let full sun through in
+the app while a Cycles render of the same geometry blocks them. Coverage measured from
+`grilleBarInstances`: **11-15 bars projecting 0.16-0.32 m² onto 1.6-3.1 m² windows, ~10 %** of the
+glazed opening across the three common sizes.
+
+**And enabling it changed nothing measurable.** The 17:00 east-wall patch read **205.4 both with and
+without** `castShadow` — not 0.1 counts of difference. The frame says why: **there is no sun patch on
+that wall at 17:00 at all**, just plain plaster. So my attribution was wrong. The 44 % overshoot is
+not direct sun on that surface, and this pose cannot test a shadow change.
+
+**Reverted**, on the rule this arc keeps re-learning: revert-and-report beats an unverified fix. The
+change would have added every window's 11-15 instanced bars to the shadow pass on every plan for no
+measured benefit, and "physically more correct" does not justify a shadow-map cost that nothing
+observed.
+
+Filed as `(z2)` GRILLE-NO-SHADOW so it is not lost: the defect is real, the fix is one word, and what
+it needs first is a pose with a visible sun patch on an interior surface. Without that there is no
+way to tell a working shadow from a shadow map that cannot resolve a 3 cm bar — which is the other
+candidate explanation for the null result, and one this round did not separate.
+
+The 17:00 wall's 44 % therefore remains unexplained, and is now known NOT to be grille shadowing.
+Suite 10219 green.
+
+
 ## v0.31.7.252 — the shipped map set also HALVES the sun-dependent error, which was not part of the case for shipping it
 
 `.251` shipped the 195-map set on 13:00 evidence: three surfaces at 1.001 / 0.974 / 1.010 of the
