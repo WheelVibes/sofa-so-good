@@ -29,6 +29,55 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.251 — SHIPPED: 195 lightmaps at `--min-area 1.5 --keep-glazing`. Coverage 107 → 179 applied, accuracy equal or better, gain UNCHANGED
+
+The thread that started at `.227` lands. `--keep-glazing` was the missing piece, exactly as `.182`'s
+title said it would be — *"the fix is a flag, and it corrects the ceiling MORE than the wall"*.
+
+**At `gain 4.2`, unchanged**, against the same Cycles reference at the same three raycast-verified
+surfaces, 13:00 lamps off:
+
+| surface | shipped 111 | glazing-deleted 189 | **keep-glazing 195** |
+| --- | --- | --- | --- |
+| ceiling | 0.986 | 0.281 | **1.001** |
+| wall | 0.977 | 0.444 | **0.974** |
+| floor | 1.010 | 0.447 | **1.010** |
+
+Equal or better than the set it replaces, and no re-fit: `.243`'s 189-map set needed `gain 10` and
+still left the ceiling at 0.640, because deleting the glazing starves the ceiling specifically. The
+median per-map `scale` tells the same story — shipped 1.340, glazing-deleted 0.543, this set 1.171.
+
+**Coverage, the point of the exercise:**
+
+| | shipped | new |
+| --- | --- | --- |
+| applied / candidates | 107 / 386 (28 %) | **179 / 386 (46 %)** |
+| shell / furniture | 98 / 9 | **141 / 38** |
+| maps, size | 111, 5.2 MB | 195, **9.2 MB** |
+
+**Costs, measured not assumed.** Steady-state frame rate is unchanged: `performance` 57.5 / 57.5 fps
+against a 57.7 / 57.6 baseline, `realistic` 42.8 / 38.9 against 43.4 / 39.2 — inside the spread this
+arc has measured repeatedly. Whole-tour brightness is unchanged too: 44 frames mean **189.7 against
+188.9**, darkest frame 135.7 against 139.2, none under 40 counts, and identical geometry (354 meshes,
+95 747 triangles) since maps add no meshes.
+
+What it does cost: **+4.0 MB of download**, 50 materials cloned instead of 19, and the worst frame at
+load grows from ~500 ms to **~700 ms** — 84 more textures and materials compiling as the maps
+attach. That is a real regression on the axis `(z)`6 already tracks (a 1459 ms load hitch, n=1), and
+it is the honest price of the coverage. Steady-state smoothness, which is what the frame rate
+measures, does not move.
+
+**The shipped index now carries its `bake` block**, written by hand because this run launched ten
+minutes before `.245` made it automatic: `min_area 1.5, limit 400, res 256, samples 1024, bit_depth 8,
+per_map_scale, keep_glazing true, portals false, with_sun_disc false, diffuse_bounces null,
+sun_travel [-0.46379, -24.85875, 2.6129], blender [5,2,1]`, flagged `recorded_by_hand`. So this is
+the first set in the project's history that can be reproduced from its own index — which is the whole
+reason `.239`-`.246` were spent.
+
+Verified after install: the `.238` staleness guard reports 179 applied against its floor of 95.
+Suite 10219 green.
+
+
 ## v0.31.7.250 — discharging the cost claim `.234` deferred: +12 draw calls, +25 triangles
 
 `.234` shipped gap ceilings quoting only a static rect count, and `.235` deferred the benchmark

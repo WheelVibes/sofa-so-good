@@ -6,13 +6,47 @@
   "uv_margin": 0.04,
   "encode": 1.0,
   "scale": 1.0,
+  "bake": {
+    "min_area": 1.5,
+    "limit": 400,
+    "res": 256,
+    "res_min": 32,
+    "tpm": null,
+    "samples": 1024,
+    "bit_depth": 8,
+    "per_map_scale": true,
+    "dilate": 4,
+    "bake_margin": 2,
+    "fill_holes": false,
+    "denoise": false,
+    "float_buffer": false,
+    "adaptive_threshold": null,
+    "seed": null,
+    "uv_mode": "box",
+    "device": "CPU",
+    "keep_glazing": true,
+    "portals": false,
+    "with_sun_disc": false,
+    "diffuse_bounces": null,
+    "sun_travel": [
+      -0.46379,
+      -24.85875,
+      2.6129
+    ],
+    "blender": [
+      5,
+      2,
+      1
+    ],
+    "recorded_by_hand": "run predates v0.31.7.245's automatic recording; values are the resolved invocation"
+  },
   "maps": [
     {
       "key": "8d4c1497",
-      "file": "90fc9532-8d4c1497.png",
+      "file": "5487e7de-8d4c1497.png",
       "object": "Mesh_116",
       "area": 34.2,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -31,10 +65,10 @@
     },
     {
       "key": "2b9b2640",
-      "file": "90fc9532-2b9b2640.png",
+      "file": "5487e7de-2b9b2640.png",
       "object": "Mesh_137",
       "area": 29.57,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -53,10 +87,10 @@
     },
     {
       "key": "2b6bce38",
-      "file": "90fc9532-2b6bce38.png",
+      "file": "5487e7de-2b6bce38.png",
       "object": "Mesh_162",
       "area": 26.45,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -83,10 +117,10 @@
     },
     {
       "key": "70e55d20",
-      "file": "90fc9532-70e55d20.png",
+      "file": "5487e7de-70e55d20.png",
       "object": "Mesh_37",
       "area": 24.02,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -113,14 +147,14 @@
           1
         ]
       ],
-      "scale": 5.21549
+      "scale": 5.226514
     },
     {
       "key": "b04c03d3",
-      "file": "90fc9532-b04c03d3.png",
+      "file": "5487e7de-b04c03d3.png",
       "object": "Mesh_95",
       "area": 21.75,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
@@ -135,10 +169,10 @@
     },
     {
       "key": "c6625fec",
-      "file": "90fc9532-c6625fec.png",
+      "file": "5487e7de-c6625fec.png",
       "object": "Mesh_145",
       "area": 19.66,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -161,10 +195,10 @@
     },
     {
       "key": "d9c19984",
-      "file": "90fc9532-d9c19984.png",
+      "file": "5487e7de-d9c19984.png",
       "object": "Mesh_256",
       "area": 19.43,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -191,10 +225,10 @@
     },
     {
       "key": "114cf680",
-      "file": "90fc9532-114cf680.png",
+      "file": "5487e7de-114cf680.png",
       "object": "Mesh_155",
       "area": 19.39,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -217,38 +251,38 @@
     },
     {
       "key": "ce497848",
-      "file": "90fc9532-ce497848.png",
+      "file": "5487e7de-ce497848.png",
       "object": "Mesh_34",
       "area": 19.3,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.760289
+      "scale": 1.788492
     },
     {
       "key": "4b1218e6",
-      "file": "90fc9532-4b1218e6.png",
+      "file": "5487e7de-4b1218e6.png",
       "object": "Mesh_11",
       "area": 19.3,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.877374
+      "scale": 0.892102
     },
     {
       "key": "0ea45bc2",
-      "file": "90fc9532-0ea45bc2.png",
+      "file": "5487e7de-0ea45bc2.png",
       "object": "Mesh_357",
       "area": 17.37,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -275,14 +309,14 @@
           1
         ]
       ],
-      "scale": 4.429054
+      "scale": 4.429053
     },
     {
       "key": "edccb3ec",
-      "file": "90fc9532-edccb3ec.png",
+      "file": "5487e7de-edccb3ec.png",
       "object": "Mesh_391",
       "area": 15.83,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -305,10 +339,10 @@
     },
     {
       "key": "ca42fc6c",
-      "file": "90fc9532-ca42fc6c.png",
+      "file": "5487e7de-ca42fc6c.png",
       "object": "Mesh_301",
       "area": 14.4,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -335,10 +369,10 @@
     },
     {
       "key": "86b74b68",
-      "file": "90fc9532-86b74b68.png",
+      "file": "5487e7de-86b74b68.png",
       "object": "Mesh_80",
       "area": 14.01,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -365,14 +399,14 @@
           1
         ]
       ],
-      "scale": 5.245016
+      "scale": 5.245018
     },
     {
       "key": "6600a054",
-      "file": "90fc9532-6600a054.png",
+      "file": "5487e7de-6600a054.png",
       "object": "Mesh_331",
       "area": 13.45,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -395,10 +429,10 @@
     },
     {
       "key": "9eadb95b",
-      "file": "90fc9532-9eadb95b.png",
+      "file": "5487e7de-9eadb95b.png",
       "object": "Mesh_103",
       "area": 13.43,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -421,10 +455,10 @@
     },
     {
       "key": "950ec680",
-      "file": "90fc9532-950ec680.png",
+      "file": "5487e7de-950ec680.png",
       "object": "Mesh_129",
       "area": 13.18,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -443,10 +477,10 @@
     },
     {
       "key": "2b735c80",
-      "file": "90fc9532-2b735c80.png",
+      "file": "5487e7de-2b735c80.png",
       "object": "Mesh_246",
       "area": 12.27,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -465,14 +499,14 @@
           1
         ]
       ],
-      "scale": 0.385374
+      "scale": 0.380106
     },
     {
       "key": "5b89afcd",
-      "file": "90fc9532-5b89afcd.png",
+      "file": "5487e7de-5b89afcd.png",
       "object": "Mesh_99",
       "area": 12.1,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -487,24 +521,24 @@
     },
     {
       "key": "d623d608",
-      "file": "90fc9532-d623d608.png",
+      "file": "5487e7de-d623d608.png",
       "object": "Mesh_138",
       "area": 12.03,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.236955
+      "scale": 1.20275
     },
     {
       "key": "d8aa6b3f",
-      "file": "90fc9532-d8aa6b3f.png",
+      "file": "5487e7de-d8aa6b3f.png",
       "object": "Mesh_91",
       "area": 12.02,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -523,10 +557,10 @@
     },
     {
       "key": "ebe17b4c",
-      "file": "90fc9532-ebe17b4c.png",
+      "file": "5487e7de-ebe17b4c.png",
       "object": "Mesh_344",
       "area": 11.25,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -549,38 +583,38 @@
     },
     {
       "key": "6fe1fad0",
-      "file": "90fc9532-6fe1fad0.png",
+      "file": "5487e7de-6fe1fad0.png",
       "object": "Mesh_23",
       "area": 10.68,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.745697
+      "scale": 1.748165
     },
     {
       "key": "022b2d5c",
-      "file": "90fc9532-022b2d5c.png",
+      "file": "5487e7de-022b2d5c.png",
       "object": "Mesh_0",
       "area": 10.68,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.596809
+      "scale": 0.606296
     },
     {
       "key": "369845f4",
-      "file": "90fc9532-369845f4.png",
+      "file": "5487e7de-369845f4.png",
       "object": "Mesh_65",
       "area": 10.67,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -611,10 +645,10 @@
     },
     {
       "key": "d65ca2e0",
-      "file": "90fc9532-d65ca2e0.png",
+      "file": "5487e7de-d65ca2e0.png",
       "object": "Mesh_324",
       "area": 10.62,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -637,52 +671,52 @@
     },
     {
       "key": "fd1fe570",
-      "file": "90fc9532-fd1fe570.png",
+      "file": "5487e7de-fd1fe570.png",
       "object": "Mesh_26",
       "area": 10.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.563932
+      "scale": 1.563676
     },
     {
       "key": "f9ff007c",
-      "file": "90fc9532-f9ff007c.png",
+      "file": "5487e7de-f9ff007c.png",
       "object": "Mesh_3",
       "area": 10.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.049259
+      "scale": 1.036317
     },
     {
       "key": "ec66779a",
-      "file": "90fc9532-ec66779a.png",
+      "file": "5487e7de-ec66779a.png",
       "object": "Mesh_117",
       "area": 10.07,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.244336
+      "scale": 0.239531
     },
     {
-      "key": "06fae53c",
-      "file": "90fc9532-06fae53c.png",
+      "key": "35b947b8",
+      "file": "5487e7de-35b947b8.png",
       "object": "Mesh_614",
       "area": 10.03,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -705,14 +739,14 @@
           1
         ]
       ],
-      "scale": 1.317249
+      "scale": 1.264142
     },
     {
-      "key": "e0ef90b8",
-      "file": "90fc9532-e0ef90b8.png",
+      "key": "d9d97248",
+      "file": "5487e7de-d9d97248.png",
       "object": "Mesh_694",
       "area": 10.03,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -735,42 +769,42 @@
           1
         ]
       ],
-      "scale": 1.122878
+      "scale": 1.071932
     },
     {
       "key": "18182058",
-      "file": "90fc9532-18182058.png",
+      "file": "5487e7de-18182058.png",
       "object": "Mesh_2",
       "area": 9.73,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.702751
+      "scale": 0.717747
     },
     {
       "key": "34039ae8",
-      "file": "90fc9532-34039ae8.png",
+      "file": "5487e7de-34039ae8.png",
       "object": "Mesh_25",
       "area": 9.73,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.642142
+      "scale": 1.647086
     },
     {
       "key": "c98b2ad2",
-      "file": "90fc9532-c98b2ad2.png",
+      "file": "5487e7de-c98b2ad2.png",
       "object": "Mesh_133",
       "area": 9.52,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
@@ -785,80 +819,80 @@
     },
     {
       "key": "6f5a1254",
-      "file": "90fc9532-6f5a1254.png",
+      "file": "5487e7de-6f5a1254.png",
       "object": "Mesh_96",
       "area": 9.23,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.755374
+      "scale": 1.758741
     },
     {
       "key": "fb760a20",
-      "file": "90fc9532-fb760a20.png",
+      "file": "5487e7de-fb760a20.png",
       "object": "Mesh_146",
       "area": 9.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.068826
+      "scale": 1.061641
     },
     {
       "key": "69f847e0",
-      "file": "90fc9532-69f847e0.png",
+      "file": "5487e7de-69f847e0.png",
       "object": "Mesh_149",
       "area": 9.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.339895
+      "scale": 1.329748
     },
     {
       "key": "c7452170",
-      "file": "90fc9532-c7452170.png",
+      "file": "5487e7de-c7452170.png",
       "object": "Mesh_156",
       "area": 9.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.87434
+      "scale": 0.873159
     },
     {
       "key": "3a061a18",
-      "file": "90fc9532-3a061a18.png",
+      "file": "5487e7de-3a061a18.png",
       "object": "Mesh_159",
       "area": 9.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.970847
+      "scale": 0.975241
     },
     {
       "key": "0d4a5a08",
-      "file": "90fc9532-0d4a5a08.png",
+      "file": "5487e7de-0d4a5a08.png",
       "object": "Mesh_413",
       "area": 9.13,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -885,10 +919,10 @@
     },
     {
       "key": "8a028021",
-      "file": "90fc9532-8a028021.png",
+      "file": "5487e7de-8a028021.png",
       "object": "Mesh_58",
       "area": 8.95,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -907,14 +941,14 @@
           1
         ]
       ],
-      "scale": 3.388766
+      "scale": 3.388764
     },
     {
       "key": "211ef768",
-      "file": "90fc9532-211ef768.png",
+      "file": "5487e7de-211ef768.png",
       "object": "Mesh_514",
       "area": 8.81,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -937,14 +971,14 @@
           0
         ]
       ],
-      "scale": 8.38755
+      "scale": 8.387556
     },
     {
-      "key": "6cef786c",
-      "file": "90fc9532-6cef786c.png",
+      "key": "71019534",
+      "file": "5487e7de-71019534.png",
       "object": "Mesh_956",
       "area": 8.51,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -967,14 +1001,14 @@
           1
         ]
       ],
-      "scale": 0.442916
+      "scale": 0.444742
     },
     {
       "key": "667f0954",
-      "file": "90fc9532-667f0954.png",
+      "file": "5487e7de-667f0954.png",
       "object": "Mesh_76",
       "area": 8.25,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -989,14 +1023,14 @@
           0
         ]
       ],
-      "scale": 3.504329
+      "scale": 3.506974
     },
     {
       "key": "8ac7d2d4",
-      "file": "90fc9532-8ac7d2d4.png",
+      "file": "5487e7de-8ac7d2d4.png",
       "object": "Mesh_112",
       "area": 7.95,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1011,14 +1045,14 @@
           0
         ]
       ],
-      "scale": 3.045663
+      "scale": 3.045659
     },
     {
-      "key": "baa7330c",
-      "file": "90fc9532-baa7330c.png",
+      "key": "e20d19d0",
+      "file": "5487e7de-e20d19d0.png",
       "object": "Mesh_604",
       "area": 7.65,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1041,42 +1075,42 @@
           1
         ]
       ],
-      "scale": 0.648277
+      "scale": 0.676272
     },
     {
       "key": "d1e42cac",
-      "file": "90fc9532-d1e42cac.png",
+      "file": "5487e7de-d1e42cac.png",
       "object": "Mesh_31",
       "area": 7.36,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.183033
+      "scale": 0.18115
     },
     {
       "key": "01074a20",
-      "file": "90fc9532-01074a20.png",
+      "file": "5487e7de-01074a20.png",
       "object": "Mesh_8",
       "area": 7.36,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.367905
+      "scale": 0.342016
     },
     {
       "key": "c7a302a2",
-      "file": "90fc9532-c7a302a2.png",
+      "file": "5487e7de-c7a302a2.png",
       "object": "Mesh_860",
       "area": 7.29,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1099,14 +1133,14 @@
           1
         ]
       ],
-      "scale": 1.169379
+      "scale": 1.192189
     },
     {
       "key": "808ba4f4",
-      "file": "90fc9532-808ba4f4.png",
+      "file": "5487e7de-808ba4f4.png",
       "object": "Mesh_605",
       "area": 7.15,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1133,14 +1167,14 @@
           1
         ]
       ],
-      "scale": 1.188625
+      "scale": 1.199222
     },
     {
       "key": "7155fcec",
-      "file": "90fc9532-7155fcec.png",
+      "file": "5487e7de-7155fcec.png",
       "object": "Mesh_487",
       "area": 6.44,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1163,14 +1197,14 @@
           0
         ]
       ],
-      "scale": 8.308132
+      "scale": 8.300787
     },
     {
       "key": "10d7b7d1",
-      "file": "90fc9532-10d7b7d1.png",
+      "file": "5487e7de-10d7b7d1.png",
       "object": "Mesh_123",
       "area": 6.44,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1181,14 +1215,14 @@
           0
         ]
       ],
-      "scale": 2.44943
+      "scale": 2.449433
     },
     {
       "key": "9faf29ce",
-      "file": "90fc9532-9faf29ce.png",
+      "file": "5487e7de-9faf29ce.png",
       "object": "Mesh_861",
       "area": 6.12,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1211,14 +1245,14 @@
           1
         ]
       ],
-      "scale": 1.361257
+      "scale": 1.35269
     },
     {
       "key": "94be06ae",
-      "file": "90fc9532-94be06ae.png",
+      "file": "5487e7de-94be06ae.png",
       "object": "Mesh_378",
       "area": 6.08,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1236,11 +1270,11 @@
       "scale": 3.031372
     },
     {
-      "key": "17578a78",
-      "file": "90fc9532-17578a78.png",
+      "key": "6ee167a8",
+      "file": "5487e7de-6ee167a8.png",
       "object": "Mesh_1004",
       "area": 5.91,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1267,14 +1301,14 @@
           1
         ]
       ],
-      "scale": 0.446737
+      "scale": 0.436488
     },
     {
-      "key": "c2947ef4",
-      "file": "90fc9532-c2947ef4.png",
+      "key": "1eb173a8",
+      "file": "5487e7de-1eb173a8.png",
       "object": "Mesh_978",
       "area": 5.9,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1297,70 +1331,70 @@
           1
         ]
       ],
-      "scale": 0.703725
+      "scale": 0.727115
     },
     {
       "key": "87fe1f58",
-      "file": "90fc9532-87fe1f58.png",
+      "file": "5487e7de-87fe1f58.png",
       "object": "Mesh_4",
       "area": 5.6,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.414564
+      "scale": 0.422205
     },
     {
       "key": "daf4e480",
-      "file": "90fc9532-daf4e480.png",
+      "file": "5487e7de-daf4e480.png",
       "object": "Mesh_27",
       "area": 5.6,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.432468
+      "scale": 0.423048
     },
     {
       "key": "a7d8bd00",
-      "file": "90fc9532-a7d8bd00.png",
+      "file": "5487e7de-a7d8bd00.png",
       "object": "Mesh_247",
       "area": 5.4,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.776786
+      "scale": 0.781162
     },
     {
       "key": "989882c0",
-      "file": "90fc9532-989882c0.png",
+      "file": "5487e7de-989882c0.png",
       "object": "Mesh_250",
       "area": 5.4,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.090057
+      "scale": 1.096796
     },
     {
       "key": "b5394a54",
-      "file": "90fc9532-b5394a54.png",
+      "file": "5487e7de-b5394a54.png",
       "object": "Mesh_496",
       "area": 5.35,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1387,10 +1421,10 @@
     },
     {
       "key": "5a302394",
-      "file": "90fc9532-5a302394.png",
+      "file": "5487e7de-5a302394.png",
       "object": "Mesh_505",
       "area": 5.35,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1413,14 +1447,14 @@
           0
         ]
       ],
-      "scale": 8.586172
+      "scale": 8.586175
     },
     {
       "key": "bd63f06d",
-      "file": "90fc9532-bd63f06d.png",
+      "file": "5487e7de-bd63f06d.png",
       "object": "Mesh_236",
       "area": 5.13,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1439,72 +1473,42 @@
           1
         ]
       ],
-      "scale": 0.615629
+      "scale": 0.596052
     },
     {
       "key": "ad5ab0d0",
-      "file": "90fc9532-ad5ab0d0.png",
+      "file": "5487e7de-ad5ab0d0.png",
       "object": "Mesh_196",
       "area": 5.06,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.337985
+      "scale": 0.325467
     },
     {
       "key": "71ccb1a4",
-      "file": "90fc9532-71ccb1a4.png",
+      "file": "5487e7de-71ccb1a4.png",
       "object": "Mesh_199",
       "area": 5.06,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.846649
+      "scale": 0.839382
     },
     {
-      "key": "56ef7ee4",
-      "file": "90fc9532-56ef7ee4.png",
-      "object": "Mesh_719",
-      "area": 5.0,
-      "ctx": "90fc9532",
-      "slots": [
-        [
-          0,
-          0
-        ],
-        [
-          0,
-          1
-        ],
-        [
-          1,
-          0
-        ],
-        [
-          2,
-          0
-        ],
-        [
-          2,
-          1
-        ]
-      ],
-      "scale": 1.244973
-    },
-    {
-      "key": "23a3a910",
-      "file": "90fc9532-23a3a910.png",
+      "key": "0f2d7c60",
+      "file": "5487e7de-0f2d7c60.png",
       "object": "Mesh_673",
-      "area": 5.0,
-      "ctx": "90fc9532",
+      "area": 4.99,
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1527,84 +1531,114 @@
           1
         ]
       ],
-      "scale": 0.865047
+      "scale": 0.823317
+    },
+    {
+      "key": "51d769e0",
+      "file": "5487e7de-51d769e0.png",
+      "object": "Mesh_719",
+      "area": 4.99,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.224282
     },
     {
       "key": "79643a4c",
-      "file": "90fc9532-79643a4c.png",
+      "file": "5487e7de-79643a4c.png",
       "object": "Mesh_325",
       "area": 4.81,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 3.058025
+      "scale": 3.144411
     },
     {
       "key": "ded563f4",
-      "file": "90fc9532-ded563f4.png",
+      "file": "5487e7de-ded563f4.png",
       "object": "Mesh_328",
       "area": 4.81,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 3.264381
+      "scale": 3.264705
     },
     {
       "key": "4be9196c",
-      "file": "90fc9532-4be9196c.png",
+      "file": "5487e7de-4be9196c.png",
       "object": "Mesh_130",
       "area": 4.81,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 3.289723
+      "scale": 3.335878
     },
     {
       "key": "45659f5c",
-      "file": "90fc9532-45659f5c.png",
+      "file": "5487e7de-45659f5c.png",
       "object": "Mesh_404",
       "area": 4.78,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.084887
+      "scale": 0.087076
     },
     {
       "key": "afdc5b3c",
-      "file": "90fc9532-afdc5b3c.png",
+      "file": "5487e7de-afdc5b3c.png",
       "object": "Mesh_407",
       "area": 4.78,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.011244
+      "scale": 0.010195
     },
     {
       "key": "0b380ec2",
-      "file": "90fc9532-0b380ec2.png",
+      "file": "5487e7de-0b380ec2.png",
       "object": "Mesh_452",
       "area": 4.65,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1623,14 +1657,14 @@
           1
         ]
       ],
-      "scale": 2.881573
+      "scale": 2.881572
     },
     {
       "key": "4b662acc",
-      "file": "90fc9532-4b662acc.png",
+      "file": "5487e7de-4b662acc.png",
       "object": "Mesh_811",
       "area": 4.59,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1657,14 +1691,14 @@
           1
         ]
       ],
-      "scale": 1.215033
+      "scale": 1.186879
     },
     {
       "key": "12284c98",
-      "file": "90fc9532-12284c98.png",
+      "file": "5487e7de-12284c98.png",
       "object": "Mesh_720",
       "area": 4.58,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1691,14 +1725,14 @@
           1
         ]
       ],
-      "scale": 1.794014
+      "scale": 1.794142
     },
     {
       "key": "6db70f88",
-      "file": "90fc9532-6db70f88.png",
+      "file": "5487e7de-6db70f88.png",
       "object": "Mesh_674",
       "area": 4.58,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1725,28 +1759,28 @@
           1
         ]
       ],
-      "scale": 1.912572
+      "scale": 1.899137
     },
     {
       "key": "44885254",
-      "file": "90fc9532-44885254.png",
+      "file": "5487e7de-44885254.png",
       "object": "Mesh_100",
       "area": 4.51,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.304815
+      "scale": 0.293686
     },
     {
       "key": "62befce4",
-      "file": "90fc9532-62befce4.png",
+      "file": "5487e7de-62befce4.png",
       "object": "Mesh_537",
       "area": 4.51,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1773,66 +1807,66 @@
     },
     {
       "key": "53c099b8",
-      "file": "90fc9532-53c099b8.png",
+      "file": "5487e7de-53c099b8.png",
       "object": "Mesh_335",
       "area": 4.29,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 3.137419
+      "scale": 3.126163
     },
     {
       "key": "4d4bead0",
-      "file": "90fc9532-4d4bead0.png",
+      "file": "5487e7de-4d4bead0.png",
       "object": "Mesh_338",
       "area": 4.29,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.006054
+      "scale": 0.006507
     },
     {
       "key": "627066b0",
-      "file": "90fc9532-627066b0.png",
+      "file": "5487e7de-627066b0.png",
       "object": "Mesh_348",
       "area": 4.29,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.012751
+      "scale": 0.013067
     },
     {
       "key": "f3407cc0",
-      "file": "90fc9532-f3407cc0.png",
+      "file": "5487e7de-f3407cc0.png",
       "object": "Mesh_351",
       "area": 4.29,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.405379
+      "scale": 0.397178
     },
     {
       "key": "7186c474",
-      "file": "90fc9532-7186c474.png",
+      "file": "5487e7de-7186c474.png",
       "object": "Mesh_606",
       "area": 4.25,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1859,14 +1893,14 @@
           1
         ]
       ],
-      "scale": 1.624167
+      "scale": 1.635203
     },
     {
       "key": "e3009f4c",
-      "file": "90fc9532-e3009f4c.png",
+      "file": "5487e7de-e3009f4c.png",
       "object": "Mesh_577",
       "area": 4.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1893,28 +1927,28 @@
           1
         ]
       ],
-      "scale": 0.099321
+      "scale": 0.106885
     },
     {
       "key": "ffa47d88",
-      "file": "90fc9532-ffa47d88.png",
+      "file": "5487e7de-ffa47d88.png",
       "object": "Mesh_92",
       "area": 4.03,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 2.420013
+      "scale": 2.414268
     },
     {
       "key": "804975ce",
-      "file": "90fc9532-804975ce.png",
+      "file": "5487e7de-804975ce.png",
       "object": "Mesh_456",
       "area": 4.01,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -1933,70 +1967,70 @@
           1
         ]
       ],
-      "scale": 2.64483
+      "scale": 2.644833
     },
     {
       "key": "16502a9c",
-      "file": "90fc9532-16502a9c.png",
+      "file": "5487e7de-16502a9c.png",
       "object": "Mesh_28",
       "area": 3.98,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.386855
+      "scale": 0.386926
     },
     {
       "key": "7cbabf38",
-      "file": "90fc9532-7cbabf38.png",
+      "file": "5487e7de-7cbabf38.png",
       "object": "Mesh_5",
       "area": 3.98,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.216698
+      "scale": 0.216699
     },
     {
       "key": "c5e2e948",
-      "file": "90fc9532-c5e2e948.png",
+      "file": "5487e7de-c5e2e948.png",
       "object": "Mesh_175",
       "area": 3.81,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.029556
+      "scale": 0.029171
     },
     {
       "key": "a62eac48",
-      "file": "90fc9532-a62eac48.png",
+      "file": "5487e7de-a62eac48.png",
       "object": "Mesh_178",
       "area": 3.81,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.733838
+      "scale": 0.753688
     },
     {
       "key": "8abd29b4",
-      "file": "90fc9532-8abd29b4.png",
+      "file": "5487e7de-8abd29b4.png",
       "object": "Mesh_652",
       "area": 3.81,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2019,28 +2053,28 @@
           1
         ]
       ],
-      "scale": 0.703734
+      "scale": 0.692158
     },
     {
       "key": "fd3a4da8",
-      "file": "90fc9532-fd3a4da8.png",
+      "file": "5487e7de-fd3a4da8.png",
       "object": "Mesh_120",
       "area": 3.69,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 1.807779
+      "scale": 1.82212
     },
     {
       "key": "9c9df8d4",
-      "file": "90fc9532-9c9df8d4.png",
+      "file": "5487e7de-9c9df8d4.png",
       "object": "Mesh_561",
       "area": 3.65,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2067,14 +2101,14 @@
           1
         ]
       ],
-      "scale": 0.849058
+      "scale": 0.888291
     },
     {
       "key": "adaeed9c",
-      "file": "90fc9532-adaeed9c.png",
+      "file": "5487e7de-adaeed9c.png",
       "object": "Mesh_566",
       "area": 3.65,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2101,14 +2135,14 @@
           1
         ]
       ],
-      "scale": 0.877867
+      "scale": 0.87717
     },
     {
       "key": "4a851ed4",
-      "file": "90fc9532-4a851ed4.png",
+      "file": "5487e7de-4a851ed4.png",
       "object": "Mesh_598",
       "area": 3.65,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2135,14 +2169,14 @@
           1
         ]
       ],
-      "scale": 1.803646
+      "scale": 1.809787
     },
     {
       "key": "467afea4",
-      "file": "90fc9532-467afea4.png",
+      "file": "5487e7de-467afea4.png",
       "object": "Mesh_556",
       "area": 3.65,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2169,84 +2203,84 @@
           1
         ]
       ],
-      "scale": 0.377564
+      "scale": 0.396303
     },
     {
       "key": "6fcb6cd4",
-      "file": "90fc9532-6fcb6cd4.png",
+      "file": "5487e7de-6fcb6cd4.png",
       "object": "Mesh_134",
       "area": 3.55,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.659883
+      "scale": 0.658083
     },
     {
       "key": "906a1de8",
-      "file": "90fc9532-906a1de8.png",
+      "file": "5487e7de-906a1de8.png",
       "object": "Mesh_7",
       "area": 3.55,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.004722
+      "scale": 0.009057
     },
     {
       "key": "ac225580",
-      "file": "90fc9532-ac225580.png",
+      "file": "5487e7de-ac225580.png",
       "object": "Mesh_30",
       "area": 3.55,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.075765
+      "scale": 0.08199
     },
     {
       "key": "14b476b0",
-      "file": "90fc9532-14b476b0.png",
+      "file": "5487e7de-14b476b0.png",
       "object": "Mesh_1",
       "area": 3.49,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.586292
+      "scale": 0.585265
     },
     {
       "key": "1e62bd08",
-      "file": "90fc9532-1e62bd08.png",
+      "file": "5487e7de-1e62bd08.png",
       "object": "Mesh_24",
       "area": 3.49,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.521676
+      "scale": 0.529414
     },
     {
-      "key": "66ccf34c",
-      "file": "90fc9532-66ccf34c.png",
+      "key": "61035ff4",
+      "file": "5487e7de-61035ff4.png",
       "object": "Mesh_613",
       "area": 3.33,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2269,14 +2303,14 @@
           1
         ]
       ],
-      "scale": 6.022183
+      "scale": 5.928038
     },
     {
       "key": "5e53aba0",
-      "file": "90fc9532-5e53aba0.png",
+      "file": "5487e7de-5e53aba0.png",
       "object": "Mesh_770",
       "area": 3.26,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2299,14 +2333,14 @@
           1
         ]
       ],
-      "scale": 1.074835
+      "scale": 1.074058
     },
     {
-      "key": "e777b40c",
-      "file": "90fc9532-e777b40c.png",
+      "key": "0f89aea4",
+      "file": "5487e7de-0f89aea4.png",
       "object": "Mesh_800",
       "area": 3.26,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2329,70 +2363,70 @@
           1
         ]
       ],
-      "scale": 2.064943
+      "scale": 2.046765
     },
     {
       "key": "3841fe38",
-      "file": "90fc9532-3841fe38.png",
+      "file": "5487e7de-3841fe38.png",
       "object": "Mesh_13",
       "area": 3.24,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.245132
+      "scale": 0.248463
     },
     {
       "key": "4f5f5c9e",
-      "file": "90fc9532-4f5f5c9e.png",
+      "file": "5487e7de-4f5f5c9e.png",
       "object": "Mesh_36",
       "area": 3.24,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.264444
+      "scale": 0.258143
     },
     {
       "key": "493bea2c",
-      "file": "90fc9532-493bea2c.png",
+      "file": "5487e7de-493bea2c.png",
       "object": "Mesh_29",
       "area": 3.24,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.290765
+      "scale": 0.294568
     },
     {
       "key": "8d847f70",
-      "file": "90fc9532-8d847f70.png",
+      "file": "5487e7de-8d847f70.png",
       "object": "Mesh_6",
       "area": 3.24,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           2,
           0
         ]
       ],
-      "scale": 0.185142
+      "scale": 0.187354
     },
     {
       "key": "97a3789c",
-      "file": "90fc9532-97a3789c.png",
+      "file": "5487e7de-97a3789c.png",
       "object": "Mesh_216",
       "area": 3.19,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2419,10 +2453,10 @@
     },
     {
       "key": "76558990",
-      "file": "90fc9532-76558990.png",
+      "file": "5487e7de-76558990.png",
       "object": "Mesh_144",
       "area": 3.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2437,10 +2471,10 @@
     },
     {
       "key": "1ad16b76",
-      "file": "90fc9532-1ad16b76.png",
+      "file": "5487e7de-1ad16b76.png",
       "object": "Mesh_141",
       "area": 3.17,
-      "ctx": "90fc9532",
+      "ctx": "5487e7de",
       "slots": [
         [
           0,
@@ -2452,6 +2486,2077 @@
         ]
       ],
       "scale": 3.014286
+    },
+    {
+      "key": "fa3752d4",
+      "file": "5487e7de-fa3752d4.png",
+      "object": "Mesh_143",
+      "area": 3.17,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 3.300686
+    },
+    {
+      "key": "7f6a7fe0",
+      "file": "5487e7de-7f6a7fe0.png",
+      "object": "Mesh_33",
+      "area": 3.12,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.209142
+    },
+    {
+      "key": "6187eaec",
+      "file": "5487e7de-6187eaec.png",
+      "object": "Mesh_10",
+      "area": 3.12,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.883438
+    },
+    {
+      "key": "8f1fe77c",
+      "file": "5487e7de-8f1fe77c.png",
+      "object": "Mesh_704",
+      "area": 3.06,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.827979
+    },
+    {
+      "key": "3eb34a84",
+      "file": "5487e7de-3eb34a84.png",
+      "object": "Mesh_311",
+      "area": 2.99,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.004334
+    },
+    {
+      "key": "a4e239d4",
+      "file": "5487e7de-a4e239d4.png",
+      "object": "Mesh_314",
+      "area": 2.99,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.142963
+    },
+    {
+      "key": "28b909ac",
+      "file": "5487e7de-28b909ac.png",
+      "object": "Mesh_653",
+      "area": 2.95,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.609001
+    },
+    {
+      "key": "77452cf4",
+      "file": "5487e7de-77452cf4.png",
+      "object": "Mesh_77",
+      "area": 2.86,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.987589
+    },
+    {
+      "key": "305e6f3a",
+      "file": "5487e7de-305e6f3a.png",
+      "object": "Mesh_908",
+      "area": 2.77,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.540978
+    },
+    {
+      "key": "8827f790",
+      "file": "5487e7de-8827f790.png",
+      "object": "Mesh_998",
+      "area": 2.72,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.380583
+    },
+    {
+      "key": "446571e8",
+      "file": "5487e7de-446571e8.png",
+      "object": "Mesh_982",
+      "area": 2.72,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.609022
+    },
+    {
+      "key": "5351b4fc",
+      "file": "5487e7de-5351b4fc.png",
+      "object": "Mesh_721",
+      "area": 2.69,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 2.324821
+    },
+    {
+      "key": "00e59780",
+      "file": "5487e7de-00e59780.png",
+      "object": "Mesh_675",
+      "area": 2.69,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 2.168995
+    },
+    {
+      "key": "af452150",
+      "file": "5487e7de-af452150.png",
+      "object": "Mesh_759",
+      "area": 2.68,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.049754
+    },
+    {
+      "key": "129652fc",
+      "file": "5487e7de-129652fc.png",
+      "object": "Mesh_969",
+      "area": 2.59,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.491938
+    },
+    {
+      "key": "21421a0c",
+      "file": "5487e7de-21421a0c.png",
+      "object": "Mesh_113",
+      "area": 2.57,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.133812
+    },
+    {
+      "key": "246c0458",
+      "file": "5487e7de-246c0458.png",
+      "object": "Mesh_260",
+      "area": 2.53,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 3.121013
+    },
+    {
+      "key": "6c232e08",
+      "file": "5487e7de-6c232e08.png",
+      "object": "Mesh_263",
+      "area": 2.53,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.601502
+    },
+    {
+      "key": "e22b03ca",
+      "file": "5487e7de-e22b03ca.png",
+      "object": "Mesh_827",
+      "area": 2.53,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.721366
+    },
+    {
+      "key": "4013f312",
+      "file": "5487e7de-4013f312.png",
+      "object": "Mesh_812",
+      "area": 2.52,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 3.187403
+    },
+    {
+      "key": "a8212fcc",
+      "file": "5487e7de-a8212fcc.png",
+      "object": "Mesh_809",
+      "area": 2.49,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 4.222156
+    },
+    {
+      "key": "667fdf64",
+      "file": "5487e7de-667fdf64.png",
+      "object": "Mesh_771",
+      "area": 2.47,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.932159
+    },
+    {
+      "key": "96fef3a8",
+      "file": "5487e7de-96fef3a8.png",
+      "object": "Mesh_284",
+      "area": 2.47,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 3.185229
+    },
+    {
+      "key": "2bd5f6e4",
+      "file": "5487e7de-2bd5f6e4.png",
+      "object": "Mesh_287",
+      "area": 2.47,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.033813
+    },
+    {
+      "key": "314d8700",
+      "file": "5487e7de-314d8700.png",
+      "object": "Mesh_382",
+      "area": 2.37,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.879265
+    },
+    {
+      "key": "5f9bf04c",
+      "file": "5487e7de-5f9bf04c.png",
+      "object": "Mesh_385",
+      "area": 2.37,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 3.10135
+    },
+    {
+      "key": "dc75826d",
+      "file": "5487e7de-dc75826d.png",
+      "object": "Mesh_904",
+      "area": 2.32,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.667566
+    },
+    {
+      "key": "c007cd40",
+      "file": "5487e7de-c007cd40.png",
+      "object": "Mesh_904.001",
+      "area": 2.32,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.622753
+    },
+    {
+      "key": "87f66d14",
+      "file": "5487e7de-87f66d14.png",
+      "object": "Mesh_705",
+      "area": 2.3,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.723117
+    },
+    {
+      "key": "2c1296a2",
+      "file": "5487e7de-2c1296a2.png",
+      "object": "Mesh_657.001",
+      "area": 2.28,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.747268
+    },
+    {
+      "key": "2473dd03",
+      "file": "5487e7de-2473dd03.png",
+      "object": "Mesh_718",
+      "area": 2.28,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.8428
+    },
+    {
+      "key": "6a4e90c4",
+      "file": "5487e7de-6a4e90c4.png",
+      "object": "Mesh_718.001",
+      "area": 2.28,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.954597
+    },
+    {
+      "key": "796384ba",
+      "file": "5487e7de-796384ba.png",
+      "object": "Mesh_799",
+      "area": 2.28,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.75457
+    },
+    {
+      "key": "eff106ff",
+      "file": "5487e7de-eff106ff.png",
+      "object": "Mesh_657",
+      "area": 2.28,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.895575
+    },
+    {
+      "key": "d6b06ea0",
+      "file": "5487e7de-d6b06ea0.png",
+      "object": "Mesh_799.001",
+      "area": 2.28,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.621477
+    },
+    {
+      "key": "0424cb2e",
+      "file": "5487e7de-0424cb2e.png",
+      "object": "Mesh_107",
+      "area": 2.27,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.406514
+    },
+    {
+      "key": "f26b9bf4",
+      "file": "5487e7de-f26b9bf4.png",
+      "object": "Mesh_447",
+      "area": 2.27,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 3.11682
+    },
+    {
+      "key": "123277d4",
+      "file": "5487e7de-123277d4.png",
+      "object": "Mesh_965",
+      "area": 2.22,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.906434
+    },
+    {
+      "key": "95252c9c",
+      "file": "5487e7de-95252c9c.png",
+      "object": "Mesh_14",
+      "area": 2.21,
+      "ctx": "5487e7de",
+      "slots": [],
+      "scale": 2.565297
+    },
+    {
+      "key": "0fa4517c",
+      "file": "5487e7de-0fa4517c.png",
+      "object": "Mesh_124",
+      "area": 2.2,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.877828
+    },
+    {
+      "key": "099be23a",
+      "file": "5487e7de-099be23a.png",
+      "object": "Mesh_142",
+      "area": 2.2,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 3.031471
+    },
+    {
+      "key": "a84720d8",
+      "file": "5487e7de-a84720d8.png",
+      "object": "Mesh_615",
+      "area": 2.11,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.451202
+    },
+    {
+      "key": "abb127f4",
+      "file": "5487e7de-abb127f4.png",
+      "object": "Mesh_618",
+      "area": 2.11,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.021556
+    },
+    {
+      "key": "871186c0",
+      "file": "5487e7de-871186c0.png",
+      "object": "Mesh_621",
+      "area": 2.11,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.985533
+    },
+    {
+      "key": "a9c25228",
+      "file": "5487e7de-a9c25228.png",
+      "object": "Mesh_695",
+      "area": 2.11,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.171229
+    },
+    {
+      "key": "9510e924",
+      "file": "5487e7de-9510e924.png",
+      "object": "Mesh_698",
+      "area": 2.11,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.005413
+    },
+    {
+      "key": "2843068c",
+      "file": "5487e7de-2843068c.png",
+      "object": "Mesh_701",
+      "area": 2.11,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.095237
+    },
+    {
+      "key": "89ad842c",
+      "file": "5487e7de-89ad842c.png",
+      "object": "Mesh_484",
+      "area": 2.09,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.700904
+    },
+    {
+      "key": "43be65fc",
+      "file": "5487e7de-43be65fc.png",
+      "object": "Mesh_571",
+      "area": 1.93,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.550286
+    },
+    {
+      "key": "3a0fb89c",
+      "file": "5487e7de-3a0fb89c.png",
+      "object": "Mesh_573",
+      "area": 1.93,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.320501
+    },
+    {
+      "key": "6111b38c",
+      "file": "5487e7de-6111b38c.png",
+      "object": "Mesh_574",
+      "area": 1.93,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.193233
+    },
+    {
+      "key": "4738b1ec",
+      "file": "5487e7de-4738b1ec.png",
+      "object": "Mesh_576",
+      "area": 1.93,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.211391
+    },
+    {
+      "key": "ef435ad8",
+      "file": "5487e7de-ef435ad8.png",
+      "object": "Mesh_358",
+      "area": 1.91,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 3.124005
+    },
+    {
+      "key": "9daa88ac",
+      "file": "5487e7de-9daa88ac.png",
+      "object": "Mesh_1017",
+      "area": 1.91,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.244342
+    },
+    {
+      "key": "d1d2d144",
+      "file": "5487e7de-d1d2d144.png",
+      "object": "Mesh_616",
+      "area": 1.77,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.280499
+    },
+    {
+      "key": "ef806cf0",
+      "file": "5487e7de-ef806cf0.png",
+      "object": "Mesh_619",
+      "area": 1.77,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.036311
+    },
+    {
+      "key": "696e76f0",
+      "file": "5487e7de-696e76f0.png",
+      "object": "Mesh_622",
+      "area": 1.77,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.908726
+    },
+    {
+      "key": "4aceb3a0",
+      "file": "5487e7de-4aceb3a0.png",
+      "object": "Mesh_696",
+      "area": 1.77,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.115405
+    },
+    {
+      "key": "ec9e60d0",
+      "file": "5487e7de-ec9e60d0.png",
+      "object": "Mesh_699",
+      "area": 1.77,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.003156
+    },
+    {
+      "key": "d03fb4f8",
+      "file": "5487e7de-d03fb4f8.png",
+      "object": "Mesh_702",
+      "area": 1.77,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.053864
+    },
+    {
+      "key": "f8bb5ee8",
+      "file": "5487e7de-f8bb5ee8.png",
+      "object": "Mesh_41",
+      "area": 1.77,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.03355
+    },
+    {
+      "key": "ce2268f0",
+      "file": "5487e7de-ce2268f0.png",
+      "object": "Mesh_69",
+      "area": 1.75,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.648519
+    },
+    {
+      "key": "70763454",
+      "file": "5487e7de-70763454.png",
+      "object": "Mesh_423",
+      "area": 1.75,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.689306
+    },
+    {
+      "key": "dee33e64",
+      "file": "5487e7de-dee33e64.png",
+      "object": "Mesh_426",
+      "area": 1.75,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.065655
+    },
+    {
+      "key": "28b480cc",
+      "file": "5487e7de-28b480cc.png",
+      "object": "Mesh_1020",
+      "area": 1.73,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.718548
+    },
+    {
+      "key": "866dbaec",
+      "file": "5487e7de-866dbaec.png",
+      "object": "Mesh_1019",
+      "area": 1.73,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.297563
+    },
+    {
+      "key": "649ead2c",
+      "file": "5487e7de-649ead2c.png",
+      "object": "Mesh_476",
+      "area": 1.67,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.245637
+    },
+    {
+      "key": "2d28b498",
+      "file": "5487e7de-2d28b498.png",
+      "object": "Mesh_454",
+      "area": 1.67,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 2.57353
+    },
+    {
+      "key": "09249064",
+      "file": "5487e7de-09249064.png",
+      "object": "Mesh_477",
+      "area": 1.67,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.342681
+    },
+    {
+      "key": "9ffa701c",
+      "file": "5487e7de-9ffa701c.png",
+      "object": "Mesh_35",
+      "area": 1.63,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.366612
+    },
+    {
+      "key": "7eb5df54",
+      "file": "5487e7de-7eb5df54.png",
+      "object": "Mesh_12",
+      "area": 1.63,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.454539
+    },
+    {
+      "key": "0ea10008",
+      "file": "5487e7de-0ea10008.png",
+      "object": "Mesh_417",
+      "area": 1.62,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 1.77071
+    },
+    {
+      "key": "8b587588",
+      "file": "5487e7de-8b587588.png",
+      "object": "Mesh_420",
+      "area": 1.62,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.06314
+    },
+    {
+      "key": "95bcaf88",
+      "file": "5487e7de-95bcaf88.png",
+      "object": "Mesh_361",
+      "area": 1.6,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 3.075148
+    },
+    {
+      "key": "fb3e34dc",
+      "file": "5487e7de-fb3e34dc.png",
+      "object": "Mesh_461",
+      "area": 1.6,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.689753
+    },
+    {
+      "key": "0a7e3cc0",
+      "file": "5487e7de-0a7e3cc0.png",
+      "object": "Mesh_462",
+      "area": 1.6,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.603729
+    },
+    {
+      "key": "6d7dd3ca",
+      "file": "5487e7de-6d7dd3ca.png",
+      "object": "Mesh_445",
+      "area": 1.58,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 2.837707
+    },
+    {
+      "key": "99473d22",
+      "file": "5487e7de-99473d22.png",
+      "object": "Mesh_104",
+      "area": 1.56,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          2,
+          0
+        ]
+      ],
+      "scale": 0.393177
+    },
+    {
+      "key": "bc593368",
+      "file": "5487e7de-bc593368.png",
+      "object": "Mesh_453",
+      "area": 1.55,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 2.428158
+    },
+    {
+      "key": "53e40aa8",
+      "file": "5487e7de-53e40aa8.png",
+      "object": "Mesh_727",
+      "area": 1.55,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 5.392351
+    },
+    {
+      "key": "fb798c6c",
+      "file": "5487e7de-fb798c6c.png",
+      "object": "Mesh_681",
+      "area": 1.55,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 5.290821
+    },
+    {
+      "key": "96b90b64",
+      "file": "5487e7de-96b90b64.png",
+      "object": "Mesh_446",
+      "area": 1.51,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 3.006419
+    },
+    {
+      "key": "81242ea0",
+      "file": "5487e7de-81242ea0.png",
+      "object": "Mesh_612",
+      "area": 1.5,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 0.003194
+    },
+    {
+      "key": "439a6560",
+      "file": "5487e7de-439a6560.png",
+      "object": "Mesh_898",
+      "area": 1.5,
+      "ctx": "5487e7de",
+      "slots": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scale": 1.21997
     }
   ]
 }
