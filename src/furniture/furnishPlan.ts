@@ -382,7 +382,32 @@ function dropWallClippers(
  * rug, coffee table or dining table belongs in the middle of the room, and the
  * sweep found 17 of those correctly centred.
  */
-const WALL_HUGGING_CATEGORIES = new Set(['bathroom', 'storage', 'seating'])
+/**
+ * Categories whose pieces belong against a wall, so one still sitting on the
+ * seed point should be pulled to one.
+ *
+ * `appliances`, `kitchen` and `laundry` were MISSING until v0.31.9.18, which
+ * meant a fridge, hob, counter run or washing machine stranded on the seed point
+ * was never rescued — it just stayed at the room centre and `dropOverlaps`
+ * deleted it. That is the direct cause of the incomplete kitchens
+ * `roomCompleteness.test.ts` records: `tpl-condo-1bed/c1-kit`'s fridge sat at
+ * (1.20, 5.60), which IS the room centre, overlapping both the hob and the
+ * counter, while a 0.76 x 0.70 m gap stood free in the north-west corner.
+ *
+ * `docs/interior-design-guidelines.md` puts "storage/appliances/beds flush to
+ * walls" in the same breath, so excluding appliances was never deliberate — and
+ * the categories are easy to miss because `roleOf('refrigerator')` already says
+ * `storage` while its CATEGORY says `appliances`, and this check reads the
+ * category.
+ */
+const WALL_HUGGING_CATEGORIES = new Set([
+  'bathroom',
+  'storage',
+  'seating',
+  'appliances',
+  'kitchen',
+  'laundry',
+])
 
 /** Whether a piece found on the seed point should be pulled to a wall. */
 function wantsWall(item: FurnitureItem, defs: Record<string, FurnitureDef>): boolean {
@@ -494,15 +519,24 @@ export function placeSeededMounts(
         maxX: room.origin[0] + room.width,
         maxZ: room.origin[1] + room.depth,
       }
-      for (const it of stranded) {
+      // HOOD-AFTER-STOVE (v0.31.9.18). A hood follows the cooktop, so it has to
+      // be rescued AFTER it — and it has to read the stove's RESCUED position,
+      // not the stale one in `inRoom`. Neither held before: hoods were processed
+      // in list order and the lookup only ever saw pre-move coordinates, so
+      // adding `kitchen` to the wall-hugging set (which finally lets a stranded
+      // stove reach a wall) pushed `tpl-condo-3bed`'s hood from 1.13 m to 2.35 m
+      // away from its own stove. The rule existed; it just could not fire.
+      const stovesLast = [...stranded].sort(
+        (a, b) => Number(a.defId === 'range-hood') - Number(b.defId === 'range-hood'),
+      )
+      for (const it of stovesLast) {
         // A hood follows the cooktop. Only a stove that itself moved off the
         // seed point is a real placement to follow.
         if (it.defId === 'range-hood') {
-          const stove = inRoom.find(
-            (o) =>
-              o.defId === 'stove' &&
-              (Math.abs(o.position[0] - cx) > EPS || Math.abs(o.position[1] - cz) > EPS),
-          )
+          const stove = inRoom
+            .filter((o) => o.defId === 'stove')
+            .map((o) => moved.get(o.id) ?? o)
+            .find((o) => Math.abs(o.position[0] - cx) > EPS || Math.abs(o.position[1] - cz) > EPS)
           if (stove) {
             moved.set(it.id, {
               ...it,

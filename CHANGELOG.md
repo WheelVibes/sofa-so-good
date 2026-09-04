@@ -27,6 +27,56 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.31.9.18 — the seed-point rescue never considered appliances wall-hugging
+
+`tpl-condo-1bed/c1-kit` is missing only its fridge, so it was the narrowest of the five incomplete
+kitchens. Tracing it: the fridge is deleted by `dropOverlaps`, and its position at the time is
+**(1.20, 5.60) — exactly the room centre**, i.e. the seed point. It was never placed, and
+`placeSeededMounts` never rescued it.
+
+**Why: `WALL_HUGGING_CATEGORIES` was `{bathroom, storage, seating}`.**
+
+| piece | category | rescued? |
+|---|---|---|
+| `refrigerator` | `appliances` | **no** |
+| `stove`, `kitchen-counter-l` | `kitchen` | **no** |
+| `washing-machine` | `laundry` | **no** |
+| `bathroom-sink`, `wardrobe-3door` | `bathroom` / `storage` | yes |
+
+So the whole kitchen and laundry categories were excluded from the seed-point rescue.
+`docs/interior-design-guidelines.md` puts "storage/appliances/beds flush to walls" in one breath,
+so this was an oversight rather than a policy — and it is easy to miss because
+`roleOf('refrigerator')` already returns `storage` while its CATEGORY is `appliances`, and this
+check reads the category.
+
+### Fixing it exposed a second bug immediately
+
+Adding the three categories un-marooned `tpl-condo-3bed`'s stove — and pushed its range hood from
+1.13 m to **2.35 m** away from that stove. The "a hood follows the cooktop" rule already existed in
+`placeSeededMounts`, but **could never fire**: hoods were rescued in list order rather than after
+their stove, and the lookup read the stove's position from the stale `inRoom` snapshot instead of
+from `moved`. The rule was correct and unreachable. Rescuing hoods last and reading the moved
+position fixes both at once — the same "satellites follow their host" principle as v0.31.8.86's
+dining chairs.
+
+### Net, and it is all one way
+
+| | before | after |
+|---|---|---|
+| marooned appliances | 2 | **1** |
+| appliances snapped to a wall | 37 | **38** |
+| misaligned hoods | 1 | **0** |
+| hoods over their stove | 13 | **14** |
+| item counts / routes / overlaps | — | **unchanged** |
+
+`KNOWN_MISALIGNED_HOODS` is now EMPTY: every hood in the corpus hangs over its own stove. Verified
+at runtime on `tpl-condo-3bed` — stove@2.45,4.80 and hood@2.45,4.80, **distance 0.000 m**.
+
+**`tpl-condo-1bed/c1-kit` is NOT fixed, and it is a capacity limit like `ctu-mbath`.** Its kitchen
+is 2.0 x 1.6 m; the L-counter claims z 5.62-6.22 across the full width, leaving a 0.70 m deep north
+strip, and a 0.70 m fridge plus `snapToWall`'s 0.06 m gap needs 0.76 m. The rescue now tries, and
+correctly finds nowhere. Its stove stays on the marooned list for the same reason.
+
 ## v0.31.9.17 — the Grandparent Suite's door was centred, so its bed was 0.14 m short
 
 The second bedless bedroom from v0.31.9.15, and unlike `ctu-mbath` this one is a clean fix with no

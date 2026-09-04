@@ -99,7 +99,23 @@ function gapToNearestWall(
 // triangle picked its two candidate walls from the rect's ASPECT alone, so the
 // stove took the long edge with no wall behind it (0.77 m from anything) while a
 // flush one went spare. Wall-backed first now, aspect as the tie-break.
-const KNOWN_MAROONED: string[] = ['tpl-condo-3bed/stove 1.05', 'tpl-condo-1bed/stove 0.59']
+/**
+ * `tpl-condo-3bed/stove` left in v0.31.9.18 (APPLIANCE-WALL-RESCUE).
+ *
+ * `WALL_HUGGING_CATEGORIES` in `furnishPlan.ts` was `{bathroom, storage,
+ * seating}`, so `appliances`, `kitchen` and `laundry` were excluded from the
+ * seed-point rescue entirely and a stranded fridge, hob, counter run or washing
+ * machine was never pulled to a wall. `docs/interior-design-guidelines.md` puts
+ * "storage/appliances/beds flush to walls" in one breath, so this was an
+ * oversight rather than a policy — and easy to miss, because
+ * `roleOf('refrigerator')` already returns `storage` while its CATEGORY is
+ * `appliances`, and this check reads the category.
+ *
+ * `tpl-condo-1bed/stove` stays: that kitchen is 2.0 x 1.6 m and its counter run
+ * already claims the only wall long enough — the same room
+ * `roomCompleteness.test.ts` records as unable to fit a fridge.
+ */
+const KNOWN_MAROONED: string[] = ['tpl-condo-1bed/stove 0.59']
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')
 
@@ -176,7 +192,20 @@ const HOOD_OVER_STOVE_M = 0.15
 const KNOWN_ORPHAN_HOODS = ['tpl-1bed', 'tpl-condo-1study', 'tpl-condo-studio', 'tpl-studio']
 
 /** Templates whose hood is too far from the nearest stove, `id/metres`. */
-const KNOWN_MISALIGNED_HOODS = ['tpl-condo-3bed/1.13']
+/**
+ * EMPTY since v0.31.9.18 — every hood now hangs over its own stove.
+ *
+ * The "a hood follows the cooktop" rule already existed in `placeSeededMounts`,
+ * but could never fire: hoods were rescued in list order rather than after their
+ * stove, and the lookup read the stove's position from the STALE `inRoom`
+ * snapshot instead of from `moved`. So when v0.31.9.18 first let a stranded
+ * stove reach a wall, `tpl-condo-3bed`'s hood went the other way — 1.13 m ->
+ * 2.35 m from its stove. Rescuing hoods last and reading the moved position
+ * fixed both at once.
+ *
+ * Keep the list (and the sweep) so a new template cannot reintroduce one.
+ */
+const KNOWN_MISALIGNED_HOODS: string[] = []
 
 describe('range hoods hang over their stove', () => {
   const hoodsAndStoves = (tplId: string) => {

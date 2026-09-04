@@ -14,6 +14,18 @@ bathrooms in `bathroomFixtures.test.ts`).
   wardrobe, two plants.
 - `tpl-hdb-3gen/ground/g3-gen` (8.7 m²) — **two nightstands and a wardrobe**, flanking nothing.
 
+**PARTLY DIAGNOSED v0.31.9.18 — the rescue never considered appliances wall-hugging.**
+`WALL_HUGGING_CATEGORIES` was `{bathroom, storage, seating}`, excluding `appliances`, `kitchen` and
+`laundry` — so a stranded fridge/hob/counter/washing machine was never pulled to a wall and simply
+died on the seed point. Fixed: marooned appliances 2 -> 1, snapped 37 -> 38. Fixing it also exposed
+that the "hood follows the cooktop" rule could never fire (hoods rescued in list order, reading the
+STALE stove position), so misaligned hoods went 1 -> 0 as well.
+**`c1-kit` is still incomplete and it is a CAPACITY limit**, like `ctu-mbath`: 2.0 x 1.6 m, the
+L-counter takes z 5.62-6.22 across the full width, leaving a 0.70 m north strip, and a 0.70 m
+fridge plus the 0.06 m wall gap needs 0.76 m. The rescue now tries and correctly finds nowhere.
+The remaining four kitchens are the hood-without-hob templates already in
+`applianceWall`'s `KNOWN_ORPHAN_HOODS`; they need their own look.
+
 **Five kitchens are incomplete:**
 - `tpl-studio/st-kit` (5.3 m²) and `tpl-1bed/ob-kit` (5.9 m²) — a ceiling light and a range hood,
   nothing else.
