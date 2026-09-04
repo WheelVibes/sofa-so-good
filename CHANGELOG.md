@@ -29,6 +29,29 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.198 — closing the loop `.197` left open: the jumbo sky region is PRE-EXISTING, controlled
+
+`.197` reported an unceilinged region showing sky above the master's wall in `tpl-hdb-jumbo` and was
+explicit that it was **an observation, not an attribution** — the control had been run for
+`tpl-hdb-5room` in `.195` but not for jumbo. Ran it.
+
+Same pose, same patch, with the new walls **removed entirely**: **192.0, R−B −21.5, sd 5.6** —
+byte-identical to the arm with them. The sky region is pre-existing and has nothing to do with the
+enclosure. It belongs to the still-open bisection entry `jb-wb-corr through jb-master`, where the
+corridor wall runs 3.20 m through the master and the room rect overruns it.
+
+Worth the two minutes: `.195` established this pattern for one template and it would have been easy
+to assume it generalised. It does — but assuming is how the GI thread produced four wrong causal
+claims, and the control is cheap enough that "cheap enough to guess" is not a reason to guess.
+
+**Also recorded:** the probe dev server died mid-session and was restarted. Two tours failed with a
+`page.goto` error before that was noticed; the template file was verified restored (clean
+`git diff`) after each swap, so no measurement in this series was taken against a half-reverted
+tree. That check is worth keeping in the loop whenever a control swaps a source file.
+
+Nothing shipped. Suite 10166 green, `tsc` and biome clean.
+
+
 ## v0.31.7.197 — `(f)`: the HEADLINE case is fixed, and an existing door turned out to be mislabelled
 
 `tpl-hdb-jumbo` is the case item `(f)` opens with: *"walk into the Master Bedroom and look west:
