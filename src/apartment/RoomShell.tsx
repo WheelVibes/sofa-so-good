@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { type Mesh, type MeshStandardMaterial, Vector2 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../features/useFeature'
+import { establishedWallStructure } from '../floorplan/wallHackability'
 import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import type {
   MaterialId,
@@ -181,7 +182,8 @@ function WallBox({
   // the room editor too.
   const wallTypes3dFlag = useFeature('wallTypes3d')
   const showWallTypes = useStore((s) => s.showWallTypes)
-  const overlayColor = wallTypeOverlayColor(wall.spec.structure)
+  // Resolved (v0.31.8.4) — see `PlanShell.tsx`; both views must agree.
+  const overlayColor = wallTypeOverlayColor(establishedWallStructure(wall.spec))
   const showWallTypeJacket = wallTypes3dFlag && showWallTypes && overlayColor !== null
 
   if (len < 1e-6) return null

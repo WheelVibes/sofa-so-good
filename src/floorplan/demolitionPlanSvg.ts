@@ -35,7 +35,7 @@
 import type { WallDiff } from './demolitionPlan'
 import { permitNotes } from './permitNotes'
 import type { HousingType, PlanWall } from './types'
-import { isDemolitionRestricted } from './wallHackability'
+import { establishedWallStructure, isDemolitionRestricted } from './wallHackability'
 
 interface DemolitionPalette {
   /** Kept walls (unchanged). */
@@ -120,9 +120,13 @@ function wallBounds(walls: PlanWall[]): Bounds {
  *  live hackability overlay + wall-delete guard: BOTH `'load-bearing'` AND
  *  `'rc-partition'` (reinforced-concrete partition) are off-limits, not just
  *  load-bearing. */
-const isStructural = (w: PlanWall) => isDemolitionRestricted(w.structure)
+// Resolved, not raw: an external wall is structural by HDB rule even when
+// nobody declared it, and every shipped template leaves `structure` unset
+// (v0.31.8.4). Reading `w.structure` directly reported a flat's own facade as
+// "Unclassified".
+const isStructural = (w: PlanWall) => isDemolitionRestricted(establishedWallStructure(w))
 /** Absent `structure` means the SAME thing as an explicit `'unknown'`. */
-const isUnverified = (w: PlanWall) => (w.structure ?? 'unknown') === 'unknown'
+const isUnverified = (w: PlanWall) => (establishedWallStructure(w) ?? 'unknown') === 'unknown'
 
 /**
  * Render a hacking plan as a standalone SVG string. Plan metres map to pixels

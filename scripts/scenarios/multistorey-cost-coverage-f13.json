@@ -1,6 +1,6 @@
 {
   "name": "multistorey-cost-coverage-f13",
-  "description": "v0.31.5.277 visual verification: on the two-storey Open Loft plan, the design report's finishes + per-room tables must include the UPPER storey's rooms (they were ground-only), and the toolbar room switcher must list them. Pro mode.",
+  "description": "v0.31.5.378 visual verification: on the two-storey Open Loft plan, the design report's finishes + per-room tables must include the UPPER storey's rooms (they were ground-only), and the toolbar room switcher must list them. Pro mode.",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },

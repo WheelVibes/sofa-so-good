@@ -95,7 +95,7 @@ describe('buildSection', () => {
     expect(o.kind).toBe('window')
     expect(o.sill).toBeCloseTo(0.9, 6)
     expect(o.head).toBeCloseTo(2.1, 6)
-    // CORRECTED v0.31.5.282 (was pinned at 2, the opening's along-wall run).
+    // CORRECTED v0.31.5.383 (was pinned at 2, the opening's along-wall run).
     // The section plane is x = 3 spanning (z, y). The host wall runs along X at
     // z = 4 with thickness t in z, so the plane meets the wall — and the window
     // in it — over z in [4 - t/2, 4 + t/2]. The void's horizontal extent is the

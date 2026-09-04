@@ -42,7 +42,7 @@ export function RenovationBudgetPanel() {
 
   const exportCsv = () => {
     // The variation register rides on the SAME sheet as the price it varies
-    // (v0.31.5.307) — a contractor opens the budget CSV, not a separate export.
+    // (v0.31.5.408) — a contractor opens the budget CSV, not a separate export.
     const st = useStore.getState()
     const variation = isFeatureEnabled('variationRegister') ? assembleVariationRegister(st) : null
     const csv = buildRenovationBudgetCsv(alloc, variation, st.tenderedSnapshot)

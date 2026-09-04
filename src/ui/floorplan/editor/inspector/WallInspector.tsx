@@ -7,7 +7,10 @@ import {
   type PlanWall,
   wallLength,
 } from '../../../../floorplan/types'
-import { isDemolitionRestricted } from '../../../../floorplan/wallHackability'
+import {
+  establishedWallStructure,
+  isDemolitionRestricted,
+} from '../../../../floorplan/wallHackability'
 import { endForAngle, endForLength, wallAngleDeg } from '../../../../floorplan/wallOps'
 import { useStore } from '../../../../state/store'
 import { ColorPicker } from '../../../controls/ColorPicker'
@@ -93,7 +96,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
             // R4-7: warn (don't block) before removing a load-bearing / RC wall
             // — its demolition is NOT PERMITTED under HDB rules, but removing it
             // from the drawing is allowed. Non-restricted walls delete as before.
-            if (isDemolitionRestricted(w.structure)) {
+            if (isDemolitionRestricted(establishedWallStructure(w))) {
               const ok = await a.confirmAction({
                 title: 'Not permitted to demolish',
                 message:

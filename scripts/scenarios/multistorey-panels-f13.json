@@ -1,6 +1,6 @@
 {
   "name": "multistorey-panels-f13",
-  "description": "v0.31.5.280 visual verification: on the two-storey Open Loft with furniture on the upper level, the Budget panel's 'Spend by room' must credit the loft room, and the Layers panel must group the upstairs rooms. Pro mode.",
+  "description": "v0.31.5.381 visual verification: on the two-storey Open Loft with furniture on the upper level, the Budget panel's 'Spend by room' must credit the loft room, and the Layers panel must group the upstairs rooms. Pro mode.",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },

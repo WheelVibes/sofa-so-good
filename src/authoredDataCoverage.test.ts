@@ -1,5 +1,5 @@
 /**
- * Guards on AUTHORED-DATA coverage — the failure mode v0.31.5.288 found.
+ * Guards on AUTHORED-DATA coverage — the failure mode v0.31.5.389 found.
  *
  * The tile setting-out table rendered empty from the day it shipped, because
  * `planTileCoursing` reads FLOOR finishes and no floor material carried a
@@ -104,7 +104,7 @@ describe('template wall structure is unauthored, deliberately', () => {
  * Two lessons converge here, both learned the hard way in this arc:
  *
  * **1. A regex over source is a sample, not an enumeration, and its coverage is
- * invisible in the result.** v0.31.5.296 reported "0 of 6 emitters carry a lamp
+ * invisible in the result.** v0.31.5.397 reported "0 of 6 emitters carry a lamp
  * spec". There are EIGHT — `vanity` and `aquarium` use unquoted keys the pattern
  * skipped — and lumens were already derived, so both the numerator and the
  * denominator were wrong from one bad pattern. The wrong denominator is what

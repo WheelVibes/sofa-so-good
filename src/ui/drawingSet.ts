@@ -793,7 +793,7 @@ export function buildDrawingSheets(
   let minorWallsOmitted = 0
   if (layerOn(layers, 'elevations')) {
     const allElevations = projectAllElevations(plan, items, catalog)
-    // Wall-tile course grid per face (v0.31.5.291). Keyed by `levelId:wallId`
+    // Wall-tile course grid per face (v0.31.5.392). Keyed by `levelId:wallId`
     // because wall ids are level-local geometry while an elevation carries its
     // own storey. A wall bordering two rooms yields a face per room; the FIRST
     // wins here, since one elevation draws one wall and the alternative is
@@ -1236,7 +1236,7 @@ export function buildDrawingSheets(
     }
   }
 
-  // Variation register (v0.31.5.309) — what changed since the design was
+  // Variation register (v0.31.5.410) — what changed since the design was
   // priced, and what it costs. A sheet rather than only the budget CSV because
   // the drawing set is the document that gets handed over, and a variation is
   // conventionally issued as a sheet with its own revision letter. Rides the

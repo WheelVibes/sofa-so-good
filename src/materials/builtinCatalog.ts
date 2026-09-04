@@ -48,7 +48,7 @@ export const PLASTER_UV_SCALE: [number, number] = [0.6, 0.6]
  * `floorplan/tileCoursing.ts` for the tile setting-out table and the tiling
  * layout plan sheet.
  *
- * **Why these and only these.** Before v0.31.5.288 no FLOOR material carried a
+ * **Why these and only these.** Before v0.31.5.389 no FLOOR material carried a
  * module at all — only three wall tiles did — so `planTileCoursing`, which reads
  * FLOOR finishes, could never produce a single row. The setting-out table has
  * been rendering empty since it shipped, and the layout sheet would have too:

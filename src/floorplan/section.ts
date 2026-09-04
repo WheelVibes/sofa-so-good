@@ -357,7 +357,7 @@ function buildLevelSection(
         // void punched through that column. Using the opening width drew a
         // 1.2 m window as a 1.2 m-wide hole in a 0.2 m wall — six times too
         // wide, spilling across the neighbouring rooms. Seen in the Open Loft
-        // report frame while verifying the stacked section (v0.31.5.282);
+        // report frame while verifying the stacked section (v0.31.5.383);
         // `wid` is still what decides WHETHER the cut hits the opening above.
         width: thicknessM(w),
         sill,

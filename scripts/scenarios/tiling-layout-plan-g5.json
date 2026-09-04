@@ -1,6 +1,6 @@
 {
   "name": "tiling-layout-plan-g5",
-  "description": "v0.31.5.288 visual verification: the new Tiling layout plan sheet. Sets 600x600 porcelain on several rooms of the default flat, opens the drawing set, and captures the sheet — the tile grid struck from the computed origin, the perimeter cut bands tinted, the origin cross, and the per-room module/cut note.",
+  "description": "v0.31.5.389 visual verification: the new Tiling layout plan sheet. Sets 600x600 porcelain on several rooms of the default flat, opens the drawing set, and captures the sheet — the tile grid struck from the computed origin, the perimeter cut bands tinted, the origin cross, and the per-room module/cut note.",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },

@@ -70,7 +70,7 @@ export const CRITIQUE = {
    * deliberately excluded, see `HEAD_EXCLUDED` below. Published as a band of
    * 18-24 inches; the check takes the LOWER bound, 18" = 0.46 m, so it only
    * speaks up below what every source treats as the floor rather than nagging
-   * anyone inside the band. Corrected v0.31.5.314: this was 0.61 m applied to
+   * anyone inside the band. Corrected v0.31.5.415: this was 0.61 m applied to
    * all four sides, which failed every correctly-placed bedroom rug in the
    * shipped default flat.
    */

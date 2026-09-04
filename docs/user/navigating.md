@@ -73,6 +73,14 @@ per‑wall **Structure** setting you declare in the floor‑plan editor's wall
 inspector — the same data behind the plan editor's Hackability overlay and the
 demolition sheet.
 
+**Your home's external walls are classified for you.** HDB's rule is that the
+external walls of a flat belong to HDB and cannot be hacked, so any wall set to
+*Exterior* thickness shows as structural even if you never tagged it. Your own
+tag always wins if you set one. **Internal** partitions stay unclassified until
+you declare them — deliberately: a load‑bearing wall and a non‑structural precast
+partition can look identical on a plan, so the app will not guess. Confirm with
+HDB or a PE before hacking anything.
+
 ## Walk mode
 
 Switch to walk (<kbd>V</kbd>) to feel the real scale of the flat at eye level.

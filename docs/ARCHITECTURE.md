@@ -1685,7 +1685,7 @@ same change that reshapes a system.
   spec is written for) and returns U0 vs the kind's `MIN_UNIFORMITY`, keyed by room id. Passed as
   `roomLuxTableHtml`'s optional 4th arg to add a "U0 / min" column — omitted keeps the previous
   5-column table. Consumed by the drawing set's lighting sheet and the report's lighting section. A
-  fully dark room PASSES (no meaningful uniformity; the average status already flags it `low`). **The spatial grid is directional since v0.31.5.260**: `PlanLight.iesProfile` (from
+  fully dark room PASSES (no meaningful uniformity; the average status already flags it `low`). **The spatial grid is directional since v0.31.5.361**: `PlanLight.iesProfile` (from
   `item.props.iesProfile`) plus an INJECTED `LuxGridOptions.iesShape` resolver
   (`lighting/ies/iesShape.ts` bridging the stateful `iesStore` to the pure grid) scales the peak
   candela by `relativeIntensityAt` — the profile's distribution normalised to its OWN peak, SHAPE
@@ -1945,13 +1945,21 @@ same change that reshapes a system.
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
   emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
   a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
+  **Circulation is graded, not counted (v0.31.8.3).** Both of its penalty terms used to saturate:
+  measured over a 62-layout corpus, 53 of 62 hit `advisoryCap` and scored exactly
+  `58 − 20 × impassable`, so a 100-point category with five inputs behaved as a 4-valued function
+  of one integer. Pinches are now charged by DEPTH below the 0.5 m squeeze bar and advisory gaps by
+  SHORTFALL below the 0.9 m ideal, both capped (13 distinct corpus scores → 43, 8 floor-clamped → 0).
+  `CIRCULATION.gradedFloor` is 0.40 m because that is the INSTRUMENT's floor, not a human dimension:
+  `findNarrowGaps` skips any item↔item gap `≤ CLEARANCE.sofaToCoffee`, so **a genuinely blocked
+  route is invisible to this category** — a measured, test-pinned limitation, logged in `TODO.md`.
 - **Layout critique** (`analysis/layoutCritique.ts` pure → `buildLayoutCritique(plan,items,catalog)`:
   cited comfort bands — TV viewing distance, conversation distance, coffee-table reach, SG sofa
   proportion, and rug size against the sofa / dining table / bed it anchors, with a bedside
   RUNNER recognised as its own published layout and judged on length rather than overhang).
   Each finding carries the measured figure + the band so a user can judge the call; `skipped`
   where the design lacks the pieces. Consumed by `schemeOptions` (compare modal) **and**, since
-  v0.31.5.314, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed
+  v0.31.5.415, the report behind `layoutCritiqueReport` (pro) — for a long time it was consumed
   by `schemeOptions` ALONE, so it critiqued generated alternatives and never the home the user
   drew. `FurnitureItem.rotation` is RADIANS here (`itemFootprint` feeds it to `Math.cos`);
   `roughlyAligned` compares against a quarter turn, not `% 90`. Thresholds/sources:
@@ -2142,7 +2150,16 @@ same change that reshapes a system.
   **Live hackability overlay (R4-7):** `floorplan/wallHackability.ts` is the one classifier —
   `wallHackability(structure)` → `'no'` (load-bearing/RC/gable-end, demolition NOT permitted) /
   `'permit'` (brick/dry partition, permit required) / `'unknown'` (unclassified) + `hackClassLabel`/
-  `hackClassDescription`/`isDemolitionRestricted`. `ui/floorplan/editor/layers/HackabilityLayer.tsx`
+  `hackClassDescription`/`isDemolitionRestricted`. **`establishedWallStructure(wall)` (v0.31.8.4)
+  fills an undeclared classification** — an `external` wall resolves to `'load-bearing'` per HDB's
+  rule that external walls cannot be hacked; a user declaration always wins. Every consumer
+  (demolition sheet, `ui/reportPlanSvg.ts`, the overlay, `WallsLayer`, `WallInspector`) resolves
+  through it rather than reading `wall.structure` raw, because all 19 templates leave it unset and
+  the plan otherwise reported a flat's own facade as "Unclassified". It reads `thickness` — an
+  authored declaration that a wall is the envelope — and deliberately NOT wall thickness in mm,
+  since a precast partition and a load-bearing wall are identical on plan. Internal partitions stay
+  `'unknown'`: a template is a flat-type archetype, not a block, so an official per-block plan
+  cannot classify one. `ui/floorplan/editor/layers/HackabilityLayer.tsx`
   tints each current-storey wall by class (`--danger`/`--sun`/`--text-3`) with a legend, mounted under
   a "Hackability" toggle in the plan editor's View ▾ menu (`PlanViewMenuActions.tsx` + `FloorPlanEditor.tsx`
   `showHackability` state), gated by the `hackabilityOverlay` pro flag. `WallsLayer.tsx`'s wall stroke is

@@ -1,6 +1,6 @@
 # Features that are complete except for the data they need
 
-**Why this exists.** v0.31.5.288 found that the tile setting-out table had been rendering *empty
+**Why this exists.** v0.31.5.389 found that the tile setting-out table had been rendering *empty
 since it shipped*: `planTileCoursing` reads FLOOR finishes, and not one floor material in the
 catalog carried a `moduleMm`. The code was finished, tested and wired into a sheet. The authored
 data was missing, so the feature produced nothing — and nothing failed, because "no rows" is a
@@ -10,7 +10,7 @@ That is a failure mode worth hunting deliberately rather than tripping over: **a
 field that a pro feature depends on, left unauthored across the shipped content.** Tests pass, the
 UI renders, and the feature is silently inert. This is the measured audit.
 
-## Measured coverage (v0.31.5.289)
+## Measured coverage (v0.31.5.390)
 
 Counted by importing the real catalogs and templates, not by grep.
 
@@ -90,7 +90,7 @@ down rather than done.
 ## Two formulations worth keeping (dev-09, 2026-09-03)
 
 **A regex over source is a SAMPLE, not an enumeration — and its coverage is invisible in the
-result.** This is the sharpest statement of the mistake this arc kept making. The v0.31.5.296 case
+result.** This is the sharpest statement of the mistake this arc kept making. The v0.31.5.397 case
 is the worst version: it reported "0 of 6 emitters carry a lamp spec" when there are **eight**
 (`vanity` and `aquarium` use unquoted keys the pattern skipped) and lumens were already derived. One
 bad pattern produced a wrong numerator AND a wrong denominator, and **the wrong denominator is what

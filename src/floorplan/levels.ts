@@ -264,7 +264,7 @@ export function restackLevelElevations(
  * lives in `types.ts`, which cannot import this module without a cycle. This is
  * the whole-home counterpart, for callers that mean "the area of the home".
  * Passing a whole plan to `planTotalArea` silently reports the ground floor only
- * (F13); that was the bug at three call sites fixed in v0.31.5.276.
+ * (F13); that was the bug at three call sites fixed in v0.31.5.377.
  */
 export function planTotalAreaAllLevels(plan: FloorPlan): number {
   return planLevels(plan).reduce((sum, level) => sum + planTotalArea(levelAsPlan(plan, level)), 0)

@@ -3,14 +3,35 @@ import type { LayoutPreset } from './types'
 /**
  * RM2 retune (2026-07-19): "Cozy Tropical" becomes "Tropical Biophilic" —
  * same teak/sage/terracotta palette, plus extra greenery via `extraItems`.
+ *
+ * **Sage moved from every wall to ONE feature wall (v0.31.8.2).**
+ *
+ * `docs/research/2026-09-02-scheme-theme-grounding.md` verified this palette and
+ * flagged its emphasis: the sources say "one feature wall in terracotta or sage
+ * green adds depth without overwhelming the space", while this preset applied
+ * sage to every dry wall. SG-specific sources are more pointed still — these
+ * shades "work best on a single feature wall, providing a focal point that
+ * doesn't overwhelm the room's proportions", and a colour like terracotta
+ * "should be used as a feature wall rather than on all four walls in smaller HDB
+ * rooms".
+ *
+ * The foundation is now Warm cream (`#e9d8c4`): "warm white, off-white, warm
+ * sand, and sage green all complement teak and walnut furniture", which is
+ * exactly this theme's floor. Sage keeps the theme's identity on a single fluted
+ * panel — vertical fluting being the most-specified SG feature-wall treatment,
+ * and texture suiting a biophilic reading better than flat paint.
+ *
+ * Terracotta is unchanged: it was already an ACCENT here (sofa pillow, throws),
+ * which is what the references call for. Only sage's SCOPE changed.
  */
 export const cozyTropical: LayoutPreset = {
   id: 'cozy-tropical',
   group: 'theme',
   name: 'Tropical Biophilic',
-  description: 'Teak floors, sage walls, lush greenery and terracotta accents.',
+  description:
+    'Teak floors, warm-cream walls, one sage fluted feature wall, greenery + terracotta accents.',
   dryFloor: 'floor-wood-teak',
-  wall: 'wall-paint-sage',
+  wall: 'wall-paint-warm',
   paletteId: 'sage-cream',
   style: {
     'sofa-3seat': {
@@ -61,6 +82,23 @@ export const cozyTropical: LayoutPreset = {
       position: [2.9, 1.0],
       rotation: 0,
       props: { type: 'fiddle', size: 'medium', leafColor: '#3f7a3f' },
+    },
+    {
+      id: 'cozy-feature',
+      defId: 'feature-wall',
+      // The living/dining wall Japandi and Modern Mono already use, against the
+      // same default layout (none of these presets overrides `livingDining`),
+      // so the position is proven rather than newly guessed.
+      position: [12.53, 2.45],
+      rotation: -Math.PI / 2,
+      // Sage is `wall-paint-sage`'s own swatch — the colour that used to be on
+      // every dry wall, now carried by this one panel.
+      // Tinted timber rather than 'painted', for the reason measured on
+      // `coastal-feature`: a painted FeatureWall carries no map, so its ~25 mm
+      // flutes render as a flat slab in diffuse light. `wood` multiplies this
+      // sage over the grain, which also suits a biophilic reading better than
+      // flat paint — the theme is about natural materials.
+      props: { width: 3.0, height: 2.55, style: 'fluted', color: '#a7b59a', finish: 'wood' },
     },
   ],
 }

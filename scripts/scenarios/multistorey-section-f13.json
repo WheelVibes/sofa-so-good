@@ -1,6 +1,6 @@
 {
   "name": "multistorey-section-f13",
-  "description": "v0.31.5.282 visual verification: the report's Section A-A on the two-storey Open Loft must show BOTH storeys stacked (it cut the ground floor only), with the upper storey's walls, rooms and furniture at its own elevation.",
+  "description": "v0.31.5.383 visual verification: the report's Section A-A on the two-storey Open Loft must show BOTH storeys stacked (it cut the ground floor only), with the upper storey's walls, rooms and furniture at its own elevation.",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },

@@ -1,6 +1,6 @@
 {
   "name": "multistorey-measurements-f13",
-  "description": "v0.31.5.284 visual verification: in the whole-plan orbit view of the two-storey Open Loft, dimension markers + room labels must appear on the UPPER storey lifted to its own elevation (they were ground-only, and this overlay sits outside PlanShell's per-level groups so it must raise its own geometry).",
+  "description": "v0.31.5.385 visual verification: in the whole-plan orbit view of the two-storey Open Loft, dimension markers + room labels must appear on the UPPER storey lifted to its own elevation (they were ground-only, and this overlay sits outside PlanShell's per-level groups so it must raise its own geometry).",
   "url": "http://localhost:5208/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },

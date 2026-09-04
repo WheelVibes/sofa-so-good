@@ -1,6 +1,7 @@
 import type { PlanWall } from '../../../../floorplan/types'
 import { wallSvgPath } from '../../../../floorplan/wallArc'
 import {
+  establishedWallStructure,
   type HackClass,
   hackClassDescription,
   hackClassLabel,
@@ -55,7 +56,7 @@ export function HackabilityLayer({ walls, toPx }: HackabilityLayerProps) {
   return (
     <g style={{ pointerEvents: 'none' }}>
       {walls.map((w) => {
-        const cls = wallHackability(w.structure)
+        const cls = wallHackability(establishedWallStructure(w))
         const d = wallSvgPath(w, toPx)
         const bodyW = w.thickness === 'external' ? 7 : 4
         return (

@@ -39,6 +39,7 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import { establishedWallStructure } from '../floorplan/wallHackability'
 import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import {
   type GrilleMemberInstance,
@@ -668,7 +669,9 @@ function PlanLevelShell({
             color: w.color ?? wallColor,
             // Wall-types 3D overlay tint (`wallTypes3d` flag) — null when
             // unclassified; resolved once here rather than in the render loop.
-            overlayColor: wallTypeOverlayColor(w.structure),
+            // Resolved (v0.31.8.4), so the 3D Wall-types tint cannot disagree with the
+            // 2D Hackability overlay about the same facade.
+            overlayColor: wallTypeOverlayColor(establishedWallStructure(w)),
           })),
         ),
     [lp, wallColor],

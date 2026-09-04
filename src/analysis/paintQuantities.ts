@@ -6,7 +6,7 @@
  * `tradePacks.ts` printed "Add ceilings + a coverage/coats factor per the paint
  * spec". An area is not a procurement quantity — litres are, and the conversion
  * is arithmetic the app already has every input for. Same shape as the tile
- * setting-out gap (v0.31.5.288): the number a contractor needs was one step
+ * setting-out gap (v0.31.5.389): the number a contractor needs was one step
  * beyond what was produced.
  *
  * **Consumes `FinishSchedule.totals`, never its own area maths.** Those totals
