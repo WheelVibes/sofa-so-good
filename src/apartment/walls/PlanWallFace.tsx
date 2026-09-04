@@ -94,6 +94,16 @@ function FaceMesh({ box, side, roomId, material }: FaceProps & { material: MeshS
       rotation={[0, (side * Math.PI) / 2, 0]}
       material={faded}
       geometry={geometry}
+      // This plane, not the wall body, is the surface the camera SEES: it sits
+      // `FACE_OFFSET` proud of the box and hides it entirely. Without
+      // `receiveShadow` it took full unshadowed direct sun at every hour while
+      // the body behind it — which does receive — was never visible. That is
+      // item `(z3)`: a wall the sun could reach but could never shade.
+      //
+      // `castShadow` stays FALSE deliberately: the plane is coincident with a
+      // body that already casts, so casting twice buys nothing and invites
+      // self-shadow acne across a large flat surface.
+      receiveShadow
       // Same drop/eyedropper tag the default flat's faces carry, so a canvas
       // finish drop lands on the right room here too.
       userData={finishSurfaceUserData('wall', roomId)}

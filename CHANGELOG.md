@@ -29,6 +29,50 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.263 — `(z3)` FIXED: the wall the camera sees was never able to receive a shadow
+
+**The mechanism.** `WallSegment.tsx`'s `FacePlane` — a world-UV plane drawn `FACE_OFFSET` proud of
+the wall body — set **neither** `castShadow` nor `receiveShadow`, and three defaults both to false.
+The body behind it sets both and is never visible. So on the default flat the surface the camera
+actually looks at could not receive a shadow at any hour, and took full unshadowed Lambert whenever
+the sun faced it. Adding `receiveShadow` there (and to `PlanWallFace` for parity) takes the 17:00
+wall **222.2 → 217.7 counts** while 13:00 moves 0.1. Low-sun-only, which is `(z3)`'s whole signature.
+
+**`.262` blamed the wrong file, and said so with confidence.** `RoomShell.tsx:191` is the isolated
+ROOM EDITOR's wall; `PlanWallFace` is the CUSTOM-plan wall. Neither renders the default flat. The
+"real inconsistency" I reported was in code the measurement never executed.
+
+**Why four rounds of null results.** The edits never reached the mesh, and I never checked. So
+`ray-probe` now prints each hit's `recv`/`cast` flags, and that is the load-bearing change: with
+`PlanWallFace` patched the wall still measured `recv0`, and only after patching `FacePlane` did it
+read `recv1`. Same class as `.259`'s reverted mutations and `.217`'s mismatched exposure — measure
+the byte, assume the state. The probe also gained `HOUR`, because it had none: every trace before
+this ran at system time, so the evening runs aimed their "toward the sun" rays at a sun **25° below
+the horizon at intensity 0**. Geometry answers survived that; sun-direction answers did not. It now
+reads the light's own world vector rather than re-deriving it, and that vector cross-checks exactly
+against the manifest's travel vector.
+
+**Cycles confirms the shape, and the fix is physically right.** Same pose, same hour,
+exposure-matched AgX: the reference wall is likewise uniform and fully shadowed with no sun patch
+(sd 3.1 against the app's 3.3). It should be — the wall's ray to a 31° western sun exits through the
+solid ceiling slab, not a window. The transparent ceiling occluder (`4.16×6.83`, `cast1`) is the
+caster that supplies it; the room ceiling plane beside it is `cast0`.
+
+**`render_from_manifest.py` now derives EXPOSURE from the manifest** (`toneMappingExposure` 1.38
+linear → 0.4647 stops), the same rule it already applies to the pose. Omitting it is what made
+`.216`'s void-bloom finding retractable, and three's linear multiplier read as Blender stops would
+have been a 2.6× error rather than a subtle one.
+
+**What the matched reference then exposes is a new item, `(z4)`.** The app's shadowed wall is 31.9
+counts too bright and **27.3 counts too WARM** — R−B −14.9 in Cycles against +12.4 in the app.
+Exposure matching moved R−B by 1.9, so 27 counts is real and chromatic. The likely cause is
+`.223`'s `replace`-mode injection: replacing ambient, hemisphere and IBL leaves a shadowed surface
+with no cool-sky term at all, only one warm baked irradiance. `IRRADIANCE_GAIN` cannot fix that,
+because a gain cannot change a colour.
+
+Frame cost unchanged: p50 7.5 → 7.6 ms performance, 10.1 → 10.2 ms realistic. Suite 10219 green.
+
+
 ## v0.31.7.262 — `.259`'s impossible reading explained, `(z3)`'s casters confirmed present, and a real shadow inconsistency that is NOT the cause
 
 Four things measured, three reverted, one kept.

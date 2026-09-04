@@ -23,6 +23,7 @@ const LEVEL = process.env.LEVEL || ''
 const FURNISH = process.env.FURNISH === '1'
 const TIER = process.env.TIER || 'realistic'
 const WALK = process.env.WALK === '1'
+const HOUR = Number(process.env.HOUR || 13)
 const RAYS = (process.env.RAYS || 'north:4.2,2.62,-9>0,0,1').split(';').map((s) => {
   const [label, rest] = s.split(':')
   const [o, d] = rest.split('>')
@@ -50,6 +51,15 @@ await page.evaluateOnNewDocument(() => {
 await page.goto(appUrl(), { waitUntil: 'networkidle2', timeout: 120000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 60000 })
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
+// `v0.31.7.263`: this probe had NO hour control, so every run sat at system time. Traces run in
+// the evening aimed their "toward the sun" rays at a sun 25 deg BELOW the horizon with intensity
+// 0 — the geometry answers stayed valid, but any sun-direction result was against a night sun.
+// A probe that reports a sun vector must be able to say which sun.
+await page.evaluate((h) => {
+  const st = window.__store.getState()
+  st.setTimeMode('manual')
+  st.setManualHour(h)
+}, HOUR)
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
@@ -126,11 +136,32 @@ const hits = await page.evaluate(
               const mm = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material
               return mm?.transparent === true || mm?.opacity === 0
             })(),
+            // Shadow flags of the mesh actually hit. `v0.31.7.263`: a `receiveShadow` experiment was
+            // run and reported a null result WITHOUT ever checking that the flag reached the mesh —
+            // the same "measure the byte, assume the state" error `.217`, `.215` and `.259` each cost
+            // a round. A shadow question should not have to guess which mesh answered it.
+            recv: h.object.receiveShadow,
+            cast: h.object.castShadow,
             d: +h.distance.toFixed(2),
             x: +h.point.x.toFixed(2),
             y: +h.point.y.toFixed(2),
             z: +h.point.z.toFixed(2),
-            what: it?.defId ?? h.object.name ?? h.object.type,
+            // `??` not `||` printed BLANK for every mesh in the shell: `name` is the empty
+            // string, which is not nullish, so it won an identity race it should have lost. Two
+            // coincident hits both read as `@1.72m` with no name, which is precisely the case
+            // where identity is the whole question.
+            what: it?.defId || h.object.name || h.object.type,
+            geo: h.object.geometry?.type ?? '?',
+            // Rounded so two instances of the same box read identically.
+            size: (() => {
+              const p2 = h.object.geometry?.parameters
+              if (!p2) return '?'
+              const n = (v) => (typeof v === 'number' ? +v.toFixed(2) : '?')
+              return [p2.width, p2.height, p2.depth].every((v) => v === undefined)
+                ? '?'
+                : `${n(p2.width)}x${n(p2.height)}x${n(p2.depth)}`
+            })(),
+            col: h.object.material?.color?.getHexString?.() ?? '?',
           }
         })
       out.push({ label: r.label, all })
@@ -140,13 +171,44 @@ const hits = await page.evaluate(
   { rays: RAYS, process_env_all: process.env.ALL ?? '0' },
 )
 
+// The sun's ACTUAL world direction, read from the light rather than re-derived. Reconstructing it
+// from the hour would mean re-walking SunCalc and the plan's `orientationDeg` by hand, and a
+// hand-derived vector is what `--sun-dir` needs for a Cycles cross-check — the one number in that
+// comparison it would be easiest to get silently wrong.
+const sun = await page.evaluate(() => {
+  let found = null
+  window.__three.scene.traverse((o) => {
+    if (!found && o.isDirectionalLight) found = o
+  })
+  if (!found) return null
+  // `Vector3` via the camera's own position, the same trick the raycast above uses — the probe
+  // has no import of three and `window.__three.THREE` is not exposed.
+  const V3 = window.__three.camera.position.constructor
+  const p = found.getWorldPosition(new V3())
+  const t = found.target.getWorldPosition(new V3())
+  const d = p.clone().sub(t).normalize()
+  return {
+    toSun: [+d.x.toFixed(5), +d.y.toFixed(5), +d.z.toFixed(5)],
+    altDeg: +((Math.asin(d.y) * 180) / Math.PI).toFixed(2),
+    intensity: +found.intensity.toFixed(3),
+    cast: found.castShadow,
+  }
+})
+if (sun) {
+  console.log(
+    `  sun  toSun=${sun.toSun.join(',')}  alt=${sun.altDeg}deg  i=${sun.intensity}  cast${sun.cast ? 1 : 0}`,
+  )
+} else {
+  console.log('  sun  NO DirectionalLight in the scene')
+}
+
 for (const h of hits) {
   if (h.all.length === 0) {
     console.log(`  ${h.label.padEnd(12)} NOTHING — the ray leaves the scene`)
     continue
   }
   console.log(
-    `  ${h.label.padEnd(12)} ${h.all.map((a) => `${a.transparent ? '[T]' : ''}${a.what}@${a.d}m (${a.x},${a.y},${a.z})`).join('  ->  ')}`,
+    `  ${h.label.padEnd(12)} ${h.all.map((a) => `${a.transparent ? '[T]' : ''}${a.what}@${a.d}m (${a.x},${a.y},${a.z}) recv${a.recv ? 1 : 0}/cast${a.cast ? 1 : 0} ${a.geo}:${a.size} #${a.col}`).join('  ->  ')}`,
   )
 }
 await assertSceneAlive(page)

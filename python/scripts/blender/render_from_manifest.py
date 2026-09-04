@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -59,6 +60,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "uses. Set BOTH sides to a low-shoulder transform (the app's TONE=neutral "
                         "pairs with 'Khronos PBR Neutral') when a RATIO matters -- v0.31.7.171 "
                         "measured the same gap as 116/146 counts there against 33/79 under AgX.")
+    p.add_argument("--exposure", type=float, default=None,
+                   help="scene exposure in STOPS; omit to derive it from the manifest's "
+                        "toneMappingExposure (a linear multiplier, so log2 of it)")
     p.add_argument("--json", action="store_true")
     return p.parse_args(cli_argv.normalise(p, argv))
 
@@ -118,6 +122,24 @@ def flags_for(manifest: dict, d: str, args: argparse.Namespace) -> list[str]:
         flags += ["--sun-energy", str(args.sun_energy)]
     if args.view_transform:
         flags += ["--view-transform", args.view_transform]
+
+    # EXPOSURE, derived from the manifest rather than retyped -- the same rule this script
+    # applies to the pose. `toneMappingExposure` is a LINEAR multiplier in three; Blender's
+    # `view_settings.exposure` is in STOPS, so it is log2 of it, and forgetting the
+    # conversion is not a subtle error: the app's 1.38 read as 1.38 stops is 2.6x.
+    #
+    # Omitting it entirely is worse, and has already cost this arc a round --
+    # `v0.31.7.216` retracted a void-bloom finding measured against a reference whose
+    # exposure was 0.65x the app's. An absolute reference has to agree about exposure
+    # before a count difference means anything.
+    if args.exposure is not None:
+        flags += ["--exposure", str(args.exposure)]
+    else:
+        lin = manifest.get("state", {}).get("toneMappingExposure")
+        if lin:
+            stops = math.log2(lin)
+            flags += ["--exposure", f"{stops:.4f}"]
+            print(f"  exposure: manifest {lin} linear -> {stops:.4f} stops")
     return flags
 
 
