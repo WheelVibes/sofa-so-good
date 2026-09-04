@@ -29,6 +29,37 @@ pruned from `main`; entries from C251 on (branch
 > which are immutable, so renumbering the log would make the git history disagree with it. The
 > three versions are acknowledged individually in the guard's allowlist with which entry is which.
 
+## v0.31.7.287 — the app cannot be measured in linear light, and the guard caught me trying
+
+`(z11)`'s retraction established that gradient comparisons must be made in linear light. The same
+argument applies to LEVELS: near the AgX shoulder a byte ratio UNDERSTATES a linear difference, so
+`v0.31.7.276`'s headline — "every surface within 3.4 %" — is a byte-space figure whose linear size
+is unknown, and probably larger.
+
+Blender can be measured linearly: `--view-transform Standard` is the sRGB OETF alone, exactly
+invertible, and `patch-read LINEAR=1` decodes it per pixel. **The app cannot.**
+
+`aim-look TONEMAP=linear` sets `gl.toneMapping = LinearToneMapping` — chosen over `NoToneMapping`
+because three's `NoToneMapping` skips the exposure multiply entirely and would silently drop the day
+grade — then reads it back. It resolves to **6 (AgX) within 1.2 s**: `Lighting.tsx:168` assigns
+`TONE_MAPPING_THREE[toneMode]` every frame, and the mode vocabulary is `filmic | agx | neutral` with
+no linear member. On Medium+ tiers the curve additionally runs through the post `<ToneMapping>`
+effect (TONE-POST), so a renderer-level bypass alone would not be enough either.
+
+**The probe exits rather than rendering**, and that is the point of shipping it in this state: an AgX
+frame measured as though it were linear is invisible in the output, and it is the error class that
+mis-framed `(z11)`, `(l)`'s AgX-shoulder theory and `.280`'s bar-versus-glass conflation. I wrote the
+read-back only because `v0.31.7.259` had already cost a round to an in-page mutation that reverted
+without saying so — and it fired on the first run.
+
+Filed as `(z12)`. The fix is a dev-only linear passthrough: a fourth tone mode, or a debug flag that
+sets a linear renderer transform AND disables the post curve together. Small, but it touches the
+render path, so it wants its own round rather than being bolted on at the end of this one.
+
+Until then, every app-side LEVEL comparison in this arc should be read as byte-space and probably
+conservative. That includes the window figures in `.280`-`.282` and the three-surface set in `.276`.
+
+
 ## v0.31.7.286 — `(z11)` RETRACTED: measured in linear light, the app's falloff is too GENTLE
 
 Every version of this item compared gradients in tone-mapped bytes. That is not a comparison of

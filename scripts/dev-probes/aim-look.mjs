@@ -136,6 +136,53 @@ await new Promise((r) => setTimeout(r, 3000))
 // `EXPOSURE=1.38` is 1.38x the default rather than the default's own 1.38 — it measured 10 counts
 // brighter than an unset run (`v0.31.7.284`). Same trap as `SKYCATCH`, which scales the pane
 // emissive rather than setting it, and which made a whole round of `(l)` conclusions wrong.
+// TONEMAP=linear swaps AgX for three's `LinearToneMapping`, which is `color * exposure` with NO
+// curve — so the frame is linear light behind the sRGB output encoding and `patch-read LINEAR=1`
+// can invert it exactly. This is what makes an apples-to-apples comparison against Blender's
+// `Standard` possible at all.
+//
+// `LinearToneMapping` and not `NoToneMapping`: three's `NoToneMapping` skips the exposure multiply
+// entirely, so the frame would silently lose the day grade and every level would be wrong by
+// `grade(altitude).exposure`.
+//
+// Read back and PRINTED, because `Lighting` rewrites renderer state every frame and
+// `v0.31.7.259` lost a round to an in-page mutation that reverted without saying so.
+if (process.env.TONEMAP === 'linear') {
+  const applied = await page.evaluate(() => {
+    const gl = window.__three.gl
+    gl.toneMapping = 1 // THREE.LinearToneMapping
+    window.__store.getState().invalidate?.()
+    return { toneMapping: gl.toneMapping, exposure: gl.toneMappingExposure }
+  })
+  await new Promise((r) => setTimeout(r, 1200))
+  const after = await page.evaluate(() => ({
+    toneMapping: window.__three.gl.toneMapping,
+    exposure: +window.__three.gl.toneMappingExposure.toFixed(4),
+  }))
+  console.log(
+    `TONEMAP=linear  set ${applied.toneMapping} -> resolved ${after.toneMapping} ` +
+      `(1 = LinearToneMapping)  exposure ${after.exposure}`,
+  )
+  if (after.toneMapping !== 1) {
+    // MEASURED v0.31.7.287: it does not stick, and cannot from here. `Lighting.tsx:168` assigns
+    // `gl.toneMapping = TONE_MAPPING_THREE[toneMode]` every frame, and the mode vocabulary is
+    // `filmic | agx | neutral` with no linear member. On Medium+ tiers the curve ALSO runs through
+    // the post `<ToneMapping>` effect (TONE-POST), so even a renderer-level bypass would leave the
+    // post chain applying one. A linear app frame needs a dev-only bypass in the APP -- item
+    // `(z12)` -- not a mutation from a probe.
+    //
+    // Exits rather than rendering, because the failure is invisible in the output: an AgX frame
+    // measured as though it were linear is the error class that mis-framed `(z11)`, `(l)`'s
+    // shoulder theory and `.280`'s bar-versus-glass conflation.
+    console.error(
+      'TONEMAP=linear did NOT stick — `Lighting` rewrites gl.toneMapping every frame and Medium+ ' +
+        'applies the curve in the post chain. Refusing to render in the wrong transform; see (z12).',
+    )
+    await browser.close()
+    process.exit(1)
+  }
+}
+
 if (process.env.EXPOSURE) {
   await page.evaluate((e) => window.__store.getState().setExposure(e), Number(process.env.EXPOSURE))
   await new Promise((r) => setTimeout(r, 1500))
