@@ -229,6 +229,11 @@ failure modes that all produce confident-looking wrong data:
 scripts/dev-probes/with-server.sh frame-time.mjs DSF=2 SECONDS=10
 ```
 
+`frame-time.mjs` also takes **`FLAGS_OFF=<flag,…>`** (dev builds only) to price a feature against
+its absence at the same pose and tier — added for PHOTOREAL-HERO (`FLAGS_OFF=photorealModels`
+walk/realistic read p50 6.9 ms in both arms, p90 9.1 vs 9.5). Two runs, one variable, same
+session shape; never compare a figure from this probe against one from `light-distribution.mjs`.
+
 - A backgrounded dev server does not reliably survive between shell invocations,
   so a probe in a later call hits `ERR_CONNECTION_REFUSED` — or, worse, connects
   to an orphaned server from the sibling checkout on 5173 and measures the wrong
@@ -3441,3 +3446,43 @@ The daytime payoff on record is `.54`'s 2.3–2.5x, measured before the change.
   `system`. Two arms at different faked hours therefore print identical header lines;
   that is NOT a failed mutation, but it does mean the header cannot confirm the fake
   landed. Confirm it by A/B against the other code path instead.
+
+**Gotcha — `interactiveDegrade` silently changes the RENDER RESOLUTION between arms, so any
+sharpness metric measured with it on is noise (GLASS-CLARITY, v0.33.0.10).**
+`scene/InteractiveDprController.tsx` halves the RAW `gl.setPixelRatio` when it sees long frames
+and heals it back later, deliberately INVISIBLE to r3f's `viewport.dpr` — so nothing in the store
+or the r3f state says which resolution a given capture happened at. A five-arm pane sweep with it
+on measured the SAME shipped arm at micro-contrast **1.86 and then 1.27** (a 32 % swing, larger
+than the effect being swept, and the numbers drifted monotonically enough to look like a real
+trend). With `setFeatureFlag('interactiveDegrade', false)` in the probe's setup, the repeat arms
+came back identical to two decimal places and the noise floor was **max 2 counts** over the whole
+patch.
+· Every scenario in `scripts/scenarios/` that measures pixels already turns it off — copy that.
+  A probe that doesn't is measuring its own resolution ladder.
+· **Print `gl.getPixelRatio()` per arm** (`window-pane.mjs` now does). It is the only field that
+  tells you which resolution the frame you just read was rendered at.
+
+**Gotcha — a material property the app REWRITES every frame cannot be A/B'd from an `evaluate`;
+wrap `gl.render` (the `warm-cast.mjs` pattern) — and this now includes the window PANES.**
+`apartment/Window.tsx` and `apartment/PlanShell.tsx` write the pane's `color`,
+`emissiveIntensity` and `transmission` from daylight in `useFrame`, so an assignment made between
+frames is gone before the next draw. Only `roughness` survives, because nothing writes it per
+frame — which makes this failure MODE-DEPENDENT and easy to misread: a roughness arm lands, a
+colour arm silently no-ops, and the sweep looks like "colour doesn't matter". `window-pane.mjs`
+now installs one `gl.render` wrap that re-applies the current arm after the component's own write,
+publishes the arm as `window.__paneArm`, and restores every unlisted field from a shipped snapshot
+so no arm leaks into the next.
+· **Read the live values AFTER the settle wait, not straight after publishing the arm** —
+  reading them immediately reports the shipped values and hides a no-op arm.
+· The same wrap is how to sweep anything else driven per frame: lights (`warm-cast`), the sky
+  dome's uniforms (`sky-tune`), fade opacities.
+
+**Gotcha — `patch-read.mjs` now prints MICROCONTRAST, and it is the only column that sees BLUR.**
+Mean, sd and the percentiles are all blind to a mip-blurred image: blurring a façade behind glass
+leaves its luminance distribution almost untouched. `micro` (mean |neighbour difference|, right +
+down, the same statistic `surface-detail.mjs` and every figure in `src/materials/CLAUDE.md` use)
+moved +9 % on the change those columns called flat.
+· **It is confounded by anything that changes BRIGHTNESS**, because AgX's shoulder compresses a
+  lifted image: the pane colour arms measured *falling* micro-contrast while the frames got
+  visibly crisper. Compare micro-contrast only at a fixed exposure/tint, and use `R-B` or the
+  mean for the tint arms. Two metrics, two questions — do not let one arm answer both.

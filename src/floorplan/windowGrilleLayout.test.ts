@@ -295,10 +295,81 @@ describe('windowGrilleLayout', () => {
 
   describe('windowGlassKindParams', () => {
     it('defaults to the clear look for undefined/unknown kinds', () => {
-      const clear = { color: '#bcd4e6', roughness: 0.1, opacityCheap: 0.32, transmission: 0.9 }
+      const clear = {
+        color: '#bcd4e6',
+        roughness: 0.1,
+        opacityCheap: 0.32,
+        transmission: 0.9,
+        transmissionColor: '#f2f5f7',
+        transmissionRoughness: 0.05,
+      }
       expect(windowGlassKindParams(undefined)).toEqual(clear)
       expect(windowGlassKindParams('clear')).toEqual(clear)
       expect(windowGlassKindParams('bogus')).toEqual(clear)
+    })
+
+    it('leaves every CHEAP-tier field byte-identical to the pre-GLASS-CLARITY values', () => {
+      // GLASS-CLARITY (v0.33.0.10) changed the transmission tier only. The cheap tiers blend
+      // this hex as an OPACITY tint over the wall rather than as a transmittance, where it
+      // reads correctly — so these four fields are frozen at exactly what shipped before, for
+      // every kind. A diff here means the Performance/Medium pane moved, which it must not.
+      const cheap = (kind: string | undefined) => {
+        const { color, roughness, opacityCheap, transmission } = windowGlassKindParams(kind)
+        return { color, roughness, opacityCheap, transmission }
+      }
+      expect(cheap('clear')).toEqual({
+        color: '#bcd4e6',
+        roughness: 0.1,
+        opacityCheap: 0.32,
+        transmission: 0.9,
+      })
+      expect(cheap('frosted')).toEqual({
+        color: '#e3eaec',
+        roughness: 0.6,
+        opacityCheap: 0.6,
+        transmission: 0.55,
+      })
+      expect(cheap('textured')).toEqual({
+        color: '#dfe8e6',
+        roughness: 0.75,
+        opacityCheap: 0.55,
+        transmission: 0.5,
+      })
+      expect(cheap('glass-block')).toEqual({
+        color: '#d8e4e8',
+        roughness: 0.35,
+        opacityCheap: 0.45,
+        transmission: 0.45,
+      })
+    })
+
+    it('gives CLEAR glass a brighter, neutral transmittance and the smoothest surface', () => {
+      const clear = windowGlassKindParams('clear')
+      // Every channel of the transmission-tier colour is above the cheap tint's, and the
+      // channels are near-equal — the cheap `#bcd4e6` multiplied the whole view through the
+      // pane by ~0.74–0.90 and tinted it blue (measured R−B −13.3 on the estate behind it).
+      const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16))
+      const tint = rgb(clear.color)
+      const trans = rgb(clear.transmissionColor)
+      for (let i = 0; i < 3; i++) expect(trans[i]).toBeGreaterThan(tint[i])
+      expect(Math.max(...trans) - Math.min(...trans)).toBeLessThan(10)
+      // Real clear float glass transmits 88–90 %, not 100 % — the pane is not a hole.
+      expect(Math.min(...trans)).toBeLessThan(255)
+      // On the transmission path roughness is real BLUR of the view behind the pane.
+      expect(clear.transmissionRoughness).toBeLessThan(clear.roughness)
+    })
+
+    it('keeps every DIFFUSING kind diffusing on the transmission tier too', () => {
+      for (const kind of ['frosted', 'textured', 'glass-block']) {
+        const p = windowGlassKindParams(kind)
+        // Their blur IS their look, so they repeat their own colour/roughness rather than
+        // taking clear glass's crisp, neutral pair.
+        expect(p.transmissionColor).toBe(p.color)
+        expect(p.transmissionRoughness).toBe(p.roughness)
+        expect(p.transmissionRoughness).toBeGreaterThan(
+          windowGlassKindParams('clear').transmissionRoughness,
+        )
+      }
     })
 
     it('frosted/textured/glass-block each have their own distinct params', () => {

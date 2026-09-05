@@ -2969,6 +2969,12 @@ same change that reshapes a system.
   `local-assets/<category>/` (gitignored) for the Part-1 local-asset dev DB; pure selection
   helpers in `polyhaven-select.mjs` (unit-tested); idempotent, rate-limited,
   `--limit/--category/--ids/--res`.
+  **Hero models** (`scripts/asset-pipeline/fetch-hero-models.mjs`, PROD): the curated Poly Haven
+  set that stands in for boxy primitives in Realistic mode (PHOTOREAL-HERO,
+  `furniture/photorealProxies.ts`). Re-roots each GLB under a wrapper node that bakes the facing
+  (+Z) and floor-centring, re-encodes textures to WebP ≤1k, Dracos, and writes the pipeline
+  sidecar with the footprint measured from the FINAL geometry; then `optimize:glb` + `index-assets`
+  as for any bundled GLB. 8 models, 1.7 MB total, 2.7k–25k tris each.
   **Build-time KTX2** (`scripts/asset-pipeline/ktx2-encode.ts`, opt-in): an optional
   UASTC-encode `@gltf-transform` transform for GLB textures via the same Basis-Universal WASM
   encoder as the browser (`ktx2-encoder` + `sharp`, no native `toktx`), registering
@@ -2980,6 +2986,63 @@ same change that reshapes a system.
   `evictGltfAsset(url)` to clear + dispose those (base + all tier-variant urls) so GPU
   memory is reclaimed instead of leaking toward WebGL context loss.
 
+
+## Wall fittings (electrical points in 3D)
+
+`src/apartment/fittings/` — `fittingModel.ts` (pure: resolve MEP points onto wall faces, general
+sockets, main-door DB, plus `fittingsForRoom` to scope a resolved list to one room), `WallFittings.tsx`
+(instanced plates, orbit wall-fade cull). Reads the plan's persisted `electricalPoints`, else the
+derived layout. Flag `wallFittings` (simple, default on). Mounted in `Scene.tsx` beside the shell
+(unscoped, the whole flat) **and** in `RoomEditorScene.tsx` beside its `RoomShell`/`PlanRoomShell`
+(EDITOR-LOCKSTEP), passing `roomId={roomId}` so `WallFittings` runs the resolve through
+`fittingsForRoom` and renders only the edited room's own switches/sockets/DB box — otherwise every
+other room's fittings would float in the void around the isolated room. Scenarios:
+`scripts/scenarios/wall-fittings-verify.json` (whole flat) and
+`scripts/scenarios/wall-fittings-editor-verify.json` (room editor, scoped).
+
+## Plumbing fittings (the plan's plumbing points in 3D)
+
+`src/apartment/fittings/` — `plumbingModel.ts` (pure: `resolvePlumbingFittings(plan, points,
+obstacles?)`, `wetRoomTraps`, `floorObstacles`, `plumbingForRoom`), `PlumbingFittings.tsx`
+(instanced boxes + cylinders, orbit wall-fade cull for the wall-mounted kinds only).
+Sibling of the wall fittings and sharing their nearest-wall maths through
+`wallSnap.ts` (`WALL_SNAP_M`, `nearestStraightWall`, `placeOnWall`, `roomSide`, `rightNormal`,
+extracted from `fittingModel.ts` so neither model duplicates it). Reads the plan's persisted
+`plumbingPoints`, else `furniture/mepSuggest.ts:derivePlumbingPoints` plus `wetRoomTraps` (one
+floor trap per wet room the fixtures left without one). Two placement rules: `floor-trap` lands
+on the floor at the nearest spot inside its room that clears every wall centreline by 0.25 m and
+every furniture footprint (a grating under a shower tray is invisible); `water-point`,
+`drainage`, `soil-pipe` and `water-heater` snap to the nearest wall face, with a wider 1.2 m
+reach for the two kinds a derived layout puts at the fixture rather than the wall. Flag
+`plumbingFittings` (simple, default on). Mounted in `Scene.tsx` right after `<WallFittings />`
+and in `RoomEditorScene.tsx` as `<PlumbingFittings roomId={roomId} />` (EDITOR-LOCKSTEP).
+Scenario: `scripts/scenarios/plumbing-fittings-verify.json`.
+
+## Estate surround (walk AND orbit exterior as geometry)
+
+`src/scene/estate/` — `estateLayout.ts` (pure placement in ONE canonical frame — corridor on +z,
+width along +x: own block wings/above/below/corridor, neighbour slab + point blocks, roads, trees,
+ground depth from `VIEW_STOREY`; also the pure `sectionCut(layout, cutY)` used in orbit),
+`estateCorridor.ts` (pure: `corridorFromPlan` finds the plan's main door via the shared
+`fittings/fittingModel.ts:mainDoor` and returns the exterior face it opens onto + the corridor run
+along it; `estateFrame` turns that into the canonical extent/span plus a 90°-multiple yaw + offset
+the `estate-surround` group carries, so the corridor fronts the real front door on any of the four
+faces — `tpl-hdb-5room` opens on −z, `tpl-hdb-3gen` on +x), `estateTextures.ts` (procedural canvas tiles: façade
+windows/corridor day + night masks, ground, road, rain-tree sprites), `estateSignal.ts` (module
+boolean the window panes read per frame), `Estate.tsx` (the R3F mount; materials are module-level
+and shared, geometry UV-scaled per block via `tileBoxUv`).
+Gated by `estateSurround` (simple, default on) + walk mode OR orbit mode + HDB plan + `sky`/`none`
+backdrop (never the room editor). Exists because the equirect background path blurs any exterior
+to blobs (open-graphics-decisions item (r)).
+**Orbit is a section cut (2026-09-05):** the own block's storeys above the flat's ceiling
+(`own.above`/`own.roof`) are omitted and its wings are clamped to the ceiling height, so the
+dollhouse's open top is never capped and neighbouring 12-storey blocks don't hide the interior —
+building-section style, not a full tower. Every estate mesh (and each tree `InstancedMesh`) sets a
+no-op `raycast` so orbit's pointer-based furniture/room selection and `onPointerMissed` deselect
+never see it. This supersedes the earlier "orbit dollhouse stays clean" decision from
+PHOTO-BACKDROP. Verification scenarios: `scripts/scenarios/estate-surround-verify.json` (walk),
+`scripts/scenarios/estate-orbit-verify.json` (orbit) and `scripts/scenarios/estate-door-side-verify.json`
+(the two templates whose main door is not on +z).
 
 ## Blender/Cycles rendering (optional local layer)
 
@@ -3094,6 +3157,7 @@ are the entire point of a GI bake.
 | `lightmapUv.ts` | the `uv1` 3×2 box atlas, derived from local geometry so the runtime regenerates Blender's layout without shipping a UV table |
 | `lightmapIndex.ts` | parses `index.json`, resolves keys, and **counts the hit rate** — a map that never loads and a working subtle term are indistinguishable in a screenshot |
 | `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection |
+| `lampBounce.ts` | per-room lamp interreflection added to the baked daylight term (v0.33.0.3): Σ emitter intensity / floor area × orientation weight, scaled live by the lights switch |
 
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,
 uniform and `uv1` varying** rather than using three's `aoMap` slot — routed through that slot the

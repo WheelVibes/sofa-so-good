@@ -102,6 +102,33 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     photographs at **0.579–0.725**); `.196` closed it for the photographic look by raising AO —
     see the AO bullet below.
 
+- **Replace-mode GI carries a per-room LAMP-BOUNCE term (`lampBounce.ts`, v0.33.0.3).** The
+  irradiance bake is daylight-only, and `replace` discards the analytic fill that had been standing
+  in for the lamps' interreflection — so with the lights on, a room with a small sky view went dark
+  where a lamp-lit room is brightest, its ceiling. Measured against lights-on Cycles renders of the
+  same GLB (`scene-glb.mjs` → `render_from_manifest.py`, 19 point lights, exposure matched): kitchen
+  ceiling **152 vs 190** with walls agreeing to 3 %; living-room ceiling already at/above Cycles
+  (that ceiling carries NO baked map, so the term never reaches it — its mapped walls moved the same
+  few counts the kitchen's did). The term is per ROOM — `Σ emitter intensity / floor area` (bath2
+  2.78, bedroom3 0.89, kitchen 1.17 ≈ living 1.10 — the kitchen/living pair is near-equal, a claim
+  to the contrary in the first draft was caught by the test) × `LAMP_BOUNCE_K`
+  × an orientation weight (`down 1.0 / side 0.35 / up 0.2`) — set as each patched material's own
+  `lampBounce` uniform at attach, scaled live by the lights switch (`setLampBounce`). Sweep with
+  `?lampBounce=<k>` (DEV). Result: kitchen ceiling **184** / wall **193.5** (Cycles 190 / 193.6),
+  corridor ceiling 170 → 190, living room +1–3 counts. It stays per room so a dense bathroom and
+  a sparse bedroom do not share one number; a global term would also have to be re-fitted the
+  moment a plan's lamp count changed.
+  Census is taken once at attach (a lamp placed later joins at the next attach) — re-attaching
+  live costs the 216 ms recompile.
+- **The full post stack's AO is intensity 5 at radius 0.7 m, not 7 at 1.0 (AO-SMALL-ROOM,
+  v0.33.0.2).** `.222`'s 7 / 1.0 was calibrated on one living-room floor pose; a per-room walk
+  tour at `realistic` found the kitchen, corridor and bathrooms 10–20 % darker across whole walls
+  and ceilings than the Performance tier, because a metre-radius kernel sees a wall from every
+  point of a 1.9 m-wide room. Sweep table in `look.ts:AO`. The under-furniture floor ratio moves
+  0.834 → 0.885 — it was already outside the photographic band, so the trade is small-room
+  legibility for a contact cue that was not being delivered. `?aoIntensity=&aoRadius=&aoFalloff=`
+  is a DEV seam in `EffectsImpl` for the next sweep. The AO-only composer (`performance`/capable)
+  is byte-identical.
 - **Screen-space AO is the ONLY contact shadow an interior gets, and it was under-strength
   (`.196`).** With `ao: false` the floor under a sofa measures **0.983** of open floor — i.e. no
   contact cue at all — because interiors here are fill-lit and almost nothing casts a shadow into
@@ -1357,6 +1384,72 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     time-tracking sky and loses the HDB towers; `city` / `dusk` remain one click away in the
     backdrop picker, and this is why the change is a default rather than a deletion.
 
+- **The HDB estate outside the windows is GEOMETRY, not a backdrop (ESTATE-SURROUND,
+  `scene/estate/`, flag `estateSurround`, v0.33.0.1) — and it is visible in BOTH walk and orbit
+  mode (ESTATE-ORBIT, 2026-09-05 product decision, superseding the earlier "the orbit dollhouse
+  stays clean" call recorded under PHOTO-BACKDROP).** Item (r) measured that anything painted
+  into the equirect `scene.background` is PMREM-blurred to blobs and the cube route was refuted,
+  so a legible exterior has to be drawn: `estateLayout.ts` (pure, tested) places the flat's OWN
+  slab block continuing left/right/above/below with the common corridor outside the main door,
+  neighbouring slab + point blocks at 50–110 m, roads, ground at the storey's true depth (#08,
+  20.4 m) and rain trees; `estateTextures.ts` paints tileable façade/corridor/ground/tree canvases
+  (one façade tile = 4 bays × 3 storeys, repeated by UV scaling so one texture serves every block);
+  `Estate.tsx` mounts it in walk mode AND orbit mode, HDB plans, `sky`/`none` backdrop only,
+  `noExport`, no shadows.
+  · **In orbit the own block is drawn CUT at the flat's ceiling, building-section style
+    (ORBIT-SECTION-CUT).** The orbit dollhouse culls the real ceiling to look in (ORBIT-CEILING);
+    left alone, the own block's storeys above (`own.above`/`own.roof`) would cap that open top
+    with an opaque slab, and its wings would rise the full 12 storeys beside it. The pure
+    `estateLayout.ts:sectionCut(layout, cutY)` returns a layout with `own.above`/`own.roof`
+    REMOVED and the wings' `yMax` clamped to `cutY` (`plan.ceilingHeight ?? 2.6` + 0.15 m slab) —
+    everything else (the storeys below, the corridor, every neighbour block, ground, roads,
+    trees) is untouched. Walk mode calls `buildParts` on the plain layout and is byte-identical
+    to before; only orbit routes through `sectionCut` first.
+  · **The corridor fronts the plan's REAL main door, on any of the four faces (ESTATE-DOOR-SIDE,
+    `estateCorridor.ts`, v0.33.0.8).** `corridorFromPlan(plan)` reads the main door through the
+    SHARED `apartment/fittings/fittingModel.ts:mainDoor` (widest external door), takes the
+    exterior face its wall lies on (wall axis picks the pair, nearest plan-extent edge the sign)
+    and returns a run covering the leaf plus 1.5 m either side, clamped to the face and extended
+    to the nearer block end. Real HDB templates are not all `+z`: `tpl-hdb-5room` opens on **−z**
+    and `tpl-hdb-3gen` on **+x**, and both used to get a corridor bolted to the wrong wall (and
+    the window façade pointed at it). `estateLayout.ts` still builds ONE **canonical** estate —
+    corridor on +z, width along +x, so `winSign` is a constant and every neighbour/road/tree
+    offset is stated once — and `estateFrame` returns the canonical extent (width/depth SWAPPED
+    for the ±x faces), the canonical span, and a **yaw about the plan's footprint centre in
+    multiples of 90°** that `Estate.tsx` puts on the `estate-surround` group. Rigid, never a
+    reflection, so the invariant "windows on the face opposite the corridor" survives the move.
+    Because 90° yaws keep axis-aligned boxes axis-aligned, `sectionCut`, `tileBoxUv`, the tree
+    `InstancedMesh`es, roads, ground and the lit-window emissive all need no change — they are
+    all children of the rotated group. The default 4-room result is unchanged to 7 cm (the old
+    hand-tuned span started at 9.5 m, the derived one at 9.43 m).
+  · **Every estate mesh (and each tree `InstancedMesh`) carries a no-op `raycast`.** Orbit selects
+    furniture/rooms by pointer raycast and deselects via `onPointerMissed` — background scenery
+    must never intercept either, so `Estate.tsx` sets `mesh.raycast = () => {}` on every part and
+    on each tree `InstancedMesh`; `mesh.name = p.key` too, so a probe can census which parts
+    mounted (e.g. confirm `own-above`/`own-roof` are absent in orbit) without adding a dev-only
+    path.
+  · **The ground plane is 360 m (±180 m), inside the orbit sky dome's 200 m radius
+    (SKY-DOME-FAR)** — the flat's 700 m walk-mode ground would run well past the dome and either
+    show through it or z-fight past its far wall from the top-down orbit vantage.
+  Three rules from the first real-GPU round:
+  · **Exterior surfaces carry a daylight emissive boost (`EXTERIOR_DAY_BOOST`)** — the scene's sun
+    and hemisphere light the estate no harder than the flat, so without it the neighbours read as
+    a grey interior wall seen through glass; a camera exposed for a room sees the outside 2–3×
+    brighter. By night the emissive map swaps to the lit-window mask (`EXTERIOR_NIGHT_GLOW`).
+  · **The window panes must stay CLEAR at night while the estate is mounted (ESTATE-NIGHT-GLASS,
+    `estateSignal.ts`).** PHOTO-GLASS drops transmission to 0.2 and tints the pane near-black after
+    dark — right for a void, wrong for lit neighbours, which it hid entirely. `Window.tsx` and
+    `PlanShell.tsx` scale the night ramp by 0.15 when `estateVisibleNow()`; every other path is
+    byte-identical.
+  · **Nothing linear on a repeating tile.** The first ground tile carried a straight footpath and
+    it repeated as stripes across 300 m of lawn; the first tree was a lollipop. Blotches and an
+    umbrella crown (rain tree: ~1.6× wider than tall) read right at 30–150 m.
+  Priced free in walk: `frame-time.mjs` walk/realistic p50 7.3 ms both arms, p90 10.1 vs 10.4.
+  Verify walk with `scripts/scenarios/estate-surround-verify.json` (day near/far, bedroom, service
+  yard, night); verify orbit with `scripts/scenarios/estate-orbit-verify.json` (boot framing +
+  20:00, asserting `own-above`/`own-roof` are absent and the flat still reads open from above);
+  verify the non-`+z` door sides with `scripts/scenarios/estate-door-side-verify.json`
+  (`tpl-hdb-5room` −z and `tpl-hdb-3gen` +x, walk + orbit).
 - **Backdrops paint `scene.background` only — never `scene.environment`.** Walk-mode
   surroundings (`SceneBackdrop.tsx`) bake an equirect into `scene.background`; the static photo
   presets (`backdropEquirect.ts`/`backdropHorizon.ts`) and the sun-driven `sky` (RD-412,

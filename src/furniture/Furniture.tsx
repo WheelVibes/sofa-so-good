@@ -4,6 +4,7 @@ import type { Group, Material, Mesh } from 'three'
 import { Plane, Vector3 } from 'three'
 import { floorPointInFootprint, itemFootprint } from '../collision/placement'
 import { isFeatureEnabled } from '../features/featureFlags'
+import { useFeature } from '../features/useFeature'
 import { boxProjectSubtree } from '../materials/boxUv'
 import { ContactShadow } from '../scene/ContactShadow'
 import { isDragRelease, markPointerDownOnItem } from '../scene/clickVsDrag'
@@ -16,6 +17,7 @@ import { GltfErrorBoundary, GltfPlaceholderBox } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
 import { selectGltfRender } from './gltfRender'
 import { isInteractableLight } from './lightInteract'
+import { photorealProxyFor } from './photorealProxies'
 import { PRIMITIVE_COMPONENTS } from './primitives'
 import { isInteractableScreen } from './screenInteract'
 import { surfaceDecalSpec } from './surfaceDecal'
@@ -55,6 +57,13 @@ interface FurnitureProps {
 }
 
 function FurnitureInner({ item, def, passive, contactShadow, dimmed }: FurnitureProps) {
+  // PHOTOREAL-HERO: in Realistic mode a mapped parametric piece draws a photo-scanned
+  // CC0 GLB in the primitive's frame (`photorealProxies.ts`). Render-only — collision,
+  // placement and every reader of `def` still see the parametric def. The gate is the
+  // MODE (user intent), never the device class the adaptive ladder moves.
+  const photorealOn = useFeature('photorealModels')
+  const realistic = useStore((s) => s.qualityTier === 'realistic')
+  const proxy = photorealProxyFor(def, item.props, photorealOn && realistic)
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       if (passive) return
@@ -251,7 +260,26 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
         const psx = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : sc
         const psy = typeof item.props['scaleY'] === 'number' ? (item.props['scaleY'] as number) : sc
         const psz = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : sc
-        const el = <Component props={item.props} />
+        const primitive = <Component props={item.props} />
+        // The primitive is the Suspense fallback, so the piece sharpens from box to
+        // scan as the GLB streams in and never blinks out. Wrapped in the same
+        // error boundary as a GLB def: a failed fetch falls back to the primitive.
+        const el = proxy ? (
+          <GltfErrorBoundary
+            width={def.defaultFootprint.w}
+            depth={def.defaultFootprint.d}
+            height={Math.min(def.defaultFootprint.w, def.defaultFootprint.d, 0.9)}
+            defId={def.id}
+            url={proxy.url}
+            fallback={primitive}
+          >
+            <Suspense fallback={primitive}>
+              <GltfModel url={proxy.url} scale={proxy.scale3} />
+            </Suspense>
+          </GltfErrorBoundary>
+        ) : (
+          primitive
+        )
         return psx !== 1 || psy !== 1 || psz !== 1 ? (
           <group scale={[psx, psy, psz]}>{el}</group>
         ) : (

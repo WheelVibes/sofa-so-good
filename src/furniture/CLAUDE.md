@@ -2,6 +2,33 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
+- **Realistic mode swaps hero primitives for photo-scanned CC0 GLBs (PHOTOREAL-HERO,
+  `photorealProxies.ts`, flag `photorealModels`, `v0.33.0.0`).** `Furniture.tsx` asks
+  `photorealProxyFor(def, props, enabled)` and, when it answers, draws a `GltfModel` in the
+  PRIMITIVE's frame with the primitive as the Suspense/error fallback. Three rules:
+  1. **It is a RENDER swap only.** The item keeps its parametric `defId`; collision, the arranger,
+     prices, ratchets and exports of the plan all still read the parametric def. Never make a
+     placement decision read the proxy.
+  2. **The GLB must arrive floor-centred and facing +Z with a measured sidecar footprint** — baked
+     by `scripts/asset-pipeline/fetch-hero-models.mjs` (yaw read off Blender turntables), so the
+     runtime does UNIFORM X/Z scale only: width-matched to the live `width` param, clamped so depth
+     and height never exceed the parametric footprint by more than `tolerance` (0.15; chairs 0.2). A
+     proxy that pokes past its own collision box clips walls. **Surface hosts set `fitHeight`**: a
+     bounded (≤1.25×) VERTICAL stretch puts the top exactly at the parametric `h`, because every
+     decor prop self-lifts to that height and a top 6 cm lower left the fruit bowl hovering.
+  4. **Decor authored into the DEFAULT flat must sit on a surface both shapes share.** A throw
+     draped over the box sofa's arm protruded through the chesterfield's rolled arm, and cushions
+     authored at the box sofa's FRONT edge overhung the chesterfield's set-back seat, then poked out
+     through its BOWED back when moved against it; all three now sit mid-seat, 0.45 m inboard of
+     the ends (`defaults/livingDining.ts`). Verify a decor move on BOTH shapes, cropped.
+  3. **Gate on the MODE (`qualityTier === 'realistic'`), never the device class.** The adaptive
+     ladder moves the class; the mode is user intent. `performance` stays byte-identical.
+  Adding a piece: add the Poly Haven id to `HERO_MODELS` (fetch script), run the script +
+  `optimize:glb` + `index-assets`, map the parametric id in `PHOTOREAL_PROXIES`, and confirm the
+  facing with `inspect_asset.py` (view_00 is the glTF +Z face). No modern dining table, bed or
+  floor lamp exists on Poly Haven — those stay parametric on purpose; `sideboard`, `bookshelf` and
+  `cube-shelf` are deliberately unmapped because their only candidates need >1.25× stretch or leave
+  the trailing plant on top floating.
 - **Do NOT try to fix "moulded-looking" upholstery by jittering the CUSHIONS' positions** (tested and
   reverted, v0.31.5.158). Offsetting each seat/back cushion by a few millimetres and a fraction of a
   degree — deterministic, bounded, tested, so the row could never overlap or float — is invisible:

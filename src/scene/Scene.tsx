@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Apartment } from '../apartment/Apartment'
 import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
+import { PlumbingFittings } from '../apartment/fittings/PlumbingFittings'
+import { WallFittings } from '../apartment/fittings/WallFittings'
 import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
 import { ProfilerProbe } from '../dev/profiler/ProfilerProbe'
@@ -27,6 +29,7 @@ import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { deselectOnMiss } from './deselectOnMiss'
 import { Effects } from './Effects'
+import { Estate } from './estate/Estate'
 import { FinishDropSurface } from './FinishDropSurface'
 import { FinishEyedropperSurface } from './FinishEyedropperSurface'
 import { FrameRenderedNotifier } from './FrameRenderedNotifier'
@@ -179,6 +182,7 @@ export function Scene() {
         <RenderPump />
         <Sky />
         <SceneBackdrop />
+        <Estate />
         <SceneEnvironment />
         <Lighting />
         {/* Baked skylight-visibility maps (item (w)), flag-gated and off by default. Mounted
@@ -188,6 +192,8 @@ export function Scene() {
         <CurtainLightController />
         <FurnitureLights />
         {customPlan ? <PlanShell /> : <Apartment />}
+        <WallFittings />
+        <PlumbingFittings />
         {/* Modeled aircon trunking route (BSJ-2 follow-up) — custom plans only,
             see the module doc for why (no room-graph for the curated flat). */}
         {customPlan && <AirconTrunking />}

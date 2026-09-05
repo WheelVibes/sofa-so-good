@@ -324,6 +324,31 @@ export function visGainLuminance(v: { x: number; y: number; z: number }): number
   return 0.2126 * v.x + 0.7152 * v.y + 0.0722 * v.z
 }
 
+/**
+ * LAMP-BOUNCE shader side (see `lampBounce.ts` for the model and its measurement). Each patched
+ * material carries its own `lampBounce` uniform whose `base` is that surface's per-room,
+ * per-orientation bounce; `setLampBounce` scales every registered uniform by the lights level
+ * (0 off … 1 on) in one pass, so the switch reaches the whole flat without touching the
+ * materials. The DEV seam `?lampBounce=<k>` multiplies every base for a sweep.
+ */
+interface LampUniform {
+  value: number
+  base: number
+}
+const lampUniforms = new Set<LampUniform>()
+let lampLevel = 0
+function lampSeam(): number {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return 1
+  const q = new URLSearchParams(window.location.search)
+  const v = Number(q.get('lampBounce'))
+  return q.has('lampBounce') && Number.isFinite(v) && v >= 0 ? v : 1
+}
+export function setLampBounce(lightsLevel: number): void {
+  lampLevel = Math.max(0, Math.min(1, lightsLevel))
+  const k = lampSeam()
+  for (const u of lampUniforms) u.value = u.base * lampLevel * k
+}
+
 export function applyVisibilityLightmap(
   material: MeshStandardMaterial,
   texture: Texture,
@@ -356,10 +381,17 @@ export function applyVisibilityLightmap(
    * separation is what keeps this measurable against the nine-measurement error record.
    */
   tint: readonly [number, number, number] = [1, 1, 1],
+  /** This surface's lamp bounce at lights level 1, in the map's irradiance units (`lampBounce.ts`). */
+  lampBase = 0,
 ): void {
   const map = prepareVisibilityTexture(texture)
+  const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
+  lampUniforms.add(lampU)
+  material.userData.visLampUniform = lampU
   material.onBeforeCompile = (shader) => {
     shader.uniforms.visMap = { value: map }
+    // Per-material object registered above: one `setLampBounce` write reaches every program.
+    shader.uniforms.lampBounce = lampU
     shader.uniforms.visGain = {
       value: new Vector3(gain * tint[0], gain * tint[1], gain * tint[2]),
     }
@@ -369,7 +401,7 @@ export function applyVisibilityLightmap(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'void main() {',
-        'uniform sampler2D visMap;\nuniform vec3 visGain;\nvarying vec2 vVisUv;\n' +
+        'uniform sampler2D visMap;\nuniform vec3 visGain;\nuniform float lampBounce;\nvarying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
       .replace(
@@ -400,7 +432,8 @@ export function applyVisibilityLightmap(
           // three's own path uses `diffuseContribution`, which additionally
           // accounts for transmission/sheen energy, so this is a slight
           // simplification -- and a compiling one.
-          '\treflectedLight.indirectDiffuse = visOcclusion * visGain * BRDF_Lambert( material.diffuseColor );' +
+          // LAMP-BOUNCE: the lamps' first bounce, added in the same irradiance units (see above).
+          '\treflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );' +
           (debug ? '\n\tvisDebug = visOcclusion;' : ''),
       )
     if (debug) {
@@ -472,6 +505,9 @@ export function applyVisibilityLightmap(
 export function detachVisibilityLightmap(material: MeshStandardMaterial): boolean {
   if (!material.userData?.visLightmap) return false
   material.onBeforeCompile = () => {}
+  const lampU = material.userData.visLampUniform as LampUniform | undefined
+  if (lampU) lampUniforms.delete(lampU)
+  delete material.userData.visLampUniform
   // Deleting restores `Material.prototype.customProgramCacheKey`, which is what three uses when
   // a material has not overridden it. Assigning `undefined` would break that lookup.
   delete (material as { customProgramCacheKey?: unknown }).customProgramCacheKey

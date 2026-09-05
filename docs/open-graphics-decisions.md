@@ -1356,6 +1356,77 @@ this item proposed, and with a third veil retired independently in v0.31.8.50
 > orbit and every backdrop-less path keep it. The two fixes are orthogonal: this one decides
 > WHETHER the stand-in applies, the curve below decides how bright it is when it does.
 
+> **Merged from staging: ESTATE-SKYCATCH-VEIL.** `backdropVisible` only tracked the PHOTO
+> backdrop; it knew nothing about `<Estate>`, the real HDB-neighbour geometry drawn behind the
+> same glass. `Estate.tsx` mounts on `backdrop: 'sky'` **or** `'none'`, so a walk with
+> `backdrop: 'none'` still has a real, lit neighbour block behind the pane while
+> `backdropVisibleNow()` reads `false` — the same double-count, from the other signal. Both call
+> sites (`apartment/Window.tsx`, `apartment/PlanShell.tsx`) now pass
+> `backdropVisibleNow() || estateVisibleNow()`. Measured at the living-room window, 13:00,
+> `realistic`, `backdrop: 'none'` (the config that reaches the gap — the default `sky` backdrop
+> already reads `backdropVisibleNow() === true` via `proceduralSky` and was already unaffected):
+> pane mean 233.5 → 183.6, sd 25.4 → 28.2, spread p95−p05 64 → 96, **`> 240` 61.2 % → 0.3 %** —
+> before the fix the veil was clipping 61 % of the pane to flat white and hiding the neighbour
+> block entirely; after, the pane matches the `sky`-backdrop numbers exactly (183.5 / 28.2 / 0.3 %
+> at the same pose). Night and the default `sky`-backdrop path are untouched by construction.
+
+> **Merged from staging: GLASS-CLARITY (`v0.33.0.10`).** With the two veils retired, what was left
+> between the camera and the estate was the pane MATERIAL itself, and two of its three parameters
+> were wrong for glass. (1) **Roughness.** Both call sites resolved
+> `Math.max(glassPhysical.roughness 0.05, glassParams.roughness 0.1) = 0.1`, and in three r184
+> `getTransmissionSample` blurs the transmissive target by
+> `log2(transmissionSamplerSize.x) · applyIorToRoughness(roughness, ior)` — at ior 1.5 the ior
+> factor is exactly 1, so 0.1 on a ~1900 px target spent **~1.1 mip levels** on the whole view.
+> `materialRealism.ts` had recorded this knob as "currently inert… do not tune this expecting a
+> visible change" on a `v0.31.5.175` sweep of 0.1 → 0.02 → 0 that moved micro-contrast +1 %; that
+> sweep was taken when the only thing behind the pane was the PMREM-blurred sky, i.e. a blur knob
+> measured against an already-blurred subject. (2) **Colour.** The shader's
+> `transmittance = diffuseColor · volumeAttenuation(...)` multiplies the view through the glass by
+> the pane colour, and `clear`'s `#bcd4e6` is 0.74/0.83/0.90 in linear — a ~20 % neutral-density
+> loss plus a blue cast. Real 6 mm clear float glass transmits 88–90 % nearly neutral (the faint
+> green edge lives in `attenuationColor`).
+>
+> Swept live inside ONE run at one pose (living-room window, 13:00, `realistic`, default `sky`
+> backdrop, estate mounted; `dev-probes/window-pane.mjs SWEEP=…` driving the mounted pane
+> materials from inside a wrapped `gl.render`, two pane patches read by `patch-read.mjs`, arms
+> repeated — noise floor max 2 counts, micro-contrast identical to 2 d.p.):
+>
+> | arm (roughness / colour) | mean | p95−p05 spread | R−B | micro-contrast |
+> | --- | --- | --- | --- | --- |
+> | 0.1 / `#bcd4e6` (was shipping) | 189.2 / 180.0 | 82 / 91 | −13.3 / −15.9 | 2.12 / 2.13 |
+> | 0.05 / `#bcd4e6` | 187.6 / 179.3 | 84 / 93 | −14.1 / −16.0 | **2.32 / 2.27** |
+> | 0.02 / `#bcd4e6` | 187.6 / 179.3 | 84 / 93 | −14.1 / −16.0 | 2.32 / 2.27 |
+> | 0 / `#bcd4e6` | 187.6 / 179.3 | 84 / 93 | −14.1 / −16.0 | 2.32 / 2.27 |
+> | 0.05 / `#dfe8ee` | 195.2 / 187.2 | 75 / 84 | −4.1 / −5.7 | 2.03 / 2.03 |
+> | **0.05 / `#f2f5f7` (ships)** | **199.5 / 191.6** | 68 / 78 | **−0.9 / −2.4** | 1.87 / 1.89 |
+> | 0.05 / `#ffffff` | 202.4 / 194.7 | 65 / 74 | +0.4 / −0.9 | 1.76 / 1.80 |
+>
+> Read the two columns separately: at a FIXED colour, micro-contrast is a clean blur metric and
+> says **+9 %** for 0.1 → 0.05 and **exactly nothing** below 0.05 (0.05 → 0 changes no pixel by
+> more than the 2-count repeat floor, against 58 for 0.1 → 0.05). Across the COLOUR arms it is
+> confounded — lifting transmittance pushes the pane up AgX's shoulder, so spread and
+> micro-contrast fall while the frames get visibly *better*; the honest colour statistic is R−B,
+> the blue cast on the neighbour block, which goes −13.3 → −0.9. `#f2f5f7` is taken over
+> `#ffffff` because it is the physical value (0.89/0.91/0.93 linear = the real 88–90 %); no glass
+> transmits 100 %. Shipped as two new transmission-tier-only fields on
+> `windowGlassKindParams` (`transmissionColor`, `transmissionRoughness`), so the cheap
+> Performance/Medium pane — where the same hex is an opacity-blended TINT over the wall and reads
+> correctly — is byte-identical, and frosted/textured/glass-block keep their higher roughness
+> through the same `Math.max`. Night is untouched (`windowTransmission`, the `dn` ramp and
+> ESTATE-NIGHT-GLASS unchanged; only the daylight end of the colour lerp moves). Frame cost
+> p50/p90 8.3/11.5 → 8.2/11.2 ms.
+>
+> **One diagnosis in the same brief was REFUTED and nothing shipped for it** (meta-rule ii): the
+> mottled grey wall left of the near-down frame was assumed to be `estateTextures.ts`'s
+> `speckle(…, 2600, 0.045)` (3–7 cm blotches at 72 px/m) on the own-block wings. Painting the
+> own block's tiles WITHOUT the speckle changed **zero pixels** in that frame (max 2 counts =
+> the repeat floor), and so did raising the estate textures' `anisotropy` 4 → 16. Raycasting the
+> pixel names the surface instead: at 2.4 m behind the pane it is an **apartment wall**
+> (`MeshStandardMaterial`, `#f1f0ec`, no albedo map — the shell's own wall body, `.79`/`.80`
+> above), whose plaster NORMAL map at a grazing angle is what mottles. The estate speckle is
+> invisible at every pose in `estate-surround-verify.json`; a fix for the grazing-angle plaster
+> read is a separate item and is not this one.
+
 > **The fix is `glassSkyCatchIntensity(d) = d³ · 5.2`**, a single coefficient and curve on the pane's
 > emissive. Verified by frame at 13:00 (bright opening, crisp mullions, `> 240` **21.5 %**), 18:00
 > (**15.0 %**), 19:00 (bright, defined, no bloom, 0.8 %) and 21:00 (zero by construction).

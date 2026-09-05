@@ -27,6 +27,454 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.10 — GLASS-CLARITY: clear panes stop blurring and blue-tinting the estate
+
+With the estate as real geometry behind the pane, the transmission-tier glass was the veil: its
+roughness 0.1 spends ~1.1 mip levels of `getTransmissionSample` blur (`lod = log2(W) · roughness`
+at ior 1.5), and its colour `#bcd4e6` multiplies the transmitted view (`transmittance = diffuseColor
+· attenuation`) — ~20 % darker and blue. `windowGrilleLayout.ts:WindowGlassKindParams` gains two
+transmission-tier-only fields, `transmissionRoughness` (clear: **0.05**) and `transmissionColor`
+(clear: **`#f2f5f7`**, the 88–90 % near-neutral transmittance of real float glass); `Window.tsx` and
+`PlanShell.tsx` use them only when `windowGlassPhysical` is non-null, and the day end of the pane's
+day/night lerp follows the transmission colour. Cheap-tier panes are asserted deep-equal to before
+for all four kinds; frosted/textured/glass-block keep their own blur. Night (`windowTransmission`,
+`dn`, ESTATE-NIGHT-GLASS) unchanged.
+
+Swept live in one run at the living-room window (13:00, `realistic`, estate mounted, repeat floor
+2 counts): roughness 0.1 → 0.05 raises pane micro-contrast 2.12 → 2.32 (+9 %) and everything below
+0.05 is pixel-identical, so 0.05 ships rather than the degenerate 0; colour `#bcd4e6` → `#f2f5f7`
+takes the pane's R−B cast −13.3 → −0.9 (unglazed reference façade: −3.0). Micro falls across the
+colour arms only because the brighter pane compresses on AgX's shoulder — the frames are crisper.
+Frames: neighbour bays, mullions and accent bands legible where they were a soft blue wash; the
+bedroom window is the largest visible win; interior wall/sofa patches byte-identical; night pane
+still dark-clear with lit windows. Frame cost p50 8.3 → 8.1 / p90 11.5 → 11.7 ms (noise).
+
+Refuted on the way: the own-block wing speckle (`estateTextures.ts`) is NOT the mottle seen beside
+the pane — a `weathering: 'near'` variant and anisotropy 4 → 16 changed zero pixels; raycasting
+names the apartment's own wall body 2.4 m behind the glass, whose plaster normal map mottles at a
+grazing angle. Nothing shipped for it; recorded in `docs/open-graphics-decisions.md` item (l) as a
+separate item. The `WindowGlassPhysical.roughness` doc note that called roughness "inert" is
+rewritten (that sweep faced a PMREM-blurred sky with nothing to blur). Probes: `window-pane.mjs`
+gains `SWEEP=` arms, `patch-read.mjs` gains `spread`/`micro` columns.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.0.9 — ESTATE-SKYCATCH-VEIL: no pane sky-catch when the estate is the view
+
+`glassSkyCatchIntensity` already returned 0 when a photo backdrop paints a real view behind the
+pane (GLASS-SKYCATCH-VEIL, v0.31.8.50). The estate geometry is the second "real view" case, and it
+was missed: `Window.tsx`/`PlanShell.tsx` asked only `backdropVisibleNow()`, which is `false` for
+`backdrop: 'none'` although `<Estate>` still mounts there, so the pane fired the full `d⁴·8.32`
+emissive over a neighbour block that was actually visible. Both call sites now pass
+`backdropVisibleNow() || estateVisibleNow()`. New source-contract test
+`src/apartment/glassSkyCatchEstate.test.ts` pins the call sites.
+
+Measured at the living-room window of the default flat, 13:00, `realistic`, `backdrop: 'none'`
+(pane patch via `patch-read.mjs`): mean 233.5 → 183.6, sd 25.4 → 28.2, p95−p05 64 → 96,
+% > 240 61.2 → 0.3 — byte-close to the always-correct `sky`-backdrop pane (183.5 / 28.2 / 96 /
+0.3 %), which is unchanged by construction. Frames: the `none` case went from a milky white blowout
+with no neighbour visible to the same crisp façade the `sky` frames show; night unchanged
+(sky-catch is 0 at night). No `EXTERIOR_DAY_BOOST` change needed. Not the cause of the residual
+softness the default (`sky`) frames still show through the pane — that is the next item.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.0.8 — ESTATE-DOOR-SIDE: the common corridor fronts each plan's real main door
+
+The estate hard-coded the corridor on the +z face with a span tuned to the default 4-room flat, so
+`tpl-hdb-5room` (door on −z) and `tpl-hdb-3gen` (door on +x) opened their front doors onto the
+window façade. New pure module `src/scene/estate/estateCorridor.ts`: `corridorFromPlan(plan)` takes
+the main door from the shared `fittingModel.ts:mainDoor` rule, picks the exterior face its wall lies
+on and a corridor run covering the door ±1.5 m out to the nearer block end; `estateFrame` turns that
+into the canonical inputs plus a 90°-multiple yaw/offset about the footprint centre. `estateLayout.ts`
+now builds ONE canonical estate (corridor on +z, width along +x; `corridorSide` dropped from its
+input, run-out keyed off which end of the span reaches the footprint edge) and `Estate.tsx` bolts it
+on with a rigid group transform — sectionCut, trees, roads, ground, box UVs and the night emissive
+all ride along untouched. Rigid, never a reflection, so the lit-window face stays opposite the
+corridor. Fallback for a plan with no door is the old +z default; the default flat's derived span
+starts at 9.43 m against the old hand-tuned 9.5 m.
+
+Tests (`estateCorridor.test.ts`) assert for every HDB template and the default plan that the
+corridor side equals the door wall's face, the span contains the door, and no estate box intersects
+the footprint in world space. Real-GPU frames (`scripts/scenarios/estate-door-side-verify.json`):
+5-room orbit with the corridor slab on the near −z face and the 5-room front door opening onto the
+parapet and a neighbour; 3Gen orbit with the whole estate turned 90° and the corridor façade on +x;
+3Gen bedroom window on −x seeing the oblique neighbour, a rain tree and ground. The default-flat
+estate scenarios re-ran unchanged (41/41 meshes raycast-inert, no own block above the cut).
+Known and unchanged: templates that glaze the ±x end faces of the flat (5-room bedrooms) look into
+the own-block wing, because the wings always run along the corridor axis.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.0.7 — the estate shows in ORBIT too (user decision; supersedes "dollhouse stays clean")
+
+PHOTO-BACKDROP's product decision kept the orbit dollhouse free of any surround. The user reversed it
+on 2026-09-05: orbit should read as a real block in a real estate. `Estate.tsx` now renders in walk
+AND orbit (not the room editor), and in orbit the layout goes through the pure `sectionCut(layout,
+cutY)` — the own block is cut at the flat's ceiling like a building section (`own.above`/`own.roof`
+dropped, wing `yMax` clamped), so the dollhouse stays open from above while neighbours, ground, roads,
+trees, corridor and the storeys below render in full. Every estate mesh and tree `InstancedMesh` has
+a no-op `raycast`, so orbit picking and `onPointerMissed` deselect fall through to the flat (probe:
+41 of 41 meshes inert). Ground plane 700 → 360 m (the orbit `maxDistance` is 60 m, so its edge is
+unreachable). Meshes now carry their layout key as `name`, which is what the probes count.
+
+Verified on the real GPU (`scripts/scenarios/estate-orbit-verify.json`) at 13:00 and 20:00: the flat
+open from above, the own block a low cut section rather than a tower, neighbours across the road,
+lit windows and corridor tubes at night; walk frames unchanged (43 meshes = 41 + above/roof).
+`frame-time.mjs MODE=orbit`: p50 10.8–12.9 / 12.8 ms, p90 13.6–14.5 / 13.6 ms (on / off) — steady
+state within noise; a one-off ~0.8 s max on the first orbit mount is the estate materials' shader
+compile. Follow-up noted from the night frame: the wings' corridor tubes bloom into continuous
+lines at 20:00 and want a lower night mask value.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.0.6 — PLUMBING-FITTINGS: floor traps, taps, pipes and the heater, rendered
+
+The wet-area sibling of WALL-FITTINGS. The plan's plumbing points (`plan.plumbingPoints`, or
+`derivePlumbingPoints` from the placed WC/basin/shower/washer/heater) never reached 3D; a floor-trap
+grating in every wet room, a bib tap and an exposed soil stack are among the most recognisable HDB
+cues there are.
+
+**What ships (`src/apartment/fittings/plumbingModel.ts` + `PlumbingFittings.tsx`, flag
+`plumbingFittings`, simple tier, default on; mounted in `Scene.tsx` and, room-scoped, in
+`RoomEditorScene.tsx`).** Floor traps sit on the floor, ≥ 0.25 m from any wall centreline, inside a
+room and clear of furniture footprints (`floorObstacles` — the first frame had bath1's trap buried
+under the shower tray as a chrome sliver; a single 50 mm grid search now satisfies wall clearance, room
+containment and footprint avoidance together, after nudge-then-nudge pushed the yard trap back under
+the washer). Wall kinds (bib tap, waste stub, 100 mm soil stack floor-to-ceiling, storage heater at
+1.8 m) snap to the nearest wall through a new shared `wallSnap.ts` that `fittingModel.ts` now imports
+too — one nearest-wall/`placeOnWall`/`roomSide` implementation for both fitting models. A WC's soil
+pipe and tap fall back to a wall within 1.2 m (the derived point is the fixture centre); a tap that
+resolved INSIDE its own soil stack now steps 0.26 m along the wall. `wetRoomTraps` guarantees each wet
+room a trap; `plumbingForRoom` scopes the editor. Default flat: 14 fittings — 6 water points, 4 floor
+traps (bath1, bath2, service yard, kitchen), 2 soil pipes, 2 waste stubs; 80 instances.
+
+**Priced.** `frame-time.mjs`, walk/realistic: p50 7.3 / 7.1 ms, p90 11.2 / 10.7 ms (on / off) — noise.
+
+**Verified on the real GPU** (`scripts/scenarios/plumbing-fittings-verify.json`, 9 frames): bath1 and
+bath2 traps and stacks, the yard trap and tap, the kitchen trap, a persisted-point heater, the scoped
+editor. Two probe lessons recorded in `src/apartment/CLAUDE.md`: a floor fitting needs ~−0.95 pitch
+from 1.2 m to be judged, and a scenario must not walk after the room editor (stale wall fades cull
+wall items). Not verified by eye: the editor's grating sits under the floor grid overlay — asserted
+numerically (18 scoped instances).
+
+Executed by an Opus 5 subagent from a written brief (resumed once after an API rate limit); validated
+and committed by the orchestrator.
+
+## v0.33.0.5 — wall fittings reach the room editor (EDITOR-LOCKSTEP)
+
+`v0.33.0.4` mounted the switches, sockets and DB box in `Scene.tsx` only and recorded the room
+editor as a lock-step gap. Closed: `RoomEditorScene.tsx` mounts `<WallFittings roomId={roomId} />`,
+and the pure `fittingsForRoom(fittings, plan, roomId)` keeps a fitting when the point 0.15 m in
+front of its plate lies inside the edited room — the editor isolates one room, so an unscoped list
+would draw every other room's plates floating around it. The main-scene mount is byte-identical.
+Verified on the real GPU (`scripts/scenarios/wall-fittings-editor-verify.json`): 29 instances in the
+living/dining editor against 193 for the whole flat, plates on the room's own skirting, none outside.
+Tests pin the scope (living keeps its own, drops the bedroom's; unknown room → empty).
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.0.4 — WALL-FITTINGS: the flat's switches, sockets and DB box, rendered
+
+Third shell item from the tour, and the first about FITTINGS rather than light: the walls carried
+nothing a person had wired. The 2D plan already knew where the electrical points go — the MEP layer
+(`plan.electricalPoints`, Pro editor) and `deriveElectricalPoints` (a switch just inside each door,
+a socket behind every appliance, TV/data/aircon/heater points) — but nothing in 3D ever drew them.
+
+**What ships (`src/apartment/fittings/`, flag `wallFittings`, simple tier, default on).**
+`fittingModel.ts` resolves points onto wall faces: nearest wall within 0.6 m, the face on the point's
+own side, plate centre proud of the face by half its 11 mm depth, yaw facing the room; points with
+no wall in reach are dropped, never floated. A derived door switch sits on the wall centreline, so
+its side is the door's swing side — except where only one side of the wall is a room (the main door
+swings OUT to the common corridor; its switch is still inside). The distribution board goes past the
+main door's latch jamb at 2.0 m, its top by the door head. When the plan has no MEP layer,
+`generalSockets` adds what the derived layout leaves out — a real HDB room has 13 A sockets on every
+long wall whether or not something is plugged in: one per wall run ≥ 2.4 m, two ≥ 3.4 m, never within
+0.5 m of an opening or another point. `WallFittings.tsx` draws the lot as four instanced meshes: SS 638
+86 × 86 mm plates (146 × 86 double), BS 1363 three-slot faces with the Singapore rocker, aircon
+isolators, the heater switch's neon, a 400 × 300 DB with door seam and hinge line. 193 instances for
+the default flat.
+
+**What the real-GPU frames changed.** The first pass put the DB at 1.85 m — too low against the door;
+now 2.0. The bedroom-2 switch, on a fill-lit corridor wall, was a faint outline: a white plate on a
+white wall with no directional light and an AO kernel that cannot see an 11 mm object. So every
+plate carries a dark CONTACT RIM 6 mm wide flush to the wall, the rockers carry their own seam,
+and the plastic went glossier (roughness 0.28) so its specular lobe reads. The living room got ONE
+general socket at first because its only long unobstructed wall is the east one; the rule now
+places two on runs ≥ 3.4 m.
+
+**Orbit.** A plate on a wall the dollhouse reveal has faded would float as opaque hardware; the
+renderer reads `getWallOpacity(wallId)` each frame and collapses those instances to zero scale.
+
+**Priced.** `frame-time.mjs FLAGS_OFF=wallFittings`, walk/realistic, same pose: p50 **7.7 / 7.2 ms**
+(on / off), p90 **9.4 / 11.2 ms** — inside run-to-run noise in both directions; four draw calls for
+193 instances. The ON arm's 966 ms max is the one-off first-frame compile of the new materials.
+
+**Not done, stated.** The room editor does not mount fittings yet (a lock-step gap with `Scene.tsx`,
+recorded in `src/apartment/CLAUDE.md`); plates are not yet finish-aware (a dark accent wall gets the
+same white plate — correct for most SG flats, not all); cornice/L-box and visible ceiling fixtures
+remain the next fittings items.
+
+## v0.33.0.3 — LAMP-BOUNCE: the baked GI learns what the lamps throw back up
+
+The half of the kitchen deficit `v0.33.0.2` left named. With AO out of the way the kitchen ceiling
+still read a warm grey — and this time the question could be put to Cycles with the lamps ON, which
+the lit arm (`scene-glb.mjs` exporting the 19 point lights, `render_from_manifest.py` placing them
+at the manifest's candela, exposure matched at 1.38) makes a 40-second job per pose.
+
+| kitchen-y1, 13:00, lamps on | ceiling | wall | ceiling/wall |
+| --- | --- | --- | --- |
+| Cycles | 190.4 | 193.6 | 0.98 |
+| app, before | 151.8 | 187.3 | 0.81 |
+
+The walls agree; the ceiling is 38 counts short. The pendant's direct pool is present in both. What
+the app lacks is the light the lit walls and floor throw back up — the lamps' first bounce — which a
+DAYLIGHT-only irradiance bake cannot contain, and which the analytic fill that `replace` mode
+discards had been crudely standing in for. A second reference at the living-room tour pose reads
+app ceiling **227 against Cycles' 186** — that ceiling is the plain Lambert white with no baked map,
+so no GI term reaches it, and its overshoot is a separate, pre-existing item.
+
+**What ships (`scene/lampBounce.ts`, pure and tested; shader side in `visibilityLightmap.ts`).**
+Per room, `Σ emitter intensity / floor area`, times `LAMP_BOUNCE_K`, times an orientation weight
+(ceiling 1.0, wall 0.35, floor 0.2: a ceiling sees the lit floor and walls, a floor mostly sees
+the lamp the fixture light already renders). Each patched material gets its own `lampBounce`
+uniform at attach; the lights switch scales them all in one pass. Swept with a DEV seam
+(`?lampBounce=<k>`):
+
+| arm | kitchen ceiling | kitchen wall | living ceiling | living wall | corridor ceiling |
+| --- | --- | --- | --- | --- | --- |
+| off | 151.8 | 187.3 | 227.4 | 202.9 | 169.9 |
+| K 0.2 (side 0.55) | 160.2 | 189.8 | 227.6 | 203.5 | 175.0 |
+| K 0.4 (side 0.55) | 166.8 | 191.2 | 227.9 | 204.2 | 179.1 |
+| K 0.8 (side 0.55) | 176.7 | 193.7 | 228.4 | 205.5 | 185.8 |
+| **K 1.2, side 0.35 — ships** | **184.0** | **193.5** | 228.8 | 205.4 | **190.5** |
+| Cycles | 190.4 | 193.6 | 186.4 | 204.1 | — |
+
+The first three arms showed the wall reaching its reference before the ceiling did, which is the
+orientation ratio being wrong, not the constant — so the wall weight came down from 0.55 to 0.35 and
+the constant went up. Kitchen wall now matches Cycles to 0.1; ceiling closes 32 of 38 counts;
+corridor ceiling +21; living room moves 1–3 counts. Judged by eye as well: the kitchen ceiling reads
+as a lit white ceiling instead of a brown lid.
+
+**A claim retracted before it shipped.** The header's first draft said the kitchen's density was
+"several times" the living room's and that this is why the living room stayed put. The unit test
+asserting it FAILED: measured on the default flat the two are **1.17 and 1.10** — near-equal — and
+the living room stayed put because its ceiling has no baked map for the term to reach, while its
+mapped walls moved by the same few counts the kitchen's did. The per-room shape is still right for
+the rooms that do differ (bath2 2.78, serviceYard 2.88, bedroom3 0.89, acLedge 0), which is a 3×
+spread; the test now pins those, not the story I wanted.
+
+**Limits, stated.** The census is taken once when the maps attach (a lamp placed mid-session joins at
+the next attach — re-attaching live is the documented 216 ms recompile); per-item `lightOn: 'no'`
+is honoured at that moment only; the living room's own ceiling overshoot (+40 vs Cycles) is a
+separate, pre-existing item — the fan light's glow in that patch is the first suspect — and was
+deliberately not touched here.
+
+## v0.33.0.2 — AO-SMALL-ROOM: the full post stack no longer darkens whole kitchens and corridors
+
+Second shell item from the per-room tour: at `realistic`, 13:00, lights on, the kitchen, corridor
+and bathroom ceilings rendered a dull grey-brown while the Performance tier showed them light. A
+four-arm A/B at the kitchen pose separated the causes: AO off lifted the ceiling patch **134 → 167**
+and the wall **176 → 197** (Performance: 181 / 202); lights off dropped the ceiling to 54, which is
+the daylight-only baked GI doing what Cycles says a windowless-to-the-sky kitchen does.
+
+So the bulk of it was N8AO at `intensityPost` 7 with a 1.0 m radius — calibrated in `.222` on one
+living-room floor pose, where a metre-scale kernel is right for contact under a sofa, and wrong for a
+1.9 m-wide kitchen where every point of every wall has another wall within a metre. A DEV seam
+(`?aoIntensity=&aoRadius=&aoFalloff=`) was added to `EffectsImpl` and five arms swept at the kitchen
+and corridor poses against the pooled under/open floor ratio from `underside-shadow.mjs`:
+
+| arm | kitchen ceiling | kitchen wall | corridor ceiling | floor under/open |
+| --- | --- | --- | --- | --- |
+| AO off | 167.5 | 197.3 | — | — |
+| 7 / 1.0 (shipped) | 134.0 | 176.4 | 149.2 | 0.834 |
+| 5 / 1.0 | 143.7 | 182.7 | 161.2 | 0.850 |
+| 4 / 1.0 | 148.4 | 185.9 | 167.2 | 0.871 |
+| 7 / 0.7 | 145.7 | 185.6 | 161.4 | 0.843 |
+| **5 / 0.7 — ships** | **151.8** | **189.2** | **169.9** | **0.885** |
+
+`AO.intensityPost` 7 → **5** and a new `AO.aoRadiusPost` **0.7**, used only when the full stack
+mounts; the AO-only composer keeps 4.5 / 1.0 byte-identical. The floor ratio was already outside
+the photographic 0.58–0.73 band (the documented 0.716 was the photographic look, not the default),
+so the contact cue being traded was not delivering, and the small-room darkening it bought was the
+most visible tier difference in the flat. Judged by eye as well: the 5 / 0.7 kitchen frame has even
+walls and corner darkening at contact scale.
+
+**What this does not fix, named:** with AO off the kitchen ceiling still reads 167 against the
+Performance tier's 181 and a warm grey rather than white, because the `replace`-mode GI carries a
+daylight-only irradiance and a lamp-lit kitchen has no lamp bounce in its map. That needs a lamp
+interreflection term (or a lights-on bake) and a lights-on Cycles reference to calibrate against;
+queued.
+
+## v0.33.0.1 — ESTATE-SURROUND: the HDB estate outside the windows, as geometry
+
+The user's steer for this arc: the apartment itself — shell, fittings, environment — not the
+furniture. A per-room `walk-tour.mjs` at `realistic` (44 frames) put the environment first by a
+wide margin: every window and the whole service yard looked onto an empty blue-grey void. A flat
+with no outside is a set, not a home.
+
+**Why geometry.** `docs/open-graphics-decisions.md` item (r) already measured the obvious route
+and closed it: anything painted into the equirect `scene.background` is PMREM pre-filtered by
+three into "faint blue-grey blobs" (a crisp 2048×1024 skyline bought 3 points of glazing spread
+where a photograph shows 35), and the cube-texture route was refuted in `v0.31.7.132`. The only
+path that keeps a legible exterior is to draw it — which is also what gives it parallax, sun-facing
+sides and a view that changes as you cross the room.
+
+**What ships** (`src/scene/estate/`, flag `estateSurround`, simple tier, default on; walk mode,
+HDB plans, `sky`/`none` backdrop only; `noExport`; casts and receives no shadows):
+
+- **The flat's own slab block**, continuing 30 m either side, the storeys below and above, a
+  12-storey roof with parapet, and the **common corridor** outside the main door — floor, parapet,
+  running to the block's east end and deliberately NOT in front of the service yard.
+- **Neighbours at HDB spacing**: three slab blocks (12–16 storeys, 66–74 m, slightly oblique) and two
+  point blocks (20–25 storeys) at 50–110 m, each with void deck, roof parapet and lift-motor room.
+- **Ground 20.4 m down** (`VIEW_STOREY` 8: a 3.6 m void deck + six 2.8 m floors), two access roads,
+  sixty rain trees on open ground.
+- **Procedural textures, no assets**: one façade tile of 4 bays × 3 storeys (sliding windows with
+  curtains, bathroom windows, aircon ledges with condensers, an accent band), a corridor tile
+  (parapet, doors and gates, laundry poles), repeated across any block by UV scaling, so one
+  texture serves every block. Day albedo plus a night emissive mask of lit windows and corridor
+  fluorescent tubes that fades in as the sun sets.
+
+**Three things the first real-GPU round corrected, all by looking (item (r) established that no
+available number sees exterior detail through a pane):**
+
+- **The neighbours read as a grey interior wall seen through glass.** The scene's sun and
+  hemisphere light the estate exactly as hard as the flat, but a camera exposed for a room sees the
+  outside two to three times brighter — that is why real window views blow toward white. Exterior
+  materials now carry a daylight emissive of their own albedo (`EXTERIOR_DAY_BOOST` 1.1), and the
+  block outside the living window went from grey mush to a sunlit façade with legible bays.
+- **Nothing showed at night.** PHOTO-GLASS drops the pane to 0.2 transmission with a near-black
+  tint after dark ("the interior reads its own reflection, not a see-through hole into the void").
+  Right for a void; with lit neighbours outside it hid the one thing an HDB night window shows.
+  `estateSignal.ts` is a module boolean the panes read per frame (the `backdropVisibleNow` pattern);
+  `Window.tsx` and `PlanShell.tsx` scale the night ramp by 0.15 while the estate is mounted, and
+  every path without it is byte-identical. The night frame now shows the block's lit windows through
+  clear glass with the fan light reflected in it.
+- **A straight footpath on the ground tile repeated as stripes across 300 m of lawn, and the trees
+  were lollipops.** The ground is blotches (three greens, worn earth, seam-wrapped); the tree is a
+  rain tree — a broad umbrella crown 1.6× wider than tall on a clear trunk, 260 leaf clusters,
+  three variants, lit top / dark underside.
+
+Also: the first neighbour moved from 46 m to 62 m and turned 11°, so an 8th-storey window shows
+sky above a 12-storey block instead of a wall of bays edge to edge.
+
+**Priced free.** `frame-time.mjs FLAGS_OFF=estateSurround`, walk/realistic, same pose:
+p50 **7.3 / 7.3 ms**, p90 **10.1 / 10.4 ms**; the only cost is a one-off texture-upload hitch.
+39 meshes in walk mode, 0 in orbit (the dollhouse stays clean, as decided).
+
+**Known limits, stated:** the corridor side is assumed `+z` (the default plan's main door); a
+template whose main door faces another way gets the corridor on the wrong face. Condo and landed
+plans get no surround yet. The exterior brightness is a look constant, not a measurement — a Cycles
+render of the window pose under the physical sky (`render_from_manifest.py`) is the right way to
+calibrate exterior/interior ratio, and is the next measurement this arc owes.
+
+## v0.33.0.0 — PHOTOREAL-HERO: Realistic mode draws the hero furniture as photo-scanned models
+
+Minor bump — opens the cinematic-photorealism arc (walk, orbit and the room editor), cut from
+`staging` at `v0.32.0.2`.
+
+**The finding that ordered the work.** A real-GPU baseline of the boot flat at `realistic`
+(`scripts/scenarios/photoreal-baseline.json`, Apple M4 / Metal) reads as a render before it reads
+as a room, and the cue is not the light — the graphics arc has measured that against Cycles for
+three hundred builds — it is the FURNITURE. A sofa built from bevelled boxes with a plaid
+texture, dining chairs that are four sticks and a plank, a TV console that is a box: these are CAD
+however the fill is balanced. Every current photoreal reference (Coohom's cloud renders, Enscape,
+D5) is lit no better than this app's Realistic tier; they look like photographs because the models
+in them are.
+
+**What ships.** In `realistic` mode a mapped parametric piece renders as a Poly Haven CC0
+photo-scanned GLB instead of its primitive (`furniture/photorealProxies.ts`, flag `photorealModels`,
+simple tier, default on):
+
+| parametric def | hero GLB (Poly Haven) | tris | MB |
+| --- | --- | --- | --- |
+| `sofa-3seat` | `sofa_02` | 2.7k | 0.16 |
+| `armchair` | `modern_arm_chair_01` | 8.9k | 0.29 |
+| `dining-chair` | `dining_chair_02` | 22k | 0.22 |
+| `ottoman` | `Ottoman_01` | 4.2k | 0.30 |
+| `coffee-table` | `modern_coffee_table_01` | 4.5k | 0.15 |
+| `side-table`, `nightstand` | `side_table_01` | 2.8k | 0.17 |
+| `tv-console` | `modern_wooden_cabinet` | 25k | 0.28 |
+| *(catalog only)* | `wooden_display_shelves_01` | 3.2k | 0.16 |
+
+1.74 MB for the set (1k textures → WebP, Draco), with `-low`/`-medium` LOD siblings from
+`optimize:glb`. Beds, the dining table, desks and lamps stay parametric: Poly Haven's 85 furniture
+models hold no modern example of any of them (its beds are Gothic and Victorian), and a wrong-style
+scan reads worse than a clean primitive. `sideboard`, `bookshelf` and `cube-shelf` were mapped in
+the first cut and UNMAPPED after the arithmetic: the sideboard needs a 1.75× vertical stretch of the
+0.68 m cabinet, and the shelves would shrink to 0.63–0.83× and leave the trailing plant on top
+floating half a metre. The display shelves stay in the catalog as a placeable piece.
+
+**How it stays safe — a RENDER swap, nothing else moves.**
+
+- The item keeps its parametric `defId`. Collision, the arranger, prices, the plan export and
+  every corpus ratchet read the parametric def exactly as before; `Furniture.tsx` is the only
+  consumer of the proxy. Zero test churn outside the new file.
+- The GLB is drawn in the primitive's frame. `fetch-hero-models.mjs` re-roots each model under a
+  wrapper node that bakes the facing (+Z, like every primitive) and floor-centring, and writes a
+  sidecar footprint measured from the FINAL geometry — so the runtime does one thing: a UNIFORM
+  scale, width-matched to the live `width` param and clamped so depth/height never exceed the
+  parametric footprint by more than 15 % (chairs 20 %: a real dining chair is 0.58 m deep and its
+  back leans past the 0.48 m the primitive reserves). Non-uniform stretch was rejected because a
+  stretched scan reads worse than a slightly small one; the bound exists because a proxy past its
+  own collision box clips walls.
+- **Surface hosts additionally stretch VERTICALLY (`fitHeight`, bounded to 1.25×) so their top
+  lands exactly at the parametric height.** Caught on the first real-GPU frame: every decor prop
+  (`fruit-bowl`, `magazine-stack`, `tabletop-decor`) self-lifts to `surfaceHeight` = the parametric
+  `h`, and the stone coffee table width-matched to 0.915× has its top at 0.357 m, so the bowl hovered
+  6 cm in the air. Table legs 18 % taller are invisible; a floating bowl is not.
+- **The default flat's sofa decor moved onto the seat.** The throw blanket was authored "draped
+  over the sofa arm" and the end cushions 0.1 m from the ends — against the box sofa's geometry. On
+  the chesterfield (tall rolled arms over the outer ~0.25 m, seat set back from the front) the
+  blanket protruded as a slab out of the front of the arm, and both cushions — authored at
+  x 11.275, the box sofa's front edge — overhung the seat and poked through the arms. Took two
+  rounds to read correctly: the first re-verify moved the blanket and left the cushions, and the
+  crop still showed a slab, which I misattributed to the blanket until the beige herringbone fold
+  sitting correctly mid-seat identified itself. A second move (against the back, 0.35 m inboard)
+  then poked the near cushion out through the chesterfield's BOWED back — its back curves forward
+  toward the arms. Mid-seat, 0.45 m inboard, is the one placement both shapes share, verified on
+  both arms with crops. Content, not code; `performance` mode sees the same pieces a hand's width
+  further in.
+- The primitive is the Suspense fallback AND the error-boundary fallback (`GltfErrorBoundary`
+  gained an optional `fallback`), so a piece sharpens from box to scan and a 404 degrades to the
+  ordinary render rather than a placeholder box.
+- Gated on the MODE, never the device class. The adaptive ladder moves the class; the mode is user
+  intent, and `performance` — the editing path — is byte-identical.
+
+**Facing was measured, not assumed.** The Poly Haven `/info` API's `dimensions` array reported
+`modern_coffee_table_01` as 1.2 × 0.6 m while the GLB's bbox is 0.6 × 1.2 — axis order is not
+reliable. Each model went through `inspect_asset.py` (Cycles turntable, view_00 = the glTF +Z
+face): six faced +Z already, the display shelves faced +X (yaw −90° baked), the coffee table's long
+axis ran along Z (yaw 90°). The baked GLBs were re-rendered to confirm; all show the front at
+view_00. Lesson recorded in `docs/skills/blender.md`.
+
+**Also in this build.** `docs/user/room-editor.md` claimed the editor pins the Performance tier;
+`enterRoomEditor` stopped doing that in the bugs-#13/#16 fix, and the swap reaches the editor
+through the same global tier. Corrected.
+
+**Priced, and it is free at steady state.** `frame-time.mjs` gained a `FLAGS_OFF=<flag,…>` A/B
+hook for exactly this. Walk mode, `realistic`, 1280×800 @ dpr 2, 10 s translate + pitch, Apple M4 /
+Metal, same pose and hour:
+
+| | p50 | p90 | max | drawn/s |
+| --- | --- | --- | --- | --- |
+| hero models ON | **6.9 ms** | **9.1 ms** | 303 ms | 42.6 |
+| primitives (flag off) | 6.9 ms | 9.5 ms | 177 ms | 39.2 |
+
+p50 identical, p90 inside run-to-run noise (the ON arm reads lower). The one real cost is the
+**max**: a single ~300 ms frame when the first hero GLB's textures upload — the load hitch, once
+per session, which is why the primitive stays on screen as the Suspense fallback rather than a
+blank. The 12 hero instances in the boot flat total ~75k triangles, less than the 4 dining chairs'
+parametric bevels alone.
+
+**Deliberately not done here, queued for the arc:** a Cycles reference of the walk pose with the
+hero set in place (the export path carries GLB items, so `render_from_manifest.py` will take it
+unchanged); the window's estate view; per-part recolour of the hero pieces through the existing
+`finish:<material>` mechanism; the `armchair` seat height (the throw cushion decorStyling drops on
+it self-lifts to 0.52 m — the scan's seat is lower, so the cushion may float on a styled armchair;
+the boot flat has none).
+
 ## v0.32.0.2 — knip: three exports that were never imported, and one dead test seam
 
 CI's dead-code scan was the only failing check on the merge (both test shards passed). Four unused

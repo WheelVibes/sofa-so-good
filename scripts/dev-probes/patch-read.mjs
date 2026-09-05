@@ -51,7 +51,7 @@ const patches = argv.slice(sep + 1).map((a) => {
 })
 fs.mkdirSync(outDir, { recursive: true })
 
-/** Mean L, mean R−B and sd of L over one fractional rect. */
+/** Mean L, mean R−B, sd, percentiles and MICROCONTRAST of L over one fractional rect. */
 async function readPatch(file, meta, p) {
   const left = Math.round(p.x * meta.width)
   const top = Math.round(p.y * meta.height)
@@ -98,7 +98,30 @@ async function readPatch(file, meta, p) {
     rb += r - b
     lumas[i / 3] = l
   }
+  // MICROCONTRAST: mean |neighbour difference| (right + down) inside the patch. Added for
+  // GLASS-CLARITY (v0.33.0.10): mean/sd/percentiles are all blind to BLUR — a mip-blurred façade
+  // and a crisp one carry the same luminance distribution, and only the pixel-to-pixel figure
+  // separates them. It is the same statistic the material probes report (`surface-detail.mjs`,
+  // and every microcontrast number in `src/materials/CLAUDE.md`), so figures compare across arcs.
   const mean = sum / n
+  // Row-major copy, because `lumas` is about to be SORTED for the percentiles and the
+  // neighbour difference needs the pixels still in place.
+  const grid = Float64Array.from(lumas)
+  const at = (x, y) => grid[y * width + x]
+  let micro = 0
+  let microN = 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (x + 1 < width) {
+        micro += Math.abs(at(x, y) - at(x + 1, y))
+        microN++
+      }
+      if (y + 1 < height) {
+        micro += Math.abs(at(x, y) - at(x, y + 1))
+        microN++
+      }
+    }
+  }
   lumas.sort()
   const q = (f) => lumas[Math.min(n - 1, Math.max(0, Math.round(f * (n - 1))))]
   return {
@@ -107,6 +130,7 @@ async function readPatch(file, meta, p) {
     rb: rb / n,
     p05: q(0.05),
     p95: q(0.95),
+    micro: microN ? micro / microN : 0,
     px: `${width}x${height}`,
   }
 }
@@ -137,19 +161,19 @@ for (const img of images) {
 
 const w = Math.max(...rows.map((r) => r.patch.length), 8)
 console.log(
-  `\n${'patch'.padEnd(w)}  ${'image'.padEnd(12)}  ${'mean'.padStart(7)}  ${'p05'.padStart(6)}  ${'p95'.padStart(6)}  ${'R-B'.padStart(7)}  ${'sd'.padStart(6)}  px`,
+  `\n${'patch'.padEnd(w)}  ${'image'.padEnd(28)}  ${'mean'.padStart(7)}  ${'p05'.padStart(6)}  ${'p95'.padStart(6)}  ${'spread'.padStart(6)}  ${'R-B'.padStart(7)}  ${'sd'.padStart(6)}  ${'micro'.padStart(6)}  px`,
 )
 for (const p of patches) {
   for (const r of rows.filter((x) => x.patch === p.name)) {
     console.log(
-      `${r.patch.padEnd(w)}  ${r.image.padEnd(12)}  ${r.mean.toFixed(1).padStart(7)}  ${r.p05.toFixed(0).padStart(6)}  ${r.p95.toFixed(0).padStart(6)}  ${r.rb.toFixed(1).padStart(7)}  ${r.sd.toFixed(1).padStart(6)}  ${r.px}`,
+      `${r.patch.padEnd(w)}  ${r.image.padEnd(28)}  ${r.mean.toFixed(1).padStart(7)}  ${r.p05.toFixed(0).padStart(6)}  ${r.p95.toFixed(0).padStart(6)}  ${(r.p95 - r.p05).toFixed(0).padStart(6)}  ${r.rb.toFixed(1).padStart(7)}  ${r.sd.toFixed(1).padStart(6)}  ${r.micro.toFixed(2).padStart(6)}  ${r.px}`,
     )
   }
   // Two images → print the delta, which is the figure every (p) round wants.
   const two = rows.filter((x) => x.patch === p.name)
   if (two.length === 2) {
     console.log(
-      `${''.padEnd(w)}  ${'delta'.padEnd(12)}  ${(two[1].mean - two[0].mean).toFixed(1).padStart(7)}  ${(two[1].rb - two[0].rb).toFixed(1).padStart(7)}`,
+      `${''.padEnd(w)}  ${'delta'.padEnd(28)}  ${(two[1].mean - two[0].mean).toFixed(1).padStart(7)}  ${''.padStart(6)}  ${''.padStart(6)}  ${''.padStart(6)}  ${(two[1].rb - two[0].rb).toFixed(1).padStart(7)}  ${''.padStart(6)}  ${(two[1].micro - two[0].micro).toFixed(2).padStart(6)}`,
     )
   }
 }

@@ -22,6 +22,9 @@ dollhouse view for getting your bearings and presenting the design.
   (you'll confirm *"Enter &lt;room&gt;?"* first).
 - Exterior walls between you and the interior fade out automatically so you can
   always see inside.
+- For an **HDB** plan (with the estate turned on), the dollhouse sits inside its own
+  block and a real neighbouring estate — cut away at your flat's ceiling like a
+  building section, so your storey stays open to view.
 
 The **nav cluster** at the bottom‑right combines a compass (click to reorient),
 a zoom rail, and a minimap. While inside the per‑room editor with something
@@ -135,6 +138,20 @@ toolbar) and it grows a **Walk settings** section with two sliders:
 
 Both apply instantly and are remembered on your device.
 
+### Switches, sockets and the DB box
+
+Every flat shows its everyday electrical fittings in 3D: a light switch beside each door on
+the side it opens to, 13 A sockets along the walls at skirting height, the TV and data points,
+aircon isolators, the water‑heater switch and the distribution board just inside the main
+door. If you have placed your own points on the 2D plan (the Pro **MEP point editor**), those
+are what you see; otherwise a sensible layout is derived from your doors and appliances.
+
+The wet areas get their plumbing too: a chrome floor‑trap grating on the tiles of every
+bathroom, the kitchen and the service yard, a bib tap on the wall, the grey PVC soil pipe
+running floor to ceiling behind the WC, a small waste stub beside the basin, and the wall‑hung
+storage water heater. Traps are kept clear of the walls and out from under the shower tray or
+the washing machine, so you see them where they really sit.
+
 ### The window view (walk mode)
 
 What you see through the windows is a **backdrop** you can pick from the **Scene**
@@ -143,6 +160,16 @@ panorama that sits realistically beyond the glass. Prefer your own outlook?
 **Upload your own photo** as the window view from the same picker. (For a live,
 time‑of‑day **Sky** backdrop, see
 [Lighting & time](/lighting-and-time#a-live-sky-in-the-window-pro).)
+
+
+For an **HDB** plan with the **Sky** backdrop, the estate itself is outside the glass: your
+own block continuing either side, the common corridor outside your own front door —
+whichever side of the plan it opens onto — neighbouring
+blocks across the road, trees and the ground the right number of storeys down. It follows
+the clock — sunlit by day, lit windows and corridor lights after dark. The estate is visible
+in the **orbit** (dollhouse) view too, cut away at your flat's ceiling like a building
+section, so your own storey stays open to view while the rest of the block and the
+neighbouring estate read around it.
 
 ### Enter VR (Pro)
 

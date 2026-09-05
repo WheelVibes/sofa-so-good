@@ -10,6 +10,9 @@ interface Props {
    *  instead of silently showing the placeholder box. */
   defId?: string
   url?: string
+  /** What to render on failure instead of the placeholder box. PHOTOREAL-HERO passes
+   *  the parametric primitive, so a 404'd hero GLB degrades to the ordinary render. */
+  fallback?: ReactNode
   children: ReactNode
 }
 
@@ -79,7 +82,8 @@ export class GltfErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.failed) {
-      const { width, depth, height } = this.props
+      const { width, depth, height, fallback } = this.props
+      if (fallback !== undefined) return fallback
       return <GltfPlaceholderBox width={width} depth={depth} height={height} />
     }
     return this.props.children

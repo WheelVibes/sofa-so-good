@@ -1,0 +1,15 @@
+{
+  "id": "ph-sofa-leather",
+  "name": "Leather sofa",
+  "category": "seating",
+  "footprint": {
+    "w": 1.807,
+    "d": 0.818,
+    "h": 0.709
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Sofa 02 by Kirill Sannikov (CC0) — Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/sofa_02"
+}

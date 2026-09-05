@@ -629,7 +629,32 @@ export const AO = {
    * Keyed to `full` rather than to a tier name, so it tracks the CAUSE — a tier
    * that stops mounting the full stack stops needing the compensation.
    */
-  intensityPost: 7,
+  intensityPost: 5,
+  /**
+   * AO radius for the FULL post stack. **Why the full stack gets its own radius and a lower
+   * intensity than the 7 shipped in `.222` (v0.33.0.2, AO-SMALL-ROOM).** The `.196`/`.222`
+   * calibration was one living-room floor pose; a per-room walk tour at `realistic` found the
+   * kitchen, corridor and bathrooms rendering 10–20 % darker across WHOLE walls and ceilings
+   * than the Performance tier — a metre-radius AO at intensity 7 sees a wall within 1 m of every
+   * point of a 1.9 m-wide kitchen and darkens the room wholesale. Swept with the DEV seam
+   * `?aoIntensity=&aoRadius=` (EffectsImpl), kitchen-y1 pose, 13:00, lights on, ceiling / wall
+   * patch means, and the pooled under/open floor ratio from `underside-shadow.mjs`:
+   *
+   * | arm | kitchen ceiling | kitchen wall | corridor ceiling | floor under/open |
+   * | --- | --- | --- | --- | --- |
+   * | AO off | 167.5 | 197.3 | — | — |
+   * | 7 / 1.0 (was) | 134.0 | 176.4 | 149.2 | 0.834 |
+   * | 5 / 1.0 | 143.7 | 182.7 | 161.2 | 0.850 |
+   * | 4 / 1.0 | 148.4 | 185.9 | 167.2 | 0.871 |
+   * | 7 / 0.7 | 145.7 | 185.6 | 161.4 | 0.843 |
+   * | **5 / 0.7 (now)** | **151.8** | **189.2** | **169.9** | **0.885** |
+   *
+   * The floor ratio was ALREADY outside the photographic 0.58–0.73 band at 0.834 (the `.222`
+   * 0.716 was the photographic look), so the contact cue this trades away was not delivering;
+   * the small-room darkening was. Half the remaining kitchen gap to the AO-off frame is the
+   * daylight-only baked GI (a lamp-lit kitchen has no lamp bounce in its map), not AO.
+   */
+  aoRadiusPost: 0.7,
 } as const
 
 /**

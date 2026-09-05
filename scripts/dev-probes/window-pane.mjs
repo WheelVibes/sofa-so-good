@@ -59,6 +59,17 @@ const ROOM = process.env.ROOM || ''
 // YAW (radians) aims the ROOM pose; a room centroid facing yaw 0 often ends up
 // nose-to-cabinet in a narrow room like the kitchen.
 const YAW = process.env.YAW ? Number(process.env.YAW) : null
+// SWEEP replaces the fixed arm list with `;`-separated arms of `key=value` pairs,
+// so any pane-material property can be A/B'd live at ONE pose in ONE run:
+//   SWEEP='roughness=0.1;roughness=0;color=#ffffff,roughness=0'
+// Keys: `color` / `attenuationColor` (hex), `roughness` / `ei` / `metalness` /
+// `transmission` (number), `toneMapped` (0/1). Anything absent from an arm is
+// restored to the SHIPPED value, so each arm differs from shipped in exactly the
+// listed variables and no state leaks between arms. Added for GLASS-CLARITY
+// (v0.33.0.10), where `roughness` — long documented as inert — had to be
+// re-measured now that the estate is real geometry behind the pane rather than a
+// PMREM-blurred sky with no detail to blur.
+const SWEEP = process.env.SWEEP || ''
 const OUT = process.env.OUT || '/tmp/window-pane'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -106,6 +117,13 @@ await page.evaluate(
     s.setQualityTier(t)
     s.setCameraMode('firstPerson')
     s.dismissCallout?.('walk-mode')
+    // INTERACTIVE-DEGRADE OFF: `InteractiveDprController` halves the raw GL pixel ratio
+    // whenever it sees long frames and heals it back later, INVISIBLY to r3f state. Left on,
+    // consecutive arms are captured at different render resolutions, which moves any
+    // sharpness statistic (a repeated shipped arm measured micro-contrast 1.86 then 1.27,
+    // a bigger swing than the roughness sweep itself). Every scenario in `scripts/scenarios`
+    // that measures pixels turns it off for the same reason.
+    s.setFeatureFlag?.('interactiveDegrade', false)
   },
   { h: HOUR, t: TIER },
 )
@@ -205,22 +223,60 @@ const found = await page.evaluate(() => {
     panes.push(m)
   })
   window.__panes = panes
+  // CLEAR panes only for the sweep: the frosted/textured kinds carry their own colour and
+  // a deliberately higher roughness (`Math.max` in the pane JSX), so an arm that also
+  // rewrote them would not correspond to any shippable source change.
+  window.__paneClear = panes.map((m) => (m.roughness ?? 1) <= 0.2)
   window.__paneShipped = panes.map((m) => ({
     color: m.color.getHex(),
     emissive: m.emissive.getHex(),
     ei: m.emissiveIntensity,
     toneMapped: m.toneMapped,
+    roughness: m.roughness,
+    metalness: m.metalness,
+    transmission: m.transmission,
+    attenuationColor: m.attenuationColor?.getHex(),
   }))
   return panes.map((m) => ({
     type: m.type,
     color: `#${m.color.getHexString()}`,
     ei: m.emissiveIntensity,
     transmission: m.transmission ?? 0,
+    roughness: m.roughness,
   }))
 })
 if (!found.length && !ROOM) {
   throw new Error('no sky-catch pane materials found — pose or tier suspect')
 }
+
+// The pane's `useFrame` (`apartment/Window.tsx`, `apartment/PlanShell.tsx`) rewrites
+// `color`, `emissiveIntensity` and `transmission` EVERY frame from daylight, so a value
+// assigned from an `evaluate` is gone before the next draw — the exact race `warm-cast.mjs`
+// documents ("an interval reports a byte-identical no-op"). The only point guaranteed to be
+// after that write and before the draw is inside `renderer.render`, so wrap it and re-apply
+// the current arm there. `roughness` is NOT written per frame and would have landed either
+// way; everything else needs this.
+await page.evaluate(() => {
+  const gl = window.__three.gl
+  const orig = gl.render.bind(gl)
+  window.__paneArm = {}
+  gl.render = (...args) => {
+    const p = window.__paneArm || {}
+    window.__panes.forEach((m, i) => {
+      if (!window.__paneClear[i]) return
+      const s = window.__paneShipped[i]
+      m.color.setHex(p.color ?? s.color)
+      m.emissiveIntensity = p.ei ?? s.ei
+      m.toneMapped = p.toneMapped ?? s.toneMapped
+      if (s.roughness !== undefined) m.roughness = p.roughness ?? s.roughness
+      if (s.metalness !== undefined) m.metalness = p.metalness ?? s.metalness
+      if (s.transmission !== undefined) m.transmission = p.transmission ?? s.transmission
+      if (s.attenuationColor !== undefined)
+        m.attenuationColor.setHex(p.attenuationColor ?? s.attenuationColor)
+    })
+    return orig(...args)
+  }
+})
 console.log(
   `window-pane  tier=${TIER} hour=${HOUR} window=${pose.id} standoff=${STANDOFF}m backdrop=${BACKDROP || '(default)'}`,
 )
@@ -233,32 +289,66 @@ console.log(`panes: ${JSON.stringify(found)}\n`)
 
 const canvasEl = await page.$('canvas')
 
-const ARMS = [
-  ['a-shipped', {}],
-  ['b-emissive-off', { ei: 0 }],
-  ['c-untinted', { color: 0xffffff }],
-  ['d-skycatch-0_8', { ei: 0.8 }],
-  ['e-hdr-skycatch', { ei: 1.6, toneMapped: false }],
-  ['f-untinted-hdr', { color: 0xffffff, ei: 1.6, toneMapped: false }],
-]
-for (const [name, patch] of ARMS.slice(0, ROOM ? 1 : ARMS.length)) {
-  const state = await page.evaluate((p) => {
+const HEX_KEYS = new Set(['color', 'attenuationColor'])
+/** `roughness=0,color=#ffffff` -> `{ roughness: 0, color: 0xffffff }`. */
+function parseArm(spec) {
+  const patch = {}
+  for (const pair of spec.split(',')) {
+    const [k, v] = pair.split('=').map((x) => x.trim())
+    if (!k) continue
+    patch[k] = HEX_KEYS.has(k)
+      ? Number.parseInt(v.replace('#', ''), 16)
+      : k === 'toneMapped'
+        ? v !== '0'
+        : Number(v)
+  }
+  return patch
+}
+
+const ARMS = SWEEP
+  ? SWEEP.split(';')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((spec, i) => [
+        `s${String(i + 1).padStart(2, '0')}-${spec.replace(/[^\w.=-]+/g, '_')}`,
+        parseArm(spec),
+      ])
+  : [
+      ['a-shipped', {}],
+      ['b-emissive-off', { ei: 0 }],
+      ['c-untinted', { color: 0xffffff }],
+      ['d-skycatch-0_8', { ei: 0.8 }],
+      ['e-hdr-skycatch', { ei: 1.6, toneMapped: false }],
+      ['f-untinted-hdr', { color: 0xffffff, ei: 1.6, toneMapped: false }],
+    ]
+for (const [name, patch] of ARMS.slice(0, ROOM && !SWEEP ? 1 : ARMS.length)) {
+  await page.evaluate((p) => {
+    // Publish the arm; the `gl.render` wrap above applies it after the pane's own
+    // per-frame write. Anything absent falls back to the shipped snapshot, so each arm
+    // differs from shipped in exactly the listed variables and no state leaks forward.
+    window.__paneArm = p
     window.__panes.forEach((m, i) => {
-      const s = window.__paneShipped[i]
-      m.color.setHex(p.color ?? s.color)
-      m.emissiveIntensity = p.ei ?? s.ei
-      m.toneMapped = p.toneMapped ?? s.toneMapped
-      m.needsUpdate = true
+      if (window.__paneClear[i]) m.needsUpdate = true
     })
-    const m = window.__panes[0]
+  }, patch)
+  await new Promise((r) => setTimeout(r, 1500))
+  // Read the LIVE values after the settle, i.e. after the wrap has re-applied the arm over
+  // the pane's own per-frame write — reading them straight after publishing would report the
+  // shipped values and hide a no-op arm.
+  const state = await page.evaluate(() => {
+    const i = window.__paneClear.findIndex(Boolean)
+    const m = window.__panes[i]
     if (!m) return { panes: 0 }
     return {
       color: `#${m.color.getHexString()}`,
       ei: m.emissiveIntensity,
       toneMapped: m.toneMapped,
+      roughness: m.roughness,
+      transmission: Number(m.transmission?.toFixed(3)),
+      // The render resolution the arm was actually captured at — see the degrade note above.
+      dpr: window.__three.gl.getPixelRatio(),
     }
-  }, patch)
-  await new Promise((r) => setTimeout(r, 1500))
+  })
   // Capture the CANVAS element, not the page: v0.31.5.182 found every
   // frame-level number in this arc contaminated by the bright toolbar and
   // minimap. Region crops were never affected, but `%<64` and frame means were.

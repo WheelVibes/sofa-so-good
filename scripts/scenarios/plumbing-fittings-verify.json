@@ -1,0 +1,237 @@
+{
+  "name": "plumbing-fittings-verify",
+  "description": "PLUMBING-FITTINGS: floor traps in both bathrooms, the service yard and the kitchen, bib taps and the PVC soil stack on the wet-area walls, plus a persisted water heater and the room-editor scoping. Walk poses at Realistic, 13:00, lights on. Run with SHOT_GPU=1.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "flag-on",
+      "waitFor": {
+        "store": "state.featureFlags.plumbingFittings === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "orbit-settle",
+      "wait": 3000
+    },
+    {
+      "name": "probe",
+      "eval": "(() => { let n = 0, inst = 0; window.__three.scene.traverse(o => { if (o.name === 'plumbing-fittings') { n++; o.traverse(c => { if (c.isInstancedMesh) inst += c.count }) } }); console.log('[probe] plumbing', JSON.stringify({ groups: n, instances: inst })) })()"
+    },
+    {
+      "name": "shot-orbit",
+      "screenshot": "00-orbit"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-bath1-trap",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.9, 6.2); l.setYaw(0.785); l.setPitch(-0.95) })()"
+    },
+    {
+      "name": "settle-1",
+      "wait": 3000
+    },
+    {
+      "name": "shot-bath1-trap",
+      "screenshot": "01-bath1-floor-trap"
+    },
+    {
+      "name": "pose-bath1-soil-pipe",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.4, 5.6); l.setYaw(-2.11); l.setPitch(-0.1) })()"
+    },
+    {
+      "name": "settle-2",
+      "wait": 2500
+    },
+    {
+      "name": "shot-bath1-soil-pipe",
+      "screenshot": "02-bath1-soil-pipe"
+    },
+    {
+      "name": "pose-bath2-trap",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.05, 6.5); l.setYaw(-0.8); l.setPitch(-1.02) })()"
+    },
+    {
+      "name": "settle-3",
+      "wait": 2500
+    },
+    {
+      "name": "shot-bath2-trap",
+      "screenshot": "03-bath2-floor-trap"
+    },
+    {
+      "name": "pose-bath2-room",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.1, 6.4); l.setYaw(-0.8); l.setPitch(-0.35) })()"
+    },
+    {
+      "name": "settle-4",
+      "wait": 2500
+    },
+    {
+      "name": "shot-bath2-room",
+      "screenshot": "04-bath2-tap-and-waste-stub"
+    },
+    {
+      "name": "pose-service-yard",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.0, 7.6); l.setYaw(-2.49); l.setPitch(-0.845) })()"
+    },
+    {
+      "name": "settle-5",
+      "wait": 2500
+    },
+    {
+      "name": "shot-service-yard",
+      "screenshot": "05-service-yard-trap-and-tap"
+    },
+    {
+      "name": "pose-kitchen",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.7, 8.7); l.setYaw(-1.014); l.setPitch(-0.927) })()"
+    },
+    {
+      "name": "settle-6",
+      "wait": 2500
+    },
+    {
+      "name": "shot-kitchen",
+      "screenshot": "06-kitchen-floor-trap"
+    },
+    {
+      "name": "persist-mep-layer",
+      "eval": "(() => { const s = window.__store.getState(); s.addPlumbingPoint({ x: 2.45, z: 6.35, kind: 'floor-trap' }); s.addPlumbingPoint({ x: 2.3, z: 6.6, kind: 'water-point' }); s.addPlumbingPoint({ x: 3.6, z: 6.39, kind: 'soil-pipe' }); s.addPlumbingPoint({ x: 5.2, z: 6.6, kind: 'water-heater' }); s.addPlumbingPoint({ x: 4.76, z: 5.82, kind: 'floor-trap' }) })()"
+    },
+    {
+      "name": "persisted-points-live",
+      "waitFor": {
+        "store": "(state.floorPlan.plumbingPoints || []).length === 5"
+      },
+      "timeout": 10000,
+      "failMessage": "persisted plumbing points did not reach the plan"
+    },
+    {
+      "name": "persisted-instances",
+      "waitFor": {
+        "store": "(() => { let i = 0; window.__three.scene.traverse(o => { if (o.name === 'plumbing-fittings') o.traverse(c => { if (c.isInstancedMesh) i += c.count }) }); window.__pf = i; return i === 34 })()"
+      },
+      "timeout": 10000,
+      "failMessage": "persisted plumbing instance count is not the expected 34"
+    },
+    {
+      "name": "pose-heater",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.0, 5.5); l.setYaw(3.32); l.setPitch(0.18) })()"
+    },
+    {
+      "name": "settle-7",
+      "wait": 3000
+    },
+    {
+      "name": "shot-heater",
+      "screenshot": "07-persisted-water-heater-bath2"
+    },
+    {
+      "name": "back-to-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "orbit-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "enter-room-editor",
+      "eval": "window.__store.getState().enterRoomEditor('bath1')"
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "editor-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "settle-8",
+      "wait": 4000
+    },
+    {
+      "name": "probe-editor",
+      "eval": "(() => { let n = 0, inst = 0; window.__three.scene.traverse(o => { if (o.name === 'plumbing-fittings') { n++; o.traverse(c => { if (c.isInstancedMesh) inst += c.count }) } }); console.log('[probe] editor plumbing', JSON.stringify({ groups: n, instances: inst })) })()"
+    },
+    {
+      "name": "editor-scoped-instances",
+      "waitFor": {
+        "store": "(() => { let i = 0; window.__three.scene.traverse(o => { if (o.name === 'plumbing-fittings') o.traverse(c => { if (c.isInstancedMesh) i += c.count }) }); window.__pfe = i; return i === 18 })()"
+      },
+      "timeout": 10000,
+      "failMessage": "room-editor plumbing is not the 18 instances bath1 alone should scope to"
+    },
+    {
+      "name": "shot-room-editor",
+      "screenshot": "08-room-editor-bath1-scoped"
+    }
+  ]
+}

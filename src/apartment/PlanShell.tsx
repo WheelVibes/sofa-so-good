@@ -63,6 +63,7 @@ import {
 } from '../materials/materialRealism'
 import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
+import { estateVisibleNow } from '../scene/estate/estateSignal'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
 import { useSunPosition } from '../scene/lighting/useSunPosition'
 import { backdropVisibleNow } from '../scene/SceneBackdrop'
@@ -1199,13 +1200,23 @@ function FadeWindow({
   // `clear` glass kind (default) tells the day/night story with colour — a
   // non-clear kind (frosted/textured/glass-block) shouldn't turn dark blue at
   // night, so it keeps a static params colour instead (GLASS-KINDS).
-  const dayColor = useMemo(
-    () => (win.glassTint ? new Color(win.glassTint) : GLASS_DAY),
-    [win.glassTint],
-  )
   const isClearGlass = !win.glass || win.glass === 'clear'
   const isGlassBlock = win.glass === 'glass-block'
   const glassParams = useMemo(() => windowGlassKindParams(win.glass), [win.glass])
+  // GLASS-CLARITY: on the transmission tier the pane's colour IS the shader's transmittance
+  // and its roughness IS real blur of the view behind it, so both come from the kind's
+  // transmission-tier fields (see `windowGlassKindParams`). The cheap tier keeps
+  // `color`/`roughness`/`opacityCheap` byte-identical — there the hex is an opacity-blended
+  // tint over the wall, which reads correctly as is. A user `glassTint` still wins outright.
+  const paneColor = glassPhysical ? glassParams.transmissionColor : glassParams.color
+  const paneRoughness = glassPhysical
+    ? Math.max(glassPhysical.roughness, glassParams.transmissionRoughness)
+    : glassParams.roughness
+  const dayColor = useMemo(
+    () =>
+      win.glassTint ? new Color(win.glassTint) : glassPhysical ? new Color(paneColor) : GLASS_DAY,
+    [win.glassTint, glassPhysical, paneColor],
+  )
   // Held in a ref so `useFrame` calls no hook; `useSunPosition` is memoised.
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
@@ -1221,24 +1232,34 @@ function FadeWindow({
     // (`getFixtureGlow()` is exactly `lightsMode === 'on'`). See
     // `daylightFromAltitude`.
     const d = 1 - daylightFromAltitude(sunAltRef.current)
+    // ESTATE-NIGHT-GLASS (see `Window.tsx`): with the estate mounted the pane stays clear
+    // after dark so the lit neighbours show; `dn` is the night ramp the glass follows.
+    const dn = estateVisibleNow() ? d * 0.15 : d
     if (isClearGlass) {
-      mat.color.lerpColors(dayColor, GLASS_NIGHT, d)
+      mat.color.lerpColors(dayColor, GLASS_NIGHT, dn)
     } else {
-      mat.color.set(glassParams.color)
+      mat.color.set(paneColor)
     }
     // GLASS-SKYCATCH-VEIL: the emissive sky-catch stands in for sky luminance,
     // so it retires when a backdrop paints a real view behind the pane —
     // otherwise it adds a constant that flattens whatever the view carries.
-    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d, backdropVisibleNow())
+    // ESTATE-SKYCATCH-VEIL: the estate is a SECOND real view behind the pane, mounted
+    // independently of the photo backdrop (`estateVisibleNow()` per `Window.tsx`) — a
+    // `backdrop: 'none'` walk still shows `<Estate>`, and there `backdropVisibleNow()`
+    // alone would miss it and leave the constant emissive washing out the neighbour block.
+    mat.emissiveIntensity = glassSkyCatchIntensity(
+      1 - d,
+      backdropVisibleNow() || estateVisibleNow(),
+    )
     // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
     // compose) and blend day/night through transmission instead (PHOTO-GLASS).
     // Scaled by the glass kind's own transmission cap relative to the clear
     // default (0.9) — a factor of 1 for `clear`, keeping it byte-identical.
     if (glassPhysical) {
       ;(mat as MeshPhysicalMaterial).transmission =
-        windowTransmission(1 - d) * (glassParams.transmission / 0.9)
+        windowTransmission(1 - dn) * (glassParams.transmission / 0.9)
     }
-    const base = glassPhysical ? 1 : 0.28 + d * 0.45 // more opaque at night (cheap tiers)
+    const base = glassPhysical ? 1 : 0.28 + dn * 0.45 // more opaque at night (cheap tiers)
     let factor = 1
     const st = useStore.getState()
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
@@ -1334,7 +1355,7 @@ function FadeWindow({
         <boxGeometry args={[0.03, win.height, win.width]} />
         {glassPhysical ? (
           <meshPhysicalMaterial
-            color={glassParams.color}
+            color={paneColor}
             emissive={GLASS_SKYCATCH_COLOR}
             emissiveIntensity={0.4}
             transmission={0.9}
@@ -1344,7 +1365,7 @@ function FadeWindow({
             attenuationDistance={glassPhysical.attenuationDistance}
             transparent
             opacity={1}
-            roughness={Math.max(glassPhysical.roughness, glassParams.roughness)}
+            roughness={paneRoughness}
             metalness={glassPhysical.metalness}
           />
         ) : (

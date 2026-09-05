@@ -1,0 +1,15 @@
+{
+  "id": "ph-armchair-leather-oak",
+  "name": "Leather & oak armchair",
+  "category": "seating",
+  "footprint": {
+    "w": 0.82,
+    "d": 0.987,
+    "h": 1.023
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Modern Arm Chair 01 by Vibrant Nordic (CC0) — Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/modern_arm_chair_01"
+}

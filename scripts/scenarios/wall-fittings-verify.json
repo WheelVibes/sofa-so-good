@@ -1,0 +1,123 @@
+{
+  "name": "wall-fittings-verify",
+  "description": "WALL-FITTINGS: switches beside doors, sockets at skirting height, the DB box inside the main door — walk poses at Realistic, 13:00, lights on; plus an orbit frame where plates on faded walls must not float. Run with SHOT_GPU=1.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "flag-on",
+      "waitFor": {
+        "store": "state.featureFlags.wallFittings === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "orbit-settle",
+      "wait": 3000
+    },
+    {
+      "name": "probe",
+      "eval": "(() => { let n = 0, inst = 0; window.__three.scene.traverse(o => { if (o.name === 'wall-fittings') { n++; o.traverse(c => { if (c.isInstancedMesh) inst += c.count }) } }); console.log('[probe] fittings', JSON.stringify({ groups: n, instances: inst })) })()"
+    },
+    {
+      "name": "shot-orbit",
+      "screenshot": "00-orbit"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-bedroom2-door-from-corridor",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.75, 5.0); l.setYaw(0); l.setPitch(0.02) })()"
+    },
+    {
+      "name": "settle-1",
+      "wait": 3000
+    },
+    {
+      "name": "shot-bedroom-door",
+      "screenshot": "01-bedroom2-door-switch"
+    },
+    {
+      "name": "pose-living-skirting",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 3.8); l.setYaw(-Math.PI / 2); l.setPitch(-0.35) })()"
+    },
+    {
+      "name": "settle-2",
+      "wait": 2500
+    },
+    {
+      "name": "shot-living-sockets",
+      "screenshot": "02-living-east-wall-sockets"
+    },
+    {
+      "name": "pose-main-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(11.4, 6.2); l.setYaw(Math.PI); l.setPitch(0.08) })()"
+    },
+    {
+      "name": "settle-3",
+      "wait": 2500
+    },
+    {
+      "name": "shot-main-door",
+      "screenshot": "03-main-door-db"
+    },
+    {
+      "name": "pose-tv-wall",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(11.0, 2.5); l.setYaw(Math.PI / 2); l.setPitch(-0.2) })()"
+    },
+    {
+      "name": "settle-4",
+      "wait": 2500
+    },
+    {
+      "name": "shot-tv-wall",
+      "screenshot": "04-tv-wall-points"
+    }
+  ]
+}

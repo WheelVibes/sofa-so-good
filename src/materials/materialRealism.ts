@@ -122,18 +122,48 @@ export interface WindowGlassPhysical {
   attenuationColor: string
   attenuationDistance: number
   /**
-   * **Currently inert, and deliberately kept anyway (v0.31.5.175).** Both panes
-   * apply it as `Math.max(glassPhysical.roughness, glassParams.roughness)` so a
-   * frosted/reeded glass KIND can only ever be rougher, never smoother, than the
-   * physical baseline. `glassConfig`'s clear-glass roughness is 0.1, which is
-   * above this 0.05, so this value never wins for any shipped kind.
+   * **The floor for the pane's roughness, and since GLASS-CLARITY (v0.33.0.10) it is what
+   * clear glass actually renders at.** Both call sites apply it as
+   * `Math.max(glassPhysical.roughness, glassParams.transmissionRoughness)`, so a
+   * frosted/reeded/glass-block KIND can only ever be rougher, never smoother, than this
+   * physical baseline — that diffusion is their look. `clear` now asks for 0.05 on the
+   * transmission path (it kept 0.1 on the cheap path, where roughness is a specular-lobe
+   * detail rather than blur), so this value is the one that ships for a clear pane.
    *
-   * Swept anyway, because a round was spent assuming it mattered: driving the
-   * pane's ACTUAL roughness 0.1 → 0.02 → 0 moves the window's micro-contrast
-   * 19.96 → 20.18 → 20.18, i.e. **+1 %**. Transmission blur is not what makes a
-   * window read as a pale slab — see the `.174`/`.175` entries in
-   * `docs/research/2026-08-31-photoreal-shadow-depth.md`. Do not tune this
-   * expecting a visible change.
+   * ## Why the earlier "inert" verdict no longer holds
+   *
+   * **History, kept:** `v0.31.5.175` swept the pane's ACTUAL roughness 0.1 → 0.02 → 0 and
+   * measured micro-contrast 19.96 → 20.18 → 20.18, i.e. **+1 %**, and concluded "do not tune
+   * this expecting a visible change" (`.174`/`.175` in
+   * `docs/research/2026-08-31-photoreal-shadow-depth.md`). That measurement was correct for
+   * its own regime and wrong as a general rule: at the time the only thing behind the pane
+   * was the PMREM-blurred procedural sky, which carries no detail a mip can destroy. A blur
+   * knob measured against a blurred subject reads as a no-op.
+   *
+   * **ESTATE-SURROUND (v0.33.0.1) changed the regime** — the view through the pane is now
+   * real, textured geometry (façade tiles at ~3 cm/texel, 50–110 m out). three r184's
+   * `getTransmissionSample` blurs it by `lod = log2(transmissionSamplerSize.x) *
+   * applyIorToRoughness(roughness, ior)`; at ior 1.5 the ior factor is exactly 1, so
+   * roughness 0.1 on a ~1900 px transmissive target was spending **~1.1 mip levels** on the
+   * whole view. Re-measured at the default flat's living-room window, 13:00, `realistic`,
+   * default `sky` backdrop, estate mounted, two pane patches, arms repeated (noise floor
+   * max 2 counts, micro-contrast identical to 2 d.p.):
+   *
+   * | roughness | pane micro-contrast | p95−p05 spread |
+   * | --- | --- | --- |
+   * | 0.1 (was shipping) | 2.12 / 2.13 | 82 / 91 |
+   * | **0.05 (ships)** | **2.32 / 2.27** | 84 / 93 |
+   * | 0.02 | 2.32 / 2.27 | 84 / 93 |
+   * | 0 | 2.32 / 2.27 | 84 / 93 |
+   *
+   * So the honest figure is **+9 %** micro-contrast, not +1 % — and by eye it is bigger than
+   * that sounds: the neighbour block's window bays, mullions and red accent bands go from
+   * smeared to legible. Below 0.05 the pane crop is identical to the repeat noise floor
+   * (max 2 counts on 0.05 → 0, against 58 on 0.1 → 0.05), so 0 buys nothing over 0.05 and
+   * 0.05 is kept — a literal 0 is the degenerate mirror case for the specular lobe and there
+   * is no measured reason to take it. **Do not raise this expecting a look win**: what the
+   * sweep says is that this knob is worth exactly the one step from 0.1 to the physical
+   * baseline, and nothing beyond it.
    */
   roughness: number
   metalness: number
@@ -246,6 +276,35 @@ export function transmissionResolutionScaleForTier(tier: RenderTier, device: Dev
  * `daylight` → 0 and the sky-catch is already 0 there by construction. Orbit /
  * dollhouse and every backdrop-less path keep it — that is the case RZ2 added
  * it for, and it is untouched.
+ *
+ * **The estate is the SECOND real view behind the pane, retired the same way
+ * (ESTATE-SKYCATCH-VEIL).** `backdropVisible` only tracks the PHOTO backdrop
+ * (`backdropVisibleNow`, `SceneBackdrop.tsx`'s `isPhotoBackdropActive`) — it knows
+ * nothing about `<Estate>`, the real HDB-neighbour geometry drawn behind the same
+ * glass (`estateSignal.ts`'s `estateVisibleNow`). The two are NOT the same
+ * condition: `Estate.tsx`'s own gate mounts the estate whenever the backdrop is
+ * `'sky'` **or** `'none'`, so a walk with `backdrop: 'none'` still has a real, lit
+ * neighbour block right behind the pane while `backdropVisibleNow()` reads
+ * `false` — exactly the double-count this function exists to prevent, just from
+ * the other signal. Both call sites (`apartment/Window.tsx`, `apartment/
+ * PlanShell.tsx`) now pass `backdropVisibleNow() || estateVisibleNow()`.
+ * Measured on the default 4-room flat's living-room window, 13:00, `realistic`,
+ * `backdrop: 'none'` (the config that reaches the gap — the default `sky`
+ * backdrop already reads `backdropVisibleNow() === true` via `proceduralSky`,
+ * so it never needed the estate signal and is untouched):
+ *
+ * | | mean | pane sd | pane spread p95−p05 | % > 240 |
+ * | --- | --- | --- | --- | --- |
+ * | before (ei = 8.32) | 233.5 | 25.4 | 64 | **61.2 %** |
+ * | after (ei = 0) | 183.6 | 28.2 | 96 | **0.3 %** |
+ *
+ * i.e. the veil was clipping **61 % of the pane** to a flat white haze that hid
+ * the neighbour block entirely; after the fix the pane matches the `sky`-backdrop
+ * numbers exactly (183.5 mean / 28.2 sd / 0.3 % at the same pose), because both
+ * paths now retire the same way. Cannot regress night (sky-catch already 0
+ * there by construction) or the default `sky`-backdrop path (already
+ * byte-identical before and after, since `backdropVisibleNow()` alone already
+ * covered it).
  */
 export function glassSkyCatchIntensity(daylight: number, backdropVisible = false): number {
   // GLASS-SKYCATCH-VEIL takes precedence over the curve: when a real view is painted behind

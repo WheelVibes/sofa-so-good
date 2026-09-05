@@ -1,0 +1,15 @@
+{
+  "id": "ph-cabinet-slatted",
+  "name": "Slatted walnut cabinet",
+  "category": "storage",
+  "footprint": {
+    "w": 2.44,
+    "d": 0.52,
+    "h": 0.68
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Modern Wooden Cabinet by Patrik Pangerl (CC0) — Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/modern_wooden_cabinet"
+}

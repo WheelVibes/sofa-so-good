@@ -8,6 +8,14 @@ Bundled assets are CC0 except where a per-item licence is noted below.
 - **Ceramic vase (slim)** (ceramic-vase-slim) — Poly Haven, [source](https://polyhaven.com/a/ceramic_vase_03), CC0
 - **Ceramic vase (wide)** (ceramic-vase-wide) — Poly Haven, [source](https://polyhaven.com/a/ceramic_vase_01), CC0
 - **Desk lamp** (desk-lamp-arm) — Poly Haven, [source](https://polyhaven.com/a/desk_lamp_arm_01), CC0
+- **Leather & oak armchair** (ph-armchair-leather-oak) — Modern Arm Chair 01 by Vibrant Nordic (CC0) — Poly Haven, [source](https://polyhaven.com/a/modern_arm_chair_01), CC0
+- **Slatted walnut cabinet** (ph-cabinet-slatted) — Modern Wooden Cabinet by Patrik Pangerl (CC0) — Poly Haven, [source](https://polyhaven.com/a/modern_wooden_cabinet), CC0
+- **Stone-top coffee table** (ph-coffee-table-stone) — Modern Coffee Table 01 by Amin (CC0) — Poly Haven, [source](https://polyhaven.com/a/modern_coffee_table_01), CC0
+- **Leather dining chair** (ph-dining-chair-leather) — Dining Chair 02 by James Ray Cock (CC0) — Poly Haven, [source](https://polyhaven.com/a/dining_chair_02), CC0
+- **Pine display shelves** (ph-display-shelves-pine) — Wooden Display Shelves 01 by James Ray Cock (CC0) — Poly Haven, [source](https://polyhaven.com/a/wooden_display_shelves_01), CC0
+- **Leather ottoman** (ph-ottoman-leather) — Ottoman 01 by Caspian Fortune (CC0) — Poly Haven, [source](https://polyhaven.com/a/Ottoman_01), CC0
+- **Oak side table** (ph-side-table-oak) — Side Table 01 by James Ray Cock (CC0) — Poly Haven, [source](https://polyhaven.com/a/side_table_01), CC0
+- **Leather sofa** (ph-sofa-leather) — Sofa 02 by Kirill Sannikov (CC0) — Poly Haven, [source](https://polyhaven.com/a/sofa_02), CC0
 - **Pool Table (6 ft)** (pool-table-6ft) — Evol-Love (poly.pizza), [source](https://poly.pizza/m/7GzmqI1M0fC), CC-BY
 - **Pool Table (7 ft)** (pool-table-7ft) — Evol-Love (poly.pizza), [source](https://poly.pizza/m/7GzmqI1M0fC), CC-BY
 - **Pool Table (8 ft)** (pool-table-8ft) — Evol-Love (poly.pizza), [source](https://poly.pizza/m/7GzmqI1M0fC), CC-BY

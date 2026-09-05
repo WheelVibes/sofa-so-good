@@ -1,0 +1,54 @@
+{
+  "name": "estate-door-side-verify",
+  "description": "ESTATE-DOOR-SIDE: the common corridor must front the plan's REAL main door, on any of the four exterior faces. The two HDB templates whose main door is NOT on +z: tpl-hdb-5room (door on the -z face) and tpl-hdb-3gen (door on the +x face). For each: an orbit frame (corridor slab visible on the door side, window facade opposite) and two walk frames — standing at the main door looking OUT through it, and at the window on the face opposite the corridor. Run with SHOT_GPU=1.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "setup", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "flag-on", "waitFor": { "store": "state.featureFlags.estateSurround === true" }, "timeout": 5000 },
+
+    { "name": "load-5room", "eval": "(() => { window.__loadTemplate('tpl-hdb-5room') })()" },
+    { "name": "5room-loaded", "waitFor": { "store": "state.floorPlan.id === 'tpl-hdb-5room'" }, "timeout": 30000 },
+    { "name": "5room-home-view", "eval": "(() => { window.__store.getState().requestHomeView() })()" },
+    { "name": "5room-settle", "wait": 5000 },
+    { "name": "5room-probe", "eval": "(() => { let g = null; window.__three.scene.traverse(o => { if (o.name === 'estate-surround') g = o }); const c = g && g.getObjectByName('own-corridor-floor'); if (c) c.updateWorldMatrix(true, false); const e = c && c.matrixWorld.elements; const p = e && { x: e[12], z: e[14] }; console.log('[probe] 5room estate', JSON.stringify({ group: !!g, yawDeg: g ? Math.round(g.rotation.y * 180 / Math.PI) : null, offset: g ? [g.position.x, g.position.z] : null, corridorWorld: p ? [Math.round(p.x * 100) / 100, Math.round(p.z * 100) / 100] : null })) })()" },
+    { "name": "5room-orbit-shot", "screenshot": "00-5room-orbit-corridor-on-minus-z" },
+
+    { "name": "5room-walk", "eval": "(() => { window.__store.getState().setCameraMode('firstPerson') })()" },
+    { "name": "5room-walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 15000 },
+    { "name": "5room-walk-overlay-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },
+    { "name": "5room-hide-hud", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()" },
+    { "name": "5room-open-door", "eval": "(() => { window.__store.getState().toggleDoor('h5-main') })()" },
+    { "name": "5room-pose-door", "eval": "(() => { const l = window.__walkLook; l.setPosition(7.55, 1.9); l.setYaw(0); l.setPitch(-0.03) })()" },
+    { "name": "5room-settle-door", "wait": 3000 },
+    { "name": "5room-shot-door", "screenshot": "01-5room-at-main-door-looking-out" },
+    { "name": "5room-pose-window", "eval": "(() => { const l = window.__walkLook; l.setPosition(2.6, 1.6); l.setYaw(0); l.setPitch(-0.02) })()" },
+    { "name": "5room-settle-window", "wait": 3000 },
+    { "name": "5room-shot-window", "screenshot": "02-5room-kitchen-window-onto-corridor" },
+
+    { "name": "back-to-orbit", "eval": "(() => { window.__store.getState().setCameraMode('orbit') })()" },
+    { "name": "back-to-orbit-active", "waitFor": { "store": "state.cameraMode === 'orbit'" }, "timeout": 15000 },
+    { "name": "back-to-orbit-overlay-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },
+
+    { "name": "load-3gen", "eval": "(() => { window.__loadTemplate('tpl-hdb-3gen') })()" },
+    { "name": "3gen-loaded", "waitFor": { "store": "state.floorPlan.id === 'tpl-hdb-3gen'" }, "timeout": 30000 },
+    { "name": "3gen-home-view", "eval": "(() => { window.__store.getState().requestHomeView() })()" },
+    { "name": "3gen-settle", "wait": 5000 },
+    { "name": "3gen-probe", "eval": "(() => { let g = null; window.__three.scene.traverse(o => { if (o.name === 'estate-surround') g = o }); const c = g && g.getObjectByName('own-corridor-floor'); if (c) c.updateWorldMatrix(true, false); const e = c && c.matrixWorld.elements; const p = e && { x: e[12], z: e[14] }; console.log('[probe] 3gen estate', JSON.stringify({ group: !!g, yawDeg: g ? Math.round(g.rotation.y * 180 / Math.PI) : null, offset: g ? [g.position.x, g.position.z] : null, corridorWorld: p ? [Math.round(p.x * 100) / 100, Math.round(p.z * 100) / 100] : null })) })()" },
+    { "name": "3gen-orbit-shot", "screenshot": "03-3gen-orbit-corridor-on-plus-x" },
+
+    { "name": "3gen-walk", "eval": "(() => { window.__store.getState().setCameraMode('firstPerson') })()" },
+    { "name": "3gen-walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 15000 },
+    { "name": "3gen-walk-overlay-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },
+    { "name": "3gen-hide-hud", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()" },
+    { "name": "3gen-open-door", "eval": "(() => { window.__store.getState().toggleDoor('g3-main') })()" },
+    { "name": "3gen-pose-door", "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 1.55); l.setYaw(-Math.PI / 2); l.setPitch(-0.03) })()" },
+    { "name": "3gen-settle-door", "wait": 3000 },
+    { "name": "3gen-shot-door", "screenshot": "04-3gen-at-main-door-looking-out" },
+    { "name": "3gen-pose-window", "eval": "(() => { const l = window.__walkLook; l.setPosition(1.7, 4.6); l.setYaw(Math.PI / 2); l.setPitch(-0.02) })()" },
+    { "name": "3gen-settle-window", "wait": 3000 },
+    { "name": "3gen-shot-window", "screenshot": "05-3gen-window-opposite-corridor" }
+  ]
+}

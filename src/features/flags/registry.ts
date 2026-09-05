@@ -609,6 +609,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  photorealModels: {
+    label: 'Photoreal furniture',
+    description:
+      'In Realistic mode, hero pieces (sofa, armchair, dining chairs, coffee/side tables, cabinets, shelves) render as photo-scanned CC0 models instead of parametric primitives',
+    // Prod-safe: the GLBs are bundled Poly Haven CC0 (PHOTOREAL-HERO). Simple-tier
+    // because it is part of the core VIEW loop, not an authoring tool. The tier gate
+    // (Realistic only) lives in `furniture/photorealProxies.ts`, not here.
+    default: true,
+    tier: 'simple',
+  },
   comments: {
     label: 'Comments',
     description: 'Pinned design comments — notes anchored in the 3D scene',
@@ -1413,6 +1423,32 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // It is also not an analytical/professional tool — it is the view out of the
   // window, i.e. core realism, the same argument that keeps the orbit surround
   // dome ungated.
+  wallFittings: {
+    label: 'Wall fittings',
+    description:
+      "Light switches beside the doors, sockets, TV/data points, aircon isolators and the distribution board, rendered on the walls in 3D from the plan's electrical points (or a derived layout when none are placed)",
+    // Prod-safe pure geometry. Simple tier: fittings are part of what a room looks like.
+    default: true,
+    tier: 'simple',
+  },
+  plumbingFittings: {
+    label: 'Plumbing fittings',
+    description:
+      "Floor traps, bib taps, waste stubs, the PVC soil pipe and the storage water heater, rendered in the wet areas in 3D from the plan's plumbing points (or a derived layout when none are placed)",
+    // Prod-safe pure geometry. Simple tier: a bathroom without a floor trap is not a bathroom.
+    default: true,
+    tier: 'simple',
+  },
+  estateSurround: {
+    label: 'HDB estate outside the windows',
+    description:
+      'Draws the neighbouring HDB blocks, the common corridor, ground and trees outside the windows as real geometry, in both walk and orbit view (HDB plans, sky backdrop)',
+    // Prod-safe: pure procedural geometry + canvas textures, no assets. Simple tier:
+    // it is part of what the window shows. Geometry, not a backdrop, because the
+    // equirect background is PMREM-blurred to blobs (open-graphics-decisions (r)).
+    default: true,
+    tier: 'simple',
+  },
   proceduralSky: {
     label: 'Procedural sky',
     description: 'Sun-driven analytic sky as the walk-mode window view (tracks the time of day)',

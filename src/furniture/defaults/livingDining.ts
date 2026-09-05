@@ -210,10 +210,17 @@ export const livingDining: LayoutEntry[] = [
     props: { surfaceHeight: 0.42 },
   },
   // Throw cushion at one end of the sofa (seat h ≈ 0.46 m; cushions on back).
+  // Both cushions sit 0.45 m in from the sofa ends (z 1.5–3.6), not 0.1 m, and at
+  // x 11.55 — mid-SEAT — not 11.275, the box sofa's front edge: in Realistic mode
+  // the sofa renders as a chesterfield whose rolled arms take the outer ~0.25 m,
+  // whose seat is set back from the front, and whose back BOWS forward toward the
+  // arms, so a cushion authored into the box sofa's front corner overhung the seat
+  // and one placed against the back near an arm poked out through the bow
+  // (PHOTOREAL-HERO, v0.33.0.0). Mid-seat, well inboard, reads right on both shapes.
   {
     id: 'default-ld-decor-cushion1',
     defId: 'throw-cushion',
-    position: [11.275, 1.65],
+    position: [11.55, 1.95],
     rotation: -Math.PI / 2,
     props: { surfaceHeight: 0.46, color: '#9b7a68', accentColor: '#6a5040' },
   },
@@ -221,15 +228,18 @@ export const livingDining: LayoutEntry[] = [
   {
     id: 'default-ld-decor-cushion2',
     defId: 'throw-cushion',
-    position: [11.275, 3.5],
+    position: [11.55, 3.15],
     rotation: -Math.PI / 2,
     props: { surfaceHeight: 0.46, color: '#7a9090', accentColor: '#556868' },
   },
-  // Throw blanket draped over the sofa arm.
+  // Throw blanket folded on the seat by one arm — NOT draped over the arm: the
+  // arm's height and shape differ between the box sofa and its photoreal stand-in
+  // (a tall rolled chesterfield arm), and a slab authored for one protruded through
+  // the other (PHOTOREAL-HERO, v0.33.0.0). The seat is the one surface both share.
   {
     id: 'default-ld-decor-blanket',
     defId: 'throw-blanket',
-    position: [11.375, 3.4],
+    position: [11.7, 2.6],
     rotation: -Math.PI / 2,
     props: { surfaceHeight: 0.46, color: '#c8b89a', pattern: 'herringbone' },
   },

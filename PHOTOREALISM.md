@@ -47,10 +47,15 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   library `DenoiseMaterial` (edge-blur), interior-tuned bounces/MIS (`hqTracerConfig.ts`,
   PHOTO-PT-TUNE), env = the active HDRI (PHOTO-HDRI-PT) or the gradient fallback. **No OIDN.**
 - **Geometry**: `geometryDetail` segment multiplier; `RoundedBox` corners on some primitives; contact
-  shadow blobs Medium+. **No edge bevels on hard primitives; few set-dressing props.**
+  shadow blobs Medium+. **Realistic mode draws the hero furniture (sofa, armchair, dining chairs,
+  coffee/side tables, TV console/sideboard, ottoman, shelves) as photo-scanned Poly Haven CC0 GLBs
+  in place of the primitives** (PHOTOREAL-HERO, v0.33.0.0, `furniture/photorealProxies.ts`); beds,
+  dining table, desks and lamps remain primitives (no CC0 modern source yet).
 - **Backdrops**: walk-mode equirectangular photo as `scene.background` (procedural `city/dusk/park/hills`
-  presets + user upload; orbit dollhouse stays clean) — the instanced 3D estates were removed. **No HDRI
-  sky/IBL image yet.**
+  presets + user upload; orbit dollhouse stays clean). **The HDB estate outside the windows is real
+  geometry again (ESTATE-SURROUND, v0.33.0.1, `scene/estate/`)** — own block, neighbours, corridor,
+  ground, trees, lit windows at night — because the equirect path PMREM-blurs any painted skyline
+  (item (r)). **No HDRI sky/IBL image yet.**
 
 > **Maintenance.** When a roadmap item ships, **delete it** from the bullet list below (its record
 > lives in `CHANGELOG.md`); when one is only *partially* done, trim its entry to the remaining work —
@@ -138,6 +143,19 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   `scripts/scenarios/pom-{maximum,high,medium}.json` (decisive A/B) + `pom-probe.json` (scene-graph
   proof that `buildPomFloorMaterial` actually lands on the floor meshes — 16/16 carry the
   `pom-floor-32-0.03` program key).
+- **PHOTO-GLASS — the pane's own material, corrected once there was a real view behind it
+  (GLASS-CLARITY, v0.33.0.10):** the transmission-tier pane now renders clear glass at
+  `roughness 0.05` (the physical baseline in `windowGlassPhysical`, was `Math.max(…, 0.1)`) with
+  body colour `#f2f5f7` (was the cheap tier's `#bcd4e6`), both via new transmission-tier-only
+  fields on `windowGlassKindParams` (`transmissionRoughness`, `transmissionColor`). On this path
+  roughness is real mip blur of the view (three's `getTransmissionSample`) and the colour is the
+  shader's transmittance, so the old pair was costing ~1.1 mip levels of blur and ~20 % of the
+  estate's luminance with a blue cast. Measured at the default flat's living-room window, 13:00,
+  `realistic`: pane micro-contrast +9 % at a fixed colour, R−B −13.3 → −0.9, frame cost
+  unchanged (p50 8.3 → 8.2 ms). The CHEAP tiers are byte-identical — there the same hex is an
+  opacity-blended tint over the wall, which reads correctly — and frosted/textured/glass-block
+  keep their higher roughness through the same `Math.max`. Full table + the refuted
+  estate-speckle diagnosis in `docs/open-graphics-decisions.md` item (l).
 - **PHOTO-GLASS — remaining ruling:** window-pane transmission shipped on High/Max (see audit
   above); **extending transmission down to Medium is REJECTED for now** — the transmissive pass
   renders the whole opaque scene to an extra render target, which is exactly the cost class the
