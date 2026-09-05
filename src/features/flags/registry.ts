@@ -1489,6 +1489,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  kitchenDetail: {
+    label: 'Kitchen backsplash tile + mixer tap',
+    description:
+      'The kitchen backsplash is real glazed ceramic tile (running-bond subway or square tile, with grout) instead of a flat slab, and the sink gets a proper single-lever mixer — escutcheon, swan-neck spout, aerator and lever — plus a basket strainer in the bowl',
+    // Prod-safe: procedural tile (no asset) + pure geometry. Simple tier: a
+    // painted slab behind the hob and a bent rod for a tap are two of the
+    // clearest "3D model, not photo" tells left in the default flat's kitchen.
+    default: true,
+    tier: 'simple',
+  },
   estateSurround: {
     label: 'HDB estate outside the windows',
     description:

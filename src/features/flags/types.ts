@@ -83,6 +83,7 @@ export type FeatureFlag =
   | 'plumbingFittings'
   | 'yardFittings'
   | 'doorHardware'
+  | 'kitchenDetail'
   | 'photographicFill'
   | 'comments'
   | 'finishDnd'

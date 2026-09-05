@@ -43,6 +43,31 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   than a cushion-sized deformation. Closing it needs cloth simulation or an authored crease normal
   map, not a tweak.
 
+- **A built-in's tiled surface takes a PHYSICAL tile period, not a panel-relative one
+  (KITCHEN-DETAIL, `kitchenDetail` flag, v0.33).** The kitchen counter's backsplash is now real
+  glazed ceramic — `getTiledSurfaceMaterial(finish, colour, 0.6)` over the shared `subway`/`tile`
+  procedural painters (`materials/procedural/patterns/tile.ts`), selected by a `backsplashFinish`
+  prop (`subway` | `tile` | `solid`, default `subway`); with the flag off the slab renders the
+  pre-v0.33 `#e4e7e3` panel byte-identically.
+  · **`getSurfaceMaterialForBox` is the WRONG sizer for tile, and this was measured.** It derives
+  the repeat from the panel's own metres (a grain scale), so on the 2.6 m run it produced
+  `repeat (4.35, 0.8)` — and because `furnitureBoxUv` (MAT-006c) has already re-projected every
+  parametric part's UVs INTO METRES, that repeat multiplies a metre UV and lands at
+  **56 × 145 mm PORTRAIT tiles** (measured off the real-GPU frame: 30 px joint pitch at 538 px/m
+  horizontally, 74 px vertically). Tile is a PRODUCT: 150 × 75 mm whatever the run measures. With
+  metre UVs the correct repeat is simply `1/period` on both axes, which is what
+  `materials/furnitureMaterials.ts:getTiledSurfaceMaterial` does (through `getSurfaceMaterialSized`,
+  so it shares the quantisation + the owned-texture LRU) → repeat 1.65 → 151.5 × 75.8 mm. **Before
+  sizing any tiled furniture panel, remember the UVs are already in metres.**
+  · The tap is a `SinkMixer` local to `KitchenCounter.tsx` — escutcheon, Ø26 mm riser, a swan-neck
+  `TubeGeometry` over a `CatmullRomCurve3` whose FIRST control point sits INSIDE the riser (so the
+  structural-soundness harness sees one body), an aerator ring, and a side lever whose stem starts
+  inside the riser — plus a Ø90 mm strainer on the bowl floor. It is deliberately not the standalone
+  `MixerTap` primitive (the selectable `mixer-tap` fitting), which is floor-anchored with its own
+  height/finish params. `hasSink` is not a `STRUCTURAL_ENUM_KEYS` key, so the harness only ever
+  rendered the counter WITHOUT a sink — `EXTRA_STRUCTURAL_MODES['kitchen-counter-l']` now adds the
+  `hasSink=yes` case, which is what asserts the tap at all.
+
 - **Chamfer visible hard edges — `primitives/BeveledBox.tsx`, not a raw `<boxGeometry>`.** A razor
   90° edge is one of the strongest CG tells: real edges have a small radius that catches a thin
   specular highlight, and without one a slab reads as flat cardboard. `BeveledBox` is a drei

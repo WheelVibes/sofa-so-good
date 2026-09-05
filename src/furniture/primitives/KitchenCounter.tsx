@@ -1,18 +1,112 @@
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { CatmullRomCurve3, Vector3 } from 'three'
+import { useFeature } from '../../features/useFeature'
+import { getSurfaceMaterial, getTiledSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { MetalMaterial } from './MetalMaterial'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
+
+/** Worktop height (cabinet + top) — the mixer's deck plane. Kept next to the
+ *  tap geometry so every part below reads as an absolute height, like the rest
+ *  of this primitive. */
+const DECK_Y = 0.9
+/** Deck z of the tap: on the worktop rail BEHIND the bowl cutout (the rail
+ *  spans z [-0.30, -0.20]), which is where a real deck-mounted mixer lands. */
+const TAP_Z = -0.25
+/** Top of the Ø26 mm riser (0.19 m above the deck). */
+const RISER_TOP = DECK_Y + 0.19
+
+/**
+ * KITCHEN-DETAIL — swan-neck spout path, in the tap's own frame (x = 0 at the
+ * riser axis). It STARTS INSIDE the riser (y 1.06 < the 1.09 riser top) so the
+ * two are structurally one body, rises to ~0.30 m above the deck, reaches
+ * ~0.20 m forward over the bowl centre, and finishes in a short vertical drop
+ * that the aerator ring caps.
+ */
+const SPOUT_CURVE = new CatmullRomCurve3([
+  new Vector3(0, DECK_Y + 0.16, TAP_Z),
+  new Vector3(0, DECK_Y + 0.25, TAP_Z),
+  new Vector3(0, DECK_Y + 0.3, TAP_Z + 0.05),
+  new Vector3(0, DECK_Y + 0.3, TAP_Z + 0.16),
+  new Vector3(0, DECK_Y + 0.26, TAP_Z + 0.2),
+  new Vector3(0, DECK_Y + 0.22, TAP_Z + 0.2),
+])
+/** End of the spout drop — where the aerator ring sits. */
+const SPOUT_END = SPOUT_CURVE.points[SPOUT_CURVE.points.length - 1]
+
+/**
+ * Single-lever deck-mounted kitchen mixer (KITCHEN-DETAIL): escutcheon, riser,
+ * swan-neck spout, aerator ring and a side lever — 6 meshes over ONE shared
+ * cached chrome material. Drawn in the counter's frame at this counter's own
+ * deck/bowl heights, offset to the sink's x by the caller's group. Replaces the
+ * three stacked cylinders (a bent rod) that stood in for a tap before v0.33.
+ *
+ * Deliberately NOT the standalone `MixerTap` primitive (`primitives/MixerTap.tsx`,
+ * the selectable `mixer-tap` fitting): that one is floor-anchored at y=0 with its
+ * own height/finish params so a user can drop it anywhere, and its silhouette is
+ * the pre-v0.33 riser+elbow+arm. This is the counter's built-in tap, pinned to
+ * `DECK_Y`/the bowl centre and gated on `kitchenDetail`.
+ */
+function SinkMixer() {
+  const chrome = metalLeg('#dfe3e7', 'stainless')
+  return (
+    <group>
+      {/* Ø50 x 8 mm escutcheon on the worktop */}
+      <mesh castShadow position={[0, DECK_Y + 0.004, TAP_Z]} material={chrome}>
+        <cylinderGeometry args={[0.025, 0.025, 0.008, 20]} />
+      </mesh>
+      {/* Ø26 mm riser, up from inside the escutcheon */}
+      <mesh castShadow position={[0, (DECK_Y + 0.004 + RISER_TOP) / 2, TAP_Z]} material={chrome}>
+        <cylinderGeometry args={[0.013, 0.013, RISER_TOP - DECK_Y - 0.004, 16]} />
+      </mesh>
+      {/* Ø20 mm swan-neck spout, starting inside the riser top */}
+      <mesh castShadow material={chrome}>
+        <tubeGeometry args={[SPOUT_CURVE, 32, 0.01, 12, false]} />
+      </mesh>
+      {/* Ø24 mm aerator ring capping the drop */}
+      <mesh castShadow position={[0, SPOUT_END.y - 0.005, SPOUT_END.z]} material={chrome}>
+        <cylinderGeometry args={[0.012, 0.012, 0.014, 16]} />
+      </mesh>
+      {/* Side lever: a Ø12 mm stem out of the riser + a 0.10 m paddle */}
+      <mesh
+        castShadow
+        position={[0.02, RISER_TOP - 0.02, TAP_Z]}
+        rotation={[0, 0, Math.PI / 2]}
+        material={chrome}
+      >
+        <cylinderGeometry args={[0.006, 0.006, 0.04, 12]} />
+      </mesh>
+      <mesh castShadow position={[0.085, RISER_TOP - 0.018, TAP_Z]} material={chrome}>
+        <boxGeometry args={[0.1, 0.016, 0.022]} />
+      </mesh>
+    </group>
+  )
+}
 
 interface KitchenCounterProps {
   props: ParamProps
 }
 
+/** KITCHEN-DETAIL — metres of real wall covered by ONE texture period of the
+ *  backsplash tile. The `subway` painter lays 4 x 8 tiles per period, so 0.6 m
+ *  gives ~150 x 75 mm running-bond metro tile; the square `tile` painter lays
+ *  2 x 2, giving ~300 x 300 mm.
+ *
+ *  A PHYSICAL period, not a panel-relative one: tile is a product with a fixed
+ *  size, so `getTiledSurfaceMaterial` (repeat = 1/period over the metre UVs
+ *  `furnitureBoxUv` gives every parametric part) is right here where
+ *  `getSurfaceMaterialForBox`'s grain-scale sizing — which shrinks the tile as
+ *  the run gets longer — is not. Measured on the 2.6 m default run: 151.5 x
+ *  75.8 mm tiles with a ~3 mm joint, i.e. ~17.2 tiles along the run (the end
+ *  tiles are cut, as they are in a real installation). */
+const BACKSPLASH_TILE_METRES = 0.6
+/** Warm off-white glazed ceramic — the default HDB kitchen backsplash. */
+const BACKSPLASH_TILE_COLOR = '#e9e6df'
+
 /**
  * Kitchen counter primitive: base cabinet + countertop. When `hasSink`
- * is on, a recessed plane stands in for a sink basin and a small
- * cylinder for a faucet. The counter extends along +X (`length`) and
- * has a fixed depth of 0.6 m.
+ * is on, a recessed basin and a single-lever mixer tap are drawn. The counter
+ * extends along +X (`length`) and has a fixed depth of 0.6 m.
  */
 export function KitchenCounter({ props }: KitchenCounterProps) {
   const length = readNum(props, 'length', 2.4)
@@ -23,6 +117,15 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
   const frontStyle = readStr(props, 'frontStyle', 'slab')
   const worktopColor = readStr(props, 'worktopColor', '#34373d')
   const worktopFinish = readStr(props, 'worktopFinish', 'solid')
+  // KITCHEN-DETAIL: real tiled backsplash + a single-lever mixer tap. Flag off
+  // (or `backsplashFinish: 'solid'`) renders exactly the pre-v0.33 slab + rod.
+  const detail = useFeature('kitchenDetail')
+  const backsplashFinish = readStr(props, 'backsplashFinish', 'subway')
+  const tiledBacksplash = detail && (backsplashFinish === 'subway' || backsplashFinish === 'tile')
+  const backsplashDims: [number, number, number] = [length, 0.48, 0.015]
+  const backsplashMat = tiledBacksplash
+    ? getTiledSurfaceMaterial(backsplashFinish, BACKSPLASH_TILE_COLOR, BACKSPLASH_TILE_METRES)
+    : null
 
   const depth = 0.6
   const cabinetH = 0.85
@@ -185,11 +288,24 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
         return (
           <group>
             {worktop}
-            {/* Tiled backsplash up the wall behind the run (countertop → uppers). */}
-            <mesh receiveShadow position={[0, totalH + 0.24, -depth / 2 + 0.012]}>
-              <boxGeometry args={[length, 0.48, 0.015]} />
-              <meshStandardMaterial color="#e4e7e3" roughness={0.3} metalness={0.05} />
-            </mesh>
+            {/* Tiled backsplash up the wall behind the run (countertop → uppers).
+                KITCHEN-DETAIL: a real glazed-ceramic tile finish whose period is
+                derived from the run's WORLD width, so the grout lines are the
+                same size on a 1.2 m and a 4 m run. */}
+            {backsplashMat ? (
+              <mesh
+                receiveShadow
+                position={[0, totalH + 0.24, -depth / 2 + 0.012]}
+                material={backsplashMat}
+              >
+                <boxGeometry args={backsplashDims} />
+              </mesh>
+            ) : (
+              <mesh receiveShadow position={[0, totalH + 0.24, -depth / 2 + 0.012]}>
+                <boxGeometry args={backsplashDims} />
+                <meshStandardMaterial color="#e4e7e3" roughness={0.3} metalness={0.05} />
+              </mesh>
+            )}
             {hasSink && (
               <group>
                 {/* Bowl floor */}
@@ -204,23 +320,42 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
                     <MetalMaterial {...steel} />
                   </mesh>
                 ))}
-                {/* Faucet base + riser + curved spout */}
-                <mesh castShadow position={[sx, totalH + 0.02, -0.15]}>
-                  <cylinderGeometry args={[0.03, 0.035, 0.04, 12]} />
-                  <MetalMaterial {...steel} />
-                </mesh>
-                <mesh castShadow position={[sx, totalH + 0.15, -0.15]}>
-                  <cylinderGeometry args={[0.014, 0.014, 0.26, 10]} />
-                  <MetalMaterial {...steel} />
-                </mesh>
-                <mesh
-                  castShadow
-                  position={[sx, totalH + 0.27, -0.08]}
-                  rotation={[Math.PI / 2.2, 0, 0]}
-                >
-                  <cylinderGeometry args={[0.013, 0.013, 0.18, 10]} />
-                  <MetalMaterial {...steel} />
-                </mesh>
+                {/* Ø90 mm basket strainer in the bowl floor (KITCHEN-DETAIL) */}
+                {detail && (
+                  <mesh
+                    receiveShadow
+                    position={[sx, floorY + 0.011, 0]}
+                    material={metalLeg('#4b5157', 'black-steel')}
+                  >
+                    <cylinderGeometry args={[0.045, 0.045, 0.006, 24]} />
+                  </mesh>
+                )}
+                {/* Tap. KITCHEN-DETAIL draws a real single-lever mixer; with the
+                    flag off it stays the pre-v0.33 base + riser + bent rod. */}
+                {detail ? (
+                  <group position={[sx, 0, 0]}>
+                    <SinkMixer />
+                  </group>
+                ) : (
+                  <group>
+                    <mesh castShadow position={[sx, totalH + 0.02, -0.15]}>
+                      <cylinderGeometry args={[0.03, 0.035, 0.04, 12]} />
+                      <MetalMaterial {...steel} />
+                    </mesh>
+                    <mesh castShadow position={[sx, totalH + 0.15, -0.15]}>
+                      <cylinderGeometry args={[0.014, 0.014, 0.26, 10]} />
+                      <MetalMaterial {...steel} />
+                    </mesh>
+                    <mesh
+                      castShadow
+                      position={[sx, totalH + 0.27, -0.08]}
+                      rotation={[Math.PI / 2.2, 0, 0]}
+                    >
+                      <cylinderGeometry args={[0.013, 0.013, 0.18, 10]} />
+                      <MetalMaterial {...steel} />
+                    </mesh>
+                  </group>
+                )}
               </group>
             )}
           </group>

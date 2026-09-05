@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.5 — KITCHEN-DETAIL: a real metro-tile backsplash and a swan-neck mixer at the sink
+
+`KitchenCounter.tsx`'s "tiled backsplash" was a flat `#e4e7e3` slab at roughness 0.3, and its tap
+three stacked cylinders. New `backsplashFinish` prop on `kitchen-counter-l` (`subway` | `tile` |
+`solid`, default `subway`, in the def's `paramSchema` and the primitive's fallback) paints the slab
+with the shared `patterns/tile.ts` subway painter through a new `getTiledSurfaceMaterial(kind,
+colour, metresPerPeriod, sheen)` — period 0.6 m → 151.5 × 75.8 mm running-bond tile with a ~3 mm
+joint at 512 px, colour `#e9e6df`, face roughness 0.24 (glazed ceramic). `subway`/`tile` are now
+`getSurfaceMaterial` kinds with cached bakes; `grainQuarterTurn` excludes them. The sink gets a
+`SinkMixer`: Ø 50 mm escutcheon, Ø 26 mm riser to 0.19 m, a swan-neck `TubeGeometry` spout
+starting inside the riser and ending in a Ø 24 mm aerator over the bowl, a side lever, and a Ø 90 mm
+dark basket strainer — seven meshes over one shared chrome and one dark material. Flag
+`kitchenDetail` (simple tier, default on); flag off or `solid` renders the old slab and rod
+byte-identically. `structuralSoundness.test.tsx` now also renders `kitchen-counter-l` with
+`hasSink=yes`, which it had never exercised.
+
+Sizing lesson recorded in `src/furniture/CLAUDE.md`: `getSurfaceMaterialForBox` is the WRONG sizer
+for a tile on a parametric part — `furnitureBoxUv` has already re-projected the part's UVs into
+metres, so the box-derived repeat rendered 56 × 145 mm portrait tiles (measured off the frame); a
+product-sized tile needs an isotropic `1/period` repeat over metre UVs.
+
+Cycles reference at the sink pose (`scene-glb.mjs` + `render_from_manifest.py`, 64 samples,
+`/tmp/photoreal/bref-kitchen/cyc.png`): backsplash patches app 153 / 158 mean vs Cycles 167 / 173,
+sd 28.6 / 26.6 vs 25.7 / 21.0 — the app carries 1.24–1.36× the reference's relative contrast, and
+roughness is not the lever (1.0 → 1.5 on the glaze scalar moved sd by under 2 %); the residual is
+the painter's proud bevel band and normal scale, left as is. Frames
+(`scripts/scenarios/kitchen-detail-verify.json`, real GPU, before via `?ff=kitchenDetail:off`):
+img-diff 1.9 / 3.2 / 2.5 / 2.0 / 2.0 / 0.7 counts across the six poses; the tile, mixer and strainer
+read at walking distance and at a grazing angle along the run. Frame cost `realistic`: walk p50
+7.2 / p90 11.8, orbit p50 11.8 / p90 12.7 ms — in band (one bake, LRU-cached, pinned by a test that
+two run lengths share one texture). Docs: `src/furniture/CLAUDE.md`, `src/materials/CLAUDE.md`,
+`docs/furniture-realism-plan.md`, `docs/user/finishes-and-materials.md`.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.4 — DOOR-HARDWARE: hinges, a returned lever with privacy turn, a floor stopper, and the main door's lock and kick plate
 
 The default flat's doors were a leaf with a straight rod on a rose: no hinges, no stopper, no

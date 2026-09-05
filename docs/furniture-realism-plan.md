@@ -404,8 +404,12 @@ Kitchen:
   counter). Plain/hob paths unchanged (full slab). Joints: worktop bottom = cabinet top, fronts proud,
   faucet base on the worktop surface, basin walls non-coplanar. (`primitives/KitchenIsland.tsx`)
 - **kitchen-counter** — OK (slab/shaker/drawers × solid/marble/concrete/wood; ±sink). Recessed basin +
-  curved spout + tiled backsplash; worktop on cabinet, backsplash abuts worktop top. Wood finish shows
+  worktop on cabinet, backsplash abuts worktop top. Wood finish shows
   the shared oak-grain watermark (Wave-1 cross-cutting note, not per-def).
+  **KITCHEN-DETAIL (v0.33, `kitchenDetail` flag)**: the backsplash is a real procedural ceramic tile
+  (`backsplashFinish` subway / tile / solid) at a PHYSICAL period, and the curved spout is a proper
+  single-lever mixer (escutcheon → riser → `TubeGeometry` swan neck → aerator, plus a side lever) with
+  a basket strainer in the bowl. Flag off = the pre-v0.33 slab + bent rod, byte-identical.
 
 Appliances:
 - **microwave** — OK (gloss/steel/matte). Body + glazed door + control strip + handle, all proud; sits

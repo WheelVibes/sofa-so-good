@@ -33,6 +33,7 @@ import {
 import { registerCappedMetal } from './iblSignal'
 import { LruCache } from './materialLru'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
+import { generateProcedural } from './procedural/generators'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
 import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift } from './procedural/stoneSurface'
@@ -1257,6 +1258,10 @@ export function sizedRepeat(
  *  the fault this removes. Non-wood finishes have no grain to align. */
 export function grainQuarterTurn(kind: string, w: number, h: number): boolean {
   if (parseFurnitureMaterialFinish(kind)) return false
+  // A ceramic tile bond is NOT grain: turning a running-bond wall tile a quarter
+  // stands the courses on end (vertical stack bond), which is a different — and
+  // here wrong — product. Only the wood painter's boards are re-aligned.
+  if (isCeramicTilePattern(kind)) return false
   if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return false
   return w > h
 }
@@ -1356,6 +1361,26 @@ export function getSurfaceMaterialForBox(
   )
 }
 
+/** {@link getSurfaceMaterialForBox}'s sibling for a finish whose tile period is a
+ *  PRODUCT dimension rather than a grain scale: ceramic tile is 150 x 75 mm
+ *  whether the panel is 1.2 m or 4 m long, so its repeat must NOT track the
+ *  panel's size the way wood grain does.
+ *
+ *  Under `furnitureBoxUv` (MAT-006c, simple tier, default on) a parametric
+ *  part's UVs are already its own geometry IN METRES, so one texture period per
+ *  `metresPerPeriod` metres of real surface is exactly `repeat = 1/metresPerPeriod`
+ *  on both axes. Routed through {@link getSurfaceMaterialSized} so it shares the
+ *  same quantisation (0.05) and the same owned-texture LRU — measured live, a
+ *  0.6 m period comes back as repeat 1.65, i.e. 151.5 x 75.8 mm subway tile. */
+export function getTiledSurfaceMaterial(
+  kind: string,
+  color: string,
+  metresPerPeriod: number,
+  sheen = 0,
+): MeshStandardMaterial {
+  return getSurfaceMaterialSized(kind, color, 1, 1, sheen, metresPerPeriod)
+}
+
 /** Dispatch a hard-surface material by finish kind ('wood' | 'painted' |
  *  'gloss'), tinted to `color`. `sheen` (0..1) tunes matte → glossy across all
  *  three. Wood keeps its grain; painted/gloss are flat.
@@ -1412,6 +1437,10 @@ export function getSurfaceMaterial(
   // touch matter than a mirror-marble, over the shared stone veining.
   if (kind === 'sintered')
     return getStoneMaterial(color, repeat, sheen > 0 ? sheenRough(0.22, sheen) : 0.22)
+  // KITCHEN-DETAIL — glazed ceramic wall tile (kitchen backsplash, bath walls).
+  // `repeat` is ignored here: a tiled panel is sized from its WORLD dimensions
+  // by `getSurfaceMaterialForBox`, which re-tiles the cloned maps.
+  if (isCeramicTilePattern(kind)) return getCeramicTileMaterial(kind, color, sheen)
   if (kind === 'rattan') return getRattanMaterial(color, repeat * 3)
   if (kind === 'concrete')
     return getConcreteMaterial(color, repeat, sheen > 0 ? sheenRough(0.85, sheen) : 0.85)
@@ -1424,6 +1453,77 @@ export function getSurfaceMaterial(
     repeat,
     sheen > 0 ? sheenRough(WOOD_BASE_ROUGHNESS, sheen) : WOOD_BASE_ROUGHNESS,
   )
+}
+
+/** Procedural ceramic-tile finishes usable as a furniture `finish` kind. Both
+ *  are painted by `procedural/patterns/tile.ts` (the same painters the wall/floor
+ *  catalog uses), so a tiled furniture panel and a tiled wall share one look:
+ *   - `subway` — running-bond metro tile, 2:1 tiles, bevelled arrises, 4 x 8 per
+ *     texture period (at the backsplash's 0.6 m period → 150 x 75 mm tiles).
+ *   - `tile`   — square glazed ceramic, 2 x 2 per period (→ 300 x 300 mm).
+ *  Both are capped at 512 px by `PATTERN_SIZE_CAP`, so the ~3 mm grout joint
+ *  resolves to 3 px rather than disappearing. */
+const CERAMIC_TILE_PATTERNS = ['subway', 'tile'] as const
+type CeramicTilePattern = (typeof CERAMIC_TILE_PATTERNS)[number]
+
+function isCeramicTilePattern(kind: string): kind is CeramicTilePattern {
+  return (CERAMIC_TILE_PATTERNS as readonly string[]).includes(kind)
+}
+
+/** Glazed ceramic tile tinted to `color`, for a furniture/joinery panel (the
+ *  kitchen backsplash today).
+ *
+ *  The painter bakes the tint into the albedo (like every catalog procedural
+ *  material), so the material colour stays white, and its roughness MAP carries
+ *  ABSOLUTE values — glossy fired glaze (0.16) on the faces, matte cement
+ *  (0.92) in the joints — which the material scalar MULTIPLIES.
+ *
+ *  `GLAZE_ROUGHNESS_SCALAR` is 1.5, i.e. a face roughness of 0.24, and that
+ *  number was MEASURED, not chosen: at 1.0 (the map's own 0.16, the value the
+ *  catalog's wall tile ships) the app's raster of the default flat's backsplash
+ *  read 1.24-1.36x the Cycles reference's relative contrast (sd/mean 0.187 vs
+ *  0.154 and 0.164 vs 0.121 over two patches of the same pose, `/tmp/photoreal/
+ *  bref-kitchen/cyc.png`) — the app's specular lobe on the bevel is tighter than
+ *  physics. three clamps the product at 1, so the matte grout (0.92 -> 1.0) is
+ *  effectively unchanged; only the glaze moves. `sheen` (0..1) tightens it again
+ *  for a high-polish tile.
+ *
+ *  **The re-measure says roughness is NOT the lever, so do not keep turning it.**
+ *  At 1.5 the same two patches read sd 28.6 and 26.6 against 28.7 and 26.0 at
+ *  1.0 — a 0.4 % fall and a 2 % rise, i.e. nothing, while the reference sits at
+ *  25.7 and 21.0. The residual is the BEVEL (the `subway` painter's proud
+ *  chamfer band + a 0.55 normal scale) and the app's own lighting, not the
+ *  specular width. 1.5 ships because 0.24 is the honest roughness of glazed
+ *  ceramic (0.16 is nearly a mirror) and it costs nothing — not because it
+ *  closed the gap.
+ *
+ *  Size it with {@link getSurfaceMaterialForBox} — the tile period must come
+ *  from the panel's real metres, never a hand-picked repeat. */
+const GLAZE_ROUGHNESS_SCALAR = 1.5
+function getCeramicTileMaterial(
+  pattern: CeramicTilePattern,
+  color: string,
+  sheen = 0,
+): MeshStandardMaterial {
+  const rough = sheen > 0 ? sheenRough(GLAZE_ROUGHNESS_SCALAR, sheen) : GLAZE_ROUGHNESS_SCALAR
+  const key = `ceramic:${pattern}:${color}:${rough.toFixed(2)}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  // One bake per (pattern, colour) — the LRU keeps it, so a backsplash costs a
+  // single generation for the whole session.
+  const maps = generateProcedural(`furn-ceramic-${pattern}`, pattern, color)
+  const m = new MeshStandardMaterial({
+    color: '#ffffff', // tint baked into the albedo
+    roughness: rough,
+    metalness: maps.metalness,
+    map: own(applyAnisotropy(maps.albedo)),
+    normalMap: own(applyAnisotropy(maps.normal)),
+    roughnessMap: own(applyAnisotropy(maps.roughness)),
+  })
+  // Real glazed tile relief is a shallow bevel + a hairline joint, not masonry.
+  m.normalScale.set(0.55, 0.55)
+  cache.set(key, m)
+  return m
 }
 
 /**
