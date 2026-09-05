@@ -144,6 +144,12 @@ panorama that sits realistically beyond the glass. Prefer your own outlook?
 time‑of‑day **Sky** backdrop, see
 [Lighting & time](/lighting-and-time#a-live-sky-in-the-window-pro).)
 
+
+For an **HDB** plan with the **Sky** backdrop, the estate itself is outside the glass: your
+own block continuing either side, the common corridor past the main door, neighbouring
+blocks across the road, trees and the ground the right number of storeys down. It follows
+the clock — sunlit by day, lit windows and corridor lights after dark.
+
 ### Enter VR (Pro)
 
 On a supported WebXR headset, **View → Enter VR** drops you into an immersive

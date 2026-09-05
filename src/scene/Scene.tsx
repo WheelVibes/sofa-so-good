@@ -27,6 +27,7 @@ import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { deselectOnMiss } from './deselectOnMiss'
 import { Effects } from './Effects'
+import { Estate } from './estate/Estate'
 import { FinishDropSurface } from './FinishDropSurface'
 import { FinishEyedropperSurface } from './FinishEyedropperSurface'
 import { FrameRenderedNotifier } from './FrameRenderedNotifier'
@@ -179,6 +180,7 @@ export function Scene() {
         <RenderPump />
         <Sky />
         <SceneBackdrop />
+        <Estate />
         <SceneEnvironment />
         <Lighting />
         {/* Baked skylight-visibility maps (item (w)), flag-gated and off by default. Mounted

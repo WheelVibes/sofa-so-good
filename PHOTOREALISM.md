@@ -52,8 +52,10 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   in place of the primitives** (PHOTOREAL-HERO, v0.33.0.0, `furniture/photorealProxies.ts`); beds,
   dining table, desks and lamps remain primitives (no CC0 modern source yet).
 - **Backdrops**: walk-mode equirectangular photo as `scene.background` (procedural `city/dusk/park/hills`
-  presets + user upload; orbit dollhouse stays clean) — the instanced 3D estates were removed. **No HDRI
-  sky/IBL image yet.**
+  presets + user upload; orbit dollhouse stays clean). **The HDB estate outside the windows is real
+  geometry again (ESTATE-SURROUND, v0.33.0.1, `scene/estate/`)** — own block, neighbours, corridor,
+  ground, trees, lit windows at night — because the equirect path PMREM-blurs any painted skyline
+  (item (r)). **No HDRI sky/IBL image yet.**
 
 > **Maintenance.** When a roadmap item ships, **delete it** from the bullet list below (its record
 > lives in `CHANGELOG.md`); when one is only *partially* done, trim its entry to the remaining work —

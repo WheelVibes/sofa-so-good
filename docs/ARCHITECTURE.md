@@ -2987,6 +2987,17 @@ same change that reshapes a system.
   memory is reclaimed instead of leaking toward WebGL context loss.
 
 
+## Estate surround (walk-mode exterior as geometry)
+
+`src/scene/estate/` — `estateLayout.ts` (pure placement: own block wings/above/below/corridor,
+neighbour slab + point blocks, roads, trees, ground depth from `VIEW_STOREY`), `estateTextures.ts`
+(procedural canvas tiles: façade windows/corridor day + night masks, ground, road, rain-tree
+sprites), `estateSignal.ts` (module boolean the window panes read per frame), `Estate.tsx` (the R3F
+mount; materials are module-level and shared, geometry UV-scaled per block via `tileBoxUv`).
+Gated by `estateSurround` (simple, default on) + walk mode + HDB plan + `sky`/`none` backdrop.
+Exists because the equirect background path blurs any exterior to blobs (open-graphics-decisions
+item (r)). Verification scenario `scripts/scenarios/estate-surround-verify.json`.
+
 ## Blender/Cycles rendering (optional local layer)
 
 An **optional** photoreal layer requiring a local Blender install. The three.js real-time

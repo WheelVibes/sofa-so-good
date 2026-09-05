@@ -63,6 +63,7 @@ import {
 } from '../materials/materialRealism'
 import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
+import { estateVisibleNow } from '../scene/estate/estateSignal'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
 import { useSunPosition } from '../scene/lighting/useSunPosition'
 import { backdropVisibleNow } from '../scene/SceneBackdrop'
@@ -1221,8 +1222,11 @@ function FadeWindow({
     // (`getFixtureGlow()` is exactly `lightsMode === 'on'`). See
     // `daylightFromAltitude`.
     const d = 1 - daylightFromAltitude(sunAltRef.current)
+    // ESTATE-NIGHT-GLASS (see `Window.tsx`): with the estate mounted the pane stays clear
+    // after dark so the lit neighbours show; `dn` is the night ramp the glass follows.
+    const dn = estateVisibleNow() ? d * 0.15 : d
     if (isClearGlass) {
-      mat.color.lerpColors(dayColor, GLASS_NIGHT, d)
+      mat.color.lerpColors(dayColor, GLASS_NIGHT, dn)
     } else {
       mat.color.set(glassParams.color)
     }
@@ -1236,9 +1240,9 @@ function FadeWindow({
     // default (0.9) — a factor of 1 for `clear`, keeping it byte-identical.
     if (glassPhysical) {
       ;(mat as MeshPhysicalMaterial).transmission =
-        windowTransmission(1 - d) * (glassParams.transmission / 0.9)
+        windowTransmission(1 - dn) * (glassParams.transmission / 0.9)
     }
-    const base = glassPhysical ? 1 : 0.28 + d * 0.45 // more opaque at night (cheap tiers)
+    const base = glassPhysical ? 1 : 0.28 + dn * 0.45 // more opaque at night (cheap tiers)
     let factor = 1
     const st = useStore.getState()
     const revealEnabled = st.qualityOverrides.wallReveal ?? true

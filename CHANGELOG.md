@@ -27,6 +27,69 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.1 — ESTATE-SURROUND: the HDB estate outside the windows, as geometry
+
+The user's steer for this arc: the apartment itself — shell, fittings, environment — not the
+furniture. A per-room `walk-tour.mjs` at `realistic` (44 frames) put the environment first by a
+wide margin: every window and the whole service yard looked onto an empty blue-grey void. A flat
+with no outside is a set, not a home.
+
+**Why geometry.** `docs/open-graphics-decisions.md` item (r) already measured the obvious route
+and closed it: anything painted into the equirect `scene.background` is PMREM pre-filtered by
+three into "faint blue-grey blobs" (a crisp 2048×1024 skyline bought 3 points of glazing spread
+where a photograph shows 35), and the cube-texture route was refuted in `v0.31.7.132`. The only
+path that keeps a legible exterior is to draw it — which is also what gives it parallax, sun-facing
+sides and a view that changes as you cross the room.
+
+**What ships** (`src/scene/estate/`, flag `estateSurround`, simple tier, default on; walk mode,
+HDB plans, `sky`/`none` backdrop only; `noExport`; casts and receives no shadows):
+
+- **The flat's own slab block**, continuing 30 m either side, the storeys below and above, a
+  12-storey roof with parapet, and the **common corridor** outside the main door — floor, parapet,
+  running to the block's east end and deliberately NOT in front of the service yard.
+- **Neighbours at HDB spacing**: three slab blocks (12–16 storeys, 66–74 m, slightly oblique) and two
+  point blocks (20–25 storeys) at 50–110 m, each with void deck, roof parapet and lift-motor room.
+- **Ground 20.4 m down** (`VIEW_STOREY` 8: a 3.6 m void deck + six 2.8 m floors), two access roads,
+  sixty rain trees on open ground.
+- **Procedural textures, no assets**: one façade tile of 4 bays × 3 storeys (sliding windows with
+  curtains, bathroom windows, aircon ledges with condensers, an accent band), a corridor tile
+  (parapet, doors and gates, laundry poles), repeated across any block by UV scaling, so one
+  texture serves every block. Day albedo plus a night emissive mask of lit windows and corridor
+  fluorescent tubes that fades in as the sun sets.
+
+**Three things the first real-GPU round corrected, all by looking (item (r) established that no
+available number sees exterior detail through a pane):**
+
+- **The neighbours read as a grey interior wall seen through glass.** The scene's sun and
+  hemisphere light the estate exactly as hard as the flat, but a camera exposed for a room sees the
+  outside two to three times brighter — that is why real window views blow toward white. Exterior
+  materials now carry a daylight emissive of their own albedo (`EXTERIOR_DAY_BOOST` 1.1), and the
+  block outside the living window went from grey mush to a sunlit façade with legible bays.
+- **Nothing showed at night.** PHOTO-GLASS drops the pane to 0.2 transmission with a near-black
+  tint after dark ("the interior reads its own reflection, not a see-through hole into the void").
+  Right for a void; with lit neighbours outside it hid the one thing an HDB night window shows.
+  `estateSignal.ts` is a module boolean the panes read per frame (the `backdropVisibleNow` pattern);
+  `Window.tsx` and `PlanShell.tsx` scale the night ramp by 0.15 while the estate is mounted, and
+  every path without it is byte-identical. The night frame now shows the block's lit windows through
+  clear glass with the fan light reflected in it.
+- **A straight footpath on the ground tile repeated as stripes across 300 m of lawn, and the trees
+  were lollipops.** The ground is blotches (three greens, worn earth, seam-wrapped); the tree is a
+  rain tree — a broad umbrella crown 1.6× wider than tall on a clear trunk, 260 leaf clusters,
+  three variants, lit top / dark underside.
+
+Also: the first neighbour moved from 46 m to 62 m and turned 11°, so an 8th-storey window shows
+sky above a 12-storey block instead of a wall of bays edge to edge.
+
+**Priced free.** `frame-time.mjs FLAGS_OFF=estateSurround`, walk/realistic, same pose:
+p50 **7.3 / 7.3 ms**, p90 **10.1 / 10.4 ms**; the only cost is a one-off texture-upload hitch.
+39 meshes in walk mode, 0 in orbit (the dollhouse stays clean, as decided).
+
+**Known limits, stated:** the corridor side is assumed `+z` (the default plan's main door); a
+template whose main door faces another way gets the corridor on the wrong face. Condo and landed
+plans get no surround yet. The exterior brightness is a look constant, not a measurement — a Cycles
+render of the window pose under the physical sky (`render_from_manifest.py`) is the right way to
+calibrate exterior/interior ratio, and is the next measurement this arc owes.
+
 ## v0.33.0.0 — PHOTOREAL-HERO: Realistic mode draws the hero furniture as photo-scanned models
 
 Minor bump — opens the cinematic-photorealism arc (walk, orbit and the room editor), cut from

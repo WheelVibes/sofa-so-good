@@ -26,6 +26,7 @@ import {
   windowGlassPhysical,
   windowTransmission,
 } from '../materials/materialRealism'
+import { estateVisibleNow } from '../scene/estate/estateSignal'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
 import { useSunPosition } from '../scene/lighting/useSunPosition'
 import { backdropVisibleNow } from '../scene/SceneBackdrop'
@@ -154,10 +155,15 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
     // day, near-solid dark reflective pane at night (PHOTO-GLASS). Glass-block
     // glazing reads via its own block grid, not this backing pane, so it
     // shrinks to near-invisible instead of the normal opacity story.
-    const glassBase = isGlassBlock ? 0.12 : glassPhysical ? 1 : 0.28 + d * 0.45
+    // ESTATE-NIGHT-GLASS: with a real, lit exterior mounted (`estateSignal.ts`) the pane
+    // must not go dark and opaque at dusk — a real pane is as clear at night as by day,
+    // and the darkness belongs to the outside. So the night ramp `dn` is held near zero
+    // while the estate is present; every other path keeps PHOTO-GLASS's `d` unchanged.
+    const dn = estateVisibleNow() ? d * 0.15 : d
+    const glassBase = isGlassBlock ? 0.12 : glassPhysical ? 1 : 0.28 + dn * 0.45
     if (glass) {
       if (isClearGlass) {
-        glass.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
+        glass.color.lerpColors(GLASS_DAY, GLASS_NIGHT, dn)
       } else {
         glass.color.set(glassParams.color)
       }
@@ -165,7 +171,7 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       glass.emissiveIntensity = glassSkyCatchIntensity(1 - d, backdropVisibleNow())
       if (glassPhysical) {
         ;(glass as MeshPhysicalMaterial).transmission =
-          windowTransmission(1 - d) * (glassParams.transmission / 0.9)
+          windowTransmission(1 - dn) * (glassParams.transmission / 0.9)
       }
     }
     const fading = wallOp < 0.985

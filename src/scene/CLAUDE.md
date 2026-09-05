@@ -1357,6 +1357,31 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     time-tracking sky and loses the HDB towers; `city` / `dusk` remain one click away in the
     backdrop picker, and this is why the change is a default rather than a deletion.
 
+- **The HDB estate outside the windows is GEOMETRY, not a backdrop (ESTATE-SURROUND,
+  `scene/estate/`, flag `estateSurround`, v0.33.0.1).** Item (r) measured that anything painted
+  into the equirect `scene.background` is PMREM-blurred to blobs and the cube route was refuted,
+  so a legible exterior has to be drawn: `estateLayout.ts` (pure, tested) places the flat's OWN
+  slab block continuing left/right/above/below with the common corridor outside the main door,
+  neighbouring slab + point blocks at 50–110 m, roads, ground at the storey's true depth (#08,
+  20.4 m) and rain trees; `estateTextures.ts` paints tileable façade/corridor/ground/tree canvases
+  (one façade tile = 4 bays × 3 storeys, repeated by UV scaling so one texture serves every block);
+  `Estate.tsx` mounts it in walk mode, HDB plans, `sky`/`none` backdrop only, `noExport`, no
+  shadows. Three rules from the first real-GPU round:
+  · **Exterior surfaces carry a daylight emissive boost (`EXTERIOR_DAY_BOOST`)** — the scene's sun
+    and hemisphere light the estate no harder than the flat, so without it the neighbours read as
+    a grey interior wall seen through glass; a camera exposed for a room sees the outside 2–3×
+    brighter. By night the emissive map swaps to the lit-window mask (`EXTERIOR_NIGHT_GLOW`).
+  · **The window panes must stay CLEAR at night while the estate is mounted (ESTATE-NIGHT-GLASS,
+    `estateSignal.ts`).** PHOTO-GLASS drops transmission to 0.2 and tints the pane near-black after
+    dark — right for a void, wrong for lit neighbours, which it hid entirely. `Window.tsx` and
+    `PlanShell.tsx` scale the night ramp by 0.15 when `estateVisibleNow()`; every other path is
+    byte-identical.
+  · **Nothing linear on a repeating tile.** The first ground tile carried a straight footpath and
+    it repeated as stripes across 300 m of lawn; the first tree was a lollipop. Blotches and an
+    umbrella crown (rain tree: ~1.6× wider than tall) read right at 30–150 m.
+  Priced free: `frame-time.mjs` walk/realistic p50 7.3 ms both arms, p90 10.1 vs 10.4. Verify with
+  `scripts/scenarios/estate-surround-verify.json` (day near/far, bedroom, service yard, night, and
+  an orbit frame that must show none of it).
 - **Backdrops paint `scene.background` only — never `scene.environment`.** Walk-mode
   surroundings (`SceneBackdrop.tsx`) bake an equirect into `scene.background`; the static photo
   presets (`backdropEquirect.ts`/`backdropHorizon.ts`) and the sun-driven `sky` (RD-412,

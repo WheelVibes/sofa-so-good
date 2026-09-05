@@ -1423,6 +1423,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // It is also not an analytical/professional tool — it is the view out of the
   // window, i.e. core realism, the same argument that keeps the orbit surround
   // dome ungated.
+  estateSurround: {
+    label: 'HDB estate outside the windows',
+    description:
+      'Walk mode draws the neighbouring HDB blocks, the common corridor, ground and trees outside the windows as real geometry (HDB plans, sky backdrop)',
+    // Prod-safe: pure procedural geometry + canvas textures, no assets. Simple tier:
+    // it is part of what the window shows. Geometry, not a backdrop, because the
+    // equirect background is PMREM-blurred to blobs (open-graphics-decisions (r)).
+    default: true,
+    tier: 'simple',
+  },
   proceduralSky: {
     label: 'Procedural sky',
     description: 'Sun-driven analytic sky as the walk-mode window view (tracks the time of day)',
