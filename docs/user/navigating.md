@@ -22,6 +22,9 @@ dollhouse view for getting your bearings and presenting the design.
   (you'll confirm *"Enter &lt;room&gt;?"* first).
 - Exterior walls between you and the interior fade out automatically so you can
   always see inside.
+- For an **HDB** plan (with the estate turned on), the dollhouse sits inside its own
+  block and a real neighbouring estate — cut away at your flat's ceiling like a
+  building section, so your storey stays open to view.
 
 The **nav cluster** at the bottom‑right combines a compass (click to reorient),
 a zoom rail, and a minimap. While inside the per‑room editor with something
@@ -162,7 +165,10 @@ time‑of‑day **Sky** backdrop, see
 For an **HDB** plan with the **Sky** backdrop, the estate itself is outside the glass: your
 own block continuing either side, the common corridor past the main door, neighbouring
 blocks across the road, trees and the ground the right number of storeys down. It follows
-the clock — sunlit by day, lit windows and corridor lights after dark.
+the clock — sunlit by day, lit windows and corridor lights after dark. The estate is visible
+in the **orbit** (dollhouse) view too, cut away at your flat's ceiling like a building
+section, so your own storey stays open to view while the rest of the block and the
+neighbouring estate read around it.
 
 ### Enter VR (Pro)
 

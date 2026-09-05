@@ -1,0 +1,27 @@
+{
+  "name": "estate-orbit-verify",
+  "description": "ESTATE-ORBIT (2026-09-05): the HDB estate is now visible in orbit too, cut at the flat's ceiling (building-section style) so the dollhouse stays open from above. Boots into orbit (the app default), probes the estate-surround group for a mesh census (own-above/own-roof must be ABSENT, every mesh's raycast must be a no-op), screenshots the default boot framing at 13:00, then again at 20:00 to see the lit estate at night around the dollhouse. Run with SHOT_GPU=1.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "setup", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "flag-on", "waitFor": { "store": "state.featureFlags.estateSurround === true" }, "timeout": 5000 },
+    { "name": "orbit-confirmed", "waitFor": { "store": "state.cameraMode === 'orbit'" }, "timeout": 5000 },
+    { "name": "hide-hud", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.() })()" },
+    { "name": "orbit-settle", "wait": 4000 },
+    {
+      "name": "probe-estate-census",
+      "eval": "(() => { const { scene } = window.__three; let group = null; scene.traverse(o => { if (o.name === 'estate-surround') group = o }); if (!group) { console.log('[probe] orbit estate census', JSON.stringify({ found: false })); return } let meshes = 0, names = []; group.traverse(c => { if (c.isMesh || c.isInstancedMesh) { meshes++; if (c.name) names.push(c.name) } }); console.log('[probe] orbit estate census', JSON.stringify({ found: true, meshes, hasOwnAbove: names.includes('own-above'), hasOwnRoof: names.includes('own-roof'), hasOwnWest: names.some(n => n.startsWith('own-west')), hasGround: names.includes('ground') })) })()"
+    },
+    {
+      "name": "probe-raycast-inert",
+      "eval": "(() => { const { scene, raycaster } = window.__three; let group = null; scene.traverse(o => { if (o.name === 'estate-surround') group = o }); if (!group) { console.log('[probe] orbit raycast-inert', JSON.stringify({ found: false })); return } let total = 0, inert = 0, notInert = []; group.traverse(c => { if (c.isMesh || c.isInstancedMesh) { total++; const intersects = []; c.raycast(raycaster, intersects); if (intersects.length === 0) inert++; else notInert.push(c.name || c.type) } }); console.log('[probe] orbit raycast-inert', JSON.stringify({ total, inert, notInert })) })()"
+    },
+    { "name": "shot-orbit-boot-13h", "screenshot": "00-orbit-boot-13h" },
+    { "name": "night", "eval": "window.__store.getState().setManualHour?.(20)" },
+    { "name": "settle-night", "wait": 4000 },
+    { "name": "shot-orbit-night-20h", "screenshot": "01-orbit-night-20h" }
+  ]
+}

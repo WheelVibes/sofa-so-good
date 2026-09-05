@@ -26,6 +26,7 @@ import {
   type EstateBox,
   type EstateLayout,
   ROOF_PARAPET_H,
+  sectionCut,
   VOID_DECK_H,
 } from './estateLayout'
 import { setEstateVisible } from './estateSignal'
@@ -44,12 +45,24 @@ import {
 
 /**
  * ESTATE-SURROUND — draws the HDB estate outside the windows as real geometry
- * (see `estateLayout.ts` for why not a backdrop). Walk mode only, `sky`/`none`
+ * (see `estateLayout.ts` for why not a backdrop). Walk mode AND orbit mode
+ * (product decision 2026-09-05: the orbit dollhouse now reads as a block in a
+ * real estate, superseding the earlier "orbit stays clean" call from
+ * PHOTO-BACKDROP — see ESTATE-ORBIT below), never the room editor, `sky`/`none`
  * backdrop only (a photo preset is the user's own choice of exterior), HDB plans
  * only, behind the `estateSurround` flag. Casts and receives no shadows: the sun's
  * shadow frustum is sized to the plan, and a neighbour block's shadow falling
  * across the living room is a physics fact the app's lighting rig was never
  * calibrated for. Tagged `noExport` so a glTF export of the flat stays the flat.
+ *
+ * **ESTATE-ORBIT (2026-09-05).** In orbit the own block is drawn CUT at the
+ * flat's ceiling — building-section style, via the pure `sectionCut` — so the
+ * storeys above never cap the dollhouse's open top and the wings don't rise the
+ * full 12 storeys beside it. Neighbours/ground/roads/trees/corridor/below render
+ * in full in both modes; only the own block above the cut is unreal to look at.
+ * Every estate mesh (and each tree `InstancedMesh`) gets a no-op `raycast` — orbit
+ * selects furniture/rooms by pointer raycast and deselects via
+ * `onPointerMissed`, and the estate must never intercept either.
  */
 export function Estate() {
   const enabled = useFeature('estateSurround')
@@ -66,9 +79,14 @@ export function Estate() {
     backdrop !== 'sky' &&
     backdrop !== 'none' &&
     isPhotoBackdropActive(backdrop, cameraMode, !!customUrl, proceduralSky)
-  const show = enabled && hdb && cameraMode === 'firstPerson' && !roomEditor && !photoPreset
+  const show =
+    enabled &&
+    hdb &&
+    (cameraMode === 'firstPerson' || cameraMode === 'orbit') &&
+    !roomEditor &&
+    !photoPreset
   if (!show) return null
-  return <EstateGeometry plan={plan} />
+  return <EstateGeometry plan={plan} orbit={cameraMode === 'orbit'} />
 }
 
 // ── materials (module-level, built once, shared by every block) ─────────────
@@ -192,15 +210,28 @@ function boxCentreY(b: EstateBox): number {
   return (b.yMin + b.yMax) / 2
 }
 
+/** No-op raycast: orbit selects furniture/rooms by pointer raycast and deselects via
+ *  `onPointerMissed` — the estate (background scenery) must never intercept either, on any
+ *  mesh or tree `InstancedMesh`. */
+function noopRaycast() {
+  // Intentionally empty — the estate is not a pointer target.
+}
+
 // ── the component that owns the meshes ───────────────────────────────────────
 
-function EstateGeometry({ plan }: { plan: ReturnType<typeof useStore.getState>['floorPlan'] }) {
+function EstateGeometry({
+  plan,
+  orbit,
+}: {
+  plan: ReturnType<typeof useStore.getState>['floorPlan']
+  orbit: boolean
+}) {
   const invalidate = useThree((s) => s.invalidate)
   const extent = planExtent(plan)
   // The default flat's main door is on the +z face, at x ≈ 10.9–11.9 (`FLAT.mainDoor`);
   // the corridor fronts that and runs to the block's east end, leaving the service
   // yard's face open. Templates without a known door side get the same default.
-  const layout = useMemo(
+  const rawLayout = useMemo(
     () =>
       buildEstateLayout({
         extent: [extent[0], extent[1]],
@@ -209,6 +240,13 @@ function EstateGeometry({ plan }: { plan: ReturnType<typeof useStore.getState>['
       }),
     [extent],
   )
+  // Orbit sees the own block cut at the flat's ceiling — a building section, not a slab
+  // capping the open dollhouse top (ESTATE-ORBIT). Walk mode gets the untouched layout.
+  const layout = useMemo(() => {
+    if (!orbit) return rawLayout
+    const ceilingHeight = plan.ceilingHeight ?? 2.6
+    return sectionCut(rawLayout, ceilingHeight + 0.15)
+  }, [rawLayout, orbit, plan.ceilingHeight])
   const m = materials()
 
   // Night: lit windows + corridor tubes fade in as the sun sets.
@@ -259,11 +297,13 @@ function EstateGeometry({ plan }: { plan: ReturnType<typeof useStore.getState>['
       {parts.meshes.map((p) => (
         <mesh
           key={p.key}
+          name={p.key}
           geometry={p.geometry}
           material={p.material}
           position={p.position}
           rotation={p.rotation}
           frustumCulled
+          raycast={noopRaycast}
         />
       ))}
       {tree.map((mesh, i) => (
@@ -334,8 +374,10 @@ function buildParts(layout: EstateLayout): {
       box(key, b, ownMats)
     }
   }
-  box('own-above', own.above, ownMats)
-  box('own-roof', own.roof, m.roof, false)
+  // Absent after a section cut (orbit) — the storeys above the flat's ceiling would
+  // otherwise cap the open dollhouse top.
+  if (own.above) box('own-above', own.above, ownMats)
+  if (own.roof) box('own-roof', own.roof, m.roof, false)
   // Corridor outside the main door: floor slab + parapet (the corridor ceiling is the
   // storey above's slab, already part of `own.above`/wings).
   box('own-corridor-floor', own.corridorFloor, m.deck, false)
@@ -372,8 +414,10 @@ function buildParts(layout: EstateLayout): {
     )
   }
 
-  // Ground: one big plane, tiled.
-  const gsize = 700
+  // Ground: one big plane, tiled. 360 m (±180 m), inside the orbit sky dome's 200 m
+  // radius (`skyDome.ts:SKY_DOME_RADIUS`) so the horizon meets haze rather than the
+  // dome's far wall or z-fighting past it (ORBIT-SECTION-CUT, 2026-09-05).
+  const gsize = 360
   const ground = new PlaneGeometry(gsize, gsize)
   {
     const uv = ground.attributes.uv
@@ -420,6 +464,7 @@ function buildTrees(layout: EstateLayout, materials: Material[]): InstancedMesh[
       const mesh = new InstancedMesh(geo, material, Math.max(1, n))
       mesh.castShadow = false
       mesh.receiveShadow = false
+      mesh.raycast = noopRaycast
       mine.forEach((t, i) => {
         // The sprite is square; a rain tree is ~1.6× wider than tall, so scale x by that.
         const h = t.h

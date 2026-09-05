@@ -6,6 +6,7 @@ import {
   groundYForStorey,
   OWN_BLOCK_STOREYS,
   STOREY_H,
+  sectionCut,
   storeyTopAboveGround,
   VIEW_STOREY,
   VOID_DECK_H,
@@ -48,8 +49,8 @@ describe('buildEstateLayout', () => {
 
   it('puts the ground below the flat and the own-block roof above it', () => {
     expect(L.groundY).toBeLessThan(-15)
-    expect(L.own.roof.yMin).toBeGreaterThan(STOREY_H)
-    expect(L.own.roof.yMin).toBeCloseTo(L.groundY + storeyTopAboveGround(OWN_BLOCK_STOREYS))
+    expect(L.own.roof!.yMin).toBeGreaterThan(STOREY_H)
+    expect(L.own.roof!.yMin).toBeCloseTo(L.groundY + storeyTopAboveGround(OWN_BLOCK_STOREYS))
   })
 
   it('the own block never intrudes into the flat itself', () => {
@@ -64,7 +65,7 @@ describe('buildEstateLayout', () => {
     expect(L.own.eastWing.x - L.own.eastWing.w / 2).toBeGreaterThanOrEqual(APARTMENT_EXT_W - 1e-9)
     // Below/above boxes clear the flat's floor (0) and ceiling (2.6 m) with slab room.
     expect(L.own.below.yMax).toBeLessThanOrEqual(0)
-    expect(L.own.above.yMin).toBeGreaterThanOrEqual(2.6)
+    expect(L.own.above!.yMin).toBeGreaterThanOrEqual(2.6)
     // The corridor is outside the +z face, in front of the main-door span only.
     expect(L.own.corridorFloor.z - L.own.corridorFloor.d / 2).toBeGreaterThanOrEqual(
       APARTMENT_EXT_D - 1e-9,
@@ -114,5 +115,53 @@ describe('buildEstateLayout', () => {
     // The first window-side neighbour flips to the +z side.
     const n1 = M.blocks.find((b) => b.id === 'n1')!
     expect(n1.z).toBeGreaterThan(APARTMENT_EXT_D)
+  })
+})
+
+describe('sectionCut (ORBIT-SECTION-CUT)', () => {
+  const L = buildEstateLayout(input)
+  const cutY = 2.6 + 0.15
+  const cut = sectionCut(L, cutY)
+
+  it('removes the storeys above the cut and clamps the wings, leaving everything else untouched', () => {
+    expect(cut.own.above).toBeUndefined()
+    expect(cut.own.roof).toBeUndefined()
+    expect(cut.own.westWing.yMax).toBeCloseTo(cutY)
+    expect(cut.own.eastWing.yMax).toBeCloseTo(cutY)
+    // No own-block box exceeds the cut plane.
+    for (const b of [
+      cut.own.westWing,
+      cut.own.eastWing,
+      cut.own.below,
+      cut.own.corridorFloor,
+      cut.own.corridorParapet,
+    ]) {
+      expect(b.yMax).toBeLessThanOrEqual(cutY + 1e-9)
+    }
+    // Everything not part of the own-block Y range is untouched.
+    expect(cut.own.below).toEqual(L.own.below)
+    expect(cut.own.corridorFloor).toEqual(L.own.corridorFloor)
+    expect(cut.own.corridorParapet).toEqual(L.own.corridorParapet)
+    expect(cut.own.footprint).toEqual(L.own.footprint)
+    expect(cut.blocks).toEqual(L.blocks)
+    expect(cut.trees).toEqual(L.trees)
+    expect(cut.roads).toEqual(L.roads)
+    expect(cut.groundY).toBe(L.groundY)
+  })
+
+  it('a cut at a Y already above the wings is a no-op on their height', () => {
+    const high = sectionCut(L, L.own.roof!.yMax + 100)
+    expect(high.own.westWing.yMax).toBe(L.own.westWing.yMax)
+    expect(high.own.eastWing.yMax).toBe(L.own.eastWing.yMax)
+    // above/roof are still removed — the cut always drops them, only the wing height varies.
+    expect(high.own.above).toBeUndefined()
+    expect(high.own.roof).toBeUndefined()
+  })
+
+  it('without a cut, buildEstateLayout is byte-identical to before (own.above/roof present)', () => {
+    expect(L.own.above).toBeDefined()
+    expect(L.own.roof).toBeDefined()
+    expect(L.own.above!.yMin).toBeGreaterThanOrEqual(2.6)
+    expect(L.own.roof!.yMin).toBeGreaterThan(STOREY_H)
   })
 })

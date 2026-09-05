@@ -3018,16 +3018,25 @@ reach for the two kinds a derived layout puts at the fixture rather than the wal
 and in `RoomEditorScene.tsx` as `<PlumbingFittings roomId={roomId} />` (EDITOR-LOCKSTEP).
 Scenario: `scripts/scenarios/plumbing-fittings-verify.json`.
 
-## Estate surround (walk-mode exterior as geometry)
+## Estate surround (walk AND orbit exterior as geometry)
 
 `src/scene/estate/` — `estateLayout.ts` (pure placement: own block wings/above/below/corridor,
-neighbour slab + point blocks, roads, trees, ground depth from `VIEW_STOREY`), `estateTextures.ts`
-(procedural canvas tiles: façade windows/corridor day + night masks, ground, road, rain-tree
-sprites), `estateSignal.ts` (module boolean the window panes read per frame), `Estate.tsx` (the R3F
-mount; materials are module-level and shared, geometry UV-scaled per block via `tileBoxUv`).
-Gated by `estateSurround` (simple, default on) + walk mode + HDB plan + `sky`/`none` backdrop.
-Exists because the equirect background path blurs any exterior to blobs (open-graphics-decisions
-item (r)). Verification scenario `scripts/scenarios/estate-surround-verify.json`.
+neighbour slab + point blocks, roads, trees, ground depth from `VIEW_STOREY`; also the pure
+`sectionCut(layout, cutY)` used in orbit), `estateTextures.ts` (procedural canvas tiles: façade
+windows/corridor day + night masks, ground, road, rain-tree sprites), `estateSignal.ts` (module
+boolean the window panes read per frame), `Estate.tsx` (the R3F mount; materials are module-level
+and shared, geometry UV-scaled per block via `tileBoxUv`).
+Gated by `estateSurround` (simple, default on) + walk mode OR orbit mode + HDB plan + `sky`/`none`
+backdrop (never the room editor). Exists because the equirect background path blurs any exterior
+to blobs (open-graphics-decisions item (r)).
+**Orbit is a section cut (2026-09-05):** the own block's storeys above the flat's ceiling
+(`own.above`/`own.roof`) are omitted and its wings are clamped to the ceiling height, so the
+dollhouse's open top is never capped and neighbouring 12-storey blocks don't hide the interior —
+building-section style, not a full tower. Every estate mesh (and each tree `InstancedMesh`) sets a
+no-op `raycast` so orbit's pointer-based furniture/room selection and `onPointerMissed` deselect
+never see it. This supersedes the earlier "orbit dollhouse stays clean" decision from
+PHOTO-BACKDROP. Verification scenarios: `scripts/scenarios/estate-surround-verify.json` (walk) and
+`scripts/scenarios/estate-orbit-verify.json` (orbit).
 
 ## Blender/Cycles rendering (optional local layer)
 

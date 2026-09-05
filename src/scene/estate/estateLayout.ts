@@ -91,10 +91,12 @@ export interface EstateLayout {
     westWing: EstateBox
     eastWing: EstateBox
     below: EstateBox
-    above: EstateBox
+    /** Storeys above the flat's own ceiling. Absent after {@link sectionCut}. */
+    above?: EstateBox
     corridorFloor: EstateBox
     corridorParapet: EstateBox
-    roof: EstateBox
+    /** Roof slab of the own block. Absent after {@link sectionCut}. */
+    roof?: EstateBox
     /** The whole own-block footprint incl. wings (for the void-deck box + tests). */
     footprint: { x: number; z: number; w: number; d: number }
   }
@@ -291,4 +293,30 @@ export function buildEstateLayout(input: EstateLayoutInput): EstateLayout {
 /** Absolute Y range of a neighbour block's residential storeys (above its void deck). */
 export function blockYRange(groundY: number, storeys: number): { deckTop: number; roofY: number } {
   return { deckTop: groundY + VOID_DECK_H, roofY: groundY + storeyTopAboveGround(storeys) }
+}
+
+/**
+ * Cut the OWN block at a horizontal plane, building-section style (ORBIT-SECTION-CUT,
+ * 2026-09-05). The orbit dollhouse looks down into the flat with its ceiling culled — the
+ * storeys above (`own.above`/`own.roof`) would put an opaque slab over that open top, and the
+ * wings would rise the full `OWN_BLOCK_STOREYS` beside it, both wrong for a view whose whole
+ * point is seeing in. This returns a new layout with `own.above`/`own.roof` REMOVED and the
+ * wings' `yMax` clamped to `cutY` — everything else (the storeys below, the corridor, every
+ * neighbour block, the ground, roads and trees) is untouched, because only the own block above
+ * the cut plane is unreal to look at; the rest of the estate is real geometry either way.
+ *
+ * Pure: no three, no randomness — same shape as {@link buildEstateLayout}, so it is trivial to
+ * unit-test and trivial to prove a no-cut caller is byte-identical to the plain layout.
+ */
+export function sectionCut(layout: EstateLayout, cutY: number): EstateLayout {
+  return {
+    ...layout,
+    own: {
+      ...layout.own,
+      westWing: { ...layout.own.westWing, yMax: Math.min(layout.own.westWing.yMax, cutY) },
+      eastWing: { ...layout.own.eastWing, yMax: Math.min(layout.own.eastWing.yMax, cutY) },
+      above: undefined,
+      roof: undefined,
+    },
+  }
 }

@@ -1385,15 +1385,36 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     backdrop picker, and this is why the change is a default rather than a deletion.
 
 - **The HDB estate outside the windows is GEOMETRY, not a backdrop (ESTATE-SURROUND,
-  `scene/estate/`, flag `estateSurround`, v0.33.0.1).** Item (r) measured that anything painted
+  `scene/estate/`, flag `estateSurround`, v0.33.0.1) — and it is visible in BOTH walk and orbit
+  mode (ESTATE-ORBIT, 2026-09-05 product decision, superseding the earlier "the orbit dollhouse
+  stays clean" call recorded under PHOTO-BACKDROP).** Item (r) measured that anything painted
   into the equirect `scene.background` is PMREM-blurred to blobs and the cube route was refuted,
   so a legible exterior has to be drawn: `estateLayout.ts` (pure, tested) places the flat's OWN
   slab block continuing left/right/above/below with the common corridor outside the main door,
   neighbouring slab + point blocks at 50–110 m, roads, ground at the storey's true depth (#08,
   20.4 m) and rain trees; `estateTextures.ts` paints tileable façade/corridor/ground/tree canvases
   (one façade tile = 4 bays × 3 storeys, repeated by UV scaling so one texture serves every block);
-  `Estate.tsx` mounts it in walk mode, HDB plans, `sky`/`none` backdrop only, `noExport`, no
-  shadows. Three rules from the first real-GPU round:
+  `Estate.tsx` mounts it in walk mode AND orbit mode, HDB plans, `sky`/`none` backdrop only,
+  `noExport`, no shadows.
+  · **In orbit the own block is drawn CUT at the flat's ceiling, building-section style
+    (ORBIT-SECTION-CUT).** The orbit dollhouse culls the real ceiling to look in (ORBIT-CEILING);
+    left alone, the own block's storeys above (`own.above`/`own.roof`) would cap that open top
+    with an opaque slab, and its wings would rise the full 12 storeys beside it. The pure
+    `estateLayout.ts:sectionCut(layout, cutY)` returns a layout with `own.above`/`own.roof`
+    REMOVED and the wings' `yMax` clamped to `cutY` (`plan.ceilingHeight ?? 2.6` + 0.15 m slab) —
+    everything else (the storeys below, the corridor, every neighbour block, ground, roads,
+    trees) is untouched. Walk mode calls `buildParts` on the plain layout and is byte-identical
+    to before; only orbit routes through `sectionCut` first.
+  · **Every estate mesh (and each tree `InstancedMesh`) carries a no-op `raycast`.** Orbit selects
+    furniture/rooms by pointer raycast and deselects via `onPointerMissed` — background scenery
+    must never intercept either, so `Estate.tsx` sets `mesh.raycast = () => {}` on every part and
+    on each tree `InstancedMesh`; `mesh.name = p.key` too, so a probe can census which parts
+    mounted (e.g. confirm `own-above`/`own-roof` are absent in orbit) without adding a dev-only
+    path.
+  · **The ground plane is 360 m (±180 m), inside the orbit sky dome's 200 m radius
+    (SKY-DOME-FAR)** — the flat's 700 m walk-mode ground would run well past the dome and either
+    show through it or z-fight past its far wall from the top-down orbit vantage.
+  Three rules from the first real-GPU round:
   · **Exterior surfaces carry a daylight emissive boost (`EXTERIOR_DAY_BOOST`)** — the scene's sun
     and hemisphere light the estate no harder than the flat, so without it the neighbours read as
     a grey interior wall seen through glass; a camera exposed for a room sees the outside 2–3×
@@ -1406,9 +1427,10 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   · **Nothing linear on a repeating tile.** The first ground tile carried a straight footpath and
     it repeated as stripes across 300 m of lawn; the first tree was a lollipop. Blotches and an
     umbrella crown (rain tree: ~1.6× wider than tall) read right at 30–150 m.
-  Priced free: `frame-time.mjs` walk/realistic p50 7.3 ms both arms, p90 10.1 vs 10.4. Verify with
-  `scripts/scenarios/estate-surround-verify.json` (day near/far, bedroom, service yard, night, and
-  an orbit frame that must show none of it).
+  Priced free in walk: `frame-time.mjs` walk/realistic p50 7.3 ms both arms, p90 10.1 vs 10.4.
+  Verify walk with `scripts/scenarios/estate-surround-verify.json` (day near/far, bedroom, service
+  yard, night); verify orbit with `scripts/scenarios/estate-orbit-verify.json` (boot framing +
+  20:00, asserting `own-above`/`own-roof` are absent and the flat still reads open from above).
 - **Backdrops paint `scene.background` only — never `scene.environment`.** Walk-mode
   surroundings (`SceneBackdrop.tsx`) bake an equirect into `scene.background`; the static photo
   presets (`backdropEquirect.ts`/`backdropHorizon.ts`) and the sun-driven `sky` (RD-412,

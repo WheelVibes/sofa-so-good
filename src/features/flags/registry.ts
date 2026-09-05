@@ -1442,7 +1442,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   estateSurround: {
     label: 'HDB estate outside the windows',
     description:
-      'Walk mode draws the neighbouring HDB blocks, the common corridor, ground and trees outside the windows as real geometry (HDB plans, sky backdrop)',
+      'Draws the neighbouring HDB blocks, the common corridor, ground and trees outside the windows as real geometry, in both walk and orbit view (HDB plans, sky backdrop)',
     // Prod-safe: pure procedural geometry + canvas textures, no assets. Simple tier:
     // it is part of what the window shows. Geometry, not a backdrop, because the
     // equirect background is PMREM-blurred to blobs (open-graphics-decisions (r)).

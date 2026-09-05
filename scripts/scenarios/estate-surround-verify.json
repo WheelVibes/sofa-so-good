@@ -1,6 +1,6 @@
 {
   "name": "estate-surround-verify",
-  "description": "ESTATE-SURROUND: the HDB estate outside the windows as geometry. Walk views out of the living window (near + far), the master bedroom window and the service yard at 13:00, the living window at 20:00, and an orbit frame that must NOT show it. Run with SHOT_GPU=1.",
+  "description": "ESTATE-SURROUND: the HDB estate outside the windows as geometry. Walk views out of the living window (near + far), the master bedroom window and the service yard at 13:00, the living window at 20:00, plus an orbit frame — since ESTATE-ORBIT (2026-09-05) the estate is visible there too (see estate-orbit-verify.json for the dedicated orbit checks). Run with SHOT_GPU=1.",
   "url": "http://localhost:5200/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
@@ -9,8 +9,8 @@
     { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
     { "name": "flag-on", "waitFor": { "store": "state.featureFlags.estateSurround === true" }, "timeout": 5000 },
     { "name": "orbit-settle", "wait": 3000 },
-    { "name": "probe-orbit", "eval": "(() => { let n = 0; window.__three.scene.traverse(o => { if (o.name === 'estate-surround') n++ }); console.log('[probe] orbit estate groups', n) })()" },
-    { "name": "shot-orbit", "screenshot": "00-orbit-no-estate" },
+    { "name": "probe-orbit", "eval": "(() => { let n = 0; window.__three.scene.traverse(o => { if (o.name === 'estate-surround') n++ }); console.log('[probe] orbit estate groups (now expected >0, see ESTATE-ORBIT)', n) })()" },
+    { "name": "shot-orbit", "screenshot": "00-orbit-with-estate" },
     { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
     { "name": "enter-walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 15000 },
     { "name": "enter-walk-splash-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },

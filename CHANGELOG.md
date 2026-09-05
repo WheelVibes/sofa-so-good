@@ -27,6 +27,28 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.7 — the estate shows in ORBIT too (user decision; supersedes "dollhouse stays clean")
+
+PHOTO-BACKDROP's product decision kept the orbit dollhouse free of any surround. The user reversed it
+on 2026-09-05: orbit should read as a real block in a real estate. `Estate.tsx` now renders in walk
+AND orbit (not the room editor), and in orbit the layout goes through the pure `sectionCut(layout,
+cutY)` — the own block is cut at the flat's ceiling like a building section (`own.above`/`own.roof`
+dropped, wing `yMax` clamped), so the dollhouse stays open from above while neighbours, ground, roads,
+trees, corridor and the storeys below render in full. Every estate mesh and tree `InstancedMesh` has
+a no-op `raycast`, so orbit picking and `onPointerMissed` deselect fall through to the flat (probe:
+41 of 41 meshes inert). Ground plane 700 → 360 m (the orbit `maxDistance` is 60 m, so its edge is
+unreachable). Meshes now carry their layout key as `name`, which is what the probes count.
+
+Verified on the real GPU (`scripts/scenarios/estate-orbit-verify.json`) at 13:00 and 20:00: the flat
+open from above, the own block a low cut section rather than a tower, neighbours across the road,
+lit windows and corridor tubes at night; walk frames unchanged (43 meshes = 41 + above/roof).
+`frame-time.mjs MODE=orbit`: p50 10.8–12.9 / 12.8 ms, p90 13.6–14.5 / 13.6 ms (on / off) — steady
+state within noise; a one-off ~0.8 s max on the first orbit mount is the estate materials' shader
+compile. Follow-up noted from the night frame: the wings' corridor tubes bloom into continuous
+lines at 20:00 and want a lower night mask value.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.0.6 — PLUMBING-FITTINGS: floor traps, taps, pipes and the heater, rendered
 
 The wet-area sibling of WALL-FITTINGS. The plan's plumbing points (`plan.plumbingPoints`, or
